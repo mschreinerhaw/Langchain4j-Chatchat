@@ -89,6 +89,12 @@ Java 核对模型回执中实际 toolCallId、工具名和参数，工具必须�
 
 ## 后续插件接口和版本限制
 
+候选执行策略单独使用 `runtime-coding:native-project:v2`，SDK 仍固定 0.0.93。新准入还需开启 `chatchat.coding.native.pipefail-verification-enabled`，默认关闭。冻结的 context 绑定 `BASH_PIPEFAIL_V1` 和 wrapper/base helper Hash；MCP 与 Worker 能力缺失在推理前拒绝。旧 profile 和 helper 原始字节保留，新 profile 不携带旧 marker，旧组件不能将其静默降级为 v1。
+
+新策略允许声明命令的受限 head/tail 输出过滤及最多三段 cat/ls/pwd/md5sum/sha256sum 的无 shell 控制字符检查，以 `&&` 连接；不接受环境修改、提前 exit、任意其他程序、额外控制流或失败掩盖后缀。它只核对执行身份，最终仍要求实际退出码、当前源码 Hash、结果文件及独立停止证明。模型可见工具参数保持 SDK 原定义。之后匹配的验证失败或结果丢失会使之前的成功失效；独立项目验收继续单独标注。
+
+新策略将 SDK 等待命令回执的期限绑定原任务剩余 deadline，避免 SDK 内部并发命令的 30 秒等待先于受控执行结束。任务、模型、Sandbox 和 CPU 上限不变。回滚前必须关闭准入并排空新策略任务；后续语义变更应新增策略版本并保留旧 helper，不覆盖已冻结版本。归档代码和执行回执仍通过原 Silo 及用户资产接口读取。
+
 已发布 Skills 通过既有 SkillResolver、SkillExecutionScopePort、CodingSkillReader 和 SDK discovery / loader 接入。通用任务显式冻结所选包，按需披露，逐次复核授权；不自动加载金融方法。Skill 脚本暂不自动挂载到执行器，读取资源不等同获得宿主执行权限。
 
 Node 保留 SDK `createMcpTools` 的受控 provider 端口。独立项目 API 当前不接受任意 MCP 地址或授予 MCP 工具，Java MCP 授权代理及动态 Schema 的生产整链仍待完成。不得将这一预留接口计为完整 MCP 验收。业务数据、报告和数据库工具须在通用能力达标后，以明确的资源及工具合同接入；不在基础 Agent 中新增业务修复决策。

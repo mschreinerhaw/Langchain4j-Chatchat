@@ -109,3 +109,15 @@ Node 新测试实际经过安装版 `createDefaultTools`：修复前 1 fail（Ha
 
 新增回归修复前：Java 4 项中 1 fail（日志 SHA256 `d287417b69cb109ac17006036268e098fe09c6a3b9ce67a2d4fff8b5c18f138f`）；安装版 SDK 对象工具测试 1 fail（`9aa3a1de7db8c2f26e28f1f13feedda4b31fc86fa0ebdf3268c3491d941ad5b7`）。修复后 Java 声明命令、真实 A2 工作区和 HTTP **26/26**，日志 `1bd6a85165359b0c583c9ff3bb6de54e14d1b03a6f0a9c2a2d5786d99c374295`；Node native runner/server **25/25**，日志 `822436bd5903cd8c2245a297d947941b76084489b21359060c617b1425dd35bc`。未改变模型、预算或 Agent Loop。
 
+## 版本化 pipefail 候选
+
+固定 SDK 的 Bash 描述建议 head/tail 过滤，旧完成校验却拒绝这类命令。候选 profile 为 `runtime-coding:native-project:v2`，保留 SDK 0.0.93、原生工具定义和 Agent Loop。`chatchat.coding.native.pipefail-verification-enabled` 默认 false；新任务显式启用后冻结策略及 helper 能力 Hash，旧 v1 任务使用原字节 helper。MCP 通过既有 input-capabilities 协商精确 wrapper/base Hash，Worker 通过既有 workspaceProfiles 协商版本；不匹配时在模型调用前拒绝。
+
+实际同镜像容器矩阵 **8 项预期行为一致**，见 [原始证明](evidence/native-coding-20261107/pipefail-executor-matrix-r1.json)。同一 KeyError 输出 Hash 不变，旧管道返回 0，新策略返回 1；SyntaxError、NameError、TypeError 的过滤管道返回 1，成功管道仍返回 0。显式 `|| true` 仍可得到 shell 的 0，但不能匹配治理验证身份；Java 负向测试覆盖该拒绝，不能将该用例的退出 0 解读为测试通过。
+
+原 helper SHA `768e21d085d74f98b77615acdab13f3de04a864293f366a21e6a2a2fa6659dcc` 未变。新 wrapper SHA `65b631cdb3323d09641767ae7328b78edd0f84e4c855c4a1fa12b1b033cdd82e`；通过环境设置复用原 SDK shell executor，没有实现第二套终端。
+
+Java 初次覆盖 **117 项，115 通过、2 项原执行面测试跳过**，包括 98 项 API、4 项 common 和 15 项 MCP；日志 `426501e5ddd272e22676b270b08cd85598a60b470ce47dc06680de94ab39ca7c`。随后对受限只读检查命令组合及声明匹配重测 API **24/24**，日志 `de8c98d17a6c59a8181f65a3c2baefa1b83f189069786744d975138cb64ce2ee`。覆盖 workload 伪造验证标志、退出码与独立停止回执不符、不同源码版本、缺少停止证明、MCP 不支持时零任务准入、关闭开关后原策略和预算保持。
+
+Node 原生 runner/workspace/server **56 项，55 通过、1 项 Windows 链接权限跳过**，日志 `19da1d54a84cbc36716c9c37222d7f8447f84e07b68c0b690e6f95a1ab27d008`。新 profile 覆盖过滤执行、旧回执不得冒充新策略、后续匹配测试失败或结果缺失时使先前成功失效。SDK 等待回执上限绑定原任务剩余期限；队列测试证明短 SDK timeout 不等于执行器停止。任务 300 秒、Sandbox 单次 75 秒、模型和 CPU 预算保持原值，旧 profile 的等待设置不变。以上组件与执行器证明不替代真实模型验收。
+

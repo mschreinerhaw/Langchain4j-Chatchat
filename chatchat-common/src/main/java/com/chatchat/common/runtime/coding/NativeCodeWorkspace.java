@@ -11,7 +11,8 @@ public final class NativeCodeWorkspace {
     public static final String PROFILE="runtime-coding:native-project:v1";
     public static final String VERSION="runtime_os.native_code_tree.v1";
     public static final Set<String> TOOLS=Set.of("read_files","search_codebase","editor","apply_patch","run_commands","skills");
-    public static boolean enabled(CodingTaskContract task){return task!=null&&task.metadataRefs()!=null&&task.metadataRefs().contains(PROFILE);}
+    public static boolean enabled(CodingTaskContract task){return task!=null&&task.metadataRefs()!=null
+        &&(task.metadataRefs().contains(PROFILE)||task.metadataRefs().contains(NativeExecutorPolicy.PIPEFAIL.profile()));}
     public static String path(String value){
         if(value==null||value.length()>160||!value.matches("[A-Za-z0-9_.-]+(?:/[A-Za-z0-9_.-]+)*"))throw new SecurityException("CODE_PATH_DENIED");
         for(String part:value.split("/"))if(Set.of(".","..",".git").contains(part.toLowerCase(Locale.ROOT))||part.endsWith(".")

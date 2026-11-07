@@ -25,7 +25,9 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 @RequiredArgsConstructor
 public class PythonDataFileService {
     public List<String> inputCapabilities() {
-        return properties.isSharedInputsEnabled()?List.of("JSON_LINES","PARQUET","CSV","SHARED_DIRECTORY"):List.of("JSON_LINES","REMOTE_UPLOAD");
+        var capabilities=new ArrayList<>(properties.isSharedInputsEnabled()?List.of("JSON_LINES","PARQUET","CSV","SHARED_DIRECTORY"):List.of("JSON_LINES","REMOTE_UPLOAD"));
+        if(properties.isNativeCodingEnabled())capabilities.add(com.chatchat.common.runtime.coding.NativeExecutorPolicy.PIPEFAIL.capability());
+        return List.copyOf(capabilities);
     }
     public DataFileResult registerShared(String tenant,String owner,String id,String fileName,String hash,long size) {
         if(!properties.isSharedInputsEnabled())throw new IllegalStateException("Shared input delivery is disabled");

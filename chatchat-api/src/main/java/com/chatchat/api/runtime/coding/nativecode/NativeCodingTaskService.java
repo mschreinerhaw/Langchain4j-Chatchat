@@ -26,6 +26,9 @@ public final class NativeCodingTaskService {
     private com.chatchat.runtime.skill.port.inbound.SkillResolver skillResolver;
     private com.chatchat.common.retrieval.SkillExecutionScopePort skillScopes;
     private boolean admissionEnabled;
+    private boolean pipefailVerificationEnabled;
+    @Value("${chatchat.coding.native.pipefail-verification-enabled:false}")
+    public void setPipefailVerificationEnabled(boolean enabled){pipefailVerificationEnabled=enabled;}
     @Value("${chatchat.coding.native.admission-enabled:false}")
     public void setAdmissionEnabled(boolean enabled){admissionEnabled=enabled;}
     @org.springframework.beans.factory.annotation.Autowired(required=false)
@@ -64,6 +67,11 @@ public final class NativeCodingTaskService {
                     ||!json.valueToTree(initial.getOrDefault("skillBindings",List.of())).equals(json.valueToTree(bindings)))throw new IllegalArgumentException("Native Skill request identity conflict");
             if(!Objects.equals(initial.get("initialFilesHash"),CodingCanonicalHash.sha256Value(files)))throw new IllegalArgumentException("Native source request identity conflict");
         }else{
+            var executorPolicy=pipefailVerificationEnabled?NativeExecutorPolicy.PIPEFAIL:NativeExecutorPolicy.LITERAL;
+            if(executorPolicy==NativeExecutorPolicy.PIPEFAIL){
+                var capabilities=python.inputCapabilities();
+                if(capabilities==null||!capabilities.contains(executorPolicy.capability()))throw new SecurityException("MCP has not negotiated the pinned native executor policy");
+            }
             var authorizedSkills=bindings.isEmpty()?Map.<String,Object>of():skillCatalog(scope,bindings);
             if(environment.isBlank())throw new SecurityException("Native Sandbox environment is not configured");
             var env=python.environment(environment);var runtime=python.environmentRuntime(environment);
@@ -75,6 +83,7 @@ public final class NativeCodingTaskService {
             payload.put("taskId",task);payload.put("initial",initial);payload.put("initialFilesHash",CodingCanonicalHash.sha256Value(files));payload.put("modelName",model);
             payload.put("editStrategy",strategy);payload.put("readOnlyPaths",readOnly);payload.put("acceptanceCommand",acceptance);
             payload.put("skillBindings",bindings);
+            if(executorPolicy==NativeExecutorPolicy.PIPEFAIL){payload.put("nativeExecutionPolicy",executorPolicy.id());payload.put("nativeExecutorCapability",executorPolicy.capability());}
             String providerModel=models.connection(model).getModelName();payload.put("routingModelId",providerModel==null||providerModel.isBlank()?model:providerModel);
             String inputId="native-input:"+task;register(scope,task,inputId,NativeCodingWorkspaceService.INPUT_TYPE,payload,List.of());
             var budget=new CodingTaskContract.Budget("native-budget:"+task,Instant.now().plusSeconds(300).truncatedTo(java.time.temporal.ChronoUnit.MILLIS),
@@ -84,13 +93,14 @@ public final class NativeCodingTaskService {
                 "pythonEnvironment",Map.of("environmentId",environment,"environmentVersion",runtime.environmentVersion(),"dockerImage",runtime.dockerImage(),
                     "imageDigest",runtime.imageDigest(),"pythonVersion",Objects.toString(runtime.pythonVersion(),""),"packages",runtime.packages())));
             context.put("schemaVersion","runtime_os.coding.context.v1");context.put("consistency","TASK_SNAPSHOT");
+            if(executorPolicy==NativeExecutorPolicy.PIPEFAIL){context.put("nativeExecutionPolicy",executorPolicy.id());context.put("nativeExecutorCapability",executorPolicy.capability());}
             var tools=new ArrayList<>(List.of("read_files","search_codebase","editor","apply_patch","run_commands"));
             if(!bindings.isEmpty()){
                 context.put("skills",authorizedSkills);tools.add("skills");
             }
             contract=new CodingTaskContract(CodingProtocol.WORKSPACE_VERSION,task,scope,
                 objective,
-                "runtime-evidence:"+inputId,List.of(NativeCodeWorkspace.PROFILE),"native-workspace:"+task,
+                "runtime-evidence:"+inputId,List.of(executorPolicy.profile()),"native-workspace:"+task,
                 new CodingTaskContract.Authorization("native-authority:"+task,tools,
                     List.of(),List.of("native-project"),List.of("native-project"),CodingTaskContract.NetworkPolicy.NONE,List.of(),
                     List.of(CodingTaskContract.SideEffect.WORKSPACE_WRITE,CodingTaskContract.SideEffect.CODE_EXECUTION)),budget,environment,"native-project-tests:v1",
@@ -147,7 +157,7 @@ public final class NativeCodingTaskService {
                     ||!manifest.get("sha256").equals(prepared.path("manifestHash").asText())
                     ||!prepared.path("sourceHash").asText().equals(execution.path("sourceHash").asText())
                     ||!prepared.path("commandHash").asText().equals(execution.path("commandHash").asText())
-                    ||!NativeCommandVerification.matches(acceptance,prepared.path("commandHash").asText()))
+                    ||!NativeCommandVerification.certifies(c,acceptance,prepared,execution))
                 throw new SecurityException("Declared verification command was not the completed execution");
             if(((Map<?,?>)tree.get("files")).isEmpty())throw new SecurityException("No code delivered");
         }

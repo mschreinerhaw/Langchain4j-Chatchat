@@ -28,6 +28,10 @@ public record CodingTaskContract(String schemaVersion, String taskId, KernelData
         scope = CodingProtocol.scope(scope); CodingProtocol.required(objective, "objective");
         inputSnapshotRef = CodingProtocol.ref(inputSnapshotRef, "inputSnapshotRef");
         metadataRefs = CodingProtocol.strings(metadataRefs, "metadataRefs", true);
+        CodingProtocol.require(metadataRefs.contains(NativeExecutorPolicy.PIPEFAIL.profile())==runtimeContext.containsKey("nativeExecutionPolicy"),
+            "Native execution policy requires its negotiated versioned profile");
+        CodingProtocol.require(!(metadataRefs.contains(NativeExecutorPolicy.LITERAL.profile())&&metadataRefs.contains(NativeExecutorPolicy.PIPEFAIL.profile())),
+            "Ambiguous native executor profile");
         workspaceRef = CodingProtocol.ref(workspaceRef, "workspaceRef");
         CodingProtocol.required(authorization, "authorization"); CodingProtocol.required(budget, "budget");
         if(runtimeContext.get("inputFiles") instanceof java.util.Map<?,?> files)

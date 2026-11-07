@@ -98,7 +98,7 @@ public class PythonDockerRuntime {
         boolean nativeProject=Files.isDirectory(scripts.resolve(NativeProjectSnapshot.DIRECTORY),LinkOption.NOFOLLOW_LINKS);
         if(nativeProject&&!properties.isNativeCodingEnabled())throw new SecurityException("Native coding is disabled");
         if(Files.isSymbolicLink(scripts.resolve(NativeProjectSnapshot.DIRECTORY)))throw new SecurityException("Native project link denied");
-        for (String helper : nativeProject?List.of("_runtime_capture.py", "runtime_input.py","native_command.mjs"):List.of("_runtime_capture.py", "runtime_input.py")) {
+        for (String helper : nativeProject?List.of("_runtime_capture.py", "runtime_input.py","native_command.mjs","native_command_pipefail.mjs"):List.of("_runtime_capture.py", "runtime_input.py")) {
             if (fileName.equals(helper)) throw new IllegalArgumentException("Reserved Runtime script name");
             String resourceName = helper.equals("_runtime_capture.py") ? "runtime_capture.py" : helper;
             try (var resource = PythonDockerRuntime.class.getResourceAsStream("/python/" + resourceName)) {

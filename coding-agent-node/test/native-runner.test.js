@@ -4,7 +4,7 @@ import {mkdtemp,rm} from 'node:fs/promises';
 import {tmpdir} from 'node:os';
 import {join} from 'node:path';
 import {createHash} from 'node:crypto';
-import {createNativeCodingRun,NATIVE_CODING_PROFILE} from '../src/native-runner.js';
+import {createNativeCodingRun,NATIVE_CODING_PROFILE,NATIVE_PIPEFAIL_PROFILE} from '../src/native-runner.js';
 
 const hash='a'.repeat(64);
 function contract(){return{schemaVersion:'runtime_os.coding.v2',taskId:'native-task',scope:{tenantId:'tenant',userId:'owner',runId:'native-run'},
@@ -35,6 +35,48 @@ function scripted(turns,startOrdinal=0){let index=0;return{async *stream(request
   if(turn.text)yield{type:'text-delta',text:turn.text};
   yield{type:'usage',usage:{inputTokens:10,outputTokens:5}};yield{type:'finish',reason:turn.calls?.length?'tool-calls':'stop'};
 }};}
+function pipefailContract(){const c=contract();c.budget.deadlineAt=new Date(Date.now()+5000).toISOString();c.metadataRefs=[NATIVE_PIPEFAIL_PROFILE];c.runtimeContext={nativeExecutionPolicy:'BASH_PIPEFAIL_V1',
+  nativeExecutorCapability:'NATIVE_EXECUTOR:BASH_PIPEFAIL_V1:'+hash+':'+hash};return c;}
+
+test('versioned native policy accepts host-bound filtered verification without rewriting SDK commands',async t=>{
+  const declared='python -m unittest discover -s tests -v',command=declared+' 2>&1 | tail -20';
+  const h=await host(t,{async openCodeWorkspace(){return{files:{'main.py':'value = 1\n'},modelId:'qwen3.8-flash',acceptanceCommand:declared,verificationPolicy:'BASH_PIPEFAIL_V1'};}});
+  h.gateway.executeCodeCommand=async(_c,value)=>{h.commands.push(value);assert.equal(value.command,command);return{operationId:'filtered',manifestHash:value.manifest.sha256,
+    commandHash:createHash('sha256').update(command).digest('hex'),executorStopped:true,stopProofRef:'test:stop',resultAvailable:true,exitCode:0,stdout:'OK',stderr:'',
+    verificationPolicy:'BASH_PIPEFAIL_V1',declaredCommandMatched:true,declaredCommandSha256:createHash('sha256').update(declared).digest('hex')};};
+  const result=await createNativeCodingRun(pipefailContract(),h.gateway,{model:scripted([
+    {calls:[{name:'run_commands',input:{commands:[command]}}]}, {text:'Read the successful original test result.'},
+  ]),contractHash:hash,workspaceBase:h.base}).run();
+  assert.equal(result.status,'completed');assert.equal(h.commands.length,1);
+});
+
+for(const failure of ['nonzero','missing-result'])test('later declared verification '+failure+' invalidates an earlier success on unchanged source',async t=>{
+  const declared='python -m unittest discover -s tests -v';
+  const h=await host(t,{async openCodeWorkspace(){return{files:{'main.py':'value = 1\n'},modelId:'qwen3.8-flash',acceptanceCommand:declared,verificationPolicy:'BASH_PIPEFAIL_V1'};}});
+  h.gateway.executeCodeCommand=async(_c,value)=>{h.commands.push(value);const bad=h.commands.length===2;return{
+    operationId:'verification-'+h.commands.length,manifestHash:value.manifest.sha256,executorStopped:true,stopProofRef:'test:stop',
+    resultAvailable:!(bad&&failure==='missing-result'),exitCode:bad&&failure==='nonzero'?1:0,stdout:bad?'':'OK',stderr:bad?'Actual observed failure':'',
+    verificationPolicy:'BASH_PIPEFAIL_V1',declaredCommandMatched:true,declaredCommandSha256:createHash('sha256').update(declared).digest('hex')};};
+  const call={name:'run_commands',input:{commands:[declared]}};
+  const result=await createNativeCodingRun(pipefailContract(),h.gateway,{model:scripted([
+    {calls:[call]},{calls:[call]},{text:'Done.'},
+    {assert(request){assert.match(JSON.stringify(request.messages),/no successful, stopped execution receipt/);},calls:[call]},
+    {text:'Read the later successful result.'},
+  ]),contractHash:hash,workspaceBase:h.base}).run();
+  assert.equal(result.status,'completed');assert.equal(h.commands.length,3);assert.equal(result.modelOrdinal,5);
+});
+
+test('versioned profile cannot accept legacy receipt flags or a different declaration',async t=>{
+  const declared='python -m unittest discover -s tests -v';
+  const h=await host(t,{async openCodeWorkspace(){return{files:{'main.py':'value = 1\n'},modelId:'qwen3.8-flash',acceptanceCommand:declared,verificationPolicy:'BASH_PIPEFAIL_V1'};}});
+  h.gateway.executeCodeCommand=async(_c,value)=>({operationId:'not-bound',manifestHash:value.manifest.sha256,executorStopped:true,stopProofRef:'test:stop',
+    resultAvailable:true,exitCode:0,stdout:'OK',stderr:'',commandHash:createHash('sha256').update(declared).digest('hex'),
+    verificationPolicy:'LITERAL_COMMAND_V1',declaredCommandMatched:true,declaredCommandSha256:hash});
+  const result=await createNativeCodingRun(pipefailContract(),h.gateway,{model:scripted([
+    {calls:[{name:'run_commands',input:{commands:[declared]}}]}, {text:'Done.'},
+  ]),contractHash:hash,workspaceBase:h.base}).run();
+  assert.equal(result.status,'failed');
+});
 test('one native Agent reads, executes failing tests, edits a file, executes and finishes',async t=>{
   const h=await host(t);const model=scripted([
     {calls:[{name:'read_files',input:{files:[{path:'calc.py'},{path:'tests/test_calc.py'}]}}]},

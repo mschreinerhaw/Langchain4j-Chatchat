@@ -10,6 +10,12 @@ import static org.assertj.core.api.Assertions.*;
 class NativeCodeWorkspaceTest {
     final ObjectMapper json=new ObjectMapper();
     final KernelDataScope scope=new KernelDataScope("tenant","owner",null,null,"run",null,Map.of());
+    @Test void versionedExecutorKeepsOriginalHelperBytesAndAdvertisesExactWrapperAndBase(){
+        assertThat(NativeExecutorPolicy.LITERAL.helperSha256()).isEqualTo("768e21d085d74f98b77615acdab13f3de04a864293f366a21e6a2a2fa6659dcc");
+        assertThat(NativeExecutorPolicy.PIPEFAIL.profile()).isNotEqualTo(NativeExecutorPolicy.LITERAL.profile());
+        assertThat(NativeExecutorPolicy.PIPEFAIL.capability()).isEqualTo("NATIVE_EXECUTOR:BASH_PIPEFAIL_V1:"
+            +NativeExecutorPolicy.PIPEFAIL.helperSha256()+":"+NativeExecutorPolicy.LITERAL.helperSha256());
+    }
     @Test void nodeGeneratedUnicodeGoldenMatchesJavaAndBindsScope()throws Exception {
         var vector=json.readTree(getClass().getResourceAsStream("/runtime/coding/native-code-vector.json"));
         Map<String,String> files=json.convertValue(vector.get("files"),new TypeReference<>(){});

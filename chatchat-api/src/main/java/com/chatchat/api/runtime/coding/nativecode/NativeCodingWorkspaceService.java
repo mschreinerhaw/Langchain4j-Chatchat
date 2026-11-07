@@ -41,6 +41,7 @@ public final class NativeCodingWorkspaceService {
         return requireSnapshot(c);
     }
     public Map<String,Object> requireSnapshot(CodingTaskContract c){
+        NativeExecutorPolicy.from(c);
         if(!NativeCodeWorkspace.enabled(c)||!CodingProtocol.WORKSPACE_VERSION.equals(c.schemaVersion())
                 ||c.authorization().networkPolicy()!=CodingTaskContract.NetworkPolicy.NONE
                 ||!c.authorization().allowedSideEffects().containsAll(List.of(CodingTaskContract.SideEffect.CODE_EXECUTION,CodingTaskContract.SideEffect.WORKSPACE_WRITE)))
@@ -62,6 +63,9 @@ public final class NativeCodingWorkspaceService {
         response.put("modelId",input.getOrDefault("routingModelId",input.get("modelName")));response.put("providerId",input.getOrDefault("providerId","runtime"));
         if(input.get("editStrategy") instanceof String strategy&&!"auto".equals(strategy))response.put("editStrategy",strategy);
         response.put("requireExecution",true);
+        var executorPolicy=NativeExecutorPolicy.from(c);
+        if(executorPolicy==NativeExecutorPolicy.PIPEFAIL&&!executorPolicy.capability().equals(c.runtimeContext().get("nativeExecutorCapability")))throw new SecurityException("Pinned native executor version unavailable");
+        response.put("verificationPolicy",executorPolicy.id());
         if(input.get("acceptanceCommand") instanceof String command){response.put("acceptanceCommand",command);response.put("acceptanceCommandHashes",NativeCommandVerification.hashes(command));}
         var execution=tasks.privateState(c.scope(),c.taskId(),"native-last-execution");
         if(execution!=null)response.put("lastExecution",map(execution));

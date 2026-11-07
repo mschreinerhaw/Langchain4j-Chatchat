@@ -4,11 +4,28 @@ import {mkdtemp,mkdir,readFile,writeFile,rm,symlink,link} from 'node:fs/promises
 import {join} from 'node:path';
 import {tmpdir} from 'node:os';
 import {randomUUID} from 'node:crypto';
-import {createEditorExecutor} from '@cline/sdk';
+import {createEditorExecutor,createDefaultTools} from '@cline/sdk';
 import {createNativeCodeWorkspace} from '../src/native-workspace.js';
 import {validateRepairEdit} from '../src/code-repair.js';
 const context={toolCallId:'direct-native-test'};
 const scope={tenantId:'tenant',userId:'owner',runId:'run'};
+test('governed SDK wait covers queued receipts without treating a short SDK timeout as stopped execution',async t=>{
+  let queue=Promise.resolve(),finished=0;
+  const raw=createDefaultTools({cwd:'.',shell:'bash',bashTimeoutMs:20,executors:{bash:()=>{
+    const result=queue.then(async()=>{await new Promise(resolve=>setTimeout(resolve,15));finished++;return 'stopped';});queue=result;return result;
+  }},enableBash:true,enableEditor:false,enableApplyPatch:false,enableReadFiles:false,enableSearch:false,
+  enableWebFetch:false,enableSkills:false,enableAskQuestion:false,enableSubmitAndExit:false});
+  const early=await raw.find(tool=>tool.name==='run_commands').execute({commands:['first','second']},{toolCallId:'short-sdk-wait'});
+  assert.ok(early.some(value=>value.success===false));assert.ok(finished<2,'A tool timeout did not stop the queued executor');
+  await queue;
+  let active=0,stopped=0;
+  const h=await fixture(t,{executionMode:'commands',commandTimeoutMs:200,async runCommand(value){
+    assert.equal(active,0);active++;await new Promise(resolve=>setTimeout(resolve,15));active--;stopped++;
+    return{manifestHash:value.manifest.sha256,executorStopped:true,stopProofRef:'component:stopped',exitCode:0,stdout:'observed',stderr:''};
+  }});
+  const results=await h.call('run_commands',{commands:['first','second']});
+  assert.ok(results.every(value=>value.success));assert.equal(stopped,2);assert.equal(active,0);
+});
 async function toolFailure(promise,pattern) {const value=await promise;assert.equal(value.success,false);if(pattern)assert.match(value.error,pattern);return value;}
 async function fixture(t,options={}) {
   const base=await mkdtemp(join(tmpdir(),'native-workspace-test-'));const commits=[],executions=[];

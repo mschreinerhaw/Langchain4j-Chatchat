@@ -11,7 +11,8 @@ import {prepareNativeSkills} from './native-skills.js';
 import {createHash} from 'node:crypto';
 
 export const NATIVE_CODING_PROFILE='runtime-coding:native-project:v1';
-export const isNativeCodingTask=contract=>contract?.metadataRefs?.includes(NATIVE_CODING_PROFILE)===true;
+export const NATIVE_PIPEFAIL_PROFILE='runtime-coding:native-project:v2';
+export const isNativeCodingTask=contract=>[NATIVE_CODING_PROFILE,NATIVE_PIPEFAIL_PROFILE].some(profile=>contract?.metadataRefs?.includes(profile)===true);
 
 export function createNativeCodingRun(contract,gateway,options={}) {
   if(!isNativeCodingTask(contract)||contract.schemaVersion!=='runtime_os.coding.v2'
@@ -24,14 +25,24 @@ export function createNativeCodingRun(contract,gateway,options={}) {
   const session=createNativeSession(contract,gateway,options),cancel=new AbortController();
   let agent,workspace,skills,preparing=null,lastExecution=null,lastVerification=null,running=false,initialAcceptanceCommand=null;
   let acceptanceCommandHashes=new Set();
+  const verificationPolicy=contract.metadataRefs.includes(NATIVE_PIPEFAIL_PROFILE)?'BASH_PIPEFAIL_V1':'LITERAL_COMMAND_V1';
+  if(verificationPolicy==='BASH_PIPEFAIL_V1'&&(contract.runtimeContext?.nativeExecutionPolicy!==verificationPolicy
+      ||!/^NATIVE_EXECUTOR:BASH_PIPEFAIL_V1:[a-f0-9]{64}:[a-f0-9]{64}$/.test(contract.runtimeContext?.nativeExecutorCapability??'')))
+    throw new TypeError('Pinned native executor policy snapshot required');
+  let declarationHash=null;
+  const declaredReceipt=receipt=>verificationPolicy==='BASH_PIPEFAIL_V1'&&receipt?.verificationPolicy===verificationPolicy
+    &&receipt.declaredCommandMatched===true&&receipt.declaredCommandSha256===declarationHash;
   const acceptedVerification=receipt=>receipt?.executorStopped===true&&receipt.exitCode===0&&receipt.resultAvailable!==false
-    &&acceptanceCommandHashes.has(receipt.commandHash);
+    &&(verificationPolicy==='BASH_PIPEFAIL_V1'?declaredReceipt(receipt):acceptanceCommandHashes.has(receipt.commandHash));
   const allowed=new Set(contract.authorization.allowedTools);
   const replayedTools=new Map();
   const admittedTools=new Set();
   async function prepare(){
     const initial=await gateway.openCodeWorkspace(contract,cancel.signal);
     initialAcceptanceCommand=initial.acceptanceCommand??null;
+    if((initial.verificationPolicy??'LITERAL_COMMAND_V1')!==verificationPolicy
+        ||contract.metadataRefs.includes(NATIVE_PIPEFAIL_PROFILE)&&contract.metadataRefs.includes(NATIVE_CODING_PROFILE))throw new TypeError('Host native verification policy differs from the frozen profile');
+    declarationHash=initialAcceptanceCommand?createHash('sha256').update(initialAcceptanceCommand).digest('hex'):null;
     const hashes=initial.acceptanceCommandHashes??(initialAcceptanceCommand?[createHash('sha256').update(initialAcceptanceCommand).digest('hex')]:[]);
     if(!Array.isArray(hashes)||hashes.length>16||hashes.some(v=>typeof v!=='string'||!/^[a-f0-9]{64}$/.test(v))
         ||initialAcceptanceCommand&&!hashes.includes(createHash('sha256').update(initialAcceptanceCommand).digest('hex')))
@@ -45,12 +56,13 @@ export function createNativeCodingRun(contract,gateway,options={}) {
     lastVerification=initial.lastVerification??(acceptedVerification(lastExecution)?lastExecution:null);
     workspace=await createNativeCodeWorkspace({base:options.workspaceBase??tmpdir(),taskId:contract.taskId,scope:contract.scope,
       files:initial.files,restoredManifest:initial.manifest,executionMode:'commands',strategy,signal:cancel.signal,
+      ...(verificationPolicy==='BASH_PIPEFAIL_V1'?{commandTimeoutMs:Math.max(1,Math.min(300000,Date.parse(contract.budget.deadlineAt)-Date.now()))}:{}),
       authorize:value=>gateway.authorizeCodeTool(contract,value,cancel.signal),
       commit:value=>gateway.commitCodeWorkspace(contract,value,cancel.signal),
       async runCommand(value){
         const receipt=await gateway.executeCodeCommand(contract,value,value.signal);
         lastExecution=receipt;
-        if(acceptedVerification(receipt))lastVerification=receipt;
+        if(declaredReceipt(receipt)||acceptedVerification(receipt))lastVerification=receipt;
         return receipt;
       }});
     let tools=[...workspace.tools];

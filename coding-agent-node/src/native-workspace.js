@@ -44,7 +44,8 @@ export function codeManifest(taskId, files, version = 0, parent = null, scopeBin
 }
 
 export async function createNativeCodeWorkspace({ base, taskId, scope, files, restoredManifest,
-  strategy = 'editor', authorize, commit, execute, runCommand, lookup, signal, executionMode = 'none' }) {
+  strategy = 'editor', authorize, commit, execute, runCommand, lookup, signal, executionMode = 'none',commandTimeoutMs }) {
+  if(commandTimeoutMs!==undefined&&(!Number.isSafeInteger(commandTimeoutMs)||commandTimeoutMs<1||commandTimeoutMs>300000))throw new TypeError('Invalid governed command wait deadline');
   if (!/^[a-zA-Z0-9_-]{1,128}$/.test(taskId) || !['editor','patch'].includes(strategy)
       || ![scope?.tenantId,scope?.userId,scope?.runId].every(v=>typeof v==='string'&&v.length>0&&v.length<=128)
       || !['none','python','commands'].includes(executionMode)
@@ -199,7 +200,7 @@ export async function createNativeCodeWorkspace({ base, taskId, scope, files, re
     if(receipt.exitCode!==0)throw new CommandExitError(receipt.exitCode,output);
     return output;
   });
-  const tools=createDefaultTools({cwd:'/workspace/code',shell:'bash',executors,enableReadFiles:true,enableSearch:true,
+  const tools=createDefaultTools({cwd:'/workspace/code',shell:'bash',executors,...(commandTimeoutMs===undefined?{}:{bashTimeoutMs:commandTimeoutMs}),enableReadFiles:true,enableSearch:true,
     enableEditor:strategy==='editor',enableApplyPatch:strategy==='patch',enableBash:executionMode==='commands',
     enableWebFetch:false,enableSkills:false,enableAskQuestion:false,enableSubmitAndExit:false});
   if(executionMode==='python')tools.push({name:'python_execute',description:'Execute the current code files in the authorized Python Sandbox. Source versions are managed by Runtime.',

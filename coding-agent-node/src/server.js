@@ -4,7 +4,7 @@ import { createHash, createHmac, randomUUID, timingSafeEqual } from 'node:crypto
 import { readFileSync } from 'node:fs';
 import { pathToFileURL } from 'node:url';
 import { createCodingRun } from './runner.js';
-import {createNativeCodingRun,isNativeCodingTask,NATIVE_CODING_PROFILE} from './native-runner.js';
+import {createNativeCodingRun,isNativeCodingTask,NATIVE_CODING_PROFILE,NATIVE_PIPEFAIL_PROFILE} from './native-runner.js';
 import { createRuntimeModel } from './runtime-model.js';
 import { verifyClinePackages } from './sdk-packages.js';
 import { MonitorStore, createMonitorHandler } from './monitor.ts';
@@ -214,7 +214,7 @@ export function createCodingServer({ secret, callbackUrl, modelFactory, gatewayF
           codeLifecycleVersions: ['runtime_os.code_lifecycle.v1'],deferredToolsProfile:'runtime-coding:deferred-tools:v1',
           analysisProfiles: ['runtime-coding:analysis-fast-path:v1'],
           analysisTools: ['input_read','report_submit','code_read','knowledge_search','knowledge_get_document','knowledge_read','knowledge_list_sections','knowledge_related','news_search','news_get_article','news_related_events','market_search','market_get_history','market_get_indicators','market_get_snapshot','web_search','web_fetch'],
-          workspaceProfiles: ['runtime-coding:workspace-fast-path:v1','runtime-coding:sql-metadata-tools:v1',...(nativeCodingEnabled?[NATIVE_CODING_PROFILE]:[])] });
+          workspaceProfiles: ['runtime-coding:workspace-fast-path:v1','runtime-coding:sql-metadata-tools:v1',...(nativeCodingEnabled?[NATIVE_CODING_PROFILE,NATIVE_PIPEFAIL_PROFILE]:[])] });
       }
       if (request.method === 'GET' && url.pathname === '/healthz')
         return response(reply, 200, { status: 'UP', sdk: '@cline/agents@0.0.93',

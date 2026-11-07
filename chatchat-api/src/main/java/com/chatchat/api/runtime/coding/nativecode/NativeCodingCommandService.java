@@ -23,13 +23,23 @@ public final class NativeCodingCommandService {
     private final McpPythonControlPlanePort python;
     private final ObjectMapper json;
     private final String executorHelperSha256;
+    private final String pipefailHelperSha256;
     public NativeCodingCommandService(DurableCodingTaskService tasks,NativeCodingWorkspaceService workspace,
             CodingPythonExecutionBridge bridge,McpPythonControlPlanePort python,ObjectMapper json){
         this.tasks=tasks;this.workspace=workspace;this.bridge=bridge;this.python=python;this.json=json;
         this.executorHelperSha256=helperHash();
+        this.pipefailHelperSha256=NativeExecutorPolicy.PIPEFAIL.helperSha256();
+    }
+    public void requireExecutorCapability(CodingTaskContract c){
+        var policy=NativeExecutorPolicy.from(c);if(policy==NativeExecutorPolicy.LITERAL)return;
+        var capabilities=python.inputCapabilities();
+        if(!policy.capability().equals(c.runtimeContext().get("nativeExecutorCapability"))||capabilities==null||!capabilities.contains(policy.capability()))
+            throw new SecurityException("Pinned native executor capability unavailable");
     }
     public Map<String,Object> execute(CodingTaskContract c,CodingJournal.Lease lease,Map<String,Object> request){
         tasks.requireWorkerLease(c.scope(),c.taskId(),lease,false);workspace.requireAuthorized(c);
+        var executorPolicy=NativeExecutorPolicy.from(c);
+        if(executorPolicy==NativeExecutorPolicy.PIPEFAIL&&!executorPolicy.capability().equals(c.runtimeContext().get("nativeExecutorCapability")))throw new SecurityException("Pinned native executor version unavailable");
         String identity=Objects.toString(request.get("operationId"),"");
         int split=identity.lastIndexOf(":command:");
         if(split<1)throw new SecurityException("Native command identity required");
@@ -56,14 +66,20 @@ public final class NativeCodingCommandService {
             if(c.budget().maxCodeExecutions()<1||c.budget().maxCpuMillis()<1)throw new SecurityException("No command budget authorized");
             long timeout=Math.min(300000,Math.max(1,c.budget().maxCpuMillis()/c.budget().maxCodeExecutions()));
             timeout=Math.min(timeout,Math.max(1,Duration.between(Instant.now(),c.budget().deadlineAt()).toMillis()));
-            var spec=Map.of("toolInputJson",inputJson,"commandOrdinal",index+1,"commandHash",commandHash,
-                "intentHash",intent.path("intentHash").asText(),"manifestHash",manifest.get("sha256"),"timeoutMs",timeout);
+            var spec=new LinkedHashMap<String,Object>(Map.of("toolInputJson",inputJson,"commandOrdinal",index+1,"commandHash",commandHash,
+                "intentHash",intent.path("intentHash").asText(),"manifestHash",manifest.get("sha256"),"timeoutMs",timeout));
+            String declared=Objects.toString(workspace.requireAuthorized(c).get("acceptanceCommand"),"");
+            boolean eligible=NativeCommandVerification.eligible(declared,command);
+            if(executorPolicy==NativeExecutorPolicy.PIPEFAIL){spec.put("executorPolicy",executorPolicy.id());spec.put("baseHelperSha256",executorHelperSha256);
+                spec.put("verificationDeclarationSha256",NativeCommandVerification.declarationHash(declared));spec.put("verificationEligible",eligible);}
             String encoded=Base64.getEncoder().encodeToString(bytes(spec));
-            String helperHash=executorHelperSha256;
+            String helperHash=executorPolicy==NativeExecutorPolicy.PIPEFAIL?pipefailHelperSha256:executorHelperSha256;
+            String helperPath="/workspace/scripts/"+executorPolicy.helper();
             String source="import subprocess, hashlib\nfrom pathlib import Path\n"
-                +"if hashlib.sha256(Path('/workspace/scripts/native_command.mjs').read_bytes()).hexdigest() != '"+helperHash+"':\n"
+                +"if hashlib.sha256(Path('/workspace/scripts/native_command.mjs').read_bytes()).hexdigest() != '"+executorHelperSha256+"':\n"
                 +"    raise RuntimeError('NATIVE_EXECUTOR_VERSION_CHANGED')\n"
-                +"raise SystemExit(subprocess.call(['node', '/workspace/scripts/native_command.mjs', '"+encoded+"']))\n";
+                +(executorPolicy==NativeExecutorPolicy.PIPEFAIL?"if hashlib.sha256(Path('"+helperPath+"').read_bytes()).hexdigest() != '"+helperHash+"':\n    raise RuntimeError('NATIVE_EXECUTOR_VERSION_CHANGED')\n":"")
+                +"raise SystemExit(subprocess.call(['node', '"+helperPath+"', '"+encoded+"']))\n";
             byte[] tree=bytes(current);String fileHash=NativeCodeWorkspace.sha(tree),fileId="ncode-"+fileHash.substring(0,56);
             var allocation=tasks.allocateScript(c.scope(),c.taskId(),lease,operation);
             var value=new LinkedHashMap<String,Object>();value.put("operationId",operation);value.put("toolCallId",call);value.put("modelOperationId",intent.path("modelOperationId").asText());
@@ -72,6 +88,9 @@ public final class NativeCodingCommandService {
             value.put("fileId",fileId);value.put("fileHash",fileHash);value.put("treeSource","native-code:"+manifest.get("sha256"));
             value.put("timeoutMs",timeout);value.put("fileName",allocation.fileName());
             value.put("executorHelperSha256",helperHash);
+            value.put("executorPolicy",executorPolicy.id());
+            if(executorPolicy==NativeExecutorPolicy.PIPEFAIL){value.put("executorBaseHelperSha256",executorHelperSha256);
+                value.put("verificationEligible",eligible);value.put("verificationDeclarationSha256",NativeCommandVerification.declarationHash(declared));}
             tasks.privateState(c.scope(),c.taskId(),lease,key,null,json.valueToTree(value));prepared=tasks.privateState(c.scope(),c.taskId(),key);
         }
         if(!prepared.path("commandHash").asText().equals(commandHash)
@@ -120,7 +139,7 @@ public final class NativeCodingCommandService {
             missing.put("commandHash",prepared.path("commandHash").asText());missing.put("executorStopped",true);missing.put("stopProofRef",proof.stopProofRef());
             missing.put("exitCode",stopped.exitCode());missing.put("resultAvailable",false);missing.put("diagnosticCode","NATIVE_COMMAND_RESULT_UNAVAILABLE");
             missing.put("stdout",bridge.stdout(c.scope(),c.taskId(),operation));missing.put("stderr",bridge.stderr(c.scope(),c.taskId(),operation));
-            remember(c,lease,missing,remember);return missing;
+            annotateVerification(c,prepared,missing);remember(c,lease,missing,remember);return missing;
         }
         if(artifact.length>c.budget().maxOutputBytes())throw new SecurityException("Native terminal artifact exceeds task output cap");
         JsonNode result=parse(artifact);
@@ -136,6 +155,7 @@ public final class NativeCodingCommandService {
         response.put("executorHelperSha256",prepared.path("executorHelperSha256").asText());
         response.put("resultArtifactSha256",NativeCodeWorkspace.sha(artifact));
         response.put("resultAvailable",true);
+        annotateVerification(c,prepared,response);
         for(String stream:List.of("stdout","stderr")){
             String text=(String)response.get(stream);response.put(stream+"Bytes",text.getBytes(StandardCharsets.UTF_8).length);
             if(text.length()>8192){response.put(stream,text.substring(text.length()-8192));response.put("truncated",true);response.put(stream+"TailOnly",true);}
@@ -147,13 +167,27 @@ public final class NativeCodingCommandService {
         if(enabled){var previous=tasks.privateState(c.scope(),c.taskId(),"native-last-execution");
             tasks.privateState(c.scope(),c.taskId(),lease,"native-last-execution",previous,json.valueToTree(response));
             String declared=Objects.toString(workspace.requireAuthorized(c).get("acceptanceCommand"),"");
-            if(Boolean.TRUE.equals(response.get("resultAvailable"))&&Boolean.TRUE.equals(response.get("executorStopped"))
+            boolean matched=Boolean.TRUE.equals(response.get("declaredCommandMatched"));
+            if(NativeExecutorPolicy.from(c)==NativeExecutorPolicy.PIPEFAIL&&matched
+                    ||Boolean.TRUE.equals(response.get("resultAvailable"))&&Boolean.TRUE.equals(response.get("executorStopped"))
                     &&response.get("exitCode") instanceof Number code&&code.intValue()==0
                     &&NativeCommandVerification.matches(declared,Objects.toString(response.get("commandHash"),""))){
                 var verified=tasks.privateState(c.scope(),c.taskId(),"native-last-verification");
                 tasks.privateState(c.scope(),c.taskId(),lease,"native-last-verification",verified,json.valueToTree(response));
             }
         }
+    }
+    /** Never trust workload-written verification claims; bind them to the host-prepared command and policy. */
+    private void annotateVerification(CodingTaskContract c,JsonNode prepared,Map<String,Object> response){
+        var policy=NativeExecutorPolicy.from(c);String declared=Objects.toString(workspace.requireAuthorized(c).get("acceptanceCommand"),"");
+        boolean matched;
+        if(policy==NativeExecutorPolicy.PIPEFAIL){
+            if(!policy.id().equals(prepared.path("executorPolicy").asText())||!executorHelperSha256.equals(prepared.path("executorBaseHelperSha256").asText()))throw new SecurityException("Command executor policy binding differs");
+            matched=prepared.path("verificationEligible").asBoolean()&&NativeCommandVerification.declarationHash(declared).equals(prepared.path("verificationDeclarationSha256").asText());
+            response.put("executorBaseHelperSha256",prepared.path("executorBaseHelperSha256").asText());
+        }else matched=NativeCommandVerification.matches(declared,prepared.path("commandHash").asText());
+        response.put("verificationPolicy",policy.id());response.put("declaredCommandMatched",matched);
+        response.put("declaredCommandSha256",NativeCommandVerification.declarationHash(declared));
     }
     public static String operation(CodingTaskContract c,String identity){return "cline-"+NativeCodeWorkspace.sha((c.scope().tenantId()+"\0"+c.scope().userId()+"\0"+c.scope().runId()+"\0"+c.taskId()+"\0"+identity).getBytes(StandardCharsets.UTF_8));}
     private static String commandHash(Object command){return command instanceof String text?NativeCodeWorkspace.sha(text.getBytes(StandardCharsets.UTF_8)):CodingCanonicalHash.sha256Value(command);}

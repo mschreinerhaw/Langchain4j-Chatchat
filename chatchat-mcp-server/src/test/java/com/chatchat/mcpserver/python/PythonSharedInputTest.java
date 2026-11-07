@@ -8,6 +8,12 @@ import org.junit.jupiter.api.io.TempDir;
 import static org.assertj.core.api.Assertions.*;
 class PythonSharedInputTest {
     @TempDir Path temp;
+    @Test void nativeExecutorCapabilityIsDisabledByDefaultAndPinsBothResources(){
+        var policy=new PythonRuntimeProperties();var files=new PythonDataFileService(policy,new InternalCredentialProperties(),new ObjectMapper());
+        var capability=com.chatchat.common.runtime.coding.NativeExecutorPolicy.PIPEFAIL.capability();
+        assertThat(files.inputCapabilities()).doesNotContain(capability);
+        policy.setNativeCodingEnabled(true);assertThat(files.inputCapabilities()).contains(capability,"JSON_LINES","REMOTE_UPLOAD");
+    }
     @Test void registrationVerifiesScopeAndBytesBeforeSandboxCopy() throws Exception {
         var policy=new PythonRuntimeProperties();policy.setDataRoot(temp.resolve("shared").toString());
         var files=new PythonDataFileService(policy,new InternalCredentialProperties(),new ObjectMapper());

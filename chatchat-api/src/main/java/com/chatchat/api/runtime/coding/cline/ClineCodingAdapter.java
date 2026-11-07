@@ -481,8 +481,11 @@ public final class ClineCodingAdapter implements CodingAgentSPI {
     private void requireInputCapabilities(CodingTaskContract contract) {
         if(NativeCodeWorkspace.enabled(contract)){
             JsonNode capabilities=request("/v1/input-capabilities",Map.of());boolean supported=false;
-            for(var profile:capabilities.path("workspaceProfiles"))if(NativeCodeWorkspace.PROFILE.equals(profile.asText()))supported=true;
+            var policy=com.chatchat.common.runtime.coding.NativeExecutorPolicy.from(contract);
+            for(var profile:capabilities.path("workspaceProfiles"))if(policy.profile().equals(profile.asText()))supported=true;
             if(!supported)throw new SecurityException("Worker has not negotiated native Coding profile");
+            if(nativeCommands==null)throw new SecurityException("Native executor governance unavailable");
+            nativeCommands.requireExecutorCapability(contract);
             return;
         }
         boolean deferredTools=CodingProtocol.deferredTools(contract);

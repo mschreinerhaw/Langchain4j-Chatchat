@@ -8,7 +8,11 @@ public final class CodingRuntimeContext {
     public static Map<String, Object> validate(Map<String, Object> value) {
         if (value == null || value.isEmpty()) return Map.of();
         CodingProtocol.require(value.keySet().stream().allMatch(Set.of("schemaVersion", "capturedAt",
-            "consistency", "model", "skills", "builtinSkillPolicy", "configuredSkillIds", "inputFiles", "executionProfile", "reportMode", "reportPresentation", "pythonEnvironment", "scriptPurpose", "codingLifecycle", "analysisResultMode", "analysisInstructions", "codeProject", "knowledgeExploration", "internetSearch", "internetAvailability")::contains), "Unknown Coding context field");
+            "consistency", "model", "skills", "builtinSkillPolicy", "configuredSkillIds", "inputFiles", "executionProfile", "reportMode", "reportPresentation", "pythonEnvironment", "scriptPurpose", "codingLifecycle", "analysisResultMode", "analysisInstructions", "codeProject", "knowledgeExploration", "internetSearch", "internetAvailability", "nativeExecutionPolicy", "nativeExecutorCapability")::contains), "Unknown Coding context field");
+        if(value.containsKey("nativeExecutionPolicy")||value.containsKey("nativeExecutorCapability"))
+            CodingProtocol.require(NativeExecutorPolicy.PIPEFAIL.id().equals(value.get("nativeExecutionPolicy"))
+                &&value.get("nativeExecutorCapability") instanceof String capability
+                &&capability.matches("NATIVE_EXECUTOR:BASH_PIPEFAIL_V1:[a-f0-9]{64}:[a-f0-9]{64}"),"Invalid native executor policy snapshot");
         if(value.containsKey("internetAvailability")){
             CodingProtocol.require(value.get("internetAvailability") instanceof Map<?,?>,"Internet availability status required");
             var p=(Map<?,?>)value.get("internetAvailability");

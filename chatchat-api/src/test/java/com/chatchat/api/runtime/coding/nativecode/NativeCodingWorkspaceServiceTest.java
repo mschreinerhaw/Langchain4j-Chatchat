@@ -233,6 +233,21 @@ class NativeCodingWorkspaceServiceTest {
         factory.setAdmissionEnabled(true);when(environment.memoryLimit()).thenReturn("2g");int stored=blobs.size();
         assertThatThrownBy(()->identity.as(nextOwner,EnumSet.allOf(CodingTaskAccess.Action.class),()->factory.submit(nextOwner,another,request))).hasMessageContaining("exceeds the fixed");
         assertThat(blobs).hasSize(stored);
+        when(environment.memoryLimit()).thenReturn("512m");factory.setPipefailVerificationEnabled(true);
+        when(python.inputCapabilities()).thenReturn(List.of("JSON_LINES","REMOTE_UPLOAD"));
+        assertThatThrownBy(()->identity.as(nextOwner,EnumSet.allOf(CodingTaskAccess.Action.class),()->factory.submit(nextOwner,another,request)))
+            .hasMessageContaining("not negotiated");
+        assertThat(blobs).hasSize(stored);
+        when(python.inputCapabilities()).thenReturn(List.of(NativeExecutorPolicy.PIPEFAIL.capability()));
+        identity.as(nextOwner,EnumSet.allOf(CodingTaskAccess.Action.class),()->factory.submit(nextOwner,another,request));
+        var frozen=identity.as(nextOwner,EnumSet.allOf(CodingTaskAccess.Action.class),()->tasks.contract(nextOwner,another));
+        assertThat(frozen.metadataRefs()).containsExactly(NativeExecutorPolicy.PIPEFAIL.profile());
+        assertThat(frozen.runtimeContext()).containsEntry("nativeExecutionPolicy",NativeExecutorPolicy.PIPEFAIL.id())
+            .containsEntry("nativeExecutorCapability",NativeExecutorPolicy.PIPEFAIL.capability());
+        assertThat(frozen.budget().maxModelCalls()).isEqualTo(8);assertThat(frozen.budget().maxCodeExecutions()).isEqualTo(4);
+        factory.setPipefailVerificationEnabled(false);
+        identity.as(nextOwner,EnumSet.allOf(CodingTaskAccess.Action.class),()->factory.submit(nextOwner,another,request));
+        assertThat(identity.as(nextOwner,EnumSet.allOf(CodingTaskAccess.Action.class),()->tasks.contract(nextOwner,another))).isEqualTo(frozen);
     }
     @Test void aNativeCommandCannotSubstituteItsModelAdmittedCommandOrFrozenFiles(){
         admit("command-1","run_commands",Map.of("commands",List.of("python -m unittest")));

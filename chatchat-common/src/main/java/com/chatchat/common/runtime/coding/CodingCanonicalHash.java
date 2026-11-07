@@ -17,9 +17,17 @@ public final class CodingCanonicalHash {
     private CodingCanonicalHash() { }
 
     public static String sha256(CodingTaskContract task) {
+        return digest(canonicalJson(task));
+    }
+
+    /** The same existing encoding for private code-tree indices and operation intents. */
+    public static String sha256Value(Object value) { return digest(encode(value)); }
+    public static String canonicalValueJson(Object value) { return encode(value); }
+
+    private static String digest(String canonical) {
         try {
             return HexFormat.of().formatHex(MessageDigest.getInstance("SHA-256")
-                .digest(canonicalJson(task).getBytes(StandardCharsets.UTF_8)));
+                .digest(canonical.getBytes(StandardCharsets.UTF_8)));
         } catch (NoSuchAlgorithmException impossible) { throw new IllegalStateException(impossible); }
     }
 

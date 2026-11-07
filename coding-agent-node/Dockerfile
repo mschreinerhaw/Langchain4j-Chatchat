@@ -7,6 +7,8 @@ RUN npm ci --ignore-scripts --no-audit --no-fund
 COPY src ./src
 COPY web ./web
 COPY scripts/build.mjs ./scripts/build.mjs
+COPY scripts/generate-tool-routing.mjs ./scripts/generate-tool-routing.mjs
+COPY vendor ./vendor
 COPY tsconfig.json tsconfig.web.json ./
 RUN npm run build && npm prune --omit=dev --ignore-scripts --no-audit --no-fund
 

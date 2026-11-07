@@ -166,6 +166,6 @@ export async function prepareNativeSkills(contract, gateway, { sessionId, signal
       discovery: 'loadAgentPluginPackages', loader: 'createUserInstructionConfigService', nativeSkillCount: records.length,
       skills: records.map(r => ({ id: r.id, name: r.item.name, description: r.item.description,
         skillId: files.get(resolve(r.filePath)).pkg.card.id })) });
-    return { root, tools, records, async dispose() { service.stop();await removeWorkspace(); } };
+    return { root, tools, records, readFileExecutor, async dispose() { service.stop();await removeWorkspace(); } };
   } catch (error) { service?.stop();await removeWorkspace().catch(() => {});throw error; }
 }

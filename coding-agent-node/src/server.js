@@ -4,6 +4,7 @@ import { createHash, createHmac, randomUUID, timingSafeEqual } from 'node:crypto
 import { readFileSync } from 'node:fs';
 import { pathToFileURL } from 'node:url';
 import { createCodingRun } from './runner.js';
+import {createNativeCodingRun,isNativeCodingTask,NATIVE_CODING_PROFILE} from './native-runner.js';
 import { createRuntimeModel } from './runtime-model.js';
 import { verifyClinePackages } from './sdk-packages.js';
 import { MonitorStore, createMonitorHandler } from './monitor.ts';
@@ -160,6 +161,13 @@ export function httpGateway(callbackUrl, secret, binding, { timeoutMs = 90000 } 
     checkpoint: (contract, checkpoint) => callback('checkpoint', { contract, checkpoint }),
     requestData: (contract, requirement, signal) => callback('data-request', { contract, requirement }, signal),
     validateSql: (contract, validation, signal) => callback('validate-sql', { contract, validation }, signal),
+    openCodeWorkspace:(contract,signal)=>callback('native-open',{contract},signal),
+    commitCodeWorkspace:(contract,proposal,signal)=>callback('native-commit',{contract,proposal},signal),
+    authorizeCodeTool:(contract,admission,signal)=>callback('native-authorize',{contract,admission},signal),
+    lookupCodeTool:(contract,lookup,signal)=>callback('native-replay',{contract,lookup},signal),
+    finishCodeTool:(contract,receipt,signal)=>callback('native-tool-finish',{contract,receipt},signal),
+    executeCodeCommand:(contract,command,signal)=>callback('native-command',{contract,command},signal),
+    cancelCodeCommands:contract=>callback('native-command-cancel',{contract}),
   };
 }
 
@@ -167,7 +175,7 @@ export function httpGateway(callbackUrl, secret, binding, { timeoutMs = 90000 } 
 export function createCodingServer({ secret, callbackUrl, modelFactory, gatewayFactory = httpGateway,
   allowedCallbackHosts = ['127.0.0.1', 'localhost'], maxSessions = 256, sessionRetentionMs = 900000,
   callbackTimeoutMs = 90000, monitorToken, monitorDirectory, monitorSecureCookie = false, sdkPackages,
-  contextOptimizationEnabled = false }) {
+  contextOptimizationEnabled = false,nativeCodingEnabled=false }) {
   if (!Number.isSafeInteger(maxSessions) || maxSessions < 1 || maxSessions > 4096
       || !Number.isSafeInteger(sessionRetentionMs) || sessionRetentionMs < 0)
     throw new Error('Invalid Coding session resource limits');
@@ -205,7 +213,7 @@ export function createCodingServer({ secret, callbackUrl, modelFactory, gatewayF
           codeLifecycleVersions: ['runtime_os.code_lifecycle.v1'],deferredToolsProfile:'runtime-coding:deferred-tools:v1',
           analysisProfiles: ['runtime-coding:analysis-fast-path:v1'],
           analysisTools: ['input_read','report_submit','code_read','knowledge_search','knowledge_get_document','knowledge_read','knowledge_list_sections','knowledge_related','news_search','news_get_article','news_related_events','market_search','market_get_history','market_get_indicators','market_get_snapshot','web_search','web_fetch'],
-          workspaceProfiles: ['runtime-coding:workspace-fast-path:v1','runtime-coding:sql-metadata-tools:v1'] });
+          workspaceProfiles: ['runtime-coding:workspace-fast-path:v1','runtime-coding:sql-metadata-tools:v1',...(nativeCodingEnabled?[NATIVE_CODING_PROFILE]:[])] });
       }
       if (request.method === 'GET' && url.pathname === '/healthz')
         return response(reply, 200, { status: 'UP', sdk: '@cline/agents@0.0.93',
@@ -247,7 +255,8 @@ export function createCodingServer({ secret, callbackUrl, modelFactory, gatewayF
         const gateway = gatewayFactory(callbackUrl, secret, binding, { timeoutMs: callbackTimeoutMs });
         run.recoveryMode = value.checkpoint ? 'CHECKPOINT_RESTORED_NEW_SDK' : 'NEW_SDK';
         let monitorId = null;
-        run.session = createCodingRun(value.contract, gateway, {
+        if(isNativeCodingTask(value.contract)&&!nativeCodingEnabled)return response(reply,409,{message:'Native coding profile is disabled'});
+        run.session = (isNativeCodingTask(value.contract)?createNativeCodingRun:createCodingRun)(value.contract, gateway, {
           model: modelFactory ? modelFactory(value.contract)
             : createRuntimeModel(gateway, value.contract, value.checkpoint?.modelOrdinal ?? 0,
               { nativeSdk: value.checkpoint?.nativeSdk ?? process.env.CLINE_NATIVE_SDK_ENABLED !== 'false' }),
@@ -333,6 +342,7 @@ if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) 
     build: process.env.RUNTIME_CODING_BUILD ?? 'development', port }) + '\n'); };
   const server = createCodingServer({ secret, callbackUrl, allowedCallbackHosts, callbackTimeoutMs,
     contextOptimizationEnabled: process.env.RUNTIME_CODING_CONTEXT_OPTIMIZATION_ENABLED === 'true',
+    nativeCodingEnabled:process.env.CLINE_NATIVE_CODING_ENABLED==='true',
     sdkPackages,
     monitorToken, monitorDirectory: process.env.RUNTIME_CODING_MONITOR_DIRECTORY,
     monitorSecureCookie: process.env.RUNTIME_CODING_MONITOR_SECURE_COOKIE === 'true' });

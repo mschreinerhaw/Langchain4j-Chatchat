@@ -1,0 +1,8 @@
+{
+    "repository":  "https://github.com/cline/cline",
+    "commit":  "1a5c3f84e0933268a9dba14a55a6383a6578414d",
+    "path":  "sdk/packages/core/src/extensions/tools/model-tool-routing.ts",
+    "sourceSha256":  "8ee931d74ef60f9a601efbe4beb58f619fc8227dad9ab7f6454243db71c651a2",
+    "reason":  "Internal module not exported by @cline/sdk or @cline/core 0.0.93. Source reused unchanged; TypeScript types erased by locked TypeScript 5.9.3.",
+    "license":  "Apache-2.0"
+}

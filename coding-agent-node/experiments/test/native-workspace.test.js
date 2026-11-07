@@ -6,11 +6,12 @@ import {tmpdir} from 'node:os';
 import {createEditorExecutor} from '@cline/sdk';
 import {createNativeCodeWorkspace} from '../native-workspace.js';
 import {validateRepairEdit} from '../../src/code-repair.js';
-const context={};
+const context={toolCallId:'prototype-test'};
+const scope={tenantId:'tenant',userId:'owner',runId:'run'};
 async function toolFailure(promise,pattern) {const value=await promise;assert.equal(value.success,false);if(pattern)assert.match(value.error,pattern);return value;}
 async function fixture(t,options={}) {
   const base=await mkdtemp(join(tmpdir(),'native-workspace-test-'));const commits=[],executions=[];
-  const workspace=await createNativeCodeWorkspace({base,taskId:'tenant-owner-task',files:{'main.py':'value = 1\n'},
+  const workspace=await createNativeCodeWorkspace({base,taskId:'tenant-owner-task',scope,files:{'main.py':'value = 1\n'},executionMode:'python',
     authorize:async()=>{},commit:async value=>{commits.push(structuredClone(value));return {manifestHash:value.manifest.sha256};},
     execute:async value=>{executions.push(value);return {manifestHash:value.manifest.sha256,exitCode:0};},...options});
   t.after(async()=>{await workspace.dispose();await rm(base,{recursive:true,force:true});});
@@ -77,7 +78,12 @@ test('restore rematerializes exact durable code and rejects a corrupt restored t
   const f=await fixture(t);await f.call('editor',{path:'main.py',old_text:'1',new_text:'2'});const saved=f.snapshot();
   const restored=await fixture(t,{files:saved.files,restoredManifest:saved.manifest});assert.deepEqual(restored.snapshot(),saved);
   await restored.call('python_execute',{});assert.equal(restored.executions[0].files['main.py'],'value = 2\n');
-  await assert.rejects(createNativeCodeWorkspace({base:f.base,taskId:'tenant-owner-task',files:{'main.py':'tampered'},restoredManifest:saved.manifest,
+  await assert.rejects(createNativeCodeWorkspace({base:f.base,taskId:'tenant-owner-task',scope,files:{'main.py':'tampered'},restoredManifest:saved.manifest,
+    authorize:async()=>{},commit:async()=>{},execute:async()=>{}}),/RESTORE_CODE_HASH_MISMATCH/);
+});
+test('another tenant cannot restore the same task identifier and source bytes',async t=>{
+  const f=await fixture(t);const saved=f.snapshot();
+  await assert.rejects(createNativeCodeWorkspace({base:f.base,taskId:'tenant-owner-task',scope:{...scope,tenantId:'other'},files:saved.files,restoredManifest:saved.manifest,
     authorize:async()=>{},commit:async()=>{},execute:async()=>{}}),/RESTORE_CODE_HASH_MISMATCH/);
 });
 test('a mismatched bridge execution receipt is not accepted',async t=>{

@@ -13,7 +13,11 @@ export function safeResourcePath(path) {
   return path;
 }
 export function taskSkillPackages(context = {}) {
-  const packages = definitions.filter(c => c.enabled !== false).map(card => ({ card: structuredClone(card), builtin: true,
+  const allowedBuiltinIds=context.builtinSkillPolicy?.allowedIds;
+  if(allowedBuiltinIds!==undefined&&(!Array.isArray(allowedBuiltinIds)||new Set(allowedBuiltinIds).size!==allowedBuiltinIds.length
+      ||allowedBuiltinIds.some(id=>typeof id!=='string'||!definitions.some(card=>card.id===id&&card.enabled!==false))))
+    throw new TypeError('Invalid task builtin Skill selection');
+  const packages = definitions.filter(c => c.enabled !== false&&(!allowedBuiltinIds||allowedBuiltinIds.includes(c.id))).map(card => ({ card: structuredClone(card), builtin: true,
     resources: structuredClone(card.resources ?? (card.references ?? []).map(path => ({ path }))),
     filePath: fileURLToPath(new URL(`${card.name}/SKILL.md`, root)) }));
   const ids = new Set(packages.map(p => p.card.id));

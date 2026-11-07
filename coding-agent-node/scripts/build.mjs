@@ -1,5 +1,6 @@
 import { execFileSync } from 'node:child_process';
 import { copyFileSync, mkdirSync, rmSync } from 'node:fs';
+execFileSync(process.execPath,['scripts/generate-tool-routing.mjs','--check'],{stdio:'inherit'});
 // Retired custom loaders must not survive an incremental TypeScript build.
 for (const name of ['skills', 'skill-disclosure']) for (const extension of ['js', 'd.ts'])
   rmSync(`dist/${name}.${extension}`, { force: true });

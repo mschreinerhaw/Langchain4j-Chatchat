@@ -13,6 +13,24 @@ const contract = {
   budget: { maxModelCalls: 1 },
 };
 
+test('native project dispatch is denied unless its isolated profile is explicitly enabled',async()=>{
+  for(const enabled of [false,true]){
+    let models=0;
+    const server=createCodingServer({secret,callbackUrl:'http://127.0.0.1:8080',nativeCodingEnabled:enabled,
+      modelFactory:()=>{models++;throw Error('No dispatch expected');}});
+    await new Promise(resolve=>server.listen(0,'127.0.0.1',resolve));
+    try{
+      const post=(path,body)=>fetch(`http://127.0.0.1:${server.address().port}${path}`,{method:'POST',headers:{authorization:'Bearer '+secret,'content-type':'application/json'},body:JSON.stringify(body)});
+      const capabilities=await(await post('/v1/input-capabilities',{})).json();
+      assert.equal(capabilities.workspaceProfiles.includes('runtime-coding:native-project:v1'),enabled);
+      if(!enabled){
+        const response=await post('/v1/runs',{contract:{...contract,metadataRefs:['runtime-coding:native-project:v1']},contractHash:'a'.repeat(64),fencingToken:1});
+        assert.equal(response.status,409);assert.equal(models,0);
+      }
+    }finally{server.closeAllConnections();await new Promise(resolve=>server.close(resolve));}
+  }
+});
+
 test('model inference follows task deadline beyond control timeout and remains cancellable', async () => {
   const callback = createServer((request, response) => {
     setTimeout(() => { if (!response.destroyed) { response.writeHead(200); response.end('{"text":"done"}'); } }, 120);

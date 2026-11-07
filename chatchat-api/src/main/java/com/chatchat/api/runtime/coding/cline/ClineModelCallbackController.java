@@ -21,7 +21,6 @@ import java.security.MessageDigest;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.EnumSet;
-import java.util.ArrayList;
 import java.util.HexFormat;
 import java.util.List;
 import java.util.Map;
@@ -645,12 +644,6 @@ public final class ClineModelCallbackController {
         if (event.path("repairAllowed").isBoolean())payload.put("repairAllowed",event.path("repairAllowed").asBoolean());
         if (event.path("exceedsSoftBudget").isBoolean())payload.put("exceedsSoftBudget",event.path("exceedsSoftBudget").asBoolean());
         if (event.path("receiptReplayed").isBoolean())payload.put("receiptReplayed",event.path("receiptReplayed").asBoolean());
-        if(event.path("toolSchemaSha256").isTextual()&&event.path("toolSchemaSha256").asText().matches("[0-9a-f]{64}"))payload.put("toolSchemaSha256",event.path("toolSchemaSha256").asText());
-        for(String names:List.of("authorizedTools","disclosedTools"))if(event.path(names).isArray()&&event.path(names).size()<=128){
-            var values=new ArrayList<String>();boolean valid=true;
-            for(var name:event.path(names)){if(!name.isTextual()||!name.asText().matches("[A-Za-z0-9_.:-]{1,128}")){valid=false;break;}values.add(name.asText());}
-            if(valid)payload.put(names,values);
-        }
         if (event.path("usage").isObject()) {
             var usage = new java.util.LinkedHashMap<String,Object>();
             for (String key : List.of("inputTokens", "outputTokens", "cacheReadTokens", "cacheWriteTokens", "reasoningTokens"))

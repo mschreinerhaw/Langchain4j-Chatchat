@@ -1,0 +1,53 @@
+{
+    "originalTaskBudgetChanged":  false,
+    "scope":  "COMPONENT_TESTS_NOT_REAL_MODEL_ACCEPTANCE",
+    "sdk":  "0.0.93",
+    "logs":  [
+                 {
+                     "summary":  [
+                                     "# tests 2",
+                                     "# pass 0",
+                                     "# fail 2",
+                                     "# skipped 0",
+                                     "# duration_ms 34522.9575"
+                                 ],
+                     "sha256":  "5e3afbf6cda3516f0516ae266ab8a5844fde0ef1087c929370892c7c2445c64e",
+                     "file":  "phase4-verification-before-r2.log"
+                 },
+                 {
+                     "summary":  [
+                                     "# tests 1",
+                                     "# pass 0",
+                                     "# fail 1",
+                                     "# skipped 0",
+                                     "# duration_ms 37334.7129"
+                                 ],
+                     "sha256":  "0f4daa30bb235e2cc141df73357b30c754909178d66efdbe11d10b785ce38bb3",
+                     "file":  "phase4-reload-before.log"
+                 },
+                 {
+                     "summary":  [
+                                     "# tests 131",
+                                     "# pass 108",
+                                     "# fail 22",
+                                     "# skipped 1",
+                                     "# duration_ms 50573.8752"
+                                 ],
+                     "sha256":  "0f8beb65b22b67dc27dedc2c69c2f2e5a6a39bdb76eee39bf8a7f5de993f11af",
+                     "file":  "phase4-node-full-r1.log"
+                 },
+                 {
+                     "summary":  [
+                                     "# tests 319",
+                                     "# pass 318",
+                                     "# fail 0",
+                                     "# skipped 1",
+                                     "# duration_ms 123189.7818"
+                                 ],
+                     "sha256":  "86dc0b5025891b0b4dc42a68e44068b610025eea59096151028519b51df37e5e",
+                     "file":  "phase4-node-full-r2.log"
+                 }
+             ],
+    "node":  "22.14.0",
+    "fullRerunConcurrency":  2
+}

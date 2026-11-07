@@ -1,0 +1,68 @@
+{
+  "sourceCommit": "e107dffff",
+  "archiveSha256": "13bd7b4dc3d85cdafb4b9ef1e6f0ef103c5ba967c6f114486137eaa2deab792b",
+  "oldWorkerImage": "sha256:1b739bcd27cd59027efbf2c707f179126e767d108b6a6a2e0d9ebd636eee687f",
+  "workerImage": "sha256:e4f48619f746fa13562c1f16b91ca6bcf82557a1b929317d1f683771c2daf37a",
+  "workerContainer": "df78c9e0d33c94747edfa10eb6cdc43ce264d2852b58d7665f4ecf811d76d38c",
+  "apiUnchanged": true,
+  "ready": {
+    "status": "READY",
+    "activeSessions": 0
+  },
+  "health": {
+    "status": "UP",
+    "sdk": "@cline/agents@0.0.93",
+    "packages": {
+      "@cline/sdk": "0.0.93",
+      "@cline/core": "0.0.93",
+      "@cline/agents": "0.0.93",
+      "@cline/llms": "0.0.93",
+      "@cline/shared": "0.0.93"
+    },
+    "runtime": "v24.21.0",
+    "build": "b3cbbac70fc4dbf79ebb8c89809e8002752456a7"
+  },
+  "capabilities": {
+    "schemaVersion": "runtime_os.coding.input.v1",
+    "formats": [
+      "PARQUET",
+      "CSV"
+    ],
+    "codeLifecycleVersions": [
+      "runtime_os.code_lifecycle.v1"
+    ],
+    "deferredToolsProfile": "runtime-coding:deferred-tools:v1",
+    "analysisProfiles": [
+      "runtime-coding:analysis-fast-path:v1"
+    ],
+    "analysisTools": [
+      "input_read",
+      "report_submit",
+      "code_read",
+      "knowledge_search",
+      "knowledge_get_document",
+      "knowledge_read",
+      "knowledge_list_sections",
+      "knowledge_related",
+      "news_search",
+      "news_get_article",
+      "news_related_events",
+      "market_search",
+      "market_get_history",
+      "market_get_indicators",
+      "market_get_snapshot",
+      "web_search",
+      "web_fetch"
+    ],
+    "workspaceProfiles": [
+      "runtime-coding:workspace-fast-path:v1",
+      "runtime-coding:sql-metadata-tools:v1",
+      "runtime-coding:native-project:v1",
+      "runtime-coding:native-project:v2"
+    ]
+  },
+  "productionChanged": false,
+  "sandboxChanged": false,
+  "modelChanged": false,
+  "budgetChanged": false
+}

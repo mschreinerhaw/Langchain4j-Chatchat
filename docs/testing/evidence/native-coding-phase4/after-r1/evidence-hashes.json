@@ -1,0 +1,14 @@
+{
+  "A-history.json": "f6bea7e1e0b8039f35bb1853cfc6b76ddb519c341db1e6c72f4170a7f20747f4",
+  "A-receipts.json": "5297d6955b37d65f0e5a4c8e54fb25d5f3cfe64777d7bb7406da6ef459dd2969",
+  "A-result.json": "1842aebe8d8acdad3a34fd2661dccfab39f4e5877ce5ff953ee231d079969212",
+  "C-history.json": "f2b103d1814eb718eb8d66693e4f53e45d6433b049642672463f78e2c9ce2ee1",
+  "C-receipts.json": "e3b756ad68eb7af020041ef858628cf374eca8569a3eff8b2fbd220e8a2dfef9",
+  "C-result.json": "8473099a82ef74b4703deef7d3bf25783010001a7fbcad760ebfd4f0f2cfb293",
+  "E-name-history.json": "08c6b0847daab5b2cd2dff2bb54dc63365cec9b0600208c782c35eeac3056d5b",
+  "E-name-receipts.json": "3db962450a75262146be55c32d1e0289ae065c7c4397eb9b7472cba231d07ee8",
+  "E-name-result.json": "950648046f475de59384892766393bd0e47b9a7aea8b972b861ad9f90a705e94",
+  "phase4-deployment-public.json": "7fef738f779c666213b6d3339ce7f7173459f0c7cf298a341fba7af34e4759fb",
+  "phase4-dist-provenance-public.json": "f5a0b92ce332efc2aa693ddefee2df007d9367132491bd5f36dd80eb8e163444",
+  "phase4-observer-deployment-public.json": "8b4262c3b58e8a1dede426092f2b97e2140b4ee6665566b5b88c21688197fd0c"
+}

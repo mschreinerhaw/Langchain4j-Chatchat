@@ -1,0 +1,26 @@
+{
+  "sourceCommit": "e107dffff",
+  "workerImage": "sha256:e2f0334145750f38a97ffd2f785ff9b4ec2640cfb9f1e3827dc724abf71d76da",
+  "workerContainer": "1a50e6e8aaa95f13b445d8371b78e27e7ea6e7fab7092dc4bb4fe3e34a088e3f",
+  "parentImage": "sha256:e4f48619f746fa13562c1f16b91ca6bcf82557a1b929317d1f683771c2daf37a",
+  "observerSha256": "d5153166ed272534bae077857075caa6b0f0c424ea3f313ad8668d021241aeae",
+  "requestMutation": false,
+  "observation": "Whitelist-only model request fact identities; full request hash, no prompt/content/credentials",
+  "ready": {
+    "status": "READY",
+    "activeSessions": 0
+  },
+  "health": {
+    "status": "UP",
+    "sdk": "@cline/agents@0.0.93",
+    "packages": {
+      "@cline/sdk": "0.0.93",
+      "@cline/core": "0.0.93",
+      "@cline/agents": "0.0.93",
+      "@cline/llms": "0.0.93",
+      "@cline/shared": "0.0.93"
+    },
+    "runtime": "v24.21.0",
+    "build": "e107dffff"
+  }
+}

@@ -1,0 +1,11 @@
+{
+  "sourceCommit": "e107dffff",
+  "workerDistHashes": {
+    "native-verification.js": "0d3dce5f5107fcc20fc2c6903d61cb2d58a12bca52a3f4eefc378210c281101c",
+    "sdk-adapter.js": "ef077e28b27df7c338054c275ef91b6f4872ea524592cdafc9f191aa36b1496c",
+    "native-runner.js": "72b2e4062f225ae3af1d2c6a3d946e0080ff526c23c67cb76b17d3ab304e118f"
+  },
+  "allMatchLocalBuild": true,
+  "healthBuildFieldInheritedFromBase": true,
+  "provenance": "Image revision label and verified dist hashes; inherited health build string is not the source revision"
+}

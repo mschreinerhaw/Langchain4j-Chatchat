@@ -81,9 +81,19 @@ MCP JAR 254763219 bytes，SHA256 `e014d3475ac0c2c3555c547332e667c5d5ea4f59da7726
 必须继续完成通用 A–G 真实模型任务、相同模型及预算的三组对照、代码/执行结果 Silo 归档再读取、权限负向、真实 Worker 中断恢复、原生 Compaction 与 MCP 治理整链。当前不得发布任务完成率改善结论，不进入金融等业务迁移。
 
 隔离验收使用临时测试数据库命名空间，复制空表结构及模型/管理员/角色/环境配置。首次初始化表筛选误包含审计历史 6687 行，随后仅在独立验收库清空至 0，并将脚本改为明确白名单；原库未变，审计行内容未输出到公开证据。原始初始化和修正 proof 同时保留。该临时测试设施不是新增产品数据库或存储设计。
-# Worker 恢复 fence 与工具回放专项
+## Worker 恢复 fence 与工具回放专项
 
 新增真实 A2/H2 测试分别复现：有遗留 native TOOL 时恢复 fence 被拒绝；已完成 TOOL 跨 fence 回放被当作重复 start 拒绝。修复前两个测试均 error，日志 `native-recovery-before.log` SHA256 `5cd7a85e232cfec5473306abaa60e574f30e095b6601a813ea713fc9a64a1134`。
 
 最小修复仅允许 native profile 先取得隔离旧 SDK 的 fence，所有未知 start、预算、deadline 和 reconciliation 阻断均保留。验证原授权、输入身份及不可变停止回执后允许只读回放，不创建新 start。旧 profile 仍要求全部停止后恢复 fence。新测试同时验证旧 fence 拒绝、新模型准入被阻断、未知工具恢复为真实中断反馈、回放不重复计费、替换参数拒绝。相关持久化、模型回执及回调测试合计 **74/74 通过**。此项是组件验证，真实 Worker kill/restart 尚未通过验收。
+
+通过日志 `native-recovery-after.log` SHA256 `01d488cce913a19fb31295250f5bf7142790befb6d4e6ee621791bb63279edc4`。
+
+## SDK 对象命令完成校验
+
+真实通用批次 B/C 的工具输入为 `{commands:[{command:"..."}]}`。安装版 SDK 保留对象形态，执行回执使用 canonical 对象 Hash。只列举字符串 Hash 会错误拒绝已通过的执行。最小修复为四种既有声明字符串各增加仅含 command 字段的对象身份，共八种；不将原始执行 Hash 改写成字符串，不接受额外 args/env 或管道。
+
+Node 新测试实际经过安装版 `createDefaultTools`：修复前 1 fail（Hash 集合上限拒绝），修复后 1 pass；完整 native runner **12/12**，日志 SHA256 `e36724dd287d76c1c32178c30dd2f8d66e2d8b1119a234485db3cd136e0f962f`。Java 新增对象及注入负向测试，修复前 **3 项中 1 fail**（`native-object-verification-before-r2.log` SHA256 `b31c2fcd59cb80f3f61a70b4789ad0e073cb36410d30dd68755c38b50e54f2b7`），修复后连同真实 A2 workspace **15/15**（`native-object-verification-after.log` SHA256 `a73d952619c08060465c1bdd8777614afd9ee0885b55200d5d499b3995af3eb9`）。首次 before 命令因编译时间戳读取旧测试，仅运行原两项并通过，该日志保留；明确触碰新测试时间戳后上述三项才构成有效复现。
+
+真实批次原始结果及独立源码复核见 [通用验收](native-coding-real-acceptance-20261107.md)，不以本组件测试代替整体验收。
 

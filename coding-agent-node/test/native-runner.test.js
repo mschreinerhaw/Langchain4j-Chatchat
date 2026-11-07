@@ -102,6 +102,21 @@ test('a host-verified fixed-cwd command remains valid after later inspection of 
   assert.equal(result.status,'completed',JSON.stringify(result.error));assert.equal(h.commands.length,2);
 });
 
+test('SDK object command receipts use canonical object identity at the verification gate',async t=>{
+  const verification='python -m unittest discover -s tests -v',command={command:'cd /workspace/code && '+verification};
+  const objectHash=createHash('sha256').update(JSON.stringify(command)).digest('hex');
+  const strings=[verification,'cd /workspace/code && '+verification,"cd '/workspace/code' && "+verification,'cd "/workspace/code" && '+verification];
+  const hashes=strings.flatMap(s=>[s,JSON.stringify({command:s})]).map(s=>createHash('sha256').update(s).digest('hex'));
+  const h=await host(t,{async openCodeWorkspace(){return{files:{'calc.py':'value = 1\n'},modelId:'qwen3.8-flash',acceptanceCommand:verification,acceptanceCommandHashes:hashes};}});
+  h.gateway.executeCodeCommand=async(_c,value)=>{assert.deepEqual(value.command,command);h.commands.push(value);return{
+    operationId:'object-command',manifestHash:value.manifest.sha256,commandHash:objectHash,executorStopped:true,
+    stopProofRef:'test:stop',exitCode:0,resultAvailable:true,stdout:'OK',stderr:''};};
+  const result=await createNativeCodingRun(contract(),h.gateway,{contractHash:hash,workspaceBase:h.base,model:scripted([
+    {calls:[{name:'run_commands',input:{commands:[command]}}]}, {text:'Verified the current project.'},
+  ])}).run();
+  assert.equal(result.status,'completed',JSON.stringify(result.error));assert.equal(h.commands.length,1);
+});
+
 test('a zero-exit pipeline cannot substitute for the host-declared verification command',async t=>{
   const verification='python -m unittest discover -s tests -v';
   const h=await host(t,{async openCodeWorkspace(){return{files:{'calc.py':'value = 1\n'},modelId:'qwen3.8-flash',acceptanceCommand:verification,

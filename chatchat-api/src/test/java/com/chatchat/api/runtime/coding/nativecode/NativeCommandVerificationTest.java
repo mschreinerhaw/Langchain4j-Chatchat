@@ -2,6 +2,8 @@ package com.chatchat.api.runtime.coding.nativecode;
 
 import com.chatchat.common.runtime.coding.NativeCodeWorkspace;
 import java.nio.charset.StandardCharsets;
+import java.util.Map;
+import com.chatchat.common.runtime.coding.CodingCanonicalHash;
 import org.junit.jupiter.api.Test;
 import static org.assertj.core.api.Assertions.*;
 
@@ -18,5 +20,13 @@ class NativeCommandVerificationTest {
                 "cd /workspace/code && "+command+" && echo done","echo '"+command+"'"})
             assertThat(NativeCommandVerification.matches(command,hash(candidate))).as(candidate).isFalse();
         assertThat(NativeCommandVerification.hashes(null)).isEmpty();
+    }
+    @Test void nativeObjectCommandHasItsOwnFiniteIdentityAndCannotSmuggleArgumentsOrEnvironment(){
+        for(String candidate:new String[]{command,"cd /workspace/code && "+command,"cd '/workspace/code' && "+command,"cd \"/workspace/code\" && "+command}){
+            assertThat(NativeCommandVerification.matches(command,CodingCanonicalHash.sha256Value(Map.of("command",candidate)))).isTrue();
+            assertThat(NativeCommandVerification.matches(command,CodingCanonicalHash.sha256Value(Map.of("command",candidate,"args",java.util.List.of("--extra"))))).isFalse();
+            assertThat(NativeCommandVerification.matches(command,CodingCanonicalHash.sha256Value(Map.of("command",candidate,"env",Map.of("PYTHONPATH","/tmp"))))).isFalse();
+        }
+        assertThat(NativeCommandVerification.matches(command,CodingCanonicalHash.sha256Value(Map.of("command",command+" || true")))).isFalse();
     }
 }

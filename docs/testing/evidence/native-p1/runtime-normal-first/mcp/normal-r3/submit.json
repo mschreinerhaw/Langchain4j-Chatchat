@@ -1,0 +1,86 @@
+{
+  "http": 200,
+  "body": {
+    "code": 200,
+    "message": "Success",
+    "data": {
+      "schemaVersion": "runtime_os.coding.v2",
+      "taskId": "native-00dcfb12e9af026b578a083941f7c52900baba51d5a81e12",
+      "scope": {
+        "tenantId": "9001fee4-482b-4851-9eb9-df269765291f",
+        "userId": "2f219487-11a3-4a1d-9130-ac500b62f268",
+        "requestId": null,
+        "conversationId": null,
+        "runId": "native-00dcfb12e9af026b578a083941f7c52900baba51d5a81e12",
+        "environment": null,
+        "attributes": {}
+      },
+      "contractSha256": "4739605074985819112d53d1d1d49e9df0ca33d2199084893a56efffe860b02f",
+      "status": "RUNNING",
+      "revision": 1,
+      "lastEventSequence": 2,
+      "createdAt": "2026-11-07T14:28:51.555Z",
+      "updatedAt": "2026-11-07T14:28:51.723Z",
+      "startedAt": "2026-11-07T14:28:51.723Z",
+      "endedAt": null,
+      "cancellationRequested": false,
+      "reasonCode": null,
+      "summary": "Execution ownership acquired; no operation was started",
+      "limitations": [
+        "A2 enforces cumulative admission reservations only; model/process hard limits, instantaneous memory and disk enforcement require execution-node adapters."
+      ],
+      "inputSnapshotRef": "runtime-evidence:native-input:native-00dcfb12e9af026b578a083941f7c52900baba51d5a81e12",
+      "codeArtifactRef": null,
+      "executionReceiptRef": null,
+      "resultDatasetRef": null,
+      "validationRecordRef": null,
+      "evidenceBundleRef": null,
+      "validationStatus": "NOT_RUN",
+      "reproducibility": {
+        "level": "CONDITIONAL",
+        "limitations": [
+          "Execution and reproducibility have not been verified"
+        ],
+        "dependencyRefs": [
+          "6a232c7a-1b75-4cfe-a795-742fe79f007f"
+        ]
+      },
+      "usage": {
+        "budgetId": "native-budget:native-00dcfb12e9af026b578a083941f7c52900baba51d5a81e12",
+        "costCurrency": "USD",
+        "consumed": {
+          "modelCalls": 0,
+          "modelTokens": 0,
+          "toolCalls": 0,
+          "codeExecutions": 0,
+          "cpuMillis": 0,
+          "peakMemoryBytes": 0,
+          "outputBytes": 0,
+          "costAmount": "0"
+        },
+        "reserved": {
+          "modelCalls": 0,
+          "modelTokens": 0,
+          "toolCalls": 0,
+          "codeExecutions": 0,
+          "cpuMillis": 0,
+          "peakMemoryBytes": 0,
+          "outputBytes": 0,
+          "costAmount": "0"
+        },
+        "meteringComplete": true
+      },
+      "executionControl": {
+        "stopReason": null,
+        "stopRequestedAt": null,
+        "executorStopped": false,
+        "reconciliationRequired": false
+      },
+      "parentTaskId": null,
+      "supersedesTaskId": null,
+      "perArtifactCompleteness": {}
+    },
+    "timestamp": 1794061731827,
+    "requestId": "c39acba5-43fa-403f-805f-e24da1fbf41b"
+  }
+}

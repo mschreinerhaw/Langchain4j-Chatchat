@@ -1,0 +1,16 @@
+{
+  "issue": "M-05",
+  "taskId": "native-402dfe1c9fb0d2fd7a419cbbf9273feea7b060f94e172b56",
+  "http": 403,
+  "message": "Native project input binding differs",
+  "storedInputHash": "5a342db04274d26b385954e7d3f23d42b0f075ca3c439bdbde473625fe68c0dc",
+  "hashAfterJsonMapRead": "2e004a4c6d20a78fbca233b8c6321c19fccedc42259aebdffe07505e1296131f",
+  "persistedBindingFieldOrder": [
+    "serviceId",
+    "agentId"
+  ],
+  "hashMismatchReproduced": true,
+  "admittedJournalPresent": false,
+  "modelReceiptCount": 0,
+  "completed": false
+}

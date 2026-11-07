@@ -1,0 +1,20 @@
+{
+  "files": {
+    "tests/test_delivery.py": "import json\nfrom pathlib import Path\nimport unittest\n\nclass DeliveryTests(unittest.TestCase):\n    def test_values(self):\n        result = json.loads(Path('calculation.json').read_text())\n        self.assertEqual(result, {'first': 33, 'second': 66})\n    def test_loader(self):\n        from solution import load_results\n        self.assertEqual(load_results('calculation.json'), {'first': 33, 'second': 66})\n    def test_report(self):\n        report = Path('report.md').read_text()\n        self.assertGreater(len(report), 100)\n        self.assertIn('MCP', report)\n        self.assertIn('33', report)\n        self.assertIn('66', report)\n",
+    "README.md": "Deliver solution.py, calculation.json and report.md. Keep tests unchanged.\n"
+  },
+  "readOnlyPaths": [
+    "tests/test_delivery.py"
+  ],
+  "acceptanceCommand": "python -m unittest discover -s tests -v",
+  "instruction": "完成一个通用 Coding 任务。先用可用的 MCP 计算工具计算 sqrt(144)+7*3；读取真实返回结果后，再通过 MCP 将第一次的数值乘以 2。将实际结果写入 calculation.json，字段为 first 和 second。创建 solution.py，实现 load_results(path) 读取这个 JSON。生成超过 100 字的 report.md，说明 MCP 调用、表达式、真实结果和验证过程。保留所有现有测试，运行声明的验证命令，检查实际执行反馈后交付完整项目。请自主选择工具，不要用本地计算替代要求的 MCP 调用。",
+  "modelName": "qwen3.8-flash",
+  "editStrategy": "auto",
+  "skills": [],
+  "mcpServers": [
+    {
+      "serviceId": "chatchat-mcp-server",
+      "agentId": "native-coding-p1"
+    }
+  ]
+}

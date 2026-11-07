@@ -1,0 +1,136 @@
+{
+  "http": 200,
+  "body": {
+    "code": 200,
+    "message": "Success",
+    "data": [
+      {
+        "manifest": {
+          "files": [
+            {
+              "bytes": 75,
+              "path": "README.md",
+              "sha256": "10b8e5462c6cd557359af762cf057b36475eae7a8117e51510ac3d2beacb5a37"
+            },
+            {
+              "bytes": 34,
+              "path": "calculation.json",
+              "sha256": "1fbb78f6bb48c4bf3414467d67a30324f1c3c1069e9680d059c37164cd3f74a4"
+            },
+            {
+              "bytes": 1812,
+              "path": "report.md",
+              "sha256": "2c5a7476d8a0797b3786c25ecad8835e232f3a50209e35ea2736c60a46a78508"
+            },
+            {
+              "bytes": 684,
+              "path": "solution.py",
+              "sha256": "89ed9eb517141d001aef14df6a808a90074f0584b4ce70bc61072eea798a0bf8"
+            },
+            {
+              "bytes": 634,
+              "path": "tests/test_delivery.py",
+              "sha256": "30ca93f2e9019d72a5a1b5a37f9c8df0bea0d4544bfe20ac10a75e735580ecb8"
+            }
+          ],
+          "hashAlgorithm": "coding-canonical-json-v1",
+          "parent": "b755727a0a81bce948f2c4255d91ee86bfcf872af88081259030826569fcf585",
+          "schemaVersion": "runtime_os.native_code_tree.v1",
+          "scopeBinding": "dcb7ee7ba17c42127021ee9808cd33399390731fea635f1a83b3c600858fa058",
+          "sha256": "aa04279d709ca8f537f33c7380b2d3d903652446bae5b37f6c111a2fae1b41a5",
+          "taskId": "native-00dcfb12e9af026b578a083941f7c52900baba51d5a81e12",
+          "version": 3
+        },
+        "diffSource": "native-diff:workspace-0f8f2d9a84a98ec35d9a3c7b7e2a6077b14c32edd57a3ea1ecf4dc6622c88c36"
+      },
+      {
+        "manifest": {
+          "files": [
+            {
+              "bytes": 75,
+              "path": "README.md",
+              "sha256": "10b8e5462c6cd557359af762cf057b36475eae7a8117e51510ac3d2beacb5a37"
+            },
+            {
+              "bytes": 34,
+              "path": "calculation.json",
+              "sha256": "1fbb78f6bb48c4bf3414467d67a30324f1c3c1069e9680d059c37164cd3f74a4"
+            },
+            {
+              "bytes": 684,
+              "path": "solution.py",
+              "sha256": "89ed9eb517141d001aef14df6a808a90074f0584b4ce70bc61072eea798a0bf8"
+            },
+            {
+              "bytes": 634,
+              "path": "tests/test_delivery.py",
+              "sha256": "30ca93f2e9019d72a5a1b5a37f9c8df0bea0d4544bfe20ac10a75e735580ecb8"
+            }
+          ],
+          "hashAlgorithm": "coding-canonical-json-v1",
+          "parent": "3fda95e2f749aadbb018dfa3f8d2560957b548ae02fbae5838f5dfe128f79cec",
+          "schemaVersion": "runtime_os.native_code_tree.v1",
+          "scopeBinding": "dcb7ee7ba17c42127021ee9808cd33399390731fea635f1a83b3c600858fa058",
+          "sha256": "b755727a0a81bce948f2c4255d91ee86bfcf872af88081259030826569fcf585",
+          "taskId": "native-00dcfb12e9af026b578a083941f7c52900baba51d5a81e12",
+          "version": 2
+        },
+        "diffSource": "native-diff:workspace-2383ddf6b30411cd93f8984b2199bb866d59f100c18b25dbb9473155f359d71f"
+      },
+      {
+        "manifest": {
+          "files": [
+            {
+              "bytes": 75,
+              "path": "README.md",
+              "sha256": "10b8e5462c6cd557359af762cf057b36475eae7a8117e51510ac3d2beacb5a37"
+            },
+            {
+              "bytes": 34,
+              "path": "calculation.json",
+              "sha256": "1fbb78f6bb48c4bf3414467d67a30324f1c3c1069e9680d059c37164cd3f74a4"
+            },
+            {
+              "bytes": 634,
+              "path": "tests/test_delivery.py",
+              "sha256": "30ca93f2e9019d72a5a1b5a37f9c8df0bea0d4544bfe20ac10a75e735580ecb8"
+            }
+          ],
+          "hashAlgorithm": "coding-canonical-json-v1",
+          "parent": "9609b346f535a511c2c6706f3b194ce1c441bfcc672bd4e23edc515436883baf",
+          "schemaVersion": "runtime_os.native_code_tree.v1",
+          "scopeBinding": "dcb7ee7ba17c42127021ee9808cd33399390731fea635f1a83b3c600858fa058",
+          "sha256": "3fda95e2f749aadbb018dfa3f8d2560957b548ae02fbae5838f5dfe128f79cec",
+          "taskId": "native-00dcfb12e9af026b578a083941f7c52900baba51d5a81e12",
+          "version": 1
+        },
+        "diffSource": "native-diff:workspace-73874b41712784f20d6f68e090e9f697e37171e6528b79873088574d5e0a2e1d"
+      },
+      {
+        "manifest": {
+          "files": [
+            {
+              "bytes": 75,
+              "path": "README.md",
+              "sha256": "10b8e5462c6cd557359af762cf057b36475eae7a8117e51510ac3d2beacb5a37"
+            },
+            {
+              "bytes": 634,
+              "path": "tests/test_delivery.py",
+              "sha256": "30ca93f2e9019d72a5a1b5a37f9c8df0bea0d4544bfe20ac10a75e735580ecb8"
+            }
+          ],
+          "hashAlgorithm": "coding-canonical-json-v1",
+          "parent": null,
+          "schemaVersion": "runtime_os.native_code_tree.v1",
+          "scopeBinding": "dcb7ee7ba17c42127021ee9808cd33399390731fea635f1a83b3c600858fa058",
+          "sha256": "9609b346f535a511c2c6706f3b194ce1c441bfcc672bd4e23edc515436883baf",
+          "taskId": "native-00dcfb12e9af026b578a083941f7c52900baba51d5a81e12",
+          "version": 0
+        }
+      }
+    ],
+    "timestamp": 1794061799520,
+    "requestId": "0c60c214-fbbb-4628-892b-870774c92404"
+  }
+}

@@ -1,0 +1,8 @@
+{
+  "status": "FAILED_BEFORE_TASK_ADMISSION",
+  "reason": "AMBIGUOUS_MCP_DIRECTORY_BEAN",
+  "apiImage": "sha256:681956751a31a13b7e37234b0f8d9447be7c5ec71a567cbaf17a9e6b87865724",
+  "exitCode": 1,
+  "rawLogSha256": "f3c9cdd7e7a3212e25e94f4be60ce0fa39324d9b4500d914fce09a2607d4ada6",
+  "taskSubmitted": false
+}

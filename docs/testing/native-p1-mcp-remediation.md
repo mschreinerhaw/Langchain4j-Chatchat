@@ -1,6 +1,14 @@
 # P1 MCP 实施与验收记录
 
-当前状态：**适配代码已实现，真实产品验收未通过；最终 P1 未通过。** 不以组件测试替代端到端验收。
+当前状态：**适配代码已实现，真实 MCP 常规交付样本通过；MCP 专项与最终 P1 验收尚未全部通过。** 不以组件测试替代端到端验收。
+
+## 首个真实完整交付样本
+
+源码 `78a820add`，任务 `native-00dcfb12e9af026b578a083941f7c52900baba51d5a81e12`。真实目录披露两个授权工具，其他工具未披露。Agent 首次调用计算器收到不支持 `sqrt` 的真实错误，自主改为等价表达式取得 33，再根据返回结果计算出 66；交付 `solution.py`、`calculation.json` 和 `report.md`。独立测试通过、只读测试未改、归档文件重读与 Hash 一致，所有执行已停止。
+
+沿用原 8 次模型/16 次工具/4 次 CODE/300 秒预算，实际 8 次模型、9 次工具、1 次 CODE；提交至独立校验及归档重读完成约 70.336 秒。已计量 Token 为 33,039，但 `meteringComplete=false`，不得作为完整 Token 消耗或精确成本对照。撤权、断线恢复、Skills、多服务故障与八项原生对照仍待验收。
+
+[实际任务与交付结果](evidence/native-p1/runtime-normal-first/mcp/normal-r3/result-public.json)、[执行回执及归档校验](evidence/native-p1/runtime-normal-first/mcp/normal-r3/receipts-projection-public.json)、[22 份运行证据 Hash 清单](evidence/native-p1/runtime-normal-first/mcp/manifest.json)同时保留前两轮启动/准入失败及临时权限清理记录。导出包和全部清单文件已逐字节核验。
 
 首次真实升级暴露 M-04：API 的 Spring 容器中 `McpServiceDirectory` 有三个实现，未限定注入导致 API 启动失败。Worker 就绪不能证明 API 就绪；首轮真实任务未提交、未消耗模型预算。修复为显式选择既有 `mcpRuntimeTransportPort`，同时补多实现并存的 Spring 装配测试，以及部署时的 API 认证读取检查。首次失败容器、原 P0 Jar 和运行日志保留，不覆盖原失败记录。
 

@@ -1,0 +1,585 @@
+{
+  "scope": "WHITELISTED_REAL_RECEIPTS_AND_SILO_HASH_RECHECK",
+  "taskId": "native-00dcfb12e9af026b578a083941f7c52900baba51d5a81e12",
+  "sourceCommit": "78a820adde5086024618b265b7342b31a90e802b",
+  "modelReceipts": [
+    {
+      "operationId": "model-1",
+      "evidenceSha256": "8e5bce9c73bd3469ca3982e5f613b6e9623beff8c48e691e6687f58565a7e993",
+      "finishReason": "TOOL_EXECUTION",
+      "modelInfo": {
+        "selectedModel": "qwen3.8-flash",
+        "providerModel": "qwen3.8-flash",
+        "durationMs": 2237,
+        "startedAt": "2026-11-07T14:28:53.056478880Z",
+        "finishedAt": "2026-11-07T14:28:55.294113702Z",
+        "maxOutputTokens": 8192,
+        "authorizedTools": [
+          "apply_patch",
+          "editor",
+          "mcp_chatchat_mcp_server_calculator",
+          "mcp_chatchat_mcp_server_server_capability_query",
+          "read_files",
+          "run_commands",
+          "search_codebase"
+        ],
+        "disclosedTools": [
+          "editor",
+          "mcp_chatchat_mcp_server_calculator",
+          "mcp_chatchat_mcp_server_server_capability_query",
+          "read_files",
+          "run_commands",
+          "search_codebase"
+        ],
+        "toolSchemaSha256": "ee54d6626e7b89cc4cd35761aa93560f5abcf534dfd7100e2e854759291444be",
+        "requestBytes": 10995,
+        "messageCount": 2,
+        "responseMode": "NON_STREAMING"
+      },
+      "usage": {
+        "cacheReadTokens": 0,
+        "inputTokens": 2895,
+        "outputTokens": 101,
+        "reasoningTokens": 9
+      },
+      "toolCalls": [
+        {
+          "id": "call_bac30e53d9b74e3aac61de58",
+          "name": "read_files",
+          "inputSha256": "dedabd2a5355955f783758ec8c0b37c28b3c30253749383d1b1ad31ea7d9fdca"
+        },
+        {
+          "id": "call_b0a1a65ff7b84682998e4de4",
+          "name": "mcp_chatchat_mcp_server_calculator",
+          "inputSha256": "292279ea29ca3edcf595c670bdcdc37ea3ec3046bb9e27e5af99cccb6a49a1b8"
+        }
+      ]
+    },
+    {
+      "operationId": "model-2",
+      "evidenceSha256": "c05725f365127edabf9ab758fcd69d3e3d67d5ca4ad6096aa70090ee805f4f6c",
+      "finishReason": "TOOL_EXECUTION",
+      "modelInfo": {
+        "selectedModel": "qwen3.8-flash",
+        "providerModel": "qwen3.8-flash",
+        "durationMs": 3974,
+        "startedAt": "2026-11-07T14:28:57.271653288Z",
+        "finishedAt": "2026-11-07T14:29:01.245556209Z",
+        "maxOutputTokens": 8192,
+        "authorizedTools": [
+          "apply_patch",
+          "editor",
+          "mcp_chatchat_mcp_server_calculator",
+          "mcp_chatchat_mcp_server_server_capability_query",
+          "read_files",
+          "run_commands",
+          "search_codebase"
+        ],
+        "disclosedTools": [
+          "editor",
+          "mcp_chatchat_mcp_server_calculator",
+          "mcp_chatchat_mcp_server_server_capability_query",
+          "read_files",
+          "run_commands",
+          "search_codebase"
+        ],
+        "toolSchemaSha256": "ee54d6626e7b89cc4cd35761aa93560f5abcf534dfd7100e2e854759291444be",
+        "requestBytes": 12867,
+        "messageCount": 5,
+        "responseMode": "NON_STREAMING"
+      },
+      "usage": {
+        "cacheReadTokens": 2048,
+        "inputTokens": 3331,
+        "outputTokens": 181,
+        "reasoningTokens": 132
+      },
+      "toolCalls": [
+        {
+          "id": "call_d2ac358818f1486ebbde5064",
+          "name": "mcp_chatchat_mcp_server_calculator",
+          "inputSha256": "ae3c4df44991c0f8706a09ca103a348fe8a811f105bf2bcb6cb7fa58c068aea9"
+        }
+      ]
+    },
+    {
+      "operationId": "model-3",
+      "evidenceSha256": "e5119a990109e4250950a1b8f440a46cfccf794dca693c1971dcad67e2ca97d0",
+      "finishReason": "TOOL_EXECUTION",
+      "modelInfo": {
+        "selectedModel": "qwen3.8-flash",
+        "providerModel": "qwen3.8-flash",
+        "durationMs": 2501,
+        "startedAt": "2026-11-07T14:29:02.661706279Z",
+        "finishedAt": "2026-11-07T14:29:05.163081867Z",
+        "maxOutputTokens": 8192,
+        "authorizedTools": [
+          "apply_patch",
+          "editor",
+          "mcp_chatchat_mcp_server_calculator",
+          "mcp_chatchat_mcp_server_server_capability_query",
+          "read_files",
+          "run_commands",
+          "search_codebase"
+        ],
+        "disclosedTools": [
+          "editor",
+          "mcp_chatchat_mcp_server_calculator",
+          "mcp_chatchat_mcp_server_server_capability_query",
+          "read_files",
+          "run_commands",
+          "search_codebase"
+        ],
+        "toolSchemaSha256": "ee54d6626e7b89cc4cd35761aa93560f5abcf534dfd7100e2e854759291444be",
+        "requestBytes": 13214,
+        "messageCount": 7,
+        "responseMode": "NON_STREAMING"
+      },
+      "usage": {
+        "cacheReadTokens": 2048,
+        "inputTokens": 3397,
+        "outputTokens": 83,
+        "reasoningTokens": 43
+      },
+      "toolCalls": [
+        {
+          "id": "call_8ac1829103144146a54344f6",
+          "name": "mcp_chatchat_mcp_server_calculator",
+          "inputSha256": "5b52135330a64a6bfddce8eb39f63677298961b6c68ff3ba91dec2c0a27fbb8f"
+        }
+      ]
+    },
+    {
+      "operationId": "model-4",
+      "evidenceSha256": "170d867c561c24f48e2b0166ef42d109c1b0e2e393f931a1ad3fea651e607472",
+      "finishReason": "TOOL_EXECUTION",
+      "modelInfo": {
+        "selectedModel": "qwen3.8-flash",
+        "providerModel": "qwen3.8-flash",
+        "durationMs": 6733,
+        "startedAt": "2026-11-07T14:29:06.854344450Z",
+        "finishedAt": "2026-11-07T14:29:13.588256785Z",
+        "maxOutputTokens": 8192,
+        "authorizedTools": [
+          "apply_patch",
+          "editor",
+          "mcp_chatchat_mcp_server_calculator",
+          "mcp_chatchat_mcp_server_server_capability_query",
+          "read_files",
+          "run_commands",
+          "search_codebase"
+        ],
+        "disclosedTools": [
+          "editor",
+          "mcp_chatchat_mcp_server_calculator",
+          "mcp_chatchat_mcp_server_server_capability_query",
+          "read_files",
+          "run_commands",
+          "search_codebase"
+        ],
+        "toolSchemaSha256": "ee54d6626e7b89cc4cd35761aa93560f5abcf534dfd7100e2e854759291444be",
+        "requestBytes": 13549,
+        "messageCount": 9,
+        "responseMode": "NON_STREAMING"
+      },
+      "usage": {
+        "cacheReadTokens": 2048,
+        "inputTokens": 3454,
+        "outputTokens": 422,
+        "reasoningTokens": 123
+      },
+      "toolCalls": [
+        {
+          "id": "call_7daef6c9da0245699b93e73f",
+          "name": "editor",
+          "inputSha256": "9bd7fc333d7b2eb7e84f76e7fc04168bbf2d6d13e8646c9918fabbacf4957381"
+        },
+        {
+          "id": "call_c8334a7a634044709407b9bd",
+          "name": "editor",
+          "inputSha256": "84b4892501cc8bf702d8f8b48fece3708da219adfad09124b4a19f171906b7f6"
+        }
+      ]
+    },
+    {
+      "operationId": "model-5",
+      "evidenceSha256": "4f9cc721f587e702a287a36e3fa6b7c70d82c549c9aad37c394ec7f895032e6c",
+      "finishReason": "TOOL_EXECUTION",
+      "modelInfo": {
+        "selectedModel": "qwen3.8-flash",
+        "providerModel": "qwen3.8-flash",
+        "durationMs": 11722,
+        "startedAt": "2026-11-07T14:29:16.705700708Z",
+        "finishedAt": "2026-11-07T14:29:28.428429978Z",
+        "maxOutputTokens": 8192,
+        "authorizedTools": [
+          "apply_patch",
+          "editor",
+          "mcp_chatchat_mcp_server_calculator",
+          "mcp_chatchat_mcp_server_server_capability_query",
+          "read_files",
+          "run_commands",
+          "search_codebase"
+        ],
+        "disclosedTools": [
+          "editor",
+          "mcp_chatchat_mcp_server_calculator",
+          "mcp_chatchat_mcp_server_server_capability_query",
+          "read_files",
+          "run_commands",
+          "search_codebase"
+        ],
+        "toolSchemaSha256": "ee54d6626e7b89cc4cd35761aa93560f5abcf534dfd7100e2e854759291444be",
+        "requestBytes": 15233,
+        "messageCount": 12,
+        "responseMode": "NON_STREAMING"
+      },
+      "usage": {
+        "cacheReadTokens": 3072,
+        "inputTokens": 3842,
+        "outputTokens": 716,
+        "reasoningTokens": 72
+      },
+      "toolCalls": [
+        {
+          "id": "call_74523e2a7dcd4222a87c56f0",
+          "name": "editor",
+          "inputSha256": "4aea015e42676fc53dddedcff849824cb8854a796f7353f2acf2356593f7919c"
+        }
+      ]
+    },
+    {
+      "operationId": "model-6",
+      "evidenceSha256": "941a6543793f06b63a8b512747535af27e05028fad93e1b4deb9b389089fb537",
+      "finishReason": "TOOL_EXECUTION",
+      "modelInfo": {
+        "selectedModel": "qwen3.8-flash",
+        "providerModel": "qwen3.8-flash",
+        "durationMs": 2260,
+        "startedAt": "2026-11-07T14:29:30.405804600Z",
+        "finishedAt": "2026-11-07T14:29:32.666087754Z",
+        "maxOutputTokens": 8192,
+        "authorizedTools": [
+          "apply_patch",
+          "editor",
+          "mcp_chatchat_mcp_server_calculator",
+          "mcp_chatchat_mcp_server_server_capability_query",
+          "read_files",
+          "run_commands",
+          "search_codebase"
+        ],
+        "disclosedTools": [
+          "editor",
+          "mcp_chatchat_mcp_server_calculator",
+          "mcp_chatchat_mcp_server_server_capability_query",
+          "read_files",
+          "run_commands",
+          "search_codebase"
+        ],
+        "toolSchemaSha256": "ee54d6626e7b89cc4cd35761aa93560f5abcf534dfd7100e2e854759291444be",
+        "requestBytes": 17539,
+        "messageCount": 14,
+        "responseMode": "NON_STREAMING"
+      },
+      "usage": {
+        "cacheReadTokens": 3072,
+        "inputTokens": 4533,
+        "outputTokens": 85,
+        "reasoningTokens": 31
+      },
+      "toolCalls": [
+        {
+          "id": "call_179835b95c5b4baf9f152fda",
+          "name": "run_commands",
+          "inputSha256": "07ad59e87b21f1defff24a94ff84b64968dba2419395c5d5c57fa176fa919b7e"
+        }
+      ]
+    },
+    {
+      "operationId": "model-7",
+      "evidenceSha256": "d5041b1e8d7d6799b39e2f75e7a4583c8fca5699178af6bff8d38948b3ed9eac",
+      "finishReason": "TOOL_EXECUTION",
+      "modelInfo": {
+        "selectedModel": "qwen3.8-flash",
+        "providerModel": "qwen3.8-flash",
+        "durationMs": 4154,
+        "startedAt": "2026-11-07T14:29:40.616110890Z",
+        "finishedAt": "2026-11-07T14:29:44.770517399Z",
+        "maxOutputTokens": 8192,
+        "authorizedTools": [
+          "apply_patch",
+          "editor",
+          "mcp_chatchat_mcp_server_calculator",
+          "mcp_chatchat_mcp_server_server_capability_query",
+          "read_files",
+          "run_commands",
+          "search_codebase"
+        ],
+        "disclosedTools": [
+          "editor",
+          "mcp_chatchat_mcp_server_calculator",
+          "mcp_chatchat_mcp_server_server_capability_query",
+          "read_files",
+          "run_commands",
+          "search_codebase"
+        ],
+        "toolSchemaSha256": "ee54d6626e7b89cc4cd35761aa93560f5abcf534dfd7100e2e854759291444be",
+        "requestBytes": 14050,
+        "messageCount": 4,
+        "responseMode": "NON_STREAMING"
+      },
+      "usage": {
+        "cacheReadTokens": 2048,
+        "inputTokens": 4344,
+        "outputTokens": 243,
+        "reasoningTokens": 173
+      },
+      "toolCalls": [
+        {
+          "id": "call_f120c30d0b6340cda99e174e",
+          "name": "read_files",
+          "inputSha256": "aeb6d8eae044ae290afecbeaea5b4a92e0f4318282ccbd156d1fe4c955807c5e"
+        }
+      ]
+    },
+    {
+      "operationId": "model-8",
+      "evidenceSha256": "f28f222dbf84efebae0331aac45a9e1a468f3fe43c472651b55b5b8ade28169e",
+      "finishReason": "STOP",
+      "modelInfo": {
+        "selectedModel": "qwen3.8-flash",
+        "providerModel": "qwen3.8-flash",
+        "durationMs": 9991,
+        "startedAt": "2026-11-07T14:29:47.330714820Z",
+        "finishedAt": "2026-11-07T14:29:57.322590747Z",
+        "maxOutputTokens": 8192,
+        "authorizedTools": [
+          "apply_patch",
+          "editor",
+          "mcp_chatchat_mcp_server_calculator",
+          "mcp_chatchat_mcp_server_server_capability_query",
+          "read_files",
+          "run_commands",
+          "search_codebase"
+        ],
+        "disclosedTools": [
+          "editor",
+          "mcp_chatchat_mcp_server_calculator",
+          "mcp_chatchat_mcp_server_server_capability_query",
+          "read_files",
+          "run_commands",
+          "search_codebase"
+        ],
+        "toolSchemaSha256": "ee54d6626e7b89cc4cd35761aa93560f5abcf534dfd7100e2e854759291444be",
+        "requestBytes": 16627,
+        "messageCount": 4,
+        "responseMode": "NON_STREAMING"
+      },
+      "usage": {
+        "cacheReadTokens": 2048,
+        "inputTokens": 4819,
+        "outputTokens": 593,
+        "reasoningTokens": 98
+      },
+      "toolCalls": []
+    }
+  ],
+  "toolStops": [
+    {
+      "operationId": "workspace-5823ba8033615b3da5e2d4fe9810d016abcf77a80770742363bcea1ce46870b7",
+      "tool": "read_files",
+      "executorStopped": true,
+      "resultSource": "native-tool-result:workspace-5823ba8033615b3da5e2d4fe9810d016abcf77a80770742363bcea1ce46870b7",
+      "resultHash": "2ca4346789b9b96f0647b4ef8d03f480723128d33780c1503f504d91e905dee2",
+      "archivedResultReadAndHashMatched": true,
+      "isError": null,
+      "nativeEntryFailures": 0,
+      "admittedResultFailed": false
+    },
+    {
+      "operationId": "workspace-737e99697ad5c0eeff85b9bde38d445ccaf8bf1b17bca8fe12b96f64abbe35a7",
+      "tool": "mcp_chatchat_mcp_server_calculator",
+      "executorStopped": true,
+      "resultSource": "native-tool-result:workspace-737e99697ad5c0eeff85b9bde38d445ccaf8bf1b17bca8fe12b96f64abbe35a7",
+      "resultHash": "c31c264689d32fc8571711623ed10cc0c6852461c2c3640e19924861713e1f86",
+      "archivedResultReadAndHashMatched": true,
+      "isError": null,
+      "nativeEntryFailures": 0,
+      "admittedResultFailed": false
+    },
+    {
+      "operationId": "workspace-d142efa23d2e0a14c24d32ea37dd408ff103d167fec9bc16f541adeb09b9483c",
+      "tool": "mcp_chatchat_mcp_server_calculator",
+      "executorStopped": true,
+      "resultSource": "native-tool-result:workspace-d142efa23d2e0a14c24d32ea37dd408ff103d167fec9bc16f541adeb09b9483c",
+      "resultHash": "7b7ec6eb8eecf7bf6d78944c3b088340960e2e310781820fae904dcb725953cf",
+      "archivedResultReadAndHashMatched": true,
+      "isError": null,
+      "nativeEntryFailures": 0,
+      "admittedResultFailed": false
+    },
+    {
+      "operationId": "workspace-d6c58bcb37b0852a0b2298dba9699744dfa853a4d07203a880c697c9ccf259fa",
+      "tool": "mcp_chatchat_mcp_server_calculator",
+      "executorStopped": true,
+      "resultSource": "native-tool-result:workspace-d6c58bcb37b0852a0b2298dba9699744dfa853a4d07203a880c697c9ccf259fa",
+      "resultHash": "f5272ff29483f29a0b1ac3cc999c321d8173954591913faae0fc0424384a7858",
+      "archivedResultReadAndHashMatched": true,
+      "isError": null,
+      "nativeEntryFailures": 0,
+      "admittedResultFailed": false
+    },
+    {
+      "operationId": "workspace-73874b41712784f20d6f68e090e9f697e37171e6528b79873088574d5e0a2e1d",
+      "tool": "editor",
+      "executorStopped": true,
+      "resultSource": "native-tool-result:workspace-73874b41712784f20d6f68e090e9f697e37171e6528b79873088574d5e0a2e1d",
+      "resultHash": "d8fd39bea43708035850f84cd8e32dcf84a6ac074168457c353b69fbbe8331cb",
+      "archivedResultReadAndHashMatched": true,
+      "isError": null,
+      "nativeEntryFailures": 0,
+      "admittedResultFailed": false
+    },
+    {
+      "operationId": "workspace-2383ddf6b30411cd93f8984b2199bb866d59f100c18b25dbb9473155f359d71f",
+      "tool": "editor",
+      "executorStopped": true,
+      "resultSource": "native-tool-result:workspace-2383ddf6b30411cd93f8984b2199bb866d59f100c18b25dbb9473155f359d71f",
+      "resultHash": "c589e3664f111f3b0948f77824d2045369c0d135b714e3338ec26bb5c6257c05",
+      "archivedResultReadAndHashMatched": true,
+      "isError": null,
+      "nativeEntryFailures": 0,
+      "admittedResultFailed": false
+    },
+    {
+      "operationId": "workspace-0f8f2d9a84a98ec35d9a3c7b7e2a6077b14c32edd57a3ea1ecf4dc6622c88c36",
+      "tool": "editor",
+      "executorStopped": true,
+      "resultSource": "native-tool-result:workspace-0f8f2d9a84a98ec35d9a3c7b7e2a6077b14c32edd57a3ea1ecf4dc6622c88c36",
+      "resultHash": "c78a82efd9c3b69adc85267ae56e9ebbdf1ebf207904033f196bbaef76b355ca",
+      "archivedResultReadAndHashMatched": true,
+      "isError": null,
+      "nativeEntryFailures": 0,
+      "admittedResultFailed": false
+    },
+    {
+      "operationId": "workspace-a9053010dd081a03539f0f585ab7efa64d67595b7b00bcf312ee5feddcb4ac3e",
+      "tool": "run_commands",
+      "executorStopped": true,
+      "resultSource": "native-tool-result:workspace-a9053010dd081a03539f0f585ab7efa64d67595b7b00bcf312ee5feddcb4ac3e",
+      "resultHash": "995e85d3b28f824b408bfb29ca5408638de30e5097826aa302f8aa42ce056bbf",
+      "archivedResultReadAndHashMatched": true,
+      "isError": null,
+      "nativeEntryFailures": 0,
+      "admittedResultFailed": false
+    },
+    {
+      "operationId": "workspace-4d321d0aa4c48b7a11daa5c7f149780865f7f42167e90af5f9d1f3b82b4d5a91",
+      "tool": "read_files",
+      "executorStopped": true,
+      "resultSource": "native-tool-result:workspace-4d321d0aa4c48b7a11daa5c7f149780865f7f42167e90af5f9d1f3b82b4d5a91",
+      "resultHash": "b2754cb35b4f33ec581f640968cf37d38954dc4ade0c78cee8c3a446ebaaef30",
+      "archivedResultReadAndHashMatched": true,
+      "isError": null,
+      "nativeEntryFailures": 0,
+      "admittedResultFailed": false
+    }
+  ],
+  "commandObservations": [
+    {
+      "toolOperationId": "workspace-a9053010dd081a03539f0f585ab7efa64d67595b7b00bcf312ee5feddcb4ac3e",
+      "success": true,
+      "outputSha256": "acb4a3a987dae28ae7a3f39197a77995fc4b17fe062e50dc9c3cd7b73b52f431",
+      "operationId": "cline-15c9d4f203e82ea4f5ea597ec4ec4f66be0c3f9b89733d9b05d332478a720333",
+      "manifestHash": "aa04279d709ca8f537f33c7380b2d3d903652446bae5b37f6c111a2fae1b41a5",
+      "commandHash": "b4ecebd815ae86fd6f2e2c58776f10b664b7939da84e9e0d6694e02ce2726f43",
+      "sourceHash": "dcf9806f8afda1f6ba0776aaff0808acb8b57b9fd20706b781b9d904fa2c3a44",
+      "exitCode": 0,
+      "executorStopped": true,
+      "resultAvailable": true,
+      "stopProofRef": "mcp-python-receipt:a37ad5481062cf7a6e7147926c0e66d21697ca01239e701f2633b9d5b668dcba",
+      "resultArtifactSha256": "eb16dde19cea39a9540d97c0604d16e9722af5e4b7bfbec5a9d005bbf24e8de6",
+      "executorHelperSha256": "65b631cdb3323d09641767ae7328b78edd0f84e4c855c4a1fa12b1b033cdd82e",
+      "stdoutBytes": 281,
+      "stderrBytes": 0,
+      "truncated": false,
+      "verificationPolicy": "BASH_PIPEFAIL_V1",
+      "declaredCommandMatched": true,
+      "declaredCommandSha256": "ff9589960e74f51a5cc9c4734f3d88062b11f378e66f0311d66ca513f800d2c3",
+      "stdoutVisibleSha256": "84b3b3b3a8c8a28e54a89eaf712ae8056a2e18cbe099c38b3340a981cf5a5628",
+      "stderrVisibleSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "pythonDiagnosticCodes": [],
+      "streamHashScope": "MODEL_VISIBLE_TEXT_POSSIBLY_TAIL; full artifact has a separate Hash"
+    }
+  ],
+  "codeOperations": [
+    {
+      "operationId": "cline-15c9d4f203e82ea4f5ea597ec4ec4f66be0c3f9b89733d9b05d332478a720333",
+      "kind": "CODE",
+      "intentSha256": "8ea5e139a191cc4d35386d7fba025dd2c32454816607980594e650c25648f191",
+      "startIntent": true,
+      "startingFencingToken": 1,
+      "startSequence": 77,
+      "stopProofRef": "mcp-python-receipt:a37ad5481062cf7a6e7147926c0e66d21697ca01239e701f2633b9d5b668dcba",
+      "actual": {
+        "modelCalls": 0,
+        "modelTokens": 0,
+        "toolCalls": 0,
+        "codeExecutions": 1,
+        "cpuMillis": 0,
+        "peakMemoryBytes": 0,
+        "outputBytes": 2424,
+        "costAmount": "0"
+      },
+      "reservation": {
+        "modelCalls": 0,
+        "modelTokens": 0,
+        "toolCalls": 0,
+        "codeExecutions": 1,
+        "cpuMillis": 75000,
+        "peakMemoryBytes": 0,
+        "outputBytes": 262144,
+        "costAmount": "0"
+      },
+      "meteringComplete": false,
+      "snapshotBinding": {
+        "toolCallId": "call_179835b95c5b4baf9f152fda",
+        "modelOperationId": "model-6",
+        "manifestHash": "aa04279d709ca8f537f33c7380b2d3d903652446bae5b37f6c111a2fae1b41a5",
+        "commandHash": "b4ecebd815ae86fd6f2e2c58776f10b664b7939da84e9e0d6694e02ce2726f43",
+        "sourceHash": "dcf9806f8afda1f6ba0776aaff0808acb8b57b9fd20706b781b9d904fa2c3a44",
+        "fileHash": "0b86a6ff98fbfa6945492a220d7f2b31f673d5e1e78e93980a0d06b4c964ca16",
+        "commandOrdinal": 1,
+        "timeoutMs": 75000,
+        "executorHelperSha256": "65b631cdb3323d09641767ae7328b78edd0f84e4c855c4a1fa12b1b033cdd82e"
+      }
+    }
+  ],
+  "sdkCheckpoint": {
+    "sdkSessionId": "a10b7086-8ff4-4031-b44b-07c676c2099f",
+    "nativeSdk": true,
+    "compactionCount": 2,
+    "checkpointOrdinal": 17,
+    "modelOrdinal": 8,
+    "contractHash": "4739605074985819112d53d1d1d49e9df0ca33d2199084893a56efffe860b02f"
+  },
+  "frozenBudget": {
+    "budgetId": "native-budget:native-00dcfb12e9af026b578a083941f7c52900baba51d5a81e12",
+    "deadlineAt": "2026-11-07T14:33:51.417Z",
+    "maxModelCalls": 8,
+    "maxModelTokens": 262144,
+    "maxToolCalls": 16,
+    "maxCodeExecutions": 4,
+    "maxCostAmount": "1",
+    "costCurrency": "USD",
+    "maxCpuMillis": 300000,
+    "maxMemoryBytes": 536870912,
+    "maxOutputBytes": 1048576
+  },
+  "frozenModel": {
+    "connectionSha256": "6bd6d5be0d331013857dfca2b382f4487979009b128fca08cdc3d80b4cb1a25e",
+    "maxTokens": 8192,
+    "selectedModel": "qwen3.8-flash"
+  },
+  "privacy": "No private prompts, model free text, input arguments, raw source, stream text or credentials exported"
+}

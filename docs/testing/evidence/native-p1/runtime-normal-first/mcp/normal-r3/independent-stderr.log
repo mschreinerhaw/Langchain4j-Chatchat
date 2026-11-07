@@ -1,0 +1,8 @@
+test_loader (test_delivery.DeliveryTests.test_loader) ... ok
+test_report (test_delivery.DeliveryTests.test_report) ... ok
+test_values (test_delivery.DeliveryTests.test_values) ... ok
+
+----------------------------------------------------------------------
+Ran 3 tests in 0.001s
+
+OK

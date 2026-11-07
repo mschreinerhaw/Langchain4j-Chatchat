@@ -1,0 +1,17 @@
+{
+  "case": "T05",
+  "cohort": "P1_RUNTIME_MCP",
+  "taskId": "native-00dcfb12e9af026b578a083941f7c52900baba51d5a81e12",
+  "requestId": "p1-mcp-normal-r3",
+  "sourceCommit": "78a820adde5086024618b265b7342b31a90e802b",
+  "harnessSha256": "1bb103f7ce9c3ebe699e32037b1c8aeed645068b1d267b788cd78b1b61af70b2",
+  "fixtureSha256": "611f7117a1f606fdec7231912bc5f868e5a9d968643a217d945fb471791266d9",
+  "startedAtEpochMs": 1794061730814,
+  "originalBudget": {
+    "maxModelCalls": 8,
+    "maxModelTokens": 262144,
+    "maxToolCalls": 16,
+    "maxCodeExecutions": 4,
+    "durationSeconds": 300
+  }
+}

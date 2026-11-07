@@ -1,0 +1,10 @@
+{
+  "http": 403,
+  "body": {
+    "code": 403,
+    "message": "Native project input binding differs",
+    "data": null,
+    "timestamp": 1794061144028,
+    "requestId": "2f66633b-990c-41a2-8612-f0a31ae4af07"
+  }
+}

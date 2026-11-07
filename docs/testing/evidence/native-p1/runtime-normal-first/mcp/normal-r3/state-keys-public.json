@@ -1,0 +1,40 @@
+{
+  "keys": [
+    "contract",
+    "outcome",
+    "lease",
+    "operations",
+    "events",
+    "workerEvents",
+    "sdkCheckpoint",
+    "privateState"
+  ],
+  "privateKeys": [
+    "model-checkpoint:model-1",
+    "model-checkpoint:model-2",
+    "model-checkpoint:model-3",
+    "model-checkpoint:model-4",
+    "model-checkpoint:model-5",
+    "model-checkpoint:model-6",
+    "model-checkpoint:model-7",
+    "model-checkpoint:model-8",
+    "native-command-input:cline-15c9d4f203e82ea4f5ea597ec4ec4f66be0c3f9b89733d9b05d332478a720333",
+    "native-final-intent",
+    "native-last-execution",
+    "native-last-verification",
+    "native-mcp:workspace-737e99697ad5c0eeff85b9bde38d445ccaf8bf1b17bca8fe12b96f64abbe35a7",
+    "native-mcp:workspace-d142efa23d2e0a14c24d32ea37dd408ff103d167fec9bc16f541adeb09b9483c",
+    "native-mcp:workspace-d6c58bcb37b0852a0b2298dba9699744dfa853a4d07203a880c697c9ccf259fa",
+    "native-tool:workspace-0f8f2d9a84a98ec35d9a3c7b7e2a6077b14c32edd57a3ea1ecf4dc6622c88c36",
+    "native-tool:workspace-2383ddf6b30411cd93f8984b2199bb866d59f100c18b25dbb9473155f359d71f",
+    "native-tool:workspace-4d321d0aa4c48b7a11daa5c7f149780865f7f42167e90af5f9d1f3b82b4d5a91",
+    "native-tool:workspace-5823ba8033615b3da5e2d4fe9810d016abcf77a80770742363bcea1ce46870b7",
+    "native-tool:workspace-737e99697ad5c0eeff85b9bde38d445ccaf8bf1b17bca8fe12b96f64abbe35a7",
+    "native-tool:workspace-73874b41712784f20d6f68e090e9f697e37171e6528b79873088574d5e0a2e1d",
+    "native-tool:workspace-a9053010dd081a03539f0f585ab7efa64d67595b7b00bcf312ee5feddcb4ac3e",
+    "native-tool:workspace-d142efa23d2e0a14c24d32ea37dd408ff103d167fec9bc16f541adeb09b9483c",
+    "native-tool:workspace-d6c58bcb37b0852a0b2298dba9699744dfa853a4d07203a880c697c9ccf259fa",
+    "native-workspace",
+    "script:cline-15c9d4f203e82ea4f5ea597ec4ec4f66be0c3f9b89733d9b05d332478a720333"
+  ]
+}

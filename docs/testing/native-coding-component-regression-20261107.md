@@ -52,6 +52,16 @@ MCP 的两个跳过测试不能计为已验证能力。Java 单元测试中使�
 
 回归为 89/89、无跳过：新旧工作区、A2 持久化、旧恢复和模型 callback。日志 `native-child-reconciliation-after.log` SHA256 `cc328932157e8dbbd74fca27de49be9f89845db5721a517c272140c867d8562a`。测试使用明确的 unit stop proof 夹具，实际 MCP 父子整链仍需正式回归，不将该结果混作真实模型通过。
 
+## 验证命令身份与成功后继续检查
+
+只部署 Node Loop 修复的第三次真实预检 `native-845d00db6d86df53155ff3dff79640f3bdaa41cd68ffbf4a` 保留原输入、模型及预算上限。3 次实际命令均停止并返回三个测试通过；任务仍 FAILED。模型已收到验证反馈，又执行了无管道的 `cd /workspace/code && python -m unittest discover -s tests -v`，但 Runtime 按原样命令 Hash 拒绝等价目录前缀，造成额外模型/执行消耗。8 次模型调用，已知 Token 24890，未知 Token reservation 106182；不能把三个测试通过改写成整体完成。
+
+验证修复不改变命令或结果。Java 仅由冻结的声明命令生成有限的 4 个 Hash：原样，以及固定 `/workspace/code` 目录的未引号、单引号、双引号前缀。执行器本来就固定该 cwd；原始命令 Hash、标准流和 stop proof 均保留。管道、额外重定向、其他目录及成功掩盖后缀不在等价集合。Java 最终再次核对实际已停止的操作、源码 Hash、当前 manifest 与回执绑定。
+
+已验证执行与最新检查命令分别保存于既有 journal，后续同版本检查不能覆盖验证；任何源码版本变化仍要求再次验证。SDK 完成声明仍必须真实发出，Java 不把失败终态改为成功；独立项目验收仍为 NOT_EVALUATED/INCONCLUSIVE。
+
+独立原生 Loop 测试覆盖目录前缀及后续检查、零退出管道拒绝、修改代码后旧验证失效；Java 覆盖精确等价集合及对抗命令。当前 Java 23/23 通过、无跳过；Node 全量 r8 为 300 项、299 通过、1 项 Windows 链接相关跳过。真实同预算复测待新制品部署完成，不能将这些测试计为整体验收通过。
+
 ## Linux 原始执行证据
 
 远端目录 `/var/tmp/runtime-native-components-20261107-r2` 保留 r2 失败与 r3 串行成功两轮日志和 proof。r3 容器 `f4090aea94dae6e7a702bb2e425627b100c2365486badd13e99e5b5d96c1f8c4`，状态 exited，exitCode=0，Pid=0。镜像 `sha256:a3a279fc391bda1bb5aefb62acd8ee56200215ce2905cfb83d189398c33c5828`。日志 SHA256 `2375d1df8d71caf3b7aa87011d2dd32a86b89c51e9cfa74fc21afd4f7e1443c8`。

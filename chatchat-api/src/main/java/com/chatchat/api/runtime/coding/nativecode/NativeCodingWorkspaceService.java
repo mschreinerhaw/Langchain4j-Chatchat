@@ -62,9 +62,11 @@ public final class NativeCodingWorkspaceService {
         response.put("modelId",input.getOrDefault("routingModelId",input.get("modelName")));response.put("providerId",input.getOrDefault("providerId","runtime"));
         if(input.get("editStrategy") instanceof String strategy&&!"auto".equals(strategy))response.put("editStrategy",strategy);
         response.put("requireExecution",true);
-        if(input.get("acceptanceCommand") instanceof String command)response.put("acceptanceCommand",command);
+        if(input.get("acceptanceCommand") instanceof String command){response.put("acceptanceCommand",command);response.put("acceptanceCommandHashes",NativeCommandVerification.hashes(command));}
         var execution=tasks.privateState(c.scope(),c.taskId(),"native-last-execution");
         if(execution!=null)response.put("lastExecution",map(execution));
+        var verification=tasks.privateState(c.scope(),c.taskId(),"native-last-verification");
+        if(verification!=null)response.put("lastVerification",map(verification));
         return response;
     }
     /** Archive reads never resume a task or depend on external business-source refresh. */

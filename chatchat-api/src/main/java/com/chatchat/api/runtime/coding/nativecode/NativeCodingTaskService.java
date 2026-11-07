@@ -133,20 +133,28 @@ public final class NativeCodingTaskService {
         var tree=workspace.current(c);var manifest=(Map<?,?>)tree.get("manifest");
         var execution=tasks.privateState(c.scope(),c.taskId(),"native-last-execution");
         if(completed){
-            var requested=(Map<?,?>)outcome.get("workspaceManifest");String operation=Objects.toString(outcome.get("lastExecutionOperationId"),"");
+            var verification=tasks.privateState(c.scope(),c.taskId(),"native-last-verification");
+            if(verification!=null)execution=verification;
+            var requested=(Map<?,?>)outcome.get("workspaceManifest");String operation=Objects.toString(outcome.getOrDefault("verificationExecutionOperationId",outcome.get("lastExecutionOperationId")),"");
             if(requested==null||!manifest.get("sha256").equals(requested.get("sha256"))||execution==null
                     ||!manifest.get("sha256").equals(execution.path("manifestHash").asText())||execution.path("exitCode").asInt(-1)!=0
                     ||!execution.path("executorStopped").asBoolean()||!execution.path("resultAvailable").asBoolean()
                     ||!operation.equals(execution.path("operationId").asText()))throw new SecurityException("Current code has no matching verified execution");
             var prepared=tasks.privateState(c.scope(),c.taskId(),"native-command-input:"+operation);
             String acceptance=Objects.toString(workspace.requireAuthorized(c).get("acceptanceCommand"),"");
-            if(prepared==null||!NativeCodeWorkspace.sha(acceptance.getBytes(java.nio.charset.StandardCharsets.UTF_8)).equals(prepared.path("commandHash").asText()))
+            var proof=tasks.verifiedOperation(c.scope(),c.taskId(),operation);
+            if(prepared==null||proof.isEmpty()||!proof.get().stopProofRef().equals(execution.path("stopProofRef").asText())
+                    ||!manifest.get("sha256").equals(prepared.path("manifestHash").asText())
+                    ||!prepared.path("sourceHash").asText().equals(execution.path("sourceHash").asText())
+                    ||!prepared.path("commandHash").asText().equals(execution.path("commandHash").asText())
+                    ||!NativeCommandVerification.matches(acceptance,prepared.path("commandHash").asText()))
                 throw new SecurityException("Declared verification command was not the completed execution");
             if(((Map<?,?>)tree.get("files")).isEmpty())throw new SecurityException("No code delivered");
         }
         if(savedIntent==null){
             var intent=new LinkedHashMap<String,Object>();intent.put("status",outcome.getOrDefault("status","failed"));
-            if(completed){intent.put("workspaceManifest",outcome.get("workspaceManifest"));intent.put("lastExecutionOperationId",outcome.get("lastExecutionOperationId"));}
+            if(completed){intent.put("workspaceManifest",outcome.get("workspaceManifest"));intent.put("lastExecutionOperationId",outcome.get("lastExecutionOperationId"));
+                if(outcome.containsKey("verificationExecutionOperationId"))intent.put("verificationExecutionOperationId",outcome.get("verificationExecutionOperationId"));}
             tasks.privateState(c.scope(),c.taskId(),lease,"native-final-intent",null,json.valueToTree(intent));
         }
         String code=base+":code",receipt=base+":receipt",result=base+":result",validation=base+":validation";

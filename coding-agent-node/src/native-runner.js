@@ -22,18 +22,27 @@ export function createNativeCodingRun(contract,gateway,options={}) {
   for(const name of ['openCodeWorkspace','commitCodeWorkspace','executeCodeCommand','authorizeCodeTool','lookupCodeTool','finishCodeTool','checkpoint','finish'])
     if(typeof gateway[name]!=='function')throw new TypeError('Missing governed native coding port: '+name);
   const session=createNativeSession(contract,gateway,options),cancel=new AbortController();
-  let agent,workspace,skills,preparing=null,lastExecution=null,running=false,initialAcceptanceCommand=null;
+  let agent,workspace,skills,preparing=null,lastExecution=null,lastVerification=null,running=false,initialAcceptanceCommand=null;
+  let acceptanceCommandHashes=new Set();
+  const acceptedVerification=receipt=>receipt?.executorStopped===true&&receipt.exitCode===0&&receipt.resultAvailable!==false
+    &&acceptanceCommandHashes.has(receipt.commandHash);
   const allowed=new Set(contract.authorization.allowedTools);
   const replayedTools=new Map();
   const admittedTools=new Set();
   async function prepare(){
     const initial=await gateway.openCodeWorkspace(contract,cancel.signal);
     initialAcceptanceCommand=initial.acceptanceCommand??null;
+    const hashes=initial.acceptanceCommandHashes??(initialAcceptanceCommand?[createHash('sha256').update(initialAcceptanceCommand).digest('hex')]:[]);
+    if(!Array.isArray(hashes)||hashes.length>4||hashes.some(v=>typeof v!=='string'||!/^[a-f0-9]{64}$/.test(v))
+        ||initialAcceptanceCommand&&!hashes.includes(createHash('sha256').update(initialAcceptanceCommand).digest('hex')))
+      throw new TypeError('Invalid host verification identities');
+    acceptanceCommandHashes=new Set(hashes);
     if(cancel.signal.aborted)throw cancel.signal.reason;
     const routing=resolveToolRoutingConfig(initial.providerId??'runtime',initial.modelId??'', 'act',DEFAULT_MODEL_TOOL_ROUTING_RULES);
     if(initial.editStrategy && !['editor','patch'].includes(initial.editStrategy))throw new TypeError('Invalid host editing strategy');
     const strategy=initial.editStrategy??(routing.enableApplyPatch===true?'patch':'editor');
     lastExecution=initial.lastExecution??null;
+    lastVerification=initial.lastVerification??(acceptedVerification(lastExecution)?lastExecution:null);
     workspace=await createNativeCodeWorkspace({base:options.workspaceBase??tmpdir(),taskId:contract.taskId,scope:contract.scope,
       files:initial.files,restoredManifest:initial.manifest,executionMode:'commands',strategy,signal:cancel.signal,
       authorize:value=>gateway.authorizeCodeTool(contract,value,cancel.signal),
@@ -41,6 +50,7 @@ export function createNativeCodingRun(contract,gateway,options={}) {
       async runCommand(value){
         const receipt=await gateway.executeCodeCommand(contract,value,value.signal);
         lastExecution=receipt;
+        if(acceptedVerification(receipt))lastVerification=receipt;
         return receipt;
       }});
     let tools=[...workspace.tools];
@@ -88,10 +98,13 @@ export function createNativeCodingRun(contract,gateway,options={}) {
       completionPolicy:{completionGuard:()=>{
         const current=workspace.snapshot();
         if(!Object.keys(current.files).length)return 'The task has no delivered project files yet.';
-        if(initial.requireExecution!==false && (!lastExecution||lastExecution.resultAvailable===false||lastExecution.executorStopped!==true||lastExecution.exitCode!==0
-            ||lastExecution.manifestHash!==current.manifest.sha256))return 'The current project version has no successful, stopped execution receipt. Inspect the actual tool feedback and continue within this task budget.';
-        if(initial.acceptanceCommand&&lastExecution?.commandHash!==createHash('sha256').update(initial.acceptanceCommand).digest('hex'))
-          return 'Run the task-declared verification command for the current project: '+initial.acceptanceCommand;
+        const valid=receipt=>receipt&&receipt.resultAvailable!==false&&receipt.executorStopped===true&&receipt.exitCode===0&&receipt.manifestHash===current.manifest.sha256;
+        const verification=initialAcceptanceCommand?lastVerification:lastExecution;
+        if(initial.requireExecution!==false&&!valid(verification)){
+          if(initialAcceptanceCommand&&valid(lastExecution))return 'Run the task-declared verification command for the current project: '+initialAcceptanceCommand;
+          return 'The current project version has no successful, stopped execution receipt. Inspect the actual tool feedback and continue within this task budget.';
+        }
+        if(initialAcceptanceCommand&&!acceptedVerification(verification))return 'Run the task-declared verification command for the current project: '+initialAcceptanceCommand;
       }},
       hooks:{
         async beforeModel({snapshot,request}){
@@ -135,6 +148,7 @@ export function createNativeCodingRun(contract,gateway,options={}) {
         result=await pending;
         const outcome=await gateway.finish(contract,{status:result.status,summary:result.outputText??'',
           workspaceManifest:workspace.snapshot().manifest,lastExecutionOperationId:lastExecution?.operationId,
+          ...(lastVerification?{verificationExecutionOperationId:lastVerification.operationId}:{}),
           iterations:result.iterations});
         const authoritative=({COMPLETED:'completed',FAILED:'failed',CANCELLED:'aborted',BUDGET_EXCEEDED:'failed'})[outcome?.status];
         if(outcome?.status&&!authoritative)throw Error('Runtime task did not reach a terminal outcome');

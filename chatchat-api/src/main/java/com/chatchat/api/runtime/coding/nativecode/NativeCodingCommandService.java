@@ -145,7 +145,15 @@ public final class NativeCodingCommandService {
     }
     private void remember(CodingTaskContract c,CodingJournal.Lease lease,Map<String,Object> response,boolean enabled){
         if(enabled){var previous=tasks.privateState(c.scope(),c.taskId(),"native-last-execution");
-            tasks.privateState(c.scope(),c.taskId(),lease,"native-last-execution",previous,json.valueToTree(response));}
+            tasks.privateState(c.scope(),c.taskId(),lease,"native-last-execution",previous,json.valueToTree(response));
+            String declared=Objects.toString(workspace.requireAuthorized(c).get("acceptanceCommand"),"");
+            if(Boolean.TRUE.equals(response.get("resultAvailable"))&&Boolean.TRUE.equals(response.get("executorStopped"))
+                    &&response.get("exitCode") instanceof Number code&&code.intValue()==0
+                    &&NativeCommandVerification.matches(declared,Objects.toString(response.get("commandHash"),""))){
+                var verified=tasks.privateState(c.scope(),c.taskId(),"native-last-verification");
+                tasks.privateState(c.scope(),c.taskId(),lease,"native-last-verification",verified,json.valueToTree(response));
+            }
+        }
     }
     public static String operation(CodingTaskContract c,String identity){return "cline-"+NativeCodeWorkspace.sha((c.scope().tenantId()+"\0"+c.scope().userId()+"\0"+c.scope().runId()+"\0"+c.taskId()+"\0"+identity).getBytes(StandardCharsets.UTF_8));}
     private static String commandHash(Object command){return command instanceof String text?NativeCodeWorkspace.sha(text.getBytes(StandardCharsets.UTF_8)):CodingCanonicalHash.sha256Value(command);}

@@ -87,6 +87,48 @@ test('native compaction preserves completion feedback after the latest tool resu
   assert.equal(result.status,'completed',JSON.stringify(result.error));assert.equal(h.commands.length,2);
   assert.ok(h.checkpoints.some(c=>c.compactionCount>0),'Exercise the installed SDK compactor');
 });
+
+test('a host-verified fixed-cwd command remains valid after later inspection of the same code',async t=>{
+  const verification='python -m unittest discover -s tests -v',approved='cd /workspace/code && '+verification;
+  const h=await host(t,{async openCodeWorkspace(){return{files:{'calc.py':'value = 1\n'},modelId:'qwen3.8-flash',acceptanceCommand:verification,
+    acceptanceCommandHashes:[verification,approved].map(v=>createHash('sha256').update(v).digest('hex'))};}});
+  h.gateway.executeCodeCommand=async(_c,value)=>{h.commands.push(value);return{operationId:'actual-'+h.commands.length,manifestHash:value.manifest.sha256,
+    commandHash:createHash('sha256').update(value.command).digest('hex'),executorStopped:true,stopProofRef:'test:stop',exitCode:0,resultAvailable:true,stdout:'actual output',stderr:''};};
+  const result=await createNativeCodingRun(contract(),h.gateway,{contractHash:hash,workspaceBase:h.base,model:scripted([
+    {calls:[{name:'run_commands',input:{commands:[approved]}}]},
+    {calls:[{name:'run_commands',input:{commands:['pwd']}}]},
+    {text:'Verified and inspected the unchanged source.'},
+  ])}).run();
+  assert.equal(result.status,'completed',JSON.stringify(result.error));assert.equal(h.commands.length,2);
+});
+
+test('a zero-exit pipeline cannot substitute for the host-declared verification command',async t=>{
+  const verification='python -m unittest discover -s tests -v';
+  const h=await host(t,{async openCodeWorkspace(){return{files:{'calc.py':'value = 1\n'},modelId:'qwen3.8-flash',acceptanceCommand:verification,
+    acceptanceCommandHashes:[verification,'cd /workspace/code && '+verification].map(v=>createHash('sha256').update(v).digest('hex'))};}});
+  h.gateway.executeCodeCommand=async(_c,value)=>{h.commands.push(value);return{operationId:'actual',manifestHash:value.manifest.sha256,
+    commandHash:createHash('sha256').update(value.command).digest('hex'),executorStopped:true,stopProofRef:'test:stop',exitCode:0,resultAvailable:true,stdout:'FAILED (failures=3)',stderr:''};};
+  const result=await createNativeCodingRun(contract(),h.gateway,{contractHash:hash,workspaceBase:h.base,model:scripted([
+    {calls:[{name:'run_commands',input:{commands:[verification+' 2>&1 | tail -1']}}]}, {text:'Done.'},
+  ])}).run();
+  assert.equal(result.status,'failed');assert.equal(h.commands.length,1);
+});
+
+test('editing code invalidates the retained verification until the new version executes',async t=>{
+  const verification='python -m unittest discover -s tests -v';
+  const h=await host(t,{async openCodeWorkspace(){return{files:{'calc.py':'value = 1\n'},modelId:'qwen3.8-flash',acceptanceCommand:verification};}});
+  h.gateway.executeCodeCommand=async(_c,value)=>{h.commands.push(value);return{operationId:'actual-'+h.commands.length,manifestHash:value.manifest.sha256,
+    commandHash:createHash('sha256').update(value.command).digest('hex'),executorStopped:true,stopProofRef:'test:stop',exitCode:0,resultAvailable:true,stdout:'OK',stderr:''};};
+  const result=await createNativeCodingRun(contract(),h.gateway,{contractHash:hash,workspaceBase:h.base,model:scripted([
+    {calls:[{name:'run_commands',input:{commands:[verification]}}]},
+    {calls:[{name:'editor',input:{path:'calc.py',old_text:'value = 1',new_text:'value = 2'}}]},
+    {text:'Done.'},
+    {assert(request){assert.match(JSON.stringify(request.messages),/current project version has no successful/);},calls:[{name:'run_commands',input:{commands:[verification]}}]},
+    {text:'Verified the changed source.'},
+  ])}).run();
+  assert.equal(result.status,'completed',JSON.stringify(result.error));assert.equal(h.commands.length,2);
+  assert.notEqual(h.commands[0].manifest.sha256,h.commands[1].manifest.sha256);
+});
 test('restored SDK retains session/code and cumulative model ordinal',async t=>{
   let interrupted=false;
   const h=await host(t,{afterCheckpoint(value){if(!interrupted&&value.messages.some(m=>m.content?.some(p=>p.type==='tool-result'&&p.toolName==='editor'))){interrupted=true;throw Error('WORKER_INTERRUPTED');}}});

@@ -24,30 +24,30 @@ public final class NativeCodingController {
     private final DurableCodingTaskService tasks;private final CodingAgentSPI agent;private final CodingInvocationContext identity;
     public NativeCodingController(NativeCodingTaskService service,NativeCodingWorkspaceService workspace,DurableCodingTaskService tasks,
             CodingAgentSPI agent,CodingInvocationContext identity){this.service=service;this.workspace=workspace;this.tasks=tasks;this.agent=agent;this.identity=identity;}
-    @PutMapping("/{requestId}") public ApiResponse<?> submit(@PathVariable String requestId,@RequestBody NativeCodingTaskService.Request body,HttpServletRequest http){
+    @PutMapping("/{requestId}") public ApiResponse<?> submit(@PathVariable("requestId") String requestId,@RequestBody NativeCodingTaskService.Request body,HttpServletRequest http){
         if(!requestId.matches("[A-Za-z0-9_-]{1,96}"))throw new ResponseStatusException(HttpStatus.BAD_REQUEST,"Invalid request id");
         String task=taskId(owner(http),requestId);
         return with(task,http,EnumSet.allOf(CodingTaskAccess.Action.class),scope->ApiResponse.success(service.submit(scope,task,body)));
     }
-    @GetMapping("/{taskId}") public ApiResponse<?> status(@PathVariable String taskId,HttpServletRequest http){
+    @GetMapping("/{taskId}") public ApiResponse<?> status(@PathVariable("taskId") String taskId,HttpServletRequest http){
         return with(taskId,http,EnumSet.of(CodingTaskAccess.Action.READ),scope->ApiResponse.success(tasks.get(scope,taskId)));
     }
-    @GetMapping("/{taskId}/files") public ApiResponse<?> files(@PathVariable String taskId,HttpServletRequest http){
+    @GetMapping("/{taskId}/files") public ApiResponse<?> files(@PathVariable("taskId") String taskId,HttpServletRequest http){
         return with(taskId,http,EnumSet.of(CodingTaskAccess.Action.READ),scope->ApiResponse.success(workspace.current(tasks.contract(scope,taskId))));
     }
-    @GetMapping("/{taskId}/history") public ApiResponse<?> history(@PathVariable String taskId,HttpServletRequest http){
+    @GetMapping("/{taskId}/history") public ApiResponse<?> history(@PathVariable("taskId") String taskId,HttpServletRequest http){
         return with(taskId,http,EnumSet.of(CodingTaskAccess.Action.READ),scope->ApiResponse.success(workspace.history(tasks.contract(scope,taskId))));
     }
-    @GetMapping("/{taskId}/diff/{version}") public ApiResponse<?> diff(@PathVariable String taskId,@PathVariable long version,HttpServletRequest http){
+    @GetMapping("/{taskId}/diff/{version}") public ApiResponse<?> diff(@PathVariable("taskId") String taskId,@PathVariable("version") long version,HttpServletRequest http){
         return with(taskId,http,EnumSet.of(CodingTaskAccess.Action.READ),scope->ApiResponse.success(workspace.diff(tasks.contract(scope,taskId),version)));
     }
-    @PostMapping("/{taskId}/resume") public ApiResponse<?> resume(@PathVariable String taskId,HttpServletRequest http){
+    @PostMapping("/{taskId}/resume") public ApiResponse<?> resume(@PathVariable("taskId") String taskId,HttpServletRequest http){
         return with(taskId,http,EnumSet.allOf(CodingTaskAccess.Action.class),scope->ApiResponse.success(agent.resume(scope,taskId)));
     }
-    @PostMapping("/{taskId}/cancel") public ApiResponse<?> cancel(@PathVariable String taskId,HttpServletRequest http){
+    @PostMapping("/{taskId}/cancel") public ApiResponse<?> cancel(@PathVariable("taskId") String taskId,HttpServletRequest http){
         return with(taskId,http,EnumSet.allOf(CodingTaskAccess.Action.class),scope->ApiResponse.success(agent.cancel(scope,taskId,"Project owner cancelled")));
     }
-    @GetMapping("/{taskId}/events") public ApiResponse<?> events(@PathVariable String taskId,HttpServletRequest http){
+    @GetMapping("/{taskId}/events") public ApiResponse<?> events(@PathVariable("taskId") String taskId,HttpServletRequest http){
         return with(taskId,http,EnumSet.of(CodingTaskAccess.Action.READ),scope->{var current=tasks.get(scope,taskId);
             return ApiResponse.success(tasks.events(scope,taskId,Math.max(0,current.lastEventSequence()-128),128));});
     }

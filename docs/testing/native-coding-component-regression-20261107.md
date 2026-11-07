@@ -12,6 +12,14 @@
 
 MCP 的两个跳过测试不能计为已验证能力。Java 单元测试中使用 mock Silo，不代表实际对象存储、Worker 中断及完整执行链已通过。
 
+## 首个真实 API 请求发现的缺陷
+
+隔离部署后，第一个通用项目请求在模型调用前返回 HTTP 400：`Name for argument of type [java.lang.String] not specified`。构建未开启 Java `-parameters`，新增 Controller 未显式声明路径参数名。仅补齐该 Controller 的 `@PathVariable` 名称，不改全局构建参数或旧路径。
+
+`NativeCodingControllerHttpTest` 经真实 Spring MVC 参数绑定复现：修复前 10 项均 error，修复后 10/10 通过、无跳过。测试覆盖提交、状态、文件、历史、Diff、事件、恢复、取消以及无认证身份和非法版本拒绝。日志分别为 `target/native-controller-http-before.log`（SHA256 `d3a28b4890d6eed0173408676e24a24430f643b8019f61fb403632ebf7de0cff`）、`target/native-controller-http-after.log`（SHA256 `a6151ef6243d93c61c7a987f5304b336f77dd43313febdfcd13fda45fdcef928`）。这是真实适配缺陷的最小修复，不计为模型修复成功。
+
+隔离启动另发现部署脚本缺少 host-gateway 映射、MCP 镜像启动入口和 Worker 启动文件归属。这些仅修正临时验收部署；失败容器保留。启动所需的已发布 Runtime semantic policy 经显式表名复制；同服务器现有有效 License 文件用于隔离 MCP，原 License 功能与 MAC 校验保留，不关闭授权。
+
 ## Linux 原始执行证据
 
 远端目录 `/var/tmp/runtime-native-components-20261107-r2` 保留 r2 失败与 r3 串行成功两轮日志和 proof。r3 容器 `f4090aea94dae6e7a702bb2e425627b100c2365486badd13e99e5b5d96c1f8c4`，状态 exited，exitCode=0，Pid=0。镜像 `sha256:a3a279fc391bda1bb5aefb62acd8ee56200215ce2905cfb83d189398c33c5828`。日志 SHA256 `2375d1df8d71caf3b7aa87011d2dd32a86b89c51e9cfa74fc21afd4f7e1443c8`。

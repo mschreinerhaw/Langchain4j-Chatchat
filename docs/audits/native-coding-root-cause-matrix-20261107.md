@@ -12,6 +12,7 @@
 | `python_execute` 与旧代码版本协议 | 编辑、代码提交、版本创建与执行耦合；不适合作为通用项目唯一交互方式 | 独立 workspace commit 与 run_commands；每次执行绑定不可变树，原兼容路径不删除 | 连续修改而不执行、执行失败后继续编辑、版本回执不匹配拒绝 |
 | Node 缓存与远端 durable commit | 提交成功但 ACK 丢失时，旧本地目录可能过期；缓存不是持久事实 | Silo 作为权威，丢失 ACK 后重读；缓存丢失重建，不重复编辑 | lost-ACK、stale manifest、missing cache tests |
 | Java 原始模型回执与 callback | 仅校验工具名字不能证明执行参数得到模型授权 | 校验真实 model/toolCallId/参数等价性；A2 工具 start intent 与预算先于 I/O | 参数替换、未准入调用、重复操作拒绝 |
+| `NativeCodingController` HTTP 实测 400；构建未保留反射参数名 | 新增路由使用未命名的 `@PathVariable`，请求在进入服务和模型前失败；属于 Runtime Adapter 缺陷 | 显式指定 requestId/taskId/version 名称，不改变编译器全局设置 | 同一 HTTP 测试修复前 10 error，修复后 10 pass，包含身份及操作绑定 |
 | `NativeCodingCommandService` 与 Sandbox helper | Worker 提供的命令字符串不能单独作为授权事实；SDK 支持 argv/heredoc 归一化 | 冻结原输入 Hash；同版 SDK 在 Sandbox 独立归一化，核对 ordinal/命令 Hash；宿主不运行命令 | 原始输入不匹配拒绝、缺结果记录拒绝；实际 Docker 执行待整链验收 |
 | 队列命令与工具停止并发 | 工具关闭与后续子命令启动之间存在竞争风险 | 同任务锁排序 start/stop/commit，已关闭工具不能再派发命令 | queued command/start-after-stop tests |
 | SDK Restore 与 A2 journal | SDK 恢复不等于恢复原累计预算；Worker 崩溃不等于执行器已停止 | Java 保持预算与 fence；分别核对 MODEL/TOOL/CODE 回执、真实停止证明，再继续同一会话 | recovery tests；真实 Worker kill/restart 尚待完成 |

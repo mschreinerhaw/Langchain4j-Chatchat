@@ -404,15 +404,17 @@ public final class DurableCodingTaskService implements CodingAgentSPI {
         }).lease;
     }
 
-    /** Same-task recovery after all starts are proven stopped; fence out the ended SDK instance. */
+    /** Fence the ended SDK. Native recovery may own pending starts, but cannot admit work until proof reconciliation. */
     public CodingJournal.Lease recoveryFence(KernelDataScope scope,String taskId,CodingJournal.Lease lease,long expectedRevision) {
         return mutateTask(scope,taskId,WORKER,task->{
             revision(task,expectedRevision);fence(task,lease);active(task);deadline(task);
-            require(task.outcome.executionControl().stopReason()==null && !unresolved(task),EXECUTION_OUTCOME_UNKNOWN,"Recovery requires all operations stopped");
+            boolean pending=unresolved(task);
+            require(task.outcome.executionControl().stopReason()==null && (!pending || NativeCodeWorkspace.enabled(task.contract)),
+                EXECUTION_OUTCOME_UNKNOWN,"Recovery requires all operations stopped");
             require(task.lease.fencingToken()<CodingProtocol.MAX_SAFE_INTEGER,CONTRACT_INVALID,"Fencing token exhausted");
             task.lease=new CodingJournal.Lease(lease.owner(),now().plus(Duration.ofMinutes(5)),lease.fencingToken()+1);
-            advance(task,RECOVERY_RECONCILED,null,"Ended SDK fenced for same-task checkpoint recovery",null,List.of(),
-                copy(task,task.outcome.status(),task.outcome.reasonCode(),control(task,false,false),null));
+            advance(task,RECOVERY_RECONCILED,pending?EXECUTION_OUTCOME_UNKNOWN:null,"Ended SDK fenced for same-task checkpoint recovery",null,List.of(),
+                copy(task,task.outcome.status(),reasonAfterReconciliation(task,pending),control(task,false,pending),null));
         }).lease;
     }
 

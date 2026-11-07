@@ -125,6 +125,10 @@ public final class NativeCodingWorkspaceService {
         var existing=tasks.privateState(c.scope(),c.taskId(),key);
         if(existing!=null){
             if(!tool.equals(existing.path("tool").asText())||!digest.equals(existing.path("intentHash").asText()))throw new SecurityException("Tool operation identity conflict");
+            if(evidence.find(c.scope(),key+":stopped").isPresent()){
+                replay(c,call); // Revalidate the original stop proof and immutable archived bytes.
+                return Map.of("authorized",true,"replayOnly",true);
+            }
         }else{
             String model=lastModel(c,call,tool,inputJson);
             var state=new LinkedHashMap<String,Object>();state.put("operationId",operation);state.put("toolCallId",call);state.put("tool",tool);

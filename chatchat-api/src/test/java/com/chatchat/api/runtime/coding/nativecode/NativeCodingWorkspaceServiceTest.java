@@ -104,6 +104,47 @@ class NativeCodingWorkspaceServiceTest {
         verify(python).uploadDataFile(eq("tenant"),eq("owner"),anyString(),eq("source-project.json"),anyString(),any());
     }
     @AfterEach void close(){timer.shutdownNow();}
+    void enableStoppedModelProof(){
+        var nativeProof=new NativeToolProofVerifier(evidence);
+        tasks=new DurableCodingTaskService(evidence,json,Clock.systemUTC(),identity,(owner,ref)->true,
+            (owner,task,operation,handle,proof)->proof.equals("unit:stopped:"+operation)||nativeProof.confirmsStopped(owner,task,operation,handle,proof),
+            Runnable::run,new ConcurrentTaskScheduler(timer));
+        service=new NativeCodingWorkspaceService(tasks,evidence,assets,models,json);
+    }
+    @Test void nativeRecoveryFencesPendingToolWithoutInventingStopOrResettingBudget(){
+        enableStoppedModelProof();
+        admit("read-1","read_files",Map.of("files",List.of(Map.of("path","main.py"))));
+        actor(()->tasks.reconcileStopped(scope,"task",lease,tasks.get(scope,"task").revision(),"model-1","unit:stopped:model-1"));
+        var before=actor(()->tasks.get(scope,"task"));var old=lease;
+        lease=actor(()->tasks.recoveryFence(scope,"task",old,before.revision()));
+        assertThat(lease.fencingToken()).isEqualTo(old.fencingToken()+1);
+        assertThat(actor(()->tasks.get(scope,"task")).usage()).isEqualTo(before.usage());
+        assertThat(actor(()->tasks.get(scope,"task")).executionControl().reconciliationRequired()).isTrue();
+        assertThat(actor(()->tasks.verifiedOperation(scope,"task",NativeCodingWorkspaceService.operation(c,"read-1")))).isEmpty();
+        assertThatThrownBy(()->actor(()->service.open(c,old))).hasMessageContaining("fenced");
+        assertThatThrownBy(()->actor(()->tasks.reserve(scope,"task",lease,tasks.get(scope,"task").revision(),"model-2","b".repeat(64),
+            CodingJournal.OperationKind.MODEL,new CodingTaskOutcome.Counters(1,2048,0,0,0,0,0,"0")))).hasMessageContaining("Reconcile previous execution first");
+        actor(()->{service.recoverTools(c,lease,Map.of());return true;});
+        assertThat(actor(()->tasks.unresolvedOperations(scope,"task"))).isEmpty();
+        assertThat(actor(()->service.replay(c,"read-1")).get("isError")).isEqualTo(true);
+    }
+    @Test void completedToolCanBeReauthorizedAfterFenceForReplayWithoutAnotherStartOrCharge(){
+        enableStoppedModelProof();
+        var input=Map.<String,Object>of("files",List.of(Map.of("path","main.py")));
+        admit("read-1","read_files",input);
+        actor(()->tasks.reconcileStopped(scope,"task",lease,tasks.get(scope,"task").revision(),"model-1","unit:stopped:model-1"));
+        var result=Map.<String,Object>of("output","value = 1\n","isError",false);
+        actor(()->service.finishTool(c,lease,"read-1",result));
+        var old=lease;lease=actor(()->tasks.recoveryFence(scope,"task",old,tasks.get(scope,"task").revision()));
+        var before=actor(()->tasks.get(scope,"task"));String raw="{\"files\":[{\"path\":\"main.py\"}]}";
+        var request=Map.<String,Object>of("action","TOOL","tool","read_files","operationId","read-1","input",input,"inputJson",raw,
+            "intentHash",NativeCodeWorkspace.sha(raw.getBytes(StandardCharsets.UTF_8)));
+        assertThat(actor(()->service.authorize(c,lease,request))).containsEntry("replayOnly",true);
+        assertThat(actor(()->service.replay(c,"read-1"))).isEqualTo(result);
+        assertThat(actor(()->tasks.get(scope,"task")).usage()).isEqualTo(before.usage());
+        var substituted=new LinkedHashMap<>(request);substituted.put("tool","search_codebase");
+        assertThatThrownBy(()->actor(()->service.authorize(c,lease,substituted))).hasMessageContaining("identity conflict");
+    }
     void admit(String call,String tool,Map<String,Object> input){
         admit(call,tool,input,input);
     }

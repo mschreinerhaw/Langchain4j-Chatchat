@@ -9,7 +9,7 @@
     "skipped": 1
   },
   "java": {
-    "tests": 91,
+    "tests": 92,
     "suites": [
       {
         "name": "com.chatchat.common.runtime.coding.NativeCodeWorkspaceTest",
@@ -20,7 +20,7 @@
       },
       {
         "name": "com.chatchat.api.runtime.coding.nativecode.NativeCodingMcpServiceTest",
-        "tests": 5,
+        "tests": 6,
         "failures": 0,
         "errors": 0,
         "skipped": 0
@@ -164,6 +164,12 @@
       "sha256": "53b377f5fc5b7ee8a7e1c5e035fbd12a629e762ba329b3ad0ec09a096caa6a4f",
       "originalSha256": "a8b0c90bfc40d61510ed06b9585e3c140daca92cece61e2df6a80a728fb57642",
       "originalBytes": 292270
+    },
+    {
+      "path": "p1-mcp-java-tests-r8.log.gz",
+      "sha256": "2416953c5bfcb1f1bc8aa6a1ac07a2a1a5cbc1608f89d28ee0e203f65e8c403a",
+      "originalSha256": "8b036ba29e67e93fba65617c44751a0e193cd2ad30a7605e7c4848175f4056b2",
+      "originalBytes": 292268
     }
   ]
 }

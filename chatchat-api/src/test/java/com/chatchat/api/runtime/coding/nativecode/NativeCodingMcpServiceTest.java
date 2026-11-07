@@ -3,6 +3,7 @@ package com.chatchat.api.runtime.coding.nativecode;
 import com.chatchat.agents.runtime.coding.*;
 import com.chatchat.common.kernel.KernelDataScope;
 import com.chatchat.common.mcp.service.*;
+import com.chatchat.common.mcp.runtime.McpRuntimeTransportPort;
 import com.chatchat.common.retrieval.ResourceAuthorizationPort;
 import com.chatchat.common.runtime.coding.*;
 import com.fasterxml.jackson.databind.*;
@@ -17,7 +18,7 @@ import static org.mockito.ArgumentMatchers.*;
 class NativeCodingMcpServiceTest {
     final ObjectMapper json=new ObjectMapper();
     final KernelDataScope scope=new KernelDataScope("tenant","owner",null,null,"run",null,Map.of());
-    final McpServiceDirectory directory=mock(McpServiceDirectory.class);
+    final McpRuntimeTransportPort directory=mock(McpRuntimeTransportPort.class);
     final ResourceAuthorizationPort grants=mock(ResourceAuthorizationPort.class);
     final DurableCodingTaskService tasks=mock(DurableCodingTaskService.class);
     final NativeCodingWorkspaceService workspace=mock(NativeCodingWorkspaceService.class);
@@ -49,6 +50,24 @@ class NativeCodingMcpServiceTest {
         var tools=service.list(contract,lease,"server");assertThat(tools).hasSize(1);
         assertThat(tools.get(0)).containsEntry("agentToolName","allowed").containsEntry("inputSchema",schema);
         assertThatThrownBy(()->service.list(contract,lease,"other")).isInstanceOf(SecurityException.class);
+    }
+    @Test void springSelectsCanonicalTransportWhenSeveralDirectoriesExist(){
+        var local=mock(McpServiceDirectory.class);var kernel=mock(McpRuntimeTransportPort.class);
+        new org.springframework.boot.test.context.runner.ApplicationContextRunner()
+            .withPropertyValues("chatchat.coding.native.enabled=true")
+            .withBean("mcpRuntimeTransportPort",McpRuntimeTransportPort.class,()->directory)
+            .withBean("dynamicMcpServiceDirectory",McpServiceDirectory.class,()->local)
+            .withBean("grpcBackedMcpRuntimeKernel",McpRuntimeTransportPort.class,()->kernel)
+            .withBean(ResourceAuthorizationPort.class,()->grants)
+            .withBean(DurableCodingTaskService.class,()->tasks)
+            .withBean(NativeCodingWorkspaceService.class,()->workspace)
+            .withBean(ObjectMapper.class,()->json)
+            .withUserConfiguration(NativeCodingMcpService.class)
+            .run(context->{
+                assertThat(context).hasNotFailed().hasSingleBean(NativeCodingMcpService.class);
+                assertThat(context.getBean(NativeCodingMcpService.class).catalog(scope,List.of(new NativeCodingMcpService.Binding("server","agent")))).hasSize(1);
+                verifyNoInteractions(local,kernel);
+            });
     }
     @Test void revocationAndSchemaDriftRefuseExistingTask(){
         when(grants.allowedIdsForAgent(anyString(),anyString(),anyString(),anySet(),anySet(),anyString())).thenReturn(Set.of());

@@ -3,6 +3,7 @@ package com.chatchat.api.runtime.coding.nativecode;
 import com.chatchat.agents.runtime.coding.*;
 import com.chatchat.common.kernel.KernelDataScope;
 import com.chatchat.common.mcp.service.*;
+import com.chatchat.common.mcp.runtime.McpRuntimeTransportPort;
 import com.chatchat.common.retrieval.ResourceAuthorizationPort;
 import com.chatchat.common.runtime.coding.*;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -16,12 +17,12 @@ import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 public final class NativeCodingMcpService {
     public record Binding(String serviceId,String agentId) {}
     public static final String CONTEXT="nativeMcp";
-    private final McpServiceDirectory directory;
+    private final McpRuntimeTransportPort directory;
     private final ResourceAuthorizationPort authorization;
     private final DurableCodingTaskService tasks;
     private final NativeCodingWorkspaceService workspace;
     private final ObjectMapper json;
-    public NativeCodingMcpService(McpServiceDirectory directory,ResourceAuthorizationPort authorization,
+    public NativeCodingMcpService(@org.springframework.beans.factory.annotation.Qualifier("mcpRuntimeTransportPort") McpRuntimeTransportPort directory,ResourceAuthorizationPort authorization,
             DurableCodingTaskService tasks,NativeCodingWorkspaceService workspace,ObjectMapper json){
         this.directory=directory;this.authorization=authorization;this.tasks=tasks;this.workspace=workspace;this.json=json;
     }

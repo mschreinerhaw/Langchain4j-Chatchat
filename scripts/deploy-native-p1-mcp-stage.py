@@ -56,11 +56,29 @@ def rewrite(original, replacements):
 
 
 def main():
-    archive = ROOT / 'overlay.tgz'
+    attempt = int(sys.argv[2]) if len(sys.argv) > 2 else 1
+    assert 1 <= attempt <= 20
+    archive = ROOT / ('overlay.tgz' if attempt == 1 else 'overlay-r' + str(attempt) + '.tgz')
     assert sha(archive.read_bytes()) == sys.argv[1]
     api, worker = inspect(API), inspect(WORKER)
-    assert api['Image'] == EXPECTED_API and worker['Image'] == EXPECTED_WORKER
-    (ROOT / 'before-private.json').write_text(json.dumps({'api': api, 'worker': worker}))
+    if attempt == 1:
+        assert api['Image'] == EXPECTED_API and worker['Image'] == EXPECTED_WORKER
+        bases = {'api': api, 'worker': worker}
+    else:
+        previous = json.loads((ROOT / 'mcp-deployment-public.json').read_text())
+        assert api['Image'] == previous['images']['api'] and not api['State']['Running']
+        assert worker['Image'] == previous['images']['worker']
+        bases = {'api': inspect(API + '-before-p1-mcp'), 'worker': inspect(WORKER + '-before-p1-mcp')}
+        assert bases['api']['Image'] == EXPECTED_API and bases['worker']['Image'] == EXPECTED_WORKER
+        logs = subprocess.run(['docker', 'logs', api['Id']], capture_output=True)
+        raw = logs.stdout + logs.stderr
+        (ROOT / 'api-startup-r1-private.log').write_bytes(raw)
+        write_failure = {'status': 'FAILED_BEFORE_TASK_ADMISSION', 'reason': 'AMBIGUOUS_MCP_DIRECTORY_BEAN',
+            'apiImage': api['Image'], 'exitCode': api['State']['ExitCode'], 'rawLogSha256': sha(raw),
+            'taskSubmitted': (ROOT / 'normal-r1' / 'submit.json').exists()}
+        assert not write_failure['taskSubmitted']
+        (ROOT / 'api-startup-r1-public.json').write_text(json.dumps(write_failure, indent=2) + '\n')
+    (ROOT / ('before-private.json' if attempt == 1 else 'before-r' + str(attempt) + '-private.json')).write_text(json.dumps({'api': api, 'worker': worker}))
     env = dict(v.split('=', 1) for v in api['Config']['Env'] if '=' in v)
     settings = json.loads(env['SPRING_APPLICATION_JSON'])
     secret = settings['chatchat.coding.cline.shared-secret']
@@ -72,7 +90,7 @@ def main():
 
     assert ready()['activeSessions'] == 0
     assert not run(['docker', 'ps', '-q', '--filter', 'ancestor=sha256:a3a279fc391bda1bb5aefb62acd8ee56200215ce2905cfb83d189398c33c5828']).strip()
-    context = ROOT / 'mcp-build'
+    context = ROOT / ('mcp-build' if attempt == 1 else 'mcp-build-r' + str(attempt))
     context.mkdir(exist_ok=False)
     with tarfile.open(archive) as bundle:
         for entry in bundle:
@@ -92,7 +110,10 @@ def main():
             assert module in ('chatchat-common', 'chatchat-agents')
             modules.setdefault(module, {})[name] = content
     baseline = ROOT / 'api-p0.jar'
-    run(['docker', 'cp', API + ':/srv/app/app.jar', str(baseline)])
+    if attempt == 1:
+        run(['docker', 'cp', API + ':/srv/app/app.jar', str(baseline)])
+    else:
+        assert sha(baseline.read_bytes()) == previous['baselineApiJarSha256']
     with zipfile.ZipFile(baseline) as source:
         for module, entries in modules.items():
             name = 'BOOT-INF/lib/' + module + '-1.0.0-SNAPSHOT.jar'
@@ -105,8 +126,10 @@ def main():
         assert item['path'] == 'p1-observed-bootstrap.mjs'
         assert sha((context / 'experiments' / item['path']).read_bytes()) == item['sha256']
     images = {}
-    for kind, base in [('api', api), ('worker', worker)]:
-        lines = ['FROM ' + base['Image']]
+    for kind, base in bases.items():
+        base_tag = 'runtime-native-p1-' + kind + '-base:20261107-mcp'
+        run(['docker', 'tag', base['Image'], base_tag])
+        lines = ['FROM ' + base_tag]
         if kind == 'api':
             lines += ['COPY api-overlay.jar /srv/app/app.jar']
         else:
@@ -116,15 +139,18 @@ def main():
         lines += ['LABEL org.opencontainers.image.revision="' + manifest['sourceCommit'] + '"', '']
         dockerfile = context / ('Dockerfile.' + kind)
         dockerfile.write_text('\n'.join(lines))
-        tag = 'runtime-native-p1-' + kind + ':20261107-mcp'
+        tag = 'runtime-native-p1-' + kind + ':20261107-mcp-r' + str(attempt)
         p = subprocess.run(['docker', 'build', '-f', str(dockerfile), '-t', tag, str(context)], capture_output=True)
-        (ROOT / ('build-' + kind + '.log')).write_bytes(p.stdout + p.stderr)
+        suffix = '' if attempt == 1 else '-r' + str(attempt)
+        (ROOT / ('build-' + kind + suffix + '.log')).write_bytes(p.stdout + p.stderr)
         assert p.returncode == 0, 'P1 image build failed'
         images[kind] = inspect(tag)['Id']
     assert ready()['activeSessions'] == 0
     for name in (WORKER, API):
-        run(['docker', 'stop', '-t', '15', name])
-        run(['docker', 'rename', name, name + '-before-p1-mcp'])
+        if inspect(name)['State']['Running']:
+            run(['docker', 'stop', '-t', '15', name])
+        backup = name + ('-before-p1-mcp' if attempt == 1 else '-p1-mcp-failed-r' + str(attempt - 1))
+        run(['docker', 'rename', name, backup])
     args = ['docker', 'create', '--name', API, '--network', 'runtime-native-acceptance-20261107',
             '--add-host', 'host.docker.internal:host-gateway', '--memory', str(api['HostConfig']['Memory']), '--pids-limit', '512']
     for port, bindings in api['HostConfig']['PortBindings'].items():
@@ -147,6 +173,11 @@ def main():
         process.stdin.close()
     for attempt in range(120):
         try:
+            assert inspect(API)['State']['Running'], 'Acceptance API exited during startup'
+            token = json.loads((Path('/var/tmp/runtime-native-coding-acceptance-20261107') / 'api-auth-private.json').read_text())['token']
+            api_request = urllib.request.Request('http://127.0.0.1:18280/api/v1/enterprise/auth/me', headers={'Authorization': 'Bearer ' + token})
+            with urllib.request.urlopen(api_request, timeout=5) as response:
+                assert json.load(response)['code'] == 200
             state = ready()
             assert state['status'] == 'READY' and state['activeSessions'] == 0
             q = urllib.request.Request('http://127.0.0.1:18291/v1/input-capabilities', data=b'{}',
@@ -159,14 +190,15 @@ def main():
             if attempt == 119:
                 raise
             time.sleep(1)
-    proof = {'sourceCommit': manifest['sourceCommit'], 'archiveSha256': sys.argv[1], 'classes': manifest['classes'],
+    proof = {'sourceCommit': manifest['sourceCommit'], 'archiveSha256': sys.argv[1], 'classes': manifest['classes'], 'apiReady': True,
         'images': images, 'containers': {'api': aid, 'worker': wid}, 'ready': state, 'capabilities': capabilities,
         'apiJarSha256': sha(patched), 'baselineApiJarSha256': sha(baseline.read_bytes()),
         'settingsUnchanged': dict(v.split('=', 1) for v in inspect(API)['Config']['Env']) == env,
         'mcpImageUnchanged': inspect('runtime-native-acceptance-mcp')['Image'],
         'productionChanged': False, 'modelChanged': False, 'budgetChanged': False,
         'acceptance': 'NOT_RUN'}
-    (ROOT / 'mcp-deployment-public.json').write_text(json.dumps(proof, indent=2) + '\n')
+    proof_name = 'mcp-deployment-public.json' if len(sys.argv) <= 2 else 'mcp-deployment-r' + sys.argv[2] + '-public.json'
+    (ROOT / proof_name).write_text(json.dumps(proof, indent=2) + '\n')
     print(json.dumps({k: v for k, v in proof.items() if k != 'classes'}))
 
 

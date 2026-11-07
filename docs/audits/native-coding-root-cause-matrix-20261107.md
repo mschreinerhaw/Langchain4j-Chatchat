@@ -17,6 +17,8 @@
 | `NativeCodingCommandService` 与 Sandbox helper | Worker 提供的命令字符串不能单独作为授权事实；SDK 支持 argv/heredoc 归一化 | 冻结原输入 Hash；同版 SDK 在 Sandbox 独立归一化，核对 ordinal/命令 Hash；宿主不运行命令 | 原始输入不匹配拒绝、缺结果记录拒绝；实际 Docker 执行待整链验收 |
 | 队列命令与工具停止并发 | 工具关闭与后续子命令启动之间存在竞争风险 | 同任务锁排序 start/stop/commit，已关闭工具不能再派发命令 | queued command/start-after-stop tests |
 | SDK Restore 与 A2 journal | SDK 恢复不等于恢复原累计预算；Worker 崩溃不等于执行器已停止 | Java 保持预算与 fence；分别核对 MODEL/TOOL/CODE 回执、真实停止证明，再继续同一会话 | recovery tests；真实 Worker kill/restart 尚待完成 |
+| 官方 `agents/src/agent-runtime.ts:2336` 先 prepare 全批工具，再执行；prepare 中调用 beforeTool。真实第二轮 model-1 同时返回 read_files/run_commands，后者在 CODE 启动前被拒绝 EXECUTION_OUTCOME_UNKNOWN | Node beforeTool 过早 durable start：读工具完成时，未执行的下一工具看起来仍未停止，触发 A2 reconciliation 标志 | 原生 SDK 不改；在实际 tool.execute 前准入并记录 start；beforeTool 只校验不可变授权名单 | 安装版原生 Agent 的同轮读/执行独立复现，修复前 FAILED；同一原生 Loop 复测 |
+| `sdk-adapter.js` 在预算完成阶段压缩，并把保护的最新 tool round 重新放到尾部；真实第二轮已有三个测试通过，最后三轮均无工具 | 最新完成反馈未作为保护内容，能被压缩删除；确定性测试实际看到 guard=-1，模型缺少必须继续验证的反馈 | 通用 native profile 保护最新工具轮及其后的反馈，保持因果顺序；旧业务默认行为保留，仍由原生 SDK 压缩更早上下文 | 安装版 SDK compactor + Agent 复现：修复前缺失验证反馈；不得增加 Prompt 或预算掩盖 |
 | 原生命令 exitCode=0 | 可能没有命令结果文件，或没有真正满足项目测试 | 必须有匹配代码版本、结果、独立 stop proof；最终交付仍标 INCONCLUSIVE，独立验收另做 | 零退出缺结果、过期代码成功、缺 stop proof 均拒绝 |
 | 最终归档与提交 ACK | 已归档但回复丢失可能导致重试覆盖最终结论 | 固定 final intent，终态重试返回已存结果，不再执行 | persistence / final intent tests |
 | `native-skills.js` 与 SDK compaction | 技术摘要和原 Skill 文件不是同一访问对象；恢复后不能绕过撤权 | 复用已有发布管理与 SDK discovery/loader，工具读请求逐次治理 | 撤权、篡改、压缩后再加载、跨进程 rediscovery tests |

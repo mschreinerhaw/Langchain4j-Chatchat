@@ -553,9 +553,34 @@ public final class DurableCodingTaskService implements CodingAgentSPI {
                 require(current.stopProofRef.equals(proofRef),TASK_ID_CONFLICT,"Stop evidence is immutable"); return;
             }
             current.stopProofRef=proofRef;
+            boolean recoveryRequired=unresolved(task)&&!onlyLiveNativeParentRemains(task,operationId);
             advance(task,RECOVERY_RECONCILED,null,"Verified stop evidence recorded",operationId,List.of(proofRef),
-                copy(task,task.outcome.status(),reasonAfterReconciliation(task,unresolved(task)),control(task,false,unresolved(task)),null));
+                copy(task,task.outcome.status(),reasonAfterReconciliation(task,recoveryRequired),control(task,false,recoveryRequired),null));
         }).outcome;
+    }
+
+    /** A stopped native child may return to its own still-running SDK tool, never to unrelated unknown work. */
+    private static boolean onlyLiveNativeParentRemains(CodingJournal.Task task,String completedId){
+        if(!NativeCodeWorkspace.enabled(task.contract)||task.outcome.status()!=Status.RUNNING
+                ||task.outcome.executionControl().stopReason()!=null)return false;
+        var completed=task.operations.get(completedId);
+        var prepared=task.privateState.get("native-command-input:"+completedId);
+        if(completed==null||completed.kind!=CodingJournal.OperationKind.CODE||completed.stopProofRef==null||prepared==null
+                ||!completedId.equals(prepared.path("operationId").asText()))return false;
+        String call=prepared.path("toolCallId").asText();
+        var parents=task.privateState.entrySet().stream().filter(e->e.getKey().startsWith("native-tool:")
+            &&call.equals(e.getValue().path("toolCallId").asText())).toList();
+        if(call.isBlank()||parents.size()!=1)return false;
+        var state=parents.get(0).getValue();String id=state.path("operationId").asText();
+        var parent=task.operations.get(id);var model=task.operations.get(state.path("modelOperationId").asText());
+        if(!parents.get(0).getKey().equals("native-tool:"+id)||!"run_commands".equals(state.path("tool").asText())
+                ||!state.path("modelOperationId").asText().equals(prepared.path("modelOperationId").asText())
+                ||state.path("fencingToken").asLong(-1)!=task.lease.fencingToken()
+                ||parent==null||parent.kind!=CodingJournal.OperationKind.TOOL||!parent.startIntent||parent.stopProofRef!=null
+                ||parent.startingFencingToken!=task.lease.fencingToken()
+                ||model==null||model.kind!=CodingJournal.OperationKind.MODEL||!model.startIntent||model.stopProofRef==null)return false;
+        return task.operations.entrySet().stream().filter(e->e.getValue().startIntent&&e.getValue().stopProofRef==null)
+            .allMatch(e->e.getKey().equals(id));
     }
 
     /** Durable absence of a start intent is proof of no dispatch, not fabricated Sandbox confirmation. */

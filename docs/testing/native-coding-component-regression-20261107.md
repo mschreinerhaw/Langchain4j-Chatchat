@@ -44,6 +44,14 @@ MCP 的两个跳过测试不能计为已验证能力。Java 单元测试中使�
 
 旧终态任务在 API 与 Worker 重建后仍可从实际 Silo 原样读取：manifest `5becb13153e4e44f2aad707d7ebbb549381a27e580ac40c24cdf7676a6c862fc`、历史 2 版、Diff SHA256 `9728fc20095cfb3879de9b18f36fd214f36da8c8654d07a4e38a2f6f9b8ec3b7`。旧任务模型次数 8、执行次数 0 均未变化。这只证明终态源码归档读取，不等同于进行中 Worker 恢复，也不是完整报告验收。
 
+## 同一工具内的子执行边界
+
+真实 A2 的独立两分支测试表明：一条 native CODE 已有独立 stop proof，仅剩同一会话的父 run_commands 工具时，旧逻辑仍将父工具标为未知，阻断其下一命令。正常场景修复前失败，存在其他未知模型的拒绝场景通过。修复前日志 `native-child-reconciliation-before-r2.log` SHA256 `51b5ef4366c41ee3213cfbd03d607889bd8210bdacca2309d073b2fa72391891`；早一轮测试夹具遗漏 input 字段，其失败日志也保留，不计为根因复现。
+
+现在只在 native profile、子 CODE 已停止、父工具仍活跃、同 fence、父子均绑定已停止的真实模型操作，且唯一剩余 start intent 是该父工具时，将其视为可以正常继续的工具执行。父工具本身仍是未停止操作，仍阻止终态交付；其他未知模型或执行继续阻断准入。没有伪造父工具的 stop proof，也没有全局绕过 A2 reconciliation。
+
+回归为 89/89、无跳过：新旧工作区、A2 持久化、旧恢复和模型 callback。日志 `native-child-reconciliation-after.log` SHA256 `cc328932157e8dbbd74fca27de49be9f89845db5721a517c272140c867d8562a`。测试使用明确的 unit stop proof 夹具，实际 MCP 父子整链仍需正式回归，不将该结果混作真实模型通过。
+
 ## Linux 原始执行证据
 
 远端目录 `/var/tmp/runtime-native-components-20261107-r2` 保留 r2 失败与 r3 串行成功两轮日志和 proof。r3 容器 `f4090aea94dae6e7a702bb2e425627b100c2365486badd13e99e5b5d96c1f8c4`，状态 exited，exitCode=0，Pid=0。镜像 `sha256:a3a279fc391bda1bb5aefb62acd8ee56200215ce2905cfb83d189398c33c5828`。日志 SHA256 `2375d1df8d71caf3b7aa87011d2dd32a86b89c51e9cfa74fc21afd4f7e1443c8`。

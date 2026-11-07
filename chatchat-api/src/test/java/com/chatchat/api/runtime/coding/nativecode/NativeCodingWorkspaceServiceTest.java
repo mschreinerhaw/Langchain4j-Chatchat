@@ -63,6 +63,34 @@ class NativeCodingWorkspaceServiceTest {
         actor(()->service.open(c,lease));
     }
     void put(String source,byte[] bytes){var old=blobs.putIfAbsent(source,bytes.clone());if(old!=null&&!Arrays.equals(old,bytes))throw new IllegalStateException("Immutable artifact differs");}
+    @org.junit.jupiter.params.ParameterizedTest @org.junit.jupiter.params.provider.ValueSource(booleans={false,true})
+    void stoppedNativeChildAllowsOnlyItsOwnLiveParentToContinue(boolean otherUnknownModel){
+        var nativeProof=new NativeToolProofVerifier(evidence);
+        tasks=new DurableCodingTaskService(evidence,json,Clock.systemUTC(),identity,(owner,ref)->true,
+            (owner,task,operation,handle,proof)->proof.equals("unit:stopped:"+operation)||nativeProof.confirmsStopped(owner,task,operation,handle,proof),
+            Runnable::run,new ConcurrentTaskScheduler(timer));
+        service=new NativeCodingWorkspaceService(tasks,evidence,assets,models,json);
+        var modelCount=new CodingTaskOutcome.Counters(1,2048,0,0,0,0,0,"0");
+        actor(()->{var a=tasks.reserve(scope,"task",lease,tasks.get(scope,"task").revision(),"model-1","a".repeat(64),CodingJournal.OperationKind.MODEL,modelCount);
+            tasks.startIntent(scope,"task",lease,a.outcome().revision(),"model-1","unit:model");
+            return tasks.reconcileStopped(scope,"task",lease,tasks.get(scope,"task").revision(),"model-1","unit:stopped:model-1");});
+        String raw="{\"commands\":[\"python first.py\",\"python second.py\"]}";
+        when(models.response(scope,"task","model-1")).thenReturn(Optional.of(Map.of("toolCalls",List.of(Map.of("id","batch-call","name","run_commands","input",Map.of("commands",List.of("python first.py","python second.py")))))));
+        actor(()->service.authorize(c,lease,Map.of("action","TOOL","tool","run_commands","operationId","batch-call","input",Map.of("commands",List.of("python first.py","python second.py")),"inputJson",raw,"intentHash",NativeCodeWorkspace.sha(raw.getBytes(StandardCharsets.UTF_8)))));
+        if(otherUnknownModel)actor(()->{var a=tasks.reserve(scope,"task",lease,tasks.get(scope,"task").revision(),"model-2","b".repeat(64),CodingJournal.OperationKind.MODEL,modelCount);
+            return tasks.startIntent(scope,"task",lease,a.outcome().revision(),"model-2","unit:unknown-model");});
+        String operation=NativeCodingCommandService.operation(c,"batch-call:command:1");
+        actor(()->{tasks.privateState(scope,"task",lease,"native-command-input:"+operation,null,json.valueToTree(Map.of("operationId",operation,"toolCallId","batch-call","modelOperationId","model-1")));
+            var a=tasks.reserve(scope,"task",lease,tasks.get(scope,"task").revision(),operation,"c".repeat(64),CodingJournal.OperationKind.CODE,new CodingTaskOutcome.Counters(0,0,0,1,75000,0,262144,"0"));
+            tasks.startIntent(scope,"task",lease,a.outcome().revision(),operation,"unit:code");
+            return tasks.reconcileStopped(scope,"task",lease,tasks.get(scope,"task").revision(),operation,"unit:stopped:"+operation);});
+        assertThat(actor(()->tasks.get(scope,"task")).executionControl().reconciliationRequired()).isEqualTo(otherUnknownModel);
+        assertThat(actor(()->tasks.unresolvedOperations(scope,"task"))).contains(NativeCodingWorkspaceService.operation(c,"batch-call"));
+        String next=NativeCodingCommandService.operation(c,"batch-call:command:2");
+        if(otherUnknownModel)assertThatThrownBy(()->actor(()->tasks.reserve(scope,"task",lease,tasks.get(scope,"task").revision(),next,"d".repeat(64),CodingJournal.OperationKind.CODE,new CodingTaskOutcome.Counters(0,0,0,1,75000,0,262144,"0"))))
+            .hasMessageContaining("Reconcile previous execution first");
+        else assertThat(actor(()->tasks.reserve(scope,"task",lease,tasks.get(scope,"task").revision(),next,"d".repeat(64),CodingJournal.OperationKind.CODE,new CodingTaskOutcome.Counters(0,0,0,1,75000,0,262144,"0"))).admitted()).isTrue();
+    }
     @Test void admittedNativeCommandReachesGovernedDispatchWithOriginalManifest(){
         var command="python -m unittest discover -s tests -v";
         admit("command-call","run_commands",Map.of("commands",List.of(command)));

@@ -943,7 +943,8 @@ export function createCodingRun(contract, gateway, options = {}) {
           if (observation.feedback) request = { ...request, systemPrompt: (request.systemPrompt ?? '') + observation.feedback };
           await forward({ type: 'MODEL_STARTED', modelCall: index, stage: 'CODING',
             purpose: observation.progress.phase, progressFeedback: Boolean(observation.feedback),
-            admissionPending: options.model.managesAdmissions === true });
+            admissionPending: options.model.managesAdmissions === true,
+            ...modelToolDisclosure(contract,request) });
         }
         // Reuse only if the exact complete prefetched bytes are still visible AFTER native compaction.
         // A hash and length are sufficient; never keep another transcript or reuse a truncated source.
@@ -962,9 +963,6 @@ export function createCodingRun(contract, gateway, options = {}) {
         try { contextMeasurement = { ...measureRequestContext(request, softInputTokenBudget),
           ...trackRequestContext(request), ...prepareTurn?.measurement() }; } catch { /* telemetry is not admission */ }
         let attemptUsage = null;
-        try { await forward({type:'MODEL_TOOL_DISCLOSURE',modelCall:modelIndex,stage:'CODING',
-          admissionPending:options.model.managesAdmissions===true,...modelToolDisclosure(contract,request)}); }
-        catch { /* Java admission remains authoritative if optional observation fails. */ }
         for await (const event of await options.model.stream(request)) {
           if (event.type === 'tool-call-delta' && event.toolName) actualTools.add(event.toolName);
           firstEventMs ??= Math.round(performance.now() - started);

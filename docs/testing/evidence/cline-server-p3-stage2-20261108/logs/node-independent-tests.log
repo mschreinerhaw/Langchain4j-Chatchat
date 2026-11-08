@@ -1,0 +1,65 @@
+TAP version 13
+# Subtest: missing ProtoBus descriptor fails explicitly before native or provider initialization
+ok 1 - missing ProtoBus descriptor fails explicitly before native or provider initialization
+  ---
+  duration_ms: 33.9437
+  ...
+# Subtest: native editor size rejection and shell structured errors cannot become success events
+ok 2 - native editor size rejection and shell structured errors cannot become success events
+  ---
+  duration_ms: 0.4867
+  ...
+# Subtest: durable replay resumes after the last delivered ID across journal reopen
+ok 3 - durable replay resumes after the last delivered ID across journal reopen
+  ---
+  duration_ms: 27.9813
+  ...
+# Subtest: host path boundary rejects traversal and symlinks escaping the authorized workspace
+ok 4 - host path boundary rejects traversal and symlinks escaping the authorized workspace
+  ---
+  duration_ms: 6.9555
+  ...
+# Subtest: signed task identities reject tampering, expiry and arbitrary workspace paths
+ok 5 - signed task identities reject tampering, expiry and arbitrary workspace paths
+  ---
+  duration_ms: 5.6946
+  ...
+# Subtest: session authorization binds tenant, user, task, immutable grant and revocation
+ok 6 - session authorization binds tenant, user, task, immutable grant and revocation
+  ---
+  duration_ms: 0.9633
+  ...
+# Subtest: worker launch provides no network, host ports, docker socket or shared tenant state
+ok 7 - worker launch provides no network, host ports, docker socket or shared tenant state
+  ---
+  duration_ms: 0.5591
+  ...
+# Subtest: uncertain or failed provisioning cannot free a worker slot without a stop proof
+ok 8 - uncertain or failed provisioning cannot free a worker slot without a stop proof
+  ---
+  duration_ms: 0.3159
+  ...
+# Subtest: stage2 exported evidence retains every recorded byte and hash
+ok 9 - stage2 exported evidence retains every recorded byte and hash
+  ---
+  duration_ms: 169.74
+  ...
+# Subtest: real native calls bind to stable scoped identities and actual stop receipts
+ok 10 - real native calls bind to stable scoped identities and actual stop receipts
+  ---
+  duration_ms: 4.9343
+  ...
+# Subtest: final reconciliation is complete while initial real failures remain visible
+ok 11 - final reconciliation is complete while initial real failures remain visible
+  ---
+  duration_ms: 8.9175
+  ...
+1..11
+# tests 11
+# suites 0
+# pass 11
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 317.2002

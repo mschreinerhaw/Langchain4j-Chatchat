@@ -1,0 +1,104 @@
+The files belonging to this database system will be owned by user "postgres".
+This user must also own the server process.
+
+The database cluster will be initialized with locale "en_US.utf8".
+The default database encoding has accordingly been set to "UTF8".
+The default text search configuration will be set to "english".
+
+Data page checksums are enabled.
+
+fixing permissions on existing directory /var/lib/postgresql/18/docker ... ok
+creating subdirectories ... ok
+selecting dynamic shared memory implementation ... posix
+selecting default "max_connections" ... 100
+selecting default "shared_buffers" ... 128MB
+selecting default time zone ... Etc/UTC
+creating configuration files ... ok
+running bootstrap script ... ok
+performing post-bootstrap initialization ... ok
+syncing data to disk ... ok
+
+
+Success. You can now start the database server using:
+
+initdb: warning: enabling "trust" authentication for local connections
+initdb: hint: You can change this by editing pg_hba.conf or using the option -A, or --auth-local and --auth-host, the next time you run initdb.
+    pg_ctl -D /var/lib/postgresql/18/docker -l logfile start
+
+waiting for server to start....2026-11-08 05:00:32.154 UTC [66] LOG:  starting PostgreSQL 18.6 (Debian 18.6-1.pgdg13+2) on x86_64-pc-linux-gnu, compiled by gcc (Debian 14.2.0-19) 14.2.0, 64-bit
+2026-11-08 05:00:32.155 UTC [66] LOG:  listening on Unix socket "/var/run/postgresql/.s.PGSQL.5432"
+2026-11-08 05:00:32.161 UTC [72] LOG:  database system was shut down at 2026-11-08 05:00:31 UTC
+2026-11-08 05:00:32.171 UTC [66] LOG:  database system is ready to accept connections
+ done
+server started
+CREATE DATABASE
+
+
+/usr/local/bin/docker-entrypoint.sh: ignoring /docker-entrypoint-initdb.d/*
+
+2026-11-08 05:00:32.426 UTC [66] LOG:  received fast shutdown request
+waiting for server to shut down....2026-11-08 05:00:32.426 UTC [66] LOG:  aborting any active transactions
+2026-11-08 05:00:32.430 UTC [66] LOG:  background worker "logical replication launcher" (PID 75) exited with exit code 1
+2026-11-08 05:00:32.430 UTC [70] LOG:  shutting down
+2026-11-08 05:00:32.430 UTC [70] LOG:  checkpoint starting: shutdown immediate
+2026-11-08 05:00:32.465 UTC [70] LOG:  checkpoint complete: wrote 943 buffers (5.8%), wrote 3 SLRU buffers; 0 WAL file(s) added, 0 removed, 0 recycled; write=0.032 s, sync=0.002 s, total=0.035 s; sync files=303, longest=0.001 s, average=0.001 s; distance=4352 kB, estimate=4352 kB; lsn=0/1BA1BD8, redo lsn=0/1BA1BD8
+2026-11-08 05:00:32.483 UTC [66] LOG:  database system is shut down
+ done
+server stopped
+
+PostgreSQL init process complete; ready for start up.
+
+2026-11-08 05:00:32.578 UTC [1] LOG:  starting PostgreSQL 18.6 (Debian 18.6-1.pgdg13+2) on x86_64-pc-linux-gnu, compiled by gcc (Debian 14.2.0-19) 14.2.0, 64-bit
+2026-11-08 05:00:32.587 UTC [1] LOG:  listening on IPv4 address "0.0.0.0", port 5432
+2026-11-08 05:00:32.587 UTC [1] LOG:  listening on IPv6 address "::", port 5432
+2026-11-08 05:00:32.588 UTC [1] LOG:  listening on Unix socket "/var/run/postgresql/.s.PGSQL.5432"
+2026-11-08 05:00:32.598 UTC [88] LOG:  database system was shut down at 2026-11-08 05:00:32 UTC
+2026-11-08 05:00:32.604 UTC [1] LOG:  database system is ready to accept connections
+2026-11-08 05:04:41.047 UTC [1781] ERROR:  duplicate key value violates unique constraint "mcp_python_managed_fence_pkey"
+2026-11-08 05:04:41.047 UTC [1781] DETAIL:  Key (id)=(5f6a31b33b65120f81db0f6eb66f510fccb730b3f3219225a78b9435958f6b9e) already exists.
+2026-11-08 05:04:41.047 UTC [1781] STATEMENT:  insert into mcp_python_managed_fence(id,tenant_id,owner_id,run_id,task_id,fencing_token) values ($1,$2,$3,$4,$5,0)
+2026-11-08 05:05:32.615 UTC [86] LOG:  checkpoint starting: time
+2026-11-08 05:05:49.101 UTC [86] LOG:  checkpoint complete: wrote 164 buffers (1.0%), wrote 3 SLRU buffers; 1 WAL file(s) added, 0 removed, 0 recycled; write=16.451 s, sync=0.003 s, total=16.486 s; sync files=79, longest=0.001 s, average=0.001 s; distance=1238 kB, estimate=1238 kB; lsn=0/1CD7590, redo lsn=0/1CD7500
+2026-11-08 05:06:58.189 UTC [3741] ERROR:  duplicate key value violates unique constraint "mcp_python_managed_fence_pkey"
+2026-11-08 05:06:58.189 UTC [3741] DETAIL:  Key (id)=(97e676953e45853873319d868137fdd8b9d8a308927eb3ecfc6431979d9ef78d) already exists.
+2026-11-08 05:06:58.189 UTC [3741] STATEMENT:  insert into mcp_python_managed_fence(id,tenant_id,owner_id,run_id,task_id,fencing_token) values ($1,$2,$3,$4,$5,0)
+2026-11-08 05:10:32.201 UTC [86] LOG:  checkpoint starting: time
+2026-11-08 05:10:36.618 UTC [86] LOG:  checkpoint complete: wrote 44 buffers (0.3%), wrote 1 SLRU buffers; 0 WAL file(s) added, 0 removed, 0 recycled; write=4.414 s, sync=0.001 s, total=4.417 s; sync files=20, longest=0.001 s, average=0.001 s; distance=399 kB, estimate=1154 kB; lsn=0/1D3B400, redo lsn=0/1D3B3A8
+2026-11-08 05:15:32.718 UTC [86] LOG:  checkpoint starting: time
+2026-11-08 05:15:37.133 UTC [86] LOG:  checkpoint complete: wrote 44 buffers (0.3%), wrote 2 SLRU buffers; 0 WAL file(s) added, 0 removed, 0 recycled; write=4.414 s, sync=0.001 s, total=4.416 s; sync files=17, longest=0.001 s, average=0.001 s; distance=575 kB, estimate=1096 kB; lsn=0/1DE27B0, redo lsn=0/1DCB2A0
+2026-11-08 05:20:25.586 UTC [10678] ERROR:  duplicate key value violates unique constraint "mcp_python_managed_fence_pkey"
+2026-11-08 05:20:25.586 UTC [10678] DETAIL:  Key (id)=(7baeaca0e295cfc9c934b8977ce2a4ee4c343f3872b2d0de433c23112ae4fa5e) already exists.
+2026-11-08 05:20:25.586 UTC [10678] STATEMENT:  insert into mcp_python_managed_fence(id,tenant_id,owner_id,run_id,task_id,fencing_token) values ($1,$2,$3,$4,$5,0)
+2026-11-08 05:20:32.233 UTC [86] LOG:  checkpoint starting: time
+2026-11-08 05:20:37.151 UTC [86] LOG:  checkpoint complete: wrote 49 buffers (0.3%), wrote 1 SLRU buffers; 0 WAL file(s) added, 0 removed, 0 recycled; write=4.916 s, sync=0.001 s, total=4.918 s; sync files=18, longest=0.001 s, average=0.001 s; distance=648 kB, estimate=1051 kB; lsn=0/1E7E330, redo lsn=0/1E6D548
+2026-11-08 05:22:40.581 UTC [14123] ERROR:  duplicate key value violates unique constraint "mcp_python_managed_fence_pkey"
+2026-11-08 05:22:40.581 UTC [14123] DETAIL:  Key (id)=(d8ddf67f795c481b17d0b59e7c15f0263dd3645536f78a3e4ba96875dfdaa2a3) already exists.
+2026-11-08 05:22:40.581 UTC [14123] STATEMENT:  insert into mcp_python_managed_fence(id,tenant_id,owner_id,run_id,task_id,fencing_token) values ($1,$2,$3,$4,$5,0)
+2026-11-08 05:22:59.364 UTC [14951] ERROR:  duplicate key value violates unique constraint "mcp_python_managed_fence_pkey"
+2026-11-08 05:22:59.364 UTC [14951] DETAIL:  Key (id)=(d8ddf67f795c481b17d0b59e7c15f0263dd3645536f78a3e4ba96875dfdaa2a3) already exists.
+2026-11-08 05:22:59.364 UTC [14951] STATEMENT:  insert into mcp_python_managed_fence(id,tenant_id,owner_id,run_id,task_id,fencing_token) values ($1,$2,$3,$4,$5,0)
+2026-11-08 05:22:59.524 UTC [14955] ERROR:  duplicate key value violates unique constraint "mcp_python_managed_fence_pkey"
+2026-11-08 05:22:59.524 UTC [14955] DETAIL:  Key (id)=(d8ddf67f795c481b17d0b59e7c15f0263dd3645536f78a3e4ba96875dfdaa2a3) already exists.
+2026-11-08 05:22:59.524 UTC [14955] STATEMENT:  insert into mcp_python_managed_fence(id,tenant_id,owner_id,run_id,task_id,fencing_token) values ($1,$2,$3,$4,$5,0)
+2026-11-08 05:25:32.221 UTC [86] LOG:  checkpoint starting: time
+2026-11-08 05:25:39.245 UTC [86] LOG:  checkpoint complete: wrote 70 buffers (0.4%), wrote 2 SLRU buffers; 0 WAL file(s) added, 0 removed, 0 recycled; write=7.021 s, sync=0.001 s, total=7.024 s; sync files=22, longest=0.001 s, average=0.001 s; distance=920 kB, estimate=1038 kB; lsn=0/1F53810, redo lsn=0/1F53780
+2026-11-08 05:27:45.784 UTC [16724] ERROR:  duplicate key value violates unique constraint "mcp_python_managed_fence_pkey"
+2026-11-08 05:27:45.784 UTC [16724] DETAIL:  Key (id)=(3612291c755f7591210c124666df8b9da4055504b10ed541b3ebbde6b00e2e2f) already exists.
+2026-11-08 05:27:45.784 UTC [16724] STATEMENT:  insert into mcp_python_managed_fence(id,tenant_id,owner_id,run_id,task_id,fencing_token) values ($1,$2,$3,$4,$5,0)
+2026-11-08 05:30:00.430 UTC [20673] ERROR:  duplicate key value violates unique constraint "mcp_python_managed_fence_pkey"
+2026-11-08 05:30:00.430 UTC [20673] DETAIL:  Key (id)=(d42c91f8ca193751de0315d05bf40f46acbc493a5839afa17b1988624c1afab8) already exists.
+2026-11-08 05:30:00.430 UTC [20673] STATEMENT:  insert into mcp_python_managed_fence(id,tenant_id,owner_id,run_id,task_id,fencing_token) values ($1,$2,$3,$4,$5,0)
+2026-11-08 05:30:32.343 UTC [86] LOG:  checkpoint starting: time
+2026-11-08 05:30:34.349 UTC [22363] ERROR:  duplicate key value violates unique constraint "mcp_python_managed_fence_pkey"
+2026-11-08 05:30:34.349 UTC [22363] DETAIL:  Key (id)=(cdb49998f0092680cbdf05c92650d9a9ab6b9cae9e3bc98c96cb979f5560b082) already exists.
+2026-11-08 05:30:34.349 UTC [22363] STATEMENT:  insert into mcp_python_managed_fence(id,tenant_id,owner_id,run_id,task_id,fencing_token) values ($1,$2,$3,$4,$5,0)
+2026-11-08 05:30:40.969 UTC [86] LOG:  checkpoint complete: wrote 86 buffers (0.5%), wrote 2 SLRU buffers; 0 WAL file(s) added, 0 removed, 1 recycled; write=8.623 s, sync=0.001 s, total=8.626 s; sync files=25, longest=0.001 s, average=0.001 s; distance=1221 kB, estimate=1221 kB; lsn=0/20AAB80, redo lsn=0/2084BC8
+2026-11-08 05:30:52.765 UTC [23194] ERROR:  duplicate key value violates unique constraint "mcp_python_managed_fence_pkey"
+2026-11-08 05:30:52.765 UTC [23194] DETAIL:  Key (id)=(cdb49998f0092680cbdf05c92650d9a9ab6b9cae9e3bc98c96cb979f5560b082) already exists.
+2026-11-08 05:30:52.765 UTC [23194] STATEMENT:  insert into mcp_python_managed_fence(id,tenant_id,owner_id,run_id,task_id,fencing_token) values ($1,$2,$3,$4,$5,0)
+2026-11-08 05:30:52.941 UTC [23198] ERROR:  duplicate key value violates unique constraint "mcp_python_managed_fence_pkey"
+2026-11-08 05:30:52.941 UTC [23198] DETAIL:  Key (id)=(cdb49998f0092680cbdf05c92650d9a9ab6b9cae9e3bc98c96cb979f5560b082) already exists.
+2026-11-08 05:30:52.941 UTC [23198] STATEMENT:  insert into mcp_python_managed_fence(id,tenant_id,owner_id,run_id,task_id,fencing_token) values ($1,$2,$3,$4,$5,0)
+2026-11-08 05:32:40.885 UTC [24651] ERROR:  duplicate key value violates unique constraint "mcp_python_managed_fence_pkey"
+2026-11-08 05:32:40.885 UTC [24651] DETAIL:  Key (id)=(27639cb24641a2b725d487b8f4e49180f745cbc9a06cbd2f3ab6f152f2db267b) already exists.
+2026-11-08 05:32:40.885 UTC [24651] STATEMENT:  insert into mcp_python_managed_fence(id,tenant_id,owner_id,run_id,task_id,fencing_token) values ($1,$2,$3,$4,$5,0)

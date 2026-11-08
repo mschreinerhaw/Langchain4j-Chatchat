@@ -1,0 +1,18 @@
+$ bun run protos && bunx tsc --noEmit && bun run check-types:compat && cd webview-ui && bunx tsc --noEmit
+$ node scripts/build-proto.mjs
+Compiling Protocol Buffers...
+Processing 25 proto files from /stage2/upstream/apps/vscode/proto
+Generated ProtoBus files at:
+- /stage2/upstream/apps/vscode/webview-ui/src/services/grpc-client.ts
+- /stage2/upstream/apps/vscode/src/generated/hosts/vscode/protobus-service-types.ts
+- /stage2/upstream/apps/vscode/src/generated/hosts/vscode/protobus-services.ts
+- /stage2/upstream/apps/vscode/src/generated/hosts/standalone/protobus-server-setup.ts
+Generated Host Bridge client files at:
+- /stage2/upstream/apps/vscode/src/generated/hosts/host-bridge-client-types.ts
+- /stage2/upstream/apps/vscode/src/generated/hosts/standalone/host-bridge-clients.ts
+- /stage2/upstream/apps/vscode/src/generated/hosts/vscode/hostbridge-grpc-service-config.ts
+$ biome format --config-path ./biome.jsonc src/shared/proto src/core/controller src/hosts/ webview-ui/src/services src/generated --write --no-errors-on-unmatched
+Formatted 322 files in 147ms. Fixed 1 file.
+$ bunx tsc --project tsconfig.vscode-compat.json --noEmit
+[watch] build started
+[watch] build finished

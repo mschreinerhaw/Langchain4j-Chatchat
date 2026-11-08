@@ -8,6 +8,9 @@ test "$(bun --version)" = 1.4.2
 bun install --frozen-lockfile
 bun run build:sdk
 node "$SERVICE_ROOT/scripts/patch-upstream.mjs" "$CLINE_SOURCE_ROOT"
+if [ "${CLINE_RUNTIME_OPERATION_CONTEXT:-0}" = "1" ]; then
+  node "$SERVICE_ROOT/scripts/stage2-patch-upstream.mjs" "$CLINE_SOURCE_ROOT"
+fi
 cd apps/vscode
 # Exact compile-standalone body; run the Linux-only post step explicitly.
 # The default post lifecycle builds every platform and requires npx/prebuild downloads.

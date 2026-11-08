@@ -43,14 +43,15 @@ test('legacy UNKNOWN keeps real Executor stop proof from its durable audit',()=>
 test('restart reconciles actual cancellation receipts without retaining a stopped Python intent',()=>{
  const dir=mkdtempSync(join(tmpdir(),'native-cancelled-python-'));
  try {
-  const run={dir,contract:{scope:{tenantId:'t'},taskId:'task'},workerId:'worker',activeOperations:new Set(['stopped','uncertain'])};
+  const run={dir,contract:{scope:{tenantId:'t'},taskId:'task'},workerId:'worker',activeOperations:new Set(['stopped','uncertain','incomplete'])};
   persistRun(run,{status:'CANCELLED'});
   const journal=new Journal(join(dir,'events.jsonl'));
   for(const id of ['stopped','uncertain'])journal.append({type:'runtime.event',payload:{type:'TOOL_STARTED',tool:'python_execute',operationId:id}});
   journal.append({type:'cancel.remote_receipt',payload:{operationId:'stopped',receipt:{status:'CANCELLED',executorStopped:true}}});
   journal.append({type:'cancel.remote_receipt',payload:{operationId:'uncertain',receipt:{status:'UNKNOWN',executorStopped:true}}});
+  journal.append({type:'cancel.remote_receipt',payload:{operationId:'incomplete',receipt:{executorStopped:true}}});
   const restored=restoreRun(dir,'/workers',()=>({}));
-  assert.deepEqual([...restored.activeOperations],['uncertain']);
+  assert.deepEqual([...restored.activeOperations],['uncertain','incomplete']);
  }finally{rmSync(dir,{recursive:true,force:true});}
 });
 

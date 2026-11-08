@@ -1,0 +1,35 @@
+{
+  "targetBranch": "feature/runtime-cline-cli-native-20261107",
+  "implementationCommit": "3c6d918be0d2490712e4e1baf23836967544c875",
+  "businessExecutionSource": "ca503a25e56342aba9c90240aeb0087b3d9e9bc0",
+  "verifiedSourceDirectories": [
+    "chatchat-api/src/main/java",
+    "cline-agent-server/src"
+  ],
+  "sourceDifferences": [],
+  "deployedMonitorMatchesGitWithRecordedLineEndings": true,
+  "sourceHashes": {
+    "backend.mjs": {
+      "gitBlobSha256": "f524a425aacf11de5004faa8aeaae528eb134646aedb0a348a9eaf5245eeebc9",
+      "deployedSha256": "f524a425aacf11de5004faa8aeaae528eb134646aedb0a348a9eaf5245eeebc9",
+      "lineEndingConversion": "NONE"
+    },
+    "projection.mjs": {
+      "gitBlobSha256": "20864b6ce5c01d1caa6a5197ebe7cf321c0af8a7557046b75720ed1618b69131",
+      "deployedSha256": "20864b6ce5c01d1caa6a5197ebe7cf321c0af8a7557046b75720ed1618b69131",
+      "lineEndingConversion": "NONE"
+    },
+    "public/app.js": {
+      "gitBlobSha256": "9c97f238e24e1f7d4b8d04b84d2156dbdbb982ffe2452c3283d1f1a598c5305c",
+      "deployedSha256": "edd28180da72e2f4344faa14bbbd02dd346c967c951f8a7eec353f5a533fe4d5",
+      "lineEndingConversion": "LF_GIT_TO_CRLF_ARCHIVE"
+    }
+  },
+  "originalRuntimeBusinessEvidenceReused": true,
+  "newRuntimeBusinessDispatches": 0,
+  "newNativeSessions": 1,
+  "newNativeTurns": 2,
+  "priorBusinessSuccesses": 1,
+  "priorBusinessAttempts": 4,
+  "productionDefaultChanged": false
+}

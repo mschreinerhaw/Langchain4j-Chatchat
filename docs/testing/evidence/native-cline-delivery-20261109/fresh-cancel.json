@@ -1,0 +1,10 @@
+{
+  "scope": "REAL_CANCEL_FINAL_STATUS_READ_ONLY_CONFIRMATION",
+  "sessionKey": "native:4b871368-aa9b-4a05-b25a-a89e3791465e",
+  "nativeSessionId": "1794168627797_0brih",
+  "afterStatus": "cancelled",
+  "modelCallsAfter": 6,
+  "additionalCancelRequests": 0,
+  "initialAssertion": "Immediate state after accepted UI cancel was cancelling; not treated as stopped",
+  "timestamp": "2026-11-08T20:14:30.969Z"
+}

@@ -29,3 +29,4 @@
 - 原生恢复：已对真实 Gateway/Worker 进程故障、原合同重复派发、取消/恢复完成对账；运行中 Managed Python 实际取消回执确认停止，未派发替代执行。旧不完整控制记录继续保留 UNKNOWN。
 - 数据供给：原始 CSV/Parquet 的授权下载、Hash、解析与 missing/null/类型、多重集对照已执行；不代表客户交易数据或华是科技行情已具备。
 - 替换门槛：全量回归及五类真实业务验收未全部通过。监控单元检查与实际查询已验证的范围见 [最新验收报告](../testing/native-cline-business-acceptance-20261108.md)，不能据此批准生产或灰度切换。
+- 后续联合验收：[统一交付报告](../testing/native-cline-business-monitor-delivery-20261108.md)记录浏览器对话、逐次模型/工具观测、实际 Python 错误修复及一个 CSV 任务的完整独立验算归档。最低可用九项通过；替换门槛仍未达到，旧节点保留。

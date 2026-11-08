@@ -2,6 +2,8 @@
 
 基线：`db276d8e151ddb9669b603664e5c7bffb0de9843`。执行链继续使用 `feature/runtime-cline-cli-native-20261107`；独立工作目录的监控分支为 `feature/runtime-cline-native-monitor-20261109`。监控模块不修改 business-server.mjs、官方 Core 或旧 SDK Runner。
 
+2026-11-09 统一交付：监控分支已合并至指定执行分支。Native 直接模式新增只读 Core 轮次表，按真实 taskId 绑定 usage/error，明确配置模型及观测耗时的来源；Runtime 模式沿用 Java 回执。面板保留已展开的诊断，源码/文件异步读取绑定当前 Session 和标签，过期响应不覆盖新选择。最新结果见 [统一交付验收](../testing/native-cline-business-monitor-delivery-20261108.md)。
+
 ## 来源与映射
 
 已审查旧 `monitor.ts`、`monitor-types.ts`、`coding-progress.js`、`runner.js`、`public` 资源路由及浏览器脚本。旧 MonitorStore 的状态推断、SDK checkpoint 和恢复事件不移植。

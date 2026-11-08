@@ -77,4 +77,6 @@ Rootless 资源限制、Python rootful 路径、控制面高权限和执行节�
 
 原生私有恢复记录保留原始合同、Worker grant、控制令牌及实际 session/epoch；不使用 SDK checkpoint，不重新执行任务。真实 Gateway/Worker SIGKILL、重启、重复派发和 Runtime cancel/resume 已有证据；真实运行中 Python 已通过原应用用户取消接口停止，回执 CANCELLED、executorStopped=true。取消回执用于清除已停止 operation 的缓存，UNKNOWN 或不完整回执保留。旧缺失控制记录仍不能宣称可恢复。
 
+后续统一交付已补充本节时点：[业务与监控交付报告](../testing/native-cline-business-monitor-delivery-20261108.md)。限定 CSV 的实际 NameError → Cline 自主修复 → 再执行成功 → 官方 submit_and_exit → Runtime 独立验算和归档已通过，最终为 COMPLETED；浏览器新建 Native 两轮会话、观测和取消有新证据。最低可用九项通过；旧五类业务、全量回归及历史未决远端问题不因此升级为通过，也不批准生产切换。
+
 专项 Node 回归和 Java 回归均有新执行记录；其中单元 fixture 不是业务验收。原生 Python 异常复现已执行，但 C-r2 预算耗尽，异常后修复成功的完整闭环尚未通过。A-r2 的必需产物错误修复属于另一类证据，不能替代 Python 异常修复。五类场景逐项结论、文件 Hash、真实停止结果和未通过项以新报告为准，不提出生产切换建议。

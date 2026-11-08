@@ -1,0 +1,36 @@
+{
+  "scope": "REAL_READ_ONLY_BROWSER_HISTORY",
+  "cases": [
+    {
+      "id": "native:0486017b-9798-4d81-bf18-fb07accd40c5",
+      "nativeStatus": "recoverable",
+      "authority": "NATIVE_SESSION",
+      "refreshPreservedStatus": true,
+      "uniqueVisibleMessageIds": true,
+      "visibleMessages": 0
+    },
+    {
+      "id": "runtime:236f4d9c-6ce4-4488-850d-2f8af812208e",
+      "taskId": "analysis-coding-30e2c9a95b1af656bd1fc9fb3aaf4aee032b082f3408a5ddaa363108971f53f1",
+      "nativeStatus": "UNKNOWN",
+      "runtimeStatus": "BUDGET_EXCEEDED",
+      "authority": "RUNTIME_CONFIRMED",
+      "refreshPreservedStatus": true,
+      "uniqueVisibleMessageIds": true,
+      "visibleMessages": 52
+    },
+    {
+      "id": "runtime:438c3d10-f99e-4ec4-a23b-e8495d594fb7",
+      "taskId": "analysis-coding-4edc8b074e2fb645c0d3347e7d47703c47db3fe6cd6078d69e7f321bb21b11f7",
+      "nativeStatus": "BUDGET_EXCEEDED",
+      "runtimeStatus": "BUDGET_EXCEEDED",
+      "authority": "RUNTIME_CONFIRMED",
+      "refreshPreservedStatus": true,
+      "uniqueVisibleMessageIds": true,
+      "visibleMessages": 50
+    }
+  ],
+  "postControls": [],
+  "errors": [],
+  "status": "PASS"
+}

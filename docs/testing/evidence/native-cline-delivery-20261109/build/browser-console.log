@@ -1,0 +1,17 @@
+node : node:internal/process/promises:394
+所在位置 行:2 字符: 205
++ ... 9b666fae34';node cline-agent-server/monitor/browser-delivery-acceptan ...
++                 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: (node:internal/process/promises:394:String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+ 
+    triggerUncaughtException(err, true /* fromPromise */);
+    ^
+
+page.waitForResponse: Timeout 30000ms exceeded while waiting for event "response"
+    at C:\Users\admin\Documents\Langchain4j-Chatchat\Langchain4j-Chatchat\cline-agent-server\monitor\browser-delivery-a
+cceptance.mjs:29:27 {
+  name: 'TimeoutError'
+}
+
+Node.js v24.18.0

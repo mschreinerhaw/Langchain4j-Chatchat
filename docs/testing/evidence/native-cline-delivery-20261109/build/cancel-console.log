@@ -1,0 +1,28 @@
+node : node:internal/modules/run_main:107
+所在位置 行:5 字符: 196
++ ... RD='[REDACTED]';node target/native-business-monitor-delivery/cancel-fresh ...
++                 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: (node:internal/modules/run_main:107:String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+ 
+    triggerUncaughtException(
+    ^
+
+AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
++ actual - expected
+
++ 'cancelling'
+- 'cancelled'
+          ^
+
+    at file:///C:/Users/admin/Documents/Langchain4j-Chatchat/Langchain4j-Chatchat/target/native-business-monitor-delive
+ry/cancel-fresh.mjs:2:1380 {
+  generatedMessage: true,
+  code: 'ERR_ASSERTION',
+  actual: 'cancelling',
+  expected: 'cancelled',
+  operator: 'strictEqual',
+  diff: 'simple'
+}
+
+Node.js v24.18.0

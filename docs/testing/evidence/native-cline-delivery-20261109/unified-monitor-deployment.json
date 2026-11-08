@@ -1,0 +1,13 @@
+{
+  "timestamp": "2026-11-08T20:15:41.323790+00:00",
+  "commit": "3c6d918be0d2490712e4e1baf23836967544c875",
+  "service": "cline-native-monitor",
+  "runtimeBusinessSourceUnchanged": "ca503a25e56342aba9c90240aeb0087b3d9e9bc0",
+  "files": {
+    "backend.mjs": "f524a425aacf11de5004faa8aeaae528eb134646aedb0a348a9eaf5245eeebc9",
+    "projection.mjs": "20864b6ce5c01d1caa6a5197ebe7cf321c0af8a7557046b75720ed1618b69131",
+    "public/app.js": "edd28180da72e2f4344faa14bbbd02dd346c967c951f8a7eec353f5a533fe4d5"
+  },
+  "archiveSha256": "376e6607f1db49e5d0cbbab2fb90966a3ddb8ac30bf576067b0f66ded545efa6",
+  "executionServicesRestarted": []
+}

@@ -1,0 +1,44 @@
+[
+    {
+        "originalLogSha256":  "2ade9c1c60b235bebc7302cfb74964c8939b7a3040643b7f1e79f7eda90dc559",
+        "storedSha256":  "b02abc19970937b0fc57007d09be22be224ac4a2189921439c6da111b2bcd926",
+        "file":  "maven-package-r2.log",
+        "storedEncoding":  "UTF-8/LF",
+        "credentialRedacted":  false
+    },
+    {
+        "originalLogSha256":  "fc0f47ff3972a0c52d0130138023bbaf7275def52855b6a7286b1942b4610afa",
+        "storedSha256":  "89e6cf9fb78a8cb7116aabf891b81f14d28ea7496573b937a78922b00f04ba9a",
+        "file":  "java-regression.log",
+        "storedEncoding":  "UTF-8/LF",
+        "credentialRedacted":  false
+    },
+    {
+        "originalLogSha256":  "cd37730e9485b090934283c51865a0d5c18bbac6452923b8e646508b35633dc3",
+        "storedSha256":  "89341ed785b3904566e0dde5f915ba42c4fc1df183afb05daa12ed4b7004b9c4",
+        "file":  "node-tests-final.log",
+        "storedEncoding":  "UTF-8/LF",
+        "credentialRedacted":  false
+    },
+    {
+        "originalLogSha256":  "d067edf537522b9081b491cc95fb6b84f698d19c7c68ff91012184f932b83fee",
+        "storedSha256":  "96cd2b70fa4bd3e073a4cf7028e3e08de0458a2199fcb4d23a759c99a0fe49ea",
+        "file":  "maven-package.log",
+        "storedEncoding":  "UTF-8/LF",
+        "credentialRedacted":  false
+    },
+    {
+        "originalLogSha256":  "80d12b4e6b8d718ab912c7812b02e13e71a147ffcdc045191d977a44b3ec188d",
+        "storedSha256":  "2024738f2d99f62e23fdc0d3ee17dadfc4ec039d856966a9caaf41621a149517",
+        "file":  "browser-console.log",
+        "storedEncoding":  "UTF-8/LF",
+        "credentialRedacted":  false
+    },
+    {
+        "originalLogSha256":  "80f192e6c6919773efd2e5748c94440c9bf60abfbbb2740b43b0007a79e4b0a3",
+        "storedSha256":  "d0dbb392e5227557b3f6a8b5f4c2d0d0bc983a893daa401f0791b782b4f2bec8",
+        "file":  "cancel-console.log",
+        "storedEncoding":  "UTF-8/LF",
+        "credentialRedacted":  true
+    }
+]

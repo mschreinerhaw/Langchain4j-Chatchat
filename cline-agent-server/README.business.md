@@ -1,6 +1,8 @@
-# Runtime Native 业务适配层（待验收）
+# Runtime Native 业务适配层
 
 状态与失败清单见 [业务阶段提交说明](../docs/audits/coding-agent-native-business-review.md)。该入口不替换原有默认服务启动命令，不代表五类业务验收通过。
+
+2026-11-09：业务执行与独立 Monitor 已统一集成至专项分支；浏览器 Native 多轮对话、真实错误修复、一个 CSV Runtime 任务的验算归档已取得证据。本轮最低可用九项通过，完整构建及最新浏览器结果见 [统一交付报告](../docs/testing/native-cline-business-monitor-delivery-20261108.md)。这不覆盖全量回归、金融场景和完整图文交付的未通过项，不批准生产替换。
 
 ## 构建与启动边界
 

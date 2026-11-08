@@ -1,0 +1,78 @@
+{
+  "timestamp": "2026-11-08T20:18:26.293030+00:00",
+  "sessionId": "4b871368-aa9b-4a05-b25a-a89e3791465e",
+  "sourceAndTestFilesBefore": {
+    "calculator.mjs": "5b63136552577a64d788dc3cd4552739d0d60f9e1adb63ec4dfb6932d56fc75d",
+    "calculator.test.mjs": "9f6c556f2f9e83f1dc63457388376ebcc56db5253da79991b5e0943ab838bfeb"
+  },
+  "sourceAndTestFilesAfter": {
+    "calculator.mjs": "5b63136552577a64d788dc3cd4552739d0d60f9e1adb63ec4dfb6932d56fc75d",
+    "calculator.test.mjs": "9f6c556f2f9e83f1dc63457388376ebcc56db5253da79991b5e0943ab838bfeb"
+  },
+  "sourceAndTestUnchanged": true,
+  "actualCancelEvent": {
+    "id": "native:442",
+    "source": "native",
+    "sourceEventId": "442",
+    "timestamp": "2026-11-08T20:13:32.177Z",
+    "sessionId": "native:4b871368-aa9b-4a05-b25a-a89e3791465e",
+    "taskId": "645835ed-1c15-40df-841e-9f955f814146",
+    "epoch": "83f1b098-a1c1-479c-9544-0c6f27011767",
+    "type": "task.cancelled",
+    "payload": {
+      "localProcesses": [
+        2632
+      ],
+      "localStopConfirmed": true,
+      "externalOperations": "none-configured-in-poc"
+    }
+  },
+  "remainingLiveWorkerProcesses": [],
+  "noAdditionalCancelOrExecutionDispatched": true,
+  "nativeModelIterations": 6,
+  "nativeUsageReports": 6,
+  "actualToolResults": [
+    {
+      "eventId": "native:32",
+      "toolName": "run_commands",
+      "status": "tool.completed",
+      "testOutput": [
+        {
+          "query": "find /poc/node-project -type f -name \"*.js\" -o -name \"*.ts\" -o -name \"*.json\" | grep -v node_modules | head -20",
+          "result": "",
+          "success": true
+        }
+      ]
+    },
+    {
+      "eventId": "native:54",
+      "toolName": "run_commands",
+      "status": "tool.completed",
+      "testOutput": [
+        {
+          "query": "ls -la /poc/node-project",
+          "result": "total 12\ndrwxr-xr-x 3 cline cline  84 Nov  8 17:56 .\ndrwxr-xr-x 1 root  root   41 Nov  8 17:56 ..\ndrwxr-xr-x 8 cline cline 166 Nov  8 20:10 .git\n-rw-r--r-- 1 cline cline 103 Nov  8 17:56 README.md\n-rw-r--r-- 1 cline cline  46 Nov  8 17:56 calculator.mjs\n-rw-r--r-- 1 cline cline 242 Nov  8 17:56 calculator.test.mjs\n",
+          "success": true
+        }
+      ]
+    },
+    {
+      "eventId": "native:73",
+      "toolName": "read_files",
+      "status": "tool.completed",
+      "testOutput": null
+    },
+    {
+      "eventId": "native:95",
+      "toolName": "run_commands",
+      "status": "tool.completed",
+      "testOutput": [
+        {
+          "query": "cd /poc/node-project && node --test",
+          "result": "\u2714 addition preserves negative and positive operands (1.059511ms)\n\u2139 tests 1\n\u2139 suites 0\n\u2139 pass 1\n\u2139 fail 0\n\u2139 cancelled 0\n\u2139 skipped 0\n\u2139 todo 0\n\u2139 duration_ms 122.592814\n",
+          "success": true
+        }
+      ]
+    }
+  ]
+}

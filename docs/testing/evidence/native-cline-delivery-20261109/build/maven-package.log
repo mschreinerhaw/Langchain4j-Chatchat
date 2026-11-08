@@ -1,0 +1,74 @@
+[INFO] Scanning for projects...
+[INFO] ------------------------------------------------------------------------
+[INFO] Detecting the operating system and CPU architecture
+[INFO] ------------------------------------------------------------------------
+[INFO] os.detected.name: windows
+[INFO] os.detected.arch: x86_64
+[INFO] os.detected.bitness: 64
+[INFO] os.detected.version: 10.0
+[INFO] os.detected.version.major: 10
+[INFO] os.detected.version.minor: 0
+[INFO] os.detected.classifier: windows-x86_64
+[INFO] ------------------------------------------------------------------------
+[INFO] Reactor Build Order:
+[INFO] 
+[INFO] LangChain4j ChatChat - Enterprise AI Application                   [pom]
+[INFO] ChatChat Data Migration                                            [jar]
+[INFO] ChatChat Common Module                                             [jar]
+[INFO] ChatChat Spring Platform Adapter                                   [jar]
+[INFO] ChatChat MCP gRPC Transport Contract                               [jar]
+[INFO] ChatChat License Platform Module                                   [jar]
+[INFO] ChatChat Vendor-Neutral Skill Runtime                              [jar]
+[INFO] ChatChat Agents Module                                             [jar]
+[INFO] ChatChat Temporal Workflow Runtime                                 [jar]
+[INFO] ChatChat Tools Module                                              [jar]
+[INFO] ChatChat Runtime MCP Registry                                      [jar]
+[INFO] Agent Runtime News Module                                          [jar]
+[INFO] ChatChat MCP Market Capability Library                             [jar]
+[INFO] ChatChat Knowledge Base Module                                     [jar]
+[INFO] ChatChat Enterprise Module                                         [jar]
+[INFO] ChatChat Chat Runtime Module                                       [jar]
+[INFO] ChatChat Integration Module                                        [jar]
+[INFO] ChatChat MCP Server Module                                         [jar]
+[INFO] LingDong Insight API Module                                        [jar]
+[INFO] ChatChat Production E2E Test Module                                [jar]
+[INFO] 
+[INFO] -----------------< com.chatchat:langchain4j-chatchat >------------------
+[INFO] Building LangChain4j ChatChat - Enterprise AI Application 1.0.0-SNAPSHOT [1/20]
+[INFO] --------------------------------[ pom ]---------------------------------
+[INFO] ------------------------------------------------------------------------
+[INFO] Reactor Summary for LangChain4j ChatChat - Enterprise AI Application 1.0.0-SNAPSHOT:
+[INFO] 
+[INFO] LangChain4j ChatChat - Enterprise AI Application ... FAILURE [  0.037 s]
+[INFO] ChatChat Data Migration ............................ SKIPPED
+[INFO] ChatChat Common Module ............................. SKIPPED
+[INFO] ChatChat Spring Platform Adapter ................... SKIPPED
+[INFO] ChatChat MCP gRPC Transport Contract ............... SKIPPED
+[INFO] ChatChat License Platform Module ................... SKIPPED
+[INFO] ChatChat Vendor-Neutral Skill Runtime .............. SKIPPED
+[INFO] ChatChat Agents Module ............................. SKIPPED
+[INFO] ChatChat Temporal Workflow Runtime ................. SKIPPED
+[INFO] ChatChat Tools Module .............................. SKIPPED
+[INFO] ChatChat Runtime MCP Registry ...................... SKIPPED
+[INFO] Agent Runtime News Module .......................... SKIPPED
+[INFO] ChatChat MCP Market Capability Library ............. SKIPPED
+[INFO] ChatChat Knowledge Base Module ..................... SKIPPED
+[INFO] ChatChat Enterprise Module ......................... SKIPPED
+[INFO] ChatChat Chat Runtime Module ....................... SKIPPED
+[INFO] ChatChat Integration Module ........................ SKIPPED
+[INFO] ChatChat MCP Server Module ......................... SKIPPED
+[INFO] LingDong Insight API Module ........................ SKIPPED
+[INFO] ChatChat Production E2E Test Module ................ SKIPPED
+[INFO] ------------------------------------------------------------------------
+[INFO] BUILD FAILURE
+[INFO] ------------------------------------------------------------------------
+[INFO] Total time:  0.832 s
+[INFO] Finished at: 2026-11-09T03:58:19+08:00
+[INFO] ------------------------------------------------------------------------
+[ERROR] Unknown lifecycle phase ".install.skip=true". You must specify a valid lifecycle phase or a goal in the format <plugin-prefix>:<goal> or <plugin-group-id>:<plugin-artifact-id>[:<plugin-version>]:<goal>. Available lifecycle phases are: validate, initialize, generate-sources, process-sources, generate-resources, process-resources, compile, process-classes, generate-test-sources, process-test-sources, generate-test-resources, process-test-resources, test-compile, process-test-classes, test, prepare-package, package, pre-integration-test, integration-test, post-integration-test, verify, install, deploy, pre-clean, clean, post-clean, pre-site, site, post-site, site-deploy. -> [Help 1]
+[ERROR] 
+[ERROR] To see the full stack trace of the errors, re-run Maven with the -e switch.
+[ERROR] Re-run Maven using the -X switch to enable full debug logging.
+[ERROR] 
+[ERROR] For more information about the errors and possible solutions, please read the following articles:
+[ERROR] [Help 1] http://cwiki.apache.org/confluence/display/MAVEN/LifecyclePhaseNotFoundException

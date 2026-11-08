@@ -5,7 +5,6 @@ only an explicitly reviewed summary should be exported to the repository.
 """
 import argparse
 import datetime
-import hashlib
 import json
 import pathlib
 import urllib.error
@@ -58,9 +57,11 @@ def main():
             body = json.loads((previous / (args.case + "-r2-input.json")).read_text())
             body.update(sessionId=identifier, idempotencyKey=identifier)
             path = "/api/v1/agent/tasks"
+            original = dict(body)
         else:
             body = json.loads((previous / ("C-r5-input.json" if args.case == "C" else "D-input.json")).read_text())
             body["requestId"] = identifier
+            original = dict(body)
             path = "/api/v1/data-science/user-assets/analyses"
             if args.case == "D":
                 created = request("/api/v1/data-science/explorations", {"title": "Native Cline 图文业务验收 " + identifier})
@@ -73,7 +74,7 @@ def main():
                 path = "/api/v1/data-science/explorations/" + created["id"] + "/nodes/" + node["id"] + "/execute"
                 body = {}
         state = {"case": args.case, "codeCommit": args.commit, "requestPath": path,
-                 "originalRequest": body, "workersBeforeDispatch": before,
+                 "originalRequest": original, "workersBeforeDispatch": before,
                  "dispatchedAt": datetime.datetime.now(datetime.timezone.utc).isoformat()}
         write(state_path, state)  # Persist before network IO; uncertainty cannot admit a second task.
         try:

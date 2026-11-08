@@ -31,7 +31,7 @@ function conversation(event){
  else if(event.type==='turn.completed')text='原生会话本轮结束；业务交付状态请查看 Runtime 回执。';
  else if(/failed|failure|error/.test(event.type)){text=event.type+' · '+(p.message??p.error??pretty(p));cls='tool';}
  if(typeof text!=='string'||!text)return;
- const message=el('div',undefined,'message '+cls);message.dataset.eventId=event.id;message.append(el('small',(event.timestamp??'')+' · '+event.source+' · '+event.id),el('div',text));$('#messages').append(message);
+ const root=$('#messages'),follow=root.scrollHeight-root.scrollTop-root.clientHeight<100;const message=el('div',undefined,'message '+cls);message.dataset.eventId=event.id;message.append(el('small',(event.timestamp??'')+' · '+event.source+' · '+event.id),el('div',text));root.append(message);if(follow)root.scrollTop=root.scrollHeight;
 }
 function accept(event){if(seen.has(event.id))return;seen.add(event.id);observations.push(event);conversation(event);if(!renderTimer)renderTimer=setTimeout(()=>{renderTimer=null;renderTimeline();renderTab();},120);}
 function renderTimeline(){const root=$('#timeline');root.replaceChildren();for(const e of observations.filter(e=>/tool\.|runtime.event|mcp\.|task\.|interaction|permission/.test(e.type)).slice(-12).reverse()){const s=el('div',undefined,'step');s.append(el('strong',e.payload?.toolName??e.payload?.tool??e.payload?.name??e.type),el('div',e.payload?.status??e.type),el('time',e.timestamp??''));root.append(s);}}
@@ -41,10 +41,11 @@ function snapshot(d){
  const state=$('#state');state.replaceChildren();const dl=el('dl');
  const fields=[['Native 状态',d.status],['Runtime 状态',d.mode==='runtime'?d.runtimeStatus:'未关联'],['状态来源',d.authority],['Session',d.sessionId],['Agent Session',d.nativeSessionId],['Task ID',d.taskId],['Worker 停止',d.workerStopped],['远端停止',d.remoteStopConfirmed],['待决 Python',d.activeOperations?.join(',')||'无已知活动操作'],['模型',d.model?.model??d.modelReceipts?.at(-1)?.providerModel],['输入 Token',sumUsage(d.modelReceipts,'inputTokens')],['输出 Token',sumUsage(d.modelReceipts,'outputTokens')]];
  fields[0][0]=d.mode==='runtime'?'Native 网关':'Native Session';
+ const remote=fields.find(f=>f[0]==='远端停止');if(remote){remote[0]='Python 停止';remote[1]=d.lastPythonStopped;}
  if(d.mode==='runtime')fields.splice(1,0,['Core 本轮',d.nativeTurnStatus],['Python 状态',d.executions?.at(-1)?.status],['结束工具',d.nativeCompletion?.toolCallId]);
  for(const [k,v] of fields){dl.append(el('dt',k),el('dd',unknown(v)));}state.append(dl);
  const perms=$('#permissions');perms.replaceChildren();for(const p of d.pendingPermissions??[]){const div=el('div');div.append(el('p','待批准：'+p.toolName+' / '+p.toolCallId));div.append(card('Permission input / toolCallId',p));for(const [label,decision] of [['批准','approve'],['拒绝','deny']]){const b=el('button',label);b.onclick=()=>control('permission',{permissionId:p.id,decision});div.append(b);}perms.append(div);}
- if(d.status==='awaiting_input')command('Cline 正在等待回答；请根据会话中的问题回复。');renderTab();
+ if(d.status==='awaiting_input')command('Cline 正在等待回答；请根据会话中的问题回复。');if(d.mode==='runtime'&&d.runtimeStatus==='COMPLETED')command('Runtime 已完成独立验算与归档交付。');renderTab();
 }
 function sumUsage(receipts,field){if(!receipts?.length)return 'UNKNOWN';const values=receipts.map(r=>r[field]??r.usage?.[field]);return values.every(Number.isFinite)?values.reduce((a,b)=>a+b,0):'UNKNOWN（部分回执用量未确认）';}
 async function select(key){
@@ -61,7 +62,12 @@ function renderTab(){
  if(tab==='models'){root.append(el('p','真实 Token 和计费以 Runtime 模型回执为准。缺失用量为 UNKNOWN。'));entries=[...(detail.modelReceipts??[]),...observations.filter(e=>/model\.|iteration|usage|broker.failure/.test(e.type))];}
  if(tab==='tools')entries=observations.filter(e=>e.type.startsWith('tool.'));
  if(tab==='skills')entries=observations.filter(e=>/mcp\.|skills/i.test(e.type)||/skill|mcp|runtime__/i.test(pretty(e.payload)));
- if(tab==='python'){root.append(el('p','Python 执行成功、原生结束与 Runtime 业务交付分别展示。'));entries=[...(detail.executions??[]),...observations.filter(e=>/python_execute|executionFeedback|operationId/.test(pretty(e.payload)))];}
+ if(tab==='python'){
+  root.append(el('p','Python 执行成功、原生结束与 Runtime 业务交付分别展示。'));
+  const table=el('table'),head=el('tr');for(const title of ['Python operationId','实际状态','退出码','源码 Hash','校验'])head.append(el('th',title));table.append(head);
+  for(const e of detail.executions??[]){const row=el('tr');for(const v of [e.executionId,e.status,e.exitCode,e.codeHash,e.validationStatus])row.append(el('td',unknown(v)));table.append(row);}root.append(table);
+  entries=[...(detail.executions??[]),...observations.filter(e=>/python_execute|executionFeedback|operationId/.test(pretty(e.payload)))];
+ }
  if(tab==='events')entries=observations;
  if(tab==='diagnostics')entries=[{nativeStatus:detail.status,runtimeStatus:detail.runtimeStatus,authority:detail.authority,error:detail.error,activeOperations:detail.activeOperations,workerStopped:detail.workerStopped,remoteStopConfirmed:detail.remoteStopConfirmed},...observations.filter(e=>/error|fail|cancel|reconcil|recover/.test(e.type))];
  if(!entries.length)root.append(el('p','尚无实际回执；不推断为成功。'));

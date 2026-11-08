@@ -34,6 +34,8 @@ export function restoreRun(dir,workersRoot,gatewayFactory) {
    if(event.payload.type==='TOOL_STARTED')run.activeOperations.add(event.payload.operationId);
    if(event.payload.type==='TOOL_FINISHED'&&event.payload.executorStopped===true)run.activeOperations.delete(event.payload.operationId);
   }
+  if(event.type==='cancel.remote_receipt'&&event.payload?.receipt?.executorStopped===true
+      &&event.payload.receipt.status!=='UNKNOWN')run.activeOperations.delete(event.payload.operationId);
  }
  run.recoveryControllable=!!(old.contract&&old.workerContract&&old.apiToken);
  return run;

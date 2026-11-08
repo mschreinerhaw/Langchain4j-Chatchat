@@ -40,6 +40,20 @@ test('legacy UNKNOWN keeps real Executor stop proof from its durable audit',()=>
  }finally{rmSync(dir,{recursive:true,force:true});}
 });
 
+test('restart reconciles actual cancellation receipts without retaining a stopped Python intent',()=>{
+ const dir=mkdtempSync(join(tmpdir(),'native-cancelled-python-'));
+ try {
+  const run={dir,contract:{scope:{tenantId:'t'},taskId:'task'},workerId:'worker',activeOperations:new Set(['stopped','uncertain'])};
+  persistRun(run,{status:'CANCELLED'});
+  const journal=new Journal(join(dir,'events.jsonl'));
+  for(const id of ['stopped','uncertain'])journal.append({type:'runtime.event',payload:{type:'TOOL_STARTED',tool:'python_execute',operationId:id}});
+  journal.append({type:'cancel.remote_receipt',payload:{operationId:'stopped',receipt:{status:'CANCELLED',executorStopped:true}}});
+  journal.append({type:'cancel.remote_receipt',payload:{operationId:'uncertain',receipt:{status:'UNKNOWN',executorStopped:true}}});
+  const restored=restoreRun(dir,'/workers',()=>({}));
+  assert.deepEqual([...restored.activeOperations],['uncertain']);
+ }finally{rmSync(dir,{recursive:true,force:true});}
+});
+
 test('partial delivery and completion missing Runtime evidence cannot become COMPLETED',()=>{
  assert.throws(()=>runtimeDeliveryStatus({status:'PARTIAL'}),/complete business delivery/);
  assert.throws(()=>runtimeDeliveryStatus({status:'BUDGET_EXCEEDED'}),/complete business delivery/);

@@ -95,7 +95,9 @@ async function cancel(r,reason){
   const unresolved=[];
   for(const id of r.activeOperations){
    let receipt;for(let n=0;n<30;n++){try{receipt=await r.gateway.getPython(r.contract,id).catch(()=>r.gateway.observePython(id));if(receipt.executorStopped)break;}catch{}await delay(500);}
-   audit(r,'cancel.remote_receipt',{operationId:id,receipt});if(!receipt?.executorStopped||receipt.status==='UNKNOWN')unresolved.push(id);
+   audit(r,'cancel.remote_receipt',{operationId:id,receipt});
+   if(!receipt?.executorStopped||receipt.status==='UNKNOWN')unresolved.push(id);
+   else r.activeOperations.delete(id);
   }
   r.remoteStopConfirmed=unresolved.length===0;r.status=r.stopProof&&r.remoteStopConfirmed?'CANCELLED':'UNKNOWN';
   try{r.result=await r.gateway.finish(r.contract,{status:'aborted',operationId:null,summary:reason});if(r.status!=='UNKNOWN')r.status=r.result.status;}catch(e){audit(r,'cancel.finish_rejected',{message:e.message});r.status='UNKNOWN';}

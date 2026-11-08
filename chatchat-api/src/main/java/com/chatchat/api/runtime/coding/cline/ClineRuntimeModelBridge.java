@@ -23,6 +23,9 @@ import org.springframework.stereotype.Service;
 @ConditionalOnProperty(prefix = "chatchat.coding.cline", name = "enabled", havingValue = "true")
 public final class ClineRuntimeModelBridge {
     private static final int MAX_MESSAGES = 64, MAX_TEXT = 256_000;
+    @org.springframework.beans.factory.annotation.Value("${chatchat.coding.cline.backend:sdk}")
+    private String backend="sdk";
+    private static final Set<String> NATIVE_LOCAL_TOOLS=Set.of("read_files","search_codebase","skills","editor","apply_patch","submit_and_exit");
     private final ModelResourceRegistry resources;
     private final ConfigurableChatModelFactory models;
     private final ObjectMapper json;
@@ -147,7 +150,7 @@ public final class ClineRuntimeModelBridge {
             }
         }
         JsonNode exposed = request.path("tools");
-        if (!exposed.isArray() || exposed.size() > contract.authorization().allowedTools().size())
+        if (!exposed.isArray() || exposed.size() > contract.authorization().allowedTools().size()+("native".equals(backend)?NATIVE_LOCAL_TOOLS.size():0))
             throw new IllegalArgumentException("Invalid model tool count");
         List<ToolSpecification> tools = new ArrayList<>();
         Set<String> declaredNames = new HashSet<>();
@@ -309,7 +312,20 @@ public final class ClineRuntimeModelBridge {
         public Map<String, Object> receipt() { return receipt; }
     }
 
-    private static String allowedTool(CodingTaskContract contract, String name) {
+    private String allowedTool(CodingTaskContract contract, String name) {
+        if("native".equals(backend)) {
+            if(NATIVE_LOCAL_TOOLS.contains(name)) {
+                if(Set.of("editor","apply_patch").contains(name)&&!contract.authorization().allowedSideEffects().contains(CodingTaskContract.SideEffect.CODE_EXECUTION))
+                    throw new SecurityException("Native workspace edits require the code execution grant");
+                return name;
+            }
+            if(name!=null&&name.startsWith("runtime__")) {
+                String runtimeTool=name.substring("runtime__".length());
+                if(ClineToolProfiles.ANALYSIS.contains(runtimeTool)&&contract.authorization().allowedTools().contains(runtimeTool))return name;
+                if(com.chatchat.common.runtime.coding.CodingProtocol.deferredTools(contract)&&runtimeTool.equals(com.chatchat.common.runtime.coding.CodingProtocol.TOOL_DESCRIBE))return name;
+                throw new SecurityException("Native MCP tool is outside Runtime authorization");
+            }
+        }
         if(com.chatchat.common.runtime.coding.CodingProtocol.deferredTools(contract)
             && com.chatchat.common.runtime.coding.CodingProtocol.TOOL_DESCRIBE.equals(name)) return name;
         Set<String> profile = CodingWorkspaceService.supports(contract)

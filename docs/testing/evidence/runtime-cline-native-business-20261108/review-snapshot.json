@@ -1,0 +1,799 @@
+{
+  "privateEvidenceRoot": "/opt/cline-native-business-20261108",
+  "acceptancePassed": false,
+  "runs": [
+    {
+      "taskId": "analysis-coding-4317632155748de9f0a8e835224846ddd845f103e4a70de274bca5fe6e1b69ae",
+      "runId": "asset-analysis-ad41559c7db00ebce1c1e478248254317fdd1449660f8e791e843da320574941",
+      "requestId": "native-business-C-0019e76486d942cc",
+      "gatewayStatus": "ABORTED",
+      "error": null,
+      "counts": {
+        "delivery": 1,
+        "task.input": 1,
+        "broker.failure": 63,
+        "native.event": 283,
+        "model.request": 13,
+        "model.receipt": 12,
+        "native.permission": 18,
+        "mcp.request": 7,
+        "mcp.failure": 7,
+        "cancel.requested": 1,
+        "cancel.reconciled": 1
+      },
+      "nativeTools": [
+        "editor",
+        "read_files",
+        "runtime__python_execute",
+        "search_codebase"
+      ],
+      "loadedSkills": [],
+      "pythonReceipts": [],
+      "errors": [
+        {
+          "type": "mcp.failure",
+          "message": "Native operation context mismatch",
+          "tool": "python_execute"
+        },
+        {
+          "type": "mcp.failure",
+          "message": "Native operation context mismatch",
+          "tool": "python_execute"
+        },
+        {
+          "type": "mcp.failure",
+          "message": "Native operation context mismatch",
+          "tool": "python_execute"
+        },
+        {
+          "type": "mcp.failure",
+          "message": "Native operation context mismatch",
+          "tool": "python_execute"
+        },
+        {
+          "type": "mcp.failure",
+          "message": "Native operation context mismatch",
+          "tool": "python_execute"
+        },
+        {
+          "type": "mcp.failure",
+          "message": "Native operation context mismatch",
+          "tool": "python_execute"
+        },
+        {
+          "type": "mcp.failure",
+          "message": "Native operation context mismatch",
+          "tool": "python_execute"
+        }
+      ]
+    },
+    {
+      "taskId": "analysis-coding-c9d4043b5eb41137033f70229906bf311ec80ce506348a071b1bbdfcb6c90f29",
+      "runId": "asset-analysis-58ce0037be61ab55310fb144ea470f047d0691900afdbbefd3758068158bd1dd",
+      "requestId": "native-business-C-r2-1ba9bb0b760c",
+      "gatewayStatus": "CANCELLED",
+      "error": null,
+      "counts": {
+        "delivery": 1,
+        "mcp.notification": 1,
+        "task.input": 1,
+        "native.event": 283,
+        "model.request": 13,
+        "model.receipt": 12,
+        "native.permission": 16,
+        "mcp.request": 5,
+        "mcp.receipt": 1,
+        "mcp.failure": 4,
+        "broker.failure": 6,
+        "cancel.requested": 1,
+        "cancel.reconciled": 1
+      },
+      "nativeTools": [
+        "editor",
+        "read_files",
+        "runtime__code_read",
+        "runtime__python_execute",
+        "search_codebase",
+        "skills"
+      ],
+      "loadedSkills": [
+        "artifact-management",
+        "financial-market-analysis",
+        "python-data-analysis",
+        "runtime-report-delivery"
+      ],
+      "pythonReceipts": [],
+      "errors": [
+        {
+          "type": "mcp.failure",
+          "message": "ENOENT: no such file or directory, lstat '/workers/7ae9ec9d-6415-409f-9452-c111d1ff5652/workspace/recon.py'",
+          "tool": "python_execute"
+        },
+        {
+          "type": "mcp.failure",
+          "message": "Invalid Coding callback binding",
+          "tool": "python_execute"
+        },
+        {
+          "type": "mcp.failure",
+          "message": "Repair anchor must match exactly once",
+          "tool": "python_execute"
+        },
+        {
+          "type": "mcp.failure",
+          "message": "Repair anchor must match exactly once",
+          "tool": "python_execute"
+        }
+      ]
+    },
+    {
+      "taskId": "analysis-coding-cab80bf5012c54488cda5ad39e6881e2fda72536c158d13136f9f0992f592ba1",
+      "runId": "att-1-8dbb5933-8b9a-446f-9edf-a0d1767ab481",
+      "requestId": "78a7c0f2-3bc6-4900-8cc9-b055568d9df9",
+      "gatewayStatus": "FAILED",
+      "error": "Unsafe Skill identity",
+      "counts": {
+        "task.failure": 1
+      },
+      "nativeTools": [],
+      "loadedSkills": [],
+      "pythonReceipts": [],
+      "errors": [
+        {
+          "type": "task.failure",
+          "message": "Unsafe Skill identity",
+          "tool": null
+        }
+      ]
+    },
+    {
+      "taskId": "analysis-coding-30e2c9a95b1af656bd1fc9fb3aaf4aee032b082f3408a5ddaa363108971f53f1",
+      "runId": "asset-analysis-bea0dfe86a3f9dfc713f31aa7543bde5f4844943925b2ac6a76976f3852fbc05",
+      "requestId": "native-business-C-r3-2da12141bb72",
+      "gatewayStatus": "UNKNOWN",
+      "error": null,
+      "counts": {
+        "delivery": 1,
+        "mcp.notification": 1,
+        "task.input": 1,
+        "native.event": 235,
+        "model.request": 13,
+        "model.receipt": 12,
+        "native.permission": 14,
+        "mcp.request": 9,
+        "mcp.receipt": 2,
+        "runtime.event": 36,
+        "mcp.failure": 7,
+        "broker.failure": 10,
+        "cancel.requested": 1,
+        "cancel.remote_error": 1,
+        "cancel.remote_receipt": 1,
+        "cancel.reconciled": 1
+      },
+      "nativeTools": [
+        "editor",
+        "read_files",
+        "runtime__code_read",
+        "runtime__input_read",
+        "runtime__python_execute",
+        "search_codebase",
+        "skills"
+      ],
+      "loadedSkills": [
+        "python-code-development",
+        "runtime-report-delivery"
+      ],
+      "pythonReceipts": [],
+      "errors": [
+        {
+          "type": "mcp.failure",
+          "message": "Python operation outcome is unknown; reconcile before retry",
+          "tool": "python_execute"
+        },
+        {
+          "type": "mcp.failure",
+          "message": "Previous Python operation unresolved; reconcile it before any new dispatch",
+          "tool": "python_execute"
+        },
+        {
+          "type": "mcp.failure",
+          "message": "Previous Python operation unresolved; reconcile it before any new dispatch",
+          "tool": "python_execute"
+        },
+        {
+          "type": "mcp.failure",
+          "message": "Previous Python operation unresolved; reconcile it before any new dispatch",
+          "tool": "python_execute"
+        },
+        {
+          "type": "mcp.failure",
+          "message": "Previous Python operation unresolved; reconcile it before any new dispatch",
+          "tool": "python_execute"
+        },
+        {
+          "type": "mcp.failure",
+          "message": "Previous Python operation unresolved; reconcile it before any new dispatch",
+          "tool": "python_execute"
+        },
+        {
+          "type": "mcp.failure",
+          "message": "Previous Python operation unresolved; reconcile it before any new dispatch",
+          "tool": "python_execute"
+        }
+      ]
+    },
+    {
+      "taskId": "analysis-coding-79c14008ad549d46a0eb2f80b51bca8aa8b3d57acbd57282a2da2061623d54e7",
+      "runId": "asset-analysis-62747177f41f0371bec3fc2364dadf0fc25d689aeb0d7d259d7e642169c6598c",
+      "requestId": "native-business-C-r4-feea0640c211",
+      "gatewayStatus": "CANCELLED",
+      "error": null,
+      "counts": {
+        "delivery": 1,
+        "mcp.notification": 1,
+        "task.input": 1,
+        "native.event": 236,
+        "model.request": 13,
+        "model.receipt": 12,
+        "native.permission": 13,
+        "mcp.request": 2,
+        "mcp.failure": 1,
+        "runtime.event": 32,
+        "mcp.receipt": 1,
+        "broker.failure": 3,
+        "cancel.requested": 1,
+        "cancel.reconciled": 1
+      },
+      "nativeTools": [
+        "editor",
+        "read_files",
+        "runtime__input_read",
+        "runtime__python_execute",
+        "skills"
+      ],
+      "loadedSkills": [
+        "financial-market-analysis"
+      ],
+      "pythonReceipts": [
+        {
+          "operationId": "cline-e4b6b69b6b93e2223d497f31a4264642d0b4d5df6777600dd122d4c1e232bf27",
+          "status": "SUCCEEDED",
+          "executorStopped": true,
+          "exitCode": 0,
+          "resultAvailable": false,
+          "outputStatus": "REQUIRED_OUTPUT_MISSING",
+          "resultDatasetRef": null,
+          "validationRecordRef": null,
+          "evidenceBundleRef": null,
+          "manifestHash": "10db4527362bc9ce583b50aa6f160d4515a5084372e50ad137c1f2816cbd8889"
+        }
+      ],
+      "errors": [
+        {
+          "type": "mcp.failure",
+          "message": "Invalid Coding callback binding",
+          "tool": "input_read"
+        }
+      ]
+    },
+    {
+      "taskId": "analysis-coding-bdab2aed0e0b20795f4435abb31c61e46cdaefa95cddd3205ba8af5a654f20b9",
+      "runId": "asset-analysis-cc60e9edb8bcd6b602db3c935c69bc310209e75639f422729a2ecf7a04208168",
+      "requestId": "native-business-C-r5-2d8f2486e92e",
+      "gatewayStatus": "CANCELLED",
+      "error": null,
+      "counts": {
+        "delivery": 1,
+        "task.input": 1,
+        "native.event": 262,
+        "mcp.notification": 1,
+        "model.request": 13,
+        "model.receipt": 12,
+        "native.permission": 15,
+        "runtime.event": 42,
+        "mcp.request": 4,
+        "mcp.failure": 1,
+        "mcp.receipt": 3,
+        "broker.failure": 5,
+        "cancel.requested": 1,
+        "cancel.reconciled": 1
+      },
+      "nativeTools": [
+        "apply_patch",
+        "read_files",
+        "runtime__artifact_read",
+        "runtime__python_execute",
+        "search_codebase",
+        "skills"
+      ],
+      "loadedSkills": [
+        "analyzer",
+        "python-code-development"
+      ],
+      "pythonReceipts": [
+        {
+          "operationId": "cline-1ab290b8f4aeb31f40a9af657da21d23021cb4e8031f5c8e491c803a1b68eafa",
+          "status": "SUCCEEDED",
+          "executorStopped": true,
+          "exitCode": 0,
+          "resultAvailable": false,
+          "outputStatus": "REQUIRED_OUTPUT_MISSING",
+          "resultDatasetRef": null,
+          "validationRecordRef": null,
+          "evidenceBundleRef": null,
+          "manifestHash": "2c0868789e40e3be20ff4db4514d65239a1df187c191536da51b02db20d7ccd3"
+        },
+        {
+          "operationId": "cline-5288c075508584b51855eac620f0cb253f1f3c83da4d9f3d26b93df2d0a1feb7",
+          "status": "SUCCEEDED",
+          "executorStopped": true,
+          "exitCode": 0,
+          "resultAvailable": true,
+          "outputStatus": null,
+          "resultDatasetRef": "runtime-evidence:coding:dda8a3eb8e2a77efc54ec6995ab0d899299ac9d75d28b0362ffae25f66b2de2f:result",
+          "validationRecordRef": "runtime-evidence:coding:dda8a3eb8e2a77efc54ec6995ab0d899299ac9d75d28b0362ffae25f66b2de2f:validation",
+          "evidenceBundleRef": "runtime-evidence:coding:dda8a3eb8e2a77efc54ec6995ab0d899299ac9d75d28b0362ffae25f66b2de2f:bundle",
+          "manifestHash": "a702f2d2709cf91964bdcba52ace1c97befb01e604fa423be22548046c616a19"
+        }
+      ],
+      "errors": [
+        {
+          "type": "mcp.failure",
+          "message": "ENOENT: no such file or directory, lstat '/workers/173c963e-2704-4c89-9682-f882de93d1ea/workspace/explore.py'",
+          "tool": "python_execute"
+        }
+      ]
+    },
+    {
+      "taskId": "analysis-coding-e4592560027b87c715b6d13e442af9f45faab3a9a43148881b670a15fb8ba417",
+      "runId": "asset-analysis-c2d4cf0d508cafc69ba3fca92a5ea2103a7996dd5e17f657f8f3e255527828c5",
+      "requestId": "76f93897-38e7-4e8a-98eb-380b18194ad5",
+      "gatewayStatus": "UNKNOWN",
+      "error": null,
+      "counts": {
+        "delivery": 1,
+        "mcp.notification": 1,
+        "task.input": 1,
+        "native.event": 70,
+        "model.request": 7,
+        "model.receipt": 3,
+        "native.permission": 2,
+        "runtime.event": 16,
+        "broker.failure": 4,
+        "cancel.requested": 1,
+        "cancel.finish_rejected": 1,
+        "cancel.reconciled": 1
+      },
+      "nativeTools": [
+        "read_files",
+        "skills"
+      ],
+      "loadedSkills": [
+        "financial-market-analysis",
+        "plotting",
+        "python-data-analysis",
+        "runtime-report-delivery"
+      ],
+      "pythonReceipts": [],
+      "errors": []
+    }
+  ],
+  "responses": [
+    {
+      "file": "A-latest.json",
+      "taskId": "efa94897-5d78-3fcd-b000-0886a129b525",
+      "status": "FAILED",
+      "message": "PYTHON_ANALYSIS_UNAVAILABLE: data analysis requires an enabled Coding Agent and Python Sandbox"
+    },
+    {
+      "file": "B-latest.json",
+      "taskId": "c082b9cd-cb4d-3b15-b2ef-c46adfd631d4",
+      "status": "FAILED",
+      "message": "PYTHON_ANALYSIS_UNAVAILABLE: data analysis requires an enabled Coding Agent and Python Sandbox"
+    },
+    {
+      "file": "C-response.json",
+      "taskId": "analysis-coding-4317632155748de9f0a8e835224846ddd845f103e4a70de274bca5fe6e1b69ae",
+      "status": "BUDGET_EXCEEDED",
+      "resultAvailable": false,
+      "usage": {
+        "modelCalls": 12,
+        "modelTokens": 460070,
+        "toolCalls": 0,
+        "codeExecutions": 0,
+        "cpuMillis": 0,
+        "peakMemoryBytes": 0,
+        "outputBytes": 0,
+        "costAmount": "0"
+      }
+    },
+    {
+      "file": "A-r2-latest.json",
+      "taskId": "8a885677-93c8-3930-893f-49ab3cd2152a",
+      "status": "FAILED",
+      "message": "PRIMARY_CODING_ANALYSIS_FAILED: status=CAPACITY_UNAVAILABLE, reason=result unavailable"
+    },
+    {
+      "file": "B-r2-latest.json",
+      "taskId": "a5b6e1c1-5d4c-399c-94cc-6e86a5f73978",
+      "status": "FAILED",
+      "message": "PRIMARY_CODING_ANALYSIS_FAILED: status=FAILED, reason=EXECUTION_FAILED"
+    },
+    {
+      "file": "C-r2-response.json",
+      "taskId": "analysis-coding-c9d4043b5eb41137033f70229906bf311ec80ce506348a071b1bbdfcb6c90f29",
+      "status": "BUDGET_EXCEEDED",
+      "resultAvailable": false,
+      "usage": {
+        "modelCalls": 12,
+        "modelTokens": 497289,
+        "toolCalls": 0,
+        "codeExecutions": 0,
+        "cpuMillis": 0,
+        "peakMemoryBytes": 0,
+        "outputBytes": 0,
+        "costAmount": "0"
+      }
+    },
+    {
+      "file": "C-r3-response.json",
+      "taskId": "analysis-coding-30e2c9a95b1af656bd1fc9fb3aaf4aee032b082f3408a5ddaa363108971f53f1",
+      "status": "BUDGET_EXCEEDED",
+      "resultAvailable": false,
+      "usage": {
+        "modelCalls": 12,
+        "modelTokens": 396147,
+        "toolCalls": 1,
+        "codeExecutions": 0,
+        "cpuMillis": 0,
+        "peakMemoryBytes": 0,
+        "outputBytes": 1091,
+        "costAmount": "0"
+      }
+    },
+    {
+      "file": "C-r4-response.json",
+      "taskId": "analysis-coding-79c14008ad549d46a0eb2f80b51bca8aa8b3d57acbd57282a2da2061623d54e7",
+      "status": "BUDGET_EXCEEDED",
+      "resultAvailable": false,
+      "usage": {
+        "modelCalls": 12,
+        "modelTokens": 456763,
+        "toolCalls": 1,
+        "codeExecutions": 1,
+        "cpuMillis": 0,
+        "peakMemoryBytes": 0,
+        "outputBytes": 1796,
+        "costAmount": "0"
+      }
+    },
+    {
+      "file": "C-r5-response.json",
+      "taskId": "analysis-coding-bdab2aed0e0b20795f4435abb31c61e46cdaefa95cddd3205ba8af5a654f20b9",
+      "status": "BUDGET_EXCEEDED",
+      "resultAvailable": false,
+      "usage": {
+        "modelCalls": 12,
+        "modelTokens": 522042,
+        "toolCalls": 2,
+        "codeExecutions": 2,
+        "cpuMillis": 0,
+        "peakMemoryBytes": 0,
+        "outputBytes": 14892,
+        "costAmount": "0"
+      }
+    },
+    {
+      "file": "D-response.json",
+      "taskId": "analysis-coding-e4592560027b87c715b6d13e442af9f45faab3a9a43148881b670a15fb8ba417",
+      "status": "RUNNING",
+      "resultAvailable": false
+    }
+  ],
+  "evidenceIndex": [
+    {
+      "path": "state/1e93f794-4560-4c77-8274-a0b256c104ca/run.json",
+      "bytes": 854,
+      "sha256": "5ed1bbe87bfa7fd0e53b0c11274782bb96d712e3f83f96a00b81a13236e605c0"
+    },
+    {
+      "path": "state/1e93f794-4560-4c77-8274-a0b256c104ca/events.jsonl",
+      "bytes": 3567303,
+      "sha256": "30a1ebfe93d55ece8012742af5fccc4cf1c5af882ad68241dadc48687468fcdc"
+    },
+    {
+      "path": "state/7ae9ec9d-6415-409f-9452-c111d1ff5652/run.json",
+      "bytes": 890,
+      "sha256": "153b69ebc71be131c85c6ab42d9903774f79b76f849dc0852cb59671449d367f"
+    },
+    {
+      "path": "state/7ae9ec9d-6415-409f-9452-c111d1ff5652/events.jsonl",
+      "bytes": 3420706,
+      "sha256": "55162d413aba82bab28aeffbf0c1eadf224dd3462c6d440faace83e84d040b24"
+    },
+    {
+      "path": "state/950d63fb-8123-48da-8da1-998bbc7c506d/run.json",
+      "bytes": 813,
+      "sha256": "86d22aec4ca19960db796bc214963f482fa5e600ddab60015a41622bad97a70f"
+    },
+    {
+      "path": "state/950d63fb-8123-48da-8da1-998bbc7c506d/events.jsonl",
+      "bytes": 123,
+      "sha256": "5efcdad3e90405262e3712fca9f8c6e206488c612a89fc0a7277410e596d0856"
+    },
+    {
+      "path": "state/236f4d9c-6ce4-4488-850d-2f8af812208e/run.json",
+      "bytes": 987,
+      "sha256": "44d407b226a0bbfffd8ac6622e910aba5aecd7bf37f1b6c1b83db3ad820fb7e8"
+    },
+    {
+      "path": "state/236f4d9c-6ce4-4488-850d-2f8af812208e/events.jsonl",
+      "bytes": 3024263,
+      "sha256": "f9b679c7b4c238d0577ce03d5705f1cbed6ce9001a43964fa9329cce07a4d872"
+    },
+    {
+      "path": "state/e857a008-df84-400c-8f07-4ab4055c8d4a/run.json",
+      "bytes": 2716,
+      "sha256": "4f3d00852176de7597c1abc46d6a0a97b0d2e0fec203edcaa7a7e061d2796778"
+    },
+    {
+      "path": "state/e857a008-df84-400c-8f07-4ab4055c8d4a/events.jsonl",
+      "bytes": 3027952,
+      "sha256": "cde3f97532ceb19b3a9b38fd88a75aa9140b636966d2014c9ad1d9e22fbbbcdb"
+    },
+    {
+      "path": "state/173c963e-2704-4c89-9682-f882de93d1ea/run.json",
+      "bytes": 5636,
+      "sha256": "77ca632d3f6076be6681a8608c062a448f6bcb390452ac60b4857a9965831d45"
+    },
+    {
+      "path": "state/173c963e-2704-4c89-9682-f882de93d1ea/events.jsonl",
+      "bytes": 3348120,
+      "sha256": "8e81ba8d03c5e5dfad973081dd3af310276d6f2eae4bfb1fbf9e4bfa13e6085b"
+    },
+    {
+      "path": "state/72ec9356-b954-41a9-80bd-9520f8045524/run.json",
+      "bytes": 830,
+      "sha256": "e6baa1daa725d6f798d305ac7fa036051ccc5e90816717501b3497d3f93e8fc8"
+    },
+    {
+      "path": "state/72ec9356-b954-41a9-80bd-9520f8045524/events.jsonl",
+      "bytes": 1956018,
+      "sha256": "060e3cafced7ab00be0321a3b7e9259fd2c3332741a6c87d8a5c8a8a6e83ca58"
+    },
+    {
+      "path": "evidence/business/A-input.json",
+      "bytes": 589,
+      "sha256": "192734bc9b4af7ea5c61502a4766edbc7d06aef57d32c0faeec116a53c26852d"
+    },
+    {
+      "path": "evidence/business/A-submit.json",
+      "bytes": 1264,
+      "sha256": "0cbef486f109f357b030ed0a1f02141a21f50fe224f3e64f0cbc72f936b996cb"
+    },
+    {
+      "path": "evidence/business/B-input.json",
+      "bytes": 608,
+      "sha256": "2cc5797cc1b8c29631db4b8c420799bd58b3624069d946a4afb3b1443429d35f"
+    },
+    {
+      "path": "evidence/business/B-submit.json",
+      "bytes": 1286,
+      "sha256": "a0161ee38efce7eaa3f89a80e0de26a968a4dbba2d9ac6c32d8c10fe6f00a29e"
+    },
+    {
+      "path": "evidence/business/A-latest.json",
+      "bytes": 1561,
+      "sha256": "3703c1aa697f569231b32f461844e7ac1f8a09aede9b5383c6e146bc4db55761"
+    },
+    {
+      "path": "evidence/business/A-events.json",
+      "bytes": 60012,
+      "sha256": "9de061af45ac1dd54ed89191daa347e1b4369469a41e1d8163f0bc53060521cc"
+    },
+    {
+      "path": "evidence/business/B-latest.json",
+      "bytes": 1583,
+      "sha256": "ee387183b45335e7f00efdb7f7ecebf3f1c60cba3463e202f721b38910fe3513"
+    },
+    {
+      "path": "evidence/business/B-events.json",
+      "bytes": 63466,
+      "sha256": "4dc501ee56bc7944149d913a7b2b84b86ccb10072517ebc9e24c459477e4da3f"
+    },
+    {
+      "path": "evidence/business/C-source-metadata.json",
+      "bytes": 116,
+      "sha256": "3d2684c61791836274e9ff47ca14765180c2bceac4699adc0871a66a3bcb9a4c"
+    },
+    {
+      "path": "evidence/business/C-input-manifest.json",
+      "bytes": 726,
+      "sha256": "eeb27f564be3f31687e4579d655a3222d129d954b5137d022c03a475f3e99815"
+    },
+    {
+      "path": "evidence/business/C-input.json",
+      "bytes": 1093,
+      "sha256": "87c24342246f8da61971aa4f70255fb22644075be3c55d559550fb8d32f9b430"
+    },
+    {
+      "path": "evidence/business/C-dispatch-intent.json",
+      "bytes": 84,
+      "sha256": "ac49083c2ed58d6befdae4d27fcfdd7eb0a84e57271b3ceb09592a3e386f6eae"
+    },
+    {
+      "path": "evidence/business/C-response.json",
+      "bytes": 1978,
+      "sha256": "dc6e18301cfef00f1d583f36ad6043b28f64905253e6f11e21300a92b9e424bd"
+    },
+    {
+      "path": "evidence/business/C-r2-input.json",
+      "bytes": 1092,
+      "sha256": "be12ce3207f2040d7e73cd9c81d8e9f6cf05446ebcbf64ac491bb1287010dc1c"
+    },
+    {
+      "path": "evidence/business/C-r2-dispatch-intent.json",
+      "bytes": 83,
+      "sha256": "06cd45c73eb5c4cc0eb5d8abe9c4fea8fe9c4bf14d4c8fd622add96697edb3d3"
+    },
+    {
+      "path": "evidence/business/A-r2-input.json",
+      "bytes": 595,
+      "sha256": "ec91b6966006fb06b66cf32d9fc40fa054b1bc8abf5417555818d67b6c4a020f"
+    },
+    {
+      "path": "evidence/business/A-r2-submit.json",
+      "bytes": 1267,
+      "sha256": "ad5123aa0aee121c54bfedee71bee66c344fb020da959300d944725409e82c0c"
+    },
+    {
+      "path": "evidence/business/B-r2-input.json",
+      "bytes": 614,
+      "sha256": "c052b5266847f0c0dff0d78c66855246fe2b2c4f19be73aa3ed115347dea35a7"
+    },
+    {
+      "path": "evidence/business/B-r2-submit.json",
+      "bytes": 1289,
+      "sha256": "1c56d37cdc4b36d044d2845c00dc0753df413190f4398eba2338bf08107765d7"
+    },
+    {
+      "path": "evidence/business/A-r2-latest.json",
+      "bytes": 1556,
+      "sha256": "c6ec9ab54b37a79151663abb05fe3949ef404167debb57490d6d5b5c9f9c79b3"
+    },
+    {
+      "path": "evidence/business/A-r2-events.json",
+      "bytes": 63626,
+      "sha256": "1d4f9b2ebaa9d30b445c36339f2360b03e9df8e5ceafbe1ad68e7af7293bb92e"
+    },
+    {
+      "path": "evidence/business/B-r2-latest.json",
+      "bytes": 1562,
+      "sha256": "5a29e21760a3b1e8d5c00ff0f91cf4807cd21107654e1bd013c3d4bf9a20efcb"
+    },
+    {
+      "path": "evidence/business/B-r2-events.json",
+      "bytes": 81142,
+      "sha256": "a95d9ce310ac8c3fd3cd4272e0885c1e09ffe0262c7e68daa19c0101c59d36de"
+    },
+    {
+      "path": "evidence/business/C-r2-response.json",
+      "bytes": 1976,
+      "sha256": "f058aeee62cfa876e253427aab0b04fa6072a0b6bf01faff34c8f3fa4e42e622"
+    },
+    {
+      "path": "evidence/business/C-r3-input.json",
+      "bytes": 1092,
+      "sha256": "9cd028a2e06114094c66424dab2adeec88fbeb402736da1436e8c09f5b9c9c68"
+    },
+    {
+      "path": "evidence/business/C-r3-dispatch-intent.json",
+      "bytes": 83,
+      "sha256": "d57cbd4ee0725ff775156bb048cabe537e7a1badb774dcc47c83bd1f5356d328"
+    },
+    {
+      "path": "evidence/business/C-r3-response.json",
+      "bytes": 1981,
+      "sha256": "4eacbbff3ce942a7739497414398c6372d6202565613fda3c89920cdb3d17b7c"
+    },
+    {
+      "path": "evidence/business/C-r3-authoritative-state.json",
+      "bytes": 827,
+      "sha256": "804bfa7963d8d74c8904f907c7a7a075b6648fefab3a8405f4a3e6698cf238b7"
+    },
+    {
+      "path": "evidence/business/C-r4-input.json",
+      "bytes": 1092,
+      "sha256": "48cb21c3ab36209ca2d3eb2e6419f46c3c864ddf5242661844e4c66ab703964a"
+    },
+    {
+      "path": "evidence/business/C-r4-dispatch-intent.json",
+      "bytes": 83,
+      "sha256": "8ca6f968d35bfccaf93deabba31f98998417c6e0ffc304baab89e73e668efbec"
+    },
+    {
+      "path": "evidence/business/C-r4-response.json",
+      "bytes": 1990,
+      "sha256": "b61c515d57bc71c15b44cb7ed71fa46473198dc26f976c0bddb33bac878ed0fa"
+    },
+    {
+      "path": "evidence/business/canonical-input-provenance.json",
+      "bytes": 2081,
+      "sha256": "e9c910da5ecc62798423483b956f1c0cb6a7eabece7e3aa26d9ef89799840fd9"
+    },
+    {
+      "path": "evidence/business/C-r5-input.json",
+      "bytes": 988,
+      "sha256": "c7cbf2d216d1a8a37b8d3d627d7fe64b6ec4a0f57dd45fc1a412ce8e6025099b"
+    },
+    {
+      "path": "evidence/business/D-input.json",
+      "bytes": 876,
+      "sha256": "e543e4f6222ccbe3efcabfd97aaa25dece4df704fec7676654d1702118243d27"
+    },
+    {
+      "path": "evidence/business/C-r5-dispatch-intent.json",
+      "bytes": 83,
+      "sha256": "cb5e9d7def7d1c5e41e9035fbaa1d52d0ca5a2b1824b65eb97a244786750be26"
+    },
+    {
+      "path": "evidence/business/D-workspace.json",
+      "bytes": 1238,
+      "sha256": "cd62a3674a0049fd7639dc72a03690448328305ce4b71e66d1fe481dc58856ad"
+    },
+    {
+      "path": "evidence/business/D-runtime-input.json",
+      "bytes": 1080,
+      "sha256": "3923ec49a0de5a248e09313e3e76ec4d591857d9924c96ab8b0589184fd8042b"
+    },
+    {
+      "path": "evidence/business/D-dispatch-intent.json",
+      "bytes": 259,
+      "sha256": "eb40f716b0a0650a195945f9087b4e381e85f6282b5479e53da1826cfde43c9f"
+    },
+    {
+      "path": "evidence/business/C-r5-response.json",
+      "bytes": 1991,
+      "sha256": "1f3c116ed0d530a04937397d762ef6c3b81ee218a6e46d2cc863dfe6df5d27ab"
+    },
+    {
+      "path": "evidence/business/D-response.json",
+      "bytes": 3601,
+      "sha256": "af03c73999c68bfa062da6ec3c1ca193abc783743596a7764bd7f01de769d5ce"
+    }
+  ],
+  "native-image-diff.json": {
+    "baseline": "sha256:6ee943241411781d729fc5fcdd5608c1906424740228f55919b0009c524dfccb",
+    "businessWorker": "sha256:d34d7d6e3aa3c17d1dba2c430a16e2d68be87faee9abe69bda94b7a69901e860",
+    "changes": [
+      "/poc/service/src/tool-outcome.mjs: classify raw MCP isError=true as failure"
+    ],
+    "hostModuleSha256": "f1664d6bfcec2a710bb0d8c79a198cc31f039194ad1a945f4153d0e1c25c1c37",
+    "officialRuntimeHashes": {
+      "baseline": "39e76ca525a3736d645ebb972e60a34a45bac413837e709f0bf3d2a7a6aad361 /poc/runtime/cline-core.js\nd28dace3b4daff727770c3625917b22a0c54a8f855c4222530de1923b493086f /poc/runtime/proto/descriptor_set.pb",
+      "business": "39e76ca525a3736d645ebb972e60a34a45bac413837e709f0bf3d2a7a6aad361 /poc/runtime/cline-core.js\nd28dace3b4daff727770c3625917b22a0c54a8f855c4222530de1923b493086f /poc/runtime/proto/descriptor_set.pb"
+    },
+    "agentCoreChanges": 0,
+    "legacyWorkerLoaded": false
+  },
+  "pre-dispatch-cas-reconciliation.json": {
+    "taskId": "analysis-coding-30e2c9a95b1af656bd1fc9fb3aaf4aee032b082f3408a5ddaa363108971f53f1",
+    "runtimeStatus": "BUDGET_EXCEEDED",
+    "runtimeTerminal": true,
+    "managedOperationCount": 0,
+    "workerRunning": false,
+    "nativeGatewayStatus": "UNKNOWN",
+    "classification": "Failed before managed dispatch; no success or automatic replay",
+    "journalRaceCallSite": "CodingPythonExecutionBridge.start reserve(expectedRevision) before python.start",
+    "observedException": "CodingContractException",
+    "gatewayUnknownPreserved": true
+  },
+  "analysis-configuration-failure.json": {
+    "firstFailure": "PYTHON_ANALYSIS_UNAVAILABLE",
+    "cause": "SPRING_APPLICATION_JSON chatchat.coding.analysis.enabled=false overrides true environment flag in copied code-only POC configuration",
+    "fix": "Enable existing analysis service only in new business API; Native startup requires its binding",
+    "oldValue": false,
+    "sharedConfigurationChanged": false,
+    "modelOrBudgetChanged": false
+  }
+}

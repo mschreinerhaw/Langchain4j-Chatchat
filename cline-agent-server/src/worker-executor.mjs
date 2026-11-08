@@ -6,6 +6,7 @@ import {DockerEngine} from './docker-engine.mjs';
 import {reject,exact,taskGrant,identity,validateCreate,safeTree,mountAnchor,assertAnchors,buildSpec,verifyOwned,uuid} from './worker-executor-policy.mjs';
 
 const cfg=JSON.parse(readFileSync(process.env.CLINE_EXECUTOR_CONFIG));
+if(cfg.mcpServerName&&!['runtime','tenant_data'].includes(cfg.mcpServerName))throw Error('Unknown fixed MCP transport profile');
 if(!/^sha256:[a-f0-9]{64}$/.test(cfg.workerImage)||!cfg.expectedDaemonId||!cfg.ownershipKey||!cfg.instanceId||!cfg.apiToken||!cfg.signingKey)throw Error('Pinned Executor policy required');
 const docker=new DockerEngine(cfg.dockerSocket);
 const daemon=await docker.call('GET','/info');
@@ -32,7 +33,7 @@ function prepare(c,b){
  const template=cfg.tenants[c.tenantId].workspaces[c.workspaceRef];tree(template);cpSync(template,join(root,'workspace'),{recursive:true,dereference:false});tree(join(root,'workspace'),p=>chownSync(p,1000,1000));
  for(const name of ['state','bridge'])chownSync(join(root,name),1000,1000);
  const privateConfig={operationContext:!!cfg.operationContext,sourceRoot:'/not-mounted/upstream',distDir:'/poc/runtime',stateDir:'/poc/state',socketPath:'/poc/bridge/worker.sock',apiToken:b.apiToken,apiKey:b.brokerToken,model:cfg.modelNames[c.modelProfile],baseUrl:'http://127.0.0.1:18329/model/v1',workspaces:{project:'/poc/project'},toolPermissions:c.toolPermissions,
-  ...(cfg.tenants[c.tenantId].mcp?{mcpServers:{tenant_data:{type:'streamableHttp',url:'http://127.0.0.1:18329/mcp',headers:{Authorization:'Bearer '+b.brokerToken},disabled:false,autoApprove:[]}}}:{})};
+  ...(cfg.tenants[c.tenantId].mcp?{mcpServers:{[cfg.mcpServerName??'tenant_data']:{type:'streamableHttp',url:'http://127.0.0.1:18329/mcp',headers:{Authorization:'Bearer '+b.brokerToken},disabled:false,autoApprove:[]}}}:{})};
  const p=join(root,'config.json');writeFileSync(p,JSON.stringify(privateConfig),{mode:0o440});chownSync(p,0,1000);assertAnchors(cfg.workersRoot,b.workerId);
 }
 async function create(c,b){

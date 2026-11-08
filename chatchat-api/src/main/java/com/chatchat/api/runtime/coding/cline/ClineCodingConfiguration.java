@@ -20,6 +20,16 @@ import org.springframework.context.annotation.Primary;
 @ConditionalOnProperty(prefix = "chatchat.coding.cline", name = "enabled", havingValue = "true")
 @ConditionalOnProperty(prefix = "chatchat.coding", name = "enabled", havingValue = "true")
 public class ClineCodingConfiguration {
+    /** Native business dispatch requires the existing analysis service at startup;
+     * an analysis-disabled test configuration must fail before accepting work. */
+    @Bean
+    @ConditionalOnProperty(prefix="chatchat.coding.cline",name="backend",havingValue="native")
+    org.springframework.beans.factory.SmartInitializingSingleton nativeCodingBusinessBinding(
+            com.chatchat.agents.orchestration.AgentOrchestrator orchestrator,
+            org.springframework.beans.factory.ObjectProvider<com.chatchat.api.runtime.coding.analysis.CodingAnalysisService> coding) {
+        return () -> orchestrator.setAnalysisCodingPort(coding.getObject());
+    }
+
     @Bean
     @Primary
     CodingAgentSPI clineCodingAgent(DurableCodingTaskService tasks, CodingPythonExecutionBridge python,
@@ -31,12 +41,14 @@ public class ClineCodingConfiguration {
             org.springframework.beans.factory.ObjectProvider<CodingDataSupplyService> dataSupply,
             @Value("${chatchat.coding.cline.node-url:http://127.0.0.1:8791}") String nodeUrl,
             @Value("${chatchat.coding.cline.shared-secret:}") String secret,
-            @Value("${chatchat.coding.cline.shared-secret-file:}") String secretFile) {
+            @Value("${chatchat.coding.cline.shared-secret-file:}") String secretFile,
+            @Value("${chatchat.coding.cline.backend:sdk}") String backend) {
+        if(!java.util.Set.of("sdk","native").contains(backend))throw new IllegalArgumentException("Unknown Coding backend");
         var adapter = new ClineCodingAdapter(tasks, python, inputs, plans, collector, receipts,
             URI.create(nodeUrl), CodingSecrets.resolve(secret,secretFile), mapper);
         adapter.setWorkspace(workspace.getIfAvailable());
         adapter.setDataSupply(dataSupply.getIfAvailable());
         adapter.setLicenseEntitlements(licenseEntitlements);
-        return adapter;
+        return "native".equals(backend)?new ClineNativeCodingAdapter(adapter,URI.create(nodeUrl),CodingSecrets.resolve(secret,secretFile),mapper):adapter;
     }
 }

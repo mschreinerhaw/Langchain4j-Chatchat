@@ -80,11 +80,16 @@ public class CodingPythonExecutionBridge {
         String sourceHash = hash(source.getBytes(StandardCharsets.UTF_8));
         String intentHash = hash(json(Map.of("operationId", operationId, "environmentId", environmentId,
                 "sourceHash", sourceHash, "inputHashes", files, "reservation", reservation)));
-        var reserved = tasks.reserve(scope, contract.taskId(), lease, snapshot.revision(), operationId, intentHash, reservation);
+        // Native tool progress may advance the same journal revision while the
+        // environment/input checks run. Retry only the existing CAS mutation;
+        // the external start below is never inside this retry boundary.
+        var reserved = com.chatchat.agents.runtime.coding.CodingTaskRevisions.mutate(tasks, scope, contract.taskId(),
+            revision -> tasks.reserve(scope, contract.taskId(), lease, revision, operationId, intentHash, reservation));
         if (!reserved.admitted()) throw new IllegalStateException("Coding budget reservation was denied");
         String handle = "mcp-python:" + hash((scope.tenantId() + "\u0000" + scope.userId() + "\u0000"
                 + scope.runId() + "\u0000" + contract.taskId() + "\u0000" + operationId).getBytes(StandardCharsets.UTF_8));
-        var intent = tasks.startIntent(scope, contract.taskId(), lease, reserved.outcome().revision(), operationId, handle);
+        var intent = com.chatchat.agents.runtime.coding.CodingTaskRevisions.mutate(tasks, scope, contract.taskId(),
+            revision -> tasks.startIntent(scope, contract.taskId(), lease, revision, operationId, handle));
         if (!intent.dispatchIntentCreated())
             return python.get(scope.tenantId(), scope.userId(), scope.runId(), contract.taskId(), operationId);
         var environmentSnapshot = contract.runtimeContext().get("pythonEnvironment") instanceof Map<?,?> value ? value : Map.of();

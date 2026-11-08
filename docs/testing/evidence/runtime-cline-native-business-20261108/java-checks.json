@@ -1,0 +1,21 @@
+[
+  {
+    "name": "compile-final-java",
+    "sources": 5,
+    "probes": 2,
+    "exitCode": 0,
+    "log": "Note: /opt/cline-native-business-20261108/review-source/cline-agent-server/test/business-java/NativeProgressAdmissionProbe.java uses or overrides a deprecated API.\nNote: Recompile with -Xlint:deprecation for details.\n"
+  },
+  {
+    "name": "ClineNativeAdapterProbe",
+    "exitCode": 0,
+    "log": "Native adapter guard: 7 checks PASS (unit fixtures; no business execution)\n",
+    "kind": "unit; not business acceptance"
+  },
+  {
+    "name": "NativeProgressAdmissionProbe",
+    "exitCode": 0,
+    "log": "18:37:08.211 [main] INFO com.chatchat.common.runtime.event.RuntimeEventLog -- Runtime OS event {\"contractVersion\":\"runtime_log_v1\",\"runId\":\"unit-run\",\"eventId\":\"\",\"eventType\":\"TASK_STARTED\",\"occurredAt\":1794134228209,\"sequence\":0,\"facts\":{\"taskId\":\"unit-task\",\"traceId\":\"unit-run\",\"executionId\":null,\"stage\":\"CONTEXT_READY\",\"attemptId\":\"unit-task:fence-1\",\"status\":\"RUNNING\",\"reasonCode\":\"NONE\"},\"logProjectionTruncated\":false}\n18:37:08.319 [main] INFO com.chatchat.common.runtime.event.RuntimeEventLog -- Runtime OS event {\"contractVersion\":\"runtime_log_v1\",\"runId\":\"unit-run\",\"eventId\":\"\",\"eventType\":\"RECOVERY_RECONCILED\",\"occurredAt\":1794134228319,\"sequence\":0,\"facts\":{\"taskId\":\"unit-task\",\"traceId\":\"unit-run\",\"executionId\":null,\"stage\":\"CONTEXT_READY\",\"attemptId\":\"unit-task:fence-1\",\"status\":\"RUNNING\",\"reasonCode\":\"NONE\"},\"logProjectionTruncated\":false}\nNative progress/CAS race, duplicate dispatch, fencing: 3 checks PASS (real Journal; unit MCP fixture)\n",
+    "kind": "unit; not business acceptance"
+  }
+]

@@ -61,6 +61,32 @@ public final class ClinePythonCallbackController {
     private final CodingPythonExecutionBridge python;
     private final CodingEvidenceCollector collector;
     private final ObjectMapper mapper;
+    private McpPythonControlPlanePort nativeInputs;
+    @org.springframework.beans.factory.annotation.Value("${chatchat.coding.cline.backend:sdk}")
+    private String backend="sdk";
+    @org.springframework.beans.factory.annotation.Autowired(required=false)
+    public void setNativeInputs(McpPythonControlPlanePort value){nativeInputs=value;}
+
+    /** Bounded original bytes for an already authorized input; no new data acquisition. */
+    @PostMapping("/native-input-file")
+    public Map<String,Object> nativeInputFile(@RequestBody JsonNode body) {
+        if(!"native".equals(backend))throw new ResponseStatusException(HttpStatus.NOT_FOUND);
+        return bound(body,false,call->{
+            if(nativeInputs==null)throw new IllegalStateException("Input delivery port unavailable");
+            String fileId=body.path("fileId").asText();
+            var snapshot=inputs.requireAuthorized(call.contract());
+            var file=CodingInputSnapshotService.mountedFiles(snapshot).stream().filter(x->x.fileId().equals(fileId)).findFirst()
+                .orElseThrow(()->new SecurityException("File was not delivered to this task"));
+            byte[] bytes=nativeInputs.downloadDataFile(call.scope().tenantId(),call.scope().userId(),fileId);
+            if(bytes.length!=file.size())throw new SecurityException("Input size mismatch");
+            try{if(!HexFormat.of().formatHex(MessageDigest.getInstance("SHA-256").digest(bytes)).equals(file.sha256()))throw new SecurityException("Input Hash mismatch");}
+            catch(java.security.NoSuchAlgorithmException impossible){throw new IllegalStateException(impossible);}
+            long offset=body.path("offset").asLong(0);int limit=body.path("limit").asInt(262144);
+            if(offset<0||offset>bytes.length||limit<1||limit>524288)throw new IllegalArgumentException("Invalid input byte range");
+            int start=Math.toIntExact(offset),end=Math.min(bytes.length,start+limit);
+            return Map.of("fileId",fileId,"fileName",file.fileName(),"sha256",file.sha256(),"size",file.size(),"offset",offset,"nextOffset",end,"encoding","base64","content",java.util.Base64.getEncoder().encodeToString(java.util.Arrays.copyOfRange(bytes,start,end)));
+        });
+    }
 
     public ClinePythonCallbackController(CodingInvocationContext identity, DurableCodingTaskService tasks,
             CodingInputSnapshotService inputs, CodingValidationPlanService plans,

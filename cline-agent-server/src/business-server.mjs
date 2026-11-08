@@ -10,6 +10,7 @@ import {httpGateway} from './business/runtime-callback.mjs';
 import {projectRequest,projectResponse,writeCompletion,permittedTool,LOCAL_TOOLS} from './business/model-protocol.mjs';
 import {runtimeTools,verifiedReceipt} from './business/runtime-tools.mjs';
 import {promptContext} from './business/prompt.mjs';
+import {runtimeRepairStopped} from './business/native-policy.mjs';
 import {deliver} from './business/delivery.mjs';
 import {nativeContext,observeNativeSession,inputHash} from './business/native-context.mjs';
 import {persistRun,restoreRun,runtimeDeliveryStatus,reconcileStoppedRun} from './business/run-state.mjs';
@@ -61,8 +62,9 @@ async function broker(r){
     return send(res,200,receipt);
    }
    if(req.url==='/model/v1/chat/completions'){
+    if(runtimeRepairStopped(r.lastReceipt))throw failure('Runtime repair policy STOP: '+(r.lastReceipt.executionFeedback.error?.diagnosticCode??'NON_REPAIRABLE'));
     const request=projectRequest(b,r.contract,++r.modelOrdinal);audit(r,'model.request',request);
-    const answer=await r.gateway.model(r.contract,request,r.abort.signal);audit(r,'model.receipt',answer);
+    const answer=await r.gateway.model(r.contract,request,r.abort.signal);audit(r,'model.receipt',{...answer,operationId:request.operationId});
     if(!answer.error&&r.reviewDelivery&&r.modelOrdinal>r.reviewDelivery.modelOrdinal)r.reviewedResult=r.reviewDelivery.reference;
     return writeCompletion(res,projectResponse(answer,b.model),b.stream);
    }
@@ -134,6 +136,7 @@ async function execute(r){
   r.status='RUNNING';audit(r,'task.input',{text:prompt});await worker(r,'/v1/sessions/'+r.nativeSessionId+'/messages','POST',{text:prompt},{'idempotency-key':r.contractHash});
   let cursor='';
   while(!r.cancelRequested){
+   if(runtimeRepairStopped(r.lastReceipt))throw Error('Runtime repair policy STOP: '+(r.lastReceipt.executionFeedback.error?.diagnosticCode??'NON_REPAIRABLE'));
    if(Date.now()>=Date.parse(r.contract.budget.deadlineAt)){await cancel(r,'Runtime task deadline exceeded');return;}
    const s=await worker(r,'/v1/sessions/'+r.nativeSessionId+'/status');
    const events=await worker(r,'/v1/sessions/'+r.nativeSessionId+'/events'+(cursor?'?after='+encodeURIComponent(cursor):''));

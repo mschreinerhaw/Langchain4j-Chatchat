@@ -26,7 +26,8 @@ public class AssetAnalysisController {
     private final ObjectAccessService access;
     private final RuntimeAssetArchive archive;
     private final com.chatchat.api.exploration.ExplorationAgentBridge agents;
-    public record Request(String requestId,List<String> fileIds,List<String> contextIds,String instruction,String modelName,String agentId) {
+    public record Request(String requestId,List<String> fileIds,List<String> contextIds,String instruction,String modelName,String agentId,String validationProfile,String valueField) {
+        public Request(String requestId,List<String> fileIds,List<String> contextIds,String instruction,String modelName,String agentId){this(requestId,fileIds,contextIds,instruction,modelName,agentId,null,null);}
         public Request(String requestId,List<String> fileIds,List<String> contextIds,String instruction,String modelName){
             this(requestId,fileIds,contextIds,instruction,modelName,null);
         }
@@ -88,6 +89,10 @@ public class AssetAnalysisController {
         var metadata=new LinkedHashMap<String,Object>();
         if(body.modelName()!=null)metadata.put("modelName",body.modelName());
         var attributes=new LinkedHashMap<String,Object>();attributes.put("checkpointModelConfig",models.checkpointModelConfiguration(body.modelName(),model));
+        if(body.validationProfile()!=null&&!body.validationProfile().isBlank()){
+            if(!com.chatchat.api.runtime.coding.evidence.CodingCsvAggregateVerifier.PROFILE.equals(body.validationProfile())||body.valueField()==null||!body.valueField().matches("[A-Za-z_][A-Za-z0-9_]{0,63}")||body.fileIds().size()!=1||visual)throw new IllegalArgumentException("Explicit single-CSV count/sum contract required");
+            attributes.put("validationProfile",body.validationProfile());attributes.put("validationValueField",body.valueField());attributes.put("taskType","DATA_ANALYSIS");
+        }
         attributes.put("contextOnlyAnswer",true); // Cline chooses prose or real computation within the selected scope.
         if(body.agentId()!=null){
             attributes.put("authorizationAgentId",body.agentId());

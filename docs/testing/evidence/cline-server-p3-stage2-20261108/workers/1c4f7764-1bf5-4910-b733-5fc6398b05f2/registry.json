@@ -1,0 +1,134 @@
+{
+  "contract": {
+    "version": 1,
+    "tenantId": "tenant-a",
+    "userId": "user-a",
+    "taskId": "native-8990274c0b0d4c4bb98f62202697b945",
+    "sessionId": "session-fa3baa432a1645d2a57deb770c8ebfed",
+    "workspaceRef": "project",
+    "modelProfile": "qwen",
+    "budgetPolicy": {
+      "status": "DEFERRED_STAGE_2_REVIEW"
+    },
+    "toolPermissions": [
+      "read_files",
+      "search_codebase",
+      "editor",
+      "apply_patch",
+      "run_commands",
+      "use_mcp_tool",
+      "tenant_data__long_mcp",
+      "tenant_data__python_execute"
+    ],
+    "dataPermissions": [
+      "dataset-a"
+    ],
+    "networkPolicy": "broker-only",
+    "expiresAt": 1794123013380
+  },
+  "contractHash": "fb508184e5179ca5c2e573599c324bec136ecf2ff9d1ee6d4d1c7504d961bf61",
+  "workerId": "1c4f7764-1bf5-4910-b733-5fc6398b05f2",
+  "slot": 0,
+  "workerState": "STOPPED",
+  "taskState": "CANCELLED_REMOTE_CONFIRMED",
+  "revoked": true,
+  "createKey": "create-python_execute-core-kill",
+  "editTool": "editor",
+  "provisioningAttempted": true,
+  "containerId": "3c44f29871398c086eaebea2972dd37a0e4490ba483ddf9ccb3b1b15e1a103dc",
+  "nativeSessionId": "dae782cc-1081-4165-be63-a5dad5c0c3e6",
+  "nativeEpoch": "065acca9-ee4b-4fdf-bc57-d42fae5a0732",
+  "operationSession": true,
+  "stopProof": {
+    "containerId": "3c44f29871398c086eaebea2972dd37a0e4490ba483ddf9ccb3b1b15e1a103dc",
+    "running": false,
+    "exitCode": 0,
+    "finishedAt": "2026-11-08T05:30:31.96490924Z"
+  },
+  "remoteStopConfirmed": true,
+  "operations": [
+    {
+      "operationId": "cline-466dd49bec450bf9fcd7f68b8f7ca4c5f66f6d91e13f7e2b06932f018ac78f0a",
+      "state": "CANCELLED",
+      "stopProofRef": "native-mcp-receipt:78d9162418f9484aa340b154157e25ba8d50d932d6b61bb66fd45f985d2814c0"
+    }
+  ],
+  "operationOutcome": {
+    "schemaVersion": "runtime_os.coding.v1",
+    "taskId": "native-8990274c0b0d4c4bb98f62202697b945",
+    "scope": {
+      "tenantId": "tenant-a",
+      "userId": "user-a",
+      "requestId": null,
+      "conversationId": null,
+      "runId": "session-fa3baa432a1645d2a57deb770c8ebfed",
+      "environment": null,
+      "attributes": {}
+    },
+    "contractSha256": "e3e4482d702d855e5146e41e231b2ef4d911d0429e1bb7d855d489e676f778bd",
+    "status": "CANCELLED",
+    "revision": 13,
+    "lastEventSequence": 14,
+    "createdAt": 1794115819.464,
+    "updatedAt": 1794115842.508,
+    "startedAt": 1794115819.7,
+    "endedAt": 1794115842.508,
+    "cancellationRequested": true,
+    "reasonCode": "CANCEL_REQUESTED",
+    "summary": "Worker stopped; all started operations reconciled",
+    "limitations": [
+      "A2 enforces cumulative admission reservations only; model/process hard limits, instantaneous memory and disk enforcement require execution-node adapters.",
+      "Required execution evidence was not produced"
+    ],
+    "inputSnapshotRef": "stage2:immutable-input",
+    "codeArtifactRef": null,
+    "executionReceiptRef": null,
+    "resultDatasetRef": null,
+    "validationRecordRef": null,
+    "evidenceBundleRef": null,
+    "validationStatus": "NOT_RUN",
+    "reproducibility": {
+      "level": "CONDITIONAL",
+      "limitations": [
+        "Execution and reproducibility have not been verified"
+      ],
+      "dependencyRefs": [
+        "native-stage2"
+      ]
+    },
+    "usage": {
+      "budgetId": "native-native-8990274c0b0d4c4bb98f62202697b945",
+      "costCurrency": "USD",
+      "consumed": {
+        "modelCalls": 0,
+        "modelTokens": 0,
+        "toolCalls": 1,
+        "codeExecutions": 1,
+        "cpuMillis": 0,
+        "peakMemoryBytes": 0,
+        "outputBytes": 1156,
+        "costAmount": "0"
+      },
+      "reserved": {
+        "modelCalls": 0,
+        "modelTokens": 0,
+        "toolCalls": 1,
+        "codeExecutions": 0,
+        "cpuMillis": 0,
+        "peakMemoryBytes": 0,
+        "outputBytes": 2095996,
+        "costAmount": "0"
+      },
+      "meteringComplete": false
+    },
+    "executionControl": {
+      "stopReason": "CANCEL_REQUESTED",
+      "stopRequestedAt": 1794115832.093,
+      "executorStopped": true,
+      "reconciliationRequired": false
+    },
+    "parentTaskId": null,
+    "supersedesTaskId": null,
+    "perArtifactCompleteness": {}
+  }
+}

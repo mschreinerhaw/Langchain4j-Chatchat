@@ -1,0 +1,125 @@
+[
+  200,
+  [
+    {
+      "operationId": "cline-466dd49bec450bf9fcd7f68b8f7ca4c5f66f6d91e13f7e2b06932f018ac78f0a",
+      "nativeSessionId": "1794115820120_zqqc1",
+      "nativeToolCallId": "call_7473f090657343f684fb5f13",
+      "toolName": "python_execute",
+      "epoch": "065acca9-ee4b-4fdf-bc57-d42fae5a0732",
+      "argumentsHash": "d0d10aebd4ecdd60e97e55ab5f81b53fbf8a89c91d728c405d456db4d734ca42",
+      "state": "CANCELLED",
+      "fencingToken": 1,
+      "arguments": {
+        "source": "import time\nprint(\"native-sandbox-started\", flush=True)\ntime.sleep(90)\nprint(\"should-not-run\")",
+        "datasetId": "dataset-a"
+      },
+      "identity": {
+        "version": 1,
+        "tenantId": "tenant-a",
+        "userId": "user-a",
+        "taskId": "native-8990274c0b0d4c4bb98f62202697b945",
+        "sessionId": "session-fa3baa432a1645d2a57deb770c8ebfed",
+        "workspaceRef": "project",
+        "modelProfile": "qwen",
+        "budgetPolicy": {
+          "status": "DEFERRED_STAGE_2_REVIEW"
+        },
+        "toolPermissions": [
+          "read_files",
+          "search_codebase",
+          "editor",
+          "apply_patch",
+          "run_commands",
+          "use_mcp_tool",
+          "tenant_data__long_mcp",
+          "tenant_data__python_execute"
+        ],
+        "dataPermissions": [
+          "dataset-a"
+        ],
+        "networkPolicy": "broker-only",
+        "expiresAt": 1794123013380
+      },
+      "childOperationId": "cline-a09d0c6c8ccbbc76cff52efd36114a94d55f8f8513f9042f0e6b013a12bd3904",
+      "dispatchIntent": true,
+      "mcpResponse": {
+        "jsonrpc": "2.0",
+        "id": 2,
+        "result": {
+          "content": [
+            {
+              "type": "text",
+              "text": "{\"operationId\":\"cline-466dd49bec450bf9fcd7f68b8f7ca4c5f66f6d91e13f7e2b06932f018ac78f0a\",\"identity\":{\"version\":1,\"tenantId\":\"tenant-a\",\"userId\":\"user-a\",\"taskId\":\"native-8990274c0b0d4c4bb98f62202697b945\",\"sessionId\":\"session-fa3baa432a1645d2a57deb770c8ebfed\",\"workspaceRef\":\"project\",\"modelProfile\":\"qwen\",\"budgetPolicy\":{\"status\":\"DEFERRED_STAGE_2_REVIEW\"},\"toolPermissions\":[\"read_files\",\"search_codebase\",\"editor\",\"apply_patch\",\"run_commands\",\"use_mcp_tool\",\"tenant_data__long_mcp\",\"tenant_data__python_execute\"],\"dataPermissions\":[\"dataset-a\"],\"networkPolicy\":\"broker-only\",\"expiresAt\":1794123013380},\"argumentsHash\":\"d0d10aebd4ecdd60e97e55ab5f81b53fbf8a89c91d728c405d456db4d734ca42\",\"fencingToken\":1,\"epoch\":\"065acca9-ee4b-4fdf-bc57-d42fae5a0732\",\"toolName\":\"python_execute\",\"startedAt\":\"2026-11-08T05:30:28.176Z\",\"finishedAt\":\"2026-11-08T05:30:37.040Z\",\"stopConfirmed\":true,\"cancelRequested\":false,\"childOperationId\":\"cline-a09d0c6c8ccbbc76cff52efd36114a94d55f8f8513f9042f0e6b013a12bd3904\",\"python\":{\"operationId\":\"cline-a09d0c6c8ccbbc76cff52efd36114a94d55f8f8513f9042f0e6b013a12bd3904\",\"containerName\":\"chatchat-py-1c199450c4685c083a3a82cd6513e94aca2c08d6\",\"environmentId\":\"native-stage2\",\"imageDigest\":\"sha256:3434f7630ff7c54a053c7385710e089d249e65d668699ab96f9603b6e1b27eef\",\"deadlineAt\":\"2026-11-08T07:30:13.380Z\",\"timeoutSeconds\":120,\"fencingToken\":1,\"budgetReservationRef\":\"coding-budget:native-native-8990274c0b0d4c4bb98f62202697b945:cline-a09d0c6c8ccbbc76cff52efd36114a94d55f8f8513f9042f0e6b013a12bd3904\",\"codeHash\":\"48bc1897e9db38eb494218774532d9d2aaed768bed91eb5ccebc4b8fbf4ffcaf\",\"inputSnapshotHash\":\"c652fb0c6aa996df68659089e211298bb890bb391311cd2609ba775d205453d8\",\"startedAt\":\"2026-11-08T05:30:28.872549939Z\",\"finishedAt\":\"2026-11-08T05:30:36.531806205Z\",\"exitCode\":137,\"oomKilled\":false,\"stopConfirmed\":true,\"cancelRequested\":true,\"fenceSuperseded\":false,\"cpuMillisMetered\":false,\"diskHardLimitEnforced\":false,\"outputBytesHardLimitEnforced\":false},\"pythonReceiptSha256\":\"84d38b2ebdc2984d506a0a705e4ef92119cb29324d538f321dd8cb00ae51ce73\"}"
+            }
+          ],
+          "isError": false
+        }
+      },
+      "failure": "Remote receipt validation failed",
+      "stopProofRef": "native-mcp-receipt:78d9162418f9484aa340b154157e25ba8d50d932d6b61bb66fd45f985d2814c0",
+      "receipt": {
+        "operationId": "cline-466dd49bec450bf9fcd7f68b8f7ca4c5f66f6d91e13f7e2b06932f018ac78f0a",
+        "identity": {
+          "version": 1,
+          "tenantId": "tenant-a",
+          "userId": "user-a",
+          "taskId": "native-8990274c0b0d4c4bb98f62202697b945",
+          "sessionId": "session-fa3baa432a1645d2a57deb770c8ebfed",
+          "workspaceRef": "project",
+          "modelProfile": "qwen",
+          "budgetPolicy": {
+            "status": "DEFERRED_STAGE_2_REVIEW"
+          },
+          "toolPermissions": [
+            "read_files",
+            "search_codebase",
+            "editor",
+            "apply_patch",
+            "run_commands",
+            "use_mcp_tool",
+            "tenant_data__long_mcp",
+            "tenant_data__python_execute"
+          ],
+          "dataPermissions": [
+            "dataset-a"
+          ],
+          "networkPolicy": "broker-only",
+          "expiresAt": 1794123013380
+        },
+        "argumentsHash": "d0d10aebd4ecdd60e97e55ab5f81b53fbf8a89c91d728c405d456db4d734ca42",
+        "fencingToken": 1,
+        "epoch": "065acca9-ee4b-4fdf-bc57-d42fae5a0732",
+        "toolName": "python_execute",
+        "startedAt": "2026-11-08T05:30:28.176Z",
+        "finishedAt": "2026-11-08T05:30:37.467Z",
+        "stopConfirmed": true,
+        "cancelRequested": true,
+        "childOperationId": "cline-a09d0c6c8ccbbc76cff52efd36114a94d55f8f8513f9042f0e6b013a12bd3904",
+        "python": {
+          "operationId": "cline-a09d0c6c8ccbbc76cff52efd36114a94d55f8f8513f9042f0e6b013a12bd3904",
+          "containerName": "chatchat-py-1c199450c4685c083a3a82cd6513e94aca2c08d6",
+          "environmentId": "native-stage2",
+          "imageDigest": "sha256:3434f7630ff7c54a053c7385710e089d249e65d668699ab96f9603b6e1b27eef",
+          "deadlineAt": "2026-11-08T07:30:13.380Z",
+          "timeoutSeconds": 120,
+          "fencingToken": 1,
+          "budgetReservationRef": "coding-budget:native-native-8990274c0b0d4c4bb98f62202697b945:cline-a09d0c6c8ccbbc76cff52efd36114a94d55f8f8513f9042f0e6b013a12bd3904",
+          "codeHash": "48bc1897e9db38eb494218774532d9d2aaed768bed91eb5ccebc4b8fbf4ffcaf",
+          "inputSnapshotHash": "c652fb0c6aa996df68659089e211298bb890bb391311cd2609ba775d205453d8",
+          "startedAt": "2026-11-08T05:30:28.872549939Z",
+          "finishedAt": "2026-11-08T05:30:36.531806205Z",
+          "exitCode": 137,
+          "oomKilled": false,
+          "stopConfirmed": true,
+          "cancelRequested": true,
+          "fenceSuperseded": false,
+          "cpuMillisMetered": false,
+          "diskHardLimitEnforced": false,
+          "outputBytesHardLimitEnforced": false
+        },
+        "pythonReceiptSha256": "84d38b2ebdc2984d506a0a705e4ef92119cb29324d538f321dd8cb00ae51ce73"
+      }
+    }
+  ]
+]

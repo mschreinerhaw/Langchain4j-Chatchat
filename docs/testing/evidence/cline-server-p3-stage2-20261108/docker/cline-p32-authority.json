@@ -1,0 +1,298 @@
+{
+  "Id": "2cbfac89d026d9c4e22638e2fb023be89c411e1c4f0694683a679086e0576f46",
+  "Image": "sha256:18ad6f765878f165c13e470cdd72561987ad14cfacf60d122a5f7fa9583d3f8a",
+  "State": {
+    "Status": "running",
+    "Running": true,
+    "Paused": false,
+    "Restarting": false,
+    "OOMKilled": false,
+    "Dead": false,
+    "Pid": 2628234,
+    "ExitCode": 0,
+    "Error": "",
+    "StartedAt": "2026-11-08T05:28:21.374197438Z",
+    "FinishedAt": "2026-11-08T05:28:20.712239833Z",
+    "Health": {
+      "Status": "healthy",
+      "FailingStreak": 0,
+      "Log": [
+        {
+          "Start": "2026-11-08T13:32:30.93749475+08:00",
+          "End": "2026-11-08T13:32:31.01817989+08:00",
+          "ExitCode": 0,
+          "Output": ""
+        },
+        {
+          "Start": "2026-11-08T13:32:36.019139357+08:00",
+          "End": "2026-11-08T13:32:36.091948018+08:00",
+          "ExitCode": 0,
+          "Output": ""
+        },
+        {
+          "Start": "2026-11-08T13:32:41.093368988+08:00",
+          "End": "2026-11-08T13:32:41.183332658+08:00",
+          "ExitCode": 0,
+          "Output": ""
+        },
+        {
+          "Start": "2026-11-08T13:32:46.183851988+08:00",
+          "End": "2026-11-08T13:32:46.293822972+08:00",
+          "ExitCode": 0,
+          "Output": ""
+        },
+        {
+          "Start": "2026-11-08T13:32:51.295759882+08:00",
+          "End": "2026-11-08T13:32:51.371449704+08:00",
+          "ExitCode": 0,
+          "Output": ""
+        }
+      ]
+    }
+  },
+  "Mounts": [
+    {
+      "Type": "bind",
+      "Source": "/opt/cline-server-p3-stage2-20261108/private/config.json",
+      "Destination": "/run/cline-operations.json",
+      "Mode": "",
+      "RW": false,
+      "Propagation": "rprivate"
+    },
+    {
+      "Type": "bind",
+      "Source": "/var/run/docker.sock",
+      "Destination": "/var/run/docker.sock",
+      "Mode": "",
+      "RW": true,
+      "Propagation": "rprivate"
+    },
+    {
+      "Type": "bind",
+      "Source": "/opt/cline-server-p3-stage2-20261108/classes",
+      "Destination": "/opt/cline-server-p3-stage2-20261108/classes",
+      "Mode": "",
+      "RW": false,
+      "Propagation": "rprivate"
+    },
+    {
+      "Type": "bind",
+      "Source": "/opt/cline-server-p3-stage2-20261108/api-classes",
+      "Destination": "/opt/cline-server-p3-stage2-20261108/api-classes",
+      "Mode": "",
+      "RW": false,
+      "Propagation": "rprivate"
+    },
+    {
+      "Type": "bind",
+      "Source": "/opt/cline-server-p3-stage2-20261108/mcp-classes",
+      "Destination": "/opt/cline-server-p3-stage2-20261108/mcp-classes",
+      "Mode": "",
+      "RW": false,
+      "Propagation": "rprivate"
+    },
+    {
+      "Type": "bind",
+      "Source": "/opt/cline-server-p3-stage2-20261108/lib",
+      "Destination": "/opt/cline-server-p3-stage2-20261108/lib",
+      "Mode": "",
+      "RW": false,
+      "Propagation": "rprivate"
+    },
+    {
+      "Type": "bind",
+      "Source": "/opt/cline-server-p3-stage2-20261108/python/workspace",
+      "Destination": "/opt/cline-server-p3-stage2-20261108/python/workspace",
+      "Mode": "",
+      "RW": true,
+      "Propagation": "rprivate"
+    },
+    {
+      "Type": "bind",
+      "Source": "/opt/cline-server-p3-stage2-20261108/python/data",
+      "Destination": "/opt/cline-server-p3-stage2-20261108/python/data",
+      "Mode": "",
+      "RW": true,
+      "Propagation": "rprivate"
+    }
+  ],
+  "HostConfig": {
+    "Binds": null,
+    "ContainerIDFile": "",
+    "LogConfig": {
+      "Type": "json-file",
+      "Config": {}
+    },
+    "NetworkMode": "cline-p32-control",
+    "PortBindings": {},
+    "RestartPolicy": {
+      "Name": "no",
+      "MaximumRetryCount": 0
+    },
+    "AutoRemove": false,
+    "VolumeDriver": "",
+    "VolumesFrom": null,
+    "ConsoleSize": [
+      0,
+      0
+    ],
+    "CapAdd": null,
+    "CapDrop": null,
+    "CgroupnsMode": "host",
+    "Dns": [],
+    "DnsOptions": [],
+    "DnsSearch": [],
+    "ExtraHosts": null,
+    "GroupAdd": null,
+    "IpcMode": "private",
+    "Cgroup": "",
+    "Links": null,
+    "OomScoreAdj": 0,
+    "PidMode": "",
+    "Privileged": false,
+    "PublishAllPorts": false,
+    "ReadonlyRootfs": false,
+    "SecurityOpt": null,
+    "UTSMode": "",
+    "UsernsMode": "",
+    "ShmSize": 67108864,
+    "Runtime": "runc",
+    "Isolation": "",
+    "CpuShares": 0,
+    "Memory": 0,
+    "NanoCpus": 0,
+    "CgroupParent": "",
+    "BlkioWeight": 0,
+    "BlkioWeightDevice": [],
+    "BlkioDeviceReadBps": [],
+    "BlkioDeviceWriteBps": [],
+    "BlkioDeviceReadIOps": [],
+    "BlkioDeviceWriteIOps": [],
+    "CpuPeriod": 0,
+    "CpuQuota": 0,
+    "CpuRealtimePeriod": 0,
+    "CpuRealtimeRuntime": 0,
+    "CpusetCpus": "",
+    "CpusetMems": "",
+    "Devices": [],
+    "DeviceCgroupRules": null,
+    "DeviceRequests": null,
+    "MemoryReservation": 0,
+    "MemorySwap": 0,
+    "MemorySwappiness": null,
+    "OomKillDisable": false,
+    "PidsLimit": null,
+    "Ulimits": [],
+    "CpuCount": 0,
+    "CpuPercent": 0,
+    "IOMaximumIOps": 0,
+    "IOMaximumBandwidth": 0,
+    "Mounts": [
+      {
+        "Type": "bind",
+        "Source": "/opt/cline-server-p3-stage2-20261108/classes",
+        "Target": "/opt/cline-server-p3-stage2-20261108/classes",
+        "ReadOnly": true
+      },
+      {
+        "Type": "bind",
+        "Source": "/opt/cline-server-p3-stage2-20261108/api-classes",
+        "Target": "/opt/cline-server-p3-stage2-20261108/api-classes",
+        "ReadOnly": true
+      },
+      {
+        "Type": "bind",
+        "Source": "/opt/cline-server-p3-stage2-20261108/mcp-classes",
+        "Target": "/opt/cline-server-p3-stage2-20261108/mcp-classes",
+        "ReadOnly": true
+      },
+      {
+        "Type": "bind",
+        "Source": "/opt/cline-server-p3-stage2-20261108/lib",
+        "Target": "/opt/cline-server-p3-stage2-20261108/lib",
+        "ReadOnly": true
+      },
+      {
+        "Type": "bind",
+        "Source": "/opt/cline-server-p3-stage2-20261108/python/workspace",
+        "Target": "/opt/cline-server-p3-stage2-20261108/python/workspace"
+      },
+      {
+        "Type": "bind",
+        "Source": "/opt/cline-server-p3-stage2-20261108/python/data",
+        "Target": "/opt/cline-server-p3-stage2-20261108/python/data"
+      },
+      {
+        "Type": "bind",
+        "Source": "/opt/cline-server-p3-stage2-20261108/private/config.json",
+        "Target": "/run/cline-operations.json",
+        "ReadOnly": true
+      },
+      {
+        "Type": "bind",
+        "Source": "/var/run/docker.sock",
+        "Target": "/var/run/docker.sock"
+      }
+    ],
+    "MaskedPaths": [
+      "/proc/asound",
+      "/proc/acpi",
+      "/proc/kcore",
+      "/proc/keys",
+      "/proc/latency_stats",
+      "/proc/timer_list",
+      "/proc/timer_stats",
+      "/proc/sched_debug",
+      "/proc/scsi",
+      "/sys/firmware",
+      "/sys/devices/virtual/powercap"
+    ],
+    "ReadonlyPaths": [
+      "/proc/bus",
+      "/proc/fs",
+      "/proc/irq",
+      "/proc/sys",
+      "/proc/sysrq-trigger"
+    ]
+  },
+  "NetworkSettings": {
+    "Bridge": "",
+    "SandboxID": "34a24253d88a9e6aa25ec75925fb45057f38f8cff4a9b8c94a19e8dc499a979e",
+    "SandboxKey": "/var/run/docker/netns/34a24253d88a",
+    "Ports": {},
+    "HairpinMode": false,
+    "LinkLocalIPv6Address": "",
+    "LinkLocalIPv6PrefixLen": 0,
+    "SecondaryIPAddresses": null,
+    "SecondaryIPv6Addresses": null,
+    "EndpointID": "",
+    "Gateway": "",
+    "GlobalIPv6Address": "",
+    "GlobalIPv6PrefixLen": 0,
+    "IPAddress": "",
+    "IPPrefixLen": 0,
+    "IPv6Gateway": "",
+    "MacAddress": "",
+    "Networks": {
+      "cline-p32-control": {
+        "IPAMConfig": null,
+        "Links": null,
+        "Aliases": null,
+        "MacAddress": "02:42:c0:a8:00:03",
+        "NetworkID": "f47c7148d48f593d21b02fcb16195af922d9c961c7ac4bc8bbdeb19aec6b83fd",
+        "EndpointID": "38732e4675e2053e750b0d6f15c116e4be712c0ae382d7378b47db6c7779bfc6",
+        "Gateway": "",
+        "IPAddress": "192.168.0.3",
+        "IPPrefixLen": 20,
+        "IPv6Gateway": "",
+        "GlobalIPv6Address": "",
+        "GlobalIPv6PrefixLen": 0,
+        "DriverOpts": null,
+        "DNSNames": [
+          "cline-p32-authority",
+          "2cbfac89d026"
+        ]
+      }
+    }
+  }
+}

@@ -1,0 +1,569 @@
+[
+  {
+    "case": "lost-request-UNKNOWN-no-replay-real-tombstone",
+    "pass": true,
+    "detail": {
+      "dispatch": [
+        [
+          503,
+          {
+            "error": "IllegalStateException",
+            "message": "MCP remote HTTP 503"
+          }
+        ]
+      ],
+      "observed": [
+        200,
+        {
+          "operationId": "cline-3d280ee0fe73c14c8dd6a56aae41b21c846159d5f52af4eda2d728b8136d64bf",
+          "nativeSessionId": "protocol-fault-test",
+          "nativeToolCallId": "73156ddb1489472094ae5ed1f9e5cf82",
+          "toolName": "long_mcp",
+          "epoch": "fault-epoch",
+          "argumentsHash": "ebaac35816dea535a0bc7a20153fc3da91b289bd238414d973e0e4ded22cc66c",
+          "state": "UNKNOWN",
+          "fencingToken": 1,
+          "arguments": {
+            "datasetId": "stage2",
+            "durationMs": 1500
+          },
+          "identity": {
+            "tenantId": "stage2-fault",
+            "userId": "alice",
+            "sessionId": "c56f56210e4440168f2e02d368208ae4",
+            "taskId": "drop-request",
+            "expiresAt": 1794118242798
+          },
+          "dispatchIntent": true,
+          "failure": "Dispatch/response lost; query-only recovery"
+        }
+      ],
+      "replay": [
+        503,
+        {
+          "error": "IllegalStateException",
+          "message": "OPERATION_QUERY_ONLY: no repeat dispatch"
+        }
+      ],
+      "cancel": [
+        200,
+        {
+          "operationId": "cline-3d280ee0fe73c14c8dd6a56aae41b21c846159d5f52af4eda2d728b8136d64bf",
+          "nativeSessionId": "protocol-fault-test",
+          "nativeToolCallId": "73156ddb1489472094ae5ed1f9e5cf82",
+          "toolName": "long_mcp",
+          "epoch": "fault-epoch",
+          "argumentsHash": "ebaac35816dea535a0bc7a20153fc3da91b289bd238414d973e0e4ded22cc66c",
+          "state": "CANCELLED",
+          "fencingToken": 1,
+          "arguments": {
+            "datasetId": "stage2",
+            "durationMs": 1500
+          },
+          "identity": {
+            "tenantId": "stage2-fault",
+            "userId": "alice",
+            "sessionId": "c56f56210e4440168f2e02d368208ae4",
+            "taskId": "drop-request",
+            "expiresAt": 1794118242798
+          },
+          "dispatchIntent": true,
+          "failure": "Dispatch/response lost; query-only recovery",
+          "stopProofRef": "native-mcp-receipt:42e668a3b9bfe0244c5e94c2a379f0978759c958d62ba91d099a6e8b59cdd647",
+          "receipt": {
+            "operationId": "cline-3d280ee0fe73c14c8dd6a56aae41b21c846159d5f52af4eda2d728b8136d64bf",
+            "identity": {
+              "tenantId": "stage2-fault",
+              "userId": "alice",
+              "sessionId": "c56f56210e4440168f2e02d368208ae4",
+              "taskId": "drop-request",
+              "expiresAt": 1794118242798
+            },
+            "argumentsHash": "ebaac35816dea535a0bc7a20153fc3da91b289bd238414d973e0e4ded22cc66c",
+            "fencingToken": 1,
+            "epoch": "fault-epoch",
+            "toolName": "long_mcp",
+            "startedAt": null,
+            "finishedAt": "2026-11-08T05:10:48.785Z",
+            "stopConfirmed": true,
+            "cancelRequested": true,
+            "noStart": true,
+            "dispatchPrevented": true
+          }
+        }
+      ]
+    }
+  },
+  {
+    "case": "lost-response-query-real-completion",
+    "pass": true,
+    "detail": {
+      "dispatch": [
+        [
+          503,
+          {
+            "error": "IllegalStateException",
+            "message": "MCP remote HTTP 502"
+          }
+        ]
+      ],
+      "observed": [
+        200,
+        {
+          "operationId": "cline-2a244285cb3cfda9da12c989ea6d3f9fb098a4740faa0a5b1ef21483b5131441",
+          "nativeSessionId": "protocol-fault-test",
+          "nativeToolCallId": "34630be7948248f39e669c1736b2322b",
+          "toolName": "long_mcp",
+          "epoch": "fault-epoch",
+          "argumentsHash": "ebaac35816dea535a0bc7a20153fc3da91b289bd238414d973e0e4ded22cc66c",
+          "state": "COMPLETED",
+          "fencingToken": 1,
+          "arguments": {
+            "datasetId": "stage2",
+            "durationMs": 1500
+          },
+          "identity": {
+            "tenantId": "stage2-fault",
+            "userId": "alice",
+            "sessionId": "3db7d42859504c17aa7571419107a986",
+            "taskId": "drop-response",
+            "expiresAt": 1794118250038
+          },
+          "dispatchIntent": true,
+          "failure": "Dispatch/response lost; query-only recovery",
+          "stopProofRef": "native-mcp-receipt:c444329447ea7eec03514f797357fb38f6af388e09ef65b0486a99f265eead07",
+          "receipt": {
+            "operationId": "cline-2a244285cb3cfda9da12c989ea6d3f9fb098a4740faa0a5b1ef21483b5131441",
+            "identity": {
+              "tenantId": "stage2-fault",
+              "userId": "alice",
+              "sessionId": "3db7d42859504c17aa7571419107a986",
+              "taskId": "drop-response",
+              "expiresAt": 1794118250038
+            },
+            "argumentsHash": "ebaac35816dea535a0bc7a20153fc3da91b289bd238414d973e0e4ded22cc66c",
+            "fencingToken": 1,
+            "epoch": "fault-epoch",
+            "toolName": "long_mcp",
+            "startedAt": "2026-11-08T05:10:52.126Z",
+            "finishedAt": "2026-11-08T05:10:53.741Z",
+            "stopConfirmed": true,
+            "cancelRequested": false,
+            "pid": 18,
+            "startTicks": "1530651186",
+            "resultSha256": "05edfdd96363a72f66240e55204e99e1ddc3de8c8320f63ef6e6e730d2e4396f",
+            "exitCode": 0
+          }
+        }
+      ],
+      "replay": [
+        503,
+        {
+          "error": "IllegalStateException",
+          "message": "OPERATION_QUERY_ONLY: no repeat dispatch"
+        }
+      ]
+    }
+  },
+  {
+    "case": "late-real-response-preserves-terminal",
+    "pass": true,
+    "detail": {
+      "dispatch": [
+        [
+          200,
+          {
+            "operation": {
+              "operationId": "cline-6136d99381570f3bab079b12a41bb895ab3e0043ccc122aeb9fb142b2eba7708",
+              "nativeSessionId": "protocol-fault-test",
+              "nativeToolCallId": "beeadc9714084111aa700af7fa3db1a0",
+              "toolName": "long_mcp",
+              "epoch": "fault-epoch",
+              "argumentsHash": "ebaac35816dea535a0bc7a20153fc3da91b289bd238414d973e0e4ded22cc66c",
+              "state": "COMPLETED",
+              "fencingToken": 1,
+              "arguments": {
+                "datasetId": "stage2",
+                "durationMs": 1500
+              },
+              "identity": {
+                "tenantId": "stage2-fault",
+                "userId": "alice",
+                "sessionId": "cac30067978c4d6bb48374e921784833",
+                "taskId": "delay-response",
+                "expiresAt": 1794118257233
+              },
+              "dispatchIntent": true,
+              "stopProofRef": "native-mcp-receipt:2eb7548cf13d58a232735739d79e9460c27ffe39cb2743913f4fc707847e555b",
+              "receipt": {
+                "operationId": "cline-6136d99381570f3bab079b12a41bb895ab3e0043ccc122aeb9fb142b2eba7708",
+                "identity": {
+                  "tenantId": "stage2-fault",
+                  "userId": "alice",
+                  "sessionId": "cac30067978c4d6bb48374e921784833",
+                  "taskId": "delay-response",
+                  "expiresAt": 1794118257233
+                },
+                "argumentsHash": "ebaac35816dea535a0bc7a20153fc3da91b289bd238414d973e0e4ded22cc66c",
+                "fencingToken": 1,
+                "epoch": "fault-epoch",
+                "toolName": "long_mcp",
+                "startedAt": "2026-11-08T05:10:59.357Z",
+                "finishedAt": "2026-11-08T05:11:00.969Z",
+                "stopConfirmed": true,
+                "cancelRequested": false,
+                "pid": 37,
+                "startTicks": "1530651909",
+                "resultSha256": "15bf5ba81448c9352b5d49adb1c90c013d8c84c7fa42e31ad77242a5e0f565a3",
+                "exitCode": 0
+              },
+              "mcpResponse": {
+                "jsonrpc": "2.0",
+                "id": 17,
+                "result": {
+                  "content": [
+                    {
+                      "type": "text",
+                      "text": "{\"operationId\":\"cline-6136d99381570f3bab079b12a41bb895ab3e0043ccc122aeb9fb142b2eba7708\",\"identity\":{\"tenantId\":\"stage2-fault\",\"userId\":\"alice\",\"sessionId\":\"cac30067978c4d6bb48374e921784833\",\"taskId\":\"delay-response\",\"expiresAt\":1794118257233},\"argumentsHash\":\"ebaac35816dea535a0bc7a20153fc3da91b289bd238414d973e0e4ded22cc66c\",\"fencingToken\":1,\"epoch\":\"fault-epoch\",\"toolName\":\"long_mcp\",\"startedAt\":\"2026-11-08T05:10:59.357Z\",\"finishedAt\":\"2026-11-08T05:11:00.969Z\",\"stopConfirmed\":true,\"cancelRequested\":false,\"pid\":37,\"startTicks\":\"1530651909\",\"resultSha256\":\"15bf5ba81448c9352b5d49adb1c90c013d8c84c7fa42e31ad77242a5e0f565a3\",\"exitCode\":0}"
+                    }
+                  ],
+                  "isError": false
+                }
+              }
+            },
+            "mcpResponse": {
+              "jsonrpc": "2.0",
+              "id": 17,
+              "result": {
+                "content": [
+                  {
+                    "type": "text",
+                    "text": "{\"operationId\":\"cline-6136d99381570f3bab079b12a41bb895ab3e0043ccc122aeb9fb142b2eba7708\",\"identity\":{\"tenantId\":\"stage2-fault\",\"userId\":\"alice\",\"sessionId\":\"cac30067978c4d6bb48374e921784833\",\"taskId\":\"delay-response\",\"expiresAt\":1794118257233},\"argumentsHash\":\"ebaac35816dea535a0bc7a20153fc3da91b289bd238414d973e0e4ded22cc66c\",\"fencingToken\":1,\"epoch\":\"fault-epoch\",\"toolName\":\"long_mcp\",\"startedAt\":\"2026-11-08T05:10:59.357Z\",\"finishedAt\":\"2026-11-08T05:11:00.969Z\",\"stopConfirmed\":true,\"cancelRequested\":false,\"pid\":37,\"startTicks\":\"1530651909\",\"resultSha256\":\"15bf5ba81448c9352b5d49adb1c90c013d8c84c7fa42e31ad77242a5e0f565a3\",\"exitCode\":0}"
+                  }
+                ],
+                "isError": false
+              }
+            }
+          }
+        ]
+      ],
+      "cancel": [
+        200,
+        {
+          "operationId": "cline-6136d99381570f3bab079b12a41bb895ab3e0043ccc122aeb9fb142b2eba7708",
+          "nativeSessionId": "protocol-fault-test",
+          "nativeToolCallId": "beeadc9714084111aa700af7fa3db1a0",
+          "toolName": "long_mcp",
+          "epoch": "fault-epoch",
+          "argumentsHash": "ebaac35816dea535a0bc7a20153fc3da91b289bd238414d973e0e4ded22cc66c",
+          "state": "COMPLETED",
+          "fencingToken": 1,
+          "arguments": {
+            "datasetId": "stage2",
+            "durationMs": 1500
+          },
+          "identity": {
+            "tenantId": "stage2-fault",
+            "userId": "alice",
+            "sessionId": "cac30067978c4d6bb48374e921784833",
+            "taskId": "delay-response",
+            "expiresAt": 1794118257233
+          },
+          "dispatchIntent": true,
+          "stopProofRef": "native-mcp-receipt:2eb7548cf13d58a232735739d79e9460c27ffe39cb2743913f4fc707847e555b",
+          "receipt": {
+            "operationId": "cline-6136d99381570f3bab079b12a41bb895ab3e0043ccc122aeb9fb142b2eba7708",
+            "identity": {
+              "tenantId": "stage2-fault",
+              "userId": "alice",
+              "sessionId": "cac30067978c4d6bb48374e921784833",
+              "taskId": "delay-response",
+              "expiresAt": 1794118257233
+            },
+            "argumentsHash": "ebaac35816dea535a0bc7a20153fc3da91b289bd238414d973e0e4ded22cc66c",
+            "fencingToken": 1,
+            "epoch": "fault-epoch",
+            "toolName": "long_mcp",
+            "startedAt": "2026-11-08T05:10:59.357Z",
+            "finishedAt": "2026-11-08T05:11:00.969Z",
+            "stopConfirmed": true,
+            "cancelRequested": false,
+            "pid": 37,
+            "startTicks": "1530651909",
+            "resultSha256": "15bf5ba81448c9352b5d49adb1c90c013d8c84c7fa42e31ad77242a5e0f565a3",
+            "exitCode": 0
+          }
+        }
+      ],
+      "final": [
+        200,
+        {
+          "operationId": "cline-6136d99381570f3bab079b12a41bb895ab3e0043ccc122aeb9fb142b2eba7708",
+          "nativeSessionId": "protocol-fault-test",
+          "nativeToolCallId": "beeadc9714084111aa700af7fa3db1a0",
+          "toolName": "long_mcp",
+          "epoch": "fault-epoch",
+          "argumentsHash": "ebaac35816dea535a0bc7a20153fc3da91b289bd238414d973e0e4ded22cc66c",
+          "state": "COMPLETED",
+          "fencingToken": 1,
+          "arguments": {
+            "datasetId": "stage2",
+            "durationMs": 1500
+          },
+          "identity": {
+            "tenantId": "stage2-fault",
+            "userId": "alice",
+            "sessionId": "cac30067978c4d6bb48374e921784833",
+            "taskId": "delay-response",
+            "expiresAt": 1794118257233
+          },
+          "dispatchIntent": true,
+          "stopProofRef": "native-mcp-receipt:2eb7548cf13d58a232735739d79e9460c27ffe39cb2743913f4fc707847e555b",
+          "receipt": {
+            "operationId": "cline-6136d99381570f3bab079b12a41bb895ab3e0043ccc122aeb9fb142b2eba7708",
+            "identity": {
+              "tenantId": "stage2-fault",
+              "userId": "alice",
+              "sessionId": "cac30067978c4d6bb48374e921784833",
+              "taskId": "delay-response",
+              "expiresAt": 1794118257233
+            },
+            "argumentsHash": "ebaac35816dea535a0bc7a20153fc3da91b289bd238414d973e0e4ded22cc66c",
+            "fencingToken": 1,
+            "epoch": "fault-epoch",
+            "toolName": "long_mcp",
+            "startedAt": "2026-11-08T05:10:59.357Z",
+            "finishedAt": "2026-11-08T05:11:00.969Z",
+            "stopConfirmed": true,
+            "cancelRequested": false,
+            "pid": 37,
+            "startTicks": "1530651909",
+            "resultSha256": "15bf5ba81448c9352b5d49adb1c90c013d8c84c7fa42e31ad77242a5e0f565a3",
+            "exitCode": 0
+          },
+          "mcpResponse": {
+            "jsonrpc": "2.0",
+            "id": 17,
+            "result": {
+              "content": [
+                {
+                  "type": "text",
+                  "text": "{\"operationId\":\"cline-6136d99381570f3bab079b12a41bb895ab3e0043ccc122aeb9fb142b2eba7708\",\"identity\":{\"tenantId\":\"stage2-fault\",\"userId\":\"alice\",\"sessionId\":\"cac30067978c4d6bb48374e921784833\",\"taskId\":\"delay-response\",\"expiresAt\":1794118257233},\"argumentsHash\":\"ebaac35816dea535a0bc7a20153fc3da91b289bd238414d973e0e4ded22cc66c\",\"fencingToken\":1,\"epoch\":\"fault-epoch\",\"toolName\":\"long_mcp\",\"startedAt\":\"2026-11-08T05:10:59.357Z\",\"finishedAt\":\"2026-11-08T05:11:00.969Z\",\"stopConfirmed\":true,\"cancelRequested\":false,\"pid\":37,\"startTicks\":\"1530651909\",\"resultSha256\":\"15bf5ba81448c9352b5d49adb1c90c013d8c84c7fa42e31ad77242a5e0f565a3\",\"exitCode\":0}"
+                }
+              ],
+              "isError": false
+            }
+          }
+        }
+      ]
+    }
+  },
+  {
+    "case": "authority-kill-does-not-stop-remote",
+    "pass": true,
+    "detail": [
+      200,
+      {
+        "binding": {
+          "operationId": "cline-83de4c7e5c4562b5ca927541d0ea2272b748b00cfb9bc484c1bc8d5fe1d8ab4f",
+          "nativeSessionId": "protocol-fault-test",
+          "nativeToolCallId": "d5b81ce03d0c4b0cac7389e42c80f72a",
+          "toolName": "long_mcp",
+          "epoch": "fault-epoch",
+          "argumentsHash": "fe771dbe31a18c1977875e70bcf1f4630d3e5b31db08c96b9c65062ae8e74710",
+          "state": "PENDING",
+          "fencingToken": 1,
+          "arguments": {
+            "datasetId": "stage2",
+            "durationMs": 12000
+          },
+          "identity": {
+            "tenantId": "stage2-fault",
+            "userId": "alice",
+            "sessionId": "f91e97a9a1494c8e946984d0cf756a5e",
+            "taskId": "authority-kill",
+            "expiresAt": 1794118266644
+          }
+        },
+        "state": "RUNNING",
+        "executorStopped": false,
+        "admittedAt": "2026-11-08T05:11:08.732Z",
+        "pid": 44,
+        "startTicks": "1530652847",
+        "startedAt": "2026-11-08T05:11:08.736Z"
+      }
+    ]
+  },
+  {
+    "case": "JDBC-intent-survives-authority-kill",
+    "pass": true,
+    "detail": {
+      "dispatch": [
+        {
+          "transportFailure": "RemoteDisconnected"
+        }
+      ],
+      "recovered": [
+        200,
+        {
+          "operationId": "cline-83de4c7e5c4562b5ca927541d0ea2272b748b00cfb9bc484c1bc8d5fe1d8ab4f",
+          "nativeSessionId": "protocol-fault-test",
+          "nativeToolCallId": "d5b81ce03d0c4b0cac7389e42c80f72a",
+          "toolName": "long_mcp",
+          "epoch": "fault-epoch",
+          "argumentsHash": "fe771dbe31a18c1977875e70bcf1f4630d3e5b31db08c96b9c65062ae8e74710",
+          "state": "RUNNING",
+          "fencingToken": 1,
+          "arguments": {
+            "datasetId": "stage2",
+            "durationMs": 12000
+          },
+          "identity": {
+            "tenantId": "stage2-fault",
+            "userId": "alice",
+            "sessionId": "f91e97a9a1494c8e946984d0cf756a5e",
+            "taskId": "authority-kill",
+            "expiresAt": 1794118266644
+          },
+          "dispatchIntent": true
+        }
+      ],
+      "final": [
+        200,
+        {
+          "operationId": "cline-83de4c7e5c4562b5ca927541d0ea2272b748b00cfb9bc484c1bc8d5fe1d8ab4f",
+          "nativeSessionId": "protocol-fault-test",
+          "nativeToolCallId": "d5b81ce03d0c4b0cac7389e42c80f72a",
+          "toolName": "long_mcp",
+          "epoch": "fault-epoch",
+          "argumentsHash": "fe771dbe31a18c1977875e70bcf1f4630d3e5b31db08c96b9c65062ae8e74710",
+          "state": "COMPLETED",
+          "fencingToken": 1,
+          "arguments": {
+            "datasetId": "stage2",
+            "durationMs": 12000
+          },
+          "identity": {
+            "tenantId": "stage2-fault",
+            "userId": "alice",
+            "sessionId": "f91e97a9a1494c8e946984d0cf756a5e",
+            "taskId": "authority-kill",
+            "expiresAt": 1794118266644
+          },
+          "dispatchIntent": true,
+          "stopProofRef": "native-mcp-receipt:83b616a95e2cc74ef69298f7701e7ed9803d35a6a2143ed910c320faa191df5c",
+          "receipt": {
+            "operationId": "cline-83de4c7e5c4562b5ca927541d0ea2272b748b00cfb9bc484c1bc8d5fe1d8ab4f",
+            "identity": {
+              "tenantId": "stage2-fault",
+              "userId": "alice",
+              "sessionId": "f91e97a9a1494c8e946984d0cf756a5e",
+              "taskId": "authority-kill",
+              "expiresAt": 1794118266644
+            },
+            "argumentsHash": "fe771dbe31a18c1977875e70bcf1f4630d3e5b31db08c96b9c65062ae8e74710",
+            "fencingToken": 1,
+            "epoch": "fault-epoch",
+            "toolName": "long_mcp",
+            "startedAt": "2026-11-08T05:11:08.736Z",
+            "finishedAt": "2026-11-08T05:11:20.821Z",
+            "stopConfirmed": true,
+            "cancelRequested": false,
+            "pid": 44,
+            "startTicks": "1530652847",
+            "resultSha256": "7cd6c5246f371bdba4ace13252303acd08bf39df4ac6ff8565a66be30c51758e",
+            "exitCode": 0
+          }
+        }
+      ]
+    }
+  },
+  {
+    "case": "expired-lease-new-fence-old-epoch-rejected",
+    "pass": false,
+    "detail": {
+      "rotate": [
+        409,
+        {
+          "error": "SecurityException",
+          "message": "Wait for old lease expiry; no fence bypass"
+        }
+      ],
+      "oldNativeDispatch": [
+        409,
+        {
+          "error": "SecurityException",
+          "message": "Expired, inactive or old native Epoch"
+        }
+      ],
+      "advancedRemoteCancel": [
+        409,
+        {
+          "error": "Stale remote fencing token"
+        }
+      ],
+      "oldRemoteCancel": [
+        200,
+        {
+          "binding": {
+            "operationId": "cline-83de4c7e5c4562b5ca927541d0ea2272b748b00cfb9bc484c1bc8d5fe1d8ab4f",
+            "nativeSessionId": "protocol-fault-test",
+            "nativeToolCallId": "d5b81ce03d0c4b0cac7389e42c80f72a",
+            "toolName": "long_mcp",
+            "epoch": "fault-epoch",
+            "argumentsHash": "fe771dbe31a18c1977875e70bcf1f4630d3e5b31db08c96b9c65062ae8e74710",
+            "state": "PENDING",
+            "fencingToken": 1,
+            "arguments": {
+              "datasetId": "stage2",
+              "durationMs": 12000
+            },
+            "identity": {
+              "tenantId": "stage2-fault",
+              "userId": "alice",
+              "sessionId": "f91e97a9a1494c8e946984d0cf756a5e",
+              "taskId": "authority-kill",
+              "expiresAt": 1794118266644
+            }
+          },
+          "state": "COMPLETED",
+          "executorStopped": true,
+          "admittedAt": "2026-11-08T05:11:08.732Z",
+          "pid": 44,
+          "startTicks": "1530652847",
+          "startedAt": "2026-11-08T05:11:08.736Z",
+          "receipt": {
+            "operationId": "cline-83de4c7e5c4562b5ca927541d0ea2272b748b00cfb9bc484c1bc8d5fe1d8ab4f",
+            "identity": {
+              "tenantId": "stage2-fault",
+              "userId": "alice",
+              "sessionId": "f91e97a9a1494c8e946984d0cf756a5e",
+              "taskId": "authority-kill",
+              "expiresAt": 1794118266644
+            },
+            "argumentsHash": "fe771dbe31a18c1977875e70bcf1f4630d3e5b31db08c96b9c65062ae8e74710",
+            "fencingToken": 1,
+            "epoch": "fault-epoch",
+            "toolName": "long_mcp",
+            "startedAt": "2026-11-08T05:11:08.736Z",
+            "finishedAt": "2026-11-08T05:11:20.821Z",
+            "stopConfirmed": true,
+            "cancelRequested": false,
+            "pid": 44,
+            "startTicks": "1530652847",
+            "resultSha256": "7cd6c5246f371bdba4ace13252303acd08bf39df4ac6ff8565a66be30c51758e",
+            "exitCode": 0
+          },
+          "controlFence": 1
+        }
+      ]
+    }
+  },
+  {
+    "case": "all-fault-cases",
+    "pass": false,
+    "detail": {
+      "total": 6
+    }
+  }
+]

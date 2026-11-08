@@ -1,0 +1,230 @@
+{
+  "Id": "a5b43cca7c756d6a95450027dff6984f2cbf27f835c768268e71ebb0754f3592",
+  "Image": "sha256:bfea82551ff365794670f7a4160de239cd3ff985b07b89c811c3ed2b3adb2b31",
+  "State": {
+    "Status": "running",
+    "Running": true,
+    "Paused": false,
+    "Restarting": false,
+    "OOMKilled": false,
+    "Dead": false,
+    "Pid": 2619792,
+    "ExitCode": 0,
+    "Error": "",
+    "StartedAt": "2026-11-08T05:27:14.24821797Z",
+    "FinishedAt": "0001-01-01T00:00:00Z",
+    "Health": {
+      "Status": "healthy",
+      "FailingStreak": 0,
+      "Log": [
+        {
+          "Start": "2026-11-08T13:32:27.238565808+08:00",
+          "End": "2026-11-08T13:32:27.467446191+08:00",
+          "ExitCode": 0,
+          "Output": ""
+        },
+        {
+          "Start": "2026-11-08T13:32:32.468835991+08:00",
+          "End": "2026-11-08T13:32:32.686128468+08:00",
+          "ExitCode": 0,
+          "Output": ""
+        },
+        {
+          "Start": "2026-11-08T13:32:37.687296566+08:00",
+          "End": "2026-11-08T13:32:37.975101752+08:00",
+          "ExitCode": 0,
+          "Output": ""
+        },
+        {
+          "Start": "2026-11-08T13:32:42.976101489+08:00",
+          "End": "2026-11-08T13:32:43.318256177+08:00",
+          "ExitCode": 0,
+          "Output": ""
+        },
+        {
+          "Start": "2026-11-08T13:32:48.319972661+08:00",
+          "End": "2026-11-08T13:32:48.569227741+08:00",
+          "ExitCode": 0,
+          "Output": ""
+        }
+      ]
+    }
+  },
+  "Mounts": [
+    {
+      "Type": "bind",
+      "Source": "/opt/cline-server-p3-stage2-20261108/source/cline-agent-server/src/stage2-remote.mjs",
+      "Destination": "/app/remote.mjs",
+      "Mode": "",
+      "RW": false,
+      "Propagation": "rprivate"
+    },
+    {
+      "Type": "bind",
+      "Source": "/opt/cline-server-p3-stage2-20261108/private/remote.json",
+      "Destination": "/run/cline-remote.json",
+      "Mode": "",
+      "RW": false,
+      "Propagation": "rprivate"
+    },
+    {
+      "Type": "bind",
+      "Source": "/opt/cline-server-p3-stage2-20261108/remote-state",
+      "Destination": "/opt/cline-server-p3-stage2-20261108/remote-state",
+      "Mode": "",
+      "RW": true,
+      "Propagation": "rprivate"
+    }
+  ],
+  "HostConfig": {
+    "Binds": null,
+    "ContainerIDFile": "",
+    "LogConfig": {
+      "Type": "json-file",
+      "Config": {}
+    },
+    "NetworkMode": "cline-p32-control",
+    "PortBindings": {},
+    "RestartPolicy": {
+      "Name": "no",
+      "MaximumRetryCount": 0
+    },
+    "AutoRemove": false,
+    "VolumeDriver": "",
+    "VolumesFrom": null,
+    "ConsoleSize": [
+      0,
+      0
+    ],
+    "CapAdd": null,
+    "CapDrop": null,
+    "CgroupnsMode": "host",
+    "Dns": [],
+    "DnsOptions": [],
+    "DnsSearch": [],
+    "ExtraHosts": null,
+    "GroupAdd": null,
+    "IpcMode": "private",
+    "Cgroup": "",
+    "Links": null,
+    "OomScoreAdj": 0,
+    "PidMode": "",
+    "Privileged": false,
+    "PublishAllPorts": false,
+    "ReadonlyRootfs": false,
+    "SecurityOpt": null,
+    "UTSMode": "",
+    "UsernsMode": "",
+    "ShmSize": 67108864,
+    "Runtime": "runc",
+    "Isolation": "",
+    "CpuShares": 0,
+    "Memory": 0,
+    "NanoCpus": 0,
+    "CgroupParent": "",
+    "BlkioWeight": 0,
+    "BlkioWeightDevice": [],
+    "BlkioDeviceReadBps": [],
+    "BlkioDeviceWriteBps": [],
+    "BlkioDeviceReadIOps": [],
+    "BlkioDeviceWriteIOps": [],
+    "CpuPeriod": 0,
+    "CpuQuota": 0,
+    "CpuRealtimePeriod": 0,
+    "CpuRealtimeRuntime": 0,
+    "CpusetCpus": "",
+    "CpusetMems": "",
+    "Devices": [],
+    "DeviceCgroupRules": null,
+    "DeviceRequests": null,
+    "MemoryReservation": 0,
+    "MemorySwap": 0,
+    "MemorySwappiness": null,
+    "OomKillDisable": false,
+    "PidsLimit": null,
+    "Ulimits": [],
+    "CpuCount": 0,
+    "CpuPercent": 0,
+    "IOMaximumIOps": 0,
+    "IOMaximumBandwidth": 0,
+    "Mounts": [
+      {
+        "Type": "bind",
+        "Source": "/opt/cline-server-p3-stage2-20261108/source/cline-agent-server/src/stage2-remote.mjs",
+        "Target": "/app/remote.mjs",
+        "ReadOnly": true
+      },
+      {
+        "Type": "bind",
+        "Source": "/opt/cline-server-p3-stage2-20261108/private/remote.json",
+        "Target": "/run/cline-remote.json",
+        "ReadOnly": true
+      },
+      {
+        "Type": "bind",
+        "Source": "/opt/cline-server-p3-stage2-20261108/remote-state",
+        "Target": "/opt/cline-server-p3-stage2-20261108/remote-state"
+      }
+    ],
+    "MaskedPaths": [
+      "/proc/asound",
+      "/proc/acpi",
+      "/proc/kcore",
+      "/proc/keys",
+      "/proc/latency_stats",
+      "/proc/timer_list",
+      "/proc/timer_stats",
+      "/proc/sched_debug",
+      "/proc/scsi",
+      "/sys/firmware",
+      "/sys/devices/virtual/powercap"
+    ],
+    "ReadonlyPaths": [
+      "/proc/bus",
+      "/proc/fs",
+      "/proc/irq",
+      "/proc/sys",
+      "/proc/sysrq-trigger"
+    ]
+  },
+  "NetworkSettings": {
+    "Bridge": "",
+    "SandboxID": "8f89238e809209d553844d4db6f28da8be46ddb92f4a435e42aff6abedad2b1f",
+    "SandboxKey": "/var/run/docker/netns/8f89238e8092",
+    "Ports": {},
+    "HairpinMode": false,
+    "LinkLocalIPv6Address": "",
+    "LinkLocalIPv6PrefixLen": 0,
+    "SecondaryIPAddresses": null,
+    "SecondaryIPv6Addresses": null,
+    "EndpointID": "",
+    "Gateway": "",
+    "GlobalIPv6Address": "",
+    "GlobalIPv6PrefixLen": 0,
+    "IPAddress": "",
+    "IPPrefixLen": 0,
+    "IPv6Gateway": "",
+    "MacAddress": "",
+    "Networks": {
+      "cline-p32-control": {
+        "IPAMConfig": null,
+        "Links": null,
+        "Aliases": null,
+        "MacAddress": "02:42:c0:a8:00:04",
+        "NetworkID": "f47c7148d48f593d21b02fcb16195af922d9c961c7ac4bc8bbdeb19aec6b83fd",
+        "EndpointID": "4dbb106ae96de4d12342c1d1d090986eeb1c732e88f70aef93c4855560516973",
+        "Gateway": "",
+        "IPAddress": "192.168.0.4",
+        "IPPrefixLen": 20,
+        "IPv6Gateway": "",
+        "GlobalIPv6Address": "",
+        "GlobalIPv6PrefixLen": 0,
+        "DriverOpts": null,
+        "DNSNames": [
+          "cline-p32-remote",
+          "a5b43cca7c75"
+        ]
+      }
+    }
+  }
+}

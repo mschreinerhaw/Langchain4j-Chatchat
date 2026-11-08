@@ -1,0 +1,62 @@
+{
+  "durableServiceSourceSha256": "0fe252701d03201e521eb1e542ebb6a5298a660ad21df9777c28015975596518",
+  "classes": [
+    {
+      "path": "com/chatchat/mcpserver/python/NativeOperationAuthority$Call.class",
+      "sha256": "30db48c50033b66fb2e2ff89c5d3370cf8872bd19ef6aa95189d61f8fa45797b"
+    },
+    {
+      "path": "com/chatchat/mcpserver/python/NativeOperationAuthority.class",
+      "sha256": "228fb08135e094c0c3487271fa8d5d30780cbbe1fd7e5ba77e912cf009771067"
+    },
+    {
+      "path": "com/chatchat/mcpserver/python/NativeStage2Application$Persistence.class",
+      "sha256": "16554b78f38a6b703351178a4ba345944a48ed8b813b3c8101206410c430c00f"
+    },
+    {
+      "path": "com/chatchat/mcpserver/python/NativeStage2Application$LocalManagedPort.class",
+      "sha256": "c12babc27aa98a38c65449039dc04cda70efddc459904e09c4cb21890f7a4c83"
+    },
+    {
+      "path": "com/chatchat/mcpserver/python/NativeStage2Application.class",
+      "sha256": "92514ca4cf473d038c060fefff05aa8025c3f43daf0734331c4b1f1358c63dc8"
+    },
+    {
+      "path": "com/chatchat/mcpserver/python/NativeManagedFenceProbe.class",
+      "sha256": "f8b3bb55eb29ed504f197d31218c8ec3390b270bd9141e58dd1f5fd475f6e17d"
+    },
+    {
+      "path": "com/chatchat/mcpserver/python/NativeJournalGuardProbe$Checked.class",
+      "sha256": "8770a3214f7dae1bab905bb16e96ad37219d5179205a8a668b2357e80370457a"
+    },
+    {
+      "path": "com/chatchat/mcpserver/python/NativeJournalGuardProbe.class",
+      "sha256": "55fdfef70a0cb0b1d59774c952ed219d5361ed8ae8f78825b262b53fbefb96e1"
+    },
+    {
+      "path": "com/chatchat/agents/runtime/coding/DurableCodingTaskService$ReservationResult.class",
+      "sha256": "3080bb8283c9e20e055f1a21bb3b296498b837e4fc0ab460005a389eb5a37670"
+    },
+    {
+      "path": "com/chatchat/agents/runtime/coding/DurableCodingTaskService$StartIntentResult.class",
+      "sha256": "922bdb964d45e08318eef81ea28f693525f4923b7c36c6d7e073009a65972e98"
+    },
+    {
+      "path": "com/chatchat/agents/runtime/coding/DurableCodingTaskService$VerifiedOperation.class",
+      "sha256": "b415f3dff698ebc06ebeaa022b15b7456b92efd6b36a7135d07ba764e8f66537"
+    },
+    {
+      "path": "com/chatchat/agents/runtime/coding/DurableCodingTaskService$StartedModelOperation.class",
+      "sha256": "aaac81ea12eb06b78ad2f3b2018e03a180b0dcea8a2e0aab4f495ece431b969d"
+    },
+    {
+      "path": "com/chatchat/agents/runtime/coding/DurableCodingTaskService$1.class",
+      "sha256": "95ae3752e7d132a306e2e541b6142ff0d0f4642d9048a8be2cac250d08390313"
+    },
+    {
+      "path": "com/chatchat/agents/runtime/coding/DurableCodingTaskService.class",
+      "sha256": "646e27665e84629930e63d4ea5ed7e7881214eed831d3e1688e8fef8a9248ff6"
+    }
+  ],
+  "workerImage": "sha256:6ee943241411781d729fc5fcdd5608c1906424740228f55919b0009c524dfccb"
+}

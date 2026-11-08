@@ -1,0 +1,51 @@
+{
+  "binding": {
+    "operationId": "cline-3a1a432893bde0b13bfc8bbe8226a15b84958026d3d5c387a7edb8b6dfdc28b9",
+    "nativeSessionId": "protocol-test-session",
+    "nativeToolCallId": "71d3c36ab33e4488b914dc016340e0a8",
+    "toolName": "long_mcp",
+    "epoch": "protocol-epoch",
+    "argumentsHash": "d4e1715964c0c7cd72f50af1c9cd4810953fd2ae81c1c3ccb7a5d470780c7380",
+    "state": "PENDING",
+    "fencingToken": 1,
+    "arguments": {
+      "datasetId": "stage2",
+      "durationMs": 60000
+    },
+    "identity": {
+      "tenantId": "stage2-protocol",
+      "userId": "alice",
+      "sessionId": "mcp-cancel-596adf1b",
+      "taskId": "mcp-cancel",
+      "expiresAt": 1794118003343
+    }
+  },
+  "state": "CANCELLED",
+  "executorStopped": true,
+  "admittedAt": "2026-11-08T05:06:45.220Z",
+  "pid": 304,
+  "startTicks": "1530626496",
+  "startedAt": "2026-11-08T05:06:45.225Z",
+  "cancelRequested": true,
+  "receipt": {
+    "operationId": "cline-3a1a432893bde0b13bfc8bbe8226a15b84958026d3d5c387a7edb8b6dfdc28b9",
+    "identity": {
+      "tenantId": "stage2-protocol",
+      "userId": "alice",
+      "sessionId": "mcp-cancel-596adf1b",
+      "taskId": "mcp-cancel",
+      "expiresAt": 1794118003343
+    },
+    "argumentsHash": "d4e1715964c0c7cd72f50af1c9cd4810953fd2ae81c1c3ccb7a5d470780c7380",
+    "fencingToken": 1,
+    "epoch": "protocol-epoch",
+    "toolName": "long_mcp",
+    "startedAt": "2026-11-08T05:06:45.225Z",
+    "finishedAt": "2026-11-08T05:06:47.644Z",
+    "stopConfirmed": true,
+    "cancelRequested": true,
+    "pid": 304,
+    "startTicks": "1530626496",
+    "processAbsent": true
+  }
+}

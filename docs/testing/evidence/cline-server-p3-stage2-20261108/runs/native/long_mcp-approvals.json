@@ -1,0 +1,28 @@
+[
+  {
+    "permission": {
+      "id": "d62fb1d1-20fc-44d1-8e4f-9854059629bd",
+      "sessionId": "ea4e6277-a7cf-4be4-a9ea-3cef43084f29",
+      "taskId": "2418caeb-4838-4dd7-aa08-20e0185f94b4",
+      "epoch": "9dd5d4db-820b-408c-985c-995734507ddc",
+      "inputHash": "cb8f0da1c4d2420294c8436aa9296acf8ddcdd7bf02df9747eaa44086b1f8a77",
+      "toolCallId": "call_4a89032ac2c74a5c8e6b7a48",
+      "toolName": "tenant_data__long_mcp",
+      "input": {
+        "datasetId": "dataset-a",
+        "durationMs": 60000
+      },
+      "expiresAt": 1794115952480,
+      "state": "pending"
+    },
+    "response": [
+      200,
+      {
+        "id": "d62fb1d1-20fc-44d1-8e4f-9854059629bd",
+        "state": "resolved",
+        "decision": "approve",
+        "applied": true
+      }
+    ]
+  }
+]

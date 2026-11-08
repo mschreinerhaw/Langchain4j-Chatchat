@@ -1,0 +1,3602 @@
+[
+  {
+    "permission": {
+      "id": "1484dc75-7fb0-4579-aec7-dac2924e2e89",
+      "sessionId": "1057d43c-7175-4cff-a699-375baec4aca1",
+      "taskId": "e56cfc9c-e7f1-48b4-abfc-0bed67591236",
+      "epoch": "00eea9f8-64f1-447e-a533-6e60cde013bc",
+      "inputHash": "d0d10aebd4ecdd60e97e55ab5f81b53fbf8a89c91d728c405d456db4d734ca42",
+      "toolCallId": "call_d769ad419b3c4ed9bdd73263",
+      "toolName": "tenant_data__python_execute",
+      "input": {
+        "datasetId": "dataset-a",
+        "source": "import time\nprint(\"native-sandbox-started\", flush=True)\ntime.sleep(90)\nprint(\"should-not-run\")"
+      },
+      "expiresAt": 1794114933694,
+      "state": "pending"
+    },
+    "response": [
+      503,
+      {
+        "code": "REQUEST_REJECTED",
+        "message": "Coding task not found in authorized scope"
+      }
+    ]
+  },
+  {
+    "permission": {
+      "id": "1484dc75-7fb0-4579-aec7-dac2924e2e89",
+      "sessionId": "1057d43c-7175-4cff-a699-375baec4aca1",
+      "taskId": "e56cfc9c-e7f1-48b4-abfc-0bed67591236",
+      "epoch": "00eea9f8-64f1-447e-a533-6e60cde013bc",
+      "inputHash": "d0d10aebd4ecdd60e97e55ab5f81b53fbf8a89c91d728c405d456db4d734ca42",
+      "toolCallId": "call_d769ad419b3c4ed9bdd73263",
+      "toolName": "tenant_data__python_execute",
+      "input": {
+        "datasetId": "dataset-a",
+        "source": "import time\nprint(\"native-sandbox-started\", flush=True)\ntime.sleep(90)\nprint(\"should-not-run\")"
+      },
+      "expiresAt": 1794114933694,
+      "state": "pending"
+    },
+    "response": [
+      503,
+      {
+        "code": "REQUEST_REJECTED",
+        "message": "Coding task not found in authorized scope"
+      }
+    ]
+  },
+  {
+    "permission": {
+      "id": "1484dc75-7fb0-4579-aec7-dac2924e2e89",
+      "sessionId": "1057d43c-7175-4cff-a699-375baec4aca1",
+      "taskId": "e56cfc9c-e7f1-48b4-abfc-0bed67591236",
+      "epoch": "00eea9f8-64f1-447e-a533-6e60cde013bc",
+      "inputHash": "d0d10aebd4ecdd60e97e55ab5f81b53fbf8a89c91d728c405d456db4d734ca42",
+      "toolCallId": "call_d769ad419b3c4ed9bdd73263",
+      "toolName": "tenant_data__python_execute",
+      "input": {
+        "datasetId": "dataset-a",
+        "source": "import time\nprint(\"native-sandbox-started\", flush=True)\ntime.sleep(90)\nprint(\"should-not-run\")"
+      },
+      "expiresAt": 1794114933694,
+      "state": "pending"
+    },
+    "response": [
+      503,
+      {
+        "code": "REQUEST_REJECTED",
+        "message": "Coding task not found in authorized scope"
+      }
+    ]
+  },
+  {
+    "permission": {
+      "id": "1484dc75-7fb0-4579-aec7-dac2924e2e89",
+      "sessionId": "1057d43c-7175-4cff-a699-375baec4aca1",
+      "taskId": "e56cfc9c-e7f1-48b4-abfc-0bed67591236",
+      "epoch": "00eea9f8-64f1-447e-a533-6e60cde013bc",
+      "inputHash": "d0d10aebd4ecdd60e97e55ab5f81b53fbf8a89c91d728c405d456db4d734ca42",
+      "toolCallId": "call_d769ad419b3c4ed9bdd73263",
+      "toolName": "tenant_data__python_execute",
+      "input": {
+        "datasetId": "dataset-a",
+        "source": "import time\nprint(\"native-sandbox-started\", flush=True)\ntime.sleep(90)\nprint(\"should-not-run\")"
+      },
+      "expiresAt": 1794114933694,
+      "state": "pending"
+    },
+    "response": [
+      503,
+      {
+        "code": "REQUEST_REJECTED",
+        "message": "Coding task not found in authorized scope"
+      }
+    ]
+  },
+  {
+    "permission": {
+      "id": "1484dc75-7fb0-4579-aec7-dac2924e2e89",
+      "sessionId": "1057d43c-7175-4cff-a699-375baec4aca1",
+      "taskId": "e56cfc9c-e7f1-48b4-abfc-0bed67591236",
+      "epoch": "00eea9f8-64f1-447e-a533-6e60cde013bc",
+      "inputHash": "d0d10aebd4ecdd60e97e55ab5f81b53fbf8a89c91d728c405d456db4d734ca42",
+      "toolCallId": "call_d769ad419b3c4ed9bdd73263",
+      "toolName": "tenant_data__python_execute",
+      "input": {
+        "datasetId": "dataset-a",
+        "source": "import time\nprint(\"native-sandbox-started\", flush=True)\ntime.sleep(90)\nprint(\"should-not-run\")"
+      },
+      "expiresAt": 1794114933694,
+      "state": "pending"
+    },
+    "response": [
+      503,
+      {
+        "code": "REQUEST_REJECTED",
+        "message": "Coding task not found in authorized scope"
+      }
+    ]
+  },
+  {
+    "permission": {
+      "id": "1484dc75-7fb0-4579-aec7-dac2924e2e89",
+      "sessionId": "1057d43c-7175-4cff-a699-375baec4aca1",
+      "taskId": "e56cfc9c-e7f1-48b4-abfc-0bed67591236",
+      "epoch": "00eea9f8-64f1-447e-a533-6e60cde013bc",
+      "inputHash": "d0d10aebd4ecdd60e97e55ab5f81b53fbf8a89c91d728c405d456db4d734ca42",
+      "toolCallId": "call_d769ad419b3c4ed9bdd73263",
+      "toolName": "tenant_data__python_execute",
+      "input": {
+        "datasetId": "dataset-a",
+        "source": "import time\nprint(\"native-sandbox-started\", flush=True)\ntime.sleep(90)\nprint(\"should-not-run\")"
+      },
+      "expiresAt": 1794114933694,
+      "state": "pending"
+    },
+    "response": [
+      503,
+      {
+        "code": "REQUEST_REJECTED",
+        "message": "Coding task not found in authorized scope"
+      }
+    ]
+  },
+  {
+    "permission": {
+      "id": "1484dc75-7fb0-4579-aec7-dac2924e2e89",
+      "sessionId": "1057d43c-7175-4cff-a699-375baec4aca1",
+      "taskId": "e56cfc9c-e7f1-48b4-abfc-0bed67591236",
+      "epoch": "00eea9f8-64f1-447e-a533-6e60cde013bc",
+      "inputHash": "d0d10aebd4ecdd60e97e55ab5f81b53fbf8a89c91d728c405d456db4d734ca42",
+      "toolCallId": "call_d769ad419b3c4ed9bdd73263",
+      "toolName": "tenant_data__python_execute",
+      "input": {
+        "datasetId": "dataset-a",
+        "source": "import time\nprint(\"native-sandbox-started\", flush=True)\ntime.sleep(90)\nprint(\"should-not-run\")"
+      },
+      "expiresAt": 1794114933694,
+      "state": "pending"
+    },
+    "response": [
+      503,
+      {
+        "code": "REQUEST_REJECTED",
+        "message": "Coding task not found in authorized scope"
+      }
+    ]
+  },
+  {
+    "permission": {
+      "id": "1484dc75-7fb0-4579-aec7-dac2924e2e89",
+      "sessionId": "1057d43c-7175-4cff-a699-375baec4aca1",
+      "taskId": "e56cfc9c-e7f1-48b4-abfc-0bed67591236",
+      "epoch": "00eea9f8-64f1-447e-a533-6e60cde013bc",
+      "inputHash": "d0d10aebd4ecdd60e97e55ab5f81b53fbf8a89c91d728c405d456db4d734ca42",
+      "toolCallId": "call_d769ad419b3c4ed9bdd73263",
+      "toolName": "tenant_data__python_execute",
+      "input": {
+        "datasetId": "dataset-a",
+        "source": "import time\nprint(\"native-sandbox-started\", flush=True)\ntime.sleep(90)\nprint(\"should-not-run\")"
+      },
+      "expiresAt": 1794114933694,
+      "state": "pending"
+    },
+    "response": [
+      503,
+      {
+        "code": "REQUEST_REJECTED",
+        "message": "Coding task not found in authorized scope"
+      }
+    ]
+  },
+  {
+    "permission": {
+      "id": "1484dc75-7fb0-4579-aec7-dac2924e2e89",
+      "sessionId": "1057d43c-7175-4cff-a699-375baec4aca1",
+      "taskId": "e56cfc9c-e7f1-48b4-abfc-0bed67591236",
+      "epoch": "00eea9f8-64f1-447e-a533-6e60cde013bc",
+      "inputHash": "d0d10aebd4ecdd60e97e55ab5f81b53fbf8a89c91d728c405d456db4d734ca42",
+      "toolCallId": "call_d769ad419b3c4ed9bdd73263",
+      "toolName": "tenant_data__python_execute",
+      "input": {
+        "datasetId": "dataset-a",
+        "source": "import time\nprint(\"native-sandbox-started\", flush=True)\ntime.sleep(90)\nprint(\"should-not-run\")"
+      },
+      "expiresAt": 1794114933694,
+      "state": "pending"
+    },
+    "response": [
+      503,
+      {
+        "code": "REQUEST_REJECTED",
+        "message": "Coding task not found in authorized scope"
+      }
+    ]
+  },
+  {
+    "permission": {
+      "id": "1484dc75-7fb0-4579-aec7-dac2924e2e89",
+      "sessionId": "1057d43c-7175-4cff-a699-375baec4aca1",
+      "taskId": "e56cfc9c-e7f1-48b4-abfc-0bed67591236",
+      "epoch": "00eea9f8-64f1-447e-a533-6e60cde013bc",
+      "inputHash": "d0d10aebd4ecdd60e97e55ab5f81b53fbf8a89c91d728c405d456db4d734ca42",
+      "toolCallId": "call_d769ad419b3c4ed9bdd73263",
+      "toolName": "tenant_data__python_execute",
+      "input": {
+        "datasetId": "dataset-a",
+        "source": "import time\nprint(\"native-sandbox-started\", flush=True)\ntime.sleep(90)\nprint(\"should-not-run\")"
+      },
+      "expiresAt": 1794114933694,
+      "state": "pending"
+    },
+    "response": [
+      503,
+      {
+        "code": "REQUEST_REJECTED",
+        "message": "Coding task not found in authorized scope"
+      }
+    ]
+  },
+  {
+    "permission": {
+      "id": "1484dc75-7fb0-4579-aec7-dac2924e2e89",
+      "sessionId": "1057d43c-7175-4cff-a699-375baec4aca1",
+      "taskId": "e56cfc9c-e7f1-48b4-abfc-0bed67591236",
+      "epoch": "00eea9f8-64f1-447e-a533-6e60cde013bc",
+      "inputHash": "d0d10aebd4ecdd60e97e55ab5f81b53fbf8a89c91d728c405d456db4d734ca42",
+      "toolCallId": "call_d769ad419b3c4ed9bdd73263",
+      "toolName": "tenant_data__python_execute",
+      "input": {
+        "datasetId": "dataset-a",
+        "source": "import time\nprint(\"native-sandbox-started\", flush=True)\ntime.sleep(90)\nprint(\"should-not-run\")"
+      },
+      "expiresAt": 1794114933694,
+      "state": "pending"
+    },
+    "response": [
+      503,
+      {
+        "code": "REQUEST_REJECTED",
+        "message": "Coding task not found in authorized scope"
+      }
+    ]
+  },
+  {
+    "permission": {
+      "id": "1484dc75-7fb0-4579-aec7-dac2924e2e89",
+      "sessionId": "1057d43c-7175-4cff-a699-375baec4aca1",
+      "taskId": "e56cfc9c-e7f1-48b4-abfc-0bed67591236",
+      "epoch": "00eea9f8-64f1-447e-a533-6e60cde013bc",
+      "inputHash": "d0d10aebd4ecdd60e97e55ab5f81b53fbf8a89c91d728c405d456db4d734ca42",
+      "toolCallId": "call_d769ad419b3c4ed9bdd73263",
+      "toolName": "tenant_data__python_execute",
+      "input": {
+        "datasetId": "dataset-a",
+        "source": "import time\nprint(\"native-sandbox-started\", flush=True)\ntime.sleep(90)\nprint(\"should-not-run\")"
+      },
+      "expiresAt": 1794114933694,
+      "state": "pending"
+    },
+    "response": [
+      503,
+      {
+        "code": "REQUEST_REJECTED",
+        "message": "Coding task not found in authorized scope"
+      }
+    ]
+  },
+  {
+    "permission": {
+      "id": "1484dc75-7fb0-4579-aec7-dac2924e2e89",
+      "sessionId": "1057d43c-7175-4cff-a699-375baec4aca1",
+      "taskId": "e56cfc9c-e7f1-48b4-abfc-0bed67591236",
+      "epoch": "00eea9f8-64f1-447e-a533-6e60cde013bc",
+      "inputHash": "d0d10aebd4ecdd60e97e55ab5f81b53fbf8a89c91d728c405d456db4d734ca42",
+      "toolCallId": "call_d769ad419b3c4ed9bdd73263",
+      "toolName": "tenant_data__python_execute",
+      "input": {
+        "datasetId": "dataset-a",
+        "source": "import time\nprint(\"native-sandbox-started\", flush=True)\ntime.sleep(90)\nprint(\"should-not-run\")"
+      },
+      "expiresAt": 1794114933694,
+      "state": "pending"
+    },
+    "response": [
+      503,
+      {
+        "code": "REQUEST_REJECTED",
+        "message": "Coding task not found in authorized scope"
+      }
+    ]
+  },
+  {
+    "permission": {
+      "id": "1484dc75-7fb0-4579-aec7-dac2924e2e89",
+      "sessionId": "1057d43c-7175-4cff-a699-375baec4aca1",
+      "taskId": "e56cfc9c-e7f1-48b4-abfc-0bed67591236",
+      "epoch": "00eea9f8-64f1-447e-a533-6e60cde013bc",
+      "inputHash": "d0d10aebd4ecdd60e97e55ab5f81b53fbf8a89c91d728c405d456db4d734ca42",
+      "toolCallId": "call_d769ad419b3c4ed9bdd73263",
+      "toolName": "tenant_data__python_execute",
+      "input": {
+        "datasetId": "dataset-a",
+        "source": "import time\nprint(\"native-sandbox-started\", flush=True)\ntime.sleep(90)\nprint(\"should-not-run\")"
+      },
+      "expiresAt": 1794114933694,
+      "state": "pending"
+    },
+    "response": [
+      503,
+      {
+        "code": "REQUEST_REJECTED",
+        "message": "Coding task not found in authorized scope"
+      }
+    ]
+  },
+  {
+    "permission": {
+      "id": "1484dc75-7fb0-4579-aec7-dac2924e2e89",
+      "sessionId": "1057d43c-7175-4cff-a699-375baec4aca1",
+      "taskId": "e56cfc9c-e7f1-48b4-abfc-0bed67591236",
+      "epoch": "00eea9f8-64f1-447e-a533-6e60cde013bc",
+      "inputHash": "d0d10aebd4ecdd60e97e55ab5f81b53fbf8a89c91d728c405d456db4d734ca42",
+      "toolCallId": "call_d769ad419b3c4ed9bdd73263",
+      "toolName": "tenant_data__python_execute",
+      "input": {
+        "datasetId": "dataset-a",
+        "source": "import time\nprint(\"native-sandbox-started\", flush=True)\ntime.sleep(90)\nprint(\"should-not-run\")"
+      },
+      "expiresAt": 1794114933694,
+      "state": "pending"
+    },
+    "response": [
+      503,
+      {
+        "code": "REQUEST_REJECTED",
+        "message": "Coding task not found in authorized scope"
+      }
+    ]
+  },
+  {
+    "permission": {
+      "id": "1484dc75-7fb0-4579-aec7-dac2924e2e89",
+      "sessionId": "1057d43c-7175-4cff-a699-375baec4aca1",
+      "taskId": "e56cfc9c-e7f1-48b4-abfc-0bed67591236",
+      "epoch": "00eea9f8-64f1-447e-a533-6e60cde013bc",
+      "inputHash": "d0d10aebd4ecdd60e97e55ab5f81b53fbf8a89c91d728c405d456db4d734ca42",
+      "toolCallId": "call_d769ad419b3c4ed9bdd73263",
+      "toolName": "tenant_data__python_execute",
+      "input": {
+        "datasetId": "dataset-a",
+        "source": "import time\nprint(\"native-sandbox-started\", flush=True)\ntime.sleep(90)\nprint(\"should-not-run\")"
+      },
+      "expiresAt": 1794114933694,
+      "state": "pending"
+    },
+    "response": [
+      503,
+      {
+        "code": "REQUEST_REJECTED",
+        "message": "Coding task not found in authorized scope"
+      }
+    ]
+  },
+  {
+    "permission": {
+      "id": "1484dc75-7fb0-4579-aec7-dac2924e2e89",
+      "sessionId": "1057d43c-7175-4cff-a699-375baec4aca1",
+      "taskId": "e56cfc9c-e7f1-48b4-abfc-0bed67591236",
+      "epoch": "00eea9f8-64f1-447e-a533-6e60cde013bc",
+      "inputHash": "d0d10aebd4ecdd60e97e55ab5f81b53fbf8a89c91d728c405d456db4d734ca42",
+      "toolCallId": "call_d769ad419b3c4ed9bdd73263",
+      "toolName": "tenant_data__python_execute",
+      "input": {
+        "datasetId": "dataset-a",
+        "source": "import time\nprint(\"native-sandbox-started\", flush=True)\ntime.sleep(90)\nprint(\"should-not-run\")"
+      },
+      "expiresAt": 1794114933694,
+      "state": "pending"
+    },
+    "response": [
+      503,
+      {
+        "code": "REQUEST_REJECTED",
+        "message": "Coding task not found in authorized scope"
+      }
+    ]
+  },
+  {
+    "permission": {
+      "id": "1484dc75-7fb0-4579-aec7-dac2924e2e89",
+      "sessionId": "1057d43c-7175-4cff-a699-375baec4aca1",
+      "taskId": "e56cfc9c-e7f1-48b4-abfc-0bed67591236",
+      "epoch": "00eea9f8-64f1-447e-a533-6e60cde013bc",
+      "inputHash": "d0d10aebd4ecdd60e97e55ab5f81b53fbf8a89c91d728c405d456db4d734ca42",
+      "toolCallId": "call_d769ad419b3c4ed9bdd73263",
+      "toolName": "tenant_data__python_execute",
+      "input": {
+        "datasetId": "dataset-a",
+        "source": "import time\nprint(\"native-sandbox-started\", flush=True)\ntime.sleep(90)\nprint(\"should-not-run\")"
+      },
+      "expiresAt": 1794114933694,
+      "state": "pending"
+    },
+    "response": [
+      503,
+      {
+        "code": "REQUEST_REJECTED",
+        "message": "Coding task not found in authorized scope"
+      }
+    ]
+  },
+  {
+    "permission": {
+      "id": "1484dc75-7fb0-4579-aec7-dac2924e2e89",
+      "sessionId": "1057d43c-7175-4cff-a699-375baec4aca1",
+      "taskId": "e56cfc9c-e7f1-48b4-abfc-0bed67591236",
+      "epoch": "00eea9f8-64f1-447e-a533-6e60cde013bc",
+      "inputHash": "d0d10aebd4ecdd60e97e55ab5f81b53fbf8a89c91d728c405d456db4d734ca42",
+      "toolCallId": "call_d769ad419b3c4ed9bdd73263",
+      "toolName": "tenant_data__python_execute",
+      "input": {
+        "datasetId": "dataset-a",
+        "source": "import time\nprint(\"native-sandbox-started\", flush=True)\ntime.sleep(90)\nprint(\"should-not-run\")"
+      },
+      "expiresAt": 1794114933694,
+      "state": "pending"
+    },
+    "response": [
+      503,
+      {
+        "code": "REQUEST_REJECTED",
+        "message": "Coding task not found in authorized scope"
+      }
+    ]
+  },
+  {
+    "permission": {
+      "id": "1484dc75-7fb0-4579-aec7-dac2924e2e89",
+      "sessionId": "1057d43c-7175-4cff-a699-375baec4aca1",
+      "taskId": "e56cfc9c-e7f1-48b4-abfc-0bed67591236",
+      "epoch": "00eea9f8-64f1-447e-a533-6e60cde013bc",
+      "inputHash": "d0d10aebd4ecdd60e97e55ab5f81b53fbf8a89c91d728c405d456db4d734ca42",
+      "toolCallId": "call_d769ad419b3c4ed9bdd73263",
+      "toolName": "tenant_data__python_execute",
+      "input": {
+        "datasetId": "dataset-a",
+        "source": "import time\nprint(\"native-sandbox-started\", flush=True)\ntime.sleep(90)\nprint(\"should-not-run\")"
+      },
+      "expiresAt": 1794114933694,
+      "state": "pending"
+    },
+    "response": [
+      503,
+      {
+        "code": "REQUEST_REJECTED",
+        "message": "Coding task not found in authorized scope"
+      }
+    ]
+  },
+  {
+    "permission": {
+      "id": "1484dc75-7fb0-4579-aec7-dac2924e2e89",
+      "sessionId": "1057d43c-7175-4cff-a699-375baec4aca1",
+      "taskId": "e56cfc9c-e7f1-48b4-abfc-0bed67591236",
+      "epoch": "00eea9f8-64f1-447e-a533-6e60cde013bc",
+      "inputHash": "d0d10aebd4ecdd60e97e55ab5f81b53fbf8a89c91d728c405d456db4d734ca42",
+      "toolCallId": "call_d769ad419b3c4ed9bdd73263",
+      "toolName": "tenant_data__python_execute",
+      "input": {
+        "datasetId": "dataset-a",
+        "source": "import time\nprint(\"native-sandbox-started\", flush=True)\ntime.sleep(90)\nprint(\"should-not-run\")"
+      },
+      "expiresAt": 1794114933694,
+      "state": "pending"
+    },
+    "response": [
+      503,
+      {
+        "code": "REQUEST_REJECTED",
+        "message": "Coding task not found in authorized scope"
+      }
+    ]
+  },
+  {
+    "permission": {
+      "id": "1484dc75-7fb0-4579-aec7-dac2924e2e89",
+      "sessionId": "1057d43c-7175-4cff-a699-375baec4aca1",
+      "taskId": "e56cfc9c-e7f1-48b4-abfc-0bed67591236",
+      "epoch": "00eea9f8-64f1-447e-a533-6e60cde013bc",
+      "inputHash": "d0d10aebd4ecdd60e97e55ab5f81b53fbf8a89c91d728c405d456db4d734ca42",
+      "toolCallId": "call_d769ad419b3c4ed9bdd73263",
+      "toolName": "tenant_data__python_execute",
+      "input": {
+        "datasetId": "dataset-a",
+        "source": "import time\nprint(\"native-sandbox-started\", flush=True)\ntime.sleep(90)\nprint(\"should-not-run\")"
+      },
+      "expiresAt": 1794114933694,
+      "state": "pending"
+    },
+    "response": [
+      503,
+      {
+        "code": "REQUEST_REJECTED",
+        "message": "Coding task not found in authorized scope"
+      }
+    ]
+  },
+  {
+    "permission": {
+      "id": "1484dc75-7fb0-4579-aec7-dac2924e2e89",
+      "sessionId": "1057d43c-7175-4cff-a699-375baec4aca1",
+      "taskId": "e56cfc9c-e7f1-48b4-abfc-0bed67591236",
+      "epoch": "00eea9f8-64f1-447e-a533-6e60cde013bc",
+      "inputHash": "d0d10aebd4ecdd60e97e55ab5f81b53fbf8a89c91d728c405d456db4d734ca42",
+      "toolCallId": "call_d769ad419b3c4ed9bdd73263",
+      "toolName": "tenant_data__python_execute",
+      "input": {
+        "datasetId": "dataset-a",
+        "source": "import time\nprint(\"native-sandbox-started\", flush=True)\ntime.sleep(90)\nprint(\"should-not-run\")"
+      },
+      "expiresAt": 1794114933694,
+      "state": "pending"
+    },
+    "response": [
+      503,
+      {
+        "code": "REQUEST_REJECTED",
+        "message": "Coding task not found in authorized scope"
+      }
+    ]
+  },
+  {
+    "permission": {
+      "id": "1484dc75-7fb0-4579-aec7-dac2924e2e89",
+      "sessionId": "1057d43c-7175-4cff-a699-375baec4aca1",
+      "taskId": "e56cfc9c-e7f1-48b4-abfc-0bed67591236",
+      "epoch": "00eea9f8-64f1-447e-a533-6e60cde013bc",
+      "inputHash": "d0d10aebd4ecdd60e97e55ab5f81b53fbf8a89c91d728c405d456db4d734ca42",
+      "toolCallId": "call_d769ad419b3c4ed9bdd73263",
+      "toolName": "tenant_data__python_execute",
+      "input": {
+        "datasetId": "dataset-a",
+        "source": "import time\nprint(\"native-sandbox-started\", flush=True)\ntime.sleep(90)\nprint(\"should-not-run\")"
+      },
+      "expiresAt": 1794114933694,
+      "state": "pending"
+    },
+    "response": [
+      503,
+      {
+        "code": "REQUEST_REJECTED",
+        "message": "Coding task not found in authorized scope"
+      }
+    ]
+  },
+  {
+    "permission": {
+      "id": "1484dc75-7fb0-4579-aec7-dac2924e2e89",
+      "sessionId": "1057d43c-7175-4cff-a699-375baec4aca1",
+      "taskId": "e56cfc9c-e7f1-48b4-abfc-0bed67591236",
+      "epoch": "00eea9f8-64f1-447e-a533-6e60cde013bc",
+      "inputHash": "d0d10aebd4ecdd60e97e55ab5f81b53fbf8a89c91d728c405d456db4d734ca42",
+      "toolCallId": "call_d769ad419b3c4ed9bdd73263",
+      "toolName": "tenant_data__python_execute",
+      "input": {
+        "datasetId": "dataset-a",
+        "source": "import time\nprint(\"native-sandbox-started\", flush=True)\ntime.sleep(90)\nprint(\"should-not-run\")"
+      },
+      "expiresAt": 1794114933694,
+      "state": "pending"
+    },
+    "response": [
+      503,
+      {
+        "code": "REQUEST_REJECTED",
+        "message": "Coding task not found in authorized scope"
+      }
+    ]
+  },
+  {
+    "permission": {
+      "id": "1484dc75-7fb0-4579-aec7-dac2924e2e89",
+      "sessionId": "1057d43c-7175-4cff-a699-375baec4aca1",
+      "taskId": "e56cfc9c-e7f1-48b4-abfc-0bed67591236",
+      "epoch": "00eea9f8-64f1-447e-a533-6e60cde013bc",
+      "inputHash": "d0d10aebd4ecdd60e97e55ab5f81b53fbf8a89c91d728c405d456db4d734ca42",
+      "toolCallId": "call_d769ad419b3c4ed9bdd73263",
+      "toolName": "tenant_data__python_execute",
+      "input": {
+        "datasetId": "dataset-a",
+        "source": "import time\nprint(\"native-sandbox-started\", flush=True)\ntime.sleep(90)\nprint(\"should-not-run\")"
+      },
+      "expiresAt": 1794114933694,
+      "state": "pending"
+    },
+    "response": [
+      503,
+      {
+        "code": "REQUEST_REJECTED",
+        "message": "Coding task not found in authorized scope"
+      }
+    ]
+  },
+  {
+    "permission": {
+      "id": "1484dc75-7fb0-4579-aec7-dac2924e2e89",
+      "sessionId": "1057d43c-7175-4cff-a699-375baec4aca1",
+      "taskId": "e56cfc9c-e7f1-48b4-abfc-0bed67591236",
+      "epoch": "00eea9f8-64f1-447e-a533-6e60cde013bc",
+      "inputHash": "d0d10aebd4ecdd60e97e55ab5f81b53fbf8a89c91d728c405d456db4d734ca42",
+      "toolCallId": "call_d769ad419b3c4ed9bdd73263",
+      "toolName": "tenant_data__python_execute",
+      "input": {
+        "datasetId": "dataset-a",
+        "source": "import time\nprint(\"native-sandbox-started\", flush=True)\ntime.sleep(90)\nprint(\"should-not-run\")"
+      },
+      "expiresAt": 1794114933694,
+      "state": "pending"
+    },
+    "response": [
+      503,
+      {
+        "code": "REQUEST_REJECTED",
+        "message": "Coding task not found in authorized scope"
+      }
+    ]
+  },
+  {
+    "permission": {
+      "id": "1484dc75-7fb0-4579-aec7-dac2924e2e89",
+      "sessionId": "1057d43c-7175-4cff-a699-375baec4aca1",
+      "taskId": "e56cfc9c-e7f1-48b4-abfc-0bed67591236",
+      "epoch": "00eea9f8-64f1-447e-a533-6e60cde013bc",
+      "inputHash": "d0d10aebd4ecdd60e97e55ab5f81b53fbf8a89c91d728c405d456db4d734ca42",
+      "toolCallId": "call_d769ad419b3c4ed9bdd73263",
+      "toolName": "tenant_data__python_execute",
+      "input": {
+        "datasetId": "dataset-a",
+        "source": "import time\nprint(\"native-sandbox-started\", flush=True)\ntime.sleep(90)\nprint(\"should-not-run\")"
+      },
+      "expiresAt": 1794114933694,
+      "state": "pending"
+    },
+    "response": [
+      503,
+      {
+        "code": "REQUEST_REJECTED",
+        "message": "Coding task not found in authorized scope"
+      }
+    ]
+  },
+  {
+    "permission": {
+      "id": "1484dc75-7fb0-4579-aec7-dac2924e2e89",
+      "sessionId": "1057d43c-7175-4cff-a699-375baec4aca1",
+      "taskId": "e56cfc9c-e7f1-48b4-abfc-0bed67591236",
+      "epoch": "00eea9f8-64f1-447e-a533-6e60cde013bc",
+      "inputHash": "d0d10aebd4ecdd60e97e55ab5f81b53fbf8a89c91d728c405d456db4d734ca42",
+      "toolCallId": "call_d769ad419b3c4ed9bdd73263",
+      "toolName": "tenant_data__python_execute",
+      "input": {
+        "datasetId": "dataset-a",
+        "source": "import time\nprint(\"native-sandbox-started\", flush=True)\ntime.sleep(90)\nprint(\"should-not-run\")"
+      },
+      "expiresAt": 1794114933694,
+      "state": "pending"
+    },
+    "response": [
+      503,
+      {
+        "code": "REQUEST_REJECTED",
+        "message": "Coding task not found in authorized scope"
+      }
+    ]
+  },
+  {
+    "permission": {
+      "id": "1484dc75-7fb0-4579-aec7-dac2924e2e89",
+      "sessionId": "1057d43c-7175-4cff-a699-375baec4aca1",
+      "taskId": "e56cfc9c-e7f1-48b4-abfc-0bed67591236",
+      "epoch": "00eea9f8-64f1-447e-a533-6e60cde013bc",
+      "inputHash": "d0d10aebd4ecdd60e97e55ab5f81b53fbf8a89c91d728c405d456db4d734ca42",
+      "toolCallId": "call_d769ad419b3c4ed9bdd73263",
+      "toolName": "tenant_data__python_execute",
+      "input": {
+        "datasetId": "dataset-a",
+        "source": "import time\nprint(\"native-sandbox-started\", flush=True)\ntime.sleep(90)\nprint(\"should-not-run\")"
+      },
+      "expiresAt": 1794114933694,
+      "state": "pending"
+    },
+    "response": [
+      503,
+      {
+        "code": "REQUEST_REJECTED",
+        "message": "Coding task not found in authorized scope"
+      }
+    ]
+  },
+  {
+    "permission": {
+      "id": "1484dc75-7fb0-4579-aec7-dac2924e2e89",
+      "sessionId": "1057d43c-7175-4cff-a699-375baec4aca1",
+      "taskId": "e56cfc9c-e7f1-48b4-abfc-0bed67591236",
+      "epoch": "00eea9f8-64f1-447e-a533-6e60cde013bc",
+      "inputHash": "d0d10aebd4ecdd60e97e55ab5f81b53fbf8a89c91d728c405d456db4d734ca42",
+      "toolCallId": "call_d769ad419b3c4ed9bdd73263",
+      "toolName": "tenant_data__python_execute",
+      "input": {
+        "datasetId": "dataset-a",
+        "source": "import time\nprint(\"native-sandbox-started\", flush=True)\ntime.sleep(90)\nprint(\"should-not-run\")"
+      },
+      "expiresAt": 1794114933694,
+      "state": "pending"
+    },
+    "response": [
+      503,
+      {
+        "code": "REQUEST_REJECTED",
+        "message": "Coding task not found in authorized scope"
+      }
+    ]
+  },
+  {
+    "permission": {
+      "id": "1484dc75-7fb0-4579-aec7-dac2924e2e89",
+      "sessionId": "1057d43c-7175-4cff-a699-375baec4aca1",
+      "taskId": "e56cfc9c-e7f1-48b4-abfc-0bed67591236",
+      "epoch": "00eea9f8-64f1-447e-a533-6e60cde013bc",
+      "inputHash": "d0d10aebd4ecdd60e97e55ab5f81b53fbf8a89c91d728c405d456db4d734ca42",
+      "toolCallId": "call_d769ad419b3c4ed9bdd73263",
+      "toolName": "tenant_data__python_execute",
+      "input": {
+        "datasetId": "dataset-a",
+        "source": "import time\nprint(\"native-sandbox-started\", flush=True)\ntime.sleep(90)\nprint(\"should-not-run\")"
+      },
+      "expiresAt": 1794114933694,
+      "state": "pending"
+    },
+    "response": [
+      503,
+      {
+        "code": "REQUEST_REJECTED",
+        "message": "Coding task not found in authorized scope"
+      }
+    ]
+  },
+  {
+    "permission": {
+      "id": "1484dc75-7fb0-4579-aec7-dac2924e2e89",
+      "sessionId": "1057d43c-7175-4cff-a699-375baec4aca1",
+      "taskId": "e56cfc9c-e7f1-48b4-abfc-0bed67591236",
+      "epoch": "00eea9f8-64f1-447e-a533-6e60cde013bc",
+      "inputHash": "d0d10aebd4ecdd60e97e55ab5f81b53fbf8a89c91d728c405d456db4d734ca42",
+      "toolCallId": "call_d769ad419b3c4ed9bdd73263",
+      "toolName": "tenant_data__python_execute",
+      "input": {
+        "datasetId": "dataset-a",
+        "source": "import time\nprint(\"native-sandbox-started\", flush=True)\ntime.sleep(90)\nprint(\"should-not-run\")"
+      },
+      "expiresAt": 1794114933694,
+      "state": "pending"
+    },
+    "response": [
+      503,
+      {
+        "code": "REQUEST_REJECTED",
+        "message": "Coding task not found in authorized scope"
+      }
+    ]
+  },
+  {
+    "permission": {
+      "id": "1484dc75-7fb0-4579-aec7-dac2924e2e89",
+      "sessionId": "1057d43c-7175-4cff-a699-375baec4aca1",
+      "taskId": "e56cfc9c-e7f1-48b4-abfc-0bed67591236",
+      "epoch": "00eea9f8-64f1-447e-a533-6e60cde013bc",
+      "inputHash": "d0d10aebd4ecdd60e97e55ab5f81b53fbf8a89c91d728c405d456db4d734ca42",
+      "toolCallId": "call_d769ad419b3c4ed9bdd73263",
+      "toolName": "tenant_data__python_execute",
+      "input": {
+        "datasetId": "dataset-a",
+        "source": "import time\nprint(\"native-sandbox-started\", flush=True)\ntime.sleep(90)\nprint(\"should-not-run\")"
+      },
+      "expiresAt": 1794114933694,
+      "state": "pending"
+    },
+    "response": [
+      503,
+      {
+        "code": "REQUEST_REJECTED",
+        "message": "Coding task not found in authorized scope"
+      }
+    ]
+  },
+  {
+    "permission": {
+      "id": "1484dc75-7fb0-4579-aec7-dac2924e2e89",
+      "sessionId": "1057d43c-7175-4cff-a699-375baec4aca1",
+      "taskId": "e56cfc9c-e7f1-48b4-abfc-0bed67591236",
+      "epoch": "00eea9f8-64f1-447e-a533-6e60cde013bc",
+      "inputHash": "d0d10aebd4ecdd60e97e55ab5f81b53fbf8a89c91d728c405d456db4d734ca42",
+      "toolCallId": "call_d769ad419b3c4ed9bdd73263",
+      "toolName": "tenant_data__python_execute",
+      "input": {
+        "datasetId": "dataset-a",
+        "source": "import time\nprint(\"native-sandbox-started\", flush=True)\ntime.sleep(90)\nprint(\"should-not-run\")"
+      },
+      "expiresAt": 1794114933694,
+      "state": "pending"
+    },
+    "response": [
+      503,
+      {
+        "code": "REQUEST_REJECTED",
+        "message": "Coding task not found in authorized scope"
+      }
+    ]
+  },
+  {
+    "permission": {
+      "id": "1484dc75-7fb0-4579-aec7-dac2924e2e89",
+      "sessionId": "1057d43c-7175-4cff-a699-375baec4aca1",
+      "taskId": "e56cfc9c-e7f1-48b4-abfc-0bed67591236",
+      "epoch": "00eea9f8-64f1-447e-a533-6e60cde013bc",
+      "inputHash": "d0d10aebd4ecdd60e97e55ab5f81b53fbf8a89c91d728c405d456db4d734ca42",
+      "toolCallId": "call_d769ad419b3c4ed9bdd73263",
+      "toolName": "tenant_data__python_execute",
+      "input": {
+        "datasetId": "dataset-a",
+        "source": "import time\nprint(\"native-sandbox-started\", flush=True)\ntime.sleep(90)\nprint(\"should-not-run\")"
+      },
+      "expiresAt": 1794114933694,
+      "state": "pending"
+    },
+    "response": [
+      503,
+      {
+        "code": "REQUEST_REJECTED",
+        "message": "Coding task not found in authorized scope"
+      }
+    ]
+  },
+  {
+    "permission": {
+      "id": "1484dc75-7fb0-4579-aec7-dac2924e2e89",
+      "sessionId": "1057d43c-7175-4cff-a699-375baec4aca1",
+      "taskId": "e56cfc9c-e7f1-48b4-abfc-0bed67591236",
+      "epoch": "00eea9f8-64f1-447e-a533-6e60cde013bc",
+      "inputHash": "d0d10aebd4ecdd60e97e55ab5f81b53fbf8a89c91d728c405d456db4d734ca42",
+      "toolCallId": "call_d769ad419b3c4ed9bdd73263",
+      "toolName": "tenant_data__python_execute",
+      "input": {
+        "datasetId": "dataset-a",
+        "source": "import time\nprint(\"native-sandbox-started\", flush=True)\ntime.sleep(90)\nprint(\"should-not-run\")"
+      },
+      "expiresAt": 1794114933694,
+      "state": "pending"
+    },
+    "response": [
+      503,
+      {
+        "code": "REQUEST_REJECTED",
+        "message": "Coding task not found in authorized scope"
+      }
+    ]
+  },
+  {
+    "permission": {
+      "id": "1484dc75-7fb0-4579-aec7-dac2924e2e89",
+      "sessionId": "1057d43c-7175-4cff-a699-375baec4aca1",
+      "taskId": "e56cfc9c-e7f1-48b4-abfc-0bed67591236",
+      "epoch": "00eea9f8-64f1-447e-a533-6e60cde013bc",
+      "inputHash": "d0d10aebd4ecdd60e97e55ab5f81b53fbf8a89c91d728c405d456db4d734ca42",
+      "toolCallId": "call_d769ad419b3c4ed9bdd73263",
+      "toolName": "tenant_data__python_execute",
+      "input": {
+        "datasetId": "dataset-a",
+        "source": "import time\nprint(\"native-sandbox-started\", flush=True)\ntime.sleep(90)\nprint(\"should-not-run\")"
+      },
+      "expiresAt": 1794114933694,
+      "state": "pending"
+    },
+    "response": [
+      503,
+      {
+        "code": "REQUEST_REJECTED",
+        "message": "Coding task not found in authorized scope"
+      }
+    ]
+  },
+  {
+    "permission": {
+      "id": "1484dc75-7fb0-4579-aec7-dac2924e2e89",
+      "sessionId": "1057d43c-7175-4cff-a699-375baec4aca1",
+      "taskId": "e56cfc9c-e7f1-48b4-abfc-0bed67591236",
+      "epoch": "00eea9f8-64f1-447e-a533-6e60cde013bc",
+      "inputHash": "d0d10aebd4ecdd60e97e55ab5f81b53fbf8a89c91d728c405d456db4d734ca42",
+      "toolCallId": "call_d769ad419b3c4ed9bdd73263",
+      "toolName": "tenant_data__python_execute",
+      "input": {
+        "datasetId": "dataset-a",
+        "source": "import time\nprint(\"native-sandbox-started\", flush=True)\ntime.sleep(90)\nprint(\"should-not-run\")"
+      },
+      "expiresAt": 1794114933694,
+      "state": "pending"
+    },
+    "response": [
+      503,
+      {
+        "code": "REQUEST_REJECTED",
+        "message": "Coding task not found in authorized scope"
+      }
+    ]
+  },
+  {
+    "permission": {
+      "id": "1484dc75-7fb0-4579-aec7-dac2924e2e89",
+      "sessionId": "1057d43c-7175-4cff-a699-375baec4aca1",
+      "taskId": "e56cfc9c-e7f1-48b4-abfc-0bed67591236",
+      "epoch": "00eea9f8-64f1-447e-a533-6e60cde013bc",
+      "inputHash": "d0d10aebd4ecdd60e97e55ab5f81b53fbf8a89c91d728c405d456db4d734ca42",
+      "toolCallId": "call_d769ad419b3c4ed9bdd73263",
+      "toolName": "tenant_data__python_execute",
+      "input": {
+        "datasetId": "dataset-a",
+        "source": "import time\nprint(\"native-sandbox-started\", flush=True)\ntime.sleep(90)\nprint(\"should-not-run\")"
+      },
+      "expiresAt": 1794114933694,
+      "state": "pending"
+    },
+    "response": [
+      503,
+      {
+        "code": "REQUEST_REJECTED",
+        "message": "Coding task not found in authorized scope"
+      }
+    ]
+  },
+  {
+    "permission": {
+      "id": "1484dc75-7fb0-4579-aec7-dac2924e2e89",
+      "sessionId": "1057d43c-7175-4cff-a699-375baec4aca1",
+      "taskId": "e56cfc9c-e7f1-48b4-abfc-0bed67591236",
+      "epoch": "00eea9f8-64f1-447e-a533-6e60cde013bc",
+      "inputHash": "d0d10aebd4ecdd60e97e55ab5f81b53fbf8a89c91d728c405d456db4d734ca42",
+      "toolCallId": "call_d769ad419b3c4ed9bdd73263",
+      "toolName": "tenant_data__python_execute",
+      "input": {
+        "datasetId": "dataset-a",
+        "source": "import time\nprint(\"native-sandbox-started\", flush=True)\ntime.sleep(90)\nprint(\"should-not-run\")"
+      },
+      "expiresAt": 1794114933694,
+      "state": "pending"
+    },
+    "response": [
+      503,
+      {
+        "code": "REQUEST_REJECTED",
+        "message": "Coding task not found in authorized scope"
+      }
+    ]
+  },
+  {
+    "permission": {
+      "id": "1484dc75-7fb0-4579-aec7-dac2924e2e89",
+      "sessionId": "1057d43c-7175-4cff-a699-375baec4aca1",
+      "taskId": "e56cfc9c-e7f1-48b4-abfc-0bed67591236",
+      "epoch": "00eea9f8-64f1-447e-a533-6e60cde013bc",
+      "inputHash": "d0d10aebd4ecdd60e97e55ab5f81b53fbf8a89c91d728c405d456db4d734ca42",
+      "toolCallId": "call_d769ad419b3c4ed9bdd73263",
+      "toolName": "tenant_data__python_execute",
+      "input": {
+        "datasetId": "dataset-a",
+        "source": "import time\nprint(\"native-sandbox-started\", flush=True)\ntime.sleep(90)\nprint(\"should-not-run\")"
+      },
+      "expiresAt": 1794114933694,
+      "state": "pending"
+    },
+    "response": [
+      503,
+      {
+        "code": "REQUEST_REJECTED",
+        "message": "Coding task not found in authorized scope"
+      }
+    ]
+  },
+  {
+    "permission": {
+      "id": "1484dc75-7fb0-4579-aec7-dac2924e2e89",
+      "sessionId": "1057d43c-7175-4cff-a699-375baec4aca1",
+      "taskId": "e56cfc9c-e7f1-48b4-abfc-0bed67591236",
+      "epoch": "00eea9f8-64f1-447e-a533-6e60cde013bc",
+      "inputHash": "d0d10aebd4ecdd60e97e55ab5f81b53fbf8a89c91d728c405d456db4d734ca42",
+      "toolCallId": "call_d769ad419b3c4ed9bdd73263",
+      "toolName": "tenant_data__python_execute",
+      "input": {
+        "datasetId": "dataset-a",
+        "source": "import time\nprint(\"native-sandbox-started\", flush=True)\ntime.sleep(90)\nprint(\"should-not-run\")"
+      },
+      "expiresAt": 1794114933694,
+      "state": "pending"
+    },
+    "response": [
+      503,
+      {
+        "code": "REQUEST_REJECTED",
+        "message": "Coding task not found in authorized scope"
+      }
+    ]
+  },
+  {
+    "permission": {
+      "id": "1484dc75-7fb0-4579-aec7-dac2924e2e89",
+      "sessionId": "1057d43c-7175-4cff-a699-375baec4aca1",
+      "taskId": "e56cfc9c-e7f1-48b4-abfc-0bed67591236",
+      "epoch": "00eea9f8-64f1-447e-a533-6e60cde013bc",
+      "inputHash": "d0d10aebd4ecdd60e97e55ab5f81b53fbf8a89c91d728c405d456db4d734ca42",
+      "toolCallId": "call_d769ad419b3c4ed9bdd73263",
+      "toolName": "tenant_data__python_execute",
+      "input": {
+        "datasetId": "dataset-a",
+        "source": "import time\nprint(\"native-sandbox-started\", flush=True)\ntime.sleep(90)\nprint(\"should-not-run\")"
+      },
+      "expiresAt": 1794114933694,
+      "state": "pending"
+    },
+    "response": [
+      503,
+      {
+        "code": "REQUEST_REJECTED",
+        "message": "Coding task not found in authorized scope"
+      }
+    ]
+  },
+  {
+    "permission": {
+      "id": "1484dc75-7fb0-4579-aec7-dac2924e2e89",
+      "sessionId": "1057d43c-7175-4cff-a699-375baec4aca1",
+      "taskId": "e56cfc9c-e7f1-48b4-abfc-0bed67591236",
+      "epoch": "00eea9f8-64f1-447e-a533-6e60cde013bc",
+      "inputHash": "d0d10aebd4ecdd60e97e55ab5f81b53fbf8a89c91d728c405d456db4d734ca42",
+      "toolCallId": "call_d769ad419b3c4ed9bdd73263",
+      "toolName": "tenant_data__python_execute",
+      "input": {
+        "datasetId": "dataset-a",
+        "source": "import time\nprint(\"native-sandbox-started\", flush=True)\ntime.sleep(90)\nprint(\"should-not-run\")"
+      },
+      "expiresAt": 1794114933694,
+      "state": "pending"
+    },
+    "response": [
+      503,
+      {
+        "code": "REQUEST_REJECTED",
+        "message": "Coding task not found in authorized scope"
+      }
+    ]
+  },
+  {
+    "permission": {
+      "id": "1484dc75-7fb0-4579-aec7-dac2924e2e89",
+      "sessionId": "1057d43c-7175-4cff-a699-375baec4aca1",
+      "taskId": "e56cfc9c-e7f1-48b4-abfc-0bed67591236",
+      "epoch": "00eea9f8-64f1-447e-a533-6e60cde013bc",
+      "inputHash": "d0d10aebd4ecdd60e97e55ab5f81b53fbf8a89c91d728c405d456db4d734ca42",
+      "toolCallId": "call_d769ad419b3c4ed9bdd73263",
+      "toolName": "tenant_data__python_execute",
+      "input": {
+        "datasetId": "dataset-a",
+        "source": "import time\nprint(\"native-sandbox-started\", flush=True)\ntime.sleep(90)\nprint(\"should-not-run\")"
+      },
+      "expiresAt": 1794114933694,
+      "state": "pending"
+    },
+    "response": [
+      503,
+      {
+        "code": "REQUEST_REJECTED",
+        "message": "Coding task not found in authorized scope"
+      }
+    ]
+  },
+  {
+    "permission": {
+      "id": "1484dc75-7fb0-4579-aec7-dac2924e2e89",
+      "sessionId": "1057d43c-7175-4cff-a699-375baec4aca1",
+      "taskId": "e56cfc9c-e7f1-48b4-abfc-0bed67591236",
+      "epoch": "00eea9f8-64f1-447e-a533-6e60cde013bc",
+      "inputHash": "d0d10aebd4ecdd60e97e55ab5f81b53fbf8a89c91d728c405d456db4d734ca42",
+      "toolCallId": "call_d769ad419b3c4ed9bdd73263",
+      "toolName": "tenant_data__python_execute",
+      "input": {
+        "datasetId": "dataset-a",
+        "source": "import time\nprint(\"native-sandbox-started\", flush=True)\ntime.sleep(90)\nprint(\"should-not-run\")"
+      },
+      "expiresAt": 1794114933694,
+      "state": "pending"
+    },
+    "response": [
+      503,
+      {
+        "code": "REQUEST_REJECTED",
+        "message": "Coding task not found in authorized scope"
+      }
+    ]
+  },
+  {
+    "permission": {
+      "id": "1484dc75-7fb0-4579-aec7-dac2924e2e89",
+      "sessionId": "1057d43c-7175-4cff-a699-375baec4aca1",
+      "taskId": "e56cfc9c-e7f1-48b4-abfc-0bed67591236",
+      "epoch": "00eea9f8-64f1-447e-a533-6e60cde013bc",
+      "inputHash": "d0d10aebd4ecdd60e97e55ab5f81b53fbf8a89c91d728c405d456db4d734ca42",
+      "toolCallId": "call_d769ad419b3c4ed9bdd73263",
+      "toolName": "tenant_data__python_execute",
+      "input": {
+        "datasetId": "dataset-a",
+        "source": "import time\nprint(\"native-sandbox-started\", flush=True)\ntime.sleep(90)\nprint(\"should-not-run\")"
+      },
+      "expiresAt": 1794114933694,
+      "state": "pending"
+    },
+    "response": [
+      503,
+      {
+        "code": "REQUEST_REJECTED",
+        "message": "Coding task not found in authorized scope"
+      }
+    ]
+  },
+  {
+    "permission": {
+      "id": "1484dc75-7fb0-4579-aec7-dac2924e2e89",
+      "sessionId": "1057d43c-7175-4cff-a699-375baec4aca1",
+      "taskId": "e56cfc9c-e7f1-48b4-abfc-0bed67591236",
+      "epoch": "00eea9f8-64f1-447e-a533-6e60cde013bc",
+      "inputHash": "d0d10aebd4ecdd60e97e55ab5f81b53fbf8a89c91d728c405d456db4d734ca42",
+      "toolCallId": "call_d769ad419b3c4ed9bdd73263",
+      "toolName": "tenant_data__python_execute",
+      "input": {
+        "datasetId": "dataset-a",
+        "source": "import time\nprint(\"native-sandbox-started\", flush=True)\ntime.sleep(90)\nprint(\"should-not-run\")"
+      },
+      "expiresAt": 1794114933694,
+      "state": "pending"
+    },
+    "response": [
+      503,
+      {
+        "code": "REQUEST_REJECTED",
+        "message": "Coding task not found in authorized scope"
+      }
+    ]
+  },
+  {
+    "permission": {
+      "id": "1484dc75-7fb0-4579-aec7-dac2924e2e89",
+      "sessionId": "1057d43c-7175-4cff-a699-375baec4aca1",
+      "taskId": "e56cfc9c-e7f1-48b4-abfc-0bed67591236",
+      "epoch": "00eea9f8-64f1-447e-a533-6e60cde013bc",
+      "inputHash": "d0d10aebd4ecdd60e97e55ab5f81b53fbf8a89c91d728c405d456db4d734ca42",
+      "toolCallId": "call_d769ad419b3c4ed9bdd73263",
+      "toolName": "tenant_data__python_execute",
+      "input": {
+        "datasetId": "dataset-a",
+        "source": "import time\nprint(\"native-sandbox-started\", flush=True)\ntime.sleep(90)\nprint(\"should-not-run\")"
+      },
+      "expiresAt": 1794114933694,
+      "state": "pending"
+    },
+    "response": [
+      503,
+      {
+        "code": "REQUEST_REJECTED",
+        "message": "Coding task not found in authorized scope"
+      }
+    ]
+  },
+  {
+    "permission": {
+      "id": "1484dc75-7fb0-4579-aec7-dac2924e2e89",
+      "sessionId": "1057d43c-7175-4cff-a699-375baec4aca1",
+      "taskId": "e56cfc9c-e7f1-48b4-abfc-0bed67591236",
+      "epoch": "00eea9f8-64f1-447e-a533-6e60cde013bc",
+      "inputHash": "d0d10aebd4ecdd60e97e55ab5f81b53fbf8a89c91d728c405d456db4d734ca42",
+      "toolCallId": "call_d769ad419b3c4ed9bdd73263",
+      "toolName": "tenant_data__python_execute",
+      "input": {
+        "datasetId": "dataset-a",
+        "source": "import time\nprint(\"native-sandbox-started\", flush=True)\ntime.sleep(90)\nprint(\"should-not-run\")"
+      },
+      "expiresAt": 1794114933694,
+      "state": "pending"
+    },
+    "response": [
+      503,
+      {
+        "code": "REQUEST_REJECTED",
+        "message": "Coding task not found in authorized scope"
+      }
+    ]
+  },
+  {
+    "permission": {
+      "id": "1484dc75-7fb0-4579-aec7-dac2924e2e89",
+      "sessionId": "1057d43c-7175-4cff-a699-375baec4aca1",
+      "taskId": "e56cfc9c-e7f1-48b4-abfc-0bed67591236",
+      "epoch": "00eea9f8-64f1-447e-a533-6e60cde013bc",
+      "inputHash": "d0d10aebd4ecdd60e97e55ab5f81b53fbf8a89c91d728c405d456db4d734ca42",
+      "toolCallId": "call_d769ad419b3c4ed9bdd73263",
+      "toolName": "tenant_data__python_execute",
+      "input": {
+        "datasetId": "dataset-a",
+        "source": "import time\nprint(\"native-sandbox-started\", flush=True)\ntime.sleep(90)\nprint(\"should-not-run\")"
+      },
+      "expiresAt": 1794114933694,
+      "state": "pending"
+    },
+    "response": [
+      503,
+      {
+        "code": "REQUEST_REJECTED",
+        "message": "Coding task not found in authorized scope"
+      }
+    ]
+  },
+  {
+    "permission": {
+      "id": "1484dc75-7fb0-4579-aec7-dac2924e2e89",
+      "sessionId": "1057d43c-7175-4cff-a699-375baec4aca1",
+      "taskId": "e56cfc9c-e7f1-48b4-abfc-0bed67591236",
+      "epoch": "00eea9f8-64f1-447e-a533-6e60cde013bc",
+      "inputHash": "d0d10aebd4ecdd60e97e55ab5f81b53fbf8a89c91d728c405d456db4d734ca42",
+      "toolCallId": "call_d769ad419b3c4ed9bdd73263",
+      "toolName": "tenant_data__python_execute",
+      "input": {
+        "datasetId": "dataset-a",
+        "source": "import time\nprint(\"native-sandbox-started\", flush=True)\ntime.sleep(90)\nprint(\"should-not-run\")"
+      },
+      "expiresAt": 1794114933694,
+      "state": "pending"
+    },
+    "response": [
+      503,
+      {
+        "code": "REQUEST_REJECTED",
+        "message": "Coding task not found in authorized scope"
+      }
+    ]
+  },
+  {
+    "permission": {
+      "id": "1484dc75-7fb0-4579-aec7-dac2924e2e89",
+      "sessionId": "1057d43c-7175-4cff-a699-375baec4aca1",
+      "taskId": "e56cfc9c-e7f1-48b4-abfc-0bed67591236",
+      "epoch": "00eea9f8-64f1-447e-a533-6e60cde013bc",
+      "inputHash": "d0d10aebd4ecdd60e97e55ab5f81b53fbf8a89c91d728c405d456db4d734ca42",
+      "toolCallId": "call_d769ad419b3c4ed9bdd73263",
+      "toolName": "tenant_data__python_execute",
+      "input": {
+        "datasetId": "dataset-a",
+        "source": "import time\nprint(\"native-sandbox-started\", flush=True)\ntime.sleep(90)\nprint(\"should-not-run\")"
+      },
+      "expiresAt": 1794114933694,
+      "state": "pending"
+    },
+    "response": [
+      503,
+      {
+        "code": "REQUEST_REJECTED",
+        "message": "Coding task not found in authorized scope"
+      }
+    ]
+  },
+  {
+    "permission": {
+      "id": "1484dc75-7fb0-4579-aec7-dac2924e2e89",
+      "sessionId": "1057d43c-7175-4cff-a699-375baec4aca1",
+      "taskId": "e56cfc9c-e7f1-48b4-abfc-0bed67591236",
+      "epoch": "00eea9f8-64f1-447e-a533-6e60cde013bc",
+      "inputHash": "d0d10aebd4ecdd60e97e55ab5f81b53fbf8a89c91d728c405d456db4d734ca42",
+      "toolCallId": "call_d769ad419b3c4ed9bdd73263",
+      "toolName": "tenant_data__python_execute",
+      "input": {
+        "datasetId": "dataset-a",
+        "source": "import time\nprint(\"native-sandbox-started\", flush=True)\ntime.sleep(90)\nprint(\"should-not-run\")"
+      },
+      "expiresAt": 1794114933694,
+      "state": "pending"
+    },
+    "response": [
+      503,
+      {
+        "code": "REQUEST_REJECTED",
+        "message": "Coding task not found in authorized scope"
+      }
+    ]
+  },
+  {
+    "permission": {
+      "id": "1484dc75-7fb0-4579-aec7-dac2924e2e89",
+      "sessionId": "1057d43c-7175-4cff-a699-375baec4aca1",
+      "taskId": "e56cfc9c-e7f1-48b4-abfc-0bed67591236",
+      "epoch": "00eea9f8-64f1-447e-a533-6e60cde013bc",
+      "inputHash": "d0d10aebd4ecdd60e97e55ab5f81b53fbf8a89c91d728c405d456db4d734ca42",
+      "toolCallId": "call_d769ad419b3c4ed9bdd73263",
+      "toolName": "tenant_data__python_execute",
+      "input": {
+        "datasetId": "dataset-a",
+        "source": "import time\nprint(\"native-sandbox-started\", flush=True)\ntime.sleep(90)\nprint(\"should-not-run\")"
+      },
+      "expiresAt": 1794114933694,
+      "state": "pending"
+    },
+    "response": [
+      503,
+      {
+        "code": "REQUEST_REJECTED",
+        "message": "Coding task not found in authorized scope"
+      }
+    ]
+  },
+  {
+    "permission": {
+      "id": "1484dc75-7fb0-4579-aec7-dac2924e2e89",
+      "sessionId": "1057d43c-7175-4cff-a699-375baec4aca1",
+      "taskId": "e56cfc9c-e7f1-48b4-abfc-0bed67591236",
+      "epoch": "00eea9f8-64f1-447e-a533-6e60cde013bc",
+      "inputHash": "d0d10aebd4ecdd60e97e55ab5f81b53fbf8a89c91d728c405d456db4d734ca42",
+      "toolCallId": "call_d769ad419b3c4ed9bdd73263",
+      "toolName": "tenant_data__python_execute",
+      "input": {
+        "datasetId": "dataset-a",
+        "source": "import time\nprint(\"native-sandbox-started\", flush=True)\ntime.sleep(90)\nprint(\"should-not-run\")"
+      },
+      "expiresAt": 1794114933694,
+      "state": "pending"
+    },
+    "response": [
+      503,
+      {
+        "code": "REQUEST_REJECTED",
+        "message": "Coding task not found in authorized scope"
+      }
+    ]
+  },
+  {
+    "permission": {
+      "id": "1484dc75-7fb0-4579-aec7-dac2924e2e89",
+      "sessionId": "1057d43c-7175-4cff-a699-375baec4aca1",
+      "taskId": "e56cfc9c-e7f1-48b4-abfc-0bed67591236",
+      "epoch": "00eea9f8-64f1-447e-a533-6e60cde013bc",
+      "inputHash": "d0d10aebd4ecdd60e97e55ab5f81b53fbf8a89c91d728c405d456db4d734ca42",
+      "toolCallId": "call_d769ad419b3c4ed9bdd73263",
+      "toolName": "tenant_data__python_execute",
+      "input": {
+        "datasetId": "dataset-a",
+        "source": "import time\nprint(\"native-sandbox-started\", flush=True)\ntime.sleep(90)\nprint(\"should-not-run\")"
+      },
+      "expiresAt": 1794114933694,
+      "state": "pending"
+    },
+    "response": [
+      503,
+      {
+        "code": "REQUEST_REJECTED",
+        "message": "Coding task not found in authorized scope"
+      }
+    ]
+  },
+  {
+    "permission": {
+      "id": "1484dc75-7fb0-4579-aec7-dac2924e2e89",
+      "sessionId": "1057d43c-7175-4cff-a699-375baec4aca1",
+      "taskId": "e56cfc9c-e7f1-48b4-abfc-0bed67591236",
+      "epoch": "00eea9f8-64f1-447e-a533-6e60cde013bc",
+      "inputHash": "d0d10aebd4ecdd60e97e55ab5f81b53fbf8a89c91d728c405d456db4d734ca42",
+      "toolCallId": "call_d769ad419b3c4ed9bdd73263",
+      "toolName": "tenant_data__python_execute",
+      "input": {
+        "datasetId": "dataset-a",
+        "source": "import time\nprint(\"native-sandbox-started\", flush=True)\ntime.sleep(90)\nprint(\"should-not-run\")"
+      },
+      "expiresAt": 1794114933694,
+      "state": "pending"
+    },
+    "response": [
+      503,
+      {
+        "code": "REQUEST_REJECTED",
+        "message": "Coding task not found in authorized scope"
+      }
+    ]
+  },
+  {
+    "permission": {
+      "id": "1484dc75-7fb0-4579-aec7-dac2924e2e89",
+      "sessionId": "1057d43c-7175-4cff-a699-375baec4aca1",
+      "taskId": "e56cfc9c-e7f1-48b4-abfc-0bed67591236",
+      "epoch": "00eea9f8-64f1-447e-a533-6e60cde013bc",
+      "inputHash": "d0d10aebd4ecdd60e97e55ab5f81b53fbf8a89c91d728c405d456db4d734ca42",
+      "toolCallId": "call_d769ad419b3c4ed9bdd73263",
+      "toolName": "tenant_data__python_execute",
+      "input": {
+        "datasetId": "dataset-a",
+        "source": "import time\nprint(\"native-sandbox-started\", flush=True)\ntime.sleep(90)\nprint(\"should-not-run\")"
+      },
+      "expiresAt": 1794114933694,
+      "state": "pending"
+    },
+    "response": [
+      503,
+      {
+        "code": "REQUEST_REJECTED",
+        "message": "Coding task not found in authorized scope"
+      }
+    ]
+  },
+  {
+    "permission": {
+      "id": "1484dc75-7fb0-4579-aec7-dac2924e2e89",
+      "sessionId": "1057d43c-7175-4cff-a699-375baec4aca1",
+      "taskId": "e56cfc9c-e7f1-48b4-abfc-0bed67591236",
+      "epoch": "00eea9f8-64f1-447e-a533-6e60cde013bc",
+      "inputHash": "d0d10aebd4ecdd60e97e55ab5f81b53fbf8a89c91d728c405d456db4d734ca42",
+      "toolCallId": "call_d769ad419b3c4ed9bdd73263",
+      "toolName": "tenant_data__python_execute",
+      "input": {
+        "datasetId": "dataset-a",
+        "source": "import time\nprint(\"native-sandbox-started\", flush=True)\ntime.sleep(90)\nprint(\"should-not-run\")"
+      },
+      "expiresAt": 1794114933694,
+      "state": "pending"
+    },
+    "response": [
+      503,
+      {
+        "code": "REQUEST_REJECTED",
+        "message": "Coding task not found in authorized scope"
+      }
+    ]
+  },
+  {
+    "permission": {
+      "id": "1484dc75-7fb0-4579-aec7-dac2924e2e89",
+      "sessionId": "1057d43c-7175-4cff-a699-375baec4aca1",
+      "taskId": "e56cfc9c-e7f1-48b4-abfc-0bed67591236",
+      "epoch": "00eea9f8-64f1-447e-a533-6e60cde013bc",
+      "inputHash": "d0d10aebd4ecdd60e97e55ab5f81b53fbf8a89c91d728c405d456db4d734ca42",
+      "toolCallId": "call_d769ad419b3c4ed9bdd73263",
+      "toolName": "tenant_data__python_execute",
+      "input": {
+        "datasetId": "dataset-a",
+        "source": "import time\nprint(\"native-sandbox-started\", flush=True)\ntime.sleep(90)\nprint(\"should-not-run\")"
+      },
+      "expiresAt": 1794114933694,
+      "state": "pending"
+    },
+    "response": [
+      503,
+      {
+        "code": "REQUEST_REJECTED",
+        "message": "Coding task not found in authorized scope"
+      }
+    ]
+  },
+  {
+    "permission": {
+      "id": "1484dc75-7fb0-4579-aec7-dac2924e2e89",
+      "sessionId": "1057d43c-7175-4cff-a699-375baec4aca1",
+      "taskId": "e56cfc9c-e7f1-48b4-abfc-0bed67591236",
+      "epoch": "00eea9f8-64f1-447e-a533-6e60cde013bc",
+      "inputHash": "d0d10aebd4ecdd60e97e55ab5f81b53fbf8a89c91d728c405d456db4d734ca42",
+      "toolCallId": "call_d769ad419b3c4ed9bdd73263",
+      "toolName": "tenant_data__python_execute",
+      "input": {
+        "datasetId": "dataset-a",
+        "source": "import time\nprint(\"native-sandbox-started\", flush=True)\ntime.sleep(90)\nprint(\"should-not-run\")"
+      },
+      "expiresAt": 1794114933694,
+      "state": "pending"
+    },
+    "response": [
+      503,
+      {
+        "code": "REQUEST_REJECTED",
+        "message": "Coding task not found in authorized scope"
+      }
+    ]
+  },
+  {
+    "permission": {
+      "id": "1484dc75-7fb0-4579-aec7-dac2924e2e89",
+      "sessionId": "1057d43c-7175-4cff-a699-375baec4aca1",
+      "taskId": "e56cfc9c-e7f1-48b4-abfc-0bed67591236",
+      "epoch": "00eea9f8-64f1-447e-a533-6e60cde013bc",
+      "inputHash": "d0d10aebd4ecdd60e97e55ab5f81b53fbf8a89c91d728c405d456db4d734ca42",
+      "toolCallId": "call_d769ad419b3c4ed9bdd73263",
+      "toolName": "tenant_data__python_execute",
+      "input": {
+        "datasetId": "dataset-a",
+        "source": "import time\nprint(\"native-sandbox-started\", flush=True)\ntime.sleep(90)\nprint(\"should-not-run\")"
+      },
+      "expiresAt": 1794114933694,
+      "state": "pending"
+    },
+    "response": [
+      503,
+      {
+        "code": "REQUEST_REJECTED",
+        "message": "Coding task not found in authorized scope"
+      }
+    ]
+  },
+  {
+    "permission": {
+      "id": "1484dc75-7fb0-4579-aec7-dac2924e2e89",
+      "sessionId": "1057d43c-7175-4cff-a699-375baec4aca1",
+      "taskId": "e56cfc9c-e7f1-48b4-abfc-0bed67591236",
+      "epoch": "00eea9f8-64f1-447e-a533-6e60cde013bc",
+      "inputHash": "d0d10aebd4ecdd60e97e55ab5f81b53fbf8a89c91d728c405d456db4d734ca42",
+      "toolCallId": "call_d769ad419b3c4ed9bdd73263",
+      "toolName": "tenant_data__python_execute",
+      "input": {
+        "datasetId": "dataset-a",
+        "source": "import time\nprint(\"native-sandbox-started\", flush=True)\ntime.sleep(90)\nprint(\"should-not-run\")"
+      },
+      "expiresAt": 1794114933694,
+      "state": "pending"
+    },
+    "response": [
+      503,
+      {
+        "code": "REQUEST_REJECTED",
+        "message": "Coding task not found in authorized scope"
+      }
+    ]
+  },
+  {
+    "permission": {
+      "id": "1484dc75-7fb0-4579-aec7-dac2924e2e89",
+      "sessionId": "1057d43c-7175-4cff-a699-375baec4aca1",
+      "taskId": "e56cfc9c-e7f1-48b4-abfc-0bed67591236",
+      "epoch": "00eea9f8-64f1-447e-a533-6e60cde013bc",
+      "inputHash": "d0d10aebd4ecdd60e97e55ab5f81b53fbf8a89c91d728c405d456db4d734ca42",
+      "toolCallId": "call_d769ad419b3c4ed9bdd73263",
+      "toolName": "tenant_data__python_execute",
+      "input": {
+        "datasetId": "dataset-a",
+        "source": "import time\nprint(\"native-sandbox-started\", flush=True)\ntime.sleep(90)\nprint(\"should-not-run\")"
+      },
+      "expiresAt": 1794114933694,
+      "state": "pending"
+    },
+    "response": [
+      503,
+      {
+        "code": "REQUEST_REJECTED",
+        "message": "Coding task not found in authorized scope"
+      }
+    ]
+  },
+  {
+    "permission": {
+      "id": "1484dc75-7fb0-4579-aec7-dac2924e2e89",
+      "sessionId": "1057d43c-7175-4cff-a699-375baec4aca1",
+      "taskId": "e56cfc9c-e7f1-48b4-abfc-0bed67591236",
+      "epoch": "00eea9f8-64f1-447e-a533-6e60cde013bc",
+      "inputHash": "d0d10aebd4ecdd60e97e55ab5f81b53fbf8a89c91d728c405d456db4d734ca42",
+      "toolCallId": "call_d769ad419b3c4ed9bdd73263",
+      "toolName": "tenant_data__python_execute",
+      "input": {
+        "datasetId": "dataset-a",
+        "source": "import time\nprint(\"native-sandbox-started\", flush=True)\ntime.sleep(90)\nprint(\"should-not-run\")"
+      },
+      "expiresAt": 1794114933694,
+      "state": "pending"
+    },
+    "response": [
+      503,
+      {
+        "code": "REQUEST_REJECTED",
+        "message": "Coding task not found in authorized scope"
+      }
+    ]
+  },
+  {
+    "permission": {
+      "id": "1484dc75-7fb0-4579-aec7-dac2924e2e89",
+      "sessionId": "1057d43c-7175-4cff-a699-375baec4aca1",
+      "taskId": "e56cfc9c-e7f1-48b4-abfc-0bed67591236",
+      "epoch": "00eea9f8-64f1-447e-a533-6e60cde013bc",
+      "inputHash": "d0d10aebd4ecdd60e97e55ab5f81b53fbf8a89c91d728c405d456db4d734ca42",
+      "toolCallId": "call_d769ad419b3c4ed9bdd73263",
+      "toolName": "tenant_data__python_execute",
+      "input": {
+        "datasetId": "dataset-a",
+        "source": "import time\nprint(\"native-sandbox-started\", flush=True)\ntime.sleep(90)\nprint(\"should-not-run\")"
+      },
+      "expiresAt": 1794114933694,
+      "state": "pending"
+    },
+    "response": [
+      503,
+      {
+        "code": "REQUEST_REJECTED",
+        "message": "Coding task not found in authorized scope"
+      }
+    ]
+  },
+  {
+    "permission": {
+      "id": "1484dc75-7fb0-4579-aec7-dac2924e2e89",
+      "sessionId": "1057d43c-7175-4cff-a699-375baec4aca1",
+      "taskId": "e56cfc9c-e7f1-48b4-abfc-0bed67591236",
+      "epoch": "00eea9f8-64f1-447e-a533-6e60cde013bc",
+      "inputHash": "d0d10aebd4ecdd60e97e55ab5f81b53fbf8a89c91d728c405d456db4d734ca42",
+      "toolCallId": "call_d769ad419b3c4ed9bdd73263",
+      "toolName": "tenant_data__python_execute",
+      "input": {
+        "datasetId": "dataset-a",
+        "source": "import time\nprint(\"native-sandbox-started\", flush=True)\ntime.sleep(90)\nprint(\"should-not-run\")"
+      },
+      "expiresAt": 1794114933694,
+      "state": "pending"
+    },
+    "response": [
+      503,
+      {
+        "code": "REQUEST_REJECTED",
+        "message": "Coding task not found in authorized scope"
+      }
+    ]
+  },
+  {
+    "permission": {
+      "id": "1484dc75-7fb0-4579-aec7-dac2924e2e89",
+      "sessionId": "1057d43c-7175-4cff-a699-375baec4aca1",
+      "taskId": "e56cfc9c-e7f1-48b4-abfc-0bed67591236",
+      "epoch": "00eea9f8-64f1-447e-a533-6e60cde013bc",
+      "inputHash": "d0d10aebd4ecdd60e97e55ab5f81b53fbf8a89c91d728c405d456db4d734ca42",
+      "toolCallId": "call_d769ad419b3c4ed9bdd73263",
+      "toolName": "tenant_data__python_execute",
+      "input": {
+        "datasetId": "dataset-a",
+        "source": "import time\nprint(\"native-sandbox-started\", flush=True)\ntime.sleep(90)\nprint(\"should-not-run\")"
+      },
+      "expiresAt": 1794114933694,
+      "state": "pending"
+    },
+    "response": [
+      503,
+      {
+        "code": "REQUEST_REJECTED",
+        "message": "Coding task not found in authorized scope"
+      }
+    ]
+  },
+  {
+    "permission": {
+      "id": "1484dc75-7fb0-4579-aec7-dac2924e2e89",
+      "sessionId": "1057d43c-7175-4cff-a699-375baec4aca1",
+      "taskId": "e56cfc9c-e7f1-48b4-abfc-0bed67591236",
+      "epoch": "00eea9f8-64f1-447e-a533-6e60cde013bc",
+      "inputHash": "d0d10aebd4ecdd60e97e55ab5f81b53fbf8a89c91d728c405d456db4d734ca42",
+      "toolCallId": "call_d769ad419b3c4ed9bdd73263",
+      "toolName": "tenant_data__python_execute",
+      "input": {
+        "datasetId": "dataset-a",
+        "source": "import time\nprint(\"native-sandbox-started\", flush=True)\ntime.sleep(90)\nprint(\"should-not-run\")"
+      },
+      "expiresAt": 1794114933694,
+      "state": "pending"
+    },
+    "response": [
+      503,
+      {
+        "code": "REQUEST_REJECTED",
+        "message": "Coding task not found in authorized scope"
+      }
+    ]
+  },
+  {
+    "permission": {
+      "id": "1484dc75-7fb0-4579-aec7-dac2924e2e89",
+      "sessionId": "1057d43c-7175-4cff-a699-375baec4aca1",
+      "taskId": "e56cfc9c-e7f1-48b4-abfc-0bed67591236",
+      "epoch": "00eea9f8-64f1-447e-a533-6e60cde013bc",
+      "inputHash": "d0d10aebd4ecdd60e97e55ab5f81b53fbf8a89c91d728c405d456db4d734ca42",
+      "toolCallId": "call_d769ad419b3c4ed9bdd73263",
+      "toolName": "tenant_data__python_execute",
+      "input": {
+        "datasetId": "dataset-a",
+        "source": "import time\nprint(\"native-sandbox-started\", flush=True)\ntime.sleep(90)\nprint(\"should-not-run\")"
+      },
+      "expiresAt": 1794114933694,
+      "state": "pending"
+    },
+    "response": [
+      503,
+      {
+        "code": "REQUEST_REJECTED",
+        "message": "Coding task not found in authorized scope"
+      }
+    ]
+  },
+  {
+    "permission": {
+      "id": "1484dc75-7fb0-4579-aec7-dac2924e2e89",
+      "sessionId": "1057d43c-7175-4cff-a699-375baec4aca1",
+      "taskId": "e56cfc9c-e7f1-48b4-abfc-0bed67591236",
+      "epoch": "00eea9f8-64f1-447e-a533-6e60cde013bc",
+      "inputHash": "d0d10aebd4ecdd60e97e55ab5f81b53fbf8a89c91d728c405d456db4d734ca42",
+      "toolCallId": "call_d769ad419b3c4ed9bdd73263",
+      "toolName": "tenant_data__python_execute",
+      "input": {
+        "datasetId": "dataset-a",
+        "source": "import time\nprint(\"native-sandbox-started\", flush=True)\ntime.sleep(90)\nprint(\"should-not-run\")"
+      },
+      "expiresAt": 1794114933694,
+      "state": "pending"
+    },
+    "response": [
+      503,
+      {
+        "code": "REQUEST_REJECTED",
+        "message": "Coding task not found in authorized scope"
+      }
+    ]
+  },
+  {
+    "permission": {
+      "id": "1484dc75-7fb0-4579-aec7-dac2924e2e89",
+      "sessionId": "1057d43c-7175-4cff-a699-375baec4aca1",
+      "taskId": "e56cfc9c-e7f1-48b4-abfc-0bed67591236",
+      "epoch": "00eea9f8-64f1-447e-a533-6e60cde013bc",
+      "inputHash": "d0d10aebd4ecdd60e97e55ab5f81b53fbf8a89c91d728c405d456db4d734ca42",
+      "toolCallId": "call_d769ad419b3c4ed9bdd73263",
+      "toolName": "tenant_data__python_execute",
+      "input": {
+        "datasetId": "dataset-a",
+        "source": "import time\nprint(\"native-sandbox-started\", flush=True)\ntime.sleep(90)\nprint(\"should-not-run\")"
+      },
+      "expiresAt": 1794114933694,
+      "state": "pending"
+    },
+    "response": [
+      503,
+      {
+        "code": "REQUEST_REJECTED",
+        "message": "Coding task not found in authorized scope"
+      }
+    ]
+  },
+  {
+    "permission": {
+      "id": "1484dc75-7fb0-4579-aec7-dac2924e2e89",
+      "sessionId": "1057d43c-7175-4cff-a699-375baec4aca1",
+      "taskId": "e56cfc9c-e7f1-48b4-abfc-0bed67591236",
+      "epoch": "00eea9f8-64f1-447e-a533-6e60cde013bc",
+      "inputHash": "d0d10aebd4ecdd60e97e55ab5f81b53fbf8a89c91d728c405d456db4d734ca42",
+      "toolCallId": "call_d769ad419b3c4ed9bdd73263",
+      "toolName": "tenant_data__python_execute",
+      "input": {
+        "datasetId": "dataset-a",
+        "source": "import time\nprint(\"native-sandbox-started\", flush=True)\ntime.sleep(90)\nprint(\"should-not-run\")"
+      },
+      "expiresAt": 1794114933694,
+      "state": "pending"
+    },
+    "response": [
+      503,
+      {
+        "code": "REQUEST_REJECTED",
+        "message": "Coding task not found in authorized scope"
+      }
+    ]
+  },
+  {
+    "permission": {
+      "id": "1484dc75-7fb0-4579-aec7-dac2924e2e89",
+      "sessionId": "1057d43c-7175-4cff-a699-375baec4aca1",
+      "taskId": "e56cfc9c-e7f1-48b4-abfc-0bed67591236",
+      "epoch": "00eea9f8-64f1-447e-a533-6e60cde013bc",
+      "inputHash": "d0d10aebd4ecdd60e97e55ab5f81b53fbf8a89c91d728c405d456db4d734ca42",
+      "toolCallId": "call_d769ad419b3c4ed9bdd73263",
+      "toolName": "tenant_data__python_execute",
+      "input": {
+        "datasetId": "dataset-a",
+        "source": "import time\nprint(\"native-sandbox-started\", flush=True)\ntime.sleep(90)\nprint(\"should-not-run\")"
+      },
+      "expiresAt": 1794114933694,
+      "state": "pending"
+    },
+    "response": [
+      503,
+      {
+        "code": "REQUEST_REJECTED",
+        "message": "Coding task not found in authorized scope"
+      }
+    ]
+  },
+  {
+    "permission": {
+      "id": "1484dc75-7fb0-4579-aec7-dac2924e2e89",
+      "sessionId": "1057d43c-7175-4cff-a699-375baec4aca1",
+      "taskId": "e56cfc9c-e7f1-48b4-abfc-0bed67591236",
+      "epoch": "00eea9f8-64f1-447e-a533-6e60cde013bc",
+      "inputHash": "d0d10aebd4ecdd60e97e55ab5f81b53fbf8a89c91d728c405d456db4d734ca42",
+      "toolCallId": "call_d769ad419b3c4ed9bdd73263",
+      "toolName": "tenant_data__python_execute",
+      "input": {
+        "datasetId": "dataset-a",
+        "source": "import time\nprint(\"native-sandbox-started\", flush=True)\ntime.sleep(90)\nprint(\"should-not-run\")"
+      },
+      "expiresAt": 1794114933694,
+      "state": "pending"
+    },
+    "response": [
+      503,
+      {
+        "code": "REQUEST_REJECTED",
+        "message": "Coding task not found in authorized scope"
+      }
+    ]
+  },
+  {
+    "permission": {
+      "id": "1484dc75-7fb0-4579-aec7-dac2924e2e89",
+      "sessionId": "1057d43c-7175-4cff-a699-375baec4aca1",
+      "taskId": "e56cfc9c-e7f1-48b4-abfc-0bed67591236",
+      "epoch": "00eea9f8-64f1-447e-a533-6e60cde013bc",
+      "inputHash": "d0d10aebd4ecdd60e97e55ab5f81b53fbf8a89c91d728c405d456db4d734ca42",
+      "toolCallId": "call_d769ad419b3c4ed9bdd73263",
+      "toolName": "tenant_data__python_execute",
+      "input": {
+        "datasetId": "dataset-a",
+        "source": "import time\nprint(\"native-sandbox-started\", flush=True)\ntime.sleep(90)\nprint(\"should-not-run\")"
+      },
+      "expiresAt": 1794114933694,
+      "state": "pending"
+    },
+    "response": [
+      503,
+      {
+        "code": "REQUEST_REJECTED",
+        "message": "Coding task not found in authorized scope"
+      }
+    ]
+  },
+  {
+    "permission": {
+      "id": "1484dc75-7fb0-4579-aec7-dac2924e2e89",
+      "sessionId": "1057d43c-7175-4cff-a699-375baec4aca1",
+      "taskId": "e56cfc9c-e7f1-48b4-abfc-0bed67591236",
+      "epoch": "00eea9f8-64f1-447e-a533-6e60cde013bc",
+      "inputHash": "d0d10aebd4ecdd60e97e55ab5f81b53fbf8a89c91d728c405d456db4d734ca42",
+      "toolCallId": "call_d769ad419b3c4ed9bdd73263",
+      "toolName": "tenant_data__python_execute",
+      "input": {
+        "datasetId": "dataset-a",
+        "source": "import time\nprint(\"native-sandbox-started\", flush=True)\ntime.sleep(90)\nprint(\"should-not-run\")"
+      },
+      "expiresAt": 1794114933694,
+      "state": "pending"
+    },
+    "response": [
+      503,
+      {
+        "code": "REQUEST_REJECTED",
+        "message": "Coding task not found in authorized scope"
+      }
+    ]
+  },
+  {
+    "permission": {
+      "id": "1484dc75-7fb0-4579-aec7-dac2924e2e89",
+      "sessionId": "1057d43c-7175-4cff-a699-375baec4aca1",
+      "taskId": "e56cfc9c-e7f1-48b4-abfc-0bed67591236",
+      "epoch": "00eea9f8-64f1-447e-a533-6e60cde013bc",
+      "inputHash": "d0d10aebd4ecdd60e97e55ab5f81b53fbf8a89c91d728c405d456db4d734ca42",
+      "toolCallId": "call_d769ad419b3c4ed9bdd73263",
+      "toolName": "tenant_data__python_execute",
+      "input": {
+        "datasetId": "dataset-a",
+        "source": "import time\nprint(\"native-sandbox-started\", flush=True)\ntime.sleep(90)\nprint(\"should-not-run\")"
+      },
+      "expiresAt": 1794114933694,
+      "state": "pending"
+    },
+    "response": [
+      503,
+      {
+        "code": "REQUEST_REJECTED",
+        "message": "Coding task not found in authorized scope"
+      }
+    ]
+  },
+  {
+    "permission": {
+      "id": "1484dc75-7fb0-4579-aec7-dac2924e2e89",
+      "sessionId": "1057d43c-7175-4cff-a699-375baec4aca1",
+      "taskId": "e56cfc9c-e7f1-48b4-abfc-0bed67591236",
+      "epoch": "00eea9f8-64f1-447e-a533-6e60cde013bc",
+      "inputHash": "d0d10aebd4ecdd60e97e55ab5f81b53fbf8a89c91d728c405d456db4d734ca42",
+      "toolCallId": "call_d769ad419b3c4ed9bdd73263",
+      "toolName": "tenant_data__python_execute",
+      "input": {
+        "datasetId": "dataset-a",
+        "source": "import time\nprint(\"native-sandbox-started\", flush=True)\ntime.sleep(90)\nprint(\"should-not-run\")"
+      },
+      "expiresAt": 1794114933694,
+      "state": "pending"
+    },
+    "response": [
+      503,
+      {
+        "code": "REQUEST_REJECTED",
+        "message": "Coding task not found in authorized scope"
+      }
+    ]
+  },
+  {
+    "permission": {
+      "id": "1484dc75-7fb0-4579-aec7-dac2924e2e89",
+      "sessionId": "1057d43c-7175-4cff-a699-375baec4aca1",
+      "taskId": "e56cfc9c-e7f1-48b4-abfc-0bed67591236",
+      "epoch": "00eea9f8-64f1-447e-a533-6e60cde013bc",
+      "inputHash": "d0d10aebd4ecdd60e97e55ab5f81b53fbf8a89c91d728c405d456db4d734ca42",
+      "toolCallId": "call_d769ad419b3c4ed9bdd73263",
+      "toolName": "tenant_data__python_execute",
+      "input": {
+        "datasetId": "dataset-a",
+        "source": "import time\nprint(\"native-sandbox-started\", flush=True)\ntime.sleep(90)\nprint(\"should-not-run\")"
+      },
+      "expiresAt": 1794114933694,
+      "state": "pending"
+    },
+    "response": [
+      503,
+      {
+        "code": "REQUEST_REJECTED",
+        "message": "Coding task not found in authorized scope"
+      }
+    ]
+  },
+  {
+    "permission": {
+      "id": "1484dc75-7fb0-4579-aec7-dac2924e2e89",
+      "sessionId": "1057d43c-7175-4cff-a699-375baec4aca1",
+      "taskId": "e56cfc9c-e7f1-48b4-abfc-0bed67591236",
+      "epoch": "00eea9f8-64f1-447e-a533-6e60cde013bc",
+      "inputHash": "d0d10aebd4ecdd60e97e55ab5f81b53fbf8a89c91d728c405d456db4d734ca42",
+      "toolCallId": "call_d769ad419b3c4ed9bdd73263",
+      "toolName": "tenant_data__python_execute",
+      "input": {
+        "datasetId": "dataset-a",
+        "source": "import time\nprint(\"native-sandbox-started\", flush=True)\ntime.sleep(90)\nprint(\"should-not-run\")"
+      },
+      "expiresAt": 1794114933694,
+      "state": "pending"
+    },
+    "response": [
+      503,
+      {
+        "code": "REQUEST_REJECTED",
+        "message": "Coding task not found in authorized scope"
+      }
+    ]
+  },
+  {
+    "permission": {
+      "id": "1484dc75-7fb0-4579-aec7-dac2924e2e89",
+      "sessionId": "1057d43c-7175-4cff-a699-375baec4aca1",
+      "taskId": "e56cfc9c-e7f1-48b4-abfc-0bed67591236",
+      "epoch": "00eea9f8-64f1-447e-a533-6e60cde013bc",
+      "inputHash": "d0d10aebd4ecdd60e97e55ab5f81b53fbf8a89c91d728c405d456db4d734ca42",
+      "toolCallId": "call_d769ad419b3c4ed9bdd73263",
+      "toolName": "tenant_data__python_execute",
+      "input": {
+        "datasetId": "dataset-a",
+        "source": "import time\nprint(\"native-sandbox-started\", flush=True)\ntime.sleep(90)\nprint(\"should-not-run\")"
+      },
+      "expiresAt": 1794114933694,
+      "state": "pending"
+    },
+    "response": [
+      503,
+      {
+        "code": "REQUEST_REJECTED",
+        "message": "Coding task not found in authorized scope"
+      }
+    ]
+  },
+  {
+    "permission": {
+      "id": "1484dc75-7fb0-4579-aec7-dac2924e2e89",
+      "sessionId": "1057d43c-7175-4cff-a699-375baec4aca1",
+      "taskId": "e56cfc9c-e7f1-48b4-abfc-0bed67591236",
+      "epoch": "00eea9f8-64f1-447e-a533-6e60cde013bc",
+      "inputHash": "d0d10aebd4ecdd60e97e55ab5f81b53fbf8a89c91d728c405d456db4d734ca42",
+      "toolCallId": "call_d769ad419b3c4ed9bdd73263",
+      "toolName": "tenant_data__python_execute",
+      "input": {
+        "datasetId": "dataset-a",
+        "source": "import time\nprint(\"native-sandbox-started\", flush=True)\ntime.sleep(90)\nprint(\"should-not-run\")"
+      },
+      "expiresAt": 1794114933694,
+      "state": "pending"
+    },
+    "response": [
+      503,
+      {
+        "code": "REQUEST_REJECTED",
+        "message": "Coding task not found in authorized scope"
+      }
+    ]
+  },
+  {
+    "permission": {
+      "id": "1484dc75-7fb0-4579-aec7-dac2924e2e89",
+      "sessionId": "1057d43c-7175-4cff-a699-375baec4aca1",
+      "taskId": "e56cfc9c-e7f1-48b4-abfc-0bed67591236",
+      "epoch": "00eea9f8-64f1-447e-a533-6e60cde013bc",
+      "inputHash": "d0d10aebd4ecdd60e97e55ab5f81b53fbf8a89c91d728c405d456db4d734ca42",
+      "toolCallId": "call_d769ad419b3c4ed9bdd73263",
+      "toolName": "tenant_data__python_execute",
+      "input": {
+        "datasetId": "dataset-a",
+        "source": "import time\nprint(\"native-sandbox-started\", flush=True)\ntime.sleep(90)\nprint(\"should-not-run\")"
+      },
+      "expiresAt": 1794114933694,
+      "state": "pending"
+    },
+    "response": [
+      503,
+      {
+        "code": "REQUEST_REJECTED",
+        "message": "Coding task not found in authorized scope"
+      }
+    ]
+  },
+  {
+    "permission": {
+      "id": "1484dc75-7fb0-4579-aec7-dac2924e2e89",
+      "sessionId": "1057d43c-7175-4cff-a699-375baec4aca1",
+      "taskId": "e56cfc9c-e7f1-48b4-abfc-0bed67591236",
+      "epoch": "00eea9f8-64f1-447e-a533-6e60cde013bc",
+      "inputHash": "d0d10aebd4ecdd60e97e55ab5f81b53fbf8a89c91d728c405d456db4d734ca42",
+      "toolCallId": "call_d769ad419b3c4ed9bdd73263",
+      "toolName": "tenant_data__python_execute",
+      "input": {
+        "datasetId": "dataset-a",
+        "source": "import time\nprint(\"native-sandbox-started\", flush=True)\ntime.sleep(90)\nprint(\"should-not-run\")"
+      },
+      "expiresAt": 1794114933694,
+      "state": "pending"
+    },
+    "response": [
+      503,
+      {
+        "code": "REQUEST_REJECTED",
+        "message": "Coding task not found in authorized scope"
+      }
+    ]
+  },
+  {
+    "permission": {
+      "id": "1484dc75-7fb0-4579-aec7-dac2924e2e89",
+      "sessionId": "1057d43c-7175-4cff-a699-375baec4aca1",
+      "taskId": "e56cfc9c-e7f1-48b4-abfc-0bed67591236",
+      "epoch": "00eea9f8-64f1-447e-a533-6e60cde013bc",
+      "inputHash": "d0d10aebd4ecdd60e97e55ab5f81b53fbf8a89c91d728c405d456db4d734ca42",
+      "toolCallId": "call_d769ad419b3c4ed9bdd73263",
+      "toolName": "tenant_data__python_execute",
+      "input": {
+        "datasetId": "dataset-a",
+        "source": "import time\nprint(\"native-sandbox-started\", flush=True)\ntime.sleep(90)\nprint(\"should-not-run\")"
+      },
+      "expiresAt": 1794114933694,
+      "state": "pending"
+    },
+    "response": [
+      503,
+      {
+        "code": "REQUEST_REJECTED",
+        "message": "Coding task not found in authorized scope"
+      }
+    ]
+  },
+  {
+    "permission": {
+      "id": "1484dc75-7fb0-4579-aec7-dac2924e2e89",
+      "sessionId": "1057d43c-7175-4cff-a699-375baec4aca1",
+      "taskId": "e56cfc9c-e7f1-48b4-abfc-0bed67591236",
+      "epoch": "00eea9f8-64f1-447e-a533-6e60cde013bc",
+      "inputHash": "d0d10aebd4ecdd60e97e55ab5f81b53fbf8a89c91d728c405d456db4d734ca42",
+      "toolCallId": "call_d769ad419b3c4ed9bdd73263",
+      "toolName": "tenant_data__python_execute",
+      "input": {
+        "datasetId": "dataset-a",
+        "source": "import time\nprint(\"native-sandbox-started\", flush=True)\ntime.sleep(90)\nprint(\"should-not-run\")"
+      },
+      "expiresAt": 1794114933694,
+      "state": "pending"
+    },
+    "response": [
+      503,
+      {
+        "code": "REQUEST_REJECTED",
+        "message": "Coding task not found in authorized scope"
+      }
+    ]
+  },
+  {
+    "permission": {
+      "id": "1484dc75-7fb0-4579-aec7-dac2924e2e89",
+      "sessionId": "1057d43c-7175-4cff-a699-375baec4aca1",
+      "taskId": "e56cfc9c-e7f1-48b4-abfc-0bed67591236",
+      "epoch": "00eea9f8-64f1-447e-a533-6e60cde013bc",
+      "inputHash": "d0d10aebd4ecdd60e97e55ab5f81b53fbf8a89c91d728c405d456db4d734ca42",
+      "toolCallId": "call_d769ad419b3c4ed9bdd73263",
+      "toolName": "tenant_data__python_execute",
+      "input": {
+        "datasetId": "dataset-a",
+        "source": "import time\nprint(\"native-sandbox-started\", flush=True)\ntime.sleep(90)\nprint(\"should-not-run\")"
+      },
+      "expiresAt": 1794114933694,
+      "state": "pending"
+    },
+    "response": [
+      503,
+      {
+        "code": "REQUEST_REJECTED",
+        "message": "Coding task not found in authorized scope"
+      }
+    ]
+  },
+  {
+    "permission": {
+      "id": "1484dc75-7fb0-4579-aec7-dac2924e2e89",
+      "sessionId": "1057d43c-7175-4cff-a699-375baec4aca1",
+      "taskId": "e56cfc9c-e7f1-48b4-abfc-0bed67591236",
+      "epoch": "00eea9f8-64f1-447e-a533-6e60cde013bc",
+      "inputHash": "d0d10aebd4ecdd60e97e55ab5f81b53fbf8a89c91d728c405d456db4d734ca42",
+      "toolCallId": "call_d769ad419b3c4ed9bdd73263",
+      "toolName": "tenant_data__python_execute",
+      "input": {
+        "datasetId": "dataset-a",
+        "source": "import time\nprint(\"native-sandbox-started\", flush=True)\ntime.sleep(90)\nprint(\"should-not-run\")"
+      },
+      "expiresAt": 1794114933694,
+      "state": "pending"
+    },
+    "response": [
+      503,
+      {
+        "code": "REQUEST_REJECTED",
+        "message": "Coding task not found in authorized scope"
+      }
+    ]
+  },
+  {
+    "permission": {
+      "id": "1484dc75-7fb0-4579-aec7-dac2924e2e89",
+      "sessionId": "1057d43c-7175-4cff-a699-375baec4aca1",
+      "taskId": "e56cfc9c-e7f1-48b4-abfc-0bed67591236",
+      "epoch": "00eea9f8-64f1-447e-a533-6e60cde013bc",
+      "inputHash": "d0d10aebd4ecdd60e97e55ab5f81b53fbf8a89c91d728c405d456db4d734ca42",
+      "toolCallId": "call_d769ad419b3c4ed9bdd73263",
+      "toolName": "tenant_data__python_execute",
+      "input": {
+        "datasetId": "dataset-a",
+        "source": "import time\nprint(\"native-sandbox-started\", flush=True)\ntime.sleep(90)\nprint(\"should-not-run\")"
+      },
+      "expiresAt": 1794114933694,
+      "state": "pending"
+    },
+    "response": [
+      503,
+      {
+        "code": "REQUEST_REJECTED",
+        "message": "Coding task not found in authorized scope"
+      }
+    ]
+  },
+  {
+    "permission": {
+      "id": "1484dc75-7fb0-4579-aec7-dac2924e2e89",
+      "sessionId": "1057d43c-7175-4cff-a699-375baec4aca1",
+      "taskId": "e56cfc9c-e7f1-48b4-abfc-0bed67591236",
+      "epoch": "00eea9f8-64f1-447e-a533-6e60cde013bc",
+      "inputHash": "d0d10aebd4ecdd60e97e55ab5f81b53fbf8a89c91d728c405d456db4d734ca42",
+      "toolCallId": "call_d769ad419b3c4ed9bdd73263",
+      "toolName": "tenant_data__python_execute",
+      "input": {
+        "datasetId": "dataset-a",
+        "source": "import time\nprint(\"native-sandbox-started\", flush=True)\ntime.sleep(90)\nprint(\"should-not-run\")"
+      },
+      "expiresAt": 1794114933694,
+      "state": "pending"
+    },
+    "response": [
+      503,
+      {
+        "code": "REQUEST_REJECTED",
+        "message": "Coding task not found in authorized scope"
+      }
+    ]
+  },
+  {
+    "permission": {
+      "id": "1484dc75-7fb0-4579-aec7-dac2924e2e89",
+      "sessionId": "1057d43c-7175-4cff-a699-375baec4aca1",
+      "taskId": "e56cfc9c-e7f1-48b4-abfc-0bed67591236",
+      "epoch": "00eea9f8-64f1-447e-a533-6e60cde013bc",
+      "inputHash": "d0d10aebd4ecdd60e97e55ab5f81b53fbf8a89c91d728c405d456db4d734ca42",
+      "toolCallId": "call_d769ad419b3c4ed9bdd73263",
+      "toolName": "tenant_data__python_execute",
+      "input": {
+        "datasetId": "dataset-a",
+        "source": "import time\nprint(\"native-sandbox-started\", flush=True)\ntime.sleep(90)\nprint(\"should-not-run\")"
+      },
+      "expiresAt": 1794114933694,
+      "state": "pending"
+    },
+    "response": [
+      503,
+      {
+        "code": "REQUEST_REJECTED",
+        "message": "Coding task not found in authorized scope"
+      }
+    ]
+  },
+  {
+    "permission": {
+      "id": "1484dc75-7fb0-4579-aec7-dac2924e2e89",
+      "sessionId": "1057d43c-7175-4cff-a699-375baec4aca1",
+      "taskId": "e56cfc9c-e7f1-48b4-abfc-0bed67591236",
+      "epoch": "00eea9f8-64f1-447e-a533-6e60cde013bc",
+      "inputHash": "d0d10aebd4ecdd60e97e55ab5f81b53fbf8a89c91d728c405d456db4d734ca42",
+      "toolCallId": "call_d769ad419b3c4ed9bdd73263",
+      "toolName": "tenant_data__python_execute",
+      "input": {
+        "datasetId": "dataset-a",
+        "source": "import time\nprint(\"native-sandbox-started\", flush=True)\ntime.sleep(90)\nprint(\"should-not-run\")"
+      },
+      "expiresAt": 1794114933694,
+      "state": "pending"
+    },
+    "response": [
+      503,
+      {
+        "code": "REQUEST_REJECTED",
+        "message": "Coding task not found in authorized scope"
+      }
+    ]
+  },
+  {
+    "permission": {
+      "id": "1484dc75-7fb0-4579-aec7-dac2924e2e89",
+      "sessionId": "1057d43c-7175-4cff-a699-375baec4aca1",
+      "taskId": "e56cfc9c-e7f1-48b4-abfc-0bed67591236",
+      "epoch": "00eea9f8-64f1-447e-a533-6e60cde013bc",
+      "inputHash": "d0d10aebd4ecdd60e97e55ab5f81b53fbf8a89c91d728c405d456db4d734ca42",
+      "toolCallId": "call_d769ad419b3c4ed9bdd73263",
+      "toolName": "tenant_data__python_execute",
+      "input": {
+        "datasetId": "dataset-a",
+        "source": "import time\nprint(\"native-sandbox-started\", flush=True)\ntime.sleep(90)\nprint(\"should-not-run\")"
+      },
+      "expiresAt": 1794114933694,
+      "state": "pending"
+    },
+    "response": [
+      503,
+      {
+        "code": "REQUEST_REJECTED",
+        "message": "Coding task not found in authorized scope"
+      }
+    ]
+  },
+  {
+    "permission": {
+      "id": "1484dc75-7fb0-4579-aec7-dac2924e2e89",
+      "sessionId": "1057d43c-7175-4cff-a699-375baec4aca1",
+      "taskId": "e56cfc9c-e7f1-48b4-abfc-0bed67591236",
+      "epoch": "00eea9f8-64f1-447e-a533-6e60cde013bc",
+      "inputHash": "d0d10aebd4ecdd60e97e55ab5f81b53fbf8a89c91d728c405d456db4d734ca42",
+      "toolCallId": "call_d769ad419b3c4ed9bdd73263",
+      "toolName": "tenant_data__python_execute",
+      "input": {
+        "datasetId": "dataset-a",
+        "source": "import time\nprint(\"native-sandbox-started\", flush=True)\ntime.sleep(90)\nprint(\"should-not-run\")"
+      },
+      "expiresAt": 1794114933694,
+      "state": "pending"
+    },
+    "response": [
+      503,
+      {
+        "code": "REQUEST_REJECTED",
+        "message": "Coding task not found in authorized scope"
+      }
+    ]
+  },
+  {
+    "permission": {
+      "id": "1484dc75-7fb0-4579-aec7-dac2924e2e89",
+      "sessionId": "1057d43c-7175-4cff-a699-375baec4aca1",
+      "taskId": "e56cfc9c-e7f1-48b4-abfc-0bed67591236",
+      "epoch": "00eea9f8-64f1-447e-a533-6e60cde013bc",
+      "inputHash": "d0d10aebd4ecdd60e97e55ab5f81b53fbf8a89c91d728c405d456db4d734ca42",
+      "toolCallId": "call_d769ad419b3c4ed9bdd73263",
+      "toolName": "tenant_data__python_execute",
+      "input": {
+        "datasetId": "dataset-a",
+        "source": "import time\nprint(\"native-sandbox-started\", flush=True)\ntime.sleep(90)\nprint(\"should-not-run\")"
+      },
+      "expiresAt": 1794114933694,
+      "state": "pending"
+    },
+    "response": [
+      503,
+      {
+        "code": "REQUEST_REJECTED",
+        "message": "Coding task not found in authorized scope"
+      }
+    ]
+  },
+  {
+    "permission": {
+      "id": "1484dc75-7fb0-4579-aec7-dac2924e2e89",
+      "sessionId": "1057d43c-7175-4cff-a699-375baec4aca1",
+      "taskId": "e56cfc9c-e7f1-48b4-abfc-0bed67591236",
+      "epoch": "00eea9f8-64f1-447e-a533-6e60cde013bc",
+      "inputHash": "d0d10aebd4ecdd60e97e55ab5f81b53fbf8a89c91d728c405d456db4d734ca42",
+      "toolCallId": "call_d769ad419b3c4ed9bdd73263",
+      "toolName": "tenant_data__python_execute",
+      "input": {
+        "datasetId": "dataset-a",
+        "source": "import time\nprint(\"native-sandbox-started\", flush=True)\ntime.sleep(90)\nprint(\"should-not-run\")"
+      },
+      "expiresAt": 1794114933694,
+      "state": "pending"
+    },
+    "response": [
+      503,
+      {
+        "code": "REQUEST_REJECTED",
+        "message": "Coding task not found in authorized scope"
+      }
+    ]
+  },
+  {
+    "permission": {
+      "id": "1484dc75-7fb0-4579-aec7-dac2924e2e89",
+      "sessionId": "1057d43c-7175-4cff-a699-375baec4aca1",
+      "taskId": "e56cfc9c-e7f1-48b4-abfc-0bed67591236",
+      "epoch": "00eea9f8-64f1-447e-a533-6e60cde013bc",
+      "inputHash": "d0d10aebd4ecdd60e97e55ab5f81b53fbf8a89c91d728c405d456db4d734ca42",
+      "toolCallId": "call_d769ad419b3c4ed9bdd73263",
+      "toolName": "tenant_data__python_execute",
+      "input": {
+        "datasetId": "dataset-a",
+        "source": "import time\nprint(\"native-sandbox-started\", flush=True)\ntime.sleep(90)\nprint(\"should-not-run\")"
+      },
+      "expiresAt": 1794114933694,
+      "state": "pending"
+    },
+    "response": [
+      503,
+      {
+        "code": "REQUEST_REJECTED",
+        "message": "Coding task not found in authorized scope"
+      }
+    ]
+  },
+  {
+    "permission": {
+      "id": "1484dc75-7fb0-4579-aec7-dac2924e2e89",
+      "sessionId": "1057d43c-7175-4cff-a699-375baec4aca1",
+      "taskId": "e56cfc9c-e7f1-48b4-abfc-0bed67591236",
+      "epoch": "00eea9f8-64f1-447e-a533-6e60cde013bc",
+      "inputHash": "d0d10aebd4ecdd60e97e55ab5f81b53fbf8a89c91d728c405d456db4d734ca42",
+      "toolCallId": "call_d769ad419b3c4ed9bdd73263",
+      "toolName": "tenant_data__python_execute",
+      "input": {
+        "datasetId": "dataset-a",
+        "source": "import time\nprint(\"native-sandbox-started\", flush=True)\ntime.sleep(90)\nprint(\"should-not-run\")"
+      },
+      "expiresAt": 1794114933694,
+      "state": "pending"
+    },
+    "response": [
+      503,
+      {
+        "code": "REQUEST_REJECTED",
+        "message": "Coding task not found in authorized scope"
+      }
+    ]
+  },
+  {
+    "permission": {
+      "id": "1484dc75-7fb0-4579-aec7-dac2924e2e89",
+      "sessionId": "1057d43c-7175-4cff-a699-375baec4aca1",
+      "taskId": "e56cfc9c-e7f1-48b4-abfc-0bed67591236",
+      "epoch": "00eea9f8-64f1-447e-a533-6e60cde013bc",
+      "inputHash": "d0d10aebd4ecdd60e97e55ab5f81b53fbf8a89c91d728c405d456db4d734ca42",
+      "toolCallId": "call_d769ad419b3c4ed9bdd73263",
+      "toolName": "tenant_data__python_execute",
+      "input": {
+        "datasetId": "dataset-a",
+        "source": "import time\nprint(\"native-sandbox-started\", flush=True)\ntime.sleep(90)\nprint(\"should-not-run\")"
+      },
+      "expiresAt": 1794114933694,
+      "state": "pending"
+    },
+    "response": [
+      503,
+      {
+        "code": "REQUEST_REJECTED",
+        "message": "Coding task not found in authorized scope"
+      }
+    ]
+  },
+  {
+    "permission": {
+      "id": "1484dc75-7fb0-4579-aec7-dac2924e2e89",
+      "sessionId": "1057d43c-7175-4cff-a699-375baec4aca1",
+      "taskId": "e56cfc9c-e7f1-48b4-abfc-0bed67591236",
+      "epoch": "00eea9f8-64f1-447e-a533-6e60cde013bc",
+      "inputHash": "d0d10aebd4ecdd60e97e55ab5f81b53fbf8a89c91d728c405d456db4d734ca42",
+      "toolCallId": "call_d769ad419b3c4ed9bdd73263",
+      "toolName": "tenant_data__python_execute",
+      "input": {
+        "datasetId": "dataset-a",
+        "source": "import time\nprint(\"native-sandbox-started\", flush=True)\ntime.sleep(90)\nprint(\"should-not-run\")"
+      },
+      "expiresAt": 1794114933694,
+      "state": "pending"
+    },
+    "response": [
+      503,
+      {
+        "code": "REQUEST_REJECTED",
+        "message": "Coding task not found in authorized scope"
+      }
+    ]
+  },
+  {
+    "permission": {
+      "id": "1484dc75-7fb0-4579-aec7-dac2924e2e89",
+      "sessionId": "1057d43c-7175-4cff-a699-375baec4aca1",
+      "taskId": "e56cfc9c-e7f1-48b4-abfc-0bed67591236",
+      "epoch": "00eea9f8-64f1-447e-a533-6e60cde013bc",
+      "inputHash": "d0d10aebd4ecdd60e97e55ab5f81b53fbf8a89c91d728c405d456db4d734ca42",
+      "toolCallId": "call_d769ad419b3c4ed9bdd73263",
+      "toolName": "tenant_data__python_execute",
+      "input": {
+        "datasetId": "dataset-a",
+        "source": "import time\nprint(\"native-sandbox-started\", flush=True)\ntime.sleep(90)\nprint(\"should-not-run\")"
+      },
+      "expiresAt": 1794114933694,
+      "state": "pending"
+    },
+    "response": [
+      503,
+      {
+        "code": "REQUEST_REJECTED",
+        "message": "Coding task not found in authorized scope"
+      }
+    ]
+  },
+  {
+    "permission": {
+      "id": "1484dc75-7fb0-4579-aec7-dac2924e2e89",
+      "sessionId": "1057d43c-7175-4cff-a699-375baec4aca1",
+      "taskId": "e56cfc9c-e7f1-48b4-abfc-0bed67591236",
+      "epoch": "00eea9f8-64f1-447e-a533-6e60cde013bc",
+      "inputHash": "d0d10aebd4ecdd60e97e55ab5f81b53fbf8a89c91d728c405d456db4d734ca42",
+      "toolCallId": "call_d769ad419b3c4ed9bdd73263",
+      "toolName": "tenant_data__python_execute",
+      "input": {
+        "datasetId": "dataset-a",
+        "source": "import time\nprint(\"native-sandbox-started\", flush=True)\ntime.sleep(90)\nprint(\"should-not-run\")"
+      },
+      "expiresAt": 1794114933694,
+      "state": "pending"
+    },
+    "response": [
+      503,
+      {
+        "code": "REQUEST_REJECTED",
+        "message": "Coding task not found in authorized scope"
+      }
+    ]
+  },
+  {
+    "permission": {
+      "id": "1484dc75-7fb0-4579-aec7-dac2924e2e89",
+      "sessionId": "1057d43c-7175-4cff-a699-375baec4aca1",
+      "taskId": "e56cfc9c-e7f1-48b4-abfc-0bed67591236",
+      "epoch": "00eea9f8-64f1-447e-a533-6e60cde013bc",
+      "inputHash": "d0d10aebd4ecdd60e97e55ab5f81b53fbf8a89c91d728c405d456db4d734ca42",
+      "toolCallId": "call_d769ad419b3c4ed9bdd73263",
+      "toolName": "tenant_data__python_execute",
+      "input": {
+        "datasetId": "dataset-a",
+        "source": "import time\nprint(\"native-sandbox-started\", flush=True)\ntime.sleep(90)\nprint(\"should-not-run\")"
+      },
+      "expiresAt": 1794114933694,
+      "state": "pending"
+    },
+    "response": [
+      503,
+      {
+        "code": "REQUEST_REJECTED",
+        "message": "Coding task not found in authorized scope"
+      }
+    ]
+  },
+  {
+    "permission": {
+      "id": "1484dc75-7fb0-4579-aec7-dac2924e2e89",
+      "sessionId": "1057d43c-7175-4cff-a699-375baec4aca1",
+      "taskId": "e56cfc9c-e7f1-48b4-abfc-0bed67591236",
+      "epoch": "00eea9f8-64f1-447e-a533-6e60cde013bc",
+      "inputHash": "d0d10aebd4ecdd60e97e55ab5f81b53fbf8a89c91d728c405d456db4d734ca42",
+      "toolCallId": "call_d769ad419b3c4ed9bdd73263",
+      "toolName": "tenant_data__python_execute",
+      "input": {
+        "datasetId": "dataset-a",
+        "source": "import time\nprint(\"native-sandbox-started\", flush=True)\ntime.sleep(90)\nprint(\"should-not-run\")"
+      },
+      "expiresAt": 1794114933694,
+      "state": "pending"
+    },
+    "response": [
+      503,
+      {
+        "code": "REQUEST_REJECTED",
+        "message": "Coding task not found in authorized scope"
+      }
+    ]
+  },
+  {
+    "permission": {
+      "id": "1484dc75-7fb0-4579-aec7-dac2924e2e89",
+      "sessionId": "1057d43c-7175-4cff-a699-375baec4aca1",
+      "taskId": "e56cfc9c-e7f1-48b4-abfc-0bed67591236",
+      "epoch": "00eea9f8-64f1-447e-a533-6e60cde013bc",
+      "inputHash": "d0d10aebd4ecdd60e97e55ab5f81b53fbf8a89c91d728c405d456db4d734ca42",
+      "toolCallId": "call_d769ad419b3c4ed9bdd73263",
+      "toolName": "tenant_data__python_execute",
+      "input": {
+        "datasetId": "dataset-a",
+        "source": "import time\nprint(\"native-sandbox-started\", flush=True)\ntime.sleep(90)\nprint(\"should-not-run\")"
+      },
+      "expiresAt": 1794114933694,
+      "state": "pending"
+    },
+    "response": [
+      503,
+      {
+        "code": "REQUEST_REJECTED",
+        "message": "Coding task not found in authorized scope"
+      }
+    ]
+  },
+  {
+    "permission": {
+      "id": "1484dc75-7fb0-4579-aec7-dac2924e2e89",
+      "sessionId": "1057d43c-7175-4cff-a699-375baec4aca1",
+      "taskId": "e56cfc9c-e7f1-48b4-abfc-0bed67591236",
+      "epoch": "00eea9f8-64f1-447e-a533-6e60cde013bc",
+      "inputHash": "d0d10aebd4ecdd60e97e55ab5f81b53fbf8a89c91d728c405d456db4d734ca42",
+      "toolCallId": "call_d769ad419b3c4ed9bdd73263",
+      "toolName": "tenant_data__python_execute",
+      "input": {
+        "datasetId": "dataset-a",
+        "source": "import time\nprint(\"native-sandbox-started\", flush=True)\ntime.sleep(90)\nprint(\"should-not-run\")"
+      },
+      "expiresAt": 1794114933694,
+      "state": "pending"
+    },
+    "response": [
+      503,
+      {
+        "code": "REQUEST_REJECTED",
+        "message": "Coding task not found in authorized scope"
+      }
+    ]
+  },
+  {
+    "permission": {
+      "id": "1484dc75-7fb0-4579-aec7-dac2924e2e89",
+      "sessionId": "1057d43c-7175-4cff-a699-375baec4aca1",
+      "taskId": "e56cfc9c-e7f1-48b4-abfc-0bed67591236",
+      "epoch": "00eea9f8-64f1-447e-a533-6e60cde013bc",
+      "inputHash": "d0d10aebd4ecdd60e97e55ab5f81b53fbf8a89c91d728c405d456db4d734ca42",
+      "toolCallId": "call_d769ad419b3c4ed9bdd73263",
+      "toolName": "tenant_data__python_execute",
+      "input": {
+        "datasetId": "dataset-a",
+        "source": "import time\nprint(\"native-sandbox-started\", flush=True)\ntime.sleep(90)\nprint(\"should-not-run\")"
+      },
+      "expiresAt": 1794114933694,
+      "state": "pending"
+    },
+    "response": [
+      503,
+      {
+        "code": "REQUEST_REJECTED",
+        "message": "Coding task not found in authorized scope"
+      }
+    ]
+  },
+  {
+    "permission": {
+      "id": "1484dc75-7fb0-4579-aec7-dac2924e2e89",
+      "sessionId": "1057d43c-7175-4cff-a699-375baec4aca1",
+      "taskId": "e56cfc9c-e7f1-48b4-abfc-0bed67591236",
+      "epoch": "00eea9f8-64f1-447e-a533-6e60cde013bc",
+      "inputHash": "d0d10aebd4ecdd60e97e55ab5f81b53fbf8a89c91d728c405d456db4d734ca42",
+      "toolCallId": "call_d769ad419b3c4ed9bdd73263",
+      "toolName": "tenant_data__python_execute",
+      "input": {
+        "datasetId": "dataset-a",
+        "source": "import time\nprint(\"native-sandbox-started\", flush=True)\ntime.sleep(90)\nprint(\"should-not-run\")"
+      },
+      "expiresAt": 1794114933694,
+      "state": "pending"
+    },
+    "response": [
+      503,
+      {
+        "code": "REQUEST_REJECTED",
+        "message": "Coding task not found in authorized scope"
+      }
+    ]
+  },
+  {
+    "permission": {
+      "id": "1484dc75-7fb0-4579-aec7-dac2924e2e89",
+      "sessionId": "1057d43c-7175-4cff-a699-375baec4aca1",
+      "taskId": "e56cfc9c-e7f1-48b4-abfc-0bed67591236",
+      "epoch": "00eea9f8-64f1-447e-a533-6e60cde013bc",
+      "inputHash": "d0d10aebd4ecdd60e97e55ab5f81b53fbf8a89c91d728c405d456db4d734ca42",
+      "toolCallId": "call_d769ad419b3c4ed9bdd73263",
+      "toolName": "tenant_data__python_execute",
+      "input": {
+        "datasetId": "dataset-a",
+        "source": "import time\nprint(\"native-sandbox-started\", flush=True)\ntime.sleep(90)\nprint(\"should-not-run\")"
+      },
+      "expiresAt": 1794114933694,
+      "state": "pending"
+    },
+    "response": [
+      503,
+      {
+        "code": "REQUEST_REJECTED",
+        "message": "Coding task not found in authorized scope"
+      }
+    ]
+  },
+  {
+    "permission": {
+      "id": "1484dc75-7fb0-4579-aec7-dac2924e2e89",
+      "sessionId": "1057d43c-7175-4cff-a699-375baec4aca1",
+      "taskId": "e56cfc9c-e7f1-48b4-abfc-0bed67591236",
+      "epoch": "00eea9f8-64f1-447e-a533-6e60cde013bc",
+      "inputHash": "d0d10aebd4ecdd60e97e55ab5f81b53fbf8a89c91d728c405d456db4d734ca42",
+      "toolCallId": "call_d769ad419b3c4ed9bdd73263",
+      "toolName": "tenant_data__python_execute",
+      "input": {
+        "datasetId": "dataset-a",
+        "source": "import time\nprint(\"native-sandbox-started\", flush=True)\ntime.sleep(90)\nprint(\"should-not-run\")"
+      },
+      "expiresAt": 1794114933694,
+      "state": "pending"
+    },
+    "response": [
+      503,
+      {
+        "code": "REQUEST_REJECTED",
+        "message": "Coding task not found in authorized scope"
+      }
+    ]
+  },
+  {
+    "permission": {
+      "id": "1484dc75-7fb0-4579-aec7-dac2924e2e89",
+      "sessionId": "1057d43c-7175-4cff-a699-375baec4aca1",
+      "taskId": "e56cfc9c-e7f1-48b4-abfc-0bed67591236",
+      "epoch": "00eea9f8-64f1-447e-a533-6e60cde013bc",
+      "inputHash": "d0d10aebd4ecdd60e97e55ab5f81b53fbf8a89c91d728c405d456db4d734ca42",
+      "toolCallId": "call_d769ad419b3c4ed9bdd73263",
+      "toolName": "tenant_data__python_execute",
+      "input": {
+        "datasetId": "dataset-a",
+        "source": "import time\nprint(\"native-sandbox-started\", flush=True)\ntime.sleep(90)\nprint(\"should-not-run\")"
+      },
+      "expiresAt": 1794114933694,
+      "state": "pending"
+    },
+    "response": [
+      503,
+      {
+        "code": "REQUEST_REJECTED",
+        "message": "Coding task not found in authorized scope"
+      }
+    ]
+  },
+  {
+    "permission": {
+      "id": "1484dc75-7fb0-4579-aec7-dac2924e2e89",
+      "sessionId": "1057d43c-7175-4cff-a699-375baec4aca1",
+      "taskId": "e56cfc9c-e7f1-48b4-abfc-0bed67591236",
+      "epoch": "00eea9f8-64f1-447e-a533-6e60cde013bc",
+      "inputHash": "d0d10aebd4ecdd60e97e55ab5f81b53fbf8a89c91d728c405d456db4d734ca42",
+      "toolCallId": "call_d769ad419b3c4ed9bdd73263",
+      "toolName": "tenant_data__python_execute",
+      "input": {
+        "datasetId": "dataset-a",
+        "source": "import time\nprint(\"native-sandbox-started\", flush=True)\ntime.sleep(90)\nprint(\"should-not-run\")"
+      },
+      "expiresAt": 1794114933694,
+      "state": "pending"
+    },
+    "response": [
+      503,
+      {
+        "code": "REQUEST_REJECTED",
+        "message": "Coding task not found in authorized scope"
+      }
+    ]
+  },
+  {
+    "permission": {
+      "id": "1484dc75-7fb0-4579-aec7-dac2924e2e89",
+      "sessionId": "1057d43c-7175-4cff-a699-375baec4aca1",
+      "taskId": "e56cfc9c-e7f1-48b4-abfc-0bed67591236",
+      "epoch": "00eea9f8-64f1-447e-a533-6e60cde013bc",
+      "inputHash": "d0d10aebd4ecdd60e97e55ab5f81b53fbf8a89c91d728c405d456db4d734ca42",
+      "toolCallId": "call_d769ad419b3c4ed9bdd73263",
+      "toolName": "tenant_data__python_execute",
+      "input": {
+        "datasetId": "dataset-a",
+        "source": "import time\nprint(\"native-sandbox-started\", flush=True)\ntime.sleep(90)\nprint(\"should-not-run\")"
+      },
+      "expiresAt": 1794114933694,
+      "state": "pending"
+    },
+    "response": [
+      503,
+      {
+        "code": "REQUEST_REJECTED",
+        "message": "Coding task not found in authorized scope"
+      }
+    ]
+  },
+  {
+    "permission": {
+      "id": "1484dc75-7fb0-4579-aec7-dac2924e2e89",
+      "sessionId": "1057d43c-7175-4cff-a699-375baec4aca1",
+      "taskId": "e56cfc9c-e7f1-48b4-abfc-0bed67591236",
+      "epoch": "00eea9f8-64f1-447e-a533-6e60cde013bc",
+      "inputHash": "d0d10aebd4ecdd60e97e55ab5f81b53fbf8a89c91d728c405d456db4d734ca42",
+      "toolCallId": "call_d769ad419b3c4ed9bdd73263",
+      "toolName": "tenant_data__python_execute",
+      "input": {
+        "datasetId": "dataset-a",
+        "source": "import time\nprint(\"native-sandbox-started\", flush=True)\ntime.sleep(90)\nprint(\"should-not-run\")"
+      },
+      "expiresAt": 1794114933694,
+      "state": "pending"
+    },
+    "response": [
+      503,
+      {
+        "code": "REQUEST_REJECTED",
+        "message": "Coding task not found in authorized scope"
+      }
+    ]
+  },
+  {
+    "permission": {
+      "id": "1484dc75-7fb0-4579-aec7-dac2924e2e89",
+      "sessionId": "1057d43c-7175-4cff-a699-375baec4aca1",
+      "taskId": "e56cfc9c-e7f1-48b4-abfc-0bed67591236",
+      "epoch": "00eea9f8-64f1-447e-a533-6e60cde013bc",
+      "inputHash": "d0d10aebd4ecdd60e97e55ab5f81b53fbf8a89c91d728c405d456db4d734ca42",
+      "toolCallId": "call_d769ad419b3c4ed9bdd73263",
+      "toolName": "tenant_data__python_execute",
+      "input": {
+        "datasetId": "dataset-a",
+        "source": "import time\nprint(\"native-sandbox-started\", flush=True)\ntime.sleep(90)\nprint(\"should-not-run\")"
+      },
+      "expiresAt": 1794114933694,
+      "state": "pending"
+    },
+    "response": [
+      503,
+      {
+        "code": "REQUEST_REJECTED",
+        "message": "Coding task not found in authorized scope"
+      }
+    ]
+  },
+  {
+    "permission": {
+      "id": "1484dc75-7fb0-4579-aec7-dac2924e2e89",
+      "sessionId": "1057d43c-7175-4cff-a699-375baec4aca1",
+      "taskId": "e56cfc9c-e7f1-48b4-abfc-0bed67591236",
+      "epoch": "00eea9f8-64f1-447e-a533-6e60cde013bc",
+      "inputHash": "d0d10aebd4ecdd60e97e55ab5f81b53fbf8a89c91d728c405d456db4d734ca42",
+      "toolCallId": "call_d769ad419b3c4ed9bdd73263",
+      "toolName": "tenant_data__python_execute",
+      "input": {
+        "datasetId": "dataset-a",
+        "source": "import time\nprint(\"native-sandbox-started\", flush=True)\ntime.sleep(90)\nprint(\"should-not-run\")"
+      },
+      "expiresAt": 1794114933694,
+      "state": "pending"
+    },
+    "response": [
+      503,
+      {
+        "code": "REQUEST_REJECTED",
+        "message": "Coding task not found in authorized scope"
+      }
+    ]
+  },
+  {
+    "permission": {
+      "id": "1484dc75-7fb0-4579-aec7-dac2924e2e89",
+      "sessionId": "1057d43c-7175-4cff-a699-375baec4aca1",
+      "taskId": "e56cfc9c-e7f1-48b4-abfc-0bed67591236",
+      "epoch": "00eea9f8-64f1-447e-a533-6e60cde013bc",
+      "inputHash": "d0d10aebd4ecdd60e97e55ab5f81b53fbf8a89c91d728c405d456db4d734ca42",
+      "toolCallId": "call_d769ad419b3c4ed9bdd73263",
+      "toolName": "tenant_data__python_execute",
+      "input": {
+        "datasetId": "dataset-a",
+        "source": "import time\nprint(\"native-sandbox-started\", flush=True)\ntime.sleep(90)\nprint(\"should-not-run\")"
+      },
+      "expiresAt": 1794114933694,
+      "state": "pending"
+    },
+    "response": [
+      503,
+      {
+        "code": "REQUEST_REJECTED",
+        "message": "Coding task not found in authorized scope"
+      }
+    ]
+  },
+  {
+    "permission": {
+      "id": "1484dc75-7fb0-4579-aec7-dac2924e2e89",
+      "sessionId": "1057d43c-7175-4cff-a699-375baec4aca1",
+      "taskId": "e56cfc9c-e7f1-48b4-abfc-0bed67591236",
+      "epoch": "00eea9f8-64f1-447e-a533-6e60cde013bc",
+      "inputHash": "d0d10aebd4ecdd60e97e55ab5f81b53fbf8a89c91d728c405d456db4d734ca42",
+      "toolCallId": "call_d769ad419b3c4ed9bdd73263",
+      "toolName": "tenant_data__python_execute",
+      "input": {
+        "datasetId": "dataset-a",
+        "source": "import time\nprint(\"native-sandbox-started\", flush=True)\ntime.sleep(90)\nprint(\"should-not-run\")"
+      },
+      "expiresAt": 1794114933694,
+      "state": "pending"
+    },
+    "response": [
+      503,
+      {
+        "code": "REQUEST_REJECTED",
+        "message": "Coding task not found in authorized scope"
+      }
+    ]
+  },
+  {
+    "permission": {
+      "id": "1484dc75-7fb0-4579-aec7-dac2924e2e89",
+      "sessionId": "1057d43c-7175-4cff-a699-375baec4aca1",
+      "taskId": "e56cfc9c-e7f1-48b4-abfc-0bed67591236",
+      "epoch": "00eea9f8-64f1-447e-a533-6e60cde013bc",
+      "inputHash": "d0d10aebd4ecdd60e97e55ab5f81b53fbf8a89c91d728c405d456db4d734ca42",
+      "toolCallId": "call_d769ad419b3c4ed9bdd73263",
+      "toolName": "tenant_data__python_execute",
+      "input": {
+        "datasetId": "dataset-a",
+        "source": "import time\nprint(\"native-sandbox-started\", flush=True)\ntime.sleep(90)\nprint(\"should-not-run\")"
+      },
+      "expiresAt": 1794114933694,
+      "state": "pending"
+    },
+    "response": [
+      503,
+      {
+        "code": "REQUEST_REJECTED",
+        "message": "Coding task not found in authorized scope"
+      }
+    ]
+  },
+  {
+    "permission": {
+      "id": "1484dc75-7fb0-4579-aec7-dac2924e2e89",
+      "sessionId": "1057d43c-7175-4cff-a699-375baec4aca1",
+      "taskId": "e56cfc9c-e7f1-48b4-abfc-0bed67591236",
+      "epoch": "00eea9f8-64f1-447e-a533-6e60cde013bc",
+      "inputHash": "d0d10aebd4ecdd60e97e55ab5f81b53fbf8a89c91d728c405d456db4d734ca42",
+      "toolCallId": "call_d769ad419b3c4ed9bdd73263",
+      "toolName": "tenant_data__python_execute",
+      "input": {
+        "datasetId": "dataset-a",
+        "source": "import time\nprint(\"native-sandbox-started\", flush=True)\ntime.sleep(90)\nprint(\"should-not-run\")"
+      },
+      "expiresAt": 1794114933694,
+      "state": "pending"
+    },
+    "response": [
+      503,
+      {
+        "code": "REQUEST_REJECTED",
+        "message": "Coding task not found in authorized scope"
+      }
+    ]
+  },
+  {
+    "permission": {
+      "id": "1484dc75-7fb0-4579-aec7-dac2924e2e89",
+      "sessionId": "1057d43c-7175-4cff-a699-375baec4aca1",
+      "taskId": "e56cfc9c-e7f1-48b4-abfc-0bed67591236",
+      "epoch": "00eea9f8-64f1-447e-a533-6e60cde013bc",
+      "inputHash": "d0d10aebd4ecdd60e97e55ab5f81b53fbf8a89c91d728c405d456db4d734ca42",
+      "toolCallId": "call_d769ad419b3c4ed9bdd73263",
+      "toolName": "tenant_data__python_execute",
+      "input": {
+        "datasetId": "dataset-a",
+        "source": "import time\nprint(\"native-sandbox-started\", flush=True)\ntime.sleep(90)\nprint(\"should-not-run\")"
+      },
+      "expiresAt": 1794114933694,
+      "state": "pending"
+    },
+    "response": [
+      503,
+      {
+        "code": "REQUEST_REJECTED",
+        "message": "Coding task not found in authorized scope"
+      }
+    ]
+  },
+  {
+    "permission": {
+      "id": "1484dc75-7fb0-4579-aec7-dac2924e2e89",
+      "sessionId": "1057d43c-7175-4cff-a699-375baec4aca1",
+      "taskId": "e56cfc9c-e7f1-48b4-abfc-0bed67591236",
+      "epoch": "00eea9f8-64f1-447e-a533-6e60cde013bc",
+      "inputHash": "d0d10aebd4ecdd60e97e55ab5f81b53fbf8a89c91d728c405d456db4d734ca42",
+      "toolCallId": "call_d769ad419b3c4ed9bdd73263",
+      "toolName": "tenant_data__python_execute",
+      "input": {
+        "datasetId": "dataset-a",
+        "source": "import time\nprint(\"native-sandbox-started\", flush=True)\ntime.sleep(90)\nprint(\"should-not-run\")"
+      },
+      "expiresAt": 1794114933694,
+      "state": "pending"
+    },
+    "response": [
+      503,
+      {
+        "code": "REQUEST_REJECTED",
+        "message": "Coding task not found in authorized scope"
+      }
+    ]
+  },
+  {
+    "permission": {
+      "id": "1484dc75-7fb0-4579-aec7-dac2924e2e89",
+      "sessionId": "1057d43c-7175-4cff-a699-375baec4aca1",
+      "taskId": "e56cfc9c-e7f1-48b4-abfc-0bed67591236",
+      "epoch": "00eea9f8-64f1-447e-a533-6e60cde013bc",
+      "inputHash": "d0d10aebd4ecdd60e97e55ab5f81b53fbf8a89c91d728c405d456db4d734ca42",
+      "toolCallId": "call_d769ad419b3c4ed9bdd73263",
+      "toolName": "tenant_data__python_execute",
+      "input": {
+        "datasetId": "dataset-a",
+        "source": "import time\nprint(\"native-sandbox-started\", flush=True)\ntime.sleep(90)\nprint(\"should-not-run\")"
+      },
+      "expiresAt": 1794114933694,
+      "state": "pending"
+    },
+    "response": [
+      503,
+      {
+        "code": "REQUEST_REJECTED",
+        "message": "Coding task not found in authorized scope"
+      }
+    ]
+  },
+  {
+    "permission": {
+      "id": "1484dc75-7fb0-4579-aec7-dac2924e2e89",
+      "sessionId": "1057d43c-7175-4cff-a699-375baec4aca1",
+      "taskId": "e56cfc9c-e7f1-48b4-abfc-0bed67591236",
+      "epoch": "00eea9f8-64f1-447e-a533-6e60cde013bc",
+      "inputHash": "d0d10aebd4ecdd60e97e55ab5f81b53fbf8a89c91d728c405d456db4d734ca42",
+      "toolCallId": "call_d769ad419b3c4ed9bdd73263",
+      "toolName": "tenant_data__python_execute",
+      "input": {
+        "datasetId": "dataset-a",
+        "source": "import time\nprint(\"native-sandbox-started\", flush=True)\ntime.sleep(90)\nprint(\"should-not-run\")"
+      },
+      "expiresAt": 1794114933694,
+      "state": "pending"
+    },
+    "response": [
+      503,
+      {
+        "code": "REQUEST_REJECTED",
+        "message": "Coding task not found in authorized scope"
+      }
+    ]
+  },
+  {
+    "permission": {
+      "id": "1484dc75-7fb0-4579-aec7-dac2924e2e89",
+      "sessionId": "1057d43c-7175-4cff-a699-375baec4aca1",
+      "taskId": "e56cfc9c-e7f1-48b4-abfc-0bed67591236",
+      "epoch": "00eea9f8-64f1-447e-a533-6e60cde013bc",
+      "inputHash": "d0d10aebd4ecdd60e97e55ab5f81b53fbf8a89c91d728c405d456db4d734ca42",
+      "toolCallId": "call_d769ad419b3c4ed9bdd73263",
+      "toolName": "tenant_data__python_execute",
+      "input": {
+        "datasetId": "dataset-a",
+        "source": "import time\nprint(\"native-sandbox-started\", flush=True)\ntime.sleep(90)\nprint(\"should-not-run\")"
+      },
+      "expiresAt": 1794114933694,
+      "state": "pending"
+    },
+    "response": [
+      503,
+      {
+        "code": "REQUEST_REJECTED",
+        "message": "Coding task not found in authorized scope"
+      }
+    ]
+  },
+  {
+    "permission": {
+      "id": "1484dc75-7fb0-4579-aec7-dac2924e2e89",
+      "sessionId": "1057d43c-7175-4cff-a699-375baec4aca1",
+      "taskId": "e56cfc9c-e7f1-48b4-abfc-0bed67591236",
+      "epoch": "00eea9f8-64f1-447e-a533-6e60cde013bc",
+      "inputHash": "d0d10aebd4ecdd60e97e55ab5f81b53fbf8a89c91d728c405d456db4d734ca42",
+      "toolCallId": "call_d769ad419b3c4ed9bdd73263",
+      "toolName": "tenant_data__python_execute",
+      "input": {
+        "datasetId": "dataset-a",
+        "source": "import time\nprint(\"native-sandbox-started\", flush=True)\ntime.sleep(90)\nprint(\"should-not-run\")"
+      },
+      "expiresAt": 1794114933694,
+      "state": "pending"
+    },
+    "response": [
+      503,
+      {
+        "code": "REQUEST_REJECTED",
+        "message": "Coding task not found in authorized scope"
+      }
+    ]
+  },
+  {
+    "permission": {
+      "id": "1484dc75-7fb0-4579-aec7-dac2924e2e89",
+      "sessionId": "1057d43c-7175-4cff-a699-375baec4aca1",
+      "taskId": "e56cfc9c-e7f1-48b4-abfc-0bed67591236",
+      "epoch": "00eea9f8-64f1-447e-a533-6e60cde013bc",
+      "inputHash": "d0d10aebd4ecdd60e97e55ab5f81b53fbf8a89c91d728c405d456db4d734ca42",
+      "toolCallId": "call_d769ad419b3c4ed9bdd73263",
+      "toolName": "tenant_data__python_execute",
+      "input": {
+        "datasetId": "dataset-a",
+        "source": "import time\nprint(\"native-sandbox-started\", flush=True)\ntime.sleep(90)\nprint(\"should-not-run\")"
+      },
+      "expiresAt": 1794114933694,
+      "state": "pending"
+    },
+    "response": [
+      503,
+      {
+        "code": "REQUEST_REJECTED",
+        "message": "Coding task not found in authorized scope"
+      }
+    ]
+  },
+  {
+    "permission": {
+      "id": "1484dc75-7fb0-4579-aec7-dac2924e2e89",
+      "sessionId": "1057d43c-7175-4cff-a699-375baec4aca1",
+      "taskId": "e56cfc9c-e7f1-48b4-abfc-0bed67591236",
+      "epoch": "00eea9f8-64f1-447e-a533-6e60cde013bc",
+      "inputHash": "d0d10aebd4ecdd60e97e55ab5f81b53fbf8a89c91d728c405d456db4d734ca42",
+      "toolCallId": "call_d769ad419b3c4ed9bdd73263",
+      "toolName": "tenant_data__python_execute",
+      "input": {
+        "datasetId": "dataset-a",
+        "source": "import time\nprint(\"native-sandbox-started\", flush=True)\ntime.sleep(90)\nprint(\"should-not-run\")"
+      },
+      "expiresAt": 1794114933694,
+      "state": "pending"
+    },
+    "response": [
+      503,
+      {
+        "code": "REQUEST_REJECTED",
+        "message": "Coding task not found in authorized scope"
+      }
+    ]
+  },
+  {
+    "permission": {
+      "id": "1484dc75-7fb0-4579-aec7-dac2924e2e89",
+      "sessionId": "1057d43c-7175-4cff-a699-375baec4aca1",
+      "taskId": "e56cfc9c-e7f1-48b4-abfc-0bed67591236",
+      "epoch": "00eea9f8-64f1-447e-a533-6e60cde013bc",
+      "inputHash": "d0d10aebd4ecdd60e97e55ab5f81b53fbf8a89c91d728c405d456db4d734ca42",
+      "toolCallId": "call_d769ad419b3c4ed9bdd73263",
+      "toolName": "tenant_data__python_execute",
+      "input": {
+        "datasetId": "dataset-a",
+        "source": "import time\nprint(\"native-sandbox-started\", flush=True)\ntime.sleep(90)\nprint(\"should-not-run\")"
+      },
+      "expiresAt": 1794114933694,
+      "state": "pending"
+    },
+    "response": [
+      503,
+      {
+        "code": "REQUEST_REJECTED",
+        "message": "Coding task not found in authorized scope"
+      }
+    ]
+  },
+  {
+    "permission": {
+      "id": "1484dc75-7fb0-4579-aec7-dac2924e2e89",
+      "sessionId": "1057d43c-7175-4cff-a699-375baec4aca1",
+      "taskId": "e56cfc9c-e7f1-48b4-abfc-0bed67591236",
+      "epoch": "00eea9f8-64f1-447e-a533-6e60cde013bc",
+      "inputHash": "d0d10aebd4ecdd60e97e55ab5f81b53fbf8a89c91d728c405d456db4d734ca42",
+      "toolCallId": "call_d769ad419b3c4ed9bdd73263",
+      "toolName": "tenant_data__python_execute",
+      "input": {
+        "datasetId": "dataset-a",
+        "source": "import time\nprint(\"native-sandbox-started\", flush=True)\ntime.sleep(90)\nprint(\"should-not-run\")"
+      },
+      "expiresAt": 1794114933694,
+      "state": "pending"
+    },
+    "response": [
+      503,
+      {
+        "code": "REQUEST_REJECTED",
+        "message": "Coding task not found in authorized scope"
+      }
+    ]
+  },
+  {
+    "permission": {
+      "id": "1484dc75-7fb0-4579-aec7-dac2924e2e89",
+      "sessionId": "1057d43c-7175-4cff-a699-375baec4aca1",
+      "taskId": "e56cfc9c-e7f1-48b4-abfc-0bed67591236",
+      "epoch": "00eea9f8-64f1-447e-a533-6e60cde013bc",
+      "inputHash": "d0d10aebd4ecdd60e97e55ab5f81b53fbf8a89c91d728c405d456db4d734ca42",
+      "toolCallId": "call_d769ad419b3c4ed9bdd73263",
+      "toolName": "tenant_data__python_execute",
+      "input": {
+        "datasetId": "dataset-a",
+        "source": "import time\nprint(\"native-sandbox-started\", flush=True)\ntime.sleep(90)\nprint(\"should-not-run\")"
+      },
+      "expiresAt": 1794114933694,
+      "state": "pending"
+    },
+    "response": [
+      503,
+      {
+        "code": "REQUEST_REJECTED",
+        "message": "Coding task not found in authorized scope"
+      }
+    ]
+  },
+  {
+    "permission": {
+      "id": "1484dc75-7fb0-4579-aec7-dac2924e2e89",
+      "sessionId": "1057d43c-7175-4cff-a699-375baec4aca1",
+      "taskId": "e56cfc9c-e7f1-48b4-abfc-0bed67591236",
+      "epoch": "00eea9f8-64f1-447e-a533-6e60cde013bc",
+      "inputHash": "d0d10aebd4ecdd60e97e55ab5f81b53fbf8a89c91d728c405d456db4d734ca42",
+      "toolCallId": "call_d769ad419b3c4ed9bdd73263",
+      "toolName": "tenant_data__python_execute",
+      "input": {
+        "datasetId": "dataset-a",
+        "source": "import time\nprint(\"native-sandbox-started\", flush=True)\ntime.sleep(90)\nprint(\"should-not-run\")"
+      },
+      "expiresAt": 1794114933694,
+      "state": "pending"
+    },
+    "response": [
+      503,
+      {
+        "code": "REQUEST_REJECTED",
+        "message": "Coding task not found in authorized scope"
+      }
+    ]
+  },
+  {
+    "permission": {
+      "id": "1484dc75-7fb0-4579-aec7-dac2924e2e89",
+      "sessionId": "1057d43c-7175-4cff-a699-375baec4aca1",
+      "taskId": "e56cfc9c-e7f1-48b4-abfc-0bed67591236",
+      "epoch": "00eea9f8-64f1-447e-a533-6e60cde013bc",
+      "inputHash": "d0d10aebd4ecdd60e97e55ab5f81b53fbf8a89c91d728c405d456db4d734ca42",
+      "toolCallId": "call_d769ad419b3c4ed9bdd73263",
+      "toolName": "tenant_data__python_execute",
+      "input": {
+        "datasetId": "dataset-a",
+        "source": "import time\nprint(\"native-sandbox-started\", flush=True)\ntime.sleep(90)\nprint(\"should-not-run\")"
+      },
+      "expiresAt": 1794114933694,
+      "state": "pending"
+    },
+    "response": [
+      503,
+      {
+        "code": "REQUEST_REJECTED",
+        "message": "Coding task not found in authorized scope"
+      }
+    ]
+  },
+  {
+    "permission": {
+      "id": "1484dc75-7fb0-4579-aec7-dac2924e2e89",
+      "sessionId": "1057d43c-7175-4cff-a699-375baec4aca1",
+      "taskId": "e56cfc9c-e7f1-48b4-abfc-0bed67591236",
+      "epoch": "00eea9f8-64f1-447e-a533-6e60cde013bc",
+      "inputHash": "d0d10aebd4ecdd60e97e55ab5f81b53fbf8a89c91d728c405d456db4d734ca42",
+      "toolCallId": "call_d769ad419b3c4ed9bdd73263",
+      "toolName": "tenant_data__python_execute",
+      "input": {
+        "datasetId": "dataset-a",
+        "source": "import time\nprint(\"native-sandbox-started\", flush=True)\ntime.sleep(90)\nprint(\"should-not-run\")"
+      },
+      "expiresAt": 1794114933694,
+      "state": "pending"
+    },
+    "response": [
+      503,
+      {
+        "code": "REQUEST_REJECTED",
+        "message": "Coding task not found in authorized scope"
+      }
+    ]
+  },
+  {
+    "permission": {
+      "id": "1484dc75-7fb0-4579-aec7-dac2924e2e89",
+      "sessionId": "1057d43c-7175-4cff-a699-375baec4aca1",
+      "taskId": "e56cfc9c-e7f1-48b4-abfc-0bed67591236",
+      "epoch": "00eea9f8-64f1-447e-a533-6e60cde013bc",
+      "inputHash": "d0d10aebd4ecdd60e97e55ab5f81b53fbf8a89c91d728c405d456db4d734ca42",
+      "toolCallId": "call_d769ad419b3c4ed9bdd73263",
+      "toolName": "tenant_data__python_execute",
+      "input": {
+        "datasetId": "dataset-a",
+        "source": "import time\nprint(\"native-sandbox-started\", flush=True)\ntime.sleep(90)\nprint(\"should-not-run\")"
+      },
+      "expiresAt": 1794114933694,
+      "state": "pending"
+    },
+    "response": [
+      503,
+      {
+        "code": "REQUEST_REJECTED",
+        "message": "Coding task not found in authorized scope"
+      }
+    ]
+  },
+  {
+    "permission": {
+      "id": "1484dc75-7fb0-4579-aec7-dac2924e2e89",
+      "sessionId": "1057d43c-7175-4cff-a699-375baec4aca1",
+      "taskId": "e56cfc9c-e7f1-48b4-abfc-0bed67591236",
+      "epoch": "00eea9f8-64f1-447e-a533-6e60cde013bc",
+      "inputHash": "d0d10aebd4ecdd60e97e55ab5f81b53fbf8a89c91d728c405d456db4d734ca42",
+      "toolCallId": "call_d769ad419b3c4ed9bdd73263",
+      "toolName": "tenant_data__python_execute",
+      "input": {
+        "datasetId": "dataset-a",
+        "source": "import time\nprint(\"native-sandbox-started\", flush=True)\ntime.sleep(90)\nprint(\"should-not-run\")"
+      },
+      "expiresAt": 1794114933694,
+      "state": "pending"
+    },
+    "response": [
+      503,
+      {
+        "code": "REQUEST_REJECTED",
+        "message": "Coding task not found in authorized scope"
+      }
+    ]
+  },
+  {
+    "permission": {
+      "id": "1484dc75-7fb0-4579-aec7-dac2924e2e89",
+      "sessionId": "1057d43c-7175-4cff-a699-375baec4aca1",
+      "taskId": "e56cfc9c-e7f1-48b4-abfc-0bed67591236",
+      "epoch": "00eea9f8-64f1-447e-a533-6e60cde013bc",
+      "inputHash": "d0d10aebd4ecdd60e97e55ab5f81b53fbf8a89c91d728c405d456db4d734ca42",
+      "toolCallId": "call_d769ad419b3c4ed9bdd73263",
+      "toolName": "tenant_data__python_execute",
+      "input": {
+        "datasetId": "dataset-a",
+        "source": "import time\nprint(\"native-sandbox-started\", flush=True)\ntime.sleep(90)\nprint(\"should-not-run\")"
+      },
+      "expiresAt": 1794114933694,
+      "state": "pending"
+    },
+    "response": [
+      503,
+      {
+        "code": "REQUEST_REJECTED",
+        "message": "Coding task not found in authorized scope"
+      }
+    ]
+  },
+  {
+    "permission": {
+      "id": "1484dc75-7fb0-4579-aec7-dac2924e2e89",
+      "sessionId": "1057d43c-7175-4cff-a699-375baec4aca1",
+      "taskId": "e56cfc9c-e7f1-48b4-abfc-0bed67591236",
+      "epoch": "00eea9f8-64f1-447e-a533-6e60cde013bc",
+      "inputHash": "d0d10aebd4ecdd60e97e55ab5f81b53fbf8a89c91d728c405d456db4d734ca42",
+      "toolCallId": "call_d769ad419b3c4ed9bdd73263",
+      "toolName": "tenant_data__python_execute",
+      "input": {
+        "datasetId": "dataset-a",
+        "source": "import time\nprint(\"native-sandbox-started\", flush=True)\ntime.sleep(90)\nprint(\"should-not-run\")"
+      },
+      "expiresAt": 1794114933694,
+      "state": "pending"
+    },
+    "response": [
+      503,
+      {
+        "code": "REQUEST_REJECTED",
+        "message": "Coding task not found in authorized scope"
+      }
+    ]
+  },
+  {
+    "permission": {
+      "id": "1484dc75-7fb0-4579-aec7-dac2924e2e89",
+      "sessionId": "1057d43c-7175-4cff-a699-375baec4aca1",
+      "taskId": "e56cfc9c-e7f1-48b4-abfc-0bed67591236",
+      "epoch": "00eea9f8-64f1-447e-a533-6e60cde013bc",
+      "inputHash": "d0d10aebd4ecdd60e97e55ab5f81b53fbf8a89c91d728c405d456db4d734ca42",
+      "toolCallId": "call_d769ad419b3c4ed9bdd73263",
+      "toolName": "tenant_data__python_execute",
+      "input": {
+        "datasetId": "dataset-a",
+        "source": "import time\nprint(\"native-sandbox-started\", flush=True)\ntime.sleep(90)\nprint(\"should-not-run\")"
+      },
+      "expiresAt": 1794114933694,
+      "state": "pending"
+    },
+    "response": [
+      503,
+      {
+        "code": "REQUEST_REJECTED",
+        "message": "Coding task not found in authorized scope"
+      }
+    ]
+  },
+  {
+    "permission": {
+      "id": "1484dc75-7fb0-4579-aec7-dac2924e2e89",
+      "sessionId": "1057d43c-7175-4cff-a699-375baec4aca1",
+      "taskId": "e56cfc9c-e7f1-48b4-abfc-0bed67591236",
+      "epoch": "00eea9f8-64f1-447e-a533-6e60cde013bc",
+      "inputHash": "d0d10aebd4ecdd60e97e55ab5f81b53fbf8a89c91d728c405d456db4d734ca42",
+      "toolCallId": "call_d769ad419b3c4ed9bdd73263",
+      "toolName": "tenant_data__python_execute",
+      "input": {
+        "datasetId": "dataset-a",
+        "source": "import time\nprint(\"native-sandbox-started\", flush=True)\ntime.sleep(90)\nprint(\"should-not-run\")"
+      },
+      "expiresAt": 1794114933694,
+      "state": "pending"
+    },
+    "response": [
+      503,
+      {
+        "code": "REQUEST_REJECTED",
+        "message": "Coding task not found in authorized scope"
+      }
+    ]
+  },
+  {
+    "permission": {
+      "id": "1484dc75-7fb0-4579-aec7-dac2924e2e89",
+      "sessionId": "1057d43c-7175-4cff-a699-375baec4aca1",
+      "taskId": "e56cfc9c-e7f1-48b4-abfc-0bed67591236",
+      "epoch": "00eea9f8-64f1-447e-a533-6e60cde013bc",
+      "inputHash": "d0d10aebd4ecdd60e97e55ab5f81b53fbf8a89c91d728c405d456db4d734ca42",
+      "toolCallId": "call_d769ad419b3c4ed9bdd73263",
+      "toolName": "tenant_data__python_execute",
+      "input": {
+        "datasetId": "dataset-a",
+        "source": "import time\nprint(\"native-sandbox-started\", flush=True)\ntime.sleep(90)\nprint(\"should-not-run\")"
+      },
+      "expiresAt": 1794114933694,
+      "state": "pending"
+    },
+    "response": [
+      503,
+      {
+        "code": "REQUEST_REJECTED",
+        "message": "Coding task not found in authorized scope"
+      }
+    ]
+  },
+  {
+    "permission": {
+      "id": "1484dc75-7fb0-4579-aec7-dac2924e2e89",
+      "sessionId": "1057d43c-7175-4cff-a699-375baec4aca1",
+      "taskId": "e56cfc9c-e7f1-48b4-abfc-0bed67591236",
+      "epoch": "00eea9f8-64f1-447e-a533-6e60cde013bc",
+      "inputHash": "d0d10aebd4ecdd60e97e55ab5f81b53fbf8a89c91d728c405d456db4d734ca42",
+      "toolCallId": "call_d769ad419b3c4ed9bdd73263",
+      "toolName": "tenant_data__python_execute",
+      "input": {
+        "datasetId": "dataset-a",
+        "source": "import time\nprint(\"native-sandbox-started\", flush=True)\ntime.sleep(90)\nprint(\"should-not-run\")"
+      },
+      "expiresAt": 1794114933694,
+      "state": "pending"
+    },
+    "response": [
+      503,
+      {
+        "code": "REQUEST_REJECTED",
+        "message": "Coding task not found in authorized scope"
+      }
+    ]
+  },
+  {
+    "permission": {
+      "id": "1484dc75-7fb0-4579-aec7-dac2924e2e89",
+      "sessionId": "1057d43c-7175-4cff-a699-375baec4aca1",
+      "taskId": "e56cfc9c-e7f1-48b4-abfc-0bed67591236",
+      "epoch": "00eea9f8-64f1-447e-a533-6e60cde013bc",
+      "inputHash": "d0d10aebd4ecdd60e97e55ab5f81b53fbf8a89c91d728c405d456db4d734ca42",
+      "toolCallId": "call_d769ad419b3c4ed9bdd73263",
+      "toolName": "tenant_data__python_execute",
+      "input": {
+        "datasetId": "dataset-a",
+        "source": "import time\nprint(\"native-sandbox-started\", flush=True)\ntime.sleep(90)\nprint(\"should-not-run\")"
+      },
+      "expiresAt": 1794114933694,
+      "state": "pending"
+    },
+    "response": [
+      503,
+      {
+        "code": "REQUEST_REJECTED",
+        "message": "Coding task not found in authorized scope"
+      }
+    ]
+  },
+  {
+    "permission": {
+      "id": "1484dc75-7fb0-4579-aec7-dac2924e2e89",
+      "sessionId": "1057d43c-7175-4cff-a699-375baec4aca1",
+      "taskId": "e56cfc9c-e7f1-48b4-abfc-0bed67591236",
+      "epoch": "00eea9f8-64f1-447e-a533-6e60cde013bc",
+      "inputHash": "d0d10aebd4ecdd60e97e55ab5f81b53fbf8a89c91d728c405d456db4d734ca42",
+      "toolCallId": "call_d769ad419b3c4ed9bdd73263",
+      "toolName": "tenant_data__python_execute",
+      "input": {
+        "datasetId": "dataset-a",
+        "source": "import time\nprint(\"native-sandbox-started\", flush=True)\ntime.sleep(90)\nprint(\"should-not-run\")"
+      },
+      "expiresAt": 1794114933694,
+      "state": "pending"
+    },
+    "response": [
+      503,
+      {
+        "code": "REQUEST_REJECTED",
+        "message": "Coding task not found in authorized scope"
+      }
+    ]
+  },
+  {
+    "permission": {
+      "id": "1484dc75-7fb0-4579-aec7-dac2924e2e89",
+      "sessionId": "1057d43c-7175-4cff-a699-375baec4aca1",
+      "taskId": "e56cfc9c-e7f1-48b4-abfc-0bed67591236",
+      "epoch": "00eea9f8-64f1-447e-a533-6e60cde013bc",
+      "inputHash": "d0d10aebd4ecdd60e97e55ab5f81b53fbf8a89c91d728c405d456db4d734ca42",
+      "toolCallId": "call_d769ad419b3c4ed9bdd73263",
+      "toolName": "tenant_data__python_execute",
+      "input": {
+        "datasetId": "dataset-a",
+        "source": "import time\nprint(\"native-sandbox-started\", flush=True)\ntime.sleep(90)\nprint(\"should-not-run\")"
+      },
+      "expiresAt": 1794114933694,
+      "state": "pending"
+    },
+    "response": [
+      503,
+      {
+        "code": "REQUEST_REJECTED",
+        "message": "Coding task not found in authorized scope"
+      }
+    ]
+  },
+  {
+    "permission": {
+      "id": "1484dc75-7fb0-4579-aec7-dac2924e2e89",
+      "sessionId": "1057d43c-7175-4cff-a699-375baec4aca1",
+      "taskId": "e56cfc9c-e7f1-48b4-abfc-0bed67591236",
+      "epoch": "00eea9f8-64f1-447e-a533-6e60cde013bc",
+      "inputHash": "d0d10aebd4ecdd60e97e55ab5f81b53fbf8a89c91d728c405d456db4d734ca42",
+      "toolCallId": "call_d769ad419b3c4ed9bdd73263",
+      "toolName": "tenant_data__python_execute",
+      "input": {
+        "datasetId": "dataset-a",
+        "source": "import time\nprint(\"native-sandbox-started\", flush=True)\ntime.sleep(90)\nprint(\"should-not-run\")"
+      },
+      "expiresAt": 1794114933694,
+      "state": "pending"
+    },
+    "response": [
+      503,
+      {
+        "code": "REQUEST_REJECTED",
+        "message": "Coding task not found in authorized scope"
+      }
+    ]
+  },
+  {
+    "permission": {
+      "id": "1484dc75-7fb0-4579-aec7-dac2924e2e89",
+      "sessionId": "1057d43c-7175-4cff-a699-375baec4aca1",
+      "taskId": "e56cfc9c-e7f1-48b4-abfc-0bed67591236",
+      "epoch": "00eea9f8-64f1-447e-a533-6e60cde013bc",
+      "inputHash": "d0d10aebd4ecdd60e97e55ab5f81b53fbf8a89c91d728c405d456db4d734ca42",
+      "toolCallId": "call_d769ad419b3c4ed9bdd73263",
+      "toolName": "tenant_data__python_execute",
+      "input": {
+        "datasetId": "dataset-a",
+        "source": "import time\nprint(\"native-sandbox-started\", flush=True)\ntime.sleep(90)\nprint(\"should-not-run\")"
+      },
+      "expiresAt": 1794114933694,
+      "state": "pending"
+    },
+    "response": [
+      503,
+      {
+        "code": "REQUEST_REJECTED",
+        "message": "Coding task not found in authorized scope"
+      }
+    ]
+  }
+]

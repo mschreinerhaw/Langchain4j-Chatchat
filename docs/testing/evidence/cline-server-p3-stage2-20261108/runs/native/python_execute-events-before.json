@@ -1,0 +1,563 @@
+[
+  200,
+  {
+    "events": [
+      {
+        "sessionId": "817c042c-f2ab-4135-bbff-96271e5740c1",
+        "taskId": null,
+        "epoch": "3eecec9c-3173-465b-bf34-05090fdfc331",
+        "eventType": "session.created",
+        "payload": {
+          "workspaceRef": "project"
+        },
+        "eventId": "1",
+        "timestamp": "2026-11-08T05:29:44.374Z"
+      },
+      {
+        "sessionId": "817c042c-f2ab-4135-bbff-96271e5740c1",
+        "taskId": null,
+        "epoch": "3eecec9c-3173-465b-bf34-05090fdfc331",
+        "eventType": "worker.ready",
+        "payload": {
+          "native": "v4.1.26",
+          "sourceCommit": "a459f1d04dea030833b558be645011ab739c463b",
+          "hostCapabilities": {
+            "workspace": true,
+            "editorUI": false,
+            "diagnostics": false,
+            "backgroundShell": true
+          }
+        },
+        "eventId": "2",
+        "timestamp": "2026-11-08T05:29:48.438Z"
+      },
+      {
+        "sessionId": "817c042c-f2ab-4135-bbff-96271e5740c1",
+        "taskId": null,
+        "epoch": "3eecec9c-3173-465b-bf34-05090fdfc331",
+        "eventType": "host.notification",
+        "payload": {
+          "type": 1,
+          "message": "Welcome to Cline v4.1.26"
+        },
+        "eventId": "3",
+        "timestamp": "2026-11-08T05:29:48.459Z"
+      },
+      {
+        "sessionId": "817c042c-f2ab-4135-bbff-96271e5740c1",
+        "taskId": "656e615d-e79f-4c3a-ac35-493d0481dbd2",
+        "epoch": "3eecec9c-3173-465b-bf34-05090fdfc331",
+        "eventType": "task.accepted",
+        "payload": {
+          "text": "Call the connected MCP tool tenant_data__python_execute exactly once, with datasetId=\"dataset-a\". Supply Python source which prints \"native-sandbox-started\" with flush=True, then time.sleep(90), then prints \"should-not-run\". This is a real remote Sandbox cancellation acceptance test. Do not run Python through a shell. Do not create or change project files. Wait for the MCP tool receipt before reporting its result."
+        },
+        "eventId": "4",
+        "timestamp": "2026-11-08T05:29:48.998Z"
+      },
+      {
+        "sessionId": "817c042c-f2ab-4135-bbff-96271e5740c1",
+        "taskId": "656e615d-e79f-4c3a-ac35-493d0481dbd2",
+        "epoch": "3eecec9c-3173-465b-bf34-05090fdfc331",
+        "eventType": "native.event",
+        "payload": {
+          "type": "status",
+          "payload": {
+            "sessionId": "1794115789059_sc9h5",
+            "status": "idle"
+          }
+        },
+        "eventId": "5",
+        "timestamp": "2026-11-08T05:29:49.257Z"
+      },
+      {
+        "sessionId": "817c042c-f2ab-4135-bbff-96271e5740c1",
+        "taskId": "656e615d-e79f-4c3a-ac35-493d0481dbd2",
+        "epoch": "3eecec9c-3173-465b-bf34-05090fdfc331",
+        "eventType": "native.event",
+        "payload": {
+          "type": "session_snapshot",
+          "payload": {
+            "sessionId": "1794115789059_sc9h5",
+            "snapshot": {
+              "version": 1,
+              "sessionId": "1794115789059_sc9h5",
+              "source": "vscode",
+              "status": "idle",
+              "createdAt": "2026-11-08T05:29:49.127Z",
+              "updatedAt": "2026-11-08T05:29:49.127Z",
+              "endedAt": null,
+              "exitCode": null,
+              "interactive": true,
+              "workspace": {
+                "cwd": "/poc/project",
+                "root": "/poc/project"
+              },
+              "model": {
+                "providerId": "openai-compatible",
+                "modelId": "qwen3.7-plus"
+              },
+              "capabilities": {
+                "enableTools": true,
+                "enableSpawn": false,
+                "enableTeams": false
+              },
+              "lineage": {
+                "isSubagent": false
+              },
+              "usage": {
+                "inputTokens": 0,
+                "outputTokens": 0,
+                "cacheReadTokens": 0,
+                "cacheWriteTokens": 0,
+                "totalCost": 0
+              },
+              "aggregateUsage": {
+                "inputTokens": 0,
+                "outputTokens": 0,
+                "cacheReadTokens": 0,
+                "cacheWriteTokens": 0,
+                "totalCost": 0
+              }
+            }
+          }
+        },
+        "eventId": "6",
+        "timestamp": "2026-11-08T05:29:49.258Z"
+      },
+      {
+        "sessionId": "817c042c-f2ab-4135-bbff-96271e5740c1",
+        "taskId": "656e615d-e79f-4c3a-ac35-493d0481dbd2",
+        "epoch": "3eecec9c-3173-465b-bf34-05090fdfc331",
+        "eventType": "task.started",
+        "payload": {
+          "nativeSessionId": "1794115789059_sc9h5"
+        },
+        "eventId": "7",
+        "timestamp": "2026-11-08T05:29:49.382Z"
+      },
+      {
+        "sessionId": "817c042c-f2ab-4135-bbff-96271e5740c1",
+        "taskId": "656e615d-e79f-4c3a-ac35-493d0481dbd2",
+        "epoch": "3eecec9c-3173-465b-bf34-05090fdfc331",
+        "eventType": "native.event",
+        "payload": {
+          "type": "status",
+          "payload": {
+            "sessionId": "1794115789059_sc9h5",
+            "status": "running"
+          }
+        },
+        "eventId": "8",
+        "timestamp": "2026-11-08T05:29:49.460Z"
+      },
+      {
+        "sessionId": "817c042c-f2ab-4135-bbff-96271e5740c1",
+        "taskId": "656e615d-e79f-4c3a-ac35-493d0481dbd2",
+        "epoch": "3eecec9c-3173-465b-bf34-05090fdfc331",
+        "eventType": "native.event",
+        "payload": {
+          "type": "session_snapshot",
+          "payload": {
+            "sessionId": "1794115789059_sc9h5",
+            "snapshot": {
+              "version": 1,
+              "sessionId": "1794115789059_sc9h5",
+              "source": "vscode",
+              "status": "running",
+              "createdAt": "2026-11-08T05:29:49.127Z",
+              "updatedAt": "2026-11-08T05:29:49.459Z",
+              "endedAt": null,
+              "exitCode": null,
+              "interactive": true,
+              "workspace": {
+                "cwd": "/poc/project",
+                "root": "/poc/project"
+              },
+              "model": {
+                "providerId": "openai-compatible",
+                "modelId": "qwen3.7-plus"
+              },
+              "capabilities": {
+                "enableTools": true,
+                "enableSpawn": false,
+                "enableTeams": false
+              },
+              "lineage": {
+                "isSubagent": false
+              },
+              "prompt": "<user_input mode=\"act\">Call the connected MCP tool tenant_data__python_execute exactly once, with datasetId=\"dataset-a\". Supply Python source which prints \"native-sandbox-started\" with flush=True, then time.sleep(90), then prints \"should-not-run\". This is a real remote Sandbox cancellation acceptance test. Do not run Python through a shell. Do not create or change project files. Wait for the MCP tool receipt before reporting its result.</user_input>",
+              "artifacts": {
+                "messagesPath": "/poc/state/817c042c-f2ab-4135-bbff-96271e5740c1/cline/data/sessions/1794115789059_sc9h5/1794115789059_sc9h5.messages.json"
+              },
+              "usage": {
+                "inputTokens": 0,
+                "outputTokens": 0,
+                "cacheReadTokens": 0,
+                "cacheWriteTokens": 0,
+                "totalCost": 0
+              },
+              "aggregateUsage": {
+                "inputTokens": 0,
+                "outputTokens": 0,
+                "cacheReadTokens": 0,
+                "cacheWriteTokens": 0,
+                "totalCost": 0
+              }
+            }
+          }
+        },
+        "eventId": "9",
+        "timestamp": "2026-11-08T05:29:49.462Z"
+      },
+      {
+        "sessionId": "817c042c-f2ab-4135-bbff-96271e5740c1",
+        "taskId": "656e615d-e79f-4c3a-ac35-493d0481dbd2",
+        "epoch": "3eecec9c-3173-465b-bf34-05090fdfc331",
+        "eventType": "native.event",
+        "payload": {
+          "type": "agent_event",
+          "payload": {
+            "sessionId": "1794115789059_sc9h5",
+            "event": {
+              "type": "iteration_start",
+              "iteration": 1
+            },
+            "teamRole": "lead"
+          }
+        },
+        "eventId": "10",
+        "timestamp": "2026-11-08T05:29:49.538Z"
+      },
+      {
+        "sessionId": "817c042c-f2ab-4135-bbff-96271e5740c1",
+        "taskId": "656e615d-e79f-4c3a-ac35-493d0481dbd2",
+        "epoch": "3eecec9c-3173-465b-bf34-05090fdfc331",
+        "eventType": "model.iteration.started",
+        "payload": {
+          "iteration": 1,
+          "source": "AgentEvent.iteration_start"
+        },
+        "eventId": "11",
+        "timestamp": "2026-11-08T05:29:49.539Z"
+      },
+      {
+        "sessionId": "817c042c-f2ab-4135-bbff-96271e5740c1",
+        "taskId": "656e615d-e79f-4c3a-ac35-493d0481dbd2",
+        "epoch": "3eecec9c-3173-465b-bf34-05090fdfc331",
+        "eventType": "native.event",
+        "payload": {
+          "type": "agent_event",
+          "payload": {
+            "sessionId": "1794115789059_sc9h5",
+            "event": {
+              "type": "usage",
+              "inputTokens": 3317,
+              "outputTokens": 73,
+              "cacheReadTokens": 2816,
+              "reasoningTokenCount": 74,
+              "totalInputTokens": 3317,
+              "totalOutputTokens": 73,
+              "totalCacheReadTokens": 2816,
+              "totalCost": 0
+            },
+            "teamRole": "lead"
+          }
+        },
+        "eventId": "12",
+        "timestamp": "2026-11-08T05:29:52.905Z"
+      },
+      {
+        "sessionId": "817c042c-f2ab-4135-bbff-96271e5740c1",
+        "taskId": "656e615d-e79f-4c3a-ac35-493d0481dbd2",
+        "epoch": "3eecec9c-3173-465b-bf34-05090fdfc331",
+        "eventType": "model.usage",
+        "payload": {
+          "type": "usage",
+          "inputTokens": 3317,
+          "outputTokens": 73,
+          "cacheReadTokens": 2816,
+          "reasoningTokenCount": 74,
+          "totalInputTokens": 3317,
+          "totalOutputTokens": 73,
+          "totalCacheReadTokens": 2816,
+          "totalCost": null,
+          "cost": null,
+          "costStatus": "unverified-native-pricing"
+        },
+        "eventId": "13",
+        "timestamp": "2026-11-08T05:29:52.906Z"
+      },
+      {
+        "sessionId": "817c042c-f2ab-4135-bbff-96271e5740c1",
+        "taskId": "656e615d-e79f-4c3a-ac35-493d0481dbd2",
+        "epoch": "3eecec9c-3173-465b-bf34-05090fdfc331",
+        "eventType": "native.event",
+        "payload": {
+          "type": "status",
+          "payload": {
+            "sessionId": "1794115789059_sc9h5",
+            "status": "pending"
+          }
+        },
+        "eventId": "14",
+        "timestamp": "2026-11-08T05:29:52.936Z"
+      },
+      {
+        "sessionId": "817c042c-f2ab-4135-bbff-96271e5740c1",
+        "taskId": "656e615d-e79f-4c3a-ac35-493d0481dbd2",
+        "epoch": "3eecec9c-3173-465b-bf34-05090fdfc331",
+        "eventType": "native.event",
+        "payload": {
+          "type": "session_snapshot",
+          "payload": {
+            "sessionId": "1794115789059_sc9h5",
+            "snapshot": {
+              "version": 1,
+              "sessionId": "1794115789059_sc9h5",
+              "source": "vscode",
+              "status": "pending",
+              "createdAt": "2026-11-08T05:29:49.127Z",
+              "updatedAt": "2026-11-08T05:29:52.935Z",
+              "endedAt": null,
+              "exitCode": null,
+              "interactive": true,
+              "workspace": {
+                "cwd": "/poc/project",
+                "root": "/poc/project"
+              },
+              "model": {
+                "providerId": "openai-compatible",
+                "modelId": "qwen3.7-plus"
+              },
+              "capabilities": {
+                "enableTools": true,
+                "enableSpawn": false,
+                "enableTeams": false
+              },
+              "lineage": {
+                "isSubagent": false
+              },
+              "prompt": "<user_input mode=\"act\">Call the connected MCP tool tenant_data__python_execute exactly once, with datasetId=\"dataset-a\". Supply Python source which prints \"native-sandbox-started\" with flush=True, then time.sleep(90), then prints \"should-not-run\". This is a real remote Sandbox cancellation acceptance test. Do not run Python through a shell. Do not create or change project files. Wait for the MCP tool receipt before reporting its result.</user_input>",
+              "artifacts": {
+                "messagesPath": "/poc/state/817c042c-f2ab-4135-bbff-96271e5740c1/cline/data/sessions/1794115789059_sc9h5/1794115789059_sc9h5.messages.json"
+              },
+              "usage": {
+                "inputTokens": 3317,
+                "outputTokens": 73,
+                "cacheReadTokens": 2816,
+                "cacheWriteTokens": 0,
+                "totalCost": 0
+              },
+              "aggregateUsage": {
+                "inputTokens": 3317,
+                "outputTokens": 73,
+                "cacheReadTokens": 2816,
+                "cacheWriteTokens": 0,
+                "totalCost": 0
+              },
+              "checkpoint": {
+                "latest": {
+                  "ref": "49bb00ce171ec8e46c2189918c121cef2cddd31f",
+                  "createdAt": 1794115789606,
+                  "runCount": 1,
+                  "kind": "commit"
+                },
+                "history": [
+                  {
+                    "ref": "49bb00ce171ec8e46c2189918c121cef2cddd31f",
+                    "createdAt": 1794115789606,
+                    "runCount": 1,
+                    "kind": "commit"
+                  }
+                ]
+              }
+            }
+          }
+        },
+        "eventId": "15",
+        "timestamp": "2026-11-08T05:29:52.937Z"
+      },
+      {
+        "sessionId": "817c042c-f2ab-4135-bbff-96271e5740c1",
+        "taskId": "656e615d-e79f-4c3a-ac35-493d0481dbd2",
+        "epoch": "3eecec9c-3173-465b-bf34-05090fdfc331",
+        "eventType": "permission.requested",
+        "payload": {
+          "id": "23f124ec-fdf3-4889-b2b0-2a24a6bfd9a8",
+          "sessionId": "817c042c-f2ab-4135-bbff-96271e5740c1",
+          "taskId": "656e615d-e79f-4c3a-ac35-493d0481dbd2",
+          "epoch": "3eecec9c-3173-465b-bf34-05090fdfc331",
+          "inputHash": "d0d10aebd4ecdd60e97e55ab5f81b53fbf8a89c91d728c405d456db4d734ca42",
+          "toolCallId": "call_2540f6c4038840cc86c6a499",
+          "toolName": "tenant_data__python_execute",
+          "input": {
+            "datasetId": "dataset-a",
+            "source": "import time\nprint(\"native-sandbox-started\", flush=True)\ntime.sleep(90)\nprint(\"should-not-run\")"
+          },
+          "expiresAt": 1794115972938,
+          "state": "pending"
+        },
+        "eventId": "16",
+        "timestamp": "2026-11-08T05:29:52.939Z"
+      },
+      {
+        "sessionId": "817c042c-f2ab-4135-bbff-96271e5740c1",
+        "taskId": "656e615d-e79f-4c3a-ac35-493d0481dbd2",
+        "epoch": "3eecec9c-3173-465b-bf34-05090fdfc331",
+        "eventType": "permission.decision",
+        "payload": {
+          "id": "23f124ec-fdf3-4889-b2b0-2a24a6bfd9a8",
+          "decision": "approve"
+        },
+        "eventId": "17",
+        "timestamp": "2026-11-08T05:29:53.562Z"
+      },
+      {
+        "sessionId": "817c042c-f2ab-4135-bbff-96271e5740c1",
+        "taskId": "656e615d-e79f-4c3a-ac35-493d0481dbd2",
+        "epoch": "3eecec9c-3173-465b-bf34-05090fdfc331",
+        "eventType": "permission.resolved",
+        "payload": {
+          "id": "23f124ec-fdf3-4889-b2b0-2a24a6bfd9a8",
+          "decision": "approve",
+          "applied": true
+        },
+        "eventId": "18",
+        "timestamp": "2026-11-08T05:29:53.565Z"
+      },
+      {
+        "sessionId": "817c042c-f2ab-4135-bbff-96271e5740c1",
+        "taskId": "656e615d-e79f-4c3a-ac35-493d0481dbd2",
+        "epoch": "3eecec9c-3173-465b-bf34-05090fdfc331",
+        "eventType": "native.event",
+        "payload": {
+          "type": "status",
+          "payload": {
+            "sessionId": "1794115789059_sc9h5",
+            "status": "running"
+          }
+        },
+        "eventId": "19",
+        "timestamp": "2026-11-08T05:29:53.575Z"
+      },
+      {
+        "sessionId": "817c042c-f2ab-4135-bbff-96271e5740c1",
+        "taskId": "656e615d-e79f-4c3a-ac35-493d0481dbd2",
+        "epoch": "3eecec9c-3173-465b-bf34-05090fdfc331",
+        "eventType": "native.event",
+        "payload": {
+          "type": "session_snapshot",
+          "payload": {
+            "sessionId": "1794115789059_sc9h5",
+            "snapshot": {
+              "version": 1,
+              "sessionId": "1794115789059_sc9h5",
+              "source": "vscode",
+              "status": "running",
+              "createdAt": "2026-11-08T05:29:49.127Z",
+              "updatedAt": "2026-11-08T05:29:53.567Z",
+              "endedAt": null,
+              "exitCode": null,
+              "interactive": true,
+              "workspace": {
+                "cwd": "/poc/project",
+                "root": "/poc/project"
+              },
+              "model": {
+                "providerId": "openai-compatible",
+                "modelId": "qwen3.7-plus"
+              },
+              "capabilities": {
+                "enableTools": true,
+                "enableSpawn": false,
+                "enableTeams": false
+              },
+              "lineage": {
+                "isSubagent": false
+              },
+              "prompt": "<user_input mode=\"act\">Call the connected MCP tool tenant_data__python_execute exactly once, with datasetId=\"dataset-a\". Supply Python source which prints \"native-sandbox-started\" with flush=True, then time.sleep(90), then prints \"should-not-run\". This is a real remote Sandbox cancellation acceptance test. Do not run Python through a shell. Do not create or change project files. Wait for the MCP tool receipt before reporting its result.</user_input>",
+              "artifacts": {
+                "messagesPath": "/poc/state/817c042c-f2ab-4135-bbff-96271e5740c1/cline/data/sessions/1794115789059_sc9h5/1794115789059_sc9h5.messages.json"
+              },
+              "usage": {
+                "inputTokens": 3317,
+                "outputTokens": 73,
+                "cacheReadTokens": 2816,
+                "cacheWriteTokens": 0,
+                "totalCost": 0
+              },
+              "aggregateUsage": {
+                "inputTokens": 3317,
+                "outputTokens": 73,
+                "cacheReadTokens": 2816,
+                "cacheWriteTokens": 0,
+                "totalCost": 0
+              },
+              "checkpoint": {
+                "latest": {
+                  "ref": "49bb00ce171ec8e46c2189918c121cef2cddd31f",
+                  "createdAt": 1794115789606,
+                  "runCount": 1,
+                  "kind": "commit"
+                },
+                "history": [
+                  {
+                    "ref": "49bb00ce171ec8e46c2189918c121cef2cddd31f",
+                    "createdAt": 1794115789606,
+                    "runCount": 1,
+                    "kind": "commit"
+                  }
+                ]
+              }
+            }
+          }
+        },
+        "eventId": "20",
+        "timestamp": "2026-11-08T05:29:53.575Z"
+      },
+      {
+        "sessionId": "817c042c-f2ab-4135-bbff-96271e5740c1",
+        "taskId": "656e615d-e79f-4c3a-ac35-493d0481dbd2",
+        "epoch": "3eecec9c-3173-465b-bf34-05090fdfc331",
+        "eventType": "native.event",
+        "payload": {
+          "type": "agent_event",
+          "payload": {
+            "sessionId": "1794115789059_sc9h5",
+            "event": {
+              "type": "content_start",
+              "contentType": "tool",
+              "toolName": "tenant_data__python_execute",
+              "toolCallId": "call_2540f6c4038840cc86c6a499",
+              "input": {
+                "datasetId": "dataset-a",
+                "source": "import time\nprint(\"native-sandbox-started\", flush=True)\ntime.sleep(90)\nprint(\"should-not-run\")"
+              }
+            },
+            "teamRole": "lead"
+          }
+        },
+        "eventId": "21",
+        "timestamp": "2026-11-08T05:29:53.576Z"
+      },
+      {
+        "sessionId": "817c042c-f2ab-4135-bbff-96271e5740c1",
+        "taskId": "656e615d-e79f-4c3a-ac35-493d0481dbd2",
+        "epoch": "3eecec9c-3173-465b-bf34-05090fdfc331",
+        "eventType": "tool.started",
+        "payload": {
+          "type": "content_start",
+          "contentType": "tool",
+          "toolName": "tenant_data__python_execute",
+          "toolCallId": "call_2540f6c4038840cc86c6a499",
+          "input": {
+            "datasetId": "dataset-a",
+            "source": "import time\nprint(\"native-sandbox-started\", flush=True)\ntime.sleep(90)\nprint(\"should-not-run\")"
+          }
+        },
+        "eventId": "22",
+        "timestamp": "2026-11-08T05:29:53.576Z"
+      }
+    ]
+  }
+]

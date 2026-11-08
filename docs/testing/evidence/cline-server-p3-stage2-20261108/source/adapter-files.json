@@ -1,0 +1,230 @@
+[
+  {
+    "path": "cline-agent-server/.gitattributes",
+    "sha256": "b34b21d29c353ae6f19df1090818c94652b9e6d84c703f2263c3de144e8c55b9"
+  },
+  {
+    "path": "cline-agent-server/package.json",
+    "sha256": "9c3fb40e049563c7bb885dc48a415af893defdc6dde7a5c904f778cf9382afbf"
+  },
+  {
+    "path": "cline-agent-server/README.md",
+    "sha256": "4bb6b3127ba719f9334e3db6f49bdb8b30dc5e404f1c59a340c3181bb096f5a6"
+  },
+  {
+    "path": "cline-agent-server/upstream-pin.json",
+    "sha256": "13cb5e0e1922705184fb43fa485079a26c5e62779fa3e954d6618a0f1725962d"
+  },
+  {
+    "path": "cline-agent-server/stage2-java/src/com/chatchat/mcpserver/python/NativeJournalGuardProbe.java",
+    "sha256": "f80bb049ca73c270e42a9808fd8085de909a901e9db10ddf56d28f3e101c6ca2"
+  },
+  {
+    "path": "cline-agent-server/stage2-java/src/com/chatchat/mcpserver/python/NativeManagedFenceProbe.java",
+    "sha256": "9c51ff6227f14cbab13619df2ae9e7a9610997a8d5d8c4ef3d9797512a390c50"
+  },
+  {
+    "path": "cline-agent-server/stage2-java/src/com/chatchat/mcpserver/python/NativeOperationAuthority.java",
+    "sha256": "3e218d0cbdc555f52c096983f6b961749c536a0301d8863ec8217ab789c50558"
+  },
+  {
+    "path": "cline-agent-server/stage2-java/src/com/chatchat/mcpserver/python/NativeStage2Application.java",
+    "sha256": "f48c6590848d1e81000e778ecf88169c6423a19590c0bc6d9f90059b50b71d96"
+  },
+  {
+    "path": "cline-agent-server/scripts/evidence_files.py",
+    "sha256": "0e3d4f9b1c3fb0a8b7fa515e6d22698f546e9983f8ece34ea98308c60a719c0b"
+  },
+  {
+    "path": "cline-agent-server/scripts/patch-upstream.mjs",
+    "sha256": "6402863fccc380aae9c5ca33ee40952bc92fb5651ab32dea3d7559dab7adab4e"
+  },
+  {
+    "path": "cline-agent-server/scripts/stage2-build.py",
+    "sha256": "988fc53d6f8d1ae5e2cf32addbcf401169383628bfa5dcfc0a91e2be09e762d3"
+  },
+  {
+    "path": "cline-agent-server/scripts/stage2-deploy.py",
+    "sha256": "19ef85933f6d6d0e35db17b70c915ec789dedaec29b33756f354e760e57b50d4"
+  },
+  {
+    "path": "cline-agent-server/scripts/stage2-gateway.py",
+    "sha256": "1192d7da6d088721f7927c82360560eeb5fbe81b6806b1d5cc666382391eb43b"
+  },
+  {
+    "path": "cline-agent-server/scripts/stage2-patch-upstream.mjs",
+    "sha256": "7fdf52d8934c3c5819bccf432a7c7e610bfaf618d57e87b3784d13ddc437ad89"
+  },
+  {
+    "path": "cline-agent-server/scripts/stage2-prepare.py",
+    "sha256": "7ffff14864f9b360fb1619479b7d1351be2a8bb727c49446e17c644d2904fc6d"
+  },
+  {
+    "path": "cline-agent-server/scripts/verify-runtime.mjs",
+    "sha256": "1d6373452905652275ca350a3f0a4544080810ac989914fe17242c1dfae96847"
+  },
+  {
+    "path": "cline-agent-server/scripts/assemble-runtime.py",
+    "sha256": "fb66d005b2ecb27bd8b95b81b9945d2983c9a44f86e1fa2b70b130551053d739"
+  },
+  {
+    "path": "cline-agent-server/scripts/build.sh",
+    "sha256": "acca3188b4007c1114f39ca9da4e388dafd0fc73ee2ac2351cecc41040e5406c"
+  },
+  {
+    "path": "cline-agent-server/scripts/collect-evidence.py",
+    "sha256": "fddd7522e6e845a60cca8f0826b8b4564375251273ea0c9c895d416c925792dd"
+  },
+  {
+    "path": "cline-agent-server/scripts/collect-stage1-evidence.py",
+    "sha256": "7f39d537f9e7785bc8937bd86ac12bdc56485cb0c2f4146573adde5a899512f1"
+  },
+  {
+    "path": "cline-agent-server/scripts/collect-stage2-evidence.py",
+    "sha256": "a7684da20cca2974297d3943c753b01b461e990a01f9ebe4bcfcd53acb741b09"
+  },
+  {
+    "path": "cline-agent-server/scripts/__pycache__/evidence_files.cpython-311.pyc",
+    "sha256": "62b25ba5df5228e8740e9e43dc25eff91f0438893225248f793898a41e0add9c"
+  },
+  {
+    "path": "cline-agent-server/src/docker-engine.mjs",
+    "sha256": "fa0ce1b2700526f1387ad4443c64d74dd9a181d1e45c1bd17ef2c7cd1cacddc4"
+  },
+  {
+    "path": "cline-agent-server/src/governance-server.mjs",
+    "sha256": "e1711c2da8570820889d11abf6daa1fda2aa2a35cdaee25f014826355c1e3da2"
+  },
+  {
+    "path": "cline-agent-server/src/host-bridge.mjs",
+    "sha256": "7eee715e41da6c33301b44c47da5ea851ad27bf2f69408c36d985394222f7304"
+  },
+  {
+    "path": "cline-agent-server/src/isolated-worker.mjs",
+    "sha256": "6fa469e541b61ca23e486930f19a15803583f9e1c5d629c97ffacb468f0347b2"
+  },
+  {
+    "path": "cline-agent-server/src/journal.mjs",
+    "sha256": "3ebb26eaeb46551907b5ac9e852d8a82b899a9927f1633d895a3e6f7236559da"
+  },
+  {
+    "path": "cline-agent-server/src/runtime-assets.mjs",
+    "sha256": "a13a0ab71b1ac32933dbcd713897ce81013cf79e23bd372a9614f03756472af6"
+  },
+  {
+    "path": "cline-agent-server/src/server.mjs",
+    "sha256": "fb658a86ca338e7ee66f4cf40f1850697cc8bdeaed6a0e685f00096e015ab5f4"
+  },
+  {
+    "path": "cline-agent-server/src/stage2-remote.mjs",
+    "sha256": "2e02eeff9247f1826f2a90ae1efeac919da67d74033eb673b589fe6aa56486c8"
+  },
+  {
+    "path": "cline-agent-server/src/task-contract.mjs",
+    "sha256": "267f82b9033a5163d9dae4ba14ddb7f1710a8b2fa1a9f83a8176b1a1b3a25537"
+  },
+  {
+    "path": "cline-agent-server/src/tool-outcome.mjs",
+    "sha256": "aaf5361e8d39c280ca068e9b8834c5202af7f9f5d153dc277af51b41a95b4d34"
+  },
+  {
+    "path": "cline-agent-server/docker/assemble-rootfs.py",
+    "sha256": "7effb7476a3fd80ea8efe14945b70e59675f3eccde9c3d985d96f74fb25314b3"
+  },
+  {
+    "path": "cline-agent-server/docker/Dockerfile",
+    "sha256": "5a0bfd0ab377c78007955601ca94f480912e40444dca06a29d11be4213dc8614"
+  },
+  {
+    "path": "cline-agent-server/docker/Dockerfile.governance",
+    "sha256": "711c366a4bd646a83e4bb70f008603be9a921cef920892e1ae75de34a7152652"
+  },
+  {
+    "path": "cline-agent-server/docker/README.governance.md",
+    "sha256": "059078478f6c4411d6d8f1cc54b5bfe09625fbc013f2b1a09209819a309cc794"
+  },
+  {
+    "path": "cline-agent-server/docker/README.md",
+    "sha256": "4577526190cfdcf55e8a921927221abd5e8d3fa00c184c656a03502a07c1710b"
+  },
+  {
+    "path": "cline-agent-server/test/clean-docker-acceptance.py",
+    "sha256": "11165196051f28cd9a6e2620b5161e955bfbce4176aa4d02c553b335a5598bcc"
+  },
+  {
+    "path": "cline-agent-server/test/evidence-files.test.py",
+    "sha256": "5337af5cc97af8155e7da44198b441eea9048592ee4d4cb7cf6efe25ca9d49a3"
+  },
+  {
+    "path": "cline-agent-server/test/live-http.py",
+    "sha256": "eed2c823c8c6360653e128bb48c6f23fe1a82d1c658539b3af47dff6e6f2472c"
+  },
+  {
+    "path": "cline-agent-server/test/search-http.py",
+    "sha256": "80c598d3545afd6f5e2d169053437bbaf3abce11b522dcc09fdc36db211697ec"
+  },
+  {
+    "path": "cline-agent-server/test/stage1-live.py",
+    "sha256": "52ffd09274d22283d7b8f3fd9274b6276f43216c3db7cd9c1ef27fae386a52ea"
+  },
+  {
+    "path": "cline-agent-server/test/stage1-revoke.py",
+    "sha256": "eb29d4b97eb1c887dadac4d5684fdfb1c5ca5160155901bb90597d4d56f668bc"
+  },
+  {
+    "path": "cline-agent-server/test/stage2-fault-proxy.mjs",
+    "sha256": "bb9018277291451dc204e508724baa561a2c42e47459b4b4d22d8e61c4d81598"
+  },
+  {
+    "path": "cline-agent-server/test/stage2-native.py",
+    "sha256": "3e415457a6c23c9501287554bae845120d5c9da9445078dc343ec3718e1a8f49"
+  },
+  {
+    "path": "cline-agent-server/test/stock-standalone.mjs",
+    "sha256": "c1c637a176cd250527a37c0102871afc20158666e56be415689bd42661f040e9"
+  },
+  {
+    "path": "cline-agent-server/test/task.txt",
+    "sha256": "b2fa1b5e8bd0cf11068965d768311f0882ac81078c74c31c7da41e71cdeafc93"
+  },
+  {
+    "path": "cline-agent-server/test/tenant-data-mcp.mjs",
+    "sha256": "cd49adf958f8e5e2d1d0494401468569f344449fbc646ef29571884646862b52"
+  },
+  {
+    "path": "cline-agent-server/test/verify-real-project.mjs",
+    "sha256": "f751612ddecee286a9d6b883248d631ee1d7ef334d3353ee089efe6464843648"
+  },
+  {
+    "path": "cline-agent-server/test/boundaries.test.mjs",
+    "sha256": "e604086b64dbeb17a80f4549301cd04738a838cd71fbf69a2ff65d23ee9f31fe"
+  },
+  {
+    "path": "cline-agent-server/test/controls-http.py",
+    "sha256": "8bc7242249e49d00caff660fb691f56f883ac2555dc3b22599c1eb66452ec462"
+  },
+  {
+    "path": "cline-agent-server/test/governance-boundaries.test.mjs",
+    "sha256": "3164e3bdd6dd779a25165b38f5cae0d396c014c4eb4b511cb4df5276c0902197"
+  },
+  {
+    "path": "cline-agent-server/test/prepare-real-project.sh",
+    "sha256": "bb0f3ecb964fe0a3ac3e423375c910f01ce3ea04294fde032d277c17d332f412"
+  },
+  {
+    "path": "cline-agent-server/test/stage1-adversarial.py",
+    "sha256": "4dcd2199c2030947499272c5a0e46792cb9929da5378a273fe4ccb8b0a115d8d"
+  },
+  {
+    "path": "cline-agent-server/test/stage1-sse.py",
+    "sha256": "ac2c53b2a558998701d2f3bacbee59ffc9e599bea387e525979836efd23955e5"
+  },
+  {
+    "path": "cline-agent-server/test/stage2-faults.py",
+    "sha256": "ed8ebb2fd38e8327c84e375aed271572cee1e0cdcb6fd3d4359e8588fb1d1a2b"
+  },
+  {
+    "path": "cline-agent-server/test/stage2-operations.py",
+    "sha256": "203d39d00caffcb462b7ad9b85a81e05796774aff51f31c99f0171be7d0d76e2"
+  }
+]

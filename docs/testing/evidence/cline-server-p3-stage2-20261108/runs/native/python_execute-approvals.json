@@ -1,0 +1,28 @@
+[
+  {
+    "permission": {
+      "id": "23f124ec-fdf3-4889-b2b0-2a24a6bfd9a8",
+      "sessionId": "817c042c-f2ab-4135-bbff-96271e5740c1",
+      "taskId": "656e615d-e79f-4c3a-ac35-493d0481dbd2",
+      "epoch": "3eecec9c-3173-465b-bf34-05090fdfc331",
+      "inputHash": "d0d10aebd4ecdd60e97e55ab5f81b53fbf8a89c91d728c405d456db4d734ca42",
+      "toolCallId": "call_2540f6c4038840cc86c6a499",
+      "toolName": "tenant_data__python_execute",
+      "input": {
+        "datasetId": "dataset-a",
+        "source": "import time\nprint(\"native-sandbox-started\", flush=True)\ntime.sleep(90)\nprint(\"should-not-run\")"
+      },
+      "expiresAt": 1794115972938,
+      "state": "pending"
+    },
+    "response": [
+      200,
+      {
+        "id": "23f124ec-fdf3-4889-b2b0-2a24a6bfd9a8",
+        "state": "resolved",
+        "decision": "approve",
+        "applied": true
+      }
+    ]
+  }
+]

@@ -1,0 +1,51 @@
+{
+  "binding": {
+    "operationId": "cline-78f5bd5aef9606ac1eb681655425bec894f4c353948041f6068f9b38be9104a6",
+    "nativeSessionId": "protocol-test-session",
+    "nativeToolCallId": "cf22f56ed5254a98bfc55338cfbfd5d5",
+    "toolName": "long_mcp",
+    "epoch": "protocol-epoch",
+    "argumentsHash": "ebaac35816dea535a0bc7a20153fc3da91b289bd238414d973e0e4ded22cc66c",
+    "state": "PENDING",
+    "fencingToken": 1,
+    "arguments": {
+      "datasetId": "stage2",
+      "durationMs": 1500
+    },
+    "identity": {
+      "tenantId": "stage2-protocol",
+      "userId": "alice",
+      "sessionId": "complete-f1fc7122",
+      "taskId": "complete",
+      "expiresAt": 1794118801769
+    }
+  },
+  "state": "COMPLETED",
+  "executorStopped": true,
+  "admittedAt": "2026-11-08T05:20:04.702Z",
+  "pid": 512,
+  "startTicks": "1530706444",
+  "startedAt": "2026-11-08T05:20:04.706Z",
+  "receipt": {
+    "operationId": "cline-78f5bd5aef9606ac1eb681655425bec894f4c353948041f6068f9b38be9104a6",
+    "identity": {
+      "tenantId": "stage2-protocol",
+      "userId": "alice",
+      "sessionId": "complete-f1fc7122",
+      "taskId": "complete",
+      "expiresAt": 1794118801769
+    },
+    "argumentsHash": "ebaac35816dea535a0bc7a20153fc3da91b289bd238414d973e0e4ded22cc66c",
+    "fencingToken": 1,
+    "epoch": "protocol-epoch",
+    "toolName": "long_mcp",
+    "startedAt": "2026-11-08T05:20:04.706Z",
+    "finishedAt": "2026-11-08T05:20:06.318Z",
+    "stopConfirmed": true,
+    "cancelRequested": false,
+    "pid": 512,
+    "startTicks": "1530706444",
+    "resultSha256": "f727168163c48aa8589ca787584323f5793ad29e761b314b772437d1d04fd0ca",
+    "exitCode": 0
+  }
+}

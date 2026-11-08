@@ -1,0 +1,16 @@
+--- stage1/apps/vscode/src/sdk/vscode-runtime-builder.ts
++++ stage2/apps/vscode/src/sdk/vscode-runtime-builder.ts
+@@ -43,7 +43,12 @@
+ 		context?: AgentToolContext
+ 	}): Promise<unknown> {
+ 		const ulid = `sdk-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`
+-		return this.mcpHub.callTool(request.serverName, request.toolName, request.arguments ?? {}, ulid, request.context?.signal)
++		return this.mcpHub.callTool(request.serverName, request.toolName, request.arguments ?? {}, ulid, request.context?.signal,
++            process.env.CLINE_SERVER_OPERATION_CONTEXT === "1" ? { runtimeNative: {
++                nativeSessionId: request.context?.sessionId,
++                nativeToolCallId: request.context?.toolCallId,
++                epoch: process.env.CLINE_SERVER_EPOCH,
++            } } : undefined)
+ 	}
+ 
+ 	async readResource(request: { serverName: string; uri: string; context?: AgentToolContext }): Promise<McpResourceReadResult> {

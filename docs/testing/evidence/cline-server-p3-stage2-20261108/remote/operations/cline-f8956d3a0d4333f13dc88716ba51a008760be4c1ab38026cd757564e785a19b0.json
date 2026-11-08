@@ -1,0 +1,52 @@
+{
+  "binding": {
+    "operationId": "cline-f8956d3a0d4333f13dc88716ba51a008760be4c1ab38026cd757564e785a19b0",
+    "nativeSessionId": "protocol-fault-test",
+    "nativeToolCallId": "bb4fae4ef4614b38ad61fe7918d431a2",
+    "toolName": "long_mcp",
+    "epoch": "fault-epoch",
+    "argumentsHash": "fe771dbe31a18c1977875e70bcf1f4630d3e5b31db08c96b9c65062ae8e74710",
+    "state": "PENDING",
+    "fencingToken": 1,
+    "arguments": {
+      "datasetId": "stage2",
+      "durationMs": 12000
+    },
+    "identity": {
+      "tenantId": "stage2-fault",
+      "userId": "alice",
+      "sessionId": "461cdcca6c7a4e50bdea5c94e9ac8958",
+      "taskId": "authority-kill",
+      "expiresAt": 1794118858116
+    }
+  },
+  "state": "COMPLETED",
+  "executorStopped": true,
+  "admittedAt": "2026-11-08T05:20:59.746Z",
+  "pid": 576,
+  "startTicks": "1530711949",
+  "startedAt": "2026-11-08T05:20:59.753Z",
+  "receipt": {
+    "operationId": "cline-f8956d3a0d4333f13dc88716ba51a008760be4c1ab38026cd757564e785a19b0",
+    "identity": {
+      "tenantId": "stage2-fault",
+      "userId": "alice",
+      "sessionId": "461cdcca6c7a4e50bdea5c94e9ac8958",
+      "taskId": "authority-kill",
+      "expiresAt": 1794118858116
+    },
+    "argumentsHash": "fe771dbe31a18c1977875e70bcf1f4630d3e5b31db08c96b9c65062ae8e74710",
+    "fencingToken": 1,
+    "epoch": "fault-epoch",
+    "toolName": "long_mcp",
+    "startedAt": "2026-11-08T05:20:59.753Z",
+    "finishedAt": "2026-11-08T05:21:11.935Z",
+    "stopConfirmed": true,
+    "cancelRequested": false,
+    "pid": 576,
+    "startTicks": "1530711949",
+    "resultSha256": "887c419b2d4a48147d9e0a0ef1e81d41b911098296f12b791e8143a517e87cf9",
+    "exitCode": 0
+  },
+  "controlFence": 3
+}

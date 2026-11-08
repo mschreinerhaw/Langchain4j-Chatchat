@@ -1,0 +1,237 @@
+[
+  {
+    "operationId": "cline-9c75128e037d1ae245b118d2a7be42de3cc3ce2540b06eea2316c6759cc92ac7",
+    "containerName": "chatchat-py-9cafac6cff4b41639f8961310940a6a905640fe8",
+    "exit": 0,
+    "events": [
+      {
+        "status": "create",
+        "id": "962a4a3abcc8b30e946bd29def55e7428c2c63b51f7234277e6e5d8092fd9917",
+        "from": "sha256:3434f7630ff7c54a053c7385710e089d249e65d668699ab96f9603b6e1b27eef",
+        "Type": "container",
+        "Action": "create",
+        "Actor": {
+          "ID": "962a4a3abcc8b30e946bd29def55e7428c2c63b51f7234277e6e5d8092fd9917",
+          "Attributes": {
+            "chatchat.python.operation": "chatchat-py-9cafac6cff4b41639f8961310940a6a905640fe8",
+            "image": "sha256:3434f7630ff7c54a053c7385710e089d249e65d668699ab96f9603b6e1b27eef",
+            "name": "chatchat-py-9cafac6cff4b41639f8961310940a6a905640fe8"
+          }
+        },
+        "scope": "local",
+        "time": 1794115957,
+        "timeNano": 1794115957478242876
+      },
+      {
+        "status": "start",
+        "id": "962a4a3abcc8b30e946bd29def55e7428c2c63b51f7234277e6e5d8092fd9917",
+        "from": "sha256:3434f7630ff7c54a053c7385710e089d249e65d668699ab96f9603b6e1b27eef",
+        "Type": "container",
+        "Action": "start",
+        "Actor": {
+          "ID": "962a4a3abcc8b30e946bd29def55e7428c2c63b51f7234277e6e5d8092fd9917",
+          "Attributes": {
+            "chatchat.python.operation": "chatchat-py-9cafac6cff4b41639f8961310940a6a905640fe8",
+            "image": "sha256:3434f7630ff7c54a053c7385710e089d249e65d668699ab96f9603b6e1b27eef",
+            "name": "chatchat-py-9cafac6cff4b41639f8961310940a6a905640fe8"
+          }
+        },
+        "scope": "local",
+        "time": 1794115957,
+        "timeNano": 1794115957951175816
+      },
+      {
+        "status": "kill",
+        "id": "962a4a3abcc8b30e946bd29def55e7428c2c63b51f7234277e6e5d8092fd9917",
+        "from": "sha256:3434f7630ff7c54a053c7385710e089d249e65d668699ab96f9603b6e1b27eef",
+        "Type": "container",
+        "Action": "kill",
+        "Actor": {
+          "ID": "962a4a3abcc8b30e946bd29def55e7428c2c63b51f7234277e6e5d8092fd9917",
+          "Attributes": {
+            "chatchat.python.operation": "chatchat-py-9cafac6cff4b41639f8961310940a6a905640fe8",
+            "image": "sha256:3434f7630ff7c54a053c7385710e089d249e65d668699ab96f9603b6e1b27eef",
+            "name": "chatchat-py-9cafac6cff4b41639f8961310940a6a905640fe8",
+            "signal": "15"
+          }
+        },
+        "scope": "local",
+        "time": 1794115960,
+        "timeNano": 1794115960987670803
+      },
+      {
+        "status": "kill",
+        "id": "962a4a3abcc8b30e946bd29def55e7428c2c63b51f7234277e6e5d8092fd9917",
+        "from": "sha256:3434f7630ff7c54a053c7385710e089d249e65d668699ab96f9603b6e1b27eef",
+        "Type": "container",
+        "Action": "kill",
+        "Actor": {
+          "ID": "962a4a3abcc8b30e946bd29def55e7428c2c63b51f7234277e6e5d8092fd9917",
+          "Attributes": {
+            "chatchat.python.operation": "chatchat-py-9cafac6cff4b41639f8961310940a6a905640fe8",
+            "image": "sha256:3434f7630ff7c54a053c7385710e089d249e65d668699ab96f9603b6e1b27eef",
+            "name": "chatchat-py-9cafac6cff4b41639f8961310940a6a905640fe8",
+            "signal": "15"
+          }
+        },
+        "scope": "local",
+        "time": 1794115961,
+        "timeNano": 1794115961200095474
+      },
+      {
+        "status": "kill",
+        "id": "962a4a3abcc8b30e946bd29def55e7428c2c63b51f7234277e6e5d8092fd9917",
+        "from": "sha256:3434f7630ff7c54a053c7385710e089d249e65d668699ab96f9603b6e1b27eef",
+        "Type": "container",
+        "Action": "kill",
+        "Actor": {
+          "ID": "962a4a3abcc8b30e946bd29def55e7428c2c63b51f7234277e6e5d8092fd9917",
+          "Attributes": {
+            "chatchat.python.operation": "chatchat-py-9cafac6cff4b41639f8961310940a6a905640fe8",
+            "image": "sha256:3434f7630ff7c54a053c7385710e089d249e65d668699ab96f9603b6e1b27eef",
+            "name": "chatchat-py-9cafac6cff4b41639f8961310940a6a905640fe8",
+            "signal": "15"
+          }
+        },
+        "scope": "local",
+        "time": 1794115961,
+        "timeNano": 1794115961510393952
+      },
+      {
+        "status": "kill",
+        "id": "962a4a3abcc8b30e946bd29def55e7428c2c63b51f7234277e6e5d8092fd9917",
+        "from": "sha256:3434f7630ff7c54a053c7385710e089d249e65d668699ab96f9603b6e1b27eef",
+        "Type": "container",
+        "Action": "kill",
+        "Actor": {
+          "ID": "962a4a3abcc8b30e946bd29def55e7428c2c63b51f7234277e6e5d8092fd9917",
+          "Attributes": {
+            "chatchat.python.operation": "chatchat-py-9cafac6cff4b41639f8961310940a6a905640fe8",
+            "image": "sha256:3434f7630ff7c54a053c7385710e089d249e65d668699ab96f9603b6e1b27eef",
+            "name": "chatchat-py-9cafac6cff4b41639f8961310940a6a905640fe8",
+            "signal": "9"
+          }
+        },
+        "scope": "local",
+        "time": 1794115963,
+        "timeNano": 1794115963011452975
+      },
+      {
+        "status": "stop",
+        "id": "962a4a3abcc8b30e946bd29def55e7428c2c63b51f7234277e6e5d8092fd9917",
+        "from": "sha256:3434f7630ff7c54a053c7385710e089d249e65d668699ab96f9603b6e1b27eef",
+        "Type": "container",
+        "Action": "stop",
+        "Actor": {
+          "ID": "962a4a3abcc8b30e946bd29def55e7428c2c63b51f7234277e6e5d8092fd9917",
+          "Attributes": {
+            "chatchat.python.operation": "chatchat-py-9cafac6cff4b41639f8961310940a6a905640fe8",
+            "image": "sha256:3434f7630ff7c54a053c7385710e089d249e65d668699ab96f9603b6e1b27eef",
+            "name": "chatchat-py-9cafac6cff4b41639f8961310940a6a905640fe8"
+          }
+        },
+        "scope": "local",
+        "time": 1794115963,
+        "timeNano": 1794115963120311911
+      },
+      {
+        "status": "stop",
+        "id": "962a4a3abcc8b30e946bd29def55e7428c2c63b51f7234277e6e5d8092fd9917",
+        "from": "sha256:3434f7630ff7c54a053c7385710e089d249e65d668699ab96f9603b6e1b27eef",
+        "Type": "container",
+        "Action": "stop",
+        "Actor": {
+          "ID": "962a4a3abcc8b30e946bd29def55e7428c2c63b51f7234277e6e5d8092fd9917",
+          "Attributes": {
+            "chatchat.python.operation": "chatchat-py-9cafac6cff4b41639f8961310940a6a905640fe8",
+            "image": "sha256:3434f7630ff7c54a053c7385710e089d249e65d668699ab96f9603b6e1b27eef",
+            "name": "chatchat-py-9cafac6cff4b41639f8961310940a6a905640fe8"
+          }
+        },
+        "scope": "local",
+        "time": 1794115963,
+        "timeNano": 1794115963120377809
+      },
+      {
+        "status": "stop",
+        "id": "962a4a3abcc8b30e946bd29def55e7428c2c63b51f7234277e6e5d8092fd9917",
+        "from": "sha256:3434f7630ff7c54a053c7385710e089d249e65d668699ab96f9603b6e1b27eef",
+        "Type": "container",
+        "Action": "stop",
+        "Actor": {
+          "ID": "962a4a3abcc8b30e946bd29def55e7428c2c63b51f7234277e6e5d8092fd9917",
+          "Attributes": {
+            "chatchat.python.operation": "chatchat-py-9cafac6cff4b41639f8961310940a6a905640fe8",
+            "image": "sha256:3434f7630ff7c54a053c7385710e089d249e65d668699ab96f9603b6e1b27eef",
+            "name": "chatchat-py-9cafac6cff4b41639f8961310940a6a905640fe8"
+          }
+        },
+        "scope": "local",
+        "time": 1794115963,
+        "timeNano": 1794115963120442323
+      },
+      {
+        "status": "die",
+        "id": "962a4a3abcc8b30e946bd29def55e7428c2c63b51f7234277e6e5d8092fd9917",
+        "from": "sha256:3434f7630ff7c54a053c7385710e089d249e65d668699ab96f9603b6e1b27eef",
+        "Type": "container",
+        "Action": "die",
+        "Actor": {
+          "ID": "962a4a3abcc8b30e946bd29def55e7428c2c63b51f7234277e6e5d8092fd9917",
+          "Attributes": {
+            "chatchat.python.operation": "chatchat-py-9cafac6cff4b41639f8961310940a6a905640fe8",
+            "execDuration": "5",
+            "exitCode": "137",
+            "image": "sha256:3434f7630ff7c54a053c7385710e089d249e65d668699ab96f9603b6e1b27eef",
+            "name": "chatchat-py-9cafac6cff4b41639f8961310940a6a905640fe8"
+          }
+        },
+        "scope": "local",
+        "time": 1794115963,
+        "timeNano": 1794115963124414270
+      },
+      {
+        "status": "destroy",
+        "id": "962a4a3abcc8b30e946bd29def55e7428c2c63b51f7234277e6e5d8092fd9917",
+        "from": "sha256:3434f7630ff7c54a053c7385710e089d249e65d668699ab96f9603b6e1b27eef",
+        "Type": "container",
+        "Action": "destroy",
+        "Actor": {
+          "ID": "962a4a3abcc8b30e946bd29def55e7428c2c63b51f7234277e6e5d8092fd9917",
+          "Attributes": {
+            "chatchat.python.operation": "chatchat-py-9cafac6cff4b41639f8961310940a6a905640fe8",
+            "image": "sha256:3434f7630ff7c54a053c7385710e089d249e65d668699ab96f9603b6e1b27eef",
+            "name": "chatchat-py-9cafac6cff4b41639f8961310940a6a905640fe8"
+          }
+        },
+        "scope": "local",
+        "time": 1794115963,
+        "timeNano": 1794115963332744310
+      }
+    ]
+  },
+  {
+    "operationId": "cline-a09d0c6c8ccbbc76cff52efd36114a94d55f8f8513f9042f0e6b013a12bd3904",
+    "containerName": "chatchat-py-1c199450c4685c083a3a82cd6513e94aca2c08d6",
+    "exit": 0,
+    "events": []
+  },
+  {
+    "operationId": "cline-911201c7b5cd077543b3c2935c7641751ae6d68954073b73a6c790855b255b98",
+    "containerName": "chatchat-py-656d47fba334acf4c3a94da6a32c53df011ac730",
+    "exit": 0,
+    "events": []
+  },
+  {
+    "operationId": "cline-d7903c65a9b62027b7737bae43a4b1b670b67e2a8381fc80aa3c677d91c022da",
+    "containerName": "chatchat-py-79091885afca467d9b7fd545766fa06944d5f395",
+    "exit": 0,
+    "events": []
+  },
+  {
+    "operationId": "cline-ed8489806d03e6bf8e6753a107d8dd6ec1a29c0e1a076a3fcf225cb059dc6216",
+    "containerName": "chatchat-py-8a62be79bec949904d2be833eb15a02d3ec9e2c7",
+    "exit": 0,
+    "events": []
+  }
+]

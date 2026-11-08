@@ -1,0 +1,441 @@
+{
+  "at": "2026-11-08T05:32:49.669538+00:00",
+  "allProcessesStopped": true,
+  "processes": [
+    {
+      "operationId": "cline-09642172908ca8484b24f753802fe03801a76ca56b32d00e545a8267fa7bfbc6",
+      "originalProcessAlive": false
+    },
+    {
+      "operationId": "cline-0aa8ebc65e3e319a3dfda7648aeeefa84b5cd37fd6712cf881ca1c5afdda47a9",
+      "originalProcessAlive": false
+    },
+    {
+      "operationId": "cline-0fbfa91613400fcb4f598919de53445839a33d0efac408a7e21fc5902824a74e",
+      "originalProcessAlive": false
+    },
+    {
+      "operationId": "cline-2a244285cb3cfda9da12c989ea6d3f9fb098a4740faa0a5b1ef21483b5131441",
+      "originalProcessAlive": false
+    },
+    {
+      "operationId": "cline-30b94c4bdecc8198592ef65a88edebe2cd54c8da600d09b265fd2e5e8799b5c0",
+      "originalProcessAlive": false
+    },
+    {
+      "operationId": "cline-36ac8af85bdc2a7ca0da3edad1d2599b2fa877e1d5e23e3b99bb3e6805e510bb",
+      "originalProcessAlive": false
+    },
+    {
+      "operationId": "cline-3a1a432893bde0b13bfc8bbe8226a15b84958026d3d5c387a7edb8b6dfdc28b9",
+      "originalProcessAlive": false
+    },
+    {
+      "operationId": "cline-3b6cee57fa6a82da351e601b520cb60fbe410fde934fac6ba7d302d0433b4e0a",
+      "originalProcessAlive": false
+    },
+    {
+      "operationId": "cline-3ec3fdc078363a925d05728800a7dfc6aec8f2e430ed4eb19349ff85f23d1d1c",
+      "originalProcessAlive": false
+    },
+    {
+      "operationId": "cline-4ba3526be3466c5e6e129ab283259017b460f9eefa6aa85f98339df250fc941d",
+      "originalProcessAlive": false
+    },
+    {
+      "operationId": "cline-5338804dda3d89c189248c9d3cd433ece2f3cf928134633088fd73a02bb71df9",
+      "originalProcessAlive": false
+    },
+    {
+      "operationId": "cline-5bc2ca4bf36958fa52e0672ed63359c155d7fcb922ddb7d4fde29dcde5449ab5",
+      "originalProcessAlive": false
+    },
+    {
+      "operationId": "cline-6136d99381570f3bab079b12a41bb895ab3e0043ccc122aeb9fb142b2eba7708",
+      "originalProcessAlive": false
+    },
+    {
+      "operationId": "cline-6ce470e2d642d093cbdb87defecd67291febab8dbfe91e84003e7820a71f77d5",
+      "originalProcessAlive": false
+    },
+    {
+      "operationId": "cline-6e835d053eadc931640208cbd6ad1fc989d0b71300bc8c23e0efe97ed8598226",
+      "originalProcessAlive": false
+    },
+    {
+      "operationId": "cline-749849d5b4dcd57357322e35ed735a650a6ea92d02730d6a1de1fe242b5a4e5f",
+      "originalProcessAlive": false
+    },
+    {
+      "operationId": "cline-78f5bd5aef9606ac1eb681655425bec894f4c353948041f6068f9b38be9104a6",
+      "originalProcessAlive": false
+    },
+    {
+      "operationId": "cline-7d45a30ffeda5bdfe74946a0cebc9f37d98154238400c86773a16b75941f2f64",
+      "originalProcessAlive": false
+    },
+    {
+      "operationId": "cline-8089e917c2c71095ff28ff74f9771cbdc519c9621ece690034e972b7ef639a36",
+      "originalProcessAlive": false
+    },
+    {
+      "operationId": "cline-83de4c7e5c4562b5ca927541d0ea2272b748b00cfb9bc484c1bc8d5fe1d8ab4f",
+      "originalProcessAlive": false
+    },
+    {
+      "operationId": "cline-95495b3010bf3c5a4bde737a7a7c41be935bb55514f6f3c67a6f6646bf923b12",
+      "originalProcessAlive": false
+    },
+    {
+      "operationId": "cline-a56d0fe4df5d1198a2b6cff1299b3b3b4b5462f18fbb74362a7809da1ec81ee6",
+      "originalProcessAlive": false
+    },
+    {
+      "operationId": "cline-e1a750ad994d3ce6a2f0c21b18a43ce3009fc50f1b5af408be1e9b0602a608f7",
+      "originalProcessAlive": false
+    },
+    {
+      "operationId": "cline-f8956d3a0d4333f13dc88716ba51a008760be4c1ab38026cd757564e785a19b0",
+      "originalProcessAlive": false
+    },
+    {
+      "operationId": "cline-fbf8b3077ae724731a3db714054e0cae9e7b4f95342b3d5aef45a3dc9a615085",
+      "originalProcessAlive": false
+    }
+  ],
+  "operations": [
+    {
+      "operationId": "cline-09642172908ca8484b24f753802fe03801a76ca56b32d00e545a8267fa7bfbc6",
+      "state": "COMPLETED",
+      "stopConfirmed": true,
+      "nativeCallId": "b9160f0e049a4e70a1fde787d597d8e9",
+      "pid": 274,
+      "receiptHash": "c77048548042033d02d85226c0125145d3b09e5fdb2c6b645c091660212194df",
+      "finishedAt": "2026-11-08T05:15:44.173Z"
+    },
+    {
+      "operationId": "cline-30b94c4bdecc8198592ef65a88edebe2cd54c8da600d09b265fd2e5e8799b5c0",
+      "state": "COMPLETED",
+      "stopConfirmed": true,
+      "nativeCallId": "4f554531febe458e9b25401a01c65685",
+      "pid": 158,
+      "receiptHash": "840484726f53f44fa2e899243c3d83e8cfb5a9a13fec630e853f214cfb38bca9",
+      "finishedAt": "2026-11-08T05:04:21.737Z"
+    },
+    {
+      "operationId": "cline-749849d5b4dcd57357322e35ed735a650a6ea92d02730d6a1de1fe242b5a4e5f",
+      "state": "CANCELLED",
+      "stopConfirmed": true,
+      "nativeCallId": "b514791c4bb54da8ad6728583a3d94fc",
+      "pid": 177,
+      "receiptHash": "a9b7ffa7325df90c6b5c6f0fa0c4dbfaa7b550816e0907393ff1b204220a87d5",
+      "finishedAt": "2026-11-08T05:04:30.827Z"
+    },
+    {
+      "operationId": "cline-95495b3010bf3c5a4bde737a7a7c41be935bb55514f6f3c67a6f6646bf923b12",
+      "state": "COMPLETED",
+      "stopConfirmed": true,
+      "nativeCallId": "342974ce2a854c0fbda3306b105941b4",
+      "pid": 293,
+      "receiptHash": "df54ea34db4e4fa2fe7b288761cc6ab378649bdd543fc3a5872cc96d5e62b150",
+      "finishedAt": "2026-11-08T05:15:51.018Z"
+    },
+    {
+      "operationId": "cline-f5bdf1f87677493ae088a764841c34698e65d3bd1bda58a0f82c78a5c3db2b4f",
+      "state": "CANCELLED",
+      "stopConfirmed": true,
+      "nativeCallId": "d95ce440404b4c72980bd6b042965db9",
+      "pid": null,
+      "receiptHash": "8c04f2ea3b26fd32a0aabb2e73dd897830e4675e009b937006b8f403b8969412",
+      "finishedAt": "2026-11-08T05:04:44.021Z"
+    },
+    {
+      "operationId": "cline-a56d0fe4df5d1198a2b6cff1299b3b3b4b5462f18fbb74362a7809da1ec81ee6",
+      "state": "COMPLETED",
+      "stopConfirmed": true,
+      "nativeCallId": "5c8b4da9269d4bc3bf5f410a4ec93200",
+      "pid": 300,
+      "receiptHash": "96b1c092434218aaa7856c613906c4ef2335c286d6f713ed6b24170c4e1ab1f2",
+      "finishedAt": "2026-11-08T05:16:10.530Z"
+    },
+    {
+      "operationId": "cline-8089e917c2c71095ff28ff74f9771cbdc519c9621ece690034e972b7ef639a36",
+      "state": "COMPLETED",
+      "stopConfirmed": true,
+      "nativeCallId": "b13effb9e3ba457188f5475a8b3f3db8",
+      "pid": 285,
+      "receiptHash": "0bc6e80e1bce78294bc1b039b9979097daf2d4847f12377d8ba33a6be261a4c1",
+      "finishedAt": "2026-11-08T05:06:37.536Z"
+    },
+    {
+      "operationId": "cline-3a1a432893bde0b13bfc8bbe8226a15b84958026d3d5c387a7edb8b6dfdc28b9",
+      "state": "CANCELLED",
+      "stopConfirmed": true,
+      "nativeCallId": "71d3c36ab33e4488b914dc016340e0a8",
+      "pid": 304,
+      "receiptHash": "aa40a2aecce11e2e37855ce994550c89fddcc19be3914a6e559b6637dea1cbd6",
+      "finishedAt": "2026-11-08T05:06:47.644Z"
+    },
+    {
+      "operationId": "cline-8e5951625a9dac1a1df7e5ee5c5fc64b9102448e93295bbebeb5bdb8601e7e46",
+      "state": "CANCELLED",
+      "stopConfirmed": true,
+      "nativeCallId": "1fd281903c7543e884f8d337596aeeef",
+      "pid": null,
+      "receiptHash": "f209de4a15d279210dd84da3a2a18430631b951ea7da89b429664e398a245c86",
+      "finishedAt": "2026-11-08T05:07:01.177Z"
+    },
+    {
+      "operationId": "cline-78f5bd5aef9606ac1eb681655425bec894f4c353948041f6068f9b38be9104a6",
+      "state": "COMPLETED",
+      "stopConfirmed": true,
+      "nativeCallId": "cf22f56ed5254a98bfc55338cfbfd5d5",
+      "pid": 512,
+      "receiptHash": "2fecbe6ef363a44c787a4a0987d958811bb2c8fdf17fea7024679b1beb2c4ae2",
+      "finishedAt": "2026-11-08T05:20:06.318Z"
+    },
+    {
+      "operationId": "cline-3d280ee0fe73c14c8dd6a56aae41b21c846159d5f52af4eda2d728b8136d64bf",
+      "state": "CANCELLED",
+      "stopConfirmed": true,
+      "nativeCallId": "73156ddb1489472094ae5ed1f9e5cf82",
+      "pid": null,
+      "receiptHash": "42e668a3b9bfe0244c5e94c2a379f0978759c958d62ba91d099a6e8b59cdd647",
+      "finishedAt": "2026-11-08T05:10:48.785Z"
+    },
+    {
+      "operationId": "cline-4ba3526be3466c5e6e129ab283259017b460f9eefa6aa85f98339df250fc941d",
+      "state": "CANCELLED",
+      "stopConfirmed": true,
+      "nativeCallId": "7460f01f504c4d3b9ab89668aa7031ae",
+      "pid": 519,
+      "receiptHash": "4c93a622e39d94bcbc4e428d364c1cb5284b64f9029ce9b4134b0ae900d6522e",
+      "finishedAt": "2026-11-08T05:20:15.758Z"
+    },
+    {
+      "operationId": "cline-2a244285cb3cfda9da12c989ea6d3f9fb098a4740faa0a5b1ef21483b5131441",
+      "state": "COMPLETED",
+      "stopConfirmed": true,
+      "nativeCallId": "34630be7948248f39e669c1736b2322b",
+      "pid": 18,
+      "receiptHash": "c444329447ea7eec03514f797357fb38f6af388e09ef65b0486a99f265eead07",
+      "finishedAt": "2026-11-08T05:10:53.741Z"
+    },
+    {
+      "operationId": "cline-3a2a0f2762e66ef95dd307671a1649b57afa1669fb8d23ae0b6fc29f4c7c9b8b",
+      "state": "CANCELLED",
+      "stopConfirmed": true,
+      "nativeCallId": "195c716b6d4845f7a338de5b97f0aebf",
+      "pid": null,
+      "receiptHash": "f7a6d700dc68337dae6b3aae9540668377b4a4716f563495a0663ae2847f347e",
+      "finishedAt": "2026-11-08T05:20:28.691Z"
+    },
+    {
+      "operationId": "cline-6136d99381570f3bab079b12a41bb895ab3e0043ccc122aeb9fb142b2eba7708",
+      "state": "COMPLETED",
+      "stopConfirmed": true,
+      "nativeCallId": "beeadc9714084111aa700af7fa3db1a0",
+      "pid": 37,
+      "receiptHash": "2eb7548cf13d58a232735739d79e9460c27ffe39cb2743913f4fc707847e555b",
+      "finishedAt": "2026-11-08T05:11:00.969Z"
+    },
+    {
+      "operationId": "cline-3aac12e3c74d85ba1d0381e1c366438c3b99793637a4c92b9cb8eb3b1f089212",
+      "state": "CANCELLED",
+      "stopConfirmed": true,
+      "nativeCallId": "1f413d1284234426889e1d9e8d5dea04",
+      "pid": null,
+      "receiptHash": "480e51a741b6cc3013f95716e9fc4262835dfe255c887e3e9c5ce7493d2ac9e5",
+      "finishedAt": "2026-11-08T05:20:41.288Z"
+    },
+    {
+      "operationId": "cline-83de4c7e5c4562b5ca927541d0ea2272b748b00cfb9bc484c1bc8d5fe1d8ab4f",
+      "state": "COMPLETED",
+      "stopConfirmed": true,
+      "nativeCallId": "d5b81ce03d0c4b0cac7389e42c80f72a",
+      "pid": 44,
+      "receiptHash": "83b616a95e2cc74ef69298f7701e7ed9803d35a6a2143ed910c320faa191df5c",
+      "finishedAt": "2026-11-08T05:11:20.821Z"
+    },
+    {
+      "operationId": "cline-e1a750ad994d3ce6a2f0c21b18a43ce3009fc50f1b5af408be1e9b0602a608f7",
+      "state": "CANCELLED",
+      "stopConfirmed": true,
+      "nativeCallId": "call_26d4e7fea76c4f6d9a64933e",
+      "pid": 111,
+      "receiptHash": "bbab762240439aa3e6c6e2a5a04cca44fed2848167648e48c03862105cc13b7e",
+      "finishedAt": "2026-11-08T05:12:19.386Z"
+    },
+    {
+      "operationId": "cline-5bc2ca4bf36958fa52e0672ed63359c155d7fcb922ddb7d4fde29dcde5449ab5",
+      "state": "COMPLETED",
+      "stopConfirmed": true,
+      "nativeCallId": "4cc6087e9c9e43aebccc1bb7bea7eadb",
+      "pid": 550,
+      "receiptHash": "6e22097cc932cce68470c8c5fe98928e9e567a3cd9b6a8bdab0c9515ca386577",
+      "finishedAt": "2026-11-08T05:20:45.851Z"
+    },
+    {
+      "operationId": "cline-8009660d84491fd7cf2dbdcb1923a45b44462667a2956c6e848c3ec50690591f",
+      "state": "CANCELLED",
+      "stopConfirmed": true,
+      "nativeCallId": "c37bf117707e412084d767c21cc9ee83",
+      "pid": null,
+      "receiptHash": "10acfeff6b59bcd876494193d28dfcabe96c2db8764f196c6d71ac5925a42f11",
+      "finishedAt": "2026-11-08T05:15:39.353Z"
+    },
+    {
+      "operationId": "cline-d757df438f7cd4aa465e8301f719ad3ec4230839295b1fa09fded8640e689c83",
+      "state": "CANCELLED",
+      "stopConfirmed": true,
+      "nativeCallId": "call_2540f6c4038840cc86c6a499",
+      "pid": null,
+      "receiptHash": "c3861e6be3fef3e2974b3ff307dcb9013586b569b3ba55fa4de063efb02ff787",
+      "finishedAt": "2026-11-08T05:30:03.408Z"
+    },
+    {
+      "operationId": "cline-5338804dda3d89c189248c9d3cd433ece2f3cf928134633088fd73a02bb71df9",
+      "state": "COMPLETED",
+      "stopConfirmed": true,
+      "nativeCallId": "e646197eadcb4befb67240956def352c",
+      "pid": 569,
+      "receiptHash": "a01e3c43c1bd691e9e9c489bab54846588a2c6bc3a0ff21d93b762bddf5f2e8e",
+      "finishedAt": "2026-11-08T05:20:52.562Z"
+    },
+    {
+      "operationId": "cline-f8956d3a0d4333f13dc88716ba51a008760be4c1ab38026cd757564e785a19b0",
+      "state": "COMPLETED",
+      "stopConfirmed": true,
+      "nativeCallId": "bb4fae4ef4614b38ad61fe7918d431a2",
+      "pid": 576,
+      "receiptHash": "4660aa2d4e0f51a35442fc223352758e99160cc44007ce404eeedd9887264b53",
+      "finishedAt": "2026-11-08T05:21:11.935Z"
+    },
+    {
+      "operationId": "cline-466dd49bec450bf9fcd7f68b8f7ca4c5f66f6d91e13f7e2b06932f018ac78f0a",
+      "state": "CANCELLED",
+      "stopConfirmed": true,
+      "nativeCallId": "call_7473f090657343f684fb5f13",
+      "pid": null,
+      "receiptHash": "78d9162418f9484aa340b154157e25ba8d50d932d6b61bb66fd45f985d2814c0",
+      "finishedAt": "2026-11-08T05:30:37.467Z"
+    },
+    {
+      "operationId": "cline-fbf8b3077ae724731a3db714054e0cae9e7b4f95342b3d5aef45a3dc9a615085",
+      "state": "CANCELLED",
+      "stopConfirmed": true,
+      "nativeCallId": "call_600df1a118824c9db0f2f3d1",
+      "pid": 644,
+      "receiptHash": "27b9a359e4549e75acf9a26d13c56b6e9a4b10add9f794cc1b34e71d3caf25fe",
+      "finishedAt": "2026-11-08T05:22:12.355Z"
+    },
+    {
+      "operationId": "cline-0fbfa91613400fcb4f598919de53445839a33d0efac408a7e21fc5902824a74e",
+      "state": "COMPLETED",
+      "stopConfirmed": true,
+      "nativeCallId": "aecfd2c93c254daebeefb18606c876dc",
+      "pid": 887,
+      "receiptHash": "99c5d258259954e6a30edf4ef8ca1f1d35b2cc0518a5e7dec9a2a3e74abcf019",
+      "finishedAt": "2026-11-08T05:32:21.387Z"
+    },
+    {
+      "operationId": "cline-d2746fe461a0a74fa8757dce9e3902114f5e1501dbaaca50c2f5093c934e5292",
+      "state": "CANCELLED",
+      "stopConfirmed": true,
+      "nativeCallId": "call_63c4565acb7548a4b9d5950f",
+      "pid": null,
+      "receiptHash": "8c159c00277b0bbf7286b7fa82cd879bb24632bcaa17b2f204e6d9a99c73f117",
+      "finishedAt": "2026-11-08T05:22:43.639Z"
+    },
+    {
+      "operationId": "cline-6ce470e2d642d093cbdb87defecd67291febab8dbfe91e84003e7820a71f77d5",
+      "state": "CANCELLED",
+      "stopConfirmed": true,
+      "nativeCallId": "b3d2ded7f317482689feec83ccc2ad4a",
+      "pid": 922,
+      "receiptHash": "ae9830000b5effecd07896be537efa5ca85d6a074aa996167912bc613d994d6a",
+      "finishedAt": "2026-11-08T05:32:31.211Z"
+    },
+    {
+      "operationId": "cline-7d45a30ffeda5bdfe74946a0cebc9f37d98154238400c86773a16b75941f2f64",
+      "state": "COMPLETED",
+      "stopConfirmed": true,
+      "nativeCallId": "2bee37797519405d8927f47365f4aca6",
+      "pid": 27,
+      "receiptHash": "59013c86eeceb21e73a5d0341f15386aef1448ab1664c81dbb7186410ec99af8",
+      "finishedAt": "2026-11-08T05:27:24.445Z"
+    },
+    {
+      "operationId": "cline-106f53dceb0e05070d8cac23057c7cd6d03ed8892b0503122e10655e5ae93711",
+      "state": "CANCELLED",
+      "stopConfirmed": true,
+      "nativeCallId": "f8e067ae4bb94d1396d11e0c2e321576",
+      "pid": null,
+      "receiptHash": "77c34eaee5aedb17fffdd101b4741787850329446cf7056550f66a1145f6bbea",
+      "finishedAt": "2026-11-08T05:32:44.048Z"
+    },
+    {
+      "operationId": "cline-3b6cee57fa6a82da351e601b520cb60fbe410fde934fac6ba7d302d0433b4e0a",
+      "state": "CANCELLED",
+      "stopConfirmed": true,
+      "nativeCallId": "7c0f471bba2241ee8d41dab4962313f4",
+      "pid": 62,
+      "receiptHash": "0c10864c95ed0ead6a45755b6947c6e752c91f08949b5ee21392505b8901e5dd",
+      "finishedAt": "2026-11-08T05:27:35.018Z"
+    },
+    {
+      "operationId": "cline-1cb1c041064faa5fce86de073cb948da70880f739e2465c0b75e46b18914f7ab",
+      "state": "CANCELLED",
+      "stopConfirmed": true,
+      "nativeCallId": "430e25c90f2a4f88a2a6e140582d2462",
+      "pid": null,
+      "receiptHash": "bc396e31393cda9dc6ad61e4d1db9740897e839582a8f238fb88109c6b1b5d46",
+      "finishedAt": "2026-11-08T05:27:48.799Z"
+    },
+    {
+      "operationId": "cline-347c7b0707ed0bb6246c9c5de1d5defea7616a69539134623f2bf45c08960e6a",
+      "state": "CANCELLED",
+      "stopConfirmed": true,
+      "nativeCallId": "80629ce64f6943529f26ab1c2fd16b90",
+      "pid": null,
+      "receiptHash": "f6be106e44d8130fd1c7f53474ca9c62fb6813fdff60b57cafad39f4a9bce01f",
+      "finishedAt": "2026-11-08T05:28:00.813Z"
+    },
+    {
+      "operationId": "cline-6e835d053eadc931640208cbd6ad1fc989d0b71300bc8c23e0efe97ed8598226",
+      "state": "COMPLETED",
+      "stopConfirmed": true,
+      "nativeCallId": "008825a16e35400691749ec06e25ba77",
+      "pid": 158,
+      "receiptHash": "32e13f9f57cd4196add30bee654c7ed5fd436373935965477be61fe0b33fea83",
+      "finishedAt": "2026-11-08T05:28:05.429Z"
+    },
+    {
+      "operationId": "cline-36ac8af85bdc2a7ca0da3edad1d2599b2fa877e1d5e23e3b99bb3e6805e510bb",
+      "state": "COMPLETED",
+      "stopConfirmed": true,
+      "nativeCallId": "204353957c734fa5a473874bbc29a324",
+      "pid": 180,
+      "receiptHash": "e1ee747a457d7c592397dd3bc2014942d0ec4c892d3688060ac8d75fd2890987",
+      "finishedAt": "2026-11-08T05:28:12.403Z"
+    },
+    {
+      "operationId": "cline-3ec3fdc078363a925d05728800a7dfc6aec8f2e430ed4eb19349ff85f23d1d1c",
+      "state": "COMPLETED",
+      "stopConfirmed": true,
+      "nativeCallId": "2a1ef47c0cdb4dbf806025a400aaec55",
+      "pid": 214,
+      "receiptHash": "d245390401e2b326161926099ea2abdd3ecd3648951a32af7ed8264d37e024b3",
+      "finishedAt": "2026-11-08T05:28:31.966Z"
+    },
+    {
+      "operationId": "cline-0aa8ebc65e3e319a3dfda7648aeeefa84b5cd37fd6712cf881ca1c5afdda47a9",
+      "state": "CANCELLED",
+      "stopConfirmed": true,
+      "nativeCallId": "call_4a89032ac2c74a5c8e6b7a48",
+      "pid": 418,
+      "receiptHash": "a1da3f087f9410044e1210fcaa15357294fcb4675622142c5bd394acfba46b7b",
+      "finishedAt": "2026-11-08T05:29:38.416Z"
+    }
+  ]
+}

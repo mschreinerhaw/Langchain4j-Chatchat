@@ -385,6 +385,28 @@ public final class DurableCodingTaskService implements CodingAgentSPI {
         }).lease;
     }
 
+    /** Reconciliation-only CAS for already admitted native metadata; no dispatch, journal or fence bypass. */
+    public void reconcileNativeState(KernelDataScope scope, String taskId, CodingJournal.Lease lease, String key,
+            com.fasterxml.jackson.databind.JsonNode expected, com.fasterxml.jackson.databind.JsonNode next) {
+        require(key != null && key.startsWith("native:") && key.length() <= 128 && expected != null
+            && next != null && next.toString().length() <= 262144, CONTRACT_INVALID, "Bounded existing native state required");
+        mutateTask(scope, taskId, WORKER, task -> {
+            fence(task, lease);
+            require(task.privateState.containsKey(key) && Objects.equals(task.privateState.get(key), expected),
+                TASK_ID_CONFLICT, "Native reconciliation CAS conflict");
+            task.privateState.put(key, next.deepCopy());
+        });
+    }
+
+    /** Read-only projection of committed native bindings; no secondary index can hide a dispatch. */
+    public Map<String, com.fasterxml.jackson.databind.JsonNode> nativeOperationStates(KernelDataScope scope, String taskId) {
+        var result = new LinkedHashMap<String, com.fasterxml.jackson.databind.JsonNode>();
+        task(read(scope, READ), taskId).privateState.forEach((key, value) -> {
+            if (key.matches("native:cline-[0-9a-f]{64}")) result.put(key.substring(7), value.deepCopy());
+        });
+        return Collections.unmodifiableMap(result);
+    }
+
     public record ReservationResult(boolean admitted, CodingTaskOutcome outcome) { }
 
     public ReservationResult reserve(KernelDataScope scope, String taskId, CodingJournal.Lease lease,

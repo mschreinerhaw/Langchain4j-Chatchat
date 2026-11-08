@@ -1,0 +1,263 @@
+[
+  {
+    "name": "cline-p32-authority",
+    "image": "sha256:18ad6f765878f165c13e470cdd72561987ad14cfacf60d122a5f7fa9583d3f8a",
+    "state": {
+      "Status": "running",
+      "Running": true,
+      "Paused": false,
+      "Restarting": false,
+      "OOMKilled": false,
+      "Dead": false,
+      "Pid": 2628234,
+      "ExitCode": 0,
+      "Error": "",
+      "StartedAt": "2026-11-08T05:28:21.374197438Z",
+      "FinishedAt": "2026-11-08T05:28:20.712239833Z",
+      "Health": {
+        "Status": "healthy",
+        "FailingStreak": 0,
+        "Log": [
+          {
+            "Start": "2026-11-08T13:30:33.797348716+08:00",
+            "End": "2026-11-08T13:30:33.901803181+08:00",
+            "ExitCode": 0,
+            "Output": ""
+          },
+          {
+            "Start": "2026-11-08T13:30:38.903136294+08:00",
+            "End": "2026-11-08T13:30:38.992691912+08:00",
+            "ExitCode": 0,
+            "Output": ""
+          },
+          {
+            "Start": "2026-11-08T13:30:43.994479465+08:00",
+            "End": "2026-11-08T13:30:44.079494551+08:00",
+            "ExitCode": 0,
+            "Output": ""
+          },
+          {
+            "Start": "2026-11-08T13:30:49.080976924+08:00",
+            "End": "2026-11-08T13:30:49.158728747+08:00",
+            "ExitCode": 0,
+            "Output": ""
+          },
+          {
+            "Start": "2026-11-08T13:30:54.160306808+08:00",
+            "End": "2026-11-08T13:30:54.228991619+08:00",
+            "ExitCode": 0,
+            "Output": ""
+          }
+        ]
+      }
+    },
+    "httpHealth": {
+      "status": 200,
+      "body": {
+        "live": true
+      }
+    },
+    "mounts": [
+      {
+        "Type": "bind",
+        "Source": "/opt/cline-server-p3-stage2-20261108/python/data",
+        "Destination": "/opt/cline-server-p3-stage2-20261108/python/data",
+        "Mode": "",
+        "RW": true,
+        "Propagation": "rprivate"
+      },
+      {
+        "Type": "bind",
+        "Source": "/opt/cline-server-p3-stage2-20261108/private/config.json",
+        "Destination": "/run/cline-operations.json",
+        "Mode": "",
+        "RW": false,
+        "Propagation": "rprivate"
+      },
+      {
+        "Type": "bind",
+        "Source": "/var/run/docker.sock",
+        "Destination": "/var/run/docker.sock",
+        "Mode": "",
+        "RW": true,
+        "Propagation": "rprivate"
+      },
+      {
+        "Type": "bind",
+        "Source": "/opt/cline-server-p3-stage2-20261108/classes",
+        "Destination": "/opt/cline-server-p3-stage2-20261108/classes",
+        "Mode": "",
+        "RW": false,
+        "Propagation": "rprivate"
+      },
+      {
+        "Type": "bind",
+        "Source": "/opt/cline-server-p3-stage2-20261108/api-classes",
+        "Destination": "/opt/cline-server-p3-stage2-20261108/api-classes",
+        "Mode": "",
+        "RW": false,
+        "Propagation": "rprivate"
+      },
+      {
+        "Type": "bind",
+        "Source": "/opt/cline-server-p3-stage2-20261108/mcp-classes",
+        "Destination": "/opt/cline-server-p3-stage2-20261108/mcp-classes",
+        "Mode": "",
+        "RW": false,
+        "Propagation": "rprivate"
+      },
+      {
+        "Type": "bind",
+        "Source": "/opt/cline-server-p3-stage2-20261108/lib",
+        "Destination": "/opt/cline-server-p3-stage2-20261108/lib",
+        "Mode": "",
+        "RW": false,
+        "Propagation": "rprivate"
+      },
+      {
+        "Type": "bind",
+        "Source": "/opt/cline-server-p3-stage2-20261108/python/workspace",
+        "Destination": "/opt/cline-server-p3-stage2-20261108/python/workspace",
+        "Mode": "",
+        "RW": true,
+        "Propagation": "rprivate"
+      }
+    ]
+  },
+  {
+    "name": "cline-p32-remote",
+    "image": "sha256:bfea82551ff365794670f7a4160de239cd3ff985b07b89c811c3ed2b3adb2b31",
+    "state": {
+      "Status": "running",
+      "Running": true,
+      "Paused": false,
+      "Restarting": false,
+      "OOMKilled": false,
+      "Dead": false,
+      "Pid": 2619792,
+      "ExitCode": 0,
+      "Error": "",
+      "StartedAt": "2026-11-08T05:27:14.24821797Z",
+      "FinishedAt": "0001-01-01T00:00:00Z",
+      "Health": {
+        "Status": "healthy",
+        "FailingStreak": 0,
+        "Log": [
+          {
+            "Start": "2026-11-08T13:30:32.522088438+08:00",
+            "End": "2026-11-08T13:30:32.720253667+08:00",
+            "ExitCode": 0,
+            "Output": ""
+          },
+          {
+            "Start": "2026-11-08T13:30:37.721699286+08:00",
+            "End": "2026-11-08T13:30:37.940108025+08:00",
+            "ExitCode": 0,
+            "Output": ""
+          },
+          {
+            "Start": "2026-11-08T13:30:42.941037647+08:00",
+            "End": "2026-11-08T13:30:43.131697708+08:00",
+            "ExitCode": 0,
+            "Output": ""
+          },
+          {
+            "Start": "2026-11-08T13:30:48.133043378+08:00",
+            "End": "2026-11-08T13:30:48.458979675+08:00",
+            "ExitCode": 0,
+            "Output": ""
+          },
+          {
+            "Start": "2026-11-08T13:30:53.461474084+08:00",
+            "End": "2026-11-08T13:30:53.621515739+08:00",
+            "ExitCode": 0,
+            "Output": ""
+          }
+        ]
+      }
+    },
+    "httpHealth": {
+      "status": 200,
+      "body": {
+        "live": true
+      }
+    },
+    "mounts": [
+      {
+        "Type": "bind",
+        "Source": "/opt/cline-server-p3-stage2-20261108/source/cline-agent-server/src/stage2-remote.mjs",
+        "Destination": "/app/remote.mjs",
+        "Mode": "",
+        "RW": false,
+        "Propagation": "rprivate"
+      },
+      {
+        "Type": "bind",
+        "Source": "/opt/cline-server-p3-stage2-20261108/private/remote.json",
+        "Destination": "/run/cline-remote.json",
+        "Mode": "",
+        "RW": false,
+        "Propagation": "rprivate"
+      },
+      {
+        "Type": "bind",
+        "Source": "/opt/cline-server-p3-stage2-20261108/remote-state",
+        "Destination": "/opt/cline-server-p3-stage2-20261108/remote-state",
+        "Mode": "",
+        "RW": true,
+        "Propagation": "rprivate"
+      }
+    ]
+  },
+  {
+    "name": "cline-p32-control",
+    "image": "sha256:6ee943241411781d729fc5fcdd5608c1906424740228f55919b0009c524dfccb",
+    "state": {
+      "Status": "running",
+      "Running": true,
+      "Paused": false,
+      "Restarting": false,
+      "OOMKilled": false,
+      "Dead": false,
+      "Pid": 2631343,
+      "ExitCode": 0,
+      "Error": "",
+      "StartedAt": "2026-11-08T05:29:08.744790207Z",
+      "FinishedAt": "0001-01-01T00:00:00Z"
+    },
+    "httpHealth": {
+      "status": 200,
+      "body": {
+        "live": true,
+        "stage": "P3.1",
+        "enterpriseAcceptance": false
+      }
+    },
+    "mounts": [
+      {
+        "Type": "bind",
+        "Source": "/opt/cline-server-p3-stage2-20261108/control",
+        "Destination": "/control",
+        "Mode": "",
+        "RW": true,
+        "Propagation": "rprivate"
+      },
+      {
+        "Type": "bind",
+        "Source": "/opt/cline-server-p3-stage2-20261108/templates",
+        "Destination": "/templates",
+        "Mode": "",
+        "RW": false,
+        "Propagation": "rprivate"
+      },
+      {
+        "Type": "bind",
+        "Source": "/var/run/docker.sock",
+        "Destination": "/var/run/docker.sock",
+        "Mode": "",
+        "RW": true,
+        "Propagation": "rprivate"
+      }
+    ]
+  }
+]

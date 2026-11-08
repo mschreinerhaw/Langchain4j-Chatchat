@@ -1,0 +1,7 @@
+[
+  403,
+  {
+    "code": "REQUEST_REJECTED",
+    "message": "Task revoked"
+  }
+]

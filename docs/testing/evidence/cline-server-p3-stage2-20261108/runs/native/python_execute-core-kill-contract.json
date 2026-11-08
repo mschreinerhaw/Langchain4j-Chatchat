@@ -1,0 +1,27 @@
+{
+  "version": 1,
+  "tenantId": "tenant-a",
+  "userId": "user-a",
+  "taskId": "native-8990274c0b0d4c4bb98f62202697b945",
+  "sessionId": "session-fa3baa432a1645d2a57deb770c8ebfed",
+  "workspaceRef": "project",
+  "modelProfile": "qwen",
+  "budgetPolicy": {
+    "status": "DEFERRED_STAGE_2_REVIEW"
+  },
+  "toolPermissions": [
+    "read_files",
+    "search_codebase",
+    "editor",
+    "apply_patch",
+    "run_commands",
+    "use_mcp_tool",
+    "tenant_data__long_mcp",
+    "tenant_data__python_execute"
+  ],
+  "dataPermissions": [
+    "dataset-a"
+  ],
+  "networkPolicy": "broker-only",
+  "expiresAt": 1794123013380
+}

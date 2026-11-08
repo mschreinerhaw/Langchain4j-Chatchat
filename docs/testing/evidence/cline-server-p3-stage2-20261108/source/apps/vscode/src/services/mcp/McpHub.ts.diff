@@ -1,0 +1,18 @@
+--- stage1/apps/vscode/src/services/mcp/McpHub.ts
++++ stage2/apps/vscode/src/services/mcp/McpHub.ts
+@@ -1678,6 +1678,7 @@
+ 		toolArguments: Record<string, unknown> | undefined,
+ 		ulid: string,
+ 		signal?: AbortSignal,
++		operationContext?: Record<string, unknown>,
+ 	): Promise<McpToolCallResponse> {
+ 		const connection = this.connections.find((conn) => conn.server.name === serverName)
+ 		if (!connection) {
+@@ -1718,6 +1719,7 @@
+ 					params: {
+ 						name: toolName,
+ 						arguments: toolArguments ?? {},
++						...(operationContext ? { _meta: operationContext } : {}),
+ 					},
+ 				},
+ 				CallToolResultSchema,

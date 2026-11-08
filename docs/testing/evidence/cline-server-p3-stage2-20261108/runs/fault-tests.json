@@ -1,0 +1,570 @@
+[
+  {
+    "case": "lost-request-UNKNOWN-no-replay-real-tombstone",
+    "pass": true,
+    "detail": {
+      "dispatch": [
+        [
+          503,
+          {
+            "error": "IllegalStateException",
+            "message": "MCP remote HTTP 503"
+          }
+        ]
+      ],
+      "observed": [
+        200,
+        {
+          "operationId": "cline-347c7b0707ed0bb6246c9c5de1d5defea7616a69539134623f2bf45c08960e6a",
+          "nativeSessionId": "protocol-fault-test",
+          "nativeToolCallId": "80629ce64f6943529f26ab1c2fd16b90",
+          "toolName": "long_mcp",
+          "epoch": "fault-epoch",
+          "argumentsHash": "ebaac35816dea535a0bc7a20153fc3da91b289bd238414d973e0e4ded22cc66c",
+          "state": "UNKNOWN",
+          "fencingToken": 1,
+          "arguments": {
+            "datasetId": "stage2",
+            "durationMs": 1500
+          },
+          "identity": {
+            "tenantId": "stage2-fault",
+            "userId": "alice",
+            "sessionId": "9e62e63d3ca8447684056ac97dbe7a6a",
+            "taskId": "drop-request",
+            "expiresAt": 1794119276240
+          },
+          "dispatchIntent": true,
+          "failure": "Dispatch/response lost; query-only recovery"
+        }
+      ],
+      "replay": [
+        503,
+        {
+          "error": "IllegalStateException",
+          "message": "OPERATION_QUERY_ONLY: no repeat dispatch"
+        }
+      ],
+      "cancel": [
+        200,
+        {
+          "operationId": "cline-347c7b0707ed0bb6246c9c5de1d5defea7616a69539134623f2bf45c08960e6a",
+          "nativeSessionId": "protocol-fault-test",
+          "nativeToolCallId": "80629ce64f6943529f26ab1c2fd16b90",
+          "toolName": "long_mcp",
+          "epoch": "fault-epoch",
+          "argumentsHash": "ebaac35816dea535a0bc7a20153fc3da91b289bd238414d973e0e4ded22cc66c",
+          "state": "CANCELLED",
+          "fencingToken": 1,
+          "arguments": {
+            "datasetId": "stage2",
+            "durationMs": 1500
+          },
+          "identity": {
+            "tenantId": "stage2-fault",
+            "userId": "alice",
+            "sessionId": "9e62e63d3ca8447684056ac97dbe7a6a",
+            "taskId": "drop-request",
+            "expiresAt": 1794119276240
+          },
+          "dispatchIntent": true,
+          "failure": "Dispatch/response lost; query-only recovery",
+          "stopProofRef": "native-mcp-receipt:f6be106e44d8130fd1c7f53474ca9c62fb6813fdff60b57cafad39f4a9bce01f",
+          "receipt": {
+            "operationId": "cline-347c7b0707ed0bb6246c9c5de1d5defea7616a69539134623f2bf45c08960e6a",
+            "identity": {
+              "tenantId": "stage2-fault",
+              "userId": "alice",
+              "sessionId": "9e62e63d3ca8447684056ac97dbe7a6a",
+              "taskId": "drop-request",
+              "expiresAt": 1794119276240
+            },
+            "argumentsHash": "ebaac35816dea535a0bc7a20153fc3da91b289bd238414d973e0e4ded22cc66c",
+            "fencingToken": 1,
+            "epoch": "fault-epoch",
+            "toolName": "long_mcp",
+            "startedAt": null,
+            "finishedAt": "2026-11-08T05:28:00.813Z",
+            "stopConfirmed": true,
+            "cancelRequested": true,
+            "noStart": true,
+            "dispatchPrevented": true
+          }
+        }
+      ]
+    }
+  },
+  {
+    "case": "lost-response-query-real-completion",
+    "pass": true,
+    "detail": {
+      "dispatch": [
+        [
+          503,
+          {
+            "error": "IllegalStateException",
+            "message": "MCP remote HTTP 502"
+          }
+        ]
+      ],
+      "observed": [
+        200,
+        {
+          "operationId": "cline-6e835d053eadc931640208cbd6ad1fc989d0b71300bc8c23e0efe97ed8598226",
+          "nativeSessionId": "protocol-fault-test",
+          "nativeToolCallId": "008825a16e35400691749ec06e25ba77",
+          "toolName": "long_mcp",
+          "epoch": "fault-epoch",
+          "argumentsHash": "ebaac35816dea535a0bc7a20153fc3da91b289bd238414d973e0e4ded22cc66c",
+          "state": "COMPLETED",
+          "fencingToken": 1,
+          "arguments": {
+            "datasetId": "stage2",
+            "durationMs": 1500
+          },
+          "identity": {
+            "tenantId": "stage2-fault",
+            "userId": "alice",
+            "sessionId": "97bfa8555b0240c8bd80046c21c038c0",
+            "taskId": "drop-response",
+            "expiresAt": 1794119281986
+          },
+          "dispatchIntent": true,
+          "failure": "Dispatch/response lost; query-only recovery",
+          "stopProofRef": "native-mcp-receipt:32e13f9f57cd4196add30bee654c7ed5fd436373935965477be61fe0b33fea83",
+          "receipt": {
+            "operationId": "cline-6e835d053eadc931640208cbd6ad1fc989d0b71300bc8c23e0efe97ed8598226",
+            "identity": {
+              "tenantId": "stage2-fault",
+              "userId": "alice",
+              "sessionId": "97bfa8555b0240c8bd80046c21c038c0",
+              "taskId": "drop-response",
+              "expiresAt": 1794119281986
+            },
+            "argumentsHash": "ebaac35816dea535a0bc7a20153fc3da91b289bd238414d973e0e4ded22cc66c",
+            "fencingToken": 1,
+            "epoch": "fault-epoch",
+            "toolName": "long_mcp",
+            "startedAt": "2026-11-08T05:28:03.816Z",
+            "finishedAt": "2026-11-08T05:28:05.429Z",
+            "stopConfirmed": true,
+            "cancelRequested": false,
+            "pid": 158,
+            "startTicks": "1530754355",
+            "resultSha256": "299c4080eea8de29df962b2e7c5d7b0d44237ee3ad3d92cd1794965153102040",
+            "exitCode": 0
+          }
+        }
+      ],
+      "replay": [
+        503,
+        {
+          "error": "IllegalStateException",
+          "message": "OPERATION_QUERY_ONLY: no repeat dispatch"
+        }
+      ]
+    }
+  },
+  {
+    "case": "late-real-response-preserves-terminal",
+    "pass": true,
+    "detail": {
+      "dispatch": [
+        [
+          200,
+          {
+            "operation": {
+              "operationId": "cline-36ac8af85bdc2a7ca0da3edad1d2599b2fa877e1d5e23e3b99bb3e6805e510bb",
+              "nativeSessionId": "protocol-fault-test",
+              "nativeToolCallId": "204353957c734fa5a473874bbc29a324",
+              "toolName": "long_mcp",
+              "epoch": "fault-epoch",
+              "argumentsHash": "ebaac35816dea535a0bc7a20153fc3da91b289bd238414d973e0e4ded22cc66c",
+              "state": "COMPLETED",
+              "fencingToken": 1,
+              "arguments": {
+                "datasetId": "stage2",
+                "durationMs": 1500
+              },
+              "identity": {
+                "tenantId": "stage2-fault",
+                "userId": "alice",
+                "sessionId": "fdee5878aade48ae8c56f6752a7e627c",
+                "taskId": "delay-response",
+                "expiresAt": 1794119289013
+              },
+              "dispatchIntent": true,
+              "stopProofRef": "native-mcp-receipt:e1ee747a457d7c592397dd3bc2014942d0ec4c892d3688060ac8d75fd2890987",
+              "receipt": {
+                "operationId": "cline-36ac8af85bdc2a7ca0da3edad1d2599b2fa877e1d5e23e3b99bb3e6805e510bb",
+                "identity": {
+                  "tenantId": "stage2-fault",
+                  "userId": "alice",
+                  "sessionId": "fdee5878aade48ae8c56f6752a7e627c",
+                  "taskId": "delay-response",
+                  "expiresAt": 1794119289013
+                },
+                "argumentsHash": "ebaac35816dea535a0bc7a20153fc3da91b289bd238414d973e0e4ded22cc66c",
+                "fencingToken": 1,
+                "epoch": "fault-epoch",
+                "toolName": "long_mcp",
+                "startedAt": "2026-11-08T05:28:10.792Z",
+                "finishedAt": "2026-11-08T05:28:12.403Z",
+                "stopConfirmed": true,
+                "cancelRequested": false,
+                "pid": 180,
+                "startTicks": "1530755053",
+                "resultSha256": "fcc1b7f0c18c0bf1198b523408edf495b4b4de37b89869721f298e4ea1bf832d",
+                "exitCode": 0
+              },
+              "mcpResponse": {
+                "jsonrpc": "2.0",
+                "id": 17,
+                "result": {
+                  "content": [
+                    {
+                      "type": "text",
+                      "text": "{\"operationId\":\"cline-36ac8af85bdc2a7ca0da3edad1d2599b2fa877e1d5e23e3b99bb3e6805e510bb\",\"identity\":{\"tenantId\":\"stage2-fault\",\"userId\":\"alice\",\"sessionId\":\"fdee5878aade48ae8c56f6752a7e627c\",\"taskId\":\"delay-response\",\"expiresAt\":1794119289013},\"argumentsHash\":\"ebaac35816dea535a0bc7a20153fc3da91b289bd238414d973e0e4ded22cc66c\",\"fencingToken\":1,\"epoch\":\"fault-epoch\",\"toolName\":\"long_mcp\",\"startedAt\":\"2026-11-08T05:28:10.792Z\",\"finishedAt\":\"2026-11-08T05:28:12.403Z\",\"stopConfirmed\":true,\"cancelRequested\":false,\"pid\":180,\"startTicks\":\"1530755053\",\"resultSha256\":\"fcc1b7f0c18c0bf1198b523408edf495b4b4de37b89869721f298e4ea1bf832d\",\"exitCode\":0}"
+                    }
+                  ],
+                  "isError": false
+                }
+              }
+            },
+            "mcpResponse": {
+              "jsonrpc": "2.0",
+              "id": 17,
+              "result": {
+                "content": [
+                  {
+                    "type": "text",
+                    "text": "{\"operationId\":\"cline-36ac8af85bdc2a7ca0da3edad1d2599b2fa877e1d5e23e3b99bb3e6805e510bb\",\"identity\":{\"tenantId\":\"stage2-fault\",\"userId\":\"alice\",\"sessionId\":\"fdee5878aade48ae8c56f6752a7e627c\",\"taskId\":\"delay-response\",\"expiresAt\":1794119289013},\"argumentsHash\":\"ebaac35816dea535a0bc7a20153fc3da91b289bd238414d973e0e4ded22cc66c\",\"fencingToken\":1,\"epoch\":\"fault-epoch\",\"toolName\":\"long_mcp\",\"startedAt\":\"2026-11-08T05:28:10.792Z\",\"finishedAt\":\"2026-11-08T05:28:12.403Z\",\"stopConfirmed\":true,\"cancelRequested\":false,\"pid\":180,\"startTicks\":\"1530755053\",\"resultSha256\":\"fcc1b7f0c18c0bf1198b523408edf495b4b4de37b89869721f298e4ea1bf832d\",\"exitCode\":0}"
+                  }
+                ],
+                "isError": false
+              }
+            }
+          }
+        ]
+      ],
+      "cancel": [
+        200,
+        {
+          "operationId": "cline-36ac8af85bdc2a7ca0da3edad1d2599b2fa877e1d5e23e3b99bb3e6805e510bb",
+          "nativeSessionId": "protocol-fault-test",
+          "nativeToolCallId": "204353957c734fa5a473874bbc29a324",
+          "toolName": "long_mcp",
+          "epoch": "fault-epoch",
+          "argumentsHash": "ebaac35816dea535a0bc7a20153fc3da91b289bd238414d973e0e4ded22cc66c",
+          "state": "COMPLETED",
+          "fencingToken": 1,
+          "arguments": {
+            "datasetId": "stage2",
+            "durationMs": 1500
+          },
+          "identity": {
+            "tenantId": "stage2-fault",
+            "userId": "alice",
+            "sessionId": "fdee5878aade48ae8c56f6752a7e627c",
+            "taskId": "delay-response",
+            "expiresAt": 1794119289013
+          },
+          "dispatchIntent": true,
+          "stopProofRef": "native-mcp-receipt:e1ee747a457d7c592397dd3bc2014942d0ec4c892d3688060ac8d75fd2890987",
+          "receipt": {
+            "operationId": "cline-36ac8af85bdc2a7ca0da3edad1d2599b2fa877e1d5e23e3b99bb3e6805e510bb",
+            "identity": {
+              "tenantId": "stage2-fault",
+              "userId": "alice",
+              "sessionId": "fdee5878aade48ae8c56f6752a7e627c",
+              "taskId": "delay-response",
+              "expiresAt": 1794119289013
+            },
+            "argumentsHash": "ebaac35816dea535a0bc7a20153fc3da91b289bd238414d973e0e4ded22cc66c",
+            "fencingToken": 1,
+            "epoch": "fault-epoch",
+            "toolName": "long_mcp",
+            "startedAt": "2026-11-08T05:28:10.792Z",
+            "finishedAt": "2026-11-08T05:28:12.403Z",
+            "stopConfirmed": true,
+            "cancelRequested": false,
+            "pid": 180,
+            "startTicks": "1530755053",
+            "resultSha256": "fcc1b7f0c18c0bf1198b523408edf495b4b4de37b89869721f298e4ea1bf832d",
+            "exitCode": 0
+          }
+        }
+      ],
+      "final": [
+        200,
+        {
+          "operationId": "cline-36ac8af85bdc2a7ca0da3edad1d2599b2fa877e1d5e23e3b99bb3e6805e510bb",
+          "nativeSessionId": "protocol-fault-test",
+          "nativeToolCallId": "204353957c734fa5a473874bbc29a324",
+          "toolName": "long_mcp",
+          "epoch": "fault-epoch",
+          "argumentsHash": "ebaac35816dea535a0bc7a20153fc3da91b289bd238414d973e0e4ded22cc66c",
+          "state": "COMPLETED",
+          "fencingToken": 1,
+          "arguments": {
+            "datasetId": "stage2",
+            "durationMs": 1500
+          },
+          "identity": {
+            "tenantId": "stage2-fault",
+            "userId": "alice",
+            "sessionId": "fdee5878aade48ae8c56f6752a7e627c",
+            "taskId": "delay-response",
+            "expiresAt": 1794119289013
+          },
+          "dispatchIntent": true,
+          "stopProofRef": "native-mcp-receipt:e1ee747a457d7c592397dd3bc2014942d0ec4c892d3688060ac8d75fd2890987",
+          "receipt": {
+            "operationId": "cline-36ac8af85bdc2a7ca0da3edad1d2599b2fa877e1d5e23e3b99bb3e6805e510bb",
+            "identity": {
+              "tenantId": "stage2-fault",
+              "userId": "alice",
+              "sessionId": "fdee5878aade48ae8c56f6752a7e627c",
+              "taskId": "delay-response",
+              "expiresAt": 1794119289013
+            },
+            "argumentsHash": "ebaac35816dea535a0bc7a20153fc3da91b289bd238414d973e0e4ded22cc66c",
+            "fencingToken": 1,
+            "epoch": "fault-epoch",
+            "toolName": "long_mcp",
+            "startedAt": "2026-11-08T05:28:10.792Z",
+            "finishedAt": "2026-11-08T05:28:12.403Z",
+            "stopConfirmed": true,
+            "cancelRequested": false,
+            "pid": 180,
+            "startTicks": "1530755053",
+            "resultSha256": "fcc1b7f0c18c0bf1198b523408edf495b4b4de37b89869721f298e4ea1bf832d",
+            "exitCode": 0
+          },
+          "mcpResponse": {
+            "jsonrpc": "2.0",
+            "id": 17,
+            "result": {
+              "content": [
+                {
+                  "type": "text",
+                  "text": "{\"operationId\":\"cline-36ac8af85bdc2a7ca0da3edad1d2599b2fa877e1d5e23e3b99bb3e6805e510bb\",\"identity\":{\"tenantId\":\"stage2-fault\",\"userId\":\"alice\",\"sessionId\":\"fdee5878aade48ae8c56f6752a7e627c\",\"taskId\":\"delay-response\",\"expiresAt\":1794119289013},\"argumentsHash\":\"ebaac35816dea535a0bc7a20153fc3da91b289bd238414d973e0e4ded22cc66c\",\"fencingToken\":1,\"epoch\":\"fault-epoch\",\"toolName\":\"long_mcp\",\"startedAt\":\"2026-11-08T05:28:10.792Z\",\"finishedAt\":\"2026-11-08T05:28:12.403Z\",\"stopConfirmed\":true,\"cancelRequested\":false,\"pid\":180,\"startTicks\":\"1530755053\",\"resultSha256\":\"fcc1b7f0c18c0bf1198b523408edf495b4b4de37b89869721f298e4ea1bf832d\",\"exitCode\":0}"
+                }
+              ],
+              "isError": false
+            }
+          }
+        }
+      ]
+    }
+  },
+  {
+    "case": "authority-kill-does-not-stop-remote",
+    "pass": true,
+    "detail": [
+      200,
+      {
+        "binding": {
+          "operationId": "cline-3ec3fdc078363a925d05728800a7dfc6aec8f2e430ed4eb19349ff85f23d1d1c",
+          "nativeSessionId": "protocol-fault-test",
+          "nativeToolCallId": "2a1ef47c0cdb4dbf806025a400aaec55",
+          "toolName": "long_mcp",
+          "epoch": "fault-epoch",
+          "argumentsHash": "fe771dbe31a18c1977875e70bcf1f4630d3e5b31db08c96b9c65062ae8e74710",
+          "state": "PENDING",
+          "fencingToken": 1,
+          "arguments": {
+            "datasetId": "stage2",
+            "durationMs": 12000
+          },
+          "identity": {
+            "tenantId": "stage2-fault",
+            "userId": "alice",
+            "sessionId": "dffbb31fa27e4fcdae09a69e7ee5b996",
+            "taskId": "authority-kill",
+            "expiresAt": 1794119298029
+          }
+        },
+        "state": "RUNNING",
+        "executorStopped": false,
+        "admittedAt": "2026-11-08T05:28:19.782Z",
+        "pid": 214,
+        "startTicks": "1530755952",
+        "startedAt": "2026-11-08T05:28:19.788Z"
+      }
+    ]
+  },
+  {
+    "case": "JDBC-intent-survives-authority-kill",
+    "pass": true,
+    "detail": {
+      "dispatch": [
+        {
+          "transportFailure": "RemoteDisconnected"
+        }
+      ],
+      "recovered": [
+        200,
+        {
+          "operationId": "cline-3ec3fdc078363a925d05728800a7dfc6aec8f2e430ed4eb19349ff85f23d1d1c",
+          "nativeSessionId": "protocol-fault-test",
+          "nativeToolCallId": "2a1ef47c0cdb4dbf806025a400aaec55",
+          "toolName": "long_mcp",
+          "epoch": "fault-epoch",
+          "argumentsHash": "fe771dbe31a18c1977875e70bcf1f4630d3e5b31db08c96b9c65062ae8e74710",
+          "state": "RUNNING",
+          "fencingToken": 1,
+          "arguments": {
+            "datasetId": "stage2",
+            "durationMs": 12000
+          },
+          "identity": {
+            "tenantId": "stage2-fault",
+            "userId": "alice",
+            "sessionId": "dffbb31fa27e4fcdae09a69e7ee5b996",
+            "taskId": "authority-kill",
+            "expiresAt": 1794119298029
+          },
+          "dispatchIntent": true
+        }
+      ],
+      "final": [
+        200,
+        {
+          "operationId": "cline-3ec3fdc078363a925d05728800a7dfc6aec8f2e430ed4eb19349ff85f23d1d1c",
+          "nativeSessionId": "protocol-fault-test",
+          "nativeToolCallId": "2a1ef47c0cdb4dbf806025a400aaec55",
+          "toolName": "long_mcp",
+          "epoch": "fault-epoch",
+          "argumentsHash": "fe771dbe31a18c1977875e70bcf1f4630d3e5b31db08c96b9c65062ae8e74710",
+          "state": "COMPLETED",
+          "fencingToken": 1,
+          "arguments": {
+            "datasetId": "stage2",
+            "durationMs": 12000
+          },
+          "identity": {
+            "tenantId": "stage2-fault",
+            "userId": "alice",
+            "sessionId": "dffbb31fa27e4fcdae09a69e7ee5b996",
+            "taskId": "authority-kill",
+            "expiresAt": 1794119298029
+          },
+          "dispatchIntent": true,
+          "stopProofRef": "native-mcp-receipt:d245390401e2b326161926099ea2abdd3ecd3648951a32af7ed8264d37e024b3",
+          "receipt": {
+            "operationId": "cline-3ec3fdc078363a925d05728800a7dfc6aec8f2e430ed4eb19349ff85f23d1d1c",
+            "identity": {
+              "tenantId": "stage2-fault",
+              "userId": "alice",
+              "sessionId": "dffbb31fa27e4fcdae09a69e7ee5b996",
+              "taskId": "authority-kill",
+              "expiresAt": 1794119298029
+            },
+            "argumentsHash": "fe771dbe31a18c1977875e70bcf1f4630d3e5b31db08c96b9c65062ae8e74710",
+            "fencingToken": 1,
+            "epoch": "fault-epoch",
+            "toolName": "long_mcp",
+            "startedAt": "2026-11-08T05:28:19.788Z",
+            "finishedAt": "2026-11-08T05:28:31.966Z",
+            "stopConfirmed": true,
+            "cancelRequested": false,
+            "pid": 214,
+            "startTicks": "1530755952",
+            "resultSha256": "96b78c5bec939a58fa25507f667ba03eb55340bec8a8735ba9aec55073743790",
+            "exitCode": 0
+          }
+        }
+      ]
+    }
+  },
+  {
+    "case": "expired-lease-new-fence-old-epoch-rejected",
+    "pass": true,
+    "detail": {
+      "rotate": [
+        200,
+        {
+          "owner": "native-reconciler",
+          "leaseUntil": 1794115762.806,
+          "fencingToken": 3
+        }
+      ],
+      "oldNativeDispatch": [
+        409,
+        {
+          "error": "SecurityException",
+          "message": "Expired, inactive or old native Epoch"
+        }
+      ],
+      "advancedRemoteCancel": [
+        200,
+        {
+          "binding": {
+            "operationId": "cline-3ec3fdc078363a925d05728800a7dfc6aec8f2e430ed4eb19349ff85f23d1d1c",
+            "nativeSessionId": "protocol-fault-test",
+            "nativeToolCallId": "2a1ef47c0cdb4dbf806025a400aaec55",
+            "toolName": "long_mcp",
+            "epoch": "fault-epoch",
+            "argumentsHash": "fe771dbe31a18c1977875e70bcf1f4630d3e5b31db08c96b9c65062ae8e74710",
+            "state": "PENDING",
+            "fencingToken": 1,
+            "arguments": {
+              "datasetId": "stage2",
+              "durationMs": 12000
+            },
+            "identity": {
+              "tenantId": "stage2-fault",
+              "userId": "alice",
+              "sessionId": "dffbb31fa27e4fcdae09a69e7ee5b996",
+              "taskId": "authority-kill",
+              "expiresAt": 1794119298029
+            }
+          },
+          "state": "COMPLETED",
+          "executorStopped": true,
+          "admittedAt": "2026-11-08T05:28:19.782Z",
+          "pid": 214,
+          "startTicks": "1530755952",
+          "startedAt": "2026-11-08T05:28:19.788Z",
+          "receipt": {
+            "operationId": "cline-3ec3fdc078363a925d05728800a7dfc6aec8f2e430ed4eb19349ff85f23d1d1c",
+            "identity": {
+              "tenantId": "stage2-fault",
+              "userId": "alice",
+              "sessionId": "dffbb31fa27e4fcdae09a69e7ee5b996",
+              "taskId": "authority-kill",
+              "expiresAt": 1794119298029
+            },
+            "argumentsHash": "fe771dbe31a18c1977875e70bcf1f4630d3e5b31db08c96b9c65062ae8e74710",
+            "fencingToken": 1,
+            "epoch": "fault-epoch",
+            "toolName": "long_mcp",
+            "startedAt": "2026-11-08T05:28:19.788Z",
+            "finishedAt": "2026-11-08T05:28:31.966Z",
+            "stopConfirmed": true,
+            "cancelRequested": false,
+            "pid": 214,
+            "startTicks": "1530755952",
+            "resultSha256": "96b78c5bec939a58fa25507f667ba03eb55340bec8a8735ba9aec55073743790",
+            "exitCode": 0
+          },
+          "controlFence": 3
+        }
+      ],
+      "oldRemoteCancel": [
+        409,
+        {
+          "error": "Stale remote fencing token"
+        }
+      ]
+    }
+  },
+  {
+    "case": "all-fault-cases",
+    "pass": true,
+    "detail": {
+      "total": 6
+    }
+  }
+]

@@ -1,0 +1,148 @@
+{
+  "binding": {
+    "operationId": "cline-d2746fe461a0a74fa8757dce9e3902114f5e1501dbaaca50c2f5093c934e5292",
+    "nativeSessionId": "1794115344557_11iea",
+    "nativeToolCallId": "call_63c4565acb7548a4b9d5950f",
+    "toolName": "python_execute",
+    "epoch": "c6f66d66-050a-4cef-8f08-e1746a168cda",
+    "argumentsHash": "92cb5482aa8ce7bfc6a439d369b48a1442e9a1a4fa2d332b8af0067483eeb2fb",
+    "state": "UNKNOWN",
+    "fencingToken": 1,
+    "arguments": {
+      "datasetId": "dataset-a",
+      "source": "import time\nprint(\"native-sandbox-started\", flush=True)\ntime.sleep(90)\nprint(\"should-not-run\")\n"
+    },
+    "identity": {
+      "version": 1,
+      "tenantId": "tenant-a",
+      "userId": "user-a",
+      "taskId": "native-ba8b016c063d40e1b83a58bee867db73",
+      "sessionId": "session-d957a27bd6b249ad8eccac18113f9604",
+      "workspaceRef": "project",
+      "modelProfile": "qwen",
+      "budgetPolicy": {
+        "status": "DEFERRED_STAGE_2_REVIEW"
+      },
+      "toolPermissions": [
+        "read_files",
+        "search_codebase",
+        "editor",
+        "apply_patch",
+        "run_commands",
+        "use_mcp_tool",
+        "tenant_data__long_mcp",
+        "tenant_data__python_execute"
+      ],
+      "dataPermissions": [
+        "dataset-a"
+      ],
+      "networkPolicy": "broker-only",
+      "expiresAt": 1794122537868
+    },
+    "childOperationId": "cline-ed8489806d03e6bf8e6753a107d8dd6ec1a29c0e1a076a3fcf225cb059dc6216"
+  },
+  "state": "CANCELLED",
+  "executorStopped": true,
+  "admittedAt": "2026-11-08T05:22:34.846Z",
+  "python": {
+    "operationId": "cline-ed8489806d03e6bf8e6753a107d8dd6ec1a29c0e1a076a3fcf225cb059dc6216",
+    "status": "CANCELLED",
+    "containerId": "chatchat-py-8a62be79bec949904d2be833eb15a02d3ec9e2c7",
+    "fencingToken": 1,
+    "cancelRequested": true,
+    "executorStopped": true,
+    "exitCode": 137,
+    "codeHash": "32bc5c506a611d881c69bb944a4442492885a2c9e3cfcab6c5a3ee83002d1761",
+    "imageDigest": "sha256:3434f7630ff7c54a053c7385710e089d249e65d668699ab96f9603b6e1b27eef",
+    "manifestHash": "0042f82523c84ef1a6e96a4cc9190a06fbbf48324b84245f94cf3715a6fef8c5",
+    "failure": "",
+    "receipt": {
+      "operationId": "cline-ed8489806d03e6bf8e6753a107d8dd6ec1a29c0e1a076a3fcf225cb059dc6216",
+      "containerName": "chatchat-py-8a62be79bec949904d2be833eb15a02d3ec9e2c7",
+      "environmentId": "native-stage2",
+      "imageDigest": "sha256:3434f7630ff7c54a053c7385710e089d249e65d668699ab96f9603b6e1b27eef",
+      "deadlineAt": "2026-11-08T07:22:17.868Z",
+      "timeoutSeconds": 120,
+      "fencingToken": 1,
+      "budgetReservationRef": "coding-budget:native-native-ba8b016c063d40e1b83a58bee867db73:cline-ed8489806d03e6bf8e6753a107d8dd6ec1a29c0e1a076a3fcf225cb059dc6216",
+      "codeHash": "32bc5c506a611d881c69bb944a4442492885a2c9e3cfcab6c5a3ee83002d1761",
+      "inputSnapshotHash": "fc4f35673397da61f44c71f1d3d95ab0b690cf1fe327a5e104006c3bab115941",
+      "startedAt": "2026-11-08T05:22:36.635116091Z",
+      "finishedAt": "2026-11-08T05:22:42.740347491Z",
+      "exitCode": 137,
+      "oomKilled": false,
+      "stopConfirmed": true,
+      "cancelRequested": true,
+      "fenceSuperseded": false,
+      "cpuMillisMetered": false,
+      "diskHardLimitEnforced": false,
+      "outputBytesHardLimitEnforced": false
+    },
+    "receiptSha256": "73b80e8f82774b517b4ed26cbef2097580103cf7a87d6eb5b8f54530ef3f22ec"
+  },
+  "startedAt": "2026-11-08T05:22:35.851Z",
+  "controlFence": 1,
+  "cancelRequested": true,
+  "receipt": {
+    "operationId": "cline-d2746fe461a0a74fa8757dce9e3902114f5e1501dbaaca50c2f5093c934e5292",
+    "identity": {
+      "version": 1,
+      "tenantId": "tenant-a",
+      "userId": "user-a",
+      "taskId": "native-ba8b016c063d40e1b83a58bee867db73",
+      "sessionId": "session-d957a27bd6b249ad8eccac18113f9604",
+      "workspaceRef": "project",
+      "modelProfile": "qwen",
+      "budgetPolicy": {
+        "status": "DEFERRED_STAGE_2_REVIEW"
+      },
+      "toolPermissions": [
+        "read_files",
+        "search_codebase",
+        "editor",
+        "apply_patch",
+        "run_commands",
+        "use_mcp_tool",
+        "tenant_data__long_mcp",
+        "tenant_data__python_execute"
+      ],
+      "dataPermissions": [
+        "dataset-a"
+      ],
+      "networkPolicy": "broker-only",
+      "expiresAt": 1794122537868
+    },
+    "argumentsHash": "92cb5482aa8ce7bfc6a439d369b48a1442e9a1a4fa2d332b8af0067483eeb2fb",
+    "fencingToken": 1,
+    "epoch": "c6f66d66-050a-4cef-8f08-e1746a168cda",
+    "toolName": "python_execute",
+    "startedAt": "2026-11-08T05:22:35.851Z",
+    "finishedAt": "2026-11-08T05:22:43.639Z",
+    "stopConfirmed": true,
+    "cancelRequested": true,
+    "childOperationId": "cline-ed8489806d03e6bf8e6753a107d8dd6ec1a29c0e1a076a3fcf225cb059dc6216",
+    "python": {
+      "operationId": "cline-ed8489806d03e6bf8e6753a107d8dd6ec1a29c0e1a076a3fcf225cb059dc6216",
+      "containerName": "chatchat-py-8a62be79bec949904d2be833eb15a02d3ec9e2c7",
+      "environmentId": "native-stage2",
+      "imageDigest": "sha256:3434f7630ff7c54a053c7385710e089d249e65d668699ab96f9603b6e1b27eef",
+      "deadlineAt": "2026-11-08T07:22:17.868Z",
+      "timeoutSeconds": 120,
+      "fencingToken": 1,
+      "budgetReservationRef": "coding-budget:native-native-ba8b016c063d40e1b83a58bee867db73:cline-ed8489806d03e6bf8e6753a107d8dd6ec1a29c0e1a076a3fcf225cb059dc6216",
+      "codeHash": "32bc5c506a611d881c69bb944a4442492885a2c9e3cfcab6c5a3ee83002d1761",
+      "inputSnapshotHash": "fc4f35673397da61f44c71f1d3d95ab0b690cf1fe327a5e104006c3bab115941",
+      "startedAt": "2026-11-08T05:22:36.635116091Z",
+      "finishedAt": "2026-11-08T05:22:42.740347491Z",
+      "exitCode": 137,
+      "oomKilled": false,
+      "stopConfirmed": true,
+      "cancelRequested": true,
+      "fenceSuperseded": false,
+      "cpuMillisMetered": false,
+      "diskHardLimitEnforced": false,
+      "outputBytesHardLimitEnforced": false
+    },
+    "pythonReceiptSha256": "73b80e8f82774b517b4ed26cbef2097580103cf7a87d6eb5b8f54530ef3f22ec"
+  }
+}

@@ -1,0 +1,92 @@
+{
+  "binding": {
+    "operationId": "cline-fbf8b3077ae724731a3db714054e0cae9e7b4f95342b3d5aef45a3dc9a615085",
+    "nativeSessionId": "1794115320550_s8yef",
+    "nativeToolCallId": "call_600df1a118824c9db0f2f3d1",
+    "toolName": "long_mcp",
+    "epoch": "aa4041e4-6625-4b63-a9bf-f07756e2e44a",
+    "argumentsHash": "cb8f0da1c4d2420294c8436aa9296acf8ddcdd7bf02df9747eaa44086b1f8a77",
+    "state": "UNKNOWN",
+    "fencingToken": 1,
+    "arguments": {
+      "datasetId": "dataset-a",
+      "durationMs": 60000
+    },
+    "identity": {
+      "version": 1,
+      "tenantId": "tenant-a",
+      "userId": "user-a",
+      "taskId": "native-bfcf77c4f01a44f4acb89a681526d7df",
+      "sessionId": "session-2c14109051a54f8185ed10fa0bc6d027",
+      "workspaceRef": "project",
+      "modelProfile": "qwen",
+      "budgetPolicy": {
+        "status": "DEFERRED_STAGE_2_REVIEW"
+      },
+      "toolPermissions": [
+        "read_files",
+        "search_codebase",
+        "editor",
+        "apply_patch",
+        "run_commands",
+        "use_mcp_tool",
+        "tenant_data__long_mcp",
+        "tenant_data__python_execute"
+      ],
+      "dataPermissions": [
+        "dataset-a"
+      ],
+      "networkPolicy": "broker-only",
+      "expiresAt": 1794122513331
+    }
+  },
+  "state": "CANCELLED",
+  "executorStopped": true,
+  "admittedAt": "2026-11-08T05:22:08.523Z",
+  "pid": 644,
+  "startTicks": "1530718827",
+  "startedAt": "2026-11-08T05:22:08.529Z",
+  "controlFence": 1,
+  "cancelRequested": true,
+  "receipt": {
+    "operationId": "cline-fbf8b3077ae724731a3db714054e0cae9e7b4f95342b3d5aef45a3dc9a615085",
+    "identity": {
+      "version": 1,
+      "tenantId": "tenant-a",
+      "userId": "user-a",
+      "taskId": "native-bfcf77c4f01a44f4acb89a681526d7df",
+      "sessionId": "session-2c14109051a54f8185ed10fa0bc6d027",
+      "workspaceRef": "project",
+      "modelProfile": "qwen",
+      "budgetPolicy": {
+        "status": "DEFERRED_STAGE_2_REVIEW"
+      },
+      "toolPermissions": [
+        "read_files",
+        "search_codebase",
+        "editor",
+        "apply_patch",
+        "run_commands",
+        "use_mcp_tool",
+        "tenant_data__long_mcp",
+        "tenant_data__python_execute"
+      ],
+      "dataPermissions": [
+        "dataset-a"
+      ],
+      "networkPolicy": "broker-only",
+      "expiresAt": 1794122513331
+    },
+    "argumentsHash": "cb8f0da1c4d2420294c8436aa9296acf8ddcdd7bf02df9747eaa44086b1f8a77",
+    "fencingToken": 1,
+    "epoch": "aa4041e4-6625-4b63-a9bf-f07756e2e44a",
+    "toolName": "long_mcp",
+    "startedAt": "2026-11-08T05:22:08.529Z",
+    "finishedAt": "2026-11-08T05:22:12.355Z",
+    "stopConfirmed": true,
+    "cancelRequested": true,
+    "pid": 644,
+    "startTicks": "1530718827",
+    "processAbsent": true
+  }
+}

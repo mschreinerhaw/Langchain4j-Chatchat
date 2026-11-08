@@ -1,0 +1,102 @@
+[
+  200,
+  [
+    {
+      "operationId": "cline-0aa8ebc65e3e319a3dfda7648aeeefa84b5cd37fd6712cf881ca1c5afdda47a9",
+      "nativeSessionId": "1794115769310_5jimx",
+      "nativeToolCallId": "call_4a89032ac2c74a5c8e6b7a48",
+      "toolName": "long_mcp",
+      "epoch": "9dd5d4db-820b-408c-985c-995734507ddc",
+      "argumentsHash": "cb8f0da1c4d2420294c8436aa9296acf8ddcdd7bf02df9747eaa44086b1f8a77",
+      "state": "CANCELLED",
+      "fencingToken": 1,
+      "arguments": {
+        "datasetId": "dataset-a",
+        "durationMs": 60000
+      },
+      "identity": {
+        "version": 1,
+        "tenantId": "tenant-a",
+        "userId": "user-a",
+        "taskId": "native-3deefbaf873f46af84c7b3a1c11c77c5",
+        "sessionId": "session-bf223f05242347a4be16afc1e3c9046a",
+        "workspaceRef": "project",
+        "modelProfile": "qwen",
+        "budgetPolicy": {
+          "status": "DEFERRED_STAGE_2_REVIEW"
+        },
+        "toolPermissions": [
+          "read_files",
+          "search_codebase",
+          "editor",
+          "apply_patch",
+          "run_commands",
+          "use_mcp_tool",
+          "tenant_data__long_mcp",
+          "tenant_data__python_execute"
+        ],
+        "dataPermissions": [
+          "dataset-a"
+        ],
+        "networkPolicy": "broker-only",
+        "expiresAt": 1794122962045
+      },
+      "dispatchIntent": true,
+      "mcpResponse": {
+        "jsonrpc": "2.0",
+        "id": 2,
+        "result": {
+          "content": [
+            {
+              "type": "text",
+              "text": "{\"operationId\":\"cline-0aa8ebc65e3e319a3dfda7648aeeefa84b5cd37fd6712cf881ca1c5afdda47a9\",\"identity\":{\"version\":1,\"tenantId\":\"tenant-a\",\"userId\":\"user-a\",\"taskId\":\"native-3deefbaf873f46af84c7b3a1c11c77c5\",\"sessionId\":\"session-bf223f05242347a4be16afc1e3c9046a\",\"workspaceRef\":\"project\",\"modelProfile\":\"qwen\",\"budgetPolicy\":{\"status\":\"DEFERRED_STAGE_2_REVIEW\"},\"toolPermissions\":[\"read_files\",\"search_codebase\",\"editor\",\"apply_patch\",\"run_commands\",\"use_mcp_tool\",\"tenant_data__long_mcp\",\"tenant_data__python_execute\"],\"dataPermissions\":[\"dataset-a\"],\"networkPolicy\":\"broker-only\",\"expiresAt\":1794122962045},\"argumentsHash\":\"cb8f0da1c4d2420294c8436aa9296acf8ddcdd7bf02df9747eaa44086b1f8a77\",\"fencingToken\":1,\"epoch\":\"9dd5d4db-820b-408c-985c-995734507ddc\",\"toolName\":\"long_mcp\",\"startedAt\":\"2026-11-08T05:29:34.240Z\",\"finishedAt\":\"2026-11-08T05:29:38.416Z\",\"stopConfirmed\":true,\"cancelRequested\":true,\"pid\":418,\"startTicks\":\"1530763398\",\"processAbsent\":true}"
+            }
+          ],
+          "isError": false
+        }
+      },
+      "stopProofRef": "native-mcp-receipt:a1da3f087f9410044e1210fcaa15357294fcb4675622142c5bd394acfba46b7b",
+      "receipt": {
+        "operationId": "cline-0aa8ebc65e3e319a3dfda7648aeeefa84b5cd37fd6712cf881ca1c5afdda47a9",
+        "identity": {
+          "version": 1,
+          "tenantId": "tenant-a",
+          "userId": "user-a",
+          "taskId": "native-3deefbaf873f46af84c7b3a1c11c77c5",
+          "sessionId": "session-bf223f05242347a4be16afc1e3c9046a",
+          "workspaceRef": "project",
+          "modelProfile": "qwen",
+          "budgetPolicy": {
+            "status": "DEFERRED_STAGE_2_REVIEW"
+          },
+          "toolPermissions": [
+            "read_files",
+            "search_codebase",
+            "editor",
+            "apply_patch",
+            "run_commands",
+            "use_mcp_tool",
+            "tenant_data__long_mcp",
+            "tenant_data__python_execute"
+          ],
+          "dataPermissions": [
+            "dataset-a"
+          ],
+          "networkPolicy": "broker-only",
+          "expiresAt": 1794122962045
+        },
+        "argumentsHash": "cb8f0da1c4d2420294c8436aa9296acf8ddcdd7bf02df9747eaa44086b1f8a77",
+        "fencingToken": 1,
+        "epoch": "9dd5d4db-820b-408c-985c-995734507ddc",
+        "toolName": "long_mcp",
+        "startedAt": "2026-11-08T05:29:34.240Z",
+        "finishedAt": "2026-11-08T05:29:38.416Z",
+        "stopConfirmed": true,
+        "cancelRequested": true,
+        "pid": 418,
+        "startTicks": "1530763398",
+        "processAbsent": true
+      }
+    }
+  ]
+]

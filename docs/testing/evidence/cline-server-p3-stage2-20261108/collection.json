@@ -1,0 +1,13 @@
+{
+  "recordedAt": "2026-11-08T05:32:55.679966+00:00",
+  "baseline": "db60dec41",
+  "realModelProfile": "qwen3.7-plus",
+  "workers": 7,
+  "journalOperations": 45,
+  "unresolvedJournalOperations": 0,
+  "remoteOperations": 37,
+  "coreFiles": 611,
+  "coreUnchanged": true,
+  "changedHostFiles": 2,
+  "defaultsChanged": false
+}

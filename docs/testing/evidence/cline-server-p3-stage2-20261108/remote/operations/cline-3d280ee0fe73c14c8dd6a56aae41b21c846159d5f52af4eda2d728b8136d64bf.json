@@ -1,0 +1,50 @@
+{
+  "binding": {
+    "operationId": "cline-3d280ee0fe73c14c8dd6a56aae41b21c846159d5f52af4eda2d728b8136d64bf",
+    "nativeSessionId": "protocol-fault-test",
+    "nativeToolCallId": "73156ddb1489472094ae5ed1f9e5cf82",
+    "toolName": "long_mcp",
+    "epoch": "fault-epoch",
+    "argumentsHash": "ebaac35816dea535a0bc7a20153fc3da91b289bd238414d973e0e4ded22cc66c",
+    "state": "CANCEL_REQUESTED",
+    "fencingToken": 1,
+    "arguments": {
+      "datasetId": "stage2",
+      "durationMs": 1500
+    },
+    "identity": {
+      "tenantId": "stage2-fault",
+      "userId": "alice",
+      "sessionId": "c56f56210e4440168f2e02d368208ae4",
+      "taskId": "drop-request",
+      "expiresAt": 1794118242798
+    },
+    "dispatchIntent": true,
+    "failure": "Dispatch/response lost; query-only recovery"
+  },
+  "state": "CANCELLED",
+  "executorStopped": true,
+  "cancelTombstone": true,
+  "controlFence": 1,
+  "cancelRequested": true,
+  "receipt": {
+    "operationId": "cline-3d280ee0fe73c14c8dd6a56aae41b21c846159d5f52af4eda2d728b8136d64bf",
+    "identity": {
+      "tenantId": "stage2-fault",
+      "userId": "alice",
+      "sessionId": "c56f56210e4440168f2e02d368208ae4",
+      "taskId": "drop-request",
+      "expiresAt": 1794118242798
+    },
+    "argumentsHash": "ebaac35816dea535a0bc7a20153fc3da91b289bd238414d973e0e4ded22cc66c",
+    "fencingToken": 1,
+    "epoch": "fault-epoch",
+    "toolName": "long_mcp",
+    "startedAt": null,
+    "finishedAt": "2026-11-08T05:10:48.785Z",
+    "stopConfirmed": true,
+    "cancelRequested": true,
+    "noStart": true,
+    "dispatchPrevented": true
+  }
+}

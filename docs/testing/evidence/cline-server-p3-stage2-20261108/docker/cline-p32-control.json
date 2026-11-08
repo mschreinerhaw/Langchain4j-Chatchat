@@ -1,0 +1,224 @@
+{
+  "Id": "40f26b0b38bc3df237b8b26a248772fa079b6959d349c1c25bddf3325e6ea4da",
+  "Image": "sha256:6ee943241411781d729fc5fcdd5608c1906424740228f55919b0009c524dfccb",
+  "State": {
+    "Status": "running",
+    "Running": true,
+    "Paused": false,
+    "Restarting": false,
+    "OOMKilled": false,
+    "Dead": false,
+    "Pid": 2631343,
+    "ExitCode": 0,
+    "Error": "",
+    "StartedAt": "2026-11-08T05:29:08.744790207Z",
+    "FinishedAt": "0001-01-01T00:00:00Z"
+  },
+  "Mounts": [
+    {
+      "Type": "bind",
+      "Source": "/opt/cline-server-p3-stage2-20261108/control",
+      "Destination": "/control",
+      "Mode": "",
+      "RW": true,
+      "Propagation": "rprivate"
+    },
+    {
+      "Type": "bind",
+      "Source": "/opt/cline-server-p3-stage2-20261108/templates",
+      "Destination": "/templates",
+      "Mode": "",
+      "RW": false,
+      "Propagation": "rprivate"
+    },
+    {
+      "Type": "bind",
+      "Source": "/var/run/docker.sock",
+      "Destination": "/var/run/docker.sock",
+      "Mode": "",
+      "RW": true,
+      "Propagation": "rprivate"
+    }
+  ],
+  "HostConfig": {
+    "Binds": null,
+    "ContainerIDFile": "",
+    "LogConfig": {
+      "Type": "json-file",
+      "Config": {}
+    },
+    "NetworkMode": "bridge",
+    "PortBindings": {
+      "18330/tcp": [
+        {
+          "HostIp": "127.0.0.1",
+          "HostPort": "18330"
+        }
+      ]
+    },
+    "RestartPolicy": {
+      "Name": "no",
+      "MaximumRetryCount": 0
+    },
+    "AutoRemove": false,
+    "VolumeDriver": "",
+    "VolumesFrom": null,
+    "ConsoleSize": [
+      0,
+      0
+    ],
+    "CapAdd": null,
+    "CapDrop": null,
+    "CgroupnsMode": "host",
+    "Dns": [],
+    "DnsOptions": [],
+    "DnsSearch": [],
+    "ExtraHosts": null,
+    "GroupAdd": null,
+    "IpcMode": "private",
+    "Cgroup": "",
+    "Links": null,
+    "OomScoreAdj": 0,
+    "PidMode": "",
+    "Privileged": false,
+    "PublishAllPorts": false,
+    "ReadonlyRootfs": false,
+    "SecurityOpt": null,
+    "UTSMode": "",
+    "UsernsMode": "",
+    "ShmSize": 67108864,
+    "Runtime": "runc",
+    "Isolation": "",
+    "CpuShares": 0,
+    "Memory": 0,
+    "NanoCpus": 0,
+    "CgroupParent": "",
+    "BlkioWeight": 0,
+    "BlkioWeightDevice": [],
+    "BlkioDeviceReadBps": [],
+    "BlkioDeviceWriteBps": [],
+    "BlkioDeviceReadIOps": [],
+    "BlkioDeviceWriteIOps": [],
+    "CpuPeriod": 0,
+    "CpuQuota": 0,
+    "CpuRealtimePeriod": 0,
+    "CpuRealtimeRuntime": 0,
+    "CpusetCpus": "",
+    "CpusetMems": "",
+    "Devices": [],
+    "DeviceCgroupRules": null,
+    "DeviceRequests": null,
+    "MemoryReservation": 0,
+    "MemorySwap": 0,
+    "MemorySwappiness": null,
+    "OomKillDisable": false,
+    "PidsLimit": null,
+    "Ulimits": [],
+    "CpuCount": 0,
+    "CpuPercent": 0,
+    "IOMaximumIOps": 0,
+    "IOMaximumBandwidth": 0,
+    "Mounts": [
+      {
+        "Type": "bind",
+        "Source": "/opt/cline-server-p3-stage2-20261108/control",
+        "Target": "/control"
+      },
+      {
+        "Type": "bind",
+        "Source": "/opt/cline-server-p3-stage2-20261108/templates",
+        "Target": "/templates",
+        "ReadOnly": true
+      },
+      {
+        "Type": "bind",
+        "Source": "/var/run/docker.sock",
+        "Target": "/var/run/docker.sock"
+      }
+    ],
+    "MaskedPaths": [
+      "/proc/asound",
+      "/proc/acpi",
+      "/proc/kcore",
+      "/proc/keys",
+      "/proc/latency_stats",
+      "/proc/timer_list",
+      "/proc/timer_stats",
+      "/proc/sched_debug",
+      "/proc/scsi",
+      "/sys/firmware",
+      "/sys/devices/virtual/powercap"
+    ],
+    "ReadonlyPaths": [
+      "/proc/bus",
+      "/proc/fs",
+      "/proc/irq",
+      "/proc/sys",
+      "/proc/sysrq-trigger"
+    ]
+  },
+  "NetworkSettings": {
+    "Bridge": "",
+    "SandboxID": "0de6e140d6934790e9eb82204a6c8cda8c27e7cffda90052527f4f740a69a30e",
+    "SandboxKey": "/var/run/docker/netns/0de6e140d693",
+    "Ports": {
+      "18326/tcp": null,
+      "18330/tcp": [
+        {
+          "HostIp": "127.0.0.1",
+          "HostPort": "18330"
+        }
+      ]
+    },
+    "HairpinMode": false,
+    "LinkLocalIPv6Address": "",
+    "LinkLocalIPv6PrefixLen": 0,
+    "SecondaryIPAddresses": null,
+    "SecondaryIPv6Addresses": null,
+    "EndpointID": "ed99a740128e788284d17a4119718321299815d4e85a1b92c69da1e72085293b",
+    "Gateway": "172.17.0.1",
+    "GlobalIPv6Address": "",
+    "GlobalIPv6PrefixLen": 0,
+    "IPAddress": "172.17.0.9",
+    "IPPrefixLen": 16,
+    "IPv6Gateway": "",
+    "MacAddress": "02:42:ac:11:00:09",
+    "Networks": {
+      "bridge": {
+        "IPAMConfig": null,
+        "Links": null,
+        "Aliases": null,
+        "MacAddress": "02:42:ac:11:00:09",
+        "NetworkID": "1bd4e7d942df8070085345c4cd6fd5aebdab1eb3aef32753a139dc395c695b56",
+        "EndpointID": "ed99a740128e788284d17a4119718321299815d4e85a1b92c69da1e72085293b",
+        "Gateway": "172.17.0.1",
+        "IPAddress": "172.17.0.9",
+        "IPPrefixLen": 16,
+        "IPv6Gateway": "",
+        "GlobalIPv6Address": "",
+        "GlobalIPv6PrefixLen": 0,
+        "DriverOpts": null,
+        "DNSNames": null
+      },
+      "cline-p32-control": {
+        "IPAMConfig": {},
+        "Links": null,
+        "Aliases": [],
+        "MacAddress": "02:42:c0:a8:00:06",
+        "NetworkID": "f47c7148d48f593d21b02fcb16195af922d9c961c7ac4bc8bbdeb19aec6b83fd",
+        "EndpointID": "fd4f515c01385f3a20abb62dbb8234a0972ba4e1d7b60bb1152f825146b3e046",
+        "Gateway": "",
+        "IPAddress": "192.168.0.6",
+        "IPPrefixLen": 20,
+        "IPv6Gateway": "",
+        "GlobalIPv6Address": "",
+        "GlobalIPv6PrefixLen": 0,
+        "DriverOpts": {},
+        "DNSNames": [
+          "cline-p32-control",
+          "40f26b0b38bc"
+        ]
+      }
+    }
+  }
+}

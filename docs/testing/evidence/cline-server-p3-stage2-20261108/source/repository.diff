@@ -1,0 +1,1110 @@
+diff --git a/chatchat-agents/src/main/java/com/chatchat/agents/runtime/coding/DurableCodingTaskService.java b/chatchat-agents/src/main/java/com/chatchat/agents/runtime/coding/DurableCodingTaskService.java
+index 388253ca3..d1ed978df 100644
+--- a/chatchat-agents/src/main/java/com/chatchat/agents/runtime/coding/DurableCodingTaskService.java
++++ b/chatchat-agents/src/main/java/com/chatchat/agents/runtime/coding/DurableCodingTaskService.java
+@@ -385,6 +385,28 @@ public final class DurableCodingTaskService implements CodingAgentSPI {
+         }).lease;
+     }
+ 
++    /** Reconciliation-only CAS for already admitted native metadata; no dispatch, journal or fence bypass. */
++    public void reconcileNativeState(KernelDataScope scope, String taskId, CodingJournal.Lease lease, String key,
++            com.fasterxml.jackson.databind.JsonNode expected, com.fasterxml.jackson.databind.JsonNode next) {
++        require(key != null && key.startsWith("native:") && key.length() <= 128 && expected != null
++            && next != null && next.toString().length() <= 262144, CONTRACT_INVALID, "Bounded existing native state required");
++        mutateTask(scope, taskId, WORKER, task -> {
++            fence(task, lease);
++            require(task.privateState.containsKey(key) && Objects.equals(task.privateState.get(key), expected),
++                TASK_ID_CONFLICT, "Native reconciliation CAS conflict");
++            task.privateState.put(key, next.deepCopy());
++        });
++    }
++
++    /** Read-only projection of committed native bindings; no secondary index can hide a dispatch. */
++    public Map<String, com.fasterxml.jackson.databind.JsonNode> nativeOperationStates(KernelDataScope scope, String taskId) {
++        var result = new LinkedHashMap<String, com.fasterxml.jackson.databind.JsonNode>();
++        task(read(scope, READ), taskId).privateState.forEach((key, value) -> {
++            if (key.matches("native:cline-[0-9a-f]{64}")) result.put(key.substring(7), value.deepCopy());
++        });
++        return Collections.unmodifiableMap(result);
++    }
++
+     public record ReservationResult(boolean admitted, CodingTaskOutcome outcome) { }
+ 
+     public ReservationResult reserve(KernelDataScope scope, String taskId, CodingJournal.Lease lease,
+diff --git a/cline-agent-server/docker/README.stage2.md b/cline-agent-server/docker/README.stage2.md
+new file mode 100644
+index 000000000..974514fa2
+--- /dev/null
++++ b/cline-agent-server/docker/README.stage2.md
+@@ -0,0 +1,36 @@
++# 第二阶段隔离构建与复现
++
++固定基线 `db60dec41`，官方 Cline `v4.1.26 / a459f1d04dea030833b558be645011ab739c463b`。构建和测试只使用 `/opt/cline-server-p3-stage2-20261108`。不得套用到生产共享配置或替换默认 Coding Agent。
++
++运行前将本分支 `cline-agent-server/`、改动后的 `DurableCodingTaskService.java`、三份下列迁移及 MCP 初始化 DDL 复制至该目录的 `source/`，维持仓库相对路径。已有输入是经过验证的第一阶段镜像、官方源码工作区、Bun 1.4.2 与已有 API/MCP 发布 Jar；准备脚本只从旧容器只读复制 Jar，不改旧容器。输出保存各 Jar SHA256。PostgreSQL 使用新数据库和本任务私有密码，所有服务凭据由准备脚本生成并限制读取，不可提交到 Git。
++
++```sh
++python3 source/cline-agent-server/scripts/stage2-prepare.py
++python3 source/cline-agent-server/scripts/stage2-deploy.py
++python3 source/cline-agent-server/scripts/stage2-build.py
++python3 source/cline-agent-server/scripts/stage2-gateway.py
++```
++
++`stage2-build.py` 在单独官方源码副本增加两处 Host 上下文透传，运行官方 `check-types` 和 Standalone esbuild，使用第一阶段已验证资源/ABI/descriptor，并更新修改后 bundle 的资源 Hash。镜像继承第一阶段的受限操作系统与官方 Standalone，不加入旧 SDK Worker。最终 Worker 使用镜像摘要，服务代码和 bundle 均位于镜像内。
++
++Java 适配使用 `javac` 链接既有发布 Jar 的类及依赖，覆盖的既有实现只有 `DurableCodingTaskService` 的小幅元数据扩展。没有重新打包或部署业务 Spring Boot 应用；本轮不宣称跑过整个 Maven reactor。实际 PostgreSQL/JDBC 和 Docker 测试覆盖新增接口与执行链路。
++
++复用迁移：`V20261009_05__runtime_evidence_revision_gate.sql`、`V20261015_01__mcp_python_managed_operation.sql`、`V20261019_03__mcp_python_unadmitted_cancellation.sql`，以及初始化 DDL 的 `mcp_python_environment` 表。新环境使用已有本机 Python 镜像，`network=none`、固定 UID、capabilities drop、只读文件系统、CPU/内存/PID 约束均由既有 `PythonDockerRuntime` 生成。
++
++新增服务：`cline-p32-db`、`cline-p32-authority`、`cline-p32-remote`、`cline-p32-control`；故障测试时另开 `cline-p32-fault`。内部网络 `cline-p32-control` 不开放外部端口；只有 Gateway 暴露宿主 loopback `127.0.0.1:18330`。Gateway 另外保留模型转发网络，仅使用复制的私有模型 profile。任务 Worker 继续 `network=none`，通过各自 UDS Broker 访问授权模型/MCP。
++
++故障代理只在隔离测试拓扑使用。启动 `test/stage2-fault-proxy.mjs`，只挂载其脚本、自身配置和隔离状态目录，把隔离 authority 的 `mcpUrl` 设为 `http://cline-p32-fault:18403/mcp`。常规部署直接使用 `http://cline-p32-remote:18402/mcp`。代理丢弃请求或真实响应，不生成工具返回值。禁止对共享 MCP 使用该故障配置。
++
++```sh
++python3 source/cline-agent-server/test/stage2-operations.py
++python3 source/cline-agent-server/test/stage2-faults.py
++python3 source/cline-agent-server/test/stage2-native.py
++# 通过 authority 相同 classpath，在隔离容器中分别运行：
++# com.chatchat.mcpserver.python.NativeJournalGuardProbe
++# com.chatchat.mcpserver.python.NativeManagedFenceProbe
++python3 source/cline-agent-server/scripts/collect-stage2-evidence.py /var/tmp/cline-p32-evidence
++```
++
++先等待各服务实际 HTTP 健康检查通过，再运行测试；Docker 端口已监听并不等于应用就绪。故障测试会 kill/restart **本任务的 authority**；原生验收会 kill **本任务 Worker/Core**。执行前检查容器归属标签 `cline.stage=P3.2` / `cline.workerId`，不得替换成共享服务名称。测试已受理的外部操作只查询/取消，不能因超时重派。
++
++权限限制与未解决的 Docker Socket 风险见 [操作协议与隔离方案](../../docs/design/cline-server-p3-stage2-operations.md)。最小权限执行代理/rootless daemon 尚未实施。本轮不以容器隔离或健康检查代替真实操作验收，也不把该 POC 拓扑当作生产部署方案。
+diff --git a/cline-agent-server/scripts/collect-stage2-evidence.py b/cline-agent-server/scripts/collect-stage2-evidence.py
+new file mode 100644
+index 000000000..c103ec866
+--- /dev/null
++++ b/cline-agent-server/scripts/collect-stage2-evidence.py
+@@ -0,0 +1,83 @@
++#!/usr/bin/env python3
++"""Read-only export from this task's isolated services. Never executes model code."""
++import pathlib,json,subprocess,hashlib,gzip,sys,shutil,difflib,datetime
++R=pathlib.Path('/opt/cline-server-p3-stage2-20261108');OUT=pathlib.Path(sys.argv[1]);OUT.mkdir(parents=True,exist_ok=True)
++cfg=json.loads((R/'private/config.json').read_text());gateway=json.loads((R/'control/config.json').read_text())
++secrets=[cfg[k] for k in ('dbPassword','cryptoKey','internalSecret','gatewaySecret','mcpSecret','dispatchSecret','remoteControlSecret','mcpToken')]+[gateway['signingKey']]+[p['apiKey'] for p in gateway['modelProfiles'].values()]
++registries=[]
++for p in (R/'control/state/workers').glob('*/registry.json'):
++ r=json.loads(p.read_text());secrets.extend([r['apiToken'],r['brokerToken']]);registries.append(r)
++def sha(b):return hashlib.sha256(b).hexdigest()
++def text(value):return value if isinstance(value,str) else json.dumps(value,ensure_ascii=False,indent=2)+'\n'
++def save(name,value,compress=False):
++ content=text(value)
++ for secret in secrets:
++  if secret:content=content.replace(secret,'[REDACTED]')
++ p=OUT/name;p.parent.mkdir(parents=True,exist_ok=True);data=content.encode()
++ if compress:p=p.with_name(p.name+'.gz');data=gzip.compress(data,mtime=0)
++ p.write_bytes(data)
++def command(*a):return subprocess.check_output(a,text=True,stderr=subprocess.STDOUT)
++for p in (R/'evidence').rglob('*'):
++ if p.is_file():save('runs/'+str(p.relative_to(R/'evidence')),p.read_text(),p.stat().st_size>150000)
++save('remote/fault-proxy.jsonl',(R/'remote-state/fault-proxy.jsonl').read_text())
++remotes=[]
++for p in (R/'remote-state').glob('cline-*.json'):
++ v=json.loads(p.read_text());remotes.append(v);save('remote/operations/'+p.name,v)
++for p in (R/'remote-state').glob('*.progress'):save('remote/progress/'+p.name,p.read_text())
++sql="select json_build_object('tenantId',p.tenant_id,'userId',p.user_id,'runId',p.run_id,'envelope',e.record_json::json) from runtime_evidence_partition p join runtime_evidence_entry e on e.partition_id=p.id where e.entry_kind='EXEC_CHECKPOINT' order by p.id"
++rows=[json.loads(x) for x in command('docker','exec','cline-p32-db','psql','-U','stage2','-d','stage2','-At','-c',sql).splitlines() if x]
++save('journal/checkpoints.json',rows,True);matrix=[]
++for row in rows:
++ journal=json.loads(row['envelope']['value'])
++ for taskId,task in journal['tasks'].items():
++  for opId,op in task['operations'].items():
++   b=task.get('privateState',{}).get('native:'+opId,{})
++   matrix.append({'tenantId':row['tenantId'],'userId':row['userId'],'runId':row['runId'],'taskId':taskId,'operationId':opId,'kind':op.get('kind'),'intentPersisted':op.get('startIntent'),'startingFence':op.get('startingFencingToken'),'handle':op.get('executionHandle'),'stopProofRef':op.get('stopProofRef'),'state':b.get('state'),'taskStatus':task['outcome']['status'],'taskStopReason':task['outcome'].get('executionControl',{}).get('stopReason'),'unresolved':bool(op.get('startIntent') and not op.get('stopProofRef'))})
++save('journal/reconciliation-matrix.json',matrix)
++save('journal/python-rows.json',json.loads(command('docker','exec','cline-p32-db','psql','-U','stage2','-d','stage2','-At','-c',"select coalesce(json_agg(row_to_json(x)),'[]') from (select tenant_id,owner_id,run_id,task_id,operation_id,fencing_token,status,container_name,image_digest,code_hash,cancel_requested,executor_stopped,exit_code,manifest_hash from mcp_python_managed_operation order by created_at) x")))
++for reg in registries:
++ root=R/'control/state/workers'/reg['workerId'];inspect=json.loads(command('docker','inspect',reg['containerId']))[0] if reg.get('containerId') else None
++ if inspect:assert not inspect['State']['Running'],'Stop all isolated task Workers before evidence collection'
++ safe={k:v for k,v in reg.items() if k not in ('apiToken','brokerToken','monitorBusy')};save('workers/'+reg['workerId']+'/registry.json',safe)
++ if inspect:save('workers/'+reg['workerId']+'/inspect.json',{k:inspect[k] for k in ('Id','Image','State','Mounts','HostConfig')})
++ for p in (root/'state').glob('*/events.jsonl'):save('workers/'+reg['workerId']+'/native-events.jsonl',p.read_text(),True)
++ workspace=root/'workspace';before={};after={}
++ template=R/'templates'/pathlib.Path(gateway['tenants'][reg['contract']['tenantId']]['workspaces'][reg['contract']['workspaceRef']]).relative_to('/templates')
++ from evidence_files import tree_bytes
++ a,skipA=tree_bytes(template);b,skipB=tree_bytes(workspace)
++ for path in sorted(set(a)|set(b)):
++  before[path]=sha(a[path]) if path in a else None;after[path]=sha(b[path]) if path in b else None
++ changed=[p for p in before if before[p]!=after[p]]
++ save('workers/'+reg['workerId']+'/workspace-hashes.json',{'before':before,'after':after,'changed':changed,'skipped':skipB})
++ patch=''
++ for p in changed:
++  patch+=''.join(difflib.unified_diff(a.get(p,b'').decode(errors='replace').splitlines(True),b.get(p,b'').decode(errors='replace').splitlines(True),fromfile='before/'+p,tofile='after/'+p))
++ save('workers/'+reg['workerId']+'/workspace.diff',patch)
++python_paths=[]
++for p in (R/'python/workspace').rglob('*'):
++ if p.is_file() and p.name in ('receipt.json','manifest.json','stdout.txt','stderr.txt','analysis.py','runtime-diagnostic.json'):
++  relative=p.relative_to(R/'python/workspace');short='python/'+sha(str(relative.parent).encode())+'/'+p.name
++  python_paths.append({'path':short,'originalPath':str(relative)});save(short,p.read_text())
++save('python/path-map.json',python_paths)
++old=pathlib.Path('/opt/cline-agent-server-poc-20261108/build/cline-a459f1d04dea030833b558be645011ab739c463b');new=R/'upstream'
++core=[]
++for root in ('sdk/packages/core/src','sdk/packages/agents/src'):
++ for p in (old/root).rglob('*'):
++  if p.is_file():
++   rel=p.relative_to(old);q=new/rel;core.append({'path':str(rel),'beforeSha256':sha(p.read_bytes()),'afterSha256':sha(q.read_bytes()) if q.exists() else None})
++save('source/core-source-hashes.json',{'unchanged':all(x['beforeSha256']==x['afterSha256'] for x in core),'files':core})
++changes=[]
++for p in (old/'apps/vscode/src').rglob('*'):
++ if p.is_file():
++  rel=p.relative_to(old);q=new/rel
++  if q.exists() and p.read_bytes()!=q.read_bytes():
++   changes.append({'path':str(rel),'beforeSha256':sha(p.read_bytes()),'afterSha256':sha(q.read_bytes())});save('source/'+str(rel)+'.diff',''.join(difflib.unified_diff(p.read_text().splitlines(True),q.read_text().splitlines(True),fromfile='stage1/'+str(rel),tofile='stage2/'+str(rel))))
++save('source/upstream-host-diff-matrix.json',changes)
++for name in ('cline-p32-authority','cline-p32-remote','cline-p32-control','cline-p32-db','cline-p32-fault'):
++ i=json.loads(command('docker','inspect',name))[0];save('docker/'+name+'.json',{k:i[k] for k in ('Id','Image','State','Mounts','HostConfig','NetworkSettings')});save('logs/'+name+'.log',command('docker','logs',name))
++save('source/input-jars.json',[{'name':p.name,'bytes':p.stat().st_size,'sha256':sha(p.read_bytes())} for p in (R/'input').glob('*.jar')])
++save('source/adapter-files.json',[{'path':str(p.relative_to(R/'source')),'sha256':sha(p.read_bytes())} for p in (R/'source/cline-agent-server').rglob('*') if p.is_file()])
++save('runtime-manifest.json',json.loads((R/'runtime/runtime-manifest.json').read_text()))
++save('collection.json',{'recordedAt':datetime.datetime.now(datetime.timezone.utc).isoformat(),'baseline':'db60dec41','realModelProfile':gateway['modelProfiles'][next(iter(gateway['modelProfiles']))]['model'],'workers':len(registries),'journalOperations':len(matrix),'unresolvedJournalOperations':sum(x['unresolved'] for x in matrix),'remoteOperations':len(remotes),'coreFiles':len(core),'coreUnchanged':bool(core) and all(x['beforeSha256']==x['afterSha256'] for x in core),'changedHostFiles':len(changes),'defaultsChanged':False})
++manifest=[{'path':str(p.relative_to(OUT)),'bytes':p.stat().st_size,'sha256':sha(p.read_bytes())} for p in sorted(OUT.rglob('*')) if p.is_file() and p.name!='SHA256SUMS.json'];save('SHA256SUMS.json',manifest)
++print(json.dumps({'evidenceFiles':len(manifest),'unresolvedJournalOperations':sum(x['unresolved'] for x in matrix),'coreFiles':len(core),'hostDiffFiles':len(changes)}))
+diff --git a/cline-agent-server/scripts/stage2-build.py b/cline-agent-server/scripts/stage2-build.py
+new file mode 100644
+index 000000000..7ef35fc4e
+--- /dev/null
++++ b/cline-agent-server/scripts/stage2-build.py
+@@ -0,0 +1,36 @@
++#!/usr/bin/env python3
++"""Rebuild host metadata propagation in a private copy of pinned official source."""
++import pathlib,subprocess,shutil,json,hashlib
++R=pathlib.Path('/opt/cline-server-p3-stage2-20261108');S=R/'source'
++original=pathlib.Path('/opt/cline-agent-server-poc-20261108/build/cline-a459f1d04dea030833b558be645011ab739c463b')
++copy=R/'upstream'
++def run(*a,**kw):return subprocess.run(a,check=True,text=True,**kw)
++if not copy.exists():run('cp','-a','--reflink=auto',str(original),str(copy))
++if not (R/'tools').exists():shutil.copytree(original.parents[1]/'tools',R/'tools')
++image=json.loads(subprocess.check_output(['docker','inspect','cline-server-poc-builder']))[0]['Image']
++def build(command):
++ return run('docker','run','--rm','--user','0:0','--network','none','--mount',f'type=bind,src={R},dst=/stage2','-w','/stage2/upstream','--entrypoint','bash',image,'-lc',command)
++if not (copy/'stage2-host-patches.json').exists():build('node /stage2/source/cline-agent-server/scripts/stage2-patch-upstream.mjs /stage2/upstream')
++log=R/'evidence/native-build.log'
++with log.open('w') as f:
++ result=subprocess.run(['docker','run','--rm','--user','0:0','--network','none','--mount',f'type=bind,src={R},dst=/stage2','-w','/stage2/upstream/apps/vscode','--entrypoint','bash',image,'-lc','export PATH=/stage2/tools/bun-linux-x64:$PATH; bun run check-types && bun esbuild.mjs --standalone'],stdout=f,stderr=subprocess.STDOUT)
++print('NATIVE_BUILD_EXIT',result.returncode)
++if result.returncode:print(log.read_text()[-6000:]);raise SystemExit(result.returncode)
++old_image='cline-agent-server:p3-stage1'
++container=subprocess.check_output(['docker','create',old_image],text=True).strip()
++runtime=R/'runtime'
++if not runtime.exists():run('docker','cp',container+':/poc/runtime',str(runtime))
++run('docker','rm',container)
++bundle=copy/'apps/vscode/dist-standalone/cline-core.js'
++shutil.copy2(bundle,runtime/'cline-core.js')
++manifest=json.loads((runtime/'runtime-manifest.json').read_text())
++for f in manifest['files']:
++ p=runtime/f['path']
++ if f['path']=='cline-core.js':f['bytes']=p.stat().st_size;f['sha256']=hashlib.sha256(p.read_bytes()).hexdigest()
++(runtime/'runtime-manifest.json').write_text(json.dumps(manifest,indent=2)+'\n')
++builddir=R/'image';builddir.mkdir(exist_ok=True)
++shutil.copytree(S/'cline-agent-server',builddir/'service',dirs_exist_ok=True)
++shutil.copytree(runtime,builddir/'runtime',dirs_exist_ok=True)
++(builddir/'Dockerfile').write_text('FROM cline-agent-server:p3-stage1\nUSER root\nCOPY service/ /poc/service/\nCOPY runtime/ /poc/runtime/\nUSER 1000:1000\nCMD ["node","/poc/service/src/isolated-worker.mjs"]\n')
++with (R/'evidence/docker-build.log').open('w') as f:run('docker','build','--network','none','-t','cline-agent-server:p3-stage2',str(builddir),stdout=f,stderr=subprocess.STDOUT)
++print('STAGE2_IMAGE',subprocess.check_output(['docker','image','inspect','cline-agent-server:p3-stage2','--format','{{.Id}}'],text=True).strip())
+diff --git a/cline-agent-server/scripts/stage2-deploy.py b/cline-agent-server/scripts/stage2-deploy.py
+new file mode 100644
+index 000000000..5ded847c7
+--- /dev/null
++++ b/cline-agent-server/scripts/stage2-deploy.py
+@@ -0,0 +1,43 @@
++#!/usr/bin/env python3
++"""Isolated test topology. Requires stage2-prepare.py and the stage-1 private config.
++No shared container, database, model, or MCP configuration is changed.
++"""
++import pathlib,subprocess,json,secrets,re,time,os
++R=pathlib.Path('/opt/cline-server-p3-stage2-20261108');S=R/'source'
++def run(*a,**kw):
++ r=subprocess.run(a,text=True,**kw)
++ if r.returncode:raise RuntimeError('Deployment command failed: '+a[0]+' (arguments withheld)')
++ return r
++def out(*a):return subprocess.check_output(a,text=True).strip()
++names=out('docker','ps','-a','--format','{{.Names}}').splitlines()
++def create(name,*args):
++ if name not in names:run('docker','run','-d','--name',name,*args)
++def secret():return secrets.token_hex(32)
++p=R/'private/config.json'
++if p.exists():c=json.loads(p.read_text())
++else:
++ c={k:secret() for k in ('dbPassword','cryptoKey','internalSecret','gatewaySecret','mcpSecret','dispatchSecret','remoteControlSecret','mcpToken')}
++ c.update(port=18502,jdbcUrl='jdbc:postgresql://cline-p32-db:5432/stage2',dbUser='stage2',pythonEnvironment='native-stage2',pythonWorkspace=str(R/'python/workspace'),pythonData=str(R/'python/data'),mcpUrl='http://cline-p32-remote:18402/mcp',remoteControlUrl='http://cline-p32-remote:18402/control',authorityUrl='http://cline-p32-authority:18502',stateRoot=str(R/'remote-state'))
++ p.write_text(json.dumps(c));p.chmod(0o600)
++(R/'pg').mkdir(exist_ok=True)
++if 'cline-p32-control' not in out('docker','network','ls','--format','{{.Name}}').splitlines():run('docker','network','create','--internal','cline-p32-control')
++create('cline-p32-db','--network','cline-p32-control','--label','cline.stage=P3.2','--mount',f'type=bind,src={R}/pg,dst=/var/lib/postgresql','-e','POSTGRES_USER=stage2','-e','POSTGRES_DB=stage2','-e','POSTGRES_PASSWORD='+c['dbPassword'],'postgres:18')
++for n in range(60):
++ if subprocess.run(['docker','exec','cline-p32-db','pg_isready','-U','stage2'],stdout=subprocess.DEVNULL,stderr=subprocess.DEVNULL).returncode==0:break
++ time.sleep(1)
++marker=R/'private/schema-applied'
++if not marker.exists():
++ ddl=(S/'database/init/postgresql/chatchat-mcp-server.sql').read_text();ddl=re.search(r'create table mcp_python_environment\s*\(.*?\);',ddl,re.S).group(0)
++ for f in ('V20261009_05__runtime_evidence_revision_gate.sql','V20261015_01__mcp_python_managed_operation.sql','V20261019_03__mcp_python_unadmitted_cancellation.sql'):ddl+='\n'+(S/'database/migration/postgresql'/f).read_text()
++ ddl+="\nINSERT INTO mcp_python_environment (id,name,description,docker_image,python_version,cpu_limit,memory_limit,disk_limit,tmpfs_limit,runtime_user,network_policy,network_name,requirements_json,timeout_seconds,network_enabled,version_number,status,created_at,updated_at) VALUES ('native-stage2','Stage2 isolated Python','real cancellation acceptance','chatchat-python-runtime:3.11-v1.2-fonts-r2-20261022','3.11','1','256m','128m','64m','10001:10001','NONE',NULL,'[]',120,false,1,'PUBLISHED',now(),now());"
++ run('docker','exec','-i','cline-p32-db','psql','-v','ON_ERROR_STOP=1','-U','stage2','-d','stage2',input=ddl);marker.touch()
++cp=':'.join(str(R/n) for n in ('classes','api-classes','mcp-classes','lib/*'))
++java_image=out('docker','inspect','runtime-native-acceptance-mcp','--format','{{.Image}}')
++java_mounts=[]
++for n in ('classes','api-classes','mcp-classes','lib'):java_mounts+=['--mount',f'type=bind,src={R}/{n},dst={R}/{n},readonly']
++for n in ('python/workspace','python/data'):java_mounts+=['--mount',f'type=bind,src={R}/{n},dst={R}/{n}']
++create('cline-p32-authority','--network','cline-p32-control','--label','cline.stage=P3.2',*java_mounts,'--mount',f'type=bind,src={p},dst=/run/cline-operations.json,readonly','--mount','type=bind,src=/var/run/docker.sock,dst=/var/run/docker.sock','--health-cmd','wget -q -O /dev/null http://127.0.0.1:18502/health/live','--health-interval','5s','--health-start-period','15s','-e','CLINE_OPERATION_CONFIG=/run/cline-operations.json','--entrypoint','java',java_image,'-cp',cp,'com.chatchat.mcpserver.python.NativeStage2Application')
++remote={k:c[k] for k in ('dispatchSecret','mcpSecret','mcpToken','remoteControlSecret','authorityUrl','stateRoot')};remote['port']=18402;rp=R/'private/remote.json';rp.write_text(json.dumps(remote));rp.chmod(0o600)
++state=pathlib.Path(remote['stateRoot']);state.mkdir(exist_ok=True)
++create('cline-p32-remote','--network','cline-p32-control','--label','cline.stage=P3.2','--mount',f'type=bind,src={S}/cline-agent-server/src/stage2-remote.mjs,dst=/app/remote.mjs,readonly','--mount',f'type=bind,src={rp},dst=/run/cline-remote.json,readonly','--mount',f'type=bind,src={state},dst={state}','--health-cmd','node -e "fetch(\'http://127.0.0.1:18402/health/live\').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"','--health-interval','5s','-e','CLINE_REMOTE_CONFIG=/run/cline-remote.json','--user','0:0','--entrypoint','node','cline-agent-server:p3-stage1','/app/remote.mjs')
++print('Isolated stage2 services created. No shared service modified.')
+diff --git a/cline-agent-server/scripts/stage2-gateway.py b/cline-agent-server/scripts/stage2-gateway.py
+new file mode 100644
+index 000000000..a71420095
+--- /dev/null
++++ b/cline-agent-server/scripts/stage2-gateway.py
+@@ -0,0 +1,16 @@
++#!/usr/bin/env python3
++import pathlib,subprocess,json,shutil
++R=pathlib.Path('/opt/cline-server-p3-stage2-20261108');old=pathlib.Path('/opt/cline-server-p3-stage1-20261108')
++op=json.loads((R/'private/config.json').read_text());c=json.loads((old/'control/config.json').read_text())
++(R/'control/state').mkdir(parents=True,exist_ok=True)
++if not (R/'templates').exists():shutil.copytree(old/'templates',R/'templates')
++c.update(port=18330,host='0.0.0.0',stateRoot='/control/state',hostStateRoot=str(R/'control/state'),workerImage=subprocess.check_output(['docker','image','inspect','cline-agent-server:p3-stage2','--format','{{.Id}}'],text=True).strip(),operations={'url':'http://cline-p32-authority:18502','secret':op['gatewaySecret']})
++for t in c['tenants'].values():
++ t['tools']=['read_files','search_codebase','editor','apply_patch','run_commands','use_mcp_tool','tenant_data__long_mcp','tenant_data__python_execute']
++ t['mcp']={'url':'http://cline-p32-remote:18402/mcp','token':op['mcpToken'],'tools':['long_mcp','python_execute']}
++p=R/'control/config.json';p.write_text(json.dumps(c));p.chmod(0o600)
++names=subprocess.check_output(['docker','ps','-a','--format','{{.Names}}'],text=True).splitlines()
++if 'cline-p32-control' not in names:
++ subprocess.run(['docker','run','-d','--name','cline-p32-control','--user','0:0','--label','cline.stage=P3.2','--no-healthcheck','-p','127.0.0.1:18330:18330','--mount',f'type=bind,src={R}/control,dst=/control','--mount',f'type=bind,src={R}/templates,dst=/templates,readonly','--mount','type=bind,src=/var/run/docker.sock,dst=/var/run/docker.sock','-e','CLINE_GOVERNANCE_CONFIG=/control/config.json','--entrypoint','node',c['workerImage'],'/poc/service/src/governance-server.mjs'],check=True)
++ subprocess.run(['docker','network','connect','cline-p32-control','cline-p32-control'],check=True)
++print('Stage2 gateway on loopback 18330; worker image pinned; original gateway unchanged.')
+diff --git a/cline-agent-server/scripts/stage2-patch-upstream.mjs b/cline-agent-server/scripts/stage2-patch-upstream.mjs
+new file mode 100644
+index 000000000..0f119b6d2
+--- /dev/null
++++ b/cline-agent-server/scripts/stage2-patch-upstream.mjs
+@@ -0,0 +1,20 @@
++// Two host-boundary additions only. Never change Agent Core or tool execution.
++import {readFileSync,writeFileSync} from 'node:fs';
++import {join} from 'node:path';
++import {createHash} from 'node:crypto';
++const root=process.argv[2],changes=[];
++function patch(path,before,after){const p=join(root,path),s=readFileSync(p,'utf8');if(!s.includes(before))throw Error('Pinned stage2 anchor missing: '+path);const next=s.replace(before,after);writeFileSync(p,next);changes.push({path,beforeSha256:createHash('sha256').update(s).digest('hex'),afterSha256:createHash('sha256').update(next).digest('hex')});}
++patch('apps/vscode/src/sdk/vscode-runtime-builder.ts',
++'return this.mcpHub.callTool(request.serverName, request.toolName, request.arguments ?? {}, ulid, request.context?.signal)',
++`return this.mcpHub.callTool(request.serverName, request.toolName, request.arguments ?? {}, ulid, request.context?.signal,
++            process.env.CLINE_SERVER_OPERATION_CONTEXT === "1" ? { runtimeNative: {
++                nativeSessionId: request.context?.sessionId,
++                nativeToolCallId: request.context?.toolCallId,
++                epoch: process.env.CLINE_SERVER_EPOCH,
++            } } : undefined)`);
++patch('apps/vscode/src/services/mcp/McpHub.ts',
++'\t\tulid: string,\n\t\tsignal?: AbortSignal,\n\t): Promise<McpToolCallResponse>',
++'\t\tulid: string,\n\t\tsignal?: AbortSignal,\n\t\toperationContext?: Record<string, unknown>,\n\t): Promise<McpToolCallResponse>');
++patch('apps/vscode/src/services/mcp/McpHub.ts','\t\t\t\t\t\targuments: toolArguments ?? {},','\t\t\t\t\t\targuments: toolArguments ?? {},\n\t\t\t\t\t\t...(operationContext ? { _meta: operationContext } : {}),');
++writeFileSync(join(root,'stage2-host-patches.json'),JSON.stringify(changes,null,2));
++console.log(JSON.stringify({hostPatches:changes.length,agentCoreChanges:0}));
+diff --git a/cline-agent-server/scripts/stage2-prepare.py b/cline-agent-server/scripts/stage2-prepare.py
+new file mode 100644
+index 000000000..cedb9bdf6
+--- /dev/null
++++ b/cline-agent-server/scripts/stage2-prepare.py
+@@ -0,0 +1,24 @@
++#!/usr/bin/env python3
++"""Prepare ONLY a new isolated stage-2 directory; never replace a running service."""
++import pathlib, subprocess, zipfile, hashlib, json, secrets, shutil, re
++R=pathlib.Path('/opt/cline-server-p3-stage2-20261108')
++R.mkdir(exist_ok=True)
++def run(*a,**kw): return subprocess.run(a,check=True,text=True,**kw)
++for n in ('input','lib','classes','api-classes','mcp-classes','private','evidence','python/workspace','python/data'):(R/n).mkdir(parents=True,exist_ok=True)
++for kind in ('api','mcp'):
++ p=R/'input'/f'{kind}.jar'
++ if not p.exists():run('docker','cp',f'runtime-native-acceptance-{kind}:/srv/app/app.jar',str(p))
++ with zipfile.ZipFile(p) as z:
++  for name in z.namelist():
++   if name.startswith('BOOT-INF/classes/') and not name.endswith('/'):
++    target=R/f'{kind}-classes'/name[len('BOOT-INF/classes/'):];target.parent.mkdir(parents=True,exist_ok=True);target.write_bytes(z.read(name))
++   if name.startswith('BOOT-INF/lib/') and name.endswith('.jar'):
++    target=R/'lib'/pathlib.Path(name).name
++    if not target.exists():target.write_bytes(z.read(name))
++src=R/'source'
++files=list((src/'cline-agent-server/stage2-java/src').rglob('*.java'))+[src/'chatchat-agents/src/main/java/com/chatchat/agents/runtime/coding/DurableCodingTaskService.java']
++cp=':'.join(str(R/n) for n in ('classes','api-classes','mcp-classes','lib/*'))
++result=subprocess.run(['/opt/jdk-17.0.5/bin/javac','-encoding','UTF-8','-cp',cp,'-d',str(R/'classes'),*map(str,files)],text=True,stdout=subprocess.PIPE,stderr=subprocess.STDOUT)
++(R/'evidence/javac.log').write_text(result.stdout);print(result.stdout);print('JAVAC_EXIT',result.returncode)
++if result.returncode:raise SystemExit(result.returncode)
++print('COMPILED',len(files),'source files against existing application jars')
+diff --git a/cline-agent-server/src/governance-server.mjs b/cline-agent-server/src/governance-server.mjs
+index e08142ca0..2a403c76b 100644
+--- a/cline-agent-server/src/governance-server.mjs
++++ b/cline-agent-server/src/governance-server.mjs
+@@ -27,14 +27,27 @@ function workerRequest(r,path,method='GET',value,headers={}){return new Promise(
+  req.setTimeout(95000,()=>req.destroy(error('Native control timeout',504)));req.on('error',reject);req.end(value===undefined?undefined:JSON.stringify(value));
+ });}
+ async function workerJSON(r,path,method,value){const response=await workerRequest(r,path,method,value);const chunks=[];for await(const b of response)chunks.push(b);const data=JSON.parse(Buffer.concat(chunks));if(response.statusCode>=400)throw error(data.code??'Native request rejected',response.statusCode);return {code:response.statusCode,data};}
+-function publicState(r,native){return {sessionId:r.contract.sessionId,runtimeTaskId:r.contract.taskId,workerId:r.workerId,workerState:r.workerState,taskState:r.taskState,revoked:r.revoked,stopProof:r.stopProof??null,remoteStopConfirmed:false,native:native??null};}
++function publicState(r,native){return {sessionId:r.contract.sessionId,runtimeTaskId:r.contract.taskId,workerId:r.workerId,workerState:r.workerState,taskState:r.taskState,revoked:r.revoked,stopProof:r.stopProof??null,remoteStopConfirmed:r.remoteStopConfirmed===true,native:native??null};}
++async function operation(r,path,value={}){
++ if(!cfg.operations)throw error('Operation authority unavailable',503);
++ const response=await fetch(cfg.operations.url+path,{method:'POST',headers:{authorization:'Bearer '+cfg.operations.secret,'content-type':'application/json'},body:JSON.stringify({identity:r.contract,...value})});
++ const result=await response.json();if(!response.ok)throw error(result.message??'Operation authority rejected',response.status===409?409:503);return result;
++}
++async function reconcileRemote(r,cancel=false){
++ if(!cfg.operations||!r.operationSession)return false;
++ if(cancel)await operation(r,'/invalidate');
++ let operations=await operation(r,'/list');
++ if(cancel)for(const o of operations)if(!['COMPLETED','FAILED','CANCELLED'].includes(o.state))await operation(r,'/cancel',{operationId:o.operationId});
++ operations=await operation(r,'/list');r.remoteStopConfirmed=operations.every(o=>['COMPLETED','FAILED','CANCELLED'].includes(o.state)&&o.receipt?.stopConfirmed&&o.stopProofRef);r.operations=operations.map(o=>({operationId:o.operationId,state:o.state,stopProofRef:o.stopProofRef??null}));if(cancel&&r.remoteStopConfirmed&&r.stopProof)r.operationOutcome=await operation(r,'/finish',{localStopProof:r.stopProof});save(r);return r.remoteStopConfirmed;
++}
+ async function stop(r,reason){
+  if(['STOPPED','STOPPING'].includes(r.workerState))return;r.revoked=true;r.workerState='STOPPING';r.taskState='STOPPING';save(r);event(r,'worker.stopping',{reason});
+  for(const response of streams.get(r.workerId)??[])response.end();for(const controller of calls.get(r.workerId)??[])controller.abort();
+  try{if(r.nativeSessionId)await workerJSON(r,'/v1/sessions/'+r.nativeSessionId+'/cancel','POST',{});}catch{}
+  try{if(r.containerId)r.stopProof=await docker.stop(r.containerId);r.workerState='STOPPED';r.taskState='CANCELLED_LOCAL_ONLY';}
+  catch{r.workerState='RECOVERABLE';r.taskState='UNKNOWN';}
+- brokers.get(r.workerId)?.close();save(r);event(r,'worker.stopped',{workerState:r.workerState,stopProof:r.stopProof??null,remoteStopConfirmed:false});
++ if(cfg.operations){try{await reconcileRemote(r,true);r.taskState=r.remoteStopConfirmed?'CANCELLED_REMOTE_CONFIRMED':'UNKNOWN';}catch{r.remoteStopConfirmed=false;r.taskState='UNKNOWN';}if(!r.remoteStopConfirmed)r.workerState='RECOVERABLE';}
++ brokers.get(r.workerId)?.close();save(r);event(r,'worker.stopped',{workerState:r.workerState,stopProof:r.stopProof??null,remoteStopConfirmed:r.remoteStopConfirmed===true});
+ }
+ async function broker(r,path){
+  const server=http.createServer(async(req,res)=>{
+@@ -50,6 +63,13 @@ async function broker(r,path){
+     if(requestBody.method==='tools/call'){
+      if(!tenant.mcp.tools.includes(requestBody.params?.name)||!r.contract.dataPermissions.includes(requestBody.params?.arguments?.datasetId))throw error('Dataset or tool not granted',403);
+      event(r,'mcp.authorized',{tool:requestBody.params.name,datasetId:requestBody.params.arguments.datasetId});
++     if(cfg.operations){
++      const context=requestBody.params?._meta?.runtimeNative;
++      if(!context||context.epoch!==r.nativeEpoch)throw error('Native operation context required',409);
++      const binding=await operation(r,'/resolve',{...context,toolName:requestBody.params.name,arguments:requestBody.params.arguments});
++      const result=await operation(r,'/dispatch',{operationId:binding.operationId,epoch:context.epoch,rpc:requestBody});
++      const actual={...result.mcpResponse,id:requestBody.id};return send(res,200,actual);
++     }
+     }else if(!['initialize','notifications/initialized','tools/list','ping'].includes(requestBody.method))throw error('MCP method not granted',403);
+     url=tenant.mcp.url;headers={'Authorization':'Bearer '+tenant.mcp.token,'Accept':'application/json, text/event-stream','content-type':'application/json'};
+     if(req.headers['mcp-protocol-version'])headers['mcp-protocol-version']=req.headers['mcp-protocol-version'];
+@@ -78,7 +98,7 @@ async function allocate(r){
+   templateFiles(tenant.workspaces[r.contract.workspaceRef]);cpSync(tenant.workspaces[r.contract.workspaceRef],join(dir,'workspace'),{recursive:true,dereference:false});templateFiles(join(dir,'workspace'),p=>chownSync(p,1000,1000));
+   // Template ownership is prepared by the deployment owner; no host path comes from a client.
+   const profile=cfg.modelProfiles[r.contract.modelProfile];
+-  const privateConfig={sourceRoot:'/not-mounted/upstream',distDir:'/poc/runtime',stateDir:'/poc/state',socketPath:'/poc/bridge/worker.sock',apiToken:r.apiToken,apiKey:r.brokerToken,model:profile.model,baseUrl:'http://127.0.0.1:18329/model/v1',workspaces:{project:'/poc/project'},toolPermissions:r.contract.toolPermissions,
++  const privateConfig={operationContext:!!cfg.operations,sourceRoot:'/not-mounted/upstream',distDir:'/poc/runtime',stateDir:'/poc/state',socketPath:'/poc/bridge/worker.sock',apiToken:r.apiToken,apiKey:r.brokerToken,model:profile.model,baseUrl:'http://127.0.0.1:18329/model/v1',workspaces:{project:'/poc/project'},toolPermissions:r.contract.toolPermissions,
+    ...(tenant.mcp?{mcpServers:{tenant_data:{type:'streamableHttp',url:'http://127.0.0.1:18329/mcp',headers:{Authorization:'Bearer '+r.brokerToken},disabled:false,autoApprove:[]}}}:{})};
+   const configFile=join(dir,'config.json');writeFileSync(configFile,JSON.stringify(privateConfig),{mode:0o600});chownSync(configFile,1000,1000);
+   await broker(r,join(dir,'bridge/broker.sock'));
+@@ -88,6 +108,7 @@ async function allocate(r){
+   for(let n=0;n<180;n++){if(r.revoked)throw Error('Allocation revoked');try{await workerJSON(r,'/health/ready');break;}catch{if(n===179)throw Error('Worker API startup deadline');await delay(500);}}
+   const created=await workerJSON(r,'/v1/sessions','POST',{workspaceRef:'project',editTool:r.editTool});r.nativeSessionId=created.data.sessionId;save(r);
+   for(let n=0;n<200;n++){if(r.revoked)throw Error('Allocation revoked');const state=(await workerJSON(r,'/v1/sessions/'+r.nativeSessionId+'/status')).data;if(state.status==='idle')break;if(state.status==='failed'||n===199)throw Error('Native startup failed');await delay(500);}
++  if(cfg.operations){const native=(await workerJSON(r,'/v1/sessions/'+r.nativeSessionId+'/status')).data;r.nativeEpoch=native.epoch;await operation(r,'/session',{epoch:native.epoch});r.operationSession=true;}
+   if(r.revoked)throw Error('Allocation revoked');r.workerState='READY';r.taskState='READY';save(r);event(r,'worker.ready',{containerId:r.containerId});
+  }catch(e){r.revoked=true;r.workerState='START_FAILED';r.taskState='FAILED';event(r,'worker.start_failed',{reason:'Worker provisioning or native startup failed'});if(r.containerId)try{r.stopProof=await docker.stop(r.containerId);}catch{r.workerState='RECOVERABLE';r.taskState='UNKNOWN';}save(r);brokers.get(r.workerId)?.close();}
+ }
+@@ -106,26 +127,38 @@ const server=http.createServer(async(req,res)=>{
+    mkdirSync(join(cfg.stateRoot,'workers',r.workerId),{recursive:true,mode:0o700});records.set(c.sessionId,r);save(r);event(r,'worker.created');send(res,201,publicState(r));void allocate(r);return;
+   }
+   const parts=path.split('/').filter(Boolean);let r;
+-  if(parts[0]==='v1'&&parts[1]==='sessions'){if(parts[2]!==c.sessionId)throw error('Session not found',404);const observe=req.method==='GET'&&(parts.length===3||parts[3]==='status');r=authorizeSession(c,records.get(parts[2]),observe||req.method==='POST'&&['cancel','revoke'].includes(parts[3]));}
++  if(parts[0]==='v1'&&parts[1]==='sessions'){if(parts[2]!==c.sessionId)throw error('Session not found',404);const observe=req.method==='GET'&&(parts.length===3||['status','operations'].includes(parts[3]));r=authorizeSession(c,records.get(parts[2]),observe||req.method==='POST'&&['cancel','revoke','reconcile'].includes(parts[3]));}
+   else if(parts[0]==='v1'&&parts[1]==='permissions')r=authorizeSession(c,records.get(c.sessionId));else throw error('Route not found',404);
+   if(parts[1]==='sessions'&&parts.length===3&&req.method==='GET')return send(res,200,publicState(r));
++  if(parts[3]==='operations'&&req.method==='GET')return send(res,200,await operation(r,'/list'));
++  if(parts[3]==='reconcile'&&req.method==='POST'){await reconcileRemote(r,r.revoked);return send(res,200,publicState(r));}
+   if(parts[3]==='status'&&req.method==='GET'&&!r.nativeSessionId)return send(res,200,publicState(r));
+   if(parts[3]==='status'&&req.method==='GET'&&r.revoked)return send(res,200,publicState(r));
+   if(['cancel','revoke'].includes(parts[3])&&req.method==='POST'){send(res,202,{workerState:'STOPPING',remoteStopConfirmed:false});void stop(r,parts[3]);return;}
+   if(!r.nativeSessionId||['RECOVERABLE','START_FAILED','STOPPED','STOPPING'].includes(r.workerState))throw error('Native worker unavailable',409);
++  if(cfg.operations&&!r.operationSession&&(parts[3]==='messages'||parts[1]==='permissions'))throw error('Durable operation session not ready',409);
+   const route=parts[1]==='permissions'?path:'/v1/sessions/'+r.nativeSessionId+(parts[3]?'/'+parts[3]:'');
+   if(parts[1]==='sessions'&&!['status','messages','events','diff','artifacts'].includes(parts[3]))throw error('Route not found',404);
+   const value=req.method==='POST'?await body(req):undefined;
++  if(cfg.operations&&parts[1]==='permissions'&&req.method==='POST'&&value.decision==='approve'){
++   const native=(await workerJSON(r,'/v1/sessions/'+r.nativeSessionId+'/status')).data;
++   const pending=native.pendingPermissions.find(p=>p.id===parts[2]);
++   if(pending&&pending.toolName.startsWith('tenant_data__'))await operation(r,'/bind',{epoch:pending.epoch,nativeSessionId:native.nativeSessionId,nativeToolCallId:pending.toolCallId,toolName:pending.toolName.slice('tenant_data__'.length),arguments:pending.input});
++  }
+   if(!live(r))throw error('Task lease inactive',403);
+   if(parts[3]==='messages'&&req.method==='POST'){r.workerState='RUNNING';r.taskState='RUNNING';save(r);}
+   const reply=await workerRequest(r,route,req.method,value,{'accept':req.headers.accept??'application/json',...(req.headers['last-event-id']?{'last-event-id':req.headers['last-event-id']}:{}),...(req.headers['idempotency-key']?{'idempotency-key':req.headers['idempotency-key']}:{} )});
+-  if(parts[3]==='status'&&reply.statusCode===200){const chunks=[];for await(const b of reply)chunks.push(b);if(r.revoked)return send(res,200,publicState(r));const native=JSON.parse(Buffer.concat(chunks));r.workerState=native.status==='awaiting_permission'?'WAITING_APPROVAL':native.status==='turn_completed'?'COMPLETED':native.status==='failed'?'RECOVERABLE':native.status==='idle'?'READY':'RUNNING';r.taskState=native.status==='turn_completed'?'AGENT_TURN_COMPLETED':native.status==='failed'?'UNKNOWN':r.taskState;save(r);return send(res,200,publicState(r,native));}
++  if(parts[3]==='status'&&reply.statusCode===200){const chunks=[];for await(const b of reply)chunks.push(b);if(r.revoked)return send(res,200,publicState(r));const native=JSON.parse(Buffer.concat(chunks));if(r.workerState==='STARTING')return send(res,200,publicState(r,native));r.workerState=native.status==='awaiting_permission'?'WAITING_APPROVAL':native.status==='turn_completed'?'COMPLETED':native.status==='failed'?'RECOVERABLE':native.status==='idle'?'READY':'RUNNING';r.taskState=native.status==='turn_completed'?'AGENT_TURN_COMPLETED':native.status==='failed'?'UNKNOWN':r.taskState;save(r);return send(res,200,publicState(r,native));}
+   res.writeHead(reply.statusCode,{'content-type':reply.headers['content-type']??'application/json','cache-control':'no-store'});
+   if(!streams.has(r.workerId))streams.set(r.workerId,new Set());streams.get(r.workerId).add(res);
+   const expiry=setTimeout(()=>res.end(),Math.max(1,r.contract.expiresAt-Date.now()));expiry.unref();res.on('close',()=>{clearTimeout(expiry);streams.get(r.workerId).delete(res);reply.destroy();});reply.pipe(res);
+  }catch(e){if(!res.headersSent)send(res,e.status??503,{code:e.status?'REQUEST_REJECTED':'CONTROL_UNAVAILABLE',message:e.status?e.message:'Worker control unavailable'});else res.destroy();}
+ });
+ const ticker=setInterval(()=>{for(const r of records.values())if(!['STOPPED','START_FAILED','RECOVERABLE','STOPPING'].includes(r.workerState)&&r.contract.expiresAt<=Date.now())void stop(r,'lease-expired');},500);ticker.unref();
++if(cfg.operations){
++ for(const r of records.values())if(r.operationSession&&r.revoked)try{await reconcileRemote(r,true);}catch{event(r,'recovery.remote_unconfirmed');}
++ const monitor=setInterval(()=>{for(const r of records.values())if(r.operationSession&&!r.revoked&&!r.monitorBusy){r.monitorBusy=true;(async()=>{try{const info=await docker.inspect(r.containerId);if(!info.State.Running){await stop(r,'worker-lost');return;}const native=(await workerJSON(r,'/v1/sessions/'+r.nativeSessionId+'/status')).data;if(['failed','recoverable','cancelled'].includes(native.status)){await stop(r,'native-core-lost');return;}await operation(r,'/heartbeat',{epoch:r.nativeEpoch});}catch{await stop(r,'operation-control-lost');}finally{r.monitorBusy=false;}})();}},3000);monitor.unref();
++}
+ server.listen(cfg.port??18328,cfg.host??'127.0.0.1',()=>console.log(JSON.stringify({event:'governance.ready',stage:'P3.1',recovery:'fail-closed; no operation replay',maxWorkers:cfg.maxWorkers})));
+ async function shutdown(){server.close();await Promise.all([...records.values()].filter(r=>!['STOPPED','START_FAILED','RECOVERABLE'].includes(r.workerState)).map(r=>stop(r,'control-shutdown')));process.exit(0);}
+ process.on('SIGTERM',shutdown);process.on('SIGINT',shutdown);
+diff --git a/cline-agent-server/src/server.mjs b/cline-agent-server/src/server.mjs
+index b3d37f9fb..7bb3949a7 100644
+--- a/cline-agent-server/src/server.mjs
++++ b/cline-agent-server/src/server.mjs
+@@ -77,7 +77,7 @@ async function startWorker(s){
+  const env={PATH:process.env.PATH,LANG:'C.UTF-8',HOME:join(s.dir,'home'),CLINE_DIR:join(s.dir,'cline'),CLINE_DATA_DIR:data,
+   WORKSPACE_STORAGE_DIR:join(s.dir,'workspace-storage'),INSTALL_DIR:resolve(config.distDir),
+   HOST_BRIDGE_ADDRESS:`127.0.0.1:${s.bridge.port}`,PROTOBUS_ADDRESS:`127.0.0.1:${port}`,
+-  CLINE_SERVER_EPOCH:s.epoch,CLINE_SERVER_EDIT_TOOL:s.editTool??'editor',CLINE_SESSION_BACKEND_MODE:'local',DO_NOT_TRACK:'1'};
++  CLINE_SERVER_EPOCH:s.epoch,CLINE_SERVER_OPERATION_CONTEXT:config.operationContext?'1':'0',CLINE_SERVER_EDIT_TOOL:s.editTool??'editor',CLINE_SESSION_BACKEND_MODE:'local',DO_NOT_TRACK:'1'};
+  mkdirSync(env.HOME,{recursive:true,mode:0o700});
+  s.worker=fork(join(config.distDir,'cline-core.js'),['--config',join(s.dir,'cline')],{cwd:resolve(config.distDir),env,detached:true,stdio:['ignore','pipe','pipe','ipc']});
+  const ready=new Promise((res,rej)=>{
+diff --git a/cline-agent-server/src/stage2-remote.mjs b/cline-agent-server/src/stage2-remote.mjs
+new file mode 100644
+index 000000000..6b7940dd6
+--- /dev/null
++++ b/cline-agent-server/src/stage2-remote.mjs
+@@ -0,0 +1,79 @@
++// Isolated, real MCP execution target. This is NOT an Agent or an operation authority.
++// Admission is exclusively a signed binding already committed in the Java Runtime journal.
++import http from 'node:http';
++import {readFileSync,writeFileSync,openSync,closeSync,fsyncSync,renameSync,mkdirSync,existsSync,readdirSync} from 'node:fs';
++import {join} from 'node:path';
++import {spawn} from 'node:child_process';
++import {createHash,createHmac,timingSafeEqual} from 'node:crypto';
++const cfg=JSON.parse(readFileSync(process.env.CLINE_REMOTE_CONFIG));mkdirSync(cfg.stateRoot,{recursive:true,mode:0o700});
++const processes=new Map(),delay=ms=>new Promise(r=>setTimeout(r,ms));
++const canonical=x=>JSON.stringify(x&&typeof x==='object'?Array.isArray(x)?x.map(v=>JSON.parse(canonical(v))):Object.fromEntries(Object.keys(x).sort().map(k=>[k,JSON.parse(canonical(x[k]))])):x);
++const hash=x=>createHash('sha256').update(x).digest('hex');
++function equal(a,b){const x=Buffer.from(a??''),y=Buffer.from(b??'');return x.length===y.length&&timingSafeEqual(x,y);}
++function path(op){if(!/^cline-[a-f0-9]{64}$/.test(op))throw Error('Invalid operation');return join(cfg.stateRoot,op+'.json');}
++function get(op){const p=path(op);return existsSync(p)?JSON.parse(readFileSync(p)):null;}
++function save(v){const p=path(v.binding.operationId),tmp=p+'.tmp';writeFileSync(tmp,JSON.stringify(v),{mode:0o600});let fd=openSync(tmp,'r');fsyncSync(fd);closeSync(fd);renameSync(tmp,p);fd=openSync(cfg.stateRoot,'r');fsyncSync(fd);closeSync(fd);}
++function scoped(v,identity){if(!v||['tenantId','userId','sessionId','taskId'].some(k=>v.binding.identity[k]!==identity[k]))throw Error('Operation scope rejected');return v;}
++function fence(binding,token){let highest=0;for(const name of readdirSync(cfg.stateRoot).filter(n=>/^cline-[a-f0-9]{64}\.json$/.test(n))){const v=get(name.slice(0,-5));if(['tenantId','userId','sessionId','taskId'].every(k=>v.binding.identity[k]===binding.identity[k]))highest=Math.max(highest,v.controlFence??v.binding.fencingToken);}if(Number(token)<highest)throw Error('Stale remote fencing token');}
++function receipt(v,state,detail={}){if(v.receipt)return v;v.state=state;v.executorStopped=true;v.receipt={operationId:v.binding.operationId,identity:v.binding.identity,argumentsHash:v.binding.argumentsHash,fencingToken:v.binding.fencingToken,epoch:v.binding.epoch,toolName:v.binding.toolName,startedAt:v.startedAt??null,finishedAt:new Date().toISOString(),stopConfirmed:true,cancelRequested:!!v.cancelRequested,...detail};save(v);return v;}
++async function java(method,v){const r=await fetch(cfg.authorityUrl+'/python/'+method,{method:'POST',headers:{authorization:'Bearer '+cfg.mcpSecret,'content-type':'application/json'},body:JSON.stringify({identity:v.binding.identity,operationId:v.binding.operationId})});const body=await r.json();if(!r.ok)throw Error('Managed Python '+r.status+': '+JSON.stringify(body));return body;}
++function ticks(pid){try{return readFileSync('/proc/'+pid+'/stat','utf8').split(') ')[1].split(' ')[19];}catch{return null;}}
++function alive(v){return v.pid&&ticks(v.pid)===v.startTicks;}
++async function refresh(v){
++ if(v.receipt)return v;
++ if(v.binding.toolName==='python_execute'){
++  let p;try{p=await java('get',v);}catch{return v;}
++  v.python=p;if(p.executorStopped&&p.receipt){return receipt(v,p.cancelRequested?'CANCELLED':p.exitCode===0?'COMPLETED':'FAILED',{childOperationId:v.binding.childOperationId,python:p.receipt,pythonReceiptSha256:p.receiptSha256});}save(v);
++ }else if(v.pid&&!alive(v)){
++  const resultFile=join(cfg.stateRoot,v.binding.operationId+'.result');
++  if(existsSync(resultFile))return receipt(v,'COMPLETED',{pid:v.pid,startTicks:v.startTicks,resultSha256:hash(readFileSync(resultFile)),exitCode:0});
++  if(v.cancelRequested)return receipt(v,'CANCELLED',{pid:v.pid,startTicks:v.startTicks,processAbsent:true});
++  // A vanished process without a persisted result is ambiguous, never successful.
++  v.state='UNKNOWN';save(v);
++ }
++ return v;
++}
++async function cancel(v){if(v.receipt)return v;v.cancelRequested=true;v.state='CANCEL_REQUESTED';save(v);
++ if(v.binding.toolName==='python_execute'){v.python=await java('cancel',v);save(v);for(let n=0;n<60;n++){v=await refresh(get(v.binding.operationId));if(v.receipt)return v;await delay(200);}return v;}
++ if(!v.pid){if(v.cancelTombstone)return receipt(v,'CANCELLED',{noStart:true,dispatchPrevented:true});v.state='UNKNOWN';save(v);return v;}
++ if(alive(v)){try{process.kill(-v.pid,'SIGTERM');}catch{}for(let n=0;n<30&&alive(v);n++)await delay(100);if(alive(v))try{process.kill(-v.pid,'SIGKILL');}catch{}}
++ for(let n=0;n<30&&alive(v);n++)await delay(100);
++ if(alive(v))return v;
++ return refresh(get(v.binding.operationId));
++}
++async function execute(binding,args){let v=get(binding.operationId);
++ fence(binding,binding.fencingToken);
++ if(v){scoped(v,binding.identity);if(v.binding.argumentsHash!==binding.argumentsHash)throw Error('Immutable operation conflict');return wait(v);}
++ // Own execution-node idempotency index; authoritative intent is already in Java.
++ v={binding,state:'PENDING',executorStopped:false,admittedAt:new Date().toISOString()};save(v);
++ if(binding.toolName==='python_execute'){const p=await java('start',v);v=get(binding.operationId);v.python=p;v.state='RUNNING';v.startedAt=new Date().toISOString();save(v);}
++ else{
++  const ms=Math.min(120000,Math.max(1000,Number(args.durationMs)||30000));
++  const target=join(cfg.stateRoot,binding.operationId+'.result');
++  // Actual asynchronous CPU/I/O process, independent of the Cline Worker lifetime.
++  const source=`const fs=require('node:fs'); let n=0;const i=setInterval(()=>{n++;fs.appendFileSync(${JSON.stringify(target+'.progress')},n+'\\n')},100);setTimeout(()=>{clearInterval(i);fs.writeFileSync(${JSON.stringify(target)},JSON.stringify({ticks:n,completedAt:Date.now()}));},${ms});`;
++  const child=spawn(process.execPath,['-e',source],{detached:true,stdio:'ignore'});processes.set(binding.operationId,child);v.pid=child.pid;v.startTicks=ticks(child.pid);v.state='RUNNING';v.startedAt=new Date().toISOString();save(v);child.on('exit',()=>processes.delete(binding.operationId));
++ }
++ return wait(v);
++}
++async function wait(v){for(let n=0;n<1500;n++){v=await refresh(get(v.binding.operationId));if(v.receipt)return {content:[{type:'text',text:JSON.stringify(v.receipt)}],isError:v.state==='FAILED'};await delay(100);}throw Error('Remote operation unresolved; query status');}
++function verify(meta,args){const b=meta?.binding;if(!b||!equal(meta.signature,createHmac('sha256',cfg.dispatchSecret).update(canonical(b)).digest('hex'))||hash(canonical(args))!==b.argumentsHash)throw Error('Trusted durable binding required');path(b.operationId);return b;}
++async function body(req){let b='';for await(const chunk of req){b+=chunk;if(b.length>1048576)throw Error('Body limit');}return JSON.parse(b||'{}');}
++const tools=[{name:'long_mcp',description:'Execute a real long-running remote process. Returns immutable execution receipt.',inputSchema:{type:'object',properties:{datasetId:{type:'string'},durationMs:{type:'integer'}},required:['datasetId','durationMs']}},{name:'python_execute',description:'Run real Python source in the existing Managed Python Docker Sandbox. Source may sleep for a cancellation test.',inputSchema:{type:'object',properties:{datasetId:{type:'string'},source:{type:'string'}},required:['datasetId','source']}}];
++const server=http.createServer(async(req,res)=>{const send=(s,b)=>{res.writeHead(s,{'content-type':'application/json'});res.end(JSON.stringify(b));};try{
++ if(req.url==='/health/live'&&req.method==='GET')return send(200,{live:true});
++ const control=req.url.startsWith('/control/');if(!equal(req.headers.authorization,'Bearer '+(control?cfg.remoteControlSecret:cfg.mcpToken)))return send(401,{error:'credential rejected'});
++ const q=await body(req);
++ if(control){let v=get(q.operationId);if(req.url==='/control/cancel'&&!v){
++   // Fetch the ALREADY committed binding, not an ID from JSON-RPC or client input.
++   const r=await fetch(cfg.authorityUrl+'/remote/binding',{method:'POST',headers:{authorization:'Bearer '+cfg.mcpSecret,'content-type':'application/json'},body:JSON.stringify(q)});if(!r.ok)throw Error('No durable cancellation binding');const binding=await r.json();v={binding,state:'PENDING',executorStopped:false,cancelTombstone:true};save(v);
++  }if(!v)return send(200,{state:'UNKNOWN',executorStopped:false});scoped(v,q.identity);if(req.url==='/control/cancel'){fence(v.binding,q.fencingToken);v.controlFence=Number(q.fencingToken);save(v);}v=await (req.url==='/control/cancel'?cancel(v):refresh(v));return send(200,v);}
++ if(req.url!=='/mcp')return send(404,{error:'route'});
++ let result;if(q.method==='initialize')result={protocolVersion:'2024-11-05',capabilities:{tools:{}},serverInfo:{name:'stage2-real-remote-executor',version:'1'}};
++ else if(q.method==='notifications/initialized')return send(202,{});
++ else if(q.method==='tools/list')result={tools};else if(q.method==='ping')result={};
++ else if(q.method==='tools/call'){const b=verify(q.params?._meta,q.params.arguments);if(b.toolName!==q.params.name)throw Error('Tool binding mismatch');result=await execute(b,q.params.arguments);}
++ else throw Error('Unsupported MCP method');send(200,{jsonrpc:'2.0',id:q.id,result});
++ }catch(e){send(409,{error:e.message});}});
++for(const name of readdirSync(cfg.stateRoot).filter(n=>n.endsWith('.json'))){const v=get(name.slice(0,-5));if(!v.receipt&&v.state==='PENDING'){v.state='UNKNOWN';save(v);}}
++server.listen(cfg.port??18402,'0.0.0.0',()=>console.log('Real remote MCP executor ready'));
+diff --git a/cline-agent-server/stage2-java/src/com/chatchat/mcpserver/python/NativeJournalGuardProbe.java b/cline-agent-server/stage2-java/src/com/chatchat/mcpserver/python/NativeJournalGuardProbe.java
+new file mode 100644
+index 000000000..28959240b
+--- /dev/null
++++ b/cline-agent-server/stage2-java/src/com/chatchat/mcpserver/python/NativeJournalGuardProbe.java
+@@ -0,0 +1,38 @@
++package com.chatchat.mcpserver.python;
++
++import com.chatchat.api.runtime.evidence.JdbcRuntimeEvidenceStore;
++import com.chatchat.agents.runtime.coding.*;
++import com.chatchat.common.runtime.coding.CodingContractException;
++import com.fasterxml.jackson.databind.*;
++import java.nio.file.*;
++import java.time.*;
++import java.util.*;
++import org.springframework.jdbc.core.JdbcTemplate;
++import org.springframework.jdbc.datasource.*;
++import org.springframework.scheduling.concurrent.ThreadPoolTaskScheduler;
++
++/** Real JDBC test of the ONLY journal extension. No external executor is invoked. */
++public final class NativeJournalGuardProbe {
++    interface Checked {void run();}
++    static boolean rejects(Checked action){try{action.run();return false;}catch(CodingContractException expected){return true;}}
++    public static void main(String[] args)throws Exception{
++        var json=new ObjectMapper().findAndRegisterModules();var cfg=json.readTree(Files.readAllBytes(Path.of(System.getenv("CLINE_OPERATION_CONFIG"))));
++        var ds=new DriverManagerDataSource(cfg.path("jdbcUrl").asText(),cfg.path("dbUser").asText(),cfg.path("dbPassword").asText());
++        var store=new JdbcRuntimeEvidenceStore(new JdbcTemplate(ds),json,new DataSourceTransactionManager(ds));var scheduler=new ThreadPoolTaskScheduler();scheduler.initialize();
++        var authority=new NativeOperationAuthority(cfg,store,null,json,scheduler);
++        var body=json.createObjectNode().put("epoch","journal-guard");body.set("identity",json.valueToTree(Map.of("tenantId","stage2-journal-guard","userId","alice","sessionId",UUID.randomUUID().toString(),"taskId","guard","expiresAt",Instant.now().plusSeconds(3600).toEpochMilli())));
++        var call=authority.call(body);authority.session(call,body);var tasks=authority.tasks;var lease=tasks.ownership(call.scope(),call.task());var before=tasks.privateState(call.scope(),call.task(),"native:session");var next=before.deepCopy();((com.fasterxml.jackson.databind.node.ObjectNode)next).put("active",false);
++        tasks.cancel(call.scope(),call.task(),"Journal guard test");var checks=new LinkedHashMap<String,Boolean>();
++        checks.put("normal-dispatch-metadata-blocked-after-stop",rejects(()->tasks.privateState(call.scope(),call.task(),lease,"native:new",null,next)));
++        tasks.reconcileNativeState(call.scope(),call.task(),lease,"native:session",before,next);
++        checks.put("existing-native-reconciliation-after-stop",tasks.privateState(call.scope(),call.task(),"native:session").equals(next));
++        checks.put("cannot-create-new-key",rejects(()->tasks.reconcileNativeState(call.scope(),call.task(),lease,"native:missing",next,before)));
++        checks.put("cannot-write-other-protocol",rejects(()->tasks.reconcileNativeState(call.scope(),call.task(),lease,"script:x",next,before)));
++        checks.put("CAS-required",rejects(()->tasks.reconcileNativeState(call.scope(),call.task(),lease,"native:session",before,next)));
++        var stale=new CodingJournal.Lease(lease.owner(),lease.leaseUntil(),lease.fencingToken()+1);
++        checks.put("fence-required",rejects(()->tasks.reconcileNativeState(call.scope(),call.task(),stale,"native:session",next,before)));
++        checks.put("no-execution-dispatched",!tasks.hasStartedOperations(call.scope(),call.task()));
++        CodingTaskRevisions.mutate(tasks,call.scope(),call.task(),r->tasks.finishStoppedWithoutExecution(call.scope(),call.task(),r));
++        boolean passed=checks.values().stream().allMatch(Boolean::booleanValue);System.out.println(json.writeValueAsString(Map.of("case","existing-JDBC-native-reconciliation-guards","pass",passed,"checks",checks)));scheduler.shutdown();if(!passed)throw new IllegalStateException("Journal extension guard failed");
++    }
++}
+diff --git a/cline-agent-server/stage2-java/src/com/chatchat/mcpserver/python/NativeManagedFenceProbe.java b/cline-agent-server/stage2-java/src/com/chatchat/mcpserver/python/NativeManagedFenceProbe.java
+new file mode 100644
+index 000000000..34c743ad0
+--- /dev/null
++++ b/cline-agent-server/stage2-java/src/com/chatchat/mcpserver/python/NativeManagedFenceProbe.java
+@@ -0,0 +1,28 @@
++package com.chatchat.mcpserver.python;
++
++import com.chatchat.common.security.*;
++import com.fasterxml.jackson.databind.*;
++import java.nio.file.*;
++import java.util.*;
++import org.springframework.jdbc.core.JdbcTemplate;
++import org.springframework.jdbc.datasource.*;
++
++/** Fault-injection CLI only. Calls the EXISTING managed executor against the isolated DB. */
++public final class NativeManagedFenceProbe {
++    public static void main(String[] args)throws Exception{
++        var json=new ObjectMapper().findAndRegisterModules();var cfg=json.readTree(Files.readAllBytes(Path.of(System.getenv("CLINE_OPERATION_CONFIG"))));
++        var jdbc=new JdbcTemplate(new DriverManagerDataSource(cfg.path("jdbcUrl").asText(),cfg.path("dbUser").asText(),cfg.path("dbPassword").asText()));
++        var credentials=new InternalCredentialProperties();credentials.setCryptoKey(cfg.path("cryptoKey").asText());credentials.setEncryptedSecret(InternalSecretCipher.encrypt(cfg.path("internalSecret").asText(),cfg.path("cryptoKey").asText()));
++        var props=new PythonRuntimeProperties();props.setWorkspaceRoot(cfg.path("pythonWorkspace").asText());props.setDataRoot(cfg.path("pythonData").asText());
++        var data=new PythonDataFileService(props,credentials,json);var runtime=new PythonDockerRuntime(props,json,data);var workspace=new PythonOperationWorkspace(props,data,json);
++        var managed=new PythonManagedExecutionService(jdbc,new DataSourceTransactionManager(Objects.requireNonNull(jdbc.getDataSource())),null,runtime,workspace,credentials,json);
++        var rows=jdbc.queryForList("select tenant_id,owner_id,run_id,task_id,operation_id,fencing_token from mcp_python_managed_operation where executor_stopped=true order by created_at desc limit 1");
++        if(rows.isEmpty())throw new IllegalStateException("Real completed Python operation required");var row=rows.get(0);
++        String t=row.get("tenant_id").toString(),u=row.get("owner_id").toString(),r=row.get("run_id").toString(),task=row.get("task_id").toString(),op=row.get("operation_id").toString();long old=((Number)row.get("fencing_token")).longValue();
++        byte[] before=managed.artifact(t,u,r,task,op,"logs","receipt.json");var advanced=managed.cancel(t,u,r,task,op,old+1);boolean rejected=false;
++        try{managed.cancel(t,u,r,task,op,old);}catch(IllegalStateException expected){rejected=expected.getMessage().equals("Fencing token is stale");}
++        byte[] after=managed.artifact(t,u,r,task,op,"logs","receipt.json");
++        System.out.println(json.writeValueAsString(Map.of("case","existing-managed-python-stale-fence","pass",rejected&&Arrays.equals(before,after),"operationId",op,"oldFence",old,"newFence",advanced.fencingToken(),"staleRejected",rejected,"immutableReceiptUnchanged",Arrays.equals(before,after))));managed.shutdown();
++        if(!rejected||!Arrays.equals(before,after))throw new IllegalStateException("Managed fencing gate failed");
++    }
++}
+diff --git a/cline-agent-server/stage2-java/src/com/chatchat/mcpserver/python/NativeOperationAuthority.java b/cline-agent-server/stage2-java/src/com/chatchat/mcpserver/python/NativeOperationAuthority.java
+new file mode 100644
+index 000000000..779f36c81
+--- /dev/null
++++ b/cline-agent-server/stage2-java/src/com/chatchat/mcpserver/python/NativeOperationAuthority.java
+@@ -0,0 +1,158 @@
++package com.chatchat.mcpserver.python;
++
++import com.chatchat.agents.runtime.coding.*;
++import com.chatchat.api.runtime.coding.execution.*;
++import com.chatchat.common.kernel.KernelDataScope;
++import com.chatchat.common.mcp.python.McpPythonControlPlanePort;
++import com.chatchat.common.runtime.coding.*;
++import com.chatchat.common.runtime.evidence.RuntimeExecutionCheckpointPort;
++import com.fasterxml.jackson.databind.*;
++import com.fasterxml.jackson.databind.node.ObjectNode;
++import com.sun.net.httpserver.*;
++import java.net.*;
++import java.net.http.*;
++import java.nio.charset.StandardCharsets;
++import java.security.*;
++import javax.crypto.Mac;
++import javax.crypto.spec.SecretKeySpec;
++import java.time.*;
++import java.util.*;
++import java.util.concurrent.*;
++import org.springframework.scheduling.TaskScheduler;
++
++/** Native correlation/protocol adapter over the EXISTING Java journal. It never executes Agent code or chooses tools. */
++public final class NativeOperationAuthority {
++    final JsonNode cfg;final ObjectMapper json;final McpPythonControlPlanePort python;
++    final DurableCodingTaskService tasks;final CodingPythonExecutionBridge bridge;
++    final McpPythonExecutionProofVerifier pythonProof;
++    final ThreadLocal<KernelDataScope> caller=new ThreadLocal<>();
++    final HttpClient http=HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(5)).build();
++    static final Set<String> TERMINAL=Set.of("COMPLETED","FAILED","CANCELLED");
++    record Call(KernelDataScope scope,String task){}
++    <T> T revisionRetry(java.util.concurrent.Callable<T> action)throws Exception {for(int n=0;;n++){try{return action.call();}catch(CodingContractException e){if(n>=7||e.error().code()!=CodingErrorCode.INVALID_STATE_TRANSITION||!"Coding task revision conflict".equals(e.getMessage()))throw e;}}}
++    NativeOperationAuthority(JsonNode cfg,RuntimeExecutionCheckpointPort store,McpPythonControlPlanePort python,ObjectMapper mapper,TaskScheduler scheduler){
++        this.cfg=cfg;this.python=python;json=mapper.copy().enable(SerializationFeature.ORDER_MAP_ENTRIES_BY_KEYS);pythonProof=new McpPythonExecutionProofVerifier(python,json);
++        tasks=new DurableCodingTaskService(store,json,Clock.systemUTC(),(scope,action)->{
++            var current=caller.get();if(current==null||!same(scope,current))throw new SecurityException("Trusted scoped authority required");
++        },(contract,outcome)->false,(scope,task,op,handle,ref)->{
++            if(handle.startsWith("mcp-python:"))return pythonProof.confirmsStopped(scope,task,op,handle,ref);
++            try{return verifiedRemote(new Call(scope,task),op,ref);}catch(Exception unavailable){return false;}
++        },Runnable::run,scheduler);
++        bridge=new CodingPythonExecutionBridge(tasks,python,json);
++    }
++    static boolean same(KernelDataScope a,KernelDataScope b){return a.tenantId().equals(b.tenantId())&&a.userId().equals(b.userId())&&a.runId().equals(b.runId());}
++    static String hash(byte[] bytes){try{return HexFormat.of().formatHex(MessageDigest.getInstance("SHA-256").digest(bytes));}catch(Exception e){throw new IllegalStateException(e);}}
++    byte[] bytes(Object value){try{return json.writeValueAsBytes(value);}catch(Exception e){throw new IllegalArgumentException(e);}}
++    String canonicalHash(JsonNode value){return hash(bytes(json.convertValue(value,Object.class)));}
++    String signed(JsonNode value){try{var mac=Mac.getInstance("HmacSHA256");mac.init(new SecretKeySpec(cfg.path("dispatchSecret").asText().getBytes(StandardCharsets.UTF_8),"HmacSHA256"));return HexFormat.of().formatHex(mac.doFinal(bytes(json.convertValue(value,Object.class))));}catch(Exception e){throw new IllegalStateException(e);}}
++    Call call(JsonNode body){var i=body.path("identity");var t=i.path("tenantId").asText();var u=i.path("userId").asText();var r=i.path("sessionId").asText();var task=i.path("taskId").asText();
++        for(String v:List.of(t,u,r,task))if(!v.matches("[A-Za-z0-9][A-Za-z0-9_-]{0,127}"))throw new SecurityException("Invalid task scope");
++        var scope=new KernelDataScope(t,u,null,null,r,null,Map.of());caller.set(scope);return new Call(scope,task);
++    }
++    CodingTaskContract contract(Call c,JsonNode body){return new CodingTaskContract(CodingProtocol.VERSION,c.task,c.scope,
++        new CodingTaskContract.Objective("Native external-operation durability and cancellation",List.of("execution receipts"),List.of("stage2:verified-stop")),"stage2:immutable-input",List.of(),"stage2:isolated-workspace",
++        new CodingTaskContract.Authorization("stage2:trusted-task-grant",List.of("python_execute","long_mcp"),List.of(),List.of(),List.of(),CodingTaskContract.NetworkPolicy.NONE,List.of(),List.of(CodingTaskContract.SideEffect.CODE_EXECUTION)),
++        // Existing journal requires counters. These fixed test ceilings are NOT model-budget integration.
++        new CodingTaskContract.Budget("native-"+c.task,Instant.ofEpochMilli(body.path("identity").path("expiresAt").asLong()),0,0,256,128,"0","USD",1000000000,0,100000000),
++        cfg.path("pythonEnvironment").asText(),"stage2:receipt-validation",new CodingTaskContract.OutputContract(CodingTaskContract.ResultFormat.JSON_LINES,"stage2:result","stage2:receipt",List.of("logs/receipt.json"),List.of("application/json"),1000,1000000,List.of()),Map.of());}
++    CodingJournal.Lease lease(Call c){var value=tasks.ownership(c.scope,c.task);if(!Instant.now().isBefore(value.leaseUntil()))value=CodingTaskRevisions.mutate(tasks,c.scope,c.task,r->tasks.claim(c.scope,c.task,"native-reconciler",Duration.ofSeconds(20),r));return value;}
++    JsonNode state(Call c,String key){return tasks.privateState(c.scope,c.task,key);}
++    void put(Call c,String key,JsonNode old,JsonNode next){var l=lease(c);if(old==null)tasks.privateState(c.scope,c.task,l,key,null,next);else tasks.reconcileNativeState(c.scope,c.task,l,key,old,next);}
++    JsonNode binding(Call c,String op){if(!op.matches("cline-[0-9a-f]{64}"))throw new SecurityException("Invalid operation ID");var value=state(c,"native:"+op);if(value==null)throw new SecurityException("Operation not admitted in this scope");return value;}
++    void update(Call c,String op,java.util.function.Consumer<ObjectNode> change){for(int n=0;;n++){var old=binding(c,op);ObjectNode next=old.deepCopy();change.accept(next);try{put(c,"native:"+op,old,next);return;}catch(CodingContractException conflict){if(n>=7||!conflict.getMessage().contains("CAS conflict"))throw conflict;}}}
++    void active(Call c,String epoch){var s=state(c,"native:session");var l=tasks.ownership(c.scope,c.task);if(s==null||!s.path("active").asBoolean()||!s.path("epoch").asText().equals(epoch)||s.path("fencingToken").asLong()!=l.fencingToken()||!Instant.now().isBefore(l.leaseUntil())||tasks.get(c.scope,c.task).executionControl().stopReason()!=null)throw new SecurityException("Expired, inactive or old native Epoch");}
++    JsonNode session(Call c,JsonNode body){
++        tasks.submit(contract(c,body));var old=state(c,"native:session");String epoch=body.path("epoch").asText();if(epoch.isBlank())throw new SecurityException("Native epoch required");
++        if(old!=null){active(c,epoch);return old;}
++        var l=lease(c);var next=json.createObjectNode().put("epoch",epoch).put("active",true).put("fencingToken",l.fencingToken());put(c,"native:session",null,next);return next;
++    }
++    JsonNode bind(Call c,JsonNode body){String epoch=body.path("epoch").asText();active(c,epoch);
++        String nativeSession=body.path("nativeSessionId").asText(),nativeCall=body.path("nativeToolCallId").asText(),tool=body.path("toolName").asText();
++        if(nativeSession.isBlank()||nativeCall.isBlank()||nativeCall.length()>512||!Set.of("long_mcp","python_execute").contains(tool))throw new SecurityException("Native call identity/tool missing");
++        String op="cline-"+hash(bytes(List.of(c.scope.tenantId(),c.scope.userId(),c.scope.runId(),c.task,nativeSession,nativeCall,tool)));
++        String fingerprint=canonicalHash(body.path("arguments"));var existing=state(c,"native:"+op);
++        if(existing!=null){if(!fingerprint.equals(existing.path("argumentsHash").asText())||!epoch.equals(existing.path("epoch").asText()))throw new SecurityException("Immutable native operation conflict");return existing;}
++        var b=json.createObjectNode().put("operationId",op).put("nativeSessionId",nativeSession).put("nativeToolCallId",nativeCall).put("toolName",tool).put("epoch",epoch).put("argumentsHash",fingerprint).put("state","PENDING").put("fencingToken",tasks.ownership(c.scope,c.task).fencingToken());
++        b.set("arguments",body.path("arguments"));b.set("identity",body.path("identity"));if(tool.equals("python_execute"))b.put("childOperationId","cline-"+hash((op+"/python").getBytes(StandardCharsets.UTF_8)));
++        put(c,"native:"+op,null,b);return b;
++    }
++    JsonNode remote(String path,Object body)throws Exception{var request=HttpRequest.newBuilder(URI.create(cfg.path("remoteControlUrl").asText()+path)).timeout(Duration.ofSeconds(20)).header("Authorization","Bearer "+cfg.path("remoteControlSecret").asText()).header("content-type","application/json").POST(HttpRequest.BodyPublishers.ofByteArray(bytes(body))).build();var response=http.send(request,HttpResponse.BodyHandlers.ofByteArray());if(response.statusCode()!=200)throw new IllegalStateException("Remote control unavailable: "+response.statusCode());return json.readTree(response.body());}
++    ObjectNode remoteIdentity(Call c,String op){var b=json.createObjectNode();b.set("identity",binding(c,op).path("identity"));b.put("operationId",op);b.put("fencingToken",lease(c).fencingToken());return b;}
++    boolean verifiedRemote(Call c,String op,String ref)throws Exception{var b=binding(c,op);var remote=remote("/get",remoteIdentity(c,op));var receipt=remote.path("receipt");
++        if(!TERMINAL.contains(remote.path("state").asText())||!c.scope.userId().equals(receipt.path("identity").path("userId").asText())||!c.scope.runId().equals(receipt.path("identity").path("sessionId").asText())||b.path("fencingToken").asLong()!=receipt.path("fencingToken").asLong()||!b.path("epoch").asText().equals(receipt.path("epoch").asText())||!b.path("toolName").asText().equals(receipt.path("toolName").asText()))return false;
++        if(!remote.path("executorStopped").asBoolean()||!receipt.path("stopConfirmed").asBoolean()||!op.equals(receipt.path("operationId").asText())||!b.path("argumentsHash").asText().equals(receipt.path("argumentsHash").asText())||!c.scope.tenantId().equals(receipt.path("identity").path("tenantId").asText())||!c.task.equals(receipt.path("identity").path("taskId").asText())||!ref.equals("native-mcp-receipt:"+canonicalHash(receipt)))return false;
++        if(b.has("childOperationId")){String child=b.path("childOperationId").asText();var value=python.get(c.scope.tenantId(),c.scope.userId(),c.scope.runId(),c.task,child);if(!value.executorStopped())return false;byte[] raw=python.artifact(c.scope.tenantId(),c.scope.userId(),c.scope.runId(),c.task,child,"logs","receipt.json");String handle="mcp-python:"+hash(String.join("\0",c.scope.tenantId(),c.scope.userId(),c.scope.runId(),c.task,child).getBytes(StandardCharsets.UTF_8));if(!pythonProof.confirmsStopped(c.scope,c.task,child,handle,"mcp-python-receipt:"+hash(raw)))return false;}
++        return true;
++    }
++    JsonNode reconcile(Call c,String op)throws Exception{
++        var b=binding(c,op);JsonNode observed;
++        try{observed=remote("/get",remoteIdentity(c,op));}catch(Exception unavailable){if(!TERMINAL.contains(b.path("state").asText()))update(c,op,n->n.put("state","UNKNOWN"));return binding(c,op);}
++        if(observed.path("executorStopped").asBoolean()&&observed.path("receipt").isObject()){
++            String proof="native-mcp-receipt:"+canonicalHash(observed.path("receipt"));
++            if(!verifiedRemote(c,op,proof)){update(c,op,n->n.put("state","UNKNOWN").put("failure","Remote receipt validation failed"));return binding(c,op);}
++            if(b.has("childOperationId")&&tasks.startedCodeOperations(c.scope,c.task).contains(b.path("childOperationId").asText()))revisionRetry(()->bridge.reconcile(c.scope,c.task,lease(c),b.path("childOperationId").asText()));
++            if(tasks.unresolvedOperations(c.scope,c.task).contains(op)||tasks.verifiedOperation(c.scope,c.task,op).isPresent())CodingTaskRevisions.mutate(tasks,c.scope,c.task,r->tasks.reconcileStopped(c.scope,c.task,lease(c),r,op,proof));
++            String target=switch(observed.path("state").asText()){case "COMPLETED"->"COMPLETED";case "CANCELLED"->"CANCELLED";default->"FAILED";};
++            update(c,op,n->{if(TERMINAL.contains(n.path("state").asText())&&!n.path("state").asText().equals(target)){n.put("state","UNKNOWN").put("failure","Conflicting terminal receipt");return;}n.put("state",target).put("stopProofRef",proof);n.set("receipt",observed.path("receipt"));});
++        }else if(!TERMINAL.contains(b.path("state").asText())){String next=b.path("state").asText().equals("CANCEL_REQUESTED")?"CANCEL_REQUESTED":observed.path("state").asText().equals("RUNNING")?"RUNNING":"UNKNOWN";update(c,op,n->n.put("state",next));}
++        return binding(c,op);
++    }
++    JsonNode dispatch(Call c,JsonNode body)throws Exception{
++        String epoch=body.path("epoch").asText();active(c,epoch);String op=body.path("operationId").asText();var b=binding(c,op);
++        if(!epoch.equals(b.path("epoch").asText())||!canonicalHash(body.path("rpc").path("params").path("arguments")).equals(b.path("argumentsHash").asText()))throw new SecurityException("Native operation arguments/Epoch mismatch");
++        var l=tasks.ownership(c.scope,c.task);var reservation=new CodingTaskOutcome.Counters(0,0,1,0,0,0,1048576,"0");
++        var reserved=CodingTaskRevisions.mutate(tasks,c.scope,c.task,r->tasks.reserve(c.scope,c.task,l,r,op,b.path("argumentsHash").asText(),CodingJournal.OperationKind.TOOL,reservation));if(!reserved.admitted())throw new SecurityException("Existing journal admission denied");
++        var intent=CodingTaskRevisions.mutate(tasks,c.scope,c.task,r->tasks.startIntent(c.scope,c.task,l,r,op,"native-mcp:"+op));
++        update(c,op,n->n.put("dispatchIntent",true));
++        if(!intent.dispatchIntentCreated()){var current=reconcile(c,op);var cached=current.get("mcpResponse");if(cached==null)throw new IllegalStateException("OPERATION_QUERY_ONLY: no repeat dispatch");return json.createObjectNode().set("mcpResponse",cached);}
++        ObjectNode rpc=body.path("rpc").deepCopy();ObjectNode meta=json.createObjectNode();meta.set("binding",b);meta.put("signature",signed(b));((ObjectNode)rpc.path("params")).set("_meta",meta);
++        try{
++            var request=HttpRequest.newBuilder(URI.create(cfg.path("mcpUrl").asText())).timeout(Duration.ofSeconds(180)).header("Authorization","Bearer "+cfg.path("mcpToken").asText()).header("content-type","application/json").header("accept","application/json, text/event-stream").POST(HttpRequest.BodyPublishers.ofByteArray(bytes(rpc))).build();
++            var response=http.send(request,HttpResponse.BodyHandlers.ofByteArray());if(response.statusCode()!=200)throw new IllegalStateException("MCP remote HTTP "+response.statusCode());
++            var actual=json.readTree(response.body());update(c,op,n->n.set("mcpResponse",actual));var view=reconcile(c,op);var result=json.createObjectNode();result.set("operation",view);result.set("mcpResponse",actual);return result;
++        }catch(Exception lost){if(!TERMINAL.contains(binding(c,op).path("state").asText()))update(c,op,n->n.put("state","UNKNOWN").put("failure","Dispatch/response lost; query-only recovery"));throw lost;}
++    }
++    JsonNode child(Call c,JsonNode body,String method)throws Exception{
++        String op=body.path("operationId").asText();var b=binding(c,op);if(!b.path("toolName").asText().equals("python_execute"))throw new SecurityException("Not a Python operation");String child=b.path("childOperationId").asText();var l=lease(c);
++        if(method.equals("start")){
++            active(c,b.path("epoch").asText());String source=b.path("arguments").path("source").asText();
++            if(!b.path("dispatchIntent").asBoolean())throw new SecurityException("Parent dispatch intent required before Python start");
++            // start() can throw a revision conflict only BEFORE external dispatch. Its existing
++            // durable startIntent makes all later invocations query-only. Never retry transport errors.
++            var value=revisionRetry(()->bridge.start(c.scope,tasks.contract(c.scope,c.task),l,child,cfg.path("pythonEnvironment").asText(),"native-stage2","analysis.py",source,Map.of(),"{}",Map.of(),new CodingTaskOutcome.Counters(0,0,1,1,0,0,1048576,"0")));return json.valueToTree(value);
++        }
++        var value=method.equals("cancel")?python.cancel(c.scope.tenantId(),c.scope.userId(),c.scope.runId(),c.task,child,l.fencingToken()):python.get(c.scope.tenantId(),c.scope.userId(),c.scope.runId(),c.task,child);
++        var result=(ObjectNode)json.valueToTree(value);
++        if(value.executorStopped()&&value.manifestHash()!=null){result.set("receipt",json.readTree(python.artifact(c.scope.tenantId(),c.scope.userId(),c.scope.runId(),c.task,child,"logs","receipt.json")));result.put("receiptSha256",hash(python.artifact(c.scope.tenantId(),c.scope.userId(),c.scope.runId(),c.task,child,"logs","receipt.json")));}
++        return result;
++    }
++    JsonNode cancel(Call c,String op)throws Exception{
++        var current=reconcile(c,op);if(TERMINAL.contains(current.path("state").asText()))return current;
++        update(c,op,n->n.put("state","CANCEL_REQUESTED"));remote("/cancel",remoteIdentity(c,op));return reconcile(c,op);
++    }
++    JsonNode route(String path,JsonNode body)throws Exception{
++        var c=call(body);String op=body.path("operationId").asText();
++        return switch(path){
++            case "/session"->session(c,body);
++            case "/heartbeat"->{active(c,body.path("epoch").asText());var l=tasks.ownership(c.scope,c.task);CodingTaskRevisions.mutate(tasks,c.scope,c.task,r->tasks.renew(c.scope,c.task,l,Duration.ofSeconds(20),r));yield json.valueToTree(tasks.ownership(c.scope,c.task));}
++            case "/bind"->bind(c,body);
++            case "/binding"->binding(c,op);
++            case "/remote/binding"->binding(c,op);
++            case "/resolve"->{String candidate="cline-"+hash(bytes(List.of(c.scope.tenantId(),c.scope.userId(),c.scope.runId(),c.task,body.path("nativeSessionId").asText(),body.path("nativeToolCallId").asText(),body.path("toolName").asText())));var b=binding(c,candidate);active(c,body.path("epoch").asText());if(!b.path("argumentsHash").asText().equals(canonicalHash(body.path("arguments"))))throw new SecurityException("Native arguments differ");yield b;}
++            case "/dispatch"->dispatch(c,body);
++            case "/get"->reconcile(c,op);
++            case "/cancel"->cancel(c,op);
++            case "/list"->{var result=json.createArrayNode();for(var id:tasks.nativeOperationStates(c.scope,c.task).keySet())result.add(reconcile(c,id));yield result;}
++            case "/invalidate"->{tasks.cancel(c.scope,c.task,"Native worker invalidated; remote reconciliation required");var old=state(c,"native:session");if(old!=null){ObjectNode next=old.deepCopy();next.put("active",false);put(c,"native:session",old,next);}yield json.createObjectNode().put("active",false);}
++            case "/finish"->{if(body.path("localStopProof").path("running").asBoolean(true)||body.path("localStopProof").path("containerId").asText().isBlank())throw new SecurityException("Trusted gateway Worker stop proof required");for(var b:tasks.nativeOperationStates(c.scope,c.task).values()){if(!TERMINAL.contains(b.path("state").asText())||!b.has("stopProofRef"))throw new SecurityException("Native operation still unresolved");}yield json.valueToTree(CodingTaskRevisions.mutate(tasks,c.scope,c.task,r->tasks.finishStoppedAfterReconciliation(c.scope,c.task,lease(c),r)));}
++            case "/rotate"->{var l=tasks.ownership(c.scope,c.task);if(Instant.now().isBefore(l.leaseUntil()))throw new SecurityException("Wait for old lease expiry; no fence bypass");var next=lease(c);yield json.valueToTree(next);}
++            case "/python/start"->child(c,body,"start");case "/python/get"->child(c,body,"get");case "/python/cancel"->child(c,body,"cancel");
++            default->throw new SecurityException("Unknown authority route");
++        };
++    }
++    void listen()throws Exception{var server=HttpServer.create(new InetSocketAddress("0.0.0.0",cfg.path("port").asInt(18502)),64);server.setExecutor(Executors.newFixedThreadPool(16));server.createContext("/",exchange->{
++        try{String path=exchange.getRequestURI().getPath();if(path.equals("/health/live")&&exchange.getRequestMethod().equals("GET")){byte[] response=bytes(Map.of("live",true));exchange.sendResponseHeaders(200,response.length);exchange.getResponseBody().write(response);return;}String secret=cfg.path(path.startsWith("/python/")||path.equals("/remote/binding")?"mcpSecret":"gatewaySecret").asText();byte[] actual=Objects.toString(exchange.getRequestHeaders().getFirst("Authorization"),"").getBytes(StandardCharsets.UTF_8),expected=("Bearer "+secret).getBytes(StandardCharsets.UTF_8);if(!MessageDigest.isEqual(actual,expected))throw new SecurityException("Authority credential rejected");
++            byte[] raw=exchange.getRequestBody().readNBytes(1048577);if(raw.length>1048576)throw new SecurityException("Authority body too large");byte[] response=bytes(route(path,json.readTree(raw)));exchange.getResponseHeaders().set("content-type","application/json");exchange.sendResponseHeaders(200,response.length);exchange.getResponseBody().write(response);
++        }catch(Exception e){byte[] response=bytes(Map.of("error",e.getClass().getSimpleName(),"message",Objects.toString(e.getMessage(),"Authority failure")));exchange.getResponseHeaders().set("content-type","application/json");exchange.sendResponseHeaders(e instanceof SecurityException?409:503,response.length);exchange.getResponseBody().write(response);}finally{caller.remove();exchange.close();}
++    });server.start();System.out.println("Native operation authority ready; existing Java journal and managed execution only");}
++}
+diff --git a/cline-agent-server/stage2-java/src/com/chatchat/mcpserver/python/NativeStage2Application.java b/cline-agent-server/stage2-java/src/com/chatchat/mcpserver/python/NativeStage2Application.java
+new file mode 100644
+index 000000000..03398fab6
+--- /dev/null
++++ b/cline-agent-server/stage2-java/src/com/chatchat/mcpserver/python/NativeStage2Application.java
+@@ -0,0 +1,74 @@
++package com.chatchat.mcpserver.python;
++
++import com.chatchat.api.runtime.evidence.JdbcRuntimeEvidenceStore;
++import com.chatchat.common.mcp.python.McpPythonControlPlanePort;
++import com.chatchat.common.security.*;
++import com.fasterxml.jackson.databind.*;
++import java.nio.file.*;
++import java.util.*;
++import javax.sql.DataSource;
++import jakarta.persistence.EntityManagerFactory;
++import org.springframework.context.annotation.*;
++import org.springframework.jdbc.core.JdbcTemplate;
++import org.springframework.jdbc.datasource.*;
++import org.springframework.orm.jpa.*;
++import org.springframework.orm.jpa.vendor.HibernateJpaVendorAdapter;
++import org.springframework.data.jpa.repository.config.EnableJpaRepositories;
++import org.springframework.transaction.annotation.EnableTransactionManagement;
++import org.springframework.scheduling.concurrent.ThreadPoolTaskScheduler;
++
++/** Isolated bootstrap of existing Runtime journal and managed Python; no component scan or new journal schema. */
++public final class NativeStage2Application {
++    static final ObjectMapper JSON=new ObjectMapper().findAndRegisterModules();
++    static JsonNode config;
++    @Configuration @EnableTransactionManagement
++    @EnableJpaRepositories(basePackages="com.chatchat.mcpserver.python")
++    public static class Persistence {
++        @Bean DataSource dataSource(){return new DriverManagerDataSource(config.path("jdbcUrl").asText(),config.path("dbUser").asText(),config.path("dbPassword").asText());}
++        @Bean LocalContainerEntityManagerFactoryBean entityManagerFactory(DataSource ds){
++            var f=new LocalContainerEntityManagerFactoryBean();f.setDataSource(ds);f.setPackagesToScan("com.chatchat.mcpserver.python");
++            f.setJpaVendorAdapter(new HibernateJpaVendorAdapter());f.setJpaPropertyMap(Map.of("hibernate.hbm2ddl.auto","none","hibernate.show_sql","false"));return f;
++        }
++        @Bean JpaTransactionManager transactionManager(EntityManagerFactory emf){return new JpaTransactionManager(emf);}
++    }
++    public static void main(String[] args)throws Exception{
++        config=JSON.readTree(Files.readAllBytes(Path.of(System.getenv("CLINE_OPERATION_CONFIG"))));
++        var context=new AnnotationConfigApplicationContext(Persistence.class);var ds=context.getBean(DataSource.class);
++        var jdbc=new JdbcTemplate(ds);var transactions=new DataSourceTransactionManager(ds);
++        var credentials=new InternalCredentialProperties();credentials.setCryptoKey(config.path("cryptoKey").asText());
++        credentials.setEncryptedSecret(InternalSecretCipher.encrypt(config.path("internalSecret").asText(),config.path("cryptoKey").asText()));
++        var props=new PythonRuntimeProperties();props.setWorkspaceRoot(config.path("pythonWorkspace").asText());props.setDataRoot(config.path("pythonData").asText());
++        var data=new PythonDataFileService(props,credentials,JSON);var runtime=new PythonDockerRuntime(props,JSON,data);
++        var workspace=new PythonOperationWorkspace(props,data,JSON);
++        // Real Spring Data repositories, actual executor and immutable receipts. Unused admin collaborators are not exposed.
++        var capability=new PythonCapabilityService(context.getBean(PythonEnvironmentRepository.class),context.getBean(PythonTemplateAssetRepository.class),
++            context.getBean(PythonRuntimeExecutionRepository.class),runtime,credentials,null,JSON,null,null,data);
++        var managed=new PythonManagedExecutionService(jdbc,transactions,capability,runtime,workspace,credentials,JSON);
++        McpPythonControlPlanePort python=new LocalManagedPort(capability,managed,credentials);
++        var store=new JdbcRuntimeEvidenceStore(jdbc,JSON,transactions);
++        var scheduler=new ThreadPoolTaskScheduler();scheduler.setPoolSize(2);scheduler.initialize();
++        var authority=new NativeOperationAuthority(config,store,python,JSON,scheduler);
++        var maintenance=java.util.concurrent.Executors.newSingleThreadScheduledExecutor();
++        maintenance.scheduleWithFixedDelay(()->{try{managed.recoverPending();}catch(Exception ignored){}},1,1,java.util.concurrent.TimeUnit.SECONDS);
++        authority.listen();Runtime.getRuntime().addShutdownHook(new Thread(()->{maintenance.shutdownNow();managed.shutdown();scheduler.shutdown();context.close();}));
++    }
++    static final class LocalManagedPort implements McpPythonControlPlanePort{
++        final PythonCapabilityService capability;final PythonManagedExecutionService managed;final InternalCredentialProperties credentials;
++        LocalManagedPort(PythonCapabilityService c,PythonManagedExecutionService m,InternalCredentialProperties p){capability=c;managed=m;credentials=p;}
++        public List<EnvironmentView> environments(){return capability.environments(true).stream().map(this::view).toList();}
++        private EnvironmentView view(PythonEnvironment e){return new EnvironmentView(e.getId(),e.getName(),e.getDescription(),e.getDockerImage(),e.getPythonVersion(),e.getCpuLimit(),e.getMemoryLimit(),e.getDiskLimit(),e.getTmpfsLimit(),e.getRuntimeUser(),e.getNetworkPolicy(),e.getNetworkName(),e.getRequirementsJson(),e.getTimeoutSeconds(),e.isNetworkEnabled(),e.getVersionNumber(),e.getStatus());}
++        public EnvironmentView environment(String id){return view(capability.managedEnvironmentState(id));}
++        public OperationView start(StartRequest q){return managed.start(new PythonManagedExecutionService.StartCommand(q.tenantId(),q.ownerId(),q.runId(),q.taskId(),q.operationId(),q.attempt(),q.fencingToken(),q.environmentId(),q.assetId(),q.fileName(),InternalSecretCipher.encrypt(q.source(),credentials.resolvedSecret()),q.parameters(),q.inputSchemaJson(),q.authorizedFileIds(),q.authorizedFileHashes(),q.sourceSha256(),q.deadlineAt(),q.budgetReservationRef(),q.expectedEnvironmentVersion(),q.expectedImageDigest(),q.script()),q.tenantId(),q.ownerId());}
++        public OperationView get(String t,String u,String r,String task,String op){return managed.get(t,u,r,task,op);}
++        public OperationView cancel(String t,String u,String r,String task,String op,long f){return managed.cancel(t,u,r,task,op,f);}
++        public byte[] artifact(String t,String u,String r,String task,String op,String channel,String file){return managed.artifact(t,u,r,task,op,channel,file);}
++        public ProvisionResult provision(String e,String t,String u,String a){throw new UnsupportedOperationException();}
++        public ExecutionResult preview(String e,String t,String u,String a,String f,String s,Map<String,Object> p,String j){throw new UnsupportedOperationException();}
++        public SyncResult synchronizeTemplate(String id,TemplatePayload p){throw new UnsupportedOperationException();}
++        public ExecutionResult executeTemplate(String id,String t,String u,Map<String,Object> p){throw new UnsupportedOperationException();}
++        public void setTemplateEnabled(String id,boolean e){throw new UnsupportedOperationException();}
++        public DataFileResult uploadDataFile(String t,String u,String id,String f,String h,byte[] b){throw new UnsupportedOperationException();}
++        public byte[] downloadDataFile(String t,String u,String id){throw new UnsupportedOperationException();}
++        public void deleteDataFile(String t,String u,String id){throw new UnsupportedOperationException();}
++    }
++}
+diff --git a/cline-agent-server/test/stage2-evidence.test.mjs b/cline-agent-server/test/stage2-evidence.test.mjs
+new file mode 100644
+index 000000000..c39a023c0
+--- /dev/null
++++ b/cline-agent-server/test/stage2-evidence.test.mjs
+@@ -0,0 +1,25 @@
++import test from 'node:test';
++import assert from 'node:assert/strict';
++import {readFileSync,existsSync} from 'node:fs';
++import {gunzipSync} from 'node:zlib';
++import {createHash} from 'node:crypto';
++const root=new URL('../../docs/testing/evidence/cline-server-p3-stage2-20261108/',import.meta.url);
++const json=p=>{const path=new URL(p,root);return JSON.parse(existsSync(path)?readFileSync(path,'utf8'):gunzipSync(readFileSync(new URL(p+'.gz',root))).toString());};
++const hash=b=>createHash('sha256').update(b).digest('hex');
++test('stage2 exported evidence retains every recorded byte and hash',()=>{
++ for(const f of json('SHA256SUMS.json')){assert(!f.path.includes('..'));const data=readFileSync(new URL(f.path,root));assert.equal(data.length,f.bytes,f.path);assert.equal(hash(data),f.sha256,f.path);}
++});
++test('real native calls bind to stable scoped identities and actual stop receipts',()=>{
++ for(const label of ['long_mcp','python_execute','python_execute-core-kill']){
++  const [status,operations]=json('runs/native/'+label+'-final-operations.json');assert.equal(status,200);assert(operations.length>0);
++  for(const op of operations){const c=op.identity;const expected='cline-'+hash(JSON.stringify([c.tenantId,c.userId,c.sessionId,c.taskId,op.nativeSessionId,op.nativeToolCallId,op.toolName]));assert.equal(op.operationId,expected);assert.equal(op.state,'CANCELLED');assert.equal(op.receipt.stopConfirmed,true);assert(op.stopProofRef.startsWith('native-mcp-receipt:'));if(op.childOperationId){assert.equal(op.receipt.python.stopConfirmed,true);assert.equal(op.receipt.python.cancelRequested,true);assert.equal(op.receipt.python.exitCode,137);}}
++  for(const op of operations){const row=json('journal/reconciliation-matrix.json').find(r=>r.operationId===op.operationId);assert.equal(row.taskStatus,'CANCELLED');assert.equal(row.unresolved,false);}
++ }
++ const coreKill=json('runs/native/summary.json').find(x=>x.case==='official-core-kill-injected');assert.equal(coreKill.pass,true);assert.equal(coreKill.detail.outerContainerStillRunning,true);
++});
++test('final reconciliation is complete while initial real failures remain visible',()=>{
++ for(const file of ['runs/protocol-tests.json','runs/fault-tests.json','runs/native/summary.json'])assert(json(file).every(x=>x.pass),file);
++ assert(json('runs/initial-protocol-failure.json').some(x=>!x.pass));assert(json('runs/initial-native-failure/summary.json').some(x=>!x.pass));
++ assert(json('journal/reconciliation-matrix.json').every(x=>!x.unresolved));assert.equal(json('source/core-source-hashes.json').unchanged,true);assert.equal(json('source/upstream-host-diff-matrix.json').length,2);
++ assert.equal(json('runs/remote-credential-boundaries.json').pass,true);assert.equal(json('runs/late-observation.json').allProcessesStopped,true);
++});
+diff --git a/cline-agent-server/test/stage2-fault-proxy.mjs b/cline-agent-server/test/stage2-fault-proxy.mjs
+new file mode 100644
+index 000000000..597e6f2b5
+--- /dev/null
++++ b/cline-agent-server/test/stage2-fault-proxy.mjs
+@@ -0,0 +1,18 @@
++// Fault injection only: forwards real HTTP requests/results, or drops their transport.
++// Never constructs a tool result or an execution receipt.
++import http from 'node:http';
++import {readFileSync,appendFileSync} from 'node:fs';
++import {createHash} from 'node:crypto';
++const cfg=JSON.parse(readFileSync(process.env.CLINE_REMOTE_CONFIG));
++const delay=ms=>new Promise(r=>setTimeout(r,ms));
++http.createServer(async(req,res)=>{
++ let mode;try{mode=readFileSync(cfg.stateRoot+'/fault-mode','utf8').trim();}catch{mode='pass';}
++ let request='';for await(const b of req)request+=b;
++ const log=x=>appendFileSync(cfg.stateRoot+'/fault-proxy.jsonl',JSON.stringify({at:Date.now(),mode,requestSha256:createHash('sha256').update(request).digest('hex'),...x})+'\n');
++ if(mode==='drop-request'){log({forwarded:false});res.writeHead(503);return res.end('injected transport loss before forwarding');}
++ try{const actual=await fetch('http://cline-p32-remote:18402/mcp',{method:'POST',headers:{authorization:req.headers.authorization,'content-type':'application/json',accept:'application/json, text/event-stream'},body:request});const bytes=Buffer.from(await actual.arrayBuffer());log({forwarded:true,actualStatus:actual.status,responseSha256:createHash('sha256').update(bytes).digest('hex')});
++ if(mode==='drop-response'){res.writeHead(502);return res.end('injected loss after actual remote response');}
++ if(mode==='delay-response')await delay(3000);
++ res.writeHead(actual.status,{'content-type':actual.headers.get('content-type')??'application/json'});res.end(bytes);
++ }catch(e){log({transportError:e.message});res.writeHead(502);res.end('upstream transport error');}
++}).listen(18403,'0.0.0.0');
+diff --git a/cline-agent-server/test/stage2-faults.py b/cline-agent-server/test/stage2-faults.py
+new file mode 100644
+index 000000000..ea135971c
+--- /dev/null
++++ b/cline-agent-server/test/stage2-faults.py
+@@ -0,0 +1,62 @@
++#!/usr/bin/env python3
++"""Transport and authority crash injection against real remote processes and JDBC."""
++import pathlib,json,subprocess,urllib.request,urllib.error,time,threading,uuid
++R=pathlib.Path('/opt/cline-server-p3-stage2-20261108');cfg=json.loads((R/'private/config.json').read_text())
++def ip(name):return json.loads(subprocess.check_output(['docker','inspect',name]))[0]['NetworkSettings']['Networks']['cline-p32-control']['IPAddress']
++results=[]
++def post(path,b,remote=False):
++ url='http://'+ip('cline-p32-remote' if remote else 'cline-p32-authority')+(':18402/control' if remote else ':18502')+path
++ req=urllib.request.Request(url,data=json.dumps(b).encode(),headers={'Authorization':'Bearer '+cfg['remoteControlSecret' if remote else 'gatewaySecret'],'content-type':'application/json'})
++ try:
++  with urllib.request.urlopen(req,timeout=190) as r:return r.status,json.load(r)
++ except urllib.error.HTTPError as e:return e.code,json.load(e)
++def check(name,ok,detail):
++ results.append({'case':name,'pass':bool(ok),'detail':detail});(R/'evidence/fault-tests.json').write_text(json.dumps(results,indent=2));print(name,'PASS' if ok else 'FAIL',flush=True)
++def setup(label,ms=1500):
++ identity={'tenantId':'stage2-fault','userId':'alice','sessionId':uuid.uuid4().hex,'taskId':label,'expiresAt':int(time.time()*1000)+3600000}
++ q={'identity':identity,'epoch':'fault-epoch'};assert post('/session',q)[0]==200
++ args={'datasetId':'stage2','durationMs':ms};s,b=post('/bind',{**q,'nativeSessionId':'protocol-fault-test','nativeToolCallId':uuid.uuid4().hex,'toolName':'long_mcp','arguments':args});assert s==200,b
++ q['operationId']=b['operationId'];rpc={'jsonrpc':'2.0','id':17,'method':'tools/call','params':{'name':'long_mcp','arguments':args}};return q,rpc
++mode=R/'remote-state/fault-mode'
++for fault in ('drop-request','drop-response','delay-response'):
++ mode.write_text(fault);q,rpc=setup(fault);result=[]
++ t=threading.Thread(target=lambda:result.append(post('/dispatch',{**q,'rpc':rpc})));t.start()
++ if fault=='delay-response':
++  for _ in range(50):
++   observed=post('/get',q)[1]
++   if observed.get('state')=='COMPLETED':break
++   time.sleep(.1)
++  cancellation=post('/cancel',q);t.join(20);final=post('/get',q)
++  check('late-real-response-preserves-terminal',final[1].get('state')=='COMPLETED' and cancellation[1].get('state')=='COMPLETED',{'dispatch':result,'cancel':cancellation,'final':final})
++ else:
++  t.join(30);observed=post('/get',q);replay=post('/dispatch',{**q,'rpc':{**rpc,'id':99}})
++  if fault=='drop-request':
++   cancelled=post('/cancel',q);check('lost-request-UNKNOWN-no-replay-real-tombstone',observed[1].get('state')=='UNKNOWN' and replay[0]==503 and cancelled[1].get('state')=='CANCELLED' and cancelled[1].get('receipt',{}).get('dispatchPrevented'),{'dispatch':result,'observed':observed,'replay':replay,'cancel':cancelled})
++  else:check('lost-response-query-real-completion',observed[1].get('state')=='COMPLETED' and replay[0]==503 and observed[1].get('receipt',{}).get('resultSha256'),{'dispatch':result,'observed':observed,'replay':replay})
++mode.write_text('pass')
++q,rpc=setup('authority-kill',12000);result=[]
++def dispatch():
++ try:result.append(post('/dispatch',{**q,'rpc':rpc}))
++ except Exception as e:result.append({'transportFailure':type(e).__name__})
++t=threading.Thread(target=dispatch);t.start()
++for _ in range(50):
++ v=post('/get',q)[1]
++ if v.get('state')=='RUNNING':break
++ time.sleep(.1)
++subprocess.run(['docker','kill','cline-p32-authority'],check=True,stdout=subprocess.DEVNULL)
++still=post('/get',{**q,'fencingToken':1},True);check('authority-kill-does-not-stop-remote',still[1].get('state')=='RUNNING' and not still[1].get('executorStopped'),still)
++subprocess.run(['docker','start','cline-p32-authority'],check=True,stdout=subprocess.DEVNULL)
++for _ in range(100):
++ try:recovered=post('/get',q);break
++ except (urllib.error.URLError,ConnectionError):time.sleep(.2)
++t.join(20);time.sleep(13);final=post('/get',q)
++check('JDBC-intent-survives-authority-kill',final[1].get('state')=='COMPLETED' and final[1].get('stopProofRef'),{'dispatch':result,'recovered':recovered,'final':final})
++for _ in range(60):
++ rotated=post('/rotate',q)
++ if rotated[0]==200:break
++ time.sleep(.5)
++stale=post('/dispatch',{**q,'rpc':rpc});current=post('/cancel',q)
++f=rotated[1].get('fencingToken',0)
++advanced=post('/cancel',{**q,'fencingToken':f},True);rejected=post('/cancel',{**q,'fencingToken':1},True)
++check('expired-lease-new-fence-old-epoch-rejected',rotated[0]==200 and f>1 and stale[0]==409 and rejected[0]==409,{'rotate':rotated,'oldNativeDispatch':stale,'advancedRemoteCancel':advanced,'oldRemoteCancel':rejected})
++check('all-fault-cases',all(x['pass'] for x in results),{'total':len(results)})
+diff --git a/cline-agent-server/test/stage2-native.py b/cline-agent-server/test/stage2-native.py
+new file mode 100644
+index 000000000..fb71c7844
+--- /dev/null
++++ b/cline-agent-server/test/stage2-native.py
+@@ -0,0 +1,66 @@
++#!/usr/bin/env python3
++"""Real model -> official Cline Agent -> native MCP -> existing Java journal/executor.
++No tool selection/loop is implemented here: this client submits requests and responds
++to actual native approvals, then injects Worker loss or remote cancellation.
++"""
++import pathlib,json,subprocess,urllib.request,urllib.error,time,uuid,hmac,hashlib,base64,threading,os,signal
++R=pathlib.Path('/opt/cline-server-p3-stage2-20261108');cfg=json.loads((R/'control/config.json').read_text());E=R/'evidence/native';E.mkdir(exist_ok=True)
++results=[];tenantId=next(iter(cfg['tenants']));tenant=cfg['tenants'][tenantId]
++def save(name,value):(E/name).write_text(json.dumps(value,indent=2))
++def sign(c):
++ b=base64.urlsafe_b64encode(json.dumps(c,separators=(',',':')).encode()).rstrip(b'=');s=base64.urlsafe_b64encode(hmac.new(cfg['signingKey'].encode(),b,hashlib.sha256).digest()).rstrip(b'=');return (b+b'.'+s).decode()
++def api(c,path,body=None,key=None):
++ req=urllib.request.Request('http://127.0.0.1:18330'+path,data=json.dumps(body).encode() if body is not None else None,headers={'Authorization':'Bearer '+sign(c),'content-type':'application/json','accept':'application/json',**({'idempotency-key':key} if key else {})})
++ try:
++  with urllib.request.urlopen(req,timeout=100) as r:return r.status,json.load(r)
++ except urllib.error.HTTPError as e:return e.code,json.load(e)
++def check(name,ok,detail):results.append({'case':name,'pass':bool(ok),'detail':detail});save('summary.json',results);print(name,'PASS' if ok else 'FAIL',flush=True)
++for tool,action in [('long_mcp','kill'),('python_execute','cancel'),('python_execute','kill-core')]:
++ label=tool if action!='kill-core' else tool+'-core-kill'
++ c={'version':1,'tenantId':tenantId,'userId':tenant['users'][0],'taskId':'native-'+uuid.uuid4().hex,'sessionId':'session-'+uuid.uuid4().hex,'workspaceRef':next(iter(tenant['workspaces'])),'modelProfile':tenant['models'][0],'budgetPolicy':{'status':'DEFERRED_STAGE_2_REVIEW'},'toolPermissions':tenant['tools'],'dataPermissions':tenant['datasets'],'networkPolicy':'broker-only','expiresAt':int(time.time()*1000)+7200000}
++ save(label+'-contract.json',c);root='/v1/sessions/'+c['sessionId'];created=api(c,'/v1/sessions',{},'create-'+label);check(label+'-created',created[0]==201,created)
++ for _ in range(180):
++  s=api(c,root+'/status')[1]
++  if s.get('workerState') in ('READY','START_FAILED','RECOVERABLE'):break
++  time.sleep(.5)
++ check(label+'-ready',s.get('workerState')=='READY',s)
++ if s.get('workerState')!='READY':continue
++ dataset=c['dataPermissions'][0]
++ instruction=(f'Call the connected MCP tool tenant_data__{tool} exactly once, with datasetId="{dataset}". '
++  +( 'Set durationMs=60000. This is a real remote cancellation acceptance test. Do not use shell to implement the MCP task.' if tool=='long_mcp' else 'Supply Python source which prints "native-sandbox-started" with flush=True, then time.sleep(90), then prints "should-not-run". This is a real remote Sandbox cancellation acceptance test. Do not run Python through a shell.')
++  +' Do not create or change project files. Wait for the MCP tool receipt before reporting its result.')
++ submitted=api(c,root+'/messages',{'text':instruction},'task-'+label);check(label+'-real-model-submitted',submitted[0]==202,submitted)
++ approvals=[];running=None;observations=[]
++ for _ in range(300):
++  s=api(c,root+'/status')[1];observations.append(s)
++  for p in (s.get('native') or {}).get('pendingPermissions',[]):
++   r=api(c,'/v1/permissions/'+p['id']+'/respond',{'decision':'approve','reason':'Stage2 real external operation acceptance'})
++   approvals.append({'permission':p,'response':r});save(label+'-approvals.json',approvals)
++  ops=api(c,root+'/operations')
++  if ops[0]==200:
++   running=next((o for o in ops[1] if o['toolName']==tool and o['state']=='RUNNING'),None)
++   if running:break
++  if s.get('workerState') in ('START_FAILED','RECOVERABLE','STOPPED','COMPLETED'):break
++  time.sleep(.5)
++ save(label+'-observations.json',observations);save(label+'-events-before.json',api(c,root+'/events'))
++ check(label+'-native-operation-running',bool(running),{'operation':running,'status':s,'approvals':approvals})
++ if not running:api(c,root+'/cancel',{});time.sleep(4);continue
++ registry=json.loads((R/'control/state/workers'/s['workerId']/'registry.json').read_text());container=registry['containerId']
++ if action=='kill':
++  subprocess.run(['docker','kill',container],check=True,stdout=subprocess.DEVNULL)
++  check('worker-kill-injected',True,{'containerId':container,'operationId':running['operationId']})
++ elif action=='kill-core':
++  inspect=json.loads(subprocess.check_output(['docker','inspect',container]))[0];assert inspect['Config']['Labels']['cline.workerId']==registry['workerId']
++  rows=subprocess.check_output(['docker','top',container,'-eo','pid,args'],text=True).splitlines()[1:];pids=[int(row.split()[0]) for row in rows if '/poc/runtime/cline-core.js' in row]
++  if len(pids)==1:os.kill(pids[0],signal.SIGKILL)
++  else:api(c,root+'/cancel',{})
++  check('official-core-kill-injected',len(pids)==1,{'containerId':container,'hostPids':pids,'operationId':running['operationId'],'outerContainerStillRunning':json.loads(subprocess.check_output(['docker','inspect',container]))[0]['State']['Running']})
++ else:check('python-remote-cancel-request',api(c,root+'/cancel',{})[0]==202,{'operationId':running['operationId']})
++ for _ in range(120):
++  final=api(c,root+'/status')[1];ops=api(c,root+'/operations')
++  if final.get('remoteStopConfirmed'):break
++  time.sleep(.5)
++ save(label+'-final-operations.json',ops)
++ check(label+'-remote-final-reconciliation',final.get('remoteStopConfirmed') and ops[0]==200 and all(o['state']=='CANCELLED' and o.get('receipt',{}).get('stopConfirmed') for o in ops[1]),{'status':final,'operations':ops})
++ save(label+'-worker-inspect.json',json.loads(subprocess.check_output(['docker','inspect',container]))[0]['State'])
++check('native-real-model-stage2',all(r['pass'] for r in results),{'checks':len(results)})
+diff --git a/cline-agent-server/test/stage2-operations.py b/cline-agent-server/test/stage2-operations.py
+new file mode 100644
+index 000000000..23d320877
+--- /dev/null
++++ b/cline-agent-server/test/stage2-operations.py
+@@ -0,0 +1,50 @@
++#!/usr/bin/env python3
++"""Real HTTP/DB/process/container integration checks; protocol identities are test inputs.
++Native Agent invocation is a separate gate, never inferred from these tests.
++Run on the isolated Docker host after stage2-deploy.py.
++"""
++import pathlib,json,subprocess,urllib.request,urllib.error,time,threading,uuid,hashlib
++R=pathlib.Path('/opt/cline-server-p3-stage2-20261108');cfg=json.loads((R/'private/config.json').read_text())
++ip=json.loads(subprocess.check_output(['docker','inspect','cline-p32-authority']))[0]['NetworkSettings']['Networks']['cline-p32-control']['IPAddress']
++URL='http://'+ip+':18502';evidence=[]
++def post(path,b):
++ req=urllib.request.Request(URL+path,data=json.dumps(b).encode(),headers={'Authorization':'Bearer '+cfg['gatewaySecret'],'content-type':'application/json'})
++ try:
++  with urllib.request.urlopen(req,timeout=190) as r:return r.status,json.load(r)
++ except urllib.error.HTTPError as e:return e.code,json.load(e)
++def check(name,ok,detail):
++ evidence.append({'case':name,'pass':bool(ok),'detail':detail});(R/'evidence/protocol-tests.json').write_text(json.dumps(evidence,indent=2));print(name,'PASS' if ok else 'FAIL',flush=True)
++def case(tool,args,label):
++ ident={'tenantId':'stage2-protocol','userId':'alice','sessionId':label+'-'+uuid.uuid4().hex[:8],'taskId':label,'expiresAt':int(time.time()*1000)+3600000};base={'identity':ident,'epoch':'protocol-epoch'}
++ status,s=post('/session',base);check(label+'-session',status==200,s)
++ status,b=post('/bind',{**base,'nativeSessionId':'protocol-test-session','nativeToolCallId':uuid.uuid4().hex,'toolName':tool,'arguments':args});check(label+'-durable-binding',status==200,b)
++ if status!=200:return None,None,None
++ op=b['operationId'];q={**base,'operationId':op};rpc={'jsonrpc':'2.0','id':17,'method':'tools/call','params':{'name':tool,'arguments':args}}
++ return q,rpc,b
++def dispatch(q,rpc,result):result.append(post('/dispatch',{**q,'rpc':rpc}))
++def state(q):return post('/get',q)[1]
++def wait(q,predicate,seconds=25):
++ last={}
++ for _ in range(seconds*5):
++  last=state(q)
++  if predicate(last):return last
++  time.sleep(.2)
++ return last
++args={'datasetId':'stage2','durationMs':1500};q,rpc,b=case('long_mcp',args,'complete')
++if q:
++ result=[];dispatch(q,rpc,result);v=state(q);check('real-mcp-completed',v.get('state')=='COMPLETED' and v.get('receipt',{}).get('resultSha256'),{'dispatch':result,'state':v})
++ replay=post('/dispatch',{**q,'rpc':{**rpc,'id':999}});check('different-jsonrpc-id-same-operation',replay[0]==200 and replay[1].get('mcpResponse',{}).get('result')==result[0][1].get('mcpResponse',{}).get('result'),replay)
++ stop=post('/cancel',q);check('late-cancel-does-not-rewrite-completion',stop[1].get('state')=='COMPLETED',stop)
++ conflict=post('/bind',{**q,'nativeSessionId':b['nativeSessionId'],'nativeToolCallId':b['nativeToolCallId'],'toolName':'long_mcp','arguments':{'datasetId':'stage2','durationMs':1999}});check('same-native-call-mutated-arguments-rejected',conflict[0]==409,conflict)
++ forged=post('/dispatch',{**q,'operationId':str(rpc['id']),'rpc':rpc});check('jsonrpc-id-cannot-be-operation-id',forged[0]==409,forged)
++for tool,args,label in [('long_mcp',{'datasetId':'stage2','durationMs':60000},'mcp-cancel'),('python_execute',{'datasetId':'stage2','source':'import time\nfrom pathlib import Path\nprint("sandbox-started", flush=True)\ntime.sleep(90)\nPath("/workspace/outputs/should-not-exist.txt").write_text("late")\n'},'python-cancel')]:
++ q,rpc,b=case(tool,args,label)
++ if not q:continue
++ result=[];t=threading.Thread(target=dispatch,args=(q,rpc,result));t.start()
++ v=wait(q,lambda v:v.get('state')=='RUNNING');check(label+'-real-running',v.get('state')=='RUNNING',v)
++ duplicate=post('/dispatch',{**q,'rpc':{**rpc,'id':918}});check(label+'-duplicate-no-redispatch',duplicate[0] in (200,503) and (duplicate[0]==200 or 'QUERY_ONLY' in duplicate[1].get('message','')),duplicate)
++ status,c=post('/cancel',q);v=wait(q,lambda v:v.get('state') in ('CANCELLED','FAILED','COMPLETED'));t.join(30)
++ check(label+'-stop-receipt',status==200 and v.get('state')=='CANCELLED' and v.get('receipt',{}).get('stopConfirmed') and v.get('stopProofRef'),{'cancel':c,'final':v,'dispatch':result})
++ second=post('/cancel',q);check(label+'-repeat-cancel',second[0]==200 and second[1].get('stopProofRef')==v.get('stopProofRef'),second)
++ invalid=post('/invalidate',q);stale=post('/dispatch',{**q,'rpc':rpc});check(label+'-inactive-epoch-rejected',stale[0]==409,stale)
++check('all-protocol-cases',all(x['pass'] for x in evidence),{'total':len(evidence)})

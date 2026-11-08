@@ -1,0 +1,12 @@
+[
+  {
+    "name": "api.jar",
+    "bytes": 428945238,
+    "sha256": "9955aa1bc74fabfca55009662b2b3d0d4cc1f763846dd4b563485a1f1ce7b0c6"
+  },
+  {
+    "name": "mcp.jar",
+    "bytes": 254767511,
+    "sha256": "71a357b27084c887d7e7ef40898e44076e8deaeda6b54e9835f2ee51805afbd6"
+  }
+]

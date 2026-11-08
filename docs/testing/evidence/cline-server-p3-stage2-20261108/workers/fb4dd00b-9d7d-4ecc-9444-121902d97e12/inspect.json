@@ -1,0 +1,155 @@
+{
+  "Id": "c15dc99a9773c542338e3969044eb210662cfd31e782405824ee537dfc3b4582",
+  "Image": "sha256:6ee943241411781d729fc5fcdd5608c1906424740228f55919b0009c524dfccb",
+  "State": {
+    "Status": "exited",
+    "Running": false,
+    "Paused": false,
+    "Restarting": false,
+    "OOMKilled": false,
+    "Dead": false,
+    "Pid": 0,
+    "ExitCode": 137,
+    "Error": "",
+    "StartedAt": "2026-11-08T05:29:22.56657104Z",
+    "FinishedAt": "2026-11-08T05:29:34.88348553Z"
+  },
+  "Mounts": [
+    {
+      "Type": "bind",
+      "Source": "/opt/cline-server-p3-stage2-20261108/control/state/workers/fb4dd00b-9d7d-4ecc-9444-121902d97e12/config.json",
+      "Destination": "/run/cline-poc.json",
+      "Mode": "ro",
+      "RW": false,
+      "Propagation": "rprivate"
+    },
+    {
+      "Type": "bind",
+      "Source": "/opt/cline-server-p3-stage2-20261108/control/state/workers/fb4dd00b-9d7d-4ecc-9444-121902d97e12/workspace",
+      "Destination": "/poc/project",
+      "Mode": "rw",
+      "RW": true,
+      "Propagation": "rprivate"
+    },
+    {
+      "Type": "bind",
+      "Source": "/opt/cline-server-p3-stage2-20261108/control/state/workers/fb4dd00b-9d7d-4ecc-9444-121902d97e12/state",
+      "Destination": "/poc/state",
+      "Mode": "rw",
+      "RW": true,
+      "Propagation": "rprivate"
+    },
+    {
+      "Type": "bind",
+      "Source": "/opt/cline-server-p3-stage2-20261108/control/state/workers/fb4dd00b-9d7d-4ecc-9444-121902d97e12/bridge",
+      "Destination": "/poc/bridge",
+      "Mode": "rw",
+      "RW": true,
+      "Propagation": "rprivate"
+    }
+  ],
+  "HostConfig": {
+    "Binds": [
+      "/opt/cline-server-p3-stage2-20261108/control/state/workers/fb4dd00b-9d7d-4ecc-9444-121902d97e12/workspace:/poc/project:rw",
+      "/opt/cline-server-p3-stage2-20261108/control/state/workers/fb4dd00b-9d7d-4ecc-9444-121902d97e12/state:/poc/state:rw",
+      "/opt/cline-server-p3-stage2-20261108/control/state/workers/fb4dd00b-9d7d-4ecc-9444-121902d97e12/bridge:/poc/bridge:rw",
+      "/opt/cline-server-p3-stage2-20261108/control/state/workers/fb4dd00b-9d7d-4ecc-9444-121902d97e12/config.json:/run/cline-poc.json:ro"
+    ],
+    "ContainerIDFile": "",
+    "LogConfig": {
+      "Type": "json-file",
+      "Config": {}
+    },
+    "NetworkMode": "none",
+    "PortBindings": null,
+    "RestartPolicy": {
+      "Name": "no",
+      "MaximumRetryCount": 0
+    },
+    "AutoRemove": false,
+    "VolumeDriver": "",
+    "VolumesFrom": null,
+    "ConsoleSize": [
+      0,
+      0
+    ],
+    "CapAdd": null,
+    "CapDrop": [
+      "ALL"
+    ],
+    "CgroupnsMode": "host",
+    "Dns": null,
+    "DnsOptions": null,
+    "DnsSearch": null,
+    "ExtraHosts": null,
+    "GroupAdd": null,
+    "IpcMode": "private",
+    "Cgroup": "",
+    "Links": null,
+    "OomScoreAdj": 0,
+    "PidMode": "",
+    "Privileged": false,
+    "PublishAllPorts": false,
+    "ReadonlyRootfs": true,
+    "SecurityOpt": [
+      "no-new-privileges"
+    ],
+    "Tmpfs": {
+      "/tmp": "rw,nosuid,nodev,size=128m,mode=1777"
+    },
+    "UTSMode": "",
+    "UsernsMode": "",
+    "ShmSize": 67108864,
+    "Runtime": "runc",
+    "Isolation": "",
+    "CpuShares": 0,
+    "Memory": 3221225472,
+    "NanoCpus": 2000000000,
+    "CgroupParent": "",
+    "BlkioWeight": 0,
+    "BlkioWeightDevice": null,
+    "BlkioDeviceReadBps": null,
+    "BlkioDeviceWriteBps": null,
+    "BlkioDeviceReadIOps": null,
+    "BlkioDeviceWriteIOps": null,
+    "CpuPeriod": 0,
+    "CpuQuota": 0,
+    "CpuRealtimePeriod": 0,
+    "CpuRealtimeRuntime": 0,
+    "CpusetCpus": "8,9",
+    "CpusetMems": "",
+    "Devices": null,
+    "DeviceCgroupRules": null,
+    "DeviceRequests": null,
+    "MemoryReservation": 0,
+    "MemorySwap": 6442450944,
+    "MemorySwappiness": null,
+    "OomKillDisable": false,
+    "PidsLimit": 256,
+    "Ulimits": null,
+    "CpuCount": 0,
+    "CpuPercent": 0,
+    "IOMaximumIOps": 0,
+    "IOMaximumBandwidth": 0,
+    "MaskedPaths": [
+      "/proc/asound",
+      "/proc/acpi",
+      "/proc/kcore",
+      "/proc/keys",
+      "/proc/latency_stats",
+      "/proc/timer_list",
+      "/proc/timer_stats",
+      "/proc/sched_debug",
+      "/proc/scsi",
+      "/sys/firmware",
+      "/sys/devices/virtual/powercap"
+    ],
+    "ReadonlyPaths": [
+      "/proc/bus",
+      "/proc/fs",
+      "/proc/irq",
+      "/proc/sys",
+      "/proc/sysrq-trigger"
+    ]
+  }
+}

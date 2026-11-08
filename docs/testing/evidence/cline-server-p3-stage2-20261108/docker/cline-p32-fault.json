@@ -1,0 +1,194 @@
+{
+  "Id": "9299889ff62af151be192a91bf2e2693e6a2355d3f481300b0935164f4e26e5f",
+  "Image": "sha256:bfea82551ff365794670f7a4160de239cd3ff985b07b89c811c3ed2b3adb2b31",
+  "State": {
+    "Status": "running",
+    "Running": true,
+    "Paused": false,
+    "Restarting": false,
+    "OOMKilled": false,
+    "Dead": false,
+    "Pid": 2620068,
+    "ExitCode": 0,
+    "Error": "",
+    "StartedAt": "2026-11-08T05:27:14.749327964Z",
+    "FinishedAt": "0001-01-01T00:00:00Z"
+  },
+  "Mounts": [
+    {
+      "Type": "bind",
+      "Source": "/opt/cline-server-p3-stage2-20261108/private/remote.json",
+      "Destination": "/run/cline-remote.json",
+      "Mode": "",
+      "RW": false,
+      "Propagation": "rprivate"
+    },
+    {
+      "Type": "bind",
+      "Source": "/opt/cline-server-p3-stage2-20261108/remote-state",
+      "Destination": "/opt/cline-server-p3-stage2-20261108/remote-state",
+      "Mode": "",
+      "RW": true,
+      "Propagation": "rprivate"
+    },
+    {
+      "Type": "bind",
+      "Source": "/opt/cline-server-p3-stage2-20261108/source/cline-agent-server/test/stage2-fault-proxy.mjs",
+      "Destination": "/app/proxy.mjs",
+      "Mode": "",
+      "RW": false,
+      "Propagation": "rprivate"
+    }
+  ],
+  "HostConfig": {
+    "Binds": null,
+    "ContainerIDFile": "",
+    "LogConfig": {
+      "Type": "json-file",
+      "Config": {}
+    },
+    "NetworkMode": "cline-p32-control",
+    "PortBindings": {},
+    "RestartPolicy": {
+      "Name": "no",
+      "MaximumRetryCount": 0
+    },
+    "AutoRemove": false,
+    "VolumeDriver": "",
+    "VolumesFrom": null,
+    "ConsoleSize": [
+      0,
+      0
+    ],
+    "CapAdd": null,
+    "CapDrop": null,
+    "CgroupnsMode": "host",
+    "Dns": [],
+    "DnsOptions": [],
+    "DnsSearch": [],
+    "ExtraHosts": null,
+    "GroupAdd": null,
+    "IpcMode": "private",
+    "Cgroup": "",
+    "Links": null,
+    "OomScoreAdj": 0,
+    "PidMode": "",
+    "Privileged": false,
+    "PublishAllPorts": false,
+    "ReadonlyRootfs": false,
+    "SecurityOpt": null,
+    "UTSMode": "",
+    "UsernsMode": "",
+    "ShmSize": 67108864,
+    "Runtime": "runc",
+    "Isolation": "",
+    "CpuShares": 0,
+    "Memory": 0,
+    "NanoCpus": 0,
+    "CgroupParent": "",
+    "BlkioWeight": 0,
+    "BlkioWeightDevice": [],
+    "BlkioDeviceReadBps": [],
+    "BlkioDeviceWriteBps": [],
+    "BlkioDeviceReadIOps": [],
+    "BlkioDeviceWriteIOps": [],
+    "CpuPeriod": 0,
+    "CpuQuota": 0,
+    "CpuRealtimePeriod": 0,
+    "CpuRealtimeRuntime": 0,
+    "CpusetCpus": "",
+    "CpusetMems": "",
+    "Devices": [],
+    "DeviceCgroupRules": null,
+    "DeviceRequests": null,
+    "MemoryReservation": 0,
+    "MemorySwap": 0,
+    "MemorySwappiness": null,
+    "OomKillDisable": false,
+    "PidsLimit": null,
+    "Ulimits": [],
+    "CpuCount": 0,
+    "CpuPercent": 0,
+    "IOMaximumIOps": 0,
+    "IOMaximumBandwidth": 0,
+    "Mounts": [
+      {
+        "Type": "bind",
+        "Source": "/opt/cline-server-p3-stage2-20261108/source/cline-agent-server/test/stage2-fault-proxy.mjs",
+        "Target": "/app/proxy.mjs",
+        "ReadOnly": true
+      },
+      {
+        "Type": "bind",
+        "Source": "/opt/cline-server-p3-stage2-20261108/private/remote.json",
+        "Target": "/run/cline-remote.json",
+        "ReadOnly": true
+      },
+      {
+        "Type": "bind",
+        "Source": "/opt/cline-server-p3-stage2-20261108/remote-state",
+        "Target": "/opt/cline-server-p3-stage2-20261108/remote-state"
+      }
+    ],
+    "MaskedPaths": [
+      "/proc/asound",
+      "/proc/acpi",
+      "/proc/kcore",
+      "/proc/keys",
+      "/proc/latency_stats",
+      "/proc/timer_list",
+      "/proc/timer_stats",
+      "/proc/sched_debug",
+      "/proc/scsi",
+      "/sys/firmware",
+      "/sys/devices/virtual/powercap"
+    ],
+    "ReadonlyPaths": [
+      "/proc/bus",
+      "/proc/fs",
+      "/proc/irq",
+      "/proc/sys",
+      "/proc/sysrq-trigger"
+    ]
+  },
+  "NetworkSettings": {
+    "Bridge": "",
+    "SandboxID": "e4350c1b3a04a1194eafaba9fca36851b3227f5ae69d78510242392fd8a592aa",
+    "SandboxKey": "/var/run/docker/netns/e4350c1b3a04",
+    "Ports": {},
+    "HairpinMode": false,
+    "LinkLocalIPv6Address": "",
+    "LinkLocalIPv6PrefixLen": 0,
+    "SecondaryIPAddresses": null,
+    "SecondaryIPv6Addresses": null,
+    "EndpointID": "",
+    "Gateway": "",
+    "GlobalIPv6Address": "",
+    "GlobalIPv6PrefixLen": 0,
+    "IPAddress": "",
+    "IPPrefixLen": 0,
+    "IPv6Gateway": "",
+    "MacAddress": "",
+    "Networks": {
+      "cline-p32-control": {
+        "IPAMConfig": null,
+        "Links": null,
+        "Aliases": null,
+        "MacAddress": "02:42:c0:a8:00:05",
+        "NetworkID": "f47c7148d48f593d21b02fcb16195af922d9c961c7ac4bc8bbdeb19aec6b83fd",
+        "EndpointID": "93abb778075e1216682ea9c7e5ad400dc3cbfe7bdfaebc393333b9af574e926a",
+        "Gateway": "",
+        "IPAddress": "192.168.0.5",
+        "IPPrefixLen": 20,
+        "IPv6Gateway": "",
+        "GlobalIPv6Address": "",
+        "GlobalIPv6PrefixLen": 0,
+        "DriverOpts": null,
+        "DNSNames": [
+          "cline-p32-fault",
+          "9299889ff62a"
+        ]
+      }
+    }
+  }
+}

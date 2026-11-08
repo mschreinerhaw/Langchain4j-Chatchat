@@ -1,0 +1,705 @@
+[
+  200,
+  {
+    "events": [
+      {
+        "sessionId": "a7a789ab-acf4-43a6-8d80-c0c54b8705be",
+        "taskId": null,
+        "epoch": "6efa18e1-9689-4162-8a47-b89c5ef4a199",
+        "eventType": "session.created",
+        "payload": {
+          "workspaceRef": "project"
+        },
+        "eventId": "1",
+        "timestamp": "2026-11-08T05:12:04.396Z"
+      },
+      {
+        "sessionId": "a7a789ab-acf4-43a6-8d80-c0c54b8705be",
+        "taskId": null,
+        "epoch": "6efa18e1-9689-4162-8a47-b89c5ef4a199",
+        "eventType": "host.notification",
+        "payload": {
+          "type": 1,
+          "message": "Welcome to Cline v4.1.26"
+        },
+        "eventId": "2",
+        "timestamp": "2026-11-08T05:12:08.756Z"
+      },
+      {
+        "sessionId": "a7a789ab-acf4-43a6-8d80-c0c54b8705be",
+        "taskId": null,
+        "epoch": "6efa18e1-9689-4162-8a47-b89c5ef4a199",
+        "eventType": "worker.ready",
+        "payload": {
+          "native": "v4.1.26",
+          "sourceCommit": "a459f1d04dea030833b558be645011ab739c463b",
+          "hostCapabilities": {
+            "workspace": true,
+            "editorUI": false,
+            "diagnostics": false,
+            "backgroundShell": true
+          }
+        },
+        "eventId": "3",
+        "timestamp": "2026-11-08T05:12:08.844Z"
+      },
+      {
+        "sessionId": "a7a789ab-acf4-43a6-8d80-c0c54b8705be",
+        "taskId": "367b7ec4-4edb-4ade-aeec-bc8537360bf8",
+        "epoch": "6efa18e1-9689-4162-8a47-b89c5ef4a199",
+        "eventType": "task.accepted",
+        "payload": {
+          "text": "Call the connected MCP tool tenant_data__long_mcp exactly once, with datasetId=\"dataset-a\". Set durationMs=60000. This is a real remote cancellation acceptance test. Do not use shell to implement the MCP task. Do not create or change project files. Wait for the MCP tool receipt before reporting its result."
+        },
+        "eventId": "4",
+        "timestamp": "2026-11-08T05:12:09.017Z"
+      },
+      {
+        "sessionId": "a7a789ab-acf4-43a6-8d80-c0c54b8705be",
+        "taskId": "367b7ec4-4edb-4ade-aeec-bc8537360bf8",
+        "epoch": "6efa18e1-9689-4162-8a47-b89c5ef4a199",
+        "eventType": "native.event",
+        "payload": {
+          "type": "status",
+          "payload": {
+            "sessionId": "1794114729113_2qd9r",
+            "status": "idle"
+          }
+        },
+        "eventId": "5",
+        "timestamp": "2026-11-08T05:12:09.311Z"
+      },
+      {
+        "sessionId": "a7a789ab-acf4-43a6-8d80-c0c54b8705be",
+        "taskId": "367b7ec4-4edb-4ade-aeec-bc8537360bf8",
+        "epoch": "6efa18e1-9689-4162-8a47-b89c5ef4a199",
+        "eventType": "native.event",
+        "payload": {
+          "type": "session_snapshot",
+          "payload": {
+            "sessionId": "1794114729113_2qd9r",
+            "snapshot": {
+              "version": 1,
+              "sessionId": "1794114729113_2qd9r",
+              "source": "vscode",
+              "status": "idle",
+              "createdAt": "2026-11-08T05:12:09.184Z",
+              "updatedAt": "2026-11-08T05:12:09.184Z",
+              "endedAt": null,
+              "exitCode": null,
+              "interactive": true,
+              "workspace": {
+                "cwd": "/poc/project",
+                "root": "/poc/project"
+              },
+              "model": {
+                "providerId": "openai-compatible",
+                "modelId": "qwen3.7-plus"
+              },
+              "capabilities": {
+                "enableTools": true,
+                "enableSpawn": false,
+                "enableTeams": false
+              },
+              "lineage": {
+                "isSubagent": false
+              },
+              "usage": {
+                "inputTokens": 0,
+                "outputTokens": 0,
+                "cacheReadTokens": 0,
+                "cacheWriteTokens": 0,
+                "totalCost": 0
+              },
+              "aggregateUsage": {
+                "inputTokens": 0,
+                "outputTokens": 0,
+                "cacheReadTokens": 0,
+                "cacheWriteTokens": 0,
+                "totalCost": 0
+              }
+            }
+          }
+        },
+        "eventId": "6",
+        "timestamp": "2026-11-08T05:12:09.313Z"
+      },
+      {
+        "sessionId": "a7a789ab-acf4-43a6-8d80-c0c54b8705be",
+        "taskId": "367b7ec4-4edb-4ade-aeec-bc8537360bf8",
+        "epoch": "6efa18e1-9689-4162-8a47-b89c5ef4a199",
+        "eventType": "task.started",
+        "payload": {
+          "nativeSessionId": "1794114729113_2qd9r"
+        },
+        "eventId": "7",
+        "timestamp": "2026-11-08T05:12:09.406Z"
+      },
+      {
+        "sessionId": "a7a789ab-acf4-43a6-8d80-c0c54b8705be",
+        "taskId": "367b7ec4-4edb-4ade-aeec-bc8537360bf8",
+        "epoch": "6efa18e1-9689-4162-8a47-b89c5ef4a199",
+        "eventType": "native.event",
+        "payload": {
+          "type": "status",
+          "payload": {
+            "sessionId": "1794114729113_2qd9r",
+            "status": "running"
+          }
+        },
+        "eventId": "8",
+        "timestamp": "2026-11-08T05:12:09.479Z"
+      },
+      {
+        "sessionId": "a7a789ab-acf4-43a6-8d80-c0c54b8705be",
+        "taskId": "367b7ec4-4edb-4ade-aeec-bc8537360bf8",
+        "epoch": "6efa18e1-9689-4162-8a47-b89c5ef4a199",
+        "eventType": "native.event",
+        "payload": {
+          "type": "session_snapshot",
+          "payload": {
+            "sessionId": "1794114729113_2qd9r",
+            "snapshot": {
+              "version": 1,
+              "sessionId": "1794114729113_2qd9r",
+              "source": "vscode",
+              "status": "running",
+              "createdAt": "2026-11-08T05:12:09.184Z",
+              "updatedAt": "2026-11-08T05:12:09.479Z",
+              "endedAt": null,
+              "exitCode": null,
+              "interactive": true,
+              "workspace": {
+                "cwd": "/poc/project",
+                "root": "/poc/project"
+              },
+              "model": {
+                "providerId": "openai-compatible",
+                "modelId": "qwen3.7-plus"
+              },
+              "capabilities": {
+                "enableTools": true,
+                "enableSpawn": false,
+                "enableTeams": false
+              },
+              "lineage": {
+                "isSubagent": false
+              },
+              "prompt": "<user_input mode=\"act\">Call the connected MCP tool tenant_data__long_mcp exactly once, with datasetId=\"dataset-a\". Set durationMs=60000. This is a real remote cancellation acceptance test. Do not use shell to implement the MCP task. Do not create or change project files. Wait for the MCP tool receipt before reporting its result.</user_input>",
+              "artifacts": {
+                "messagesPath": "/poc/state/a7a789ab-acf4-43a6-8d80-c0c54b8705be/cline/data/sessions/1794114729113_2qd9r/1794114729113_2qd9r.messages.json"
+              },
+              "usage": {
+                "inputTokens": 0,
+                "outputTokens": 0,
+                "cacheReadTokens": 0,
+                "cacheWriteTokens": 0,
+                "totalCost": 0
+              },
+              "aggregateUsage": {
+                "inputTokens": 0,
+                "outputTokens": 0,
+                "cacheReadTokens": 0,
+                "cacheWriteTokens": 0,
+                "totalCost": 0
+              }
+            }
+          }
+        },
+        "eventId": "9",
+        "timestamp": "2026-11-08T05:12:09.481Z"
+      },
+      {
+        "sessionId": "a7a789ab-acf4-43a6-8d80-c0c54b8705be",
+        "taskId": "367b7ec4-4edb-4ade-aeec-bc8537360bf8",
+        "epoch": "6efa18e1-9689-4162-8a47-b89c5ef4a199",
+        "eventType": "native.event",
+        "payload": {
+          "type": "agent_event",
+          "payload": {
+            "sessionId": "1794114729113_2qd9r",
+            "event": {
+              "type": "iteration_start",
+              "iteration": 1
+            },
+            "teamRole": "lead"
+          }
+        },
+        "eventId": "10",
+        "timestamp": "2026-11-08T05:12:09.519Z"
+      },
+      {
+        "sessionId": "a7a789ab-acf4-43a6-8d80-c0c54b8705be",
+        "taskId": "367b7ec4-4edb-4ade-aeec-bc8537360bf8",
+        "epoch": "6efa18e1-9689-4162-8a47-b89c5ef4a199",
+        "eventType": "model.iteration.started",
+        "payload": {
+          "iteration": 1,
+          "source": "AgentEvent.iteration_start"
+        },
+        "eventId": "11",
+        "timestamp": "2026-11-08T05:12:09.519Z"
+      },
+      {
+        "sessionId": "a7a789ab-acf4-43a6-8d80-c0c54b8705be",
+        "taskId": "367b7ec4-4edb-4ade-aeec-bc8537360bf8",
+        "epoch": "6efa18e1-9689-4162-8a47-b89c5ef4a199",
+        "eventType": "native.event",
+        "payload": {
+          "type": "agent_event",
+          "payload": {
+            "sessionId": "1794114729113_2qd9r",
+            "event": {
+              "type": "content_start",
+              "contentType": "text",
+              "text": "I",
+              "accumulated": "I"
+            },
+            "teamRole": "lead"
+          }
+        },
+        "eventId": "12",
+        "timestamp": "2026-11-08T05:12:11.613Z"
+      },
+      {
+        "sessionId": "a7a789ab-acf4-43a6-8d80-c0c54b8705be",
+        "taskId": "367b7ec4-4edb-4ade-aeec-bc8537360bf8",
+        "epoch": "6efa18e1-9689-4162-8a47-b89c5ef4a199",
+        "eventType": "native.event",
+        "payload": {
+          "type": "agent_event",
+          "payload": {
+            "sessionId": "1794114729113_2qd9r",
+            "event": {
+              "type": "content_start",
+              "contentType": "text",
+              "text": "'ll call the `",
+              "accumulated": "I'll call the `"
+            },
+            "teamRole": "lead"
+          }
+        },
+        "eventId": "13",
+        "timestamp": "2026-11-08T05:12:11.678Z"
+      },
+      {
+        "sessionId": "a7a789ab-acf4-43a6-8d80-c0c54b8705be",
+        "taskId": "367b7ec4-4edb-4ade-aeec-bc8537360bf8",
+        "epoch": "6efa18e1-9689-4162-8a47-b89c5ef4a199",
+        "eventType": "native.event",
+        "payload": {
+          "type": "agent_event",
+          "payload": {
+            "sessionId": "1794114729113_2qd9r",
+            "event": {
+              "type": "content_start",
+              "contentType": "text",
+              "text": "tenant_data__long",
+              "accumulated": "I'll call the `tenant_data__long"
+            },
+            "teamRole": "lead"
+          }
+        },
+        "eventId": "14",
+        "timestamp": "2026-11-08T05:12:11.741Z"
+      },
+      {
+        "sessionId": "a7a789ab-acf4-43a6-8d80-c0c54b8705be",
+        "taskId": "367b7ec4-4edb-4ade-aeec-bc8537360bf8",
+        "epoch": "6efa18e1-9689-4162-8a47-b89c5ef4a199",
+        "eventType": "native.event",
+        "payload": {
+          "type": "agent_event",
+          "payload": {
+            "sessionId": "1794114729113_2qd9r",
+            "event": {
+              "type": "content_start",
+              "contentType": "text",
+              "text": "_mcp` tool",
+              "accumulated": "I'll call the `tenant_data__long_mcp` tool"
+            },
+            "teamRole": "lead"
+          }
+        },
+        "eventId": "15",
+        "timestamp": "2026-11-08T05:12:11.805Z"
+      },
+      {
+        "sessionId": "a7a789ab-acf4-43a6-8d80-c0c54b8705be",
+        "taskId": "367b7ec4-4edb-4ade-aeec-bc8537360bf8",
+        "epoch": "6efa18e1-9689-4162-8a47-b89c5ef4a199",
+        "eventType": "native.event",
+        "payload": {
+          "type": "agent_event",
+          "payload": {
+            "sessionId": "1794114729113_2qd9r",
+            "event": {
+              "type": "content_start",
+              "contentType": "text",
+              "text": " with the specified parameters",
+              "accumulated": "I'll call the `tenant_data__long_mcp` tool with the specified parameters"
+            },
+            "teamRole": "lead"
+          }
+        },
+        "eventId": "16",
+        "timestamp": "2026-11-08T05:12:11.869Z"
+      },
+      {
+        "sessionId": "a7a789ab-acf4-43a6-8d80-c0c54b8705be",
+        "taskId": "367b7ec4-4edb-4ade-aeec-bc8537360bf8",
+        "epoch": "6efa18e1-9689-4162-8a47-b89c5ef4a199",
+        "eventType": "native.event",
+        "payload": {
+          "type": "agent_event",
+          "payload": {
+            "sessionId": "1794114729113_2qd9r",
+            "event": {
+              "type": "content_start",
+              "contentType": "text",
+              "text": " now.\n\n",
+              "accumulated": "I'll call the `tenant_data__long_mcp` tool with the specified parameters now.\n\n"
+            },
+            "teamRole": "lead"
+          }
+        },
+        "eventId": "17",
+        "timestamp": "2026-11-08T05:12:11.934Z"
+      },
+      {
+        "sessionId": "a7a789ab-acf4-43a6-8d80-c0c54b8705be",
+        "taskId": "367b7ec4-4edb-4ade-aeec-bc8537360bf8",
+        "epoch": "6efa18e1-9689-4162-8a47-b89c5ef4a199",
+        "eventType": "native.event",
+        "payload": {
+          "type": "agent_event",
+          "payload": {
+            "sessionId": "1794114729113_2qd9r",
+            "event": {
+              "type": "usage",
+              "inputTokens": 3299,
+              "outputTokens": 72,
+              "reasoningTokenCount": 51,
+              "totalInputTokens": 3299,
+              "totalOutputTokens": 72,
+              "totalCost": 0
+            },
+            "teamRole": "lead"
+          }
+        },
+        "eventId": "18",
+        "timestamp": "2026-11-08T05:12:12.741Z"
+      },
+      {
+        "sessionId": "a7a789ab-acf4-43a6-8d80-c0c54b8705be",
+        "taskId": "367b7ec4-4edb-4ade-aeec-bc8537360bf8",
+        "epoch": "6efa18e1-9689-4162-8a47-b89c5ef4a199",
+        "eventType": "model.usage",
+        "payload": {
+          "type": "usage",
+          "inputTokens": 3299,
+          "outputTokens": 72,
+          "reasoningTokenCount": 51,
+          "totalInputTokens": 3299,
+          "totalOutputTokens": 72,
+          "totalCost": null,
+          "cost": null,
+          "costStatus": "unverified-native-pricing"
+        },
+        "eventId": "19",
+        "timestamp": "2026-11-08T05:12:12.744Z"
+      },
+      {
+        "sessionId": "a7a789ab-acf4-43a6-8d80-c0c54b8705be",
+        "taskId": "367b7ec4-4edb-4ade-aeec-bc8537360bf8",
+        "epoch": "6efa18e1-9689-4162-8a47-b89c5ef4a199",
+        "eventType": "native.event",
+        "payload": {
+          "type": "agent_event",
+          "payload": {
+            "sessionId": "1794114729113_2qd9r",
+            "event": {
+              "type": "content_end",
+              "contentType": "text",
+              "text": "I'll call the `tenant_data__long_mcp` tool with the specified parameters now.\n\n"
+            },
+            "teamRole": "lead"
+          }
+        },
+        "eventId": "20",
+        "timestamp": "2026-11-08T05:12:12.745Z"
+      },
+      {
+        "sessionId": "a7a789ab-acf4-43a6-8d80-c0c54b8705be",
+        "taskId": "367b7ec4-4edb-4ade-aeec-bc8537360bf8",
+        "epoch": "6efa18e1-9689-4162-8a47-b89c5ef4a199",
+        "eventType": "native.event",
+        "payload": {
+          "type": "status",
+          "payload": {
+            "sessionId": "1794114729113_2qd9r",
+            "status": "pending"
+          }
+        },
+        "eventId": "21",
+        "timestamp": "2026-11-08T05:12:12.773Z"
+      },
+      {
+        "sessionId": "a7a789ab-acf4-43a6-8d80-c0c54b8705be",
+        "taskId": "367b7ec4-4edb-4ade-aeec-bc8537360bf8",
+        "epoch": "6efa18e1-9689-4162-8a47-b89c5ef4a199",
+        "eventType": "native.event",
+        "payload": {
+          "type": "session_snapshot",
+          "payload": {
+            "sessionId": "1794114729113_2qd9r",
+            "snapshot": {
+              "version": 1,
+              "sessionId": "1794114729113_2qd9r",
+              "source": "vscode",
+              "status": "pending",
+              "createdAt": "2026-11-08T05:12:09.184Z",
+              "updatedAt": "2026-11-08T05:12:12.767Z",
+              "endedAt": null,
+              "exitCode": null,
+              "interactive": true,
+              "workspace": {
+                "cwd": "/poc/project",
+                "root": "/poc/project"
+              },
+              "model": {
+                "providerId": "openai-compatible",
+                "modelId": "qwen3.7-plus"
+              },
+              "capabilities": {
+                "enableTools": true,
+                "enableSpawn": false,
+                "enableTeams": false
+              },
+              "lineage": {
+                "isSubagent": false
+              },
+              "prompt": "<user_input mode=\"act\">Call the connected MCP tool tenant_data__long_mcp exactly once, with datasetId=\"dataset-a\". Set durationMs=60000. This is a real remote cancellation acceptance test. Do not use shell to implement the MCP task. Do not create or change project files. Wait for the MCP tool receipt before reporting its result.</user_input>",
+              "artifacts": {
+                "messagesPath": "/poc/state/a7a789ab-acf4-43a6-8d80-c0c54b8705be/cline/data/sessions/1794114729113_2qd9r/1794114729113_2qd9r.messages.json"
+              },
+              "usage": {
+                "inputTokens": 3299,
+                "outputTokens": 72,
+                "cacheReadTokens": 0,
+                "cacheWriteTokens": 0,
+                "totalCost": 0
+              },
+              "aggregateUsage": {
+                "inputTokens": 3299,
+                "outputTokens": 72,
+                "cacheReadTokens": 0,
+                "cacheWriteTokens": 0,
+                "totalCost": 0
+              },
+              "checkpoint": {
+                "latest": {
+                  "ref": "49bb00ce171ec8e46c2189918c121cef2cddd31f",
+                  "createdAt": 1794114729563,
+                  "runCount": 1,
+                  "kind": "commit"
+                },
+                "history": [
+                  {
+                    "ref": "49bb00ce171ec8e46c2189918c121cef2cddd31f",
+                    "createdAt": 1794114729563,
+                    "runCount": 1,
+                    "kind": "commit"
+                  }
+                ]
+              }
+            }
+          }
+        },
+        "eventId": "22",
+        "timestamp": "2026-11-08T05:12:12.773Z"
+      },
+      {
+        "sessionId": "a7a789ab-acf4-43a6-8d80-c0c54b8705be",
+        "taskId": "367b7ec4-4edb-4ade-aeec-bc8537360bf8",
+        "epoch": "6efa18e1-9689-4162-8a47-b89c5ef4a199",
+        "eventType": "permission.requested",
+        "payload": {
+          "id": "eea7dc7c-7b83-4e43-b882-4f0149769f05",
+          "sessionId": "a7a789ab-acf4-43a6-8d80-c0c54b8705be",
+          "taskId": "367b7ec4-4edb-4ade-aeec-bc8537360bf8",
+          "epoch": "6efa18e1-9689-4162-8a47-b89c5ef4a199",
+          "inputHash": "cb8f0da1c4d2420294c8436aa9296acf8ddcdd7bf02df9747eaa44086b1f8a77",
+          "toolCallId": "call_26d4e7fea76c4f6d9a64933e",
+          "toolName": "tenant_data__long_mcp",
+          "input": {
+            "datasetId": "dataset-a",
+            "durationMs": 60000
+          },
+          "expiresAt": 1794114912774,
+          "state": "pending"
+        },
+        "eventId": "23",
+        "timestamp": "2026-11-08T05:12:12.774Z"
+      },
+      {
+        "sessionId": "a7a789ab-acf4-43a6-8d80-c0c54b8705be",
+        "taskId": "367b7ec4-4edb-4ade-aeec-bc8537360bf8",
+        "epoch": "6efa18e1-9689-4162-8a47-b89c5ef4a199",
+        "eventType": "permission.decision",
+        "payload": {
+          "id": "eea7dc7c-7b83-4e43-b882-4f0149769f05",
+          "decision": "approve"
+        },
+        "eventId": "24",
+        "timestamp": "2026-11-08T05:12:13.831Z"
+      },
+      {
+        "sessionId": "a7a789ab-acf4-43a6-8d80-c0c54b8705be",
+        "taskId": "367b7ec4-4edb-4ade-aeec-bc8537360bf8",
+        "epoch": "6efa18e1-9689-4162-8a47-b89c5ef4a199",
+        "eventType": "permission.resolved",
+        "payload": {
+          "id": "eea7dc7c-7b83-4e43-b882-4f0149769f05",
+          "decision": "approve",
+          "applied": true
+        },
+        "eventId": "25",
+        "timestamp": "2026-11-08T05:12:13.835Z"
+      },
+      {
+        "sessionId": "a7a789ab-acf4-43a6-8d80-c0c54b8705be",
+        "taskId": "367b7ec4-4edb-4ade-aeec-bc8537360bf8",
+        "epoch": "6efa18e1-9689-4162-8a47-b89c5ef4a199",
+        "eventType": "native.event",
+        "payload": {
+          "type": "status",
+          "payload": {
+            "sessionId": "1794114729113_2qd9r",
+            "status": "running"
+          }
+        },
+        "eventId": "26",
+        "timestamp": "2026-11-08T05:12:13.837Z"
+      },
+      {
+        "sessionId": "a7a789ab-acf4-43a6-8d80-c0c54b8705be",
+        "taskId": "367b7ec4-4edb-4ade-aeec-bc8537360bf8",
+        "epoch": "6efa18e1-9689-4162-8a47-b89c5ef4a199",
+        "eventType": "native.event",
+        "payload": {
+          "type": "session_snapshot",
+          "payload": {
+            "sessionId": "1794114729113_2qd9r",
+            "snapshot": {
+              "version": 1,
+              "sessionId": "1794114729113_2qd9r",
+              "source": "vscode",
+              "status": "running",
+              "createdAt": "2026-11-08T05:12:09.184Z",
+              "updatedAt": "2026-11-08T05:12:13.836Z",
+              "endedAt": null,
+              "exitCode": null,
+              "interactive": true,
+              "workspace": {
+                "cwd": "/poc/project",
+                "root": "/poc/project"
+              },
+              "model": {
+                "providerId": "openai-compatible",
+                "modelId": "qwen3.7-plus"
+              },
+              "capabilities": {
+                "enableTools": true,
+                "enableSpawn": false,
+                "enableTeams": false
+              },
+              "lineage": {
+                "isSubagent": false
+              },
+              "prompt": "<user_input mode=\"act\">Call the connected MCP tool tenant_data__long_mcp exactly once, with datasetId=\"dataset-a\". Set durationMs=60000. This is a real remote cancellation acceptance test. Do not use shell to implement the MCP task. Do not create or change project files. Wait for the MCP tool receipt before reporting its result.</user_input>",
+              "artifacts": {
+                "messagesPath": "/poc/state/a7a789ab-acf4-43a6-8d80-c0c54b8705be/cline/data/sessions/1794114729113_2qd9r/1794114729113_2qd9r.messages.json"
+              },
+              "usage": {
+                "inputTokens": 3299,
+                "outputTokens": 72,
+                "cacheReadTokens": 0,
+                "cacheWriteTokens": 0,
+                "totalCost": 0
+              },
+              "aggregateUsage": {
+                "inputTokens": 3299,
+                "outputTokens": 72,
+                "cacheReadTokens": 0,
+                "cacheWriteTokens": 0,
+                "totalCost": 0
+              },
+              "checkpoint": {
+                "latest": {
+                  "ref": "49bb00ce171ec8e46c2189918c121cef2cddd31f",
+                  "createdAt": 1794114729563,
+                  "runCount": 1,
+                  "kind": "commit"
+                },
+                "history": [
+                  {
+                    "ref": "49bb00ce171ec8e46c2189918c121cef2cddd31f",
+                    "createdAt": 1794114729563,
+                    "runCount": 1,
+                    "kind": "commit"
+                  }
+                ]
+              }
+            }
+          }
+        },
+        "eventId": "27",
+        "timestamp": "2026-11-08T05:12:13.839Z"
+      },
+      {
+        "sessionId": "a7a789ab-acf4-43a6-8d80-c0c54b8705be",
+        "taskId": "367b7ec4-4edb-4ade-aeec-bc8537360bf8",
+        "epoch": "6efa18e1-9689-4162-8a47-b89c5ef4a199",
+        "eventType": "native.event",
+        "payload": {
+          "type": "agent_event",
+          "payload": {
+            "sessionId": "1794114729113_2qd9r",
+            "event": {
+              "type": "content_start",
+              "contentType": "tool",
+              "toolName": "tenant_data__long_mcp",
+              "toolCallId": "call_26d4e7fea76c4f6d9a64933e",
+              "input": {
+                "datasetId": "dataset-a",
+                "durationMs": 60000
+              }
+            },
+            "teamRole": "lead"
+          }
+        },
+        "eventId": "28",
+        "timestamp": "2026-11-08T05:12:13.841Z"
+      },
+      {
+        "sessionId": "a7a789ab-acf4-43a6-8d80-c0c54b8705be",
+        "taskId": "367b7ec4-4edb-4ade-aeec-bc8537360bf8",
+        "epoch": "6efa18e1-9689-4162-8a47-b89c5ef4a199",
+        "eventType": "tool.started",
+        "payload": {
+          "type": "content_start",
+          "contentType": "tool",
+          "toolName": "tenant_data__long_mcp",
+          "toolCallId": "call_26d4e7fea76c4f6d9a64933e",
+          "input": {
+            "datasetId": "dataset-a",
+            "durationMs": 60000
+          }
+        },
+        "eventId": "29",
+        "timestamp": "2026-11-08T05:12:13.845Z"
+      }
+    ]
+  }
+]

@@ -1,0 +1,1031 @@
+[
+  {
+    "case": "complete-session",
+    "pass": true,
+    "detail": {
+      "epoch": "protocol-epoch",
+      "active": true,
+      "fencingToken": 1
+    }
+  },
+  {
+    "case": "complete-durable-binding",
+    "pass": true,
+    "detail": {
+      "operationId": "cline-0fbfa91613400fcb4f598919de53445839a33d0efac408a7e21fc5902824a74e",
+      "nativeSessionId": "protocol-test-session",
+      "nativeToolCallId": "aecfd2c93c254daebeefb18606c876dc",
+      "toolName": "long_mcp",
+      "epoch": "protocol-epoch",
+      "argumentsHash": "ebaac35816dea535a0bc7a20153fc3da91b289bd238414d973e0e4ded22cc66c",
+      "state": "PENDING",
+      "fencingToken": 1,
+      "arguments": {
+        "datasetId": "stage2",
+        "durationMs": 1500
+      },
+      "identity": {
+        "tenantId": "stage2-protocol",
+        "userId": "alice",
+        "sessionId": "complete-6d9df023",
+        "taskId": "complete",
+        "expiresAt": 1794119538347
+      }
+    }
+  },
+  {
+    "case": "real-mcp-completed",
+    "pass": true,
+    "detail": {
+      "dispatch": [
+        [
+          200,
+          {
+            "operation": {
+              "operationId": "cline-0fbfa91613400fcb4f598919de53445839a33d0efac408a7e21fc5902824a74e",
+              "nativeSessionId": "protocol-test-session",
+              "nativeToolCallId": "aecfd2c93c254daebeefb18606c876dc",
+              "toolName": "long_mcp",
+              "epoch": "protocol-epoch",
+              "argumentsHash": "ebaac35816dea535a0bc7a20153fc3da91b289bd238414d973e0e4ded22cc66c",
+              "state": "COMPLETED",
+              "fencingToken": 1,
+              "arguments": {
+                "datasetId": "stage2",
+                "durationMs": 1500
+              },
+              "identity": {
+                "tenantId": "stage2-protocol",
+                "userId": "alice",
+                "sessionId": "complete-6d9df023",
+                "taskId": "complete",
+                "expiresAt": 1794119538347
+              },
+              "dispatchIntent": true,
+              "mcpResponse": {
+                "jsonrpc": "2.0",
+                "id": 17,
+                "result": {
+                  "content": [
+                    {
+                      "type": "text",
+                      "text": "{\"operationId\":\"cline-0fbfa91613400fcb4f598919de53445839a33d0efac408a7e21fc5902824a74e\",\"identity\":{\"tenantId\":\"stage2-protocol\",\"userId\":\"alice\",\"sessionId\":\"complete-6d9df023\",\"taskId\":\"complete\",\"expiresAt\":1794119538347},\"argumentsHash\":\"ebaac35816dea535a0bc7a20153fc3da91b289bd238414d973e0e4ded22cc66c\",\"fencingToken\":1,\"epoch\":\"protocol-epoch\",\"toolName\":\"long_mcp\",\"startedAt\":\"2026-11-08T05:32:19.778Z\",\"finishedAt\":\"2026-11-08T05:32:21.387Z\",\"stopConfirmed\":true,\"cancelRequested\":false,\"pid\":887,\"startTicks\":\"1530779952\",\"resultSha256\":\"5c25e21aff0c3001acf137b5c9f6d86ffad9ca4110e1caad55962ae75e3eb0ba\",\"exitCode\":0}"
+                    }
+                  ],
+                  "isError": false
+                }
+              },
+              "stopProofRef": "native-mcp-receipt:99c5d258259954e6a30edf4ef8ca1f1d35b2cc0518a5e7dec9a2a3e74abcf019",
+              "receipt": {
+                "operationId": "cline-0fbfa91613400fcb4f598919de53445839a33d0efac408a7e21fc5902824a74e",
+                "identity": {
+                  "tenantId": "stage2-protocol",
+                  "userId": "alice",
+                  "sessionId": "complete-6d9df023",
+                  "taskId": "complete",
+                  "expiresAt": 1794119538347
+                },
+                "argumentsHash": "ebaac35816dea535a0bc7a20153fc3da91b289bd238414d973e0e4ded22cc66c",
+                "fencingToken": 1,
+                "epoch": "protocol-epoch",
+                "toolName": "long_mcp",
+                "startedAt": "2026-11-08T05:32:19.778Z",
+                "finishedAt": "2026-11-08T05:32:21.387Z",
+                "stopConfirmed": true,
+                "cancelRequested": false,
+                "pid": 887,
+                "startTicks": "1530779952",
+                "resultSha256": "5c25e21aff0c3001acf137b5c9f6d86ffad9ca4110e1caad55962ae75e3eb0ba",
+                "exitCode": 0
+              }
+            },
+            "mcpResponse": {
+              "jsonrpc": "2.0",
+              "id": 17,
+              "result": {
+                "content": [
+                  {
+                    "type": "text",
+                    "text": "{\"operationId\":\"cline-0fbfa91613400fcb4f598919de53445839a33d0efac408a7e21fc5902824a74e\",\"identity\":{\"tenantId\":\"stage2-protocol\",\"userId\":\"alice\",\"sessionId\":\"complete-6d9df023\",\"taskId\":\"complete\",\"expiresAt\":1794119538347},\"argumentsHash\":\"ebaac35816dea535a0bc7a20153fc3da91b289bd238414d973e0e4ded22cc66c\",\"fencingToken\":1,\"epoch\":\"protocol-epoch\",\"toolName\":\"long_mcp\",\"startedAt\":\"2026-11-08T05:32:19.778Z\",\"finishedAt\":\"2026-11-08T05:32:21.387Z\",\"stopConfirmed\":true,\"cancelRequested\":false,\"pid\":887,\"startTicks\":\"1530779952\",\"resultSha256\":\"5c25e21aff0c3001acf137b5c9f6d86ffad9ca4110e1caad55962ae75e3eb0ba\",\"exitCode\":0}"
+                  }
+                ],
+                "isError": false
+              }
+            }
+          }
+        ]
+      ],
+      "state": {
+        "operationId": "cline-0fbfa91613400fcb4f598919de53445839a33d0efac408a7e21fc5902824a74e",
+        "nativeSessionId": "protocol-test-session",
+        "nativeToolCallId": "aecfd2c93c254daebeefb18606c876dc",
+        "toolName": "long_mcp",
+        "epoch": "protocol-epoch",
+        "argumentsHash": "ebaac35816dea535a0bc7a20153fc3da91b289bd238414d973e0e4ded22cc66c",
+        "state": "COMPLETED",
+        "fencingToken": 1,
+        "arguments": {
+          "datasetId": "stage2",
+          "durationMs": 1500
+        },
+        "identity": {
+          "tenantId": "stage2-protocol",
+          "userId": "alice",
+          "sessionId": "complete-6d9df023",
+          "taskId": "complete",
+          "expiresAt": 1794119538347
+        },
+        "dispatchIntent": true,
+        "mcpResponse": {
+          "jsonrpc": "2.0",
+          "id": 17,
+          "result": {
+            "content": [
+              {
+                "type": "text",
+                "text": "{\"operationId\":\"cline-0fbfa91613400fcb4f598919de53445839a33d0efac408a7e21fc5902824a74e\",\"identity\":{\"tenantId\":\"stage2-protocol\",\"userId\":\"alice\",\"sessionId\":\"complete-6d9df023\",\"taskId\":\"complete\",\"expiresAt\":1794119538347},\"argumentsHash\":\"ebaac35816dea535a0bc7a20153fc3da91b289bd238414d973e0e4ded22cc66c\",\"fencingToken\":1,\"epoch\":\"protocol-epoch\",\"toolName\":\"long_mcp\",\"startedAt\":\"2026-11-08T05:32:19.778Z\",\"finishedAt\":\"2026-11-08T05:32:21.387Z\",\"stopConfirmed\":true,\"cancelRequested\":false,\"pid\":887,\"startTicks\":\"1530779952\",\"resultSha256\":\"5c25e21aff0c3001acf137b5c9f6d86ffad9ca4110e1caad55962ae75e3eb0ba\",\"exitCode\":0}"
+              }
+            ],
+            "isError": false
+          }
+        },
+        "stopProofRef": "native-mcp-receipt:99c5d258259954e6a30edf4ef8ca1f1d35b2cc0518a5e7dec9a2a3e74abcf019",
+        "receipt": {
+          "operationId": "cline-0fbfa91613400fcb4f598919de53445839a33d0efac408a7e21fc5902824a74e",
+          "identity": {
+            "tenantId": "stage2-protocol",
+            "userId": "alice",
+            "sessionId": "complete-6d9df023",
+            "taskId": "complete",
+            "expiresAt": 1794119538347
+          },
+          "argumentsHash": "ebaac35816dea535a0bc7a20153fc3da91b289bd238414d973e0e4ded22cc66c",
+          "fencingToken": 1,
+          "epoch": "protocol-epoch",
+          "toolName": "long_mcp",
+          "startedAt": "2026-11-08T05:32:19.778Z",
+          "finishedAt": "2026-11-08T05:32:21.387Z",
+          "stopConfirmed": true,
+          "cancelRequested": false,
+          "pid": 887,
+          "startTicks": "1530779952",
+          "resultSha256": "5c25e21aff0c3001acf137b5c9f6d86ffad9ca4110e1caad55962ae75e3eb0ba",
+          "exitCode": 0
+        }
+      }
+    }
+  },
+  {
+    "case": "different-jsonrpc-id-same-operation",
+    "pass": true,
+    "detail": [
+      200,
+      {
+        "mcpResponse": {
+          "jsonrpc": "2.0",
+          "id": 17,
+          "result": {
+            "content": [
+              {
+                "type": "text",
+                "text": "{\"operationId\":\"cline-0fbfa91613400fcb4f598919de53445839a33d0efac408a7e21fc5902824a74e\",\"identity\":{\"tenantId\":\"stage2-protocol\",\"userId\":\"alice\",\"sessionId\":\"complete-6d9df023\",\"taskId\":\"complete\",\"expiresAt\":1794119538347},\"argumentsHash\":\"ebaac35816dea535a0bc7a20153fc3da91b289bd238414d973e0e4ded22cc66c\",\"fencingToken\":1,\"epoch\":\"protocol-epoch\",\"toolName\":\"long_mcp\",\"startedAt\":\"2026-11-08T05:32:19.778Z\",\"finishedAt\":\"2026-11-08T05:32:21.387Z\",\"stopConfirmed\":true,\"cancelRequested\":false,\"pid\":887,\"startTicks\":\"1530779952\",\"resultSha256\":\"5c25e21aff0c3001acf137b5c9f6d86ffad9ca4110e1caad55962ae75e3eb0ba\",\"exitCode\":0}"
+              }
+            ],
+            "isError": false
+          }
+        }
+      }
+    ]
+  },
+  {
+    "case": "late-cancel-does-not-rewrite-completion",
+    "pass": true,
+    "detail": [
+      200,
+      {
+        "operationId": "cline-0fbfa91613400fcb4f598919de53445839a33d0efac408a7e21fc5902824a74e",
+        "nativeSessionId": "protocol-test-session",
+        "nativeToolCallId": "aecfd2c93c254daebeefb18606c876dc",
+        "toolName": "long_mcp",
+        "epoch": "protocol-epoch",
+        "argumentsHash": "ebaac35816dea535a0bc7a20153fc3da91b289bd238414d973e0e4ded22cc66c",
+        "state": "COMPLETED",
+        "fencingToken": 1,
+        "arguments": {
+          "datasetId": "stage2",
+          "durationMs": 1500
+        },
+        "identity": {
+          "tenantId": "stage2-protocol",
+          "userId": "alice",
+          "sessionId": "complete-6d9df023",
+          "taskId": "complete",
+          "expiresAt": 1794119538347
+        },
+        "dispatchIntent": true,
+        "mcpResponse": {
+          "jsonrpc": "2.0",
+          "id": 17,
+          "result": {
+            "content": [
+              {
+                "type": "text",
+                "text": "{\"operationId\":\"cline-0fbfa91613400fcb4f598919de53445839a33d0efac408a7e21fc5902824a74e\",\"identity\":{\"tenantId\":\"stage2-protocol\",\"userId\":\"alice\",\"sessionId\":\"complete-6d9df023\",\"taskId\":\"complete\",\"expiresAt\":1794119538347},\"argumentsHash\":\"ebaac35816dea535a0bc7a20153fc3da91b289bd238414d973e0e4ded22cc66c\",\"fencingToken\":1,\"epoch\":\"protocol-epoch\",\"toolName\":\"long_mcp\",\"startedAt\":\"2026-11-08T05:32:19.778Z\",\"finishedAt\":\"2026-11-08T05:32:21.387Z\",\"stopConfirmed\":true,\"cancelRequested\":false,\"pid\":887,\"startTicks\":\"1530779952\",\"resultSha256\":\"5c25e21aff0c3001acf137b5c9f6d86ffad9ca4110e1caad55962ae75e3eb0ba\",\"exitCode\":0}"
+              }
+            ],
+            "isError": false
+          }
+        },
+        "stopProofRef": "native-mcp-receipt:99c5d258259954e6a30edf4ef8ca1f1d35b2cc0518a5e7dec9a2a3e74abcf019",
+        "receipt": {
+          "operationId": "cline-0fbfa91613400fcb4f598919de53445839a33d0efac408a7e21fc5902824a74e",
+          "identity": {
+            "tenantId": "stage2-protocol",
+            "userId": "alice",
+            "sessionId": "complete-6d9df023",
+            "taskId": "complete",
+            "expiresAt": 1794119538347
+          },
+          "argumentsHash": "ebaac35816dea535a0bc7a20153fc3da91b289bd238414d973e0e4ded22cc66c",
+          "fencingToken": 1,
+          "epoch": "protocol-epoch",
+          "toolName": "long_mcp",
+          "startedAt": "2026-11-08T05:32:19.778Z",
+          "finishedAt": "2026-11-08T05:32:21.387Z",
+          "stopConfirmed": true,
+          "cancelRequested": false,
+          "pid": 887,
+          "startTicks": "1530779952",
+          "resultSha256": "5c25e21aff0c3001acf137b5c9f6d86ffad9ca4110e1caad55962ae75e3eb0ba",
+          "exitCode": 0
+        }
+      }
+    ]
+  },
+  {
+    "case": "same-native-call-mutated-arguments-rejected",
+    "pass": true,
+    "detail": [
+      409,
+      {
+        "error": "SecurityException",
+        "message": "Immutable native operation conflict"
+      }
+    ]
+  },
+  {
+    "case": "jsonrpc-id-cannot-be-operation-id",
+    "pass": true,
+    "detail": [
+      409,
+      {
+        "error": "SecurityException",
+        "message": "Invalid operation ID"
+      }
+    ]
+  },
+  {
+    "case": "mcp-cancel-session",
+    "pass": true,
+    "detail": {
+      "epoch": "protocol-epoch",
+      "active": true,
+      "fencingToken": 1
+    }
+  },
+  {
+    "case": "mcp-cancel-durable-binding",
+    "pass": true,
+    "detail": {
+      "operationId": "cline-6ce470e2d642d093cbdb87defecd67291febab8dbfe91e84003e7820a71f77d5",
+      "nativeSessionId": "protocol-test-session",
+      "nativeToolCallId": "b3d2ded7f317482689feec83ccc2ad4a",
+      "toolName": "long_mcp",
+      "epoch": "protocol-epoch",
+      "argumentsHash": "d4e1715964c0c7cd72f50af1c9cd4810953fd2ae81c1c3ccb7a5d470780c7380",
+      "state": "PENDING",
+      "fencingToken": 1,
+      "arguments": {
+        "datasetId": "stage2",
+        "durationMs": 60000
+      },
+      "identity": {
+        "tenantId": "stage2-protocol",
+        "userId": "alice",
+        "sessionId": "mcp-cancel-27bb24c5",
+        "taskId": "mcp-cancel",
+        "expiresAt": 1794119547247
+      }
+    }
+  },
+  {
+    "case": "mcp-cancel-real-running",
+    "pass": true,
+    "detail": {
+      "operationId": "cline-6ce470e2d642d093cbdb87defecd67291febab8dbfe91e84003e7820a71f77d5",
+      "nativeSessionId": "protocol-test-session",
+      "nativeToolCallId": "b3d2ded7f317482689feec83ccc2ad4a",
+      "toolName": "long_mcp",
+      "epoch": "protocol-epoch",
+      "argumentsHash": "d4e1715964c0c7cd72f50af1c9cd4810953fd2ae81c1c3ccb7a5d470780c7380",
+      "state": "RUNNING",
+      "fencingToken": 1,
+      "arguments": {
+        "datasetId": "stage2",
+        "durationMs": 60000
+      },
+      "identity": {
+        "tenantId": "stage2-protocol",
+        "userId": "alice",
+        "sessionId": "mcp-cancel-27bb24c5",
+        "taskId": "mcp-cancel",
+        "expiresAt": 1794119547247
+      },
+      "dispatchIntent": true
+    }
+  },
+  {
+    "case": "mcp-cancel-duplicate-no-redispatch",
+    "pass": true,
+    "detail": [
+      503,
+      {
+        "error": "IllegalStateException",
+        "message": "OPERATION_QUERY_ONLY: no repeat dispatch"
+      }
+    ]
+  },
+  {
+    "case": "mcp-cancel-stop-receipt",
+    "pass": true,
+    "detail": {
+      "cancel": {
+        "operationId": "cline-6ce470e2d642d093cbdb87defecd67291febab8dbfe91e84003e7820a71f77d5",
+        "nativeSessionId": "protocol-test-session",
+        "nativeToolCallId": "b3d2ded7f317482689feec83ccc2ad4a",
+        "toolName": "long_mcp",
+        "epoch": "protocol-epoch",
+        "argumentsHash": "d4e1715964c0c7cd72f50af1c9cd4810953fd2ae81c1c3ccb7a5d470780c7380",
+        "state": "CANCELLED",
+        "fencingToken": 1,
+        "arguments": {
+          "datasetId": "stage2",
+          "durationMs": 60000
+        },
+        "identity": {
+          "tenantId": "stage2-protocol",
+          "userId": "alice",
+          "sessionId": "mcp-cancel-27bb24c5",
+          "taskId": "mcp-cancel",
+          "expiresAt": 1794119547247
+        },
+        "dispatchIntent": true,
+        "mcpResponse": {
+          "jsonrpc": "2.0",
+          "id": 17,
+          "result": {
+            "content": [
+              {
+                "type": "text",
+                "text": "{\"operationId\":\"cline-6ce470e2d642d093cbdb87defecd67291febab8dbfe91e84003e7820a71f77d5\",\"identity\":{\"tenantId\":\"stage2-protocol\",\"userId\":\"alice\",\"sessionId\":\"mcp-cancel-27bb24c5\",\"taskId\":\"mcp-cancel\",\"expiresAt\":1794119547247},\"argumentsHash\":\"d4e1715964c0c7cd72f50af1c9cd4810953fd2ae81c1c3ccb7a5d470780c7380\",\"fencingToken\":1,\"epoch\":\"protocol-epoch\",\"toolName\":\"long_mcp\",\"startedAt\":\"2026-11-08T05:32:28.893Z\",\"finishedAt\":\"2026-11-08T05:32:31.211Z\",\"stopConfirmed\":true,\"cancelRequested\":true,\"pid\":922,\"startTicks\":\"1530780863\",\"processAbsent\":true}"
+              }
+            ],
+            "isError": false
+          }
+        },
+        "stopProofRef": "native-mcp-receipt:ae9830000b5effecd07896be537efa5ca85d6a074aa996167912bc613d994d6a",
+        "receipt": {
+          "operationId": "cline-6ce470e2d642d093cbdb87defecd67291febab8dbfe91e84003e7820a71f77d5",
+          "identity": {
+            "tenantId": "stage2-protocol",
+            "userId": "alice",
+            "sessionId": "mcp-cancel-27bb24c5",
+            "taskId": "mcp-cancel",
+            "expiresAt": 1794119547247
+          },
+          "argumentsHash": "d4e1715964c0c7cd72f50af1c9cd4810953fd2ae81c1c3ccb7a5d470780c7380",
+          "fencingToken": 1,
+          "epoch": "protocol-epoch",
+          "toolName": "long_mcp",
+          "startedAt": "2026-11-08T05:32:28.893Z",
+          "finishedAt": "2026-11-08T05:32:31.211Z",
+          "stopConfirmed": true,
+          "cancelRequested": true,
+          "pid": 922,
+          "startTicks": "1530780863",
+          "processAbsent": true
+        }
+      },
+      "final": {
+        "operationId": "cline-6ce470e2d642d093cbdb87defecd67291febab8dbfe91e84003e7820a71f77d5",
+        "nativeSessionId": "protocol-test-session",
+        "nativeToolCallId": "b3d2ded7f317482689feec83ccc2ad4a",
+        "toolName": "long_mcp",
+        "epoch": "protocol-epoch",
+        "argumentsHash": "d4e1715964c0c7cd72f50af1c9cd4810953fd2ae81c1c3ccb7a5d470780c7380",
+        "state": "CANCELLED",
+        "fencingToken": 1,
+        "arguments": {
+          "datasetId": "stage2",
+          "durationMs": 60000
+        },
+        "identity": {
+          "tenantId": "stage2-protocol",
+          "userId": "alice",
+          "sessionId": "mcp-cancel-27bb24c5",
+          "taskId": "mcp-cancel",
+          "expiresAt": 1794119547247
+        },
+        "dispatchIntent": true,
+        "mcpResponse": {
+          "jsonrpc": "2.0",
+          "id": 17,
+          "result": {
+            "content": [
+              {
+                "type": "text",
+                "text": "{\"operationId\":\"cline-6ce470e2d642d093cbdb87defecd67291febab8dbfe91e84003e7820a71f77d5\",\"identity\":{\"tenantId\":\"stage2-protocol\",\"userId\":\"alice\",\"sessionId\":\"mcp-cancel-27bb24c5\",\"taskId\":\"mcp-cancel\",\"expiresAt\":1794119547247},\"argumentsHash\":\"d4e1715964c0c7cd72f50af1c9cd4810953fd2ae81c1c3ccb7a5d470780c7380\",\"fencingToken\":1,\"epoch\":\"protocol-epoch\",\"toolName\":\"long_mcp\",\"startedAt\":\"2026-11-08T05:32:28.893Z\",\"finishedAt\":\"2026-11-08T05:32:31.211Z\",\"stopConfirmed\":true,\"cancelRequested\":true,\"pid\":922,\"startTicks\":\"1530780863\",\"processAbsent\":true}"
+              }
+            ],
+            "isError": false
+          }
+        },
+        "stopProofRef": "native-mcp-receipt:ae9830000b5effecd07896be537efa5ca85d6a074aa996167912bc613d994d6a",
+        "receipt": {
+          "operationId": "cline-6ce470e2d642d093cbdb87defecd67291febab8dbfe91e84003e7820a71f77d5",
+          "identity": {
+            "tenantId": "stage2-protocol",
+            "userId": "alice",
+            "sessionId": "mcp-cancel-27bb24c5",
+            "taskId": "mcp-cancel",
+            "expiresAt": 1794119547247
+          },
+          "argumentsHash": "d4e1715964c0c7cd72f50af1c9cd4810953fd2ae81c1c3ccb7a5d470780c7380",
+          "fencingToken": 1,
+          "epoch": "protocol-epoch",
+          "toolName": "long_mcp",
+          "startedAt": "2026-11-08T05:32:28.893Z",
+          "finishedAt": "2026-11-08T05:32:31.211Z",
+          "stopConfirmed": true,
+          "cancelRequested": true,
+          "pid": 922,
+          "startTicks": "1530780863",
+          "processAbsent": true
+        }
+      },
+      "dispatch": [
+        [
+          200,
+          {
+            "operation": {
+              "operationId": "cline-6ce470e2d642d093cbdb87defecd67291febab8dbfe91e84003e7820a71f77d5",
+              "nativeSessionId": "protocol-test-session",
+              "nativeToolCallId": "b3d2ded7f317482689feec83ccc2ad4a",
+              "toolName": "long_mcp",
+              "epoch": "protocol-epoch",
+              "argumentsHash": "d4e1715964c0c7cd72f50af1c9cd4810953fd2ae81c1c3ccb7a5d470780c7380",
+              "state": "CANCELLED",
+              "fencingToken": 1,
+              "arguments": {
+                "datasetId": "stage2",
+                "durationMs": 60000
+              },
+              "identity": {
+                "tenantId": "stage2-protocol",
+                "userId": "alice",
+                "sessionId": "mcp-cancel-27bb24c5",
+                "taskId": "mcp-cancel",
+                "expiresAt": 1794119547247
+              },
+              "dispatchIntent": true,
+              "mcpResponse": {
+                "jsonrpc": "2.0",
+                "id": 17,
+                "result": {
+                  "content": [
+                    {
+                      "type": "text",
+                      "text": "{\"operationId\":\"cline-6ce470e2d642d093cbdb87defecd67291febab8dbfe91e84003e7820a71f77d5\",\"identity\":{\"tenantId\":\"stage2-protocol\",\"userId\":\"alice\",\"sessionId\":\"mcp-cancel-27bb24c5\",\"taskId\":\"mcp-cancel\",\"expiresAt\":1794119547247},\"argumentsHash\":\"d4e1715964c0c7cd72f50af1c9cd4810953fd2ae81c1c3ccb7a5d470780c7380\",\"fencingToken\":1,\"epoch\":\"protocol-epoch\",\"toolName\":\"long_mcp\",\"startedAt\":\"2026-11-08T05:32:28.893Z\",\"finishedAt\":\"2026-11-08T05:32:31.211Z\",\"stopConfirmed\":true,\"cancelRequested\":true,\"pid\":922,\"startTicks\":\"1530780863\",\"processAbsent\":true}"
+                    }
+                  ],
+                  "isError": false
+                }
+              },
+              "stopProofRef": "native-mcp-receipt:ae9830000b5effecd07896be537efa5ca85d6a074aa996167912bc613d994d6a",
+              "receipt": {
+                "operationId": "cline-6ce470e2d642d093cbdb87defecd67291febab8dbfe91e84003e7820a71f77d5",
+                "identity": {
+                  "tenantId": "stage2-protocol",
+                  "userId": "alice",
+                  "sessionId": "mcp-cancel-27bb24c5",
+                  "taskId": "mcp-cancel",
+                  "expiresAt": 1794119547247
+                },
+                "argumentsHash": "d4e1715964c0c7cd72f50af1c9cd4810953fd2ae81c1c3ccb7a5d470780c7380",
+                "fencingToken": 1,
+                "epoch": "protocol-epoch",
+                "toolName": "long_mcp",
+                "startedAt": "2026-11-08T05:32:28.893Z",
+                "finishedAt": "2026-11-08T05:32:31.211Z",
+                "stopConfirmed": true,
+                "cancelRequested": true,
+                "pid": 922,
+                "startTicks": "1530780863",
+                "processAbsent": true
+              }
+            },
+            "mcpResponse": {
+              "jsonrpc": "2.0",
+              "id": 17,
+              "result": {
+                "content": [
+                  {
+                    "type": "text",
+                    "text": "{\"operationId\":\"cline-6ce470e2d642d093cbdb87defecd67291febab8dbfe91e84003e7820a71f77d5\",\"identity\":{\"tenantId\":\"stage2-protocol\",\"userId\":\"alice\",\"sessionId\":\"mcp-cancel-27bb24c5\",\"taskId\":\"mcp-cancel\",\"expiresAt\":1794119547247},\"argumentsHash\":\"d4e1715964c0c7cd72f50af1c9cd4810953fd2ae81c1c3ccb7a5d470780c7380\",\"fencingToken\":1,\"epoch\":\"protocol-epoch\",\"toolName\":\"long_mcp\",\"startedAt\":\"2026-11-08T05:32:28.893Z\",\"finishedAt\":\"2026-11-08T05:32:31.211Z\",\"stopConfirmed\":true,\"cancelRequested\":true,\"pid\":922,\"startTicks\":\"1530780863\",\"processAbsent\":true}"
+                  }
+                ],
+                "isError": false
+              }
+            }
+          }
+        ]
+      ]
+    }
+  },
+  {
+    "case": "mcp-cancel-repeat-cancel",
+    "pass": true,
+    "detail": [
+      200,
+      {
+        "operationId": "cline-6ce470e2d642d093cbdb87defecd67291febab8dbfe91e84003e7820a71f77d5",
+        "nativeSessionId": "protocol-test-session",
+        "nativeToolCallId": "b3d2ded7f317482689feec83ccc2ad4a",
+        "toolName": "long_mcp",
+        "epoch": "protocol-epoch",
+        "argumentsHash": "d4e1715964c0c7cd72f50af1c9cd4810953fd2ae81c1c3ccb7a5d470780c7380",
+        "state": "CANCELLED",
+        "fencingToken": 1,
+        "arguments": {
+          "datasetId": "stage2",
+          "durationMs": 60000
+        },
+        "identity": {
+          "tenantId": "stage2-protocol",
+          "userId": "alice",
+          "sessionId": "mcp-cancel-27bb24c5",
+          "taskId": "mcp-cancel",
+          "expiresAt": 1794119547247
+        },
+        "dispatchIntent": true,
+        "mcpResponse": {
+          "jsonrpc": "2.0",
+          "id": 17,
+          "result": {
+            "content": [
+              {
+                "type": "text",
+                "text": "{\"operationId\":\"cline-6ce470e2d642d093cbdb87defecd67291febab8dbfe91e84003e7820a71f77d5\",\"identity\":{\"tenantId\":\"stage2-protocol\",\"userId\":\"alice\",\"sessionId\":\"mcp-cancel-27bb24c5\",\"taskId\":\"mcp-cancel\",\"expiresAt\":1794119547247},\"argumentsHash\":\"d4e1715964c0c7cd72f50af1c9cd4810953fd2ae81c1c3ccb7a5d470780c7380\",\"fencingToken\":1,\"epoch\":\"protocol-epoch\",\"toolName\":\"long_mcp\",\"startedAt\":\"2026-11-08T05:32:28.893Z\",\"finishedAt\":\"2026-11-08T05:32:31.211Z\",\"stopConfirmed\":true,\"cancelRequested\":true,\"pid\":922,\"startTicks\":\"1530780863\",\"processAbsent\":true}"
+              }
+            ],
+            "isError": false
+          }
+        },
+        "stopProofRef": "native-mcp-receipt:ae9830000b5effecd07896be537efa5ca85d6a074aa996167912bc613d994d6a",
+        "receipt": {
+          "operationId": "cline-6ce470e2d642d093cbdb87defecd67291febab8dbfe91e84003e7820a71f77d5",
+          "identity": {
+            "tenantId": "stage2-protocol",
+            "userId": "alice",
+            "sessionId": "mcp-cancel-27bb24c5",
+            "taskId": "mcp-cancel",
+            "expiresAt": 1794119547247
+          },
+          "argumentsHash": "d4e1715964c0c7cd72f50af1c9cd4810953fd2ae81c1c3ccb7a5d470780c7380",
+          "fencingToken": 1,
+          "epoch": "protocol-epoch",
+          "toolName": "long_mcp",
+          "startedAt": "2026-11-08T05:32:28.893Z",
+          "finishedAt": "2026-11-08T05:32:31.211Z",
+          "stopConfirmed": true,
+          "cancelRequested": true,
+          "pid": 922,
+          "startTicks": "1530780863",
+          "processAbsent": true
+        }
+      }
+    ]
+  },
+  {
+    "case": "mcp-cancel-inactive-epoch-rejected",
+    "pass": true,
+    "detail": [
+      409,
+      {
+        "error": "SecurityException",
+        "message": "Expired, inactive or old native Epoch"
+      }
+    ]
+  },
+  {
+    "case": "python-cancel-session",
+    "pass": true,
+    "detail": {
+      "epoch": "protocol-epoch",
+      "active": true,
+      "fencingToken": 1
+    }
+  },
+  {
+    "case": "python-cancel-durable-binding",
+    "pass": true,
+    "detail": {
+      "operationId": "cline-106f53dceb0e05070d8cac23057c7cd6d03ed8892b0503122e10655e5ae93711",
+      "nativeSessionId": "protocol-test-session",
+      "nativeToolCallId": "f8e067ae4bb94d1396d11e0c2e321576",
+      "toolName": "python_execute",
+      "epoch": "protocol-epoch",
+      "argumentsHash": "2a261efd5940b86bf70d329f29035af2a36e8f3d644bf25d6eca858d9c7d0c13",
+      "state": "PENDING",
+      "fencingToken": 1,
+      "arguments": {
+        "datasetId": "stage2",
+        "source": "import time\nfrom pathlib import Path\nprint(\"sandbox-started\", flush=True)\ntime.sleep(90)\nPath(\"/workspace/outputs/should-not-exist.txt\").write_text(\"late\")\n"
+      },
+      "identity": {
+        "tenantId": "stage2-protocol",
+        "userId": "alice",
+        "sessionId": "python-cancel-e8e55d58",
+        "taskId": "python-cancel",
+        "expiresAt": 1794119554956
+      },
+      "childOperationId": "cline-9c75128e037d1ae245b118d2a7be42de3cc3ce2540b06eea2316c6759cc92ac7"
+    }
+  },
+  {
+    "case": "python-cancel-real-running",
+    "pass": true,
+    "detail": {
+      "operationId": "cline-106f53dceb0e05070d8cac23057c7cd6d03ed8892b0503122e10655e5ae93711",
+      "nativeSessionId": "protocol-test-session",
+      "nativeToolCallId": "f8e067ae4bb94d1396d11e0c2e321576",
+      "toolName": "python_execute",
+      "epoch": "protocol-epoch",
+      "argumentsHash": "2a261efd5940b86bf70d329f29035af2a36e8f3d644bf25d6eca858d9c7d0c13",
+      "state": "RUNNING",
+      "fencingToken": 1,
+      "arguments": {
+        "datasetId": "stage2",
+        "source": "import time\nfrom pathlib import Path\nprint(\"sandbox-started\", flush=True)\ntime.sleep(90)\nPath(\"/workspace/outputs/should-not-exist.txt\").write_text(\"late\")\n"
+      },
+      "identity": {
+        "tenantId": "stage2-protocol",
+        "userId": "alice",
+        "sessionId": "python-cancel-e8e55d58",
+        "taskId": "python-cancel",
+        "expiresAt": 1794119554956
+      },
+      "childOperationId": "cline-9c75128e037d1ae245b118d2a7be42de3cc3ce2540b06eea2316c6759cc92ac7",
+      "dispatchIntent": true
+    }
+  },
+  {
+    "case": "python-cancel-duplicate-no-redispatch",
+    "pass": true,
+    "detail": [
+      503,
+      {
+        "error": "IllegalStateException",
+        "message": "OPERATION_QUERY_ONLY: no repeat dispatch"
+      }
+    ]
+  },
+  {
+    "case": "python-cancel-stop-receipt",
+    "pass": true,
+    "detail": {
+      "cancel": {
+        "operationId": "cline-106f53dceb0e05070d8cac23057c7cd6d03ed8892b0503122e10655e5ae93711",
+        "nativeSessionId": "protocol-test-session",
+        "nativeToolCallId": "f8e067ae4bb94d1396d11e0c2e321576",
+        "toolName": "python_execute",
+        "epoch": "protocol-epoch",
+        "argumentsHash": "2a261efd5940b86bf70d329f29035af2a36e8f3d644bf25d6eca858d9c7d0c13",
+        "state": "UNKNOWN",
+        "fencingToken": 1,
+        "arguments": {
+          "datasetId": "stage2",
+          "source": "import time\nfrom pathlib import Path\nprint(\"sandbox-started\", flush=True)\ntime.sleep(90)\nPath(\"/workspace/outputs/should-not-exist.txt\").write_text(\"late\")\n"
+        },
+        "identity": {
+          "tenantId": "stage2-protocol",
+          "userId": "alice",
+          "sessionId": "python-cancel-e8e55d58",
+          "taskId": "python-cancel",
+          "expiresAt": 1794119554956
+        },
+        "childOperationId": "cline-9c75128e037d1ae245b118d2a7be42de3cc3ce2540b06eea2316c6759cc92ac7",
+        "dispatchIntent": true,
+        "mcpResponse": {
+          "jsonrpc": "2.0",
+          "id": 17,
+          "result": {
+            "content": [
+              {
+                "type": "text",
+                "text": "{\"operationId\":\"cline-106f53dceb0e05070d8cac23057c7cd6d03ed8892b0503122e10655e5ae93711\",\"identity\":{\"tenantId\":\"stage2-protocol\",\"userId\":\"alice\",\"sessionId\":\"python-cancel-e8e55d58\",\"taskId\":\"python-cancel\",\"expiresAt\":1794119554956},\"argumentsHash\":\"2a261efd5940b86bf70d329f29035af2a36e8f3d644bf25d6eca858d9c7d0c13\",\"fencingToken\":1,\"epoch\":\"protocol-epoch\",\"toolName\":\"python_execute\",\"startedAt\":\"2026-11-08T05:32:37.201Z\",\"finishedAt\":\"2026-11-08T05:32:43.459Z\",\"stopConfirmed\":true,\"cancelRequested\":false,\"childOperationId\":\"cline-9c75128e037d1ae245b118d2a7be42de3cc3ce2540b06eea2316c6759cc92ac7\",\"python\":{\"operationId\":\"cline-9c75128e037d1ae245b118d2a7be42de3cc3ce2540b06eea2316c6759cc92ac7\",\"containerName\":\"chatchat-py-9cafac6cff4b41639f8961310940a6a905640fe8\",\"environmentId\":\"native-stage2\",\"imageDigest\":\"sha256:3434f7630ff7c54a053c7385710e089d249e65d668699ab96f9603b6e1b27eef\",\"deadlineAt\":\"2026-11-08T06:32:34.956Z\",\"timeoutSeconds\":120,\"fencingToken\":1,\"budgetReservationRef\":\"coding-budget:native-python-cancel:cline-9c75128e037d1ae245b118d2a7be42de3cc3ce2540b06eea2316c6759cc92ac7\",\"codeHash\":\"0ab32bd5ecd4d19ddb5165093fb2fbed6f707988096c1f80cb97c4e3057949b3\",\"inputSnapshotHash\":\"25ce8a03381f3171c262af25dcd50fc0b3c2e967afb3f9a23edfa0991cb4c3d9\",\"startedAt\":\"2026-11-08T05:32:37.948406319Z\",\"finishedAt\":\"2026-11-08T05:32:43.040928643Z\",\"exitCode\":137,\"oomKilled\":false,\"stopConfirmed\":true,\"cancelRequested\":true,\"fenceSuperseded\":false,\"cpuMillisMetered\":false,\"diskHardLimitEnforced\":false,\"outputBytesHardLimitEnforced\":false},\"pythonReceiptSha256\":\"50d192069e59e88202660775e49d07d4ddc41d9c65f0c3bdf5e77f1a9472e9f3\"}"
+              }
+            ],
+            "isError": false
+          }
+        },
+        "failure": "Remote receipt validation failed"
+      },
+      "final": {
+        "operationId": "cline-106f53dceb0e05070d8cac23057c7cd6d03ed8892b0503122e10655e5ae93711",
+        "nativeSessionId": "protocol-test-session",
+        "nativeToolCallId": "f8e067ae4bb94d1396d11e0c2e321576",
+        "toolName": "python_execute",
+        "epoch": "protocol-epoch",
+        "argumentsHash": "2a261efd5940b86bf70d329f29035af2a36e8f3d644bf25d6eca858d9c7d0c13",
+        "state": "CANCELLED",
+        "fencingToken": 1,
+        "arguments": {
+          "datasetId": "stage2",
+          "source": "import time\nfrom pathlib import Path\nprint(\"sandbox-started\", flush=True)\ntime.sleep(90)\nPath(\"/workspace/outputs/should-not-exist.txt\").write_text(\"late\")\n"
+        },
+        "identity": {
+          "tenantId": "stage2-protocol",
+          "userId": "alice",
+          "sessionId": "python-cancel-e8e55d58",
+          "taskId": "python-cancel",
+          "expiresAt": 1794119554956
+        },
+        "childOperationId": "cline-9c75128e037d1ae245b118d2a7be42de3cc3ce2540b06eea2316c6759cc92ac7",
+        "dispatchIntent": true,
+        "mcpResponse": {
+          "jsonrpc": "2.0",
+          "id": 17,
+          "result": {
+            "content": [
+              {
+                "type": "text",
+                "text": "{\"operationId\":\"cline-106f53dceb0e05070d8cac23057c7cd6d03ed8892b0503122e10655e5ae93711\",\"identity\":{\"tenantId\":\"stage2-protocol\",\"userId\":\"alice\",\"sessionId\":\"python-cancel-e8e55d58\",\"taskId\":\"python-cancel\",\"expiresAt\":1794119554956},\"argumentsHash\":\"2a261efd5940b86bf70d329f29035af2a36e8f3d644bf25d6eca858d9c7d0c13\",\"fencingToken\":1,\"epoch\":\"protocol-epoch\",\"toolName\":\"python_execute\",\"startedAt\":\"2026-11-08T05:32:37.201Z\",\"finishedAt\":\"2026-11-08T05:32:43.459Z\",\"stopConfirmed\":true,\"cancelRequested\":false,\"childOperationId\":\"cline-9c75128e037d1ae245b118d2a7be42de3cc3ce2540b06eea2316c6759cc92ac7\",\"python\":{\"operationId\":\"cline-9c75128e037d1ae245b118d2a7be42de3cc3ce2540b06eea2316c6759cc92ac7\",\"containerName\":\"chatchat-py-9cafac6cff4b41639f8961310940a6a905640fe8\",\"environmentId\":\"native-stage2\",\"imageDigest\":\"sha256:3434f7630ff7c54a053c7385710e089d249e65d668699ab96f9603b6e1b27eef\",\"deadlineAt\":\"2026-11-08T06:32:34.956Z\",\"timeoutSeconds\":120,\"fencingToken\":1,\"budgetReservationRef\":\"coding-budget:native-python-cancel:cline-9c75128e037d1ae245b118d2a7be42de3cc3ce2540b06eea2316c6759cc92ac7\",\"codeHash\":\"0ab32bd5ecd4d19ddb5165093fb2fbed6f707988096c1f80cb97c4e3057949b3\",\"inputSnapshotHash\":\"25ce8a03381f3171c262af25dcd50fc0b3c2e967afb3f9a23edfa0991cb4c3d9\",\"startedAt\":\"2026-11-08T05:32:37.948406319Z\",\"finishedAt\":\"2026-11-08T05:32:43.040928643Z\",\"exitCode\":137,\"oomKilled\":false,\"stopConfirmed\":true,\"cancelRequested\":true,\"fenceSuperseded\":false,\"cpuMillisMetered\":false,\"diskHardLimitEnforced\":false,\"outputBytesHardLimitEnforced\":false},\"pythonReceiptSha256\":\"50d192069e59e88202660775e49d07d4ddc41d9c65f0c3bdf5e77f1a9472e9f3\"}"
+              }
+            ],
+            "isError": false
+          }
+        },
+        "failure": "Remote receipt validation failed",
+        "stopProofRef": "native-mcp-receipt:77c34eaee5aedb17fffdd101b4741787850329446cf7056550f66a1145f6bbea",
+        "receipt": {
+          "operationId": "cline-106f53dceb0e05070d8cac23057c7cd6d03ed8892b0503122e10655e5ae93711",
+          "identity": {
+            "tenantId": "stage2-protocol",
+            "userId": "alice",
+            "sessionId": "python-cancel-e8e55d58",
+            "taskId": "python-cancel",
+            "expiresAt": 1794119554956
+          },
+          "argumentsHash": "2a261efd5940b86bf70d329f29035af2a36e8f3d644bf25d6eca858d9c7d0c13",
+          "fencingToken": 1,
+          "epoch": "protocol-epoch",
+          "toolName": "python_execute",
+          "startedAt": "2026-11-08T05:32:37.201Z",
+          "finishedAt": "2026-11-08T05:32:44.048Z",
+          "stopConfirmed": true,
+          "cancelRequested": true,
+          "childOperationId": "cline-9c75128e037d1ae245b118d2a7be42de3cc3ce2540b06eea2316c6759cc92ac7",
+          "python": {
+            "operationId": "cline-9c75128e037d1ae245b118d2a7be42de3cc3ce2540b06eea2316c6759cc92ac7",
+            "containerName": "chatchat-py-9cafac6cff4b41639f8961310940a6a905640fe8",
+            "environmentId": "native-stage2",
+            "imageDigest": "sha256:3434f7630ff7c54a053c7385710e089d249e65d668699ab96f9603b6e1b27eef",
+            "deadlineAt": "2026-11-08T06:32:34.956Z",
+            "timeoutSeconds": 120,
+            "fencingToken": 1,
+            "budgetReservationRef": "coding-budget:native-python-cancel:cline-9c75128e037d1ae245b118d2a7be42de3cc3ce2540b06eea2316c6759cc92ac7",
+            "codeHash": "0ab32bd5ecd4d19ddb5165093fb2fbed6f707988096c1f80cb97c4e3057949b3",
+            "inputSnapshotHash": "25ce8a03381f3171c262af25dcd50fc0b3c2e967afb3f9a23edfa0991cb4c3d9",
+            "startedAt": "2026-11-08T05:32:37.948406319Z",
+            "finishedAt": "2026-11-08T05:32:43.040928643Z",
+            "exitCode": 137,
+            "oomKilled": false,
+            "stopConfirmed": true,
+            "cancelRequested": true,
+            "fenceSuperseded": false,
+            "cpuMillisMetered": false,
+            "diskHardLimitEnforced": false,
+            "outputBytesHardLimitEnforced": false
+          },
+          "pythonReceiptSha256": "50d192069e59e88202660775e49d07d4ddc41d9c65f0c3bdf5e77f1a9472e9f3"
+        }
+      },
+      "dispatch": [
+        [
+          200,
+          {
+            "operation": {
+              "operationId": "cline-106f53dceb0e05070d8cac23057c7cd6d03ed8892b0503122e10655e5ae93711",
+              "nativeSessionId": "protocol-test-session",
+              "nativeToolCallId": "f8e067ae4bb94d1396d11e0c2e321576",
+              "toolName": "python_execute",
+              "epoch": "protocol-epoch",
+              "argumentsHash": "2a261efd5940b86bf70d329f29035af2a36e8f3d644bf25d6eca858d9c7d0c13",
+              "state": "CANCELLED",
+              "fencingToken": 1,
+              "arguments": {
+                "datasetId": "stage2",
+                "source": "import time\nfrom pathlib import Path\nprint(\"sandbox-started\", flush=True)\ntime.sleep(90)\nPath(\"/workspace/outputs/should-not-exist.txt\").write_text(\"late\")\n"
+              },
+              "identity": {
+                "tenantId": "stage2-protocol",
+                "userId": "alice",
+                "sessionId": "python-cancel-e8e55d58",
+                "taskId": "python-cancel",
+                "expiresAt": 1794119554956
+              },
+              "childOperationId": "cline-9c75128e037d1ae245b118d2a7be42de3cc3ce2540b06eea2316c6759cc92ac7",
+              "dispatchIntent": true,
+              "mcpResponse": {
+                "jsonrpc": "2.0",
+                "id": 17,
+                "result": {
+                  "content": [
+                    {
+                      "type": "text",
+                      "text": "{\"operationId\":\"cline-106f53dceb0e05070d8cac23057c7cd6d03ed8892b0503122e10655e5ae93711\",\"identity\":{\"tenantId\":\"stage2-protocol\",\"userId\":\"alice\",\"sessionId\":\"python-cancel-e8e55d58\",\"taskId\":\"python-cancel\",\"expiresAt\":1794119554956},\"argumentsHash\":\"2a261efd5940b86bf70d329f29035af2a36e8f3d644bf25d6eca858d9c7d0c13\",\"fencingToken\":1,\"epoch\":\"protocol-epoch\",\"toolName\":\"python_execute\",\"startedAt\":\"2026-11-08T05:32:37.201Z\",\"finishedAt\":\"2026-11-08T05:32:43.459Z\",\"stopConfirmed\":true,\"cancelRequested\":false,\"childOperationId\":\"cline-9c75128e037d1ae245b118d2a7be42de3cc3ce2540b06eea2316c6759cc92ac7\",\"python\":{\"operationId\":\"cline-9c75128e037d1ae245b118d2a7be42de3cc3ce2540b06eea2316c6759cc92ac7\",\"containerName\":\"chatchat-py-9cafac6cff4b41639f8961310940a6a905640fe8\",\"environmentId\":\"native-stage2\",\"imageDigest\":\"sha256:3434f7630ff7c54a053c7385710e089d249e65d668699ab96f9603b6e1b27eef\",\"deadlineAt\":\"2026-11-08T06:32:34.956Z\",\"timeoutSeconds\":120,\"fencingToken\":1,\"budgetReservationRef\":\"coding-budget:native-python-cancel:cline-9c75128e037d1ae245b118d2a7be42de3cc3ce2540b06eea2316c6759cc92ac7\",\"codeHash\":\"0ab32bd5ecd4d19ddb5165093fb2fbed6f707988096c1f80cb97c4e3057949b3\",\"inputSnapshotHash\":\"25ce8a03381f3171c262af25dcd50fc0b3c2e967afb3f9a23edfa0991cb4c3d9\",\"startedAt\":\"2026-11-08T05:32:37.948406319Z\",\"finishedAt\":\"2026-11-08T05:32:43.040928643Z\",\"exitCode\":137,\"oomKilled\":false,\"stopConfirmed\":true,\"cancelRequested\":true,\"fenceSuperseded\":false,\"cpuMillisMetered\":false,\"diskHardLimitEnforced\":false,\"outputBytesHardLimitEnforced\":false},\"pythonReceiptSha256\":\"50d192069e59e88202660775e49d07d4ddc41d9c65f0c3bdf5e77f1a9472e9f3\"}"
+                    }
+                  ],
+                  "isError": false
+                }
+              },
+              "failure": "Remote receipt validation failed",
+              "stopProofRef": "native-mcp-receipt:77c34eaee5aedb17fffdd101b4741787850329446cf7056550f66a1145f6bbea",
+              "receipt": {
+                "operationId": "cline-106f53dceb0e05070d8cac23057c7cd6d03ed8892b0503122e10655e5ae93711",
+                "identity": {
+                  "tenantId": "stage2-protocol",
+                  "userId": "alice",
+                  "sessionId": "python-cancel-e8e55d58",
+                  "taskId": "python-cancel",
+                  "expiresAt": 1794119554956
+                },
+                "argumentsHash": "2a261efd5940b86bf70d329f29035af2a36e8f3d644bf25d6eca858d9c7d0c13",
+                "fencingToken": 1,
+                "epoch": "protocol-epoch",
+                "toolName": "python_execute",
+                "startedAt": "2026-11-08T05:32:37.201Z",
+                "finishedAt": "2026-11-08T05:32:44.048Z",
+                "stopConfirmed": true,
+                "cancelRequested": true,
+                "childOperationId": "cline-9c75128e037d1ae245b118d2a7be42de3cc3ce2540b06eea2316c6759cc92ac7",
+                "python": {
+                  "operationId": "cline-9c75128e037d1ae245b118d2a7be42de3cc3ce2540b06eea2316c6759cc92ac7",
+                  "containerName": "chatchat-py-9cafac6cff4b41639f8961310940a6a905640fe8",
+                  "environmentId": "native-stage2",
+                  "imageDigest": "sha256:3434f7630ff7c54a053c7385710e089d249e65d668699ab96f9603b6e1b27eef",
+                  "deadlineAt": "2026-11-08T06:32:34.956Z",
+                  "timeoutSeconds": 120,
+                  "fencingToken": 1,
+                  "budgetReservationRef": "coding-budget:native-python-cancel:cline-9c75128e037d1ae245b118d2a7be42de3cc3ce2540b06eea2316c6759cc92ac7",
+                  "codeHash": "0ab32bd5ecd4d19ddb5165093fb2fbed6f707988096c1f80cb97c4e3057949b3",
+                  "inputSnapshotHash": "25ce8a03381f3171c262af25dcd50fc0b3c2e967afb3f9a23edfa0991cb4c3d9",
+                  "startedAt": "2026-11-08T05:32:37.948406319Z",
+                  "finishedAt": "2026-11-08T05:32:43.040928643Z",
+                  "exitCode": 137,
+                  "oomKilled": false,
+                  "stopConfirmed": true,
+                  "cancelRequested": true,
+                  "fenceSuperseded": false,
+                  "cpuMillisMetered": false,
+                  "diskHardLimitEnforced": false,
+                  "outputBytesHardLimitEnforced": false
+                },
+                "pythonReceiptSha256": "50d192069e59e88202660775e49d07d4ddc41d9c65f0c3bdf5e77f1a9472e9f3"
+              }
+            },
+            "mcpResponse": {
+              "jsonrpc": "2.0",
+              "id": 17,
+              "result": {
+                "content": [
+                  {
+                    "type": "text",
+                    "text": "{\"operationId\":\"cline-106f53dceb0e05070d8cac23057c7cd6d03ed8892b0503122e10655e5ae93711\",\"identity\":{\"tenantId\":\"stage2-protocol\",\"userId\":\"alice\",\"sessionId\":\"python-cancel-e8e55d58\",\"taskId\":\"python-cancel\",\"expiresAt\":1794119554956},\"argumentsHash\":\"2a261efd5940b86bf70d329f29035af2a36e8f3d644bf25d6eca858d9c7d0c13\",\"fencingToken\":1,\"epoch\":\"protocol-epoch\",\"toolName\":\"python_execute\",\"startedAt\":\"2026-11-08T05:32:37.201Z\",\"finishedAt\":\"2026-11-08T05:32:43.459Z\",\"stopConfirmed\":true,\"cancelRequested\":false,\"childOperationId\":\"cline-9c75128e037d1ae245b118d2a7be42de3cc3ce2540b06eea2316c6759cc92ac7\",\"python\":{\"operationId\":\"cline-9c75128e037d1ae245b118d2a7be42de3cc3ce2540b06eea2316c6759cc92ac7\",\"containerName\":\"chatchat-py-9cafac6cff4b41639f8961310940a6a905640fe8\",\"environmentId\":\"native-stage2\",\"imageDigest\":\"sha256:3434f7630ff7c54a053c7385710e089d249e65d668699ab96f9603b6e1b27eef\",\"deadlineAt\":\"2026-11-08T06:32:34.956Z\",\"timeoutSeconds\":120,\"fencingToken\":1,\"budgetReservationRef\":\"coding-budget:native-python-cancel:cline-9c75128e037d1ae245b118d2a7be42de3cc3ce2540b06eea2316c6759cc92ac7\",\"codeHash\":\"0ab32bd5ecd4d19ddb5165093fb2fbed6f707988096c1f80cb97c4e3057949b3\",\"inputSnapshotHash\":\"25ce8a03381f3171c262af25dcd50fc0b3c2e967afb3f9a23edfa0991cb4c3d9\",\"startedAt\":\"2026-11-08T05:32:37.948406319Z\",\"finishedAt\":\"2026-11-08T05:32:43.040928643Z\",\"exitCode\":137,\"oomKilled\":false,\"stopConfirmed\":true,\"cancelRequested\":true,\"fenceSuperseded\":false,\"cpuMillisMetered\":false,\"diskHardLimitEnforced\":false,\"outputBytesHardLimitEnforced\":false},\"pythonReceiptSha256\":\"50d192069e59e88202660775e49d07d4ddc41d9c65f0c3bdf5e77f1a9472e9f3\"}"
+                  }
+                ],
+                "isError": false
+              }
+            }
+          }
+        ]
+      ]
+    }
+  },
+  {
+    "case": "python-cancel-repeat-cancel",
+    "pass": true,
+    "detail": [
+      200,
+      {
+        "operationId": "cline-106f53dceb0e05070d8cac23057c7cd6d03ed8892b0503122e10655e5ae93711",
+        "nativeSessionId": "protocol-test-session",
+        "nativeToolCallId": "f8e067ae4bb94d1396d11e0c2e321576",
+        "toolName": "python_execute",
+        "epoch": "protocol-epoch",
+        "argumentsHash": "2a261efd5940b86bf70d329f29035af2a36e8f3d644bf25d6eca858d9c7d0c13",
+        "state": "CANCELLED",
+        "fencingToken": 1,
+        "arguments": {
+          "datasetId": "stage2",
+          "source": "import time\nfrom pathlib import Path\nprint(\"sandbox-started\", flush=True)\ntime.sleep(90)\nPath(\"/workspace/outputs/should-not-exist.txt\").write_text(\"late\")\n"
+        },
+        "identity": {
+          "tenantId": "stage2-protocol",
+          "userId": "alice",
+          "sessionId": "python-cancel-e8e55d58",
+          "taskId": "python-cancel",
+          "expiresAt": 1794119554956
+        },
+        "childOperationId": "cline-9c75128e037d1ae245b118d2a7be42de3cc3ce2540b06eea2316c6759cc92ac7",
+        "dispatchIntent": true,
+        "mcpResponse": {
+          "jsonrpc": "2.0",
+          "id": 17,
+          "result": {
+            "content": [
+              {
+                "type": "text",
+                "text": "{\"operationId\":\"cline-106f53dceb0e05070d8cac23057c7cd6d03ed8892b0503122e10655e5ae93711\",\"identity\":{\"tenantId\":\"stage2-protocol\",\"userId\":\"alice\",\"sessionId\":\"python-cancel-e8e55d58\",\"taskId\":\"python-cancel\",\"expiresAt\":1794119554956},\"argumentsHash\":\"2a261efd5940b86bf70d329f29035af2a36e8f3d644bf25d6eca858d9c7d0c13\",\"fencingToken\":1,\"epoch\":\"protocol-epoch\",\"toolName\":\"python_execute\",\"startedAt\":\"2026-11-08T05:32:37.201Z\",\"finishedAt\":\"2026-11-08T05:32:43.459Z\",\"stopConfirmed\":true,\"cancelRequested\":false,\"childOperationId\":\"cline-9c75128e037d1ae245b118d2a7be42de3cc3ce2540b06eea2316c6759cc92ac7\",\"python\":{\"operationId\":\"cline-9c75128e037d1ae245b118d2a7be42de3cc3ce2540b06eea2316c6759cc92ac7\",\"containerName\":\"chatchat-py-9cafac6cff4b41639f8961310940a6a905640fe8\",\"environmentId\":\"native-stage2\",\"imageDigest\":\"sha256:3434f7630ff7c54a053c7385710e089d249e65d668699ab96f9603b6e1b27eef\",\"deadlineAt\":\"2026-11-08T06:32:34.956Z\",\"timeoutSeconds\":120,\"fencingToken\":1,\"budgetReservationRef\":\"coding-budget:native-python-cancel:cline-9c75128e037d1ae245b118d2a7be42de3cc3ce2540b06eea2316c6759cc92ac7\",\"codeHash\":\"0ab32bd5ecd4d19ddb5165093fb2fbed6f707988096c1f80cb97c4e3057949b3\",\"inputSnapshotHash\":\"25ce8a03381f3171c262af25dcd50fc0b3c2e967afb3f9a23edfa0991cb4c3d9\",\"startedAt\":\"2026-11-08T05:32:37.948406319Z\",\"finishedAt\":\"2026-11-08T05:32:43.040928643Z\",\"exitCode\":137,\"oomKilled\":false,\"stopConfirmed\":true,\"cancelRequested\":true,\"fenceSuperseded\":false,\"cpuMillisMetered\":false,\"diskHardLimitEnforced\":false,\"outputBytesHardLimitEnforced\":false},\"pythonReceiptSha256\":\"50d192069e59e88202660775e49d07d4ddc41d9c65f0c3bdf5e77f1a9472e9f3\"}"
+              }
+            ],
+            "isError": false
+          }
+        },
+        "failure": "Remote receipt validation failed",
+        "stopProofRef": "native-mcp-receipt:77c34eaee5aedb17fffdd101b4741787850329446cf7056550f66a1145f6bbea",
+        "receipt": {
+          "operationId": "cline-106f53dceb0e05070d8cac23057c7cd6d03ed8892b0503122e10655e5ae93711",
+          "identity": {
+            "tenantId": "stage2-protocol",
+            "userId": "alice",
+            "sessionId": "python-cancel-e8e55d58",
+            "taskId": "python-cancel",
+            "expiresAt": 1794119554956
+          },
+          "argumentsHash": "2a261efd5940b86bf70d329f29035af2a36e8f3d644bf25d6eca858d9c7d0c13",
+          "fencingToken": 1,
+          "epoch": "protocol-epoch",
+          "toolName": "python_execute",
+          "startedAt": "2026-11-08T05:32:37.201Z",
+          "finishedAt": "2026-11-08T05:32:44.048Z",
+          "stopConfirmed": true,
+          "cancelRequested": true,
+          "childOperationId": "cline-9c75128e037d1ae245b118d2a7be42de3cc3ce2540b06eea2316c6759cc92ac7",
+          "python": {
+            "operationId": "cline-9c75128e037d1ae245b118d2a7be42de3cc3ce2540b06eea2316c6759cc92ac7",
+            "containerName": "chatchat-py-9cafac6cff4b41639f8961310940a6a905640fe8",
+            "environmentId": "native-stage2",
+            "imageDigest": "sha256:3434f7630ff7c54a053c7385710e089d249e65d668699ab96f9603b6e1b27eef",
+            "deadlineAt": "2026-11-08T06:32:34.956Z",
+            "timeoutSeconds": 120,
+            "fencingToken": 1,
+            "budgetReservationRef": "coding-budget:native-python-cancel:cline-9c75128e037d1ae245b118d2a7be42de3cc3ce2540b06eea2316c6759cc92ac7",
+            "codeHash": "0ab32bd5ecd4d19ddb5165093fb2fbed6f707988096c1f80cb97c4e3057949b3",
+            "inputSnapshotHash": "25ce8a03381f3171c262af25dcd50fc0b3c2e967afb3f9a23edfa0991cb4c3d9",
+            "startedAt": "2026-11-08T05:32:37.948406319Z",
+            "finishedAt": "2026-11-08T05:32:43.040928643Z",
+            "exitCode": 137,
+            "oomKilled": false,
+            "stopConfirmed": true,
+            "cancelRequested": true,
+            "fenceSuperseded": false,
+            "cpuMillisMetered": false,
+            "diskHardLimitEnforced": false,
+            "outputBytesHardLimitEnforced": false
+          },
+          "pythonReceiptSha256": "50d192069e59e88202660775e49d07d4ddc41d9c65f0c3bdf5e77f1a9472e9f3"
+        }
+      }
+    ]
+  },
+  {
+    "case": "python-cancel-inactive-epoch-rejected",
+    "pass": true,
+    "detail": [
+      409,
+      {
+        "error": "SecurityException",
+        "message": "Expired, inactive or old native Epoch"
+      }
+    ]
+  },
+  {
+    "case": "all-protocol-cases",
+    "pass": true,
+    "detail": {
+      "total": 21
+    }
+  }
+]

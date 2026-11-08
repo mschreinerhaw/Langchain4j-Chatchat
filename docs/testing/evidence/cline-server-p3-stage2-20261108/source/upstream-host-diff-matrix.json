@@ -1,0 +1,12 @@
+[
+  {
+    "path": "apps/vscode/src/sdk/vscode-runtime-builder.ts",
+    "beforeSha256": "ac4c1e1572211e01ebe7617a518b2a88e5f85a932e7a76e0e7c994e41e5452c8",
+    "afterSha256": "255478fd3bd554487bc05426dbc8c42dbe3e1196348a783d1a2862a711b6ad72"
+  },
+  {
+    "path": "apps/vscode/src/services/mcp/McpHub.ts",
+    "beforeSha256": "7f770b7563d0173373f72655f7dace853dfd11a912f26cf8c6d52a0c91fc4244",
+    "afterSha256": "8e4f34399115ef6fb6d834b8003013b2fe9e08a49e587999dd8f4310b98498a5"
+  }
+]

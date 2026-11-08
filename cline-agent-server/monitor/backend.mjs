@@ -15,11 +15,11 @@ export class Backend {
  runtime(user,path,body,options){return this.api(this.config.runtimeUrl,path,user.token,body,options);}
  native(path,body,options){if(!this.config.native)throw fail('Native direct mode is not configured',503);return this.api(this.config.native.url,path,this.config.native.token,body,options);}
  async json(file){try{return JSON.parse(await readFile(file,'utf8'));}catch(e){if(e.code==='ENOENT')return null;throw e;}}
- async records(root,file){if(!root)return [];const names=await readdir(root);const result=[];for(const name of names.filter(id)){const row=await this.json(join(root,name,file));if(row)result.push(row);}return result;}
+ async records(root,file){if(!root)return [];const names=await readdir(root);const result=[];for(const name of names.filter(id)){const row=await this.json(join(root,name,file));if(row){const info=await stat(join(root,name,file));result.push({...row,lastStatePersistedAt:info.mtime.toISOString()});}}return result;}
  async runs(user){return (await this.records(this.config.businessState,'run.json')).filter(r=>r.scope?.tenantId===user.tenantId&&r.scope?.userId===user.userId);}
  async sessions(user){
   const runs=await this.runs(user),native=this.config.native?await this.records(this.config.native.stateDir,'session.json'):[];
-  return [...native.map(s=>({id:'native:'+s.id,mode:'native',sessionId:s.id,nativeSessionId:s.nativeSessionId,status:s.status,workspaceRef:s.workspaceRef,authority:'NATIVE_SESSION',updatedAt:null})),...runs.map(r=>({id:'runtime:'+r.workerId,mode:'runtime',sessionId:r.nativeSessionId,nativeSessionId:r.nativeAgentSessionId,taskId:r.taskId,runId:r.scope.runId,requestId:r.scope.requestId,status:r.status,authority:'NATIVE_OBSERVATION',runtimeStatus:null,updatedAt:r.result?.updatedAt??null}))];
+  return [...native.map(s=>({id:'native:'+s.id,mode:'native',sessionId:s.id,nativeSessionId:s.nativeSessionId,status:s.status,workspaceRef:s.workspaceRef,authority:'NATIVE_SESSION',updatedAt:s.lastStatePersistedAt})),...runs.map(r=>({id:'runtime:'+r.workerId,mode:'runtime',sessionId:r.nativeSessionId,nativeSessionId:r.nativeAgentSessionId,taskId:r.taskId,runId:r.scope.runId,requestId:r.scope.requestId,status:r.status,authority:'NATIVE_OBSERVATION',runtimeStatus:null,updatedAt:r.lastStatePersistedAt}))];
  }
  async context(user,key){
   if(key.startsWith('native:')){const sid=key.slice(7);if(!id(sid))throw fail('Invalid session');const state=await this.json(join(this.config.native?.stateDir??'',sid,'session.json'));if(!state)throw fail('Session not found',404);return {mode:'native',state,sid};}

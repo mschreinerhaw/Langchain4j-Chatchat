@@ -1,0 +1,21 @@
+{
+  "test": "REAL_SIGKILL_OF_IDLE_NATIVE_CORE_WORKER_SERVICE",
+  "sessionId": "0486017b-9798-4d81-bf18-fb07accd40c5",
+  "beforeStatus": "idle",
+  "afterStatus": "recoverable",
+  "oldProcessId": 446961,
+  "newProcessId": 499737,
+  "oldJournalSha256": "72a694086fb1ace929338469db411c8b1cc26f13e40fecf91ad6f225e92338d8",
+  "oldJournalBytes": 888,
+  "oldJournalPrefixPreserved": true,
+  "addedEvents": [
+    {
+      "eventId": "4",
+      "eventType": "session.recovery_required"
+    }
+  ],
+  "originalTaskAcceptedEvents": 0,
+  "noAutomaticModelOrTaskReplay": true,
+  "activeModelFaultClaimed": false,
+  "timestamp": "2026-11-08T19:19:52.564535+00:00"
+}

@@ -1,0 +1,65 @@
+{
+  "source": "REAL_BROWSER_REAL_NATIVE_MODEL",
+  "origin": "http://192.168.195.221:18346",
+  "startedAt": "2026-11-08T18:06:37.420Z",
+  "pageErrors": [],
+  "requests": [
+    {
+      "path": "/api/sessions/native%3A4bd40227-be81-474d-8ff2-7f3396ea401c/messages",
+      "method": "POST",
+      "timestamp": "2026-11-08T18:06:40.963Z"
+    }
+  ],
+  "screenshots": [],
+  "sessionKey": "native:4bd40227-be81-474d-8ff2-7f3396ea401c",
+  "originalRequest": "Please explain the actual fix and rerun the unchanged tests once. Keep the existing source and test assertions. Report the real test result.",
+  "lastObserved": {
+    "id": "native:4bd40227-be81-474d-8ff2-7f3396ea401c",
+    "mode": "native",
+    "sessionId": "4bd40227-be81-474d-8ff2-7f3396ea401c",
+    "status": "awaiting_permission",
+    "taskId": "f373f627-d3b8-4bb6-a21c-0a4a213f55c9",
+    "nativeSessionId": "1794160571607_gl5te",
+    "epoch": "7b495596-21fa-4ed0-b022-d5edeaccecfc",
+    "revision": 17,
+    "lastEventId": "249",
+    "pendingPermissions": [
+      {
+        "id": "4628f7dd-9a41-483d-a4a5-8a7f42ae6ccf",
+        "sessionId": "4bd40227-be81-474d-8ff2-7f3396ea401c",
+        "taskId": "f373f627-d3b8-4bb6-a21c-0a4a213f55c9",
+        "epoch": "7b495596-21fa-4ed0-b022-d5edeaccecfc",
+        "inputHash": "59c3ad9dfeae861cc2ddd9edf5082d00021a490def33723da095ae1f7df31abf",
+        "toolCallId": "call_f59dea9802df4605add1c023",
+        "toolName": "read_files",
+        "input": {
+          "files": [
+            {
+              "path": "/poc/node-project/calculator.mjs"
+            },
+            {
+              "path": "/poc/node-project/calculator.test.mjs"
+            }
+          ]
+        },
+        "expiresAt": 1794161384892,
+        "state": "pending"
+      }
+    ],
+    "authority": "NATIVE_SESSION",
+    "deliveryValidated": false,
+    "capabilities": {
+      "messages": false,
+      "cancel": true,
+      "permissions": true
+    },
+    "model": {
+      "model": "qwen3.7-plus",
+      "usageStatus": "NATIVE_OBSERVATION_NOT_RUNTIME_BILLING"
+    },
+    "workspaceRef": "acceptance-node-project"
+  },
+  "status": "FAIL",
+  "error": "Expected values to be strictly equal:\n\n401 !== 200\n",
+  "finishedAt": "2026-11-08T18:08:32.885Z"
+}

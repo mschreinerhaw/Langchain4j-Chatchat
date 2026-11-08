@@ -1,0 +1,1448 @@
+{
+  "scope": "REAL_BROWSER_RUNTIME_NATIVE_MANAGED_PYTHON",
+  "startedAt": "2026-11-08T19:38:07.032Z",
+  "requests": [],
+  "pageErrors": [],
+  "sessionKey": "runtime:770cd052-d887-496f-b5a5-b29b666fae34",
+  "lastObserved": {
+    "id": "runtime:770cd052-d887-496f-b5a5-b29b666fae34",
+    "mode": "runtime",
+    "sessionId": "6251c209-38c1-4a3b-8d42-97cb5d45093d",
+    "nativeSessionId": "1794166330805_m44zy",
+    "taskId": "analysis-coding-3bfb69e23343c4833397b7aa70b4510bfc56e11cc28071a4a1512dbac038db8b",
+    "runId": "asset-analysis-76a61df1c56f52f718b8fd0dbbf39fa4b5c12906a6dbdaa155467f352ed3ee03",
+    "status": "COMPLETED",
+    "nativeTurnStatus": "TURN_COMPLETED",
+    "nativeTurnEventId": "94",
+    "runtimeStatus": "COMPLETED",
+    "authority": "RUNTIME_CONFIRMED",
+    "outcome": {
+      "schemaVersion": "runtime_os.coding.v3",
+      "taskId": "analysis-coding-3bfb69e23343c4833397b7aa70b4510bfc56e11cc28071a4a1512dbac038db8b",
+      "scope": {
+        "tenantId": "9001fee4-482b-4851-9eb9-df269765291f",
+        "userId": "2f219487-11a3-4a1d-9130-ac500b62f268",
+        "requestId": "22780ff6e334d248a918be0feeeb038f",
+        "conversationId": "unknown-conversation",
+        "runId": "asset-analysis-76a61df1c56f52f718b8fd0dbbf39fa4b5c12906a6dbdaa155467f352ed3ee03",
+        "environment": null,
+        "attributes": {}
+      },
+      "contractSha256": "d913ccd47d7809475dcfe42c22ff8e3a166f7ee15fc15dcefcb35ae2c889b027",
+      "status": "COMPLETED",
+      "revision": 61,
+      "lastEventSequence": 62,
+      "createdAt": "2026-11-08T19:32:01.358Z",
+      "updatedAt": "2026-11-08T19:33:33.258Z",
+      "startedAt": "2026-11-08T19:32:01.487Z",
+      "endedAt": "2026-11-08T19:33:33.258Z",
+      "cancellationRequested": false,
+      "reasonCode": null,
+      "summary": "Coding execution archived; validation PASSED",
+      "limitations": [
+        "A2 enforces cumulative admission reservations only; model/process hard limits, instantaneous memory and disk enforcement require execution-node adapters."
+      ],
+      "inputSnapshotRef": "runtime-evidence:coding:input:f157f9db0b0bdc1ef9bf3a3a1cbdea7263de50e666be1c45bb57efe98fe8414",
+      "codeArtifactRef": "runtime-evidence:coding:1fc397baf600de4b7594fdd3ddebfc7888ee0e986cda2d42321cd9a8300d5bb2:code",
+      "executionReceiptRef": "runtime-evidence:coding:1fc397baf600de4b7594fdd3ddebfc7888ee0e986cda2d42321cd9a8300d5bb2:receipt",
+      "resultDatasetRef": "runtime-evidence:coding:1fc397baf600de4b7594fdd3ddebfc7888ee0e986cda2d42321cd9a8300d5bb2:result",
+      "validationRecordRef": "runtime-evidence:coding:1fc397baf600de4b7594fdd3ddebfc7888ee0e986cda2d42321cd9a8300d5bb2:validation",
+      "evidenceBundleRef": "runtime-evidence:coding:1fc397baf600de4b7594fdd3ddebfc7888ee0e986cda2d42321cd9a8300d5bb2:bundle",
+      "validationStatus": "PASSED",
+      "reproducibility": {
+        "level": "CONDITIONAL",
+        "limitations": [
+          "Execution and reproducibility have not been verified"
+        ],
+        "dependencyRefs": [
+          "b1068ad2-7b8d-4fb0-9230-316c86c596a4"
+        ]
+      },
+      "usage": {
+        "budgetId": "analysis-coding-tool-budget:analysis-coding-3bfb69e23343c4833397b7aa70b4510bfc56e11cc28071a4a1512dbac038db8b",
+        "costCurrency": "USD",
+        "consumed": {
+          "modelCalls": 5,
+          "modelTokens": 82757,
+          "toolCalls": 2,
+          "codeExecutions": 2,
+          "cpuMillis": 0,
+          "peakMemoryBytes": 0,
+          "outputBytes": 5917,
+          "costAmount": "0"
+        },
+        "reserved": {
+          "modelCalls": 0,
+          "modelTokens": 9107,
+          "toolCalls": 0,
+          "codeExecutions": 0,
+          "cpuMillis": 50000,
+          "peakMemoryBytes": 0,
+          "outputBytes": 693133,
+          "costAmount": "4.166666666665"
+        },
+        "meteringComplete": false
+      },
+      "executionControl": {
+        "stopReason": null,
+        "stopRequestedAt": null,
+        "executorStopped": true,
+        "reconciliationRequired": false
+      },
+      "parentTaskId": null,
+      "supersedesTaskId": null,
+      "perArtifactCompleteness": {}
+    },
+    "modelReceipts": [
+      {
+        "operationId": "model-1",
+        "attemptId": "analysis-coding-3bfb69e23343c4833397b7aa70b4510bfc56e11cc28071a4a1512dbac038db8b:fence-1",
+        "modelCall": 1,
+        "state": "SUCCEEDED",
+        "selectedModel": "qwen3.7-plus",
+        "providerModel": "qwen3.7-plus",
+        "protocol": "openai",
+        "startedAt": "2026-11-08T19:32:11.440939520Z",
+        "finishedAt": "2026-11-08T19:32:20.088246674Z",
+        "durationMs": 8647,
+        "usage": {
+          "cacheReadTokens": 0,
+          "outputTokens": 454,
+          "inputTokens": 10225,
+          "reasoningTokens": 179
+        },
+        "source": "JAVA_MODEL_RECEIPT"
+      },
+      {
+        "operationId": "model-2",
+        "attemptId": "analysis-coding-3bfb69e23343c4833397b7aa70b4510bfc56e11cc28071a4a1512dbac038db8b:fence-1",
+        "modelCall": 2,
+        "state": "SUCCEEDED",
+        "selectedModel": "qwen3.7-plus",
+        "providerModel": "qwen3.7-plus",
+        "protocol": "openai",
+        "startedAt": "2026-11-08T19:32:20.853928856Z",
+        "finishedAt": "2026-11-08T19:32:30.512451018Z",
+        "durationMs": 9658,
+        "usage": {
+          "cacheReadTokens": 9728,
+          "outputTokens": 533,
+          "inputTokens": 12449,
+          "reasoningTokens": 318
+        },
+        "source": "JAVA_MODEL_RECEIPT"
+      },
+      {
+        "operationId": "model-3",
+        "attemptId": "analysis-coding-3bfb69e23343c4833397b7aa70b4510bfc56e11cc28071a4a1512dbac038db8b:fence-1",
+        "modelCall": 3,
+        "state": "SUCCEEDED",
+        "selectedModel": "qwen3.7-plus",
+        "providerModel": "qwen3.7-plus",
+        "protocol": "openai",
+        "startedAt": "2026-11-08T19:32:33.599379411Z",
+        "finishedAt": "2026-11-08T19:33:03.393082371Z",
+        "durationMs": 29793,
+        "usage": {
+          "cacheReadTokens": 12032,
+          "outputTokens": 1796,
+          "inputTokens": 16284,
+          "reasoningTokens": 414
+        },
+        "source": "JAVA_MODEL_RECEIPT"
+      },
+      {
+        "operationId": "model-4",
+        "attemptId": "analysis-coding-3bfb69e23343c4833397b7aa70b4510bfc56e11cc28071a4a1512dbac038db8b:fence-1",
+        "modelCall": 4,
+        "state": "SUCCEEDED",
+        "selectedModel": "qwen3.7-plus",
+        "providerModel": "qwen3.7-plus",
+        "protocol": "openai",
+        "startedAt": "2026-11-08T19:33:03.899496686Z",
+        "finishedAt": "2026-11-08T19:33:07.661506503Z",
+        "durationMs": 3762,
+        "usage": {
+          "cacheReadTokens": 16128,
+          "outputTokens": 114,
+          "inputTokens": 17711,
+          "reasoningTokens": 63
+        },
+        "source": "JAVA_MODEL_RECEIPT"
+      },
+      {
+        "operationId": "model-5",
+        "attemptId": "analysis-coding-3bfb69e23343c4833397b7aa70b4510bfc56e11cc28071a4a1512dbac038db8b:fence-1",
+        "modelCall": 5,
+        "state": "SUCCEEDED",
+        "selectedModel": "qwen3.7-plus",
+        "providerModel": "qwen3.7-plus",
+        "protocol": "openai",
+        "startedAt": "2026-11-08T19:33:11.126336593Z",
+        "finishedAt": "2026-11-08T19:33:31.941190473Z",
+        "durationMs": 20814,
+        "usage": {
+          "cacheReadTokens": 17280,
+          "outputTokens": 1230,
+          "inputTokens": 21961,
+          "reasoningTokens": 527
+        },
+        "source": "JAVA_MODEL_RECEIPT"
+      }
+    ],
+    "executions": [
+      {
+        "schemaVersion": "runtime_os.execution_feedback.v1",
+        "taskId": "analysis-coding-3bfb69e23343c4833397b7aa70b4510bfc56e11cc28071a4a1512dbac038db8b",
+        "executionId": "cline-491d3657cccb87eb35e5eb57ba031ec895f2965c0a198783ada53222f6f96079",
+        "attemptId": "analysis-coding-3bfb69e23343c4833397b7aa70b4510bfc56e11cc28071a4a1512dbac038db8b:execution-1",
+        "traceId": "asset-analysis-76a61df1c56f52f718b8fd0dbbf39fa4b5c12906a6dbdaa155467f352ed3ee03",
+        "status": "FAILED",
+        "stage": "EXECUTION_FAILED",
+        "exitCode": 1,
+        "durationMs": 762,
+        "cpuTimeMs": 208,
+        "maxRssBytes": 21622784,
+        "codeHash": "54d6dea051ebe5f89e86eb934144916316d965a85c49b3f7b0c9ef6151dc8b66",
+        "stdout": "[raw stdout omitted]",
+        "stderr": "Inspect the reported line and existing code; make the smallest justified technical correction without changing source data.",
+        "stdoutBytes": 0,
+        "stderrBytes": 272,
+        "error": {
+          "category": "PROGRAM",
+          "exceptionType": "NameError",
+          "diagnosticCode": "PROGRAM_ERROR",
+          "message": "Inspect the reported line and existing code; make the smallest justified technical correction without changing source data.",
+          "stack": [
+            {
+              "file": "analyze-only-these-expli_20261108T193230939Z_354361218635_v1.py",
+              "line": 1,
+              "column": null
+            }
+          ],
+          "detailRef": "execution:cline-491d3657cccb87eb35e5eb57ba031ec895f2965c0a198783ada53222f6f96079:logs:runtime-diagnostic.json"
+        },
+        "inputDataRefs": [
+          "runtime-evidence:coding:input:f157f9db0b0bdc1ef9bf3a3a1cbdea7263de50e666be1c45bb57efe98fe8414"
+        ],
+        "schemaRef": "runtime-coding-schema:8b60974d596fd7b60127db6975bddc8149d4fc5b468160d733c34bfaaf9a243f",
+        "inputFiles": [
+          {
+            "fileId": "cf157f9db0b0bdc1ef9bf3a3a1cbdea7263de50e666be1c45bb57efe98fe8414",
+            "fileName": "manifest.json",
+            "sha256": "d2a0cab27bf9908f1a5959544979c3875e61be3001e323c0e9bc7e71cba315a0"
+          },
+          {
+            "fileId": "c48330a4f62e7d926d60e473ceb3adc03e6f71ec9221985d6729d3446af6307a",
+            "fileName": "original-0.csv",
+            "sha256": "fcb74b46f4042569e233515f15ea92342b8e019dd9531e0e9b7e4c92d37e9fb9"
+          },
+          {
+            "fileId": "cd1347df61f75df40d47ea4ee7195c1e82f5f1272cf98f5a92a9c13824392cec",
+            "fileName": "schema.json",
+            "sha256": "fa10fc50889c3ca6d1f05adbdbca1b3cf26507954490c9e1996d949f1a8bab9c"
+          },
+          {
+            "fileId": "c7822582e2ec6d7667265ae9f2a8591cb7c55232edd35c2d9da65a29c6e0b026",
+            "fileName": "part-00000.parquet",
+            "sha256": "788fed05e489ab404113194183fd5db547f3eb2a64240bb853f507460ebbbc57"
+          }
+        ],
+        "inputSchemaSummary": {
+          "manifestFileId": "cf157f9db0b0bdc1ef9bf3a3a1cbdea7263de50e666be1c45bb57efe98fe8414",
+          "format": "PARQUET",
+          "manifestSha256": "d2a0cab27bf9908f1a5959544979c3875e61be3001e323c0e9bc7e71cba315a0"
+        },
+        "artifactRefs": {
+          "stderrRef": "execution:cline-491d3657cccb87eb35e5eb57ba031ec895f2965c0a198783ada53222f6f96079:logs:stderr.txt",
+          "diagnosticRef": "execution:cline-491d3657cccb87eb35e5eb57ba031ec895f2965c0a198783ada53222f6f96079:logs:runtime-diagnostic.json"
+        },
+        "validationStatus": "NOT_RUN",
+        "resultAvailable": false,
+        "manifestHash": "34bffa5159f483772c29102785141fe636bd606b32c8a5dd112a7c5267ec216e",
+        "outputStatus": null,
+        "businessValidationPassed": false,
+        "repair": {
+          "allowed": true,
+          "action": "REPAIR_IN_CURRENT_CONTEXT",
+          "reason": "TECHNICAL_REPAIR",
+          "attemptsUsed": 0,
+          "maxAttempts": 3,
+          "baseCodeHash": "54d6dea051ebe5f89e86eb934144916316d965a85c49b3f7b0c9ef6151dc8b66",
+          "guidance": "Inspect the reported line and existing code; make the smallest justified technical correction without changing source data."
+        },
+        "diagnosticPolicy": "METADATA_ONLY_V1",
+        "script": {
+          "fileName": "analyze-only-these-expli_20261108T193230939Z_354361218635_v1.py",
+          "scriptPath": "/workspace/scripts/analyze-only-these-expli_20261108T193230939Z_354361218635_v1.py",
+          "workingDirectory": "tasks/2abd2c828f4ebf3c/6432cc690bc93efe/150214f738a9ce38/35436121863550b38cf7b13a",
+          "scriptVersion": 1
+        }
+      },
+      {
+        "schemaVersion": "runtime_os.execution_feedback.v1",
+        "taskId": "analysis-coding-3bfb69e23343c4833397b7aa70b4510bfc56e11cc28071a4a1512dbac038db8b",
+        "executionId": "cline-873982245d2d3a25b26e7fc2524a9627b89a51eecaa4974a80857b1b900f3953",
+        "attemptId": "analysis-coding-3bfb69e23343c4833397b7aa70b4510bfc56e11cc28071a4a1512dbac038db8b:execution-2",
+        "traceId": "asset-analysis-76a61df1c56f52f718b8fd0dbbf39fa4b5c12906a6dbdaa155467f352ed3ee03",
+        "status": "SUCCEEDED",
+        "stage": "VALIDATED",
+        "exitCode": 0,
+        "durationMs": 557,
+        "cpuTimeMs": 299,
+        "maxRssBytes": 21716992,
+        "codeHash": "92513b152a135b1738d802ac1ab1072442cac84ff110f6c1426c51e3c4e13ccc",
+        "stdout": "[raw stdout omitted]",
+        "stderr": "[raw stderr omitted]",
+        "stdoutBytes": 41,
+        "stderrBytes": 0,
+        "error": null,
+        "inputDataRefs": [
+          "runtime-evidence:coding:input:f157f9db0b0bdc1ef9bf3a3a1cbdea7263de50e666be1c45bb57efe98fe8414"
+        ],
+        "schemaRef": "runtime-coding-schema:8b60974d596fd7b60127db6975bddc8149d4fc5b468160d733c34bfaaf9a243f",
+        "inputFiles": [
+          {
+            "fileId": "cf157f9db0b0bdc1ef9bf3a3a1cbdea7263de50e666be1c45bb57efe98fe8414",
+            "fileName": "manifest.json",
+            "sha256": "d2a0cab27bf9908f1a5959544979c3875e61be3001e323c0e9bc7e71cba315a0"
+          },
+          {
+            "fileId": "c48330a4f62e7d926d60e473ceb3adc03e6f71ec9221985d6729d3446af6307a",
+            "fileName": "original-0.csv",
+            "sha256": "fcb74b46f4042569e233515f15ea92342b8e019dd9531e0e9b7e4c92d37e9fb9"
+          },
+          {
+            "fileId": "cd1347df61f75df40d47ea4ee7195c1e82f5f1272cf98f5a92a9c13824392cec",
+            "fileName": "schema.json",
+            "sha256": "fa10fc50889c3ca6d1f05adbdbca1b3cf26507954490c9e1996d949f1a8bab9c"
+          },
+          {
+            "fileId": "c7822582e2ec6d7667265ae9f2a8591cb7c55232edd35c2d9da65a29c6e0b026",
+            "fileName": "part-00000.parquet",
+            "sha256": "788fed05e489ab404113194183fd5db547f3eb2a64240bb853f507460ebbbc57"
+          }
+        ],
+        "inputSchemaSummary": {
+          "manifestFileId": "cf157f9db0b0bdc1ef9bf3a3a1cbdea7263de50e666be1c45bb57efe98fe8414",
+          "format": "PARQUET",
+          "manifestSha256": "d2a0cab27bf9908f1a5959544979c3875e61be3001e323c0e9bc7e71cba315a0"
+        },
+        "artifactRefs": {
+          "codeArtifactRef": "runtime-evidence:coding:1fc397baf600de4b7594fdd3ddebfc7888ee0e986cda2d42321cd9a8300d5bb2:code",
+          "inputSnapshotRef": "runtime-evidence:coding:input:f157f9db0b0bdc1ef9bf3a3a1cbdea7263de50e666be1c45bb57efe98fe8414",
+          "resultDatasetRef": "runtime-evidence:coding:1fc397baf600de4b7594fdd3ddebfc7888ee0e986cda2d42321cd9a8300d5bb2:result",
+          "validationRecordRef": "runtime-evidence:coding:1fc397baf600de4b7594fdd3ddebfc7888ee0e986cda2d42321cd9a8300d5bb2:validation",
+          "evidenceBundleRef": "runtime-evidence:coding:1fc397baf600de4b7594fdd3ddebfc7888ee0e986cda2d42321cd9a8300d5bb2:bundle",
+          "diagnosticRef": "execution:cline-873982245d2d3a25b26e7fc2524a9627b89a51eecaa4974a80857b1b900f3953:logs:runtime-diagnostic.json",
+          "stderrRef": "execution:cline-873982245d2d3a25b26e7fc2524a9627b89a51eecaa4974a80857b1b900f3953:logs:stderr.txt",
+          "executionReceiptRef": "runtime-evidence:coding:1fc397baf600de4b7594fdd3ddebfc7888ee0e986cda2d42321cd9a8300d5bb2:receipt"
+        },
+        "validationStatus": "PASSED",
+        "resultAvailable": true,
+        "manifestHash": "d5d451dca1694dba3e0d802799a0f95138266e380ca0b2eccfbb3ea0dea4734c",
+        "outputStatus": null,
+        "businessValidationPassed": true,
+        "repair": {
+          "allowed": false,
+          "action": "COMPLETE",
+          "reason": "RESULT_VERIFIED",
+          "attemptsUsed": 1,
+          "maxAttempts": 3,
+          "baseCodeHash": "92513b152a135b1738d802ac1ab1072442cac84ff110f6c1426c51e3c4e13ccc",
+          "guidance": "Result archived; business correctness remains governed by validationStatus."
+        },
+        "diagnosticPolicy": "METADATA_ONLY_V1",
+        "script": {
+          "fileName": "analyze-only-these-expli_20261108T193307952Z_354361218635_v2.py",
+          "scriptPath": "/workspace/scripts/analyze-only-these-expli_20261108T193307952Z_354361218635_v2.py",
+          "workingDirectory": "tasks/2abd2c828f4ebf3c/6432cc690bc93efe/150214f738a9ce38/35436121863550b38cf7b13a",
+          "scriptVersion": 2
+        }
+      }
+    ],
+    "lastPythonStopped": true,
+    "error": null,
+    "activeOperations": [],
+    "workerStopped": true,
+    "remoteStopConfirmed": false,
+    "codeLifecycle": {
+      "schemaVersion": "runtime_os.code_lifecycle.v1",
+      "taskId": "analysis-coding-3bfb69e23343c4833397b7aa70b4510bfc56e11cc28071a4a1512dbac038db8b",
+      "inputSnapshotRef": "runtime-evidence:coding:input:f157f9db0b0bdc1ef9bf3a3a1cbdea7263de50e666be1c45bb57efe98fe8414",
+      "versions": [
+        {
+          "version": 1,
+          "codeHash": "54d6dea051ebe5f89e86eb934144916316d965a85c49b3f7b0c9ef6151dc8b66",
+          "parentHash": null,
+          "parentVersion": null,
+          "operationId": "cline-491d3657cccb87eb35e5eb57ba031ec895f2965c0a198783ada53222f6f96079",
+          "status": "REJECTED",
+          "kind": "INITIAL",
+          "editCount": 0,
+          "patchHash": "643d5437104296e21d906ecb15b2c96ad278f20cfc4af53b12bb6069bd853726"
+        },
+        {
+          "version": 2,
+          "codeHash": "92513b152a135b1738d802ac1ab1072442cac84ff110f6c1426c51e3c4e13ccc",
+          "parentHash": "54d6dea051ebe5f89e86eb934144916316d965a85c49b3f7b0c9ef6151dc8b66",
+          "parentVersion": 1,
+          "operationId": "cline-873982245d2d3a25b26e7fc2524a9627b89a51eecaa4974a80857b1b900f3953",
+          "status": "VALIDATED",
+          "kind": "PATCH",
+          "editCount": 1,
+          "patchHash": "34146444bcc6e21d131aed23d4e96daa27e5ec41d7fadc29146cdda409ab0253"
+        }
+      ],
+      "validHash": "92513b152a135b1738d802ac1ab1072442cac84ff110f6c1426c51e3c4e13ccc"
+    },
+    "nativeCompletion": {
+      "eventId": "91",
+      "toolCallId": "call_84628f9a858e478b9e965735",
+      "sessionId": "6251c209-38c1-4a3b-8d42-97cb5d45093d"
+    },
+    "capabilities": {
+      "messages": false,
+      "cancel": false,
+      "reconcile": false,
+      "permissions": false
+    },
+    "allowedTools": [
+      "artifact_read",
+      "code_read",
+      "input_read",
+      "python_execute",
+      "read_files",
+      "skills",
+      "sql_validate"
+    ],
+    "objective": "JOINT_MONITOR_CSV_REPAIR. First execute the existing joint_analysis.py unchanged through Managed Python to reproduce its real NameError. Then repair that same file yourself and execute again. Analyze only the selected original technical CSV: count data rows and calculate the exact Decimal sum of column value. Deliver the complete contracted rows.jsonl with verifiedSummary and a short report.md. The verified original CSV is directly available in nativeFiles; do not reconstruct transport tables or add other analytical objectives. Keep the program concise. Review the real archived result before finishing."
+  },
+  "final": {
+    "id": "runtime:770cd052-d887-496f-b5a5-b29b666fae34",
+    "mode": "runtime",
+    "sessionId": "6251c209-38c1-4a3b-8d42-97cb5d45093d",
+    "nativeSessionId": "1794166330805_m44zy",
+    "taskId": "analysis-coding-3bfb69e23343c4833397b7aa70b4510bfc56e11cc28071a4a1512dbac038db8b",
+    "runId": "asset-analysis-76a61df1c56f52f718b8fd0dbbf39fa4b5c12906a6dbdaa155467f352ed3ee03",
+    "status": "COMPLETED",
+    "nativeTurnStatus": "TURN_COMPLETED",
+    "nativeTurnEventId": "94",
+    "runtimeStatus": "COMPLETED",
+    "authority": "RUNTIME_CONFIRMED",
+    "outcome": {
+      "schemaVersion": "runtime_os.coding.v3",
+      "taskId": "analysis-coding-3bfb69e23343c4833397b7aa70b4510bfc56e11cc28071a4a1512dbac038db8b",
+      "scope": {
+        "tenantId": "9001fee4-482b-4851-9eb9-df269765291f",
+        "userId": "2f219487-11a3-4a1d-9130-ac500b62f268",
+        "requestId": "22780ff6e334d248a918be0feeeb038f",
+        "conversationId": "unknown-conversation",
+        "runId": "asset-analysis-76a61df1c56f52f718b8fd0dbbf39fa4b5c12906a6dbdaa155467f352ed3ee03",
+        "environment": null,
+        "attributes": {}
+      },
+      "contractSha256": "d913ccd47d7809475dcfe42c22ff8e3a166f7ee15fc15dcefcb35ae2c889b027",
+      "status": "COMPLETED",
+      "revision": 61,
+      "lastEventSequence": 62,
+      "createdAt": "2026-11-08T19:32:01.358Z",
+      "updatedAt": "2026-11-08T19:33:33.258Z",
+      "startedAt": "2026-11-08T19:32:01.487Z",
+      "endedAt": "2026-11-08T19:33:33.258Z",
+      "cancellationRequested": false,
+      "reasonCode": null,
+      "summary": "Coding execution archived; validation PASSED",
+      "limitations": [
+        "A2 enforces cumulative admission reservations only; model/process hard limits, instantaneous memory and disk enforcement require execution-node adapters."
+      ],
+      "inputSnapshotRef": "runtime-evidence:coding:input:f157f9db0b0bdc1ef9bf3a3a1cbdea7263de50e666be1c45bb57efe98fe8414",
+      "codeArtifactRef": "runtime-evidence:coding:1fc397baf600de4b7594fdd3ddebfc7888ee0e986cda2d42321cd9a8300d5bb2:code",
+      "executionReceiptRef": "runtime-evidence:coding:1fc397baf600de4b7594fdd3ddebfc7888ee0e986cda2d42321cd9a8300d5bb2:receipt",
+      "resultDatasetRef": "runtime-evidence:coding:1fc397baf600de4b7594fdd3ddebfc7888ee0e986cda2d42321cd9a8300d5bb2:result",
+      "validationRecordRef": "runtime-evidence:coding:1fc397baf600de4b7594fdd3ddebfc7888ee0e986cda2d42321cd9a8300d5bb2:validation",
+      "evidenceBundleRef": "runtime-evidence:coding:1fc397baf600de4b7594fdd3ddebfc7888ee0e986cda2d42321cd9a8300d5bb2:bundle",
+      "validationStatus": "PASSED",
+      "reproducibility": {
+        "level": "CONDITIONAL",
+        "limitations": [
+          "Execution and reproducibility have not been verified"
+        ],
+        "dependencyRefs": [
+          "b1068ad2-7b8d-4fb0-9230-316c86c596a4"
+        ]
+      },
+      "usage": {
+        "budgetId": "analysis-coding-tool-budget:analysis-coding-3bfb69e23343c4833397b7aa70b4510bfc56e11cc28071a4a1512dbac038db8b",
+        "costCurrency": "USD",
+        "consumed": {
+          "modelCalls": 5,
+          "modelTokens": 82757,
+          "toolCalls": 2,
+          "codeExecutions": 2,
+          "cpuMillis": 0,
+          "peakMemoryBytes": 0,
+          "outputBytes": 5917,
+          "costAmount": "0"
+        },
+        "reserved": {
+          "modelCalls": 0,
+          "modelTokens": 9107,
+          "toolCalls": 0,
+          "codeExecutions": 0,
+          "cpuMillis": 50000,
+          "peakMemoryBytes": 0,
+          "outputBytes": 693133,
+          "costAmount": "4.166666666665"
+        },
+        "meteringComplete": false
+      },
+      "executionControl": {
+        "stopReason": null,
+        "stopRequestedAt": null,
+        "executorStopped": true,
+        "reconciliationRequired": false
+      },
+      "parentTaskId": null,
+      "supersedesTaskId": null,
+      "perArtifactCompleteness": {}
+    },
+    "modelReceipts": [
+      {
+        "operationId": "model-1",
+        "attemptId": "analysis-coding-3bfb69e23343c4833397b7aa70b4510bfc56e11cc28071a4a1512dbac038db8b:fence-1",
+        "modelCall": 1,
+        "state": "SUCCEEDED",
+        "selectedModel": "qwen3.7-plus",
+        "providerModel": "qwen3.7-plus",
+        "protocol": "openai",
+        "startedAt": "2026-11-08T19:32:11.440939520Z",
+        "finishedAt": "2026-11-08T19:32:20.088246674Z",
+        "durationMs": 8647,
+        "usage": {
+          "cacheReadTokens": 0,
+          "outputTokens": 454,
+          "inputTokens": 10225,
+          "reasoningTokens": 179
+        },
+        "source": "JAVA_MODEL_RECEIPT"
+      },
+      {
+        "operationId": "model-2",
+        "attemptId": "analysis-coding-3bfb69e23343c4833397b7aa70b4510bfc56e11cc28071a4a1512dbac038db8b:fence-1",
+        "modelCall": 2,
+        "state": "SUCCEEDED",
+        "selectedModel": "qwen3.7-plus",
+        "providerModel": "qwen3.7-plus",
+        "protocol": "openai",
+        "startedAt": "2026-11-08T19:32:20.853928856Z",
+        "finishedAt": "2026-11-08T19:32:30.512451018Z",
+        "durationMs": 9658,
+        "usage": {
+          "cacheReadTokens": 9728,
+          "outputTokens": 533,
+          "inputTokens": 12449,
+          "reasoningTokens": 318
+        },
+        "source": "JAVA_MODEL_RECEIPT"
+      },
+      {
+        "operationId": "model-3",
+        "attemptId": "analysis-coding-3bfb69e23343c4833397b7aa70b4510bfc56e11cc28071a4a1512dbac038db8b:fence-1",
+        "modelCall": 3,
+        "state": "SUCCEEDED",
+        "selectedModel": "qwen3.7-plus",
+        "providerModel": "qwen3.7-plus",
+        "protocol": "openai",
+        "startedAt": "2026-11-08T19:32:33.599379411Z",
+        "finishedAt": "2026-11-08T19:33:03.393082371Z",
+        "durationMs": 29793,
+        "usage": {
+          "cacheReadTokens": 12032,
+          "outputTokens": 1796,
+          "inputTokens": 16284,
+          "reasoningTokens": 414
+        },
+        "source": "JAVA_MODEL_RECEIPT"
+      },
+      {
+        "operationId": "model-4",
+        "attemptId": "analysis-coding-3bfb69e23343c4833397b7aa70b4510bfc56e11cc28071a4a1512dbac038db8b:fence-1",
+        "modelCall": 4,
+        "state": "SUCCEEDED",
+        "selectedModel": "qwen3.7-plus",
+        "providerModel": "qwen3.7-plus",
+        "protocol": "openai",
+        "startedAt": "2026-11-08T19:33:03.899496686Z",
+        "finishedAt": "2026-11-08T19:33:07.661506503Z",
+        "durationMs": 3762,
+        "usage": {
+          "cacheReadTokens": 16128,
+          "outputTokens": 114,
+          "inputTokens": 17711,
+          "reasoningTokens": 63
+        },
+        "source": "JAVA_MODEL_RECEIPT"
+      },
+      {
+        "operationId": "model-5",
+        "attemptId": "analysis-coding-3bfb69e23343c4833397b7aa70b4510bfc56e11cc28071a4a1512dbac038db8b:fence-1",
+        "modelCall": 5,
+        "state": "SUCCEEDED",
+        "selectedModel": "qwen3.7-plus",
+        "providerModel": "qwen3.7-plus",
+        "protocol": "openai",
+        "startedAt": "2026-11-08T19:33:11.126336593Z",
+        "finishedAt": "2026-11-08T19:33:31.941190473Z",
+        "durationMs": 20814,
+        "usage": {
+          "cacheReadTokens": 17280,
+          "outputTokens": 1230,
+          "inputTokens": 21961,
+          "reasoningTokens": 527
+        },
+        "source": "JAVA_MODEL_RECEIPT"
+      }
+    ],
+    "executions": [
+      {
+        "schemaVersion": "runtime_os.execution_feedback.v1",
+        "taskId": "analysis-coding-3bfb69e23343c4833397b7aa70b4510bfc56e11cc28071a4a1512dbac038db8b",
+        "executionId": "cline-491d3657cccb87eb35e5eb57ba031ec895f2965c0a198783ada53222f6f96079",
+        "attemptId": "analysis-coding-3bfb69e23343c4833397b7aa70b4510bfc56e11cc28071a4a1512dbac038db8b:execution-1",
+        "traceId": "asset-analysis-76a61df1c56f52f718b8fd0dbbf39fa4b5c12906a6dbdaa155467f352ed3ee03",
+        "status": "FAILED",
+        "stage": "EXECUTION_FAILED",
+        "exitCode": 1,
+        "durationMs": 762,
+        "cpuTimeMs": 208,
+        "maxRssBytes": 21622784,
+        "codeHash": "54d6dea051ebe5f89e86eb934144916316d965a85c49b3f7b0c9ef6151dc8b66",
+        "stdout": "[raw stdout omitted]",
+        "stderr": "Inspect the reported line and existing code; make the smallest justified technical correction without changing source data.",
+        "stdoutBytes": 0,
+        "stderrBytes": 272,
+        "error": {
+          "category": "PROGRAM",
+          "exceptionType": "NameError",
+          "diagnosticCode": "PROGRAM_ERROR",
+          "message": "Inspect the reported line and existing code; make the smallest justified technical correction without changing source data.",
+          "stack": [
+            {
+              "file": "analyze-only-these-expli_20261108T193230939Z_354361218635_v1.py",
+              "line": 1,
+              "column": null
+            }
+          ],
+          "detailRef": "execution:cline-491d3657cccb87eb35e5eb57ba031ec895f2965c0a198783ada53222f6f96079:logs:runtime-diagnostic.json"
+        },
+        "inputDataRefs": [
+          "runtime-evidence:coding:input:f157f9db0b0bdc1ef9bf3a3a1cbdea7263de50e666be1c45bb57efe98fe8414"
+        ],
+        "schemaRef": "runtime-coding-schema:8b60974d596fd7b60127db6975bddc8149d4fc5b468160d733c34bfaaf9a243f",
+        "inputFiles": [
+          {
+            "fileId": "cf157f9db0b0bdc1ef9bf3a3a1cbdea7263de50e666be1c45bb57efe98fe8414",
+            "fileName": "manifest.json",
+            "sha256": "d2a0cab27bf9908f1a5959544979c3875e61be3001e323c0e9bc7e71cba315a0"
+          },
+          {
+            "fileId": "c48330a4f62e7d926d60e473ceb3adc03e6f71ec9221985d6729d3446af6307a",
+            "fileName": "original-0.csv",
+            "sha256": "fcb74b46f4042569e233515f15ea92342b8e019dd9531e0e9b7e4c92d37e9fb9"
+          },
+          {
+            "fileId": "cd1347df61f75df40d47ea4ee7195c1e82f5f1272cf98f5a92a9c13824392cec",
+            "fileName": "schema.json",
+            "sha256": "fa10fc50889c3ca6d1f05adbdbca1b3cf26507954490c9e1996d949f1a8bab9c"
+          },
+          {
+            "fileId": "c7822582e2ec6d7667265ae9f2a8591cb7c55232edd35c2d9da65a29c6e0b026",
+            "fileName": "part-00000.parquet",
+            "sha256": "788fed05e489ab404113194183fd5db547f3eb2a64240bb853f507460ebbbc57"
+          }
+        ],
+        "inputSchemaSummary": {
+          "manifestFileId": "cf157f9db0b0bdc1ef9bf3a3a1cbdea7263de50e666be1c45bb57efe98fe8414",
+          "format": "PARQUET",
+          "manifestSha256": "d2a0cab27bf9908f1a5959544979c3875e61be3001e323c0e9bc7e71cba315a0"
+        },
+        "artifactRefs": {
+          "stderrRef": "execution:cline-491d3657cccb87eb35e5eb57ba031ec895f2965c0a198783ada53222f6f96079:logs:stderr.txt",
+          "diagnosticRef": "execution:cline-491d3657cccb87eb35e5eb57ba031ec895f2965c0a198783ada53222f6f96079:logs:runtime-diagnostic.json"
+        },
+        "validationStatus": "NOT_RUN",
+        "resultAvailable": false,
+        "manifestHash": "34bffa5159f483772c29102785141fe636bd606b32c8a5dd112a7c5267ec216e",
+        "outputStatus": null,
+        "businessValidationPassed": false,
+        "repair": {
+          "allowed": true,
+          "action": "REPAIR_IN_CURRENT_CONTEXT",
+          "reason": "TECHNICAL_REPAIR",
+          "attemptsUsed": 0,
+          "maxAttempts": 3,
+          "baseCodeHash": "54d6dea051ebe5f89e86eb934144916316d965a85c49b3f7b0c9ef6151dc8b66",
+          "guidance": "Inspect the reported line and existing code; make the smallest justified technical correction without changing source data."
+        },
+        "diagnosticPolicy": "METADATA_ONLY_V1",
+        "script": {
+          "fileName": "analyze-only-these-expli_20261108T193230939Z_354361218635_v1.py",
+          "scriptPath": "/workspace/scripts/analyze-only-these-expli_20261108T193230939Z_354361218635_v1.py",
+          "workingDirectory": "tasks/2abd2c828f4ebf3c/6432cc690bc93efe/150214f738a9ce38/35436121863550b38cf7b13a",
+          "scriptVersion": 1
+        }
+      },
+      {
+        "schemaVersion": "runtime_os.execution_feedback.v1",
+        "taskId": "analysis-coding-3bfb69e23343c4833397b7aa70b4510bfc56e11cc28071a4a1512dbac038db8b",
+        "executionId": "cline-873982245d2d3a25b26e7fc2524a9627b89a51eecaa4974a80857b1b900f3953",
+        "attemptId": "analysis-coding-3bfb69e23343c4833397b7aa70b4510bfc56e11cc28071a4a1512dbac038db8b:execution-2",
+        "traceId": "asset-analysis-76a61df1c56f52f718b8fd0dbbf39fa4b5c12906a6dbdaa155467f352ed3ee03",
+        "status": "SUCCEEDED",
+        "stage": "VALIDATED",
+        "exitCode": 0,
+        "durationMs": 557,
+        "cpuTimeMs": 299,
+        "maxRssBytes": 21716992,
+        "codeHash": "92513b152a135b1738d802ac1ab1072442cac84ff110f6c1426c51e3c4e13ccc",
+        "stdout": "[raw stdout omitted]",
+        "stderr": "[raw stderr omitted]",
+        "stdoutBytes": 41,
+        "stderrBytes": 0,
+        "error": null,
+        "inputDataRefs": [
+          "runtime-evidence:coding:input:f157f9db0b0bdc1ef9bf3a3a1cbdea7263de50e666be1c45bb57efe98fe8414"
+        ],
+        "schemaRef": "runtime-coding-schema:8b60974d596fd7b60127db6975bddc8149d4fc5b468160d733c34bfaaf9a243f",
+        "inputFiles": [
+          {
+            "fileId": "cf157f9db0b0bdc1ef9bf3a3a1cbdea7263de50e666be1c45bb57efe98fe8414",
+            "fileName": "manifest.json",
+            "sha256": "d2a0cab27bf9908f1a5959544979c3875e61be3001e323c0e9bc7e71cba315a0"
+          },
+          {
+            "fileId": "c48330a4f62e7d926d60e473ceb3adc03e6f71ec9221985d6729d3446af6307a",
+            "fileName": "original-0.csv",
+            "sha256": "fcb74b46f4042569e233515f15ea92342b8e019dd9531e0e9b7e4c92d37e9fb9"
+          },
+          {
+            "fileId": "cd1347df61f75df40d47ea4ee7195c1e82f5f1272cf98f5a92a9c13824392cec",
+            "fileName": "schema.json",
+            "sha256": "fa10fc50889c3ca6d1f05adbdbca1b3cf26507954490c9e1996d949f1a8bab9c"
+          },
+          {
+            "fileId": "c7822582e2ec6d7667265ae9f2a8591cb7c55232edd35c2d9da65a29c6e0b026",
+            "fileName": "part-00000.parquet",
+            "sha256": "788fed05e489ab404113194183fd5db547f3eb2a64240bb853f507460ebbbc57"
+          }
+        ],
+        "inputSchemaSummary": {
+          "manifestFileId": "cf157f9db0b0bdc1ef9bf3a3a1cbdea7263de50e666be1c45bb57efe98fe8414",
+          "format": "PARQUET",
+          "manifestSha256": "d2a0cab27bf9908f1a5959544979c3875e61be3001e323c0e9bc7e71cba315a0"
+        },
+        "artifactRefs": {
+          "codeArtifactRef": "runtime-evidence:coding:1fc397baf600de4b7594fdd3ddebfc7888ee0e986cda2d42321cd9a8300d5bb2:code",
+          "inputSnapshotRef": "runtime-evidence:coding:input:f157f9db0b0bdc1ef9bf3a3a1cbdea7263de50e666be1c45bb57efe98fe8414",
+          "resultDatasetRef": "runtime-evidence:coding:1fc397baf600de4b7594fdd3ddebfc7888ee0e986cda2d42321cd9a8300d5bb2:result",
+          "validationRecordRef": "runtime-evidence:coding:1fc397baf600de4b7594fdd3ddebfc7888ee0e986cda2d42321cd9a8300d5bb2:validation",
+          "evidenceBundleRef": "runtime-evidence:coding:1fc397baf600de4b7594fdd3ddebfc7888ee0e986cda2d42321cd9a8300d5bb2:bundle",
+          "diagnosticRef": "execution:cline-873982245d2d3a25b26e7fc2524a9627b89a51eecaa4974a80857b1b900f3953:logs:runtime-diagnostic.json",
+          "stderrRef": "execution:cline-873982245d2d3a25b26e7fc2524a9627b89a51eecaa4974a80857b1b900f3953:logs:stderr.txt",
+          "executionReceiptRef": "runtime-evidence:coding:1fc397baf600de4b7594fdd3ddebfc7888ee0e986cda2d42321cd9a8300d5bb2:receipt"
+        },
+        "validationStatus": "PASSED",
+        "resultAvailable": true,
+        "manifestHash": "d5d451dca1694dba3e0d802799a0f95138266e380ca0b2eccfbb3ea0dea4734c",
+        "outputStatus": null,
+        "businessValidationPassed": true,
+        "repair": {
+          "allowed": false,
+          "action": "COMPLETE",
+          "reason": "RESULT_VERIFIED",
+          "attemptsUsed": 1,
+          "maxAttempts": 3,
+          "baseCodeHash": "92513b152a135b1738d802ac1ab1072442cac84ff110f6c1426c51e3c4e13ccc",
+          "guidance": "Result archived; business correctness remains governed by validationStatus."
+        },
+        "diagnosticPolicy": "METADATA_ONLY_V1",
+        "script": {
+          "fileName": "analyze-only-these-expli_20261108T193307952Z_354361218635_v2.py",
+          "scriptPath": "/workspace/scripts/analyze-only-these-expli_20261108T193307952Z_354361218635_v2.py",
+          "workingDirectory": "tasks/2abd2c828f4ebf3c/6432cc690bc93efe/150214f738a9ce38/35436121863550b38cf7b13a",
+          "scriptVersion": 2
+        }
+      }
+    ],
+    "lastPythonStopped": true,
+    "error": null,
+    "activeOperations": [],
+    "workerStopped": true,
+    "remoteStopConfirmed": false,
+    "codeLifecycle": {
+      "schemaVersion": "runtime_os.code_lifecycle.v1",
+      "taskId": "analysis-coding-3bfb69e23343c4833397b7aa70b4510bfc56e11cc28071a4a1512dbac038db8b",
+      "inputSnapshotRef": "runtime-evidence:coding:input:f157f9db0b0bdc1ef9bf3a3a1cbdea7263de50e666be1c45bb57efe98fe8414",
+      "versions": [
+        {
+          "version": 1,
+          "codeHash": "54d6dea051ebe5f89e86eb934144916316d965a85c49b3f7b0c9ef6151dc8b66",
+          "parentHash": null,
+          "parentVersion": null,
+          "operationId": "cline-491d3657cccb87eb35e5eb57ba031ec895f2965c0a198783ada53222f6f96079",
+          "status": "REJECTED",
+          "kind": "INITIAL",
+          "editCount": 0,
+          "patchHash": "643d5437104296e21d906ecb15b2c96ad278f20cfc4af53b12bb6069bd853726"
+        },
+        {
+          "version": 2,
+          "codeHash": "92513b152a135b1738d802ac1ab1072442cac84ff110f6c1426c51e3c4e13ccc",
+          "parentHash": "54d6dea051ebe5f89e86eb934144916316d965a85c49b3f7b0c9ef6151dc8b66",
+          "parentVersion": 1,
+          "operationId": "cline-873982245d2d3a25b26e7fc2524a9627b89a51eecaa4974a80857b1b900f3953",
+          "status": "VALIDATED",
+          "kind": "PATCH",
+          "editCount": 1,
+          "patchHash": "34146444bcc6e21d131aed23d4e96daa27e5ec41d7fadc29146cdda409ab0253"
+        }
+      ],
+      "validHash": "92513b152a135b1738d802ac1ab1072442cac84ff110f6c1426c51e3c4e13ccc"
+    },
+    "nativeCompletion": {
+      "eventId": "91",
+      "toolCallId": "call_84628f9a858e478b9e965735",
+      "sessionId": "6251c209-38c1-4a3b-8d42-97cb5d45093d"
+    },
+    "capabilities": {
+      "messages": false,
+      "cancel": false,
+      "reconcile": false,
+      "permissions": false
+    },
+    "allowedTools": [
+      "artifact_read",
+      "code_read",
+      "input_read",
+      "python_execute",
+      "read_files",
+      "skills",
+      "sql_validate"
+    ],
+    "objective": "JOINT_MONITOR_CSV_REPAIR. First execute the existing joint_analysis.py unchanged through Managed Python to reproduce its real NameError. Then repair that same file yourself and execute again. Analyze only the selected original technical CSV: count data rows and calculate the exact Decimal sum of column value. Deliver the complete contracted rows.jsonl with verifiedSummary and a short report.md. The verified original CSV is directly available in nativeFiles; do not reconstruct transport tables or add other analytical objectives. Keep the program concise. Review the real archived result before finishing."
+  },
+  "code": {
+    "versions": [
+      {
+        "version": 1,
+        "codeHash": "54d6dea051ebe5f89e86eb934144916316d965a85c49b3f7b0c9ef6151dc8b66",
+        "parentHash": null,
+        "parentVersion": null,
+        "operationId": "cline-491d3657cccb87eb35e5eb57ba031ec895f2965c0a198783ada53222f6f96079",
+        "status": "REJECTED",
+        "kind": "INITIAL",
+        "editCount": 0,
+        "patchHash": "643d5437104296e21d906ecb15b2c96ad278f20cfc4af53b12bb6069bd853726"
+      },
+      {
+        "version": 2,
+        "codeHash": "92513b152a135b1738d802ac1ab1072442cac84ff110f6c1426c51e3c4e13ccc",
+        "parentHash": "54d6dea051ebe5f89e86eb934144916316d965a85c49b3f7b0c9ef6151dc8b66",
+        "parentVersion": 1,
+        "operationId": "cline-873982245d2d3a25b26e7fc2524a9627b89a51eecaa4974a80857b1b900f3953",
+        "status": "VALIDATED",
+        "kind": "PATCH",
+        "editCount": 1,
+        "patchHash": "34146444bcc6e21d131aed23d4e96daa27e5ec41d7fadc29146cdda409ab0253"
+      }
+    ],
+    "sources": [
+      {
+        "version": 1,
+        "codeHash": "54d6dea051ebe5f89e86eb934144916316d965a85c49b3f7b0c9ef6151dc8b66",
+        "operationId": "cline-491d3657cccb87eb35e5eb57ba031ec895f2965c0a198783ada53222f6f96079",
+        "kind": "code",
+        "source": "RUNTIME_OWNER_ARCHIVE",
+        "fileId": "3aa19d34313985e6dbc956bf032e1d70fa20c09a56b64e49a719c8ecd7c76002",
+        "sha256": "54d6dea051ebe5f89e86eb934144916316d965a85c49b3f7b0c9ef6151dc8b66",
+        "totalBytes": 29,
+        "content": "joint_monitor_missing_name()\n",
+        "redacted": false,
+        "truncated": false
+      },
+      {
+        "version": 2,
+        "codeHash": "92513b152a135b1738d802ac1ab1072442cac84ff110f6c1426c51e3c4e13ccc",
+        "operationId": "cline-873982245d2d3a25b26e7fc2524a9627b89a51eecaa4974a80857b1b900f3953",
+        "kind": "code",
+        "source": "RUNTIME_OWNER_ARCHIVE",
+        "fileId": "08532f459474106cfc8c6ec909191b559ff3d22fb50921df8905266b625cf7d8",
+        "sha256": "92513b152a135b1738d802ac1ab1072442cac84ff110f6c1426c51e3c4e13ccc",
+        "totalBytes": 2855,
+        "content": "import csv\nimport json\nimport os\nfrom decimal import Decimal\n\nCSV_PATH = \"/data/input/c48330a4f62e7d926d60e473ceb3adc03e6f71ec9221985d6729d3446af6307a/original-0.csv\"\nSOURCE_SHA256 = \"fcb74b46f4042569e233515f15ea92342b8e019dd9531e0e9b7e4c92d37e9fb9\"\nDATASET_REF = \"user-asset:4874c4d755f8baeb9118b90e25e3f2fb2e8bfef8c7dee5728eaf077636f9c0a6:fcb74b46f4042569e233515f15ea92342b8e019dd9531e0e9b7e4c92d37e9fb9\"\nOUTPUT_DIR = \"/workspace/output/results\"\n\ndef main():\n    os.makedirs(OUTPUT_DIR, exist_ok=True)\n\n    rows = []\n    with open(CSV_PATH, newline=\"\", encoding=\"utf-8\") as f:\n        reader = csv.DictReader(f)\n        for row in reader:\n            rows.append(row)\n\n    row_count = len(rows)\n    value_sum = sum(Decimal(r[\"value\"]) for r in rows)\n\n    verified_summary = {\n        \"rowCount\": row_count,\n        \"sum\": str(value_sum),\n        \"sourceSha256\": SOURCE_SHA256,\n    }\n\n    report_md = (\n        \"# Joint Monitor CSV Analysis Report\\n\\n\"\n        f\"- **Source file**: native-monitor-joint.csv (original-0.csv)\\n\"\n        f\"- **SHA-256**: {SOURCE_SHA256}\\n\"\n        f\"- **Data row count**: {row_count}\\n\"\n        f\"- **Exact Decimal sum of `value`**: {value_sum}\\n\\n\"\n        \"## Rows\\n\\n\"\n        \"| category | value |\\n\"\n        \"|----------|-------|\\n\"\n    )\n    for r in rows:\n        report_md += f\"| {r['category']} | {r['value']} |\\n\"\n\n    report_md += (\n        \"\\n## Verification\\n\\n\"\n        \"The row count and Decimal sum were computed directly from the immutable \"\n        \"original CSV bytes delivered by Runtime.\\n\"\n    )\n\n    field_provenance = [\n        {\n            \"datasetReference\": DATASET_REF,\n            \"sourceField\": \"value\",\n            \"meaning\": \"Literal numeric column from the original CSV; summed with Python Decimal for exact arithmetic.\",\n            \"declarationSource\": \"nativeFileSchemas in schema.json, columns=[category, value]\",\n            \"status\": \"CONFIRMED\",\n        }\n    ]\n\n    result_row = {\n        \"reportMarkdown\": report_md,\n        \"evidenceReferences\": [\n            \"user-asset:4874c4d755f8baeb9118b90e25e3f2fb2e8bfef8c7dee5728eaf077636f9c0a6:fcb74b46f4042569e233515f15ea92342b8e019dd9531e0e9b7e4c92d37e9fb9\"\n        ],\n        \"limitations\": [\n            \"Analysis limited to the single authorized original CSV; no additional datasets or transport reconstruction.\"\n        ],\n        \"analysisStatus\": \"COMPLETE\",\n        \"fieldProvenance\": field_provenance,\n        \"verifiedSummary\": verified_summary,\n    }\n\n    with open(os.path.join(OUTPUT_DIR, \"rows.jsonl\"), \"w\", encoding=\"utf-8\") as f:\n        f.write(json.dumps(result_row, ensure_ascii=False) + \"\\n\")\n\n    with open(os.path.join(OUTPUT_DIR, \"report.md\"), \"w\", encoding=\"utf-8\") as f:\n        f.write(report_md)\n\n    print(f\"rows.jsonl written: rowCount={row_count}, sum={value_sum}\")\n\nif __name__ == \"__main__\":\n    main()\n",
+        "redacted": false,
+        "truncated": false
+      }
+    ],
+    "evidence": "RUNTIME_CODE_LIFECYCLE_AND_OWNER_AUTHORIZED_ARTIFACTS",
+    "completeDiffAvailable": true
+  },
+  "assets": [
+    {
+      "id": "47ca1a62435e74dfc4ffb1fa0a479446984b54f656a73234eb7f91602ea437ee",
+      "kind": "CONTEXT",
+      "fileName": "analysis-context.json",
+      "contentType": "application/octet-stream",
+      "sha256": "41ba4885b6fd28eed6f3cd2cd757981673bd008b2c021f65f05e588abe34565e",
+      "size": 4574,
+      "state": "AVAILABLE",
+      "taskId": "analysis-coding-3bfb69e23343c4833397b7aa70b4510bfc56e11cc28071a4a1512dbac038db8b",
+      "runId": "asset-analysis-76a61df1c56f52f718b8fd0dbbf39fa4b5c12906a6dbdaa155467f352ed3ee03",
+      "sourceRef": "user-analysis-result",
+      "createdAt": 1794166413347
+    },
+    {
+      "id": "372978377340f44c8592f3746ded7ab2383ecacdca5aa1dac2e8930965c670e6",
+      "kind": "LOG",
+      "fileName": "execution-feedback.json",
+      "contentType": "application/octet-stream",
+      "sha256": "419515b2de0a92d21b0a788392206afa1ff103200ba996e4bf0b1e481cef644a",
+      "size": 3669,
+      "state": "AVAILABLE",
+      "taskId": "analysis-coding-3bfb69e23343c4833397b7aa70b4510bfc56e11cc28071a4a1512dbac038db8b",
+      "runId": "asset-analysis-76a61df1c56f52f718b8fd0dbbf39fa4b5c12906a6dbdaa155467f352ed3ee03",
+      "sourceRef": "feedback:cline-873982245d2d3a25b26e7fc2524a9627b89a51eecaa4974a80857b1b900f3953",
+      "createdAt": 1794166390722
+    },
+    {
+      "id": "3dc5f7aaadc93005feb538dd4955fc1ff2b8eaf514c3e6014f1b274c556a6ce2",
+      "kind": "CONTEXT",
+      "fileName": "analysis-context.json",
+      "contentType": "application/octet-stream",
+      "sha256": "f939ef890aa9295805cfcee52141149c3969bb951f70104b06c363c889f29ce3",
+      "size": 722,
+      "state": "AVAILABLE",
+      "taskId": "analysis-coding-3bfb69e23343c4833397b7aa70b4510bfc56e11cc28071a4a1512dbac038db8b",
+      "runId": "asset-analysis-76a61df1c56f52f718b8fd0dbbf39fa4b5c12906a6dbdaa155467f352ed3ee03",
+      "sourceRef": "execution-context:cline-873982245d2d3a25b26e7fc2524a9627b89a51eecaa4974a80857b1b900f3953",
+      "createdAt": 1794166390581
+    },
+    {
+      "id": "08532f459474106cfc8c6ec909191b559ff3d22fb50921df8905266b625cf7d8",
+      "kind": "CODE",
+      "fileName": "analyze-only-these-expli_20261108T193307952Z_354361218635_v2.py",
+      "contentType": "application/octet-stream",
+      "sha256": "92513b152a135b1738d802ac1ab1072442cac84ff110f6c1426c51e3c4e13ccc",
+      "size": 2855,
+      "state": "AVAILABLE",
+      "taskId": "analysis-coding-3bfb69e23343c4833397b7aa70b4510bfc56e11cc28071a4a1512dbac038db8b",
+      "runId": "asset-analysis-76a61df1c56f52f718b8fd0dbbf39fa4b5c12906a6dbdaa155467f352ed3ee03",
+      "sourceRef": "execution:cline-873982245d2d3a25b26e7fc2524a9627b89a51eecaa4974a80857b1b900f3953:code:analyze-only-these-expli_20261108T193307952Z_354361218635_v2.py",
+      "createdAt": 1794166390259
+    },
+    {
+      "id": "9c80f637950045f8e96170124d182638e84516c7a89d77b4efef33f711472ab5",
+      "kind": "LOG",
+      "fileName": "manifest.json",
+      "contentType": "application/octet-stream",
+      "sha256": "d5d451dca1694dba3e0d802799a0f95138266e380ca0b2eccfbb3ea0dea4734c",
+      "size": 1360,
+      "state": "AVAILABLE",
+      "taskId": "analysis-coding-3bfb69e23343c4833397b7aa70b4510bfc56e11cc28071a4a1512dbac038db8b",
+      "runId": "asset-analysis-76a61df1c56f52f718b8fd0dbbf39fa4b5c12906a6dbdaa155467f352ed3ee03",
+      "sourceRef": "execution:cline-873982245d2d3a25b26e7fc2524a9627b89a51eecaa4974a80857b1b900f3953:manifest:manifest.json",
+      "createdAt": 1794166389970
+    },
+    {
+      "id": "38e5ca8e5c930e113af82fdb3db87b75119765a9e99f1ca9ebfa790b4d846f87",
+      "kind": "CONTEXT",
+      "fileName": "analysis-context.json",
+      "contentType": "application/octet-stream",
+      "sha256": "1d5ad608d37c75b6737b291475081b2d22cf7d0e8e003315bafc4081ccb2bdba",
+      "size": 249,
+      "state": "AVAILABLE",
+      "taskId": "analysis-coding-3bfb69e23343c4833397b7aa70b4510bfc56e11cc28071a4a1512dbac038db8b",
+      "runId": "asset-analysis-76a61df1c56f52f718b8fd0dbbf39fa4b5c12906a6dbdaa155467f352ed3ee03",
+      "sourceRef": "execution-stop:cline-873982245d2d3a25b26e7fc2524a9627b89a51eecaa4974a80857b1b900f3953",
+      "createdAt": 1794166389956
+    },
+    {
+      "id": "53a6cff4e6c8b2614c227a2668b19ea71e9b17d676873f4778edf496fe5da3a6",
+      "kind": "LOG",
+      "fileName": "stdout.txt",
+      "contentType": "application/octet-stream",
+      "sha256": "1407e74d64f158b3c29992bcdc0e1d513b54ed7763eea8dfbce42997d38b925f",
+      "size": 48,
+      "state": "AVAILABLE",
+      "taskId": "analysis-coding-3bfb69e23343c4833397b7aa70b4510bfc56e11cc28071a4a1512dbac038db8b",
+      "runId": "asset-analysis-76a61df1c56f52f718b8fd0dbbf39fa4b5c12906a6dbdaa155467f352ed3ee03",
+      "sourceRef": "execution:cline-873982245d2d3a25b26e7fc2524a9627b89a51eecaa4974a80857b1b900f3953:logs:stdout.txt",
+      "createdAt": 1794166389941
+    },
+    {
+      "id": "806909b5b085e18fd7406b6f6ca8cf41babcec5ba258f2f2bbb43f8710bca598",
+      "kind": "LOG",
+      "fileName": "stderr.txt",
+      "contentType": "application/octet-stream",
+      "sha256": "16d6babff79a456c2e43de9eb8a253b0c6374695ba6c6626844688624913fdac",
+      "size": 47,
+      "state": "AVAILABLE",
+      "taskId": "analysis-coding-3bfb69e23343c4833397b7aa70b4510bfc56e11cc28071a4a1512dbac038db8b",
+      "runId": "asset-analysis-76a61df1c56f52f718b8fd0dbbf39fa4b5c12906a6dbdaa155467f352ed3ee03",
+      "sourceRef": "execution:cline-873982245d2d3a25b26e7fc2524a9627b89a51eecaa4974a80857b1b900f3953:logs:stderr.txt",
+      "createdAt": 1794166389911
+    },
+    {
+      "id": "0d1b12069b167ce323ad9d6bcc81a82f2f260c120603428eb9bdebf0abd37fe6",
+      "kind": "LOG",
+      "fileName": "runtime-diagnostic.json",
+      "contentType": "application/octet-stream",
+      "sha256": "5d65a7076f545c1629b16fb92deb1651ede2b384e851deec1240d9bdf85ff208",
+      "size": 342,
+      "state": "AVAILABLE",
+      "taskId": "analysis-coding-3bfb69e23343c4833397b7aa70b4510bfc56e11cc28071a4a1512dbac038db8b",
+      "runId": "asset-analysis-76a61df1c56f52f718b8fd0dbbf39fa4b5c12906a6dbdaa155467f352ed3ee03",
+      "sourceRef": "execution:cline-873982245d2d3a25b26e7fc2524a9627b89a51eecaa4974a80857b1b900f3953:logs:runtime-diagnostic.json",
+      "createdAt": 1794166389880
+    },
+    {
+      "id": "fa2882c471dc728a7f8e04a773b7877e8b9736d3ddaccff91409ea5f56278859",
+      "kind": "LOG",
+      "fileName": "receipt.json",
+      "contentType": "application/octet-stream",
+      "sha256": "d29dd808fea6a7ddeb27c00d409fcf936fcb6264fcb7dde13b7f931569fa8cd9",
+      "size": 1354,
+      "state": "AVAILABLE",
+      "taskId": "analysis-coding-3bfb69e23343c4833397b7aa70b4510bfc56e11cc28071a4a1512dbac038db8b",
+      "runId": "asset-analysis-76a61df1c56f52f718b8fd0dbbf39fa4b5c12906a6dbdaa155467f352ed3ee03",
+      "sourceRef": "execution:cline-873982245d2d3a25b26e7fc2524a9627b89a51eecaa4974a80857b1b900f3953:logs:receipt.json",
+      "createdAt": 1794166389845
+    },
+    {
+      "id": "cb05f81fc97d22e4e339b13211c5c2e572130ab97a67d7c661d0d22fd5305eb4",
+      "kind": "ARTIFACT",
+      "fileName": "rows.jsonl",
+      "contentType": "application/octet-stream",
+      "sha256": "73870a63d19a13338a4b5a8a5ff2ab1a9df134e9d76bbb7750be23ede4301eff",
+      "size": 1406,
+      "state": "AVAILABLE",
+      "taskId": "analysis-coding-3bfb69e23343c4833397b7aa70b4510bfc56e11cc28071a4a1512dbac038db8b",
+      "runId": "asset-analysis-76a61df1c56f52f718b8fd0dbbf39fa4b5c12906a6dbdaa155467f352ed3ee03",
+      "sourceRef": "execution:cline-873982245d2d3a25b26e7fc2524a9627b89a51eecaa4974a80857b1b900f3953:results:rows.jsonl",
+      "createdAt": 1794166389803
+    },
+    {
+      "id": "16f54314497aa8e9058b67c741aac9b16202cf60b9d1379c084af28d9d94c1ec",
+      "kind": "ARTIFACT",
+      "fileName": "report.md",
+      "contentType": "application/octet-stream",
+      "sha256": "d32abc08fc777dbc08958723775e6f5602d4d7f7d321a68b9e6c15d187fed5c2",
+      "size": 477,
+      "state": "AVAILABLE",
+      "taskId": "analysis-coding-3bfb69e23343c4833397b7aa70b4510bfc56e11cc28071a4a1512dbac038db8b",
+      "runId": "asset-analysis-76a61df1c56f52f718b8fd0dbbf39fa4b5c12906a6dbdaa155467f352ed3ee03",
+      "sourceRef": "execution:cline-873982245d2d3a25b26e7fc2524a9627b89a51eecaa4974a80857b1b900f3953:results:report.md",
+      "createdAt": 1794166389765
+    },
+    {
+      "id": "071227aec43a5b41e3899de6c738191d0b83111812db8f1c516d893389420ada",
+      "kind": "CODE",
+      "fileName": "analyze-only-these-expli_20261108T193307952Z_354361218635_v2.py",
+      "contentType": "application/octet-stream",
+      "sha256": "92513b152a135b1738d802ac1ab1072442cac84ff110f6c1426c51e3c4e13ccc",
+      "size": 2855,
+      "state": "AVAILABLE",
+      "taskId": "analysis-coding-3bfb69e23343c4833397b7aa70b4510bfc56e11cc28071a4a1512dbac038db8b",
+      "runId": "asset-analysis-76a61df1c56f52f718b8fd0dbbf39fa4b5c12906a6dbdaa155467f352ed3ee03",
+      "sourceRef": "code:cline-873982245d2d3a25b26e7fc2524a9627b89a51eecaa4974a80857b1b900f3953",
+      "createdAt": 1794166388160
+    },
+    {
+      "id": "db22d03f4b8eac73282d955cda15ec7391b65cfb0f201fbc79b573f93a7a2871",
+      "kind": "LOG",
+      "fileName": "execution-feedback.json",
+      "contentType": "application/octet-stream",
+      "sha256": "ab8b16691b7fe8edd5a2c5a5bd9ea2fbedf85cabdc24270e664471f538dedcd8",
+      "size": 3583,
+      "state": "AVAILABLE",
+      "taskId": "analysis-coding-3bfb69e23343c4833397b7aa70b4510bfc56e11cc28071a4a1512dbac038db8b",
+      "runId": "asset-analysis-76a61df1c56f52f718b8fd0dbbf39fa4b5c12906a6dbdaa155467f352ed3ee03",
+      "sourceRef": "feedback:cline-491d3657cccb87eb35e5eb57ba031ec895f2965c0a198783ada53222f6f96079",
+      "createdAt": 1794166353238
+    },
+    {
+      "id": "78f21966ed988b00648d441d0f434b0ad7ef516fbde0ebae195678eeb8eca062",
+      "kind": "LOG",
+      "fileName": "manifest.json",
+      "contentType": "application/octet-stream",
+      "sha256": "34bffa5159f483772c29102785141fe636bd606b32c8a5dd112a7c5267ec216e",
+      "size": 805,
+      "state": "AVAILABLE",
+      "taskId": "analysis-coding-3bfb69e23343c4833397b7aa70b4510bfc56e11cc28071a4a1512dbac038db8b",
+      "runId": "asset-analysis-76a61df1c56f52f718b8fd0dbbf39fa4b5c12906a6dbdaa155467f352ed3ee03",
+      "sourceRef": "execution:cline-491d3657cccb87eb35e5eb57ba031ec895f2965c0a198783ada53222f6f96079:manifest:manifest.json",
+      "createdAt": 1794166352947
+    },
+    {
+      "id": "ce37f5788d3af80c81793d59f83c6ae70a44a9f730a3567ea99f5b4398f198c1",
+      "kind": "CONTEXT",
+      "fileName": "analysis-context.json",
+      "contentType": "application/octet-stream",
+      "sha256": "be04b20f759b3acb5f88dfb57328a9771f82e6bede63c3f2eeccc234433746f0",
+      "size": 246,
+      "state": "AVAILABLE",
+      "taskId": "analysis-coding-3bfb69e23343c4833397b7aa70b4510bfc56e11cc28071a4a1512dbac038db8b",
+      "runId": "asset-analysis-76a61df1c56f52f718b8fd0dbbf39fa4b5c12906a6dbdaa155467f352ed3ee03",
+      "sourceRef": "execution-stop:cline-491d3657cccb87eb35e5eb57ba031ec895f2965c0a198783ada53222f6f96079",
+      "createdAt": 1794166352933
+    },
+    {
+      "id": "9544a0f1a6bf192de282dc158669073ed01be270554450ddb2f79671f0acc217",
+      "kind": "LOG",
+      "fileName": "stdout.txt",
+      "contentType": "application/octet-stream",
+      "sha256": "c88c265af7027efd3a34995cd95a93d83dbffe95168b42ca4bab717e565ea419",
+      "size": 47,
+      "state": "AVAILABLE",
+      "taskId": "analysis-coding-3bfb69e23343c4833397b7aa70b4510bfc56e11cc28071a4a1512dbac038db8b",
+      "runId": "asset-analysis-76a61df1c56f52f718b8fd0dbbf39fa4b5c12906a6dbdaa155467f352ed3ee03",
+      "sourceRef": "execution:cline-491d3657cccb87eb35e5eb57ba031ec895f2965c0a198783ada53222f6f96079:logs:stdout.txt",
+      "createdAt": 1794166352916
+    },
+    {
+      "id": "cbb70b64c08e86ce77ef1b6917269932d7382076cfd2549109c25577fec6c4a4",
+      "kind": "LOG",
+      "fileName": "stderr.txt",
+      "contentType": "application/octet-stream",
+      "sha256": "2e0616a254c17f5cbee2170dffbdb45f87253e684b526cd4c72c9276d86eb8f4",
+      "size": 335,
+      "state": "AVAILABLE",
+      "taskId": "analysis-coding-3bfb69e23343c4833397b7aa70b4510bfc56e11cc28071a4a1512dbac038db8b",
+      "runId": "asset-analysis-76a61df1c56f52f718b8fd0dbbf39fa4b5c12906a6dbdaa155467f352ed3ee03",
+      "sourceRef": "execution:cline-491d3657cccb87eb35e5eb57ba031ec895f2965c0a198783ada53222f6f96079:logs:stderr.txt",
+      "createdAt": 1794166352883
+    },
+    {
+      "id": "24524fa17d09da43aec2db19c4ba0b00ecd79629cc6ba7806357a2945a71c043",
+      "kind": "LOG",
+      "fileName": "runtime-diagnostic.json",
+      "contentType": "application/octet-stream",
+      "sha256": "b234ae77f256e2099377e0cdf0c3288733de5b15c581a252705ddfa184afb2e6",
+      "size": 507,
+      "state": "AVAILABLE",
+      "taskId": "analysis-coding-3bfb69e23343c4833397b7aa70b4510bfc56e11cc28071a4a1512dbac038db8b",
+      "runId": "asset-analysis-76a61df1c56f52f718b8fd0dbbf39fa4b5c12906a6dbdaa155467f352ed3ee03",
+      "sourceRef": "execution:cline-491d3657cccb87eb35e5eb57ba031ec895f2965c0a198783ada53222f6f96079:logs:runtime-diagnostic.json",
+      "createdAt": 1794166352844
+    },
+    {
+      "id": "3b549c501d71455c2f58f92a070bbd1a535fffabeaa8a92f8de0e8140ad3e0fa",
+      "kind": "LOG",
+      "fileName": "receipt.json",
+      "contentType": "application/octet-stream",
+      "sha256": "619a4c9d0189e1928c6239f86c710cd9e5c594e15060137fc8bc81d1839ae6af",
+      "size": 1354,
+      "state": "AVAILABLE",
+      "taskId": "analysis-coding-3bfb69e23343c4833397b7aa70b4510bfc56e11cc28071a4a1512dbac038db8b",
+      "runId": "asset-analysis-76a61df1c56f52f718b8fd0dbbf39fa4b5c12906a6dbdaa155467f352ed3ee03",
+      "sourceRef": "execution:cline-491d3657cccb87eb35e5eb57ba031ec895f2965c0a198783ada53222f6f96079:logs:receipt.json",
+      "createdAt": 1794166352804
+    },
+    {
+      "id": "3aa19d34313985e6dbc956bf032e1d70fa20c09a56b64e49a719c8ecd7c76002",
+      "kind": "CODE",
+      "fileName": "analyze-only-these-expli_20261108T193230939Z_354361218635_v1.py",
+      "contentType": "application/octet-stream",
+      "sha256": "54d6dea051ebe5f89e86eb934144916316d965a85c49b3f7b0c9ef6151dc8b66",
+      "size": 29,
+      "state": "AVAILABLE",
+      "taskId": "analysis-coding-3bfb69e23343c4833397b7aa70b4510bfc56e11cc28071a4a1512dbac038db8b",
+      "runId": "asset-analysis-76a61df1c56f52f718b8fd0dbbf39fa4b5c12906a6dbdaa155467f352ed3ee03",
+      "sourceRef": "code:cline-491d3657cccb87eb35e5eb57ba031ec895f2965c0a198783ada53222f6f96079",
+      "createdAt": 1794166351092
+    },
+    {
+      "id": "ea59a868161a305c4be4987bff4290b5a8c8febc0b8d84029183c8ff19cf8d4e",
+      "kind": "DATASET",
+      "fileName": "manifest.json",
+      "contentType": "application/octet-stream",
+      "sha256": "d2a0cab27bf9908f1a5959544979c3875e61be3001e323c0e9bc7e71cba315a0",
+      "size": 1390,
+      "state": "AVAILABLE",
+      "taskId": "analysis-coding-3bfb69e23343c4833397b7aa70b4510bfc56e11cc28071a4a1512dbac038db8b",
+      "runId": "asset-analysis-76a61df1c56f52f718b8fd0dbbf39fa4b5c12906a6dbdaa155467f352ed3ee03",
+      "sourceRef": "input:cf157f9db0b0bdc1ef9bf3a3a1cbdea7263de50e666be1c45bb57efe98fe8414",
+      "createdAt": 1794166321091
+    },
+    {
+      "id": "876687f4205bb18a3b7cabcaaa94976048a213265f0e21496c5016de42c160d9",
+      "kind": "DATASET",
+      "fileName": "part-00000.parquet",
+      "contentType": "application/octet-stream",
+      "sha256": "788fed05e489ab404113194183fd5db547f3eb2a64240bb853f507460ebbbc57",
+      "size": 3891,
+      "state": "AVAILABLE",
+      "taskId": "analysis-coding-3bfb69e23343c4833397b7aa70b4510bfc56e11cc28071a4a1512dbac038db8b",
+      "runId": "asset-analysis-76a61df1c56f52f718b8fd0dbbf39fa4b5c12906a6dbdaa155467f352ed3ee03",
+      "sourceRef": "input:c7822582e2ec6d7667265ae9f2a8591cb7c55232edd35c2d9da65a29c6e0b026",
+      "createdAt": 1794166321011
+    },
+    {
+      "id": "ecb683ac50377a660bc7d88a5cf2a128237dd7bcb9dd789151173ee7341e64f8",
+      "kind": "DATASET",
+      "fileName": "schema.json",
+      "contentType": "application/octet-stream",
+      "sha256": "fa10fc50889c3ca6d1f05adbdbca1b3cf26507954490c9e1996d949f1a8bab9c",
+      "size": 1081,
+      "state": "AVAILABLE",
+      "taskId": "analysis-coding-3bfb69e23343c4833397b7aa70b4510bfc56e11cc28071a4a1512dbac038db8b",
+      "runId": "asset-analysis-76a61df1c56f52f718b8fd0dbbf39fa4b5c12906a6dbdaa155467f352ed3ee03",
+      "sourceRef": "input:cd1347df61f75df40d47ea4ee7195c1e82f5f1272cf98f5a92a9c13824392cec",
+      "createdAt": 1794166320439
+    },
+    {
+      "id": "be37ae0232d51ec3d448682817a1625d3589d402bfde87eb10c7c8d3722a680a",
+      "kind": "DATASET",
+      "fileName": "original-0.csv",
+      "contentType": "application/octet-stream",
+      "sha256": "fcb74b46f4042569e233515f15ea92342b8e019dd9531e0e9b7e4c92d37e9fb9",
+      "size": 48,
+      "state": "AVAILABLE",
+      "taskId": "analysis-coding-3bfb69e23343c4833397b7aa70b4510bfc56e11cc28071a4a1512dbac038db8b",
+      "runId": "asset-analysis-76a61df1c56f52f718b8fd0dbbf39fa4b5c12906a6dbdaa155467f352ed3ee03",
+      "sourceRef": "input:c48330a4f62e7d926d60e473ceb3adc03e6f71ec9221985d6729d3446af6307a",
+      "createdAt": 1794166320324
+    }
+  ],
+  "refreshPreservesIdentity": true,
+  "downloads": [
+    {
+      "id": "47ca1a62435e74dfc4ffb1fa0a479446984b54f656a73234eb7f91602ea437ee",
+      "fileName": "analysis-context.json",
+      "size": 4574,
+      "sha256": "41ba4885b6fd28eed6f3cd2cd757981673bd008b2c021f65f05e588abe34565e",
+      "httpStatus": 200,
+      "hashMatches": true,
+      "sizeMatches": true
+    },
+    {
+      "id": "372978377340f44c8592f3746ded7ab2383ecacdca5aa1dac2e8930965c670e6",
+      "fileName": "execution-feedback.json",
+      "size": 3669,
+      "sha256": "419515b2de0a92d21b0a788392206afa1ff103200ba996e4bf0b1e481cef644a",
+      "httpStatus": 200,
+      "hashMatches": true,
+      "sizeMatches": true
+    },
+    {
+      "id": "3dc5f7aaadc93005feb538dd4955fc1ff2b8eaf514c3e6014f1b274c556a6ce2",
+      "fileName": "analysis-context.json",
+      "size": 722,
+      "sha256": "f939ef890aa9295805cfcee52141149c3969bb951f70104b06c363c889f29ce3",
+      "httpStatus": 200,
+      "hashMatches": true,
+      "sizeMatches": true
+    },
+    {
+      "id": "08532f459474106cfc8c6ec909191b559ff3d22fb50921df8905266b625cf7d8",
+      "fileName": "analyze-only-these-expli_20261108T193307952Z_354361218635_v2.py",
+      "size": 2855,
+      "sha256": "92513b152a135b1738d802ac1ab1072442cac84ff110f6c1426c51e3c4e13ccc",
+      "httpStatus": 200,
+      "hashMatches": true,
+      "sizeMatches": true
+    },
+    {
+      "id": "9c80f637950045f8e96170124d182638e84516c7a89d77b4efef33f711472ab5",
+      "fileName": "manifest.json",
+      "size": 1360,
+      "sha256": "d5d451dca1694dba3e0d802799a0f95138266e380ca0b2eccfbb3ea0dea4734c",
+      "httpStatus": 200,
+      "hashMatches": true,
+      "sizeMatches": true
+    },
+    {
+      "id": "38e5ca8e5c930e113af82fdb3db87b75119765a9e99f1ca9ebfa790b4d846f87",
+      "fileName": "analysis-context.json",
+      "size": 249,
+      "sha256": "1d5ad608d37c75b6737b291475081b2d22cf7d0e8e003315bafc4081ccb2bdba",
+      "httpStatus": 200,
+      "hashMatches": true,
+      "sizeMatches": true
+    },
+    {
+      "id": "53a6cff4e6c8b2614c227a2668b19ea71e9b17d676873f4778edf496fe5da3a6",
+      "fileName": "stdout.txt",
+      "size": 48,
+      "sha256": "1407e74d64f158b3c29992bcdc0e1d513b54ed7763eea8dfbce42997d38b925f",
+      "httpStatus": 200,
+      "hashMatches": true,
+      "sizeMatches": true
+    },
+    {
+      "id": "806909b5b085e18fd7406b6f6ca8cf41babcec5ba258f2f2bbb43f8710bca598",
+      "fileName": "stderr.txt",
+      "size": 47,
+      "sha256": "16d6babff79a456c2e43de9eb8a253b0c6374695ba6c6626844688624913fdac",
+      "httpStatus": 200,
+      "hashMatches": true,
+      "sizeMatches": true
+    },
+    {
+      "id": "0d1b12069b167ce323ad9d6bcc81a82f2f260c120603428eb9bdebf0abd37fe6",
+      "fileName": "runtime-diagnostic.json",
+      "size": 342,
+      "sha256": "5d65a7076f545c1629b16fb92deb1651ede2b384e851deec1240d9bdf85ff208",
+      "httpStatus": 200,
+      "hashMatches": true,
+      "sizeMatches": true
+    },
+    {
+      "id": "fa2882c471dc728a7f8e04a773b7877e8b9736d3ddaccff91409ea5f56278859",
+      "fileName": "receipt.json",
+      "size": 1354,
+      "sha256": "d29dd808fea6a7ddeb27c00d409fcf936fcb6264fcb7dde13b7f931569fa8cd9",
+      "httpStatus": 200,
+      "hashMatches": true,
+      "sizeMatches": true
+    },
+    {
+      "id": "cb05f81fc97d22e4e339b13211c5c2e572130ab97a67d7c661d0d22fd5305eb4",
+      "fileName": "rows.jsonl",
+      "size": 1406,
+      "sha256": "73870a63d19a13338a4b5a8a5ff2ab1a9df134e9d76bbb7750be23ede4301eff",
+      "httpStatus": 200,
+      "hashMatches": true,
+      "sizeMatches": true
+    },
+    {
+      "id": "16f54314497aa8e9058b67c741aac9b16202cf60b9d1379c084af28d9d94c1ec",
+      "fileName": "report.md",
+      "size": 477,
+      "sha256": "d32abc08fc777dbc08958723775e6f5602d4d7f7d321a68b9e6c15d187fed5c2",
+      "httpStatus": 200,
+      "hashMatches": true,
+      "sizeMatches": true
+    },
+    {
+      "id": "071227aec43a5b41e3899de6c738191d0b83111812db8f1c516d893389420ada",
+      "fileName": "analyze-only-these-expli_20261108T193307952Z_354361218635_v2.py",
+      "size": 2855,
+      "sha256": "92513b152a135b1738d802ac1ab1072442cac84ff110f6c1426c51e3c4e13ccc",
+      "httpStatus": 200,
+      "hashMatches": true,
+      "sizeMatches": true
+    },
+    {
+      "id": "db22d03f4b8eac73282d955cda15ec7391b65cfb0f201fbc79b573f93a7a2871",
+      "fileName": "execution-feedback.json",
+      "size": 3583,
+      "sha256": "ab8b16691b7fe8edd5a2c5a5bd9ea2fbedf85cabdc24270e664471f538dedcd8",
+      "httpStatus": 200,
+      "hashMatches": true,
+      "sizeMatches": true
+    },
+    {
+      "id": "78f21966ed988b00648d441d0f434b0ad7ef516fbde0ebae195678eeb8eca062",
+      "fileName": "manifest.json",
+      "size": 805,
+      "sha256": "34bffa5159f483772c29102785141fe636bd606b32c8a5dd112a7c5267ec216e",
+      "httpStatus": 200,
+      "hashMatches": true,
+      "sizeMatches": true
+    },
+    {
+      "id": "ce37f5788d3af80c81793d59f83c6ae70a44a9f730a3567ea99f5b4398f198c1",
+      "fileName": "analysis-context.json",
+      "size": 246,
+      "sha256": "be04b20f759b3acb5f88dfb57328a9771f82e6bede63c3f2eeccc234433746f0",
+      "httpStatus": 200,
+      "hashMatches": true,
+      "sizeMatches": true
+    },
+    {
+      "id": "9544a0f1a6bf192de282dc158669073ed01be270554450ddb2f79671f0acc217",
+      "fileName": "stdout.txt",
+      "size": 47,
+      "sha256": "c88c265af7027efd3a34995cd95a93d83dbffe95168b42ca4bab717e565ea419",
+      "httpStatus": 200,
+      "hashMatches": true,
+      "sizeMatches": true
+    },
+    {
+      "id": "cbb70b64c08e86ce77ef1b6917269932d7382076cfd2549109c25577fec6c4a4",
+      "fileName": "stderr.txt",
+      "size": 335,
+      "sha256": "2e0616a254c17f5cbee2170dffbdb45f87253e684b526cd4c72c9276d86eb8f4",
+      "httpStatus": 200,
+      "hashMatches": true,
+      "sizeMatches": true
+    },
+    {
+      "id": "24524fa17d09da43aec2db19c4ba0b00ecd79629cc6ba7806357a2945a71c043",
+      "fileName": "runtime-diagnostic.json",
+      "size": 507,
+      "sha256": "b234ae77f256e2099377e0cdf0c3288733de5b15c581a252705ddfa184afb2e6",
+      "httpStatus": 200,
+      "hashMatches": true,
+      "sizeMatches": true
+    },
+    {
+      "id": "3b549c501d71455c2f58f92a070bbd1a535fffabeaa8a92f8de0e8140ad3e0fa",
+      "fileName": "receipt.json",
+      "size": 1354,
+      "sha256": "619a4c9d0189e1928c6239f86c710cd9e5c594e15060137fc8bc81d1839ae6af",
+      "httpStatus": 200,
+      "hashMatches": true,
+      "sizeMatches": true
+    },
+    {
+      "id": "3aa19d34313985e6dbc956bf032e1d70fa20c09a56b64e49a719c8ecd7c76002",
+      "fileName": "analyze-only-these-expli_20261108T193230939Z_354361218635_v1.py",
+      "size": 29,
+      "sha256": "54d6dea051ebe5f89e86eb934144916316d965a85c49b3f7b0c9ef6151dc8b66",
+      "httpStatus": 200,
+      "hashMatches": true,
+      "sizeMatches": true
+    },
+    {
+      "id": "ea59a868161a305c4be4987bff4290b5a8c8febc0b8d84029183c8ff19cf8d4e",
+      "fileName": "manifest.json",
+      "size": 1390,
+      "sha256": "d2a0cab27bf9908f1a5959544979c3875e61be3001e323c0e9bc7e71cba315a0",
+      "httpStatus": 200,
+      "hashMatches": true,
+      "sizeMatches": true
+    },
+    {
+      "id": "876687f4205bb18a3b7cabcaaa94976048a213265f0e21496c5016de42c160d9",
+      "fileName": "part-00000.parquet",
+      "size": 3891,
+      "sha256": "788fed05e489ab404113194183fd5db547f3eb2a64240bb853f507460ebbbc57",
+      "httpStatus": 200,
+      "hashMatches": true,
+      "sizeMatches": true
+    },
+    {
+      "id": "ecb683ac50377a660bc7d88a5cf2a128237dd7bcb9dd789151173ee7341e64f8",
+      "fileName": "schema.json",
+      "size": 1081,
+      "sha256": "fa10fc50889c3ca6d1f05adbdbca1b3cf26507954490c9e1996d949f1a8bab9c",
+      "httpStatus": 200,
+      "hashMatches": true,
+      "sizeMatches": true
+    },
+    {
+      "id": "be37ae0232d51ec3d448682817a1625d3589d402bfde87eb10c7c8d3722a680a",
+      "fileName": "original-0.csv",
+      "size": 48,
+      "sha256": "fcb74b46f4042569e233515f15ea92342b8e019dd9531e0e9b7e4c92d37e9fb9",
+      "httpStatus": 200,
+      "hashMatches": true,
+      "sizeMatches": true
+    }
+  ],
+  "status": "PASS_JOINT_DELIVERY",
+  "finishedAt": "2026-11-08T19:38:24.582Z"
+}

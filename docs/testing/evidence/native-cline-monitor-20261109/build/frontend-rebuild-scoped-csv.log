@@ -1,0 +1,133 @@
+
+> chatchat-web-app@1.0.0 build
+> npm run check:vue-structure && vite build
+
+
+> chatchat-web-app@1.0.0 check:vue-structure
+> node ../../scripts/check-vue-structure.mjs .
+
+Vue 结构检查通过：77 个组件，脚本和样式均为独立文件。
+vite v7.3.5 building client environment for production...
+transforming...
+✓ 4016 modules transformed.
+rendering chunks...
+computing gzip size...
+../src/main/resources/static/index.html                                             0.72 kB │ gzip:     0.42 kB
+../src/main/resources/static/assets/codicon-DCmgc-ay.ttf                           80.34 kB
+../src/main/resources/static/assets/editor.worker-B4pQIWZD.js                     231.35 kB
+../src/main/resources/static/assets/plotly.min-CaWywiwD.js                      4,834.41 kB
+../src/main/resources/static/assets/AccessDeniedView-By6jxGIb.css                   0.46 kB │ gzip:     0.27 kB
+../src/main/resources/static/assets/PermissionConsoleView-DG0kw8rf.css              1.01 kB │ gzip:     0.37 kB
+../src/main/resources/static/assets/ReportMarkdown-DWxCeUHc.css                     1.10 kB │ gzip:     0.45 kB
+../src/main/resources/static/assets/PythonReportChart-JJbHFvLM.css                  1.60 kB │ gzip:     0.60 kB
+../src/main/resources/static/assets/KnowledgeCitationDialog-BMBGcTXh.css            1.80 kB │ gzip:     0.68 kB
+../src/main/resources/static/assets/PythonCodeDiff-BzPhjTil.css                     2.20 kB │ gzip:     0.74 kB
+../src/main/resources/static/assets/AppConfirmDialog-CQ59KlF9.css                   2.89 kB │ gzip:     0.96 kB
+../src/main/resources/static/assets/WorkspaceSettingsView-CJtZVQOq.css              3.27 kB │ gzip:     1.09 kB
+../src/main/resources/static/assets/CodingTaskMonitor-BWpecZZL.css                  3.39 kB │ gzip:     1.02 kB
+../src/main/resources/static/assets/tool-categories-C29i0gXg.css                    4.75 kB │ gzip:     1.48 kB
+../src/main/resources/static/assets/PythonVisualReport-B0igV0Wc.css                 6.09 kB │ gzip:     1.41 kB
+../src/main/resources/static/assets/EvidenceDebuggerView-hzo98QKU.css               6.12 kB │ gzip:     1.76 kB
+../src/main/resources/static/assets/EnterpriseUiArtifactRenderer-BuqrZNru.css       6.83 kB │ gzip:     1.70 kB
+../src/main/resources/static/assets/ModelManagementView-j07ohWvZ.css                7.21 kB │ gzip:     1.70 kB
+../src/main/resources/static/assets/PromptComposer-DYKGAsAy.css                     7.70 kB │ gzip:     2.01 kB
+../src/main/resources/static/assets/FavoritesView-BNFx5d1J.css                      9.67 kB │ gzip:     2.01 kB
+../src/main/resources/static/assets/ToolPublicationsView-ByJF7qfK.css              10.40 kB │ gzip:     2.41 kB
+../src/main/resources/static/assets/CapabilityMarketView-Ba1APinM.css              11.07 kB │ gzip:     2.08 kB
+../src/main/resources/static/assets/McpCenterView-C8BmpicE.css                     11.17 kB │ gzip:     2.61 kB
+../src/main/resources/static/assets/AiSearchView-NV4v4uLf.css                      11.47 kB │ gzip:     2.22 kB
+../src/main/resources/static/assets/PlanDagGraph-0U94b1Kp.css                      11.55 kB │ gzip:     2.67 kB
+../src/main/resources/static/assets/permission-workspace-ZtjIreEe.css              14.40 kB │ gzip:     3.26 kB
+../src/main/resources/static/assets/LibraryView-BuHJS6k6.css                       16.29 kB │ gzip:     2.88 kB
+../src/main/resources/static/assets/DomainSkillsView-CO31O5-H.css                  24.12 kB │ gzip:     4.10 kB
+../src/main/resources/static/assets/AgentScheduleView-LdTbL9b7.css                 25.35 kB │ gzip:     5.01 kB
+../src/main/resources/static/assets/DataExplorationView-DLdEKb26.css               30.89 kB │ gzip:     6.05 kB
+../src/main/resources/static/assets/SystemManagementView-1zVj7cNg.css              35.45 kB │ gzip:     6.25 kB
+../src/main/resources/static/assets/RetrievalRulesView-DpRgRbmr.css                50.89 kB │ gzip:     8.35 kB
+../src/main/resources/static/assets/SqlStudioView-B67kzJxq.css                     52.63 kB │ gzip:     9.95 kB
+../src/main/resources/static/assets/index-HGAg68A5.css                             67.33 kB │ gzip:    13.28 kB
+../src/main/resources/static/assets/DataScienceView-DtekZCB2.css                   77.00 kB │ gzip:    15.59 kB
+../src/main/resources/static/assets/skill-hub-BsoHvV0W.css                         84.68 kB │ gzip:    12.66 kB
+../src/main/resources/static/assets/ChatAssistantView-CL3-P35I.css                113.11 kB │ gzip:    19.98 kB
+../src/main/resources/static/assets/EditorPreferences-BHxxq6AR.css                209.82 kB │ gzip:    33.72 kB
+../src/main/resources/static/assets/square-C1yTt-pV.js                              0.15 kB │ gzip:     0.15 kB
+../src/main/resources/static/assets/clock-3-BjG0OBtQ.js                             0.17 kB │ gzip:     0.17 kB
+../src/main/resources/static/assets/useTransientNotice-DfgGuUmb.js                  0.20 kB │ gzip:     0.18 kB
+../src/main/resources/static/assets/info-CgWpNfoZ.js                                0.20 kB │ gzip:     0.18 kB
+../src/main/resources/static/assets/copy-4UjamiNB.js                                0.23 kB │ gzip:     0.21 kB
+../src/main/resources/static/assets/activity-DXO7wUwY.js                            0.24 kB │ gzip:     0.20 kB
+../src/main/resources/static/assets/_commonjsHelpers-Cpj98o6Y.js                    0.24 kB │ gzip:     0.18 kB
+../src/main/resources/static/assets/minimize-2-ClhrmbGS.js                          0.24 kB │ gzip:     0.19 kB
+../src/main/resources/static/assets/database-C0HoHiSI.js                            0.24 kB │ gzip:     0.20 kB
+../src/main/resources/static/assets/settings-2-dxlwaGUn.js                          0.25 kB │ gzip:     0.19 kB
+../src/main/resources/static/assets/circle-alert-DlCevQpl.js                        0.25 kB │ gzip:     0.19 kB
+../src/main/resources/static/assets/send-bARXGAg0.js                                0.29 kB │ gzip:     0.23 kB
+../src/main/resources/static/assets/box-F5SL9cNx.js                                 0.31 kB │ gzip:     0.23 kB
+../src/main/resources/static/assets/save-DF-HFwRr.js                                0.33 kB │ gzip:     0.23 kB
+../src/main/resources/static/assets/files-BEvLUq6z.js                               0.36 kB │ gzip:     0.23 kB
+../src/main/resources/static/assets/documentUploadPolicy-DFtscYY_.js                0.39 kB │ gzip:     0.30 kB
+../src/main/resources/static/assets/useAppConfirmation-B4j6-zBb.js                  0.39 kB │ gzip:     0.31 kB
+../src/main/resources/static/assets/AccessDeniedView-NSK6ybfK.js                    0.40 kB │ gzip:     0.36 kB
+../src/main/resources/static/assets/SystemUsersView-B9xMJ5SF.js                     0.44 kB │ gzip:     0.30 kB
+../src/main/resources/static/assets/SystemOrganizationsView-LKD4JI4u.js             0.44 kB │ gzip:     0.30 kB
+../src/main/resources/static/assets/reportNarrative-Bw1LL976.js                     0.60 kB │ gzip:     0.39 kB
+../src/main/resources/static/assets/workspaceDrafts-CxZ9jsJt.js                     1.40 kB │ gzip:     0.65 kB
+../src/main/resources/static/assets/PythonCodeDiff-6PbVCPYz.js                      1.49 kB │ gzip:     0.88 kB
+../src/main/resources/static/assets/AppConfirmDialog-LzIOjNH4.js                    1.64 kB │ gzip:     0.87 kB
+../src/main/resources/static/assets/skillDirectoryArchive-Byp374p2.js               1.88 kB │ gzip:     0.96 kB
+../src/main/resources/static/assets/pythonCodeDiff-DOMS_cjm.js                      2.15 kB │ gzip:     0.94 kB
+../src/main/resources/static/assets/python-CHF2XurB.js                              4.28 kB │ gzip:     1.77 kB
+../src/main/resources/static/assets/PermissionAuditView-Bl79SvQu.js                 4.77 kB │ gzip:     2.36 kB
+../src/main/resources/static/assets/KnowledgeCitationDialog-7vp9CFKn.js             4.87 kB │ gzip:     2.38 kB
+../src/main/resources/static/assets/PythonVisualReport-5G_xm1JX.js                  6.93 kB │ gzip:     3.10 kB
+../src/main/resources/static/assets/EvidenceDebuggerView-Dhzrw65x.js                8.22 kB │ gzip:     3.08 kB
+../src/main/resources/static/assets/WorkspaceSettingsView-KN_k0GZW.js              10.11 kB │ gzip:     4.13 kB
+../src/main/resources/static/assets/sql-BdTr02Mf.js                                10.16 kB │ gzip:     3.79 kB
+../src/main/resources/static/assets/ToolCategoriesView-CaiKFm0V.js                 10.32 kB │ gzip:     4.34 kB
+../src/main/resources/static/assets/FavoritesView-TBlQUNf5.js                      15.25 kB │ gzip:     4.91 kB
+../src/main/resources/static/assets/PythonReportChart-C2CWJFP9.js                  15.94 kB │ gzip:     6.93 kB
+../src/main/resources/static/assets/CapabilityMarketView-BToSTOkr.js               19.07 kB │ gzip:     6.19 kB
+../src/main/resources/static/assets/McpCenterView-BnUo5JT6.js                      20.71 kB │ gzip:     6.99 kB
+../src/main/resources/static/assets/AiSearchView-CMY3BLkw.js                       24.34 kB │ gzip:     8.05 kB
+../src/main/resources/static/assets/PromptComposer-L7OHN8SR.js                     24.74 kB │ gzip:     8.93 kB
+../src/main/resources/static/assets/runtimeObservationPresentation-CacdDq5s.js     26.83 kB │ gzip:    10.11 kB
+../src/main/resources/static/assets/purify.es-Cz4mVeUR.js                          28.98 kB │ gzip:    10.87 kB
+../src/main/resources/static/assets/ModelManagementView-Cpfj1ylM.js                29.00 kB │ gzip:     8.54 kB
+../src/main/resources/static/assets/RetrievalRulesView-jSguC3jy.js                 29.80 kB │ gzip:     8.27 kB
+../src/main/resources/static/assets/CodingTaskMonitor-rKIzuqZo.js                  33.90 kB │ gzip:    11.80 kB
+../src/main/resources/static/assets/PermissionConsoleView--fv0sfg5.js              34.67 kB │ gzip:    11.47 kB
+../src/main/resources/static/assets/SystemManagementView-CbGS5mH1.js               41.24 kB │ gzip:    11.54 kB
+../src/main/resources/static/assets/ToolPublicationsView-D5ZwJ3uV.js               46.41 kB │ gzip:    15.49 kB
+../src/main/resources/static/assets/LibraryView-Dg3nwsgM.js                        47.16 kB │ gzip:    11.50 kB
+../src/main/resources/static/assets/DomainSkillsView-D40nHfNu.js                   53.56 kB │ gzip:    15.04 kB
+../src/main/resources/static/assets/AgentScheduleView-D5zKh6Jp.js                  59.59 kB │ gzip:    15.61 kB
+../src/main/resources/static/assets/DataExplorationView-RkdaSTWs.js                61.03 kB │ gzip:    21.25 kB
+../src/main/resources/static/assets/TasksView-ER4-qMUM.js                          82.81 kB │ gzip:    21.98 kB
+../src/main/resources/static/assets/AgentWorkshopView-DdkmYOcD.js                  96.44 kB │ gzip:    25.30 kB
+../src/main/resources/static/assets/markdown-it-BCR3DTrC.js                       113.81 kB │ gzip:    48.05 kB
+../src/main/resources/static/assets/EnterpriseUiArtifactRenderer-Dw3hgvUK.js      138.15 kB │ gzip:    40.60 kB
+../src/main/resources/static/assets/DataScienceView-LtXix0bM.js                   149.44 kB │ gzip:    48.27 kB
+../src/main/resources/static/assets/index.es-DkKX3vhV.js                          158.87 kB │ gzip:    53.07 kB
+../src/main/resources/static/assets/SqlStudioView-BnI8T5RB.js                     179.85 kB │ gzip:    60.45 kB
+../src/main/resources/static/assets/html2canvas.esm-DXEQVQnt.js                   201.04 kB │ gzip:    47.43 kB
+../src/main/resources/static/assets/ChatAssistantView-C0ihnfLI.js                 259.78 kB │ gzip:    79.04 kB
+../src/main/resources/static/assets/index-UxY43EzX.js                             272.12 kB │ gzip:    86.22 kB
+../src/main/resources/static/assets/PlanDagGraph-BDTANklD.js                      275.40 kB │ gzip:    92.50 kB
+../src/main/resources/static/assets/jspdf.es.min-DuIqVkcg.js                      386.28 kB │ gzip:   126.44 kB
+../src/main/resources/static/assets/xlsx-CKwrMZHi.js                              499.55 kB │ gzip:   162.96 kB
+../src/main/resources/static/assets/ReportMarkdown-CutozFm-.js                  1,165.86 kB │ gzip:   391.22 kB
+../src/main/resources/static/assets/EditorPreferences-BXrz90PA.js               3,552.09 kB │ gzip:   914.85 kB
+../src/main/resources/static/assets/index-C6vXb4So.js                           7,419.36 kB │ gzip: 1,259.92 kB
+node.exe : 
+所在位置 行:1 字符: 1
++ & "C:\Program Files\nodejs/node.exe" "C:\Program Files\nodejs/node_mo ...
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: (:String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+ 
+(!) Some chunks are larger than 900 kB after minification. Consider:
+- Using dynamic import() to code-split the application
+- Use build.rollupOptions.output.manualChunks to improve chunking: https://rollupjs.org/configuration-options/#output-m
+anualchunks
+- Adjust chunk size limit for this warning via build.chunkSizeWarningLimit.
+✓ built in 57.96s

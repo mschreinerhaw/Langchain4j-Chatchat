@@ -1,0 +1,70 @@
+{
+  "scope": "INDEPENDENT_NATIVE_FIXTURE_CHECK",
+  "sessionId": "4bd40227-be81-474d-8ff2-7f3396ea401c",
+  "sourceBeforeSha256": "75cfacb7faac086c50b23ac4b29a709eb8680999e6756f620ca76d42aba07cab",
+  "sourceAfterSha256": "5b63136552577a64d788dc3cd4552739d0d60f9e1adb63ec4dfb6932d56fc75d",
+  "testsBeforeSha256": "9f6c556f2f9e83f1dc63457388376ebcc56db5253da79991b5e0943ab838bfeb",
+  "testsAfterSha256": "9f6c556f2f9e83f1dc63457388376ebcc56db5253da79991b5e0943ab838bfeb",
+  "testAssertionsUnchanged": true,
+  "nativeActualTestExecutions": [
+    {
+      "eventId": "80",
+      "toolCallId": "call_42b295cc3c2b40c19eebeaf1",
+      "timestamp": "2026-11-08T17:56:39.777Z",
+      "type": "tool.failed",
+      "input": {
+        "commands": [
+          "cd /poc/node-project && node --test"
+        ]
+      },
+      "output": [
+        {
+          "query": "cd /poc/node-project && node --test",
+          "result": "[Command exited with code 1]\n\u2716 addition preserves negative and positive operands (2.02214ms)\n\u2139 tests 1\n\u2139 suites 0\n\u2139 pass 0\n\u2139 fail 1\n\u2139 cancelled 0\n\u2139 skipped 0\n\u2139 todo 0\n\u2139 duration_ms 154.858268\n\n\u2716 failing tests:\n\ntest at calculator.test.mjs:4:1\n\u2716 addition preserves negative and positive operands (2.02214ms)\n  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:\n  \n  -1 !== 5\n  \n      at TestContext.<anonymous> (file:///poc/node-project/calculator.test.mjs:5:10)\n      at Test.runInAsyncScope (node:async_hooks:227:14)\n      at Test.run (node:internal/test_runner/test:1402:25)\n      at Test.start (node:internal/test_runner/test:1262:17)\n      at startSubtestAfterBootstrap (node:internal/test_runner/harness:387:17) {\n    generatedMessage: true,\n    code: 'ERR_ASSERTION',\n    actual: -1,\n    expected: 5,\n    operator: 'strictEqual',\n    diff: 'simple'\n  }\n",
+          "error": "Command exited with code 1",
+          "success": false
+        }
+      ]
+    },
+    {
+      "eventId": "132",
+      "toolCallId": "call_46f04a65f3ee46ada0ea58da",
+      "timestamp": "2026-11-08T17:56:52.164Z",
+      "type": "tool.completed",
+      "input": {
+        "commands": [
+          "cd /poc/node-project && node --test"
+        ]
+      },
+      "output": [
+        {
+          "query": "cd /poc/node-project && node --test",
+          "result": "\u2714 addition preserves negative and positive operands (1.497446ms)\n\u2139 tests 1\n\u2139 suites 0\n\u2139 pass 1\n\u2139 fail 0\n\u2139 cancelled 0\n\u2139 skipped 0\n\u2139 todo 0\n\u2139 duration_ms 163.135809\n",
+          "success": true
+        }
+      ]
+    },
+    {
+      "eventId": "283",
+      "toolCallId": "call_cd77f1a23be64aaca93722d6",
+      "timestamp": "2026-11-08T18:08:53.939Z",
+      "type": "tool.completed",
+      "input": {
+        "commands": [
+          "cd /poc/node-project && node --test"
+        ]
+      },
+      "output": [
+        {
+          "query": "cd /poc/node-project && node --test",
+          "result": "\u2714 addition preserves negative and positive operands (1.130502ms)\n\u2139 tests 1\n\u2139 suites 0\n\u2139 pass 1\n\u2139 fail 0\n\u2139 cancelled 0\n\u2139 skipped 0\n\u2139 todo 0\n\u2139 duration_ms 133.621496\n",
+          "success": true
+        }
+      ]
+    }
+  ],
+  "independentTestExitCode": 0,
+  "independentOutputSha256": "8e4625f79c4a9e16f4a42b0cb13b4842f821b6def9cd86870224559b57b01a69",
+  "independentOutput": "\u2714 addition preserves negative and positive operands (1.092815ms)\n\u2139 tests 1\n\u2139 suites 0\n\u2139 pass 1\n\u2139 fail 0\n\u2139 cancelled 0\n\u2139 skipped 0\n\u2139 todo 0\n\u2139 duration_ms 143.142789\n",
+  "timestamp": "2026-11-08T19:27:30.913780+00:00"
+}

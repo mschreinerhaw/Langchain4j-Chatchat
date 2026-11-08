@@ -10,7 +10,6 @@ import com.chatchat.common.tool.ToolOutput;
 import com.chatchat.enterprise.entity.identity.SysUser;
 import com.chatchat.enterprise.entity.mcp.McpToolAsset;
 import com.chatchat.enterprise.repository.identity.SysRoleRepository;
-import com.chatchat.enterprise.repository.identity.SysTenantRepository;
 import com.chatchat.enterprise.repository.identity.SysUserRepository;
 import com.chatchat.enterprise.repository.identity.SysUserRoleRepository;
 import com.chatchat.enterprise.repository.mcp.McpToolAssetRepository;
@@ -67,7 +66,6 @@ class ProductionAgentSecurityBoundaryE2E {
         SysRoleRepository roleRepository = mock(SysRoleRepository.class);
         SysUserRoleRepository userRoleRepository = mock(SysUserRoleRepository.class);
         SysUserRepository userRepository = mock(SysUserRepository.class);
-        SysTenantRepository tenantRepository = mock(SysTenantRepository.class);
         McpToolAsset asset = new McpToolAsset();
         asset.setLocalToolName("dynamic_customer_query");
         SysUser tenantAUser = new SysUser();
@@ -79,7 +77,7 @@ class ProductionAgentSecurityBoundaryE2E {
         when(userRepository.findByUsername(anyString())).thenReturn(Optional.empty());
         EnterpriseToolRuntimePolicyProvider provider = new EnterpriseToolRuntimePolicyProvider(
             permissionRepository, assetRepository, roleRepository, userRoleRepository,
-            userRepository, tenantRepository);
+            userRepository);
         ToolRuntimeRequest forged = ToolRuntimeRequest.builder()
             .toolName("dynamic_customer_query")
             .tenantId("tenant-b")

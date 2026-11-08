@@ -2,7 +2,7 @@ import {createHmac,timingSafeEqual,createHash} from 'node:crypto';
 const identifier=/^[a-zA-Z0-9][a-zA-Z0-9_-]{0,95}$/;
 export const contractHash=c=>createHash('sha256').update(JSON.stringify(c)).digest('hex');
 export function signContract(contract,key){const body=Buffer.from(JSON.stringify(contract)).toString('base64url');return body+'.'+createHmac('sha256',key).update(body).digest('base64url');}
-export function verifyContract(token,key,now=Date.now()){
+export function verifyContract(token,key,now=Date.now(),{allowExpired=false}={}){
  const fail=()=>{throw Object.assign(Error('Invalid or expired task identity'),{status:401});};
  if(typeof token!=='string'||token.length>16384)return fail();
  const parts=token.split('.');if(parts.length!==2)return fail();
@@ -10,7 +10,7 @@ export function verifyContract(token,key,now=Date.now()){
  if(actual.length!==expected.length||!timingSafeEqual(actual,expected))return fail();
  let c;try{c=JSON.parse(Buffer.from(parts[0],'base64url').toString());}catch{return fail();}
  if(c.version!==1||!['tenantId','userId','taskId','sessionId','workspaceRef','modelProfile'].every(k=>typeof c[k]==='string'&&identifier.test(c[k])))return fail();
- if(!Number.isSafeInteger(c.expiresAt)||c.expiresAt<=now||c.expiresAt>now+86400000)return fail();
+ if(!Number.isSafeInteger(c.expiresAt)||!allowExpired&&c.expiresAt<=now||c.expiresAt>now+86400000)return fail();
  if(!Array.isArray(c.toolPermissions)||!c.toolPermissions.every(x=>typeof x==='string'&&x.length<128)||!Array.isArray(c.dataPermissions)||!c.dataPermissions.every(x=>typeof x==='string'&&identifier.test(x)))return fail();
  if(c.networkPolicy!=='broker-only'||!c.budgetPolicy||c.budgetPolicy.status!=='DEFERRED_STAGE_2_REVIEW')return fail();
  return c;

@@ -1,0 +1,193 @@
+[
+  {
+    "case": "Gateway-Executor-create",
+    "pass": true,
+    "detail": [
+      201,
+      {
+        "sessionId": "session-52c9cd6a97b14ad4b9e472706495897c",
+        "runtimeTaskId": "native-3c70a129eeaf491592d2010c63c2f661",
+        "workerId": "af7ccecf-c6b5-4f11-9b67-664d2a794a43",
+        "workerState": "CREATED",
+        "taskState": "CREATED",
+        "revoked": false,
+        "stopProof": null,
+        "remoteStopConfirmed": false,
+        "native": null,
+        "resourceEnforced": false,
+        "productionReady": false
+      }
+    ]
+  },
+  {
+    "case": "official-Cline-ready",
+    "pass": true,
+    "detail": {
+      "sessionId": "session-52c9cd6a97b14ad4b9e472706495897c",
+      "runtimeTaskId": "native-3c70a129eeaf491592d2010c63c2f661",
+      "workerId": "af7ccecf-c6b5-4f11-9b67-664d2a794a43",
+      "workerState": "READY",
+      "taskState": "READY",
+      "revoked": false,
+      "stopProof": null,
+      "remoteStopConfirmed": false,
+      "native": {
+        "sessionId": "7a014c89-1480-4c47-aa89-9c5c9a997f9a",
+        "status": "idle",
+        "epoch": "3089c8e0-7744-4db5-b083-eec5c9d6b228",
+        "revision": 1,
+        "lastEventId": "3",
+        "pendingPermissions": []
+      },
+      "resourceEnforced": false,
+      "productionReady": false
+    }
+  },
+  {
+    "case": "real-model-submission",
+    "pass": true,
+    "detail": [
+      202,
+      {
+        "taskId": "6818ec45-acad-4352-b1f6-1fe1cbc29786",
+        "status": "accepted"
+      }
+    ]
+  },
+  {
+    "case": "autonomous-native-read-and-shell",
+    "pass": false,
+    "detail": {
+      "status": {
+        "sessionId": "session-52c9cd6a97b14ad4b9e472706495897c",
+        "runtimeTaskId": "native-3c70a129eeaf491592d2010c63c2f661",
+        "workerId": "af7ccecf-c6b5-4f11-9b67-664d2a794a43",
+        "workerState": "COMPLETED",
+        "taskState": "AGENT_TURN_COMPLETED",
+        "revoked": false,
+        "stopProof": null,
+        "remoteStopConfirmed": false,
+        "native": {
+          "sessionId": "7a014c89-1480-4c47-aa89-9c5c9a997f9a",
+          "status": "turn_completed",
+          "taskId": "6818ec45-acad-4352-b1f6-1fe1cbc29786",
+          "nativeSessionId": "1794121815829_lf1qc",
+          "epoch": "3089c8e0-7744-4db5-b083-eec5c9d6b228",
+          "revision": 11,
+          "lastEventId": "134",
+          "pendingPermissions": []
+        },
+        "resourceEnforced": false,
+        "productionReady": false
+      },
+      "nativeTools": [
+        {
+          "type": "content_end",
+          "contentType": "tool",
+          "toolName": "run_commands",
+          "toolCallId": "call_597cf02563424be986b917dc",
+          "output": [
+            {
+              "query": "node --version",
+              "result": "v24.21.0\n",
+              "success": true
+            }
+          ],
+          "durationMs": 53
+        },
+        {
+          "type": "content_end",
+          "contentType": "tool",
+          "toolName": "run_commands",
+          "toolCallId": "call_d53c69d315674d7a913daad6",
+          "output": [
+            {
+              "query": "find /poc -name \"README.md\" 2>/dev/null | head -20",
+              "result": "/poc/runtime/extension/README.md\n/poc/runtime/extension/webview-ui/.storybook/README.md\n/poc/runtime/node_modules/@grpc/grpc-js/README.md\n/poc/runtime/node_modules/@grpc/proto-loader/README.md\n/poc/runtime/node_modules/@grpc/reflection/README.md\n/poc/runtime/node_modules/@js-sdsl/ordered-map/README.md\n/poc/runtime/node_modules/@protobufjs/aspromise/README.md\n/poc/runtime/node_modules/@protobufjs/base64/README.md\n/poc/runtime/node_modules/@protobufjs/codegen/README.md\n/poc/runtime/node_modules/@protobufjs/eventemitter/README.md\n/poc/runtime/node_modules/@protobufjs/fetch/README.md\n/poc/runtime/node_modules/@protobufjs/float/README.md\n/poc/runtime/node_modules/@protobufjs/path/README.md\n/poc/runtime/node_modules/@protobufjs/pool/README.md\n/poc/runtime/node_modules/@protobufjs/utf8/README.md\n/poc/runtime/node_modules/@types/node/README.md\n/poc/runtime/node_modules/b4a/README.md\n/poc/runtime/node_modules/bare-events/README.md\n/poc/runtime/node_modules/bare-fs/README.md\n/poc/runtime/node_modules/bare-os/README.md\n",
+              "success": true
+            },
+            {
+              "query": "ls /poc/project/ 2>/dev/null",
+              "result": "Dockerfile\nREADME.md\ncompose.yaml\nfixtures\nintegration\npackage-lock.json\npackage.json\nscripts\nskills\nsrc\ntenant-private.txt\ntest\ntsconfig.json\ntsconfig.web.json\nweb\n",
+              "success": true
+            }
+          ],
+          "durationMs": 66
+        },
+        {
+          "type": "content_end",
+          "contentType": "tool",
+          "toolName": "run_commands",
+          "toolCallId": "call_d1fa2201b9fb460387a9f3af",
+          "output": [
+            {
+              "query": "find /poc -type d -name \"coding-agent-node\" 2>/dev/null",
+              "result": "",
+              "success": true
+            }
+          ],
+          "durationMs": 56
+        }
+      ]
+    }
+  },
+  {
+    "case": "project-unchanged",
+    "pass": true,
+    "detail": [
+      200,
+      {
+        "patch": "",
+        "sha256": "12ae32cb1ec02d01eda3581b127c1fee3b0dc53572ed6baf239721a03d82e126"
+      }
+    ]
+  },
+  {
+    "case": "native-Worker-stop-request",
+    "pass": true,
+    "detail": [
+      202,
+      {
+        "workerState": "STOPPING",
+        "remoteStopConfirmed": false
+      }
+    ]
+  },
+  {
+    "case": "actual-rootless-Worker-stopped",
+    "pass": true,
+    "detail": {
+      "status": {
+        "sessionId": "session-52c9cd6a97b14ad4b9e472706495897c",
+        "runtimeTaskId": "native-3c70a129eeaf491592d2010c63c2f661",
+        "workerId": "af7ccecf-c6b5-4f11-9b67-664d2a794a43",
+        "workerState": "STOPPED",
+        "taskState": "CANCELLED_LOCAL_ONLY",
+        "revoked": true,
+        "stopProof": {
+          "containerId": "0dcab59be8bd100208365e77137aa51268fcb00147c81c099ac7634e51a585ce",
+          "running": false,
+          "exitCode": 0,
+          "finishedAt": "2026-11-08T07:10:34.310240711Z"
+        },
+        "remoteStopConfirmed": false,
+        "native": null,
+        "resourceEnforced": false,
+        "productionReady": false
+      },
+      "actualState": {
+        "Status": "exited",
+        "Running": false,
+        "Paused": false,
+        "Restarting": false,
+        "OOMKilled": false,
+        "Dead": false,
+        "Pid": 0,
+        "ExitCode": 0,
+        "Error": "",
+        "StartedAt": "2026-11-08T07:10:08.675754983Z",
+        "FinishedAt": "2026-11-08T07:10:34.310240711Z"
+      }
+    }
+  }
+]

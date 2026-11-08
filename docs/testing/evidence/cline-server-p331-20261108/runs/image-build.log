@@ -1,0 +1,29 @@
+#0 building with "default" instance using docker driver
+
+#1 [internal] load build definition from Dockerfile
+#1 transferring dockerfile: 99B done
+#1 DONE 0.0s
+
+#2 [internal] load metadata for docker.io/library/cline-agent-server:p3-stage2
+#2 DONE 0.0s
+
+#3 [internal] load .dockerignore
+#3 transferring context: 2B done
+#3 DONE 0.0s
+
+#4 [internal] load build context
+#4 transferring context: 49.78kB 0.0s done
+#4 DONE 0.0s
+
+#5 [1/2] FROM docker.io/library/cline-agent-server:p3-stage2
+#5 CACHED
+
+#6 [2/2] COPY service/ /poc/service/
+#6 DONE 0.4s
+
+#7 exporting to image
+#7 exporting layers
+#7 exporting layers 0.9s done
+#7 writing image sha256:491c685a9dae146b825e8242c219f7d03ba6962f111394cb636c5fddd175b337 done
+#7 naming to docker.io/library/cline-agent-server:p331-review done
+#7 DONE 0.9s

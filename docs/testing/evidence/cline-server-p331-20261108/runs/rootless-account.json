@@ -1,0 +1,10 @@
+{
+  "daemonUser": "cline-p331",
+  "daemonUid": 1004,
+  "daemonGid": 1005,
+  "subUidStart": 362144,
+  "subGidStart": 362144,
+  "workerHostUid": 363143,
+  "workerHostGid": 363143,
+  "socket": "/opt/cline-server-p33-stage1-20261108/run/docker.sock"
+}

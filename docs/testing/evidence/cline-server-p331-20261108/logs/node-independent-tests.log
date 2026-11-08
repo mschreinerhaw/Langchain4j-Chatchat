@@ -1,0 +1,95 @@
+TAP version 13
+# Subtest: missing ProtoBus descriptor fails explicitly before native or provider initialization
+ok 1 - missing ProtoBus descriptor fails explicitly before native or provider initialization
+  ---
+  duration_ms: 15.5351
+  ...
+# Subtest: native editor size rejection and shell structured errors cannot become success events
+ok 2 - native editor size rejection and shell structured errors cannot become success events
+  ---
+  duration_ms: 0.4974
+  ...
+# Subtest: durable replay resumes after the last delivered ID across journal reopen
+ok 3 - durable replay resumes after the last delivered ID across journal reopen
+  ---
+  duration_ms: 16.3646
+  ...
+# Subtest: host path boundary rejects traversal and symlinks escaping the authorized workspace
+ok 4 - host path boundary rejects traversal and symlinks escaping the authorized workspace
+  ---
+  duration_ms: 8.6873
+  ...
+# Subtest: Executor refuses every caller-controlled Docker parameter
+ok 5 - Executor refuses every caller-controlled Docker parameter
+  ---
+  duration_ms: 4.0601
+  ...
+# Subtest: Worker specification and ownership are server policy, including on privileged service calls
+ok 6 - Worker specification and ownership are server policy, including on privileged service calls
+  ---
+  duration_ms: 3.2529
+  ...
+# Subtest: Executor verifies grants independently and expired grants authorize observation/stop only
+ok 7 - Executor verifies grants independently and expired grants authorize observation/stop only
+  ---
+  duration_ms: 2.3599
+  ...
+# Subtest: symbolic-link mount anchors are rejected, even inside an otherwise permitted root
+ok 8 - symbolic-link mount anchors are rejected, even inside an otherwise permitted root
+  ---
+  duration_ms: 10.9759
+  ...
+# Subtest: signed task identities reject tampering, expiry and arbitrary workspace paths
+ok 9 - signed task identities reject tampering, expiry and arbitrary workspace paths
+  ---
+  duration_ms: 6.7204
+  ...
+# Subtest: session authorization binds tenant, user, task, immutable grant and revocation
+ok 10 - session authorization binds tenant, user, task, immutable grant and revocation
+  ---
+  duration_ms: 1.6465
+  ...
+# Subtest: worker launch provides no network, host ports, docker socket or shared tenant state
+ok 11 - worker launch provides no network, host ports, docker socket or shared tenant state
+  ---
+  duration_ms: 0.7101
+  ...
+# Subtest: uncertain or failed provisioning cannot free a worker slot without a stop proof
+ok 12 - uncertain or failed provisioning cannot free a worker slot without a stop proof
+  ---
+  duration_ms: 0.333
+  ...
+# Subtest: P331 evidence bytes remain equal to their recorded hashes
+ok 13 - P331 evidence bytes remain equal to their recorded hashes
+  ---
+  duration_ms: 71.1221
+  ...
+# Subtest: P331 review never turns the real resource failure into a production pass
+ok 14 - P331 review never turns the real resource failure into a production pass
+  ---
+  duration_ms: 8.3406
+  ...
+# Subtest: stage2 exported evidence retains every recorded byte and hash
+ok 15 - stage2 exported evidence retains every recorded byte and hash
+  ---
+  duration_ms: 173.5699
+  ...
+# Subtest: real native calls bind to stable scoped identities and actual stop receipts
+ok 16 - real native calls bind to stable scoped identities and actual stop receipts
+  ---
+  duration_ms: 4.8675
+  ...
+# Subtest: final reconciliation is complete while initial real failures remain visible
+ok 17 - final reconciliation is complete while initial real failures remain visible
+  ---
+  duration_ms: 8.8432
+  ...
+1..17
+# tests 17
+# suites 0
+# pass 17
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 363.8094

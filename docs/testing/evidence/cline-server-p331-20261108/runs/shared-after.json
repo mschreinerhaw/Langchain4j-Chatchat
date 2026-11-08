@@ -1,0 +1,138 @@
+[
+  {
+    "name": "cline-p32-control",
+    "id": "40f26b0b38bc3df237b8b26a248772fa079b6959d349c1c25bddf3325e6ea4da",
+    "image": "sha256:6ee943241411781d729fc5fcdd5608c1906424740228f55919b0009c524dfccb",
+    "startedAt": "2026-11-08T05:29:08.744790207Z",
+    "mounts": [
+      {
+        "Type": "bind",
+        "Source": "/opt/cline-server-p3-stage2-20261108/control",
+        "Destination": "/control",
+        "Mode": "",
+        "RW": true,
+        "Propagation": "rprivate"
+      },
+      {
+        "Type": "bind",
+        "Source": "/opt/cline-server-p3-stage2-20261108/templates",
+        "Destination": "/templates",
+        "Mode": "",
+        "RW": false,
+        "Propagation": "rprivate"
+      },
+      {
+        "Type": "bind",
+        "Source": "/var/run/docker.sock",
+        "Destination": "/var/run/docker.sock",
+        "Mode": "",
+        "RW": true,
+        "Propagation": "rprivate"
+      }
+    ]
+  },
+  {
+    "name": "cline-p32-authority",
+    "id": "2cbfac89d026d9c4e22638e2fb023be89c411e1c4f0694683a679086e0576f46",
+    "image": "sha256:18ad6f765878f165c13e470cdd72561987ad14cfacf60d122a5f7fa9583d3f8a",
+    "startedAt": "2026-11-08T05:28:21.374197438Z",
+    "mounts": [
+      {
+        "Type": "bind",
+        "Source": "/opt/cline-server-p3-stage2-20261108/api-classes",
+        "Destination": "/opt/cline-server-p3-stage2-20261108/api-classes",
+        "Mode": "",
+        "RW": false,
+        "Propagation": "rprivate"
+      },
+      {
+        "Type": "bind",
+        "Source": "/opt/cline-server-p3-stage2-20261108/classes",
+        "Destination": "/opt/cline-server-p3-stage2-20261108/classes",
+        "Mode": "",
+        "RW": false,
+        "Propagation": "rprivate"
+      },
+      {
+        "Type": "bind",
+        "Source": "/opt/cline-server-p3-stage2-20261108/lib",
+        "Destination": "/opt/cline-server-p3-stage2-20261108/lib",
+        "Mode": "",
+        "RW": false,
+        "Propagation": "rprivate"
+      },
+      {
+        "Type": "bind",
+        "Source": "/opt/cline-server-p3-stage2-20261108/mcp-classes",
+        "Destination": "/opt/cline-server-p3-stage2-20261108/mcp-classes",
+        "Mode": "",
+        "RW": false,
+        "Propagation": "rprivate"
+      },
+      {
+        "Type": "bind",
+        "Source": "/opt/cline-server-p3-stage2-20261108/python/data",
+        "Destination": "/opt/cline-server-p3-stage2-20261108/python/data",
+        "Mode": "",
+        "RW": true,
+        "Propagation": "rprivate"
+      },
+      {
+        "Type": "bind",
+        "Source": "/opt/cline-server-p3-stage2-20261108/python/workspace",
+        "Destination": "/opt/cline-server-p3-stage2-20261108/python/workspace",
+        "Mode": "",
+        "RW": true,
+        "Propagation": "rprivate"
+      },
+      {
+        "Type": "bind",
+        "Source": "/opt/cline-server-p3-stage2-20261108/private/config.json",
+        "Destination": "/run/cline-operations.json",
+        "Mode": "",
+        "RW": false,
+        "Propagation": "rprivate"
+      },
+      {
+        "Type": "bind",
+        "Source": "/var/run/docker.sock",
+        "Destination": "/var/run/docker.sock",
+        "Mode": "",
+        "RW": true,
+        "Propagation": "rprivate"
+      }
+    ]
+  },
+  {
+    "name": "cline-p32-remote",
+    "id": "a5b43cca7c756d6a95450027dff6984f2cbf27f835c768268e71ebb0754f3592",
+    "image": "sha256:bfea82551ff365794670f7a4160de239cd3ff985b07b89c811c3ed2b3adb2b31",
+    "startedAt": "2026-11-08T05:27:14.24821797Z",
+    "mounts": [
+      {
+        "Type": "bind",
+        "Source": "/opt/cline-server-p3-stage2-20261108/source/cline-agent-server/src/stage2-remote.mjs",
+        "Destination": "/app/remote.mjs",
+        "Mode": "",
+        "RW": false,
+        "Propagation": "rprivate"
+      },
+      {
+        "Type": "bind",
+        "Source": "/opt/cline-server-p3-stage2-20261108/remote-state",
+        "Destination": "/opt/cline-server-p3-stage2-20261108/remote-state",
+        "Mode": "",
+        "RW": true,
+        "Propagation": "rprivate"
+      },
+      {
+        "Type": "bind",
+        "Source": "/opt/cline-server-p3-stage2-20261108/private/remote.json",
+        "Destination": "/run/cline-remote.json",
+        "Mode": "",
+        "RW": false,
+        "Propagation": "rprivate"
+      }
+    ]
+  }
+]

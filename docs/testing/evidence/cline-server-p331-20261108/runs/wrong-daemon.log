@@ -1,0 +1,9 @@
+file:///poc/service/src/worker-executor.mjs:12
+if(daemon.ID!==cfg.expectedDaemonId||!daemon.SecurityOptions?.includes('name=rootless'))throw Error('Wrong daemon or rootful daemon: refusing Executor startup');
+                                                                                              ^
+
+Error: Wrong daemon or rootful daemon: refusing Executor startup
+    at file:///poc/service/src/worker-executor.mjs:12:95
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+
+Node.js v24.21.0

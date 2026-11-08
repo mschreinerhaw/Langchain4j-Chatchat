@@ -1,0 +1,77 @@
+[
+  {
+    "status": "A",
+    "path": "cline-agent-server/docker/README.p331.md",
+    "worktreeSha256": "dc8293699b720982bedf421a645692ac99f75512438535728c43352a6ee60587"
+  },
+  {
+    "status": "A",
+    "path": "cline-agent-server/scripts/collect-p331-evidence.py",
+    "worktreeSha256": "5e4ad6356b3a2a36409f1d631b1e4aca24a2da445b10a03207a59bcff5183ed3"
+  },
+  {
+    "status": "A",
+    "path": "cline-agent-server/scripts/p331-deploy.py",
+    "worktreeSha256": "8101454f422035bf87bed19933f4c07183c54eb5e38d46b103deefdded46696f"
+  },
+  {
+    "status": "A",
+    "path": "cline-agent-server/scripts/p331-rootless.py",
+    "worktreeSha256": "1d42ae8a6cff585c7ea01dce3b4d5839d88841960f497a12b0330f540dfc24da"
+  },
+  {
+    "status": "M",
+    "path": "cline-agent-server/src/docker-engine.mjs",
+    "worktreeSha256": "2a2e719777eeb9d9c2c1a72a287438dea8319b11076d6d9be54c0b456a8a5b78"
+  },
+  {
+    "status": "M",
+    "path": "cline-agent-server/src/governance-server.mjs",
+    "worktreeSha256": "5ba771b228fc0361d08b9cd38b4478ac1fd0b0959e54f4cb272b3110fbc6acc5"
+  },
+  {
+    "status": "M",
+    "path": "cline-agent-server/src/task-contract.mjs",
+    "worktreeSha256": "fa9fd156fb39be6101d7564869eceb56424dccbe5eaeb155bce2b66504322003"
+  },
+  {
+    "status": "A",
+    "path": "cline-agent-server/src/worker-executor-client.mjs",
+    "worktreeSha256": "e0311d23f27dea46f59de203c1da7f890b15005df9863c98c283f61efccf5c8c"
+  },
+  {
+    "status": "A",
+    "path": "cline-agent-server/src/worker-executor-policy.mjs",
+    "worktreeSha256": "fffa2615bde0856c94dcde9423ebe894a84e8ae9be6132ee91d24cd77e836c16"
+  },
+  {
+    "status": "A",
+    "path": "cline-agent-server/src/worker-executor.mjs",
+    "worktreeSha256": "c5a328ad5b4bb92f7e2bda2adca490cc4bbcb5e65372ba04b1b18853d096480f"
+  },
+  {
+    "status": "A",
+    "path": "cline-agent-server/test/executor-policy.test.mjs",
+    "worktreeSha256": "abb485a5318e1110c4efea1cc10b5092480dc4960d972da77d6efd77757c1640"
+  },
+  {
+    "status": "A",
+    "path": "cline-agent-server/test/p331-evidence.test.mjs",
+    "worktreeSha256": "4c888e81ebd0e96a9290f3ec33b40209c2f1bb45562b12c54d32d5a991dabf3a"
+  },
+  {
+    "status": "A",
+    "path": "cline-agent-server/test/p331-live.py",
+    "worktreeSha256": "15bca29b9a15be7258ad4d6542d49413b9fcc13a8003abf0dc302ee21cab692b"
+  },
+  {
+    "status": "A",
+    "path": "cline-agent-server/test/p331-native.py",
+    "worktreeSha256": "ba20c8832effc7eaf51a7cdb78dd67cf26c787a02e9cc306794eee2fbd71ba6b"
+  },
+  {
+    "status": "A",
+    "path": "cline-agent-server/test/p331-startup-guards.py",
+    "worktreeSha256": "69f804128436ca2aa316ac413edeeaa63c8189ff7c3531a96f5079d25512486f"
+  }
+]

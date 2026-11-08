@@ -1,0 +1,11 @@
+{
+  "baseline": "32e08b765",
+  "daemonId": "e35a8c89-0bea-4747-aa75-89e78ccd483b",
+  "rootless": true,
+  "workerImage": "sha256:6ee943241411781d729fc5fcdd5608c1906424740228f55919b0009c524dfccb",
+  "controlImage": "sha256:491c685a9dae146b825e8242c219f7d03ba6962f111394cb636c5fddd175b337",
+  "gatewayPort": 18331,
+  "resourceEnforcement": false,
+  "productionReady": false,
+  "pythonRuntimeMigrated": false
+}

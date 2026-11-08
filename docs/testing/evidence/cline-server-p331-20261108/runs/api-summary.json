@@ -1,0 +1,7 @@
+{
+  "apiAndIsolationChecksPass": true,
+  "productionReady": false,
+  "resourceLimitsAccepted": false,
+  "checks": 20,
+  "scope": "P3.3.1 only"
+}

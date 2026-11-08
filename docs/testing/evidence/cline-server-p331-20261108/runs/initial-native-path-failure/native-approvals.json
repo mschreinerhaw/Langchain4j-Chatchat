@@ -1,0 +1,113 @@
+[
+  {
+    "permission": {
+      "id": "5832a7ad-75a2-48e4-8355-c63dc64e286b",
+      "sessionId": "7a014c89-1480-4c47-aa89-9c5c9a997f9a",
+      "taskId": "6818ec45-acad-4352-b1f6-1fe1cbc29786",
+      "epoch": "3089c8e0-7744-4db5-b083-eec5c9d6b228",
+      "inputHash": "2358629708eba3129a4865282a7dc2cb79a2ab3d3a876add19399e14838822f8",
+      "toolCallId": "call_c07d52d48704414c9e63f36f",
+      "toolName": "read_files",
+      "input": {
+        "files": [
+          {
+            "path": "/poc/project/coding-agent-node/README.md"
+          }
+        ]
+      },
+      "expiresAt": 1794122000659,
+      "state": "pending"
+    },
+    "response": [
+      200,
+      {
+        "id": "5832a7ad-75a2-48e4-8355-c63dc64e286b",
+        "state": "resolved",
+        "decision": "approve",
+        "applied": true
+      }
+    ]
+  },
+  {
+    "permission": {
+      "id": "6907441e-3959-4659-aa14-ea38a75f39d4",
+      "sessionId": "7a014c89-1480-4c47-aa89-9c5c9a997f9a",
+      "taskId": "6818ec45-acad-4352-b1f6-1fe1cbc29786",
+      "epoch": "3089c8e0-7744-4db5-b083-eec5c9d6b228",
+      "inputHash": "3964d98f67d84913f6a8c00c78208b28a8689da7f69c8dbb55d4ddee96fdfdab",
+      "toolCallId": "call_597cf02563424be986b917dc",
+      "toolName": "run_commands",
+      "input": {
+        "commands": [
+          "node --version"
+        ]
+      },
+      "expiresAt": 1794122000879,
+      "state": "pending"
+    },
+    "response": [
+      200,
+      {
+        "id": "6907441e-3959-4659-aa14-ea38a75f39d4",
+        "state": "resolved",
+        "decision": "approve",
+        "applied": true
+      }
+    ]
+  },
+  {
+    "permission": {
+      "id": "d4955b21-f5ed-4c5c-89c8-16735c6cfc17",
+      "sessionId": "7a014c89-1480-4c47-aa89-9c5c9a997f9a",
+      "taskId": "6818ec45-acad-4352-b1f6-1fe1cbc29786",
+      "epoch": "3089c8e0-7744-4db5-b083-eec5c9d6b228",
+      "inputHash": "6158d5e9d3ab18db51cf025b954fd9bdcae107989b4d14cabddb199f746f94cd",
+      "toolCallId": "call_d53c69d315674d7a913daad6",
+      "toolName": "run_commands",
+      "input": {
+        "commands": [
+          "find /poc -name \"README.md\" 2>/dev/null | head -20",
+          "ls /poc/project/ 2>/dev/null"
+        ]
+      },
+      "expiresAt": 1794122004275,
+      "state": "pending"
+    },
+    "response": [
+      200,
+      {
+        "id": "d4955b21-f5ed-4c5c-89c8-16735c6cfc17",
+        "state": "resolved",
+        "decision": "approve",
+        "applied": true
+      }
+    ]
+  },
+  {
+    "permission": {
+      "id": "cc8e2fd5-9409-49b8-8859-0689d7585edd",
+      "sessionId": "7a014c89-1480-4c47-aa89-9c5c9a997f9a",
+      "taskId": "6818ec45-acad-4352-b1f6-1fe1cbc29786",
+      "epoch": "3089c8e0-7744-4db5-b083-eec5c9d6b228",
+      "inputHash": "df60a5cc6f01b41204fc8dea1cfb65757b4b6f643ba41c589e22b3b2a6ac0ea5",
+      "toolCallId": "call_d1fa2201b9fb460387a9f3af",
+      "toolName": "run_commands",
+      "input": {
+        "commands": [
+          "find /poc -type d -name \"coding-agent-node\" 2>/dev/null"
+        ]
+      },
+      "expiresAt": 1794122007586,
+      "state": "pending"
+    },
+    "response": [
+      200,
+      {
+        "id": "cc8e2fd5-9409-49b8-8859-0689d7585edd",
+        "state": "resolved",
+        "decision": "approve",
+        "applied": true
+      }
+    ]
+  }
+]

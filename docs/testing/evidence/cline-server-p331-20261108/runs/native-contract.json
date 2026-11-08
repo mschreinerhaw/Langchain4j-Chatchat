@@ -1,0 +1,24 @@
+{
+  "version": 1,
+  "tenantId": "tenant-a",
+  "userId": "user-a",
+  "taskId": "native-94b4140435474fc29f60d37fdf09d85b",
+  "sessionId": "session-72df447d501a4d74956f4091297b507d",
+  "workspaceRef": "project",
+  "modelProfile": "qwen",
+  "toolPermissions": [
+    "read_files",
+    "search_codebase",
+    "editor",
+    "apply_patch",
+    "run_commands"
+  ],
+  "dataPermissions": [
+    "dataset-a"
+  ],
+  "budgetPolicy": {
+    "status": "DEFERRED_STAGE_2_REVIEW"
+  },
+  "networkPolicy": "broker-only",
+  "expiresAt": 1794126065383
+}

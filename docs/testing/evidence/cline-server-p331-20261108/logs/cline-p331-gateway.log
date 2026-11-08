@@ -1,0 +1,1 @@
+{"event":"governance.ready","stage":"P3.1","recovery":"fail-closed; no operation replay","maxWorkers":2}

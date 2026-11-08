@@ -1,0 +1,58 @@
+[
+  {
+    "permission": {
+      "id": "7a9ea754-df58-4714-85ca-ae20b622cd74",
+      "sessionId": "e9dc5dcc-b451-42ad-ad1c-8914d7d1a830",
+      "taskId": "d8cd86ef-8c45-40ac-a689-767254b72d6b",
+      "epoch": "7c792e31-76ce-4019-bf74-5e91ea405fb0",
+      "inputHash": "4cdfab0c8e28b6354e2f172ed7319b85858bf4b83baa17031c3496a446830f32",
+      "toolCallId": "call_c4c665589931452c8fe7207c",
+      "toolName": "read_files",
+      "input": {
+        "files": [
+          {
+            "path": "/poc/project/README.md"
+          }
+        ]
+      },
+      "expiresAt": 1794122657752,
+      "state": "pending"
+    },
+    "response": [
+      200,
+      {
+        "id": "7a9ea754-df58-4714-85ca-ae20b622cd74",
+        "state": "resolved",
+        "decision": "approve",
+        "applied": true
+      }
+    ]
+  },
+  {
+    "permission": {
+      "id": "70e72a1f-beb6-4a43-bcd2-5ce1273a982f",
+      "sessionId": "e9dc5dcc-b451-42ad-ad1c-8914d7d1a830",
+      "taskId": "d8cd86ef-8c45-40ac-a689-767254b72d6b",
+      "epoch": "7c792e31-76ce-4019-bf74-5e91ea405fb0",
+      "inputHash": "3964d98f67d84913f6a8c00c78208b28a8689da7f69c8dbb55d4ddee96fdfdab",
+      "toolCallId": "call_ebe0b8c25afa43ee9b6a4ad0",
+      "toolName": "run_commands",
+      "input": {
+        "commands": [
+          "node --version"
+        ]
+      },
+      "expiresAt": 1794122658140,
+      "state": "pending"
+    },
+    "response": [
+      200,
+      {
+        "id": "70e72a1f-beb6-4a43-bcd2-5ce1273a982f",
+        "state": "resolved",
+        "decision": "approve",
+        "applied": true
+      }
+    ]
+  }
+]

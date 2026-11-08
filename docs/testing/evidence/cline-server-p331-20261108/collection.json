@@ -1,0 +1,14 @@
+{
+  "at": "2026-11-08T07:21:37.497726+00:00",
+  "baseline": "32e08b765",
+  "scope": "P3.3.1 review only",
+  "rootless": true,
+  "resourceEnforced": false,
+  "productionReady": false,
+  "pythonRuntimeMigrated": false,
+  "workerImage": "sha256:6ee943241411781d729fc5fcdd5608c1906424740228f55919b0009c524dfccb",
+  "daemonId": "e35a8c89-0bea-4747-aa75-89e78ccd483b",
+  "retainedWorkerContainers": 8,
+  "retainedUnmatchedDirectories": 3,
+  "noNextStageImplemented": true
+}

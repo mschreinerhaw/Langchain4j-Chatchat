@@ -1,0 +1,273 @@
+{
+  "Id": "5160f19a9f6f634f855f2db9ea702078868a98629a87f4004bd18c0079ae653c",
+  "Created": "2026-11-08T07:12:07.770196385Z",
+  "Path": "node",
+  "Args": [
+    "/poc/service/src/isolated-worker.mjs"
+  ],
+  "State": {
+    "Status": "exited",
+    "Running": false,
+    "Paused": false,
+    "Restarting": false,
+    "OOMKilled": false,
+    "Dead": false,
+    "Pid": 0,
+    "ExitCode": 0,
+    "Error": "",
+    "StartedAt": "2026-11-08T07:12:08.593577169Z",
+    "FinishedAt": "2026-11-08T07:12:29.76067095Z"
+  },
+  "Image": "sha256:6ee943241411781d729fc5fcdd5608c1906424740228f55919b0009c524dfccb",
+  "ResolvConfPath": "/opt/cline-server-p33-stage1-20261108/daemon-data/containers/5160f19a9f6f634f855f2db9ea702078868a98629a87f4004bd18c0079ae653c/resolv.conf",
+  "HostnamePath": "/opt/cline-server-p33-stage1-20261108/daemon-data/containers/5160f19a9f6f634f855f2db9ea702078868a98629a87f4004bd18c0079ae653c/hostname",
+  "HostsPath": "/opt/cline-server-p33-stage1-20261108/daemon-data/containers/5160f19a9f6f634f855f2db9ea702078868a98629a87f4004bd18c0079ae653c/hosts",
+  "LogPath": "/opt/cline-server-p33-stage1-20261108/daemon-data/containers/5160f19a9f6f634f855f2db9ea702078868a98629a87f4004bd18c0079ae653c/5160f19a9f6f634f855f2db9ea702078868a98629a87f4004bd18c0079ae653c-json.log",
+  "Name": "/cline-p331-4026d3ad65a7c81a84eb2c203b9c08856a21ce36",
+  "RestartCount": 0,
+  "Driver": "vfs",
+  "Platform": "linux",
+  "MountLabel": "",
+  "ProcessLabel": "",
+  "AppArmorProfile": "",
+  "ExecIDs": null,
+  "HostConfig": {
+    "Binds": [
+      "/opt/cline-server-p33-stage1-20261108/worker-mounts/5f946c69-28db-4533-90ad-31169dfb020a/workspace:/poc/project:rw",
+      "/opt/cline-server-p33-stage1-20261108/worker-mounts/5f946c69-28db-4533-90ad-31169dfb020a/state:/poc/state:rw",
+      "/opt/cline-server-p33-stage1-20261108/worker-mounts/5f946c69-28db-4533-90ad-31169dfb020a/bridge:/poc/bridge:rw",
+      "/opt/cline-server-p33-stage1-20261108/worker-mounts/5f946c69-28db-4533-90ad-31169dfb020a/config.json:/run/cline-poc.json:ro"
+    ],
+    "ContainerIDFile": "",
+    "LogConfig": {
+      "Type": "json-file",
+      "Config": {}
+    },
+    "NetworkMode": "none",
+    "PortBindings": null,
+    "RestartPolicy": {
+      "Name": "no",
+      "MaximumRetryCount": 0
+    },
+    "AutoRemove": false,
+    "VolumeDriver": "",
+    "VolumesFrom": null,
+    "ConsoleSize": [
+      0,
+      0
+    ],
+    "CapAdd": null,
+    "CapDrop": [
+      "ALL"
+    ],
+    "CgroupnsMode": "host",
+    "Dns": null,
+    "DnsOptions": null,
+    "DnsSearch": null,
+    "ExtraHosts": null,
+    "GroupAdd": null,
+    "IpcMode": "private",
+    "Cgroup": "",
+    "Links": null,
+    "OomScoreAdj": 0,
+    "PidMode": "",
+    "Privileged": false,
+    "PublishAllPorts": false,
+    "ReadonlyRootfs": true,
+    "SecurityOpt": [
+      "no-new-privileges"
+    ],
+    "Tmpfs": {
+      "/tmp": "rw,nosuid,nodev,size=128m,mode=1777"
+    },
+    "UTSMode": "",
+    "UsernsMode": "",
+    "ShmSize": 67108864,
+    "Runtime": "runc",
+    "Isolation": "",
+    "CpuShares": 0,
+    "Memory": 0,
+    "NanoCpus": 0,
+    "CgroupParent": "",
+    "BlkioWeight": 0,
+    "BlkioWeightDevice": null,
+    "BlkioDeviceReadBps": null,
+    "BlkioDeviceWriteBps": null,
+    "BlkioDeviceReadIOps": null,
+    "BlkioDeviceWriteIOps": null,
+    "CpuPeriod": 0,
+    "CpuQuota": 0,
+    "CpuRealtimePeriod": 0,
+    "CpuRealtimeRuntime": 0,
+    "CpusetCpus": "",
+    "CpusetMems": "",
+    "Devices": null,
+    "DeviceCgroupRules": null,
+    "DeviceRequests": null,
+    "MemoryReservation": 0,
+    "MemorySwap": 0,
+    "MemorySwappiness": null,
+    "OomKillDisable": false,
+    "PidsLimit": null,
+    "Ulimits": [
+      {
+        "Name": "nofile",
+        "Hard": 1024,
+        "Soft": 1024
+      },
+      {
+        "Name": "nproc",
+        "Hard": 256,
+        "Soft": 256
+      }
+    ],
+    "CpuCount": 0,
+    "CpuPercent": 0,
+    "IOMaximumIOps": 0,
+    "IOMaximumBandwidth": 0,
+    "MaskedPaths": [
+      "/proc/asound",
+      "/proc/acpi",
+      "/proc/kcore",
+      "/proc/keys",
+      "/proc/latency_stats",
+      "/proc/timer_list",
+      "/proc/timer_stats",
+      "/proc/sched_debug",
+      "/proc/scsi",
+      "/sys/firmware",
+      "/sys/devices/virtual/powercap"
+    ],
+    "ReadonlyPaths": [
+      "/proc/bus",
+      "/proc/fs",
+      "/proc/irq",
+      "/proc/sys",
+      "/proc/sysrq-trigger"
+    ]
+  },
+  "GraphDriver": {
+    "Data": null,
+    "Name": "vfs"
+  },
+  "Mounts": [
+    {
+      "Type": "bind",
+      "Source": "/opt/cline-server-p33-stage1-20261108/worker-mounts/5f946c69-28db-4533-90ad-31169dfb020a/workspace",
+      "Destination": "/poc/project",
+      "Mode": "rw",
+      "RW": true,
+      "Propagation": "rprivate"
+    },
+    {
+      "Type": "bind",
+      "Source": "/opt/cline-server-p33-stage1-20261108/worker-mounts/5f946c69-28db-4533-90ad-31169dfb020a/state",
+      "Destination": "/poc/state",
+      "Mode": "rw",
+      "RW": true,
+      "Propagation": "rprivate"
+    },
+    {
+      "Type": "bind",
+      "Source": "/opt/cline-server-p33-stage1-20261108/worker-mounts/5f946c69-28db-4533-90ad-31169dfb020a/bridge",
+      "Destination": "/poc/bridge",
+      "Mode": "rw",
+      "RW": true,
+      "Propagation": "rprivate"
+    },
+    {
+      "Type": "bind",
+      "Source": "/opt/cline-server-p33-stage1-20261108/worker-mounts/5f946c69-28db-4533-90ad-31169dfb020a/config.json",
+      "Destination": "/run/cline-poc.json",
+      "Mode": "ro",
+      "RW": false,
+      "Propagation": "rprivate"
+    }
+  ],
+  "Config": {
+    "Hostname": "5160f19a9f6f",
+    "Domainname": "",
+    "User": "1000:1000",
+    "AttachStdin": false,
+    "AttachStdout": false,
+    "AttachStderr": false,
+    "ExposedPorts": {
+      "18326/tcp": {}
+    },
+    "Tty": false,
+    "OpenStdin": false,
+    "StdinOnce": false,
+    "Env": [
+      "CLINE_SERVER_CONFIG=/run/cline-poc.json",
+      "HOME=/home/cline",
+      "PATH=/usr/local/bin:/usr/bin:/bin",
+      "LANG=C.UTF-8"
+    ],
+    "Cmd": [
+      "node",
+      "/poc/service/src/isolated-worker.mjs"
+    ],
+    "Healthcheck": {
+      "Test": [
+        "NONE"
+      ],
+      "Interval": 15000000000,
+      "Timeout": 5000000000,
+      "StartPeriod": 20000000000,
+      "Retries": 3
+    },
+    "Image": "sha256:6ee943241411781d729fc5fcdd5608c1906424740228f55919b0009c524dfccb",
+    "Volumes": null,
+    "WorkingDir": "/poc/service",
+    "Entrypoint": null,
+    "OnBuild": null,
+    "Labels": {
+      "cline.contract": "3e369d2152febbc80dadc281de6551cdf61a265c2362a446da647b475976044c",
+      "cline.executor": "fd7be1c788b98283da369d78898f0c16",
+      "cline.owner": "4026d3ad65a7c81a84eb2c203b9c08856a21ce3696055137618832565bdb9c88",
+      "cline.ownership": "962f38d6c7a0aecd3d8d08309f6c81fb0ff023618179ed7092cd9b01b306efcf",
+      "cline.p3": "stage1",
+      "cline.request": "703ce3590a615939e1dddcd6c65ec6eac9a0c3c1378eab6f3c62e5275cee237d",
+      "cline.sessionId": "session-9ce0bdc3bfeb4c27a4d4ec6c1ab0efe7",
+      "cline.tenantId": "tenant-a",
+      "cline.workerId": "5f946c69-28db-4533-90ad-31169dfb020a"
+    }
+  },
+  "NetworkSettings": {
+    "Bridge": "",
+    "SandboxID": "b80a5adb1db26b978a03d82153a73f201ba4e05838b012cdc13102e66a7fc5f1",
+    "SandboxKey": "/opt/cline-server-p33-stage1-20261108/daemon-exec/netns/b80a5adb1db2",
+    "Ports": {},
+    "HairpinMode": false,
+    "LinkLocalIPv6Address": "",
+    "LinkLocalIPv6PrefixLen": 0,
+    "SecondaryIPAddresses": null,
+    "SecondaryIPv6Addresses": null,
+    "EndpointID": "",
+    "Gateway": "",
+    "GlobalIPv6Address": "",
+    "GlobalIPv6PrefixLen": 0,
+    "IPAddress": "",
+    "IPPrefixLen": 0,
+    "IPv6Gateway": "",
+    "MacAddress": "",
+    "Networks": {
+      "none": {
+        "IPAMConfig": null,
+        "Links": null,
+        "Aliases": null,
+        "MacAddress": "",
+        "NetworkID": "85ee5e9b8b764942b9fe1c5e8a10b9f692131203851c17718e4bb0314b433b57",
+        "EndpointID": "",
+        "Gateway": "",
+        "IPAddress": "",
+        "IPPrefixLen": 0,
+        "IPv6Gateway": "",
+        "GlobalIPv6Address": "",
+        "GlobalIPv6PrefixLen": 0,
+        "DriverOpts": null,
+        "DNSNames": null
+      }
+    }
+  }
+}

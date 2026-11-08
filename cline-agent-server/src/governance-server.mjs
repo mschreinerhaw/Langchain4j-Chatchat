@@ -2,13 +2,20 @@ import http from 'node:http';
 import {readFileSync,writeFileSync,mkdirSync,readdirSync,existsSync,renameSync,chownSync,chmodSync,cpSync,unlinkSync,lstatSync} from 'node:fs';
 import {join} from 'node:path';
 import {randomUUID,randomBytes,timingSafeEqual} from 'node:crypto';
-import {verifyContract,authorizeSession,contractHash,holdsCapacity} from './task-contract.mjs';
+import {verifyContract,authorizeSession,contractHash,holdsCapacity,signContract} from './task-contract.mjs';
 import {DockerEngine,workerContainerSpec} from './docker-engine.mjs';
+import {WorkerExecutorClient} from './worker-executor-client.mjs';
 import {Journal} from './journal.mjs';
 
 const cfg=JSON.parse(readFileSync(process.env.CLINE_GOVERNANCE_CONFIG,'utf8'));
 if(!cfg.signingKey||cfg.signingKey.length<32||!cfg.workerImage?.startsWith('sha256:'))throw Error('Pinned image and private task issuer key required');
-const docker=new DockerEngine(cfg.dockerSocket),records=new Map(),brokers=new Map(),streams=new Map(),calls=new Map();
+if(cfg.executor&&cfg.dockerSocket)throw Error('Executor Gateway must not configure a Docker Socket');
+const executor=cfg.executor?new WorkerExecutorClient(cfg.executor):null;
+const docker=executor?null:new DockerEngine(cfg.dockerSocket),records=new Map(),brokers=new Map(),streams=new Map(),calls=new Map();
+const bridgeRoot=r=>executor?join(cfg.workerRoot,r.workerId,'bridge'):join(cfg.stateRoot,'workers',r.workerId,'bridge');
+const grant=r=>signContract(r.contract,cfg.signingKey);
+const inspectWorker=r=>executor?executor.inspect(grant(r),r.workerId):docker.inspect(r.containerId);
+const stopWorker=r=>executor?executor.stop(grant(r),r.workerId):docker.stop(r.containerId);
 mkdirSync(join(cfg.stateRoot,'workers'),{recursive:true,mode:0o700});
 const audit=new Journal(join(cfg.stateRoot,'audit.jsonl'));
 const error=(message,status=400)=>Object.assign(Error(message),{status});
@@ -16,18 +23,18 @@ const delay=ms=>new Promise(r=>setTimeout(r,ms));
 function save(r){const dir=join(cfg.stateRoot,'workers',r.workerId);writeFileSync(join(dir,'registry.tmp'),JSON.stringify(r),{mode:0o600});renameSync(join(dir,'registry.tmp'),join(dir,'registry.json'));}
 function event(r,type,detail={}){audit.append({type,sessionId:r?.contract.sessionId,tenantId:r?.contract.tenantId,workerId:r?.workerId,...detail});}
 for(const id of readdirSync(join(cfg.stateRoot,'workers'))){const p=join(cfg.stateRoot,'workers',id,'registry.json');if(existsSync(p)){const r=JSON.parse(readFileSync(p));if(!['STOPPED','START_FAILED'].includes(r.workerState)){r.workerState='RECOVERABLE';r.taskState='UNKNOWN';r.revoked=true;save(r);event(r,'recovery.required',{reason:'No side-effect replay or operation reconciliation in stage 1'});}records.set(r.contract.sessionId,r);}}
-for(const r of records.values())if(r.workerState==='RECOVERABLE'&&r.containerId){try{const info=await docker.inspect(r.containerId);if(info.Config.Labels['cline.workerId']!==r.workerId)throw Error('Container ownership mismatch');r.stopProof=await docker.stop(r.containerId);save(r);}catch{event(r,'recovery.stop_unconfirmed');}}
+for(const r of records.values())if(r.workerState==='RECOVERABLE'&&(r.containerId||executor&&r.provisioningAttempted)){try{const info=await inspectWorker(r);if(info.Config.Labels['cline.workerId']!==r.workerId)throw Error('Container ownership mismatch');r.stopProof=await stopWorker(r);save(r);}catch{event(r,'recovery.stop_unconfirmed');}}
 function templateFiles(path,visit){const stat=lstatSync(path);if(stat.isSymbolicLink())throw Error('Workspace templates must not contain symlinks');visit?.(path);if(stat.isDirectory())for(const name of readdirSync(path))templateFiles(join(path,name),visit);}
 async function body(req){const chunks=[];let count=0;for await(const b of req){count+=b.length;if(count>1048576)throw error('Request too large',413);chunks.push(b);}try{return JSON.parse(Buffer.concat(chunks).toString()||'{}');}catch{throw error('Invalid JSON');}}
 function send(res,status,value){res.writeHead(status,{'content-type':'application/json','cache-control':'no-store'});res.end(JSON.stringify(value));}
 function granted(req){return verifyContract((req.headers.authorization??'').replace(/^Bearer /,''),cfg.signingKey);}
 function live(r){return !r.revoked&&r.contract.expiresAt>Date.now()&&!['STOPPED','RECOVERABLE','START_FAILED'].includes(r.workerState);}
 function workerRequest(r,path,method='GET',value,headers={}){return new Promise((resolve,reject)=>{
- const req=http.request({socketPath:join(cfg.stateRoot,'workers',r.workerId,'bridge/worker.sock'),path,method,headers:{authorization:'Bearer '+r.apiToken,'content-type':'application/json',...headers}},resolve);
+ const req=http.request({socketPath:join(bridgeRoot(r),'worker.sock'),path,method,headers:{authorization:'Bearer '+r.apiToken,'content-type':'application/json',...headers}},resolve);
  req.setTimeout(95000,()=>req.destroy(error('Native control timeout',504)));req.on('error',reject);req.end(value===undefined?undefined:JSON.stringify(value));
 });}
 async function workerJSON(r,path,method,value){const response=await workerRequest(r,path,method,value);const chunks=[];for await(const b of response)chunks.push(b);const data=JSON.parse(Buffer.concat(chunks));if(response.statusCode>=400)throw error(data.code??'Native request rejected',response.statusCode);return {code:response.statusCode,data};}
-function publicState(r,native){return {sessionId:r.contract.sessionId,runtimeTaskId:r.contract.taskId,workerId:r.workerId,workerState:r.workerState,taskState:r.taskState,revoked:r.revoked,stopProof:r.stopProof??null,remoteStopConfirmed:r.remoteStopConfirmed===true,native:native??null};}
+function publicState(r,native){return {sessionId:r.contract.sessionId,runtimeTaskId:r.contract.taskId,workerId:r.workerId,workerState:r.workerState,taskState:r.taskState,revoked:r.revoked,stopProof:r.stopProof??null,remoteStopConfirmed:r.remoteStopConfirmed===true,native:native??null,...(executor?{resourceEnforced:r.resourceEnforced??false,productionReady:false}:{})};}
 async function operation(r,path,value={}){
  if(!cfg.operations)throw error('Operation authority unavailable',503);
  const response=await fetch(cfg.operations.url+path,{method:'POST',headers:{authorization:'Bearer '+cfg.operations.secret,'content-type':'application/json'},body:JSON.stringify({identity:r.contract,...value})});
@@ -44,7 +51,7 @@ async function stop(r,reason){
  if(['STOPPED','STOPPING'].includes(r.workerState))return;r.revoked=true;r.workerState='STOPPING';r.taskState='STOPPING';save(r);event(r,'worker.stopping',{reason});
  for(const response of streams.get(r.workerId)??[])response.end();for(const controller of calls.get(r.workerId)??[])controller.abort();
  try{if(r.nativeSessionId)await workerJSON(r,'/v1/sessions/'+r.nativeSessionId+'/cancel','POST',{});}catch{}
- try{if(r.containerId)r.stopProof=await docker.stop(r.containerId);r.workerState='STOPPED';r.taskState='CANCELLED_LOCAL_ONLY';}
+ try{if(r.containerId||executor&&r.provisioningAttempted)r.stopProof=await stopWorker(r);r.workerState='STOPPED';r.taskState='CANCELLED_LOCAL_ONLY';}
  catch{r.workerState='RECOVERABLE';r.taskState='UNKNOWN';}
  if(cfg.operations){try{await reconcileRemote(r,true);r.taskState=r.remoteStopConfirmed?'CANCELLED_REMOTE_CONFIRMED':'UNKNOWN';}catch{r.remoteStopConfirmed=false;r.taskState='UNKNOWN';}if(!r.remoteStopConfirmed)r.workerState='RECOVERABLE';}
  brokers.get(r.workerId)?.close();save(r);event(r,'worker.stopped',{workerState:r.workerState,stopProof:r.stopProof??null,remoteStopConfirmed:r.remoteStopConfirmed===true});
@@ -94,6 +101,13 @@ async function allocate(r){
  const dir=join(cfg.stateRoot,'workers',r.workerId),tenant=cfg.tenants[r.contract.tenantId];
  try{
   r.workerState='STARTING';save(r);event(r,'worker.starting');
+  if(executor){
+   if(r.revoked)throw Error('Allocation revoked');r.provisioningAttempted=true;save(r);
+   const created=await executor.create(grant(r),{workerId:r.workerId,resourceProfile:'standard',apiToken:r.apiToken,brokerToken:r.brokerToken,editTool:r.editTool});
+   r.containerId=created.Id;r.resourceEnforced=created.resources.enforced;save(r);
+   await broker(r,join(bridgeRoot(r),'broker.sock'));
+   if(r.revoked)throw Error('Allocation revoked');await executor.start(grant(r),r.workerId);
+  }else{
   for(const name of ['workspace','state','bridge']){mkdirSync(join(dir,name),{recursive:true,mode:0o700});chownSync(join(dir,name),1000,1000);}
   templateFiles(tenant.workspaces[r.contract.workspaceRef]);cpSync(tenant.workspaces[r.contract.workspaceRef],join(dir,'workspace'),{recursive:true,dereference:false});templateFiles(join(dir,'workspace'),p=>chownSync(p,1000,1000));
   // Template ownership is prepared by the deployment owner; no host path comes from a client.
@@ -105,17 +119,18 @@ async function allocate(r){
   const index=r.slot;
   const spec=workerContainerSpec({image:cfg.workerImage,root:join(cfg.hostStateRoot,'workers',r.workerId),workerId:r.workerId,sessionId:r.contract.sessionId,tenantId:r.contract.tenantId,memoryBytes:cfg.memoryBytes??3221225472,cpuSet:cfg.cpuSets[index%cfg.cpuSets.length]});
   if(r.revoked)throw Error('Allocation revoked');r.provisioningAttempted=true;save(r);r.containerId=await docker.create('cline-p3-'+r.workerId,spec);save(r);if(r.revoked)throw Error('Allocation revoked');await docker.call('POST','/containers/'+r.containerId+'/start');
+  }
   for(let n=0;n<180;n++){if(r.revoked)throw Error('Allocation revoked');try{await workerJSON(r,'/health/ready');break;}catch{if(n===179)throw Error('Worker API startup deadline');await delay(500);}}
   const created=await workerJSON(r,'/v1/sessions','POST',{workspaceRef:'project',editTool:r.editTool});r.nativeSessionId=created.data.sessionId;save(r);
   for(let n=0;n<200;n++){if(r.revoked)throw Error('Allocation revoked');const state=(await workerJSON(r,'/v1/sessions/'+r.nativeSessionId+'/status')).data;if(state.status==='idle')break;if(state.status==='failed'||n===199)throw Error('Native startup failed');await delay(500);}
   if(cfg.operations){const native=(await workerJSON(r,'/v1/sessions/'+r.nativeSessionId+'/status')).data;r.nativeEpoch=native.epoch;await operation(r,'/session',{epoch:native.epoch});r.operationSession=true;}
   if(r.revoked)throw Error('Allocation revoked');r.workerState='READY';r.taskState='READY';save(r);event(r,'worker.ready',{containerId:r.containerId});
- }catch(e){r.revoked=true;r.workerState='START_FAILED';r.taskState='FAILED';event(r,'worker.start_failed',{reason:'Worker provisioning or native startup failed'});if(r.containerId)try{r.stopProof=await docker.stop(r.containerId);}catch{r.workerState='RECOVERABLE';r.taskState='UNKNOWN';}save(r);brokers.get(r.workerId)?.close();}
+ }catch(e){r.revoked=true;r.workerState='START_FAILED';r.taskState='FAILED';event(r,'worker.start_failed',{reason:'Worker provisioning or native startup failed'});if(r.containerId||executor&&r.provisioningAttempted)try{r.stopProof=await stopWorker(r);}catch{r.workerState='RECOVERABLE';r.taskState='UNKNOWN';}save(r);brokers.get(r.workerId)?.close();}
 }
 const server=http.createServer(async(req,res)=>{
  try{
   const path=new URL(req.url,'http://control').pathname;
-  if(path==='/health/live')return send(res,200,{live:true,stage:'P3.1',enterpriseAcceptance:false});
+  if(path==='/health/live')return send(res,200,{live:true,stage:executor?'P3.3.1':'P3.1',enterpriseAcceptance:false});
   const c=granted(req),tenant=Object.hasOwn(cfg.tenants,c.tenantId)?cfg.tenants[c.tenantId]:undefined;if(!tenant||!tenant.users.includes(c.userId)||!Object.hasOwn(tenant.workspaces,c.workspaceRef)||!tenant.models.includes(c.modelProfile)||!c.dataPermissions.every(x=>tenant.datasets.includes(x))||!c.toolPermissions.every(x=>tenant.tools.includes(x)))throw error('Task policy not granted',403);
   if(path==='/v1/sessions'&&req.method==='POST'){
    const b=await body(req),key=req.headers['idempotency-key'];if(!key||Object.keys(b).some(k=>k!=='editTool')||b.editTool&&!['editor','apply_patch'].includes(b.editTool))throw error('Invalid create request');
@@ -157,7 +172,7 @@ const server=http.createServer(async(req,res)=>{
 const ticker=setInterval(()=>{for(const r of records.values())if(!['STOPPED','START_FAILED','RECOVERABLE','STOPPING'].includes(r.workerState)&&r.contract.expiresAt<=Date.now())void stop(r,'lease-expired');},500);ticker.unref();
 if(cfg.operations){
  for(const r of records.values())if(r.operationSession&&r.revoked)try{await reconcileRemote(r,true);}catch{event(r,'recovery.remote_unconfirmed');}
- const monitor=setInterval(()=>{for(const r of records.values())if(r.operationSession&&!r.revoked&&!r.monitorBusy){r.monitorBusy=true;(async()=>{try{const info=await docker.inspect(r.containerId);if(!info.State.Running){await stop(r,'worker-lost');return;}const native=(await workerJSON(r,'/v1/sessions/'+r.nativeSessionId+'/status')).data;if(['failed','recoverable','cancelled'].includes(native.status)){await stop(r,'native-core-lost');return;}await operation(r,'/heartbeat',{epoch:r.nativeEpoch});}catch{await stop(r,'operation-control-lost');}finally{r.monitorBusy=false;}})();}},3000);monitor.unref();
+ const monitor=setInterval(()=>{for(const r of records.values())if(r.operationSession&&!r.revoked&&!r.monitorBusy){r.monitorBusy=true;(async()=>{try{const info=await inspectWorker(r);if(!info.State.Running){await stop(r,'worker-lost');return;}const native=(await workerJSON(r,'/v1/sessions/'+r.nativeSessionId+'/status')).data;if(['failed','recoverable','cancelled'].includes(native.status)){await stop(r,'native-core-lost');return;}await operation(r,'/heartbeat',{epoch:r.nativeEpoch});}catch{await stop(r,'operation-control-lost');}finally{r.monitorBusy=false;}})();}},3000);monitor.unref();
 }
 server.listen(cfg.port??18328,cfg.host??'127.0.0.1',()=>console.log(JSON.stringify({event:'governance.ready',stage:'P3.1',recovery:'fail-closed; no operation replay',maxWorkers:cfg.maxWorkers})));
 async function shutdown(){server.close();await Promise.all([...records.values()].filter(r=>!['STOPPED','START_FAILED','RECOVERABLE'].includes(r.workerState)).map(r=>stop(r,'control-shutdown')));process.exit(0);}

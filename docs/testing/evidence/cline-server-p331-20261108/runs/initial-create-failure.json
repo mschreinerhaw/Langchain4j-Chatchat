@@ -1,0 +1,151 @@
+[
+  {
+    "case": "parameter-and-Docker-API-injection",
+    "pass": true,
+    "blocking": true,
+    "detail": [
+      {
+        "field": "Image",
+        "reply": [
+          403,
+          {
+            "message": "Unexpected request fields"
+          }
+        ],
+        "daemonUnchanged": true
+      },
+      {
+        "field": "HostConfig",
+        "reply": [
+          403,
+          {
+            "message": "Unexpected request fields"
+          }
+        ],
+        "daemonUnchanged": true
+      },
+      {
+        "field": "mounts",
+        "reply": [
+          403,
+          {
+            "message": "Unexpected request fields"
+          }
+        ],
+        "daemonUnchanged": true
+      },
+      {
+        "field": "network",
+        "reply": [
+          403,
+          {
+            "message": "Unexpected request fields"
+          }
+        ],
+        "daemonUnchanged": true
+      },
+      {
+        "field": "pidMode",
+        "reply": [
+          403,
+          {
+            "message": "Unexpected request fields"
+          }
+        ],
+        "daemonUnchanged": true
+      },
+      {
+        "field": "devices",
+        "reply": [
+          403,
+          {
+            "message": "Unexpected request fields"
+          }
+        ],
+        "daemonUnchanged": true
+      },
+      {
+        "field": "Cmd",
+        "reply": [
+          403,
+          {
+            "message": "Unexpected request fields"
+          }
+        ],
+        "daemonUnchanged": true
+      },
+      {
+        "field": "dockerPath",
+        "reply": [
+          403,
+          {
+            "message": "Unexpected request fields"
+          }
+        ],
+        "daemonUnchanged": true
+      },
+      {
+        "field": "memoryBytes",
+        "reply": [
+          403,
+          {
+            "message": "Unexpected request fields"
+          }
+        ],
+        "daemonUnchanged": true
+      },
+      {
+        "path": "/v1.45/containers/create",
+        "reply": [
+          404,
+          {
+            "message": "No Docker/API forwarding capability"
+          }
+        ],
+        "daemonUnchanged": true
+      },
+      {
+        "path": "/internal/workers/06dace49-cfe2-496d-b3d8-54673fddd011/exec",
+        "reply": [
+          404,
+          {
+            "message": "Unknown Worker capability"
+          }
+        ],
+        "daemonUnchanged": true
+      },
+      {
+        "path": "/internal/workers?path=/containers/create",
+        "reply": [
+          404,
+          {
+            "message": "Canonical capability routes only"
+          }
+        ],
+        "daemonUnchanged": true
+      }
+    ]
+  },
+  {
+    "case": "service-authentication",
+    "pass": true,
+    "blocking": true,
+    "detail": [
+      401,
+      {
+        "message": "Executor service credential rejected"
+      }
+    ]
+  },
+  {
+    "case": "real-worker-create",
+    "pass": false,
+    "blocking": true,
+    "detail": [
+      503,
+      {
+        "message": "Executor operation unknown; query before retry"
+      }
+    ]
+  }
+]

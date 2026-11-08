@@ -1,0 +1,422 @@
++ case "$1" in
++ '[' -w /opt/cline-server-p33-stage1-20261108/run ']'
++ '[' -d /opt/cline-server-p33-stage1-20261108/daemon-home ']'
++ rootlesskit=
++ for f in docker-rootlesskit rootlesskit
++ command -v docker-rootlesskit
++ for f in docker-rootlesskit rootlesskit
++ command -v rootlesskit
++ rootlesskit=rootlesskit
++ break
++ '[' -z rootlesskit ']'
++ : /opt/cline-server-p33-stage1-20261108/run/dockerd-rootless
++ : slirp4netns
++ : ''
++ : builtin
++ : auto
++ : auto
++ : ''
++ net=slirp4netns
++ mtu=
++ '[' -z slirp4netns ']'
++ '[' -z '' ']'
++ mtu=1500
++ host_loopback=--disable-host-loopback
++ '[' '' = false ']'
++ dockerd=dockerd
++ '[' -z '' ']'
++ _DOCKERD_ROOTLESS_CHILD=1
++ export _DOCKERD_ROOTLESS_CHILD
+++ id -u
++ '[' 1004 = 0 ']'
++ command -v selinuxenabled
++ exec rootlesskit --state-dir=/opt/cline-server-p33-stage1-20261108/run/dockerd-rootless --net=slirp4netns --mtu=1500 --slirp4netns-sandbox=auto --slirp4netns-seccomp=auto --disable-host-loopback --port-driver=builtin --copy-up=/etc --copy-up=/run --propagation=rslave -p 127.0.0.1:18331:18331/tcp /usr/bin/dockerd-rootless.sh --host=unix:///opt/cline-server-p33-stage1-20261108/run/docker.sock --data-root=/opt/cline-server-p33-stage1-20261108/daemon-data --exec-root=/opt/cline-server-p33-stage1-20261108/daemon-exec --pidfile=/opt/cline-server-p33-stage1-20261108/run/dockerd.pid --storage-driver=vfs --iptables=false --bridge=none --ip-masq=false --ip-forward=false --userland-proxy=false
+nsenter: failed to execute ip: No such file or directory
+[rootlesskit:parent] error: failed to setup network &{logWriter:0xc000252940 binary:slirp4netns mtu:1500 ipnet:<nil> disableHostLoopback:true apiSocketPath: enableSandbox:true enableSeccomp:true enableIPv6:false ifname:tap0 infoMu:{w:{state:0 sema:0} writerSem:0 readerSem:0 readerCount:{_:{} v:0} readerWait:{_:{} v:0}} info:<nil>}: setting up tap tap0: executing [[nsenter -t 2841054 -n -m -U --preserve-credentials ip tuntap add name tap0 mode tap] [nsenter -t 2841054 -n -m -U --preserve-credentials ip link set tap0 up]]: exit status 127
+[rootlesskit:child ] error: EOF
++ case "$1" in
++ '[' -w /opt/cline-server-p33-stage1-20261108/run ']'
++ '[' -d /opt/cline-server-p33-stage1-20261108/daemon-home ']'
++ rootlesskit=
++ for f in docker-rootlesskit rootlesskit
++ command -v docker-rootlesskit
++ for f in docker-rootlesskit rootlesskit
++ command -v rootlesskit
++ rootlesskit=rootlesskit
++ break
++ '[' -z rootlesskit ']'
++ : /opt/cline-server-p33-stage1-20261108/run/dockerd-rootless
++ : slirp4netns
++ : ''
++ : builtin
++ : auto
++ : auto
++ : ''
++ net=slirp4netns
++ mtu=
++ '[' -z slirp4netns ']'
++ '[' -z '' ']'
++ mtu=1500
++ host_loopback=--disable-host-loopback
++ '[' '' = false ']'
++ dockerd=dockerd
++ '[' -z '' ']'
++ _DOCKERD_ROOTLESS_CHILD=1
++ export _DOCKERD_ROOTLESS_CHILD
+++ id -u
++ '[' 1004 = 0 ']'
++ command -v selinuxenabled
++ selinuxenabled
++ exec rootlesskit --state-dir=/opt/cline-server-p33-stage1-20261108/run/dockerd-rootless --net=slirp4netns --mtu=1500 --slirp4netns-sandbox=auto --slirp4netns-seccomp=auto --disable-host-loopback --port-driver=builtin --copy-up=/etc --copy-up=/run --propagation=rslave -p 127.0.0.1:18331:18331/tcp /usr/bin/dockerd-rootless.sh --host=unix:///opt/cline-server-p33-stage1-20261108/run/docker.sock --data-root=/opt/cline-server-p33-stage1-20261108/daemon-data --exec-root=/opt/cline-server-p33-stage1-20261108/daemon-exec --pidfile=/opt/cline-server-p33-stage1-20261108/run/dockerd.pid --storage-driver=vfs --iptables=false --bridge=none --ip-masq=false --ip-forward=false --userland-proxy=false
++ case "$1" in
++ '[' -w /opt/cline-server-p33-stage1-20261108/run ']'
++ '[' -d /opt/cline-server-p33-stage1-20261108/daemon-home ']'
++ rootlesskit=
++ for f in docker-rootlesskit rootlesskit
++ command -v docker-rootlesskit
++ for f in docker-rootlesskit rootlesskit
++ command -v rootlesskit
++ rootlesskit=rootlesskit
++ break
++ '[' -z rootlesskit ']'
++ : /opt/cline-server-p33-stage1-20261108/run/dockerd-rootless
++ : slirp4netns
++ : ''
++ : builtin
++ : auto
++ : auto
++ : ''
++ net=slirp4netns
++ mtu=
++ '[' -z slirp4netns ']'
++ '[' -z '' ']'
++ mtu=1500
++ host_loopback=--disable-host-loopback
++ '[' '' = false ']'
++ dockerd=dockerd
++ '[' -z 1 ']'
++ '[' 1 = 1 ']'
++ rm -f /run/docker /run/containerd /run/xtables.lock
++ '[' -n '' ']'
+++ stat -c %T -f /etc
++ '[' tmpfs = tmpfs ']'
++ '[' -L /etc/ssl ']'
+++ realpath /etc/ssl
++ realpath_etc_ssl=/etc/.ro4074844471/ssl
++ rm -f /etc/ssl
++ mkdir /etc/ssl
++ mount --rbind /etc/.ro4074844471/ssl /etc/ssl
++ exec dockerd --host=unix:///opt/cline-server-p33-stage1-20261108/run/docker.sock --data-root=/opt/cline-server-p33-stage1-20261108/daemon-data --exec-root=/opt/cline-server-p33-stage1-20261108/daemon-exec --pidfile=/opt/cline-server-p33-stage1-20261108/run/dockerd.pid --storage-driver=vfs --iptables=false --bridge=none --ip-masq=false --ip-forward=false --userland-proxy=false
+time="2026-11-08T14:54:52.789290527+08:00" level=info msg="Starting up"
+time="2026-11-08T14:54:52.789415109+08:00" level=warning msg="Running in rootless mode. This mode has feature limitations."
+time="2026-11-08T14:54:52.789471368+08:00" level=info msg="Running with RootlessKit integration"
+time="2026-11-08T14:54:52.802438161+08:00" level=info msg="containerd not running, starting managed containerd"
+time="2026-11-08T14:54:52.810222005+08:00" level=info msg="started new containerd process" address=/opt/cline-server-p33-stage1-20261108/daemon-exec/containerd/containerd.sock module=libcontainerd pid=2846340
+time="2026-11-08T14:54:52.946370525+08:00" level=info msg="starting containerd" revision=8b3b7ca2e5ce38e8f31a34f35b2b68ceb8470d89 version=1.6.32
+time="2026-11-08T14:54:52.974229841+08:00" level=info msg="loading plugin \"io.containerd.snapshotter.v1.aufs\"..." type=io.containerd.snapshotter.v1
+time="2026-11-08T14:54:52.979946184+08:00" level=info msg="skip loading plugin \"io.containerd.snapshotter.v1.aufs\"..." error="aufs is not supported (modprobe aufs failed: exit status 1 \"modprobe: FATAL: Module aufs not found in directory /lib/modules/4.18.0-553.el8_10.x86_64\\n\"): skip plugin" type=io.containerd.snapshotter.v1
+time="2026-11-08T14:54:52.980041877+08:00" level=info msg="loading plugin \"io.containerd.content.v1.content\"..." type=io.containerd.content.v1
+time="2026-11-08T14:54:52.980274362+08:00" level=info msg="loading plugin \"io.containerd.snapshotter.v1.devmapper\"..." type=io.containerd.snapshotter.v1
+time="2026-11-08T14:54:52.980315868+08:00" level=warning msg="failed to load plugin io.containerd.snapshotter.v1.devmapper" error="devmapper not configured"
+time="2026-11-08T14:54:52.980395818+08:00" level=info msg="loading plugin \"io.containerd.snapshotter.v1.native\"..." type=io.containerd.snapshotter.v1
+time="2026-11-08T14:54:52.980566413+08:00" level=info msg="loading plugin \"io.containerd.snapshotter.v1.overlayfs\"..." type=io.containerd.snapshotter.v1
+time="2026-11-08T14:54:52.995397230+08:00" level=info msg="loading plugin \"io.containerd.snapshotter.v1.zfs\"..." type=io.containerd.snapshotter.v1
+time="2026-11-08T14:54:52.997306345+08:00" level=info msg="skip loading plugin \"io.containerd.snapshotter.v1.zfs\"..." error="path /opt/cline-server-p33-stage1-20261108/daemon-data/containerd/daemon/io.containerd.snapshotter.v1.zfs must be a zfs filesystem to be used with the zfs snapshotter: skip plugin" type=io.containerd.snapshotter.v1
+time="2026-11-08T14:54:52.997361741+08:00" level=info msg="loading plugin \"io.containerd.metadata.v1.bolt\"..." type=io.containerd.metadata.v1
+time="2026-11-08T14:54:52.997549065+08:00" level=warning msg="could not use snapshotter devmapper in metadata plugin" error="devmapper not configured"
+time="2026-11-08T14:54:52.997600657+08:00" level=info msg="metadata content store policy set" policy=shared
+time="2026-11-08T14:54:53.000415569+08:00" level=info msg="loading plugin \"io.containerd.differ.v1.walking\"..." type=io.containerd.differ.v1
+time="2026-11-08T14:54:53.000496197+08:00" level=info msg="loading plugin \"io.containerd.event.v1.exchange\"..." type=io.containerd.event.v1
+time="2026-11-08T14:54:53.000527832+08:00" level=info msg="loading plugin \"io.containerd.gc.v1.scheduler\"..." type=io.containerd.gc.v1
+time="2026-11-08T14:54:53.000691444+08:00" level=info msg="loading plugin \"io.containerd.runtime.v1.linux\"..." type=io.containerd.runtime.v1
+time="2026-11-08T14:54:53.001097837+08:00" level=info msg="loading plugin \"io.containerd.runtime.v2.task\"..." type=io.containerd.runtime.v2
+time="2026-11-08T14:54:53.001406565+08:00" level=info msg="loading plugin \"io.containerd.internal.v1.opt\"..." type=io.containerd.internal.v1
+time="2026-11-08T14:54:53.001505603+08:00" level=info msg="loading plugin \"io.containerd.warning.v1.deprecations\"..." type=io.containerd.warning.v1
+time="2026-11-08T14:54:53.001573196+08:00" level=info msg="loading plugin \"io.containerd.monitor.v1.cgroups\"..." type=io.containerd.monitor.v1
+time="2026-11-08T14:54:53.004531281+08:00" level=info msg="loading plugin \"io.containerd.service.v1.containers-service\"..." type=io.containerd.service.v1
+time="2026-11-08T14:54:53.004639548+08:00" level=info msg="loading plugin \"io.containerd.service.v1.content-service\"..." type=io.containerd.service.v1
+time="2026-11-08T14:54:53.004708281+08:00" level=info msg="loading plugin \"io.containerd.service.v1.diff-service\"..." type=io.containerd.service.v1
+time="2026-11-08T14:54:53.004747406+08:00" level=info msg="loading plugin \"io.containerd.service.v1.images-service\"..." type=io.containerd.service.v1
+time="2026-11-08T14:54:53.004801995+08:00" level=info msg="loading plugin \"io.containerd.service.v1.introspection-service\"..." type=io.containerd.service.v1
+time="2026-11-08T14:54:53.004839679+08:00" level=info msg="loading plugin \"io.containerd.service.v1.leases-service\"..." type=io.containerd.service.v1
+time="2026-11-08T14:54:53.004875380+08:00" level=info msg="loading plugin \"io.containerd.service.v1.namespaces-service\"..." type=io.containerd.service.v1
+time="2026-11-08T14:54:53.004909785+08:00" level=info msg="loading plugin \"io.containerd.service.v1.snapshots-service\"..." type=io.containerd.service.v1
+time="2026-11-08T14:54:53.004958010+08:00" level=info msg="loading plugin \"io.containerd.service.v1.tasks-service\"..." type=io.containerd.service.v1
+time="2026-11-08T14:54:53.005014579+08:00" level=info msg="loading plugin \"io.containerd.grpc.v1.containers\"..." type=io.containerd.grpc.v1
+time="2026-11-08T14:54:53.005061576+08:00" level=info msg="loading plugin \"io.containerd.grpc.v1.content\"..." type=io.containerd.grpc.v1
+time="2026-11-08T14:54:53.005094840+08:00" level=info msg="loading plugin \"io.containerd.grpc.v1.diff\"..." type=io.containerd.grpc.v1
+time="2026-11-08T14:54:53.005137898+08:00" level=info msg="loading plugin \"io.containerd.grpc.v1.events\"..." type=io.containerd.grpc.v1
+time="2026-11-08T14:54:53.005187582+08:00" level=info msg="loading plugin \"io.containerd.grpc.v1.images\"..." type=io.containerd.grpc.v1
+time="2026-11-08T14:54:53.005222450+08:00" level=info msg="loading plugin \"io.containerd.grpc.v1.introspection\"..." type=io.containerd.grpc.v1
+time="2026-11-08T14:54:53.005253975+08:00" level=info msg="loading plugin \"io.containerd.grpc.v1.leases\"..." type=io.containerd.grpc.v1
+time="2026-11-08T14:54:53.005286220+08:00" level=info msg="loading plugin \"io.containerd.grpc.v1.namespaces\"..." type=io.containerd.grpc.v1
+time="2026-11-08T14:54:53.005320081+08:00" level=info msg="loading plugin \"io.containerd.grpc.v1.snapshots\"..." type=io.containerd.grpc.v1
+time="2026-11-08T14:54:53.005355202+08:00" level=info msg="loading plugin \"io.containerd.grpc.v1.tasks\"..." type=io.containerd.grpc.v1
+time="2026-11-08T14:54:53.005391622+08:00" level=info msg="loading plugin \"io.containerd.grpc.v1.version\"..." type=io.containerd.grpc.v1
+time="2026-11-08T14:54:53.005420051+08:00" level=info msg="loading plugin \"io.containerd.tracing.processor.v1.otlp\"..." type=io.containerd.tracing.processor.v1
+time="2026-11-08T14:54:53.005460259+08:00" level=info msg="skip loading plugin \"io.containerd.tracing.processor.v1.otlp\"..." error="skip plugin: tracing endpoint not configured" type=io.containerd.tracing.processor.v1
+time="2026-11-08T14:54:53.005488312+08:00" level=info msg="loading plugin \"io.containerd.internal.v1.tracing\"..." type=io.containerd.internal.v1
+time="2026-11-08T14:54:53.005533128+08:00" level=info msg="skip loading plugin \"io.containerd.internal.v1.tracing\"..." error="skip plugin: tracing endpoint not configured" type=io.containerd.internal.v1
+time="2026-11-08T14:54:53.005559837+08:00" level=info msg="loading plugin \"io.containerd.internal.v1.restart\"..." type=io.containerd.internal.v1
+time="2026-11-08T14:54:53.005685524+08:00" level=info msg="loading plugin \"io.containerd.grpc.v1.healthcheck\"..." type=io.containerd.grpc.v1
+time="2026-11-08T14:54:53.006023634+08:00" level=info msg=serving... address=/opt/cline-server-p33-stage1-20261108/daemon-exec/containerd/containerd-debug.sock
+time="2026-11-08T14:54:53.006193732+08:00" level=info msg=serving... address=/opt/cline-server-p33-stage1-20261108/daemon-exec/containerd/containerd.sock.ttrpc
+time="2026-11-08T14:54:53.006381217+08:00" level=info msg=serving... address=/opt/cline-server-p33-stage1-20261108/daemon-exec/containerd/containerd.sock
+time="2026-11-08T14:54:53.006457502+08:00" level=info msg="containerd successfully booted in 0.066046s"
+time="2026-11-08T14:54:53.862583975+08:00" level=info msg="[graphdriver] trying configured driver: vfs"
+time="2026-11-08T14:54:53.864286674+08:00" level=info msg="Loading containers: start."
+time="2026-11-08T14:54:53.877898244+08:00" level=info msg="Loading containers: done."
+time="2026-11-08T14:54:53.894966523+08:00" level=warning msg="WARNING: Running in rootless-mode without cgroups. To enable cgroups in rootless-mode, you need to boot the system in cgroup v2 mode."
+time="2026-11-08T14:54:53.895020836+08:00" level=warning msg="WARNING: bridge-nf-call-iptables is disabled"
+time="2026-11-08T14:54:53.895040420+08:00" level=warning msg="WARNING: bridge-nf-call-ip6tables is disabled"
+time="2026-11-08T14:54:53.895084949+08:00" level=info msg="Docker daemon" commit=8e96db1 containerd-snapshotter=false storage-driver=vfs version=26.1.3
+time="2026-11-08T14:54:53.895338050+08:00" level=info msg="Daemon has completed initialization"
+time="2026-11-08T14:54:53.948685068+08:00" level=info msg="API listen on /opt/cline-server-p33-stage1-20261108/run/docker.sock"
+time="2026-11-08T14:56:46.281332548+08:00" level=info msg="loading plugin \"io.containerd.event.v1.publisher\"..." runtime=io.containerd.runc.v2 type=io.containerd.event.v1
+time="2026-11-08T14:56:46.282164208+08:00" level=info msg="loading plugin \"io.containerd.internal.v1.shutdown\"..." runtime=io.containerd.runc.v2 type=io.containerd.internal.v1
+time="2026-11-08T14:56:46.282186474+08:00" level=info msg="loading plugin \"io.containerd.ttrpc.v1.task\"..." runtime=io.containerd.runc.v2 type=io.containerd.ttrpc.v1
+time="2026-11-08T14:56:46.282425829+08:00" level=info msg="starting signal loop" namespace=moby path=/opt/cline-server-p33-stage1-20261108/daemon-exec/containerd/daemon/io.containerd.runtime.v2.task/moby/37596f48a783ab7aedd9cefb3ccdb5fee1f8c440e633d4a6366e44c0c6c30f61 pid=2851276 runtime=io.containerd.runc.v2
+time="2026-11-08T14:56:47.080122478+08:00" level=info msg="loading plugin \"io.containerd.event.v1.publisher\"..." runtime=io.containerd.runc.v2 type=io.containerd.event.v1
+time="2026-11-08T14:56:47.080432845+08:00" level=info msg="loading plugin \"io.containerd.internal.v1.shutdown\"..." runtime=io.containerd.runc.v2 type=io.containerd.internal.v1
+time="2026-11-08T14:56:47.080474836+08:00" level=info msg="loading plugin \"io.containerd.ttrpc.v1.task\"..." runtime=io.containerd.runc.v2 type=io.containerd.ttrpc.v1
+time="2026-11-08T14:56:47.081165451+08:00" level=info msg="starting signal loop" namespace=moby path=/opt/cline-server-p33-stage1-20261108/daemon-exec/containerd/daemon/io.containerd.runtime.v2.task/moby/50b6b5c8d2f5e4c999af4f7a6dc72e8fc2315f09dff0ebc6996848b5b7d87f58 pid=2851373 runtime=io.containerd.runc.v2
+2026/11/08 14:57:25 http: superfluous response.WriteHeader call from go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp.(*respWriterWrapper).WriteHeader (wrap.go:98)
+2026/11/08 14:57:25 http: superfluous response.WriteHeader call from go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp.(*respWriterWrapper).WriteHeader (wrap.go:98)
+time="2026-11-08T15:01:14.985805510+08:00" level=info msg="shim disconnected" id=50b6b5c8d2f5e4c999af4f7a6dc72e8fc2315f09dff0ebc6996848b5b7d87f58
+time="2026-11-08T15:01:14.985923196+08:00" level=warning msg="cleaning up after shim disconnected" id=50b6b5c8d2f5e4c999af4f7a6dc72e8fc2315f09dff0ebc6996848b5b7d87f58 namespace=moby
+time="2026-11-08T15:01:14.985944998+08:00" level=info msg="cleaning up dead shim"
+time="2026-11-08T15:01:14.985987035+08:00" level=info msg="ignoring event" container=50b6b5c8d2f5e4c999af4f7a6dc72e8fc2315f09dff0ebc6996848b5b7d87f58 module=libcontainerd namespace=moby topic=/tasks/delete type="*events.TaskDelete"
+time="2026-11-08T15:01:15.013346547+08:00" level=warning msg="cleanup warnings time=\"2026-11-08T15:01:14+08:00\" level=info msg=\"starting signal loop\" namespace=moby pid=2861563 runtime=io.containerd.runc.v2\n"
+time="2026-11-08T15:01:25.348133034+08:00" level=info msg="Container failed to exit within 10s of signal 15 - using the force" container=37596f48a783ab7aedd9cefb3ccdb5fee1f8c440e633d4a6366e44c0c6c30f61 spanID=f8eaa2aae34dd46f traceID=c655da19d9a2fb19f9ba47d56c2ad1e5
+time="2026-11-08T15:01:25.415581798+08:00" level=info msg="shim disconnected" id=37596f48a783ab7aedd9cefb3ccdb5fee1f8c440e633d4a6366e44c0c6c30f61
+time="2026-11-08T15:01:25.415683177+08:00" level=warning msg="cleaning up after shim disconnected" id=37596f48a783ab7aedd9cefb3ccdb5fee1f8c440e633d4a6366e44c0c6c30f61 namespace=moby
+time="2026-11-08T15:01:25.415706801+08:00" level=info msg="cleaning up dead shim"
+time="2026-11-08T15:01:25.416176404+08:00" level=info msg="ignoring event" container=37596f48a783ab7aedd9cefb3ccdb5fee1f8c440e633d4a6366e44c0c6c30f61 module=libcontainerd namespace=moby topic=/tasks/delete type="*events.TaskDelete"
+time="2026-11-08T15:01:25.441729237+08:00" level=warning msg="cleanup warnings time=\"2026-11-08T15:01:25+08:00\" level=info msg=\"starting signal loop\" namespace=moby pid=2862024 runtime=io.containerd.runc.v2\n"
+time="2026-11-08T15:01:28.554852450+08:00" level=info msg="loading plugin \"io.containerd.event.v1.publisher\"..." runtime=io.containerd.runc.v2 type=io.containerd.event.v1
+time="2026-11-08T15:01:28.555835273+08:00" level=info msg="loading plugin \"io.containerd.internal.v1.shutdown\"..." runtime=io.containerd.runc.v2 type=io.containerd.internal.v1
+time="2026-11-08T15:01:28.555863224+08:00" level=info msg="loading plugin \"io.containerd.ttrpc.v1.task\"..." runtime=io.containerd.runc.v2 type=io.containerd.ttrpc.v1
+time="2026-11-08T15:01:28.558350282+08:00" level=info msg="starting signal loop" namespace=moby path=/opt/cline-server-p33-stage1-20261108/daemon-exec/containerd/daemon/io.containerd.runtime.v2.task/moby/dda41384f63589a150174feb218bc94823ba0670dfb37a80b37e43a42414bfe0 pid=2862347 runtime=io.containerd.runc.v2
+time="2026-11-08T15:01:29.533387795+08:00" level=info msg="loading plugin \"io.containerd.event.v1.publisher\"..." runtime=io.containerd.runc.v2 type=io.containerd.event.v1
+time="2026-11-08T15:01:29.533562334+08:00" level=info msg="loading plugin \"io.containerd.internal.v1.shutdown\"..." runtime=io.containerd.runc.v2 type=io.containerd.internal.v1
+time="2026-11-08T15:01:29.533603455+08:00" level=info msg="loading plugin \"io.containerd.ttrpc.v1.task\"..." runtime=io.containerd.runc.v2 type=io.containerd.ttrpc.v1
+time="2026-11-08T15:01:29.533966179+08:00" level=info msg="starting signal loop" namespace=moby path=/opt/cline-server-p33-stage1-20261108/daemon-exec/containerd/daemon/io.containerd.runtime.v2.task/moby/6e5109b6ca389ecc855eabf4bdcb563fc841719276d2702e7822e0e2b3e53d0c pid=2862475 runtime=io.containerd.runc.v2
+time="2026-11-08T15:03:43.945541578+08:00" level=info msg="shim disconnected" id=6e5109b6ca389ecc855eabf4bdcb563fc841719276d2702e7822e0e2b3e53d0c
+time="2026-11-08T15:03:43.945619418+08:00" level=warning msg="cleaning up after shim disconnected" id=6e5109b6ca389ecc855eabf4bdcb563fc841719276d2702e7822e0e2b3e53d0c namespace=moby
+time="2026-11-08T15:03:43.945669047+08:00" level=info msg="cleaning up dead shim"
+time="2026-11-08T15:03:43.946090662+08:00" level=info msg="ignoring event" container=6e5109b6ca389ecc855eabf4bdcb563fc841719276d2702e7822e0e2b3e53d0c module=libcontainerd namespace=moby topic=/tasks/delete type="*events.TaskDelete"
+time="2026-11-08T15:03:43.967973134+08:00" level=warning msg="cleanup warnings time=\"2026-11-08T15:03:43+08:00\" level=info msg=\"starting signal loop\" namespace=moby pid=2868360 runtime=io.containerd.runc.v2\n"
+time="2026-11-08T15:03:54.560483466+08:00" level=info msg="Container failed to exit within 10s of signal 15 - using the force" container=dda41384f63589a150174feb218bc94823ba0670dfb37a80b37e43a42414bfe0 spanID=3c437646ba5ddcb4 traceID=b185418c6ad4c810e690d1ea9de157c4
+time="2026-11-08T15:03:54.627171614+08:00" level=info msg="shim disconnected" id=dda41384f63589a150174feb218bc94823ba0670dfb37a80b37e43a42414bfe0
+time="2026-11-08T15:03:54.627251982+08:00" level=warning msg="cleaning up after shim disconnected" id=dda41384f63589a150174feb218bc94823ba0670dfb37a80b37e43a42414bfe0 namespace=moby
+time="2026-11-08T15:03:54.627241889+08:00" level=info msg="ignoring event" container=dda41384f63589a150174feb218bc94823ba0670dfb37a80b37e43a42414bfe0 module=libcontainerd namespace=moby topic=/tasks/delete type="*events.TaskDelete"
+time="2026-11-08T15:03:54.627271672+08:00" level=info msg="cleaning up dead shim"
+time="2026-11-08T15:03:54.653426163+08:00" level=warning msg="cleanup warnings time=\"2026-11-08T15:03:54+08:00\" level=info msg=\"starting signal loop\" namespace=moby pid=2868846 runtime=io.containerd.runc.v2\n"
+time="2026-11-08T15:03:57.196561962+08:00" level=info msg="loading plugin \"io.containerd.event.v1.publisher\"..." runtime=io.containerd.runc.v2 type=io.containerd.event.v1
+time="2026-11-08T15:03:57.196757767+08:00" level=info msg="loading plugin \"io.containerd.internal.v1.shutdown\"..." runtime=io.containerd.runc.v2 type=io.containerd.internal.v1
+time="2026-11-08T15:03:57.196778419+08:00" level=info msg="loading plugin \"io.containerd.ttrpc.v1.task\"..." runtime=io.containerd.runc.v2 type=io.containerd.ttrpc.v1
+time="2026-11-08T15:03:57.197152662+08:00" level=info msg="starting signal loop" namespace=moby path=/opt/cline-server-p33-stage1-20261108/daemon-exec/containerd/daemon/io.containerd.runtime.v2.task/moby/76bcfcde132583377ac3e59c3f8df578062b68bf3f65ebb9ba60fa2c26bdc329 pid=2869196 runtime=io.containerd.runc.v2
+time="2026-11-08T15:03:58.014527427+08:00" level=info msg="loading plugin \"io.containerd.event.v1.publisher\"..." runtime=io.containerd.runc.v2 type=io.containerd.event.v1
+time="2026-11-08T15:03:58.017385708+08:00" level=info msg="loading plugin \"io.containerd.internal.v1.shutdown\"..." runtime=io.containerd.runc.v2 type=io.containerd.internal.v1
+time="2026-11-08T15:03:58.017473662+08:00" level=info msg="loading plugin \"io.containerd.ttrpc.v1.task\"..." runtime=io.containerd.runc.v2 type=io.containerd.ttrpc.v1
+time="2026-11-08T15:03:58.018335142+08:00" level=info msg="starting signal loop" namespace=moby path=/opt/cline-server-p33-stage1-20261108/daemon-exec/containerd/daemon/io.containerd.runtime.v2.task/moby/b403a31fa64693fb5b2bb682f8122a025c915a32d0a68527f4763e11321f6489 pid=2869273 runtime=io.containerd.runc.v2
+time="2026-11-08T15:03:59.667162924+08:00" level=info msg="loading plugin \"io.containerd.event.v1.publisher\"..." runtime=io.containerd.runc.v2 type=io.containerd.event.v1
+time="2026-11-08T15:03:59.667503418+08:00" level=info msg="loading plugin \"io.containerd.internal.v1.shutdown\"..." runtime=io.containerd.runc.v2 type=io.containerd.internal.v1
+time="2026-11-08T15:03:59.667542263+08:00" level=info msg="loading plugin \"io.containerd.ttrpc.v1.task\"..." runtime=io.containerd.runc.v2 type=io.containerd.ttrpc.v1
+time="2026-11-08T15:03:59.668088656+08:00" level=info msg="starting signal loop" namespace=moby path=/opt/cline-server-p33-stage1-20261108/daemon-exec/containerd/daemon/io.containerd.runtime.v2.task/moby/ce6c1b1053b488f54ff5db018d0f0fb2a8540ce74d61aa74ce372d268e8f5014 pid=2869556 runtime=io.containerd.runc.v2
+time="2026-11-08T15:04:08.840556133+08:00" level=info msg="Container failed to exit within 8s of signal 15 - using the force" container=ce6c1b1053b488f54ff5db018d0f0fb2a8540ce74d61aa74ce372d268e8f5014 spanID=2fe4df2236b64345 traceID=e0def926108c4549aa495ed9ccb1df42
+time="2026-11-08T15:04:08.906857033+08:00" level=info msg="shim disconnected" id=ce6c1b1053b488f54ff5db018d0f0fb2a8540ce74d61aa74ce372d268e8f5014
+time="2026-11-08T15:04:08.906983259+08:00" level=warning msg="cleaning up after shim disconnected" id=ce6c1b1053b488f54ff5db018d0f0fb2a8540ce74d61aa74ce372d268e8f5014 namespace=moby
+time="2026-11-08T15:04:08.907013180+08:00" level=info msg="cleaning up dead shim"
+time="2026-11-08T15:04:08.907253852+08:00" level=info msg="ignoring event" container=ce6c1b1053b488f54ff5db018d0f0fb2a8540ce74d61aa74ce372d268e8f5014 module=libcontainerd namespace=moby topic=/tasks/delete type="*events.TaskDelete"
+time="2026-11-08T15:04:08.935918048+08:00" level=warning msg="cleanup warnings time=\"2026-11-08T15:04:08+08:00\" level=info msg=\"starting signal loop\" namespace=moby pid=2870132 runtime=io.containerd.runc.v2\n"
+time="2026-11-08T15:04:11.129052362+08:00" level=info msg="loading plugin \"io.containerd.event.v1.publisher\"..." runtime=io.containerd.runc.v2 type=io.containerd.event.v1
+time="2026-11-08T15:04:11.129447903+08:00" level=info msg="loading plugin \"io.containerd.internal.v1.shutdown\"..." runtime=io.containerd.runc.v2 type=io.containerd.internal.v1
+time="2026-11-08T15:04:11.129490531+08:00" level=info msg="loading plugin \"io.containerd.ttrpc.v1.task\"..." runtime=io.containerd.runc.v2 type=io.containerd.ttrpc.v1
+time="2026-11-08T15:04:11.130747346+08:00" level=info msg="starting signal loop" namespace=moby path=/opt/cline-server-p33-stage1-20261108/daemon-exec/containerd/daemon/io.containerd.runtime.v2.task/moby/b1f6b09727ca787f778fca123b31ac72ec87781becce3dd4ff2d6b5b16851a13 pid=2870301 runtime=io.containerd.runc.v2
+time="2026-11-08T15:04:11.608766930+08:00" level=info msg="shim disconnected" id=b1f6b09727ca787f778fca123b31ac72ec87781becce3dd4ff2d6b5b16851a13
+time="2026-11-08T15:04:11.608871661+08:00" level=info msg="ignoring event" container=b1f6b09727ca787f778fca123b31ac72ec87781becce3dd4ff2d6b5b16851a13 module=libcontainerd namespace=moby topic=/tasks/delete type="*events.TaskDelete"
+time="2026-11-08T15:04:11.608919893+08:00" level=warning msg="cleaning up after shim disconnected" id=b1f6b09727ca787f778fca123b31ac72ec87781becce3dd4ff2d6b5b16851a13 namespace=moby
+time="2026-11-08T15:04:11.608963651+08:00" level=info msg="cleaning up dead shim"
+time="2026-11-08T15:04:11.640068033+08:00" level=warning msg="cleanup warnings time=\"2026-11-08T15:04:11+08:00\" level=info msg=\"starting signal loop\" namespace=moby pid=2870366 runtime=io.containerd.runc.v2\n"
+time="2026-11-08T15:06:14.185497786+08:00" level=info msg="loading plugin \"io.containerd.event.v1.publisher\"..." runtime=io.containerd.runc.v2 type=io.containerd.event.v1
+time="2026-11-08T15:06:14.188774586+08:00" level=info msg="loading plugin \"io.containerd.internal.v1.shutdown\"..." runtime=io.containerd.runc.v2 type=io.containerd.internal.v1
+time="2026-11-08T15:06:14.188817691+08:00" level=info msg="loading plugin \"io.containerd.ttrpc.v1.task\"..." runtime=io.containerd.runc.v2 type=io.containerd.ttrpc.v1
+time="2026-11-08T15:06:14.189503108+08:00" level=info msg="starting signal loop" namespace=moby path=/opt/cline-server-p33-stage1-20261108/daemon-exec/containerd/daemon/io.containerd.runtime.v2.task/moby/4a26451ebc781c70d849623ff4ea47f8fedd5988100562fa666619870ea6c92e pid=2875529 runtime=io.containerd.runc.v2
+time="2026-11-08T15:06:23.461823569+08:00" level=info msg="Container failed to exit within 8s of signal 15 - using the force" container=4a26451ebc781c70d849623ff4ea47f8fedd5988100562fa666619870ea6c92e spanID=cef5fe30b73942cb traceID=3e83dcbe6eba074093b53a237e13dd5b
+time="2026-11-08T15:06:23.541758336+08:00" level=info msg="shim disconnected" id=4a26451ebc781c70d849623ff4ea47f8fedd5988100562fa666619870ea6c92e
+time="2026-11-08T15:06:23.541960086+08:00" level=warning msg="cleaning up after shim disconnected" id=4a26451ebc781c70d849623ff4ea47f8fedd5988100562fa666619870ea6c92e namespace=moby
+time="2026-11-08T15:06:23.542005763+08:00" level=info msg="cleaning up dead shim"
+time="2026-11-08T15:06:23.542028929+08:00" level=info msg="ignoring event" container=4a26451ebc781c70d849623ff4ea47f8fedd5988100562fa666619870ea6c92e module=libcontainerd namespace=moby topic=/tasks/delete type="*events.TaskDelete"
+time="2026-11-08T15:06:23.581902732+08:00" level=warning msg="cleanup warnings time=\"2026-11-08T15:06:23+08:00\" level=info msg=\"starting signal loop\" namespace=moby pid=2876113 runtime=io.containerd.runc.v2\ntime=\"2026-11-08T15:06:23+08:00\" level=warning msg=\"failed to remove runc container\" error=\"runc did not terminate successfully: exit status 255: \" runtime=io.containerd.runc.v2\n"
+time="2026-11-08T15:09:38.545750031+08:00" level=info msg="ignoring event" container=b403a31fa64693fb5b2bb682f8122a025c915a32d0a68527f4763e11321f6489 module=libcontainerd namespace=moby topic=/tasks/delete type="*events.TaskDelete"
+time="2026-11-08T15:09:38.545813069+08:00" level=info msg="shim disconnected" id=b403a31fa64693fb5b2bb682f8122a025c915a32d0a68527f4763e11321f6489
+time="2026-11-08T15:09:38.545932192+08:00" level=warning msg="cleaning up after shim disconnected" id=b403a31fa64693fb5b2bb682f8122a025c915a32d0a68527f4763e11321f6489 namespace=moby
+time="2026-11-08T15:09:38.545957712+08:00" level=info msg="cleaning up dead shim"
+time="2026-11-08T15:09:38.567408376+08:00" level=warning msg="cleanup warnings time=\"2026-11-08T15:09:38+08:00\" level=info msg=\"starting signal loop\" namespace=moby pid=2883473 runtime=io.containerd.runc.v2\n"
+time="2026-11-08T15:09:49.061931057+08:00" level=info msg="Container failed to exit within 10s of signal 15 - using the force" container=76bcfcde132583377ac3e59c3f8df578062b68bf3f65ebb9ba60fa2c26bdc329 spanID=639dda8edf5b2539 traceID=1d3ebb53e07c02fb99fef53a7619ba45
+time="2026-11-08T15:09:49.128072968+08:00" level=info msg="shim disconnected" id=76bcfcde132583377ac3e59c3f8df578062b68bf3f65ebb9ba60fa2c26bdc329
+time="2026-11-08T15:09:49.128178586+08:00" level=warning msg="cleaning up after shim disconnected" id=76bcfcde132583377ac3e59c3f8df578062b68bf3f65ebb9ba60fa2c26bdc329 namespace=moby
+time="2026-11-08T15:09:49.128205371+08:00" level=info msg="cleaning up dead shim"
+time="2026-11-08T15:09:49.128204594+08:00" level=info msg="ignoring event" container=76bcfcde132583377ac3e59c3f8df578062b68bf3f65ebb9ba60fa2c26bdc329 module=libcontainerd namespace=moby topic=/tasks/delete type="*events.TaskDelete"
+time="2026-11-08T15:09:49.143478127+08:00" level=warning msg="cleanup warnings time=\"2026-11-08T15:09:49+08:00\" level=info msg=\"starting signal loop\" namespace=moby pid=2883920 runtime=io.containerd.runc.v2\ntime=\"2026-11-08T15:09:49+08:00\" level=warning msg=\"failed to remove runc container\" error=\"runc did not terminate successfully: exit status 255: \" runtime=io.containerd.runc.v2\n"
+time="2026-11-08T15:09:51.672070841+08:00" level=info msg="loading plugin \"io.containerd.event.v1.publisher\"..." runtime=io.containerd.runc.v2 type=io.containerd.event.v1
+time="2026-11-08T15:09:51.672489582+08:00" level=info msg="loading plugin \"io.containerd.internal.v1.shutdown\"..." runtime=io.containerd.runc.v2 type=io.containerd.internal.v1
+time="2026-11-08T15:09:51.672531532+08:00" level=info msg="loading plugin \"io.containerd.ttrpc.v1.task\"..." runtime=io.containerd.runc.v2 type=io.containerd.ttrpc.v1
+time="2026-11-08T15:09:51.677105278+08:00" level=info msg="starting signal loop" namespace=moby path=/opt/cline-server-p33-stage1-20261108/daemon-exec/containerd/daemon/io.containerd.runtime.v2.task/moby/e6bd99793a36b6ae1053541e20693dd743351ab2a91d65a3fdd3657f52c91342 pid=2884253 runtime=io.containerd.runc.v2
+time="2026-11-08T15:09:53.068065338+08:00" level=info msg="loading plugin \"io.containerd.event.v1.publisher\"..." runtime=io.containerd.runc.v2 type=io.containerd.event.v1
+time="2026-11-08T15:09:53.068374032+08:00" level=info msg="loading plugin \"io.containerd.internal.v1.shutdown\"..." runtime=io.containerd.runc.v2 type=io.containerd.internal.v1
+time="2026-11-08T15:09:53.068417521+08:00" level=info msg="loading plugin \"io.containerd.ttrpc.v1.task\"..." runtime=io.containerd.runc.v2 type=io.containerd.ttrpc.v1
+time="2026-11-08T15:09:53.069018318+08:00" level=info msg="starting signal loop" namespace=moby path=/opt/cline-server-p33-stage1-20261108/daemon-exec/containerd/daemon/io.containerd.runtime.v2.task/moby/9b7f51cd0d886c5b912964ab52bb8eb0fb643cb3ae50d072b596b94f539432df pid=2884346 runtime=io.containerd.runc.v2
+time="2026-11-08T15:09:54.796508705+08:00" level=info msg="loading plugin \"io.containerd.event.v1.publisher\"..." runtime=io.containerd.runc.v2 type=io.containerd.event.v1
+time="2026-11-08T15:09:54.796681877+08:00" level=info msg="loading plugin \"io.containerd.internal.v1.shutdown\"..." runtime=io.containerd.runc.v2 type=io.containerd.internal.v1
+time="2026-11-08T15:09:54.796709060+08:00" level=info msg="loading plugin \"io.containerd.ttrpc.v1.task\"..." runtime=io.containerd.runc.v2 type=io.containerd.ttrpc.v1
+time="2026-11-08T15:09:54.797032190+08:00" level=info msg="starting signal loop" namespace=moby path=/opt/cline-server-p33-stage1-20261108/daemon-exec/containerd/daemon/io.containerd.runtime.v2.task/moby/4624676ab0b84fd97aa94e29b896a5e13de230173672b56ec1e03dfe1e43f5cf pid=2884648 runtime=io.containerd.runc.v2
+time="2026-11-08T15:10:04.076177147+08:00" level=info msg="Container failed to exit within 8s of signal 15 - using the force" container=4624676ab0b84fd97aa94e29b896a5e13de230173672b56ec1e03dfe1e43f5cf spanID=be8f18c5c2219d24 traceID=d27ec74911391e95dec7986f1b85f215
+time="2026-11-08T15:10:04.142440521+08:00" level=info msg="shim disconnected" id=4624676ab0b84fd97aa94e29b896a5e13de230173672b56ec1e03dfe1e43f5cf
+time="2026-11-08T15:10:04.142503178+08:00" level=warning msg="cleaning up after shim disconnected" id=4624676ab0b84fd97aa94e29b896a5e13de230173672b56ec1e03dfe1e43f5cf namespace=moby
+time="2026-11-08T15:10:04.142517106+08:00" level=info msg="cleaning up dead shim"
+time="2026-11-08T15:10:04.142699668+08:00" level=info msg="ignoring event" container=4624676ab0b84fd97aa94e29b896a5e13de230173672b56ec1e03dfe1e43f5cf module=libcontainerd namespace=moby topic=/tasks/delete type="*events.TaskDelete"
+time="2026-11-08T15:10:04.169701176+08:00" level=warning msg="cleanup warnings time=\"2026-11-08T15:10:04+08:00\" level=info msg=\"starting signal loop\" namespace=moby pid=2885215 runtime=io.containerd.runc.v2\n"
+time="2026-11-08T15:10:05.318076136+08:00" level=info msg="loading plugin \"io.containerd.event.v1.publisher\"..." runtime=io.containerd.runc.v2 type=io.containerd.event.v1
+time="2026-11-08T15:10:05.318383806+08:00" level=info msg="loading plugin \"io.containerd.internal.v1.shutdown\"..." runtime=io.containerd.runc.v2 type=io.containerd.internal.v1
+time="2026-11-08T15:10:05.318446395+08:00" level=info msg="loading plugin \"io.containerd.ttrpc.v1.task\"..." runtime=io.containerd.runc.v2 type=io.containerd.ttrpc.v1
+time="2026-11-08T15:10:05.319280865+08:00" level=info msg="starting signal loop" namespace=moby path=/opt/cline-server-p33-stage1-20261108/daemon-exec/containerd/daemon/io.containerd.runtime.v2.task/moby/19624c6cf32866ae1a328d0843dd360d97126d1c183b6ece2b32372c0dc36526 pid=2885385 runtime=io.containerd.runc.v2
+time="2026-11-08T15:10:05.657303465+08:00" level=info msg="ignoring event" container=19624c6cf32866ae1a328d0843dd360d97126d1c183b6ece2b32372c0dc36526 module=libcontainerd namespace=moby topic=/tasks/delete type="*events.TaskDelete"
+time="2026-11-08T15:10:05.657597457+08:00" level=info msg="shim disconnected" id=19624c6cf32866ae1a328d0843dd360d97126d1c183b6ece2b32372c0dc36526
+time="2026-11-08T15:10:05.657691786+08:00" level=warning msg="cleaning up after shim disconnected" id=19624c6cf32866ae1a328d0843dd360d97126d1c183b6ece2b32372c0dc36526 namespace=moby
+time="2026-11-08T15:10:05.657714329+08:00" level=info msg="cleaning up dead shim"
+time="2026-11-08T15:10:05.673774946+08:00" level=warning msg="cleanup warnings time=\"2026-11-08T15:10:05+08:00\" level=info msg=\"starting signal loop\" namespace=moby pid=2885447 runtime=io.containerd.runc.v2\n"
+time="2026-11-08T15:10:06.493463075+08:00" level=info msg="loading plugin \"io.containerd.event.v1.publisher\"..." runtime=io.containerd.runc.v2 type=io.containerd.event.v1
+time="2026-11-08T15:10:06.495284654+08:00" level=info msg="loading plugin \"io.containerd.internal.v1.shutdown\"..." runtime=io.containerd.runc.v2 type=io.containerd.internal.v1
+time="2026-11-08T15:10:06.495339367+08:00" level=info msg="loading plugin \"io.containerd.ttrpc.v1.task\"..." runtime=io.containerd.runc.v2 type=io.containerd.ttrpc.v1
+time="2026-11-08T15:10:06.495897653+08:00" level=info msg="starting signal loop" namespace=moby path=/opt/cline-server-p33-stage1-20261108/daemon-exec/containerd/daemon/io.containerd.runtime.v2.task/moby/78768025fe79b1d11f7c409c7faa58226333c7f7bd791f2563112ac4d1d20139 pid=2885506 runtime=io.containerd.runc.v2
+time="2026-11-08T15:10:06.924783856+08:00" level=info msg="shim disconnected" id=78768025fe79b1d11f7c409c7faa58226333c7f7bd791f2563112ac4d1d20139
+time="2026-11-08T15:10:06.924867517+08:00" level=warning msg="cleaning up after shim disconnected" id=78768025fe79b1d11f7c409c7faa58226333c7f7bd791f2563112ac4d1d20139 namespace=moby
+time="2026-11-08T15:10:06.924889060+08:00" level=info msg="cleaning up dead shim"
+time="2026-11-08T15:10:06.925006626+08:00" level=info msg="ignoring event" container=78768025fe79b1d11f7c409c7faa58226333c7f7bd791f2563112ac4d1d20139 module=libcontainerd namespace=moby topic=/tasks/delete type="*events.TaskDelete"
+time="2026-11-08T15:10:06.950784440+08:00" level=warning msg="cleanup warnings time=\"2026-11-08T15:10:06+08:00\" level=info msg=\"starting signal loop\" namespace=moby pid=2885582 runtime=io.containerd.runc.v2\n"
+time="2026-11-08T15:10:08.372747919+08:00" level=info msg="loading plugin \"io.containerd.event.v1.publisher\"..." runtime=io.containerd.runc.v2 type=io.containerd.event.v1
+time="2026-11-08T15:10:08.374078675+08:00" level=info msg="loading plugin \"io.containerd.internal.v1.shutdown\"..." runtime=io.containerd.runc.v2 type=io.containerd.internal.v1
+time="2026-11-08T15:10:08.375938977+08:00" level=info msg="loading plugin \"io.containerd.ttrpc.v1.task\"..." runtime=io.containerd.runc.v2 type=io.containerd.ttrpc.v1
+time="2026-11-08T15:10:08.376518557+08:00" level=info msg="starting signal loop" namespace=moby path=/opt/cline-server-p33-stage1-20261108/daemon-exec/containerd/daemon/io.containerd.runtime.v2.task/moby/0dcab59be8bd100208365e77137aa51268fcb00147c81c099ac7634e51a585ce pid=2885651 runtime=io.containerd.runc.v2
+time="2026-11-08T15:10:34.327313249+08:00" level=info msg="shim disconnected" id=0dcab59be8bd100208365e77137aa51268fcb00147c81c099ac7634e51a585ce
+time="2026-11-08T15:10:34.327407882+08:00" level=info msg="ignoring event" container=0dcab59be8bd100208365e77137aa51268fcb00147c81c099ac7634e51a585ce module=libcontainerd namespace=moby topic=/tasks/delete type="*events.TaskDelete"
+time="2026-11-08T15:10:34.327440919+08:00" level=warning msg="cleaning up after shim disconnected" id=0dcab59be8bd100208365e77137aa51268fcb00147c81c099ac7634e51a585ce namespace=moby
+time="2026-11-08T15:10:34.327465176+08:00" level=info msg="cleaning up dead shim"
+time="2026-11-08T15:10:34.364499170+08:00" level=warning msg="cleanup warnings time=\"2026-11-08T15:10:34+08:00\" level=info msg=\"starting signal loop\" namespace=moby pid=2886891 runtime=io.containerd.runc.v2\n"
+time="2026-11-08T15:10:55.509375411+08:00" level=info msg="loading plugin \"io.containerd.event.v1.publisher\"..." runtime=io.containerd.runc.v2 type=io.containerd.event.v1
+time="2026-11-08T15:10:55.510958985+08:00" level=info msg="loading plugin \"io.containerd.internal.v1.shutdown\"..." runtime=io.containerd.runc.v2 type=io.containerd.internal.v1
+time="2026-11-08T15:10:55.511128167+08:00" level=info msg="loading plugin \"io.containerd.ttrpc.v1.task\"..." runtime=io.containerd.runc.v2 type=io.containerd.ttrpc.v1
+time="2026-11-08T15:10:55.512532895+08:00" level=info msg="starting signal loop" namespace=moby path=/opt/cline-server-p33-stage1-20261108/daemon-exec/containerd/daemon/io.containerd.runtime.v2.task/moby/718f69d23adad62ccc786d56d1af2d3a87326aba38bab60e6032ceb3c789d1e8 pid=2887759 runtime=io.containerd.runc.v2
+time="2026-11-08T15:10:56.143162812+08:00" level=info msg="shim disconnected" id=718f69d23adad62ccc786d56d1af2d3a87326aba38bab60e6032ceb3c789d1e8
+time="2026-11-08T15:10:56.143280989+08:00" level=warning msg="cleaning up after shim disconnected" id=718f69d23adad62ccc786d56d1af2d3a87326aba38bab60e6032ceb3c789d1e8 namespace=moby
+time="2026-11-08T15:10:56.143308498+08:00" level=info msg="cleaning up dead shim"
+time="2026-11-08T15:10:56.143409388+08:00" level=info msg="ignoring event" container=718f69d23adad62ccc786d56d1af2d3a87326aba38bab60e6032ceb3c789d1e8 module=libcontainerd namespace=moby topic=/tasks/delete type="*events.TaskDelete"
+time="2026-11-08T15:10:56.167568234+08:00" level=warning msg="cleanup warnings time=\"2026-11-08T15:10:56+08:00\" level=info msg=\"starting signal loop\" namespace=moby pid=2887833 runtime=io.containerd.runc.v2\n"
+time="2026-11-08T15:10:56.884819690+08:00" level=info msg="loading plugin \"io.containerd.event.v1.publisher\"..." runtime=io.containerd.runc.v2 type=io.containerd.event.v1
+time="2026-11-08T15:10:56.885115549+08:00" level=info msg="loading plugin \"io.containerd.internal.v1.shutdown\"..." runtime=io.containerd.runc.v2 type=io.containerd.internal.v1
+time="2026-11-08T15:10:56.885154802+08:00" level=info msg="loading plugin \"io.containerd.ttrpc.v1.task\"..." runtime=io.containerd.runc.v2 type=io.containerd.ttrpc.v1
+time="2026-11-08T15:10:56.885874174+08:00" level=info msg="starting signal loop" namespace=moby path=/opt/cline-server-p33-stage1-20261108/daemon-exec/containerd/daemon/io.containerd.runtime.v2.task/moby/8c7a639e3823c298f03a9c0253c3b05e7700a76dad1dfaeaca7239d311dde937 pid=2887895 runtime=io.containerd.runc.v2
+time="2026-11-08T15:10:57.363864142+08:00" level=info msg="shim disconnected" id=8c7a639e3823c298f03a9c0253c3b05e7700a76dad1dfaeaca7239d311dde937
+time="2026-11-08T15:10:57.363927321+08:00" level=warning msg="cleaning up after shim disconnected" id=8c7a639e3823c298f03a9c0253c3b05e7700a76dad1dfaeaca7239d311dde937 namespace=moby
+time="2026-11-08T15:10:57.363945022+08:00" level=info msg="cleaning up dead shim"
+time="2026-11-08T15:10:57.363886566+08:00" level=info msg="ignoring event" container=8c7a639e3823c298f03a9c0253c3b05e7700a76dad1dfaeaca7239d311dde937 module=libcontainerd namespace=moby topic=/tasks/delete type="*events.TaskDelete"
+time="2026-11-08T15:10:57.378607648+08:00" level=warning msg="cleanup warnings time=\"2026-11-08T15:10:57+08:00\" level=info msg=\"starting signal loop\" namespace=moby pid=2887967 runtime=io.containerd.runc.v2\n"
+time="2026-11-08T15:12:08.271759101+08:00" level=info msg="loading plugin \"io.containerd.event.v1.publisher\"..." runtime=io.containerd.runc.v2 type=io.containerd.event.v1
+time="2026-11-08T15:12:08.272219957+08:00" level=info msg="loading plugin \"io.containerd.internal.v1.shutdown\"..." runtime=io.containerd.runc.v2 type=io.containerd.internal.v1
+time="2026-11-08T15:12:08.272292405+08:00" level=info msg="loading plugin \"io.containerd.ttrpc.v1.task\"..." runtime=io.containerd.runc.v2 type=io.containerd.ttrpc.v1
+time="2026-11-08T15:12:08.273192860+08:00" level=info msg="starting signal loop" namespace=moby path=/opt/cline-server-p33-stage1-20261108/daemon-exec/containerd/daemon/io.containerd.runtime.v2.task/moby/5160f19a9f6f634f855f2db9ea702078868a98629a87f4004bd18c0079ae653c pid=2891125 runtime=io.containerd.runc.v2
+time="2026-11-08T15:12:29.773968129+08:00" level=info msg="shim disconnected" id=5160f19a9f6f634f855f2db9ea702078868a98629a87f4004bd18c0079ae653c
+time="2026-11-08T15:12:29.774127381+08:00" level=warning msg="cleaning up after shim disconnected" id=5160f19a9f6f634f855f2db9ea702078868a98629a87f4004bd18c0079ae653c namespace=moby
+time="2026-11-08T15:12:29.774166949+08:00" level=info msg="cleaning up dead shim"
+time="2026-11-08T15:12:29.774212109+08:00" level=info msg="ignoring event" container=5160f19a9f6f634f855f2db9ea702078868a98629a87f4004bd18c0079ae653c module=libcontainerd namespace=moby topic=/tasks/delete type="*events.TaskDelete"
+time="2026-11-08T15:12:29.794008563+08:00" level=warning msg="cleanup warnings time=\"2026-11-08T15:12:29+08:00\" level=info msg=\"starting signal loop\" namespace=moby pid=2892249 runtime=io.containerd.runc.v2\n"
+2026/11/08 15:17:57 http: superfluous response.WriteHeader call from go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp.(*respWriterWrapper).WriteHeader (wrap.go:98)
+2026/11/08 15:17:57 http: superfluous response.WriteHeader call from go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp.(*respWriterWrapper).WriteHeader (wrap.go:98)
+2026/11/08 15:19:07 http: superfluous response.WriteHeader call from go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp.(*respWriterWrapper).WriteHeader (wrap.go:98)
+2026/11/08 15:19:07 http: superfluous response.WriteHeader call from go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp.(*respWriterWrapper).WriteHeader (wrap.go:98)
+time="2026-11-08T15:19:09.213376621+08:00" level=info msg="loading plugin \"io.containerd.event.v1.publisher\"..." runtime=io.containerd.runc.v2 type=io.containerd.event.v1
+time="2026-11-08T15:19:09.213736756+08:00" level=info msg="loading plugin \"io.containerd.internal.v1.shutdown\"..." runtime=io.containerd.runc.v2 type=io.containerd.internal.v1
+time="2026-11-08T15:19:09.213782320+08:00" level=info msg="loading plugin \"io.containerd.ttrpc.v1.task\"..." runtime=io.containerd.runc.v2 type=io.containerd.ttrpc.v1
+time="2026-11-08T15:19:09.214262713+08:00" level=info msg="starting signal loop" namespace=moby path=/opt/cline-server-p33-stage1-20261108/daemon-exec/containerd/daemon/io.containerd.runtime.v2.task/moby/0cf287b7801a2105864b2995034dde6439a02ad893b4cbdcc3dca5d5592e46f6 pid=2908004 runtime=io.containerd.runc.v2
+time="2026-11-08T15:19:11.753535235+08:00" level=info msg="ignoring event" container=0cf287b7801a2105864b2995034dde6439a02ad893b4cbdcc3dca5d5592e46f6 module=libcontainerd namespace=moby topic=/tasks/delete type="*events.TaskDelete"
+time="2026-11-08T15:19:11.753544197+08:00" level=info msg="shim disconnected" id=0cf287b7801a2105864b2995034dde6439a02ad893b4cbdcc3dca5d5592e46f6
+time="2026-11-08T15:19:11.753629885+08:00" level=warning msg="cleaning up after shim disconnected" id=0cf287b7801a2105864b2995034dde6439a02ad893b4cbdcc3dca5d5592e46f6 namespace=moby
+time="2026-11-08T15:19:11.753658520+08:00" level=info msg="cleaning up dead shim"
+time="2026-11-08T15:19:11.769099394+08:00" level=warning msg="cleanup warnings time=\"2026-11-08T15:19:11+08:00\" level=info msg=\"starting signal loop\" namespace=moby pid=2908178 runtime=io.containerd.runc.v2\n"
+time="2026-11-08T15:20:36.177329579+08:00" level=info msg="shim disconnected" id=9b7f51cd0d886c5b912964ab52bb8eb0fb643cb3ae50d072b596b94f539432df
+time="2026-11-08T15:20:36.177411202+08:00" level=warning msg="cleaning up after shim disconnected" id=9b7f51cd0d886c5b912964ab52bb8eb0fb643cb3ae50d072b596b94f539432df namespace=moby
+time="2026-11-08T15:20:36.177424294+08:00" level=info msg="cleaning up dead shim"
+time="2026-11-08T15:20:36.177463605+08:00" level=info msg="ignoring event" container=9b7f51cd0d886c5b912964ab52bb8eb0fb643cb3ae50d072b596b94f539432df module=libcontainerd namespace=moby topic=/tasks/delete type="*events.TaskDelete"
+time="2026-11-08T15:20:36.200189348+08:00" level=warning msg="cleanup warnings time=\"2026-11-08T15:20:36+08:00\" level=info msg=\"starting signal loop\" namespace=moby pid=2911468 runtime=io.containerd.runc.v2\n"
+time="2026-11-08T15:20:46.549730752+08:00" level=info msg="Container failed to exit within 10s of signal 15 - using the force" container=e6bd99793a36b6ae1053541e20693dd743351ab2a91d65a3fdd3657f52c91342 spanID=035a8d8391cb0869 traceID=b09e58b2053e2a985e0766bf66492c0d
+time="2026-11-08T15:20:46.625702406+08:00" level=info msg="shim disconnected" id=e6bd99793a36b6ae1053541e20693dd743351ab2a91d65a3fdd3657f52c91342
+time="2026-11-08T15:20:46.625799473+08:00" level=warning msg="cleaning up after shim disconnected" id=e6bd99793a36b6ae1053541e20693dd743351ab2a91d65a3fdd3657f52c91342 namespace=moby
+time="2026-11-08T15:20:46.625868049+08:00" level=info msg="cleaning up dead shim"
+time="2026-11-08T15:20:46.625827150+08:00" level=info msg="ignoring event" container=e6bd99793a36b6ae1053541e20693dd743351ab2a91d65a3fdd3657f52c91342 module=libcontainerd namespace=moby topic=/tasks/delete type="*events.TaskDelete"
+time="2026-11-08T15:20:46.648155679+08:00" level=warning msg="cleanup warnings time=\"2026-11-08T15:20:46+08:00\" level=info msg=\"starting signal loop\" namespace=moby pid=2911903 runtime=io.containerd.runc.v2\n"
+2026/11/08 15:20:47 http2: server: error reading preface from client @: read unix /opt/cline-server-p33-stage1-20261108/run/docker.sock->@: read: connection reset by peer
+time="2026-11-08T15:20:49.873764778+08:00" level=info msg="loading plugin \"io.containerd.event.v1.publisher\"..." runtime=io.containerd.runc.v2 type=io.containerd.event.v1
+time="2026-11-08T15:20:49.874904196+08:00" level=info msg="loading plugin \"io.containerd.internal.v1.shutdown\"..." runtime=io.containerd.runc.v2 type=io.containerd.internal.v1
+time="2026-11-08T15:20:49.875020528+08:00" level=info msg="loading plugin \"io.containerd.ttrpc.v1.task\"..." runtime=io.containerd.runc.v2 type=io.containerd.ttrpc.v1
+time="2026-11-08T15:20:49.877225926+08:00" level=info msg="starting signal loop" namespace=moby path=/opt/cline-server-p33-stage1-20261108/daemon-exec/containerd/daemon/io.containerd.runtime.v2.task/moby/9c3a33f34d5c749680381dcd2cae2aebdc0630a355baea2aa842581fddc8dca3 pid=2912236 runtime=io.containerd.runc.v2
+time="2026-11-08T15:20:50.757540278+08:00" level=info msg="loading plugin \"io.containerd.event.v1.publisher\"..." runtime=io.containerd.runc.v2 type=io.containerd.event.v1
+time="2026-11-08T15:20:50.758099213+08:00" level=info msg="loading plugin \"io.containerd.internal.v1.shutdown\"..." runtime=io.containerd.runc.v2 type=io.containerd.internal.v1
+time="2026-11-08T15:20:50.758145659+08:00" level=info msg="loading plugin \"io.containerd.ttrpc.v1.task\"..." runtime=io.containerd.runc.v2 type=io.containerd.ttrpc.v1
+time="2026-11-08T15:20:50.761662978+08:00" level=info msg="starting signal loop" namespace=moby path=/opt/cline-server-p33-stage1-20261108/daemon-exec/containerd/daemon/io.containerd.runtime.v2.task/moby/7968d71969928cc173817cfbc17d43a36c3a2c7318b034783f7f03352a0eed60 pid=2912328 runtime=io.containerd.runc.v2
+time="2026-11-08T15:20:52.542626611+08:00" level=info msg="loading plugin \"io.containerd.event.v1.publisher\"..." runtime=io.containerd.runc.v2 type=io.containerd.event.v1
+time="2026-11-08T15:20:52.542949732+08:00" level=info msg="loading plugin \"io.containerd.internal.v1.shutdown\"..." runtime=io.containerd.runc.v2 type=io.containerd.internal.v1
+time="2026-11-08T15:20:52.542999717+08:00" level=info msg="loading plugin \"io.containerd.ttrpc.v1.task\"..." runtime=io.containerd.runc.v2 type=io.containerd.ttrpc.v1
+time="2026-11-08T15:20:52.544160110+08:00" level=info msg="starting signal loop" namespace=moby path=/opt/cline-server-p33-stage1-20261108/daemon-exec/containerd/daemon/io.containerd.runtime.v2.task/moby/8f228170f861c166a372a849338fcb2207b1ac0489c7985c1f749360200bad26 pid=2912704 runtime=io.containerd.runc.v2
+time="2026-11-08T15:21:01.779897106+08:00" level=info msg="Container failed to exit within 8s of signal 15 - using the force" container=8f228170f861c166a372a849338fcb2207b1ac0489c7985c1f749360200bad26 spanID=c4e3d46a87855199 traceID=ad3ea3c8439a84b75973d5435e69b059
+time="2026-11-08T15:21:01.847503213+08:00" level=info msg="shim disconnected" id=8f228170f861c166a372a849338fcb2207b1ac0489c7985c1f749360200bad26
+time="2026-11-08T15:21:01.847629305+08:00" level=warning msg="cleaning up after shim disconnected" id=8f228170f861c166a372a849338fcb2207b1ac0489c7985c1f749360200bad26 namespace=moby
+time="2026-11-08T15:21:01.847698566+08:00" level=info msg="cleaning up dead shim"
+time="2026-11-08T15:21:01.847628836+08:00" level=info msg="ignoring event" container=8f228170f861c166a372a849338fcb2207b1ac0489c7985c1f749360200bad26 module=libcontainerd namespace=moby topic=/tasks/delete type="*events.TaskDelete"
+time="2026-11-08T15:21:01.868969884+08:00" level=warning msg="cleanup warnings time=\"2026-11-08T15:21:01+08:00\" level=info msg=\"starting signal loop\" namespace=moby pid=2913269 runtime=io.containerd.runc.v2\n"
+time="2026-11-08T15:21:03.036335628+08:00" level=info msg="loading plugin \"io.containerd.event.v1.publisher\"..." runtime=io.containerd.runc.v2 type=io.containerd.event.v1
+time="2026-11-08T15:21:03.036666451+08:00" level=info msg="loading plugin \"io.containerd.internal.v1.shutdown\"..." runtime=io.containerd.runc.v2 type=io.containerd.internal.v1
+time="2026-11-08T15:21:03.036731079+08:00" level=info msg="loading plugin \"io.containerd.ttrpc.v1.task\"..." runtime=io.containerd.runc.v2 type=io.containerd.ttrpc.v1
+time="2026-11-08T15:21:03.039741021+08:00" level=info msg="starting signal loop" namespace=moby path=/opt/cline-server-p33-stage1-20261108/daemon-exec/containerd/daemon/io.containerd.runtime.v2.task/moby/68de93bb31b707b198f72dc9fabf85fda9c2a3c04ffb64d29ff7ffa943f5ec41 pid=2913401 runtime=io.containerd.runc.v2
+time="2026-11-08T15:21:03.416125977+08:00" level=info msg="shim disconnected" id=68de93bb31b707b198f72dc9fabf85fda9c2a3c04ffb64d29ff7ffa943f5ec41
+time="2026-11-08T15:21:03.416202492+08:00" level=warning msg="cleaning up after shim disconnected" id=68de93bb31b707b198f72dc9fabf85fda9c2a3c04ffb64d29ff7ffa943f5ec41 namespace=moby
+time="2026-11-08T15:21:03.416225450+08:00" level=info msg="cleaning up dead shim"
+time="2026-11-08T15:21:03.416323182+08:00" level=info msg="ignoring event" container=68de93bb31b707b198f72dc9fabf85fda9c2a3c04ffb64d29ff7ffa943f5ec41 module=libcontainerd namespace=moby topic=/tasks/delete type="*events.TaskDelete"
+time="2026-11-08T15:21:03.438821994+08:00" level=warning msg="cleanup warnings time=\"2026-11-08T15:21:03+08:00\" level=info msg=\"starting signal loop\" namespace=moby pid=2913517 runtime=io.containerd.runc.v2\n"
+time="2026-11-08T15:21:04.459767222+08:00" level=info msg="loading plugin \"io.containerd.event.v1.publisher\"..." runtime=io.containerd.runc.v2 type=io.containerd.event.v1
+time="2026-11-08T15:21:04.460152745+08:00" level=info msg="loading plugin \"io.containerd.internal.v1.shutdown\"..." runtime=io.containerd.runc.v2 type=io.containerd.internal.v1
+time="2026-11-08T15:21:04.460191266+08:00" level=info msg="loading plugin \"io.containerd.ttrpc.v1.task\"..." runtime=io.containerd.runc.v2 type=io.containerd.ttrpc.v1
+time="2026-11-08T15:21:04.461020428+08:00" level=info msg="starting signal loop" namespace=moby path=/opt/cline-server-p33-stage1-20261108/daemon-exec/containerd/daemon/io.containerd.runtime.v2.task/moby/47de36a48217bcbf673de4f1c81f7836b299ccced7e318963c9b0e1a844d8ad8 pid=2913578 runtime=io.containerd.runc.v2
+time="2026-11-08T15:21:04.849641216+08:00" level=info msg="shim disconnected" id=47de36a48217bcbf673de4f1c81f7836b299ccced7e318963c9b0e1a844d8ad8
+time="2026-11-08T15:21:04.849823884+08:00" level=warning msg="cleaning up after shim disconnected" id=47de36a48217bcbf673de4f1c81f7836b299ccced7e318963c9b0e1a844d8ad8 namespace=moby
+time="2026-11-08T15:21:04.849863232+08:00" level=info msg="cleaning up dead shim"
+time="2026-11-08T15:21:04.849898930+08:00" level=info msg="ignoring event" container=47de36a48217bcbf673de4f1c81f7836b299ccced7e318963c9b0e1a844d8ad8 module=libcontainerd namespace=moby topic=/tasks/delete type="*events.TaskDelete"
+time="2026-11-08T15:21:04.868059477+08:00" level=warning msg="cleanup warnings time=\"2026-11-08T15:21:04+08:00\" level=info msg=\"starting signal loop\" namespace=moby pid=2913665 runtime=io.containerd.runc.v2\n"
+time="2026-11-08T15:21:06.351375748+08:00" level=info msg="loading plugin \"io.containerd.event.v1.publisher\"..." runtime=io.containerd.runc.v2 type=io.containerd.event.v1
+time="2026-11-08T15:21:06.351667454+08:00" level=info msg="loading plugin \"io.containerd.internal.v1.shutdown\"..." runtime=io.containerd.runc.v2 type=io.containerd.internal.v1
+time="2026-11-08T15:21:06.351709810+08:00" level=info msg="loading plugin \"io.containerd.ttrpc.v1.task\"..." runtime=io.containerd.runc.v2 type=io.containerd.ttrpc.v1
+time="2026-11-08T15:21:06.352366483+08:00" level=info msg="starting signal loop" namespace=moby path=/opt/cline-server-p33-stage1-20261108/daemon-exec/containerd/daemon/io.containerd.runtime.v2.task/moby/06837ac78020de36bdf0e798490f3e361818e39646a4983aa4a73a1628a4396c pid=2913770 runtime=io.containerd.runc.v2
+time="2026-11-08T15:21:29.543521674+08:00" level=info msg="shim disconnected" id=06837ac78020de36bdf0e798490f3e361818e39646a4983aa4a73a1628a4396c
+time="2026-11-08T15:21:29.543630404+08:00" level=warning msg="cleaning up after shim disconnected" id=06837ac78020de36bdf0e798490f3e361818e39646a4983aa4a73a1628a4396c namespace=moby
+time="2026-11-08T15:21:29.543663123+08:00" level=info msg="cleaning up dead shim"
+time="2026-11-08T15:21:29.543638739+08:00" level=info msg="ignoring event" container=06837ac78020de36bdf0e798490f3e361818e39646a4983aa4a73a1628a4396c module=libcontainerd namespace=moby topic=/tasks/delete type="*events.TaskDelete"
+time="2026-11-08T15:21:29.571811279+08:00" level=warning msg="cleanup warnings time=\"2026-11-08T15:21:29+08:00\" level=info msg=\"starting signal loop\" namespace=moby pid=2915056 runtime=io.containerd.runc.v2\n"
+time="2026-11-08T15:21:30.893477789+08:00" level=info msg="loading plugin \"io.containerd.event.v1.publisher\"..." runtime=io.containerd.runc.v2 type=io.containerd.event.v1
+time="2026-11-08T15:21:30.893663903+08:00" level=info msg="loading plugin \"io.containerd.internal.v1.shutdown\"..." runtime=io.containerd.runc.v2 type=io.containerd.internal.v1
+time="2026-11-08T15:21:30.893697886+08:00" level=info msg="loading plugin \"io.containerd.ttrpc.v1.task\"..." runtime=io.containerd.runc.v2 type=io.containerd.ttrpc.v1
+time="2026-11-08T15:21:30.894031776+08:00" level=info msg="starting signal loop" namespace=moby path=/opt/cline-server-p33-stage1-20261108/daemon-exec/containerd/daemon/io.containerd.runtime.v2.task/moby/c6debad3406e3214828cb22303eb586be5eca6acd6821b55ae3b577c94606b99 pid=2915161 runtime=io.containerd.runc.v2
+time="2026-11-08T15:21:31.541237498+08:00" level=info msg="shim disconnected" id=c6debad3406e3214828cb22303eb586be5eca6acd6821b55ae3b577c94606b99
+time="2026-11-08T15:21:31.541307674+08:00" level=warning msg="cleaning up after shim disconnected" id=c6debad3406e3214828cb22303eb586be5eca6acd6821b55ae3b577c94606b99 namespace=moby
+time="2026-11-08T15:21:31.541323206+08:00" level=info msg="cleaning up dead shim"
+time="2026-11-08T15:21:31.541345147+08:00" level=info msg="ignoring event" container=c6debad3406e3214828cb22303eb586be5eca6acd6821b55ae3b577c94606b99 module=libcontainerd namespace=moby topic=/tasks/delete type="*events.TaskDelete"
+time="2026-11-08T15:21:31.563442869+08:00" level=warning msg="cleanup warnings time=\"2026-11-08T15:21:31+08:00\" level=info msg=\"starting signal loop\" namespace=moby pid=2915238 runtime=io.containerd.runc.v2\n"
+time="2026-11-08T15:21:32.393209591+08:00" level=info msg="loading plugin \"io.containerd.event.v1.publisher\"..." runtime=io.containerd.runc.v2 type=io.containerd.event.v1
+time="2026-11-08T15:21:32.393374789+08:00" level=info msg="loading plugin \"io.containerd.internal.v1.shutdown\"..." runtime=io.containerd.runc.v2 type=io.containerd.internal.v1
+time="2026-11-08T15:21:32.393396372+08:00" level=info msg="loading plugin \"io.containerd.ttrpc.v1.task\"..." runtime=io.containerd.runc.v2 type=io.containerd.ttrpc.v1
+time="2026-11-08T15:21:32.393745320+08:00" level=info msg="starting signal loop" namespace=moby path=/opt/cline-server-p33-stage1-20261108/daemon-exec/containerd/daemon/io.containerd.runtime.v2.task/moby/d434f2ef2137bdaf368a50b3fc25c9702c83346d0adaafc59b180d49e365fd2c pid=2915319 runtime=io.containerd.runc.v2
+time="2026-11-08T15:21:32.925054883+08:00" level=info msg="shim disconnected" id=d434f2ef2137bdaf368a50b3fc25c9702c83346d0adaafc59b180d49e365fd2c
+time="2026-11-08T15:21:32.925169498+08:00" level=warning msg="cleaning up after shim disconnected" id=d434f2ef2137bdaf368a50b3fc25c9702c83346d0adaafc59b180d49e365fd2c namespace=moby
+time="2026-11-08T15:21:32.925213170+08:00" level=info msg="cleaning up dead shim"
+time="2026-11-08T15:21:32.925371869+08:00" level=info msg="ignoring event" container=d434f2ef2137bdaf368a50b3fc25c9702c83346d0adaafc59b180d49e365fd2c module=libcontainerd namespace=moby topic=/tasks/delete type="*events.TaskDelete"
+time="2026-11-08T15:21:32.943036813+08:00" level=warning msg="cleanup warnings time=\"2026-11-08T15:21:32+08:00\" level=info msg=\"starting signal loop\" namespace=moby pid=2915407 runtime=io.containerd.runc.v2\n"

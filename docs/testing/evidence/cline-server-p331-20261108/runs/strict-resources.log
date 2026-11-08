@@ -1,0 +1,9 @@
+file:///poc/service/src/worker-executor.mjs:14
+if(!resourceSupport&&!cfg.allowUnenforcedPrototype)throw Error('Per-Worker cgroup resource enforcement unavailable');
+                                                         ^
+
+Error: Per-Worker cgroup resource enforcement unavailable
+    at file:///poc/service/src/worker-executor.mjs:14:58
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+
+Node.js v24.21.0

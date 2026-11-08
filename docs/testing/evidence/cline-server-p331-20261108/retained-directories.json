@@ -1,0 +1,20 @@
+[
+  {
+    "workerId": "06dace49-cfe2-496d-b3d8-54673fddd011",
+    "configPresent": false,
+    "closed": false,
+    "note": "Prepared/closed directory is not itself a tool no-start receipt; no automatic reuse"
+  },
+  {
+    "workerId": "cd06fce3-24fb-47b4-815e-87539f3d8a6c",
+    "configPresent": true,
+    "closed": true,
+    "note": "Prepared/closed directory is not itself a tool no-start receipt; no automatic reuse"
+  },
+  {
+    "workerId": "c60af964-ceff-4217-bcbc-ae4850c5ddc6",
+    "configPresent": true,
+    "closed": true,
+    "note": "Prepared/closed directory is not itself a tool no-start receipt; no automatic reuse"
+  }
+]

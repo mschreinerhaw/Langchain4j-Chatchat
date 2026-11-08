@@ -1,0 +1,44 @@
+{
+  "contract": {
+    "version": 1,
+    "tenantId": "tenant-a",
+    "userId": "user-a",
+    "taskId": "native-3c70a129eeaf491592d2010c63c2f661",
+    "sessionId": "session-52c9cd6a97b14ad4b9e472706495897c",
+    "workspaceRef": "project",
+    "modelProfile": "qwen",
+    "toolPermissions": [
+      "read_files",
+      "search_codebase",
+      "editor",
+      "apply_patch",
+      "run_commands"
+    ],
+    "dataPermissions": [
+      "dataset-a"
+    ],
+    "budgetPolicy": {
+      "status": "DEFERRED_STAGE_2_REVIEW"
+    },
+    "networkPolicy": "broker-only",
+    "expiresAt": 1794125407575
+  },
+  "contractHash": "b5a1b99fb68aaaae6e421163d35bf37e8d18e8c05f06f8fdd8e6a9e6964a483c",
+  "workerId": "af7ccecf-c6b5-4f11-9b67-664d2a794a43",
+  "slot": 0,
+  "workerState": "STOPPED",
+  "taskState": "CANCELLED_LOCAL_ONLY",
+  "revoked": true,
+  "createKey": "p331-create",
+  "editTool": "editor",
+  "provisioningAttempted": true,
+  "containerId": "0dcab59be8bd100208365e77137aa51268fcb00147c81c099ac7634e51a585ce",
+  "resourceEnforced": false,
+  "nativeSessionId": "7a014c89-1480-4c47-aa89-9c5c9a997f9a",
+  "stopProof": {
+    "containerId": "0dcab59be8bd100208365e77137aa51268fcb00147c81c099ac7634e51a585ce",
+    "running": false,
+    "exitCode": 0,
+    "finishedAt": "2026-11-08T07:10:34.310240711Z"
+  }
+}

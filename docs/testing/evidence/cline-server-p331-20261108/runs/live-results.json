@@ -1,0 +1,748 @@
+[
+  {
+    "case": "parameter-and-Docker-API-injection",
+    "pass": true,
+    "blocking": true,
+    "detail": [
+      {
+        "field": "Image",
+        "reply": [
+          403,
+          {
+            "message": "Unexpected request fields"
+          }
+        ],
+        "daemonUnchanged": true
+      },
+      {
+        "field": "HostConfig",
+        "reply": [
+          403,
+          {
+            "message": "Unexpected request fields"
+          }
+        ],
+        "daemonUnchanged": true
+      },
+      {
+        "field": "mounts",
+        "reply": [
+          403,
+          {
+            "message": "Unexpected request fields"
+          }
+        ],
+        "daemonUnchanged": true
+      },
+      {
+        "field": "network",
+        "reply": [
+          403,
+          {
+            "message": "Unexpected request fields"
+          }
+        ],
+        "daemonUnchanged": true
+      },
+      {
+        "field": "pidMode",
+        "reply": [
+          403,
+          {
+            "message": "Unexpected request fields"
+          }
+        ],
+        "daemonUnchanged": true
+      },
+      {
+        "field": "devices",
+        "reply": [
+          403,
+          {
+            "message": "Unexpected request fields"
+          }
+        ],
+        "daemonUnchanged": true
+      },
+      {
+        "field": "Cmd",
+        "reply": [
+          403,
+          {
+            "message": "Unexpected request fields"
+          }
+        ],
+        "daemonUnchanged": true
+      },
+      {
+        "field": "dockerPath",
+        "reply": [
+          403,
+          {
+            "message": "Unexpected request fields"
+          }
+        ],
+        "daemonUnchanged": true
+      },
+      {
+        "field": "memoryBytes",
+        "reply": [
+          403,
+          {
+            "message": "Unexpected request fields"
+          }
+        ],
+        "daemonUnchanged": true
+      },
+      {
+        "path": "/v1.45/containers/create",
+        "reply": [
+          404,
+          {
+            "message": "No Docker/API forwarding capability"
+          }
+        ],
+        "daemonUnchanged": true
+      },
+      {
+        "path": "/internal/workers/1cdf07f5-8a40-4040-a36c-492402463996/exec",
+        "reply": [
+          404,
+          {
+            "message": "Unknown Worker capability"
+          }
+        ],
+        "daemonUnchanged": true
+      },
+      {
+        "path": "/internal/workers?path=/containers/create",
+        "reply": [
+          404,
+          {
+            "message": "Canonical capability routes only"
+          }
+        ],
+        "daemonUnchanged": true
+      }
+    ]
+  },
+  {
+    "case": "service-authentication",
+    "pass": true,
+    "blocking": true,
+    "detail": [
+      401,
+      {
+        "message": "Executor service credential rejected"
+      }
+    ]
+  },
+  {
+    "case": "real-worker-create",
+    "pass": true,
+    "blocking": true,
+    "detail": [
+      200,
+      {
+        "Id": "8f228170f861c166a372a849338fcb2207b1ac0489c7985c1f749360200bad26",
+        "workerId": "1cdf07f5-8a40-4040-a36c-492402463996",
+        "Config": {
+          "Labels": {
+            "cline.contract": "ff8316ad512db53a8b013d8692e42c1c1baa35def2ae9ed865b586cc6e97fbe7",
+            "cline.executor": "fd7be1c788b98283da369d78898f0c16",
+            "cline.owner": "1dda736807a8d32ed85bd227c923f467d80cbabdfda76e87c130843a208d1092",
+            "cline.ownership": "97a480ad7a0952b5c047467a1fac9af547ef45c9460de3c8e80ee54366531a26",
+            "cline.p3": "stage1",
+            "cline.request": "53251c690c4470f7455fd225d7ddcc7d9e3f5c858edb278c87c6085f8dcf9c12",
+            "cline.sessionId": "session-009d411b4a954a388c97b50ce060debc",
+            "cline.tenantId": "tenant-a",
+            "cline.workerId": "1cdf07f5-8a40-4040-a36c-492402463996"
+          }
+        },
+        "State": {
+          "Status": "created",
+          "Running": false,
+          "ExitCode": 0,
+          "StartedAt": "0001-01-01T00:00:00Z",
+          "FinishedAt": "0001-01-01T00:00:00Z"
+        },
+        "resources": {
+          "enforced": false,
+          "requested": {
+            "memoryBytes": 2147483648,
+            "nanoCpus": 2000000000,
+            "pidsLimit": 256,
+            "cpuSet": "8,9"
+          },
+          "configured": {
+            "memoryBytes": 0,
+            "nanoCpus": 0,
+            "pidsLimit": null
+          },
+          "productionReady": false
+        }
+      }
+    ]
+  },
+  {
+    "case": "fixed-container-boundary",
+    "pass": true,
+    "blocking": true,
+    "detail": {
+      "image": "sha256:6ee943241411781d729fc5fcdd5608c1906424740228f55919b0009c524dfccb",
+      "user": "1000:1000",
+      "hostConfig": {
+        "Binds": [
+          "/opt/cline-server-p33-stage1-20261108/worker-mounts/1cdf07f5-8a40-4040-a36c-492402463996/workspace:/poc/project:rw",
+          "/opt/cline-server-p33-stage1-20261108/worker-mounts/1cdf07f5-8a40-4040-a36c-492402463996/state:/poc/state:rw",
+          "/opt/cline-server-p33-stage1-20261108/worker-mounts/1cdf07f5-8a40-4040-a36c-492402463996/bridge:/poc/bridge:rw",
+          "/opt/cline-server-p33-stage1-20261108/worker-mounts/1cdf07f5-8a40-4040-a36c-492402463996/config.json:/run/cline-poc.json:ro"
+        ],
+        "ContainerIDFile": "",
+        "LogConfig": {
+          "Type": "json-file",
+          "Config": {}
+        },
+        "NetworkMode": "none",
+        "PortBindings": null,
+        "RestartPolicy": {
+          "Name": "no",
+          "MaximumRetryCount": 0
+        },
+        "AutoRemove": false,
+        "VolumeDriver": "",
+        "VolumesFrom": null,
+        "ConsoleSize": [
+          0,
+          0
+        ],
+        "CapAdd": null,
+        "CapDrop": [
+          "ALL"
+        ],
+        "CgroupnsMode": "host",
+        "Dns": null,
+        "DnsOptions": null,
+        "DnsSearch": null,
+        "ExtraHosts": null,
+        "GroupAdd": null,
+        "IpcMode": "private",
+        "Cgroup": "",
+        "Links": null,
+        "OomScoreAdj": 0,
+        "PidMode": "",
+        "Privileged": false,
+        "PublishAllPorts": false,
+        "ReadonlyRootfs": true,
+        "SecurityOpt": [
+          "no-new-privileges"
+        ],
+        "Tmpfs": {
+          "/tmp": "rw,nosuid,nodev,size=128m,mode=1777"
+        },
+        "UTSMode": "",
+        "UsernsMode": "",
+        "ShmSize": 67108864,
+        "Runtime": "runc",
+        "Isolation": "",
+        "CpuShares": 0,
+        "Memory": 0,
+        "NanoCpus": 0,
+        "CgroupParent": "",
+        "BlkioWeight": 0,
+        "BlkioWeightDevice": null,
+        "BlkioDeviceReadBps": null,
+        "BlkioDeviceWriteBps": null,
+        "BlkioDeviceReadIOps": null,
+        "BlkioDeviceWriteIOps": null,
+        "CpuPeriod": 0,
+        "CpuQuota": 0,
+        "CpuRealtimePeriod": 0,
+        "CpuRealtimeRuntime": 0,
+        "CpusetCpus": "",
+        "CpusetMems": "",
+        "Devices": null,
+        "DeviceCgroupRules": null,
+        "DeviceRequests": null,
+        "MemoryReservation": 0,
+        "MemorySwap": 0,
+        "MemorySwappiness": null,
+        "OomKillDisable": false,
+        "PidsLimit": null,
+        "Ulimits": [
+          {
+            "Name": "nofile",
+            "Hard": 1024,
+            "Soft": 1024
+          },
+          {
+            "Name": "nproc",
+            "Hard": 256,
+            "Soft": 256
+          }
+        ],
+        "CpuCount": 0,
+        "CpuPercent": 0,
+        "IOMaximumIOps": 0,
+        "IOMaximumBandwidth": 0,
+        "MaskedPaths": [
+          "/proc/asound",
+          "/proc/acpi",
+          "/proc/kcore",
+          "/proc/keys",
+          "/proc/latency_stats",
+          "/proc/timer_list",
+          "/proc/timer_stats",
+          "/proc/sched_debug",
+          "/proc/scsi",
+          "/sys/firmware",
+          "/sys/devices/virtual/powercap"
+        ],
+        "ReadonlyPaths": [
+          "/proc/bus",
+          "/proc/fs",
+          "/proc/irq",
+          "/proc/sys",
+          "/proc/sysrq-trigger"
+        ]
+      },
+      "mounts": [
+        {
+          "Type": "bind",
+          "Source": "/opt/cline-server-p33-stage1-20261108/worker-mounts/1cdf07f5-8a40-4040-a36c-492402463996/config.json",
+          "Destination": "/run/cline-poc.json",
+          "Mode": "ro",
+          "RW": false,
+          "Propagation": "rprivate"
+        },
+        {
+          "Type": "bind",
+          "Source": "/opt/cline-server-p33-stage1-20261108/worker-mounts/1cdf07f5-8a40-4040-a36c-492402463996/workspace",
+          "Destination": "/poc/project",
+          "Mode": "rw",
+          "RW": true,
+          "Propagation": "rprivate"
+        },
+        {
+          "Type": "bind",
+          "Source": "/opt/cline-server-p33-stage1-20261108/worker-mounts/1cdf07f5-8a40-4040-a36c-492402463996/state",
+          "Destination": "/poc/state",
+          "Mode": "rw",
+          "RW": true,
+          "Propagation": "rprivate"
+        },
+        {
+          "Type": "bind",
+          "Source": "/opt/cline-server-p33-stage1-20261108/worker-mounts/1cdf07f5-8a40-4040-a36c-492402463996/bridge",
+          "Destination": "/poc/bridge",
+          "Mode": "rw",
+          "RW": true,
+          "Propagation": "rprivate"
+        }
+      ]
+    }
+  },
+  {
+    "case": "create-idempotency",
+    "pass": true,
+    "blocking": true,
+    "detail": [
+      200,
+      {
+        "Id": "8f228170f861c166a372a849338fcb2207b1ac0489c7985c1f749360200bad26",
+        "workerId": "1cdf07f5-8a40-4040-a36c-492402463996",
+        "Config": {
+          "Labels": {
+            "cline.contract": "ff8316ad512db53a8b013d8692e42c1c1baa35def2ae9ed865b586cc6e97fbe7",
+            "cline.executor": "fd7be1c788b98283da369d78898f0c16",
+            "cline.owner": "1dda736807a8d32ed85bd227c923f467d80cbabdfda76e87c130843a208d1092",
+            "cline.ownership": "97a480ad7a0952b5c047467a1fac9af547ef45c9460de3c8e80ee54366531a26",
+            "cline.p3": "stage1",
+            "cline.request": "53251c690c4470f7455fd225d7ddcc7d9e3f5c858edb278c87c6085f8dcf9c12",
+            "cline.sessionId": "session-009d411b4a954a388c97b50ce060debc",
+            "cline.tenantId": "tenant-a",
+            "cline.workerId": "1cdf07f5-8a40-4040-a36c-492402463996"
+          }
+        },
+        "State": {
+          "Status": "created",
+          "Running": false,
+          "ExitCode": 0,
+          "StartedAt": "0001-01-01T00:00:00Z",
+          "FinishedAt": "0001-01-01T00:00:00Z"
+        },
+        "resources": {
+          "enforced": false,
+          "requested": {
+            "memoryBytes": 2147483648,
+            "nanoCpus": 2000000000,
+            "pidsLimit": 256,
+            "cpuSet": "8,9"
+          },
+          "configured": {
+            "memoryBytes": 0,
+            "nanoCpus": 0,
+            "pidsLimit": null
+          },
+          "productionReady": false
+        }
+      }
+    ]
+  },
+  {
+    "case": "immutable-create-conflict",
+    "pass": true,
+    "blocking": true,
+    "detail": [
+      409,
+      {
+        "message": "Immutable Worker create conflict"
+      }
+    ]
+  },
+  {
+    "case": "cross-owner-inspection-denied",
+    "pass": true,
+    "blocking": true,
+    "detail": [
+      404,
+      {
+        "message": "Worker not found"
+      }
+    ]
+  },
+  {
+    "case": "Executor-independent-quota",
+    "pass": true,
+    "blocking": true,
+    "detail": [
+      429,
+      {
+        "message": "Executor independent capacity limit"
+      }
+    ]
+  },
+  {
+    "case": "real-worker-start",
+    "pass": true,
+    "blocking": true,
+    "detail": [
+      200,
+      {
+        "Id": "8f228170f861c166a372a849338fcb2207b1ac0489c7985c1f749360200bad26",
+        "workerId": "1cdf07f5-8a40-4040-a36c-492402463996",
+        "Config": {
+          "Labels": {
+            "cline.contract": "ff8316ad512db53a8b013d8692e42c1c1baa35def2ae9ed865b586cc6e97fbe7",
+            "cline.executor": "fd7be1c788b98283da369d78898f0c16",
+            "cline.owner": "1dda736807a8d32ed85bd227c923f467d80cbabdfda76e87c130843a208d1092",
+            "cline.ownership": "97a480ad7a0952b5c047467a1fac9af547ef45c9460de3c8e80ee54366531a26",
+            "cline.p3": "stage1",
+            "cline.request": "53251c690c4470f7455fd225d7ddcc7d9e3f5c858edb278c87c6085f8dcf9c12",
+            "cline.sessionId": "session-009d411b4a954a388c97b50ce060debc",
+            "cline.tenantId": "tenant-a",
+            "cline.workerId": "1cdf07f5-8a40-4040-a36c-492402463996"
+          }
+        },
+        "State": {
+          "Status": "running",
+          "Running": true,
+          "ExitCode": 0,
+          "StartedAt": "2026-11-08T07:20:52.833579324Z",
+          "FinishedAt": "0001-01-01T00:00:00Z"
+        },
+        "resources": {
+          "enforced": false,
+          "requested": {
+            "memoryBytes": 2147483648,
+            "nanoCpus": 2000000000,
+            "pidsLimit": 256,
+            "cpuSet": "8,9"
+          },
+          "configured": {
+            "memoryBytes": 0,
+            "nanoCpus": 0,
+            "pidsLimit": null
+          },
+          "productionReady": false
+        }
+      }
+    ]
+  },
+  {
+    "case": "Worker-OS-boundary",
+    "pass": true,
+    "blocking": true,
+    "detail": {
+      "socket": false,
+      "executorConfig": false,
+      "gatewayConfig": false,
+      "hostRoot": false,
+      "uid": 1000,
+      "caps": "0000000000000000"
+    }
+  },
+  {
+    "case": "Gateway-no-Docker-socket",
+    "pass": true,
+    "blocking": true,
+    "detail": {
+      "process": {
+        "uid": 1000,
+        "uidMap": "         0       1004          1\n         1     362144      65536\n",
+        "dockerSocket": false,
+        "privateSocket": false,
+        "socketError": "ENOENT"
+      },
+      "mounts": [
+        {
+          "Type": "bind",
+          "Source": "/opt/cline-server-p33-stage1-20261108/config/gateway.json",
+          "Destination": "/run/gateway.json",
+          "Mode": "",
+          "RW": false,
+          "Propagation": "rprivate"
+        },
+        {
+          "Type": "bind",
+          "Source": "/opt/cline-server-p33-stage1-20261108/control-state",
+          "Destination": "/control/state",
+          "Mode": "",
+          "RW": true,
+          "Propagation": "rprivate"
+        },
+        {
+          "Type": "bind",
+          "Source": "/opt/cline-server-p33-stage1-20261108/worker-mounts",
+          "Destination": "/workers",
+          "Mode": "",
+          "RW": true,
+          "Propagation": "rprivate"
+        },
+        {
+          "Type": "bind",
+          "Source": "/opt/cline-server-p33-stage1-20261108/executor-bridge",
+          "Destination": "/executor-bridge",
+          "Mode": "",
+          "RW": false,
+          "Propagation": "rprivate"
+        }
+      ]
+    }
+  },
+  {
+    "case": "Gateway-cannot-replace-mount-anchor",
+    "pass": true,
+    "blocking": true,
+    "detail": {
+      "error": "EACCES",
+      "root": "{\"dev\":2064,\"mode\":16877,\"nlink\":5,\"uid\":0,\"gid\":0,\"rdev\":0,\"blksize\":4096,\"ino\":290728836,\"size\":69,\"blocks\":0,\"atimeMs\":1794122451846.5322,\"mtimeMs\":1794122451892.533,\"ctimeMs\":1794122451892.533,\"birthtimeMs\":1794122451846.5322}"
+    }
+  },
+  {
+    "case": "stop-proof-and-late-start-rejection",
+    "pass": true,
+    "blocking": true,
+    "detail": {
+      "stop": [
+        200,
+        {
+          "containerId": "8f228170f861c166a372a849338fcb2207b1ac0489c7985c1f749360200bad26",
+          "running": false,
+          "exitCode": 137,
+          "finishedAt": "2026-11-08T07:21:01.833048105Z"
+        }
+      ],
+      "repeat": [
+        200,
+        {
+          "containerId": "8f228170f861c166a372a849338fcb2207b1ac0489c7985c1f749360200bad26",
+          "running": false,
+          "exitCode": 137,
+          "finishedAt": "2026-11-08T07:21:01.833048105Z"
+        }
+      ],
+      "lateStart": [
+        409,
+        {
+          "message": "Worker closed; late start rejected"
+        }
+      ],
+      "actualState": {
+        "Status": "exited",
+        "Running": false,
+        "Paused": false,
+        "Restarting": false,
+        "OOMKilled": false,
+        "Dead": false,
+        "Pid": 0,
+        "ExitCode": 137,
+        "Error": "",
+        "StartedAt": "2026-11-08T07:20:52.833579324Z",
+        "FinishedAt": "2026-11-08T07:21:01.833048105Z"
+      }
+    }
+  },
+  {
+    "case": "symbolic-link-anchor-rejected",
+    "pass": true,
+    "blocking": true,
+    "detail": {
+      "reply": [
+        403,
+        {
+          "message": "Symbolic links forbidden in mount anchors/templates"
+        }
+      ],
+      "actualState": {
+        "Status": "created",
+        "Running": false,
+        "Paused": false,
+        "Restarting": false,
+        "OOMKilled": false,
+        "Dead": false,
+        "Pid": 0,
+        "ExitCode": 0,
+        "Error": "",
+        "StartedAt": "0001-01-01T00:00:00Z",
+        "FinishedAt": "0001-01-01T00:00:00Z"
+      }
+    }
+  },
+  {
+    "case": "actual-force-kill-proof",
+    "pass": true,
+    "blocking": true,
+    "detail": {
+      "start": [
+        200,
+        {
+          "Id": "68de93bb31b707b198f72dc9fabf85fda9c2a3c04ffb64d29ff7ffa943f5ec41",
+          "workerId": "c60af964-ceff-4217-bcbc-ae4850c5ddc6",
+          "Config": {
+            "Labels": {
+              "cline.contract": "93a67aa75c95cc69c59af432a8b5111a8b8d1b3dc1306fb5bda0dbb4e7745b9f",
+              "cline.executor": "fd7be1c788b98283da369d78898f0c16",
+              "cline.owner": "fb1be03199da3129286d7a60a58f39f9f268e6e8de6e25b9277b9b6286b365c9",
+              "cline.ownership": "a06913d335f413d9a63f4fad40eb9fa691c827df9cf10e1fe5179966223c0830",
+              "cline.p3": "stage1",
+              "cline.request": "de1516fe014b73fa2cd438ef6412a0032a721d6bc870d70e556f178ca94681c9",
+              "cline.sessionId": "session-3155f48789fd4566b7c564c6c45a34c1",
+              "cline.tenantId": "tenant-b",
+              "cline.workerId": "c60af964-ceff-4217-bcbc-ae4850c5ddc6"
+            }
+          },
+          "State": {
+            "Status": "running",
+            "Running": true,
+            "ExitCode": 0,
+            "StartedAt": "2026-11-08T07:21:03.326889745Z",
+            "FinishedAt": "0001-01-01T00:00:00Z"
+          },
+          "resources": {
+            "enforced": false,
+            "requested": {
+              "memoryBytes": 2147483648,
+              "nanoCpus": 2000000000,
+              "pidsLimit": 256,
+              "cpuSet": "8,9"
+            },
+            "configured": {
+              "memoryBytes": 0,
+              "nanoCpus": 0,
+              "pidsLimit": null
+            },
+            "productionReady": false
+          }
+        }
+      ],
+      "kill": [
+        200,
+        {
+          "containerId": "68de93bb31b707b198f72dc9fabf85fda9c2a3c04ffb64d29ff7ffa943f5ec41",
+          "running": false,
+          "exitCode": 137,
+          "finishedAt": "2026-11-08T07:21:03.395768514Z"
+        }
+      ],
+      "actualState": {
+        "Status": "exited",
+        "Running": false,
+        "Paused": false,
+        "Restarting": false,
+        "OOMKilled": false,
+        "Dead": false,
+        "Pid": 0,
+        "ExitCode": 137,
+        "Error": "",
+        "StartedAt": "2026-11-08T07:21:03.326889745Z",
+        "FinishedAt": "2026-11-08T07:21:03.395768514Z"
+      }
+    }
+  },
+  {
+    "case": "owned-closed-Worker-cleanup",
+    "pass": true,
+    "blocking": true,
+    "detail": [
+      200,
+      {
+        "removed": true,
+        "workerId": "c60af964-ceff-4217-bcbc-ae4850c5ddc6"
+      }
+    ]
+  },
+  {
+    "case": "cleanup-does-not-authorize-recreation",
+    "pass": true,
+    "blocking": true,
+    "detail": [
+      409,
+      {
+        "message": "Task Worker closed; cleanup never authorizes recreation"
+      }
+    ]
+  },
+  {
+    "case": "rootless-root-does-not-become-host-root",
+    "pass": true,
+    "blocking": true,
+    "detail": {
+      "exit": 0,
+      "result": {
+        "uid": 0,
+        "uidMap": "         0       1004          1\n         1     362144      65536\n",
+        "read": "DENIED",
+        "error": "EACCES"
+      }
+    }
+  },
+  {
+    "case": "per-worker-cgroup-hard-limits",
+    "pass": false,
+    "blocking": false,
+    "detail": {
+      "enforced": false,
+      "requested": {
+        "memoryBytes": 2147483648,
+        "nanoCpus": 2000000000,
+        "pidsLimit": 256,
+        "cpuSet": "8,9"
+      },
+      "configured": {
+        "memoryBytes": 0,
+        "nanoCpus": 0,
+        "pidsLimit": null
+      },
+      "productionReady": false
+    }
+  },
+  {
+    "case": "existing-services-unchanged",
+    "pass": true,
+    "blocking": true,
+    "detail": {
+      "same": true
+    }
+  }
+]

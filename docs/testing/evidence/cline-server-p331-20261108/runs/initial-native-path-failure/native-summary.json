@@ -1,0 +1,8 @@
+{
+  "pass": false,
+  "model": "qwen3.7-plus",
+  "checks": 7,
+  "workerId": "af7ccecf-c6b5-4f11-9b67-664d2a794a43",
+  "containerId": "0dcab59be8bd100208365e77137aa51268fcb00147c81c099ac7634e51a585ce",
+  "productionReady": false
+}

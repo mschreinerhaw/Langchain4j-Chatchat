@@ -1,0 +1,662 @@
+diff --git a/cline-agent-server/docker/README.p331.md b/cline-agent-server/docker/README.p331.md
+new file mode 100644
+index 000000000..820201c40
+--- /dev/null
++++ b/cline-agent-server/docker/README.p331.md
+@@ -0,0 +1,26 @@
++# P3.3.1 独立 rootless 评审原型
++
++基线 `32e08b765`；仅使用 `/opt/cline-server-p33-stage1-20261108`、账号 `cline-p331`、私有 Socket 和 loopback `18331`。保留所有既有 Docker/Runtime/模型/MCP 服务。当前资源硬限制未通过，此拓扑不可用于生产。
++
++```sh
++# 在新目录 source/ 中按仓库相对路径复制 cline-agent-server/
++python3 source/cline-agent-server/scripts/p331-rootless.py
++python3 source/cline-agent-server/scripts/p331-deploy.py
++python3 source/cline-agent-server/test/p331-live.py
++python3 source/cline-agent-server/test/p331-native.py
++python3 source/cline-agent-server/test/p331-startup-guards.py
++```
++
++rootless 准备脚本创建独立 nologin 普通账号及其 subuid/subgid，使用已安装的 rootlesskit、slirp4netns、newuidmap/newgidmap。没有修改共享 daemon.json、Docker CLI context、systemd、sysctl 或防火墙。daemon 不使用共享数据目录，不开放 Docker TCP，不重启共享 daemon。新 daemon 的二进制沿用当前已安装版本，本轮不升级生产 Docker/内核。
++
++镜像从已有受测 `cline-agent-server:p3-stage2` 只读导出，加载到新 daemon，再在新 daemon 内构建控制服务镜像。Worker 继续使用基线镜像摘要；不重编官方 Agent。模型 profile 从旧私有配置复制，只有 Gateway 能读实际 provider 凭据；Executor 仅有模型名称。配置不进入 Git 或镜像。
++
++本机 `Cgroup Driver=none`，严格模式（`allowUnenforcedPrototype=false`）拒绝启动。评审模式显式启用后，只测试 API、身份、挂载及 namespace 边界；`ulimit` 和并发数量上限不等于容器级 CPU/内存/PID 硬限制。不得把 Docker 参数已写入 spec 当作资源隔离生效。
++
++更新本原型时先检查私有 daemon ID、容器标签 `cline.stage=P3.3.1`，仅停止其 Gateway/Executor，保留挂载根和未知记录。`p331-deploy.py` 不自动替换已存在的容器。完整启动窗口恢复、daemon 重启和多 Authority 故障注入不在本轮执行。
++
++回滚：停止这一个私有 daemon 上的 `cline-p331-gateway`、`cline-p331-executor` 及核实归属后的原型 Worker；保留 evidence、registry、close 标记和未知目录。需要关掉私有 daemon 时，先按专用 UID 和 `$root/run/dockerd.pid` 核对进程实际命令、UID、数据根及 RootlessKit 父进程，再停止对应进程。不得调用默认 host 的 `docker stop/prune`，不得删除 `/var/run/docker.sock`，不得关闭共享 systemd Docker。
++
++本轮不自动递归删除任何运行目录、不删除已有 Docker Runtime，也不切换 Runtime OS 默认 Agent。评审后如果放弃原型，先归档 Hash 与日志，再单独按核实的私有目录和专用账号清理；不得用模糊容器名或通配路径回滚。
++
++源码审查和剩余风险见 [审查报告](../../docs/audits/cline-server-p331-review.md)，API/威胁模型见 [设计](../../docs/design/cline-server-p331-executor.md)。
+diff --git a/cline-agent-server/scripts/collect-p331-evidence.py b/cline-agent-server/scripts/collect-p331-evidence.py
+new file mode 100644
+index 000000000..d4dbc1e81
+--- /dev/null
++++ b/cline-agent-server/scripts/collect-p331-evidence.py
+@@ -0,0 +1,43 @@
++#!/usr/bin/env python3
++"""Read-only, credential-redacted export of this private review prototype."""
++import pathlib,subprocess,json,hashlib,gzip,sys,os,datetime
++R=pathlib.Path('/opt/cline-server-p33-stage1-20261108');O=pathlib.Path(sys.argv[1]);O.mkdir(parents=True,exist_ok=True)
++ec=json.loads((R/'config/executor.json').read_text());gc=json.loads((R/'config/gateway.json').read_text());D=['docker','-H','unix://'+str(R/'run/docker.sock')]
++secrets=[ec['apiToken'],ec['ownershipKey'],ec['signingKey']]+[x['apiKey'] for x in gc['modelProfiles'].values()]
++for p in (R/'worker-mounts').glob('*/config.json'):
++ c=json.loads(p.read_text());secrets.extend([c['apiToken'],c['apiKey']])
++def sha(b):return hashlib.sha256(b).hexdigest()
++def save(path,value):
++ text=value if isinstance(value,str) else json.dumps(value,ensure_ascii=False,indent=2)+'\n'
++ for secret in secrets:
++  if secret:text=text.replace(secret,'[REDACTED]')
++ data=text.encode();p=O/path;p.parent.mkdir(parents=True,exist_ok=True)
++ if len(data)>180000:p=p.with_name(p.name+'.gz');data=gzip.compress(data,mtime=0)
++ p.write_bytes(data)
++def out(*args):return subprocess.check_output(args,text=True,stderr=subprocess.STDOUT)
++for p in (R/'evidence').rglob('*'):
++ if p.is_file():save('runs/'+str(p.relative_to(R/'evidence')),p.read_text())
++save('executor-audit.jsonl',(R/'executor-control/executor-audit.jsonl').read_text())
++for name in ['cline-p331-gateway','cline-p331-executor']:
++ i=json.loads(out(*D,'inspect',name))[0];save('docker/'+name+'.json',i);save('logs/'+name+'.log',out(*D,'logs',name))
++names=out(*D,'ps','-aq','--filter','label=cline.executor='+ec['instanceId']).splitlines();states=[]
++for cid in names:
++ i=json.loads(out(*D,'inspect',cid))[0];assert not i['State']['Running'],'Stop all prototype Workers before collection';states.append({'id':cid,'labels':i['Config']['Labels'],'state':i['State']});save('docker/workers/'+cid+'.json',i)
++save('worker-states.json',states)
++from evidence_files import tree_bytes
++for path in (R/'control-state/workers').glob('*/registry.json'):
++ r=json.loads(path.read_text());r.pop('apiToken',None);r.pop('brokerToken',None);wid=r['workerId'];save('workers/'+wid+'/registry.json',r)
++ root=R/'worker-mounts'/wid
++ for p in (root/'state').glob('*/events.jsonl'):save('workers/'+wid+'/native-events.jsonl',p.read_text())
++ tid=r['contract']['tenantId'];ref=r['contract']['workspaceRef'];template=R/'templates'/pathlib.Path(gc['tenants'][tid]['workspaces'][ref]).relative_to('/templates');before,skip=tree_bytes(template);after,skip2=tree_bytes(root/'workspace');save('workers/'+wid+'/project-hashes.json',{'before':{k:sha(v) for k,v in before.items()},'after':{k:sha(v) for k,v in after.items()},'changed':[k for k in set(before)|set(after) if before.get(k)!=after.get(k)],'skipped':skip2})
++unknown=[]
++known={i['labels']['cline.workerId'] for i in states}
++for p in (R/'worker-mounts').iterdir():
++ if p.is_dir() and p.name not in known:unknown.append({'workerId':p.name,'configPresent':(p/'config.json').exists(),'closed':(p/'closed').exists(),'note':'Prepared/closed directory is not itself a tool no-start receipt; no automatic reuse'})
++save('retained-directories.json',unknown)
++canary=R/'host-root-canary';st=canary.stat();save('host-root-canary.json',{'uid':st.st_uid,'mode':oct(st.st_mode&0o777),'sha256':sha(canary.read_bytes())})
++code="const f=require('fs'),c=require('crypto');console.log(JSON.stringify(f.readdirSync('/poc/service/src').filter(n=>n.endsWith('.mjs')).map(n=>({path:'cline-agent-server/src/'+n,sha256:c.createHash('sha256').update(f.readFileSync('/poc/service/src/'+n)).digest('hex')}))))"
++save('source/deployed-src.json',json.loads(out(*D,'exec','cline-p331-executor','node','-e',code)))
++runtime=out(*D,'run','--rm','--network','none','--user','1000:1000','--entrypoint','node',ec['workerImage'],'/poc/service/scripts/verify-runtime.mjs','/poc/runtime');save('source/official-runtime-verification.json',json.loads(runtime))
++save('collection.json',{'at':datetime.datetime.now(datetime.timezone.utc).isoformat(),'baseline':'32e08b765','scope':'P3.3.1 review only','rootless':True,'resourceEnforced':False,'productionReady':False,'pythonRuntimeMigrated':False,'workerImage':ec['workerImage'],'daemonId':ec['expectedDaemonId'],'retainedWorkerContainers':len(states),'retainedUnmatchedDirectories':len(unknown),'noNextStageImplemented':True})
++manifest=[{'path':str(p.relative_to(O)),'bytes':p.stat().st_size,'sha256':sha(p.read_bytes())} for p in sorted(O.rglob('*')) if p.is_file() and p.name!='SHA256SUMS.json'];save('SHA256SUMS.json',manifest);print(json.dumps({'files':len(manifest),'productionReady':False}))
+diff --git a/cline-agent-server/scripts/p331-deploy.py b/cline-agent-server/scripts/p331-deploy.py
+new file mode 100644
+index 000000000..a8ca8d4b1
+--- /dev/null
++++ b/cline-agent-server/scripts/p331-deploy.py
+@@ -0,0 +1,47 @@
++#!/usr/bin/env python3
++"""Rootless review prototype only. Keeps all previous services/configurations intact."""
++import pathlib,subprocess,json,os,shutil,secrets
++R=pathlib.Path('/opt/cline-server-p33-stage1-20261108');S=R/'source/cline-agent-server'
++account=json.loads((R/'evidence/rootless-account.json').read_text());di=json.loads((R/'evidence/rootless-info.json').read_text())
++assert 'name=rootless' in di['SecurityOptions'];D=['docker','-H','unix://'+account['socket']]
++def run(*a,**kw):
++ p=subprocess.run(a,**kw)
++ if p.returncode:raise RuntimeError('Prototype command failed: '+a[0]+' (arguments withheld)')
++ return p
++def output(*a):return subprocess.check_output(a,text=True).strip()
++(R/'input').mkdir(exist_ok=True);image='cline-agent-server:p3-stage2';baseline=output('docker','image','inspect',image,'--format','{{.Id}}')
++if baseline!='sha256:6ee943241411781d729fc5fcdd5608c1906424740228f55919b0009c524dfccb':raise RuntimeError('Expected 32e08b765 acceptance Worker image; mutable tag changed')
++present=subprocess.run([*D,'image','inspect',baseline],stdout=subprocess.DEVNULL,stderr=subprocess.DEVNULL).returncode==0
++if not present:
++ archive=R/'input/worker-image.tar'
++ if not archive.exists():run('docker','image','save','-o',str(archive),image)
++ with (R/'evidence/image-load.log').open('w') as f:run(*D,'image','load','-i',str(archive),stdout=f,stderr=subprocess.STDOUT)
++build=R/'image';build.mkdir(exist_ok=True);shutil.copytree(S,build/'service',dirs_exist_ok=True)
++(build/'Dockerfile').write_text('FROM cline-agent-server:p3-stage2\nCOPY service/ /poc/service/\n')
++with (R/'evidence/image-build.log').open('w') as f:run(*D,'build','--network','none','-t','cline-agent-server:p331-review',str(build),stdout=f,stderr=subprocess.STDOUT)
++runtime=output(*D,'image','inspect','cline-agent-server:p331-review','--format','{{.Id}}')
++old=json.loads(pathlib.Path('/opt/cline-server-p3-stage2-20261108/control/config.json').read_text())
++template=R/'templates'
++if not list(template.iterdir()):shutil.copytree('/opt/cline-server-p3-stage2-20261108/templates',template,dirs_exist_ok=True)
++for p in [template,*template.rglob('*')]:
++ if p.is_symlink():raise RuntimeError('Symlink in trusted template')
++ # Templates are readable only, ownership is deliberately not the Gateway UID.
++ os.chmod(p,0o755 if p.is_dir() else 0o644)
++private=R/'config';secretfile=private/'executor.json'
++if secretfile.exists():ec=json.loads(secretfile.read_text())
++else:ec={'apiToken':secrets.token_hex(32),'ownershipKey':secrets.token_hex(32),'instanceId':secrets.token_hex(16)}
++ec.update(signingKey=old['signingKey'],expectedDaemonId=di['ID'],dockerSocket='/run/rootless-docker.sock',socketPath='/executor-bridge/executor.sock',controlRoot='/executor-control',workersRoot='/workers',hostWorkersRoot=str(R/'worker-mounts'),workerImage=baseline,maxWorkers=2,maxPerTenant=1,allowUnenforcedPrototype=True,operationContext=False,resources={'memoryBytes':2147483648,'nanoCpus':2000000000,'pidsLimit':256,'cpuSet':'8,9'},modelNames={k:v['model'] for k,v in old['modelProfiles'].items()})
++ec['tenants']={k:{**v,'tools':['read_files','search_codebase','editor','apply_patch','run_commands'],'mcp':False} for k,v in old['tenants'].items()}
++secretfile.write_text(json.dumps(ec));os.chown(secretfile,account['daemonUid'],account['daemonGid']);secretfile.chmod(0o400)
++gc={**old,'host':'0.0.0.0','port':18331,'stateRoot':'/control/state','workerRoot':'/workers','workerImage':baseline,'operations':None,'tenants':ec['tenants'],'executor':{'socketPath':'/executor-bridge/executor.sock','token':ec['apiToken']}}
++gc.pop('dockerSocket',None);gc.pop('hostStateRoot',None)
++gp=private/'gateway.json';gp.write_text(json.dumps(gc));os.chown(gp,account['workerHostUid'],account['workerHostGid']);gp.chmod(0o400)
++os.chown(R/'control-state',account['workerHostUid'],account['workerHostGid']);os.chmod(R/'control-state',0o700)
++os.chown(R/'executor-bridge',account['daemonUid'],account['workerHostGid']);os.chmod(R/'executor-bridge',0o750)
++names=output(*D,'ps','-a','--format','{{.Names}}').splitlines()
++if 'cline-p331-executor' not in names:
++ run(*D,'run','-d','--name','cline-p331-executor','--label','cline.stage=P3.3.1','--user','0:0','--network','none','--read-only','--cap-drop','ALL','--cap-add','CHOWN','--security-opt','no-new-privileges','--no-healthcheck','--mount',f'type=bind,src={secretfile},dst=/run/executor.json,readonly','--mount',f'type=bind,src={account["socket"]},dst=/run/rootless-docker.sock','--mount',f'type=bind,src={R}/executor-bridge,dst=/executor-bridge','--mount',f'type=bind,src={R}/executor-control,dst=/executor-control','--mount',f'type=bind,src={R}/worker-mounts,dst=/workers','--mount',f'type=bind,src={template},dst=/templates,readonly','-e','CLINE_EXECUTOR_CONFIG=/run/executor.json','--entrypoint','node',runtime,'/poc/service/src/worker-executor.mjs')
++if 'cline-p331-gateway' not in names:
++ run(*D,'run','-d','--name','cline-p331-gateway','--label','cline.stage=P3.3.1','--user','1000:1000','--network','host','--read-only','--cap-drop','ALL','--security-opt','no-new-privileges','--no-healthcheck','--mount',f'type=bind,src={gp},dst=/run/gateway.json,readonly','--mount',f'type=bind,src={R}/control-state,dst=/control/state','--mount',f'type=bind,src={R}/worker-mounts,dst=/workers','--mount',f'type=bind,src={R}/executor-bridge,dst=/executor-bridge,readonly','-e','CLINE_GOVERNANCE_CONFIG=/run/gateway.json','--entrypoint','node',runtime,'/poc/service/src/governance-server.mjs')
++(R/'evidence/deployment.json').write_text(json.dumps({'baseline':'32e08b765','daemonId':di['ID'],'rootless':True,'workerImage':baseline,'controlImage':runtime,'gatewayPort':18331,'resourceEnforcement':False,'productionReady':False,'pythonRuntimeMigrated':False},indent=2))
++print('Rootless review Gateway and Restricted Executor deployed; cgroup enforcement explicitly unavailable.')
+diff --git a/cline-agent-server/scripts/p331-rootless.py b/cline-agent-server/scripts/p331-rootless.py
+new file mode 100644
+index 000000000..092a28058
+--- /dev/null
++++ b/cline-agent-server/scripts/p331-rootless.py
+@@ -0,0 +1,38 @@
++#!/usr/bin/env python3
++"""Create only this prototype's Unix user and rootless daemon. No host Docker config edits."""
++import pathlib,subprocess,json,os,pwd,time
++R=pathlib.Path('/opt/cline-server-p33-stage1-20261108');USER='cline-p331'
++R.mkdir(exist_ok=True);(R/'evidence').mkdir(exist_ok=True)
++def run(*a,**kw):
++ p=subprocess.run(a,**kw)
++ if p.returncode:raise RuntimeError('Prototype command failed: '+a[0]+' (arguments withheld)')
++ return p
++try:account=pwd.getpwnam(USER)
++except KeyError:
++ run('useradd','--create-home','--home-dir',str(R/'daemon-home'),'--shell','/sbin/nologin',USER);account=pwd.getpwnam(USER)
++if pathlib.Path(account.pw_dir)!=R/'daemon-home':raise RuntimeError('Unexpected pre-existing daemon account')
++for name in ('run','daemon-data','daemon-exec','executor-control','worker-mounts','executor-bridge','config','control-state','templates'):
++ p=R/name;p.mkdir(exist_ok=True);os.chown(p,account.pw_uid,account.pw_gid)
++os.chmod(R/'run',0o700)
++base=next(int(line.split(':')[1]) for line in pathlib.Path('/etc/subuid').read_text().splitlines() if line.startswith(USER+':'))
++gidbase=next(int(line.split(':')[1]) for line in pathlib.Path('/etc/subgid').read_text().splitlines() if line.startswith(USER+':'))
++info={'daemonUser':USER,'daemonUid':account.pw_uid,'daemonGid':account.pw_gid,'subUidStart':base,'subGidStart':gidbase,'workerHostUid':base+999,'workerHostGid':gidbase+999,'socket':str(R/'run/docker.sock')}
++(R/'evidence/rootless-account.json').write_text(json.dumps(info,indent=2))
++sock=R/'run/docker.sock'
++def docker_info():
++ p=subprocess.run(['docker','-H','unix://'+str(sock),'info','--format','{{json .}}'],stdout=subprocess.PIPE,stderr=subprocess.PIPE,text=True)
++ data=json.loads(p.stdout) if p.returncode==0 else None
++ return data if data and data.get('ID') and data.get('SecurityOptions') else None
++if not docker_info():
++ env=dict(os.environ,HOME=account.pw_dir,XDG_RUNTIME_DIR=str(R/'run'),PATH='/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin',DOCKERD_ROOTLESS_ROOTLESSKIT_NET='slirp4netns',DOCKERD_ROOTLESS_ROOTLESSKIT_FLAGS='-p 127.0.0.1:18331:18331/tcp')
++ command=['/usr/bin/dockerd-rootless.sh','--host=unix://'+str(sock),'--data-root='+str(R/'daemon-data'),'--exec-root='+str(R/'daemon-exec'),'--pidfile='+str(R/'run/dockerd.pid'),'--storage-driver=vfs','--iptables=false','--bridge=none','--ip-masq=false','--ip-forward=false','--userland-proxy=false']
++ def drop_identity():os.setgroups([]);os.setgid(account.pw_gid);os.setuid(account.pw_uid)
++ with (R/'evidence/rootless-daemon.log').open('ab') as log:subprocess.Popen(command,stdout=log,stderr=subprocess.STDOUT,start_new_session=True,env=env,preexec_fn=drop_identity)
++ for n in range(50):
++  if docker_info():break
++  time.sleep(1)
++data=docker_info()
++if not data:raise RuntimeError('Rootless daemon not ready; see rootless-daemon.log')
++assert 'name=rootless' in data.get('SecurityOptions',[]),'Refusing rootful fallback'
++(R/'evidence/rootless-info.json').write_text(json.dumps(data,indent=2))
++print(json.dumps({'daemonId':data['ID'],'rootless':True,'cgroupDriver':data['CgroupDriver'],'memoryLimit':data.get('MemoryLimit'),'cpuCfsQuota':data.get('CpuCfsQuota'),'pidsLimit':data.get('PidsLimit')}))
+diff --git a/cline-agent-server/src/docker-engine.mjs b/cline-agent-server/src/docker-engine.mjs
+index ef0f5f9fe..03f03ef32 100644
+--- a/cline-agent-server/src/docker-engine.mjs
++++ b/cline-agent-server/src/docker-engine.mjs
+@@ -5,7 +5,7 @@ export class DockerEngine {
+   const req=http.request({socketPath:this.socketPath,path:'/v1.45'+path,method,headers:body?{'content-type':'application/json'}:{}},res=>{
+    const chunks=[];res.on('data',b=>chunks.push(b));res.on('end',()=>{
+     const text=Buffer.concat(chunks).toString();let value;try{value=JSON.parse(text);}catch{value=text;}
+-    if(res.statusCode>=400)reject(Object.assign(Error('Docker '+method+' '+path+' failed ('+res.statusCode+')'),{dockerStatus:res.statusCode}));else resolve(value);
++    if(res.statusCode>=400)reject(Object.assign(Error('Docker '+method+' '+path+' failed ('+res.statusCode+')'),{dockerStatus:res.statusCode,dockerMessage:value?.message}));else resolve(value);
+    });res.on('error',reject);
+   });req.setTimeout(30000,()=>req.destroy(Error('Docker control deadline')));req.on('error',reject);req.end(body?JSON.stringify(body):undefined);
+  });}
+diff --git a/cline-agent-server/src/governance-server.mjs b/cline-agent-server/src/governance-server.mjs
+index 2a403c76b..ba01fcbba 100644
+--- a/cline-agent-server/src/governance-server.mjs
++++ b/cline-agent-server/src/governance-server.mjs
+@@ -2,13 +2,20 @@ import http from 'node:http';
+ import {readFileSync,writeFileSync,mkdirSync,readdirSync,existsSync,renameSync,chownSync,chmodSync,cpSync,unlinkSync,lstatSync} from 'node:fs';
+ import {join} from 'node:path';
+ import {randomUUID,randomBytes,timingSafeEqual} from 'node:crypto';
+-import {verifyContract,authorizeSession,contractHash,holdsCapacity} from './task-contract.mjs';
++import {verifyContract,authorizeSession,contractHash,holdsCapacity,signContract} from './task-contract.mjs';
+ import {DockerEngine,workerContainerSpec} from './docker-engine.mjs';
++import {WorkerExecutorClient} from './worker-executor-client.mjs';
+ import {Journal} from './journal.mjs';
+ 
+ const cfg=JSON.parse(readFileSync(process.env.CLINE_GOVERNANCE_CONFIG,'utf8'));
+ if(!cfg.signingKey||cfg.signingKey.length<32||!cfg.workerImage?.startsWith('sha256:'))throw Error('Pinned image and private task issuer key required');
+-const docker=new DockerEngine(cfg.dockerSocket),records=new Map(),brokers=new Map(),streams=new Map(),calls=new Map();
++if(cfg.executor&&cfg.dockerSocket)throw Error('Executor Gateway must not configure a Docker Socket');
++const executor=cfg.executor?new WorkerExecutorClient(cfg.executor):null;
++const docker=executor?null:new DockerEngine(cfg.dockerSocket),records=new Map(),brokers=new Map(),streams=new Map(),calls=new Map();
++const bridgeRoot=r=>executor?join(cfg.workerRoot,r.workerId,'bridge'):join(cfg.stateRoot,'workers',r.workerId,'bridge');
++const grant=r=>signContract(r.contract,cfg.signingKey);
++const inspectWorker=r=>executor?executor.inspect(grant(r),r.workerId):docker.inspect(r.containerId);
++const stopWorker=r=>executor?executor.stop(grant(r),r.workerId):docker.stop(r.containerId);
+ mkdirSync(join(cfg.stateRoot,'workers'),{recursive:true,mode:0o700});
+ const audit=new Journal(join(cfg.stateRoot,'audit.jsonl'));
+ const error=(message,status=400)=>Object.assign(Error(message),{status});
+@@ -16,18 +23,18 @@ const delay=ms=>new Promise(r=>setTimeout(r,ms));
+ function save(r){const dir=join(cfg.stateRoot,'workers',r.workerId);writeFileSync(join(dir,'registry.tmp'),JSON.stringify(r),{mode:0o600});renameSync(join(dir,'registry.tmp'),join(dir,'registry.json'));}
+ function event(r,type,detail={}){audit.append({type,sessionId:r?.contract.sessionId,tenantId:r?.contract.tenantId,workerId:r?.workerId,...detail});}
+ for(const id of readdirSync(join(cfg.stateRoot,'workers'))){const p=join(cfg.stateRoot,'workers',id,'registry.json');if(existsSync(p)){const r=JSON.parse(readFileSync(p));if(!['STOPPED','START_FAILED'].includes(r.workerState)){r.workerState='RECOVERABLE';r.taskState='UNKNOWN';r.revoked=true;save(r);event(r,'recovery.required',{reason:'No side-effect replay or operation reconciliation in stage 1'});}records.set(r.contract.sessionId,r);}}
+-for(const r of records.values())if(r.workerState==='RECOVERABLE'&&r.containerId){try{const info=await docker.inspect(r.containerId);if(info.Config.Labels['cline.workerId']!==r.workerId)throw Error('Container ownership mismatch');r.stopProof=await docker.stop(r.containerId);save(r);}catch{event(r,'recovery.stop_unconfirmed');}}
++for(const r of records.values())if(r.workerState==='RECOVERABLE'&&(r.containerId||executor&&r.provisioningAttempted)){try{const info=await inspectWorker(r);if(info.Config.Labels['cline.workerId']!==r.workerId)throw Error('Container ownership mismatch');r.stopProof=await stopWorker(r);save(r);}catch{event(r,'recovery.stop_unconfirmed');}}
+ function templateFiles(path,visit){const stat=lstatSync(path);if(stat.isSymbolicLink())throw Error('Workspace templates must not contain symlinks');visit?.(path);if(stat.isDirectory())for(const name of readdirSync(path))templateFiles(join(path,name),visit);}
+ async function body(req){const chunks=[];let count=0;for await(const b of req){count+=b.length;if(count>1048576)throw error('Request too large',413);chunks.push(b);}try{return JSON.parse(Buffer.concat(chunks).toString()||'{}');}catch{throw error('Invalid JSON');}}
+ function send(res,status,value){res.writeHead(status,{'content-type':'application/json','cache-control':'no-store'});res.end(JSON.stringify(value));}
+ function granted(req){return verifyContract((req.headers.authorization??'').replace(/^Bearer /,''),cfg.signingKey);}
+ function live(r){return !r.revoked&&r.contract.expiresAt>Date.now()&&!['STOPPED','RECOVERABLE','START_FAILED'].includes(r.workerState);}
+ function workerRequest(r,path,method='GET',value,headers={}){return new Promise((resolve,reject)=>{
+- const req=http.request({socketPath:join(cfg.stateRoot,'workers',r.workerId,'bridge/worker.sock'),path,method,headers:{authorization:'Bearer '+r.apiToken,'content-type':'application/json',...headers}},resolve);
++ const req=http.request({socketPath:join(bridgeRoot(r),'worker.sock'),path,method,headers:{authorization:'Bearer '+r.apiToken,'content-type':'application/json',...headers}},resolve);
+  req.setTimeout(95000,()=>req.destroy(error('Native control timeout',504)));req.on('error',reject);req.end(value===undefined?undefined:JSON.stringify(value));
+ });}
+ async function workerJSON(r,path,method,value){const response=await workerRequest(r,path,method,value);const chunks=[];for await(const b of response)chunks.push(b);const data=JSON.parse(Buffer.concat(chunks));if(response.statusCode>=400)throw error(data.code??'Native request rejected',response.statusCode);return {code:response.statusCode,data};}
+-function publicState(r,native){return {sessionId:r.contract.sessionId,runtimeTaskId:r.contract.taskId,workerId:r.workerId,workerState:r.workerState,taskState:r.taskState,revoked:r.revoked,stopProof:r.stopProof??null,remoteStopConfirmed:r.remoteStopConfirmed===true,native:native??null};}
++function publicState(r,native){return {sessionId:r.contract.sessionId,runtimeTaskId:r.contract.taskId,workerId:r.workerId,workerState:r.workerState,taskState:r.taskState,revoked:r.revoked,stopProof:r.stopProof??null,remoteStopConfirmed:r.remoteStopConfirmed===true,native:native??null,...(executor?{resourceEnforced:r.resourceEnforced??false,productionReady:false}:{})};}
+ async function operation(r,path,value={}){
+  if(!cfg.operations)throw error('Operation authority unavailable',503);
+  const response=await fetch(cfg.operations.url+path,{method:'POST',headers:{authorization:'Bearer '+cfg.operations.secret,'content-type':'application/json'},body:JSON.stringify({identity:r.contract,...value})});
+@@ -44,7 +51,7 @@ async function stop(r,reason){
+  if(['STOPPED','STOPPING'].includes(r.workerState))return;r.revoked=true;r.workerState='STOPPING';r.taskState='STOPPING';save(r);event(r,'worker.stopping',{reason});
+  for(const response of streams.get(r.workerId)??[])response.end();for(const controller of calls.get(r.workerId)??[])controller.abort();
+  try{if(r.nativeSessionId)await workerJSON(r,'/v1/sessions/'+r.nativeSessionId+'/cancel','POST',{});}catch{}
+- try{if(r.containerId)r.stopProof=await docker.stop(r.containerId);r.workerState='STOPPED';r.taskState='CANCELLED_LOCAL_ONLY';}
++ try{if(r.containerId||executor&&r.provisioningAttempted)r.stopProof=await stopWorker(r);r.workerState='STOPPED';r.taskState='CANCELLED_LOCAL_ONLY';}
+  catch{r.workerState='RECOVERABLE';r.taskState='UNKNOWN';}
+  if(cfg.operations){try{await reconcileRemote(r,true);r.taskState=r.remoteStopConfirmed?'CANCELLED_REMOTE_CONFIRMED':'UNKNOWN';}catch{r.remoteStopConfirmed=false;r.taskState='UNKNOWN';}if(!r.remoteStopConfirmed)r.workerState='RECOVERABLE';}
+  brokers.get(r.workerId)?.close();save(r);event(r,'worker.stopped',{workerState:r.workerState,stopProof:r.stopProof??null,remoteStopConfirmed:r.remoteStopConfirmed===true});
+@@ -94,6 +101,13 @@ async function allocate(r){
+  const dir=join(cfg.stateRoot,'workers',r.workerId),tenant=cfg.tenants[r.contract.tenantId];
+  try{
+   r.workerState='STARTING';save(r);event(r,'worker.starting');
++  if(executor){
++   if(r.revoked)throw Error('Allocation revoked');r.provisioningAttempted=true;save(r);
++   const created=await executor.create(grant(r),{workerId:r.workerId,resourceProfile:'standard',apiToken:r.apiToken,brokerToken:r.brokerToken,editTool:r.editTool});
++   r.containerId=created.Id;r.resourceEnforced=created.resources.enforced;save(r);
++   await broker(r,join(bridgeRoot(r),'broker.sock'));
++   if(r.revoked)throw Error('Allocation revoked');await executor.start(grant(r),r.workerId);
++  }else{
+   for(const name of ['workspace','state','bridge']){mkdirSync(join(dir,name),{recursive:true,mode:0o700});chownSync(join(dir,name),1000,1000);}
+   templateFiles(tenant.workspaces[r.contract.workspaceRef]);cpSync(tenant.workspaces[r.contract.workspaceRef],join(dir,'workspace'),{recursive:true,dereference:false});templateFiles(join(dir,'workspace'),p=>chownSync(p,1000,1000));
+   // Template ownership is prepared by the deployment owner; no host path comes from a client.
+@@ -105,17 +119,18 @@ async function allocate(r){
+   const index=r.slot;
+   const spec=workerContainerSpec({image:cfg.workerImage,root:join(cfg.hostStateRoot,'workers',r.workerId),workerId:r.workerId,sessionId:r.contract.sessionId,tenantId:r.contract.tenantId,memoryBytes:cfg.memoryBytes??3221225472,cpuSet:cfg.cpuSets[index%cfg.cpuSets.length]});
+   if(r.revoked)throw Error('Allocation revoked');r.provisioningAttempted=true;save(r);r.containerId=await docker.create('cline-p3-'+r.workerId,spec);save(r);if(r.revoked)throw Error('Allocation revoked');await docker.call('POST','/containers/'+r.containerId+'/start');
++  }
+   for(let n=0;n<180;n++){if(r.revoked)throw Error('Allocation revoked');try{await workerJSON(r,'/health/ready');break;}catch{if(n===179)throw Error('Worker API startup deadline');await delay(500);}}
+   const created=await workerJSON(r,'/v1/sessions','POST',{workspaceRef:'project',editTool:r.editTool});r.nativeSessionId=created.data.sessionId;save(r);
+   for(let n=0;n<200;n++){if(r.revoked)throw Error('Allocation revoked');const state=(await workerJSON(r,'/v1/sessions/'+r.nativeSessionId+'/status')).data;if(state.status==='idle')break;if(state.status==='failed'||n===199)throw Error('Native startup failed');await delay(500);}
+   if(cfg.operations){const native=(await workerJSON(r,'/v1/sessions/'+r.nativeSessionId+'/status')).data;r.nativeEpoch=native.epoch;await operation(r,'/session',{epoch:native.epoch});r.operationSession=true;}
+   if(r.revoked)throw Error('Allocation revoked');r.workerState='READY';r.taskState='READY';save(r);event(r,'worker.ready',{containerId:r.containerId});
+- }catch(e){r.revoked=true;r.workerState='START_FAILED';r.taskState='FAILED';event(r,'worker.start_failed',{reason:'Worker provisioning or native startup failed'});if(r.containerId)try{r.stopProof=await docker.stop(r.containerId);}catch{r.workerState='RECOVERABLE';r.taskState='UNKNOWN';}save(r);brokers.get(r.workerId)?.close();}
++ }catch(e){r.revoked=true;r.workerState='START_FAILED';r.taskState='FAILED';event(r,'worker.start_failed',{reason:'Worker provisioning or native startup failed'});if(r.containerId||executor&&r.provisioningAttempted)try{r.stopProof=await stopWorker(r);}catch{r.workerState='RECOVERABLE';r.taskState='UNKNOWN';}save(r);brokers.get(r.workerId)?.close();}
+ }
+ const server=http.createServer(async(req,res)=>{
+  try{
+   const path=new URL(req.url,'http://control').pathname;
+-  if(path==='/health/live')return send(res,200,{live:true,stage:'P3.1',enterpriseAcceptance:false});
++  if(path==='/health/live')return send(res,200,{live:true,stage:executor?'P3.3.1':'P3.1',enterpriseAcceptance:false});
+   const c=granted(req),tenant=Object.hasOwn(cfg.tenants,c.tenantId)?cfg.tenants[c.tenantId]:undefined;if(!tenant||!tenant.users.includes(c.userId)||!Object.hasOwn(tenant.workspaces,c.workspaceRef)||!tenant.models.includes(c.modelProfile)||!c.dataPermissions.every(x=>tenant.datasets.includes(x))||!c.toolPermissions.every(x=>tenant.tools.includes(x)))throw error('Task policy not granted',403);
+   if(path==='/v1/sessions'&&req.method==='POST'){
+    const b=await body(req),key=req.headers['idempotency-key'];if(!key||Object.keys(b).some(k=>k!=='editTool')||b.editTool&&!['editor','apply_patch'].includes(b.editTool))throw error('Invalid create request');
+@@ -157,7 +172,7 @@ const server=http.createServer(async(req,res)=>{
+ const ticker=setInterval(()=>{for(const r of records.values())if(!['STOPPED','START_FAILED','RECOVERABLE','STOPPING'].includes(r.workerState)&&r.contract.expiresAt<=Date.now())void stop(r,'lease-expired');},500);ticker.unref();
+ if(cfg.operations){
+  for(const r of records.values())if(r.operationSession&&r.revoked)try{await reconcileRemote(r,true);}catch{event(r,'recovery.remote_unconfirmed');}
+- const monitor=setInterval(()=>{for(const r of records.values())if(r.operationSession&&!r.revoked&&!r.monitorBusy){r.monitorBusy=true;(async()=>{try{const info=await docker.inspect(r.containerId);if(!info.State.Running){await stop(r,'worker-lost');return;}const native=(await workerJSON(r,'/v1/sessions/'+r.nativeSessionId+'/status')).data;if(['failed','recoverable','cancelled'].includes(native.status)){await stop(r,'native-core-lost');return;}await operation(r,'/heartbeat',{epoch:r.nativeEpoch});}catch{await stop(r,'operation-control-lost');}finally{r.monitorBusy=false;}})();}},3000);monitor.unref();
++ const monitor=setInterval(()=>{for(const r of records.values())if(r.operationSession&&!r.revoked&&!r.monitorBusy){r.monitorBusy=true;(async()=>{try{const info=await inspectWorker(r);if(!info.State.Running){await stop(r,'worker-lost');return;}const native=(await workerJSON(r,'/v1/sessions/'+r.nativeSessionId+'/status')).data;if(['failed','recoverable','cancelled'].includes(native.status)){await stop(r,'native-core-lost');return;}await operation(r,'/heartbeat',{epoch:r.nativeEpoch});}catch{await stop(r,'operation-control-lost');}finally{r.monitorBusy=false;}})();}},3000);monitor.unref();
+ }
+ server.listen(cfg.port??18328,cfg.host??'127.0.0.1',()=>console.log(JSON.stringify({event:'governance.ready',stage:'P3.1',recovery:'fail-closed; no operation replay',maxWorkers:cfg.maxWorkers})));
+ async function shutdown(){server.close();await Promise.all([...records.values()].filter(r=>!['STOPPED','START_FAILED','RECOVERABLE'].includes(r.workerState)).map(r=>stop(r,'control-shutdown')));process.exit(0);}
+diff --git a/cline-agent-server/src/task-contract.mjs b/cline-agent-server/src/task-contract.mjs
+index 145fa7d6d..e320f0dbd 100644
+--- a/cline-agent-server/src/task-contract.mjs
++++ b/cline-agent-server/src/task-contract.mjs
+@@ -2,7 +2,7 @@ import {createHmac,timingSafeEqual,createHash} from 'node:crypto';
+ const identifier=/^[a-zA-Z0-9][a-zA-Z0-9_-]{0,95}$/;
+ export const contractHash=c=>createHash('sha256').update(JSON.stringify(c)).digest('hex');
+ export function signContract(contract,key){const body=Buffer.from(JSON.stringify(contract)).toString('base64url');return body+'.'+createHmac('sha256',key).update(body).digest('base64url');}
+-export function verifyContract(token,key,now=Date.now()){
++export function verifyContract(token,key,now=Date.now(),{allowExpired=false}={}){
+  const fail=()=>{throw Object.assign(Error('Invalid or expired task identity'),{status:401});};
+  if(typeof token!=='string'||token.length>16384)return fail();
+  const parts=token.split('.');if(parts.length!==2)return fail();
+@@ -10,7 +10,7 @@ export function verifyContract(token,key,now=Date.now()){
+  if(actual.length!==expected.length||!timingSafeEqual(actual,expected))return fail();
+  let c;try{c=JSON.parse(Buffer.from(parts[0],'base64url').toString());}catch{return fail();}
+  if(c.version!==1||!['tenantId','userId','taskId','sessionId','workspaceRef','modelProfile'].every(k=>typeof c[k]==='string'&&identifier.test(c[k])))return fail();
+- if(!Number.isSafeInteger(c.expiresAt)||c.expiresAt<=now||c.expiresAt>now+86400000)return fail();
++ if(!Number.isSafeInteger(c.expiresAt)||!allowExpired&&c.expiresAt<=now||c.expiresAt>now+86400000)return fail();
+  if(!Array.isArray(c.toolPermissions)||!c.toolPermissions.every(x=>typeof x==='string'&&x.length<128)||!Array.isArray(c.dataPermissions)||!c.dataPermissions.every(x=>typeof x==='string'&&identifier.test(x)))return fail();
+  if(c.networkPolicy!=='broker-only'||!c.budgetPolicy||c.budgetPolicy.status!=='DEFERRED_STAGE_2_REVIEW')return fail();
+  return c;
+diff --git a/cline-agent-server/src/worker-executor-client.mjs b/cline-agent-server/src/worker-executor-client.mjs
+new file mode 100644
+index 000000000..bae441481
+--- /dev/null
++++ b/cline-agent-server/src/worker-executor-client.mjs
+@@ -0,0 +1,15 @@
++import http from 'node:http';
++
++// Capability client only. No Docker paths, specifications, container IDs or socket fallback.
++export class WorkerExecutorClient {
++ constructor(config){if(!config?.socketPath||!config?.token)throw Error('Restricted Executor configuration required');this.config=config;}
++ request(method,path,grant,value){return new Promise((resolve,reject)=>{
++  const req=http.request({socketPath:this.config.socketPath,path,method,headers:{authorization:'Bearer '+this.config.token,'x-cline-task':grant,'content-type':'application/json'}},res=>{
++   const chunks=[];res.on('data',b=>chunks.push(b));res.on('end',()=>{try{const data=JSON.parse(Buffer.concat(chunks));if(res.statusCode>=400)reject(Object.assign(Error(data.message??'Executor rejected'),{status:res.statusCode}));else resolve(data);}catch(e){reject(e);}});res.on('error',reject);
++  });req.setTimeout(30000,()=>req.destroy(Error('Executor response unknown; reconcile before retry')));req.on('error',reject);req.end(value===undefined?undefined:JSON.stringify(value));
++ });}
++ create(grant,value){return this.request('POST','/internal/workers',grant,value);}
++ inspect(grant,id){return this.request('GET','/internal/workers/'+encodeURIComponent(id),grant);}
++ start(grant,id){return this.request('POST','/internal/workers/'+encodeURIComponent(id)+'/start',grant,{});}
++ stop(grant,id){return this.request('POST','/internal/workers/'+encodeURIComponent(id)+'/stop',grant,{});}
++}
+diff --git a/cline-agent-server/src/worker-executor-policy.mjs b/cline-agent-server/src/worker-executor-policy.mjs
+new file mode 100644
+index 000000000..af11af70f
+--- /dev/null
++++ b/cline-agent-server/src/worker-executor-policy.mjs
+@@ -0,0 +1,31 @@
++import {createHash,createHmac} from 'node:crypto';
++import {lstatSync,realpathSync} from 'node:fs';
++import {join,resolve,sep,posix} from 'node:path';
++import {verifyContract,contractHash} from './task-contract.mjs';
++import {workerContainerSpec} from './docker-engine.mjs';
++
++export const reject=(message,status=403)=>Object.assign(Error(message),{status});
++export const uuid=/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/;
++export function exact(value,keys){if(!value||Array.isArray(value)||typeof value!=='object'||Object.keys(value).some(k=>!keys.includes(k)))throw reject('Unexpected request fields');}
++export function taskGrant(token,cfg,allowExpired=false){
++ const c=verifyContract(token,cfg.signingKey,Date.now(),{allowExpired});const t=Object.hasOwn(cfg.tenants,c.tenantId)?cfg.tenants[c.tenantId]:null;
++ if(!t||!t.users.includes(c.userId)||!Object.hasOwn(t.workspaces,c.workspaceRef)||!t.models.includes(c.modelProfile)||!c.toolPermissions.every(x=>t.tools.includes(x))||!c.dataPermissions.every(x=>t.datasets.includes(x)))throw reject('Executor task policy denied');
++ return c;
++}
++export function identity(c,cfg){const owner=createHash('sha256').update(JSON.stringify([c.tenantId,c.userId,c.taskId,c.sessionId])).digest('hex');return {name:'cline-p331-'+owner.slice(0,40),owner,contractHash:contractHash(c)};}
++export function validateCreate(body){
++ exact(body,['workerId','resourceProfile','apiToken','brokerToken','editTool']);
++ if(!uuid.test(body.workerId)||body.resourceProfile!=='standard'||!['editor','apply_patch'].includes(body.editTool)||![body.apiToken,body.brokerToken].every(x=>typeof x==='string'&&/^[a-f0-9]{64}$/.test(x)))throw reject('Invalid fixed Worker capability request');
++}
++export function safeTree(path){const stat=lstatSync(path);if(stat.isSymbolicLink())throw reject('Symbolic links forbidden in mount anchors/templates');return stat;}
++export function mountAnchor(root,id){if(!uuid.test(id))throw reject('Invalid Worker ID');safeTree(root);const resolved=realpathSync(root);if(resolved!==resolve(root))throw reject('Untrusted anchor root');return join(resolved,id);}
++export function assertAnchors(root,id){const anchor=mountAnchor(root,id);safeTree(anchor);for(const name of ['workspace','state','bridge','config.json'])safeTree(join(anchor,name));if(realpathSync(anchor)!==anchor||!anchor.startsWith(realpathSync(root)+sep))throw reject('Mount anchor outside Executor root');}
++export function buildSpec(c,body,cfg){
++ validateCreate(body);const i=identity(c,cfg);const ownership=createHmac('sha256',cfg.ownershipKey).update(i.owner+'\0'+body.workerId).digest('hex');
++ const spec=workerContainerSpec({image:cfg.workerImage,root:posix.join(cfg.hostWorkersRoot,body.workerId),workerId:body.workerId,sessionId:c.sessionId,tenantId:c.tenantId,memoryBytes:cfg.resources.memoryBytes,cpuSet:cfg.resources.cpuSet});
++ spec.HostConfig.NanoCpus=cfg.resources.nanoCpus;spec.HostConfig.PidsLimit=cfg.resources.pidsLimit;
++ const normalized={workerId:body.workerId,resourceProfile:body.resourceProfile,apiToken:body.apiToken,brokerToken:body.brokerToken,editTool:body.editTool};
++ spec.Labels={...spec.Labels,'cline.executor':cfg.instanceId,'cline.owner':i.owner,'cline.contract':i.contractHash,'cline.ownership':ownership,'cline.request':createHash('sha256').update(JSON.stringify(normalized)).digest('hex')};
++ return {spec,...i};
++}
++export function verifyOwned(info,c,id,cfg){const i=identity(c,cfg),l=info.Config.Labels??{},expected=createHmac('sha256',cfg.ownershipKey).update(i.owner+'\0'+id).digest('hex');if(l['cline.executor']!==cfg.instanceId||l['cline.owner']!==i.owner||l['cline.contract']!==i.contractHash||l['cline.workerId']!==id||l['cline.ownership']!==expected)throw reject('Worker not found in task scope',404);return info;}
+diff --git a/cline-agent-server/src/worker-executor.mjs b/cline-agent-server/src/worker-executor.mjs
+new file mode 100644
+index 000000000..d7bc3e3a1
+--- /dev/null
++++ b/cline-agent-server/src/worker-executor.mjs
+@@ -0,0 +1,92 @@
++import http from 'node:http';
++import {readFileSync,writeFileSync,mkdirSync,readdirSync,cpSync,chmodSync,chownSync,existsSync,unlinkSync,openSync,closeSync,fsyncSync} from 'node:fs';
++import {join} from 'node:path';
++import {timingSafeEqual} from 'node:crypto';
++import {DockerEngine} from './docker-engine.mjs';
++import {reject,exact,taskGrant,identity,validateCreate,safeTree,mountAnchor,assertAnchors,buildSpec,verifyOwned,uuid} from './worker-executor-policy.mjs';
++
++const cfg=JSON.parse(readFileSync(process.env.CLINE_EXECUTOR_CONFIG));
++if(!/^sha256:[a-f0-9]{64}$/.test(cfg.workerImage)||!cfg.expectedDaemonId||!cfg.ownershipKey||!cfg.instanceId||!cfg.apiToken||!cfg.signingKey)throw Error('Pinned Executor policy required');
++const docker=new DockerEngine(cfg.dockerSocket);
++const daemon=await docker.call('GET','/info');
++if(daemon.ID!==cfg.expectedDaemonId||!daemon.SecurityOptions?.includes('name=rootless'))throw Error('Wrong daemon or rootful daemon: refusing Executor startup');
++const resourceSupport=daemon.CgroupDriver!=='none'&&daemon.MemoryLimit&&daemon.CpuCfsQuota&&daemon.PidsLimit;
++if(!resourceSupport&&!cfg.allowUnenforcedPrototype)throw Error('Per-Worker cgroup resource enforcement unavailable');
++mkdirSync(cfg.workersRoot,{recursive:true,mode:0o755});chmodSync(cfg.workersRoot,0o755);
++mkdirSync(cfg.controlRoot,{recursive:true,mode:0o750});
++const journal=join(cfg.controlRoot,'executor-audit.jsonl');
++function audit(action,detail={}){const fd=openSync(journal,'a',0o600);try{writeFileSync(fd,JSON.stringify({at:new Date().toISOString(),action,...detail})+'\n');fsyncSync(fd);}finally{closeSync(fd);}}
++let tail=Promise.resolve(),pending=0;
++function serial(action){if(pending>=32)throw reject('Executor queue capacity',429);pending++;const current=tail.then(action).finally(()=>pending--);tail=current.catch(()=>{});return current;}
++function tree(path,visit){const s=safeTree(path);if(s.isDirectory())for(const name of readdirSync(path))tree(join(path,name),visit);visit?.(path,s);}
++function view(info,c,id){verifyOwned(info,c,id,cfg);return {Id:info.Id,workerId:id,Config:{Labels:info.Config.Labels},State:Object.fromEntries(['Status','Running','ExitCode','StartedAt','FinishedAt'].map(k=>[k,info.State[k]])),resources:{enforced:!!resourceSupport,requested:cfg.resources,configured:{memoryBytes:info.HostConfig.Memory,nanoCpus:info.HostConfig.NanoCpus,pidsLimit:info.HostConfig.PidsLimit},productionReady:!!resourceSupport}};}
++async function owned(c,id){if(!uuid.test(id))throw reject('Invalid Worker ID');try{return verifyOwned(await docker.inspect(identity(c,cfg).name),c,id,cfg);}catch(e){if(e.dockerStatus===404)throw reject('Worker not found',404);throw e;}}
++function closed(id){return join(cfg.workersRoot,id,'closed');}
++function taskClosed(c){return join(cfg.controlRoot,'closed-'+identity(c,cfg).owner);}
++function durableMark(path,parent){const fd=openSync(path,'a',0o600);try{writeFileSync(fd,'closed\n');fsyncSync(fd);}finally{closeSync(fd);}const d=openSync(parent,'r');fsyncSync(d);closeSync(d);}
++function freeze(c,id){durableMark(closed(id),join(cfg.workersRoot,id));durableMark(taskClosed(c),cfg.controlRoot);}
++function prepare(c,b){
++ const root=mountAnchor(cfg.workersRoot,b.workerId);if(existsSync(root))throw reject('UNKNOWN: prepared anchor without confirmed container; manual reconciliation required',409);
++ mkdirSync(root,{mode:0o755});
++ for(const name of ['workspace','state','bridge'])mkdirSync(join(root,name),{mode:0o700});
++ const template=cfg.tenants[c.tenantId].workspaces[c.workspaceRef];tree(template);cpSync(template,join(root,'workspace'),{recursive:true,dereference:false});tree(join(root,'workspace'),p=>chownSync(p,1000,1000));
++ for(const name of ['state','bridge'])chownSync(join(root,name),1000,1000);
++ const privateConfig={operationContext:!!cfg.operationContext,sourceRoot:'/not-mounted/upstream',distDir:'/poc/runtime',stateDir:'/poc/state',socketPath:'/poc/bridge/worker.sock',apiToken:b.apiToken,apiKey:b.brokerToken,model:cfg.modelNames[c.modelProfile],baseUrl:'http://127.0.0.1:18329/model/v1',workspaces:{project:'/poc/project'},toolPermissions:c.toolPermissions,
++  ...(cfg.tenants[c.tenantId].mcp?{mcpServers:{tenant_data:{type:'streamableHttp',url:'http://127.0.0.1:18329/mcp',headers:{Authorization:'Bearer '+b.brokerToken},disabled:false,autoApprove:[]}}}:{})};
++ const p=join(root,'config.json');writeFileSync(p,JSON.stringify(privateConfig),{mode:0o440});chownSync(p,0,1000);assertAnchors(cfg.workersRoot,b.workerId);
++}
++async function create(c,b){
++ validateCreate(b);const built=buildSpec(c,b,cfg);let existing;
++ try{existing=await docker.inspect(built.name);}catch(e){if(e.dockerStatus!==404)throw e;}
++ if(existing){verifyOwned(existing,c,b.workerId,cfg);if(existing.Config.Labels['cline.request']!==built.spec.Labels['cline.request'])throw reject('Immutable Worker create conflict',409);assertAnchors(cfg.workersRoot,b.workerId);return view(existing,c,b.workerId);}
++ if(existsSync(taskClosed(c)))throw reject('Task Worker closed; cleanup never authorizes recreation',409);
++ const listed=await docker.call('GET','/containers/json?all=1&filters='+encodeURIComponent(JSON.stringify({label:['cline.executor='+cfg.instanceId],status:['created','running','paused','restarting']})));
++ // A confirmed never-started container with an Executor-owned close marker cannot
++ // run later. Running/restarting/paused containers always retain their reservation.
++ const active=listed.filter(x=>!(x.State==='created'&&uuid.test(x.Labels['cline.workerId'])&&existsSync(closed(x.Labels['cline.workerId']))));
++ if(active.length>=cfg.maxWorkers||active.filter(x=>x.Labels['cline.tenantId']===c.tenantId).length>=cfg.maxPerTenant)throw reject('Executor independent capacity limit',429);
++ prepare(c,b);
++ // Explicit review-only mode, never silently advertise unsupported cgroup limits.
++ if(!resourceSupport){built.spec.HostConfig.Memory=0;built.spec.HostConfig.NanoCpus=0;built.spec.HostConfig.CpusetCpus='';built.spec.HostConfig.PidsLimit=0;built.spec.HostConfig.Ulimits=[{Name:'nofile',Soft:1024,Hard:1024},{Name:'nproc',Soft:256,Hard:256}];}
++ audit('worker.create.intent',{workerId:b.workerId,owner:built.owner,resourceEnforced:!!resourceSupport});
++ const id=await docker.create(built.name,built.spec);audit('worker.created',{workerId:b.workerId,containerId:id});return view(await docker.inspect(id),c,b.workerId);
++}
++async function route(req,b){
++ const url=new URL(req.url,'http://executor');if(url.search||url.pathname!==req.url)throw reject('Canonical capability routes only',404);
++ const parts=url.pathname.split('/').filter(Boolean);if(parts[0]!=='internal'||parts[1]!=='workers')throw reject('No Docker/API forwarding capability',404);
++ const action=parts[3];if(parts.length>4||action&&!['start','stop','kill','health'].includes(action))throw reject('Unknown Worker capability',404);
++ const token=req.headers['x-cline-task'];const c=taskGrant(token,cfg,req.method==='GET'||['stop','kill'].includes(action)||req.method==='DELETE');
++ if(parts.length===2&&req.method==='POST')return serial(()=>create(c,b));
++ if(parts.length<3)throw reject('Route not found',404);
++ const id=parts[2];
++ if(req.method==='GET'&&(!action||action==='health')){exact(b,[]);return view(await owned(c,id),c,id);}
++ if(req.method==='POST'&&['start','stop','kill'].includes(action)){
++  exact(b,[]);return serial(async()=>{const info=await owned(c,id);assertAnchors(cfg.workersRoot,id);
++   if(action==='start'){
++    if(existsSync(closed(id)))throw reject('Worker closed; late start rejected',409);
++    if(info.State.Running)return view(info,c,id);
++    if(info.State.StartedAt&&!info.State.StartedAt.startsWith('0001-'))throw reject('Worker restart is not an admitted capability',409);
++    await docker.call('POST','/containers/'+info.Id+'/start');audit('worker.started',{workerId:id,containerId:info.Id});return view(await docker.inspect(info.Id),c,id);
++   }
++   freeze(c,id);
++   if(action==='kill'&&info.State.Running)await docker.call('POST','/containers/'+info.Id+'/kill?signal=SIGKILL');
++   else if(action==='stop')try{await docker.call('POST','/containers/'+info.Id+'/stop?t=8');}catch(e){if(e.dockerStatus!==304)throw e;}
++   const final=await docker.inspect(info.Id);if(final.State.Running)throw reject('UNKNOWN: Worker stop not confirmed',503);
++   audit('worker.stopped',{workerId:id,containerId:info.Id,exitCode:final.State.ExitCode});return {containerId:info.Id,running:false,exitCode:final.State.ExitCode,finishedAt:final.State.FinishedAt};
++  });
++ }
++ if(req.method==='DELETE'&&!action){exact(b,[]);return serial(async()=>{const info=await owned(c,id);if(info.State.Running||!existsSync(closed(id)))throw reject('Only confirmed closed Workers can be cleaned',409);freeze(c,id);await docker.call('DELETE','/containers/'+info.Id);audit('worker.removed',{workerId:id,containerId:info.Id});return {removed:true,workerId:id};});}
++ throw reject('Method not granted',405);
++}
++const server=http.createServer(async(req,res)=>{let code=200,value;try{
++ if(req.method==='GET'&&req.url==='/health/live'){value={live:true,daemon:'dedicated-rootless',resourceEnforced:!!resourceSupport,productionReady:false};}
++ else{
++  const a=Buffer.from(req.headers.authorization??''),e=Buffer.from('Bearer '+cfg.apiToken);if(a.length!==e.length||!timingSafeEqual(a,e))throw reject('Executor service credential rejected',401);
++  let size=0;const chunks=[];for await(const b of req){size+=b.length;if(size>32768)throw reject('Request too large',413);chunks.push(b);}let b;try{b=JSON.parse(Buffer.concat(chunks).toString()||'{}');}catch{throw reject('Invalid JSON',400);}value=await route(req,b);
++ }
++}catch(e){code=e.status??503;value={message:e.status?e.message:'Executor operation unknown; query before retry'};audit('request.rejected',{method:req.method,path:req.url,code,reason:value.message,nativeErrorCode:e.code??null,nativeFailure:String(e.dockerMessage??e.message).slice(0,512)});}
++res.writeHead(code,{'content-type':'application/json','cache-control':'no-store'});res.end(JSON.stringify(value));});
++server.requestTimeout=10000;server.headersTimeout=10000;
++if(existsSync(cfg.socketPath))unlinkSync(cfg.socketPath);
++await new Promise((resolve,reject)=>{server.once('error',reject);server.listen(cfg.socketPath,resolve);});chownSync(cfg.socketPath,0,1000);chmodSync(cfg.socketPath,0o660);
++console.log(JSON.stringify({event:'restricted-executor.ready',daemonId:daemon.ID,rootless:true,resourceEnforced:!!resourceSupport,productionReady:false}));
+diff --git a/cline-agent-server/test/executor-policy.test.mjs b/cline-agent-server/test/executor-policy.test.mjs
+new file mode 100644
+index 000000000..c698b4c96
+--- /dev/null
++++ b/cline-agent-server/test/executor-policy.test.mjs
+@@ -0,0 +1,28 @@
++import test from 'node:test';
++import assert from 'node:assert/strict';
++import {randomUUID} from 'node:crypto';
++import {mkdtempSync,mkdirSync,writeFileSync,symlinkSync,rmSync,rmdirSync} from 'node:fs';
++import {tmpdir} from 'node:os';
++import {join} from 'node:path';
++import {signContract} from '../src/task-contract.mjs';
++import {validateCreate,taskGrant,buildSpec,verifyOwned,assertAnchors} from '../src/worker-executor-policy.mjs';
++const key='k'.repeat(64),cfg={signingKey:key,ownershipKey:'o'.repeat(64),instanceId:'executor-review',workerImage:'sha256:'+'a'.repeat(64),hostWorkersRoot:'/isolated/workers',resources:{memoryBytes:2147483648,nanoCpus:2000000000,pidsLimit:256,cpuSet:'8,9'},tenants:{alpha:{users:['alice'],workspaces:{project:'/trusted/template'},models:['model'],tools:['read_files'],datasets:['dataset']}}};
++const contract={version:1,tenantId:'alpha',userId:'alice',sessionId:'session',taskId:'task',workspaceRef:'project',modelProfile:'model',toolPermissions:['read_files'],dataPermissions:['dataset'],networkPolicy:'broker-only',budgetPolicy:{status:'DEFERRED_STAGE_2_REVIEW'},expiresAt:Date.now()+3600000};
++const request=()=>({workerId:randomUUID(),resourceProfile:'standard',apiToken:'a'.repeat(64),brokerToken:'b'.repeat(64),editTool:'editor'});
++test('Executor refuses every caller-controlled Docker parameter',()=>{
++ for(const [field,value] of Object.entries({image:'alpine',Image:'alpine',root:'/',HostConfig:{Privileged:true},mounts:['/:/host'],network:'host',pidMode:'host',devices:['/dev/kvm'],Cmd:['sh'],labels:{owner:'other'},dockerPath:'/containers/create',cpuSet:'0-127',memoryBytes:0,privileged:true,namespace:'host'}))assert.throws(()=>validateCreate({...request(),[field]:value}),{status:403},field);
++ for(const resourceProfile of ['unlimited','../standard','STANDARD'])assert.throws(()=>validateCreate({...request(),resourceProfile}),{status:403});
++});
++test('Worker specification and ownership are server policy, including on privileged service calls',()=>{
++ const b=request(),built=buildSpec(contract,b,cfg),s=built.spec;assert.equal(s.Image,cfg.workerImage);assert.equal(s.User,'1000:1000');assert.equal(s.HostConfig.NetworkMode,'none');assert.equal(s.HostConfig.ReadonlyRootfs,true);assert.deepEqual(s.HostConfig.CapDrop,['ALL']);assert.equal(s.HostConfig.Memory,2147483648);assert(s.HostConfig.Binds.every(p=>p.startsWith('/isolated/workers/'+b.workerId+'/')));assert(s.HostConfig.Binds.every(p=>!p.includes('docker.sock')));
++ const info={Config:{Labels:s.Labels}};assert.equal(verifyOwned(info,contract,b.workerId,cfg),info);assert.throws(()=>verifyOwned(info,{...contract,userId:'bob'},b.workerId,cfg),{status:404});assert.throws(()=>verifyOwned(info,contract,randomUUID(),cfg),{status:404});
++});
++test('Executor verifies grants independently and expired grants authorize observation/stop only',()=>{
++ assert.deepEqual(taskGrant(signContract(contract,key),cfg),contract);assert.throws(()=>taskGrant(signContract({...contract,userId:'bob'},key),cfg),{status:403});
++ const expired=signContract({...contract,expiresAt:Date.now()-1000},key);assert.throws(()=>taskGrant(expired,cfg));assert.equal(taskGrant(expired,cfg,true).userId,'alice');assert.throws(()=>taskGrant(signContract(contract,'x'.repeat(64)),cfg));
++});
++test('symbolic-link mount anchors are rejected, even inside an otherwise permitted root',()=>{
++ const root=mkdtempSync(join(tmpdir(),'cline-executor-')),id=randomUUID();
++ try{mkdirSync(join(root,id));for(const d of ['workspace','state','bridge'])mkdirSync(join(root,id,d));writeFileSync(join(root,id,'config.json'),'{}');assertAnchors(root,id);rmdirSync(join(root,id,'workspace'));symlinkSync(join(root,id,'state'),join(root,id,'workspace'),'junction');assert.throws(()=>assertAnchors(root,id),{status:403});}
++ finally{if(!root.startsWith(join(tmpdir(),'cline-executor-')))throw Error('Unexpected cleanup target');rmSync(root,{recursive:true,force:true});}
++});
+diff --git a/cline-agent-server/test/p331-evidence.test.mjs b/cline-agent-server/test/p331-evidence.test.mjs
+new file mode 100644
+index 000000000..7e2355917
+--- /dev/null
++++ b/cline-agent-server/test/p331-evidence.test.mjs
+@@ -0,0 +1,13 @@
++import test from 'node:test';
++import assert from 'node:assert/strict';
++import {readFileSync} from 'node:fs';
++import {createHash} from 'node:crypto';
++const root=new URL('../../docs/testing/evidence/cline-server-p331-20261108/',import.meta.url);
++const json=p=>JSON.parse(readFileSync(new URL(p,root),'utf8'));
++test('P331 evidence bytes remain equal to their recorded hashes',()=>{
++ for(const f of json('SHA256SUMS.json')){assert(!f.path.includes('..')&&!f.path.startsWith('/')&&!f.path.includes('\\'));const b=readFileSync(new URL(f.path,root));assert.equal(b.length,f.bytes,f.path);assert.equal(createHash('sha256').update(b).digest('hex'),f.sha256,f.path);}
++});
++test('P331 review never turns the real resource failure into a production pass',()=>{
++ const matrix=json('runs/live-results.json');assert.equal(matrix.length,20);assert(matrix.filter(x=>x.blocking).every(x=>x.pass));assert.equal(matrix.find(x=>x.case==='per-worker-cgroup-hard-limits').pass,false);
++ const gateway=json('docker/cline-p331-gateway.json');assert.equal(gateway.Config.User,'1000:1000');assert(!gateway.Mounts.some(x=>x.Source.includes('docker.sock')));assert(json('runs/startup-guards.json').every(x=>x.pass));assert.equal(json('collection.json').productionReady,false);assert.equal(json('collection.json').pythonRuntimeMigrated,false);assert.equal(json('runs/native-summary.json').pass,true);assert(json('worker-states.json').every(x=>!x.state.Running));assert.deepEqual(json('runs/shared-before.json'),json('runs/shared-after.json'));assert.equal(json('source/official-runtime-verification.json').status,'PASS');
++});
+diff --git a/cline-agent-server/test/p331-live.py b/cline-agent-server/test/p331-live.py
+new file mode 100644
+index 000000000..9bea36ef4
+--- /dev/null
++++ b/cline-agent-server/test/p331-live.py
+@@ -0,0 +1,65 @@
++#!/usr/bin/env python3
++"""Actual private rootless daemon, capability API, kernel permissions and native Cline.
++No Docker/Agent/receipt mock. No production daemon mutations or execution-node recovery work.
++"""
++import pathlib,json,subprocess,http.client,socket,uuid,time,hashlib,hmac,base64,urllib.request,urllib.error,datetime
++R=pathlib.Path('/opt/cline-server-p33-stage1-20261108');E=R/'evidence';cfg=json.loads((R/'config/executor.json').read_text());gc=json.loads((R/'config/gateway.json').read_text());account=json.loads((E/'rootless-account.json').read_text());D=['docker','-H','unix://'+account['socket']];results=[]
++def save(name,v):(E/name).write_text(v if isinstance(v,str) else json.dumps(v,indent=2))
++def record(name,ok,detail,blocking=True):
++ results.append({'case':name,'pass':bool(ok),'blocking':blocking,'detail':detail});save('live-results.json',results);print(name,'PASS' if ok else 'FAIL',flush=True)
++def out(*a):return subprocess.check_output(a,text=True).strip()
++def inspect(name):return json.loads(out(*D,'inspect',name))[0]
++class Unix(http.client.HTTPConnection):
++ def connect(self):self.sock=socket.socket(socket.AF_UNIX,socket.SOCK_STREAM);self.sock.settimeout(30);self.sock.connect(str(R/'executor-bridge/executor.sock'))
++def sign(c):
++ b=base64.urlsafe_b64encode(json.dumps(c,separators=(',',':')).encode()).rstrip(b'=');return (b+b'.'+base64.urlsafe_b64encode(hmac.new(cfg['signingKey'].encode(),b,hashlib.sha256).digest()).rstrip(b'=')).decode()
++def contract(tenant=None):
++ tid=tenant or next(iter(gc['tenants']));t=gc['tenants'][tid];return {'version':1,'tenantId':tid,'userId':t['users'][0],'taskId':'p331-'+uuid.uuid4().hex,'sessionId':'session-'+uuid.uuid4().hex,'workspaceRef':next(iter(t['workspaces'])),'modelProfile':t['models'][0],'toolPermissions':t['tools'],'dataPermissions':t['datasets'],'networkPolicy':'broker-only','budgetPolicy':{'status':'DEFERRED_STAGE_2_REVIEW'},'expiresAt':int(time.time()*1000)+3600000}
++def request(c,method,path,b=None,token=True):
++ conn=Unix('executor');conn.request(method,path,body=json.dumps(b or {}),headers={'authorization':'Bearer '+(cfg['apiToken'] if token else 'invalid'),'x-cline-task':sign(c),'content-type':'application/json'});r=conn.getresponse();data=json.loads(r.read());conn.close();return r.status,data
++def ids():return sorted(out(*D,'ps','-aq').splitlines())
++def body():return {'workerId':str(uuid.uuid4()),'resourceProfile':'standard','apiToken':uuid.uuid4().hex+uuid.uuid4().hex,'brokerToken':uuid.uuid4().hex+uuid.uuid4().hex,'editTool':'editor'}
++def rootful_snapshot():
++ rows=[]
++ for name in ('cline-p32-control','cline-p32-authority','cline-p32-remote'):
++  i=json.loads(out('docker','inspect',name))[0];rows.append({'name':name,'id':i['Id'],'image':i['Image'],'startedAt':i['State']['StartedAt'],'mounts':sorted(i['Mounts'],key=lambda m:m['Destination'])})
++ return rows
++before=rootful_snapshot();save('shared-before.json',before)
++c=contract();base=body();baseline=ids();attacks=[]
++for key,value in {'Image':'alpine','HostConfig':{'Privileged':True},'mounts':['/:/host'],'network':'host','pidMode':'host','devices':['/dev/kvm'],'Cmd':['sh'],'dockerPath':'/containers/create','memoryBytes':0}.items():
++ r=request(c,'POST','/internal/workers',{**base,key:value});attacks.append({'field':key,'reply':r,'daemonUnchanged':ids()==baseline})
++for method,path in [('POST','/v1.45/containers/create'),('POST','/internal/workers/'+base['workerId']+'/exec'),('POST','/internal/workers?path=/containers/create')]:
++ r=request(c,method,path,base);attacks.append({'path':path,'reply':r,'daemonUnchanged':ids()==baseline})
++record('parameter-and-Docker-API-injection',all(x['reply'][0]>=400 and x['daemonUnchanged'] for x in attacks),attacks)
++unauth=request(c,'POST','/internal/workers',base,False);record('service-authentication',unauth[0]==401 and ids()==baseline,unauth)
++created=request(c,'POST','/internal/workers',base);record('real-worker-create',created[0]==200,created);assert created[0]==200,created
++wid=base['workerId'];path='/internal/workers/'+wid;ci=inspect(created[1]['Id']);save('created-worker-inspect.json',ci)
++record('fixed-container-boundary',ci['Image']==cfg['workerImage'] and ci['Config']['User']=='1000:1000' and ci['HostConfig']['NetworkMode']=='none' and not ci['HostConfig']['Privileged'] and ci['HostConfig']['ReadonlyRootfs'] and ci['HostConfig']['CapDrop']==['ALL'] and all(x['Source'].startswith(str(R/'worker-mounts'/wid)+'/') for x in ci['Mounts']),{'image':ci['Image'],'user':ci['Config']['User'],'hostConfig':ci['HostConfig'],'mounts':ci['Mounts']})
++replay=request(c,'POST','/internal/workers',dict(reversed(list(base.items()))));record('create-idempotency',replay[0]==200 and replay[1]['Id']==ci['Id'],replay)
++changed=request(c,'POST','/internal/workers',{**base,'apiToken':uuid.uuid4().hex+uuid.uuid4().hex});record('immutable-create-conflict',changed[0]==409,changed)
++c2=contract(list(gc['tenants'])[-1]);foreign=request(c2,'GET',path);record('cross-owner-inspection-denied',foreign[0]==404,foreign)
++quota=request(contract(),'POST','/internal/workers',body());record('Executor-independent-quota',quota[0]==429,quota)
++start=request(c,'POST',path+'/start');record('real-worker-start',start[0]==200 and inspect(ci['Id'])['State']['Running'],start)
++worker_probe=json.loads(out(*D,'exec',ci['Id'],'node','-e',"const f=require('fs');console.log(JSON.stringify({socket:f.existsSync('/var/run/docker.sock'),executorConfig:f.existsSync('/run/executor.json'),gatewayConfig:f.existsSync('/run/gateway.json'),hostRoot:f.existsSync('/opt/cline-server-p33-stage1-20261108'),uid:process.getuid(),caps:f.readFileSync('/proc/self/status','utf8').match(/CapEff:\\s*(.*)/)[1]}))"));record('Worker-OS-boundary',not any(worker_probe[k] for k in ('socket','executorConfig','gatewayConfig','hostRoot')) and worker_probe['uid']==1000 and int(worker_probe['caps'],16)==0,worker_probe)
++gateway=inspect('cline-p331-gateway');executor=inspect('cline-p331-executor');save('gateway-inspect.json',gateway);save('executor-inspect.json',executor)
++code="const f=require('fs'),n=require('net');let a={uid:process.getuid(),uidMap:f.readFileSync('/proc/self/uid_map','utf8'),dockerSocket:f.existsSync('/var/run/docker.sock'),privateSocket:f.existsSync('/run/rootless-docker.sock')};const s=n.connect('/var/run/docker.sock');s.on('error',e=>{a.socketError=e.code;console.log(JSON.stringify(a));});"
++isolation=json.loads(out(*D,'exec','cline-p331-gateway','node','-e',code));record('Gateway-no-Docker-socket',not isolation['dockerSocket'] and not isolation['privateSocket'] and isolation['socketError']=='ENOENT' and gateway['Config']['User']=='1000:1000' and not any('docker.sock' in x['Source'] for x in gateway['Mounts']),{'process':isolation,'mounts':gateway['Mounts']})
++code="const f=require('fs');try{f.renameSync('/workers/"+wid+"/workspace','/workers/"+wid+"/workspace-replaced');console.log('UNSAFE')}catch(e){console.log(e.code)}"
++permission=out(*D,'exec','cline-p331-gateway','node','-e',code);record('Gateway-cannot-replace-mount-anchor',permission in ('EACCES','EPERM'),{'error':permission,'root':out(*D,'exec','cline-p331-executor','node','-e',"console.log(JSON.stringify(require('fs').statSync('/workers/"+wid+"'))) ")})
++stop=request(c,'POST',path+'/stop');again=request(c,'POST',path+'/stop');late=request(c,'POST',path+'/start');record('stop-proof-and-late-start-rejection',stop[0]==200 and stop[1]['running']==False and again==stop and late[0]==409,{'stop':stop,'repeat':again,'lateStart':late,'actualState':inspect(ci['Id'])['State']})
++# Corrupt an isolated anchor as the trusted administrator, then exercise the actual API.
++c3=contract(list(gc['tenants'])[-1]);b3=body();r3=request(c3,'POST','/internal/workers',b3);assert r3[0]==200,r3
++w3=b3['workerId'];script="const f=require('fs'),p='/workers/"+w3+"/workspace';f.renameSync(p,p+'.saved');f.symlinkSync('/etc',p);"
++subprocess.run([*D,'exec','cline-p331-executor','node','-e',script],check=True);denied=request(c3,'POST','/internal/workers/'+w3+'/start');state=inspect(r3[1]['Id'])['State'];record('symbolic-link-anchor-rejected',denied[0]==403 and not state['Running'] and state['StartedAt'].startswith('0001-'),{'reply':denied,'actualState':state})
++restore="const f=require('fs'),p='/workers/"+w3+"/workspace';f.unlinkSync(p);f.renameSync(p+'.saved',p);";subprocess.run([*D,'exec','cline-p331-executor','node','-e',restore],check=True)
++started3=request(c3,'POST','/internal/workers/'+w3+'/start');killed=request(c3,'POST','/internal/workers/'+w3+'/kill');record('actual-force-kill-proof',started3[0]==200 and killed[0]==200 and killed[1].get('running')==False and inspect(r3[1]['Id'])['State']['ExitCode']==137,{'start':started3,'kill':killed,'actualState':inspect(r3[1]['Id'])['State']})
++deleted=request(c3,'DELETE','/internal/workers/'+w3);record('owned-closed-Worker-cleanup',deleted[0]==200 and deleted[1].get('removed')==True,deleted)
++recreate=request(c3,'POST','/internal/workers',body());record('cleanup-does-not-authorize-recreation',recreate[0]==409,recreate)
++canary=R/'host-root-canary';canary.write_text(uuid.uuid4().hex);canary.chmod(0o600);sentinel=hashlib.sha256(canary.read_bytes()).hexdigest()
++code="const f=require('fs');let v={uid:process.getuid(),uidMap:f.readFileSync('/proc/self/uid_map','utf8')};try{f.readFileSync('/host-canary');v.read='UNSAFE'}catch(e){v.read='DENIED';v.error=e.code}console.log(JSON.stringify(v));"
++probe=subprocess.run([*D,'run','--rm','--network','none','--user','0:0','--privileged','--mount',f'type=bind,src={canary},dst=/host-canary,readonly','--entrypoint','node',cfg['workerImage'],'-e',code],stdout=subprocess.PIPE,stderr=subprocess.STDOUT,text=True)
++save('rootless-host-root-probe.log',probe.stdout);read=json.loads(probe.stdout) if probe.returncode==0 else {};record('rootless-root-does-not-become-host-root',read.get('read')=='DENIED' and read.get('error') in ('EACCES','EPERM') and hashlib.sha256(canary.read_bytes()).hexdigest()==sentinel,{'exit':probe.returncode,'result':read})
++record('per-worker-cgroup-hard-limits',bool(created[1]['resources']['enforced']),created[1]['resources'],False)
++after=rootful_snapshot();save('shared-after.json',after);record('existing-services-unchanged',before==after,{'same':before==after})
++save('api-summary.json',{'apiAndIsolationChecksPass':all(x['pass'] for x in results if x['blocking']),'productionReady':False,'resourceLimitsAccepted':False,'checks':len(results),'scope':'P3.3.1 only'})
++if not all(x['pass'] for x in results if x['blocking']):raise SystemExit(1)
+diff --git a/cline-agent-server/test/p331-native.py b/cline-agent-server/test/p331-native.py
+new file mode 100644
+index 000000000..e940f1e25
+--- /dev/null
++++ b/cline-agent-server/test/p331-native.py
+@@ -0,0 +1,42 @@
++#!/usr/bin/env python3
++"""Actual model task on official Cline Worker provisioned through restricted Executor."""
++import pathlib,json,subprocess,time,urllib.request,urllib.error,uuid,base64,hmac,hashlib
++R=pathlib.Path('/opt/cline-server-p33-stage1-20261108');E=R/'evidence';cfg=json.loads((R/'config/gateway.json').read_text());D=['docker','-H','unix://'+str(R/'run/docker.sock')]
++tid=next(iter(cfg['tenants']));t=cfg['tenants'][tid]
++c={'version':1,'tenantId':tid,'userId':t['users'][0],'taskId':'native-'+uuid.uuid4().hex,'sessionId':'session-'+uuid.uuid4().hex,'workspaceRef':next(iter(t['workspaces'])),'modelProfile':t['models'][0],'toolPermissions':t['tools'],'dataPermissions':t['datasets'],'budgetPolicy':{'status':'DEFERRED_STAGE_2_REVIEW'},'networkPolicy':'broker-only','expiresAt':int(time.time()*1000)+3600000}
++b=base64.urlsafe_b64encode(json.dumps(c,separators=(',',':')).encode()).rstrip(b'=');token=(b+b'.'+base64.urlsafe_b64encode(hmac.new(cfg['signingKey'].encode(),b,hashlib.sha256).digest()).rstrip(b'=')).decode();root='/v1/sessions/'+c['sessionId'];checks=[]
++def save(name,v):(E/name).write_text(json.dumps(v,indent=2))
++def api(path,body=None,key=None):
++ req=urllib.request.Request('http://127.0.0.1:18331'+path,data=None if body is None else json.dumps(body).encode(),headers={'authorization':'Bearer '+token,'content-type':'application/json','accept':'application/json',**({'idempotency-key':key} if key else {})})
++ try:
++  with urllib.request.urlopen(req,timeout=100) as r:return r.status,json.load(r)
++ except urllib.error.HTTPError as e:return e.code,json.load(e)
++def check(name,ok,detail):checks.append({'case':name,'pass':bool(ok),'detail':detail});save('native-results.json',checks);print(name,'PASS' if ok else 'FAIL',flush=True)
++save('native-contract.json',c);created=api('/v1/sessions',{},'p331-create');check('Gateway-Executor-create',created[0]==201,created)
++for _ in range(180):
++ s=api(root+'/status')[1]
++ if s.get('workerState') in ('READY','START_FAILED','RECOVERABLE'):break
++ time.sleep(.5)
++check('official-Cline-ready',s.get('workerState')=='READY',s)
++if s.get('workerState')!='READY':raise SystemExit(1)
++submitted=api(root+'/messages',{'text':'Read /poc/project/README.md using native read_files. Then use native run_commands to execute node --version. Report the results. Do not edit any files, do not use MCP, and do not run other commands.'},'p331-task');check('real-model-submission',submitted[0]==202,submitted)
++approvals=[]
++for _ in range(300):
++ s=api(root+'/status')[1]
++ for p in (s.get('native') or {}).get('pendingPermissions',[]):
++  response=api('/v1/permissions/'+p['id']+'/respond',{'decision':'approve','reason':'P3.3.1 actual native Worker smoke test'});approvals.append({'permission':p,'response':response})
++ if s.get('workerState') in ('COMPLETED','RECOVERABLE','STOPPED','START_FAILED'):break
++ time.sleep(.5)
++save('native-approvals.json',approvals);events=api(root+'/events');save('native-events.json',events)
++tools=[e['payload'] for e in events[1].get('events',[]) if e['eventType']=='tool.completed'] if events[0]==200 else []
++names=[x.get('toolName') for x in tools];check('autonomous-native-read-and-shell',s.get('workerState')=='COMPLETED' and 'read_files' in names and 'run_commands' in names,{'status':s,'nativeTools':tools})
++wid=s['workerId'];reg=json.loads((R/'control-state/workers'/wid/'registry.json').read_text());ci=json.loads(subprocess.check_output([*D,'inspect',reg['containerId']]))[0];save('native-worker-inspect.json',ci)
++diff=api(root+'/diff');check('project-unchanged',diff[0]==200 and diff[1].get('patch')=='',diff)
++cancel=api(root+'/cancel',{});check('native-Worker-stop-request',cancel[0]==202,cancel)
++for _ in range(100):
++ final=api(root+'/status')[1]
++ if final.get('workerState') in ('STOPPED','RECOVERABLE'):break
++ time.sleep(.3)
++actual=json.loads(subprocess.check_output([*D,'inspect',reg['containerId']]))[0]['State'];check('actual-rootless-Worker-stopped',final.get('workerState')=='STOPPED' and actual['Running']==False and final.get('stopProof',{}).get('running')==False,{'status':final,'actualState':actual})
++save('native-summary.json',{'pass':all(x['pass'] for x in checks),'model':cfg['modelProfiles'][c['modelProfile']]['model'],'checks':len(checks),'workerId':wid,'containerId':reg['containerId'],'productionReady':False})
++if not all(x['pass'] for x in checks):raise SystemExit(1)
+diff --git a/cline-agent-server/test/p331-startup-guards.py b/cline-agent-server/test/p331-startup-guards.py
+new file mode 100644
+index 000000000..470df2e23
+--- /dev/null
++++ b/cline-agent-server/test/p331-startup-guards.py
+@@ -0,0 +1,13 @@
++#!/usr/bin/env python3
++import pathlib,json,subprocess,os
++R=pathlib.Path('/opt/cline-server-p33-stage1-20261108');a=json.loads((R/'evidence/rootless-account.json').read_text());cfg=json.loads((R/'config/executor.json').read_text());D=['docker','-H','unix://'+a['socket']]
++image=json.loads(subprocess.check_output([*D,'inspect','cline-p331-executor']))[0]['Image'];results=[]
++for name,change,expected in [('strict-resources',{'allowUnenforcedPrototype':False},'Per-Worker cgroup resource enforcement unavailable'),('wrong-daemon',{'expectedDaemonId':'not-the-dedicated-daemon'},'Wrong daemon or rootful daemon')]:
++ p=R/'config'/(name+'.json');p.write_text(json.dumps({**cfg,**change}));os.chown(p,a['daemonUid'],a['daemonGid']);p.chmod(0o400)
++ result=subprocess.run([*D,'run','--rm','--network','none','--read-only','--user','0:0','--mount',f'type=bind,src={p},dst=/run/executor.json,readonly','--mount',f'type=bind,src={a["socket"]},dst=/run/rootless-docker.sock','-e','CLINE_EXECUTOR_CONFIG=/run/executor.json','--entrypoint','node',image,'/poc/service/src/worker-executor.mjs'],stdout=subprocess.PIPE,stderr=subprocess.STDOUT,text=True,timeout=20)
++ (R/'evidence'/(name+'.log')).write_text(result.stdout);results.append({'case':name,'pass':result.returncode!=0 and expected in result.stdout,'exit':result.returncode})
++hostnet=os.readlink('/proc/self/ns/net');code="const f=require('fs');console.log(JSON.stringify({uid:process.getuid(),uidMap:f.readFileSync('/proc/self/uid_map','utf8'),network:f.readlinkSync('/proc/self/ns/net')}))"
++namespaces={n:json.loads(subprocess.check_output([*D,'exec',n,'node','-e',code])) for n in ('cline-p331-gateway','cline-p331-executor')}
++results.append({'case':'Gateway-host-network-is-rootless-namespace','pass':namespaces['cline-p331-gateway']['network']!=hostnet,'hostNetwork':hostnet,'containers':namespaces})
++(R/'evidence/startup-guards.json').write_text(json.dumps(results,indent=2));print(json.dumps(results,indent=2))
++if not all(x['pass'] for x in results):raise SystemExit(1)

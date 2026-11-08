@@ -5,7 +5,7 @@ export class DockerEngine {
   const req=http.request({socketPath:this.socketPath,path:'/v1.45'+path,method,headers:body?{'content-type':'application/json'}:{}},res=>{
    const chunks=[];res.on('data',b=>chunks.push(b));res.on('end',()=>{
     const text=Buffer.concat(chunks).toString();let value;try{value=JSON.parse(text);}catch{value=text;}
-    if(res.statusCode>=400)reject(Object.assign(Error('Docker '+method+' '+path+' failed ('+res.statusCode+')'),{dockerStatus:res.statusCode}));else resolve(value);
+    if(res.statusCode>=400)reject(Object.assign(Error('Docker '+method+' '+path+' failed ('+res.statusCode+')'),{dockerStatus:res.statusCode,dockerMessage:value?.message}));else resolve(value);
    });res.on('error',reject);
   });req.setTimeout(30000,()=>req.destroy(Error('Docker control deadline')));req.on('error',reject);req.end(body?JSON.stringify(body):undefined);
  });}

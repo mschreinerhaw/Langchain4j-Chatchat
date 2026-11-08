@@ -67,6 +67,9 @@ public final class ClineModelCallbackController {
     private double completionMinimumRatio = 0.15;
     @org.springframework.beans.factory.annotation.Value("${chatchat.coding.completion-reserve.maximum-ratio:0.35}")
     private double completionMaximumRatio = 0.35;
+    @org.springframework.beans.factory.annotation.Value("#{'${chatchat.coding.cline.backend:sdk}' == 'native'}")
+    private boolean nativeBusinessCompletion;
+    void setNativeBusinessCompletion(boolean enabled) { nativeBusinessCompletion=enabled; }
 
     @PostMapping("/budget")
     public Map<String,Object> budget(@RequestBody JsonNode body) {
@@ -688,8 +691,10 @@ public final class ClineModelCallbackController {
                     throw new ResponseStatusException(HttpStatus.CONFLICT,"Visual report artifact contract requires technical repair before completion");
             }
             CodingTaskOutcome current = tasks.get(call.scope(), call.taskId());
+            var deliveryStatus = nativeBusinessCompletion && !collected.businessValidationPassed()
+                ? CodingTaskOutcome.Status.PARTIAL : CodingTaskOutcome.Status.COMPLETED;
             if (current.status().terminal()) {
-                if (current.status() != CodingTaskOutcome.Status.COMPLETED
+                if (current.status() != deliveryStatus
                         || !collected.evidenceBundleRef().equals(current.evidenceBundleRef()))
                     throw new ResponseStatusException(HttpStatus.CONFLICT,
                         "Terminal Coding result differs from the SDK completion");
@@ -698,9 +703,9 @@ public final class ClineModelCallbackController {
             Instant at = Instant.now().truncatedTo(java.time.temporal.ChronoUnit.MILLIS);
             if (at.isBefore(current.updatedAt())) at = current.updatedAt();
             CodingTaskOutcome proposal = new CodingTaskOutcome(current.schemaVersion(), current.taskId(),
-                current.scope(), current.contractSha256(), CodingTaskOutcome.Status.COMPLETED,
+                current.scope(), current.contractSha256(), deliveryStatus,
                 current.revision() + 1, current.lastEventSequence() + 1, current.createdAt(), at,
-                current.startedAt(), at, false, null,
+                current.startedAt(), at, false, deliveryStatus == CodingTaskOutcome.Status.PARTIAL ? CodingErrorCode.OUTPUT_CONTRACT_VIOLATION : null,
                 textResult?"Text report archived with authorized sources":"Coding execution archived; validation " + collected.validationStatus(),
                 textResult?List.of("Text explanation only; no calculations were executed or independently verified."):current.limitations(), collected.inputSnapshotRef(), collected.codeArtifactRef(),
                 collected.executionReceiptRef(), collected.resultDatasetRef(),

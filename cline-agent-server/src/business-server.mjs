@@ -45,6 +45,20 @@ async function broker(r){
    if(r.cancelRequested||r.taskCompleting||!['STARTING','RUNNING'].includes(r.status)||Date.now()>=Date.parse(r.contract.budget.deadlineAt))throw failure('Runtime task inactive',403);
    if(req.url==='/mcp'&&req.method!=='POST')return send(res,405,{message:'Stateless MCP transport supports POST only'});
    const b=await body(req);
+   if(req.url==='/native/submit'&&req.method==='POST'){
+    const events=await worker(r,'/v1/sessions/'+r.nativeSessionId+'/events');
+    for(const event of events.events??[])observeNativeSession(r,event);
+    const context=b.nativeContext;
+    if(b.verified!==true||context?.epoch!==r.epoch||context?.nativeSessionId!==r.nativeAgentSessionId||
+       !(events.events??[]).some(e=>e.eventType==='tool.started'&&e.payload?.toolName==='submit_and_exit'&&e.payload?.toolCallId===context.nativeToolCallId))
+     throw failure('Official native completion invocation required');
+    if(r.activeOperations.size||!r.lastOperation||r.reviewedResult!==r.lastReceipt?.resultDatasetRef)
+     throw failure('Completion requires stopped Python and actual result review');
+    const receipt=await r.gateway.getPython(r.contract,r.lastOperation,r.abort.signal);
+    if(!verifiedReceipt(receipt)||receipt.resultDatasetRef!==r.reviewedResult)throw failure('Runtime deliverable verification failed');
+    audit(r,'native.submit.verified',{nativeContext:context,receipt});
+    return send(res,200,receipt);
+   }
    if(req.url==='/model/v1/chat/completions'){
     const request=projectRequest(b,r.contract,++r.modelOrdinal);audit(r,'model.request',request);
     const answer=await r.gateway.model(r.contract,request,r.abort.signal);audit(r,'model.receipt',answer);
@@ -144,7 +158,10 @@ async function execute(r){
     if(r.activeOperations.size||!r.lastOperation||!verifiedReceipt(r.lastReceipt)||r.reviewedResult!==r.lastReceipt.resultDatasetRef)throw Error('Native turn ended without a verified, reviewed Runtime deliverable');
     r.taskCompleting=true;
     r.result=await r.gateway.finish(r.contract,{status:'completed',operationId:r.lastOperation,summary:'Native Cline completed; archived output independently verified by Runtime'});
-    r.status=runtimeDeliveryStatus(r.result);audit(r,'task.delivered',r.result);break;
+    if(r.result.status==='COMPLETED'){r.status=runtimeDeliveryStatus(r.result);audit(r,'task.delivered',r.result);}
+    else if(['PARTIAL','FAILED','CANCELLED','BUDGET_EXCEEDED'].includes(r.result.status)){r.status=r.result.status;audit(r,'task.delivery_incomplete',r.result);}
+    else throw Error('Runtime completion state is unresolved');
+    break;
    }
    if(['failed','recoverable','awaiting_input','cancelled'].includes(s.status))throw Error('Native execution requires reconciliation or user input: '+s.status);
    await delay(500);
@@ -153,7 +170,7 @@ async function execute(r){
   if(r.cancelRequested){await r.cancelPending;return;}
   r.error=e.message;r.status=r.activeOperations.size?'UNKNOWN':'FAILED';audit(r,'task.failure',{message:e.message});
   if(r.activeOperations.size){await cancel(r,e.message);return;}
-  try{r.result=await r.gateway.finish(r.contract,{status:'failed',operationId:null,summary:e.message});r.status=r.result.status;}catch(error){audit(r,'task.finish_failure',{message:error.message});r.status='UNKNOWN';}
+  try{r.result=await r.gateway.finish(r.contract,{status:'failed',operationId:null,summary:e.message});r.status=r.result.status==='COMPLETED'?'UNKNOWN':r.result.status;}catch(error){audit(r,'task.finish_failure',{message:error.message});r.status='UNKNOWN';}
  }finally{
   if(!r.cancelRequested){try{if(r.containerId)r.stopProof=await executor.stop(grant(r),r.workerId);}catch(e){audit(r,'worker.stop_failure',{message:e.message});}r.broker?.close();save(r);}
  }

@@ -59,11 +59,26 @@ patch('src/sdk/sdk-interaction-coordinator.ts',s=>{
         }
 `);
 });
-patch('src/sdk/vscode-session-host.ts',s=>s.replace('extraTools: [...(inputWithRemoteConfig.config.extraTools ?? []), ...extraTools],',`extraTools: [...(inputWithRemoteConfig.config.extraTools ?? []), ...extraTools],
-                // CLINE_SERVER_POC: exercise the native Patch executor through its public routing config.
-                ...(process.env.CLINE_SERVER_EDIT_TOOL === "apply_patch" ? {
-                    toolRoutingRules: [{ mode: "act" as const, enableTools: ["apply_patch" as const], disableTools: ["editor" as const] }],
-                } : {}),`));
+patch('src/sdk/vscode-session-host.ts',s=>s.replace('const toolExecutors: Partial<ToolExecutors> = {}',`const toolExecutors: Partial<ToolExecutors> = {}
+        // CLINE_SERVER_POC: the official completion tool verifies real Runtime receipts.
+        if (process.env.CLINE_SERVER_REQUIRE_SUBMIT === "1") {
+            toolExecutors.submit = async (summary, verified, context) => {
+                const response = await fetch("http://127.0.0.1:18329/native/submit", {
+                    method: "POST",
+                    headers: { authorization: "Bearer " + process.env.CLINE_SERVER_BROKER_TOKEN, "content-type": "application/json" },
+                    body: JSON.stringify({ summary, verified, nativeContext: { nativeSessionId: context?.sessionId, nativeToolCallId: context?.toolCallId, epoch: process.env.CLINE_SERVER_EPOCH } }),
+                    signal: context?.signal,
+                })
+                if (!response.ok) throw new Error("Runtime completion verification rejected: " + response.status + " " + await response.text())
+                return await response.text()
+            }
+        }`).replace('extraTools: [...(inputWithRemoteConfig.config.extraTools ?? []), ...extraTools],',`extraTools: [...(inputWithRemoteConfig.config.extraTools ?? []), ...extraTools],
+                // CLINE_SERVER_POC: select official tools through the public host routing config.
+                toolRoutingRules: [
+                    ...(inputWithRemoteConfig.config.toolRoutingRules ?? []),
+                    ...(process.env.CLINE_SERVER_EDIT_TOOL === "apply_patch" ? [{ mode: "act" as const, enableTools: ["apply_patch" as const], disableTools: ["editor" as const] }] : []),
+                    ...(process.env.CLINE_SERVER_REQUIRE_SUBMIT === "1" ? [{ mode: "act" as const, enableTools: ["submit_and_exit" as const] }] : []),
+                ],`));
 // ask_question uses the existing product response path; no new agent or tool executor.
 mkdirSync(join(root,'server-poc-evidence'),{recursive:true});
 writeFileSync(join(root,'server-poc-evidence/host-patches.json'),JSON.stringify(changes,null,2)+'\n');

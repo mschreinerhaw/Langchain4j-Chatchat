@@ -34,7 +34,7 @@ function prepare(c,b){
  for(const name of ['workspace','state','bridge'])mkdirSync(join(root,name),{mode:0o700});
  const template=cfg.tenants[c.tenantId].workspaces[c.workspaceRef];tree(template);cpSync(template,join(root,'workspace'),{recursive:true,dereference:false});tree(join(root,'workspace'),p=>chownSync(p,1000,1000));
  for(const name of ['state','bridge'])chownSync(join(root,name),1000,1000);
- const privateConfig={operationContext:!!cfg.operationContext,sourceRoot:'/not-mounted/upstream',distDir:'/poc/runtime',stateDir:'/poc/state',socketPath:'/poc/bridge/worker.sock',apiToken:b.apiToken,apiKey:b.brokerToken,model:cfg.modelNames[c.modelProfile],baseUrl:'http://127.0.0.1:18329/model/v1',workspaces:{project:'/poc/project'},toolPermissions:c.toolPermissions,
+ const privateConfig={operationContext:!!cfg.operationContext,requireSubmitAndExit:cfg.mcpServerName==='runtime',sourceRoot:'/not-mounted/upstream',distDir:'/poc/runtime',stateDir:'/poc/state',socketPath:'/poc/bridge/worker.sock',apiToken:b.apiToken,apiKey:b.brokerToken,model:cfg.modelNames[c.modelProfile],baseUrl:'http://127.0.0.1:18329/model/v1',workspaces:{project:'/poc/project'},toolPermissions:c.toolPermissions,
   ...(cfg.tenants[c.tenantId].mcp?{mcpServers:{[cfg.mcpServerName??'tenant_data']:{type:'streamableHttp',url:'http://127.0.0.1:18329/mcp',headers:{Authorization:'Bearer '+b.brokerToken},disabled:false,autoApprove:[]}}}:{})};
  const p=join(root,'config.json');writeFileSync(p,JSON.stringify(privateConfig),{mode:0o440});chownSync(p,0,1000);assertAnchors(cfg.workersRoot,b.workerId);
 }

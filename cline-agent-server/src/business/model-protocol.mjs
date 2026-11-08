@@ -24,6 +24,7 @@ export function projectRequest(body,contract,ordinal) {
   }else {if(!['user','assistant'].includes(m.role))throw Error('Unsupported native model role');messages.push({role:m.role,content});}
  }
  const tools=(body.tools??[]).filter(t=>permittedTool(t.function.name,contract)).map(t=>({name:t.function.name,description:t.function.description??'',inputSchema:t.function.parameters}));
+ if(ordinal===1&&!tools.some(t=>t.name==='submit_and_exit'))throw Error('Official submit_and_exit is absent from the native model tool catalog');
  return {operationId:`model-${ordinal}`,managedAttempt:true,modelResponseFeedbackVersion:'runtime_os.coding.model_feedback.v1',systemPrompt:system.join('\n\n'),messages,tools};
 }
 export function projectResponse(answer,model) {

@@ -26,6 +26,12 @@ test('provider failure cannot become successful completion',()=>{
  assert.equal(projectResponse({toolCalls:[{id:'id',name:'editor',input:{path:'a'}}],usage:{inputTokens:11,outputTokens:2},finishReason:'TOOL_EXECUTION'},'m').choices[0].finish_reason,'tool_calls');
  assert.equal(verifiedReceipt({status:'SUCCEEDED',executorStopped:true}),undefined);
 });
+test('first native inference requires the real completion tool catalog',()=>{
+ assert.throws(()=>projectRequest({messages:[],tools:[]},contract,1),/absent from the native model tool catalog/);
+ const tools=[{function:{name:'submit_and_exit',parameters:{type:'object'}}}];
+ assert.equal(projectRequest({messages:[],tools},contract,1).tools[0].name,'submit_and_exit');
+ assert.doesNotThrow(()=>projectRequest({messages:[],tools:[]},contract,2),'Native compaction requests may have no tools');
+});
 test('authorized provider truncation keeps raw fragments for official Core recovery',()=>{
  const raw='{"patch":"unfinished';
  const projected=projectResponse({error:true,text:'Actual provider text',nativeToolCalls:[{id:'real-call',name:'apply_patch',arguments:raw}],modelResponseFeedback:{schemaVersion:'runtime_os.coding.model_feedback.v1',repairAllowed:true,maxRepairAttempts:2,diagnosticCode:'MODEL_OUTPUT_TRUNCATED'}},'model');

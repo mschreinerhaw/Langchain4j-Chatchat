@@ -24,10 +24,13 @@ def main():
     parser.add_argument("--root", type=pathlib.Path, required=True)
     parser.add_argument("--case", choices=["A", "B", "C", "D"], required=True)
     parser.add_argument("--commit", required=True)
+    parser.add_argument("--attempt", type=int, default=1)
     parser.add_argument("--action", choices=["submit", "observe"], default="observe")
     args = parser.parse_args()
     root = args.root.resolve()
-    evidence = root / "evidence" / "acceptance-20261108" / args.case
+    if args.attempt < 1:
+        parser.error("attempt must be positive")
+    evidence = root / "evidence" / "acceptance-20261108" / (args.case if args.attempt == 1 else args.case + "-r" + str(args.attempt))
     evidence.mkdir(parents=True, exist_ok=True)
     private = root / "private"
     auth = json.loads((private / "auth.json").read_text())
@@ -103,13 +106,20 @@ def main():
         if file.parent.name in state["workersBeforeDispatch"]:
             continue
         run = json.loads(file.read_text())
+        scope = run.get("scope", {})
+        if args.case in ["A", "B"] and scope.get("conversationId") != state["originalRequest"]["sessionId"]:
+            continue
+        if args.case == "C" and scope.get("requestId") != state["originalRequest"]["requestId"]:
+            continue
+        if args.case == "D" and scope.get("requestId") != prepared["nodes"][-1]["id"]:
+            continue
         candidates.append({"workerId": file.parent.name, "taskId": run.get("taskId"),
             "nativeSessionId": run.get("nativeSessionId"), "nativeAgentSessionId": run.get("nativeAgentSessionId"),
             "scope": run.get("scope"), "status": run.get("status"), "businessStatus": run.get("businessStatus"),
             "activeOperations": run.get("activeOperations"), "lastOperation": run.get("lastOperation"),
             "error": run.get("error"), "codeLifecycle": run.get("codeLifecycle"),
             "nativeCompletion": run.get("nativeCompletion"), "workerStopped": run.get("workerStopped")})
-    # Candidates require scope/request correlation during review; chronological proximity is not identity proof.
+    # Match the immutable Runtime scope as well as the dispatch snapshot.
     write(evidence / "candidate-runs.json", candidates)
     print(json.dumps({"case": args.case, "candidateRuns": candidates}, ensure_ascii=False))
 

@@ -58,7 +58,17 @@ export function createMonitor(config){
      if(busy||closed)return;busy=true;
      try{
       if(user.expiresAt<Date.now())throw error('Authentication expired',401);
-      const page=await backend.events(user,key,cursor);for(const e of page.events){if(!res.write(`event: observation\ndata: ${JSON.stringify(e)}\n\n`)){closed=true;res.end();break;}}
+      const page=await backend.events(user,key,cursor);for(const e of page.events){
+       if(closed)break;
+       cursor={...cursor,[e.source]:Number(e.sourceEventId)};
+       // Backpressure is normal during history replay. Await only this subscriber, never stop the Agent.
+       if(!res.write(`id: ${cursorId(cursor)}\nevent: observation\ndata: ${JSON.stringify(e)}\n\n`))await new Promise((resolve,reject)=>{
+        const finish=()=>{clearTimeout(timer);res.off('drain',drain);res.off('close',close);};
+        const drain=()=>{finish();resolve();},close=()=>{finish();reject(Error('Subscriber disconnected'));};
+        const timer=setTimeout(()=>{finish();reject(Error('Subscriber replay backpressure timeout'));},10000);
+        res.once('drain',drain);res.once('close',close);
+       });
+      }
       cursor=page.cursor;if(!closed)res.write(`id: ${cursorId(cursor)}\nevent: cursor\ndata: ${JSON.stringify({cursor:cursorId(cursor)})}\n\n`);
       if(ticks++%3===0&&!closed)res.write(`event: snapshot\ndata: ${JSON.stringify(await backend.detail(user,key))}\n\n`);
      }catch(e){if(!closed)res.write(`event: diagnostic\ndata: ${JSON.stringify({message:e.message,status:e.status??503})}\n\n`);}

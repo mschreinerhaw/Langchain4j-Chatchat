@@ -20,14 +20,14 @@ try{
  }
  const key=decodeURIComponent(new URL(page.url()).hash.slice(1));evidence.sessionKey=key;
  await page.locator('#send').waitFor({state:'visible'});
- if(!process.env.NATIVE_MONITOR_EXISTING_SESSION||(await api('/sessions/'+encodeURIComponent(key))).status==='idle'){
+ if(!process.env.NATIVE_MONITOR_EXISTING_SESSION||(await api('/sessions/'+encodeURIComponent(key))).status==='idle'||process.env.NATIVE_MONITOR_FOLLOWUP){
   await page.locator('#send:enabled').waitFor({state:'visible',timeout:120000});
   evidence.originalRequest='检查当前项目代码，找到一个可复现问题，修复后运行测试。先运行现有测试获取真实失败；不要修改测试预期。修复源码后再次运行测试，并报告实际结果。';
-  await page.locator('#message').fill(evidence.originalRequest);await page.locator('#send').click();
+  if(process.env.NATIVE_MONITOR_FOLLOWUP)evidence.originalRequest=process.env.NATIVE_MONITOR_FOLLOWUP;await page.locator('#message').fill(evidence.originalRequest);await page.locator('#send').click();
  }
  const deadline=Date.now()+12*60000;let final,approvals=[];
  while(Date.now()<deadline){
-  if(evidence.pageErrors.length)throw Error(evidence.pageErrors.join('; '));final=await api('/sessions/'+encodeURIComponent(key));
+  if(evidence.pageErrors.length)throw Error(evidence.pageErrors.join('; '));final=await api('/sessions/'+encodeURIComponent(key));evidence.lastObserved=final;
   for(const p of final.pendingPermissions??[]){
    if(approvals.includes(p.id))continue;
    // Existing controlled fixture workspace; no unrelated command, network or external read is approved.

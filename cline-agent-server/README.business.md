@@ -4,7 +4,7 @@
 
 ## 构建与启动边界
 
-复用已验证的 v4.1.26 Standalone Worker 镜像及已有受限 Executor。业务 Worker 派生镜像仅覆盖 `src/tool-outcome.mjs`，保留原生 Core 和 descriptor；实际镜像与文件 Hash 见证据快照。不得改用旧 SDK Worker。最终结束工具修复尚未完成 Docker 部署回归。
+复用官方 v4.1.26 Standalone 及已有受限 Executor。业务 Host 通过官方工具路由公开 submit_and_exit，并将结束校验绑定到 Runtime 实际 Python 回执；不修改 Core Agent Loop。原生 MCP 调用保留既有 operation context 适配。实际编译文件及镜像 Hash、验收状态见 [业务验收报告](../docs/testing/native-cline-business-acceptance-20261108.md)。
 
 Gateway 用 Node 22 启动：
 
@@ -16,7 +16,7 @@ CLINE_BUSINESS_CONFIG=/private/business-config.json node cline-agent-server/src/
 
 私有 JSON 配置必须包含：`secret`（至少 32 字符且与专项 Runtime 匹配）、`signingKey`、`workerImage`（sha256 digest）、`stateRoot`、`workersRoot`、`callbackUrl`（loopback Runtime 根地址）、`executor.socketPath`、`executor.token`。可选 `port`（默认 18341）、`maxWorkers`（默认 2）、`editTool`（默认 apply_patch，可选 editor）。私有配置及模型凭据不提交仓库。
 
-Java 专项实例显式设置 `chatchat.coding.cline.backend=native`、`node-url`、`shared-secret[-file]`，启用已有 coding/analysis 服务。默认 backend 仍为 sdk。编译需使用 API 自身 release libs，不能混入 MCP 的同名依赖覆盖版本；本轮最终源码只完成独立 javac 校验，完整可发布 Maven/Docker 构建仍需补齐。
+Java 专项实例显式设置 `chatchat.coding.cline.backend=native`、`node-url`、`shared-secret[-file]`，启用已有 coding/analysis 服务。默认 backend 仍为 sdk。编译需使用 API 自身 release libs，不能混入 MCP 的同名依赖覆盖版本；本轮完整 20 模块 Maven 打包通过；全量回归仍有失败，详见验收报告。
 
 Worker 的固定 MCP 名设置为 `runtime`，模型 broker 使用现有 Runtime 模型回调，MCP broker 复用授权数据与 Managed Python。Executor 固定工具清单需包含最终版本的 `submit_and_exit` 和所选官方编辑工具，再执行真实部署验证；只改 Gateway 白名单不充分。
 
@@ -31,3 +31,7 @@ node --test cline-agent-server/test/*.test.mjs
 Java 单元探针在 `test/business-java`，依赖实际 API/classes 和 API 自身 libs，使用 `javac/java --add-modules jdk.httpserver`。这些单元探针不调用真实模型或真实远端 Python，不可计为业务通过。
 
 重启不自动重放历史任务；UNKNOWN 必须先核查 Runtime Journal、Executor 及远端操作。回滚按业务报告操作，只调整专项实例，旧节点保留，禁止同一任务双执行。
+
+构建业务 Worker 时，在干净、固定的官方源码目录使用 `CLINE_RUNTIME_OPERATION_CONTEXT=1 CLINE_SOURCE_ROOT=/fixed/upstream bash cline-agent-server/scripts/build.sh`，保留既有 MCP 元数据适配。补丁按固定锚点应用，重复应用会拒绝。Standalone check-types、lint 及构建必须通过，并核对 Core 源文件指纹和 runtime-manifest 后派生镜像。
+
+真实修复故障验证可使用 `test/business-repair-live.py --root /isolated/root --commit SHA`：它仅在新任务独立工作区放置抛出真实异常的已有源码，在 Native Session 创建前完成；修复与再次执行由官方 Cline 自主完成。请求、故障注入及真实回执保存在私有证据目录，不重复派发已有请求。

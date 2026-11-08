@@ -9,7 +9,8 @@ export function persistRun(run,publicView) {
   apiToken:run.apiToken,brokerToken:run.brokerToken,epoch:run.epoch,nativeAgentSessionId:run.nativeAgentSessionId,
   activeOperations:[...run.activeOperations],lastOperation:run.lastOperation,lastReceipt:run.lastReceipt,
   stopProof:run.stopProof,remoteStopConfirmed:run.remoteStopConfirmed,codeLifecycle:run.codeLifecycle,
-  nativeCompletion:run.nativeCompletion,cancelRequested:run.cancelRequested,eventOrdinal:run.eventOrdinal};
+  nativeCompletion:run.nativeCompletion,cancelRequested:run.cancelRequested,eventOrdinal:run.eventOrdinal,
+  runtimeStopReceipt:run.runtimeStopReceipt};
  const temporary=join(run.dir,'run.json.tmp');
  writeFileSync(temporary,JSON.stringify(record),{mode:0o600});
  const fd=openSync(temporary,'r+');try{fsyncSync(fd);}finally{closeSync(fd);}
@@ -43,4 +44,15 @@ export function runtimeDeliveryStatus(receipt) {
  if(!receipt.resultDatasetRef||!receipt.validationRecordRef||!receipt.evidenceBundleRef)
   throw Error('Runtime completion lacks verified delivery references');
  return receipt.status;
+}
+
+// Observe an existing terminal stop, without executing or inferring business success.
+export async function reconcileStoppedRun(run) {
+ if(run.status!=='UNKNOWN'||!run.recoveryControllable||run.stopProof?.running!==false
+     ||run.remoteStopConfirmed!==true)return false;
+ const receipt=await run.gateway.monitorPython(undefined,'status');
+ if(!['CANCELLED','FAILED','BUDGET_EXCEEDED','ABORTED'].includes(receipt.status))return false;
+ run.status=receipt.status;
+ run.runtimeStopReceipt=receipt;
+ return true;
 }

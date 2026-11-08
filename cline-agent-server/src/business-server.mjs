@@ -11,7 +11,7 @@ import {projectRequest,projectResponse,writeCompletion,permittedTool,LOCAL_TOOLS
 import {runtimeTools,verifiedReceipt} from './business/runtime-tools.mjs';
 import {deliver} from './business/delivery.mjs';
 import {nativeContext,observeNativeSession,inputHash} from './business/native-context.mjs';
-import {persistRun,restoreRun,runtimeDeliveryStatus} from './business/run-state.mjs';
+import {persistRun,restoreRun,runtimeDeliveryStatus,reconcileStoppedRun} from './business/run-state.mjs';
 
 const cfg=JSON.parse(readFileSync(process.env.CLINE_BUSINESS_CONFIG,'utf8'));
 if(!cfg.secret||cfg.secret.length<32||!cfg.workerImage?.startsWith('sha256:'))throw Error('Runtime secret and pinned native image required');
@@ -185,6 +185,7 @@ const server=http.createServer(async(req,res)=>{
   const c=b.contract??b;if(!c.scope?.tenantId||!c.scope?.userId||!c.scope?.runId||!c.taskId||typeof b.contractHash!=='string'||!Number.isSafeInteger(b.fencingToken)||b.fencingToken<1)throw failure('Invalid Runtime identity',400);
   let r=runs.get(key(c));
   if(r){if(r.contractHash!==b.contractHash||b.fencingToken<r.fencingToken)throw failure('Task identity or fence conflict');
+   if(req.url==='/v1/runs/get')try{if(await reconcileStoppedRun(r))audit(r,'task.stop_observed',r.runtimeStopReceipt);}catch(e){audit(r,'task.stop_observation_failed',{message:e.message});}
    if(req.url==='/v1/runs'&&b.fencingToken!==r.fencingToken)throw failure('Existing native task requires Runtime reconciliation; no duplicate execution');
    if(req.url==='/v1/runs/cancel'&&['STARTING','RUNNING','UNKNOWN'].includes(r.status))void cancel(r,'Runtime stop requested');
    return send(res,req.url==='/v1/runs/get'?200:202,view(r));

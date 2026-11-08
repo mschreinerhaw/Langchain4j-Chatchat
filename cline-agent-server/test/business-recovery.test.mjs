@@ -5,7 +5,7 @@ import {spawnSync} from 'node:child_process';
 import {fileURLToPath} from 'node:url';
 import {tmpdir} from 'node:os';
 import {join} from 'node:path';
-import {persistRun,restoreRun,runtimeDeliveryStatus} from '../src/business/run-state.mjs';
+import {persistRun,restoreRun,runtimeDeliveryStatus,reconcileStoppedRun} from '../src/business/run-state.mjs';
 import {Journal} from '../src/journal.mjs';
 
 test('restart retains native controls and unresolved dispatches without replaying Python',()=>{
@@ -45,6 +45,18 @@ test('partial delivery and completion missing Runtime evidence cannot become COM
  assert.throws(()=>runtimeDeliveryStatus({status:'BUDGET_EXCEEDED'}),/complete business delivery/);
  assert.throws(()=>runtimeDeliveryStatus({status:'COMPLETED'}),/references/);
  assert.equal(runtimeDeliveryStatus({status:'COMPLETED',resultDatasetRef:'r',validationRecordRef:'v',evidenceBundleRef:'e'}),'COMPLETED');
+});
+
+test('stopped Native recovery observes Runtime stop without promoting delivery or replaying',async()=>{
+ let status='RUNNING',calls=0;
+ const run={status:'UNKNOWN',recoveryControllable:true,stopProof:{running:false},remoteStopConfirmed:true,
+  gateway:{monitorPython:async(id,kind)=>{assert.equal(id,undefined);assert.equal(kind,'status');calls++;return {status};}}};
+ assert.equal(await reconcileStoppedRun(run),false);
+ status='COMPLETED';assert.equal(await reconcileStoppedRun(run),false);
+ status='CANCELLED';run.remoteStopConfirmed=false;assert.equal(await reconcileStoppedRun(run),false);
+ assert.equal(calls,2);run.remoteStopConfirmed=true;
+ assert.equal(await reconcileStoppedRun(run),true);assert.equal(run.status,'CANCELLED');
+ assert.equal(run.runtimeStopReceipt.status,'CANCELLED');assert.equal(run.result,undefined);
 });
 
 test('Executor rejects a Runtime policy missing official completion before contacting Docker',()=>{

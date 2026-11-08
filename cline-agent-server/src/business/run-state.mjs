@@ -48,7 +48,7 @@ export function runtimeDeliveryStatus(receipt) {
 
 // Observe an existing terminal stop, without executing or inferring business success.
 export async function reconcileStoppedRun(run) {
- if(run.status!=='UNKNOWN'||!run.recoveryControllable||run.stopProof?.running!==false
+ if(run.status!=='UNKNOWN'||(run.recovered&&!run.recoveryControllable)||run.stopProof?.running!==false
      ||run.remoteStopConfirmed!==true)return false;
  const receipt=await run.gateway.monitorPython(undefined,'status');
  if(!['CANCELLED','FAILED','BUDGET_EXCEEDED','ABORTED'].includes(receipt.status))return false;

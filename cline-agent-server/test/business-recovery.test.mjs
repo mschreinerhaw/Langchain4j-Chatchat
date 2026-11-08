@@ -57,6 +57,9 @@ test('stopped Native recovery observes Runtime stop without promoting delivery o
  assert.equal(calls,2);run.remoteStopConfirmed=true;
  assert.equal(await reconcileStoppedRun(run),true);assert.equal(run.status,'CANCELLED');
  assert.equal(run.runtimeStopReceipt.status,'CANCELLED');assert.equal(run.result,undefined);
+ run.status='UNKNOWN';run.recovered=true;run.recoveryControllable=false;
+ assert.equal(await reconcileStoppedRun(run),false);
+ run.recovered=false;assert.equal(await reconcileStoppedRun(run),true);
 });
 
 test('Executor rejects a Runtime policy missing official completion before contacting Docker',()=>{

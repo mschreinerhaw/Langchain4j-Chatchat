@@ -1,0 +1,39 @@
+--- /dev/null
++++ b/tenant-proof.json
+@@ -0,0 +1,5 @@
++{
++  "factoryName": "createMonitorClient",
++  "datasetId": "dataset-b",
++  "marker": "dataset-b-271cda465712ea8bc54604ae"
++}
+--- /dev/null
++++ b/test/tenant-proof.test.js
+@@ -0,0 +1,28 @@
++import test from 'node:test';
++import assert from 'node:assert/strict';
++import { readFileSync } from 'node:fs';
++import { resolve, dirname } from 'node:path';
++import { fileURLToPath } from 'node:url';
++
++const __dirname = dirname(fileURLToPath(import.meta.url));
++const proofPath = resolve(__dirname, '..', 'tenant-proof.json');
++const sourcePath = resolve(__dirname, '..', 'src', 'monitor-client.ts');
++
++test('tenant-proof.json contains the required fields and matches the real dataset marker', () => {
++  const proof = JSON.parse(readFileSync(proofPath, 'utf8'));
++
++  assert.equal(proof.factoryName, 'createMonitorClient', 'factoryName must match the exported client factory');
++  assert.equal(proof.datasetId, 'dataset-b', 'datasetId must be dataset-b');
++  assert.equal(typeof proof.marker, 'string', 'marker must be a string');
++  assert.ok(proof.marker.startsWith('dataset-b-'), 'marker must be scoped to dataset-b');
++  assert.equal(proof.marker, 'dataset-b-271cda465712ea8bc54604ae', 'marker must match the MCP-issued value');
++});
++
++test('factoryName in tenant-proof.json matches the real export in src/monitor-client.ts', () => {
++  const proof = JSON.parse(readFileSync(proofPath, 'utf8'));
++  const source = readFileSync(sourcePath, 'utf8');
++
++  const exportPattern = new RegExp(`export\\s+function\\s+${proof.factoryName}\\s*\\(`);
++  assert.ok(exportPattern.test(source),
++    `src/monitor-client.ts must export a function named "${proof.factoryName}"`);
++});

@@ -1,0 +1,57 @@
+{
+  "id": "ccfee447a735cabb3132074ffdbd3845a061b68f92192a493062ed2a5617b781",
+  "imageId": "sha256:bfea82551ff365794670f7a4160de239cd3ff985b07b89c811c3ed2b3adb2b31",
+  "user": "1000:1000",
+  "networkMode": "none",
+  "networks": {
+    "none": {
+      "IPAMConfig": null,
+      "Links": null,
+      "Aliases": null,
+      "MacAddress": "",
+      "NetworkID": "e86ad6db6a0424b9e5450c8723f96208ddda4fcaea606ea18a990d3c14065d68",
+      "EndpointID": "fd7cd35ae264616bde1e4b09280b3d51eceae3e1599bfcc6971db26299c29219",
+      "Gateway": "",
+      "IPAddress": "",
+      "IPPrefixLen": 0,
+      "IPv6Gateway": "",
+      "GlobalIPv6Address": "",
+      "GlobalIPv6PrefixLen": 0,
+      "DriverOpts": null,
+      "DNSNames": null
+    }
+  },
+  "capDrop": [
+    "ALL"
+  ],
+  "readonlyRootfs": true,
+  "securityOpt": [
+    "no-new-privileges"
+  ],
+  "memory": 3221225472,
+  "nanoCpus": 2000000000,
+  "cpusetCpus": "8,9",
+  "pidsLimit": 256,
+  "mounts": [
+    {
+      "source": "/opt/cline-server-p3-stage1-20261108/control/workers/e6bea712-7c7c-40eb-a43c-88ca58c97fd0/workspace",
+      "destination": "/poc/project",
+      "rw": true
+    },
+    {
+      "source": "/opt/cline-server-p3-stage1-20261108/control/workers/e6bea712-7c7c-40eb-a43c-88ca58c97fd0/state",
+      "destination": "/poc/state",
+      "rw": true
+    },
+    {
+      "source": "/opt/cline-server-p3-stage1-20261108/control/workers/e6bea712-7c7c-40eb-a43c-88ca58c97fd0/bridge",
+      "destination": "/poc/bridge",
+      "rw": true
+    },
+    {
+      "source": "/opt/cline-server-p3-stage1-20261108/control/workers/e6bea712-7c7c-40eb-a43c-88ca58c97fd0/config.json",
+      "destination": "/run/cline-poc.json",
+      "rw": false
+    }
+  ]
+}

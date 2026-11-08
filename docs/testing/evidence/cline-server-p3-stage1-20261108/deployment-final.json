@@ -1,0 +1,10 @@
+{
+  "pocBaselineCommit": "62ce5d9e5",
+  "workerImageId": "sha256:bfea82551ff365794670f7a4160de239cd3ff985b07b89c811c3ed2b3adb2b31",
+  "verifiedParentImageId": "sha256:f23feae55353f57f2e7fb68455a41b2f26cd383b0ca04f928e0072ad7b869ace",
+  "gatewayLoopbackPort": 18328,
+  "runningStage1WorkerContainers": [],
+  "root": "/opt/cline-server-p3-stage1-20261108",
+  "productionDefaultModified": false,
+  "testMCP": "Official SDK, actual scoped private files; separate service; no production MCP/Sandbox configuration changes"
+}

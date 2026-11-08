@@ -1,0 +1,7 @@
+# Both services use the verified same-tag native runtime. No Core/Agents rebuild.
+ARG POC_IMAGE
+FROM ${POC_IMAGE}
+USER root
+COPY service/ /poc/service/
+USER 1000:1000
+CMD ["node", "/poc/service/src/isolated-worker.mjs"]

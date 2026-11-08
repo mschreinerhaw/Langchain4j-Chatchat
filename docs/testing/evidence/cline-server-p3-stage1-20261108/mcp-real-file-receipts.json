@@ -1,0 +1,98 @@
+[
+  {
+    "type": "mcp.dataset.read",
+    "tenantId": "tenant-b",
+    "datasetId": "dataset-b",
+    "allowed": true,
+    "eventId": "1",
+    "timestamp": "2026-11-08T03:43:39.811Z"
+  },
+  {
+    "type": "mcp.dataset.read",
+    "tenantId": "tenant-a",
+    "datasetId": "dataset-a",
+    "allowed": true,
+    "eventId": "2",
+    "timestamp": "2026-11-08T03:43:40.816Z"
+  },
+  {
+    "type": "mcp.dataset.read",
+    "tenantId": "tenant-a",
+    "datasetId": "dataset-a",
+    "allowed": true,
+    "eventId": "3",
+    "timestamp": "2026-11-08T03:45:38.645Z"
+  },
+  {
+    "type": "mcp.dataset.read",
+    "tenantId": "tenant-b",
+    "datasetId": "dataset-b",
+    "allowed": true,
+    "eventId": "4",
+    "timestamp": "2026-11-08T03:45:39.031Z"
+  },
+  {
+    "type": "mcp.dataset.read",
+    "tenantId": "tenant-a",
+    "datasetId": "dataset-a",
+    "allowed": true,
+    "eventId": "5",
+    "timestamp": "2026-11-08T03:51:40.659Z"
+  },
+  {
+    "type": "mcp.dataset.read",
+    "tenantId": "tenant-b",
+    "datasetId": "dataset-b",
+    "allowed": true,
+    "eventId": "6",
+    "timestamp": "2026-11-08T03:51:42.655Z"
+  },
+  {
+    "type": "mcp.dataset.read",
+    "tenantId": "tenant-a",
+    "datasetId": "dataset-a",
+    "allowed": true,
+    "eventId": "7",
+    "timestamp": "2026-11-08T03:53:11.057Z"
+  },
+  {
+    "type": "mcp.dataset.read",
+    "tenantId": "tenant-b",
+    "datasetId": "dataset-b",
+    "allowed": true,
+    "eventId": "8",
+    "timestamp": "2026-11-08T03:53:11.475Z"
+  },
+  {
+    "type": "mcp.dataset.read",
+    "tenantId": "tenant-a",
+    "datasetId": "dataset-a",
+    "allowed": true,
+    "eventId": "9",
+    "timestamp": "2026-11-08T04:08:10.508Z"
+  },
+  {
+    "type": "mcp.dataset.read",
+    "tenantId": "tenant-b",
+    "datasetId": "dataset-b",
+    "allowed": true,
+    "eventId": "10",
+    "timestamp": "2026-11-08T04:08:10.525Z"
+  },
+  {
+    "type": "mcp.dataset.read",
+    "tenantId": "tenant-a",
+    "datasetId": "dataset-a",
+    "allowed": true,
+    "eventId": "11",
+    "timestamp": "2026-11-08T04:08:50.249Z"
+  },
+  {
+    "type": "mcp.dataset.read",
+    "tenantId": "tenant-b",
+    "datasetId": "dataset-b",
+    "allowed": true,
+    "eventId": "12",
+    "timestamp": "2026-11-08T04:08:50.645Z"
+  }
+]

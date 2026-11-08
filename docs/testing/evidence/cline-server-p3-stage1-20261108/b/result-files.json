@@ -1,0 +1,18 @@
+{
+  "frozenFixtureTreeSha256": "84ad35da932db03410693724a523337b6c4b5c1aee0a7bfb5a7f9ae9cf030a1f",
+  "existingTrackedFilesChanged": [],
+  "files": [
+    {
+      "path": "tenant-proof.json",
+      "bytes": 121,
+      "sha256": "abcdddf0e3c14250accd0171bc1d168d6d37a35d125d60e11fb75b122de366e3"
+    },
+    {
+      "path": "test/tenant-proof.test.js",
+      "bytes": 1453,
+      "sha256": "031308a06fd972a46295458b7e90cdfc51c949a24b8fc6ff3a6063b3591db245"
+    }
+  ],
+  "untrustedLinksOrSpecialFilesNotDereferenced": [],
+  "verification": "Direct immutable-template byte comparison; no Git execution against untrusted workspace"
+}

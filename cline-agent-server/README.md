@@ -1,5 +1,7 @@
 # Cline Agent Server v4.1.26 POC
 
+P3 第一阶段新增独立治理入口，见 [隔离设计](../docs/design/cline-server-p3-stage1-isolation.md)、[根因矩阵](../docs/audits/cline-server-p3-root-causes-20261108.md)、[测试报告](../docs/testing/cline-server-p3-stage1-20261108.md) 和 [部署说明](docker/README.governance.md)。原 POC 方式保留；第一阶段基础测试不代表故障恢复、MCP/Sandbox 远端停止或完整 P3 验收通过。
+
 复用固定官方产品链：Standalone `common.initialize → SdkController → VscodeSessionHost → ClineCore 0.2.0 → AgentRuntime`。服务只实现 HostBridge、HTTP/SSE、审批关联、任务外层状态和本地进程停止治理；不实现 Java 执行器、Agent Loop、Editor、Patch 或 Shell。
 
 这是单操作者、单活跃 worker 的开发 POC。当前提供真实项目编码与原生工具验证，不是生产多租户服务。原生回合结束为 `turn_completed`，`deliveryValidated=false`；独立验收另行记录，API 不凭模型文本发布“交付成功”。

@@ -1,0 +1,12 @@
+✔ tenant-proof.json exists and is valid JSON (9.961295ms)
+✔ tenant-proof.json contains required factoryName, datasetId, and marker (5.160667ms)
+✔ factoryName matches the exported client factory in src/monitor-client.ts (4.219664ms)
+✔ marker returned by MCP read_dataset matches the JSON record (2.764425ms)
+ℹ tests 4
+ℹ suites 0
+ℹ pass 4
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 136.046013

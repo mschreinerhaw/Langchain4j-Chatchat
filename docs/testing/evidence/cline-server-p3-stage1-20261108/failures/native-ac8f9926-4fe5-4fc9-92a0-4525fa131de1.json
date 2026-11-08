@@ -1,0 +1,96 @@
+[
+  {
+    "sessionId": "f37ccb46-afdf-4949-a01b-9b1b35b05fe8",
+    "taskId": "4553989d-af88-40ea-a95c-1bf16650e371",
+    "epoch": "10d957a3-0906-4120-84ea-9fac2ab94330",
+    "eventType": "permission.decision",
+    "payload": {
+      "id": "07506a0e-0dd3-415f-ad64-80ef2a6f2522",
+      "decision": "approve"
+    },
+    "eventId": "17",
+    "timestamp": "2026-11-08T03:42:29.107Z"
+  },
+  {
+    "sessionId": "f37ccb46-afdf-4949-a01b-9b1b35b05fe8",
+    "taskId": "4553989d-af88-40ea-a95c-1bf16650e371",
+    "epoch": "10d957a3-0906-4120-84ea-9fac2ab94330",
+    "eventType": "permission.resolved",
+    "payload": {
+      "id": "07506a0e-0dd3-415f-ad64-80ef2a6f2522",
+      "decision": "approve",
+      "applied": true
+    },
+    "eventId": "18",
+    "timestamp": "2026-11-08T03:42:29.112Z"
+  },
+  {
+    "sessionId": "f37ccb46-afdf-4949-a01b-9b1b35b05fe8",
+    "taskId": "4553989d-af88-40ea-a95c-1bf16650e371",
+    "epoch": "10d957a3-0906-4120-84ea-9fac2ab94330",
+    "eventType": "permission.decision",
+    "payload": {
+      "id": "2df587cc-a46d-4195-beb7-c576bdf4aa5a",
+      "decision": "deny"
+    },
+    "eventId": "24",
+    "timestamp": "2026-11-08T03:42:29.149Z"
+  },
+  {
+    "sessionId": "f37ccb46-afdf-4949-a01b-9b1b35b05fe8",
+    "taskId": "4553989d-af88-40ea-a95c-1bf16650e371",
+    "epoch": "10d957a3-0906-4120-84ea-9fac2ab94330",
+    "eventType": "permission.resolved",
+    "payload": {
+      "id": "2df587cc-a46d-4195-beb7-c576bdf4aa5a",
+      "decision": "deny",
+      "applied": true
+    },
+    "eventId": "25",
+    "timestamp": "2026-11-08T03:42:29.153Z"
+  },
+  {
+    "sessionId": "f37ccb46-afdf-4949-a01b-9b1b35b05fe8",
+    "taskId": "4553989d-af88-40ea-a95c-1bf16650e371",
+    "epoch": "10d957a3-0906-4120-84ea-9fac2ab94330",
+    "eventType": "permission.decision",
+    "payload": {
+      "id": "55537f7c-ccb6-4766-bac6-393b376cccff",
+      "decision": "approve"
+    },
+    "eventId": "31",
+    "timestamp": "2026-11-08T03:42:30.128Z"
+  },
+  {
+    "sessionId": "f37ccb46-afdf-4949-a01b-9b1b35b05fe8",
+    "taskId": "4553989d-af88-40ea-a95c-1bf16650e371",
+    "epoch": "10d957a3-0906-4120-84ea-9fac2ab94330",
+    "eventType": "permission.resolved",
+    "payload": {
+      "id": "55537f7c-ccb6-4766-bac6-393b376cccff",
+      "decision": "approve",
+      "applied": true
+    },
+    "eventId": "32",
+    "timestamp": "2026-11-08T03:42:30.130Z"
+  },
+  {
+    "sessionId": "f37ccb46-afdf-4949-a01b-9b1b35b05fe8",
+    "taskId": "4553989d-af88-40ea-a95c-1bf16650e371",
+    "epoch": "10d957a3-0906-4120-84ea-9fac2ab94330",
+    "eventType": "tool.failed",
+    "payload": {
+      "type": "content_end",
+      "contentType": "tool",
+      "toolName": "tenant_data__read_dataset",
+      "toolCallId": "call_f564ffb7ac4b4ce38145845d",
+      "output": {
+        "error": "This tool call was rejected by the user and not executed. The user provided the following feedback:\n<feedback>\nTask tool policy denied\n</feedback> -- NOT a tool or system failure. Clarify with user before proceeding."
+      },
+      "error": "{\"error\":\"This tool call was rejected by the user and not executed. The user provided the following feedback:\\n<feedback>\\nTask tool policy denied\\n</feedback> -- NOT a tool or system failure. Clarify with user before proceeding.\"}",
+      "durationMs": 13
+    },
+    "eventId": "42",
+    "timestamp": "2026-11-08T03:42:30.170Z"
+  }
+]

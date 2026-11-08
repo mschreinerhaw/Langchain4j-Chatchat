@@ -1,0 +1,16 @@
+✔ missing ProtoBus descriptor fails explicitly before native or provider initialization (3.80604ms)
+✔ native editor size rejection and shell structured errors cannot become success events (0.366697ms)
+✔ durable replay resumes after the last delivered ID across journal reopen (2.159088ms)
+✔ host path boundary rejects traversal and symlinks escaping the authorized workspace (0.965243ms)
+✔ signed task identities reject tampering, expiry and arbitrary workspace paths (3.730366ms)
+✔ session authorization binds tenant, user, task, immutable grant and revocation (0.860653ms)
+✔ worker launch provides no network, host ports, docker socket or shared tenant state (0.480701ms)
+✔ uncertain or failed provisioning cannot free a worker slot without a stop proof (0.236976ms)
+ℹ tests 8
+ℹ suites 0
+ℹ pass 8
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 257.915788

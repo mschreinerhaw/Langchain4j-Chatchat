@@ -72,6 +72,7 @@ async function startWorker(s){
   autoApprovalSettings:{version:1,enabled:true,favorites:[],maxRequests:100,enableNotifications:false,actions:{readFiles:false,readFilesExternally:false,editFiles:false,editFilesExternally:false,executeSafeCommands:false,executeAllCommands:false,useBrowser:false,useMcp:false}}};
  writeFileSync(join(data,'globalState.json'),JSON.stringify(global),{mode:0o600});
  writeFileSync(join(data,'secrets.json'),JSON.stringify({openAiApiKey:config.apiKey}),{mode:0o600});
+ if(config.mcpServers){const settings=join(data,'settings');mkdirSync(settings,{recursive:true,mode:0o700});writeFileSync(join(settings,'cline_mcp_settings.json'),JSON.stringify({mcpServers:config.mcpServers}),{mode:0o600});}
  const port=await freePort();
  const env={PATH:process.env.PATH,LANG:'C.UTF-8',HOME:join(s.dir,'home'),CLINE_DIR:join(s.dir,'cline'),CLINE_DATA_DIR:data,
   WORKSPACE_STORAGE_DIR:join(s.dir,'workspace-storage'),INSTALL_DIR:resolve(config.distDir),
@@ -90,6 +91,7 @@ async function startWorker(s){
    if(message.kind==='native.permission'){
     const p={id:randomUUID(),sessionId:s.id,taskId:s.taskId,epoch:s.epoch,inputHash:message.inputHash,toolCallId:message.request.toolCallId,toolName:message.request.toolName,input:message.request.input,expiresAt:Date.now()+180000,state:'pending'};
     permissions.set(p.id,p);status(s,'awaiting_permission');emit(s,'permission.requested',p);
+    if(config.toolPermissions&&!config.toolPermissions.some(t=>t===p.toolName||t.endsWith('*')&&p.toolName.startsWith(t.slice(0,-1)))){respond(s,p,'deny','Task tool policy denied').catch(e=>failure(s,e));return;}
     p.timer=setTimeout(()=>respond(s,p,'deny','Approval expired').catch(e=>failure(s,e)),180000);p.timer.unref();
    }
    if(message.kind==='permission.ack'){const ack=s.acks.get(message.commandId);if(ack){s.acks.delete(message.commandId);ack(message.applied);}}
@@ -132,7 +134,7 @@ async function cancel(s){
  const alive=pids.filter(pid=>{try{return readFileSync(`/proc/${pid}/stat`,'utf8').split(') ')[1].split(' ')[0]!=='Z';}catch{return false;}});
  s.bridge?.close();s.taskClient?.close();s.workerReady=false;
  if(alive.length){emit(s,'task.stop_unconfirmed',{pids:alive});return;}
- status(s,'cancelled');emit(s,'task.cancelled',{localProcesses:pids,localStopConfirmed:true,externalOperations:'none-configured-in-poc'});
+ status(s,'cancelled');emit(s,'task.cancelled',{localProcesses:pids,localStopConfirmed:true,externalOperations:config.mcpServers?'remote-stop-unverified':'none-configured-in-poc',...(config.mcpServers?{remoteStopConfirmed:false}:{})});
 }
 const send=(res,code,body)=>{res.writeHead(code,{'content-type':'application/json; charset=utf-8'});res.end(JSON.stringify(body));};
 async function body(req){let s='';for await(const c of req){s+=c;if(s.length>1024*1024)throw Object.assign(Error('Request too large'),{status:413});}try{return JSON.parse(s||'{}');}catch{throw Object.assign(Error('Invalid JSON'),{status:400});}}
@@ -191,6 +193,6 @@ const server=http.createServer(async(req,res)=>{
   send(res,404,{code:'NOT_FOUND'});
  }catch(error){if(!res.headersSent)send(res,error.status??500,{code:'REQUEST_FAILED',message:redact(error.message)});else res.end();}
 });
-server.listen(config.port??18326,config.host??'127.0.0.1',()=>console.log(JSON.stringify({event:'listening',port:config.port??18326,upstream:'v4.1.26',mode:'single-operator-poc'})));
+server.listen(config.socketPath?{path:config.socketPath}:{port:config.port??18326,host:config.host??'127.0.0.1'},()=>console.log(JSON.stringify({event:'listening',transport:config.socketPath?'private-unix-socket':'http',port:config.port??18326,upstream:'v4.1.26',mode:'single-worker'})));
 async function shutdown(){server.close();for(const s of sessions.values())if(s.worker?.exitCode===null&&s.status!=='cancelled')await cancel(s);process.exit(0);}
 process.on('SIGTERM',shutdown);process.on('SIGINT',shutdown);

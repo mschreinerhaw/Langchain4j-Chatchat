@@ -1,0 +1,54 @@
+{
+  "a": {
+    "version": 1,
+    "tenantId": "tenant-a",
+    "userId": "user-a",
+    "taskId": "task-ac9c7ea0a5124dc78fc5b703f48eaa6d",
+    "sessionId": "session-d283250ff64a4c9ba0a2a1e25bc05fa4",
+    "workspaceRef": "project",
+    "modelProfile": "qwen",
+    "budgetPolicy": {
+      "status": "DEFERRED_STAGE_2_REVIEW"
+    },
+    "toolPermissions": [
+      "read_files",
+      "search_codebase",
+      "editor",
+      "apply_patch",
+      "run_commands",
+      "use_mcp_tool",
+      "mcp*"
+    ],
+    "dataPermissions": [
+      "dataset-a"
+    ],
+    "networkPolicy": "broker-only",
+    "expiresAt": 1794111025517
+  },
+  "b": {
+    "version": 1,
+    "tenantId": "tenant-b",
+    "userId": "user-b",
+    "taskId": "task-357dddf728994e50be7c82160669cc92",
+    "sessionId": "session-edd41825c01342218cc39e6069a4cd15",
+    "workspaceRef": "project",
+    "modelProfile": "qwen",
+    "budgetPolicy": {
+      "status": "DEFERRED_STAGE_2_REVIEW"
+    },
+    "toolPermissions": [
+      "read_files",
+      "search_codebase",
+      "editor",
+      "apply_patch",
+      "run_commands",
+      "use_mcp_tool",
+      "mcp*"
+    ],
+    "dataPermissions": [
+      "dataset-b"
+    ],
+    "networkPolicy": "broker-only",
+    "expiresAt": 1794111025517
+  }
+}

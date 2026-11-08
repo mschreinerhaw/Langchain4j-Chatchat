@@ -1,0 +1,132 @@
+[
+  {
+    "eventId": "38",
+    "transportEventType": "tool.completed",
+    "normalizedOutcome": "SUCCEEDED",
+    "native": {
+      "type": "content_end",
+      "contentType": "tool",
+      "toolName": "read_files",
+      "toolCallId": "call_0474cd6ea1cf458aacad23c0",
+      "output": [
+        {
+          "query": "/poc/project/src/monitor-client.ts",
+          "result": " 1 | import type { CodeVersion, ModelCall, MonitorEvent, NodeSnapshot, TaskDetail, TaskPage, TaskState } from './monitor-types.ts';\n 2 | \n 3 | /** Server-side SDK. Keep the operator token on your application server. */\n 4 | export function createMonitorClient(options: { baseUrl: string; token: string; fetch?: typeof fetch; timeoutMs?: number }) {\n 5 |   const base = options.baseUrl.replace(/\\/$/, '');\n 6 |   const transport = options.fetch ?? fetch;\n 7 |   async function get<T>(path: string): Promise<T> {\n 8 |     const response = await transport(`${base}/v1/monitor${path}`, {\n 9 |       headers: { authorization: `Bearer ${options.token}` }, signal: AbortSignal.timeout(options.timeoutMs ?? 10000),\n10 |       redirect: 'error', cache: 'no-store',\n11 |     });\n12 |     if (!response.ok) throw Object.assign(new Error(`Node monitor returned HTTP ${response.status}`), { status: response.status });\n13 |     return await response.json() as T;\n14 |   }\n15 |   const id = (value: string) => {\n16 |     if (!/^[a-f0-9]{64}$/.test(value)) throw new TypeError('A monitor observation ID is required');\n17 |     return value;\n18 |   };\n19 |   return {\n20 |     node: () => get<NodeSnapshot>('/node'),\n21 |     tasks: (query: { status?: TaskState; q?: string; offset?: number; limit?: number } = {}) =>\n22 |       get<TaskPage>(`/tasks?${new URLSearchParams(Object.entries(query).map(([key, value]) => [key, String(value)]))}`),\n23 |     task: (taskId: string) => get<{ schemaVersion: string; task: TaskDetail }>(`/tasks/${id(taskId)}`),\n24 |     events: (taskId: string, after = 0, limit = 100) =>\n25 |       get<{ schemaVersion: string; items: MonitorEvent[]; nextCursor: number; hasMore: boolean; truncated: boolean; earliestCursor: number | null }>(`/tasks/${id(taskId)}/events?after=${after}&limit=${limit}`),\n26 |     models: (taskId: string) => get<{ schemaVersion: string; models: ModelCall[] }>(`/tasks/${id(taskId)}/models`),\n27 |     skills: (taskId: string) => get<{ schemaVersion: string; skills: TaskDetail['skills'] }>(`/tasks/${id(taskId)}/skills`),\n28 |     codes: (taskId: string) => get<{ schemaVersion: string; codes: CodeVersion[] }>(`/tasks/${id(taskId)}/codes`),\n29 |     python: (taskId: string) => get<unknown>(`/tasks/${id(taskId)}/python`),\n30 |     code: (taskId: string, codeId: string) => get<CodeVersion>(`/tasks/${id(taskId)}/codes/${id(codeId)}`),\n31 |   };\n32 | }\n33 | export type * from './monitor-types.ts';",
+          "success": true
+        }
+      ],
+      "durationMs": 32
+    }
+  },
+  {
+    "eventId": "42",
+    "transportEventType": "tool.completed",
+    "normalizedOutcome": "SUCCEEDED",
+    "native": {
+      "type": "content_end",
+      "contentType": "tool",
+      "toolName": "tenant_data__read_dataset",
+      "toolCallId": "call_06c7c684f889454b9d1816f5",
+      "output": {
+        "content": [
+          {
+            "type": "text",
+            "text": "{\"tenantId\": \"tenant-a\", \"datasetId\": \"dataset-a\", \"marker\": \"dataset-a-ca6444cfb3fd92de8fcdd750\"}"
+          }
+        ]
+      },
+      "durationMs": 52
+    }
+  },
+  {
+    "eventId": "48",
+    "transportEventType": "tool.completed",
+    "normalizedOutcome": "SUCCEEDED",
+    "native": {
+      "type": "content_end",
+      "contentType": "tool",
+      "toolName": "run_commands",
+      "toolCallId": "call_6d73046087d44a348db4685a",
+      "output": [
+        {
+          "query": "ls /poc/project && echo '---' && ls /poc/project/test 2>/dev/null || echo 'no test dir'",
+          "result": "Dockerfile\nREADME.md\ncompose.yaml\nfixtures\nintegration\npackage-lock.json\npackage.json\nscripts\nskills\nsrc\ntenant-private.txt\ntest\ntsconfig.json\ntsconfig.web.json\nweb\n---\nanalysis-regression.test.js\nbuiltin-skills.test.js\ncheckpoint-receipt.test.js\ncode-lifecycle.test.js\ncode-repair.test.js\ncoding-progress.test.js\ncompletion-context.test.js\ncompletion-evaluation.test.js\nfinancial-methods.test.py\nfixtures\nknowledge-tools.test.js\nmetrics-summary.test.js\nmicrosoft-skills.test.js\nmonitor-authority.test.js\nmonitor.test.js\nnative-skills.test.js\nnode-monitor.test.js\nprecode-disclosure.test.js\npython-diagnostics.test.js\npython-project.test.js\nrecovery.test.js\nrequest-context.test.js\nreviewed-result.test.js\nrunner.test.js\nruntime-model.test.js\nsdk-migration.test.js\nsdk-native-capabilities.test.js\nsdk-packages.test.js\nsdk-reuse-regression.test.js\nserver.test.js\ntool-catalog.test.js\nworkspace-fast-path.test.js\n",
+          "success": true
+        }
+      ],
+      "durationMs": 40
+    }
+  },
+  {
+    "eventId": "75",
+    "transportEventType": "tool.completed",
+    "normalizedOutcome": "SUCCEEDED",
+    "native": {
+      "type": "content_end",
+      "contentType": "tool",
+      "toolName": "read_files",
+      "toolCallId": "call_e2e8121d85184efca8c4dfbe",
+      "output": [
+        {
+          "query": "/poc/project/test/monitor-authority.test.js:1-30",
+          "result": " 1 | import test from 'node:test';\n 2 | import assert from 'node:assert/strict';\n 3 | import {createServer} from 'node:http';\n 4 | import {mkdtemp,rm} from 'node:fs/promises';\n 5 | import {tmpdir} from 'node:os';\n 6 | import {join} from 'node:path';\n 7 | import {MonitorStore,createMonitorHandler} from '../dist/monitor.js';\n 8 | \n 9 | const contract={taskId:'same-task',scope:{tenantId:'tenant',userId:'owner',runId:'same-run'},objective:{instruction:'Fixed task'}};\n10 | const at='2026-11-06T04:00:00Z';\n11 | const projection=(status='COMPLETED',revision=20)=>({source:'DURABLE_CODING_JOURNAL',taskId:contract.taskId,...contract.scope,\n12 |  status,terminal:!['CREATED','RUNNING'].includes(status),revision,updatedAt:at,endedAt:!['CREATED','RUNNING'].includes(status)?at:null,\n13 |  reasonCode:status==='BUDGET_EXCEEDED'?'DEADLINE_EXCEEDED':null,summary:'Original task reason',limitations:['One declared missing deliverable']});\n14 | \n15 | for(const status of ['COMPLETED','PARTIAL','FAILED','CANCELLED','BUDGET_EXCEEDED'])test(`Runtime ${status} remains authoritative after late progress and SDK finish`,()=>{\n16 |  const store=new MonitorStore(),id=store.start(contract,1,'NEW_SDK');\n17 |  store.event(id,{type:'MODEL_STARTED',modelCall:1});\n18 |  store.reconcileRuntime(id,projection(status));const original=store.detail(id);\n19 |  store.event(id,{type:'TOOL_STARTED',stage:'RUNNING'});store.finish(id,'FAILED','Late old attempt');\n20 |  store.reconcileRuntime(id,projection('RUNNING',2));store.reconcileRuntime(id,projection(status==='FAILED'?'COMPLETED':'FAILED',30));\n21 |  const after=store.detail(id);assert.equal(after.runtimeOutcome.status,status);assert.equal(after.finishedAt,at);\n22 |  assert.equal(after.status,original.status);assert.equal(after.authority,'RUNTIME_CONFIRMED');assert.equal(after.observedStatus,'FAILED');\n23 |  assert(after.events.length>original.events.length);assert.equal(after.models.length,1);\n24 |  assert.equal(store.start(contract,1,'NEW_SDK'),id);assert.equal(store.detail(id).runtimeOutcome.status,status);\n25 | });\n26 | \n27 | test('Runtime projection survives actual monitor recreation without erasing observations',async()=>{\n28 |  const directory=await mkdtemp(join(tmpdir(),'phase3-monitor-'));\n29 |  try{\n30 |   const first=new MonitorStore({directory}),id=first.start(contract,1,'NEW_SDK');first.event(id,{type:'MODEL_STARTED',modelCall:1});",
+          "success": true
+        }
+      ],
+      "durationMs": 17
+    }
+  },
+  {
+    "eventId": "104",
+    "transportEventType": "tool.completed",
+    "normalizedOutcome": "SUCCEEDED",
+    "native": {
+      "type": "content_end",
+      "contentType": "tool",
+      "toolName": "editor",
+      "toolCallId": "call_bf5bba8352f44aaa95193f82",
+      "output": {
+        "query": "edit:/poc/project/tenant-proof.json",
+        "result": "File created successfully at: /poc/project/tenant-proof.json",
+        "success": true
+      },
+      "durationMs": 22
+    }
+  },
+  {
+    "eventId": "108",
+    "transportEventType": "tool.completed",
+    "normalizedOutcome": "SUCCEEDED",
+    "native": {
+      "type": "content_end",
+      "contentType": "tool",
+      "toolName": "editor",
+      "toolCallId": "call_a62c27bc7dc742288a6bc7d0",
+      "output": {
+        "query": "edit:/poc/project/test/tenant-proof.test.js",
+        "result": "File created successfully at: /poc/project/test/tenant-proof.test.js",
+        "success": true
+      },
+      "durationMs": 15
+    }
+  },
+  {
+    "eventId": "126",
+    "transportEventType": "tool.completed",
+    "normalizedOutcome": "SUCCEEDED",
+    "native": {
+      "type": "content_end",
+      "contentType": "tool",
+      "toolName": "run_commands",
+      "toolCallId": "call_1ef8b97bd2774374a29dbadf",
+      "output": [
+        {
+          "query": "cd /poc/project && node --test test/tenant-proof.test.js",
+          "result": "✔ tenant-proof.json exists and is valid JSON (7.085353ms)\n✔ tenant-proof.json contains required factoryName, datasetId, and marker (4.575925ms)\n✔ factoryName matches the exported client factory in src/monitor-client.ts (2.725735ms)\n✔ marker returned by MCP read_dataset matches the JSON record (3.477767ms)\nℹ tests 4\nℹ suites 0\nℹ pass 4\nℹ fail 0\nℹ cancelled 0\nℹ skipped 0\nℹ todo 0\nℹ duration_ms 107.409048\n",
+          "success": true
+        }
+      ],
+      "durationMs": 194
+    }
+  }
+]

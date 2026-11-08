@@ -1,0 +1,12 @@
+✔ tenant-proof.json exists and has required fields (1.433037ms)
+✔ tenant-proof.json factoryName matches the real exported factory from monitor-client (0.326836ms)
+✔ tenant-proof.json datasetId is dataset-a (0.268073ms)
+✔ tenant-proof.json marker is a non-empty string from the tenant dataset (0.249773ms)
+ℹ tests 4
+ℹ suites 0
+ℹ pass 4
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 112.536732

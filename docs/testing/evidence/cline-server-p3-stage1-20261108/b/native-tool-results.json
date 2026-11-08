@@ -1,0 +1,156 @@
+[
+  {
+    "eventId": "38",
+    "transportEventType": "tool.completed",
+    "normalizedOutcome": "SUCCEEDED",
+    "native": {
+      "type": "content_end",
+      "contentType": "tool",
+      "toolName": "read_files",
+      "toolCallId": "call_f4dd90ee5bc441368f1e3c29",
+      "output": [
+        {
+          "query": "/poc/project/src/monitor-client.ts",
+          "result": " 1 | import type { CodeVersion, ModelCall, MonitorEvent, NodeSnapshot, TaskDetail, TaskPage, TaskState } from './monitor-types.ts';\n 2 | \n 3 | /** Server-side SDK. Keep the operator token on your application server. */\n 4 | export function createMonitorClient(options: { baseUrl: string; token: string; fetch?: typeof fetch; timeoutMs?: number }) {\n 5 |   const base = options.baseUrl.replace(/\\/$/, '');\n 6 |   const transport = options.fetch ?? fetch;\n 7 |   async function get<T>(path: string): Promise<T> {\n 8 |     const response = await transport(`${base}/v1/monitor${path}`, {\n 9 |       headers: { authorization: `Bearer ${options.token}` }, signal: AbortSignal.timeout(options.timeoutMs ?? 10000),\n10 |       redirect: 'error', cache: 'no-store',\n11 |     });\n12 |     if (!response.ok) throw Object.assign(new Error(`Node monitor returned HTTP ${response.status}`), { status: response.status });\n13 |     return await response.json() as T;\n14 |   }\n15 |   const id = (value: string) => {\n16 |     if (!/^[a-f0-9]{64}$/.test(value)) throw new TypeError('A monitor observation ID is required');\n17 |     return value;\n18 |   };\n19 |   return {\n20 |     node: () => get<NodeSnapshot>('/node'),\n21 |     tasks: (query: { status?: TaskState; q?: string; offset?: number; limit?: number } = {}) =>\n22 |       get<TaskPage>(`/tasks?${new URLSearchParams(Object.entries(query).map(([key, value]) => [key, String(value)]))}`),\n23 |     task: (taskId: string) => get<{ schemaVersion: string; task: TaskDetail }>(`/tasks/${id(taskId)}`),\n24 |     events: (taskId: string, after = 0, limit = 100) =>\n25 |       get<{ schemaVersion: string; items: MonitorEvent[]; nextCursor: number; hasMore: boolean; truncated: boolean; earliestCursor: number | null }>(`/tasks/${id(taskId)}/events?after=${after}&limit=${limit}`),\n26 |     models: (taskId: string) => get<{ schemaVersion: string; models: ModelCall[] }>(`/tasks/${id(taskId)}/models`),\n27 |     skills: (taskId: string) => get<{ schemaVersion: string; skills: TaskDetail['skills'] }>(`/tasks/${id(taskId)}/skills`),\n28 |     codes: (taskId: string) => get<{ schemaVersion: string; codes: CodeVersion[] }>(`/tasks/${id(taskId)}/codes`),\n29 |     python: (taskId: string) => get<unknown>(`/tasks/${id(taskId)}/python`),\n30 |     code: (taskId: string, codeId: string) => get<CodeVersion>(`/tasks/${id(taskId)}/codes/${id(codeId)}`),\n31 |   };\n32 | }\n33 | export type * from './monitor-types.ts';",
+          "success": true
+        }
+      ],
+      "durationMs": 29
+    }
+  },
+  {
+    "eventId": "42",
+    "transportEventType": "tool.completed",
+    "normalizedOutcome": "SUCCEEDED",
+    "native": {
+      "type": "content_end",
+      "contentType": "tool",
+      "toolName": "tenant_data__read_dataset",
+      "toolCallId": "call_d519c0cfdeb445988b086306",
+      "output": {
+        "content": [
+          {
+            "type": "text",
+            "text": "{\"tenantId\": \"tenant-b\", \"datasetId\": \"dataset-b\", \"marker\": \"dataset-b-271cda465712ea8bc54604ae\"}"
+          }
+        ]
+      },
+      "durationMs": 53
+    }
+  },
+  {
+    "eventId": "48",
+    "transportEventType": "tool.completed",
+    "normalizedOutcome": "SUCCEEDED",
+    "native": {
+      "type": "content_end",
+      "contentType": "tool",
+      "toolName": "run_commands",
+      "toolCallId": "call_76eb20875d7943e48e125ebf",
+      "output": [
+        {
+          "query": "ls -la /poc/project/ && echo '---' && ls -la /poc/project/test/ 2>/dev/null || echo 'no test dir'",
+          "result": "total 224\ndrwx------ 10 cline cline   4096 Nov  8 04:07 .\ndrwxr-xr-x  1 root  root      35 Nov  8 04:07 ..\n-rw-r--r--  1 cline cline     77 Nov  8 04:07 .dockerignore\ndrwxr-xr-x  8 cline cline    166 Nov  8 04:08 .git\n-rw-r--r--  1 cline cline     20 Nov  8 04:07 .gitignore\n-rw-r--r--  1 cline cline   1933 Nov  8 04:07 Dockerfile\n-rw-r--r--  1 cline cline   9967 Nov  8 04:07 README.md\n-rw-r--r--  1 cline cline   1424 Nov  8 04:07 compose.yaml\ndrwxr-xr-x  2 cline cline     59 Nov  8 04:07 fixtures\ndrwxr-xr-x  2 cline cline     29 Nov  8 04:07 integration\n-rw-r--r--  1 cline cline 163514 Nov  8 04:07 package-lock.json\n-rw-r--r--  1 cline cline    794 Nov  8 04:07 package.json\ndrwxr-xr-x  2 cline cline   4096 Nov  8 04:07 scripts\ndrwxr-xr-x 17 cline cline   4096 Nov  8 04:07 skills\ndrwxr-xr-x  2 cline cline   4096 Nov  8 04:07 src\n-rw-r--r--  1 cline cline     31 Nov  8 04:07 tenant-private.txt\ndrwxr-xr-x  3 cline cline   4096 Nov  8 04:07 test\n-rw-r--r--  1 cline cline    346 Nov  8 04:07 tsconfig.json\n-rw-r--r--  1 cline cline    309 Nov  8 04:07 tsconfig.web.json\ndrwxr-xr-x  2 cline cline     85 Nov  8 04:07 web\n---\ntotal 380\ndrwxr-xr-x  3 cline cline  4096 Nov  8 04:07 .\ndrwx------ 10 cline cline  4096 Nov  8 04:07 ..\n-rw-r--r--  1 cline cline  3155 Nov  8 04:07 analysis-regression.test.js\n-rw-r--r--  1 cline cline  1335 Nov  8 04:07 builtin-skills.test.js\n-rw-r--r--  1 cline cline  3169 Nov  8 04:07 checkpoint-receipt.test.js\n-rw-r--r--  1 cline cline 15881 Nov  8 04:07 code-lifecycle.test.js\n-rw-r--r--  1 cline cline  5289 Nov  8 04:07 code-repair.test.js\n-rw-r--r--  1 cline cline 15921 Nov  8 04:07 coding-progress.test.js\n-rw-r--r--  1 cline cline  5474 Nov  8 04:07 completion-context.test.js\n-rw-r--r--  1 cline cline  2437 Nov  8 04:07 completion-evaluation.test.js\n-rw-r--r--  1 cline cline 14947 Nov  8 04:07 financial-methods.test.py\ndrwxr-xr-x  2 cline cline    69 Nov  8 04:07 fixtures\n-rw-r--r--  1 cline cline 23598 Nov  8 04:07 knowledge-tools.test.js\n-rw-r--r--  1 cline cline  1850 Nov  8 04:07 metrics-summary.test.js\n-rw-r--r--  1 cline cline  1148 Nov  8 04:07 microsoft-skills.test.js\n-rw-r--r--  1 cline cline  4621 Nov  8 04:07 monitor-authority.test.js\n-rw-r--r--  1 cline cline 26941 Nov  8 04:07 monitor.test.js\n-rw-r--r--  1 cline cline 16368 Nov  8 04:07 native-skills.test.js\n-rw-r--r--  1 cline cline 10344 Nov  8 04:07 node-monitor.test.js\n-rw-r--r--  1 cline cline  4614 Nov  8 04:07 precode-disclosure.test.js\n-rw-r--r--  1 cline cline  3707 Nov  8 04:07 python-diagnostics.test.js\n-rw-r--r--  1 cline cline  5050 Nov  8 04:07 python-project.test.js\n-rw-r--r--  1 cline cline  1568 Nov  8 04:07 recovery.test.js\n-rw-r--r--  1 cline cline  9785 Nov  8 04:07 request-context.test.js\n-rw-r--r--  1 cline cline 36873 Nov  8 04:07 reviewed-result.test.js\n-rw-r--r--  1 cline cline 42749 Nov  8 04:07 runner.test.js\n-rw-r--r--  1 cline cline  3434 Nov  8 04:07 runtime-model.test.js\n-rw-r--r--  1 cline cline  9222 Nov  8 04:07 sdk-migration.test.js\n-rw-r--r--  1 cline cline  6961 Nov  8 04:07 sdk-native-capabilities.test.js\n-rw-r--r--  1 cline cline   741 Nov  8 04:07 sdk-packages.test.js\n-rw-r--r--  1 cline cline  8732 Nov  8 04:07 sdk-reuse-regression.test.js\n-rw-r--r--  1 cline cline 14607 Nov  8 04:07 server.test.js\n-rw-r--r--  1 cline cline  4915 Nov  8 04:07 tool-catalog.test.js\n-rw-r--r--  1 cline cline  8224 Nov  8 04:07 workspace-fast-path.test.js\n",
+          "success": true
+        }
+      ],
+      "durationMs": 51
+    }
+  },
+  {
+    "eventId": "73",
+    "transportEventType": "tool.completed",
+    "normalizedOutcome": "SUCCEEDED",
+    "native": {
+      "type": "content_end",
+      "contentType": "tool",
+      "toolName": "read_files",
+      "toolCallId": "call_3dc467085ada42b7a44a6b49",
+      "output": [
+        {
+          "query": "/poc/project/test/metrics-summary.test.js",
+          "result": " 1 | import test from 'node:test';\n 2 | import assert from 'node:assert/strict';\n 3 | import { summarize } from '../scripts/summarize-metrics.mjs';\n 4 | \n 5 | test('stage statistics retain unknown measurements and never infer Runtime success from Node completion', () => {\n 6 |   const result = summarize({ tasks: [{ taskId: 'task', status: 'COMPLETED', models: [{ ordinal: 1, status: 'SUCCEEDED',\n 7 |     durationMs: 100, firstTokenMs: null, usage: { inputTokens: null, outputTokens: null } }], events: [] }] });\n 8 |   assert.equal(result.runtimeTasks, null);\n 9 |   assert.equal(result.models.successRate, 1);\n10 |   assert.equal(result.models.firstTokenMs.mean, null);\n11 |   assert.equal(result.models.inputTokens.total, null);\n12 | });\n13 | \n14 | test('recovery merges admitted ordinals and compares execution success with output validation and Java final status', () => {\n15 |   const task = { taskId: 'task', tenantId: 't', userId: 'u', runId: 'r', eventsTruncated: true,\n16 |     models: [{ ordinal: 1, status: 'SUCCEEDED', durationMs: 10, usage: { inputTokens: 5, outputTokens: 8 } }],\n17 |     events: [{ type: 'TOOL_FINISHED', tool: 'python_execute', operationId: 'op', status: 'SUCCEEDED', resultAvailable: false },\n18 |       { type: 'TOOL_TIMING', tool: 'python_execute', toolCallId: 'call', status: 'RETURNED', toolDurationMs: 20 }] };\n19 |   const result = summarize({ tasks: [task, structuredClone(task)] }, [{ taskId: 'task', scope: { tenantId: 't', userId: 'u', runId: 'r' },\n20 |     status: 'FAILED', revision: 2 }]);\n21 |   assert.equal(result.models.observed, 1);\n22 |   assert.equal(result.models.inputTokens.total, 5);\n23 |   assert.equal(result.python.execution.successRate, 1);\n24 |   assert.equal(result.python.validatedOutput.successRate, 0);\n25 |   assert.equal(result.runtimeTasks.successRate, 0);\n26 |   assert.equal(result.tools.python_execute.durationMs.mean, 20);\n27 |   assert.equal(result.historyTruncated, true);\n28 | });",
+          "success": true
+        }
+      ],
+      "durationMs": 15
+    }
+  },
+  {
+    "eventId": "100",
+    "transportEventType": "tool.completed",
+    "normalizedOutcome": "SUCCEEDED",
+    "native": {
+      "type": "content_end",
+      "contentType": "tool",
+      "toolName": "editor",
+      "toolCallId": "call_a766d043baf2418c82c028bb",
+      "output": {
+        "query": "edit:/poc/project/tenant-proof.json",
+        "result": "File created successfully at: /poc/project/tenant-proof.json",
+        "success": true
+      },
+      "durationMs": 26
+    }
+  },
+  {
+    "eventId": "104",
+    "transportEventType": "tool.completed",
+    "normalizedOutcome": "SUCCEEDED",
+    "native": {
+      "type": "content_end",
+      "contentType": "tool",
+      "toolName": "editor",
+      "toolCallId": "call_41b4d90200f640bbacb3c2b4",
+      "output": {
+        "query": "edit:/poc/project/test/tenant-proof.test.js",
+        "result": "File created successfully at: /poc/project/test/tenant-proof.test.js",
+        "success": true
+      },
+      "durationMs": 19
+    }
+  },
+  {
+    "eventId": "128",
+    "transportEventType": "tool.completed",
+    "normalizedOutcome": "SUCCEEDED",
+    "native": {
+      "type": "content_end",
+      "contentType": "tool",
+      "toolName": "run_commands",
+      "toolCallId": "call_a4d68d34b1dd4bcf9fb42335",
+      "output": [
+        {
+          "query": "cd /poc/project && node --test test/tenant-proof.test.js",
+          "result": "✔ tenant-proof.json contains the required fields and matches the real dataset marker (1.30943ms)\n✔ factoryName in tenant-proof.json matches the real export in src/monitor-client.ts (0.424584ms)\nℹ tests 2\nℹ suites 0\nℹ pass 2\nℹ fail 0\nℹ cancelled 0\nℹ skipped 0\nℹ todo 0\nℹ duration_ms 98.666306\n",
+          "success": true
+        }
+      ],
+      "durationMs": 190
+    }
+  },
+  {
+    "eventId": "144",
+    "transportEventType": "tool.completed",
+    "normalizedOutcome": "SUCCEEDED",
+    "native": {
+      "type": "content_end",
+      "contentType": "tool",
+      "toolName": "read_files",
+      "toolCallId": "call_750b8b5be66a4c818ce2527c",
+      "output": [
+        {
+          "query": "/poc/project/tenant-proof.json",
+          "result": "1 | {\n2 |   \"factoryName\": \"createMonitorClient\",\n3 |   \"datasetId\": \"dataset-b\",\n4 |   \"marker\": \"dataset-b-271cda465712ea8bc54604ae\"\n5 | }",
+          "success": true
+        },
+        {
+          "query": "/poc/project/test/tenant-proof.test.js",
+          "result": " 1 | import test from 'node:test';\n 2 | import assert from 'node:assert/strict';\n 3 | import { readFileSync } from 'node:fs';\n 4 | import { resolve, dirname } from 'node:path';\n 5 | import { fileURLToPath } from 'node:url';\n 6 | \n 7 | const __dirname = dirname(fileURLToPath(import.meta.url));\n 8 | const proofPath = resolve(__dirname, '..', 'tenant-proof.json');\n 9 | const sourcePath = resolve(__dirname, '..', 'src', 'monitor-client.ts');\n10 | \n11 | test('tenant-proof.json contains the required fields and matches the real dataset marker', () => {\n12 |   const proof = JSON.parse(readFileSync(proofPath, 'utf8'));\n13 | \n14 |   assert.equal(proof.factoryName, 'createMonitorClient', 'factoryName must match the exported client factory');\n15 |   assert.equal(proof.datasetId, 'dataset-b', 'datasetId must be dataset-b');\n16 |   assert.equal(typeof proof.marker, 'string', 'marker must be a string');\n17 |   assert.ok(proof.marker.startsWith('dataset-b-'), 'marker must be scoped to dataset-b');\n18 |   assert.equal(proof.marker, 'dataset-b-271cda465712ea8bc54604ae', 'marker must match the MCP-issued value');\n19 | });\n20 | \n21 | test('factoryName in tenant-proof.json matches the real export in src/monitor-client.ts', () => {\n22 |   const proof = JSON.parse(readFileSync(proofPath, 'utf8'));\n23 |   const source = readFileSync(sourcePath, 'utf8');\n24 | \n25 |   const exportPattern = new RegExp(`export\\\\s+function\\\\s+${proof.factoryName}\\\\s*\\\\(`);\n26 |   assert.ok(exportPattern.test(source),\n27 |     `src/monitor-client.ts must export a function named \"${proof.factoryName}\"`);\n28 | });",
+          "success": true
+        }
+      ],
+      "durationMs": 33
+    }
+  }
+]

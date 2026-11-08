@@ -1,0 +1,19 @@
+{
+  "status": "PASS",
+  "sessionId": "sse-f9d8cb745e2e47b786aa5885178b48ae",
+  "firstEventId": "1",
+  "replayedEventId": "2",
+  "disconnectDidNotCancelNativeWorker": true,
+  "foreignSSEStatus": 404,
+  "perTenantQuotaWithOneGlobalSlotFree": 429,
+  "expiredIdentity": 401,
+  "foreignDatasetGrant": 403,
+  "authenticatedBeforeRevokeBodyFinishedAfterRevoke": 403,
+  "nativeInferenceCalls": 0,
+  "localStopProof": {
+    "containerId": "9dcbcc2c411e0ad98944873d49055dbe39843fb3e26ed25c5d82723c9cb1652c",
+    "running": false,
+    "exitCode": 0,
+    "finishedAt": "2026-11-08T04:09:41.279686001Z"
+  }
+}

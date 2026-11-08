@@ -1,0 +1,42 @@
+{
+  "a": {
+    "sessionId": "session-2057503d0744447395dd95ca2d273217",
+    "runtimeTaskId": "task-3165a0c0a2fe4e9f987cfeff19bcb535",
+    "workerId": "5347b82a-d3f4-4bbd-874c-0059e1b78383",
+    "workerState": "RUNNING",
+    "taskState": "RUNNING",
+    "revoked": false,
+    "stopProof": null,
+    "remoteStopConfirmed": false,
+    "native": {
+      "sessionId": "9964d161-6e3e-42ac-9449-dd91d22c2fab",
+      "status": "running",
+      "taskId": "c48e7b45-e807-4550-9fec-be3ef0cc720a",
+      "nativeSessionId": "1794109343117_0w7ti",
+      "epoch": "47c1a97f-40f4-4124-9dd4-37a0221a3bbc",
+      "revision": 12,
+      "lastEventId": "96",
+      "pendingPermissions": []
+    }
+  },
+  "b": {
+    "sessionId": "session-bd162241e510413a993f5e4f0c29f9c1",
+    "runtimeTaskId": "task-47eaacbc8f8c4883991404ad888957c1",
+    "workerId": "ac8f9926-4fe5-4fc9-92a0-4525fa131de1",
+    "workerState": "RUNNING",
+    "taskState": "RUNNING",
+    "revoked": false,
+    "stopProof": null,
+    "remoteStopConfirmed": false,
+    "native": {
+      "sessionId": "f37ccb46-afdf-4949-a01b-9b1b35b05fe8",
+      "status": "running",
+      "taskId": "4553989d-af88-40ea-a95c-1bf16650e371",
+      "nativeSessionId": "1794109343073_8671k",
+      "epoch": "10d957a3-0906-4120-84ea-9fac2ab94330",
+      "revision": 8,
+      "lastEventId": "87",
+      "pendingPermissions": []
+    }
+  }
+}

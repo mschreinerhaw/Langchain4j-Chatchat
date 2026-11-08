@@ -1,0 +1,30 @@
+{
+  "status": "PASS",
+  "sessionId": "session-4029ac059c8b43348f7d304866e1a9d5",
+  "nativeSessionId": "1794110882378_fnmkl",
+  "workerId": "e6bea712-7c7c-40eb-a43c-88ca58c97fd0",
+  "containerId": "ccfee447a735cabb3132074ffdbd3845a061b68f92192a493062ed2a5617b781",
+  "durationSeconds": 41.18,
+  "nativeToolNames": [
+    "read_files",
+    "tenant_data__read_dataset",
+    "run_commands",
+    "read_files",
+    "editor",
+    "editor",
+    "run_commands"
+  ],
+  "fileHashes": [
+    {
+      "path": "tenant-proof.json",
+      "sha256": "a9bde1c0f38b3d827b3507fa681301beed5306c096dc0a45fe89a65d18c3dcc7"
+    },
+    {
+      "path": "test/tenant-proof.test.js",
+      "sha256": "a65bb08241386c5ebb3bf27536533b240e2256fbcbd00663efafd6331a95478a"
+    }
+  ],
+  "independentTestExitCode": 0,
+  "authorizedMCPDataMatched": true,
+  "foreignMCPDataAbsent": true
+}

@@ -1,0 +1,271 @@
+[
+  {
+    "sessionId": "9964d161-6e3e-42ac-9449-dd91d22c2fab",
+    "taskId": "c48e7b45-e807-4550-9fec-be3ef0cc720a",
+    "epoch": "47c1a97f-40f4-4124-9dd4-37a0221a3bbc",
+    "eventType": "permission.decision",
+    "payload": {
+      "id": "5553c56e-87ac-4ef1-811b-2ff81d741cdf",
+      "decision": "approve"
+    },
+    "eventId": "17",
+    "timestamp": "2026-11-08T03:42:29.102Z"
+  },
+  {
+    "sessionId": "9964d161-6e3e-42ac-9449-dd91d22c2fab",
+    "taskId": "c48e7b45-e807-4550-9fec-be3ef0cc720a",
+    "epoch": "47c1a97f-40f4-4124-9dd4-37a0221a3bbc",
+    "eventType": "permission.resolved",
+    "payload": {
+      "id": "5553c56e-87ac-4ef1-811b-2ff81d741cdf",
+      "decision": "approve",
+      "applied": true
+    },
+    "eventId": "18",
+    "timestamp": "2026-11-08T03:42:29.106Z"
+  },
+  {
+    "sessionId": "9964d161-6e3e-42ac-9449-dd91d22c2fab",
+    "taskId": "c48e7b45-e807-4550-9fec-be3ef0cc720a",
+    "epoch": "47c1a97f-40f4-4124-9dd4-37a0221a3bbc",
+    "eventType": "permission.decision",
+    "payload": {
+      "id": "5923c8a0-f329-4593-8cfb-81abe6504c3c",
+      "decision": "deny"
+    },
+    "eventId": "24",
+    "timestamp": "2026-11-08T03:42:29.134Z"
+  },
+  {
+    "sessionId": "9964d161-6e3e-42ac-9449-dd91d22c2fab",
+    "taskId": "c48e7b45-e807-4550-9fec-be3ef0cc720a",
+    "epoch": "47c1a97f-40f4-4124-9dd4-37a0221a3bbc",
+    "eventType": "permission.resolved",
+    "payload": {
+      "id": "5923c8a0-f329-4593-8cfb-81abe6504c3c",
+      "decision": "deny",
+      "applied": true
+    },
+    "eventId": "25",
+    "timestamp": "2026-11-08T03:42:29.137Z"
+  },
+  {
+    "sessionId": "9964d161-6e3e-42ac-9449-dd91d22c2fab",
+    "taskId": "c48e7b45-e807-4550-9fec-be3ef0cc720a",
+    "epoch": "47c1a97f-40f4-4124-9dd4-37a0221a3bbc",
+    "eventType": "permission.decision",
+    "payload": {
+      "id": "05a1a695-98ac-447c-98ec-c866f95233bc",
+      "decision": "approve"
+    },
+    "eventId": "31",
+    "timestamp": "2026-11-08T03:42:30.124Z"
+  },
+  {
+    "sessionId": "9964d161-6e3e-42ac-9449-dd91d22c2fab",
+    "taskId": "c48e7b45-e807-4550-9fec-be3ef0cc720a",
+    "epoch": "47c1a97f-40f4-4124-9dd4-37a0221a3bbc",
+    "eventType": "permission.resolved",
+    "payload": {
+      "id": "05a1a695-98ac-447c-98ec-c866f95233bc",
+      "decision": "approve",
+      "applied": true
+    },
+    "eventId": "32",
+    "timestamp": "2026-11-08T03:42:30.127Z"
+  },
+  {
+    "sessionId": "9964d161-6e3e-42ac-9449-dd91d22c2fab",
+    "taskId": "c48e7b45-e807-4550-9fec-be3ef0cc720a",
+    "epoch": "47c1a97f-40f4-4124-9dd4-37a0221a3bbc",
+    "eventType": "tool.failed",
+    "payload": {
+      "type": "content_end",
+      "contentType": "tool",
+      "toolName": "tenant_data__read_dataset",
+      "toolCallId": "call_573a2b6abee94081b556f3e6",
+      "output": {
+        "error": "This tool call was rejected by the user and not executed. The user provided the following feedback:\n<feedback>\nTask tool policy denied\n</feedback> -- NOT a tool or system failure. Clarify with user before proceeding."
+      },
+      "error": "{\"error\":\"This tool call was rejected by the user and not executed. The user provided the following feedback:\\n<feedback>\\nTask tool policy denied\\n</feedback> -- NOT a tool or system failure. Clarify with user before proceeding.\"}",
+      "durationMs": 13
+    },
+    "eventId": "42",
+    "timestamp": "2026-11-08T03:42:30.173Z"
+  },
+  {
+    "sessionId": "9964d161-6e3e-42ac-9449-dd91d22c2fab",
+    "taskId": "c48e7b45-e807-4550-9fec-be3ef0cc720a",
+    "epoch": "47c1a97f-40f4-4124-9dd4-37a0221a3bbc",
+    "eventType": "permission.decision",
+    "payload": {
+      "id": "00d901ed-6898-4b51-acf8-410893f27ae7",
+      "decision": "approve"
+    },
+    "eventId": "71",
+    "timestamp": "2026-11-08T03:42:35.201Z"
+  },
+  {
+    "sessionId": "9964d161-6e3e-42ac-9449-dd91d22c2fab",
+    "taskId": "c48e7b45-e807-4550-9fec-be3ef0cc720a",
+    "epoch": "47c1a97f-40f4-4124-9dd4-37a0221a3bbc",
+    "eventType": "permission.resolved",
+    "payload": {
+      "id": "00d901ed-6898-4b51-acf8-410893f27ae7",
+      "decision": "approve",
+      "applied": true
+    },
+    "eventId": "72",
+    "timestamp": "2026-11-08T03:42:35.204Z"
+  },
+  {
+    "sessionId": "9964d161-6e3e-42ac-9449-dd91d22c2fab",
+    "taskId": "c48e7b45-e807-4550-9fec-be3ef0cc720a",
+    "epoch": "47c1a97f-40f4-4124-9dd4-37a0221a3bbc",
+    "eventType": "permission.decision",
+    "payload": {
+      "id": "79a1ac7c-c4cb-4092-84c7-1e931a2f7bf4",
+      "decision": "approve"
+    },
+    "eventId": "78",
+    "timestamp": "2026-11-08T03:42:36.237Z"
+  },
+  {
+    "sessionId": "9964d161-6e3e-42ac-9449-dd91d22c2fab",
+    "taskId": "c48e7b45-e807-4550-9fec-be3ef0cc720a",
+    "epoch": "47c1a97f-40f4-4124-9dd4-37a0221a3bbc",
+    "eventType": "permission.resolved",
+    "payload": {
+      "id": "79a1ac7c-c4cb-4092-84c7-1e931a2f7bf4",
+      "decision": "approve",
+      "applied": true
+    },
+    "eventId": "79",
+    "timestamp": "2026-11-08T03:42:36.239Z"
+  },
+  {
+    "sessionId": "9964d161-6e3e-42ac-9449-dd91d22c2fab",
+    "taskId": "c48e7b45-e807-4550-9fec-be3ef0cc720a",
+    "epoch": "47c1a97f-40f4-4124-9dd4-37a0221a3bbc",
+    "eventType": "permission.decision",
+    "payload": {
+      "id": "f8a2c586-a189-4680-8f4c-d5f420ce1cae",
+      "decision": "approve"
+    },
+    "eventId": "119",
+    "timestamp": "2026-11-08T03:42:50.538Z"
+  },
+  {
+    "sessionId": "9964d161-6e3e-42ac-9449-dd91d22c2fab",
+    "taskId": "c48e7b45-e807-4550-9fec-be3ef0cc720a",
+    "epoch": "47c1a97f-40f4-4124-9dd4-37a0221a3bbc",
+    "eventType": "permission.resolved",
+    "payload": {
+      "id": "f8a2c586-a189-4680-8f4c-d5f420ce1cae",
+      "decision": "approve",
+      "applied": true
+    },
+    "eventId": "120",
+    "timestamp": "2026-11-08T03:42:50.540Z"
+  },
+  {
+    "sessionId": "9964d161-6e3e-42ac-9449-dd91d22c2fab",
+    "taskId": "c48e7b45-e807-4550-9fec-be3ef0cc720a",
+    "epoch": "47c1a97f-40f4-4124-9dd4-37a0221a3bbc",
+    "eventType": "permission.decision",
+    "payload": {
+      "id": "5410f12b-9082-449f-ac2d-a07298a8ca90",
+      "decision": "approve"
+    },
+    "eventId": "160",
+    "timestamp": "2026-11-08T03:43:03.839Z"
+  },
+  {
+    "sessionId": "9964d161-6e3e-42ac-9449-dd91d22c2fab",
+    "taskId": "c48e7b45-e807-4550-9fec-be3ef0cc720a",
+    "epoch": "47c1a97f-40f4-4124-9dd4-37a0221a3bbc",
+    "eventType": "permission.resolved",
+    "payload": {
+      "id": "5410f12b-9082-449f-ac2d-a07298a8ca90",
+      "decision": "approve",
+      "applied": true
+    },
+    "eventId": "161",
+    "timestamp": "2026-11-08T03:43:03.844Z"
+  },
+  {
+    "sessionId": "9964d161-6e3e-42ac-9449-dd91d22c2fab",
+    "taskId": "c48e7b45-e807-4550-9fec-be3ef0cc720a",
+    "epoch": "47c1a97f-40f4-4124-9dd4-37a0221a3bbc",
+    "eventType": "permission.decision",
+    "payload": {
+      "id": "854f4328-4ea1-4cef-a053-303ec331bd07",
+      "decision": "approve"
+    },
+    "eventId": "167",
+    "timestamp": "2026-11-08T03:43:04.889Z"
+  },
+  {
+    "sessionId": "9964d161-6e3e-42ac-9449-dd91d22c2fab",
+    "taskId": "c48e7b45-e807-4550-9fec-be3ef0cc720a",
+    "epoch": "47c1a97f-40f4-4124-9dd4-37a0221a3bbc",
+    "eventType": "permission.resolved",
+    "payload": {
+      "id": "854f4328-4ea1-4cef-a053-303ec331bd07",
+      "decision": "approve",
+      "applied": true
+    },
+    "eventId": "168",
+    "timestamp": "2026-11-08T03:43:04.890Z"
+  },
+  {
+    "sessionId": "9964d161-6e3e-42ac-9449-dd91d22c2fab",
+    "taskId": "c48e7b45-e807-4550-9fec-be3ef0cc720a",
+    "epoch": "47c1a97f-40f4-4124-9dd4-37a0221a3bbc",
+    "eventType": "permission.decision",
+    "payload": {
+      "id": "a5063a07-f021-468c-ae1b-35f3517c5b66",
+      "decision": "approve"
+    },
+    "eventId": "192",
+    "timestamp": "2026-11-08T03:43:07.972Z"
+  },
+  {
+    "sessionId": "9964d161-6e3e-42ac-9449-dd91d22c2fab",
+    "taskId": "c48e7b45-e807-4550-9fec-be3ef0cc720a",
+    "epoch": "47c1a97f-40f4-4124-9dd4-37a0221a3bbc",
+    "eventType": "permission.resolved",
+    "payload": {
+      "id": "a5063a07-f021-468c-ae1b-35f3517c5b66",
+      "decision": "approve",
+      "applied": true
+    },
+    "eventId": "193",
+    "timestamp": "2026-11-08T03:43:07.975Z"
+  },
+  {
+    "sessionId": "9964d161-6e3e-42ac-9449-dd91d22c2fab",
+    "taskId": "c48e7b45-e807-4550-9fec-be3ef0cc720a",
+    "epoch": "47c1a97f-40f4-4124-9dd4-37a0221a3bbc",
+    "eventType": "permission.decision",
+    "payload": {
+      "id": "27f1ffe4-5af7-43c2-be81-a1cc461c544e",
+      "decision": "approve"
+    },
+    "eventId": "210",
+    "timestamp": "2026-11-08T03:43:11.060Z"
+  },
+  {
+    "sessionId": "9964d161-6e3e-42ac-9449-dd91d22c2fab",
+    "taskId": "c48e7b45-e807-4550-9fec-be3ef0cc720a",
+    "epoch": "47c1a97f-40f4-4124-9dd4-37a0221a3bbc",
+    "eventType": "permission.resolved",
+    "payload": {
+      "id": "27f1ffe4-5af7-43c2-be81-a1cc461c544e",
+      "decision": "approve",
+      "applied": true
+    },
+    "eventId": "211",
+    "timestamp": "2026-11-08T03:43:11.064Z"
+  }
+]

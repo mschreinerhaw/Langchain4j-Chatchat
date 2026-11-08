@@ -1,0 +1,73 @@
+{
+  "status": "PASS",
+  "checks": {
+    "crossTenantSessionEventsDiffAndMutations": "PASS",
+    "forgedIdentity": "PASS",
+    "boundedScheduler": "PASS",
+    "clientHostPathRejected": "PASS",
+    "simultaneousNativeExecution": "PASS"
+  },
+  "cases": {
+    "a": {
+      "status": "PASS",
+      "sessionId": "session-4029ac059c8b43348f7d304866e1a9d5",
+      "nativeSessionId": "1794110882378_fnmkl",
+      "workerId": "e6bea712-7c7c-40eb-a43c-88ca58c97fd0",
+      "containerId": "ccfee447a735cabb3132074ffdbd3845a061b68f92192a493062ed2a5617b781",
+      "durationSeconds": 41.18,
+      "nativeToolNames": [
+        "read_files",
+        "tenant_data__read_dataset",
+        "run_commands",
+        "read_files",
+        "editor",
+        "editor",
+        "run_commands"
+      ],
+      "fileHashes": [
+        {
+          "path": "tenant-proof.json",
+          "sha256": "a9bde1c0f38b3d827b3507fa681301beed5306c096dc0a45fe89a65d18c3dcc7"
+        },
+        {
+          "path": "test/tenant-proof.test.js",
+          "sha256": "a65bb08241386c5ebb3bf27536533b240e2256fbcbd00663efafd6331a95478a"
+        }
+      ],
+      "independentTestExitCode": 0,
+      "authorizedMCPDataMatched": true,
+      "foreignMCPDataAbsent": true
+    },
+    "b": {
+      "status": "PASS",
+      "sessionId": "session-b1a3d2550e004964bf8b3d45c94924bd",
+      "nativeSessionId": "1794110882375_qoz4h",
+      "workerId": "a0b31ed0-f171-49ac-885e-43fb4755c22d",
+      "containerId": "0b0686b5470a90362ec1fee895fe681b0406dd73011b867da473956e0dabfe17",
+      "durationSeconds": 45.31,
+      "nativeToolNames": [
+        "read_files",
+        "tenant_data__read_dataset",
+        "run_commands",
+        "read_files",
+        "editor",
+        "editor",
+        "run_commands",
+        "read_files"
+      ],
+      "fileHashes": [
+        {
+          "path": "tenant-proof.json",
+          "sha256": "abcdddf0e3c14250accd0171bc1d168d6d37a35d125d60e11fb75b122de366e3"
+        },
+        {
+          "path": "test/tenant-proof.test.js",
+          "sha256": "031308a06fd972a46295458b7e90cdfc51c949a24b8fc6ff3a6063b3591db245"
+        }
+      ],
+      "independentTestExitCode": 0,
+      "authorizedMCPDataMatched": true,
+      "foreignMCPDataAbsent": true
+    }
+  }
+}

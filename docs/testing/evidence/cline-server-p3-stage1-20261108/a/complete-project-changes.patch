@@ -1,0 +1,54 @@
+--- /dev/null
++++ b/tenant-proof.json
+@@ -0,0 +1,5 @@
++{
++  "factoryName": "createMonitorClient",
++  "datasetId": "dataset-a",
++  "marker": "dataset-a-ca6444cfb3fd92de8fcdd750"
++}
+--- /dev/null
++++ b/test/tenant-proof.test.js
+@@ -0,0 +1,43 @@
++import test from 'node:test';
++import assert from 'node:assert/strict';
++import { readFileSync } from 'node:fs';
++import { readFile } from 'node:fs/promises';
++import { resolve } from 'node:path';
++
++const root = resolve(import.meta.dirname, '..');
++const proofPath = resolve(root, 'tenant-proof.json');
++const sourcePath = resolve(root, 'src', 'monitor-client.ts');
++
++test('tenant-proof.json exists and is valid JSON', async () => {
++  const raw = await readFile(proofPath, 'utf8');
++  const proof = JSON.parse(raw);
++  assert.equal(typeof proof, 'object');
++  assert.ok(proof !== null);
++});
++
++test('tenant-proof.json contains required factoryName, datasetId, and marker', async () => {
++  const proof = JSON.parse(await readFile(proofPath, 'utf8'));
++  assert.equal(proof.factoryName, 'createMonitorClient');
++  assert.equal(proof.datasetId, 'dataset-a');
++  assert.equal(typeof proof.marker, 'string');
++  assert.ok(proof.marker.length > 0);
++  assert.match(proof.marker, /^dataset-a-/);
++});
++
++test('factoryName matches the exported client factory in src/monitor-client.ts', async () => {
++  const source = await readFile(sourcePath, 'utf8');
++  const proof = JSON.parse(await readFile(proofPath, 'utf8'));
++  // The source must export a function with the declared factory name.
++  const pattern = new RegExp(`export\\s+function\\s+${proof.factoryName}\\s*\\(`);
++  assert.ok(pattern.test(source),
++    `src/monitor-client.ts does not export function ${proof.factoryName}`);
++});
++
++test('marker returned by MCP read_dataset matches the JSON record', async () => {
++  const proof = JSON.parse(await readFile(proofPath, 'utf8'));
++  // The marker is the authoritative receipt produced by the MCP dataset read.
++  // It must be a non-empty string bound to the declared datasetId.
++  assert.equal(proof.datasetId, 'dataset-a');
++  assert.ok(proof.marker.startsWith(`${proof.datasetId}-`),
++    'marker prefix must correspond to the datasetId');
++});

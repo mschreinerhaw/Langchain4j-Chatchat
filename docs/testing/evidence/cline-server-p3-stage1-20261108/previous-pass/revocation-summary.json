@@ -1,0 +1,17 @@
+{
+  "status": "PASS",
+  "nativeShellToolCallId": "call_682d76d14e244f7a963e96f4",
+  "localContainerStopProof": {
+    "containerId": "78d0e790af95d42a9f71da72fcb79cfe9ea946a06ba615ea5545bb62aabca4d4",
+    "running": false,
+    "exitCode": 0,
+    "finishedAt": "2026-11-08T03:47:35.083005731Z"
+  },
+  "postRevokeMessagesEventsAndApproval": 403,
+  "otherTenantUnaffected": true,
+  "delayedMarkerAbsentAfter25SecondObservation": true,
+  "workerState": "STOPPED",
+  "taskState": "CANCELLED_LOCAL_ONLY",
+  "remoteStopConfirmed": false,
+  "scope": "Local native worker revocation only; MCP/Python long-operation stop proofs remain NOT_RUN"
+}

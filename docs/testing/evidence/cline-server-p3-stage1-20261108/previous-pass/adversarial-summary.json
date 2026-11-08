@@ -1,0 +1,101 @@
+{
+  "status": "PASS",
+  "probes": {
+    "a": {
+      "uid": 1000,
+      "networkInterfaces": [
+        "lo"
+      ],
+      "denied": {
+        "/opt/cline-server-p3-stage1-20261108/control/workers/866b2eb5-0feb-4e26-96ff-e5d8d6145ed4/workspace/tenant-private.txt": "ENOENT",
+        "/opt/cline-server-p3-stage1-20261108/control/workers/866b2eb5-0feb-4e26-96ff-e5d8d6145ed4/state": "ENOENT",
+        "/opt/cline-server-p3-stage1-20261108/control/workers/866b2eb5-0feb-4e26-96ff-e5d8d6145ed4/bridge/worker.sock": "ENOENT",
+        "/var/run/docker.sock": "ENOENT",
+        "/control/config.json": "ENOENT",
+        "symlink": "ENOENT"
+      },
+      "network": [
+        {
+          "url": "http://172.31.0.2:18401/mcp",
+          "blocked": true,
+          "error": "ENETUNREACH"
+        },
+        {
+          "url": "http://172.17.0.1:18101",
+          "blocked": true,
+          "error": "ENETUNREACH"
+        },
+        {
+          "url": "http://172.17.0.1:18100",
+          "blocked": true,
+          "error": "ENETUNREACH"
+        },
+        {
+          "url": "https://example.org",
+          "blocked": true,
+          "error": "EAI_AGAIN"
+        }
+      ],
+      "foreignMCP": {
+        "status": 403,
+        "body": "{\"code\":\"BROKER_DENIED\"}"
+      },
+      "ownMCP": {
+        "status": 200,
+        "body": "{\"result\":{\"content\":[{\"type\":\"text\",\"text\":\"{\\\"tenantId\\\": \\\"tenant-a\\\", \\\"datasetId\\\": \\\"dataset-a\\\", \\\"marker\\\": \\\"dataset-a-ca6444cfb3fd92de8fcdd750\\\"}\"}]},\"jsonrpc\":\"2.0\",\"id\":3}"
+      },
+      "otherModel": 403,
+      "foreignBroker": 404,
+      "ownFileSha256": "589058ece4a076800ed6d5d12db2b3c3e3f8549a97491e3828be05d27f9d6a4a"
+    },
+    "b": {
+      "uid": 1000,
+      "networkInterfaces": [
+        "lo"
+      ],
+      "denied": {
+        "/opt/cline-server-p3-stage1-20261108/control/workers/8f09cfe9-68b6-4887-9224-627d7b381760/workspace/tenant-private.txt": "ENOENT",
+        "/opt/cline-server-p3-stage1-20261108/control/workers/8f09cfe9-68b6-4887-9224-627d7b381760/state": "ENOENT",
+        "/opt/cline-server-p3-stage1-20261108/control/workers/8f09cfe9-68b6-4887-9224-627d7b381760/bridge/worker.sock": "ENOENT",
+        "/var/run/docker.sock": "ENOENT",
+        "/control/config.json": "ENOENT",
+        "symlink": "ENOENT"
+      },
+      "network": [
+        {
+          "url": "http://172.31.0.2:18401/mcp",
+          "blocked": true,
+          "error": "ENETUNREACH"
+        },
+        {
+          "url": "http://172.17.0.1:18101",
+          "blocked": true,
+          "error": "ENETUNREACH"
+        },
+        {
+          "url": "http://172.17.0.1:18100",
+          "blocked": true,
+          "error": "ENETUNREACH"
+        },
+        {
+          "url": "https://example.org",
+          "blocked": true,
+          "error": "EAI_AGAIN"
+        }
+      ],
+      "foreignMCP": {
+        "status": 403,
+        "body": "{\"code\":\"BROKER_DENIED\"}"
+      },
+      "ownMCP": {
+        "status": 200,
+        "body": "{\"result\":{\"content\":[{\"type\":\"text\",\"text\":\"{\\\"tenantId\\\": \\\"tenant-b\\\", \\\"datasetId\\\": \\\"dataset-b\\\", \\\"marker\\\": \\\"dataset-b-271cda465712ea8bc54604ae\\\"}\"}]},\"jsonrpc\":\"2.0\",\"id\":3}"
+      },
+      "otherModel": 403,
+      "foreignBroker": 404,
+      "ownFileSha256": "e7e4773678d48bfea841c7a937c5aff31a4f67669c9c9c42d8cb077a3a95175a"
+    }
+  },
+  "crossTenantPermissionDenied": true,
+  "scope": "Ordinary worker UID1000; no host root or kernel exploit; actual filesystem/network and file-backed MCP fixture"
+}

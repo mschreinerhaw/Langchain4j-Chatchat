@@ -1,0 +1,16 @@
+{
+  "workerId": "a0b31ed0-f171-49ac-885e-43fb4755c22d",
+  "containerId": "0b0686b5470a90362ec1fee895fe681b0406dd73011b867da473956e0dabfe17",
+  "nativeSessionId": "e214f09a-7f5f-4fea-9c6d-ac20fe9b6fcb",
+  "workerState": "STOPPED",
+  "taskState": "CANCELLED_LOCAL_ONLY",
+  "revoked": true,
+  "slot": 1,
+  "stopProof": {
+    "containerId": "0b0686b5470a90362ec1fee895fe681b0406dd73011b867da473956e0dabfe17",
+    "running": false,
+    "exitCode": 0,
+    "finishedAt": "2026-11-08T04:09:34.773256835Z"
+  },
+  "contractHash": "1e9e3f9f7dbf01d3f8b5f46048b82fa8fa854e610446ce3e68b8264dc6611889"
+}

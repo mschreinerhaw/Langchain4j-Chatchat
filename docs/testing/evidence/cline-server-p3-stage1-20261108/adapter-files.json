@@ -1,0 +1,38 @@
+[
+  {
+    "path": "src/docker-engine.mjs",
+    "sha256": "fa0ce1b2700526f1387ad4443c64d74dd9a181d1e45c1bd17ef2c7cd1cacddc4"
+  },
+  {
+    "path": "src/governance-server.mjs",
+    "sha256": "1d951e14fed3e873513f9ba122e761c1e5ac5bc09dae09816e23f725a1fb8c4a"
+  },
+  {
+    "path": "src/host-bridge.mjs",
+    "sha256": "7eee715e41da6c33301b44c47da5ea851ad27bf2f69408c36d985394222f7304"
+  },
+  {
+    "path": "src/isolated-worker.mjs",
+    "sha256": "6fa469e541b61ca23e486930f19a15803583f9e1c5d629c97ffacb468f0347b2"
+  },
+  {
+    "path": "src/journal.mjs",
+    "sha256": "3ebb26eaeb46551907b5ac9e852d8a82b899a9927f1633d895a3e6f7236559da"
+  },
+  {
+    "path": "src/runtime-assets.mjs",
+    "sha256": "a13a0ab71b1ac32933dbcd713897ce81013cf79e23bd372a9614f03756472af6"
+  },
+  {
+    "path": "src/server.mjs",
+    "sha256": "d766b0ea1c533c995dd858b2d3de55d48207f406047efb79a9c98e6f55d3b2e3"
+  },
+  {
+    "path": "src/task-contract.mjs",
+    "sha256": "267f82b9033a5163d9dae4ba14ddb7f1710a8b2fa1a9f83a8176b1a1b3a25537"
+  },
+  {
+    "path": "src/tool-outcome.mjs",
+    "sha256": "aaf5361e8d39c280ca068e9b8834c5202af7f9f5d153dc277af51b41a95b4d34"
+  }
+]

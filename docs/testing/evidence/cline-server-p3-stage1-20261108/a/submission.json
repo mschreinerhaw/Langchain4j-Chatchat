@@ -1,0 +1,7 @@
+{
+  "prompt": "这是 Runtime coding-agent-node 真实项目的双租户并发验收。阅读 src/monitor-client.ts 确认导出的客户端工厂名称；使用已授权的 MCP read_dataset 工具，datasetId=\"dataset-a\"，取得本租户真实测试记录。新增 tenant-proof.json，包含 factoryName、datasetId 和从 MCP 得到的 marker；新增 test/tenant-proof.test.js，用 node:test 验证 JSON 与工厂名称，使用原生编辑工具写文件，并执行 node --test test/tenant-proof.test.js。不要改现有业务文件、Agent 或构建工具。完成后报告真实回执。MCP 测试记录不是行情数据。",
+  "accepted": {
+    "taskId": "b1e60527-38d2-4c5c-9a3f-5ae9deaebf78",
+    "status": "accepted"
+  }
+}

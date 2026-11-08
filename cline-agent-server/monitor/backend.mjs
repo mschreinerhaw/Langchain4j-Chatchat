@@ -51,7 +51,7 @@ export class Backend {
    return safe({id:key,mode:'native',...live,authority:'NATIVE_SESSION',deliveryValidated:false,capabilities:{messages:['idle','turn_completed','awaiting_input'].includes(live.status),cancel:!['cancelled','failed','recoverable'].includes(live.status),permissions:true},model:{model:this.config.native.model,usageStatus:'NATIVE_OBSERVATION_NOT_RUNTIME_BILLING'},workspaceRef:s.workspaceRef},[...this.secrets,user.token]);
   }
   let item,error;
-  try{const list=await this.runtime(user,this.root(s));item=list.tasks.find(t=>t.taskId===s.taskId);}catch(e){error=e.message;}
+  try{try{item=await this.runtime(user,this.root(s)+'/'+s.taskId);}catch(e){if(e.status!==404)throw e;const list=await this.runtime(user,this.root(s));item=list.tasks.find(t=>t.taskId===s.taskId);}}catch(e){error=e.message;}
   const feedbacks=(item?.executions??[]);
   return safe({id:key,mode:'runtime',sessionId:s.nativeSessionId,nativeSessionId:s.nativeAgentSessionId,taskId:s.taskId,runId:s.scope.runId,status:s.status,runtimeStatus:item?.outcome?.status??'UNKNOWN',authority:item?'RUNTIME_CONFIRMED':'RUNTIME_UNAVAILABLE',outcome:item?.outcome,modelReceipts:item?.modelReceipts??[],executions:feedbacks,error:error??s.error,activeOperations:s.activeOperations??[],workerStopped:s.stopProof?.running===false,remoteStopConfirmed:s.remoteStopConfirmed===true,codeLifecycle:s.codeLifecycle,nativeCompletion:s.nativeCompletion,capabilities:{messages:false,cancel:item?.canCancel===true,reconcile:item?.canResume===true,permissions:false},allowedTools:item?.allowedTools,objective:item?.objective},[...this.secrets,user.token,s.apiToken,s.brokerToken]);
  }
@@ -64,10 +64,11 @@ export class Backend {
   if(!Array.isArray(b.fileIds)||!b.fileIds.length||b.fileIds.length>8||!b.fileIds.every(id))throw fail('Select 1–8 authorized input assets');
   if(!this.config.models.includes(b.model))throw fail('Select an authorized model');
   if(b.validationProfile==='csv-count-sum-v1'){
-   if(b.fileIds.length!==1||typeof b.valueField!=='string'||!/[A-Za-z_][A-Za-z0-9_]{0,63}/.test(b.valueField))throw fail('Select one CSV and its exact numeric field');
+   if(b.fileIds.length!==1||typeof b.valueField!=='string'||!/^[A-Za-z_][A-Za-z0-9_]{0,63}$/.test(b.valueField))throw fail('Select one CSV and its exact numeric field');
    const requestId=b.commandId??randomUUID();if(!id(requestId))throw fail('Stable request ID required');
-   const existing=this.dispatches.get(requestId);if(existing){if(existing.userId!==user.userId)throw fail('Dispatch not owned',403);return {requestId,status:existing.status};}
-   const observation={userId:user.userId,status:'REQUEST_SENT',startedAt:new Date().toISOString()};this.dispatches.set(requestId,observation);
+   const requestHash=hash(JSON.stringify({files:b.fileIds,instruction:b.instruction,model:b.model,profile:b.validationProfile,valueField:b.valueField}));
+   const existing=this.dispatches.get(requestId);if(existing){if(existing.userId!==user.userId)throw fail('Dispatch not owned',403);if(existing.requestHash!==requestHash)throw fail('Changed content under an existing request ID; create a new request',409);return {requestId,status:existing.status};}
+   const observation={userId:user.userId,requestHash,status:'REQUEST_SENT',startedAt:new Date().toISOString()};this.dispatches.set(requestId,observation);
    if(this.dispatches.size>128)this.dispatches.delete(this.dispatches.keys().next().value);
    this.runtime(user,'/api/v1/data-science/user-assets/analyses',{requestId,fileIds:b.fileIds,contextIds:[],instruction:b.instruction,modelName:b.model,validationProfile:b.validationProfile,valueField:b.valueField},{timeout:1800000})
     .then(r=>{observation.status='RESPONSE_RECEIVED';observation.runtimeStatus=r.status;observation.taskId=r.taskId;}).catch(e=>{observation.status='RESPONSE_ERROR';observation.message=e.message;});
@@ -95,7 +96,18 @@ export class Backend {
  async assets(user,key){const c=await this.context(user,key);if(c.mode==='native')return {items:[],authority:'NATIVE_ONLY_NO_RUNTIME_ARCHIVE'};return this.runtime(user,'/api/v1/data-science/user-assets?limit=100&personalOnly=true&taskId='+encodeURIComponent(c.state.taskId));}
  async trace(user,key,operation,kind){
   const c=await this.context(user,key);if(c.mode!=='runtime'||!/^cline-[a-f0-9]{64}$/.test(operation)||!['code','stdout','stderr','timing'].includes(kind))throw fail('Invalid artifact binding');
-  return this.runtime(user,this.root(c.state)+'/'+c.state.taskId+'/'+operation+'/'+kind);
+  try{return await this.runtime(user,this.root(c.state)+'/'+c.state.taskId+'/'+operation+'/'+kind);}catch(e){if(e.status!==404)throw e;}
+  // Direct asset-analysis tasks have no Agent parent. Their existing owner-scoped archive is authoritative.
+  const page=await this.assets(user,key),files=Array.isArray(page)?page:page.items??page.files??[];
+  const version=c.state.codeLifecycle?.versions?.find(v=>v.operationId===operation);
+  const filename={stdout:'stdout.txt',stderr:'stderr.txt',timing:'receipt.json'}[kind];
+  const file=files.find(f=>kind==='code'?version&&f.sha256===version.codeHash&&f.fileName?.endsWith('.py'):f.fileName===filename&&f.sourceRef?.includes(operation));
+  if(!file)throw fail('No archived artifact bound to this operation',404);
+  const response=await fetch(this.config.runtimeUrl+'/api/v1/data-science/user-assets/'+encodeURIComponent(file.id)+'/content',{headers:{authorization:'Bearer '+user.token},redirect:'error',signal:AbortSignal.timeout(30000)});
+  if(!response.ok)throw fail('Runtime denied archived source/log read',response.status);
+  const bytes=Buffer.from(await response.arrayBuffer());if(hash(bytes)!==file.sha256||bytes.length!==file.size)throw fail('Archived artifact integrity mismatch',409);
+  const content=bytes.toString('utf8'),limit=kind==='code'?256000:8192;
+  return {kind,operationId:operation,source:'RUNTIME_OWNER_ARCHIVE',fileId:file.id,sha256:file.sha256,totalBytes:bytes.length,content:safe(content,[user.token]).slice(0,limit),redacted:safe(content,[user.token])!==content,truncated:content.length>limit};
  }
  async runtimeEvents(user,key,after=0){
   const c=await this.context(user,key);if(c.mode!=='runtime')return {events:[],nextSequence:0};

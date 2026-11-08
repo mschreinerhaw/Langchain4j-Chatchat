@@ -1,7 +1,7 @@
 import {createHash} from 'node:crypto';
 
 // Projections contain observations, never reconstructed Agent state or reasoning.
-const hidden=/^(authorization|password|apiKey|apiToken|brokerToken|secret|signingKey|workerContract|contract|configuration|runtimeContext|headers|reasoning|thinking|inputData|records|rows|reviewedArtifact)$/i;
+const hidden=/^(authorization|password|apiKey|apiToken|brokerToken|secret|signingKey|workerContract|contract|configuration|runtimeContext|headers|reasoning|thinking|inputData|records|rows|reviewedArtifact|currentSource|validSource)$/i;
 export function safe(value,secrets=[],depth=0){
  if(depth>12)return '[depth limited]';
  if(typeof value==='string'){

@@ -1,0 +1,52 @@
+{
+  "recordedAt": "2026-11-08T00:41:07.451Z",
+  "runtimeBaseline": "c2e70c72c",
+  "branch": "feature/runtime-cline-cli-native-20261107",
+  "checks": {
+    "jsonParsing": "PASS",
+    "collectorSyntax": "PASS",
+    "relativeMarkdownLinks": {
+      "status": "PASS",
+      "count": 13
+    },
+    "collectorRun": "PASS_OFFICIAL_VSIX_DIGEST_AND_71_SOURCE_FILES",
+    "officialFixedShaContentComparison": "PASS_5_FILES",
+    "productionImplementation": "UNCHANGED",
+    "standaloneBuild": "NOT_RUN",
+    "realModelHttpParity": "NOT_RUN"
+  },
+  "files": [
+    {
+      "path": "docs/audits/cline-v4.1.26-server-architecture-review.md",
+      "sha256": "ef5a63162bff40be914d8db830596e4f11a3cba994ddce84b9ea3798707b1ece"
+    },
+    {
+      "path": "docs/audits/cline-server-host-diff.md",
+      "sha256": "abc8a1984f812937fdcaab1de8e6532bc61c584811d6e07cf2bd28a1a6ddc063"
+    },
+    {
+      "path": "docs/design/cline-agent-server-architecture.md",
+      "sha256": "9a449a0335f70c57de6b0b959f2213c7a4a0cb98e40e596abcb49c32d0a2d080"
+    },
+    {
+      "path": "docs/testing/cline-server-native-comparison.md",
+      "sha256": "458d34b88b33cbfa7edefc72fc98038000bcc95c9514e4e4cd9624693bda714e"
+    },
+    {
+      "path": "docs/testing/cline-server-phase21.mjs",
+      "sha256": "17a0ba9eb07e3ff8459a568bae24b0b170ccc78e22d4e905299ea1b8422f985b"
+    },
+    {
+      "path": "docs/testing/evidence/cline-server-phase21-20261108/release-pin.json",
+      "sha256": "f75798c1daddfd26283eb2d766a1df8f84c79e4b9a234c7cd62e5085c4c9bc58"
+    },
+    {
+      "path": "docs/testing/evidence/cline-server-phase21-20261108/remote-source-verification.json",
+      "sha256": "019b9e07c3a07121626ad8f743aa9d9517e8f08cdca02fbffd673d4e44194136"
+    },
+    {
+      "path": "docs/testing/evidence/cline-server-phase21-20261108/source-and-release.json",
+      "sha256": "0c8c5203212b9278d004b662ae868d1e09a2f92f9b5adf8d8995a5a0498727b7"
+    }
+  ]
+}

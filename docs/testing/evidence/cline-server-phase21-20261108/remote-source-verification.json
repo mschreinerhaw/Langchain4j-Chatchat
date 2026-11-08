@@ -1,0 +1,35 @@
+{
+  "method": "Compare official GitHub file content at fixed SHA against extracted source bytes",
+  "checks": [
+    {
+      "path": "apps/vscode/package.json",
+      "sha256": "18884442c2c71ba6a07c69903ac9c3be4a3be2a8599a0095b1ef7056755cc8b4",
+      "verified": true,
+      "url": "https://github.com/cline/cline/blob/a459f1d04dea030833b558be645011ab739c463b/apps/vscode/package.json"
+    },
+    {
+      "path": "apps/vscode/src/common.ts",
+      "sha256": "0ec1126e3d7d064c9fb890c47db3517741ac83c899e5b19c35c66a95df9e7011",
+      "verified": true,
+      "url": "https://github.com/cline/cline/blob/a459f1d04dea030833b558be645011ab739c463b/apps/vscode/src/common.ts"
+    },
+    {
+      "path": "apps/vscode/src/hosts/host-provider.ts",
+      "sha256": "dc8526f2b8b6f6c39e54fd14b2cd02dac468a6caf56158ebc6c4d059df1f808e",
+      "verified": true,
+      "url": "https://github.com/cline/cline/blob/a459f1d04dea030833b558be645011ab739c463b/apps/vscode/src/hosts/host-provider.ts"
+    },
+    {
+      "path": "apps/vscode/src/standalone/cline-core.ts",
+      "sha256": "e021125f37a12244e6dca4e025c0c664a2b49b74563fb263bd555fe1cbedde0d",
+      "verified": true,
+      "url": "https://github.com/cline/cline/blob/a459f1d04dea030833b558be645011ab739c463b/apps/vscode/src/standalone/cline-core.ts"
+    },
+    {
+      "path": "sdk/packages/core/src/ClineCore.ts",
+      "sha256": "4c4fe321fe6e75e84b475d26e12483a83eb02ec2c145c8326d56dd8e91458ad4",
+      "verified": true,
+      "url": "https://github.com/cline/cline/blob/a459f1d04dea030833b558be645011ab739c463b/sdk/packages/core/src/ClineCore.ts"
+    }
+  ]
+}

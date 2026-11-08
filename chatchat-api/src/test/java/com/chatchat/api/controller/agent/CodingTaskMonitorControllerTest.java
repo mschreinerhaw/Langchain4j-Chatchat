@@ -14,6 +14,23 @@ import static org.assertj.core.api.Assertions.*;
 import static org.mockito.Mockito.*;
 
 class CodingTaskMonitorControllerTest {
+    @Test void directAssetTaskReadsItsExistingDurableContractWithoutInventingAnAgentParent(){
+        var runtime=mock(AgentRuntime.class);var tasks=mock(DurableCodingTaskService.class);var coding=mock(CodingAgentSPI.class);
+        var scope=new com.chatchat.common.kernel.KernelDataScope("tenant","owner",null,null,"asset-run",null,Map.of());
+        var contract=mock(com.chatchat.common.runtime.coding.CodingTaskContract.class,RETURNS_DEEP_STUBS);
+        when(contract.scope()).thenReturn(scope);when(contract.objective().instruction()).thenReturn("Count actual CSV rows");
+        var outcome=mock(com.chatchat.common.runtime.coding.CodingTaskOutcome.class);when(outcome.status()).thenReturn(com.chatchat.common.runtime.coding.CodingTaskOutcome.Status.FAILED);
+        when(tasks.contract(any(),eq("task"))).thenReturn(contract);when(tasks.get(any(),eq("task"))).thenReturn(outcome);
+        var lease=mock(com.chatchat.agents.runtime.coding.CodingJournal.Lease.class);when(tasks.ownership(any(),eq("task"))).thenReturn(lease);
+        var controller=new CodingTaskMonitorController(runtime,tasks,coding,new CodingInvocationContext());
+        var request=new MockHttpServletRequest();request.setAttribute(ApiAuthenticationFilter.CURRENT_TENANT_ID,"tenant");request.setAttribute(ApiAuthenticationFilter.CURRENT_USER_ID,"owner");
+        assertThat(((Map<?,?>)controller.task("asset-run","task",request).getData()).get("outcome")).isSameAs(outcome);
+        for(var actor:List.of(List.of("tenant","other"),List.of("other","owner"))){
+            request.setAttribute(ApiAuthenticationFilter.CURRENT_TENANT_ID,actor.get(0));request.setAttribute(ApiAuthenticationFilter.CURRENT_USER_ID,actor.get(1));
+            assertThatThrownBy(()->controller.task("asset-run","task",request)).isInstanceOf(ResponseStatusException.class);
+        }
+        verify(tasks,times(1)).get(any(),eq("task"));verifyNoInteractions(coding);verify(runtime,never()).observations(anyString());
+    }
     @Test void failedInputPreparationDoesNotInventAnAdmittedCodingTaskOrBreakOperationalStatus() {
         var runtime=mock(AgentRuntime.class);var tasks=mock(DurableCodingTaskService.class);var coding=mock(CodingAgentSPI.class);
         when(runtime.find("run")).thenReturn(Optional.of(AgentRun.builder().runId("run")

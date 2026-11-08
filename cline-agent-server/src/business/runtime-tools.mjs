@@ -31,7 +31,10 @@ export function runtimeTools(run,gateway,workspace,emit) {
   return {...receipt,reviewedArtifact:artifact};
  };
  for(const t of knowledgeTools(c,gateway,emit))tools.set(t.name,{...t,execute:(args,context)=>t.execute(args,{toolCallId:trustedId(context),signal:run.abort.signal})});
- add('input_read','Read bounded authorized input using its delivered datasetReference. limit is 1–16000 Unicode code points.',schema({datasetReference:string,offset:{type:'integer',minimum:0},limit:{type:'integer',minimum:1,maximum:16000}},['datasetReference','offset','limit']),(args,context)=>gateway.readInput(c,{...args,toolCallId:trustedId(context)},run.abort.signal));
+ add('input_read','Read bounded authorized logical data using its EXACT delivered datasetReference, not a filesystem path. For staged manifest.json, schema.json or original CSV use native read_files with the nativePath from runtime-inputs.json. /data/input paths exist only inside Managed Python. limit is 1–16000 Unicode code points.',schema({datasetReference:string,offset:{type:'integer',minimum:0},limit:{type:'integer',minimum:1,maximum:16000}},['datasetReference','offset','limit']),(args,context)=>{
+  if(args.datasetReference?.startsWith('/'))throw Error('input_read requires an authorized datasetReference, not a Sandbox or native file path. Read the delivered text with native read_files using its exact nativePath in runtime-inputs.json; use /data/input paths only in Managed Python.');
+  return gateway.readInput(c,{...args,toolCallId:trustedId(context)},run.abort.signal);
+ });
  add('metadata_read','Read an authorized metadata reference.',schema({reference:string},['reference']),args=>gateway.readMetadata(c,args.reference,run.abort.signal));
  add('artifact_read','Read the real archived result for semantic review. No synthetic output.',schema({reference:string},['reference']),async args=>{
   const receipt=await gateway.readArtifact(c,args.reference,run.abort.signal);

@@ -6,7 +6,25 @@ import {tmpdir} from 'node:os';
 import {join} from 'node:path';
 import {createMonitor} from '../monitor/server.mjs';
 import {Backend} from '../monitor/backend.mjs';
-import {parseCursor,cursorId,projectEvent,safe} from '../monitor/projection.mjs';
+import {parseCursor,cursorId,projectEvent,safe,nativeModelObservations} from '../monitor/projection.mjs';
+
+test('Native model observations keep repeated iteration numbers scoped to their real tasks and preserve missing usage',()=>{
+ const event=(id,taskId,type,payload={},second=0)=>({id,taskId,type,payload,timestamp:'2026-11-09T00:00:'+String(second).padStart(2,'0')+'Z'});
+ const calls=nativeModelObservations([
+  event('native:1','turn-a','model.iteration.started',{iteration:1}),
+  event('native:2','turn-a','model.usage',{inputTokens:31,outputTokens:7,totalInputTokens:999},2),
+  event('native:3','turn-a','turn.completed',{},3),
+  event('native:4','turn-b','model.iteration.started',{iteration:1},4),
+  event('native:5','turn-a','model.usage',{inputTokens:800},5),
+  event('native:6','turn-b','model.error',{message:'actual Core error'},6),
+  event('native:7','turn-c','model.iteration.started',{iteration:1},7),
+  event('native:8','turn-c','turn.completed',{},8),
+  event('native:9','turn-c','model.usage',{inputTokens:900},9)
+ ],'configured-model');
+ assert.equal(calls.length,3);assert.equal(calls[0].observedDurationMs,2000);assert.deepEqual(calls[0].usage,{inputTokens:31,outputTokens:7});
+ assert.equal(calls[1].taskId,'turn-b');assert.equal(calls[1].state,'ERROR_REPORTED');assert.equal(calls[1].error.message,'actual Core error');assert.equal(calls[1].usage,undefined);
+ assert.equal(calls[2].state,'STARTED');assert.equal(calls[2].usage,undefined);assert.equal(calls[2].observedDurationMs,undefined);assert.equal(calls[0].providerModel,undefined);
+});
 
 test('Native projection preserves durable identities and rejects invalid cursors without inferring success',()=>{
  assert.deepEqual(parseCursor(cursorId({native:12,business:37})),{native:12,business:37});assert.throws(()=>parseCursor('n-1b0'));

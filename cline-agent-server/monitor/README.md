@@ -1,5 +1,15 @@
 # Native Monitor
 
+业务执行与控制台已统一集成到 `feature/runtime-cline-cli-native-20261107`；原独立监控分支及证据保留。统一交付验收见 [交付报告](../../docs/testing/native-cline-business-monitor-delivery-20261108.md)。
+
+## 浏览器操作
+
+1. 打开测试环境 `/monitor/`，用授权 Runtime 账号登录。点击“新建测试”，选择 Native 原生编码模式和授权工作区，创建 Session 后在对话框输入编码任务。工具需要审批时，页面显示真实待决申请及批准/拒绝按钮；可继续发送多轮消息，或取消当前任务。
+2. Model Calls 查看逐次调用；Tool Calls 查看真实工具和错误；Code / Diff 查看修改；Python Execution 查看 operationId、执行回执和按需日志。右侧时间线展示模型、工具、MCP 和任务事件。刷新页面会补拉同一 Session 的持久历史。
+3. 要验证业务交付，选择 Runtime 业务集成模式、已有授权输入和模型，输入分析需求。单 CSV 行数和精确求和可显式选择对应验算合同及原始数值列；通用分析不自动取得领域正确性通过。Files / Artifacts 中下载 Runtime 已归档文件，最终交付以 Runtime 状态为准。
+
+Native 直接模式的模型表记录 Core `iteration_start`、`usage`、`error` 的真实事件，按 taskId 隔离多轮对话；缺少 usage 不填零。模型名称是会话配置，耗时是从开始到 usage 的观测间隔，并非供应商耗时或计费确认。Runtime 模式继续使用 Java 模型回执，二者不混用。Native 当前工作区的原始 git diff 可直接查看，但不冒充所有历史中间源码版本。
+
 独立开发、交互测试与诊断控制台。只使用官方 Standalone 的现有 Session/Events/Permission 接口、Native 持久日志及 Runtime 的任务 Journal、模型回执、Python 回执和文件归档。没有 Agent Loop、SDK Runner、任务数据库或 Docker API。
 
 ## 启动

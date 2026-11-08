@@ -1,6 +1,6 @@
 import {readdir,readFile,stat,realpath} from 'node:fs/promises';
 import {join,resolve,sep} from 'node:path';
-import {projectEvent,safe,receipt,hash} from './projection.mjs';
+import {projectEvent,safe,receipt,hash,nativeModelObservations} from './projection.mjs';
 import {randomUUID} from 'node:crypto';
 
 const fail=(message,status=400)=>Object.assign(Error(message),{status});
@@ -48,6 +48,8 @@ export class Backend {
   const c=await this.context(user,key),s=c.state;
   if(c.mode==='native'){
    let live;try{live=await this.native('/v1/sessions/'+s.id+'/status');}catch(e){live={status:s.status,observationError:e.message};}
+   const events=(await this.lines(join(this.config.native.stateDir,s.id,'events.jsonl'))).map(e=>projectEvent(e,'native',key,this.secrets)).filter(Boolean);
+   live.modelReceipts=nativeModelObservations(events,this.config.native.model);
    return safe({id:key,mode:'native',...live,authority:'NATIVE_SESSION',deliveryValidated:false,capabilities:{messages:['idle','turn_completed','awaiting_input'].includes(live.status),cancel:!['cancelled','failed','recoverable'].includes(live.status),permissions:true},model:{model:this.config.native.model,usageStatus:'NATIVE_OBSERVATION_NOT_RUNTIME_BILLING'},workspaceRef:s.workspaceRef},[...this.secrets,user.token]);
   }
   let item,error;

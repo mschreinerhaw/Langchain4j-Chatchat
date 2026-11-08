@@ -39,7 +39,27 @@ export function projectEvent(event,source,sessionId,secrets=[]){
   outputSummary:typeof p.output==='string'?(/<command-name>([^<]+)<\/command-name>/.exec(p.output)?.[1]??'Result retained in private Native journal'):null,
   file:p.input?.path??p.input?.file_path??p.input?.filePath,patchAttempt:p.toolName==='apply_patch'};
  if(!type)return null;
- return {id:source+':'+event.eventId,source,sourceEventId:event.eventId,timestamp:event.timestamp,sessionId,type,payload:safe(p,secrets)};
+ return {id:source+':'+event.eventId,source,sourceEventId:event.eventId,timestamp:event.timestamp,sessionId,taskId:event.taskId??null,epoch:event.epoch??null,type,payload:safe(p,secrets)};
+}
+// Read-only Core observations. A usage event is not a provider billing receipt.
+export function nativeModelObservations(events,configuredModel){
+ const calls=[];let current=null;
+ for(const event of events){
+  if(event.type==='task.accepted'||event.type==='turn.completed'||event.type==='task.failed'||event.type==='cancel.completed'){current=null;continue;}
+  const p=event.payload??{};
+  if(event.type==='model.iteration.started'){
+   current={operationId:event.id,taskId:event.taskId,iteration:p.iteration,configuredModel,startedAt:event.timestamp,state:'STARTED',source:'NATIVE_CORE_OBSERVATION',usageAuthority:'NATIVE_OBSERVATION_NOT_RUNTIME_BILLING'};
+   calls.push(current);continue;
+  }
+  if(!current||current.taskId!==event.taskId)continue;
+  if(event.type==='model.usage'&&current.state==='STARTED'){
+   current.state='USAGE_REPORTED';current.usageEventId=event.id;current.finishedAt=event.timestamp;
+   const elapsed=Date.parse(event.timestamp)-Date.parse(current.startedAt);if(Number.isFinite(elapsed)&&elapsed>=0)current.observedDurationMs=elapsed;
+   current.usage=Object.fromEntries(['inputTokens','outputTokens','cacheReadTokens'].filter(k=>Number.isFinite(p[k])).map(k=>[k,p[k]]));
+  }
+  if(event.type==='model.error'){current.state='ERROR_REPORTED';current.error=safe(p);current.errorEventId=event.id;}
+ }
+ return calls;
 }
 export function receipt(r={}){
  if(!r)return null;

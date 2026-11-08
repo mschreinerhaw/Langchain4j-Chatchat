@@ -27,13 +27,16 @@ import java.util.regex.Pattern;
 
 /** Creates absent target database objects and inserts missing starter-data records. */
 final class TargetBootstrap {
-    private static final Pattern CREATE_TABLE = Pattern.compile("(?is)^create\\s+table\\s+([`\"]?\\w+[`\"]?)\\s*\\(");
+    private static final Pattern CREATE_TABLE = Pattern.compile("(?is)^create\\s+table\\s+(?:if\\s+not\\s+exists\\s+)?([`\"]?\\w+[`\"]?)\\s*\\(");
     private static final Pattern CREATE_INDEX = Pattern.compile("(?is)^create\\s+(?:unique\\s+)?index\\s+"
             + "(?:if\\s+not\\s+exists\\s+)?([`\"]?\\w+[`\"]?)\\s+on\\s+([`\"]?\\w+[`\"]?)");
     private static final Pattern ALTER_CONSTRAINT = Pattern.compile("(?is)^alter\\s+table\\s+"
             + "(?:if\\s+exists\\s+)?([`\"]?\\w+[`\"]?)\\s+add\\s+constraint\\s+([`\"]?\\w+[`\"]?)");
     private static final Pattern INSERT = Pattern.compile("(?is)^insert\\s+into\\s+([`\"]?\\w+[`\"]?)"
             + "\\s*\\(([^)]+)\\)\\s*values\\s*(.+)$");
+    // These idempotent policy seeds are part of the packaged fresh-install schema.
+    private static final Pattern POLICY_SEED = Pattern.compile("(?is)^insert\\s+into\\s+"
+            + "(agent_runtime_migration_marker|agent_runtime_semantic_policy|mcp_argument_binding_policy)\\s*\\(");
 
     private TargetBootstrap() { }
 
@@ -258,6 +261,10 @@ final class TargetBootstrap {
                 }
             }
             for (String sql : script) {
+                Matcher seed = POLICY_SEED.matcher(sql);
+                if (seed.find() && missing.contains(seed.group(1))) execute(target, sql);
+            }
+            for (String sql : script) {
                 Matcher constraint = ALTER_CONSTRAINT.matcher(sql);
                 if (constraint.find() && expected.contains(unquote(constraint.group(1)))
                         && !constraintExists(target, schema, unquote(constraint.group(1)),
@@ -455,7 +462,7 @@ final class TargetBootstrap {
         List<String> statements = splitSql(MigrationSchema.resourceSql(engine.name().toLowerCase(), file));
         for (String sql : statements) {
             if (!CREATE_TABLE.matcher(sql).find() && !CREATE_INDEX.matcher(sql).find()
-                    && !ALTER_CONSTRAINT.matcher(sql).find()) {
+                    && !ALTER_CONSTRAINT.matcher(sql).find() && !POLICY_SEED.matcher(sql).find()) {
                 throw new IllegalStateException("Unsupported statement in " + file + ": "
                         + sql.substring(0, Math.min(sql.length(), 100)));
             }

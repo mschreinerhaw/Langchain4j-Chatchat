@@ -1,5 +1,5 @@
 const $=s=>document.querySelector(s),el=(tag,text,cls)=>{const n=document.createElement(tag);if(text!==undefined)n.textContent=text;if(cls)n.className=cls;return n;};
-let config,current,detail,stream,items=[],observations=[],seen=new Set(),tab='models',pendingDispatch=null,refreshing=false,createCommandId=null,textBlock=null,renderTimer;
+let config,current,detail,stream,items=[],observations=[],seen=new Set(),tab='models',pendingDispatch=null,refreshing=false,createCommandId=null,textBlock=null,renderTimer,traceCache=new Map();
 async function api(path,body){const r=await fetch('/api'+path,{method:body===undefined?'GET':'POST',headers:{'content-type':'application/json'},body:body===undefined?undefined:JSON.stringify(body)});const b=await r.json();if(!r.ok){if(r.status===401){$('#console').hidden=true;$('#login').hidden=false;}throw Error(b.message??r.status);}return b;}
 const command=text=>$('#command-status').textContent=text;
 const pretty=v=>JSON.stringify(v,null,2),unknown=v=>v===undefined||v===null?'UNKNOWN':String(v);
@@ -49,7 +49,7 @@ function snapshot(d){
 }
 function sumUsage(receipts,field){if(!receipts?.length)return 'UNKNOWN';const values=receipts.map(r=>r[field]??r.usage?.[field]);return values.every(Number.isFinite)?values.reduce((a,b)=>a+b,0):'UNKNOWN（部分回执用量未确认）';}
 async function select(key){
- stream?.close();current=key;textBlock=null;location.hash=encodeURIComponent(key);observations=[];seen=new Set();$('#messages').replaceChildren();$('#timeline').replaceChildren();listSessions();
+ stream?.close();current=key;textBlock=null;traceCache=new Map();location.hash=encodeURIComponent(key);observations=[];seen=new Set();$('#messages').replaceChildren();$('#timeline').replaceChildren();listSessions();
  try{snapshot(await api('/sessions/'+encodeURIComponent(key)));}catch(e){command(e.message);return;}
  $('#connection').textContent='连接持久事件流…';
  stream=new EventSource('/api/sessions/'+encodeURIComponent(key)+'/events');stream.onopen=()=>$('#connection').textContent='● 实时连接';stream.onerror=()=>$('#connection').textContent='连接中断 · 自动补拉中';
@@ -58,6 +58,7 @@ async function select(key){
 function renderTab(){
  const root=$('#detail-content');if(!detail){root.replaceChildren(el('p','选择会话后查看执行详情'));return;}
  if(['files','code'].includes(tab))return;
+ const opened=new Set([...root.querySelectorAll('details[open]')].map(n=>n.dataset.entryKey));
  root.replaceChildren();let entries=[];
  if(tab==='models'){
   root.append(el('p',detail.mode==='native'?'Native Core 轮次观测；模型为会话配置，用量为原生上报。观测耗时由轮次开始到 usage 事件计算，不代表供应商耗时或计费回执。缺失值为 UNKNOWN。':'真实模型、耗时和 Token 来自 Runtime 模型回执。缺失用量为 UNKNOWN。'));
@@ -77,9 +78,9 @@ function renderTab(){
  if(tab==='diagnostics')entries=[{nativeStatus:detail.status,runtimeStatus:detail.runtimeStatus,authority:detail.authority,error:detail.error,activeOperations:detail.activeOperations,workerStopped:detail.workerStopped,remoteStopConfirmed:detail.remoteStopConfirmed},...observations.filter(e=>/error|fail|cancel|reconcil|recover/.test(e.type))];
  if(!entries.length)root.append(el('p','尚无实际回执；不推断为成功。'));
  for(const entry of entries.slice(-300).reverse()){
-  const block=card([entry.timestamp??entry.startedAt??'',entry.type??entry.operationId??entry.executionId??entry.model??'回执',entry.payload?.toolName??entry.state??entry.status??''].join(' · '),entry);root.append(block);
+  const block=card([entry.timestamp??entry.startedAt??'',entry.type??entry.operationId??entry.executionId??entry.model??'回执',entry.payload?.toolName??entry.state??entry.status??''].join(' · '),entry);block.dataset.entryKey=tab+':'+(entry.id??entry.operationId??entry.executionId??'snapshot');block.open=opened.has(block.dataset.entryKey);root.append(block);
   const operation=entry.executionId??entry.operationId??entry.payload?.operationId;
-  if(tab==='python'&&detail.mode==='runtime'&&/^cline-[a-f0-9]{64}$/.test(operation??''))for(const kind of ['code','stdout','stderr','timing']){const button=el('button','查看 '+kind);button.onclick=async()=>{try{block.append(dump(await api('/sessions/'+encodeURIComponent(current)+'/trace?operationId='+operation+'&kind='+kind)));block.open=true;}catch(e){command(e.message);}};block.append(button);}
+  if(tab==='python'&&detail.mode==='runtime'&&/^cline-[a-f0-9]{64}$/.test(operation??''))for(const kind of ['code','stdout','stderr','timing']){const button=el('button','查看 '+kind),key=current+':'+operation+':'+kind;if(traceCache.has(key))block.append(dump(traceCache.get(key)));button.onclick=async()=>{const session=current;block.open=true;button.disabled=true;try{if(!traceCache.has(key))traceCache.set(key,await api('/sessions/'+encodeURIComponent(session)+'/trace?operationId='+operation+'&kind='+kind));if(current===session&&tab==='python')renderTab();}catch(e){command(e.message);}finally{button.disabled=false;}};block.append(button);}
  }
 }
 async function loadTab(){

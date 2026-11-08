@@ -1,0 +1,7 @@
+{
+  "dockerOomEvents": "",
+  "nodeConcurrencyEnvAllowed": "false\n",
+  "availableParallelism": "24\n",
+  "cgroupMemoryPeak": "3221225472\n",
+  "processes": "PID                 PPID                COMMAND\n2127513             2127492             MainThread\n"
+}

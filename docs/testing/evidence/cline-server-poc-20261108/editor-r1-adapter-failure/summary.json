@@ -1,0 +1,65 @@
+{
+  "sessionId": "9addcff9-d244-4ea4-a4ab-4d1665f6a1f4",
+  "taskId": "b2c0be9b-5303-464b-a334-8069eb59f848",
+  "profile": "editor",
+  "model": "qwen3.7-plus",
+  "status": "failed",
+  "durationSeconds": 285.63,
+  "approvalCount": 9,
+  "completedTools": [
+    {
+      "name": "run_commands",
+      "error": null,
+      "toolCallId": "call_3da7bb567284452eaafb10fb"
+    },
+    {
+      "name": "read_files",
+      "error": null,
+      "toolCallId": "call_be7cff51bddc4b0dad25acff"
+    },
+    {
+      "name": "read_files",
+      "error": null,
+      "toolCallId": "call_b128e5f37bea4a5aa01f4897"
+    },
+    {
+      "name": "editor",
+      "error": null,
+      "toolCallId": "call_7957f169f3ff4181811aec22"
+    },
+    {
+      "name": "editor",
+      "error": null,
+      "toolCallId": "call_1776d9891d384fde8ba72a67"
+    },
+    {
+      "name": "editor",
+      "error": null,
+      "toolCallId": "call_74dbf9ca8bc3456297d293fb"
+    },
+    {
+      "name": "editor",
+      "error": null,
+      "toolCallId": "call_3d4843043d954c84836b7c3a"
+    },
+    {
+      "name": "editor",
+      "error": null,
+      "toolCallId": "call_66dc823610f6428d94dfd5f8"
+    },
+    {
+      "name": "run_commands",
+      "error": "{\"error\":\"This tool call was rejected by the user and not executed. The user provided the following feedback:\\n<feedback>\\nOutside fixed monitor client coding task\\n</feedback> -- NOT a tool or system failure. Clarify with user before proceeding.\"}",
+      "toolCallId": "call_3b1b0e48efcd45539c4071c8"
+    }
+  ],
+  "sseReconnect": "PASS",
+  "idempotency": "PASS",
+  "independentVerification": "PENDING",
+  "coreToolsObserved": {
+    "read_files": true,
+    "search_codebase": false,
+    "editor": true,
+    "run_commands": true
+  }
+}

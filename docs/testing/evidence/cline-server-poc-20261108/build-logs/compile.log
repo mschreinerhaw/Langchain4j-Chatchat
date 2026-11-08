@@ -1,0 +1,65 @@
+$ bun run check-types && bun run lint && bun esbuild.mjs --standalone
+$ bun run protos && bunx tsc --noEmit && bun run check-types:compat && cd webview-ui && bunx tsc --noEmit
+$ node scripts/build-proto.mjs
+Compiling Protocol Buffers...
+Processing 25 proto files from /poc/build/cline-a459f1d04dea030833b558be645011ab739c463b/apps/vscode/proto
+Generated ProtoBus files at:
+- /poc/build/cline-a459f1d04dea030833b558be645011ab739c463b/apps/vscode/webview-ui/src/services/grpc-client.ts
+- /poc/build/cline-a459f1d04dea030833b558be645011ab739c463b/apps/vscode/src/generated/hosts/vscode/protobus-service-types.ts
+- /poc/build/cline-a459f1d04dea030833b558be645011ab739c463b/apps/vscode/src/generated/hosts/vscode/protobus-services.ts
+- /poc/build/cline-a459f1d04dea030833b558be645011ab739c463b/apps/vscode/src/generated/hosts/standalone/protobus-server-setup.ts
+Generated Host Bridge client files at:
+- /poc/build/cline-a459f1d04dea030833b558be645011ab739c463b/apps/vscode/src/generated/hosts/host-bridge-client-types.ts
+- /poc/build/cline-a459f1d04dea030833b558be645011ab739c463b/apps/vscode/src/generated/hosts/standalone/host-bridge-clients.ts
+- /poc/build/cline-a459f1d04dea030833b558be645011ab739c463b/apps/vscode/src/generated/hosts/vscode/hostbridge-grpc-service-config.ts
+$ biome format --config-path ./biome.jsonc src/shared/proto src/core/controller src/hosts/ webview-ui/src/services src/generated --write --no-errors-on-unmatched
+Formatted 322 files in 107ms. Fixed 1 file.
+$ bunx tsc --project tsconfig.vscode-compat.json --noEmit
+$ biome lint --config-path ./biome.jsonc --no-errors-on-unmatched --files-ignore-unknown=true --diagnostic-level=error && bun run lint:proto
+Checked 1322 files in 2s. No fixes applied.
+$ bash ./scripts/proto-lint.sh
+Proto files were formatted
+[watch] build started
+[watch] build finished
+$ node scripts/package-standalone.mjs
+Running bun install in distribution directory...
+bun install v1.4.2 (744846f84)
+[5.40ms] migrated lockfile from package-lock.json
+warn: better-sqlite3's postinstall cost you 2m27.7s
+Saved lockfile
+
++ @grpc/grpc-js@1.13.7
++ @grpc/reflection@1.0.4
++ better-sqlite3@12.4.1
++ grpc-health-check@2.0.2
++ open@10.1.2
++ vscode-uri@3.1.0
+
+84 packages installed [150.35s]
+
+Blocked 1 postinstall. Run `bun pm untrusted` for details.
+Building universal package for all platforms...
+Installing binaries for better-sqlite3...
+/bin/sh: 1: npx: not found
+node:internal/errors:986
+  const err = new Error(message);
+              ^
+
+Error: Command failed: npx prebuild-install --platform=win32 --arch=x64 --target=22.15.0 
+    at genericNodeError (node:internal/errors:986:15)
+    at wrappedFn (node:internal/errors:540:14)
+    at checkExecSyncError (node:child_process:942:11)
+    at execSync (node:child_process:1014:15)
+    at packageAllBinaryDeps (file:///poc/build/cline-a459f1d04dea030833b558be645011ab739c463b/apps/vscode/scripts/package-standalone.mjs:107:4)
+    at async main (file:///poc/build/cline-a459f1d04dea030833b558be645011ab739c463b/apps/vscode/scripts/package-standalone.mjs:36:3)
+    at async file:///poc/build/cline-a459f1d04dea030833b558be645011ab739c463b/apps/vscode/scripts/package-standalone.mjs:258:1 {
+  status: 127,
+  signal: null,
+  output: [ null, null, null ],
+  pid: 1143,
+  stdout: null,
+  stderr: null
+}
+
+Node.js v24.21.0
+error: script "postcompile-standalone" exited with code 1

@@ -1,0 +1,1045 @@
+[
+  {
+    "sessionId": "de92f0a7-60f7-41ae-9734-1b23fd1f5cea",
+    "taskId": null,
+    "epoch": "2d9b4664-c229-49af-998d-e9c785021bf1",
+    "eventType": "session.created",
+    "payload": {
+      "workspaceRef": "monitor-editor"
+    },
+    "eventId": "1",
+    "timestamp": "2026-11-08T01:59:40.765Z"
+  },
+  {
+    "sessionId": "de92f0a7-60f7-41ae-9734-1b23fd1f5cea",
+    "taskId": null,
+    "epoch": "2d9b4664-c229-49af-998d-e9c785021bf1",
+    "eventType": "worker.ready",
+    "payload": {
+      "native": "v4.1.26",
+      "sourceCommit": "a459f1d04dea030833b558be645011ab739c463b",
+      "hostCapabilities": {
+        "workspace": true,
+        "editorUI": false,
+        "diagnostics": false,
+        "backgroundShell": true
+      }
+    },
+    "eventId": "2",
+    "timestamp": "2026-11-08T01:59:44.794Z"
+  },
+  {
+    "sessionId": "de92f0a7-60f7-41ae-9734-1b23fd1f5cea",
+    "taskId": null,
+    "epoch": "2d9b4664-c229-49af-998d-e9c785021bf1",
+    "eventType": "host.notification",
+    "payload": {
+      "type": 1,
+      "message": "Welcome to Cline v4.1.26"
+    },
+    "eventId": "3",
+    "timestamp": "2026-11-08T01:59:44.804Z"
+  },
+  {
+    "sessionId": "de92f0a7-60f7-41ae-9734-1b23fd1f5cea",
+    "taskId": "3d6a52af-5974-420f-ad02-b3ad0740eeac",
+    "epoch": "2d9b4664-c229-49af-998d-e9c785021bf1",
+    "eventType": "task.accepted",
+    "payload": {
+      "text": "执行且等待这条长运行 Shell 命令，以便我测试取消；不要改其他文件：node -e \"setTimeout(()=>require('fs').writeFileSync('poc-cancel-late.txt','late'),30000);setInterval(()=>{},1000)\""
+    },
+    "eventId": "4",
+    "timestamp": "2026-11-08T01:59:44.853Z"
+  },
+  {
+    "sessionId": "de92f0a7-60f7-41ae-9734-1b23fd1f5cea",
+    "taskId": "3d6a52af-5974-420f-ad02-b3ad0740eeac",
+    "epoch": "2d9b4664-c229-49af-998d-e9c785021bf1",
+    "eventType": "native.event",
+    "payload": {
+      "type": "status",
+      "payload": {
+        "sessionId": "1794103185106_yq5aq",
+        "status": "idle"
+      }
+    },
+    "eventId": "5",
+    "timestamp": "2026-11-08T01:59:45.235Z"
+  },
+  {
+    "sessionId": "de92f0a7-60f7-41ae-9734-1b23fd1f5cea",
+    "taskId": "3d6a52af-5974-420f-ad02-b3ad0740eeac",
+    "epoch": "2d9b4664-c229-49af-998d-e9c785021bf1",
+    "eventType": "native.event",
+    "payload": {
+      "type": "session_snapshot",
+      "payload": {
+        "sessionId": "1794103185106_yq5aq",
+        "snapshot": {
+          "version": 1,
+          "sessionId": "1794103185106_yq5aq",
+          "source": "vscode",
+          "status": "idle",
+          "createdAt": "2026-11-08T01:59:45.177Z",
+          "updatedAt": "2026-11-08T01:59:45.177Z",
+          "endedAt": null,
+          "exitCode": null,
+          "interactive": true,
+          "workspace": {
+            "cwd": "/poc/project/coding-agent-node",
+            "root": "/poc/project/coding-agent-node"
+          },
+          "model": {
+            "providerId": "openai-compatible",
+            "modelId": "qwen3.7-plus"
+          },
+          "capabilities": {
+            "enableTools": true,
+            "enableSpawn": false,
+            "enableTeams": false
+          },
+          "lineage": {
+            "isSubagent": false
+          },
+          "usage": {
+            "inputTokens": 0,
+            "outputTokens": 0,
+            "cacheReadTokens": 0,
+            "cacheWriteTokens": 0,
+            "totalCost": 0
+          },
+          "aggregateUsage": {
+            "inputTokens": 0,
+            "outputTokens": 0,
+            "cacheReadTokens": 0,
+            "cacheWriteTokens": 0,
+            "totalCost": 0
+          }
+        }
+      }
+    },
+    "eventId": "6",
+    "timestamp": "2026-11-08T01:59:45.239Z"
+  },
+  {
+    "sessionId": "de92f0a7-60f7-41ae-9734-1b23fd1f5cea",
+    "taskId": "3d6a52af-5974-420f-ad02-b3ad0740eeac",
+    "epoch": "2d9b4664-c229-49af-998d-e9c785021bf1",
+    "eventType": "task.started",
+    "payload": {
+      "nativeSessionId": "1794103185106_yq5aq"
+    },
+    "eventId": "7",
+    "timestamp": "2026-11-08T01:59:45.331Z"
+  },
+  {
+    "sessionId": "de92f0a7-60f7-41ae-9734-1b23fd1f5cea",
+    "taskId": "3d6a52af-5974-420f-ad02-b3ad0740eeac",
+    "epoch": "2d9b4664-c229-49af-998d-e9c785021bf1",
+    "eventType": "native.event",
+    "payload": {
+      "type": "status",
+      "payload": {
+        "sessionId": "1794103185106_yq5aq",
+        "status": "running"
+      }
+    },
+    "eventId": "8",
+    "timestamp": "2026-11-08T01:59:45.342Z"
+  },
+  {
+    "sessionId": "de92f0a7-60f7-41ae-9734-1b23fd1f5cea",
+    "taskId": "3d6a52af-5974-420f-ad02-b3ad0740eeac",
+    "epoch": "2d9b4664-c229-49af-998d-e9c785021bf1",
+    "eventType": "native.event",
+    "payload": {
+      "type": "session_snapshot",
+      "payload": {
+        "sessionId": "1794103185106_yq5aq",
+        "snapshot": {
+          "version": 1,
+          "sessionId": "1794103185106_yq5aq",
+          "source": "vscode",
+          "status": "running",
+          "createdAt": "2026-11-08T01:59:45.177Z",
+          "updatedAt": "2026-11-08T01:59:45.342Z",
+          "endedAt": null,
+          "exitCode": null,
+          "interactive": true,
+          "workspace": {
+            "cwd": "/poc/project/coding-agent-node",
+            "root": "/poc/project/coding-agent-node"
+          },
+          "model": {
+            "providerId": "openai-compatible",
+            "modelId": "qwen3.7-plus"
+          },
+          "capabilities": {
+            "enableTools": true,
+            "enableSpawn": false,
+            "enableTeams": false
+          },
+          "lineage": {
+            "isSubagent": false
+          },
+          "prompt": "<user_input mode=\"act\">执行且等待这条长运行 Shell 命令，以便我测试取消；不要改其他文件：node -e \"setTimeout(()=>require('fs').writeFileSync('poc-cancel-late.txt','late'),30000);setInterval(()=>{},1000)\"</user_input>",
+          "artifacts": {
+            "messagesPath": "/poc/state/de92f0a7-60f7-41ae-9734-1b23fd1f5cea/cline/data/sessions/1794103185106_yq5aq/1794103185106_yq5aq.messages.json"
+          },
+          "usage": {
+            "inputTokens": 0,
+            "outputTokens": 0,
+            "cacheReadTokens": 0,
+            "cacheWriteTokens": 0,
+            "totalCost": 0
+          },
+          "aggregateUsage": {
+            "inputTokens": 0,
+            "outputTokens": 0,
+            "cacheReadTokens": 0,
+            "cacheWriteTokens": 0,
+            "totalCost": 0
+          }
+        }
+      }
+    },
+    "eventId": "9",
+    "timestamp": "2026-11-08T01:59:45.353Z"
+  },
+  {
+    "sessionId": "de92f0a7-60f7-41ae-9734-1b23fd1f5cea",
+    "taskId": "3d6a52af-5974-420f-ad02-b3ad0740eeac",
+    "epoch": "2d9b4664-c229-49af-998d-e9c785021bf1",
+    "eventType": "native.event",
+    "payload": {
+      "type": "agent_event",
+      "payload": {
+        "sessionId": "1794103185106_yq5aq",
+        "event": {
+          "type": "iteration_start",
+          "iteration": 1
+        },
+        "teamRole": "lead"
+      }
+    },
+    "eventId": "10",
+    "timestamp": "2026-11-08T01:59:45.384Z"
+  },
+  {
+    "sessionId": "de92f0a7-60f7-41ae-9734-1b23fd1f5cea",
+    "taskId": "3d6a52af-5974-420f-ad02-b3ad0740eeac",
+    "epoch": "2d9b4664-c229-49af-998d-e9c785021bf1",
+    "eventType": "model.iteration.started",
+    "payload": {
+      "iteration": 1,
+      "source": "AgentEvent.iteration_start"
+    },
+    "eventId": "11",
+    "timestamp": "2026-11-08T01:59:45.385Z"
+  },
+  {
+    "sessionId": "de92f0a7-60f7-41ae-9734-1b23fd1f5cea",
+    "taskId": "3d6a52af-5974-420f-ad02-b3ad0740eeac",
+    "epoch": "2d9b4664-c229-49af-998d-e9c785021bf1",
+    "eventType": "native.event",
+    "payload": {
+      "type": "agent_event",
+      "payload": {
+        "sessionId": "1794103185106_yq5aq",
+        "event": {
+          "type": "content_start",
+          "contentType": "text",
+          "text": "我将执行这条",
+          "accumulated": "我将执行这条"
+        },
+        "teamRole": "lead"
+      }
+    },
+    "eventId": "12",
+    "timestamp": "2026-11-08T01:59:49.396Z"
+  },
+  {
+    "sessionId": "de92f0a7-60f7-41ae-9734-1b23fd1f5cea",
+    "taskId": "3d6a52af-5974-420f-ad02-b3ad0740eeac",
+    "epoch": "2d9b4664-c229-49af-998d-e9c785021bf1",
+    "eventType": "native.event",
+    "payload": {
+      "type": "agent_event",
+      "payload": {
+        "sessionId": "1794103185106_yq5aq",
+        "event": {
+          "type": "content_start",
+          "contentType": "text",
+          "text": "长运行命令。",
+          "accumulated": "我将执行这条长运行命令。"
+        },
+        "teamRole": "lead"
+      }
+    },
+    "eventId": "13",
+    "timestamp": "2026-11-08T01:59:49.529Z"
+  },
+  {
+    "sessionId": "de92f0a7-60f7-41ae-9734-1b23fd1f5cea",
+    "taskId": "3d6a52af-5974-420f-ad02-b3ad0740eeac",
+    "epoch": "2d9b4664-c229-49af-998d-e9c785021bf1",
+    "eventType": "native.event",
+    "payload": {
+      "type": "agent_event",
+      "payload": {
+        "sessionId": "1794103185106_yq5aq",
+        "event": {
+          "type": "content_start",
+          "contentType": "text",
+          "text": "它会",
+          "accumulated": "我将执行这条长运行命令。它会"
+        },
+        "teamRole": "lead"
+      }
+    },
+    "eventId": "14",
+    "timestamp": "2026-11-08T01:59:49.530Z"
+  },
+  {
+    "sessionId": "de92f0a7-60f7-41ae-9734-1b23fd1f5cea",
+    "taskId": "3d6a52af-5974-420f-ad02-b3ad0740eeac",
+    "epoch": "2d9b4664-c229-49af-998d-e9c785021bf1",
+    "eventType": "native.event",
+    "payload": {
+      "type": "agent_event",
+      "payload": {
+        "sessionId": "1794103185106_yq5aq",
+        "event": {
+          "type": "content_start",
+          "contentType": "text",
+          "text": "保持运行 3",
+          "accumulated": "我将执行这条长运行命令。它会保持运行 3"
+        },
+        "teamRole": "lead"
+      }
+    },
+    "eventId": "15",
+    "timestamp": "2026-11-08T01:59:49.827Z"
+  },
+  {
+    "sessionId": "de92f0a7-60f7-41ae-9734-1b23fd1f5cea",
+    "taskId": "3d6a52af-5974-420f-ad02-b3ad0740eeac",
+    "epoch": "2d9b4664-c229-49af-998d-e9c785021bf1",
+    "eventType": "native.event",
+    "payload": {
+      "type": "agent_event",
+      "payload": {
+        "sessionId": "1794103185106_yq5aq",
+        "event": {
+          "type": "content_start",
+          "contentType": "text",
+          "text": "0 秒",
+          "accumulated": "我将执行这条长运行命令。它会保持运行 30 秒"
+        },
+        "teamRole": "lead"
+      }
+    },
+    "eventId": "16",
+    "timestamp": "2026-11-08T01:59:49.830Z"
+  },
+  {
+    "sessionId": "de92f0a7-60f7-41ae-9734-1b23fd1f5cea",
+    "taskId": "3d6a52af-5974-420f-ad02-b3ad0740eeac",
+    "epoch": "2d9b4664-c229-49af-998d-e9c785021bf1",
+    "eventType": "native.event",
+    "payload": {
+      "type": "agent_event",
+      "payload": {
+        "sessionId": "1794103185106_yq5aq",
+        "event": {
+          "type": "content_start",
+          "contentType": "text",
+          "text": "后写入文件，",
+          "accumulated": "我将执行这条长运行命令。它会保持运行 30 秒后写入文件，"
+        },
+        "teamRole": "lead"
+      }
+    },
+    "eventId": "17",
+    "timestamp": "2026-11-08T01:59:49.830Z"
+  },
+  {
+    "sessionId": "de92f0a7-60f7-41ae-9734-1b23fd1f5cea",
+    "taskId": "3d6a52af-5974-420f-ad02-b3ad0740eeac",
+    "epoch": "2d9b4664-c229-49af-998d-e9c785021bf1",
+    "eventType": "native.event",
+    "payload": {
+      "type": "agent_event",
+      "payload": {
+        "sessionId": "1794103185106_yq5aq",
+        "event": {
+          "type": "content_start",
+          "contentType": "text",
+          "text": "并通过",
+          "accumulated": "我将执行这条长运行命令。它会保持运行 30 秒后写入文件，并通过"
+        },
+        "teamRole": "lead"
+      }
+    },
+    "eventId": "18",
+    "timestamp": "2026-11-08T01:59:49.831Z"
+  },
+  {
+    "sessionId": "de92f0a7-60f7-41ae-9734-1b23fd1f5cea",
+    "taskId": "3d6a52af-5974-420f-ad02-b3ad0740eeac",
+    "epoch": "2d9b4664-c229-49af-998d-e9c785021bf1",
+    "eventType": "native.event",
+    "payload": {
+      "type": "agent_event",
+      "payload": {
+        "sessionId": "1794103185106_yq5aq",
+        "event": {
+          "type": "content_start",
+          "contentType": "text",
+          "text": " `setInterval`",
+          "accumulated": "我将执行这条长运行命令。它会保持运行 30 秒后写入文件，并通过 `setInterval`"
+        },
+        "teamRole": "lead"
+      }
+    },
+    "eventId": "19",
+    "timestamp": "2026-11-08T01:59:49.980Z"
+  },
+  {
+    "sessionId": "de92f0a7-60f7-41ae-9734-1b23fd1f5cea",
+    "taskId": "3d6a52af-5974-420f-ad02-b3ad0740eeac",
+    "epoch": "2d9b4664-c229-49af-998d-e9c785021bf1",
+    "eventType": "native.event",
+    "payload": {
+      "type": "agent_event",
+      "payload": {
+        "sessionId": "1794103185106_yq5aq",
+        "event": {
+          "type": "content_start",
+          "contentType": "text",
+          "text": " 持续存活。",
+          "accumulated": "我将执行这条长运行命令。它会保持运行 30 秒后写入文件，并通过 `setInterval` 持续存活。"
+        },
+        "teamRole": "lead"
+      }
+    },
+    "eventId": "20",
+    "timestamp": "2026-11-08T01:59:49.981Z"
+  },
+  {
+    "sessionId": "de92f0a7-60f7-41ae-9734-1b23fd1f5cea",
+    "taskId": "3d6a52af-5974-420f-ad02-b3ad0740eeac",
+    "epoch": "2d9b4664-c229-49af-998d-e9c785021bf1",
+    "eventType": "native.event",
+    "payload": {
+      "type": "agent_event",
+      "payload": {
+        "sessionId": "1794103185106_yq5aq",
+        "event": {
+          "type": "content_start",
+          "contentType": "text",
+          "text": "\n\n",
+          "accumulated": "我将执行这条长运行命令。它会保持运行 30 秒后写入文件，并通过 `setInterval` 持续存活。\n\n"
+        },
+        "teamRole": "lead"
+      }
+    },
+    "eventId": "21",
+    "timestamp": "2026-11-08T01:59:49.981Z"
+  },
+  {
+    "sessionId": "de92f0a7-60f7-41ae-9734-1b23fd1f5cea",
+    "taskId": "3d6a52af-5974-420f-ad02-b3ad0740eeac",
+    "epoch": "2d9b4664-c229-49af-998d-e9c785021bf1",
+    "eventType": "native.event",
+    "payload": {
+      "type": "agent_event",
+      "payload": {
+        "sessionId": "1794103185106_yq5aq",
+        "event": {
+          "type": "usage",
+          "inputTokens": 3121,
+          "outputTokens": 97,
+          "cacheReadTokens": 2816,
+          "reasoningTokenCount": 179,
+          "totalInputTokens": 3121,
+          "totalOutputTokens": 97,
+          "totalCacheReadTokens": 2816,
+          "totalCost": 0
+        },
+        "teamRole": "lead"
+      }
+    },
+    "eventId": "22",
+    "timestamp": "2026-11-08T01:59:50.910Z"
+  },
+  {
+    "sessionId": "de92f0a7-60f7-41ae-9734-1b23fd1f5cea",
+    "taskId": "3d6a52af-5974-420f-ad02-b3ad0740eeac",
+    "epoch": "2d9b4664-c229-49af-998d-e9c785021bf1",
+    "eventType": "model.usage",
+    "payload": {
+      "type": "usage",
+      "inputTokens": 3121,
+      "outputTokens": 97,
+      "cacheReadTokens": 2816,
+      "reasoningTokenCount": 179,
+      "totalInputTokens": 3121,
+      "totalOutputTokens": 97,
+      "totalCacheReadTokens": 2816,
+      "totalCost": null,
+      "cost": null,
+      "costStatus": "unverified-native-pricing"
+    },
+    "eventId": "23",
+    "timestamp": "2026-11-08T01:59:50.913Z"
+  },
+  {
+    "sessionId": "de92f0a7-60f7-41ae-9734-1b23fd1f5cea",
+    "taskId": "3d6a52af-5974-420f-ad02-b3ad0740eeac",
+    "epoch": "2d9b4664-c229-49af-998d-e9c785021bf1",
+    "eventType": "native.event",
+    "payload": {
+      "type": "agent_event",
+      "payload": {
+        "sessionId": "1794103185106_yq5aq",
+        "event": {
+          "type": "content_end",
+          "contentType": "text",
+          "text": "我将执行这条长运行命令。它会保持运行 30 秒后写入文件，并通过 `setInterval` 持续存活。\n\n"
+        },
+        "teamRole": "lead"
+      }
+    },
+    "eventId": "24",
+    "timestamp": "2026-11-08T01:59:50.914Z"
+  },
+  {
+    "sessionId": "de92f0a7-60f7-41ae-9734-1b23fd1f5cea",
+    "taskId": "3d6a52af-5974-420f-ad02-b3ad0740eeac",
+    "epoch": "2d9b4664-c229-49af-998d-e9c785021bf1",
+    "eventType": "native.event",
+    "payload": {
+      "type": "status",
+      "payload": {
+        "sessionId": "1794103185106_yq5aq",
+        "status": "pending"
+      }
+    },
+    "eventId": "25",
+    "timestamp": "2026-11-08T01:59:50.931Z"
+  },
+  {
+    "sessionId": "de92f0a7-60f7-41ae-9734-1b23fd1f5cea",
+    "taskId": "3d6a52af-5974-420f-ad02-b3ad0740eeac",
+    "epoch": "2d9b4664-c229-49af-998d-e9c785021bf1",
+    "eventType": "native.event",
+    "payload": {
+      "type": "session_snapshot",
+      "payload": {
+        "sessionId": "1794103185106_yq5aq",
+        "snapshot": {
+          "version": 1,
+          "sessionId": "1794103185106_yq5aq",
+          "source": "vscode",
+          "status": "pending",
+          "createdAt": "2026-11-08T01:59:45.177Z",
+          "updatedAt": "2026-11-08T01:59:50.931Z",
+          "endedAt": null,
+          "exitCode": null,
+          "interactive": true,
+          "workspace": {
+            "cwd": "/poc/project/coding-agent-node",
+            "root": "/poc/project/coding-agent-node"
+          },
+          "model": {
+            "providerId": "openai-compatible",
+            "modelId": "qwen3.7-plus"
+          },
+          "capabilities": {
+            "enableTools": true,
+            "enableSpawn": false,
+            "enableTeams": false
+          },
+          "lineage": {
+            "isSubagent": false
+          },
+          "prompt": "<user_input mode=\"act\">执行且等待这条长运行 Shell 命令，以便我测试取消；不要改其他文件：node -e \"setTimeout(()=>require('fs').writeFileSync('poc-cancel-late.txt','late'),30000);setInterval(()=>{},1000)\"</user_input>",
+          "artifacts": {
+            "messagesPath": "/poc/state/de92f0a7-60f7-41ae-9734-1b23fd1f5cea/cline/data/sessions/1794103185106_yq5aq/1794103185106_yq5aq.messages.json"
+          },
+          "usage": {
+            "inputTokens": 3121,
+            "outputTokens": 97,
+            "cacheReadTokens": 2816,
+            "cacheWriteTokens": 0,
+            "totalCost": 0
+          },
+          "aggregateUsage": {
+            "inputTokens": 3121,
+            "outputTokens": 97,
+            "cacheReadTokens": 2816,
+            "cacheWriteTokens": 0,
+            "totalCost": 0
+          },
+          "checkpoint": {
+            "latest": {
+              "ref": "8a7918dd455ef88b2be1ad0984b2617b216936ca",
+              "createdAt": 1794103185452,
+              "runCount": 1,
+              "kind": "commit"
+            },
+            "history": [
+              {
+                "ref": "8a7918dd455ef88b2be1ad0984b2617b216936ca",
+                "createdAt": 1794103185452,
+                "runCount": 1,
+                "kind": "commit"
+              }
+            ]
+          }
+        }
+      }
+    },
+    "eventId": "26",
+    "timestamp": "2026-11-08T01:59:50.932Z"
+  },
+  {
+    "sessionId": "de92f0a7-60f7-41ae-9734-1b23fd1f5cea",
+    "taskId": "3d6a52af-5974-420f-ad02-b3ad0740eeac",
+    "epoch": "2d9b4664-c229-49af-998d-e9c785021bf1",
+    "eventType": "permission.requested",
+    "payload": {
+      "id": "bbe4ae07-5499-4c9d-bca8-5e64aeaa091c",
+      "sessionId": "de92f0a7-60f7-41ae-9734-1b23fd1f5cea",
+      "taskId": "3d6a52af-5974-420f-ad02-b3ad0740eeac",
+      "epoch": "2d9b4664-c229-49af-998d-e9c785021bf1",
+      "inputHash": "daf1f7d2c9505c907e31eb7c0816ed6629c2b5e112bc639c4b9aa7985e0513c6",
+      "toolCallId": "call_1f6c6e98b6a3471480a788cd",
+      "toolName": "run_commands",
+      "input": {
+        "commands": [
+          "node -e \"setTimeout(()=>require('fs').writeFileSync('poc-cancel-late.txt','late'),30000);setInterval(()=>{},1000)\""
+        ]
+      },
+      "expiresAt": 1794103370934,
+      "state": "pending"
+    },
+    "eventId": "27",
+    "timestamp": "2026-11-08T01:59:50.934Z"
+  },
+  {
+    "sessionId": "de92f0a7-60f7-41ae-9734-1b23fd1f5cea",
+    "taskId": "3d6a52af-5974-420f-ad02-b3ad0740eeac",
+    "epoch": "2d9b4664-c229-49af-998d-e9c785021bf1",
+    "eventType": "permission.decision",
+    "payload": {
+      "id": "bbe4ae07-5499-4c9d-bca8-5e64aeaa091c",
+      "decision": "approve"
+    },
+    "eventId": "28",
+    "timestamp": "2026-11-08T01:59:51.000Z"
+  },
+  {
+    "sessionId": "de92f0a7-60f7-41ae-9734-1b23fd1f5cea",
+    "taskId": "3d6a52af-5974-420f-ad02-b3ad0740eeac",
+    "epoch": "2d9b4664-c229-49af-998d-e9c785021bf1",
+    "eventType": "permission.resolved",
+    "payload": {
+      "id": "bbe4ae07-5499-4c9d-bca8-5e64aeaa091c",
+      "decision": "approve",
+      "applied": true
+    },
+    "eventId": "29",
+    "timestamp": "2026-11-08T01:59:51.002Z"
+  },
+  {
+    "sessionId": "de92f0a7-60f7-41ae-9734-1b23fd1f5cea",
+    "taskId": "3d6a52af-5974-420f-ad02-b3ad0740eeac",
+    "epoch": "2d9b4664-c229-49af-998d-e9c785021bf1",
+    "eventType": "native.event",
+    "payload": {
+      "type": "status",
+      "payload": {
+        "sessionId": "1794103185106_yq5aq",
+        "status": "running"
+      }
+    },
+    "eventId": "30",
+    "timestamp": "2026-11-08T01:59:51.009Z"
+  },
+  {
+    "sessionId": "de92f0a7-60f7-41ae-9734-1b23fd1f5cea",
+    "taskId": "3d6a52af-5974-420f-ad02-b3ad0740eeac",
+    "epoch": "2d9b4664-c229-49af-998d-e9c785021bf1",
+    "eventType": "native.event",
+    "payload": {
+      "type": "session_snapshot",
+      "payload": {
+        "sessionId": "1794103185106_yq5aq",
+        "snapshot": {
+          "version": 1,
+          "sessionId": "1794103185106_yq5aq",
+          "source": "vscode",
+          "status": "running",
+          "createdAt": "2026-11-08T01:59:45.177Z",
+          "updatedAt": "2026-11-08T01:59:51.004Z",
+          "endedAt": null,
+          "exitCode": null,
+          "interactive": true,
+          "workspace": {
+            "cwd": "/poc/project/coding-agent-node",
+            "root": "/poc/project/coding-agent-node"
+          },
+          "model": {
+            "providerId": "openai-compatible",
+            "modelId": "qwen3.7-plus"
+          },
+          "capabilities": {
+            "enableTools": true,
+            "enableSpawn": false,
+            "enableTeams": false
+          },
+          "lineage": {
+            "isSubagent": false
+          },
+          "prompt": "<user_input mode=\"act\">执行且等待这条长运行 Shell 命令，以便我测试取消；不要改其他文件：node -e \"setTimeout(()=>require('fs').writeFileSync('poc-cancel-late.txt','late'),30000);setInterval(()=>{},1000)\"</user_input>",
+          "artifacts": {
+            "messagesPath": "/poc/state/de92f0a7-60f7-41ae-9734-1b23fd1f5cea/cline/data/sessions/1794103185106_yq5aq/1794103185106_yq5aq.messages.json"
+          },
+          "usage": {
+            "inputTokens": 3121,
+            "outputTokens": 97,
+            "cacheReadTokens": 2816,
+            "cacheWriteTokens": 0,
+            "totalCost": 0
+          },
+          "aggregateUsage": {
+            "inputTokens": 3121,
+            "outputTokens": 97,
+            "cacheReadTokens": 2816,
+            "cacheWriteTokens": 0,
+            "totalCost": 0
+          },
+          "checkpoint": {
+            "latest": {
+              "ref": "8a7918dd455ef88b2be1ad0984b2617b216936ca",
+              "createdAt": 1794103185452,
+              "runCount": 1,
+              "kind": "commit"
+            },
+            "history": [
+              {
+                "ref": "8a7918dd455ef88b2be1ad0984b2617b216936ca",
+                "createdAt": 1794103185452,
+                "runCount": 1,
+                "kind": "commit"
+              }
+            ]
+          }
+        }
+      }
+    },
+    "eventId": "31",
+    "timestamp": "2026-11-08T01:59:51.009Z"
+  },
+  {
+    "sessionId": "de92f0a7-60f7-41ae-9734-1b23fd1f5cea",
+    "taskId": "3d6a52af-5974-420f-ad02-b3ad0740eeac",
+    "epoch": "2d9b4664-c229-49af-998d-e9c785021bf1",
+    "eventType": "native.event",
+    "payload": {
+      "type": "agent_event",
+      "payload": {
+        "sessionId": "1794103185106_yq5aq",
+        "event": {
+          "type": "content_start",
+          "contentType": "tool",
+          "toolName": "run_commands",
+          "toolCallId": "call_1f6c6e98b6a3471480a788cd",
+          "input": {
+            "commands": [
+              "node -e \"setTimeout(()=>require('fs').writeFileSync('poc-cancel-late.txt','late'),30000);setInterval(()=>{},1000)\""
+            ]
+          }
+        },
+        "teamRole": "lead"
+      }
+    },
+    "eventId": "32",
+    "timestamp": "2026-11-08T01:59:51.010Z"
+  },
+  {
+    "sessionId": "de92f0a7-60f7-41ae-9734-1b23fd1f5cea",
+    "taskId": "3d6a52af-5974-420f-ad02-b3ad0740eeac",
+    "epoch": "2d9b4664-c229-49af-998d-e9c785021bf1",
+    "eventType": "tool.started",
+    "payload": {
+      "type": "content_start",
+      "contentType": "tool",
+      "toolName": "run_commands",
+      "toolCallId": "call_1f6c6e98b6a3471480a788cd",
+      "input": {
+        "commands": [
+          "node -e \"setTimeout(()=>require('fs').writeFileSync('poc-cancel-late.txt','late'),30000);setInterval(()=>{},1000)\""
+        ]
+      }
+    },
+    "eventId": "33",
+    "timestamp": "2026-11-08T01:59:51.010Z"
+  },
+  {
+    "sessionId": "de92f0a7-60f7-41ae-9734-1b23fd1f5cea",
+    "taskId": "3d6a52af-5974-420f-ad02-b3ad0740eeac",
+    "epoch": "2d9b4664-c229-49af-998d-e9c785021bf1",
+    "eventType": "native.event",
+    "payload": {
+      "type": "agent_event",
+      "payload": {
+        "sessionId": "1794103185106_yq5aq",
+        "event": {
+          "type": "content_update",
+          "contentType": "tool",
+          "toolName": "run_commands",
+          "toolCallId": "call_1f6c6e98b6a3471480a788cd",
+          "update": {
+            "stream": "stdout",
+            "chunk": "",
+            "executionId": "bc0fba08-236f-463b-86f3-3d96c65b6c96",
+            "detachable": false,
+            "commandIndex": 0,
+            "query": "node -e \"setTimeout(()=>require('fs').writeFileSync('poc-cancel-late.txt','late'),30000);setInterval(()=>{},1000)\""
+          }
+        },
+        "teamRole": "lead"
+      }
+    },
+    "eventId": "34",
+    "timestamp": "2026-11-08T01:59:51.025Z"
+  },
+  {
+    "sessionId": "de92f0a7-60f7-41ae-9734-1b23fd1f5cea",
+    "taskId": "3d6a52af-5974-420f-ad02-b3ad0740eeac",
+    "epoch": "2d9b4664-c229-49af-998d-e9c785021bf1",
+    "eventType": "task.cancel.requested",
+    "payload": {},
+    "eventId": "35",
+    "timestamp": "2026-11-08T01:59:53.321Z"
+  },
+  {
+    "sessionId": "de92f0a7-60f7-41ae-9734-1b23fd1f5cea",
+    "taskId": "3d6a52af-5974-420f-ad02-b3ad0740eeac",
+    "epoch": "2d9b4664-c229-49af-998d-e9c785021bf1",
+    "eventType": "native.event",
+    "payload": {
+      "type": "agent_event",
+      "payload": {
+        "sessionId": "1794103185106_yq5aq",
+        "event": {
+          "type": "content_end",
+          "contentType": "tool",
+          "toolName": "run_commands",
+          "toolCallId": "call_1f6c6e98b6a3471480a788cd",
+          "output": [
+            {
+              "query": "node -e \"setTimeout(()=>require('fs').writeFileSync('poc-cancel-late.txt','late'),30000);setInterval(()=>{},1000)\"",
+              "result": "",
+              "error": "Command failed: Command was aborted",
+              "success": false
+            }
+          ],
+          "durationMs": 2339
+        },
+        "teamRole": "lead"
+      }
+    },
+    "eventId": "36",
+    "timestamp": "2026-11-08T01:59:53.352Z"
+  },
+  {
+    "sessionId": "de92f0a7-60f7-41ae-9734-1b23fd1f5cea",
+    "taskId": "3d6a52af-5974-420f-ad02-b3ad0740eeac",
+    "epoch": "2d9b4664-c229-49af-998d-e9c785021bf1",
+    "eventType": "tool.failed",
+    "payload": {
+      "type": "content_end",
+      "contentType": "tool",
+      "toolName": "run_commands",
+      "toolCallId": "call_1f6c6e98b6a3471480a788cd",
+      "output": [
+        {
+          "query": "node -e \"setTimeout(()=>require('fs').writeFileSync('poc-cancel-late.txt','late'),30000);setInterval(()=>{},1000)\"",
+          "result": "",
+          "error": "Command failed: Command was aborted",
+          "success": false
+        }
+      ],
+      "durationMs": 2339
+    },
+    "eventId": "37",
+    "timestamp": "2026-11-08T01:59:53.353Z"
+  },
+  {
+    "sessionId": "de92f0a7-60f7-41ae-9734-1b23fd1f5cea",
+    "taskId": "3d6a52af-5974-420f-ad02-b3ad0740eeac",
+    "epoch": "2d9b4664-c229-49af-998d-e9c785021bf1",
+    "eventType": "native.event",
+    "payload": {
+      "type": "agent_event",
+      "payload": {
+        "sessionId": "1794103185106_yq5aq",
+        "event": {
+          "type": "iteration_end",
+          "iteration": 1,
+          "hadToolCalls": true,
+          "toolCallCount": 1
+        },
+        "teamRole": "lead"
+      }
+    },
+    "eventId": "38",
+    "timestamp": "2026-11-08T01:59:53.353Z"
+  },
+  {
+    "sessionId": "de92f0a7-60f7-41ae-9734-1b23fd1f5cea",
+    "taskId": "3d6a52af-5974-420f-ad02-b3ad0740eeac",
+    "epoch": "2d9b4664-c229-49af-998d-e9c785021bf1",
+    "eventType": "native.event",
+    "payload": {
+      "type": "agent_event",
+      "payload": {
+        "sessionId": "1794103185106_yq5aq",
+        "event": {
+          "type": "done",
+          "reason": "aborted",
+          "text": "我将执行这条长运行命令。它会保持运行 30 秒后写入文件，并通过 `setInterval` 持续存活。\n\n",
+          "iterations": 1,
+          "usage": {
+            "inputTokens": 3121,
+            "outputTokens": 97,
+            "cacheReadTokens": 2816,
+            "totalCost": 0
+          }
+        },
+        "teamRole": "lead"
+      }
+    },
+    "eventId": "39",
+    "timestamp": "2026-11-08T01:59:53.366Z"
+  },
+  {
+    "sessionId": "de92f0a7-60f7-41ae-9734-1b23fd1f5cea",
+    "taskId": "3d6a52af-5974-420f-ad02-b3ad0740eeac",
+    "epoch": "2d9b4664-c229-49af-998d-e9c785021bf1",
+    "eventType": "native.event",
+    "payload": {
+      "type": "status",
+      "payload": {
+        "sessionId": "1794103185106_yq5aq",
+        "status": "idle"
+      }
+    },
+    "eventId": "40",
+    "timestamp": "2026-11-08T01:59:53.401Z"
+  },
+  {
+    "sessionId": "de92f0a7-60f7-41ae-9734-1b23fd1f5cea",
+    "taskId": "3d6a52af-5974-420f-ad02-b3ad0740eeac",
+    "epoch": "2d9b4664-c229-49af-998d-e9c785021bf1",
+    "eventType": "native.event",
+    "payload": {
+      "type": "session_snapshot",
+      "payload": {
+        "sessionId": "1794103185106_yq5aq",
+        "snapshot": {
+          "version": 1,
+          "sessionId": "1794103185106_yq5aq",
+          "source": "vscode",
+          "status": "idle",
+          "createdAt": "2026-11-08T01:59:45.177Z",
+          "updatedAt": "2026-11-08T01:59:53.396Z",
+          "endedAt": null,
+          "exitCode": null,
+          "interactive": true,
+          "workspace": {
+            "cwd": "/poc/project/coding-agent-node",
+            "root": "/poc/project/coding-agent-node"
+          },
+          "model": {
+            "providerId": "openai-compatible",
+            "modelId": "qwen3.7-plus"
+          },
+          "capabilities": {
+            "enableTools": true,
+            "enableSpawn": false,
+            "enableTeams": false
+          },
+          "lineage": {
+            "isSubagent": false
+          },
+          "prompt": "<user_input mode=\"act\">执行且等待这条长运行 Shell 命令，以便我测试取消；不要改其他文件：node -e \"setTimeout(()=>require('fs').writeFileSync('poc-cancel-late.txt','late'),30000);setInterval(()=>{},1000)\"</user_input>",
+          "artifacts": {
+            "messagesPath": "/poc/state/de92f0a7-60f7-41ae-9734-1b23fd1f5cea/cline/data/sessions/1794103185106_yq5aq/1794103185106_yq5aq.messages.json"
+          },
+          "usage": {
+            "inputTokens": 3121,
+            "outputTokens": 97,
+            "cacheReadTokens": 2816,
+            "cacheWriteTokens": 0,
+            "totalCost": 0
+          },
+          "aggregateUsage": {
+            "inputTokens": 3121,
+            "outputTokens": 97,
+            "cacheReadTokens": 2816,
+            "cacheWriteTokens": 0,
+            "totalCost": 0
+          },
+          "checkpoint": {
+            "latest": {
+              "ref": "8a7918dd455ef88b2be1ad0984b2617b216936ca",
+              "createdAt": 1794103185452,
+              "runCount": 1,
+              "kind": "commit"
+            },
+            "history": [
+              {
+                "ref": "8a7918dd455ef88b2be1ad0984b2617b216936ca",
+                "createdAt": 1794103185452,
+                "runCount": 1,
+                "kind": "commit"
+              }
+            ]
+          }
+        }
+      }
+    },
+    "eventId": "41",
+    "timestamp": "2026-11-08T01:59:53.401Z"
+  },
+  {
+    "sessionId": "de92f0a7-60f7-41ae-9734-1b23fd1f5cea",
+    "taskId": "3d6a52af-5974-420f-ad02-b3ad0740eeac",
+    "epoch": "2d9b4664-c229-49af-998d-e9c785021bf1",
+    "eventType": "host.shutdown.requested",
+    "payload": {},
+    "eventId": "42",
+    "timestamp": "2026-11-08T01:59:53.403Z"
+  },
+  {
+    "sessionId": "de92f0a7-60f7-41ae-9734-1b23fd1f5cea",
+    "taskId": "3d6a52af-5974-420f-ad02-b3ad0740eeac",
+    "epoch": "2d9b4664-c229-49af-998d-e9c785021bf1",
+    "eventType": "task.cancelled",
+    "payload": {
+      "localProcesses": [
+        109,
+        67
+      ],
+      "localStopConfirmed": true,
+      "externalOperations": "none-configured-in-poc"
+    },
+    "eventId": "43",
+    "timestamp": "2026-11-08T01:59:54.450Z"
+  }
+]

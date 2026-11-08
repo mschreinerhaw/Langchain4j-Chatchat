@@ -1,0 +1,16 @@
+bun install v1.4.2 (744846f84)
+Resolving dependencies
+Resolved, downloaded and extracted [3]
+
+$ husky
+.git can't be found
++ @biomejs/biome@2.4.5
++ @types/bun@1.4.2
++ @types/node@25.9.5
++ husky@9.1.7
++ lint-staged@16.4.0
++ vitest@4.1.11
++ nanoid@5.1.16
++ typescript@5.9.3
+
+2379 packages installed [180.73s]

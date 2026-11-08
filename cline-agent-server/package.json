@@ -1,0 +1,8 @@
+{
+  "name": "runtime-cline-agent-server-poc",
+  "private": true,
+  "version": "4.1.26-poc.1",
+  "type": "module",
+  "engines": { "node": ">=22" },
+  "scripts": { "start": "node src/server.mjs", "test": "node --test test/*.test.mjs" }
+}

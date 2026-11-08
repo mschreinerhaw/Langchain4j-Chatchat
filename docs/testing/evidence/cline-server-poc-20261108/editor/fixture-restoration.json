@@ -1,0 +1,262 @@
+{
+  "originalSourceCommit": "7d076d0dc",
+  "reason": "Initial fixture Git staging omitted original fixtures/ and skills/; restored original tracked input material only",
+  "generatedProgramUnchanged": true,
+  "files": [
+    {
+      "path": "fixtures/monitor-server.mjs",
+      "sha256": "01968f05ba0ee768eb951a67210bae41ed31e0814fef2cf862c83ae6d2ffa584",
+      "alreadyPresent": true
+    },
+    {
+      "path": "fixtures/recovery-worker.mjs",
+      "sha256": "edb0555d5aa2588b3898c494e3b8595f9d3527f1bbc8842f0314934a8759de99",
+      "alreadyPresent": true
+    },
+    {
+      "path": "skills/analyzer/LICENSE.cline",
+      "sha256": "a1c7eac5056d8844e1cad0fc5998d1aeb59b0ec73eb3d6b5b340f7a9453b1b2b",
+      "alreadyPresent": true
+    },
+    {
+      "path": "skills/analyzer/SKILL.md",
+      "sha256": "3f51449902a54fe65714006593f8308b25058a39d1d074330bb6922ef83e9e1f",
+      "alreadyPresent": true
+    },
+    {
+      "path": "skills/artifact-management/LICENSE.cline",
+      "sha256": "a1c7eac5056d8844e1cad0fc5998d1aeb59b0ec73eb3d6b5b340f7a9453b1b2b",
+      "alreadyPresent": true
+    },
+    {
+      "path": "skills/artifact-management/SKILL.md",
+      "sha256": "0a4b2af4396e23f04599a5e786ce38f25fedee6ffe6c4b9247645181bfcadc1a",
+      "alreadyPresent": true
+    },
+    {
+      "path": "skills/azure-ai-ml-py/LICENSE.microsoft",
+      "sha256": "d9a1b1e30d633d5732ea18e3cba9538d293ebc53e1a9e4e96ab739e0c5c4f1cb",
+      "alreadyPresent": true
+    },
+    {
+      "path": "skills/azure-ai-ml-py/SKILL.md",
+      "sha256": "07491b57acea5747c3474bc1401e4813ce292dcf35658b33512aebd73d21609f",
+      "alreadyPresent": true
+    },
+    {
+      "path": "skills/azure-ai-ml-py/references/capabilities.md",
+      "sha256": "d355f0a328700cabb2e4fcf700b7cc2f86022be37e6c6be0216a243904bd219d",
+      "alreadyPresent": true
+    },
+    {
+      "path": "skills/azure-ai-ml-py/references/non-hero-scenarios.md",
+      "sha256": "a97c6fcccedcab8850567696deed7f86bdb5f82d876092733a31372a7ccc0144",
+      "alreadyPresent": true
+    },
+    {
+      "path": "skills/azure-kusto/LICENSE.microsoft",
+      "sha256": "d9a1b1e30d633d5732ea18e3cba9538d293ebc53e1a9e4e96ab739e0c5c4f1cb",
+      "alreadyPresent": true
+    },
+    {
+      "path": "skills/azure-kusto/SKILL.md",
+      "sha256": "f0920e96ac8a4b8941e0bc29591d53bcfdd3a3a61e713249d3d489c55f6d98c8",
+      "alreadyPresent": true
+    },
+    {
+      "path": "skills/catalog.json",
+      "sha256": "94d8291dce81c04077054f93005ab7ca91b29d9719f66d207ed55ef2cbfa2903",
+      "alreadyPresent": true
+    },
+    {
+      "path": "skills/evidence-based-answering/SKILL.md",
+      "sha256": "e89995743f41a69fef26de1d653e1816833d8e9f7e12f45afa33accd93e4319d",
+      "alreadyPresent": true
+    },
+    {
+      "path": "skills/financial-market-analysis/SKILL.md",
+      "sha256": "d3bc484b8c6f32d229d49c5a708dfbe58b23b774bc1dd709994ecb3a3d1106af",
+      "alreadyPresent": true
+    },
+    {
+      "path": "skills/financial-news-analysis/SKILL.md",
+      "sha256": "ceeebc35fc620f1ba685af7fc7592f9aaf3eeec3310f4a0423126e710ee1858b",
+      "alreadyPresent": true
+    },
+    {
+      "path": "skills/mcp-builder/LICENSE.microsoft",
+      "sha256": "d9a1b1e30d633d5732ea18e3cba9538d293ebc53e1a9e4e96ab739e0c5c4f1cb",
+      "alreadyPresent": true
+    },
+    {
+      "path": "skills/mcp-builder/SKILL.md",
+      "sha256": "621e771c22224140752ddf933923467b2d1148580194ad59d3f1f21f9f27bdc9",
+      "alreadyPresent": true
+    },
+    {
+      "path": "skills/mcp-builder/reference/evaluation.md",
+      "sha256": "8c99479f8a2d22a636c38e274537aac3610879e26f34e0709825077c4576f427",
+      "alreadyPresent": true
+    },
+    {
+      "path": "skills/mcp-builder/reference/mcp_best_practices.md",
+      "sha256": "0101c57aa61782a24ea81087c208643e7db9195af7c0852586b0021f2c4b9a07",
+      "alreadyPresent": true
+    },
+    {
+      "path": "skills/mcp-builder/reference/microsoft_mcp_patterns.md",
+      "sha256": "41a1ee03edfc3bda496cf9e448065c5ce17ed44491424553c25f7e0b2f8bb4e2",
+      "alreadyPresent": true
+    },
+    {
+      "path": "skills/mcp-builder/reference/node_mcp_server.md",
+      "sha256": "47fed0116f47a09d10203704e0af527315d1f4cf52adf444413e322720799466",
+      "alreadyPresent": true
+    },
+    {
+      "path": "skills/mcp-builder/reference/python_mcp_server.md",
+      "sha256": "9296d8b1966ebf8547b8ded64745a625237f281c8c4dc808c675630213d04c55",
+      "alreadyPresent": true
+    },
+    {
+      "path": "skills/mcp-builder/scripts/connections.py",
+      "sha256": "9403668a2041568772082a8b334122c1f88daf0541fb393af4522d0094a47a6e",
+      "alreadyPresent": true
+    },
+    {
+      "path": "skills/mcp-builder/scripts/evaluation.py",
+      "sha256": "49ed1d17cdce5da101b210197740713f49b935c29d4f339542a14b132658e6f7",
+      "alreadyPresent": true
+    },
+    {
+      "path": "skills/mcp-builder/scripts/example_evaluation.xml",
+      "sha256": "9272b348ddcc4b06ba562367ccd0770e018158c0068ac5116d5e34aaeff8777a",
+      "alreadyPresent": true
+    },
+    {
+      "path": "skills/mcp-builder/scripts/requirements.txt",
+      "sha256": "d5d7558b2368ecea9dfeed7d1fbc71ee9e0750bebd1282faa527d528a344c3c7",
+      "alreadyPresent": true
+    },
+    {
+      "path": "skills/opensearch-knowledge-exploration/SKILL.md",
+      "sha256": "6766016c1ac5f7bc37d9a157938fd4b45db8c955a1d3fa03d88281fe4561d0d5",
+      "alreadyPresent": true
+    },
+    {
+      "path": "skills/plotting/LICENSE.cline",
+      "sha256": "a1c7eac5056d8844e1cad0fc5998d1aeb59b0ec73eb3d6b5b340f7a9453b1b2b",
+      "alreadyPresent": true
+    },
+    {
+      "path": "skills/plotting/SKILL.md",
+      "sha256": "67fae3410ffcd0fed6c8089aaff6aa0d1d338d30214d4b57a4986a71541d280d",
+      "alreadyPresent": true
+    },
+    {
+      "path": "skills/plotting/styles/cline-chart-tokens.css",
+      "sha256": "f19736ed928799b8d1b17ddc0d263e2c10f5928686b1c1834d22199247ae284c",
+      "alreadyPresent": true
+    },
+    {
+      "path": "skills/python-code-development/SKILL.md",
+      "sha256": "340b752b85c566d65e73cdbcf33928a786468aaa4c1c29ea9a4d67f9653b726c",
+      "alreadyPresent": true
+    },
+    {
+      "path": "skills/python-code-development/references/engineering-checks.md",
+      "sha256": "bcef6e77dcdb9105e752e42bd848b7a7527db139f3862eda185318beb28cface",
+      "alreadyPresent": true
+    },
+    {
+      "path": "skills/python-data-analysis/SKILL.md",
+      "sha256": "c68d577f8858d55eeaf112d0153438b67ee4f1f856985fca59418c28431d7ec1",
+      "alreadyPresent": true
+    },
+    {
+      "path": "skills/python-data-analysis/references/data-methods.md",
+      "sha256": "806c8c0a2b4d813a5579973a851db32afac82f88c6e0b34349e2855648f2a7fa",
+      "alreadyPresent": true
+    },
+    {
+      "path": "skills/python-data-analysis/references/financial-reporting.md",
+      "sha256": "b92ef28638bc7b94dc33fbdafe25370b2b7626f66a07ff63f2fd8d4518a4612a",
+      "alreadyPresent": true
+    },
+    {
+      "path": "skills/runtime-internet-research/LICENSE.tavily",
+      "sha256": "405f05572fcc275f02c2605516af0711895deafe57d56820e243504fb8599861",
+      "alreadyPresent": true
+    },
+    {
+      "path": "skills/runtime-internet-research/SKILL.md",
+      "sha256": "438dc7ab4223dd8e6b7bb216ce33b898b3141797eb4bb7df8651c4d568f49577",
+      "alreadyPresent": true
+    },
+    {
+      "path": "skills/runtime-internet-research/references/upstream/SKILL.original.md",
+      "sha256": "3676158f08de06227965d39d4bbfe222460dd390ee29485d29fdba92cf55a782",
+      "alreadyPresent": true
+    },
+    {
+      "path": "skills/runtime-internet-research/references/upstream/references/crawl.md",
+      "sha256": "2057b4077d7899cc7514152d79daf42cc476b9778d98163468232659b2106112",
+      "alreadyPresent": true
+    },
+    {
+      "path": "skills/runtime-internet-research/references/upstream/references/map.md",
+      "sha256": "c4efd4e0985862ba0b54a6682f18c550580d71f83baebc2ab3243dc9f2f02c86",
+      "alreadyPresent": true
+    },
+    {
+      "path": "skills/runtime-internet-research/references/upstream/references/setup.md",
+      "sha256": "c3c19de5dca030783782dc090de860c75790092af8911a2d46b61a0ab8d4785c",
+      "alreadyPresent": true
+    },
+    {
+      "path": "skills/runtime-report-delivery/SKILL.md",
+      "sha256": "650a115d230492add98ab37a6e1990807711086a7787f7e5707f1a165ae0a793",
+      "alreadyPresent": true
+    },
+    {
+      "path": "skills/skill-creator/LICENSE.microsoft",
+      "sha256": "d9a1b1e30d633d5732ea18e3cba9538d293ebc53e1a9e4e96ab739e0c5c4f1cb",
+      "alreadyPresent": true
+    },
+    {
+      "path": "skills/skill-creator/SKILL.md",
+      "sha256": "15ce951aec071c813150e6794628664725c164223108792e15bd3db18e959da0",
+      "alreadyPresent": true
+    },
+    {
+      "path": "skills/skill-creator/references/azure-sdk-patterns.md",
+      "sha256": "1be5f8b256d0c73defa2b3dfc88342018859ffeaeb77a320b440217703bd289a",
+      "alreadyPresent": true
+    },
+    {
+      "path": "skills/skill-creator/references/output-patterns.md",
+      "sha256": "b9e4284e89c75d7b9eb3613130a6272ab531a60f0f22f4ccda12d67bf5d4f27c",
+      "alreadyPresent": true
+    },
+    {
+      "path": "skills/skill-creator/references/workflows.md",
+      "sha256": "34b9b4fc5d40000b8042be8ca7b2365f16a735827402046a858c2c7854e140e1",
+      "alreadyPresent": true
+    },
+    {
+      "path": "skills/skill-creator/scripts/init_skill.py",
+      "sha256": "0bba250b94caa4cb2b28b15dad26fdcf371aeda4c9797b8120e55c2e33e0c73c",
+      "alreadyPresent": true
+    },
+    {
+      "path": "skills/skill-creator/scripts/package_skill.py",
+      "sha256": "b31fbcb3e362d5c5308e99255ff8e83cde3a513e0636953964a648494ca10931",
+      "alreadyPresent": true
+    },
+    {
+      "path": "skills/skill-creator/scripts/quick_validate.py",
+      "sha256": "381ab2d3d1fd5ec32371016413063eff99d0d48c415747085c61517e967dbb87",
+      "alreadyPresent": true
+    }
+  ]
+}

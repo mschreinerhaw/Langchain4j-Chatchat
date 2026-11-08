@@ -1,0 +1,23 @@
+{
+  "recordedAt": "2026-11-08T01:51:11.118590+00:00",
+  "platform": {
+    "loginStatus": 200,
+    "applicationCode": 200,
+    "principal": "admin",
+    "tokenExported": false,
+    "authenticatedReadStatus": 200,
+    "selectedRealModelPresent": true
+  },
+  "mcpAdmin": {
+    "loginStatus": 200,
+    "applicationCode": 200,
+    "principal": "admin",
+    "tokenExported": false,
+    "authenticatedReadStatus": 200
+  },
+  "pocAuthentication": {
+    "missingToken": 401,
+    "unknownWorkspace": 400,
+    "unknownSession": 404
+  }
+}

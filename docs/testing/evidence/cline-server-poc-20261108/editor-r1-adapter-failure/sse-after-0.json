@@ -1,0 +1,13 @@
+[
+  {
+    "sessionId": "9addcff9-d244-4ea4-a4ab-4d1665f6a1f4",
+    "taskId": null,
+    "epoch": "a11cea05-edb7-4d26-8161-23bb8b46a52d",
+    "eventType": "session.created",
+    "payload": {
+      "workspaceRef": "monitor-editor"
+    },
+    "eventId": "1",
+    "timestamp": "2026-11-08T01:05:48.292Z"
+  }
+]

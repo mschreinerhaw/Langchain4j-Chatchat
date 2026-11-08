@@ -1,6 +1,6 @@
 # Cline Server 宿主差异矩阵
 
-日期：2026-11-08。上游固定 `v4.1.26 / a459f1d04dea030833b558be645011ab739c463b`。本文件是设计差异，**本轮未实施下列修改**。源码指纹及调用链见 [Phase 2.1 审查](cline-v4.1.26-server-architecture-review.md)。
+日期：2026-11-08。上游固定 `v4.1.26 / a459f1d04dea030833b558be645011ab739c463b`。前半部分保留 Phase 2.1 设计记录；后续真实 POC 已实施，实际范围见文末矩阵及 [验收报告](../testing/cline-server-runtime-tests.md)。源码指纹及调用链见 [Phase 2.1 审查](cline-v4.1.26-server-architecture-review.md)。
 
 ## 官方复用与最小改造
 
@@ -38,4 +38,25 @@
 | Java DurableCodingTask / budget / journal / fencing | 保留，转 HTTP/SSE 对接 | 任务级授权、累计预算、租约、operation、远端停止证明不能由 native session snapshot 替代 |
 | PythonSandbox / Silo / delivery validation | 保留，经原生 MCP 接入 | 继续做外部执行隔离与产物验收；不得人工补代码/报告将 Server 任务记为成功 |
 
-本轮迁移量为零。没有删除旧 SDK、切换默认 Agent、部署镜像或写入生产配置。
+Phase 2.1 评审时迁移量为零。后续 POC 独立部署，不删除旧 SDK、不切换默认 Agent、不写生产配置。
+
+## 已实施 POC 的实际源码差异
+
+逐字节比较同 Tag 官方源码归档与实际构建目录：**608 个 Core/Agents 源文件零改动**；产品源码仅修改下列四处。完整 before/after SHA256 见 [源码完整性清单](../testing/evidence/cline-server-poc-20261108/native-source-integrity.json)，逐行差异见 [native-host-diff.patch](../testing/evidence/cline-server-poc-20261108/native-host-diff.patch)。
+
+| 官方源码（相对 apps/vscode） | 实际补丁 | 必要性与原生边界 |
+|---|---|---|
+| `src/standalone/cline-core.ts` | 去掉全量 env 输出，增加 IPC native.ready | 凭据不落启动日志；保留 HostProvider/common 初始化与官方 TaskService |
+| `src/sdk/sdk-session-event-coordinator.ts` | UI 投影前增加只读 native.event IPC | 保留原生工具/usage/error/done；不改事件产生与 Agent 执行时序 |
+| `src/sdk/sdk-interaction-coordinator.ts` | 增加精确 toolCallId、输入 Hash、epoch 的审批/追问 resolver IPC | HTTP 决策由当前原生 resolver 复核；不替换权限策略或工具执行 |
+| `src/sdk/vscode-session-host.ts` | 可选 apply_patch profile 注入公开 toolRoutingRules | 默认仍走模型原路由；专项启用官方 Patch，不改 Editor/Patch 算法 |
+
+| 新增服务文件 | 职责 | 验收边界 |
+|---|---|---|
+| `src/server.mjs` | HTTP/SSE、单活跃 worker、TaskService 调用、审批、取消与状态 | 真实主任务/拒绝/运行中取消/回放通过；单操作者 POC |
+| `src/host-bridge.mjs` | 真实 gRPC HostBridge、工作区与无编辑器状态、通知和宿主信息 | background edit/exec 可用；UI/诊断等未实现 RPC 明确报 UNIMPLEMENTED |
+| `src/journal.mjs`、`src/tool-outcome.mjs` | fsync 事件记录、原生结构化失败识别 | 不重写原生上下文、工具或压缩；自动崩溃恢复尚未实现 |
+| `scripts/build.sh`、`assemble-runtime.py`、`patch-upstream.mjs` | 官方构建主体/Linux 打包、生成 proto 资产与指纹检查 | 记录双 lock、runtime/native ABI Hash；不以旧 SDK 引擎替代 |
+| `test/*`、`scripts/collect-evidence.py` | HTTP 真模型验收、独立检查与脱敏证据 | 不修复模型生成代码；失败历史保留 |
+
+`HostProvider`、`common.ts`、CoreConnection/ProtoBus、原生 background Shell 和 Core/Agents 本体均直接复用。没有修改 Java 文件，没有新增 Java Agent loop/执行器。API 的 git diff 是成果观察，未通过它应用代码修改。完整生产 OpenAPI、租户隔离、模型网关预算、原生 MCP/Skills 与远端取消仍是后续整改项，不能从此次 POC 通过推导为已实现。

@@ -1,0 +1,326 @@
+diff --git a/README.md b/README.md
+index 8a19bf6..2e3bc9a 100644
+--- a/README.md
++++ b/README.md
+@@ -96,4 +96,17 @@ if (tasks.items[0]) {
+ }
+ ```
+ 
++客户端在发起任何网络请求前会对参数做严格校验，避免把非法分页或游标打到服务端：
++
++- `baseUrl` 允许多个尾随斜杠（例如 `http://host:3100///`），最终请求路径只保留一个分隔斜杠。
++- `tasks(query)` 的 `offset` 若提供必须是非负安全整数，`limit` 若提供必须是 1–500 的安全整数；`undefined` 字段会被省略，`q` 通过 `URLSearchParams` 正确编码。查询类型以 `MonitorTasksQuery` 命名导出。
++- `events(taskId, after=0, limit=100)` 的 `after` 必须是非负安全整数，`limit` 必须是 1–1000 的安全整数。
++- 所有无效参数（`NaN`、`Infinity`、小数、负值、越界及非数字类型）在发起请求前同步抛出 `TypeError`；`taskId` / `codeId` 仍要求 64 位小写十六进制观察 ID。
++
++```ts
++import type { MonitorTasksQuery } from './dist/monitor-types.js';
++const query: MonitorTasksQuery = { status: 'RUNNING', q: '结算', offset: 0, limit: 50 };
++const page = await node.tasks(query);
++```
++
+ 建议 3–5 秒轮询，设置超时并保留最后成功快照。API 数据属于 `NODE_OBSERVATION_ONLY`，不应作为重试、扣费、停止证明或业务结果准入依据。入口应走反向代理的 `/monitor` 与 `/v1/monitor/` 白名单；HTTPS 时启用 Secure Cookie，执行接口保留在 Runtime 内网。
+diff --git a/src/monitor-client.ts b/src/monitor-client.ts
+index 8f4adda..bef243a 100644
+--- a/src/monitor-client.ts
++++ b/src/monitor-client.ts
+@@ -1,8 +1,37 @@
+-import type { CodeVersion, ModelCall, MonitorEvent, NodeSnapshot, TaskDetail, TaskPage, TaskState } from './monitor-types.ts';
++import type { CodeVersion, ModelCall, MonitorEvent, MonitorTasksQuery, NodeSnapshot, TaskDetail, TaskPage } from './monitor-types.ts';
++
++function assertNonNegativeSafeInteger(name: string, value: unknown): void {
++  if (typeof value !== 'number' || !Number.isSafeInteger(value) || value < 0) {
++    throw new TypeError(`${name} must be a non-negative safe integer`);
++  }
++}
++
++function assertBoundedSafeInteger(name: string, value: unknown, min: number, max: number): void {
++  if (typeof value !== 'number' || !Number.isSafeInteger(value) || value < min || value > max) {
++    throw new TypeError(`${name} must be a safe integer between ${min} and ${max}`);
++  }
++}
++
++function buildTasksQuery(query: MonitorTasksQuery): string {
++  if (query.offset !== undefined) assertNonNegativeSafeInteger('tasks.offset', query.offset);
++  if (query.limit !== undefined) assertBoundedSafeInteger('tasks.limit', query.limit, 1, 500);
++  const params = new URLSearchParams();
++  if (query.status !== undefined) params.set('status', query.status);
++  if (query.q !== undefined) params.set('q', query.q);
++  if (query.offset !== undefined) params.set('offset', String(query.offset));
++  if (query.limit !== undefined) params.set('limit', String(query.limit));
++  return params.toString();
++}
++
++function validateEventsArgs(after: number, limit: number): { after: number; limit: number } {
++  assertNonNegativeSafeInteger('events.after', after);
++  assertBoundedSafeInteger('events.limit', limit, 1, 1000);
++  return { after, limit };
++}
+ 
+ /** Server-side SDK. Keep the operator token on your application server. */
+ export function createMonitorClient(options: { baseUrl: string; token: string; fetch?: typeof fetch; timeoutMs?: number }) {
+-  const base = options.baseUrl.replace(/\/$/, '');
++  const base = options.baseUrl.replace(/\/+$/, '');
+   const transport = options.fetch ?? fetch;
+   async function get<T>(path: string): Promise<T> {
+     const response = await transport(`${base}/v1/monitor${path}`, {
+@@ -18,11 +47,13 @@ export function createMonitorClient(options: { baseUrl: string; token: string; f
+   };
+   return {
+     node: () => get<NodeSnapshot>('/node'),
+-    tasks: (query: { status?: TaskState; q?: string; offset?: number; limit?: number } = {}) =>
+-      get<TaskPage>(`/tasks?${new URLSearchParams(Object.entries(query).map(([key, value]) => [key, String(value)]))}`),
++    tasks: (query: MonitorTasksQuery = {}) =>
++      get<TaskPage>(`/tasks?${buildTasksQuery(query)}`),
+     task: (taskId: string) => get<{ schemaVersion: string; task: TaskDetail }>(`/tasks/${id(taskId)}`),
+-    events: (taskId: string, after = 0, limit = 100) =>
+-      get<{ schemaVersion: string; items: MonitorEvent[]; nextCursor: number; hasMore: boolean; truncated: boolean; earliestCursor: number | null }>(`/tasks/${id(taskId)}/events?after=${after}&limit=${limit}`),
++    events: async (taskId: string, after = 0, limit = 100) => {
++      const validated = validateEventsArgs(after, limit);
++      return get<{ schemaVersion: string; items: MonitorEvent[]; nextCursor: number; hasMore: boolean; truncated: boolean; earliestCursor: number | null }>(`/tasks/${id(taskId)}/events?after=${validated.after}&limit=${validated.limit}`);
++    },
+     models: (taskId: string) => get<{ schemaVersion: string; models: ModelCall[] }>(`/tasks/${id(taskId)}/models`),
+     skills: (taskId: string) => get<{ schemaVersion: string; skills: TaskDetail['skills'] }>(`/tasks/${id(taskId)}/skills`),
+     codes: (taskId: string) => get<{ schemaVersion: string; codes: CodeVersion[] }>(`/tasks/${id(taskId)}/codes`),
+diff --git a/src/monitor-types.ts b/src/monitor-types.ts
+index 7359aa6..d113fcf 100644
+--- a/src/monitor-types.ts
++++ b/src/monitor-types.ts
+@@ -72,3 +72,10 @@ export interface NodeSnapshot {
+ }
+ export interface TaskPage { schemaVersion: 'coding_agent.monitor.v1'; observedAt: string;
+   total: number; offset: number; limit: number; items: TaskSummary[] }
++/** Query parameters accepted by `createMonitorClient().tasks(query)`. `undefined` fields are omitted from the request. */
++export interface MonitorTasksQuery {
++  status?: TaskState;
++  q?: string;
++  offset?: number;
++  limit?: number;
++}
+--- /dev/null
++++ b/test/monitor-client-parameters.test.js
+@@ -0,0 +1,224 @@
++import test from 'node:test';
++import assert from 'node:assert/strict';
++import { createMonitorClient } from '../dist/monitor-client.js';
++
++const OBSERVATION_ID = 'a'.repeat(64);
++
++function makeTransport(capture) {
++  const calls = [];
++  const transport = async (url, init) => {
++    calls.push({ url, init });
++    capture.calls = calls;
++    return new Response(JSON.stringify({ ok: true }), { status: 200, headers: { 'content-type': 'application/json' } });
++  };
++  capture.calls = calls;
++  return transport;
++}
++
++function makeClient(baseUrl, capture = {}) {
++  const transport = makeTransport(capture);
++  return { client: createMonitorClient({ baseUrl, token: 't'.repeat(32), fetch: transport }), capture };
++}
++
++test('baseUrl with multiple trailing slashes collapses to a single separator', async () => {
++  const { client, capture } = makeClient('http://example.com///');
++  await client.node();
++  assert.equal(capture.calls[0].url, 'http://example.com/v1/monitor/node');
++});
++
++test('baseUrl with a single trailing slash still produces one separator', async () => {
++  const { client, capture } = makeClient('http://example.com/');
++  await client.node();
++  assert.equal(capture.calls[0].url, 'http://example.com/v1/monitor/node');
++});
++
++test('baseUrl without trailing slash works unchanged', async () => {
++  const { client, capture } = makeClient('http://example.com');
++  await client.node();
++  assert.equal(capture.calls[0].url, 'http://example.com/v1/monitor/node');
++});
++
++test('tasks() valid boundary: offset=0, limit=1', async () => {
++  const { client, capture } = makeClient('http://h');
++  await client.tasks({ offset: 0, limit: 1 });
++  assert.equal(capture.calls[0].url, 'http://h/v1/monitor/tasks?offset=0&limit=1');
++});
++
++test('tasks() valid boundary: limit=500', async () => {
++  const { client, capture } = makeClient('http://h');
++  await client.tasks({ limit: 500 });
++  assert.equal(capture.calls[0].url, 'http://h/v1/monitor/tasks?limit=500');
++});
++
++test('tasks() omits undefined parameters', async () => {
++  const { client, capture } = makeClient('http://h');
++  await client.tasks({ status: undefined, q: undefined, offset: undefined, limit: undefined });
++  assert.equal(capture.calls[0].url, 'http://h/v1/monitor/tasks?');
++});
++
++test('tasks() omits only the undefined fields while keeping defined ones', async () => {
++  const { client, capture } = makeClient('http://h');
++  await client.tasks({ status: 'RUNNING', offset: undefined, limit: 10 });
++  assert.equal(capture.calls[0].url, 'http://h/v1/monitor/tasks?status=RUNNING&limit=10');
++});
++
++test('tasks() encodes q through URLSearchParams', async () => {
++  const { client, capture } = makeClient('http://h');
++  await client.tasks({ q: '结算 & 复核=是' });
++  const url = new URL(capture.calls[0].url);
++  assert.equal(url.searchParams.get('q'), '结算 & 复核=是');
++});
++
++test('tasks() rejects negative offset before any network call', async () => {
++  const { client, capture } = makeClient('http://h');
++  await assert.rejects(async () => client.tasks({ offset: -1 }), TypeError);
++  assert.equal(capture.calls.length, 0);
++});
++
++test('tasks() rejects offset=NaN before any network call', async () => {
++  const { client, capture } = makeClient('http://h');
++  assert.throws(() => client.tasks({ offset: NaN }), TypeError);
++  assert.equal(capture.calls.length, 0);
++});
++
++test('tasks() rejects offset=Infinity before any network call', async () => {
++  const { client, capture } = makeClient('http://h');
++  assert.throws(() => client.tasks({ offset: Infinity }), TypeError);
++  assert.equal(capture.calls.length, 0);
++});
++
++test('tasks() rejects fractional offset before any network call', async () => {
++  const { client, capture } = makeClient('http://h');
++  assert.throws(() => client.tasks({ offset: 1.5 }), TypeError);
++  assert.equal(capture.calls.length, 0);
++});
++
++test('tasks() rejects string offset before any network call', async () => {
++  const { client, capture } = makeClient('http://h');
++  assert.throws(() => client.tasks({ offset: '0' }), TypeError);
++  assert.equal(capture.calls.length, 0);
++});
++
++test('tasks() rejects limit=0 before any network call', async () => {
++  const { client, capture } = makeClient('http://h');
++  assert.throws(() => client.tasks({ limit: 0 }), TypeError);
++  assert.equal(capture.calls.length, 0);
++});
++
++test('tasks() rejects limit=501 before any network call', async () => {
++  const { client, capture } = makeClient('http://h');
++  assert.throws(() => client.tasks({ limit: 501 }), TypeError);
++  assert.equal(capture.calls.length, 0);
++});
++
++test('tasks() rejects fractional limit before any network call', async () => {
++  const { client, capture } = makeClient('http://h');
++  assert.throws(() => client.tasks({ limit: 2.5 }), TypeError);
++  assert.equal(capture.calls.length, 0);
++});
++
++test('tasks() rejects negative limit before any network call', async () => {
++  const { client, capture } = makeClient('http://h');
++  assert.throws(() => client.tasks({ limit: -10 }), TypeError);
++  assert.equal(capture.calls.length, 0);
++});
++
++test('tasks() with no arguments issues a request with empty query', async () => {
++  const { client, capture } = makeClient('http://h');
++  await client.tasks();
++  assert.equal(capture.calls[0].url, 'http://h/v1/monitor/tasks?');
++});
++
++test('events() valid boundary: after=0, limit=1', async () => {
++  const { client, capture } = makeClient('http://h');
++  await client.events(OBSERVATION_ID, 0, 1);
++  assert.equal(capture.calls[0].url, `http://h/v1/monitor/tasks/${OBSERVATION_ID}/events?after=0&limit=1`);
++});
++
++test('events() valid boundary: limit=1000', async () => {
++  const { client, capture } = makeClient('http://h');
++  await client.events(OBSERVATION_ID, 0, 1000);
++  assert.equal(capture.calls[0].url, `http://h/v1/monitor/tasks/${OBSERVATION_ID}/events?after=0&limit=1000`);
++});
++
++test('events() defaults to after=0 and limit=100 when omitted', async () => {
++  const { client, capture } = makeClient('http://h');
++  await client.events(OBSERVATION_ID);
++  assert.equal(capture.calls[0].url, `http://h/v1/monitor/tasks/${OBSERVATION_ID}/events?after=0&limit=100`);
++});
++
++test('events() rejects negative after before any network call', async () => {
++  const { client, capture } = makeClient('http://h');
++  await assert.rejects(async () => client.events(OBSERVATION_ID, -1, 10), TypeError);
++  assert.equal(capture.calls.length, 0);
++});
++
++test('events() rejects after=NaN before any network call', async () => {
++  const { client, capture } = makeClient('http://h');
++  await assert.rejects(async () => client.events(OBSERVATION_ID, NaN, 10), TypeError);
++  assert.equal(capture.calls.length, 0);
++});
++
++test('events() rejects after=Infinity before any network call', async () => {
++  const { client, capture } = makeClient('http://h');
++  await assert.rejects(async () => client.events(OBSERVATION_ID, Infinity, 10), TypeError);
++  assert.equal(capture.calls.length, 0);
++});
++
++test('events() rejects fractional after before any network call', async () => {
++  const { client, capture } = makeClient('http://h');
++  await assert.rejects(async () => client.events(OBSERVATION_ID, 1.5, 10), TypeError);
++  assert.equal(capture.calls.length, 0);
++});
++
++test('events() rejects limit=0 before any network call', async () => {
++  const { client, capture } = makeClient('http://h');
++  await assert.rejects(async () => client.events(OBSERVATION_ID, 0, 0), TypeError);
++  assert.equal(capture.calls.length, 0);
++});
++
++test('events() rejects limit=1001 before any network call', async () => {
++  const { client, capture } = makeClient('http://h');
++  await assert.rejects(async () => client.events(OBSERVATION_ID, 0, 1001), TypeError);
++  assert.equal(capture.calls.length, 0);
++});
++
++test('events() rejects fractional limit before any network call', async () => {
++  const { client, capture } = makeClient('http://h');
++  await assert.rejects(async () => client.events(OBSERVATION_ID, 0, 2.5), TypeError);
++  assert.equal(capture.calls.length, 0);
++});
++
++test('events() rejects string limit before any network call', async () => {
++  const { client, capture } = makeClient('http://h');
++  await assert.rejects(async () => client.events(OBSERVATION_ID, 0, '10'), TypeError);
++  assert.equal(capture.calls.length, 0);
++});
++
++test('authentication header is preserved after parameter validation', async () => {
++  const { client, capture } = makeClient('http://h');
++  await client.tasks({ limit: 5 });
++  assert.equal(capture.calls[0].init.headers.authorization, 'Bearer ' + 't'.repeat(32));
++});
++
++test('observation ID validation still rejects malformed ids before any network call', async () => {
++  const { client, capture } = makeClient('http://h');
++  assert.throws(() => client.task('not-a-valid-id'), /observation ID/);
++  assert.equal(capture.calls.length, 0);
++});
++
++test('successful response shape is unchanged for tasks()', async () => {
++  const body = { schemaVersion: 'coding_agent.monitor.v1', observedAt: 'x', total: 0, offset: 0, limit: 10, items: [] };
++  const transport = async () => new Response(JSON.stringify(body), { status: 200, headers: { 'content-type': 'application/json' } });
++  const client = createMonitorClient({ baseUrl: 'http://h', token: 't'.repeat(32), fetch: transport });
++  const result = await client.tasks({ limit: 10 });
++  assert.deepEqual(result, body);
++});
++
++test('successful response shape is unchanged for events()', async () => {
++  const body = { schemaVersion: 'v', items: [], nextCursor: 0, hasMore: false, truncated: false, earliestCursor: null };
++  const transport = async () => new Response(JSON.stringify(body), { status: 200, headers: { 'content-type': 'application/json' } });
++  const client = createMonitorClient({ baseUrl: 'http://h', token: 't'.repeat(32), fetch: transport });
++  const result = await client.events(OBSERVATION_ID, 0, 10);
++  assert.deepEqual(result, body);
++});

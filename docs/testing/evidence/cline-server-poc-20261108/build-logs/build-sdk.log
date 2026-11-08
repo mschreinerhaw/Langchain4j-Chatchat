@@ -1,0 +1,10 @@
+$ bun --production -F './sdk/packages/*' build && bun sdk/packages/core/build-plugin-runtime.mts
+@cline/shared build: Exited with code 0
+@cline/ui build: $ bun scripts/generate-theme.ts --check
+@cline/ui build: @cline/ui generated theme files are current
+@cline/ui build: @cline/ui theme contract is valid
+@cline/ui build: Exited with code 0
+@cline/llms build: Exited with code 0
+@cline/agents build: Exited with code 0
+@cline/core build: Exited with code 0
+@cline/sdk build: Exited with code 0

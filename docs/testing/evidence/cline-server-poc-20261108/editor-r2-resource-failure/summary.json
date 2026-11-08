@@ -1,0 +1,145 @@
+{
+  "sessionId": "8c51813a-58fb-4a1b-8026-b516b6df49e9",
+  "taskId": "96b95253-7822-4194-a57f-1b2e81aa1729",
+  "profile": "editor",
+  "model": "qwen3.7-plus",
+  "status": "failed",
+  "durationSeconds": 279.36,
+  "approvalCount": 26,
+  "completedTools": [
+    {
+      "name": "run_commands",
+      "failed": false,
+      "toolCallId": "call_8aeb621325e242f290bcb344"
+    },
+    {
+      "name": "read_files",
+      "failed": false,
+      "toolCallId": "call_1f9d659cc44d4c6186784730"
+    },
+    {
+      "name": "read_files",
+      "failed": false,
+      "toolCallId": "call_f991bf44e867465686194c07"
+    },
+    {
+      "name": "editor",
+      "failed": false,
+      "toolCallId": "call_2a9f3dd6d0884bb2a64e6228"
+    },
+    {
+      "name": "editor",
+      "failed": false,
+      "toolCallId": "call_3b384cc6819445688658b4c0"
+    },
+    {
+      "name": "editor",
+      "failed": false,
+      "toolCallId": "call_45850211c77942168309ce54"
+    },
+    {
+      "name": "editor",
+      "failed": false,
+      "toolCallId": "call_8c5d130648c64d55a4272ae5"
+    },
+    {
+      "name": "editor",
+      "failed": false,
+      "toolCallId": "call_d270c7d7fd2a47ec8bfee011"
+    },
+    {
+      "name": "run_commands",
+      "failed": false,
+      "toolCallId": "call_340243ad6ad94ddba90d5282"
+    },
+    {
+      "name": "run_commands",
+      "failed": false,
+      "toolCallId": "call_bb8d5db93aff4bb3b09e9e52"
+    },
+    {
+      "name": "run_commands",
+      "failed": true,
+      "toolCallId": "call_9f595f04b8684b58a847fc3f"
+    },
+    {
+      "name": "run_commands",
+      "failed": false,
+      "toolCallId": "call_a0fcf06090b94c3789f412ef"
+    },
+    {
+      "name": "read_files",
+      "failed": false,
+      "toolCallId": "call_718eb470a51b4da78e434286"
+    },
+    {
+      "name": "run_commands",
+      "failed": false,
+      "toolCallId": "call_1713141d02714eebb472776a"
+    },
+    {
+      "name": "run_commands",
+      "failed": false,
+      "toolCallId": "call_4ee761fbc5f047bbb773d576"
+    },
+    {
+      "name": "run_commands",
+      "failed": false,
+      "toolCallId": "call_fefd1f1ee763404ab335325e"
+    },
+    {
+      "name": "editor",
+      "failed": true,
+      "toolCallId": "call_62abd0977d97447d8937d72d"
+    },
+    {
+      "name": "editor",
+      "failed": false,
+      "toolCallId": "call_c9080aded6784f879db49a54"
+    },
+    {
+      "name": "editor",
+      "failed": false,
+      "toolCallId": "call_84e24ef9044c4bf693645c67"
+    },
+    {
+      "name": "run_commands",
+      "failed": true,
+      "toolCallId": "call_e9ebf5df79c74c27984b15e6"
+    },
+    {
+      "name": "editor",
+      "failed": false,
+      "toolCallId": "call_ca6c451c246b4b67b1a74bad"
+    },
+    {
+      "name": "editor",
+      "failed": false,
+      "toolCallId": "call_84f3af5f6340486a9281b22b"
+    },
+    {
+      "name": "run_commands",
+      "failed": true,
+      "toolCallId": "call_79f515a54aa54228b383b8fd"
+    },
+    {
+      "name": "editor",
+      "failed": false,
+      "toolCallId": "call_4e029df11dcc49338158102b"
+    },
+    {
+      "name": "run_commands",
+      "failed": false,
+      "toolCallId": "call_fe7b5ba5d0d64ee0bcffd009"
+    }
+  ],
+  "sseReconnect": "PASS",
+  "idempotency": "PASS",
+  "independentVerification": "PASS",
+  "coreToolsObserved": {
+    "read_files": true,
+    "search_codebase": false,
+    "editor": true,
+    "run_commands": true
+  }
+}

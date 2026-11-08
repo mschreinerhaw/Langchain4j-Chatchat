@@ -1,0 +1,22 @@
+{
+  "denial": "PASS",
+  "deniedNativeRequests": 1,
+  "deniedMarkerAbsent": true,
+  "lateApproval": "PASS",
+  "cancelRunningNativeShell": "PASS",
+  "sseDisconnectWhileRunning": "PASS",
+  "lastEventIdReplayAfterDisconnect": {
+    "before": "34",
+    "replayed": "35"
+  },
+  "localStopProof": {
+    "localProcesses": [
+      109,
+      67
+    ],
+    "localStopConfirmed": true,
+    "externalOperations": "none-configured-in-poc"
+  },
+  "lateMarkerAbsent": true,
+  "scope": "No external MCP/Sandbox operations configured in these control cases"
+}

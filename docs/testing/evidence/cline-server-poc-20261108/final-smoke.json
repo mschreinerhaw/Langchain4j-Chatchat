@@ -1,0 +1,14 @@
+{
+  "recordedAt": "2026-11-08T02:04:41.723605+00:00",
+  "checks": {
+    "prototypeWorkspaceRejected": true,
+    "newSessionAfterRunningCancel": true,
+    "finalNativeWorkerReady": true,
+    "apiStillLiveAfterCancel": true,
+    "delayedAndDeniedMarkersAbsent": true
+  },
+  "processesAfterCleanup": "PID                 PPID                COMMAND\n2205221             2205199             MainThread\n",
+  "oomControlAfterResourceFix": "oom_kill_disable 0\nunder_oom 0\noom_kill 0\n",
+  "memoryPeakBytes": "601186304\n",
+  "nodeAvailableParallelism": "2\n"
+}

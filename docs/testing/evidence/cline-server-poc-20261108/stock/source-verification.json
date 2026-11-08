@@ -1,0 +1,11 @@
+{
+  "variant": "unmodified official Standalone",
+  "bundleSha256": "816e77d96d92912320c48ec5a09260a0b3afdf2e76da9a095d6c291ab626d0e4",
+  "serverInstrumentationPresent": false,
+  "sourceFiles": {
+    "src/standalone/cline-core.ts": "e021125f37a12244e6dca4e025c0c664a2b49b74563fb263bd555fe1cbedde0d",
+    "src/sdk/sdk-interaction-coordinator.ts": "565458a5765495cb4f4afeb0ff5314d1d0faa15c5c5edf71ee3ba0d9e00c704f",
+    "src/sdk/sdk-session-event-coordinator.ts": "63b5da62fefcedaefc901e1e7cbba87b0efd1e2c7f8fe57fa576b2d404b2c6ff",
+    "src/sdk/vscode-session-host.ts": "5217c30f14cf87a13c9ee0b4ee289229dac362d8690efef4e82bfe8e9d912978"
+  }
+}

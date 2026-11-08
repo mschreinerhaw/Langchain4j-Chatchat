@@ -1,0 +1,93 @@
+diff --git a/README.md b/README.md
+index 8a19bf6..5febc07 100644
+--- a/README.md
++++ b/README.md
+@@ -85,15 +85,19 @@ npm start
+ 
+ ```ts
+ import { createMonitorClient } from './dist/monitor-client.js';
++import type { TaskQuery } from './dist/monitor-types.js';
+ 
+ // 在调用方服务端执行，token 从其 secret manager 读取。
+ const node = createMonitorClient({ baseUrl: 'http://coding-agent-node:3100', token });
+ const health = await node.node();
+-const tasks = await node.tasks({ status: 'RUNNING', limit: 20 });
++const query: TaskQuery = { status: 'RUNNING', limit: 20 };
++const tasks = await node.tasks(query);
+ if (tasks.items[0]) {
+   const events = await node.events(tasks.items[0].id, 0, 100);
+   // events.hasMore 时，用 nextCursor 继续；truncated 为 true 表示早期历史已淘汰。
+ }
+ ```
+ 
++客户端在发起请求前校验参数：`tasks` 的 `offset` 必须是非负安全整数，`limit` 必须是 1–500 的安全整数；`events` 的 `after` 必须是非负安全整数，`limit` 必须是 1–1000 的安全整数。无效参数（`NaN`、`Infinity`、小数、负值或非数字类型）会立即抛出 `TypeError`，不会发起网络请求。`undefined` 的查询字段会被省略，`q` 仍通过 `URLSearchParams` 正确编码。`baseUrl` 允许多个尾随斜杠，最终请求路径只保留一个分隔斜杠。查询类型 `TaskQuery` 可从 `monitor-types` 导入。
++
+ 建议 3–5 秒轮询，设置超时并保留最后成功快照。API 数据属于 `NODE_OBSERVATION_ONLY`，不应作为重试、扣费、停止证明或业务结果准入依据。入口应走反向代理的 `/monitor` 与 `/v1/monitor/` 白名单；HTTPS 时启用 Secure Cookie，执行接口保留在 Runtime 内网。
+diff --git a/src/monitor-client.ts b/src/monitor-client.ts
+index 8f4adda..63ca2ce 100644
+--- a/src/monitor-client.ts
++++ b/src/monitor-client.ts
+@@ -1,8 +1,19 @@
+-import type { CodeVersion, ModelCall, MonitorEvent, NodeSnapshot, TaskDetail, TaskPage, TaskState } from './monitor-types.ts';
++import type { CodeVersion, ModelCall, MonitorEvent, NodeSnapshot, TaskDetail, TaskPage, TaskQuery } from './monitor-types.ts';
++
++function assertNonNegativeSafeInteger(value: unknown, name: string): void {
++  if (typeof value !== 'number' || !Number.isSafeInteger(value) || value < 0) {
++    throw new TypeError(`${name} must be a non-negative safe integer`);
++  }
++}
++function assertSafeIntegerInRange(value: unknown, min: number, max: number, name: string): void {
++  if (typeof value !== 'number' || !Number.isSafeInteger(value) || value < min || value > max) {
++    throw new TypeError(`${name} must be a safe integer between ${min} and ${max}`);
++  }
++}
+ 
+ /** Server-side SDK. Keep the operator token on your application server. */
+ export function createMonitorClient(options: { baseUrl: string; token: string; fetch?: typeof fetch; timeoutMs?: number }) {
+-  const base = options.baseUrl.replace(/\/$/, '');
++  const base = options.baseUrl.replace(/\/+$/, '');
+   const transport = options.fetch ?? fetch;
+   async function get<T>(path: string): Promise<T> {
+     const response = await transport(`${base}/v1/monitor${path}`, {
+@@ -18,11 +29,22 @@ export function createMonitorClient(options: { baseUrl: string; token: string; f
+   };
+   return {
+     node: () => get<NodeSnapshot>('/node'),
+-    tasks: (query: { status?: TaskState; q?: string; offset?: number; limit?: number } = {}) =>
+-      get<TaskPage>(`/tasks?${new URLSearchParams(Object.entries(query).map(([key, value]) => [key, String(value)]))}`),
++    tasks: (query: TaskQuery = {}) => {
++      if (query.offset !== undefined) assertNonNegativeSafeInteger(query.offset, 'tasks offset');
++      if (query.limit !== undefined) assertSafeIntegerInRange(query.limit, 1, 500, 'tasks limit');
++      const params = new URLSearchParams();
++      for (const [key, value] of Object.entries(query)) {
++        if (value !== undefined) params.set(key, String(value));
++      }
++      const qs = params.toString();
++      return get<TaskPage>(`/tasks${qs ? `?${qs}` : ''}`);
++    },
+     task: (taskId: string) => get<{ schemaVersion: string; task: TaskDetail }>(`/tasks/${id(taskId)}`),
+-    events: (taskId: string, after = 0, limit = 100) =>
+-      get<{ schemaVersion: string; items: MonitorEvent[]; nextCursor: number; hasMore: boolean; truncated: boolean; earliestCursor: number | null }>(`/tasks/${id(taskId)}/events?after=${after}&limit=${limit}`),
++    events: (taskId: string, after = 0, limit = 100) => {
++      assertNonNegativeSafeInteger(after, 'events after');
++      assertSafeIntegerInRange(limit, 1, 1000, 'events limit');
++      return get<{ schemaVersion: string; items: MonitorEvent[]; nextCursor: number; hasMore: boolean; truncated: boolean; earliestCursor: number | null }>(`/tasks/${id(taskId)}/events?after=${after}&limit=${limit}`);
++    },
+     models: (taskId: string) => get<{ schemaVersion: string; models: ModelCall[] }>(`/tasks/${id(taskId)}/models`),
+     skills: (taskId: string) => get<{ schemaVersion: string; skills: TaskDetail['skills'] }>(`/tasks/${id(taskId)}/skills`),
+     codes: (taskId: string) => get<{ schemaVersion: string; codes: CodeVersion[] }>(`/tasks/${id(taskId)}/codes`),
+diff --git a/src/monitor-types.ts b/src/monitor-types.ts
+index 7359aa6..a1b3d84 100644
+--- a/src/monitor-types.ts
++++ b/src/monitor-types.ts
+@@ -72,3 +72,10 @@ export interface NodeSnapshot {
+ }
+ export interface TaskPage { schemaVersion: 'coding_agent.monitor.v1'; observedAt: string;
+   total: number; offset: number; limit: number; items: TaskSummary[] }
++/** Client-side query for `tasks()`. `offset` and `limit` are validated before the request. */
++export interface TaskQuery {
++  status?: TaskState;
++  q?: string;
++  offset?: number;
++  limit?: number;
++}

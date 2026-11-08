@@ -1,0 +1,20 @@
+[
+  {
+    "sessionId": "8c51813a-58fb-4a1b-8026-b516b6df49e9",
+    "taskId": null,
+    "epoch": "52b6db62-dced-41f3-9f59-b052cf57153d",
+    "eventType": "worker.ready",
+    "payload": {
+      "native": "v4.1.26",
+      "sourceCommit": "a459f1d04dea030833b558be645011ab739c463b",
+      "hostCapabilities": {
+        "workspace": true,
+        "editorUI": false,
+        "diagnostics": false,
+        "backgroundShell": true
+      }
+    },
+    "eventId": "2",
+    "timestamp": "2026-11-08T01:16:24.515Z"
+  }
+]

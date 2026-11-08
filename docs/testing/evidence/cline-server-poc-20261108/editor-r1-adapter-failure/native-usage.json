@@ -1,0 +1,15 @@
+{
+  "usageEvents": 9,
+  "lastUsage": {
+    "type": "usage",
+    "inputTokens": 34737,
+    "outputTokens": 1275,
+    "cacheReadTokens": 32640,
+    "reasoningTokenCount": 27,
+    "totalInputTokens": 193459,
+    "totalOutputTokens": 8246,
+    "totalCacheReadTokens": 108032,
+    "totalCost": 0
+  },
+  "billingCost": "UNKNOWN"
+}

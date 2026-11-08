@@ -1,0 +1,14 @@
+Running bun install in distribution directory...
+bun install v1.4.2 (744846f84)
+
++ @grpc/grpc-js@1.13.7
++ @grpc/reflection@1.0.4
++ better-sqlite3@12.4.1
++ grpc-health-check@2.0.2
++ open@10.1.2
++ vscode-uri@3.1.0
+
+84 packages installed [1.65s]
+Building package for linux-x64...
+Zipping package...
+Created dist-standalone/standalone.zip (26.6 MB) in 10.78 seconds

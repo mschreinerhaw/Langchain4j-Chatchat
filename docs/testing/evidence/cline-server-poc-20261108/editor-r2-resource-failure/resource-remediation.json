@@ -1,0 +1,13 @@
+{
+  "cline-agent-server-poc": {
+    "cpusetCpus": "0,1",
+    "availableParallelism": "2\n",
+    "oomControl": "oom_kill_disable 0\nunder_oom 0\noom_kill 4\n"
+  },
+  "cline-agent-stock-baseline": {
+    "cpusetCpus": "2,3",
+    "availableParallelism": "2\n",
+    "oomControl": "oom_kill_disable 0\nunder_oom 0\noom_kill 0\n"
+  },
+  "kernelOomLines": "[Mon Oct 26 21:36:24 2026] Memory cgroup out of memory: Killed process 1663747 (MainThread) total-vm:1598096kB, anon-rss:130564kB, file-rss:54012kB, shmem-rss:0kB, UID:1000 pgtables:3416kB oom_score_adj:0\n[Mon Oct 26 21:36:25 2026] Memory cgroup out of memory: Killed process 1663701 (MainThread) total-vm:1592380kB, anon-rss:127100kB, file-rss:54096kB, shmem-rss:0kB, UID:1000 pgtables:3280kB oom_score_adj:0\n[Sat Nov  7 12:20:17 2026] Memory cgroup out of memory: Killed process 4044080 (MainThread) total-vm:1571584kB, anon-rss:105196kB, file-rss:54068kB, shmem-rss:0kB, UID:10001 pgtables:2584kB oom_score_adj:0\n[Sat Nov  7 12:20:18 2026] Memory cgroup out of memory: Killed process 4044082 (MainThread) total-vm:1599044kB, anon-rss:134284kB, file-rss:54944kB, shmem-rss:0kB, UID:10001 pgtables:3540kB oom_score_adj:0\n[Sun Nov  8 09:16:20 2026] Memory cgroup out of memory: Killed process 2129447 (MainThread) total-vm:10454308kB, anon-rss:401564kB, file-rss:67000kB, shmem-rss:0kB, UID:1000 pgtables:7264kB oom_score_adj:0\n[Sun Nov  8 09:16:20 2026] Memory cgroup out of memory: Killed process 2136654 (MainThread) total-vm:1627156kB, anon-rss:161752kB, file-rss:54108kB, shmem-rss:0kB, UID:1000 pgtables:4348kB oom_score_adj:0\n[Sun Nov  8 09:16:29 2026] Memory cgroup out of memory: Killed process 2136892 (MainThread) total-vm:10037036kB, anon-rss:185052kB, file-rss:58084kB, shmem-rss:0kB, UID:1000 pgtables:4640kB oom_score_adj:0\n[Sun Nov  8 09:16:29 2026] Memory cgroup out of memory: Killed process 2136661 (MainThread) total-vm:1708808kB, anon-rss:176968kB, file-rss:54868kB, shmem-rss:0kB, UID:1000 pgtables:6888kB oom_score_adj:0"
+}

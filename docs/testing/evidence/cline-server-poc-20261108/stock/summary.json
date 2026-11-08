@@ -1,0 +1,8 @@
+{
+  "nativeSessionId": "1794101125894_q9kix",
+  "phase": "awaiting_followup",
+  "durationSeconds": 377.498,
+  "independentVerification": "PASS",
+  "observer": "official StateService projection, not a lossless event stream",
+  "sourceModification": "NONE"
+}

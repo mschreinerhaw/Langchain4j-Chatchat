@@ -1,0 +1,43 @@
+{
+  "tag": "v4.1.26",
+  "commit": "a459f1d04dea030833b558be645011ab739c463b",
+  "officialVsixSha256": "d8ea4c3505052c48e7c7a5558e7213a53827b6ba1da7e56513c87d896df51c4d",
+  "files": [
+    {
+      "path": "bun.lock",
+      "sha256": "de3288309a0af8c609843322e097dfaf95d85ce479748f494e41077775be7776"
+    },
+    {
+      "path": "apps/vscode/package.json",
+      "sha256": "18884442c2c71ba6a07c69903ac9c3be4a3be2a8599a0095b1ef7056755cc8b4"
+    },
+    {
+      "path": "apps/vscode/src/standalone/cline-core.ts",
+      "sha256": "e021125f37a12244e6dca4e025c0c664a2b49b74563fb263bd555fe1cbedde0d"
+    },
+    {
+      "path": "apps/vscode/src/sdk/vscode-session-host.ts",
+      "sha256": "5217c30f14cf87a13c9ee0b4ee289229dac362d8690efef4e82bfe8e9d912978"
+    },
+    {
+      "path": "apps/vscode/src/sdk/sdk-interaction-coordinator.ts",
+      "sha256": "565458a5765495cb4f4afeb0ff5314d1d0faa15c5c5edf71ee3ba0d9e00c704f"
+    },
+    {
+      "path": "apps/vscode/src/sdk/sdk-session-event-coordinator.ts",
+      "sha256": "63b5da62fefcedaefc901e1e7cbba87b0efd1e2c7f8fe57fa576b2d404b2c6ff"
+    },
+    {
+      "path": "sdk/packages/core/src/ClineCore.ts",
+      "sha256": "4c4fe321fe6e75e84b475d26e12483a83eb02ec2c145c8326d56dd8e91458ad4"
+    },
+    {
+      "path": "sdk/packages/core/src/runtime/orchestration/runtime-builder.ts",
+      "sha256": "c072fcd16b8452b7a2326c70f0e7a0e6af4a30a2aa75f3e47ff75e34f3c64add"
+    },
+    {
+      "path": "sdk/packages/agents/src/agent-runtime.ts",
+      "sha256": "6bfbebdc58d1b8fffd6778fad847bf19316e0363b820fadf10aa692a1a1a57a3"
+    }
+  ]
+}

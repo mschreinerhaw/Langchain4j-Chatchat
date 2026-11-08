@@ -1,0 +1,13 @@
+[
+  {
+    "sessionId": "090cd4c1-a9a1-4327-9960-6e74a151da69",
+    "taskId": null,
+    "epoch": "efd9b620-2512-48f3-a403-7f841d65ae1f",
+    "eventType": "session.created",
+    "payload": {
+      "workspaceRef": "monitor-patch"
+    },
+    "eventId": "1",
+    "timestamp": "2026-11-08T01:40:24.715Z"
+  }
+]

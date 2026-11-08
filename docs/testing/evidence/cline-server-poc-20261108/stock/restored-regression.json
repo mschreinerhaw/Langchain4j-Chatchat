@@ -1,0 +1,13 @@
+{
+  "exitCode": 0,
+  "command": [
+    "node",
+    "--test",
+    "--test-concurrency=1",
+    "test/monitor-client-parameters.test.js",
+    "test/monitor-authority.test.js",
+    "test/node-monitor.test.js",
+    "test/monitor.test.js"
+  ],
+  "scope": "Independent additional validation after restoring original fixture inputs; no generated implementation or test changed"
+}

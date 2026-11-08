@@ -1,6 +1,6 @@
 # 官方 Cline / HTTP Server 同任务验收计划
 
-日期：2026-11-08。**状态：设计，全部真实任务未运行，不能作为 A/B 通过报告。** 上游固定 `v4.1.26 / a459f1d04dea030833b558be645011ab739c463b`。关联：[源码审查](../audits/cline-v4.1.26-server-architecture-review.md)、[POC 架构](../design/cline-agent-server-architecture.md)。
+日期：2026-11-08。以下保留原验收设计。**后续已执行官方未修改 Standalone 与 HTTP Server 同任务 POC，实际结果及限制见 [真实验收报告](cline-server-runtime-tests.md)**；原计划中的完整 VS Code Desktop A/B 尚未完成，不能将二者混同。上游固定 `v4.1.26 / a459f1d04dea030833b558be645011ab739c463b`。关联：[源码审查](../audits/cline-v4.1.26-server-architecture-review.md)、[POC 架构](../design/cline-agent-server-architecture.md)。
 
 ## 核心门槛
 

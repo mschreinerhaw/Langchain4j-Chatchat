@@ -1,0 +1,10 @@
+{
+  "profile": "editor",
+  "prompt": "修复这个真实 Runtime OS 项目中监控客户端 SDK 的参数边界问题，并补齐回归测试。\n\n要求保持现有认证、观察 ID 校验和成功响应形状不变：\n1. createMonitorClient 的 baseUrl 允许多个尾随斜杠，最终请求路径只保留一个分隔斜杠。\n2. tasks(query) 的 offset 若提供必须是非负安全整数，limit 若提供必须是 1..500 的安全整数；undefined 参数必须省略，q 仍通过 URLSearchParams 正确编码。\n3. events(taskId, after=0, limit=100) 的 after 必须是非负安全整数，limit 必须是 1..1000 的安全整数。所有无效参数应在发起网络请求前抛出 TypeError，包括 NaN、Infinity、小数、负值及不合法类型。\n4. 将公开查询类型命名导出到已有 monitor-types.ts，并让 monitor-client.ts 使用它，补充 README 使用说明。\n5. 添加 test/monitor-client-parameters.test.js，覆盖合法边界、越界、未提供参数、查询编码和无效输入不发请求。构建项目并运行新测试，修复失败后再次验证。\n\n自主定位相关实现、类型和测试规范。不要修改 node_modules、构建工具链、Agent 实现或生产服务，不要读取工作区以外的配置与凭据。完成后说明变更文件、实际执行的构建与测试命令和结果。\n",
+  "promptSha256": "b2fa1b5e8bd0cf11068965d768311f0882ac81078c74c31c7da41e71cdeafc93",
+  "model": "qwen3.7-plus",
+  "workspaceRef": "monitor-editor",
+  "sourceCommit": "a459f1d04dea030833b558be645011ab739c463b",
+  "realProjectSourceCommit": "7d076d0dc",
+  "budgetSeconds": 1000
+}

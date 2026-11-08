@@ -1,0 +1,17 @@
+{
+  "usageEvents": 22,
+  "lastUsage": {
+    "type": "usage",
+    "inputTokens": 37396,
+    "outputTokens": 670,
+    "cacheReadTokens": 34816,
+    "reasoningTokenCount": 14,
+    "totalInputTokens": 550684,
+    "totalOutputTokens": 8115,
+    "totalCacheReadTokens": 471168,
+    "totalCost": null,
+    "cost": null,
+    "costStatus": "unverified-native-pricing"
+  },
+  "billingCost": "UNKNOWN"
+}

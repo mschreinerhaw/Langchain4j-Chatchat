@@ -1,0 +1,13 @@
+[
+  {
+    "type": "host.notification",
+    "payload": {
+      "type": 1,
+      "message": "Welcome to Cline v4.1.26"
+    }
+  },
+  {
+    "type": "host.shutdown.requested",
+    "payload": {}
+  }
+]

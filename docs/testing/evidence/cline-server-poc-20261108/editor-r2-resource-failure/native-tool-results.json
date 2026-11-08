@@ -1,0 +1,514 @@
+[
+  {
+    "eventId": "40",
+    "timestamp": "2026-11-08T01:16:30.590Z",
+    "transportEventType": "tool.completed",
+    "normalizedOutcome": "SUCCEEDED",
+    "native": {
+      "type": "content_end",
+      "contentType": "tool",
+      "toolName": "run_commands",
+      "toolCallId": "call_8aeb621325e242f290bcb344",
+      "output": [
+        {
+          "query": "find /poc/project/coding-agent-node -maxdepth 4 -type f -not -path '*/node_modules/*' -not -path '*/.git/*' | head -200",
+          "result": "/poc/project/coding-agent-node/README.md\n/poc/project/coding-agent-node/package-lock.json\n/poc/project/coding-agent-node/package.json\n/poc/project/coding-agent-node/scripts/audit-native-skill-packages.mjs\n/poc/project/coding-agent-node/scripts/audit-native-skills-sdk.mjs\n/poc/project/coding-agent-node/scripts/benchmark-completion-projection-provider.mjs\n/poc/project/coding-agent-node/scripts/benchmark-context-projection.mjs\n/poc/project/coding-agent-node/scripts/benchmark-lifecycle.mjs\n/poc/project/coding-agent-node/scripts/benchmark-sql-metadata-context.mjs\n/poc/project/coding-agent-node/scripts/benchmark-startup.mjs\n/poc/project/coding-agent-node/scripts/benchmark-workspace-codegen.mjs\n/poc/project/coding-agent-node/scripts/build.mjs\n/poc/project/coding-agent-node/scripts/check-analysis-regression.mjs\n/poc/project/coding-agent-node/scripts/export-native-skills-schemas.mjs\n/poc/project/coding-agent-node/scripts/export-python-tool-wire.mjs\n/poc/project/coding-agent-node/scripts/measure-native-skills-catalog.mjs\n/poc/project/coding-agent-node/scripts/summarize-context-benchmark.mjs\n/poc/project/coding-agent-node/scripts/summarize-metrics.mjs\n/poc/project/coding-agent-node/scripts/test-monitor-browser.mjs\n/poc/project/coding-agent-node/scripts/vendor-microsoft-skills.mjs\n/poc/project/coding-agent-node/scripts/verify-live-monitor-browser.mjs\n/poc/project/coding-agent-node/scripts/verify-product-console.mjs\n/poc/project/coding-agent-node/src/code-repair.js\n/poc/project/coding-agent-node/src/coding-progress.js\n/poc/project/coding-agent-node/src/completion-context.js\n/poc/project/coding-agent-node/src/completion-evaluation.js\n/poc/project/coding-agent-node/src/context-budget.js\n/poc/project/coding-agent-node/src/execution-feedback.ts\n/poc/project/coding-agent-node/src/healthcheck.js\n/poc/project/coding-agent-node/src/knowledge-tools.js\n/poc/project/coding-agent-node/src/monitor-client.ts\n/poc/project/coding-agent-node/src/monitor-types.ts\n/poc/project/coding-agent-node/src/monitor.ts\n/poc/project/coding-agent-node/src/native-skills.js\n/poc/project/coding-agent-node/src/python-project.js\n/poc/project/coding-agent-node/src/request-context.js\n/poc/project/coding-agent-node/src/runner.js\n/poc/project/coding-agent-node/src/runtime-model.js\n/poc/project/coding-agent-node/src/sdk-adapter.js\n/poc/project/coding-agent-node/src/sdk-packages.js\n/poc/project/coding-agent-node/src/server.js\n/poc/project/coding-agent-node/src/skill-distribution.js\n/poc/project/coding-agent-node/src/tool-catalog.js\n/poc/project/coding-agent-node/test/analysis-regression.test.js\n/poc/project/coding-agent-node/test/builtin-skills.test.js\n/poc/project/coding-agent-node/test/checkpoint-receipt.test.js\n/poc/project/coding-agent-node/test/code-lifecycle.test.js\n/poc/project/coding-agent-node/test/code-repair.test.js\n/poc/project/coding-agent-node/test/coding-progress.test.js\n/poc/project/coding-agent-node/test/completion-context.test.js\n/poc/project/coding-agent-node/test/completion-evaluation.test.js\n/poc/project/coding-agent-node/test/financial-methods.test.py\n/poc/project/coding-agent-node/test/fixtures/analysis-regressions.json\n/poc/project/coding-agent-node/test/fixtures/repair-analysis.py.txt\n/poc/project/coding-agent-node/test/knowledge-tools.test.js\n/poc/project/coding-agent-node/test/metrics-summary.test.js\n/poc/project/coding-agent-node/test/microsoft-skills.test.js\n/poc/project/coding-agent-node/test/monitor-authority.test.js\n/poc/project/coding-agent-node/test/monitor.test.js\n/poc/project/coding-agent-node/test/native-skills.test.js\n/poc/project/coding-agent-node/test/node-monitor.test.js\n/poc/project/coding-agent-node/test/precode-disclosure.test.js\n/poc/project/coding-agent-node/test/python-diagnostics.test.js\n/poc/project/coding-agent-node/test/python-project.test.js\n/poc/project/coding-agent-node/test/recovery.test.js\n/poc/project/coding-agent-node/test/request-context.test.js\n/poc/project/coding-agent-node/test/reviewed-result.test.js\n/poc/project/coding-agent-node/test/runner.test.js\n/poc/project/coding-agent-node/test/runtime-model.test.js\n/poc/project/coding-agent-node/test/sdk-migration.test.js\n/poc/project/coding-agent-node/test/sdk-native-capabilities.test.js\n/poc/project/coding-agent-node/test/sdk-packages.test.js\n/poc/project/coding-agent-node/test/sdk-reuse-regression.test.js\n/poc/project/coding-agent-node/test/server.test.js\n/poc/project/coding-agent-node/test/tool-catalog.test.js\n/poc/project/coding-agent-node/test/workspace-fast-path.test.js\n/poc/project/coding-agent-node/tsconfig.json\n/poc/project/coding-agent-node/tsconfig.web.json\n/poc/project/coding-agent-node/web/index.html\n/poc/project/coding-agent-node/web/main.ts\n/poc/project/coding-agent-node/web/python-diagnostics.ts\n/poc/project/coding-agent-node/web/style.css\n/poc/project/coding-agent-node/.gitignore\n",
+          "success": true
+        }
+      ],
+      "durationMs": 83
+    }
+  },
+  {
+    "eventId": "71",
+    "timestamp": "2026-11-08T01:16:34.565Z",
+    "transportEventType": "tool.completed",
+    "normalizedOutcome": "SUCCEEDED",
+    "native": {
+      "type": "content_end",
+      "contentType": "tool",
+      "toolName": "read_files",
+      "toolCallId": "call_1f9d659cc44d4c6186784730",
+      "output": [
+        {
+          "query": "/poc/project/coding-agent-node/src/monitor-client.ts",
+          "result": " 1 | import type { CodeVersion, ModelCall, MonitorEvent, NodeSnapshot, TaskDetail, TaskPage, TaskState } from './monitor-types.ts';\n 2 | \n 3 | /** Server-side SDK. Keep the operator token on your application server. */\n 4 | export function createMonitorClient(options: { baseUrl: string; token: string; fetch?: typeof fetch; timeoutMs?: number }) {\n 5 |   const base = options.baseUrl.replace(/\\/$/, '');\n 6 |   const transport = options.fetch ?? fetch;\n 7 |   async function get<T>(path: string): Promise<T> {\n 8 |     const response = await transport(`${base}/v1/monitor${path}`, {\n 9 |       headers: { authorization: `Bearer ${options.token}` }, signal: AbortSignal.timeout(options.timeoutMs ?? 10000),\n10 |       redirect: 'error', cache: 'no-store',\n11 |     });\n12 |     if (!response.ok) throw Object.assign(new Error(`Node monitor returned HTTP ${response.status}`), { status: response.status });\n13 |     return await response.json() as T;\n14 |   }\n15 |   const id = (value: string) => {\n16 |     if (!/^[a-f0-9]{64}$/.test(value)) throw new TypeError('A monitor observation ID is required');\n17 |     return value;\n18 |   };\n19 |   return {\n20 |     node: () => get<NodeSnapshot>('/node'),\n21 |     tasks: (query: { status?: TaskState; q?: string; offset?: number; limit?: number } = {}) =>\n22 |       get<TaskPage>(`/tasks?${new URLSearchParams(Object.entries(query).map(([key, value]) => [key, String(value)]))}`),\n23 |     task: (taskId: string) => get<{ schemaVersion: string; task: TaskDetail }>(`/tasks/${id(taskId)}`),\n24 |     events: (taskId: string, after = 0, limit = 100) =>\n25 |       get<{ schemaVersion: string; items: MonitorEvent[]; nextCursor: number; hasMore: boolean; truncated: boolean; earliestCursor: number | null }>(`/tasks/${id(taskId)}/events?after=${after}&limit=${limit}`),\n26 |     models: (taskId: string) => get<{ schemaVersion: string; models: ModelCall[] }>(`/tasks/${id(taskId)}/models`),\n27 |     skills: (taskId: string) => get<{ schemaVersion: string; skills: TaskDetail['skills'] }>(`/tasks/${id(taskId)}/skills`),\n28 |     codes: (taskId: string) => get<{ schemaVersion: string; codes: CodeVersion[] }>(`/tasks/${id(taskId)}/codes`),\n29 |     python: (taskId: string) => get<unknown>(`/tasks/${id(taskId)}/python`),\n30 |     code: (taskId: string, codeId: string) => get<CodeVersion>(`/tasks/${id(taskId)}/codes/${id(codeId)}`),\n31 |   };\n32 | }\n33 | export type * from './monitor-types.ts';",
+          "success": true
+        },
+        {
+          "query": "/poc/project/coding-agent-node/src/monitor-types.ts",
+          "result": " 1 | /** Public, read-only component contract. No SDK checkpoints or provider credentials. */\n 2 | export type TaskState = 'RUNNING' | 'COMPLETED' | 'FAILED' | 'CANCELLED' | 'INTERRUPTED';\n 3 | export interface MonitorEvent {\n 4 |   cursor: number; timestamp: string; type: string; stage?: string; status?: string;\n 5 |   operationId?: string; modelCall?: number; tool?: string; [key: string]: unknown;\n 6 | }\n 7 | export interface ModelCall {\n 8 |   receiptReplayed?: boolean;\n 9 |   contextSkillsBytes?: number | null; skillContextRatio?: number | null; runtimeAdmissionMs?:number|null;\n10 |   callbackRequestWriteMs?:number|null;callbackResponseProcessingMs?:number|null;\n11 |   purpose?: string; finishReason?: string; providerFinishReason?: string; actualTools?: string[]; diagnosticCode?: string;\n12 |   estimatedInputTokens?: number | null; repeatedContextBytes?: number | null;\n13 |   duplicateContextBytes?: number | null; avoidableRepeatedContextBytes?: number | null; newContextBytes?: number | null;\n14 |   contextSizeBefore?: number | null; contextSizeAfter?: number | null; compactionCount?: number | null;\n15 |   callbackConnectMs?: number | null; callbackHeadersMs?: number | null; callbackBodyMs?: number | null;\n16 |   callbackHttpDurationMs?: number | null; contextChangeReason?: string; errorCategory?: string;\n17 |   queueTimeMs?: number | null; firstTokenMs?: number | null; generationTimeMs?: number | null;\n18 |   retryTimeMs?: number | null; responseMode?: string | null;\n19 |   callbackDurationMs?: number | null; callbackFirstEventMs?: number | null;\n20 |   requestBytes?: number | null; responseBytes?: number | null; messageCount?: number | null; toolCount?: number | null;\n21 |   ordinal: number; status: 'RUNNING' | 'SUCCEEDED' | 'FAILED' | 'UNKNOWN';\n22 |   startedAt: string; finishedAt: string | null; durationMs: number | null;\n23 |   selectedModel?: string; providerModel?: string; protocol?: string;\n24 |   usage: { inputTokens: number | null; outputTokens: number | null; totalCost: number | null;\n25 |     cacheReadTokens?: number | null; cacheWriteTokens?: number | null; reasoningTokens?: number | null };\n26 | }\n27 | export interface CodeVersion {\n28 |   scriptPath?: string; scriptVersion?: number | null;\n29 |   id: string; operationId: string; fileName: string; sha256: string; sourceBytes: number;\n30 |   createdAt: string; sourceRetained: boolean; source?: string;\n31 | }\n32 | export interface SkillInfo { skillId: string; name?: string; version?: string }\n33 | export interface TaskSummary {\n34 |   observedStatus?: TaskState;\n35 |   runtimeCheckedAt?: string;\n36 |   runtimeUnavailable?: boolean;\n37 |   authority?: 'RUNTIME_CONFIRMED' | 'NODE_OBSERVATION_ONLY';\n38 |   runtimeOutcome?: { status: string; terminal: boolean; revision: number; updatedAt: string;\n39 |     endedAt: string | null; reasonCode: string | null; summary: string; limitations: string[] };\n40 |   id: string; taskId: string; runId: string; tenantId: string; userId: string; fencingToken: number;\n41 |   status: TaskState; stage: string; objective: string; createdAt: string; updatedAt: string;\n42 |   finishedAt: string | null; deadlineAt: string | null; elapsedMs: number;\n43 |   recoveryMode: string; reconciliationRequired: boolean; error: string | null;\n44 |   eventCount: number; retainedEvents: number; codeCount: number; modelCalls: number;\n45 |   inputTokens: number; outputTokens: number; usageKnownCalls: number;\n46 | }\n47 | export interface TaskDetail extends TaskSummary {\n48 |   progress?: CodingProgress;\n49 |   configuredModel: { selectedModel?: string; providerModel?: string; protocol?: string };\n50 |   skills: { status: string; fingerprint: string | null; configured: SkillInfo[];\n51 |     stages: string[]; loadedAt: string | null; applications: number; lastAppliedAt: string | null };\n52 |   budget: { maxModelCalls: number | null; deadlineAt: string | null };\n53 |   events: MonitorEvent[]; models: ModelCall[]; codes: CodeVersion[];\n54 |   eventsTruncated: boolean; codesTruncated: boolean;\n55 | }\n56 | /** Observed in the current SDK run; unknown values remain null. */\n57 | export interface CodingProgress {\n58 |   [key: string]: number | string | null;\n59 |   modelCall: number; phase: string; waitingFor: string; lastTool: string;\n60 | }\n61 | export interface NodeSnapshot {\n62 |   schemaVersion: 'coding_agent.monitor.v1'; instanceId: string; observedAt: string;\n63 |   status: 'READY' | 'DRAINING'; sdk: string; build: string; nodeVersion: string;\n64 |   platform: string; arch: string; hostname: string; uptimeSeconds: number; startedAt: string;\n65 |   memory: { rssBytes: number; heapUsedBytes: number; heapTotalBytes: number };\n66 |   cpu: { userMicros: number; systemMicros: number; cores: number; loadAverage: number[] };\n67 |   sessions: { active: number; capacity: number; retained: number };\n68 |   tasks: Record<TaskState, number>; callbackTimeoutMs: number;\n69 |   history: { persistence: 'MEMORY' | 'HEALTHY' | 'DEGRADED'; error: string | null;\n70 |     maxTasks: number; maxEventsPerTask: number; maxSourceBytes: number; retainedSourceBytes: number };\n71 |   authority: 'NODE_OBSERVATION_ONLY';\n72 | }\n73 | export interface TaskPage { schemaVersion: 'coding_agent.monitor.v1'; observedAt: string;\n74 |   total: number; offset: number; limit: number; items: TaskSummary[] }",
+          "success": true
+        },
+        {
+          "query": "/poc/project/coding-agent-node/package.json",
+          "result": " 1 | {\n 2 |   \"name\": \"runtime-os-cline-coding-adapter\",\n 3 |   \"private\": true,\n 4 |   \"version\": \"0.1.0\",\n 5 |   \"type\": \"module\",\n 6 |   \"engines\": {\n 7 |     \"node\": \">=22.18\"\n 8 |   },\n 9 |   \"scripts\": {\n10 |     \"build\": \"node scripts/build.mjs\",\n11 |     \"start\": \"node dist/server.js\",\n12 |     \"verify:sdk\": \"node src/sdk-packages.js\",\n13 |     \"pretest\": \"npm run build\",\n14 |     \"test\": \"node --test test/*.test.js\",\n15 |     \"test:browser\": \"node scripts/test-monitor-browser.mjs\"\n16 |   },\n17 |   \"dependencies\": {\n18 |     \"@cline/agents\": \"0.0.93\",\n19 |     \"@cline/core\": \"0.0.93\",\n20 |     \"@cline/sdk\": \"0.0.93\"\n21 |   },\n22 |   \"devDependencies\": {\n23 |     \"@types/node\": \"24.19.2\",\n24 |     \"typescript\": \"5.9.3\"\n25 |   },\n26 |   \"exports\": {\n27 |     \"./monitor-client\": {\n28 |       \"types\": \"./dist/monitor-client.d.ts\",\n29 |       \"import\": \"./dist/monitor-client.js\"\n30 |     }\n31 |   }\n32 | }",
+          "success": true
+        },
+        {
+          "query": "/poc/project/coding-agent-node/tsconfig.json",
+          "result": "1 | {\n2 |   \"compilerOptions\": {\n3 |     \"target\": \"ES2023\", \"module\": \"NodeNext\", \"moduleResolution\": \"NodeNext\",\n4 |     \"strict\": true, \"allowJs\": true, \"checkJs\": false, \"skipLibCheck\": true,\n5 |     \"rewriteRelativeImportExtensions\": true, \"outDir\": \"dist\", \"rootDir\": \"src\",\n6 |     \"types\": [\"node\"], \"declaration\": true\n7 |   },\n8 |   \"include\": [\"src/**/*\"]\n9 | }",
+          "success": true
+        },
+        {
+          "query": "/poc/project/coding-agent-node/test/monitor-authority.test.js",
+          "result": " 1 | import test from 'node:test';\n 2 | import assert from 'node:assert/strict';\n 3 | import {createServer} from 'node:http';\n 4 | import {mkdtemp,rm} from 'node:fs/promises';\n 5 | import {tmpdir} from 'node:os';\n 6 | import {join} from 'node:path';\n 7 | import {MonitorStore,createMonitorHandler} from '../dist/monitor.js';\n 8 | \n 9 | const contract={taskId:'same-task',scope:{tenantId:'tenant',userId:'owner',runId:'same-run'},objective:{instruction:'Fixed task'}};\n10 | const at='2026-11-06T04:00:00Z';\n11 | const projection=(status='COMPLETED',revision=20)=>({source:'DURABLE_CODING_JOURNAL',taskId:contract.taskId,...contract.scope,\n12 |  status,terminal:!['CREATED','RUNNING'].includes(status),revision,updatedAt:at,endedAt:!['CREATED','RUNNING'].includes(status)?at:null,\n13 |  reasonCode:status==='BUDGET_EXCEEDED'?'DEADLINE_EXCEEDED':null,summary:'Original task reason',limitations:['One declared missing deliverable']});\n14 | \n15 | for(const status of ['COMPLETED','PARTIAL','FAILED','CANCELLED','BUDGET_EXCEEDED'])test(`Runtime ${status} remains authoritative after late progress and SDK finish`,()=>{\n16 |  const store=new MonitorStore(),id=store.start(contract,1,'NEW_SDK');\n17 |  store.event(id,{type:'MODEL_STARTED',modelCall:1});\n18 |  store.reconcileRuntime(id,projection(status));const original=store.detail(id);\n19 |  store.event(id,{type:'TOOL_STARTED',stage:'RUNNING'});store.finish(id,'FAILED','Late old attempt');\n20 |  store.reconcileRuntime(id,projection('RUNNING',2));store.reconcileRuntime(id,projection(status==='FAILED'?'COMPLETED':'FAILED',30));\n21 |  const after=store.detail(id);assert.equal(after.runtimeOutcome.status,status);assert.equal(after.finishedAt,at);\n22 |  assert.equal(after.status,original.status);assert.equal(after.authority,'RUNTIME_CONFIRMED');assert.equal(after.observedStatus,'FAILED');\n23 |  assert(after.events.length>original.events.length);assert.equal(after.models.length,1);\n24 |  assert.equal(store.start(contract,1,'NEW_SDK'),id);assert.equal(store.detail(id).runtimeOutcome.status,status);\n25 | });\n26 | \n27 | test('Runtime projection survives actual monitor recreation without erasing observations',async()=>{\n28 |  const directory=await mkdtemp(join(tmpdir(),'phase3-monitor-'));\n29 |  try{\n30 |   const first=new MonitorStore({directory}),id=first.start(contract,1,'NEW_SDK');first.event(id,{type:'MODEL_STARTED',modelCall:1});\n31 |   first.reconcileRuntime(id,projection());await first.flush();\n32 |   const second=new MonitorStore({directory});const task=second.detail(id);\n33 |   assert.equal(task.status,'COMPLETED');assert.equal(task.observedStatus,'INTERRUPTED');assert.equal(task.finishedAt,at);\n34 |   assert.equal(task.models.length,1);assert(task.events.some(e=>e.type==='MODEL_STARTED'));await second.flush();\n35 |  }finally{await rm(directory,{recursive:true,force:true});}\n36 | });\n37 | \n38 | test('wrong owner and malformed authority cannot turn an uncertain task into success',()=>{\n39 |  const store=new MonitorStore(),id=store.start(contract,1,'NEW_SDK');\n40 |  for(const change of [{userId:'other'},{runId:'other'},{taskId:'other'},{terminal:false},{revision:-1},{endedAt:null}])\n41 |   assert.throws(()=>store.reconcileRuntime(id,{...projection(),...change}),/Invalid Runtime/);\n42 |  store.runtimeUnavailable(id);assert.equal(store.detail(id).status,'RUNNING');assert.equal(store.detail(id).runtimeUnavailable,true);\n43 |  assert.equal(store.detail(id).runtimeOutcome,undefined);\n44 | });\n45 | \n46 | test('authenticated Monitor API reads same-task Runtime status and never starts an SDK session',async()=>{\n47 |  const store=new MonitorStore(),id=store.start(contract,1,'NEW_SDK'),token='m'.repeat(32);let reads=0;\n48 |  const handler=createMonitorHandler({token,store,snapshot:()=>({}),runtimeAuthority:async task=>{\n49 |   reads++;assert.equal(task.taskId,contract.taskId);return projection('BUDGET_EXCEEDED');}});\n50 |  const server=createServer(async(req,res)=>{if(!await handler(req,res)){res.writeHead(404);res.end();}});\n51 |  await new Promise(resolve=>server.listen(0,'127.0.0.1',resolve));const base=`http://127.0.0.1:${server.address().port}/v1/monitor`;\n52 |  try{\n53 |   assert.equal((await fetch(base+'/tasks')).status,401);assert.equal(reads,0);\n54 |   const headers={Authorization:'Bearer '+token};const list=await(await fetch(base+'/tasks',{headers})).json();\n55 |   assert.equal(list.items[0].status,'FAILED');assert.equal(list.items[0].runtimeOutcome.status,'BUDGET_EXCEEDED');\n56 |   const detail=await(await fetch(base+'/tasks/'+id,{headers})).json();\n57 |   assert.equal(detail.task.taskId,contract.taskId);assert.equal(detail.task.finishedAt,at);assert.equal(reads,1);\n58 |   assert.match(detail.task.error,/DEADLINE_EXCEEDED/);\n59 |  }finally{server.closeAllConnections();await new Promise(resolve=>server.close(resolve));await store.flush();}\n60 | });",
+          "success": true
+        },
+        {
+          "query": "/poc/project/coding-agent-node/test/monitor.test.js",
+          "result": "  1 | import test from 'node:test';\n  2 | import assert from 'node:assert/strict';\n  3 | import { createHash } from 'node:crypto';\n  4 | import { MonitorStore } from '../dist/monitor.js';\n  5 | import { createCodingRun as realCreateCodingRun } from '../src/runner.js';\n  6 | // Allocation is a Java callback fixture; Python results below remain branch-specific fixtures.\n  7 | const createCodingRun=(task,gateway,options)=>{\n  8 |   let version=0;const assigned=new Map();\n  9 |   return realCreateCodingRun(task,{async preparePython(_task,input){\n 10 |     if(!assigned.has(input.operationId)){\n 11 |       const scriptVersion=++version,fileName=`financial-total_20261022T000000000Z_abcdef012345_v${scriptVersion}.py`;\n 12 |       assigned.set(input.operationId,{fileName,scriptVersion,scriptPath:'/workspace/scripts/'+fileName,\n 13 |         workingDirectory:'tasks/'+['a'.repeat(16),'b'.repeat(16),'c'.repeat(16),'d'.repeat(24)].join('/')});\n 14 |     }\n 15 |     return assigned.get(input.operationId);\n 16 |   },...gateway},options);\n 17 | };\n 18 | import { createCodingServer } from '../src/server.js';\n 19 | \n 20 | const contract = {\n 21 |   schemaVersion: 'runtime_os.coding.v3', taskId: 'task', scope: { tenantId: 'tenant', userId: 'owner', runId: 'run' },\n 22 |   objective: { instruction: 'Calculate an authorized aggregate' }, inputSnapshotRef: 'input',\n 23 |   authorization: { networkPolicy: 'NONE', allowedTools: ['python_execute'], allowedSideEffects: ['CODE_EXECUTION'],\n 24 |     allowedDataRefs: [`c${'a'.repeat(63)}`, `c${'b'.repeat(63)}`] },\n 25 |   outputContract: { resultFormat: 'JSON_LINES', requiredFiles: ['rows.jsonl'] }, budget: { maxModelCalls: 3 },\n 26 |   runtimeContext: { model: { selectedModel: 'selected-by-java' }, skills: { status: 'APPLIED', fingerprint: 'approved-guidance',\n 27 |     skills: [{ skillId: 'authorized-skill' }], stages: { ANALYSIS: ['Use measured values only'] } } },\n 28 | };\n 29 | test('user-supplied source projects retain real hashes but no encoded source in operations monitoring',()=>{\n 30 |   const store=new MonitorStore();const id=store.start(contract,1,'fresh');\n 31 |   const source='# runtime_os.python.code-project.v1\\n__project_b64__ = \"cHJpdmF0ZS1jdXN0b21lci1jb2Rl\"\\n';\n 32 |   store.code(id,{operationId:'operation',fileName:'analysis.py',source,retainSource:false});\n 33 |   const detail=store.detail(id);assert.equal(detail.codeCount,1);assert.equal(detail.codes[0].sourceRetained,false);\n 34 |   assert.equal(detail.codes[0].sha256,createHash('sha256').update(source).digest('hex'));assert.equal(detail.codes[0].sourceBytes,Buffer.byteLength(source));\n 35 |   assert(!JSON.stringify(store).includes('cHJpdmF0ZS1jdXN0b21lci1jb2Rl'));assert.equal(store.source(id,detail.codes[0].id).source,undefined);\n 36 | });\n 37 | test('callback timings remain distinct from provider timings and persist only bounded metadata', () => {\n 38 |   const store = new MonitorStore();\n 39 |   const id = store.start(contract, 1, 'NEW_SDK');\n 40 |   store.event(id, { type: 'MODEL_STARTED', modelCall: 1 });\n 41 |   store.event(id, { type: 'MODEL_RESOLVED', modelCall: 1, durationMs: 120, firstTokenMs: 40 });\n 42 |   store.event(id, { type: 'MODEL_TIMING', modelCall: 1, durationMs: 150, callbackFirstEventMs: 130,\n 43 |     requestBytes: 2048, responseBytes: 512, requestHash: 'a'.repeat(64), prompt: 'PRIVATE_PROMPT', contextCodeBytes: 400, contextReportBytes: 200,\n 44 |     estimatedInputTokens: 512, softInputTokenBudget: 256, exceedsSoftBudget: true, source: 'PRIVATE_SOURCE',\n 45 |     repeatedContextBytes: 1000, avoidableRepeatedContextBytes: 120, compactionCount: 2, contextSizeBefore: 4000, contextSizeAfter: 1500 });\n 46 |   store.event(id, { type: 'MODEL_USAGE', modelCall: 1, usage: { inputTokens: 100, outputTokens: 20, cacheReadTokens: 40 } });\n 47 |   const detail = store.detail(id);\n 48 |   assert.equal(detail.models[0].durationMs, 120);\n 49 |   assert.equal(detail.models[0].callbackDurationMs, 150);\n 50 |   assert.equal(detail.models[0].firstTokenMs, 40);\n 51 |   assert.equal(detail.models[0].callbackFirstEventMs, 130);\n 52 |   assert.equal(detail.models[0].requestBytes, 2048);\n 53 |   assert.equal(detail.models[0].repeatedContextBytes, 1000);\n 54 |   assert.equal(detail.models[0].avoidableRepeatedContextBytes, 120);\n 55 |   assert.equal(detail.models[0].compactionCount, 2);\n 56 |   assert.equal(detail.models[0].usage.cacheReadTokens, 40);\n 57 |   assert.equal(detail.models[0].usage.cacheWriteTokens, null);\n 58 |   assert.doesNotMatch(JSON.stringify(detail), /PRIVATE_PROMPT/);\n 59 |   const context = detail.events.find(event => event.type === 'MODEL_TIMING');\n 60 |   assert.equal(context.contextCodeBytes, 400);\n 61 |   assert.equal(context.exceedsSoftBudget, true);\n 62 |   assert.doesNotMatch(JSON.stringify(detail), /PRIVATE_SOURCE/);\n 63 | });\n 64 | for (const skillStatus of ['APPLIED', 'DELIVERED']) test(`SDK receives ${skillStatus} Skills and configuration; code receipt references exact source`, async () => {\n 65 |   const source = '\\nprint(42)\\n'; let turn = 0, received;\n 66 |   const task = structuredClone(contract);\n 67 |   task.runtimeContext.skills.status = skillStatus;\n 68 |   task.runtimeContext.skills.skills[0].instructions = ['Original authorized methodology'];\n 69 |   const run = createCodingRun(task, {\n 70 |     reserveModel: async () => {}, settleModel: async () => {}, finish: async () => {},\n 71 |     executePython: async (_task, value) => { received = value; return { status: 'SUCCEEDED', executorStopped: true,\n 72 |       resultDatasetRef: 'result', validationRecordRef: 'validation', evidenceBundleRef: 'bundle' }; },\n 73 |   }, { attemptId: 'task:fence-3', model: { async *stream(request) {\n 74 |     assert.doesNotMatch(request.systemPrompt, /selected-by-java/);\n 75 |     assert.match(request.systemPrompt, /Runtime owns business template selection, parameter binding, data acquisition/);\n 76 |     assert.doesNotMatch(request.systemPrompt, /Runtime OS owns business interpretation/);\n 77 |     assert.match(request.systemPrompt, /Do not select or invoke business MCP templates/);\n 78 |     assert.doesNotMatch(request.systemPrompt, /analysis agent owns analytical goals, methods/);\n 79 |     assert.match(JSON.stringify(request.messages), /selected-by-java/);\n 80 |     assert.doesNotMatch(JSON.stringify(request.messages), /authorized-skill/);\n 81 |     assert.doesNotMatch(JSON.stringify(request.messages), /Original authorized methodology/);\n 82 |     assert.doesNotMatch(request.systemPrompt, /skill_read/);\n 83 |     if (++turn === 1) {\n 84 |       yield { type: 'tool-call-delta', toolCallId: 'generate-1', toolName: 'python_execute', input: { fileName: 'main.py', source } };\n 85 |       yield { type: 'finish', reason: 'tool-calls' };\n 86 |     } else { yield { type: 'text-delta', text: 'Runtime archived result' }; yield { type: 'finish', reason: 'stop' }; }\n 87 |   } } });\n 88 |   const result = await run.run();\n 89 |   assert.equal(received.source, source);\n 90 |   assert.equal(received.codeSha256, createHash('sha256').update(source).digest('hex'));\n 91 |   assert.equal(result.taskId, 'task'); assert.equal(result.attemptId, 'task:fence-3');\n 92 |   assert.equal(result.codeFiles[0].sha256, received.codeSha256);\n 93 |   assert.ok(result.codeFiles[0].artifactRef.endsWith('/code'));\n 94 |   assert.ok(run.events.some(e => e.type === 'SKILLS_AVAILABLE'));\n 95 |   assert.equal(run.events.some(e => e.type === 'SKILLS_LOADED'), false);\n 96 |   assert.equal(run.events.some(e => e.type === 'SKILLS_APPLIED'), false);\n 97 |   assert.ok(run.events.some(e => e.type === 'CODE_READY' && e.codeSha256 === received.codeSha256));\n 98 |   assert.ok(run.events.every(e => !Object.hasOwn(e, 'source') || e.source === 'NODE_CLINE'));\n 99 |   assert.equal(JSON.stringify(run.events).includes('print(42)'), false);\n100 | });\n101 | test('fast analysis finishes after a validated tool result and archives the final tool interaction', async () => {\n102 |   const next = structuredClone(contract);\n103 |   next.metadataRefs = ['runtime-coding:analysis-fast-path:v1'];\n104 |   let calls = 0, finished, checkpoint;\n105 |   const run = createCodingRun(next, { reserveModel: async () => {}, settleModel: async () => {},\n106 |     checkpoint: async (_task, value) => { checkpoint = value; }, finish: async (_task, value) => { finished = value; },\n107 |     executePython: async () => ({ status: 'SUCCEEDED', executorStopped: true, validationStatus: 'INCONCLUSIVE',\n108 |       businessValidationPassed: false, resultDatasetRef: 'result', validationRecordRef: 'validation', evidenceBundleRef: 'bundle' }),\n109 |   }, { model: { async *stream() {\n110 |     calls++; assert.equal(calls, 1, 'No confirmation/model turn is needed after verified collection');\n111 |     yield { type: 'tool-call-delta', toolCallId: 'complete-program', toolName: 'python_execute',\n112 |       input: { fileName: 'main.py', source: 'print(1)' } };\n113 |     yield { type: 'finish', reason: 'tool-calls' };\n114 |   } } });\n115 |   const result = await run.run();\n116 |   assert.equal(result.status, 'completed'); assert.equal(finished.status, 'completed'); assert.equal(calls, 1);\n117 |   assert.ok(checkpoint.messages.some(message => message.role === 'tool'));\n118 |   assert.ok(checkpoint.lastCollectedOperation);\n119 | });\n120 | \n121 | test('fast analysis keeps output-missing failures repairable and materializes audited patched code', async () => {\n122 |   const next = structuredClone(contract); next.metadataRefs = ['runtime-coding:analysis-fast-path:v1'];\n123 |   const initial = 'value = 1\\nprint(value)\\n';\n124 |   const digest = createHash('sha256').update(initial).digest('hex');\n125 |   let calls = 0, executions = 0, actual;\n126 |   const run = createCodingRun(next, { reserveModel: async () => {}, settleModel: async () => {}, finish: async () => {},\n127 |     executePython: async (_task, value) => {\n128 |       actual = value;\n129 |       if (++executions === 1) return { status: 'SUCCEEDED', executorStopped: true, codeHash: digest,\n130 |         outputStatus: 'REQUIRED_OUTPUT_MISSING', resultAvailable: false };\n131 |       return { status: 'SUCCEEDED', executorStopped: true, resultDatasetRef: 'result', validationRecordRef: 'validation', evidenceBundleRef: 'bundle' };\n132 |     },\n133 |   }, { model: { async *stream(request) {\n134 |     calls++;\n135 |     if (calls === 2) assert.match(JSON.stringify(request.messages), /\"isError\":true/);\n136 |     assert.ok(calls <= 2);\n137 |     yield { type: 'tool-call-delta', toolCallId: 'program-' + calls, toolName: 'python_execute',\n138 |       input: calls === 1 ? { fileName: 'main.py', source: initial } : { fileName: 'main.py', repair: {\n139 |         baseCodeSha256: digest, edits: [{ oldText: 'value = 1', newText: 'value = 2' }],\n140 |       } } };\n141 |     yield { type: 'finish', reason: 'tool-calls' };\n142 |   } } });\n143 |   const result = await run.run();\n144 |   assert.equal(result.status, 'completed'); assert.equal(calls, 2);\n145 |   assert.equal(actual.source, 'value = 2\\nprint(value)\\n');\n146 |   assert.equal(actual.codeSha256, createHash('sha256').update(actual.source).digest('hex'));\n147 | });\n148 | \n149 | test('reviewed analysis repairs locally and reads its scoped result before completion', async () => {\n150 |   const next = structuredClone(contract);\n151 |   next.metadataRefs = ['runtime-coding:analysis-reviewed-path:v1'];\n152 |   next.authorization.allowedTools = ['python_execute', 'artifact_read'];\n153 |   next.budget.maxModelCalls = 4;\n154 |   const initial = 'value = 1\\nraise ValueError(value)\\n';\n155 |   const digest = createHash('sha256').update(initial).digest('hex');\n156 |   let turns = 0, executions = 0, reviewed = 0, actual, finished;\n157 |   const run = createCodingRun(next, {\n158 |     reserveModel: async () => {}, settleModel: async () => {},\n159 |     finish: async (_task, value) => { finished = value; },\n160 |     executePython: async (_task, value) => {\n161 |       actual = value;\n162 |       if (++executions === 1) return { status: 'FAILED', executorStopped: true,\n163 |         technicalError: 'ValueError at program line 2', codeHash: digest };\n164 |       return { status: 'SUCCEEDED', executorStopped: true, resultDatasetRef: 'runtime-evidence:result',\n165 |         validationRecordRef: 'runtime-evidence:validation', evidenceBundleRef: 'runtime-evidence:bundle' };\n166 |     },\n167 |     readArtifact: async (_task, reference) => {\n168 |       reviewed++; assert.equal(reference, 'runtime-evidence:result');\n169 |       return { reference, complete: true, rows: [{ reportMarkdown: 'supported' }] };\n170 |     },\n171 |   }, { model: { async *stream(request) {\n172 |     turns++;\n173 |     if (turns === 1) yield { type: 'tool-call-delta', toolCallId: 'initial', toolName: 'python_execute',\n174 |       input: { fileName: 'main.py', source: initial } };\n175 |     else if (turns === 2) yield { type: 'tool-call-delta', toolCallId: 'repair', toolName: 'python_execute',\n176 |       input: { fileName: 'main.py', repair: { baseCodeSha256: digest,\n177 |         edits: [{ oldText: 'raise ValueError(value)', newText: 'print(value)' }] } } };\n178 |     else {\n179 |       assert.equal(turns, 3);\n180 |       assert.match(JSON.stringify(request.messages), /reviewedArtifact/);\n181 |       assert.match(JSON.stringify(request.messages), /supported/);\n182 |       yield { type: 'text-delta', text: 'Reviewed result is supported.' };\n183 |     }\n184 |     yield { type: 'finish', reason: turns < 3 ? 'tool-calls' : 'stop' };\n185 |   } } });\n186 |   const result = await run.run();\n187 |   assert.equal(result.status, 'completed'); assert.equal(turns, 3); assert.equal(executions, 2); assert.equal(reviewed, 1);\n188 |   assert.equal(actual.source, 'value = 1\\nprint(value)\\n');\n189 |   assert.equal(finished.operationId, actual.operationId);\n190 |   assert.ok(run.events.some(event => event.type === 'TOOL_STARTED' && event.tool === 'artifact_read'));\n191 |   assert.ok(run.events.some(event => event.type === 'TOOL_FINISHED' && event.tool === 'artifact_read'));\n192 | });\n193 | \n194 | test('native completion rejects a stale artifact and stops immediately after the latest accepted review', async () => {\n195 |   const next = structuredClone(contract);\n196 |   next.metadataRefs = ['runtime-coding:analysis-reviewed-path:v1'];\n197 |   next.authorization.allowedTools = ['python_execute', 'artifact_read']; next.budget.maxModelCalls = 4;\n198 |   let calls = 0, executions = 0;\n199 |   const run = createCodingRun(next, { async reserveModel() {}, async settleModel() {}, async finish() {},\n200 |     async executePython() { executions++; return { status: 'SUCCEEDED', executorStopped: true,\n201 |       resultDatasetRef: 'runtime-evidence:latest', validationRecordRef: 'validation', evidenceBundleRef: 'evidence' }; },\n202 |     async readArtifact(_task, reference) { return { reference, complete: true, rows: [{ reportMarkdown: 'computed' }],\n203 |       reportReferenceValidation: { valid: true } }; },\n204 |   }, { model: { async *stream(request) {\n205 |     calls++; assert.ok(calls <= 3, 'No discretionary rewrite/model turn follows an accepted artifact');\n206 |     if (calls === 1) yield { type: 'tool-call-delta', toolCallId: 'program', toolName: 'python_execute', input: { source: 'print(1)' } };\n207 |     else {\n208 |       if (calls === 3) assert.match(JSON.stringify(request.messages), /\"isError\":true/);\n209 |       yield { type: 'tool-call-delta', toolCallId: 'review-' + calls, toolName: 'artifact_read',\n210 |         input: { reference: calls === 2 ? 'runtime-evidence:stale' : 'runtime-evidence:latest' } };\n211 |     }\n212 |     yield { type: 'finish', reason: 'tool-calls' };\n213 |   } } });\n214 |   assert.equal((await run.run()).status, 'completed'); assert.equal(calls, 3); assert.equal(executions, 1);\n215 | });\n216 | \n217 | test('a complete artifact cannot certify a Python receipt whose result validation failed', async () => {\n218 |   const next = structuredClone(contract);\n219 |   next.metadataRefs = ['runtime-coding:analysis-reviewed-path:v1'];\n220 |   next.authorization.allowedTools = ['python_execute', 'artifact_read']; next.budget.maxModelCalls = 2;\n221 |   let calls = 0;\n222 |   const run = createCodingRun(next, { async reserveModel() {}, async settleModel() {}, async finish() {},\n223 |     async executePython() { return { status: 'SUCCEEDED', executorStopped: true, resultAvailable: false,\n224 |       resultDatasetRef: 'runtime-evidence:invalid', validationStatus: 'FAILED', validationRecordRef: 'validation', evidenceBundleRef: 'evidence' }; },\n225 |     async readArtifact(_task, reference) { return { reference, complete: true, reportReferenceValidation: { valid: true } }; },\n226 |   }, { model: { async *stream() {\n227 |     if (++calls === 1) yield { type: 'tool-call-delta', toolCallId: 'program', toolName: 'python_execute', input: { source: 'print(1)' } };\n228 |     else yield { type: 'tool-call-delta', toolCallId: 'review', toolName: 'artifact_read', input: { reference: 'runtime-evidence:invalid' } };\n229 |     yield { type: 'finish', reason: 'tool-calls' };\n230 |   } } });\n231 |   assert.equal((await run.run()).status, 'failed');\n232 | });\n233 | \n234 | test('report citation failures return to the Cline repair loop before task completion', async () => {\n235 |   const next = structuredClone(contract);\n236 |   next.metadataRefs = ['runtime-coding:analysis-reviewed-path:v1'];\n237 |   next.authorization.allowedTools = ['python_execute', 'artifact_read'];\n238 |   next.budget.maxModelCalls = 6;\n239 |   let turns = 0, executions = 0, finished;\n240 |   const run = createCodingRun(next, {\n241 |     reserveModel() {}, settleModel() {}, finish(_task, value) { finished = value; },\n242 |     executePython() { executions++; return { status: 'SUCCEEDED', executorStopped: true,\n243 |       resultDatasetRef: 'runtime-evidence:result', validationRecordRef: 'validation', evidenceBundleRef: 'bundle' }; },\n244 |     readArtifact() { return { reference: 'runtime-evidence:result', rows: [{ reportMarkdown: 'report' }], complete: true,\n245 |       reportReferenceValidation: { valid: executions === 2, repairRequired: executions !== 2,\n246 |         authorizedDatasetReferences: ['exact-source#binding-1'] } }; },\n247 |   }, { model: { async *stream(request) {\n248 |     turns++;\n249 |     if (turns === 3) assert.match(JSON.stringify(request.messages), /exact-source#binding-1/);\n250 |     if (turns === 1 || turns === 3) yield { type: 'tool-call-delta', toolCallId: `code-${turns}`,\n251 |       toolName: 'python_execute', input: { fileName: 'main.py', source: `# program ${turns}` } };\n252 |     else if (turns === 2 || turns === 4) yield { type: 'tool-call-delta', toolCallId: `review-${turns}`,\n253 |       toolName: 'artifact_read', input: { reference: 'runtime-evidence:result' } };\n254 |     else yield { type: 'text-delta', text: 'Repaired exact source references.' };\n255 |     yield { type: 'finish', reason: turns < 5 ? 'tool-calls' : 'stop' };\n256 |   } } });\n257 |   assert.equal((await run.run()).status, 'completed');\n258 |   assert.equal(executions, 2); assert.equal(finished.status, 'completed');\n259 |   assert.ok(finished.operationId);\n260 | });\n261 | \n262 | test('a model cannot finish successfully after a rejected report reference check', async () => {\n263 |   const next = structuredClone(contract);\n264 |   next.metadataRefs = ['runtime-coding:analysis-reviewed-path:v1'];\n265 |   next.authorization.allowedTools = ['python_execute', 'artifact_read'];\n266 |   let turns = 0, finished;\n267 |   const run = createCodingRun(next, {\n268 |     reserveModel() {}, settleModel() {}, finish(_task, value) { finished = value; },\n269 |     executePython() { return { status: 'SUCCEEDED', executorStopped: true,\n270 |       resultDatasetRef: 'runtime-evidence:result', validationRecordRef: 'validation', evidenceBundleRef: 'bundle' }; },\n271 |     readArtifact() { return { reportReferenceValidation: { valid: false, repairRequired: true } }; },\n272 |   }, { model: { async *stream() {\n273 |     if (++turns === 1) yield { type: 'tool-call-delta', toolCallId: 'code', toolName: 'python_execute',\n274 |       input: { fileName: 'main.py', source: '# invalid report references' } };\n275 |     else if (turns === 2) yield { type: 'tool-call-delta', toolCallId: 'review', toolName: 'artifact_read',\n276 |       input: { reference: 'runtime-evidence:result' } };\n277 |     else yield { type: 'text-delta', text: 'Finish without repairing.' };\n278 |     yield { type: 'finish', reason: turns < 3 ? 'tool-calls' : 'stop' };\n279 |   } } });\n280 |   const result = await run.run().catch(error => ({ status: 'failed', error }));\n281 |   assert.notEqual(result.status, 'completed');\n282 |   assert.notEqual(finished?.status, 'completed');\n283 | });\n284 | \n285 | test('versioned file inputs negotiate format before SDK/model admission and keep output JSONL', async () => {\n286 |   for (const [format, mode] of ['PARQUET', 'CSV'].flatMap(format => [[format, undefined], [format, 'TEXT_OR_CODE']])) {\n287 |     let prompt, metadataReads = 0;\n288 |     const next = structuredClone(contract);\n289 |     next.runtimeContext.analysisResultMode = mode;\n290 |     next.runtimeContext.inputFiles = { schemaVersion: 'runtime_os.coding.input.v1', format, delivery: 'SHARED_DIRECTORY',\n291 |       manifestFileId: next.authorization.allowedDataRefs[0], manifestSha256: 'a'.repeat(64) };\n292 |     const run = createCodingRun(next, { reserveModel: async () => {}, settleModel: async () => {},\n293 |       readInputContext: async () => { metadataReads++; return { columns: ['metadata-column-from-java'] }; },\n294 |       executePython: async () => {}, finish: async () => {} }, { model: { async *stream(request) {\n295 |         prompt = request.tools.find(tool => tool.name === 'python_execute').description;\n296 |         assert.match(JSON.stringify(request.messages), /metadata-column-from-java/);\n297 |         yield { type: 'text-delta', text: 'No execution requested' }; yield { type: 'finish', reason: 'stop' };\n298 |       } } });\n299 |     await run.run(); assert.equal(metadataReads, 1); assert.match(prompt, /ordered Parquet\\/CSV parts|ordered parts|Parquet presence columns/);\n300 |     assert.match(prompt, /map storage columns to logical names/i);\n301 |     assert.match(prompt, /file ID directories are siblings/);\n302 |     assert.match(prompt, /exact files\\[\\]\\.virtualPath/);\n303 |     assert.match(prompt, /never select raw Parquet columns by logical names/);\n304 |     assert.match(prompt, /if schema maps datasetReference to c0, read c0/);\n305 |     next.runtimeContext.inputFiles.schemaVersion = 'unnegotiated';\n306 |     assert.throws(() => createCodingRun(next, {}), /VERSION_UNSUPPORTED/);\n307 |   }\n308 | });\n309 | test('only explicitly declared bounded input observations reach the coding model', async () => {\n310 |   for (const declared of [false, true]) {\n311 |     const next = structuredClone(contract);\n312 |     next.metadataRefs = declared ? ['runtime-coding:bounded-input-observation:v1'] : [];\n313 |     next.runtimeContext.inputFiles = { schemaVersion: 'runtime_os.coding.input.v1', format: 'PARQUET',\n314 |       delivery: 'SHARED_DIRECTORY', manifestFileId: next.authorization.allowedDataRefs[0], manifestSha256: 'a'.repeat(64) };\n315 |     let calls = 0;\n316 |     const run = createCodingRun(next, { reserveModel: async () => {}, settleModel: async () => {},\n317 |       executePython: async () => {}, finish: async () => {}, readInputContext: async () => ({\n318 |         analysisPreview: { complete: false, samples: [{ rowJsonPrefix: 'authorized-format-prefix' }] },\n319 |       }) }, { model: { async *stream(request) {\n320 |         calls++; assert.match(JSON.stringify(request.messages), /authorized-format-prefix/);\n321 |         assert.match(request.systemPrompt, /Runtime OS owns business interpretation, classification, task plans/);\n322 |         yield { type: 'text-delta', text: 'Analysis agent owns the result' }; yield { type: 'finish', reason: 'stop' };\n323 |       } } });\n324 |     if (declared) { await run.run(); assert.equal(calls, 1); }\n325 |     else { await assert.rejects(run.run(), /not declared/); assert.equal(calls, 0); }\n326 |   }\n327 | });\n328 | \n329 | test('cancellation during input preparation cannot start a late model loop', async () => {\n330 |   const next = structuredClone(contract);\n331 |   next.runtimeContext.inputFiles = { schemaVersion: 'runtime_os.coding.input.v1', format: 'PARQUET',\n332 |     delivery: 'SHARED_DIRECTORY', manifestFileId: next.authorization.allowedDataRefs[0], manifestSha256: 'a'.repeat(64) };\n333 |   let release, signal, modelCalls = 0, finish;\n334 |   const run = createCodingRun(next, {\n335 |     reserveModel: async () => {}, executePython: async () => {},\n336 |     finish: async (_contract, outcome) => { finish = outcome; },\n337 |     readInputContext: async (_contract, value) => {\n338 |       signal = value;\n339 |       return new Promise(resolve => { release = resolve; });\n340 |     },\n341 |   }, { model: { async *stream() { modelCalls++; yield { type: 'finish', reason: 'stop' }; } } });\n342 |   const pending = run.run();\n343 |   run.abort('Runtime cancellation');\n344 |   assert.equal(signal.aborted, true);\n345 |   release({ columns: [] });\n346 |   await assert.rejects(pending, /Runtime cancellation/);\n347 |   assert.equal(modelCalls, 0);\n348 |   assert.equal(finish.status, 'aborted');\n349 |   assert.equal(run.events.some(event => event.type === 'CONTEXT_READY'), false);\n350 | });\n351 | \n352 | test('failed input preparation records a failed Runtime finish without admitting a model', async () => {\n353 |   const next = structuredClone(contract);\n354 |   next.runtimeContext.inputFiles = { schemaVersion: 'runtime_os.coding.input.v1', format: 'CSV', delivery: 'SHARED_DIRECTORY',\n355 |     manifestFileId: next.authorization.allowedDataRefs[0], manifestSha256: 'a'.repeat(64) };\n356 |   let finish, modelCalls = 0;\n357 |   const run = createCodingRun(next, { reserveModel: async () => {}, executePython: async () => {},\n358 |     readInputContext: async () => { throw new Error('Metadata unavailable'); },\n359 |     finish: async (_contract, outcome) => { finish = outcome; },\n360 |   }, { model: { async *stream() { modelCalls++; yield { type: 'finish', reason: 'stop' }; } } });\n361 |   await assert.rejects(run.run(), /Metadata unavailable/);\n362 |   assert.equal(finish.status, 'failed'); assert.equal(finish.iterations, 0); assert.equal(modelCalls, 0);\n363 | });\n364 | \n365 | test('cancellation while persisting context events cannot be reset by Agent.run', async () => {\n366 |   let release, entered, finish, modelCalls = 0;\n367 |   const started = new Promise(resolve => { entered = resolve; });\n368 |   const run = createCodingRun(contract, { reserveModel: async () => {}, executePython: async () => {},\n369 |     event: async event => {\n370 |       if (event.type === 'CONTEXT_READY') { entered(); await new Promise(resolve => { release = resolve; }); }\n371 |     },\n372 |     finish: async (_contract, outcome) => { finish = outcome; },\n373 |   }, { model: { async *stream() { modelCalls++; yield { type: 'finish', reason: 'stop' }; } } });\n374 |   const pending = run.run(); await started;\n375 |   run.abort('Runtime cancellation'); release();\n376 |   await assert.rejects(pending, /Runtime cancellation/);\n377 |   assert.equal(finish.status, 'aborted'); assert.equal(modelCalls, 0);\n378 | });\n379 | \n380 | test('worker graceful shutdown cancels active SDK execution and records finish before exiting', async () => {\n381 |   const secret = '0123456789abcdef0123456789abcdef';\n382 |   let entered, stopped = false;\n383 |   const started = new Promise(resolve => { entered = resolve; });\n384 |   const server = createCodingServer({ secret, callbackUrl: 'http://localhost:8080',\n385 |     modelFactory: () => ({ async *stream(request) {\n386 |       entered();\n387 |       await new Promise(resolve => { if (request.signal.aborted) resolve(); else request.signal.addEventListener('abort', resolve, { once: true }); });\n388 |       yield { type: 'finish', reason: 'stop' };\n389 |     } }),\n390 |     gatewayFactory: () => ({ reserveModel: async () => {}, settleModel: async () => {},\n391 |       executePython: async () => {}, finish: async () => { stopped = true; } }),\n392 |   });\n393 |   await new Promise(resolve => server.listen(0, '127.0.0.1', resolve));\n394 |   const url = `http://127.0.0.1:${server.address().port}`;\n395 |   const response = await fetch(`${url}/v1/runs`, { method: 'POST', headers: { authorization: `Bearer ${secret}` },\n396 |     body: JSON.stringify({ contract, contractHash: 'a'.repeat(64), fencingToken: 1 }) });\n397 |   assert.equal(response.status, 202); await response.json(); await started;\n398 |   await server.shutdown(2000);\n399 |   assert.equal(server.listening, false); assert.equal(stopped, true);\n400 | });",
+          "success": true
+        }
+      ],
+      "durationMs": 25
+    }
+  },
+  {
+    "eventId": "100",
+    "timestamp": "2026-11-08T01:16:37.592Z",
+    "transportEventType": "tool.completed",
+    "normalizedOutcome": "SUCCEEDED",
+    "native": {
+      "type": "content_end",
+      "contentType": "tool",
+      "toolName": "read_files",
+      "toolCallId": "call_f991bf44e867465686194c07",
+      "output": [
+        {
+          "query": "/poc/project/coding-agent-node/README.md",
+          "result": " 1 | # Coding Agent Node\n 2 | \n 3 | 独立部署的 Cline SDK 执行组件，内置 TypeScript 只读监控 API 与浏览器控制台。页面由 Node 自身提供，不依赖 Chatchat 前端或 Java Web 页面。\n 4 | \n 5 | 组件仍通过既有 Runtime 回调协议取得模型、工具权限、预算和执行回执。Node 不自行连接业务数据库、模型供应商或 Docker；对任务执行及结果准入的最终判断由 Runtime 管理。\n 6 | \n 7 | 镜像默认交付 `python-data-analysis`（1.3.0）和 `python-code-development`（1.0.0）。原始包位于 `skills/`，镜像提供 `.cline/skills` 发现链接；裸 Agent 由现有适配器通过同一个 `skill_read` 按需加载，不依赖启动后联网安装。动态技能仍来自当前 Agent 的 Runtime 任务契约。内置 ID/名称被保留，同名动态包会报告冲突而不会覆盖内置版本；每个 Agent 可通过 `workflowConfig.disabledBuiltinSkillIds` 禁用内置能力。技能不扩展数据、执行或网络权限。[源码审查与传递机制](../docs/cline-agent-skills/01-source-audit.md)记录了加载路径、版本和任务快照规则。\n 8 | \n 9 | 文件分析使用 SDK 原生 basic 上下文压缩。软输入额度取任务累计 Token 预算与模型调用次数之比，并服从已知模型输入上限；累计预算保持不变。压缩保留原始授权上下文，并补回最新版本程序及完整的 Java 归档报告行，供下一轮复核。旧报告不能替代最新引用，来源校验失败和业务勾稽失败均原样保留；此投影不授予额外读取或执行权限。\n10 | \n11 | 工作区代码生成的可选快速路径复用同一 SDK Agent、原生完成工具和编辑器。Java 通过有界快照选择策略；失败在当前会话按源码 Hash 局部修复，保留其他文件并重新解析。默认关闭，不影响已有契约。[配置示例](../config/coding-workspace-performance.example.yml)、[实施依据](../docs/cline-codegen-performance-analysis-20261026.md)及[性能与验证报告](../docs/cline-codegen-performance-results-20261026.md)说明了实际测量范围。\n12 | \n13 | ## 构建与运行\n14 | \n15 | 使用 Node 24 LTS 与 npm：\n16 | \n17 | ```sh\n18 | npm ci\n19 | npm run verify:sdk\n20 | npm run build\n21 | npm test\n22 | npm start\n23 | ```\n24 | \n25 | `src/server.js`、`runner.js` 保持已有执行协议；新增监控后端、前端及客户端均使用 TypeScript。编译产物位于 `dist/`；Docker 多阶段构建只保留运行依赖与产物。浏览器验证命令 `npm run test:browser` 使用仓库已有 Playwright / Edge；`CHATCHAT_BROWSER_PATH` 可指定浏览器路径。\n26 | \n27 | 金融参考代码另用 `python test/financial-methods.test.py` 验证，需在已有 PyArrow 的 Python 环境运行。测试只使用合成数据，直接提取打包 Markdown 中的示例代码；不会连接业务数据源。部署验收在现有 Python Sandbox 镜像中使用断网、只读及 UID1000/GID32101 运行，记录见 [参考函数测试](../docs/cline-agent-skills/financial-recipes-tests.json)。这组测试验证参考函数，不认证模型生成的任意程序或客户业务口径。\n28 | \n29 | 五个 Cline 包均作为生产依赖显式锁定在 `0.0.93`：`@cline/sdk`、`@cline/core`、`@cline/agents`、`@cline/llms`、`@cline/shared`。SDK 入口依赖 core，core 依赖另外三个包；锁文件固定实际依赖和完整性。镜像构建与服务启动会实际导入五包并核对版本，失败时不进入就绪状态；已验证版本在受保护的 `/healthz` 中返回。`verify:sdk` 可独立执行。Docker 在 Node 24 Linux 内先 `npm ci --ignore-scripts`、编译，再 `npm prune --omit=dev --ignore-scripts`；独立生产依赖安装也可用 `npm ci --omit=dev --ignore-scripts`。离线构建必须更新生产 node_modules，不能继续复制缺包的旧目录。\n30 | \n31 | 包的部署使相应 API 可供后续功能按需集成；现有分析继续调用已授权的 Agent 与 Runtime 回调工具，安装过程不会创建 core session、启动 hub 或自动注册宿主文件/命令工具。\n32 | \n33 | 环境变量：\n34 | \n35 | | 变量 | 用途 |\n36 | | --- | --- |\n37 | | `RUNTIME_CODING_HOST` / `RUNTIME_CODING_PORT` | 监听地址，默认 `127.0.0.1:8791`；Docker 默认 `0.0.0.0:3100` |\n38 | | `RUNTIME_CODING_CALLBACK_URL` | Runtime 回调 origin，必须为显式允许的内部 HTTP 服务 |\n39 | | `RUNTIME_CODING_ALLOWED_CALLBACK_HOSTS` | 回调主机名白名单，逗号分隔 |\n40 | | `RUNTIME_CODING_SHARED_SECRET_FILE` | 原有执行协议共享密钥文件 |\n41 | | `RUNTIME_CODING_MONITOR_TOKEN_FILE` | 独立只读监控凭据文件，至少 32 字符，禁止与执行密钥相同 |\n42 | | `RUNTIME_CODING_MONITOR_TOKEN` | 本地开发可改用环境变量；生产建议文件挂载 |\n43 | | `RUNTIME_CODING_MONITOR_DIRECTORY` | 历史目录；不设置时仅保留内存，页面明确显示 |\n44 | | `RUNTIME_CODING_MONITOR_SECURE_COOKIE` | HTTPS 入口设为 `true`，浏览器会话添加 Secure |\n45 | | `RUNTIME_CODING_CALLBACK_TIMEOUT_MS` | 回调超时，最大 300000ms；仍受 Runtime 任务截止时间约束 |\n46 | \n47 | 使用独立 `compose.yaml` 时，先提供文件凭据和回调环境变量，再执行 `docker compose up -d --build`。凭据文件须允许容器 UID 1000 读取；自备 bind 目录须允许 UID 1000 写入。命名卷初始权限由镜像目录设置，整个进程仍以非 root 用户运行。控制台地址为 `/monitor/`。\n48 | \n49 | ## 监控内容\n50 | \n51 | - 节点就绪/排空、OS/架构、Node/SDK/构建版本、运行时长、进程内存、CPU 累计计时、会话容量。\n52 | - 按状态、任务、Run ID、目标、租户搜索并分页的任务历史；执行阶段、期限、fencing token、恢复模式。\n53 | - Python 和 workspace proposal 的真实代码版本、原始字节 SHA-256、操作 ID 与源文件。工作区候选代码不代表已经通过校验或写入用户项目。\n54 | - 配置模型与实际返回模型、调用开始/结束、耗时、输入/输出 Tokens、成本。未收到用量显示未取得，不能视为免费或零用量。\n55 | - Skills 配置列表、指纹、加载及逐轮应用次数。应用表示注入上下文，不能证明模型遵循了指导。\n56 | - 带全局递增游标的事件、断线后保留上次页面、自动恢复刷新；后台页签暂停轮询。\n57 | \n58 | 监控在 SDK 事件产生时记录，不依赖 Java 回调成功。持久化失败不会改变执行权限或重放任务；页面显示存储异常。未归档原始数据、模型提示词、私有检查点、原始 stdout/stderr、供应商凭据。\n59 | \n60 | ## 历史与重启语义\n61 | \n62 | 默认保留 256 个任务、每任务 512 个事件、64 个代码版本元信息，源代码总量 8 MiB、每文件最多 256000 字节。旧任务和源代码逐步淘汰。任务有 tenant/user/run/task/fence 完整身份生成的观察 ID，不会因为不同租户或执行代次同名而覆盖。\n63 | \n64 | 历史文件为 `observations.json`，异步串行、同目录原子替换，写入合并间隔 150ms，正常关闭执行 flush。进程突然退出可能丢失最近尚未刷盘的观测，此日志不是执行账本。Node 重启后，之前 RUNNING 的任务标为 `INTERRUPTED`，`reconciliationRequired=true`，未知模型调用标为 UNKNOWN；绝不声称进程或供应商已经停止，也不自动重放。持久化目录中的代码可能包含业务逻辑，按运维数据保护。\n65 | \n66 | ## 对其他应用提供的 API\n67 | \n68 | 所有数据接口使用独立凭据：`Authorization: Bearer <MONITOR_TOKEN>`。该凭据属于节点运维角色，可查看该节点所有租户的观测，不应下发给终端租户用户。租户级产品需由上层服务鉴权过滤。浏览器使用同源 JSON 登录换取 8 小时 HttpOnly / SameSite=Strict 会话，凭据不放 localStorage、URL 或日志。默认不开放 CORS。`/monitor/` 静态壳可直接打开，运行数据始终需要认证；未配置监控凭据时 API 返回 503。\n69 | \n70 | | GET 路径 | 返回 |\n71 | | --- | --- |\n72 | | `/v1/monitor/node` | `coding_agent.monitor.v1` 节点快照及保留策略 |\n73 | | `/v1/monitor/tasks?status=RUNNING&q=...&offset=0&limit=20` | 任务摘要分页，limit 1–100 |\n74 | | `/v1/monitor/tasks/{id}` | 任务详情，不包含源代码正文 |\n75 | | `/v1/monitor/tasks/{id}/events?after=0&limit=100` | 游标分页，limit 1–200，`nextCursor` / `hasMore` / `truncated` / `earliestCursor` |\n76 | | `/v1/monitor/tasks/{id}/models` | 每次调用的已观测回执 |\n77 | | `/v1/monitor/tasks/{id}/skills` | 配置、加载和应用记录 |\n78 | | `/v1/monitor/tasks/{id}/codes` | 代码版本元信息 |\n79 | | `/v1/monitor/tasks/{id}/codes/{codeId}` | 单个代码版本原文；正文淘汰返回 410 并保留哈希元信息 |\n80 | | `/v1/monitor/openapi.json` | 接口发现描述 |\n81 | \n82 | `{id}` 是任务摘要中的观察 ID，并非业务 taskId。不存在或已淘汰的任务返回 404。`POST /monitor/session {\"token\":\"...\"}` 登录，`POST /monitor/logout {}` 清理浏览器会话。其余监控写操作返回 405。已有 `/v1/runs`、`/v1/runs/get`、`/v1/runs/cancel` 执行协议继续使用原执行密钥，禁止经公共代理暴露。\n83 | \n84 | 提供可复用 TypeScript 客户端与类型：\n85 | \n86 | ```ts\n87 | import { createMonitorClient } from './dist/monitor-client.js';\n88 | \n89 | // 在调用方服务端执行，token 从其 secret manager 读取。\n90 | const node = createMonitorClient({ baseUrl: 'http://coding-agent-node:3100', token });\n91 | const health = await node.node();\n92 | const tasks = await node.tasks({ status: 'RUNNING', limit: 20 });\n93 | if (tasks.items[0]) {\n94 |   const events = await node.events(tasks.items[0].id, 0, 100);\n95 |   // events.hasMore 时，用 nextCursor 继续；truncated 为 true 表示早期历史已淘汰。\n96 | }\n97 | ```\n98 | \n99 | 建议 3–5 秒轮询，设置超时并保留最后成功快照。API 数据属于 `NODE_OBSERVATION_ONLY`，不应作为重试、扣费、停止证明或业务结果准入依据。入口应走反向代理的 `/monitor` 与 `/v1/monitor/` 白名单；HTTPS 时启用 Secure Cookie，执行接口保留在 Runtime 内网。",
+          "success": true
+        },
+        {
+          "query": "/poc/project/coding-agent-node/scripts/build.mjs",
+          "result": " 1 | import { execFileSync } from 'node:child_process';\n 2 | import { copyFileSync, mkdirSync, rmSync } from 'node:fs';\n 3 | // Retired custom loaders must not survive an incremental TypeScript build.\n 4 | for (const name of ['skills', 'skill-disclosure']) for (const extension of ['js', 'd.ts'])\n 5 |   rmSync(`dist/${name}.${extension}`, { force: true });\n 6 | for (const project of ['tsconfig.json', 'tsconfig.web.json'])\n 7 |   execFileSync(process.execPath, ['node_modules/typescript/bin/tsc', '-p', project], { stdio: 'inherit' });\n 8 | mkdirSync('dist/public', { recursive: true });\n 9 | for (const file of ['index.html', 'style.css']) copyFileSync(`web/${file}`, `dist/public/${file}`);\n10 | copyFileSync('dist/client/web/main.js', 'dist/public/app.js');\n11 | copyFileSync('dist/client/web/python-diagnostics.js', 'dist/public/python-diagnostics.js');",
+          "success": true
+        }
+      ],
+      "durationMs": 28
+    }
+  },
+  {
+    "eventId": "211",
+    "timestamp": "2026-11-08T01:16:47.657Z",
+    "transportEventType": "tool.completed",
+    "normalizedOutcome": "SUCCEEDED",
+    "native": {
+      "type": "content_end",
+      "contentType": "tool",
+      "toolName": "editor",
+      "toolCallId": "call_2a9f3dd6d0884bb2a64e6228",
+      "output": {
+        "query": "edit:/poc/project/coding-agent-node/src/monitor-types.ts",
+        "result": "Edited /poc/project/coding-agent-node/src/monitor-types.ts\n```diff\n+76: /** Query parameters accepted by `MonitorClient.tasks`. Undefined fields are omitted. */\n+77: export interface MonitorTasksQuery {\n+78:   status?: TaskState;\n+79:   q?: string;\n+80:   offset?: number;\n+81:   limit?: number;\n+82: }\n+83: \n+84: /** Parameters accepted by `MonitorClient.events`. */\n+85: export interface MonitorEventsQuery {\n+86:   after?: number;\n+87:   limit?: number;\n+88: }\n+89: \n```",
+        "success": true
+      },
+      "durationMs": 28
+    }
+  },
+  {
+    "eventId": "238",
+    "timestamp": "2026-11-08T01:17:17.866Z",
+    "transportEventType": "tool.completed",
+    "normalizedOutcome": "SUCCEEDED",
+    "native": {
+      "type": "content_end",
+      "contentType": "tool",
+      "toolName": "editor",
+      "toolCallId": "call_3b384cc6819445688658b4c0",
+      "output": {
+        "query": "edit:/poc/project/coding-agent-node/src/monitor-client.ts",
+        "result": "Edited /poc/project/coding-agent-node/src/monitor-client.ts\n```diff\n-1: import type { CodeVersion, ModelCall, MonitorEvent, NodeSnapshot, TaskDetail, TaskPage, TaskState } from './monitor-types.ts';\n-2: \n-3: /** Server-side SDK. Keep the operator token on your application server. */\n-4: export function createMonitorClient(options: { baseUrl: string; token: string; fetch?: typeof fetch; timeoutMs?: number }) {\n-5:   const base = options.baseUrl.replace(/\\/$/, '');\n-6:   const transport = options.fetch ?? fetch;\n-7:   async function get<T>(path: string): Promise<T> {\n-8:     const response = await transport(`${base}/v1/monitor${path}`, {\n-9:       headers: { authorization: `Bearer ${options.token}` }, signal: AbortSignal.timeout(options.timeoutMs ?? 10000),\n-10:       redirect: 'error', cache: 'no-store',\n-11:     });\n-12:     if (!response.ok) throw Object.assign(new Error(`Node monitor returned HTTP ${response.status}`), { status: response.status });\n-13:     return await response.json() as T;\n-14:   }\n-15:   const id = (value: string) => {\n-16:     if (!/^[a-f0-9]{64}$/.test(value)) throw new TypeError('A monitor observation ID is required');\n-17:     return value;\n-18:   };\n-19:   return {\n-20:     node: () => get<NodeSnapshot>('/node'),\n-21:     tasks: (query: { status?: TaskState; q?: string; offset?: number; limit?: number } = {}) =>\n-22:       get<TaskPage>(`/tasks?${new URLSearchParams(Object.entries(query).map(([key, value]) => [key, String(value)]))}`),\n-23:     task: (taskId: string) => get<{ schemaVersion: string; task: TaskDetail }>(`/tasks/${id(taskId)}`),\n-24:     events: (taskId: string, after = 0, limit = 100) =>\n-25:       get<{ schemaVersion: string; items: MonitorEvent[]; nextCursor: number; hasMore: boolean; truncated: boolean; earliestCursor: number | null }>(`/tasks/${id(taskId)}/events?after=${after}&limit=${limit}`),\n+1: import type { CodeVersion, ModelCall, MonitorEvent, MonitorEventsQuery, MonitorTasksQuery, NodeSnapshot, TaskDetail, TaskPage } from './monitor-types.ts';\n+2: \n+3: const isSafeInteger = (value: unknown): value is number =>\n+4:   typeof value === 'number' && Number.isFinite(value) && Number.isInteger(value) && Math.abs(value) <= Number.MAX_SAFE_INTEGER;\n+5: \n+6: const requireNonNegativeSafeInteger = (name: string, value: unknown): number => {\n+7:   if (!isSafeInteger(value)) throw new TypeError(`${name} must be a non-negative safe integer`);\n+8:   if ((value as number) < 0) throw new TypeError(`${name} must be a non-negative safe integer`);\n+9:   return value as number;\n+10: };\n+11: \n+12: const requireSafeIntegerInRange = (name: string, value: unknown, min: number, max: number): number => {\n+13:   if (!isSafeInteger(value)) throw new TypeError(`${name} must be a safe integer between ${min} and ${max}`);\n+14:   if ((value as number) < min || (value as number) > max) throw new TypeError(`${name} must be a safe integer between ${min} and ${max}`);\n+15:   return value as number;\n+16: };\n+17: \n+18: /** Server-side SDK. Keep the operator token on your application server. */\n+19: export function createMonitorClient(options: { baseUrl: string; token: string; fetch?: typeof fetch; timeoutMs?: number }) {\n+20:   const base = options.baseUrl.replace(/\\/+$/, '');\n+21:   const transport = options.fetch ?? fetch;\n+22:   async function get<T>(path: string): Promise<T> {\n+23:     const response = await transport(`${base}/v1/monitor${path}`, {\n+24:       headers: { authorization: `Bearer ${options.token}` }, signal: AbortSignal.timeout(options.timeoutMs ?? 10000),\n+25:       redirect: 'error', cache: 'no-store',\n+26:     });\n+27:     if (!response.ok) throw Object.assign(new Error(`Node monitor returned HTTP ${response.status}`), { status: response.status });\n+28:     return await response.json() as T;\n+29:   }\n+30:   const id = (value: string) => {\n+31:     if (!/^[a-f0-9]{64}$/.test(value)) throw new TypeError('A monitor observation ID is required');\n+32:     return value;\n+33:   };\n+34:   return {\n+35:     node: () => get<NodeSnapshot>('/node'),\n+36:     tasks: (query: MonitorTasksQuery = {}) => {\n+37:       if (query.offset !== undefined) requireNonNegativeSafeInteger('offset', query.offset);\n+38:       if (query.limit !== undefined) requireSafeIntegerInRange('limit', query.limit, 1, 500);\n+39:       const params = new URLSearchParams();\n+40:       if (query.status !== undefined) params.set('status', String(query.status));\n+41:       if (query.q !== undefined) params.set('q', query.q);\n+42:       if (query.offset !== undefined) params.set('offset', String(query.offset));\n+43:       if (query.limit !== undefined) params.set('limit', String(query.limit));\n+44:       const suffix = params.toString();\n+45:       return get<TaskPage>(suffix ? `/tasks?${suffix}` : '/tasks');\n+46:     },\n+47:     task: (taskId: string) => get<{ schemaVersion: string; task: TaskDetail }>(`/tasks/${id(taskId)}`),\n+48:     events: (taskId: string, query: MonitorEventsQuery = {}) => {\n+49:       const after = query.after !== undefined ? requireNonNegativeSafeInteger('after', query.after) : 0;\n+50:       const limit = query.limit !== undefined ? requireSafeIntegerInRange('limit', query.limit, 1, 1000) : 100;\n+51:       return get<{ schemaVersion: string; items: MonitorEvent[]; nextCursor: number; hasMore: boolean; truncated: boolean; earliestCursor: number | null }>(`/tasks/${id(taskId)}/events?after=${after}&limit=${limit}`);\n+52:     },\n```",
+        "success": true
+      },
+      "durationMs": 34
+    }
+  },
+  {
+    "eventId": "291",
+    "timestamp": "2026-11-08T01:17:25.938Z",
+    "transportEventType": "tool.completed",
+    "normalizedOutcome": "SUCCEEDED",
+    "native": {
+      "type": "content_end",
+      "contentType": "tool",
+      "toolName": "editor",
+      "toolCallId": "call_45850211c77942168309ce54",
+      "output": {
+        "query": "edit:/poc/project/coding-agent-node/src/monitor-client.ts",
+        "result": "Edited /poc/project/coding-agent-node/src/monitor-client.ts\n```diff\n-48:     events: (taskId: string, query: MonitorEventsQuery = {}) => {\n-49:       const after = query.after !== undefined ? requireNonNegativeSafeInteger('after', query.after) : 0;\n-50:       const limit = query.limit !== undefined ? requireSafeIntegerInRange('limit', query.limit, 1, 1000) : 100;\n+48:     events: (taskId: string, after: number = 0, limit: number = 100) => {\n+49:       requireNonNegativeSafeInteger('after', after);\n+50:       requireSafeIntegerInRange('limit', limit, 1, 1000);\n```",
+        "success": true
+      },
+      "durationMs": 31
+    }
+  },
+  {
+    "eventId": "373",
+    "timestamp": "2026-11-08T01:17:32.993Z",
+    "transportEventType": "tool.completed",
+    "normalizedOutcome": "SUCCEEDED",
+    "native": {
+      "type": "content_end",
+      "contentType": "tool",
+      "toolName": "editor",
+      "toolCallId": "call_8c5d130648c64d55a4272ae5",
+      "output": {
+        "query": "edit:/poc/project/coding-agent-node/src/monitor-client.ts",
+        "result": "Edited /poc/project/coding-agent-node/src/monitor-client.ts\n```diff\n-1: import type { CodeVersion, ModelCall, MonitorEvent, MonitorEventsQuery, MonitorTasksQuery, NodeSnapshot, TaskDetail, TaskPage } from './monitor-types.ts';\n+1: import type { CodeVersion, ModelCall, MonitorEvent, MonitorTasksQuery, NodeSnapshot, TaskDetail, TaskPage } from './monitor-types.ts';\n```",
+        "success": true
+      },
+      "durationMs": 17
+    }
+  },
+  {
+    "eventId": "401",
+    "timestamp": "2026-11-08T01:17:44.123Z",
+    "transportEventType": "tool.completed",
+    "normalizedOutcome": "SUCCEEDED",
+    "native": {
+      "type": "content_end",
+      "contentType": "tool",
+      "toolName": "editor",
+      "toolCallId": "call_d270c7d7fd2a47ec8bfee011",
+      "output": {
+        "query": "edit:/poc/project/coding-agent-node/README.md",
+        "result": "Edited /poc/project/coding-agent-node/README.md\n```diff\n-88: \n-89: // 在调用方服务端执行，token 从其 secret manager 读取。\n-90: const node = createMonitorClient({ baseUrl: 'http://coding-agent-node:3100', token });\n-91: const health = await node.node();\n-92: const tasks = await node.tasks({ status: 'RUNNING', limit: 20 });\n-93: if (tasks.items[0]) {\n-94:   const events = await node.events(tasks.items[0].id, 0, 100);\n-95:   // events.hasMore 时，用 nextCursor 继续；truncated 为 true 表示早期历史已淘汰。\n-96: }\n-97: ```\n+88: import type { MonitorTasksQuery, MonitorEventsQuery } from './dist/monitor-types.js';\n+89: \n+90: // 在调用方服务端执行，token 从其 secret manager 读取。\n+91: const node = createMonitorClient({ baseUrl: 'http://coding-agent-node:3100', token });\n+92: const health = await node.node();\n+93: const tasks = await node.tasks({ status: 'RUNNING', limit: 20 });\n+94: if (tasks.items[0]) {\n+95:   const events = await node.events(tasks.items[0].id, 0, 100);\n+96:   // events.hasMore 时，用 nextCursor 继续；truncated 为 true 表示早期历史已淘汰。\n+97: }\n+98: ```\n+99: \n+100: `MonitorTasksQuery` 与 `MonitorEventsQuery` 为公开查询类型，`monitor-client.ts` 内部已使用。`tasks(query)` 的 `offset` 若提供必须是非负安全整数，`limit` 若提供必须在 1–500；`events(taskId, after, limit)` 的 `after` 必须是非负安全整数，`limit` 必须在 1–1000。所有无效参数（NaN、Infinity、小数、负值、越界、非数字）在发起网络请求前抛出 `TypeError`。`baseUrl` 允许多个尾随斜杠，最终请求路径只保留一个分隔斜杠。未提供的查询字段会被省略，`q` 通过 `URLSearchParams` 正确编码。\n```",
+        "success": true
+      },
+      "durationMs": 26
+    }
+  },
+  {
+    "eventId": "433",
+    "timestamp": "2026-11-08T01:17:47.211Z",
+    "transportEventType": "tool.completed",
+    "normalizedOutcome": "SUCCEEDED",
+    "native": {
+      "type": "content_end",
+      "contentType": "tool",
+      "toolName": "run_commands",
+      "toolCallId": "call_340243ad6ad94ddba90d5282",
+      "output": [
+        {
+          "query": "cd /poc/project/coding-agent-node && npm run build 2>&1 | tail -40",
+          "result": "/bin/bash: line 1: npm: command not found\n",
+          "success": true
+        }
+      ],
+      "durationMs": 61
+    }
+  },
+  {
+    "eventId": "462",
+    "timestamp": "2026-11-08T01:17:57.319Z",
+    "transportEventType": "tool.completed",
+    "normalizedOutcome": "SUCCEEDED",
+    "native": {
+      "type": "content_end",
+      "contentType": "tool",
+      "toolName": "run_commands",
+      "toolCallId": "call_bb8d5db93aff4bb3b09e9e52",
+      "output": [
+        {
+          "query": "which node; ls /usr/local/bin/ | grep -E 'npm|node' | head; find / -name npm -type f 2>/dev/null | head -5",
+          "result": "/usr/local/bin/node\nnode\nnodeenv\n",
+          "success": true
+        }
+      ],
+      "durationMs": 7131
+    }
+  },
+  {
+    "eventId": "495",
+    "timestamp": "2026-11-08T01:18:00.326Z",
+    "transportEventType": "tool.failed",
+    "normalizedOutcome": "FAILED",
+    "native": {
+      "type": "content_end",
+      "contentType": "tool",
+      "toolName": "run_commands",
+      "toolCallId": "call_9f595f04b8684b58a847fc3f",
+      "output": [
+        {
+          "query": "cd /poc/project/coding-agent-node && ls node_modules/.bin/tsc 2>/dev/null && node node_modules/typescript/bin/tsc -p tsconfig.json 2>&1 | tail -30",
+          "result": "[Command exited with code 2]",
+          "error": "Command exited with code 2",
+          "success": false
+        }
+      ],
+      "durationMs": 44
+    }
+  },
+  {
+    "eventId": "527",
+    "timestamp": "2026-11-08T01:18:03.368Z",
+    "transportEventType": "tool.completed",
+    "normalizedOutcome": "SUCCEEDED",
+    "native": {
+      "type": "content_end",
+      "contentType": "tool",
+      "toolName": "run_commands",
+      "toolCallId": "call_a0fcf06090b94c3789f412ef",
+      "output": [
+        {
+          "query": "cd /poc/project/coding-agent-node && ls node_modules/ 2>&1 | head -20; echo \"---\"; ls -la node_modules/typescript/bin/ 2>&1 | head",
+          "result": "@ai-sdk\n@aws\n@aws-sdk\n@cline\n@colors\n@dabh\n@fastify\n@hono\n@jerome-benoit\n@kwsites\n@langfuse\n@modelcontextprotocol\n@opencode-ai\n@opentelemetry\n@protobufjs\n@sap\n@sap-ai-sdk\n@sap-cloud-sdk\n@simple-git\n@smithy\n---\ntotal 8\ndrwxr-xr-x 2 1000 1000  33 Nov  8 00:48 .\ndrwxr-xr-x 4 1000 1000 135 Nov  8 00:48 ..\n-rwxrwxrwx 1 1000 1000  45 Nov  8 00:48 tsc\n-rwxrwxrwx 1 1000 1000  50 Nov  8 00:48 tsserver\n",
+          "success": true
+        }
+      ],
+      "durationMs": 38
+    }
+  },
+  {
+    "eventId": "557",
+    "timestamp": "2026-11-08T01:18:06.390Z",
+    "transportEventType": "tool.completed",
+    "normalizedOutcome": "SUCCEEDED",
+    "native": {
+      "type": "content_end",
+      "contentType": "tool",
+      "toolName": "read_files",
+      "toolCallId": "call_718eb470a51b4da78e434286",
+      "output": [
+        {
+          "query": "/poc/project/coding-agent-node/node_modules/typescript/bin/tsc",
+          "result": "1 | #!/usr/bin/env node\n2 | require('../lib/tsc.js')",
+          "success": true
+        }
+      ],
+      "durationMs": 20
+    }
+  },
+  {
+    "eventId": "591",
+    "timestamp": "2026-11-08T01:18:12.984Z",
+    "transportEventType": "tool.completed",
+    "normalizedOutcome": "SUCCEEDED",
+    "native": {
+      "type": "content_end",
+      "contentType": "tool",
+      "toolName": "run_commands",
+      "toolCallId": "call_1713141d02714eebb472776a",
+      "output": [
+        {
+          "query": "cd /poc/project/coding-agent-node && ls node_modules/typescript/lib/tsc.js 2>&1 && node node_modules/typescript/bin/tsc -p tsconfig.json 2>&1 | tail -50",
+          "result": "node_modules/typescript/lib/tsc.js\n",
+          "success": true
+        }
+      ],
+      "durationMs": 3565
+    }
+  },
+  {
+    "eventId": "625",
+    "timestamp": "2026-11-08T01:18:20.342Z",
+    "transportEventType": "tool.completed",
+    "normalizedOutcome": "SUCCEEDED",
+    "native": {
+      "type": "content_end",
+      "contentType": "tool",
+      "toolName": "run_commands",
+      "toolCallId": "call_4ee761fbc5f047bbb773d576",
+      "output": [
+        {
+          "query": "cd /poc/project/coding-agent-node && node scripts/build.mjs 2>&1 | tail -50",
+          "result": "",
+          "success": true
+        }
+      ],
+      "durationMs": 4824
+    }
+  },
+  {
+    "eventId": "658",
+    "timestamp": "2026-11-08T01:18:23.681Z",
+    "transportEventType": "tool.completed",
+    "normalizedOutcome": "SUCCEEDED",
+    "native": {
+      "type": "content_end",
+      "contentType": "tool",
+      "toolName": "run_commands",
+      "toolCallId": "call_fefd1f1ee763404ab335325e",
+      "output": [
+        {
+          "query": "cd /poc/project/coding-agent-node && cat dist/monitor-client.js | head -60 && echo \"---\" && cat dist/monitor-types.d.ts | tail -20",
+          "result": "const isSafeInteger = (value) => typeof value === 'number' && Number.isFinite(value) && Number.isInteger(value) && Math.abs(value) <= Number.MAX_SAFE_INTEGER;\nconst requireNonNegativeSafeInteger = (name, value) => {\n    if (!isSafeInteger(value))\n        throw new TypeError(`${name} must be a non-negative safe integer`);\n    if (value < 0)\n        throw new TypeError(`${name} must be a non-negative safe integer`);\n    return value;\n};\nconst requireSafeIntegerInRange = (name, value, min, max) => {\n    if (!isSafeInteger(value))\n        throw new TypeError(`${name} must be a safe integer between ${min} and ${max}`);\n    if (value < min || value > max)\n        throw new TypeError(`${name} must be a safe integer between ${min} and ${max}`);\n    return value;\n};\n/** Server-side SDK. Keep the operator token on your application server. */\nexport function createMonitorClient(options) {\n    const base = options.baseUrl.replace(/\\/+$/, '');\n    const transport = options.fetch ?? fetch;\n    async function get(path) {\n        const response = await transport(`${base}/v1/monitor${path}`, {\n            headers: { authorization: `Bearer ${options.token}` }, signal: AbortSignal.timeout(options.timeoutMs ?? 10000),\n            redirect: 'error', cache: 'no-store',\n        });\n        if (!response.ok)\n            throw Object.assign(new Error(`Node monitor returned HTTP ${response.status}`), { status: response.status });\n        return await response.json();\n    }\n    const id = (value) => {\n        if (!/^[a-f0-9]{64}$/.test(value))\n            throw new TypeError('A monitor observation ID is required');\n        return value;\n    };\n    return {\n        node: () => get('/node'),\n        tasks: (query = {}) => {\n            if (query.offset !== undefined)\n                requireNonNegativeSafeInteger('offset', query.offset);\n            if (query.limit !== undefined)\n                requireSafeIntegerInRange('limit', query.limit, 1, 500);\n            const params = new URLSearchParams();\n            if (query.status !== undefined)\n                params.set('status', String(query.status));\n            if (query.q !== undefined)\n                params.set('q', query.q);\n            if (query.offset !== undefined)\n                params.set('offset', String(query.offset));\n            if (query.limit !== undefined)\n                params.set('limit', String(query.limit));\n            const suffix = params.toString();\n            return get(suffix ? `/tasks?${suffix}` : '/tasks');\n        },\n        task: (taskId) => get(`/tasks/${id(taskId)}`),\n        events: (taskId, after = 0, limit = 100) => {\n            requireNonNegativeSafeInteger('after', after);\n            requireSafeIntegerInRange('limit', limit, 1, 1000);\n            return get(`/tasks/${id(taskId)}/events?after=${after}&limit=${limit}`);\n        },\n        models: (taskId) => get(`/tasks/${id(taskId)}/models`),\n        skills: (taskId) => get(`/tasks/${id(taskId)}/skills`),\n---\nexport interface TaskPage {\n    schemaVersion: 'coding_agent.monitor.v1';\n    observedAt: string;\n    total: number;\n    offset: number;\n    limit: number;\n    items: TaskSummary[];\n}\n/** Query parameters accepted by `MonitorClient.tasks`. Undefined fields are omitted. */\nexport interface MonitorTasksQuery {\n    status?: TaskState;\n    q?: string;\n    offset?: number;\n    limit?: number;\n}\n/** Parameters accepted by `MonitorClient.events`. */\nexport interface MonitorEventsQuery {\n    after?: number;\n    limit?: number;\n}\n",
+          "success": true
+        }
+      ],
+      "durationMs": 34
+    }
+  },
+  {
+    "eventId": "689",
+    "timestamp": "2026-11-08T01:19:03.134Z",
+    "transportEventType": "tool.failed",
+    "normalizedOutcome": "FAILED",
+    "native": {
+      "type": "content_end",
+      "contentType": "tool",
+      "toolName": "editor",
+      "toolCallId": "call_62abd0977d97447d8937d72d",
+      "output": {
+        "query": "edit:/poc/project/coding-agent-node/test/monitor-client-parameters.test.js",
+        "result": "",
+        "error": "Editor input too large: new_text was 7767 characters, exceeding the recommended limit of 6000. Split the edit into smaller tool calls so later tool calls are less likely to be truncated or time out.",
+        "success": false
+      },
+      "durationMs": 26
+    }
+  },
+  {
+    "eventId": "716",
+    "timestamp": "2026-11-08T01:19:23.442Z",
+    "transportEventType": "tool.completed",
+    "normalizedOutcome": "SUCCEEDED",
+    "native": {
+      "type": "content_end",
+      "contentType": "tool",
+      "toolName": "editor",
+      "toolCallId": "call_c9080aded6784f879db49a54",
+      "output": {
+        "query": "edit:/poc/project/coding-agent-node/test/monitor-client-parameters.test.js",
+        "result": "File created successfully at: /poc/project/coding-agent-node/test/monitor-client-parameters.test.js",
+        "success": true
+      },
+      "durationMs": 28
+    }
+  },
+  {
+    "eventId": "743",
+    "timestamp": "2026-11-08T01:19:39.682Z",
+    "transportEventType": "tool.completed",
+    "normalizedOutcome": "SUCCEEDED",
+    "native": {
+      "type": "content_end",
+      "contentType": "tool",
+      "toolName": "editor",
+      "toolCallId": "call_84e24ef9044c4bf693645c67",
+      "output": {
+        "query": "insert:/poc/project/coding-agent-node/test/monitor-client-parameters.test.js",
+        "result": "Inserted content at line 63 in /poc/project/coding-agent-node/test/monitor-client-parameters.test.js.",
+        "success": true
+      },
+      "durationMs": 21
+    }
+  },
+  {
+    "eventId": "774",
+    "timestamp": "2026-11-08T01:19:42.961Z",
+    "transportEventType": "tool.failed",
+    "normalizedOutcome": "FAILED",
+    "native": {
+      "type": "content_end",
+      "contentType": "tool",
+      "toolName": "run_commands",
+      "toolCallId": "call_e9ebf5df79c74c27984b15e6",
+      "output": [
+        {
+          "query": "cd /poc/project/coding-agent-node && node --test test/monitor-client-parameters.test.js 2>&1",
+          "result": "[Command exited with code 1]\n✔ baseUrl with multiple trailing slashes produces single separator (6.06751ms)\n✔ tasks() with valid boundary values (0.970945ms)\n✖ tasks() rejects invalid offset (0.521641ms)\n✖ tasks() rejects invalid limit (0.313193ms)\n✔ tasks() omits undefined parameters (0.689685ms)\n✔ events() with valid boundary values (0.752508ms)\n✖ events() rejects invalid after (0.374689ms)\n✖ events() rejects invalid limit (0.339887ms)\n✖ invalid parameters do not trigger fetch (0.429663ms)\n✖ observation ID validation still works (0.500041ms)\n✔ successful response shape unchanged (0.774374ms)\n✔ tasks() encodes q parameter correctly (0.546077ms)\nℹ tests 12\nℹ suites 0\nℹ pass 6\nℹ fail 6\nℹ cancelled 0\nℹ skipped 0\nℹ todo 0\nℹ duration_ms 124.995796\n\n✖ failing tests:\n\ntest at test/monitor-client-parameters.test.js:34:1\n✖ tasks() rejects invalid offset (0.521641ms)\n  TypeError: offset must be a non-negative safe integer\n      at requireNonNegativeSafeInteger (file:///poc/project/coding-agent-node/dist/monitor-client.js:6:15)\n      at Object.tasks (file:///poc/project/coding-agent-node/dist/monitor-client.js:38:17)\n      at TestContext.<anonymous> (file:///poc/project/coding-agent-node/test/monitor-client-parameters.test.js:37:33)\n      at Test.runInAsyncScope (node:async_hooks:227:14)\n      at Test.run (node:internal/test_runner/test:1402:25)\n      at Test.processPendingSubtests (node:internal/test_runner/test:974:18)\n      at Test.postRun (node:internal/test_runner/test:1542:19)\n      at Test.run (node:internal/test_runner/test:1467:12)\n      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7)\n\ntest at test/monitor-client-parameters.test.js:41:1\n✖ tasks() rejects invalid limit (0.313193ms)\n  TypeError: limit must be a safe integer between 1 and 500\n      at requireSafeIntegerInRange (file:///poc/project/coding-agent-node/dist/monitor-client.js:13:15)\n      at Object.tasks (file:///poc/project/coding-agent-node/dist/monitor-client.js:40:17)\n      at TestContext.<anonymous> (file:///poc/project/coding-agent-node/test/monitor-client-parameters.test.js:44:33)\n      at Test.runInAsyncScope (node:async_hooks:227:14)\n      at Test.run (node:internal/test_runner/test:1402:25)\n      at Test.processPendingSubtests (node:internal/test_runner/test:974:18)\n      at Test.postRun (node:internal/test_runner/test:1542:19)\n      at Test.run (node:internal/test_runner/test:1467:12)\n      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7)\n\ntest at test/monitor-client-parameters.test.js:78:1\n✖ events() rejects invalid after (0.374689ms)\n  TypeError: after must be a non-negative safe integer\n      at requireNonNegativeSafeInteger (file:///poc/project/coding-agent-node/dist/monitor-client.js:6:15)\n      at Object.events (file:///poc/project/coding-agent-node/dist/monitor-client.js:55:13)\n      at TestContext.<anonymous> (file:///poc/project/coding-agent-node/test/monitor-client-parameters.test.js:81:33)\n      at Test.runInAsyncScope (node:async_hooks:227:14)\n      at Test.run (node:internal/test_runner/test:1402:25)\n      at Test.processPendingSubtests (node:internal/test_runner/test:974:18)\n      at Test.postRun (node:internal/test_runner/test:1542:19)\n      at Test.run (node:internal/test_runner/test:1467:12)\n      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7)\n\ntest at test/monitor-client-parameters.test.js:85:1\n✖ events() rejects invalid limit (0.339887ms)\n  TypeError: limit must be a safe integer between 1 and 1000\n      at requireSafeIntegerInRange (file:///poc/project/coding-agent-node/dist/monitor-client.js:13:15)\n      at Object.events (file:///poc/project/coding-agent-node/dist/monitor-client.js:56:13)\n      at TestContext.<anonymous> (file:///poc/project/coding-agent-node/test/monitor-client-parameters.test.js:88:33)\n      at Test.runInAsyncScope (node:async_hooks:227:14)\n      at Test.run (node:internal/test_runner/test:1402:25)\n      at Test.processPendingSubtests (node:internal/test_runner/test:974:18)\n      at Test.postRun (node:internal/test_runner/test:1542:19)\n      at Test.run (node:internal/test_runner/test:1467:12)\n      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7)\n\ntest at test/monitor-client-parameters.test.js:92:1\n✖ invalid parameters do not trigger fetch (0.429663ms)\n  TypeError: offset must be a non-negative safe integer\n      at requireNonNegativeSafeInteger (file:///poc/project/coding-agent-node/dist/monitor-client.js:6:15)\n      at Object.tasks (file:///poc/project/coding-agent-node/dist/monitor-client.js:38:17)\n      at TestContext.<anonymous> (file:///poc/project/coding-agent-node/test/monitor-client-parameters.test.js:96:31)\n      at Test.runInAsyncScope (node:async_hooks:227:14)\n      at Test.run (node:internal/test_runner/test:1402:25)\n      at Test.processPendingSubtests (node:internal/test_runner/test:974:18)\n      at Test.postRun (node:internal/test_runner/test:1542:19)\n      at Test.run (node:internal/test_runner/test:1467:12)\n      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7)\n\ntest at test/monitor-client-parameters.test.js:106:1\n✖ observation ID validation still works (0.500041ms)\n  TypeError: A monitor observation ID is required\n      at id (file:///poc/project/coding-agent-node/dist/monitor-client.js:31:19)\n      at Object.task (file:///poc/project/coding-agent-node/dist/monitor-client.js:53:41)\n      at TestContext.<anonymous> (file:///poc/project/coding-agent-node/test/monitor-client-parameters.test.js:108:31)\n      at Test.runInAsyncScope (node:async_hooks:227:14)\n      at Test.run (node:internal/test_runner/test:1402:25)\n      at Test.processPendingSubtests (node:internal/test_runner/test:974:18)\n      at Test.postRun (node:internal/test_runner/test:1542:19)\n      at Test.run (node:internal/test_runner/test:1467:12)\n      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7)\n",
+          "error": "Command exited with code 1",
+          "success": false
+        }
+      ],
+      "durationMs": 240
+    }
+  },
+  {
+    "eventId": "864",
+    "timestamp": "2026-11-08T01:19:54.959Z",
+    "transportEventType": "tool.completed",
+    "normalizedOutcome": "SUCCEEDED",
+    "native": {
+      "type": "content_end",
+      "contentType": "tool",
+      "toolName": "editor",
+      "toolCallId": "call_ca6c451c246b4b67b1a74bad",
+      "output": {
+        "query": "edit:/poc/project/coding-agent-node/src/monitor-client.ts",
+        "result": "Edited /poc/project/coding-agent-node/src/monitor-client.ts\n```diff\n-36:     tasks: (query: MonitorTasksQuery = {}) => {\n+36:     tasks: async (query: MonitorTasksQuery = {}) => {\n```",
+        "success": true
+      },
+      "durationMs": 21
+    }
+  },
+  {
+    "eventId": "890",
+    "timestamp": "2026-11-08T01:20:02.075Z",
+    "transportEventType": "tool.completed",
+    "normalizedOutcome": "SUCCEEDED",
+    "native": {
+      "type": "content_end",
+      "contentType": "tool",
+      "toolName": "editor",
+      "toolCallId": "call_84f3af5f6340486a9281b22b",
+      "output": {
+        "query": "edit:/poc/project/coding-agent-node/src/monitor-client.ts",
+        "result": "Edited /poc/project/coding-agent-node/src/monitor-client.ts\n```diff\n-48:     events: (taskId: string, after: number = 0, limit: number = 100) => {\n+48:     events: async (taskId: string, after: number = 0, limit: number = 100) => {\n```",
+        "success": true
+      },
+      "durationMs": 17
+    }
+  },
+  {
+    "eventId": "919",
+    "timestamp": "2026-11-08T01:20:10.091Z",
+    "transportEventType": "tool.failed",
+    "normalizedOutcome": "FAILED",
+    "native": {
+      "type": "content_end",
+      "contentType": "tool",
+      "toolName": "run_commands",
+      "toolCallId": "call_79f515a54aa54228b383b8fd",
+      "output": [
+        {
+          "query": "cd /poc/project/coding-agent-node && node scripts/build.mjs && node --test test/monitor-client-parameters.test.js 2>&1",
+          "result": "[Command exited with code 1]\n✔ baseUrl with multiple trailing slashes produces single separator (3.314192ms)\n✔ tasks() with valid boundary values (0.870664ms)\n✔ tasks() rejects invalid offset (0.91373ms)\n✔ tasks() rejects invalid limit (0.659108ms)\n✔ tasks() omits undefined parameters (0.664742ms)\n✔ events() with valid boundary values (0.691432ms)\n✔ events() rejects invalid after (0.63072ms)\n✔ events() rejects invalid limit (0.577423ms)\n✔ invalid parameters do not trigger fetch (0.634481ms)\n✖ observation ID validation still works (0.681867ms)\n✔ successful response shape unchanged (0.744145ms)\n✔ tasks() encodes q parameter correctly (1.940164ms)\nℹ tests 12\nℹ suites 0\nℹ pass 11\nℹ fail 1\nℹ cancelled 0\nℹ skipped 0\nℹ todo 0\nℹ duration_ms 131.178556\n\n✖ failing tests:\n\ntest at test/monitor-client-parameters.test.js:106:1\n✖ observation ID validation still works (0.681867ms)\n  TypeError: A monitor observation ID is required\n      at id (file:///poc/project/coding-agent-node/dist/monitor-client.js:31:19)\n      at Object.task (file:///poc/project/coding-agent-node/dist/monitor-client.js:53:41)\n      at TestContext.<anonymous> (file:///poc/project/coding-agent-node/test/monitor-client-parameters.test.js:108:31)\n      at Test.runInAsyncScope (node:async_hooks:227:14)\n      at Test.run (node:internal/test_runner/test:1402:25)\n      at Test.processPendingSubtests (node:internal/test_runner/test:974:18)\n      at Test.postRun (node:internal/test_runner/test:1542:19)\n      at Test.run (node:internal/test_runner/test:1467:12)\n      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7)\n",
+          "error": "Command exited with code 1",
+          "success": false
+        }
+      ],
+      "durationMs": 4961
+    }
+  },
+  {
+    "eventId": "963",
+    "timestamp": "2026-11-08T01:20:24.435Z",
+    "transportEventType": "tool.completed",
+    "normalizedOutcome": "SUCCEEDED",
+    "native": {
+      "type": "content_end",
+      "contentType": "tool",
+      "toolName": "editor",
+      "toolCallId": "call_4e029df11dcc49338158102b",
+      "output": {
+        "query": "edit:/poc/project/coding-agent-node/src/monitor-client.ts",
+        "result": "Edited /poc/project/coding-agent-node/src/monitor-client.ts\n```diff\n-47:     task: (taskId: string) => get<{ schemaVersion: string; task: TaskDetail }>(`/tasks/${id(taskId)}`),\n-48:     events: async (taskId: string, after: number = 0, limit: number = 100) => {\n-49:       requireNonNegativeSafeInteger('after', after);\n-50:       requireSafeIntegerInRange('limit', limit, 1, 1000);\n-51:       return get<{ schemaVersion: string; items: MonitorEvent[]; nextCursor: number; hasMore: boolean; truncated: boolean; earliestCursor: number | null }>(`/tasks/${id(taskId)}/events?after=${after}&limit=${limit}`);\n-52:     },\n-53:     models: (taskId: string) => get<{ schemaVersion: string; models: ModelCall[] }>(`/tasks/${id(taskId)}/models`),\n-54:     skills: (taskId: string) => get<{ schemaVersion: string; skills: TaskDetail['skills'] }>(`/tasks/${id(taskId)}/skills`),\n-55:     codes: (taskId: string) => get<{ schemaVersion: string; codes: CodeVersion[] }>(`/tasks/${id(taskId)}/codes`),\n-56:     python: (taskId: string) => get<unknown>(`/tasks/${id(taskId)}/python`),\n-57:     code: (taskId: string, codeId: string) => get<CodeVersion>(`/tasks/${id(taskId)}/codes/${id(codeId)}`),\n+47:     task: async (taskId: string) => get<{ schemaVersion: string; task: TaskDetail }>(`/tasks/${id(taskId)}`),\n+48:     events: async (taskId: string, after: number = 0, limit: number = 100) => {\n+49:       requireNonNegativeSafeInteger('after', after);\n+50:       requireSafeIntegerInRange('limit', limit, 1, 1000);\n+51:       return get<{ schemaVersion: string; items: MonitorEvent[]; nextCursor: number; hasMore: boolean; truncated: boolean; earliestCursor: number | null }>(`/tasks/${id(taskId)}/events?after=${after}&limit=${limit}`);\n+52:     },\n+53:     models: async (taskId: string) => get<{ schemaVersion: string; models: ModelCall[] }>(`/tasks/${id(taskId)}/models`),\n+54:     skills: async (taskId: string) => get<{ schemaVersion: string; skills: TaskDetail['skills'] }>(`/tasks/${id(taskId)}/skills`),\n+55:     codes: async (taskId: string) => get<{ schemaVersion: string; codes: CodeVersion[] }>(`/tasks/${id(taskId)}/codes`),\n+56:     python: async (taskId: string) => get<unknown>(`/tasks/${id(taskId)}/python`),\n+57:     code: async (taskId: string, codeId: string) => get<CodeVersion>(`/tasks/${id(taskId)}/codes/${id(codeId)}`),\n```",
+        "success": true
+      },
+      "durationMs": 22
+    }
+  },
+  {
+    "eventId": "992",
+    "timestamp": "2026-11-08T01:20:32.504Z",
+    "transportEventType": "tool.completed",
+    "normalizedOutcome": "SUCCEEDED",
+    "native": {
+      "type": "content_end",
+      "contentType": "tool",
+      "toolName": "run_commands",
+      "toolCallId": "call_fe7b5ba5d0d64ee0bcffd009",
+      "output": [
+        {
+          "query": "cd /poc/project/coding-agent-node && node scripts/build.mjs && node --test test/monitor-client-parameters.test.js 2>&1",
+          "result": "✔ baseUrl with multiple trailing slashes produces single separator (4.147939ms)\n✔ tasks() with valid boundary values (0.967466ms)\n✔ tasks() rejects invalid offset (1.047741ms)\n✔ tasks() rejects invalid limit (0.707176ms)\n✔ tasks() omits undefined parameters (0.731586ms)\n✔ events() with valid boundary values (0.779529ms)\n✔ events() rejects invalid after (0.683032ms)\n✔ events() rejects invalid limit (0.642412ms)\n✔ invalid parameters do not trigger fetch (0.634095ms)\n✔ observation ID validation still works (0.866152ms)\n✔ successful response shape unchanged (2.479275ms)\n✔ tasks() encodes q parameter correctly (0.492884ms)\nℹ tests 12\nℹ suites 0\nℹ pass 12\nℹ fail 0\nℹ cancelled 0\nℹ skipped 0\nℹ todo 0\nℹ duration_ms 128.634729\n",
+          "success": true
+        }
+      ],
+      "durationMs": 5032
+    }
+  }
+]

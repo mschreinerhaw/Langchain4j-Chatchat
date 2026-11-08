@@ -1,0 +1,99 @@
+diff --git a/README.md b/README.md
+index 8a19bf6..2e3bc9a 100644
+--- a/README.md
++++ b/README.md
+@@ -96,4 +96,17 @@ if (tasks.items[0]) {
+ }
+ ```
+ 
++客户端在发起任何网络请求前会对参数做严格校验，避免把非法分页或游标打到服务端：
++
++- `baseUrl` 允许多个尾随斜杠（例如 `http://host:3100///`），最终请求路径只保留一个分隔斜杠。
++- `tasks(query)` 的 `offset` 若提供必须是非负安全整数，`limit` 若提供必须是 1–500 的安全整数；`undefined` 字段会被省略，`q` 通过 `URLSearchParams` 正确编码。查询类型以 `MonitorTasksQuery` 命名导出。
++- `events(taskId, after=0, limit=100)` 的 `after` 必须是非负安全整数，`limit` 必须是 1–1000 的安全整数。
++- 所有无效参数（`NaN`、`Infinity`、小数、负值、越界及非数字类型）在发起请求前同步抛出 `TypeError`；`taskId` / `codeId` 仍要求 64 位小写十六进制观察 ID。
++
++```ts
++import type { MonitorTasksQuery } from './dist/monitor-types.js';
++const query: MonitorTasksQuery = { status: 'RUNNING', q: '结算', offset: 0, limit: 50 };
++const page = await node.tasks(query);
++```
++
+ 建议 3–5 秒轮询，设置超时并保留最后成功快照。API 数据属于 `NODE_OBSERVATION_ONLY`，不应作为重试、扣费、停止证明或业务结果准入依据。入口应走反向代理的 `/monitor` 与 `/v1/monitor/` 白名单；HTTPS 时启用 Secure Cookie，执行接口保留在 Runtime 内网。
+diff --git a/src/monitor-client.ts b/src/monitor-client.ts
+index 8f4adda..bef243a 100644
+--- a/src/monitor-client.ts
++++ b/src/monitor-client.ts
+@@ -1,8 +1,37 @@
+-import type { CodeVersion, ModelCall, MonitorEvent, NodeSnapshot, TaskDetail, TaskPage, TaskState } from './monitor-types.ts';
++import type { CodeVersion, ModelCall, MonitorEvent, MonitorTasksQuery, NodeSnapshot, TaskDetail, TaskPage } from './monitor-types.ts';
++
++function assertNonNegativeSafeInteger(name: string, value: unknown): void {
++  if (typeof value !== 'number' || !Number.isSafeInteger(value) || value < 0) {
++    throw new TypeError(`${name} must be a non-negative safe integer`);
++  }
++}
++
++function assertBoundedSafeInteger(name: string, value: unknown, min: number, max: number): void {
++  if (typeof value !== 'number' || !Number.isSafeInteger(value) || value < min || value > max) {
++    throw new TypeError(`${name} must be a safe integer between ${min} and ${max}`);
++  }
++}
++
++function buildTasksQuery(query: MonitorTasksQuery): string {
++  if (query.offset !== undefined) assertNonNegativeSafeInteger('tasks.offset', query.offset);
++  if (query.limit !== undefined) assertBoundedSafeInteger('tasks.limit', query.limit, 1, 500);
++  const params = new URLSearchParams();
++  if (query.status !== undefined) params.set('status', query.status);
++  if (query.q !== undefined) params.set('q', query.q);
++  if (query.offset !== undefined) params.set('offset', String(query.offset));
++  if (query.limit !== undefined) params.set('limit', String(query.limit));
++  return params.toString();
++}
++
++function validateEventsArgs(after: number, limit: number): { after: number; limit: number } {
++  assertNonNegativeSafeInteger('events.after', after);
++  assertBoundedSafeInteger('events.limit', limit, 1, 1000);
++  return { after, limit };
++}
+ 
+ /** Server-side SDK. Keep the operator token on your application server. */
+ export function createMonitorClient(options: { baseUrl: string; token: string; fetch?: typeof fetch; timeoutMs?: number }) {
+-  const base = options.baseUrl.replace(/\/$/, '');
++  const base = options.baseUrl.replace(/\/+$/, '');
+   const transport = options.fetch ?? fetch;
+   async function get<T>(path: string): Promise<T> {
+     const response = await transport(`${base}/v1/monitor${path}`, {
+@@ -18,11 +47,13 @@ export function createMonitorClient(options: { baseUrl: string; token: string; f
+   };
+   return {
+     node: () => get<NodeSnapshot>('/node'),
+-    tasks: (query: { status?: TaskState; q?: string; offset?: number; limit?: number } = {}) =>
+-      get<TaskPage>(`/tasks?${new URLSearchParams(Object.entries(query).map(([key, value]) => [key, String(value)]))}`),
++    tasks: (query: MonitorTasksQuery = {}) =>
++      get<TaskPage>(`/tasks?${buildTasksQuery(query)}`),
+     task: (taskId: string) => get<{ schemaVersion: string; task: TaskDetail }>(`/tasks/${id(taskId)}`),
+-    events: (taskId: string, after = 0, limit = 100) =>
+-      get<{ schemaVersion: string; items: MonitorEvent[]; nextCursor: number; hasMore: boolean; truncated: boolean; earliestCursor: number | null }>(`/tasks/${id(taskId)}/events?after=${after}&limit=${limit}`),
++    events: async (taskId: string, after = 0, limit = 100) => {
++      const validated = validateEventsArgs(after, limit);
++      return get<{ schemaVersion: string; items: MonitorEvent[]; nextCursor: number; hasMore: boolean; truncated: boolean; earliestCursor: number | null }>(`/tasks/${id(taskId)}/events?after=${validated.after}&limit=${validated.limit}`);
++    },
+     models: (taskId: string) => get<{ schemaVersion: string; models: ModelCall[] }>(`/tasks/${id(taskId)}/models`),
+     skills: (taskId: string) => get<{ schemaVersion: string; skills: TaskDetail['skills'] }>(`/tasks/${id(taskId)}/skills`),
+     codes: (taskId: string) => get<{ schemaVersion: string; codes: CodeVersion[] }>(`/tasks/${id(taskId)}/codes`),
+diff --git a/src/monitor-types.ts b/src/monitor-types.ts
+index 7359aa6..d113fcf 100644
+--- a/src/monitor-types.ts
++++ b/src/monitor-types.ts
+@@ -72,3 +72,10 @@ export interface NodeSnapshot {
+ }
+ export interface TaskPage { schemaVersion: 'coding_agent.monitor.v1'; observedAt: string;
+   total: number; offset: number; limit: number; items: TaskSummary[] }
++/** Query parameters accepted by `createMonitorClient().tasks(query)`. `undefined` fields are omitted from the request. */
++export interface MonitorTasksQuery {
++  status?: TaskState;
++  q?: string;
++  offset?: number;
++  limit?: number;
++}

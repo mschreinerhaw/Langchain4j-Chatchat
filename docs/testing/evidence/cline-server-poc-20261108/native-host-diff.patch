@@ -1,0 +1,96 @@
+--- a/apps/vscode/src/sdk/sdk-interaction-coordinator.ts
++++ b/apps/vscode/src/sdk/sdk-interaction-coordinator.ts
+@@ -1,3 +1,4 @@
++import { createHash as serverHash } from "node:crypto"
+ import type { AskQuestionExecutor } from "@cline/core"
+ import type { ConsecutiveMistakeLimitContext, ConsecutiveMistakeLimitDecision, ImageContent, TextContent } from "@cline/shared"
+ import type { ClineAskQuestion, ClineMessage, TurnPhase } from "@shared/ExtensionMessage"
+@@ -157,6 +158,24 @@
+ 			toolName: request.toolName,
+ 		}
+ 
++
++        // CLINE_SERVER_POC: correlate an HTTP decision to this exact native resolver.
++        if (process.connected) {
++            const inputHash = serverHash("sha256").update(JSON.stringify(request.input)).digest("hex")
++            const epoch = process.env.CLINE_SERVER_EPOCH
++            const listener = (message: any) => {
++                if (message?.kind !== "permission.respond" || message.epoch !== epoch ||
++                    message.toolCallId !== request.toolCallId || message.inputHash !== inputHash) return
++                if (this.pendingToolApprovalResolve !== resolveApproval) return
++                const applied = this.resolvePendingToolApproval(message.reason,
++                    message.decision === "approve" ? "yesButtonClicked" : "noButtonClicked")
++                if (process.connected) process.send?.({ kind: "permission.ack", commandId: message.commandId, applied }, () => {})
++            }
++            process.on("message", listener)
++            void approval.finally(() => process.off("message", listener))
++            process.send?.({ kind: "native.permission", epoch, inputHash, request }, () => {})
++        }
++
+ 		void Promise.resolve()
+ 			.then(() => this.options.postStateToWebview())
+ 			.catch((error) => {
+@@ -196,6 +215,20 @@
+ 			rejectAnswer = reject
+ 		})
+ 		this.pendingAskResolve = resolveAnswer
++        // CLINE_SERVER_POC: preserve the product ask_question resolver with correlation.
++        if (process.connected) {
++            const questionId = serverHash("sha256").update(String(askMessage.ts) + question).digest("hex")
++            const epoch = process.env.CLINE_SERVER_EPOCH
++            const listener = (message: any) => {
++                if (message?.kind !== "question.respond" || message.epoch !== epoch || message.questionId !== questionId) return
++                if (this.pendingAskResolve !== resolveAnswer || !message.text?.trim()) return
++                this.resolvePendingAskQuestion(message.text)
++            }
++            process.on("message", listener)
++            void answer.finally(() => process.off("message", listener)).catch(() => {})
++            process.send?.({ kind: "native.question", questionId, epoch, question, options }, () => {})
++        }
++
+ 		this.options.setTurnPhase?.("awaiting_followup", askMessage.ts)
+ 
+ 		this.options.messages.appendAndEmit([askMessage], {
+--- a/apps/vscode/src/sdk/sdk-session-event-coordinator.ts
++++ b/apps/vscode/src/sdk/sdk-session-event-coordinator.ts
+@@ -49,6 +49,8 @@
+ 	}
+ 
+ 	async handleSessionEvent(event: CoreSessionEvent): Promise<void> {
++        // CLINE_SERVER_POC: observe before UI projection, never alter native dispatch.
++        if (process.connected) process.send?.({ kind: "native.event", event }, () => {})
+ 		this.logQueueEvents(event)
+ 
+ 		const activeSession = this.options.sessions.getActiveSession()
+--- a/apps/vscode/src/sdk/vscode-session-host.ts
++++ b/apps/vscode/src/sdk/vscode-session-host.ts
+@@ -157,6 +157,10 @@
+ 				...inputWithRemoteConfig.config,
+ 				telemetry: inputWithRemoteConfig.config.telemetry ?? options.telemetry,
+ 				extraTools: [...(inputWithRemoteConfig.config.extraTools ?? []), ...extraTools],
++                // CLINE_SERVER_POC: exercise the native Patch executor through its public routing config.
++                ...(process.env.CLINE_SERVER_EDIT_TOOL === "apply_patch" ? {
++                    toolRoutingRules: [{ mode: "act" as const, enableTools: ["apply_patch" as const], disableTools: ["editor" as const] }],
++                } : {}),
+ 			}
+ 			return {
+ 				...inputWithRemoteConfig,
+--- a/apps/vscode/src/standalone/cline-core.ts
++++ b/apps/vscode/src/standalone/cline-core.ts
+@@ -43,7 +43,7 @@
+ 	const coreInstanceId = process.env.CLINE_CORE_INSTANCE_ID
+ 
+ 	log("\n\n\nStarting cline-core service...\n\n\n")
+-	log(`Environment variables: ${JSON.stringify(process.env)}`)
++	log("CLINE_SERVER_POC: environment values omitted")
+ 
+ 	// Parse command line arguments
+ 	const args = parseArgs()
+@@ -139,6 +139,7 @@
+ 		}
+ 
+ 		log("All services started successfully")
++		if (process.connected) process.send?.({ kind: "native.ready" }, () => {})
+ 
+ 		// Start periodic memory usage logging for diagnostics
+ 		startMemoryMonitoring()

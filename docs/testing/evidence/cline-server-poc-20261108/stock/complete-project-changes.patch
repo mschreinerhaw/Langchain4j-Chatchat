@@ -1,0 +1,377 @@
+diff --git a/README.md b/README.md
+index 8a19bf6..fd366ef 100644
+--- a/README.md
++++ b/README.md
+@@ -85,15 +85,26 @@ npm start
+ 
+ ```ts
+ import { createMonitorClient } from './dist/monitor-client.js';
++import type { MonitorTasksQuery, MonitorEventsPage, TaskState } from './dist/monitor-types.js';
+ 
+ // 在调用方服务端执行，token 从其 secret manager 读取。
+-const node = createMonitorClient({ baseUrl: 'http://coding-agent-node:3100', token });
++// baseUrl 允许多余的尾随斜杠，最终请求路径只保留一个分隔斜杠。
++const node = createMonitorClient({ baseUrl: 'http://coding-agent-node:3100/', token });
+ const health = await node.node();
+-const tasks = await node.tasks({ status: 'RUNNING', limit: 20 });
++
++const query: MonitorTasksQuery = { status: 'RUNNING', limit: 20 };
++const tasks = await node.tasks(query);
+ if (tasks.items[0]) {
+-  const events = await node.events(tasks.items[0].id, 0, 100);
++  const events: MonitorEventsPage = await node.events(tasks.items[0].id, 0, 100);
+   // events.hasMore 时，用 nextCursor 继续；truncated 为 true 表示早期历史已淘汰。
+ }
+ ```
+ 
++客户端 SDK 在发起网络请求前校验参数：
++
++- `tasks(query)` 的 `offset` 若提供，必须为非负安全整数；`limit` 若提供，必须在 `1..500` 范围内；`undefined` 字段会被省略，不会出现在查询串中；`q` 通过 `URLSearchParams` 正确编码。
++- `events(taskId, after, limit)` 的 `after` 必须为非负安全整数（默认 `0`），`limit` 必须在 `1..1000` 范围内（默认 `100`）。
++- 无效参数（`NaN`、`Infinity`、小数、负值、越界或非数值类型）会在请求前抛出 `TypeError`。
++- 公开查询与响应类型（`MonitorTasksQuery`、`MonitorEventsPage`）已从 `monitor-types` 命名导出，可直接在消费方导入使用。
++
+ 建议 3–5 秒轮询，设置超时并保留最后成功快照。API 数据属于 `NODE_OBSERVATION_ONLY`，不应作为重试、扣费、停止证明或业务结果准入依据。入口应走反向代理的 `/monitor` 与 `/v1/monitor/` 白名单；HTTPS 时启用 Secure Cookie，执行接口保留在 Runtime 内网。
+diff --git a/src/monitor-client.ts b/src/monitor-client.ts
+index 8f4adda..f5dc210 100644
+--- a/src/monitor-client.ts
++++ b/src/monitor-client.ts
+@@ -1,8 +1,20 @@
+-import type { CodeVersion, ModelCall, MonitorEvent, NodeSnapshot, TaskDetail, TaskPage, TaskState } from './monitor-types.ts';
++import type { CodeVersion, ModelCall, MonitorEventsPage, MonitorTasksQuery, NodeSnapshot, TaskDetail, TaskPage } from './monitor-types.ts';
++
++function assertNonNegativeSafeInteger(name: string, value: unknown): asserts value is number {
++  if (typeof value !== 'number' || !Number.isSafeInteger(value) || value < 0) {
++    throw new TypeError(`${name} must be a non-negative safe integer`);
++  }
++}
++
++function assertBoundedSafeInteger(name: string, value: unknown, min: number, max: number): asserts value is number {
++  if (typeof value !== 'number' || !Number.isSafeInteger(value) || value < min || value > max) {
++    throw new TypeError(`${name} must be a safe integer between ${min} and ${max}`);
++  }
++}
+ 
+ /** Server-side SDK. Keep the operator token on your application server. */
+ export function createMonitorClient(options: { baseUrl: string; token: string; fetch?: typeof fetch; timeoutMs?: number }) {
+-  const base = options.baseUrl.replace(/\/$/, '');
++  const base = options.baseUrl.replace(/\/+$/, '');
+   const transport = options.fetch ?? fetch;
+   async function get<T>(path: string): Promise<T> {
+     const response = await transport(`${base}/v1/monitor${path}`, {
+@@ -18,11 +30,23 @@ export function createMonitorClient(options: { baseUrl: string; token: string; f
+   };
+   return {
+     node: () => get<NodeSnapshot>('/node'),
+-    tasks: (query: { status?: TaskState; q?: string; offset?: number; limit?: number } = {}) =>
+-      get<TaskPage>(`/tasks?${new URLSearchParams(Object.entries(query).map(([key, value]) => [key, String(value)]))}`),
++    tasks: (query: MonitorTasksQuery = {}) => {
++      if (query.offset !== undefined) assertNonNegativeSafeInteger('offset', query.offset);
++      if (query.limit !== undefined) assertBoundedSafeInteger('limit', query.limit, 1, 500);
++      const params = new URLSearchParams();
++      if (query.status !== undefined) params.set('status', query.status);
++      if (query.q !== undefined) params.set('q', query.q);
++      if (query.offset !== undefined) params.set('offset', String(query.offset));
++      if (query.limit !== undefined) params.set('limit', String(query.limit));
++      const qs = params.toString();
++      return get<TaskPage>(qs ? `/tasks?${qs}` : '/tasks');
++    },
+     task: (taskId: string) => get<{ schemaVersion: string; task: TaskDetail }>(`/tasks/${id(taskId)}`),
+-    events: (taskId: string, after = 0, limit = 100) =>
+-      get<{ schemaVersion: string; items: MonitorEvent[]; nextCursor: number; hasMore: boolean; truncated: boolean; earliestCursor: number | null }>(`/tasks/${id(taskId)}/events?after=${after}&limit=${limit}`),
++    events: (taskId: string, after = 0, limit = 100) => {
++      assertNonNegativeSafeInteger('after', after);
++      assertBoundedSafeInteger('limit', limit, 1, 1000);
++      return get<MonitorEventsPage>(`/tasks/${id(taskId)}/events?after=${after}&limit=${limit}`);
++    },
+     models: (taskId: string) => get<{ schemaVersion: string; models: ModelCall[] }>(`/tasks/${id(taskId)}/models`),
+     skills: (taskId: string) => get<{ schemaVersion: string; skills: TaskDetail['skills'] }>(`/tasks/${id(taskId)}/skills`),
+     codes: (taskId: string) => get<{ schemaVersion: string; codes: CodeVersion[] }>(`/tasks/${id(taskId)}/codes`),
+diff --git a/src/monitor-types.ts b/src/monitor-types.ts
+index 7359aa6..23c3ffa 100644
+--- a/src/monitor-types.ts
++++ b/src/monitor-types.ts
+@@ -72,3 +72,21 @@ export interface NodeSnapshot {
+ }
+ export interface TaskPage { schemaVersion: 'coding_agent.monitor.v1'; observedAt: string;
+   total: number; offset: number; limit: number; items: TaskSummary[] }
++
++/** Query parameters accepted by `createMonitorClient().tasks(...)`. */
++export interface MonitorTasksQuery {
++  status?: TaskState;
++  q?: string;
++  offset?: number;
++  limit?: number;
++}
++
++/** Cursor-paginated events response returned by `createMonitorClient().events(...)`. */
++export interface MonitorEventsPage {
++  schemaVersion: string;
++  items: MonitorEvent[];
++  nextCursor: number;
++  hasMore: boolean;
++  truncated: boolean;
++  earliestCursor: number | null;
++}
+--- /dev/null
++++ b/test/monitor-client-parameters.test.js
+@@ -0,0 +1,259 @@
++import test from 'node:test';
++import assert from 'node:assert/strict';
++import { createMonitorClient } from '../dist/monitor-client.js';
++
++const OBSERVATION_ID = 'a'.repeat(64);
++
++function mockTransport(body = {}) {
++  const calls = [];
++  const fn = async (url, init) => {
++    calls.push({ url, init });
++    return { ok: true, status: 200, json: async () => body };
++  };
++  return { fn, calls };
++}
++
++// baseUrl trailing-slash normalisation
++test('baseUrl with no trailing slash produces a single separator slash', async () => {
++  const { fn, calls } = mockTransport({ schemaVersion: 'coding_agent.monitor.v1' });
++  const client = createMonitorClient({ baseUrl: 'http://host:3100', token: 't', fetch: fn });
++  await client.node();
++  assert.equal(calls[0].url, 'http://host:3100/v1/monitor/node');
++});
++
++test('baseUrl with one trailing slash produces a single separator slash', async () => {
++  const { fn, calls } = mockTransport({ schemaVersion: 'coding_agent.monitor.v1' });
++  const client = createMonitorClient({ baseUrl: 'http://host:3100/', token: 't', fetch: fn });
++  await client.node();
++  assert.equal(calls[0].url, 'http://host:3100/v1/monitor/node');
++});
++
++test('baseUrl with multiple trailing slashes collapses to a single separator slash', async () => {
++  const { fn, calls } = mockTransport({ schemaVersion: 'coding_agent.monitor.v1' });
++  const client = createMonitorClient({ baseUrl: 'http://host:3100///', token: 't', fetch: fn });
++  await client.node();
++  assert.equal(calls[0].url, 'http://host:3100/v1/monitor/node');
++});
++
++test('tasks URL is correctly joined when baseUrl has trailing slashes', async () => {
++  const { fn, calls } = mockTransport({ schemaVersion: 'coding_agent.monitor.v1', total: 0, offset: 0, limit: 20, items: [], observedAt: '' });
++  const client = createMonitorClient({ baseUrl: 'http://host:3100////', token: 't', fetch: fn });
++  await client.tasks({ limit: 20 });
++  assert.equal(calls[0].url, 'http://host:3100/v1/monitor/tasks?limit=20');
++});
++
++
++// tasks() — valid boundary values
++test('tasks() with no arguments sends a bare /tasks path (no query string)', async () => {
++  const { fn, calls } = mockTransport({ schemaVersion: 'coding_agent.monitor.v1', total: 0, offset: 0, limit: 20, items: [], observedAt: '' });
++  const client = createMonitorClient({ baseUrl: 'http://h', token: 't', fetch: fn });
++  await client.tasks();
++  assert.equal(calls[0].url, 'http://h/v1/monitor/tasks');
++});
++
++test('tasks() with empty object sends a bare /tasks path', async () => {
++  const { fn, calls } = mockTransport({ schemaVersion: 'coding_agent.monitor.v1', total: 0, offset: 0, limit: 20, items: [], observedAt: '' });
++  const client = createMonitorClient({ baseUrl: 'http://h', token: 't', fetch: fn });
++  await client.tasks({});
++  assert.equal(calls[0].url, 'http://h/v1/monitor/tasks');
++});
++
++test('tasks() omits undefined fields from the query string', async () => {
++  const { fn, calls } = mockTransport({ schemaVersion: 'coding_agent.monitor.v1', total: 0, offset: 0, limit: 20, items: [], observedAt: '' });
++  const client = createMonitorClient({ baseUrl: 'http://h', token: 't', fetch: fn });
++  await client.tasks({ status: undefined, q: undefined, offset: undefined, limit: undefined });
++  assert.equal(calls[0].url, 'http://h/v1/monitor/tasks');
++});
++
++test('tasks() accepts offset=0 (lower boundary)', async () => {
++  const { fn, calls } = mockTransport({ schemaVersion: 'coding_agent.monitor.v1', total: 0, offset: 0, limit: 20, items: [], observedAt: '' });
++  const client = createMonitorClient({ baseUrl: 'http://h', token: 't', fetch: fn });
++  await client.tasks({ offset: 0 });
++  assert.match(calls[0].url, /offset=0/);
++});
++
++test('tasks() accepts limit=1 (lower boundary)', async () => {
++  const { fn, calls } = mockTransport({ schemaVersion: 'coding_agent.monitor.v1', total: 0, offset: 0, limit: 1, items: [], observedAt: '' });
++  const client = createMonitorClient({ baseUrl: 'http://h', token: 't', fetch: fn });
++  await client.tasks({ limit: 1 });
++  assert.match(calls[0].url, /limit=1/);
++});
++
++test('tasks() accepts limit=500 (upper boundary)', async () => {
++  const { fn, calls } = mockTransport({ schemaVersion: 'coding_agent.monitor.v1', total: 0, offset: 0, limit: 500, items: [], observedAt: '' });
++  const client = createMonitorClient({ baseUrl: 'http://h', token: 't', fetch: fn });
++  await client.tasks({ limit: 500 });
++  assert.match(calls[0].url, /limit=500/);
++});
++
++// tasks() — query encoding
++test('tasks() encodes q with URLSearchParams (spaces, ampersands, unicode)', async () => {
++  const { fn, calls } = mockTransport({ schemaVersion: 'coding_agent.monitor.v1', total: 0, offset: 0, limit: 20, items: [], observedAt: '' });
++  const client = createMonitorClient({ baseUrl: 'http://h', token: 't', fetch: fn });
++  await client.tasks({ q: 'hello world&foo=bar' });
++  const url = new URL(calls[0].url);
++  assert.equal(url.searchParams.get('q'), 'hello world&foo=bar');
++});
++
++test('tasks() combines status, q, offset and limit in the query string', async () => {
++  const { fn, calls } = mockTransport({ schemaVersion: 'coding_agent.monitor.v1', total: 0, offset: 0, limit: 20, items: [], observedAt: '' });
++  const client = createMonitorClient({ baseUrl: 'http://h', token: 't', fetch: fn });
++  await client.tasks({ status: 'RUNNING', q: 'alpha', offset: 10, limit: 25 });
++  const url = new URL(calls[0].url);
++  assert.equal(url.searchParams.get('status'), 'RUNNING');
++  assert.equal(url.searchParams.get('q'), 'alpha');
++  assert.equal(url.searchParams.get('offset'), '10');
++  assert.equal(url.searchParams.get('limit'), '25');
++
++// tasks() — invalid offset
++for (const [label, value] of [
++  ['negative', -1],
++  ['NaN', NaN],
++  ['Infinity', Infinity],
++  ['negative Infinity', -Infinity],
++  ['decimal', 1.5],
++  ['string', '0'],
++  ['null', null],
++  ['boolean', true],
++  ['beyond safe integer', Number.MAX_SAFE_INTEGER + 1],
++]) {
++  test(`tasks() rejects offset=${label} without sending a request`, () => {
++    const { fn, calls } = mockTransport();
++    const client = createMonitorClient({ baseUrl: 'http://h', token: 't', fetch: fn });
++    assert.throws(() => client.tasks({ offset: value }), TypeError);
++    assert.equal(calls.length, 0);
++  });
++}
++
++// tasks() — invalid limit
++for (const [label, value] of [
++  ['zero', 0],
++  ['above 500', 501],
++  ['negative', -1],
++  ['NaN', NaN],
++  ['Infinity', Infinity],
++  ['decimal', 2.5],
++  ['string', '10'],
++  ['null', null],
++  ['beyond safe integer', Number.MAX_SAFE_INTEGER + 1],
++]) {
++  test(`tasks() rejects limit=${label} without sending a request`, () => {
++    const { fn, calls } = mockTransport();
++    const client = createMonitorClient({ baseUrl: 'http://h', token: 't', fetch: fn });
++    assert.throws(() => client.tasks({ limit: value }), TypeError);
++    assert.equal(calls.length, 0);
++  });
++}
++
++
++// events() — valid boundary values
++const eventsBody = { schemaVersion: 'x', items: [], nextCursor: 0, hasMore: false, truncated: false, earliestCursor: null };
++
++test('events() defaults to after=0 and limit=100', async () => {
++  const { fn, calls } = mockTransport(eventsBody);
++  const client = createMonitorClient({ baseUrl: 'http://h', token: 't', fetch: fn });
++  await client.events(OBSERVATION_ID);
++  assert.match(calls[0].url, /after=0&limit=100/);
++});
++
++test('events() accepts after=0 (lower boundary)', async () => {
++  const { fn, calls } = mockTransport(eventsBody);
++  const client = createMonitorClient({ baseUrl: 'http://h', token: 't', fetch: fn });
++  await client.events(OBSERVATION_ID, 0, 100);
++  assert.match(calls[0].url, /after=0/);
++});
++
++test('events() accepts limit=1 (lower boundary)', async () => {
++  const { fn, calls } = mockTransport(eventsBody);
++  const client = createMonitorClient({ baseUrl: 'http://h', token: 't', fetch: fn });
++  await client.events(OBSERVATION_ID, 0, 1);
++  assert.match(calls[0].url, /limit=1/);
++});
++
++test('events() accepts limit=1000 (upper boundary)', async () => {
++  const { fn, calls } = mockTransport(eventsBody);
++  const client = createMonitorClient({ baseUrl: 'http://h', token: 't', fetch: fn });
++  await client.events(OBSERVATION_ID, 0, 1000);
++  assert.match(calls[0].url, /limit=1000/);
++});
++
++test('events() accepts a large safe-integer cursor for after', async () => {
++  const { fn, calls } = mockTransport(eventsBody);
++  const client = createMonitorClient({ baseUrl: 'http://h', token: 't', fetch: fn });
++  await client.events(OBSERVATION_ID, Number.MAX_SAFE_INTEGER, 10);
++  assert.match(calls[0].url, /after=9007199254740991/);
++});
++
++// events() — invalid after
++for (const [label, value] of [
++  ['negative', -1],
++  ['NaN', NaN],
++  ['Infinity', Infinity],
++  ['negative Infinity', -Infinity],
++  ['decimal', 0.5],
++  ['string', '0'],
++  ['null', null],
++  ['boolean', false],
++  ['beyond safe integer', Number.MAX_SAFE_INTEGER + 1],
++]) {
++  test(`events() rejects after=${label} without sending a request`, () => {
++    const { fn, calls } = mockTransport();
++    const client = createMonitorClient({ baseUrl: 'http://h', token: 't', fetch: fn });
++    assert.throws(() => client.events(OBSERVATION_ID, value, 10), TypeError);
++    assert.equal(calls.length, 0);
++  });
++}
++
++// events() — invalid limit
++for (const [label, value] of [
++  ['zero', 0],
++  ['above 1000', 1001],
++  ['negative', -1],
++  ['NaN', NaN],
++  ['Infinity', Infinity],
++  ['decimal', 50.5],
++  ['string', '100'],
++  ['null', null],
++  ['beyond safe integer', Number.MAX_SAFE_INTEGER + 1],
++]) {
++  test(`events() rejects limit=${label} without sending a request`, () => {
++    const { fn, calls } = mockTransport();
++    const client = createMonitorClient({ baseUrl: 'http://h', token: 't', fetch: fn });
++    assert.throws(() => client.events(OBSERVATION_ID, 0, value), TypeError);
++    assert.equal(calls.length, 0);
++  });
++}
++
++
++// Existing behaviour is preserved: observation ID validation & auth header
++test('task() still rejects malformed observation IDs', () => {
++  const { fn, calls } = mockTransport();
++  const client = createMonitorClient({ baseUrl: 'http://h', token: 't', fetch: fn });
++  assert.throws(() => client.task('not-a-valid-id'), TypeError);
++  assert.equal(calls.length, 0);
++});
++
++test('successful requests still carry the Bearer authorization header', async () => {
++  const { fn, calls } = mockTransport({ schemaVersion: 'coding_agent.monitor.v1' });
++  const client = createMonitorClient({ baseUrl: 'http://h', token: 'secret-token', fetch: fn });
++  await client.node();
++  assert.equal(calls[0].init.headers.authorization, 'Bearer secret-token');
++});
++
++test('successful tasks response shape is unchanged', async () => {
++  const body = { schemaVersion: 'coding_agent.monitor.v1', observedAt: 'now', total: 1, offset: 0, limit: 20, items: [{ id: 'x' }] };
++  const { fn } = mockTransport(body);
++  const client = createMonitorClient({ baseUrl: 'http://h', token: 't', fetch: fn });
++  const result = await client.tasks();
++  assert.deepEqual(result, body);
++});
++
++test('successful events response shape is unchanged', async () => {
++  const body = { schemaVersion: 'x', items: [{ cursor: 1, timestamp: 't', type: 'E' }], nextCursor: 2, hasMore: true, truncated: false, earliestCursor: 1 };
++  const { fn } = mockTransport(body);
++  const client = createMonitorClient({ baseUrl: 'http://h', token: 't', fetch: fn });
++  const result = await client.events(OBSERVATION_ID, 0, 50);
++  assert.deepEqual(result, body);
++});
++
++});

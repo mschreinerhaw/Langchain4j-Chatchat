@@ -45,7 +45,8 @@ export function createMonitor(config){
     // Runtime checks ownership and the asset allowlist. No path from browser reaches a filesystem API.
     const upstream=await fetch(config.runtimeUrl+'/api/v1/data-science/user-assets/'+download[1]+'/content',{headers:{authorization:'Bearer '+user.token},signal:AbortSignal.timeout(60000),redirect:'error'});
     if(!upstream.ok)throw error('Runtime denied artifact download',upstream.status);
-    res.writeHead(200,{...security,'content-type':'application/octet-stream','content-disposition':'attachment; filename="'+download[1]+'"'});for await(const chunk of upstream.body){if(!res.write(chunk))await new Promise(resolve=>res.once('drain',resolve));}res.end();return;
+    const disposition=upstream.headers.get('content-disposition');
+    res.writeHead(200,{...security,'content-type':'application/octet-stream','content-disposition':disposition&&!/[\r\n]/.test(disposition)?disposition:'attachment; filename="'+download[1]+'"'});for await(const chunk of upstream.body){if(!res.write(chunk))await new Promise(resolve=>res.once('drain',resolve));}res.end();return;
    }
    const route=/^\/api\/sessions\/([^/]+)(?:\/([a-z-]+))?$/.exec(p);if(!route)throw error('Route not found',404);
    const key=decodeURIComponent(route[1]),action=route[2];

@@ -25,7 +25,11 @@
 
 `cline-agent-server/monitor` 是不依赖前端构建链的独立 Node HTTP 服务及三栏浏览器页面。后端只调用既有执行/权限/Runtime HTTP 接口并读取已存在的持久日志，不持有 Docker Socket，不引入任务数据库。页面浏览器登录交换短期 HttpOnly cookie，Runtime JWT 和 Native 服务凭据只在后端。
 
-SSE 使用来源日志的持久 eventId 组成 `来源:eventId` 身份，并以各来源游标组成重连 ID。浏览器去重并保留来源时间；重连后读取持久日志补齐。共享读取缓存限制日志读取频率，订阅关闭不取消执行。业务创建通过现有 exploration prepare/execute 入口，控制台不生成可信合同、预算或源码。
+SSE 使用来源日志的持久 eventId 组成 `来源:eventId` 身份，并以各来源游标组成重连 ID。浏览器去重并保留来源时间；重连后读取持久日志补齐。共享读取缓存限制日志读取频率，订阅关闭不取消执行。业务创建通过现有 exploration prepare/execute 或显式 CSV 合同的 user-assets/analyses 入口，控制台不生成可信合同、预算或源码。
+
+文件分析没有父 Agent Run。新增的按 taskId 读取接口先核对已存在的 DurableCodingTaskService 合同 tenant/user/run，复用任务 Journal、模型回执和 Python 执行投影；不伪造父 Run。已有父 Agent Run 的权限规则保留，跨用户/租户回归覆盖两种路径。源码与日志通过 Runtime 现有 owner 归档按需读取，不能把路径参数映射为任意磁盘读取。
+
+CSV 独立验算由执行分支提供注册的 `runtime-csv-count-sum:v1` 扩展及持久验证计划。它重新校验不可变输入及原始 CSV 分片 Hash，独立解析原文件并核对 rowCount、精确 Decimal sum、源 Hash；不采用模型生成的验证代码或期望数值。通用结构验证仍为 INCONCLUSIVE，不被提升为此领域验算。
 
 ## 验收边界
 

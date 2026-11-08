@@ -40,6 +40,8 @@ function snapshot(d){
  $('#send').disabled=!d.capabilities?.messages;$('#message').disabled=!d.capabilities?.messages;$('#cancel').disabled=!d.capabilities?.cancel;$('#reconcile').disabled=!d.capabilities?.reconcile;
  const state=$('#state');state.replaceChildren();const dl=el('dl');
  const fields=[['Native 状态',d.status],['Runtime 状态',d.mode==='runtime'?d.runtimeStatus:'未关联'],['状态来源',d.authority],['Session',d.sessionId],['Agent Session',d.nativeSessionId],['Task ID',d.taskId],['Worker 停止',d.workerStopped],['远端停止',d.remoteStopConfirmed],['待决 Python',d.activeOperations?.join(',')||'无已知活动操作'],['模型',d.model?.model??d.modelReceipts?.at(-1)?.providerModel],['输入 Token',sumUsage(d.modelReceipts,'inputTokens')],['输出 Token',sumUsage(d.modelReceipts,'outputTokens')]];
+ fields[0][0]=d.mode==='runtime'?'Native 网关':'Native Session';
+ if(d.mode==='runtime')fields.splice(1,0,['Core 本轮',d.nativeTurnStatus],['Python 状态',d.executions?.at(-1)?.status],['结束工具',d.nativeCompletion?.toolCallId]);
  for(const [k,v] of fields){dl.append(el('dt',k),el('dd',unknown(v)));}state.append(dl);
  const perms=$('#permissions');perms.replaceChildren();for(const p of d.pendingPermissions??[]){const div=el('div');div.append(el('p','待批准：'+p.toolName+' / '+p.toolCallId));div.append(card('Permission input / toolCallId',p));for(const [label,decision] of [['批准','approve'],['拒绝','deny']]){const b=el('button',label);b.onclick=()=>control('permission',{permissionId:p.id,decision});div.append(b);}perms.append(div);}
  if(d.status==='awaiting_input')command('Cline 正在等待回答；请根据会话中的问题回复。');renderTab();

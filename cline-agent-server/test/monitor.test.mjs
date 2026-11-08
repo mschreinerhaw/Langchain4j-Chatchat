@@ -25,6 +25,16 @@ test('Read-only journal replay survives a monitor restart and respects Runtime o
   assert.equal((await restarted.sessions({...user,userId:'other'})).length,0);assert.equal((await b.sessions(user))[0].status,'UNKNOWN');
  }finally{await rm(root,{recursive:true,force:true});}
 });
+test('Files view includes retained execution artifacts while keeping the task owner boundary',async()=>{
+ const root=await mkdtemp(join(tmpdir(),'native-monitor-assets-'));
+ try{
+  await mkdir(join(root,'worker'));await writeFile(join(root,'worker/run.json'),JSON.stringify({workerId:'worker',taskId:'task',scope:{tenantId:'tenant',userId:'owner'}}));
+  const backend=new Backend({businessState:root});let reads=0;
+  backend.runtime=async(user,path)=>{reads++;assert.equal(user.userId,'owner');assert(path.includes('personalOnly=false'));assert(path.includes('taskId=task'));return [{id:'actual-retained-source',kind:'CODE'}];};
+  assert.equal((await backend.assets({userId:'owner',tenantId:'tenant'},'runtime:worker')).length,1);
+  await assert.rejects(backend.assets({userId:'other',tenantId:'tenant'},'runtime:worker'),/Task not found/);assert.equal(reads,1);
+ }finally{await rm(root,{recursive:true,force:true});}
+});
 
 test('Browser auth keeps credentials server-side and streams actual retained history with resumable cursor',async()=>{
  const root=await mkdtemp(join(tmpdir(),'native-monitor-http-'));const state=join(root,'native');await mkdir(join(state,'session'),{recursive:true});

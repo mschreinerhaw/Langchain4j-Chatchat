@@ -95,7 +95,7 @@ export class Backend {
   }else if(['cancel','reconcile'].includes(action))return this.runtime(user,this.root(s)+'/'+s.taskId+'/'+(action==='reconcile'?'resume':'cancel'),{});
   throw fail('Action not supported by this backend',409);
  }
- async assets(user,key){const c=await this.context(user,key);if(c.mode==='native')return {items:[],authority:'NATIVE_ONLY_NO_RUNTIME_ARCHIVE'};return this.runtime(user,'/api/v1/data-science/user-assets?limit=100&personalOnly=true&taskId='+encodeURIComponent(c.state.taskId));}
+ async assets(user,key){const c=await this.context(user,key);if(c.mode==='native')return {items:[],authority:'NATIVE_ONLY_NO_RUNTIME_ARCHIVE'};return this.runtime(user,'/api/v1/data-science/user-assets?limit=100&personalOnly=false&taskId='+encodeURIComponent(c.state.taskId));}
  async trace(user,key,operation,kind){
   const c=await this.context(user,key);if(c.mode!=='runtime'||!/^cline-[a-f0-9]{64}$/.test(operation)||!['code','stdout','stderr','timing'].includes(kind))throw fail('Invalid artifact binding');
   try{return await this.runtime(user,this.root(c.state)+'/'+c.state.taskId+'/'+operation+'/'+kind);}catch(e){if(e.status!==404)throw e;}

@@ -33,6 +33,7 @@ docs/testing/evidence/native-cline-monitor-20261109/browser-native.json
 docs/testing/evidence/native-cline-monitor-20261109/browser-runtime.json
 docs/testing/evidence/native-cline-monitor-20261109/build/final-node-tests.log
 docs/testing/evidence/native-cline-monitor-20261109/build/frontend-rebuild-scoped-csv.log
+docs/testing/evidence/native-cline-monitor-20261109/build/index.json
 docs/testing/evidence/native-cline-monitor-20261109/build/maven-package-scoped-csv-r2.log
 docs/testing/evidence/native-cline-monitor-20261109/build/scoped-csv-objective-regression-r2.log
 docs/testing/evidence/native-cline-monitor-20261109/changed-files.txt
@@ -49,6 +50,7 @@ docs/testing/evidence/native-cline-monitor-20261109/joint-models.png
 docs/testing/evidence/native-cline-monitor-20261109/joint-python.png
 docs/testing/evidence/native-cline-monitor-20261109/joint-r4-independent-check.json
 docs/testing/evidence/native-cline-monitor-20261109/native-code-diff.png
+docs/testing/evidence/native-cline-monitor-20261109/native-direct-events.json
 docs/testing/evidence/native-cline-monitor-20261109/native-first-turn-harness.json
 docs/testing/evidence/native-cline-monitor-20261109/native-followup-harness.json
 docs/testing/evidence/native-cline-monitor-20261109/native-graceful-restart-observation.json

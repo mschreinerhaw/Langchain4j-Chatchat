@@ -7,6 +7,8 @@ import {reject,exact,taskGrant,identity,validateCreate,safeTree,mountAnchor,asse
 
 const cfg=JSON.parse(readFileSync(process.env.CLINE_EXECUTOR_CONFIG));
 if(cfg.mcpServerName&&!['runtime','tenant_data'].includes(cfg.mcpServerName))throw Error('Unknown fixed MCP transport profile');
+if(cfg.mcpServerName==='runtime'&&Object.values(cfg.tenants??{}).some(t=>!t.tools?.includes('submit_and_exit')))
+ throw Error('Native Runtime Executor policy must permit the official submit_and_exit tool');
 if(!/^sha256:[a-f0-9]{64}$/.test(cfg.workerImage)||!cfg.expectedDaemonId||!cfg.ownershipKey||!cfg.instanceId||!cfg.apiToken||!cfg.signingKey)throw Error('Pinned Executor policy required');
 const docker=new DockerEngine(cfg.dockerSocket);
 const daemon=await docker.call('GET','/info');

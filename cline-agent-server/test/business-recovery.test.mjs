@@ -1,6 +1,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {mkdtempSync,rmSync,readFileSync} from 'node:fs';
+import {mkdtempSync,rmSync,readFileSync,writeFileSync} from 'node:fs';
+import {spawnSync} from 'node:child_process';
+import {fileURLToPath} from 'node:url';
 import {tmpdir} from 'node:os';
 import {join} from 'node:path';
 import {persistRun,restoreRun,runtimeDeliveryStatus} from '../src/business/run-state.mjs';
@@ -43,4 +45,13 @@ test('partial delivery and completion missing Runtime evidence cannot become COM
  assert.throws(()=>runtimeDeliveryStatus({status:'BUDGET_EXCEEDED'}),/complete business delivery/);
  assert.throws(()=>runtimeDeliveryStatus({status:'COMPLETED'}),/references/);
  assert.equal(runtimeDeliveryStatus({status:'COMPLETED',resultDatasetRef:'r',validationRecordRef:'v',evidenceBundleRef:'e'}),'COMPLETED');
+});
+
+test('Executor rejects a Runtime policy missing official completion before contacting Docker',()=>{
+ const dir=mkdtempSync(join(tmpdir(),'native-executor-policy-'));
+ try {
+  const config=join(dir,'executor.json');writeFileSync(config,JSON.stringify({mcpServerName:'runtime',tenants:{tenant:{tools:['read_files','runtime__*']}}}));
+  const child=spawnSync(process.execPath,[fileURLToPath(new URL('../src/worker-executor.mjs',import.meta.url))],{encoding:'utf8',env:{...process.env,CLINE_EXECUTOR_CONFIG:config}});
+  assert.equal(child.status,1);assert.match(child.stderr,/must permit the official submit_and_exit/);
+ }finally{rmSync(dir,{recursive:true,force:true});}
 });

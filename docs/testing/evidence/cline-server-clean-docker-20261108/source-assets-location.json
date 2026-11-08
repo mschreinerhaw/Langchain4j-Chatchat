@@ -1,0 +1,86 @@
+{
+  "upstreamCommit": "a459f1d04dea030833b558be645011ab739c463b",
+  "callSites": [
+    {
+      "path": "apps/vscode/src/standalone/utils.ts",
+      "sha256": "ff7501c4732dc48232eae52c552471e68abfb73e32dbba7a11b50fdd08d1de57",
+      "descriptorOrExcludeCallSites": [
+        {
+          "line": 23,
+          "text": "\tconst descriptorSet = fs.readFileSync(\"proto/descriptor_set.pb\")"
+        },
+        {
+          "line": 25,
+          "text": "\tconst descriptorDefs = protoLoader.loadFileDescriptorSetFromBuffer(descriptorSet, options)"
+        },
+        {
+          "line": 27,
+          "text": "\tconst packageDefinition = { ...descriptorDefs, ...healthDef }"
+        }
+      ]
+    },
+    {
+      "path": "apps/vscode/scripts/package-standalone.mjs",
+      "sha256": "8458f78dedcb10e406ceefe25c3d0681f8ccac8958d5f7b4efa3e577a230d509",
+      "descriptorOrExcludeCallSites": [
+        {
+          "line": 143,
+          "text": "\t// Exclude the same files as the VCE vscode extension packager."
+        }
+      ]
+    }
+  ],
+  "adaptation": "Official generated descriptor copied at assembly; worker cwd points to immutable runtime. No ProtoBus or Core code changes.",
+  "nativeToolCallSites": [
+    {
+      "path": "sdk/packages/core/src/extensions/tools/definitions.ts",
+      "line": 515,
+      "text": "const timeoutMs = config.bashTimeoutMs ?? 30000;"
+    },
+    {
+      "path": "sdk/packages/core/src/extensions/tools/definitions.ts",
+      "line": 761,
+      "text": "error: `Editor operation failed: ${msg}`,"
+    },
+    {
+      "path": "sdk/packages/core/src/extensions/tools/schemas.ts",
+      "line": 10,
+      "text": "export const INPUT_ARG_CHAR_LIMIT = 6000;"
+    },
+    {
+      "path": "sdk/packages/core/src/extensions/tools/executors/bash.ts",
+      "line": 1125,
+      "text": "* const shell = createShellExecutor({"
+    },
+    {
+      "path": "sdk/packages/core/src/extensions/tools/executors/bash.ts",
+      "line": 1133,
+      "text": "export function createShellExecutor("
+    },
+    {
+      "path": "sdk/packages/core/src/extensions/tools/executors/editor.ts",
+      "line": 207,
+      "text": "`Invalid insert_line: ${insertLineOneBased}. insert_line must be a positive one-based boundary line in the range 1-${maxBoundaryLine}. Use ${maxBoundaryLine} to append at EOF.`,"
+    },
+    {
+      "path": "sdk/packages/core/src/extensions/tools/executors/index.ts",
+      "line": 76,
+      "text": "return createShellExecutor(options);"
+    },
+    {
+      "path": "apps/vscode/src/sdk/sdk-diff-edit-coordinator.ts",
+      "line": 403,
+      "text": "`Invalid insert_line: ${input.insert_line}. insert_line must be a positive one-based boundary line in the range 1-${maxBoundaryLine}. Use ${maxBoundaryLine} to append at EOF.`,"
+    },
+    {
+      "path": "apps/vscode/src/sdk/vscode-run-commands-tool.ts",
+      "line": 10,
+      "text": "*   - **Background (backgroundExec):** Delegates to the SDK's createShellExecutor()"
+    },
+    {
+      "path": "apps/vscode/src/sdk/vscode-run-commands-tool.ts",
+      "line": 567,
+      "text": "bgExecutor = createShellExecutor({"
+    }
+  ]
+}

@@ -2,6 +2,8 @@
 
 日期：2026-11-08。结论：**固定 v4.1.26 Standalone 产品链的最小 HTTP Server 编码 POC 通过**。真实模型经 HTTP 驱动原生 Agent 完成真实项目的多文件修改、构建与测试，另完成原生搜索、拒绝审批及运行中取消。此结论不代表完整 VS Code 宿主等价或生产上线验收。
 
+后续正式 descriptor 装配及无源码挂载的 scratch 镜像完整复验见 [干净 Docker 补充报告](cline-server-clean-docker-tests-20261108.md)：新的真实 Editor/Patch 任务独立回归103/103、93/93，审批/幂等/SSE/取消均另有本轮证据。
+
 源码：[服务与复现说明](../../cline-agent-server/README.md)；[宿主差异矩阵](../audits/cline-server-host-diff.md)；[下一阶段整改](../design/cline-server-poc-remediation-20261108.md)。证据统一位于 [本次证据目录](evidence/cline-server-poc-20261108/README.md)。未改 Java 执行逻辑，未切换现有生产 Coding Agent、业务 API 或 MCP 服务。
 
 ## 固定输入与真实执行链

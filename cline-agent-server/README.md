@@ -68,6 +68,8 @@ CLINE_SERVER_CONFIG=/private/server.json node cline-agent-server/src/server.mjs
 
 本次真实结果、源码差异和保留的失败记录见 [验收报告](../docs/testing/cline-server-runtime-tests.md)。官方未修改 Standalone 对照、HTTP Editor/Patch 主任务、原生搜索、审批拒绝、运行中取消与 SSE 回放均有证据；完整 VS Code Desktop A/B 与生产治理尚未验收。
 
+正式 descriptor 资源装配及 scratch 镜像的补验另见 [Docker 构建说明](docker/README.md) 和 [干净 Docker 报告](../docs/testing/cline-server-clean-docker-tests-20261108.md)。启动时先校验整个 runtime manifest；ready 返回该摘要，native worker readiness 仍由会话事件确认。
+
 `test/live-http.py` 在宿主运行，用真实模型修改独立真实项目；保存 HTTP、SSE、原生工具事件、diff 和概要。`test/verify-real-project.mjs` 只独立检验生成结果，不修改文件；其中 fetch fixture 仅用于验证所生成监控客户端的参数行为，模型与 Agent 工具执行不做 mock。`test/controls-http.py` 验证原生权限拒绝及长运行 Shell 的实际进程停止。
 
 ```bash

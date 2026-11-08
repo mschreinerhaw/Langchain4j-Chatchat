@@ -1,0 +1,280 @@
+diff --git a/README.md b/README.md
+index 8a19bf6..3829b3e 100644
+--- a/README.md
++++ b/README.md
+@@ -85,6 +85,7 @@ npm start
+ 
+ ```ts
+ import { createMonitorClient } from './dist/monitor-client.js';
++import type { MonitorTaskQuery, MonitorEventsQuery, TaskSummary } from './dist/monitor-client.js';
+ 
+ // 在调用方服务端执行，token 从其 secret manager 读取。
+ const node = createMonitorClient({ baseUrl: 'http://coding-agent-node:3100', token });
+@@ -96,4 +97,6 @@ if (tasks.items[0]) {
+ }
+ ```
+ 
++`baseUrl` 允许多个尾随斜杠，客户端会规范化为单个分隔斜杠。`tasks(query)` 的 `offset`（若提供）必须为非负安全整数，`limit`（若提供）必须在 1–500 安全整数范围内；`undefined` 字段会被省略，`q` 通过 `URLSearchParams` 正确编码。`events(taskId, after, limit)` 的 `after` 必须为非负安全整数，`limit` 必须在 1–1000 安全整数范围内。所有无效参数（NaN、Infinity、小数、负值、越界、非法类型）在发起网络请求前抛出 `TypeError`。公开查询类型 `MonitorTaskQuery` 与 `MonitorEventsQuery` 从 `monitor-types.ts` 命名导出，可随 `monitor-client` 一起导入。
++
+ 建议 3–5 秒轮询，设置超时并保留最后成功快照。API 数据属于 `NODE_OBSERVATION_ONLY`，不应作为重试、扣费、停止证明或业务结果准入依据。入口应走反向代理的 `/monitor` 与 `/v1/monitor/` 白名单；HTTPS 时启用 Secure Cookie，执行接口保留在 Runtime 内网。
+diff --git a/src/monitor-client.ts b/src/monitor-client.ts
+index 8f4adda..7e20293 100644
+--- a/src/monitor-client.ts
++++ b/src/monitor-client.ts
+@@ -1,8 +1,19 @@
+-import type { CodeVersion, ModelCall, MonitorEvent, NodeSnapshot, TaskDetail, TaskPage, TaskState } from './monitor-types.ts';
++import type { CodeVersion, ModelCall, MonitorEvent, MonitorEventsQuery, MonitorTaskQuery, NodeSnapshot, TaskDetail, TaskPage } from './monitor-types.ts';
++
++function assertNonNegativeSafeInteger(name: string, value: number): void {
++  if (typeof value !== 'number' || !Number.isSafeInteger(value) || value < 0) {
++    throw new TypeError(`${name} must be a non-negative safe integer`);
++  }
++}
++function assertBoundedSafeInteger(name: string, value: number, min: number, max: number): void {
++  if (typeof value !== 'number' || !Number.isSafeInteger(value) || value < min || value > max) {
++    throw new TypeError(`${name} must be a safe integer between ${min} and ${max}`);
++  }
++}
+ 
+ /** Server-side SDK. Keep the operator token on your application server. */
+ export function createMonitorClient(options: { baseUrl: string; token: string; fetch?: typeof fetch; timeoutMs?: number }) {
+-  const base = options.baseUrl.replace(/\/$/, '');
++  const base = options.baseUrl.replace(/\/+$/, '');
+   const transport = options.fetch ?? fetch;
+   async function get<T>(path: string): Promise<T> {
+     const response = await transport(`${base}/v1/monitor${path}`, {
+@@ -18,11 +29,23 @@ export function createMonitorClient(options: { baseUrl: string; token: string; f
+   };
+   return {
+     node: () => get<NodeSnapshot>('/node'),
+-    tasks: (query: { status?: TaskState; q?: string; offset?: number; limit?: number } = {}) =>
+-      get<TaskPage>(`/tasks?${new URLSearchParams(Object.entries(query).map(([key, value]) => [key, String(value)]))}`),
++    tasks: async (query: MonitorTaskQuery = {}) => {
++      if (query.offset !== undefined) assertNonNegativeSafeInteger('offset', query.offset);
++      if (query.limit !== undefined) assertBoundedSafeInteger('limit', query.limit, 1, 500);
++      const params = new URLSearchParams();
++      if (query.status !== undefined) params.set('status', query.status);
++      if (query.q !== undefined) params.set('q', query.q);
++      if (query.offset !== undefined) params.set('offset', String(query.offset));
++      if (query.limit !== undefined) params.set('limit', String(query.limit));
++      const qs = params.toString();
++      return get<TaskPage>(qs ? `/tasks?${qs}` : '/tasks');
++    },
+     task: (taskId: string) => get<{ schemaVersion: string; task: TaskDetail }>(`/tasks/${id(taskId)}`),
+-    events: (taskId: string, after = 0, limit = 100) =>
+-      get<{ schemaVersion: string; items: MonitorEvent[]; nextCursor: number; hasMore: boolean; truncated: boolean; earliestCursor: number | null }>(`/tasks/${id(taskId)}/events?after=${after}&limit=${limit}`),
++    events: async (taskId: string, after = 0, limit = 100) => {
++      assertNonNegativeSafeInteger('after', after);
++      assertBoundedSafeInteger('limit', limit, 1, 1000);
++      return get<{ schemaVersion: string; items: MonitorEvent[]; nextCursor: number; hasMore: boolean; truncated: boolean; earliestCursor: number | null }>(`/tasks/${id(taskId)}/events?after=${after}&limit=${limit}`);
++    },
+     models: (taskId: string) => get<{ schemaVersion: string; models: ModelCall[] }>(`/tasks/${id(taskId)}/models`),
+     skills: (taskId: string) => get<{ schemaVersion: string; skills: TaskDetail['skills'] }>(`/tasks/${id(taskId)}/skills`),
+     codes: (taskId: string) => get<{ schemaVersion: string; codes: CodeVersion[] }>(`/tasks/${id(taskId)}/codes`),
+diff --git a/src/monitor-types.ts b/src/monitor-types.ts
+index 7359aa6..8da333f 100644
+--- a/src/monitor-types.ts
++++ b/src/monitor-types.ts
+@@ -72,3 +72,19 @@ export interface NodeSnapshot {
+ }
+ export interface TaskPage { schemaVersion: 'coding_agent.monitor.v1'; observedAt: string;
+   total: number; offset: number; limit: number; items: TaskSummary[] }
++/** Query parameters accepted by `createMonitorClient().tasks(...)`. */
++export interface MonitorTaskQuery {
++  status?: TaskState;
++  q?: string;
++  /** Non-negative safe integer; omitted when not provided. */
++  offset?: number;
++  /** Safe integer in 1..500; omitted when not provided. */
++  limit?: number;
++}
++/** Parameters accepted by `createMonitorClient().events(taskId, after, limit)`. */
++export interface MonitorEventsQuery {
++  /** Non-negative safe integer cursor; defaults to 0. */
++  after: number;
++  /** Safe integer in 1..1000; defaults to 100. */
++  limit: number;
++}
+--- /dev/null
++++ b/test/monitor-client-parameters.test.js
+@@ -0,0 +1,180 @@
++import test from 'node:test';
++import assert from 'node:assert/strict';
++import { createMonitorClient } from '../src/monitor-client.ts';
++
++const taskId = 'a'.repeat(64);
++
++function recordingFetch() {
++  const calls = [];
++  const fn = async (url, init) => {
++    calls.push({ url, init });
++    return new Response(JSON.stringify({ schemaVersion: 'coding_agent.monitor.v1', total: 0, offset: 0, limit: 0, items: [], observedAt: new Date().toISOString() }), { status: 200, headers: { 'content-type': 'application/json' } });
++  };
++  fn.calls = calls;
++  return fn;
++}
++
++// --- baseUrl trailing slash normalization ---
++test('baseUrl with multiple trailing slashes collapses to a single separator', async () => {
++  const fetch = recordingFetch();
++  const client = createMonitorClient({ baseUrl: 'http://example.com///', token: 't'.repeat(32), fetch });
++  await client.node();
++  assert.equal(fetch.calls[0].url, 'http://example.com/v1/monitor/node');
++});
++
++test('baseUrl with no trailing slash works unchanged', async () => {
++  const fetch = recordingFetch();
++  const client = createMonitorClient({ baseUrl: 'http://example.com', token: 't'.repeat(32), fetch });
++  await client.node();
++  assert.equal(fetch.calls[0].url, 'http://example.com/v1/monitor/node');
++});
++
++test('baseUrl with a single trailing slash is preserved as one separator', async () => {
++  const fetch = recordingFetch();
++  const client = createMonitorClient({ baseUrl: 'http://example.com/', token: 't'.repeat(32), fetch });
++  await client.node();
++  assert.equal(fetch.calls[0].url, 'http://example.com/v1/monitor/node');
++});
++
++// --- tasks(query) parameter validation ---
++test('tasks() with no arguments issues /tasks without query string', async () => {
++  const fetch = recordingFetch();
++  const client = createMonitorClient({ baseUrl: 'http://example.com', token: 't'.repeat(32), fetch });
++  await client.tasks();
++  assert.equal(fetch.calls[0].url, 'http://example.com/v1/monitor/tasks');
++});
++
++test('tasks() with empty object issues /tasks without query string', async () => {
++  const fetch = recordingFetch();
++  const client = createMonitorClient({ baseUrl: 'http://example.com', token: 't'.repeat(32), fetch });
++  await client.tasks({});
++  assert.equal(fetch.calls[0].url, 'http://example.com/v1/monitor/tasks');
++});
++
++test('tasks() omits undefined offset and limit', async () => {
++  const fetch = recordingFetch();
++  const client = createMonitorClient({ baseUrl: 'http://example.com', token: 't'.repeat(32), fetch });
++  await client.tasks({ status: 'RUNNING', offset: undefined, limit: undefined });
++  assert.equal(fetch.calls[0].url, 'http://example.com/v1/monitor/tasks?status=RUNNING');
++});
++
++test('tasks() encodes q through URLSearchParams', async () => {
++  const fetch = recordingFetch();
++  const client = createMonitorClient({ baseUrl: 'http://example.com', token: 't'.repeat(32), fetch });
++  await client.tasks({ q: 'hello world&x=1', status: 'COMPLETED', offset: 0, limit: 10 });
++  const url = new URL(fetch.calls[0].url);
++  assert.equal(url.searchParams.get('q'), 'hello world&x=1');
++  assert.equal(url.searchParams.get('status'), 'COMPLETED');
++  assert.equal(url.searchParams.get('offset'), '0');
++  assert.equal(url.searchParams.get('limit'), '10');
++});
++
++test('tasks() accepts offset=0 and limit=1 (lower bounds)', async () => {
++  const fetch = recordingFetch();
++  const client = createMonitorClient({ baseUrl: 'http://example.com', token: 't'.repeat(32), fetch });
++  await client.tasks({ offset: 0, limit: 1 });
++  const url = new URL(fetch.calls[0].url);
++  assert.equal(url.searchParams.get('offset'), '0');
++  assert.equal(url.searchParams.get('limit'), '1');
++});
++
++test('tasks() accepts offset at MAX_SAFE_INTEGER and limit=500 (upper bounds)', async () => {
++  const fetch = recordingFetch();
++  const client = createMonitorClient({ baseUrl: 'http://example.com', token: 't'.repeat(32), fetch });
++  await client.tasks({ offset: Number.MAX_SAFE_INTEGER, limit: 500 });
++  const url = new URL(fetch.calls[0].url);
++  assert.equal(url.searchParams.get('offset'), String(Number.MAX_SAFE_INTEGER));
++  assert.equal(url.searchParams.get('limit'), '500');
++});
++
++
++for (const bad of [-1, -0.5, 0.5, 1.5, NaN, Infinity, -Infinity, Number.MAX_SAFE_INTEGER + 1, '0', null, true, [], {}]) {
++  test(`tasks() rejects invalid offset: ${String(bad)}`, async () => {
++    const fetch = recordingFetch();
++    const client = createMonitorClient({ baseUrl: 'http://example.com', token: 't'.repeat(32), fetch });
++    await assert.rejects(client.tasks({ offset: bad }), TypeError);
++    assert.equal(fetch.calls.length, 0, 'no network request should be issued');
++  });
++}
++
++for (const bad of [0, -1, 501, 0.5, 1.5, NaN, Infinity, -Infinity, Number.MAX_SAFE_INTEGER + 1, '1', null, true, [], {}]) {
++  test(`tasks() rejects invalid limit: ${String(bad)}`, async () => {
++    const fetch = recordingFetch();
++    const client = createMonitorClient({ baseUrl: 'http://example.com', token: 't'.repeat(32), fetch });
++    await assert.rejects(client.tasks({ limit: bad }), TypeError);
++    assert.equal(fetch.calls.length, 0, 'no network request should be issued');
++  });
++}
++
++// --- events(taskId, after, limit) parameter validation ---
++test('events() defaults to after=0 and limit=100', async () => {
++  const fetch = recordingFetch();
++  const client = createMonitorClient({ baseUrl: 'http://example.com', token: 't'.repeat(32), fetch });
++  await client.events(taskId);
++  assert.equal(fetch.calls[0].url, `http://example.com/v1/monitor/tasks/${taskId}/events?after=0&limit=100`);
++});
++
++test('events() accepts after=0 and limit=1 (lower bounds)', async () => {
++  const fetch = recordingFetch();
++  const client = createMonitorClient({ baseUrl: 'http://example.com', token: 't'.repeat(32), fetch });
++  await client.events(taskId, 0, 1);
++  assert.match(fetch.calls[0].url, /after=0&limit=1$/);
++});
++
++test('events() accepts after=MAX_SAFE_INTEGER and limit=1000 (upper bounds)', async () => {
++  const fetch = recordingFetch();
++  const client = createMonitorClient({ baseUrl: 'http://example.com', token: 't'.repeat(32), fetch });
++  await client.events(taskId, Number.MAX_SAFE_INTEGER, 1000);
++  assert.match(fetch.calls[0].url, new RegExp(`after=${Number.MAX_SAFE_INTEGER}&limit=1000$`));
++});
++
++for (const bad of [-1, -0.5, 0.5, 1.5, NaN, Infinity, -Infinity, Number.MAX_SAFE_INTEGER + 1, '0', null, true, [], {}]) {
++  test(`events() rejects invalid after: ${String(bad)}`, async () => {
++    const fetch = recordingFetch();
++    const client = createMonitorClient({ baseUrl: 'http://example.com', token: 't'.repeat(32), fetch });
++    await assert.rejects(client.events(taskId, bad), TypeError);
++    assert.equal(fetch.calls.length, 0, 'no network request should be issued');
++  });
++}
++
++for (const bad of [0, -1, 1001, 0.5, 1.5, NaN, Infinity, -Infinity, Number.MAX_SAFE_INTEGER + 1, '100', null, true, [], {}]) {
++  test(`events() rejects invalid limit: ${String(bad)}`, async () => {
++    const fetch = recordingFetch();
++    const client = createMonitorClient({ baseUrl: 'http://example.com', token: 't'.repeat(32), fetch });
++    await assert.rejects(client.events(taskId, 0, bad), TypeError);
++    assert.equal(fetch.calls.length, 0, 'no network request should be issued');
++  });
++}
++
++// --- observation ID validation still enforced ---
++test('events() still validates observation ID before parameter checks', async () => {
++  const fetch = recordingFetch();
++  const client = createMonitorClient({ baseUrl: 'http://example.com', token: 't'.repeat(32), fetch });
++  await assert.rejects(client.events('not-a-valid-id', 0, 100), TypeError);
++  assert.equal(fetch.calls.length, 0);
++});
++
++// --- successful response shape unchanged ---
++test('successful tasks() response shape is preserved', async () => {
++  const body = { schemaVersion: 'coding_agent.monitor.v1', observedAt: '2026-01-01T00:00:00Z', total: 1, offset: 0, limit: 10, items: [] };
++  const fetch = async () => new Response(JSON.stringify(body), { status: 200, headers: { 'content-type': 'application/json' } });
++  const client = createMonitorClient({ baseUrl: 'http://example.com', token: 't'.repeat(32), fetch });
++  const result = await client.tasks({ status: 'RUNNING', limit: 10 });
++  assert.deepEqual(result, body);
++});
++
++test('successful events() response shape is preserved', async () => {
++  const body = { schemaVersion: 'coding_agent.monitor.v1', items: [], nextCursor: 0, hasMore: false, truncated: false, earliestCursor: null };
++  const fetch = async () => new Response(JSON.stringify(body), { status: 200, headers: { 'content-type': 'application/json' } });
++  const client = createMonitorClient({ baseUrl: 'http://example.com', token: 't'.repeat(32), fetch });
++  const result = await client.events(taskId, 0, 100);
++  assert.deepEqual(result, body);
++});
++
++// --- authentication header preserved ---
++test('authorization header is preserved on valid requests', async () => {
++  const fetch = recordingFetch();
++  const client = createMonitorClient({ baseUrl: 'http://example.com', token: 'secret-token', fetch });
++  await client.tasks({ limit: 5 });
++  assert.equal(fetch.calls[0].init.headers.authorization, 'Bearer secret-token');
++});

@@ -1,0 +1,137 @@
+{
+  "live": {
+    "statusCode": 200,
+    "body": {
+      "live": true,
+      "version": "4.1.26-poc.1"
+    }
+  },
+  "ready": {
+    "statusCode": 200,
+    "body": {
+      "ready": true,
+      "runtimeAssets": {
+        "sourceCommit": "a459f1d04dea030833b558be645011ab739c463b",
+        "verifiedFiles": 1850,
+        "descriptorSha256": "d28dace3b4daff727770c3625917b22a0c54a8f855c4222530de1923b493086f",
+        "descriptorServices": 22
+      },
+      "scope": "Runtime assets verified; native worker readiness is per session",
+      "productionReady": false
+    }
+  },
+  "runtimeVerification": {
+    "sourceCommit": "a459f1d04dea030833b558be645011ab739c463b",
+    "verifiedFiles": 1850,
+    "descriptorSha256": "d28dace3b4daff727770c3625917b22a0c54a8f855c4222530de1923b493086f",
+    "descriptorServices": 22,
+    "node": "v24.21.0",
+    "nodeABI": "137",
+    "sqlite": "3.50.4",
+    "status": "PASS"
+  },
+  "cleanImageProbe": {
+    "node": "v24.21.0",
+    "availableParallelism": 2,
+    "upstreamSourceAbsent": true,
+    "oldAppAbsent": true,
+    "globalSDKAbsent": true,
+    "runtimeManifestPresent": true,
+    "uid": 1000
+  },
+  "nativeWorkerReady": {
+    "sessionId": "ea6808d1-0c0a-4251-b681-af317703b152",
+    "status": "idle",
+    "epoch": "dbe01dcd-3daa-4ba6-9b15-249e1b7d8809",
+    "revision": 1,
+    "lastEventId": "3",
+    "pendingPermissions": []
+  },
+  "nativeStartupEvents": {
+    "events": [
+      {
+        "sessionId": "ea6808d1-0c0a-4251-b681-af317703b152",
+        "taskId": null,
+        "epoch": "dbe01dcd-3daa-4ba6-9b15-249e1b7d8809",
+        "eventType": "session.created",
+        "payload": {
+          "workspaceRef": "monitor-editor"
+        },
+        "eventId": "1",
+        "timestamp": "2026-11-08T02:22:21.278Z"
+      },
+      {
+        "sessionId": "ea6808d1-0c0a-4251-b681-af317703b152",
+        "taskId": null,
+        "epoch": "dbe01dcd-3daa-4ba6-9b15-249e1b7d8809",
+        "eventType": "worker.ready",
+        "payload": {
+          "native": "v4.1.26",
+          "sourceCommit": "a459f1d04dea030833b558be645011ab739c463b",
+          "hostCapabilities": {
+            "workspace": true,
+            "editorUI": false,
+            "diagnostics": false,
+            "backgroundShell": true
+          }
+        },
+        "eventId": "2",
+        "timestamp": "2026-11-08T02:22:25.343Z"
+      },
+      {
+        "sessionId": "ea6808d1-0c0a-4251-b681-af317703b152",
+        "taskId": null,
+        "epoch": "dbe01dcd-3daa-4ba6-9b15-249e1b7d8809",
+        "eventType": "host.notification",
+        "payload": {
+          "type": 1,
+          "message": "Welcome to Cline v4.1.26"
+        },
+        "eventId": "3",
+        "timestamp": "2026-11-08T02:22:25.348Z"
+      }
+    ]
+  },
+  "missingDescriptorNegative": {
+    "exitCode": 1,
+    "status": "EXPECTED_FAILURE",
+    "source": "apps/vscode/src/standalone/utils.ts:23",
+    "resource": "proto/descriptor_set.pb"
+  },
+  "docker": {
+    "containerId": "157015652eb68fe2ed9da59437b77f9214ebb55276d20ce7f0864c0502eaffa0",
+    "imageId": "sha256:f23feae55353f57f2e7fb68455a41b2f26cd383b0ca04f928e0072ad7b869ace",
+    "health": {
+      "Status": "healthy",
+      "FailingStreak": 0,
+      "Log": [
+        {
+          "Start": "2026-11-08T10:22:33.603439906+08:00",
+          "End": "2026-11-08T10:22:33.875286427+08:00",
+          "ExitCode": 0,
+          "Output": ""
+        }
+      ]
+    },
+    "mounts": [
+      {
+        "destination": "/poc/project-patch",
+        "rw": true
+      },
+      {
+        "destination": "/poc/state",
+        "rw": true
+      },
+      {
+        "destination": "/run/cline-poc.json",
+        "rw": false
+      },
+      {
+        "destination": "/poc/project",
+        "rw": true
+      }
+    ],
+    "readOnlyRootfs": true,
+    "cpusetCpus": "6,7"
+  }
+}

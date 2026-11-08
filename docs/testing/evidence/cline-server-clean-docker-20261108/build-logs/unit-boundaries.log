@@ -1,0 +1,12 @@
+✔ missing ProtoBus descriptor fails explicitly before native or provider initialization (3.774921ms)
+✔ native editor size rejection and shell structured errors cannot become success events (0.352331ms)
+✔ durable replay resumes after the last delivered ID across journal reopen (4.067193ms)
+✔ host path boundary rejects traversal and symlinks escaping the authorized workspace (0.996534ms)
+ℹ tests 4
+ℹ suites 0
+ℹ pass 4
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 122.661163

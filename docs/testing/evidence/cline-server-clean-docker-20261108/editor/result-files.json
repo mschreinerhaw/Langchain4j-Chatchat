@@ -1,0 +1,31 @@
+{
+  "sourceProjectCommit": "7d076d0dc",
+  "frozenFixtureCommit": "5d6ff6aee7cda52e3ca87522ca6360e7c687dd81",
+  "files": [
+    {
+      "path": "src/monitor-client.ts",
+      "bytes": 3474,
+      "sha256": "4e904dd854ae4ade1d04a1466eabde29b1b0b18e7bcf9e639b758c8cecd7c687"
+    },
+    {
+      "path": "src/monitor-types.ts",
+      "bytes": 5629,
+      "sha256": "9d72a68cdaeb746c11622cd6f1686b30e09a14ca1447629ac60155ff26a48241"
+    },
+    {
+      "path": "README.md",
+      "bytes": 10755,
+      "sha256": "a63bae83a991240dfefd9f59b863c4fe41b74b12e068880c0f0ff8e311314c00"
+    },
+    {
+      "path": "test/monitor-client-parameters.test.js",
+      "bytes": 9100,
+      "sha256": "dd57cb1bf431d4ddab8f1f5e52aab600de10e50fc85e4b1971c1a5bff135a6a9"
+    },
+    {
+      "path": "dist/monitor-client.js",
+      "bytes": 2885,
+      "sha256": "3d0ab9a07bfc90b4fc1ae4e2244b165bda2ef123dc36a930afe9cd8efed69ae8"
+    }
+  ]
+}

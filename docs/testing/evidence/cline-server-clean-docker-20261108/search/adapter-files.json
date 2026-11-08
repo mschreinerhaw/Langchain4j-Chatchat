@@ -1,0 +1,22 @@
+[
+  {
+    "path": "src/host-bridge.mjs",
+    "sha256": "7eee715e41da6c33301b44c47da5ea851ad27bf2f69408c36d985394222f7304"
+  },
+  {
+    "path": "src/journal.mjs",
+    "sha256": "3ebb26eaeb46551907b5ac9e852d8a82b899a9927f1633d895a3e6f7236559da"
+  },
+  {
+    "path": "src/runtime-assets.mjs",
+    "sha256": "a13a0ab71b1ac32933dbcd713897ce81013cf79e23bd372a9614f03756472af6"
+  },
+  {
+    "path": "src/server.mjs",
+    "sha256": "a2a922250fb63df054b2e9eb5788635038cecdd6ab93c443fee41e97a5eacbca"
+  },
+  {
+    "path": "src/tool-outcome.mjs",
+    "sha256": "aaf5361e8d39c280ca068e9b8834c5202af7f9f5d153dc277af51b41a95b4d34"
+  }
+]

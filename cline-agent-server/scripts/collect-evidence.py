@@ -1,7 +1,10 @@
 """Export scrubbed source/build/native HTTP evidence without executing or repairing tasks."""
 import pathlib,sys,json,hashlib,tarfile,difflib,subprocess,shutil,gzip,datetime
 root=pathlib.Path(sys.argv[1]).resolve();out=pathlib.Path(sys.argv[2]).resolve();out.mkdir(parents=True,exist_ok=True)
-up=root/'build/cline-a459f1d04dea030833b558be645011ab739c463b'
+reference=pathlib.Path(sys.argv[3]).resolve() if len(sys.argv)>3 else root
+container_name=sys.argv[4] if len(sys.argv)>4 else 'cline-agent-server-poc'
+up=reference/'build/cline-a459f1d04dea030833b558be645011ab739c463b'
+runtime=root/'context/runtime' if (root/'context/runtime').exists() else root/'runtime'
 cfg=json.loads((root/'private/server.json').read_text())
 secrets=[cfg['apiKey'],cfg['apiToken']]
 def scrub(text):
@@ -28,7 +31,7 @@ def failure(t):
  output=t.get('output');values=output if isinstance(output,list) else [output]
  return bool(t.get('error')) or any(isinstance(v,dict) and (v.get('success') is False or bool(v.get('error'))) for v in values)
 changes=[];core_checked=0;core_changes=[];patches=[]
-with tarfile.open(root/'input/source.tgz') as archive:
+with tarfile.open(reference/'input/source.tgz') as archive:
  for member in archive:
   if not member.isfile():continue
   relative=member.name.split('/',1)[1] if '/' in member.name else ''
@@ -47,10 +50,10 @@ with tarfile.open(root/'input/source.tgz') as archive:
 save('native-source-integrity.json',{'upstreamCommit':'a459f1d04dea030833b558be645011ab739c463b','comparedCoreAndAgentsSourceFiles':core_checked,'changedCoreAndAgentsSourceFiles':core_changes,'changedProductSourceFiles':changes})
 save('native-host-diff.patch',''.join(patches))
 artifacts=[]
-for p in [root/'input/source.tgz',root/'input/bun-linux.zip',root/'input/poc-service-r3.tgz',root/'input/poc-service.tgz',up/'bun.lock',up/'apps/vscode/dist-standalone/bun.lock',root/'runtime/cline-core.js',root/'runtime/proto/descriptor_set.pb',root/'runtime/plugin-runtime/plugin-sandbox-bootstrap.js']:
- if p.is_file():artifacts.append({'path':str(p.relative_to(root)),'bytes':p.stat().st_size,'sha256':digest(p.read_bytes())})
-for p in (root/'runtime').rglob('better_sqlite3.node'):artifacts.append({'path':str(p.relative_to(root)),'bytes':p.stat().st_size,'sha256':digest(p.read_bytes())})
-container=json.loads(subprocess.check_output(['docker','inspect','cline-agent-server-poc']))[0]
+for p in [reference/'input/source.tgz',reference/'input/bun-linux.zip',reference/'input/poc-service-r3.tgz',reference/'input/poc-service.tgz',up/'bun.lock',up/'apps/vscode/dist-standalone/bun.lock',up/'apps/vscode/dist-standalone/standalone.zip',runtime/'cline-core.js',runtime/'proto/descriptor_set.pb',runtime/'plugin-runtime/plugin-sandbox-bootstrap.js']:
+ if p.is_file():artifacts.append({'path':str(p.relative_to(reference)) if p.is_relative_to(reference) else str(p.relative_to(root)),'bytes':p.stat().st_size,'sha256':digest(p.read_bytes())})
+for p in runtime.rglob('better_sqlite3.node'):artifacts.append({'path':str(p.relative_to(root)),'bytes':p.stat().st_size,'sha256':digest(p.read_bytes())})
+container=json.loads(subprocess.check_output(['docker','inspect',container_name]))[0]
 save('build-and-runtime.json',{'recordedAt':datetime.datetime.now(datetime.timezone.utc).isoformat(),'artifacts':artifacts,'container':{'id':container['Id'],'imageId':container['Image'],'user':container['Config']['User'],'memoryLimit':container['HostConfig']['Memory'],'nanoCpus':container['HostConfig']['NanoCpus'],'cpusetCpus':container['HostConfig']['CpusetCpus'],'capDrop':container['HostConfig']['CapDrop'],'securityOpt':container['HostConfig']['SecurityOpt'],'portBindings':container['HostConfig']['PortBindings']},'modelProfile':{'model':cfg['model'],'protocol':'OpenAI-compatible','credential':'authorized existing platform profile, never exported','pricing':'UNKNOWN; native zero pricing is not billing evidence'}})
 for name in ['install.log','build-sdk.log','compile.log','package-linux.log','baseline-project-build.log']:
  if (root/name).exists():save('build-logs/'+name,(root/name).read_text())
@@ -74,6 +77,23 @@ for case in ['editor-r1-adapter-failure','editor-r2-resource-failure','editor','
   save(case+'/native-tool-results.json',tools)
   usage=[e['payload'] for e in events if e['eventType']=='model.usage']
   save(case+'/native-usage.json',{'usageEvents':len(usage),'lastUsage':usage[-1] if usage else None,'billingCost':'UNKNOWN'})
+  if case in ['editor','patch'] and (src/'http.json').exists():
+   summary=json.loads((src/'summary.json').read_text());task_id=summary['taskId']
+   trace=json.loads((src/'http.json').read_text())
+   sends=[h for h in trace if h['method']=='POST' and h['path'].endswith('/messages')]
+   accepted=[h for h in sends if h['status']==202 and h['response'].get('taskId')==task_id]
+   decisions=[h for h in trace if h['method']=='POST' and h['path'].startswith('/v1/permissions/') and h['path'].endswith('/respond')]
+   repeated_id=next((h['path'].split('/')[3] for h in decisions if h['status']==409),None)
+   state_file=root/'state'/summary['sessionId']/'session.json'
+   persisted=json.loads(state_file.read_text()) if state_file.exists() else {}
+   keys=[k for k,v in persisted.get('commands',{}).items() if v['response']['taskId']==task_id]
+   native_accepts=[e for e in events if e['eventType']=='task.accepted' and e['taskId']==task_id]
+   native_decisions=[e for e in events if e['eventType']=='permission.decision' and e['payload'].get('id')==repeated_id]
+   native_acks=[e for e in events if e['eventType']=='permission.resolved' and e['payload'].get('id')==repeated_id and e['payload'].get('applied')]
+   receipt={'taskId':task_id,'persistedIdempotencyKeys':keys,'httpAcceptedRetries':len(accepted),'httpConflictCount':sum(h['status']==409 for h in sends),'nativeTaskAcceptedEvents':len(native_accepts),'repeatedPermissionId':repeated_id,'permissionHttpStatuses':[h['status'] for h in decisions if h['path'].split('/')[3]==repeated_id],'nativePermissionDecisionEvents':len(native_decisions),'nativeAppliedPermissionACKs':len(native_acks),'source':'Derived from actual HTTP trace, persisted command map and native-linked journal; no task executed or repaired by collector'}
+   if summary['status']=='turn_completed':
+    assert len(keys)==1 and len(accepted)==2 and len(native_accepts)==1 and len(native_decisions)==1 and len(native_acks)==1,'Idempotency / duplicate approval evidence incomplete'
+   save(case+'/idempotency-and-approval-receipt.json',receipt)
 for case,folder in [('editor','project'),('patch','project-patch'),('stock','project-stock')]:
  project=root/folder/'coding-agent-node'
  summary_file=root/'stock-state/summary.json' if case=='stock' else root/'evidence'/case/'summary.json'
@@ -85,11 +105,13 @@ for case,folder in [('editor','project'),('patch','project-patch'),('stock','pro
  others=subprocess.check_output(cmd+['ls-files','--others','--exclude-standard','-z']).decode().split('\0')
  for name in others:
   if not name or not (project/name).is_file():continue
-  if not (name.startswith(('src/','test/')) or name=='README.md'):continue
-  text+=''.join(difflib.unified_diff([], (project/name).read_text().splitlines(True),fromfile='/dev/null',tofile='b/'+name))
+  if (project/name).stat().st_size>2*1024*1024:raise RuntimeError('Untracked result needs explicit large-artifact export: '+name)
+  try:lines=(project/name).read_text().splitlines(True)
+  except UnicodeDecodeError:raise RuntimeError('Untracked binary result needs explicit artifact export: '+name)
+  text+=''.join(difflib.unified_diff([],lines,fromfile='/dev/null',tofile='b/'+name))
  save(case+'/complete-project-changes.patch',text)
  files=[]
- for name in ['src/monitor-client.ts','src/monitor-types.ts','README.md','test/monitor-client-parameters.test.js','dist/monitor-client.js']:
+ for name in ['src/monitor-client.ts','src/monitor-types.ts','README.md','test/monitor-client-parameters.test.js','dist/monitor-client.js','CHANGES_SUMMARY.md']:
   p=project/name
   if p.exists():files.append({'path':name,'bytes':p.stat().st_size,'sha256':digest(p.read_bytes())})
  save(case+'/result-files.json',{'sourceProjectCommit':'7d076d0dc','frozenFixtureCommit':subprocess.check_output(cmd+['rev-parse','HEAD']).decode().strip(),'files':files})
@@ -99,6 +121,11 @@ for name in ['source-verification.json','task-manifest.json','submission.json','
 if (root/'stock-build.log').exists():save('build-logs/stock-build.log',(root/'stock-build.log').read_text())
 if (root/'evidence/authentication.json').exists():save('authentication.json',(root/'evidence/authentication.json').read_text())
 if (root/'evidence/final-smoke.json').exists():save('final-smoke.json',(root/'evidence/final-smoke.json').read_text())
+if reference!=root:
+ for name in ['build-inputs.json','clean-startup.json','docker-health-r1-failure.json','final-clean-smoke.json','image-inventory.json','source-assets-location.json','runtime-manifest.json','os-files.json','project-fixture-manifest.json','engine-provenance.json','pipeline-failure.json']:
+  p=root/'evidence'/name
+  if p.exists():save(name,p.read_text())
+ for p in sorted((root/'evidence').glob('*.log')):save('build-logs/'+p.name,p.read_text())
 manifest=[]
 for p in sorted(out.rglob('*')):
  if p.is_file() and p.name!='evidence-manifest.json':

@@ -1,0 +1,88 @@
+{
+  "recordedAt": "2026-11-08T02:40:13.435257+00:00",
+  "artifacts": [
+    {
+      "path": "input/source.tgz",
+      "bytes": 41665051,
+      "sha256": "5424fe67edb21cbdf95e592071fdcacb6d62b8be8387537cdfae98c6bb25449f"
+    },
+    {
+      "path": "input/bun-linux.zip",
+      "bytes": 36646985,
+      "sha256": "36368faef7527875d5ffa52e53cd48021741f2a83eb6208a8dd64068d422a913"
+    },
+    {
+      "path": "input/poc-service-r3.tgz",
+      "bytes": 25639,
+      "sha256": "f9e40857228d7251e03cc588fc24e32012657536a91d202864c2d3f55c9d02fe"
+    },
+    {
+      "path": "input/poc-service.tgz",
+      "bytes": 27170,
+      "sha256": "7e939604b4243a627606d50736bc21ac5a2edaa09be599ef5b367f2376e8399d"
+    },
+    {
+      "path": "build/cline-a459f1d04dea030833b558be645011ab739c463b/bun.lock",
+      "bytes": 1016647,
+      "sha256": "de3288309a0af8c609843322e097dfaf95d85ce479748f494e41077775be7776"
+    },
+    {
+      "path": "build/cline-a459f1d04dea030833b558be645011ab739c463b/apps/vscode/dist-standalone/bun.lock",
+      "bytes": 17169,
+      "sha256": "ac0137ceabd57e35e92f155d65817db2a71f5a240db5c2b954a8a55e56f5f8e3"
+    },
+    {
+      "path": "build/cline-a459f1d04dea030833b558be645011ab739c463b/apps/vscode/dist-standalone/standalone.zip",
+      "bytes": 27938413,
+      "sha256": "28a9fe835b4eb1c26670bc77d798669234deb51f1f41bf175c28938278dbcb73"
+    },
+    {
+      "path": "context/runtime/cline-core.js",
+      "bytes": 55152421,
+      "sha256": "88f3fc34f48baf44e065d959f5f5346a4b807cc7095d571a9f06cf91a6e84a3a"
+    },
+    {
+      "path": "context/runtime/proto/descriptor_set.pb",
+      "bytes": 126114,
+      "sha256": "d28dace3b4daff727770c3625917b22a0c54a8f855c4222530de1923b493086f"
+    },
+    {
+      "path": "context/runtime/plugin-runtime/plugin-sandbox-bootstrap.js",
+      "bytes": 1782520,
+      "sha256": "e000823947e889b32cbe66ee3f43a082eab5897cd510a0f31e0fc740780396b5"
+    },
+    {
+      "path": "context/runtime/node_modules/better-sqlite3/build/Release/better_sqlite3.node",
+      "bytes": 2083288,
+      "sha256": "90c27dc0d431feef669795799271448d5d9fa4da6dab88724edfb43ad3a85221"
+    }
+  ],
+  "container": {
+    "id": "157015652eb68fe2ed9da59437b77f9214ebb55276d20ce7f0864c0502eaffa0",
+    "imageId": "sha256:f23feae55353f57f2e7fb68455a41b2f26cd383b0ca04f928e0072ad7b869ace",
+    "user": "1000:1000",
+    "memoryLimit": 3221225472,
+    "nanoCpus": 2000000000,
+    "cpusetCpus": "6,7",
+    "capDrop": [
+      "ALL"
+    ],
+    "securityOpt": [
+      "no-new-privileges"
+    ],
+    "portBindings": {
+      "18327/tcp": [
+        {
+          "HostIp": "127.0.0.1",
+          "HostPort": "18327"
+        }
+      ]
+    }
+  },
+  "modelProfile": {
+    "model": "qwen3.7-plus",
+    "protocol": "OpenAI-compatible",
+    "credential": "authorized existing platform profile, never exported",
+    "pricing": "UNKNOWN; native zero pricing is not billing evidence"
+  }
+}

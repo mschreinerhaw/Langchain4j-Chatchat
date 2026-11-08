@@ -1,0 +1,106 @@
+diff --git a/README.md b/README.md
+index 8a19bf6..4847058 100644
+--- a/README.md
++++ b/README.md
+@@ -84,12 +84,23 @@ npm start
+ 提供可复用 TypeScript 客户端与类型：
+ 
+ ```ts
+-import { createMonitorClient } from './dist/monitor-client.js';
++import { createMonitorClient } from 'runtime-os-cline-coding-adapter/monitor-client';
++import type { MonitorClientOptions, TasksQuery } from 'runtime-os-cline-coding-adapter/monitor-client';
+ 
+-// 在调用方服务端执行，token 从其 secret manager 读取。
+-const node = createMonitorClient({ baseUrl: 'http://coding-agent-node:3100', token });
++// 在调用方服务端执行，token 从其 secret manager 读取。baseUrl 允许多个尾随斜杠，
++// SDK 会在拼接前规整为单个分隔斜杠。
++const options: MonitorClientOptions = { baseUrl: 'http://coding-agent-node:3100/', token };
++const node = createMonitorClient(options);
+ const health = await node.node();
+-const tasks = await node.tasks({ status: 'RUNNING', limit: 20 });
++
++// tasks() 的 offset / limit 为可选；undefined 字段会被省略，不会拼入查询字符串。
++// offset 必须是非负安全整数；limit 必须是 1..500 的安全整数。
++// q 通过 URLSearchParams 正确编码，支持中文与特殊字符。
++const query: TasksQuery = { status: 'RUNNING', q: 'aggregate & rollup', limit: 20 };
++const tasks = await node.tasks(query);
++
++// events() 的 after 必须是非负安全整数，limit 必须是 1..1000 的安全整数。
++// 所有无效参数（NaN、Infinity、小数、负值、非法类型）在发起网络请求前抛出 TypeError。
+ if (tasks.items[0]) {
+   const events = await node.events(tasks.items[0].id, 0, 100);
+   // events.hasMore 时，用 nextCursor 继续；truncated 为 true 表示早期历史已淘汰。
+diff --git a/src/monitor-client.ts b/src/monitor-client.ts
+index 8f4adda..cd7e9bc 100644
+--- a/src/monitor-client.ts
++++ b/src/monitor-client.ts
+@@ -1,8 +1,8 @@
+-import type { CodeVersion, ModelCall, MonitorEvent, NodeSnapshot, TaskDetail, TaskPage, TaskState } from './monitor-types.ts';
++import type { CodeVersion, ModelCall, MonitorEvent, MonitorClientOptions, NodeSnapshot, TaskDetail, TaskPage, TasksQuery } from './monitor-types.ts';
+ 
+ /** Server-side SDK. Keep the operator token on your application server. */
+-export function createMonitorClient(options: { baseUrl: string; token: string; fetch?: typeof fetch; timeoutMs?: number }) {
+-  const base = options.baseUrl.replace(/\/$/, '');
++export function createMonitorClient(options: MonitorClientOptions) {
++  const base = options.baseUrl.replace(/\/+$/, '');
+   const transport = options.fetch ?? fetch;
+   async function get<T>(path: string): Promise<T> {
+     const response = await transport(`${base}/v1/monitor${path}`, {
+@@ -16,13 +16,30 @@ export function createMonitorClient(options: { baseUrl: string; token: string; f
+     if (!/^[a-f0-9]{64}$/.test(value)) throw new TypeError('A monitor observation ID is required');
+     return value;
+   };
++  const requireNonNegativeSafeInteger = (name: string, value: number) => {
++    if (!Number.isSafeInteger(value) || value < 0) throw new TypeError(`${name} must be a non-negative safe integer`);
++  };
++  const requireSafeIntegerBetween = (name: string, value: number, min: number, max: number) => {
++    if (!Number.isSafeInteger(value) || value < min || value > max) throw new TypeError(`${name} must be a safe integer between ${min} and ${max}`);
++  };
+   return {
+     node: () => get<NodeSnapshot>('/node'),
+-    tasks: (query: { status?: TaskState; q?: string; offset?: number; limit?: number } = {}) =>
+-      get<TaskPage>(`/tasks?${new URLSearchParams(Object.entries(query).map(([key, value]) => [key, String(value)]))}`),
++    tasks: (query: TasksQuery = {}) => {
++      if (query.offset !== undefined) requireNonNegativeSafeInteger('offset', query.offset);
++      if (query.limit !== undefined) requireSafeIntegerBetween('limit', query.limit, 1, 500);
++      const params = new URLSearchParams();
++      for (const [key, value] of Object.entries(query)) {
++        if (value !== undefined) params.append(key, String(value));
++      }
++      const qs = params.toString();
++      return get<TaskPage>(qs ? `/tasks?${qs}` : '/tasks');
++    },
+     task: (taskId: string) => get<{ schemaVersion: string; task: TaskDetail }>(`/tasks/${id(taskId)}`),
+-    events: (taskId: string, after = 0, limit = 100) =>
+-      get<{ schemaVersion: string; items: MonitorEvent[]; nextCursor: number; hasMore: boolean; truncated: boolean; earliestCursor: number | null }>(`/tasks/${id(taskId)}/events?after=${after}&limit=${limit}`),
++    events: (taskId: string, after: number = 0, limit: number = 100) => {
++      requireNonNegativeSafeInteger('after', after);
++      requireSafeIntegerBetween('limit', limit, 1, 1000);
++      return get<{ schemaVersion: string; items: MonitorEvent[]; nextCursor: number; hasMore: boolean; truncated: boolean; earliestCursor: number | null }>(`/tasks/${id(taskId)}/events?after=${after}&limit=${limit}`);
++    },
+     models: (taskId: string) => get<{ schemaVersion: string; models: ModelCall[] }>(`/tasks/${id(taskId)}/models`),
+     skills: (taskId: string) => get<{ schemaVersion: string; skills: TaskDetail['skills'] }>(`/tasks/${id(taskId)}/skills`),
+     codes: (taskId: string) => get<{ schemaVersion: string; codes: CodeVersion[] }>(`/tasks/${id(taskId)}/codes`),
+diff --git a/src/monitor-types.ts b/src/monitor-types.ts
+index 7359aa6..01e2c84 100644
+--- a/src/monitor-types.ts
++++ b/src/monitor-types.ts
+@@ -72,3 +72,18 @@ export interface NodeSnapshot {
+ }
+ export interface TaskPage { schemaVersion: 'coding_agent.monitor.v1'; observedAt: string;
+   total: number; offset: number; limit: number; items: TaskSummary[] }
++
++/** Options accepted by `createMonitorClient`. */
++export interface MonitorClientOptions {
++  baseUrl: string;
++  token: string;
++  fetch?: typeof fetch;
++  timeoutMs?: number;
++}
++/** Pagination / filter for `tasks()`. Undefined fields are omitted from the request. */
++export interface TasksQuery {
++  status?: TaskState;
++  q?: string;
++  offset?: number;
++  limit?: number;
++}

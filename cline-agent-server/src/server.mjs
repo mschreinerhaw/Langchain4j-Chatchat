@@ -6,9 +6,11 @@ import {randomUUID,createHash,timingSafeEqual} from 'node:crypto';
 import {Journal} from './journal.mjs';
 import {loadNative,startHostBridge} from './host-bridge.mjs';
 import {toolFailed} from './tool-outcome.mjs';
+import {validateRuntime} from './runtime-assets.mjs';
 
 const config=JSON.parse(readFileSync(process.env.CLINE_SERVER_CONFIG,'utf8'));
 for(const k of ['sourceRoot','distDir','stateDir','apiToken','model','baseUrl','apiKey','workspaces'])if(!config[k])throw Error('Missing config '+k);
+const runtimeAssets=validateRuntime(config.distDir);
 const native=loadNative(resolve(config.sourceRoot),resolve(config.distDir)),sessions=new Map(),permissions=new Map();
 const digest=x=>createHash('sha256').update(JSON.stringify(x)).digest('hex');
 const redact=x=>JSON.parse(JSON.stringify(x??null,(_k,v)=>{
@@ -140,7 +142,7 @@ const server=http.createServer(async(req,res)=>{
   const url=new URL(req.url,'http://localhost'),parts=url.pathname.split('/').filter(Boolean),method=req.method;
   if(url.pathname==='/health/live')return send(res,200,{live:true,version:'4.1.26-poc.1'});
   authorize(req);
-  if(url.pathname==='/health/ready')return send(res,existsSync(join(config.distDir,'cline-core.js'))?200:503,{ready:existsSync(join(config.distDir,'cline-core.js')),scope:'API configured; individual worker readiness is per session',productionReady:false});
+  if(url.pathname==='/health/ready')return send(res,200,{ready:true,runtimeAssets,scope:'Runtime assets verified; native worker readiness is per session',productionReady:false});
   if(url.pathname==='/v1/sessions'&&method==='POST'){
    const b=await body(req);if(typeof b.workspaceRef!=='string'||!Object.hasOwn(config.workspaces,b.workspaceRef))return send(res,400,{code:'UNKNOWN_WORKSPACE'});
    if(b.editTool&&!['editor','apply_patch'].includes(b.editTool))return send(res,400,{code:'INVALID_NATIVE_EDIT_PROFILE'});

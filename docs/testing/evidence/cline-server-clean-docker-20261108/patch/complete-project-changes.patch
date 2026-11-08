@@ -1,0 +1,328 @@
+diff --git a/README.md b/README.md
+index 8a19bf6..4847058 100644
+--- a/README.md
++++ b/README.md
+@@ -84,12 +84,23 @@ npm start
+ 提供可复用 TypeScript 客户端与类型：
+ 
+ ```ts
+-import { createMonitorClient } from './dist/monitor-client.js';
++import { createMonitorClient } from 'runtime-os-cline-coding-adapter/monitor-client';
++import type { MonitorClientOptions, TasksQuery } from 'runtime-os-cline-coding-adapter/monitor-client';
+ 
+-// 在调用方服务端执行，token 从其 secret manager 读取。
+-const node = createMonitorClient({ baseUrl: 'http://coding-agent-node:3100', token });
++// 在调用方服务端执行，token 从其 secret manager 读取。baseUrl 允许多个尾随斜杠，
++// SDK 会在拼接前规整为单个分隔斜杠。
++const options: MonitorClientOptions = { baseUrl: 'http://coding-agent-node:3100/', token };
++const node = createMonitorClient(options);
+ const health = await node.node();
+-const tasks = await node.tasks({ status: 'RUNNING', limit: 20 });
++
++// tasks() 的 offset / limit 为可选；undefined 字段会被省略，不会拼入查询字符串。
++// offset 必须是非负安全整数；limit 必须是 1..500 的安全整数。
++// q 通过 URLSearchParams 正确编码，支持中文与特殊字符。
++const query: TasksQuery = { status: 'RUNNING', q: 'aggregate & rollup', limit: 20 };
++const tasks = await node.tasks(query);
++
++// events() 的 after 必须是非负安全整数，limit 必须是 1..1000 的安全整数。
++// 所有无效参数（NaN、Infinity、小数、负值、非法类型）在发起网络请求前抛出 TypeError。
+ if (tasks.items[0]) {
+   const events = await node.events(tasks.items[0].id, 0, 100);
+   // events.hasMore 时，用 nextCursor 继续；truncated 为 true 表示早期历史已淘汰。
+diff --git a/src/monitor-client.ts b/src/monitor-client.ts
+index 8f4adda..cd7e9bc 100644
+--- a/src/monitor-client.ts
++++ b/src/monitor-client.ts
+@@ -1,8 +1,8 @@
+-import type { CodeVersion, ModelCall, MonitorEvent, NodeSnapshot, TaskDetail, TaskPage, TaskState } from './monitor-types.ts';
++import type { CodeVersion, ModelCall, MonitorEvent, MonitorClientOptions, NodeSnapshot, TaskDetail, TaskPage, TasksQuery } from './monitor-types.ts';
+ 
+ /** Server-side SDK. Keep the operator token on your application server. */
+-export function createMonitorClient(options: { baseUrl: string; token: string; fetch?: typeof fetch; timeoutMs?: number }) {
+-  const base = options.baseUrl.replace(/\/$/, '');
++export function createMonitorClient(options: MonitorClientOptions) {
++  const base = options.baseUrl.replace(/\/+$/, '');
+   const transport = options.fetch ?? fetch;
+   async function get<T>(path: string): Promise<T> {
+     const response = await transport(`${base}/v1/monitor${path}`, {
+@@ -16,13 +16,30 @@ export function createMonitorClient(options: { baseUrl: string; token: string; f
+     if (!/^[a-f0-9]{64}$/.test(value)) throw new TypeError('A monitor observation ID is required');
+     return value;
+   };
++  const requireNonNegativeSafeInteger = (name: string, value: number) => {
++    if (!Number.isSafeInteger(value) || value < 0) throw new TypeError(`${name} must be a non-negative safe integer`);
++  };
++  const requireSafeIntegerBetween = (name: string, value: number, min: number, max: number) => {
++    if (!Number.isSafeInteger(value) || value < min || value > max) throw new TypeError(`${name} must be a safe integer between ${min} and ${max}`);
++  };
+   return {
+     node: () => get<NodeSnapshot>('/node'),
+-    tasks: (query: { status?: TaskState; q?: string; offset?: number; limit?: number } = {}) =>
+-      get<TaskPage>(`/tasks?${new URLSearchParams(Object.entries(query).map(([key, value]) => [key, String(value)]))}`),
++    tasks: (query: TasksQuery = {}) => {
++      if (query.offset !== undefined) requireNonNegativeSafeInteger('offset', query.offset);
++      if (query.limit !== undefined) requireSafeIntegerBetween('limit', query.limit, 1, 500);
++      const params = new URLSearchParams();
++      for (const [key, value] of Object.entries(query)) {
++        if (value !== undefined) params.append(key, String(value));
++      }
++      const qs = params.toString();
++      return get<TaskPage>(qs ? `/tasks?${qs}` : '/tasks');
++    },
+     task: (taskId: string) => get<{ schemaVersion: string; task: TaskDetail }>(`/tasks/${id(taskId)}`),
+-    events: (taskId: string, after = 0, limit = 100) =>
+-      get<{ schemaVersion: string; items: MonitorEvent[]; nextCursor: number; hasMore: boolean; truncated: boolean; earliestCursor: number | null }>(`/tasks/${id(taskId)}/events?after=${after}&limit=${limit}`),
++    events: (taskId: string, after: number = 0, limit: number = 100) => {
++      requireNonNegativeSafeInteger('after', after);
++      requireSafeIntegerBetween('limit', limit, 1, 1000);
++      return get<{ schemaVersion: string; items: MonitorEvent[]; nextCursor: number; hasMore: boolean; truncated: boolean; earliestCursor: number | null }>(`/tasks/${id(taskId)}/events?after=${after}&limit=${limit}`);
++    },
+     models: (taskId: string) => get<{ schemaVersion: string; models: ModelCall[] }>(`/tasks/${id(taskId)}/models`),
+     skills: (taskId: string) => get<{ schemaVersion: string; skills: TaskDetail['skills'] }>(`/tasks/${id(taskId)}/skills`),
+     codes: (taskId: string) => get<{ schemaVersion: string; codes: CodeVersion[] }>(`/tasks/${id(taskId)}/codes`),
+diff --git a/src/monitor-types.ts b/src/monitor-types.ts
+index 7359aa6..01e2c84 100644
+--- a/src/monitor-types.ts
++++ b/src/monitor-types.ts
+@@ -72,3 +72,18 @@ export interface NodeSnapshot {
+ }
+ export interface TaskPage { schemaVersion: 'coding_agent.monitor.v1'; observedAt: string;
+   total: number; offset: number; limit: number; items: TaskSummary[] }
++
++/** Options accepted by `createMonitorClient`. */
++export interface MonitorClientOptions {
++  baseUrl: string;
++  token: string;
++  fetch?: typeof fetch;
++  timeoutMs?: number;
++}
++/** Pagination / filter for `tasks()`. Undefined fields are omitted from the request. */
++export interface TasksQuery {
++  status?: TaskState;
++  q?: string;
++  offset?: number;
++  limit?: number;
++}
+--- /dev/null
++++ b/test/monitor-client-parameters.test.js
+@@ -0,0 +1,219 @@
++import test from 'node:test';
++import assert from 'node:assert/strict';
++import { createMonitorClient } from '../dist/monitor-client.js';
++
++const OBSERVATION_ID = 'a'.repeat(64);
++
++/** Build a mock fetch that records the URL and returns a stub JSON body. */
++function mockFetch(body = {}) {
++  const calls = [];
++  const fn = async (url, init) => {
++    calls.push({ url: String(url), init });
++    return {
++      ok: true,
++      status: 200,
++      async json() { return body; },
++    };
++  };
++  return { fn, calls };
++}
++
++// ---- baseUrl trailing-slash normalization -----------------------------------
++
++for (const [label, baseUrl] of [
++  ['no trailing slash', 'http://example.com'],
++  ['one trailing slash', 'http://example.com/'],
++  ['three trailing slashes', 'http://example.com///'],
++  ['many trailing slashes', 'http://example.com//////'],
++]) {
++  test(`baseUrl: ${label} produces exactly one separator slash before /v1/monitor`, async () => {
++    const { fn, calls } = mockFetch({ schemaVersion: 'coding_agent.monitor.v1', instanceId: 'x' });
++    const client = createMonitorClient({ baseUrl, token: 't', fetch: fn });
++    await client.node();
++    assert.equal(calls.length, 1);
++    assert.equal(calls[0].url, 'http://example.com/v1/monitor/node');
++  });
++}
++
++// ---- tasks() parameter boundaries -------------------------------------------
++
++test('tasks() with no arguments issues /tasks without a query string', async () => {
++  const { fn, calls } = mockFetch({ schemaVersion: 'coding_agent.monitor.v1', items: [], total: 0, offset: 0, limit: 30 });
++  const client = createMonitorClient({ baseUrl: 'http://h', token: 't', fetch: fn });
++  await client.tasks();
++  assert.equal(calls[0].url, 'http://h/v1/monitor/tasks');
++});
++
++test('tasks() with empty object issues /tasks without a query string', async () => {
++  const { fn, calls } = mockFetch({ schemaVersion: 'coding_agent.monitor.v1', items: [], total: 0, offset: 0, limit: 30 });
++  const client = createMonitorClient({ baseUrl: 'http://h', token: 't', fetch: fn });
++  await client.tasks({});
++  assert.equal(calls[0].url, 'http://h/v1/monitor/tasks');
++});
++
++test('tasks() omits undefined fields from the query string', async () => {
++  const { fn, calls } = mockFetch({ schemaVersion: 'coding_agent.monitor.v1', items: [], total: 0, offset: 0, limit: 30 });
++  const client = createMonitorClient({ baseUrl: 'http://h', token: 't', fetch: fn });
++  await client.tasks({ status: undefined, q: undefined, offset: undefined, limit: undefined });
++  assert.equal(calls[0].url, 'http://h/v1/monitor/tasks');
++});
++
++test('tasks() encodes q through URLSearchParams', async () => {
++  const { fn, calls } = mockFetch({ schemaVersion: 'coding_agent.monitor.v1', items: [], total: 0, offset: 0, limit: 30 });
++  const client = createMonitorClient({ baseUrl: 'http://h', token: 't', fetch: fn });
++  await client.tasks({ q: 'aggregate & rollup=100%', status: 'RUNNING', offset: 0, limit: 20 });
++  const url = new URL(calls[0].url);
++  assert.equal(url.searchParams.get('q'), 'aggregate & rollup=100%');
++  assert.equal(url.searchParams.get('status'), 'RUNNING');
++  assert.equal(url.searchParams.get('offset'), '0');
++  assert.equal(url.searchParams.get('limit'), '20');
++});
++
++test('tasks() encodes q with Chinese and special characters', async () => {
++  const { fn, calls } = mockFetch({ schemaVersion: 'coding_agent.monitor.v1', items: [], total: 0, offset: 0, limit: 30 });
++  const client = createMonitorClient({ baseUrl: 'http://h', token: 't', fetch: fn });
++  await client.tasks({ q: '汇总 任务/编号 #1' });
++  const url = new URL(calls[0].url);
++  assert.equal(url.searchParams.get('q'), '汇总 任务/编号 #1');
++});
++
++for (const limit of [1, 250, 500]) {
++  test(`tasks() accepts limit=${limit} (upper boundary)`, async () => {
++    const { fn, calls } = mockFetch({ schemaVersion: 'coding_agent.monitor.v1', items: [], total: 0, offset: 0, limit });
++    const client = createMonitorClient({ baseUrl: 'http://h', token: 't', fetch: fn });
++    await client.tasks({ limit });
++    assert.equal(calls.length, 1);
++    assert.equal(new URL(calls[0].url).searchParams.get('limit'), String(limit));
++  });
++}
++
++for (const offset of [0, 1, Number.MAX_SAFE_INTEGER]) {
++  test(`tasks() accepts offset=${offset}`, async () => {
++    const { fn, calls } = mockFetch({ schemaVersion: 'coding_agent.monitor.v1', items: [], total: 0, offset, limit: 30 });
++    const client = createMonitorClient({ baseUrl: 'http://h', token: 't', fetch: fn });
++    await client.tasks({ offset });
++    assert.equal(calls.length, 1);
++  });
++}
++
++for (const [label, query] of [
++  ['offset=-1', { offset: -1 }],
++  ['offset=NaN', { offset: NaN }],
++  ['offset=Infinity', { offset: Infinity }],
++  ['offset=-Infinity', { offset: -Infinity }],
++  ['offset=1.5 (fraction)', { offset: 1.5 }],
++  ['offset=MAX_SAFE_INTEGER+1', { offset: Number.MAX_SAFE_INTEGER + 1 }],
++  ['offset="0" (string)', { offset: '0' }],
++  ['offset=null', { offset: null }],
++  ['offset=true (boolean)', { offset: true }],
++  ['limit=0', { limit: 0 }],
++  ['limit=-1', { limit: -1 }],
++  ['limit=501', { limit: 501 }],
++  ['limit=NaN', { limit: NaN }],
++  ['limit=Infinity', { limit: Infinity }],
++  ['limit=1.5 (fraction)', { limit: 1.5 }],
++  ['limit="10" (string)', { limit: '10' }],
++  ['limit=null', { limit: null }],
++]) {
++  test(`tasks() rejects ${label} with TypeError before the request`, async () => {
++    const { fn, calls } = mockFetch();
++    const client = createMonitorClient({ baseUrl: 'http://h', token: 't', fetch: fn });
++    assert.throws(() => client.tasks(query), TypeError);
++    assert.equal(calls.length, 0, 'no network request should be issued for invalid input');
++  });
++}
++
++// ---- events() parameter boundaries ------------------------------------------
++
++test('events() defaults: after=0, limit=100', async () => {
++  const body = { schemaVersion: 'coding_agent.monitor.v1', items: [], nextCursor: 0, hasMore: false, truncated: false, earliestCursor: null };
++  const { fn, calls } = mockFetch(body);
++  const client = createMonitorClient({ baseUrl: 'http://h', token: 't', fetch: fn });
++  await client.events(OBSERVATION_ID);
++  const url = new URL(calls[0].url);
++  assert.equal(url.searchParams.get('after'), '0');
++  assert.equal(url.searchParams.get('limit'), '100');
++});
++
++for (const after of [0, 1, Number.MAX_SAFE_INTEGER]) {
++  test(`events() accepts after=${after}`, async () => {
++    const body = { schemaVersion: 'coding_agent.monitor.v1', items: [], nextCursor: 0, hasMore: false, truncated: false, earliestCursor: null };
++    const { fn, calls } = mockFetch(body);
++    const client = createMonitorClient({ baseUrl: 'http://h', token: 't', fetch: fn });
++    await client.events(OBSERVATION_ID, after);
++    assert.equal(calls.length, 1);
++  });
++}
++
++for (const limit of [1, 500, 1000]) {
++  test(`events() accepts limit=${limit} (upper boundary)`, async () => {
++    const body = { schemaVersion: 'coding_agent.monitor.v1', items: [], nextCursor: 0, hasMore: false, truncated: false, earliestCursor: null };
++    const { fn, calls } = mockFetch(body);
++    const client = createMonitorClient({ baseUrl: 'http://h', token: 't', fetch: fn });
++    await client.events(OBSERVATION_ID, 0, limit);
++    assert.equal(new URL(calls[0].url).searchParams.get('limit'), String(limit));
++  });
++}
++
++for (const [label, after, limit] of [
++  ['after=-1', -1, 100],
++  ['after=NaN', NaN, 100],
++  ['after=Infinity', Infinity, 100],
++  ['after=-Infinity', -Infinity, 100],
++  ['after=1.5 (fraction)', 1.5, 100],
++  ['after=MAX_SAFE_INTEGER+1', Number.MAX_SAFE_INTEGER + 1, 100],
++  ['after="0" (string)', '0', 100],
++  ['after=null', null, 100],
++  ['after=true (boolean)', true, 100],
++  ['limit=0', 0, 0],
++  ['limit=-1', 0, -1],
++  ['limit=1001', 0, 1001],
++  ['limit=NaN', 0, NaN],
++  ['limit=Infinity', 0, Infinity],
++  ['limit=1.5 (fraction)', 0, 1.5],
++  ['limit="100" (string)', 0, '100'],
++  ['limit=null', 0, null],
++]) {
++  test(`events() rejects ${label} with TypeError before the request`, async () => {
++    const { fn, calls } = mockFetch();
++    const client = createMonitorClient({ baseUrl: 'http://h', token: 't', fetch: fn });
++    assert.throws(() => client.events(OBSERVATION_ID, after, limit), TypeError);
++    assert.equal(calls.length, 0, 'no network request should be issued for invalid input');
++  });
++}
++
++// ---- observation ID validation still applies --------------------------------
++
++test('events() still rejects malformed observation IDs before the request', async () => {
++  const { fn, calls } = mockFetch();
++  const client = createMonitorClient({ baseUrl: 'http://h', token: 't', fetch: fn });
++  assert.throws(() => client.events('not-hex'), TypeError);
++  assert.equal(calls.length, 0);
++});
++
++// ---- successful response shape is unchanged ---------------------------------
++
++test('tasks() returns the parsed JSON body unchanged on success', async () => {
++  const body = { schemaVersion: 'coding_agent.monitor.v1', observedAt: '2026-01-01T00:00:00Z', total: 1, offset: 0, limit: 20, items: [{ id: 'x' }] };
++  const { fn } = mockFetch(body);
++  const client = createMonitorClient({ baseUrl: 'http://h', token: 't', fetch: fn });
++  const result = await client.tasks({ limit: 20 });
++  assert.deepEqual(result, body);
++});
++
++test('events() returns the parsed JSON body unchanged on success', async () => {
++  const body = { schemaVersion: 'coding_agent.monitor.v1', items: [{ cursor: 1, timestamp: 't', type: 'X' }], nextCursor: 1, hasMore: false, truncated: false, earliestCursor: 1 };
++  const { fn } = mockFetch(body);
++  const client = createMonitorClient({ baseUrl: 'http://h', token: 't', fetch: fn });
++  const result = await client.events(OBSERVATION_ID, 0, 50);
++  assert.deepEqual(result, body);
++});
++
++// ---- authentication header is preserved -------------------------------------
++
++test('client still sends the Bearer authorization header', async () => {
++  const { fn, calls } = mockFetch({ schemaVersion: 'coding_agent.monitor.v1', items: [], total: 0, offset: 0, limit: 30 });
++  const client = createMonitorClient({ baseUrl: 'http://h', token: 'secret-token', fetch: fn });
++  await client.tasks({ limit: 1 });
++  assert.equal(calls[0].init.headers.authorization, 'Bearer secret-token');
++});

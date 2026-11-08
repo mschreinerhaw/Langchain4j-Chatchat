@@ -1,0 +1,162 @@
+{
+  "upstreamCommit": "a459f1d04dea030833b558be645011ab739c463b",
+  "engineBundle": "/poc/runtime/cline-core.js",
+  "engineBundleSha256": "88f3fc34f48baf44e065d959f5f5346a4b807cc7095d571a9f06cf91a6e84a3a",
+  "dispatchSourceSha256": "a2a922250fb63df054b2e9eb5788635038cecdd6ab93c443fee41e97a5eacbca",
+  "dispatchCallSites": [
+    {
+      "line": 81,
+      "text": " s.worker=fork(join(config.distDir,'cline-core.js'),['--config',join(s.dir,'cline')],{cwd:resolve(config.distDir),env,detached:true,stdio:['ignore','pipe','pipe','ipc']});"
+    }
+  ],
+  "workspaceProjectDependencies": {
+    "@cline/agents": "0.0.93",
+    "@cline/core": "0.0.93",
+    "@cline/sdk": "0.0.93"
+  },
+  "scopeNote": "The real target project retains its declared SDK 0.0.93 dependencies for its own build/tests. They are not the Server engine. The Server forks only the same-tag official Standalone bundle from immutable runtime, with runtime cwd and no NODE_PATH. No project server or old SDK Worker is used to perform coding; native Editor/apply_patch receipts show actual writes. Existing project unit tests are independent result verification, not synthetic Agent/tool receipts.",
+  "nativeShellInputs": [
+    {
+      "case": "editor",
+      "nativeShellPermissionInputs": [
+        {
+          "commands": [
+            "find /poc/project/coding-agent-node -type f -not -path '*/node_modules/*' -not -path '*/.git/*' | head -100"
+          ]
+        },
+        {
+          "commands": [
+            "ls /poc/project/coding-agent-node/test/"
+          ]
+        },
+        {
+          "commands": [
+            "cd /poc/project/coding-agent-node && wc -l test/monitor-client-parameters.test.js src/monitor-client.ts src/monitor-types.ts"
+          ]
+        },
+        {
+          "commands": [
+            "cd /poc/project/coding-agent-node && npm run build 2>&1 | tail -30"
+          ]
+        },
+        {
+          "commands": [
+            "which node 2>/dev/null; find / -name 'npm' -type f 2>/dev/null | head -5; ls /usr/local/bin/node 2>/dev/null; ls /usr/local/bin/npm 2>/dev/null; ls /usr/bin/node 2>/dev/null"
+          ]
+        },
+        {
+          "commands": [
+            "cd /poc/project/coding-agent-node && ls node_modules/.bin/tsc 2>/dev/null && node --version && ls node_modules/typescript/bin/tsc 2>/dev/null"
+          ]
+        },
+        {
+          "commands": [
+            "cd /poc/project/coding-agent-node && ls -la node_modules 2>&1 | head -5",
+            "cd /poc/project/coding-agent-node && node -e \"console.log(process.version)\""
+          ]
+        },
+        {
+          "commands": [
+            "cd /poc/project/coding-agent-node && node node_modules/typescript/bin/tsc -p tsconfig.json 2>&1 | head -50"
+          ]
+        },
+        {
+          "commands": [
+            "cd /poc/project/coding-agent-node && node node_modules/typescript/bin/tsc -p tsconfig.json 2>&1 | head -50"
+          ]
+        },
+        {
+          "commands": [
+            "cd /poc/project/coding-agent-node && node scripts/build.mjs 2>&1 | tail -20"
+          ]
+        },
+        {
+          "commands": [
+            "cd /poc/project/coding-agent-node && node --test test/monitor-client-parameters.test.js 2>&1"
+          ]
+        },
+        {
+          "commands": [
+            "cd /poc/project/coding-agent-node && node scripts/build.mjs 2>&1 && echo 'Build successful'"
+          ]
+        },
+        {
+          "commands": [
+            "cd /poc/project/coding-agent-node && node --test test/monitor-client-parameters.test.js 2>&1 | head -100"
+          ]
+        },
+        {
+          "commands": [
+            "cd /poc/project/coding-agent-node && node --test test/*.test.js 2>&1 | tail -30"
+          ]
+        },
+        {
+          "commands": [
+            "cd /poc/project/coding-agent-node && timeout 20 node --test test/monitor.test.js test/monitor-authority.test.js test/node-monitor.test.js 2>&1 | tail -40"
+          ]
+        },
+        {
+          "commands": [
+            "cd /poc/project/coding-agent-node && cat > CHANGES_SUMMARY.md << 'EOF'\n# Monitor Client SDK Parameter Boundary Fixes\n\n## Summary\nFixed parameter validation issues in the monitor client SDK and added comprehensive regression tests.\n\n## Changes Made\n\n### 1. src/monitor-client.ts\n**Fixed Issues:**\n- **baseUrl trailing slashes**: Changed regex from `/\\/$/` to `/\\/+$/` to strip ALL trailing slashes, ensuring only one separator slash in final request paths\n- **tasks(query) validation**: \n  - Added validation for `offset` (must be non-negative safe integer when provided)\n  - Added validation for `limit` (must be safe integer in range 1..500 when provided)\n  - Changed from `Object.entries()` to explicit field checking to omit `undefined` parameters\n  - `q` parameter now properly encoded via URLSearchParams\n- **events(taskId, after, limit) validation**:\n  - Added validation for `after` (must be non-negative safe integer)\n  - Added validation for `limit` (must be safe integer in range 1..1000)\n- Made `tasks()` and `events()` async functions so validation errors become promise rejections\n- Imported and used new query types from monitor-types.ts\n\n**Validation Behavior:**\n- All invalid parameters (NaN, Infinity, decimals, negatives, out-of-range, non-numbers) throw `TypeError` before any network request\n- Uses `Number.isSafeInteger()` for precise integer validation\n- Validation happens synchronously within async functions, resulting in rejected promises\n\n### 2. src/monitor-types.ts\n**Added Exported Query Types:**\n- `MonitorTaskQuery`: Interface for tasks() query parameters with JSDoc comments\n- `MonitorEventsQuery`: Interface for events() parameters with JSDoc comments\n- Both types are re-exported via `export type * from './monitor-types.ts'` in monitor-client.ts\n\n### 3. README.md\n**Added SDK Documentation:**\n- Documented baseUrl trailing slash normalization behavior\n- Documented tasks() parameter validation rules (offset: non-negative safe integer, limit: 1-500)\n- Documented events() parameter validation rules (after: non-negative safe integer, limit: 1-1000)\n- Documented that undefined parameters are omitted\n- Documented that q is encoded via URLSearchParams\n- Documented that invalid parameters throw TypeError before network requests\n- Added import example for MonitorTaskQuery and MonitorEventsQuery types\n\n### 4. test/monitor-client-parameters.test.js (NEW)\n**Comprehensive Regression Tests (70 tests total):**\n\n**baseUrl normalization (3 tests):**\n- Multiple trailing slashes collapse to single separator\n- No trailing slash works unchanged\n- Single trailing slash preserved as one separator\n\n**tasks() parameter validation (33 tests):**\n- No arguments issues /tasks without query string\n- Empty object issues /tasks without query string\n- Undefined offset/limit are omitted from query string\n- q encoding through URLSearchParams\n- Lower bound acceptance (offset=0, limit=1)\n- Upper bound acceptance (offset=MAX_SAFE_INTEGER, limit=500)\n- 12 invalid offset values rejected (negatives, decimals, NaN, Infinity, out-of-range, wrong types)\n- 14 invalid limit values rejected (0, negatives, >500, decimals, NaN, Infinity, wrong types)\n- All invalid inputs verified to not issue network requests\n\n**events() parameter validation (30 tests):**\n- Defaults to after=0, limit=100\n- Lower bound acceptance (after=0, limit=1)\n- Upper bound acceptance (after=MAX_SAFE_INTEGER, limit=1000)\n- 12 invalid after values rejected\n- 14 invalid limit values rejected (0, negatives, >1000, decimals, NaN, Infinity, wrong types)\n- Observation ID validation still enforced\n- All invalid inputs verified to not issue network requests\n\n**Response shape preservation (2 tests):**\n- tasks() response shape unchanged\n- events() response shape unchanged\n\n**Authentication preservation (1 test):**\n- Authorization header preserved on valid requests\n\n## Build & Test Results\n\n**Build Command:**\n```bash\nnode scripts/build.mjs\n```\n**Result:** ✅ Successful (TypeScript compilation passed)\n\n**Test Commands:**\n```bash\n# New parameter validation tests\nnode --test test/monitor-client-parameters.test.js\n# Result: 70/70 tests passed ✅\n\n# Existing monitor tests (regression check)\nnode --test test/monitor.test.js test/monitor-authority.test.js test/node-monitor.test.js\n# Result: 33/33 tests passed ✅\n```\n\n## Backward Compatibility\n- ✅ Authentication mechanism unchanged (Bearer token)\n- ✅ Observation ID validation unchanged (64-char hex)\n- ✅ Successful response shapes unchanged\n- ✅ Existing tests continue to pass\n- ✅ All changes are additive (new validation) or bug fixes (trailing slashes, undefined handling)\n\n## Files Modified\n1. `/poc/project/coding-agent-node/src/monitor-client.ts` - Parameter validation & type usage\n2. `/poc/project/coding-agent-node/src/monitor-types.ts` - Added query type exports\n3. `/poc/project/coding-agent-node/README.md` - SDK usage documentation\n4. `/poc/project/coding-agent-node/test/monitor-client-parameters.test.js` - New regression tests (180 lines)\nEOF\ncat CHANGES_SUMMARY.md\n"
+          ]
+        },
+        {
+          "commands": [
+            "rm /poc/project/coding-agent-node/CHANGES_SUMMARY.md"
+          ]
+        }
+      ]
+    },
+    {
+      "case": "patch",
+      "nativeShellPermissionInputs": [
+        {
+          "commands": [
+            "find /poc/project-patch/coding-agent-node -maxdepth 3 -type f -not -path '*/node_modules/*' -not -path '*/.git/*' | head -100"
+          ]
+        },
+        {
+          "commands": [
+            "cat /poc/project-patch/coding-agent-node/tsconfig.json",
+            "ls /poc/project-patch/coding-agent-node/dist/ | head -30"
+          ]
+        },
+        {
+          "commands": [
+            "cd /poc/project-patch/coding-agent-node && npm run build 2>&1 | tail -40"
+          ]
+        },
+        {
+          "commands": [
+            "which node; node --version; ls /poc/project-patch/coding-agent-node/node_modules/.bin/ | grep -i tsc; ls /poc/project-patch/coding-agent-node/node_modules/typescript/bin/ 2>/dev/null"
+          ]
+        },
+        {
+          "commands": [
+            "cd /poc/project-patch/coding-agent-node && node scripts/build.mjs 2>&1"
+          ]
+        },
+        {
+          "commands": [
+            "cd /poc/project-patch/coding-agent-node && node --test test/monitor-client-parameters.test.js 2>&1"
+          ]
+        },
+        {
+          "commands": [
+            "cd /poc/project-patch/coding-agent-node && node --test test/monitor-client-parameters.test.js 2>&1"
+          ]
+        },
+        {
+          "commands": [
+            "cd /poc/project-patch/coding-agent-node && node --test test/*.test.js 2>&1 | tail -30"
+          ]
+        },
+        {
+          "commands": [
+            "cd /poc/project-patch/coding-agent-node && timeout 20 node --test test/monitor*.test.js 2>&1 | tail -40"
+          ]
+        }
+      ]
+    }
+  ]
+}

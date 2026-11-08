@@ -1,0 +1,185 @@
+{
+  "sessionId": "bb5c639e-d097-4420-9295-d1414207bc7a",
+  "taskId": "5ceb2b0a-cc78-4124-b82c-eb14dd20e111",
+  "profile": "editor",
+  "model": "qwen3.7-plus",
+  "status": "turn_completed",
+  "durationSeconds": 396.3,
+  "approvalCount": 33,
+  "completedTools": [
+    {
+      "name": "run_commands",
+      "failed": false,
+      "toolCallId": "call_1e516ecdc11a412086a4122a"
+    },
+    {
+      "name": "read_files",
+      "failed": false,
+      "toolCallId": "call_f45e0a1bf5a145ab909df687"
+    },
+    {
+      "name": "run_commands",
+      "failed": false,
+      "toolCallId": "call_9eeceb0462104347a2d0620a"
+    },
+    {
+      "name": "read_files",
+      "failed": false,
+      "toolCallId": "call_4d253452359b4f7895cf83f1"
+    },
+    {
+      "name": "read_files",
+      "failed": false,
+      "toolCallId": "call_bbd1cc6255f94529b26824c8"
+    },
+    {
+      "name": "editor",
+      "failed": false,
+      "toolCallId": "call_f8511552fe8f431286b2401b"
+    },
+    {
+      "name": "editor",
+      "failed": false,
+      "toolCallId": "call_cea1127b6f4342d0a50198bd"
+    },
+    {
+      "name": "editor",
+      "failed": false,
+      "toolCallId": "call_de96613adea84359885c987e"
+    },
+    {
+      "name": "editor",
+      "failed": true,
+      "toolCallId": "call_6566c4a618ee4427b6cc027e"
+    },
+    {
+      "name": "editor",
+      "failed": true,
+      "toolCallId": "call_69373c1499854cc79266dca5"
+    },
+    {
+      "name": "editor",
+      "failed": false,
+      "toolCallId": "call_08432e3ff6234d4d878834f3"
+    },
+    {
+      "name": "editor",
+      "failed": true,
+      "toolCallId": "call_c03f7c257b194a85a312cb46"
+    },
+    {
+      "name": "editor",
+      "failed": false,
+      "toolCallId": "call_f438c78fee044c8ba9dd5847"
+    },
+    {
+      "name": "run_commands",
+      "failed": false,
+      "toolCallId": "call_b77a21c89ead4f23a8437f71"
+    },
+    {
+      "name": "run_commands",
+      "failed": false,
+      "toolCallId": "call_966986d55a604090add8b3d2"
+    },
+    {
+      "name": "run_commands",
+      "failed": true,
+      "toolCallId": "call_44cc284f2cec4838b97948ef"
+    },
+    {
+      "name": "run_commands",
+      "failed": true,
+      "toolCallId": "call_d6580b1385204570a4d6db71"
+    },
+    {
+      "name": "run_commands",
+      "failed": false,
+      "toolCallId": "call_045d88980cc144dcb2145885"
+    },
+    {
+      "name": "run_commands",
+      "failed": false,
+      "toolCallId": "call_da5a1d7101784af79ed85225"
+    },
+    {
+      "name": "read_files",
+      "failed": false,
+      "toolCallId": "call_a9d343e2941241a5b3f55b5c"
+    },
+    {
+      "name": "editor",
+      "failed": false,
+      "toolCallId": "call_382194311b964edb829bfb72"
+    },
+    {
+      "name": "run_commands",
+      "failed": false,
+      "toolCallId": "call_0932a22a0f1f4c58a402649b"
+    },
+    {
+      "name": "run_commands",
+      "failed": false,
+      "toolCallId": "call_1034ddb602bb4c3f97808211"
+    },
+    {
+      "name": "run_commands",
+      "failed": true,
+      "toolCallId": "call_ee6b8c4953e148e29a43bfb3"
+    },
+    {
+      "name": "editor",
+      "failed": false,
+      "toolCallId": "call_4f56651879934cda9b90c701"
+    },
+    {
+      "name": "editor",
+      "failed": false,
+      "toolCallId": "call_c09c59a400fc4cc2a32aaf45"
+    },
+    {
+      "name": "run_commands",
+      "failed": false,
+      "toolCallId": "call_c78d67a59c18426a92dc1801"
+    },
+    {
+      "name": "run_commands",
+      "failed": false,
+      "toolCallId": "call_97af0c7b777b4afb829570d9"
+    },
+    {
+      "name": "run_commands",
+      "failed": true,
+      "toolCallId": "call_aff8e59cc9ca478c951157ba"
+    },
+    {
+      "name": "run_commands",
+      "failed": false,
+      "toolCallId": "call_f3113d7e9fe142d590545b87"
+    },
+    {
+      "name": "read_files",
+      "failed": false,
+      "toolCallId": "call_53d62ae99d5441b6bcbe5d08"
+    },
+    {
+      "name": "run_commands",
+      "failed": false,
+      "toolCallId": "call_32628e5bd7fc417c95bfd718"
+    },
+    {
+      "name": "run_commands",
+      "failed": false,
+      "toolCallId": "call_aca041581fd84f2796d50f0b"
+    }
+  ],
+  "sseReconnect": "PASS",
+  "idempotency": "PASS",
+  "independentVerification": "PASS",
+  "coreToolsObserved": {
+    "read_files": true,
+    "search_codebase": false,
+    "editor": true,
+    "run_commands": true
+  }
+}

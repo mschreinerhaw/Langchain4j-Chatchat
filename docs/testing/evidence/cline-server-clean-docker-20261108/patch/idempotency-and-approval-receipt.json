@@ -1,0 +1,18 @@
+{
+  "taskId": "ed790a98-c1a5-4767-9592-40cf35c004d3",
+  "persistedIdempotencyKeys": [
+    "59032912bef344df935489e974f7ff16"
+  ],
+  "httpAcceptedRetries": 2,
+  "httpConflictCount": 1,
+  "nativeTaskAcceptedEvents": 1,
+  "repeatedPermissionId": "fc118716-b0b1-412c-b903-49f054aa832a",
+  "permissionHttpStatuses": [
+    200,
+    200,
+    409
+  ],
+  "nativePermissionDecisionEvents": 1,
+  "nativeAppliedPermissionACKs": 1,
+  "source": "Derived from actual HTTP trace, persisted command map and native-linked journal; no task executed or repaired by collector"
+}

@@ -1,6 +1,7 @@
 """Real native permission denial and in-flight shell cancellation over HTTP only."""
 import pathlib,json,sys,time,urllib.request,urllib.error,uuid
 config=json.loads(pathlib.Path(sys.argv[1]).read_text());root=pathlib.Path(sys.argv[2]);root.mkdir(parents=True,exist_ok=True)
+host_root=pathlib.Path(sys.argv[3] if len(sys.argv)>3 else '/opt/cline-agent-server-poc-20261108')
 base='http://127.0.0.1:'+str(config.get('port',18326));records=[]
 def api(path,body=None,expected=200):
  req=urllib.request.Request(base+path,None if body is None else json.dumps(body).encode(),{'Authorization':'Bearer '+config['apiToken'],'Content-Type':'application/json','Accept':'application/json','Idempotency-Key':uuid.uuid4().hex})
@@ -30,11 +31,11 @@ def sse_one(s,after):
    if line.startswith(b'data: '):return json.loads(line[6:])
  raise RuntimeError('No SSE record')
 # Retire only completed coding workers, preserving their journals and changes.
-for p in pathlib.Path(config['stateDir'].replace('/poc/','/opt/cline-agent-server-poc-20261108/')).glob('*/session.json'):
+for p in (host_root/pathlib.Path(config['stateDir']).relative_to('/poc')).glob('*/session.json'):
  d=json.loads(p.read_text())
  if d['status']=='turn_completed':cancel(d['id'])
  elif d['status'] not in ['cancelled','recoverable','failed']:raise RuntimeError('Refusing to interrupt unfinished coding acceptance')
-workspace=pathlib.Path('/opt/cline-agent-server-poc-20261108/project/coding-agent-node')
+workspace=host_root/'project/coding-agent-node'
 assert not (workspace/'poc-denied-marker.txt').exists()
 s=create();api('/v1/sessions/'+s+'/messages',{'text':'在当前项目根目录创建 poc-denied-marker.txt，内容为 permission-test。不要创建其他文件，不要修改现有文件。'},202)
 denied=0;start=time.monotonic()

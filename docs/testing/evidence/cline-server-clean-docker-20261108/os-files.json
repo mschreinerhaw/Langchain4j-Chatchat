@@ -1,0 +1,473 @@
+{
+  "policy": "Explicit OS executables, ELF libraries, system CA only; no SDK or application directories",
+  "files": [
+    {
+      "path": "/usr/local/bin/node",
+      "sha256": "7fde7b8afa198da66257f42ee2001d874c7355631e6d1579a5fb5ef1f246df4c"
+    },
+    {
+      "path": "/lib/x86_64-linux-gnu/libdl.so.2",
+      "sha256": "295fa521a03cd2faa99974f378c9e23dd622021ec7d32bcad4f8ea61aec8a872"
+    },
+    {
+      "path": "/lib/x86_64-linux-gnu/libc.so.6",
+      "sha256": "9792e3cbb541c8f44c7acf5f14f4022ea62998ecc787d326bed4d8b6547dfd92"
+    },
+    {
+      "path": "/lib64/ld-linux-x86-64.so.2",
+      "sha256": "c8438e4fde1934e61c88311633f00949ff645d5c04cdb8671fa3d78164d2f307"
+    },
+    {
+      "path": "/lib/x86_64-linux-gnu/libstdc++.so.6",
+      "sha256": "972bb2a18b71140dab0240f8a1f68ab3fb1d56bcd4c4f824a91b70888faf5a00"
+    },
+    {
+      "path": "/lib/x86_64-linux-gnu/libm.so.6",
+      "sha256": "6d567d53e895273ca14a1f9dc164fc6c8d39aed2f60aa46a733c2784228915f3"
+    },
+    {
+      "path": "/lib/x86_64-linux-gnu/libgcc_s.so.1",
+      "sha256": "30c61ab012a4241bed033725a09b61f5fdd3bb7df95ee852d0b096520524c7af"
+    },
+    {
+      "path": "/lib/x86_64-linux-gnu/libpthread.so.0",
+      "sha256": "85e21f7dba0394411d00959176fd18b470e575b0b05f1f4f41e5636802ce0500"
+    },
+    {
+      "path": "/usr/bin/bash",
+      "sha256": "223fe8564b60636bc738b6178d3ba9a50ef7d791266b0efae6363bb716e4c47f"
+    },
+    {
+      "path": "/lib/x86_64-linux-gnu/libtinfo.so.6",
+      "sha256": "4013e7651ac68f547d8333517def25b2366c97eec7de7f06e105dbf3444ffebf"
+    },
+    {
+      "path": "/usr/bin/sh",
+      "sha256": "a6f559e00b69a4aa4d8cb607be18d9386c5aee55c509e2c075549dcf00e00fc7"
+    },
+    {
+      "path": "/usr/bin/git",
+      "sha256": "356db14e102d68a1a37d8a1ac577dfd678d45d46e92f468bef8b7154e7bfdc60"
+    },
+    {
+      "path": "/lib/x86_64-linux-gnu/libpcre2-8.so.0",
+      "sha256": "92e9b4167f9bbc237ca8f5526d82ee99ec9f8dbd0270ef1dd0ab24e2217f48e3"
+    },
+    {
+      "path": "/lib/x86_64-linux-gnu/libz.so.1",
+      "sha256": "85590dd58edf5445e18bc7193e5ebc01ac5841f1ae187e97705a662e90c6421e"
+    },
+    {
+      "path": "/usr/bin/env",
+      "sha256": "eb1c64bbc9908afcdf8cb48524f17112d8dd76a249f80dee2f01da14747b3b6e"
+    },
+    {
+      "path": "/usr/bin/cat",
+      "sha256": "8a5c20c3400a4058a487cd806111cc5138ef4d0fbc6714ff67c9432e38c2705a"
+    },
+    {
+      "path": "/usr/bin/ls",
+      "sha256": "833d6f9cf3ede2225d80eaa159ef78a141c92842a691179aec37d182cc808a5c"
+    },
+    {
+      "path": "/lib/x86_64-linux-gnu/libselinux.so.1",
+      "sha256": "5cb5293b4e7590463b94f7b23152d54807a6a2ccaf8cac9e343908c6692c086c"
+    },
+    {
+      "path": "/lib/x86_64-linux-gnu/libcap.so.2",
+      "sha256": "41217b0af128444f66dee8adda52b2ceaf19da00e5b0b155e2b87b857671286b"
+    },
+    {
+      "path": "/usr/bin/pwd",
+      "sha256": "ab8c0b70942a4310d6b03b434aacf911527640d842a97e477abfb4d624d6c990"
+    },
+    {
+      "path": "/usr/bin/mkdir",
+      "sha256": "bd3d9b36a1cc1c63b8dca7967003f4e5b0bb8556c87cbb7c1916aa358bf3f053"
+    },
+    {
+      "path": "/usr/bin/rmdir",
+      "sha256": "d78acd70f897e47588f964663f26b0dd5f7787b25ce6d70a81d842563f952845"
+    },
+    {
+      "path": "/usr/bin/rm",
+      "sha256": "c959a237e7b95d229eea44764b2246fcb61a95dc679a10ad0cc97ad84c2316c1"
+    },
+    {
+      "path": "/usr/bin/cp",
+      "sha256": "5a3a8808bab81a67c6ac578670f5608595f1569948d4dc7d7d604c1d08d596d9"
+    },
+    {
+      "path": "/lib/x86_64-linux-gnu/libacl.so.1",
+      "sha256": "3c03774961231d8485a4dba36ec359a95939a84719799c58cd26173e44bbde90"
+    },
+    {
+      "path": "/lib/x86_64-linux-gnu/libattr.so.1",
+      "sha256": "126e29f16f4a6da5cad9a0d9cf1cc817089ee41645a8581d19691a1b9a581172"
+    },
+    {
+      "path": "/usr/bin/mv",
+      "sha256": "7db4661c6397fe5fd5ba6837692aa5adb7dce1efc656369d7b08dfd6ece525a0"
+    },
+    {
+      "path": "/usr/bin/ln",
+      "sha256": "75bef899117adf42c64c2f15fee640755d18d4632ae0794578d268a74cc7af8b"
+    },
+    {
+      "path": "/usr/bin/chmod",
+      "sha256": "7e37f672db75ae783260e7565d26218d25cebbc5a6d61118284c9719d246a90e"
+    },
+    {
+      "path": "/usr/bin/touch",
+      "sha256": "b6936efadcd64198cb2f62578bdc4dad5699fd5af8129b7606367c98767a3c4d"
+    },
+    {
+      "path": "/usr/bin/stat",
+      "sha256": "128754b37ab743a539d889a91441c440f9b52df77f4e008b345ff221ce1daeaa"
+    },
+    {
+      "path": "/usr/bin/readlink",
+      "sha256": "1dcaf494f4dec175292b1684b3e978d18a4c3c703c52f81606d9e8eea30eb6db"
+    },
+    {
+      "path": "/usr/bin/realpath",
+      "sha256": "43708156c6862ae153685c621c4b9c601ae3f77fefa737cf2f47f3a0f5afaf24"
+    },
+    {
+      "path": "/usr/bin/head",
+      "sha256": "d75b123e441ed3bd503eb3dc45b716c861fcbf5c2228ac302a50bc45f6346f6b"
+    },
+    {
+      "path": "/usr/bin/tail",
+      "sha256": "ca27a636110b4c30a7c5444d9334ee5d7cc434ef0cadd837404fbf01eb7a9191"
+    },
+    {
+      "path": "/usr/bin/wc",
+      "sha256": "e8fe45a85ebdb0dade6dabf96f21dfd686c6414ff2a4a8980727076a5981d2af"
+    },
+    {
+      "path": "/usr/bin/cut",
+      "sha256": "f7f5511ede2187fbb7646581470c84647d087fb87cb74836c0237b0943d3dbc2"
+    },
+    {
+      "path": "/usr/bin/sort",
+      "sha256": "4bf4f14424fa481b1f40d28534b0c5c7a7d07affcb82c805b07255cc4c2034be"
+    },
+    {
+      "path": "/usr/bin/tr",
+      "sha256": "38ae5272952eae85558cb902d1b6b3eca5f8106aea901cd9aee3fe2dff1e2b43"
+    },
+    {
+      "path": "/usr/bin/sed",
+      "sha256": "69ff7292c0d081bdf5866bc84dde96d5a14f4a7deafeb9483739be68c48ac2b3"
+    },
+    {
+      "path": "/usr/bin/grep",
+      "sha256": "bd6686bf7a650a9717fd7e73fdb07dc63b70547a1da41bce093c56df937a66eb"
+    },
+    {
+      "path": "/usr/bin/awk",
+      "sha256": "eff9f2b711eb5bee1b58d4d33b891e8da8f6534655d3854a45bd10217dbb28e6"
+    },
+    {
+      "path": "/usr/bin/find",
+      "sha256": "91b75e72c495e68dd6aab198c2fd6c458fd51a2dc361045ee31f8e657417de26"
+    },
+    {
+      "path": "/usr/bin/xargs",
+      "sha256": "5f8c5f3f051d73fbeeae248e1d3e819e5feeb1b0265b903385193a2b183ab370"
+    },
+    {
+      "path": "/usr/bin/tee",
+      "sha256": "c56e1654da83434ff80c9700c179f8947dd88ce5137c866a6ea2511342925a3c"
+    },
+    {
+      "path": "/usr/bin/seq",
+      "sha256": "da4db5218e28d835c510e97226665a423fafca829fa3cceabd2a600b4b433401"
+    },
+    {
+      "path": "/usr/bin/date",
+      "sha256": "c45e250696f9acab00814e8a0b21ce6666fe212a9e78a14f9917552546d7b389"
+    },
+    {
+      "path": "/usr/bin/sleep",
+      "sha256": "0637e6d47579929cb72efa46f361861b319d62c62fe8a9d10731fd7655eb5936"
+    },
+    {
+      "path": "/usr/bin/timeout",
+      "sha256": "6ca1891dfc0b05d7680770c2884c0391b92467c7bb6500a5c84677e6481739f1"
+    },
+    {
+      "path": "/usr/bin/uname",
+      "sha256": "458ea035850a5802a46ceb931e2864f9649a9030f43342156c54768f7ffddb3e"
+    },
+    {
+      "path": "/usr/bin/id",
+      "sha256": "50629fa0ab5c003b538d4ccf7de34e85d2df4e799a79eb2dd4c2f7b1e0d7ca59"
+    },
+    {
+      "path": "/usr/bin/tar",
+      "sha256": "38adf50825f773d353d6bda1a7cd70c22f8877823e44821c1d2bd0a52ddc3871"
+    },
+    {
+      "path": "/usr/bin/gzip",
+      "sha256": "748e292cdaae29c1dbd3b6407086a27d5062331deb48d2da613d3912347cea5b"
+    },
+    {
+      "path": "/usr/bin/du",
+      "sha256": "3c0b05db84b02f20521c548adbe76fe05012a24effa6116e0752a81dd0faa9ba"
+    },
+    {
+      "path": "/usr/bin/test",
+      "sha256": "a5ec8b3018ac45d0f5bb9bde5e56a02f02f1b796bc0a1b4671cae5155e709279"
+    },
+    {
+      "path": "/usr/bin/printf",
+      "sha256": "e7c954d7c89a494227b35c537a0a42fe315b4ea687b90a90b3eeee06c52927dd"
+    },
+    {
+      "path": "/usr/lib/git-core/git",
+      "sha256": "356db14e102d68a1a37d8a1ac577dfd678d45d46e92f468bef8b7154e7bfdc60"
+    },
+    {
+      "path": "/usr/lib/git-core/git-daemon",
+      "sha256": "b6ee8cf393ec84ea84c04b1fe1f8f2a6837e25d5e3aa3c36709671ad0d983264"
+    },
+    {
+      "path": "/usr/lib/git-core/git-difftool--helper",
+      "sha256": "ed4e5c9ee4358068812066130bc19be85251d9b76280e546ae9292fc9c444bad"
+    },
+    {
+      "path": "/usr/lib/git-core/git-filter-branch",
+      "sha256": "064210cbf11b45d097dbcc24c465c03232251da430bf182a58dc78378d574543"
+    },
+    {
+      "path": "/usr/lib/git-core/git-http-backend",
+      "sha256": "e161f64c6fd06c2698a32254158e46055a1403fd99f4bf626d8ffdfe765294b9"
+    },
+    {
+      "path": "/usr/lib/git-core/git-http-fetch",
+      "sha256": "924eec8775ec2c78f171b9062902661fb16d6bffb2368b8a3b760c7e68900ff2"
+    },
+    {
+      "path": "/lib/x86_64-linux-gnu/libcurl-gnutls.so.4",
+      "sha256": "66e11cde15c921f44da4b27c7b815e29bc165696fa103c632121c8277841a713"
+    },
+    {
+      "path": "/lib/x86_64-linux-gnu/libnghttp3.so.9",
+      "sha256": "37ecaa050c23fee92d563eec8701164505ef880c00a513cbd6d1d03beeb8fa29"
+    },
+    {
+      "path": "/lib/x86_64-linux-gnu/libngtcp2_crypto_gnutls.so.8",
+      "sha256": "32ff8ebba031c45a407f0d4bb7f0f97b372089789de05e43a8d9deb97f569edf"
+    },
+    {
+      "path": "/lib/x86_64-linux-gnu/libngtcp2.so.16",
+      "sha256": "ac58fdb952991fdb624bcb275e9a9ded9e59228eb7a989c4d18b4339103f50d3"
+    },
+    {
+      "path": "/lib/x86_64-linux-gnu/libgnutls.so.30",
+      "sha256": "4b14edde42e7cbeefd8a6d88d035e096f2e6412a535388bb1d073a1c196e2822"
+    },
+    {
+      "path": "/lib/x86_64-linux-gnu/libp11-kit.so.0",
+      "sha256": "e4ae39be74740511cf8e49e80fdfc16aeee7b822ee313793da1b78ce148ba05f"
+    },
+    {
+      "path": "/lib/x86_64-linux-gnu/libffi.so.8",
+      "sha256": "922024ec5a23f7de1095b1cff2f6cbfb377b5d58cd51fd0ec2e8fe35427653e2"
+    },
+    {
+      "path": "/lib/x86_64-linux-gnu/libidn2.so.0",
+      "sha256": "299cdc741f1dd0834a49d5cb44f3da26b1960bb110c1f521a084400d9b603cbf"
+    },
+    {
+      "path": "/lib/x86_64-linux-gnu/libunistring.so.5",
+      "sha256": "9c200ec975ff24c0a259d4f6cf0d0fc1736d0c86da30fff3d499ad3d9a368b65"
+    },
+    {
+      "path": "/lib/x86_64-linux-gnu/libtasn1.so.6",
+      "sha256": "cea637336b0855f91260714181894bcea9f345a3a97ce68d6447f6031728cabd"
+    },
+    {
+      "path": "/lib/x86_64-linux-gnu/libhogweed.so.6",
+      "sha256": "2663d9bdca20ba67d2d72f1d4c24b6fd0a3e97d5ee23e7b739788176cf904380"
+    },
+    {
+      "path": "/lib/x86_64-linux-gnu/libnettle.so.8",
+      "sha256": "34ac695c167a593d3587bd88592d33d53e5dc4035984f84446100962f57376fd"
+    },
+    {
+      "path": "/lib/x86_64-linux-gnu/libgmp.so.10",
+      "sha256": "d15e1585c6c267296459570c8ac217ca9123044bcd4e896d2f686b32333445d2"
+    },
+    {
+      "path": "/lib/x86_64-linux-gnu/libnghttp2.so.14",
+      "sha256": "207268890b5be3043575c97af4e08c8326a12321a8a83e7278681b6b6f7d5ea8"
+    },
+    {
+      "path": "/lib/x86_64-linux-gnu/librtmp.so.1",
+      "sha256": "7d4c54c51f62085d79a4c96c7ad52f680f1f2e6d38ff7c8b8fa18d57f89df130"
+    },
+    {
+      "path": "/lib/x86_64-linux-gnu/libssh2.so.1",
+      "sha256": "bea384b0ed8797abdba6cb31b2de38ae2a6ad38d5a1cc13fb3704863bcbb15ca"
+    },
+    {
+      "path": "/lib/x86_64-linux-gnu/libcrypto.so.3",
+      "sha256": "8ae56f0a9481280a68c19f59809cd242a07a91ad7142944d21a878221992244b"
+    },
+    {
+      "path": "/lib/x86_64-linux-gnu/libzstd.so.1",
+      "sha256": "27f07c9a49c2c956bcfb64cd4712976586a66facbf15fc7f09bc37413b5f2b21"
+    },
+    {
+      "path": "/lib/x86_64-linux-gnu/libpsl.so.5",
+      "sha256": "d9a6975db1b66ed34bdc04195a92a77b7d29b8d6affe4c35c05d7eafe5424fef"
+    },
+    {
+      "path": "/lib/x86_64-linux-gnu/libgssapi_krb5.so.2",
+      "sha256": "c290f761873ebeac539911010526e1c5db86218bfcb29672760da46841741de0"
+    },
+    {
+      "path": "/lib/x86_64-linux-gnu/libkrb5.so.3",
+      "sha256": "c4ab64e6bc2874a83e649e4439be752465da027a0041e2bb5343f81c80f0882d"
+    },
+    {
+      "path": "/lib/x86_64-linux-gnu/libk5crypto.so.3",
+      "sha256": "c4c3221d0350f882cee0430b58d5fb289a5776c684d3156964864c8a9719dff1"
+    },
+    {
+      "path": "/lib/x86_64-linux-gnu/libkrb5support.so.0",
+      "sha256": "f559f051ee5d39f151a57d79f2cde475c484030098b0c73f9f7035b421b187c4"
+    },
+    {
+      "path": "/lib/x86_64-linux-gnu/libcom_err.so.2",
+      "sha256": "dc4828400674492839b630c001db424cd38e5cecfcf46dbf705a637647e04bea"
+    },
+    {
+      "path": "/lib/x86_64-linux-gnu/libkeyutils.so.1",
+      "sha256": "e5d5a7450d08eff7d4bbcaac75ef2b94d3447c81a1b2ddf3ab85d2de4709a9a8"
+    },
+    {
+      "path": "/lib/x86_64-linux-gnu/libresolv.so.2",
+      "sha256": "d41dd4adacf5a35df426461dd8a92d7bdd5ba29bb61a1c3531bec0ada386f8dd"
+    },
+    {
+      "path": "/lib/x86_64-linux-gnu/libldap.so.2",
+      "sha256": "e8f34e65087f24f296fa7a65a8c65383f4a7e2b532c46e40463d4e59a206c20a"
+    },
+    {
+      "path": "/lib/x86_64-linux-gnu/liblber.so.2",
+      "sha256": "ca319704dd4f58b5b3fc8510738850f03f18940544ba04bebf2fa8a23a798346"
+    },
+    {
+      "path": "/lib/x86_64-linux-gnu/libsasl2.so.2",
+      "sha256": "3f93968591811eb3972c3467c69c2968dd9cb2b51f7b7bb48de22ba8e17d13fd"
+    },
+    {
+      "path": "/lib/x86_64-linux-gnu/libssl.so.3",
+      "sha256": "9592038e92d1f41affcbb625334d0b6e788714c889104fa6d5b107cf9fd657f2"
+    },
+    {
+      "path": "/lib/x86_64-linux-gnu/libbrotlidec.so.1",
+      "sha256": "ff4baf3141862726c25ab08cdd94bced37dcae0c6827943d3e40fc1079969814"
+    },
+    {
+      "path": "/lib/x86_64-linux-gnu/libbrotlicommon.so.1",
+      "sha256": "0697dd09666e2a080974470950075ee959f2391ecb173ceee50423f969032d79"
+    },
+    {
+      "path": "/usr/lib/git-core/git-http-push",
+      "sha256": "6b90af35cee8050aa0eebea26cc9d0f016813641a45a183f8c80951bf7d8a3e3"
+    },
+    {
+      "path": "/lib/x86_64-linux-gnu/libexpat.so.1",
+      "sha256": "36e7e50d21edcabed383bfddc594bb261c1c7cce456afdf23c5f53e849cda67c"
+    },
+    {
+      "path": "/usr/lib/git-core/git-imap-send",
+      "sha256": "c295f08e324e9910e01673c4bc762c064ec639f93004f7a83b63b81c5a630cf3"
+    },
+    {
+      "path": "/usr/lib/git-core/git-instaweb",
+      "sha256": "38260cf3259f18b0b1105fe67bbc7b570e865848736b9b2d3e4427fbba43ede1"
+    },
+    {
+      "path": "/usr/lib/git-core/git-merge-octopus",
+      "sha256": "c5d08a8c4e5afc8b48d965c309d3b98930592da304cf04ac265c8b24ea3d6891"
+    },
+    {
+      "path": "/usr/lib/git-core/git-merge-one-file",
+      "sha256": "496bd3daaca988726b23252e8032f8e3cc38913dbe2a0d9f1bafd7b7276ae717"
+    },
+    {
+      "path": "/usr/lib/git-core/git-merge-resolve",
+      "sha256": "5638e11ae0ffa26607545afc060cc603083863acb1f7c723547d6dc1d3ff29c9"
+    },
+    {
+      "path": "/usr/lib/git-core/git-mergetool",
+      "sha256": "445d33f9aa9e1f93afda20fab277904599151af08463316ad45ff0a650031d10"
+    },
+    {
+      "path": "/usr/lib/git-core/git-mergetool--lib",
+      "sha256": "694897610ab23e72128223e53463418a186c2654ad02859445d6969272964769"
+    },
+    {
+      "path": "/usr/lib/git-core/git-quiltimport",
+      "sha256": "a103092c9c97d3b202477ae1391ea56b3c30ad40a2cef152dca6980fb5e57fa4"
+    },
+    {
+      "path": "/usr/lib/git-core/git-remote-ftp",
+      "sha256": "79f496498761bd098ee1048c761de85029851d22245e079971883ebed2460852"
+    },
+    {
+      "path": "/usr/lib/git-core/git-request-pull",
+      "sha256": "16309883a07b20cd42dfdd572ec152cf288951bb5815cb7aa59210e4c3993b58"
+    },
+    {
+      "path": "/usr/lib/git-core/git-sh-i18n",
+      "sha256": "c2e9d7fc23f9f631e8434bb427c06aa61bf075ad6daa7e4e827d0ce22eef0fcf"
+    },
+    {
+      "path": "/usr/lib/git-core/git-sh-i18n--envsubst",
+      "sha256": "04d57385a6942b0ad420e0b7f416fe456de6e74662cb799c68317cfe1c05f451"
+    },
+    {
+      "path": "/usr/lib/git-core/git-sh-prompt",
+      "sha256": "7ff718f4a06fd0a0be7edfef926abb41b1353c48c1515ad312d226965b74943a"
+    },
+    {
+      "path": "/usr/lib/git-core/git-sh-setup",
+      "sha256": "59445c54657ed5fbc6676ec0ce2eb23deb3d1fd388ad71819d24c18fd9282e5a"
+    },
+    {
+      "path": "/usr/lib/git-core/git-shell",
+      "sha256": "15c4d25d5cd26161e9ba9f845f66093dbf01e785e4ea06d04a260f551e254f19"
+    },
+    {
+      "path": "/usr/lib/git-core/git-submodule",
+      "sha256": "8a4c9aa536096db0ffc1438507cf4fd01385e5d86cc21db3b323603dcd422afb"
+    },
+    {
+      "path": "/usr/lib/git-core/git-subtree",
+      "sha256": "a07b68937506350d20e620a7b4db40e16a7f492acd6cb2b90cd42639f8fc0696"
+    },
+    {
+      "path": "/usr/lib/git-core/git-web--browse",
+      "sha256": "5c0d1d91dadfba3fe353add1f07be76016a7c6a3b2260ff9dfec5491fcd9e5e6"
+    },
+    {
+      "path": "/usr/lib/git-core/scalar",
+      "sha256": "00a8deff549a92fa28623373e71b4c0a0a38be7e9e14ad3ebc60e543966ae064"
+    },
+    {
+      "path": "/etc/os-release",
+      "sha256": "e249e69c32d81350fdd6b05ac5575255f14e380ba14b8454acea14e49f088bfa"
+    },
+    {
+      "path": "/etc/ssl/certs/ca-certificates.crt",
+      "sha256": "e9c7b63ee2623386e9b0a3ee32f499d01a8ea23dc83b8383ddff9f8e749543b7"
+    }
+  ]
+}

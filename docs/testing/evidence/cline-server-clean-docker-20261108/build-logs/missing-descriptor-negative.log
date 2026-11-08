@@ -1,0 +1,12 @@
+file:///poc/service/src/runtime-assets.mjs:16
+  if(bytes.length!==entry.bytes||createHash('sha256').update(bytes).digest('hex')!==entry.sha256)throw Error('Runtime resource integrity mismatch: '+entry.path);
+                                                                                                       ^
+
+Error: Runtime resource integrity mismatch: proto/descriptor_set.pb
+    at validateRuntime (file:///poc/service/src/runtime-assets.mjs:16:104)
+    at file:///poc/service/scripts/verify-runtime.mjs:5:14
+    at ModuleJob.run (node:internal/modules/esm/module_job:561:25)
+    at async node:internal/modules/esm/loader:647:26
+    at async asyncRunEntryPointWithESMLoader (node:internal/modules/run_main:101:5)
+
+Node.js v24.21.0

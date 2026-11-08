@@ -1,0 +1,52 @@
+{
+  "status": "PASS",
+  "buildExitCode": 0,
+  "regressionExitCode": 0,
+  "parameterVerificationExitCode": 0,
+  "generatedFilesUnchanged": true,
+  "before": [
+    {
+      "path": "src/monitor-client.ts",
+      "sha256": "fcb77a468e2bc8d3f7a436e904aaf4192028e10420ea1b9fbf83d62179b874e3"
+    },
+    {
+      "path": "src/monitor-types.ts",
+      "sha256": "4198d0e7be90c6a26f20390bd78de9915eed911a33d82e419503d2c6491542b0"
+    },
+    {
+      "path": "README.md",
+      "sha256": "e32e72893359e02af3db41cec1dccd1c6cbff58453cc9a79f513cf6ac423556d"
+    },
+    {
+      "path": "test/monitor-client-parameters.test.js",
+      "sha256": "543daf7663bbd69cb6bf98da390ec13ce0d82419dbdcc09f08083e9e33f6b556"
+    },
+    {
+      "path": "dist/monitor-client.js",
+      "sha256": "37af7452b37d6f1f5a1111183e4188e3f9528508ebe35ae7f5a98e6224462322"
+    }
+  ],
+  "after": [
+    {
+      "path": "src/monitor-client.ts",
+      "sha256": "fcb77a468e2bc8d3f7a436e904aaf4192028e10420ea1b9fbf83d62179b874e3"
+    },
+    {
+      "path": "src/monitor-types.ts",
+      "sha256": "4198d0e7be90c6a26f20390bd78de9915eed911a33d82e419503d2c6491542b0"
+    },
+    {
+      "path": "README.md",
+      "sha256": "e32e72893359e02af3db41cec1dccd1c6cbff58453cc9a79f513cf6ac423556d"
+    },
+    {
+      "path": "test/monitor-client-parameters.test.js",
+      "sha256": "543daf7663bbd69cb6bf98da390ec13ce0d82419dbdcc09f08083e9e33f6b556"
+    },
+    {
+      "path": "dist/monitor-client.js",
+      "sha256": "37af7452b37d6f1f5a1111183e4188e3f9528508ebe35ae7f5a98e6224462322"
+    }
+  ],
+  "fixtureInputs": "Complete tracked fixture present before model task, no restoration or repair"
+}

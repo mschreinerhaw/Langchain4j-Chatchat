@@ -1,0 +1,110 @@
+{
+  "sessionId": "1d19d003-354b-44fb-b19d-e72213d08881",
+  "taskId": "ed790a98-c1a5-4767-9592-40cf35c004d3",
+  "profile": "apply_patch",
+  "model": "qwen3.7-plus",
+  "status": "turn_completed",
+  "durationSeconds": 230.7,
+  "approvalCount": 18,
+  "completedTools": [
+    {
+      "name": "run_commands",
+      "failed": false,
+      "toolCallId": "call_37d447763d034e179241ea6b"
+    },
+    {
+      "name": "read_files",
+      "failed": false,
+      "toolCallId": "call_3f928a87ce604228bac45ef6"
+    },
+    {
+      "name": "read_files",
+      "failed": false,
+      "toolCallId": "call_b500727dccec4f95be0b2248"
+    },
+    {
+      "name": "run_commands",
+      "failed": false,
+      "toolCallId": "call_c3614a488d304a5f921f394b"
+    },
+    {
+      "name": "apply_patch",
+      "failed": false,
+      "toolCallId": "call_32d5911699b84f01865e6202"
+    },
+    {
+      "name": "apply_patch",
+      "failed": false,
+      "toolCallId": "call_5ef6c77b273249fea77c8ed3"
+    },
+    {
+      "name": "apply_patch",
+      "failed": false,
+      "toolCallId": "call_57df95bd33754f94baee7a37"
+    },
+    {
+      "name": "apply_patch",
+      "failed": false,
+      "toolCallId": "call_e95606ccce4147798ac24942"
+    },
+    {
+      "name": "read_files",
+      "failed": false,
+      "toolCallId": "call_84f49a839475428ba13df118"
+    },
+    {
+      "name": "run_commands",
+      "failed": false,
+      "toolCallId": "call_e09091a0f6b440da81cbe355"
+    },
+    {
+      "name": "run_commands",
+      "failed": false,
+      "toolCallId": "call_5e68e1f8977d40b98d64b972"
+    },
+    {
+      "name": "run_commands",
+      "failed": false,
+      "toolCallId": "call_8be97e2bc0ef4330b5631539"
+    },
+    {
+      "name": "run_commands",
+      "failed": true,
+      "toolCallId": "call_ac940b79cfa542f08700cb25"
+    },
+    {
+      "name": "apply_patch",
+      "failed": false,
+      "toolCallId": "call_72ead5991d3d4c5090dcbe13"
+    },
+    {
+      "name": "run_commands",
+      "failed": false,
+      "toolCallId": "call_89b0c3a9cb384141ad032f41"
+    },
+    {
+      "name": "run_commands",
+      "failed": true,
+      "toolCallId": "call_66cc8feab523464bb933ba2b"
+    },
+    {
+      "name": "run_commands",
+      "failed": false,
+      "toolCallId": "call_cc6e2b34f36d41b891af1e36"
+    },
+    {
+      "name": "read_files",
+      "failed": false,
+      "toolCallId": "call_cf3189258abf4cb4bab30ab5"
+    }
+  ],
+  "sseReconnect": "PASS",
+  "idempotency": "PASS",
+  "independentVerification": "PASS",
+  "coreToolsObserved": {
+    "read_files": true,
+    "search_codebase": false,
+    "apply_patch": true,
+    "run_commands": true
+  }
+}

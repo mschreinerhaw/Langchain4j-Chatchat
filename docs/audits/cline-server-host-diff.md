@@ -60,3 +60,17 @@ Phase 2.1 评审时迁移量为零。后续 POC 独立部署，不删除旧 SDK�
 | `test/*`、`scripts/collect-evidence.py` | HTTP 真模型验收、独立检查与脱敏证据 | 不修复模型生成代码；失败历史保留 |
 
 `HostProvider`、`common.ts`、CoreConnection/ProtoBus、原生 background Shell 和 Core/Agents 本体均直接复用。没有修改 Java 文件，没有新增 Java Agent loop/执行器。API 的 git diff 是成果观察，未通过它应用代码修改。完整生产 OpenAPI、租户隔离、模型网关预算、原生 MCP/Skills 与远端取消仍是后续整改项，不能从此次 POC 通过推导为已实现。
+
+## 干净 Docker 补验的新增范围
+
+本次不增加 Cline 上游补丁，保持上述四处宿主差异。补验结果单列于 [干净 Docker 报告](../testing/cline-server-clean-docker-tests-20261108.md)。
+
+| 服务层文件 | 本次实际修改 | 具体上游资源/宿主位置 |
+|---|---|---|
+| `scripts/assemble-runtime.py` | 拒绝陈旧目录覆盖；验证必需资产；正式装配生成 proto 及 manifest | `apps/vscode/src/standalone/utils.ts:23,25` 读取/解码 descriptor；沿用官方 Linux Standalone zip |
+| `src/runtime-assets.mjs`、`scripts/verify-runtime.mjs` | 启动前全文件 Hash、descriptor 服务定义与构建时 sqlite ABI 验证 | 原生 ProtoBus 的 cwd 与协议资源；无替代 RPC 实现 |
+| `src/server.mjs` | 引入资源预检，ready 返回校验摘要 | 不把 API ready 当原生编码成功；原有 TaskService/HostBridge 路径不变 |
+| `docker/Dockerfile`、`assemble-rootfs.py` | scratch 最终镜像，明确 OS/Node/动态库复制；镜像内 runtime/service；带鉴权的 HEALTHCHECK | 不继承旧 SDK/应用层、不挂上游源码；只复用工具链操作系统文件 |
+| `test/controls-http.py`、`clean-docker-acceptance.py`、边界测试 | 可指定隔离验收根目录；主任务/搜索/Patch/控制顺序验证与独立结果检查 | 只驱动 HTTP 和验证成果；不修复生成代码、不替代原生工具 |
+
+Docker 构建与负向资源验证见 [Docker 说明](../../cline-agent-server/docker/README.md)。保持单操作者/单活跃 worker 的原 POC 范围，未扩展为生产治理架构。

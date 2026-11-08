@@ -1,0 +1,1125 @@
+{
+  "sourceRuntimeCommit": "7d076d0dc",
+  "projectArchiveSha256": "aa6092e0a0e211e625c80a93486cc02d753478240327ee3058c8b689b3e662c2",
+  "allOriginalTrackedInputsMatchedArchive": true,
+  "bothInitialWorkspacesIdentical": true,
+  "fixturesAndSkillsIncludedBeforeNativeTask": true,
+  "groups": [
+    {
+      "workspace": "project",
+      "frozenGitCommit": "5d6ff6aee7cda52e3ca87522ca6360e7c687dd81",
+      "files": [
+        {
+          "path": ".dockerignore",
+          "sha256": "dfca7e24eb96f866b41e9f29bd6ffde7cfe9974fdf6d7eea461c37fe06b7b691"
+        },
+        {
+          "path": ".gitignore",
+          "sha256": "790e3169bc19b046fe55ba1da6d13b976c28363c8c00462a2195fe5faf260910"
+        },
+        {
+          "path": "Dockerfile",
+          "sha256": "c711837fa4201e990311df731a5f65ab180a37a4bc83cc2c696f7d2860c119cd"
+        },
+        {
+          "path": "README.md",
+          "sha256": "cae24b94ceb9ce6ab467bad5503ad420a1c301e82ec6f27285a48abc47184c5e"
+        },
+        {
+          "path": "compose.yaml",
+          "sha256": "d04d6b153c0be3be521e92b8cef8a5aac57e29b0909bb90e48c99f860eebfc51"
+        },
+        {
+          "path": "fixtures/monitor-server.mjs",
+          "sha256": "01968f05ba0ee768eb951a67210bae41ed31e0814fef2cf862c83ae6d2ffa584"
+        },
+        {
+          "path": "fixtures/recovery-worker.mjs",
+          "sha256": "edb0555d5aa2588b3898c494e3b8595f9d3527f1bbc8842f0314934a8759de99"
+        },
+        {
+          "path": "integration/sdk-sandbox.mjs",
+          "sha256": "9177e692501607db92df51cc6d69dc591c6454a37bd3247f6c3ddf4b1aee8aee"
+        },
+        {
+          "path": "package-lock.json",
+          "sha256": "e44c32a8665d903caffb15c78abf412f40b201675ab1837a393ad5cc60e1db52"
+        },
+        {
+          "path": "package.json",
+          "sha256": "82082a189322cb6366bc93c6f6b7cb3f11d17d1732ccf2f3378f5a3544b91cbf"
+        },
+        {
+          "path": "scripts/audit-native-skill-packages.mjs",
+          "sha256": "6d895b0716659b1b422af0bcf726b20ca7d3902b9b980b0a6473ea1759541f1b"
+        },
+        {
+          "path": "scripts/audit-native-skills-sdk.mjs",
+          "sha256": "75fdd409f1165af46a12c1d55464802224c8fceff9990c14334165f357c3e12f"
+        },
+        {
+          "path": "scripts/benchmark-completion-projection-provider.mjs",
+          "sha256": "88081edb29196ae378b861e82aba3c3c2f9e6376e72bdfe3a03b9407592411bd"
+        },
+        {
+          "path": "scripts/benchmark-context-projection.mjs",
+          "sha256": "3544309d4c4c6fc8d3ab659066b06623777794b4df75ba2d12794202a6d01042"
+        },
+        {
+          "path": "scripts/benchmark-lifecycle.mjs",
+          "sha256": "cc83643318983f470f1ff159d263df04c31da5127e725d2c2bf8d90935feace8"
+        },
+        {
+          "path": "scripts/benchmark-sql-metadata-context.mjs",
+          "sha256": "6f8ce3c19eb71a9fe685b182a77d0784cfde70b108cf95a8528325f9713fe30c"
+        },
+        {
+          "path": "scripts/benchmark-startup.mjs",
+          "sha256": "780c1f89afecb23d8b1c2ef7f7fd8a47b37caeed16c598aeaf51373846f06a9a"
+        },
+        {
+          "path": "scripts/benchmark-workspace-codegen.mjs",
+          "sha256": "adc8c7dbd872b7ad89b3b58d5e754872247d724b7d5f1c2a4cb389b68654e4c9"
+        },
+        {
+          "path": "scripts/build.mjs",
+          "sha256": "e6ac0701b5ee8513c71f8c6d15d8d54806f340d0046b6dc7c2270858a6eba705"
+        },
+        {
+          "path": "scripts/check-analysis-regression.mjs",
+          "sha256": "7baed05ce5075435ffb150e8774eefefabb7cca38ef7d8d853f738176c14ffd2"
+        },
+        {
+          "path": "scripts/export-native-skills-schemas.mjs",
+          "sha256": "e7bbe898b9dd0cba975e2a2fc2cf33f19a8612218e5694fded5d190f62af079e"
+        },
+        {
+          "path": "scripts/export-python-tool-wire.mjs",
+          "sha256": "707890ba734270b1d59cd4cdaa0319b57408705f88746e47062532808742c179"
+        },
+        {
+          "path": "scripts/measure-native-skills-catalog.mjs",
+          "sha256": "310c1697d9b018b260c95244aed2c32b7c378eaec0840f8965facddeeb52d8af"
+        },
+        {
+          "path": "scripts/summarize-context-benchmark.mjs",
+          "sha256": "d26d7d7327c323d19f5cd244a938d45068cbe2433c0d717203b9e276f2cbf928"
+        },
+        {
+          "path": "scripts/summarize-metrics.mjs",
+          "sha256": "d0ee8e51277a639f9f9d2f07e12aa972f1dd257fa40e7671ac6ad54980568ef4"
+        },
+        {
+          "path": "scripts/test-monitor-browser.mjs",
+          "sha256": "03f70280aa179186bf67514053ee481905d9741486575d6145413b745ff20d03"
+        },
+        {
+          "path": "scripts/vendor-microsoft-skills.mjs",
+          "sha256": "1446cce30d62f986c724afb7c73378501737233acfcc506566812684ad08fe37"
+        },
+        {
+          "path": "scripts/verify-live-monitor-browser.mjs",
+          "sha256": "544451986a80d3104b0e9cee40f6eca97be86caa0b21e3783dbaaba861a6946a"
+        },
+        {
+          "path": "scripts/verify-product-console.mjs",
+          "sha256": "f8fa890a5448d3850c1ad7b3cd718d51208d31b83ac43ea14e84431c54abb0b7"
+        },
+        {
+          "path": "skills/analyzer/LICENSE.cline",
+          "sha256": "a1c7eac5056d8844e1cad0fc5998d1aeb59b0ec73eb3d6b5b340f7a9453b1b2b"
+        },
+        {
+          "path": "skills/analyzer/SKILL.md",
+          "sha256": "3f51449902a54fe65714006593f8308b25058a39d1d074330bb6922ef83e9e1f"
+        },
+        {
+          "path": "skills/artifact-management/LICENSE.cline",
+          "sha256": "a1c7eac5056d8844e1cad0fc5998d1aeb59b0ec73eb3d6b5b340f7a9453b1b2b"
+        },
+        {
+          "path": "skills/artifact-management/SKILL.md",
+          "sha256": "0a4b2af4396e23f04599a5e786ce38f25fedee6ffe6c4b9247645181bfcadc1a"
+        },
+        {
+          "path": "skills/azure-ai-ml-py/LICENSE.microsoft",
+          "sha256": "d9a1b1e30d633d5732ea18e3cba9538d293ebc53e1a9e4e96ab739e0c5c4f1cb"
+        },
+        {
+          "path": "skills/azure-ai-ml-py/SKILL.md",
+          "sha256": "07491b57acea5747c3474bc1401e4813ce292dcf35658b33512aebd73d21609f"
+        },
+        {
+          "path": "skills/azure-ai-ml-py/references/capabilities.md",
+          "sha256": "d355f0a328700cabb2e4fcf700b7cc2f86022be37e6c6be0216a243904bd219d"
+        },
+        {
+          "path": "skills/azure-ai-ml-py/references/non-hero-scenarios.md",
+          "sha256": "a97c6fcccedcab8850567696deed7f86bdb5f82d876092733a31372a7ccc0144"
+        },
+        {
+          "path": "skills/azure-kusto/LICENSE.microsoft",
+          "sha256": "d9a1b1e30d633d5732ea18e3cba9538d293ebc53e1a9e4e96ab739e0c5c4f1cb"
+        },
+        {
+          "path": "skills/azure-kusto/SKILL.md",
+          "sha256": "f0920e96ac8a4b8941e0bc29591d53bcfdd3a3a61e713249d3d489c55f6d98c8"
+        },
+        {
+          "path": "skills/catalog.json",
+          "sha256": "94d8291dce81c04077054f93005ab7ca91b29d9719f66d207ed55ef2cbfa2903"
+        },
+        {
+          "path": "skills/evidence-based-answering/SKILL.md",
+          "sha256": "e89995743f41a69fef26de1d653e1816833d8e9f7e12f45afa33accd93e4319d"
+        },
+        {
+          "path": "skills/financial-market-analysis/SKILL.md",
+          "sha256": "d3bc484b8c6f32d229d49c5a708dfbe58b23b774bc1dd709994ecb3a3d1106af"
+        },
+        {
+          "path": "skills/financial-news-analysis/SKILL.md",
+          "sha256": "ceeebc35fc620f1ba685af7fc7592f9aaf3eeec3310f4a0423126e710ee1858b"
+        },
+        {
+          "path": "skills/mcp-builder/LICENSE.microsoft",
+          "sha256": "d9a1b1e30d633d5732ea18e3cba9538d293ebc53e1a9e4e96ab739e0c5c4f1cb"
+        },
+        {
+          "path": "skills/mcp-builder/SKILL.md",
+          "sha256": "621e771c22224140752ddf933923467b2d1148580194ad59d3f1f21f9f27bdc9"
+        },
+        {
+          "path": "skills/mcp-builder/reference/evaluation.md",
+          "sha256": "8c99479f8a2d22a636c38e274537aac3610879e26f34e0709825077c4576f427"
+        },
+        {
+          "path": "skills/mcp-builder/reference/mcp_best_practices.md",
+          "sha256": "0101c57aa61782a24ea81087c208643e7db9195af7c0852586b0021f2c4b9a07"
+        },
+        {
+          "path": "skills/mcp-builder/reference/microsoft_mcp_patterns.md",
+          "sha256": "41a1ee03edfc3bda496cf9e448065c5ce17ed44491424553c25f7e0b2f8bb4e2"
+        },
+        {
+          "path": "skills/mcp-builder/reference/node_mcp_server.md",
+          "sha256": "47fed0116f47a09d10203704e0af527315d1f4cf52adf444413e322720799466"
+        },
+        {
+          "path": "skills/mcp-builder/reference/python_mcp_server.md",
+          "sha256": "9296d8b1966ebf8547b8ded64745a625237f281c8c4dc808c675630213d04c55"
+        },
+        {
+          "path": "skills/mcp-builder/scripts/connections.py",
+          "sha256": "9403668a2041568772082a8b334122c1f88daf0541fb393af4522d0094a47a6e"
+        },
+        {
+          "path": "skills/mcp-builder/scripts/evaluation.py",
+          "sha256": "49ed1d17cdce5da101b210197740713f49b935c29d4f339542a14b132658e6f7"
+        },
+        {
+          "path": "skills/mcp-builder/scripts/example_evaluation.xml",
+          "sha256": "9272b348ddcc4b06ba562367ccd0770e018158c0068ac5116d5e34aaeff8777a"
+        },
+        {
+          "path": "skills/mcp-builder/scripts/requirements.txt",
+          "sha256": "d5d7558b2368ecea9dfeed7d1fbc71ee9e0750bebd1282faa527d528a344c3c7"
+        },
+        {
+          "path": "skills/opensearch-knowledge-exploration/SKILL.md",
+          "sha256": "6766016c1ac5f7bc37d9a157938fd4b45db8c955a1d3fa03d88281fe4561d0d5"
+        },
+        {
+          "path": "skills/plotting/LICENSE.cline",
+          "sha256": "a1c7eac5056d8844e1cad0fc5998d1aeb59b0ec73eb3d6b5b340f7a9453b1b2b"
+        },
+        {
+          "path": "skills/plotting/SKILL.md",
+          "sha256": "67fae3410ffcd0fed6c8089aaff6aa0d1d338d30214d4b57a4986a71541d280d"
+        },
+        {
+          "path": "skills/plotting/styles/cline-chart-tokens.css",
+          "sha256": "f19736ed928799b8d1b17ddc0d263e2c10f5928686b1c1834d22199247ae284c"
+        },
+        {
+          "path": "skills/python-code-development/SKILL.md",
+          "sha256": "340b752b85c566d65e73cdbcf33928a786468aaa4c1c29ea9a4d67f9653b726c"
+        },
+        {
+          "path": "skills/python-code-development/references/engineering-checks.md",
+          "sha256": "bcef6e77dcdb9105e752e42bd848b7a7527db139f3862eda185318beb28cface"
+        },
+        {
+          "path": "skills/python-data-analysis/SKILL.md",
+          "sha256": "c68d577f8858d55eeaf112d0153438b67ee4f1f856985fca59418c28431d7ec1"
+        },
+        {
+          "path": "skills/python-data-analysis/references/data-methods.md",
+          "sha256": "806c8c0a2b4d813a5579973a851db32afac82f88c6e0b34349e2855648f2a7fa"
+        },
+        {
+          "path": "skills/python-data-analysis/references/financial-reporting.md",
+          "sha256": "b92ef28638bc7b94dc33fbdafe25370b2b7626f66a07ff63f2fd8d4518a4612a"
+        },
+        {
+          "path": "skills/runtime-internet-research/LICENSE.tavily",
+          "sha256": "405f05572fcc275f02c2605516af0711895deafe57d56820e243504fb8599861"
+        },
+        {
+          "path": "skills/runtime-internet-research/SKILL.md",
+          "sha256": "438dc7ab4223dd8e6b7bb216ce33b898b3141797eb4bb7df8651c4d568f49577"
+        },
+        {
+          "path": "skills/runtime-internet-research/references/upstream/SKILL.original.md",
+          "sha256": "3676158f08de06227965d39d4bbfe222460dd390ee29485d29fdba92cf55a782"
+        },
+        {
+          "path": "skills/runtime-internet-research/references/upstream/references/crawl.md",
+          "sha256": "2057b4077d7899cc7514152d79daf42cc476b9778d98163468232659b2106112"
+        },
+        {
+          "path": "skills/runtime-internet-research/references/upstream/references/map.md",
+          "sha256": "c4efd4e0985862ba0b54a6682f18c550580d71f83baebc2ab3243dc9f2f02c86"
+        },
+        {
+          "path": "skills/runtime-internet-research/references/upstream/references/setup.md",
+          "sha256": "c3c19de5dca030783782dc090de860c75790092af8911a2d46b61a0ab8d4785c"
+        },
+        {
+          "path": "skills/runtime-report-delivery/SKILL.md",
+          "sha256": "650a115d230492add98ab37a6e1990807711086a7787f7e5707f1a165ae0a793"
+        },
+        {
+          "path": "skills/skill-creator/LICENSE.microsoft",
+          "sha256": "d9a1b1e30d633d5732ea18e3cba9538d293ebc53e1a9e4e96ab739e0c5c4f1cb"
+        },
+        {
+          "path": "skills/skill-creator/SKILL.md",
+          "sha256": "15ce951aec071c813150e6794628664725c164223108792e15bd3db18e959da0"
+        },
+        {
+          "path": "skills/skill-creator/references/azure-sdk-patterns.md",
+          "sha256": "1be5f8b256d0c73defa2b3dfc88342018859ffeaeb77a320b440217703bd289a"
+        },
+        {
+          "path": "skills/skill-creator/references/output-patterns.md",
+          "sha256": "b9e4284e89c75d7b9eb3613130a6272ab531a60f0f22f4ccda12d67bf5d4f27c"
+        },
+        {
+          "path": "skills/skill-creator/references/workflows.md",
+          "sha256": "34b9b4fc5d40000b8042be8ca7b2365f16a735827402046a858c2c7854e140e1"
+        },
+        {
+          "path": "skills/skill-creator/scripts/init_skill.py",
+          "sha256": "0bba250b94caa4cb2b28b15dad26fdcf371aeda4c9797b8120e55c2e33e0c73c"
+        },
+        {
+          "path": "skills/skill-creator/scripts/package_skill.py",
+          "sha256": "b31fbcb3e362d5c5308e99255ff8e83cde3a513e0636953964a648494ca10931"
+        },
+        {
+          "path": "skills/skill-creator/scripts/quick_validate.py",
+          "sha256": "381ab2d3d1fd5ec32371016413063eff99d0d48c415747085c61517e967dbb87"
+        },
+        {
+          "path": "src/code-repair.js",
+          "sha256": "677bb0607eaa6a6181d336a6fc32247ad46cc61755e3d59164ff389d630243d4"
+        },
+        {
+          "path": "src/coding-progress.js",
+          "sha256": "f85c93df1d42e94f7591c9f64860576f2390bf6d18f6bc23bcbabf16f7f7700f"
+        },
+        {
+          "path": "src/completion-context.js",
+          "sha256": "095a9e6cf433b8c7c106160d9959b67a6443b7bb982c4de9f2699cb97fe3697b"
+        },
+        {
+          "path": "src/completion-evaluation.js",
+          "sha256": "572f1e24d2aae6ed4a6e0277266dd76d039469ce574f9d67e641374c54dd4433"
+        },
+        {
+          "path": "src/context-budget.js",
+          "sha256": "bb6150a4844953114ba8e72286c0d922953579770b288afdc6d47796ff8630ce"
+        },
+        {
+          "path": "src/execution-feedback.ts",
+          "sha256": "f8eb11b5ccbf60f263b7f5d22383f17cd43b3b795e33b0e285cde9463065ec37"
+        },
+        {
+          "path": "src/healthcheck.js",
+          "sha256": "32f6eed900ffccd37760d34613902884c63838efbd3ead6f14926dbb194fd600"
+        },
+        {
+          "path": "src/knowledge-tools.js",
+          "sha256": "b9f6dbcaa3007268f58a92922792cad26ed582d0a5557369128cbd2dff9b997e"
+        },
+        {
+          "path": "src/monitor-client.ts",
+          "sha256": "05c45965b84721d6855a35eeb6395a3cd90d78b10784a0571ae093af8cf02b63"
+        },
+        {
+          "path": "src/monitor-types.ts",
+          "sha256": "9a4d74d7c0b0d2f85663bc95414edd34c6bc57ebd9515945bdb8a3caec1e7025"
+        },
+        {
+          "path": "src/monitor.ts",
+          "sha256": "7c174454b90b81e06532c0df9e23aed0e6ab46d3c03942475bb94a53668ff6fa"
+        },
+        {
+          "path": "src/native-skills.js",
+          "sha256": "64998f66ab31deb0841411f180165c39c9076b514a5eeb5b25be0912a5f1ec92"
+        },
+        {
+          "path": "src/python-project.js",
+          "sha256": "5ecdf4ad3fc90f8de434b059bb0f20cfb126867e7fb461ba8254dd88acb9c3b8"
+        },
+        {
+          "path": "src/request-context.js",
+          "sha256": "56a756e512df6a768fe32f647fa8bfbeaab1af87976129a6c7c5a4f42430eb2c"
+        },
+        {
+          "path": "src/runner.js",
+          "sha256": "73f5ac4c602de518a88523ab6373a1e8338ea21cdaf41a47552ee2fa71893e53"
+        },
+        {
+          "path": "src/runtime-model.js",
+          "sha256": "a1938ea5fcf1ba4f6d8f2b954c04b408207a75e57a3060369f96df0afcba6c84"
+        },
+        {
+          "path": "src/sdk-adapter.js",
+          "sha256": "f163cae58647fc2ba8aa5d23c1872cb350407cadb246944481d2adb75ac08569"
+        },
+        {
+          "path": "src/sdk-packages.js",
+          "sha256": "e885042a69c1c4ba323ae9e02a2dc1ae93d3fa5b912eb0b0adb9e53d5c06cdb2"
+        },
+        {
+          "path": "src/server.js",
+          "sha256": "05755b4a350211f2f99ed52a77a072c4a0e19385334b80c12993509c92923746"
+        },
+        {
+          "path": "src/skill-distribution.js",
+          "sha256": "1d1789a06bef49bf4b2f9f395a9f87b88873c299e7d816082de005519a20884f"
+        },
+        {
+          "path": "src/tool-catalog.js",
+          "sha256": "fa034cfab98df5afa4a4880baf7620db31380ffdbb219667f2a56bd7105fbc74"
+        },
+        {
+          "path": "test/analysis-regression.test.js",
+          "sha256": "f92518720df491de3c450efcc4cece7b3b3fa72acd3f71664766fb6b504977a7"
+        },
+        {
+          "path": "test/builtin-skills.test.js",
+          "sha256": "6311fa0c41fb0dd0018f3dadeb5587c1d67cf32f53bbc74540e5e3e9257b5173"
+        },
+        {
+          "path": "test/checkpoint-receipt.test.js",
+          "sha256": "1da0355ef01409ac0aedfc440469a903441a426d06627d71d50f64b3b49a58d9"
+        },
+        {
+          "path": "test/code-lifecycle.test.js",
+          "sha256": "8de60b1b6c7b9573e097fa221d7ec6ff81ec59c9366bb8a9d42e9a19e21876fa"
+        },
+        {
+          "path": "test/code-repair.test.js",
+          "sha256": "8e41ff9d73d771b6fb70e42cc24a0ccfce49291a6db19901ae70538bbafb4b9f"
+        },
+        {
+          "path": "test/coding-progress.test.js",
+          "sha256": "b5a638fe9545ab4c24dedfe3d1652b1a8f46773b1469a25f6bd670269be05fe8"
+        },
+        {
+          "path": "test/completion-context.test.js",
+          "sha256": "d9627ad50371429cbd1891d98a61b5219224dd12ecc94bba86fd3f7f951aabcd"
+        },
+        {
+          "path": "test/completion-evaluation.test.js",
+          "sha256": "34ef97198426a7653858254155957c403e67525d6a7bdc2c1d97f65683a195b8"
+        },
+        {
+          "path": "test/financial-methods.test.py",
+          "sha256": "b8847cffb582046bb3f10971ac81ad9c42750c65b0476fac23b45c281ce1d998"
+        },
+        {
+          "path": "test/fixtures/analysis-regressions.json",
+          "sha256": "d389f2a2c223b51cef124c55ece8bf6492ede112cdf4960b134c770a0309c04e"
+        },
+        {
+          "path": "test/fixtures/repair-analysis.py.txt",
+          "sha256": "63c6c70c4d83b9c3cc64385b4e1188b9642976ea07749cda7424de14b0538efa"
+        },
+        {
+          "path": "test/knowledge-tools.test.js",
+          "sha256": "ee64f741a43fad5cc14e38a00211315f3af8fcafd240bc2c6f1d96d3b382d556"
+        },
+        {
+          "path": "test/metrics-summary.test.js",
+          "sha256": "4891c43daa1859d3a597daa9326d654e20346212e794702c3af85c0f5757c667"
+        },
+        {
+          "path": "test/microsoft-skills.test.js",
+          "sha256": "2fc02f9cb53fd97ff84b3b90798e5c9c90ce662cc9169aebbbb40aac3420c2f2"
+        },
+        {
+          "path": "test/monitor-authority.test.js",
+          "sha256": "ac8379b50b3f0a69f3396566a744c920c41603f718b694f174fdec8ff6b505f5"
+        },
+        {
+          "path": "test/monitor.test.js",
+          "sha256": "e52f7a9b9dd385b25f9353bba88d294e95ba1b19c19340ca8ac2b06bc9e016a8"
+        },
+        {
+          "path": "test/native-skills.test.js",
+          "sha256": "da1d27163efe240fc6cdac24b1862afb105f92376590b977019ed8d0f59a3a47"
+        },
+        {
+          "path": "test/node-monitor.test.js",
+          "sha256": "db53e5861fbb2c201811ad9f6f8c4f5659aac12fc6a367df4ef9d65b41c0685e"
+        },
+        {
+          "path": "test/precode-disclosure.test.js",
+          "sha256": "57d1e387da6a35e36d50e6d188bfe998bf7e57791eb24daa00c80c30b075c9f2"
+        },
+        {
+          "path": "test/python-diagnostics.test.js",
+          "sha256": "33ca97d950e173d0cf313ebca84ec7ed69f91646486de4cabcfbe2dae6ff5dfe"
+        },
+        {
+          "path": "test/python-project.test.js",
+          "sha256": "2aac57975960e7bcac9e94ce4ed4d8beee67a19f6e01c446df5b957633abec36"
+        },
+        {
+          "path": "test/recovery.test.js",
+          "sha256": "4b3ce9e3605eea693813958afda8b20cd9901fa27f24c99c9502bbd8caeb622d"
+        },
+        {
+          "path": "test/request-context.test.js",
+          "sha256": "438a5b5700c96aa78c49ef32f03d447c6943a63450665a5b61ee3d48a17c3090"
+        },
+        {
+          "path": "test/reviewed-result.test.js",
+          "sha256": "4e8547efe19954b5dddc59de1d7c1a4911a3d82254f2025698c188537307cd44"
+        },
+        {
+          "path": "test/runner.test.js",
+          "sha256": "0a49d6703dea954a1617882032283c915406ed2092af8cb7e226ab1c71eee18e"
+        },
+        {
+          "path": "test/runtime-model.test.js",
+          "sha256": "8b5eb5eb75dcaef90d4a8d53047a8a3e24f6e65504acf7530a95d26be1c91593"
+        },
+        {
+          "path": "test/sdk-migration.test.js",
+          "sha256": "b3701e7ab772fc7676caeacd952fea329460ddb0e2d37e8ab30d7eae1420e1e6"
+        },
+        {
+          "path": "test/sdk-native-capabilities.test.js",
+          "sha256": "8aafeaf531232c447a5874652c2ffa1f4405d2e55f7d799b76f85d2285ee797e"
+        },
+        {
+          "path": "test/sdk-packages.test.js",
+          "sha256": "5af528e0dedbc719d71d3cb6b286e1a6f4c44af5b7c5dde23f8b58305f5ddfb2"
+        },
+        {
+          "path": "test/sdk-reuse-regression.test.js",
+          "sha256": "0f855fe4d4ec38619dc2d2c3f1273bee739823d8cd80db0ea8d0207515bc06b1"
+        },
+        {
+          "path": "test/server.test.js",
+          "sha256": "7d0f8752ca0fc22d2297db9b4825c8a00801741b5dcf5253b935991916664313"
+        },
+        {
+          "path": "test/tool-catalog.test.js",
+          "sha256": "8476c97746a9caad74d24bcd55e74f8fa96638a06f337aed26b67a8529c452b4"
+        },
+        {
+          "path": "test/workspace-fast-path.test.js",
+          "sha256": "273a885c4eec1972c2cb91b1172dab8594275e2562b9cffaa384847b020a8d15"
+        },
+        {
+          "path": "tsconfig.json",
+          "sha256": "f5789ad8fdc25c8e06e922ca0dd089231c2273348f1eb89f7df8bfa2fb0fa542"
+        },
+        {
+          "path": "tsconfig.web.json",
+          "sha256": "f3a0769d291c8d16e9473e0dd96ab837c57714a660619ee7154a2acf27f6ff92"
+        },
+        {
+          "path": "web/index.html",
+          "sha256": "4c903eeb4671fe6d02ba0eb1db8e53c4dab678ec92484772e659b500ee404474"
+        },
+        {
+          "path": "web/main.ts",
+          "sha256": "ece5e066c8953a6fbfa960eb165061aebfd3cc9c94d3e05323f53c0ed78b3602"
+        },
+        {
+          "path": "web/python-diagnostics.ts",
+          "sha256": "cc0e1207f17bd39929a4e47ece7dd6e104b25c6b6acc8f64c6ee1af339e90b9b"
+        },
+        {
+          "path": "web/style.css",
+          "sha256": "932d7adeb77cbe75cf30fb1ca61e77cd6c3229cdad1af13791db7f29520db5f7"
+        }
+      ]
+    },
+    {
+      "workspace": "project-patch",
+      "frozenGitCommit": "c1af0e88651c2a31d8eeeaf5d32d078f30c2a2fc",
+      "files": [
+        {
+          "path": ".dockerignore",
+          "sha256": "dfca7e24eb96f866b41e9f29bd6ffde7cfe9974fdf6d7eea461c37fe06b7b691"
+        },
+        {
+          "path": ".gitignore",
+          "sha256": "790e3169bc19b046fe55ba1da6d13b976c28363c8c00462a2195fe5faf260910"
+        },
+        {
+          "path": "Dockerfile",
+          "sha256": "c711837fa4201e990311df731a5f65ab180a37a4bc83cc2c696f7d2860c119cd"
+        },
+        {
+          "path": "README.md",
+          "sha256": "cae24b94ceb9ce6ab467bad5503ad420a1c301e82ec6f27285a48abc47184c5e"
+        },
+        {
+          "path": "compose.yaml",
+          "sha256": "d04d6b153c0be3be521e92b8cef8a5aac57e29b0909bb90e48c99f860eebfc51"
+        },
+        {
+          "path": "fixtures/monitor-server.mjs",
+          "sha256": "01968f05ba0ee768eb951a67210bae41ed31e0814fef2cf862c83ae6d2ffa584"
+        },
+        {
+          "path": "fixtures/recovery-worker.mjs",
+          "sha256": "edb0555d5aa2588b3898c494e3b8595f9d3527f1bbc8842f0314934a8759de99"
+        },
+        {
+          "path": "integration/sdk-sandbox.mjs",
+          "sha256": "9177e692501607db92df51cc6d69dc591c6454a37bd3247f6c3ddf4b1aee8aee"
+        },
+        {
+          "path": "package-lock.json",
+          "sha256": "e44c32a8665d903caffb15c78abf412f40b201675ab1837a393ad5cc60e1db52"
+        },
+        {
+          "path": "package.json",
+          "sha256": "82082a189322cb6366bc93c6f6b7cb3f11d17d1732ccf2f3378f5a3544b91cbf"
+        },
+        {
+          "path": "scripts/audit-native-skill-packages.mjs",
+          "sha256": "6d895b0716659b1b422af0bcf726b20ca7d3902b9b980b0a6473ea1759541f1b"
+        },
+        {
+          "path": "scripts/audit-native-skills-sdk.mjs",
+          "sha256": "75fdd409f1165af46a12c1d55464802224c8fceff9990c14334165f357c3e12f"
+        },
+        {
+          "path": "scripts/benchmark-completion-projection-provider.mjs",
+          "sha256": "88081edb29196ae378b861e82aba3c3c2f9e6376e72bdfe3a03b9407592411bd"
+        },
+        {
+          "path": "scripts/benchmark-context-projection.mjs",
+          "sha256": "3544309d4c4c6fc8d3ab659066b06623777794b4df75ba2d12794202a6d01042"
+        },
+        {
+          "path": "scripts/benchmark-lifecycle.mjs",
+          "sha256": "cc83643318983f470f1ff159d263df04c31da5127e725d2c2bf8d90935feace8"
+        },
+        {
+          "path": "scripts/benchmark-sql-metadata-context.mjs",
+          "sha256": "6f8ce3c19eb71a9fe685b182a77d0784cfde70b108cf95a8528325f9713fe30c"
+        },
+        {
+          "path": "scripts/benchmark-startup.mjs",
+          "sha256": "780c1f89afecb23d8b1c2ef7f7fd8a47b37caeed16c598aeaf51373846f06a9a"
+        },
+        {
+          "path": "scripts/benchmark-workspace-codegen.mjs",
+          "sha256": "adc8c7dbd872b7ad89b3b58d5e754872247d724b7d5f1c2a4cb389b68654e4c9"
+        },
+        {
+          "path": "scripts/build.mjs",
+          "sha256": "e6ac0701b5ee8513c71f8c6d15d8d54806f340d0046b6dc7c2270858a6eba705"
+        },
+        {
+          "path": "scripts/check-analysis-regression.mjs",
+          "sha256": "7baed05ce5075435ffb150e8774eefefabb7cca38ef7d8d853f738176c14ffd2"
+        },
+        {
+          "path": "scripts/export-native-skills-schemas.mjs",
+          "sha256": "e7bbe898b9dd0cba975e2a2fc2cf33f19a8612218e5694fded5d190f62af079e"
+        },
+        {
+          "path": "scripts/export-python-tool-wire.mjs",
+          "sha256": "707890ba734270b1d59cd4cdaa0319b57408705f88746e47062532808742c179"
+        },
+        {
+          "path": "scripts/measure-native-skills-catalog.mjs",
+          "sha256": "310c1697d9b018b260c95244aed2c32b7c378eaec0840f8965facddeeb52d8af"
+        },
+        {
+          "path": "scripts/summarize-context-benchmark.mjs",
+          "sha256": "d26d7d7327c323d19f5cd244a938d45068cbe2433c0d717203b9e276f2cbf928"
+        },
+        {
+          "path": "scripts/summarize-metrics.mjs",
+          "sha256": "d0ee8e51277a639f9f9d2f07e12aa972f1dd257fa40e7671ac6ad54980568ef4"
+        },
+        {
+          "path": "scripts/test-monitor-browser.mjs",
+          "sha256": "03f70280aa179186bf67514053ee481905d9741486575d6145413b745ff20d03"
+        },
+        {
+          "path": "scripts/vendor-microsoft-skills.mjs",
+          "sha256": "1446cce30d62f986c724afb7c73378501737233acfcc506566812684ad08fe37"
+        },
+        {
+          "path": "scripts/verify-live-monitor-browser.mjs",
+          "sha256": "544451986a80d3104b0e9cee40f6eca97be86caa0b21e3783dbaaba861a6946a"
+        },
+        {
+          "path": "scripts/verify-product-console.mjs",
+          "sha256": "f8fa890a5448d3850c1ad7b3cd718d51208d31b83ac43ea14e84431c54abb0b7"
+        },
+        {
+          "path": "skills/analyzer/LICENSE.cline",
+          "sha256": "a1c7eac5056d8844e1cad0fc5998d1aeb59b0ec73eb3d6b5b340f7a9453b1b2b"
+        },
+        {
+          "path": "skills/analyzer/SKILL.md",
+          "sha256": "3f51449902a54fe65714006593f8308b25058a39d1d074330bb6922ef83e9e1f"
+        },
+        {
+          "path": "skills/artifact-management/LICENSE.cline",
+          "sha256": "a1c7eac5056d8844e1cad0fc5998d1aeb59b0ec73eb3d6b5b340f7a9453b1b2b"
+        },
+        {
+          "path": "skills/artifact-management/SKILL.md",
+          "sha256": "0a4b2af4396e23f04599a5e786ce38f25fedee6ffe6c4b9247645181bfcadc1a"
+        },
+        {
+          "path": "skills/azure-ai-ml-py/LICENSE.microsoft",
+          "sha256": "d9a1b1e30d633d5732ea18e3cba9538d293ebc53e1a9e4e96ab739e0c5c4f1cb"
+        },
+        {
+          "path": "skills/azure-ai-ml-py/SKILL.md",
+          "sha256": "07491b57acea5747c3474bc1401e4813ce292dcf35658b33512aebd73d21609f"
+        },
+        {
+          "path": "skills/azure-ai-ml-py/references/capabilities.md",
+          "sha256": "d355f0a328700cabb2e4fcf700b7cc2f86022be37e6c6be0216a243904bd219d"
+        },
+        {
+          "path": "skills/azure-ai-ml-py/references/non-hero-scenarios.md",
+          "sha256": "a97c6fcccedcab8850567696deed7f86bdb5f82d876092733a31372a7ccc0144"
+        },
+        {
+          "path": "skills/azure-kusto/LICENSE.microsoft",
+          "sha256": "d9a1b1e30d633d5732ea18e3cba9538d293ebc53e1a9e4e96ab739e0c5c4f1cb"
+        },
+        {
+          "path": "skills/azure-kusto/SKILL.md",
+          "sha256": "f0920e96ac8a4b8941e0bc29591d53bcfdd3a3a61e713249d3d489c55f6d98c8"
+        },
+        {
+          "path": "skills/catalog.json",
+          "sha256": "94d8291dce81c04077054f93005ab7ca91b29d9719f66d207ed55ef2cbfa2903"
+        },
+        {
+          "path": "skills/evidence-based-answering/SKILL.md",
+          "sha256": "e89995743f41a69fef26de1d653e1816833d8e9f7e12f45afa33accd93e4319d"
+        },
+        {
+          "path": "skills/financial-market-analysis/SKILL.md",
+          "sha256": "d3bc484b8c6f32d229d49c5a708dfbe58b23b774bc1dd709994ecb3a3d1106af"
+        },
+        {
+          "path": "skills/financial-news-analysis/SKILL.md",
+          "sha256": "ceeebc35fc620f1ba685af7fc7592f9aaf3eeec3310f4a0423126e710ee1858b"
+        },
+        {
+          "path": "skills/mcp-builder/LICENSE.microsoft",
+          "sha256": "d9a1b1e30d633d5732ea18e3cba9538d293ebc53e1a9e4e96ab739e0c5c4f1cb"
+        },
+        {
+          "path": "skills/mcp-builder/SKILL.md",
+          "sha256": "621e771c22224140752ddf933923467b2d1148580194ad59d3f1f21f9f27bdc9"
+        },
+        {
+          "path": "skills/mcp-builder/reference/evaluation.md",
+          "sha256": "8c99479f8a2d22a636c38e274537aac3610879e26f34e0709825077c4576f427"
+        },
+        {
+          "path": "skills/mcp-builder/reference/mcp_best_practices.md",
+          "sha256": "0101c57aa61782a24ea81087c208643e7db9195af7c0852586b0021f2c4b9a07"
+        },
+        {
+          "path": "skills/mcp-builder/reference/microsoft_mcp_patterns.md",
+          "sha256": "41a1ee03edfc3bda496cf9e448065c5ce17ed44491424553c25f7e0b2f8bb4e2"
+        },
+        {
+          "path": "skills/mcp-builder/reference/node_mcp_server.md",
+          "sha256": "47fed0116f47a09d10203704e0af527315d1f4cf52adf444413e322720799466"
+        },
+        {
+          "path": "skills/mcp-builder/reference/python_mcp_server.md",
+          "sha256": "9296d8b1966ebf8547b8ded64745a625237f281c8c4dc808c675630213d04c55"
+        },
+        {
+          "path": "skills/mcp-builder/scripts/connections.py",
+          "sha256": "9403668a2041568772082a8b334122c1f88daf0541fb393af4522d0094a47a6e"
+        },
+        {
+          "path": "skills/mcp-builder/scripts/evaluation.py",
+          "sha256": "49ed1d17cdce5da101b210197740713f49b935c29d4f339542a14b132658e6f7"
+        },
+        {
+          "path": "skills/mcp-builder/scripts/example_evaluation.xml",
+          "sha256": "9272b348ddcc4b06ba562367ccd0770e018158c0068ac5116d5e34aaeff8777a"
+        },
+        {
+          "path": "skills/mcp-builder/scripts/requirements.txt",
+          "sha256": "d5d7558b2368ecea9dfeed7d1fbc71ee9e0750bebd1282faa527d528a344c3c7"
+        },
+        {
+          "path": "skills/opensearch-knowledge-exploration/SKILL.md",
+          "sha256": "6766016c1ac5f7bc37d9a157938fd4b45db8c955a1d3fa03d88281fe4561d0d5"
+        },
+        {
+          "path": "skills/plotting/LICENSE.cline",
+          "sha256": "a1c7eac5056d8844e1cad0fc5998d1aeb59b0ec73eb3d6b5b340f7a9453b1b2b"
+        },
+        {
+          "path": "skills/plotting/SKILL.md",
+          "sha256": "67fae3410ffcd0fed6c8089aaff6aa0d1d338d30214d4b57a4986a71541d280d"
+        },
+        {
+          "path": "skills/plotting/styles/cline-chart-tokens.css",
+          "sha256": "f19736ed928799b8d1b17ddc0d263e2c10f5928686b1c1834d22199247ae284c"
+        },
+        {
+          "path": "skills/python-code-development/SKILL.md",
+          "sha256": "340b752b85c566d65e73cdbcf33928a786468aaa4c1c29ea9a4d67f9653b726c"
+        },
+        {
+          "path": "skills/python-code-development/references/engineering-checks.md",
+          "sha256": "bcef6e77dcdb9105e752e42bd848b7a7527db139f3862eda185318beb28cface"
+        },
+        {
+          "path": "skills/python-data-analysis/SKILL.md",
+          "sha256": "c68d577f8858d55eeaf112d0153438b67ee4f1f856985fca59418c28431d7ec1"
+        },
+        {
+          "path": "skills/python-data-analysis/references/data-methods.md",
+          "sha256": "806c8c0a2b4d813a5579973a851db32afac82f88c6e0b34349e2855648f2a7fa"
+        },
+        {
+          "path": "skills/python-data-analysis/references/financial-reporting.md",
+          "sha256": "b92ef28638bc7b94dc33fbdafe25370b2b7626f66a07ff63f2fd8d4518a4612a"
+        },
+        {
+          "path": "skills/runtime-internet-research/LICENSE.tavily",
+          "sha256": "405f05572fcc275f02c2605516af0711895deafe57d56820e243504fb8599861"
+        },
+        {
+          "path": "skills/runtime-internet-research/SKILL.md",
+          "sha256": "438dc7ab4223dd8e6b7bb216ce33b898b3141797eb4bb7df8651c4d568f49577"
+        },
+        {
+          "path": "skills/runtime-internet-research/references/upstream/SKILL.original.md",
+          "sha256": "3676158f08de06227965d39d4bbfe222460dd390ee29485d29fdba92cf55a782"
+        },
+        {
+          "path": "skills/runtime-internet-research/references/upstream/references/crawl.md",
+          "sha256": "2057b4077d7899cc7514152d79daf42cc476b9778d98163468232659b2106112"
+        },
+        {
+          "path": "skills/runtime-internet-research/references/upstream/references/map.md",
+          "sha256": "c4efd4e0985862ba0b54a6682f18c550580d71f83baebc2ab3243dc9f2f02c86"
+        },
+        {
+          "path": "skills/runtime-internet-research/references/upstream/references/setup.md",
+          "sha256": "c3c19de5dca030783782dc090de860c75790092af8911a2d46b61a0ab8d4785c"
+        },
+        {
+          "path": "skills/runtime-report-delivery/SKILL.md",
+          "sha256": "650a115d230492add98ab37a6e1990807711086a7787f7e5707f1a165ae0a793"
+        },
+        {
+          "path": "skills/skill-creator/LICENSE.microsoft",
+          "sha256": "d9a1b1e30d633d5732ea18e3cba9538d293ebc53e1a9e4e96ab739e0c5c4f1cb"
+        },
+        {
+          "path": "skills/skill-creator/SKILL.md",
+          "sha256": "15ce951aec071c813150e6794628664725c164223108792e15bd3db18e959da0"
+        },
+        {
+          "path": "skills/skill-creator/references/azure-sdk-patterns.md",
+          "sha256": "1be5f8b256d0c73defa2b3dfc88342018859ffeaeb77a320b440217703bd289a"
+        },
+        {
+          "path": "skills/skill-creator/references/output-patterns.md",
+          "sha256": "b9e4284e89c75d7b9eb3613130a6272ab531a60f0f22f4ccda12d67bf5d4f27c"
+        },
+        {
+          "path": "skills/skill-creator/references/workflows.md",
+          "sha256": "34b9b4fc5d40000b8042be8ca7b2365f16a735827402046a858c2c7854e140e1"
+        },
+        {
+          "path": "skills/skill-creator/scripts/init_skill.py",
+          "sha256": "0bba250b94caa4cb2b28b15dad26fdcf371aeda4c9797b8120e55c2e33e0c73c"
+        },
+        {
+          "path": "skills/skill-creator/scripts/package_skill.py",
+          "sha256": "b31fbcb3e362d5c5308e99255ff8e83cde3a513e0636953964a648494ca10931"
+        },
+        {
+          "path": "skills/skill-creator/scripts/quick_validate.py",
+          "sha256": "381ab2d3d1fd5ec32371016413063eff99d0d48c415747085c61517e967dbb87"
+        },
+        {
+          "path": "src/code-repair.js",
+          "sha256": "677bb0607eaa6a6181d336a6fc32247ad46cc61755e3d59164ff389d630243d4"
+        },
+        {
+          "path": "src/coding-progress.js",
+          "sha256": "f85c93df1d42e94f7591c9f64860576f2390bf6d18f6bc23bcbabf16f7f7700f"
+        },
+        {
+          "path": "src/completion-context.js",
+          "sha256": "095a9e6cf433b8c7c106160d9959b67a6443b7bb982c4de9f2699cb97fe3697b"
+        },
+        {
+          "path": "src/completion-evaluation.js",
+          "sha256": "572f1e24d2aae6ed4a6e0277266dd76d039469ce574f9d67e641374c54dd4433"
+        },
+        {
+          "path": "src/context-budget.js",
+          "sha256": "bb6150a4844953114ba8e72286c0d922953579770b288afdc6d47796ff8630ce"
+        },
+        {
+          "path": "src/execution-feedback.ts",
+          "sha256": "f8eb11b5ccbf60f263b7f5d22383f17cd43b3b795e33b0e285cde9463065ec37"
+        },
+        {
+          "path": "src/healthcheck.js",
+          "sha256": "32f6eed900ffccd37760d34613902884c63838efbd3ead6f14926dbb194fd600"
+        },
+        {
+          "path": "src/knowledge-tools.js",
+          "sha256": "b9f6dbcaa3007268f58a92922792cad26ed582d0a5557369128cbd2dff9b997e"
+        },
+        {
+          "path": "src/monitor-client.ts",
+          "sha256": "05c45965b84721d6855a35eeb6395a3cd90d78b10784a0571ae093af8cf02b63"
+        },
+        {
+          "path": "src/monitor-types.ts",
+          "sha256": "9a4d74d7c0b0d2f85663bc95414edd34c6bc57ebd9515945bdb8a3caec1e7025"
+        },
+        {
+          "path": "src/monitor.ts",
+          "sha256": "7c174454b90b81e06532c0df9e23aed0e6ab46d3c03942475bb94a53668ff6fa"
+        },
+        {
+          "path": "src/native-skills.js",
+          "sha256": "64998f66ab31deb0841411f180165c39c9076b514a5eeb5b25be0912a5f1ec92"
+        },
+        {
+          "path": "src/python-project.js",
+          "sha256": "5ecdf4ad3fc90f8de434b059bb0f20cfb126867e7fb461ba8254dd88acb9c3b8"
+        },
+        {
+          "path": "src/request-context.js",
+          "sha256": "56a756e512df6a768fe32f647fa8bfbeaab1af87976129a6c7c5a4f42430eb2c"
+        },
+        {
+          "path": "src/runner.js",
+          "sha256": "73f5ac4c602de518a88523ab6373a1e8338ea21cdaf41a47552ee2fa71893e53"
+        },
+        {
+          "path": "src/runtime-model.js",
+          "sha256": "a1938ea5fcf1ba4f6d8f2b954c04b408207a75e57a3060369f96df0afcba6c84"
+        },
+        {
+          "path": "src/sdk-adapter.js",
+          "sha256": "f163cae58647fc2ba8aa5d23c1872cb350407cadb246944481d2adb75ac08569"
+        },
+        {
+          "path": "src/sdk-packages.js",
+          "sha256": "e885042a69c1c4ba323ae9e02a2dc1ae93d3fa5b912eb0b0adb9e53d5c06cdb2"
+        },
+        {
+          "path": "src/server.js",
+          "sha256": "05755b4a350211f2f99ed52a77a072c4a0e19385334b80c12993509c92923746"
+        },
+        {
+          "path": "src/skill-distribution.js",
+          "sha256": "1d1789a06bef49bf4b2f9f395a9f87b88873c299e7d816082de005519a20884f"
+        },
+        {
+          "path": "src/tool-catalog.js",
+          "sha256": "fa034cfab98df5afa4a4880baf7620db31380ffdbb219667f2a56bd7105fbc74"
+        },
+        {
+          "path": "test/analysis-regression.test.js",
+          "sha256": "f92518720df491de3c450efcc4cece7b3b3fa72acd3f71664766fb6b504977a7"
+        },
+        {
+          "path": "test/builtin-skills.test.js",
+          "sha256": "6311fa0c41fb0dd0018f3dadeb5587c1d67cf32f53bbc74540e5e3e9257b5173"
+        },
+        {
+          "path": "test/checkpoint-receipt.test.js",
+          "sha256": "1da0355ef01409ac0aedfc440469a903441a426d06627d71d50f64b3b49a58d9"
+        },
+        {
+          "path": "test/code-lifecycle.test.js",
+          "sha256": "8de60b1b6c7b9573e097fa221d7ec6ff81ec59c9366bb8a9d42e9a19e21876fa"
+        },
+        {
+          "path": "test/code-repair.test.js",
+          "sha256": "8e41ff9d73d771b6fb70e42cc24a0ccfce49291a6db19901ae70538bbafb4b9f"
+        },
+        {
+          "path": "test/coding-progress.test.js",
+          "sha256": "b5a638fe9545ab4c24dedfe3d1652b1a8f46773b1469a25f6bd670269be05fe8"
+        },
+        {
+          "path": "test/completion-context.test.js",
+          "sha256": "d9627ad50371429cbd1891d98a61b5219224dd12ecc94bba86fd3f7f951aabcd"
+        },
+        {
+          "path": "test/completion-evaluation.test.js",
+          "sha256": "34ef97198426a7653858254155957c403e67525d6a7bdc2c1d97f65683a195b8"
+        },
+        {
+          "path": "test/financial-methods.test.py",
+          "sha256": "b8847cffb582046bb3f10971ac81ad9c42750c65b0476fac23b45c281ce1d998"
+        },
+        {
+          "path": "test/fixtures/analysis-regressions.json",
+          "sha256": "d389f2a2c223b51cef124c55ece8bf6492ede112cdf4960b134c770a0309c04e"
+        },
+        {
+          "path": "test/fixtures/repair-analysis.py.txt",
+          "sha256": "63c6c70c4d83b9c3cc64385b4e1188b9642976ea07749cda7424de14b0538efa"
+        },
+        {
+          "path": "test/knowledge-tools.test.js",
+          "sha256": "ee64f741a43fad5cc14e38a00211315f3af8fcafd240bc2c6f1d96d3b382d556"
+        },
+        {
+          "path": "test/metrics-summary.test.js",
+          "sha256": "4891c43daa1859d3a597daa9326d654e20346212e794702c3af85c0f5757c667"
+        },
+        {
+          "path": "test/microsoft-skills.test.js",
+          "sha256": "2fc02f9cb53fd97ff84b3b90798e5c9c90ce662cc9169aebbbb40aac3420c2f2"
+        },
+        {
+          "path": "test/monitor-authority.test.js",
+          "sha256": "ac8379b50b3f0a69f3396566a744c920c41603f718b694f174fdec8ff6b505f5"
+        },
+        {
+          "path": "test/monitor.test.js",
+          "sha256": "e52f7a9b9dd385b25f9353bba88d294e95ba1b19c19340ca8ac2b06bc9e016a8"
+        },
+        {
+          "path": "test/native-skills.test.js",
+          "sha256": "da1d27163efe240fc6cdac24b1862afb105f92376590b977019ed8d0f59a3a47"
+        },
+        {
+          "path": "test/node-monitor.test.js",
+          "sha256": "db53e5861fbb2c201811ad9f6f8c4f5659aac12fc6a367df4ef9d65b41c0685e"
+        },
+        {
+          "path": "test/precode-disclosure.test.js",
+          "sha256": "57d1e387da6a35e36d50e6d188bfe998bf7e57791eb24daa00c80c30b075c9f2"
+        },
+        {
+          "path": "test/python-diagnostics.test.js",
+          "sha256": "33ca97d950e173d0cf313ebca84ec7ed69f91646486de4cabcfbe2dae6ff5dfe"
+        },
+        {
+          "path": "test/python-project.test.js",
+          "sha256": "2aac57975960e7bcac9e94ce4ed4d8beee67a19f6e01c446df5b957633abec36"
+        },
+        {
+          "path": "test/recovery.test.js",
+          "sha256": "4b3ce9e3605eea693813958afda8b20cd9901fa27f24c99c9502bbd8caeb622d"
+        },
+        {
+          "path": "test/request-context.test.js",
+          "sha256": "438a5b5700c96aa78c49ef32f03d447c6943a63450665a5b61ee3d48a17c3090"
+        },
+        {
+          "path": "test/reviewed-result.test.js",
+          "sha256": "4e8547efe19954b5dddc59de1d7c1a4911a3d82254f2025698c188537307cd44"
+        },
+        {
+          "path": "test/runner.test.js",
+          "sha256": "0a49d6703dea954a1617882032283c915406ed2092af8cb7e226ab1c71eee18e"
+        },
+        {
+          "path": "test/runtime-model.test.js",
+          "sha256": "8b5eb5eb75dcaef90d4a8d53047a8a3e24f6e65504acf7530a95d26be1c91593"
+        },
+        {
+          "path": "test/sdk-migration.test.js",
+          "sha256": "b3701e7ab772fc7676caeacd952fea329460ddb0e2d37e8ab30d7eae1420e1e6"
+        },
+        {
+          "path": "test/sdk-native-capabilities.test.js",
+          "sha256": "8aafeaf531232c447a5874652c2ffa1f4405d2e55f7d799b76f85d2285ee797e"
+        },
+        {
+          "path": "test/sdk-packages.test.js",
+          "sha256": "5af528e0dedbc719d71d3cb6b286e1a6f4c44af5b7c5dde23f8b58305f5ddfb2"
+        },
+        {
+          "path": "test/sdk-reuse-regression.test.js",
+          "sha256": "0f855fe4d4ec38619dc2d2c3f1273bee739823d8cd80db0ea8d0207515bc06b1"
+        },
+        {
+          "path": "test/server.test.js",
+          "sha256": "7d0f8752ca0fc22d2297db9b4825c8a00801741b5dcf5253b935991916664313"
+        },
+        {
+          "path": "test/tool-catalog.test.js",
+          "sha256": "8476c97746a9caad74d24bcd55e74f8fa96638a06f337aed26b67a8529c452b4"
+        },
+        {
+          "path": "test/workspace-fast-path.test.js",
+          "sha256": "273a885c4eec1972c2cb91b1172dab8594275e2562b9cffaa384847b020a8d15"
+        },
+        {
+          "path": "tsconfig.json",
+          "sha256": "f5789ad8fdc25c8e06e922ca0dd089231c2273348f1eb89f7df8bfa2fb0fa542"
+        },
+        {
+          "path": "tsconfig.web.json",
+          "sha256": "f3a0769d291c8d16e9473e0dd96ab837c57714a660619ee7154a2acf27f6ff92"
+        },
+        {
+          "path": "web/index.html",
+          "sha256": "4c903eeb4671fe6d02ba0eb1db8e53c4dab678ec92484772e659b500ee404474"
+        },
+        {
+          "path": "web/main.ts",
+          "sha256": "ece5e066c8953a6fbfa960eb165061aebfd3cc9c94d3e05323f53c0ed78b3602"
+        },
+        {
+          "path": "web/python-diagnostics.ts",
+          "sha256": "cc0e1207f17bd39929a4e47ece7dd6e104b25c6b6acc8f64c6ee1af339e90b9b"
+        },
+        {
+          "path": "web/style.css",
+          "sha256": "932d7adeb77cbe75cf30fb1ca61e77cd6c3229cdad1af13791db7f29520db5f7"
+        }
+      ]
+    }
+  ]
+}

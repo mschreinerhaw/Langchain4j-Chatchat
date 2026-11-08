@@ -1,0 +1,41 @@
+{
+  "containerId": "c28ee12fc88c4385de127644f133c211fd94690d8e26aff1a4c2c7ac5111a7d0",
+  "health": {
+    "Status": "unhealthy",
+    "FailingStreak": 8,
+    "Log": [
+      {
+        "Start": "2026-11-08T10:20:50.646377564+08:00",
+        "End": "2026-11-08T10:20:50.835486905+08:00",
+        "ExitCode": 1,
+        "Output": ""
+      },
+      {
+        "Start": "2026-11-08T10:21:05.836131879+08:00",
+        "End": "2026-11-08T10:21:06.032237416+08:00",
+        "ExitCode": 1,
+        "Output": ""
+      },
+      {
+        "Start": "2026-11-08T10:21:21.033360272+08:00",
+        "End": "2026-11-08T10:21:21.243986129+08:00",
+        "ExitCode": 1,
+        "Output": ""
+      },
+      {
+        "Start": "2026-11-08T10:21:36.245885642+08:00",
+        "End": "2026-11-08T10:21:36.599530584+08:00",
+        "ExitCode": 1,
+        "Output": ""
+      },
+      {
+        "Start": "2026-11-08T10:21:51.602125413+08:00",
+        "End": "2026-11-08T10:21:51.809078387+08:00",
+        "ExitCode": 1,
+        "Output": ""
+      }
+    ]
+  },
+  "cause": "HEALTHCHECK requested protected /health/ready without operator token (401); native startup and asset verification succeeded",
+  "fix": "Use runtime config port and Authorization in the health probe; do not export token"
+}

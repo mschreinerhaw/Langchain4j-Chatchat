@@ -1,0 +1,20 @@
+#0 building with "default" instance using docker driver
+
+#1 [internal] load build definition from Dockerfile
+#1 transferring dockerfile: 993B 0.0s done
+#1 DONE 0.1s
+
+#2 [internal] load metadata for docker.io/library/sha256:a3a279fc391bda1bb5aefb62acd8ee56200215ce2905cfb83d189398c33c5828
+#2 ERROR: failed to do request: Head "https://registry-1.docker.io/v2/library/sha256/manifests/a3a279fc391bda1bb5aefb62acd8ee56200215ce2905cfb83d189398c33c5828": dial tcp 108.160.165.48:443: i/o timeout
+------
+ > [internal] load metadata for docker.io/library/sha256:a3a279fc391bda1bb5aefb62acd8ee56200215ce2905cfb83d189398c33c5828:
+------
+Dockerfile:4
+--------------------
+   2 |     # to an intermediate stage; its application/SDK layers never enter the final image.
+   3 |     ARG RUNTIME_BASE
+   4 | >>> FROM ${RUNTIME_BASE} AS tools
+   5 |     USER root
+   6 |     COPY service/docker/assemble-rootfs.py /tmp/assemble-rootfs.py
+--------------------
+ERROR: failed to solve: DeadlineExceeded: DeadlineExceeded: DeadlineExceeded: sha256:a3a279fc391bda1bb5aefb62acd8ee56200215ce2905cfb83d189398c33c5828: failed to resolve source metadata for docker.io/library/sha256:a3a279fc391bda1bb5aefb62acd8ee56200215ce2905cfb83d189398c33c5828: failed to do request: Head "https://registry-1.docker.io/v2/library/sha256/manifests/a3a279fc391bda1bb5aefb62acd8ee56200215ce2905cfb83d189398c33c5828": dial tcp 108.160.165.48:443: i/o timeout

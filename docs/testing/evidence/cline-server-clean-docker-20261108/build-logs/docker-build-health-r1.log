@@ -1,0 +1,52 @@
+#0 building with "default" instance using docker driver
+
+#1 [internal] load build definition from Dockerfile
+#1 transferring dockerfile: 1.09kB done
+#1 DONE 0.0s
+
+#2 [internal] load metadata for docker.io/library/cline-poc-toolchain:node24-a3a279fc391b
+#2 DONE 0.0s
+
+#3 [internal] load .dockerignore
+#3 transferring context: 2B done
+#3 DONE 0.0s
+
+#4 [tools 1/4] FROM docker.io/library/cline-poc-toolchain:node24-a3a279fc391b
+#4 CACHED
+
+#5 [internal] load build context
+#5 transferring context: 173.31kB 0.2s done
+#5 DONE 0.2s
+
+#6 [tools 2/4] COPY service/docker/assemble-rootfs.py /tmp/assemble-rootfs.py
+#6 DONE 0.1s
+
+#7 [tools 3/4] COPY runtime/ /tmp/native-runtime/
+#7 DONE 0.8s
+
+#8 [tools 4/4] RUN python3 /tmp/assemble-rootfs.py /clean-root /tmp/native-runtime
+#8 3.778 {"copiedOSFiles": 117, "node": "v24.21.0"}
+#8 DONE 3.9s
+
+#9 [stage-1 1/5] COPY --from=tools /clean-root/ /
+#9 DONE 0.6s
+
+#10 [stage-1 2/5] COPY runtime/ /poc/runtime/
+#10 DONE 1.0s
+
+#11 [stage-1 3/5] COPY service/ /poc/service/
+#11 DONE 0.1s
+
+#12 [stage-1 4/5] WORKDIR /poc/service
+#12 DONE 0.0s
+
+#13 [stage-1 5/5] RUN node /poc/service/scripts/verify-runtime.mjs /poc/runtime
+#13 1.315 {"sourceCommit":"a459f1d04dea030833b558be645011ab739c463b","verifiedFiles":1850,"descriptorSha256":"d28dace3b4daff727770c3625917b22a0c54a8f855c4222530de1923b493086f","descriptorServices":22,"node":"v24.21.0","nodeABI":"137","sqlite":"3.50.4","status":"PASS"}
+#13 DONE 1.4s
+
+#14 exporting to image
+#14 exporting layers
+#14 exporting layers 1.1s done
+#14 writing image sha256:11d0a30972d15316619b03187a2334f606f236bf6ae5289cb5663afc1462cdf9 done
+#14 naming to docker.io/library/cline-agent-server:4.1.26-clean-poc done
+#14 DONE 1.2s

@@ -1,0 +1,43 @@
+{
+  "recordedAt": "2026-11-08T02:35:34.272750+00:00",
+  "status": "PASS",
+  "live": {
+    "status": 200,
+    "body": {
+      "live": true,
+      "version": "4.1.26-poc.1"
+    }
+  },
+  "ready": {
+    "status": 200,
+    "body": {
+      "ready": true,
+      "runtimeAssets": {
+        "sourceCommit": "a459f1d04dea030833b558be645011ab739c463b",
+        "verifiedFiles": 1850,
+        "descriptorSha256": "d28dace3b4daff727770c3625917b22a0c54a8f855c4222530de1923b493086f",
+        "descriptorServices": 22
+      },
+      "scope": "Runtime assets verified; native worker readiness is per session",
+      "productionReady": false
+    }
+  },
+  "dockerHealth": "healthy",
+  "imageId": "sha256:f23feae55353f57f2e7fb68455a41b2f26cd383b0ca04f928e0072ad7b869ace",
+  "nativeWorkerAndServiceAreImageFiles": true,
+  "markersAbsentBeyond30SecondDeadline": true,
+  "postCancelObservationSeconds": 35,
+  "runtime": {
+    "sourceCommit": "a459f1d04dea030833b558be645011ab739c463b",
+    "verifiedFiles": 1850,
+    "descriptorSha256": "d28dace3b4daff727770c3625917b22a0c54a8f855c4222530de1923b493086f",
+    "descriptorServices": 22,
+    "node": "v24.21.0",
+    "nodeABI": "137",
+    "sqlite": "3.50.4",
+    "status": "PASS"
+  },
+  "processesAfterCleanup": "PID                 PPID                COMMAND\n2250222             2250200             MainThread\n",
+  "oomControl": "oom_kill_disable 0\nunder_oom 0\noom_kill 0\n",
+  "externalOperations": "none-configured; cancellation proof is local only"
+}

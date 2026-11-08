@@ -1,0 +1,8 @@
+{
+  "upstreamCommit": "a459f1d04dea030833b558be645011ab739c463b",
+  "toolchainSourceImageId": "sha256:a3a279fc391bda1bb5aefb62acd8ee56200215ce2905cfb83d189398c33c5828",
+  "finalBase": "scratch",
+  "runtimeBundleSha256": "88f3fc34f48baf44e065d959f5f5346a4b807cc7095d571a9f06cf91a6e84a3a",
+  "serviceArchiveSha256": "df56f868924009e0eac4d025dc4639e2154d7c1ad85f6d192d8306ce4c51ceb0",
+  "pullAttempt": "Docker Hub unavailable: registry connection refused; final image assembled from explicit OS executables/libraries of recorded local toolchain, not its SDK/application layers"
+}

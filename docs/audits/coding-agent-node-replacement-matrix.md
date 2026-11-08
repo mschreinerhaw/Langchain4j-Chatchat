@@ -22,3 +22,10 @@
 已确认的原节点限制：ClineCodingAdapter 限制分析 profile 和一个 JSONL 主结果；ClineRuntimeModelBridge 限制模型工具名称及数量；原 Node 的 Skills、模型和工具包装与 SDK loop 位于同一 runner。替换时需复用治理协议并拆出传输/授权映射，不能复用旧 runner 冒称 Native。
 
 安全遗留单独保留：rootless 资源硬限制、Python rootful 迁移、执行节点启动窗口及多 Authority 均不在本轮整改。本轮独立业务环境沿用既有受信测试执行能力，不将业务可用等同于生产安全通过。
+
+## 2026-11-09 当前验证边界
+
+- 官方结束工具：已在新 Host 镜像真实调用成功；Runtime 对未通过业务验证的交付保留 PARTIAL，非整体交付成功。
+- 原生恢复：已对真实 Gateway/Worker 进程故障、原合同重复派发、取消/恢复完成对账；运行中 Managed Python 实际取消回执确认停止，未派发替代执行。旧不完整控制记录继续保留 UNKNOWN。
+- 数据供给：原始 CSV/Parquet 的授权下载、Hash、解析与 missing/null/类型、多重集对照已执行；不代表客户交易数据或华是科技行情已具备。
+- 替换门槛：全量回归及五类真实业务验收未全部通过。监控单元检查与实际查询已验证的范围见 [最新验收报告](../testing/native-cline-business-acceptance-20261108.md)，不能据此批准生产或灰度切换。

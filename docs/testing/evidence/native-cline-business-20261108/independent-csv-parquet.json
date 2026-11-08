@@ -1,0 +1,14 @@
+{
+  "method": "independent CSV versus physical Parquet JSON records: preserve string codes; parse only typed source values; compare explicit missing/null metadata and row multisets",
+  "parquetRows": 26,
+  "csvRows": 26,
+  "distinctSourceRecords": 18,
+  "equalMultisets": true,
+  "sameOrderedRows": true,
+  "parseErrors": [],
+  "inputs": {
+    "parquet": "935f004477cf762f0c7436bf82d92e4b5635ae87a4d2c54703a3b79bd14764f6",
+    "csv": "b867b673016329873b76c17ef55a338128a0a8574953efaf25ec2879306c0cc2"
+  },
+  "recordMultisetSha256": "b3def97768995479301b31e69e81a6e7a3e71cb3dcede91919c82fcbbcb537d3"
+}

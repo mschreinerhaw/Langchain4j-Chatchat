@@ -1,0 +1,51 @@
+{
+  "rowCount": 10,
+  "logicalColumns": [
+    "datasetReference",
+    "record"
+  ],
+  "physicalColumns": [
+    "p0",
+    "c0",
+    "p1",
+    "c1"
+  ],
+  "schemaKeys": [
+    "columnMappingScope",
+    "columns",
+    "csv",
+    "encoding",
+    "format",
+    "presenceColumns",
+    "schemaVersion",
+    "sourceDatasetRef"
+  ],
+  "recordFields": [
+    "attachmentFileName",
+    "categories",
+    "chunkIndex",
+    "content",
+    "documentId",
+    "documentKind",
+    "evidence",
+    "matchedLocalQueries",
+    "matchedTermCount",
+    "parentDocumentId",
+    "publishTime",
+    "relevanceCoverage",
+    "relevanceScore",
+    "relevanceStrategy",
+    "resultType",
+    "retrievalSource",
+    "snippet",
+    "sourceId",
+    "sourceName",
+    "sourceUrl",
+    "summary",
+    "tags",
+    "title",
+    "url"
+  ],
+  "taskId": "analysis-coding-43e863f91541fd49826c1b25cb897ca98486b354a86ae761b44cd29cfc24a648",
+  "sourceParquetSha256": "130f7b4b0aee432e5b3a1f9217aa7847ceeffa0bf3bb84db575d085dc6ac32fb"
+}

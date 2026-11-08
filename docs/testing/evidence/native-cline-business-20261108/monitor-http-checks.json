@@ -1,0 +1,139 @@
+[
+  {
+    "taskId": "analysis-coding-36182710d995ba7ae498af8cf0bba467de3ee5c97f5416e46aac71645e578e76",
+    "path": "/api/v1/agent/runtime/runs/att-1-557e30dd-551a-4f01-aa8e-d360a783f0ad/coding/status",
+    "httpStatus": 200,
+    "code": 200,
+    "bodySha256": "95c63b0bb231c31a8b29787ba223b47453c966791450e35d2ec34eef6fec2d39",
+    "dataKeys": [
+      "runId",
+      "detailOwner",
+      "tasks"
+    ],
+    "tasks": [
+      {
+        "taskId": "analysis-coding-36182710d995ba7ae498af8cf0bba467de3ee5c97f5416e46aac71645e578e76",
+        "status": "CANCELLED",
+        "modelReceiptCount": 0
+      }
+    ]
+  },
+  {
+    "taskId": "analysis-coding-36182710d995ba7ae498af8cf0bba467de3ee5c97f5416e46aac71645e578e76",
+    "path": "/api/v1/agent/runtime/runs/att-1-557e30dd-551a-4f01-aa8e-d360a783f0ad/coding",
+    "httpStatus": 200,
+    "code": 200,
+    "bodySha256": "c1f43f06cfd1d586f5642ae70254250e6f0f24123e1c6efb2c9a8f11ec7860bc",
+    "dataKeys": [
+      "tasks",
+      "source"
+    ],
+    "tasks": [
+      {
+        "taskId": "analysis-coding-36182710d995ba7ae498af8cf0bba467de3ee5c97f5416e46aac71645e578e76",
+        "status": "CANCELLED",
+        "modelReceiptCount": 8
+      }
+    ]
+  },
+  {
+    "taskId": "analysis-coding-36182710d995ba7ae498af8cf0bba467de3ee5c97f5416e46aac71645e578e76",
+    "path": "/api/v1/agent/runtime/runs/att-1-557e30dd-551a-4f01-aa8e-d360a783f0ad/coding/analysis-coding-36182710d995ba7ae498af8cf0bba467de3ee5c97f5416e46aac71645e578e76/events?limit=128",
+    "httpStatus": 200,
+    "code": 200,
+    "bodySha256": "a8fb78e6ffc075815365698a1cf582ab93fa1760cb4af9b1783c37d36d2d5739",
+    "dataKeys": [
+      "events",
+      "nextSequence",
+      "hasMore"
+    ]
+  },
+  {
+    "taskId": "analysis-coding-36182710d995ba7ae498af8cf0bba467de3ee5c97f5416e46aac71645e578e76",
+    "path": "/api/v1/agent/runtime/runs/att-1-557e30dd-551a-4f01-aa8e-d360a783f0ad/coding/analysis-coding-36182710d995ba7ae498af8cf0bba467de3ee5c97f5416e46aac71645e578e76/inputs",
+    "httpStatus": 200,
+    "code": 200,
+    "bodySha256": "4bd236fec012e6dd2f2efb72a1ab35854f7fd4d671951a36d2ad5bc6c56dd542",
+    "dataKeys": [
+      "snapshots",
+      "binding"
+    ],
+    "inputBinding": "TASK_LATEST",
+    "snapshotCount": 1
+  },
+  {
+    "taskId": "analysis-coding-43e863f91541fd49826c1b25cb897ca98486b354a86ae761b44cd29cfc24a648",
+    "path": "/api/v1/agent/runtime/runs/att-1-850328c2-d52a-4e66-b5f7-a0029e8d2161/coding/status",
+    "httpStatus": 200,
+    "code": 200,
+    "bodySha256": "28fd2aed723568d9fe8972177e2949bbe719a068d4eeb08ca88b2a11c949bbef",
+    "dataKeys": [
+      "runId",
+      "detailOwner",
+      "tasks"
+    ],
+    "tasks": [
+      {
+        "taskId": "analysis-coding-43e863f91541fd49826c1b25cb897ca98486b354a86ae761b44cd29cfc24a648",
+        "status": "PARTIAL",
+        "modelReceiptCount": 0
+      }
+    ]
+  },
+  {
+    "taskId": "analysis-coding-43e863f91541fd49826c1b25cb897ca98486b354a86ae761b44cd29cfc24a648",
+    "path": "/api/v1/agent/runtime/runs/att-1-850328c2-d52a-4e66-b5f7-a0029e8d2161/coding",
+    "httpStatus": 200,
+    "code": 200,
+    "bodySha256": "d22d69c211cfaa0ed478e4f3738aa80038025149b8feb2eba603a8a2d79ca170",
+    "dataKeys": [
+      "tasks",
+      "source"
+    ],
+    "tasks": [
+      {
+        "taskId": "analysis-coding-43e863f91541fd49826c1b25cb897ca98486b354a86ae761b44cd29cfc24a648",
+        "status": "PARTIAL",
+        "modelReceiptCount": 12
+      }
+    ]
+  },
+  {
+    "taskId": "analysis-coding-43e863f91541fd49826c1b25cb897ca98486b354a86ae761b44cd29cfc24a648",
+    "path": "/api/v1/agent/runtime/runs/att-1-850328c2-d52a-4e66-b5f7-a0029e8d2161/coding/analysis-coding-43e863f91541fd49826c1b25cb897ca98486b354a86ae761b44cd29cfc24a648/events?limit=128",
+    "httpStatus": 200,
+    "code": 200,
+    "bodySha256": "6461e64664b0be77aadf2ed83ef755c583cb22ff0dd7678ccfcc387e74f315ca",
+    "dataKeys": [
+      "events",
+      "nextSequence",
+      "hasMore"
+    ]
+  },
+  {
+    "taskId": "analysis-coding-43e863f91541fd49826c1b25cb897ca98486b354a86ae761b44cd29cfc24a648",
+    "path": "/api/v1/agent/runtime/runs/att-1-850328c2-d52a-4e66-b5f7-a0029e8d2161/coding/analysis-coding-43e863f91541fd49826c1b25cb897ca98486b354a86ae761b44cd29cfc24a648/inputs",
+    "httpStatus": 200,
+    "code": 200,
+    "bodySha256": "cd80b0057f7eb49b5206e24e1f30f83a3555579c8357a394992ca7ac39610e09",
+    "dataKeys": [
+      "snapshots",
+      "binding"
+    ],
+    "inputBinding": "TASK_LATEST",
+    "snapshotCount": 1
+  },
+  {
+    "taskId": "analysis-coding-43e863f91541fd49826c1b25cb897ca98486b354a86ae761b44cd29cfc24a648",
+    "path": "/api/v1/agent/runtime/runs/att-1-850328c2-d52a-4e66-b5f7-a0029e8d2161/coding/analysis-coding-43e863f91541fd49826c1b25cb897ca98486b354a86ae761b44cd29cfc24a648/inputs?operationId=cline-3b581680aea89dfc3523cdc18f6284873d96ccabff695ea7a89bac310bdee4cd",
+    "httpStatus": 200,
+    "code": 200,
+    "bodySha256": "1a2fba1fd3f04973fc31198e7867942c9c7ab2680c42c9715a7869fe2c706403",
+    "dataKeys": [
+      "snapshots",
+      "binding"
+    ],
+    "inputBinding": "OPERATION_FROZEN",
+    "snapshotCount": 1
+  }
+]

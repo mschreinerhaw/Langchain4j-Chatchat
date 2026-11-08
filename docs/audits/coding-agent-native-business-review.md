@@ -68,3 +68,13 @@ Native Gateway 重启后把未决运行保留为 UNKNOWN，不自动重派；当
 回滚只针对专项 API：停止接收新任务，查询并停止/对账现有远端操作；确认没有未决执行后，将该实例 `chatchat.coding.cline.backend` 改回 `sdk`，node-url/secret 恢复旧节点对应值并重启实例。保留旧节点和原 Journal，不把 Native taskId 转交 SDK 重跑；对 UNKNOWN 先人工对账。共享默认从未切换，无需生产回滚。
 
 Rootless 资源限制、Python rootful 路径、控制面高权限和执行节点恢复架构的遗留风险继续单独保留，本轮未扩展整改。停在业务评审点，不进入生产切换或后续架构阶段。
+
+## 2026-11-09 业务续验（以新报告及实际回执为准）
+
+本节补充本文件早期评审时点，不覆盖历史失败。最新实施与证据见 [本轮业务验收](../testing/native-cline-business-acceptance-20261108.md)。已完成完整 20 模块 Maven package；全量 verify 仍失败，不能声称构建与全部测试均通过。
+
+最终工具修复已实际部署：官方 Host 用公开 toolRoutingRules/ToolExecutors.submit 绑定真实 Runtime 校验，不修改 Core Agent Loop；保留已有 MCP operation context 适配。604 个 Core 源文件指纹未变，Host 编译 bundle Hash 因配置适配而变化。A-r2 已实际调用 submit_and_exit 成功，真实 Python/归档之后 Runtime 返回 PARTIAL；客户交易/资产输入缺失且未通过业务验证，未升级为 COMPLETED。
+
+原生私有恢复记录保留原始合同、Worker grant、控制令牌及实际 session/epoch；不使用 SDK checkpoint，不重新执行任务。真实 Gateway/Worker SIGKILL、重启、重复派发和 Runtime cancel/resume 已有证据；真实运行中 Python 已通过原应用用户取消接口停止，回执 CANCELLED、executorStopped=true。取消回执用于清除已停止 operation 的缓存，UNKNOWN 或不完整回执保留。旧缺失控制记录仍不能宣称可恢复。
+
+专项 Node 回归和 Java 回归均有新执行记录；其中单元 fixture 不是业务验收。原生 Python 异常复现已执行，但 C-r2 预算耗尽，异常后修复成功的完整闭环尚未通过。A-r2 的必需产物错误修复属于另一类证据，不能替代 Python 异常修复。五类场景逐项结论、文件 Hash、真实停止结果和未通过项以新报告为准，不提出生产切换建议。

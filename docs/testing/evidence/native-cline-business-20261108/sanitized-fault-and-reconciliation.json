@@ -1,0 +1,1175 @@
+{
+  "capturedAt": "2026-11-08T17:12:33.581145+00:00",
+  "rawEvidenceRoot": "/opt/cline-native-business-20261108/evidence/acceptance-20261108",
+  "processCrash": {
+    "taskId": "analysis-coding-36182710d995ba7ae498af8cf0bba467de3ee5c97f5416e46aac71645e578e76",
+    "nativeSessionId": "6ea070ed-6c49-45a6-b0c9-a5233348cc90",
+    "workerId": "0398a8b7-f47d-4a47-a54d-7d5c10b53a4f",
+    "workerBefore": {
+      "Status": "running",
+      "Running": true,
+      "Paused": false,
+      "Restarting": false,
+      "OOMKilled": false,
+      "Dead": false,
+      "Pid": 20818,
+      "ExitCode": 0,
+      "Error": "",
+      "StartedAt": "2026-11-08T16:16:23.546919197Z",
+      "FinishedAt": "0001-01-01T00:00:00Z"
+    },
+    "workerAfterKill": {
+      "Status": "exited",
+      "Running": false,
+      "Paused": false,
+      "Restarting": false,
+      "OOMKilled": false,
+      "Dead": false,
+      "Pid": 0,
+      "ExitCode": 137,
+      "Error": "",
+      "StartedAt": "2026-11-08T16:16:23.546919197Z",
+      "FinishedAt": "2026-11-08T16:22:17.218545878Z"
+    },
+    "activePythonBefore": [],
+    "activePythonAfter": [],
+    "newWorkers": [],
+    "startedAt": "2026-11-08T16:22:16.830548+00:00",
+    "nativeRestartStatus": "UNKNOWN",
+    "duplicateStatus": "UNKNOWN",
+    "sameSession": true
+  },
+  "stopAlignment": [
+    {
+      "taskId": "analysis-coding-36182710d995ba7ae498af8cf0bba467de3ee5c97f5416e46aac71645e578e76",
+      "statusBefore": "UNKNOWN",
+      "statusAfter": "CANCELLED",
+      "workerStopped": true,
+      "remoteStopConfirmed": true
+    },
+    {
+      "taskId": "analysis-coding-b86dd0a61f20dd6c8283cf1c5c17fadf298a341c945b5d7ec8f5e958552dd864",
+      "statusBefore": "UNKNOWN",
+      "statusAfter": "CANCELLED",
+      "workerStopped": true,
+      "remoteStopConfirmed": true
+    }
+  ],
+  "runningPythonCancellation": {
+    "originalRequest": {
+      "codeCommit": "1c40acd94",
+      "workspaceId": "db2b708f-abc5-4b6c-9166-a93caac1e4eb",
+      "nodeId": "b6e86365-24e5-4ee4-a5dd-3b2e1db6da12",
+      "originalRequest": {
+        "fileIds": [
+          "dd9d2431da8154ffc6fa93752ceb98bef03a28c47be2b07c23c656647cd3277a",
+          "f840c856009a1fe17a4e34027661c9bc0106115bde8c3807229c5f65f7c6ad8b"
+        ],
+        "instruction": "这是实际取消故障验收。独立工作区已有 acceptance_wait.py。请先读取它，再原样调用 runtime__python_execute 执行，等待真实执行反馈。它会等待 300 秒；测试者将在运行期间通过 Runtime 用户取消接口停止。不要绕过等待，不要自行编造成功回执，不要修改这个程序。此次测试不要求完成业务分析或生成金融数据。",
+        "modelName": "qwen3.8-omni-flash"
+      },
+      "workersBeforeDispatch": [
+        "1e93f794-4560-4c77-8274-a0b256c104ca",
+        "7ae9ec9d-6415-409f-9452-c111d1ff5652",
+        "950d63fb-8123-48da-8da1-998bbc7c506d",
+        "236f4d9c-6ce4-4488-850d-2f8af812208e",
+        "e857a008-df84-400c-8f07-4ab4055c8d4a",
+        "173c963e-2704-4c89-9682-f882de93d1ea",
+        "72ec9356-b954-41a9-80bd-9520f8045524",
+        "c70386d9-f2cb-46df-ab35-bd2608236bc5",
+        "63a8abe1-dced-426c-a907-57390c665df0",
+        "fbece607-0afa-40bc-9421-ac4559fef5b2",
+        "0398a8b7-f47d-4a47-a54d-7d5c10b53a4f",
+        "fdf267c2-1782-4f23-a34d-349f83b8d563",
+        "ecd94c45-eab3-4591-868d-fa5de897d007",
+        "e7bd554e-5ff9-4321-97bc-73339a0c49ed"
+      ],
+      "dispatchedAt": "2026-11-08T16:50:43.826555+00:00"
+    },
+    "fixture": {
+      "taskId": "analysis-coding-252f971c2819158029ab1d8f221638e979b04cbb38f97c2b0b33aa8a78ffed2f",
+      "workerId": "47da3702-d52c-43ac-b009-dea973e547d7",
+      "beforeNativeSessionCreation": true,
+      "sha256": "e3a31d470653f242c700c815e7d6c81e14dfa135a50446a9d74d808ff90770cf"
+    },
+    "before": {
+      "taskId": "analysis-coding-252f971c2819158029ab1d8f221638e979b04cbb38f97c2b0b33aa8a78ffed2f",
+      "nativeSessionId": "9e92098b-d7a7-412b-8bb4-4dcaec982ede",
+      "operationId": "cline-dbaed22c6c5ae6be4c9b80c5e305fac404499c897a92639faf88fe713f01cb83",
+      "observedAt": "2026-11-08T16:51:23.855393+00:00",
+      "receipt": {
+        "operationId": "cline-dbaed22c6c5ae6be4c9b80c5e305fac404499c897a92639faf88fe713f01cb83",
+        "status": "RUNNING",
+        "executorStopped": false,
+        "exitCode": null,
+        "codeHash": "e3a31d470653f242c700c815e7d6c81e14dfa135a50446a9d74d808ff90770cf",
+        "manifestHash": null
+      }
+    },
+    "after": {
+      "taskId": "analysis-coding-252f971c2819158029ab1d8f221638e979b04cbb38f97c2b0b33aa8a78ffed2f",
+      "nativeSessionId": "9e92098b-d7a7-412b-8bb4-4dcaec982ede",
+      "operationId": "cline-dbaed22c6c5ae6be4c9b80c5e305fac404499c897a92639faf88fe713f01cb83",
+      "observedAt": "2026-11-08T16:51:28.399019+00:00",
+      "receipt": {
+        "operationId": "cline-dbaed22c6c5ae6be4c9b80c5e305fac404499c897a92639faf88fe713f01cb83",
+        "status": "CANCELLED",
+        "executorStopped": true,
+        "exitCode": 137,
+        "codeHash": "e3a31d470653f242c700c815e7d6c81e14dfa135a50446a9d74d808ff90770cf",
+        "manifestHash": "f7dfd105e82d0c44e9b28cf2dc0bce018a266cf1fd605208399a4762a815bee5"
+      }
+    }
+  },
+  "lateActualEvent": {
+    "faultType": "EXACT_ACTUAL_EVENT_REDELIVERY_AFTER_TERMINAL",
+    "newSuccessReceiptFabricated": false,
+    "taskId": "analysis-coding-43e863f91541fd49826c1b25cb897ca98486b354a86ae761b44cd29cfc24a648",
+    "nativeSessionId": "f3c4a83d-6ad0-4157-a605-070bcfb42513",
+    "originalEventId": "259",
+    "originalEventTime": "2026-11-08T16:43:44.475Z",
+    "originalEvent": {
+      "type": "TOOL_FINISHED",
+      "tool": "python_execute",
+      "operationId": "cline-3b581680aea89dfc3523cdc18f6284873d96ccabff695ea7a89bac310bdee4cd",
+      "status": "SUCCEEDED",
+      "executorStopped": true,
+      "resultDatasetRef": "runtime-evidence:coding:0d07caa6a96c511106389f298777cc792f784a472da722ffef3bcf6ddcba053a:result",
+      "sequence": 27,
+      "timestamp": "2026-11-08T16:43:44.475Z",
+      "source": "CLINE_NATIVE",
+      "executionOrigin": "CLINE_TOOL_CALL"
+    },
+    "redeliveredAt": "2026-11-08T16:57:43.106890+00:00",
+    "stateUnchanged": true,
+    "httpStatus": 409,
+    "statusBefore": "PARTIAL",
+    "statusAfter": "PARTIAL",
+    "limitation": "Tests redelivery of the exact real event after terminal state; not a first-ever delayed remote receipt"
+  },
+  "nativeModelTimeout": {
+    "dispatch": {
+      "originalRequest": {
+        "requestId": "native-timeout-bca96c2b83304565908d",
+        "fileIds": [
+          "185320c26bbb16f35f84a82e94e667a3e62d2bc3fd001432e3d902eef96060ec",
+          "dd9d2431da8154ffc6fa93752ceb98bef03a28c47be2b07c23c656647cd3277a",
+          "f840c856009a1fe17a4e34027661c9bc0106115bde8c3807229c5f65f7c6ad8b"
+        ],
+        "contextIds": [],
+        "modelName": "qwen3.8-omni-flash",
+        "instruction": "自主分析这批真实授权行情文件。CSV 由相同 Parquet 按所附源schema的物理列映射和JSON类型解码而来，没有新增观察；__present_fields 和 __null_fields 保留原记录字段是否缺失或null的区别。读取全部文件，识别字段类型、缺失值和实际数据粒度，核验两种表示的一致性，再按实际可确认键跨文件关联，避免将副本重复计数。实际生成并执行Python，自主选择有证据支持的分析方法，交付完整 Markdown 报告、Excel 计算结果及实际计算回执。单位、日期和含义缺乏声明时明确限制。"
+      },
+      "timeoutSeconds": 30,
+      "originalTimeoutSeconds": 1200,
+      "codeCommit": "b6e135e2b",
+      "dispatchedAt": "2026-11-08T16:58:58.002691+00:00",
+      "faultType": "REAL_PROVIDER_REQUEST_DEADLINE",
+      "mock": false
+    },
+    "actualResult": {
+      "runs": [
+        {
+          "taskId": "analysis-coding-1c08226ade3a687230eae98880b18e1ec68eaae70a6a347e490f5cf01e92ca2f",
+          "workerId": "bc090ff1-bc76-4143-a304-c43d1a9d8407",
+          "nativeSessionId": "a229e79c-8931-4a15-b658-a5bfb2b83fac",
+          "status": "UNKNOWN",
+          "budget": {
+            "budgetId": "analysis-coding-tool-budget:analysis-coding-1c08226ade3a687230eae98880b18e1ec68eaae70a6a347e490f5cf01e92ca2f",
+            "deadlineAt": "2026-11-08T16:59:28.452Z",
+            "maxModelCalls": 12,
+            "maxModelTokens": 786432,
+            "maxToolCalls": 24,
+            "maxCodeExecutions": 12,
+            "maxCostAmount": "10",
+            "costCurrency": "USD",
+            "maxCpuMillis": 300000,
+            "maxMemoryBytes": 536870912,
+            "maxOutputBytes": 4194304
+          },
+          "modelRequests": 2,
+          "errors": [
+            {
+              "type": "broker.failure",
+              "payload": {
+                "message": "The operation was aborted"
+              },
+              "eventId": "53",
+              "timestamp": "2026-11-08T16:59:28.457Z"
+            },
+            {
+              "type": "cancel.finish_rejected",
+              "payload": {
+                "message": "Coding task state rejected callback: EXECUTION_OUTCOME_UNKNOWN"
+              },
+              "eventId": "55",
+              "timestamp": "2026-11-08T16:59:30.063Z"
+            }
+          ]
+        }
+      ]
+    },
+    "restoration": {
+      "originalContainerRestored": true,
+      "restoredAt": "2026-11-08T16:59:33.757145+00:00",
+      "existingTaskDeadlineUnchanged": true
+    },
+    "exceptionEvidence": {
+      "actualLog": "/opt/cline-native-business-20261108/evidence/acceptance-20261108/E/native-model-timeout/api-fault.log",
+      "matches": [
+        "2026-11-09T00:59:28.472+08:00  WARN 1 --- [chatchat] [io-18340-exec-6] c.c.a.r.c.c.ClineModelCallbackController : Bound Coding model operation model-2 failed after its durable start intent"
+      ],
+      "exceptionEvidence": [
+        "2026-11-09T00:59:28.472+08:00  WARN 1 --- [chatchat] [io-18340-exec-6] c.c.a.r.c.c.ClineModelCallbackController : Bound Coding model operation model-2 failed after its durable start intent",
+        "",
+        "com.chatchat.agents.orchestration.model.AgentDeadlineExceededException: Agent execution time budget exhausted during model invocation",
+        "\tat com.chatchat.agents.orchestration.model.DeadlineAwareChatModel.exhausted(DeadlineAwareChatModel.java:122) ~[chatchat-agents-1.0.0-SNAPSHOT.jar:na]",
+        "\tat com.chatchat.agents.orchestration.model.DeadlineAwareChatModel.invoke(DeadlineAwareChatModel.java:97) ~[chatchat-agents-1.0.0-SNAPSHOT.jar:na]",
+        "\tat com.chatchat.agents.orchestration.model.DeadlineAwareChatModel.doChat(DeadlineAwareChatModel.java:59) ~[chatchat-agents-1.0.0-SNAPSHOT.jar:na]",
+        "\tat dev.langchain4j.model.chat.ChatModel.chat(ChatModel.java:68) ~[langchain4j-core-1.20.0.jar:na]",
+        "\tat dev.langchain4j.model.chat.ChatModel.chat(ChatModel.java:43) ~[langchain4j-core-1.20.0.jar:na]",
+        "\tat com.chatchat.api.runtime.coding.cline.ClineRuntimeModelBridge.complete(ClineRuntimeModelBridge.java:194) ~[classes/:na]",
+        "\tat com.chatchat.api.runtime.coding.cline.ClineModelCallbackController.lambda$model$36(ClineModelCallbackController.java:496) ~[classes/:na]"
+      ]
+    },
+    "providerTerminationConfirmed": false,
+    "providerUsageKnown": false
+  },
+  "finalNativeDeployment": {
+    "codeCommit": "72c098e76",
+    "deployedAt": "2026-11-08T17:00:20.864925+00:00",
+    "files": {
+      "cline-agent-server/src/business-server.mjs": "529ba128c8cd3f5859fe0edb1662271b494d681b112781c31e87461b616ca84a",
+      "cline-agent-server/src/business/run-state.mjs": "468ecbdeeab3639c1e2a346b71091d91763b7f7dcdbe8d7459ee389f43a220c8"
+    },
+    "cancelledPythonRestore": {
+      "taskId": "analysis-coding-252f971c2819158029ab1d8f221638e979b04cbb38f97c2b0b33aa8a78ffed2f",
+      "status": "CANCELLED",
+      "activeOperations": [],
+      "stopProof": {
+        "containerId": "9cfb4edb6201cafe6df296dd363cc72c32caecdd95ff24ca333fdaade810b8df",
+        "running": false,
+        "exitCode": 0,
+        "finishedAt": "2026-11-08T16:51:27.59723011Z"
+      },
+      "remoteStopConfirmed": true
+    },
+    "readinessChecked": true
+  },
+  "reconciliation": [
+    {
+      "taskId": "analysis-coding-36182710d995ba7ae498af8cf0bba467de3ee5c97f5416e46aac71645e578e76",
+      "workerId": "0398a8b7-f47d-4a47-a54d-7d5c10b53a4f",
+      "nativeSessionId": "6ea070ed-6c49-45a6-b0c9-a5233348cc90",
+      "gatewayStatus": "CANCELLED",
+      "activeOperations": [],
+      "nativeCompletion": null,
+      "workerState": {
+        "Status": "exited",
+        "Running": false,
+        "ExitCode": 137,
+        "FinishedAt": "2026-11-08T16:22:17.218545878Z"
+      },
+      "runtime": {
+        "status": "CANCELLED",
+        "terminal": true,
+        "revision": 76,
+        "reasonCode": "CANCEL_REQUESTED",
+        "endedAt": "2026-11-08T16:32:39.001Z"
+      },
+      "operations": {}
+    },
+    {
+      "taskId": "analysis-coding-bdab2aed0e0b20795f4435abb31c61e46cdaefa95cddd3205ba8af5a654f20b9",
+      "workerId": "173c963e-2704-4c89-9682-f882de93d1ea",
+      "nativeSessionId": "dc178852-9fc6-4662-aa42-a55bb952827d",
+      "gatewayStatus": "CANCELLED",
+      "activeOperations": [],
+      "nativeCompletion": null,
+      "workerState": {
+        "Status": "exited",
+        "Running": false,
+        "ExitCode": 0,
+        "FinishedAt": "2026-11-08T10:04:51.975820173Z"
+      },
+      "runtime": {
+        "status": "BUDGET_EXCEEDED",
+        "terminal": true,
+        "revision": 130,
+        "reasonCode": "BUDGET_EXCEEDED",
+        "endedAt": "2026-11-08T10:04:52.114Z"
+      },
+      "operations": {
+        "cline-5288c075508584b51855eac620f0cb253f1f3c83da4d9f3d26b93df2d0a1feb7": {
+          "status": "SUCCEEDED",
+          "executorStopped": true,
+          "exitCode": 0,
+          "codeHash": "4f42b6f75550b3800011e6bb97cf5835c1eede168b512506ec7278508fb297ac",
+          "manifestHash": "a702f2d2709cf91964bdcba52ace1c97befb01e604fa423be22548046c616a19",
+          "httpStatus": null
+        },
+        "cline-1ab290b8f4aeb31f40a9af657da21d23021cb4e8031f5c8e491c803a1b68eafa": {
+          "status": "SUCCEEDED",
+          "executorStopped": true,
+          "exitCode": 0,
+          "codeHash": "3093aa00a279ecb7efbd8a5a3ff59f8a909a54c72543075817ec5993be90bf82",
+          "manifestHash": "2c0868789e40e3be20ff4db4514d65239a1df187c191536da51b02db20d7ccd3",
+          "httpStatus": null
+        }
+      }
+    },
+    {
+      "taskId": "analysis-coding-4317632155748de9f0a8e835224846ddd845f103e4a70de274bca5fe6e1b69ae",
+      "workerId": "1e93f794-4560-4c77-8274-a0b256c104ca",
+      "nativeSessionId": "1530dc5e-b1f1-4306-a237-c961a480498e",
+      "gatewayStatus": "ABORTED",
+      "activeOperations": [],
+      "nativeCompletion": null,
+      "workerState": {
+        "Status": "exited",
+        "Running": false,
+        "ExitCode": 0,
+        "FinishedAt": "2026-11-08T09:04:12.93489996Z"
+      },
+      "runtime": {
+        "status": "BUDGET_EXCEEDED",
+        "terminal": true,
+        "revision": 75,
+        "reasonCode": "BUDGET_EXCEEDED",
+        "endedAt": "2026-11-08T09:04:13.054Z"
+      },
+      "operations": {}
+    },
+    {
+      "taskId": "analysis-coding-30e2c9a95b1af656bd1fc9fb3aaf4aee032b082f3408a5ddaa363108971f53f1",
+      "workerId": "236f4d9c-6ce4-4488-850d-2f8af812208e",
+      "nativeSessionId": "53681de1-2af9-4d55-8da4-5c3b23f79b16",
+      "gatewayStatus": "UNKNOWN",
+      "activeOperations": [
+        "cline-fdcaf886db3bb4a0d0fbbf8d17a88b396e19a80d5b19b62f39f01622fb7d0630"
+      ],
+      "nativeCompletion": null,
+      "workerState": {
+        "Status": "exited",
+        "Running": false,
+        "ExitCode": 0,
+        "FinishedAt": "2026-11-08T09:32:31.575787706Z"
+      },
+      "runtime": {
+        "status": "BUDGET_EXCEEDED",
+        "terminal": true,
+        "revision": 115,
+        "reasonCode": "BUDGET_EXCEEDED",
+        "endedAt": "2026-11-08T09:32:50.076Z"
+      },
+      "operations": {
+        "cline-fdcaf886db3bb4a0d0fbbf8d17a88b396e19a80d5b19b62f39f01622fb7d0630": {
+          "status": null,
+          "executorStopped": null,
+          "exitCode": null,
+          "codeHash": null,
+          "manifestHash": null,
+          "httpStatus": 404
+        }
+      }
+    },
+    {
+      "taskId": "analysis-coding-252f971c2819158029ab1d8f221638e979b04cbb38f97c2b0b33aa8a78ffed2f",
+      "workerId": "47da3702-d52c-43ac-b009-dea973e547d7",
+      "nativeSessionId": "9e92098b-d7a7-412b-8bb4-4dcaec982ede",
+      "gatewayStatus": "CANCELLED",
+      "activeOperations": [],
+      "nativeCompletion": null,
+      "workerState": {
+        "Status": "exited",
+        "Running": false,
+        "ExitCode": 0,
+        "FinishedAt": "2026-11-08T16:51:27.59723011Z"
+      },
+      "runtime": {
+        "status": "CANCELLED",
+        "terminal": true,
+        "revision": 28,
+        "reasonCode": "CANCEL_REQUESTED",
+        "endedAt": "2026-11-08T16:51:28.246Z"
+      },
+      "operations": {
+        "cline-dbaed22c6c5ae6be4c9b80c5e305fac404499c897a92639faf88fe713f01cb83": {
+          "status": "CANCELLED",
+          "executorStopped": true,
+          "exitCode": 137,
+          "codeHash": "e3a31d470653f242c700c815e7d6c81e14dfa135a50446a9d74d808ff90770cf",
+          "manifestHash": "f7dfd105e82d0c44e9b28cf2dc0bce018a266cf1fd605208399a4762a815bee5",
+          "httpStatus": null
+        }
+      }
+    },
+    {
+      "taskId": "analysis-coding-464634ffb10e361b866149d59a923f52f16636a2d0711004b507522403abc388",
+      "workerId": "63a8abe1-dced-426c-a907-57390c665df0",
+      "nativeSessionId": "b0c5adce-474b-4662-96d9-b4729fbb95af",
+      "gatewayStatus": "FAILED",
+      "activeOperations": [],
+      "nativeCompletion": null,
+      "workerState": {
+        "Status": "exited",
+        "Running": false,
+        "ExitCode": 0,
+        "FinishedAt": "2026-11-08T15:44:29.340409488Z"
+      },
+      "runtime": {
+        "status": "FAILED",
+        "terminal": true,
+        "revision": 82,
+        "reasonCode": "EXECUTION_FAILED",
+        "endedAt": "2026-11-08T15:44:28.134Z"
+      },
+      "operations": {
+        "cline-717789effa735eb8883a0b0b8ee4365b108f35aaca50d8cf1ecb04582a844997": {
+          "status": "SUCCEEDED",
+          "executorStopped": true,
+          "exitCode": 0,
+          "codeHash": "90cdff05e62af63431ef1b59eb244a4db97089fd68dd1c1365f86495c55b75bb",
+          "manifestHash": "dd2164cff0cf03bbdc5e8e23604cc3e895bcd2a80f4c7d4926b5ba75cab25739",
+          "httpStatus": null
+        }
+      }
+    },
+    {
+      "taskId": "analysis-coding-e4592560027b87c715b6d13e442af9f45faab3a9a43148881b670a15fb8ba417",
+      "workerId": "72ec9356-b954-41a9-80bd-9520f8045524",
+      "nativeSessionId": "248ecafc-99b0-44d3-850a-1be5d1783fb7",
+      "gatewayStatus": "UNKNOWN",
+      "activeOperations": [],
+      "nativeCompletion": null,
+      "workerState": {
+        "Status": "exited",
+        "Running": false,
+        "ExitCode": 0,
+        "FinishedAt": "2026-11-08T10:14:31.557517636Z"
+      },
+      "runtime": {
+        "status": "BUDGET_EXCEEDED",
+        "terminal": true,
+        "revision": 49,
+        "reasonCode": "DEADLINE_EXCEEDED",
+        "endedAt": "2026-11-08T15:38:02.214Z"
+      },
+      "operations": {}
+    },
+    {
+      "taskId": "analysis-coding-c9d4043b5eb41137033f70229906bf311ec80ce506348a071b1bbdfcb6c90f29",
+      "workerId": "7ae9ec9d-6415-409f-9452-c111d1ff5652",
+      "nativeSessionId": "f72d3164-44d8-4bdf-a869-919580e507e8",
+      "gatewayStatus": "CANCELLED",
+      "activeOperations": [],
+      "nativeCompletion": null,
+      "workerState": {
+        "Status": "exited",
+        "Running": false,
+        "ExitCode": 0,
+        "FinishedAt": "2026-11-08T09:16:11.061013429Z"
+      },
+      "runtime": {
+        "status": "BUDGET_EXCEEDED",
+        "terminal": true,
+        "revision": 76,
+        "reasonCode": "BUDGET_EXCEEDED",
+        "endedAt": "2026-11-08T09:16:11.176Z"
+      },
+      "operations": {}
+    },
+    {
+      "taskId": "analysis-coding-cab80bf5012c54488cda5ad39e6881e2fda72536c158d13136f9f0992f592ba1",
+      "workerId": "950d63fb-8123-48da-8da1-998bbc7c506d",
+      "nativeSessionId": null,
+      "gatewayStatus": "FAILED",
+      "activeOperations": [],
+      "nativeCompletion": null,
+      "workerState": {
+        "Status": "created",
+        "Running": false,
+        "ExitCode": 0,
+        "FinishedAt": "0001-01-01T00:00:00Z"
+      },
+      "runtime": {
+        "status": "FAILED",
+        "terminal": true,
+        "revision": 2,
+        "reasonCode": "EXECUTION_FAILED",
+        "endedAt": "2026-11-08T09:14:48.231Z"
+      },
+      "operations": {}
+    },
+    {
+      "taskId": "analysis-coding-1c08226ade3a687230eae98880b18e1ec68eaae70a6a347e490f5cf01e92ca2f",
+      "workerId": "bc090ff1-bc76-4143-a304-c43d1a9d8407",
+      "nativeSessionId": "a229e79c-8931-4a15-b658-a5bfb2b83fac",
+      "gatewayStatus": "BUDGET_EXCEEDED",
+      "activeOperations": [],
+      "nativeCompletion": null,
+      "workerState": {
+        "Status": "exited",
+        "Running": false,
+        "ExitCode": 0,
+        "FinishedAt": "2026-11-08T16:59:29.950639539Z"
+      },
+      "runtime": {
+        "status": "BUDGET_EXCEEDED",
+        "terminal": true,
+        "revision": 18,
+        "reasonCode": "DEADLINE_EXCEEDED",
+        "endedAt": "2026-11-08T16:59:30.370Z"
+      },
+      "operations": {}
+    },
+    {
+      "taskId": "analysis-coding-9e994791378a69b3182a1aa1f4d15d29600be2a8c789b7af960bc615276d6dd1",
+      "workerId": "c70386d9-f2cb-46df-ab35-bd2608236bc5",
+      "nativeSessionId": "ebc4ff39-09b8-4fb0-93c9-4104b0b517c6",
+      "gatewayStatus": "BUDGET_EXCEEDED",
+      "activeOperations": [],
+      "nativeCompletion": null,
+      "workerState": {
+        "Status": "exited",
+        "Running": false,
+        "ExitCode": 0,
+        "FinishedAt": "2026-11-08T15:54:10.275955875Z"
+      },
+      "runtime": {
+        "status": "BUDGET_EXCEEDED",
+        "terminal": true,
+        "revision": 140,
+        "reasonCode": "BUDGET_EXCEEDED",
+        "endedAt": "2026-11-08T15:54:10.397Z"
+      },
+      "operations": {
+        "cline-c1c7e7a5f7698695d76dbd8aaa7ad42aee189f1831ba7d655e4c7bcfe20d1536": {
+          "status": "SUCCEEDED",
+          "executorStopped": true,
+          "exitCode": 0,
+          "codeHash": "daef7a26c6e181ed234712031292d3a71357bb716e34044e68ad0dc19a06ec99",
+          "manifestHash": "e578662e007b9b0914a087128c3b36d5a7cb5396442023507e72378f45bd8198",
+          "httpStatus": null
+        }
+      }
+    },
+    {
+      "taskId": "analysis-coding-43e863f91541fd49826c1b25cb897ca98486b354a86ae761b44cd29cfc24a648",
+      "workerId": "e7bd554e-5ff9-4321-97bc-73339a0c49ed",
+      "nativeSessionId": "f3c4a83d-6ad0-4157-a605-070bcfb42513",
+      "gatewayStatus": "PARTIAL",
+      "activeOperations": [],
+      "nativeCompletion": {
+        "eventId": "222",
+        "toolCallId": "call_7a767c7b6c574cfc8a279ed4",
+        "sessionId": "f3c4a83d-6ad0-4157-a605-070bcfb42513"
+      },
+      "workerState": {
+        "Status": "exited",
+        "Running": false,
+        "ExitCode": 0,
+        "FinishedAt": "2026-11-08T16:44:09.699275975Z"
+      },
+      "runtime": {
+        "status": "PARTIAL",
+        "terminal": true,
+        "revision": 119,
+        "reasonCode": "OUTPUT_CONTRACT_VIOLATION",
+        "endedAt": "2026-11-08T16:44:08.474Z"
+      },
+      "operations": {
+        "cline-3b581680aea89dfc3523cdc18f6284873d96ccabff695ea7a89bac310bdee4cd": {
+          "status": "SUCCEEDED",
+          "executorStopped": true,
+          "exitCode": 0,
+          "codeHash": "ee3e6ebd54683911de6d73fdd3623b014003e40db69607bb9c67960834589b05",
+          "manifestHash": "0234ab05646367b899f4bbd14c9b74a6e1a747773fecbd0de1a40b3e7bcac370",
+          "httpStatus": null
+        },
+        "cline-74297556c44868c99c7d6510e1c7f4a4eab49017a8a923e32e7a0e8ab3e8a26d": {
+          "status": "SUCCEEDED",
+          "executorStopped": true,
+          "exitCode": 0,
+          "codeHash": "86e132242b7cd4e1e867da21d1200989c6436336ccd066409d6fd599a1a06833",
+          "manifestHash": "bbc26630c3fcfab704ee8710f3ed253807d3df79cfa574d443bc1aa38780afd7",
+          "httpStatus": null
+        }
+      }
+    },
+    {
+      "taskId": "analysis-coding-79c14008ad549d46a0eb2f80b51bca8aa8b3d57acbd57282a2da2061623d54e7",
+      "workerId": "e857a008-df84-400c-8f07-4ab4055c8d4a",
+      "nativeSessionId": "a67d116a-11c8-484a-8aa0-6a56c3761dd9",
+      "gatewayStatus": "CANCELLED",
+      "activeOperations": [],
+      "nativeCompletion": null,
+      "workerState": {
+        "Status": "exited",
+        "Running": false,
+        "ExitCode": 0,
+        "FinishedAt": "2026-11-08T09:48:38.765558685Z"
+      },
+      "runtime": {
+        "status": "BUDGET_EXCEEDED",
+        "terminal": true,
+        "revision": 115,
+        "reasonCode": "BUDGET_EXCEEDED",
+        "endedAt": "2026-11-08T09:48:38.881Z"
+      },
+      "operations": {
+        "cline-e4b6b69b6b93e2223d497f31a4264642d0b4d5df6777600dd122d4c1e232bf27": {
+          "status": "SUCCEEDED",
+          "executorStopped": true,
+          "exitCode": 0,
+          "codeHash": "575096613c01e9d69918402b11262209c17347583924e5c82736764542e2a08f",
+          "manifestHash": "10db4527362bc9ce583b50aa6f160d4515a5084372e50ad137c1f2816cbd8889",
+          "httpStatus": null
+        }
+      }
+    },
+    {
+      "taskId": "analysis-coding-e2810cd5f43db7cdcbb1f2c2daa44dce03716fa934bca4926e6b1db4c41f652c",
+      "workerId": "ecd94c45-eab3-4591-868d-fa5de897d007",
+      "nativeSessionId": "7e4e36e5-86d2-4309-a00f-d59141c2dada",
+      "gatewayStatus": "BUDGET_EXCEEDED",
+      "activeOperations": [],
+      "nativeCompletion": null,
+      "workerState": {
+        "Status": "exited",
+        "Running": false,
+        "ExitCode": 0,
+        "FinishedAt": "2026-11-08T16:55:53.389622256Z"
+      },
+      "runtime": {
+        "status": "BUDGET_EXCEEDED",
+        "terminal": true,
+        "revision": 124,
+        "reasonCode": "BUDGET_EXCEEDED",
+        "endedAt": "2026-11-08T16:55:53.507Z"
+      },
+      "operations": {}
+    },
+    {
+      "taskId": "analysis-coding-b86dd0a61f20dd6c8283cf1c5c17fadf298a341c945b5d7ec8f5e958552dd864",
+      "workerId": "fbece607-0afa-40bc-9421-ac4559fef5b2",
+      "nativeSessionId": "7a183abd-ed64-4a68-83e3-f7fd55f56373",
+      "gatewayStatus": "CANCELLED",
+      "activeOperations": [],
+      "nativeCompletion": null,
+      "workerState": {
+        "Status": "exited",
+        "Running": false,
+        "ExitCode": 0,
+        "FinishedAt": "2026-11-08T16:22:16.090731822Z"
+      },
+      "runtime": {
+        "status": "CANCELLED",
+        "terminal": true,
+        "revision": 80,
+        "reasonCode": "CANCEL_REQUESTED",
+        "endedAt": "2026-11-08T16:22:16.575Z"
+      },
+      "operations": {}
+    },
+    {
+      "taskId": "analysis-coding-de5287c9b8710aeecaef3ccadda7acb05112c504bee5b85b5d8ce0f69a31be47",
+      "workerId": "fdf267c2-1782-4f23-a34d-349f83b8d563",
+      "nativeSessionId": "62599be5-bba8-473a-8015-eb4f6737069a",
+      "gatewayStatus": "BUDGET_EXCEEDED",
+      "activeOperations": [],
+      "nativeCompletion": null,
+      "workerState": {
+        "Status": "exited",
+        "Running": false,
+        "ExitCode": 0,
+        "FinishedAt": "2026-11-08T16:37:23.977425773Z"
+      },
+      "runtime": {
+        "status": "BUDGET_EXCEEDED",
+        "terminal": true,
+        "revision": 113,
+        "reasonCode": "BUDGET_EXCEEDED",
+        "endedAt": "2026-11-08T16:37:24.075Z"
+      },
+      "operations": {
+        "cline-977ba4f0e8c147a93420cc44002f12488fb3abe55cfb3c27e9dfa57d4a8adbf8": {
+          "status": "FAILED",
+          "executorStopped": true,
+          "exitCode": 1,
+          "codeHash": "827bdf8a4268ab5acc31cf34cdce9402027fe4dfd53fb3ee0f83642b16a2f1db",
+          "manifestHash": "1afbac217a2931e809ebbc3000dd3d68ea1d041efb44986239380fd5d935bc67",
+          "httpStatus": null
+        }
+      }
+    }
+  ],
+  "workspaceSourceManifest": [
+    {
+      "taskId": "analysis-coding-36182710d995ba7ae498af8cf0bba467de3ee5c97f5416e46aac71645e578e76",
+      "workerId": "0398a8b7-f47d-4a47-a54d-7d5c10b53a4f",
+      "files": [
+        {
+          "path": "analyze.py",
+          "bytes": 12883,
+          "sha256": "5d572cf7f385e821fb14fe3e54d14accdea54fbf8455981113cf223f52c11226",
+          "validPythonSyntax": true
+        }
+      ]
+    },
+    {
+      "taskId": "analysis-coding-bdab2aed0e0b20795f4435abb31c61e46cdaefa95cddd3205ba8af5a654f20b9",
+      "workerId": "173c963e-2704-4c89-9682-f882de93d1ea",
+      "files": [
+        {
+          "path": "explore.py",
+          "bytes": 3306,
+          "sha256": "4f42b6f75550b3800011e6bb97cf5835c1eede168b512506ec7278508fb297ac",
+          "validPythonSyntax": true
+        },
+        {
+          "path": "explore2.py",
+          "bytes": 5082,
+          "sha256": "3d723c42c45c8bb46e91694d4463df52930ecbcba863c292c128a2b199e22f4e",
+          "validPythonSyntax": true
+        }
+      ]
+    },
+    {
+      "taskId": "analysis-coding-4317632155748de9f0a8e835224846ddd845f103e4a70de274bca5fe6e1b69ae",
+      "workerId": "1e93f794-4560-4c77-8274-a0b256c104ca",
+      "files": [
+        {
+          "path": "explore_inputs.py",
+          "bytes": 4038,
+          "sha256": "6b8ffc23e21f7147e73e0ccd5f6e5054dd2e6d164593537a98c39c07773408f2",
+          "validPythonSyntax": true
+        },
+        {
+          "path": "probe_min.py",
+          "bytes": 74,
+          "sha256": "8a5bac06e3f81388be15207df47b8a8ad00339299ab0a2830705af16bb2e1255",
+          "validPythonSyntax": true
+        }
+      ]
+    },
+    {
+      "taskId": "analysis-coding-30e2c9a95b1af656bd1fc9fb3aaf4aee032b082f3408a5ddaa363108971f53f1",
+      "workerId": "236f4d9c-6ce4-4488-850d-2f8af812208e",
+      "files": [
+        {
+          "path": "diag_market_inputs.py",
+          "bytes": 3481,
+          "sha256": "8a7f5c3577054c80ff39278222eb78589df42c78783d96f8a08a0cde561ff2b5",
+          "validPythonSyntax": true
+        }
+      ]
+    },
+    {
+      "taskId": "analysis-coding-252f971c2819158029ab1d8f221638e979b04cbb38f97c2b0b33aa8a78ffed2f",
+      "workerId": "47da3702-d52c-43ac-b009-dea973e547d7",
+      "files": [
+        {
+          "path": "acceptance_wait.py",
+          "bytes": 28,
+          "sha256": "e3a31d470653f242c700c815e7d6c81e14dfa135a50446a9d74d808ff90770cf",
+          "validPythonSyntax": true
+        }
+      ]
+    },
+    {
+      "taskId": "analysis-coding-464634ffb10e361b866149d59a923f52f16636a2d0711004b507522403abc388",
+      "workerId": "63a8abe1-dced-426c-a907-57390c665df0",
+      "files": [
+        {
+          "path": "analysis.py",
+          "bytes": 13031,
+          "sha256": "90cdff05e62af63431ef1b59eb244a4db97089fd68dd1c1365f86495c55b75bb",
+          "validPythonSyntax": true
+        }
+      ]
+    },
+    {
+      "taskId": "analysis-coding-c9d4043b5eb41137033f70229906bf311ec80ce506348a071b1bbdfcb6c90f29",
+      "workerId": "7ae9ec9d-6415-409f-9452-c111d1ff5652",
+      "files": [
+        {
+          "path": "recon.py",
+          "bytes": 2340,
+          "sha256": "318e1d4991776b937af436221e9ab6e9a4a9283fb668354ddfd55390e036e3c8",
+          "validPythonSyntax": true
+        },
+        {
+          "path": "step1_profile.py",
+          "bytes": 1906,
+          "sha256": "d771ff1b31d372100c70c8ef54619aee0f9ac5cc0c5a7099ae5b3d5f0f714f01",
+          "validPythonSyntax": true
+        }
+      ]
+    },
+    {
+      "taskId": "analysis-coding-9e994791378a69b3182a1aa1f4d15d29600be2a8c789b7af960bc615276d6dd1",
+      "workerId": "c70386d9-f2cb-46df-ab35-bd2608236bc5",
+      "files": [
+        {
+          "path": "analyze_market.py",
+          "bytes": 14093,
+          "sha256": "88a1f8d5418fb090065730d83045812d68ac7dc35d151ef3aa48ef52cb5e6684",
+          "validPythonSyntax": true
+        }
+      ]
+    },
+    {
+      "taskId": "analysis-coding-43e863f91541fd49826c1b25cb897ca98486b354a86ae761b44cd29cfc24a648",
+      "workerId": "e7bd554e-5ff9-4321-97bc-73339a0c49ed",
+      "files": [
+        {
+          "path": "inspect_data.py",
+          "bytes": 2101,
+          "sha256": "86e132242b7cd4e1e867da21d1200989c6436336ccd066409d6fd599a1a06833",
+          "validPythonSyntax": true
+        },
+        {
+          "path": "analysis.py",
+          "bytes": 9383,
+          "sha256": "ee3e6ebd54683911de6d73fdd3623b014003e40db69607bb9c67960834589b05",
+          "validPythonSyntax": true
+        }
+      ]
+    },
+    {
+      "taskId": "analysis-coding-79c14008ad549d46a0eb2f80b51bca8aa8b3d57acbd57282a2da2061623d54e7",
+      "workerId": "e857a008-df84-400c-8f07-4ab4055c8d4a",
+      "files": [
+        {
+          "path": "analyze_market_inputs.py",
+          "bytes": 10311,
+          "sha256": "06258b9c00f88db3faacf953455852695a37f758cdfcdeba490fae60415b1b2c",
+          "validPythonSyntax": true
+        },
+        {
+          "path": "explore.py",
+          "bytes": 1040,
+          "sha256": "575096613c01e9d69918402b11262209c17347583924e5c82736764542e2a08f",
+          "validPythonSyntax": true
+        },
+        {
+          "path": "probe2.py",
+          "bytes": 2266,
+          "sha256": "4e382438c27433593cfe6357a9c32eb306e042f3f4794776541f7ebcddff7e18",
+          "validPythonSyntax": true
+        }
+      ]
+    },
+    {
+      "taskId": "analysis-coding-e2810cd5f43db7cdcbb1f2c2daa44dce03716fa934bca4926e6b1db4c41f652c",
+      "workerId": "ecd94c45-eab3-4591-868d-fa5de897d007",
+      "files": [
+        {
+          "path": "analyze_market_quotes.py",
+          "bytes": 17817,
+          "sha256": "1b9bc438f5864b0dd665dab536e69b0a19bb62b613bb2f413f33478ae8b1c1b4",
+          "validPythonSyntax": false,
+          "errorType": "IndentationError",
+          "line": 236
+        }
+      ]
+    },
+    {
+      "taskId": "analysis-coding-b86dd0a61f20dd6c8283cf1c5c17fadf298a341c945b5d7ec8f5e958552dd864",
+      "workerId": "fbece607-0afa-40bc-9421-ac4559fef5b2",
+      "files": [
+        {
+          "path": "analyze_market_quotes.py",
+          "bytes": 17293,
+          "sha256": "3b1c73a2fea93b99714110eea3f531e8803e97eff5bc2c53d404ef2f688579a0",
+          "validPythonSyntax": true
+        }
+      ]
+    },
+    {
+      "taskId": "analysis-coding-de5287c9b8710aeecaef3ccadda7acb05112c504bee5b85b5d8ce0f69a31be47",
+      "workerId": "fdf267c2-1782-4f23-a34d-349f83b8d563",
+      "files": [
+        {
+          "path": "acceptance_reproduce.py",
+          "bytes": 513,
+          "sha256": "fcdeca7bd41a9f3e1d8faf91a07abdd1aae1a234bb738e653d53078b27ec7ffb",
+          "validPythonSyntax": true
+        },
+        {
+          "path": "market_analysis.py",
+          "bytes": 14782,
+          "sha256": "1840fac046010203cabee1b99d68929c49670c5fb546688b287f6f0af518161a",
+          "validPythonSyntax": true
+        },
+        {
+          "path": "run_analysis.py",
+          "bytes": 354,
+          "sha256": "2a93164b68850a7b44262f4980e23656dfc9900b77435f43b52606180967bc01",
+          "validPythonSyntax": true
+        }
+      ]
+    }
+  ],
+  "nativeFaultRuns": [
+    {
+      "taskId": "analysis-coding-252f971c2819158029ab1d8f221638e979b04cbb38f97c2b0b33aa8a78ffed2f",
+      "runId": "asset-analysis-66f8fdbaa76a77c1052acbd4d4cfafe05ced23792f7959944c2f6f8dcafc9e34",
+      "requestId": "b6e86365-24e5-4ee4-a5dd-3b2e1db6da12",
+      "nativeSessionId": "9e92098b-d7a7-412b-8bb4-4dcaec982ede",
+      "nativeAgentSessionId": "1794156653307_o5rq7",
+      "timeline": [
+        {
+          "type": "model.request",
+          "toolNames": [
+            "skills",
+            "read_files",
+            "search_codebase",
+            "apply_patch",
+            "submit_and_exit",
+            "runtime__input_read",
+            "runtime__artifact_read",
+            "runtime__code_read",
+            "runtime__sql_validate",
+            "runtime__python_execute"
+          ],
+          "eventId": "8",
+          "timestamp": "2026-11-08T16:50:53.701Z"
+        },
+        {
+          "type": "model.receipt",
+          "usage": {
+            "inputTokens": 24113,
+            "outputTokens": 565,
+            "cacheReadTokens": 0,
+            "reasoningTokens": 457
+          },
+          "modelInfo": {
+            "selectedModel": "qwen3.8-omni-flash",
+            "providerModel": "qwen3.8-omni-flash",
+            "protocol": "auto",
+            "startedAt": "2026-11-08T16:50:53.836788975Z",
+            "finishedAt": "2026-11-08T16:51:02.901436035Z",
+            "durationMs": 9064,
+            "maxOutputTokens": 8192,
+            "queueTimeMs": 11,
+            "queueTimeScope": "LOCAL_EXECUTOR",
+            "providerTimingAvailability": "NON_STREAMING_UNAVAILABLE",
+            "messageCount": 2,
+            "requestBytes": 100933,
+            "firstTokenMs": null,
+            "generationTimeMs": null,
+            "responseMode": "NON_STREAMING",
+            "retryTimeMs": 0,
+            "deadlineAt": "2026-11-08T17:10:43.894Z",
+            "complexity": "SIMPLE"
+          },
+          "providerRequestId": "chatcmpl-fd65e6bd-7b7b-92a5-8cef-621cd4c76752",
+          "finishReason": "TOOL_EXECUTION",
+          "eventId": "16",
+          "timestamp": "2026-11-08T16:51:02.995Z"
+        },
+        {
+          "type": "tool.started",
+          "toolName": "read_files",
+          "toolCallId": "call_908f0c11f2344c8eaf24450c",
+          "eventId": "38",
+          "timestamp": "2026-11-08T16:51:04.402Z"
+        },
+        {
+          "type": "tool.completed",
+          "toolName": "read_files",
+          "toolCallId": "call_908f0c11f2344c8eaf24450c",
+          "eventId": "41",
+          "timestamp": "2026-11-08T16:51:04.462Z"
+        },
+        {
+          "type": "tool.started",
+          "toolName": "search_codebase",
+          "toolCallId": "call_673ddd464b8441839f91d99b",
+          "eventId": "44",
+          "timestamp": "2026-11-08T16:51:04.509Z"
+        },
+        {
+          "type": "tool.completed",
+          "toolName": "search_codebase",
+          "toolCallId": "call_673ddd464b8441839f91d99b",
+          "eventId": "47",
+          "timestamp": "2026-11-08T16:51:05.064Z"
+        },
+        {
+          "type": "model.request",
+          "toolNames": [
+            "skills",
+            "read_files",
+            "search_codebase",
+            "apply_patch",
+            "submit_and_exit",
+            "runtime__input_read",
+            "runtime__artifact_read",
+            "runtime__code_read",
+            "runtime__sql_validate",
+            "runtime__python_execute"
+          ],
+          "eventId": "49",
+          "timestamp": "2026-11-08T16:51:05.075Z"
+        },
+        {
+          "type": "model.receipt",
+          "usage": {
+            "inputTokens": 26381,
+            "outputTokens": 525,
+            "cacheReadTokens": 23296,
+            "reasoningTokens": 318
+          },
+          "modelInfo": {
+            "selectedModel": "qwen3.8-omni-flash",
+            "providerModel": "qwen3.8-omni-flash",
+            "protocol": "auto",
+            "startedAt": "2026-11-08T16:51:05.222440976Z",
+            "finishedAt": "2026-11-08T16:51:22.283577997Z",
+            "durationMs": 17061,
+            "maxOutputTokens": 8192,
+            "queueTimeMs": 19,
+            "queueTimeScope": "LOCAL_EXECUTOR",
+            "providerTimingAvailability": "NON_STREAMING_UNAVAILABLE",
+            "messageCount": 5,
+            "requestBytes": 107226,
+            "firstTokenMs": null,
+            "generationTimeMs": null,
+            "responseMode": "NON_STREAMING",
+            "retryTimeMs": 0,
+            "deadlineAt": "2026-11-08T17:10:43.894Z",
+            "complexity": "SIMPLE"
+          },
+          "providerRequestId": "chatcmpl-aceabdac-e26b-92cf-a4d0-d2b92c105378",
+          "finishReason": "TOOL_EXECUTION",
+          "eventId": "53",
+          "timestamp": "2026-11-08T16:51:22.387Z"
+        },
+        {
+          "type": "TOOL_STARTED",
+          "tool": "python_execute",
+          "operationId": "cline-dbaed22c6c5ae6be4c9b80c5e305fac404499c897a92639faf88fe713f01cb83",
+          "codeSha256": "e3a31d470653f242c700c815e7d6c81e14dfa135a50446a9d74d808ff90770cf",
+          "eventId": "64",
+          "timestamp": "2026-11-08T16:51:22.911Z"
+        },
+        {
+          "type": "tool.started",
+          "toolName": "runtime__python_execute",
+          "toolCallId": "call_f9688696c72a4949b7cec41f",
+          "eventId": "70",
+          "timestamp": "2026-11-08T16:51:23.263Z"
+        }
+      ]
+    },
+    {
+      "taskId": "analysis-coding-1c08226ade3a687230eae98880b18e1ec68eaae70a6a347e490f5cf01e92ca2f",
+      "runId": "asset-analysis-248f2819580644c72588177c4312ab81b1953fece3154fa943dbf1090bd92104",
+      "requestId": "native-timeout-bca96c2b83304565908d",
+      "nativeSessionId": "a229e79c-8931-4a15-b658-a5bfb2b83fac",
+      "nativeAgentSessionId": "1794157150012_kgxx0",
+      "timeline": [
+        {
+          "type": "model.request",
+          "toolNames": [
+            "skills",
+            "read_files",
+            "search_codebase",
+            "apply_patch",
+            "submit_and_exit",
+            "runtime__input_read",
+            "runtime__artifact_read",
+            "runtime__code_read",
+            "runtime__report_submit",
+            "runtime__sql_validate",
+            "runtime__python_execute"
+          ],
+          "eventId": "8",
+          "timestamp": "2026-11-08T16:59:10.401Z"
+        },
+        {
+          "type": "model.receipt",
+          "usage": {
+            "inputTokens": 17819,
+            "outputTokens": 604,
+            "cacheReadTokens": 0,
+            "reasoningTokens": 212
+          },
+          "modelInfo": {
+            "selectedModel": "qwen3.8-omni-flash",
+            "providerModel": "qwen3.8-omni-flash",
+            "protocol": "auto",
+            "startedAt": "2026-11-08T16:59:10.567739223Z",
+            "finishedAt": "2026-11-08T16:59:18.559196515Z",
+            "durationMs": 7991,
+            "maxOutputTokens": 8192,
+            "queueTimeMs": 23,
+            "queueTimeScope": "LOCAL_EXECUTOR",
+            "providerTimingAvailability": "NON_STREAMING_UNAVAILABLE",
+            "messageCount": 2,
+            "requestBytes": 55510,
+            "firstTokenMs": null,
+            "generationTimeMs": null,
+            "responseMode": "NON_STREAMING",
+            "retryTimeMs": 0,
+            "deadlineAt": "2026-11-08T16:59:28.452Z",
+            "complexity": "COMPLEX"
+          },
+          "providerRequestId": "chatcmpl-7ad01c92-ea7d-9bdf-a848-4d565ac94402",
+          "finishReason": "TOOL_EXECUTION",
+          "eventId": "16",
+          "timestamp": "2026-11-08T16:59:18.676Z"
+        },
+        {
+          "type": "model.request",
+          "toolNames": [
+            "skills",
+            "read_files",
+            "search_codebase",
+            "apply_patch",
+            "submit_and_exit",
+            "runtime__input_read",
+            "runtime__artifact_read",
+            "runtime__code_read",
+            "runtime__report_submit",
+            "runtime__sql_validate",
+            "runtime__python_execute"
+          ],
+          "eventId": "33",
+          "timestamp": "2026-11-08T16:59:19.720Z"
+        },
+        {
+          "type": "tool.started",
+          "toolName": "read_files",
+          "toolCallId": "call_e08f2bc33e6340898558450e",
+          "eventId": "39",
+          "timestamp": "2026-11-08T16:59:20.124Z"
+        },
+        {
+          "type": "tool.completed",
+          "toolName": "read_files",
+          "toolCallId": "call_e08f2bc33e6340898558450e",
+          "eventId": "42",
+          "timestamp": "2026-11-08T16:59:20.178Z"
+        },
+        {
+          "type": "tool.started",
+          "toolName": "read_files",
+          "toolCallId": "call_6e1848c70b0a47f3bf07a66e",
+          "eventId": "45",
+          "timestamp": "2026-11-08T16:59:20.227Z"
+        },
+        {
+          "type": "tool.completed",
+          "toolName": "read_files",
+          "toolCallId": "call_6e1848c70b0a47f3bf07a66e",
+          "eventId": "48",
+          "timestamp": "2026-11-08T16:59:20.279Z"
+        }
+      ]
+    }
+  ]
+}

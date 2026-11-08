@@ -1,0 +1,66 @@
+{
+  "algorithm": "SHA-256",
+  "scope": "Canonical Git index contents (LF); excludes this manifest itself",
+  "files": [
+    {
+      "path": "docs/testing/evidence/native-cline-business-20261108/artifact-download-checks.json",
+      "bytes": 82820,
+      "sha256": "bca6353d83f3e275c65acc712541c674c1f7a5a7f539aedb16b76de6007d918b"
+    },
+    {
+      "path": "docs/testing/evidence/native-cline-business-20261108/build-summary.json",
+      "bytes": 2860,
+      "sha256": "b2d60d9bb5f29cd137b6cdbf29fe1782b20f77120781aef45470922b779083e9"
+    },
+    {
+      "path": "docs/testing/evidence/native-cline-business-20261108/changed-files.json",
+      "bytes": 9138,
+      "sha256": "b3d1d0267afd09e5baaaeb40fdd2c348c79bfd5189dc06bb271ee74f7c232765"
+    },
+    {
+      "path": "docs/testing/evidence/native-cline-business-20261108/code-version.json",
+      "bytes": 901,
+      "sha256": "d7ec5e5757e7fb0a457e07b0d312999150281de95a569e11a122f299816afe17"
+    },
+    {
+      "path": "docs/testing/evidence/native-cline-business-20261108/full-regression-failures.json",
+      "bytes": 80413,
+      "sha256": "76ed2fd2039efc1e6f39aad6b78f0251f7d8a9da314d3489bf680deda986e17a"
+    },
+    {
+      "path": "docs/testing/evidence/native-cline-business-20261108/independent-account-input.json",
+      "bytes": 991,
+      "sha256": "3a1932e73d4382ef2a93a76abf5263f99ad493a431894a3de90f26b945d99804"
+    },
+    {
+      "path": "docs/testing/evidence/native-cline-business-20261108/independent-csv-parquet.json",
+      "bytes": 600,
+      "sha256": "fa56279ecb2266e842a44a4117e471796899aa226f23fd8198da20093e24d223"
+    },
+    {
+      "path": "docs/testing/evidence/native-cline-business-20261108/monitor-http-checks.json",
+      "bytes": 5060,
+      "sha256": "84a6edf1849a6dc59f26f327d75924172f1f834c044326d42b02700cb50ed54b"
+    },
+    {
+      "path": "docs/testing/evidence/native-cline-business-20261108/private-evidence-hashes.json",
+      "bytes": 11373,
+      "sha256": "658346bfc63e4df280b704f77eead3a771557f26ef9863373b69911e6afc73f9"
+    },
+    {
+      "path": "docs/testing/evidence/native-cline-business-20261108/sanitized-business-evidence.json",
+      "bytes": 452245,
+      "sha256": "7be5e23894091f0a7e9705623ebcf27504d3e4daa9e81ff0299a5d39aee6a070"
+    },
+    {
+      "path": "docs/testing/evidence/native-cline-business-20261108/sanitized-fault-and-reconciliation.json",
+      "bytes": 43859,
+      "sha256": "38b903caa43557d4ca54eaae0a7c042aa55a0b7e6822974ebe5a3efa82d90d69"
+    },
+    {
+      "path": "docs/testing/native-cline-business-acceptance-20261108.md",
+      "bytes": 22982,
+      "sha256": "43668dd9c29889bc49c5c0c19b3b72c0ce0302853a32bca59d353c75a8c17b43"
+    }
+  ]
+}

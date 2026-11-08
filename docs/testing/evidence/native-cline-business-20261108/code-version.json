@@ -1,0 +1,16 @@
+{
+    "upstreamCoreSourcesUnchanged":  604,
+    "branch":  "feature/runtime-cline-cli-native-20261107",
+    "javaSourceCommit":  "1030e50edb79ad2158f403a43b5ce27ce0b6d8cf",
+    "mainCommit":  "2db9b59dfbb3599f7e4e48a830fb6c7361beccc6",
+    "productionDefaultChanged":  false,
+    "sourceCommit":  "72c098e76a4426b6474875354cd200b6119554cb",
+    "upstreamVersion":  "4.1.26",
+    "deployedSourceHashes":  {
+                                 "cline-agent-server/src/business-server.mjs":  "529ba128c8cd3f5859fe0edb1662271b494d681b112781c31e87461b616ca84a",
+                                 "cline-agent-server/src/business/run-state.mjs":  "468ecbdeeab3639c1e2a346b71091d91763b7f7dcdbe8d7459ee389f43a220c8"
+                             },
+    "taskStartCommit":  "c7e95947cda8dd20fb310e407a550d27d9749452",
+    "reviewBaseline":  "d8f41ff2ef5179c8c9d545c4859754bed9042e38",
+    "oldNodeStopped":  false
+}

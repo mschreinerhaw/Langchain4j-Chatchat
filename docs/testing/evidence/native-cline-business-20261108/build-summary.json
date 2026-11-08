@@ -1,0 +1,72 @@
+{
+    "nativeJava":  {
+                       "skipped":  1,
+                       "errors":  0,
+                       "tests":  236,
+                       "failures":  0
+                   },
+    "logs":  [
+                 {
+                     "sha256":  "c43fdf7913f5aad4a41f0ef745e72329910da0936ac86b10dba9d73599060f49",
+                     "file":  "maven-package-final.log",
+                     "bytes":  212418
+                 },
+                 {
+                     "sha256":  "e37ee265e108d5928aa3e4bec4f1ccd6c90c4a522f1f0c703f2b8ca7368d4754",
+                     "file":  "maven-verify-r2.log",
+                     "bytes":  6677386
+                 },
+                 {
+                     "sha256":  "ffe69a977f7c4fe9bd0dc15f35a90258dba3dff3a68d6b8a982ffa0e2ec88ecb",
+                     "file":  "migration-verify.log",
+                     "bytes":  11520
+                 },
+                 {
+                     "sha256":  "96becdf8356679d0fd9ca98780cbead1d8c3a33ccd57ddfe030e16482c9fcf4f",
+                     "file":  "native-package-r2.log",
+                     "bytes":  667950
+                 },
+                 {
+                     "sha256":  "22bc616d3a95b5c01453d31df64fd67e04e563476a221c473c26a045e9e067d3",
+                     "file":  "node-tests-stop-reconciliation.log",
+                     "bytes":  6452
+                 },
+                 {
+                     "sha256":  "4e3ef0d14d4dd08b9e1fc07cf17814940ab3fca02dbee517e0b839bfd13e3284",
+                     "file":  "monitor-tests-final.log",
+                     "bytes":  148154
+                 }
+             ],
+    "migration":  {
+                      "passed":  14,
+                      "tests":  14
+                  },
+    "fullRegression":  {
+                           "failures":  52,
+                           "errors":  36,
+                           "agentsTests":  474,
+                           "skipped":  2,
+                           "status":  "FAILED",
+                           "downstreamIncomplete":  true,
+                           "baselineCausalityNotEstablished":  true,
+                           "forkFailure":  "HarnessToolRecoveryTest VM exit 1"
+                       },
+    "nativeNode":  {
+                       "passed":  34,
+                       "tests":  34
+                   },
+    "nativeSourceCommit":  "72c098e76",
+    "fullPackage":  {
+                        "modules":  20,
+                        "status":  "PASSED",
+                        "testsSkipped":  true,
+                        "finishedAt":  "2026-11-09T00:12:04+08:00"
+                    },
+    "javaSourceCommit":  "1030e50ed",
+    "monitorJava":  {
+                        "errors":  0,
+                        "tests":  5,
+                        "failures":  0,
+                        "passed":  5
+                    }
+}

@@ -1,0 +1,945 @@
+[
+    {
+        "class":  "com.chatchat.agents.orchestration.AgentOrchestratorArchitectureTest",
+        "test":  "orchestrationEngineCannotRegrowDuringMigration",
+        "type":  "java.lang.AssertionError",
+        "messageStart":  "[The migration ratchet must only move downward as responsibilities leave the engine] \nExpecting size of:\n  [\"package com.chatchat.agents.orchestration;\",\n    \"\",\n    \"import com.chatchat.agents.orchestration.analysis.graph.InterpretationAnalysisGraph;\",\n    \"\",\n    \"import com.chatchat.agents.orchestration.analysis.context.ContextCompressionEnvelope;\",\n    \"import com.chatchat.agents.orchestration.analysis.context.ContextTokenEstimator;\",\n    \"import com.chatchat.agents.orchestration.analysis.context.ToolReviewPromptContext;\",\n    \"import com.chatchat.agents.orchestration.analysis.contract.Sem",
+        "messageEnd":  "\" 涓枃妗ｆ潵婧愩€?quot;\",\n    \"                + activatedSkills.size() + \" 涓?Knowledge Skill銆?quot;\",\n    \"                + selectedDomainSkills.size() + \" 涓鍩熸妧鑳姐€?quot;,\",\n    \"            \"knowledge_skills\", appliedEvent);\",\n    \"    }\",\n    \"\",\n    \"}\"]\nto be less than or equal to 4602 but was 5548",
+        "sourceFrames":  [
+                             "\tat com.chatchat.agents.orchestration.AgentOrchestratorArchitectureTest.assertSourceLineCount(AgentOrchestratorArchitectureTest.java:275)",
+                             "\tat com.chatchat.agents.orchestration.AgentOrchestratorArchitectureTest.orchestrationEngineCannotRegrowDuringMigration(AgentOrchestratorArchitectureTest.java:58)"
+                         ]
+    },
+    {
+        "class":  "com.chatchat.agents.orchestration.AgentOrchestratorArchitectureTest",
+        "test":  "extractedWorkflowComponentsRemainFocused",
+        "type":  "java.lang.AssertionError",
+        "messageStart":  "[Planner prompt compilation must remain independent from model invocation and repair] \nExpecting size of:\n  [\"package com.chatchat.agents.orchestration.planning.generation;\",\n    \"\",\n    \"import com.chatchat.agents.orchestration.planning.validation.AgentPlanBudgetPolicy;\",\n    \"\",\n    \"import com.chatchat.agents.protocol.ToolProtocolContractResolver;\",\n    \"import com.chatchat.agents.runtime.batch.ToolCallBatchSchema;\",\n    \"import com.chatchat.agents.runtime.context.AgentRoleAnalysisContext;\",\n    \"import com.chatchat.agents.runtime.observation.AgentRuntimeFactGroundingContract;\",\n    \"import",
+        "messageEnd":  ", ?\u003e map)) return Map.of();\",\n    \"        Map\u003cString, Object\u003e values = new LinkedHashMap\u003c\u003e();\",\n    \"        map.forEach((key, value) -\u003e { if (key != null) values.put(String.valueOf(key), value); });\",\n    \"        return values;\",\n    \"    }\",\n    \"}\"]\nto be less than or equal to 1000 but was 1014",
+        "sourceFrames":  [
+                             "\tat com.chatchat.agents.orchestration.AgentOrchestratorArchitectureTest.assertSourceLineCount(AgentOrchestratorArchitectureTest.java:275)",
+                             "\tat com.chatchat.agents.orchestration.AgentOrchestratorArchitectureTest.extractedWorkflowComponentsRemainFocused(AgentOrchestratorArchitectureTest.java:133)"
+                         ]
+    },
+    {
+        "class":  "com.chatchat.agents.orchestration.AgentOrchestratorArchitectureTest",
+        "test":  "coreServiceMigrationRatchetsPreventFurtherGrowth",
+        "type":  "java.lang.AssertionError",
+        "messageStart":  "[AgentPlanner must shrink behind AgentPlanningPort] \nExpecting size of:\n  [\"package com.chatchat.agents.orchestration;\",\n    \"\",\n    \"import com.chatchat.agents.orchestration.planning.validation.AgentPlanBudgetPolicy;\",\n    \"import com.chatchat.agents.orchestration.planning.model.AgentDecision;\",\n    \"import com.chatchat.agents.orchestration.planning.selection.AgentPlanCandidateScorer;\",\n    \"import com.chatchat.agents.orchestration.planning.selection.AgentPlanAttributionPolicy;\",\n    \"import com.chatchat.agents.orchestration.planning.model.PlanCandidate;\",\n    \"import com.chatchat.agents.orch",
+        "messageEnd":  " InterpretationPlan plan,\",\n    \"    boolean valid,\",\n    \"    boolean executable,\",\n    \"    List\u003cString\u003e issues\",\n    \") {\",\n    \"    PlannerPlanProduct {\",\n    \"        issues = issues == null ? List.of() : List.copyOf(issues);\",\n    \"    }\",\n    \"}\"]\nto be less than or equal to 1750 but was 1801",
+        "sourceFrames":  [
+                             "\tat com.chatchat.agents.orchestration.AgentOrchestratorArchitectureTest.assertSourceLineCount(AgentOrchestratorArchitectureTest.java:275)",
+                             "\tat com.chatchat.agents.orchestration.AgentOrchestratorArchitectureTest.coreServiceMigrationRatchetsPreventFurtherGrowth(AgentOrchestratorArchitectureTest.java:257)"
+                         ]
+    },
+    {
+        "class":  "com.chatchat.agents.orchestration.AgentOrchestratorTest",
+        "test":  "interpretationPlanCarriesSuccessfulPrePlanToolsIntoWorkflowDependencies",
+        "type":  "org.opentest4j.AssertionFailedError",
+        "messageStart":  "\nexpected: {\"workflowTargetRef\"=\"generated-worker\"}\n but was: null",
+        "messageEnd":  "\nexpected: {\"workflowTargetRef\"=\"generated-worker\"}\n but was: null",
+        "sourceFrames":  [
+                             "\tat com.chatchat.agents.orchestration.AgentOrchestratorTest.interpretationPlanCarriesSuccessfulPrePlanToolsIntoWorkflowDependencies(AgentOrchestratorTest.java:925)"
+                         ]
+    },
+    {
+        "class":  "com.chatchat.agents.orchestration.AgentOrchestratorTest",
+        "test":  "successfulTemplateExecutionIsAdmittedWithoutRedundantModelReview",
+        "type":  "java.lang.AssertionError",
+        "messageStart":  "\nExpecting map:\n  {\"toolResultReviewEstimatedTokens\"=1469L, \"toolResultReviewMode\"=\"MODEL_TOOL_RESULT_REVIEW\", \"toolResultReviewModelCalls\"=1, \"toolResultReviewModelDurationMs\"=14L, \"toolResultReviewPreparationDurationMs\"=117L, \"toolResultReviewPromptChars\"=5501L, \"toolResultReviewPurpose\"=\"EVIDENCE_ASSESSMENT\", \"toolResultReviewRaw\"=\"\", \"toolResultReviewTotalDurationMs\"=132L, \"toolResultReviewUnavailable\"=true}\nto contain entries:\n  [\"toolResultReviewMode\"=\"RUNTIME_DETERMINISTIC_EXECUTION_ADMISSION\"]\nbut the following map entries had different values:\n  [\"toolResultReviewMode\"=\"MODEL_TOOL_RES",
+        "messageEnd":  "onMs\"=132L, \"toolResultReviewUnavailable\"=true}\nto contain entries:\n  [\"toolResultReviewMode\"=\"RUNTIME_DETERMINISTIC_EXECUTION_ADMISSION\"]\nbut the following map entries had different values:\n  [\"toolResultReviewMode\"=\"MODEL_TOOL_RESULT_REVIEW\" (expected: \"RUNTIME_DETERMINISTIC_EXECUTION_ADMISSION\")]",
+        "sourceFrames":  [
+                             "\tat com.chatchat.agents.orchestration.AgentOrchestratorTest.successfulTemplateExecutionIsAdmittedWithoutRedundantModelReview(AgentOrchestratorTest.java:3904)"
+                         ]
+    },
+    {
+        "class":  "com.chatchat.agents.orchestration.AgentOrchestratorTest",
+        "test":  "workflowRuntimeOverridesPlannerWhenItSkipsConfiguredToolOrder",
+        "type":  "java.lang.IllegalArgumentException",
+        "messageStart":  "Chat model name must not be blank",
+        "messageEnd":  "Chat model name must not be blank",
+        "sourceFrames":  [
+                             "\tat com.chatchat.common.config.ModelsConfig.requireUsableChatModelConnection(ModelsConfig.java:210)",
+                             "\tat com.chatchat.common.config.ModelResourceRegistry.require(ModelResourceRegistry.java:48)",
+                             "\tat com.chatchat.agents.orchestration.model.AgentChatModelResolver.resolveChatModel(AgentChatModelResolver.java:72)"
+                         ]
+    },
+    {
+        "class":  "com.chatchat.agents.orchestration.AgentOrchestratorTest",
+        "test":  "appliesCompleteRecordCoverageToNonBatchProtocolRows",
+        "type":  "java.lang.AssertionError",
+        "messageStart":  "\nExpecting actual:\n  \"Model-authored working state and scoped evidence workspace retained; publication follows explicit model intent.\"\nto contain:\n  [\"orders\", \"assets\"]\nbut could not find:\n  [\"orders\", \"assets\"]\n ",
+        "messageEnd":  "\nExpecting actual:\n  \"Model-authored working state and scoped evidence workspace retained; publication follows explicit model intent.\"\nto contain:\n  [\"orders\", \"assets\"]\nbut could not find:\n  [\"orders\", \"assets\"]\n ",
+        "sourceFrames":  [
+                             "\tat com.chatchat.agents.orchestration.AgentOrchestratorTest.appliesCompleteRecordCoverageToNonBatchProtocolRows(AgentOrchestratorTest.java:1734)"
+                         ]
+    },
+    {
+        "class":  "com.chatchat.agents.orchestration.AgentOrchestratorTest",
+        "test":  "workflowConditionCanShortCircuitMandatoryStepAndContinueDependentFlow",
+        "type":  "java.lang.IllegalArgumentException",
+        "messageStart":  "Chat model name must not be blank",
+        "messageEnd":  "Chat model name must not be blank",
+        "sourceFrames":  [
+                             "\tat com.chatchat.common.config.ModelsConfig.requireUsableChatModelConnection(ModelsConfig.java:210)",
+                             "\tat com.chatchat.common.config.ModelResourceRegistry.require(ModelResourceRegistry.java:48)",
+                             "\tat com.chatchat.agents.orchestration.model.AgentChatModelResolver.resolveChatModel(AgentChatModelResolver.java:72)"
+                         ]
+    },
+    {
+        "class":  "com.chatchat.agents.orchestration.AgentOrchestratorTest",
+        "test":  "sqlScriptCoverageProcessesEveryFetchedRowAndReportsDatabaseLimitCompleteness",
+        "type":  "java.lang.AssertionError",
+        "messageStart":  "\nExpecting actual:\n  \"Model-authored working state and scoped evidence workspace retained; publication follows explicit model intent.\"\nto contain:\n  [\"#statement-1\", \"#statement-2\", \"SID\"]\nbut could not find:\n  [\"#statement-1\", \"#statement-2\", \"SID\"]\n ",
+        "messageEnd":  "\nExpecting actual:\n  \"Model-authored working state and scoped evidence workspace retained; publication follows explicit model intent.\"\nto contain:\n  [\"#statement-1\", \"#statement-2\", \"SID\"]\nbut could not find:\n  [\"#statement-1\", \"#statement-2\", \"SID\"]\n ",
+        "sourceFrames":  [
+                             "\tat com.chatchat.agents.orchestration.AgentOrchestratorTest.sqlScriptCoverageProcessesEveryFetchedRowAndReportsDatabaseLimitCompleteness(AgentOrchestratorTest.java:2267)"
+                         ]
+    },
+    {
+        "class":  "com.chatchat.agents.orchestration.AgentOrchestratorTest",
+        "test":  "workflowParallelRequiredToolsMustAllCompleteBeforeFinalAnswer",
+        "type":  "java.lang.IllegalArgumentException",
+        "messageStart":  "Chat model name must not be blank",
+        "messageEnd":  "Chat model name must not be blank",
+        "sourceFrames":  [
+                             "\tat com.chatchat.common.config.ModelsConfig.requireUsableChatModelConnection(ModelsConfig.java:210)",
+                             "\tat com.chatchat.common.config.ModelResourceRegistry.require(ModelResourceRegistry.java:48)",
+                             "\tat com.chatchat.agents.orchestration.model.AgentChatModelResolver.resolveChatModel(AgentChatModelResolver.java:72)"
+                         ]
+    },
+    {
+        "class":  "com.chatchat.agents.orchestration.AgentOrchestratorTest",
+        "test":  "recordCoverageStressSkipsSuccessfulNonToolNodesWithoutLosingToolEvidence",
+        "type":  "java.lang.AssertionError",
+        "messageStart":  "\nExpecting actual:\n  \"Model-authored working state and scoped evidence workspace retained; publication follows explicit model intent.\"\nto contain:\n  \"authoritative\" ",
+        "messageEnd":  "\nExpecting actual:\n  \"Model-authored working state and scoped evidence workspace retained; publication follows explicit model intent.\"\nto contain:\n  \"authoritative\" ",
+        "sourceFrames":  [
+                             "\tat com.chatchat.agents.orchestration.AgentOrchestratorTest.recordCoverageStressSkipsSuccessfulNonToolNodesWithoutLosingToolEvidence(AgentOrchestratorTest.java:1581)"
+                         ]
+    },
+    {
+        "class":  "com.chatchat.agents.orchestration.AgentOrchestratorTest",
+        "test":  "iterativelySummarizesCompleteLinuxStdoutInsteadOfDroppingTheMiddle",
+        "type":  "org.opentest4j.AssertionFailedError",
+        "messageStart":  "\nExpecting value to be false but was true",
+        "messageEnd":  "\nExpecting value to be false but was true",
+        "sourceFrames":  [
+                             "\tat com.chatchat.agents.orchestration.AgentOrchestratorTest.iterativelySummarizesCompleteLinuxStdoutInsteadOfDroppingTheMiddle(AgentOrchestratorTest.java:2015)"
+                         ]
+    },
+    {
+        "class":  "com.chatchat.agents.orchestration.AgentOrchestratorTest",
+        "test":  "authoritativeFallbackStopsAtEmptyAssetInsteadOfRunningTemplateDiscovery",
+        "type":  "java.lang.IllegalArgumentException",
+        "messageStart":  "Chat model name must not be blank",
+        "messageEnd":  "Chat model name must not be blank",
+        "sourceFrames":  [
+                             "\tat com.chatchat.common.config.ModelsConfig.requireUsableChatModelConnection(ModelsConfig.java:210)",
+                             "\tat com.chatchat.common.config.ModelResourceRegistry.require(ModelResourceRegistry.java:48)",
+                             "\tat com.chatchat.agents.orchestration.model.AgentChatModelResolver.resolveChatModel(AgentChatModelResolver.java:72)"
+                         ]
+    },
+    {
+        "class":  "com.chatchat.agents.orchestration.AgentOrchestratorTest",
+        "test":  "documentWebVerificationAllowsDocumentSearchBeforeMandatoryWebTool",
+        "type":  "java.lang.IllegalArgumentException",
+        "messageStart":  "Chat model name must not be blank",
+        "messageEnd":  "Chat model name must not be blank",
+        "sourceFrames":  [
+                             "\tat com.chatchat.common.config.ModelsConfig.requireUsableChatModelConnection(ModelsConfig.java:210)",
+                             "\tat com.chatchat.common.config.ModelResourceRegistry.require(ModelResourceRegistry.java:48)",
+                             "\tat com.chatchat.agents.orchestration.model.AgentChatModelResolver.resolveChatModel(AgentChatModelResolver.java:72)"
+                         ]
+    },
+    {
+        "class":  "com.chatchat.agents.orchestration.AgentOrchestratorTest",
+        "test":  "secondPassAuditMayRejectEveryCurrentPageCandidateAndStillRequestNextPage",
+        "type":  "java.lang.AssertionError",
+        "messageStart":  "\nExpecting map:\n  {\"candidateDecisionOwner\"=\"MODEL\", \"candidateSelectionError\"=\"Expected one selection function call\", \"candidateSelectionErrorCode\"=\"INVALID_MODEL_RESPONSE\", \"candidateSelectionStatus\"=\"INVALID_MODEL_RESPONSE\", \"mcpDiscoverySucceeded\"=true, \"modelCandidateDecision\"={}, \"modelSelectedTemplateIds\"=[], \"parameterBindingMode\"=\"model_selection_and_binding\", \"parameterProtocols\"=[], \"selectedTemplateIds\"=[], \"selectionDurationMs\"=12L, \"selectionInitialErrorCode\"=\"INVALID_MODEL_RESPONSE\", \"selectionModelCalls\"=2, \"selectionModelDurationMs\"=1L, \"selectionProtocolCorrections\"=1, \"selec",
+        "messageEnd":  "selectionUsageAvailable\"=false, \"toolResultReviewMode\"=\"MODEL_SELECTION_AND_BINDING\", \"toolResultReviewModelCalls\"=2, \"toolResultReviewUnavailable\"=false}\nto contain entries:\n  [\"coverageDecision\"=\"NEED_NEXT_PAGE\"]\nbut could not find the following map entries:\n  [\"coverageDecision\"=\"NEED_NEXT_PAGE\"]",
+        "sourceFrames":  [
+                             "\tat com.chatchat.agents.orchestration.AgentOrchestratorTest.secondPassAuditMayRejectEveryCurrentPageCandidateAndStillRequestNextPage(AgentOrchestratorTest.java:4082)"
+                         ]
+    },
+    {
+        "class":  "com.chatchat.agents.orchestration.AgentOrchestratorTest",
+        "test":  "resumesPendingToolExecutionAfterConfirmation",
+        "type":  "java.lang.IllegalArgumentException",
+        "messageStart":  "Chat model name must not be blank",
+        "messageEnd":  "Chat model name must not be blank",
+        "sourceFrames":  [
+                             "\tat com.chatchat.common.config.ModelsConfig.requireUsableChatModelConnection(ModelsConfig.java:210)",
+                             "\tat com.chatchat.common.config.ModelResourceRegistry.require(ModelResourceRegistry.java:48)",
+                             "\tat com.chatchat.agents.orchestration.model.AgentChatModelResolver.resolveChatModel(AgentChatModelResolver.java:72)"
+                         ]
+    },
+    {
+        "class":  "com.chatchat.agents.orchestration.AgentOrchestratorTest",
+        "test":  "mandatoryFallbackModelReviewProjectsOracleAssetAndRejectsMysqlCandidate",
+        "type":  "org.opentest4j.AssertionFailedError",
+        "messageStart":  "\nExpecting value to be true but was false",
+        "messageEnd":  "\nExpecting value to be true but was false",
+        "sourceFrames":  [
+                             "\tat com.chatchat.agents.orchestration.AgentOrchestratorTest.mandatoryFallbackModelReviewProjectsOracleAssetAndRejectsMysqlCandidate(AgentOrchestratorTest.java:613)"
+                         ]
+    },
+    {
+        "class":  "com.chatchat.agents.orchestration.AgentOrchestratorTest",
+        "test":  "runtimeRunStorePersistsRunLifecycleEvents",
+        "type":  "java.lang.AssertionError",
+        "messageStart":  "metadata={requestId=req-run-store-1, errorMessage=Chat model name must not be blank, runtimeExecutionFailed=true, confirmationRequired=false, stopReason=failed, runStatus=FAILED, answerStatus=FAILED, workflowStatus=FAILED, publicStatus=FAILED, contractVersion=ui_response_v2, outcomeProjection={publicStatus=FAILED, answerStatus=FAILED, workflowStatus=FAILED, runStatus=FAILED, contractVersion=ui_response_v2}} answer=",
+        "messageEnd":  "irmationRequired=false, stopReason=failed, runStatus=FAILED, answerStatus=FAILED, workflowStatus=FAILED, publicStatus=FAILED, contractVersion=ui_response_v2, outcomeProjection={publicStatus=FAILED, answerStatus=FAILED, workflowStatus=FAILED, runStatus=FAILED, contractVersion=ui_response_v2}} answer=",
+        "sourceFrames":  [
+                             "\tat com.chatchat.agents.orchestration.AgentOrchestratorTest.runtimeRunStorePersistsRunLifecycleEvents(AgentOrchestratorTest.java:5032)"
+                         ]
+    },
+    {
+        "class":  "com.chatchat.agents.orchestration.AgentOrchestratorTest",
+        "test":  "searchAndExtractUsesUnifiedEvidenceTrustAndCitationPipeline",
+        "type":  "java.lang.IllegalArgumentException",
+        "messageStart":  "Chat model name must not be blank",
+        "messageEnd":  "Chat model name must not be blank",
+        "sourceFrames":  [
+                             "\tat com.chatchat.common.config.ModelsConfig.requireUsableChatModelConnection(ModelsConfig.java:210)",
+                             "\tat com.chatchat.common.config.ModelResourceRegistry.require(ModelResourceRegistry.java:48)",
+                             "\tat com.chatchat.agents.orchestration.model.AgentChatModelResolver.resolveChatModel(AgentChatModelResolver.java:72)"
+                         ]
+    },
+    {
+        "class":  "com.chatchat.agents.orchestration.AgentOrchestratorTest",
+        "test":  "adaptsMcpToolMetadataAndInheritsItIntoAssetCenterDatasetSummary",
+        "type":  "java.lang.AssertionError",
+        "messageStart":  "\nExpecting actual:\n  \"{analysisMode=MODEL_NATIVE_HARNESS}\"\nto contain:\n  [\"璧勪骇涓績鏌ヨ\", \"鎸佷粨鏄庣粏\", \"position_analysis\", \"瀹㈡埛璧勪骇\"]\nbut could not find:\n  [\"璧勪骇涓績鏌ヨ\", \"鎸佷粨鏄庣粏\", \"position_analysis\", \"瀹㈡埛璧勪骇\"]\n ",
+        "messageEnd":  "\nExpecting actual:\n  \"{analysisMode=MODEL_NATIVE_HARNESS}\"\nto contain:\n  [\"璧勪骇涓績鏌ヨ\", \"鎸佷粨鏄庣粏\", \"position_analysis\", \"瀹㈡埛璧勪骇\"]\nbut could not find:\n  [\"璧勪骇涓績鏌ヨ\", \"鎸佷粨鏄庣粏\", \"position_analysis\", \"瀹㈡埛璧勪骇\"]\n ",
+        "sourceFrames":  [
+                             "\tat com.chatchat.agents.orchestration.AgentOrchestratorTest.adaptsMcpToolMetadataAndInheritsItIntoAssetCenterDatasetSummary(AgentOrchestratorTest.java:1964)"
+                         ]
+    },
+    {
+        "class":  "com.chatchat.agents.orchestration.AgentOrchestratorTest",
+        "test":  "interpretationPlanFailureTriggersRewriteAndRunsRewrittenPlan",
+        "type":  "java.lang.IllegalArgumentException",
+        "messageStart":  "Chat model name must not be blank",
+        "messageEnd":  "Chat model name must not be blank",
+        "sourceFrames":  [
+                             "\tat com.chatchat.common.config.ModelsConfig.requireUsableChatModelConnection(ModelsConfig.java:210)",
+                             "\tat com.chatchat.common.config.ModelResourceRegistry.require(ModelResourceRegistry.java:48)",
+                             "\tat com.chatchat.agents.orchestration.model.AgentChatModelResolver.resolveChatModel(AgentChatModelResolver.java:72)"
+                         ]
+    },
+    {
+        "class":  "com.chatchat.agents.orchestration.AgentOrchestratorTest",
+        "test":  "requiredToolCannotBeSkippedByPlannerSufficientSignal",
+        "type":  "java.lang.IllegalArgumentException",
+        "messageStart":  "Chat model name must not be blank",
+        "messageEnd":  "Chat model name must not be blank",
+        "sourceFrames":  [
+                             "\tat com.chatchat.common.config.ModelsConfig.requireUsableChatModelConnection(ModelsConfig.java:210)",
+                             "\tat com.chatchat.common.config.ModelResourceRegistry.require(ModelResourceRegistry.java:48)",
+                             "\tat com.chatchat.agents.orchestration.model.AgentChatModelResolver.resolveChatModel(AgentChatModelResolver.java:72)"
+                         ]
+    },
+    {
+        "class":  "com.chatchat.agents.orchestration.AgentOrchestratorTest",
+        "test":  "templateReviewPreservesEveryCandidateIdentityWithoutSendingExecutorPayloads",
+        "type":  "java.lang.AssertionError",
+        "messageStart":  "\nExpecting actual:\n  \"System policy inheritance: the validated step carries the user intent, scope, constraints and approved tool. Review only this execution.\nYou are the runtime reviewer for one completed MCP tool call.\nReturn compact JSON without Markdown or duplicate narrative. Keep each reason/missing-item concise and cap reasons/relationship_hints at 3 entries. Never cap requested or matched question aspects; preserve every explicit user facet, required candidate evaluation and parameter protocol.\nReturn strict JSON only. Required common fields:\n{\"satisfied\":true,\"iteration_sufficient\":fa",
+        "messageEnd":  "sport-raw-transport-raw-transport-raw-transport-raw-transport-raw-transport-raw-transport-raw-transport-raw-transport-raw-transport-raw-transport-raw-transport-raw-tra\",\"evidenceProjectionLimited\":true,\"Runtime model-input projection applied\":true}\"\nto contain:\n  \"candidate_selection_projection.v1\" ",
+        "sourceFrames":  [
+                             "\tat com.chatchat.agents.orchestration.AgentOrchestratorTest.templateReviewPreservesEveryCandidateIdentityWithoutSendingExecutorPayloads(AgentOrchestratorTest.java:3755)"
+                         ]
+    },
+    {
+        "class":  "com.chatchat.agents.orchestration.AgentOrchestratorTest",
+        "test":  "pendingDocumentSearchCompletionAllowsNextWorkflowWebSearch",
+        "type":  "java.lang.IllegalArgumentException",
+        "messageStart":  "Chat model name must not be blank",
+        "messageEnd":  "Chat model name must not be blank",
+        "sourceFrames":  [
+                             "\tat com.chatchat.common.config.ModelsConfig.requireUsableChatModelConnection(ModelsConfig.java:210)",
+                             "\tat com.chatchat.common.config.ModelResourceRegistry.require(ModelResourceRegistry.java:48)",
+                             "\tat com.chatchat.agents.orchestration.model.AgentChatModelResolver.resolveChatModel(AgentChatModelResolver.java:72)"
+                         ]
+    },
+    {
+        "class":  "com.chatchat.agents.orchestration.AgentOrchestratorTest",
+        "test":  "graphPublicationDoesNotAdoptUnrelatedAlternative",
+        "type":  "java.lang.IllegalArgumentException",
+        "messageStart":  "Chat model name must not be blank",
+        "messageEnd":  "Chat model name must not be blank",
+        "sourceFrames":  [
+                             "\tat com.chatchat.common.config.ModelsConfig.requireUsableChatModelConnection(ModelsConfig.java:210)",
+                             "\tat com.chatchat.common.config.ModelResourceRegistry.require(ModelResourceRegistry.java:48)",
+                             "\tat com.chatchat.agents.orchestration.model.AgentChatModelResolver.resolveChatModel(AgentChatModelResolver.java:72)"
+                         ]
+    },
+    {
+        "class":  "com.chatchat.agents.orchestration.AgentOrchestratorTest",
+        "test":  "workflowConfigRequiredStepsDriveMandatoryToolsAndUseFullMcpToolNames",
+        "type":  "java.lang.IllegalArgumentException",
+        "messageStart":  "Chat model name must not be blank",
+        "messageEnd":  "Chat model name must not be blank",
+        "sourceFrames":  [
+                             "\tat com.chatchat.common.config.ModelsConfig.requireUsableChatModelConnection(ModelsConfig.java:210)",
+                             "\tat com.chatchat.common.config.ModelResourceRegistry.require(ModelResourceRegistry.java:48)",
+                             "\tat com.chatchat.agents.orchestration.model.AgentChatModelResolver.resolveChatModel(AgentChatModelResolver.java:72)"
+                         ]
+    },
+    {
+        "class":  "com.chatchat.agents.orchestration.AgentOrchestratorTest",
+        "test":  "recordCoverageUsesFullRuntimeCachedBatchChildInsteadOfExternalizedPreview",
+        "type":  "java.lang.ClassCastException",
+        "messageStart":  "class dev.langchain4j.model.chat.request.ChatRequest cannot be cast to class java.lang.String (dev.langchain4j.model.chat.request.ChatRequest is in unnamed module of loader \u0027app\u0027; java.lang.String is in module java.base of loader \u0027bootstrap\u0027)",
+        "messageEnd":  "class dev.langchain4j.model.chat.request.ChatRequest cannot be cast to class java.lang.String (dev.langchain4j.model.chat.request.ChatRequest is in unnamed module of loader \u0027app\u0027; java.lang.String is in module java.base of loader \u0027bootstrap\u0027)",
+        "sourceFrames":  [
+                             "\tat com.chatchat.agents.orchestration.AgentOrchestratorTest.recordCoverageUsesFullRuntimeCachedBatchChildInsteadOfExternalizedPreview(AgentOrchestratorTest.java:2215)"
+                         ]
+    },
+    {
+        "class":  "com.chatchat.agents.orchestration.AgentOrchestratorTest",
+        "test":  "appendsGovernedModelAnalysisWhenCandidateContainsOnlyHeadingsAndDataSource",
+        "type":  "java.lang.AssertionError",
+        "messageStart":  "\nExpecting actual:\n  \"## 璧勪骇涓庣泩浜忔瑙?#10;\n鏁版嵁鏉ユ簮锛歚livedata_asset_summary`\"\nto contain:\n  [\"璧勪骇涓庣泩浜忔瑙?quot;, \"847174.25\", \"42263.81\"]\nbut could not find:\n  [\"847174.25\", \"42263.81\"]\n ",
+        "messageEnd":  "\nExpecting actual:\n  \"## 璧勪骇涓庣泩浜忔瑙?#10;\n鏁版嵁鏉ユ簮锛歚livedata_asset_summary`\"\nto contain:\n  [\"璧勪骇涓庣泩浜忔瑙?quot;, \"847174.25\", \"42263.81\"]\nbut could not find:\n  [\"847174.25\", \"42263.81\"]\n ",
+        "sourceFrames":  [
+                             "\tat com.chatchat.agents.orchestration.AgentOrchestratorTest.appendsGovernedModelAnalysisWhenCandidateContainsOnlyHeadingsAndDataSource(AgentOrchestratorTest.java:1810)"
+                         ]
+    },
+    {
+        "class":  "com.chatchat.agents.orchestration.AgentOrchestratorTest",
+        "test":  "evidenceChainCanExtendPositiveRewriteEstimateWithinRuntimeCeiling",
+        "type":  "org.opentest4j.AssertionFailedError",
+        "messageStart":  "\nexpected: 2\n but was: 1",
+        "messageEnd":  "\nexpected: 2\n but was: 1",
+        "sourceFrames":  [
+                             "\tat com.chatchat.agents.orchestration.AgentOrchestratorTest.evidenceChainCanExtendPositiveRewriteEstimateWithinRuntimeCeiling(AgentOrchestratorTest.java:1039)"
+                         ]
+    },
+    {
+        "class":  "com.chatchat.agents.orchestration.AgentOrchestratorTest",
+        "test":  "narrativeFallbackUsesDriverSynthesisInsteadOfRepeatingChunkSummaries",
+        "type":  "java.lang.AssertionError",
+        "messageStart":  "\nExpecting actual:\n  \"Full content was transferred to the dynamic report.\"\nto contain:\n  \"Driver consolidated ETF capital-flow analysis\" ",
+        "messageEnd":  "\nExpecting actual:\n  \"Full content was transferred to the dynamic report.\"\nto contain:\n  \"Driver consolidated ETF capital-flow analysis\" ",
+        "sourceFrames":  [
+                             "\tat com.chatchat.agents.orchestration.AgentOrchestratorTest.narrativeFallbackUsesDriverSynthesisInsteadOfRepeatingChunkSummaries(AgentOrchestratorTest.java:2062)"
+                         ]
+    },
+    {
+        "class":  "com.chatchat.agents.orchestration.AgentOrchestratorTest",
+        "test":  "executeRuntimeRequestProjectsTimeoutAsCompletedBudgetExhaustion",
+        "type":  "org.opentest4j.AssertionFailedError",
+        "messageStart":  "\nexpected: COMPLETED\n but was: FAILED",
+        "messageEnd":  "\nexpected: COMPLETED\n but was: FAILED",
+        "sourceFrames":  [
+                             "\tat com.chatchat.agents.orchestration.AgentOrchestratorTest.executeRuntimeRequestProjectsTimeoutAsCompletedBudgetExhaustion(AgentOrchestratorTest.java:5199)"
+                         ]
+    },
+    {
+        "class":  "com.chatchat.agents.orchestration.AgentOrchestratorTest",
+        "test":  "unifiedAnalysisDoesNotInvokeLegacyChunkRetries",
+        "type":  "java.lang.RuntimeException",
+        "messageStart":  "Not implemented",
+        "messageEnd":  "Not implemented",
+        "sourceFrames":  [
+                             "\tat com.chatchat.agents.orchestration.analysis.graph.ModelNativeAnalysisHarness.executeInternal(ModelNativeAnalysisHarness.java:161)",
+                             "\tat com.chatchat.agents.orchestration.analysis.graph.ModelNativeAnalysisHarness.execute(ModelNativeAnalysisHarness.java:38)",
+                             "\tat com.chatchat.agents.orchestration.analysis.governance.AnalysisCoverageCoordinator.analyzeWithHarness(AnalysisCoverageCoordinator.java:400)"
+                         ]
+    },
+    {
+        "class":  "com.chatchat.agents.orchestration.AgentOrchestratorTest",
+        "test":  "iteratesUntilEveryOversizedReturnedRecordIsCovered",
+        "type":  "org.opentest4j.AssertionFailedError",
+        "messageStart":  "\nExpecting value to be false but was true",
+        "messageEnd":  "\nExpecting value to be false but was true",
+        "sourceFrames":  [
+                             "\tat com.chatchat.agents.orchestration.AgentOrchestratorTest.iteratesUntilEveryOversizedReturnedRecordIsCovered(AgentOrchestratorTest.java:1642)"
+                         ]
+    },
+    {
+        "class":  "com.chatchat.agents.orchestration.AgentOrchestratorTest",
+        "test":  "executeRuntimeRequestReturnsCancelledRunWhenCancellationIsRequested",
+        "type":  "org.opentest4j.AssertionFailedError",
+        "messageStart":  "\nexpected: CANCELLED\n but was: FAILED",
+        "messageEnd":  "\nexpected: CANCELLED\n but was: FAILED",
+        "sourceFrames":  [
+                             "\tat com.chatchat.agents.orchestration.AgentOrchestratorTest.executeRuntimeRequestReturnsCancelledRunWhenCancellationIsRequested(AgentOrchestratorTest.java:5070)"
+                         ]
+    },
+    {
+        "class":  "com.chatchat.agents.orchestration.AgentOrchestratorTest",
+        "test":  "rejectedRewriteDoesNotBecomeDuplicateBaselineForCorrectedRewrite",
+        "type":  "java.lang.IllegalArgumentException",
+        "messageStart":  "Chat model name must not be blank",
+        "messageEnd":  "Chat model name must not be blank",
+        "sourceFrames":  [
+                             "\tat com.chatchat.common.config.ModelsConfig.requireUsableChatModelConnection(ModelsConfig.java:210)",
+                             "\tat com.chatchat.common.config.ModelResourceRegistry.require(ModelResourceRegistry.java:48)",
+                             "\tat com.chatchat.agents.orchestration.model.AgentChatModelResolver.resolveChatModel(AgentChatModelResolver.java:72)"
+                         ]
+    },
+    {
+        "class":  "com.chatchat.agents.orchestration.AgentOrchestratorTest",
+        "test":  "executeRuntimeRequestHonorsMaxToolCallsBudget",
+        "type":  "org.opentest4j.AssertionFailedError",
+        "messageStart":  "\nexpected: \"tool_budget_exceeded\"\n but was: \"failed\"",
+        "messageEnd":  "\nexpected: \"tool_budget_exceeded\"\n but was: \"failed\"",
+        "sourceFrames":  [
+                             "\tat com.chatchat.agents.orchestration.AgentOrchestratorTest.executeRuntimeRequestHonorsMaxToolCallsBudget(AgentOrchestratorTest.java:5161)"
+                         ]
+    },
+    {
+        "class":  "com.chatchat.agents.orchestration.AgentOrchestratorTest",
+        "test":  "usesStructuredEvidenceCapsuleWithoutReplayingCompleteJmxDataset",
+        "type":  "java.lang.AssertionError",
+        "messageStart":  "\nExpecting actual:\n  \"Model-authored working state and scoped evidence workspace retained; publication follows explicit model intent.\"\nto contain:\n  [\"hierarchical_analysis_reduce.v1\", \"HeapUsedMb = 42\"]\nbut could not find:\n  [\"hierarchical_analysis_reduce.v1\", \"HeapUsedMb = 42\"]\n ",
+        "messageEnd":  "\nExpecting actual:\n  \"Model-authored working state and scoped evidence workspace retained; publication follows explicit model intent.\"\nto contain:\n  [\"hierarchical_analysis_reduce.v1\", \"HeapUsedMb = 42\"]\nbut could not find:\n  [\"hierarchical_analysis_reduce.v1\", \"HeapUsedMb = 42\"]\n ",
+        "sourceFrames":  [
+                             "\tat com.chatchat.agents.orchestration.AgentOrchestratorTest.usesStructuredEvidenceCapsuleWithoutReplayingCompleteJmxDataset(AgentOrchestratorTest.java:2390)"
+                         ]
+    },
+    {
+        "class":  "com.chatchat.agents.orchestration.AgentOrchestratorTest",
+        "test":  "mandatoryWorkflowBlocksSqlAndApiExecutionAfterEmptyTemplateDiscovery",
+        "type":  "java.lang.AssertionError",
+        "messageStart":  "\nExpecting map:\n  {\"satisfied\"=true}\nto contain entries:\n  [\"satisfied\"=false]\nbut the following map entries had different values:\n  [\"satisfied\"=true (expected: false)]",
+        "messageEnd":  "\nExpecting map:\n  {\"satisfied\"=true}\nto contain entries:\n  [\"satisfied\"=false]\nbut the following map entries had different values:\n  [\"satisfied\"=true (expected: false)]",
+        "sourceFrames":  [
+                             "\tat com.chatchat.agents.orchestration.AgentOrchestratorTest.mandatoryWorkflowBlocksSqlAndApiExecutionAfterEmptyTemplateDiscovery(AgentOrchestratorTest.java:2660)"
+                         ]
+    },
+    {
+        "class":  "com.chatchat.agents.orchestration.AgentOrchestratorTest",
+        "test":  "mandatoryFallbackBlocksAssetDiscoveryWhenModelSelectsIdOutsideReturnedSet",
+        "type":  "org.opentest4j.AssertionFailedError",
+        "messageStart":  "\nExpecting value to be true but was false",
+        "messageEnd":  "\nExpecting value to be true but was false",
+        "sourceFrames":  [
+                             "\tat com.chatchat.agents.orchestration.AgentOrchestratorTest.mandatoryFallbackBlocksAssetDiscoveryWhenModelSelectsIdOutsideReturnedSet(AgentOrchestratorTest.java:653)"
+                         ]
+    },
+    {
+        "class":  "com.chatchat.agents.orchestration.AgentOrchestratorTest",
+        "test":  "interpretationPlanPreservesSuccessfulDocumentSearchWhenModelNeedsMoreEvidence",
+        "type":  "java.lang.IllegalArgumentException",
+        "messageStart":  "Chat model name must not be blank",
+        "messageEnd":  "Chat model name must not be blank",
+        "sourceFrames":  [
+                             "\tat com.chatchat.common.config.ModelsConfig.requireUsableChatModelConnection(ModelsConfig.java:210)",
+                             "\tat com.chatchat.common.config.ModelResourceRegistry.require(ModelResourceRegistry.java:48)",
+                             "\tat com.chatchat.agents.orchestration.model.AgentChatModelResolver.resolveChatModel(AgentChatModelResolver.java:72)"
+                         ]
+    },
+    {
+        "class":  "com.chatchat.agents.orchestration.AgentOrchestratorTest",
+        "test":  "interpretationPlanRunsThroughDagRuntimePipeline",
+        "type":  "java.lang.IllegalArgumentException",
+        "messageStart":  "Chat model name must not be blank",
+        "messageEnd":  "Chat model name must not be blank",
+        "sourceFrames":  [
+                             "\tat com.chatchat.common.config.ModelsConfig.requireUsableChatModelConnection(ModelsConfig.java:210)",
+                             "\tat com.chatchat.common.config.ModelResourceRegistry.require(ModelResourceRegistry.java:48)",
+                             "\tat com.chatchat.agents.orchestration.model.AgentChatModelResolver.resolveChatModel(AgentChatModelResolver.java:72)"
+                         ]
+    },
+    {
+        "class":  "com.chatchat.agents.orchestration.AgentOrchestratorTest",
+        "test":  "enterpriseMetadataReviewerUsesFormattedEvidenceForEveryFieldInsteadOfRawPreview",
+        "type":  "java.lang.AssertionError",
+        "messageStart":  "\nExpecting actual:\n  \"System policy inheritance: the validated step carries the user intent, scope, constraints and approved tool. Review only this execution.\nYou are the runtime reviewer for one completed MCP tool call.\nReturn compact JSON without Markdown or duplicate narrative. Keep each reason/missing-item concise and cap reasons/relationship_hints at 3 entries. Never cap requested or matched question aspects; preserve every explicit user facet, required candidate evaluation and parameter protocol.\nReturn strict JSON only. Required common fields:\n{\"satisfied\":true,\"iteration_sufficient\":fa",
+        "messageEnd":  "icy\\\":\\\"ALL_RETRIEVED_CANDIDATES_IN_TOOL_RESULT\\\",\\\"reasoningSelectionPolicy\\\":\\\"HIGHEST_SCORE_ONE_PER_FIELD_AND_METADATA_TYPE\\\"}}\",\"evidenceProjectionLimited\":false,\"Runtime model-input projection applied\":true}\"\nto contain:\n  \"evidenceCoverage as a description of returned standard-reference data\" ",
+        "sourceFrames":  [
+                             "\tat com.chatchat.agents.orchestration.AgentOrchestratorTest.enterpriseMetadataReviewerUsesFormattedEvidenceForEveryFieldInsteadOfRawPreview(AgentOrchestratorTest.java:3565)"
+                         ]
+    },
+    {
+        "class":  "com.chatchat.agents.orchestration.AgentOrchestratorTest",
+        "test":  "spillsOversizedLoopEvidenceAndRestoresCheckpointsWithoutRepeatingModelWork",
+        "type":  "java.lang.AssertionError",
+        "messageStart":  "\nExpecting map:\n  {\"agentRoleAnalysisContext\"={}, \"agentRunId\"=\"spill-run\", \"analysisDatasetHandleCount\"=1, \"analysisDatasetProjectionAttempted\"=true, \"analysisDatasetProjectionCompleted\"=true, \"analysisEvidenceSnapshotFingerprint\"=\"24016e33cbd849089dbf16117059953684da31d71b73a187767edbf80970d75d\", \"analysisModelIntent\"={\"executionState\"=\"STOPPED\", \"executionStopReason\"=\"RESOURCE_BUDGET_EXHAUSTED\", \"modelAnalysisProtocol\"=\"model_native_analysis.v2\", \"publicationState\"=\"NOT_REQUESTED\"}, \"analysisObservedReturnedRecordCount\"=12L, \"analysisSemanticReviewPolicy\"=\"NONE_USER_JUDGES\", \"analysisSpillD",
+        "messageEnd":  "ing\",\n    \"title\",\n    \"conclusion\",\n    \"reason\"], \"type\"=\"object\"}, \"schemaVersion\"=\"visualization_capabilities.v1\"}, \"visualizationCapabilitiesDraftInjected\"=true}\nto contain entries:\n  [\"unifiedAnalysisModelCalls\"=1]\nbut could not find the following map entries:\n  [\"unifiedAnalysisModelCalls\"=1]",
+        "sourceFrames":  [
+                             "\tat com.chatchat.agents.orchestration.AgentOrchestratorTest.spillsOversizedLoopEvidenceAndRestoresCheckpointsWithoutRepeatingModelWork(AgentOrchestratorTest.java:1693)"
+                         ]
+    },
+    {
+        "class":  "com.chatchat.agents.orchestration.AgentOrchestratorTest",
+        "test":  "sqlScriptCoveragePreservesNullColumnValues",
+        "type":  "java.lang.ClassCastException",
+        "messageStart":  "class dev.langchain4j.model.chat.request.ChatRequest cannot be cast to class java.lang.String (dev.langchain4j.model.chat.request.ChatRequest is in unnamed module of loader \u0027app\u0027; java.lang.String is in module java.base of loader \u0027bootstrap\u0027)",
+        "messageEnd":  "class dev.langchain4j.model.chat.request.ChatRequest cannot be cast to class java.lang.String (dev.langchain4j.model.chat.request.ChatRequest is in unnamed module of loader \u0027app\u0027; java.lang.String is in module java.base of loader \u0027bootstrap\u0027)",
+        "sourceFrames":  [
+                             "\tat com.chatchat.agents.orchestration.AgentOrchestratorTest.sqlScriptCoveragePreservesNullColumnValues(AgentOrchestratorTest.java:2343)"
+                         ]
+    },
+    {
+        "class":  "com.chatchat.agents.orchestration.AgentOrchestratorTest",
+        "test":  "mandatoryFallbackBlocksTemplateDiscoveryWhenReviewerIsUnavailable",
+        "type":  "org.opentest4j.AssertionFailedError",
+        "messageStart":  "\nExpecting value to be true but was false",
+        "messageEnd":  "\nExpecting value to be true but was false",
+        "sourceFrames":  [
+                             "\tat com.chatchat.agents.orchestration.AgentOrchestratorTest.mandatoryFallbackBlocksTemplateDiscoveryWhenReviewerIsUnavailable(AgentOrchestratorTest.java:720)"
+                         ]
+    },
+    {
+        "class":  "com.chatchat.agents.orchestration.AgentOrchestratorTest",
+        "test":  "mandatoryFallbackSemanticReviewRemainsStableUnderMixedCandidateLoad",
+        "type":  "java.lang.NullPointerException",
+        "messageStart":  "Cannot invoke \"java.util.Map.get(Object)\" because \"projected\" is null",
+        "messageEnd":  "Cannot invoke \"java.util.Map.get(Object)\" because \"projected\" is null",
+        "sourceFrames":  [
+                             "\tat com.chatchat.agents.orchestration.AgentOrchestratorTest.mandatoryFallbackSemanticReviewRemainsStableUnderMixedCandidateLoad(AgentOrchestratorTest.java:758)"
+                         ]
+    },
+    {
+        "class":  "com.chatchat.agents.orchestration.AgentOrchestratorTest",
+        "test":  "plannerAttributionCoveragePrefersEvidenceBackedCandidateOverShortFinalPlan",
+        "type":  "java.lang.IllegalArgumentException",
+        "messageStart":  "Chat model name must not be blank",
+        "messageEnd":  "Chat model name must not be blank",
+        "sourceFrames":  [
+                             "\tat com.chatchat.common.config.ModelsConfig.requireUsableChatModelConnection(ModelsConfig.java:210)",
+                             "\tat com.chatchat.common.config.ModelResourceRegistry.require(ModelResourceRegistry.java:48)",
+                             "\tat com.chatchat.agents.orchestration.model.AgentChatModelResolver.resolveChatModel(AgentChatModelResolver.java:72)"
+                         ]
+    },
+    {
+        "class":  "com.chatchat.agents.orchestration.AgentOrchestratorTest",
+        "test":  "executeRuntimeRequestReturnsTypedRunResult",
+        "type":  "java.lang.AssertionError",
+        "messageStart":  "\nExpecting actual:\n  \"\"\nto contain:\n  \"Internal Definition Handbook\" ",
+        "messageEnd":  "\nExpecting actual:\n  \"\"\nto contain:\n  \"Internal Definition Handbook\" ",
+        "sourceFrames":  [
+                             "\tat com.chatchat.agents.orchestration.AgentOrchestratorTest.executeRuntimeRequestReturnsTypedRunResult(AgentOrchestratorTest.java:4911)"
+                         ]
+    },
+    {
+        "class":  "com.chatchat.agents.orchestration.AgentOrchestratorTest",
+        "test":  "executeRuntimeRequestPreservesToolEvidenceWhenFinalSynthesisExceedsDeadline",
+        "type":  "java.lang.AssertionError",
+        "messageStart":  "metadata={requestId=req-timeout-with-evidence-1, errorMessage=Chat model name must not be blank, runtimeExecutionFailed=true, confirmationRequired=false, stopReason=failed, runStatus=FAILED, answerStatus=FAILED, workflowStatus=FAILED, publicStatus=FAILED, contractVersion=ui_response_v2, outcomeProjection={publicStatus=FAILED, answerStatus=FAILED, workflowStatus=FAILED, runStatus=FAILED, contractVersion=ui_response_v2}} answer=",
+        "messageEnd":  "irmationRequired=false, stopReason=failed, runStatus=FAILED, answerStatus=FAILED, workflowStatus=FAILED, publicStatus=FAILED, contractVersion=ui_response_v2, outcomeProjection={publicStatus=FAILED, answerStatus=FAILED, workflowStatus=FAILED, runStatus=FAILED, contractVersion=ui_response_v2}} answer=",
+        "sourceFrames":  [
+                             "\tat com.chatchat.agents.orchestration.AgentOrchestratorTest.executeRuntimeRequestPreservesToolEvidenceWhenFinalSynthesisExceedsDeadline(AgentOrchestratorTest.java:5298)"
+                         ]
+    },
+    {
+        "class":  "com.chatchat.agents.orchestration.AgentOrchestratorTest",
+        "test":  "mandatoryRecoveryBatchEntersWorkerAnalysisAndPublishesProgress",
+        "type":  "java.lang.RuntimeException",
+        "messageStart":  "Not implemented",
+        "messageEnd":  "Not implemented",
+        "sourceFrames":  [
+                             "\tat com.chatchat.agents.orchestration.analysis.graph.ModelNativeAnalysisHarness.executeInternal(ModelNativeAnalysisHarness.java:161)",
+                             "\tat com.chatchat.agents.orchestration.analysis.graph.ModelNativeAnalysisHarness.execute(ModelNativeAnalysisHarness.java:38)",
+                             "\tat com.chatchat.agents.orchestration.analysis.governance.AnalysisCoverageCoordinator.analyzeWithHarness(AnalysisCoverageCoordinator.java:400)"
+                         ]
+    },
+    {
+        "class":  "com.chatchat.agents.orchestration.AgentOrchestratorTest",
+        "test":  "mandatoryFallbackPreservesAllAssetsSelectedByModelReviewer",
+        "type":  "java.lang.AssertionError",
+        "messageStart":  "\nExpecting map:\n  {}\nto contain entries:\n  [\"selectedCount\"=2]\nbut could not find the following map entries:\n  [\"selectedCount\"=2]",
+        "messageEnd":  "\nExpecting map:\n  {}\nto contain entries:\n  [\"selectedCount\"=2]\nbut could not find the following map entries:\n  [\"selectedCount\"=2]",
+        "sourceFrames":  [
+                             "\tat com.chatchat.agents.orchestration.AgentOrchestratorTest.mandatoryFallbackPreservesAllAssetsSelectedByModelReviewer(AgentOrchestratorTest.java:693)"
+                         ]
+    },
+    {
+        "class":  "com.chatchat.agents.orchestration.AgentOrchestratorTest",
+        "test":  "appendsEveryGovernedTemplateAnalysisWhenDraftOnlyCoversOneDataset",
+        "type":  "java.lang.AssertionError",
+        "messageStart":  "\nExpecting actual:\n  \"鎬昏祫浜т负 847174.25锛岃处鎴疯瘉鍒镐粨浣嶈緝楂橈紝浣嗘病鏈変氦鏄撴槑缁嗐€?quot;\nnot to contain:\n  \"浣嗘病鏈変氦鏄撴槑缁?quot;\n",
+        "messageEnd":  "\nExpecting actual:\n  \"鎬昏祫浜т负 847174.25锛岃处鎴疯瘉鍒镐粨浣嶈緝楂橈紝浣嗘病鏈変氦鏄撴槑缁嗐€?quot;\nnot to contain:\n  \"浣嗘病鏈変氦鏄撴槑缁?quot;\n",
+        "sourceFrames":  [
+                             "\tat com.chatchat.agents.orchestration.AgentOrchestratorTest.appendsEveryGovernedTemplateAnalysisWhenDraftOnlyCoversOneDataset(AgentOrchestratorTest.java:1851)"
+                         ]
+    },
+    {
+        "class":  "com.chatchat.agents.orchestration.AgentOrchestratorTest",
+        "test":  "retainsTrustedGlobalDriverSynthesisInsteadOfConcatenatingWorkerSummaries",
+        "type":  "java.lang.AssertionError",
+        "messageStart":  "\nExpecting map:\n  {\"modelAnalysisReviewContractVersion\"=\"model_analysis_repair_v1\"}\nto contain entries:\n  [\"governedGlobalSynthesisRetained\"=true]\nbut could not find the following map entries:\n  [\"governedGlobalSynthesisRetained\"=true]",
+        "messageEnd":  "\nExpecting map:\n  {\"modelAnalysisReviewContractVersion\"=\"model_analysis_repair_v1\"}\nto contain entries:\n  [\"governedGlobalSynthesisRetained\"=true]\nbut could not find the following map entries:\n  [\"governedGlobalSynthesisRetained\"=true]",
+        "sourceFrames":  [
+                             "\tat com.chatchat.agents.orchestration.AgentOrchestratorTest.retainsTrustedGlobalDriverSynthesisInsteadOfConcatenatingWorkerSummaries(AgentOrchestratorTest.java:1887)"
+                         ]
+    },
+    {
+        "class":  "com.chatchat.agents.orchestration.AgentOrchestratorTest",
+        "test":  "governedWorkerAnalysisReplacesDraftWithoutInspectingDomainTermsOrSchema",
+        "type":  "java.lang.AssertionError",
+        "messageStart":  "\nExpecting actual:\n  \"A domain-specific draft that must not bypass governed analysis.\"\nto contain:\n  \"Worker analysed an otherwise unknown payload shape\" ",
+        "messageEnd":  "\nExpecting actual:\n  \"A domain-specific draft that must not bypass governed analysis.\"\nto contain:\n  \"Worker analysed an otherwise unknown payload shape\" ",
+        "sourceFrames":  [
+                             "\tat com.chatchat.agents.orchestration.AgentOrchestratorTest.governedWorkerAnalysisReplacesDraftWithoutInspectingDomainTermsOrSchema(AgentOrchestratorTest.java:1910)"
+                         ]
+    },
+    {
+        "class":  "com.chatchat.agents.orchestration.AgentOrchestratorTest",
+        "test":  "legacyActionsAndPlainAnswersCannotExecuteOrPublishThroughCompatibilityRoutes",
+        "type":  "org.opentest4j.AssertionFailedError",
+        "messageStart":  "\nexpected: \"invalid_interpretation_plan\"\n but was: \"failed\"",
+        "messageEnd":  "\nexpected: \"invalid_interpretation_plan\"\n but was: \"failed\"",
+        "sourceFrames":  [
+                             "\tat com.chatchat.agents.orchestration.AgentOrchestratorTest.legacyActionsAndPlainAnswersCannotExecuteOrPublishThroughCompatibilityRoutes(AgentOrchestratorTest.java:236)"
+                         ]
+    },
+    {
+        "class":  "com.chatchat.agents.orchestration.AgentOrchestratorTest",
+        "test":  "executeRuntimeRequestHonorsMaxStepsBudget",
+        "type":  "org.opentest4j.AssertionFailedError",
+        "messageStart":  "\nexpected: \"step_budget_exceeded\"\n but was: \"failed\"",
+        "messageEnd":  "\nexpected: \"step_budget_exceeded\"\n but was: \"failed\"",
+        "sourceFrames":  [
+                             "\tat com.chatchat.agents.orchestration.AgentOrchestratorTest.executeRuntimeRequestHonorsMaxStepsBudget(AgentOrchestratorTest.java:5117)"
+                         ]
+    },
+    {
+        "class":  "com.chatchat.agents.orchestration.AgentOrchestratorTest",
+        "test":  "executeRuntimeRequestDoesNotAcceptReportProducedAfterDeadline",
+        "type":  "org.opentest4j.AssertionFailedError",
+        "messageStart":  "\nexpected: COMPLETED\n but was: FAILED",
+        "messageEnd":  "\nexpected: COMPLETED\n but was: FAILED",
+        "sourceFrames":  [
+                             "\tat com.chatchat.agents.orchestration.AgentOrchestratorTest.executeRuntimeRequestDoesNotAcceptReportProducedAfterDeadline(AgentOrchestratorTest.java:5255)"
+                         ]
+    },
+    {
+        "class":  "com.chatchat.agents.orchestration.AgentOrchestratorTest",
+        "test":  "mandatoryWorkflowLocallyReviewsCompleteEnterpriseMetadataResult",
+        "type":  "java.lang.AssertionError",
+        "messageStart":  "\nExpecting map:\n  {\"reason\"=\"Mandatory workflow tool completed successfully and returned a terminal observation.\", \"reviewType\"=\"LOCAL_CONTRACT_REVIEW\", \"satisfied\"=true, \"schemaVersion\"=\"mandatory_workflow_result_review.v1\", \"toolName\"=\"mcp_chatchat_mcp_server_database_query_template_query\"}\nto contain entries:\n  [\"satisfied\"=false]\nbut the following map entries had different values:\n  [\"satisfied\"=true (expected: false)]",
+        "messageEnd":  "\"=\"LOCAL_CONTRACT_REVIEW\", \"satisfied\"=true, \"schemaVersion\"=\"mandatory_workflow_result_review.v1\", \"toolName\"=\"mcp_chatchat_mcp_server_database_query_template_query\"}\nto contain entries:\n  [\"satisfied\"=false]\nbut the following map entries had different values:\n  [\"satisfied\"=true (expected: false)]",
+        "sourceFrames":  [
+                             "\tat com.chatchat.agents.orchestration.AgentOrchestratorTest.mandatoryWorkflowLocallyReviewsCompleteEnterpriseMetadataResult(AgentOrchestratorTest.java:2601)"
+                         ]
+    },
+    {
+        "class":  "com.chatchat.agents.orchestration.AgentOrchestratorTest",
+        "test":  "assignsStableDistinctEvidenceIdsToRepeatedDatasetReferences",
+        "type":  "java.lang.AssertionError",
+        "messageStart":  "\nExpecting any elements of:\n  [\"default:unknown-request:harness:question#chunk-1\"]\nto match given predicate but none did.",
+        "messageEnd":  "\nExpecting any elements of:\n  [\"default:unknown-request:harness:question#chunk-1\"]\nto match given predicate but none did.",
+        "sourceFrames":  [
+                             "\tat com.chatchat.agents.orchestration.AgentOrchestratorTest.assignsStableDistinctEvidenceIdsToRepeatedDatasetReferences(AgentOrchestratorTest.java:1766)"
+                         ]
+    },
+    {
+        "class":  "com.chatchat.agents.orchestration.AgentOrchestratorTest",
+        "test":  "invalidPlannerDagHandsAuthoritativeWorkflowToJavaWithoutOuterReplanLoop",
+        "type":  "java.lang.IllegalArgumentException",
+        "messageStart":  "Chat model name must not be blank",
+        "messageEnd":  "Chat model name must not be blank",
+        "sourceFrames":  [
+                             "\tat com.chatchat.common.config.ModelsConfig.requireUsableChatModelConnection(ModelsConfig.java:210)",
+                             "\tat com.chatchat.common.config.ModelResourceRegistry.require(ModelResourceRegistry.java:48)",
+                             "\tat com.chatchat.agents.orchestration.model.AgentChatModelResolver.resolveChatModel(AgentChatModelResolver.java:72)"
+                         ]
+    },
+    {
+        "class":  "com.chatchat.agents.orchestration.AgentOrchestratorTest",
+        "test":  "mandatoryWorkflowFailureBlocksFinalSummarySynthesis",
+        "type":  "java.lang.IllegalArgumentException",
+        "messageStart":  "Chat model name must not be blank",
+        "messageEnd":  "Chat model name must not be blank",
+        "sourceFrames":  [
+                             "\tat com.chatchat.common.config.ModelsConfig.requireUsableChatModelConnection(ModelsConfig.java:210)",
+                             "\tat com.chatchat.common.config.ModelResourceRegistry.require(ModelResourceRegistry.java:48)",
+                             "\tat com.chatchat.agents.orchestration.model.AgentChatModelResolver.resolveChatModel(AgentChatModelResolver.java:72)"
+                         ]
+    },
+    {
+        "class":  "com.chatchat.agents.orchestration.AgentOrchestratorTest",
+        "test":  "fiveCallBatchUsesOneFinalSynthesisAndNoPerResultModelReview",
+        "type":  "java.lang.IllegalArgumentException",
+        "messageStart":  "Chat model name must not be blank",
+        "messageEnd":  "Chat model name must not be blank",
+        "sourceFrames":  [
+                             "\tat com.chatchat.common.config.ModelsConfig.requireUsableChatModelConnection(ModelsConfig.java:210)",
+                             "\tat com.chatchat.common.config.ModelResourceRegistry.require(ModelResourceRegistry.java:48)",
+                             "\tat com.chatchat.agents.orchestration.model.AgentChatModelResolver.resolveChatModel(AgentChatModelResolver.java:72)"
+                         ]
+    },
+    {
+        "class":  "com.chatchat.agents.orchestration.AgentOrchestratorTest",
+        "test":  "v2ModelIntentSurvivesTheFullInterpretationDagAndAnswerFinalizer",
+        "type":  "java.lang.RuntimeException",
+        "messageStart":  "Not implemented",
+        "messageEnd":  "Not implemented",
+        "sourceFrames":  [
+                             "\tat com.chatchat.agents.orchestration.model.CapacityGovernedChatModel.lambda$doChat$1(CapacityGovernedChatModel.java:58)",
+                             "\tat com.chatchat.agents.orchestration.model.ModelInvocationCapacityManager.invoke(ModelInvocationCapacityManager.java:50)",
+                             "\tat com.chatchat.agents.orchestration.model.CapacityGovernedChatModel.doChat(CapacityGovernedChatModel.java:58)"
+                         ]
+    },
+    {
+        "class":  "com.chatchat.agents.orchestration.AgentOrchestratorTest",
+        "test":  "extractsBatchCommandStreamByProtocolDiscriminatorWhenSchemaAliasEvolves",
+        "type":  "java.lang.AssertionError",
+        "messageStart":  "\nExpecting actual:\n  \"Model-authored working state and scoped evidence workspace retained; publication follows explicit model intent.\"\nto contain:\n  \"CHECK_DOCKER_CONTAINERS#stdout\" ",
+        "messageEnd":  "\nExpecting actual:\n  \"Model-authored working state and scoped evidence workspace retained; publication follows explicit model intent.\"\nto contain:\n  \"CHECK_DOCKER_CONTAINERS#stdout\" ",
+        "sourceFrames":  [
+                             "\tat com.chatchat.agents.orchestration.AgentOrchestratorTest.extractsBatchCommandStreamByProtocolDiscriminatorWhenSchemaAliasEvolves(AgentOrchestratorTest.java:2104)"
+                         ]
+    },
+    {
+        "class":  "com.chatchat.agents.orchestration.AgentOrchestratorTest",
+        "test":  "plannerAttributionSelectsBestPlanAfterThreeInvalidRepairs",
+        "type":  "java.lang.IllegalArgumentException",
+        "messageStart":  "Chat model name must not be blank",
+        "messageEnd":  "Chat model name must not be blank",
+        "sourceFrames":  [
+                             "\tat com.chatchat.common.config.ModelsConfig.requireUsableChatModelConnection(ModelsConfig.java:210)",
+                             "\tat com.chatchat.common.config.ModelResourceRegistry.require(ModelResourceRegistry.java:48)",
+                             "\tat com.chatchat.agents.orchestration.model.AgentChatModelResolver.resolveChatModel(AgentChatModelResolver.java:72)"
+                         ]
+    },
+    {
+        "class":  "com.chatchat.agents.orchestration.AgentOrchestratorTest",
+        "test":  "sqlCoveragePreservesNullColumnValues",
+        "type":  "java.lang.ClassCastException",
+        "messageStart":  "class dev.langchain4j.model.chat.request.ChatRequest cannot be cast to class java.lang.String (dev.langchain4j.model.chat.request.ChatRequest is in unnamed module of loader \u0027app\u0027; java.lang.String is in module java.base of loader \u0027bootstrap\u0027)",
+        "messageEnd":  "class dev.langchain4j.model.chat.request.ChatRequest cannot be cast to class java.lang.String (dev.langchain4j.model.chat.request.ChatRequest is in unnamed module of loader \u0027app\u0027; java.lang.String is in module java.base of loader \u0027bootstrap\u0027)",
+        "sourceFrames":  [
+                             "\tat com.chatchat.agents.orchestration.AgentOrchestratorTest.sqlCoveragePreservesNullColumnValues(AgentOrchestratorTest.java:2310)"
+                         ]
+    },
+    {
+        "class":  "com.chatchat.agents.orchestration.AgentOrchestratorTest",
+        "test":  "analyzesNonEmptyExternalizedPreviewWhenFullEvidenceCannotBeResolved",
+        "type":  "java.lang.AssertionError",
+        "messageStart":  "\nExpecting actual:\n  \"Model-authored working state and scoped evidence workspace retained; publication follows explicit model intent.\"\nto contain:\n  [\"externalized-preview\", \"324493\", \"inceptor-executor\"]\nbut could not find:\n  [\"externalized-preview\", \"324493\", \"inceptor-executor\"]\n ",
+        "messageEnd":  "\nExpecting actual:\n  \"Model-authored working state and scoped evidence workspace retained; publication follows explicit model intent.\"\nto contain:\n  [\"externalized-preview\", \"324493\", \"inceptor-executor\"]\nbut could not find:\n  [\"externalized-preview\", \"324493\", \"inceptor-executor\"]\n ",
+        "sourceFrames":  [
+                             "\tat com.chatchat.agents.orchestration.AgentOrchestratorTest.analyzesNonEmptyExternalizedPreviewWhenFullEvidenceCannotBeResolved(AgentOrchestratorTest.java:2152)"
+                         ]
+    },
+    {
+        "class":  "com.chatchat.agents.orchestration.AgentOrchestratorTest",
+        "test":  "includesWebCitationMapInPromptAfterWebSearch",
+        "type":  "java.lang.IllegalArgumentException",
+        "messageStart":  "Chat model name must not be blank",
+        "messageEnd":  "Chat model name must not be blank",
+        "sourceFrames":  [
+                             "\tat com.chatchat.common.config.ModelsConfig.requireUsableChatModelConnection(ModelsConfig.java:210)",
+                             "\tat com.chatchat.common.config.ModelResourceRegistry.require(ModelResourceRegistry.java:48)",
+                             "\tat com.chatchat.agents.orchestration.model.AgentChatModelResolver.resolveChatModel(AgentChatModelResolver.java:72)"
+                         ]
+    },
+    {
+        "class":  "com.chatchat.agents.orchestration.AgentOrchestratorTest",
+        "test":  "executeRuntimeRequestReturnsFailedRunWhenPlannerThrows",
+        "type":  "org.opentest4j.AssertionFailedError",
+        "messageStart":  "\nexpected: \"planner boom\"\n but was: \"Chat model name must not be blank\"",
+        "messageEnd":  "\nexpected: \"planner boom\"\n but was: \"Chat model name must not be blank\"",
+        "sourceFrames":  [
+                             "\tat com.chatchat.agents.orchestration.AgentOrchestratorTest.executeRuntimeRequestReturnsFailedRunWhenPlannerThrows(AgentOrchestratorTest.java:5342)"
+                         ]
+    },
+    {
+        "class":  "com.chatchat.agents.orchestration.AgentOrchestratorTest",
+        "test":  "keepsFinalAnswerWhenReviewerAcceptsIt",
+        "type":  "java.lang.IllegalArgumentException",
+        "messageStart":  "Chat model name must not be blank",
+        "messageEnd":  "Chat model name must not be blank",
+        "sourceFrames":  [
+                             "\tat com.chatchat.common.config.ModelsConfig.requireUsableChatModelConnection(ModelsConfig.java:210)",
+                             "\tat com.chatchat.common.config.ModelResourceRegistry.require(ModelResourceRegistry.java:48)",
+                             "\tat com.chatchat.agents.orchestration.model.AgentChatModelResolver.resolveChatModel(AgentChatModelResolver.java:72)"
+                         ]
+    },
+    {
+        "class":  "com.chatchat.agents.orchestration.AgentOrchestratorTest",
+        "test":  "deduplicatesMirroredStructuredRecordsBeforeAnalysis",
+        "type":  "java.lang.RuntimeException",
+        "messageStart":  "Not implemented",
+        "messageEnd":  "Not implemented",
+        "sourceFrames":  [
+                             "\tat com.chatchat.agents.orchestration.analysis.graph.ModelNativeAnalysisHarness.executeInternal(ModelNativeAnalysisHarness.java:161)",
+                             "\tat com.chatchat.agents.orchestration.analysis.graph.ModelNativeAnalysisHarness.execute(ModelNativeAnalysisHarness.java:38)",
+                             "\tat com.chatchat.agents.orchestration.analysis.governance.AnalysisCoverageCoordinator.analyzeWithHarness(AnalysisCoverageCoordinator.java:400)"
+                         ]
+    },
+    {
+        "class":  "com.chatchat.agents.orchestration.AgentOrchestratorTest",
+        "test":  "interpretationPlanHonorsZeroRewriteBudgetAndFallsBack",
+        "type":  "java.lang.IllegalArgumentException",
+        "messageStart":  "Chat model name must not be blank",
+        "messageEnd":  "Chat model name must not be blank",
+        "sourceFrames":  [
+                             "\tat com.chatchat.common.config.ModelsConfig.requireUsableChatModelConnection(ModelsConfig.java:210)",
+                             "\tat com.chatchat.common.config.ModelResourceRegistry.require(ModelResourceRegistry.java:48)",
+                             "\tat com.chatchat.agents.orchestration.model.AgentChatModelResolver.resolveChatModel(AgentChatModelResolver.java:72)"
+                         ]
+    },
+    {
+        "class":  "com.chatchat.agents.orchestration.AgentOrchestratorTest",
+        "test":  "interpretationPlanCanUseRequestScopedAvailableToolWhenRegistryDoesNotAdvertiseIt",
+        "type":  "java.lang.IllegalArgumentException",
+        "messageStart":  "Chat model name must not be blank",
+        "messageEnd":  "Chat model name must not be blank",
+        "sourceFrames":  [
+                             "\tat com.chatchat.common.config.ModelsConfig.requireUsableChatModelConnection(ModelsConfig.java:210)",
+                             "\tat com.chatchat.common.config.ModelResourceRegistry.require(ModelResourceRegistry.java:48)",
+                             "\tat com.chatchat.agents.orchestration.model.AgentChatModelResolver.resolveChatModel(AgentChatModelResolver.java:72)"
+                         ]
+    },
+    {
+        "class":  "com.chatchat.agents.orchestration.AgentOrchestratorTest",
+        "test":  "genericToolResultTailReachesReviewerAndFinalSynthesisWithoutRuntimeTruncation",
+        "type":  "java.lang.AssertionError",
+        "messageStart":  "\nExpecting actual:\n  \"System policy inheritance: the validated step carries the user intent, scope, constraints and approved tool. Review only this execution.\nYou are the runtime reviewer for one completed MCP tool call.\nReturn compact JSON without Markdown or duplicate narrative. Keep each reason/missing-item concise and cap reasons/relationship_hints at 3 entries. Never cap requested or matched question aspects; preserve every explicit user facet, required candidate evaluation and parameter protocol.\nReturn strict JSON only. Required common fields:\n{\"satisfied\":true,\"iteration_sufficient\":fa",
+        "messageEnd":  "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\",\n    \"critical-tail-evidence\"]\n ",
+        "sourceFrames":  [
+                             "\tat com.chatchat.agents.orchestration.AgentOrchestratorTest.genericToolResultTailReachesReviewerAndFinalSynthesisWithoutRuntimeTruncation(AgentOrchestratorTest.java:3629)"
+                         ]
+    },
+    {
+        "class":  "com.chatchat.agents.orchestration.AgentOrchestratorTest",
+        "test":  "nestedHttpJsonParticipatesInGovernedRecordAnalysis",
+        "type":  "org.opentest4j.AssertionFailedError",
+        "messageStart":  "\nexpected: 3\n but was: 83",
+        "messageEnd":  "\nexpected: 3\n but was: 83",
+        "sourceFrames":  [
+                             "\tat com.chatchat.agents.orchestration.AgentOrchestratorTest.nestedHttpJsonParticipatesInGovernedRecordAnalysis(AgentOrchestratorTest.java:3003)"
+                         ]
+    },
+    {
+        "class":  "com.chatchat.agents.orchestration.AgentOrchestratorTest",
+        "test":  "finalOnlyPlanUsesGraphPublicationInsteadOfLegacyAnswerSelection",
+        "type":  "java.lang.IllegalArgumentException",
+        "messageStart":  "Chat model name must not be blank",
+        "messageEnd":  "Chat model name must not be blank",
+        "sourceFrames":  [
+                             "\tat com.chatchat.common.config.ModelsConfig.requireUsableChatModelConnection(ModelsConfig.java:210)",
+                             "\tat com.chatchat.common.config.ModelResourceRegistry.require(ModelResourceRegistry.java:48)",
+                             "\tat com.chatchat.agents.orchestration.model.AgentChatModelResolver.resolveChatModel(AgentChatModelResolver.java:72)"
+                         ]
+    },
+    {
+        "class":  "com.chatchat.agents.orchestration.AgentPlannerTest",
+        "test":  "mcpControlPlanePromptDoesNotTeachInventedDockerServiceLabels",
+        "type":  "java.lang.AssertionError",
+        "messageStart":  "\nExpecting actual:\n  \"Asset discovery tool contract:\n- Use mcp_chatchat_mcp_server_asset_query only for read-only discovery of redacted asset metadata.\n- Before calling mcp_chatchat_mcp_server_asset_query, produce a routing candidate set and finalDecision. candidates[] must contain targetKind/confidence pairs, finalDecision must be one candidate, and every targetKind must come from the tool-published schema/metadata. For document content, use the configured document search tool instead of asset discovery.\n- mcp_chatchat_mcp_server_asset_query input should contain filters or executionContext wh",
+        "messageEnd":  "ritative. Put required values only in parameterContract.argumentContainer.\n- Do not invent template ids if mcp_chatchat_mcp_server_template_query returns no suitable template; ask the user/admin to register or allow one.\n\n\"\nto contain:\n  \"Model intent recognition is required before asset discovery\" ",
+        "sourceFrames":  [
+                             "\tat com.chatchat.agents.orchestration.AgentPlannerTest.mcpControlPlanePromptDoesNotTeachInventedDockerServiceLabels(AgentPlannerTest.java:766)"
+                         ]
+    },
+    {
+        "class":  "com.chatchat.agents.orchestration.AgentPlannerTest",
+        "test":  "acceptsDomainPrefixedAssetQueryAsTypedAssetDiscovery",
+        "type":  "java.lang.AssertionError",
+        "messageStart":  "\nExpecting no elements of:\n  [\"Asset routing context must come from typed asset discovery, user-provided executionContext, or observations; plan context must not assume assetName/env/datasource registration.\"]\nto satisfy the given assertions requirements but these elements did:\n  [\"Asset routing context must come from typed asset discovery, user-provided executionContext, or observations; plan context must not assume assetName/env/datasource registration.\"]",
+        "messageEnd":  " assume assetName/env/datasource registration.\"]\nto satisfy the given assertions requirements but these elements did:\n  [\"Asset routing context must come from typed asset discovery, user-provided executionContext, or observations; plan context must not assume assetName/env/datasource registration.\"]",
+        "sourceFrames":  [
+                             "\tat com.chatchat.agents.orchestration.AgentPlannerTest.acceptsDomainPrefixedAssetQueryAsTypedAssetDiscovery(AgentPlannerTest.java:1369)"
+                         ]
+    },
+    {
+        "class":  "com.chatchat.agents.orchestration.AgentPlannerTest",
+        "test":  "acceptsDatabaseAssetSearchAsTypedAssetDiscovery",
+        "type":  "org.opentest4j.AssertionFailedError",
+        "messageStart":  "\nexpected: \"tool\"\n but was: \"final\"",
+        "messageEnd":  "\nexpected: \"tool\"\n but was: \"final\"",
+        "sourceFrames":  [
+                             "\tat com.chatchat.agents.orchestration.AgentPlannerTest.acceptsDatabaseAssetSearchAsTypedAssetDiscovery(AgentPlannerTest.java:1459)"
+                         ]
+    },
+    {
+        "class":  "com.chatchat.agents.orchestration.AgentPlannerTest",
+        "test":  "normalizesCompoundContextStringAsExactAssetName",
+        "type":  "java.lang.NullPointerException",
+        "messageStart":  "Cannot invoke \"java.util.Map.get(Object)\" because \"filters\" is null",
+        "messageEnd":  "Cannot invoke \"java.util.Map.get(Object)\" because \"filters\" is null",
+        "sourceFrames":  [
+                             "\tat com.chatchat.agents.orchestration.AgentPlannerTest.normalizesCompoundContextStringAsExactAssetName(AgentPlannerTest.java:1517)"
+                         ]
+    },
+    {
+        "class":  "com.chatchat.agents.orchestration.AgentPlannerTest",
+        "test":  "admitsPublisherDeclaredTemplateDiscoveryMaterializedOutsidePlannerVisibleTools",
+        "type":  "org.opentest4j.AssertionFailedError",
+        "messageStart":  "\nExpecting value to be true but was false",
+        "messageEnd":  "\nExpecting value to be true but was false",
+        "sourceFrames":  [
+                             "\tat com.chatchat.agents.orchestration.AgentPlannerTest.admitsPublisherDeclaredTemplateDiscoveryMaterializedOutsidePlannerVisibleTools(AgentPlannerTest.java:76)"
+                         ]
+    },
+    {
+        "class":  "com.chatchat.agents.orchestration.AgentPlannerTest",
+        "test":  "authoritativeDagKeepsConcreteTemplateDiscoveryDependenciesDistinct",
+        "type":  "org.opentest4j.AssertionFailedError",
+        "messageStart":  "\nExpecting value to be true but was false",
+        "messageEnd":  "\nExpecting value to be true but was false",
+        "sourceFrames":  [
+                             "\tat com.chatchat.agents.orchestration.AgentPlannerTest.authoritativeDagKeepsConcreteTemplateDiscoveryDependenciesDistinct(AgentPlannerTest.java:1760)"
+                         ]
+    },
+    {
+        "class":  "com.chatchat.agents.orchestration.AgentPlannerTest",
+        "test":  "normalizesRecoverableInterpretationPlanBeforeValidation",
+        "type":  "java.lang.NullPointerException",
+        "messageStart":  "Cannot invoke \"java.util.Map.get(Object)\" because \"filters\" is null",
+        "messageEnd":  "Cannot invoke \"java.util.Map.get(Object)\" because \"filters\" is null",
+        "sourceFrames":  [
+                             "\tat com.chatchat.agents.orchestration.AgentPlannerTest.normalizesRecoverableInterpretationPlanBeforeValidation(AgentPlannerTest.java:1042)"
+                         ]
+    },
+    {
+        "class":  "com.chatchat.agents.orchestration.AgentPlannerTest",
+        "test":  "normalizesTemplateQueryContextStringAsExactAssetName",
+        "type":  "java.lang.NullPointerException",
+        "messageStart":  "Cannot invoke \"java.util.Map.get(Object)\" because \"filters\" is null",
+        "messageEnd":  "Cannot invoke \"java.util.Map.get(Object)\" because \"filters\" is null",
+        "sourceFrames":  [
+                             "\tat com.chatchat.agents.orchestration.AgentPlannerTest.normalizesTemplateQueryContextStringAsExactAssetName(AgentPlannerTest.java:1573)"
+                         ]
+    },
+    {
+        "class":  "com.chatchat.agents.orchestration.AgentPlannerTest",
+        "test":  "plannerPromptIncludesAgentRuntimeOsWorkflowGraph",
+        "type":  "java.lang.AssertionError",
+        "messageStart":  "\nExpecting actual:\n  \"You are an agent planner.\nGoal: produce a safe, executable InterpretationPlan for the MCP runtime.\nAuthoritative Runtime temporal context:\n- Current date is 2026-11-08 in timezone Asia/Shanghai.\n- Resolve relative dates such as today/current/浠婂ぉ/浠婃棩 from this Runtime value. Never infer a different current date from model memory.\n- Preserve relative wording in search keywords unless an exact date is required by the tool schema; when an exact date is required, derive it only from this Runtime context.\n\nPlanning contract:\n- Output exactly one InterpretationPlan JSON object. ",
+        "messageEnd":  "till reject final answers when required tool or verification constraints are incomplete.\n\nAvailable tools:\n- mcp_chatchat_mcp_server_asset_query: null\n- mcp_chatchat_mcp_server_template_query: null\n\nUser query:\n鍒嗘瀽鏈湴MySQL娴嬭瘯鏈嶅姟InnoDB鐘舵€?quot;\nto contain:\n  \"mandatory reasoning and execution graph\" ",
+        "sourceFrames":  [
+                             "\tat com.chatchat.agents.orchestration.AgentPlannerTest.plannerPromptIncludesAgentRuntimeOsWorkflowGraph(AgentPlannerTest.java:843)"
+                         ]
+    },
+    {
+        "class":  "com.chatchat.agents.orchestration.analysis.graph.HarnessToolAccessTest",
+        "test":  "acquiredEvidenceStaysInContextAfterAnInvalidModelResponse",
+        "type":  "Argument(s) are different! Wanted",
+        "messageStart":  "\nArgument(s) are different! Wanted:\nchatModel.chat(\n    \u003cCapturing argument: String\u003e\n);\n-\u003e at dev.langchain4j.model.chat.ChatModel.chat(ChatModel.java:189)\nActual invocations have different arguments:\nchatModel.chat(\n    ChatRequest { messages = [SystemMessage { text = \"Plan authorized template-data analysis before execution. Reuse an accepted L1.submittedPlan.\nOtherwise submit response.plan before evidence requests or final delivery. A plan and requests\nmay share a response: Runtime validates and records the plan before dispatching requests.\nUpdate response.plan with response.plan_change_reas",
+        "messageEnd":  "l, topK=null, frequencyPenalty=null, presencePenalty=null, maxOutputTokens=null, stopSequences=[], toolSpecifications=[], toolChoice=null, responseFormat=null} }\n);\n-\u003e at com.chatchat.agents.orchestration.analysis.graph.ModelNativeAnalysisHarness.executeInternal(ModelNativeAnalysisHarness.java:161)\n",
+        "sourceFrames":  [
+                             "-\u003e at com.chatchat.agents.orchestration.analysis.graph.ModelNativeAnalysisHarness.executeInternal(ModelNativeAnalysisHarness.java:161)",
+                             "-\u003e at com.chatchat.agents.orchestration.analysis.graph.ModelNativeAnalysisHarness.executeInternal(ModelNativeAnalysisHarness.java:161)",
+                             "-\u003e at com.chatchat.agents.orchestration.analysis.graph.ModelNativeAnalysisHarness.executeInternal(ModelNativeAnalysisHarness.java:161)"
+                         ]
+    },
+    {
+        "class":  "com.chatchat.agents.orchestration.analysis.graph.HarnessToolAccessTest",
+        "test":  "modelMayContinueWithAuthorizedToolAndReceiveQueryableResultHandles",
+        "type":  "java.lang.AssertionError",
+        "messageStart":  "\nExpecting AtomicInteger(0) to have value:\n  1\nbut did not.",
+        "messageEnd":  "\nExpecting AtomicInteger(0) to have value:\n  1\nbut did not.",
+        "sourceFrames":  [
+                             "\tat com.chatchat.agents.orchestration.analysis.graph.HarnessToolAccessTest.modelMayContinueWithAuthorizedToolAndReceiveQueryableResultHandles(HarnessToolAccessTest.java:107)"
+                         ]
+    },
+    {
+        "class":  "com.chatchat.agents.orchestration.analysis.graph.HarnessToolAccessTest",
+        "test":  "v2ModelChoosesSameToolWithDifferentParametersAndCanReadOldEvidence",
+        "type":  "org.opentest4j.AssertionFailedError",
+        "messageStart":  "\nExpecting actual:\n  []\nto contain exactly (and in same order):\n  [{\"sample\"=1}, {\"sample\"=2}]\nbut could not find the following elements:\n  [{\"sample\"=1}, {\"sample\"=2}]\n",
+        "messageEnd":  "\nExpecting actual:\n  []\nto contain exactly (and in same order):\n  [{\"sample\"=1}, {\"sample\"=2}]\nbut could not find the following elements:\n  [{\"sample\"=1}, {\"sample\"=2}]\n",
+        "sourceFrames":  [
+                             "\tat com.chatchat.agents.orchestration.analysis.graph.HarnessToolAccessTest.v2ModelChoosesSameToolWithDifferentParametersAndCanReadOldEvidence(HarnessToolAccessTest.java:153)"
+                         ]
+    }
+]

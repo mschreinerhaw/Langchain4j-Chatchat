@@ -50,7 +50,7 @@ export class Backend {
    let live;try{live=await this.native('/v1/sessions/'+s.id+'/status');}catch(e){live={status:s.status,observationError:e.message};}
    const events=(await this.lines(join(this.config.native.stateDir,s.id,'events.jsonl'))).map(e=>projectEvent(e,'native',key,this.secrets)).filter(Boolean);
    live.modelReceipts=nativeModelObservations(events,this.config.native.model);
-   return safe({id:key,mode:'native',...live,authority:'NATIVE_SESSION',deliveryValidated:false,capabilities:{messages:['idle','turn_completed','awaiting_input'].includes(live.status),cancel:!['cancelled','failed','recoverable'].includes(live.status),permissions:true},model:{model:this.config.native.model,usageStatus:'NATIVE_OBSERVATION_NOT_RUNTIME_BILLING'},workspaceRef:s.workspaceRef},[...this.secrets,user.token]);
+   return safe({id:key,mode:'native',...live,authority:'NATIVE_SESSION',deliveryValidated:false,capabilities:{messages:['idle','turn_completed','awaiting_input'].includes(live.status),cancel:!['cancelling','cancelled','failed','recoverable'].includes(live.status),permissions:true},model:{model:this.config.native.model,usageStatus:'NATIVE_OBSERVATION_NOT_RUNTIME_BILLING'},workspaceRef:s.workspaceRef},[...this.secrets,user.token]);
   }
   let item,error;
   try{try{item=await this.runtime(user,this.root(s)+'/'+s.taskId);}catch(e){if(e.status!==404)throw e;const list=await this.runtime(user,this.root(s));item=list.tasks.find(t=>t.taskId===s.taskId);}}catch(e){error=e.message;}

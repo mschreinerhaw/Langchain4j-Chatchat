@@ -91,7 +91,7 @@ public class AssetAnalysisController {
         var attributes=new LinkedHashMap<String,Object>();attributes.put("checkpointModelConfig",models.checkpointModelConfiguration(body.modelName(),model));
         if(body.validationProfile()!=null&&!body.validationProfile().isBlank()){
             if(!com.chatchat.api.runtime.coding.evidence.CodingCsvAggregateVerifier.PROFILE.equals(body.validationProfile())||body.valueField()==null||!body.valueField().matches("[A-Za-z_][A-Za-z0-9_]{0,63}")||body.fileIds().size()!=1||visual)throw new IllegalArgumentException("Explicit single-CSV count/sum contract required");
-            attributes.put("validationProfile",body.validationProfile());attributes.put("validationValueField",body.valueField());attributes.put("taskType","DATA_ANALYSIS");
+            attributes.put("csvMetricObjective",body.instruction());attributes.put("validationProfile",body.validationProfile());attributes.put("validationValueField",body.valueField());attributes.put("taskType","DATA_ANALYSIS");
         }
         attributes.put("contextOnlyAnswer",true); // Cline chooses prose or real computation within the selected scope.
         if(body.agentId()!=null){

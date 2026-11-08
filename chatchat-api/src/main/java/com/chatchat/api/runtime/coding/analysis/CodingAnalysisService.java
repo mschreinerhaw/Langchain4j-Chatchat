@@ -320,7 +320,7 @@ public final class CodingAnalysisService implements AnalysisCodingPort {
             properties.put("verifiedSummary",Map.of("type","object","properties",Map.of("rowCount",Map.of("type","integer"),"sum",Map.of("type","string"),"sourceSha256",Map.of("type","string")),"required",List.of("rowCount","sum","sourceSha256"),"additionalProperties",false));
             var required=new ArrayList<String>((List<String>)reportSchema.get("required"));required.add("verifiedSummary");
             reportSchema=Map.of("type","object","properties",properties,"required",required,"additionalProperties",false);
-            request.put("instruction",objective+"\nExplicit independent validation contract: from the ONE selected original CSV, count parsed data rows and sum column "+context.runtimeAttributes().get("validationValueField")+" using Decimal. Write verifiedSummary:{rowCount:integer,sum:exactDecimalString,sourceSha256:originalCsvSha256} and the complete Markdown report. These are the requested facts; do not infer financial meanings. Runtime independently reads and computes from immutable CSV bytes. This is a Python task; do not use text-only report submission.");
+            request.put("instruction",CodingCsvMetricObjective.objective(Objects.toString(context.runtimeAttributes().get("csvMetricObjective"),context.query()),Objects.toString(context.runtimeAttributes().get("validationValueField"))));
         }
         request.put("outputSchema",reportSchema);
         request.put("reviewResult", true);
@@ -667,6 +667,7 @@ public final class CodingAnalysisService implements AnalysisCodingPort {
             // These blocks are also delivered in the existing immutable input/context.
             // Source provenance/representation cannot be replaced by descriptor pointers:
             // keep them inline, or retain the full appendix in the task configuration.
+            if("csv-count-sum-v1".equals(context.runtimeAttributes().get("validationProfile")))goal=CodingCsvMetricObjective.appendix(instruction,selectedReferences);
             goal=CodingInstructionBudget.fit(instruction,goal,List.of(
                 new CodingInstructionBudget.Metadata(environmentInstruction,
                     "\nUse the complete immutable runtimeContext.pythonEnvironment for the installed Python/packages, image and environment version; never install dependencies or use network access."),

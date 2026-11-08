@@ -25,7 +25,7 @@ export function createMonitor(config){
    if(p==='/healthz')return json(res,200,{service:'native-cline-monitor',executionEngine:false});
    if(p==='/api/login'&&method==='POST'){
     const b=await body(req);if(typeof b.username!=='string'||typeof b.password!=='string')throw error('Username and password required');
-    const login=await backend.api(config.runtimeUrl,'/api/v1/auth/login','',{username:b.username,password:b.password});
+    const login=await backend.api(config.runtimeUrl,'/api/v1/enterprise/auth/login','',{username:b.username,password:b.password});
     const user=login.user??login.userInfo;if(!login.token||user?.id!==config.operator.userId||user?.tenantId!==config.operator.tenantId)throw error('Account is not authorized for this diagnostic workspace',403);
     const key=randomBytes(32).toString('hex');if(sessions.size>=64)sessions.delete(sessions.keys().next().value);sessions.set(key,{token:login.token,userId:user.id,tenantId:user.tenantId,expiresAt:Date.now()+8*3600000});
     return json(res,200,{authenticated:true},{'set-cookie':`${COOKIE}=${key}; HttpOnly; SameSite=Strict; Path=/; Max-Age=28800${config.secureCookie?'; Secure':''}`});
@@ -35,6 +35,8 @@ export function createMonitor(config){
    if(p==='/api/config'&&method==='GET')return json(res,200,{nativeEnabled:!!config.native,workspaces:config.native?.workspaces??[],models:config.models??[],nativeModel:config.native?.model,userId:user.userId,tenantId:user.tenantId});
    if(p==='/api/sessions'&&method==='GET')return json(res,200,{items:await backend.sessions(user)});
    if(p==='/api/sessions'&&method==='POST')return json(res,202,await backend.create(user,await body(req)));
+   const dispatch=/^\/api\/dispatches\/([a-zA-Z0-9_.:-]+)$/.exec(p);
+   if(dispatch&&method==='GET'){const row=backend.dispatches.get(dispatch[1]);if(!row||row.userId!==user.userId)throw error('Request observation unavailable; query existing Runtime history',404);const {userId,...view}=row;return json(res,200,view);}
    if(p==='/api/inputs'&&method==='GET'){
     const result=await backend.runtime(user,'/api/v1/data-science/user-assets?limit=100&personalOnly=true');return json(res,200,safe(result,[user.token]));
    }
@@ -65,6 +67,8 @@ export function createMonitor(config){
     const timer=setInterval(tick,1500);timer.unref();res.on('close',()=>{closed=true;clearInterval(timer);streams.delete(stream);});await tick();return;
    }
    if(method==='GET'&&action==='assets')return json(res,200,await backend.assets(user,key));
+   if(method==='GET'&&action==='trace')return json(res,200,await backend.trace(user,key,u.searchParams.get('operationId')??'',u.searchParams.get('kind')??''));
+   if(method==='GET'&&action==='runtime-events')return json(res,200,await backend.runtimeEvents(user,key,u.searchParams.get('after')??'0'));
    if(method==='GET'&&action==='code')return json(res,200,await backend.code(user,key));
    if(method==='POST'&&['messages','cancel','permission','reconcile'].includes(action)){
     const b=await body(req);if(action==='messages'&&(typeof b.text!=='string'||!b.text.trim()||b.text.length>16000||typeof b.commandId!=='string'||b.commandId.length>128))throw error('Message text and stable command ID required');

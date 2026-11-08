@@ -13,6 +13,7 @@ test('Native projection preserves durable identities and rejects invalid cursors
  const e=projectEvent({eventId:'24',timestamp:'2026-11-09T00:00:00Z',type:'native.event',payload:{eventType:'tool.failed',payload:{toolName:'apply_patch',toolCallId:'call-1',input:{patch:'private-source'},output:'failed'}}},'business','runtime:worker');
  assert.equal(e.id,'business:24');assert.equal(e.type,'tool.failed');assert.equal(e.payload.toolCallId,'call-1');assert(!JSON.stringify(e).includes('private-source'));
  assert.deepEqual(safe({token:'Bearer abc',apiToken:'control',authorization:'secret',unknownUsage:null}),{token:'Bearer [REDACTED]',unknownUsage:null});
+ assert.equal(safe({capabilities:{messages:true}}).capabilities.messages,true);
 });
 
 test('Read-only journal replay survives a monitor restart and respects Runtime ownership',async()=>{
@@ -29,7 +30,7 @@ test('Browser auth keeps credentials server-side and streams actual retained his
  const root=await mkdtemp(join(tmpdir(),'native-monitor-http-'));const state=join(root,'native');await mkdir(join(state,'session'),{recursive:true});
  await writeFile(join(state,'session/session.json'),JSON.stringify({id:'session',status:'turn_completed',workspaceRef:'project'}));
  await writeFile(join(state,'session/events.jsonl'),JSON.stringify({eventId:'1',eventType:'turn.completed',timestamp:'2026-11-09',payload:{deliveryValidated:false}})+'\n');
- const originServer=http.createServer((req,res)=>{res.setHeader('content-type','application/json');if(req.url==='/api/v1/auth/login')res.end(JSON.stringify({code:200,data:{token:'private-jwt',user:{id:'owner',tenantId:'tenant'}}}));else res.end(JSON.stringify({status:'turn_completed',pendingPermissions:[]}));});
+ const originServer=http.createServer((req,res)=>{res.setHeader('content-type','application/json');if(req.url==='/api/v1/enterprise/auth/login')res.end(JSON.stringify({code:200,data:{token:'private-jwt',user:{id:'owner',tenantId:'tenant'}}}));else res.end(JSON.stringify({status:'turn_completed',pendingPermissions:[]}));});
  await new Promise(r=>originServer.listen(0,'127.0.0.1',r));const origin='http://127.0.0.1:'+originServer.address().port;
  const server=createMonitor({runtimeUrl:origin,operator:{userId:'owner',tenantId:'tenant'},native:{url:origin,token:'private-native-control',stateDir:state,workspaces:['project']},models:[]});await new Promise(r=>server.listen(0,'127.0.0.1',r));const url='http://127.0.0.1:'+server.address().port;
  try{

@@ -1,7 +1,7 @@
 import {createHash} from 'node:crypto';
 
 // Projections contain observations, never reconstructed Agent state or reasoning.
-const hidden=/^(authorization|password|apiKey|apiToken|brokerToken|secret|signingKey|workerContract|contract|configuration|runtimeContext|headers|messages|reasoning|thinking|inputData|records|rows|reviewedArtifact)$/i;
+const hidden=/^(authorization|password|apiKey|apiToken|brokerToken|secret|signingKey|workerContract|contract|configuration|runtimeContext|headers|reasoning|thinking|inputData|records|rows|reviewedArtifact)$/i;
 export function safe(value,secrets=[],depth=0){
  if(depth>12)return '[depth limited]';
  if(typeof value==='string'){
@@ -32,6 +32,9 @@ export function projectEvent(event,source,sessionId,secrets=[]){
  else p=native;
  // Tool input/output can contain complete financial tables. Explicit source viewing is separate.
  if(type?.startsWith('tool.'))p={toolName:p.toolName,toolCallId:p.toolCallId,inputHash:hash(JSON.stringify(p.input??null)),outputHash:hash(JSON.stringify(p.output??null)),status:p.status,durationMs:p.durationMs,error:p.error,errorMessage:p.errorMessage,message:p.message,
+  command:sessionId.startsWith('native:')?p.input?.command??p.input?.commands:undefined,
+  testOutput:sessionId.startsWith('native:')&&/execute|terminal|run_commands/.test(p.toolName??'')?p.output:undefined,
+  failureSummary:type==='tool.failed'?String(p.output??'').slice(0,2000):undefined,
   outputSummary:typeof p.output==='string'?(/<command-name>([^<]+)<\/command-name>/.exec(p.output)?.[1]??'Result retained in private Native journal'):null,
   file:p.input?.path??p.input?.file_path??p.input?.filePath,patchAttempt:p.toolName==='apply_patch'};
  if(!type)return null;

@@ -1,11 +1,12 @@
 import {readdir,readFile,stat,realpath} from 'node:fs/promises';
 import {join,resolve,sep} from 'node:path';
 import {projectEvent,safe,receipt,hash} from './projection.mjs';
+import {randomUUID} from 'node:crypto';
 
 const fail=(message,status=400)=>Object.assign(Error(message),{status});
 const id=x=>typeof x==='string'&&/^[a-zA-Z0-9_.:-]{1,200}$/.test(x);
 export class Backend {
- constructor(config){this.config=config;this.cache=new Map();this.secrets=[config.native?.token];}
+ constructor(config){this.config=config;this.cache=new Map();this.dispatches=new Map();this.secrets=[config.native?.token];}
  async api(origin,path,token,body,options={}){
   const response=await fetch(origin+path,{method:body===undefined?'GET':'POST',headers:{authorization:'Bearer '+token,'content-type':'application/json',...options.headers},body:body===undefined?undefined:JSON.stringify(body),signal:AbortSignal.timeout(options.timeout??30000),redirect:'error'});
   const value=await response.json();if(!response.ok||value.code&&value.code!==200)throw fail(value.message??value.msg??value.code??'Backend rejected request',response.ok?400:response.status);
@@ -18,7 +19,7 @@ export class Backend {
  async runs(user){return (await this.records(this.config.businessState,'run.json')).filter(r=>r.scope?.tenantId===user.tenantId&&r.scope?.userId===user.userId);}
  async sessions(user){
   const runs=await this.runs(user),native=this.config.native?await this.records(this.config.native.stateDir,'session.json'):[];
-  return [...native.map(s=>({id:'native:'+s.id,mode:'native',sessionId:s.id,nativeSessionId:s.nativeSessionId,status:s.status,workspaceRef:s.workspaceRef,authority:'NATIVE_SESSION',updatedAt:null})),...runs.map(r=>({id:'runtime:'+r.workerId,mode:'runtime',sessionId:r.nativeSessionId,nativeSessionId:r.nativeAgentSessionId,taskId:r.taskId,runId:r.scope.runId,status:r.status,authority:'NATIVE_OBSERVATION',runtimeStatus:null,updatedAt:r.result?.updatedAt??null}))];
+  return [...native.map(s=>({id:'native:'+s.id,mode:'native',sessionId:s.id,nativeSessionId:s.nativeSessionId,status:s.status,workspaceRef:s.workspaceRef,authority:'NATIVE_SESSION',updatedAt:null})),...runs.map(r=>({id:'runtime:'+r.workerId,mode:'runtime',sessionId:r.nativeSessionId,nativeSessionId:r.nativeAgentSessionId,taskId:r.taskId,runId:r.scope.runId,requestId:r.scope.requestId,status:r.status,authority:'NATIVE_OBSERVATION',runtimeStatus:null,updatedAt:r.result?.updatedAt??null}))];
  }
  async context(user,key){
   if(key.startsWith('native:')){const sid=key.slice(7);if(!id(sid))throw fail('Invalid session');const state=await this.json(join(this.config.native?.stateDir??'',sid,'session.json'));if(!state)throw fail('Session not found',404);return {mode:'native',state,sid};}
@@ -62,6 +63,16 @@ export class Backend {
   if(b.mode!=='runtime'||typeof b.instruction!=='string'||!b.instruction.trim()||b.instruction.length>8000)throw fail('Valid Runtime instruction required');
   if(!Array.isArray(b.fileIds)||!b.fileIds.length||b.fileIds.length>8||!b.fileIds.every(id))throw fail('Select 1–8 authorized input assets');
   if(!this.config.models.includes(b.model))throw fail('Select an authorized model');
+  if(b.validationProfile==='csv-count-sum-v1'){
+   if(b.fileIds.length!==1||typeof b.valueField!=='string'||!/[A-Za-z_][A-Za-z0-9_]{0,63}/.test(b.valueField))throw fail('Select one CSV and its exact numeric field');
+   const requestId=b.commandId??randomUUID();if(!id(requestId))throw fail('Stable request ID required');
+   const existing=this.dispatches.get(requestId);if(existing){if(existing.userId!==user.userId)throw fail('Dispatch not owned',403);return {requestId,status:existing.status};}
+   const observation={userId:user.userId,status:'REQUEST_SENT',startedAt:new Date().toISOString()};this.dispatches.set(requestId,observation);
+   if(this.dispatches.size>128)this.dispatches.delete(this.dispatches.keys().next().value);
+   this.runtime(user,'/api/v1/data-science/user-assets/analyses',{requestId,fileIds:b.fileIds,contextIds:[],instruction:b.instruction,modelName:b.model,validationProfile:b.validationProfile,valueField:b.valueField},{timeout:1800000})
+    .then(r=>{observation.status='RESPONSE_RECEIVED';observation.runtimeStatus=r.status;observation.taskId=r.taskId;}).catch(e=>{observation.status='RESPONSE_ERROR';observation.message=e.message;});
+   return {requestId,status:'REQUEST_SENT',authority:'EXISTING_RUNTIME_ANALYSIS_ENTRY'};
+  }
   const created=await this.runtime(user,'/api/v1/data-science/explorations',{title:'Native Monitor '+new Date().toISOString()});
   const prepared=await this.runtime(user,'/api/v1/data-science/explorations/'+created.id+'/nodes',{version:created.version,parentId:'',fileIds:b.fileIds,question:b.instruction,modelName:b.model});
   const node=prepared.nodes.at(-1),path='/api/v1/data-science/explorations/'+created.id+'/nodes/'+node.id;
@@ -82,10 +93,20 @@ export class Backend {
   throw fail('Action not supported by this backend',409);
  }
  async assets(user,key){const c=await this.context(user,key);if(c.mode==='native')return {items:[],authority:'NATIVE_ONLY_NO_RUNTIME_ARCHIVE'};return this.runtime(user,'/api/v1/data-science/user-assets?limit=100&personalOnly=true&taskId='+encodeURIComponent(c.state.taskId));}
+ async trace(user,key,operation,kind){
+  const c=await this.context(user,key);if(c.mode!=='runtime'||!/^cline-[a-f0-9]{64}$/.test(operation)||!['code','stdout','stderr','timing'].includes(kind))throw fail('Invalid artifact binding');
+  return this.runtime(user,this.root(c.state)+'/'+c.state.taskId+'/'+operation+'/'+kind);
+ }
+ async runtimeEvents(user,key,after=0){
+  const c=await this.context(user,key);if(c.mode!=='runtime')return {events:[],nextSequence:0};
+  if(!/^\d+$/.test(String(after)))throw fail('Invalid Runtime sequence');
+  return safe(await this.runtime(user,this.root(c.state)+'/'+c.state.taskId+'/events?limit=128&afterSequence='+after),[user.token]);
+ }
  async code(user,key){
   const c=await this.context(user,key);if(c.mode==='native')return this.native('/v1/sessions/'+c.sid+'/diff');
   const versions=c.state.codeLifecycle?.versions??[];
   // Only versions actually captured by Runtime are shown, not invented edits.
-  return safe({versions,evidence:'RUNTIME_CODE_LIFECYCLE',completeDiffAvailable:false,message:'Full previous source is only available when retained in Runtime evidence'},[...this.secrets,user.token]);
+  const sources=[];for(const v of versions.slice(-2)){try{sources.push({version:v.version,codeHash:v.codeHash,operationId:v.operationId,...await this.trace(user,key,v.operationId,'code')});}catch(e){sources.push({version:v.version,codeHash:v.codeHash,error:e.message});}}
+  return safe({versions,sources,evidence:'RUNTIME_CODE_LIFECYCLE_AND_OWNER_AUTHORIZED_ARTIFACTS',completeDiffAvailable:sources.length===2&&sources.every(s=>typeof s.content==='string'&&!s.truncated&&!s.redacted)},[...this.secrets,user.token]);
  }
 }

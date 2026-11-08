@@ -1,0 +1,7 @@
+{
+  "scope": "REAL_GRACEFUL_RESTART_AFTER_COMPLETED_NATIVE_TURNS",
+  "observedSessionStatus": "cancelled",
+  "initialTestExpectedRecoverable": true,
+  "initialTestResult": "FAIL_EXPECTATION",
+  "sourceExplanation": "server.mjs shutdown() awaits actual cancel(s) for every owned worker on SIGTERM; SIGKILL is tested separately. No lifecycle result was overwritten."
+}

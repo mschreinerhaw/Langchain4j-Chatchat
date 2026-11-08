@@ -1,0 +1,85 @@
+{
+  "source": "REAL_BROWSER_REAL_NATIVE_MODEL",
+  "origin": "http://192.168.195.221:18346",
+  "startedAt": "2026-11-08T18:08:44.781Z",
+  "pageErrors": [],
+  "requests": [
+    {
+      "path": "/api/sessions/native%3A4bd40227-be81-474d-8ff2-7f3396ea401c/permission",
+      "method": "POST",
+      "timestamp": "2026-11-08T18:08:46.782Z"
+    },
+    {
+      "path": "/api/sessions/native%3A4bd40227-be81-474d-8ff2-7f3396ea401c/permission",
+      "method": "POST",
+      "timestamp": "2026-11-08T18:08:53.494Z"
+    }
+  ],
+  "screenshots": [
+    "native-tools.png",
+    "native-code-diff.png"
+  ],
+  "sessionKey": "native:4bd40227-be81-474d-8ff2-7f3396ea401c",
+  "lastObserved": {
+    "id": "native:4bd40227-be81-474d-8ff2-7f3396ea401c",
+    "mode": "native",
+    "sessionId": "4bd40227-be81-474d-8ff2-7f3396ea401c",
+    "status": "turn_completed",
+    "taskId": "f373f627-d3b8-4bb6-a21c-0a4a213f55c9",
+    "nativeSessionId": "1794160571607_gl5te",
+    "epoch": "7b495596-21fa-4ed0-b022-d5edeaccecfc",
+    "revision": 21,
+    "lastEventId": "388",
+    "pendingPermissions": [],
+    "authority": "NATIVE_SESSION",
+    "deliveryValidated": false,
+    "capabilities": {
+      "messages": true,
+      "cancel": true,
+      "permissions": true
+    },
+    "model": {
+      "model": "qwen3.7-plus",
+      "usageStatus": "NATIVE_OBSERVATION_NOT_RUNTIME_BILLING"
+    },
+    "workspaceRef": "acceptance-node-project"
+  },
+  "final": {
+    "id": "native:4bd40227-be81-474d-8ff2-7f3396ea401c",
+    "mode": "native",
+    "sessionId": "4bd40227-be81-474d-8ff2-7f3396ea401c",
+    "status": "turn_completed",
+    "taskId": "f373f627-d3b8-4bb6-a21c-0a4a213f55c9",
+    "nativeSessionId": "1794160571607_gl5te",
+    "epoch": "7b495596-21fa-4ed0-b022-d5edeaccecfc",
+    "revision": 21,
+    "lastEventId": "388",
+    "pendingPermissions": [],
+    "authority": "NATIVE_SESSION",
+    "deliveryValidated": false,
+    "capabilities": {
+      "messages": true,
+      "cancel": true,
+      "permissions": true
+    },
+    "model": {
+      "model": "qwen3.7-plus",
+      "usageStatus": "NATIVE_OBSERVATION_NOT_RUNTIME_BILLING"
+    },
+    "workspaceRef": "acceptance-node-project"
+  },
+  "approvals": [
+    "4628f7dd-9a41-483d-a4a5-8a7f42ae6ccf",
+    "978fa19a-bef7-4f91-a179-5576db248469"
+  ],
+  "diff": {
+    "patch": "diff --git a/calculator.mjs b/calculator.mjs\nindex 29b3851..7d65831 100644\n--- a/calculator.mjs\n+++ b/calculator.mjs\n@@ -1,3 +1,3 @@\n export function add(a, b) {\n-  return a - b;\n+  return a + b;\n }\n",
+    "sha256": "4b4020dac2124bca288c0e338c80fc5f80ed5e99c7e5947a0dacaddd32e3b9b7"
+  },
+  "refreshPreservesIdentity": true,
+  "reconnectObserved": true,
+  "visibleEvents": 28,
+  "persistedMessagesVisible": true,
+  "status": "PASS_NATIVE_FIRST_TURN",
+  "finishedAt": "2026-11-08T18:09:09.307Z"
+}

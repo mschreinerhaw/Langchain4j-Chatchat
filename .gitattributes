@@ -1,4 +1,5 @@
 *.sh text eol=lf
+docs/testing/evidence/native-cline-monitor-20261109/** -text -whitespace
 docs/testing/conversation-source-disclosure-evidence/** -text whitespace=cr-at-eol
 docs/testing/search-engine-management-evidence/** -text whitespace=cr-at-eol
 docs/testing/search-engine-management-evidence/report.md -whitespace

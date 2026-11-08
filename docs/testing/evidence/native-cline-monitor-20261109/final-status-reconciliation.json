@@ -1,0 +1,94 @@
+{
+  "timestamp": "2026-11-08T19:51:16.916034+00:00",
+  "authority": "Runtime authenticated known-task GET; Native persisted observation separately labelled",
+  "records": [
+    {
+      "workerId": "02130e7a-a78f-4b4a-b57b-8f0b0683a5d2",
+      "taskId": "analysis-coding-cf60642e689b46a98d15097a9ce5b0049032e3030ee6ff0ace43b0d070a4898f",
+      "nativeSessionId": "889127c5-369f-4aa4-b217-ac287df10e29",
+      "nativeStatus": "BUDGET_EXCEEDED",
+      "runtimeStatus": "BUDGET_EXCEEDED",
+      "runtimeValidation": "NOT_RUN",
+      "modelReceipts": 12,
+      "executions": [
+        {
+          "operationId": "cline-219b9cfedb0bca45cfed97bdb24ee18b4b1a54e184ddd1aca10f521989868704",
+          "status": "SUCCEEDED",
+          "codeHash": "a8a0a80f189086bc1c8d8eead8fba9c92ff1bb94a67a91f0571ed5505e2ed617"
+        },
+        {
+          "operationId": "cline-c34e04bc5bcf0c8da816676ca0f8fb3c32f82b542af1193f722810c5e9ddd479",
+          "status": "SUCCEEDED",
+          "codeHash": "018f5617195c8faa03cfd0ab2e9d3ce926a487bcc2bd9cd41b9290916bddba13"
+        }
+      ]
+    },
+    {
+      "workerId": "438c3d10-f99e-4ec4-a23b-e8495d594fb7",
+      "taskId": "analysis-coding-4edc8b074e2fb645c0d3347e7d47703c47db3fe6cd6078d69e7f321bb21b11f7",
+      "nativeSessionId": "53a67fa5-f4a0-4ed1-9a18-215b89f33ff2",
+      "nativeStatus": "BUDGET_EXCEEDED",
+      "runtimeStatus": "BUDGET_EXCEEDED",
+      "runtimeValidation": "NOT_RUN",
+      "modelReceipts": 12,
+      "executions": [
+        {
+          "operationId": "cline-e15621ec72143392a77a03378412dc53fc6f8ad7e02f8becdb290edb3e22ac79",
+          "status": "FAILED",
+          "codeHash": "0d16b07e60fa2913d88f1b151a12b4c3df368ae0028ce20634ded2b3f44e5f1f"
+        }
+      ]
+    },
+    {
+      "workerId": "9c2cc565-c5ac-4413-84fc-e14dac1a48b0",
+      "taskId": "analysis-coding-e69a421ab18ada6f1f4ca5063b8e4ccd7b9296bb1113d6bef6db38c2c7a36869",
+      "nativeSessionId": "5be55611-a876-45bc-b41a-22ad48489d61",
+      "nativeStatus": "BUDGET_EXCEEDED",
+      "runtimeStatus": "BUDGET_EXCEEDED",
+      "runtimeValidation": "NOT_RUN",
+      "modelReceipts": 12,
+      "executions": [
+        {
+          "operationId": "cline-bdfce6d9acc50e69dae6feab7ef4112ee6527494dd80f55656e746d5ee2f50e3",
+          "status": "FAILED",
+          "codeHash": "54d6dea051ebe5f89e86eb934144916316d965a85c49b3f7b0c9ef6151dc8b66"
+        }
+      ]
+    },
+    {
+      "workerId": "770cd052-d887-496f-b5a5-b29b666fae34",
+      "taskId": "analysis-coding-3bfb69e23343c4833397b7aa70b4510bfc56e11cc28071a4a1512dbac038db8b",
+      "nativeSessionId": "6251c209-38c1-4a3b-8d42-97cb5d45093d",
+      "nativeStatus": "COMPLETED",
+      "runtimeStatus": "COMPLETED",
+      "runtimeValidation": "PASSED",
+      "modelReceipts": 5,
+      "executions": [
+        {
+          "operationId": "cline-491d3657cccb87eb35e5eb57ba031ec895f2965c0a198783ada53222f6f96079",
+          "status": "FAILED",
+          "codeHash": "54d6dea051ebe5f89e86eb934144916316d965a85c49b3f7b0c9ef6151dc8b66"
+        },
+        {
+          "operationId": "cline-873982245d2d3a25b26e7fc2524a9627b89a51eecaa4974a80857b1b900f3953",
+          "status": "SUCCEEDED",
+          "codeHash": "92513b152a135b1738d802ac1ab1072442cac84ff110f6c1426c51e3c4e13ccc"
+        }
+      ]
+    }
+  ],
+  "legacyNativeUnknownPreserved": [
+    {
+      "workerId": "236f4d9c-6ce4-4488-850d-2f8af812208e",
+      "taskId": "analysis-coding-30e2c9a95b1af656bd1fc9fb3aaf4aee032b082f3408a5ddaa363108971f53f1",
+      "status": "UNKNOWN"
+    },
+    {
+      "workerId": "72ec9356-b954-41a9-80bd-9520f8045524",
+      "taskId": "analysis-coding-e4592560027b87c715b6d13e442af9f45faab3a9a43148881b670a15fb8ba417",
+      "status": "UNKNOWN"
+    }
+  ],
+  "historicalRemoteProviderUnknown": "See previous business report; not asserted stopped by this check",
+  "controlsDispatched": []
+}

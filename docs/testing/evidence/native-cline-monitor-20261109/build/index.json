@@ -1,0 +1,30 @@
+[
+    {
+        "storedLineEndings":  "LF",
+        "originalLogSha256":  "981c2677b144138d45183a948223e4946fe7dc9fa5547e26cad9cc9088264b1c",
+        "storedEncoding":  "UTF-8",
+        "file":  "final-node-tests.log",
+        "storedSha256":  "937db879a95c147a61aac99d006ef5f7c16bc4bde1262a03f0ae57c73473d786"
+    },
+    {
+        "storedLineEndings":  "LF",
+        "originalLogSha256":  "3b32efb419dbc3c333275bbdb998d8d693dae045b6c9b18c5f815d66861f09a8",
+        "storedEncoding":  "UTF-8",
+        "file":  "frontend-rebuild-scoped-csv.log",
+        "storedSha256":  "d4d1efc1549607be5d742cf9d0ea1c68367a3abefc0a5a7805e6f323c2b68097"
+    },
+    {
+        "storedLineEndings":  "LF",
+        "originalLogSha256":  "2cf0ed9cd65f0c89047aafcc43e1d5686a4f9a3dba7ebb150e2bd5c9f1269038",
+        "storedEncoding":  "UTF-8",
+        "file":  "maven-package-scoped-csv-r2.log",
+        "storedSha256":  "cb47de5881dfbf8d3af7a2fc031a640c7695faccdd1711b0387e00a034025011"
+    },
+    {
+        "storedLineEndings":  "LF",
+        "originalLogSha256":  "f61dc58fa37c7190cc71b7f12fae844a08665c04d08e7f779ef25d9cdea2bf48",
+        "storedEncoding":  "UTF-8",
+        "file":  "scoped-csv-objective-regression-r2.log",
+        "storedSha256":  "b5ee1761b13e930832d8a0ddc7d2085619ae434a59c9e21a8382d8188b25a6e5"
+    }
+]

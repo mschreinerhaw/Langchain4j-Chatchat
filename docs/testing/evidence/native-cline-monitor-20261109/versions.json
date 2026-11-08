@@ -1,0 +1,16 @@
+{
+  "baseline": "db276d8e151ddb9669b603664e5c7bffb0de9843",
+  "main": "2db9b59dfbb3599f7e4e48a830fb6c7361beccc6",
+  "deployedBusinessSource": "ca503a25e56342aba9c90240aeb0087b3d9e9bc0",
+  "businessBranchHead": "2d0cf16189aaa74295575db148ecdbe2780d94a6",
+  "deployedMonitorSource": "ddca05b2961cdc37d7b610514f79046a6c4e2da4",
+  "officialClineVersion": "v4.1.26",
+  "officialCheckout": "a459f1d04dea030833b558be645011ab739c463b",
+  "budgets": {
+    "maxModelCalls": 12,
+    "maxTokens": 786432,
+    "maxToolCalls": 64,
+    "maxCodeExecutions": 12
+  },
+  "sourceManifestScope": "Deployed implementation before documentation/evidence commits; no production default change"
+}

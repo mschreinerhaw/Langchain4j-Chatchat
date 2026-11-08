@@ -314,7 +314,15 @@ public final class CodingAnalysisService implements AnalysisCodingPort {
         request.put("requestId", visual?"primary-data-analysis-visual-v1":"primary-data-analysis-v1");
         request.put("datasetReferences", List.copyOf(sources.keySet()));
         request.put("instruction", objective);
-        request.put("outputSchema", primaryReportSchema(visual));
+        var reportSchema=primaryReportSchema(visual);
+        if("csv-count-sum-v1".equals(context.runtimeAttributes().get("validationProfile"))){
+            var properties=new LinkedHashMap<String,Object>((Map<String,Object>)reportSchema.get("properties"));
+            properties.put("verifiedSummary",Map.of("type","object","properties",Map.of("rowCount",Map.of("type","integer"),"sum",Map.of("type","string"),"sourceSha256",Map.of("type","string")),"required",List.of("rowCount","sum","sourceSha256"),"additionalProperties",false));
+            var required=new ArrayList<String>((List<String>)reportSchema.get("required"));required.add("verifiedSummary");
+            reportSchema=Map.of("type","object","properties",properties,"required",required,"additionalProperties",false);
+            request.put("instruction",objective+"\nExplicit independent validation contract: from the ONE selected original CSV, count parsed data rows and sum column "+context.runtimeAttributes().get("validationValueField")+" using Decimal. Write verifiedSummary:{rowCount:integer,sum:exactDecimalString,sourceSha256:originalCsvSha256} and the complete Markdown report. These are the requested facts; do not infer financial meanings. Runtime independently reads and computes from immutable CSV bytes. This is a Python task; do not use text-only report submission.");
+        }
+        request.put("outputSchema",reportSchema);
         request.put("reviewResult", true);
         return executeObserved(context, request, sources, observer);
     }
@@ -433,7 +441,10 @@ public final class CodingAnalysisService implements AnalysisCodingPort {
             observer.accept(Map.of("eventKind","CODING_INPUT_READY","taskId",taskId,"source","JAVA_RUNTIME",
                 "snapshotRef",input.reference(),"fileId",input.fileId(),"sha256",input.sha256(),"rowCount",input.rowCount(),
                 "format",description.getOrDefault("format","JSON_LINES"),"durationMs",(System.nanoTime()-inputStarted)/1_000_000));
-            var plan=plans.register(scope,taskId,input,new CodingValidationPlanService.Plan("runtime-result-schema","v1",Map.of("rowSchema",schema)));
+            var verification="csv-count-sum-v1".equals(context.runtimeAttributes().get("validationProfile"))
+                ? new CodingValidationPlanService.Plan("runtime-csv-count-sum","v1",Map.of("rowSchema",schema,"valueField",context.runtimeAttributes().get("validationValueField")))
+                : new CodingValidationPlanService.Plan("runtime-result-schema","v1",Map.of("rowSchema",schema));
+            var plan=plans.register(scope,taskId,input,verification);
             Map<String,Object> promptDescriptor=description;
             if(tableInput)promptDescriptor=Map.of("fileId",input.fileId(),"fileName",input.fileName(),"sha256",input.sha256(),
                 "rowCount",input.rowCount(),"format",description.get("format"),"schemaVersion",com.chatchat.common.runtime.coding.CodingInputManifest.VERSION);

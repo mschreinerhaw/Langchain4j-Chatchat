@@ -10,7 +10,7 @@ export function persistRun(run,publicView) {
   activeOperations:[...run.activeOperations],lastOperation:run.lastOperation,lastReceipt:run.lastReceipt,
   stopProof:run.stopProof,remoteStopConfirmed:run.remoteStopConfirmed,codeLifecycle:run.codeLifecycle,
   nativeCompletion:run.nativeCompletion,cancelRequested:run.cancelRequested,eventOrdinal:run.eventOrdinal,
-  runtimeStopReceipt:run.runtimeStopReceipt};
+  runtimeStopReceipt:run.runtimeStopReceipt,recoveryControllable:run.recoveryControllable};
  const temporary=join(run.dir,'run.json.tmp');
  writeFileSync(temporary,JSON.stringify(record),{mode:0o600});
  const fd=openSync(temporary,'r+');try{fsyncSync(fd);}finally{closeSync(fd);}
@@ -37,7 +37,7 @@ export function restoreRun(dir,workersRoot,gatewayFactory) {
   if(event.type==='cancel.remote_receipt'&&event.payload?.receipt?.executorStopped===true
       &&['SUCCEEDED','FAILED','CANCELLED','TIMED_OUT'].includes(event.payload.receipt.status))run.activeOperations.delete(event.payload.operationId);
  }
- run.recoveryControllable=!!(old.contract&&old.workerContract&&old.apiToken);
+ run.recoveryControllable=old.recoveryControllable!==false&&!!(old.contract&&old.workerContract&&old.apiToken);
  return run;
 }
 

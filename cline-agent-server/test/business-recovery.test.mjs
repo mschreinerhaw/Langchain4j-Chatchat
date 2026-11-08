@@ -37,6 +37,10 @@ test('legacy UNKNOWN keeps real Executor stop proof from its durable audit',()=>
   const restored=restoreRun(dir,'/workers',()=>({}));
   assert.equal(restored.status,'UNKNOWN');assert.equal(restored.stopProof.running,false);
   assert.equal(restored.recoveryControllable,false);
+  // Persisting reconciliation must never manufacture the missing original binding.
+  restored.workerContract={sessionId:'historical-worker'};restored.apiToken='historical-token';
+  persistRun(restored,{status:restored.status});
+  assert.equal(restoreRun(dir,'/workers',()=>({})).recoveryControllable,false);
  }finally{rmSync(dir,{recursive:true,force:true});}
 });
 

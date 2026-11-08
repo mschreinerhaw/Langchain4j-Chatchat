@@ -31,7 +31,7 @@ function audit(r,type,payload){r.journal.append({type,payload});save(r);}
 // Restart never replays an existing business task or starts the legacy worker.
 for(const name of readdirSync(cfg.stateRoot)){
  const file=join(cfg.stateRoot,name,'run.json');if(!existsSync(file))continue;
- const r=restoreRun(join(cfg.stateRoot,name),cfg.workersRoot,r=>httpGateway(cfg.callbackUrl,cfg.secret,{scope:r.contract.scope,taskId:r.contract.taskId,contractHash:r.contractHash,fencingToken:r.fencingToken}));runs.set(key(r.contract),r);
+ const r=restoreRun(join(cfg.stateRoot,name),cfg.workersRoot,r=>httpGateway(cfg.callbackUrl,cfg.secret,{scope:r.contract.scope,taskId:r.contract.taskId,contractHash:r.contractHash,fencingToken:r.fencingToken}));runs.set(key(r.contract),r);save(r);
 }
 function worker(r,path,method='GET',value,headers={}){return new Promise((resolve,reject)=>{
  const req=http.request({socketPath:join(r.workerDir,'bridge/worker.sock'),path,method,headers:{authorization:'Bearer '+r.apiToken,'content-type':'application/json',accept:'application/json',...headers}},async res=>{

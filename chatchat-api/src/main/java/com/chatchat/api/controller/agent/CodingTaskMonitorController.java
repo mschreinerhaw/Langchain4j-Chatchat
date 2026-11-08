@@ -74,7 +74,7 @@ public class CodingTaskMonitorController {
     @GetMapping("/{taskId}/visual-report")
     public ApiResponse<?> reviewVisualReport(@PathVariable("runId") String runId,@PathVariable("taskId") String taskId,
             @RequestParam("resultRef") String resultRef,HttpServletRequest request) {
-        return authorized(runId,request,scope->{
+        return authorizedTask(runId,taskId,request,scope->{
             tasks.get(scope,taskId);
             if(evidenceCollector==null)throw new ResponseStatusException(HttpStatus.SERVICE_UNAVAILABLE);
             return ApiResponse.success(evidenceCollector.reviewVisualReport(scope,taskId,resultRef));
@@ -84,7 +84,7 @@ public class CodingTaskMonitorController {
     @GetMapping("/{taskId}/inputs")
     public ApiResponse<?> inputFiles(@PathVariable("runId") String runId,@PathVariable("taskId") String taskId,
             @RequestParam(name="operationId",required=false) String operation,HttpServletRequest request) {
-        return authorized(runId,request,scope->{
+        return authorizedTask(runId,taskId,request,scope->{
             var contract=tasks.contract(scope,taskId);
             if(inputs==null)throw new ResponseStatusException(HttpStatus.SERVICE_UNAVAILABLE);
             if(operation!=null && !operation.matches("cline-[0-9a-f]{64}"))throw new ResponseStatusException(HttpStatus.BAD_REQUEST);
@@ -107,25 +107,7 @@ public class CodingTaskMonitorController {
             var result = new ArrayList<Map<String,Object>>();
             for (String id : ids) {
                 try {
-                    var outcome = tasks.get(scope,id);
-                    var contract = tasks.contract(scope,id);
-                    var item = new LinkedHashMap<String,Object>();
-                    item.put("taskId",id); item.put("outcome",outcome);
-                    item.put("objective",contract.objective().instruction().split("\n",2)[0]);
-                    item.put("configuration",contract.runtimeContext());
-                    if(feedback!=null)item.put("executions",feedback.timeline(scope,id));
-                    if(modelReceipts!=null) {
-                        var calls=new ArrayList<CodingModelCallTelemetry>();
-                        for(var operation:tasks.startedModelOperations(scope,id))
-                            modelReceipts.telemetry(contract,operation.operationId(),operation.fencingToken()).ifPresent(calls::add);
-                        item.put("modelReceipts",calls);
-                    }
-                    item.put("allowedTools",contract.authorization().allowedTools());
-                    item.put("canCancel",!outcome.status().terminal() && !outcome.cancellationRequested());
-                    item.put("canRetry",false); // Retries require the existing parent workflow and its original authorization.
-                    item.put("canResume",!outcome.status().terminal());
-                    item.put("attemptId",id+":fence-"+tasks.ownership(scope,id).fencingToken());
-                    result.add(item);
+                    result.add(taskDetail(scope,id));
                 } catch (CodingContractException unavailable) {
                     if (unavailable.error().code() != CodingErrorCode.NOT_FOUND) throw unavailable;
                 }
@@ -138,7 +120,7 @@ public class CodingTaskMonitorController {
     public ApiResponse<?> events(@PathVariable("runId") String runId, @PathVariable("taskId") String taskId,
             @RequestParam(name="afterSequence",defaultValue="0") long after,
             @RequestParam(name="limit",defaultValue="128") int limit, HttpServletRequest request) {
-        return authorized(runId,request,scope -> {
+        return authorizedTask(runId,taskId,request,scope -> {
             var page = tasks.events(scope,taskId,after,limit);
             long cursor = page.isEmpty() ? after : page.get(page.size()-1).sequence();
             return ApiResponse.success(Map.of("events",page,"nextSequence",cursor,
@@ -149,13 +131,52 @@ public class CodingTaskMonitorController {
     @PostMapping("/{taskId}/cancel")
     public ApiResponse<?> cancel(@PathVariable("runId") String runId, @PathVariable("taskId") String taskId,
             HttpServletRequest request) {
-        return authorized(runId,request,scope -> ApiResponse.success(coding.cancel(scope,taskId,"Cancelled from task monitor")));
+        return authorizedTask(runId,taskId,request,scope -> ApiResponse.success(coding.cancel(scope,taskId,"Cancelled from task monitor")));
     }
 
     @PostMapping("/{taskId}/resume")
     public ApiResponse<?> resume(@PathVariable("runId") String runId, @PathVariable("taskId") String taskId,
             HttpServletRequest request) {
-        return authorized(runId,request,scope -> ApiResponse.success(coding.resume(scope,taskId)));
+        return authorizedTask(runId,taskId,request,scope -> ApiResponse.success(coding.resume(scope,taskId)));
+    }
+
+    /** Known owner-scoped durable tasks also include direct asset analysis, without an Agent parent run. */
+    @GetMapping("/{taskId}")
+    public ApiResponse<?> task(@PathVariable("runId") String runId,@PathVariable("taskId") String taskId,HttpServletRequest request){
+        return authorizedTask(runId,taskId,request,scope->ApiResponse.success(taskDetail(scope,taskId)));
+    }
+    private Map<String,Object> taskDetail(KernelDataScope scope,String id){
+        var outcome = tasks.get(scope,id);
+        var contract = tasks.contract(scope,id);
+        var item = new LinkedHashMap<String,Object>();
+        item.put("taskId",id); item.put("outcome",outcome);
+        item.put("objective",contract.objective().instruction().split("\n",2)[0]);
+        item.put("configuration",contract.runtimeContext());
+        if(feedback!=null)item.put("executions",feedback.timeline(scope,id));
+        if(modelReceipts!=null) {
+            var calls=new ArrayList<CodingModelCallTelemetry>();
+            for(var operation:tasks.startedModelOperations(scope,id))
+                modelReceipts.telemetry(contract,operation.operationId(),operation.fencingToken()).ifPresent(calls::add);
+            item.put("modelReceipts",calls);
+        }
+        item.put("allowedTools",contract.authorization().allowedTools());
+        item.put("canCancel",!outcome.status().terminal() && !outcome.cancellationRequested());
+        item.put("canRetry",false); // Retries require the existing parent workflow and its original authorization.
+        item.put("canResume",!outcome.status().terminal());
+        item.put("attemptId",id+":fence-"+tasks.ownership(scope,id).fencingToken());
+
+        return item;
+    }
+    private <T> T authorizedTask(String runId,String taskId,HttpServletRequest request,Function<KernelDataScope,T> operation){
+        if(runtime.find(runId).isPresent())return authorized(runId,request,operation);
+        Object tenant=request.getAttribute(ApiAuthenticationFilter.CURRENT_TENANT_ID),user=request.getAttribute(ApiAuthenticationFilter.CURRENT_USER_ID);
+        if(tenant==null||user==null)throw new ResponseStatusException(HttpStatus.FORBIDDEN);
+        var scope=new KernelDataScope(tenant.toString(),user.toString(),null,null,runId,null,Map.of());
+        return identity.as(scope,EnumSet.of(CodingTaskAccess.Action.READ,CodingTaskAccess.Action.STOP,CodingTaskAccess.Action.RECOVER,CodingTaskAccess.Action.WORKER,CodingTaskAccess.Action.EVIDENCE),()->{
+            var contract=tasks.contract(scope,taskId); // existing durable store isolates tenant/user/run; no synthetic parent run
+            if(!scope.tenantId().equals(contract.scope().tenantId())||!scope.userId().equals(contract.scope().userId())||!scope.runId().equals(contract.scope().runId()))throw new ResponseStatusException(HttpStatus.FORBIDDEN);
+            return operation.apply(scope);
+        });
     }
 
     private <T> T authorized(String runId,HttpServletRequest request,Function<KernelDataScope,T> operation) {

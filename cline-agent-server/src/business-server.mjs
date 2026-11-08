@@ -9,6 +9,7 @@ import {Journal} from './journal.mjs';
 import {httpGateway} from './business/runtime-callback.mjs';
 import {projectRequest,projectResponse,writeCompletion,permittedTool,LOCAL_TOOLS} from './business/model-protocol.mjs';
 import {runtimeTools,verifiedReceipt} from './business/runtime-tools.mjs';
+import {promptContext} from './business/prompt.mjs';
 import {deliver} from './business/delivery.mjs';
 import {nativeContext,observeNativeSession,inputHash} from './business/native-context.mjs';
 import {persistRun,restoreRun,runtimeDeliveryStatus,reconcileStoppedRun} from './business/run-state.mjs';
@@ -125,12 +126,11 @@ async function execute(r){
   for(let n=0;;n++){if(r.cancelRequested)throw Error('Cancelled during native startup');try{await worker(r,'/health/ready');break;}catch(e){if(n>=180)throw e;await delay(500);}}
   r.nativeSessionId=(await worker(r,'/v1/sessions','POST',{workspaceRef:'project',editTool})).sessionId;save(r);
   for(let n=0;;n++){const s=await worker(r,'/v1/sessions/'+r.nativeSessionId+'/status');if(s.status==='idle'){r.epoch=s.epoch;break;}if(n>=200||s.status==='failed')throw Error('Native session startup failed');await delay(500);}
-  const {skills,inputFiles,...runtimeContext}=r.contract.runtimeContext;
   const prompt=[r.contract.objective?.instruction??r.contract.instruction??'',
    'Runtime retains identity, authorization, immutable data, budgets, Managed Python and archival. Use your native skills tool to select and load applicable Skills autonomously; staged files alone do not count as loading. Runtime input inventory is in runtime-inputs.json. Native file tools read the nativePath entries below. /data/input paths exist only in Managed Python Sandbox, not in the native file workspace.',
    'Write Python source in this workspace using native editing, then call runtime__python_execute with sourceFile. That tool runs it in the existing Managed Sandbox, where authoritative data paths are those in the input descriptor. Do not execute local shell commands or access databases or network directly. Inspect actual executionFeedback and repair the source yourself if authorized.',
    'Every Python execution must write the complete required report under /workspace/output/results/, using the exact output schema; print-only probes do not deliver a report. You may generate additional Markdown, Excel and chart files there. Successful receipts attach the REAL archived report as reviewedArtifact for your next-turn semantic review. Repair unsupported results yourself. artifact_read remains available for re-reading; a separate confirmation read is unnecessary when reviewedArtifact was provided. Finish through the official submit_and_exit only after reviewing actual results. Legacy source/repair hints in the objective refer to the old transport: here edit native files and call runtime__python_execute with sourceFile. A completed model turn or exit code zero does not establish a delivered result.',
-   JSON.stringify({objective:r.contract.objective,outputContract:r.contract.outputContract,runtimeContext,inputSnapshotRef:r.contract.inputSnapshotRef,files:delivery.files,inputs:delivery.context})].join('\n\n');
+   JSON.stringify(promptContext(r.contract,delivery))].join('\n\n');
   r.status='RUNNING';audit(r,'task.input',{text:prompt});await worker(r,'/v1/sessions/'+r.nativeSessionId+'/messages','POST',{text:prompt},{'idempotency-key':r.contractHash});
   let cursor='';
   while(!r.cancelRequested){

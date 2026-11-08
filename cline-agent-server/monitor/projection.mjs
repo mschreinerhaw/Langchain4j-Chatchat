@@ -21,20 +21,20 @@ export function projectEvent(event,source,sessionId,secrets=[]){
   const a=p.payload?.event;
   if(a?.contentType==='reasoning'||a?.contentType==='thinking')return null;
   if(a?.contentType==='tool')return null; // separately persisted tool.* events are the bounded public projection
-  if(a)native={type:a.type,contentType:a.contentType,...a};
+  if(a)native=a.type==='usage'?{...a,cost:null,totalCost:null,usageAuthority:'NATIVE_OBSERVATION_NOT_RUNTIME_BILLING'}:{type:a.type,contentType:a.contentType,...a};
  }
- if(type==='model.request')p={modelCall:p.modelCall,model:p.model,requestHash:hash(JSON.stringify(p)),messageCount:p.messages?.length,source:'Runtime model broker'};
- else if(type==='model.receipt')p={modelInfo:p.modelInfo,usage:p.usage,usageStatus:p.usageStatus,error:p.error,finishReason:p.finishReason,providerRequestId:p.providerRequestId,modelCall:p.modelCall};
+ if(type==='model.request')p={operationId:p.operationId,modelCall:Number(p.operationId?.replace('model-',''))||null,model:p.model,requestHash:hash(JSON.stringify(p)),messageCount:p.messages?.length,state:'REQUESTED',source:'Runtime model broker'};
+ else if(type==='model.receipt')p={operationId:p.operationId,modelInfo:p.modelInfo,usage:p.usage,usageStatus:p.usageStatus,error:p.error,finishReason:p.finishReason,providerRequestId:p.providerRequestId,modelCall:p.modelCall,state:p.error?'FAILED':'RECEIPT_RECEIVED'};
  else if(type==='task.input')p={message:'Runtime supplied the frozen instruction and authorized input inventory',instructionHash:hash(p.text??'')};
  else if(type==='delivery')p={files:(p.files??[]).map(f=>({fileId:f.fileId,fileName:f.fileName,nativePath:f.nativePath,bytes:f.bytes,sha256:f.sha256})),skills:(p.skills??[]).map(s=>({skillId:s.skillId,name:s.name,version:s.version,deliveredHash:s.deliveredHash,status:'STAGED'}))};
  else if(type==='mcp.receipt')p={name:p.name,nativeContext:p.nativeContext,receipt:receipt(p.receipt)};
- else if(type==='mcp.request')p={name:p.name,nativeContext:p.nativeContext,jsonRpcId:p.jsonRpcId,argumentsHash:hash(JSON.stringify(p.arguments??{}))};
+ else if(type==='mcp.request')p={name:p.name,nativeContext:p.nativeContext,jsonRpcId:p.jsonRpcId,argumentsHash:hash(JSON.stringify(p.arguments??{})),argumentsSummary:Object.fromEntries(['sourceFile','operationId','datasetReference','offset','limit','reference'].filter(k=>p.arguments?.[k]!==undefined).map(k=>[k,p.arguments[k]]))};
  else p=native;
  // Tool input/output can contain complete financial tables. Explicit source viewing is separate.
- if(type?.startsWith('tool.'))p={toolName:p.toolName,toolCallId:p.toolCallId,inputHash:hash(JSON.stringify(p.input??null)),outputHash:hash(JSON.stringify(p.output??null)),status:p.status,durationMs:p.durationMs,error:p.error,errorMessage:p.errorMessage,message:p.message,
+ if(type?.startsWith('tool.'))p={toolName:p.toolName,toolCallId:p.toolCallId,inputHash:p.input===undefined?null:hash(JSON.stringify(p.input)),outputHash:p.output===undefined?null:hash(JSON.stringify(p.output)),status:p.status,durationMs:p.durationMs,error:p.error??p.output?.error,errorMessage:p.errorMessage,message:p.message,
   command:sessionId.startsWith('native:')?p.input?.command??p.input?.commands:undefined,
   testOutput:sessionId.startsWith('native:')&&/execute|terminal|run_commands/.test(p.toolName??'')?p.output:undefined,
-  failureSummary:type==='tool.failed'?String(p.output??'').slice(0,2000):undefined,
+  failureSummary:type==='tool.failed'?(typeof p.output==='string'?p.output:JSON.stringify(p.output??null)).slice(0,2000):undefined,
   outputSummary:typeof p.output==='string'?(/<command-name>([^<]+)<\/command-name>/.exec(p.output)?.[1]??'Result retained in private Native journal'):null,
   file:p.input?.path??p.input?.file_path??p.input?.filePath,patchAttempt:p.toolName==='apply_patch'};
  if(!type)return null;

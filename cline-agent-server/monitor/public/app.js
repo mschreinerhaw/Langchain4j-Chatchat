@@ -56,7 +56,7 @@ function renderTab(){
  const root=$('#detail-content');if(!detail){root.replaceChildren(el('p','选择会话后查看执行详情'));return;}
  if(['files','code'].includes(tab))return;
  root.replaceChildren();let entries=[];
- if(tab==='models'){root.append(el('p','真实 Token 和计费以 Runtime 模型回执为准。缺失用量为 UNKNOWN。'));entries=detail.modelReceipts?.length?detail.modelReceipts:observations.filter(e=>/model\.|iteration|usage/.test(e.type));}
+ if(tab==='models'){root.append(el('p','真实 Token 和计费以 Runtime 模型回执为准。缺失用量为 UNKNOWN。'));entries=[...(detail.modelReceipts??[]),...observations.filter(e=>/model\.|iteration|usage|broker.failure/.test(e.type))];}
  if(tab==='tools')entries=observations.filter(e=>e.type.startsWith('tool.'));
  if(tab==='skills')entries=observations.filter(e=>/mcp\.|skills/i.test(e.type)||/skill|mcp|runtime__/i.test(pretty(e.payload)));
  if(tab==='python'){root.append(el('p','Python 执行成功、原生结束与 Runtime 业务交付分别展示。'));entries=[...(detail.executions??[]),...observations.filter(e=>/python_execute|executionFeedback|operationId/.test(pretty(e.payload)))];}
@@ -64,7 +64,7 @@ function renderTab(){
  if(tab==='diagnostics')entries=[{nativeStatus:detail.status,runtimeStatus:detail.runtimeStatus,authority:detail.authority,error:detail.error,activeOperations:detail.activeOperations,workerStopped:detail.workerStopped,remoteStopConfirmed:detail.remoteStopConfirmed},...observations.filter(e=>/error|fail|cancel|reconcil|recover/.test(e.type))];
  if(!entries.length)root.append(el('p','尚无实际回执；不推断为成功。'));
  for(const entry of entries.slice(-300).reverse()){
-  const block=card([entry.timestamp??entry.startedAt??'',entry.type??entry.operationId??entry.executionId??entry.model??'回执',entry.payload?.toolName??entry.status??''].join(' · '),entry);root.append(block);
+  const block=card([entry.timestamp??entry.startedAt??'',entry.type??entry.operationId??entry.executionId??entry.model??'回执',entry.payload?.toolName??entry.state??entry.status??''].join(' · '),entry);root.append(block);
   const operation=entry.executionId??entry.operationId??entry.payload?.operationId;
   if(tab==='python'&&detail.mode==='runtime'&&/^cline-[a-f0-9]{64}$/.test(operation??''))for(const kind of ['code','stdout','stderr','timing']){const button=el('button','查看 '+kind);button.onclick=async()=>{try{block.append(dump(await api('/sessions/'+encodeURIComponent(current)+'/trace?operationId='+operation+'&kind='+kind)));block.open=true;}catch(e){command(e.message);}};block.append(button);}
  }

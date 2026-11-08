@@ -53,7 +53,9 @@ export class Backend {
   let item,error;
   try{try{item=await this.runtime(user,this.root(s)+'/'+s.taskId);}catch(e){if(e.status!==404)throw e;const list=await this.runtime(user,this.root(s));item=list.tasks.find(t=>t.taskId===s.taskId);}}catch(e){error=e.message;}
   const feedbacks=(item?.executions??[]);
-  return safe({id:key,mode:'runtime',sessionId:s.nativeSessionId,nativeSessionId:s.nativeAgentSessionId,taskId:s.taskId,runId:s.scope.runId,status:s.status,runtimeStatus:item?.outcome?.status??'UNKNOWN',authority:item?'RUNTIME_CONFIRMED':'RUNTIME_UNAVAILABLE',outcome:item?.outcome,modelReceipts:item?.modelReceipts??[],executions:feedbacks,error:error??s.error,activeOperations:s.activeOperations??[],workerStopped:s.stopProof?.running===false,remoteStopConfirmed:s.remoteStopConfirmed===true,codeLifecycle:s.codeLifecycle,nativeCompletion:s.nativeCompletion,capabilities:{messages:false,cancel:item?.canCancel===true,reconcile:item?.canResume===true,permissions:false},allowedTools:item?.allowedTools,objective:item?.objective},[...this.secrets,user.token,s.apiToken,s.brokerToken]);
+  const journal=await this.lines(join(this.config.businessState,s.workerId,'events.jsonl'));
+  const ended=journal.findLast(e=>e.type==='native.event'&&e.payload?.eventType==='turn.completed');
+  return safe({id:key,mode:'runtime',sessionId:s.nativeSessionId,nativeSessionId:s.nativeAgentSessionId,taskId:s.taskId,runId:s.scope.runId,status:s.status,nativeTurnStatus:ended?'TURN_COMPLETED':'NO_CONFIRMED_TURN_COMPLETION',nativeTurnEventId:ended?.payload?.eventId,runtimeStatus:item?.outcome?.status??'UNKNOWN',authority:item?'RUNTIME_CONFIRMED':'RUNTIME_UNAVAILABLE',outcome:item?.outcome,modelReceipts:item?.modelReceipts??[],executions:feedbacks,error:error??s.error,activeOperations:s.activeOperations??[],workerStopped:s.stopProof?.running===false,remoteStopConfirmed:s.remoteStopConfirmed===true,codeLifecycle:s.codeLifecycle,nativeCompletion:s.nativeCompletion,capabilities:{messages:false,cancel:item?.canCancel===true,reconcile:item?.canResume===true,permissions:false},allowedTools:item?.allowedTools,objective:item?.objective},[...this.secrets,user.token,s.apiToken,s.brokerToken]);
  }
  async create(user,b){
   if(b.mode==='native'){
@@ -107,7 +109,7 @@ export class Backend {
   if(!response.ok)throw fail('Runtime denied archived source/log read',response.status);
   const bytes=Buffer.from(await response.arrayBuffer());if(hash(bytes)!==file.sha256||bytes.length!==file.size)throw fail('Archived artifact integrity mismatch',409);
   const content=bytes.toString('utf8'),limit=kind==='code'?256000:8192;
-  return {kind,operationId:operation,source:'RUNTIME_OWNER_ARCHIVE',fileId:file.id,sha256:file.sha256,totalBytes:bytes.length,content:safe(content,[user.token]).slice(0,limit),redacted:safe(content,[user.token])!==content,truncated:content.length>limit};
+  return {kind,operationId:operation,source:'RUNTIME_OWNER_ARCHIVE',fileId:file.id,sha256:file.sha256,totalBytes:bytes.length,content:safe(content,[user.token]).slice(0,limit),redacted:safe(content,[user.token])!==content,truncated:content.length>Math.min(limit,32000)};
  }
  async runtimeEvents(user,key,after=0){
   const c=await this.context(user,key);if(c.mode!=='runtime')return {events:[],nextSequence:0};

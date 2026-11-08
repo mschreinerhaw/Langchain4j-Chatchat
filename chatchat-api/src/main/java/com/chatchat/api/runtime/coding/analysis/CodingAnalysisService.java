@@ -147,7 +147,7 @@ public final class CodingAnalysisService implements AnalysisCodingPort {
             receipt.put("analysisEvents",progressEvents(caller,taskId,outcome.lastEventSequence(),contract.inputSnapshotRef(),receipt));
             receipt.put("reconciliationRequired",outcome.executionControl().reconciliationRequired());
             receipt.put("cancellationRequested",outcome.cancellationRequested());
-            receipt.put("validationStatus",outcome.validationStatus().name());receipt.put("businessValidation","NOT_EVALUATED");
+            receipt.put("validationStatus",outcome.validationStatus().name());receipt.put("businessValidation",outcome.validationStatus()==CodingTaskOutcome.ValidationStatus.PASSED?"PASSED":"NOT_EVALUATED");
             receipt.put("usage",outcome.usage());receipt.put("limitations",outcome.limitations());receipt.put("resultAvailable",false);
             if(outcome.summary()!=null)receipt.put("summary",outcome.summary());
             if(outcome.reasonCode()!=null)receipt.put("reasonCode",outcome.reasonCode().name());
@@ -748,7 +748,7 @@ public final class CodingAnalysisService implements AnalysisCodingPort {
             receipt.put("terminal",outcome.status().terminal());
             if(!stopMetrics.isEmpty())receipt.put("stopReconciliation",stopMetrics);
             receipt.put("eventCursor",outcome.lastEventSequence());receipt.put("taskRevision",outcome.revision());
-            receipt.put("validationStatus",outcome.validationStatus().name());receipt.put("businessValidation","NOT_EVALUATED");
+            receipt.put("validationStatus",outcome.validationStatus().name());receipt.put("businessValidation",outcome.validationStatus()==CodingTaskOutcome.ValidationStatus.PASSED?"PASSED":"NOT_EVALUATED");
             receipt.put("usage",outcome.usage());
             receipt.put("budgetScope","TOOL_INVOCATION");
             receipt.put("budgetId",accepted.budget().budgetId());
@@ -799,7 +799,7 @@ public final class CodingAnalysisService implements AnalysisCodingPort {
                 var resultContext=new LinkedHashMap<String,Object>(result.analysisContext());
                 resultContext.put("coding",Map.of("taskId",taskId,"inputDatasetReference",source.reference(),
                     "status","COMPLETED","resultAvailable",true,"validationStatus",outcome.validationStatus().name(),
-                    "businessValidation","NOT_EVALUATED","limitations",outcome.limitations(),"evidenceRefs",refs));
+                    "businessValidation",outcome.validationStatus()==CodingTaskOutcome.ValidationStatus.PASSED?"PASSED":"NOT_EVALUATED","limitations",outcome.limitations(),"evidenceRefs",refs));
                 sources.put(result.reference(),new Dataset(result.reference(),resultContext,result.handle()));
                 receipt.put("resultAvailable",true);
                 if(VisualReportMode.active(accepted.runtimeContext()))collector.visualReport(scope,taskId,outcome.resultDatasetRef()).ifPresent(report->receipt.put("visualReport",report));

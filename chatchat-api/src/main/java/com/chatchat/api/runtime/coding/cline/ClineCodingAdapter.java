@@ -40,6 +40,9 @@ public final class ClineCodingAdapter implements CodingAgentSPI {
     private final java.time.Clock clock;
     private final String workerId = "cline-adapter:" + UUID.randomUUID();
     private CodingWorkspaceService workspace;
+    private boolean nativeSessions;
+    /** Backend-specific recovery must never turn SDK checkpoints into native sessions. */
+    public void setNativeSessions(boolean value) { this.nativeSessions = value; }
     public void setWorkspace(CodingWorkspaceService workspace) { this.workspace = workspace; }
     private CodingDataSupplyService dataSupply;
     public void setDataSupply(CodingDataSupplyService value) {this.dataSupply=value;}
@@ -162,7 +165,8 @@ public final class ClineCodingAdapter implements CodingAgentSPI {
         // A current live SDK owns settlement. Racing its callbacks with recovery
         // advances the same revision twice and can cancel a healthy invocation.
         // A missing/ended/fenced session is the boundary that permits recovery.
-        boolean recoveryOwned = sessionMissing || remote != null
+        boolean nativeStopped = nativeSessions && remote != null && remote.path("workerStopped").asBoolean();
+        boolean recoveryOwned = sessionMissing || nativeStopped || remote != null
             && (remote.path("fencingToken").asLong() < lease.fencingToken()
                 || List.of("COMPLETED", "FAILED", "CANCELLED").contains(remote.path("status").asText()));
         if (!recoveryOwned) return tasks.get(scope, taskId);
@@ -203,7 +207,7 @@ public final class ClineCodingAdapter implements CodingAgentSPI {
         current = tasks.get(scope, taskId);
         // A live SDK is reused above. The SDK has no cross-process reconnect API;
         // only a Java-committed, fully settled boundary can seed a NEW instance.
-        if ((sessionMissing || remote != null && "FAILED".equals(remote.path("status").asText())) && workerId.equals(lease.owner())
+        if (!nativeSessions && (sessionMissing || remote != null && "FAILED".equals(remote.path("status").asText())) && workerId.equals(lease.owner())
                 && current.executionControl().stopReason() == null
                 && tasks.unresolvedOperations(scope, taskId).isEmpty()) {
             JsonNode checkpoint = sessionMissing ? tasks.sdkCheckpoint(scope, taskId) : null;
@@ -238,15 +242,19 @@ public final class ClineCodingAdapter implements CodingAgentSPI {
         // A durable stop rejects new model/tool admissions. Once every started operation has
         // verified stop evidence, a lost SDK session must not keep cancellation pending forever.
         if (workerId.equals(lease.owner()) && current.executionControl().stopReason() != null
-                && (sessionMissing || remote != null && List.of("COMPLETED", "FAILED", "CANCELLED").contains(remote.path("status").asText()))
+                && (sessionMissing || nativeStopped || remote != null && List.of("COMPLETED", "FAILED", "CANCELLED").contains(remote.path("status").asText()))
                 && tasks.unresolvedOperations(scope, taskId).isEmpty())
             return tasks.finishStoppedAfterReconciliation(scope, taskId, lease, current.revision());
         if (workerId.equals(lease.owner()) && current.executionControl().stopReason() == null
                 && tasks.unresolvedOperations(scope, taskId).isEmpty()
                 && tasks.hasStartedOperations(scope, taskId)
-                && (sessionMissing || remote != null
+                && (sessionMissing || nativeStopped || remote != null
                     && List.of("COMPLETED", "FAILED", "CANCELLED").contains(remote.path("status").asText()))) {
-            CodingTaskOutcome archived = completeVerifiedOperation(scope, taskId, lease);
+            // A native business failure (including budget exhaustion) must not be
+            // upgraded merely because an intermediate Python execution succeeded.
+            CodingTaskOutcome archived = nativeSessions && (remote == null
+                    || !"COMPLETED".equals(remote.path("businessStatus").asText()))
+                ? null : completeVerifiedOperation(scope, taskId, lease);
             if (archived != null) return archived;
             var operations=tasks.startedCodeOperations(scope,taskId);
             if(!operations.isEmpty()) {

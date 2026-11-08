@@ -22,6 +22,19 @@ import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.*;
 
 class ClinePythonCallbackControllerTest {
+    @Test void operationReconciliationReadsActualStateWithoutALiveLeaseOrRedispatch() {
+        when(tasks.contract(scope,"task")).thenReturn(contract);
+        when(tasks.startedCodeOperations(scope,"task")).thenReturn(List.of(operation));
+        when(python.get(scope,"task",operation)).thenReturn(new McpPythonControlPlanePort.OperationView(
+            operation,"SUCCEEDED",null,1,false,true,0,"a".repeat(64),"image:actual","b".repeat(64),null));
+        var request=json.valueToTree(Map.of("scope",scope,"taskId","task","operationId",operation,"kind","operation"));
+        assertThat(controller.monitorPython(request)).containsEntry("executorStopped",true).containsEntry("status","SUCCEEDED");
+        when(tasks.startedCodeOperations(scope,"task")).thenReturn(List.of());
+        assertThatThrownBy(()->controller.monitorPython(request)).hasMessageContaining("404");
+        verify(python,times(1)).get(scope,"task",operation);
+        verify(tasks,never()).ownership(any(),anyString());verify(tasks,never()).resume(any(),anyString());
+        verifyNoInteractions(collector,inputs);
+    }
     @Test void monitorStatusIsReadOnlyAndProjectsEveryAuthoritativeTerminalWithoutNeedingALiveLease() {
         var now=Instant.now();var outcome=mock(CodingTaskOutcome.class);
         when(tasks.get(scope,"task")).thenReturn(outcome);when(tasks.contract(scope,"task")).thenReturn(contract);

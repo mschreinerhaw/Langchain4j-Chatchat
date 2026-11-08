@@ -49,6 +49,7 @@ public class ClineCodingConfiguration {
         adapter.setWorkspace(workspace.getIfAvailable());
         adapter.setDataSupply(dataSupply.getIfAvailable());
         adapter.setLicenseEntitlements(licenseEntitlements);
+        adapter.setNativeSessions("native".equals(backend));
         return "native".equals(backend)?new ClineNativeCodingAdapter(adapter,URI.create(nodeUrl),CodingSecrets.resolve(secret,secretFile),mapper):adapter;
     }
 }

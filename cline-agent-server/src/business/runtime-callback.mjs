@@ -87,6 +87,7 @@ export function httpGateway(callbackUrl, secret, binding, { timeoutMs = 90000 } 
   return {
     atomicModelAttempts: true,
     monitorPython: (operationId, kind='code') => callback('monitor-python', { ...(operationId?{operationId}:{}),kind }),
+    observePython: operationId => callback('monitor-python', {operationId,kind:'operation'}),
     budget: (contract, contextTokensEstimate, signal) => callback('budget', { contract, contextTokensEstimate }, signal),
     reserveModel: (contract, model) => callback('reserve-model', { contract, model }),
     preflight: signal => callback('preflight', {}, signal),

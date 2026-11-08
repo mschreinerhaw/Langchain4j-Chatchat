@@ -11,6 +11,7 @@ import {projectRequest,projectResponse,writeCompletion,permittedTool,LOCAL_TOOLS
 import {runtimeTools,verifiedReceipt} from './business/runtime-tools.mjs';
 import {deliver} from './business/delivery.mjs';
 import {nativeContext,observeNativeSession,inputHash} from './business/native-context.mjs';
+import {persistRun,restoreRun,runtimeDeliveryStatus} from './business/run-state.mjs';
 
 const cfg=JSON.parse(readFileSync(process.env.CLINE_BUSINESS_CONFIG,'utf8'));
 if(!cfg.secret||cfg.secret.length<32||!cfg.workerImage?.startsWith('sha256:'))throw Error('Runtime secret and pinned native image required');
@@ -24,13 +25,13 @@ const send=(res,status,data)=>{res.writeHead(status,{'content-type':'application
 const delay=ms=>new Promise(r=>setTimeout(r,ms));
 const failure=(message,status=409)=>Object.assign(Error(message),{status});
 async function body(req){const chunks=[];let size=0;for await(const b of req){size+=b.length;if(size>2*1024*1024)throw failure('Request too large',413);chunks.push(b);}return JSON.parse(Buffer.concat(chunks).toString()||'{}');}
-function view(r){return {status:r.status,businessStatus:r.result?.status??null,contractHash:r.contractHash,fencingToken:r.fencingToken,result:r.result,error:r.error,recoveryMode:r.status==='UNKNOWN'?'RECONCILE_REQUIRED':'NATIVE_SESSION',nativeSessionId:r.nativeSessionId};}
-function save(r){writeFileSync(join(r.dir,'run.json'),JSON.stringify({...view(r),scope:r.contract.scope,taskId:r.contract.taskId,containerId:r.containerId,workerId:r.workerId,lastOperation:r.lastOperation,activeOperations:[...r.activeOperations],remoteStopConfirmed:r.remoteStopConfirmed,codeLifecycle:r.codeLifecycle}),{mode:0o600});}
+function view(r){return {status:r.status,businessStatus:r.result?.status??null,contractHash:r.contractHash,fencingToken:r.fencingToken,result:r.result,error:r.error,recoveryMode:r.status==='UNKNOWN'?'RECONCILE_REQUIRED':'NATIVE_SESSION',nativeSessionId:r.nativeSessionId,workerStopped:r.stopProof?.running===false,remoteStopConfirmed:r.remoteStopConfirmed===true};}
+function save(r){persistRun(r,view(r));}
 function audit(r,type,payload){r.journal.append({type,payload});save(r);}
 // Restart never replays an existing business task or starts the legacy worker.
 for(const name of readdirSync(cfg.stateRoot)){
  const file=join(cfg.stateRoot,name,'run.json');if(!existsSync(file))continue;
- const old=JSON.parse(readFileSync(file));runs.set(key(old),{...old,contract:{scope:old.scope,taskId:old.taskId},status:['RUNNING','STARTING'].includes(old.status)?'UNKNOWN':old.status,recovered:true});
+ const r=restoreRun(join(cfg.stateRoot,name),cfg.workersRoot,r=>httpGateway(cfg.callbackUrl,cfg.secret,{scope:r.contract.scope,taskId:r.contract.taskId,contractHash:r.contractHash,fencingToken:r.fencingToken}));runs.set(key(r.contract),r);
 }
 function worker(r,path,method='GET',value,headers={}){return new Promise((resolve,reject)=>{
  const req=http.request({socketPath:join(r.workerDir,'bridge/worker.sock'),path,method,headers:{authorization:'Bearer '+r.apiToken,'content-type':'application/json',accept:'application/json',...headers}},async res=>{
@@ -71,6 +72,7 @@ async function broker(r){
 }
 async function cancel(r,reason){
  if(r.cancelPending)return r.cancelPending;
+ if(r.recovered&&!r.recoveryControllable){audit(r,'cancel.reconciliation_required',{reason:'Legacy private record lacks original native control binding; reconcile Executor and Runtime without replay'});return;}
  r.cancelPending=(async()=>{
   r.cancelRequested=true;audit(r,'cancel.requested',{reason});r.abort.abort(Error(reason));
   for(const id of r.activeOperations)try{await r.gateway.cancelPython(r.contract,id);}catch(e){audit(r,'cancel.remote_error',{operationId:id,message:e.message});}
@@ -78,11 +80,11 @@ async function cancel(r,reason){
   try{if(r.containerId)r.stopProof=await executor.stop(grant(r),r.workerId);}catch(e){audit(r,'cancel.local_error',{message:e.message});}
   const unresolved=[];
   for(const id of r.activeOperations){
-   let receipt;for(let n=0;n<30;n++){try{receipt=await r.gateway.getPython(r.contract,id);if(receipt.executorStopped)break;}catch{}await delay(500);}
+   let receipt;for(let n=0;n<30;n++){try{receipt=await r.gateway.getPython(r.contract,id).catch(()=>r.gateway.observePython(id));if(receipt.executorStopped)break;}catch{}await delay(500);}
    audit(r,'cancel.remote_receipt',{operationId:id,receipt});if(!receipt?.executorStopped||receipt.status==='UNKNOWN')unresolved.push(id);
   }
   r.remoteStopConfirmed=unresolved.length===0;r.status=r.stopProof&&r.remoteStopConfirmed?'CANCELLED':'UNKNOWN';
-  try{r.result=await r.gateway.finish(r.contract,{status:'aborted',operationId:null,summary:reason});}catch(e){audit(r,'cancel.finish_rejected',{message:e.message});r.status='UNKNOWN';}
+  try{r.result=await r.gateway.finish(r.contract,{status:'aborted',operationId:null,summary:reason});if(r.status!=='UNKNOWN')r.status=r.result.status;}catch(e){audit(r,'cancel.finish_rejected',{message:e.message});r.status='UNKNOWN';}
   audit(r,'cancel.reconciled',{unresolved,localStopProof:r.stopProof,remoteStopConfirmed:r.remoteStopConfirmed});r.broker?.close();
  })();return r.cancelPending;
 }
@@ -123,6 +125,7 @@ async function execute(r){
     if(event.eventId===cursor)continue;observeNativeSession(r,event);audit(r,'native.event',event);cursor=event.eventId;
     if(['tool.started','tool.completed','tool.failed'].includes(event.eventType)){
      const a=event.payload;await emit({type:event.eventType==='tool.started'?'TOOL_STARTED':'TOOL_FINISHED',tool:a.toolName,toolCallId:a.toolCallId,status:event.eventType==='tool.failed'?'FAILED':event.eventType==='tool.completed'?'SUCCEEDED':'STARTED'});
+     if(a.toolName==='submit_and_exit'&&event.eventType==='tool.completed'){r.nativeCompletion={eventId:event.eventId,toolCallId:a.toolCallId,sessionId:r.nativeSessionId};save(r);}
      if(a.toolName==='skills'&&event.eventType==='tool.completed'&&typeof a.output==='string'){
       const name=a.output.match(/<command-name>([^<]+)<\/command-name>/)?.[1];
       const skill=delivery.skills.find(s=>s.name===name&&s.path==='SKILL.md');
@@ -137,11 +140,11 @@ async function execute(r){
     await worker(r,'/v1/permissions/'+p.id+'/respond','POST',{decision:approved?'approve':'deny',reason:'Frozen Runtime task authorization'});
    }
    if(s.status==='turn_completed'){
+    if(!r.nativeCompletion)throw Error('Native turn ended without successful official submit_and_exit');
     if(r.activeOperations.size||!r.lastOperation||!verifiedReceipt(r.lastReceipt)||r.reviewedResult!==r.lastReceipt.resultDatasetRef)throw Error('Native turn ended without a verified, reviewed Runtime deliverable');
     r.taskCompleting=true;
     r.result=await r.gateway.finish(r.contract,{status:'completed',operationId:r.lastOperation,summary:'Native Cline completed; archived output independently verified by Runtime'});
-    if(!['COMPLETED','PARTIAL'].includes(r.result.status))throw Error('Runtime did not accept business delivery: '+r.result.status);
-    r.status='COMPLETED';audit(r,'task.delivered',r.result);break;
+    r.status=runtimeDeliveryStatus(r.result);audit(r,'task.delivered',r.result);break;
    }
    if(['failed','recoverable','awaiting_input','cancelled'].includes(s.status))throw Error('Native execution requires reconciliation or user input: '+s.status);
    await delay(500);
@@ -150,7 +153,7 @@ async function execute(r){
   if(r.cancelRequested){await r.cancelPending;return;}
   r.error=e.message;r.status=r.activeOperations.size?'UNKNOWN':'FAILED';audit(r,'task.failure',{message:e.message});
   if(r.activeOperations.size){await cancel(r,e.message);return;}
-  try{r.result=await r.gateway.finish(r.contract,{status:'failed',operationId:null,summary:e.message});}catch(error){audit(r,'task.finish_failure',{message:error.message});r.status='UNKNOWN';}
+  try{r.result=await r.gateway.finish(r.contract,{status:'failed',operationId:null,summary:e.message});r.status=r.result.status;}catch(error){audit(r,'task.finish_failure',{message:error.message});r.status='UNKNOWN';}
  }finally{
   if(!r.cancelRequested){try{if(r.containerId)r.stopProof=await executor.stop(grant(r),r.workerId);}catch(e){audit(r,'worker.stop_failure',{message:e.message});}r.broker?.close();save(r);}
  }
@@ -166,7 +169,7 @@ const server=http.createServer(async(req,res)=>{
   let r=runs.get(key(c));
   if(r){if(r.contractHash!==b.contractHash||b.fencingToken<r.fencingToken)throw failure('Task identity or fence conflict');
    if(req.url==='/v1/runs'&&b.fencingToken!==r.fencingToken)throw failure('Existing native task requires Runtime reconciliation; no duplicate execution');
-   if(req.url==='/v1/runs/cancel'&&!r.recovered&&['STARTING','RUNNING'].includes(r.status))void cancel(r,'Runtime stop requested');
+   if(req.url==='/v1/runs/cancel'&&['STARTING','RUNNING','UNKNOWN'].includes(r.status))void cancel(r,'Runtime stop requested');
    return send(res,req.url==='/v1/runs/get'?200:202,view(r));
   }
   if(req.url!=='/v1/runs')throw failure('Bound native session absent; reconcile Runtime Journal',404);

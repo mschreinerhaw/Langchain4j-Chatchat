@@ -120,6 +120,13 @@ public final class ClinePythonCallbackController {
             String operation=body.path("operationId").asText("");
             if(!operation.isBlank()) {
                 if(!operation.matches("cline-[0-9a-f]{64}"))throw new ResponseStatusException(HttpStatus.BAD_REQUEST);
+                if("operation".equals(body.path("kind").asText())) {
+                    if(!tasks.startedCodeOperations(scope,taskId).contains(operation))
+                        throw new ResponseStatusException(HttpStatus.NOT_FOUND,"Operation was not dispatched by this task");
+                    // Read the actual remote state even after the task lease/deadline
+                    // ended. This does not admit, restart, or settle an execution.
+                    return view(python.get(scope,taskId,operation));
+                }
                 var matchingExecution=executions.stream().filter(e->operation.equals(e.executionId())).findFirst();
                 String kind=body.path("kind").asText("code");
                 if("timing".equals(kind)) {

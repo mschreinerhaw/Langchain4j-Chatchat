@@ -31,7 +31,7 @@ import static org.mockito.Mockito.*;
 /** Real HTTP worker status; execution/collector doubles do not constitute Docker or SDK recovery. */
 class ClineCodingAdapterRecoveryTest {
     @ParameterizedTest
-    @ValueSource(strings = {"COMPLETED", "FAILED", "CANCELLED", "MISSING", "UNKNOWN_MODEL", "FAILED_PYTHON", "MISSING_FAILED_PYTHON", "MISSING_STOPPED", "MISSING_STOPPED_UNKNOWN_MODEL", "MODEL_ONLY", "MISSING_MODEL_ONLY", "LIVE_UNKNOWN_MODEL", "UNAVAILABLE_UNKNOWN_MODEL", "NO_RESULT", "INVALID_RESULT", "COMPLETION_RACE", "MISSING_STOPPED_RESOURCE", "LIVE_RESOURCE", "MISSING_STOPPED_RESOURCE_NO_PROOF"})
+    @ValueSource(strings = {"COMPLETED", "FAILED", "CANCELLED", "MISSING", "UNKNOWN_MODEL", "FAILED_PYTHON", "MISSING_FAILED_PYTHON", "MISSING_STOPPED", "MISSING_STOPPED_UNKNOWN_MODEL", "MODEL_ONLY", "MISSING_MODEL_ONLY", "LIVE_UNKNOWN_MODEL", "UNAVAILABLE_UNKNOWN_MODEL", "NO_RESULT", "INVALID_RESULT", "COMPLETION_RACE", "MISSING_STOPPED_RESOURCE", "LIVE_RESOURCE", "MISSING_STOPPED_RESOURCE_NO_PROOF", "NATIVE_FAILED", "NATIVE_MISSING"})
     void stoppedWorkerRequiresVerifiedLatestExecutionBeforeEvidenceOnlyRecovery(String scenario) throws Exception {
         var scope = new KernelDataScope("tenant", "owner", null, null, "run", null, Map.of());
         var contract = ClineCodingAdapterDispatchTest.contract(scope);
@@ -106,10 +106,10 @@ class ClineCodingAdapterRecoveryTest {
         var dispatches = new AtomicInteger();
         server.createContext("/v1/runs", exchange -> {
             if (exchange.getRequestURI().getPath().equals("/v1/runs")) dispatches.incrementAndGet();
-            if (scenario.startsWith("MISSING")) exchange.sendResponseHeaders(404, -1);
+            if (scenario.startsWith("MISSING") || scenario.equals("NATIVE_MISSING")) exchange.sendResponseHeaders(404, -1);
             else if (scenario.startsWith("UNAVAILABLE")) exchange.sendResponseHeaders(503, -1);
             else {
-                String status = scenario.startsWith("LIVE") ? "RUNNING" : List.of("UNKNOWN_MODEL", "FAILED_PYTHON", "MODEL_ONLY", "NO_RESULT", "INVALID_RESULT", "COMPLETION_RACE").contains(scenario) ? "COMPLETED" : scenario;
+                String status = scenario.equals("NATIVE_FAILED") ? "FAILED" : scenario.startsWith("LIVE") ? "RUNNING" : List.of("UNKNOWN_MODEL", "FAILED_PYTHON", "MODEL_ONLY", "NO_RESULT", "INVALID_RESULT", "COMPLETION_RACE").contains(scenario) ? "COMPLETED" : scenario;
                 byte[] bytes = ("{\"status\":\"" + status + "\",\"fencingToken\":1}").getBytes(StandardCharsets.UTF_8);
                 exchange.sendResponseHeaders(200, bytes.length);
                 try (var output = exchange.getResponseBody()) { output.write(bytes); }
@@ -121,8 +121,15 @@ class ClineCodingAdapterRecoveryTest {
             var adapter = new ClineCodingAdapter(tasks, python, inputs, plans, collector, receipts,
                 URI.create("http://127.0.0.1:" + server.getAddress().getPort()),
                 "0123456789abcdef0123456789abcdef", new ObjectMapper().findAndRegisterModules());
+            adapter.setNativeSessions(scenario.startsWith("NATIVE_"));
             var result = adapter.resume(scope, contract.taskId());
-            if (stopping) {
+            if (scenario.startsWith("NATIVE_")) {
+                assertThat(result.status()).isEqualTo(CodingTaskOutcome.Status.FAILED);
+                verifyNoInteractions(collector);
+                verify(tasks, never()).sdkCheckpoint(any(), anyString());
+                verify(tasks, never()).sdkCheckpointForModelReceipt(any(), anyString(), anySet());
+                verify(tasks, never()).sdkCheckpointAfterLocalModelStops(any(), anyString(), anySet());
+            } else if (stopping) {
                 assertThat(result).isSameAs(current);
                 verify(tasks, times(unknownModel||resourceNoProof ? 0 : 1)).finishStoppedAfterReconciliation(eq(scope), eq(contract.taskId()), any(), eq(current.revision()));
                 verifyNoInteractions(collector);

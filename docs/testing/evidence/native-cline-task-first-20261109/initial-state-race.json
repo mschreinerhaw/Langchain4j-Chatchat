@@ -1,0 +1,12 @@
+{
+  "scope": "REAL_TASK_MONITOR_LAYOUT_READ_ONLY",
+  "startedAt": "2026-11-08T23:09:33.313Z",
+  "postControls": [],
+  "pageErrors": [],
+  "defaultIsTaskMonitor": true,
+  "monitorCreatesRuntimeByDefault": true,
+  "statusFilter": true,
+  "status": "FAIL",
+  "error": "Expected values to be strictly equal:\n+ actual - expected\n\n+ 'COMPLETED'\n- 'BUDGET_EXCEEDED'\n",
+  "finishedAt": "2026-11-08T23:09:36.540Z"
+}

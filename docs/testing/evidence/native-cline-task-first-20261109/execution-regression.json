@@ -1,0 +1,150 @@
+{
+  "scope": "READ_ONLY_REAL_BROWSER_REVALIDATION",
+  "startedAt": "2026-11-08T23:14:07.230Z",
+  "postControls": [],
+  "pageErrors": [],
+  "native": {
+    "sessionId": "4b871368-aa9b-4a05-b25a-a89e3791465e",
+    "nativeSessionId": "1794168627797_0brih",
+    "status": "cancelled",
+    "modelObservations": [
+      {
+        "operationId": "native:11",
+        "taskId": "e03d065b-0519-4223-98d6-f637d8f67c90",
+        "iteration": 1,
+        "configuredModel": "qwen3.7-plus",
+        "startedAt": "2026-11-08T20:10:28.249Z",
+        "state": "USAGE_REPORTED",
+        "source": "NATIVE_CORE_OBSERVATION",
+        "usageAuthority": "NATIVE_OBSERVATION_NOT_RUNTIME_BILLING",
+        "usageEventId": "native:19",
+        "finishedAt": "2026-11-08T20:10:32.618Z",
+        "observedDurationMs": 4369,
+        "usage": {
+          "inputTokens": 3061,
+          "outputTokens": 88
+        }
+      },
+      {
+        "operationId": "native:35",
+        "taskId": "e03d065b-0519-4223-98d6-f637d8f67c90",
+        "iteration": 2,
+        "configuredModel": "qwen3.7-plus",
+        "startedAt": "2026-11-08T20:10:38.312Z",
+        "state": "USAGE_REPORTED",
+        "source": "NATIVE_CORE_OBSERVATION",
+        "usageAuthority": "NATIVE_OBSERVATION_NOT_RUNTIME_BILLING",
+        "usageEventId": "native:40",
+        "finishedAt": "2026-11-08T20:10:40.403Z",
+        "observedDurationMs": 2091,
+        "usage": {
+          "inputTokens": 3312,
+          "outputTokens": 49,
+          "cacheReadTokens": 2816
+        }
+      },
+      {
+        "operationId": "native:57",
+        "taskId": "e03d065b-0519-4223-98d6-f637d8f67c90",
+        "iteration": 3,
+        "configuredModel": "qwen3.7-plus",
+        "startedAt": "2026-11-08T20:10:42.405Z",
+        "state": "USAGE_REPORTED",
+        "source": "NATIVE_CORE_OBSERVATION",
+        "usageAuthority": "NATIVE_OBSERVATION_NOT_RUNTIME_BILLING",
+        "usageEventId": "native:61",
+        "finishedAt": "2026-11-08T20:10:45.526Z",
+        "observedDurationMs": 3121,
+        "usage": {
+          "inputTokens": 3599,
+          "outputTokens": 76,
+          "cacheReadTokens": 2816
+        }
+      },
+      {
+        "operationId": "native:76",
+        "taskId": "e03d065b-0519-4223-98d6-f637d8f67c90",
+        "iteration": 4,
+        "configuredModel": "qwen3.7-plus",
+        "startedAt": "2026-11-08T20:10:50.575Z",
+        "state": "USAGE_REPORTED",
+        "source": "NATIVE_CORE_OBSERVATION",
+        "usageAuthority": "NATIVE_OBSERVATION_NOT_RUNTIME_BILLING",
+        "usageEventId": "native:81",
+        "finishedAt": "2026-11-08T20:10:55.650Z",
+        "observedDurationMs": 5075,
+        "usage": {
+          "inputTokens": 3939,
+          "outputTokens": 48,
+          "cacheReadTokens": 3456
+        }
+      },
+      {
+        "operationId": "native:98",
+        "taskId": "e03d065b-0519-4223-98d6-f637d8f67c90",
+        "iteration": 5,
+        "configuredModel": "qwen3.7-plus",
+        "startedAt": "2026-11-08T20:10:59.004Z",
+        "state": "USAGE_REPORTED",
+        "source": "NATIVE_CORE_OBSERVATION",
+        "usageAuthority": "NATIVE_OBSERVATION_NOT_RUNTIME_BILLING",
+        "usageEventId": "native:176",
+        "finishedAt": "2026-11-08T20:11:06.183Z",
+        "observedDurationMs": 7179,
+        "usage": {
+          "inputTokens": 4308,
+          "outputTokens": 269,
+          "cacheReadTokens": 3456
+        }
+      },
+      {
+        "operationId": "native:188",
+        "taskId": "645835ed-1c15-40df-841e-9f955f814146",
+        "iteration": 1,
+        "configuredModel": "qwen3.7-plus",
+        "startedAt": "2026-11-08T20:11:53.386Z",
+        "state": "USAGE_REPORTED",
+        "source": "NATIVE_CORE_OBSERVATION",
+        "usageAuthority": "NATIVE_OBSERVATION_NOT_RUNTIME_BILLING",
+        "usageEventId": "native:433",
+        "finishedAt": "2026-11-08T20:12:11.309Z",
+        "observedDurationMs": 17923,
+        "usage": {
+          "inputTokens": 4220,
+          "outputTokens": 841,
+          "cacheReadTokens": 2816
+        }
+      }
+    ],
+    "diffSha256": "4b4020dac2124bca288c0e338c80fc5f80ed5e99c7e5947a0dacaddd32e3b9b7",
+    "modelRowsMatch": true
+  },
+  "openedErrorSurvivesUpdates": true,
+  "download": {
+    "suggestedFilename": "report.md",
+    "sha256": "d32abc08fc777dbc08958723775e6f5602d4d7f7d321a68b9e6c15d187fed5c2"
+  },
+  "runtime": {
+    "taskId": "analysis-coding-3bfb69e23343c4833397b7aa70b4510bfc56e11cc28071a4a1512dbac038db8b",
+    "sessionId": "6251c209-38c1-4a3b-8d42-97cb5d45093d",
+    "nativeSessionId": "1794166330805_m44zy",
+    "status": "COMPLETED",
+    "validationStatus": "PASSED",
+    "modelCalls": 5,
+    "executions": [
+      {
+        "operationId": "cline-491d3657cccb87eb35e5eb57ba031ec895f2965c0a198783ada53222f6f96079",
+        "status": "FAILED",
+        "codeHash": "54d6dea051ebe5f89e86eb934144916316d965a85c49b3f7b0c9ef6151dc8b66"
+      },
+      {
+        "operationId": "cline-873982245d2d3a25b26e7fc2524a9627b89a51eecaa4974a80857b1b900f3953",
+        "status": "SUCCEEDED",
+        "codeHash": "92513b152a135b1738d802ac1ab1072442cac84ff110f6c1426c51e3c4e13ccc"
+      }
+    ]
+  },
+  "refreshAndReconnectPreserveIdentity": true,
+  "status": "PASS",
+  "finishedAt": "2026-11-08T23:14:25.926Z"
+}

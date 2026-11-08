@@ -1,0 +1,12 @@
+{
+  "scope": "REAL_TASK_MONITOR_LAYOUT_READ_ONLY",
+  "startedAt": "2026-11-08T23:11:55.123Z",
+  "postControls": [],
+  "pageErrors": [],
+  "defaultIsTaskMonitor": true,
+  "monitorCreatesRuntimeByDefault": true,
+  "statusFilter": true,
+  "status": "FAIL",
+  "error": "page.waitForFunction: EvalError: Evaluating a string as JavaScript violates the following Content Security Policy directive because 'unsafe-eval' is not an allowed source of script: script-src 'self'\".\n\n    at eval (<anonymous>)\n    at predicate (eval at evaluate (:291:30), <anonymous>:3:36)\n    at next (eval at evaluate (:291:30), <anonymous>:25:29)",
+  "finishedAt": "2026-11-08T23:11:58.593Z"
+}

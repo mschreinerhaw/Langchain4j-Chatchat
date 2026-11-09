@@ -90,3 +90,25 @@ Native taskId `analysis-coding-0285e3b082069098aeb5a36475b75db801bf3a23d771b2189
 6. 恢复债务：此前两条历史 UNKNOWN 仍需真实对账；本次任务停止已确认，不等同历史全部清零。
 
 本地原始日志、私有模板元数据及回执保留在忽略目录 `target/native-stability-20261109/`，远端原始证据保留在 `/opt/cline-native-stability-20261109/evidence/`；凭据及客户明细不入 Git。清理工作区以提交已审核改动为主，保留审计基线和证据，不执行批量删除或 reset。
+
+## 后续完整构建与专项部署（按用户要求跳过测试）
+
+部署源码：`8cecb56fc39ac43ba3e173300095220f1ad86494`。2026-11-09 09:50:10（Asia/Shanghai）完成全部 **20/20 Maven 模块 package，BUILD SUCCESS，耗时 6 分 32 秒**；MCP 管理前端和 API 主前端均重新安装依赖并构建，前端入口资源校验通过，未复用旧前端产物。
+
+命令：`mvn -Dmaven.test.skip=true -Dfrontend.skip=false -Dfrontend.install.skip=false package`。按用户明确要求，跳过测试资源、测试编译与测试执行，未运行 Java/Node/浏览器/业务验收；构建自带的前端结构及入口资源检查不作为业务测试成功。此前中断的完整打包记录继续保留，本次完整构建补齐该待办。
+
+| 文件 | SHA-256 |
+| --- | --- |
+| latest-runtime-classes.tgz | 50981f5567a2265dd1279b3ed655d3d50b8c8fbb8c42f79d113435b37948a097 |
+| latest-native-source.tar | 6ec41b4a1395ee644810b2816f24affaa3249e07e76fa151f59fda471cd1fa1d |
+| latest-full-build-no-tests.log | 82865d56590d13e6e5d9aaeeff44fa8053c2a2576d6190f5d9ebb632b346d31d |
+
+部署至既有 `192.168.195.221` 专项实例，备份时间 2026-11-09 09:50:53（Asia/Shanghai）。部署前核对 Runtime 最近 11 个任务无活动任务、Native 无运行任务及 Worker；历史两条 UNKNOWN 保留原记录，未清零或重派。
+
+更新完整 API 编译类与主前端资源、已有专项 Runtime 类覆盖（包含最新模板合同去重）及完整 Native Gateway 源码。仅停止、更新并启动 `cline-business-api` 和 `cline-business-gateway`；逐项校验 **812 个已安装文件 Hash**。登录就绪和 Gateway `/healthz` 均成功，返回 UP、cline-standalone、4.1.26、legacySdkWorker=false。未运行业务任务；这份就绪记录不能替代新的模型耗时或业务验收。
+
+`cline-business-mcp`、`cline-native-monitor`、`cline-monitor-native` 的镜像和启动时间均保持不变；官方 Worker 镜像仍为 `sha256:172b45b0b4988713cc2a4a02ecbfdcb7dd5a102ec6def6facdff385352940aaf`。生产默认节点、模型预算、已有任务与远端执行记录均未更改。监控入口继续使用 `http://192.168.195.221:18346/monitor/`。
+
+回滚备份：`/opt/cline-native-business-20261108/backups/full-no-tests-20261109T015053Z/`，包含原 classes、Gateway 源码和新增文件清单。回滚时先核对活动任务，再仅停止上述两个专项服务，按 manifest 清理本次新增文件、恢复备份并启动，保留 state 与 Python 执行记录。不要直接重新派发历史任务。
+
+构建日志与 `latest-build-manifest.json` 同时保存在本地忽略目录及远端 `/opt/cline-native-stability-20261109/`；完整逐文件部署清单保存为远端 `evidence/latest-full-deployment.json`。本地构建生成的已跟踪静态文件变动已还原，编译产物和审计证据保留。前述模板选择耗时、Native 修复失败、独立验算和历史对账问题仍待后续验证，不新增成功样本。

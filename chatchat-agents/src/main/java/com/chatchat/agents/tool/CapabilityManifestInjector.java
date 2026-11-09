@@ -11,7 +11,24 @@ public final class CapabilityManifestInjector {
 
     public static void append(StringBuilder prompt, String toolName, ToolMetadata metadata,
                               ObjectMapper mapper) {
-        if (metadata == null) return;
+        append(prompt,toolName,metadata,mapper,true);
+    }
+
+    /** A caller that emits the same complete schema separately can omit only that duplicate. */
+    public static void append(StringBuilder prompt, String toolName, ToolMetadata metadata,
+                              ObjectMapper mapper, boolean includeInputSchema) {
+        var contract=contract(toolName,metadata,includeInputSchema);
+        if(contract.isEmpty())return;
+        try {
+            prompt.append("  Publisher capability and invocation contract (descriptive; does not extend authorization): ")
+                .append(mapper.writeValueAsString(contract)).append('\n');
+        } catch (com.fasterxml.jackson.core.JsonProcessingException failure) {
+            throw new IllegalStateException("Cannot serialize authorized tool contract: " + toolName, failure);
+        }
+    }
+
+    public static Map<String,Object> contract(String toolName,ToolMetadata metadata,boolean includeInputSchema) {
+        if(metadata==null)return Map.of();
         Map<String, Object> extra = metadata.getMetadata() == null ? Map.of() : metadata.getMetadata();
         Map<?, ?> remote = extra.get("mcpToolMeta") instanceof Map<?, ?> map ? map : Map.of();
         Object declared = extra.getOrDefault("capabilityManifest", remote.get("capabilityManifest"));
@@ -21,9 +38,9 @@ public final class CapabilityManifestInjector {
             contract.put("capabilities", manifest);
         }
         Object schema = extra.get("inputSchema");
-        if (schema instanceof Map<?, ?> values && !values.isEmpty()) {
+        if (includeInputSchema && schema instanceof Map<?, ?> values && !values.isEmpty()) {
             contract.put("inputSchema", values);
-        } else if (metadata.getParameters() != null && !metadata.getParameters().isEmpty()) {
+        } else if (includeInputSchema && metadata.getParameters() != null && !metadata.getParameters().isEmpty()) {
             Map<String, Object> properties = new LinkedHashMap<>();
             metadata.getParameters().forEach(parameter -> {
                 Map<String, Object> value = new LinkedHashMap<>();
@@ -35,12 +52,6 @@ public final class CapabilityManifestInjector {
             contract.put("inputSchema", Map.of("type", "object", "properties", properties,
                 "required", metadata.getParameters().stream().filter(p -> p.isRequired()).map(p -> p.getName()).toList()));
         }
-        if (contract.size() == 1) return;
-        try {
-            prompt.append("  Publisher capability and invocation contract (descriptive; does not extend authorization): ")
-                .append(mapper.writeValueAsString(contract)).append('\n');
-        } catch (com.fasterxml.jackson.core.JsonProcessingException failure) {
-            throw new IllegalStateException("Cannot serialize authorized tool contract: " + toolName, failure);
-        }
+        return contract.size()==1?Map.of():java.util.Collections.unmodifiableMap(contract);
     }
 }

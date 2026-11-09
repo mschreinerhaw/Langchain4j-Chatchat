@@ -7,6 +7,13 @@ import java.util.Map;
 import static org.assertj.core.api.Assertions.assertThat;
 
 class CapabilityManifestInjectorTest {
+    @Test void separatelyRenderedSchemaDoesNotDuplicateOrRemovePublisherCapabilities() {
+        var metadata=ToolMetadata.builder().metadata(Map.of("inputSchema",Map.of("type","object"),
+            "capabilityManifest",Map.of("operations",java.util.List.of("execute_template")))).build();
+        var prompt=new StringBuilder();
+        CapabilityManifestInjector.append(prompt,"authorized_tool",metadata,new ObjectMapper(),false);
+        assertThat(prompt.toString()).contains("authorized_tool","execute_template").doesNotContain("inputSchema");
+    }
     @Test void preservesPublisherSchemaAndManifestWithoutInventingAliases() {
         var metadata = ToolMetadata.builder().metadata(Map.of(
             "inputSchema", Map.of("type", "object", "properties", Map.of("dataset", Map.of("type", "string"))),

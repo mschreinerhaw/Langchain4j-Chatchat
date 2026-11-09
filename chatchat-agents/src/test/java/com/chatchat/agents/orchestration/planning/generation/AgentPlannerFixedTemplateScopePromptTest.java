@@ -37,5 +37,10 @@ class AgentPlannerFixedTemplateScopePromptTest {
             .contains("only template-candidate source")
             .contains("Semantically review only the bounded, paged candidates")
             .contains("later Runtime-authorized evidence-recovery iteration");
+        String compact=builder.build("Load the selected customer's authorized data",null,List.of(child),List.of(),
+            List.of(),List.of(),List.of(child),true,false,null,null,
+            Map.of("authoritativeWorkflowDag",List.of(Map.of("id","discover","tool",child))));
+        assertThat(compact).contains("Authoritative template scope: FIXED_BINDING for assetType=api_service",
+            "only template-candidate source","Semantically review only the bounded, paged candidates");
     }
 }

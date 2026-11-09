@@ -75,6 +75,7 @@ public final class AgentPlannerPromptBuilder {
                                       String documentSearchTool,
                                       String verificationWebSearchTool,
                                       Map<String, Object> runtimeAttributes) {
+        String callerSystemPrompt=systemPrompt;
         if (runtimeAttributes != null && Boolean.TRUE.equals(runtimeAttributes.get("analysisCodingAvailable"))) {
             systemPrompt = """
                 Runtime analysis capability: DATA_ANALYSIS is handed to Cline after authorized data
@@ -104,7 +105,8 @@ public final class AgentPlannerPromptBuilder {
         List<Map<String, Object>> authoritativeDag = objectMapList(runtimeAttributes == null
             ? null : runtimeAttributes.get("authoritativeWorkflowDag"));
         if (!authoritativeDag.isEmpty()) {
-            return buildAuthoritativeWorkflowPrompt(query, systemPrompt, availableTools, observations,
+            return buildAuthoritativeWorkflowPrompt(query,
+                Boolean.TRUE.equals(runtimeAttributes.get("analysisCodingAvailable"))?callerSystemPrompt:systemPrompt, availableTools, observations,
                 mandatoryTools, requireToolBeforeFinal, runtimeAttributes, roleContext, authoritativeDag);
         }
         if (!roleContext.isEmpty()) prompt.append(roleContext).append('\n');
@@ -353,7 +355,20 @@ public final class AgentPlannerPromptBuilder {
         appendDomainSkillPlanningContext(prompt, runtimeAttributes);
         ZoneId runtimeZone = runtimeZoneId(runtimeAttributes);
         LocalDate runtimeDate = LocalDate.now(clock.withZone(runtimeZone));
-        prompt.append("You are the planning node of Agent Runtime OS. Output exactly one valid InterpretationPlan JSON object; no markdown or explanation.\n")
+        boolean acquisition=Boolean.TRUE.equals(runtimeAttributes.get("analysisCodingAvailable"));
+        if(acquisition) {
+            prompt.append("You are the planning node of Agent Runtime OS. Emit one compact InterpretationPlan JSON object, without indentation or explanations.\n")
+                .append("Runtime date: ").append(runtimeDate).append("; timezone: ").append(runtimeZone.getId()).append(".\n")
+                .append("Authoritative planning rules:\n")
+                .append("- Java plans authorized source data/capability acquisition only. Cline owns data exploration, coding, repair and business explanation; Runtime verifies delivery. RUN_CODING is unavailable as an MCP acquisition tool.\n")
+                .append("- Preserve every required workflow tool and dependency exactly. Use consecutive integer step ids and exact Available tools names; do not guess tools, template identities or physical assets.\n")
+                .append("- Preserve literal user targets in declared identity filters such as filters.assetName. An intent string alone does not constrain asset identity. Discovery inputs contain source requirements, never report formatting or Coding instructions.\n")
+                .append("- Runtime owns template binding and transport. Keep semantic business parameters in input.toolCall.parameters; choose template ids only from actual discovery. Omit edge_contracts, bindings and alternative graphs for this fixed DAG.\n")
+                .append("- Add one final_answer step depending on all required evidence. Before acquisition use only a short pending-evidence answer, never a business report or invented results. Keep missing facts in context.missing_info.\n")
+                .append("- Omit timeout_ms unless Runtime supplies it. Respect the budget below; max_rewrite_times normally 1, fallback_mode=partial_result. Optional-tool SELECT/SKIP decisions remain mandatory when listed below.\n")
+                .append("Compact InterpretationPlan shape (Runtime enforces the full schema):\n")
+                .append("{\"version\":\"1.0\",\"intent\":{\"type\":\"mixed\",\"goal\":\"user goal\"},\"context\":{\"key_facts\":[],\"constraints\":[],\"missing_info\":[]},\"plan\":{\"steps\":[{\"id\":1,\"action_type\":\"mcp_tool\",\"tool_name\":\"exact-name\",\"input\":{},\"depends_on\":[]},{\"id\":2,\"action_type\":\"final_answer\",\"tool_name\":\"\",\"input\":{\"answer\":\"等待数据\"},\"depends_on\":[1]}]},\"review\":{\"self_check\":{\"tool_sufficiency\":false}}}\n\n");
+        } else prompt.append("You are the planning node of Agent Runtime OS. Output exactly one valid InterpretationPlan JSON object; no markdown or explanation.\n")
             .append("Runtime date: ").append(runtimeDate).append("; timezone: ").append(runtimeZone.getId()).append(".\n\n")
             .append("Authoritative planning rules:\n")
             .append("- Preserve every required tool and dependency in the Runtime workflow below. Do not replace, omit or reorder required workflow tools.\n")
@@ -503,11 +518,17 @@ public final class AgentPlannerPromptBuilder {
             return "- (none)\n";
         }
         StringBuilder result = new StringBuilder();
+        Map<String,Object> contracts=new LinkedHashMap<>();
         for (String toolName : availableTools) {
             ToolMetadata metadata = toolRegistry.getToolMetadata(toolName);
             String description = configuredToolDescription(toolName, runtimeAttributes);
             if (description == null && metadata != null) {
-                description = metadata.getDescription();
+                var extra=asMap(metadata.getMetadata());
+                var published=asMap(extra.get("mcpToolMeta"));
+                var applicability=asMap(published.get("applicability"));
+                String summary=stringValue(applicability.get("summary"));
+                description=summary==null?metadata.getDescription():
+                    firstNonBlank(stringValue(published.get("chineseAlias")),firstNonBlank(metadata.getTitle(),toolName))+": "+summary;
             }
             if (description == null) {
                 ToolRegistry.Tool tool = toolRegistry.getTool(toolName);
@@ -517,7 +538,34 @@ public final class AgentPlannerPromptBuilder {
                 .append(" [role=").append(workflowRole(toolName)).append("): ")
                 .append(boundedText(description, COMPACT_TOOL_DESCRIPTION_CHARS, "tool description"))
                 .append('\n');
-            CapabilityManifestInjector.append(result, toolName, metadata, objectMapper);
+            // A compact description/schema does not carry the publisher's fixed
+            // candidate scope or declared filter fields. Preserve those semantics.
+            if(metadata!=null) {
+                var published=asMap(asMap(metadata.getMetadata()).get("mcpToolMeta"));
+                McpTemplateSelectionScope.fromToolMetadata(published).filter(McpTemplateSelectionScope::fixedBindingAuthority)
+                    .ifPresent(scope->result.append("  Authoritative template scope: FIXED_BINDING for assetType=").append(scope.assetType())
+                        .append("; only template-candidate source in this plan. Semantically review only the bounded, paged candidates; never expand its bound set.\n"));
+                var filters=stringList(asMap(published.get("routingProtocol")).get("allowedFilterFields"));
+                if(!filters.isEmpty())result.append("  Publisher-declared filter fields: ").append(filters).append(". Do not invent filters.\n");
+                var applicability=asMap(published.get("applicability"));
+                for(String field:List.of("useWhen","notFor")) {
+                    var values=stringList(applicability.get(field));
+                    if(!values.isEmpty())result.append("  ").append(field).append(": ").append(values).append('\n');
+                }
+            }
+            var contract=CapabilityManifestInjector.contract(toolName,metadata,true);
+            if(!contract.isEmpty())contracts.put(toolName,contract);
+        }
+        if(!contracts.isEmpty()) {
+            var projection=new com.chatchat.agents.orchestration.analysis.context.ToolReviewPromptContext(objectMapper).project(contracts);
+            if(projection.sharedValues()==0) {
+                for(String toolName:contracts.keySet())CapabilityManifestInjector.append(result,toolName,toolRegistry.getToolMetadata(toolName),objectMapper);
+            } else result.append("Publisher contracts JSON (descriptive; does not extend authorization): ")
+                .append("resolve $runtimeReviewRef using sharedValues; $runtimeReviewLiteral is literal tool data. ")
+                .append("Shared values preserve complete original schemas and capability declarations.\n")
+                .append(projection.json()).append('\n');
+            log.info("agentModelProjection phase=planner_tools originalContextChars={} projectedContextChars={} sharedValues={}",
+                projection.originalChars(),projection.projectedChars(),projection.sharedValues());
         }
         return result.append('\n').toString();
     }
@@ -757,7 +805,10 @@ public final class AgentPlannerPromptBuilder {
                     .append(firstNonBlank(configuredDescription, metadata.getDescription()))
                     .append("\n");
                 appendApplicability(sb, metadata);
-                CapabilityManifestInjector.append(sb, toolName, metadata, objectMapper);
+                boolean repeatedSchema=ToolCallBatchSchema.supports(toolName,metadata)
+                    &&metadata.getMetadata()!=null
+                    &&metadata.getMetadata().get("inputSchema") instanceof Map<?,?> schema&&!schema.isEmpty();
+                CapabilityManifestInjector.append(sb, toolName, metadata, objectMapper,!repeatedSchema);
                 appendBatchInputSchema(sb, toolName, metadata);
             } else {
                 ToolRegistry.Tool simpleTool = toolRegistry.getTool(toolName);

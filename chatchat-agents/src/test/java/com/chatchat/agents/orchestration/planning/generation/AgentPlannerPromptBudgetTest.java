@@ -13,6 +13,52 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 class AgentPlannerPromptBudgetTest {
+    @Test void acquisitionContractPreservesTheMaintainedSystemPolicyInsteadOfClippingItBehindCodingGuidance() {
+        var builder=new AgentPlannerPromptBuilder(mock(ToolRegistry.class),new ObjectMapper(),Clock.systemUTC());
+        String system="Maintained original acquisition policy. ".repeat(40);
+        var attributes=Map.<String,Object>of("analysisCodingAvailable",true,"authoritativeWorkflowDag",
+            List.of(Map.of("id","read","tool","authorized_read")));
+        String prompt=builder.build("Exact original customer request",system,List.of("authorized_read"),List.of(),List.of(),List.of(),
+            List.of("authorized_read"),true,false,null,null,attributes);
+        assertThat(prompt).contains(system,"User query:\nExact original customer request","step read: tool=authorized_read",
+            "Runtime verifies delivery","without indentation");
+        assertThat(prompt).doesNotContain("\"optional_tool_decisions\":[{\"tool_name\":\"exact-name\"");
+    }
+    @Test void compactPlannerSharesRepeatedSchemasLosslesslyAcrossAuthorizedTools() throws Exception {
+        var registry=mock(ToolRegistry.class);var mapper=new ObjectMapper();
+        String declaration="original-published-semantics-"+"x".repeat(4000);
+        var schema=Map.of("type","object","properties",Map.of("customerNo",Map.of("type","string","description",declaration)),
+            "required",List.of("customerNo"),"additionalProperties",false);
+        var metadata=com.chatchat.common.tool.ToolMetadata.builder().description("Authorized lookup")
+            .metadata(Map.of("inputSchema",schema)).build();
+        for(String name:List.of("first_read","second_read"))when(registry.getToolMetadata(name)).thenReturn(metadata);
+        var prompt=new AgentPlannerPromptBuilder(registry,mapper,Clock.systemUTC()).build("070200046604",null,
+            List.of("first_read","second_read"),List.of(),List.of(),List.of(),List.of("first_read","second_read"),
+            true,false,null,null,Map.of("authoritativeWorkflowDag",List.of(Map.of("id","first","tool","first_read"),Map.of("id","second","tool","second_read"))));
+        assertThat(prompt).containsOnlyOnce(declaration).contains("User query:\n070200046604");
+        String json=prompt.substring(prompt.indexOf("Shared values preserve complete original schemas and capability declarations.\n")
+            +"Shared values preserve complete original schemas and capability declarations.\n".length()).split("\\R",2)[0];
+        var projected=mapper.readTree(json);var definitions=projected.path("sharedValues");
+        assertThat(definitions.size()).isPositive();
+        for(String name:List.of("first_read","second_read")) {
+            var encoded=projected.path("context").path(name).path("inputSchema");
+            var restored=definitions.path(encoded.path("$runtimeReviewRef").asText());
+            assertThat(restored).isEqualTo(mapper.valueToTree(schema));
+        }
+    }
+    @Test void batchPublisherSchemaIsRenderedOnceWithoutLosingItsInvocationContract() {
+        var registry=mock(ToolRegistry.class);
+        String declaration="publisher-business-field-"+"x".repeat(4000);
+        var metadata=com.chatchat.common.tool.ToolMetadata.builder().description("Execute authorized templates")
+            .metadata(Map.of("batch_execution",true,"template_execution",true,
+                "capabilityManifest",Map.of("operations",List.of("execute_template")),
+                "inputSchema",Map.of("type","object","properties",Map.of("customerNo",Map.of("type","string","description",declaration)),"required",List.of("customerNo"))))
+            .build();
+        when(registry.getToolMetadata("authorized_execute")).thenReturn(metadata);
+        String prompt=new AgentPlannerPromptBuilder(registry,new ObjectMapper(),Clock.systemUTC())
+            .describeTools(List.of("authorized_execute"),Map.of());
+        assertThat(prompt).containsOnlyOnce(declaration).contains("execute_template","Formal runtime inputSchema","customerNo","required");
+    }
 
     @Test void codingIsAdvertisedAsLaterAnalysisWithoutAddingAcquisitionAuthority() {
         var builder=new AgentPlannerPromptBuilder(mock(ToolRegistry.class),new ObjectMapper(),Clock.systemUTC());

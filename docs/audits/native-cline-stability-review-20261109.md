@@ -57,3 +57,5 @@ J4 说明精简有效，但仍有输入与元数据重复，且不能证明通�
 历史对账：两条 Native UNKNOWN 对应 Runtime 均为 BUDGET_EXCEEDED，Runtime execution 列表均为空且 Worker 停止。其一 Native 仍保存未决 operationId，另一个模型用量仍有 reservation；保留原记录，不能仅依据空 execution 列表强制清除 UNKNOWN，也未重新执行原任务。
 
 本轮门槛由用户明确为 **30/30 业务成功**；六类各五次，账户仍为 070200046604。完整产物、独立验算和受影响回归要求全部通过。真实预检、单测、历史成功不进入这一新固定版本分母。
+
+2026-11-09 补充更正：账户数据应由既有模板加载。历史 Runtime 真实请求确实拿到金融模板发现、SQL 执行及搜索三项工具；Agent 目录的 `resolvedToolNames=[]` 不能作为工具不可用的结论。账户模板发现的真实问题是配置 5 项但有效候选集合为 0，尚未执行客户查询。用户已要求优先处理 Java 解释计划和模板加载，详见 [专项复核](runtime-planning-template-loading-review-20261109.md)；30 次模型验收尚未启动，未重复派发中断前的测试。

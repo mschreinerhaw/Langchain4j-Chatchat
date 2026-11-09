@@ -5,7 +5,9 @@ import {knowledgeTools} from '../../../coding-agent-node/src/knowledge-tools.js'
 import {CodeHistory} from '../../../coding-agent-node/src/code-repair.js';
 import {nativeProposal} from './code-lineage.mjs';
 
-export const verifiedReceipt=r=>r?.status==='SUCCEEDED'&&r.executorStopped===true&&r.resultDatasetRef&&r.validationRecordRef&&r.evidenceBundleRef&&r.validationStatus!=='FAILED'&&r.resultAvailable!==false&&r.executionFeedback?.repair?.action!=='STOP';
+// An archived result can be reviewed even when business validation is INCONCLUSIVE.
+// Missing fields are not a successful receipt; business completion is checked separately.
+export const verifiedReceipt=r=>r?.status==='SUCCEEDED'&&r.executorStopped===true&&r.resultDatasetRef&&r.validationRecordRef&&r.evidenceBundleRef&&['PASSED','INCONCLUSIVE'].includes(r.validationStatus)&&r.resultAvailable===true&&r.executionFeedback?.repair?.action!=='STOP';
 export function operationId(contract,toolCallId) {
  return 'cline-'+createHash('sha256').update([contract.scope.tenantId,contract.scope.userId,contract.scope.runId,contract.taskId,toolCallId].join('\0')).digest('hex');
 }
@@ -31,6 +33,16 @@ export function runtimeTools(run,gateway,workspace,emit) {
   return {...receipt,reviewedArtifact:artifact};
  };
  for(const t of knowledgeTools(c,gateway,emit))tools.set(t.name,{...t,execute:(args,context)=>t.execute(args,{toolCallId:trustedId(context),signal:run.abort.signal})});
+ // These existing governed reads are authorized by Runtime but absent from the
+ // legacy helper's definition table. Register them here without changing SDK tools.
+ for(const [name,description,properties,required] of [
+  ['market_resolve_security','Resolve a security name/code using the authorized maintained directory. Candidates require verification against actual quote evidence; an empty directory match is not proof of absent observations.',{query:{type:'string',maxLength:200},exchange:{type:'string',maxLength:8},limit:{type:'integer',minimum:1,maximum:20}},['query']],
+  ['market_get_day_snapshot','Read the complete authorized collected daily source snapshot using an exact discovered dataset, trade_date and source_id. Runtime delivers immutable calculationInput files. It is not a live quote and grants no new source access.',{dataset:{type:'string',maxLength:64},trade_date:{type:'string',format:'date'},source_id:{type:'integer',minimum:1}},['dataset','trade_date','source_id']]
+ ])add(name,description,schema(properties,required),async(args,context)=>{
+  const toolCallId=trustedId(context);await emit({type:'TOOL_STARTED',tool:name,toolCallId,stage:'KNOWLEDGE_EXPLORATION'});
+  const result=await gateway.knowledge(c,name,args,toolCallId,run.abort.signal);
+  await emit({type:'TOOL_FINISHED',tool:name,toolCallId,stage:'KNOWLEDGE_EXPLORATION',status:result?.status==='ERROR'?'FAILED':'SUCCEEDED',...(result?.errorCode?{diagnosticCode:result.errorCode}:{})});return result;
+ });
  add('input_read','Read bounded authorized logical data using its EXACT delivered datasetReference, not a filesystem path. For staged manifest.json, schema.json or original CSV use native read_files with the nativePath from runtime-inputs.json. /data/input paths exist only inside Managed Python. limit is 1–16000 Unicode code points.',schema({datasetReference:string,offset:{type:'integer',minimum:0},limit:{type:'integer',minimum:1,maximum:16000}},['datasetReference','offset','limit']),(args,context)=>{
   if(args.datasetReference?.startsWith('/'))throw Error('input_read requires an authorized datasetReference, not a Sandbox or native file path. Read the delivered text with native read_files using its exact nativePath in runtime-inputs.json; use /data/input paths only in Managed Python.');
   return gateway.readInput(c,{...args,toolCallId:trustedId(context)},run.abort.signal);

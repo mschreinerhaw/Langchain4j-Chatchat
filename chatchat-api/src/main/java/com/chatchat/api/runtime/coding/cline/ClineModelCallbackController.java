@@ -691,7 +691,8 @@ public final class ClineModelCallbackController {
                     throw new ResponseStatusException(HttpStatus.CONFLICT,"Visual report artifact contract requires technical repair before completion");
             }
             CodingTaskOutcome current = tasks.get(call.scope(), call.taskId());
-            var deliveryStatus = nativeBusinessCompletion && !collected.businessValidationPassed()
+            var deliveryStatus = nativeBusinessCompletion && (!collected.businessValidationPassed()
+                || collected.validationStatus()!=CodingTaskOutcome.ValidationStatus.PASSED)
                 ? CodingTaskOutcome.Status.PARTIAL : CodingTaskOutcome.Status.COMPLETED;
             if (current.status().terminal()) {
                 if (current.status() != deliveryStatus
@@ -746,6 +747,8 @@ public final class ClineModelCallbackController {
 
     private static Map<String, Object> completion(CodingTaskOutcome outcome) {
         return Map.of("status", outcome.status().name(), "revision", outcome.revision(),
+            "validationStatus",outcome.validationStatus().name(),
+            "businessValidationPassed",outcome.validationStatus()==CodingTaskOutcome.ValidationStatus.PASSED,
             "resultDatasetRef", outcome.resultDatasetRef(),
             "validationRecordRef", outcome.validationRecordRef(),
             "evidenceBundleRef", outcome.evidenceBundleRef());

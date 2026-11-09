@@ -68,6 +68,10 @@ public final class CodingCsvAggregateVerifier implements CodingResultVerifier {
         if(bytes.length>16*1024*1024)throw new IllegalArgumentException("CSV verification input too large");
         long count=0;BigDecimal sum=BigDecimal.ZERO;
         try(var records=new CsvMapper().readerFor(Map.class).with(CsvSchema.emptySchema().withHeader()).readValues(bytes)){
+            records.hasNextValue(); // Parse the real header even for a valid zero-row CSV.
+            var header=(CsvSchema)records.getParser().getSchema();
+            if(header.size()==0||header.column(field)==null)
+                throw new IllegalArgumentException("CSV header does not declare the selected numeric field");
             while(records.hasNext()){
                 Map<?,?> row=(Map<?,?>)records.next();Object value=row.get(field);
                 if(!(value instanceof String text)||!text.matches("-?(?:0|[1-9][0-9]*)(?:\\.[0-9]+)?")||text.length()>128)

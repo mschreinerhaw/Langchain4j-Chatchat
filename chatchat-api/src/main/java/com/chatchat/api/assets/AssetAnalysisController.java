@@ -26,7 +26,8 @@ public class AssetAnalysisController {
     private final ObjectAccessService access;
     private final RuntimeAssetArchive archive;
     private final com.chatchat.api.exploration.ExplorationAgentBridge agents;
-    public record Request(String requestId,List<String> fileIds,List<String> contextIds,String instruction,String modelName,String agentId,String validationProfile,String valueField) {
+    public record Request(String requestId,List<String> fileIds,List<String> contextIds,String instruction,String modelName,String agentId,String validationProfile,String valueField,List<String> requiredArtifacts) {
+        public Request(String requestId,List<String> fileIds,List<String> contextIds,String instruction,String modelName,String agentId,String validationProfile,String valueField){this(requestId,fileIds,contextIds,instruction,modelName,agentId,validationProfile,valueField,null);}
         public Request(String requestId,List<String> fileIds,List<String> contextIds,String instruction,String modelName,String agentId){this(requestId,fileIds,contextIds,instruction,modelName,agentId,null,null);}
         public Request(String requestId,List<String> fileIds,List<String> contextIds,String instruction,String modelName){
             this(requestId,fileIds,contextIds,instruction,modelName,null);
@@ -60,6 +61,7 @@ public class AssetAnalysisController {
             || new HashSet<>(body.fileIds()).size()!=body.fileIds().size()
             || body.contextIds()!=null && body.contextIds().size()>4
             || body.agentId()!=null && (body.agentId().isBlank()||body.agentId().length()>256))throw new IllegalArgumentException("Provide a stable request ID, 1–8 files and an analysis objective");
+        var requiredArtifacts=com.chatchat.api.runtime.coding.analysis.CodingRequiredArtifacts.read(body.requiredArtifacts());
         // Selecting an Agent carries only its existing live grants, never its shared model setting.
         // Check publication/user access before reading originals or resolving the task model.
         if(body.agentId()!=null)agents.authorize(owner,body.agentId());
@@ -89,6 +91,8 @@ public class AssetAnalysisController {
         var metadata=new LinkedHashMap<String,Object>();
         if(body.modelName()!=null)metadata.put("modelName",body.modelName());
         var attributes=new LinkedHashMap<String,Object>();attributes.put("checkpointModelConfig",models.checkpointModelConfiguration(body.modelName(),model));
+        attributes.put("nativeUserObjective",body.instruction()); // Preserve the caller text separately from legacy transport guidance.
+        if(!requiredArtifacts.isEmpty())attributes.put("requiredArtifacts",requiredArtifacts);
         if(body.validationProfile()!=null&&!body.validationProfile().isBlank()){
             if(!com.chatchat.api.runtime.coding.evidence.CodingCsvAggregateVerifier.PROFILE.equals(body.validationProfile())||body.valueField()==null||!body.valueField().matches("[A-Za-z_][A-Za-z0-9_]{0,63}")||body.fileIds().size()!=1||visual)throw new IllegalArgumentException("Explicit single-CSV count/sum contract required");
             attributes.put("csvMetricObjective",body.instruction());attributes.put("validationProfile",body.validationProfile());attributes.put("validationValueField",body.valueField());attributes.put("taskType","DATA_ANALYSIS");

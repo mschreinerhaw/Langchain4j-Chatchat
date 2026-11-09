@@ -34,6 +34,10 @@ Java 单元探针在 `test/business-java`，依赖实际 API/classes 和 API 自
 
 重启不自动重放历史任务；UNKNOWN 必须先核查 Runtime Journal、Executor 及远端操作。回滚按业务报告操作，只调整专项实例，旧节点保留，禁止同一任务双执行。
 
+Owner 资产分析入口可显式提供 `requiredArtifacts`，最多八个唯一的结果文件名（`md/png/xlsx/json/jsonl/py`，仅安全 basename）。这些文件与 `rows.jsonl` 一同进入不可变任务合同及请求指纹；Collector 必须在真实停止操作的 Hash 校验归档中逐项找到。文件存在及结构检查不替代独立业务验算，通用 `INCONCLUSIVE` 结果仍不得标记 Native 业务 COMPLETED。
+
+Native 分析采用精简核心合同；完整来源、Schema、环境和资源元数据保留在工作区 `runtime-inputs.json`。默认 SDK 合同保持原有路径。Native 专项只对源码 Hash、实际停止回执和脚本栈位置一致的显式 `raise RuntimeError(...)` 提供程序错误分类；未知来源、资源限制、取消和超时仍受既有 STOP 策略约束。
+
 构建业务 Worker 时，在干净、固定的官方源码目录使用 `CLINE_RUNTIME_OPERATION_CONTEXT=1 CLINE_SOURCE_ROOT=/fixed/upstream bash cline-agent-server/scripts/build.sh`，保留既有 MCP 元数据适配。补丁按固定锚点应用，重复应用会拒绝。Standalone check-types、lint 及构建必须通过，并核对 Core 源文件指纹和 runtime-manifest 后派生镜像。
 
 真实修复故障验证可使用 `test/business-repair-live.py --root /isolated/root --commit SHA`：它仅在新任务独立工作区放置抛出真实异常的已有源码，在 Native Session 创建前完成；修复与再次执行由官方 Cline 自主完成。请求、故障注入及真实回执保存在私有证据目录，不重复派发已有请求。

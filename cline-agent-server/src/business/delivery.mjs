@@ -9,9 +9,12 @@ export async function deliver(run,gateway,workspace) {
   const chunks=[];let offset=0,descriptor;
   do {
    descriptor=await gateway.nativeInputFile(c,file.fileId,offset,run.abort.signal);
+   if(descriptor.fileId!==file.fileId||descriptor.fileName!==file.fileName||descriptor.encoding!=='base64'
+      ||!Number.isSafeInteger(descriptor.size)||descriptor.size<0||descriptor.size!==file.size)
+    throw Error('INPUT_DESCRIPTOR_MISMATCH: identity, encoding or size differs from the frozen input inventory');
    const bytes=Buffer.from(descriptor.content,'base64');
    if(descriptor.offset!==offset||descriptor.nextOffset!==offset+bytes.length||descriptor.sha256!==file.sha256)throw Error('Input range binding mismatch');
-   if(bytes.length===0&&descriptor.nextOffset<descriptor.size)throw Error('Input delivery stalled');
+   if(bytes.length===0&&descriptor.nextOffset<descriptor.size)throw Error('INPUT_TRANSFER_STALLED: this is not an empty dataset');
    chunks.push(bytes);offset=descriptor.nextOffset;
   }while(offset<descriptor.size);
   const bytes=Buffer.concat(chunks);if(bytes.length!==descriptor.size||createHash('sha256').update(bytes).digest('hex')!==file.sha256)throw Error('Input delivery Hash mismatch');
@@ -45,7 +48,8 @@ export async function deliver(run,gateway,workspace) {
    const target=join(workspace,'.cline','skills',name,path);mkdirSync(join(target,'..'),{recursive:true});writeFileSync(target,bytes,{mode:0o400});skills.push({skillId:pkg.card.id,version:pkg.card.version,name,path,originalHash,deliveredHash:createHash('sha256').update(bytes).digest('hex'),loaded:false});
   }
  }
- const delivery={context,files:inventory,skills};writeFileSync(join(workspace,'runtime-inputs.json'),JSON.stringify(delivery,null,2),{mode:0o400});
+ const {skills:stagedSkills,...runtimeContext}=c.runtimeContext??{};
+ const delivery={context,files:inventory,skills,outputContract:c.outputContract,runtimeContext};writeFileSync(join(workspace,'runtime-inputs.json'),JSON.stringify(delivery,null,2),{mode:0o400});
  return delivery;
 }
 export function ownTree(path) {

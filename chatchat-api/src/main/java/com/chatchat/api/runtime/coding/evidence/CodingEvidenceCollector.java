@@ -206,6 +206,10 @@ public class CodingEvidenceCollector {
                 :com.chatchat.api.assets.UserAssetService.Kind.ARTIFACT,"execution:"+operationId+":"+channel+":"+name,name,bytes);
             if ("results".equals(channel) && name.endsWith(".jsonl")) rows(bytes, entry);
         }
+        for(String required:contract.outputContract().requiredFiles()) {
+            String key=required.startsWith("results/")?required:"results/"+required;
+            if(!entries.containsKey(key))throw new RequiredOutputMissingException(required);
+        }
         JsonNode resultEntry = entries.get("results/" + resultFile);
         JsonNode receiptEntry = entries.get("logs/receipt.json");
         if (receiptEntry == null || !resultFile.endsWith(".jsonl"))
@@ -360,7 +364,7 @@ public class CodingEvidenceCollector {
     public static final class RequiredOutputMissingException extends IllegalStateException {
         private final String requiredFile;
         public RequiredOutputMissingException(String requiredFile) {
-            super("Successful Python execution did not produce the required structured result");
+            super("Successful Python execution did not produce required output: "+requiredFile);
             this.requiredFile=requiredFile;
         }
         public String requiredFile(){return requiredFile;}

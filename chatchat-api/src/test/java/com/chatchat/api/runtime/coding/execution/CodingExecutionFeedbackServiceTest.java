@@ -14,6 +14,23 @@ import static org.mockito.ArgumentMatchers.*;
 
 /** Policy unit tests; genuine cross-process/Sandbox acceptance is reported separately. */
 class CodingExecutionFeedbackServiceTest {
+    @Test void onlyAnExplicitHashBoundNativeSourceRaisePermitsRuntimeErrorRepair() throws Exception {
+        String source="raise RuntimeError('real source fault')\n";
+        String hash=HexFormat.of().formatHex(java.security.MessageDigest.getInstance("SHA-256").digest(source.getBytes(java.nio.charset.StandardCharsets.UTF_8)));
+        var artifacts=mock(com.chatchat.api.runtime.coding.cline.CodingCodeArtifactStore.class);service.setCodeArtifacts(artifacts);
+        when(artifacts.find(scope,"task","operation")).thenReturn(Optional.of(Map.of("content",source,"sha256",hash,"fileName","main.py")));
+        when(python.diagnosticRecord(scope,"task","operation")).thenReturn("{\"exceptionType\":\"RuntimeError\",\"line\":1,\"stack\":[{\"file\":\"main.py\",\"line\":1}]}");
+        var operation=new OperationView("operation","FAILED","container",1,false,true,1,hash,"sha256:"+"b".repeat(64),"c".repeat(64),null);
+        assertThat(service.finish(contract,lease,operation,Map.of()).repair().allowed()).isFalse(); // SDK policy unchanged.
+        state.clear();service.setBackend("native");
+        var nativeFeedback=service.finish(contract,lease,operation,Map.of());
+        assertThat(nativeFeedback.repair().allowed()).isTrue();assertThat(nativeFeedback.error().diagnosticCode()).isEqualTo("PROGRAM_ERROR");
+        state.clear();when(artifacts.find(scope,"task","operation")).thenReturn(Optional.of(Map.of("content","library_call()\n","sha256",hash,"fileName","main.py")));
+        assertThat(service.finish(contract,lease,operation,Map.of()).repair().allowed()).isFalse();
+        state.clear();when(artifacts.find(scope,"task","operation")).thenReturn(Optional.of(Map.of("content",source,"sha256",hash,"fileName","main.py")));
+        var timedOut=new OperationView("operation","TIMED_OUT","container",1,false,true,1,hash,"sha256:"+"b".repeat(64),"c".repeat(64),null);
+        assertThat(service.finish(contract,lease,timedOut,Map.of()).repair().allowed()).isFalse();
+    }
     @Test void rejectedSourceCopyCanBeRepairedWithoutReturningTheRejectedBodyOrRenewingBudget(){
         var feedback=service.finish(contract,lease,operation("SUCCEEDED"),Map.of("resultAvailable",false,"outputStatus","SOURCE_COPY_REJECTED"));
         assertThat(feedback.resultAvailable()).isFalse();assertThat(feedback.repair().allowed()).isTrue();

@@ -45,6 +45,8 @@ export function runtimeDeliveryStatus(receipt) {
  if(receipt?.status!=='COMPLETED')throw Error('Runtime did not accept complete business delivery: '+receipt?.status);
  if(!receipt.resultDatasetRef||!receipt.validationRecordRef||!receipt.evidenceBundleRef)
   throw Error('Runtime completion lacks verified delivery references');
+ if(receipt.validationStatus!=='PASSED'||receipt.businessValidationPassed!==true)
+  throw Error('Runtime completion lacks passed independent business validation');
  return receipt.status;
 }
 

@@ -39,3 +39,21 @@ J4 说明精简有效，但仍有输入与元数据重复，且不能证明通�
 既有 `resource_exploration_acceptance_20261104` 已授权 financial_market 只读资源；金融业务 Agent 列出了绑定工具，但当前 resolvedToolNames 为空。需继续区分业务工具绑定不可用、资源访问授权、数据存储覆盖和实际空结果。MCP `market_search(query="")` 返回空，带行情/market 查询能返回目录；不据此断言行情观察为空。未修改 Agent 授权、共享模型或数据源配置。
 
 本文件是审查与整改过程记录，**尚不是 30 次业务验收通过报告**。部署和固定版本验收开始后另附逐次证据，未完成条目不能提升为通过。
+
+## 已确认问题与整改边界
+
+| 问题 | 定位 | 本轮处理或剩余条件 |
+| --- | --- | --- |
+| Native 行情工具许可与实际定义不一致 | Runtime 授权目录包含两个新只读工具，legacy helper 的 definitions 缺失 | 在 Native runtime-tools 注册证券目录与全量日快照，不变更 SDK helper 或授权 |
+| J2 显式 RuntimeError 被归为 UNKNOWN/STOP | shared classifier 保守处理，API 原先没有 Native 源码证据分类 | 仅对真实停止、提交代码 Hash 一致、脚本栈与显式 raise 行一致的 Native 操作认定程序错误；其他 STOP 不变 |
+| J1/J3 泛化合同及上下文重复 | 通用目标约 21KB，包含无关工作簿/SQL/泛化说明；输入多次序列化 | 精简 Native 核心合同；完整元数据保留 runtime-inputs.json；按实际许可附加资源说明；SDK 合同保持原路径 |
+| 结束/恢复缺少明确业务验证字段约束 | Native receipt 与恢复代码 | 要求显式 resultAvailable；业务 COMPLETED 还要求 PASSED 和 businessValidationPassed；INCONCLUSIVE 仅供结果审阅 |
+| 必需附加文件没有逐项强制检查 | CodingEvidenceCollector 只强制主 JSONL | 既有资产入口接受显式 requiredArtifacts，绑定指纹和合同；逐项核验真实 manifest 中 Hash 已验证文件，缺失不提交证据包 |
+| 目录与实际查询不一致 | MCP 搜索返回 market_quote_daily，快照读取返回 Unknown financial dataset | 实际回执已留存；不能解释为空行情，不能用本地历史行情冒充当前资源查询成功 |
+| 通用独立验算不覆盖六类业务 | 通用 schema verifier 只提供 STRUCTURAL_ONLY | 只有显式单 CSV count/sum 已有可信数值复算；多文件、行情、账户的完整业务验算仍为阻断，不能修改预期或伪装 PASSED |
+
+新鲜授权预检：证券目录返回华是科技/301218/SZSE；现有真实行情 CSV 的精确证券名/代码匹配 16 行（共 26 行），与“文本包含证券名”区分。全量日快照要求精确 source_id，不能猜测来源。当前账户资产仍未发现目标客户号。未发起任何公共搜索，未改变已有 Agent 数据授权。
+
+历史对账：两条 Native UNKNOWN 对应 Runtime 均为 BUDGET_EXCEEDED，Runtime execution 列表均为空且 Worker 停止。其一 Native 仍保存未决 operationId，另一个模型用量仍有 reservation；保留原记录，不能仅依据空 execution 列表强制清除 UNKNOWN，也未重新执行原任务。
+
+本轮门槛由用户明确为 **30/30 业务成功**；六类各五次，账户仍为 070200046604。完整产物、独立验算和受影响回归要求全部通过。真实预检、单测、历史成功不进入这一新固定版本分母。

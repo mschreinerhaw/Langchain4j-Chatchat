@@ -17,6 +17,9 @@ import org.slf4j.LoggerFactory;
 @Service
 @org.springframework.boot.autoconfigure.condition.ConditionalOnProperty(prefix="chatchat.coding",name="enabled",havingValue="true")
 public class CodingExecutionFeedbackService {
+    private boolean nativeBackend;
+    @Value("${chatchat.coding.cline.backend:sdk}")
+    public void setBackend(String backend){nativeBackend="native".equals(backend);}
     public static final class RepairDeniedException extends IllegalStateException {
         RepairDeniedException(String safeMessage){super(safeMessage);}
     }
@@ -84,6 +87,7 @@ public class CodingExecutionFeedbackService {
         if(exception!=null&&!exception.matches("[A-Za-z]{1,40}(Error|Exception)|StopIteration|SystemExit|KeyboardInterrupt"))exception=null;
         String code=diagnostic.path("diagnosticCode").asText();
         if(!ExecutionFailureClassifier.known(code))code=ExecutionFailureClassifier.code(exception);
+        if("UNKNOWN".equals(code)&&explicitNativeRuntimeError(contract,operation,diagnostic,exception))code="PROGRAM_ERROR";
         boolean resultAvailable=Boolean.TRUE.equals(result.get("resultAvailable"));
         boolean outputFailed="SUCCEEDED".equals(operation.status())&&!resultAvailable;
         String category=ExecutionFailureClassifier.category(code);
@@ -175,6 +179,27 @@ public class CodingExecutionFeedbackService {
         catch(java.io.IOException invalid){throw new IllegalStateException("Execution feedback archive failed",invalid);}
         if(tasks.recordExecutionFeedback(contract.scope(),contract.taskId(),lease,feedback))log("PYTHON_EXECUTION_FEEDBACK",contract.scope(),feedback);
         return Objects.requireNonNullElse(cached(contract.scope(),contract.taskId(),operation.operationId()),feedback);
+    }
+    /** Only a stopped, hash-bound explicit raise in submitted Native source is a known
+     * user-code fault. Library RuntimeError, unknown origins and all stop limits stay closed. */
+    private boolean explicitNativeRuntimeError(CodingTaskContract contract,
+            McpPythonControlPlanePort.OperationView operation,JsonNode diagnostic,String exception){
+        if(!nativeBackend||codeArtifacts==null||!"RuntimeError".equals(exception)||!"FAILED".equals(operation.status())
+                ||!operation.executorStopped()||operation.cancelRequested()||operation.exitCode()==null||operation.exitCode()!=1)return false;
+        var artifact=codeArtifacts.find(contract.scope(),contract.taskId(),operation.operationId()).orElse(null);
+        if(artifact==null||!(artifact.get("content") instanceof String source)||!Objects.equals(operation.codeHash(),artifact.get("sha256")))return false;
+        String hash;
+        try{hash=HexFormat.of().formatHex(java.security.MessageDigest.getInstance("SHA-256").digest(source.getBytes(java.nio.charset.StandardCharsets.UTF_8)));}
+        catch(java.security.NoSuchAlgorithmException impossible){throw new IllegalStateException(impossible);}
+        if(!hash.equals(operation.codeHash()))return false;
+        String file=tasks.scriptFile(contract.scope(),contract.taskId(),operation.operationId());
+        if(file==null)file=CodingScript.LEGACY_FILE;
+        if(!file.equals(artifact.get("fileName")))return false;
+        int line=diagnostic.path("line").asInt(0);String[] lines=source.split("\\R",-1);
+        if(line<1||line>lines.length)return false;
+        for(var frame:diagnostic.path("stack"))if(frame.path("line").asInt()==line&&file.equals(frame.path("file").asText()))
+            return lines[line-1].strip().matches("raise\\s+RuntimeError\\s*(?:\\(.*|$)");
+        return false;
     }
     private JsonNode read(java.util.function.Supplier<String> source){
         try{String value=source.get();return value==null?json.createObjectNode():json.readTree(value);}

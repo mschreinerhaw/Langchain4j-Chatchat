@@ -63,7 +63,10 @@ test('partial delivery and completion missing Runtime evidence cannot become COM
  assert.throws(()=>runtimeDeliveryStatus({status:'PARTIAL'}),/complete business delivery/);
  assert.throws(()=>runtimeDeliveryStatus({status:'BUDGET_EXCEEDED'}),/complete business delivery/);
  assert.throws(()=>runtimeDeliveryStatus({status:'COMPLETED'}),/references/);
- assert.equal(runtimeDeliveryStatus({status:'COMPLETED',resultDatasetRef:'r',validationRecordRef:'v',evidenceBundleRef:'e'}),'COMPLETED');
+ const complete={status:'COMPLETED',resultDatasetRef:'r',validationRecordRef:'v',evidenceBundleRef:'e',validationStatus:'PASSED',businessValidationPassed:true};
+ assert.equal(runtimeDeliveryStatus(complete),'COMPLETED');
+ assert.throws(()=>runtimeDeliveryStatus({...complete,validationStatus:'INCONCLUSIVE'}),/independent business validation/);
+ assert.throws(()=>runtimeDeliveryStatus({...complete,businessValidationPassed:undefined}),/independent business validation/);
 });
 
 test('stopped Native recovery observes Runtime stop without promoting delivery or replaying',async()=>{

@@ -11,6 +11,11 @@ import static org.assertj.core.api.Assertions.*;
 import static org.mockito.Mockito.*;
 
 class CodingCsvAggregateVerifierTest {
+    @Test void aDeclaredZeroRowCsvIsNotTheSameAsMissingHeadersOrAnUndeclaredColumn(){
+        assertThat(CodingCsvAggregateVerifier.calculate(bytes("value\n"),"value")).containsEntry("rowCount",0L).containsEntry("sum","0");
+        for(String csv:List.of("","\n","other\n"))assertThatThrownBy(()->CodingCsvAggregateVerifier.calculate(bytes(csv),"value"))
+            .isInstanceOf(IllegalArgumentException.class);
+    }
     static byte[] bytes(String s){return s.getBytes(StandardCharsets.UTF_8);}
     static String sha(byte[] b)throws Exception{return HexFormat.of().formatHex(MessageDigest.getInstance("SHA-256").digest(b));}
     static Map<String,Object> chunk(byte[] b)throws Exception{return new LinkedHashMap<>(Map.of("assetId","asset","fileName","counts.csv","sha256",sha(b),"size",b.length,"chunkCount",1,"chunkIndex",0,"chunkSha256",sha(b),"contentBase64",Base64.getEncoder().encodeToString(b)));}

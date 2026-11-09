@@ -94,7 +94,7 @@ class CodingEvidenceCollectorTest {
             new CodingTaskContract.Budget("budget", Instant.now().plusSeconds(3600).truncatedTo(java.time.temporal.ChronoUnit.MILLIS), 0, 0, 10, 1,
                 "10", "USD", 10000, 1024 * 1024, 1024 * 1024), "env", "validation:fixed",
             new CodingTaskContract.OutputContract(CodingTaskContract.ResultFormat.JSON_LINES,
-                "schema:amount", "schema:validation", List.of("rows.jsonl"),
+                "schema:amount", "schema:validation", test.getTags().contains("required-report")?List.of("rows.jsonl","report.md"):List.of("rows.jsonl"),
                 List.of("application/x-ndjson"), 100, 10000, List.of(CodingTaskContract.RequiredEvidence.values())),
             test.getTags().contains("visual-report")?Map.of("schemaVersion","runtime_os.coding.context.v1","consistency","TASK_SNAPSHOT","reportMode","visual"):Map.of());
         tasks.submit(contract);
@@ -286,6 +286,17 @@ class CodingEvidenceCollectorTest {
         var resumed = collector(reopen()).collect(scope, contract, "op", "main.py", "rows.jsonl", inputs, check);
         assertThat(reopen().snapshot(scope, id(resumed.evidenceBundleRef()))).isPresent();
         verify(python, never()).start(any());
+    }
+
+    @Test @Tag("required-report") void successfulPythonWithoutRequiredReportCannotCommitDelivery() throws Exception {
+        fixture("{\"amount\":12.50}\n", "PRESENT");
+        assertThatThrownBy(()->collector(store).collect(scope,contract,"op","main.py","rows.jsonl",
+            List.of(new CodingEvidenceCollector.InputFile("prices","prices.csv",sha("amount\n12.50\n"))),
+            rows->new CodingEvidenceCollector.Validation(true,Map.of())))
+            .isInstanceOf(CodingEvidenceCollector.RequiredOutputMissingException.class).hasMessageContaining("report.md");
+        assertThat(new JdbcTemplate(dataSource).queryForObject(
+            "select count(*) from runtime_evidence_entry where entry_kind='EVIDENCE'",Integer.class)).isZero();
+        verify(python,never()).start(any());
     }
 
     @Test void verifiedArchiveWithoutRequiredOutputHasADistinctNonCommittingOutcome() throws Exception {

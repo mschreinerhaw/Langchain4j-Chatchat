@@ -31,6 +31,9 @@ import org.springframework.stereotype.Service;
 @ConditionalOnProperty(prefix="chatchat.coding",name="enabled",havingValue="true")
 @ConditionalOnProperty(prefix="chatchat.coding.analysis",name="enabled",havingValue="true")
 public final class CodingAnalysisService implements AnalysisCodingPort {
+    private boolean nativeBackend;
+    @org.springframework.beans.factory.annotation.Value("${chatchat.coding.cline.backend:sdk}")
+    public void setBackend(String backend){nativeBackend="native".equals(backend);}
     private boolean deferredToolsEnabled;
     @org.springframework.beans.factory.annotation.Value("${chatchat.coding.cline.deferred-tools-enabled:false}")
     public void setDeferredToolsEnabled(boolean value) { deferredToolsEnabled=value; }
@@ -390,6 +393,8 @@ public final class CodingAnalysisService implements AnalysisCodingPort {
         var fingerprintInput=new LinkedHashMap<String,Object>(Map.of("instruction",instruction,"source",reference,
             "sourceHash",source.handle().contentSha256(),"schema",rowSchema,"reviewResult",reviewResult));
         if(codeProject!=null)fingerprintInput.put("codeProject",codeProject);
+        var requiredArtifacts=CodingRequiredArtifacts.read(context.runtimeAttributes().get("requiredArtifacts"));
+        if(!requiredArtifacts.isEmpty())fingerprintInput.put("requiredArtifacts",requiredArtifacts);
         String fingerprint=hash(fingerprintInput);
         if (!capacity.tryAcquire()) return Map.of("operation","RUN_CODING","requestId",requestId,"taskId",taskId,
             "status","CAPACITY_UNAVAILABLE","resultAvailable",false);
@@ -668,20 +673,30 @@ public final class CodingAnalysisService implements AnalysisCodingPort {
             // Source provenance/representation cannot be replaced by descriptor pointers:
             // keep them inline, or retain the full appendix in the task configuration.
             if("csv-count-sum-v1".equals(context.runtimeAttributes().get("validationProfile")))goal=CodingCsvMetricObjective.appendix(instruction,selectedReferences);
-            goal=CodingInstructionBudget.fit(instruction,goal,List.of(
+            String objectivePrefix=instruction;
+            if(nativeBackend){
+                if(!"csv-count-sum-v1".equals(context.runtimeAttributes().get("validationProfile"))
+                        &&context.runtimeAttributes().get("nativeUserObjective") instanceof String original&&!original.isBlank())objectivePrefix=original;
+                configuration.put("nativeAnalysisContract",Map.of("schemaVersion","native-analysis-context.v1",
+                    "sourceRepresentation",CodingSourceRepresentation.describe(source.analysisContext()),
+                    "templateParameterBinding",parameterBindingContext(source.analysisContext())));
+                goal=CodingNativeAnalysisObjective.compose(objectivePrefix,tools,VisualReportMode.active(context.runtimeAttributes()),textResult);
+            }
+            goal=CodingInstructionBudget.fit(objectivePrefix,goal,List.of(
                 new CodingInstructionBudget.Metadata(environmentInstruction,
                     "\nUse the complete immutable runtimeContext.pythonEnvironment for the installed Python/packages, image and environment version; never install dependencies or use network access."),
                 new CodingInstructionBudget.Metadata("Write rows.jsonl matching this row schema: "+ModelProtocolJson.compact(schema),
                     "Write rows.jsonl matching the complete outputContract.rowSchema in the authorized immutable input context"),
                 new CodingInstructionBudget.Metadata("Authorized immutable input descriptor: "+ModelProtocolJson.compact(promptDescriptor),
                     "Read the complete authorized immutable input context supplied before execution, including inputVersions, fieldDefinitions and fileLayout. This replaces only the duplicate descriptor; source representation and template parameter provenance remain above.")),configuration);
+            var requiredFiles=CodingRequiredArtifacts.files(context.runtimeAttributes().get("requiredArtifacts"));
             contract=new CodingTaskContract(dynamic?CodingProtocol.ANALYSIS_VERSION:CodingProtocol.VERSION,taskId,scope,
-                new CodingTaskContract.Objective(goal,List.of("rows.jsonl"),List.of(plan)),input.reference(),List.copyOf(metadataRefs),workspace,
+                new CodingTaskContract.Objective(goal,requiredFiles,List.of(plan)),input.reference(),List.copyOf(metadataRefs),workspace,
                 new CodingTaskContract.Authorization(decision,tools,CodingInputSnapshotService.mountedFiles(input)
                     .stream().map(CodingInputSnapshotService.Chunk::fileId).toList(),List.of(),List.of(),
                     CodingTaskContract.NetworkPolicy.NONE,List.of(),knowledgeTask&&!resourcePython?List.of():List.of(CodingTaskContract.SideEffect.CODE_EXECUTION)),budget,
                 env.id(),plan,new CodingTaskContract.OutputContract(CodingTaskContract.ResultFormat.JSON_LINES,
-                    "runtime-coding-schema:"+hash(schema),"runtime-coding-structural.v1",List.of("rows.jsonl"),
+                    "runtime-coding-schema:"+hash(schema),"runtime-coding-structural.v1",requiredFiles,
                     List.of("application/x-ndjson"),policy.getMaxResultRows(),policy.getMaxResultBytes(),
                     Arrays.stream(CodingTaskContract.RequiredEvidence.values()).filter(kind->!textResult||kind!=CodingTaskContract.RequiredEvidence.CODE_ARTIFACT).toList()),
                 inputs.withInputContext(configuration,scope,taskId,input));

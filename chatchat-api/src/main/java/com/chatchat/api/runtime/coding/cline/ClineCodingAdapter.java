@@ -333,6 +333,8 @@ public final class ClineCodingAdapter implements CodingAgentSPI {
         }
         CodingTaskOutcome current = tasks.get(scope, taskId);
         Instant at = clock.instant().truncatedTo(java.time.temporal.ChronoUnit.MILLIS);
+        if(nativeSessions && (!collected.businessValidationPassed()
+                || collected.validationStatus()!=CodingTaskOutcome.ValidationStatus.PASSED))return null;
         if (at.isBefore(current.updatedAt())) at = current.updatedAt();
         var proposal = new CodingTaskOutcome(current.schemaVersion(), current.taskId(),
             current.scope(), current.contractSha256(), CodingTaskOutcome.Status.COMPLETED,
@@ -455,6 +457,11 @@ public final class ClineCodingAdapter implements CodingAgentSPI {
             throw new SecurityException("Internet tools require a governed server-only capability");
         if(descriptor==null && !fast && !workspaceFast && !sqlMetadata && lifecycle==null && !internet && !deferredTools)return;
         JsonNode capabilities=request("/v1/input-capabilities",Map.of());
+        if(nativeSessions)for(String required:List.of("market_resolve_security","market_get_day_snapshot"))
+            if(contract.authorization().allowedTools().contains(required)){
+                boolean supported=false;for(var tool:capabilities.path("analysisTools"))if(required.equals(tool.asText()))supported=true;
+                if(!supported)throw new IllegalStateException("Native worker has not negotiated "+required);
+            }
         if(deferredTools && !CodingProtocol.DEFERRED_TOOLS_PROFILE.equals(capabilities.path("deferredToolsProfile").asText()))
             throw new IllegalStateException("Cline worker has not negotiated deferred tool metadata; update worker before dispatch");
         if(sqlMetadata){

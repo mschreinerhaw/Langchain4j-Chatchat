@@ -13,11 +13,12 @@ import {createHash} from 'node:crypto';
 test('a compact Native prompt defers complete source metadata and schema without losing them',async()=>{
  const dir=mkdtempSync(join(tmpdir(),'native-context-'));
  try{
-  const contract={objective:{instruction:'exact user requirement'},outputContract:{requiredFiles:['rows.jsonl']},runtimeContext:{nativeAnalysisContract:{schemaVersion:'native-analysis-context.v1',sourceRepresentation:{precision:'declared'}},pythonEnvironment:{packages:{pandas:'2'}},other:'complete metadata'}};
+  const contract={objective:{instruction:'exact user requirement'},outputContract:{requiredFiles:['rows.jsonl']},runtimeContext:{analysisInstructions:['runtime_os.native_analysis_context.v1',JSON.stringify({sourceRepresentation:{precision:'declared'}})],pythonEnvironment:{packages:{pandas:'2'}},scriptPurpose:'complete metadata'}};
   const context={files:[],outputContract:{rowSchema:{type:'object'}},inputVersions:[{datasetReference:'exact:v1',fieldDefinitions:{value:'declared'}}]};
   const delivery=await deliver({contract,abort:new AbortController()},{readInputContext:async()=>context},dir),projected=promptContext(contract,delivery),full=JSON.parse(readFileSync(join(dir,'runtime-inputs.json')));
   assert.equal(projected.contextFile,'runtime-inputs.json');assert(!JSON.stringify(projected).includes('complete metadata'));
-  assert.equal(full.runtimeContext.other,'complete metadata');assert.deepEqual(full.context,context);assert.deepEqual(full.outputContract,contract.outputContract);
+  assert.equal(full.runtimeContext.scriptPurpose,'complete metadata');assert.deepEqual(full.context,context);assert.deepEqual(full.outputContract,contract.outputContract);
+  assert.equal(JSON.parse(full.runtimeContext.analysisInstructions[1]).sourceRepresentation.precision,'declared');
  }finally{rmSync(dir,{recursive:true,force:true});}
 });
 test('frozen input identity and valid empty bytes are distinct from an incomplete transfer',async()=>{

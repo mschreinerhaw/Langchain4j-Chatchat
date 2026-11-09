@@ -14,6 +14,17 @@ import static org.assertj.core.api.Assertions.*;
 import static org.mockito.Mockito.*;
 
 class ProblemAnalysisPlannerTest {
+    @Test @SuppressWarnings("unchecked") void classificationDoesNotRepeatExecutionDescriptionsOrSchemas() {
+        var model=mock(ChatModel.class);when(model.chat(anyString())).thenReturn("{\"taskType\":\"DATA_ANALYSIS\"}");
+        var planner=new ProblemAnalysisPlanner(model,mock(ConfigurableChatModelFactory.class),new ObjectMapper(),mock(ObjectProvider.class));
+        String question="Analyze the current authorized records for 070200046604";
+        assertThat(planner.classify(InteractionRequest.builder().query(question).build(),InteractionContext.builder().build(),
+            mock(SkillDefinition.class),List.of(java.util.Map.of("tool","authorized_template_query","data_type","TEMPLATE_QUERY",
+                "description","LONG_EXECUTION_HANDBOOK".repeat(2000),"inputSchema",java.util.Map.of("secretPlaceholder","not needed for classification")))))
+            .isEqualTo(ProblemAnalysisPlan.TaskType.DATA_ANALYSIS);
+        verify(model).chat(argThat((String prompt)->prompt.contains(question)&&prompt.contains("authorized_template_query")
+            &&prompt.contains("TEMPLATE_QUERY")&&!prompt.contains("LONG_EXECUTION_HANDBOOK")&&!prompt.contains("secretPlaceholder")));
+    }
     @org.junit.jupiter.params.ParameterizedTest
     @org.junit.jupiter.params.provider.ValueSource(booleans={false,true})
     @SuppressWarnings("unchecked") void readyPlanDoesNotFailForAnUnusedNullOrOmittedClarification(boolean omitted) {

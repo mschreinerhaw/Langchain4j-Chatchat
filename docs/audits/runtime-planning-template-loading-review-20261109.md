@@ -34,4 +34,18 @@
 
 固定新提交后构建、仅更新专项 Runtime 规划类，并通过同一账户的真实任务记录规划输入/输出、耗时、候选数、参数绑定和实际数据供给。尚不能宣称模板加载或规划延迟已修复，更不能宣称达到 30/30。
 
+## 首次真实上游探针及后续修复
+
+`a7dacaad4` 再次完成 20 模块打包（复用此前完整前端构建并执行资源校验）。规划类覆盖已在专项 API 部署；未改 MCP、Agent 全局绑定或模型预算。扩大回归为 199 项、46 failures、36 errors；两组原有 Planner/Orchestrator 的 82 个失败名称与独立基线完全相同，新增专项测试仍通过。
+
+真实 Runtime 任务 `ecb034e3-9d08-3024-b7ce-fbc57b0207a2`，运行 `att-1-18338022-1ce4-4fbf-9bcc-3bbbbfe18797`，采用已授权 `financial_indicator` 客户模板工作流。历史 `financial_data_analysis` 金融子工具配置的五个 `sample_*` 是市场模板，并非该客户的数据入口；没有将其改绑到其他数据源。不同 Agent 不作同口径延迟改善比较。请求模型名为 qwen3.7-plus，实际结果 metadata 模型名为 qwen3.7-flash-2026-07-15，必须保留这一区别。
+
+这次真实链路发现 10 个客户模板候选，批量执行 4 个 API 模板，客户参数 `khh`/`CUST_NUM` 均由 user_query 绑定为字符串 `070200046604`，前导零保留；日期仍由模板默认值供给并明确标记 `REQUIRES_SCOPE_VERIFICATION`，不能冒充当前日期。供给 4 份 Dataset、58 条记录，Parquet 快照准备耗时 1,171 ms。模板发现阶段总耗时约 23,445 ms（包含其整体处理，不据此等同远端数据库耗时），API 批量执行回执耗时 2,952 ms。
+
+任务最终 **FAILED**，错误 `Unknown Coding context field`，尚无 Native Session、Python operation 或交付物。这是 `6019794e2` 新 Native 适配引入的合同字段兼容错误：`nativeAnalysisContract` 不在既有公共上下文允许字段内。修复改用已支持的 `analysisInstructions`，首项为 Native profile，之后为按序拼接的来源及模板绑定 JSON 块；不扩大公共内核允许字段，不截断声明。补充 Native/SDK 两种模式的完整合同构造及现有严格上下文校验，Java 67 项及 Node 46 项通过。
+
+真实事件还表明，正式 Runtime 开始之前的任务类型识别阶段约耗时 45 秒，不能全部归因于 InterpretationPlan。该分类只返回 QA/DATA_ANALYSIS，却原样携带工具执行描述；后续修改仅在分类输入保留工具标识和已声明 data_type，将完整描述留给既有取数阶段，并记录分类实际模型、提示词长度和推理耗时。分类与工作流回归 31 项通过，仍需同 Agent 的真实请求对比，未改默认模型或 2048 输出预算。
+
+此探针与其真实失败证据单独保留，不计作正式 30 次验收成功，不重用 taskId 重派。后续版本须重新构建、部署并验证实际 Native 合同交付。
+
 回滚仅撤回专项实例新增的规划类覆盖并重启该 API；保留旧依赖、任务、会话、回执及监控证据。不得用旧 taskId 重派执行，不修改生产默认 Coding Agent，不重启或替换旧节点。

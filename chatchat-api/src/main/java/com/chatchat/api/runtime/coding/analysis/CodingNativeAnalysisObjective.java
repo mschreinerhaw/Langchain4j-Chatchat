@@ -1,13 +1,30 @@
 package com.chatchat.api.runtime.coding.analysis;
 
 import java.util.Collection;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
 
 /** Native task requirements, not a coding plan, tool sequence or repair algorithm. */
 final class CodingNativeAnalysisObjective {
+    static final String CONTEXT_PROFILE="runtime_os.native_analysis_context.v1";
     private CodingNativeAnalysisObjective() { }
+    static List<String> contextInstructions(Map<String,Object> source,Map<String,Object> binding) {
+        String json=com.chatchat.agents.protocol.ModelProtocolJson.compact(Map.of(
+            "sourceRepresentation",source,"templateParameterBinding",binding));
+        var chunks=new ArrayList<String>();chunks.add(CONTEXT_PROFILE);
+        for(int start=0;start<json.length();) {
+            int end=Math.min(start+11000,json.length());
+            if(end<json.length()&&Character.isHighSurrogate(json.charAt(end-1)))end--;
+            chunks.add(json.substring(start,end));start=end;
+        }
+        if(chunks.size()>16)throw new IllegalArgumentException("Native source declarations exceed the existing context appendix limit");
+        return List.copyOf(chunks);
+    }
     static String compose(String userObjective,Collection<String> tools,boolean visual,boolean textResult){
         String core=userObjective+"\n\nRuntime contract: use only the frozen authorized inputs and tools. "
             +"The complete input inventory, exact output row schema, field/source declarations and environment are in runtime-inputs.json. "
+            +"runtimeContext.analysisInstructions starts with the Native context profile; concatenate its remaining ordered JSON chunks for the source and template binding declarations. "
             +"Native reads use nativePath; Managed Python uses virtualPath under /data/input. datasetReference is an opaque logical reference, never a file path. "
             +"Original nativeFiles are business inputs; transport parts and Base64 records are not extra business datasets. "
             +"Preserve missing/null, declared units, exact identifiers and numeric precision. Never invent values or infer business roles from column positions. "

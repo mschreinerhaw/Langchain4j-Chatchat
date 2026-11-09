@@ -24,6 +24,20 @@ import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.*;
 
 class CodingAnalysisServiceTest {
+    @org.junit.jupiter.params.ParameterizedTest
+    @org.junit.jupiter.params.provider.ValueSource(strings={"native","sdk"})
+    void completeNativeContractUsesOnlyTheExistingValidatedRuntimeContext(String backend) {
+        prepare(outcome(CodingTaskOutcome.Status.FAILED,CodingTaskOutcome.ValidationStatus.NOT_RUN));
+        var service=service();service.setBackend(backend);
+        service.execute(context("tenant"),request(),sources());
+        var submitted=org.mockito.ArgumentCaptor.forClass(CodingTaskContract.class);
+        verify(agent).submit(submitted.capture());
+        var context=com.chatchat.common.runtime.coding.CodingRuntimeContext.validate(submitted.getValue().runtimeContext());
+        assertThat(context).doesNotContainKey("nativeAnalysisContract");
+        if("native".equals(backend))assertThat(((List<?>)context.get("analysisInstructions")).get(0))
+            .isEqualTo(CodingNativeAnalysisObjective.CONTEXT_PROFILE);
+        else assertThat(context).doesNotContainKey("analysisInstructions");
+    }
     @Test void fileProgressProjectsOnlyCurrentBoundedObservationsAndRequiresAnOperationStopProof() {
         var scope=new KernelDataScope("tenant","owner","node",null,"owned-run",null,Map.of());
         var outcome=outcome(CodingTaskOutcome.Status.RUNNING,CodingTaskOutcome.ValidationStatus.NOT_RUN);when(outcome.lastEventSequence()).thenReturn(300L);

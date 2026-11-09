@@ -63,7 +63,28 @@ class SchemaDrivenTemplateParameterBinderTest {
         var spec=json.readTree(captured.getValue().toolSpecifications().get(0).toJson());
         assertThat(spec.at("/name").asText()).isEqualTo(SchemaDrivenTemplateParameterBinder.SELECTION_FUNCTION);
         assertThat(spec.at("/parameters/properties/selections/maxItems").asInt()).isEqualTo(32);
-        assertThat(spec.at("/parameters/properties/selections/items/oneOf")).hasSize(2);
+        var variants=spec.at("/parameters/properties/selections/items/oneOf");
+        assertThat(variants).hasSize(1);
+        assertThat(variants.get(0).at("/properties/templateId/enum")).containsExactly(
+            json.getNodeFactory().textNode("assets"),json.getNodeFactory().textNode("trades"));
+        assertThat(result.selectedIds()).containsExactly("assets","trades");
+    }
+
+    @Test void distinctParameterContractsAndAssetIdentitiesCannotBeMerged() throws Exception {
+        var first=Map.<String,Object>of("templateId","assets","asset",Map.of("id","asset-1"),
+            "parameterSchema",Map.of("type","object","properties",Map.of("subject",Map.of("type","string"))));
+        var differentAsset=Map.<String,Object>of("templateId","trades","asset",Map.of("id","asset-2"),
+            "parameterSchema",first.get("parameterSchema"));
+        var differentSchema=Map.<String,Object>of("templateId","history","asset",Map.of("id","asset-1"),
+            "parameterSchema",Map.of("type","object","properties",Map.of("subject",Map.of("type","string","enum",List.of("C1")))));
+        var model=model(List.of(selection("assets",Map.of("subject","C1"))));
+        var result=binder.selectAndBind(model,"C1",List.of(first,differentAsset,differentSchema));
+        var captured=org.mockito.ArgumentCaptor.forClass(ChatRequest.class);verify(model).chat(captured.capture());
+        var variants=json.readTree(captured.getValue().toolSpecifications().get(0).toJson())
+            .at("/parameters/properties/selections/items/oneOf");
+        assertThat(variants).hasSize(3);
+        assertThat(result.selectedIds()).containsExactly("assets");
+        assertThat(result.metrics()).containsEntry("selectionSchemaVariantCount",3);
     }
 
     @Test void inventedValuesCannotBecomeExecutionEvidence() throws Exception {

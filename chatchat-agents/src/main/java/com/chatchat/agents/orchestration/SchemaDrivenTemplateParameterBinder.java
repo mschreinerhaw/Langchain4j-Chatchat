@@ -119,6 +119,14 @@ final class SchemaDrivenTemplateParameterBinder {
                 }
                 catalog.add(summary);
             }
+            // Merge only exactly equal contracts. Each template retains its catalog entry;
+            // replacing singleton ID enums with their union preserves the accepted calls.
+            int ungroupedVariantCount=variants.size();
+            metrics.put("selectionUngroupedVariantChars",objectMapper.writeValueAsString(variants).length());
+            variants=groupEquivalentVariants(variants);
+            metrics.put("selectionGroupedVariantChars",objectMapper.writeValueAsString(variants).length());
+            metrics.put("selectionCatalogChars",objectMapper.writeValueAsString(catalog).length());
+            metrics.put("selectionContextChars",objectMapper.writeValueAsString(TemplateRecordsetBindings.modelContext(selectionContext)).length());
             var schema=Map.of("type","object","additionalProperties",false,
                 "required",List.of("status","selections"),"properties",Map.of(
                     "status",Map.of("type","string","enum",List.of("SELECTED","NO_MATCH","NEEDS_INPUT")),
@@ -130,6 +138,10 @@ final class SchemaDrivenTemplateParameterBinder {
             node.put("description","Select returned templates and extract their parameters for the user's complete request.");
             node.set("parameters",objectMapper.valueToTree(schema));
             var spec=ToolSpecification.fromJson(objectMapper.writeValueAsString(node));
+            metrics.put("selectionCandidateCount",catalog.size());
+            metrics.put("selectionUngroupedVariantCount",ungroupedVariantCount);
+            metrics.put("selectionSchemaVariantCount",variants.size());
+            metrics.put("selectionFunctionSchemaChars",spec.toJson().length());
             metrics.put("selectionModelCalls",((Number)metrics.get("selectionModelCalls")).intValue()+1);
             long modelStarted=System.nanoTime();
             ChatResponse response;
@@ -162,6 +174,9 @@ final class SchemaDrivenTemplateParameterBinder {
                 metrics.put(field,((Number)metrics.getOrDefault(field,0L)).longValue()+usage.get(token));
             }
             AiMessage message=response==null?null:response.aiMessage();
+            metrics.put("selectionResponseTextChars",message==null||message.text()==null?0:message.text().length());
+            metrics.put("selectionResponseArgumentChars",message==null||!message.hasToolExecutionRequests()?0:
+                message.toolExecutionRequests().stream().mapToInt(call->call.arguments()==null?0:call.arguments().length()).sum());
             if(message==null||!message.hasToolExecutionRequests()||message.toolExecutionRequests().size()!=1
                     ||!SELECTION_FUNCTION.equals(message.toolExecutionRequests().get(0).name()))
                 return new SelectionResult("INVALID_MODEL_RESPONSE",List.of(),List.of(),Map.of(),"Expected one selection function call");
@@ -207,6 +222,26 @@ final class SchemaDrivenTemplateParameterBinder {
             log.info("Template selection model call unavailable: {}",failure.getClass().getSimpleName());
             return new SelectionResult("MODEL_UNAVAILABLE",List.of(),List.of(),Map.of(),failure.getClass().getSimpleName());
         }
+    }
+
+    private List<Map<String,Object>> groupEquivalentVariants(List<Map<String,Object>> variants) {
+        Map<Map<String,Object>,List<String>> groups=new LinkedHashMap<>();
+        for(var variant:variants) {
+            var fields=map(variant.get("properties"));
+            var id=map(fields.remove("templateId"));
+            var identity=new LinkedHashMap<>(variant);
+            identity.put("properties",fields);
+            var ids=groups.computeIfAbsent(identity,ignored->new ArrayList<>());
+            if(id.get("enum") instanceof Collection<?> values)values.forEach(value->ids.add(String.valueOf(value)));
+        }
+        return groups.entrySet().stream().map(group->{
+            var variant=new LinkedHashMap<>(group.getKey());
+            var fields=new LinkedHashMap<String,Object>();
+            fields.put("templateId",Map.of("type","string","enum",List.copyOf(group.getValue())));
+            fields.putAll(map(variant.get("properties")));
+            variant.put("properties",fields);
+            return (Map<String,Object>)variant;
+        }).toList();
     }
 
     private boolean preservesValidSelections(Map<String,Object> previous,Map<String,Object> corrected,List<Map<String,Object>> templates) {

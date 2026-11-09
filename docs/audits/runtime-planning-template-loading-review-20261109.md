@@ -32,7 +32,7 @@
 
 ## 待完成
 
-固定新提交后构建、仅更新专项 Runtime 规划类，并通过同一账户的真实任务记录规划输入/输出、耗时、候选数、参数绑定和实际数据供给。尚不能宣称模板加载或规划延迟已修复，更不能宣称达到 30/30。
+专项部署和两次真实上游探针已完成，结果见下文。模板选择合同去重已完成源码及专项回归，尚未部署或完成真实模型复测。尚不能宣称模板加载或规划延迟已稳定修复，更不能宣称达到 30/30。
 
 ## 首次真实上游探针及后续修复
 
@@ -44,8 +44,49 @@
 
 任务最终 **FAILED**，错误 `Unknown Coding context field`，尚无 Native Session、Python operation 或交付物。这是 `6019794e2` 新 Native 适配引入的合同字段兼容错误：`nativeAnalysisContract` 不在既有公共上下文允许字段内。修复改用已支持的 `analysisInstructions`，首项为 Native profile，之后为按序拼接的来源及模板绑定 JSON 块；不扩大公共内核允许字段，不截断声明。补充 Native/SDK 两种模式的完整合同构造及现有严格上下文校验，Java 67 项及 Node 46 项通过。
 
-真实事件还表明，正式 Runtime 开始之前的任务类型识别阶段约耗时 45 秒，不能全部归因于 InterpretationPlan。该分类只返回 QA/DATA_ANALYSIS，却原样携带工具执行描述；后续修改仅在分类输入保留工具标识和已声明 data_type，将完整描述留给既有取数阶段，并记录分类实际模型、提示词长度和推理耗时。分类与工作流回归 31 项通过，仍需同 Agent 的真实请求对比，未改默认模型或 2048 输出预算。
+真实事件还表明，正式 Runtime 开始之前的任务类型识别阶段约耗时 45 秒，不能全部归因于 InterpretationPlan。该分类只返回 QA/DATA_ANALYSIS，却原样携带工具执行描述；后续修改仅在分类输入保留工具标识和已声明 data_type，将完整描述留给既有取数阶段，并记录分类实际模型、提示词长度和推理耗时。分类与工作流回归 31 项通过，未改默认模型或环境预算。源码默认分类输出上限为 2048，但第二次真实探针日志确认专项环境实际配置为 **4096**，两者不能混用。
 
 此探针与其真实失败证据单独保留，不计作正式 30 次验收成功，不重用 taskId 重派。后续版本须重新构建、部署并验证实际 Native 合同交付。
 
 回滚仅撤回专项实例新增的规划类覆盖并重启该 API；保留旧依赖、任务、会话、回执及监控证据。不得用旧 taskId 重派执行，不修改生产默认 Coding Agent，不重启或替换旧节点。
+
+## 第二次真实探针：确认慢点在模板选择模型
+
+部署源码 `ef7f8b1156513ac2ec8b17f7557e08e57cc1b7e6`，Runtime taskId `55619f50-32b0-3feb-958e-c6e34e22194e`，runId `att-1-76faff62-4492-4725-8d67-589a5474ac15`。沿用同一 `financial_indicator` Agent、同一客户及原始业务请求，重新创建任务，没有重派旧 taskId。
+
+| 阶段 | 实际证据 | 判断 |
+| --- | --- | --- |
+| 任务类型分类 | 实际模型 qwen3.7-flash-2026-07-15；1726 字符；9478 ms；配置输出上限 4096 | 上一次约 45 秒是分类阶段事件间隔，不能当作同口径模型调用对照，更不能用单样本证明稳定提速 |
+| 初始 InterpretationPlan | 生命周期明确记录既有 fixed bound template discovery and execution plan | 此路径未出现初始 planner 模型调用，不能把通用 Planner 离线精简归因于本次耗时变化 |
+| 客户模板发现及选择 | 10 个候选，选中 3 个；阶段总计 30319 ms | 包含模型选择及参数绑定，不能全部归因于 MCP 或数据库 |
+| 模板选择模型 | 1 次调用，29964 ms；输入 5913 Token，输出 3139 Token；selectionDurationMs=30004 | 本次模板发现阶段的主要耗时点；Token 为模型回执用量，不等于可见 JSON 字符数 |
+| 查询工具执行 | Runtime toolExecutionTimeMs=188；MCP 内部 api_template_query 日志为 34 ms | 两者测量边界不同，不互相替代 |
+| API 模板执行 | 总计 13973 ms；toolExecutionTimeMs=13791 | 有实际数据执行，不是空模板；外部请求延迟仍需分别跟踪 |
+| Parquet 快照准备 | 1118 ms，随后创建 Native 会话并执行 Python | 已越过前次合同未知字段失败点 |
+
+Native taskId `analysis-coding-0285e3b082069098aeb5a36475b75db801bf3a23d771b2189d22171e76db27aa`，Native Session `b59af02f-1bc9-4add-a2f8-85b48a2ce3c1`，官方 Core Session `1794187724252_45yvx`。Python operationId `cline-b93b9a56b2e6c5c754b33a6cd0ac8e56364b978cd37caf2c0ca121c3d56bbdfd`，源码 Hash `91cc1a9cf0be386f0c30a71ba747e449e18d49db2ab02779fd703e356e28293e`。
+
+最终 Runtime **FAILED**、Native **BUDGET_EXCEEDED**：首次 Python 实际报 ValueError（脚本第 60 行），反馈允许在当前上下文修复；后续修复 newText=19017，超过单段 16000 UTF-16 字符限制，被 `REPAIR_SEGMENT_LIMIT` 拒绝，未创建第二次 Python 执行。随后 12 次模型调用预算耗尽。ValueError 的具体业务/技术原因仍需检查归档诊断及对应源码，不能仅凭异常类型归责数据。保留真实失败，不提高预算、不放宽全部修复限制。
+
+该任务已确认 workerStopped=true、remoteStopConfirmed=true、activeOperations=[]，取消对账完成。没有 Python 成功回执、独立验算通过或成功交付文件，不能宣称业务完成。此版本真实探针为 **0/1**，与前一版本及历史 1/13 分开记录，正式固定版本 30 次验收仍未开始。
+
+## 模板选择合同去重及提交时状态
+
+`SchemaDrivenTemplateParameterBinder` 只对除 templateId 枚举外完全相同的 Function Schema 分支合并枚举；保留每个模板的标题、业务描述、ID、参数约束及资产约束。参数或资产合同不同的候选不合并；模型仍决定相关性、覆盖及参数，Java 仍执行原有证据和权限验证。
+
+新增指标记录候选数、分支数、合并前后字符数、catalog/context/function schema 长度、响应正文及参数长度。指标不记录原始业务数据，便于后续区分重复输入和模型输出开销。
+
+以本次实际选中的 3 个模板离线复放，Function Schema 为 **4280 → 1800 字符，减少约 58%**，分支 3 → 1。这不是完整 10 候选请求的长度，也不是模型耗时、业务成功或生产提速证明。回归 44 项（Binder 18、CandidateEvaluator 26）全部通过；保留多实体、多模板、不同参数合同和不同资产不得混用的验证。
+
+此前 `ef7f8b115` 的 20 模块 package 已成功；本次合同去重后的最新完整 package 在 API 打包阶段随用户中断，日志没有完整 Reactor BUILD SUCCESS，**不计作最新完整构建通过**。最新完整构建与真实模型复测待继续。当前仅提交源码和问题记录，不继续部署、派发任务或切换默认节点。
+
+当前问题与后续顺序：
+
+1. P0：模板选择模型输入/输出及约 30 秒耗时，优先完成新版本构建和真实测量；不得仅凭离线 58% 宣称已解决。
+2. P0：检查该 ValueError 的真实归档诊断与源码，定位 Native 超大修复和后续预算消耗；连续同因失败时停止该场景重试。
+3. P0：日期仍使用模板默认值，范围待核验；账户、多文件、行情的可信独立业务验算仍未闭环。
+4. P1：历史空有效绑定与市场数据目录/读取不一致的问题继续保留；不能概括为客户无数据。
+5. 回归债务：Planner/Orchestrator 的 82 项既有失败仍未解决，不报告全量回归通过。
+6. 恢复债务：此前两条历史 UNKNOWN 仍需真实对账；本次任务停止已确认，不等同历史全部清零。
+
+本地原始日志、私有模板元数据及回执保留在忽略目录 `target/native-stability-20261109/`，远端原始证据保留在 `/opt/cline-native-stability-20261109/evidence/`；凭据及客户明细不入 Git。清理工作区以提交已审核改动为主，保留审计基线和证据，不执行批量删除或 reset。

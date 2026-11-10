@@ -19,5 +19,10 @@ export function observeModelResponse(run,answer) {
   &&['MODEL_OUTPUT_TRUNCATED','MODEL_TOOL_ARGUMENTS_INVALID'].includes(f.diagnosticCode)
   &&Number.isInteger(f.maxRepairAttempts)&&f.maxRepairAttempts>=1&&f.maxRepairAttempts<=8){
   run.modelResponseFeedback=f;
- }else if(!answer.error){run.modelResponseFeedback=null;run.modelResponseRepairs=0;}
+ }else{
+  // A grant belongs to the current receipt. An unrelated failure cannot inherit
+  // the preceding truncation's permission or consume its remaining repairs.
+  run.modelResponseFeedback=null;
+  if(!answer.error)run.modelResponseRepairs=0;
+ }
 }

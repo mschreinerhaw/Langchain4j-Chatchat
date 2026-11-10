@@ -47,6 +47,13 @@ test('provider failure cannot become successful completion',()=>{
  assert.equal(projectResponse({toolCalls:[{id:'id',name:'editor',input:{path:'a'}}],usage:{inputTokens:11,outputTokens:2},finishReason:'TOOL_EXECUTION'},'m').choices[0].finish_reason,'tool_calls');
  assert.equal(verifiedReceipt({status:'SUCCEEDED',executorStopped:true}),undefined);
 });
+
+test('wire usage preserves unknown counters instead of reporting zero consumption',()=>{
+ assert.equal(projectResponse({text:'actual'},'m').usage,undefined);
+ assert.deepEqual(projectResponse({usage:{inputTokens:7}},'m').usage,{prompt_tokens:7});
+ assert.deepEqual(projectResponse({usage:{inputTokens:0,outputTokens:2}},'m').usage,{prompt_tokens:0,completion_tokens:2,total_tokens:2});
+ assert.equal(projectResponse({usage:{inputTokens:-1,outputTokens:null}},'m').usage,undefined);
+});
 test('first native inference requires the real completion tool catalog',()=>{
  assert.throws(()=>projectRequest({messages:[],tools:[]},contract,1),/absent from the native model tool catalog/);
  const tools=[{function:{name:'submit_and_exit',parameters:{type:'object'}}}];

@@ -28,17 +28,46 @@ export function nativeProposal(history,source) {
  const before=history.currentSource,parent=history.versions.at(-1),repair={parentCodeVersion:parent.version,baseCodeSha256:parent.codeHash,edits:[]};
  if(before===source)return {proposal:{repair},unchanged:true};
  let current=before;
- for(const delta of deltas(before,source).reverse()) {
-  let {start,end,text}=delta;
-  for(;;){
-   const oldText=current.slice(start,end);
-   if(oldText&&current.indexOf(oldText)===current.lastIndexOf(oldText))break;
+ const reject=()=>{
+  const error=new TypeError('REPAIR_SEGMENT_LIMIT: Native changes cannot be represented by 1..32 unique exact edits of at most 16000 UTF-16 characters. No version or execution was accepted. Read the current submitted source with code_read, retain that version, and make a smaller statement/function change rather than rewriting unrelated code.');
+  error.code='REPAIR_SEGMENT_LIMIT';throw error;
+ };
+ const apply=(start,end,text)=>{
+  // Expand only with unchanged context. Each anchor is checked against the
+  // intermediate source that Runtime will actually replay, never the base alone.
+  while(!current.slice(start,end)||current.indexOf(current.slice(start,end))!==current.lastIndexOf(current.slice(start,end))){
    if(start>0){start--;text=current[start]+text;}
    else if(end<current.length){text+=current[end];end++;}
-   else throw Error('Cannot bind native source delta');
+   else reject();
+   if(end-start>16000||text.length>16000)reject();
   }
+  if(end-start>16000||text.length>16000||repair.edits.length>=32)reject();
   repair.edits.push({oldText:current.slice(start,end),newText:text});
   current=current.slice(0,start)+text+current.slice(end);
+ };
+ const cut=(text,limit)=>{
+  let n=Math.min(text.length,limit);
+  if(n<text.length&&/[\uD800-\uDBFF]/.test(text[n-1])&&/[\uDC00-\uDFFF]/.test(text[n]))n--;
+  return n;
+ };
+ for(const delta of deltas(before,source).reverse()) {
+  const {start,end,text}=delta;
+  if(end-start<=8000&&text.length<=8000){apply(start,end,text);continue;}
+  // Delete the changed tail first, keeping a real source anchor for replacement.
+  // Then insert the Agent's exact bytes in bounded chunks. This transports the
+  // existing workspace delta; it never synthesizes or repairs Python code.
+  let remaining=end-start;
+  while(remaining>8000){
+   let at=start+remaining-8000;
+   if(/[\uDC00-\uDFFF]/.test(current[at])&&/[\uD800-\uDBFF]/.test(current[at-1]))at--;
+   apply(at,start+remaining,'');remaining=at-start;
+  }
+  let consumed=cut(text,8000);
+  apply(start,start+remaining,text.slice(0,consumed));
+  while(consumed<text.length){
+   const length=cut(text.slice(consumed),8000);
+   apply(start+consumed,start+consumed,text.slice(consumed,consumed+length));consumed+=length;
+  }
  }
  if(current!==source)throw Error('Native source delta reconstruction mismatch');
  return {proposal:{repair},unchanged:false};

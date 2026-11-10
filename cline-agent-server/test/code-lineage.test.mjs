@@ -21,5 +21,30 @@ test('native delta replay preserves insertion, deletion, repeated anchors and Un
 });
 test('an indivisible oversized rewrite still fails the existing Runtime limit',()=>{
  const before='old',after='x'.repeat(16001);
- assert.throws(()=>prepareProgram(nativeProposal(history(before),after).proposal,before),/REPAIR_SEGMENT_LIMIT/);
+ assert.throws(()=>nativeProposal(history(before),after),/REPAIR_SEGMENT_LIMIT/);
+});
+
+test('large insertions, deletions and rewrites replay through bounded unique intermediate anchors',()=>{
+ const body=Array.from({length:1800},(_,i)=>`field_${i} = "value_${i}😀"\r\n`).join('');
+ for(const [before,after] of [
+  ['header=1\nfooter=1\n','header=1\n'+body+'footer=1\n'],
+  ['header=1\n'+body+'footer=1\n','header=1\nfooter=1\n'],
+  ['old_header\n'+body+'old_footer\n','new_header\n'+body.replaceAll('value_','changed_')+'new_footer\n'],
+ ]){
+  const edits=replay(before,after);
+  assert(edits.length<=32);
+  assert(edits.every(e=>e.oldText.length>0&&e.oldText.length<=16000&&e.newText.length<=16000));
+ }
+});
+
+test('consecutive native repairs bind the latest version and source hash',()=>{
+ const before='first=1\n'+Array.from({length:1400},(_,i)=>`item_${i}=${i}\n`).join('')+'last=1\n';
+ const second=before.replace('first=1','first=2').replace('last=1','last=2');
+ replay(before,second);
+ const h=history(second);h.versions[0].version=7;
+ const third=second.replace('item_700=700','item_700=701');
+ const {proposal}=nativeProposal(h,third);
+ assert.equal(proposal.repair.parentCodeVersion,7);
+ assert.equal(proposal.repair.baseCodeSha256,h.versions[0].codeHash);
+ assert.equal(prepareProgram(proposal,second),third);
 });

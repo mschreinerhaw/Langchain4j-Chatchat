@@ -17,3 +17,14 @@ test('a successful response ends the repair sequence and missing grants create n
  observeModelResponse(run,{error:'Transport failure'});admitModelResponseRepair(run);
  assert.equal(run.modelResponseFeedback,null);
 });
+
+test('an unrelated or invalid error receipt revokes the previous response repair grant',()=>{
+ for(const answer of [{error:'Transport failure'},
+  {error:'Denied',modelResponseFeedback:{...truncated.modelResponseFeedback,repairAllowed:false}},
+  {error:'Invalid grant',modelResponseFeedback:{...truncated.modelResponseFeedback,maxRepairAttempts:0}}]){
+  const run={};observeModelResponse(run,truncated);admitModelResponseRepair(run);
+  observeModelResponse(run,answer);
+  assert.equal(run.modelResponseFeedback,null);
+  assert.equal(run.modelResponseRepairs,1,'Revocation preserves actual repair usage');
+ }
+});

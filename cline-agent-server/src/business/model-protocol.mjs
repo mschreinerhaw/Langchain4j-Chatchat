@@ -55,9 +55,13 @@ export function projectResponse(answer,model) {
  const tool_calls=calls.map(c=>({id:c.id,type:'function',function:{name:c.name,arguments:recoverable?c.arguments:JSON.stringify(c.input)}}));
  const finish_reason=recoverable?(feedback.diagnosticCode==='MODEL_OUTPUT_TRUNCATED'?'length':'tool_calls')
   :{STOP:'stop',TOOL_EXECUTION:'tool_calls',LENGTH:'length',CONTENT_FILTER:'content_filter'}[answer.finishReason]??(tool_calls.length?'tool_calls':'stop');
+ const usage={};
+ if(Number.isSafeInteger(answer.usage?.inputTokens)&&answer.usage.inputTokens>=0)usage.prompt_tokens=answer.usage.inputTokens;
+ if(Number.isSafeInteger(answer.usage?.outputTokens)&&answer.usage.outputTokens>=0)usage.completion_tokens=answer.usage.outputTokens;
+ if(usage.prompt_tokens!==undefined&&usage.completion_tokens!==undefined)usage.total_tokens=usage.prompt_tokens+usage.completion_tokens;
  return {id:answer.requestId??'runtime-model-response',object:'chat.completion',created:Math.floor(Date.now()/1000),model,
   choices:[{index:0,message:{role:'assistant',content:answer.text??null,...(tool_calls.length?{tool_calls}:{})},finish_reason}],
-  usage:{prompt_tokens:answer.usage?.inputTokens??0,completion_tokens:answer.usage?.outputTokens??0,total_tokens:(answer.usage?.inputTokens??0)+(answer.usage?.outputTokens??0)}};
+  ...(Object.keys(usage).length?{usage}:{})};
 }
 export function writeCompletion(res,completion,stream) {
  if(!stream){res.writeHead(200,{'content-type':'application/json'});res.end(JSON.stringify(completion));return;}

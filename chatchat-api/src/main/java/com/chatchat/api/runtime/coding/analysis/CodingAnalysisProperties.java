@@ -3,6 +3,7 @@ package com.chatchat.api.runtime.coding.analysis;
 import lombok.Data;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.stereotype.Component;
+import com.chatchat.common.runtime.coding.CodingLimit;
 
 /** Independent per-invocation tool ceilings; contains no business rules or model-generated policy. */
 @Data @Component
@@ -23,10 +24,21 @@ public class CodingAnalysisProperties {
     private int timeoutSeconds = 300;
     private boolean codeLifecycleEnabled = true;
     private int maxConsecutiveRejectedTasks = 2;
-    private long maxModelCalls = 12;
-    private long maxModelTokens = 65536;
-    private long maxCodeExecutions = 12;
-    private long maxToolCalls = 24;
+    private CodingLimit maxModelCalls = new CodingLimit(12);
+    private CodingLimit maxModelTokens = new CodingLimit(65536);
+    private CodingLimit maxCodeExecutions = new CodingLimit(12);
+    private CodingLimit maxToolCalls = new CodingLimit(24);
+    /** Optional cumulative ceilings, distinct from per-process/per-artifact isolation. */
+    private CodingLimit maxCumulativeCpuMillis;
+    private CodingLimit maxCumulativeOutputBytes;
+    public void setMaxModelCalls(long value){maxModelCalls=new CodingLimit(value);}
+    public void setMaxModelCalls(CodingLimit value){maxModelCalls=value;}
+    public void setMaxModelTokens(long value){maxModelTokens=new CodingLimit(value);}
+    public void setMaxModelTokens(CodingLimit value){maxModelTokens=value;}
+    public void setMaxCodeExecutions(long value){maxCodeExecutions=new CodingLimit(value);}
+    public void setMaxCodeExecutions(CodingLimit value){maxCodeExecutions=value;}
+    public void setMaxToolCalls(long value){maxToolCalls=new CodingLimit(value);}
+    public void setMaxToolCalls(CodingLimit value){maxToolCalls=value;}
     private String maxCostAmount = "10";
     private String costCurrency = "USD";
     private long maxInputRows = 100000;

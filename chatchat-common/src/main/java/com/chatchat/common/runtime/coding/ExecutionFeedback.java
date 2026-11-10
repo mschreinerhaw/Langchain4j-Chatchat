@@ -33,7 +33,8 @@ public record ExecutionFeedback(String schemaVersion, String taskId, String exec
         CodingProtocol.require(codeHash!=null&&codeHash.matches("[0-9a-f]{64}"),"Code hash required");
         CodingProtocol.require(durationMs==null||durationMs>=0,"Execution duration cannot be negative");
         CodingProtocol.require((cpuTimeMs==null||cpuTimeMs>=0)&&(maxRssBytes==null||maxRssBytes>=0),"Execution resources cannot be negative");
-        CodingProtocol.require("METADATA_ONLY_V1".equals(diagnosticPolicy)&&"[raw stdout omitted]".equals(stdout),"Raw streams are forbidden in execution feedback");
+        CodingProtocol.require(java.util.Set.of("METADATA_ONLY_V1","TASK_ERROR_DETAIL_V2").contains(diagnosticPolicy)
+            &&"[raw stdout omitted]".equals(stdout),"Unsupported diagnostic policy or raw stdout");
         inputDataRefs=List.copyOf(inputDataRefs);inputFiles=List.copyOf(inputFiles);
         inputSchemaSummary=Map.copyOf(inputSchemaSummary);artifactRefs=Map.copyOf(artifactRefs);
     }

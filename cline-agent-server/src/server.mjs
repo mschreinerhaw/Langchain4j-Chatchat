@@ -57,7 +57,10 @@ function nativeEvent(s,event){
  if(a?.contentType==='tool'&&a.type==='content_start')emit(s,'tool.started',a);
  if(a?.contentType==='tool'&&a.type==='content_end')emit(s,toolFailed(a)?'tool.failed':'tool.completed',a);
  if(a?.type==='notice'&&String(a.reason).includes('compaction'))emit(s,'context.notice',a);
- if(a?.type==='error')emit(s,'model.error',a);
+ if(a?.type==='error'){
+  emit(s,'model.error',a);
+  if(a.recoverable===false)failure(s,Error(a.error?.message??'Unrecoverable native model error'));
+ }
  if(a?.type==='done'&&!['cancelling','cancelled','failed'].includes(s.status)){
   if(a.reason!=='completed'){failure(s,Error('Native Agent stopped: '+a.reason));return;}
   status(s,'turn_completed');emit(s,'turn.completed',{...a,deliveryValidated:false});

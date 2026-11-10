@@ -40,7 +40,7 @@ public final class ExecutionFailureClassifier {
             case "TimeoutError" -> "TIMEOUT";
             case "FileNotFoundError" -> "INPUT_FILE_NOT_FOUND";
             case "JSONDecodeError" -> "INPUT_FORMAT_ERROR";
-            case "TypeError", "ValueError", "NameError", "UnboundLocalError", "ZeroDivisionError", "AssertionError" -> "PROGRAM_ERROR";
+            case "TypeError", "ValueError", "NameError", "UnboundLocalError", "ZeroDivisionError", "AssertionError", "RuntimeError" -> "PROGRAM_ERROR";
             default -> "UNKNOWN";
         };
     }

@@ -1,5 +1,6 @@
 // Wire projection only: inference and its durable admission stay in Runtime.
 import {budgetGuidance} from '../../../coding-agent-node/src/completion-context.js';
+import {validLimit,isUnlimited} from '../../../coding-agent-node/src/execution-limits.js';
 export function withRuntimeBudget(request,snapshot,run) {
  try{return {...request,systemPrompt:request.systemPrompt+budgetGuidance(snapshot)};}
  catch(error){if(run)run.runtimeBudgetStopReason=error.message;throw error;}
@@ -46,7 +47,7 @@ export function projectResponse(answer,model) {
  const feedback=answer.modelResponseFeedback;
  const recoverable=answer.error&&feedback?.schemaVersion==='runtime_os.coding.model_feedback.v1'&&feedback.repairAllowed===true
   &&['MODEL_OUTPUT_TRUNCATED','MODEL_TOOL_ARGUMENTS_INVALID'].includes(feedback.diagnosticCode)
-  &&Number.isInteger(feedback.maxRepairAttempts)&&feedback.maxRepairAttempts>=1&&feedback.maxRepairAttempts<=8;
+  &&validLimit(feedback.maxRepairAttempts)&&(isUnlimited(feedback.maxRepairAttempts)||feedback.maxRepairAttempts>=1);
  if(answer.error&&(!recoverable||feedback.diagnosticCode==='MODEL_TOOL_ARGUMENTS_INVALID'&&!answer.nativeToolCalls?.length))
   throw Object.assign(Error('Runtime rejected model response'),{feedback});
  // Preserve actual provider fragments so the official Core can perform its own

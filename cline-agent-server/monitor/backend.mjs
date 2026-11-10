@@ -2,6 +2,7 @@ import {readdir,readFile,stat,realpath} from 'node:fs/promises';
 import {join,resolve,sep} from 'node:path';
 import {projectEvent,safe,receipt,hash,nativeModelObservations} from './projection.mjs';
 import {randomUUID} from 'node:crypto';
+import {executionMetrics} from './metrics.mjs';
 
 const fail=(message,status=400)=>Object.assign(Error(message),{status});
 const id=x=>typeof x==='string'&&/^[a-zA-Z0-9_.:-]{1,200}$/.test(x);
@@ -50,6 +51,7 @@ export class Backend {
    let live;try{live=await this.native('/v1/sessions/'+s.id+'/status');}catch(e){live={status:s.status,observationError:e.message};}
    const events=(await this.lines(join(this.config.native.stateDir,s.id,'events.jsonl'))).map(e=>projectEvent(e,'native',key,this.secrets)).filter(Boolean);
    live.modelReceipts=nativeModelObservations(events,this.config.native.model);
+   live.metrics=executionMetrics({modelReceipts:live.modelReceipts,events,startedAt:s.createdAt,endedAt:s.endedAt});
    return safe({id:key,mode:'native',...live,authority:'NATIVE_SESSION',deliveryValidated:false,capabilities:{messages:['idle','turn_completed','awaiting_input'].includes(live.status),cancel:!['cancelling','cancelled','failed','recoverable'].includes(live.status),permissions:true},model:{model:this.config.native.model,usageStatus:'NATIVE_OBSERVATION_NOT_RUNTIME_BILLING'},workspaceRef:s.workspaceRef},[...this.secrets,user.token]);
   }
   let item,error;
@@ -58,7 +60,9 @@ export class Backend {
   const lastPythonStopped=s.lastReceipt?.executorStopped??null;
   const journal=await this.lines(join(this.config.businessState,s.workerId,'events.jsonl'));
   const ended=journal.findLast(e=>e.type==='native.event'&&e.payload?.eventType==='turn.completed');
-  return safe({id:key,mode:'runtime',sessionId:s.nativeSessionId,nativeSessionId:s.nativeAgentSessionId,taskId:s.taskId,runId:s.scope.runId,status:s.status,nativeTurnStatus:ended?'TURN_COMPLETED':'NO_CONFIRMED_TURN_COMPLETION',nativeTurnEventId:ended?.payload?.eventId,runtimeStatus:item?.outcome?.status??'UNKNOWN',authority:item?'RUNTIME_CONFIRMED':'RUNTIME_UNAVAILABLE',outcome:item?.outcome,modelReceipts:item?.modelReceipts??[],executions:feedbacks,lastPythonStopped,error:error??s.error,activeOperations:s.activeOperations??[],workerStopped:s.stopProof?.running===false,remoteStopConfirmed:s.remoteStopConfirmed===true,codeLifecycle:s.codeLifecycle,nativeCompletion:s.nativeCompletion,capabilities:{messages:false,cancel:item?.canCancel===true,reconcile:item?.canResume===true,permissions:false},allowedTools:item?.allowedTools,objective:item?.objective},[...this.secrets,user.token,s.apiToken,s.brokerToken]);
+  let archive;try{const page=await this.assets(user,key);archive=Array.isArray(page)?page:page.items??page.files;}catch{/* Archive unavailable: keep unknown. */}
+  const metrics=executionMetrics({outcome:item?.outcome,modelReceipts:item?.modelReceipts,executions:feedbacks,events:journal.map(e=>projectEvent(e,'business',key,this.secrets)).filter(Boolean),assets:archive});
+  return safe({metrics,id:key,mode:'runtime',sessionId:s.nativeSessionId,nativeSessionId:s.nativeAgentSessionId,taskId:s.taskId,runId:s.scope.runId,status:s.status,nativeTurnStatus:ended?'TURN_COMPLETED':'NO_CONFIRMED_TURN_COMPLETION',nativeTurnEventId:ended?.payload?.eventId,runtimeStatus:item?.outcome?.status??'UNKNOWN',authority:item?'RUNTIME_CONFIRMED':'RUNTIME_UNAVAILABLE',outcome:item?.outcome,modelReceipts:item?.modelReceipts??[],executions:feedbacks,lastPythonStopped,error:error??s.error,activeOperations:s.activeOperations??[],workerStopped:s.stopProof?.running===false,remoteStopConfirmed:s.remoteStopConfirmed===true,codeLifecycle:s.codeLifecycle,nativeCompletion:s.nativeCompletion,capabilities:{messages:false,cancel:item?.canCancel===true,reconcile:item?.canResume===true,permissions:false},allowedTools:item?.allowedTools,objective:item?.objective},[...this.secrets,user.token,s.apiToken,s.brokerToken]);
  }
  async create(user,b){
   if(b.mode==='native'){

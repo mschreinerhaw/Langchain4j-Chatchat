@@ -14,22 +14,42 @@ import static org.mockito.ArgumentMatchers.*;
 
 /** Policy unit tests; genuine cross-process/Sandbox acceptance is reported separately. */
 class CodingExecutionFeedbackServiceTest {
-    @Test void onlyAnExplicitHashBoundNativeSourceRaisePermitsRuntimeErrorRepair() throws Exception {
+    @Test void stoppedRuntimeErrorIsAProgramFaultWithoutRequiringAnExplicitRaiseStatement() throws Exception {
         String source="raise RuntimeError('real source fault')\n";
         String hash=HexFormat.of().formatHex(java.security.MessageDigest.getInstance("SHA-256").digest(source.getBytes(java.nio.charset.StandardCharsets.UTF_8)));
         var artifacts=mock(com.chatchat.api.runtime.coding.cline.CodingCodeArtifactStore.class);service.setCodeArtifacts(artifacts);
         when(artifacts.find(scope,"task","operation")).thenReturn(Optional.of(Map.of("content",source,"sha256",hash,"fileName","main.py")));
         when(python.diagnosticRecord(scope,"task","operation")).thenReturn("{\"exceptionType\":\"RuntimeError\",\"line\":1,\"stack\":[{\"file\":\"main.py\",\"line\":1}]}");
         var operation=new OperationView("operation","FAILED","container",1,false,true,1,hash,"sha256:"+"b".repeat(64),"c".repeat(64),null);
-        assertThat(service.finish(contract,lease,operation,Map.of()).repair().allowed()).isFalse(); // SDK policy unchanged.
+        assertThat(service.finish(contract,lease,operation,Map.of()).repair().allowed()).isTrue();
         state.clear();service.setBackend("native");
         var nativeFeedback=service.finish(contract,lease,operation,Map.of());
         assertThat(nativeFeedback.repair().allowed()).isTrue();assertThat(nativeFeedback.error().diagnosticCode()).isEqualTo("PROGRAM_ERROR");
         state.clear();when(artifacts.find(scope,"task","operation")).thenReturn(Optional.of(Map.of("content","library_call()\n","sha256",hash,"fileName","main.py")));
-        assertThat(service.finish(contract,lease,operation,Map.of()).repair().allowed()).isFalse();
+        assertThat(service.finish(contract,lease,operation,Map.of()).repair().allowed()).isTrue();
         state.clear();when(artifacts.find(scope,"task","operation")).thenReturn(Optional.of(Map.of("content",source,"sha256",hash,"fileName","main.py")));
         var timedOut=new OperationView("operation","TIMED_OUT","container",1,false,true,1,hash,"sha256:"+"b".repeat(64),"c".repeat(64),null);
         assertThat(service.finish(contract,lease,timedOut,Map.of()).repair().allowed()).isFalse();
+    }
+    @Test void unlimitedRepairsKeepTheCompleteStoppedErrorBeyondTheFormerThreeRepairLimit(){
+        service=new CodingExecutionFeedbackService(tasks,python,json,-1);service.setBackend("native");
+        var b=contract.budget();contract=new CodingTaskContract(contract.schemaVersion(),contract.taskId(),scope,contract.objective(),
+            contract.inputSnapshotRef(),contract.metadataRefs(),contract.workspaceRef(),contract.authorization(),
+            new CodingTaskContract.Budget(b.budgetId(),b.deadlineAt(),-1,-1,-1,-1,"unlimited",b.costCurrency(),b.maxCpuMillis(),b.maxMemoryBytes(),b.maxOutputBytes()),
+            contract.environmentRef(),contract.validationPlanRef(),contract.outputContract());
+        String stderr="Traceback (most recent call last):\n"+"    actual source location\n".repeat(500)+"RuntimeError: actual complete error\n";
+        when(python.completeStderr(scope,"task","operation")).thenReturn(stderr);
+        when(python.diagnosticRecord(scope,"task","operation")).thenReturn("{\"exceptionType\":\"RuntimeError\",\"line\":7}");
+        var first=service.finish(contract,lease,operation("FAILED"),Map.of());
+        var prior=json.valueToTree(first);((com.fasterxml.jackson.databind.node.ObjectNode)prior).put("executionId","previous");
+        ((com.fasterxml.jackson.databind.node.ObjectNode)prior.path("repair")).put("attemptsUsed",40);
+        state.clear();state.put("feedback:previous",prior);
+        when(tasks.startedCodeOperations(scope,"task")).thenReturn(List.of("previous","operation"));
+        var feedback=service.finish(contract,lease,operation("FAILED"),Map.of());
+        assertThat(feedback.repair().allowed()).isTrue();assertThat(feedback.repair().maxAttempts()).isEqualTo(-1);
+        assertThat(feedback.repair().attemptsUsed()).isEqualTo(41);
+        assertThat(feedback.stderr()).isEqualTo(stderr);assertThat(feedback.error().message()).endsWith(stderr);
+        assertThat(service.response(feedback)).containsEntry("diagnosticPolicy","TASK_ERROR_DETAIL_V2").containsEntry("stderr",stderr);
     }
     @Test void rejectedSourceCopyCanBeRepairedWithoutReturningTheRejectedBodyOrRenewingBudget(){
         var feedback=service.finish(contract,lease,operation("SUCCEEDED"),Map.of("resultAvailable",false,"outputStatus","SOURCE_COPY_REJECTED"));
@@ -134,8 +154,9 @@ class CodingExecutionFeedbackServiceTest {
         assertThatThrownBy(()->service.admit(contract,lease,"new","d".repeat(64))).hasMessageContaining("AUTO_REPAIR_DENIED");
         service.admit(contract,lease,"operation","a".repeat(64)); // Same operation must use existing idempotency.
     }
-    @Test void unknownOrTimedOutExecutionNeverAuthorizesAutomaticReplay(){
-        for(String status:List.of("FAILED","TIMED_OUT","CANCELLED")){
+    @Test void unknownClassificationOfAStoppedProgramIsRepairableButTimeoutAndCancellationAreNot(){
+        state.clear();assertThat(service.finish(contract,lease,operation("FAILED"),Map.of()).repair().allowed()).isTrue();
+        for(String status:List.of("TIMED_OUT","CANCELLED")){
             state.clear();var feedback=service.finish(contract,lease,operation(status),Map.of());
             assertThat(feedback.repair().allowed()).isFalse();assertThat(feedback.repair().action()).isEqualTo("STOP");
         }

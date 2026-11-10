@@ -1048,8 +1048,10 @@ public final class CodingAnalysisService implements AnalysisCodingPort {
             deadline=deadline.isBefore(Instant.ofEpochMilli(value.longValue()))?deadline:Instant.ofEpochMilli(value.longValue());
         if(!deadline.isAfter(Instant.now()))throw new com.chatchat.agents.orchestration.model.AgentDeadlineExceededException("Global deadline reached before Coding admission");
         var budget=new CodingTaskContract.Budget("analysis-coding-tool-budget:"+taskId,deadline,
-            policy.getMaxModelCalls(),policy.getMaxModelTokens(),policy.getMaxToolCalls(),policy.getMaxCodeExecutions(),
-            policy.getMaxCostAmount(),policy.getCostCurrency(),policy.getMaxCpuMillis(),policy.getMaxMemoryBytes(),policy.getMaxResultBytes());
+            policy.getMaxModelCalls().value(),policy.getMaxModelTokens().value(),policy.getMaxToolCalls().value(),policy.getMaxCodeExecutions().value(),
+            policy.getMaxCostAmount(),policy.getCostCurrency(),
+            policy.getMaxCumulativeCpuMillis()==null?policy.getMaxCpuMillis():policy.getMaxCumulativeCpuMillis().value(),
+            policy.getMaxMemoryBytes(),policy.getMaxCumulativeOutputBytes()==null?policy.getMaxResultBytes():policy.getMaxCumulativeOutputBytes().value());
         String encoded=encode(budget);
         if(checkpoints.compareAndSetExecutionCheckpoint(scope,key,null,encoded))return budget;
         return convert(tree(checkpoints.readExecutionCheckpoint(scope,key).orElseThrow()),CodingTaskContract.Budget.class);

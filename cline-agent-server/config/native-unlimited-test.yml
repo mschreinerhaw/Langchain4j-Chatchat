@@ -1,0 +1,22 @@
+# Merge into the dedicated acceptance API instance only. No provider definitions.
+chatchat:
+  coding:
+    max-auto-repairs: unlimited
+    cline:
+      max-model-response-repairs: unlimited
+    analysis:
+      max-model-calls: unlimited
+      max-model-tokens: unlimited
+      max-tool-calls: unlimited
+      max-code-executions: unlimited
+      max-cumulative-cpu-millis: unlimited
+      max-cumulative-output-bytes: unlimited
+      max-cost-amount: unlimited
+    workspace:
+      execution-count-limit: unlimited
+      sql-metadata-max-model-tokens: unlimited
+      sql-metadata-max-model-calls: unlimited
+      sql-metadata-max-tool-calls: unlimited
+      max-sql-repair-attempts: unlimited
+      max-model-tokens: unlimited
+      max-cost-amount: unlimited

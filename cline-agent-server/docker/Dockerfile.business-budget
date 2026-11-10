@@ -3,3 +3,4 @@
 ARG BUSINESS_BASE
 FROM ${BUSINESS_BASE}
 COPY coding-agent-node/src/completion-context.js /poc/coding-agent-node/src/completion-context.js
+COPY coding-agent-node/src/execution-limits.js /poc/coding-agent-node/src/execution-limits.js

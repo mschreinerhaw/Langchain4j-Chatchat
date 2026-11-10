@@ -89,10 +89,10 @@ public final class DurableCodingTaskService implements CodingAgentSPI {
             require(task.outcome.executionControl().stopReason()==null,INVALID_STATE_TRANSITION,"Task is stopping");
             String key="script:"+operationId;
             if(task.privateState.containsKey(key)){result[0]=json.convertValue(task.privateState.get(key).path("script"),CodingScript.class);return;}
-            require(task.privateState.size()<128,ADAPTER_UNAVAILABLE,"Private state capacity");
+            require(unlimitedCounts(task)||task.privateState.size()<128,ADAPTER_UNAVAILABLE,"Private state capacity");
             int next=task.privateState.entrySet().stream().filter(e->e.getKey().startsWith("script:"))
                 .mapToInt(e->e.getValue().path("script").path("scriptVersion").asInt()).max().orElse(0)+1;
-            require(next<=task.contract.budget().maxCodeExecutions(),BUDGET_EXCEEDED,"Script version budget exhausted");
+            require(com.chatchat.common.runtime.coding.CodingLimit.permits(task.contract.budget().maxCodeExecutions(),next),BUDGET_EXCEEDED,"Script version budget exhausted");
             result[0]=CodingScript.allocate(task.contract,clock.instant(),next);
             task.privateState.put(key,json.valueToTree(Map.of("script",result[0])));
         });
@@ -134,7 +134,7 @@ public final class DurableCodingTaskService implements CodingAgentSPI {
         mutateTask(scope, taskId, WORKER, task -> {
             fence(task, lease); active(task); deadline(task);
             require(task.outcome.executionControl().stopReason() == null, INVALID_STATE_TRANSITION, "Task is stopping");
-            require(task.privateState.size() < 128 || task.privateState.containsKey(key), ADAPTER_UNAVAILABLE, "Private state capacity");
+            require(unlimitedCounts(task)||task.privateState.size() < 128 || task.privateState.containsKey(key), ADAPTER_UNAVAILABLE, "Private state capacity");
             require(Objects.equals(task.privateState.get(key), expected), TASK_ID_CONFLICT, "Private state CAS conflict");
             task.privateState.put(key, next.deepCopy());
         });
@@ -163,7 +163,7 @@ public final class DurableCodingTaskService implements CodingAgentSPI {
                 .put("sdkSessionId",saved.path("sdkSessionId").asText()).put("checkpointSha256",checkpointHash(saved));
             String key="model-checkpoint:"+operationId;var prior=task.privateState.get(key);
             require(prior==null||prior.equals(binding),TASK_ID_CONFLICT,"Model checkpoint binding changed");
-            require(prior!=null||task.privateState.size()<128,ADAPTER_UNAVAILABLE,"Private state capacity");
+            require(unlimitedCounts(task)||prior!=null||task.privateState.size()<128,ADAPTER_UNAVAILABLE,"Private state capacity");
             task.privateState.put(key,binding);
         });
     }
@@ -239,7 +239,7 @@ public final class DurableCodingTaskService implements CodingAgentSPI {
                 INVALID_STATE_TRANSITION, "Execution feedback requires independently confirmed stop");
             String key = "feedback:" + feedback.executionId();
             if (task.privateState.containsKey(key)) return;
-            require(task.privateState.size() < 128, ADAPTER_UNAVAILABLE, "Private state capacity");
+            require(unlimitedCounts(task)||task.privateState.size() < 128, ADAPTER_UNAVAILABLE, "Private state capacity");
             com.fasterxml.jackson.databind.JsonNode value = json.valueToTree(feedback);
             task.privateState.put(key, value);
             advance(task, CodingExecutionEvent.Type.RECOVERY_RECONCILED, null,
@@ -449,7 +449,7 @@ public final class DurableCodingTaskService implements CodingAgentSPI {
                     require(previous.getValue().stopProofRef!=null&&feedback!=null,EXECUTION_OUTCOME_UNKNOWN,
                         "Reconcile and commit previous execution feedback before new code admission");
                     int limit=task.privateState.get("execution-repair-policy").path("maxAutoRepairs").asInt(0);
-                    require(feedback.path("resultAvailable").asBoolean() || feedback.path("repair").path("attemptsUsed").asInt() < limit
+                    require(feedback.path("resultAvailable").asBoolean() || CodingLimit.hasRoom(limit,feedback.path("repair").path("attemptsUsed").asInt())
                             && feedback.path("repair").path("allowed").asBoolean(),
                         BUDGET_EXCEEDED,"Automatic repair limit or policy prohibits another execution");
                 }
@@ -458,7 +458,7 @@ public final class DurableCodingTaskService implements CodingAgentSPI {
                 && op.executionHandle != null && op.executionHandle.startsWith("runtime-data:")),
                 EXECUTION_OUTCOME_UNKNOWN, "WAITING_FOR_DATA: new work is blocked until acquisition is reconciled");
             require(!task.outcome.executionControl().reconciliationRequired(),EXECUTION_OUTCOME_UNKNOWN,"Reconcile previous execution first");
-            require(task.operations.size()<MAX_OPERATIONS,ADAPTER_UNAVAILABLE,"Task operation capacity reached");
+            require(unlimitedCounts(task)||task.operations.size()<MAX_OPERATIONS,ADAPTER_UNAVAILABLE,"Task operation capacity reached");
             Counters total = CodingBudgetMath.add(account(state,task.contract.budget().budgetId()),reservation);
             if (!CodingBudgetMath.within(total,task.contract.budget())) {
                 requestStop(task,BUDGET_EXCEEDED,"Cumulative budget reservation denied"); return;
@@ -654,7 +654,7 @@ public final class DurableCodingTaskService implements CodingAgentSPI {
                 return;
             }
             revision(task, expectedRevision); active(task);
-            require(task.workerEvents.size() < 1024, ADAPTER_UNAVAILABLE, "Worker event capacity reached");
+            require(unlimitedCounts(task)||task.workerEvents.size() < 1024, ADAPTER_UNAVAILABLE, "Worker event capacity reached");
             if (operationId != null) require(task.operations.containsKey(operationId), NOT_FOUND,
                 "Worker progress references an unregistered operation");
             task.workerEvents.put(key, payloadHash);
@@ -728,7 +728,7 @@ public final class DurableCodingTaskService implements CodingAgentSPI {
                 require(references.get(key) instanceof String value&&!value.isBlank(),CONTRACT_INVALID,"Verified asset references required");
             String key="deliverable:"+operationId;
             if(task.privateState.containsKey(key))return;
-            require(task.privateState.size()<128,ADAPTER_UNAVAILABLE,"Private state capacity");
+            require(unlimitedCounts(task)||task.privateState.size()<128,ADAPTER_UNAVAILABLE,"Private state capacity");
             var asset=new LinkedHashMap<String,Object>(references);
             asset.put("operationId",operationId);asset.put("verifiedAt",now().toString());
             asset.put("businessCorrectnessCertified",false);
@@ -744,8 +744,8 @@ public final class DurableCodingTaskService implements CodingAgentSPI {
         require(contextTokens>=0,CONTRACT_INVALID,"Context estimate must be nonnegative");
         var journal=read(scope,READ);var task=task(journal,taskId);var budget=task.contract.budget();
         var charged=account(journal,budget.budgetId());
-        long tokens=Math.max(0,budget.maxModelTokens()-charged.modelTokens());
-        long calls=Math.max(0,budget.maxModelCalls()-charged.modelCalls());
+        long tokens=com.chatchat.common.runtime.coding.CodingLimit.remaining(budget.maxModelTokens(),charged.modelTokens());
+        long calls=com.chatchat.common.runtime.coding.CodingLimit.remaining(budget.maxModelCalls(),charged.modelCalls());
         long millis=Math.max(0,Duration.between(now(),budget.deadlineAt()).toMillis());
         var pending=task.operations.entrySet().stream().filter(e->e.getValue().startIntent&&e.getValue().stopProofRef==null)
             .map(e->Map.of("operationId",e.getKey(),"kind",e.getValue().kind.name())).toList();
@@ -756,7 +756,7 @@ public final class DurableCodingTaskService implements CodingAgentSPI {
         var view=new LinkedHashMap<String,Object>();
         view.put("schemaVersion","runtime_os.coding.budget.v1");view.put("taskId",taskId);
         view.put("revision",task.outcome.revision());view.put("asOf",now().toString());
-        view.put("remainingTokens",tokens);view.put("remainingModelCalls",calls);view.put("remainingMillis",millis);
+        view.put("remainingTokens",com.chatchat.common.runtime.coding.CodingLimit.wire(tokens));view.put("remainingModelCalls",com.chatchat.common.runtime.coding.CodingLimit.wire(calls));view.put("remainingMillis",millis);
         view.put("contextTokensEstimate",contextTokens);view.put("contextEstimateIsMetered",false);
         view.put("chargedUsage",charged);view.put("status",task.outcome.status().name());
         view.put("pendingOperations",pending);view.put("verifiedDeliverables",deliverables);
@@ -877,6 +877,10 @@ public final class DurableCodingTaskService implements CodingAgentSPI {
     }
     private static void require(boolean condition,CodingErrorCode code,String message) { if(!condition)throw new CodingContractException(code,message); }
     private Instant now() { return Instant.ofEpochMilli(clock.millis()); }
+    private static boolean unlimitedCounts(CodingJournal.Task task) {
+        var budget=task.contract.budget();
+        return CodingLimit.unlimited(budget.maxModelCalls())||CodingLimit.unlimited(budget.maxToolCalls())||CodingLimit.unlimited(budget.maxCodeExecutions());
+    }
     private void deadline(CodingJournal.Task task) { if(!now().isBefore(task.contract.budget().deadlineAt()))requestStop(task,DEADLINE_EXCEEDED,"Task deadline reached"); }
     private void requestStop(CodingJournal.Task task,CodingErrorCode reason,String summary) {
         if(task.outcome.status().terminal() || task.outcome.executionControl().stopReason()!=null)return;

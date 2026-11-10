@@ -11,6 +11,7 @@ import com.chatchat.api.runtime.coding.execution.CodingPythonExecutionBridge;
 import com.chatchat.common.kernel.KernelDataScope;
 import com.chatchat.common.mcp.python.McpPythonControlPlanePort;
 import com.chatchat.common.runtime.coding.CodingTaskContract;
+import com.chatchat.common.runtime.coding.CodingLimit;
 import com.chatchat.common.runtime.coding.CodingTaskOutcome;
 import com.chatchat.common.runtime.coding.CodingErrorCode;
 import com.chatchat.common.runtime.coding.VisualReportMode;
@@ -218,7 +219,7 @@ public final class ClinePythonCallbackController {
             var input = inputs.requireAuthorized(contract);
             plans.validator(contract); // Fail before dispatch if no independent trusted plan exists.
             long executions = contract.budget().maxCodeExecutions();
-            if (executions < 1 || contract.budget().maxToolCalls() < 1)
+            if (!CodingLimit.hasRoom(executions,0) || !CodingLimit.hasRoom(contract.budget().maxToolCalls(),0))
                 throw new ResponseStatusException(HttpStatus.CONFLICT, "Python tool budget is unavailable");
             long cpu = CodingBudgetShare.units(contract.budget().maxCpuMillis(), executions);
             long output = CodingBudgetShare.units(contract.budget().maxOutputBytes(), executions);

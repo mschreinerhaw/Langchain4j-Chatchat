@@ -8,11 +8,15 @@ final class CodingBudgetShare {
     private CodingBudgetShare() { }
 
     static long units(long total, long slots) {
+        if (total == -1) return 0; // No aggregate reservation; Sandbox per-process limits remain in force.
+        if (slots == -1) return total;
         if (total < 0 || slots < 1) throw new IllegalArgumentException("Invalid budget share");
         return total == 0 ? 0 : Math.max(1, total / slots);
     }
 
     static String amount(String total, long slots) {
+        if ("unlimited".equals(total)) return "0"; // No cost ceiling; usage stays explicitly unsettled when unavailable.
+        if (slots == -1) slots=1; // Finite money protection may fail closed on unpriced usage; never divide by an invented call count.
         if (slots < 1) throw new IllegalArgumentException("Invalid budget share");
         var cap = new BigDecimal(total);
         if (cap.signum() < 0) throw new IllegalArgumentException("Negative budget");

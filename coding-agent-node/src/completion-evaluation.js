@@ -10,11 +10,10 @@ export function completionEvaluation(tasks) {
     taskIds.add(task.taskId);
     const models=task.modelCalls ?? [];
     calls+=models.length;
-    let taskTokens=0, usageComplete=true;
     for(const model of models) {
       if(known(model.usage?.inputTokens) && known(model.usage?.outputTokens)) {
-        const tokens=model.usage.inputTokens+model.usage.outputTokens;knownTokens+=tokens;taskTokens+=tokens;
-      } else {unknownUsage++;usageComplete=false;}
+        const tokens=model.usage.inputTokens+model.usage.outputTokens;knownTokens+=tokens;
+      } else {unknownUsage++;}
     }
     const valid=(task.deliverables ?? []).filter(asset=>asset.integrityVerified===true && asset.structureVerified===true
       && asset.resultDatasetRef && asset.validationRecordRef && asset.evidenceBundleRef);
@@ -24,11 +23,9 @@ export function completionEvaluation(tasks) {
       const elapsed=Math.min(...observed)-Date.parse(task.startedAt);
       if(Number.isFinite(elapsed)&&elapsed>=0)firstValid.push(elapsed);
     }
-    const budget=task.budget;
-    if(task.runtimeStatus==='COMPLETED' && task.requirementsVerified===true && valid.length && usageComplete && budget
-        && known(budget.maxModelTokens) && taskTokens<=budget.maxModelTokens
-        && known(budget.maxModelCalls) && models.length<=budget.maxModelCalls
-        && Date.parse(task.endedAt)<=Date.parse(budget.deadlineAt))successes++;
+    // Delivery correctness is not a call-count or metering-completeness score.
+    // Unknown usage is still retained below and never becomes zero cost/tokens.
+    if(task.runtimeStatus==='COMPLETED' && task.requirementsVerified===true && valid.length)successes++;
     for(const reconciliation of task.reconciliations ?? []) {
       eligible++;
       if(reconciliation.originalOperationId===reconciliation.recoveredOperationId

@@ -135,6 +135,10 @@ public class CodingPythonExecutionBridge {
     public String stderr(KernelDataScope scope, String taskId, String operationId) {
         return diagnostic(scope,taskId,operationId,"stderr.txt");
     }
+    /** Complete captured stderr from this authorized, stopped operation only. */
+    public String completeStderr(KernelDataScope scope,String taskId,String operationId) {
+        return diagnostic(scope,taskId,operationId,"stderr.txt",Integer.MAX_VALUE);
+    }
     public String stdout(KernelDataScope scope,String taskId,String operationId) {
         return diagnostic(scope,taskId,operationId,"stdout.txt");
     }
@@ -145,17 +149,20 @@ public class CodingPythonExecutionBridge {
         return diagnostic(scope,taskId,operationId,"receipt.json");
     }
     private String diagnostic(KernelDataScope scope,String taskId,String operationId,String logName) {
+        return diagnostic(scope,taskId,operationId,logName,8192);
+    }
+    private String diagnostic(KernelDataScope scope,String taskId,String operationId,String logName,int maximumBytes) {
         tasks.get(scope, taskId);
         if(assetArchiver!=null){
             var archived=assetArchiver.log(scope,taskId,operationId,logName);
-            if(archived.isPresent())return new String(archived.get(),0,Math.min(archived.get().length,8_192),StandardCharsets.UTF_8);
+            if(archived.isPresent())return new String(archived.get(),0,Math.min(archived.get().length,maximumBytes),StandardCharsets.UTF_8);
         }
         var stopped = get(scope, taskId, operationId);
         if (!stopped.executorStopped() || "UNKNOWN".equals(stopped.status()))
             throw new IllegalStateException("Python diagnostic is not archived");
         byte[] bytes = python.artifact(scope.tenantId(), scope.userId(), scope.runId(), taskId,
             operationId, "logs", logName);
-        return new String(bytes, 0, Math.min(bytes.length, 8_192), StandardCharsets.UTF_8);
+        return new String(bytes, 0, Math.min(bytes.length,maximumBytes), StandardCharsets.UTF_8);
     }
 
     public McpPythonControlPlanePort.OperationView cancel(KernelDataScope scope, String taskId,

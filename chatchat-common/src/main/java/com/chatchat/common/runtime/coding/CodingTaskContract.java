@@ -84,16 +84,34 @@ public record CodingTaskContract(String schemaVersion, String taskId, KernelData
 
     @JsonIgnoreProperties(ignoreUnknown = true)
     public record Budget(String budgetId, Instant deadlineAt, long maxModelCalls, long maxModelTokens,
-        long maxToolCalls, long maxCodeExecutions, String maxCostAmount, String costCurrency,
-        long maxCpuMillis, long maxMemoryBytes, long maxOutputBytes) {
+        long maxToolCalls,long maxCodeExecutions,String maxCostAmount,String costCurrency,
+        long maxCpuMillis,long maxMemoryBytes,long maxOutputBytes) {
+        /** Keep finite canonical JSON unchanged; accept explicit unlimited at the wire boundary. */
+        @com.fasterxml.jackson.annotation.JsonCreator
+        public static Budget fromJson(
+                @com.fasterxml.jackson.annotation.JsonProperty("budgetId") String budgetId,
+                @com.fasterxml.jackson.annotation.JsonProperty("deadlineAt") Instant deadlineAt,
+                @com.fasterxml.jackson.annotation.JsonProperty("maxModelCalls") Object modelCalls,
+                @com.fasterxml.jackson.annotation.JsonProperty("maxModelTokens") Object modelTokens,
+                @com.fasterxml.jackson.annotation.JsonProperty("maxToolCalls") Object toolCalls,
+                @com.fasterxml.jackson.annotation.JsonProperty("maxCodeExecutions") Object executions,
+                @com.fasterxml.jackson.annotation.JsonProperty("maxCostAmount") String cost,
+                @com.fasterxml.jackson.annotation.JsonProperty("costCurrency") String currency,
+                @com.fasterxml.jackson.annotation.JsonProperty("maxCpuMillis") Object cpu,
+                @com.fasterxml.jackson.annotation.JsonProperty("maxMemoryBytes") long memory,
+                @com.fasterxml.jackson.annotation.JsonProperty("maxOutputBytes") Object output) {
+            return new Budget(budgetId,deadlineAt,CodingLimit.parse(modelCalls).value(),CodingLimit.parse(modelTokens).value(),
+                CodingLimit.parse(toolCalls).value(),CodingLimit.parse(executions).value(),cost,currency,
+                CodingLimit.parse(cpu).value(),memory,CodingLimit.parse(output).value());
+        }
         public Budget {
             budgetId = CodingProtocol.ref(budgetId, "budgetId"); deadlineAt = CodingProtocol.time(deadlineAt, "deadlineAt");
-            CodingProtocol.count(maxModelCalls, "maxModelCalls"); CodingProtocol.count(maxModelTokens, "maxModelTokens");
-            CodingProtocol.count(maxToolCalls, "maxToolCalls"); CodingProtocol.count(maxCodeExecutions, "maxCodeExecutions");
-            maxCostAmount = CodingProtocol.decimal(maxCostAmount, "maxCostAmount");
+            CodingLimit.validate(maxModelCalls); CodingLimit.validate(maxModelTokens);
+            CodingLimit.validate(maxToolCalls); CodingLimit.validate(maxCodeExecutions);
+            maxCostAmount = "unlimited".equalsIgnoreCase(maxCostAmount)?"unlimited":CodingProtocol.decimal(maxCostAmount, "maxCostAmount");
             CodingProtocol.require(costCurrency != null && costCurrency.matches("[A-Z]{3}"), "currency must be a three-letter uppercase code");
-            CodingProtocol.count(maxCpuMillis, "maxCpuMillis"); CodingProtocol.count(maxMemoryBytes, "maxMemoryBytes");
-            CodingProtocol.count(maxOutputBytes, "maxOutputBytes");
+            CodingLimit.validate(maxCpuMillis); CodingProtocol.count(maxMemoryBytes, "maxMemoryBytes");
+            CodingLimit.validate(maxOutputBytes);
         }
     }
 

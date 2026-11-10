@@ -1,4 +1,5 @@
 import { technicalMemory, budgetGuidance, contextEstimate } from './completion-context.js';
+import {hasLimitRoom,sdkIterationLimit} from './execution-limits.js';
 import { Agent } from '@cline/agents';
 import { createHash, randomUUID } from 'node:crypto';
 import { prepareProgram, repairSourceContext, CodeHistory, CODE_LIFECYCLE_VERSION } from './code-repair.js';
@@ -735,7 +736,7 @@ export function createCodingRun(contract, gateway, options = {}) {
       + workspaceRepairGuidance + (contract.runtimeContext?.codeProject
       ? '\nFor this existing-code project, use python_execute.project instead of the single-script source/repair fields. Start with project:{reuse:true} when the files already meet the objective. For necessary changes use project.edits with path and exact oldText/newText, or project.additions for new files. After the first execution include the latest execution codeHash as project.baseCodeSha256 and latest codeVersion as project.parentCodeVersion. Preserve all unrelated code and prior repairs. The Runtime owns the source packaging adapter; never generate, edit or decode its execution wrapper yourself.' : ''),
     tools,
-    maxIterations: Math.max(1, Math.min(Number(contract.budget?.maxModelCalls ?? 1), 32)),
+    maxIterations: sdkIterationLimit(contract.budget?.maxModelCalls ?? 1),
     toolExecution: 'sequential',
     completionPolicy: {
       ...(fastAnalysis || workspaceFast || sqlExploration || resourceText && permitted.has('report_submit') ? { requireCompletionTool: true } : {}),
@@ -845,7 +846,7 @@ export function createCodingRun(contract, gateway, options = {}) {
         if (terminalFeedback) throw new Error('Runtime execution policy denied automatic repair');
         const repairingModelResponse = Boolean(modelResponseFeedback);
         if (repairingModelResponse) {
-          if (modelResponseRepairs >= modelResponseFeedback.maxRepairAttempts)
+          if (!hasLimitRoom(modelResponseFeedback.maxRepairAttempts,modelResponseRepairs))
             throw new Error(`MODEL_RESPONSE_REPAIR_LIMIT_REACHED: ${modelResponseFeedback.diagnosticCode}`);
         }
         // beforeModel follows completion of ALL tool results in the preceding turn.
@@ -929,9 +930,9 @@ export function createCodingRun(contract, gateway, options = {}) {
         if (nativeSdk) {
           if (request.signal?.aborted) throw request.signal.reason;
           if (deadline !== null && Date.now() >= deadline) throw new Error('Runtime Coding deadline reached');
-          if (modelIndex >= Number(contract.budget?.maxModelCalls ?? 1)) throw new Error('Runtime model call budget exhausted');
+          if (!hasLimitRoom(contract.budget?.maxModelCalls ?? 1,modelIndex)) throw new Error('Runtime model call budget exhausted');
           if (modelResponseFeedback) {
-            if (modelResponseRepairs >= modelResponseFeedback.maxRepairAttempts)
+            if (!hasLimitRoom(modelResponseFeedback.maxRepairAttempts,modelResponseRepairs))
               throw new Error(`MODEL_RESPONSE_REPAIR_LIMIT_REACHED: ${modelResponseFeedback.diagnosticCode}`);
             modelResponseRepairs++;
           }

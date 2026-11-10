@@ -1,3 +1,4 @@
+import {hasLimitRoom,validLimit,isUnlimited} from '../../../coding-agent-node/src/execution-limits.js';
 // Runtime decides whether repair is authorized. Native transport only enforces its actual stopped receipt.
 export const runtimeRepairStopped=receipt=>receipt?.executorStopped===true&&receipt?.resultAvailable!==true
  &&receipt?.executionFeedback?.repair?.action==='STOP';
@@ -7,7 +8,7 @@ export const runtimeRepairStopped=receipt=>receipt?.executorStopped===true&&rece
 export function admitModelResponseRepair(run) {
  const feedback=run.modelResponseFeedback;
  if(!feedback)return;
- if((run.modelResponseRepairs??0)>=feedback.maxRepairAttempts){
+ if(!hasLimitRoom(feedback.maxRepairAttempts,run.modelResponseRepairs??0)){
   run.modelResponseRepairLimitReached=true;
   throw Error('MODEL_RESPONSE_REPAIR_LIMIT_REACHED: '+feedback.diagnosticCode);
  }
@@ -17,7 +18,7 @@ export function observeModelResponse(run,answer) {
  const f=answer.modelResponseFeedback;
  if(answer.error&&f?.schemaVersion==='runtime_os.coding.model_feedback.v1'&&f.repairAllowed===true
   &&['MODEL_OUTPUT_TRUNCATED','MODEL_TOOL_ARGUMENTS_INVALID'].includes(f.diagnosticCode)
-  &&Number.isInteger(f.maxRepairAttempts)&&f.maxRepairAttempts>=1&&f.maxRepairAttempts<=8){
+  &&validLimit(f.maxRepairAttempts)&&(isUnlimited(f.maxRepairAttempts)||f.maxRepairAttempts>=1)){
   run.modelResponseFeedback=f;
  }else{
   // A grant belongs to the current receipt. An unrelated failure cannot inherit

@@ -1,6 +1,7 @@
 package com.chatchat.agents.runtime.coding;
 
 import com.chatchat.common.runtime.coding.CodingTaskContract.Budget;
+import com.chatchat.common.runtime.coding.CodingLimit;
 import com.chatchat.common.runtime.coding.CodingTaskOutcome.Counters;
 import java.math.BigDecimal;
 
@@ -29,9 +30,9 @@ final class CodingBudgetMath {
             && new BigDecimal(next.costAmount()).compareTo(new BigDecimal(previous.costAmount()))>=0;
     }
     static boolean within(Counters total, Budget limit) {
-        return total.modelCalls()<=limit.maxModelCalls() && total.modelTokens()<=limit.maxModelTokens()
-            && total.toolCalls()<=limit.maxToolCalls() && total.codeExecutions()<=limit.maxCodeExecutions()
-            && total.cpuMillis()<=limit.maxCpuMillis() && total.outputBytes()<=limit.maxOutputBytes()
-            && new BigDecimal(total.costAmount()).compareTo(new BigDecimal(limit.maxCostAmount()))<=0;
+        return CodingLimit.permits(limit.maxModelCalls(),total.modelCalls()) && CodingLimit.permits(limit.maxModelTokens(),total.modelTokens())
+            && CodingLimit.permits(limit.maxToolCalls(),total.toolCalls()) && CodingLimit.permits(limit.maxCodeExecutions(),total.codeExecutions())
+            && CodingLimit.permits(limit.maxCpuMillis(),total.cpuMillis()) && CodingLimit.permits(limit.maxOutputBytes(),total.outputBytes())
+            && ("unlimited".equals(limit.maxCostAmount()) || new BigDecimal(total.costAmount()).compareTo(new BigDecimal(limit.maxCostAmount()))<=0);
     }
 }

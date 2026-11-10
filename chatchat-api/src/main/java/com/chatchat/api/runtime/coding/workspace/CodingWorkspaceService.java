@@ -64,8 +64,9 @@ public final class CodingWorkspaceService {
     private long sqlMetadataTimeoutSeconds=900;
     private long sqlMetadataMaxModelTokens=1048576;
     @Value("${chatchat.coding.workspace.sql-metadata-max-model-tokens:1048576}")
+    public void setSqlMetadataMaxModelTokens(String value){setSqlMetadataMaxModelTokens(CodingLimit.parse(value).value());}
     public void setSqlMetadataMaxModelTokens(long value){
-        if(value<32768 || value>8388608)throw new IllegalArgumentException("Invalid SQL metadata model token budget");
+        if(value!=-1&&value<32768)throw new IllegalArgumentException("Invalid SQL metadata model token budget");
         sqlMetadataMaxModelTokens=value;
     }
     @Value("${chatchat.coding.workspace.sql-metadata-timeout-seconds:900}")
@@ -74,16 +75,29 @@ public final class CodingWorkspaceService {
         sqlMetadataTimeoutSeconds=value;
     }
     private long maxModelTokens=262144;
+    private boolean unlimitedExecutionCounts;
+    private String maxCostAmount="1";
+    @Value("${chatchat.coding.workspace.execution-count-limit:configured}")
+    public void setExecutionCountLimit(String value){
+        if(!"configured".equals(value)&&!"unlimited".equals(value))throw new IllegalArgumentException("Expected configured or unlimited");
+        unlimitedExecutionCounts="unlimited".equals(value);
+    }
+    @Value("${chatchat.coding.workspace.max-cost-amount:1}")
+    public void setMaxCostAmount(String value){maxCostAmount=value;}
     private int sqlMetadataMaxModelCalls=24,sqlMetadataMaxToolCalls=64,maxSqlRepairAttempts=8;
     @org.springframework.beans.factory.annotation.Value("${chatchat.coding.workspace.sql-metadata-max-model-calls:24}")
-    public void setSqlMetadataMaxModelCalls(int value){if(value<2||value>32)throw new IllegalArgumentException("Invalid SQL model-call budget");sqlMetadataMaxModelCalls=value;}
+    public void setSqlMetadataMaxModelCalls(String value){setSqlMetadataMaxModelCalls(Math.toIntExact(CodingLimit.parse(value).value()));}
+    public void setSqlMetadataMaxModelCalls(int value){if(value!=-1&&value<2)throw new IllegalArgumentException("Invalid SQL model-call budget");sqlMetadataMaxModelCalls=value;}
     @org.springframework.beans.factory.annotation.Value("${chatchat.coding.workspace.sql-metadata-max-tool-calls:64}")
-    public void setSqlMetadataMaxToolCalls(int value){if(value<2||value>256)throw new IllegalArgumentException("Invalid SQL tool-call budget");sqlMetadataMaxToolCalls=value;}
+    public void setSqlMetadataMaxToolCalls(String value){setSqlMetadataMaxToolCalls(Math.toIntExact(CodingLimit.parse(value).value()));}
+    public void setSqlMetadataMaxToolCalls(int value){if(value!=-1&&value<2)throw new IllegalArgumentException("Invalid SQL tool-call budget");sqlMetadataMaxToolCalls=value;}
     @org.springframework.beans.factory.annotation.Value("${chatchat.coding.workspace.max-sql-repair-attempts:8}")
-    public void setMaxSqlRepairAttempts(int value){if(value<1||value>32)throw new IllegalArgumentException("Invalid SQL repair budget");maxSqlRepairAttempts=value;}
+    public void setMaxSqlRepairAttempts(String value){setMaxSqlRepairAttempts(Math.toIntExact(CodingLimit.parse(value).value()));}
+    public void setMaxSqlRepairAttempts(int value){if(value!=-1&&value<1)throw new IllegalArgumentException("Invalid SQL repair budget");maxSqlRepairAttempts=value;}
     @org.springframework.beans.factory.annotation.Value("${chatchat.coding.workspace.max-model-tokens:262144}")
+    public void setMaxModelTokens(String value){setMaxModelTokens(CodingLimit.parse(value).value());}
     public void setMaxModelTokens(long value){
-        if(value<32768 || value>8388608)throw new IllegalArgumentException("Invalid workspace token budget");
+        if(value!=-1&&value<32768)throw new IllegalArgumentException("Invalid workspace token budget");
         maxModelTokens=value;
     }
     public CodingWorkspaceService(DurableCodingTaskService tasks,CodingInvocationContext identity,
@@ -122,13 +136,13 @@ public final class CodingWorkspaceService {
                 String decision="studio-workspace:"+task, workspace="studio-workspace:"+task;
                 var payload=Map.<String,Object>of("taskId",task,"context",context,"dialect",dialect,
                     "modelName",Objects.toString(modelName,""),"decisionRef",decision,"workspaceRef",workspace,"schema",schema,
-                    "sqlRepairPolicy",Map.of("maxRepairAttempts",maxSqlRepairAttempts));
+                    "sqlRepairPolicy",Map.of("maxRepairAttempts",unlimitedExecutionCounts?-1:maxSqlRepairAttempts));
                 boolean autonomous=!python && schema.get("discoveryId") instanceof String && schema.get("projectId") instanceof String;
                 boolean fast=fastPathEnabled && !autonomous && encode(payload).getBytes(StandardCharsets.UTF_8).length<=fastPathMaxContextBytes;
                 register(scope,inputId,INPUT_TYPE,payload,List.of(),task,null);
                 var budget=new CodingTaskContract.Budget("workspace-budget:"+task,
-                    Instant.now().plusSeconds(autonomous?sqlMetadataTimeoutSeconds:timeoutSeconds).truncatedTo(ChronoUnit.MILLIS),autonomous?sqlMetadataMaxModelCalls:8,autonomous?sqlMetadataMaxModelTokens:maxModelTokens,autonomous?sqlMetadataMaxToolCalls:16,0,
-                    "1","USD",0,0,1024*1024);
+                    Instant.now().plusSeconds(autonomous?sqlMetadataTimeoutSeconds:timeoutSeconds).truncatedTo(ChronoUnit.MILLIS),unlimitedExecutionCounts?-1:autonomous?sqlMetadataMaxModelCalls:8,autonomous?sqlMetadataMaxModelTokens:maxModelTokens,unlimitedExecutionCounts?-1:autonomous?sqlMetadataMaxToolCalls:16,0,
+                    maxCostAmount,"USD",0,0,1024*1024);
                 var metadataRefs=new ArrayList<String>(autonomous?List.of(SqlWorkspaceMetadataTools.PROFILE):fast?List.of(FAST_PATH_REF):List.of());
                 var grantedTools=new ArrayList<>(SqlWorkspaceMetadataTools.tools(autonomous));
                 if(deferredToolsEnabled) { metadataRefs.add(CodingProtocol.DEFERRED_TOOLS_PROFILE);grantedTools.add(CodingProtocol.TOOL_DESCRIBE); }
@@ -397,7 +411,7 @@ public final class CodingWorkspaceService {
                     Map<?,?> savedAudit=decode(audit.get(),Map.class);
                     long failures=savedAudit.values().stream().filter(value->value instanceof Map<?,?> row
                         && "workspace_propose".equals(row.get("tool"))&&!Boolean.TRUE.equals(row.get("valid"))).count();
-                    if(failures>sqlRepairLimit(input))throw new IllegalStateException("SQL_REPAIR_LIMIT_REACHED: SQL proposal repair budget exhausted");
+                    if(!CodingLimit.permits(sqlRepairLimit(input),failures))throw new IllegalStateException("SQL_REPAIR_LIMIT_REACHED: SQL proposal repair budget exhausted");
                 }
             }
             boolean evidenceOnly=SqlWorkspaceMetadataTools.enabled(contract)&&proposal.get("files") instanceof List<?> list&&list.isEmpty();
@@ -437,7 +451,7 @@ public final class CodingWorkspaceService {
         result.put("validationDurationMs",java.util.concurrent.TimeUnit.NANOSECONDS.toMillis(System.nanoTime()-validationStarted));
         result.put("operationId",operation);result.put("resultAvailable",valid);
         if(!valid && (encode(validation).contains("SQL_REPAIR_LIMIT_REACHED")
-                || SqlWorkspaceMetadataTools.enabled(contract)&&failedSqlProposals(contract)>=sqlRepairLimit(input)))
+                || SqlWorkspaceMetadataTools.enabled(contract)&&!CodingLimit.hasRoom(sqlRepairLimit(input),failedSqlProposals(contract))))
             result.put("repair",Map.of("action","STOP","reasonCode","SQL_REPAIR_LIMIT_REACHED"));
         if(SqlWorkspaceMetadataTools.enabled(contract)){
             recordExploration(contract,operation,"workspace_propose",result);

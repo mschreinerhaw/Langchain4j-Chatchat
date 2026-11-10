@@ -60,6 +60,13 @@ function snapshot(d){
  fields[0][0]=d.mode==='runtime'?'Native 网关':'Native Session';
  const remote=fields.find(f=>f[0]==='远端停止');if(remote){remote[0]='Python 停止';remote[1]=d.lastPythonStopped;}
  if(d.mode==='runtime')fields.splice(1,0,['Core 本轮',d.nativeTurnStatus],['Python 状态',d.executions?.at(-1)?.status],['结束工具',d.nativeCompletion?.toolCallId]);
+ const metrics=d.metrics??{};
+ fields.push(['模型请求总数',metrics.modelRequests],['Token 总消耗',metrics.tokens],
+  ['累计费用',metrics.cost==null?null:metrics.cost+' '+(metrics.currency??'')],
+  ['工具调用次数',metrics.toolCalls],['自动修复次数',metrics.automaticRepairs],
+  ['实际运行耗时 ms',metrics.elapsedMillis],['当前执行阶段',metrics.phase],
+  ['错误和中断原因',d.error??metrics.interruptionReason],['归档文件数量',metrics.archivedFiles],
+  ['产物校验状态',metrics.artifactValidation]);
  for(const [k,v] of fields){dl.append(el('dt',k),el('dd',unknown(v)));}state.append(dl);
  const perms=$('#permissions');perms.replaceChildren();for(const p of d.pendingPermissions??[]){const div=el('div');div.append(el('p','待批准：'+p.toolName+' / '+p.toolCallId));div.append(card('Permission input / toolCallId',p));for(const [label,decision] of [['批准','approve'],['拒绝','deny']]){const b=el('button',label);b.onclick=()=>control('permission',{permissionId:p.id,decision});div.append(b);}perms.append(div);}
  if(d.status==='awaiting_input')command('Cline 正在等待回答；请根据会话中的问题回复。');if(d.mode==='runtime'&&d.runtimeStatus==='COMPLETED')command('Runtime 已完成独立验算与归档交付。');renderTab();

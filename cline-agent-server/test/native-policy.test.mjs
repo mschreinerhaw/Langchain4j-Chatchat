@@ -2,6 +2,17 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {admitModelResponseRepair,observeModelResponse} from '../src/business/native-policy.mjs';
 const truncated={error:'Actual truncated response',modelResponseFeedback:{schemaVersion:'runtime_os.coding.model_feedback.v1',repairAllowed:true,diagnosticCode:'MODEL_OUTPUT_TRUNCATED',maxRepairAttempts:2}};
+
+test('an unlimited Runtime grant preserves actual response-repair counts beyond the old two/eight limits',()=>{
+ for(const limit of ['unlimited',-1]){
+  const run={};const receipt={...truncated,modelResponseFeedback:{...truncated.modelResponseFeedback,maxRepairAttempts:limit}};
+  observeModelResponse(run,receipt);
+  for(let i=0;i<40;i++){admitModelResponseRepair(run);observeModelResponse(run,receipt);}
+  assert.equal(run.modelResponseRepairs,40);assert.equal(run.modelResponseRepairLimitReached,undefined);
+  observeModelResponse(run,{error:'Permission denied',modelResponseFeedback:{repairAllowed:false}});
+  assert.equal(run.modelResponseFeedback,null);
+ }
+});
 test('Native cannot exceed the two response repairs granted by Runtime',()=>{
  const run={};
  admitModelResponseRepair(run);observeModelResponse(run,truncated);

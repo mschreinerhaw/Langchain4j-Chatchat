@@ -31,9 +31,13 @@ public class CodingExecutionFeedbackService {
     private com.chatchat.api.runtime.coding.cline.CodingCodeArtifactStore codeArtifacts;
     @Autowired(required=false) public void setCodeArtifacts(com.chatchat.api.runtime.coding.cline.CodingCodeArtifactStore value){codeArtifacts=value;}
     @Autowired(required=false) public void setArchive(RuntimeAssetArchive value) { archive=value; }
+    @Autowired
     public CodingExecutionFeedbackService(DurableCodingTaskService tasks, CodingPythonExecutionBridge python,
-            ObjectMapper json, @Value("${chatchat.coding.max-auto-repairs:3}") int maxRepairs) {
-        this.tasks=tasks;this.python=python;this.json=json;this.maxRepairs=Math.max(0,Math.min(maxRepairs,31));
+            ObjectMapper json, @Value("${chatchat.coding.max-auto-repairs:3}") String maxRepairs) {
+        this(tasks,python,json,Math.toIntExact(CodingLimit.parse(maxRepairs).value()));
+    }
+    public CodingExecutionFeedbackService(DurableCodingTaskService tasks, CodingPythonExecutionBridge python,ObjectMapper json,int maxRepairs) {
+        CodingLimit.validate(maxRepairs);this.tasks=tasks;this.python=python;this.json=json;this.maxRepairs=maxRepairs;
     }
     public ExecutionFeedback cached(KernelDataScope scope,String task,String operation) {
         var saved=tasks.privateState(scope,task,"feedback:"+operation);
@@ -57,7 +61,8 @@ public class CodingExecutionFeedbackService {
             if(!feedback.error().stack().isEmpty())diagnostics.put("line",feedback.error().stack().get(feedback.error().stack().size()-1).line());
         }
         result.put("diagnostics",diagnostics);result.put("stdoutBytes",feedback.stdoutBytes());
-        result.put("executionFeedback",feedback);result.put("diagnosticPolicy","METADATA_ONLY");
+        result.put("executionFeedback",feedback);result.put("diagnosticPolicy",feedback.diagnosticPolicy().equals("TASK_ERROR_DETAIL_V2")?"TASK_ERROR_DETAIL_V2":"METADATA_ONLY");
+        if(feedback.diagnosticPolicy().equals("TASK_ERROR_DETAIL_V2"))result.put("stderr",feedback.stderr());
         result.put("delivery",Map.of("executionStopped",true,"processSucceeded",Integer.valueOf(0).equals(feedback.exitCode()),
             "reportArchived",feedback.resultAvailable(),"outputStatus",Objects.toString(feedback.outputStatus(),"NOT_RECORDED"),
             "nextAction",feedback.resultAvailable()?"REVIEW_ARCHIVED_REPORT":feedback.repair().allowed()?"REPAIR_OUTPUT_IN_CURRENT_SESSION":"STOP_WITH_EVIDENCE_GAP"));
@@ -87,7 +92,10 @@ public class CodingExecutionFeedbackService {
         if(exception!=null&&!exception.matches("[A-Za-z]{1,40}(Error|Exception)|StopIteration|SystemExit|KeyboardInterrupt"))exception=null;
         String code=diagnostic.path("diagnosticCode").asText();
         if(!ExecutionFailureClassifier.known(code))code=ExecutionFailureClassifier.code(exception);
-        if("UNKNOWN".equals(code)&&explicitNativeRuntimeError(contract,operation,diagnostic,exception))code="PROGRAM_ERROR";
+        // Unknown classification is not unknown execution. Only a stopped, failed
+        // process can return to Cline; an unresolved dispatch still cannot replay.
+        if("UNKNOWN".equals(code)&&operation.executorStopped()&&"FAILED".equals(operation.status())
+                &&operation.exitCode()!=null&&operation.exitCode()!=0&&operation.manifestHash()!=null)code="PROGRAM_ERROR";
         boolean resultAvailable=Boolean.TRUE.equals(result.get("resultAvailable"));
         boolean outputFailed="SUCCEEDED".equals(operation.status())&&!resultAvailable;
         String category=ExecutionFailureClassifier.category(code);
@@ -103,22 +111,24 @@ public class CodingExecutionFeedbackService {
             var previous=cached(contract.scope(),contract.taskId(),operations.get(attempt-2));
             if(previous!=null)repairsUsed=previous.repair().attemptsUsed()+(previous.resultAvailable()?0:1);
         }
-        int repairLimit=(int)Math.min(maxRepairs,Math.max(0,contract.budget().maxCodeExecutions()-1));
+        int executionLimit=CodingLimit.unlimited(contract.budget().maxCodeExecutions())?-1:(int)Math.min(Integer.MAX_VALUE,Math.max(0,contract.budget().maxCodeExecutions()-1));
+        int repairLimit=minimumLimit(maxRepairs,executionLimit);
         var policy=tasks.privateState(contract.scope(),contract.taskId(),"execution-repair-policy");
-        if(policy!=null)repairLimit=Math.min(repairLimit,policy.path("maxAutoRepairs").asInt(0));
+        if(policy!=null)repairLimit=minimumLimit(repairLimit,policy.path("maxAutoRepairs").asInt(0));
         if(!operations.isEmpty()){
             var first=cached(contract.scope(),contract.taskId(),operations.get(0));
-            if(first!=null)repairLimit=Math.min(repairLimit,first.repair().maxAttempts());
+            if(first!=null)repairLimit=minimumLimit(repairLimit,first.repair().maxAttempts());
         }
         var state=tasks.get(contract.scope(),contract.taskId());
         boolean stopped=state.cancellationRequested()||state.executionControl().stopReason()!=null||state.status().terminal();
         boolean timeLeft=contract.budget().deadlineAt().isAfter(Instant.now());
-        boolean budgetLeft=state.usage().consumed().modelCalls()+state.usage().reserved().modelCalls()<contract.budget().maxModelCalls()
-            &&state.usage().consumed().modelTokens()+state.usage().reserved().modelTokens()<contract.budget().maxModelTokens();
-        boolean allowed=failed&&!stopped&&timeLeft&&budgetLeft&&repairsUsed<repairLimit&&ExecutionFailureClassifier.repairable(code)
+        boolean budgetLeft=CodingLimit.hasRoom(contract.budget().maxModelCalls(),state.usage().consumed().modelCalls()+state.usage().reserved().modelCalls())
+            &&CodingLimit.hasRoom(contract.budget().maxModelTokens(),state.usage().consumed().modelTokens()+state.usage().reserved().modelTokens());
+        boolean repairLeft=CodingLimit.hasRoom(repairLimit,repairsUsed);
+        boolean allowed=failed&&!stopped&&timeLeft&&budgetLeft&&repairLeft&&ExecutionFailureClassifier.repairable(code)
             &&!Boolean.TRUE.equals(result.get("replanningRequired"))&&operation.executorStopped()&&operation.manifestHash()!=null;
         String reason=resultAvailable?"RESULT_VERIFIED":stopped?"TASK_STOPPING":!timeLeft?"DEADLINE_EXCEEDED":!budgetLeft?"BUDGET_EXCEEDED":
-            repairsUsed>=repairLimit?"REPAIR_LIMIT_REACHED":allowed?"TECHNICAL_REPAIR":"NON_REPAIRABLE";
+            !repairLeft?"REPAIR_LIMIT_REACHED":allowed?"TECHNICAL_REPAIR":"NON_REPAIRABLE";
         var refs=new LinkedHashMap<String,String>();
         for(String key:List.of("inputSnapshotRef","codeArtifactRef","executionReceiptRef","resultDatasetRef","validationRecordRef","evidenceBundleRef"))
             if(result.get(key) instanceof String ref)refs.put(key,ref);
@@ -162,45 +172,32 @@ public class CodingExecutionFeedbackService {
         if(contract.runtimeContext().get("inputFiles") instanceof Map<?,?> files)
             for(String key:List.of("format","schemaFileId","manifestFileId","manifestSha256"))
                 if(files.get(key) instanceof String value)inputSchema.put(key,value);
+        String errorDetail=null;
+        if(nativeBackend&&failed){
+            try{errorDetail=python.completeStderr(contract.scope(),contract.taskId(),operation.operationId());}
+            catch(RuntimeException unavailable){/* Keep the archive reference and report absence, never invent an error. */}
+        }
+        String diagnosticPolicy=errorDetail==null?"METADATA_ONLY_V1":"TASK_ERROR_DETAIL_V2";
+        String failureMessage=errorDetail==null||errorDetail.isBlank()?guidance:guidance+"\nCaptured stderr:\n"+errorDetail;
         var feedback=new ExecutionFeedback(ExecutionFeedback.VERSION,contract.taskId(),operation.operationId(),contract.taskId()+":execution-"+attempt,
             contract.scope().runId(),operation.status(),resultAvailable?"VALIDATED":outputFailed?"RESULT_VALIDATION_FAILED":"EXECUTION_FAILED",
-            operation.exitCode(),duration,count(diagnostic,"cpuTimeMs"),count(diagnostic,"maxRssBytes"),operation.codeHash(),"[raw stdout omitted]",failed?guidance:"[raw stderr omitted]",
+            operation.exitCode(),duration,count(diagnostic,"cpuTimeMs"),count(diagnostic,"maxRssBytes"),operation.codeHash(),"[raw stdout omitted]",errorDetail!=null?errorDetail:failed?guidance:"[raw stderr omitted]",
             count(diagnostic,"stdoutBytes"),count(diagnostic,"stderrBytes"),
-            failed?new ExecutionFeedback.Failure(category,exception,code,guidance,List.copyOf(frames),detail):null,
+            failed?new ExecutionFeedback.Failure(category,exception,code,failureMessage,List.copyOf(frames),detail):null,
             List.copyOf(inputRefs),contract.outputContract().resultSchemaRef(),
             List.copyOf(inputFiles),Map.copyOf(inputSchema),Map.copyOf(refs),
             outputFailed?"FAILED":String.valueOf(result.getOrDefault("validationStatus","NOT_RUN")),resultAvailable,
             operation.manifestHash(),result.get("outputStatus") instanceof String output?output:null,
             Boolean.TRUE.equals(result.get("businessValidationPassed")),
             new ExecutionFeedback.Repair(allowed,allowed?"REPAIR_IN_CURRENT_CONTEXT":resultAvailable?"COMPLETE":"STOP",reason,repairsUsed,repairLimit,
-                operation.codeHash(),guidance),"METADATA_ONLY_V1",tasks.script(contract.scope(),contract.taskId(),operation.operationId()));
+                operation.codeHash(),guidance),diagnosticPolicy,tasks.script(contract.scope(),contract.taskId(),operation.operationId()));
         if(archive!=null)try{archive.save(contract.scope(),contract.taskId(),UserAssetService.Kind.LOG,
             "feedback:"+operation.operationId(),"execution-feedback.json",json.writeValueAsBytes(feedback));}
         catch(java.io.IOException invalid){throw new IllegalStateException("Execution feedback archive failed",invalid);}
         if(tasks.recordExecutionFeedback(contract.scope(),contract.taskId(),lease,feedback))log("PYTHON_EXECUTION_FEEDBACK",contract.scope(),feedback);
         return Objects.requireNonNullElse(cached(contract.scope(),contract.taskId(),operation.operationId()),feedback);
     }
-    /** Only a stopped, hash-bound explicit raise in submitted Native source is a known
-     * user-code fault. Library RuntimeError, unknown origins and all stop limits stay closed. */
-    private boolean explicitNativeRuntimeError(CodingTaskContract contract,
-            McpPythonControlPlanePort.OperationView operation,JsonNode diagnostic,String exception){
-        if(!nativeBackend||codeArtifacts==null||!"RuntimeError".equals(exception)||!"FAILED".equals(operation.status())
-                ||!operation.executorStopped()||operation.cancelRequested()||operation.exitCode()==null||operation.exitCode()!=1)return false;
-        var artifact=codeArtifacts.find(contract.scope(),contract.taskId(),operation.operationId()).orElse(null);
-        if(artifact==null||!(artifact.get("content") instanceof String source)||!Objects.equals(operation.codeHash(),artifact.get("sha256")))return false;
-        String hash;
-        try{hash=HexFormat.of().formatHex(java.security.MessageDigest.getInstance("SHA-256").digest(source.getBytes(java.nio.charset.StandardCharsets.UTF_8)));}
-        catch(java.security.NoSuchAlgorithmException impossible){throw new IllegalStateException(impossible);}
-        if(!hash.equals(operation.codeHash()))return false;
-        String file=tasks.scriptFile(contract.scope(),contract.taskId(),operation.operationId());
-        if(file==null)file=CodingScript.LEGACY_FILE;
-        if(!file.equals(artifact.get("fileName")))return false;
-        int line=diagnostic.path("line").asInt(0);String[] lines=source.split("\\R",-1);
-        if(line<1||line>lines.length)return false;
-        for(var frame:diagnostic.path("stack"))if(frame.path("line").asInt()==line&&file.equals(frame.path("file").asText()))
-            return lines[line-1].strip().matches("raise\\s+RuntimeError\\s*(?:\\(.*|$)");
-        return false;
-    }
+    private static int minimumLimit(int left,int right){return left==-1?right:right==-1?left:Math.min(left,right);}
     private JsonNode read(java.util.function.Supplier<String> source){
         try{String value=source.get();return value==null?json.createObjectNode():json.readTree(value);}
         catch(Exception missing){return json.createObjectNode();}

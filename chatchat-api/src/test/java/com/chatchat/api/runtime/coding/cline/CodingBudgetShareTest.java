@@ -18,6 +18,22 @@ import static org.assertj.core.api.Assertions.*;
 
 /** Real cumulative ledger: unknown reservations are retained, not released to pass the boundary. */
 class CodingBudgetShareTest {
+    @Test void unlimitedLedgerAdmitsPastEveryFormerCountCeilingAndPreservesUnknownMetering() {
+        try(var fixture=new Ledger("unlimited",4_194_304,true)){
+            for(int i=1;i<=300;i++){
+                assertThat(fixture.reserve(i,CodingJournal.OperationKind.MODEL,new CodingTaskOutcome.Counters(1,1000,0,0,0,0,0,"0")))
+                    .as("real ledger admission %s",i).isTrue();
+                fixture.service.privateState(fixture.scope,"task",fixture.lease,"probe:"+i,null,
+                    new ObjectMapper().valueToTree(Map.of("ordinal",i)));
+            }
+            var usage=fixture.service.get(fixture.scope,"task").usage();
+            assertThat(usage.reserved().modelCalls()).isEqualTo(300);
+            assertThat(usage.reserved().modelTokens()).isEqualTo(300000);
+            assertThat(usage.meteringComplete()).isFalse();
+            var view=fixture.service.budgetSnapshot(fixture.scope,"task",100,new CodingCompletionBudget(.2,.4));
+            assertThat(view).containsEntry("remainingModelCalls","unlimited").containsEntry("remainingTokens","unlimited");
+        }
+    }
     @Test void roundedUpSharesReproduceTheObservedTwelfthAdmissionDenial() {
         try (var fixture = new Ledger("10",4_194_304)) {
             for(int i=1;i<=12;i++) {
@@ -71,7 +87,8 @@ class CodingBudgetShareTest {
         final JdbcTemplate jdbc;
         final DurableCodingTaskService service;
         final CodingJournal.Lease lease;
-        Ledger(String cost,long output) {
+        Ledger(String cost,long output) {this(cost,output,false);}
+        Ledger(String cost,long output,boolean unlimited) {
             var dataSource=new DriverManagerDataSource("jdbc:h2:mem:share-"+UUID.randomUUID()+";DB_CLOSE_DELAY=-1","sa","");
             new ResourceDatabasePopulator(new ClassPathResource("runtime-evidence-schema.sql")).execute(dataSource);
             jdbc=new JdbcTemplate(dataSource);
@@ -86,7 +103,7 @@ class CodingBudgetShareTest {
                 new CodingTaskContract.Authorization("decision:fixture",List.of("python_execute"),List.of("input:fixture"),
                     List.of(),List.of(),CodingTaskContract.NetworkPolicy.NONE,List.of(),List.of(CodingTaskContract.SideEffect.CODE_EXECUTION)),
                 new CodingTaskContract.Budget("budget",Instant.now().plusSeconds(600).truncatedTo(java.time.temporal.ChronoUnit.MILLIS),
-                    24,786432,24,12,cost,"USD",300000,536870912,output),
+                    unlimited?-1:24,unlimited?-1:786432,unlimited?-1:24,unlimited?-1:12,cost,"USD",300000,536870912,output),
                 "environment","plan",new CodingTaskContract.OutputContract(CodingTaskContract.ResultFormat.JSON_LINES,
                     "schema","validation",List.of("rows.jsonl"),List.of("application/x-ndjson"),100,output,
                     List.of(CodingTaskContract.RequiredEvidence.values())));

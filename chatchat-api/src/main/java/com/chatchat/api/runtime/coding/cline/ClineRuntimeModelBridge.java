@@ -5,6 +5,7 @@ import com.chatchat.api.runtime.coding.CodingParentModels;
 import com.chatchat.api.runtime.coding.workspace.CodingWorkspaceService;
 import com.chatchat.common.config.ModelResourceRegistry;
 import com.chatchat.common.runtime.coding.CodingTaskContract;
+import com.chatchat.common.runtime.coding.CodingLimit;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import dev.langchain4j.agent.tool.ToolExecutionRequest;
@@ -46,8 +47,9 @@ public final class ClineRuntimeModelBridge {
     }
     private int maxModelResponseRepairs = 2;
     @org.springframework.beans.factory.annotation.Value("${chatchat.coding.cline.max-model-response-repairs:2}")
+    public void setMaxModelResponseRepairs(String value) { setMaxModelResponseRepairs(Math.toIntExact(CodingLimit.parse(value).value())); }
     public void setMaxModelResponseRepairs(int attempts) {
-        if (attempts < 0 || attempts > 8) throw new IllegalArgumentException("Invalid model response repair limit");
+        if (attempts < -1) throw new IllegalArgumentException("Invalid model response repair limit");
         maxModelResponseRepairs = attempts;
     }
     @org.springframework.beans.factory.annotation.Value("${chatchat.coding.workspace.max-output-tokens:8192}")
@@ -66,12 +68,12 @@ public final class ClineRuntimeModelBridge {
         if(CodingWorkspaceService.supports(contract) && contract.metadataRefs()!=null
                 && contract.metadataRefs().contains(CodingWorkspaceService.FAST_PATH_REF))
             configured=Math.min(configured,fastPathMaxOutputTokens);
-        return (int)Math.max(1, Math.min(configured, contract.budget().maxModelTokens() / 2));
+        return CodingLimit.unlimited(contract.budget().maxModelTokens())?configured:(int)Math.max(1, Math.min(configured, contract.budget().maxModelTokens() / 2));
     }
 
     public long modelTokenReservation(CodingTaskContract contract) {
         // Reserve room for both the reply and its prompt under the durable tool budget.
-        return Math.min(contract.budget().maxModelTokens(), 2L * maxOutputTokens(contract));
+        return CodingLimit.unlimited(contract.budget().maxModelTokens())?2L*maxOutputTokens(contract):Math.min(contract.budget().maxModelTokens(), 2L * maxOutputTokens(contract));
     }
     @org.springframework.beans.factory.annotation.Autowired(required=false)
     public void setWorkspace(CodingWorkspaceService workspace) { this.workspace=workspace; }
@@ -285,9 +287,9 @@ public final class ClineRuntimeModelBridge {
                 && answer.tokenUsage().outputTokenCount() != null && answer.tokenUsage().inputTokenCount() >= 0
                 && answer.tokenUsage().outputTokenCount() >= 0;
             result.put("modelResponseFeedback", Map.of("schemaVersion", "runtime_os.coding.model_feedback.v1",
-                "diagnosticCode", responseDiagnostic, "repairAllowed", usageKnown && maxModelResponseRepairs > 0
+                "diagnosticCode", responseDiagnostic, "repairAllowed", usageKnown && maxModelResponseRepairs != 0
                     && !"MODEL_TOOL_NOT_AUTHORIZED".equals(responseDiagnostic),
-                "maxRepairAttempts", maxModelResponseRepairs, "maxOutputTokens", outputLimit));
+                "maxRepairAttempts", CodingLimit.wire(maxModelResponseRepairs), "maxOutputTokens", outputLimit));
             throw new InvalidModelResponseException(result);
         }
         return result;

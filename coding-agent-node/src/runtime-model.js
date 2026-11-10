@@ -1,3 +1,4 @@
+import {validLimit,isUnlimited} from './execution-limits.js';
 /** Cline AgentModel backed by the Runtime's configured Java model connection. */
 export function createRuntimeModel(gateway, contract, initialOrdinal = 0, { nativeSdk = false } = {}) {
   if (typeof gateway?.model !== 'function') throw new TypeError('Runtime model callback is required');
@@ -34,8 +35,8 @@ export function createRuntimeModel(gateway, contract, initialOrdinal = 0, { nati
         if (feedback?.schemaVersion !== 'runtime_os.coding.model_feedback.v1'
             || feedback.repairAllowed !== true
             || !['MODEL_OUTPUT_TRUNCATED', 'MODEL_TOOL_ARGUMENTS_INVALID'].includes(feedback.diagnosticCode)
-            || !Number.isInteger(feedback.maxRepairAttempts) || feedback.maxRepairAttempts < 1
-            || feedback.maxRepairAttempts > 8 || answer.toolCalls?.length)
+            || !validLimit(feedback.maxRepairAttempts) || (!isUnlimited(feedback.maxRepairAttempts)&&feedback.maxRepairAttempts < 1)
+            || answer.toolCalls?.length)
           throw new Error('Runtime rejected the model response without an authorized repair decision');
         // This is provider-response feedback, never a fabricated tool invocation.
         yield { type: 'runtime-model-feedback', feedback };

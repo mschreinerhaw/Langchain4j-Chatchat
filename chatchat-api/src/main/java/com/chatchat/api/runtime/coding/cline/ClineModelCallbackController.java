@@ -416,11 +416,11 @@ public final class ClineModelCallbackController {
             if (request.path("modelCalls").asLong(-1) != 1)
                 throw new IllegalArgumentException("Exactly one model call must be reserved");
             long tokens = request.path("maxTokens").asLong(-1);
-            if (tokens < 1 || tokens > contract.budget().maxModelTokens())
+            if (tokens < 1 || !CodingLimit.permits(contract.budget().maxModelTokens(),tokens))
                 throw new IllegalArgumentException("Model token reservation exceeds contract");
             tokens = Math.max(tokens, model.modelTokenReservation(contract));
             String cost = CodingBudgetShare.amount(contract.budget().maxCostAmount(),
-                Math.max(1, contract.budget().maxModelCalls()));
+                contract.budget().maxModelCalls());
             final long reservedTokens = tokens;
             var reserved = CodingTaskRevisions.mutate(tasks, call.scope(), call.taskId(), revision ->
                 tasks.reserve(call.scope(), call.taskId(), call.lease(), revision,
@@ -834,7 +834,7 @@ public final class ClineModelCallbackController {
     }
 
     private static String operationId(String value) {
-        if (value == null || !value.matches("model-[1-9][0-9]{0,5}"))
+        if (value == null || value.length()>128 || !value.matches("model-[1-9][0-9]*"))
             throw new IllegalArgumentException("Bounded model operation ID is required");
         return value;
     }

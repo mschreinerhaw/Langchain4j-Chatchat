@@ -227,8 +227,8 @@ public final class ClineCodingAdapter implements CodingAgentSPI {
             }
             if (checkpoint != null) {
                 var accepted=tasks.contract(scope,taskId);var charged=tasks.budgetUsage(scope,accepted.budget().budgetId());
-                boolean hasBudget=charged.modelCalls()<accepted.budget().maxModelCalls()
-                    && charged.modelTokens()<accepted.budget().maxModelTokens() && accepted.budget().deadlineAt().isAfter(clock.instant());
+                boolean hasBudget=CodingLimit.hasRoom(accepted.budget().maxModelCalls(),charged.modelCalls())
+                    && CodingLimit.hasRoom(accepted.budget().maxModelTokens(),charged.modelTokens()) && accepted.budget().deadlineAt().isAfter(clock.instant());
                 if(hasBudget) {
                 requireInputCapabilities(tasks.contract(scope,taskId));
                 lease=tasks.recoveryFence(scope,taskId,lease,tasks.get(scope,taskId).revision());

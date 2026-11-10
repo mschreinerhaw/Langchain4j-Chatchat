@@ -925,7 +925,7 @@ class CodingAnalysisServiceTest {
         var contracts=org.mockito.ArgumentCaptor.forClass(CodingTaskContract.class);verify(agent,times(2)).submit(contracts.capture());
         assertThat(contracts.getAllValues().get(0).taskId()).isNotEqualTo(contracts.getAllValues().get(1).taskId());
         assertThat(contracts.getAllValues().get(0).budget().budgetId()).isNotEqualTo(contracts.getAllValues().get(1).budget().budgetId());
-        assertThat(contracts.getAllValues()).allSatisfy(c -> assertThat(c.budget().maxModelTokens()).isEqualTo(policy.getMaxModelTokens()));
+        assertThat(contracts.getAllValues()).allSatisfy(c -> assertThat(c.budget().maxModelTokens()).isEqualTo(policy.getMaxModelTokens().value()));
     }
 
     @Test void codingDeadlineIsCappedByParentWithoutChargingParentTokensOrExtendingTime() {

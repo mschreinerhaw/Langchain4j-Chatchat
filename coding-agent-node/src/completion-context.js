@@ -1,3 +1,4 @@
+import {isUnlimited} from './execution-limits.js';
 /** Only Runtime receipts and estimates; no business conclusions or second transcript. */
 export function technicalMemory(receipt, sourceContext) {
   const feedback = receipt?.executionFeedback;
@@ -20,7 +21,7 @@ export function technicalMemory(receipt, sourceContext) {
 export function budgetGuidance(view) {
   if (view?.schemaVersion !== 'runtime_os.coding.budget.v1') throw new TypeError('Invalid Runtime budget snapshot');
   if (view.pendingOperations?.length) throw new Error('CODING_RECONCILIATION_REQUIRED: preserve original operation identities');
-  if (view.remainingMillis <= 0 || view.remainingModelCalls <= 0 || view.remainingTokens <= 0)
+  if (view.remainingMillis <= 0 || (!isUnlimited(view.remainingModelCalls)&&view.remainingModelCalls <= 0) || (!isUnlimited(view.remainingTokens)&&view.remainingTokens <= 0))
     throw new Error('Runtime Coding budget exhausted');
   const { remainingTokens, remainingModelCalls, remainingMillis, contextTokensEstimate,
     status, verifiedDeliverables, pendingOperations, unknownUsageOperations, unresolvedReason } = view;

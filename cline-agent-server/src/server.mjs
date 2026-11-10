@@ -1,5 +1,5 @@
 import http from 'node:http';
-import {fork,spawnSync} from 'node:child_process';
+import {spawnSync} from 'node:child_process';
 import {readFileSync,writeFileSync,mkdirSync,existsSync,readdirSync,realpathSync} from 'node:fs';
 import {join,resolve} from 'node:path';
 import {randomUUID,createHash,timingSafeEqual} from 'node:crypto';
@@ -8,6 +8,7 @@ import {loadNative,startHostBridge} from './host-bridge.mjs';
 import {toolFailed} from './tool-outcome.mjs';
 import {validateRuntime} from './runtime-assets.mjs';
 import {nativeModelSettings} from './native-model-settings.mjs';
+import {forkNativeWorker} from './native-process.mjs';
 
 const config=JSON.parse(readFileSync(process.env.CLINE_SERVER_CONFIG,'utf8'));
 const modelSettings=nativeModelSettings(config);
@@ -16,7 +17,7 @@ const runtimeAssets=validateRuntime(config.distDir);
 const native=loadNative(resolve(config.sourceRoot),resolve(config.distDir)),sessions=new Map(),permissions=new Map();
 const digest=x=>createHash('sha256').update(JSON.stringify(x)).digest('hex');
 const redact=x=>JSON.parse(JSON.stringify(x??null,(_k,v)=>{
- if(v instanceof Error)return {name:v.name,message:v.message};
+ if(v instanceof Error)return {name:v.name,message:v.message,stack:v.stack};
  if(typeof v==='string')for(const secret of [config.apiKey,config.apiToken])v=v.split(secret).join('[REDACTED]');
  return v;
 }));
@@ -85,7 +86,7 @@ async function startWorker(s){
   HOST_BRIDGE_ADDRESS:`127.0.0.1:${s.bridge.port}`,PROTOBUS_ADDRESS:`127.0.0.1:${port}`,
   CLINE_SERVER_EPOCH:s.epoch,CLINE_SERVER_OPERATION_CONTEXT:config.operationContext?'1':'0',CLINE_SERVER_EDIT_TOOL:s.editTool??'editor',CLINE_SERVER_REQUIRE_SUBMIT:config.requireSubmitAndExit?'1':'0',...(config.requireSubmitAndExit?{CLINE_SERVER_BROKER_TOKEN:config.apiKey}:{}),CLINE_SESSION_BACKEND_MODE:'local',DO_NOT_TRACK:'1'};
  mkdirSync(env.HOME,{recursive:true,mode:0o700});
- s.worker=fork(join(config.distDir,'cline-core.js'),['--config',join(s.dir,'cline')],{cwd:resolve(config.distDir),env,detached:true,stdio:['ignore','pipe','pipe','ipc']});
+ s.worker=forkNativeWorker(join(config.distDir,'cline-core.js'),['--config',join(s.dir,'cline')],{cwd:resolve(config.distDir),env,detached:true,stdio:['ignore','pipe','pipe','ipc']});
  const ready=new Promise((res,rej)=>{
   const timer=setTimeout(()=>rej(Error('Native startup deadline exceeded; inspect worker.log and host.unsupported')),90000);
   s.worker.once('error',e=>{clearTimeout(timer);rej(e);});

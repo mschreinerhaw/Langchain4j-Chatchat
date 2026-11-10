@@ -78,6 +78,11 @@ export function runtimeTools(run,gateway,workspace,emit) {
   const bytes=readFileSync(file);if(bytes.length>256000)throw Error('Source exceeds Runtime boundary');
   const source=bytes.toString('utf8'),codeSha256=createHash('sha256').update(bytes).digest('hex');
   const {proposal,unchanged}=nativeProposal(history,source);
+  const previous=run.lastReceipt;
+  if(unchanged&&previous?.executorStopped===true&&previous.resultAvailable!==true
+     &&previous.executionFeedback?.repair?.allowed===true
+     &&(previous.codeHash??previous.executionFeedback.codeHash)===codeSha256)
+   throw Error('UNCHANGED_REPAIR: Runtime requires correcting the last failed program before a new execution. Nothing was prepared or dispatched; edit the native source and execute the corrected complete program.');
   if(history&&history.propose(proposal,unchanged?source:undefined)!==source)throw Error('Native source differs from verified patch lineage');
   // prepare/execute/get reuse the Java durable operation journal and fencing.
   const script=await gateway.preparePython(c,{operationId:id,toolCallId},run.abort.signal);

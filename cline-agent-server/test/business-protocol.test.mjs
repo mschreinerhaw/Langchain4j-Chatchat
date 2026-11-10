@@ -102,12 +102,16 @@ test('legacy named Skill keeps its authorized bytes and version under a safe nat
 test('real callback-shaped failed receipt remains failure, latest source lineage is verified',async()=>{
  // Unit boundary test only; these callback fixtures are never business acceptance evidence.
  const workspace=mkdtempSync(join(tmpdir(),'native-business-'));
- const failed={status:'FAILED',executorStopped:true,executionFeedback:{repair:{action:'REPAIR',allowed:true}}};
+ const failed={status:'FAILED',executorStopped:true,codeHash:createHash('sha256').update('print(1/0)\n').digest('hex'),executionFeedback:{repair:{action:'REPAIR',allowed:true}}};
  const run={contract,nativeAgentSessionId:'native-session',epoch:'e',abort:new AbortController(),activeOperations:new Set()};let index=0;const dispatched=[];
  const gateway={preparePython:async()=>({fileName:`analysis_v${++index}.py`,scriptVersion:index}),executePython:async(c,v)=>{dispatched.push(v);return failed;},getPython:async()=>failed};
  const tools=runtimeTools(run,gateway,workspace,async()=>{});const context={sessionId:'native-session',epoch:'e',toolCallId:'one'};
  try{
   writeFileSync(join(workspace,'a.py'),'print(1/0)\n');assert.deepEqual(await tools.call('python_execute',{sourceFile:'a.py'},context),failed);
+  await assert.rejects(tools.call('python_execute',{sourceFile:'a.py'},{...context,toolCallId:'unchanged'}),/UNCHANGED_REPAIR/);
+  assert.equal(index,1,'Known unchanged failure cannot allocate a new Runtime script version');
+  assert.equal(dispatched.length,1);assert.equal(run.activeOperations.size,0);
+  assert.equal(run.codeLifecycle.versions.length,1,'A rejected unchanged source creates no synthetic version');
   assert.equal(run.lastOperation,null);writeFileSync(join(workspace,'a.py'),'print(1/1)\n');
   await tools.call('python_execute',{sourceFile:'a.py'},{...context,toolCallId:'two'});
   assert.equal(run.codeLifecycle.versions[1].parentHash,run.codeLifecycle.versions[0].codeHash);

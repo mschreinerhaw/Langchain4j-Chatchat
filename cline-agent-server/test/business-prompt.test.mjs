@@ -14,9 +14,14 @@ test('a compact Native prompt defers complete source metadata and schema without
  const dir=mkdtempSync(join(tmpdir(),'native-context-'));
  try{
   const contract={objective:{instruction:'exact user requirement'},outputContract:{requiredFiles:['rows.jsonl']},runtimeContext:{analysisInstructions:['runtime_os.native_analysis_context.v1',JSON.stringify({sourceRepresentation:{precision:'declared'}})],pythonEnvironment:{packages:{pandas:'2'}},scriptPurpose:'complete metadata'}};
-  const context={files:[],outputContract:{rowSchema:{type:'object'}},inputVersions:[{datasetReference:'exact:v1',fieldDefinitions:{value:'declared'}}]};
-  const delivery=await deliver({contract,abort:new AbortController()},{readInputContext:async()=>context},dir),projected=promptContext(contract,delivery),full=JSON.parse(readFileSync(join(dir,'runtime-inputs.json')));
+  const context={files:[],fileLayout:{reader:{module:'runtime_input',functions:{load_rows:['manifestPath','expectedManifestSha256']}},manifestPath:'/data/input/bound/manifest.json',expectedManifestSha256:'a'.repeat(64)},outputContract:{rowSchema:{type:'object'}},inputVersions:[{datasetReference:'exact:v1',fieldDefinitions:{value:'declared'}}]};
+  const delivery=await deliver({contract,abort:new AbortController()},{readInputContext:async()=>context},dir);
+  delivery.modelBudget={modelContext:{outputReserveTokens:4096,availability:'CONFIGURED_NOT_PROVIDER_MEASURED'}};
+  const projected=promptContext(contract,delivery),full=JSON.parse(readFileSync(join(dir,'runtime-inputs.json')));
   assert.equal(projected.contextFile,'runtime-inputs.json');assert(!JSON.stringify(projected).includes('complete metadata'));
+  assert.deepEqual(projected.inputLayout,context.fileLayout,'The exact installed transport reader and manifest binding are visible before inference');
+  assert.deepEqual(projected.analysisContext,{inputVersions:context.inputVersions,analysisInstructions:contract.runtimeContext.analysisInstructions},'Complete dataset identities, declared field meanings and source constraints must not require paginating a large duplicate inventory');
+  assert.deepEqual(projected.executionLimits.modelContext,delivery.modelBudget.modelContext,'Forward the actual Runtime reply limit without changing it or guessing a value');
   assert.equal(full.runtimeContext.scriptPurpose,'complete metadata');assert.deepEqual(full.context,context);assert.deepEqual(full.outputContract,contract.outputContract);
   assert.equal(JSON.parse(full.runtimeContext.analysisInstructions[1]).sourceRepresentation.precision,'declared');
  }finally{rmSync(dir,{recursive:true,force:true});}
@@ -27,9 +32,26 @@ test('frozen input identity and valid empty bytes are distinct from an incomplet
  const run={contract:{runtimeContext:{}},abort:new AbortController()},descriptor={...file,encoding:'base64',offset:0,nextOffset:0,content:''};
  try{
   const gateway={readInputContext:async()=>({files:[file]}),nativeInputFile:async()=>descriptor};
-  assert.equal((await deliver(run,gateway,dir)).files[0].size,0);
+  const delivered=(await deliver(run,gateway,dir)).files[0];
+  assert.equal(delivered.size,0);assert.equal(delivered.fileId,file.fileId);assert.equal(delivered.virtualPath,file.virtualPath);
+  assert.equal(delivered.nativePath.replaceAll('\\','/'),'inputs/input-1/empty.csv');assert.equal(readFileSync(join(dir,delivered.nativePath)).length,0);
   for(const changed of [{fileId:'other'},{fileName:'other.csv'},{size:1},{encoding:'utf8'}])await assert.rejects(deliver(run,{...gateway,nativeInputFile:async()=>({...descriptor,...changed})},dir),/INPUT_DESCRIPTOR_MISMATCH/);
  }finally{rmSync(dir,{recursive:true,force:true});}
+});
+test('explicitly selected Python inputs retain frozen bytes beside editable source copies only with execution authority',async()=>{
+ const bytes=Buffer.from('print("original")\n'),sha256=createHash('sha256').update(bytes).digest('hex');
+ const file={fileId:'provided-source',fileName:'original-1.py',size:bytes.length,sha256,virtualPath:'/data/input/provided-source/original-1.py'};
+ for(const allowed of [true,false]){
+  const dir=mkdtempSync(join(tmpdir(),'native-code-input-'));
+  try{
+   const run={contract:{authorization:{allowedSideEffects:allowed?['CODE_EXECUTION']:[]},runtimeContext:{}},abort:new AbortController()};
+   const gateway={readInputContext:async()=>({files:[file]}),nativeInputFile:async()=>({...file,encoding:'base64',offset:0,nextOffset:bytes.length,content:bytes.toString('base64')})};
+   const staged=(await deliver(run,gateway,dir)).files[0];assert.deepEqual(readFileSync(join(dir,staged.nativePath)),bytes);
+   if(allowed){assert.equal(staged.nativeEditablePath,'source-input-1.py');assert.deepEqual(readFileSync(join(dir,staged.nativeEditablePath)),bytes);}
+   else assert.equal(staged.nativeEditablePath,undefined);
+   assert.equal(staged.fileId,file.fileId);assert.equal(staged.sha256,sha256);assert.equal(staged.virtualPath,file.virtualPath);
+  }finally{rmSync(dir,{recursive:true,force:true});}
+ }
 });
 test('archived-result review never treats omitted validation/result fields as success',()=>{
  const receipt={status:'SUCCEEDED',executorStopped:true,resultDatasetRef:'r',validationRecordRef:'v',evidenceBundleRef:'b',resultAvailable:true,validationStatus:'INCONCLUSIVE'};

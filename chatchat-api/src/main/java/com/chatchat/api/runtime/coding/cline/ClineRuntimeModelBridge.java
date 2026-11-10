@@ -97,8 +97,10 @@ public final class ClineRuntimeModelBridge {
     }
     public Map<String,Object> contextPolicy(CodingTaskContract contract) {
         var connection=resources.connection(selectedModel(contract));
-        if(connection==null || connection.getContextWindowTokens()==null)return Map.of("availability","NOT_CONFIGURED");
-        int window=connection.getContextWindowTokens(), output=maxOutputTokens(contract);
+        int output=maxOutputTokens(contract);
+        if(connection==null || connection.getContextWindowTokens()==null)
+            return Map.of("availability","NOT_CONFIGURED","outputReserveTokens",output);
+        int window=connection.getContextWindowTokens();
         if(window<=output)throw new IllegalStateException("Configured model context window must exceed output reserve");
         return Map.of("contextWindowTokens",window,"outputReserveTokens",output,"safetyRatio",0.1,
             "availability","CONFIGURED_NOT_PROVIDER_MEASURED");

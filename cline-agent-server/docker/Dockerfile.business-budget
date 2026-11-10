@@ -1,0 +1,5 @@
+# Build from the existing immutable business Gateway image, with repository root
+# as context. Official Worker/Core images are independent and remain unchanged.
+ARG BUSINESS_BASE
+FROM ${BUSINESS_BASE}
+COPY coding-agent-node/src/completion-context.js /poc/coding-agent-node/src/completion-context.js

@@ -1,0 +1,27 @@
+{
+  "at": "2026-11-09T14:33:23.268841+00:00",
+  "backup": "/opt/cline-native-business-20261108/backups/source-working-copy-20261109T143320Z",
+  "manifest": {
+    "reuse-business-server.mjs": {
+      "destination": "source/cline-agent-server/src/business-server.mjs",
+      "sha256": "f5149b22d31db84e9f5f24dbb80fa36a07b8b3dcd30c48eec84cccc627a8d3cb"
+    },
+    "reuse-business-delivery.mjs": {
+      "destination": "source/cline-agent-server/src/business/delivery.mjs",
+      "sha256": "6eaff8d0de05f26975a3e2e5d39014dca2a2ed55977e242ec6490555a62a184f"
+    },
+    "reuse-business-prompt.mjs": {
+      "destination": "source/cline-agent-server/src/business/prompt.mjs",
+      "sha256": "e9bfe0adb983e33a0ffdd60fe86e8f1f0368b6097d3232729d09b13c2e129f03"
+    }
+  },
+  "health": {
+    "status": "UP",
+    "engine": "cline-standalone",
+    "version": "4.1.26",
+    "legacySdkWorker": false,
+    "workerImage": "sha256:172b45b0b4988713cc2a4a02ecbfdcb7dd5a102ec6def6facdff385352940aaf",
+    "productionReady": false
+  },
+  "limitsChanged": false
+}

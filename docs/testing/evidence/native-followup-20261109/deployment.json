@@ -1,0 +1,42 @@
+{
+  "deployedAt": "2026-11-09T13:09:14.679960+00:00",
+  "backup": "/opt/cline-native-business-20261108/backups/final-followup-20261109T130839Z",
+  "manifest": {
+    "business-server.mjs": {
+      "destination": "source/cline-agent-server/src/business-server.mjs",
+      "sha256": "c4ad9762bb39c318e9b74dec27e56cacee51a5d29848917faf8515d4ddbc4293"
+    },
+    "code-lineage.mjs": {
+      "destination": "source/cline-agent-server/src/business/code-lineage.mjs",
+      "sha256": "2b0d8f3fbd7f7a67d3bee17a4f4a9390e6af4a7f796429f4a73471766050a09e"
+    },
+    "native-policy.mjs": {
+      "destination": "source/cline-agent-server/src/business/native-policy.mjs",
+      "sha256": "32651949d17f090c0b75bd625339d6f0be92a270512dcd5c8c4c249365d239ae"
+    },
+    "prompt.mjs": {
+      "destination": "source/cline-agent-server/src/business/prompt.mjs",
+      "sha256": "95c84f5c55c6a06377a520b58ca551db6876ea24d2796fd9317d821a03dd9035"
+    },
+    "run-state.mjs": {
+      "destination": "source/cline-agent-server/src/business/run-state.mjs",
+      "sha256": "10b6d478fe28a21ded9a2275e97e6cca190f38dd0418754df2396ec23b0e983a"
+    },
+    "ClineRuntimeModelBridge.class": {
+      "destination": "classes/com/chatchat/api/runtime/coding/cline/ClineRuntimeModelBridge.class",
+      "sha256": "d016a1e224bae64d3c8e6456cc470759a52e92c9293190c3f754b7bd33138ac6"
+    }
+  },
+  "gatewayHealth": {
+    "status": "UP",
+    "engine": "cline-standalone",
+    "version": "4.1.26",
+    "legacySdkWorker": false,
+    "workerImage": "sha256:172b45b0b4988713cc2a4a02ecbfdcb7dd5a102ec6def6facdff385352940aaf",
+    "productionReady": false
+  },
+  "login": "PASSED",
+  "activeTasksBeforeDeployment": 0,
+  "historicalTasksRetained": 23,
+  "limitsChanged": false
+}

@@ -1,4 +1,9 @@
 // Wire projection only: inference and its durable admission stay in Runtime.
+import {budgetGuidance} from '../../../coding-agent-node/src/completion-context.js';
+export function withRuntimeBudget(request,snapshot,run) {
+ try{return {...request,systemPrompt:request.systemPrompt+budgetGuidance(snapshot)};}
+ catch(error){if(run)run.runtimeBudgetStopReason=error.message;throw error;}
+}
 export const LOCAL_TOOLS = new Set(['read_files','search_codebase','skills','editor','apply_patch','submit_and_exit']);
 export function permittedTool(name,contract) {
  if(LOCAL_TOOLS.has(name))return !['editor','apply_patch'].includes(name)||contract.authorization.allowedSideEffects.includes('CODE_EXECUTION');
@@ -8,6 +13,16 @@ const textParts=value=>typeof value==='string'?[{type:'text',text:value}]:value=
  if(p.type!=='text')throw Error('Unsupported native model content: '+p.type);
  return {type:'text',text:p.text};
 });
+function nativeTool(tool) {
+ const {name,description='',parameters}=tool.function;
+ if(name!=='editor'||!parameters?.properties?.new_text)return {name,description,inputSchema:parameters};
+ // The pinned official v4.1.26 editor already enforces this boundary. Advertise
+ // its existing limit; do not change its executor or add another editing policy.
+ const inputSchema=structuredClone(parameters);
+ for(const field of ['old_text','new_text'])if(inputSchema.properties[field])
+  inputSchema.properties[field].maxLength=Math.min(inputSchema.properties[field].maxLength??6000,6000);
+ return {name,description:description+'\nThe official Native editor limits each old_text/new_text value to 6000 UTF-16 code units.',inputSchema};
+}
 export function projectRequest(body,contract,ordinal) {
  const names=new Map(),messages=[],system=[];
  for(const m of body.messages??[]) {
@@ -23,7 +38,7 @@ export function projectRequest(body,contract,ordinal) {
    messages.push({role:'tool',content:[{type:'tool-result',toolCallId:m.tool_call_id,toolName:name,output:content.map(p=>p.text).join('\n')}]});
   }else {if(!['user','assistant'].includes(m.role))throw Error('Unsupported native model role');messages.push({role:m.role,content});}
  }
- const tools=(body.tools??[]).filter(t=>permittedTool(t.function.name,contract)).map(t=>({name:t.function.name,description:t.function.description??'',inputSchema:t.function.parameters}));
+ const tools=(body.tools??[]).filter(t=>permittedTool(t.function.name,contract)).map(nativeTool);
  if(ordinal===1&&!tools.some(t=>t.name==='submit_and_exit'))throw Error('Official submit_and_exit is absent from the native model tool catalog');
  return {operationId:`model-${ordinal}`,managedAttempt:true,modelResponseFeedbackVersion:'runtime_os.coding.model_feedback.v1',systemPrompt:system.join('\n\n'),messages,tools};
 }

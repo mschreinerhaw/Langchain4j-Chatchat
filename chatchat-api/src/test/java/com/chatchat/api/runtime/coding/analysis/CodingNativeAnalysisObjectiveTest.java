@@ -5,6 +5,18 @@ import org.junit.jupiter.api.Test;
 import static org.assertj.core.api.Assertions.*;
 
 class CodingNativeAnalysisObjectiveTest {
+    @Test void nativeVisualTasksRetainTheCompleteExistingVisualAndPresentationContract() throws Exception {
+        var attributes=java.util.Map.<String,Object>of("reportMode","visual","reportPresentation",java.util.Map.of("strategy","concise","autoImages",false));
+        var chunks=CodingNativeAnalysisObjective.contextInstructions(java.util.Map.of("source","unchanged"),java.util.Map.of(),attributes);
+        com.chatchat.common.runtime.coding.CodingRuntimeContext.validate(java.util.Map.of(
+            "schemaVersion","runtime_os.coding.context.v1","consistency","TASK_SNAPSHOT","analysisInstructions",chunks));
+        var json=new com.fasterxml.jackson.databind.ObjectMapper();
+        var restored=json.readTree(String.join("",chunks.subList(1,chunks.size())));
+        assertThat(restored.path("visualReportContract").asText()).isEqualTo(
+            com.chatchat.common.runtime.coding.VisualReportMode.instruction(attributes));
+        var off=CodingNativeAnalysisObjective.contextInstructions(java.util.Map.of(),java.util.Map.of());
+        assertThat(json.readTree(String.join("",off.subList(1,off.size()))).has("visualReportContract")).isFalse();
+    }
     @Test void sourceDeclarationsRoundTripThroughTheExistingStrictContextWithoutNewFields() throws Exception {
         var source=java.util.Map.<String,Object>of("declaration","原始字段😀".repeat(3000));
         var binding=java.util.Map.<String,Object>of("customerNo","070200046604");

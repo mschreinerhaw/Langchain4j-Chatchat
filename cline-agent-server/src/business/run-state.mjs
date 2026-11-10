@@ -11,6 +11,8 @@ export function persistRun(run,publicView) {
   stopProof:run.stopProof,remoteStopConfirmed:run.remoteStopConfirmed,codeLifecycle:run.codeLifecycle,
   nativeCompletion:run.nativeCompletion,cancelRequested:run.cancelRequested,eventOrdinal:run.eventOrdinal,
   runtimeStopReceipt:run.runtimeStopReceipt,recoveryControllable:run.recoveryControllable};
+ Object.assign(record,{modelResponseFeedback:run.modelResponseFeedback,modelResponseRepairs:run.modelResponseRepairs,
+  modelResponseRepairLimitReached:run.modelResponseRepairLimitReached,runtimeBudgetStopReason:run.runtimeBudgetStopReason});
  const temporary=join(run.dir,'run.json.tmp');
  writeFileSync(temporary,JSON.stringify(record),{mode:0o600});
  const fd=openSync(temporary,'r+');try{fsyncSync(fd);}finally{closeSync(fd);}

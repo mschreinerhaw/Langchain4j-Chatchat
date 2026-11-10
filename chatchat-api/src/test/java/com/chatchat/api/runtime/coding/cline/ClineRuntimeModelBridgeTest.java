@@ -52,7 +52,8 @@ class ClineRuntimeModelBridgeTest {
         var resources=mock(ModelResourceRegistry.class);var factory=mock(ConfigurableChatModelFactory.class);
         when(resources.defaultChatModel()).thenReturn("registered-model");
         var bridge=new ClineRuntimeModelBridge(resources,factory,json);
-        assertThat(bridge.contextPolicy(contract())).containsEntry("availability","NOT_CONFIGURED");
+        assertThat(bridge.contextPolicy(contract())).containsEntry("availability","NOT_CONFIGURED")
+            .containsEntry("outputReserveTokens",2048).doesNotContainKey("contextWindowTokens");
         var config=new com.chatchat.common.config.ModelsConfig.ModelConnectionConfig();
         config.setContextWindowTokens(32768);when(resources.connection(anyString())).thenReturn(config);
         assertThat(bridge.contextPolicy(contract())).containsEntry("contextWindowTokens",32768)

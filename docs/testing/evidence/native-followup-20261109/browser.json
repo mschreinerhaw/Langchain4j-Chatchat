@@ -1,0 +1,22 @@
+{
+  "scope": "REAL_TASK_MONITOR_LAYOUT_READ_ONLY",
+  "startedAt": "2026-11-09T13:09:58.738Z",
+  "postControls": [],
+  "pageErrors": [],
+  "defaultIsTaskMonitor": true,
+  "monitorCreatesRuntimeByDefault": true,
+  "statusFilter": true,
+  "failure": {
+    "taskId": "analysis-coding-4317632155748de9f0a8e835224846ddd845f103e4a70de274bca5fe6e1b69ae",
+    "nativeStatus": "ABORTED",
+    "runtimeStatus": "BUDGET_EXCEEDED",
+    "primaryStatusMatchesRuntime": true
+  },
+  "chatIsSeparateAuxiliaryView": true,
+  "downloadSha256": "d32abc08fc777dbc08958723775e6f5602d4d7f7d321a68b9e6c15d187fed5c2",
+  "refreshPreservesTask": true,
+  "runtimeTaskId": "analysis-coding-3bfb69e23343c4833397b7aa70b4510bfc56e11cc28071a4a1512dbac038db8b",
+  "noHorizontalOverflow": true,
+  "status": "PASS",
+  "finishedAt": "2026-11-09T13:10:06.989Z"
+}

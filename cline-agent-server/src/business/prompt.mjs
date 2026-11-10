@@ -6,6 +6,10 @@ export function promptContext(contract,delivery){
   const visible=Object.fromEntries(['pythonEnvironment','codingLifecycle','analysisResultMode','internetAvailability','knowledgeExploration']
    .filter(k=>runtimeContext[k]!==undefined).map(k=>[k,runtimeContext[k]]));
   return {objective,outputContract:{...contract.outputContract,...delivery.context?.outputContract},runtimeContext:visible,inputSnapshotRef:contract.inputSnapshotRef,
+   executionLimits:{taskBudget:contract.budget,modelContext:delivery.modelBudget?.modelContext},
+   ...(delivery.context?.fileLayout?{inputLayout:delivery.context.fileLayout}:{}),
+   analysisContext:{inputVersions:delivery.context?.inputVersions??[],analysisInstructions:runtimeContext.analysisInstructions},
+   sourceCodeFiles:delivery.files.filter(file=>file.nativeEditablePath),
    files:delivery.files,contextFile:'runtime-inputs.json',contextContents:['context.outputContract.rowSchema','context.inputVersions','context.nativeFileSchemas','context.fileLayout','runtimeContext.analysisInstructions','runtimeContext']};
  }
  return {objective,outputContract:contract.outputContract,runtimeContext,inputSnapshotRef:contract.inputSnapshotRef,files:delivery.files,inputs:delivery.context};

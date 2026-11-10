@@ -1,0 +1,149 @@
+{
+  "observedAt": "2026-11-09T14:50:37.562841+00:00",
+  "containers": {
+    "cline-business-api": {
+      "image": "sha256:918d6440437e490bc4ff98c6ae977f5dbaae60d3f5f7dfc07942f7628be34e79",
+      "status": "running",
+      "health": null
+    },
+    "cline-business-gateway": {
+      "image": "sha256:21d7d6ff57d17f6488dea23b6b6469029cb46b0b5a35690556e8e83843e4709e",
+      "status": "running",
+      "health": null
+    },
+    "cline-business-mcp": {
+      "image": "sha256:18ad6f765878f165c13e470cdd72561987ad14cfacf60d122a5f7fa9583d3f8a",
+      "status": "running",
+      "health": null
+    },
+    "cline-native-monitor": {
+      "image": "sha256:28e135ba7204d0fb7d6505221f1ea8e2eb172ecc424794d9b0de664f860dbeff",
+      "status": "running",
+      "health": "healthy"
+    },
+    "cline-monitor-native": {
+      "image": "sha256:f23feae55353f57f2e7fb68455a41b2f26cd383b0ca04f928e0072ad7b869ace",
+      "status": "running",
+      "health": "healthy"
+    }
+  },
+  "gateway": {
+    "status": "UP",
+    "engine": "cline-standalone",
+    "version": "4.1.26",
+    "legacySdkWorker": false,
+    "workerImage": "sha256:172b45b0b4988713cc2a4a02ecbfdcb7dd5a102ec6def6facdff385352940aaf",
+    "productionReady": false
+  },
+  "monitor": {
+    "service": "native-cline-monitor",
+    "executionEngine": false
+  },
+  "activeNativeWorkers": [],
+  "unknownRecords": [
+    {
+      "workerId": "236f4d9c-6ce4-4488-850d-2f8af812208e",
+      "workerStopped": true,
+      "activeOperations": [
+        "cline-fdcaf886db3bb4a0d0fbbf8d17a88b396e19a80d5b19b62f39f01622fb7d0630"
+      ],
+      "error": null
+    },
+    {
+      "workerId": "72ec9356-b954-41a9-80bd-9520f8045524",
+      "workerStopped": true,
+      "activeOperations": [],
+      "error": null
+    },
+    {
+      "workerId": "985f3182-c684-48f4-86ce-eab46919b6ce",
+      "workerStopped": true,
+      "activeOperations": [],
+      "error": null
+    },
+    {
+      "workerId": "c642c154-bfa3-40c3-b995-ae34429cdcf4",
+      "workerStopped": true,
+      "activeOperations": [],
+      "error": null
+    },
+    {
+      "workerId": "3e6ac99f-bed3-4ae1-8b05-b87c0511c736",
+      "workerStopped": true,
+      "activeOperations": [],
+      "error": "CODING_RECONCILIATION_REQUIRED: preserve original operation identities"
+    }
+  ],
+  "attempts": {
+    "market-editor": {
+      "workerId": "4e7eb837-1e04-4947-b0f9-95275426d100",
+      "status": "BUDGET_EXCEEDED",
+      "workerStopped": true,
+      "activeOperations": [],
+      "runtimeBudgetStopReason": null,
+      "error": null
+    },
+    "market-concise": {
+      "workerId": "f47e979a-5be1-4e3a-b1da-003840f949c6",
+      "status": "CANCELLED",
+      "workerStopped": true,
+      "activeOperations": [],
+      "runtimeBudgetStopReason": null,
+      "error": null
+    },
+    "market-pro": {
+      "workerId": "4b63a5e7-0665-4a53-80df-a32a9f7a8414",
+      "status": "FAILED",
+      "workerStopped": true,
+      "activeOperations": [],
+      "runtimeBudgetStopReason": null,
+      "error": "MODEL_RESPONSE_REPAIR_LIMIT_REACHED: MODEL_OUTPUT_TRUNCATED"
+    },
+    "market-max": {
+      "workerId": "c642c154-bfa3-40c3-b995-ae34429cdcf4",
+      "status": "UNKNOWN",
+      "workerStopped": true,
+      "activeOperations": [],
+      "runtimeBudgetStopReason": null,
+      "error": null
+    },
+    "market-wire-final": {
+      "workerId": "90f1508e-3693-447f-99c2-01a28ea3554a",
+      "status": "FAILED",
+      "workerStopped": true,
+      "activeOperations": [],
+      "runtimeBudgetStopReason": "Runtime Coding budget exhausted",
+      "error": "Runtime Coding budget exhausted"
+    },
+    "market-reuse": {
+      "workerId": "2def4c10-9d7b-4211-9501-d571981228cf",
+      "status": "FAILED",
+      "workerStopped": true,
+      "activeOperations": [],
+      "runtimeBudgetStopReason": "Runtime Coding budget exhausted",
+      "error": "Runtime Coding budget exhausted"
+    },
+    "market-reuse-max": {
+      "workerId": "3e6ac99f-bed3-4ae1-8b05-b87c0511c736",
+      "status": "UNKNOWN",
+      "workerStopped": true,
+      "activeOperations": [],
+      "runtimeBudgetStopReason": "CODING_RECONCILIATION_REQUIRED: preserve original operation identities",
+      "error": "CODING_RECONCILIATION_REQUIRED: preserve original operation identities"
+    }
+  },
+  "sourceManifest": {
+    "cline-agent-server/src/business-server.mjs": "f5149b22d31db84e9f5f24dbb80fa36a07b8b3dcd30c48eec84cccc627a8d3cb",
+    "cline-agent-server/src/business/delivery.mjs": "6eaff8d0de05f26975a3e2e5d39014dca2a2ed55977e242ec6490555a62a184f",
+    "cline-agent-server/src/business/model-protocol.mjs": "1bc3c77e5fa9e64bd45ec39efecdeb39d6ba102c095a8c0506685ba0592707e6",
+    "cline-agent-server/src/business/runtime-callback.mjs": "23d937d655c94249e492655fbfd402fe381eb48734474a454e4afe2143747214",
+    "cline-agent-server/src/business/runtime-tools.mjs": "bd0a83a0658ed91ae7d31a72c67b981d16bd1b7dbd8c7723de9cf7a302c1cfbd",
+    "cline-agent-server/src/business/native-context.mjs": "2da78bb67f5ce1feb23f8de56bdce527d3d1d9ac5e22524fbc2ef1c1488f51b0",
+    "cline-agent-server/src/business/code-lineage.mjs": "2b0d8f3fbd7f7a67d3bee17a4f4a9390e6af4a7f796429f4a73471766050a09e",
+    "cline-agent-server/src/business/run-state.mjs": "7e53c4f5bd073f2ac9c2366d54a203b89799ebd6eba3794cb0d5e30f54e27fb2",
+    "cline-agent-server/src/business/prompt.mjs": "e9bfe0adb983e33a0ffdd60fe86e8f1f0368b6097d3232729d09b13c2e129f03",
+    "cline-agent-server/src/business/native-policy.mjs": "32651949d17f090c0b75bd625339d6f0be92a270512dcd5c8c4c249365d239ae"
+  },
+  "graphicalBusinessAcceptance": "NOT_PASSED",
+  "localDeployedSourceHashComparison": "PASSED"
+}

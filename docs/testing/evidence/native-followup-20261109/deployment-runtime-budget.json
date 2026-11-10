@@ -1,0 +1,30 @@
+{
+  "at": "2026-11-09T13:46:53.949081+00:00",
+  "backup": "/opt/cline-native-business-20261108/backups/runtime-budget-20261109T134651Z",
+  "backupContainer": "cline-business-gateway-before-budget-20261109T134651Z",
+  "oldGatewayImage": "sha256:28e135ba7204d0fb7d6505221f1ea8e2eb172ecc424794d9b0de664f860dbeff",
+  "gatewayImage": "sha256:21d7d6ff57d17f6488dea23b6b6469029cb46b0b5a35690556e8e83843e4709e",
+  "runtimeConfigurationPreserved": true,
+  "sharedSdkBudgetHelperImported": true,
+  "workerImageUnchanged": "sha256:172b45b0b4988713cc2a4a02ecbfdcb7dd5a102ec6def6facdff385352940aaf",
+  "limitsChanged": false,
+  "files": [
+    {
+      "file": "/opt/cline-native-business-20261108/source/cline-agent-server/src/business-server.mjs",
+      "sha256": "664847cea3095d2b257d5249f2b9fce61e6a6492000777714d7766e0dad4cfad"
+    },
+    {
+      "file": "/opt/cline-native-business-20261108/source/cline-agent-server/src/business/model-protocol.mjs",
+      "sha256": "6a00b4df0f3621a5abae9f1137893fcacecca52a72af0bb2749c78f51c5967fa"
+    }
+  ],
+  "sharedHelperSha256": "095a9e6cf433b8c7c106160d9959b67a6443b7bb982c4de9f2699cb97fe3697b",
+  "health": {
+    "status": "UP",
+    "engine": "cline-standalone",
+    "version": "4.1.26",
+    "legacySdkWorker": false,
+    "workerImage": "sha256:172b45b0b4988713cc2a4a02ecbfdcb7dd5a102ec6def6facdff385352940aaf",
+    "productionReady": false
+  }
+}

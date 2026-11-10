@@ -18,8 +18,17 @@ export async function deliver(run,gateway,workspace) {
    chunks.push(bytes);offset=descriptor.nextOffset;
   }while(offset<descriptor.size);
   const bytes=Buffer.concat(chunks);if(bytes.length!==descriptor.size||createHash('sha256').update(bytes).digest('hex')!==file.sha256)throw Error('Input delivery Hash mismatch');
-  const rel=join('inputs',file.fileId,file.fileName);mkdirSync(join(workspace,'inputs',file.fileId),{recursive:true});writeFileSync(join(workspace,rel),bytes,{mode:0o400});
-  inventory.push({...file,nativePath:rel});
+  // Task-local read aliases avoid asking the model to recopy opaque 64-character
+  // IDs. Cryptographic identity and the authoritative Sandbox virtualPath stay
+  // in the complete descriptor; these aliases grant no additional input access.
+  const directory='input-'+(inventory.length+1);
+  const rel=join('inputs',directory,file.fileName);mkdirSync(join(workspace,'inputs',directory),{recursive:true});writeFileSync(join(workspace,rel),bytes,{mode:0o400});
+  let nativeEditablePath;
+  if(/\.py$/i.test(file.fileName)&&c.authorization?.allowedSideEffects?.includes('CODE_EXECUTION')){
+   nativeEditablePath='source-input-'+(inventory.length+1)+'.py';
+   writeFileSync(join(workspace,nativeEditablePath),bytes,{mode:0o600,flag:'wx'});
+  }
+  inventory.push({...file,nativePath:rel,...(nativeEditablePath?{nativeEditablePath}:{} )});
  }
  const skills=[];
  for(const pkg of taskSkillPackages(c.runtimeContext)) {

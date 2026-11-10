@@ -10,8 +10,14 @@ final class CodingNativeAnalysisObjective {
     static final String CONTEXT_PROFILE="runtime_os.native_analysis_context.v1";
     private CodingNativeAnalysisObjective() { }
     static List<String> contextInstructions(Map<String,Object> source,Map<String,Object> binding) {
-        String json=com.chatchat.agents.protocol.ModelProtocolJson.compact(Map.of(
-            "sourceRepresentation",source,"templateParameterBinding",binding));
+        return contextInstructions(source,binding,Map.of());
+    }
+    static List<String> contextInstructions(Map<String,Object> source,Map<String,Object> binding,Map<String,?> attributes) {
+        var declarations=new java.util.LinkedHashMap<String,Object>();
+        declarations.put("sourceRepresentation",source);declarations.put("templateParameterBinding",binding);
+        if(com.chatchat.common.runtime.coding.VisualReportMode.active(attributes))
+            declarations.put("visualReportContract",com.chatchat.common.runtime.coding.VisualReportMode.instruction(attributes));
+        String json=com.chatchat.agents.protocol.ModelProtocolJson.compact(declarations);
         var chunks=new ArrayList<String>();chunks.add(CONTEXT_PROFILE);
         for(int start=0;start<json.length();) {
             int end=Math.min(start+11000,json.length());
@@ -34,7 +40,7 @@ final class CodingNativeAnalysisObjective {
             +"Deliver the exact required files, complete row schema and supported field provenance. Review the actual archived result before official submit_and_exit. "
             +"Native completion, process exit zero and structural validation do not establish business correctness; Runtime independently decides delivery status.";
         if(!textResult)core+="\nThis is a computation task: actual Managed Python execution and the contracted rows.jsonl report are required; prose alone is not delivery.";
-        if(visual)core+="\nVisual delivery: follow the delivered visualReport schema and required artifacts; charts must use computed data and real archived file references.";
+        if(visual)core+="\nVisual delivery: follow visualReportContract in the concatenated analysisInstructions JSON for the exact report schema, chart artifacts and layout. Charts must use computed data and real archived file references.";
         if(tools.stream().anyMatch(t->t.startsWith("market_")||t.startsWith("news_")))core+="\nResource scope: discover authorized datasets and coverage. Verify security candidates against real observations; if needed use the authorized complete daily snapshot. Report actual as-of dates and distinguish facts from analysis. Empty matches do not prove all data absent.";
         if(tools.contains("web_search"))core+="\nInternet scope: only the model-authorized server tools may search public data. Check actual availability, cite returned sources and dates, and never send private input data to public search.";
         return core;

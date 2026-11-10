@@ -14,7 +14,7 @@ test('restart retains native controls and unresolved dispatches without replayin
   const contract={scope:{tenantId:'t',userId:'u',runId:'r'},taskId:'task'};
   const original={dir,contract,workerContract:{sessionId:'worker'},workerId:'worker',apiToken:'private',
    brokerToken:'private-broker',epoch:'epoch',nativeAgentSessionId:'official-session',activeOperations:new Set(),
-   journal:new Journal(join(dir,'events.jsonl'))};
+   journal:new Journal(join(dir,'events.jsonl')),modelResponseFeedback:{diagnosticCode:'MODEL_OUTPUT_TRUNCATED',maxRepairAttempts:2},modelResponseRepairs:2,modelResponseRepairLimitReached:true,runtimeBudgetStopReason:'Runtime Coding budget exhausted'};
   persistRun(original,{status:'RUNNING',nativeSessionId:'native-session',fencingToken:3,contractHash:'hash'});
   // Crash after the durable tool intent but before the next state snapshot.
   original.journal.append({type:'runtime.event',payload:{type:'TOOL_STARTED',tool:'python_execute',operationId:'actual-operation'}});
@@ -24,6 +24,9 @@ test('restart retains native controls and unresolved dispatches without replayin
   assert.deepEqual([...restored.activeOperations],['actual-operation']);
   assert.equal(restored.gateway.executePython,undefined);
   assert.equal(restored.contract.scope.userId,'u');
+  assert.equal(restored.modelResponseRepairs,2);assert.equal(restored.modelResponseRepairLimitReached,true);
+  assert.equal(restored.modelResponseFeedback.maxRepairAttempts,2);
+  assert.equal(restored.runtimeBudgetStopReason,'Runtime Coding budget exhausted');
   assert.equal(JSON.parse(readFileSync(join(dir,'run.json'))).version,2);
  }finally{rmSync(dir,{recursive:true,force:true});}
 });

@@ -678,7 +678,7 @@ public final class CodingAnalysisService implements AnalysisCodingPort {
                 if(!"csv-count-sum-v1".equals(context.runtimeAttributes().get("validationProfile"))
                         &&context.runtimeAttributes().get("nativeUserObjective") instanceof String original&&!original.isBlank())objectivePrefix=original;
                 configuration.put("analysisInstructions",CodingNativeAnalysisObjective.contextInstructions(
-                    CodingSourceRepresentation.describe(source.analysisContext()),parameterBindingContext(source.analysisContext())));
+                    CodingSourceRepresentation.describe(source.analysisContext()),parameterBindingContext(source.analysisContext()),context.runtimeAttributes()));
                 goal=CodingNativeAnalysisObjective.compose(objectivePrefix,tools,VisualReportMode.active(context.runtimeAttributes()),textResult);
             }
             goal=CodingInstructionBudget.fit(objectivePrefix,goal,List.of(

@@ -4,13 +4,34 @@ import {createHash} from 'node:crypto';
 import {mkdtempSync,writeFileSync,rmSync} from 'node:fs';
 import {tmpdir} from 'node:os';
 import {join} from 'node:path';
-import {projectRequest,projectResponse,permittedTool} from '../src/business/model-protocol.mjs';
+import {projectRequest,projectResponse,permittedTool,withRuntimeBudget} from '../src/business/model-protocol.mjs';
 import {runtimeTools,operationId,verifiedReceipt} from '../src/business/runtime-tools.mjs';
 import {nativeContext,inputHash,observeNativeSession} from '../src/business/native-context.mjs';
 import {toolFailed} from '../src/tool-outcome.mjs';
 import {nativeProposal} from '../src/business/code-lineage.mjs';
 import {deliver} from '../src/business/delivery.mjs';
 const contract={taskId:'t',scope:{tenantId:'tenant',userId:'user',runId:'run'},authorization:{allowedTools:['python_execute','artifact_read'],allowedSideEffects:['CODE_EXECUTION']},budget:{deadlineAt:new Date(Date.now()+60000).toISOString()},runtimeContext:{codingLifecycle:{schemaVersion:'runtime_os.code_lifecycle.v1',patchOnlyAfterFirst:true}}};
+test('Native forwards the existing authoritative Runtime completion allotment before each model request',()=>{
+ const request={systemPrompt:'Original Core rules',messages:[{role:'user',content:[{type:'text',text:'Original task'}]}],tools:[{name:'actual'}]};
+ const snapshot={schemaVersion:'runtime_os.coding.budget.v1',remainingTokens:12000,remainingModelCalls:2,remainingMillis:10000,pendingOperations:[],completionReservation:{phase:'COMPLETION',reservedCalls:2}};
+ const projected=withRuntimeBudget(request,snapshot);
+ assert(projected.systemPrompt.startsWith(request.systemPrompt));
+ assert(projected.systemPrompt.includes('"remainingModelCalls":2'));
+ assert(projected.systemPrompt.includes('Prioritize verified delivery in COMPLETION'));
+ assert.equal(projected.messages,request.messages);assert.equal(projected.tools,request.tools);
+ assert.equal(request.systemPrompt,'Original Core rules');
+ assert.throws(()=>withRuntimeBudget(request,{...snapshot,pendingOperations:['actual-unresolved-operation']}),/CODING_RECONCILIATION_REQUIRED/);
+ const run={};assert.throws(()=>withRuntimeBudget(request,{...snapshot,remainingModelCalls:0},run),/budget exhausted/);
+ assert.equal(run.runtimeBudgetStopReason,'Runtime Coding budget exhausted','Authoritative denial stops Native instead of repeated unadmitted provider requests');
+});
+test('Native advertises the actual official editor text limit while retaining the complete schema',()=>{
+ const schema={type:'object',properties:{path:{type:'string'},old_text:{anyOf:[{type:'string'},{type:'null'}]},new_text:{type:'string',maxLength:4096}},required:['path','new_text'],additionalProperties:false};
+ const request=projectRequest({messages:[],tools:[{function:{name:'editor',description:'Official editor',parameters:schema}}]},contract,2);
+ const tool=request.tools[0];assert.equal(tool.inputSchema.properties.old_text.maxLength,6000);assert.equal(tool.inputSchema.properties.new_text.maxLength,4096);
+ assert.deepEqual(tool.inputSchema.required,schema.required);assert.equal(tool.inputSchema.additionalProperties,false);
+ assert.deepEqual(tool.inputSchema.properties.path,schema.properties.path);assert(!('maxLength' in schema.properties.old_text));
+ assert(tool.description.startsWith('Official editor'));assert(tool.description.includes('6000 UTF-16'));
+});
 test('native tool names, arguments and actual results survive Runtime wire projection',()=>{
  const request=projectRequest({messages:[{role:'system',content:'rules'},{role:'user',content:'task'},{role:'assistant',content:null,tool_calls:[{id:'native-42',function:{name:'runtime__python_execute',arguments:'{"sourceFile":"analysis.py"}'}}]},{role:'tool',tool_call_id:'native-42',content:'{"status":"FAILED"}'}],tools:[{function:{name:'run_commands',parameters:{}}},{function:{name:'runtime__python_execute',parameters:{type:'object'}}}]},contract,3);
  assert.equal(request.operationId,'model-3');assert.equal(request.managedAttempt,true);assert.deepEqual(request.tools.map(t=>t.name),['runtime__python_execute']);

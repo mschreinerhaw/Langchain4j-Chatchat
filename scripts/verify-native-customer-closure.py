@@ -19,7 +19,8 @@ def main():
     parser.add_argument('--root', type=Path, required=True)
     parser.add_argument('--base', default='http://127.0.0.1:18340/api/v1')
     parser.add_argument('--verify-account', action='store_true', help='Opt into the existing Runtime plan with customer source-metric verification')
-    parser.add_argument('--model', help='Select an already authorized model for this request only; shared configuration is unchanged')
+    parser.add_argument('--model', help='Request an authorized model; an Agent fixed binding may take precedence. Shared configuration is unchanged')
+    parser.add_argument('--agent', default='financial_indicator', help='Existing authorized Agent; never changes a shared Agent binding')
     args = parser.parse_args()
     os.umask(0o077)
     args.root.mkdir(mode=0o700, parents=True, exist_ok=True)
@@ -49,7 +50,7 @@ def main():
         if intent.exists():
             raise RuntimeError('Existing dispatch intent: collect it; never replay an uncertain request')
         request_id = 'account-closure-' + uuid.uuid4().hex
-        body = {'mode': 'agent_chat', 'skillId': 'financial_indicator',
+        body = {'mode': 'agent_chat', 'skillId': args.agent,
             'sessionId': request_id, 'idempotencyKey': request_id,
             'requestSource': 'native-customer-closure-20261110',
             'query': '查询客户号字符串 070200046604 的账户资产、持仓、交易和盈亏，并总结有数据支持的交易偏好。'

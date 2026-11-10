@@ -17,4 +17,6 @@ test('native elapsed time comes from observed turn events and running unknown is
  assert.equal(x.interruptionReason,null);assert.equal(x.phase,'MODEL_RUNNING');assert.equal(x.artifacts,1);
  const tools=executionMetrics({outcome:{usage:{consumed:{toolCalls:1}}},events:[{type:'tool.started',payload:{toolCallId:'read-1'}},{type:'tool.started',payload:{toolCallId:'python-1'}},{type:'tool.started',payload:{toolCallId:'python-1'}}]});
  assert.equal(tools.toolCalls,2);assert.equal(tools.managedToolCalls,1);
+ const calls=executionMetrics({modelReceipts:[{providerDispatched:true},{providerDispatched:false,state:'REJECTED_LOCALLY'}]});
+ assert.equal(calls.confirmedProviderRequests,1);assert.equal(calls.localModelRejections,1);
 });

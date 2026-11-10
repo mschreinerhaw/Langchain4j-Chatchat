@@ -49,7 +49,7 @@ export interface TaskDetail extends TaskSummary {
   configuredModel: { selectedModel?: string; providerModel?: string; protocol?: string };
   skills: { status: string; fingerprint: string | null; configured: SkillInfo[];
     stages: string[]; loadedAt: string | null; applications: number; lastAppliedAt: string | null };
-  budget: { maxModelCalls: number | null; deadlineAt: string | null };
+  budget: { maxModelCalls: number | 'unlimited' | null; deadlineAt: string | null };
   events: MonitorEvent[]; models: ModelCall[]; codes: CodeVersion[];
   eventsTruncated: boolean; codesTruncated: boolean;
 }

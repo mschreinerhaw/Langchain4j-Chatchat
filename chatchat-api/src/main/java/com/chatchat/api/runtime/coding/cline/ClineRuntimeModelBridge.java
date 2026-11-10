@@ -23,7 +23,7 @@ import org.springframework.stereotype.Service;
 @Service
 @ConditionalOnProperty(prefix = "chatchat.coding.cline", name = "enabled", havingValue = "true")
 public final class ClineRuntimeModelBridge {
-    private static final int MAX_MESSAGES = 64, MAX_TEXT = 256_000;
+    private static final int MAX_TEXT = 256_000;
     @org.springframework.beans.factory.annotation.Value("${chatchat.coding.cline.backend:sdk}")
     private String backend="sdk";
     private static final Set<String> NATIVE_LOCAL_TOOLS=Set.of("read_files","search_codebase","skills","editor","apply_patch","submit_and_exit");
@@ -120,7 +120,7 @@ public final class ClineRuntimeModelBridge {
         String system = bounded(request.path("systemPrompt").asText(""), "system prompt");
         if (!system.isBlank()) messages.add(SystemMessage.from(system));
         JsonNode turns = request.path("messages");
-        if (!turns.isArray() || turns.size() > (com.chatchat.api.datascience.sql.SqlWorkspaceMetadataTools.enabled(contract)?192:MAX_MESSAGES)) throw new IllegalArgumentException("Invalid model message count");
+        if (!turns.isArray()) throw new IllegalArgumentException("Model messages must be an array");
         for (JsonNode turn : turns) {
             String role = turn.path("role").asText();
             StringBuilder text = new StringBuilder();
@@ -298,7 +298,7 @@ public final class ClineRuntimeModelBridge {
             // No ChatModel.chat call occurred. This is definitive local stop evidence,
             // not an unknown provider execution and not a fabricated provider response.
             var rejected = new InvalidModelResponseException(Map.of(
-                "error", "Runtime rejected the model request before provider dispatch: " + failure.getClass().getSimpleName(),
+                "error", "Runtime rejected the model request before provider dispatch: " + failure.getClass().getSimpleName()+": "+Objects.toString(failure.getMessage(),""),
                 "diagnosticCode", "MODEL_REQUEST_REJECTED_LOCALLY", "providerDispatched", false,
                 "toolCalls", List.of(), "usage", Map.of("inputTokens", 0, "outputTokens", 0),
                 "modelInfo", Map.of("source", "RUNTIME_PREFLIGHT", "providerDispatched", false, "durationMs", 0)));

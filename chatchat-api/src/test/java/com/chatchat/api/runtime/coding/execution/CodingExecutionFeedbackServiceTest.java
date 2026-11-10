@@ -39,7 +39,7 @@ class CodingExecutionFeedbackServiceTest {
             contract.environmentRef(),contract.validationPlanRef(),contract.outputContract());
         String stderr="Traceback (most recent call last):\n"+"    actual source location\n".repeat(500)+"RuntimeError: actual complete error\n";
         when(python.completeStderr(scope,"task","operation")).thenReturn(stderr);
-        when(python.diagnosticRecord(scope,"task","operation")).thenReturn("{\"exceptionType\":\"RuntimeError\",\"line\":7}");
+        when(python.diagnosticRecord(scope,"task","operation")).thenReturn("{\"exceptionType\":\"RuntimeError\",\"line\":7,\"diagnosticPolicy\":\"TASK_ERROR_DETAIL_V2\"}");
         var first=service.finish(contract,lease,operation("FAILED"),Map.of());
         var prior=json.valueToTree(first);((com.fasterxml.jackson.databind.node.ObjectNode)prior).put("executionId","previous");
         ((com.fasterxml.jackson.databind.node.ObjectNode)prior.path("repair")).put("attemptsUsed",40);

@@ -23,6 +23,20 @@ import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.*;
 
 class ClineRuntimeModelBridgeTest {
+    @Test void longValidConversationDoesNotBecomeAnIndirectIterationLimit() throws Exception {
+        var resources=mock(ModelResourceRegistry.class);var factory=mock(ConfigurableChatModelFactory.class);
+        var parent=mock(ChatModel.class);when(resources.defaultChatModel()).thenReturn("registered-model");
+        when(parent.chat(any(ChatRequest.class))).thenReturn(ChatResponse.builder().aiMessage(AiMessage.from("done"))
+            .tokenUsage(new TokenUsage(2,1,3)).build());
+        var registry=new CodingParentModels();var bridge=new ClineRuntimeModelBridge(resources,factory,json);bridge.setParentModels(registry);
+        json.findAndRegisterModules();var frozen=(com.fasterxml.jackson.databind.node.ObjectNode)json.valueToTree(contract());
+        for(String name:List.of("maxModelCalls","maxModelTokens","maxToolCalls","maxCodeExecutions"))((com.fasterxml.jackson.databind.node.ObjectNode)frozen.path("budget")).put(name,-1);
+        var bound=json.treeToValue(frozen,CodingTaskContract.class);var request=json.createObjectNode();var turns=request.putArray("messages");request.putArray("tools");
+        for(int i=0;i<501;i++){var turn=turns.addObject().put("role",i%2==0?"user":"assistant");turn.putArray("content").addObject().put("type","text").put("text","continue "+i);}
+        try(var binding=registry.bind(bound.scope(),bound.taskId(),parent)){assertThat(bridge.complete(bound,request)).containsEntry("text","done");}
+        var captured=org.mockito.ArgumentCaptor.forClass(ChatRequest.class);verify(parent).chat(captured.capture());
+        assertThat(captured.getValue().messages()).hasSize(501);verifyNoInteractions(factory);
+    }
     @Test void actualPublicSdkSkillsSchemasReachTheExistingRuntimeModelWithoutBroadeningGrants() throws Exception {
         var resources=mock(ModelResourceRegistry.class);var factory=mock(ConfigurableChatModelFactory.class);
         var parent=mock(ChatModel.class);when(resources.defaultChatModel()).thenReturn("registered-model");

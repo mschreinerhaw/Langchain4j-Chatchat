@@ -11,6 +11,8 @@ export function executionMetrics({outcome,modelReceipts,executions,events,starte
  const elapsed=Number.isFinite(begin)?(Number.isFinite(finish)?finish:now)-begin:null;
  const repairs=Array.isArray(executions)?executions.map(x=>x.repair?.attemptsUsed).filter(known):[];
  return {modelRequests:known(consumed?.modelCalls)?consumed.modelCalls:receipts?.length??null,
+  confirmedProviderRequests:receipts?.some(r=>typeof r.providerDispatched==='boolean')?receipts.filter(r=>r.providerDispatched===true).length:null,
+  localModelRejections:receipts?.some(r=>typeof r.providerDispatched==='boolean')?receipts.filter(r=>r.providerDispatched===false).length:null,
   tokens:tokens??(outcome?.usage?.meteringComplete===true?consumed?.modelTokens:null),
   cost:outcome?.usage?.meteringComplete===true?consumed?.costAmount:null,currency:outcome?.usage?.costCurrency??null,
   toolCalls:Array.isArray(events)?new Set(events.filter(x=>x.type==='tool.started').map((x,i)=>x.payload?.toolCallId??x.id??i)).size:known(consumed?.toolCalls)?consumed.toolCalls:null,

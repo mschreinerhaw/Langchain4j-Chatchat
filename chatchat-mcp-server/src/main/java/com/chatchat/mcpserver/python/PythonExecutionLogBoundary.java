@@ -6,7 +6,7 @@ import java.nio.file.*;
 import java.util.*;
 import com.chatchat.common.runtime.coding.ExecutionFailureClassifier;
 
-/** No user stream content crosses the managed-execution persistence boundary. */
+/** Default metadata boundary; an explicitly configured Native test node can retain task-owned stderr. */
 final class PythonExecutionLogBoundary {
     private static final Set<String> EXCEPTIONS = Set.of("AssertionError", "AttributeError", "EOFError",
         "ImportError", "ModuleNotFoundError", "IndexError", "KeyError", "NameError", "UnboundLocalError",
@@ -16,6 +16,9 @@ final class PythonExecutionLogBoundary {
         "OverflowError", "MemoryError", "TimeoutError", "SystemExit", "KeyboardInterrupt", "JSONDecodeError");
 
     static void persist(Path workspace, ObjectMapper mapper) throws IOException {
+        persist(workspace,mapper,false);
+    }
+    static void persist(Path workspace, ObjectMapper mapper,boolean preserveTaskErrorDetails) throws IOException {
         Path directory = workspace.resolve("output/logs");
         if (Files.isSymbolicLink(directory)) throw new IOException("Log directory is a symlink");
         Path diagnostic = directory.resolve("runtime-diagnostic.json");
@@ -67,6 +70,7 @@ final class PythonExecutionLogBoundary {
             }
         }
         safe.put("schemaVersion", "runtime_os.python_diagnostic.v1");
+        if(preserveTaskErrorDetails)safe.put("diagnosticPolicy","TASK_ERROR_DETAIL_V2");
         if (!safe.containsKey("diagnosticCode") && safe.get("exceptionType") instanceof String exception) {
             String code = ExecutionFailureClassifier.code(exception);
             if (ExecutionFailureClassifier.known(code)) safe.put("diagnosticCode", code);
@@ -82,7 +86,10 @@ final class PythonExecutionLogBoundary {
         if (safe.containsKey("exceptionType")) stderr += safe.get("exceptionType") + ":\n";
         if (safe.containsKey("diagnosticCode")) stderr += "Runtime diagnostic: " + safe.get("diagnosticCode")
             + "\nRepair guidance: " + ExecutionFailureClassifier.guidance((String)safe.get("diagnosticCode")) + "\n";
-        replace(directory.resolve("stderr.txt"), stderr);
+        Path captured=directory.resolve("stderr.txt");
+        if(Files.isSymbolicLink(captured))throw new IOException("Log artifact is a symlink");
+        if(!preserveTaskErrorDetails || !Files.isRegularFile(captured,LinkOption.NOFOLLOW_LINKS))
+            replace(captured,stderr);
     }
 
     private static void replace(Path path, String value) throws IOException {

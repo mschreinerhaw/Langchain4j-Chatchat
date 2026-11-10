@@ -110,6 +110,14 @@ class ClineModelReceiptStoreTest {
         assertThat(telemetry.durationMs()).isEqualTo(1000);
         assertThat(new ObjectMapper().valueToTree(telemetry).toString()).doesNotContain("private response sentinel","private key sentinel","toolCalls","requestId","apiKey");
         assertThat(receipts.telemetry(contract,"model-2",3)).isEmpty();
+        receipts.commit(contract,"model-1000001","runtime-model:model-1000001",Map.of(
+            "providerDispatched",false,"error","Local preflight rejected the request",
+            "usage",Map.of("inputTokens",0,"outputTokens",0)));
+        var rejected=receipts.telemetry(contract,"model-1000001",3).orElseThrow();
+        assertThat(rejected.modelCall()).isEqualTo(1000001L);
+        assertThat(rejected.state()).isEqualTo("REJECTED_LOCALLY");
+        assertThat(rejected.providerDispatched()).isFalse();
+        assertThat(rejected.error()).contains("Local preflight");
         assertThat(receipts.telemetry(contract(new KernelDataScope("other","owner",null,null,"run",null,Map.of())),"model-1",3)).isEmpty();
         assertThat(receipts.confirmsStopped(scope, "task", "model-1", "runtime-model:model-1", ref)).isTrue();
         assertThat(new ClineModelReceiptStore(new JdbcRuntimeEvidenceStore(new JdbcTemplate(data),

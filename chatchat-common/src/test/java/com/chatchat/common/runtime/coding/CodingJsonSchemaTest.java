@@ -16,6 +16,21 @@ import static org.assertj.core.api.Assertions.*;
 
 /** Validates the shipped draft-2020-12 bundle using an actual JSON Schema engine, not an imitation. */
 class CodingJsonSchemaTest {
+    @Test void unlimitedBudgetsAgreeAcrossWireProfilesButActualCountersRemainNonnegative() throws Exception {
+        for(String profile:List.of("coding","coding-workspace","coding-analysis")) {
+            var task=fixture("task");
+            if(profile.equals("coding-workspace")){task.put("schemaVersion",CodingProtocol.WORKSPACE_VERSION);set(task,"/outputContract/resultFormat","WORKSPACE_FILES");}
+            if(profile.equals("coding-analysis"))task.put("schemaVersion",CodingProtocol.ANALYSIS_VERSION);
+            for(String name:List.of("maxModelCalls","maxModelTokens","maxToolCalls","maxCodeExecutions","maxCpuMillis","maxOutputBytes"))set(task,"/budget/"+name,"unlimited");
+            set(task,"/budget/maxCostAmount","unlimited");
+            try(var input=getClass().getResourceAsStream("/runtime/coding/"+profile+".schema.json")) {
+                var schema=JsonSchemaFactory.getInstance(SpecVersion.VersionFlag.V202012).getSchema(JSON.readTree(input));
+                assertThat(schema.validate(task)).as(profile).isEmpty();
+                assertThat(schema.validate(tree(JSON.treeToValue(task,CodingTaskContract.class)))).as(profile+" canonical -1").isEmpty();
+            }
+        }
+        var bad=fixture("outcome");set(bad,"/usage/consumed/modelCalls",-1);assertThat(schema().validate(bad)).isNotEmpty();
+    }
     @Test void allThreeWireProfilesRoundTripLargeAuthorizedSkillCatalogs() throws Exception {
         var ids=java.util.stream.IntStream.range(0,150).mapToObj(i->"authorized-"+i).toList();
         var cards=ids.stream().map(id->Map.of("id",id,"name",id,"version","v1")).toList();
@@ -128,7 +143,7 @@ class CodingJsonSchemaTest {
             new Invalid("task", "/authorization/networkPolicy", "ALL"),
             new Invalid("task", "/authorization/networkAllowlist", List.of("https://example.com")),
             new Invalid("task", "/authorization/allowedSideEffects", List.of("REPORT_PUBLICATION")),
-            new Invalid("task", "/budget/maxModelCalls", -1),
+            new Invalid("task", "/budget/maxModelCalls", -2),
             new Invalid("task", "/budget/maxCpuMillis", 9007199254740992L),
             new Invalid("task", "/budget/maxCostAmount", "1.00"),
             new Invalid("task", "/budget/maxCostAmount", "1e3"),

@@ -7,6 +7,16 @@ import org.junit.jupiter.api.Test;
 import static org.assertj.core.api.Assertions.*;
 
 class ExecutionFeedbackContractTest {
+    @Test void fullNativeErrorAndUnlimitedRepairAreValidWithoutChangingLegacyPrivacyProfile() throws Exception {
+        var value=(com.fasterxml.jackson.databind.node.ObjectNode)json.valueToTree(feedback());
+        value.put("diagnosticPolicy","TASK_ERROR_DETAIL_V2").put("stderr","exact trace\n".repeat(1200));
+        ((com.fasterxml.jackson.databind.node.ObjectNode)value.get("repair")).put("maxAttempts",-1).put("attemptsUsed",41);
+        try(var input=getClass().getResourceAsStream("/runtime/coding/execution-feedback.schema.json")) {
+            var schema=JsonSchemaFactory.getInstance(SpecVersion.VersionFlag.V202012).getSchema(json.readTree(input));
+            assertThat(schema.validate(value)).isEmpty();
+            value.put("diagnosticPolicy","METADATA_ONLY_V1");assertThat(schema.validate(value)).isNotEmpty();
+        }
+    }
     final ObjectMapper json=new ObjectMapper();
     ExecutionFeedback feedback(){return new ExecutionFeedback(ExecutionFeedback.VERSION,"task","operation","attempt","trace",
         "FAILED","EXECUTION_FAILED",1,25L,12L,1048576L,"a".repeat(64),"[raw stdout omitted]","safe diagnostic",0L,100L,

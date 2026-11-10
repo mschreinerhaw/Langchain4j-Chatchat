@@ -61,7 +61,7 @@ function snapshot(d){
  const remote=fields.find(f=>f[0]==='远端停止');if(remote){remote[0]='Python 停止';remote[1]=d.lastPythonStopped;}
  if(d.mode==='runtime')fields.splice(1,0,['Core 本轮',d.nativeTurnStatus],['Python 状态',d.executions?.at(-1)?.status],['结束工具',d.nativeCompletion?.toolCallId]);
  const metrics=d.metrics??{};
- fields.push(['模型请求总数',metrics.modelRequests],['Token 总消耗',metrics.tokens],
+ fields.push(['模型请求尝试数',metrics.modelRequests],['已回执供应商请求',metrics.confirmedProviderRequests],['本地拒绝次数',metrics.localModelRejections],['Token 总消耗',metrics.tokens],
   ['累计费用',metrics.cost==null?null:metrics.cost+' '+(metrics.currency??'')],
   ['Native 工具调用次数',metrics.toolCalls],['Runtime 受管工具次数',metrics.managedToolCalls],['Python 自动修复次数',metrics.automaticRepairs],
   ['实际运行耗时 ms',metrics.elapsedMillis],['当前执行阶段',metrics.phase],

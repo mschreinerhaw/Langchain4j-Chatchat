@@ -177,7 +177,7 @@ public class CodingExecutionFeedbackService {
             try{errorDetail=python.completeStderr(contract.scope(),contract.taskId(),operation.operationId());}
             catch(RuntimeException unavailable){/* Keep the archive reference and report absence, never invent an error. */}
         }
-        String diagnosticPolicy=errorDetail==null?"METADATA_ONLY_V1":"TASK_ERROR_DETAIL_V2";
+        String diagnosticPolicy=errorDetail!=null&&"TASK_ERROR_DETAIL_V2".equals(diagnostic.path("diagnosticPolicy").asText())?"TASK_ERROR_DETAIL_V2":"METADATA_ONLY_V1";
         String failureMessage=errorDetail==null||errorDetail.isBlank()?guidance:guidance+"\nCaptured stderr:\n"+errorDetail;
         var feedback=new ExecutionFeedback(ExecutionFeedback.VERSION,contract.taskId(),operation.operationId(),contract.taskId()+":execution-"+attempt,
             contract.scope().runId(),operation.status(),resultAvailable?"VALIDATED":outputFailed?"RESULT_VALIDATION_FAILED":"EXECUTION_FAILED",

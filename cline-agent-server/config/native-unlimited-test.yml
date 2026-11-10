@@ -1,5 +1,9 @@
 # Merge into the dedicated acceptance API instance only. No provider definitions.
 chatchat:
+  mcp:
+    python:
+      # This archive remains under the existing owner/run/task/operation access checks.
+      preserve-task-error-details: true
   coding:
     max-auto-repairs: unlimited
     cline:

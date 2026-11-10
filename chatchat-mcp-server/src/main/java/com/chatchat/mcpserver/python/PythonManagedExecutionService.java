@@ -24,6 +24,8 @@ import java.util.concurrent.*;
 /** MCP-node operation journal. A2 remains the task/budget authority; this table only owns Docker dispatch. */
 @Service
 public class PythonManagedExecutionService {
+    @org.springframework.beans.factory.annotation.Value("${chatchat.mcp.python.preserve-task-error-details:false}")
+    private boolean preserveTaskErrorDetails;
     private final JdbcTemplate jdbc;
     private final TransactionTemplate tx;
     private final PythonCapabilityService capability;
@@ -391,7 +393,7 @@ public class PythonManagedExecutionService {
         if (stopped) {
             try {
                 Path workspace = Path.of(row.workspacePath);
-                PythonExecutionLogBoundary.persist(workspace, mapper);
+                PythonExecutionLogBoundary.persist(workspace, mapper,preserveTaskErrorDetails);
                 writeReceipt(row, docker.inspectManaged(row.containerName), true);
                 workspaces.archive(workspace);
             } catch (Exception ex) {
@@ -421,7 +423,7 @@ public class PythonManagedExecutionService {
         if (!state.exists() || state.running()) return;
         try {
             Path workspace = Path.of(row.workspacePath);
-            PythonExecutionLogBoundary.persist(workspace, mapper);
+            PythonExecutionLogBoundary.persist(workspace, mapper,preserveTaskErrorDetails);
             writeReceipt(row, state, false);
             workspaces.archive(workspace);
             String manifestHash = PythonOperationWorkspace.hash(Files.readAllBytes(workspace.resolve("manifest.json")));

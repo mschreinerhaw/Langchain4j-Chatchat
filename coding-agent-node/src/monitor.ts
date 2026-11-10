@@ -1,3 +1,4 @@
+import {isUnlimited} from './execution-limits.js';
 import { createHash, createHmac, randomUUID, timingSafeEqual } from 'node:crypto';
 import { existsSync, readFileSync } from 'node:fs';
 import { taskSkillPackages } from './skill-distribution.js';
@@ -171,7 +172,7 @@ export class MonitorStore {
           skillId: this.text(skill.id ?? skill.skillId, 200), name: this.text(skill.name, 200), version: this.text(skill.version, 80),
         })), stages: Object.keys(skills?.stages ?? {}).slice(0, 32),
         loadedAt: null, applications: 0, lastAppliedAt: null },
-      budget: { maxModelCalls: integer(contract.budget?.maxModelCalls), deadlineAt: contract.budget?.deadlineAt ?? null },
+      budget: { maxModelCalls: isUnlimited(contract.budget?.maxModelCalls)?'unlimited':integer(contract.budget?.maxModelCalls), deadlineAt: contract.budget?.deadlineAt ?? null },
       events: [], models: [], codes: [], eventsTruncated: false, codesTruncated: false,
     };
     this.tasks.set(id, task); this.event(id, { type: 'SESSION_ACCEPTED', timestamp: now });

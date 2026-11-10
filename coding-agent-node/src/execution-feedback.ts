@@ -5,7 +5,7 @@ export interface ExecutionFeedback {
   taskId: string; executionId: string; attemptId: string; traceId: string;
   status: string; stage: string; exitCode: number | null; durationMs: number | null; codeHash: string;
   cpuTimeMs?: number | null; maxRssBytes?: number | null;
-  stdout: string; stderr: string; diagnosticPolicy: 'METADATA_ONLY_V1';
+  stdout: string; stderr: string; diagnosticPolicy: 'METADATA_ONLY_V1' | 'TASK_ERROR_DETAIL_V2';
   stdoutBytes: number | null; stderrBytes: number | null;
   error: null | { category: string; exceptionType: string | null; diagnosticCode: string; message: string;
     stack: {file: string; line: number; column: number | null}[]; detailRef: string };

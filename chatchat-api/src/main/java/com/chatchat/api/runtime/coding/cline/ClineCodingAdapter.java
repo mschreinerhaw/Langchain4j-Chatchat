@@ -196,7 +196,7 @@ public final class ClineCodingAdapter implements CodingAgentSPI {
                 if(dataSupply!=null&&workerId.equals(lease.owner()))dataSupply.recover(tasks.contract(scope,taskId),lease,operationId);
                 continue;
             }
-            if (operationId.matches("model-[1-9][0-9]{0,5}")) {
+            if (operationId.matches("model-[1-9][0-9]*")) {
                 if (workerId.equals(lease.owner())) reconcileModel(scope, taskId, lease, operationId);
                 continue;
             }

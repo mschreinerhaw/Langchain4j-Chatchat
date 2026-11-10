@@ -44,7 +44,7 @@ public final class ClineModelReceiptStore implements CodingExecutionProofVerifie
 
     /** Local callback termination is distinct from provider termination or a usage receipt. */
     public String commitLocalTermination(CodingTaskContract contract, String operationId, long durationMs, String category) {
-        if (!operationId.matches("model-[1-9][0-9]{0,5}") || durationMs < 0)
+        if (operationId.length()>128 || !operationId.matches("model-[1-9][0-9]*") || durationMs < 0)
             throw new IllegalArgumentException("Invalid local model termination identity");
         var scope=contract.scope();String recordId=id(scope,contract.taskId(),operationId)+":local-stop";
         var payload=Map.<String,Object>of("taskId",contract.taskId(),"operationId",operationId,
@@ -70,7 +70,7 @@ public final class ClineModelReceiptStore implements CodingExecutionProofVerifie
 
     public Optional<com.chatchat.common.runtime.coding.CodingModelCallTelemetry> telemetry(
             CodingTaskContract contract,String operationId,long fencingToken) {
-        if(operationId==null || !operationId.matches("model-[1-9][0-9]{0,5}"))
+        if(operationId==null || !operationId.matches("model-[1-9][0-9]*"))
             throw new IllegalArgumentException("Invalid model operation identity");
         var scope=contract.scope();
         return evidence.find(scope,id(scope,contract.taskId(),operationId)).map(record->{
@@ -88,9 +88,11 @@ public final class ClineModelReceiptStore implements CodingExecutionProofVerifie
                     Long value=number(values.get(key));if(value!=null)usage.put(key,value);
                 }
             return new com.chatchat.common.runtime.coding.CodingModelCallTelemetry(operationId,
-                fencingToken>0?contract.taskId()+":fence-"+fencingToken:null,Integer.parseInt(operationId.substring(6)),"SUCCEEDED",
+                fencingToken>0?contract.taskId()+":fence-"+fencingToken:null,Long.parseLong(operationId.substring(6)),
+                Boolean.FALSE.equals(response.get("providerDispatched"))?"REJECTED_LOCALLY":response.get("error")!=null?"FAILED":"SUCCEEDED",
                 label(info.get("selectedModel")),label(info.get("providerModel")),label(info.get("protocol")),
-                label(info.get("startedAt")),label(info.get("finishedAt")),number(info.get("durationMs")),usage,"JAVA_MODEL_RECEIPT");
+                label(info.get("startedAt")),label(info.get("finishedAt")),number(info.get("durationMs")),usage,"JAVA_MODEL_RECEIPT",
+                label(response.get("error")),!Boolean.FALSE.equals(response.get("providerDispatched")));
         });
     }
     private static String label(Object value) {

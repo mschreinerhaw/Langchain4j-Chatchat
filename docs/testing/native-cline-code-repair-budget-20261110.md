@@ -1,6 +1,6 @@
 # Native 源码修复及预算验证（2026-11-10）
 
-最新整改版本 `82705e3a5`，不调整 Runtime 每任务模型/工具/执行/Token/时间预算。各次探针保持独立 taskId 和源码基线。
+最新整改版本 `406b27342`，不调整 Runtime 每任务模型/工具/执行/Token/时间预算。各次探针保持独立 taskId 和源码基线。
 
 ## 源码映射
 
@@ -12,7 +12,7 @@
 
 有效当前 Runtime 回执才设置响应修复许可；无许可或无效许可的新错误撤销旧许可，成功响应结束连续修复序列。缺失 Token 用量不再投影为零。用量结算仍由 Java Runtime 完成，Native wire projection 不补造 Token、不自动重派未知操作。
 
-第二条真实请求已出现 `MODEL_OUTPUT_TRUNCATED`，随后同一 Native 会话取得完整工具响应；原始模型用量及逐次回执保留服务器，最终预算对账与业务交付仍待完整任务终态确认。
+第二条真实请求已出现 `MODEL_OUTPUT_TRUNCATED`，随后同一 Native 会话取得完整工具响应；原始模型用量及逐次回执保留服务器，任务现已 FAILED；保留未完整结算用量，业务交付未完成。
 
 首条请求三次真实 Python 进程成功均缺少必需报告，最终按 OUTPUT_CONTRACT STOP；不能称为真实 Python 异常修复成功。历史 ValueError 原因已定位，但本版本“真实 Python 异常→Cline 修复→重新执行并完成报告”仍须另行取得证据。
 
@@ -21,3 +21,9 @@
 已记录的第七条 Runtime 回执：12 次模型调用，consumed.modelTokens=392841，codeExecutions=1；reserved.modelTokens=3097、reserved.cpuMillis=25000，meteringComplete=false。这些剩余保留量不伪装成零，也不能据此宣称全部计量已完成。最终逐模型回执和保留量须以本次证据快照为准。
 
 专项编辑配置：同一固定官方 Standalone 4.1.26 / 同一 Worker 镜像，editTool 从 editor 改为已支持的 apply_patch；不改 Core，不放宽 Runtime 16000/32 补丁限制，不提高任何预算。该配置变化与源码版本一同归档，不能把跨配置探针拼成固定配置成功率。
+
+
+
+第八条官方 apply_patch 真实生效，但前三次 add 语法错误消耗调用；后续首次 Python 退出 0 仍无报告，修改后第二次执行在第 19 行因错误 hash 比较触发 AssertionError。12 次模型预算耗尽，最终 FAILED，无修复成功报告。未提升预算、伪造补丁或让 Host/Java 代写业务代码。
+
+保留 77 个模型 operation 脱敏回执，可核对 selectedModel/providerModel、时间、已知用量和缺失回执；缺失、reserved、UNKNOWN 不按零或结算成功处理。Native 请求与 Runtime 回执分别记录，不把请求发出当模型成功。第七条 pending operation 保留；最新 unchanged 修复仅由测试验证，未复用旧 taskId。

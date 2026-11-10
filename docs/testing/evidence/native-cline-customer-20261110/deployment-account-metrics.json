@@ -1,0 +1,38 @@
+{
+  "commit": "b40718e0c1894909f0c04fd6ceba5850df89f5ce",
+  "backup": "/opt/cline-native-business-20261108/backups/customer-metrics-20261110T032019Z",
+  "files": {
+    "classes/com/chatchat/api/runtime/coding/analysis/CodingAnalysisService.class": {
+      "before": "025031c103d5f7add6f0429447ea7179d5ee4bd501d4648c3e9c26f6412d7aaa",
+      "after": "b14f0dc52ac9baea8ea4247d1868d39d83261ca05fe6455a16a76baaf74d5bf6"
+    },
+    "classes/com/chatchat/api/runtime/coding/evidence/CodingCustomerAccountVerifier.class": {
+      "before": null,
+      "after": "fa836a8001e2a9eb1fcc662215782469aa9d31d5d82bc56b53587f8a48e3693b"
+    },
+    "source/cline-agent-server/src/business/code-lineage.mjs": {
+      "before": "06e779437552f0e4bc4257f943c13e3f8c0b493b134737cad0fd323492118834",
+      "after": "9a85854fa21992a8550b6a27562c2c2a1a531101cd665b39c91028524c339e36"
+    },
+    "source/cline-agent-server/src/business/delivery.mjs": {
+      "before": "6eaff8d0de05f26975a3e2e5d39014dca2a2ed55977e242ec6490555a62a184f",
+      "after": "aca7de80b8a026a11655e9a2c76ff05be75b6af20ab51d7b6d67c767ece6f4f0"
+    },
+    "source/cline-agent-server/src/business/prompt.mjs": {
+      "before": "84ed779ea35c4353616586a993211cf8122cdd8d0f4af67c55fad251000a3366",
+      "after": "11139620c76a0ab2923852cc0697c9fe36b4fdd1a299bce5670933eda43bbd05"
+    }
+  },
+  "budgetChanged": false,
+  "defaultNodeChanged": false,
+  "gatewayHealth": {
+    "status": "UP",
+    "engine": "cline-standalone",
+    "version": "4.1.26",
+    "legacySdkWorker": false,
+    "workerImage": "sha256:172b45b0b4988713cc2a4a02ecbfdcb7dd5a102ec6def6facdff385352940aaf",
+    "productionReady": false
+  },
+  "login": "PASSED",
+  "time": "2026-11-10T03:20:48.613072+00:00"
+}

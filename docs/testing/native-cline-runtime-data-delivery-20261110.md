@@ -29,3 +29,9 @@
 第七条已实测完整交付新增 `verifiedAccountSummary` Schema。此前账户 profile 在既有 rowSchema 白名单中的接线遗漏已修复；Native 在缺失正式 Schema 时先行拒绝，不再让模型从 schemaRef 猜测字段。
 
 独立脚本真实负向检查：去掉客户号前导零的目标被拒绝；只读副本中篡改一个 Parquet 字节被 Hash 校验拒绝。未更改原始冻结文件。原始负向副本只保留测试服务器。
+
+
+
+第七条独立复核 59 行：原 58 行加资金流水 1 行，另一个 SQL 来源真实为空。第八条 MCP 发现成功，但选择模型 TimeoutException / MODEL_UNAVAILABLE，未执行客户查询；冻结输入只有 1 行 DATA_SUPPLY_STATUS、0 业务行。核验为 INCONCLUSIVE_SOURCE_UNAVAILABLE，不能解释为客户无资产。完整性通过只证明状态文件传输一致。
+
+第八条 Cline 将 manifest.logicalContentSha256 与 manifest 文件字节 Hash 比较，触发 AssertionError，不是传输损坏。最新提示区分 hash 域。独立复核和负向检查见 evidence/native-cline-customer-20261110/independent-*.json。使用固定 Python 镜像 sha256:3434f7630ff7c54a053c7385710e089d249e65d668699ab96f9603b6e1b27eef；金融指标只留授权服务器。

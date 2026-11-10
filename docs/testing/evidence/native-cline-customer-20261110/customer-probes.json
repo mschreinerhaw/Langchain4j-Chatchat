@@ -1,0 +1,954 @@
+{
+  "generatedAt": "2026-11-10T04:23:11.636781+00:00",
+  "businessSuccess": 0,
+  "probeCount": 8,
+  "failedParents": 7,
+  "cancelledCoding": 1,
+  "killedParents": 1,
+  "formalThirtyTrialBatch": {
+    "success": 0,
+    "failure": 0,
+    "notExecuted": 30
+  },
+  "cases": [
+    {
+      "case": 1,
+      "codeBaseline": "pre-remediation",
+      "editingProfile": "editor",
+      "taskId": "83a92970-a02a-3706-93c9-321dfaa080b9",
+      "attemptId": "att-1-d70d6d35-da5d-4fd4-b76f-ad1550816456",
+      "parentStatus": "FAILED",
+      "requestedModel": null,
+      "runtimeCodingStatus": "FAILED",
+      "nativeStatus": "FAILED",
+      "workerStopped": true,
+      "activeOperations": [],
+      "budget": {
+        "budgetId": "analysis-coding-tool-budget:analysis-coding-dade333dd3cbe0045290656e2f7873856291fd301b7dc3d2b3b0ce7ea09f2f5c",
+        "deadlineAt": "2026-11-10T03:07:51.520Z",
+        "maxModelCalls": 12,
+        "maxModelTokens": 786432,
+        "maxToolCalls": 24,
+        "maxCodeExecutions": 12,
+        "maxCostAmount": "10",
+        "costCurrency": "USD",
+        "maxCpuMillis": 300000,
+        "maxMemoryBytes": 536870912,
+        "maxOutputBytes": 4194304
+      },
+      "runtimeUsage": {
+        "budgetId": "analysis-coding-tool-budget:analysis-coding-dade333dd3cbe0045290656e2f7873856291fd301b7dc3d2b3b0ce7ea09f2f5c",
+        "costCurrency": "USD",
+        "consumed": {
+          "modelCalls": 12,
+          "modelTokens": 255224,
+          "toolCalls": 3,
+          "codeExecutions": 3,
+          "cpuMillis": 0,
+          "peakMemoryBytes": 0,
+          "outputBytes": 5321,
+          "costAmount": "0"
+        },
+        "reserved": {
+          "modelCalls": 0,
+          "modelTokens": 17682,
+          "toolCalls": 0,
+          "codeExecutions": 0,
+          "cpuMillis": 75000,
+          "peakMemoryBytes": 0,
+          "outputBytes": 1043254,
+          "costAmount": "9.999999999996"
+        },
+        "meteringComplete": false
+      },
+      "executionControl": {
+        "stopReason": null,
+        "stopRequestedAt": null,
+        "executorStopped": true,
+        "reconciliationRequired": false
+      },
+      "pythonExecutions": [
+        {
+          "executionId": "cline-f87a634697ee09fbad7602012f9c8235fb7a183532abfee79ecabd956e8831d5",
+          "status": "SUCCEEDED",
+          "stage": "RESULT_VALIDATION_FAILED",
+          "exitCode": 0,
+          "codeHash": "0781bedd4286d8fc651f4d857656919962faae19972ebac76822b415412e17cf",
+          "durationMs": 3769,
+          "validationStatus": "FAILED",
+          "resultAvailable": false,
+          "businessValidationPassed": false,
+          "diagnosticCode": "OUTPUT_CONTRACT",
+          "exceptionType": null
+        },
+        {
+          "executionId": "cline-0fca5fcb6685237a4b7f6933a8540cf724b951ff5b10526b5df76330391a1331",
+          "status": "SUCCEEDED",
+          "stage": "RESULT_VALIDATION_FAILED",
+          "exitCode": 0,
+          "codeHash": "f080ba04ec4672c8b02e6d33752f0089cbd401ce7f9e438c9befe46bc8d5f64c",
+          "durationMs": 1655,
+          "validationStatus": "FAILED",
+          "resultAvailable": false,
+          "businessValidationPassed": false,
+          "diagnosticCode": "OUTPUT_CONTRACT",
+          "exceptionType": null
+        },
+        {
+          "executionId": "cline-df04f1b89df105d73560376c1b83547a2214f213b17b8eea15132ab1866dd21d",
+          "status": "SUCCEEDED",
+          "stage": "RESULT_VALIDATION_FAILED",
+          "exitCode": 0,
+          "codeHash": "677a0f97c56f3882422b1b50e82246c2d102091bd4892e5576a000e23410b505",
+          "durationMs": 1688,
+          "validationStatus": "FAILED",
+          "resultAvailable": false,
+          "businessValidationPassed": false,
+          "diagnosticCode": "OUTPUT_CONTRACT",
+          "exceptionType": null
+        }
+      ],
+      "codeVersions": [
+        {
+          "version": 1,
+          "codeHash": "0781bedd4286d8fc651f4d857656919962faae19972ebac76822b415412e17cf",
+          "parentHash": null,
+          "parentVersion": null,
+          "operationId": "cline-f87a634697ee09fbad7602012f9c8235fb7a183532abfee79ecabd956e8831d5",
+          "status": "REJECTED",
+          "kind": "INITIAL",
+          "editCount": 0,
+          "patchHash": "643d5437104296e21d906ecb15b2c96ad278f20cfc4af53b12bb6069bd853726"
+        },
+        {
+          "version": 2,
+          "codeHash": "f080ba04ec4672c8b02e6d33752f0089cbd401ce7f9e438c9befe46bc8d5f64c",
+          "parentHash": "0781bedd4286d8fc651f4d857656919962faae19972ebac76822b415412e17cf",
+          "parentVersion": 1,
+          "operationId": "cline-0fca5fcb6685237a4b7f6933a8540cf724b951ff5b10526b5df76330391a1331",
+          "status": "REJECTED",
+          "kind": "PATCH",
+          "editCount": 1,
+          "patchHash": "0551f450ade7111b4480ebab76c909c86ab70f1cbd8eaba6c23b3cec2dc45f35"
+        },
+        {
+          "version": 3,
+          "codeHash": "677a0f97c56f3882422b1b50e82246c2d102091bd4892e5576a000e23410b505",
+          "parentHash": "f080ba04ec4672c8b02e6d33752f0089cbd401ce7f9e438c9befe46bc8d5f64c",
+          "parentVersion": 2,
+          "operationId": "cline-df04f1b89df105d73560376c1b83547a2214f213b17b8eea15132ab1866dd21d",
+          "status": "REJECTED",
+          "kind": "PATCH",
+          "editCount": 1,
+          "patchHash": "8c4b10804655c8987d39f7de1d8ed7d870aa88742c1320ddf99f9eeb780a225a"
+        }
+      ],
+      "inputAudit": {
+        "inputIntegrity": "PASSED",
+        "customerMatched": true,
+        "businessDate": "20260731",
+        "transportRowCount": null,
+        "businessRows": null,
+        "rows": {
+          "livedata_cx_mncg_khzc_r#template-binding-1-binding-1": 1,
+          "livedata_cx_mncg_zqyels#template-binding-2-binding-2": 20,
+          "livedata_cx_mncg_wtls#template-binding-3-binding-3": 37
+        },
+        "sourceAvailability": {
+          "livedata_cx_mncg_khzc_r#template-binding-1-binding-1": {
+            "deliveryStatus": "DATASET_READY",
+            "sourceVerifiedEmpty": false,
+            "rowCount": 1
+          },
+          "livedata_cx_mncg_zqyels#template-binding-2-binding-2": {
+            "deliveryStatus": "DATASET_READY",
+            "sourceVerifiedEmpty": false,
+            "rowCount": 20
+          },
+          "livedata_cx_mncg_wtls#template-binding-3-binding-3": {
+            "deliveryStatus": "DATASET_READY",
+            "sourceVerifiedEmpty": false,
+            "rowCount": 37
+          }
+        },
+        "dataSupplyStatus": null,
+        "selectionFailures": null,
+        "semanticAcceptance": "INCONCLUSIVE_UNTIL_ARCHIVED_REPORT_COMPARISON"
+      },
+      "businessAccepted": false,
+      "operatorStopped": false
+    },
+    {
+      "case": 2,
+      "codeBaseline": "52319cd6d",
+      "editingProfile": "editor",
+      "taskId": "a05dba1a-d66e-3663-9551-f575c86c16a1",
+      "attemptId": "att-1-707d0bd0-6705-4d36-a372-6ae5489287f9",
+      "parentStatus": "FAILED",
+      "requestedModel": null,
+      "runtimeCodingStatus": "FAILED",
+      "nativeStatus": "FAILED",
+      "workerStopped": true,
+      "activeOperations": [],
+      "budget": {
+        "budgetId": "analysis-coding-tool-budget:analysis-coding-3e75e9a2079b80b142ab69922cca59b42dbcb490927005109ca7752193de43c5",
+        "deadlineAt": "2026-11-10T03:15:41.719Z",
+        "maxModelCalls": 12,
+        "maxModelTokens": 786432,
+        "maxToolCalls": 24,
+        "maxCodeExecutions": 12,
+        "maxCostAmount": "10",
+        "costCurrency": "USD",
+        "maxCpuMillis": 300000,
+        "maxMemoryBytes": 536870912,
+        "maxOutputBytes": 4194304
+      },
+      "runtimeUsage": {
+        "budgetId": "analysis-coding-tool-budget:analysis-coding-3e75e9a2079b80b142ab69922cca59b42dbcb490927005109ca7752193de43c5",
+        "costCurrency": "USD",
+        "consumed": {
+          "modelCalls": 9,
+          "modelTokens": 204892,
+          "toolCalls": 1,
+          "codeExecutions": 1,
+          "cpuMillis": 0,
+          "peakMemoryBytes": 0,
+          "outputBytes": 1771,
+          "costAmount": "0"
+        },
+        "reserved": {
+          "modelCalls": 0,
+          "modelTokens": 5652,
+          "toolCalls": 0,
+          "codeExecutions": 0,
+          "cpuMillis": 25000,
+          "peakMemoryBytes": 0,
+          "outputBytes": 347754,
+          "costAmount": "7.499999999997"
+        },
+        "meteringComplete": false
+      },
+      "executionControl": {
+        "stopReason": null,
+        "stopRequestedAt": null,
+        "executorStopped": true,
+        "reconciliationRequired": false
+      },
+      "pythonExecutions": [
+        {
+          "executionId": "cline-fad3a5c0af8abb1713d7f778481ad4f538799c87140132f331f1eb30c071dceb",
+          "status": "FAILED",
+          "stage": "EXECUTION_FAILED",
+          "exitCode": 1,
+          "codeHash": "3fef6d3bb00cb6b0ed30b00e0aa46d9ae4325d8a0a53abddb0abe264f2283e7e",
+          "durationMs": 1581,
+          "validationStatus": "NOT_RUN",
+          "resultAvailable": false,
+          "businessValidationPassed": false,
+          "diagnosticCode": "UNKNOWN",
+          "exceptionType": null
+        }
+      ],
+      "codeVersions": [
+        {
+          "version": 1,
+          "codeHash": "3fef6d3bb00cb6b0ed30b00e0aa46d9ae4325d8a0a53abddb0abe264f2283e7e",
+          "parentHash": null,
+          "parentVersion": null,
+          "operationId": "cline-fad3a5c0af8abb1713d7f778481ad4f538799c87140132f331f1eb30c071dceb",
+          "status": "REJECTED",
+          "kind": "INITIAL",
+          "editCount": 0,
+          "patchHash": "643d5437104296e21d906ecb15b2c96ad278f20cfc4af53b12bb6069bd853726"
+        }
+      ],
+      "inputAudit": {
+        "inputIntegrity": "PASSED",
+        "customerMatched": true,
+        "businessDate": "20260731",
+        "transportRowCount": null,
+        "businessRows": null,
+        "rows": {
+          "livedata_cx_mncg_zqyels#template-binding-2-binding-2": 20,
+          "livedata_cx_mncg_wtls#template-binding-3-binding-3": 37,
+          "livedata_cx_mncg_khzc_r#template-binding-4-binding-4": 1,
+          "livedata_SQL_ADS_IDS_SECU_AST_LIAB#template-binding-1-binding-1": 0,
+          "livedata_SQL_ADS_IDS_CLR_DELI_JOUR_SECU#template-binding-5-binding-5": 0
+        },
+        "sourceAvailability": {
+          "livedata_SQL_ADS_IDS_SECU_AST_LIAB#template-binding-1-binding-1": {
+            "deliveryStatus": "EMPTY_RESULT",
+            "sourceVerifiedEmpty": true,
+            "rowCount": 0
+          },
+          "livedata_cx_mncg_zqyels#template-binding-2-binding-2": {
+            "deliveryStatus": "DATASET_READY",
+            "sourceVerifiedEmpty": false,
+            "rowCount": 20
+          },
+          "livedata_cx_mncg_wtls#template-binding-3-binding-3": {
+            "deliveryStatus": "DATASET_READY",
+            "sourceVerifiedEmpty": false,
+            "rowCount": 37
+          },
+          "livedata_cx_mncg_khzc_r#template-binding-4-binding-4": {
+            "deliveryStatus": "DATASET_READY",
+            "sourceVerifiedEmpty": false,
+            "rowCount": 1
+          },
+          "livedata_SQL_ADS_IDS_CLR_DELI_JOUR_SECU#template-binding-5-binding-5": {
+            "deliveryStatus": "EMPTY_RESULT",
+            "sourceVerifiedEmpty": true,
+            "rowCount": 0
+          }
+        },
+        "dataSupplyStatus": null,
+        "selectionFailures": null,
+        "semanticAcceptance": "INCONCLUSIVE_UNTIL_ARCHIVED_REPORT_COMPARISON"
+      },
+      "businessAccepted": false,
+      "operatorStopped": false
+    },
+    {
+      "case": 3,
+      "codeBaseline": "3fbdb709e",
+      "editingProfile": "editor",
+      "taskId": "37a19e48-8fb7-349d-a99e-93170532c8d3",
+      "attemptId": "att-1-b73e550e-cb17-4850-b713-6ef48197ae34",
+      "parentStatus": "FAILED",
+      "requestedModel": null,
+      "runtimeCodingStatus": "FAILED",
+      "nativeStatus": "FAILED",
+      "workerStopped": true,
+      "activeOperations": [],
+      "budget": {
+        "budgetId": "analysis-coding-tool-budget:analysis-coding-4362a75c23a4df55be643eedbcc636646f37983b87ff8c4429de10e5d3ebf294",
+        "deadlineAt": "2026-11-10T03:23:52.073Z",
+        "maxModelCalls": 12,
+        "maxModelTokens": 786432,
+        "maxToolCalls": 24,
+        "maxCodeExecutions": 12,
+        "maxCostAmount": "10",
+        "costCurrency": "USD",
+        "maxCpuMillis": 300000,
+        "maxMemoryBytes": 536870912,
+        "maxOutputBytes": 4194304
+      },
+      "runtimeUsage": {
+        "budgetId": "analysis-coding-tool-budget:analysis-coding-4362a75c23a4df55be643eedbcc636646f37983b87ff8c4429de10e5d3ebf294",
+        "costCurrency": "USD",
+        "consumed": {
+          "modelCalls": 12,
+          "modelTokens": 412473,
+          "toolCalls": 1,
+          "codeExecutions": 1,
+          "cpuMillis": 0,
+          "peakMemoryBytes": 0,
+          "outputBytes": 1765,
+          "costAmount": "0"
+        },
+        "reserved": {
+          "modelCalls": 0,
+          "modelTokens": 3945,
+          "toolCalls": 0,
+          "codeExecutions": 0,
+          "cpuMillis": 25000,
+          "peakMemoryBytes": 0,
+          "outputBytes": 347760,
+          "costAmount": "9.999999999996"
+        },
+        "meteringComplete": false
+      },
+      "executionControl": {
+        "stopReason": null,
+        "stopRequestedAt": null,
+        "executorStopped": true,
+        "reconciliationRequired": false
+      },
+      "pythonExecutions": [
+        {
+          "executionId": "cline-daed0b88dd9f23c3961e1efe9729f689987a37ce737112d4d3322c53067ad7f4",
+          "status": "SUCCEEDED",
+          "stage": "RESULT_VALIDATION_FAILED",
+          "exitCode": 0,
+          "codeHash": "c15f208c1d7c14b4f0705905536e3e5080ad11c82a318bd444e7aeb10b81298b",
+          "durationMs": 561,
+          "validationStatus": "FAILED",
+          "resultAvailable": false,
+          "businessValidationPassed": false,
+          "diagnosticCode": "OUTPUT_CONTRACT",
+          "exceptionType": null
+        }
+      ],
+      "codeVersions": [
+        {
+          "version": 1,
+          "codeHash": "c15f208c1d7c14b4f0705905536e3e5080ad11c82a318bd444e7aeb10b81298b",
+          "parentHash": null,
+          "parentVersion": null,
+          "operationId": "cline-daed0b88dd9f23c3961e1efe9729f689987a37ce737112d4d3322c53067ad7f4",
+          "status": "REJECTED",
+          "kind": "INITIAL",
+          "editCount": 0,
+          "patchHash": "643d5437104296e21d906ecb15b2c96ad278f20cfc4af53b12bb6069bd853726"
+        }
+      ],
+      "inputAudit": {
+        "inputIntegrity": "PASSED",
+        "customerMatched": true,
+        "businessDate": "20260731",
+        "transportRowCount": null,
+        "businessRows": null,
+        "rows": {
+          "livedata_cx_mncg_khzc_r#template-binding-1-binding-1": 1,
+          "livedata_cx_mncg_zqyels#template-binding-2-binding-2": 20,
+          "livedata_cx_mncg_jgmxls#template-binding-3-binding-3": 27,
+          "livedata_SQL_ADS_IDS_CLR_DELI_JOUR_SECU#template-binding-4-binding-4": 0
+        },
+        "sourceAvailability": {
+          "livedata_cx_mncg_khzc_r#template-binding-1-binding-1": {
+            "deliveryStatus": "DATASET_READY",
+            "sourceVerifiedEmpty": false,
+            "rowCount": 1
+          },
+          "livedata_cx_mncg_zqyels#template-binding-2-binding-2": {
+            "deliveryStatus": "DATASET_READY",
+            "sourceVerifiedEmpty": false,
+            "rowCount": 20
+          },
+          "livedata_cx_mncg_jgmxls#template-binding-3-binding-3": {
+            "deliveryStatus": "DATASET_READY",
+            "sourceVerifiedEmpty": false,
+            "rowCount": 27
+          },
+          "livedata_SQL_ADS_IDS_CLR_DELI_JOUR_SECU#template-binding-4-binding-4": {
+            "deliveryStatus": "EMPTY_RESULT",
+            "sourceVerifiedEmpty": true,
+            "rowCount": 0
+          }
+        },
+        "dataSupplyStatus": null,
+        "selectionFailures": null,
+        "semanticAcceptance": "INCONCLUSIVE_UNTIL_ARCHIVED_REPORT_COMPARISON"
+      },
+      "businessAccepted": false,
+      "operatorStopped": false
+    },
+    {
+      "case": 4,
+      "codeBaseline": "b40718e0c",
+      "editingProfile": "editor",
+      "taskId": "ee589648-fa65-3925-8436-42cb6b57babd",
+      "attemptId": "att-1-524eb6d8-8b54-4096-a0b6-3693ed7825a5",
+      "parentStatus": "FAILED",
+      "requestedModel": null,
+      "runtimeCodingStatus": "CANCELLED",
+      "nativeStatus": "CANCELLED",
+      "workerStopped": true,
+      "activeOperations": [],
+      "budget": {
+        "budgetId": "analysis-coding-tool-budget:analysis-coding-09838395b935017058398c05e3d9ac62d1b65be9a17127c24aba461be96b2410",
+        "deadlineAt": "2026-11-10T03:43:05.117Z",
+        "maxModelCalls": 12,
+        "maxModelTokens": 786432,
+        "maxToolCalls": 24,
+        "maxCodeExecutions": 12,
+        "maxCostAmount": "10",
+        "costCurrency": "USD",
+        "maxCpuMillis": 300000,
+        "maxMemoryBytes": 536870912,
+        "maxOutputBytes": 4194304
+      },
+      "runtimeUsage": {
+        "budgetId": "analysis-coding-tool-budget:analysis-coding-09838395b935017058398c05e3d9ac62d1b65be9a17127c24aba461be96b2410",
+        "costCurrency": "USD",
+        "consumed": {
+          "modelCalls": 7,
+          "modelTokens": 165025,
+          "toolCalls": 1,
+          "codeExecutions": 1,
+          "cpuMillis": 0,
+          "peakMemoryBytes": 0,
+          "outputBytes": 7253,
+          "costAmount": "0"
+        },
+        "reserved": {
+          "modelCalls": 1,
+          "modelTokens": 23380,
+          "toolCalls": 0,
+          "codeExecutions": 0,
+          "cpuMillis": 25000,
+          "peakMemoryBytes": 0,
+          "outputBytes": 342272,
+          "costAmount": "6.666666666664"
+        },
+        "meteringComplete": false
+      },
+      "executionControl": {
+        "stopReason": "CANCEL_REQUESTED",
+        "stopRequestedAt": "2026-11-10T03:25:37.813Z",
+        "executorStopped": true,
+        "reconciliationRequired": false
+      },
+      "pythonExecutions": [
+        {
+          "executionId": "cline-aa9d5a70a9e7d940f88b41c1c6a43844ce950e13658018d34800e8c69e2403b7",
+          "status": "SUCCEEDED",
+          "stage": "RESULT_VALIDATION_FAILED",
+          "exitCode": 0,
+          "codeHash": "d53ca9aa00e280134313c3416678f201b69c5ded04b53be680211c19cca86a1d",
+          "durationMs": 550,
+          "validationStatus": "FAILED",
+          "resultAvailable": false,
+          "businessValidationPassed": false,
+          "diagnosticCode": "OUTPUT_CONTRACT",
+          "exceptionType": null
+        }
+      ],
+      "codeVersions": [
+        {
+          "version": 1,
+          "codeHash": "d53ca9aa00e280134313c3416678f201b69c5ded04b53be680211c19cca86a1d",
+          "parentHash": null,
+          "parentVersion": null,
+          "operationId": "cline-aa9d5a70a9e7d940f88b41c1c6a43844ce950e13658018d34800e8c69e2403b7",
+          "status": "REJECTED",
+          "kind": "INITIAL",
+          "editCount": 0,
+          "patchHash": "643d5437104296e21d906ecb15b2c96ad278f20cfc4af53b12bb6069bd853726"
+        }
+      ],
+      "inputAudit": {
+        "inputIntegrity": "PASSED",
+        "customerMatched": null,
+        "businessDate": null,
+        "transportRowCount": null,
+        "businessRows": null,
+        "rows": {
+          "livedata_SQL_ADS_IDS_SECU_AST_LIAB#template-binding-1-binding-1": 0,
+          "livedata_SQL_ADS_IDS_CLR_DELI_JOUR_SECU#template-binding-2-binding-2": 0
+        },
+        "sourceAvailability": {
+          "livedata_SQL_ADS_IDS_SECU_AST_LIAB#template-binding-1-binding-1": {
+            "deliveryStatus": "EMPTY_RESULT",
+            "sourceVerifiedEmpty": true,
+            "rowCount": 0
+          },
+          "livedata_SQL_ADS_IDS_CLR_DELI_JOUR_SECU#template-binding-2-binding-2": {
+            "deliveryStatus": "EMPTY_RESULT",
+            "sourceVerifiedEmpty": true,
+            "rowCount": 0
+          }
+        },
+        "dataSupplyStatus": null,
+        "selectionFailures": null,
+        "semanticAcceptance": "INCONCLUSIVE_VERIFIED_EMPTY_SOURCE"
+      },
+      "businessAccepted": false,
+      "operatorStopped": true
+    },
+    {
+      "case": 5,
+      "codeBaseline": "b40718e0c",
+      "editingProfile": "editor",
+      "taskId": "b38052ae-c392-3388-8257-051aefcde4b2",
+      "attemptId": "att-1-2f5e6223-d089-414d-b6da-f611253eaeca",
+      "parentStatus": "FAILED",
+      "requestedModel": null,
+      "runtimeCodingStatus": "FAILED",
+      "nativeStatus": "FAILED",
+      "workerStopped": true,
+      "activeOperations": [],
+      "budget": {
+        "budgetId": "analysis-coding-tool-budget:analysis-coding-dc91a2e7114cb657661b253e518eb925cb85cb65ee501166356dffe9f3a131d8",
+        "deadlineAt": "2026-11-10T03:48:16.911Z",
+        "maxModelCalls": 12,
+        "maxModelTokens": 786432,
+        "maxToolCalls": 24,
+        "maxCodeExecutions": 12,
+        "maxCostAmount": "10",
+        "costCurrency": "USD",
+        "maxCpuMillis": 300000,
+        "maxMemoryBytes": 536870912,
+        "maxOutputBytes": 4194304
+      },
+      "runtimeUsage": {
+        "budgetId": "analysis-coding-tool-budget:analysis-coding-dc91a2e7114cb657661b253e518eb925cb85cb65ee501166356dffe9f3a131d8",
+        "costCurrency": "USD",
+        "consumed": {
+          "modelCalls": 12,
+          "modelTokens": 393227,
+          "toolCalls": 0,
+          "codeExecutions": 0,
+          "cpuMillis": 0,
+          "peakMemoryBytes": 0,
+          "outputBytes": 0,
+          "costAmount": "0"
+        },
+        "reserved": {
+          "modelCalls": 0,
+          "modelTokens": 4624,
+          "toolCalls": 0,
+          "codeExecutions": 0,
+          "cpuMillis": 0,
+          "peakMemoryBytes": 0,
+          "outputBytes": 0,
+          "costAmount": "9.999999999996"
+        },
+        "meteringComplete": false
+      },
+      "executionControl": {
+        "stopReason": null,
+        "stopRequestedAt": null,
+        "executorStopped": true,
+        "reconciliationRequired": false
+      },
+      "pythonExecutions": [],
+      "codeVersions": [],
+      "inputAudit": {
+        "inputIntegrity": "PASSED",
+        "customerMatched": true,
+        "businessDate": "20260731",
+        "transportRowCount": null,
+        "businessRows": null,
+        "rows": {
+          "livedata_cx_mncg_khzc_r#template-binding-1-binding-1": 1,
+          "livedata_cx_mncg_zqyels#template-binding-2-binding-2": 20,
+          "livedata_cx_mncg_wtls#template-binding-3-binding-3": 37
+        },
+        "sourceAvailability": {
+          "livedata_cx_mncg_khzc_r#template-binding-1-binding-1": {
+            "deliveryStatus": "DATASET_READY",
+            "sourceVerifiedEmpty": false,
+            "rowCount": 1
+          },
+          "livedata_cx_mncg_zqyels#template-binding-2-binding-2": {
+            "deliveryStatus": "DATASET_READY",
+            "sourceVerifiedEmpty": false,
+            "rowCount": 20
+          },
+          "livedata_cx_mncg_wtls#template-binding-3-binding-3": {
+            "deliveryStatus": "DATASET_READY",
+            "sourceVerifiedEmpty": false,
+            "rowCount": 37
+          }
+        },
+        "dataSupplyStatus": null,
+        "selectionFailures": null,
+        "semanticAcceptance": "INCONCLUSIVE_UNTIL_ARCHIVED_REPORT_COMPARISON"
+      },
+      "businessAccepted": false,
+      "operatorStopped": false
+    },
+    {
+      "case": 6,
+      "codeBaseline": "b40718e0c",
+      "editingProfile": "editor",
+      "taskId": "272c7093-f8b2-3411-876c-e7007eee20b7",
+      "attemptId": "att-1-41777c30-90b5-4713-b0eb-41b6e65a2da5",
+      "parentStatus": "KILLED",
+      "requestedModel": "deepseek-v4-pro",
+      "runtimeCodingStatus": null,
+      "nativeStatus": null,
+      "workerStopped": null,
+      "activeOperations": [],
+      "budget": null,
+      "runtimeUsage": null,
+      "executionControl": null,
+      "pythonExecutions": [],
+      "codeVersions": [],
+      "inputAudit": {
+        "inputIntegrity": null,
+        "customerMatched": null,
+        "businessDate": null,
+        "transportRowCount": null,
+        "businessRows": null,
+        "rows": null,
+        "sourceAvailability": null,
+        "dataSupplyStatus": null,
+        "selectionFailures": null,
+        "semanticAcceptance": null
+      },
+      "businessAccepted": false,
+      "operatorStopped": true
+    },
+    {
+      "case": 7,
+      "codeBaseline": "3ac447b54",
+      "editingProfile": "editor",
+      "taskId": "501f1e1b-e558-3858-a739-bd07b0540e86",
+      "attemptId": "att-1-3646f5d6-6348-4caf-9229-0342bb28be71",
+      "parentStatus": "FAILED",
+      "requestedModel": "deepseek-v4-pro",
+      "runtimeCodingStatus": "FAILED",
+      "nativeStatus": "UNKNOWN",
+      "workerStopped": true,
+      "activeOperations": [
+        "cline-4bbd00001ca6e080092e3503543142052386fb6a0ae7f8f58ea23620c66c5b19"
+      ],
+      "budget": {
+        "budgetId": "analysis-coding-tool-budget:analysis-coding-1532ba1df04634a2e40d7cb6014b1662eeb3e0cd1aa4b22e3d4818cd9bf7a2fa",
+        "deadlineAt": "2026-11-10T04:01:09.703Z",
+        "maxModelCalls": 12,
+        "maxModelTokens": 786432,
+        "maxToolCalls": 24,
+        "maxCodeExecutions": 12,
+        "maxCostAmount": "10",
+        "costCurrency": "USD",
+        "maxCpuMillis": 300000,
+        "maxMemoryBytes": 536870912,
+        "maxOutputBytes": 4194304
+      },
+      "runtimeUsage": {
+        "budgetId": "analysis-coding-tool-budget:analysis-coding-1532ba1df04634a2e40d7cb6014b1662eeb3e0cd1aa4b22e3d4818cd9bf7a2fa",
+        "costCurrency": "USD",
+        "consumed": {
+          "modelCalls": 12,
+          "modelTokens": 392841,
+          "toolCalls": 1,
+          "codeExecutions": 1,
+          "cpuMillis": 0,
+          "peakMemoryBytes": 0,
+          "outputBytes": 2194,
+          "costAmount": "0"
+        },
+        "reserved": {
+          "modelCalls": 0,
+          "modelTokens": 3097,
+          "toolCalls": 0,
+          "codeExecutions": 0,
+          "cpuMillis": 25000,
+          "peakMemoryBytes": 0,
+          "outputBytes": 347331,
+          "costAmount": "9.999999999996"
+        },
+        "meteringComplete": false
+      },
+      "executionControl": {
+        "stopReason": null,
+        "stopRequestedAt": null,
+        "executorStopped": true,
+        "reconciliationRequired": false
+      },
+      "pythonExecutions": [
+        {
+          "executionId": "cline-1a001a403d14b68c588f58cd6c6589a5a41deeb00a4f1c2d32041d2593ddb15c",
+          "status": "FAILED",
+          "stage": "EXECUTION_FAILED",
+          "exitCode": 1,
+          "codeHash": "185d275320aa8b1090bd1417fe3b96595f03ef366ab0bb7078a154fb19bcb9e4",
+          "durationMs": 1428,
+          "validationStatus": "NOT_RUN",
+          "resultAvailable": false,
+          "businessValidationPassed": false,
+          "diagnosticCode": "JSON_VALUE_NOT_SERIALIZABLE",
+          "exceptionType": "TypeError"
+        }
+      ],
+      "codeVersions": [
+        {
+          "version": 1,
+          "codeHash": "185d275320aa8b1090bd1417fe3b96595f03ef366ab0bb7078a154fb19bcb9e4",
+          "parentHash": null,
+          "parentVersion": null,
+          "operationId": "cline-1a001a403d14b68c588f58cd6c6589a5a41deeb00a4f1c2d32041d2593ddb15c",
+          "status": "REJECTED",
+          "kind": "INITIAL",
+          "editCount": 0,
+          "patchHash": "643d5437104296e21d906ecb15b2c96ad278f20cfc4af53b12bb6069bd853726"
+        },
+        {
+          "version": 2,
+          "codeHash": "185d275320aa8b1090bd1417fe3b96595f03ef366ab0bb7078a154fb19bcb9e4",
+          "parentHash": "185d275320aa8b1090bd1417fe3b96595f03ef366ab0bb7078a154fb19bcb9e4",
+          "parentVersion": 1,
+          "operationId": "cline-4bbd00001ca6e080092e3503543142052386fb6a0ae7f8f58ea23620c66c5b19",
+          "status": "STARTED",
+          "kind": "REEXECUTE",
+          "editCount": 0,
+          "patchHash": "643d5437104296e21d906ecb15b2c96ad278f20cfc4af53b12bb6069bd853726"
+        }
+      ],
+      "inputAudit": {
+        "inputIntegrity": "PASSED",
+        "customerMatched": true,
+        "businessDate": "20260731",
+        "transportRowCount": null,
+        "businessRows": null,
+        "rows": {
+          "livedata_cx_mncg_khzc_r#template-binding-1-binding-1": 1,
+          "livedata_cx_mncg_zqyels#template-binding-2-binding-2": 20,
+          "livedata_cx_mncg_wtls#template-binding-3-binding-3": 37,
+          "livedata_cx_mncg_zjyels#template-binding-5-binding-5": 1,
+          "livedata_SQL_ADS_IDS_CLR_DELI_JOUR_SECU#template-binding-4-binding-4": 0
+        },
+        "sourceAvailability": {
+          "livedata_cx_mncg_khzc_r#template-binding-1-binding-1": {
+            "deliveryStatus": "DATASET_READY",
+            "sourceVerifiedEmpty": false,
+            "rowCount": 1
+          },
+          "livedata_cx_mncg_zqyels#template-binding-2-binding-2": {
+            "deliveryStatus": "DATASET_READY",
+            "sourceVerifiedEmpty": false,
+            "rowCount": 20
+          },
+          "livedata_cx_mncg_wtls#template-binding-3-binding-3": {
+            "deliveryStatus": "DATASET_READY",
+            "sourceVerifiedEmpty": false,
+            "rowCount": 37
+          },
+          "livedata_SQL_ADS_IDS_CLR_DELI_JOUR_SECU#template-binding-4-binding-4": {
+            "deliveryStatus": "EMPTY_RESULT",
+            "sourceVerifiedEmpty": true,
+            "rowCount": 0
+          },
+          "livedata_cx_mncg_zjyels#template-binding-5-binding-5": {
+            "deliveryStatus": "DATASET_READY",
+            "sourceVerifiedEmpty": false,
+            "rowCount": 1
+          }
+        },
+        "dataSupplyStatus": null,
+        "selectionFailures": null,
+        "semanticAcceptance": "INCONCLUSIVE_UNTIL_ARCHIVED_REPORT_COMPARISON"
+      },
+      "businessAccepted": false,
+      "operatorStopped": false
+    },
+    {
+      "case": 8,
+      "codeBaseline": "82705e3a5",
+      "editingProfile": "apply_patch",
+      "taskId": "3a009cc4-208b-362b-860d-065878f76f21",
+      "attemptId": "att-1-bf4f7c85-3796-4bff-949d-ba49c04cf1c3",
+      "parentStatus": "FAILED",
+      "requestedModel": null,
+      "runtimeCodingStatus": "FAILED",
+      "nativeStatus": "FAILED",
+      "workerStopped": true,
+      "activeOperations": [],
+      "budget": {
+        "budgetId": "analysis-coding-tool-budget:analysis-coding-c2db502c443b5806f3ff43d6dbb66ee246aec62b6959abfe6cb657fd89846db7",
+        "deadlineAt": "2026-11-10T04:18:05.325Z",
+        "maxModelCalls": 12,
+        "maxModelTokens": 786432,
+        "maxToolCalls": 24,
+        "maxCodeExecutions": 12,
+        "maxCostAmount": "10",
+        "costCurrency": "USD",
+        "maxCpuMillis": 300000,
+        "maxMemoryBytes": 536870912,
+        "maxOutputBytes": 4194304
+      },
+      "runtimeUsage": {
+        "budgetId": "analysis-coding-tool-budget:analysis-coding-c2db502c443b5806f3ff43d6dbb66ee246aec62b6959abfe6cb657fd89846db7",
+        "costCurrency": "USD",
+        "consumed": {
+          "modelCalls": 12,
+          "modelTokens": 380725,
+          "toolCalls": 2,
+          "codeExecutions": 2,
+          "cpuMillis": 0,
+          "peakMemoryBytes": 0,
+          "outputBytes": 4002,
+          "costAmount": "0"
+        },
+        "reserved": {
+          "modelCalls": 0,
+          "modelTokens": 13773,
+          "toolCalls": 0,
+          "codeExecutions": 0,
+          "cpuMillis": 50000,
+          "peakMemoryBytes": 0,
+          "outputBytes": 695048,
+          "costAmount": "9.999999999996"
+        },
+        "meteringComplete": false
+      },
+      "executionControl": {
+        "stopReason": null,
+        "stopRequestedAt": null,
+        "executorStopped": true,
+        "reconciliationRequired": false
+      },
+      "pythonExecutions": [
+        {
+          "executionId": "cline-060540396675306194a3fffd6f04a00500c2dd4e3149e66e67bbd26662ac0693",
+          "status": "SUCCEEDED",
+          "stage": "RESULT_VALIDATION_FAILED",
+          "exitCode": 0,
+          "codeHash": "6eb769b986f36f4b02c3c248f2eb290fb6209490ccc26a916e5ae1b671ab904d",
+          "durationMs": 1814,
+          "validationStatus": "FAILED",
+          "resultAvailable": false,
+          "businessValidationPassed": false,
+          "diagnosticCode": "OUTPUT_CONTRACT",
+          "exceptionType": null
+        },
+        {
+          "executionId": "cline-84fdb2664de23d7f2c1fd8a210328defa04ce7692b8ec1f67eef01ed6e10e4de",
+          "status": "FAILED",
+          "stage": "EXECUTION_FAILED",
+          "exitCode": 1,
+          "codeHash": "af1ef1d86548c6515d6ca9e95bf5d3e1c456199201cf3b57bf92232966f48dad",
+          "durationMs": 513,
+          "validationStatus": "NOT_RUN",
+          "resultAvailable": false,
+          "businessValidationPassed": false,
+          "diagnosticCode": "PROGRAM_ERROR",
+          "exceptionType": "AssertionError"
+        }
+      ],
+      "codeVersions": [
+        {
+          "version": 1,
+          "codeHash": "6eb769b986f36f4b02c3c248f2eb290fb6209490ccc26a916e5ae1b671ab904d",
+          "parentHash": null,
+          "parentVersion": null,
+          "operationId": "cline-060540396675306194a3fffd6f04a00500c2dd4e3149e66e67bbd26662ac0693",
+          "status": "REJECTED",
+          "kind": "INITIAL",
+          "editCount": 0,
+          "patchHash": "643d5437104296e21d906ecb15b2c96ad278f20cfc4af53b12bb6069bd853726"
+        },
+        {
+          "version": 2,
+          "codeHash": "af1ef1d86548c6515d6ca9e95bf5d3e1c456199201cf3b57bf92232966f48dad",
+          "parentHash": "6eb769b986f36f4b02c3c248f2eb290fb6209490ccc26a916e5ae1b671ab904d",
+          "parentVersion": 1,
+          "operationId": "cline-84fdb2664de23d7f2c1fd8a210328defa04ce7692b8ec1f67eef01ed6e10e4de",
+          "status": "REJECTED",
+          "kind": "PATCH",
+          "editCount": 2,
+          "patchHash": "412117f4dee68570cd2bf11901fae41c0079d4fd2e79fad989b677dfe068f5d1"
+        }
+      ],
+      "inputAudit": {
+        "inputIntegrity": "PASSED",
+        "customerMatched": null,
+        "businessDate": null,
+        "transportRowCount": 1,
+        "businessRows": 0,
+        "rows": {
+          "supply-status:att-1-bf4f7c85-3796-4bff-949d-ba49c04cf1c3": 1
+        },
+        "sourceAvailability": null,
+        "dataSupplyStatus": [
+          "SELECTION_FAILED"
+        ],
+        "selectionFailures": [
+          {
+            "code": "MODEL_UNAVAILABLE",
+            "stage": "SELECTION",
+            "status": "SELECTION_FAILED",
+            "mcpDiscoverySucceeded": true
+          }
+        ],
+        "semanticAcceptance": "INCONCLUSIVE_SOURCE_UNAVAILABLE"
+      },
+      "businessAccepted": false,
+      "operatorStopped": false
+    }
+  ]
+}

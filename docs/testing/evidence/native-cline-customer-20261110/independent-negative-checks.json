@@ -1,0 +1,17 @@
+{
+  "scriptSha256": "025dbb4b5e8558f873597a5a11485f844c4fef5a5a7dedc474a0e04591629dc7",
+  "cases": [
+    {
+      "case": "wrong-customer",
+      "rejected": true,
+      "exitCode": 1,
+      "lastDiagnostic": "AssertionError: Customer identity mismatch (including leading zeros)"
+    },
+    {
+      "case": "tampered-parquet",
+      "rejected": true,
+      "exitCode": 1,
+      "lastDiagnostic": "AssertionError: Input hash mismatch"
+    }
+  ]
+}

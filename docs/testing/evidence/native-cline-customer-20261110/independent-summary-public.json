@@ -1,0 +1,136 @@
+{
+  "scriptSha256": "025dbb4b5e8558f873597a5a11485f844c4fef5a5a7dedc474a0e04591629dc7",
+  "imageId": "sha256:3434f7630ff7c54a053c7385710e089d249e65d668699ab96f9603b6e1b27eef",
+  "cases": [
+    {
+      "case": 1,
+      "exitCode": 0,
+      "inputIntegrity": "PASSED",
+      "customerMatched": true,
+      "businessDate": "20260731",
+      "transportRowCount": null,
+      "businessRows": null,
+      "rows": {
+        "livedata_cx_mncg_khzc_r#template-binding-1-binding-1": 1,
+        "livedata_cx_mncg_zqyels#template-binding-2-binding-2": 20,
+        "livedata_cx_mncg_wtls#template-binding-3-binding-3": 37
+      },
+      "dataSupplyStatus": null,
+      "selectionFailures": null,
+      "semanticAcceptance": "INCONCLUSIVE_UNTIL_ARCHIVED_REPORT_COMPARISON"
+    },
+    {
+      "case": 2,
+      "exitCode": 0,
+      "inputIntegrity": "PASSED",
+      "customerMatched": true,
+      "businessDate": "20260731",
+      "transportRowCount": null,
+      "businessRows": null,
+      "rows": {
+        "livedata_cx_mncg_zqyels#template-binding-2-binding-2": 20,
+        "livedata_cx_mncg_wtls#template-binding-3-binding-3": 37,
+        "livedata_cx_mncg_khzc_r#template-binding-4-binding-4": 1,
+        "livedata_SQL_ADS_IDS_SECU_AST_LIAB#template-binding-1-binding-1": 0,
+        "livedata_SQL_ADS_IDS_CLR_DELI_JOUR_SECU#template-binding-5-binding-5": 0
+      },
+      "dataSupplyStatus": null,
+      "selectionFailures": null,
+      "semanticAcceptance": "INCONCLUSIVE_UNTIL_ARCHIVED_REPORT_COMPARISON"
+    },
+    {
+      "case": 3,
+      "exitCode": 0,
+      "inputIntegrity": "PASSED",
+      "customerMatched": true,
+      "businessDate": "20260731",
+      "transportRowCount": null,
+      "businessRows": null,
+      "rows": {
+        "livedata_cx_mncg_khzc_r#template-binding-1-binding-1": 1,
+        "livedata_cx_mncg_zqyels#template-binding-2-binding-2": 20,
+        "livedata_cx_mncg_jgmxls#template-binding-3-binding-3": 27,
+        "livedata_SQL_ADS_IDS_CLR_DELI_JOUR_SECU#template-binding-4-binding-4": 0
+      },
+      "dataSupplyStatus": null,
+      "selectionFailures": null,
+      "semanticAcceptance": "INCONCLUSIVE_UNTIL_ARCHIVED_REPORT_COMPARISON"
+    },
+    {
+      "case": 4,
+      "exitCode": 0,
+      "inputIntegrity": "PASSED",
+      "customerMatched": null,
+      "businessDate": null,
+      "transportRowCount": null,
+      "businessRows": null,
+      "rows": {
+        "livedata_SQL_ADS_IDS_SECU_AST_LIAB#template-binding-1-binding-1": 0,
+        "livedata_SQL_ADS_IDS_CLR_DELI_JOUR_SECU#template-binding-2-binding-2": 0
+      },
+      "dataSupplyStatus": null,
+      "selectionFailures": null,
+      "semanticAcceptance": "INCONCLUSIVE_VERIFIED_EMPTY_SOURCE"
+    },
+    {
+      "case": 5,
+      "exitCode": 0,
+      "inputIntegrity": "PASSED",
+      "customerMatched": true,
+      "businessDate": "20260731",
+      "transportRowCount": null,
+      "businessRows": null,
+      "rows": {
+        "livedata_cx_mncg_khzc_r#template-binding-1-binding-1": 1,
+        "livedata_cx_mncg_zqyels#template-binding-2-binding-2": 20,
+        "livedata_cx_mncg_wtls#template-binding-3-binding-3": 37
+      },
+      "dataSupplyStatus": null,
+      "selectionFailures": null,
+      "semanticAcceptance": "INCONCLUSIVE_UNTIL_ARCHIVED_REPORT_COMPARISON"
+    },
+    {
+      "case": 7,
+      "exitCode": 0,
+      "inputIntegrity": "PASSED",
+      "customerMatched": true,
+      "businessDate": "20260731",
+      "transportRowCount": null,
+      "businessRows": null,
+      "rows": {
+        "livedata_cx_mncg_khzc_r#template-binding-1-binding-1": 1,
+        "livedata_cx_mncg_zqyels#template-binding-2-binding-2": 20,
+        "livedata_cx_mncg_wtls#template-binding-3-binding-3": 37,
+        "livedata_cx_mncg_zjyels#template-binding-5-binding-5": 1,
+        "livedata_SQL_ADS_IDS_CLR_DELI_JOUR_SECU#template-binding-4-binding-4": 0
+      },
+      "dataSupplyStatus": null,
+      "selectionFailures": null,
+      "semanticAcceptance": "INCONCLUSIVE_UNTIL_ARCHIVED_REPORT_COMPARISON"
+    },
+    {
+      "case": 8,
+      "exitCode": 0,
+      "inputIntegrity": "PASSED",
+      "customerMatched": null,
+      "businessDate": null,
+      "transportRowCount": 1,
+      "businessRows": 0,
+      "rows": {
+        "supply-status:att-1-bf4f7c85-3796-4bff-949d-ba49c04cf1c3": 1
+      },
+      "dataSupplyStatus": [
+        "SELECTION_FAILED"
+      ],
+      "selectionFailures": [
+        {
+          "code": "MODEL_UNAVAILABLE",
+          "stage": "SELECTION",
+          "status": "SELECTION_FAILED",
+          "mcpDiscoverySucceeded": true
+        }
+      ],
+      "semanticAcceptance": "INCONCLUSIVE_SOURCE_UNAVAILABLE"
+    }
+  ]
+}

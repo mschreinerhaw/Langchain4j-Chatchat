@@ -1,0 +1,39 @@
+{
+  "deployedSourceCommit": "406b27342e138a2a5c3e809c5d06aa9709c7a0c3",
+  "nativeTests": {
+    "passed": 62
+  },
+  "relatedJavaTests": {
+    "passed": 126
+  },
+  "legacyNodeRelatedTests": {
+    "passed": 10
+  },
+  "fullMavenPackage": {
+    "modulesSucceeded": 20,
+    "testsSkipped": true,
+    "frontendBuilt": true
+  },
+  "fullRegressionRun": false,
+  "historicalRegressionFailureDebt": 82,
+  "browserReadOnlySessions": 7,
+  "businessSuccess": 0,
+  "realModelRerunAfterFinalDeploy": false,
+  "logHashes": {
+    "native-customer-closure-20261110-node-tests.log": "4e9a42d97d8a11a2c531ee02992aefb774310789f394710094b9d95fa731cdba",
+    "native-customer-closure-20261110-supply-tests.log": "b9c499dcc5c75e7b77ed1ce134ac24858669bf7b57b122aecb09f39827e8a034",
+    "native-customer-closure-20261110-final-full-build.log": "f741ce8d537e923a117c46336de5e7d3f9f739ae27edbe6a2fac5dfcf996a9e7"
+  },
+  "commands": {
+    "native": {
+      "cwd": "cline-agent-server",
+      "command": "node --test test/*.test.mjs"
+    },
+    "legacy": {
+      "cwd": "coding-agent-node",
+      "command": "node --test test/code-repair.test.js test/completion-context.test.js"
+    },
+    "java": "mvn -pl chatchat-api -am '-Dtest=CodingCustomerAccountVerifierTest,CodingValidationPlanServiceTest,CodingAnalysisServiceTest,ClineRuntimeModelBridgeTest,ClinePythonCallbackControllerTest,CodingFinancialResultVerifierTest' '-Dsurefire.failIfNoSpecifiedTests=false' '-Dfrontend.skip=true' '-Dfrontend.install.skip=true' test",
+    "package": "mvn '-Dmaven.test.skip=true' '-Dfrontend.skip=false' '-Dfrontend.install.skip=false' package"
+  }
+}

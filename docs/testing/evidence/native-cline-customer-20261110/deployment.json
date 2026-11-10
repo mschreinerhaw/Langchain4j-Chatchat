@@ -1,0 +1,49 @@
+{
+  "commit": "52319cd6dfeaf1b8f1553f56c542df662583d88b",
+  "backup": "/opt/cline-native-business-20261108/backups/customer-closure-20261110T025352Z",
+  "files": {
+    "code-lineage.mjs": {
+      "beforeSha256": "2b0d8f3fbd7f7a67d3bee17a4f4a9390e6af4a7f796429f4a73471766050a09e",
+      "afterSha256": "06e779437552f0e4bc4257f943c13e3f8c0b493b134737cad0fd323492118834"
+    },
+    "model-protocol.mjs": {
+      "beforeSha256": "1bc3c77e5fa9e64bd45ec39efecdeb39d6ba102c095a8c0506685ba0592707e6",
+      "afterSha256": "1ae8f9dba5a3ff5ec40b9672da317869f93d5ff8e39dce382ce9876ce3e2c5ad"
+    },
+    "native-policy.mjs": {
+      "beforeSha256": "32651949d17f090c0b75bd625339d6f0be92a270512dcd5c8c4c249365d239ae",
+      "afterSha256": "2b40e53bd6e0868306b0095b242507b5016f5089265cb7cc658fe44190584b98"
+    },
+    "prompt.mjs": {
+      "beforeSha256": "e9bfe0adb983e33a0ffdd60fe86e8f1f0368b6097d3232729d09b13c2e129f03",
+      "afterSha256": "491150dd2b5d4177c37b43228cea81298683d7ffe079521f3f54c1d999f75c3e"
+    },
+    "runtime-tools.mjs": {
+      "beforeSha256": "bd0a83a0658ed91ae7d31a72c67b981d16bd1b7dbd8c7723de9cf7a302c1cfbd",
+      "afterSha256": "b260ddf3139398ac54401f47c9d4bd7aa8687c8808c3cbc056767348c6d1e162"
+    }
+  },
+  "staleHistoricalRecord": [
+    {
+      "workerId": "950d63fb-8123-48da-8da1-998bbc7c506d",
+      "status": "FAILED",
+      "containerAbsent": true,
+      "recordUnchanged": true
+    }
+  ],
+  "budgetChanged": false,
+  "defaultNodeChanged": false,
+  "time": "2026-11-10T02:53:53.339388+00:00",
+  "monitorHealth": {
+    "service": "native-cline-monitor",
+    "executionEngine": false
+  },
+  "gatewayHealth": {
+    "status": "UP",
+    "engine": "cline-standalone",
+    "version": "4.1.26",
+    "legacySdkWorker": false,
+    "workerImage": "sha256:172b45b0b4988713cc2a4a02ecbfdcb7dd5a102ec6def6facdff385352940aaf",
+    "productionReady": false
+  }
+}

@@ -1,0 +1,28 @@
+{
+  "commit": "406b27342e138a2a5c3e809c5d06aa9709c7a0c3",
+  "backup": "/opt/cline-native-business-20261108/backups/customer-supply-20261110T041646Z",
+  "files": {
+    "classes/com/chatchat/api/runtime/coding/analysis/CodingAnalysisService.class": {
+      "before": "b14f0dc52ac9baea8ea4247d1868d39d83261ca05fe6455a16a76baaf74d5bf6",
+      "after": "3c89468a5475c0a90e473476bb4f445136e71f91f41692c278a4af58a7855d5a"
+    },
+    "source/cline-agent-server/src/business/prompt.mjs": {
+      "before": "11139620c76a0ab2923852cc0697c9fe36b4fdd1a299bce5670933eda43bbd05",
+      "after": "312695bdba0f0c69d30a8ca90c0a6906af5c501264c650cf23e797f60f1637bf"
+    }
+  },
+  "budgetChanged": false,
+  "defaultNodeChanged": false,
+  "liveBusinessProbeAfterDeployment": false,
+  "gatewayHealth": {
+    "status": "UP",
+    "engine": "cline-standalone",
+    "version": "4.1.26",
+    "legacySdkWorker": false,
+    "workerImage": "sha256:172b45b0b4988713cc2a4a02ecbfdcb7dd5a102ec6def6facdff385352940aaf",
+    "productionReady": false
+  },
+  "editingProfile": "apply_patch",
+  "login": "PASSED",
+  "time": "2026-11-10T04:17:15.491424+00:00"
+}

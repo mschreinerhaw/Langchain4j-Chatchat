@@ -1,0 +1,92 @@
+{
+  "scope": "READ_ONLY_CUSTOMER_PROBE_MONITOR",
+  "cases": [
+    {
+      "case": "account-1",
+      "taskId": "analysis-coding-dade333dd3cbe0045290656e2f7873856291fd301b7dc3d2b3b0ce7ea09f2f5c",
+      "id": "runtime:d3f8972e-4610-4274-9910-b3032403f60f",
+      "status": "FAILED",
+      "runtimeStatus": "FAILED",
+      "authority": "RUNTIME_CONFIRMED",
+      "codeCount": 3,
+      "pythonExecutionCount": 3,
+      "modelReceiptCount": 12,
+      "headingRendered": true
+    },
+    {
+      "case": "account-2",
+      "taskId": "analysis-coding-3e75e9a2079b80b142ab69922cca59b42dbcb490927005109ca7752193de43c5",
+      "id": "runtime:184cae89-93c9-4417-b0a9-d05dee454ab9",
+      "status": "FAILED",
+      "runtimeStatus": "FAILED",
+      "authority": "RUNTIME_CONFIRMED",
+      "codeCount": 1,
+      "pythonExecutionCount": 1,
+      "modelReceiptCount": 9,
+      "headingRendered": true
+    },
+    {
+      "case": "account-3",
+      "taskId": "analysis-coding-4362a75c23a4df55be643eedbcc636646f37983b87ff8c4429de10e5d3ebf294",
+      "id": "runtime:5ed66f82-af8a-47de-91c2-b9fe9a788382",
+      "status": "FAILED",
+      "runtimeStatus": "FAILED",
+      "authority": "RUNTIME_CONFIRMED",
+      "codeCount": 1,
+      "pythonExecutionCount": 1,
+      "modelReceiptCount": 12,
+      "headingRendered": true
+    },
+    {
+      "case": "account-4",
+      "taskId": "analysis-coding-09838395b935017058398c05e3d9ac62d1b65be9a17127c24aba461be96b2410",
+      "id": "runtime:37350814-8eb0-469c-82b2-861bee121fe6",
+      "status": "CANCELLED",
+      "runtimeStatus": "CANCELLED",
+      "authority": "RUNTIME_CONFIRMED",
+      "codeCount": 1,
+      "pythonExecutionCount": 1,
+      "modelReceiptCount": 7,
+      "headingRendered": true
+    },
+    {
+      "case": "account-5",
+      "taskId": "analysis-coding-dc91a2e7114cb657661b253e518eb925cb85cb65ee501166356dffe9f3a131d8",
+      "id": "runtime:deab08b3-66b9-4703-a37f-078b17adc40e",
+      "status": "FAILED",
+      "runtimeStatus": "FAILED",
+      "authority": "RUNTIME_CONFIRMED",
+      "codeCount": 0,
+      "pythonExecutionCount": 0,
+      "modelReceiptCount": 12,
+      "headingRendered": true
+    },
+    {
+      "case": "account-7",
+      "taskId": "analysis-coding-1532ba1df04634a2e40d7cb6014b1662eeb3e0cd1aa4b22e3d4818cd9bf7a2fa",
+      "id": "runtime:7ddcf221-c84d-4e3a-9e05-17ac5d3c8d8a",
+      "status": "UNKNOWN",
+      "runtimeStatus": "FAILED",
+      "authority": "RUNTIME_CONFIRMED",
+      "codeCount": 2,
+      "pythonExecutionCount": 1,
+      "modelReceiptCount": 12,
+      "headingRendered": true
+    },
+    {
+      "case": "account-8",
+      "taskId": "analysis-coding-c2db502c443b5806f3ff43d6dbb66ee246aec62b6959abfe6cb657fd89846db7",
+      "id": "runtime:ebd45259-5229-4487-9283-4e55f352e06c",
+      "status": "FAILED",
+      "runtimeStatus": "FAILED",
+      "authority": "RUNTIME_CONFIRMED",
+      "codeCount": 2,
+      "pythonExecutionCount": 2,
+      "modelReceiptCount": 12,
+      "headingRendered": true
+    }
+  ],
+  "pageErrors": [],
+  "executionRequests": 0,
+  "status": "PASSED"
+}

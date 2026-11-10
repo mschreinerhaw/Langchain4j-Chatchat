@@ -11,7 +11,7 @@
 | `b38052ae-c392-3388-8257-051aefcde4b2` | `b40718e0c` | FAILED；模型 12 次调用未执行 Python，且新 profile 的输出 Schema 交付缺失 | 否 |
 | `272c7093-f8b2-3411-876c-e7007eee20b7` | `b40718e0c` | 发现 Schema 接线遗漏后，在 Native 派发前停止；KILLED | 否 |
 | `501f1e1b-e558-3858-a739-bd07b0540e86` | `3ac447b54` | Runtime FAILED / Native UNKNOWN；真实 TypeError 后，unchanged repair 派发前拒绝残留 Native operation，worker 已停止 | 否 |
-| `3a009cc4-208b-362b-860d-065878f76f21` | `82705e3a5` + 官方 apply_patch 配置 | 验收进行中 | 尚未确认 |
+| `3a009cc4-208b-362b-860d-065878f76f21` | `82705e3a5` + 官方 apply_patch 配置 | FAILED；选择模型超时，仅交付供给状态；两次 Python 均无报告，第二次错误比较 hash 域触发 AssertionError | 否 |
 
 首条请求因部署检查失败后仍被提交，是本轮执行顺序错误；明确保留为旧部署的失败样本，不计入新版本成功。检查失败时未写入运行源码；后续部署脚本只有部署成功才允许提交新请求。
 
@@ -19,10 +19,22 @@
 
 固定版本六类各五次的正式 30 次批次尚未开始，30 项均未执行；不能将以上排障探针补作正式 30 次分母。当前不能宣布 30/30、不能替换默认 Coding Agent Node。
 
-Native 62/62、Java 关联 124/124、旧节点相关 10/10 是测试结果，不是业务成功数。最新 Java 改动完整 20 模块构建：`mvn -Dmaven.test.skip=true -Dfrontend.skip=false -Dfrontend.install.skip=false package`，含前端重新安装及构建；不计为完整回归通过。跳过前端构建的尝试因既有静态资源入口不一致失败，完整重建后通过，没有跳过资源校验。
+Native 62/62、Java 关联 126/126、旧节点相关 10/10 是测试结果，不是业务成功数。最新 Java 改动完整 20 模块构建：`mvn -Dmaven.test.skip=true -Dfrontend.skip=false -Dfrontend.install.skip=false package`，含前端重新安装及构建；不计为完整回归通过。跳过前端构建的尝试因既有静态资源入口不一致失败，完整重建后通过，没有跳过资源校验。
 
 首次补丁部署只更新 Gateway 的五个业务适配模块，未更新 API 类。对应回滚目录 `/opt/cline-native-business-20261108/backups/customer-closure-20261110T025352Z/`；先检查活动任务，再停止专项 Gateway，恢复五个同名模块并启动。保留 state、历史回执和 Python 数据，不重放旧任务。
 
-后续必要部署包含 API 的 CodingAnalysisService、CodingCustomerAccountVerifier、CodingValidationPlanService 家族，以及 Native delivery 和 runtime-tools。最新回滚点 `/opt/cline-native-business-20261108/backups/customer-native-patch-20261110T035217Z/` 包含 runtime-tools 和专项 Gateway 原配置；此前依次为 `customer-schema-20261110T033821Z`、`customer-metrics-20261110T032019Z`、`customer-reader-20261110T030231Z`、`customer-closure-20261110T025352Z`。全部撤回须逆序恢复，并按 manifest 移除新增的独立账户 verifier 类；不删除任何任务或数据。MCP、官方 Worker 镜像和生产默认节点始终未切换。
+后续必要部署包含 API 的 CodingAnalysisService、CodingCustomerAccountVerifier、CodingValidationPlanService 家族，以及 Native delivery 和 runtime-tools。第八条探针前回滚点 `/opt/cline-native-business-20261108/backups/customer-native-patch-20261110T035217Z/` 包含 runtime-tools 和专项 Gateway 原配置；此前依次为 `customer-schema-20261110T033821Z`、`customer-metrics-20261110T032019Z`、`customer-reader-20261110T030231Z`、`customer-closure-20261110T025352Z`。全部撤回须逆序恢复，并按 manifest 移除新增的独立账户 verifier 类；不删除任何任务或数据。MCP、官方 Worker 镜像和生产默认节点始终未切换。
 
 请求中的 DeepSeek 模型名被原业务 Agent 的固定 Qwen 绑定覆盖，实际模型以回执为准。未将这些任务当作 DeepSeek 成功/失败对照。未发布验收 Agent 副本创建遭专项 API HTTP 403；没有修改原 Agent、共享模型或权限来绕过限制。
+
+## 最终状态及部署
+
+8 个父任务均终止：7 FAILED、1 KILLED；其中一项 FAILED 的 Coding 子任务主动 CANCELLED。业务成功 **0/8**。第七条 Native UNKNOWN 与 Runtime FAILED 并存，worker 已停止；保留未决操作，不重派。正式批次成功 0、失败 0、未执行 30。
+
+最新部署源码 `406b27342e138a2a5c3e809c5d06aa9709c7a0c3`，2026-11-10 12:17:15（上海）；专项 API 登录、Gateway 健康通过，官方 Core 4.1.26，apply_patch 配置。最终纯状态/零行阻断完成测试与部署检查，未做新模型任务。
+
+最新增量回滚目录 `/opt/cline-native-business-20261108/backups/customer-supply-20261110T041646Z/`：按 deployment-final.json 恢复 CodingAnalysisService.class、prompt.mjs；完整撤回再逆序恢复上文历史备份。先确认无运行任务，再重启专项 API/Gateway；保留数据、状态和回执。
+
+只读浏览器检查通过：7 个 Native 会话标题及状态正确，第六条在 Native 前终止；pageErrors 为空，执行请求为 0。没有宣称完成全部监控功能整改。
+
+脱敏证据：[探针清单](evidence/native-cline-customer-20261110/customer-probes.json)、[模型回执](evidence/native-cline-customer-20261110/model-receipts.json)、[最终部署](evidence/native-cline-customer-20261110/deployment-final.json)、[浏览器检查](evidence/native-cline-customer-20261110/monitor-browser-public.json)、[测试构建](evidence/native-cline-customer-20261110/validation-summary.json)。原始证据仅留授权服务器，Git 不存客户明细、金额、生成源码或凭据。

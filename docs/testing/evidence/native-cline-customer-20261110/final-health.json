@@ -1,0 +1,16 @@
+{
+  "checkedAt": "2026-11-10T04:26:11.812592+00:00",
+  "gatewayHealth": {
+    "status": "UP",
+    "engine": "cline-standalone",
+    "version": "4.1.26",
+    "legacySdkWorker": false,
+    "workerImage": "sha256:172b45b0b4988713cc2a4a02ecbfdcb7dd5a102ec6def6facdff385352940aaf",
+    "productionReady": false
+  },
+  "loginHttpStatus": 200,
+  "activeLifecycleRuns": [],
+  "preservedUnknownRuns": 6,
+  "classSha256": "3c89468a5475c0a90e473476bb4f445136e71f91f41692c278a4af58a7855d5a",
+  "promptSha256": "312695bdba0f0c69d30a8ca90c0a6906af5c501264c650cf23e797f60f1637bf"
+}

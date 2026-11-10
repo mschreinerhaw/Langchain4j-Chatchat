@@ -1,0 +1,21 @@
+{
+  "commit": "82705e3a5b32d8e178abefc33458650a4c325005",
+  "backup": "/opt/cline-native-business-20261108/backups/customer-native-patch-20261110T035217Z",
+  "sourceBefore": "2f50893dcd3ddf84b1d76cd8181c26a39431ffc56456cba3c9b7869ad58f29ae",
+  "sourceAfter": "8ccf2594e68e70655b69e0daa69cb9460e40208f0006cc712f9b5651bc25950e",
+  "editToolBefore": "editor",
+  "editToolAfter": "apply_patch",
+  "otherConfigurationIdentical": true,
+  "modelConfigurationChanged": false,
+  "budgetChanged": false,
+  "defaultNodeChanged": false,
+  "health": {
+    "status": "UP",
+    "engine": "cline-standalone",
+    "version": "4.1.26",
+    "legacySdkWorker": false,
+    "workerImage": "sha256:172b45b0b4988713cc2a4a02ecbfdcb7dd5a102ec6def6facdff385352940aaf",
+    "productionReady": false
+  },
+  "time": "2026-11-10T03:52:20.154589+00:00"
+}

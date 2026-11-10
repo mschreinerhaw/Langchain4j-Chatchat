@@ -1,0 +1,34 @@
+{
+  "commit": "3ac447b54f2c242c9975c888037873bb4a6378f3",
+  "backup": "/opt/cline-native-business-20261108/backups/customer-schema-20261110T033821Z",
+  "files": {
+    "classes/com/chatchat/api/runtime/coding/evidence/CodingValidationPlanService$1.class": {
+      "before": "b43157d3a91a51b5d001699ad32035213a372b194498c7e7cd58c85a1557aff4",
+      "after": "b43157d3a91a51b5d001699ad32035213a372b194498c7e7cd58c85a1557aff4"
+    },
+    "classes/com/chatchat/api/runtime/coding/evidence/CodingValidationPlanService$Plan.class": {
+      "before": "f71052a8a1abebb5f96d16596a1fccda054c74872027bd4c4d40984e0d952a8b",
+      "after": "f71052a8a1abebb5f96d16596a1fccda054c74872027bd4c4d40984e0d952a8b"
+    },
+    "classes/com/chatchat/api/runtime/coding/evidence/CodingValidationPlanService.class": {
+      "before": "beaf7eeb7df125a0086efb77492c657ca2768cf288c51d2240fc80fd649fabce",
+      "after": "3f91abef87aa2a2a18457d5eca3bc0fc1a8fbd308599dd12ce5d9e9798ea5471"
+    },
+    "source/cline-agent-server/src/business/delivery.mjs": {
+      "before": "aca7de80b8a026a11655e9a2c76ff05be75b6af20ab51d7b6d67c767ece6f4f0",
+      "after": "4985507549732e0a978c6a1d4994ee26c1795dcc316eb2dda4d81bb0aefa724c"
+    }
+  },
+  "budgetChanged": false,
+  "defaultNodeChanged": false,
+  "gatewayHealth": {
+    "status": "UP",
+    "engine": "cline-standalone",
+    "version": "4.1.26",
+    "legacySdkWorker": false,
+    "workerImage": "sha256:172b45b0b4988713cc2a4a02ecbfdcb7dd5a102ec6def6facdff385352940aaf",
+    "productionReady": false
+  },
+  "login": "PASSED",
+  "time": "2026-11-10T03:38:47.766637+00:00"
+}

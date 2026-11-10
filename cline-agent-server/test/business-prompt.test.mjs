@@ -53,6 +53,17 @@ test('bounded inventory reads reach actual output schema and orientation before 
   assert.equal(JSON.parse(bytes).context.unrelatedMetadata,context.unrelatedMetadata);
  }finally{rmSync(dir,{recursive:true,force:true});}
 });
+
+test('reviewed analysis without the committed row schema stops before input transfer or inference',async()=>{
+ const dir=mkdtempSync(join(tmpdir(),'native-missing-schema-'));
+ try{
+  const run={contract:{metadataRefs:['runtime-coding:analysis-reviewed-path:v1'],runtimeContext:{}},abort:new AbortController()};
+  let transfers=0;
+  await assert.rejects(deliver(run,{readInputContext:async()=>({files:[{fileId:'file',fileName:'data.csv'}]}),
+   nativeInputFile:async()=>{transfers++;throw Error('Must not transfer under an incomplete contract');}},dir),/INPUT_OUTPUT_SCHEMA_UNAVAILABLE/);
+  assert.equal(transfers,0);
+ }finally{rmSync(dir,{recursive:true,force:true});}
+});
 test('frozen input identity and valid empty bytes are distinct from an incomplete transfer',async()=>{
  const dir=mkdtempSync(join(tmpdir(),'native-delivery-'));const bytes=Buffer.alloc(0),sha256=createHash('sha256').update(bytes).digest('hex');
  const file={fileId:'input',fileName:'empty.csv',size:0,sha256,virtualPath:'/data/input/input/empty.csv'};

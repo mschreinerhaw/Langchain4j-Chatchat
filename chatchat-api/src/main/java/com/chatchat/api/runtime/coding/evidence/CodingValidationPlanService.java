@@ -84,7 +84,7 @@ public final class CodingValidationPlanService {
         if(!TYPE.equals(record.evidenceType()) || !evidence.contentHash(value).equals(record.contentSha256())
                 || !contract.taskId().equals(value.get("taskId")) || !contract.inputSnapshotRef().equals(value.get("inputSnapshotRef")))
             throw new SecurityException("Validation plan is not bound to this Coding task");
-        if(!Set.of("runtime-result-schema","runtime-csv-count-sum").contains(value.get("verifierId")) || !"v1".equals(value.get("ruleVersion")))return Map.of();
+        if(!Set.of("runtime-result-schema","runtime-csv-count-sum","runtime-customer-account").contains(value.get("verifierId")) || !"v1".equals(value.get("ruleVersion")))return Map.of();
         if(!(value.get("rules") instanceof Map<?,?> rules) || !(rules.get("rowSchema") instanceof Map<?,?> schema))
             throw new SecurityException("Committed row schema is unavailable");
         return mapper.convertValue(schema,new com.fasterxml.jackson.core.type.TypeReference<Map<String,Object>>(){});

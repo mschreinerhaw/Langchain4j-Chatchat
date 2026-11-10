@@ -9,6 +9,7 @@ import json
 import os
 from pathlib import Path
 import urllib.request
+import urllib.error
 import uuid
 
 
@@ -18,6 +19,7 @@ def main():
     parser.add_argument('--root', type=Path, required=True)
     parser.add_argument('--base', default='http://127.0.0.1:18340/api/v1')
     parser.add_argument('--verify-account', action='store_true', help='Opt into the existing Runtime plan with customer source-metric verification')
+    parser.add_argument('--model', help='Select an already authorized model for this request only; shared configuration is unchanged')
     args = parser.parse_args()
     os.umask(0o077)
     args.root.mkdir(mode=0o700, parents=True, exist_ok=True)
@@ -51,7 +53,8 @@ def main():
             'sessionId': request_id, 'idempotencyKey': request_id,
             'requestSource': 'native-customer-closure-20261110',
             'query': '查询客户号字符串 070200046604 的账户资产、持仓、交易和盈亏，并总结有数据支持的交易偏好。'
-                     '使用当前已授权模板自主选择和取数，保留客户号前导零。先核对实际字段和各数据集来源，再计算；'
+                     '本次从当前已授权的客户 API 服务取得业务记录，具体相关模板和参数由模型自主选择绑定，不指定模板 ID。'
+                     '保留客户号前导零。先核对实际字段和各数据集来源，再计算；'
                      '不要猜测字段名或用零替代缺失值。日期以模板实际返回的范围为准，明确标注默认日期，不能称为今日数据。'
                      '请由原生 Cline 编写并实际运行 Python，交付完整中文分析报告、计算指标、数据范围和缺失口径。'
                      '本次交付精简的核心账户报告：资产概况、持仓汇总、交易统计、盈亏口径、单日行为和限制。'
@@ -60,6 +63,8 @@ def main():
         if args.verify_account:
             body['toolInput']['responseContract'] = {'customerAccountVerification':
                 {'profile': 'customer-account-v1', 'customerNumber': '070200046604'}}
+        if args.model:
+            body['modelName'] = args.model
         save('request.json', body)
         # Exclusive durable intent precedes dispatch, including on network failure.
         with intent.open('x', encoding='utf-8') as output:
@@ -88,6 +93,13 @@ def main():
                 'lastReceiptStatus': (run.get('lastReceipt') or {}).get('status'),
                 'validationStatus': (run.get('lastReceipt') or {}).get('validationStatus'),
                 'codeVersions': len((run.get('codeLifecycle') or {}).get('versions', []))})
+            if not (args.root / 'runtime-monitor-unavailable.json').exists():
+                try:
+                    runtime = call('/agent/runtime/runs/' + submission['attemptId'] + '/coding/' + run['taskId'])
+                    save('runtime-private.json', runtime)
+                except urllib.error.HTTPError as error:
+                    save('runtime-monitor-unavailable.json', {'httpStatus': error.code,
+                        'reason': 'Preserve the read failure; do not repeat a forbidden monitor request'})
     summary = {'taskId': task_id, 'status': task['status'], 'eventCount': len(events), 'native': natives}
     save('summary.json', summary)
     print(json.dumps(summary))

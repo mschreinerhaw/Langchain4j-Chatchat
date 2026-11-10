@@ -46,7 +46,7 @@ class CodingValidationPlanServiceTest {
         var access = new CodingInvocationContext();
         var snapshots = new CodingInputSnapshotService(evidence, python, access, mapper);
         var plans = new CodingValidationPlanService(evidence, snapshots, access, mapper,
-            List.of(new FixtureDecimalCodingVerifier(python, mapper), new CodingSchemaResultVerifier()));
+            List.of(new FixtureDecimalCodingVerifier(python, mapper), new CodingSchemaResultVerifier(),new CodingCustomerAccountVerifier(python)));
         var scope = new KernelDataScope("tenant", "owner", null, null, "run", null, Map.of());
         var delivered = new Dataset("template#call", Map.of(), List.of(
             Map.of("tradeId", "t1", "amount", "0.10"),
@@ -70,6 +70,12 @@ class CodingValidationPlanServiceTest {
         var shapeCheck = access.as(scope, EnumSet.of(CodingTaskAccess.Action.READ), () -> plans.validator(contract(scope,input,structural)));
         var repairSchema=access.as(scope,EnumSet.of(CodingTaskAccess.Action.READ),()->plans.rowSchema(contract(scope,input,structural)));
         assertThat(repairSchema).containsEntry("required",List.of("label"));
+        var accountSchema=Map.<String,Object>of("type","object","properties",Map.of("verifiedAccountSummary",CodingCustomerAccountVerifier.summarySchema()),"required",List.of("verifiedAccountSummary"),"additionalProperties",false);
+        var accountPlan=access.as(scope,EnumSet.of(CodingTaskAccess.Action.SUBMIT),()->plans.register(scope,"task",input,
+            new CodingValidationPlanService.Plan("runtime-customer-account","v1",Map.of("rowSchema",accountSchema,"customerNumber","0007","sourceVersions",List.of(Map.of("datasetReference","source"))))));
+        var deliveredAccountSchema=access.as(scope,EnumSet.of(CodingTaskAccess.Action.READ),()->plans.rowSchema(contract(scope,input,accountPlan)));
+        assertThat(deliveredAccountSchema).isEqualTo(accountSchema);
+        assertThat(access.as(scope,EnumSet.of(CodingTaskAccess.Action.READ),()->plans.requiresVisualReport(contract(scope,input,accountPlan)))).isFalse();
         assertThat(access.as(scope,EnumSet.of(CodingTaskAccess.Action.READ),()->plans.requiresVisualReport(contract(scope,input,structural)))).isFalse();
         assertThat(access.as(scope,EnumSet.of(CodingTaskAccess.Action.READ),()->plans.requiresVisualReport(contract))).isTrue();
         var requiredVisual=access.as(scope,EnumSet.of(CodingTaskAccess.Action.SUBMIT),()->plans.register(scope,"task",input,

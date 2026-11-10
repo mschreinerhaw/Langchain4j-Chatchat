@@ -4,6 +4,9 @@ import {createHash} from 'node:crypto';
 import {taskSkillPackages,imageSkillBytes,safeResourcePath} from '../../../coding-agent-node/src/skill-distribution.js';
 export async function deliver(run,gateway,workspace) {
  const c=run.contract,original=await gateway.readInputContext(c,run.abort.signal),inventory=[];
+ if(c.metadataRefs?.includes('runtime-coding:analysis-reviewed-path:v1')
+    &&original.outputContract?.rowSchema?.type!=='object')
+  throw Error('INPUT_OUTPUT_SCHEMA_UNAVAILABLE: Runtime did not deliver the committed result rowSchema. No Native model session was started. Repair the validation-plan/input-context mapping before a new request.');
  // Keep the exact context, but put the executable result contract and bounded
  // orientation before long inventories. Native bounded reads must not have to
  // paginate unrelated Skill hashes to discover the report schema or input hash.

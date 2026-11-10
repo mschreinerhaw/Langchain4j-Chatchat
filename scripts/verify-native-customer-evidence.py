@@ -67,6 +67,18 @@ def audit(workspace, customer):
         assert len(records) == versions[reference]['rowCount'], 'Dataset row count mismatch'
         assert all(set(r) == set(versions[reference]['fieldSchema']) for r in records)
 
+    if total == 0:
+        verified_empty = all(v.get('sourceVerifiedEmpty') is True and v.get('deliveryStatus') == 'EMPTY_RESULT'
+                             for v in versions.values())
+        return {'inputIntegrity': 'PASSED', 'customerMatched': None, 'businessDate': None,
+            'rows': {ref: 0 for ref in versions},
+            'sourceAvailability': {ref: {k: version.get(k) for k in
+                ['deliveryStatus', 'sourceVerifiedEmpty', 'rowCount']} for ref, version in versions.items()},
+            'files': {fid: f['sha256'] for fid, f in files.items()},
+            'semanticAcceptance': 'INCONCLUSIVE_VERIFIED_EMPTY_SOURCE' if verified_empty else 'INCONCLUSIVE_SOURCE_UNAVAILABLE',
+            'limitations': ['No business rows were supplied. Row-level entity/date and account metrics cannot be verified. '
+                            'These selected sources do not establish that other authorized sources have no customer data.']}
+
     # These are the declared source fields of this account acceptance scenario.
     # Roles bind to observed schemas, never a hardcoded template/customer selection.
     required = {'assets': {'ZZC', 'ZQSZ', 'ZJYE', 'DRYK', 'RQ'},

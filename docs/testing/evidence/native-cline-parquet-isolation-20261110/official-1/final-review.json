@@ -1,0 +1,16 @@
+{
+  "case": "official-1",
+  "sevenCriteria": {
+    "realParquetRead": true,
+    "realSchemaRecognized": true,
+    "actualCodeExecution": true,
+    "requiredStatisticsCompleted": false,
+    "bothRequiredFilesDelivered": false,
+    "independentMajorNumbersCorrect": null,
+    "readableFilesAndReviewedClaimsSupported": null
+  },
+  "artifactAcceptance": "FAILED",
+  "normalTermination": false,
+  "reviewNotes": "Real SyntaxError at analysis.py line51; attempted edits but no formal successful reexecution/report before model request budget rejection. Retained final source reproduction fails with IndentationError at line111. Shell pipeline head hid the original Python exit from tool success flag.",
+  "reviewMethod": "Independent raw-file statistics + generated source/report semantic review + separately isolated reproduction; no generated source was injected into a formal run."
+}

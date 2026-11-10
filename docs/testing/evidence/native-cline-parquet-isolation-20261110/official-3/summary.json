@@ -1,0 +1,965 @@
+{
+  "case": "official-3",
+  "terminal": "CLI_EXIT_1",
+  "durationSeconds": 314.556,
+  "nativeSessionId": null,
+  "modelRequests": 12,
+  "inputUnchanged": true,
+  "artifacts": {
+    "test.parquet": {
+      "size": 4442620,
+      "sha256": "3104e1e5548ade630988a4a8b9ec76c51a057b88159f78676c7d344f48491450"
+    },
+    "analysis.py": {
+      "size": 6066,
+      "sha256": "b4e3e94eb61c8f31fb7efc0a12a7419aa4c6c6a9cded367afc12b6df84456a8d"
+    },
+    "report.md": {
+      "size": 9941,
+      "sha256": "810b1489a8654cd19d3e67ff0993383536e0c9797de342ff1109ecbd4714b793"
+    }
+  },
+  "independentAcceptance": "PENDING",
+  "modelReceipts": [
+    {
+      "case": "official-3",
+      "index": 1,
+      "start": "2026-11-10T05:29:52.079398+00:00",
+      "path": "/official-3/v1/chat/completions",
+      "requestSha256": "4ac603f5aa602ccc71e31e5adcb1cebcd3b1cdb99557d9e88f89c62b18501451",
+      "requestBytes": 20776,
+      "forwardedUnchanged": true,
+      "requestedModel": "qwen3.7-plus",
+      "toolNames": [
+        "read_files",
+        "search_codebase",
+        "run_commands",
+        "editor",
+        "ask_question",
+        "team_spawn_teammate",
+        "team_shutdown_teammate",
+        "team_status",
+        "team_task",
+        "team_run_task",
+        "team_cancel_run",
+        "team_list_runs",
+        "team_await_runs",
+        "team_send_message",
+        "team_broadcast",
+        "team_read_mailbox",
+        "team_mission_log",
+        "team_cleanup",
+        "team_create_outcome",
+        "team_attach_outcome_fragment",
+        "team_review_outcome_fragment",
+        "team_finalize_outcome",
+        "team_list_outcomes"
+      ],
+      "requestParameters": {
+        "model": "qwen3.7-plus",
+        "tool_choice": "auto",
+        "stream": true,
+        "stream_options": {
+          "include_usage": true
+        }
+      },
+      "httpStatus": 200,
+      "providerModels": [
+        "qwen3.7-plus"
+      ],
+      "usage": {
+        "prompt_tokens": 5236,
+        "total_tokens": 5315,
+        "completion_tokens": 79,
+        "prompt_tokens_details": {
+          "cached_tokens": 0,
+          "text_tokens": 5236
+        },
+        "completion_tokens_details": {
+          "reasoning_tokens": 23,
+          "text_tokens": 79
+        }
+      },
+      "usageKnown": true,
+      "durationMs": 2584,
+      "responseSha256": "7cacb6c1bd21dfac7d5b1975aad60b0b705cf4fdee5576a148a61c63937209d4",
+      "toolSchemaSha256": "fef3465c3b86f40a6b3ff01bf527170194440a3a34ef0e3f8db05ca1c7e57947"
+    },
+    {
+      "case": "official-3",
+      "index": 2,
+      "start": "2026-11-10T05:29:56.024056+00:00",
+      "path": "/official-3/v1/chat/completions",
+      "requestSha256": "0e1eef143b11894167cdb9b828b0687fa70a59bd851bc891f454ffe5aa933af8",
+      "requestBytes": 21541,
+      "forwardedUnchanged": true,
+      "requestedModel": "qwen3.7-plus",
+      "toolNames": [
+        "read_files",
+        "search_codebase",
+        "run_commands",
+        "editor",
+        "ask_question",
+        "team_spawn_teammate",
+        "team_shutdown_teammate",
+        "team_status",
+        "team_task",
+        "team_run_task",
+        "team_cancel_run",
+        "team_list_runs",
+        "team_await_runs",
+        "team_send_message",
+        "team_broadcast",
+        "team_read_mailbox",
+        "team_mission_log",
+        "team_cleanup",
+        "team_create_outcome",
+        "team_attach_outcome_fragment",
+        "team_review_outcome_fragment",
+        "team_finalize_outcome",
+        "team_list_outcomes"
+      ],
+      "requestParameters": {
+        "model": "qwen3.7-plus",
+        "tool_choice": "auto",
+        "stream": true,
+        "stream_options": {
+          "include_usage": true
+        }
+      },
+      "httpStatus": 200,
+      "providerModels": [
+        "qwen3.7-plus"
+      ],
+      "usage": {
+        "prompt_tokens": 5418,
+        "total_tokens": 5566,
+        "completion_tokens": 148,
+        "prompt_tokens_details": {
+          "cached_tokens": 5120,
+          "text_tokens": 5418
+        },
+        "completion_tokens_details": {
+          "reasoning_tokens": 21,
+          "text_tokens": 148
+        }
+      },
+      "usageKnown": true,
+      "durationMs": 3525,
+      "responseSha256": "0983089822426b296851d02f311056593fbbb700b1d95e2686959e75487436f0",
+      "toolSchemaSha256": "fef3465c3b86f40a6b3ff01bf527170194440a3a34ef0e3f8db05ca1c7e57947"
+    },
+    {
+      "case": "official-3",
+      "index": 3,
+      "start": "2026-11-10T05:30:01.359127+00:00",
+      "path": "/official-3/v1/chat/completions",
+      "requestSha256": "41deb7f3818a63e5d68d39574ed49d5c6114dfd25a6f0b168fd6f151f753b3f4",
+      "requestBytes": 25821,
+      "forwardedUnchanged": true,
+      "requestedModel": "qwen3.7-plus",
+      "toolNames": [
+        "read_files",
+        "search_codebase",
+        "run_commands",
+        "editor",
+        "ask_question",
+        "team_spawn_teammate",
+        "team_shutdown_teammate",
+        "team_status",
+        "team_task",
+        "team_run_task",
+        "team_cancel_run",
+        "team_list_runs",
+        "team_await_runs",
+        "team_send_message",
+        "team_broadcast",
+        "team_read_mailbox",
+        "team_mission_log",
+        "team_cleanup",
+        "team_create_outcome",
+        "team_attach_outcome_fragment",
+        "team_review_outcome_fragment",
+        "team_finalize_outcome",
+        "team_list_outcomes"
+      ],
+      "requestParameters": {
+        "model": "qwen3.7-plus",
+        "tool_choice": "auto",
+        "stream": true,
+        "stream_options": {
+          "include_usage": true
+        }
+      },
+      "httpStatus": 200,
+      "providerModels": [
+        "qwen3.7-plus"
+      ],
+      "usage": {
+        "prompt_tokens": 6729,
+        "total_tokens": 7804,
+        "completion_tokens": 1075,
+        "prompt_tokens_details": {
+          "cached_tokens": 5120,
+          "text_tokens": 6729
+        },
+        "completion_tokens_details": {
+          "reasoning_tokens": 34,
+          "text_tokens": 1075
+        }
+      },
+      "usageKnown": true,
+      "durationMs": 23703,
+      "responseSha256": "44cfb7078bd9aad0b2c0c8c16b07675ad592cb5a555937fc1a49b2f2f3fe598f",
+      "toolSchemaSha256": "fef3465c3b86f40a6b3ff01bf527170194440a3a34ef0e3f8db05ca1c7e57947"
+    },
+    {
+      "case": "official-3",
+      "index": 4,
+      "start": "2026-11-10T05:30:28.040780+00:00",
+      "path": "/official-3/v1/chat/completions",
+      "requestSha256": "155e164b1e5df3891fc0d4536cdccecb7fbff945aaeadbcfb80154764fc1430d",
+      "requestBytes": 36451,
+      "forwardedUnchanged": true,
+      "requestedModel": "qwen3.7-plus",
+      "toolNames": [
+        "read_files",
+        "search_codebase",
+        "run_commands",
+        "editor",
+        "ask_question",
+        "team_spawn_teammate",
+        "team_shutdown_teammate",
+        "team_status",
+        "team_task",
+        "team_run_task",
+        "team_cancel_run",
+        "team_list_runs",
+        "team_await_runs",
+        "team_send_message",
+        "team_broadcast",
+        "team_read_mailbox",
+        "team_mission_log",
+        "team_cleanup",
+        "team_create_outcome",
+        "team_attach_outcome_fragment",
+        "team_review_outcome_fragment",
+        "team_finalize_outcome",
+        "team_list_outcomes"
+      ],
+      "requestParameters": {
+        "model": "qwen3.7-plus",
+        "tool_choice": "auto",
+        "stream": true,
+        "stream_options": {
+          "include_usage": true
+        }
+      },
+      "httpStatus": 200,
+      "providerModels": [
+        "qwen3.7-plus"
+      ],
+      "usage": {
+        "prompt_tokens": 11347,
+        "total_tokens": 12258,
+        "completion_tokens": 911,
+        "prompt_tokens_details": {
+          "cached_tokens": 6272,
+          "text_tokens": 11347
+        },
+        "completion_tokens_details": {
+          "reasoning_tokens": 50,
+          "text_tokens": 911
+        }
+      },
+      "usageKnown": true,
+      "durationMs": 15562,
+      "responseSha256": "32e8acc03b251ff67bc428b7066d183973731259c2440b194532cbc4b20db8c6",
+      "toolSchemaSha256": "fef3465c3b86f40a6b3ff01bf527170194440a3a34ef0e3f8db05ca1c7e57947"
+    },
+    {
+      "case": "official-3",
+      "index": 5,
+      "start": "2026-11-10T05:30:45.751334+00:00",
+      "path": "/official-3/v1/chat/completions",
+      "requestSha256": "910e91dd56eac2584e05d4c5ae6ea018739f3e5cabe6d7caa865920ff2dbc472",
+      "requestBytes": 46319,
+      "forwardedUnchanged": true,
+      "requestedModel": "qwen3.7-plus",
+      "toolNames": [
+        "read_files",
+        "search_codebase",
+        "run_commands",
+        "editor",
+        "ask_question",
+        "team_spawn_teammate",
+        "team_shutdown_teammate",
+        "team_status",
+        "team_task",
+        "team_run_task",
+        "team_cancel_run",
+        "team_list_runs",
+        "team_await_runs",
+        "team_send_message",
+        "team_broadcast",
+        "team_read_mailbox",
+        "team_mission_log",
+        "team_cleanup",
+        "team_create_outcome",
+        "team_attach_outcome_fragment",
+        "team_review_outcome_fragment",
+        "team_finalize_outcome",
+        "team_list_outcomes"
+      ],
+      "requestParameters": {
+        "model": "qwen3.7-plus",
+        "tool_choice": "auto",
+        "stream": true,
+        "stream_options": {
+          "include_usage": true
+        }
+      },
+      "httpStatus": 200,
+      "providerModels": [
+        "qwen3.7-plus"
+      ],
+      "usage": {
+        "prompt_tokens": 15633,
+        "total_tokens": 16758,
+        "completion_tokens": 1125,
+        "prompt_tokens_details": {
+          "cached_tokens": 10880,
+          "text_tokens": 15633
+        },
+        "completion_tokens_details": {
+          "reasoning_tokens": 68,
+          "text_tokens": 1125
+        }
+      },
+      "usageKnown": true,
+      "durationMs": 19096,
+      "responseSha256": "3a3b348b1234468b276b2a7cff11f0864a0c4f1350968191f6f89749e2f7bd41",
+      "toolSchemaSha256": "fef3465c3b86f40a6b3ff01bf527170194440a3a34ef0e3f8db05ca1c7e57947"
+    },
+    {
+      "case": "official-3",
+      "index": 6,
+      "start": "2026-11-10T05:31:06.720376+00:00",
+      "path": "/official-3/v1/chat/completions",
+      "requestSha256": "571bf319bc3d892e91f515edb7d8b941caf4a680be6a3ea7a934dc6207b5e82c",
+      "requestBytes": 52042,
+      "forwardedUnchanged": true,
+      "requestedModel": "qwen3.7-plus",
+      "toolNames": [
+        "read_files",
+        "search_codebase",
+        "run_commands",
+        "editor",
+        "ask_question",
+        "team_spawn_teammate",
+        "team_shutdown_teammate",
+        "team_status",
+        "team_task",
+        "team_run_task",
+        "team_cancel_run",
+        "team_list_runs",
+        "team_await_runs",
+        "team_send_message",
+        "team_broadcast",
+        "team_read_mailbox",
+        "team_mission_log",
+        "team_cleanup",
+        "team_create_outcome",
+        "team_attach_outcome_fragment",
+        "team_review_outcome_fragment",
+        "team_finalize_outcome",
+        "team_list_outcomes"
+      ],
+      "requestParameters": {
+        "model": "qwen3.7-plus",
+        "tool_choice": "auto",
+        "stream": true,
+        "stream_options": {
+          "include_usage": true
+        }
+      },
+      "httpStatus": 200,
+      "providerModels": [
+        "qwen3.7-plus"
+      ],
+      "usage": {
+        "prompt_tokens": 17660,
+        "total_tokens": 20395,
+        "completion_tokens": 2735,
+        "prompt_tokens_details": {
+          "cached_tokens": 15488,
+          "text_tokens": 17660
+        },
+        "completion_tokens_details": {
+          "reasoning_tokens": 27,
+          "text_tokens": 2735
+        }
+      },
+      "usageKnown": true,
+      "durationMs": 44927,
+      "responseSha256": "6acedcb9a78416a1d7849b08c219f9b154e5cf3b007fad89164192836379a42e",
+      "toolSchemaSha256": "fef3465c3b86f40a6b3ff01bf527170194440a3a34ef0e3f8db05ca1c7e57947"
+    },
+    {
+      "case": "official-3",
+      "index": 7,
+      "start": "2026-11-10T05:31:51.793509+00:00",
+      "path": "/official-3/v1/chat/completions",
+      "requestSha256": "5a9f76d0bd69821343433d533694a8cdc84a58020e6453882811b0f2689eb7a7",
+      "requestBytes": 62653,
+      "forwardedUnchanged": true,
+      "requestedModel": "qwen3.7-plus",
+      "toolNames": [
+        "read_files",
+        "search_codebase",
+        "run_commands",
+        "editor",
+        "ask_question",
+        "team_spawn_teammate",
+        "team_shutdown_teammate",
+        "team_status",
+        "team_task",
+        "team_run_task",
+        "team_cancel_run",
+        "team_list_runs",
+        "team_await_runs",
+        "team_send_message",
+        "team_broadcast",
+        "team_read_mailbox",
+        "team_mission_log",
+        "team_cleanup",
+        "team_create_outcome",
+        "team_attach_outcome_fragment",
+        "team_review_outcome_fragment",
+        "team_finalize_outcome",
+        "team_list_outcomes"
+      ],
+      "requestParameters": {
+        "model": "qwen3.7-plus",
+        "tool_choice": "auto",
+        "stream": true,
+        "stream_options": {
+          "include_usage": true
+        }
+      },
+      "httpStatus": 200,
+      "providerModels": [
+        "qwen3.7-plus"
+      ],
+      "usage": {
+        "prompt_tokens": 20476,
+        "total_tokens": 21158,
+        "completion_tokens": 682,
+        "prompt_tokens_details": {
+          "cached_tokens": 17280,
+          "text_tokens": 20476
+        },
+        "completion_tokens_details": {
+          "reasoning_tokens": 17,
+          "text_tokens": 682
+        }
+      },
+      "usageKnown": true,
+      "durationMs": 12025,
+      "responseSha256": "ec354fd74602fc40eb19117bd82d4316b3e9a98b653cb156223b638592176671",
+      "toolSchemaSha256": "fef3465c3b86f40a6b3ff01bf527170194440a3a34ef0e3f8db05ca1c7e57947"
+    },
+    {
+      "case": "official-3",
+      "index": 8,
+      "start": "2026-11-10T05:32:03.859817+00:00",
+      "path": "/official-3/v1/chat/completions",
+      "requestSha256": "c699b3f40c19ec5f37418ad5099ec0ed5cb595f702c8acd717651545cc87d2b1",
+      "requestBytes": 65996,
+      "forwardedUnchanged": true,
+      "requestedModel": "qwen3.7-plus",
+      "toolNames": [
+        "read_files",
+        "search_codebase",
+        "run_commands",
+        "editor",
+        "ask_question",
+        "team_spawn_teammate",
+        "team_shutdown_teammate",
+        "team_status",
+        "team_task",
+        "team_run_task",
+        "team_cancel_run",
+        "team_list_runs",
+        "team_await_runs",
+        "team_send_message",
+        "team_broadcast",
+        "team_read_mailbox",
+        "team_mission_log",
+        "team_cleanup",
+        "team_create_outcome",
+        "team_attach_outcome_fragment",
+        "team_review_outcome_fragment",
+        "team_finalize_outcome",
+        "team_list_outcomes"
+      ],
+      "requestParameters": {
+        "model": "qwen3.7-plus",
+        "tool_choice": "auto",
+        "stream": true,
+        "stream_options": {
+          "include_usage": true
+        }
+      },
+      "httpStatus": 200,
+      "providerModels": [
+        "qwen3.7-plus"
+      ],
+      "usage": {
+        "prompt_tokens": 21201,
+        "total_tokens": 22058,
+        "completion_tokens": 857,
+        "prompt_tokens_details": {
+          "cached_tokens": 20096,
+          "text_tokens": 21201
+        },
+        "completion_tokens_details": {
+          "reasoning_tokens": 14,
+          "text_tokens": 857
+        }
+      },
+      "usageKnown": true,
+      "durationMs": 14920,
+      "responseSha256": "4e9431f12c7f06fa93e7a61aee3841c3d81630274ee62b949d80673960ecccfb",
+      "toolSchemaSha256": "fef3465c3b86f40a6b3ff01bf527170194440a3a34ef0e3f8db05ca1c7e57947"
+    },
+    {
+      "case": "official-3",
+      "index": 9,
+      "start": "2026-11-10T05:32:18.823518+00:00",
+      "path": "/official-3/v1/chat/completions",
+      "requestSha256": "21d228f4f926d43d46f34e0aaa2c0a35d06d7973acc09935aac16fc8193ac672",
+      "requestBytes": 69018,
+      "forwardedUnchanged": true,
+      "requestedModel": "qwen3.7-plus",
+      "toolNames": [
+        "read_files",
+        "search_codebase",
+        "run_commands",
+        "editor",
+        "ask_question",
+        "team_spawn_teammate",
+        "team_shutdown_teammate",
+        "team_status",
+        "team_task",
+        "team_run_task",
+        "team_cancel_run",
+        "team_list_runs",
+        "team_await_runs",
+        "team_send_message",
+        "team_broadcast",
+        "team_read_mailbox",
+        "team_mission_log",
+        "team_cleanup",
+        "team_create_outcome",
+        "team_attach_outcome_fragment",
+        "team_review_outcome_fragment",
+        "team_finalize_outcome",
+        "team_list_outcomes"
+      ],
+      "requestParameters": {
+        "model": "qwen3.7-plus",
+        "tool_choice": "auto",
+        "stream": true,
+        "stream_options": {
+          "include_usage": true
+        }
+      },
+      "httpStatus": 200,
+      "providerModels": [
+        "qwen3.7-plus"
+      ],
+      "usage": {
+        "prompt_tokens": 22104,
+        "total_tokens": 23389,
+        "completion_tokens": 1285,
+        "prompt_tokens_details": {
+          "cached_tokens": 17280,
+          "text_tokens": 22104
+        },
+        "completion_tokens_details": {
+          "reasoning_tokens": 11,
+          "text_tokens": 1285
+        }
+      },
+      "usageKnown": true,
+      "durationMs": 22031,
+      "responseSha256": "e4fc3a73ee402ca9fd4d112ab18aa178d31793401f5c62bd0879cf4350a1dcf1",
+      "toolSchemaSha256": "fef3465c3b86f40a6b3ff01bf527170194440a3a34ef0e3f8db05ca1c7e57947"
+    },
+    {
+      "case": "official-3",
+      "index": 10,
+      "start": "2026-11-10T05:32:40.911166+00:00",
+      "path": "/official-3/v1/chat/completions",
+      "requestSha256": "4e177a3ba3e91f914e692e17a6c20ecd6761e97eab2eb84f06b899bf9c2e436c",
+      "requestBytes": 73965,
+      "forwardedUnchanged": true,
+      "requestedModel": "qwen3.7-plus",
+      "toolNames": [
+        "read_files",
+        "search_codebase",
+        "run_commands",
+        "editor",
+        "ask_question",
+        "team_spawn_teammate",
+        "team_shutdown_teammate",
+        "team_status",
+        "team_task",
+        "team_run_task",
+        "team_cancel_run",
+        "team_list_runs",
+        "team_await_runs",
+        "team_send_message",
+        "team_broadcast",
+        "team_read_mailbox",
+        "team_mission_log",
+        "team_cleanup",
+        "team_create_outcome",
+        "team_attach_outcome_fragment",
+        "team_review_outcome_fragment",
+        "team_finalize_outcome",
+        "team_list_outcomes"
+      ],
+      "requestParameters": {
+        "model": "qwen3.7-plus",
+        "tool_choice": "auto",
+        "stream": true,
+        "stream_options": {
+          "include_usage": true
+        }
+      },
+      "httpStatus": 200,
+      "providerModels": [
+        "qwen3.7-plus"
+      ],
+      "usage": {
+        "prompt_tokens": 23441,
+        "total_tokens": 25998,
+        "completion_tokens": 2557,
+        "prompt_tokens_details": {
+          "cached_tokens": 21888,
+          "text_tokens": 23441
+        },
+        "completion_tokens_details": {
+          "reasoning_tokens": 20,
+          "text_tokens": 2557
+        }
+      },
+      "usageKnown": true,
+      "durationMs": 42165,
+      "responseSha256": "07c6650318d7d9e5962578b36511042444ff12dbd3458a60fc17aebc6c9f842f",
+      "toolSchemaSha256": "fef3465c3b86f40a6b3ff01bf527170194440a3a34ef0e3f8db05ca1c7e57947"
+    },
+    {
+      "case": "official-3",
+      "index": 11,
+      "start": "2026-11-10T05:33:23.125607+00:00",
+      "path": "/official-3/v1/chat/completions",
+      "requestSha256": "8d006e6df0a5260d196e4a6e81a08e37c612938d81d8223da5cd9bee5eea77c5",
+      "requestBytes": 82001,
+      "forwardedUnchanged": true,
+      "requestedModel": "qwen3.7-plus",
+      "toolNames": [
+        "read_files",
+        "search_codebase",
+        "run_commands",
+        "editor",
+        "ask_question",
+        "team_spawn_teammate",
+        "team_shutdown_teammate",
+        "team_status",
+        "team_task",
+        "team_run_task",
+        "team_cancel_run",
+        "team_list_runs",
+        "team_await_runs",
+        "team_send_message",
+        "team_broadcast",
+        "team_read_mailbox",
+        "team_mission_log",
+        "team_cleanup",
+        "team_create_outcome",
+        "team_attach_outcome_fragment",
+        "team_review_outcome_fragment",
+        "team_finalize_outcome",
+        "team_list_outcomes"
+      ],
+      "requestParameters": {
+        "model": "qwen3.7-plus",
+        "tool_choice": "auto",
+        "stream": true,
+        "stream_options": {
+          "include_usage": true
+        }
+      },
+      "httpStatus": 200,
+      "providerModels": [
+        "qwen3.7-plus"
+      ],
+      "usage": {
+        "prompt_tokens": 26109,
+        "total_tokens": 26176,
+        "completion_tokens": 67,
+        "prompt_tokens_details": {
+          "cached_tokens": 23040,
+          "text_tokens": 26109
+        },
+        "completion_tokens_details": {
+          "reasoning_tokens": 19,
+          "text_tokens": 67
+        }
+      },
+      "usageKnown": true,
+      "durationMs": 2309,
+      "responseSha256": "85e11a7481408b7f28cd4898f8d886ffef2961088418fb8943e48b5a36c10b1a",
+      "toolSchemaSha256": "fef3465c3b86f40a6b3ff01bf527170194440a3a34ef0e3f8db05ca1c7e57947"
+    },
+    {
+      "case": "official-3",
+      "index": 12,
+      "start": "2026-11-10T05:33:27.805467+00:00",
+      "path": "/official-3/v1/chat/completions",
+      "requestSha256": "77929de3c7ea1c6520ef5518bc351f3cc827919e8877a24e8d684ce81a3eeb85",
+      "requestBytes": 89635,
+      "forwardedUnchanged": true,
+      "requestedModel": "qwen3.7-plus",
+      "toolNames": [
+        "read_files",
+        "search_codebase",
+        "run_commands",
+        "editor",
+        "ask_question",
+        "team_spawn_teammate",
+        "team_shutdown_teammate",
+        "team_status",
+        "team_task",
+        "team_run_task",
+        "team_cancel_run",
+        "team_list_runs",
+        "team_await_runs",
+        "team_send_message",
+        "team_broadcast",
+        "team_read_mailbox",
+        "team_mission_log",
+        "team_cleanup",
+        "team_create_outcome",
+        "team_attach_outcome_fragment",
+        "team_review_outcome_fragment",
+        "team_finalize_outcome",
+        "team_list_outcomes"
+      ],
+      "requestParameters": {
+        "model": "qwen3.7-plus",
+        "tool_choice": "auto",
+        "stream": true,
+        "stream_options": {
+          "include_usage": true
+        }
+      },
+      "httpStatus": 200,
+      "providerModels": [
+        "qwen3.7-plus"
+      ],
+      "usage": {
+        "prompt_tokens": 29341,
+        "total_tokens": 34057,
+        "completion_tokens": 4716,
+        "prompt_tokens_details": {
+          "cached_tokens": 25856,
+          "text_tokens": 29341
+        },
+        "completion_tokens_details": {
+          "reasoning_tokens": 21,
+          "text_tokens": 4716
+        }
+      },
+      "usageKnown": true,
+      "durationMs": 76766,
+      "responseSha256": "56b13cabd68ae677c1e2920b4365ac4ce313c1f20b20bccca007337a4b01fc73",
+      "toolSchemaSha256": "fef3465c3b86f40a6b3ff01bf527170194440a3a34ef0e3f8db05ca1c7e57947"
+    }
+  ],
+  "knownTokenUsage": {
+    "prompt_tokens": 204695,
+    "completion_tokens": 16237,
+    "total_tokens": 220932
+  },
+  "missingUsageFields": {
+    "prompt_tokens": 0,
+    "completion_tokens": 0,
+    "total_tokens": 0
+  },
+  "unknownUsageCalls": 0,
+  "officialSessionIds": [
+    "1794288591917_i0hth"
+  ],
+  "officialConversationIds": [
+    "conv_1794288592000_poznzsq"
+  ],
+  "toolsCompleted": 12,
+  "toolsUsed": [
+    "editor",
+    "run_commands"
+  ],
+  "toolOutputsWithPythonException": [],
+  "toolFailures": [
+    {
+      "type": "content_end",
+      "contentType": "tool",
+      "toolName": "editor",
+      "toolCallId": "call_8212252c42ee49be82025a57",
+      "output": {
+        "query": "edit:/workspace/analysis.py",
+        "result": "",
+        "error": "Editor input too large: new_text was 8457 characters, exceeding the recommended limit of 6000. Split the edit into smaller tool calls so later tool calls are less likely to be truncated or time out.",
+        "success": false
+      },
+      "durationMs": 5
+    },
+    {
+      "type": "content_end",
+      "contentType": "tool",
+      "toolName": "editor",
+      "toolCallId": "call_7b048275197148119b57b06c",
+      "output": {
+        "query": "edit:/workspace/analysis.py",
+        "result": "",
+        "error": "Editor operation failed: No replacement performed: text not found in /workspace/analysis.py.",
+        "success": false
+      },
+      "durationMs": 5
+    }
+  ],
+  "pythonToolResults": [
+    {
+      "type": "content_end",
+      "contentType": "tool",
+      "toolName": "run_commands",
+      "toolCallId": "call_ff8455d66aae44038b223454",
+      "output": [
+        {
+          "query": "ls -la /workspace/test.parquet",
+          "result": "-r--r--r-- 1 root root 4442620 Nov 10 13:29 /workspace/test.parquet\n",
+          "success": true
+        },
+        {
+          "query": "python3 -c \"import pandas as pd; print(pd.__version__)\"",
+          "result": "2.3.3\n",
+          "success": true
+        }
+      ],
+      "durationMs": 1304
+    },
+    {
+      "type": "content_end",
+      "contentType": "tool",
+      "toolName": "run_commands",
+      "toolCallId": "call_e2ed677969ea4e979fb87afa",
+      "output": [
+        {
+          "query": "python3 << 'EOF'\nimport pandas as pd\ndf = pd.read_parquet('/workspace/test.parquet')\nprint(\"Shape:\", df.shape)\nprint(\"\\nColumns:\", df.columns.tolist())\nprint(\"\\nDtypes:\")\nprint(df.dtypes)\nprint(\"\\nFir ... [command truncated: 60 more chars; full command is in the tool call input]",
+          "result": "Shape: (238073, 19)\n\nColumns: ['VendorID', 'tpep_pickup_datetime', 'tpep_dropoff_datetime', 'passenger_count', 'trip_distance', 'RatecodeID', 'store_and_fwd_flag', 'PULocationID', 'DOLocationID', 'payment_type', 'fare_amount', 'extra', 'mta_tax', 'tip_amount', 'tolls_amount', 'improvement_surcharge', 'total_amount', 'congestion_surcharge', 'airport_fee']\n\nDtypes:\nVendorID                          int64\ntpep_pickup_datetime     datetime64[us]\ntpep_dropoff_datetime    datetime64[us]\npassenger_count                 float64\ntrip_distance                   float64\nRatecodeID                      float64\nstore_and_fwd_flag               object\nPULocationID                      int64\nDOLocationID                      int64\npayment_type                      int64\nfare_amount                     float64\nextra                           float64\nmta_tax                         float64\ntip_amount                      float64\ntolls_amount                    float64\nimprovement_surcharge           float64\ntotal_amount                    float64\ncongestion_surcharge            float64\nairport_fee                      object\ndtype: object\n\nFirst 5 rows:\n   VendorID tpep_pickup_datetime  ... congestion_surcharge  airport_fee\n0         1  2020-04-01 00:41:22  ...                  0.0         None\n1         1  2020-04-01 00:56:00  ...                  0.0         None\n2         1  2020-04-01 00:00:26  ...                  2.5         None\n3         1  2020-04-01 00:24:38  ...                  2.5         None\n4         2  2020-04-01 00:13:24  ...                  2.5         None\n\n[5 rows x 19 columns]\n\nInfo:\n<class 'pandas.core.frame.DataFrame'>\nRangeIndex: 238073 entries, 0 to 238072\nData columns (total 19 columns):\n #   Column                 Non-Null Count   Dtype         \n---  ------                 --------------   -----         \n 0   VendorID               238073 non-null  int64         \n 1   tpep_pickup_datetime   238073 non-null  datetime64[us]\n 2   tpep_dropoff_datetime  238073 non-null  datetime64[us]\n 3   passenger_count        218493 non-null  float64       \n 4   trip_distance          238073 non-null  float64       \n 5   RatecodeID             218493 non-null  float64       \n 6   store_and_fwd_flag     218493 non-null  object        \n 7   PULocationID           238073 non-null  int64         \n 8   DOLocationID           238073 non-null  int64         \n 9   payment_type           238073 non-null  int64         \n 10  fare_amount            238073 non-null  float64       \n 11  extra                  238073 non-null  float64       \n 12  mta_tax                238073 non-null  float64       \n 13  tip_amount             238073 non-null  float64       \n 14  tolls_amount           238073 non-null  float64       \n 15  improvement_surcharge  238073 non-null  float64       \n 16  total_amount           238073 non-null  float64       \n 17  congestion_surcharge   218493 non-null  float64       \n 18  airport_fee            0 non-null       object        \ndtypes: datetime64[us](2), float64(11), int64(4), object(2)\nmemory usage: 34.5+ MB\n",
+          "success": true
+        }
+      ],
+      "durationMs": 1768
+    },
+    {
+      "type": "content_end",
+      "contentType": "tool",
+      "toolName": "run_commands",
+      "toolCallId": "call_a61f89c536d14b1ba94b2e65",
+      "output": [
+        {
+          "query": "python3 << 'EOF'\nimport pandas as pd\nimport numpy as np\ndf = pd.read_parquet('/workspace/test.parquet')\n\nprint(\"=== MISSING VALUES ===\")\nmissing = df.isnull().sum()\nmissing_pct = (missing / len(df) *  ... [command truncated: 2656 more chars; full command is in the tool call input]",
+          "result": "=== MISSING VALUES ===\n                      missing_count  missing_pct\npassenger_count               19580         8.22\nRatecodeID                    19580         8.22\nstore_and_fwd_flag            19580         8.22\ncongestion_surcharge          19580         8.22\nairport_fee                  238073       100.00\n\n=== DUPLICATE ROWS ===\nExact duplicate rows: 0\n\n=== BASIC STATISTICS ===\n            VendorID        tpep_pickup_datetime       tpep_dropoff_datetime  passenger_count  trip_distance     RatecodeID   PULocationID   DOLocationID   payment_type    fare_amount          extra        mta_tax     tip_amount   tolls_amount  improvement_surcharge   total_amount  congestion_surcharge\ncount  238073.000000                      238073                      238073    218493.000000  238073.000000  218493.000000  238073.000000  238073.000000  238073.000000  238073.000000  238073.000000  238073.000000  238073.000000  238073.000000          238073.000000  238073.000000         218493.000000\nmean        1.592247  2020-04-16 06:35:46.222907  2020-04-16 06:47:02.462984         1.296751       4.040667       1.034079     154.939997     150.355660       1.308473      11.669133       1.067176       0.486983       1.529937       0.220858               0.296319      16.411970              2.023246\nmin         1.000000         2009-01-01 01:11:17         2009-01-01 01:11:20         0.000000       0.000000       1.000000       1.000000       1.000000       0.000000    -118.000000      -4.500000      -0.500000      -5.000000     -19.870000              -0.300000    -138.170000             -2.500000\n25%         1.000000         2020-04-08 11:57:20         2020-04-08 12:07:13         1.000000       0.950000       1.000000      97.000000      75.000000       1.000000       5.500000       0.000000       0.500000       0.000000       0.000000               0.300000       9.800000              2.500000\n50%         2.000000         2020-04-16 12:37:17         2020-04-16 12:46:15         1.000000       1.740000       1.000000     143.000000     143.000000       1.000000       8.000000       0.500000       0.500000       1.000000       0.000000               0.300000      12.800000              2.500000\n75%         2.000000         2020-04-24 06:16:18         2020-04-24 06:27:22         1.000000       3.400000       1.000000     234.000000     233.000000       2.000000      13.000000       2.500000       0.500000       2.460000       0.000000               0.300000      18.360000              2.500000\nmax         6.000000         2020-04-30 23:59:42         2020-05-01 22:18:13         7.000000  126501.770000      99.000000     265.000000     265.000000       4.000000     903.020000       9.060000       1.100000     117.280000      98.750000               0.300000     903.320000              2.500000\nstd         0.497112                         NaN                         NaN         0.983570     294.829524       0.865019      70.763185      74.475937       0.661205      11.731917       1.260589       0.095030       2.295454       1.343803               0.045462      13.160379              1.008096\n\n=== UNIQUE VALUES FOR CATEGORICAL/COUNT COLUMNS ===\n\nVendorID:\nVendorID\n2    140663\n1     97343\n6        67\nName: count, dtype: int64\n\npassenger_count:\npassenger_count\n1.0    177805\nNaN     19580\n2.0     19405\n0.0      6582\n5.0      4642\n3.0      4553\n6.0      3910\n4.0      1595\n7.0         1\nName: count, dtype: int64\n\nRatecodeID:\nRatecodeID\n1.0     216093\nNaN      19580\n2.0       1025\n5.0       1025\n4.0        175\n3.0        158\n99.0        15\n6.0          2\nName: count, dtype: int64\n\nstore_and_fwd_flag:\nstore_and_fwd_flag\nN       216629\nNone     19580\nY         1864\nName: count, dtype: int64\n\npayment_type:\npayment_type\n1    131157\n2     83039\n0     19580\n3      2911\n4      1386\nName: count, dtype: int64\n\n=== LOCATION IDS ===\nPULocationID unique: 250, min: 1, max: 265\nDOLocationID unique: 259, min: 1, max: 265\n\n=== DATETIME RANGE ===\nPickup range: 2009-01-01 01:11:17 to 2020-04-30 23:59:42\nDropoff range: 2009-01-01 01:11:20 to 2020-05-01 22:18:13\n\n=== TRIP DURATION ===\nDuration stats (minutes):\ncount    238073.000000\nmean         11.270668\nstd          44.508550\nmin          -0.850000\n25%           4.450000\n50%           7.500000\n75%          12.550000\nmax        3574.700000\nName: trip_duration, dtype: float64\nNegative durations: 29\nZero durations: 286\nDuration > 24h: 3\n\n=== ANOMALIES: FARE ANALYSIS ===\nfare_amount < 0: 1295\nfare_amount == 0: 167\ntotal_amount < 0: 1294\ntrip_distance == 0: 6225\ntrip_distance < 0: 0\npassenger_count == 0: 6582\npassenger_count > 6: 1\n\n=== TOP FARE OUTLIERS ===\n        fare_amount  total_amount  trip_distance  passenger_count\n108387       903.02        903.32           0.00              1.0\n58528        578.50        703.70         109.31              1.0\n212344       555.50        576.67         177.40              0.0\n196631       494.00        509.05         166.10              0.0\n15315        480.00        480.31           0.00              1.0\n206015       474.50        523.66         173.20              2.0\n153770       459.50        468.92         149.53              2.0\n44215        448.50        477.80         174.70              1.0\n126837       421.00        509.16          82.00              2.0\n97697        400.00        400.30           0.00              1.0\n\n=== TOP DISTANCE OUTLIERS ===\n        fare_amount  total_amount  trip_distance  passenger_count\n230189        28.20         35.12      126501.77              NaN\n224587        25.93         35.60       39555.82              NaN\n224573        38.36         48.03       39540.66              NaN\n224545        59.20         68.62       39516.62              NaN\n212344       555.50        576.67         177.40              0.0\n44215        448.50        477.80         174.70              1.0\n206015       474.50        523.66         173.20              2.0\n196631       494.00        509.05         166.10              0.0\n153770       459.50        468.92         149.53              2.0\n118110       382.00        399.05         122.34              1.0\n\n=== PASSENGER COUNT OUTLIERS ===\nMax passenger_count: 7.0\npassenger_count > 6 values: passenger_count\n7.0    1\nName: count, dtype: int64\n\n=== AIRPORT_FEE COLUMN ===\nairport_fee non-null: 0\nairport_fee unique values: [None]\n",
+          "success": true
+        }
+      ],
+      "durationMs": 2939
+    },
+    {
+      "type": "content_end",
+      "contentType": "tool",
+      "toolName": "run_commands",
+      "toolCallId": "call_7158aa7cf7354a819898f149",
+      "output": [
+        {
+          "query": "python3 << 'EOF'\nimport pandas as pd\nimport numpy as np\ndf = pd.read_parquet('/workspace/test.parquet')\n\nprint(\"=== DATETIME ANOMALIES ===\")\n# Check records before April 2020\nbefore_april = df[df['tpe ... [command truncated: 1859 more chars; full command is in the tool call input]",
+          "result": "=== DATETIME ANOMALIES ===\nRecords with pickup before 2020-04-01: 132\n    tpep_pickup_datetime tpep_dropoff_datetime  fare_amount  trip_distance\n183  2020-03-07 12:35:20   2020-03-07 12:44:12          7.0           0.97\n184  2020-03-07 13:06:13   2020-03-07 13:20:50         12.5           3.02\n215  2020-02-02 21:48:34   2020-02-02 22:27:44         37.0          11.28\n218  2020-03-07 13:40:17   2020-03-07 13:41:04          2.5           0.02\n219  2020-03-07 13:41:34   2020-03-07 13:57:01         11.0           1.66\n220  2020-03-07 14:03:21   2020-03-07 14:03:25          2.5           0.00\n221  2020-03-07 14:11:24   2020-03-07 14:26:39         11.5           2.09\n247  2020-02-02 22:45:15   2020-02-02 23:03:23         16.0           4.13\n248  2020-02-02 23:04:57   2020-02-02 23:18:23         10.5           2.07\n252  2020-03-07 14:29:23   2020-03-07 14:44:28         11.0           2.10\n\nRecords with pickup after 2020-04-30: 0\n\n=== NEGATIVE FARE DETAILS ===\nCount: 1295\nMin fare: -118.0\npayment_type distribution:\npayment_type\n4    669\n3    398\n2    222\n0      4\n1      2\nName: count, dtype: int64\n\n=== TRIP DISTANCE PERCENTILES ===\n  90th percentile: 6.93\n  95th percentile: 10.50\n  99th percentile: 18.98\n  99.5th percentile: 22.00\n  99.9th percentile: 33.45\n\n=== FARE AMOUNT PERCENTILES ===\n  90th percentile: 23.50\n  95th percentile: 33.00\n  99th percentile: 52.57\n  99.5th percentile: 62.52\n  99.9th percentile: 98.50\n\n=== TOTAL AMOUNT PERCENTILES ===\n  90th percentile: 29.23\n  95th percentile: 39.77\n  99th percentile: 65.80\n  99.5th percentile: 75.65\n  99.9th percentile: 113.51\n\n=== RATECODEID 99 DETAILS ===\nCount: 15\n       fare_amount  total_amount  trip_distance\ncount    15.000000     15.000000      15.000000\nmean     46.065333     47.598667       0.242667\nstd      68.567382     67.546772       0.586253\nmin       0.000000      1.300000       0.000000\n25%       2.500000      3.800000       0.000000\n50%       5.000000      8.300000       0.000000\n75%      98.485000     98.485000       0.000000\nmax     154.670000    154.670000       2.130000\n\n=== PAYMENT TYPE 0 DETAILS ===\nCount: 19580\nThese are likely records with missing payment type info\n\n=== VENDORID 6 DETAILS ===\nCount: 67\n        VendorID tpep_pickup_datetime  ... congestion_surcharge  airport_fee\n218969         6  2020-04-01 18:04:48  ...                  NaN         None\n218979         6  2020-04-01 18:04:37  ...                  NaN         None\n219314         6  2020-04-02 11:04:50  ...                  NaN         None\n219366         6  2020-04-02 14:04:53  ...                  NaN         None\n219406         6  2020-04-02 16:04:31  ...                  NaN         None\n\n[5 rows x 19 columns]\n\n=== FILE SIZE ===\nFile size: 4.24 MB\n\n=== CORRELATION MATRIX (numeric cols) ===\n                       VendorID  passenger_count  trip_distance  RatecodeID  PULocationID  DOLocationID  payment_type  fare_amount  extra  mta_tax  tip_amount  tolls_amount  improvement_surcharge  total_amount  congestion_surcharge\nVendorID                  1.000            0.243          0.005       0.009        -0.041        -0.020        -0.126        0.086 -0.780   -0.090       0.032         0.070                 -0.059         0.081                -0.015\npassenger_count           0.243            1.000          0.006      -0.011        -0.008        -0.004        -0.009       -0.003 -0.201    0.005       0.005        -0.002                  0.002        -0.001                 0.006\ntrip_distance             0.005            0.006          1.000       0.032        -0.002        -0.001        -0.010        0.018 -0.004   -0.001       0.002         0.022                  0.001         0.018                -0.028\nRatecodeID                0.009           -0.011          0.032       1.000         0.004         0.011         0.010        0.117 -0.024   -0.118       0.025         0.051                 -0.055         0.107                -0.054\nPULocationID             -0.041           -0.008         -0.002       0.004         1.000         0.151        -0.011       -0.069  0.109    0.026       0.044        -0.037                  0.008        -0.038                 0.250\nDOLocationID             -0.020           -0.004         -0.001       0.011         0.151         1.000        -0.015       -0.058  0.076    0.014       0.037        -0.010                  0.002        -0.031                 0.190\npayment_type             -0.126           -0.009         -0.010       0.010        -0.011        -0.015         1.000       -0.223  0.109   -0.068      -0.403        -0.141                 -0.224        -0.283                -0.223\nfare_amount               0.086           -0.003          0.018       0.117        -0.069        -0.058        -0.223        1.000 -0.093   -0.012       0.264         0.459                  0.133         0.975                -0.060\nextra                    -0.780           -0.201         -0.004      -0.024         0.109         0.076         0.109       -0.093  1.000    0.129       0.038        -0.081                  0.085        -0.042                 0.336\nmta_tax                  -0.090            0.005         -0.001      -0.118         0.026         0.014        -0.068       -0.012  0.129    1.000       0.028        -0.079                  0.776         0.024                 0.315\ntip_amount                0.032            0.005          0.002       0.025         0.044         0.037        -0.403        0.264  0.038    0.028       1.000         0.133                  0.053         0.435                 0.137\ntolls_amount              0.070           -0.002          0.022       0.051        -0.037        -0.010        -0.141        0.459 -0.081   -0.079       0.133         1.000                  0.018         0.523                -0.101\nimprovement_surcharge    -0.059            0.002          0.001      -0.055         0.008         0.002        -0.224        0.133  0.085    0.776       0.053         0.018                  1.000         0.163                 0.296\ntotal_amount              0.081           -0.001          0.018       0.107        -0.038        -0.031        -0.283        0.975 -0.042    0.024       0.435         0.523                  0.163         1.000                 0.050\ncongestion_surcharge     -0.015            0.006         -0.028      -0.054         0.250         0.190        -0.223       -0.060  0.336    0.315       0.137        -0.101                  0.296         0.050                 1.000\n",
+          "success": true
+        }
+      ],
+      "durationMs": 2112
+    },
+    {
+      "type": "content_end",
+      "contentType": "tool",
+      "toolName": "run_commands",
+      "toolCallId": "call_caee722cb0e540c689e03272",
+      "output": [
+        {
+          "query": "python3 << 'EOF'\nimport pandas as pd\nimport numpy as np\ndf = pd.read_parquet('/workspace/test.parquet')\n\nprint(\"=== 2009 DATES ===\")\ndates_2009 = df[df['tpep_pickup_datetime'].dt.year == 2009]\nprint(f ... [command truncated: 2437 more chars; full command is in the tool call input]",
+          "result": "=== 2009 DATES ===\nCount: 1\n       tpep_pickup_datetime tpep_dropoff_datetime  fare_amount  trip_distance  VendorID\n139389  2009-01-01 01:11:17   2009-01-01 01:11:20          2.5            0.0         2\n\n=== VENDORID 6 MISSING PATTERN ===\nVendorID                  0\ntpep_pickup_datetime      0\ntpep_dropoff_datetime     0\npassenger_count          67\ntrip_distance             0\nRatecodeID               67\nstore_and_fwd_flag       67\nPULocationID              0\nDOLocationID              0\npayment_type              0\nfare_amount               0\nextra                     0\nmta_tax                   0\ntip_amount                0\ntolls_amount              0\nimprovement_surcharge     0\ntotal_amount              0\ncongestion_surcharge     67\nairport_fee              67\ndtype: int64\n\nAll VendorID=6 rows have missing passenger_count, RatecodeID, store_and_fwd_flag, congestion_surcharge?\npassenger_count null: 67/67\ncongestion_surcharge null: 67/67\n\n=== DURATION DISTRIBUTION ===\nDuration < 0: 29\nDuration 0-1 min: 4227\nDuration 1-5 min: 66647\nDuration 5-15 min: 123924\nDuration 15-30 min: 35342\nDuration 30-60 min: 7178\nDuration 60-120 min: 409\nDuration > 120 min: 317\n\n=== FARE vs DISTANCE consistency ===\nFare=0 but distance>0: 83\nDistance=0 but fare>0: 5988\n\n=== SKEWNESS AND KURTOSIS ===\ntrip_distance: skew=362.146, kurtosis=146418.321\nfare_amount: skew=8.354, kurtosis=292.805\ntotal_amount: skew=7.497, kurtosis=226.159\ntip_amount: skew=9.146, kurtosis=256.400\npassenger_count: skew=3.292, kurtosis=11.356\n\n=== IQR OUTLIERS ===\ntrip_distance: IQR=2.45, bounds=[-2.73, 7.08], outliers=23124 (9.7%)\nfare_amount: IQR=7.50, bounds=[-5.75, 24.25], outliers=22775 (9.6%)\ntotal_amount: IQR=8.56, bounds=[-3.04, 31.20], outliers=22037 (9.3%)\ntip_amount: IQR=2.46, bounds=[-3.69, 6.15], outliers=5993 (2.5%)\n",
+          "success": true
+        }
+      ],
+      "durationMs": 1831
+    },
+    {
+      "type": "content_end",
+      "contentType": "tool",
+      "toolName": "run_commands",
+      "toolCallId": "call_eeac991006de48a19dbed4f4",
+      "output": [
+        {
+          "query": "cat > /workspace/analysis.py << 'PYEOF'\n#!/usr/bin/env python3\n\"\"\"\nanalysis.py - Comprehensive analysis of test.parquet (NYC Yellow Taxi Trip Data, April 2020)\n\"\"\"\n\nimport pandas as pd\nimport numpy as ... [command truncated: 5911 more chars; full command is in the tool call input]",
+          "result": "",
+          "success": true
+        }
+      ],
+      "durationMs": 10
+    },
+    {
+      "type": "content_end",
+      "contentType": "tool",
+      "toolName": "run_commands",
+      "toolCallId": "call_4edb9de2b3c64b9eb5690b15",
+      "output": [
+        {
+          "query": "cd /workspace && python3 analysis.py 2>&1 | head -120",
+          "result": "File size: 4.24 MB\nShape: 238073 rows x 19 columns\n\n============================================================\nFIELD TYPES\n============================================================\n  VendorID                        int64                 non-null:   238073  null:      0\n  tpep_pickup_datetime            datetime64[us]        non-null:   238073  null:      0\n  tpep_dropoff_datetime           datetime64[us]        non-null:   238073  null:      0\n  passenger_count                 float64               non-null:   218493  null:  19580\n  trip_distance                   float64               non-null:   238073  null:      0\n  RatecodeID                      float64               non-null:   218493  null:  19580\n  store_and_fwd_flag              object                non-null:   218493  null:  19580\n  PULocationID                    int64                 non-null:   238073  null:      0\n  DOLocationID                    int64                 non-null:   238073  null:      0\n  payment_type                    int64                 non-null:   238073  null:      0\n  fare_amount                     float64               non-null:   238073  null:      0\n  extra                           float64               non-null:   238073  null:      0\n  mta_tax                         float64               non-null:   238073  null:      0\n  tip_amount                      float64               non-null:   238073  null:      0\n  tolls_amount                    float64               non-null:   238073  null:      0\n  improvement_surcharge           float64               non-null:   238073  null:      0\n  total_amount                    float64               non-null:   238073  null:      0\n  congestion_surcharge            float64               non-null:   218493  null:  19580\n  airport_fee                     object                non-null:        0  null: 238073\n\n============================================================\nMISSING VALUES\n============================================================\n                      missing_count  missing_pct\npassenger_count               19580         8.22\nRatecodeID                    19580         8.22\nstore_and_fwd_flag            19580         8.22\ncongestion_surcharge          19580         8.22\nairport_fee                  238073       100.00\n\n============================================================\nDUPLICATE ROWS\n============================================================\nExact duplicate rows: 0\n\n============================================================\nNUMERIC COLUMN STATISTICS\n============================================================\n            VendorID        tpep_pickup_datetime       tpep_dropoff_datetime  passenger_count  trip_distance     RatecodeID   PULocationID   DOLocationID   payment_type    fare_amount          extra        mta_tax     tip_amount   tolls_amount  improvement_surcharge   total_amount  congestion_surcharge\ncount  238073.000000                      238073                      238073    218493.000000  238073.000000  218493.000000  238073.000000  238073.000000  238073.000000  238073.000000  238073.000000  238073.000000  238073.000000  238073.000000          238073.000000  238073.000000         218493.000000\nmean        1.592247  2020-04-16 06:35:46.222907  2020-04-16 06:47:02.462984         1.296751       4.040667       1.034079     154.939997     150.355660       1.308473      11.669133       1.067176       0.486983       1.529937       0.220858               0.296319      16.411970              2.023246\nmin         1.000000         2009-01-01 01:11:17         2009-01-01 01:11:20         0.000000       0.000000       1.000000       1.000000       1.000000       0.000000    -118.000000      -4.500000      -0.500000      -5.000000     -19.870000              -0.300000    -138.170000             -2.500000\n25%         1.000000         2020-04-08 11:57:20         2020-04-08 12:07:13         1.000000       0.950000       1.000000      97.000000      75.000000       1.000000       5.500000       0.000000       0.500000       0.000000       0.000000               0.300000       9.800000              2.500000\n50%         2.000000         2020-04-16 12:37:17         2020-04-16 12:46:15         1.000000       1.740000       1.000000     143.000000     143.000000       1.000000       8.000000       0.500000       0.500000       1.000000       0.000000               0.300000      12.800000              2.500000\n75%         2.000000         2020-04-24 06:16:18         2020-04-24 06:27:22         1.000000       3.400000       1.000000     234.000000     233.000000       2.000000      13.000000       2.500000       0.500000       2.460000       0.000000               0.300000      18.360000              2.500000\nmax         6.000000         2020-04-30 23:59:42         2020-05-01 22:18:13         7.000000  126501.770000      99.000000     265.000000     265.000000       4.000000     903.020000       9.060000       1.100000     117.280000      98.750000               0.300000     903.320000              2.500000\nstd         0.497112                         NaN                         NaN         0.983570     294.829524       0.865019      70.763185      74.475937       0.661205      11.731917       1.260589       0.095030       2.295454       1.343803               0.045462      13.160379              1.008096\n\n============================================================\nCATEGORICAL / ID COLUMN DISTRIBUTIONS\n============================================================\n\n--- VendorID ---\nVendorID\n2    140663\n1     97343\n6        67\n\n--- passenger_count ---\npassenger_count\n1.0    177805\nNaN     19580\n2.0     19405\n0.0      6582\n5.0      4642\n3.0      4553\n6.0      3910\n4.0      1595\n7.0         1\n\n--- RatecodeID ---\nRatecodeID\n1.0     216093\nNaN      19580\n2.0       1025\n5.0       1025\n4.0        175\n3.0        158\n99.0        15\n6.0          2\n\n--- store_and_fwd_flag ---\nstore_and_fwd_flag\nN       216629\nNone     19580\nY         1864\n\n--- payment_type ---\npayment_type\n1    131157\n2     83039\n0     19580\n3      2911\n4      1386\n\n============================================================\nDATETIME ANALYSIS\n============================================================\nPickup range:  2009-01-01 01:11:17  to  2020-04-30 23:59:42\nDropoff range: 2009-01-01 01:11:20  to  2020-05-01 22:18:13\nRecords with pickup before 2020-04-01: 132\n    2009-01-01 01:11:17  VendorID=2\n    2020-02-02 21:48:34  VendorID=2\n    2020-02-02 22:45:15  VendorID=2\n    2020-02-02 23:04:57  VendorID=2\n    2020-02-02 23:27:41  VendorID=2\nRecords with pickup after 2020-04-30: 0\n\n============================================================\nTRIP DURATION ANALYSIS\n============================================================\nMean: 11.27 min, Median: 7.50 min, Std: 44.51 min\nMin: -0.85 min, Max: 3574.70 min\nNegative: 29, Zero: 286, >24h: 3\n",
+          "success": true
+        }
+      ],
+      "durationMs": 2325
+    }
+  ],
+  "finalReview": {
+    "case": "official-3",
+    "sevenCriteria": {
+      "realParquetRead": true,
+      "realSchemaRecognized": true,
+      "actualCodeExecution": true,
+      "requiredStatisticsCompleted": true,
+      "bothRequiredFilesDelivered": true,
+      "independentMajorNumbersCorrect": false,
+      "readableFilesAndReviewedClaimsSupported": false
+    },
+    "artifactAcceptance": "FAILED",
+    "normalTermination": false,
+    "reviewNotes": "Report says more than100 trips exceed100 miles; actual12. Report also claims analysis.py automatically generated it, but the retained script only prints statistics; reproduction creates no report.",
+    "reviewMethod": "Independent raw-file statistics + generated source/report semantic review + separately isolated reproduction; no generated source was injected into a formal run."
+  }
+}

@@ -1,0 +1,33 @@
+{
+  "dataSource": "https://d37ci6vzurychx.cloudfront.net/trip-data/yellow_tripdata_2020-04.parquet",
+  "dataSourcePage": "https://www.nyc.gov/site/tlc/about/tlc-trip-record-data.page",
+  "dataSha256": "3104e1e5548ade630988a4a8b9ec76c51a057b88159f78676c7d344f48491450",
+  "dataBytes": 4442620,
+  "officialCliPackage": "@cline/cli-linux-x64",
+  "officialCliVersion": "3.0.74",
+  "officialCliDist": {
+    "shasum": "8476314c4010a15be97627ea81e6b5cb3db4ba14",
+    "tarball": "https://registry.npmjs.org/@cline/cli-linux-x64/-/cli-linux-x64-3.0.74.tgz",
+    "fileCount": 2,
+    "integrity": "sha512-Em6BmcqAnwV/UXjdaQY7abeECNzq9O1NjQ7N5a/dOQQpVQlP1S04qmP/xOxgWBh0eS5Mln3z6y3m++DBcYYn3Q==",
+    "signatures": [
+      {
+        "sig": "MEUCIQCjaHRGsPIHmODtYmxw1gtjLDoRuri7fEaUme4ujkF34gIgJgnVkrgmS0fJOtNDZOvHNXmei30YM+go0jdHUnusQao=",
+        "keyid": "SHA256:DhQ8wR5APBvFHLF/+Tc+AYvPOdTpcIDqOhxsBHRwC7U"
+      },
+      {
+        "sig": "MEUCIQCZiBye7RdrpuVCCk0Mk8xRQa28iICP1HP7rb/EGsetAQIgHzHRW0mGoa5BP3hXEny5BbPrNFIQHwqSTotyIDs1Emc=",
+        "keyid": "SHA256:DhQ8wR5APBvFHLF/+Tc+AYvPOdTpcIDqOhxsBHRwC7U"
+      }
+    ],
+    "attestations": {
+      "url": "https://registry.npmjs.org/-/npm/v1/attestations/@cline%2fcli-linux-x64@3.0.74",
+      "provenance": {
+        "predicateType": "https://slsa.dev/provenance/v1"
+      }
+    },
+    "unpackedSize": 161793832
+  },
+  "verifiedIntegrity": "sha512-Em6BmcqAnwV/UXjdaQY7abeECNzq9O1NjQ7N5a/dOQQpVQlP1S04qmP/xOxgWBh0eS5Mln3z6y3m++DBcYYn3Q==",
+  "tarballSha256": "52502438a8d78a451156c38df2eb31116d658c94d1d5461b4e29761d06211bfc"
+}

@@ -1,0 +1,16 @@
+{
+  "case": "official-4",
+  "sevenCriteria": {
+    "realParquetRead": true,
+    "realSchemaRecognized": true,
+    "actualCodeExecution": true,
+    "requiredStatisticsCompleted": true,
+    "bothRequiredFilesDelivered": true,
+    "independentMajorNumbersCorrect": true,
+    "readableFilesAndReviewedClaimsSupported": true
+  },
+  "artifactAcceptance": "PASSED",
+  "normalTermination": true,
+  "reviewNotes": "205 matched checks, report/source semantic review and isolated reproduction passed; extra same-zone count20122 and original source statistics verified.",
+  "reviewMethod": "Independent raw-file statistics + generated source/report semantic review + separately isolated reproduction; no generated source was injected into a formal run."
+}

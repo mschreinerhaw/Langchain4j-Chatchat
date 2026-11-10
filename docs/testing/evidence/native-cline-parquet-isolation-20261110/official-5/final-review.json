@@ -1,0 +1,16 @@
+{
+  "case": "official-5",
+  "sevenCriteria": {
+    "realParquetRead": true,
+    "realSchemaRecognized": true,
+    "actualCodeExecution": true,
+    "requiredStatisticsCompleted": true,
+    "bothRequiredFilesDelivered": true,
+    "independentMajorNumbersCorrect": true,
+    "readableFilesAndReviewedClaimsSupported": true
+  },
+  "artifactAcceptance": "PASSED",
+  "normalTermination": false,
+  "reviewNotes": "266 matched checks and isolated reproduction passed. Fee-component diagnostic independently verified87397 / 0.91467344 /4.50. CLI still exited1 after the fixed request budget was exhausted.",
+  "reviewMethod": "Independent raw-file statistics + generated source/report semantic review + separately isolated reproduction; no generated source was injected into a formal run."
+}

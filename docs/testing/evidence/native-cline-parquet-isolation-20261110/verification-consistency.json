@@ -1,0 +1,20 @@
+{
+  "formalIndependentSessions": 10,
+  "providerModelCalls": 113,
+  "knownTotalTokens": 2010022,
+  "providerModels": [
+    "qwen3.7-plus"
+  ],
+  "allSessionIdsUnique": true,
+  "allProviderReceiptsPresent": true,
+  "unknownUsageCalls": 0,
+  "allCopiedArtifactHashesMatchOriginal": true,
+  "formalInputSha256": "3104e1e5548ade630988a4a8b9ec76c51a057b88159f78676c7d344f48491450",
+  "allInputsUnchanged": true,
+  "allPublicEventReasoningExcluded": true,
+  "serverSecretsScan": "PASSED",
+  "scriptSyntaxCheck": "PASSED",
+  "strictConfigurationParity": false,
+  "productRegressionSuiteRun": false,
+  "note": "Only test/evidence files added. Syntax and evidence consistency checks are not counted as formal model tasks."
+}

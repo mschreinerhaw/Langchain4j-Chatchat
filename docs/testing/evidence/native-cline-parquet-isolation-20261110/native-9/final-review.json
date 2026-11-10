@@ -1,0 +1,16 @@
+{
+  "case": "native-9",
+  "sevenCriteria": {
+    "realParquetRead": true,
+    "realSchemaRecognized": true,
+    "actualCodeExecution": true,
+    "requiredStatisticsCompleted": true,
+    "bothRequiredFilesDelivered": true,
+    "independentMajorNumbersCorrect": false,
+    "readableFilesAndReviewedClaimsSupported": false
+  },
+  "artifactAcceptance": "FAILED",
+  "normalTermination": true,
+  "reviewNotes": "Normal completion but five IQR outlier counts and zero-duration count are wrong. Example fare_amount: 28756 vs 22775; zero duration:1049 vs286.",
+  "reviewMethod": "Independent raw-file statistics + generated source/report semantic review + separately isolated reproduction; no generated source was injected into a formal run."
+}

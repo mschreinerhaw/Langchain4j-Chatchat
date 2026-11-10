@@ -1,0 +1,438 @@
+{
+  "completedAt": "2026-11-10T06:07:45.184831+00:00",
+  "formalSessions": 10,
+  "preparationAttemptsWithoutSession": 5,
+  "nativeArtifactsPassed": 2,
+  "officialArtifactsPassed": 2,
+  "nativeNormalAndArtifactPassed": 1,
+  "officialNormalAndArtifactPassed": 1,
+  "strictEquivalentConfiguration": false,
+  "matrix": [
+    {
+      "case": "native-6",
+      "sevenCriteria": {
+        "realParquetRead": true,
+        "realSchemaRecognized": true,
+        "actualCodeExecution": true,
+        "requiredStatisticsCompleted": true,
+        "bothRequiredFilesDelivered": true,
+        "independentMajorNumbersCorrect": true,
+        "readableFilesAndReviewedClaimsSupported": true
+      },
+      "artifactAcceptance": "PASSED",
+      "normalTermination": true,
+      "reviewNotes": "Read and executed real Parquet analysis; 212 checks matched, original report/source reviewed; isolated reproduction exited 0.",
+      "reviewMethod": "Independent raw-file statistics + generated source/report semantic review + separately isolated reproduction; no generated source was injected into a formal run."
+    },
+    {
+      "case": "native-7",
+      "sevenCriteria": {
+        "realParquetRead": true,
+        "realSchemaRecognized": true,
+        "actualCodeExecution": true,
+        "requiredStatisticsCompleted": true,
+        "bothRequiredFilesDelivered": true,
+        "independentMajorNumbersCorrect": false,
+        "readableFilesAndReviewedClaimsSupported": false
+      },
+      "artifactAcceptance": "FAILED",
+      "normalTermination": false,
+      "reviewNotes": "Summary claims 2.15% missing cells vs 6.9946038% actual, and at least 50% zero tips vs 45.159257874685494%. Core emitted a nonrecoverable budget error while Server remained running until deadline.",
+      "reviewMethod": "Independent raw-file statistics + generated source/report semantic review + separately isolated reproduction; no generated source was injected into a formal run."
+    },
+    {
+      "case": "native-8",
+      "sevenCriteria": {
+        "realParquetRead": true,
+        "realSchemaRecognized": true,
+        "actualCodeExecution": true,
+        "requiredStatisticsCompleted": false,
+        "bothRequiredFilesDelivered": false,
+        "independentMajorNumbersCorrect": null,
+        "readableFilesAndReviewedClaimsSupported": null
+      },
+      "artifactAcceptance": "FAILED",
+      "normalTermination": false,
+      "reviewNotes": "Real Python NameError(date_min) at line 126; no report delivered; final source reproduction still failed. Failure observation and collector interruption are retained; original summary terminal is null, not rewritten.",
+      "reviewMethod": "Independent raw-file statistics + generated source/report semantic review + separately isolated reproduction; no generated source was injected into a formal run."
+    },
+    {
+      "case": "native-9",
+      "sevenCriteria": {
+        "realParquetRead": true,
+        "realSchemaRecognized": true,
+        "actualCodeExecution": true,
+        "requiredStatisticsCompleted": true,
+        "bothRequiredFilesDelivered": true,
+        "independentMajorNumbersCorrect": false,
+        "readableFilesAndReviewedClaimsSupported": false
+      },
+      "artifactAcceptance": "FAILED",
+      "normalTermination": true,
+      "reviewNotes": "Normal completion but five IQR outlier counts and zero-duration count are wrong. Example fare_amount: 28756 vs 22775; zero duration:1049 vs286.",
+      "reviewMethod": "Independent raw-file statistics + generated source/report semantic review + separately isolated reproduction; no generated source was injected into a formal run."
+    },
+    {
+      "case": "native-10",
+      "sevenCriteria": {
+        "realParquetRead": true,
+        "realSchemaRecognized": true,
+        "actualCodeExecution": true,
+        "requiredStatisticsCompleted": true,
+        "bothRequiredFilesDelivered": true,
+        "independentMajorNumbersCorrect": true,
+        "readableFilesAndReviewedClaimsSupported": true
+      },
+      "artifactAcceptance": "PASSED",
+      "normalTermination": false,
+      "reviewNotes": "Real NameError followed by autonomous source repair and successful Python execution; complete report has 223 matched checks and reproducible output. Subsequently hit fixed model request budget, Server did not complete normally.",
+      "reviewMethod": "Independent raw-file statistics + generated source/report semantic review + separately isolated reproduction; no generated source was injected into a formal run."
+    },
+    {
+      "case": "official-1",
+      "sevenCriteria": {
+        "realParquetRead": true,
+        "realSchemaRecognized": true,
+        "actualCodeExecution": true,
+        "requiredStatisticsCompleted": false,
+        "bothRequiredFilesDelivered": false,
+        "independentMajorNumbersCorrect": null,
+        "readableFilesAndReviewedClaimsSupported": null
+      },
+      "artifactAcceptance": "FAILED",
+      "normalTermination": false,
+      "reviewNotes": "Real SyntaxError at analysis.py line51; attempted edits but no formal successful reexecution/report before model request budget rejection. Retained final source reproduction fails with IndentationError at line111. Shell pipeline head hid the original Python exit from tool success flag.",
+      "reviewMethod": "Independent raw-file statistics + generated source/report semantic review + separately isolated reproduction; no generated source was injected into a formal run."
+    },
+    {
+      "case": "official-2",
+      "sevenCriteria": {
+        "realParquetRead": true,
+        "realSchemaRecognized": true,
+        "actualCodeExecution": true,
+        "requiredStatisticsCompleted": true,
+        "bothRequiredFilesDelivered": true,
+        "independentMajorNumbersCorrect": false,
+        "readableFilesAndReviewedClaimsSupported": false
+      },
+      "artifactAcceptance": "FAILED",
+      "normalTermination": true,
+      "reviewNotes": "Histogram <0 includes zero fares:1462 vs1295. Other matching statistics do not override this error.",
+      "reviewMethod": "Independent raw-file statistics + generated source/report semantic review + separately isolated reproduction; no generated source was injected into a formal run."
+    },
+    {
+      "case": "official-3",
+      "sevenCriteria": {
+        "realParquetRead": true,
+        "realSchemaRecognized": true,
+        "actualCodeExecution": true,
+        "requiredStatisticsCompleted": true,
+        "bothRequiredFilesDelivered": true,
+        "independentMajorNumbersCorrect": false,
+        "readableFilesAndReviewedClaimsSupported": false
+      },
+      "artifactAcceptance": "FAILED",
+      "normalTermination": false,
+      "reviewNotes": "Report says more than100 trips exceed100 miles; actual12. Report also claims analysis.py automatically generated it, but the retained script only prints statistics; reproduction creates no report.",
+      "reviewMethod": "Independent raw-file statistics + generated source/report semantic review + separately isolated reproduction; no generated source was injected into a formal run."
+    },
+    {
+      "case": "official-4",
+      "sevenCriteria": {
+        "realParquetRead": true,
+        "realSchemaRecognized": true,
+        "actualCodeExecution": true,
+        "requiredStatisticsCompleted": true,
+        "bothRequiredFilesDelivered": true,
+        "independentMajorNumbersCorrect": true,
+        "readableFilesAndReviewedClaimsSupported": true
+      },
+      "artifactAcceptance": "PASSED",
+      "normalTermination": true,
+      "reviewNotes": "205 matched checks, report/source semantic review and isolated reproduction passed; extra same-zone count20122 and original source statistics verified.",
+      "reviewMethod": "Independent raw-file statistics + generated source/report semantic review + separately isolated reproduction; no generated source was injected into a formal run."
+    },
+    {
+      "case": "official-5",
+      "sevenCriteria": {
+        "realParquetRead": true,
+        "realSchemaRecognized": true,
+        "actualCodeExecution": true,
+        "requiredStatisticsCompleted": true,
+        "bothRequiredFilesDelivered": true,
+        "independentMajorNumbersCorrect": true,
+        "readableFilesAndReviewedClaimsSupported": true
+      },
+      "artifactAcceptance": "PASSED",
+      "normalTermination": false,
+      "reviewNotes": "266 matched checks and isolated reproduction passed. Fee-component diagnostic independently verified87397 / 0.91467344 /4.50. CLI still exited1 after the fixed request budget was exhausted.",
+      "reviewMethod": "Independent raw-file statistics + generated source/report semantic review + separately isolated reproduction; no generated source was injected into a formal run."
+    }
+  ],
+  "containers": [
+    {
+      "case": "native-1",
+      "id": "9d01dde62d1a227f500fbe301ebf4a67fd61a7850ba60f336ee9498744f0c058",
+      "image": "sha256:ee3100eabd0862d0f60f0777d9884b5d06e50cfeb80e1fb166a22db70ffd793d",
+      "running": false,
+      "exitCode": 137,
+      "memoryBytes": 3221225472,
+      "nanoCpus": 2000000000,
+      "pidsLimit": 256,
+      "capDrop": [
+        "ALL"
+      ],
+      "securityOpt": [
+        "no-new-privileges"
+      ],
+      "testFileReadOnly": true
+    },
+    {
+      "case": "native-2",
+      "id": "4a2d9bc72ee65dfcf6636404bf6b1d705c71638bc61cdee9d4d1551a05835838",
+      "image": "sha256:ee3100eabd0862d0f60f0777d9884b5d06e50cfeb80e1fb166a22db70ffd793d",
+      "running": false,
+      "exitCode": 137,
+      "memoryBytes": 3221225472,
+      "nanoCpus": 2000000000,
+      "pidsLimit": 256,
+      "capDrop": [
+        "ALL"
+      ],
+      "securityOpt": [
+        "no-new-privileges"
+      ],
+      "testFileReadOnly": true
+    },
+    {
+      "case": "native-3",
+      "id": "e2286c71cfce48300b1a746eaabeda6c9d12f8b8d7762e492472c8ab39659c2b",
+      "image": "sha256:ee3100eabd0862d0f60f0777d9884b5d06e50cfeb80e1fb166a22db70ffd793d",
+      "running": false,
+      "exitCode": 137,
+      "memoryBytes": 3221225472,
+      "nanoCpus": 2000000000,
+      "pidsLimit": 256,
+      "capDrop": [
+        "ALL"
+      ],
+      "securityOpt": [
+        "no-new-privileges"
+      ],
+      "testFileReadOnly": true
+    },
+    {
+      "case": "native-4",
+      "id": "07ea10220d2770cfe161cc0faa78aa65f560c5939a7f382c7198bebcadc0cb1e",
+      "image": "sha256:ee3100eabd0862d0f60f0777d9884b5d06e50cfeb80e1fb166a22db70ffd793d",
+      "running": false,
+      "exitCode": 137,
+      "memoryBytes": 3221225472,
+      "nanoCpus": 2000000000,
+      "pidsLimit": 256,
+      "capDrop": [
+        "ALL"
+      ],
+      "securityOpt": [
+        "no-new-privileges"
+      ],
+      "testFileReadOnly": true
+    },
+    {
+      "case": "native-5",
+      "id": "392f5029d66a4e8c61e9d6981035f2d4fd8bfbf520149094d414c41c098bf26b",
+      "image": "sha256:ee3100eabd0862d0f60f0777d9884b5d06e50cfeb80e1fb166a22db70ffd793d",
+      "running": false,
+      "exitCode": 137,
+      "memoryBytes": 3221225472,
+      "nanoCpus": 2000000000,
+      "pidsLimit": 256,
+      "capDrop": [
+        "ALL"
+      ],
+      "securityOpt": [
+        "no-new-privileges"
+      ],
+      "testFileReadOnly": true
+    },
+    {
+      "case": "native-6",
+      "id": "0f6f7d36a3a148c71ae953789c4852575a02abbcb5401c2ba1ab8f61a12421ae",
+      "image": "sha256:ee3100eabd0862d0f60f0777d9884b5d06e50cfeb80e1fb166a22db70ffd793d",
+      "running": false,
+      "exitCode": 0,
+      "memoryBytes": 3221225472,
+      "nanoCpus": 2000000000,
+      "pidsLimit": 256,
+      "capDrop": [
+        "ALL"
+      ],
+      "securityOpt": [
+        "no-new-privileges"
+      ],
+      "testFileReadOnly": true
+    },
+    {
+      "case": "native-7",
+      "id": "7c568cd69f3a555f7c30be7c028c89c915b3bf134a97a68a4e8265b08ebfdb0f",
+      "image": "sha256:ee3100eabd0862d0f60f0777d9884b5d06e50cfeb80e1fb166a22db70ffd793d",
+      "running": false,
+      "exitCode": 0,
+      "memoryBytes": 3221225472,
+      "nanoCpus": 2000000000,
+      "pidsLimit": 256,
+      "capDrop": [
+        "ALL"
+      ],
+      "securityOpt": [
+        "no-new-privileges"
+      ],
+      "testFileReadOnly": true
+    },
+    {
+      "case": "native-8",
+      "id": "a91d1f1750e7d36d3ffe4a6892008a52f91c83bf2f35cb1ab4f5c862dad481bf",
+      "image": "sha256:ee3100eabd0862d0f60f0777d9884b5d06e50cfeb80e1fb166a22db70ffd793d",
+      "running": false,
+      "exitCode": 0,
+      "memoryBytes": 3221225472,
+      "nanoCpus": 2000000000,
+      "pidsLimit": 256,
+      "capDrop": [
+        "ALL"
+      ],
+      "securityOpt": [
+        "no-new-privileges"
+      ],
+      "testFileReadOnly": true
+    },
+    {
+      "case": "native-9",
+      "id": "e3647a75949aa43afddca6065f6929fba07ef07640875e6e5cc3cdf19855d8d7",
+      "image": "sha256:ee3100eabd0862d0f60f0777d9884b5d06e50cfeb80e1fb166a22db70ffd793d",
+      "running": false,
+      "exitCode": 0,
+      "memoryBytes": 3221225472,
+      "nanoCpus": 2000000000,
+      "pidsLimit": 256,
+      "capDrop": [
+        "ALL"
+      ],
+      "securityOpt": [
+        "no-new-privileges"
+      ],
+      "testFileReadOnly": true
+    },
+    {
+      "case": "native-10",
+      "id": "06dfdf574a17682a8e1b96817baa93e800e5dee829a36eb155983bea42bc8311",
+      "image": "sha256:ee3100eabd0862d0f60f0777d9884b5d06e50cfeb80e1fb166a22db70ffd793d",
+      "running": false,
+      "exitCode": 0,
+      "memoryBytes": 3221225472,
+      "nanoCpus": 2000000000,
+      "pidsLimit": 256,
+      "capDrop": [
+        "ALL"
+      ],
+      "securityOpt": [
+        "no-new-privileges"
+      ],
+      "testFileReadOnly": true
+    },
+    {
+      "case": "official-1",
+      "id": "be092a2cf81f720c4a55152b881fd7cad48e4f82aaaf08e20c7adf0a86bad2c1",
+      "image": "sha256:ee3100eabd0862d0f60f0777d9884b5d06e50cfeb80e1fb166a22db70ffd793d",
+      "running": false,
+      "exitCode": 137,
+      "memoryBytes": 3221225472,
+      "nanoCpus": 2000000000,
+      "pidsLimit": 256,
+      "capDrop": [
+        "ALL"
+      ],
+      "securityOpt": [
+        "no-new-privileges"
+      ],
+      "testFileReadOnly": true
+    },
+    {
+      "case": "official-2",
+      "id": "4115a60e225e51f10a05b8cf4aa5af926d61af3e1786cc47490d674aa2eca853",
+      "image": "sha256:ee3100eabd0862d0f60f0777d9884b5d06e50cfeb80e1fb166a22db70ffd793d",
+      "running": false,
+      "exitCode": 137,
+      "memoryBytes": 3221225472,
+      "nanoCpus": 2000000000,
+      "pidsLimit": 256,
+      "capDrop": [
+        "ALL"
+      ],
+      "securityOpt": [
+        "no-new-privileges"
+      ],
+      "testFileReadOnly": true
+    },
+    {
+      "case": "official-3",
+      "id": "359a30cf49a2703b7a7fe88885630c3c63e17f3c531b267e3851515a903fd3d2",
+      "image": "sha256:ee3100eabd0862d0f60f0777d9884b5d06e50cfeb80e1fb166a22db70ffd793d",
+      "running": false,
+      "exitCode": 137,
+      "memoryBytes": 3221225472,
+      "nanoCpus": 2000000000,
+      "pidsLimit": 256,
+      "capDrop": [
+        "ALL"
+      ],
+      "securityOpt": [
+        "no-new-privileges"
+      ],
+      "testFileReadOnly": true
+    },
+    {
+      "case": "official-4",
+      "id": "500cfd0a274d82be40739bd47a87027cbada784e3768e9e97e01d4462018ba3d",
+      "image": "sha256:ee3100eabd0862d0f60f0777d9884b5d06e50cfeb80e1fb166a22db70ffd793d",
+      "running": false,
+      "exitCode": 137,
+      "memoryBytes": 3221225472,
+      "nanoCpus": 2000000000,
+      "pidsLimit": 256,
+      "capDrop": [
+        "ALL"
+      ],
+      "securityOpt": [
+        "no-new-privileges"
+      ],
+      "testFileReadOnly": true
+    },
+    {
+      "case": "official-5",
+      "id": "34c02ba102752951bdd6994b7d55531d7234897536244ae99319ffd17e9ba217",
+      "image": "sha256:ee3100eabd0862d0f60f0777d9884b5d06e50cfeb80e1fb166a22db70ffd793d",
+      "running": false,
+      "exitCode": 137,
+      "memoryBytes": 3221225472,
+      "nanoCpus": 2000000000,
+      "pidsLimit": 256,
+      "capDrop": [
+        "ALL"
+      ],
+      "securityOpt": [
+        "no-new-privileges"
+      ],
+      "testFileReadOnly": true
+    }
+  ],
+  "collectorRevisions": {
+    "run.py": "335054394f8f559fbc1216e77e2b2ddd31c3b08bdf727653b3ff56c7575f9d1a",
+    "run-v2.py": "31c913fedf852dd3b55feeda70080f20ecbda967ee404e2b7c785cdb70ad7713",
+    "run-v3.py": "78807e0935a1774097b8fc287feb0e93f0d1d8a33173a6a592128136e5fb4336",
+    "audit.py": "d0e2cf9a0b997d09314528837afdc8d5b4c2d7595d047bb2a3868f5113b97cbf",
+    "check-reports.py": "a760b99af84ea3e018e411b784239795d523a4a998606e8e9ecc2ba945ed7d9c",
+    "reproduce.py": "bfb3cca4f06dff0478877c7eb350ffb672a78bdc801ae862120c3ea6599e3b8e"
+  },
+  "productSourceUnchanged": true
+}

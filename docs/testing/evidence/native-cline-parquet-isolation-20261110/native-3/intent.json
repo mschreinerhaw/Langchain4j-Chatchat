@@ -1,0 +1,10 @@
+{
+  "case": "native-3",
+  "prompt": "请分析工作目录中的 test.parquet 文件。你可以自主读取文件、探索字段、编写 Python 程序并运行。请分析数据规模、字段类型、缺失值、重复值、数值分布和潜在异常，最终生成 analysis.py 和 report.md。报告必须基于真实计算结果，不允许编造数据。",
+  "model": "qwen3.7-plus",
+  "modelRequestLimit": 12,
+  "timeoutSeconds": 900,
+  "toolLimit": 100,
+  "inputSha256": "3104e1e5548ade630988a4a8b9ec76c51a057b88159f78676c7d344f48491450",
+  "startedAt": "2026-11-10T05:21:52.792444+00:00"
+}

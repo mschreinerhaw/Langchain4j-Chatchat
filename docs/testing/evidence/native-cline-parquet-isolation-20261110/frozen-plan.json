@@ -1,0 +1,33 @@
+{
+  "sourceCommit": "c167da87ddfc9dbdab813efd8444d640421ff438",
+  "prompt": "请分析工作目录中的 test.parquet 文件。你可以自主读取文件、探索字段、编写 Python 程序并运行。请分析数据规模、字段类型、缺失值、重复值、数值分布和潜在异常，最终生成 analysis.py 和 report.md。报告必须基于真实计算结果，不允许编造数据。",
+  "model": "qwen3.7-plus",
+  "modelRequestLimit": 12,
+  "timeoutSeconds": 900,
+  "toolLimit": 100,
+  "nativeApprovalAllowlist": [
+    "read_files",
+    "search_codebase",
+    "editor",
+    "apply_patch",
+    "skills",
+    "run_commands",
+    "submit_and_exit"
+  ],
+  "sameContainerImage": "sha256:ee3100eabd0862d0f60f0777d9884b5d06e50cfeb80e1fb166a22db70ffd793d",
+  "roundOrder": [
+    "native-1",
+    "native-2",
+    "native-3",
+    "native-4",
+    "native-5",
+    "official-1",
+    "official-2",
+    "official-3",
+    "official-4",
+    "official-5"
+  ],
+  "noFollowUpInstructions": true,
+  "noRuntimeTemplates": true,
+  "sourceUnmodified": true
+}

@@ -1,0 +1,3372 @@
+[
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/native-1/intent.json",
+    "bytes": 599,
+    "sha256": "9e8ea4ad70fc5b081417a912a0461925c4ed213976f355a69f49aa2607b7db40"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/native-1/native-config.json",
+    "bytes": 561,
+    "sha256": "a4bea3c20fd9a2d264deb82feacaa5f1e8a81ecfdb3d09b527c2658bf781479d"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/native-1/failure.json",
+    "bytes": 70,
+    "sha256": "67ca87751b09714d979bbb63140ebb7ac1b63a298f35aaffab14fb7149d9ff98"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/native-1/container.log",
+    "bytes": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/native-1/summary.json",
+    "bytes": 369,
+    "sha256": "eb9e59186c1764a39af361005b07504d4a99b80596a27c2bcc8ffd871719529e"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/native-10/intent.json",
+    "bytes": 600,
+    "sha256": "43a54033b1dc1d771cad6c4ee4adf57676c312239cf262d8f057c57b63d32371"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/native-10/native-config.json",
+    "bytes": 562,
+    "sha256": "82fdc482b764c5b3ed91f553b4c100b7745bdb6e7a273e3b06f9b75577379b0b"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/native-10/session-created.json",
+    "bytes": 57,
+    "sha256": "ea53281ae04a60a711d1149d1c951ff268f5db861a327b809a6cbbec18b7c670"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/native-10/submission.json",
+    "bytes": 78,
+    "sha256": "0674e384f24c2ad431594a883bd907f57004ead13ec323a4442ce8168fd749b9"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/native-10/latest-status.json",
+    "bytes": 297,
+    "sha256": "aaed2ce24dfbdbe6a9db149a5bb1c7813def7e22ff71c52f84c4827c430240eb"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/native-10/events.json",
+    "bytes": 385632,
+    "sha256": "791fdce43fc28c4c5c34ba4fff8db768f3772cff928c400b47d4caa8c290b1de"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/native-10/failure-observation.json",
+    "bytes": 558,
+    "sha256": "ae1e69a42a892e3ac2ce07734e8212f44fce102325c7ca5389d6932f08c09610"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/native-10/final-status.json",
+    "bytes": 297,
+    "sha256": "aaed2ce24dfbdbe6a9db149a5bb1c7813def7e22ff71c52f84c4827c430240eb"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/native-10/stop.json",
+    "bytes": 28,
+    "sha256": "8705da22ee12e2ae59c05446c14074cd79d5b1bb1ff979a7c32eacf581028561"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/native-10/container.log",
+    "bytes": 98,
+    "sha256": "94314efefc98259e5c20d6ac45e1691a03d341e10deb4f72db93b635b2ff2c5d"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/native-10/summary.json",
+    "bytes": 659,
+    "sha256": "a01c006b997498a9d323f6227516e1ad03ae869e8d27a3e0c7d5fc8e70dc5c15"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/native-10/independent-acceptance.json",
+    "bytes": 7017,
+    "sha256": "99756e54055445faefdb842cbe702a0926fb5d3df89c250df970d4dc8aee3f6d"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/native-10/reproduction-summary.json",
+    "bytes": 499,
+    "sha256": "468abac4bfca1302be4be9c43b69590f406805588a6ea14b491d80c8c646fbd2"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/native-10/final-review.json",
+    "bytes": 819,
+    "sha256": "2c3aaf5ad49a4e72579b43f66b41a0f80e31a57b9bb1b2a96b78cc9a35d312d4"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/native-10/workspace/analysis.py",
+    "bytes": 17081,
+    "sha256": "53b2d66e4a12c11a915596ad4692434f654e02d8d61b8af72e93922bf1a869b8"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/native-10/workspace/report.md",
+    "bytes": 11129,
+    "sha256": "f9ca276495848a1c779e0fd0849dd08bf51d299a5a2bd8da975bd8782ee22517"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/native-10/state/cbdb0d19-62e5-46a1-b7fc-b3b31857f53e/session.json",
+    "bytes": 469,
+    "sha256": "d1fb558e0ee3621e438be3840744ad3a0c0528099db2a675c87ad7d45eecd13d"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/native-10/state/cbdb0d19-62e5-46a1-b7fc-b3b31857f53e/events.jsonl",
+    "bytes": 323476,
+    "sha256": "6654d26af84e5d3dbf3df760f4fc9fd11110d5c5201bfcf9b0e2f105b47e2756"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/native-10/state/cbdb0d19-62e5-46a1-b7fc-b3b31857f53e/worker-log.jsonl",
+    "bytes": 170528,
+    "sha256": "747a29d453a24525afeb7cc1c55877ba07d76077c8eace471c6cb2ffe1cd9b01"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/native-10/state/cbdb0d19-62e5-46a1-b7fc-b3b31857f53e/cline/data/globalState.json",
+    "bytes": 930,
+    "sha256": "6398ff5d2e907f0ed5941a573d9389da440ae45ed2603ee22ed76de440f989ff"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/native-10/state/cbdb0d19-62e5-46a1-b7fc-b3b31857f53e/cline/data/secrets.json",
+    "bytes": 67,
+    "sha256": "07ec4e6f2d7f60b8ddb97a7c911570e75e0b73cda31f172e72fe140934a549ef"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/native-10/state/cbdb0d19-62e5-46a1-b7fc-b3b31857f53e/cline/data/locks.db",
+    "bytes": 24576,
+    "sha256": "5cade7d2f3ec4b4cb1bea523598ff76076ca1da25b68feedf87433c70c61cdea"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/native-10/state/cbdb0d19-62e5-46a1-b7fc-b3b31857f53e/cline/data/settings/global-settings.json",
+    "bytes": 59,
+    "sha256": "b7ceaa8f926e6e13319b9b73c828197e091ac6180eb00fa9dc7901795d509633"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/native-10/state/cbdb0d19-62e5-46a1-b7fc-b3b31857f53e/cline/data/settings/providers.json",
+    "bytes": 452,
+    "sha256": "b10e3217eea18df1a23c5c08efc4295af7c2bfa566fad26281d36db244d83443"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/native-10/state/cbdb0d19-62e5-46a1-b7fc-b3b31857f53e/cline/data/settings/models.json",
+    "bytes": 555,
+    "sha256": "235334593d043d93cc14f71f2da5c1c78fcecc58c46c6d241c4b80fc54a411f4"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/native-10/state/cbdb0d19-62e5-46a1-b7fc-b3b31857f53e/cline/data/settings/cline_mcp_settings.json",
+    "bytes": 22,
+    "sha256": "38935ac9bd01a9a91be32d16fc131d8b9d46fbcede88855e85c01f31c7347615"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/native-10/state/cbdb0d19-62e5-46a1-b7fc-b3b31857f53e/cline/data/db/sessions.db",
+    "bytes": 4096,
+    "sha256": "97e8d54f8a7255106f66cf1b213c4a4d7b558d21310b1c2bfedc3d0d526dddda"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/native-10/state/cbdb0d19-62e5-46a1-b7fc-b3b31857f53e/cline/data/db/sessions.db-wal",
+    "bytes": 247232,
+    "sha256": "9f5d60b2de78d2cf9a69d9f7ca2a8850569ee3f67a753a6f13b1a759bc72fb47"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/native-10/state/cbdb0d19-62e5-46a1-b7fc-b3b31857f53e/cline/data/db/sessions.db-shm",
+    "bytes": 32768,
+    "sha256": "a426c2fa608791cff6479fb26c81a3420065c915e3ec5c451f30fc5930056b07"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/native-10/state/cbdb0d19-62e5-46a1-b7fc-b3b31857f53e/cline/data/sessions/1794290053087_hcf22/1794290053087_hcf22.messages.json",
+    "bytes": 93975,
+    "sha256": "7bc19914c47ab654640a51b743d90cfc18d09c687396210a1de96e586746fa8d"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/native-10/state/cbdb0d19-62e5-46a1-b7fc-b3b31857f53e/cline/data/sessions/1794290053087_hcf22/1794290053087_hcf22.json",
+    "bytes": 1834,
+    "sha256": "6f1cee1169d2cdd184618461d583c03c5f6058ec2e89b1c47cc9b6e2f07d3eec"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/native-10/model/001-request.json",
+    "bytes": 13091,
+    "sha256": "6582a88ebab183d8c82806c424002c4f3d70504c2d1694abd456758eb57d8a11"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/native-10/model/001-response.bin",
+    "bytes": 12605,
+    "sha256": "508d984dd1cbeaa99d0f4bbc169f2fa0f66a7fc202aaa1d75f8a7c5e51295b2f"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/native-10/model/001-receipt.json",
+    "bytes": 1124,
+    "sha256": "f97126c03d098fbfcc273e54e0a8fff19985b56bbd2f4cc14d53ca7e629986d1"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/native-10/model/002-request.json",
+    "bytes": 15431,
+    "sha256": "0ded4d50dc88ed9e6437420867eaacbf6881586a8c211b458ae5ea566c996b56"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/native-10/model/002-response.bin",
+    "bytes": 378566,
+    "sha256": "c985fd019ab70a462eccda5810d1d37993b08f123af5bbea6ff432d43a76cce3"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/native-10/model/002-receipt.json",
+    "bytes": 1131,
+    "sha256": "f860f0e401d2dcd15d50089fe73ae447632e3ec079365d48a686aab97a64066f"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/native-10/model/003-request.json",
+    "bytes": 33366,
+    "sha256": "170083c75d0ac31b90f51e319fd53e299a22e613f98f1b737507268b567ea3d0"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/native-10/model/003-response.bin",
+    "bytes": 66477,
+    "sha256": "148c66a8c62a7717b7a339dfbde428e7173b92400067ed3388cf4b3ebb69c7dc"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/native-10/model/003-receipt.json",
+    "bytes": 1128,
+    "sha256": "0e11f2258f9d14b67b895445b3f22c7340225e7fb9483d6de31d059c01198f62"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/native-10/model/004-request.json",
+    "bytes": 36691,
+    "sha256": "fa75591f4b44a161685ec47233197377ed242d7fe66d688ba0af02bf92a68d8b"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/native-10/model/004-response.bin",
+    "bytes": 112952,
+    "sha256": "774c6b1492af9164d1abcb784de55ba9e713a3f12755ecdc1fc3c345156e8807"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/native-10/model/004-receipt.json",
+    "bytes": 1130,
+    "sha256": "a816c671999cf35701ab7bab41718484c2d0455f25a36a4ef46ed06f99fbe8f6"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/native-10/model/005-request.json",
+    "bytes": 47372,
+    "sha256": "5a8afca8ca109fe383dac1a7f475ab475c0741a9c8c1d16be8f7b92d6d3c488a"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/native-10/model/005-response.bin",
+    "bytes": 196009,
+    "sha256": "6690895cd65520cd679bb1ef487be1a06d452c92f82fc797ba0d071a85902d19"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/native-10/model/005-receipt.json",
+    "bytes": 1133,
+    "sha256": "e27937eb631f8dcb56f395fd9d01badf9533303d542034c82efcd43fddc5a0df"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/native-10/model/006-request.json",
+    "bytes": 56849,
+    "sha256": "251f550ba9214ee52036b5edd97fdd1f6699525b78901aac900a4044e0adef15"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/native-10/model/006-response.bin",
+    "bytes": 96773,
+    "sha256": "3b8a808a6466f7f0de70da496b9e9d96b6e9ac2eb494bbdca0d7decf1ad84fca"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/native-10/model/006-receipt.json",
+    "bytes": 1134,
+    "sha256": "bf69c2bb735ce135197fc447664aeda1c5113947c05e3822f33a8c2c75ae9a34"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/native-10/model/007-request.json",
+    "bytes": 65819,
+    "sha256": "18a53d0b5326f507cc7c9d0411e1ce0cfed324cd6837765b9bc5bec29f13e679"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/native-10/model/007-response.bin",
+    "bytes": 108412,
+    "sha256": "9f28018adae27dbecd12b69e7dfae3d806af5f8f4fd5c1dd057296ee522257b1"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/native-10/model/007-receipt.json",
+    "bytes": 1134,
+    "sha256": "10c3601c76609d990a4356037b0309b8bb2aaecdee8d758d0aa0a2a69d8d4cf1"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/native-10/model/008-request.json",
+    "bytes": 76731,
+    "sha256": "a69122aa81d83c88cac8bc0592e0e41748c93e80df40dc064a6b698c59cba100"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/native-10/model/008-response.bin",
+    "bytes": 5366,
+    "sha256": "1031f88432dcb3ab4d618cdef734090fa2400857ad65860a0a12f5e65520f714"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/native-10/model/008-receipt.json",
+    "bytes": 1129,
+    "sha256": "fc2aed56d62014178cdff30baf61793d97ec73254d50c72f309911f1d6b1b591"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/native-10/model/009-request.json",
+    "bytes": 77631,
+    "sha256": "6c7462f2b467ba3d474565cba38ca5e57d7fbbdc0189580dd4cb77f298d634ab"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/native-10/model/009-response.bin",
+    "bytes": 5071,
+    "sha256": "f862912ba8e12faa07a8a55d53b324b030f4508ef94f990e61187b0244f6b60b"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/native-10/model/009-receipt.json",
+    "bytes": 1129,
+    "sha256": "7fc0a15e8f6e6ef6bf69bca0105d44eff7529cc3988bfdb3c23651bc9dddf329"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/native-10/model/010-request.json",
+    "bytes": 83024,
+    "sha256": "e935b839d4777ce22ef71087212fe8df8ffaf25d112951d1a36590b5f334aa65"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/native-10/model/010-response.bin",
+    "bytes": 7604,
+    "sha256": "02aed5592c2a59a34ff90262799837c2ae42e8cadbb24ff4e34338e5cb6d57c2"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/native-10/model/010-receipt.json",
+    "bytes": 1132,
+    "sha256": "c31ee01f1dd0207c581d9df0bd027a11538c2bf32810b91a2b57521659069532"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/native-10/model/011-request.json",
+    "bytes": 86366,
+    "sha256": "653857ebfffce9bb31b876f5baaa26ac82200171188d835b0e66ca918f1da2d2"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/native-10/model/011-response.bin",
+    "bytes": 96937,
+    "sha256": "23faca5cd496f4defdb2bbe09666b680a0d6a61fb0ec0cfff68cdcbcd5672fad"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/native-10/model/011-receipt.json",
+    "bytes": 1136,
+    "sha256": "5899109b668e202f8558ff2c7a12fe36c27ea40482b1fb86c9d1aed9e6c24113"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/native-10/model/012-request.json",
+    "bytes": 94382,
+    "sha256": "abd207da49427c205df89cc8f31f8ffeb3186fe67093b3e064ab67f1616fb9f7"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/native-10/model/012-response.bin",
+    "bytes": 4538,
+    "sha256": "198ec483e7d114efda656da870f7fd821a6e62d3adc3ece7ce79bb2ccfd23924"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/native-10/model/012-receipt.json",
+    "bytes": 1130,
+    "sha256": "b995bbba59bbb094d1aab50acad2e8b5a76dc76328e9cd87cd102131e531f165"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/native-10/versions/e43cf84100942d7a9b1655d021d24f1e1000df5a27dd97e17f1cff1182b04a30/analysis.py",
+    "bytes": 2553,
+    "sha256": "e43cf84100942d7a9b1655d021d24f1e1000df5a27dd97e17f1cff1182b04a30"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/native-10/versions/c64398afb6a8ac8af223bf793af806c91bb5cb295259dca496de1edfa975ab84/analysis.py",
+    "bytes": 6954,
+    "sha256": "c64398afb6a8ac8af223bf793af806c91bb5cb295259dca496de1edfa975ab84"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/native-10/versions/6700563ae44efa19f3d31efa71a29c17a84055b83946baa17c204896a38c7f90/analysis.py",
+    "bytes": 10376,
+    "sha256": "6700563ae44efa19f3d31efa71a29c17a84055b83946baa17c204896a38c7f90"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/native-10/versions/d415e5b3b604cc5234793433a254fb977ac573ecd76543c5700c7106f4b1550f/analysis.py",
+    "bytes": 14600,
+    "sha256": "d415e5b3b604cc5234793433a254fb977ac573ecd76543c5700c7106f4b1550f"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/native-10/versions/53b2d66e4a12c11a915596ad4692434f654e02d8d61b8af72e93922bf1a869b8/analysis.py",
+    "bytes": 17081,
+    "sha256": "53b2d66e4a12c11a915596ad4692434f654e02d8d61b8af72e93922bf1a869b8"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/native-10/versions/f9ca276495848a1c779e0fd0849dd08bf51d299a5a2bd8da975bd8782ee22517/report.md",
+    "bytes": 11129,
+    "sha256": "f9ca276495848a1c779e0fd0849dd08bf51d299a5a2bd8da975bd8782ee22517"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/native-2/intent.json",
+    "bytes": 599,
+    "sha256": "2448e80566ac43b3ae8a61cf1afc42e834082db4ca2d11702ff8a36b1e42ffe4"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/native-2/native-config.json",
+    "bytes": 561,
+    "sha256": "3da8a2aa1b9b24933e319cc6acb3daeff2422697ea64cce190f55dc56abc0f05"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/native-2/failure.json",
+    "bytes": 70,
+    "sha256": "67ca87751b09714d979bbb63140ebb7ac1b63a298f35aaffab14fb7149d9ff98"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/native-2/container.log",
+    "bytes": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/native-2/summary.json",
+    "bytes": 369,
+    "sha256": "cedd980483e9e6c32a6dfc76f3c84d69ee42a49ad5874a148a628918c31a8c01"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/native-3/intent.json",
+    "bytes": 599,
+    "sha256": "8f411ec641329e9b82e013e0ef0a701684d2f9820bddebefe92ea5748386c68a"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/native-3/native-config.json",
+    "bytes": 561,
+    "sha256": "a84dbe75ed5f0ee0540dbd1c520a1f770082b47f7d477bb4d58aa372807f7c07"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/native-3/failure.json",
+    "bytes": 70,
+    "sha256": "67ca87751b09714d979bbb63140ebb7ac1b63a298f35aaffab14fb7149d9ff98"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/native-3/container.log",
+    "bytes": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/native-3/summary.json",
+    "bytes": 369,
+    "sha256": "291765fcbeb473fa5b1e556808a40af5ea75207dcf6db03ee7fb7fba2745502e"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/native-4/intent.json",
+    "bytes": 599,
+    "sha256": "dd170684eed3cb1ddc8938eef88f3cabe70daa5c2e93c36cc30fc2e9b1b0550d"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/native-4/native-config.json",
+    "bytes": 561,
+    "sha256": "d0e2995cdb2aeba9d56d6d6a562b85d62666cd947bf7f0a2b4143fd3e6b5aa84"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/native-4/failure.json",
+    "bytes": 70,
+    "sha256": "67ca87751b09714d979bbb63140ebb7ac1b63a298f35aaffab14fb7149d9ff98"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/native-4/container.log",
+    "bytes": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/native-4/summary.json",
+    "bytes": 369,
+    "sha256": "5f3999d76e805eb8643947c3e3d0c046ff4f07b8e7dfe122176abdbedff6ca08"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/native-5/intent.json",
+    "bytes": 599,
+    "sha256": "738b83dbf9eb90fc2a604034a27598b1850f28e45b85061d194cc7902d0030bc"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/native-5/native-config.json",
+    "bytes": 561,
+    "sha256": "c5827bc1a66c781883b2323e3ec7eb42d6da9236a7178116c4cb790cf8463b5b"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/native-5/failure.json",
+    "bytes": 70,
+    "sha256": "67ca87751b09714d979bbb63140ebb7ac1b63a298f35aaffab14fb7149d9ff98"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/native-5/container.log",
+    "bytes": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/native-5/summary.json",
+    "bytes": 369,
+    "sha256": "6313aafe7b23b35ecc5103f781081b8e29446c46327b5668b78f4dea8cebe1ec"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/native-6/intent.json",
+    "bytes": 599,
+    "sha256": "a45b3bf3fe7345b15396ed00458562cd494d14982ebec8c81f830bb607081b24"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/native-6/native-config.json",
+    "bytes": 561,
+    "sha256": "a7340ba019c00bb87a70da83a52c312d942040b32fc8e243dc8c0aecdc69c262"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/native-6/session-created.json",
+    "bytes": 57,
+    "sha256": "2531e61716409fae6f5e3cca60546c910f0f17063825343128befd8e7812a581"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/native-6/submission.json",
+    "bytes": 78,
+    "sha256": "065813380c240978320800c808b12beefa3147e7755aecffdf79ac0502a243bb"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/native-6/latest-status.json",
+    "bytes": 304,
+    "sha256": "9387f5ccb5f633a2fc6d9180bdc7a5fd8c9bb4ee79258ad3949203fec23ef393"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/native-6/events.json",
+    "bytes": 479170,
+    "sha256": "cf98276b551482610cab761a8bfcb5c3c989d3f872c2e89bd4eae6df72cdaf57"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/native-6/final-status.json",
+    "bytes": 304,
+    "sha256": "9387f5ccb5f633a2fc6d9180bdc7a5fd8c9bb4ee79258ad3949203fec23ef393"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/native-6/stop.json",
+    "bytes": 28,
+    "sha256": "8705da22ee12e2ae59c05446c14074cd79d5b1bb1ff979a7c32eacf581028561"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/native-6/container.log",
+    "bytes": 98,
+    "sha256": "94314efefc98259e5c20d6ac45e1691a03d341e10deb4f72db93b635b2ff2c5d"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/native-6/summary.json",
+    "bytes": 791,
+    "sha256": "13b2b3f5dc6e94d0efe28c60dda960cff685874f0539ede7078adfcde0e409aa"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/native-6/independent-acceptance.json",
+    "bytes": 6967,
+    "sha256": "740bca0de0c9baf2765d385637838c3b5f5e91d08b5d753634c699da3683d3d6"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/native-6/reproduction-summary.json",
+    "bytes": 526,
+    "sha256": "1cdeff9e4aff8d4d3ab18bb40c4f0af71e1171977b6dca3c73fd2d45fcd1ebc9"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/native-6/final-review.json",
+    "bytes": 715,
+    "sha256": "3967011e7f7ffbb8664f967fb4019427049059a2273abee70c49707bd2982e83"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/native-6/workspace/analysis.py",
+    "bytes": 12654,
+    "sha256": "f4ca839b6510c530da904eff46a22bcb71b0c98fc78da46a8a2be98bd5c5cc73"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/native-6/workspace/report.md",
+    "bytes": 5260,
+    "sha256": "02c69c518d5a6b381e405a0fc723a404c0e4b2618701ee424d6a1d72c2d33392"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/native-6/workspace/analysis_report.json",
+    "bytes": 12594,
+    "sha256": "b99c4f83a459b20d24b816614e0de9cc51c53989c9afb805f8f4f751c8d38065"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/native-6/state/0b8ac461-12d8-4859-ac6d-fc5ea5499c57/session.json",
+    "bytes": 469,
+    "sha256": "8844186d58f7af6053d7a0bae73f2d43950cb74bc6090065618ee56c5767965c"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/native-6/state/0b8ac461-12d8-4859-ac6d-fc5ea5499c57/events.jsonl",
+    "bytes": 411814,
+    "sha256": "8ab76279224ebc69d97c5da221f339890c51198baa3f0be588c0e0b558ea605f"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/native-6/state/0b8ac461-12d8-4859-ac6d-fc5ea5499c57/worker-log.jsonl",
+    "bytes": 159183,
+    "sha256": "53dd5bab70f330ca48e94b3948a8477dc036faa21e20b9b7cd3e41528a2998b7"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/native-6/state/0b8ac461-12d8-4859-ac6d-fc5ea5499c57/cline/data/globalState.json",
+    "bytes": 929,
+    "sha256": "d6d4f6761b437dcf22223238bcd64236046e68dd6fecea89f1e0c886ae546b69"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/native-6/state/0b8ac461-12d8-4859-ac6d-fc5ea5499c57/cline/data/secrets.json",
+    "bytes": 67,
+    "sha256": "07ec4e6f2d7f60b8ddb97a7c911570e75e0b73cda31f172e72fe140934a549ef"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/native-6/state/0b8ac461-12d8-4859-ac6d-fc5ea5499c57/cline/data/locks.db",
+    "bytes": 24576,
+    "sha256": "b57bb166c99a098cdc3be516e0b3954a7b05379e3259a0a8c0cb500ac804aa25"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/native-6/state/0b8ac461-12d8-4859-ac6d-fc5ea5499c57/cline/data/settings/global-settings.json",
+    "bytes": 59,
+    "sha256": "b7ceaa8f926e6e13319b9b73c828197e091ac6180eb00fa9dc7901795d509633"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/native-6/state/0b8ac461-12d8-4859-ac6d-fc5ea5499c57/cline/data/settings/providers.json",
+    "bytes": 451,
+    "sha256": "9d6f9b1ddcd5b6570fa4941ae3c77f8f781cbd1f517a87d2de7ecb98d4f683da"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/native-6/state/0b8ac461-12d8-4859-ac6d-fc5ea5499c57/cline/data/settings/models.json",
+    "bytes": 554,
+    "sha256": "7657af0846f9259de885bb313b2f19fc121f8e90ff55071e44e75567628e185e"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/native-6/state/0b8ac461-12d8-4859-ac6d-fc5ea5499c57/cline/data/settings/cline_mcp_settings.json",
+    "bytes": 22,
+    "sha256": "38935ac9bd01a9a91be32d16fc131d8b9d46fbcede88855e85c01f31c7347615"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/native-6/state/0b8ac461-12d8-4859-ac6d-fc5ea5499c57/cline/data/db/sessions.db",
+    "bytes": 4096,
+    "sha256": "97e8d54f8a7255106f66cf1b213c4a4d7b558d21310b1c2bfedc3d0d526dddda"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/native-6/state/0b8ac461-12d8-4859-ac6d-fc5ea5499c57/cline/data/db/sessions.db-wal",
+    "bytes": 177192,
+    "sha256": "d4f34bf6103c2554f2155f6c27e2a0e329b63335e926fc4f0bca907affa2d66d"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/native-6/state/0b8ac461-12d8-4859-ac6d-fc5ea5499c57/cline/data/db/sessions.db-shm",
+    "bytes": 32768,
+    "sha256": "ff93834e8c7f021a441244dda5ce14faa5a401c3e4f59617a67d14a160e99d56"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/native-6/state/0b8ac461-12d8-4859-ac6d-fc5ea5499c57/cline/data/sessions/1794288397409_q98xt/1794288397409_q98xt.messages.json",
+    "bytes": 50910,
+    "sha256": "fd86c0cdfd062b0db96e487334c55ae48d33be565a9484cac7d1d9092363d495"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/native-6/state/0b8ac461-12d8-4859-ac6d-fc5ea5499c57/cline/data/sessions/1794288397409_q98xt/1794288397409_q98xt.json",
+    "bytes": 1829,
+    "sha256": "3e648b552e521f4ee6839d8c0b1d618cc287c599bcdfd9c4837303ce05209a55"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/native-6/model/001-request.json",
+    "bytes": 13091,
+    "sha256": "6582a88ebab183d8c82806c424002c4f3d70504c2d1694abd456758eb57d8a11"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/native-6/model/001-response.bin",
+    "bytes": 11261,
+    "sha256": "ace53ce06f74ca282663557d921ca3ea1d4f17411ed74cf667ecc99d256af99c"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/native-6/model/001-receipt.json",
+    "bytes": 1123,
+    "sha256": "e0418f2221f626b540c4f05144643e91d1fa7d7de878c8c11ea5efb987893b38"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/native-6/model/002-request.json",
+    "bytes": 14343,
+    "sha256": "ec4b9e101c0f2b14486000cf3e34bd6a73cff0e57729a2367afca71484b2619d"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/native-6/model/002-response.bin",
+    "bytes": 356563,
+    "sha256": "0e4efa0d7785fb03ce07a8eac7c756ee8e8d6800c4f1327d9f5232a28f298caa"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/native-6/model/002-receipt.json",
+    "bytes": 1129,
+    "sha256": "057adf4616e8f9ace051f9f2dec21e59e7c7ef23b7f7d25344dd4978e1a50d06"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/native-6/model/003-request.json",
+    "bytes": 30675,
+    "sha256": "c5b6bab7d8ec9e0a7499b36f5630a726af60233a31acb25bec53ade4768acf93"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/native-6/model/003-response.bin",
+    "bytes": 19270,
+    "sha256": "9abf47ee6c2a00109aa1a46add33b0030aecff4f0fb818ffc283a9bf62df618a"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/native-6/model/003-receipt.json",
+    "bytes": 1129,
+    "sha256": "6ed6f53bf53c2cebf590fa2efe27fc4840ba25266173a71d56a3545df3216577"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/native-6/model/004-request.json",
+    "bytes": 45984,
+    "sha256": "cb64148206edaf1028d5ec3ff5954b7e65eeb0f4dd9e8f54aebbd6bca1ad6b68"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/native-6/model/004-response.bin",
+    "bytes": 3797,
+    "sha256": "a6dd284f8aad9ae0021e2f759bf0b5dbc402d1e6c7d9b546e4efcae146b88ea8"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/native-6/model/004-receipt.json",
+    "bytes": 1097,
+    "sha256": "121a0547b5a784e91ad17df3718bf85c8b064ab40c2bf372943e51fafd1eaede"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/native-6/model/005-request.json",
+    "bytes": 46626,
+    "sha256": "960da97c3ac41b7a4e393726bbd94376c2443d674b7e17a9050c3d9fd9beb54e"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/native-6/model/005-response.bin",
+    "bytes": 5070,
+    "sha256": "4ea25f8f1663b0fb041fafe3318a66871347a82626afb34a9b54973aad5f0d77"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/native-6/model/005-receipt.json",
+    "bytes": 1127,
+    "sha256": "4876a8d2e6e7c456ee67f4ded119bef52e325ab5943c1889ce9d121a62e755f4"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/native-6/model/006-request.json",
+    "bytes": 53326,
+    "sha256": "1b8140389f2253fdc8e6f4c2a1bdb4297f856a556fca56ce89172d88029cd9eb"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/native-6/model/006-response.bin",
+    "bytes": 5998,
+    "sha256": "1b9d424730268851c509796e11c8cbb039809edc81640cd583c644e885b913c9"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/native-6/model/006-receipt.json",
+    "bytes": 1127,
+    "sha256": "d5660688b46b03506281994257f055865f172276a88261490b8ef5d7de6fc6a9"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/native-6/model/007-request.json",
+    "bytes": 54222,
+    "sha256": "7452fce2f4f1aacda041b01d5f83b373d65c3137a7d8066ef1770b6cc33a444b"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/native-6/model/007-response.bin",
+    "bytes": 50300,
+    "sha256": "8c066db8c6c0515826f167fc7e044d8d03482a3bcfdd74e5a4ef705a69af17de"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/native-6/model/007-receipt.json",
+    "bytes": 1130,
+    "sha256": "1ec32c3312f3ed381c97197aac7990c5850168d34d81874b8d09a6a9cdf061ee"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/native-6/versions/f4ca839b6510c530da904eff46a22bcb71b0c98fc78da46a8a2be98bd5c5cc73/analysis.py",
+    "bytes": 12654,
+    "sha256": "f4ca839b6510c530da904eff46a22bcb71b0c98fc78da46a8a2be98bd5c5cc73"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/native-6/versions/02c69c518d5a6b381e405a0fc723a404c0e4b2618701ee424d6a1d72c2d33392/report.md",
+    "bytes": 5260,
+    "sha256": "02c69c518d5a6b381e405a0fc723a404c0e4b2618701ee424d6a1d72c2d33392"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/native-6/versions/b99c4f83a459b20d24b816614e0de9cc51c53989c9afb805f8f4f751c8d38065/analysis_report.json",
+    "bytes": 12594,
+    "sha256": "b99c4f83a459b20d24b816614e0de9cc51c53989c9afb805f8f4f751c8d38065"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/native-7/intent.json",
+    "bytes": 599,
+    "sha256": "f3b4b78b985c423da94c202c2eb5e626ca09eebf49a29d33ca00088973460565"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/native-7/native-config.json",
+    "bytes": 561,
+    "sha256": "439693b373e3b653ac8556a590872d42ab3e9977bc55d7a5f361dd2087f9f920"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/native-7/session-created.json",
+    "bytes": 57,
+    "sha256": "77ce7b2b8f9f966566d7b35ed585974f24b4acfd0c34e032c7531f4c34866606"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/native-7/submission.json",
+    "bytes": 78,
+    "sha256": "54cb30401cba9f9463874927a9938a3dd65f93454bef7b713d894eb46154746e"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/native-7/latest-status.json",
+    "bytes": 297,
+    "sha256": "72c7fc442b7a60bb76c64e0675631faf478d063acca0abe01c97489a8944bab5"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/native-7/events.json",
+    "bytes": 412221,
+    "sha256": "c4801a55523d2c545501cb8964a5fff4b6d8a7305124c6be54e02b8c4a4f8f58"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/native-7/independent-acceptance.json",
+    "bytes": 6093,
+    "sha256": "e2edf1a2e6a77441905f9127b3e6a7f22ecdffb8e627f9635e500062ee2c6390"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/native-7/reproduction-summary.json",
+    "bytes": 498,
+    "sha256": "64edc0916e2216d985201f3b927d5d1cfa9682398ccd47c8eab5d37c1c4477ac"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/native-7/final-status.json",
+    "bytes": 297,
+    "sha256": "72c7fc442b7a60bb76c64e0675631faf478d063acca0abe01c97489a8944bab5"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/native-7/stop.json",
+    "bytes": 28,
+    "sha256": "8705da22ee12e2ae59c05446c14074cd79d5b1bb1ff979a7c32eacf581028561"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/native-7/container.log",
+    "bytes": 98,
+    "sha256": "94314efefc98259e5c20d6ac45e1691a03d341e10deb4f72db93b635b2ff2c5d"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/native-7/summary.json",
+    "bytes": 654,
+    "sha256": "4117e09394e795aafef36944d6fa7604247bbea88d67b4e04c35ea754e9b28e9"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/native-7/final-review.json",
+    "bytes": 789,
+    "sha256": "9c12656b0ae1034d8b1c8200a3835b4de9e4c715bfd3d35ce33b29711096d6d6"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/native-7/workspace/analysis.py",
+    "bytes": 19583,
+    "sha256": "ae4bc27aba32136578b4db3827378d165f3d61bd45da8950530c9c9bfba6b0fc"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/native-7/workspace/report.md",
+    "bytes": 9765,
+    "sha256": "8112a739c424cc8b496fa504e30f0eedcd43b7847cf896af2f44fd21b4850a97"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/native-7/state/120e9d6f-053c-4179-9ee6-164c48046b9c/session.json",
+    "bytes": 469,
+    "sha256": "861c15b30704d3b93bfab45c759565550cd4651dad8c3eb3eb2c4b92630851ab"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/native-7/state/120e9d6f-053c-4179-9ee6-164c48046b9c/events.jsonl",
+    "bytes": 348878,
+    "sha256": "f1f7f0436a165672d4e915223a066640e7cd10820b76fdd60a9573daa20390d3"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/native-7/state/120e9d6f-053c-4179-9ee6-164c48046b9c/worker-log.jsonl",
+    "bytes": 132644,
+    "sha256": "3dadd02769b5bd132990ead9638f4b440b28e2e36845d0f75be4403346750f87"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/native-7/state/120e9d6f-053c-4179-9ee6-164c48046b9c/cline/data/globalState.json",
+    "bytes": 929,
+    "sha256": "0839ba333d7b1ff26ab65cd2190f09e9fec0288fd5aa5431731c0a2455c0c1c3"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/native-7/state/120e9d6f-053c-4179-9ee6-164c48046b9c/cline/data/secrets.json",
+    "bytes": 67,
+    "sha256": "07ec4e6f2d7f60b8ddb97a7c911570e75e0b73cda31f172e72fe140934a549ef"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/native-7/state/120e9d6f-053c-4179-9ee6-164c48046b9c/cline/data/locks.db",
+    "bytes": 24576,
+    "sha256": "5dfa1e3731a8fa6f0e52df9246565e309611e4631eecb0d48a00380a87b05989"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/native-7/state/120e9d6f-053c-4179-9ee6-164c48046b9c/cline/data/settings/global-settings.json",
+    "bytes": 59,
+    "sha256": "b7ceaa8f926e6e13319b9b73c828197e091ac6180eb00fa9dc7901795d509633"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/native-7/state/120e9d6f-053c-4179-9ee6-164c48046b9c/cline/data/settings/providers.json",
+    "bytes": 451,
+    "sha256": "21436c2f6fe7f70e1da3fdc4361a7ad071be2c8ee3516d701f7467325fd72e85"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/native-7/state/120e9d6f-053c-4179-9ee6-164c48046b9c/cline/data/settings/models.json",
+    "bytes": 554,
+    "sha256": "e4d648525e8a4dbf1e3734033c455567122839be81d871978666d49af828a80f"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/native-7/state/120e9d6f-053c-4179-9ee6-164c48046b9c/cline/data/settings/cline_mcp_settings.json",
+    "bytes": 22,
+    "sha256": "38935ac9bd01a9a91be32d16fc131d8b9d46fbcede88855e85c01f31c7347615"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/native-7/state/120e9d6f-053c-4179-9ee6-164c48046b9c/cline/data/db/sessions.db",
+    "bytes": 4096,
+    "sha256": "97e8d54f8a7255106f66cf1b213c4a4d7b558d21310b1c2bfedc3d0d526dddda"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/native-7/state/120e9d6f-053c-4179-9ee6-164c48046b9c/cline/data/db/sessions.db-wal",
+    "bytes": 243112,
+    "sha256": "fd2cec5b12532f8111ff8f21f46a01dfa68bdb02ae53ac7e909928cfaf4d2e86"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/native-7/state/120e9d6f-053c-4179-9ee6-164c48046b9c/cline/data/db/sessions.db-shm",
+    "bytes": 32768,
+    "sha256": "c0ba68982b2044a23d41bb3dbf093ddd520ae8b7da19436ff6c6eadc9f41a74c"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/native-7/state/120e9d6f-053c-4179-9ee6-164c48046b9c/cline/data/sessions/1794288561706_z8fe0/1794288561706_z8fe0.messages.json",
+    "bytes": 90196,
+    "sha256": "47c485d45898885f96e575483c5a49659c1448549833acd0eca50354e516dcdc"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/native-7/state/120e9d6f-053c-4179-9ee6-164c48046b9c/cline/data/sessions/1794288561706_z8fe0/1794288561706_z8fe0.json",
+    "bytes": 1834,
+    "sha256": "1f71c5e1aeab55e3532935a62ba4cb4bd2a1d597575b8bb627e93d46e0b769f0"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/native-7/model/001-request.json",
+    "bytes": 13091,
+    "sha256": "6582a88ebab183d8c82806c424002c4f3d70504c2d1694abd456758eb57d8a11"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/native-7/model/001-response.bin",
+    "bytes": 4673,
+    "sha256": "eeccca87b0d482908dc2f016cc32695f15759d735f0f84ccd1a2852b9d81ecef"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/native-7/model/001-receipt.json",
+    "bytes": 1120,
+    "sha256": "d444f68c93f6ce95662675d6225db719d1c1cd4bb3da6634dfc7e30589863275"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/native-7/model/002-request.json",
+    "bytes": 14098,
+    "sha256": "a20025ea03cdfe2e7b09fb8209b34893dbe1d440eaadee82546c41ce1efa230e"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/native-7/model/002-response.bin",
+    "bytes": 6739,
+    "sha256": "03904c6ca3a8ff9e5d9e1cc6080960cce7cb63d12145bd90148e4eaa888b43a9"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/native-7/model/002-receipt.json",
+    "bytes": 1125,
+    "sha256": "193c8f8c705d7d6cb1993b43e2da784dd0fff46d79f3f21c8e129bb64cae9e5b"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/native-7/model/003-request.json",
+    "bytes": 23960,
+    "sha256": "31078893f94842cf6202ef50266280c6f6c4c2909d12f75679c5601b682eebff"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/native-7/model/003-response.bin",
+    "bytes": 8813,
+    "sha256": "04bfbb8542d9679ed9e343e6dd5975f3e28b004838f2883671a27e89b505e734"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/native-7/model/003-receipt.json",
+    "bytes": 1126,
+    "sha256": "4e6c54cbe95509dbe84d400c3d5f066b215fef97fea5e3a4e162ddce5ec9b2b7"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/native-7/model/004-request.json",
+    "bytes": 29552,
+    "sha256": "0b5d33e9bdd216387ad903b05c6b0bf4a6567655412997edfa182fa2b2fef169"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/native-7/model/004-response.bin",
+    "bytes": 8169,
+    "sha256": "76a83d6f825546cccaaae73276ca19a1b4427d6316ce359f4b36f9c93652b2c3"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/native-7/model/004-receipt.json",
+    "bytes": 1127,
+    "sha256": "bc842305de0800e891f0292f0f9fe70a75f088921a2121f537e3c362b2abd4f7"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/native-7/model/005-request.json",
+    "bytes": 36467,
+    "sha256": "8e2cbc5fbd12cf7ae2d05ceeeb2e44eb0d789907eaac56741f37637d08fd0619"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/native-7/model/005-response.bin",
+    "bytes": 531720,
+    "sha256": "2d63b0b17bb708eecd9f89be6f92f25362d487662683d8dbf3f2403f611e70f7"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/native-7/model/005-receipt.json",
+    "bytes": 1131,
+    "sha256": "4c1f19f61438831ff65ef523715e057274e0735706e0653430cb6e8426a2064c"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/native-7/model/006-request.json",
+    "bytes": 60445,
+    "sha256": "2cd7691b1bcc4600f749dbbd1298fc38765df73232b1ba728f0ed33fbcaec8fb"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/native-7/model/006-response.bin",
+    "bytes": 8450,
+    "sha256": "3d03c7416418c976832886d99fd94da528275a6a66e7cb743ad205e669af06de"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/native-7/model/006-receipt.json",
+    "bytes": 1126,
+    "sha256": "db7533a4d01f39e22f4e097565d6b9131a999674760ca7558fd5e8f93f4fe2bb"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/native-7/model/007-request.json",
+    "bytes": 64784,
+    "sha256": "75b763eb151fc083a4db0589b0bfec064066594ce31b8bcc6d19dc015d56da54"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/native-7/model/007-response.bin",
+    "bytes": 7903,
+    "sha256": "568407d0cfdd59fd1c1c42b853578636a80c4eccec6f9d838f8b5ccd891131f0"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/native-7/model/007-receipt.json",
+    "bytes": 1132,
+    "sha256": "2b57b53afeb7199cc81b87cbc04eece1bca9ca4e127c7a865c6775728d486d02"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/native-7/model/008-request.json",
+    "bytes": 68918,
+    "sha256": "9a9f7a424ac3f7bb8e3304f5838a7b4e725f80e3a4b14f14b35ccd23b6b955b6"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/native-7/model/008-response.bin",
+    "bytes": 6767,
+    "sha256": "c2a3a203060d00815968165004c8da8ed01dd0ebace30381dbf15b14d32d94c2"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/native-7/model/008-receipt.json",
+    "bytes": 1130,
+    "sha256": "c6bf6d531666c32e41cf8b7b6939de7015b7e7521dddfb88e5440cbbaeac6ef7"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/native-7/model/009-request.json",
+    "bytes": 72746,
+    "sha256": "be4c17e1adcd90b989266a3eb301501fad91eecd599c12f00ac44a06bba5607d"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/native-7/model/009-response.bin",
+    "bytes": 8365,
+    "sha256": "215366a9479fa683583502545659270f3f0639eeef1a620d8f549f0d7f1953f4"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/native-7/model/009-receipt.json",
+    "bytes": 1130,
+    "sha256": "f78e37bcdfa941879e7d6fe895583bf484b397a7c899af356cbcc17167da5408"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/native-7/model/010-request.json",
+    "bytes": 76678,
+    "sha256": "b64b5bf05cbb7204fbfdbaa9aa8529c3e317a3a4398171e86c4b112b1865a526"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/native-7/model/010-response.bin",
+    "bytes": 7588,
+    "sha256": "4481837e52b8c80790eb1ed92a77b6a9b9ce2990920d9a5487de5f49e72ffb35"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/native-7/model/010-receipt.json",
+    "bytes": 1133,
+    "sha256": "fc02019be325a6cb1b569d537e77b27a4dda47ffa08097ec7191a73356f25d54"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/native-7/model/011-request.json",
+    "bytes": 80798,
+    "sha256": "4275f22f7086575a0e0bdba941f2850f43bd741b46a2884378d4994028b8fc98"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/native-7/model/011-response.bin",
+    "bytes": 10211,
+    "sha256": "82bcb9323528941e75e69e96068b84ae757dcccc7ceb57499609e24c0dfc5190"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/native-7/model/011-receipt.json",
+    "bytes": 1133,
+    "sha256": "24b1a9b9480f71cff678a3350064dec96163230fdf008c5454d205c8e2bcd0a6"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/native-7/model/012-request.json",
+    "bytes": 88059,
+    "sha256": "b97c017bc8e0e8b3559ea1619ce844ff6cd6dbc2cb9864e205c00c9487c9d93c"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/native-7/model/012-response.bin",
+    "bytes": 4304,
+    "sha256": "d625c6d5dadfbbe8d7b85079dd2389abc966874097dc0cfbbb77dc11328db5ab"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/native-7/model/012-receipt.json",
+    "bytes": 1128,
+    "sha256": "9c84a73681b8cb0ea9c2d24906ae1aae3e868c9390cebf837157ecf7c2bab183"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/native-7/versions/126ae40e1da95ab31ce8e34379ff060d567884d972486ead3b52933d2f91f3c2/analysis.py",
+    "bytes": 2901,
+    "sha256": "126ae40e1da95ab31ce8e34379ff060d567884d972486ead3b52933d2f91f3c2"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/native-7/versions/cca209e7d3efa20ce2ee57c8bf2d7eb13d01067f06bf6475a1070ac9c35942d5/analysis.py",
+    "bytes": 5731,
+    "sha256": "cca209e7d3efa20ce2ee57c8bf2d7eb13d01067f06bf6475a1070ac9c35942d5"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/native-7/versions/f524504cbe710c590e5f923f6f5adcaf5c71cd69b8e50b105bea0cae6eb61678/analysis.py",
+    "bytes": 8407,
+    "sha256": "f524504cbe710c590e5f923f6f5adcaf5c71cd69b8e50b105bea0cae6eb61678"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/native-7/versions/edf13c441bf9f64094cebc1284d2a31663a85221800d1d74c79a29dd144f39d5/analysis.py",
+    "bytes": 11033,
+    "sha256": "edf13c441bf9f64094cebc1284d2a31663a85221800d1d74c79a29dd144f39d5"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/native-7/versions/ef4ced44369e0cd94f60ab5c6d34fa54d6862a4b8445f30483202abd90c33ea3/analysis.py",
+    "bytes": 13908,
+    "sha256": "ef4ced44369e0cd94f60ab5c6d34fa54d6862a4b8445f30483202abd90c33ea3"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/native-7/versions/ae4bc27aba32136578b4db3827378d165f3d61bd45da8950530c9c9bfba6b0fc/analysis.py",
+    "bytes": 19583,
+    "sha256": "ae4bc27aba32136578b4db3827378d165f3d61bd45da8950530c9c9bfba6b0fc"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/native-7/versions/8112a739c424cc8b496fa504e30f0eedcd43b7847cf896af2f44fd21b4850a97/report.md",
+    "bytes": 9765,
+    "sha256": "8112a739c424cc8b496fa504e30f0eedcd43b7847cf896af2f44fd21b4850a97"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/native-8/intent.json",
+    "bytes": 599,
+    "sha256": "abe2db2c6297ef48d1f5182dfe5908f2022b55c125c316b49153fd042445c4dc"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/native-8/native-config.json",
+    "bytes": 561,
+    "sha256": "d5c1cbf379fd66dd8dd48762ea26d56facb1992ae08216190f36c066ac9c62f2"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/native-8/session-created.json",
+    "bytes": 57,
+    "sha256": "c7a0fb7e81dc7dfdfd0856395617b28bb8bd85859842ec76d6b4d1331c47fd97"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/native-8/submission.json",
+    "bytes": 78,
+    "sha256": "52b85aa313fd62e5cf244b5819ef1d91f414cde558f18958b8cb294b929ced5f"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/native-8/latest-status.json",
+    "bytes": 297,
+    "sha256": "711778d8cbef2e7422c197c98c24c9e27c6d5ed891a8f85f7a5f42b7b1bba9cb"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/native-8/events.json",
+    "bytes": 305746,
+    "sha256": "af9705c6697019fac7ff15913345ea979637662304ee6e92cb7924fe78e966d2"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/native-8/failure-observation.json",
+    "bytes": 791,
+    "sha256": "8736a313353f75cb89f4f14dceee3e4bb5022908fd22a35eb607235015e30fe3"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/native-8/final-status.json",
+    "bytes": 297,
+    "sha256": "711778d8cbef2e7422c197c98c24c9e27c6d5ed891a8f85f7a5f42b7b1bba9cb"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/native-8/stop.json",
+    "bytes": 28,
+    "sha256": "8705da22ee12e2ae59c05446c14074cd79d5b1bb1ff979a7c32eacf581028561"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/native-8/container.log",
+    "bytes": 98,
+    "sha256": "94314efefc98259e5c20d6ac45e1691a03d341e10deb4f72db93b635b2ff2c5d"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/native-8/summary.json",
+    "bytes": 510,
+    "sha256": "844577fa1c143b8db55005e9f4adaac71d483b26ae4e2d7c46d543f5a226d24b"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/native-8/independent-acceptance.json",
+    "bytes": 313,
+    "sha256": "c64c17966fe97a4263c83c5ca0787ee9acfaec4e75fb1a843afcc1f59e5a4343"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/native-8/reproduction-summary.json",
+    "bytes": 479,
+    "sha256": "bf832dfa70b87ec43d3640dbe7c04fb86b6d19ba636ca20137ee3130a3dca733"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/native-8/final-review.json",
+    "bytes": 809,
+    "sha256": "d84d56269a9cb44ccfa442fa21ee8af665dd56dfeb4cc8732d6894f07682ac62"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/native-8/workspace/analysis.py",
+    "bytes": 10731,
+    "sha256": "a9cea518151701d22f9209134ce2114c6b10a7dc04e2ebfb227330334dc79b35"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/native-8/state/df3f6329-d81f-4d84-b568-caaf6d00c5d4/session.json",
+    "bytes": 469,
+    "sha256": "2274261b970eab632a26947e06118e850022b106950590f363bd5a6607fd8d2b"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/native-8/state/df3f6329-d81f-4d84-b568-caaf6d00c5d4/events.jsonl",
+    "bytes": 249690,
+    "sha256": "c5f9f01af737c3127e4a12790aad15d6a4be77de6396f4878ee930d462565206"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/native-8/state/df3f6329-d81f-4d84-b568-caaf6d00c5d4/worker-log.jsonl",
+    "bytes": 139356,
+    "sha256": "79fee9ee2464b8be2f6715d6f566457d47a7998c87ed53bc66f61e1aa7a43568"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/native-8/state/df3f6329-d81f-4d84-b568-caaf6d00c5d4/cline/data/globalState.json",
+    "bytes": 929,
+    "sha256": "e511918714770bd49371fc5f9369f7ca0855bdaad48d88d19d943e52a9630b28"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/native-8/state/df3f6329-d81f-4d84-b568-caaf6d00c5d4/cline/data/secrets.json",
+    "bytes": 67,
+    "sha256": "07ec4e6f2d7f60b8ddb97a7c911570e75e0b73cda31f172e72fe140934a549ef"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/native-8/state/df3f6329-d81f-4d84-b568-caaf6d00c5d4/cline/data/locks.db",
+    "bytes": 24576,
+    "sha256": "6c9affe78e341d19c268e9c3b2cc51969ff083e6b054b504c8430a8085fc8c23"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/native-8/state/df3f6329-d81f-4d84-b568-caaf6d00c5d4/cline/data/settings/global-settings.json",
+    "bytes": 59,
+    "sha256": "b7ceaa8f926e6e13319b9b73c828197e091ac6180eb00fa9dc7901795d509633"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/native-8/state/df3f6329-d81f-4d84-b568-caaf6d00c5d4/cline/data/settings/providers.json",
+    "bytes": 451,
+    "sha256": "5bddd9787a5fdc42277701a658061d964529d1ad85447449f8cac3ee008996fb"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/native-8/state/df3f6329-d81f-4d84-b568-caaf6d00c5d4/cline/data/settings/models.json",
+    "bytes": 554,
+    "sha256": "4d0a4ab269d6433d64905fbe64ba51e6e75896472fce20dc591fb69897cf4242"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/native-8/state/df3f6329-d81f-4d84-b568-caaf6d00c5d4/cline/data/settings/cline_mcp_settings.json",
+    "bytes": 22,
+    "sha256": "38935ac9bd01a9a91be32d16fc131d8b9d46fbcede88855e85c01f31c7347615"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/native-8/state/df3f6329-d81f-4d84-b568-caaf6d00c5d4/cline/data/db/sessions.db",
+    "bytes": 4096,
+    "sha256": "97e8d54f8a7255106f66cf1b213c4a4d7b558d21310b1c2bfedc3d0d526dddda"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/native-8/state/df3f6329-d81f-4d84-b568-caaf6d00c5d4/cline/data/db/sessions.db-wal",
+    "bytes": 247232,
+    "sha256": "f1bd91f08029a95eff72803039481840c8606a37a20364a2139a907c78d28d7f"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/native-8/state/df3f6329-d81f-4d84-b568-caaf6d00c5d4/cline/data/db/sessions.db-shm",
+    "bytes": 32768,
+    "sha256": "88916908fe5734002b380fa60fbf36b20bcb1df06d8c3aaacc73067f833a4a4c"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/native-8/state/df3f6329-d81f-4d84-b568-caaf6d00c5d4/cline/data/sessions/1794289464028_oyhcn/1794289464028_oyhcn.messages.json",
+    "bytes": 67879,
+    "sha256": "b71f4bd1ae8c4ede94d56b979d5e233d63250bc68b0a6465ebac611957590738"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/native-8/state/df3f6329-d81f-4d84-b568-caaf6d00c5d4/cline/data/sessions/1794289464028_oyhcn/1794289464028_oyhcn.json",
+    "bytes": 1828,
+    "sha256": "7e458c5baa253eb56e98c33bdc82081235a2d1a28950d96c985e7090a2b90ee0"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/native-8/model/001-request.json",
+    "bytes": 13091,
+    "sha256": "6582a88ebab183d8c82806c424002c4f3d70504c2d1694abd456758eb57d8a11"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/native-8/model/001-response.bin",
+    "bytes": 4557,
+    "sha256": "fd414c5d63030059d542f2af65a6ce899382d8f9866642a360af368716054b23"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/native-8/model/001-receipt.json",
+    "bytes": 1120,
+    "sha256": "9215b49827990043479f094276717d252d269d32df7caa7cfd4c37e5634714c6"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/native-8/model/002-request.json",
+    "bytes": 13745,
+    "sha256": "df73cb22e212d399abbfcc4e6ca57e6f124d88128a1ce99428a777e4c5ce3264"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/native-8/model/002-response.bin",
+    "bytes": 5181,
+    "sha256": "c106ed1669533cac511131ba7fbc46e10c3cb82325dd23f14895874f739f872d"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/native-8/model/002-receipt.json",
+    "bytes": 1123,
+    "sha256": "ec338354d835cba3a9c4b392bdb3683a58bbe3614ec6dff7b8501c9a7d03f23f"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/native-8/model/003-request.json",
+    "bytes": 14466,
+    "sha256": "63a9eea1d66df8aab8a2bf77127a887d662adb0468ecca9f3b977e1ea3afeb1a"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/native-8/model/003-response.bin",
+    "bytes": 4867,
+    "sha256": "4dcfaaf8ea4520769b5facc63eaaac6be0985a287ccb09e6fbd53c2b8374a445"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/native-8/model/003-receipt.json",
+    "bytes": 1125,
+    "sha256": "cb15f105f7aaeb62724bfafae72f0f643ec65ad31c751722d4a3fbef32a61c78"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/native-8/model/004-request.json",
+    "bytes": 17937,
+    "sha256": "8cf1d019578482a70b05e032bfe2d2d11e49c3c55f6c78f86efb671238cee0b5"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/native-8/model/004-response.bin",
+    "bytes": 342276,
+    "sha256": "0ad611cbb399f0885b5dbdc7c33b58ebd31d43267d0a91ef525933a0dd6aaaed"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/native-8/model/004-receipt.json",
+    "bytes": 1129,
+    "sha256": "ef240c2a7dff101d7ab2aed33a2a0a0f2af8f20aa5b8fa70112c6021fa58481b"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/native-8/model/005-request.json",
+    "bytes": 32555,
+    "sha256": "841e83bc9303af2a37e0e9c859681708cc812e19ff0405eea839bb12a998ec1c"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/native-8/model/005-response.bin",
+    "bytes": 117827,
+    "sha256": "c5fe4728bf711a2356cffc4961279e5ebdb1595781bb8493bc7337f2feaf151e"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/native-8/model/005-receipt.json",
+    "bytes": 1128,
+    "sha256": "3f7d6f088e49d3febb59486d42f531b0e28741b7cb24060a6f1671e0b331abb5"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/native-8/model/006-request.json",
+    "bytes": 39460,
+    "sha256": "a5d1eacd7d4b9f8bae6ddad3f8d98ba93ef70a278cb88fa76cc66ee55971dda6"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/native-8/model/006-response.bin",
+    "bytes": 55904,
+    "sha256": "b24e46a7d04dd71adc4e9d2b6d866f3a3bb0dd955043a8aebe59a8e3d13c322f"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/native-8/model/006-receipt.json",
+    "bytes": 1127,
+    "sha256": "a0237e89bcc639f0c4c8f03d4d0780f8125dbcdcc192f7bd0c05951cb505a8a9"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/native-8/model/007-request.json",
+    "bytes": 42070,
+    "sha256": "61345128dceb2ec42c0dab8459ec8d2d8ddfc746a9ed63dca0bae72aed5b8479"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/native-8/model/007-response.bin",
+    "bytes": 136219,
+    "sha256": "d739ee1082c728630a0ea1f92a4b0a1cb3f2807b7b86c7bf9985b86b76e82a99"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/native-8/model/007-receipt.json",
+    "bytes": 1131,
+    "sha256": "aaed7d4c31711b2ae046d26662e2659af67fcd8dd4e8031d4c0966e339e29dbf"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/native-8/model/008-request.json",
+    "bytes": 47044,
+    "sha256": "7939f1be27a70ebca221364d6076d2f41bc3ac95db6c07ed5aa04ef6cf9a1d09"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/native-8/model/008-response.bin",
+    "bytes": 4001,
+    "sha256": "ab2531fdc63f9970f7e234943485aadf80f5be2e3fa27d15d985ca56a76220e9"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/native-8/model/008-receipt.json",
+    "bytes": 1126,
+    "sha256": "44f5f3adc0697b684189cf01648740e56566df3119031d6bff9dfa68ba9947a5"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/native-8/model/009-request.json",
+    "bytes": 47828,
+    "sha256": "568eb993973d108c0b02eb0d649a15147fc7563c214af7e230b01daac3398d43"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/native-8/model/009-response.bin",
+    "bytes": 7849,
+    "sha256": "c571a8a9aa976cc25ab736223104a44f39ca20f256a4d9c16673fff466770159"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/native-8/model/009-receipt.json",
+    "bytes": 1129,
+    "sha256": "bb88fd3c67e66ce7c4e063fd446e46fc35b57f04bc0a32c0bd15ba3e54b0adc9"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/native-8/model/010-request.json",
+    "bytes": 59513,
+    "sha256": "971ce774943ce6ff9d6d17c2c3bc9fca762bff170d6c8644ed2a83d894312b47"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/native-8/model/010-response.bin",
+    "bytes": 23544,
+    "sha256": "605235dd71924dc21bf2b09fb087f6f385fc49d433b0f6e3bfeda86aa05a0083"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/native-8/model/010-receipt.json",
+    "bytes": 1131,
+    "sha256": "9d45a68c5b4155335fd20dcec5178a936ba6cb54f092f27f49fbfa9c7f307752"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/native-8/model/011-request.json",
+    "bytes": 60822,
+    "sha256": "5d63b4d30d871ea3aa582f1128e0ad2f682834e75f2bd33e82cac61094af20ae"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/native-8/model/011-response.bin",
+    "bytes": 34712,
+    "sha256": "65889dad27323db2d5366f0c0390b10e52e05d354a797e40497b85b6a129cb3a"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/native-8/model/011-receipt.json",
+    "bytes": 1130,
+    "sha256": "e7585e428da9fc4eb68c7431a93d6c3804b090e3a44943c1e73f011121d4a2cd"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/native-8/model/012-request.json",
+    "bytes": 63789,
+    "sha256": "349b9b362b71c6071acca7c1ac943e3abf47c38bfd71a0df004cdf340cdf2ec9"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/native-8/model/012-response.bin",
+    "bytes": 9143,
+    "sha256": "cc7945b150be9b09ba0b1908f58341a863b3692fa01a1aa45bda906e5cb52c37"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/native-8/model/012-receipt.json",
+    "bytes": 1130,
+    "sha256": "6ba5177de3b06d20e8ee8dba19e78d677867d90c45a18b62003dfba3c19e0d48"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/native-8/versions/5d778b8d825678249818c67747bad13bb4f1774940455e32e08234241a20c037/analysis.py",
+    "bytes": 5818,
+    "sha256": "5d778b8d825678249818c67747bad13bb4f1774940455e32e08234241a20c037"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/native-8/versions/c9c4dfbfedd8314a5b1cc7092f1096180b41e5bdf88f9f2f58a8916f16723537/analysis.py",
+    "bytes": 7641,
+    "sha256": "c9c4dfbfedd8314a5b1cc7092f1096180b41e5bdf88f9f2f58a8916f16723537"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/native-8/versions/b74ac30b98e1cc7ec426eed99aa8eac83b4375f69ae5d0d3e58810c7bf4ad792/analysis.py",
+    "bytes": 11507,
+    "sha256": "b74ac30b98e1cc7ec426eed99aa8eac83b4375f69ae5d0d3e58810c7bf4ad792"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/native-8/versions/549367dcc94182dcb7b74c8a6247e7cdc4e0e18cc5f3e01a7c8b7994b9d63012/analysis.py",
+    "bytes": 11595,
+    "sha256": "549367dcc94182dcb7b74c8a6247e7cdc4e0e18cc5f3e01a7c8b7994b9d63012"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/native-8/versions/a9cea518151701d22f9209134ce2114c6b10a7dc04e2ebfb227330334dc79b35/analysis.py",
+    "bytes": 10731,
+    "sha256": "a9cea518151701d22f9209134ce2114c6b10a7dc04e2ebfb227330334dc79b35"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/native-9/intent.json",
+    "bytes": 599,
+    "sha256": "4182c262bf3dbb05468b4ab68157d82a6fc05d5753327675c46633388c4b5ba1"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/native-9/native-config.json",
+    "bytes": 561,
+    "sha256": "6cf6661d0debd728fd9d00b74b0a651d018b69760f169b53f4b42904df057a38"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/native-9/session-created.json",
+    "bytes": 57,
+    "sha256": "cebbc471cbf4350b9934690cd91aa67bd080a34b90f80bb042265ee4e03d90e3"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/native-9/submission.json",
+    "bytes": 78,
+    "sha256": "4bfce9dd96a9cc089b4cf94bab94bf6329ae1ada173bdddb8156a38412ee1e86"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/native-9/latest-status.json",
+    "bytes": 304,
+    "sha256": "31dbb5caa53c0c229df6a1be74fa350be2810c4ea9d8caacbcfe3f7512e6e171"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/native-9/events.json",
+    "bytes": 645785,
+    "sha256": "754a9a0ab7b3dcd02f2929841bbf866aafd5f59c498ec2f9a7707ad2bb0aba69"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/native-9/final-status.json",
+    "bytes": 304,
+    "sha256": "31dbb5caa53c0c229df6a1be74fa350be2810c4ea9d8caacbcfe3f7512e6e171"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/native-9/stop.json",
+    "bytes": 28,
+    "sha256": "8705da22ee12e2ae59c05446c14074cd79d5b1bb1ff979a7c32eacf581028561"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/native-9/container.log",
+    "bytes": 98,
+    "sha256": "94314efefc98259e5c20d6ac45e1691a03d341e10deb4f72db93b635b2ff2c5d"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/native-9/summary.json",
+    "bytes": 651,
+    "sha256": "2af0538d7de6ea509fea12110c250dbb7e53d96863df01ccd0dff47e70f0c802"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/native-9/independent-acceptance.json",
+    "bytes": 5021,
+    "sha256": "5b50f17f93c15213e86db6bd79b72f53e40b8673f2f9da6430892e8e21fc44bd"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/native-9/reproduction-summary.json",
+    "bytes": 479,
+    "sha256": "90355be826e9f2c38f8f22baaf062a9dca2c40c9d86163d235fc27700c0438e1"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/native-9/final-review.json",
+    "bytes": 735,
+    "sha256": "eca12893db05037f408013a6ae2170d9b95414c03dcc3ff2e80086ff8c8e8aef"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/native-9/workspace/analysis.py",
+    "bytes": 7925,
+    "sha256": "4fefdc2781df7e8cec4c08e46b4f6212938dad83f82295a472936a9f2a8e65e5"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/native-9/workspace/report.md",
+    "bytes": 10909,
+    "sha256": "a958141a2a918f5f7e28cde06131397a563608774a9274e1eff3306828278e5f"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/native-9/state/96503cf0-01ba-4894-bf2e-b877d24e51b3/session.json",
+    "bytes": 469,
+    "sha256": "86c2d2e812fec51cc9aa531392828200726914970dabbb60e7ef281f39821221"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/native-9/state/96503cf0-01ba-4894-bf2e-b877d24e51b3/events.jsonl",
+    "bytes": 557325,
+    "sha256": "1e52f71d16bd5b07240369b02c47bfd38e2dd4892990ff8fd73cccaa6473968b"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/native-9/state/96503cf0-01ba-4894-bf2e-b877d24e51b3/worker-log.jsonl",
+    "bytes": 210708,
+    "sha256": "17dc8cc6181ae6f457ab94fb0ea05440e64581dfefe17c35297e8be2199be5d1"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/native-9/state/96503cf0-01ba-4894-bf2e-b877d24e51b3/cline/data/globalState.json",
+    "bytes": 929,
+    "sha256": "f0ab8e22c2871f477cc552f1db9f8d554113bf673c2b6763dc51aea81c0cb9c6"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/native-9/state/96503cf0-01ba-4894-bf2e-b877d24e51b3/cline/data/secrets.json",
+    "bytes": 67,
+    "sha256": "07ec4e6f2d7f60b8ddb97a7c911570e75e0b73cda31f172e72fe140934a549ef"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/native-9/state/96503cf0-01ba-4894-bf2e-b877d24e51b3/cline/data/locks.db",
+    "bytes": 24576,
+    "sha256": "bb069da7c3e2fcdcb61f71172b2bad013ffb0bc85c96f7786e6fb70a3806438a"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/native-9/state/96503cf0-01ba-4894-bf2e-b877d24e51b3/cline/data/settings/global-settings.json",
+    "bytes": 59,
+    "sha256": "b7ceaa8f926e6e13319b9b73c828197e091ac6180eb00fa9dc7901795d509633"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/native-9/state/96503cf0-01ba-4894-bf2e-b877d24e51b3/cline/data/settings/providers.json",
+    "bytes": 451,
+    "sha256": "6728c0995faa40bc184ff5916ef37973a829b2970bf869e04f057bc1e9d4f64e"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/native-9/state/96503cf0-01ba-4894-bf2e-b877d24e51b3/cline/data/settings/models.json",
+    "bytes": 554,
+    "sha256": "0c494c60e229954f97986180493fc25e82abea9fb667b4a2d884a292540e1b76"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/native-9/state/96503cf0-01ba-4894-bf2e-b877d24e51b3/cline/data/settings/cline_mcp_settings.json",
+    "bytes": 22,
+    "sha256": "38935ac9bd01a9a91be32d16fc131d8b9d46fbcede88855e85c01f31c7347615"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/native-9/state/96503cf0-01ba-4894-bf2e-b877d24e51b3/cline/data/db/sessions.db",
+    "bytes": 4096,
+    "sha256": "97e8d54f8a7255106f66cf1b213c4a4d7b558d21310b1c2bfedc3d0d526dddda"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/native-9/state/96503cf0-01ba-4894-bf2e-b877d24e51b3/cline/data/db/sessions.db-wal",
+    "bytes": 238992,
+    "sha256": "fa7eaee117534fbcbc064a7b51493c796481e6a953c578168a66704dcfdd5c42"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/native-9/state/96503cf0-01ba-4894-bf2e-b877d24e51b3/cline/data/db/sessions.db-shm",
+    "bytes": 32768,
+    "sha256": "f1a628ad5f64eaf75396a626d36512bc0ecd3cb15ee44a47dde90c8b3305f15b"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/native-9/state/96503cf0-01ba-4894-bf2e-b877d24e51b3/cline/data/sessions/1794289743791_y6v3m/1794289743791_y6v3m.messages.json",
+    "bytes": 114819,
+    "sha256": "8a14f99972a2e7ea3fb16fb0d9f87bcc99b7fc3ad7ad043c4d0fe221a1dae2ba"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/native-9/state/96503cf0-01ba-4894-bf2e-b877d24e51b3/cline/data/sessions/1794289743791_y6v3m/1794289743791_y6v3m.json",
+    "bytes": 1837,
+    "sha256": "1f0b0012f6083e5bf45e7328019f47e03fca1836cdcb87bb80a58f0687de3f43"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/native-9/model/001-request.json",
+    "bytes": 13091,
+    "sha256": "6582a88ebab183d8c82806c424002c4f3d70504c2d1694abd456758eb57d8a11"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/native-9/model/001-response.bin",
+    "bytes": 11161,
+    "sha256": "5a502ed62c9a33951beeddec4c82bdfe1498aa618e1e99029ac232bcd6bdeb36"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/native-9/model/001-receipt.json",
+    "bytes": 1122,
+    "sha256": "e30f9d175462e4a7f9322d50179029b02df6478adfcee70c06d713261de6a689"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/native-9/model/002-request.json",
+    "bytes": 20540,
+    "sha256": "be9992403178efd78962b2c43636409088ec1548ceb4e72665b8e69b08aa47c6"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/native-9/model/002-response.bin",
+    "bytes": 16418,
+    "sha256": "05f2343296a10dd2a399d407646be99fd77aeec9a546d7982a924aeb411bebb6"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/native-9/model/002-receipt.json",
+    "bytes": 1129,
+    "sha256": "bc875a458f1e73aca6a7981e540d6e9fc8154a74ed8a5fd7d80de73362225e1a"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/native-9/model/003-request.json",
+    "bytes": 34639,
+    "sha256": "4543a703e34288dc89585b0a05f137b9333a36a6fae7a00884a1bc753d4bf14e"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/native-9/model/003-response.bin",
+    "bytes": 13216,
+    "sha256": "6bc51e0a32ecf85c9866c7eb019b3c769f5c00ecebb5734881f4cd4cc3bbc027"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/native-9/model/003-receipt.json",
+    "bytes": 1129,
+    "sha256": "5233e7c209512acb09d093b9dd2b321fa1979105798275c07a6fd70d847a5362"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/native-9/model/004-request.json",
+    "bytes": 41345,
+    "sha256": "1ae6f46d252dbd17e34d0cff1e421929459d45b73be12049ad8efa6c932a7bd4"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/native-9/model/004-response.bin",
+    "bytes": 326742,
+    "sha256": "f747fc3c27d5a5d66fe404f605a0fdbe7ef0933b37a8ab4843c7b5a7b94b29b5"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/native-9/model/004-receipt.json",
+    "bytes": 1132,
+    "sha256": "57e0186623fe9f6686c4adc786f02fe70040040f06675363a790d4c7ab8eea9f"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/native-9/model/005-request.json",
+    "bytes": 54271,
+    "sha256": "e1158c15b943e78e4dd275c41eb005886dc566c05d2eeb2c091f1b0b60153e8a"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/native-9/model/005-response.bin",
+    "bytes": 56535,
+    "sha256": "dc804fab627ad62c5f3767216f68e496f8cb96a05d9506646d611d459681f555"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/native-9/model/005-receipt.json",
+    "bytes": 1130,
+    "sha256": "f0cfd8cd7e0edf511d1f20bd1b61e737585f0b15127308e5b38b28eb303c65db"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/native-9/model/006-request.json",
+    "bytes": 56986,
+    "sha256": "0e1c51f013df1be0b09cd8840379646f956d0dd071c485473ba102b208b0b768"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/native-9/model/006-response.bin",
+    "bytes": 68433,
+    "sha256": "599963f04f6d6d88332f05f04d461312698c80c8be48d6f0c384c76441709993"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/native-9/model/006-receipt.json",
+    "bytes": 1130,
+    "sha256": "fa396d58046bbc9c711afea3cd991cd49b846ed04ac55197aa6f26b64637db08"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/native-9/model/007-request.json",
+    "bytes": 60350,
+    "sha256": "bc14dae6f8bd094b7443ef52970a5bb7b475a9d109cb4286a5ab6de8170c2df1"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/native-9/model/007-response.bin",
+    "bytes": 16206,
+    "sha256": "3cf81338d6595ceb47b7fced0162cfcf5d25ea538f99aaebcfdef67d7747352d"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/native-9/model/007-receipt.json",
+    "bytes": 1132,
+    "sha256": "407a4f47860b088362b119d5c69b2c0131e3adfaef506ce4dd6a75ffe3503fc3"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/native-9/model/008-request.json",
+    "bytes": 70562,
+    "sha256": "14ce9184a5c3b14629f267b37d7d5b17913aa3ba58869811380f7e54a63b126a"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/native-9/model/008-response.bin",
+    "bytes": 4838,
+    "sha256": "70e7d2aa80a114d08b3d9639f3af6801126650b88bceeecb1b830dd4fd3c8161"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/native-9/model/008-receipt.json",
+    "bytes": 1127,
+    "sha256": "06bda1e2cb38a05ba0968db5395128286506e8fcc1e7833ea9fea48bd79a45da"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/native-9/model/009-request.json",
+    "bytes": 79645,
+    "sha256": "776d149be2a6ab58de3a94c7d9fc7f179c814cf2626b1e66a208da4d77ff8cb2"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/native-9/model/009-response.bin",
+    "bytes": 17704,
+    "sha256": "8490eb6709044841ae19def31343958a6cdfc2b202b59d175811e0334d3a0183"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/native-9/model/009-receipt.json",
+    "bytes": 1132,
+    "sha256": "44197fd9646b963dba44278d0832c9ec7f65979870791ae3ec8f32836405e69b"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/native-9/model/010-request.json",
+    "bytes": 92053,
+    "sha256": "d59e13f050c2f38218764446d3bc766483ff80ae87f07afbbba5bc750a03fed3"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/native-9/model/010-response.bin",
+    "bytes": 5756,
+    "sha256": "2afd3d863f42bd9e339cbfb7ca3494f5aba49093d37c3ac1df2a286a917736cc"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/native-9/model/010-receipt.json",
+    "bytes": 1130,
+    "sha256": "4f62f93e3365431b26151542b0db898ec146031f19ddf5c2ada1bdcafdd220e2"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/native-9/model/011-request.json",
+    "bytes": 94313,
+    "sha256": "707dcce520c8c0139a2a64e905db5f1d14adebd137e0ff3e6289e2bf7cdcb925"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/native-9/model/011-response.bin",
+    "bytes": 4494,
+    "sha256": "f9a5883b0a8b37779e8fd0a4905def9f044aad8033648a350d4d3c4f19e52596"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/native-9/model/011-receipt.json",
+    "bytes": 1128,
+    "sha256": "3dbb0e5b5d9d76368ec0239be9881490029d3373e59147722425c4029107219b"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/native-9/model/012-request.json",
+    "bytes": 105734,
+    "sha256": "be7a6d4efccbb5121e9bedf619739f8c28ae6b09df0c53bb62906560498950f8"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/native-9/model/012-response.bin",
+    "bytes": 42255,
+    "sha256": "dc13694a138e174ba1f2b512984740f905747f6a2d21f157404dc5d07aeb04c2"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/native-9/model/012-receipt.json",
+    "bytes": 1128,
+    "sha256": "c0cc40b0ec2e6bcbc40ddba225b0c161f69a4e883d3edba4d127ef03b2fbc1f1"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/native-9/versions/2d98b6e459c1d2c7adb1b866a11acae4bf2e9df70547fdfb291eb4bdbc1556c0/analysis.py",
+    "bytes": 1920,
+    "sha256": "2d98b6e459c1d2c7adb1b866a11acae4bf2e9df70547fdfb291eb4bdbc1556c0"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/native-9/versions/4fefdc2781df7e8cec4c08e46b4f6212938dad83f82295a472936a9f2a8e65e5/analysis.py",
+    "bytes": 7925,
+    "sha256": "4fefdc2781df7e8cec4c08e46b4f6212938dad83f82295a472936a9f2a8e65e5"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/native-9/versions/a958141a2a918f5f7e28cde06131397a563608774a9274e1eff3306828278e5f/report.md",
+    "bytes": 10909,
+    "sha256": "a958141a2a918f5f7e28cde06131397a563608774a9274e1eff3306828278e5f"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/official-1/intent.json",
+    "bytes": 601,
+    "sha256": "d079e5e728dd16f177cfec5bc98337edded8fb7f8db7341026056d4aa5f23871"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/official-1/auth.log",
+    "bytes": 72,
+    "sha256": "b56292bb715c148f841aa5be88ab2e1bf0b4f8c4a245bb8f4fde9a9cec647612"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/official-1/stdout.jsonl",
+    "bytes": 134482,
+    "sha256": "44ba0d002962d69af3de212cae2031ade4e1184bd34255ed2b29d849b3bbb95c"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/official-1/stderr.jsonl",
+    "bytes": 496,
+    "sha256": "c758d4474062b7494d53cf5e9e13c5288edcedcee03a9872a3983c18f3ae41e7"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/official-1/container.log",
+    "bytes": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/official-1/summary.json",
+    "bytes": 485,
+    "sha256": "9f6264b25eec37852d07df42d7a9a862ff642865edc606a897b873684ed079ce"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/official-1/independent-acceptance.json",
+    "bytes": 315,
+    "sha256": "2f40257867019b39609409a033a0f377a5db200e102db49eb90841cd45711486"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/official-1/final-review.json",
+    "bytes": 881,
+    "sha256": "0aabb274b949ed0c60af2b8f861b7e1669f99d6f3697119216652b6b2ba47e4e"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/official-1/reproduction-summary.json",
+    "bytes": 481,
+    "sha256": "33b7f62ce404200650cd8b53bdbeef9695a813603b9cd9f945bf73155b2adcec"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/official-1/workspace/analysis.py",
+    "bytes": 4634,
+    "sha256": "5b3f679f8fc88c4593a5e531eaaafdedf20616d4063fd47716c9d238e3a9c048"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/official-1/state/home/.cline/data/settings/providers.json",
+    "bytes": 450,
+    "sha256": "77460a85adc5c9046a1e73f6b848ff80b050e68f335db8d66af35c725fc84d6c"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/official-1/state/home/.cline/data/settings/global-settings.json",
+    "bytes": 261,
+    "sha256": "a33664e39663ddbd948da31b6874947b468f1fc8f29f3db2f034c5cad8f81d2e"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/official-1/state/home/.cline/data/logs/cline.log",
+    "bytes": 692062,
+    "sha256": "20088104f5e6ffdf8289d95658bc1dc6e38440b8e071f3952d862c9c31528ab9"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/official-1/state/home/.cline/data/db/sessions.db",
+    "bytes": 45056,
+    "sha256": "c6d052ef75abb1ba8a25943272c52cef97beb22d0a96062ad6ceaa37f18afac4"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/official-1/state/home/.cline/data/db/sessions.db-wal",
+    "bytes": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/official-1/state/home/.cline/data/db/sessions.db-shm",
+    "bytes": 32768,
+    "sha256": "aea358a7a59bc8afb7a20eac296eab97bf307425b68439945a8484696aed845c"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/official-1/state/home/.cline/data/db/teams.db",
+    "bytes": 90112,
+    "sha256": "ae399c72aea7e68a93ad761cd2806e72298eb7031cd2dfa945de5e4b8f74f07a"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/official-1/state/home/.cline/data/db/teams.db-wal",
+    "bytes": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/official-1/state/home/.cline/data/db/teams.db-shm",
+    "bytes": 32768,
+    "sha256": "b93d532f70c8a4fb206b005c18b49247ba956add67718a668f63f3c56a7401dc"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/official-1/state/home/.cline/data/sessions/1794288130267_i8nja/1794288130267_i8nja.messages.json",
+    "bytes": 67433,
+    "sha256": "af9385b88a041ed18e95efca61251af39fb256e9e2aa0caf55dd937c297f4f40"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/official-1/state/home/.cline/data/sessions/1794288130267_i8nja/1794288130267_i8nja.json",
+    "bytes": 1685,
+    "sha256": "6a1724a1c2653d6657359966b74a03ef23801bebd7f55e1297ab2ba2f6044010"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/official-1/state/home/.cline/data/cache/feature-flags.json",
+    "bytes": 287,
+    "sha256": "b57f8cda4bbc5792d5909f4d30cec4b9086d1d96951c5d92fea45df8fa5a5320"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/official-1/model/001-request.json",
+    "bytes": 20776,
+    "sha256": "4ac603f5aa602ccc71e31e5adcb1cebcd3b1cdb99557d9e88f89c62b18501451"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/official-1/model/001-response.bin",
+    "bytes": 7042,
+    "sha256": "edfc64f3ab16be348fcb14bf1ca4fbbec3cdb1b1b676e1826a6fa9d417e2fb7f"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/official-1/model/001-receipt.json",
+    "bytes": 1528,
+    "sha256": "8d49a15b180f41f252f0e0eb2f5ce7b0df8ac73af2fd705abf6f8831b731812f"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/official-1/model/002-request.json",
+    "bytes": 25652,
+    "sha256": "15bb07af345a09b87b384c097907f0430fe30c3ab9bddbce3bc4ccfa2b0974e9"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/official-1/model/002-response.bin",
+    "bytes": 11832,
+    "sha256": "8cb69d3db4bdf0b21eaca00d46d072db5a067936b3c93b407bb038272956d283"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/official-1/model/002-receipt.json",
+    "bytes": 1534,
+    "sha256": "2e9457b21e81d8f8d627538c607c5d5af78da639dcf9980fce06108cbf78a9b2"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/official-1/model/003-request.json",
+    "bytes": 38381,
+    "sha256": "743faf6872c37efcde79b851263c0f6017d350633dfe28ea1eb99ab8b3abc67d"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/official-1/model/003-response.bin",
+    "bytes": 9164,
+    "sha256": "bdcb8c660d2a2a4be26602a14621f745c7ae32d81b5f11bf43cd4cab857e6b4c"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/official-1/model/003-receipt.json",
+    "bytes": 1535,
+    "sha256": "802e5f171532eb113f120e7eec3f88b839f6f4bbbb6ec1edefd3aa94df906dbc"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/official-1/model/004-request.json",
+    "bytes": 47526,
+    "sha256": "cfdf2096a9ecf8d2d3818b9e90437f9aeedf996db5105135eb3d11566db4ffad"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/official-1/model/004-response.bin",
+    "bytes": 5822,
+    "sha256": "11d2f956db96aeeb564fddd2e7fb4f9fe54aa277e73075cb1617c84804e41ec5"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/official-1/model/004-receipt.json",
+    "bytes": 1535,
+    "sha256": "d5cca684b0d5ff838d8240d3150ac453287b12a0670c60dcfddafcf6064680e7"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/official-1/model/005-request.json",
+    "bytes": 50157,
+    "sha256": "292d1208c4413afb5a72c807604b1a8636feda2e979077a7efa3e3764c4b342f"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/official-1/model/005-response.bin",
+    "bytes": 257544,
+    "sha256": "a99d3728143d70b05be35ae1f48356cec421d2538c54ad907c9bc4aa66e49855"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/official-1/model/005-receipt.json",
+    "bytes": 1538,
+    "sha256": "08c45d5f906835a4a15fd7f78f633cfc788179cc0b069a947ec9169fdf712b11"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/official-1/model/006-request.json",
+    "bytes": 61248,
+    "sha256": "c60e275707408c5314da4bb5fa46b4acd0990c11a48f08167f42697adbc5a17e"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/official-1/model/006-response.bin",
+    "bytes": 68379,
+    "sha256": "f143ae8806736608e401cea369e3f82770bb57bb29221db092a57930b3176481"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/official-1/model/006-receipt.json",
+    "bytes": 1536,
+    "sha256": "bb0f52ae10c9ba70f74244fa86f9822ee940d7b035787665296f49258af8a765"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/official-1/model/007-request.json",
+    "bytes": 63888,
+    "sha256": "1497e932e950b36501a6e322af76748d389a92707b3f1b711335df5dea20af2d"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/official-1/model/007-response.bin",
+    "bytes": 104706,
+    "sha256": "0b87eec41731aeb5c28978b3662521677c8621cd28c1a52306948b6968dd1816"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/official-1/model/007-receipt.json",
+    "bytes": 1538,
+    "sha256": "82c661417ade490aae477b797302fcb3d132a3ee0a91b8050d16e240ff90968a"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/official-1/model/008-request.json",
+    "bytes": 67684,
+    "sha256": "ac0f814a07c184b248b4618e4cd8f12f2817cc521b5d69df90de72f3f02923ad"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/official-1/model/008-response.bin",
+    "bytes": 6158,
+    "sha256": "83d29b19f0920a329bb13444086ee4eaf17e1060de6f7a6245bd71be1a553e9b"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/official-1/model/008-receipt.json",
+    "bytes": 1533,
+    "sha256": "38560a3f2f905e58eb680bafffe9142fd2b39a213b8002852504b163fd799a46"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/official-1/model/009-request.json",
+    "bytes": 68247,
+    "sha256": "1d932877ef05accc91a47f41869a3062e661068a6da53f91c070824220481f59"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/official-1/model/009-response.bin",
+    "bytes": 101631,
+    "sha256": "7d689a4cf2101b975815124d8d72ec7ad886a227f76d9d79a9d92c00ac67b5ef"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/official-1/model/009-receipt.json",
+    "bytes": 1538,
+    "sha256": "ad7df80fc41cd8477a688ab30c063172f67d121f015d81556423c16e42a9c636"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/official-1/model/010-request.json",
+    "bytes": 72083,
+    "sha256": "b606bbf2c30a0415cb75e623e99c03fef357d34b50d5fcd5267157c21172d35e"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/official-1/model/010-response.bin",
+    "bytes": 4031,
+    "sha256": "cb7b2fb5419dac21a182a6f58b7509875a47ff4f16363d0874eb5b8f8270fba4"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/official-1/model/010-receipt.json",
+    "bytes": 1534,
+    "sha256": "725ddeb9c9c5b88b72d848f029929fbacb22ec316992290fc6131eeac27f233d"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/official-1/model/011-request.json",
+    "bytes": 72834,
+    "sha256": "8e07bef8fb8259a0d9cd11a3f30f8890a83c46cf9fe079d7c9e20fe7c8496457"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/official-1/model/011-response.bin",
+    "bytes": 5357,
+    "sha256": "096753cab17eac1b53f049bc214683fc4418279113a492a17548505c00a4bc08"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/official-1/model/011-receipt.json",
+    "bytes": 1534,
+    "sha256": "cd3904c8786f65b189ef4d0435fc1390c1bd8967c6abfeb5a0f8cffa174e1339"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/official-1/model/012-request.json",
+    "bytes": 73889,
+    "sha256": "1fd3eaeed921ee5c7f36f2dc3698d8fa775df8d49bc058cfc9000faeff1c0c49"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/official-1/model/012-response.bin",
+    "bytes": 26548,
+    "sha256": "12773718d94c53378934cabd266a53388ac62f9861443100ecd368508ef1518b"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/official-1/model/012-receipt.json",
+    "bytes": 1536,
+    "sha256": "d3a5369a2a0ef60f19c3384250447c80a5a9f8279d95e5e66e01140e64870e2b"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/official-1/versions/8e8ed5fdd3643324de5880b7a222f4317f7c4ba65f0844266728e50584c11d11/analysis.py",
+    "bytes": 1816,
+    "sha256": "8e8ed5fdd3643324de5880b7a222f4317f7c4ba65f0844266728e50584c11d11"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/official-1/versions/aadbc807a8b8a5ea4ca6407664c09cbf219cb0c057ddde759262123cd842a6ee/analysis.py",
+    "bytes": 4567,
+    "sha256": "aadbc807a8b8a5ea4ca6407664c09cbf219cb0c057ddde759262123cd842a6ee"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/official-1/versions/5b3f679f8fc88c4593a5e531eaaafdedf20616d4063fd47716c9d238e3a9c048/analysis.py",
+    "bytes": 4634,
+    "sha256": "5b3f679f8fc88c4593a5e531eaaafdedf20616d4063fd47716c9d238e3a9c048"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/official-2/intent.json",
+    "bytes": 601,
+    "sha256": "6eb9ad1acab5c69e6a395f77b81a739e5a9abbef2447fb438eb529b3a53ee6f5"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/official-2/auth.log",
+    "bytes": 72,
+    "sha256": "b56292bb715c148f841aa5be88ab2e1bf0b4f8c4a245bb8f4fde9a9cec647612"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/official-2/stdout.jsonl",
+    "bytes": 417357,
+    "sha256": "a118d1e6efe9ae4133cf3ecad8a723a21d4f1ae2ed8179d7e73b3ca388af5f12"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/official-2/stderr.jsonl",
+    "bytes": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/official-2/container.log",
+    "bytes": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/official-2/summary.json",
+    "bytes": 615,
+    "sha256": "f063ea7f57e243e14dee9c6f70d717568df2978d8a21bc83bb02057c7f9f806e"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/official-2/independent-acceptance.json",
+    "bytes": 5541,
+    "sha256": "bfbd6356b0615e2cff955f5fcf566cd4cd0c81cc5cf46509932a2e065969c59b"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/official-2/reproduction-summary.json",
+    "bytes": 500,
+    "sha256": "200cf613ab580a7b16cfd56d95b1d65fe008507e43338e807b67c054a790a9c1"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/official-2/final-review.json",
+    "bytes": 693,
+    "sha256": "baa9ac1e174e8e154e5e307dcaf6b8841dd3f81cfe8de4e5f5d76851d962d458"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/official-2/workspace/analysis.py",
+    "bytes": 17808,
+    "sha256": "f127b17f44f628f486526dee5c00d29f960aba51f30a4cf105c02995cd467117"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/official-2/workspace/report.md",
+    "bytes": 8781,
+    "sha256": "e111321df51795c21d001a342e070673042d5f5eb117a50af19a4e78d30fc050"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/official-2/state/home/.cline/data/settings/providers.json",
+    "bytes": 450,
+    "sha256": "c135fe1f78397e05fd06c4c3b037213bdcd6cd48528a79e12be2dc33e97c0030"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/official-2/state/home/.cline/data/settings/global-settings.json",
+    "bytes": 261,
+    "sha256": "a33664e39663ddbd948da31b6874947b468f1fc8f29f3db2f034c5cad8f81d2e"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/official-2/state/home/.cline/data/logs/cline.log",
+    "bytes": 409,
+    "sha256": "ce46955ab897a30352d149b027fc4a285e5b675488f8ce68343898c6f7534c6d"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/official-2/state/home/.cline/data/db/sessions.db",
+    "bytes": 45056,
+    "sha256": "a634cfff59bef047e9b0467f9a25fa68d45ee007b440406df4acfcf683fe0df8"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/official-2/state/home/.cline/data/db/sessions.db-wal",
+    "bytes": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/official-2/state/home/.cline/data/db/sessions.db-shm",
+    "bytes": 32768,
+    "sha256": "b9a233e843731657e853f8cddae5442ef0b829e206f1fb662387b387ee28e675"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/official-2/state/home/.cline/data/db/teams.db",
+    "bytes": 90112,
+    "sha256": "ae399c72aea7e68a93ad761cd2806e72298eb7031cd2dfa945de5e4b8f74f07a"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/official-2/state/home/.cline/data/db/teams.db-wal",
+    "bytes": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/official-2/state/home/.cline/data/db/teams.db-shm",
+    "bytes": 32768,
+    "sha256": "67459b982c4480aa9e33826ccf1c33a2d91de640debbbcb24e04ea39ebfc0ce7"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/official-2/state/home/.cline/data/sessions/1794288325383_tf71z/1794288325383_tf71z.messages.json",
+    "bytes": 104307,
+    "sha256": "bea7ad4a136f1ecb3b5219efca762ea31c43d0b3815a733c53d5f6400e7efe42"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/official-2/state/home/.cline/data/sessions/1794288325383_tf71z/1794288325383_tf71z.json",
+    "bytes": 1690,
+    "sha256": "90f64207a268fe04bfa2d830cbaadfc19022b2df300d44ef8d62d167bbf2bb88"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/official-2/state/home/.cline/data/cache/feature-flags.json",
+    "bytes": 287,
+    "sha256": "df971f73495c6647e789d6e7a352800e7d72d63c084182a8a18d0273ddcae33d"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/official-2/model/001-request.json",
+    "bytes": 20776,
+    "sha256": "4ac603f5aa602ccc71e31e5adcb1cebcd3b1cdb99557d9e88f89c62b18501451"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/official-2/model/001-response.bin",
+    "bytes": 4669,
+    "sha256": "282d2158d897674de9c5f54b9a3cae483ac229a479f42e9e2f3c02e0c5838693"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/official-2/model/001-receipt.json",
+    "bytes": 1526,
+    "sha256": "626174032d04012cc17fbc5c06929f90b79ce72034712d2ea861f4fa42f5b0ca"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/official-2/model/002-request.json",
+    "bytes": 21779,
+    "sha256": "3b0e8eaa7139fb1256776229299daf2e670a9e426d84d1609312b9cb6f1fcc5f"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/official-2/model/002-response.bin",
+    "bytes": 6883,
+    "sha256": "6a8fe65043960d40eae53008fef9f4fad9dade3d49d74ae49d6181cad2be2687"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/official-2/model/002-receipt.json",
+    "bytes": 1531,
+    "sha256": "0a858a7002034ce3c1feb84f307092bbeae70a7983aeb247eb029bb0c70c91fd"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/official-2/model/003-request.json",
+    "bytes": 32170,
+    "sha256": "71a476cf1997ea0b41312d05ce640277aa352deb50d3c0c1c6e20e8a915c2b47"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/official-2/model/003-response.bin",
+    "bytes": 8080,
+    "sha256": "63bce0ad578baf750150b5296e1d5adcff6fc4cde22dd8713f5fa3379bac941e"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/official-2/model/003-receipt.json",
+    "bytes": 1535,
+    "sha256": "93940bd1fc52ff7fbe60fdaffc39e21b1098feabd120fab0b661fdf19573a8b0"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/official-2/model/004-request.json",
+    "bytes": 39106,
+    "sha256": "63c36c547c2b43ae23845eb2c3d65917386f116f0b127242cd8f96c6ccb73589"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/official-2/model/004-response.bin",
+    "bytes": 11549,
+    "sha256": "815689ab75025f00f647cd8d840965136243d0b28b268e3a5a3a36d873bbaee5"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/official-2/model/004-receipt.json",
+    "bytes": 1535,
+    "sha256": "4ec0e43b04d4efb931c7a59782387b18356b8da12e90cc484769bc12f7e5ff67"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/official-2/model/005-request.json",
+    "bytes": 43612,
+    "sha256": "e6ee18ea996cdafb7183eecf7e7c8f5dabc625c574db0c9af95c773ccf77afb9"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/official-2/model/005-response.bin",
+    "bytes": 505561,
+    "sha256": "760f018dafad3a9e0eae437439f673c61ac35c8dd04b86add5f99c8eeed40f50"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/official-2/model/005-receipt.json",
+    "bytes": 1538,
+    "sha256": "0d3c5c83c68641c7d13a2c8cc9583827eb51d08cdb1fbd4900dc1cc89ec22aa4"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/official-2/model/006-request.json",
+    "bytes": 65009,
+    "sha256": "109669b82fd9e2558f3364fe2d975e530502d88b4151b5b900971e9ea4c56f55"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/official-2/model/006-response.bin",
+    "bytes": 17537,
+    "sha256": "bbb76931bd78ab5673641318ed086e7ffed487f6daf5eb2ce24fd8053de80213"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/official-2/model/006-receipt.json",
+    "bytes": 1538,
+    "sha256": "e1e379f5b4bd22c894c7551df0fdc5c6e62d5e5de67846de63e16364a8a1259f"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/official-2/model/007-request.json",
+    "bytes": 77796,
+    "sha256": "163ff7d72a0cf898e724338cfa370a92b969a7bfc19c7a25cf220869034b902f"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/official-2/model/007-response.bin",
+    "bytes": 13679,
+    "sha256": "b0520e1521cfc20ae7d1dbbb227669d32d299b0eaae173780c197aac08ee77f9"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/official-2/model/007-receipt.json",
+    "bytes": 1538,
+    "sha256": "6ce2e8481a4131763e6caa5275fbe2d7ddeaa49229ae17666298d172d7b493a0"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/official-2/model/008-request.json",
+    "bytes": 86822,
+    "sha256": "f5911bf98dfc77eed704cbf8fad8646caeae2a122240fdb7a12fe557899f0df8"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/official-2/model/008-response.bin",
+    "bytes": 6183,
+    "sha256": "b0dd55002c6e3fcf214ac3bf21a9bc63f909d529cfb4378c0c0352190f5c3d4e"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/official-2/model/008-receipt.json",
+    "bytes": 1533,
+    "sha256": "3554d4c81536de26edc92c70692cf0b35d2f5b8bbea3fe242fdd0ccd6d012928"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/official-2/model/009-request.json",
+    "bytes": 96271,
+    "sha256": "30544f5c45715a67d6f448660eaf6de7f39db00da377b541e8f006488a597d3a"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/official-2/model/009-response.bin",
+    "bytes": 5748,
+    "sha256": "beb9f43f0dca282e37fcb5e9a5ce2268b23057d10968618486a509538810c928"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/official-2/model/009-receipt.json",
+    "bytes": 1533,
+    "sha256": "b900d20cbe15eb2e3b4f66e2230cc021d78b310f81c7ae1c66233849e246dc5b"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/official-2/model/010-request.json",
+    "bytes": 97238,
+    "sha256": "848c001d8674174773d3dfe6f8daf9530908b72a974c1334c43ae5644b0ba3b0"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/official-2/model/010-response.bin",
+    "bytes": 4225,
+    "sha256": "23a075efe91d0516976ff9c8d0c22610b93584e17b98c8df5214eaac8ba36d48"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/official-2/model/010-receipt.json",
+    "bytes": 1534,
+    "sha256": "6aa6f23a41b194aa9ad5c44a7de3565f8ee9c477dcf4a3570790d57b68a8fafc"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/official-2/model/011-request.json",
+    "bytes": 107550,
+    "sha256": "6da1a8051f219026cdd1c5c354b30b6a16dc02d11e1129cdaf5b69fbf6a63f75"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/official-2/model/011-response.bin",
+    "bytes": 60040,
+    "sha256": "4de981046d2b962ca1c0c3cde1dad1f88db189a4be12503d5bc61dfac0ebed09"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/official-2/model/011-receipt.json",
+    "bytes": 1534,
+    "sha256": "34703078a2061b9d997f1c3179fd0b1649fc173c2f74cbbaabed7cd1808d186f"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/official-2/versions/bb179b7387448ddc3ec531539357f1189c2ad668bfc2b9555d271b780211219f/analysis.py",
+    "bytes": 10627,
+    "sha256": "bb179b7387448ddc3ec531539357f1189c2ad668bfc2b9555d271b780211219f"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/official-2/versions/f127b17f44f628f486526dee5c00d29f960aba51f30a4cf105c02995cd467117/analysis.py",
+    "bytes": 17808,
+    "sha256": "f127b17f44f628f486526dee5c00d29f960aba51f30a4cf105c02995cd467117"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/official-2/versions/e111321df51795c21d001a342e070673042d5f5eb117a50af19a4e78d30fc050/report.md",
+    "bytes": 8781,
+    "sha256": "e111321df51795c21d001a342e070673042d5f5eb117a50af19a4e78d30fc050"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/official-3/intent.json",
+    "bytes": 601,
+    "sha256": "36c669d072cede8a547efc64bc2cbc1fd16ec09ab5555989c0d3a3bf2265f6f1"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/official-3/auth.log",
+    "bytes": 72,
+    "sha256": "b56292bb715c148f841aa5be88ab2e1bf0b4f8c4a245bb8f4fde9a9cec647612"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/official-3/stdout.jsonl",
+    "bytes": 157788,
+    "sha256": "f5e6dc175ef8907e2ec49c34355acaef7f48d29e07a8f61c427cd6e7ed2ba843"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/official-3/stderr.jsonl",
+    "bytes": 496,
+    "sha256": "02615c4a7e7d43db21c1e8da06ec69471e6618348b096e68ad2820c8684b0755"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/official-3/container.log",
+    "bytes": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/official-3/summary.json",
+    "bytes": 614,
+    "sha256": "181a5bd79928b613dbf95ec72f92cdba80cdb03606f36b28574f3edc06f2b4ff"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/official-3/independent-acceptance.json",
+    "bytes": 3906,
+    "sha256": "f688c9516774951270a924852565d129c451d3df8d2730041d18848172d4cf0d"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/official-3/reproduction-summary.json",
+    "bytes": 481,
+    "sha256": "dcd28a85cfaa20988aafc9a6556ca022a955802b302e414b9f5a8035f900dc13"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/official-3/final-review.json",
+    "bytes": 791,
+    "sha256": "a9e626d083298a03f1590fef44491155a3d0387acdc7c0b4ce98f621354da1b7"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/official-3/workspace/analysis.py",
+    "bytes": 6066,
+    "sha256": "b4e3e94eb61c8f31fb7efc0a12a7419aa4c6c6a9cded367afc12b6df84456a8d"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/official-3/workspace/report.md",
+    "bytes": 9941,
+    "sha256": "810b1489a8654cd19d3e67ff0993383536e0c9797de342ff1109ecbd4714b793"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/official-3/state/home/.cline/data/settings/providers.json",
+    "bytes": 450,
+    "sha256": "1bf316e5103a7c99feff2d529cf3f6243edc999681cb124ecc51674e1a6b6a45"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/official-3/state/home/.cline/data/settings/global-settings.json",
+    "bytes": 261,
+    "sha256": "a33664e39663ddbd948da31b6874947b468f1fc8f29f3db2f034c5cad8f81d2e"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/official-3/state/home/.cline/data/logs/cline.log",
+    "bytes": 924658,
+    "sha256": "3d78f95b1b4f14fc98d066c6b7db87f6c05e3efcd65fc004cd69b593436da261"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/official-3/state/home/.cline/data/db/sessions.db",
+    "bytes": 45056,
+    "sha256": "fe3323505d25d9dc53618ce05c56bc0ce83d8d0e394eefeec1384b23fd7a1948"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/official-3/state/home/.cline/data/db/sessions.db-wal",
+    "bytes": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/official-3/state/home/.cline/data/db/sessions.db-shm",
+    "bytes": 32768,
+    "sha256": "688697774e8d8f1e603d3b18e5a63f8736997e72c31b25dc1f2827917e299e8b"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/official-3/state/home/.cline/data/db/teams.db",
+    "bytes": 90112,
+    "sha256": "ae399c72aea7e68a93ad761cd2806e72298eb7031cd2dfa945de5e4b8f74f07a"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/official-3/state/home/.cline/data/db/teams.db-wal",
+    "bytes": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/official-3/state/home/.cline/data/db/teams.db-shm",
+    "bytes": 32768,
+    "sha256": "97a8b2a18d8fb7073b9196cc4c6510275add849f399b73a253e84d39f8678363"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/official-3/state/home/.cline/data/sessions/1794288591917_i0hth/1794288591917_i0hth.messages.json",
+    "bytes": 91297,
+    "sha256": "62f2d92243da380017d0133d3f45af221d50c1453a62ed63586eeb2d9dc7742f"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/official-3/state/home/.cline/data/sessions/1794288591917_i0hth/1794288591917_i0hth.json",
+    "bytes": 1687,
+    "sha256": "da21df0b92d8ae8707e5b964072c713601ac86e40aa58fb021ad533014469492"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/official-3/state/home/.cline/data/cache/feature-flags.json",
+    "bytes": 287,
+    "sha256": "8f4869d2a01e9ffb0174ec3ed73188b25234f93a0926e98121aa99780263a806"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/official-3/model/001-request.json",
+    "bytes": 20776,
+    "sha256": "4ac603f5aa602ccc71e31e5adcb1cebcd3b1cdb99557d9e88f89c62b18501451"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/official-3/model/001-response.bin",
+    "bytes": 4564,
+    "sha256": "7cacb6c1bd21dfac7d5b1975aad60b0b705cf4fdee5576a148a61c63937209d4"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/official-3/model/001-receipt.json",
+    "bytes": 1526,
+    "sha256": "a90869f138121923fd98613eb02913822d39a2e01a90fdaa0717133a2d2b37f3"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/official-3/model/002-request.json",
+    "bytes": 21541,
+    "sha256": "0e1eef143b11894167cdb9b828b0687fa70a59bd851bc891f454ffe5aa933af8"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/official-3/model/002-response.bin",
+    "bytes": 4855,
+    "sha256": "0983089822426b296851d02f311056593fbbb700b1d95e2686959e75487436f0"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/official-3/model/002-receipt.json",
+    "bytes": 1531,
+    "sha256": "866d0cf65c47f114ab3a48957d3bd1f7ad9554cae006456957907e842119cf05"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/official-3/model/003-request.json",
+    "bytes": 25821,
+    "sha256": "41deb7f3818a63e5d68d39574ed49d5c6114dfd25a6f0b168fd6f151f753b3f4"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/official-3/model/003-response.bin",
+    "bytes": 9351,
+    "sha256": "44cfb7078bd9aad0b2c0c8c16b07675ad592cb5a555937fc1a49b2f2f3fe598f"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/official-3/model/003-receipt.json",
+    "bytes": 1534,
+    "sha256": "bcf3c87101e7fe45d2c511a192225dd357b22951f3cb213c67a880da7fef42ca"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/official-3/model/004-request.json",
+    "bytes": 36451,
+    "sha256": "155e164b1e5df3891fc0d4536cdccecb7fbff945aaeadbcfb80154764fc1430d"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/official-3/model/004-response.bin",
+    "bytes": 9318,
+    "sha256": "32e8acc03b251ff67bc428b7066d183973731259c2440b194532cbc4b20db8c6"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/official-3/model/004-receipt.json",
+    "bytes": 1535,
+    "sha256": "adda0e7c3e02cbbcb6ce2291d7e80b4ce50015f9b1951a6e7ba6924946e290d6"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/official-3/model/005-request.json",
+    "bytes": 46319,
+    "sha256": "910e91dd56eac2584e05d4c5ae6ea018739f3e5cabe6d7caa865920ff2dbc472"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/official-3/model/005-response.bin",
+    "bytes": 10968,
+    "sha256": "3a3b348b1234468b276b2a7cff11f0864a0c4f1350968191f6f89749e2f7bd41"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/official-3/model/005-receipt.json",
+    "bytes": 1538,
+    "sha256": "bd58d53be469c46fa55bc6b4c46b7e9dc9b846fa5b1e18841cf921dae3f1ff09"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/official-3/model/006-request.json",
+    "bytes": 52042,
+    "sha256": "571bf319bc3d892e91f515edb7d8b941caf4a680be6a3ea7a934dc6207b5e82c"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/official-3/model/006-response.bin",
+    "bytes": 250490,
+    "sha256": "6acedcb9a78416a1d7849b08c219f9b154e5cf3b007fad89164192836379a42e"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/official-3/model/006-receipt.json",
+    "bytes": 1538,
+    "sha256": "1c2499b0c1a78c71b2ea1fdac7403ef95c65dd19de6291040be1434d5a5429fe"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/official-3/model/007-request.json",
+    "bytes": 62653,
+    "sha256": "5a9f76d0bd69821343433d533694a8cdc84a58020e6453882811b0f2689eb7a7"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/official-3/model/007-response.bin",
+    "bytes": 59819,
+    "sha256": "ec354fd74602fc40eb19117bd82d4316b3e9a98b653cb156223b638592176671"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/official-3/model/007-receipt.json",
+    "bytes": 1536,
+    "sha256": "bfee49ee19ffba7c1474a9856ed503c226a6bf4e118579b02c40f3ba4e0de1fb"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/official-3/model/008-request.json",
+    "bytes": 65996,
+    "sha256": "c699b3f40c19ec5f37418ad5099ec0ed5cb595f702c8acd717651545cc87d2b1"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/official-3/model/008-response.bin",
+    "bytes": 74248,
+    "sha256": "4e9431f12c7f06fa93e7a61aee3841c3d81630274ee62b949d80673960ecccfb"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/official-3/model/008-receipt.json",
+    "bytes": 1536,
+    "sha256": "e7957925e9044eecf1abbf303da456363ab97f5962ba3e50d64d9e6e9dc5caaa"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/official-3/model/009-request.json",
+    "bytes": 69018,
+    "sha256": "21d228f4f926d43d46f34e0aaa2c0a35d06d7973acc09935aac16fc8193ac672"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/official-3/model/009-response.bin",
+    "bytes": 111979,
+    "sha256": "e4fc3a73ee402ca9fd4d112ab18aa178d31793401f5c62bd0879cf4350a1dcf1"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/official-3/model/009-receipt.json",
+    "bytes": 1538,
+    "sha256": "a3785ca9c85f27ec92dd98a72b23bd520d74eeb7bae2a086d2b4482608daec31"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/official-3/model/010-request.json",
+    "bytes": 73965,
+    "sha256": "4e177a3ba3e91f914e692e17a6c20ecd6761e97eab2eb84f06b899bf9c2e436c"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/official-3/model/010-response.bin",
+    "bytes": 11492,
+    "sha256": "07c6650318d7d9e5962578b36511042444ff12dbd3458a60fc17aebc6c9f842f"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/official-3/model/010-receipt.json",
+    "bytes": 1539,
+    "sha256": "af8ab4171f0eac645f6fcd0006d1b62a89129c0ae6f2998187b7ce1112a5088e"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/official-3/model/011-request.json",
+    "bytes": 82001,
+    "sha256": "8d006e6df0a5260d196e4a6e81a08e37c612938d81d8223da5cd9bee5eea77c5"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/official-3/model/011-response.bin",
+    "bytes": 4567,
+    "sha256": "85e11a7481408b7f28cd4898f8d886ffef2961088418fb8943e48b5a36c10b1a"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/official-3/model/011-receipt.json",
+    "bytes": 1534,
+    "sha256": "2de96712f09d7b8573c1c09fb2c8d80d0a361463c73ed4ba028cc465daf668b6"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/official-3/model/012-request.json",
+    "bytes": 89635,
+    "sha256": "77929de3c7ea1c6520ef5518bc351f3cc827919e8877a24e8d684ce81a3eeb85"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/official-3/model/012-response.bin",
+    "bytes": 16476,
+    "sha256": "56b13cabd68ae677c1e2920b4365ac4ce313c1f20b20bccca007337a4b01fc73"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/official-3/model/012-receipt.json",
+    "bytes": 1539,
+    "sha256": "29d4804e402553a4d305433cbe7616ce3f2a29b1fd1482244c50c359efd7a5ab"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/official-3/versions/c6a835e6f6575585f156c7f9a2b22b936459288dac54605bdff56c9078a33143/analysis.py",
+    "bytes": 2452,
+    "sha256": "c6a835e6f6575585f156c7f9a2b22b936459288dac54605bdff56c9078a33143"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/official-3/versions/45546f61b2d153349740079a32077d0bed5b913070e02ac569e8ecb25acfc14c/analysis.py",
+    "bytes": 4600,
+    "sha256": "45546f61b2d153349740079a32077d0bed5b913070e02ac569e8ecb25acfc14c"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/official-3/versions/b4e3e94eb61c8f31fb7efc0a12a7419aa4c6c6a9cded367afc12b6df84456a8d/analysis.py",
+    "bytes": 6066,
+    "sha256": "b4e3e94eb61c8f31fb7efc0a12a7419aa4c6c6a9cded367afc12b6df84456a8d"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/official-3/versions/810b1489a8654cd19d3e67ff0993383536e0c9797de342ff1109ecbd4714b793/report.md",
+    "bytes": 9941,
+    "sha256": "810b1489a8654cd19d3e67ff0993383536e0c9797de342ff1109ecbd4714b793"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/official-4/intent.json",
+    "bytes": 601,
+    "sha256": "2c6f15f36b6ff2f5975e3b837e708587041739b765d841c8e2335dbcbd9b471b"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/official-4/auth.log",
+    "bytes": 72,
+    "sha256": "b56292bb715c148f841aa5be88ab2e1bf0b4f8c4a245bb8f4fde9a9cec647612"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/official-4/stdout.jsonl",
+    "bytes": 344126,
+    "sha256": "01357e41ef96e1d1639561e8f242045d8fe30ad71d94927ccb219e9607c36acb"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/official-4/stderr.jsonl",
+    "bytes": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/official-4/container.log",
+    "bytes": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/official-4/summary.json",
+    "bytes": 616,
+    "sha256": "38f811b5819ff1074da0532aa52fb28452dc79e30b6a4b8811c0bcb4cd959fc9"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/official-4/independent-acceptance.json",
+    "bytes": 6427,
+    "sha256": "6c0ebdbf462d94ac181dac97cae8bb40c68d9c7f7622b1ce8ad273c684336c56"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/official-4/reproduction-summary.json",
+    "bytes": 500,
+    "sha256": "239c520fc14b3917e70332716e5033bf47e6b69373daa2ce7b1c2e30f061cd51"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/official-4/final-review.json",
+    "bytes": 743,
+    "sha256": "74c261db7e18f1ea0acaa5a7ec48fa4e9adee5d1e3ef04c28c73fdc333b60fbc"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/official-4/workspace/analysis.py",
+    "bytes": 21737,
+    "sha256": "bd79a43221f2eb24829cdb1ff335136f5946c72724e18413abcd93e0ac04e63e"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/official-4/workspace/report.md",
+    "bytes": 11916,
+    "sha256": "2f8af653de1be1dfa2c5a10757a74635fc0ff6c8d529a3c387e527eccaa13710"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/official-4/workspace/__pycache__/analysis.cpython-311.pyc",
+    "bytes": 40674,
+    "sha256": "17a62d1b7ae32001c8adb7e349d63645c1f7d271d1e62c782eb7befa5a0e9f5d"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/official-4/state/home/.cline/data/settings/providers.json",
+    "bytes": 450,
+    "sha256": "dccb42776bc5072d36ea7a3f7440fcdcf1e7971c81ea9105777b384405280a91"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/official-4/state/home/.cline/data/settings/global-settings.json",
+    "bytes": 261,
+    "sha256": "a33664e39663ddbd948da31b6874947b468f1fc8f29f3db2f034c5cad8f81d2e"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/official-4/state/home/.cline/data/logs/cline.log",
+    "bytes": 409,
+    "sha256": "f8c78eae3fb1fc7e3eaf761bb69dd70989ebdb7b5bdd257fd49a612786c6b952"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/official-4/state/home/.cline/data/db/sessions.db",
+    "bytes": 45056,
+    "sha256": "33721fcf1e25cce78c3e1dfcceefd72a102d72a07bd1e2fc05e07c0606c9187b"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/official-4/state/home/.cline/data/db/sessions.db-wal",
+    "bytes": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/official-4/state/home/.cline/data/db/sessions.db-shm",
+    "bytes": 32768,
+    "sha256": "80507233eb6ca57c9082c90166f9bee2e9c4257408cb6c36ab4a9a2beaae09bd"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/official-4/state/home/.cline/data/db/teams.db",
+    "bytes": 90112,
+    "sha256": "ae399c72aea7e68a93ad761cd2806e72298eb7031cd2dfa945de5e4b8f74f07a"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/official-4/state/home/.cline/data/db/teams.db-wal",
+    "bytes": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/official-4/state/home/.cline/data/db/teams.db-shm",
+    "bytes": 32768,
+    "sha256": "f6c5345f71f465cd1e5c9a683b6893a9d762c70963b91fcd5aa90f6b512295f7"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/official-4/state/home/.cline/data/sessions/1794288907079_3corf/1794288907079_3corf.messages.json",
+    "bytes": 111361,
+    "sha256": "f8182f2c95aad5ea30b681f987bb79e91adc923a421d96f8097a5ce5913ba5e6"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/official-4/state/home/.cline/data/sessions/1794288907079_3corf/1794288907079_3corf.json",
+    "bytes": 1690,
+    "sha256": "049a626c7cfd45272438c80be0edc006d8aec7e146d19e3259288af51d107098"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/official-4/state/home/.cline/data/cache/feature-flags.json",
+    "bytes": 287,
+    "sha256": "0ed49d65cf8bd77a05e53bac30ca66e916005a0528426ef3663cccae7bb6b5d9"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/official-4/model/001-request.json",
+    "bytes": 20776,
+    "sha256": "4ac603f5aa602ccc71e31e5adcb1cebcd3b1cdb99557d9e88f89c62b18501451"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/official-4/model/001-response.bin",
+    "bytes": 4394,
+    "sha256": "71ffb6c3c3fd8054ee8e0771c6fad1ab6cbcb75f7398d1a3475ae9a56fe92f76"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/official-4/model/001-receipt.json",
+    "bytes": 1528,
+    "sha256": "1501ef67ab744a607de687f68c875d22efdde2b1e0661f2cdb03fa84e99a482b"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/official-4/model/002-request.json",
+    "bytes": 25324,
+    "sha256": "e4cfcddfb92dd8df275c8ddd6e2951230c6d817b74cb8b7eda819d98a88d9fd0"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/official-4/model/002-response.bin",
+    "bytes": 17602,
+    "sha256": "089ea12c37f45bb644b352454bb4cb5319f79a7dfaa6a56a6e687e7f04299e7e"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/official-4/model/002-receipt.json",
+    "bytes": 1534,
+    "sha256": "e96a4bd1fa4fe30e65386ffdf360470fb128649ca63192818ab1f24bddc1e064"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/official-4/model/003-request.json",
+    "bytes": 41232,
+    "sha256": "0d3829e7ae6dca866bf887c6a40d34d475376312c034d534ce459217f3a80985"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/official-4/model/003-response.bin",
+    "bytes": 19512,
+    "sha256": "230b0a302cbdaf912c319b93bebee73c221339c87911bf2c99ce08ef0cd68703"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/official-4/model/003-receipt.json",
+    "bytes": 1536,
+    "sha256": "b277311a8d39868e3e6a475d473a23383b20a43ab1d59b16099feaa9b9b76221"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/official-4/model/004-request.json",
+    "bytes": 50886,
+    "sha256": "56475de359969227923490bb275e6a4fb5a7528481cc64335ad37d7a250f75cb"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/official-4/model/004-response.bin",
+    "bytes": 658972,
+    "sha256": "86d115c4e15289ceb4c7db1c1f3da20150a153f75da7f7e974de98b75d42a37f"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/official-4/model/004-receipt.json",
+    "bytes": 1540,
+    "sha256": "e0aa5e95ad5d65fe3389abf4d9f591d5f6d11d9147d25170effaebe7c0657348"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/official-4/model/005-request.json",
+    "bytes": 77631,
+    "sha256": "5474ec1f28f4bbe72f2fcf554320eb76108283981b4c0b39773452228dc469ec"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/official-4/model/005-response.bin",
+    "bytes": 12022,
+    "sha256": "98d3d7624c2784d2f35ba699a3c18c83ce53860687145e03ab4c116275cf91c7"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/official-4/model/005-receipt.json",
+    "bytes": 1534,
+    "sha256": "3148b3a5755ad5f2a80bb3258c37d1548b7e2b0ae12b69d364d69e4673ac865c"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/official-4/model/006-request.json",
+    "bytes": 85687,
+    "sha256": "468bc53e3f52a1668c30582d5e91d2ba48eb946003285eb86db63088cd1f104e"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/official-4/model/006-response.bin",
+    "bytes": 12814,
+    "sha256": "b6550c00736e495da0f716862b24c65d33ce9fb1be4d23e7e34d37021ffe7872"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/official-4/model/006-receipt.json",
+    "bytes": 1538,
+    "sha256": "879b51ddc06a6e0df25bb3a417a514a396b2b073dc793545b3c513428cf5bfa6"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/official-4/model/007-request.json",
+    "bytes": 94471,
+    "sha256": "a350f25c2e7c197b83b07e770277f9f189ea04a2013ac6b6ec8343c2a086b9fe"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/official-4/model/007-response.bin",
+    "bytes": 14799,
+    "sha256": "77e95437801fe53bd705c52be21a0725536cc5ebd151c4086f2ac163de69c554"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/official-4/model/007-receipt.json",
+    "bytes": 1538,
+    "sha256": "0f992c48d18b08e49debbb1009edb7f8195b0120fad7acdea1ae3ef7eb572ef6"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/official-4/model/008-request.json",
+    "bytes": 104998,
+    "sha256": "0c94321f98bd973f744dc935eae619663bf760eca7491c504c6ad80bd00370d4"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/official-4/model/008-response.bin",
+    "bytes": 5945,
+    "sha256": "7d8d1d746c28979935db576660a5738e17147d40aee267ae572fcd9acef9302d"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/official-4/model/008-receipt.json",
+    "bytes": 1534,
+    "sha256": "b537fb899bedb69716d1e6e68d820c9e01f76e79884f86aca1e75c4feba700bd"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/official-4/model/009-request.json",
+    "bytes": 105670,
+    "sha256": "e07085a32763872522301968350c9d6ad085b69648871b71cb70e350d4411643"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/official-4/model/009-response.bin",
+    "bytes": 4297,
+    "sha256": "be9c391283b696e00cfc6f7e69e6622fe2fa9a8b91769d6db40d0b9c5d7b39a0"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/official-4/model/009-receipt.json",
+    "bytes": 1530,
+    "sha256": "39b2c50ac07c1ae911c9127811b9d322e357ed365a64feb8ba7495bccbbaf6d3"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/official-4/model/010-request.json",
+    "bytes": 116200,
+    "sha256": "edbd7d091694e5928c9310ba2b2d66512b124cb1c0b83bb4bbb484d8094e76f3"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/official-4/model/010-response.bin",
+    "bytes": 6405,
+    "sha256": "13d177bd9d58fdf3e3d3f9d78fc3ee1c374b5d9a9f3ef8549b36f8749143d3e6"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/official-4/model/010-receipt.json",
+    "bytes": 1537,
+    "sha256": "25486ffe5b8ebcdbbedfd493c70fe9321a967cc5c257478464f8dd5c1d4a42a3"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/official-4/model/011-request.json",
+    "bytes": 117505,
+    "sha256": "e3c03b2b5b3c6d160fca7b981eadce4f19df2df726623d9e229cb06beb004ada"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/official-4/model/011-response.bin",
+    "bytes": 41914,
+    "sha256": "7bcb3f83acb51e5945341ec614e007c1a5ba665d6d6fb91efa474fc49e0a1d3e"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/official-4/model/011-receipt.json",
+    "bytes": 1538,
+    "sha256": "bf03c13c4c1ae0ba9c5c2d73310ceed692b637bc8044a15219e1daa476745601"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/official-4/versions/e2c2dbe985cbad46d4dc33d6577ba0ba400118aed7f78e1d4cfb819a81a03932/analysis.py",
+    "bytes": 6133,
+    "sha256": "e2c2dbe985cbad46d4dc33d6577ba0ba400118aed7f78e1d4cfb819a81a03932"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/official-4/versions/254cc5c56c794bbdb75d27a2875e30ec69d564d6356b49b30dd826b66d3298ff/analysis.py",
+    "bytes": 13185,
+    "sha256": "254cc5c56c794bbdb75d27a2875e30ec69d564d6356b49b30dd826b66d3298ff"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/official-4/versions/bd79a43221f2eb24829cdb1ff335136f5946c72724e18413abcd93e0ac04e63e/analysis.py",
+    "bytes": 21737,
+    "sha256": "bd79a43221f2eb24829cdb1ff335136f5946c72724e18413abcd93e0ac04e63e"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/official-4/versions/2f8af653de1be1dfa2c5a10757a74635fc0ff6c8d529a3c387e527eccaa13710/report.md",
+    "bytes": 11916,
+    "sha256": "2f8af653de1be1dfa2c5a10757a74635fc0ff6c8d529a3c387e527eccaa13710"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/official-5/intent.json",
+    "bytes": 601,
+    "sha256": "69f4401649b5369788b7b7fd2279a489908142ce10f6aea8ac61c65c7238bef0"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/official-5/auth.log",
+    "bytes": 72,
+    "sha256": "b56292bb715c148f841aa5be88ab2e1bf0b4f8c4a245bb8f4fde9a9cec647612"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/official-5/stdout.jsonl",
+    "bytes": 156681,
+    "sha256": "4ae3cd3620bb4e60a2c427ccc78b282afd77d076f998576a7f9b7aa617a40ad9"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/official-5/stderr.jsonl",
+    "bytes": 496,
+    "sha256": "8cd26ab2b10c1b956f87dc9db48a97e50af8d79dbaedd39dd8775bd290f75f88"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/official-5/container.log",
+    "bytes": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/official-5/summary.json",
+    "bytes": 615,
+    "sha256": "462f4e1dd3b10e6273da71813cd6d041e0bada06ea4edb506a56774776e1fa31"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/official-5/independent-acceptance.json",
+    "bytes": 8121,
+    "sha256": "c108822d7b4584dccc2842daf3e1fc3aca19a22c5082273dbd29376f22371eb4"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/official-5/reproduction-summary.json",
+    "bytes": 500,
+    "sha256": "bb955e900ca174ff0d8058257d1053da6182847def1fc2eba67ce8e8e888f796"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/official-5/final-review.json",
+    "bytes": 782,
+    "sha256": "b0ee6d18d8f7185d3e6a2d74812efa4cd045731f14258eed52831fcef5861787"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/official-5/workspace/analysis.py",
+    "bytes": 14689,
+    "sha256": "572ee1658cb22469a1c26419b875198532cf255de2d865f15a8390ed05d51cd9"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/official-5/workspace/report.md",
+    "bytes": 9801,
+    "sha256": "0e594eb40c71d0ecd7fb630d452827b9c30741527216422b1736201cbb11e729"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/official-5/state/home/.cline/data/settings/providers.json",
+    "bytes": 450,
+    "sha256": "3529a84e5c4af94e611552c081715606c03e66c88deef9fb3c0014d28a968756"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/official-5/state/home/.cline/data/settings/global-settings.json",
+    "bytes": 261,
+    "sha256": "a33664e39663ddbd948da31b6874947b468f1fc8f29f3db2f034c5cad8f81d2e"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/official-5/state/home/.cline/data/logs/cline.log",
+    "bytes": 910168,
+    "sha256": "c88968f96f694c75dae2f13c315de14838515e992f571f3cce3a4da47fa98695"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/official-5/state/home/.cline/data/db/sessions.db",
+    "bytes": 45056,
+    "sha256": "66e11b0668f476e535892f267c99dad9bcb5ea4cce872e1f594cd308c9b3ab10"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/official-5/state/home/.cline/data/db/sessions.db-wal",
+    "bytes": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/official-5/state/home/.cline/data/db/sessions.db-shm",
+    "bytes": 32768,
+    "sha256": "21ad5171a953fa7ab5f17c5e36bf88429d06c1e3fe3b8e231d66b3f44e773f2e"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/official-5/state/home/.cline/data/db/teams.db",
+    "bytes": 90112,
+    "sha256": "ae399c72aea7e68a93ad761cd2806e72298eb7031cd2dfa945de5e4b8f74f07a"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/official-5/state/home/.cline/data/db/teams.db-wal",
+    "bytes": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/official-5/state/home/.cline/data/db/teams.db-shm",
+    "bytes": 32768,
+    "sha256": "d65705381134f2f7d9f776ab2f9bace6b353f9483b80c8564fc2551c34cc201a"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/official-5/state/home/.cline/data/sessions/1794289253530_dq1we/1794289253530_dq1we.messages.json",
+    "bytes": 91108,
+    "sha256": "e96b362884e64674b7b453eac04899434f3a7ee74771eb75e14421a210cfb2fb"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/official-5/state/home/.cline/data/sessions/1794289253530_dq1we/1794289253530_dq1we.json",
+    "bytes": 1687,
+    "sha256": "a4d546e7e1df35322d37c5bc8a157a4bb995b542b406834a3fd735fd17c7fd1f"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/official-5/state/home/.cline/data/cache/feature-flags.json",
+    "bytes": 287,
+    "sha256": "7fc93e6f120d27585e128dfc83267bc0df5c9beb31b400a9242d3d5ab11a0410"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/official-5/model/001-request.json",
+    "bytes": 20776,
+    "sha256": "4ac603f5aa602ccc71e31e5adcb1cebcd3b1cdb99557d9e88f89c62b18501451"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/official-5/model/001-response.bin",
+    "bytes": 4427,
+    "sha256": "d6546a4f9e7ffe3c52ddf82fa1b9b8a3642f208bd3a4adb555a58444e53e8884"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/official-5/model/001-receipt.json",
+    "bytes": 1528,
+    "sha256": "6cfff2b623edc861dc72ea0d856e380876f7bdcac18ff8af40c3a1d9b078aebc"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/official-5/model/002-request.json",
+    "bytes": 21734,
+    "sha256": "4f69de374b96e9356e6fef31e0320365117e74ba6a985b51e7b0eef1204c09c1"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/official-5/model/002-response.bin",
+    "bytes": 10733,
+    "sha256": "3fb161b39d085d97dc2fe88af7bbea2525a5a4307964168dd7f24a763fdf5d5f"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/official-5/model/002-receipt.json",
+    "bytes": 1532,
+    "sha256": "1a6f674ec530c413c9e1ba218d40f87f7602ae51c3a04b5768d1caa7e4b313e7"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/official-5/model/003-request.json",
+    "bytes": 28238,
+    "sha256": "95025e7ba16d4a000748c3f01528e44debca2d9ca99a9a22da8987442a8f0790"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/official-5/model/003-response.bin",
+    "bytes": 9179,
+    "sha256": "2a4bf1d05aec241bf02a73b70d9f5240416cd6a63d3dc3a3dcba0f8bd0124c43"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/official-5/model/003-receipt.json",
+    "bytes": 1534,
+    "sha256": "a26453eaa8ed0329fcb69e8ac818f0d3e11bf4fa6702e1910ddbd15b5a58f663"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/official-5/model/004-request.json",
+    "bytes": 34263,
+    "sha256": "71c06254ce443d6aa5042640b20818e4aef1131f0976d01982deb7d2dc090e81"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/official-5/model/004-response.bin",
+    "bytes": 11988,
+    "sha256": "2f2fa6b9f0fdc5d54bc14aa8d5cd124910003115d31b93243407f2acb47ae70c"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/official-5/model/004-receipt.json",
+    "bytes": 1533,
+    "sha256": "8b2be1d19706ad1868480f149676db65f51f43f264bcbaaab3c7d20bba3e73e8"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/official-5/model/005-request.json",
+    "bytes": 40024,
+    "sha256": "189199cdb46c9da89136afb05c91fac044b79a782f97d949ba5f5253bb2748f8"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/official-5/model/005-response.bin",
+    "bytes": 501166,
+    "sha256": "96a8047cbd429ab344f311d575387f72762d1bb2105d02470446cea5d50540b2"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/official-5/model/005-receipt.json",
+    "bytes": 1537,
+    "sha256": "8817104989985190b50e9e9828cb071195d36fb5197caf3ba37d03ec26f2a089"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/official-5/model/006-request.json",
+    "bytes": 60201,
+    "sha256": "b68a45ad87d1a000195c1f85c25019ea62d69d27c4ad9de556763b223452c02a"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/official-5/model/006-response.bin",
+    "bytes": 10114,
+    "sha256": "7dea4490196ed64c9a8dbb442fa722cfce6a3fb70fe6bf9359eaaa9be6e48368"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/official-5/model/006-receipt.json",
+    "bytes": 1534,
+    "sha256": "923c8c048000399cfd0f2618bf6a5eded870a37cab4d0c6770461540d76bcc16"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/official-5/model/007-request.json",
+    "bytes": 66661,
+    "sha256": "25f717ca8d58ae177316968381cf574e53ea3393ed0f70b87614fba5ec0bc036"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/official-5/model/007-response.bin",
+    "bytes": 16214,
+    "sha256": "8bd9fc300d480e37401574734f082521f5827e431f00c681c11bc0fe2121b45a"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/official-5/model/007-receipt.json",
+    "bytes": 1538,
+    "sha256": "46f36510d7b522f0d27315484179e30f395b5d2176745b7257d23410e94ed96d"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/official-5/model/008-request.json",
+    "bytes": 78810,
+    "sha256": "caec7b0e0adad084b7946c92b3963457f720c973baff5912d5f6bdddc33c68e2"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/official-5/model/008-response.bin",
+    "bytes": 5651,
+    "sha256": "1a97572a54a5d99ac82057ac5de32697c977a9794a4915b440ba06cb4d64caf1"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/official-5/model/008-receipt.json",
+    "bytes": 1533,
+    "sha256": "c459b1ac39ea3a556344f897424025a5451d874b715c214570aaf6f58700f8ce"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/official-5/model/009-request.json",
+    "bytes": 79529,
+    "sha256": "9fc5c42828d9395ef59bb77115ea04541f62025e6b291882df087e82ddfa80ef"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/official-5/model/009-response.bin",
+    "bytes": 4660,
+    "sha256": "21285d205eb132f4160560edbf0274dbd543f2186348b20ae7465386adfbd5d8"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/official-5/model/009-receipt.json",
+    "bytes": 1533,
+    "sha256": "2a0530723d764aaf174d03fa6ba7093ad275c452f4283c6ae1006017207451ab"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/official-5/model/010-request.json",
+    "bytes": 86264,
+    "sha256": "fdbfd6ed4d5966d8680b0fbdb30eb351ecdfeef1a25d56e5e4a844289b56f7df"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/official-5/model/010-response.bin",
+    "bytes": 18404,
+    "sha256": "bbe0969d747a536f6245b82f4a6bb4b864f26e5e9be241f00309b03a7e34b9fc"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/official-5/model/010-receipt.json",
+    "bytes": 1537,
+    "sha256": "d6f92aff64ad3b57364c8c3f6422ff7c85f22455ca02d2b615a8ba65afb887c8"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/official-5/model/011-request.json",
+    "bytes": 87587,
+    "sha256": "56d980dc84e7f0409c934f8e188ba85f4781156a7ba983d924de034fcd3bd33c"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/official-5/model/011-response.bin",
+    "bytes": 10820,
+    "sha256": "b9109d2eb606f717b6ac2aca5ddaebab50be5142bce0e76a55017b745bdc0f70"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/official-5/model/011-receipt.json",
+    "bytes": 1536,
+    "sha256": "118047c6e76cd167328e41776d8cc7d319387d0b369ae5f962bac7ca45322bd9"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/official-5/model/012-request.json",
+    "bytes": 88552,
+    "sha256": "16c50e6cab000693133478dac1df5cb6c98655c112fd84e67f3ac6c9b9263453"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/official-5/model/012-response.bin",
+    "bytes": 3664,
+    "sha256": "48bde2d6e9ce5f81c04d98b4e1f832ef45563fc49a34a8bc664b9ba8eaff79e5"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/official-5/model/012-receipt.json",
+    "bytes": 1534,
+    "sha256": "3a2d7aa30bbcf7afdad2b0559601a3901a62cfecdf767a149c3cd5c961c917cb"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/official-5/versions/219b1a6923478935a34786820049c26c2efdb7d672a81d120e8f737dc7eee997/analysis.py",
+    "bytes": 4868,
+    "sha256": "219b1a6923478935a34786820049c26c2efdb7d672a81d120e8f737dc7eee997"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/official-5/versions/5de6975f894fb0dded9b5c0cc2431088a8d2591e1e827e488b74d8b3b5d840ba/analysis.py",
+    "bytes": 14654,
+    "sha256": "5de6975f894fb0dded9b5c0cc2431088a8d2591e1e827e488b74d8b3b5d840ba"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/official-5/versions/8e5e5ddc825fdbb14e1cea7d96fcc0ad6eb52e01f53f87ec4aae6767a72b6919/report.md",
+    "bytes": 9956,
+    "sha256": "8e5e5ddc825fdbb14e1cea7d96fcc0ad6eb52e01f53f87ec4aae6767a72b6919"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/official-5/versions/572ee1658cb22469a1c26419b875198532cf255de2d865f15a8390ed05d51cd9/analysis.py",
+    "bytes": 14689,
+    "sha256": "572ee1658cb22469a1c26419b875198532cf255de2d865f15a8390ed05d51cd9"
+  },
+  {
+    "path": "/opt/cline-parquet-isolation-20261110/runs/official-5/versions/0e594eb40c71d0ecd7fb630d452827b9c30741527216422b1736201cbb11e729/report.md",
+    "bytes": 9801,
+    "sha256": "0e594eb40c71d0ecd7fb630d452827b9c30741527216422b1736201cbb11e729"
+  }
+]

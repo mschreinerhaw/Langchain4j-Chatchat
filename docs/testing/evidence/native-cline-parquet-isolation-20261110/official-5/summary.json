@@ -1,0 +1,948 @@
+{
+  "case": "official-5",
+  "terminal": "CLI_EXIT_1",
+  "durationSeconds": 306.832,
+  "nativeSessionId": null,
+  "modelRequests": 12,
+  "inputUnchanged": true,
+  "artifacts": {
+    "test.parquet": {
+      "size": 4442620,
+      "sha256": "3104e1e5548ade630988a4a8b9ec76c51a057b88159f78676c7d344f48491450"
+    },
+    "analysis.py": {
+      "size": 14689,
+      "sha256": "572ee1658cb22469a1c26419b875198532cf255de2d865f15a8390ed05d51cd9"
+    },
+    "report.md": {
+      "size": 9801,
+      "sha256": "0e594eb40c71d0ecd7fb630d452827b9c30741527216422b1736201cbb11e729"
+    }
+  },
+  "independentAcceptance": "PENDING",
+  "modelReceipts": [
+    {
+      "case": "official-5",
+      "index": 1,
+      "start": "2026-11-10T05:40:53.692715+00:00",
+      "path": "/official-5/v1/chat/completions",
+      "requestSha256": "4ac603f5aa602ccc71e31e5adcb1cebcd3b1cdb99557d9e88f89c62b18501451",
+      "requestBytes": 20776,
+      "forwardedUnchanged": true,
+      "requestedModel": "qwen3.7-plus",
+      "toolNames": [
+        "read_files",
+        "search_codebase",
+        "run_commands",
+        "editor",
+        "ask_question",
+        "team_spawn_teammate",
+        "team_shutdown_teammate",
+        "team_status",
+        "team_task",
+        "team_run_task",
+        "team_cancel_run",
+        "team_list_runs",
+        "team_await_runs",
+        "team_send_message",
+        "team_broadcast",
+        "team_read_mailbox",
+        "team_mission_log",
+        "team_cleanup",
+        "team_create_outcome",
+        "team_attach_outcome_fragment",
+        "team_review_outcome_fragment",
+        "team_finalize_outcome",
+        "team_list_outcomes"
+      ],
+      "requestParameters": {
+        "model": "qwen3.7-plus",
+        "tool_choice": "auto",
+        "stream": true,
+        "stream_options": {
+          "include_usage": true
+        }
+      },
+      "httpStatus": 200,
+      "providerModels": [
+        "qwen3.7-plus"
+      ],
+      "usage": {
+        "prompt_tokens": 5236,
+        "total_tokens": 5337,
+        "completion_tokens": 101,
+        "prompt_tokens_details": {
+          "cached_tokens": 0,
+          "text_tokens": 5236
+        },
+        "completion_tokens_details": {
+          "reasoning_tokens": 19,
+          "text_tokens": 101
+        }
+      },
+      "usageKnown": true,
+      "durationMs": 2901,
+      "responseSha256": "d6546a4f9e7ffe3c52ddf82fa1b9b8a3642f208bd3a4adb555a58444e53e8884",
+      "toolSchemaSha256": "fef3465c3b86f40a6b3ff01bf527170194440a3a34ef0e3f8db05ca1c7e57947"
+    },
+    {
+      "case": "official-5",
+      "index": 2,
+      "start": "2026-11-10T05:40:58.900570+00:00",
+      "path": "/official-5/v1/chat/completions",
+      "requestSha256": "4f69de374b96e9356e6fef31e0320365117e74ba6a985b51e7b0eef1204c09c1",
+      "requestBytes": 21734,
+      "forwardedUnchanged": true,
+      "requestedModel": "qwen3.7-plus",
+      "toolNames": [
+        "read_files",
+        "search_codebase",
+        "run_commands",
+        "editor",
+        "ask_question",
+        "team_spawn_teammate",
+        "team_shutdown_teammate",
+        "team_status",
+        "team_task",
+        "team_run_task",
+        "team_cancel_run",
+        "team_list_runs",
+        "team_await_runs",
+        "team_send_message",
+        "team_broadcast",
+        "team_read_mailbox",
+        "team_mission_log",
+        "team_cleanup",
+        "team_create_outcome",
+        "team_attach_outcome_fragment",
+        "team_review_outcome_fragment",
+        "team_finalize_outcome",
+        "team_list_outcomes"
+      ],
+      "requestParameters": {
+        "model": "qwen3.7-plus",
+        "tool_choice": "auto",
+        "stream": true,
+        "stream_options": {
+          "include_usage": true
+        }
+      },
+      "httpStatus": 200,
+      "providerModels": [
+        "qwen3.7-plus"
+      ],
+      "usage": {
+        "prompt_tokens": 5524,
+        "total_tokens": 6316,
+        "completion_tokens": 792,
+        "prompt_tokens_details": {
+          "cached_tokens": 5120,
+          "text_tokens": 5524
+        },
+        "completion_tokens_details": {
+          "reasoning_tokens": 75,
+          "text_tokens": 792
+        }
+      },
+      "usageKnown": true,
+      "durationMs": 13689,
+      "responseSha256": "3fb161b39d085d97dc2fe88af7bbea2525a5a4307964168dd7f24a763fdf5d5f",
+      "toolSchemaSha256": "fef3465c3b86f40a6b3ff01bf527170194440a3a34ef0e3f8db05ca1c7e57947"
+    },
+    {
+      "case": "official-5",
+      "index": 3,
+      "start": "2026-11-10T05:41:15.200614+00:00",
+      "path": "/official-5/v1/chat/completions",
+      "requestSha256": "95025e7ba16d4a000748c3f01528e44debca2d9ca99a9a22da8987442a8f0790",
+      "requestBytes": 28238,
+      "forwardedUnchanged": true,
+      "requestedModel": "qwen3.7-plus",
+      "toolNames": [
+        "read_files",
+        "search_codebase",
+        "run_commands",
+        "editor",
+        "ask_question",
+        "team_spawn_teammate",
+        "team_shutdown_teammate",
+        "team_status",
+        "team_task",
+        "team_run_task",
+        "team_cancel_run",
+        "team_list_runs",
+        "team_await_runs",
+        "team_send_message",
+        "team_broadcast",
+        "team_read_mailbox",
+        "team_mission_log",
+        "team_cleanup",
+        "team_create_outcome",
+        "team_attach_outcome_fragment",
+        "team_review_outcome_fragment",
+        "team_finalize_outcome",
+        "team_list_outcomes"
+      ],
+      "requestParameters": {
+        "model": "qwen3.7-plus",
+        "tool_choice": "auto",
+        "stream": true,
+        "stream_options": {
+          "include_usage": true
+        }
+      },
+      "httpStatus": 200,
+      "providerModels": [
+        "qwen3.7-plus"
+      ],
+      "usage": {
+        "prompt_tokens": 7726,
+        "total_tokens": 8738,
+        "completion_tokens": 1012,
+        "prompt_tokens_details": {
+          "cached_tokens": 5120,
+          "text_tokens": 7726
+        },
+        "completion_tokens_details": {
+          "reasoning_tokens": 43,
+          "text_tokens": 1012
+        }
+      },
+      "usageKnown": true,
+      "durationMs": 17830,
+      "responseSha256": "2a4bf1d05aec241bf02a73b70d9f5240416cd6a63d3dc3a3dcba0f8bd0124c43",
+      "toolSchemaSha256": "fef3465c3b86f40a6b3ff01bf527170194440a3a34ef0e3f8db05ca1c7e57947"
+    },
+    {
+      "case": "official-5",
+      "index": 4,
+      "start": "2026-11-10T05:41:35.246872+00:00",
+      "path": "/official-5/v1/chat/completions",
+      "requestSha256": "71c06254ce443d6aa5042640b20818e4aef1131f0976d01982deb7d2dc090e81",
+      "requestBytes": 34263,
+      "forwardedUnchanged": true,
+      "requestedModel": "qwen3.7-plus",
+      "toolNames": [
+        "read_files",
+        "search_codebase",
+        "run_commands",
+        "editor",
+        "ask_question",
+        "team_spawn_teammate",
+        "team_shutdown_teammate",
+        "team_status",
+        "team_task",
+        "team_run_task",
+        "team_cancel_run",
+        "team_list_runs",
+        "team_await_runs",
+        "team_send_message",
+        "team_broadcast",
+        "team_read_mailbox",
+        "team_mission_log",
+        "team_cleanup",
+        "team_create_outcome",
+        "team_attach_outcome_fragment",
+        "team_review_outcome_fragment",
+        "team_finalize_outcome",
+        "team_list_outcomes"
+      ],
+      "requestParameters": {
+        "model": "qwen3.7-plus",
+        "tool_choice": "auto",
+        "stream": true,
+        "stream_options": {
+          "include_usage": true
+        }
+      },
+      "httpStatus": 200,
+      "providerModels": [
+        "qwen3.7-plus"
+      ],
+      "usage": {
+        "prompt_tokens": 9859,
+        "total_tokens": 10524,
+        "completion_tokens": 665,
+        "prompt_tokens_details": {
+          "cached_tokens": 7424,
+          "text_tokens": 9859
+        },
+        "completion_tokens_details": {
+          "reasoning_tokens": 84,
+          "text_tokens": 665
+        }
+      },
+      "usageKnown": true,
+      "durationMs": 34147,
+      "responseSha256": "2f2fa6b9f0fdc5d54bc14aa8d5cd124910003115d31b93243407f2acb47ae70c",
+      "toolSchemaSha256": "fef3465c3b86f40a6b3ff01bf527170194440a3a34ef0e3f8db05ca1c7e57947"
+    },
+    {
+      "case": "official-5",
+      "index": 5,
+      "start": "2026-11-10T05:42:11.557819+00:00",
+      "path": "/official-5/v1/chat/completions",
+      "requestSha256": "189199cdb46c9da89136afb05c91fac044b79a782f97d949ba5f5253bb2748f8",
+      "requestBytes": 40024,
+      "forwardedUnchanged": true,
+      "requestedModel": "qwen3.7-plus",
+      "toolNames": [
+        "read_files",
+        "search_codebase",
+        "run_commands",
+        "editor",
+        "ask_question",
+        "team_spawn_teammate",
+        "team_shutdown_teammate",
+        "team_status",
+        "team_task",
+        "team_run_task",
+        "team_cancel_run",
+        "team_list_runs",
+        "team_await_runs",
+        "team_send_message",
+        "team_broadcast",
+        "team_read_mailbox",
+        "team_mission_log",
+        "team_cleanup",
+        "team_create_outcome",
+        "team_attach_outcome_fragment",
+        "team_review_outcome_fragment",
+        "team_finalize_outcome",
+        "team_list_outcomes"
+      ],
+      "requestParameters": {
+        "model": "qwen3.7-plus",
+        "tool_choice": "auto",
+        "stream": true,
+        "stream_options": {
+          "include_usage": true
+        }
+      },
+      "httpStatus": 200,
+      "providerModels": [
+        "qwen3.7-plus"
+      ],
+      "usage": {
+        "prompt_tokens": 12141,
+        "total_tokens": 17522,
+        "completion_tokens": 5381,
+        "prompt_tokens_details": {
+          "cached_tokens": 9728,
+          "text_tokens": 12141
+        },
+        "completion_tokens_details": {
+          "reasoning_tokens": 46,
+          "text_tokens": 5381
+        }
+      },
+      "usageKnown": true,
+      "durationMs": 87288,
+      "responseSha256": "96a8047cbd429ab344f311d575387f72762d1bb2105d02470446cea5d50540b2",
+      "toolSchemaSha256": "fef3465c3b86f40a6b3ff01bf527170194440a3a34ef0e3f8db05ca1c7e57947"
+    },
+    {
+      "case": "official-5",
+      "index": 6,
+      "start": "2026-11-10T05:43:38.938329+00:00",
+      "path": "/official-5/v1/chat/completions",
+      "requestSha256": "b68a45ad87d1a000195c1f85c25019ea62d69d27c4ad9de556763b223452c02a",
+      "requestBytes": 60201,
+      "forwardedUnchanged": true,
+      "requestedModel": "qwen3.7-plus",
+      "toolNames": [
+        "read_files",
+        "search_codebase",
+        "run_commands",
+        "editor",
+        "ask_question",
+        "team_spawn_teammate",
+        "team_shutdown_teammate",
+        "team_status",
+        "team_task",
+        "team_run_task",
+        "team_cancel_run",
+        "team_list_runs",
+        "team_await_runs",
+        "team_send_message",
+        "team_broadcast",
+        "team_read_mailbox",
+        "team_mission_log",
+        "team_cleanup",
+        "team_create_outcome",
+        "team_attach_outcome_fragment",
+        "team_review_outcome_fragment",
+        "team_finalize_outcome",
+        "team_list_outcomes"
+      ],
+      "requestParameters": {
+        "model": "qwen3.7-plus",
+        "tool_choice": "auto",
+        "stream": true,
+        "stream_options": {
+          "include_usage": true
+        }
+      },
+      "httpStatus": 200,
+      "providerModels": [
+        "qwen3.7-plus"
+      ],
+      "usage": {
+        "prompt_tokens": 17604,
+        "total_tokens": 19195,
+        "completion_tokens": 1591,
+        "prompt_tokens_details": {
+          "cached_tokens": 0,
+          "text_tokens": 17604
+        },
+        "completion_tokens_details": {
+          "reasoning_tokens": 19,
+          "text_tokens": 1591
+        }
+      },
+      "usageKnown": true,
+      "durationMs": 26965,
+      "responseSha256": "7dea4490196ed64c9a8dbb442fa722cfce6a3fb70fe6bf9359eaaa9be6e48368",
+      "toolSchemaSha256": "fef3465c3b86f40a6b3ff01bf527170194440a3a34ef0e3f8db05ca1c7e57947"
+    },
+    {
+      "case": "official-5",
+      "index": 7,
+      "start": "2026-11-10T05:44:05.955251+00:00",
+      "path": "/official-5/v1/chat/completions",
+      "requestSha256": "25f717ca8d58ae177316968381cf574e53ea3393ed0f70b87614fba5ec0bc036",
+      "requestBytes": 66661,
+      "forwardedUnchanged": true,
+      "requestedModel": "qwen3.7-plus",
+      "toolNames": [
+        "read_files",
+        "search_codebase",
+        "run_commands",
+        "editor",
+        "ask_question",
+        "team_spawn_teammate",
+        "team_shutdown_teammate",
+        "team_status",
+        "team_task",
+        "team_run_task",
+        "team_cancel_run",
+        "team_list_runs",
+        "team_await_runs",
+        "team_send_message",
+        "team_broadcast",
+        "team_read_mailbox",
+        "team_mission_log",
+        "team_cleanup",
+        "team_create_outcome",
+        "team_attach_outcome_fragment",
+        "team_review_outcome_fragment",
+        "team_finalize_outcome",
+        "team_list_outcomes"
+      ],
+      "requestParameters": {
+        "model": "qwen3.7-plus",
+        "tool_choice": "auto",
+        "stream": true,
+        "stream_options": {
+          "include_usage": true
+        }
+      },
+      "httpStatus": 200,
+      "providerModels": [
+        "qwen3.7-plus"
+      ],
+      "usage": {
+        "prompt_tokens": 19325,
+        "total_tokens": 23172,
+        "completion_tokens": 3847,
+        "prompt_tokens_details": {
+          "cached_tokens": 17280,
+          "text_tokens": 19325
+        },
+        "completion_tokens_details": {
+          "reasoning_tokens": 24,
+          "text_tokens": 3847
+        }
+      },
+      "usageKnown": true,
+      "durationMs": 62880,
+      "responseSha256": "8bd9fc300d480e37401574734f082521f5827e431f00c681c11bc0fe2121b45a",
+      "toolSchemaSha256": "fef3465c3b86f40a6b3ff01bf527170194440a3a34ef0e3f8db05ca1c7e57947"
+    },
+    {
+      "case": "official-5",
+      "index": 8,
+      "start": "2026-11-10T05:45:08.893965+00:00",
+      "path": "/official-5/v1/chat/completions",
+      "requestSha256": "caec7b0e0adad084b7946c92b3963457f720c973baff5912d5f6bdddc33c68e2",
+      "requestBytes": 78810,
+      "forwardedUnchanged": true,
+      "requestedModel": "qwen3.7-plus",
+      "toolNames": [
+        "read_files",
+        "search_codebase",
+        "run_commands",
+        "editor",
+        "ask_question",
+        "team_spawn_teammate",
+        "team_shutdown_teammate",
+        "team_status",
+        "team_task",
+        "team_run_task",
+        "team_cancel_run",
+        "team_list_runs",
+        "team_await_runs",
+        "team_send_message",
+        "team_broadcast",
+        "team_read_mailbox",
+        "team_mission_log",
+        "team_cleanup",
+        "team_create_outcome",
+        "team_attach_outcome_fragment",
+        "team_review_outcome_fragment",
+        "team_finalize_outcome",
+        "team_list_outcomes"
+      ],
+      "requestParameters": {
+        "model": "qwen3.7-plus",
+        "tool_choice": "auto",
+        "stream": true,
+        "stream_options": {
+          "include_usage": true
+        }
+      },
+      "httpStatus": 200,
+      "providerModels": [
+        "qwen3.7-plus"
+      ],
+      "usage": {
+        "prompt_tokens": 23276,
+        "total_tokens": 23348,
+        "completion_tokens": 72,
+        "prompt_tokens_details": {
+          "cached_tokens": 18944,
+          "text_tokens": 23276
+        },
+        "completion_tokens_details": {
+          "reasoning_tokens": 21,
+          "text_tokens": 72
+        }
+      },
+      "usageKnown": true,
+      "durationMs": 2445,
+      "responseSha256": "1a97572a54a5d99ac82057ac5de32697c977a9794a4915b440ba06cb4d64caf1",
+      "toolSchemaSha256": "fef3465c3b86f40a6b3ff01bf527170194440a3a34ef0e3f8db05ca1c7e57947"
+    },
+    {
+      "case": "official-5",
+      "index": 9,
+      "start": "2026-11-10T05:45:14.034188+00:00",
+      "path": "/official-5/v1/chat/completions",
+      "requestSha256": "9fc5c42828d9395ef59bb77115ea04541f62025e6b291882df087e82ddfa80ef",
+      "requestBytes": 79529,
+      "forwardedUnchanged": true,
+      "requestedModel": "qwen3.7-plus",
+      "toolNames": [
+        "read_files",
+        "search_codebase",
+        "run_commands",
+        "editor",
+        "ask_question",
+        "team_spawn_teammate",
+        "team_shutdown_teammate",
+        "team_status",
+        "team_task",
+        "team_run_task",
+        "team_cancel_run",
+        "team_list_runs",
+        "team_await_runs",
+        "team_send_message",
+        "team_broadcast",
+        "team_read_mailbox",
+        "team_mission_log",
+        "team_cleanup",
+        "team_create_outcome",
+        "team_attach_outcome_fragment",
+        "team_review_outcome_fragment",
+        "team_finalize_outcome",
+        "team_list_outcomes"
+      ],
+      "requestParameters": {
+        "model": "qwen3.7-plus",
+        "tool_choice": "auto",
+        "stream": true,
+        "stream_options": {
+          "include_usage": true
+        }
+      },
+      "httpStatus": 200,
+      "providerModels": [
+        "qwen3.7-plus"
+      ],
+      "usage": {
+        "prompt_tokens": 23432,
+        "total_tokens": 23527,
+        "completion_tokens": 95,
+        "prompt_tokens_details": {
+          "cached_tokens": 23040,
+          "text_tokens": 23432
+        },
+        "completion_tokens_details": {
+          "reasoning_tokens": 19,
+          "text_tokens": 95
+        }
+      },
+      "usageKnown": true,
+      "durationMs": 2467,
+      "responseSha256": "21285d205eb132f4160560edbf0274dbd543f2186348b20ae7465386adfbd5d8",
+      "toolSchemaSha256": "fef3465c3b86f40a6b3ff01bf527170194440a3a34ef0e3f8db05ca1c7e57947"
+    },
+    {
+      "case": "official-5",
+      "index": 10,
+      "start": "2026-11-10T05:45:16.554841+00:00",
+      "path": "/official-5/v1/chat/completions",
+      "requestSha256": "fdbfd6ed4d5966d8680b0fbdb30eb351ecdfeef1a25d56e5e4a844289b56f7df",
+      "requestBytes": 86264,
+      "forwardedUnchanged": true,
+      "requestedModel": "qwen3.7-plus",
+      "toolNames": [
+        "read_files",
+        "search_codebase",
+        "run_commands",
+        "editor",
+        "ask_question",
+        "team_spawn_teammate",
+        "team_shutdown_teammate",
+        "team_status",
+        "team_task",
+        "team_run_task",
+        "team_cancel_run",
+        "team_list_runs",
+        "team_await_runs",
+        "team_send_message",
+        "team_broadcast",
+        "team_read_mailbox",
+        "team_mission_log",
+        "team_cleanup",
+        "team_create_outcome",
+        "team_attach_outcome_fragment",
+        "team_review_outcome_fragment",
+        "team_finalize_outcome",
+        "team_list_outcomes"
+      ],
+      "requestParameters": {
+        "model": "qwen3.7-plus",
+        "tool_choice": "auto",
+        "stream": true,
+        "stream_options": {
+          "include_usage": true
+        }
+      },
+      "httpStatus": 200,
+      "providerModels": [
+        "qwen3.7-plus"
+      ],
+      "usage": {
+        "prompt_tokens": 26460,
+        "total_tokens": 26677,
+        "completion_tokens": 217,
+        "prompt_tokens_details": {
+          "cached_tokens": 23040,
+          "text_tokens": 26460
+        },
+        "completion_tokens_details": {
+          "reasoning_tokens": 83,
+          "text_tokens": 217
+        }
+      },
+      "usageKnown": true,
+      "durationMs": 13572,
+      "responseSha256": "bbe0969d747a536f6245b82f4a6bb4b864f26e5e9be241f00309b03a7e34b9fc",
+      "toolSchemaSha256": "fef3465c3b86f40a6b3ff01bf527170194440a3a34ef0e3f8db05ca1c7e57947"
+    },
+    {
+      "case": "official-5",
+      "index": 11,
+      "start": "2026-11-10T05:45:30.179726+00:00",
+      "path": "/official-5/v1/chat/completions",
+      "requestSha256": "56d980dc84e7f0409c934f8e188ba85f4781156a7ba983d924de034fcd3bd33c",
+      "requestBytes": 87587,
+      "forwardedUnchanged": true,
+      "requestedModel": "qwen3.7-plus",
+      "toolNames": [
+        "read_files",
+        "search_codebase",
+        "run_commands",
+        "editor",
+        "ask_question",
+        "team_spawn_teammate",
+        "team_shutdown_teammate",
+        "team_status",
+        "team_task",
+        "team_run_task",
+        "team_cancel_run",
+        "team_list_runs",
+        "team_await_runs",
+        "team_send_message",
+        "team_broadcast",
+        "team_read_mailbox",
+        "team_mission_log",
+        "team_cleanup",
+        "team_create_outcome",
+        "team_attach_outcome_fragment",
+        "team_review_outcome_fragment",
+        "team_finalize_outcome",
+        "team_list_outcomes"
+      ],
+      "requestParameters": {
+        "model": "qwen3.7-plus",
+        "tool_choice": "auto",
+        "stream": true,
+        "stream_options": {
+          "include_usage": true
+        }
+      },
+      "httpStatus": 200,
+      "providerModels": [
+        "qwen3.7-plus"
+      ],
+      "usage": {
+        "prompt_tokens": 26751,
+        "total_tokens": 26884,
+        "completion_tokens": 133,
+        "prompt_tokens_details": {
+          "cached_tokens": 25856,
+          "text_tokens": 26751
+        },
+        "completion_tokens_details": {
+          "reasoning_tokens": 81,
+          "text_tokens": 133
+        }
+      },
+      "usageKnown": true,
+      "durationMs": 3475,
+      "responseSha256": "b9109d2eb606f717b6ac2aca5ddaebab50be5142bce0e76a55017b745bdc0f70",
+      "toolSchemaSha256": "fef3465c3b86f40a6b3ff01bf527170194440a3a34ef0e3f8db05ca1c7e57947"
+    },
+    {
+      "case": "official-5",
+      "index": 12,
+      "start": "2026-11-10T05:45:36.568737+00:00",
+      "path": "/official-5/v1/chat/completions",
+      "requestSha256": "16c50e6cab000693133478dac1df5cb6c98655c112fd84e67f3ac6c9b9263453",
+      "requestBytes": 88552,
+      "forwardedUnchanged": true,
+      "requestedModel": "qwen3.7-plus",
+      "toolNames": [
+        "read_files",
+        "search_codebase",
+        "run_commands",
+        "editor",
+        "ask_question",
+        "team_spawn_teammate",
+        "team_shutdown_teammate",
+        "team_status",
+        "team_task",
+        "team_run_task",
+        "team_cancel_run",
+        "team_list_runs",
+        "team_await_runs",
+        "team_send_message",
+        "team_broadcast",
+        "team_read_mailbox",
+        "team_mission_log",
+        "team_cleanup",
+        "team_create_outcome",
+        "team_attach_outcome_fragment",
+        "team_review_outcome_fragment",
+        "team_finalize_outcome",
+        "team_list_outcomes"
+      ],
+      "requestParameters": {
+        "model": "qwen3.7-plus",
+        "tool_choice": "auto",
+        "stream": true,
+        "stream_options": {
+          "include_usage": true
+        }
+      },
+      "httpStatus": 200,
+      "providerModels": [
+        "qwen3.7-plus"
+      ],
+      "usage": {
+        "prompt_tokens": 26968,
+        "total_tokens": 27020,
+        "completion_tokens": 52,
+        "prompt_tokens_details": {
+          "cached_tokens": 26496,
+          "text_tokens": 26968
+        },
+        "completion_tokens_details": {
+          "reasoning_tokens": 15,
+          "text_tokens": 52
+        }
+      },
+      "usageKnown": true,
+      "durationMs": 1897,
+      "responseSha256": "48bde2d6e9ce5f81c04d98b4e1f832ef45563fc49a34a8bc664b9ba8eaff79e5",
+      "toolSchemaSha256": "fef3465c3b86f40a6b3ff01bf527170194440a3a34ef0e3f8db05ca1c7e57947"
+    }
+  ],
+  "knownTokenUsage": {
+    "prompt_tokens": 204302,
+    "completion_tokens": 13958,
+    "total_tokens": 218260
+  },
+  "missingUsageFields": {
+    "prompt_tokens": 0,
+    "completion_tokens": 0,
+    "total_tokens": 0
+  },
+  "unknownUsageCalls": 0,
+  "officialSessionIds": [
+    "1794289253530_dq1we"
+  ],
+  "officialConversationIds": [
+    "conv_1794289253618_b144dub"
+  ],
+  "toolsCompleted": 12,
+  "toolsUsed": [
+    "editor",
+    "read_files",
+    "run_commands"
+  ],
+  "toolOutputsWithPythonException": [],
+  "toolFailures": [
+    {
+      "type": "content_end",
+      "contentType": "tool",
+      "toolName": "editor",
+      "toolCallId": "call_a5b8ec6ad8ca4fd28546b3f6",
+      "output": {
+        "query": "edit:/workspace/analysis.py",
+        "result": "",
+        "error": "Editor input too large: new_text was 13449 characters, exceeding the recommended limit of 6000. Split the edit into smaller tool calls so later tool calls are less likely to be truncated or time out.",
+        "success": false
+      },
+      "durationMs": 4
+    }
+  ],
+  "pythonToolResults": [
+    {
+      "type": "content_end",
+      "contentType": "tool",
+      "toolName": "run_commands",
+      "toolCallId": "call_72d6281483424f6aba39772a",
+      "output": [
+        {
+          "query": "ls -la /workspace/ && python3 -c \"import pandas as pyarrow; print('pyarrow ok')\" 2>&1; python3 -c \"import pandas; print('pandas', pandas.__version__)\" 2>&1",
+          "result": "total 4340\ndrwxrwxrwx 2 root root      26 Nov 10 13:40 .\ndrwxr-xr-x 1 root root      54 Nov 10 13:40 ..\n-r--r--r-- 1 root root 4442620 Nov 10 13:40 test.parquet\npyarrow ok\npandas 2.3.3\n",
+          "success": true
+        }
+      ],
+      "durationMs": 2255
+    },
+    {
+      "type": "content_end",
+      "contentType": "tool",
+      "toolName": "run_commands",
+      "toolCallId": "call_99e35cb3f6094458a9e6dc60",
+      "output": [
+        {
+          "query": "python3 << 'EOF'\nimport pandas as pd\nimport numpy as np\n\n# Read the parquet file\ndf = pd.read_parquet('/workspace/test.parquet')\n\nprint(\"=== 基本信息 ===\")\nprint(f\"数据规模: {df.shape[0]} 行 × {df.shape[1]} 列\" ... [command truncated: 1501 more chars; full command is in the tool call input]",
+          "result": "=== 基本信息 ===\n数据规模: 238073 行 × 19 列\n\n字段类型:\nVendorID                          int64\ntpep_pickup_datetime     datetime64[us]\ntpep_dropoff_datetime    datetime64[us]\npassenger_count                 float64\ntrip_distance                   float64\nRatecodeID                      float64\nstore_and_fwd_flag               object\nPULocationID                      int64\nDOLocationID                      int64\npayment_type                      int64\nfare_amount                     float64\nextra                           float64\nmta_tax                         float64\ntip_amount                      float64\ntolls_amount                    float64\nimprovement_surcharge           float64\ntotal_amount                    float64\ncongestion_surcharge            float64\nairport_fee                      object\ndtype: object\n\n内存占用: 48.86 MB\n\n=== 缺失值分析 ===\n                         缺失数  缺失率(%)\npassenger_count        19580    8.22\nRatecodeID             19580    8.22\nstore_and_fwd_flag     19580    8.22\ncongestion_surcharge   19580    8.22\nairport_fee           238073  100.00\n\n=== 重复值分析 ===\n完全重复行数: 0\n重复率: 0.00%\n\n=== 数值字段统计 ===\n数值字段: ['VendorID', 'passenger_count', 'trip_distance', 'RatecodeID', 'PULocationID', 'DOLocationID', 'payment_type', 'fare_amount', 'extra', 'mta_tax', 'tip_amount', 'tolls_amount', 'improvement_surcharge', 'total_amount', 'congestion_surcharge']\n            VendorID  passenger_count  ...   total_amount  congestion_surcharge\ncount  238073.000000    218493.000000  ...  238073.000000         218493.000000\nmean        1.592247         1.296751  ...      16.411970              2.023246\nstd         0.497112         0.983570  ...      13.160379              1.008096\nmin         1.000000         0.000000  ...    -138.170000             -2.500000\n25%         1.000000         1.000000  ...       9.800000              2.500000\n50%         2.000000         1.000000  ...      12.800000              2.500000\n75%         2.000000         1.000000  ...      18.360000              2.500000\nmax         6.000000         7.000000  ...     903.320000              2.500000\n\n[8 rows x 15 columns]\n\n=== 分类字段统计 ===\n分类字段: ['store_and_fwd_flag', 'airport_fee']\n\nstore_and_fwd_flag:\n  唯一值数: 2\n  最常见值: N\n  值分布:\nstore_and_fwd_flag\nN    216629\nY      1864\nName: count, dtype: int64\n\nairport_fee:\n  唯一值数: 0\n  最常见值: N/A\n  值分布:\nSeries([], Name: count, dtype: int64)\n\n=== 异常值检测 (IQR方法) ===\nVendorID: 67 个异常值 (0.03%)\npassenger_count: 40688 个异常值 (17.09%)\ntrip_distance: 23124 个异常值 (9.71%)\nRatecodeID: 2400 个异常值 (1.01%)\nPULocationID: 0 个异常值 (0.00%)\nDOLocationID: 0 个异常值 (0.00%)\npayment_type: 1386 个异常值 (0.58%)\nfare_amount: 22775 个异常值 (9.57%)\nextra: 60 个异常值 (0.03%)\nmta_tax: 4934 个异常值 (2.07%)\ntip_amount: 5993 个异常值 (2.52%)\ntolls_amount: 7732 个异常值 (3.25%)\nimprovement_surcharge: 1630 个异常值 (0.68%)\ntotal_amount: 22037 个异常值 (9.26%)\ncongestion_surcharge: 40764 个异常值 (17.12%)\n",
+          "success": true
+        }
+      ],
+      "durationMs": 2570
+    },
+    {
+      "type": "content_end",
+      "contentType": "tool",
+      "toolName": "run_commands",
+      "toolCallId": "call_e960701e902b4d35a8f9ed65",
+      "output": [
+        {
+          "query": "python3 << 'EOF'\nimport pandas as pd\nimport numpy as np\n\ndf = pd.read_parquet('/workspace/test.parquet')\n\nprint(\"=== 时间范围 ===\")\nprint(f\"最早: {df['tpep_pickup_datetime'].min()}\")\nprint(f\"最晚: {df['tpep_p ... [command truncated: 2204 more chars; full command is in the tool call input]",
+          "result": "=== 时间范围 ===\n最早: 2009-01-01 01:11:17\n最晚: 2020-04-30 23:59:42\n\n=== 行程时长分析 ===\n平均行程时长: 11.27 分钟\n中位数行程时长: 7.50 分钟\n最短: -0.85 分钟\n最长: 3574.70 分钟\n负时长: 29 条\n零时长: 286 条\n\n=== VendorID 分布 ===\nVendorID\n2    140663\n1     97343\n6        67\nName: count, dtype: int64\n\n=== payment_type 分布 ===\npayment_type\n0     19580\n1    131157\n2     83039\n3      2911\n4      1386\nName: count, dtype: int64\n\n=== RatecodeID 分布 ===\nRatecodeID\n1.0     216093\n2.0       1025\n3.0        158\n4.0        175\n5.0       1025\n6.0          2\n99.0        15\nName: count, dtype: int64\n\n=== 负费用检测 ===\nfare_amount: 1295 条负值, 最小值=-118.0\ntotal_amount: 1294 条负值, 最小值=-138.17\ntip_amount: 13 条负值, 最小值=-5.0\nextra: 512 条负值, 最小值=-4.5\nmta_tax: 1275 条负值, 最小值=-0.5\ntolls_amount: 23 条负值, 最小值=-19.87\nimprovement_surcharge: 1291 条负值, 最小值=-0.3\ncongestion_surcharge: 903 条负值, 最小值=-2.5\n\n=== trip_distance 异常 ===\n零距离: 6225 条\n超长行程(>50英里): 44 条\n最大距离: 126501.77\n\n=== passenger_count 分布 ===\npassenger_count\n0.0      6582\n1.0    177805\n2.0     19405\n3.0      4553\n4.0      1595\n5.0      4642\n6.0      3910\n7.0         1\nName: count, dtype: int64\n\n=== fare_amount vs total_amount 相关性 ===\n相关系数: 0.9750\n\n=== 各费用字段均值 ===\nfare_amount: 均值=11.67, 中位数=8.00, 标准差=11.73\nextra: 均值=1.07, 中位数=0.50, 标准差=1.26\nmta_tax: 均值=0.49, 中位数=0.50, 标准差=0.10\ntip_amount: 均值=1.53, 中位数=1.00, 标准差=2.30\ntolls_amount: 均值=0.22, 中位数=0.00, 标准差=1.34\nimprovement_surcharge: 均值=0.30, 中位数=0.30, 标准差=0.05\ncongestion_surcharge: 均值=2.02, 中位数=2.50, 标准差=1.01\ntotal_amount: 均值=16.41, 中位数=12.80, 标准差=13.16\n\n=== 费用构成校验 ===\n费用构成不匹配(差>1): 87397 条\n平均差异: 0.91\n最大差异: 4.50\n",
+          "success": true
+        }
+      ],
+      "durationMs": 2175
+    },
+    {
+      "type": "content_end",
+      "contentType": "tool",
+      "toolName": "run_commands",
+      "toolCallId": "call_3bd954350f2f4abb8e33d382",
+      "output": [
+        {
+          "query": "python3 << 'EOF'\nimport pandas as pd\nimport numpy as np\n\ndf = pd.read_parquet('/workspace/test.parquet')\n\n# Check airport_fee dtype details\nprint(\"=== airport_fee 详细信息 ===\")\nprint(f\"dtype: {df['airpor ... [command truncated: 1258 more chars; full command is in the tool call input]",
+          "result": "=== airport_fee 详细信息 ===\ndtype: object\n非空值数: 0\n全部为NaN: True\n\n=== 按年分布 ===\ntpep_pickup_datetime\n2009         1\n2020    238072\nName: count, dtype: int64\n\n2020年前的记录数: 1\n       tpep_pickup_datetime tpep_dropoff_datetime  fare_amount  total_amount\n139389  2009-01-01 01:11:17   2009-01-01 01:11:20          2.5           3.3\n\n=== 最高费用 Top 10 ===\n        trip_distance  fare_amount  total_amount  tolls_amount  tip_amount\n108387           0.00       903.02        903.32          0.00        0.00\n58528          109.31       578.50        703.70          6.12      117.28\n212344         177.40       555.50        576.67         17.87        0.00\n206015         173.20       474.50        523.66         45.86        0.00\n126837          82.00       421.00        509.16          0.00       84.86\n196631         166.10       494.00        509.05         11.75        0.00\n15315            0.00       480.00        480.31          0.00        0.01\n44215          174.70       448.50        477.80         25.00        0.00\n153770         149.53       459.50        468.92          6.12        0.00\n108388          67.60       393.00        407.05         13.75        0.00\n\n=== 热门上车地点 Top 10 ===\nPULocationID\n137    12006\n140    10675\n75     10269\n238    10210\n263     9523\n236     8822\n141     8436\n48      7850\n239     7544\n142     7309\nName: count, dtype: int64\n\n=== 热门下车地点 Top 10 ===\nDOLocationID\n75     10794\n140     8232\n236     8178\n238     7841\n74      7635\n137     7260\n48      6889\n263     6881\n141     6733\n239     6332\nName: count, dtype: int64\n\n=== 偏度和峰度 ===\nVendorID: 偏度=-0.1692, 峰度=-0.1693\npassenger_count: 偏度=3.2924, 峰度=11.3564\ntrip_distance: 偏度=362.1462, 峰度=146418.3215\nRatecodeID: 偏度=100.2271, 峰度=11293.6872\nPULocationID: 偏度=-0.0747, 峰度=-1.1367\nDOLocationID: 偏度=-0.0774, 峰度=-1.2335\npayment_type: 偏度=0.3031, 峰度=0.8270\nfare_amount: 偏度=8.3538, 峰度=292.8045\nextra: 偏度=0.6882, 峰度=-1.0521\nmta_tax: 偏度=-8.0573, 峰度=69.9386\ntip_amount: 偏度=9.1465, 峰度=256.4003\ntolls_amount: 偏度=9.6910, 峰度=235.0764\nimprovement_surcharge: 偏度=-12.6319, 峰度=160.0985\ntotal_amount: 偏度=7.4965, 峰度=226.1593\ncongestion_surcharge: 偏度=-1.7622, 峰度=1.6760\n\n=== 关键费用字段相关矩阵 ===\n               fare_amount  tip_amount  ...  total_amount  trip_distance\nfare_amount          1.000       0.264  ...         0.975          0.018\ntip_amount           0.264       1.000  ...         0.435          0.002\ntolls_amount         0.459       0.133  ...         0.523          0.022\ntotal_amount         0.975       0.435  ...         1.000          0.018\ntrip_distance        0.018       0.002  ...         0.018          1.000\n\n[5 rows x 5 columns]\n",
+          "success": true
+        }
+      ],
+      "durationMs": 2102
+    },
+    {
+      "type": "content_end",
+      "contentType": "tool",
+      "toolName": "run_commands",
+      "toolCallId": "call_e6b295e586174559845558cf",
+      "output": [
+        {
+          "query": "cat > /workspace/analysis.py << 'PYEOF'\n#!/usr/bin/env python3\n\"\"\"\ntest.parquet 数据分析脚本\n=========================\n对 NYC 黄色出租车行程数据进行全面的探索性数据分析 (EDA)，\n涵盖数据规模、字段类型、缺失值、重复值、数值分布和潜在异常，\n并自动生成 report.md 报告。\n\" ... [command truncated: 4516 more chars; full command is in the tool call input]",
+          "result": "",
+          "success": true
+        }
+      ],
+      "durationMs": 12
+    },
+    {
+      "type": "content_end",
+      "contentType": "tool",
+      "toolName": "run_commands",
+      "toolCallId": "call_76bf1f70e6a9410f9828eb3d",
+      "output": [
+        {
+          "query": "cd /workspace && python3 analysis.py",
+          "result": "正在读取 /workspace/test.parquet ...\n数据规模: 238,073 行 × 19 列\n正在执行分析 ...\n正在写入报告到 /workspace/report.md ...\n完成！\n",
+          "success": true
+        }
+      ],
+      "durationMs": 2651
+    },
+    {
+      "type": "content_end",
+      "contentType": "tool",
+      "toolName": "run_commands",
+      "toolCallId": "call_35c3e9366f504ba88d1607f0",
+      "output": [
+        {
+          "query": "cd /workspace && python3 analysis.py",
+          "result": "正在读取 /workspace/test.parquet ...\n数据规模: 238,073 行 × 19 列\n正在执行分析 ...\n正在写入报告到 /workspace/report.md ...\n完成！\n",
+          "success": true
+        }
+      ],
+      "durationMs": 2868
+    }
+  ],
+  "finalReview": {
+    "case": "official-5",
+    "sevenCriteria": {
+      "realParquetRead": true,
+      "realSchemaRecognized": true,
+      "actualCodeExecution": true,
+      "requiredStatisticsCompleted": true,
+      "bothRequiredFilesDelivered": true,
+      "independentMajorNumbersCorrect": true,
+      "readableFilesAndReviewedClaimsSupported": true
+    },
+    "artifactAcceptance": "PASSED",
+    "normalTermination": false,
+    "reviewNotes": "266 matched checks and isolated reproduction passed. Fee-component diagnostic independently verified87397 / 0.91467344 /4.50. CLI still exited1 after the fixed request budget was exhausted.",
+    "reviewMethod": "Independent raw-file statistics + generated source/report semantic review + separately isolated reproduction; no generated source was injected into a formal run."
+  }
+}

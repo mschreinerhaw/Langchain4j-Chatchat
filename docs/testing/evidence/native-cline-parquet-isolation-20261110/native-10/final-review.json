@@ -1,0 +1,16 @@
+{
+  "case": "native-10",
+  "sevenCriteria": {
+    "realParquetRead": true,
+    "realSchemaRecognized": true,
+    "actualCodeExecution": true,
+    "requiredStatisticsCompleted": true,
+    "bothRequiredFilesDelivered": true,
+    "independentMajorNumbersCorrect": true,
+    "readableFilesAndReviewedClaimsSupported": true
+  },
+  "artifactAcceptance": "PASSED",
+  "normalTermination": false,
+  "reviewNotes": "Real NameError followed by autonomous source repair and successful Python execution; complete report has 223 matched checks and reproducible output. Subsequently hit fixed model request budget, Server did not complete normally.",
+  "reviewMethod": "Independent raw-file statistics + generated source/report semantic review + separately isolated reproduction; no generated source was injected into a formal run."
+}

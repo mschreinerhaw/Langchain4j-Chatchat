@@ -1,0 +1,32 @@
+{
+  "case": "native-5",
+  "terminal": "HARNESS_OR_ENVIRONMENT_FAILURE",
+  "durationSeconds": 3.317,
+  "nativeSessionId": null,
+  "modelRequests": 0,
+  "inputUnchanged": true,
+  "artifacts": {
+    "test.parquet": {
+      "size": 4442620,
+      "sha256": "3104e1e5548ade630988a4a8b9ec76c51a057b88159f78676c7d344f48491450"
+    }
+  },
+  "independentAcceptance": "PENDING",
+  "modelReceipts": [],
+  "knownTokenUsage": {
+    "prompt_tokens": 0,
+    "completion_tokens": 0,
+    "total_tokens": 0
+  },
+  "missingUsageFields": {
+    "prompt_tokens": 0,
+    "completion_tokens": 0,
+    "total_tokens": 0
+  },
+  "unknownUsageCalls": 0,
+  "toolsCompleted": 0,
+  "toolsUsed": [],
+  "toolOutputsWithPythonException": [],
+  "toolFailures": [],
+  "pythonToolResults": []
+}

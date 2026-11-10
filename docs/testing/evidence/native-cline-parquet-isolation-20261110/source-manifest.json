@@ -1,0 +1,28 @@
+{
+  "commit": "c167da87ddfc9dbdab813efd8444d640421ff438",
+  "files": {
+    "cline-agent-server/src/business-server.mjs": "f5149b22d31db84e9f5f24dbb80fa36a07b8b3dcd30c48eec84cccc627a8d3cb",
+    "cline-agent-server/src/docker-engine.mjs": "2a2e719777eeb9d9c2c1a72a287438dea8319b11076d6d9be54c0b456a8a5b78",
+    "cline-agent-server/src/governance-server.mjs": "5ba771b228fc0361d08b9cd38b4478ac1fd0b0959e54f4cb272b3110fbc6acc5",
+    "cline-agent-server/src/host-bridge.mjs": "7eee715e41da6c33301b44c47da5ea851ad27bf2f69408c36d985394222f7304",
+    "cline-agent-server/src/isolated-worker.mjs": "6fa469e541b61ca23e486930f19a15803583f9e1c5d629c97ffacb468f0347b2",
+    "cline-agent-server/src/journal.mjs": "3ebb26eaeb46551907b5ac9e852d8a82b899a9927f1633d895a3e6f7236559da",
+    "cline-agent-server/src/runtime-assets.mjs": "a13a0ab71b1ac32933dbcd713897ce81013cf79e23bd372a9614f03756472af6",
+    "cline-agent-server/src/server.mjs": "5c49c7e8791268f266fe5a62059867ba38c82e3c0db9fb8502af8e39077b9445",
+    "cline-agent-server/src/stage2-remote.mjs": "2e02eeff9247f1826f2a90ae1efeac919da67d74033eb673b589fe6aa56486c8",
+    "cline-agent-server/src/task-contract.mjs": "fa9fd156fb39be6101d7564869eceb56424dccbe5eaeb155bce2b66504322003",
+    "cline-agent-server/src/tool-outcome.mjs": "f1664d6bfcec2a710bb0d8c79a198cc31f039194ad1a945f4153d0e1c25c1c37",
+    "cline-agent-server/src/worker-executor-client.mjs": "e0311d23f27dea46f59de203c1da7f890b15005df9863c98c283f61efccf5c8c",
+    "cline-agent-server/src/worker-executor-policy.mjs": "fffa2615bde0856c94dcde9423ebe894a84e8ae9be6132ee91d24cd77e836c16",
+    "cline-agent-server/src/worker-executor.mjs": "f8fc70e4596d73d63eaaf544a1170f77883d7d254e1695d88d9c14062cc125ba",
+    "cline-agent-server/src/business/code-lineage.mjs": "9a85854fa21992a8550b6a27562c2c2a1a531101cd665b39c91028524c339e36",
+    "cline-agent-server/src/business/delivery.mjs": "4985507549732e0a978c6a1d4994ee26c1795dcc316eb2dda4d81bb0aefa724c",
+    "cline-agent-server/src/business/model-protocol.mjs": "1ae8f9dba5a3ff5ec40b9672da317869f93d5ff8e39dce382ce9876ce3e2c5ad",
+    "cline-agent-server/src/business/native-context.mjs": "2da78bb67f5ce1feb23f8de56bdce527d3d1d9ac5e22524fbc2ef1c1488f51b0",
+    "cline-agent-server/src/business/native-policy.mjs": "2b40e53bd6e0868306b0095b242507b5016f5089265cb7cc658fe44190584b98",
+    "cline-agent-server/src/business/prompt.mjs": "312695bdba0f0c69d30a8ca90c0a6906af5c501264c650cf23e797f60f1637bf",
+    "cline-agent-server/src/business/run-state.mjs": "7e53c4f5bd073f2ac9c2366d54a203b89799ebd6eba3794cb0d5e30f54e27fb2",
+    "cline-agent-server/src/business/runtime-callback.mjs": "23d937d655c94249e492655fbfd402fe381eb48734474a454e4afe2143747214",
+    "cline-agent-server/src/business/runtime-tools.mjs": "8ccf2594e68e70655b69e0daa69cb9460e40208f0006cc712f9b5651bc25950e"
+  }
+}

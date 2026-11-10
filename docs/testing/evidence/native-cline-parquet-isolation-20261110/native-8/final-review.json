@@ -1,0 +1,16 @@
+{
+  "case": "native-8",
+  "sevenCriteria": {
+    "realParquetRead": true,
+    "realSchemaRecognized": true,
+    "actualCodeExecution": true,
+    "requiredStatisticsCompleted": false,
+    "bothRequiredFilesDelivered": false,
+    "independentMajorNumbersCorrect": null,
+    "readableFilesAndReviewedClaimsSupported": null
+  },
+  "artifactAcceptance": "FAILED",
+  "normalTermination": false,
+  "reviewNotes": "Real Python NameError(date_min) at line 126; no report delivered; final source reproduction still failed. Failure observation and collector interruption are retained; original summary terminal is null, not rewritten.",
+  "reviewMethod": "Independent raw-file statistics + generated source/report semantic review + separately isolated reproduction; no generated source was injected into a formal run."
+}

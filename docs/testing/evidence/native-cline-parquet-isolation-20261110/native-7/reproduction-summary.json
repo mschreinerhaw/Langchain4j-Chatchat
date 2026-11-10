@@ -1,0 +1,13 @@
+{
+  "case": "native-7",
+  "sourceSha256": "ae4bc27aba32136578b4db3827378d165f3d61bd45da8950530c9c9bfba6b0fc",
+  "network": "none",
+  "originalWorkspaceModified": false,
+  "exitCode": 0,
+  "stdoutSha256": "06da167f8d9f49682e93956e4a93081a7b95193d8c992ffdc47bae48d2eada10",
+  "stderrSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+  "generatedFiles": [
+    "report.md"
+  ],
+  "note": "Reproduction is supplementary; formal Python tool execution is recorded separately."
+}

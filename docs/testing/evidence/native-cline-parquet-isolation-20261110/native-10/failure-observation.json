@@ -1,0 +1,22 @@
+{
+  "terminal": "MODEL_ERROR_OBSERVED",
+  "serverStatus": "running",
+  "errors": [
+    {
+      "sessionId": "cbdb0d19-62e5-46a1-b7fc-b3b31857f53e",
+      "taskId": "b0c1e144-211d-4375-bfe8-9c4ddce2647b",
+      "epoch": "fc84686d-f870-4dcd-bd12-26e1e800bbce",
+      "eventType": "model.error",
+      "payload": {
+        "type": "error",
+        "error": {},
+        "errorClass": "unknown",
+        "recoverable": false,
+        "iteration": 13
+      },
+      "eventId": "250",
+      "timestamp": "2026-11-10T05:58:08.601Z"
+    }
+  ],
+  "cleanupOnly": true
+}

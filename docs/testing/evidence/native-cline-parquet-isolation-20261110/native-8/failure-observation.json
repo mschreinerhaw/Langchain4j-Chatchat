@@ -1,0 +1,25 @@
+{
+  "case": "native-8",
+  "terminal": "MODEL_ERROR_OBSERVED",
+  "time": "2026-11-10T05:48:35.951081+00:00",
+  "serverStatus": "running",
+  "errors": [
+    {
+      "sessionId": "df3f6329-d81f-4d84-b568-caaf6d00c5d4",
+      "taskId": "d165d08d-cb35-40aa-b36c-5ba0d3ab3207",
+      "epoch": "98ac32c6-4850-4903-bf2a-c76393ecd8b6",
+      "eventType": "model.error",
+      "payload": {
+        "type": "error",
+        "error": {},
+        "errorClass": "unknown",
+        "recoverable": false,
+        "iteration": 13
+      },
+      "eventId": "223",
+      "timestamp": "2026-11-10T05:47:15.482Z"
+    }
+  ],
+  "action": "Interrupt collector after observed nonrecoverable model failure; its finally cancels owned worker. Preserve the attempt. No inference retry.",
+  "fixedLimitsUnchanged": true
+}

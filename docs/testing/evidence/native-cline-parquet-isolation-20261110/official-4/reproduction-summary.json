@@ -1,0 +1,13 @@
+{
+  "case": "official-4",
+  "sourceSha256": "bd79a43221f2eb24829cdb1ff335136f5946c72724e18413abcd93e0ac04e63e",
+  "network": "none",
+  "originalWorkspaceModified": false,
+  "exitCode": 0,
+  "stdoutSha256": "35ab4e62e680ef6f1d68c5f5523d7eacd9d79dc34d38ec7215e3c3991cb988f8",
+  "stderrSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+  "generatedFiles": [
+    "report.md"
+  ],
+  "note": "Reproduction is supplementary; formal Python tool execution is recorded separately."
+}

@@ -1,0 +1,1109 @@
+{
+  "cases": [
+    {
+      "case": "native-1",
+      "terminal": "HARNESS_OR_ENVIRONMENT_FAILURE",
+      "durationSeconds": 3.323,
+      "nativeSessionId": null,
+      "modelRequests": 0,
+      "inputUnchanged": true,
+      "artifacts": {
+        "test.parquet": {
+          "size": 4442620,
+          "sha256": "3104e1e5548ade630988a4a8b9ec76c51a057b88159f78676c7d344f48491450"
+        }
+      },
+      "independentAcceptance": "PENDING",
+      "knownTokenUsage": {
+        "prompt_tokens": 0,
+        "completion_tokens": 0,
+        "total_tokens": 0
+      },
+      "missingUsageFields": {
+        "prompt_tokens": 0,
+        "completion_tokens": 0,
+        "total_tokens": 0
+      },
+      "unknownUsageCalls": 0,
+      "toolsCompleted": 0,
+      "toolsUsed": [],
+      "toolOutputsWithPythonException": [],
+      "toolFailures": []
+    },
+    {
+      "case": "native-10",
+      "terminal": "MODEL_ERROR_OBSERVED",
+      "durationSeconds": 242.823,
+      "nativeSessionId": "cbdb0d19-62e5-46a1-b7fc-b3b31857f53e",
+      "modelRequests": 12,
+      "inputUnchanged": true,
+      "artifacts": {
+        "test.parquet": {
+          "size": 4442620,
+          "sha256": "3104e1e5548ade630988a4a8b9ec76c51a057b88159f78676c7d344f48491450"
+        },
+        "analysis.py": {
+          "size": 17081,
+          "sha256": "53b2d66e4a12c11a915596ad4692434f654e02d8d61b8af72e93922bf1a869b8"
+        },
+        "report.md": {
+          "size": 11129,
+          "sha256": "f9ca276495848a1c779e0fd0849dd08bf51d299a5a2bd8da975bd8782ee22517"
+        }
+      },
+      "independentAcceptance": "PENDING",
+      "knownTokenUsage": {
+        "prompt_tokens": 175301,
+        "completion_tokens": 12320,
+        "total_tokens": 187621
+      },
+      "missingUsageFields": {
+        "prompt_tokens": 0,
+        "completion_tokens": 0,
+        "total_tokens": 0
+      },
+      "unknownUsageCalls": 0,
+      "persistedNativeState": {
+        "id": "cbdb0d19-62e5-46a1-b7fc-b3b31857f53e",
+        "taskId": "b0c1e144-211d-4375-bfe8-9c4ddce2647b",
+        "nativeSessionId": "1794290053087_hcf22",
+        "status": "cancelled",
+        "editTool": "editor"
+      },
+      "toolsCompleted": 12,
+      "toolsUsed": [
+        "editor",
+        "read_files",
+        "run_commands"
+      ],
+      "toolOutputsWithPythonException": [
+        {
+          "toolCallId": "call_8e1fb439a6d14eebadfa210d",
+          "toolName": "run_commands",
+          "exceptions": [
+            "NameError"
+          ]
+        }
+      ],
+      "toolFailures": [
+        {
+          "type": "content_end",
+          "contentType": "tool",
+          "toolName": "editor",
+          "toolCallId": "call_27f9c5bff01149a1aee64153",
+          "output": {
+            "query": "edit:/workspace/analysis.py",
+            "result": "",
+            "error": "Editor input too large: new_text was 15384 characters, exceeding the recommended limit of 6000. Split the edit into smaller tool calls so later tool calls are less likely to be truncated or time out.",
+            "success": false
+          },
+          "durationMs": 19
+        },
+        {
+          "type": "content_end",
+          "contentType": "tool",
+          "toolName": "editor",
+          "toolCallId": "call_a1e4fb0a61c6433486dd9825",
+          "output": {
+            "query": "edit:/workspace/analysis.py",
+            "result": "",
+            "error": "Editor input too large: new_text was 7676 characters, exceeding the recommended limit of 6000. Split the edit into smaller tool calls so later tool calls are less likely to be truncated or time out.",
+            "success": false
+          },
+          "durationMs": 18
+        },
+        {
+          "type": "content_end",
+          "contentType": "tool",
+          "toolName": "run_commands",
+          "toolCallId": "call_8e1fb439a6d14eebadfa210d",
+          "output": [
+            {
+              "query": "cd /workspace && python3 analysis.py",
+              "result": "[Command exited with code 1]\nStarting parquet analysis...\n\n[stderr]\nTraceback (most recent call last):\n  File \"/workspace/analysis.py\", line 282, in <module>\n    analyze_categorical(df, results)\n    ^^^^^^^^^^^^^^^^^^^\nNameError: name 'analyze_categorical' is not defined. Did you mean: 'analyze_numerical'?\n",
+              "error": "Command exited with code 1",
+              "success": false
+            }
+          ],
+          "durationMs": 2085
+        }
+      ],
+      "failureObservation": {
+        "terminal": "MODEL_ERROR_OBSERVED",
+        "serverStatus": "running",
+        "errors": [
+          {
+            "sessionId": "cbdb0d19-62e5-46a1-b7fc-b3b31857f53e",
+            "taskId": "b0c1e144-211d-4375-bfe8-9c4ddce2647b",
+            "epoch": "fc84686d-f870-4dcd-bd12-26e1e800bbce",
+            "eventType": "model.error",
+            "payload": {
+              "type": "error",
+              "error": {},
+              "errorClass": "unknown",
+              "recoverable": false,
+              "iteration": 13
+            },
+            "eventId": "250",
+            "timestamp": "2026-11-10T05:58:08.601Z"
+          }
+        ],
+        "cleanupOnly": true
+      },
+      "finalReview": {
+        "case": "native-10",
+        "sevenCriteria": {
+          "realParquetRead": true,
+          "realSchemaRecognized": true,
+          "actualCodeExecution": true,
+          "requiredStatisticsCompleted": true,
+          "bothRequiredFilesDelivered": true,
+          "independentMajorNumbersCorrect": true,
+          "readableFilesAndReviewedClaimsSupported": true
+        },
+        "artifactAcceptance": "PASSED",
+        "normalTermination": false,
+        "reviewNotes": "Real NameError followed by autonomous source repair and successful Python execution; complete report has 223 matched checks and reproducible output. Subsequently hit fixed model request budget, Server did not complete normally.",
+        "reviewMethod": "Independent raw-file statistics + generated source/report semantic review + separately isolated reproduction; no generated source was injected into a formal run."
+      }
+    },
+    {
+      "case": "native-2",
+      "terminal": "HARNESS_OR_ENVIRONMENT_FAILURE",
+      "durationSeconds": 3.321,
+      "nativeSessionId": null,
+      "modelRequests": 0,
+      "inputUnchanged": true,
+      "artifacts": {
+        "test.parquet": {
+          "size": 4442620,
+          "sha256": "3104e1e5548ade630988a4a8b9ec76c51a057b88159f78676c7d344f48491450"
+        }
+      },
+      "independentAcceptance": "PENDING",
+      "knownTokenUsage": {
+        "prompt_tokens": 0,
+        "completion_tokens": 0,
+        "total_tokens": 0
+      },
+      "missingUsageFields": {
+        "prompt_tokens": 0,
+        "completion_tokens": 0,
+        "total_tokens": 0
+      },
+      "unknownUsageCalls": 0,
+      "toolsCompleted": 0,
+      "toolsUsed": [],
+      "toolOutputsWithPythonException": [],
+      "toolFailures": []
+    },
+    {
+      "case": "native-3",
+      "terminal": "HARNESS_OR_ENVIRONMENT_FAILURE",
+      "durationSeconds": 3.359,
+      "nativeSessionId": null,
+      "modelRequests": 0,
+      "inputUnchanged": true,
+      "artifacts": {
+        "test.parquet": {
+          "size": 4442620,
+          "sha256": "3104e1e5548ade630988a4a8b9ec76c51a057b88159f78676c7d344f48491450"
+        }
+      },
+      "independentAcceptance": "PENDING",
+      "knownTokenUsage": {
+        "prompt_tokens": 0,
+        "completion_tokens": 0,
+        "total_tokens": 0
+      },
+      "missingUsageFields": {
+        "prompt_tokens": 0,
+        "completion_tokens": 0,
+        "total_tokens": 0
+      },
+      "unknownUsageCalls": 0,
+      "toolsCompleted": 0,
+      "toolsUsed": [],
+      "toolOutputsWithPythonException": [],
+      "toolFailures": []
+    },
+    {
+      "case": "native-4",
+      "terminal": "HARNESS_OR_ENVIRONMENT_FAILURE",
+      "durationSeconds": 3.338,
+      "nativeSessionId": null,
+      "modelRequests": 0,
+      "inputUnchanged": true,
+      "artifacts": {
+        "test.parquet": {
+          "size": 4442620,
+          "sha256": "3104e1e5548ade630988a4a8b9ec76c51a057b88159f78676c7d344f48491450"
+        }
+      },
+      "independentAcceptance": "PENDING",
+      "knownTokenUsage": {
+        "prompt_tokens": 0,
+        "completion_tokens": 0,
+        "total_tokens": 0
+      },
+      "missingUsageFields": {
+        "prompt_tokens": 0,
+        "completion_tokens": 0,
+        "total_tokens": 0
+      },
+      "unknownUsageCalls": 0,
+      "toolsCompleted": 0,
+      "toolsUsed": [],
+      "toolOutputsWithPythonException": [],
+      "toolFailures": []
+    },
+    {
+      "case": "native-5",
+      "terminal": "HARNESS_OR_ENVIRONMENT_FAILURE",
+      "durationSeconds": 3.317,
+      "nativeSessionId": null,
+      "modelRequests": 0,
+      "inputUnchanged": true,
+      "artifacts": {
+        "test.parquet": {
+          "size": 4442620,
+          "sha256": "3104e1e5548ade630988a4a8b9ec76c51a057b88159f78676c7d344f48491450"
+        }
+      },
+      "independentAcceptance": "PENDING",
+      "knownTokenUsage": {
+        "prompt_tokens": 0,
+        "completion_tokens": 0,
+        "total_tokens": 0
+      },
+      "missingUsageFields": {
+        "prompt_tokens": 0,
+        "completion_tokens": 0,
+        "total_tokens": 0
+      },
+      "unknownUsageCalls": 0,
+      "toolsCompleted": 0,
+      "toolsUsed": [],
+      "toolOutputsWithPythonException": [],
+      "toolFailures": []
+    },
+    {
+      "case": "native-6",
+      "terminal": "turn_completed",
+      "durationSeconds": 163.805,
+      "nativeSessionId": "0b8ac461-12d8-4859-ac6d-fc5ea5499c57",
+      "modelRequests": 7,
+      "inputUnchanged": true,
+      "artifacts": {
+        "test.parquet": {
+          "size": 4442620,
+          "sha256": "3104e1e5548ade630988a4a8b9ec76c51a057b88159f78676c7d344f48491450"
+        },
+        "analysis.py": {
+          "size": 12654,
+          "sha256": "f4ca839b6510c530da904eff46a22bcb71b0c98fc78da46a8a2be98bd5c5cc73"
+        },
+        "report.md": {
+          "size": 5260,
+          "sha256": "02c69c518d5a6b381e405a0fc723a404c0e4b2618701ee424d6a1d72c2d33392"
+        },
+        "analysis_report.json": {
+          "size": 12594,
+          "sha256": "b99c4f83a459b20d24b816614e0de9cc51c53989c9afb805f8f4f751c8d38065"
+        }
+      },
+      "independentAcceptance": "PENDING",
+      "knownTokenUsage": {
+        "prompt_tokens": 67060,
+        "completion_tokens": 8812,
+        "total_tokens": 75872
+      },
+      "missingUsageFields": {
+        "prompt_tokens": 0,
+        "completion_tokens": 0,
+        "total_tokens": 0
+      },
+      "unknownUsageCalls": 0,
+      "persistedNativeState": {
+        "id": "0b8ac461-12d8-4859-ac6d-fc5ea5499c57",
+        "taskId": "2ec0651e-89da-47db-a3f6-9720cbde863d",
+        "nativeSessionId": "1794288397409_q98xt",
+        "status": "cancelled",
+        "editTool": "editor"
+      },
+      "toolsCompleted": 6,
+      "toolsUsed": [
+        "editor",
+        "read_files",
+        "run_commands"
+      ],
+      "toolOutputsWithPythonException": [],
+      "toolFailures": [
+        {
+          "type": "content_end",
+          "contentType": "tool",
+          "toolName": "editor",
+          "toolCallId": "call_275dbe6f2e8942da89ac179d",
+          "output": {
+            "query": "edit:/workspace/analysis.py",
+            "result": "",
+            "error": "Editor input too large: new_text was 12161 characters, exceeding the recommended limit of 6000. Split the edit into smaller tool calls so later tool calls are less likely to be truncated or time out.",
+            "success": false
+          },
+          "durationMs": 21
+        }
+      ],
+      "finalReview": {
+        "case": "native-6",
+        "sevenCriteria": {
+          "realParquetRead": true,
+          "realSchemaRecognized": true,
+          "actualCodeExecution": true,
+          "requiredStatisticsCompleted": true,
+          "bothRequiredFilesDelivered": true,
+          "independentMajorNumbersCorrect": true,
+          "readableFilesAndReviewedClaimsSupported": true
+        },
+        "artifactAcceptance": "PASSED",
+        "normalTermination": true,
+        "reviewNotes": "Read and executed real Parquet analysis; 212 checks matched, original report/source reviewed; isolated reproduction exited 0.",
+        "reviewMethod": "Independent raw-file statistics + generated source/report semantic review + separately isolated reproduction; no generated source was injected into a formal run."
+      }
+    },
+    {
+      "case": "native-7",
+      "terminal": "DEADLINE_EXCEEDED",
+      "durationSeconds": 901.587,
+      "nativeSessionId": "120e9d6f-053c-4179-9ee6-164c48046b9c",
+      "modelRequests": 12,
+      "inputUnchanged": true,
+      "artifacts": {
+        "test.parquet": {
+          "size": 4442620,
+          "sha256": "3104e1e5548ade630988a4a8b9ec76c51a057b88159f78676c7d344f48491450"
+        },
+        "analysis.py": {
+          "size": 19583,
+          "sha256": "ae4bc27aba32136578b4db3827378d165f3d61bd45da8950530c9c9bfba6b0fc"
+        },
+        "report.md": {
+          "size": 9765,
+          "sha256": "8112a739c424cc8b496fa504e30f0eedcd43b7847cf896af2f44fd21b4850a97"
+        }
+      },
+      "independentAcceptance": "PENDING",
+      "knownTokenUsage": {
+        "prompt_tokens": 186434,
+        "completion_tokens": 14779,
+        "total_tokens": 201213
+      },
+      "missingUsageFields": {
+        "prompt_tokens": 0,
+        "completion_tokens": 0,
+        "total_tokens": 0
+      },
+      "unknownUsageCalls": 0,
+      "persistedNativeState": {
+        "id": "120e9d6f-053c-4179-9ee6-164c48046b9c",
+        "taskId": "162b4ee0-22e7-4a9d-b63e-bb0000eec971",
+        "nativeSessionId": "1794288561706_z8fe0",
+        "status": "cancelled",
+        "editTool": "editor"
+      },
+      "toolsCompleted": 12,
+      "toolsUsed": [
+        "editor",
+        "run_commands"
+      ],
+      "toolOutputsWithPythonException": [],
+      "toolFailures": [
+        {
+          "type": "content_end",
+          "contentType": "tool",
+          "toolName": "editor",
+          "toolCallId": "call_c7c40eba8eb94974814dc008",
+          "output": {
+            "query": "edit:/workspace/analysis.py",
+            "result": "",
+            "error": "Editor input too large: new_text was 15803 characters, exceeding the recommended limit of 6000. Split the edit into smaller tool calls so later tool calls are less likely to be truncated or time out.",
+            "success": false
+          },
+          "durationMs": 20
+        }
+      ],
+      "finalReview": {
+        "case": "native-7",
+        "sevenCriteria": {
+          "realParquetRead": true,
+          "realSchemaRecognized": true,
+          "actualCodeExecution": true,
+          "requiredStatisticsCompleted": true,
+          "bothRequiredFilesDelivered": true,
+          "independentMajorNumbersCorrect": false,
+          "readableFilesAndReviewedClaimsSupported": false
+        },
+        "artifactAcceptance": "FAILED",
+        "normalTermination": false,
+        "reviewNotes": "Summary claims 2.15% missing cells vs 6.9946038% actual, and at least 50% zero tips vs 45.159257874685494%. Core emitted a nonrecoverable budget error while Server remained running until deadline.",
+        "reviewMethod": "Independent raw-file statistics + generated source/report semantic review + separately isolated reproduction; no generated source was injected into a formal run."
+      }
+    },
+    {
+      "case": "native-8",
+      "terminal": null,
+      "durationSeconds": 259.038,
+      "nativeSessionId": "df3f6329-d81f-4d84-b568-caaf6d00c5d4",
+      "modelRequests": 12,
+      "inputUnchanged": true,
+      "artifacts": {
+        "test.parquet": {
+          "size": 4442620,
+          "sha256": "3104e1e5548ade630988a4a8b9ec76c51a057b88159f78676c7d344f48491450"
+        },
+        "analysis.py": {
+          "size": 10731,
+          "sha256": "a9cea518151701d22f9209134ce2114c6b10a7dc04e2ebfb227330334dc79b35"
+        }
+      },
+      "independentAcceptance": "PENDING",
+      "knownTokenUsage": {
+        "prompt_tokens": 114699,
+        "completion_tokens": 8437,
+        "total_tokens": 123136
+      },
+      "missingUsageFields": {
+        "prompt_tokens": 0,
+        "completion_tokens": 0,
+        "total_tokens": 0
+      },
+      "unknownUsageCalls": 0,
+      "persistedNativeState": {
+        "id": "df3f6329-d81f-4d84-b568-caaf6d00c5d4",
+        "taskId": "d165d08d-cb35-40aa-b36c-5ba0d3ab3207",
+        "nativeSessionId": "1794289464028_oyhcn",
+        "status": "cancelled",
+        "editTool": "editor"
+      },
+      "toolsCompleted": 12,
+      "toolsUsed": [
+        "editor",
+        "read_files",
+        "run_commands"
+      ],
+      "toolOutputsWithPythonException": [
+        {
+          "toolCallId": "call_08376c990afd45d9a26cb073",
+          "toolName": "run_commands",
+          "exceptions": [
+            "NameError"
+          ]
+        }
+      ],
+      "toolFailures": [
+        {
+          "type": "content_end",
+          "contentType": "tool",
+          "toolName": "editor",
+          "toolCallId": "call_a7104309a5704b93912cdc60",
+          "output": {
+            "query": "edit:/workspace/analysis.py",
+            "result": "",
+            "error": "Editor input too large: new_text was 9438 characters, exceeding the recommended limit of 6000. Split the edit into smaller tool calls so later tool calls are less likely to be truncated or time out.",
+            "success": false
+          },
+          "durationMs": 24
+        },
+        {
+          "type": "content_end",
+          "contentType": "tool",
+          "toolName": "run_commands",
+          "toolCallId": "call_08376c990afd45d9a26cb073",
+          "output": [
+            {
+              "query": "cd /workspace && python3 analysis.py",
+              "result": "[Command exited with code 1]\n\n[stderr]\nTraceback (most recent call last):\n  File \"/workspace/analysis.py\", line 126, in <module>\n    w(f\"| 时间范围 | {date_min} ~ {date_max} |\")\n                      ^^^^^^^^\nNameError: name 'date_min' is not defined\n",
+              "error": "Command exited with code 1",
+              "success": false
+            }
+          ],
+          "durationMs": 2963
+        }
+      ],
+      "failureObservation": {
+        "case": "native-8",
+        "terminal": "MODEL_ERROR_OBSERVED",
+        "time": "2026-11-10T05:48:35.951081+00:00",
+        "serverStatus": "running",
+        "errors": [
+          {
+            "sessionId": "df3f6329-d81f-4d84-b568-caaf6d00c5d4",
+            "taskId": "d165d08d-cb35-40aa-b36c-5ba0d3ab3207",
+            "epoch": "98ac32c6-4850-4903-bf2a-c76393ecd8b6",
+            "eventType": "model.error",
+            "payload": {
+              "type": "error",
+              "error": {},
+              "errorClass": "unknown",
+              "recoverable": false,
+              "iteration": 13
+            },
+            "eventId": "223",
+            "timestamp": "2026-11-10T05:47:15.482Z"
+          }
+        ],
+        "action": "Interrupt collector after observed nonrecoverable model failure; its finally cancels owned worker. Preserve the attempt. No inference retry.",
+        "fixedLimitsUnchanged": true
+      },
+      "finalReview": {
+        "case": "native-8",
+        "sevenCriteria": {
+          "realParquetRead": true,
+          "realSchemaRecognized": true,
+          "actualCodeExecution": true,
+          "requiredStatisticsCompleted": false,
+          "bothRequiredFilesDelivered": false,
+          "independentMajorNumbersCorrect": null,
+          "readableFilesAndReviewedClaimsSupported": null
+        },
+        "artifactAcceptance": "FAILED",
+        "normalTermination": false,
+        "reviewNotes": "Real Python NameError(date_min) at line 126; no report delivered; final source reproduction still failed. Failure observation and collector interruption are retained; original summary terminal is null, not rewritten.",
+        "reviewMethod": "Independent raw-file statistics + generated source/report semantic review + separately isolated reproduction; no generated source was injected into a formal run."
+      }
+    },
+    {
+      "case": "native-9",
+      "terminal": "turn_completed",
+      "durationSeconds": 308.584,
+      "nativeSessionId": "96503cf0-01ba-4894-bf2e-b877d24e51b3",
+      "modelRequests": 12,
+      "inputUnchanged": true,
+      "artifacts": {
+        "test.parquet": {
+          "size": 4442620,
+          "sha256": "3104e1e5548ade630988a4a8b9ec76c51a057b88159f78676c7d344f48491450"
+        },
+        "analysis.py": {
+          "size": 7925,
+          "sha256": "4fefdc2781df7e8cec4c08e46b4f6212938dad83f82295a472936a9f2a8e65e5"
+        },
+        "report.md": {
+          "size": 10909,
+          "sha256": "a958141a2a918f5f7e28cde06131397a563608774a9274e1eff3306828278e5f"
+        }
+      },
+      "independentAcceptance": "PENDING",
+      "knownTokenUsage": {
+        "prompt_tokens": 238999,
+        "completion_tokens": 16902,
+        "total_tokens": 255901
+      },
+      "missingUsageFields": {
+        "prompt_tokens": 0,
+        "completion_tokens": 0,
+        "total_tokens": 0
+      },
+      "unknownUsageCalls": 0,
+      "persistedNativeState": {
+        "id": "96503cf0-01ba-4894-bf2e-b877d24e51b3",
+        "taskId": "5cd0a315-5d80-4612-920c-d70690912d0b",
+        "nativeSessionId": "1794289743791_y6v3m",
+        "status": "cancelled",
+        "editTool": "editor"
+      },
+      "toolsCompleted": 11,
+      "toolsUsed": [
+        "editor",
+        "read_files",
+        "run_commands"
+      ],
+      "toolOutputsWithPythonException": [],
+      "toolFailures": [
+        {
+          "type": "content_end",
+          "contentType": "tool",
+          "toolName": "editor",
+          "toolCallId": "call_d32e67a0bb384a6bbb4d24d1",
+          "output": {
+            "query": "edit:/workspace/analysis.py",
+            "result": "",
+            "error": "Editor input too large: new_text was 9315 characters, exceeding the recommended limit of 6000. Split the edit into smaller tool calls so later tool calls are less likely to be truncated or time out.",
+            "success": false
+          },
+          "durationMs": 19
+        },
+        {
+          "type": "content_end",
+          "contentType": "tool",
+          "toolName": "editor",
+          "toolCallId": "call_37a5774212ba437e867122a9",
+          "output": {
+            "query": "insert:/workspace/analysis.py",
+            "result": "",
+            "error": "Editor operation failed: Invalid insert_line: 64. insert_line must be a positive one-based boundary line in the range 1-61. Use 61 to append at EOF.",
+            "success": false
+          },
+          "durationMs": 23
+        }
+      ],
+      "finalReview": {
+        "case": "native-9",
+        "sevenCriteria": {
+          "realParquetRead": true,
+          "realSchemaRecognized": true,
+          "actualCodeExecution": true,
+          "requiredStatisticsCompleted": true,
+          "bothRequiredFilesDelivered": true,
+          "independentMajorNumbersCorrect": false,
+          "readableFilesAndReviewedClaimsSupported": false
+        },
+        "artifactAcceptance": "FAILED",
+        "normalTermination": true,
+        "reviewNotes": "Normal completion but five IQR outlier counts and zero-duration count are wrong. Example fare_amount: 28756 vs 22775; zero duration:1049 vs286.",
+        "reviewMethod": "Independent raw-file statistics + generated source/report semantic review + separately isolated reproduction; no generated source was injected into a formal run."
+      }
+    },
+    {
+      "case": "official-1",
+      "terminal": "CLI_EXIT_1",
+      "durationSeconds": 193.602,
+      "nativeSessionId": null,
+      "modelRequests": 12,
+      "inputUnchanged": true,
+      "artifacts": {
+        "test.parquet": {
+          "size": 4442620,
+          "sha256": "3104e1e5548ade630988a4a8b9ec76c51a057b88159f78676c7d344f48491450"
+        },
+        "analysis.py": {
+          "size": 4634,
+          "sha256": "5b3f679f8fc88c4593a5e531eaaafdedf20616d4063fd47716c9d238e3a9c048"
+        }
+      },
+      "independentAcceptance": "PENDING",
+      "knownTokenUsage": {
+        "prompt_tokens": 219980,
+        "completion_tokens": 9149,
+        "total_tokens": 229129
+      },
+      "missingUsageFields": {
+        "prompt_tokens": 0,
+        "completion_tokens": 0,
+        "total_tokens": 0
+      },
+      "unknownUsageCalls": 0,
+      "officialSessionIds": [
+        "1794288130267_i8nja"
+      ],
+      "officialConversationIds": [
+        "conv_1794288130340_3mj0s9i"
+      ],
+      "toolsCompleted": 12,
+      "toolsUsed": [
+        "editor",
+        "read_files",
+        "run_commands"
+      ],
+      "toolOutputsWithPythonException": [
+        {
+          "toolCallId": "call_cbfd6dab5901469a93db73b6",
+          "toolName": "run_commands",
+          "exceptions": [
+            "SyntaxError"
+          ]
+        }
+      ],
+      "toolFailures": [
+        {
+          "type": "content_end",
+          "contentType": "tool",
+          "toolName": "editor",
+          "toolCallId": "call_8dbcc6c09e6843c593199afc",
+          "output": {
+            "query": "edit:/workspace/analysis.py",
+            "result": "",
+            "error": "Editor input too large: new_text was 6763 characters, exceeding the recommended limit of 6000. Split the edit into smaller tool calls so later tool calls are less likely to be truncated or time out.",
+            "success": false
+          },
+          "durationMs": 5
+        },
+        {
+          "type": "content_end",
+          "contentType": "tool",
+          "toolName": "editor",
+          "toolCallId": "call_d5e0fc4b0d374732bf2b2d31",
+          "output": {
+            "query": "edit:/workspace/analysis.py",
+            "result": "",
+            "error": "Editor operation failed: No replacement performed: text not found in /workspace/analysis.py.",
+            "success": false
+          },
+          "durationMs": 4
+        }
+      ],
+      "finalReview": {
+        "case": "official-1",
+        "sevenCriteria": {
+          "realParquetRead": true,
+          "realSchemaRecognized": true,
+          "actualCodeExecution": true,
+          "requiredStatisticsCompleted": false,
+          "bothRequiredFilesDelivered": false,
+          "independentMajorNumbersCorrect": null,
+          "readableFilesAndReviewedClaimsSupported": null
+        },
+        "artifactAcceptance": "FAILED",
+        "normalTermination": false,
+        "reviewNotes": "Real SyntaxError at analysis.py line51; attempted edits but no formal successful reexecution/report before model request budget rejection. Retained final source reproduction fails with IndentationError at line111. Shell pipeline head hid the original Python exit from tool success flag.",
+        "reviewMethod": "Independent raw-file statistics + generated source/report semantic review + separately isolated reproduction; no generated source was injected into a formal run."
+      }
+    },
+    {
+      "case": "official-2",
+      "terminal": "CLI_EXIT_0",
+      "durationSeconds": 268.003,
+      "nativeSessionId": null,
+      "modelRequests": 11,
+      "inputUnchanged": true,
+      "artifacts": {
+        "test.parquet": {
+          "size": 4442620,
+          "sha256": "3104e1e5548ade630988a4a8b9ec76c51a057b88159f78676c7d344f48491450"
+        },
+        "analysis.py": {
+          "size": 17808,
+          "sha256": "f127b17f44f628f486526dee5c00d29f960aba51f30a4cf105c02995cd467117"
+        },
+        "report.md": {
+          "size": 8781,
+          "sha256": "e111321df51795c21d001a342e070673042d5f5eb117a50af19a4e78d30fc050"
+        }
+      },
+      "independentAcceptance": "PENDING",
+      "knownTokenUsage": {
+        "prompt_tokens": 203665,
+        "completion_tokens": 14521,
+        "total_tokens": 218186
+      },
+      "missingUsageFields": {
+        "prompt_tokens": 0,
+        "completion_tokens": 0,
+        "total_tokens": 0
+      },
+      "unknownUsageCalls": 0,
+      "officialSessionIds": [
+        "1794288325383_tf71z"
+      ],
+      "officialConversationIds": [
+        "conv_1794288325468_0n75cdz"
+      ],
+      "toolsCompleted": 10,
+      "toolsUsed": [
+        "editor",
+        "read_files",
+        "run_commands"
+      ],
+      "toolOutputsWithPythonException": [],
+      "toolFailures": [
+        {
+          "type": "content_end",
+          "contentType": "tool",
+          "toolName": "editor",
+          "toolCallId": "call_5d5ab453bd9e44788071f683",
+          "output": {
+            "query": "edit:/workspace/analysis.py",
+            "result": "",
+            "error": "Editor input too large: new_text was 13600 characters, exceeding the recommended limit of 6000. Split the edit into smaller tool calls so later tool calls are less likely to be truncated or time out.",
+            "success": false
+          },
+          "durationMs": 4
+        }
+      ],
+      "finalReview": {
+        "case": "official-2",
+        "sevenCriteria": {
+          "realParquetRead": true,
+          "realSchemaRecognized": true,
+          "actualCodeExecution": true,
+          "requiredStatisticsCompleted": true,
+          "bothRequiredFilesDelivered": true,
+          "independentMajorNumbersCorrect": false,
+          "readableFilesAndReviewedClaimsSupported": false
+        },
+        "artifactAcceptance": "FAILED",
+        "normalTermination": true,
+        "reviewNotes": "Histogram <0 includes zero fares:1462 vs1295. Other matching statistics do not override this error.",
+        "reviewMethod": "Independent raw-file statistics + generated source/report semantic review + separately isolated reproduction; no generated source was injected into a formal run."
+      }
+    },
+    {
+      "case": "official-3",
+      "terminal": "CLI_EXIT_1",
+      "durationSeconds": 314.556,
+      "nativeSessionId": null,
+      "modelRequests": 12,
+      "inputUnchanged": true,
+      "artifacts": {
+        "test.parquet": {
+          "size": 4442620,
+          "sha256": "3104e1e5548ade630988a4a8b9ec76c51a057b88159f78676c7d344f48491450"
+        },
+        "analysis.py": {
+          "size": 6066,
+          "sha256": "b4e3e94eb61c8f31fb7efc0a12a7419aa4c6c6a9cded367afc12b6df84456a8d"
+        },
+        "report.md": {
+          "size": 9941,
+          "sha256": "810b1489a8654cd19d3e67ff0993383536e0c9797de342ff1109ecbd4714b793"
+        }
+      },
+      "independentAcceptance": "PENDING",
+      "knownTokenUsage": {
+        "prompt_tokens": 204695,
+        "completion_tokens": 16237,
+        "total_tokens": 220932
+      },
+      "missingUsageFields": {
+        "prompt_tokens": 0,
+        "completion_tokens": 0,
+        "total_tokens": 0
+      },
+      "unknownUsageCalls": 0,
+      "officialSessionIds": [
+        "1794288591917_i0hth"
+      ],
+      "officialConversationIds": [
+        "conv_1794288592000_poznzsq"
+      ],
+      "toolsCompleted": 12,
+      "toolsUsed": [
+        "editor",
+        "run_commands"
+      ],
+      "toolOutputsWithPythonException": [],
+      "toolFailures": [
+        {
+          "type": "content_end",
+          "contentType": "tool",
+          "toolName": "editor",
+          "toolCallId": "call_8212252c42ee49be82025a57",
+          "output": {
+            "query": "edit:/workspace/analysis.py",
+            "result": "",
+            "error": "Editor input too large: new_text was 8457 characters, exceeding the recommended limit of 6000. Split the edit into smaller tool calls so later tool calls are less likely to be truncated or time out.",
+            "success": false
+          },
+          "durationMs": 5
+        },
+        {
+          "type": "content_end",
+          "contentType": "tool",
+          "toolName": "editor",
+          "toolCallId": "call_7b048275197148119b57b06c",
+          "output": {
+            "query": "edit:/workspace/analysis.py",
+            "result": "",
+            "error": "Editor operation failed: No replacement performed: text not found in /workspace/analysis.py.",
+            "success": false
+          },
+          "durationMs": 5
+        }
+      ],
+      "finalReview": {
+        "case": "official-3",
+        "sevenCriteria": {
+          "realParquetRead": true,
+          "realSchemaRecognized": true,
+          "actualCodeExecution": true,
+          "requiredStatisticsCompleted": true,
+          "bothRequiredFilesDelivered": true,
+          "independentMajorNumbersCorrect": false,
+          "readableFilesAndReviewedClaimsSupported": false
+        },
+        "artifactAcceptance": "FAILED",
+        "normalTermination": false,
+        "reviewNotes": "Report says more than100 trips exceed100 miles; actual12. Report also claims analysis.py automatically generated it, but the retained script only prints statistics; reproduction creates no report.",
+        "reviewMethod": "Independent raw-file statistics + generated source/report semantic review + separately isolated reproduction; no generated source was injected into a formal run."
+      }
+    },
+    {
+      "case": "official-4",
+      "terminal": "CLI_EXIT_0",
+      "durationSeconds": 345.846,
+      "nativeSessionId": null,
+      "modelRequests": 11,
+      "inputUnchanged": true,
+      "artifacts": {
+        "test.parquet": {
+          "size": 4442620,
+          "sha256": "3104e1e5548ade630988a4a8b9ec76c51a057b88159f78676c7d344f48491450"
+        },
+        "analysis.py": {
+          "size": 21737,
+          "sha256": "bd79a43221f2eb24829cdb1ff335136f5946c72724e18413abcd93e0ac04e63e"
+        },
+        "report.md": {
+          "size": 11916,
+          "sha256": "2f8af653de1be1dfa2c5a10757a74635fc0ff6c8d529a3c387e527eccaa13710"
+        }
+      },
+      "independentAcceptance": "PENDING",
+      "knownTokenUsage": {
+        "prompt_tokens": 260747,
+        "completion_tokens": 19025,
+        "total_tokens": 279772
+      },
+      "missingUsageFields": {
+        "prompt_tokens": 0,
+        "completion_tokens": 0,
+        "total_tokens": 0
+      },
+      "unknownUsageCalls": 0,
+      "officialSessionIds": [
+        "1794288907079_3corf"
+      ],
+      "officialConversationIds": [
+        "conv_1794288907169_o193tkz"
+      ],
+      "toolsCompleted": 10,
+      "toolsUsed": [
+        "editor",
+        "read_files",
+        "run_commands"
+      ],
+      "toolOutputsWithPythonException": [],
+      "toolFailures": [
+        {
+          "type": "content_end",
+          "contentType": "tool",
+          "toolName": "editor",
+          "toolCallId": "call_9439ab35462643a2a1f7d4b5",
+          "output": {
+            "query": "edit:/workspace/analysis.py",
+            "result": "",
+            "error": "Editor input too large: new_text was 19124 characters, exceeding the recommended limit of 6000. Split the edit into smaller tool calls so later tool calls are less likely to be truncated or time out.",
+            "success": false
+          },
+          "durationMs": 3
+        }
+      ],
+      "finalReview": {
+        "case": "official-4",
+        "sevenCriteria": {
+          "realParquetRead": true,
+          "realSchemaRecognized": true,
+          "actualCodeExecution": true,
+          "requiredStatisticsCompleted": true,
+          "bothRequiredFilesDelivered": true,
+          "independentMajorNumbersCorrect": true,
+          "readableFilesAndReviewedClaimsSupported": true
+        },
+        "artifactAcceptance": "PASSED",
+        "normalTermination": true,
+        "reviewNotes": "205 matched checks, report/source semantic review and isolated reproduction passed; extra same-zone count20122 and original source statistics verified.",
+        "reviewMethod": "Independent raw-file statistics + generated source/report semantic review + separately isolated reproduction; no generated source was injected into a formal run."
+      }
+    },
+    {
+      "case": "official-5",
+      "terminal": "CLI_EXIT_1",
+      "durationSeconds": 306.832,
+      "nativeSessionId": null,
+      "modelRequests": 12,
+      "inputUnchanged": true,
+      "artifacts": {
+        "test.parquet": {
+          "size": 4442620,
+          "sha256": "3104e1e5548ade630988a4a8b9ec76c51a057b88159f78676c7d344f48491450"
+        },
+        "analysis.py": {
+          "size": 14689,
+          "sha256": "572ee1658cb22469a1c26419b875198532cf255de2d865f15a8390ed05d51cd9"
+        },
+        "report.md": {
+          "size": 9801,
+          "sha256": "0e594eb40c71d0ecd7fb630d452827b9c30741527216422b1736201cbb11e729"
+        }
+      },
+      "independentAcceptance": "PENDING",
+      "knownTokenUsage": {
+        "prompt_tokens": 204302,
+        "completion_tokens": 13958,
+        "total_tokens": 218260
+      },
+      "missingUsageFields": {
+        "prompt_tokens": 0,
+        "completion_tokens": 0,
+        "total_tokens": 0
+      },
+      "unknownUsageCalls": 0,
+      "officialSessionIds": [
+        "1794289253530_dq1we"
+      ],
+      "officialConversationIds": [
+        "conv_1794289253618_b144dub"
+      ],
+      "toolsCompleted": 12,
+      "toolsUsed": [
+        "editor",
+        "read_files",
+        "run_commands"
+      ],
+      "toolOutputsWithPythonException": [],
+      "toolFailures": [
+        {
+          "type": "content_end",
+          "contentType": "tool",
+          "toolName": "editor",
+          "toolCallId": "call_a5b8ec6ad8ca4fd28546b3f6",
+          "output": {
+            "query": "edit:/workspace/analysis.py",
+            "result": "",
+            "error": "Editor input too large: new_text was 13449 characters, exceeding the recommended limit of 6000. Split the edit into smaller tool calls so later tool calls are less likely to be truncated or time out.",
+            "success": false
+          },
+          "durationMs": 4
+        }
+      ],
+      "finalReview": {
+        "case": "official-5",
+        "sevenCriteria": {
+          "realParquetRead": true,
+          "realSchemaRecognized": true,
+          "actualCodeExecution": true,
+          "requiredStatisticsCompleted": true,
+          "bothRequiredFilesDelivered": true,
+          "independentMajorNumbersCorrect": true,
+          "readableFilesAndReviewedClaimsSupported": true
+        },
+        "artifactAcceptance": "PASSED",
+        "normalTermination": false,
+        "reviewNotes": "266 matched checks and isolated reproduction passed. Fee-component diagnostic independently verified87397 / 0.91467344 /4.50. CLI still exited1 after the fixed request budget was exhausted.",
+        "reviewMethod": "Independent raw-file statistics + generated source/report semantic review + separately isolated reproduction; no generated source was injected into a formal run."
+      }
+    }
+  ],
+  "preparationAttempts": [
+    "native-1",
+    "native-2",
+    "native-3",
+    "native-4",
+    "native-5"
+  ],
+  "nativeFormalCases": [
+    "native-6",
+    "native-7",
+    "native-8",
+    "native-9",
+    "native-10"
+  ],
+  "officialFormalCases": [
+    "official-1",
+    "official-2",
+    "official-3",
+    "official-4",
+    "official-5"
+  ],
+  "strictEquivalentConfiguration": false,
+  "unknownUsageIsNotZero": true
+}

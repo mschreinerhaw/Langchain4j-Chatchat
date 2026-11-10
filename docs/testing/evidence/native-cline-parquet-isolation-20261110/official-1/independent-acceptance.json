@@ -1,0 +1,13 @@
+{
+  "case": "official-1",
+  "programExists": true,
+  "reportExists": false,
+  "schemaFieldsChecked": [],
+  "nullFieldsChecked": [],
+  "numericFieldsChecked": [],
+  "passedNumericOrSchemaChecks": 0,
+  "checks": [],
+  "mismatches": [],
+  "status": "FAILED",
+  "requiresExecutionEvidenceAndHumanSemanticReview": true
+}

@@ -1,0 +1,16 @@
+{
+  "case": "official-2",
+  "sevenCriteria": {
+    "realParquetRead": true,
+    "realSchemaRecognized": true,
+    "actualCodeExecution": true,
+    "requiredStatisticsCompleted": true,
+    "bothRequiredFilesDelivered": true,
+    "independentMajorNumbersCorrect": false,
+    "readableFilesAndReviewedClaimsSupported": false
+  },
+  "artifactAcceptance": "FAILED",
+  "normalTermination": true,
+  "reviewNotes": "Histogram <0 includes zero fares:1462 vs1295. Other matching statistics do not override this error.",
+  "reviewMethod": "Independent raw-file statistics + generated source/report semantic review + separately isolated reproduction; no generated source was injected into a formal run."
+}

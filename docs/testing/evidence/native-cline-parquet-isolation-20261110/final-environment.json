@@ -1,0 +1,20 @@
+{
+  "time": "2026-11-10T06:08:42.263679+00:00",
+  "existingServices": {
+    "cline-business-api": {
+      "running": true,
+      "image": "sha256:918d6440437e490bc4ff98c6ae977f5dbaae60d3f5f7dfc07942f7628be34e79"
+    },
+    "cline-business-gateway": {
+      "running": true,
+      "image": "sha256:21d7d6ff57d17f6488dea23b6b6469029cb46b0b5a35690556e8e83843e4709e"
+    },
+    "cline-native-monitor": {
+      "running": true,
+      "image": "sha256:28e135ba7204d0fb7d6505221f1ea8e2eb172ecc424794d9b0de664f860dbeff"
+    }
+  },
+  "runningIsolationContainers": [],
+  "allFormalInputsUnchanged": true,
+  "secretsScan": "PASSED"
+}

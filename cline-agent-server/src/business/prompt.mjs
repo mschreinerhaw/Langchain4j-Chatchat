@@ -8,6 +8,12 @@ export function promptContext(contract,delivery){
   return {objective,outputContract:{...contract.outputContract,...delivery.context?.outputContract},runtimeContext:visible,inputSnapshotRef:contract.inputSnapshotRef,
    executionLimits:{taskBudget:contract.budget,modelContext:delivery.modelBudget?.modelContext},
    ...(delivery.context?.fileLayout?{inputLayout:delivery.context.fileLayout}:{}),
+   ...(delivery.context?.inputManifest?{tabularTransport:{
+    columns:delivery.context.inputManifest.columns,
+    physicalColumns:'Physical Parquet/CSV columns use storageName and separate presence flags, not the logical name. Do not index a raw dataframe by logical names before decoding this mapping.',
+    installedReader:{module:'runtime_input',function:'load_rows',
+     positionalArguments:['inputLayout.manifestPath','inputLayout.expectedManifestSha256'],
+     returns:'Iterator of dictionaries keyed by logical column name; JSON columns are already decoded. For batched datasets each dictionary has datasetReference and record (the original business dictionary). Consume the iterator fully to verify checksums and counts.'}}}:{}),
    analysisContext:{inputVersions:delivery.context?.inputVersions??[],analysisInstructions:runtimeContext.analysisInstructions},
    sourceCodeFiles:delivery.files.filter(file=>file.nativeEditablePath),
    files:delivery.files,contextFile:'runtime-inputs.json',

@@ -58,7 +58,12 @@ def audit(workspace, customer):
             total += 1
     assert total == manifest['rowCount'] == context['rowCount']
     versions = {v['datasetReference']: v for v in context['inputVersions']}
-    assert set(groups) == set(versions), 'Dataset coverage mismatch'
+    assert set(groups) <= set(versions), 'Undeclared dataset in the frozen snapshot'
+    for reference, version in versions.items():
+        if reference not in groups:
+            assert version['rowCount'] == 0, 'Declared nonempty dataset is missing'
+            # Empty and unavailable sources remain distinct in the proof below.
+            groups[reference] = []
     for reference, records in groups.items():
         assert len(records) == versions[reference]['rowCount'], 'Dataset row count mismatch'
         assert all(set(r) == set(versions[reference]['fieldSchema']) for r in records)
@@ -109,6 +114,8 @@ def audit(workspace, customer):
     return {'inputIntegrity': 'PASSED', 'customerMatched': True, 'businessDate': day,
         'dateSources': {ref: binding_by_ref[ref]['parameterSources'] for ref in roles.values()},
         'roles': roles, 'rows': {ref: len(records) for ref, records in groups.items()},
+        'sourceAvailability': {ref: {k: version.get(k) for k in
+            ['deliveryStatus', 'sourceVerifiedEmpty', 'rowCount']} for ref, version in versions.items()},
         'files': {fid: f['sha256'] for fid, f in files.items()},
         'assets': asset, 'positions': position,
         'orders': {'count': len(orders), 'sideCounts': dict(side_counts),

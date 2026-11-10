@@ -26,6 +26,16 @@ test('a compact Native prompt defers complete source metadata and schema without
   assert.equal(JSON.parse(full.runtimeContext.analysisInstructions[1]).sourceRepresentation.precision,'declared');
  }finally{rmSync(dir,{recursive:true,force:true});}
 });
+
+test('tabular orientation preserves actual storage mapping and the installed logical reader signature',()=>{
+ const columns=[{name:'datasetReference',storageName:'c0',type:'STRING'},{name:'record',storageName:'c1',type:'JSON'}];
+ const contract={objective:{},runtimeContext:{analysisInstructions:['runtime_os.native_analysis_context.v1']}};
+ const result=promptContext(contract,{files:[],context:{inputManifest:{columns}}});
+ assert.deepEqual(result.tabularTransport.columns,columns);
+ assert.deepEqual(result.tabularTransport.installedReader.positionalArguments,['inputLayout.manifestPath','inputLayout.expectedManifestSha256']);
+ assert(result.tabularTransport.installedReader.returns.includes('already decoded'));
+ assert(result.contextContents.includes('context.analysisPreview'));
+});
 test('frozen input identity and valid empty bytes are distinct from an incomplete transfer',async()=>{
  const dir=mkdtempSync(join(tmpdir(),'native-delivery-'));const bytes=Buffer.alloc(0),sha256=createHash('sha256').update(bytes).digest('hex');
  const file={fileId:'input',fileName:'empty.csv',size:0,sha256,virtualPath:'/data/input/input/empty.csv'};

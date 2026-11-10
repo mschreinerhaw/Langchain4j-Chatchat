@@ -1,0 +1,21 @@
+{
+  "scope": "REAL_AUTHENTICATED_MONITOR_NO_MOCKS",
+  "observedAt": "2026-11-10T02:05:49.124Z",
+  "pageErrors": [],
+  "apiFailures": [],
+  "experienceResponses": [
+    200,
+    200,
+    200,
+    200,
+    200,
+    200,
+    200
+  ],
+  "controlPosts": 0,
+  "status": "PASSED",
+  "totalTasks": 15,
+  "totalExperiences": 2,
+  "restrictedExperiences": 2,
+  "aggregateContentRestricted": true
+}

@@ -99,6 +99,32 @@ public class KnowledgeDisclosureGuard {
         if(identity==null||tasks==null||evidence==null||knowledge==null)
             throw new SecurityException("Knowledge validation is unavailable; retained source content cannot be disclosed");
     }
+
+    /** Bind learned/truncated content to its persisted producer rather than trusting citation text alone. */
+    public void checkExperience(String tenant, String user, String experienceId, String taskId) {
+        if (tenant == null || user == null || experienceId == null || taskId == null)
+            throw new SecurityException("Authenticated experience provenance required");
+        var rows = jdbc.queryForList("select e.*, t.execution_attempt_id, t.task_id as producer_task_id "
+            + "from agent_experience e left join agent_task_latest t on t.tenant_id=e.tenant_id and t.task_id=e.task_id "
+            + "where e.tenant_id=? and e.experience_id=? and e.task_id=?", tenant, experienceId, taskId);
+        if (rows.size() != 1 || rows.get(0).get("producer_task_id") == null)
+            throw new SecurityException("Experience provenance unavailable");
+        var row = rows.get(0);
+        // The persisted experience may contain citations absent from its shortened UI summary.
+        check(tenant, user, json.valueToTree(row).toString());
+        String run = (String) row.get("execution_attempt_id");
+        checkRun(tenant, user, run == null || run.isBlank() ? taskId : run);
+    }
+
+    public void checkExperienceAggregates(String tenant, String user, java.util.Set<String> validated) {
+        if (tenant == null || user == null) throw new SecurityException("Authenticated experience provenance required");
+        var rows = jdbc.queryForList("select experience_id, task_id from agent_experience where tenant_id=? limit 513", tenant);
+        if (rows.size() > 512) throw new SecurityException("Experience disclosure manifest exceeds budget");
+        for (var row : rows) {
+            String id = (String) row.get("experience_id");
+            if (!validated.contains(id)) checkExperience(tenant, user, id, (String) row.get("task_id"));
+        }
+    }
     /** Source-tainted memory cannot become ordinary SQL/file context after a task-mode change.
      * Uses existing persisted provenance, including records predating this safeguard. */
     public boolean hasResourceHistory(String tenant,String user,String conversation) {

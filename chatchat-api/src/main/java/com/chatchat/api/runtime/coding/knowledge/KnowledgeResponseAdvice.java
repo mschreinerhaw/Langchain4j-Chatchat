@@ -43,6 +43,21 @@ public class KnowledgeResponseAdvice implements ResponseBodyAdvice<Object> {
                         (String)actor.getAttribute(ApiAuthenticationFilter.CURRENT_USER_ID),run))response.getHeaders().setCacheControl("no-store");
             }
             String value=body instanceof String text?text:json.writeValueAsString(body);
+            if ("GET".equals(actor.getMethod()) && "/api/v1/agent/tasks/runtime/experiences".equals(uri)
+                    && body instanceof com.chatchat.common.response.ApiResponse<?> envelope
+                    && envelope.getData() instanceof com.chatchat.chat.task.learning.AgentExperienceSummary) {
+                String tenant=(String)actor.getAttribute(ApiAuthenticationFilter.CURRENT_TENANT_ID);
+                String user=(String)actor.getAttribute(ApiAuthenticationFilter.CURRENT_USER_ID);
+                var validated=new java.util.HashSet<String>();
+                var projected=ExperienceCollectionDisclosure.sanitize(json.readTree(value), item->{
+                    guard.check(tenant,user,item.toString());
+                    String id=item.path("experienceId").asText(null);
+                    guard.checkExperience(tenant,user,id,item.path("taskId").asText(null));
+                    validated.add(id);
+                },()->guard.checkExperienceAggregates(tenant,user,validated));
+                response.getHeaders().setCacheControl("no-store");
+                return projected;
+            }
             // Only the concrete owner-authorized conversation endpoint may return
             // message placeholders. Other source/result endpoints remain fail-closed.
             if("GET".equals(actor.getMethod())&&uri.matches("/api/v1/conversations/[^/]+")

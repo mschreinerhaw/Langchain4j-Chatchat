@@ -402,6 +402,10 @@
         </button>
       </div>
 
+      <p v-if="experienceSummary?.aggregateContentRestricted" class="runtime-empty" role="status">
+        {{ experienceSummary.contentRestrictionMessage }}
+      </p>
+
       <section v-if="experienceActiveTab === 'scenarios'" class="experience-tab-panel">
         <header class="subsection-head experience-subsection-head">
           <strong>场景概览</strong>
@@ -588,15 +592,15 @@
           >
             <header>
               <div>
-                <strong>{{ experience.scenarioName || experience.scenarioKey }}</strong>
+                <strong>{{ experience.contentRestricted ? "受限历史经验" : (experience.scenarioName || experience.scenarioKey) }}</strong>
                 <span
                   >{{ experience.agentId || "默认智能体" }} / {{ shortId(experience.taskId) }}</span
                 >
               </div>
-              <b>{{ experience.feedbackScore || 0 }}</b>
+              <b v-if="!experience.contentRestricted">{{ experience.feedbackScore || 0 }}</b>
             </header>
-            <p>{{ experience.attributionSummary || experience.question }}</p>
-            <dl>
+            <p>{{ experience.contentRestricted ? experience.answerSummary : (experience.attributionSummary || experience.question) }}</p>
+            <dl v-if="!experience.contentRestricted">
               <div>
                 <dt>归因</dt>
                 <dd>{{ formatAttributionSource(experience.attributionSource) }}</dd>
@@ -614,7 +618,7 @@
                 </dd>
               </div>
             </dl>
-            <div class="experience-patterns">
+            <div v-if="!experience.contentRestricted" class="experience-patterns">
               <section>
                 <strong>成功模式</strong>
                 <span

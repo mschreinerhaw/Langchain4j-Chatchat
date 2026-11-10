@@ -1,0 +1,30 @@
+{
+  "observedAt": "2026-11-10T02:06:49.304251+00:00",
+  "sourceCitationReadStatuses": [
+    403
+  ],
+  "deployedFileHashes": "PASSED",
+  "containers": {
+    "cline-business-api": {
+      "status": "running",
+      "health": null
+    },
+    "cline-business-gateway": {
+      "status": "running",
+      "health": null
+    },
+    "cline-business-mcp": {
+      "status": "running",
+      "health": null
+    },
+    "cline-native-monitor": {
+      "status": "running",
+      "health": "healthy"
+    },
+    "cline-monitor-native": {
+      "status": "running",
+      "health": "healthy"
+    }
+  },
+  "historyRowsRetained": 2
+}

@@ -96,6 +96,8 @@ export default {
       auditOutcomeFilter: "",
       runtimeRefreshTimer: null,
       runtimeRefreshing: false,
+      runtimeBlockedSections: {},
+      runtimeLoadErrors: {},
       pageSize: DEFAULT_RUNTIME_PAGE_SIZE,
       taskPageItems: [],
       taskTotal: 0,
@@ -478,6 +480,8 @@ export default {
       const nextTenantId = value || this.userId || "";
       if (nextTenantId && nextTenantId !== this.runtimeTenantId) {
         this.runtimeTenantId = nextTenantId;
+        this.runtimeBlockedSections = {};
+        this.runtimeLoadErrors = {};
         this.loadRuntime({ silent: true });
       }
     },
@@ -581,46 +585,79 @@ export default {
       if (!silent) {
         this.loading = true;
         this.error = "";
+        // A deliberate refresh may retry after an administrator changes permissions.
+        this.runtimeBlockedSections = {};
+        this.runtimeLoadErrors = {};
       }
       try {
         const selectedTaskId = this.selectedTask?.taskId || "";
-        const [summary, taskPage, audits, effects, experiences, governance] = await Promise.all([
-          fetchAgentRuntimeSummary({
+        const sections = [
+          ["summary", "运行概览", () => fetchAgentRuntimeSummary({
             tenantId: this.runtimeTenantId,
             latestLimit: 1
-          }),
-          fetchAgentTaskPage({
+          })],
+          ["tasks", "任务列表", () => fetchAgentTaskPage({
             tenantId: this.runtimeTenantId,
             keyword: this.taskSearchQuery.trim(),
             status: this.statusFilter,
             page: this.runtimePages.tasks,
             pageSize: this.pageSize
-          }),
-          fetchAgentRuntimeToolAudits({
+          })],
+          ["audits", "工具审计", () => fetchAgentRuntimeToolAudits({
             tenantId: this.runtimeTenantId,
             limit: 100
-          }),
-          fetchAgentEffectAnalytics({
+          })],
+          ["effects", "效果分析", () => fetchAgentEffectAnalytics({
             tenantId: this.runtimeTenantId,
             lowScoreLimit: 100
-          }),
-          fetchAgentExperiences({
+          })],
+          ["experiences", "经验库", () => fetchAgentExperiences({
             tenantId: this.runtimeTenantId,
             limit: 100
-          }),
-          fetchToolGovernance({
+          })],
+          ["governance", "工具治理", () => fetchToolGovernance({
             tenantId: this.runtimeTenantId
-          })
-        ]);
-        this.summary = summary;
+          })]
+        ];
+        const results = await Promise.allSettled(sections.map(([key, , load]) => {
+          const denied = this.runtimeBlockedSections[key];
+          return denied ? Promise.reject(denied) : Promise.resolve().then(load);
+        }));
+        const values = {};
+        results.forEach((result, index) => {
+          const [key, label] = sections[index];
+          if (result.status === "fulfilled") {
+            values[key] = result.value;
+            delete this.runtimeLoadErrors[key];
+          } else {
+            const error = result.reason;
+            if ([401, 403].includes(error?.status)) this.runtimeBlockedSections[key] = error;
+            const reason = [401, 403].includes(error?.status)
+              ? "当前无权读取，已暂停自动重试；权限更新后可点击刷新。"
+              : "加载失败，将在下次刷新时重试。";
+            this.runtimeLoadErrors[key] = `${label}：${reason}`;
+          }
+        });
+        // Clear unavailable sections so previously loaded source content is not retained after revocation.
+        this.summary = values.summary || null;
+        const taskPage = values.tasks;
         this.taskPageItems = Array.isArray(taskPage?.items) ? taskPage.items : [];
         this.taskTotal = Number(taskPage?.total) || 0;
         this.runtimePages.tasks = Number(taskPage?.page) || this.runtimePages.tasks;
         this.taskPageCount = Math.max(1, Number(taskPage?.totalPages) || 1);
-        this.effectAnalytics = effects;
-        this.experienceSummary = experiences;
-        this.toolGovernance = governance;
-        this.recentToolAudits = Array.isArray(audits) ? audits : [];
+        this.effectAnalytics = values.effects || null;
+        this.experienceSummary = values.experiences || null;
+        this.toolGovernance = values.governance || null;
+        this.recentToolAudits = Array.isArray(values.audits) ? values.audits : [];
+        this.error = Object.values(this.runtimeLoadErrors).join(" ");
+        if (!taskPage && this.selectedTask) {
+          this.selectedTask = null;
+          this.selectedEvents = [];
+          this.selectedPlanDag = null;
+          this.selectedPlanVersions = [];
+          this.explorationTimeline = { observations: [], steps: [] };
+          this.explorationRunId = "";
+        }
         this.legacyRuntimeLoaded = true;
         this.clampRuntimePages();
         const pendingTaskId = sessionStorage.getItem("chatchat.runtime.selectedTaskId") || "";

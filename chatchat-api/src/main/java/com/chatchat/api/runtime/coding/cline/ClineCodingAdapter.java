@@ -73,6 +73,12 @@ public final class ClineCodingAdapter implements CodingAgentSPI {
             .followRedirects(HttpClient.Redirect.NEVER).build();
     }
 
+    static void requirePythonResultFiles(List<String> files,boolean dynamic) {
+        if(files.isEmpty() || !files.get(0).matches("[A-Za-z0-9_-]+\\.jsonl") || !dynamic&&files.size()!=1)
+            throw new IllegalArgumentException("Python execution requires a primary JSONL result; D1 supports one file");
+        if(dynamic)com.chatchat.api.runtime.coding.analysis.CodingRequiredArtifacts.read(files.subList(1,files.size()));
+    }
+
     @Override public CodingTaskOutcome submit(CodingTaskContract contract) {
         requireDispatchLicense();
         boolean deferredTools=com.chatchat.common.runtime.coding.CodingProtocol.deferredTools(contract);
@@ -91,11 +97,8 @@ public final class ClineCodingAdapter implements CodingAgentSPI {
             throw new IllegalArgumentException("D1 permits only the implemented Runtime Python callback");
         inputs.requireAuthorized(contract);
         plans.validator(contract);
-        if (contract.authorization().allowedTools().contains("python_execute")
-                && (contract.outputContract().requiredFiles().size() != 1
-                    || !contract.outputContract().requiredFiles().get(0)
-                        .matches("[A-Za-z0-9_-]+\\.jsonl")))
-            throw new IllegalArgumentException("D1 Python execution requires one JSONL result file");
+        if (contract.authorization().allowedTools().contains("python_execute"))
+            requirePythonResultFiles(contract.outputContract().requiredFiles(),dynamic);
         if (contract.authorization().networkPolicy() != CodingTaskContract.NetworkPolicy.NONE)
             throw new SecurityException("D1 Coding Sandbox requires a no-network authorization");
         }

@@ -36,6 +36,23 @@ test('tabular orientation preserves actual storage mapping and the installed log
  assert(result.tabularTransport.installedReader.returns.includes('already decoded'));
  assert(result.contextContents.includes('context.analysisPreview'));
 });
+
+test('bounded inventory reads reach actual output schema and orientation before unrelated long metadata',async()=>{
+ const dir=mkdtempSync(join(tmpdir(),'native-orientation-'));
+ try{
+  const context={unrelatedMetadata:'x'.repeat(20000),files:[],
+   outputContract:{rowSchema:{type:'object',required:['reportMarkdown']}},
+   analysisPreview:{purpose:'FORMAT_ORIENTATION_ONLY',samples:[{rowJsonPrefix:'{"datasetReference":"exact-ref","record":{"field":"sample"}}'}]},
+   fileLayout:{manifestPath:'/data/input/exact/manifest.json',expectedManifestSha256:'a'.repeat(64)}};
+  const delivery=await deliver({contract:{runtimeContext:{}},abort:new AbortController()},
+   {readInputContext:async()=>context},dir);
+  const bytes=readFileSync(join(dir,'runtime-inputs.json'),'utf8');
+  const bounded=bytes.slice(0,4000);
+  assert(bounded.includes('reportMarkdown')&&bounded.includes('rowJsonPrefix')&&bounded.includes('expectedManifestSha256'));
+  assert.deepEqual(delivery.context,context,'Reordering cannot truncate or summarize the original contract');
+  assert.equal(JSON.parse(bytes).context.unrelatedMetadata,context.unrelatedMetadata);
+ }finally{rmSync(dir,{recursive:true,force:true});}
+});
 test('frozen input identity and valid empty bytes are distinct from an incomplete transfer',async()=>{
  const dir=mkdtempSync(join(tmpdir(),'native-delivery-'));const bytes=Buffer.alloc(0),sha256=createHash('sha256').update(bytes).digest('hex');
  const file={fileId:'input',fileName:'empty.csv',size:0,sha256,virtualPath:'/data/input/input/empty.csv'};

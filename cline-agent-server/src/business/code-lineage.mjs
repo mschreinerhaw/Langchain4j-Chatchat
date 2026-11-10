@@ -62,12 +62,15 @@ export function nativeProposal(history,source) {
    if(/[\uDC00-\uDFFF]/.test(current[at])&&/[\uD800-\uDBFF]/.test(current[at-1]))at--;
    apply(at,start+remaining,'');remaining=at-start;
   }
-  let consumed=cut(text,8000);
-  apply(start,start+remaining,text.slice(0,consumed));
-  while(consumed<text.length){
+  const chunks=[];
+  for(let consumed=0;consumed<text.length;){
    const length=cut(text.slice(consumed),8000);
-   apply(start+consumed,start+consumed,text.slice(consumed,consumed+length));consumed+=length;
+   chunks.push(text.slice(consumed,consumed+length));consumed+=length;
   }
+  // Prepend at the same boundary so an unchanged prefix remains a small unique
+  // anchor even when the Agent inserted a large body of repeated code.
+  apply(start,start+remaining,chunks.pop()??'');
+  while(chunks.length)apply(start,start,chunks.pop());
  }
  if(current!==source)throw Error('Native source delta reconstruction mismatch');
  return {proposal:{repair},unchanged:false};

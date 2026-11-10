@@ -3,7 +3,13 @@ import {join} from 'node:path';
 import {createHash} from 'node:crypto';
 import {taskSkillPackages,imageSkillBytes,safeResourcePath} from '../../../coding-agent-node/src/skill-distribution.js';
 export async function deliver(run,gateway,workspace) {
- const c=run.contract,context=await gateway.readInputContext(c,run.abort.signal),inventory=[];
+ const c=run.contract,original=await gateway.readInputContext(c,run.abort.signal),inventory=[];
+ // Keep the exact context, but put the executable result contract and bounded
+ // orientation before long inventories. Native bounded reads must not have to
+ // paginate unrelated Skill hashes to discover the report schema or input hash.
+ const first=['outputContract','analysisPreview','fileLayout','inputVersions'];
+ const context=Object.fromEntries([...first.filter(k=>Object.hasOwn(original,k)),
+  ...Object.keys(original).filter(k=>!first.includes(k))].map(k=>[k,original[k]]));
  for(const file of context.files??[]) {
   if(!/^[a-zA-Z0-9_.-]+$/.test(file.fileId)||!file.fileName||/[\\/]/.test(file.fileName))throw Error('Unsafe input descriptor');
   const chunks=[];let offset=0,descriptor;

@@ -48,3 +48,11 @@ test('consecutive native repairs bind the latest version and source hash',()=>{
  assert.equal(proposal.repair.baseCodeSha256,h.versions[0].codeHash);
  assert.equal(prepareProgram(proposal,second),third);
 });
+
+test('large repeated inserted code retains its unique unchanged boundary anchor',()=>{
+ const before='unique_header = 1\nunique_footer = 1\n';
+ const after='unique_header = 1\n'+'repeated_call()\n'.repeat(4000)+'unique_footer = 1\n';
+ const edits=replay(before,after);
+ assert(edits.length>1&&edits.length<=32);
+ assert(edits.every(e=>e.oldText.length<=16000&&e.newText.length<=16000));
+});

@@ -10,3 +10,11 @@ test('missing evidence is not fabricated',()=>{
  const x=executionMetrics({modelReceipts:[{usage:{inputTokens:100}}],events:[{type:'tool.started'},{type:'tool.completed'}]});
  assert.equal(x.tokens,null);assert.equal(x.cost,null);assert.equal(x.automaticRepairs,null);assert.equal(x.archivedFiles,null);assert.equal(x.toolCalls,1);
 });
+test('native elapsed time comes from observed turn events and running unknown is not interruption',()=>{
+ const events=[{type:'model.iteration.started',timestamp:'2026-11-10T00:00:00Z'},{type:'turn.completed',timestamp:'2026-11-10T00:00:30Z'}];
+ assert.equal(executionMetrics({events}).elapsedMillis,30000);
+ const x=executionMetrics({outcome:{status:'RUNNING',reasonCode:'EXECUTION_OUTCOME_UNKNOWN'},modelReceipts:[{state:'STARTED'}],assets:[{kind:'ARTIFACT'},{kind:'LOG'}]});
+ assert.equal(x.interruptionReason,null);assert.equal(x.phase,'MODEL_RUNNING');assert.equal(x.artifacts,1);
+ const tools=executionMetrics({outcome:{usage:{consumed:{toolCalls:1}}},events:[{type:'tool.started',payload:{toolCallId:'read-1'}},{type:'tool.started',payload:{toolCallId:'python-1'}},{type:'tool.started',payload:{toolCallId:'python-1'}}]});
+ assert.equal(tools.toolCalls,2);assert.equal(tools.managedToolCalls,1);
+});

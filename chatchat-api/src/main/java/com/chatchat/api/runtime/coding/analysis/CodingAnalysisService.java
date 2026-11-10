@@ -284,6 +284,18 @@ public final class CodingAnalysisService implements AnalysisCodingPort {
             throw new IllegalArgumentException("Primary Coding requires delivered data or a supply-status receipt");
         if (sources.size() > MAX_PRIMARY_DATASETS)
             throw new IllegalArgumentException("Primary Coding analysis dataset limit exceeded");
+        if(customerVerification(context)!=null && sources.values().stream()
+                .filter(dataset->!"DATA_SUPPLY_STATUS".equals(dataset.analysisContext().get("recordType"))
+                    &&!"ORIGINAL_USER_MESSAGE".equals(dataset.analysisContext().get("recordMeaning")))
+                .noneMatch(dataset->dataset.recordCount()>0)){
+            Object supply=context.metadata().get("dataSupply");
+            String sourceStatus=supply instanceof Map<?,?> status?Objects.toString(status.get("status"),"UNAVAILABLE"):"UNAVAILABLE";
+            context.metadata().put("primaryCodingDispatchCount",0);
+            observer.accept(Map.of("eventKind","CODING_INPUT_UNAVAILABLE","source","JAVA_RUNTIME","dataSupplyStatus",sourceStatus,"codingDispatched",false));
+            return Map.of("operation","RUN_CODING","status","INPUT_REQUIRED","reasonCode","CUSTOMER_ACCOUNT_INPUT_UNAVAILABLE",
+                "dataSupplyStatus",sourceStatus,"resultAvailable",false,"businessValidationPassed",false,"codingDispatched",false,
+                "summary","The explicit account verification requires actual customer business rows. Supply-status observations are not business data; no Native/Python execution was dispatched.");
+        }
         String objective = "Answer the user's data-analysis objective using only the authorized immutable datasets. "
             + "Inspect delivered schemas and quality. Choose your own analysis methods and verify computed output. "
             + "For this manifest's own parts, access each logical column by manifest.columns[].storageName; schema.presenceColumns are separate Boolean flags, not business values. Native original files have their own schemas, not the transport manifest's column map. "

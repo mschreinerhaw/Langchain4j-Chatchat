@@ -13,6 +13,8 @@ export function promptContext(contract,delivery){
    ...(delivery.context?.fileLayout?{inputLayout:delivery.context.fileLayout}:{}),
    ...(delivery.context?.inputManifest?{tabularTransport:{
     columns:delivery.context.inputManifest.columns,
+    hashes:{manifestFileSha256:delivery.context.sha256,logicalContentSha256:delivery.context.inputManifest.logicalContentSha256,
+     meaning:'manifestFileSha256 (also inputLayout.expectedManifestSha256) verifies the raw manifest file bytes. manifest.logicalContentSha256 identifies decoded logical data, not the manifest file. These are different hash domains; never compare one to the other or remove a failed integrity check. Use the installed transport reader for verification.'},
     physicalColumns:'Physical Parquet/CSV columns use storageName and separate presence flags, not the logical name. Do not index a raw dataframe by logical names before decoding this mapping.',
     installedReader:{module:'runtime_input',function:'load_rows',
      positionalArguments:['inputLayout.manifestPath','inputLayout.expectedManifestSha256'],

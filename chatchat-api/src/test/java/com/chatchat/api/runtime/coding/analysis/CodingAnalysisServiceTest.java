@@ -24,6 +24,23 @@ import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.*;
 
 class CodingAnalysisServiceTest {
+    @org.junit.jupiter.params.ParameterizedTest
+    @org.junit.jupiter.params.provider.ValueSource(strings={"SELECTION_FAILED","EMPTY_RESULT"})
+    void accountMetricsCannotSpendCodingBudgetOnSupplyStatusOrVerifiedEmptyInput(String state){
+        var parent=context("tenant");var attrs=Map.<String,Object>of("responseContract",Map.of("customerAccountVerification",Map.of("profile","customer-account-v1","customerNumber","0007")));
+        parent.metadata().put("dataSupply",Map.of("status",state));
+        var scoped=new AnalysisCoverageCoordinator.Request(parent.model(),"Account 0007",null,attrs,parent.metadata(),()->false,()->{},parent.isolationScope(),null);
+        var dataset="SELECTION_FAILED".equals(state)
+            ?new Dataset("supply-status:run",Map.of("recordType","DATA_SUPPLY_STATUS"),List.of(Map.of("businessDataAvailable",false)))
+            :new Dataset("empty",Map.of("sourceVerifiedEmpty",true),List.of());
+        var receipt=service().executePrimaryAnalysis(scoped,new LinkedHashMap<>(Map.of(dataset.reference(),dataset)),event->{});
+        assertThat(receipt).containsEntry("status","INPUT_REQUIRED").containsEntry("dataSupplyStatus",state)
+            .containsEntry("codingDispatched",false).containsEntry("resultAvailable",false);
+        assertThat(parent.metadata()).containsEntry("primaryCodingDispatchCount",0);
+        verifyNoInteractions(agent,plans);
+        verify(inputs,never()).captureConfigured(any(),anyString(),anyList(),anyString(),anyString(),anyString(),anyLong(),anyLong(),any());
+    }
+
     @Test void explicitCustomerContractRegistersTheExistingIndependentPlanAndRequiredSummary(){
         prepare(outcome(CodingTaskOutcome.Status.FAILED,CodingTaskOutcome.ValidationStatus.NOT_RUN));
         when(inputs.captureConfigured(any(),anyString(),anyList(),anyString(),anyString(),anyString(),anyLong(),anyLong(),any()))

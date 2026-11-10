@@ -52,7 +52,6 @@ def audit(workspace, customer):
                     value = json.loads(value, parse_float=Decimal)
                 logical[column['name']] = value
             record = logical['record']
-            assert record['KHH'] == customer, 'Customer identity mismatch (including leading zeros)'
             groups[logical['datasetReference']].append(record)
             total += 1
     assert total == manifest['rowCount'] == context['rowCount']
@@ -66,6 +65,25 @@ def audit(workspace, customer):
     for reference, records in groups.items():
         assert len(records) == versions[reference]['rowCount'], 'Dataset row count mismatch'
         assert all(set(r) == set(versions[reference]['fieldSchema']) for r in records)
+
+    if total and all(ref.startswith('supply-status:') and records and all(
+            row.get('recordType') == 'DATA_SUPPLY_STATUS' and row.get('businessDataAvailable') is False
+            for row in records) for ref, records in groups.items()):
+        receipts = [row for records in groups.values() for row in records]
+        return {'inputIntegrity': 'PASSED', 'customerMatched': None, 'businessDate': None,
+            'transportRowCount': total, 'businessRows': 0,
+            'rows': {ref: len(records) for ref, records in groups.items()},
+            'dataSupplyStatus': [row['dataSupply']['status'] for row in receipts],
+            'selectionFailures': [{k: failure.get(k) for k in ['code', 'stage', 'status', 'mcpDiscoverySucceeded']}
+                for row in receipts for failure in row['dataSupply'].get('failures', [])],
+            'files': {fid: f['sha256'] for fid, f in files.items()},
+            'semanticAcceptance': 'INCONCLUSIVE_SOURCE_UNAVAILABLE',
+            'limitations': ['Runtime supplied technical data-supply status, not customer records. '
+                            'Selection/model/transfer failure is not proof that customer data does not exist.']}
+
+    for records in groups.values():
+        for record in records:
+            assert record.get('KHH') == customer, 'Customer identity mismatch (including leading zeros)'
 
     if total == 0:
         verified_empty = all(v.get('sourceVerifiedEmpty') is True and v.get('deliveryStatus') == 'EMPTY_RESULT'

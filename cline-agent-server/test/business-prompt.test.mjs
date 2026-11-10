@@ -30,11 +30,14 @@ test('a compact Native prompt defers complete source metadata and schema without
 test('tabular orientation preserves actual storage mapping and the installed logical reader signature',()=>{
  const columns=[{name:'datasetReference',storageName:'c0',type:'STRING'},{name:'record',storageName:'c1',type:'JSON'}];
  const contract={objective:{},runtimeContext:{analysisInstructions:['runtime_os.native_analysis_context.v1']}};
- const result=promptContext(contract,{files:[],context:{inputManifest:{columns}}});
+ const result=promptContext(contract,{files:[],context:{sha256:'a'.repeat(64),inputManifest:{columns,logicalContentSha256:'b'.repeat(64)}}});
  assert.deepEqual(result.tabularTransport.columns,columns);
  assert.deepEqual(result.tabularTransport.installedReader.positionalArguments,['inputLayout.manifestPath','inputLayout.expectedManifestSha256']);
  assert(result.tabularTransport.installedReader.returns.includes('already decoded'));
  assert(result.contextContents.includes('context.analysisPreview'));
+ assert.equal(result.tabularTransport.hashes.manifestFileSha256,'a'.repeat(64));
+ assert.equal(result.tabularTransport.hashes.logicalContentSha256,'b'.repeat(64));
+ assert(result.tabularTransport.hashes.meaning.includes('different hash domains'));
 });
 
 test('bounded inventory reads reach actual output schema and orientation before unrelated long metadata',async()=>{

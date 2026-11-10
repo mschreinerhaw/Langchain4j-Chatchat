@@ -7,8 +7,10 @@ import {Journal} from './journal.mjs';
 import {loadNative,startHostBridge} from './host-bridge.mjs';
 import {toolFailed} from './tool-outcome.mjs';
 import {validateRuntime} from './runtime-assets.mjs';
+import {nativeModelSettings} from './native-model-settings.mjs';
 
 const config=JSON.parse(readFileSync(process.env.CLINE_SERVER_CONFIG,'utf8'));
+const modelSettings=nativeModelSettings(config);
 for(const k of ['sourceRoot','distDir','stateDir','apiToken','model','baseUrl','apiKey','workspaces'])if(!config[k])throw Error('Missing config '+k);
 const runtimeAssets=validateRuntime(config.distDir);
 const native=loadNative(resolve(config.sourceRoot),resolve(config.distDir)),sessions=new Map(),permissions=new Map();
@@ -70,11 +72,12 @@ async function startWorker(s){
  s.bridge=await startHostBridge(native,s.workspace,(t,p)=>emit(s,t,p));
  const data=join(s.dir,'cline','data');mkdirSync(data,{recursive:true,mode:0o700});
  const global={mode:'act',planModeApiProvider:'openai',actModeApiProvider:'openai',openAiBaseUrl:config.baseUrl,
-  planModeOpenAiModelId:config.model,actModeOpenAiModelId:config.model,
+  planModeOpenAiModelId:config.model,actModeOpenAiModelId:config.model,...modelSettings.global,
   backgroundEditEnabled:true,vscodeTerminalExecutionMode:'backgroundExec',telemetrySetting:'disabled',
   autoApprovalSettings:{version:1,enabled:true,favorites:[],maxRequests:100,enableNotifications:false,actions:{readFiles:false,readFilesExternally:false,editFiles:false,editFilesExternally:false,executeSafeCommands:false,executeAllCommands:false,useBrowser:false,useMcp:false}}};
  writeFileSync(join(data,'globalState.json'),JSON.stringify(global),{mode:0o600});
  writeFileSync(join(data,'secrets.json'),JSON.stringify({openAiApiKey:config.apiKey}),{mode:0o600});
+ if(modelSettings.providers){const settings=join(data,'settings');mkdirSync(settings,{recursive:true,mode:0o700});writeFileSync(join(settings,'providers.json'),JSON.stringify(modelSettings.providers),{mode:0o600});}
  if(config.mcpServers){const settings=join(data,'settings');mkdirSync(settings,{recursive:true,mode:0o700});writeFileSync(join(settings,'cline_mcp_settings.json'),JSON.stringify({mcpServers:config.mcpServers}),{mode:0o600});}
  const port=await freePort();
  const env={PATH:process.env.PATH,LANG:'C.UTF-8',HOME:join(s.dir,'home'),CLINE_DIR:join(s.dir,'cline'),CLINE_DATA_DIR:data,

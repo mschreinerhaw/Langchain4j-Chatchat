@@ -18,6 +18,8 @@ import com.fasterxml.jackson.databind.JsonNode;
 @Service
 @RequiredArgsConstructor
 public class PythonDockerRuntime {
+    @org.springframework.beans.factory.annotation.Value("${chatchat.mcp.python.preserve-task-error-details:false}")
+    private boolean preserveTaskErrorDetails;
     private final PythonRuntimeProperties properties;
     private final ObjectMapper objectMapper;
     private final PythonDataFileService dataFiles;
@@ -115,6 +117,7 @@ public class PythonDockerRuntime {
                 "-v", inputs.toAbsolutePath() + ":/data/input:ro",
                 "-v", output.toAbsolutePath() + ":/workspace/output:rw",
                 "-w", "/workspace", "-e", "CHATCHAT_INPUT_JSON=" + input));
+        if(preserveTaskErrorDetails)command.addAll(List.of("-e","RUNTIME_CAPTURE_TASK_STDERR=1"));
         if ("NONE".equals(env.getNetworkPolicy())) command.addAll(List.of("--network", "none"));
         else command.addAll(List.of("--network", env.getNetworkName()));
         command.addAll(List.of(imageId, "python", "/workspace/scripts/_runtime_capture.py", scriptPath));

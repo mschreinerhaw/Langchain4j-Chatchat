@@ -1,5 +1,6 @@
-"""Runtime-owned stream boundary. Raw process streams stay in bounded memory only."""
+"""Runtime stream boundary; task-owned stderr is opt-in and resource bounded."""
 import builtins
+from contextlib import nullcontext
 import ast
 import hashlib
 import importlib.util
@@ -33,52 +34,69 @@ def check_source(source):
                 raise ModuleNotFoundError(f'No module named {root!r}', name=root)
 
 
-def run_captured(command):
-    process = subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
-                               env={**os.environ, 'PYTHONIOENCODING': 'utf-8'})
-    out, err = {}, {}
-    readers = [threading.Thread(target=capture, args=(process.stdout, out)),
-               threading.Thread(target=capture, args=(process.stderr, err))]
-    for reader in readers:
-        reader.start()
-    code = process.wait()
-    for reader in readers:
-        reader.join()
+def run_captured(command, stderr_path=None):
+    # Open before launching untrusted code; never follow a replaced log symlink.
+    sink = os.fdopen(os.open(stderr_path, os.O_WRONLY | os.O_CREAT | os.O_TRUNC
+                            | getattr(os, 'O_NOFOLLOW', 0), 0o600), 'wb') if stderr_path else None
+    with sink if sink is not None else nullcontext():
+        process = subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+                                   env={**os.environ, 'PYTHONIOENCODING': 'utf-8'})
+        out, err = {}, {}
+        readers = [threading.Thread(target=capture, args=(process.stdout, out)),
+                   threading.Thread(target=capture, args=(process.stderr, err, sink))]
+        for reader in readers:
+            reader.start()
+        code = process.wait()
+        for reader in readers:
+            reader.join()
     return code, out, err
 
 
-def capture(stream, result):
+def capture(stream, result, sink=None):
     digest = hashlib.sha256()
     tail = bytearray()
     size = 0
+    captured = 0
     while True:
         block = stream.read(8192)
         if not block:
             break
         size += len(block)
         digest.update(block)
+        if sink is not None:
+            retained = block[:max(0, 4 * 1024 * 1024 - captured)]
+            sink.write(retained)
+            captured += len(retained)
         tail.extend(block)
         if len(tail) > 65536:
             del tail[:-65536]
     result.update(bytes=size, sha256=digest.hexdigest(), tail=tail.decode('utf-8', 'replace'))
+    if sink is not None:
+        result.update(capturedBytes=captured, truncated=captured < size)
 
 
 def main():
     source = sys.argv[1]
+    path = sys.argv[2] if len(sys.argv) > 2 else '/workspace/output/logs/runtime-diagnostic.json'
+    preserve_stderr = os.environ.get('RUNTIME_CAPTURE_TASK_STDERR') == '1'
+    stderr_path = str(Path(path).with_name('stderr.txt')) if preserve_stderr else None
     try:
         import resource
         before_usage = resource.getrusage(resource.RUSAGE_CHILDREN)
     except ImportError:
         resource = None
         before_usage = None
-    code, out, err = run_captured([sys.executable, str(Path(__file__).resolve()), '--check-source', source])
+    code, out, err = run_captured([sys.executable, str(Path(__file__).resolve()), '--check-source', source], stderr_path)
     preflight_passed = code == 0
     if preflight_passed:
-        code, out, err = run_captured([sys.executable, '-u', source])
+        code, out, err = run_captured([sys.executable, '-u', source], stderr_path)
     diagnostic = {'schemaVersion': 'runtime_os.python_diagnostic.v1',
                   'preflightStatus': 'PASSED' if preflight_passed else 'FAILED',
                   'policy': 'METADATA_ONLY_V1', 'stdoutBytes': out['bytes'], 'stderrBytes': err['bytes'],
                   'stdoutSha256': out['sha256'], 'stderrSha256': err['sha256']}
+    if preserve_stderr:
+        diagnostic.update(policy='TASK_ERROR_DETAIL_V2', stderrCapturedBytes=err['capturedBytes'],
+                          stderrTruncated=err['truncated'])
     if resource is not None:
         usage = resource.getrusage(resource.RUSAGE_CHILDREN)
         diagnostic['cpuTimeMs'] = max(0, int(1000 * (
@@ -115,7 +133,6 @@ def main():
     hint = diagnostic_code(err['tail'])
     if hint:
         diagnostic['diagnosticCode'] = hint
-    path = sys.argv[2] if len(sys.argv) > 2 else '/workspace/output/logs/runtime-diagnostic.json'
     with open(path + '.part', 'w', encoding='utf-8') as output:
         json.dump(diagnostic, output, sort_keys=True)
     os.replace(path + '.part', path)

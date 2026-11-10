@@ -31,11 +31,17 @@ class PythonExecutionLogBoundaryTest {
         String trace="Traceback: library failure\n"+"full error detail\n".repeat(800)+"RuntimeError: exact recoverable cause\n";
         Files.writeString(logs.resolve("stderr.txt"),trace);
         Files.writeString(logs.resolve("stdout.txt"),"private source record");
-        Files.writeString(logs.resolve("runtime-diagnostic.json"),"{\"exceptionType\":\"RuntimeError\",\"line\":7}");
+        Files.writeString(logs.resolve("runtime-diagnostic.json"),"{\"exceptionType\":\"RuntimeError\",\"line\":7,\"policy\":\"TASK_ERROR_DETAIL_V2\"}");
         PythonExecutionLogBoundary.persist(workspace,new ObjectMapper(),true);
         assertEquals(trace,Files.readString(logs.resolve("stderr.txt")));
         assertFalse(Files.readString(logs.resolve("stdout.txt")).contains("private source record"));
         assertTrue(Files.readString(logs.resolve("runtime-diagnostic.json")).contains("TASK_ERROR_DETAIL_V2"));
+    }
+    @Test void oldCaptureDoesNotClaimCompleteStderrJustBecauseNodeOptionIsEnabled() throws Exception {
+        Path logs=Files.createDirectories(workspace.resolve("output/logs"));
+        Files.writeString(logs.resolve("runtime-diagnostic.json"),"{\"exceptionType\":\"RuntimeError\",\"policy\":\"METADATA_ONLY_V1\"}");
+        PythonExecutionLogBoundary.persist(workspace,new ObjectMapper(),true);
+        assertFalse(Files.readString(logs.resolve("runtime-diagnostic.json")).contains("TASK_ERROR_DETAIL_V2"));
     }
     @org.junit.jupiter.api.BeforeEach void snapshot() throws Exception {
         Files.writeString(workspace.resolve("snapshot.json"),"{\"fileName\":\"sales_20261022T000000000Z_abcdef012345_v1.py\"}");

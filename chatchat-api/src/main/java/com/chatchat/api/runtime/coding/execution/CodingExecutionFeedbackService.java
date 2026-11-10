@@ -178,7 +178,8 @@ public class CodingExecutionFeedbackService {
             catch(RuntimeException unavailable){/* Keep the archive reference and report absence, never invent an error. */}
         }
         String diagnosticPolicy=errorDetail!=null&&"TASK_ERROR_DETAIL_V2".equals(diagnostic.path("diagnosticPolicy").asText())?"TASK_ERROR_DETAIL_V2":"METADATA_ONLY_V1";
-        String failureMessage=errorDetail==null||errorDetail.isBlank()?guidance:guidance+"\nCaptured stderr:\n"+errorDetail;
+        String captureWarning=diagnostic.path("stderrTruncated").asBoolean(false)?"\nStderr exceeded the retained 4 MiB resource boundary; the archived diagnostic records original bytes and Hash.":"";
+        String failureMessage=errorDetail==null||errorDetail.isBlank()?guidance:guidance+captureWarning+"\nCaptured stderr:\n"+errorDetail;
         var feedback=new ExecutionFeedback(ExecutionFeedback.VERSION,contract.taskId(),operation.operationId(),contract.taskId()+":execution-"+attempt,
             contract.scope().runId(),operation.status(),resultAvailable?"VALIDATED":outputFailed?"RESULT_VALIDATION_FAILED":"EXECUTION_FAILED",
             operation.exitCode(),duration,count(diagnostic,"cpuTimeMs"),count(diagnostic,"maxRssBytes"),operation.codeHash(),"[raw stdout omitted]",errorDetail!=null?errorDetail:failed?guidance:"[raw stderr omitted]",

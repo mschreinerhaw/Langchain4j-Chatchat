@@ -1,4 +1,6 @@
 import json
+import os
+import hashlib
 import pathlib
 import subprocess
 import sys
@@ -9,15 +11,46 @@ RUNNER = pathlib.Path(__file__).parents[2] / 'main/resources/python/runtime_capt
 
 
 class StreamBoundaryTest(unittest.TestCase):
-    def execute(self, source):
+    def execute(self, source, preserve_stderr=False):
         with tempfile.TemporaryDirectory() as directory:
             root = pathlib.Path(directory)
             script = root / 'main.py'
             diagnostic = root / 'diagnostic.json'
             script.write_text(source, encoding='utf-8')
-            result = subprocess.run([sys.executable, str(RUNNER), str(script), str(diagnostic)], capture_output=True)
+            env = {**os.environ, 'RUNTIME_CAPTURE_TASK_STDERR': '1' if preserve_stderr else '0'}
+            result = subprocess.run([sys.executable, str(RUNNER), str(script), str(diagnostic)], capture_output=True, env=env)
+            self.last_stderr = (root / 'stderr.txt').read_bytes() if (root / 'stderr.txt').exists() else None
             content = diagnostic.read_text()
             return result, json.loads(content), content
+
+    def test_explicit_native_capture_preserves_the_actual_long_error_without_stdout(self):
+        result, diagnostic, content = self.execute("print('private stdout')\nraise RuntimeError('ACTUAL_REPAIR_MARKER_' + 'x' * 20000)\n", True)
+        self.assertNotEqual(0, result.returncode)
+        self.assertEqual(b'', result.stdout)
+        self.assertEqual(b'', result.stderr)
+        self.assertIn(b'RuntimeError: ACTUAL_REPAIR_MARKER_', self.last_stderr)
+        self.assertGreater(len(self.last_stderr), 20000)
+        self.assertEqual(diagnostic['stderrBytes'], len(self.last_stderr))
+        self.assertEqual(diagnostic['stderrSha256'], hashlib.sha256(self.last_stderr).hexdigest())
+        self.assertEqual('TASK_ERROR_DETAIL_V2', diagnostic['policy'])
+        self.assertFalse(diagnostic['stderrTruncated'])
+        self.assertNotIn('private stdout', content)
+        self.assertNotIn(b'private stdout', self.last_stderr)
+
+    def test_error_resource_boundary_is_explicit_and_preserves_original_metering(self):
+        result, diagnostic, _ = self.execute("import os\nos.write(2, b'x' * (5 * 1024 * 1024))\n", True)
+        self.assertEqual(0, result.returncode)
+        self.assertEqual(4 * 1024 * 1024, len(self.last_stderr))
+        self.assertEqual(5 * 1024 * 1024, diagnostic['stderrBytes'])
+        self.assertEqual(len(self.last_stderr), diagnostic['stderrCapturedBytes'])
+        self.assertTrue(diagnostic['stderrTruncated'])
+
+    def test_preflight_failure_keeps_actual_missing_import_in_explicit_mode(self):
+        result, diagnostic, _ = self.execute("print('must not run')\nimport missing_actual_probe_20261110\n", True)
+        self.assertNotEqual(0, result.returncode)
+        self.assertEqual('FAILED', diagnostic['preflightStatus'])
+        self.assertIn(b'missing_actual_probe_20261110', self.last_stderr)
+        self.assertEqual(0, diagnostic['stdoutBytes'])
 
     def test_raw_rows_and_exception_message_never_reach_persisted_output(self):
         result, diagnostic, content = self.execute("import sys\nprint('private-row-123')\nraise ValueError('private-row-456')\n")

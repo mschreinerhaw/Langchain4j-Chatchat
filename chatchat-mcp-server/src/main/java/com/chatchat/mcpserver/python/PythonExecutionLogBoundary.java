@@ -39,6 +39,13 @@ final class PythonExecutionLogBoundary {
         if (Files.isRegularFile(diagnostic, LinkOption.NOFOLLOW_LINKS) && Files.size(diagnostic) <= 8192) {
             try {
                 var value = mapper.readTree(Files.readAllBytes(diagnostic));
+                if(preserveTaskErrorDetails && "TASK_ERROR_DETAIL_V2".equals(value.path("policy").asText())
+                        && Files.isRegularFile(directory.resolve("stderr.txt"),LinkOption.NOFOLLOW_LINKS)) {
+                    safe.put("policy","TASK_ERROR_DETAIL_V2");
+                    safe.put("diagnosticPolicy","TASK_ERROR_DETAIL_V2");
+                    safe.put("stderrTruncated",value.path("stderrTruncated").asBoolean(false));
+                    if(value.path("stderrCapturedBytes").canConvertToLong())safe.put("stderrCapturedBytes",value.path("stderrCapturedBytes").asLong());
+                }
                 for (String key : List.of("stdoutBytes", "stderrBytes", "cpuTimeMs", "maxRssBytes")) {
                     var count = value.path(key);
                     if (count.isIntegralNumber() && count.canConvertToLong() && count.asLong() >= 0)
@@ -70,7 +77,6 @@ final class PythonExecutionLogBoundary {
             }
         }
         safe.put("schemaVersion", "runtime_os.python_diagnostic.v1");
-        if(preserveTaskErrorDetails)safe.put("diagnosticPolicy","TASK_ERROR_DETAIL_V2");
         if (!safe.containsKey("diagnosticCode") && safe.get("exceptionType") instanceof String exception) {
             String code = ExecutionFailureClassifier.code(exception);
             if (ExecutionFailureClassifier.known(code)) safe.put("diagnosticCode", code);

@@ -17,6 +17,7 @@ def main():
     parser.add_argument('action', choices=['submit', 'collect'])
     parser.add_argument('--root', type=Path, required=True)
     parser.add_argument('--base', default='http://127.0.0.1:18340/api/v1')
+    parser.add_argument('--verify-account', action='store_true', help='Opt into the existing Runtime plan with customer source-metric verification')
     args = parser.parse_args()
     os.umask(0o077)
     args.root.mkdir(mode=0o700, parents=True, exist_ok=True)
@@ -53,8 +54,12 @@ def main():
                      '使用当前已授权模板自主选择和取数，保留客户号前导零。先核对实际字段和各数据集来源，再计算；'
                      '不要猜测字段名或用零替代缺失值。日期以模板实际返回的范围为准，明确标注默认日期，不能称为今日数据。'
                      '请由原生 Cline 编写并实际运行 Python，交付完整中文分析报告、计算指标、数据范围和缺失口径。'
-                     '本次优先交付可核验的文字和数值报告，无需图表；数据不足的结论如实标注，禁止编造。',
+                     '本次交付精简的核心账户报告：资产概况、持仓汇总、交易统计、盈亏口径、单日行为和限制。'
+                     '无需图表，无需逐条抄录所有明细或长篇背景；数据不足的结论如实标注，禁止编造。',
             'toolInput': {'resourceExplorationApproved': True, 'reportMode': 'off'}}
+        if args.verify_account:
+            body['toolInput']['responseContract'] = {'customerAccountVerification':
+                {'profile': 'customer-account-v1', 'customerNumber': '070200046604'}}
         save('request.json', body)
         # Exclusive durable intent precedes dispatch, including on network failure.
         with intent.open('x', encoding='utf-8') as output:

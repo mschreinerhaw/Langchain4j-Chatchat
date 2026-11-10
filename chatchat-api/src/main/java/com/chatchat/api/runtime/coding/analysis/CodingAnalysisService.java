@@ -325,6 +325,20 @@ public final class CodingAnalysisService implements AnalysisCodingPort {
             reportSchema=Map.of("type","object","properties",properties,"required",required,"additionalProperties",false);
             request.put("instruction",CodingCsvMetricObjective.objective(Objects.toString(context.runtimeAttributes().get("csvMetricObjective"),context.query()),Objects.toString(context.runtimeAttributes().get("validationValueField"))));
         }
+        var account=customerVerification(context);
+        if(account!=null){
+            var properties=new LinkedHashMap<String,Object>((Map<String,Object>)reportSchema.get("properties"));
+            properties.put("verifiedAccountSummary",com.chatchat.api.runtime.coding.evidence.CodingCustomerAccountVerifier.summarySchema());
+            var required=new ArrayList<String>((List<String>)reportSchema.get("required"));required.add("verifiedAccountSummary");
+            reportSchema=Map.of("type","object","properties",properties,"required",required,"additionalProperties",false);
+            request.put("instruction",request.get("instruction")+"\nExplicit customer account verification: customerNumber="+account.get("customerNumber")
+                +". Include verifiedAccountSummary using the exact schema. inputSha256 is the frozen input manifest SHA-256; businessDate is the asset RQ and actual template query date. "
+                +"assetTotal/cash/securitiesValue/accountDayPnl use asset ZZC/ZJYE/ZQSZ/DRYK. Sum position ZXSZ/CCCB/DRYK/LJYK into positionMarketValue/positionCost/positionDayPnl/positionCumulativeRealizedPnl. "
+                +"assetRows/positionRows/transactionRows are complete source row counts. transactionQuantity sums CJSL. Prefer an actual delivered settlement dataset with CJRQ/CJJE; transactionGrossAmount sums CJJE and transactionMetricBasis is SETTLEMENT_CJJE. "
+                +"Otherwise use the delivered order dataset WTRQ/CJSL/CJJG; transactionGrossAmount sums CJSL*CJJG and transactionMetricBasis is ORDER_EXECUTED_QUANTITY_TIMES_PRICE_EXCLUDING_FEES. These metrics do not establish settled cash flow or fees. "
+                +"Use exact Decimal strings for amounts and quantities, integer counts, and the exact customer string. State the historical/default date, differing P&L scopes and single-day preference limits. "
+                +"Keep the report concise: asset overview, position totals, transactions, P&L basis, observed behavior and limitations. Do not reproduce every raw record or write a long background section. The same supported metrics must appear consistently in the report.");
+        }
         request.put("outputSchema",reportSchema);
         request.put("reviewResult", true);
         return executeObserved(context, request, sources, observer);
@@ -446,7 +460,10 @@ public final class CodingAnalysisService implements AnalysisCodingPort {
             observer.accept(Map.of("eventKind","CODING_INPUT_READY","taskId",taskId,"source","JAVA_RUNTIME",
                 "snapshotRef",input.reference(),"fileId",input.fileId(),"sha256",input.sha256(),"rowCount",input.rowCount(),
                 "format",description.getOrDefault("format","JSON_LINES"),"durationMs",(System.nanoTime()-inputStarted)/1_000_000));
-            var verification="csv-count-sum-v1".equals(context.runtimeAttributes().get("validationProfile"))
+            var account=customerVerification(context);
+            var verification=account!=null
+                ? new CodingValidationPlanService.Plan("runtime-customer-account","v1",Map.of("rowSchema",schema,"customerNumber",account.get("customerNumber"),"sourceVersions",source.analysisContext().get("inputVersions")))
+                : "csv-count-sum-v1".equals(context.runtimeAttributes().get("validationProfile"))
                 ? new CodingValidationPlanService.Plan("runtime-csv-count-sum","v1",Map.of("rowSchema",schema,"valueField",context.runtimeAttributes().get("validationValueField")))
                 : new CodingValidationPlanService.Plan("runtime-result-schema","v1",Map.of("rowSchema",schema));
             var plan=plans.register(scope,taskId,input,verification);
@@ -928,6 +945,17 @@ public final class CodingAnalysisService implements AnalysisCodingPort {
             if(!bindings.isEmpty())audit.put("datasets",bindings);
         }
         return audit;
+    }
+
+    private static Map<String,Object> customerVerification(AnalysisCoverageCoordinator.Request context){
+        if(!(context.runtimeAttributes().get("responseContract") instanceof Map<?,?> response)
+            ||!response.containsKey("customerAccountVerification"))return null;
+        if(!(response.get("customerAccountVerification") instanceof Map<?,?> account)
+            ||!account.keySet().equals(Set.of("profile","customerNumber"))
+            ||!com.chatchat.api.runtime.coding.evidence.CodingCustomerAccountVerifier.PROFILE.equals(account.get("profile"))
+            ||!(account.get("customerNumber") instanceof String customer)||!customer.matches("[0-9]{1,32}"))
+            throw new IllegalArgumentException("Explicit customer-account-v1 string scope required");
+        return Map.of("customerNumber",customer);
     }
 
     private Dataset selectSources(Map<String,Object> request,Map<String,Dataset> sources) {

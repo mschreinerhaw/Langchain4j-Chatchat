@@ -24,6 +24,31 @@ import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.*;
 
 class CodingAnalysisServiceTest {
+    @Test void explicitCustomerContractRegistersTheExistingIndependentPlanAndRequiredSummary(){
+        prepare(outcome(CodingTaskOutcome.Status.FAILED,CodingTaskOutcome.ValidationStatus.NOT_RUN));
+        when(inputs.captureConfigured(any(),anyString(),anyList(),anyString(),anyString(),anyString(),anyLong(),anyLong(),any()))
+            .thenReturn(new CodingInputSnapshotService.Snapshot("runtime-evidence:input","c"+"a".repeat(63),"input.jsonl","a".repeat(64),1,30,"source"));
+        var parent=context("tenant");
+        var attrs=Map.<String,Object>of("responseContract",Map.of("customerAccountVerification",Map.of("profile","customer-account-v1","customerNumber","0007")));
+        var scoped=new AnalysisCoverageCoordinator.Request(parent.model(),"Account 0007",null,attrs,parent.metadata(),()->false,()->{},parent.isolationScope(),null);
+        service().executePrimaryAnalysis(scoped,sources(),event->{});
+        var plan=org.mockito.ArgumentCaptor.forClass(CodingValidationPlanService.Plan.class);
+        verify(plans).register(any(),anyString(),any(),plan.capture());
+        assertThat(plan.getValue().verifierId()).isEqualTo("runtime-customer-account");
+        assertThat(plan.getValue().rules()).containsEntry("customerNumber","0007").containsKey("sourceVersions");
+        var schema=(Map<?,?>)plan.getValue().rules().get("rowSchema");
+        assertThat(((List<?>)schema.get("required")).contains("verifiedAccountSummary")).isTrue();
+        var contract=org.mockito.ArgumentCaptor.forClass(CodingTaskContract.class);verify(agent).submit(contract.capture());
+        assertThat(contract.getValue().objective().instruction()).contains("customerNumber=0007","transactionMetricBasis");
+    }
+
+    @Test void numericCustomerScopeIsRejectedBeforeDispatchInsteadOfLosingLeadingZeros(){
+        var parent=context("tenant");var attrs=Map.<String,Object>of("responseContract",Map.of("customerAccountVerification",Map.of("profile","customer-account-v1","customerNumber",7)));
+        var scoped=new AnalysisCoverageCoordinator.Request(parent.model(),"Account",null,attrs,parent.metadata(),()->false,()->{},parent.isolationScope(),null);
+        assertThatThrownBy(()->service().executePrimaryAnalysis(scoped,sources(),event->{})).isInstanceOf(IllegalArgumentException.class);
+        verifyNoInteractions(agent);
+    }
+
     @org.junit.jupiter.params.ParameterizedTest
     @org.junit.jupiter.params.provider.ValueSource(strings={"native","sdk"})
     void completeNativeContractUsesOnlyTheExistingValidatedRuntimeContext(String backend) {

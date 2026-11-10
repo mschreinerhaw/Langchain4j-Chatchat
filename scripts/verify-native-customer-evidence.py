@@ -46,8 +46,7 @@ def audit(workspace, customer):
         for physical in table.to_pylist():
             logical = {}
             for storage, column in mapping.items():
-                position = list(mapping).index(storage)
-                assert physical.get('p' + str(position)) is True, 'Missing logical input value'
+                assert physical.get('p' + storage[1:]) is True, 'Missing logical input value'
                 value = physical[storage]
                 if column['type'] == 'JSON':
                     value = json.loads(value, parse_float=Decimal)
@@ -71,8 +70,7 @@ def audit(workspace, customer):
     # These are the declared source fields of this account acceptance scenario.
     # Roles bind to observed schemas, never a hardcoded template/customer selection.
     required = {'assets': {'ZZC', 'ZQSZ', 'ZJYE', 'DRYK', 'RQ'},
-                'positions': {'ZXSZ', 'CCCB', 'LJYK', 'ZQSL', 'ZQDM'},
-                'orders': {'WTRQ', 'WTH', 'WTSL', 'CJSL', 'CJJG', 'JYLBMC'}}
+                'positions': {'ZXSZ', 'CCCB', 'LJYK', 'ZQSL', 'ZQDM'}}
     roles = {}
     for role, fields in required.items():
         matches = [ref for ref, version in versions.items() if fields <= set(version['fieldSchema'])]
@@ -80,10 +78,20 @@ def audit(workspace, customer):
         reference = matches[0]
         assert fields <= set(versions[reference]['fieldDefinitions']), 'Missing declared field meanings'
         roles[role] = reference
-    assets, positions, orders = [groups[roles[k]] for k in ['assets', 'positions', 'orders']]
+    for role, fields in [('settlements', {'CJRQ', 'CJJE', 'CJSL', 'JYLBMC'}),
+                         ('orders', {'WTRQ', 'WTH', 'WTSL', 'CJSL', 'CJJG', 'JYLBMC'})]:
+        matches = [ref for ref, version in versions.items() if fields <= set(version['fieldSchema'])]
+        assert len(matches) <= 1, 'Ambiguous transaction source'
+        if matches:
+            roles[role] = matches[0]
+    assert 'settlements' in roles or 'orders' in roles, 'No declared transaction source'
+    settled = 'settlements' in roles
+    transaction_ref = roles['settlements' if settled else 'orders']
+    assets, positions = [groups[roles[k]] for k in ['assets', 'positions']]
+    transactions = groups[transaction_ref]
     assert len(assets) == 1, 'Explicit single-date asset scope required'
     day = assets[0]['RQ']
-    assert all(str(row['WTRQ']) == day for row in orders), 'Order date mismatch'
+    assert all(str(row['CJRQ' if settled else 'WTRQ']) == day for row in transactions), 'Transaction date mismatch'
     bindings = json.loads(''.join(inventory['runtimeContext']['analysisInstructions'][1:]))['templateParameterBinding']['datasets']
     binding_by_ref = {b['datasetReference']: b['binding'] for b in bindings}
     for ref in roles.values():
@@ -105,10 +113,10 @@ def audit(workspace, customer):
 
     asset = {k: str(number(assets[0], k)) for k in ['ZZC', 'ZQSZ', 'ZJYE', 'DRYK', 'ZZC_SR', 'CRJE', 'QCJE', 'ZFZ']}
     position = {k: str(sum_field(positions, k)) for k in ['ZXSZ', 'CCCB', 'DRYK', 'LJYK', 'ZQSL']}
-    side_counts = Counter(row['JYLBMC'] for row in orders)
+    side_counts = Counter(row['JYLBMC'] for row in transactions)
     side_amounts = defaultdict(Decimal)
-    for row in orders:
-        side_amounts[row['JYLBMC']] += number(row, 'CJSL') * number(row, 'CJJG')
+    for row in transactions:
+        side_amounts[row['JYLBMC']] += number(row, 'CJJE') if settled else number(row, 'CJSL') * number(row, 'CJJG')
     # Arithmetic reconciliation is reported as a difference, not automatically
     # interpreted as an accounting error or as an approved return formula.
     return {'inputIntegrity': 'PASSED', 'customerMatched': True, 'businessDate': day,
@@ -118,12 +126,14 @@ def audit(workspace, customer):
             ['deliveryStatus', 'sourceVerifiedEmpty', 'rowCount']} for ref, version in versions.items()},
         'files': {fid: f['sha256'] for fid, f in files.items()},
         'assets': asset, 'positions': position,
-        'orders': {'count': len(orders), 'sideCounts': dict(side_counts),
-            'executedRows': sum(number(row, 'CJSL') > 0 for row in orders),
-            'executedQuantity': str(sum_field(orders, 'CJSL')),
-            'quantityTimesPriceBySide': {side: str(value) for side, value in side_amounts.items()},
-            'uniqueOrderKeys': len({(str(r['WTRQ']), str(r['WTH']), r['GDH']) for r in orders}),
-            'uniqueSecurities': len({row['ZQDM'] for row in orders})},
+        'transactions': {'count': len(transactions), 'sideCounts': dict(side_counts),
+            'metricBasis': 'SETTLEMENT_CJJE' if settled else 'ORDER_EXECUTED_QUANTITY_TIMES_PRICE_EXCLUDING_FEES',
+            'executedRows': sum(number(row, 'CJSL') > 0 for row in transactions),
+            'executedQuantity': str(sum_field(transactions, 'CJSL')),
+            'grossAmount': str(sum(side_amounts.values(), Decimal(0))),
+            'grossAmountBySide': {side: str(value) for side, value in side_amounts.items()},
+            'uniqueOrderKeys': len({(str(r['CJRQ' if settled else 'WTRQ']), str(r['WTH']), r['GDH']) for r in transactions}),
+            'uniqueSecurities': len({row['ZQDM'] for row in transactions})},
         'reconciliationDifferences': {
             'assetMinusCashAndSecurities': str(Decimal(asset['ZZC']) - Decimal(asset['ZJYE']) - Decimal(asset['ZQSZ'])),
             'securitiesMinusPositionMarketValues': str(Decimal(asset['ZQSZ']) - Decimal(position['ZXSZ'])),

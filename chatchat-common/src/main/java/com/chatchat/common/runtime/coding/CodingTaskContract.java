@@ -122,6 +122,8 @@ public record CodingTaskContract(String schemaVersion, String taskId, KernelData
     public record OutputContract(ResultFormat resultFormat, String resultSchemaRef, String validationSchemaRef,
         List<String> requiredFiles, List<String> acceptedMediaTypes, long maxResultRows,
         long maxResultBytes, List<RequiredEvidence> requiredEvidence) {
+        @com.fasterxml.jackson.annotation.JsonIgnore
+        public String primaryResultFile(){return CodingProtocol.primaryResultFile(requiredFiles);}
         public OutputContract {
             CodingProtocol.required(resultFormat, "resultFormat");
             resultSchemaRef = CodingProtocol.ref(resultSchemaRef, "resultSchemaRef");

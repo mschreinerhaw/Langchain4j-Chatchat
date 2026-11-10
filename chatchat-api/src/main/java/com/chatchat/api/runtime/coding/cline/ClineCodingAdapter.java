@@ -74,9 +74,10 @@ public final class ClineCodingAdapter implements CodingAgentSPI {
     }
 
     static void requirePythonResultFiles(List<String> files,boolean dynamic) {
-        if(files.isEmpty() || !files.get(0).matches("[A-Za-z0-9_-]+\\.jsonl") || !dynamic&&files.size()!=1)
+        if(files.isEmpty() || !dynamic&&files.size()!=1)
             throw new IllegalArgumentException("Python execution requires a primary JSONL result; D1 supports one file");
-        if(dynamic)com.chatchat.api.runtime.coding.analysis.CodingRequiredArtifacts.read(files.subList(1,files.size()));
+        String primary=CodingProtocol.primaryResultFile(files);
+        if(dynamic)com.chatchat.api.runtime.coding.analysis.CodingRequiredArtifacts.read(files.stream().filter(f->!f.equals(primary)).toList());
     }
 
     @Override public CodingTaskOutcome submit(CodingTaskContract contract) {
@@ -325,7 +326,7 @@ public final class ClineCodingAdapter implements CodingAgentSPI {
         CodingEvidenceCollector.Collected collected;
         try {
             collected = collector.collect(scope, contract, operationId, tasks.scriptFile(scope,taskId,operationId),
-                contract.outputContract().requiredFiles().get(0),
+                contract.outputContract().primaryResultFile(),
                 List.of(new CodingEvidenceCollector.InputFile(
                     input.fileId(), input.fileName(), input.sha256())), plans.validator(contract));
         } catch (CodingEvidenceCollector.RequiredOutputMissingException

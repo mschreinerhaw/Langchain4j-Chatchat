@@ -681,7 +681,7 @@ public final class ClineModelCallbackController {
                     "SDK run has no completed, independently verifiable Python operation");
             var input = inputs.requireAuthorized(contract);
             var collected = textResult ? collector.textResult(contract,operationId) : collector.collect(call.scope(), contract, operationId, tasks.scriptFile(call.scope(),call.taskId(),operationId),
-                contract.outputContract().requiredFiles().get(0),
+                contract.outputContract().primaryResultFile(),
                 List.of(new CodingEvidenceCollector.InputFile(input.fileId(), input.fileName(), input.sha256())),
                 plans.validator(contract));
             if(!textResult && com.chatchat.common.runtime.coding.VisualReportMode.active(contract.runtimeContext())) {

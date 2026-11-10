@@ -284,7 +284,7 @@ public final class ClinePythonCallbackController {
                 var input = inputs.requireAuthorized(call.contract());
                 CodingEvidenceCollector.Collected collected;
                 try { collected = collector.collect(call.scope(), call.contract(), operationId, tasks.scriptFile(call.scope(),call.taskId(),operationId),
-                    call.contract().outputContract().requiredFiles().get(0),
+                    call.contract().outputContract().primaryResultFile(),
                     java.util.List.of(new CodingEvidenceCollector.InputFile(
                         input.fileId(), input.fileName(), input.sha256())),
                     plans.validator(call.contract()));

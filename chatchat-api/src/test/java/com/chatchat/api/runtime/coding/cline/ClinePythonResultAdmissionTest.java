@@ -4,7 +4,7 @@ import org.junit.jupiter.api.Test;
 import static org.assertj.core.api.Assertions.*;
 class ClinePythonResultAdmissionTest {
     @Test void analysisAdmitsExplicitCodeAndReportWhileLegacyKeepsItsProfile() {
-        var files=List.of("rows.jsonl","analysis.py","report.md");
+        var files=List.of("analysis.py","report.md","rows.jsonl");
         assertThatCode(()->ClineCodingAdapter.requirePythonResultFiles(files,true)).doesNotThrowAnyException();
         assertThatThrownBy(()->ClineCodingAdapter.requirePythonResultFiles(files,false)).isInstanceOf(IllegalArgumentException.class);
         assertThatCode(()->ClineCodingAdapter.requirePythonResultFiles(List.of("rows.jsonl"),false)).doesNotThrowAnyException();

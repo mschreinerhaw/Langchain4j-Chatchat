@@ -20,6 +20,13 @@ public final class CodingProtocol {
     }
     public static final int MAX_ANALYSIS_SOURCES = 16;
     public static final long MAX_SAFE_INTEGER = 9_007_199_254_740_991L;
+    /** requiredFiles is canonically sorted; its first entry is not necessarily the result dataset. */
+    public static String primaryResultFile(List<String> files) {
+        if(files.contains("rows.jsonl"))return "rows.jsonl";
+        var rows=files.stream().filter(f->f.matches("[A-Za-z0-9_-]+\\.jsonl")).toList();
+        require(rows.size()==1,"A unique primary JSONL result is required");
+        return rows.get(0);
+    }
     private CodingProtocol() { }
 
     static void require(boolean condition, String message) {

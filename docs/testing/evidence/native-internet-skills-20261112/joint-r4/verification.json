@@ -1,0 +1,20 @@
+{
+  "passed": false,
+  "checks": {
+    "completed": true,
+    "localParquetNumericValidation": true,
+    "markdown": true,
+    "png": true,
+    "allSiloHashesVerified": true,
+    "realModelUsage": true,
+    "publicDownloadedNumericValidation": false
+  },
+  "externalIndependentCalculations": [],
+  "elapsedSeconds": 817.1081015411764,
+  "taskId": "native-7868af837edd57fc01e6a34837d528142d6f7a6f8aa259a9368c326a208dcf9c",
+  "runId": "coding-e566c3f16f9712147aa4565e87dbd53d000491cf0a1543a82c072530c641135b",
+  "realModel": true,
+  "realSilo": true,
+  "revalidatedExistingTask": false,
+  "fixture": "explicit synthetic local Parquet; actual public historical CSV"
+}

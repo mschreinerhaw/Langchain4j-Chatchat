@@ -1,0 +1,11 @@
+{
+  "local_rows": 3,
+  "local_total": 362,
+  "local_mean": 120.66666666666667,
+  "public_rows": 144,
+  "public_total": 40363,
+  "public_source_url": "https://raw.githubusercontent.com/jbrownlee/Datasets/refs/heads/master/airline-passengers.csv",
+  "public_sha256": "8cb51be753a718d9be5d76d7e238cc224792754676adc21faa59e954b0201621",
+  "public_value_column": "Passengers",
+  "downloaded_file": "8cb51be753a718d9be5d76d7e238cc224792754676adc21faa59e954b0201621.txt"
+}

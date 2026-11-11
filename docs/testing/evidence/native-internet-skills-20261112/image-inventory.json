@@ -1,0 +1,60 @@
+[
+  {
+    "Id": "sha256:a10367a21aea93d8e36415b107cfc1221c30340c7e0e9490ac5d03a812b6af89",
+    "RepoTags": [
+      "runtime-os-coding-node:integration-internet-20261112-r1"
+    ],
+    "RepoDigests": [],
+    "Created": "2026-11-12T00:07:30.785082553+08:00",
+    "Architecture": "amd64",
+    "Os": "linux",
+    "labels": {
+      "org.opencontainers.image.created": "",
+      "org.opencontainers.image.revision": "29f51d18b77ed012ffffd21670b2c13a841c4e94",
+      "org.opencontainers.image.title": "Runtime OS Coding Node Agent",
+      "org.opencontainers.image.version": "1.0.0-rc.internet.20261112.1",
+      "runtime-os.cline.source": "a459f1d04dea030833b558be645011ab739c463b",
+      "runtime-os.cline.version": "4.1.26",
+      "runtime-os.python.version": "3.11"
+    }
+  },
+  {
+    "Id": "sha256:14296db0214a6959533cdb5f86e4f891ba7d8401533459634d71383f53c4bbf8",
+    "RepoTags": [
+      "runtime-os-api:integration-native-internet-20261112-r3"
+    ],
+    "RepoDigests": [],
+    "Created": "2026-11-12T01:31:27.402901885+08:00",
+    "Architecture": "amd64",
+    "Os": "linux",
+    "labels": {
+      "org.opencontainers.image.version": "22.04"
+    }
+  },
+  {
+    "Id": "sha256:f66af9a994619f76f5e9bdb601aee57d35d727a17dd1fe45902983ad753f8be9",
+    "RepoTags": [
+      "runtime-os-mcp:integration-native-internet-20261111-r1"
+    ],
+    "RepoDigests": [],
+    "Created": "2026-11-11T22:52:10.927525447+08:00",
+    "Architecture": "amd64",
+    "Os": "linux",
+    "labels": {
+      "org.opencontainers.image.version": "22.04"
+    }
+  },
+  {
+    "Id": "sha256:6c482b7d2ddfa040815c2486999994725e3e2c50d464e9fd03e40e8ce9f6684f",
+    "RepoTags": [
+      "runtime-os-news:integration-native-internet-20261111-r3"
+    ],
+    "RepoDigests": [],
+    "Created": "2026-11-11T23:29:32.432629906+08:00",
+    "Architecture": "amd64",
+    "Os": "linux",
+    "labels": {
+      "org.opencontainers.image.version": "22.04"
+    }
+  }
+]

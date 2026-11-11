@@ -2,8 +2,11 @@
 name: runtime-report-delivery
 description: Deliver autonomous evidence-based text and visual reports through Runtime OS; synthesize relevant sources rather than dumping retrieved records, preserve uncertainty, use actual Python chart artifacts and the existing report contract.
 metadata:
-  version: 1.0.0
+  version: 1.0.1
 ---
+
+Execution and delivery depend on the task's advertised transport profile. For Native Cline + Python + Silo tasks, execute local Python through native Shell, choose meaningful project and output paths, and declare the chosen files in the supplied delivery_manifest.json selection protocol. Java verifies and archives their bytes. The Sandbox, python_execute, report_submit, rows.jsonl and visualReport examples below apply only to tasks that explicitly advertise those managed protocols. They do not replace the Native task's delivery contract or add tools.
+
 
 Choose analysis methods, depth, report structure and charts from the user's actual objective and available evidence. This skill describes delivery and source discipline, never a fixed analysis sequence or new authorization.
 

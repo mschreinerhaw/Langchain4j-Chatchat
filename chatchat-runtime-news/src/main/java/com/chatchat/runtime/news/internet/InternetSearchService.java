@@ -24,16 +24,17 @@ public class InternetSearchService {
         String id=text(request,"providerId",64),tool=text(request,"tool",32),task=text(request,"taskId",256),tenant=text(request,"tenantId",128),user=text(request,"userId",128),agent=text(request,"agentId",256),call=text(request,"requestId",128);
         var p=store.find(id);if(p==null||!p.enabled()||p.credentialCipher()==null)return error("PROVIDER_DISABLED");
         if(p.revision()!=request.path("providerRevision").asLong(-1))return error("PROVIDER_CONFIGURATION_CHANGED");
-        if(!Set.of("web_search","web_fetch").contains(tool))throw new IllegalArgumentException("Unknown Internet tool");
+        if(!Set.of("web_search","web_fetch","web_download").contains(tool))throw new IllegalArgumentException("Unknown Internet tool");
         String hash=hash(request.toString().getBytes(StandardCharsets.UTF_8));
         if(!store.begin(call,task,tenant,user,agent,id,tool,hash))return store.replay(call);
         long start=System.nanoTime();Map<String,Object> result;
         try{
             store.reserve(p,hash((tenant+"\0"+user+"\0"+task).getBytes(StandardCharsets.UTF_8)));
             long deadline=System.nanoTime()+java.util.concurrent.TimeUnit.MILLISECONDS.toNanos(p.timeoutMillis());
-            result=tool.equals("web_search")?search(p,request.path("arguments"),deadline):fetch(request.path("arguments"),deadline);
+            result=tool.equals("web_search")?search(p,request.path("arguments"),deadline):tool.equals("web_download")?download(request.path("arguments"),deadline):fetch(request.path("arguments"),deadline);
             var current=store.find(id);if(current==null||!current.enabled()||current.revision()!=p.revision())result=error("PROVIDER_CONFIGURATION_CHANGED");
         }catch(PublicWebHttp.Rejected e){result=error(e.code());}
+        catch(IllegalArgumentException e){result=error("INVALID_TOOL_ARGUMENTS");}
         catch(Exception e){result=error("INTERNET_TOOL_UNAVAILABLE");}
         result=new LinkedHashMap<>(result);result.put("provider_id",id);result.put("request_id",call);
         result.put("retrieved_at",Instant.now().toString());result.put("authority","UNTRUSTED_SOURCE_DATA");
@@ -90,6 +91,20 @@ public class InternetSearchService {
         if(root.path("usage").path("credits").isNumber())result.put("providerUsageCredits",root.path("usage").path("credits").numberValue());
         return result;
     }
+    private Map<String,Object> download(JsonNode args,long deadline)throws Exception{
+        fields(args,Set.of("url"));URI uri=PublicWebHttp.validate(text(args,"url",4096));PublicWebHttp.Response response=null;
+        for(int i=0;i<=3;i++){
+            robots.require(uri,deadline);response=http.request(uri,"GET",Map.of(),null,deadline);
+            if(response.status()<300||response.status()>399)break;
+            if(i==3||response.location().isBlank())throw new PublicWebHttp.Rejected("REDIRECT_LIMIT");
+            URI next=PublicWebHttp.validate(uri.resolve(response.location()).toString());
+            if(uri.getScheme().equals("https")&&!next.getScheme().equals("https"))throw new PublicWebHttp.Rejected("REDIRECT_DOWNGRADE");uri=next;
+        }
+        if(response.status()<200||response.status()>299)throw new PublicWebHttp.Rejected("DOWNLOAD_HTTP_ERROR");
+        String type=response.contentType().split(";",2)[0].trim().toLowerCase(Locale.ROOT);
+        if(!Set.of("application/pdf","application/json","application/ld+json","text/csv","application/csv","text/plain","text/html","application/xhtml+xml").contains(type))throw new PublicWebHttp.Rejected("DOWNLOAD_CONTENT_TYPE_UNSUPPORTED");
+        var result=new LinkedHashMap<String,Object>();result.put("status","OK");result.put("url",uri.toString());result.put("content_type",response.contentType());result.put("size",response.body().length);result.put("sha256",hash(response.body()));result.put("encoding","base64");result.put("content",Base64.getEncoder().encodeToString(response.body()));result.put("source_view","PUBLIC_FILE_BYTES");return result;
+    }
     private Map<String,Object> fetch(JsonNode args,long deadline)throws Exception{
         fields(args,Set.of("url","max_content_length"));URI uri=PublicWebHttp.validate(text(args,"url",4096));
         int limit=integer(args,"max_content_length",12000,200,20000);PublicWebHttp.Response response=null;
@@ -119,6 +134,7 @@ public class InternetSearchService {
     private static String encode(String value){return URLEncoder.encode(value,StandardCharsets.UTF_8);}
     static Map<String,Object> error(String code){
         String guidance=switch(code){
+            case "INVALID_TOOL_ARGUMENTS"->"Use the advertised tool schema: web_search takes query and optional search filters; web_fetch takes a single url and optional max_content_length; web_download takes a single url. Batched requests and prompt arguments are not supported.";
             case "PROVIDER_LANGUAGE_UNSUPPORTED"->"This engine does not support a language filter. Omit language or select another already authorized engine; query text may still be in the requested language. No search was performed.";
             case "PROVIDER_NEWS_UNSUPPORTED"->"This engine supports web search only. Use search_type=web or another already authorized engine.";
             case "PROVIDER_AUTH_FAILED","PROVIDER_CREDENTIAL_UNAVAILABLE"->"Provider credentials are unavailable or rejected. Do not guess credentials; use delivered local evidence and disclose the external-search gap.";

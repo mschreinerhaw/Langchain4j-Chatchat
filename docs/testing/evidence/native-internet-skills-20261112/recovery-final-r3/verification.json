@@ -1,0 +1,34 @@
+{
+  "taskId": "native-8622c0b7be10c9149ebba7d020fa32a30da2f82044461f13ca6c335c50cbd7f4",
+  "runId": "coding-b09a169e9423820300c53653b668a8f9a3bd4b7d2273fa7b4a7ff6809aed97d3",
+  "workerIdBefore": "ad89ec79-6fb8-4912-a1a8-c9b95523aeb9",
+  "nativeSessionBefore": "1d6ffe40-c1cc-4539-ae77-e1e428db68c9",
+  "containerBefore": "bd5af113906bbc323170dda1de252c7ed615936313b49fbad710e4a072bc8fc7",
+  "markerBefore": {
+    "pid": 90,
+    "nonce": "46ef109d-3f32-4b9d-942d-548685a68b9e"
+  },
+  "skillHashesBefore": {
+    ".agents/skills/runtime-agent-c9068c676fd1-ids/SKILL.md": "4b3d354654d1e43429835306a02c1e4f886dab51dae7c2bfd66a0f728823e727",
+    ".agents/skills/runtime-agent-75d84c0cad0d-dataset-quality-review/SKILL.md": "03fe1a50193323afbb1d8fd377eeb59b9c28e3178268863be1ea130e470c8527",
+    ".agents/skills/runtime-agent-75d84c0cad0d-dataset-quality-review/references/quality.md": "49c117f94f5000218dee92d490e79e982f5efc8778930191e3bc2f97c73ef3e2"
+  },
+  "pythonRunningBefore": true,
+  "crossScopeAndExpiredCapabilitiesRejected": true,
+  "pythonRunningWhileJavaRestarts": true,
+  "monitorOfflineObserved": true,
+  "checks": {
+    "pythonContinuedWhileJavaRestarted": true,
+    "monitorWasUnavailable": true,
+    "sameWorker": true,
+    "sameNativeSession": true,
+    "sameContainer": true,
+    "noDuplicateProgramStart": false,
+    "skillsRetainedExactly": true,
+    "deliveryCompleted": true,
+    "liveCrossScopeAndExpiredDenials": true,
+    "independentStatistics": true
+  },
+  "passed": false,
+  "elapsedSeconds": 240.8533381037414
+}

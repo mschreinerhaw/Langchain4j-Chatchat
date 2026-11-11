@@ -1,0 +1,38 @@
+[INFO] Tests run: 2, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 1.050 s -- in com.chatchat.agents.model.DashScopeNativeChatModelTest
+[INFO] Tests run: 4, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 1.804 s -- in com.chatchat.agents.orchestration.AgentPlannerNativeToolCallingTest
+[INFO] Tests run: 30, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.634 s -- in com.chatchat.agents.orchestration.analysis.graph.ModelNativeAnalysisHarnessTest
+[INFO] Tests run: 5, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.143 s -- in com.chatchat.agents.orchestration.planning.generation.NativeToolCallingPlannerTest
+[INFO] Tests run: 41, Failures: 0, Errors: 0, Skipped: 0
+[INFO] Tests run: 5, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 1.674 s -- in com.chatchat.runtime.news.internet.InternetProviderStoreTest
+[INFO] Tests run: 6, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 1.156 s -- in com.chatchat.runtime.news.internet.InternetSearchServiceTest
+[INFO] Tests run: 6, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.019 s -- in com.chatchat.runtime.news.internet.PublicWebSecurityTest
+[INFO] Tests run: 17, Failures: 0, Errors: 0, Skipped: 0
+[INFO] Tests run: 4, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 3.778 s -- in com.chatchat.chat.skills.domain.application.NativeSkillCompilationControlTest
+[INFO] Tests run: 11, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.096 s -- in com.chatchat.chat.skills.domain.artifact.NativeSkillPackageTest
+[INFO] Tests run: 1, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.714 s -- in com.chatchat.chat.skills.federation.NativeSkillSchemaMigrationTest
+[INFO] Tests run: 16, Failures: 0, Errors: 0, Skipped: 0
+[INFO] Tests run: 3, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 1.959 s -- in com.chatchat.mcpserver.datacapability.connection.NativeClientPoolTest
+[INFO] Tests run: 8, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 4.690 s -- in com.chatchat.mcpserver.datacapability.connection.NativeDatabaseClientTest
+[INFO] Tests run: 2, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 2.188 s -- in com.chatchat.mcpserver.datacapability.connection.NativeSearchTlsTest
+[INFO] Tests run: 9, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.787 s -- in com.chatchat.mcpserver.sql.datasource.NativeQueryDatasourceTest
+[INFO] Tests run: 6, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.144 s -- in com.chatchat.mcpserver.sql.metadata.NativeMetadataCollectorTest
+[INFO] Tests run: 28, Failures: 0, Errors: 0, Skipped: 0
+[INFO] Tests run: 4, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 5.804 s -- in com.chatchat.api.assets.NativeS3CodingAdapterTest
+[INFO] Tests run: 8, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 2.149 s -- in com.chatchat.api.assets.NativeSiloTaskServiceTest
+[INFO] Tests run: 6, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 1.230 s -- in com.chatchat.api.controller.agent.CodingTaskMonitorControllerTest
+[INFO] Tests run: 68, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 4.829 s -- in com.chatchat.api.runtime.coding.analysis.CodingAnalysisServiceTest
+[INFO] Tests run: 4, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.010 s -- in com.chatchat.api.runtime.coding.analysis.CodingNativeAnalysisObjectiveTest
+[INFO] Tests run: 2, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.106 s -- in com.chatchat.api.runtime.coding.analysis.LocalMarketWorkflowTest
+[INFO] Tests run: 5, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.696 s -- in com.chatchat.api.runtime.coding.cline.ClineCodingAdapterDispatchTest
+[INFO] Tests run: 12, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.177 s -- in com.chatchat.api.runtime.coding.CodingSkillReaderTest
+[WARNING] Tests run: 4, Failures: 0, Errors: 0, Skipped: 1, Time elapsed: 1.071 s -- in com.chatchat.api.runtime.coding.data.CodingNativeSchemaBindingTest
+[INFO] Tests run: 11, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.140 s -- in com.chatchat.api.runtime.coding.knowledge.CodingInternetAccessTest
+[INFO] Tests run: 49, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 4.506 s -- in com.chatchat.api.runtime.coding.knowledge.CodingKnowledgeServiceTest
+[INFO] Tests run: 1, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.001 s -- in com.chatchat.api.runtime.coding.NativeCodingProgressTest
+[INFO] Tests run: 5, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 1.738 s -- in com.chatchat.api.runtime.coding.NativeRuntimeMcpControllerTest
+[INFO] Tests run: 5, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.055 s -- in com.chatchat.api.runtime.coding.NativeS3NodeClientTest
+[INFO] Tests run: 3, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 5.330 s -- in com.chatchat.api.runtime.coding.NativeSkillPersistenceTest
+[INFO] Tests run: 4, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.230 s -- in com.chatchat.api.runtime.coding.NativeTaskCapabilitiesTest
+[WARNING] Tests run: 191, Failures: 0, Errors: 0, Skipped: 1
+[INFO] BUILD SUCCESS
+[INFO] Finished at: 2026-11-12T01:29:55+08:00

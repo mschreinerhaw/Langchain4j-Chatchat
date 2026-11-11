@@ -19,6 +19,7 @@ import static com.chatchat.agents.runtime.coding.CodingTaskAccess.Action.*;
 @Service
 @ConditionalOnProperty(prefix="chatchat.runtime.coding.unified",name="enabled",havingValue="true")
 public final class NativeAnalysisBridge {
+    @org.springframework.beans.factory.annotation.Autowired private com.chatchat.api.runtime.coding.nativecline.NativeTaskCapabilities capabilities;
     private final NativeCodingTasks coding;private final UserAssetService assets;private final CodingInvocationContext identity;private final ObjectMapper json;private final CodingAnalysisProperties policy;
     public NativeAnalysisBridge(NativeCodingTasks coding,UserAssetService assets,CodingInvocationContext identity,ObjectMapper json,CodingAnalysisProperties policy){this.coding=coding;this.assets=assets;this.identity=identity;this.json=json;this.policy=policy;}
     public Optional<Map<String,Object>> snapshot(KernelDataScope scope,boolean visual){return identity.as(scope,Set.of(READ),()->coding.snapshot(scope,visual?"primary-data-analysis-visual-v1":"primary-data-analysis-v1"));}
@@ -32,7 +33,9 @@ public final class NativeAnalysisBridge {
         if(sources.size()>com.chatchat.common.runtime.coding.CodingProtocol.MAX_ANALYSIS_SOURCES)throw new IllegalArgumentException("Authorized source count exceeds Runtime policy");
         for(String part:List.of(scope.tenantId(),scope.userId(),scope.runId()))if(part.isBlank()||Set.of("anonymous","default","unknown-request").contains(part))throw new SecurityException("Authenticated Runtime scope required");
         return identity.as(scope,Set.of(READ,SUBMIT,STOP),()->{
-            var files=new ArrayList<String>();var authorizedReferences=sources.values().stream().map(Dataset::reference).toList();long bytes=0,rows=0;int index=0;
+            var files=new ArrayList<String>();
+            if(context.runtimeAttributes().get("nativeOriginalAssetIds") instanceof List<?> original)for(Object id:original)files.add((String)id);
+            var authorizedReferences=sources.values().stream().map(Dataset::reference).toList();long bytes=0,rows=0;int index=0;
             String snapshotTask=NativeCodingTasks.taskId(scope,request);
             for(var source:sources.values()){
                 var output=new ByteArrayOutputStream();long offset=0;
@@ -56,7 +59,7 @@ public final class NativeAnalysisBridge {
             instruction+="\nUse the frozen source contexts to interpret the supplied JSONL rows and distinguish missing data from verified empty results. Preserve source references and field names. Choose your own source structure and computation. Provide a complete Markdown report and the requested structured result; never treat transport/status observations as business data.";
             var types=visual?List.of("REPORT","RESULT","CHART"):List.of("REPORT","RESULT");
             String model=Objects.toString(context.metadata().get("modelName"),null);
-            var submitted=coding.submit(scope,request,files,instruction,model,types,schema);
+            var submitted=coding.submit(scope,request,files,instruction,model,types,schema,capabilities.capture(scope,model,context.runtimeAttributes(),context.metadata()));
             observer.accept(Map.of("eventKind","CODING_TASK_SUBMITTED","taskId",submitted.taskId(),"source","JAVA_NATIVE_S3"));
             var result=coding.await(scope,submitted.taskId(),context.cancellationCheck(),observer);
             result.put("authorizedDatasetReferences",authorizedReferences);

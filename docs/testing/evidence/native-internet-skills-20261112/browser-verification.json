@@ -1,0 +1,1824 @@
+{
+  "origin": "http://192.168.195.221:18353",
+  "diagnosticOnly": false,
+  "pageErrors": [],
+  "checks": {
+    "unauthenticatedDenied": true,
+    "invalidTokenDenied": true,
+    "actualLoginAndTaskList": true,
+    "accountHeader": true,
+    "foreignRunDenied": true,
+    "compactTitleAndDefaultCollapsed": true,
+    "actualTimelineVisible": true,
+    "realRepairEvidenceVisible": true,
+    "dynamicPythonSourcePreview": true,
+    "actualChartPreview": true,
+    "noBrowserErrors": true
+  },
+  "tasks": [
+    {
+      "taskId": "native-5b41cd28c08312b42988366b2f5c57d19a1b0bb82761ce35891bfa4578bb8b85",
+      "status": "COMPLETED",
+      "modelRequests": 39,
+      "verifiedRepairs": 0,
+      "events": 256,
+      "files": [
+        {
+          "path": "analysis.py",
+          "state": "AVAILABLE",
+          "size": 10698,
+          "sha256": "eba7b52d23003349718f0c71a6c8accb183bd7f604e8cc0f01147c852688fb65"
+        },
+        {
+          "path": "public_sources.md",
+          "state": "AVAILABLE",
+          "size": 1475,
+          "sha256": "9b2188435ec24f3214e3e7c70429f10a86c606cbc818b10842f76d876c834d93"
+        },
+        {
+          "path": "comparison_chart.png",
+          "state": "AVAILABLE",
+          "size": 155659,
+          "sha256": "3e39864d5921d7f2e09e5527d1fb3698188dc9a56da12e848c4aa99d49833889"
+        },
+        {
+          "path": "RESULT.json",
+          "state": "AVAILABLE",
+          "size": 494,
+          "sha256": "3de6859b01adccbffdf7dfed6d61a812a805d12359fcdb3a8523d842ca07f4a9"
+        },
+        {
+          "path": "REPORT.md",
+          "state": "AVAILABLE",
+          "size": 4266,
+          "sha256": "7678ac633014ae5156245596fd126a7318e79227a9cc708a888ecefc9f8585f2"
+        },
+        {
+          "path": "download-8cb51be753a718d9be5d76d7e238cc224792754676adc21faa59e954b0201621",
+          "state": "AVAILABLE",
+          "size": 2180,
+          "sha256": "8cb51be753a718d9be5d76d7e238cc224792754676adc21faa59e954b0201621"
+        },
+        {
+          "path": "REPORT.md",
+          "state": "AVAILABLE",
+          "size": 2038,
+          "sha256": "ce91e7bd29ea9d7a6e0567399e92485e26a77cc933834cf1bbe92ff16aa227c0"
+        },
+        {
+          "path": "RESULT.json",
+          "state": "AVAILABLE",
+          "size": 465,
+          "sha256": "71112993e86e14eda2e35bbfcb3e31de60882f82c4c7092e8b958154be33c813"
+        },
+        {
+          "path": "analysis.py",
+          "state": "AVAILABLE",
+          "size": 7808,
+          "sha256": "6109a3b17e2c6d26734628c0ba7bd4996076961560f31cc9b74102820a500a7b"
+        },
+        {
+          "path": "synthetic-airline.parquet",
+          "state": "AVAILABLE",
+          "size": 1753,
+          "sha256": "f8bc57a685621307c057b85a9853d567b3ad31fc2f76787f9c122441ce1c0059"
+        },
+        {
+          "path": "delivery-results.json",
+          "state": "AVAILABLE",
+          "size": 459,
+          "sha256": "420cb234d80a90004343776b19677e66cc5f9c18ef0cb791825bbb731b2cdd2a"
+        },
+        {
+          "path": "executor-stop.json",
+          "state": "AVAILABLE",
+          "size": 141,
+          "sha256": "a4916122eb69bfcacca339155ca22e8ae34e773948d91a74196eea6c02836590"
+        },
+        {
+          "path": "native-events.json",
+          "state": "AVAILABLE",
+          "size": 1497517,
+          "sha256": "63b67cfce31205a8fe90e13e0489e7ed2f04e54ad7edc97eada31f0b7395f839"
+        },
+        {
+          "path": "delivery-validation.json",
+          "state": "AVAILABLE",
+          "size": 174,
+          "sha256": "491cda139263999c2aeeac6c7dac28f964de151402cf89c4faeda2aa9c2c8999"
+        },
+        {
+          "path": "delivery_manifest.json",
+          "state": "AVAILABLE",
+          "size": 7253,
+          "sha256": "8368e3b71821bb845a1b9f3f6876ce5b21b0f4dab108be5e1f9c1c5db8d44f42"
+        },
+        {
+          "path": "native-core-receipt.json",
+          "state": "AVAILABLE",
+          "size": 1059,
+          "sha256": "40250e7b0731a7f18104dd21bf3942d01f98a0e140f9958097cc4ebfcd17e619"
+        },
+        {
+          "path": "native-core-receipt.json",
+          "state": "AVAILABLE",
+          "size": 367,
+          "sha256": "b9c22a7b5e76290b64f87c2d84c862395b473fe92bf4631df55d319784c7ff0c"
+        },
+        {
+          "path": "native-core-receipt.json",
+          "state": "AVAILABLE",
+          "size": 254,
+          "sha256": "71e10754dd3e4fb16ae49110a42c24cd495edfeac392b7911c5c610d2336b0c0"
+        },
+        {
+          "path": "native-core-receipt.json",
+          "state": "AVAILABLE",
+          "size": 254,
+          "sha256": "9f2a75997ab7b5249dbd325fa2cbac3774f8224eeb3e16734cd77ae2e1d22eae"
+        },
+        {
+          "path": "native-core-receipt.json",
+          "state": "AVAILABLE",
+          "size": 401,
+          "sha256": "fa21cf68809c1575a501b36e8740b001aa582b90903b483a9b8bf7ec45b1b315"
+        },
+        {
+          "path": "native-core-receipt.json",
+          "state": "AVAILABLE",
+          "size": 1060,
+          "sha256": "33d62e82c5e2250ee1e7634d367d60971cac1cc92a41b9d94679aa275c7658cb"
+        },
+        {
+          "path": "native-core-events.json",
+          "state": "AVAILABLE",
+          "size": 3450,
+          "sha256": "276a9369ee964c536cff39fd4a89a091185362c569d932178313eea3e4634849"
+        },
+        {
+          "path": "native-core-receipt.json",
+          "state": "AVAILABLE",
+          "size": 1062,
+          "sha256": "935de2c82291773e96cf80ba3209635f6133ba0c85b61d27ef37b9cdba823a29"
+        },
+        {
+          "path": "native-core-receipt.json",
+          "state": "AVAILABLE",
+          "size": 679,
+          "sha256": "323a3f8f405f7188fa509696ee3326fb1869d18650d821df94831d6b37b45f62"
+        },
+        {
+          "path": "native-core-events.json",
+          "state": "AVAILABLE",
+          "size": 3428,
+          "sha256": "a4f9169c1466085dcac1526468abf53f2fdc600b45bf1bc2fec016934cd37bca"
+        },
+        {
+          "path": "native-provider-receipt.json",
+          "state": "AVAILABLE",
+          "size": 1322,
+          "sha256": "5741e95f9677ac398eb28b2bcab8b1ec2282abe5ceff4e185b830a4553256504"
+        },
+        {
+          "path": "native-provider-events.json",
+          "state": "AVAILABLE",
+          "size": 1370,
+          "sha256": "18b25f9c576b5320037ebfd0c9746cfbe9c7269a6a3622d8f994046ad29df350"
+        },
+        {
+          "path": "native-core-receipt.json",
+          "state": "AVAILABLE",
+          "size": 1063,
+          "sha256": "8e546b360c20799c21367dc2ce641e6b404311ae48895325edf0174b199ce311"
+        },
+        {
+          "path": "native-core-receipt.json",
+          "state": "AVAILABLE",
+          "size": 679,
+          "sha256": "24e7577ea101fa89ea9560d79b731a071810243ff95e7dc3d315293aa7a3a740"
+        },
+        {
+          "path": "native-core-receipt.json",
+          "state": "AVAILABLE",
+          "size": 1063,
+          "sha256": "1895a40da9999e13662ead8e958e447982b396f0921b6fa31403eb77f3d10e1e"
+        }
+      ],
+      "validationStatus": "INCONCLUSIVE"
+    },
+    {
+      "taskId": "native-3b532c6b264d8ae65c71d5686b35b8992ffc55e4d7a6bc5b539a241c3f12c203",
+      "status": "COMPLETED",
+      "modelRequests": 25,
+      "verifiedRepairs": 0,
+      "events": 256,
+      "files": [
+        {
+          "path": "analysis.py",
+          "state": "AVAILABLE",
+          "size": 7808,
+          "sha256": "6109a3b17e2c6d26734628c0ba7bd4996076961560f31cc9b74102820a500a7b"
+        },
+        {
+          "path": "AUXILIARY.md",
+          "state": "AVAILABLE",
+          "size": 2809,
+          "sha256": "2dd70ec4a4e46b7f8be164d6871c55d0a79591e19a8ef71b9512838141fc7dce"
+        },
+        {
+          "path": "comparison_chart.png",
+          "state": "AVAILABLE",
+          "size": 150021,
+          "sha256": "dc693edaa02f84b0536ac5651507993b77667c5b940ff818fee5acf0fc53a552"
+        },
+        {
+          "path": "RESULT.json",
+          "state": "AVAILABLE",
+          "size": 465,
+          "sha256": "71112993e86e14eda2e35bbfcb3e31de60882f82c4c7092e8b958154be33c813"
+        },
+        {
+          "path": "REPORT.md",
+          "state": "AVAILABLE",
+          "size": 2038,
+          "sha256": "ce91e7bd29ea9d7a6e0567399e92485e26a77cc933834cf1bbe92ff16aa227c0"
+        },
+        {
+          "path": "download-8cb51be753a718d9be5d76d7e238cc224792754676adc21faa59e954b0201621",
+          "state": "AVAILABLE",
+          "size": 2180,
+          "sha256": "8cb51be753a718d9be5d76d7e238cc224792754676adc21faa59e954b0201621"
+        },
+        {
+          "path": "synthetic-airline.parquet",
+          "state": "AVAILABLE",
+          "size": 1753,
+          "sha256": "f8bc57a685621307c057b85a9853d567b3ad31fc2f76787f9c122441ce1c0059"
+        },
+        {
+          "path": "delivery-results.json",
+          "state": "AVAILABLE",
+          "size": 430,
+          "sha256": "36be8222403d494845105a2f36841b982b7cac45bfcfc8c678604990b2157ab6"
+        },
+        {
+          "path": "executor-stop.json",
+          "state": "AVAILABLE",
+          "size": 141,
+          "sha256": "4a4118f498392703e9db61c4c6dd0133fd4c27db7c2ecdb329dcbf27a7c6b59a"
+        },
+        {
+          "path": "native-events.json",
+          "state": "AVAILABLE",
+          "size": 1179935,
+          "sha256": "08cb06ad3ad6df84cd3c199f7d41a31ddd2ecaf481bb81204d683d011ab32f98"
+        },
+        {
+          "path": "delivery-validation.json",
+          "state": "AVAILABLE",
+          "size": 174,
+          "sha256": "7df513fe5a2a24c95db46733dd16ae5ab8fc128f0f21e3915ec830e99c7b69e0"
+        },
+        {
+          "path": "delivery_manifest.json",
+          "state": "AVAILABLE",
+          "size": 2201,
+          "sha256": "08b8837b77d9d08284c41c864b87cabfd81ca97d7db625c561b0c532b65cc0b9"
+        },
+        {
+          "path": "native-core-receipt.json",
+          "state": "AVAILABLE",
+          "size": 1073,
+          "sha256": "fb3080107db807ad01a84db926260feaddfed952c44e6c3efe3a14dd7a714896"
+        },
+        {
+          "path": "native-core-receipt.json",
+          "state": "AVAILABLE",
+          "size": 367,
+          "sha256": "30eb24e1f8433dfecd5c0a0c8b1de96fe24e63386dc484bcb46d47bb357d6638"
+        },
+        {
+          "path": "native-core-receipt.json",
+          "state": "AVAILABLE",
+          "size": 1062,
+          "sha256": "eeb38255d3e6049a730958ac8dae86fb76614d63c860b4eba233d75c070a3a1a"
+        },
+        {
+          "path": "native-core-receipt.json",
+          "state": "AVAILABLE",
+          "size": 679,
+          "sha256": "a949e4614557541bb342114160f2e26548e09f881ba222e64482489c53e03412"
+        },
+        {
+          "path": "native-core-receipt.json",
+          "state": "AVAILABLE",
+          "size": 679,
+          "sha256": "57bc65de12e06d432146a97dece9d99df06ef27d8e63abccbe9f0ab0ad126f73"
+        },
+        {
+          "path": "native-core-receipt.json",
+          "state": "AVAILABLE",
+          "size": 254,
+          "sha256": "0e992ecce6ea42a416716666bc9f24781f84f205afc8f17028302af1ec5ca2b7"
+        },
+        {
+          "path": "native-core-receipt.json",
+          "state": "AVAILABLE",
+          "size": 254,
+          "sha256": "fb92477907296d38964c5c61c2311fffab081f290a95580c475f184141dd4d12"
+        },
+        {
+          "path": "native-core-receipt.json",
+          "state": "AVAILABLE",
+          "size": 405,
+          "sha256": "16c5a31ef1bfa3307fcc776a0c4f77e4b7c5ad08987d27eb308ada9140f19da9"
+        },
+        {
+          "path": "native-core-receipt.json",
+          "state": "AVAILABLE",
+          "size": 1074,
+          "sha256": "211dae7acf5781acd6112a0e7b2d9e582a4bec9aa4e1d054da3d1ecc0a26b6b8"
+        },
+        {
+          "path": "native-core-events.json",
+          "state": "AVAILABLE",
+          "size": 5905,
+          "sha256": "38420dbbc16a6ed58ce95482e53b004e000f1eeb004e8f31b7435f467dbd76e3"
+        },
+        {
+          "path": "native-provider-receipt.json",
+          "state": "AVAILABLE",
+          "size": 1321,
+          "sha256": "1af35ccb5bc8be717f96d6e9fda6076578ee33abb726a01fbcc7541d7c91dbb1"
+        },
+        {
+          "path": "native-provider-events.json",
+          "state": "AVAILABLE",
+          "size": 1369,
+          "sha256": "0ce5701f32fa9ae028342a98b5c261bd67774653c760b4a33c58391adac6889c"
+        },
+        {
+          "path": "native-core-receipt.json",
+          "state": "AVAILABLE",
+          "size": 1062,
+          "sha256": "67c729d56c2f171d7bf1284a7451fbb223a4a73a5ab48e2a89e061e78c13b7fb"
+        },
+        {
+          "path": "native-core-receipt.json",
+          "state": "AVAILABLE",
+          "size": 679,
+          "sha256": "1b6c7b9d659d95da74e3463b6c1350eed761c458eb1e1fd152119a5d4b00da17"
+        },
+        {
+          "path": "native-core-receipt.json",
+          "state": "AVAILABLE",
+          "size": 1685,
+          "sha256": "ee4b674a6085956f5a6cb542ef8f51a19fa85cabe0ed9a49cc5427a45644e5f7"
+        }
+      ],
+      "validationStatus": "INCONCLUSIVE"
+    },
+    {
+      "taskId": "native-7868af837edd57fc01e6a34837d528142d6f7a6f8aa259a9368c326a208dcf9c",
+      "status": "COMPLETED",
+      "modelRequests": 69,
+      "verifiedRepairs": 0,
+      "events": 256,
+      "files": [
+        {
+          "path": "analysis.py",
+          "state": "AVAILABLE",
+          "size": 4384,
+          "sha256": "4d9e4dcb9fe5c4d154219ea5bea2677b6b3e815d0c0200f9e60fd77d819e7887"
+        },
+        {
+          "path": "README.md",
+          "state": "AVAILABLE",
+          "size": 2414,
+          "sha256": "28ab873df1a328527d9a12250da42e49ae77ccfa71a7277da02d83a5cea8edc1"
+        },
+        {
+          "path": "synthetic_data.png",
+          "state": "AVAILABLE",
+          "size": 65264,
+          "sha256": "0d69479aecc89e77d75015d44300ff6fd814ce17e7a88e3bd4d0b66b3cf8a6a3"
+        },
+        {
+          "path": "RESULT.json",
+          "state": "AVAILABLE",
+          "size": 371,
+          "sha256": "a3a86fcfc60a6260f9db5ff3cb86cb99022e27e5cba8543a5ae5d1dd6032c306"
+        },
+        {
+          "path": "REPORT.md",
+          "state": "AVAILABLE",
+          "size": 8019,
+          "sha256": "39203fe0dad6d4e4acc679dc90639447fc173bd10a92ef2a6be7622e4cdd020a"
+        },
+        {
+          "path": "synthetic-airline.parquet",
+          "state": "AVAILABLE",
+          "size": 1753,
+          "sha256": "f8bc57a685621307c057b85a9853d567b3ad31fc2f76787f9c122441ce1c0059"
+        },
+        {
+          "path": "delivery-results.json",
+          "state": "AVAILABLE",
+          "size": 336,
+          "sha256": "ecc6338c488e153bedbca3fb5203a94b156b2007f22a5c30651e453bdc697760"
+        },
+        {
+          "path": "executor-stop.json",
+          "state": "AVAILABLE",
+          "size": 141,
+          "sha256": "eb80616849770c2fa787affcb90e64b7cc7967a6e974f22c269fd35bf99a04a8"
+        },
+        {
+          "path": "native-events.json",
+          "state": "AVAILABLE",
+          "size": 2739604,
+          "sha256": "dfe3afb5a29ed7a26ab91710ee7ba8803ad627aec1beb1680dd35a7afa43137c"
+        },
+        {
+          "path": "delivery-validation.json",
+          "state": "AVAILABLE",
+          "size": 174,
+          "sha256": "e8f72b9a45db69a20adab6a44e686752212aef358580e47d03f6a99511cd5c9c"
+        },
+        {
+          "path": "delivery_manifest.json",
+          "state": "AVAILABLE",
+          "size": 3381,
+          "sha256": "62fae5079814757fab1b28ce524dca14a958ed444de987869feb0b0e011a4097"
+        },
+        {
+          "path": "native-core-receipt.json",
+          "state": "AVAILABLE",
+          "size": 1089,
+          "sha256": "6c8a1cfcd7647a6884d5e0727532d5945d71118eb269684fce9e468c80226d00"
+        },
+        {
+          "path": "native-core-receipt.json",
+          "state": "AVAILABLE",
+          "size": 367,
+          "sha256": "62638b8fa68a2fb616210043211c82a86c53ad2e375da88d5e0883805f0b07a4"
+        },
+        {
+          "path": "native-core-receipt.json",
+          "state": "AVAILABLE",
+          "size": 1062,
+          "sha256": "5c141a704defcd36f054254fc3980e355df3439ff72655a3feb1b2394cfd72ee"
+        },
+        {
+          "path": "native-core-receipt.json",
+          "state": "AVAILABLE",
+          "size": 1063,
+          "sha256": "0e363a88ab50c407954252d877c3b210bd383051b665f7547724a48e58f2ba51"
+        },
+        {
+          "path": "native-core-receipt.json",
+          "state": "AVAILABLE",
+          "size": 679,
+          "sha256": "231fc85bd37a336d6ef1434a325ec2cb01a3b273f3f5a07d1a64f75aa8b309f3"
+        },
+        {
+          "path": "native-core-receipt.json",
+          "state": "AVAILABLE",
+          "size": 679,
+          "sha256": "b54e069968bc48035d30a3f9dd1d65ca1e8b8699eed3928ab108a42e35d9b283"
+        },
+        {
+          "path": "native-core-receipt.json",
+          "state": "AVAILABLE",
+          "size": 254,
+          "sha256": "156d57e6968700a7640ee4d8b53ca39bb9c0eb99f86cdfd5bb144e6d1e32adca"
+        },
+        {
+          "path": "native-core-receipt.json",
+          "state": "AVAILABLE",
+          "size": 254,
+          "sha256": "34d60548683a0a43a677829c2b4de36d774f20613c3113338cef279331326cb3"
+        },
+        {
+          "path": "native-core-receipt.json",
+          "state": "AVAILABLE",
+          "size": 410,
+          "sha256": "9a8aa71e7feba6d6093b010962e9f7de3566453be858cae4b9cbd41aa930e5e6"
+        },
+        {
+          "path": "native-core-receipt.json",
+          "state": "AVAILABLE",
+          "size": 1090,
+          "sha256": "2f609d54a9757ba6773307220668ae57d26353a3bf7b3f1b81e8b926977340e2"
+        },
+        {
+          "path": "native-core-events.json",
+          "state": "AVAILABLE",
+          "size": 7006,
+          "sha256": "22a029f486c84174472f229aecf60d7baff7acde3d73371a67f6ed5dbfb6d585"
+        },
+        {
+          "path": "native-core-receipt.json",
+          "state": "AVAILABLE",
+          "size": 1062,
+          "sha256": "18fe5141df8058e14f77831cbc278fa53ea5a753d02e8e90acdd7381e1575bae"
+        },
+        {
+          "path": "native-core-receipt.json",
+          "state": "AVAILABLE",
+          "size": 679,
+          "sha256": "cce78fbc1c7ee97dbec74cac1961f40b1c90d33a003a73e691235769aed896a7"
+        },
+        {
+          "path": "native-core-receipt.json",
+          "state": "AVAILABLE",
+          "size": 2204,
+          "sha256": "a063b75baa4bd2e3b347ceb306b938979915d4b35c88bbb8de0bb8a597b112ed"
+        },
+        {
+          "path": "native-core-receipt.json",
+          "state": "AVAILABLE",
+          "size": 1056,
+          "sha256": "31d0acf30322c8c6d59e48aef41285561ec5ca8e5f43cab26e46653863aabfcb"
+        }
+      ],
+      "validationStatus": "INCONCLUSIVE"
+    },
+    {
+      "taskId": "native-d6b89121a152e31fc64ffba50e26a090914f8706ecdcc5b8e30f25953b98d8f8",
+      "status": "COMPLETED",
+      "modelRequests": 19,
+      "verifiedRepairs": 0,
+      "events": 207,
+      "files": [
+        {
+          "path": "analysis.py",
+          "state": "AVAILABLE",
+          "size": 9775,
+          "sha256": "322a0753979968ca48f58a5b659448ee062ee1791f1ff43f13a2a35b42ab39ff"
+        },
+        {
+          "path": "delivery_manifest.json",
+          "state": "AVAILABLE",
+          "size": 519,
+          "sha256": "9c039ff8c83415cb1ae8b2e42e50c0031ed012c8cad142d7de709c131258427f"
+        },
+        {
+          "path": "comparison_chart.png",
+          "state": "AVAILABLE",
+          "size": 119254,
+          "sha256": "9f2627089b0d510226e4a7584da81e724eb95acf9150e5b60ee992792e9a42e3"
+        },
+        {
+          "path": "result.json",
+          "state": "AVAILABLE",
+          "size": 465,
+          "sha256": "0326225fb23f484d6774931de23206745df1702d4712aa4cc91f31753639b55e"
+        },
+        {
+          "path": "REPORT.md",
+          "state": "AVAILABLE",
+          "size": 3386,
+          "sha256": "748f30fb59a3b612c1080a86b0a0b06da43e3132a3a32def62bf6b7b320ae98d"
+        },
+        {
+          "path": "download-8cb51be753a718d9be5d76d7e238cc224792754676adc21faa59e954b0201621",
+          "state": "AVAILABLE",
+          "size": 2180,
+          "sha256": "8cb51be753a718d9be5d76d7e238cc224792754676adc21faa59e954b0201621"
+        },
+        {
+          "path": "synthetic-airline.parquet",
+          "state": "AVAILABLE",
+          "size": 1753,
+          "sha256": "f8bc57a685621307c057b85a9853d567b3ad31fc2f76787f9c122441ce1c0059"
+        },
+        {
+          "path": "delivery-results.json",
+          "state": "AVAILABLE",
+          "size": 430,
+          "sha256": "cf583ad5fcdbf37b22b103c15cc087803573926bdc3d83152e2b9f8d501b11ce"
+        },
+        {
+          "path": "executor-stop.json",
+          "state": "AVAILABLE",
+          "size": 141,
+          "sha256": "da13ea368828db3d3cb52367c21ff1cc4efe7117c68d9f8343844f738fe9b8b9"
+        },
+        {
+          "path": "native-events.json",
+          "state": "AVAILABLE",
+          "size": 945944,
+          "sha256": "b4a87ba37b0031e5d74bc920ac6fb2ed45116d846576a13bec95cc2c15768d42"
+        },
+        {
+          "path": "delivery-validation.json",
+          "state": "AVAILABLE",
+          "size": 174,
+          "sha256": "e988f3af40fed6a132b5cff5c5d44db84e27ec3bfa32d64cd2d1b12e2dd04c79"
+        },
+        {
+          "path": "delivery_manifest.json",
+          "state": "AVAILABLE",
+          "size": 1922,
+          "sha256": "4bd1e2357a04b0b4a022c1f593e3099ddf0124c9dfbde6448dc47bf32c825252"
+        },
+        {
+          "path": "native-core-receipt.json",
+          "state": "AVAILABLE",
+          "size": 1081,
+          "sha256": "b4fb94ae86d0c4e6f9de494a2bf1421fdd0618a93af29638bf18d14127cda0db"
+        },
+        {
+          "path": "native-core-receipt.json",
+          "state": "AVAILABLE",
+          "size": 366,
+          "sha256": "f042528e2f5258f4617f1fe1e67df7ece3f3292b4f4384808cb5112313808464"
+        },
+        {
+          "path": "native-core-receipt.json",
+          "state": "AVAILABLE",
+          "size": 1061,
+          "sha256": "1283204324fd4800180a3d1106a90ef25042056a3cbf99971a7edad1b00b2d12"
+        },
+        {
+          "path": "native-core-receipt.json",
+          "state": "AVAILABLE",
+          "size": 1062,
+          "sha256": "56aff13d2168695b9891890b5f13ee2d175f311829dca6be3b26b646dbdd4518"
+        },
+        {
+          "path": "native-core-receipt.json",
+          "state": "AVAILABLE",
+          "size": 678,
+          "sha256": "2702770791a909b2fab3fd8c337d785ee3ae2b30f7dbdc47d36de805c932704a"
+        },
+        {
+          "path": "native-core-receipt.json",
+          "state": "AVAILABLE",
+          "size": 678,
+          "sha256": "34e8523efdfaef85295a614b3760671a132a52c1083ce3e1a6ddf6023596441c"
+        },
+        {
+          "path": "native-core-receipt.json",
+          "state": "AVAILABLE",
+          "size": 253,
+          "sha256": "a73abb84563df9fe18f59386ce34ddc449a46621f72046071e63dfa911b199b5"
+        },
+        {
+          "path": "native-core-receipt.json",
+          "state": "AVAILABLE",
+          "size": 253,
+          "sha256": "15a9d1a247ca2ee93b69708acb5c8a51df10274b0f110e5efd0b14e11824fe74"
+        },
+        {
+          "path": "native-core-receipt.json",
+          "state": "AVAILABLE",
+          "size": 404,
+          "sha256": "24989ed41afe46b97de2d0bb54c13dc67b162a8f4569e7ebe80989c88e863109"
+        },
+        {
+          "path": "native-core-receipt.json",
+          "state": "AVAILABLE",
+          "size": 1082,
+          "sha256": "8fd3b52627618c26da58de9398d62e1a831c3895083011eab815ccda79f890aa"
+        },
+        {
+          "path": "native-core-events.json",
+          "state": "AVAILABLE",
+          "size": 6976,
+          "sha256": "a53cef445d11eb0f4819b490d364230118920b863b981b5b7e4a99d2d9da3a72"
+        },
+        {
+          "path": "native-provider-receipt.json",
+          "state": "AVAILABLE",
+          "size": 1324,
+          "sha256": "8b2745c1f4888ee737e769beb458ce82e7272b80954374fae4ecb5f464b2613d"
+        },
+        {
+          "path": "native-provider-events.json",
+          "state": "AVAILABLE",
+          "size": 1372,
+          "sha256": "44a7d8f1d9231c70ead2c276d9ad969e182e36601c6a86495ac8efae04bdcb72"
+        },
+        {
+          "path": "native-core-receipt.json",
+          "state": "AVAILABLE",
+          "size": 1061,
+          "sha256": "2bb1484111c08be8892cfc6388c4ae2ca0003dfec9b0a9a71ee7a9103f5f8202"
+        },
+        {
+          "path": "native-core-receipt.json",
+          "state": "AVAILABLE",
+          "size": 678,
+          "sha256": "6701c9da93fdda52be851da9cb4b1ab0713dab3861cb78defa529fc1aeec9e4b"
+        }
+      ],
+      "validationStatus": "INCONCLUSIVE"
+    },
+    {
+      "taskId": "native-8bdba1c17e96827ae59214a4107390b3482def0ecbf35e7abc8db03f277cc7fe",
+      "status": "COMPLETED",
+      "modelRequests": 12,
+      "verifiedRepairs": 1,
+      "events": 156,
+      "files": [
+        {
+          "path": "run_analysis.py",
+          "state": "AVAILABLE",
+          "size": 2317,
+          "sha256": "d9fce683e04307c5495ac9991d5e5f673f1f0d7994f0e93a4c440731c4cc3eed"
+        },
+        {
+          "path": "statistics_engine.py",
+          "state": "AVAILABLE",
+          "size": 1439,
+          "sha256": "6be0e2ff70fc87b9da6c3fef0ec2acaa0ca530f9f4b08561b9d737d79ce11378"
+        },
+        {
+          "path": "data_loader.py",
+          "state": "AVAILABLE",
+          "size": 708,
+          "sha256": "b3eb23dca4337d361165c397457c39009a374f71a1edaddfe2772b0e4a3c918e"
+        },
+        {
+          "path": "__init__.py",
+          "state": "AVAILABLE",
+          "size": 68,
+          "sha256": "91ea7d8f8a65c6efbcb03a900cec3501bf63f08e6b8d904a8334b4c0d1437966"
+        },
+        {
+          "path": "chart.png",
+          "state": "AVAILABLE",
+          "size": 28787,
+          "sha256": "667927520cad764bb582d688f7648b43e4b84f2bf8dd212ccd5f2963480c544f"
+        },
+        {
+          "path": "result.json",
+          "state": "AVAILABLE",
+          "size": 91,
+          "sha256": "3f230aff8d452d7c1647afb8c57e2624b817e8540fcb229fca268c450e35da77"
+        },
+        {
+          "path": "report.md",
+          "state": "AVAILABLE",
+          "size": 309,
+          "sha256": "231e9d6b47ce2b9adf5c57e40deafc4a30f9573d2d89429b0e717ebe5269a4f4"
+        },
+        {
+          "path": "expenses.parquet",
+          "state": "AVAILABLE",
+          "size": 1745,
+          "sha256": "8e65ef03f90a03ef251d1d89cb08918f029a847232503c410b9590ff1ba48f19"
+        },
+        {
+          "path": "delivery-results.json",
+          "state": "AVAILABLE",
+          "size": 76,
+          "sha256": "2661a8958abd1b6780fc8cf351b1bb1aab0fd011e70f32fc56890b086f97a1a2"
+        },
+        {
+          "path": "executor-stop.json",
+          "state": "AVAILABLE",
+          "size": 141,
+          "sha256": "a9987fae07fd0f60bfb9af0b35e8fa1aaea9c92f87de9febaa606792bf26291e"
+        },
+        {
+          "path": "native-events.json",
+          "state": "AVAILABLE",
+          "size": 640582,
+          "sha256": "006fbed7e49a9cb0715895e39b682a3d3ee7a04635b72f2ca711288af2108bf3"
+        },
+        {
+          "path": "delivery-validation.json",
+          "state": "AVAILABLE",
+          "size": 174,
+          "sha256": "badde3721528860c96c8328a66d2b581d88b556910e85f398212ff2ec8cc07c4"
+        },
+        {
+          "path": "delivery_manifest.json",
+          "state": "AVAILABLE",
+          "size": 3878,
+          "sha256": "103b030e1659185d0689c3dbf4e5524b5dd2fcfd87fdd0eb210fb9b372dc9a8d"
+        },
+        {
+          "path": "native-core-receipt.json",
+          "state": "AVAILABLE",
+          "size": 1298,
+          "sha256": "02dcd1dec240223ec800ef2f4ecf9f8253c7b22bc316b400e1ae80c09ac95790"
+        },
+        {
+          "path": "native-core-receipt.json",
+          "state": "AVAILABLE",
+          "size": 366,
+          "sha256": "35f2c6c068bacfafae2e0172d6348ca67bbca117073194864d8fa39da09949b5"
+        },
+        {
+          "path": "native-core-receipt.json",
+          "state": "AVAILABLE",
+          "size": 1061,
+          "sha256": "29b8756ca07eac564cbd4d52b783753ad67c1e46b982a652ca6bf129ba38fd78"
+        },
+        {
+          "path": "native-core-receipt.json",
+          "state": "AVAILABLE",
+          "size": 1061,
+          "sha256": "55cfb62d3b1f36d6ed0369b02b78c347d8c07e0d7d08babce060f4ada591208a"
+        },
+        {
+          "path": "native-core-receipt.json",
+          "state": "AVAILABLE",
+          "size": 678,
+          "sha256": "d2603c32b6f24feb72a0251ddd1b6ec8a341dd61549f31236e22ee1d485e6a2d"
+        },
+        {
+          "path": "native-core-receipt.json",
+          "state": "AVAILABLE",
+          "size": 678,
+          "sha256": "e677ff1011bb843640182172cd8d0c1d58db24c94c3ebf7b9e8cdab51bacdba1"
+        },
+        {
+          "path": "native-core-receipt.json",
+          "state": "AVAILABLE",
+          "size": 253,
+          "sha256": "4e95ec3f4250097ec7309a9a2c995de25e0506cc2336a7ebd9338bf6d5c2bedc"
+        },
+        {
+          "path": "native-core-receipt.json",
+          "state": "AVAILABLE",
+          "size": 253,
+          "sha256": "249c7569befe737cc1920152cb320da7bb6fd67abe8a9034891d11553878b609"
+        },
+        {
+          "path": "native-core-receipt.json",
+          "state": "AVAILABLE",
+          "size": 391,
+          "sha256": "e68e1b3fb4f732ff38f43fc217bb3a79851180f69ca3d8c372f658e6dd1b99b2"
+        },
+        {
+          "path": "native-core-receipt.json",
+          "state": "AVAILABLE",
+          "size": 1299,
+          "sha256": "dca77344883fb6e1e38dd0a5758b17b09b3d248ce5c57985dc964c8c10d5fa03"
+        },
+        {
+          "path": "native-core-events.json",
+          "state": "AVAILABLE",
+          "size": 7396,
+          "sha256": "5402e37952d1c0e255fe214571eeca5a48b8635b817f5b6bb6d67c62e7fc5e41"
+        },
+        {
+          "path": "native-provider-receipt.json",
+          "state": "AVAILABLE",
+          "size": 1340,
+          "sha256": "f05aa43cfdf18252f6d7cd546140062857e6c88b49a5e4db3d7fb3bfaa82bf91"
+        },
+        {
+          "path": "native-provider-events.json",
+          "state": "AVAILABLE",
+          "size": 1388,
+          "sha256": "abbab7b57b81f2ddd13587ebbd36fd4597c0bfcfe1ac54e35ecaf912ee11830e"
+        },
+        {
+          "path": "native-core-receipt.json",
+          "state": "AVAILABLE",
+          "size": 1061,
+          "sha256": "36fe273dfe22496782497c95cf251723785c14cc5923e9ce53940eb4ab4ac255"
+        },
+        {
+          "path": "native-core-receipt.json",
+          "state": "AVAILABLE",
+          "size": 678,
+          "sha256": "053e6e6d9558d3af3e9d47e011cbd8db49a3c38bd5ad7107ef4bb5810b1ae49e"
+        }
+      ],
+      "validationStatus": "INCONCLUSIVE"
+    },
+    {
+      "taskId": "native-fa47ce365dc04a96ff9f980b6667e24ef2f756988e3533c9340cd18e99618e11",
+      "status": "COMPLETED",
+      "modelRequests": 52,
+      "verifiedRepairs": 0,
+      "events": 256,
+      "files": [
+        {
+          "path": "test_result_contract.py",
+          "state": "AVAILABLE",
+          "size": 4741,
+          "sha256": "01fe54804918174be1e542619cada4d9807298b08ede0df6e53efe6011dcf602"
+        },
+        {
+          "path": "compare_synthetic_vs_public.py",
+          "state": "AVAILABLE",
+          "size": 35733,
+          "sha256": "fe50f0718c897fdb5be1fcd612a5a03853908ec4fa45630c3e7ee34d5c8d483e"
+        },
+        {
+          "path": "README.md",
+          "state": "AVAILABLE",
+          "size": 4008,
+          "sha256": "19be313f620a0c29e01881e35aacfe5c06147efc39a9dc29d8218955ea997fac"
+        },
+        {
+          "path": "download_receipt.json",
+          "state": "AVAILABLE",
+          "size": 4942,
+          "sha256": "ca0017c739fd11354c65d4ff04ba3220d3d0b7fded31e9917af1fd5b802eeb3e"
+        },
+        {
+          "path": "quality_summary.json",
+          "state": "AVAILABLE",
+          "size": 9264,
+          "sha256": "a277dcf934449cefab3418dfe65bf244cbc9f685a841a3b8aa24aef31c37a0dc"
+        },
+        {
+          "path": "synthetic_vs_airpassengers.png",
+          "state": "AVAILABLE",
+          "size": 302459,
+          "sha256": "79ac49d80d85149893c8d28f34741e42ff7b8524393364bbc78179cd0726b828"
+        },
+        {
+          "path": "result.json",
+          "state": "AVAILABLE",
+          "size": 458,
+          "sha256": "cbec0f2cf59796e9cc1c9f70034028fa7c826c8c1020b2ae2a5361a80dc46187"
+        },
+        {
+          "path": "report.md",
+          "state": "AVAILABLE",
+          "size": 8180,
+          "sha256": "2182b671e77002e536e6ad84054f3589d4503c65c5e193326e4d0f1fb7d886fe"
+        },
+        {
+          "path": "download-bdb98adbd418a6de6842a742e0602f363c3b841c26677e7e61a1e055e9509bd8",
+          "state": "AVAILABLE",
+          "size": 3032,
+          "sha256": "bdb98adbd418a6de6842a742e0602f363c3b841c26677e7e61a1e055e9509bd8"
+        },
+        {
+          "path": "synthetic-airline.parquet",
+          "state": "AVAILABLE",
+          "size": 1753,
+          "sha256": "f8bc57a685621307c057b85a9853d567b3ad31fc2f76787f9c122441ce1c0059"
+        },
+        {
+          "path": "delivery-results.json",
+          "state": "AVAILABLE",
+          "size": 422,
+          "sha256": "615083183183130012b6df871dce5d9edd31d3fe022f18bcd797f2653100d6dc"
+        },
+        {
+          "path": "executor-stop.json",
+          "state": "AVAILABLE",
+          "size": 141,
+          "sha256": "6d9b5824a5882b800ff773b729dfba09a357c1228096a3864254a2957be92406"
+        },
+        {
+          "path": "native-events.json",
+          "state": "AVAILABLE",
+          "size": 5444148,
+          "sha256": "4ae9391c545082365a8863783e0d49467d76184812c831e4716a7a7943cd74f3"
+        },
+        {
+          "path": "delivery-validation.json",
+          "state": "AVAILABLE",
+          "size": 174,
+          "sha256": "6db4a77b098076f91937ca96df9088dbde0d0b6dd4432bcf05e4cc6799ccd5ce"
+        },
+        {
+          "path": "delivery_manifest.json",
+          "state": "AVAILABLE",
+          "size": 9862,
+          "sha256": "246abb00e7e55d01819f3f726a118e8f30510ce997b22e4080388cca5804fa86"
+        },
+        {
+          "path": "native-core-receipt.json",
+          "state": "AVAILABLE",
+          "size": 1603,
+          "sha256": "2f0767f32d3c24aee92765c3c4bc55b79c0d6fef2f1e9e04c0d490daf4d583e6"
+        },
+        {
+          "path": "native-core-receipt.json",
+          "state": "AVAILABLE",
+          "size": 367,
+          "sha256": "af228b74effe1063192a48b16e2c73b694a16aff6cb557b03b19dced675180b6"
+        },
+        {
+          "path": "native-core-receipt.json",
+          "state": "AVAILABLE",
+          "size": 1063,
+          "sha256": "1bfe186e59d4267b88300cb98b0a30f87019b502272d61661ec5d04214ea1494"
+        },
+        {
+          "path": "native-core-receipt.json",
+          "state": "AVAILABLE",
+          "size": 680,
+          "sha256": "dc13037aa347612dc6abb969c3de480d68466bb1828e32198f0f5d3457eacaef"
+        },
+        {
+          "path": "native-core-receipt.json",
+          "state": "AVAILABLE",
+          "size": 680,
+          "sha256": "d1d61498d3b889963a3b7efb182f35918a00b48b6f8da437386c0fff39c0244a"
+        },
+        {
+          "path": "native-core-receipt.json",
+          "state": "AVAILABLE",
+          "size": 254,
+          "sha256": "cd0c78e04de352def824f2d7f377701477235c2f629edb5c08a3aca839eaae87"
+        },
+        {
+          "path": "native-core-receipt.json",
+          "state": "AVAILABLE",
+          "size": 254,
+          "sha256": "3e37ae409fc23f55455df6f0da42133626c6960df760bee48d8980ef254eb826"
+        },
+        {
+          "path": "native-core-receipt.json",
+          "state": "AVAILABLE",
+          "size": 409,
+          "sha256": "fac358c8a912363e19ffd912edbaf6ba90a701620b4db88ebaa12300aa8407f8"
+        },
+        {
+          "path": "native-core-receipt.json",
+          "state": "AVAILABLE",
+          "size": 1604,
+          "sha256": "c5870ed683e0e3601d9138db9a2f5269e9125e37b7695838eb4eed3d17ec7aad"
+        },
+        {
+          "path": "native-core-events.json",
+          "state": "AVAILABLE",
+          "size": 6972,
+          "sha256": "61b2b72206d861fd5b06ddddd0a4792a18433c4765e1250db468f3804fb90fc9"
+        },
+        {
+          "path": "native-core-receipt.json",
+          "state": "AVAILABLE",
+          "size": 1063,
+          "sha256": "04fa5491516f731629aa63ce9c873284079e68ceff0a9730799504e5e4480039"
+        },
+        {
+          "path": "native-core-receipt.json",
+          "state": "AVAILABLE",
+          "size": 680,
+          "sha256": "ee86d5b7af2a08d03953ac19511ac223c9ae8491ce924640a21d581f9e1975e2"
+        },
+        {
+          "path": "native-core-receipt.json",
+          "state": "AVAILABLE",
+          "size": 4747,
+          "sha256": "170c12161ba0d24c34df0643f20ba52e14da3c0398cd098da4ff94d329293bb9"
+        },
+        {
+          "path": "native-core-receipt.json",
+          "state": "AVAILABLE",
+          "size": 1058,
+          "sha256": "3f6fb4bf2c3195dcdf19ec597e5ef76ba657387d2f938acee16fd2becc8f2c35"
+        },
+        {
+          "path": "native-core-receipt.json",
+          "state": "AVAILABLE",
+          "size": 677,
+          "sha256": "a2e2b10edef3b2ad462ba6a0853ced3c5ace702307030d8b642006faa3de3d1e"
+        }
+      ],
+      "validationStatus": "INCONCLUSIVE"
+    },
+    {
+      "taskId": "native-da8ff99034c37e12fff7f9cb929f114105f127ec85bb45043f87341dfb49463e",
+      "status": "COMPLETED",
+      "modelRequests": 12,
+      "verifiedRepairs": 1,
+      "events": 151,
+      "files": [
+        {
+          "path": "reporter.py",
+          "state": "AVAILABLE",
+          "size": 1324,
+          "sha256": "f1e2b13672fb07e9562cf58f07b630409b14d0cf0edefc40b3c3fdd0848b17a3"
+        },
+        {
+          "path": "analyzer.py",
+          "state": "AVAILABLE",
+          "size": 514,
+          "sha256": "80b7e11526ec269142f0e4f946f11d97b49ab5d6639258691cc174da77df85a8"
+        },
+        {
+          "path": "data_loader.py",
+          "state": "AVAILABLE",
+          "size": 230,
+          "sha256": "3f3397a618ce26e7053f6d7021f0493bd2eb58c98c2999f5ffa271d23d333dc2"
+        },
+        {
+          "path": "__init__.py",
+          "state": "AVAILABLE",
+          "size": 27,
+          "sha256": "1b13364c97ed36e5b987f5760d248e4f991e892967420357400eda4e4c94780f"
+        },
+        {
+          "path": "main.py",
+          "state": "AVAILABLE",
+          "size": 633,
+          "sha256": "9cbd850ca5779e79499e194543cfd175c7f5286eacf1b0e20ee4489e3809d8c0"
+        },
+        {
+          "path": "chart.png",
+          "state": "AVAILABLE",
+          "size": 17472,
+          "sha256": "c5805ac95309dc10460fd1a18a20c8cf7ec2e1708b50d0fd10214fc1908fdbf9"
+        },
+        {
+          "path": "result.json",
+          "state": "AVAILABLE",
+          "size": 91,
+          "sha256": "3f230aff8d452d7c1647afb8c57e2624b817e8540fcb229fca268c450e35da77"
+        },
+        {
+          "path": "report.md",
+          "state": "AVAILABLE",
+          "size": 111,
+          "sha256": "0484ed2d05353344ac189ca239e7fa2b78f044f7a0c139f206e7aba6bcb9e4d1"
+        },
+        {
+          "path": "expenses.csv",
+          "state": "AVAILABLE",
+          "size": 41,
+          "sha256": "a594448057ef437ce1397e1a49cfae51832587bd765494a67db9b965c31dab29"
+        },
+        {
+          "path": "delivery-results.json",
+          "state": "AVAILABLE",
+          "size": 76,
+          "sha256": "2661a8958abd1b6780fc8cf351b1bb1aab0fd011e70f32fc56890b086f97a1a2"
+        },
+        {
+          "path": "executor-stop.json",
+          "state": "AVAILABLE",
+          "size": 141,
+          "sha256": "c1743684f2ffac6be63fc1fa0fe0e3e6dfc36254caac6e0df48abbacc00278dc"
+        },
+        {
+          "path": "native-events.json",
+          "state": "AVAILABLE",
+          "size": 590979,
+          "sha256": "0186e63c4d11a2d64461bc7c38faf2e42514757d63f5df1788600345fbb528a5"
+        },
+        {
+          "path": "delivery-validation.json",
+          "state": "AVAILABLE",
+          "size": 174,
+          "sha256": "d7594a921b8c13ce469b83d1d83e6c2e31326630d49ac51b07daa833afa62b7e"
+        },
+        {
+          "path": "delivery_manifest.json",
+          "state": "AVAILABLE",
+          "size": 4216,
+          "sha256": "e4c3ef06aac3c506de196f8e50c7d45fe9a39de75429cc4e01b64c8be86ff61d"
+        },
+        {
+          "path": "native-core-receipt.json",
+          "state": "AVAILABLE",
+          "size": 1350,
+          "sha256": "0fbac6afc9ec74b785a3265d2a027ac50a7ea6b14d06fe94a5fbb37117b76c76"
+        },
+        {
+          "path": "native-core-receipt.json",
+          "state": "AVAILABLE",
+          "size": 338,
+          "sha256": "c842edd41ffb2283a7bdc97fa42ff8b23481f91a7dd2dba0461c31358ef567a5"
+        },
+        {
+          "path": "native-core-receipt.json",
+          "state": "AVAILABLE",
+          "size": 1061,
+          "sha256": "7fe308ec3ae01604e07d8365de82065c81b33177a309afd199ef38ea9c0bcba3"
+        },
+        {
+          "path": "native-core-receipt.json",
+          "state": "AVAILABLE",
+          "size": 678,
+          "sha256": "36165f1b07d8882fd5ab6344400be6207055a9ee5211654172dd90f94a3a98fa"
+        },
+        {
+          "path": "native-core-receipt.json",
+          "state": "AVAILABLE",
+          "size": 678,
+          "sha256": "4465d44aaf05431720f1a954f90c0bb07963f548aff698d6e8546b2db236cf7c"
+        },
+        {
+          "path": "native-core-receipt.json",
+          "state": "AVAILABLE",
+          "size": 253,
+          "sha256": "026cecd18c0457ea8fc03efe2a828691ddd798e74e33f30a685f8ae38d4f122c"
+        },
+        {
+          "path": "native-core-receipt.json",
+          "state": "AVAILABLE",
+          "size": 253,
+          "sha256": "dc757b96abd61b825fd18db36ff1cf8a546d6db6ebf077495f05edfcb1df98e5"
+        },
+        {
+          "path": "native-core-receipt.json",
+          "state": "AVAILABLE",
+          "size": 384,
+          "sha256": "8dc61a292af5c0ffffa39997fc5c8e7847b40e36c4b8e669a39589e2101d0eba"
+        },
+        {
+          "path": "native-core-receipt.json",
+          "state": "AVAILABLE",
+          "size": 1351,
+          "sha256": "493a66dc70d3c59c2c928cc6bc366b24e187c356993fe114cd3571573d38735a"
+        },
+        {
+          "path": "native-core-events.json",
+          "state": "AVAILABLE",
+          "size": 6403,
+          "sha256": "44e7a1cd6cdcd2dc604a6f9057c5a3bb57e82d588536f2064a437f2651142cc5"
+        },
+        {
+          "path": "native-provider-receipt.json",
+          "state": "AVAILABLE",
+          "size": 1327,
+          "sha256": "c321635449952caab863fea442eb4d15a077b4dae76d18f699ded2ecb76ca9dd"
+        },
+        {
+          "path": "native-provider-events.json",
+          "state": "AVAILABLE",
+          "size": 1375,
+          "sha256": "20e5968a7294d986761735da18ae7819da70c86ff0eb92d91f872d283732862d"
+        },
+        {
+          "path": "native-core-receipt.json",
+          "state": "AVAILABLE",
+          "size": 1062,
+          "sha256": "02ef2d32d0d7cf1a8e2413a4270f1f07e6dcd6fbdf78357aa8183bfde97b818e"
+        },
+        {
+          "path": "native-core-receipt.json",
+          "state": "AVAILABLE",
+          "size": 678,
+          "sha256": "d7831f5414f7d6daf33490d962c69e686c0aa18e343e78db8740fd735289017e"
+        },
+        {
+          "path": "native-core-receipt.json",
+          "state": "AVAILABLE",
+          "size": 2365,
+          "sha256": "3841703d580a27dea04aa78858b1d63740ae2956cc9063c2a5574621307b26e1"
+        }
+      ],
+      "validationStatus": "INCONCLUSIVE"
+    },
+    {
+      "taskId": "native-4895ef60e0f62e92679d8115eeb8a62a5d14d77e7d6f2e1110522706ca6545f9",
+      "status": "COMPLETED",
+      "modelRequests": 10,
+      "verifiedRepairs": 1,
+      "events": 129,
+      "files": [
+        {
+          "path": "main.py",
+          "state": "AVAILABLE",
+          "size": 1432,
+          "sha256": "9af454cccdda8316456d50661d1964b5d13e93d1b3291b17d84ddf8efbb6157b"
+        },
+        {
+          "path": "reporter.py",
+          "state": "AVAILABLE",
+          "size": 2002,
+          "sha256": "4d6f5397f30eb233ac6b303dd0effe18c707ffa2ff9c07f6647a1e08bd8531b3"
+        },
+        {
+          "path": "stats.py",
+          "state": "AVAILABLE",
+          "size": 1093,
+          "sha256": "d07bc7b42dd34b33dd8994d1687bf12f8f6224ed8765700104d049327bc41f30"
+        },
+        {
+          "path": "loader.py",
+          "state": "AVAILABLE",
+          "size": 832,
+          "sha256": "a4a80fc878d707574c531719fa89fe41bf1ce10040d1086423efc75541dcf720"
+        },
+        {
+          "path": "__init__.py",
+          "state": "AVAILABLE",
+          "size": 74,
+          "sha256": "57eccc5be6925c227fc1d2433b689112e06c8dade11ab36acd563de8e99b0ee1"
+        },
+        {
+          "path": "expense_chart.png",
+          "state": "AVAILABLE",
+          "size": 32298,
+          "sha256": "954f0a52951226d33e2adc643625eaf07c522f93133f633cd786bae4db98bd97"
+        },
+        {
+          "path": "result.json",
+          "state": "AVAILABLE",
+          "size": 91,
+          "sha256": "3f230aff8d452d7c1647afb8c57e2624b817e8540fcb229fca268c450e35da77"
+        },
+        {
+          "path": "analysis_report.md",
+          "state": "AVAILABLE",
+          "size": 494,
+          "sha256": "26341dba6bcc4c7c02de41bdad3cba3e9c01414c2d2c8798456b29ed38c35f99"
+        },
+        {
+          "path": "expenses.csv",
+          "state": "AVAILABLE",
+          "size": 41,
+          "sha256": "a594448057ef437ce1397e1a49cfae51832587bd765494a67db9b965c31dab29"
+        },
+        {
+          "path": "delivery-results.json",
+          "state": "AVAILABLE",
+          "size": 76,
+          "sha256": "2661a8958abd1b6780fc8cf351b1bb1aab0fd011e70f32fc56890b086f97a1a2"
+        },
+        {
+          "path": "executor-stop.json",
+          "state": "AVAILABLE",
+          "size": 141,
+          "sha256": "67f2c1799b717347030210a0bcc782c93fd406276e9ef6429e722b5a4fc29251"
+        },
+        {
+          "path": "native-events.json",
+          "state": "AVAILABLE",
+          "size": 555268,
+          "sha256": "fc31e463246e2c2fddd9dbb7e1b9b56509887168539e47d6a96d674335be58b4"
+        },
+        {
+          "path": "delivery-validation.json",
+          "state": "AVAILABLE",
+          "size": 174,
+          "sha256": "6df1a4ebeda4f3678b4069ae5027dae4efef2407a96342fcabc0c652bebe8d3e"
+        },
+        {
+          "path": "delivery_manifest.json",
+          "state": "AVAILABLE",
+          "size": 4015,
+          "sha256": "19499fcf93e4f51e8b4864f2c0612f4fec68017d41bb68aaedb833053865f200"
+        },
+        {
+          "path": "native-core-receipt.json",
+          "state": "AVAILABLE",
+          "size": 1436,
+          "sha256": "7eb7b8f42163c4954c359e6c6e034e33e8379d8476baa0cbfa8943e26adf3577"
+        },
+        {
+          "path": "native-core-receipt.json",
+          "state": "AVAILABLE",
+          "size": 338,
+          "sha256": "dde94af5566e99b321731a85f4d09b8eceeafde509f79c9b932e2386429694f1"
+        },
+        {
+          "path": "native-core-receipt.json",
+          "state": "AVAILABLE",
+          "size": 1061,
+          "sha256": "07d04fb390ca8bbd6334eca26bbfdb974b9f03c52efb09a0ecce4a16a4ff0f9a"
+        },
+        {
+          "path": "native-core-receipt.json",
+          "state": "AVAILABLE",
+          "size": 678,
+          "sha256": "26b1a3fc1f81e00eb120d72bb1221405c737e700ea502b4b5afcf372dcd8ac8e"
+        },
+        {
+          "path": "native-core-receipt.json",
+          "state": "AVAILABLE",
+          "size": 678,
+          "sha256": "0e6880df9e6c37f3d44d97924b9cb613cfdb0d349541c18dac1b44cd364d7711"
+        },
+        {
+          "path": "native-core-receipt.json",
+          "state": "AVAILABLE",
+          "size": 253,
+          "sha256": "6b793a67bb6623352095383ae31caaac298e5d1a7aad498dbc633da1e7863a31"
+        },
+        {
+          "path": "native-core-receipt.json",
+          "state": "AVAILABLE",
+          "size": 253,
+          "sha256": "9a23e0931220780cf15af36ac8fec897f520f2fe1458d1dd9fe3e4d1af1207fd"
+        },
+        {
+          "path": "native-core-receipt.json",
+          "state": "AVAILABLE",
+          "size": 392,
+          "sha256": "9e6384cc7ad0bcb984e7c9b466907922a9456c735287735886ac6d08eb7c589f"
+        },
+        {
+          "path": "native-core-receipt.json",
+          "state": "AVAILABLE",
+          "size": 1437,
+          "sha256": "e8c37eb9039a87186536e5bc2ea2a59b8f951549c8b020007b1120878bae335c"
+        },
+        {
+          "path": "native-core-events.json",
+          "state": "AVAILABLE",
+          "size": 6583,
+          "sha256": "d98cb772b4a8bfd7a429023eaa77b27890800e2672d0edb4ebca26f348ecf5d5"
+        },
+        {
+          "path": "native-provider-receipt.json",
+          "state": "AVAILABLE",
+          "size": 1335,
+          "sha256": "86b8cfe5b72d01113c151196fe9aa21a4b106e6dd76ec1733d622e0e52e48cf3"
+        },
+        {
+          "path": "native-provider-events.json",
+          "state": "AVAILABLE",
+          "size": 1383,
+          "sha256": "e96bbf711c3ccc22376ed0ab7e1cc7a4b86dd5edf924ac0c1e1a69d78f2ca272"
+        },
+        {
+          "path": "native-core-receipt.json",
+          "state": "AVAILABLE",
+          "size": 1062,
+          "sha256": "d9ba651ad44f0233006199c764af39d45fbb2c5d49c0936c494fd2515e27be4e"
+        },
+        {
+          "path": "native-core-receipt.json",
+          "state": "AVAILABLE",
+          "size": 678,
+          "sha256": "050f9495f0a5ce470bfa43fd081dd42e3304b162454b196cc950060e0e15c61d"
+        },
+        {
+          "path": "native-core-receipt.json",
+          "state": "AVAILABLE",
+          "size": 2064,
+          "sha256": "71a94c3a0d245ea40e71a29837f55485a4b432c67ffa41c791fe379f42799fdd"
+        }
+      ],
+      "validationStatus": "INCONCLUSIVE"
+    },
+    {
+      "taskId": "native-e5311cc85362cdeba5dcbaefc8321495eabdf93168027d14ec2312df809bff99",
+      "status": "COMPLETED",
+      "modelRequests": 15,
+      "verifiedRepairs": 1,
+      "events": 170,
+      "files": [
+        {
+          "path": "main.py",
+          "state": "AVAILABLE",
+          "size": 1865,
+          "sha256": "2a62dc133ccec28056339780b7e7b32a29ee3239a2d1910fa9afc922c70c5813"
+        },
+        {
+          "path": "chart_builder.py",
+          "state": "AVAILABLE",
+          "size": 1202,
+          "sha256": "d222afe5f1eef180a3d0b3dcad5014dc0f9b4656d1e018c4ba3df861222705ed"
+        },
+        {
+          "path": "reporter.py",
+          "state": "AVAILABLE",
+          "size": 1475,
+          "sha256": "7d28f2e3077feb3b90b81f324cb6996f138d58dcf2e374d1119bd6af779d1ff8"
+        },
+        {
+          "path": "analytics.py",
+          "state": "AVAILABLE",
+          "size": 1280,
+          "sha256": "7ddb4defd1b97ca41d7bdb8fe14e967202eee72d50ee3b8201756408115cf34d"
+        },
+        {
+          "path": "data_loader.py",
+          "state": "AVAILABLE",
+          "size": 923,
+          "sha256": "369eb0927f09c3c20fad15f96d1809d50d2404cd430477a4fd4fb2877b671317"
+        },
+        {
+          "path": "__init__.py",
+          "state": "AVAILABLE",
+          "size": 50,
+          "sha256": "69eaef51739eca420208f18faa5cba5ed2b645c2fbd4647fa4e0deb1e296a1c6"
+        },
+        {
+          "path": "expenses_chart.png",
+          "state": "AVAILABLE",
+          "size": 43158,
+          "sha256": "6739d4f53fb6b2850b71706078356dcda0ba120d16c1718a72e7f0aaac0054d1"
+        },
+        {
+          "path": "result.json",
+          "state": "AVAILABLE",
+          "size": 91,
+          "sha256": "3f230aff8d452d7c1647afb8c57e2624b817e8540fcb229fca268c450e35da77"
+        },
+        {
+          "path": "report.md",
+          "state": "AVAILABLE",
+          "size": 420,
+          "sha256": "5cf3288062e1b0bbc66be54c8a271255228616c3113b9505753852d8294d6667"
+        },
+        {
+          "path": "expenses.parquet",
+          "state": "AVAILABLE",
+          "size": 765,
+          "sha256": "a2694f5edf3d0645f4d4b6757b226b5672fb95c639d86b02c4e119cdf29355ef"
+        },
+        {
+          "path": "delivery-results.json",
+          "state": "AVAILABLE",
+          "size": 2386,
+          "sha256": "82925e10b5a1635bbe601438f7f8e9656f28d665365ce07b7bab1944d05b3fd3"
+        },
+        {
+          "path": "executor-stop.json",
+          "state": "AVAILABLE",
+          "size": 141,
+          "sha256": "f07d193ceb1e2f305008a563f78433bd8f22e1b17503d2bf3b8be6f2a319f44c"
+        },
+        {
+          "path": "native-events.json",
+          "state": "AVAILABLE",
+          "size": 747451,
+          "sha256": "0b06a83375473c753306d16ce241791d350205d4176e86e025b38f195a7a40de"
+        },
+        {
+          "path": "delivery-validation.json",
+          "state": "AVAILABLE",
+          "size": 174,
+          "sha256": "0b513e8e35c4b350db557b673d5f9714f788739e7eebb4c52791611d39081c06"
+        },
+        {
+          "path": "delivery_manifest.json",
+          "state": "AVAILABLE",
+          "size": 4683,
+          "sha256": "1ce8cae8acf0f2f2086c888fa90f4c1c71a4b2af90e8f647ed4640f388870971"
+        },
+        {
+          "path": "native-core-receipt.json",
+          "state": "AVAILABLE",
+          "size": 1519,
+          "sha256": "fd9b48055fe66f9dbb67a7d912729196f3660a7863349eba3168f87377b862f5"
+        },
+        {
+          "path": "native-core-receipt.json",
+          "state": "AVAILABLE",
+          "size": 338,
+          "sha256": "047ab623e4fa4bd7c232b76b77ae32569608bff779a998bd862d55b91a2470ea"
+        },
+        {
+          "path": "native-core-receipt.json",
+          "state": "AVAILABLE",
+          "size": 1061,
+          "sha256": "a6677c3a14fa4a68666e19b4504667e19a3d87df5b0bc1477d08447374d5bd58"
+        },
+        {
+          "path": "native-core-receipt.json",
+          "state": "AVAILABLE",
+          "size": 678,
+          "sha256": "c82fbd9be10b8a29ed8b9a3c805d773f612a19a6f433a7fed55be10ef45b2c32"
+        },
+        {
+          "path": "native-core-receipt.json",
+          "state": "AVAILABLE",
+          "size": 678,
+          "sha256": "9eb9ad0d4a09a2ae2851125112b8a2da2fb1a67cb3c23a009409b335295335d6"
+        },
+        {
+          "path": "native-core-receipt.json",
+          "state": "AVAILABLE",
+          "size": 253,
+          "sha256": "b398ec03be70cea13a6f650f449ac639e4d4b4bd90a1f2ffbb4d83dfac0f8bb0"
+        },
+        {
+          "path": "native-core-receipt.json",
+          "state": "AVAILABLE",
+          "size": 253,
+          "sha256": "375465280b584edc443d02ccfffa6b6c66ea08818fd2eaec1c78644090815d22"
+        },
+        {
+          "path": "native-core-receipt.json",
+          "state": "AVAILABLE",
+          "size": 1520,
+          "sha256": "566d4ba2c631f322195a57e74af8ef8a3def9f5322a8ce7af714124c9898c143"
+        },
+        {
+          "path": "native-core-events.json",
+          "state": "AVAILABLE",
+          "size": 6356,
+          "sha256": "4526e16ed43ed3394d4a2b2ec1edf29fb084cb07440b60e25eefa1dda435159c"
+        },
+        {
+          "path": "native-core-receipt.json",
+          "state": "AVAILABLE",
+          "size": 1061,
+          "sha256": "d7806e519b46cb9821e46525178aee0b91b5d4badbfb1bd4aab79f0995cd91dc"
+        },
+        {
+          "path": "native-core-receipt.json",
+          "state": "AVAILABLE",
+          "size": 678,
+          "sha256": "eefa95fd878fde6970f06bb120eab7017a26da2f05cbba999aa011aff499825b"
+        },
+        {
+          "path": "native-core-receipt.json",
+          "state": "AVAILABLE",
+          "size": 2387,
+          "sha256": "5a3057abc598382bba4bfe7d900b8ca8207e70faa4e0408d24d9cea1244d224d"
+        },
+        {
+          "path": "native-core-receipt.json",
+          "state": "AVAILABLE",
+          "size": 1055,
+          "sha256": "4b5e7fcc988d9f8e735fe0ca62d117539a15695e6a3756852cb36998f4eb765d"
+        },
+        {
+          "path": "native-core-receipt.json",
+          "state": "AVAILABLE",
+          "size": 675,
+          "sha256": "0ab9c2fc86067c8014f7d01d2f988f8d67d4767a20f91a4cb16fdc601df26cf9"
+        },
+        {
+          "path": "native-core-events.json",
+          "state": "AVAILABLE",
+          "size": 22816,
+          "sha256": "774e53914bf668b12afe6b353306c7654c8688b1e093a7cb2a6a7f95e6a665d7"
+        }
+      ],
+      "validationStatus": "INCONCLUSIVE"
+    },
+    {
+      "taskId": "native-6216d431a167702f0541b20b0bc8b295d28a96ee04f4d8db1de1421f752aef45",
+      "status": "COMPLETED",
+      "modelRequests": 13,
+      "verifiedRepairs": 0,
+      "events": 147,
+      "files": [
+        {
+          "path": "report_generator.py",
+          "state": "AVAILABLE",
+          "size": 1865,
+          "sha256": "681d97f09fdb2126572c9381e757613296238b0d5bea6cfbff4ed288f2cca101"
+        },
+        {
+          "path": "data_loader.py",
+          "state": "AVAILABLE",
+          "size": 837,
+          "sha256": "74d69a8ba9d597747c90d0e2e862aab2966706edad78ac969d3ff9719a10a9a6"
+        },
+        {
+          "path": "__init__.py",
+          "state": "AVAILABLE",
+          "size": 14,
+          "sha256": "b95dc82ca1648e9c54677c391d2f62e5dc672fe80620c141cd3f7a9523844d73"
+        },
+        {
+          "path": "main.py",
+          "state": "AVAILABLE",
+          "size": 1119,
+          "sha256": "bf31074dc374a63423f58b540c5797b9b0f4032300383f4b3fa4d0b1c029f956"
+        },
+        {
+          "path": "chart.png",
+          "state": "AVAILABLE",
+          "size": 25752,
+          "sha256": "a03790eac1b343a272c7d830c2cb15050c6d6877c44673312a0369e95b1bb649"
+        },
+        {
+          "path": "result.json",
+          "state": "AVAILABLE",
+          "size": 91,
+          "sha256": "3f230aff8d452d7c1647afb8c57e2624b817e8540fcb229fca268c450e35da77"
+        },
+        {
+          "path": "report.md",
+          "state": "AVAILABLE",
+          "size": 333,
+          "sha256": "d7b0582d44e730c143f325b6a4701a3ea91bdb2fd2b8dcaca4eacad078057ca4"
+        },
+        {
+          "path": "expenses.csv",
+          "state": "AVAILABLE",
+          "size": 41,
+          "sha256": "a594448057ef437ce1397e1a49cfae51832587bd765494a67db9b965c31dab29"
+        },
+        {
+          "path": "delivery-results.json",
+          "state": "AVAILABLE",
+          "size": 76,
+          "sha256": "2661a8958abd1b6780fc8cf351b1bb1aab0fd011e70f32fc56890b086f97a1a2"
+        },
+        {
+          "path": "executor-stop.json",
+          "state": "AVAILABLE",
+          "size": 141,
+          "sha256": "7d0bb92cba352aa6142838eb6928b153fe3329fdf116582691c47043b3818249"
+        },
+        {
+          "path": "native-events.json",
+          "state": "AVAILABLE",
+          "size": 621824,
+          "sha256": "7ed43a9607c5d46d308a4a567113f45d3ce14e1e1bbbeaa3e49200a0a9c31196"
+        },
+        {
+          "path": "src_report_generator.py",
+          "state": "AVAILABLE",
+          "size": 1865,
+          "sha256": "681d97f09fdb2126572c9381e757613296238b0d5bea6cfbff4ed288f2cca101"
+        },
+        {
+          "path": "src_data_loader.py",
+          "state": "AVAILABLE",
+          "size": 837,
+          "sha256": "74d69a8ba9d597747c90d0e2e862aab2966706edad78ac969d3ff9719a10a9a6"
+        },
+        {
+          "path": "src___init__.py",
+          "state": "AVAILABLE",
+          "size": 14,
+          "sha256": "b95dc82ca1648e9c54677c391d2f62e5dc672fe80620c141cd3f7a9523844d73"
+        },
+        {
+          "path": "main.py",
+          "state": "AVAILABLE",
+          "size": 1119,
+          "sha256": "bf31074dc374a63423f58b540c5797b9b0f4032300383f4b3fa4d0b1c029f956"
+        },
+        {
+          "path": "command-b4c2513a-2598-4c63-b2f3-e18d18521c97-stderr.txt",
+          "state": "AVAILABLE",
+          "size": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        {
+          "path": "command-b4c2513a-2598-4c63-b2f3-e18d18521c97-stdout.txt",
+          "state": "AVAILABLE",
+          "size": 515,
+          "sha256": "e05e9f3694588955d68d1a05b8331ae9c76fdcf34a465e4553b01972dd3ebab6"
+        },
+        {
+          "path": "src_report_generator.py",
+          "state": "AVAILABLE",
+          "size": 1865,
+          "sha256": "681d97f09fdb2126572c9381e757613296238b0d5bea6cfbff4ed288f2cca101"
+        },
+        {
+          "path": "src_data_loader.py",
+          "state": "AVAILABLE",
+          "size": 837,
+          "sha256": "74d69a8ba9d597747c90d0e2e862aab2966706edad78ac969d3ff9719a10a9a6"
+        },
+        {
+          "path": "src___init__.py",
+          "state": "AVAILABLE",
+          "size": 14,
+          "sha256": "b95dc82ca1648e9c54677c391d2f62e5dc672fe80620c141cd3f7a9523844d73"
+        },
+        {
+          "path": "main.py",
+          "state": "AVAILABLE",
+          "size": 1119,
+          "sha256": "bf31074dc374a63423f58b540c5797b9b0f4032300383f4b3fa4d0b1c029f956"
+        },
+        {
+          "path": "command-ae80b642-20dc-4ef4-8f16-30a5df01e801-stderr.txt",
+          "state": "AVAILABLE",
+          "size": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        {
+          "path": "command-ae80b642-20dc-4ef4-8f16-30a5df01e801-stdout.txt",
+          "state": "AVAILABLE",
+          "size": 104,
+          "sha256": "b5e553f3e9ceaf1686b72c72813e2f9720eba159ee619e46cf02280bd60dc95e"
+        },
+        {
+          "path": "src_report_generator.py",
+          "state": "AVAILABLE",
+          "size": 1865,
+          "sha256": "681d97f09fdb2126572c9381e757613296238b0d5bea6cfbff4ed288f2cca101"
+        },
+        {
+          "path": "src_data_loader.py",
+          "state": "AVAILABLE",
+          "size": 837,
+          "sha256": "74d69a8ba9d597747c90d0e2e862aab2966706edad78ac969d3ff9719a10a9a6"
+        },
+        {
+          "path": "src___init__.py",
+          "state": "AVAILABLE",
+          "size": 14,
+          "sha256": "b95dc82ca1648e9c54677c391d2f62e5dc672fe80620c141cd3f7a9523844d73"
+        },
+        {
+          "path": "main.py",
+          "state": "AVAILABLE",
+          "size": 1119,
+          "sha256": "bf31074dc374a63423f58b540c5797b9b0f4032300383f4b3fa4d0b1c029f956"
+        },
+        {
+          "path": "command-9991c059-525d-465f-8e69-1f44451ce315-stderr.txt",
+          "state": "AVAILABLE",
+          "size": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        }
+      ],
+      "validationStatus": "INCONCLUSIVE"
+    }
+  ]
+}

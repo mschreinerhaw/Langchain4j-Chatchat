@@ -39,6 +39,7 @@ try{
   await page.locator('#back').click();await page.locator('#rows tr').filter({hasText:choice.taskId}).locator('button').click();
   await page.locator('#artifacts-panel > summary').click();
   await page.locator('#files article').first().waitFor({timeout:15000});
+  await page.locator('#repairs').getByText(/TypeError/).first().waitFor({state:'visible',timeout:15000});
   assert((await page.locator('#repairs').innerText()).includes('TypeError'));evidence.checks.realRepairEvidenceVisible=true;
   const sourceName=evidence.tasks.find(t=>t.taskId===choice.taskId).files.find(f=>f.path.endsWith('.py')&&f.size>20).path;const source=page.locator('#files article').filter({hasText:sourceName}).first();await source.getByRole('button',{name:'预览',exact:true}).click();
   await page.locator('#preview').waitFor({state:'visible'});assert((await page.locator('#preview-body').innerText()).length>20);

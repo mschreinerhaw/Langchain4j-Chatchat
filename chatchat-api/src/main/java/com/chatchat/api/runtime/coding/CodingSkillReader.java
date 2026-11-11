@@ -28,7 +28,7 @@ public final class CodingSkillReader {
     /** Pin this Agent's assigned packages before its first model call, without
      * disclosing their bodies to Cline or changing the dynamic artifact source. */
     public void freezeCatalog(CodingTaskContract contract, CodingJournal.Lease lease) {
-        if (!CodingProtocol.ANALYSIS_VERSION.equals(contract.schemaVersion())
+        if (!(CodingProtocol.ANALYSIS_VERSION.equals(contract.schemaVersion()) || com.chatchat.api.runtime.coding.nativecline.NativeSiloTaskService.supports(contract))
                 || !(contract.authorization().allowedTools().contains("skills") || contract.authorization().allowedTools().contains("skill_read"))) return;
         if (contract.runtimeContext().get("skills") instanceof Map<?,?> catalog
                 && catalog.get("skills") instanceof List<?> cards)
@@ -40,7 +40,7 @@ public final class CodingSkillReader {
             }
     }
     public Map<String,Object> read(CodingTaskContract contract, CodingJournal.Lease lease, String id, String path) {
-        if (!CodingProtocol.ANALYSIS_VERSION.equals(contract.schemaVersion())
+        if (!(CodingProtocol.ANALYSIS_VERSION.equals(contract.schemaVersion()) || com.chatchat.api.runtime.coding.nativecline.NativeSiloTaskService.supports(contract))
                 || !(contract.authorization().allowedTools().contains("skills") || contract.authorization().allowedTools().contains("skill_read"))) throw denied();
         Object raw=contract.runtimeContext().get("skills");
         if (!(raw instanceof Map<?,?> catalog) || !(catalog.get("skills") instanceof List<?> cards)) throw denied();
@@ -74,22 +74,23 @@ public final class CodingSkillReader {
         if (frozen==null) tasks.privateState(contract.scope(),contract.taskId(),lease,key,null,manifest);
         if (skill.instructions().length()>72000 || skill.resources().size()>64)
             throw new IllegalArgumentException("Skill content exceeds disclosure budget");
+        boolean nativeTask=com.chatchat.api.runtime.coding.nativecline.NativeSiloTaskService.supports(contract);
         var resources=new ArrayList<Map<String,Object>>();
         for (var declared : skill.resources()) {
             String relative=declared.relativePath();
-            if (!nativeOriginal && relative.startsWith("scripts/")) continue;
-            if (!nativeOriginal && !(declared.mediaType().startsWith("text/") || relative.matches(".*\\.(md|txt|json|ya?ml|csv)$"))) continue;
+            if (!nativeOriginal && !nativeTask && relative.startsWith("scripts/")) continue;
+            if (!nativeOriginal && !nativeTask && !(declared.mediaType().startsWith("text/") || relative.matches(".*\\.(md|txt|json|ya?ml|csv)$"))) continue;
             if (relative.length()>512 || relative.startsWith("/") || relative.contains("\\") || relative.contains("..")) throw denied();
             var resource=resolver.readResource(new SkillResourceRequest(id,declared.resourceId(),identity)).orElseThrow(CodingSkillReader::denied);
             byte[] bytes=resource.content();
             try {
                 String digest=HexFormat.of().formatHex(java.security.MessageDigest.getInstance("SHA-256").digest(bytes));
-                if (bytes.length>24000 || !declared.digest().equals(digest)
+                if (bytes.length>(nativeTask?2*1024*1024:24000) || !declared.digest().equals(digest)
                         || !declared.digest().equals(resource.descriptor().digest())) throw denied();
                 String text; String encoding="utf-8";
                 try { text=StandardCharsets.UTF_8.newDecoder().decode(ByteBuffer.wrap(bytes)).toString(); }
                 catch(java.nio.charset.CharacterCodingException invalid) {
-                    if(!nativeOriginal) throw invalid;
+                    if(!nativeOriginal && !nativeTask) throw invalid;
                     text=Base64.getEncoder().encodeToString(bytes); encoding="base64";
                 }
                 resources.add(Map.of("path",relative,"sha256",digest,"content",text,"encoding",encoding));
@@ -98,7 +99,7 @@ public final class CodingSkillReader {
             }
         }
         snapshot=json.valueToTree(Map.of("instructions",skill.instructions(),"contentSha256",hash,"resources",resources,"nativeOriginal",nativeOriginal));
-        if (snapshot.toString().length()>250000) throw new IllegalArgumentException("Skill snapshot exceeds disclosure budget");
+        if (snapshot.toString().length()>(nativeTask?6*1024*1024:250000)) throw new IllegalArgumentException("Skill snapshot exceeds disclosure budget");
         tasks.privateState(contract.scope(),contract.taskId(),lease,snapshotKey,null,snapshot);
         return frozenRead(snapshot,id,version,path);
     }

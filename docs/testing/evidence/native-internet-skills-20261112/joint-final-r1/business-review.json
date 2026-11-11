@@ -1,0 +1,9 @@
+{
+  "numericalAndTransportPassed": true,
+  "reportReviewPassed": false,
+  "findings": [
+    "Unit equality was asserted without source evidence.",
+    "Synthetic sampling history was inferred from coincident values without input metadata."
+  ],
+  "nextAction": "Cline-only revision from explicitly supplied Silo inputs; no manual result editing."
+}

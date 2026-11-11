@@ -30,6 +30,8 @@ class NativeS3CodingAdapterTest {
     DurableCodingTaskService tasks;NativeSiloTaskService capture;NativeS3CodingAdapter adapter;
     ThreadPoolTaskScheduler scheduler;HttpServer http;
     JsonNode grant,manifest;boolean created,messaged,sealed;final AtomicInteger messageCalls=new AtomicInteger();
+    volatile boolean blockStatus;
+    final java.util.concurrent.CountDownLatch blockedStatus=new java.util.concurrent.CountDownLatch(1),releaseStatus=new java.util.concurrent.CountDownLatch(1);
     volatile boolean asynchronousStop;volatile long stopReadyAt;
     final byte[] output="{\"value\":42}".getBytes(java.nio.charset.StandardCharsets.UTF_8);
     @BeforeEach void setup()throws Exception{
@@ -76,6 +78,21 @@ class NativeS3CodingAdapterTest {
         assertThat(traces).hasSize(committed.size());assertThat(traces.stream().map(t->t.get("eventId"))).containsExactlyElementsOf(committed.stream().map(CodingExecutionEvent::eventId).toList());
         assertThat(receipt.get("analysisEvents")).asList().isNotEmpty();assertThat(receipt.get("status")).isEqualTo("CANCELLED");
     }
+    @Test void shutdownDuringARealHttpWaitDoesNotInvalidateTheRecoverableWorkspace()throws Exception{
+        asynchronousStop=true;
+        String file=fixture.assets.upload(fixture.owner,"input.csv","value\n42\n".getBytes()).id();
+        var contract=authorized(()->capture.capture(fixture.scope,"native-restart",List.of(file),"Restart-safe local analysis","published-model",new CodingTaskContract.Budget("restart-budget",Instant.now().plusSeconds(90).truncatedTo(java.time.temporal.ChronoUnit.MILLIS),-1,-1,-1,-1,"unlimited","USD",-1,1024*1024,1024*1024),Map.of("profile","artifact-integrity-v1"),List.of("RESULT")));
+        authorized(()->adapter.submit(contract));
+        for(int i=0;i<100&&messageCalls.get()==0;i++)Thread.sleep(50);
+        assertThat(messageCalls).hasValue(1);blockStatus=true;
+        try{
+            assertThat(blockedStatus.await(5,java.util.concurrent.TimeUnit.SECONDS)).isTrue();
+            adapter.close();Thread.sleep(300);
+            assertThat(authorized(()->tasks.get(fixture.scope,"native-restart")).status().terminal()).isFalse();
+            assertThat(workspace.get(fixture.scope,"native-restart").status()).isEqualTo("RUNNING");
+            assertThat(authorized(()->tasks.privateState(fixture.scope,"native-restart","native-s3:binding"))).isNotNull();
+        }finally{releaseStatus.countDown();}
+    }
     private void node(HttpExchange exchange)throws java.io.IOException{
         try{
             String path=exchange.getRequestURI().getPath();byte[] body=exchange.getRequestBody().readAllBytes();JsonNode request=body.length==0?json.createObjectNode():json.readTree(body);
@@ -83,7 +100,7 @@ class NativeS3CodingAdapterTest {
             String token=exchange.getRequestHeaders().getFirst("Authorization").substring(7);var identity=json.readTree(Base64.getUrlDecoder().decode(token.split("\\.")[0]));
             if(path.equals("/v1/sessions")){created=true;grant=identity;reply(exchange,201,state());return;}
             if(!created){reply(exchange,404,Map.of("code","NOT_FOUND"));return;}
-            if(path.endsWith("/status")){reply(exchange,200,state());return;}
+            if(path.endsWith("/status")){if(blockStatus&&messaged){blockedStatus.countDown();releaseStatus.await(5,java.util.concurrent.TimeUnit.SECONDS);}reply(exchange,200,state());return;}
             if(path.endsWith("/observations")||path.endsWith("/receipts")){reply(exchange,200,Map.of("events",List.of(),"nextEventId",0,"hasMore",false));return;}
             if(path.endsWith("/messages")){messageCalls.incrementAndGet();messaged=true;reply(exchange,202,Map.of("accepted",true));return;}
             if(path.endsWith("/delivery-preview")||path.endsWith("/delivery")){

@@ -1,0 +1,30 @@
+{
+  "passed": true,
+  "checks": {
+    "completed": true,
+    "localParquetNumericValidation": true,
+    "markdown": true,
+    "png": true,
+    "allSiloHashesVerified": true,
+    "realModelUsage": true,
+    "publicDownloadedNumericValidation": true
+  },
+  "externalIndependentCalculations": [
+    {
+      "file": "5668aeff53618baf303f6dd9645d131249fb4ea20cd4386b602d29583ec2b6b3",
+      "rows": 144,
+      "rawDownloadRows": 144,
+      "independentValueColumn": "Passengers",
+      "total": 40363.0,
+      "sourceUrl": "https://raw.githubusercontent.com/jbrownlee/Datasets/refs/heads/master/airline-passengers.csv",
+      "sha256": "8cb51be753a718d9be5d76d7e238cc224792754676adc21faa59e954b0201621"
+    }
+  ],
+  "elapsedSeconds": 289.0564206968993,
+  "taskId": "native-3b532c6b264d8ae65c71d5686b35b8992ffc55e4d7a6bc5b539a241c3f12c203",
+  "runId": "coding-c5bf12ddfa14ea9c16bed9fab49e4dc6196e8676f8022189d7c3082accca51de",
+  "realModel": true,
+  "realSilo": true,
+  "revalidatedExistingTask": false,
+  "fixture": "explicit synthetic local Parquet; actual public historical CSV"
+}

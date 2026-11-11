@@ -1,0 +1,303 @@
+[
+  {
+    "worker": "56a85919-78c3-4221-870d-321e3231f811",
+    "eventId": "82",
+    "at": "2026-11-11T15:06:50.096Z",
+    "toolCallId": "call_5d5c06e9bb90491f92f8ecd2",
+    "input": {
+      "skill": "runtime-image-937aeb8ce941-artifact-management"
+    },
+    "completionEventId": "86",
+    "completionStatus": null,
+    "isError": null,
+    "outputFields": [
+      "type",
+      "contentType",
+      "toolName",
+      "toolCallId",
+      "output",
+      "durationMs"
+    ],
+    "outputPreview": "<command-name>runtime-image-937aeb8ce941-artifact-management</command-name>\n<command-instructions>\nDescription: Save, organize, and describe reusable analysis artifacts such as SQL, result snapshots, CSV exports, summaries, caveats, plots, and report-ready files. Use when users ask to save, export, share, cite, reproduce, or organize data-analysis outputs.\n\n# Artifact Management\n\nUse this skill when analysis outputs should persist beyond the curr"
+  },
+  {
+    "worker": "119326da-29ec-4a3f-a2ab-08fd67eb47c5",
+    "eventId": "70",
+    "at": "2026-11-11T15:33:01.881Z",
+    "toolCallId": "call_332274ce9a5f4908bab8ed40",
+    "input": {
+      "skill": "runtime-image-9e04abb0dcb5-evidence-based-answering"
+    },
+    "completionEventId": "74",
+    "completionStatus": null,
+    "isError": null,
+    "outputFields": [
+      "type",
+      "contentType",
+      "toolName",
+      "toolCallId",
+      "output",
+      "durationMs"
+    ],
+    "outputPreview": "<command-name>runtime-image-9e04abb0dcb5-evidence-based-answering</command-name>\n<command-instructions>\nDescription: Form evidence-supported answers across authorized documents, news and market data while distinguishing facts, inference, source conflicts and missing verification.\n\nUse when the requested conclusion depends on multiple sources, conflicting evidence or a consequential factual assertion. Load only the methodology relevant to the task"
+  },
+  {
+    "worker": "8dee3727-a170-4776-831b-8bcfb8fe4e3c",
+    "eventId": "69",
+    "at": "2026-11-11T15:55:50.458Z",
+    "toolCallId": "call_4f2c252f2c88407587196f10",
+    "input": {
+      "skill": "runtime-agent-75d84c0cad0d-dataset-quality-review"
+    },
+    "completionEventId": "73",
+    "completionStatus": null,
+    "isError": null,
+    "outputFields": [
+      "type",
+      "contentType",
+      "toolName",
+      "toolCallId",
+      "output",
+      "durationMs"
+    ],
+    "outputPreview": "<command-name>runtime-agent-75d84c0cad0d-dataset-quality-review</command-name>\n<command-instructions>\nDescription: Review the quality, provenance and numerical presentation of delivered tabular datasets. Useful for local file comparisons, missing-value checks and reproducible analytical reports.\n\n# Dataset quality review\n\nChoose the checks appropriate to the user's question and the actual data. This package supplies analytical methodology, not a "
+  },
+  {
+    "worker": "8dee3727-a170-4776-831b-8bcfb8fe4e3c",
+    "eventId": "248",
+    "at": "2026-11-11T15:56:25.051Z",
+    "toolCallId": "call_5335f3f0394f4f3e8eb9a0e2",
+    "input": {
+      "skill": "runtime-image-d19cd6a6235b-runtime-internet-research",
+      "args": "Download the raw CSV from https://raw.githubusercontent.com/jbrownlee/Datasets/master/airline-passengers.csv and save it to /workspace/airline-comparison/data/airline-passengers.csv"
+    },
+    "completionEventId": "252",
+    "completionStatus": null,
+    "isError": null,
+    "outputFields": [
+      "type",
+      "contentType",
+      "toolName",
+      "toolCallId",
+      "output",
+      "durationMs"
+    ],
+    "outputPreview": "<command-name>runtime-image-d19cd6a6235b-runtime-internet-research</command-name>\n<command-args>Download the raw CSV from https://raw.githubusercontent.com/jbrownlee/Datasets/master/airline-passengers.csv and save it to /workspace/airline-comparison/data/airline-passengers.csv</command-args>\n<command-instructions>\nDescription: Search public sources precisely, read original pages, distinguish snippets and independent evidence, and combine Internet"
+  },
+  {
+    "worker": "8dee3727-a170-4776-831b-8bcfb8fe4e3c",
+    "eventId": "283",
+    "at": "2026-11-11T15:56:35.126Z",
+    "toolCallId": "call_ae2c8f1c3c4e4d1f98a6cacf",
+    "input": {
+      "skill": "runtime-image-d19cd6a6235b-runtime-internet-research",
+      "args": "web_download https://raw.githubusercontent.com/jbrownlee/Datasets/master/airline-passengers.csv"
+    },
+    "completionEventId": "287",
+    "completionStatus": null,
+    "isError": null,
+    "outputFields": [
+      "type",
+      "contentType",
+      "toolName",
+      "toolCallId",
+      "output",
+      "durationMs"
+    ],
+    "outputPreview": "<command-name>runtime-image-d19cd6a6235b-runtime-internet-research</command-name>\n<command-args>web_download https://raw.githubusercontent.com/jbrownlee/Datasets/master/airline-passengers.csv</command-args>\n<command-instructions>\nDescription: Search public sources precisely, read original pages, distinguish snippets and independent evidence, and combine Internet findings with authorized internal data and reproducible reports using Runtime OS tool"
+  },
+  {
+    "worker": "8dee3727-a170-4776-831b-8bcfb8fe4e3c",
+    "eventId": "296",
+    "at": "2026-11-11T15:56:42.849Z",
+    "toolCallId": "call_ecfb2b563de141f497df6db7",
+    "input": {
+      "skill": "runtime-image-65f3979ceac9-python-data-analysis",
+      "args": "Download https://raw.githubusercontent.com/jbrownlee/Datasets/master/airline-passengers.csv to /workspace/airline-comparison/data/airline-passengers.csv using urllib or requests"
+    },
+    "completionEventId": "300",
+    "completionStatus": null,
+    "isError": null,
+    "outputFields": [
+      "type",
+      "contentType",
+      "toolName",
+      "toolCallId",
+      "output",
+      "durationMs"
+    ],
+    "outputPreview": "<command-name>runtime-image-65f3979ceac9-python-data-analysis</command-name>\n<command-args>Download https://raw.githubusercontent.com/jbrownlee/Datasets/master/airline-passengers.csv to /workspace/airline-comparison/data/airline-passengers.csv using urllib or requests</command-args>\n<command-instructions>\nDescription: Analyze delivered Python datasets, inspect quality, join sources, compute statistics and business metrics, and deliver reproducibl"
+  },
+  {
+    "worker": "8dee3727-a170-4776-831b-8bcfb8fe4e3c",
+    "eventId": "499",
+    "at": "2026-11-11T15:57:30.186Z",
+    "toolCallId": "call_afb0646d456a4c38b3e3c823",
+    "input": {
+      "skill": "runtime-image-f41fe7648580-python-code-development",
+      "args": "Download https://raw.githubusercontent.com/jbrownlee/Datasets/master/airline-passengers.csv using requests or urllib and save to /workspace/airline-comparison/data/airline-passengers.csv"
+    },
+    "completionEventId": "503",
+    "completionStatus": null,
+    "isError": null,
+    "outputFields": [
+      "type",
+      "contentType",
+      "toolName",
+      "toolCallId",
+      "output",
+      "durationMs"
+    ],
+    "outputPreview": "<command-name>runtime-image-f41fe7648580-python-code-development</command-name>\n<command-args>Download https://raw.githubusercontent.com/jbrownlee/Datasets/master/airline-passengers.csv using requests or urllib and save to /workspace/airline-comparison/data/airline-passengers.csv</command-args>\n<command-instructions>\nDescription: Design, implement, debug and refactor maintainable Python programs, reusable analysis components and tests with typed "
+  },
+  {
+    "worker": "8dee3727-a170-4776-831b-8bcfb8fe4e3c",
+    "eventId": "591",
+    "at": "2026-11-11T15:58:02.615Z",
+    "toolCallId": "call_2a4873da76194e97b38b2667",
+    "input": {
+      "skill": "runtime-image-937aeb8ce941-artifact-management",
+      "args": "Retrieve or download https://raw.githubusercontent.com/jbrownlee/Datasets/master/airline-passengers.csv"
+    },
+    "completionEventId": "595",
+    "completionStatus": null,
+    "isError": null,
+    "outputFields": [
+      "type",
+      "contentType",
+      "toolName",
+      "toolCallId",
+      "output",
+      "durationMs"
+    ],
+    "outputPreview": "<command-name>runtime-image-937aeb8ce941-artifact-management</command-name>\n<command-args>Retrieve or download https://raw.githubusercontent.com/jbrownlee/Datasets/master/airline-passengers.csv</command-args>\n<command-instructions>\nDescription: Save, organize, and describe reusable analysis artifacts such as SQL, result snapshots, CSV exports, summaries, caveats, plots, and report-ready files. Use when users ask to save, export, share, cite, repr"
+  },
+  {
+    "worker": "8dee3727-a170-4776-831b-8bcfb8fe4e3c",
+    "eventId": "663",
+    "at": "2026-11-11T15:58:27.642Z",
+    "toolCallId": "call_63f1309f46254c779489c85c",
+    "input": {
+      "skill": "runtime-image-1092dc310669-azure-kusto",
+      "args": "Query for airline passengers historical data"
+    },
+    "completionEventId": "667",
+    "completionStatus": null,
+    "isError": null,
+    "outputFields": [
+      "type",
+      "contentType",
+      "toolName",
+      "toolCallId",
+      "output",
+      "durationMs"
+    ],
+    "outputPreview": "<command-name>runtime-image-1092dc310669-azure-kusto</command-name>\n<command-args>Query for airline passengers historical data</command-args>\n<command-instructions>\nDescription: Query and analyze data in Azure Data Explorer (Kusto/ADX) using KQL for log analytics, telemetry, and time series analysis. WHEN: KQL queries, Kusto database queries, Azure Data Explorer, ADX clusters, log analytics, time series data, IoT telemetry, anomaly detection.\n\n# "
+  },
+  {
+    "worker": "8dee3727-a170-4776-831b-8bcfb8fe4e3c",
+    "eventId": "721",
+    "at": "2026-11-11T15:58:49.815Z",
+    "toolCallId": "call_2f9192edd056414191958141",
+    "input": {
+      "skill": "runtime-image-de580f8b9319-opensearch-knowledge-exploration",
+      "args": "Search for and retrieve airline passengers monthly historical data CSV"
+    },
+    "completionEventId": "725",
+    "completionStatus": null,
+    "isError": null,
+    "outputFields": [
+      "type",
+      "contentType",
+      "toolName",
+      "toolCallId",
+      "output",
+      "durationMs"
+    ],
+    "outputPreview": "<command-name>runtime-image-de580f8b9319-opensearch-knowledge-exploration</command-name>\n<command-args>Search for and retrieve airline passengers monthly historical data CSV</command-args>\n<command-instructions>\nDescription: Explore authorized project documents with Runtime knowledge tools, deepen section reading, cross-check versions and produce traceable document answers.\n\nUse this workflow when an answer depends on project documents and Runtim"
+  },
+  {
+    "worker": "bb9900b4-39fb-465c-ac6e-180823eeaaec",
+    "eventId": "80",
+    "at": "2026-11-11T16:42:33.278Z",
+    "toolCallId": "call_d12d7e45cadd438392babbf8",
+    "input": {
+      "skill": "runtime-agent-75d84c0cad0d-dataset-quality-review"
+    },
+    "completionEventId": "84",
+    "completionStatus": null,
+    "isError": null,
+    "outputFields": [
+      "type",
+      "contentType",
+      "toolName",
+      "toolCallId",
+      "output",
+      "durationMs"
+    ],
+    "outputPreview": "<command-name>runtime-agent-75d84c0cad0d-dataset-quality-review</command-name>\n<command-instructions>\nDescription: Review the quality, provenance and numerical presentation of delivered tabular datasets. Useful for local file comparisons, missing-value checks and reproducible analytical reports.\n\n# Dataset quality review\n\nChoose the checks appropriate to the user's question and the actual data. This package supplies analytical methodology, not a "
+  },
+  {
+    "worker": "35654624-21f5-4c2c-b50a-337b1e47d54f",
+    "eventId": "55",
+    "at": "2026-11-11T17:35:59.771Z",
+    "toolCallId": "call_6ea97af6b4f3460c917fec06",
+    "input": {
+      "skill": "runtime-agent-75d84c0cad0d-dataset-quality-review"
+    },
+    "completionEventId": "59",
+    "completionStatus": null,
+    "isError": null,
+    "outputFields": [
+      "type",
+      "contentType",
+      "toolName",
+      "toolCallId",
+      "output",
+      "durationMs"
+    ],
+    "outputPreview": "<command-name>runtime-agent-75d84c0cad0d-dataset-quality-review</command-name>\n<command-instructions>\nDescription: Review the quality, provenance and numerical presentation of delivered tabular datasets. Useful for local file comparisons, missing-value checks and reproducible analytical reports.\n\n# Dataset quality review\n\nChoose the checks appropriate to the user's question and the actual data. This package supplies analytical methodology, not a "
+  },
+  {
+    "worker": "ad89ec79-6fb8-4912-a1a8-c9b95523aeb9",
+    "eventId": "53",
+    "at": "2026-11-11T17:38:08.876Z",
+    "toolCallId": "call_41981134c38a4437aae2d5fe",
+    "input": {
+      "skill": "runtime-agent-75d84c0cad0d-dataset-quality-review"
+    },
+    "completionEventId": "57",
+    "completionStatus": null,
+    "isError": null,
+    "outputFields": [
+      "type",
+      "contentType",
+      "toolName",
+      "toolCallId",
+      "output",
+      "durationMs"
+    ],
+    "outputPreview": "<command-name>runtime-agent-75d84c0cad0d-dataset-quality-review</command-name>\n<command-instructions>\nDescription: Review the quality, provenance and numerical presentation of delivered tabular datasets. Useful for local file comparisons, missing-value checks and reproducible analytical reports.\n\n# Dataset quality review\n\nChoose the checks appropriate to the user's question and the actual data. This package supplies analytical methodology, not a "
+  },
+  {
+    "worker": "aca54dc6-f406-4ec5-8db2-3e658b8d4ae4",
+    "eventId": "55",
+    "at": "2026-11-11T17:44:24.177Z",
+    "toolCallId": "call_5d4a103251254584be39a635",
+    "input": {
+      "skill": "runtime-agent-75d84c0cad0d-dataset-quality-review"
+    },
+    "completionEventId": "59",
+    "completionStatus": null,
+    "isError": null,
+    "outputFields": [
+      "type",
+      "contentType",
+      "toolName",
+      "toolCallId",
+      "output",
+      "durationMs"
+    ],
+    "outputPreview": "<command-name>runtime-agent-75d84c0cad0d-dataset-quality-review</command-name>\n<command-instructions>\nDescription: Review the quality, provenance and numerical presentation of delivered tabular datasets. Useful for local file comparisons, missing-value checks and reproducible analytical reports.\n\n# Dataset quality review\n\nChoose the checks appropriate to the user's question and the actual data. This package supplies analytical methodology, not a "
+  }
+]

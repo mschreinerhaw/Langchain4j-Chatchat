@@ -1,0 +1,63 @@
+{
+  "passed": true,
+  "source": "EXPLICIT_SECURITY_PROBE_NOT_MODEL_CALLS",
+  "rows": [
+    {
+      "url": "http://127.0.0.1/",
+      "httpStatus": 200,
+      "body": {
+        "jsonrpc": "2.0",
+        "result": {
+          "isError": true,
+          "content": [
+            {
+              "type": "text",
+              "text": "{\"status\":\"ERROR\",\"guidance\":\"Search did not establish data absence. Inspect errorCode, preserve the evidence gap and use only currently authorized alternatives.\",\"count\":0,\"errorCode\":\"SSRF_TARGET_DENIED\",\"provider_id\":\"tencent-wsa\",\"request_id\":\"6971e1a9c3245a940774378787a8a9e61083ad7eabfe3767fa616fc209952a7c\",\"retrieved_at\":\"2026-11-11T15:14:56.481386855Z\",\"authority\":\"UNTRUSTED_SOURCE_DATA\"}"
+            }
+          ]
+        },
+        "id": "security-probe-0"
+      }
+    },
+    {
+      "url": "http://169.254.169.254/latest/meta-data/",
+      "httpStatus": 200,
+      "body": {
+        "jsonrpc": "2.0",
+        "result": {
+          "isError": true,
+          "content": [
+            {
+              "type": "text",
+              "text": "{\"status\":\"ERROR\",\"guidance\":\"Search did not establish data absence. Inspect errorCode, preserve the evidence gap and use only currently authorized alternatives.\",\"count\":0,\"errorCode\":\"TASK_SEARCH_QUOTA\",\"provider_id\":\"tencent-wsa\",\"request_id\":\"dc59b0a2f84879f465a561bfd91725bec4af046c183b5e1d896851f241befe08\",\"retrieved_at\":\"2026-11-11T15:14:56.777529590Z\",\"authority\":\"UNTRUSTED_SOURCE_DATA\"}"
+            }
+          ]
+        },
+        "id": "security-probe-1"
+      }
+    },
+    {
+      "url": "http://192.168.195.221/",
+      "httpStatus": 200,
+      "body": {
+        "jsonrpc": "2.0",
+        "result": {
+          "isError": true,
+          "content": [
+            {
+              "type": "text",
+              "text": "{\"status\":\"ERROR\",\"guidance\":\"Search did not establish data absence. Inspect errorCode, preserve the evidence gap and use only currently authorized alternatives.\",\"count\":0,\"errorCode\":\"TASK_SEARCH_QUOTA\",\"provider_id\":\"tencent-wsa\",\"request_id\":\"41d9a41cf454638f165237c4a69a54f20318ffb3001946dd56fea96674c70171\",\"retrieved_at\":\"2026-11-11T15:14:57.070325238Z\",\"authority\":\"UNTRUSTED_SOURCE_DATA\"}"
+            }
+          ]
+        },
+        "id": "security-probe-2"
+      }
+    }
+  ],
+  "unknownTool": {
+    "httpStatus": 403,
+    "body": {
+      "code": "BROKER_DENIED"
+    }
+  }
+}

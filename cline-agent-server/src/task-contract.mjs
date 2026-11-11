@@ -11,6 +11,7 @@ export function verifyContract(token,key,now=Date.now(),{allowExpired=false}={})
  let c;try{c=JSON.parse(Buffer.from(parts[0],'base64url').toString());}catch{return fail();}
  if(![1,2].includes(c.version)||!['tenantId','userId','taskId','sessionId','workspaceRef','modelProfile'].every(k=>typeof c[k]==='string'&&identifier.test(c[k])))return fail();
  if(c.version===2){
+  if(c.runtimeTools!==undefined&&(!Array.isArray(c.runtimeTools)||!c.runtimeTools.every(t=>['web_search','web_fetch','web_download'].includes(t))))return fail();
   const b=c.deliveryBinding;
   if(c.runtimeProfile!=='native-python-silo-v1'||!b||Array.isArray(b)||typeof b!=='object'
      ||Object.keys(b).sort().join(',')!=='inputSnapshotVersion,runId,taskId,tenantId'

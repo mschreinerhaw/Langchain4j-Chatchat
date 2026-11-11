@@ -1,0 +1,5 @@
+{
+  "type": "ConnectionResetError",
+  "message": "[Errno 104] Connection reset by peer",
+  "elapsedSeconds": 0.020614059641957283
+}

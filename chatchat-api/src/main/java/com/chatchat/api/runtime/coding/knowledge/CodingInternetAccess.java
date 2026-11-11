@@ -13,6 +13,7 @@ import java.util.*;
 @Service
 public class CodingInternetAccess {
     public static final Set<String> TOOLS=Set.of("web_search","web_fetch");
+    public static final Set<String> NATIVE_TOOLS=Set.of("web_search","web_fetch","web_download");
     private final PlatformInternetPolicy models;private final AgentResourceScopePort agents;private final McpControlPlaneClient mcp;private final ObjectMapper json;
     public CodingInternetAccess(PlatformInternetPolicy models,AgentResourceScopePort agents,McpControlPlaneClient mcp,ObjectMapper json){this.models=models;this.agents=agents;this.mcp=mcp;this.json=json;}
     /** Diagnostic only: never performs a search or admits a capability missing from the frozen task. */
@@ -93,7 +94,7 @@ public class CodingInternetAccess {
         return List.of(Map.of("id",profile.get("providerId"),"revision",profile.get("providerRevision")));
     }
     public void require(CodingTaskContract c,String tool){
-        if(!TOOLS.contains(tool)||!c.authorization().allowedTools().contains(tool)||c.authorization().networkPolicy()!=CodingTaskContract.NetworkPolicy.NONE
+        if(!NATIVE_TOOLS.contains(tool)||!c.authorization().allowedTools().contains(tool)||c.authorization().networkPolicy()!=CodingTaskContract.NetworkPolicy.NONE
             ||!(c.runtimeContext().get("internetSearch") instanceof Map<?,?> p))throw new SecurityException("Internet tool outside task authorization");
         var model=c.runtimeContext().get("model") instanceof Map<?,?> m?m:Map.of();
         if(!Objects.equals(model.get("selectedModel"),p.get("modelName")))throw new SecurityException("Internet model binding changed");

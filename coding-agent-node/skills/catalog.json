@@ -3,7 +3,7 @@
     "id": "builtin:python-data-analysis",
     "name": "python-data-analysis",
     "description": "Analyze delivered Python datasets, inspect quality, join sources, compute statistics and business metrics, and deliver reproducible static charts and Runtime OS reports.",
-    "version": "1.3.3",
+    "version": "1.3.4",
     "origin": "SYSTEM_BUILTIN",
     "category": "Python",
     "references": [
@@ -13,7 +13,7 @@
     "displayName": "Python 数据分析",
     "descriptionZh": "支持数据清洗、质量检查、统计分析、指标计算与可视化报告生成。",
     "source": "Runtime OS",
-    "sourceVersion": "1.3.3",
+    "sourceVersion": "1.3.4",
     "builtin": true,
     "enabled": true
   },
@@ -430,7 +430,7 @@
     "id": "builtin:runtime-report-delivery",
     "name": "runtime-report-delivery",
     "description": "Deliver autonomous evidence-based text and visual reports through Runtime OS; synthesize relevant sources rather than dumping retrieved records, preserve uncertainty, use actual Python chart artifacts and the existing report contract.",
-    "version": "1.0.0",
+    "version": "1.0.1",
     "origin": "SYSTEM_BUILTIN",
     "category": "Report",
     "publisher": "Runtime OS",
@@ -440,7 +440,7 @@
     "displayName": "报告交付",
     "descriptionZh": "将有来源依据的文字或图文报告交付到现有 Runtime OS 报告链路。",
     "source": "Runtime OS",
-    "sourceVersion": "1.0.0"
+    "sourceVersion": "1.0.1"
   },
   {
     "id": "builtin:runtime-internet-research",
@@ -448,9 +448,9 @@
     "displayName": "联网研究",
     "descriptionZh": "精确检索公开来源，阅读原文，区分搜索摘要与独立证据，并结合授权数据生成可追溯报告。",
     "source": "Runtime OS / Tavily methodology",
-    "sourceVersion": "b282c623b12b3c58fd279ed072f7e67b693e4654",
+    "sourceVersion": "1.0.1",
     "description": "Search public sources precisely, read original pages, distinguish snippets and independent evidence, and combine Internet findings with authorized internal data and reproducible reports using Runtime OS tools.",
-    "version": "1.0.0",
+    "version": "1.0.1",
     "origin": "SYSTEM_BUILTIN",
     "category": "Research",
     "publisher": "Runtime OS / Tavily methodology",

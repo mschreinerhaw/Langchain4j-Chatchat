@@ -140,4 +140,17 @@ class CodingSkillReaderTest {
         verify(resolver,never()).readResource(any());
         verify(authority,never()).allowedSideEffects();
     }
+    @Test void standaloneProfileRetainsAuthorizedScriptsBeyondTheLegacyTextOnlyBudget() throws Exception {
+        when(contract.schemaVersion()).thenReturn(CodingProtocol.WORKSPACE_VERSION);
+        var output=mock(CodingTaskContract.OutputContract.class);
+        when(contract.outputContract()).thenReturn(output);when(output.resultFormat()).thenReturn(CodingTaskContract.ResultFormat.WORKSPACE_FILES);
+        when(contract.metadataRefs()).thenReturn(List.of(com.chatchat.api.runtime.coding.nativecline.NativeSiloTaskService.PROFILE));
+        byte[] bytes=("# authorized package script\n"+"# methodology\n".repeat(3000)).getBytes(java.nio.charset.StandardCharsets.UTF_8);
+        String digest=HexFormat.of().formatHex(java.security.MessageDigest.getInstance("SHA-256").digest(bytes));
+        var resource=new SkillResourceDescriptor("script","scripts/check.py","text/x-python",digest,Map.of());
+        resolve("Published instructions",List.of(resource));when(resolver.readResource(any())).thenReturn(Optional.of(new SkillResourceContent(resource,bytes)));
+        reader.freezeCatalog(contract,lease);
+        assertThat(reader.read(contract,lease,"method","scripts/check.py")).containsEntry("sha256",digest).containsEntry("content",new String(bytes,java.nio.charset.StandardCharsets.UTF_8));
+    }
+
 }

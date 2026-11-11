@@ -20,9 +20,10 @@ import static com.chatchat.agents.runtime.coding.CodingTaskAccess.Action.*;
 @RequestMapping("/api/v1/coding/tasks")
 @ConditionalOnProperty(prefix="chatchat.runtime.coding.unified",name="enabled",havingValue="true")
 public final class NativeCodingTaskController {
+    private final com.chatchat.api.runtime.coding.nativecline.NativeTaskCapabilities capabilities;
     private final NativeCodingTasks coding;private final CodingInvocationContext identity;
-    public NativeCodingTaskController(NativeCodingTasks coding,CodingInvocationContext identity){this.coding=coding;this.identity=identity;}
-    public record Request(String requestId,List<String> fileIds,String instruction,String modelName,List<String> artifactTypes,Map<String,Object> resultSchema){}
+    public NativeCodingTaskController(NativeCodingTasks coding,CodingInvocationContext identity,com.chatchat.api.runtime.coding.nativecline.NativeTaskCapabilities capabilities){this.coding=coding;this.identity=identity;this.capabilities=capabilities;}
+    public record Request(String requestId,List<String> fileIds,String instruction,String modelName,List<String> artifactTypes,Map<String,Object> resultSchema,String agentId,Boolean resourceExplorationApproved){}
     private String actor(HttpServletRequest request,String key){var value=request.getAttribute(key);if(value==null)throw new ResponseStatusException(HttpStatus.UNAUTHORIZED);return value.toString();}
     private KernelDataScope scope(HttpServletRequest request,String run){
         if(run==null||!run.matches("[A-Za-z0-9_-]{1,128}"))throw new ResponseStatusException(HttpStatus.BAD_REQUEST);
@@ -32,7 +33,11 @@ public final class NativeCodingTaskController {
         if(request.requestId()==null||!request.requestId().matches("[A-Za-z0-9_-]{8,64}")||request.fileIds()!=null&&request.fileIds().size()>8)throw new ResponseStatusException(HttpStatus.BAD_REQUEST,"Stable request ID and at most eight owned files required");
         String run="coding-"+UserAssetService.hash((actor(http,ApiAuthenticationFilter.CURRENT_TENANT_ID)+"\0"+actor(http,ApiAuthenticationFilter.CURRENT_USER_ID)+"\0"+request.requestId()).getBytes(StandardCharsets.UTF_8));
         var scope=scope(http,run);
-        return identity.as(scope,Set.of(READ,SUBMIT),()->ResponseEntity.accepted().body(ApiResponse.success(coding.submit(scope,request.requestId(),request.fileIds(),request.instruction(),request.modelName(),request.artifactTypes(),request.resultSchema()))));
+        return identity.as(scope,Set.of(READ,SUBMIT),()->{
+            var snapshot=capabilities.forAgent(scope,request.agentId(),request.modelName(),Boolean.TRUE.equals(request.resourceExplorationApproved()),request.instruction());
+            var result=coding.submit(scope,request.requestId(),request.fileIds(),request.instruction(),request.modelName(),request.artifactTypes(),request.resultSchema(),snapshot);
+            return ResponseEntity.accepted().body(ApiResponse.success(result));
+        });
     }
     private <T>T authorized(java.util.function.Supplier<T> action){try{return action.get();}catch(com.chatchat.common.runtime.coding.CodingContractException denied){
         if(Set.of(com.chatchat.common.runtime.coding.CodingErrorCode.NOT_FOUND,com.chatchat.common.runtime.coding.CodingErrorCode.AUTHORIZATION_DENIED).contains(denied.error().code()))throw new ResponseStatusException(HttpStatus.FORBIDDEN,"Task is outside this authenticated account");throw denied;

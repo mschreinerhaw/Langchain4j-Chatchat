@@ -61,6 +61,9 @@ public final class NativeSiloTaskService {
     public CodingTaskContract capture(KernelDataScope scope,String task,List<String> originalFileIds,
             String instruction,String selectedModel,CodingTaskContract.Budget budget,
             Map<String,Object> verification,List<String> artifactTypes,Map<String,Object> resultSchema){
+        return capture(scope,task,originalFileIds,instruction,selectedModel,budget,verification,artifactTypes,resultSchema,Map.of());
+    }
+    public CodingTaskContract capture(KernelDataScope scope,String task,List<String> originalFileIds,String instruction,String selectedModel,CodingTaskContract.Budget budget,Map<String,Object> verification,List<String> artifactTypes,Map<String,Object> resultSchema,Map<String,Object> capabilities){
         identity.require(scope,CodingTaskAccess.Action.SUBMIT);
         identity.require(scope,CodingTaskAccess.Action.READ);
         String profile=Objects.toString(verification.get("profile"),"");
@@ -101,10 +104,12 @@ public final class NativeSiloTaskService {
         evidence.register(new EvidenceRecord(null,inputId(task),scope,INPUT_TYPE,"NativeSiloTaskService",
                 evidence.contentHash(payload),payload,null,System.currentTimeMillis(),Map.of()),
             new EvidenceLineage(null,inputId(task),scope,List.of(),task,"NativeSiloTaskService",null,Map.of()));
+        var runtime=new LinkedHashMap<String,Object>(capabilities);runtime.put("schemaVersion","runtime_os.coding.context.v1");runtime.put("consistency","TASK_SNAPSHOT");runtime.put("model",Map.of("selectedModel",selectedModel));CodingRuntimeContext.validate(runtime);
+        var tools=new ArrayList<String>(TOOLS);if(runtime.containsKey("internetSearch")){tools.addAll(com.chatchat.api.runtime.coding.knowledge.CodingInternetAccess.NATIVE_TOOLS);tools.add("runtime__*");}
         var contract=new CodingTaskContract(CodingProtocol.WORKSPACE_VERSION,task,scope,
             new CodingTaskContract.Objective(instruction,artifactTypes,List.of(profile)),
             "runtime-evidence:"+inputId(task),List.of(PROFILE),work,
-            new CodingTaskContract.Authorization(decision,TOOLS,state.inputs().stream().map(SiloCodingWorkspaceService.Input::assetId).toList(),
+            new CodingTaskContract.Authorization(decision,tools,state.inputs().stream().map(SiloCodingWorkspaceService.Input::assetId).toList(),
                 List.of("native-task-input"),List.of("native-task-workspace"),CodingTaskContract.NetworkPolicy.NONE,List.of(),
                 List.of(CodingTaskContract.SideEffect.WORKSPACE_WRITE,CodingTaskContract.SideEffect.CODE_EXECUTION)),
             budget,"native-runtime:cline4.1.26-python3.11",profile,
@@ -112,7 +117,7 @@ public final class NativeSiloTaskService {
                 List.of("delivery_manifest.json"),List.of("application/json","text/markdown","image/png","text/x-python"),
                 CodingProtocol.MAX_SAFE_INTEGER,budget.maxOutputBytes(),
                 List.of(CodingTaskContract.RequiredEvidence.values())),
-            Map.of("schemaVersion","runtime_os.coding.context.v1","consistency","TASK_SNAPSHOT","model",Map.of("selectedModel",selectedModel)));
+            runtime);
         if(!evidence.compareAndSetExecutionCheckpoint(scope,contractKey(task),null,encode(contract)))
             contract=decode(evidence.readExecutionCheckpoint(scope,contractKey(task)).orElseThrow());
         requireAuthorized(contract);

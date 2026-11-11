@@ -13,6 +13,10 @@ import static org.mockito.Mockito.*;
 import static org.mockito.ArgumentMatchers.*;
 
 class CodingInternetAccessTest {
+    @Test void nativeDownloadsDoNotGetAdvertisedToLegacySandboxSdkProfiles(){
+        assertThat(CodingInternetAccess.TOOLS).containsExactlyInAnyOrder("web_search","web_fetch");
+        assertThat(CodingInternetAccess.NATIVE_TOOLS).contains("web_download");
+    }
     @Test void disabledAndUnauthorizedCapabilitiesHaveExplicitReasonsWithoutSearching() {
         assertThat(internet.availability(contract.scope(),"agent","",true,false))
             .containsEntry("status","UNKNOWN").containsEntry("reasonCode","MODEL_BINDING_UNAVAILABLE");

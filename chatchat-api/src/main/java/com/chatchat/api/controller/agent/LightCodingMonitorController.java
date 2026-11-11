@@ -113,7 +113,12 @@ public final class LightCodingMonitorController {
     @GetMapping("/tasks/{runId}/{taskId}/artifacts") public ApiResponse<?> artifacts(HttpServletRequest request,@PathVariable("runId") String runId,@PathVariable("taskId") String taskId){
         var scope=scope(request,runId);return read(scope,taskId,()->{
             var service=assets.getIfAvailable();if(service==null)throw new ResponseStatusException(HttpStatus.SERVICE_UNAVAILABLE);
-            var files=service.list(UserAssetService.Owner.of(scope),null,taskId,100).stream().filter(f->runId.equals(f.runId())).toList();
+            // Keep early downloads and final deliverables visible even when a
+            // long native run has archived hundreds of individual log receipts.
+            var selected=new LinkedHashMap<String,UserAssetService.File>();
+            for(var kind:List.of(UserAssetService.Kind.CODE,UserAssetService.Kind.ARTIFACT,UserAssetService.Kind.CONTEXT,UserAssetService.Kind.DATASET,UserAssetService.Kind.LOG))
+                for(var file:service.list(UserAssetService.Owner.of(scope),kind,taskId,kind==UserAssetService.Kind.LOG?20:100))if(runId.equals(file.runId()))selected.put(file.id(),file);
+            var files=List.copyOf(selected.values());
             return ApiResponse.success(Map.of("files",files,"validationStatus",tasks.get(scope,taskId).validationStatus()));
         });
     }

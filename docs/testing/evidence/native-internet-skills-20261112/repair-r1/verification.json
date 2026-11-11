@@ -1,0 +1,68 @@
+{
+  "passed": true,
+  "checks": {
+    "normalJavaApiCompleted": true,
+    "independentStatistics": true,
+    "multipleDynamicSources": true,
+    "markdown": true,
+    "png": true,
+    "allRegisteredHashesVerified": true,
+    "realModelReceipts": true,
+    "javaDoesNotClaimBusinessValidation": true,
+    "executorStopConfirmed": true,
+    "observedPythonException": true,
+    "sourceChangeAndRerunEvidence": true
+  },
+  "elapsedSeconds": 115.73660486377776,
+  "taskId": "native-8bdba1c17e96827ae59214a4107390b3482def0ecbf35e7abc8db03f277cc7fe",
+  "runId": "coding-6876588846d6238f37650e7af48ed7c35672f5ea23e539c69b827aaebfa4d60f",
+  "downloadedObjects": [
+    {
+      "assetId": "fd79c1215d9a2c11a337dd3af72e5382ad25dc5edfa382b03113e3f67fc1c6af",
+      "fileName": "chart.png",
+      "sha256": "667927520cad764bb582d688f7648b43e4b84f2bf8dd212ccd5f2963480c544f",
+      "size": 28787
+    },
+    {
+      "assetId": "867e7f2eff97da50d3ccf3b953c802e19da48db57e787baa8c73e9e3d18556c3",
+      "fileName": "result.json",
+      "sha256": "3f230aff8d452d7c1647afb8c57e2624b817e8540fcb229fca268c450e35da77",
+      "size": 91
+    },
+    {
+      "assetId": "37bb0b5545c9304f90d3264c44075f4b27cb66d1ccfaded315dbd6f0a3a7ffd4",
+      "fileName": "report.md",
+      "sha256": "231e9d6b47ce2b9adf5c57e40deafc4a30f9573d2d89429b0e717ebe5269a4f4",
+      "size": 309
+    },
+    {
+      "assetId": "9c70f7d66e97dde5844377a66893bdad8c1619ba709075d818fc5e86293b6d75",
+      "fileName": "run_analysis.py",
+      "sha256": "d9fce683e04307c5495ac9991d5e5f673f1f0d7994f0e93a4c440731c4cc3eed",
+      "size": 2317
+    },
+    {
+      "assetId": "14e049db7b4a04db9ff93a920f172d42e82621770c91cb4d657a134f8bbdbac8",
+      "fileName": "statistics_engine.py",
+      "sha256": "6be0e2ff70fc87b9da6c3fef0ec2acaa0ca530f9f4b08561b9d737d79ce11378",
+      "size": 1439
+    },
+    {
+      "assetId": "93ee1e4451fe1d4df649df43ff92fc1988b23d5ae92fb18b0e9c70f56cd7e4aa",
+      "fileName": "data_loader.py",
+      "sha256": "b3eb23dca4337d361165c397457c39009a374f71a1edaddfe2772b0e4a3c918e",
+      "size": 708
+    },
+    {
+      "assetId": "cd2c12deb826bb1156e7f51aa8254d5da74e19a009003fb6e4080f334104aab9",
+      "fileName": "__init__.py",
+      "sha256": "91ea7d8f8a65c6efbcb03a900cec3501bf63f08e6b8d904a8334b4c0d1437966",
+      "size": 68
+    }
+  ],
+  "realModel": true,
+  "realSilo": true,
+  "applicationHttpSpiAcceptance": true,
+  "existingAnalysisEntry": false,
+  "businessScenario": "SYNTHETIC_PARQUET_STATISTICS"
+}

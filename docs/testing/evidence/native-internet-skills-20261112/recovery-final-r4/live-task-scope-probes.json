@@ -1,0 +1,30 @@
+{
+  "source": "EXPLICIT_OPERATOR_PROBES_NOT_MODEL_CALLS",
+  "results": [
+    {
+      "variant": "original",
+      "httpStatus": 200,
+      "hasMcpResult": true
+    },
+    {
+      "variant": "tenant",
+      "httpStatus": 403,
+      "hasMcpResult": false
+    },
+    {
+      "variant": "user",
+      "httpStatus": 403,
+      "hasMcpResult": false
+    },
+    {
+      "variant": "session",
+      "httpStatus": 403,
+      "hasMcpResult": false
+    },
+    {
+      "variant": "expired",
+      "httpStatus": 401,
+      "hasMcpResult": false
+    }
+  ]
+}

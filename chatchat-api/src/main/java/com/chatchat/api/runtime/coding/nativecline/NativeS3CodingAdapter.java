@@ -42,9 +42,11 @@ public final class NativeS3CodingAdapter implements CodingAgentSPI {
     private final JdbcTemplate jdbc;
     private final McpLicenseEntitlementPort license;
     private final String owner="native-s3-java-"+UUID.randomUUID();
+    // HttpClient wraps interrupted IO; Java shutdown must not cancel a live Native session.
+    private volatile boolean shuttingDown;
     private final ConcurrentMap<String,Boolean> active=new ConcurrentHashMap<>();
     private final ThreadPoolExecutor workers=new ThreadPoolExecutor(2,2,0,TimeUnit.SECONDS,new ArrayBlockingQueue<>(128),r->{var t=new Thread(r,"native-s3-control");t.setDaemon(true);return t;});
-    @jakarta.annotation.PreDestroy public void close(){workers.shutdownNow();}
+    @jakarta.annotation.PreDestroy public void close(){shuttingDown=true;workers.shutdownNow();}
     public NativeS3CodingAdapter(DurableCodingTaskService tasks,NativeSiloTaskService inputs,SiloCodingWorkspaceService workspace,
             NativeS3Settings settings,NativeS3Evidence evidence,CodingInvocationContext identity,ObjectMapper json,JdbcTemplate jdbc,
             McpLicenseEntitlementPort license,PlatformTransactionManager manager){
@@ -124,9 +126,9 @@ public final class NativeS3CodingAdapter implements CodingAgentSPI {
                 if("STOPPED".equals(remote.path("workerState").asText()))throw new IllegalStateException("Native Worker stopped without a committed delivery");
                 Thread.sleep(500);
             }
-        }catch(CodingContractException lost){log.warn("Native task {} control rejected: {}",c.taskId(),lost.getMessage());if(run!=null)try{if(!outcome(run).status().terminal())stop(run,true,"Native control fence or contract rejected");}catch(RuntimeException unknown){recordControlFailure(run,unknown);}}
+        }catch(CodingContractException lost){if(shuttingDown||Thread.currentThread().isInterrupted())return;log.warn("Native task {} control rejected: {}",c.taskId(),lost.getMessage());if(run!=null)try{if(!outcome(run).status().terminal())stop(run,true,"Native control fence or contract rejected");}catch(RuntimeException unknown){recordControlFailure(run,unknown);}}
         catch(InterruptedException closing){Thread.currentThread().interrupt();/* Java restart leaves a durable binding, never a second Agent. */}
-        catch(Exception failed){log.warn("Native task {} failed",c.taskId(),failed);if(run!=null)try{stop(run,true,failed.getMessage()==null?failed.getClass().getSimpleName():failed.getMessage());}catch(RuntimeException unknown){recordControlFailure(run,unknown);}}
+        catch(Exception failed){if(shuttingDown||Thread.currentThread().isInterrupted())return;log.warn("Native task {} failed",c.taskId(),failed);if(run!=null)try{stop(run,true,failed.getMessage()==null?failed.getClass().getSimpleName():failed.getMessage());}catch(RuntimeException unknown){recordControlFailure(run,unknown);}}
     }
     private JsonNode binding(Run r){
         var c=r.c;var frozen=inputs.requireAuthorized(c);var ws=workspace.get(c.scope(),c.taskId());var policy=workspace.transferPolicy(c.scope(),c.taskId(),ws.epoch());
@@ -136,13 +138,14 @@ public final class NativeS3CodingAdapter implements CodingAgentSPI {
         grant.put("modelProfile",settings.profile(frozen.get("selectedModel").toString()));grant.put("budgetPolicy",Map.of("status","DEFERRED_STAGE_2_REVIEW"));
         grant.put("toolPermissions",c.authorization().allowedTools());grant.put("dataPermissions",List.of());grant.put("networkPolicy","broker-only");grant.put("expiresAt",c.budget().deadlineAt().toEpochMilli());grant.put("runtimeProfile","native-python-silo-v1");
         grant.put("deliveryBinding",Map.of("tenantId",c.scope().tenantId(),"taskId",c.taskId(),"runId",c.scope().runId(),"inputSnapshotVersion",ws.snapshotVersion()));
+        grant.put("runtimeTools",c.authorization().allowedTools().stream().filter(com.chatchat.api.runtime.coding.knowledge.CodingInternetAccess.NATIVE_TOOLS::contains).toList());
         grant.put("s3",Map.of("origin",policy.get("origin"),"inputPrefix",policy.get("inputPrefix"),"outputPrefix",policy.get("outputPrefix"),"inputManifestSha256",settings.client.inputManifestHash(files)));
         return json.valueToTree(Map.of("sessionId",session,"grant",settings.client.signGrant(grant,settings.issuerKey),"inputs",files,"transportEpoch",ws.epoch()));
     }
     private String instruction(Run r){
         var frozen=inputs.requireAuthorized(r.c);var ws=workspace.get(r.c.scope(),r.c.taskId());
         return r.c.objective().instruction()+"\n\nRuntime delivery contract (not analysis instructions): Read the authorized original files at these real workspace paths: "+ws.inputs().stream().map(SiloCodingWorkspaceService.Input::path).toList()
-            +". input/ is read-only. Choose meaningful source names and any project structure. Use native tools and local Python when computation is needed; no remote Sandbox. Inspect real execution errors and repair your own code. Do not invent data or evidence. "
+            +". Runtime Internet admission: "+r.c.runtimeContext().getOrDefault("internetAvailability",Map.of("status","NOT_ADMITTED"))+"; authorized optional Runtime MCP tools: "+r.c.authorization().allowedTools().stream().filter(com.chatchat.api.runtime.coding.knowledge.CodingInternetAccess.NATIVE_TOOLS::contains).map(t->"runtime__"+t).toList()+". An unavailable capability is an evidence gap, not an empty public dataset; direct worker networking is not granted. input/ is read-only. Choose meaningful source names and any project structure. Use native tools and local Python when computation is needed; no remote Sandbox. Inspect real execution errors and repair your own code. Do not invent data or evidence. "
             +"Deliver the requested artifact types: "+frozen.get("artifactTypes")+". Create delivery_manifest.json with schemaVersion coding_node_delivery_selection.v1 and artifacts [{path,type}]. Each path is relative to /workspace and identifies an existing file you choose. Allowed types: SOURCE, REPORT, RESULT, CHART, TEST, AUXILIARY. Do not include input/, logs/, evidence/, .git/ or the selection manifest itself. "
             +(frozen.get("resultSchema") instanceof Map<?,?> schema&&!schema.isEmpty()?"The declared RESULT JSON must match this structural schema (an object or an array of matching objects): "+new String(evidence.bytes(schema),StandardCharsets.UTF_8)+". ":"")
             +"Run and inspect your project and actual deliverables before ending the turn. Runtime, not the Agent, verifies hashes, object versions and acceptance.";
@@ -162,11 +165,14 @@ public final class NativeS3CodingAdapter implements CodingAgentSPI {
         String operation=null,group=null,telemetryId=null;CodingJournal.OperationKind kind=null;Counters actual=null;boolean complete=false,metered=false;
         var projected=new LinkedHashMap<String,Object>();projected.put("nativeEventType",type);projected.put("sessionId",state(r,BINDING).path("sessionId").asText());projected.put("detailAssetId",rawAsset);
         String normalized="OBSERVATION",summary=type;
-        if(channel.equals("provider")){
+        if(channel.equals("provider")&&type.startsWith("model.request.")){
             operation="model-"+p.path("requestId").asText();kind=CodingJournal.OperationKind.MODEL;complete=type.equals("model.request.completed");long tokens=p.path("usage").path("totalTokens").asLong();
             actual=new Counters(1,tokens,0,0,0,0,0,"0");metered=complete&&p.path("usage").path("totalTokens").isNumber();
             normalized=complete?"MODEL_REQUEST_COMPLETED":"MODEL_REQUEST_STARTED";summary=p.path("providerModel").asText(p.path("model").asText());group="model";telemetryId=p.path("requestId").asText();
             for(String field:List.of("requestId","model","providerModel","usage","durationMs"))if(p.hasNonNull(field))projected.put(field,json.convertValue(p.get(field),Object.class));
+        }else if(channel.equals("provider")){
+            summary=type+": "+p.path("tool").asText(p.path("name").asText(p.path("url").asText()));
+            for(String field:List.of("tool","requestId","isError","skillId","name","version","source","bytes","url","sha256","size","path","assetId","retrieved_at","files"))if(p.hasNonNull(field))projected.put(field,json.convertValue(p.get(field),Object.class));
         }else if(type.startsWith("tool.")){
             String tool=p.path("toolName").asText();operation="tool-"+evidence.hash(p.path("toolCallId")).substring(0,32);kind=CodingJournal.OperationKind.TOOL;
             complete=!type.equals("tool.started");actual=new Counters(0,0,1,0,0,0,0,"0");projected.put("toolCallId",p.path("toolCallId").asText());
@@ -178,7 +184,7 @@ public final class NativeS3CodingAdapter implements CodingAgentSPI {
             normalized=complete&&p.path("exitCode").asInt(-1)!=0?"ERROR_OCCURRED":complete?"COMMAND_COMPLETED":"COMMAND_STARTED";summary=command;projected.put("command",command);if(p.hasNonNull("exitCode"))projected.put("exitCode",p.path("exitCode").asInt());
             group="execution";telemetryId=p.path("recordId").asText();
         }
-        var proof=new LinkedHashMap<String,Object>();proof.put("taskId",r.c.taskId());proof.put("sessionId",state(r,BINDING).path("sessionId").asText());proof.put("operationId",operation==null?"observation":operation);proof.put("stopped",complete);proof.put("source",channel.equals("provider")?"PROVIDER_HTTP_OBSERVATION":"NATIVE_ROOT_HOST_OBSERVATION");proof.put("nativeEventId",event.path("eventId").asText());proof.put("rawAssetId",rawAsset);proof.put("sha256",evidence.hash(event));
+        var proof=new LinkedHashMap<String,Object>();proof.put("taskId",r.c.taskId());proof.put("sessionId",state(r,BINDING).path("sessionId").asText());proof.put("operationId",operation==null?"observation":operation);proof.put("stopped",complete);proof.put("source",channel.equals("provider")?(type.startsWith("model.request.")?"PROVIDER_HTTP_OBSERVATION":"RUNTIME_CAPABILITY_OBSERVATION"):"NATIVE_ROOT_HOST_OBSERVATION");proof.put("nativeEventId",event.path("eventId").asText());proof.put("rawAssetId",rawAsset);proof.put("sha256",evidence.hash(event));
         String ref=evidence.register(r.c,NativeS3ExecutionProofVerifier.TYPE,channel+":"+event.path("eventId").asText(),proof,List.of(r.c.inputSnapshotRef()));
         if(operation!=null)projected.put("operationId",operation);
         if(p.hasNonNull("toolName"))projected.put("tool",p.path("toolName").asText());

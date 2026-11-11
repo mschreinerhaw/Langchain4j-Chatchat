@@ -1,3 +1,4 @@
+import {stageNativeSkills,stageNativeDownload,runtimeMcpReply} from './native-capability-files.mjs';
 import http from 'node:http';
 import {readFileSync,writeFileSync,mkdirSync,readdirSync,existsSync,renameSync,chownSync,chmodSync,cpSync,unlinkSync,lstatSync} from 'node:fs';
 import {join} from 'node:path';
@@ -34,7 +35,7 @@ const delay=ms=>new Promise(r=>setTimeout(r,ms));
 function save(r){const dir=join(cfg.stateRoot,'workers',r.workerId);const {s3Busy,approvalBusy,...durable}=r;writeFileSync(join(dir,'registry.tmp'),JSON.stringify(durable),{mode:0o600});renameSync(join(dir,'registry.tmp'),join(dir,'registry.json'));}
 function event(r,type,detail={}){
  const recorded=audit.append({type,sessionId:r?.contract.sessionId,tenantId:r?.contract.tenantId,workerId:r?.workerId,...detail});
- if(r&&type.startsWith('model.request.'))providerJournal(r).append({eventType:type,taskId:r.contract.taskId,
+ if(r&&(type.startsWith('model.request.')||type.startsWith('skills.')||type.startsWith('internet.')||type.startsWith('runtime.tool.')))providerJournal(r).append({eventType:type,taskId:r.contract.taskId,
   sessionId:r.contract.sessionId,tenantId:r.contract.tenantId,sourceEventId:recorded.eventId,...detail});
 }
 for(const id of readdirSync(join(cfg.stateRoot,'workers'))){const p=join(cfg.stateRoot,'workers',id,'registry.json');if(existsSync(p)){const r=JSON.parse(readFileSync(p));if(!['STOPPED','START_FAILED'].includes(r.workerState)){r.workerState='RECOVERABLE';r.taskState='UNKNOWN';r.revoked=true;save(r);event(r,'recovery.required',{reason:'No side-effect replay or operation reconciliation in stage 1'});}records.set(r.contract.sessionId,r);}}
@@ -81,18 +82,18 @@ async function stop(r,reason){
 }
 async function broker(r,path){
  const server=http.createServer(async(req,res)=>{
-  let observation;
+  let observation,requestBody;
   try{
    const provided=Buffer.from(req.headers.authorization??''),expected=Buffer.from('Bearer '+r.brokerToken);
    if(provided.length!==expected.length||!timingSafeEqual(provided,expected))throw error('Broker authorization rejected',401);
    if(!live(r))throw error('Task lease inactive',403);
-   const tenant=cfg.tenants[r.contract.tenantId];let url,headers,requestBody,modelProfile;
+   const tenant=cfg.tenants[r.contract.tenantId];let url,headers,modelProfile;
    if(req.url==='/mcp'){
     if(!tenant.mcp)throw error('MCP not granted',403);
     if(req.method!=='POST')return send(res,405,{code:'STATELESS_MCP_POST_ONLY'});
     requestBody=await body(req);
     if(requestBody.method==='tools/call'){
-     if(!tenant.mcp.tools.includes(requestBody.params?.name)||!r.contract.dataPermissions.includes(requestBody.params?.arguments?.datasetId))throw error('Dataset or tool not granted',403);
+     if(!tenant.mcp.tools.includes(requestBody.params?.name)||(tenant.mcp.authMode==='native-runtime'?!r.contract.runtimeTools?.includes(requestBody.params?.name):!r.contract.dataPermissions.includes(requestBody.params?.arguments?.datasetId)))throw error('Dataset or tool not granted',403);
      event(r,'mcp.authorized',{tool:requestBody.params.name,datasetId:requestBody.params.arguments.datasetId});
      if(cfg.operations){
       const context=requestBody.params?._meta?.runtimeNative;
@@ -102,7 +103,7 @@ async function broker(r,path){
       const actual={...result.mcpResponse,id:requestBody.id};return send(res,200,actual);
      }
     }else if(!['initialize','notifications/initialized','tools/list','ping'].includes(requestBody.method))throw error('MCP method not granted',403);
-    url=tenant.mcp.url;headers={'Authorization':'Bearer '+(tenant.mcp.authMode==='task-grant'?signContract(r.contract,issuerKey(cfg,r.contract.tenantId)):tenant.mcp.token),'Accept':'application/json, text/event-stream','content-type':'application/json'};
+    url=tenant.mcp.url;headers={'Authorization':'Bearer '+(['task-grant','native-runtime'].includes(tenant.mcp.authMode)?signContract(r.contract,issuerKey(cfg,r.contract.tenantId)):tenant.mcp.token),'Accept':'application/json, text/event-stream','content-type':'application/json'};
     if(req.headers['mcp-protocol-version'])headers['mcp-protocol-version']=req.headers['mcp-protocol-version'];
    }else if(['/model/v1/chat/completions','/model/v1/responses'].includes(req.url)&&req.method==='POST'){
     requestBody=await body(req);const profile=cfg.modelProfiles[r.contract.modelProfile];modelProfile=profile;
@@ -116,6 +117,15 @@ async function broker(r,path){
     const request=JSON.stringify(requestBody);
     if(modelProfile)observation=modelReceipt({model:modelProfile.model,request,emit:(type,payload)=>event(r,type,payload)});
     const upstream=await fetch(url,{method:'POST',headers,body:request,signal:controller.signal,redirect:'error'});
+    if(req.url==='/mcp'&&tenant.mcp.authMode==='native-runtime'){
+     const chunks=[];let size=0;for await(const chunk of upstream.body??[]){size+=chunk.length;if(size>2*1024*1024){controller.abort();throw Error('Runtime MCP response byte budget exceeded');}chunks.push(chunk);}const bytes=Buffer.concat(chunks);if(!bytes.length){res.writeHead(upstream.status);return res.end();}if(!live(r))throw error('Task lease inactive',403);
+     const value=runtimeMcpReply(bytes,upstream.status);
+     if(requestBody.method==='tools/call'&&requestBody.params.name==='web_download'&&upstream.ok&&value.result&&!value.result.isError){
+      const result=JSON.parse(value.result.content[0].text);value.result.content[0].text=JSON.stringify(await stageNativeDownload(join(cfg.workerRoot,r.workerId,'workspace'),result,{uid:workerRuntime(cfg).uid}));event(r,'internet.download.completed',JSON.parse(value.result.content[0].text));
+     }
+     if(requestBody.method==='tools/call')event(r,'runtime.tool.completed',{tool:requestBody.params.name,requestId:requestBody.id,isError:value.result?.isError??upstream.status>=400});
+     return send(res,upstream.status,value);
+    }
     res.writeHead(upstream.status,{'content-type':upstream.headers.get('content-type')??'application/json'});
     res.on('close',()=>controller.abort());
     try{
@@ -123,7 +133,14 @@ async function broker(r,path){
      observation?.finish({httpStatus:upstream.status,providerRequestId:upstream.headers.get('x-request-id')??upstream.headers.get('request-id')});res.end();
     }catch(e){observation?.finish({httpStatus:upstream.status,errorType:e.name??'UpstreamError'});throw e;}
    }finally{calls.get(r.workerId).delete(controller);}
-  }catch(e){observation?.finish({errorType:e.name??'UpstreamError'});if(!res.headersSent)send(res,e.status??502,{code:e.status?'BROKER_DENIED':'UPSTREAM_UNAVAILABLE'});else res.destroy();}
+  }catch(e){
+   observation?.finish({errorType:e.name??'UpstreamError'});
+   if(!res.headersSent&&req.url==='/mcp'&&requestBody?.method==='tools/call'){
+    const code=[401,403,409].includes(e.status)?'RUNTIME_AUTHORIZATION_REJECTED':/integrity|hash/i.test(e.message)?'DOWNLOAD_INTEGRITY_MISMATCH':/symlink|path changed/i.test(e.message)?'DOWNLOAD_PATH_REJECTED':/byte budget/i.test(e.message)?'DOWNLOAD_RESOURCE_LIMIT':'RUNTIME_TOOL_UNAVAILABLE';
+    event(r,'runtime.tool.failed',{tool:requestBody.params?.name,requestId:requestBody.id,code});
+    send(res,e.status??200,{jsonrpc:'2.0',id:requestBody.id,result:{isError:true,content:[{type:'text',text:JSON.stringify({status:'ERROR',errorCode:code,guidance:'No verified file was delivered by this call. Inspect authorization or resource limits and choose a currently authorized alternative.'})}]}});
+   }else if(!res.headersSent)send(res,e.status??502,{code:e.status?'BROKER_DENIED':'UPSTREAM_UNAVAILABLE'});else res.destroy();
+  }
  });
  if(existsSync(path))unlinkSync(path);await new Promise((resolve,reject)=>{server.once('error',reject);server.listen(path,resolve);});const runtime=workerRuntime(cfg),uid=runtime.supervisorUid??runtime.uid;chownSync(path,uid,uid);chmodSync(path,0o600);brokers.set(r.workerId,server);
 }
@@ -140,6 +157,14 @@ async function allocate(r){
     try{await prepareS3Inputs(join(cfg.workerRoot,r.workerId,'workspace'),r.contract,r.s3Inputs,cfg.s3,{signal:AbortSignal.any([controller.signal,AbortSignal.timeout(Math.max(1,r.contract.expiresAt-Date.now()))]),uid:workerRuntime(cfg).uid});}
     finally{calls.get(r.workerId).delete(controller);}
     delete r.s3Inputs;save(r);event(r,'s3.inputs.verified',{snapshotVersion:r.contract.deliveryBinding.inputSnapshotVersion});
+   }
+   if(workerRuntime(cfg).python){
+    let packages=[];
+    if(tenant.mcp?.authMode==='native-runtime'){
+     const response=await fetch(tenant.mcp.url.replace(/\/mcp$/,'/skills'),{method:'POST',headers:{Authorization:'Bearer '+signContract(r.contract,issuerKey(cfg,r.contract.tenantId))},signal:AbortSignal.timeout(60000),redirect:'error'});
+     if(!response.ok)throw Error('Authorized Skill package delivery failed');packages=(await response.json()).packages;
+    }
+    await stageNativeSkills(join(cfg.workerRoot,r.workerId,'workspace'),packages,(type,payload)=>event(r,type,payload));
    }
    await broker(r,join(bridgeRoot(r),'broker.sock'));
    if(r.revoked)throw Error('Allocation revoked');await executor.start(grant(r),r.workerId);

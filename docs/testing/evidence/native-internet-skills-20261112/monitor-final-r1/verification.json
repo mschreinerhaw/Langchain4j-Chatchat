@@ -1,0 +1,12 @@
+{
+  "passed": true,
+  "realProviderRequestCount": 25,
+  "inputTokens": 458840,
+  "outputTokens": 12710,
+  "checks": {
+    "providerReceiptsMatchJava": true,
+    "requestIdsUnique": true,
+    "historicalSse": true,
+    "lastEventIdReconnect": true
+  }
+}

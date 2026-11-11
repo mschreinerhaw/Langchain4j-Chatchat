@@ -1,0 +1,19 @@
+{
+  "database": "runtime_os_coding_candidate_20261111",
+  "scope": "ISOLATED_CANDIDATE_TEST_FIXTURE_ONLY",
+  "before": {
+    "model_name": "qwen3.7-plus",
+    "enabled": false,
+    "provider_id": "tencent-wsa",
+    "revision": 6
+  },
+  "after": {
+    "model_name": "qwen3.7-plus",
+    "enabled": true,
+    "provider_id": "tencent-wsa",
+    "revision": 7
+  },
+  "providerUnchanged": true,
+  "sharedProductionModelsUntouched": true,
+  "time": "2026-11-11T15:32:46.867892+00:00"
+}

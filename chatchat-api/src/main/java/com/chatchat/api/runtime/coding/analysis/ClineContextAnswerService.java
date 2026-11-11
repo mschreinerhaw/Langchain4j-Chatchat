@@ -112,6 +112,7 @@ public final class ClineContextAnswerService implements CodingAnswerPort {
         attrs.put("checkpointModelConfig", models.checkpointModelConfiguration(alias, model));
         attrs.put(SkillAnalysisContext.ATTRIBUTE, SkillAnalysisContext.validate(context.skillAnalysisContext()));
         attrs.put("codingOwnedAnalysisActive", true);
+        if(withAttachments)attrs.put("nativeOriginalAssetIds",List.copyOf((List<?>)internal.get(com.chatchat.api.assets.AssetAnalysisInputs.IDS)));
         attrs.put("contextOnlyAnswer", true); // This route cannot delegate external business queries.
         if(agent!=null&&agent.id()!=null&&!agent.id().isBlank())attrs.put("authorizationAgentId",agent.id());
         if(!withAttachments && sqlSource==null && agent!=null && agent.id()!=null && !agent.id().isBlank())

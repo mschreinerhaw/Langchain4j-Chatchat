@@ -1,0 +1,10 @@
+✔ a tenant issuer cannot sign another tenant or fall back to the Executor root key (4.629635ms)
+✔ formal S3 task scopes bind tenant, owner, task, run and the same transport epoch (2.256209ms)
+ℹ tests 99
+ℹ suites 0
+ℹ pass 99
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 1036.067805

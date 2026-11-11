@@ -1,0 +1,15 @@
+{
+  "passed": true,
+  "reviewer": "independent artifact review; no edits to Cline artifacts",
+  "checks": {
+    "numericAndObjectVerification": true,
+    "syntheticAndPublicEvidenceDistinguished": true,
+    "unknownSyntheticUnitsYearAndProvenanceDisclosed": true,
+    "unsupportedSamplingCausationRemoved": true,
+    "publicUnitConventionQualifiedAsExternalContext": true
+  },
+  "limitations": [
+    "Chart shows raw numerical comparisons; it does not establish common physical units or a historical year for the synthetic observations.",
+    "Complete research URLs and retrieval receipts are retained in the Silo execution evidence; report cites document names."
+  ]
+}

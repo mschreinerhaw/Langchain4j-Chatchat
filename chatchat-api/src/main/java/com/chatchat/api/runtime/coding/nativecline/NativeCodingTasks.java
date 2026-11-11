@@ -30,6 +30,9 @@ public final class NativeCodingTasks {
     public record Submitted(String taskId,String runId,CodingTaskOutcome outcome){}
     public static String taskId(KernelDataScope scope,String requestId){return "native-"+UserAssetService.hash((scope.tenantId()+"\0"+scope.userId()+"\0"+scope.runId()+"\0"+requestId).getBytes(StandardCharsets.UTF_8));}
     public Submitted submit(KernelDataScope scope,String requestId,List<String> files,String instruction,String model,List<String> artifactTypes,Map<String,Object> schema){
+        return submit(scope,requestId,files,instruction,model,artifactTypes,schema,Map.of());
+    }
+    public Submitted submit(KernelDataScope scope,String requestId,List<String> files,String instruction,String model,List<String> artifactTypes,Map<String,Object> schema,Map<String,Object> capabilities){
         identity.require(scope,com.chatchat.agents.runtime.coding.CodingTaskAccess.Action.SUBMIT);
         identity.require(scope,com.chatchat.agents.runtime.coding.CodingTaskAccess.Action.READ);
         if(requestId==null||!requestId.matches("[A-Za-z0-9_-]{1,128}")||instruction==null||instruction.isBlank()||instruction.length()>24000)throw new IllegalArgumentException("Explicit request identity and objective required");
@@ -42,7 +45,7 @@ public final class NativeCodingTasks {
             original=List.of(metadata.id());
         }
         var budget=new CodingTaskContract.Budget("native-budget:"+task,Instant.now().plusSeconds(1200).truncatedTo(ChronoUnit.MILLIS),-1,-1,-1,-1,"unlimited","USD",-1,3L*1024*1024*1024,64L*1024*1024);
-        var contract=capture.capture(scope,task,original,instruction,selected,budget,Map.of("profile","artifact-integrity-v1"),artifactTypes==null||artifactTypes.isEmpty()?List.of("RESULT"):List.copyOf(artifactTypes),schema);
+        var contract=capture.capture(scope,task,original,instruction,selected,budget,Map.of("profile","artifact-integrity-v1"),artifactTypes==null||artifactTypes.isEmpty()?List.of("RESULT"):List.copyOf(artifactTypes),schema,capabilities);
         return new Submitted(task,scope.runId(),adapter.submit(contract));
     }
     public CodingTaskOutcome get(KernelDataScope scope,String task){return adapter.get(scope,task);}

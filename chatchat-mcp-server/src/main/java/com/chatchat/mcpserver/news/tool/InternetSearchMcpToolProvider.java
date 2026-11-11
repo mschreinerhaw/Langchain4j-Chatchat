@@ -16,20 +16,21 @@ public class InternetSearchMcpToolProvider implements McpToolProvider {
     @Override public String capabilityCode(){return "news";}
     @Override public Collection<McpToolDefinition> definitions(){return List.of(
         definition("internet_web_search","query","Public Internet search using the task-authorized server Provider. Runtime task capability required; no automatic local/external fallback."),
-        definition("internet_web_fetch","url","Fetch readable public page text through the SSRF-guarded service. Runtime task capability required; no direct code network or JavaScript execution."));}
+        definition("internet_web_fetch","url","Fetch readable public page text through the SSRF-guarded service. Runtime task capability required; no direct code network or JavaScript execution."),
+        definition("internet_web_download","url","Download public PDF, CSV, JSON, TXT or HTML bytes through the existing SSRF and authorization boundary. Runtime task capability required."));}
     private McpToolDefinition definition(String name,String argument,String description){
         var schema=new LinkedHashMap<String,Object>();schema.put(argument,Map.of("type","string"));
         if(argument.equals("query")){schema.put("search_type",Map.of("type","string","enum",List.of("web","news")));schema.put("count",Map.of("type","integer","minimum",1,"maximum",10));schema.put("language",Map.of("type","string"));schema.put("time_range",Map.of("type","string","enum",List.of("day","week","month","year")));}
-        else schema.put("max_content_length",Map.of("type","integer","minimum",200,"maximum",20000));
+        else if(!name.equals("internet_web_download"))schema.put("max_content_length",Map.of("type","integer","minimum",200,"maximum",20000));
         return new McpToolDefinition(name,name,description,capabilityCode(),"chatchat-mcp-server",List.of(),true,false,Duration.ofSeconds(35),
             com.chatchat.common.mcp.contract.McpToolContractValidator.CONTRACT_VERSION,Map.of("type","object","properties",schema,"required",List.of(argument),"additionalProperties",false),Map.of(),com.chatchat.common.mcp.contract.McpToolGovernance.readOnly());
     }
     @Override public Optional<McpToolExecutor> findExecutor(String name){
-        if(!Set.of("internet_web_search","internet_web_fetch").contains(name))return Optional.empty();
+        if(!Set.of("internet_web_search","internet_web_fetch","internet_web_download").contains(name))return Optional.empty();
         return Optional.of(input->{
             if(!(input.getContext().get("codingInternet") instanceof Map<?,?> capability))return ToolOutput.failure("Runtime Internet task capability required");
             var request=new LinkedHashMap<String,Object>();capability.forEach((k,v)->request.put(k.toString(),v));
-            request.put("tool",name.equals("internet_web_search")?"web_search":"web_fetch");request.put("arguments",input.getParameters());
+            request.put("tool",name.substring("internet_".length()));request.put("arguments",input.getParameters());
             var value=read(json.valueToTree(request));var output=ToolOutput.success(value);
             if(value.path("status").asText().equals("ERROR")){output.setSuccess(false);output.setErrorMessage(value.path("errorCode").asText());}
             return output;

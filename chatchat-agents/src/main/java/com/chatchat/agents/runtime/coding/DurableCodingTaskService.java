@@ -31,6 +31,17 @@ public final class DurableCodingTaskService implements CodingAgentSPI {
     private final CodingExecutionProofVerifier executionProof;
     private final Executor executor;
     private final TaskScheduler scheduler;
+    /** Optional read projection. It has no task authority and must never block execution. */
+    @FunctionalInterface public interface ProjectionListener {
+        void committed(CodingTaskContract contract,CodingTaskOutcome outcome,List<CodingExecutionEvent> events);
+    }
+    private volatile ProjectionListener projectionListener;
+    public void setProjectionListener(ProjectionListener listener){projectionListener=listener;}
+    private void project(CodingJournal.Task task,List<CodingExecutionEvent> events){
+        var listener=projectionListener;if(listener==null)return;
+        try{listener.committed(task.contract,task.outcome,List.copyOf(events));}
+        catch(RuntimeException unavailable){/* A failed read projection cannot change a committed task. */}
+    }
 
     public DurableCodingTaskService(RuntimeExecutionCheckpointPort store, ObjectMapper json, Clock clock,
         CodingTaskAccess access, CodingEvidenceVerifier evidence, CodingExecutionProofVerifier executionProof,
@@ -45,7 +56,7 @@ public final class DurableCodingTaskService implements CodingAgentSPI {
 
     @Override public CodingTaskOutcome submit(CodingTaskContract contract) {
         Objects.requireNonNull(contract, "contract"); access.require(contract.scope(), SUBMIT);
-        return mutate(contract.scope(), SUBMIT, journal -> {
+        var committed=mutate(contract.scope(), SUBMIT, journal -> {
             CodingJournal.Task existing = journal.tasks.get(contract.taskId());
             String hash = CodingCanonicalHash.sha256(contract);
             if (existing != null) {
@@ -64,7 +75,8 @@ public final class DurableCodingTaskService implements CodingAgentSPI {
                 new Reproducibility(ReproducibilityLevel.CONDITIONAL, List.of("Execution and reproducibility have not been verified"), List.of(contract.environmentRef())),
                 usage(task), new ExecutionControl(null,null,false,false), null,null,Map.of());
             task.events.add(event(task, TASK_CREATED, null, List.of())); journal.tasks.put(contract.taskId(), task);
-        }).tasks.get(contract.taskId()).outcome;
+        }).tasks.get(contract.taskId());
+        return committed.outcome;
     }
 
     @Override public CodingTaskOutcome get(KernelDataScope scope, String taskId) {
@@ -78,6 +90,60 @@ public final class DurableCodingTaskService implements CodingAgentSPI {
     public com.fasterxml.jackson.databind.JsonNode privateState(KernelDataScope scope, String taskId, String key) {
         var value = task(read(scope, READ), taskId).privateState.get(key);
         return value == null ? null : value.deepCopy();
+    }
+    /** Read only the explicitly published Native telemetry groups; never the
+     * private grant, control token or continuation binding. */
+    public List<com.fasterxml.jackson.databind.JsonNode> nativeTelemetry(KernelDataScope scope,String taskId,String group){
+        require(Set.of("model","execution","repair").contains(group),CONTRACT_INVALID,"Unknown Native telemetry group");
+        String prefix="native-s3:"+group+":";
+        return task(read(scope,READ),taskId).privateState.entrySet().stream().filter(e->e.getKey().startsWith(prefix))
+            .<com.fasterxml.jackson.databind.JsonNode>map(e->e.getValue().deepCopy()).toList();
+    }
+    public record NativeUsage(String operationId,CodingJournal.OperationKind kind,Counters actual,boolean stopped,boolean meteringComplete){}
+    public record NativeObservation(String channel,long sourceSequence,String sourceEventId,String sourceSha256,
+        String evidenceRef,String normalizedType,String summary,Map<String,Object> payload,NativeUsage usage,
+        String telemetryGroup,String telemetryId,com.fasterxml.jackson.databind.JsonNode telemetry){}
+    /** Ingest an authenticated Host receipt into the existing authoritative
+     * journal. Cursor, actual counters and read telemetry commit atomically.
+     * This grants no execution and generates/edits no source. */
+    public CodingTaskOutcome recordNativeObservation(KernelDataScope scope,String taskId,CodingJournal.Lease lease,long expectedRevision,NativeObservation observation){
+        access.require(scope,WORKER);Objects.requireNonNull(observation);
+        require(Set.of("core","provider").contains(observation.channel())&&observation.sourceSequence()>0&&observation.sourceSequence()<=CodingProtocol.MAX_SAFE_INTEGER,
+            CONTRACT_INVALID,"Invalid Native event channel/cursor");
+        require(observation.sourceSha256()!=null&&observation.sourceSha256().matches("[0-9a-f]{64}")&&evidence.isCommitted(scope,observation.evidenceRef()),OUTPUT_CONTRACT_VIOLATION,"Committed original Native receipt required");
+        return mutateTask(scope,taskId,WORKER,task->{
+            fence(task,lease);active(task);
+            require(task.contract.metadataRefs().contains("runtime-coding:native-python-silo:v1")
+                &&CodingLimit.unlimited(task.contract.budget().maxModelCalls())&&CodingLimit.unlimited(task.contract.budget().maxToolCalls())&&CodingLimit.unlimited(task.contract.budget().maxCodeExecutions()),AUTHORIZATION_DENIED,"Frozen Native execution profile required");
+            String cursorKey="native-s3:cursor:"+observation.channel();var old=task.privateState.get(cursorKey);
+            if(old!=null&&observation.sourceSequence()<=old.path("sequence").asLong()){
+                if(observation.sourceSequence()==old.path("sequence").asLong())require(observation.sourceSha256().equals(old.path("sha256").asText()),TASK_ID_CONFLICT,"Native event identity changed");return;
+            }
+            revision(task,expectedRevision);
+            var nativeUsage=observation.usage();
+            if(nativeUsage!=null){
+                require(task.privateState.containsKey("native-s3:binding"),AUTHORIZATION_DENIED,"Native session binding required");
+                bounded(nativeUsage.operationId(),"Native operation");require(nativeUsage.kind()!=CodingJournal.OperationKind.ACCOUNTING,CONTRACT_INVALID,"Native observation is an actual invocation");
+                var operation=task.operations.get(nativeUsage.operationId());
+                if(operation==null){operation=new CodingJournal.Operation();operation.kind=nativeUsage.kind();operation.intentSha256=observation.sourceSha256();operation.reservation=nativeUsage.actual();
+                    operation.startIntent=true;operation.executionHandle="native-s3:"+task.privateState.get("native-s3:binding").path("sessionId").asText()+":"+nativeUsage.operationId();
+                    operation.startingFencingToken=lease.fencingToken();operation.startSequence=task.outcome.lastEventSequence()+1;task.operations.put(nativeUsage.operationId(),operation);}
+                require(operation.kind==nativeUsage.kind()&&CodingBudgetMath.covers(nativeUsage.actual(),operation.actual),CONTRACT_INVALID,"Native actual counters cannot decrease/change kind");
+                if(nativeUsage.stopped())require(executionProof!=null&&executionProof.confirmsStopped(scope,taskId,nativeUsage.operationId(),operation.executionHandle,observation.evidenceRef()),EXECUTION_OUTCOME_UNKNOWN,"Actual Native completion proof required");
+                operation.actual=nativeUsage.actual();operation.meteringComplete=nativeUsage.meteringComplete();
+                if(nativeUsage.stopped())operation.stopProofRef=observation.evidenceRef();
+            }
+            task.privateState.put(cursorKey,json.valueToTree(Map.of("sequence",observation.sourceSequence(),"sha256",observation.sourceSha256())));
+            if(observation.telemetry()!=null){
+                require(Set.of("model","execution","repair").contains(observation.telemetryGroup())&&observation.telemetryId()!=null&&observation.telemetryId().matches("[A-Za-z0-9_-]{1,96}"),CONTRACT_INVALID,"Invalid Native read telemetry");
+                task.privateState.put("native-s3:"+observation.telemetryGroup()+":"+observation.telemetryId(),observation.telemetry().deepCopy());
+            }
+            advance(task,RECOVERY_RECONCILED,null,observation.summary(),null,List.of(observation.evidenceRef()),copy(task,task.outcome.status(),task.outcome.reasonCode(),task.outcome.executionControl(),null));
+            int last=task.events.size()-1;var payload=new LinkedHashMap<String,Object>(observation.payload());
+            payload.put("normalizedType",observation.normalizedType());payload.put("nativeEventId",observation.sourceEventId());payload.put("nativeEvidenceRef",observation.evidenceRef());
+            payload.put("summary",observation.summary());payload.put("attemptId",taskId+":fence-"+lease.fencingToken());
+            task.events.set(last,task.events.get(last).withPayload(payload));
+        }).outcome;
     }
 
     /** Allocation and version increments share the existing owner journal lock and lease fencing. */
@@ -151,7 +217,7 @@ public final class DurableCodingTaskService implements CodingAgentSPI {
     /** Bind a transport model attempt to the existing SDK boundary, retaining no second transcript. */
     public void bindModelCheckpoint(KernelDataScope scope,String taskId,CodingJournal.Lease lease,
             String operationId,long checkpointOrdinal) {
-        require(operationId!=null&&operationId.matches("model-[1-9][0-9]{0,5}"),CONTRACT_INVALID,"Model operation required");
+        require(operationId!=null&&operationId.matches("model-[1-9][0-9]*"),CONTRACT_INVALID,"Model operation required");
         mutateTask(scope,taskId,WORKER,task->{
             fence(task,lease);active(task);deadline(task);
             require(task.outcome.executionControl().stopReason()==null,INVALID_STATE_TRANSITION,"Task is stopping");
@@ -209,10 +275,10 @@ public final class DurableCodingTaskService implements CodingAgentSPI {
         if(additional.isEmpty() || !stoppedWithoutResponse.containsAll(additional))return null;
         for(String id:additional){var op=task.operations.get(id);
             if(op.kind!=CodingJournal.OperationKind.MODEL || !op.startIntent || op.stopProofRef==null
-                || !id.matches("model-[1-9][0-9]{0,5}"))return null;
+                || !id.matches("model-[1-9][0-9]*"))return null;
         }
         var next=(com.fasterxml.jackson.databind.node.ObjectNode)saved.deepCopy();
-        long ordinal=task.operations.keySet().stream().filter(id->id.matches("model-[1-9][0-9]{0,5}"))
+        long ordinal=task.operations.keySet().stream().filter(id->id.matches("model-[1-9][0-9]*"))
             .mapToLong(id->Long.parseLong(id.substring(6))).max().orElse(0);
         next.put("modelOrdinal",ordinal);next.put("operationCount",task.operations.size());
         next.set("operationIds",json.valueToTree(task.operations.keySet()));
@@ -278,7 +344,7 @@ public final class DurableCodingTaskService implements CodingAgentSPI {
                 && value.path("contractHash").asText().equals(task.outcome.contractSha256()),
                 CONTRACT_INVALID, "Checkpoint input/workspace binding differs");
             long ordinal = task.operations.entrySet().stream()
-                .filter(e -> e.getValue().kind == CodingJournal.OperationKind.MODEL && e.getKey().matches("model-[1-9][0-9]{0,5}"))
+                .filter(e -> e.getValue().kind == CodingJournal.OperationKind.MODEL && e.getKey().matches("model-[1-9][0-9]*"))
                 .mapToLong(e -> Long.parseLong(e.getKey().substring(6))).max().orElse(0);
             require(value.path("modelOrdinal").asLong(-1) == ordinal && value.path("eventOrdinal").asLong(-1) >= 0,
                 CONTRACT_INVALID, "Checkpoint ordinals differ from durable operations");
@@ -371,6 +437,9 @@ public final class DurableCodingTaskService implements CodingAgentSPI {
             task.lease = new CodingJournal.Lease(lease.owner(),now().plus(duration),lease.fencingToken());
             advance(task,RECOVERY_RECONCILED,null,"Lease renewed",null,List.of(),copy(task,task.outcome.status(),task.outcome.reasonCode(),task.outcome.executionControl(),null));
         }).lease;
+    }
+    public CodingTaskOutcome enforceDeadline(KernelDataScope scope,String taskId,CodingJournal.Lease lease,long expectedRevision){
+        return mutateTask(scope,taskId,WORKER,task->{revision(task,expectedRevision);fence(task,lease);if(!task.outcome.status().terminal())deadline(task);}).outcome;
     }
 
     /** Same-task recovery after all starts are proven stopped; fence out the ended SDK instance. */
@@ -639,7 +708,7 @@ public final class DurableCodingTaskService implements CodingAgentSPI {
     public CodingTaskOutcome recordWorkerProgress(KernelDataScope scope, String taskId,
             CodingJournal.Lease lease, long expectedRevision, long sequence, String type,
             String operationId, String payloadHash, Map<String, Object> payload) {
-        require(sequence > 0 && sequence <= 1024, CONTRACT_INVALID, "Worker event sequence is out of bounds");
+        require(sequence > 0 && sequence <= CodingProtocol.MAX_SAFE_INTEGER, CONTRACT_INVALID, "Worker event sequence is out of bounds");
         require(Set.of("MODEL_STARTED", "MODEL_USAGE", "MODEL_RESOLVED", "MODEL_FAILED", "MODEL_RESPONSE_REJECTED", "MODEL_TIMING", "EXECUTION_STRATEGY", "TOOL_STARTED", "TOOL_FINISHED",
             "CODE_READY", "CODE_PROPOSAL_REJECTED", "TOOL_TIMING", "SESSION_TIMING", "PLAN_READY", "CONTEXT_READY", "SKILLS_AVAILABLE", "SKILLS_LOADED", "SKILLS_APPLIED").contains(type),
             CONTRACT_INVALID, "Unknown worker progress type");
@@ -683,9 +752,9 @@ public final class DurableCodingTaskService implements CodingAgentSPI {
     public List<StartedModelOperation> startedModelOperations(KernelDataScope scope,String taskId) {
         return task(read(scope,READ),taskId).operations.entrySet().stream()
             .filter(entry->entry.getValue().kind==CodingJournal.OperationKind.MODEL && entry.getValue().startIntent
-                && entry.getKey().matches("model-[1-9][0-9]{0,5}"))
+                && entry.getKey().matches("model-[1-9][0-9]*"))
             .map(entry->new StartedModelOperation(entry.getKey(),entry.getValue().startingFencingToken))
-            .sorted(java.util.Comparator.comparingInt(operation->Integer.parseInt(operation.operationId().substring(6)))).toList();
+            .sorted(java.util.Comparator.comparing(operation->new java.math.BigInteger(operation.operationId().substring(6)))).toList();
     }
     public record StartedModelOperation(String operationId,long fencingToken) { }
 
@@ -807,10 +876,18 @@ public final class DurableCodingTaskService implements CodingAgentSPI {
     private CodingJournal mutate(KernelDataScope scope,CodingTaskAccess.Action action,Consumer<CodingJournal> mutation) {
         access.require(scope,action);
         stableScope(scope);
+        var priorRevisions=new HashMap<String,Long>();var priorSequences=new HashMap<String,Long>();
         String result=store.mutateExecutionCheckpoint(scope,CHECKPOINT_KEY,current->{
-            access.require(scope,action); var journal=decode(current); mutation.accept(journal); return encode(journal);
+            access.require(scope,action); var journal=decode(current);
+            priorRevisions.clear();priorSequences.clear();
+            for(var entry:journal.tasks.entrySet()){priorRevisions.put(entry.getKey(),entry.getValue().outcome.revision());priorSequences.put(entry.getKey(),entry.getValue().outcome.lastEventSequence());}
+            mutation.accept(journal); return encode(journal);
         });
-        return decode(result);
+        var journal=decode(result);
+        if(projectionListener!=null)for(var entry:journal.tasks.entrySet())if(!Objects.equals(priorRevisions.get(entry.getKey()),entry.getValue().outcome.revision())){
+            long after=priorSequences.getOrDefault(entry.getKey(),0L);project(entry.getValue(),entry.getValue().events.stream().filter(event->event.sequence()>after).toList());
+        }
+        return journal;
     }
     private CodingJournal.Task mutateTask(KernelDataScope scope,String taskId,CodingTaskAccess.Action action,Consumer<CodingJournal.Task> mutation) {
         long[] before={0};

@@ -20,6 +20,10 @@ import org.springframework.web.bind.annotation.*;
 @ConditionalOnProperty(prefix="chatchat.assets",name="enabled",havingValue="true")
 @ConditionalOnProperty(prefix="chatchat.coding.analysis",name="enabled",havingValue="true")
 public class AssetAnalysisController {
+    @org.springframework.beans.factory.annotation.Autowired(required=false)
+    private com.chatchat.api.runtime.coding.nativecline.NativeCodingTasks nativeTasks;
+    @org.springframework.beans.factory.annotation.Autowired(required=false)
+    private com.chatchat.api.runtime.coding.CodingInvocationContext nativeIdentity;
     private final UserAssetService assets;
     private final CodingAnalysisService coding;
     private final AgentChatModelResolver models;
@@ -88,6 +92,14 @@ public class AssetAnalysisController {
         // Owner/run identity is derived from the authenticated session and stable request ID.
         String run="asset-analysis-"+UserAssetService.hash((owner.tenant()+"\0"+owner.user()+"\0"+body.requestId()).getBytes(java.nio.charset.StandardCharsets.UTF_8));
         var model=models.resolveChatModel(body.modelName());
+        if(nativeTasks!=null){
+            var scope=new com.chatchat.common.kernel.KernelDataScope(owner.tenant(),owner.user(),body.requestId(),null,run,null,Map.of());
+            return nativeIdentity.as(scope,Set.of(com.chatchat.agents.runtime.coding.CodingTaskAccess.Action.READ,com.chatchat.agents.runtime.coding.CodingTaskAccess.Action.SUBMIT,com.chatchat.agents.runtime.coding.CodingTaskAccess.Action.STOP),()->{
+                var types=visual?List.of("REPORT","RESULT","CHART"):List.of("REPORT","RESULT");
+                var admitted=nativeTasks.submit(scope,visual?"primary-data-analysis-visual-v1":"primary-data-analysis-v1",ids,body.instruction(),body.modelName(),types,Map.of());
+                return ApiResponse.success(nativeTasks.await(scope,admitted.taskId(),()->false));
+            });
+        }
         var metadata=new LinkedHashMap<String,Object>();
         if(body.modelName()!=null)metadata.put("modelName",body.modelName());
         var attributes=new LinkedHashMap<String,Object>();attributes.put("checkpointModelConfig",models.checkpointModelConfiguration(body.modelName(),model));

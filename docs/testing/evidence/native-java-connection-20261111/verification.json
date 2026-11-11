@@ -1,0 +1,220 @@
+{
+  "scope": "Authorized test server Java Native S3 integration and lightweight monitor",
+  "businessOrigin": "http://192.168.195.221:18100",
+  "monitor": "http://192.168.195.221:18100/monitor/",
+  "compatibleMonitor": "http://192.168.195.221:18351/monitor/",
+  "formalRelease": false,
+  "gitBaseCommit": "e06eabaf4c8554469ab48fc8841ef1ccc200986e",
+  "workingTreeIncluded": true,
+  "finalCommitPushed": false,
+  "tests": {
+    "stage-csv": {
+      "passed": true,
+      "checks": {
+        "normalJavaApiCompleted": true,
+        "independentStatistics": true,
+        "multipleDynamicSources": true,
+        "markdown": true,
+        "png": true,
+        "allRegisteredHashesVerified": true,
+        "realModelReceipts": true,
+        "javaDoesNotClaimBusinessValidation": true,
+        "executorStopConfirmed": true,
+        "observedPythonException": true,
+        "sourceChangeAndRerunEvidence": true
+      },
+      "elapsedSeconds": 111.5679847933352,
+      "taskId": "native-d48745b61510cbbf33498defd3a2d5cda74ceb408a44f8612728d3624bc7b39f",
+      "runId": "coding-e2881ec9532beab21d51980787a8dc9bb52754b26259acb4e3955a81692a3552",
+      "downloadedObjects": [
+        {
+          "assetId": "532bd4568d0dd8632dc8f9eb830bd9083ada1bf10374489c994fb89fc5fe96f0",
+          "fileName": "chart.png",
+          "sha256": "a70636f65c1f671dbdb562696f71ec989f079189f9bd1bd0f359028ed4ed08c5",
+          "size": 33991
+        },
+        {
+          "assetId": "7ecebdffdc1217abe134f7e0dc69b33ae62693961d97ef562b7d9a2daccf8e15",
+          "fileName": "result.json",
+          "sha256": "3f230aff8d452d7c1647afb8c57e2624b817e8540fcb229fca268c450e35da77",
+          "size": 91
+        },
+        {
+          "assetId": "c372e2e80cd9c4f76aa593f764c02da2b7b408ad40428599908b057534c98a1b",
+          "fileName": "report.md",
+          "sha256": "2fa09d176cfcd0cf47fd93607e7ce416c4fd06dd8708b5da05851fd0c129b2dc",
+          "size": 316
+        },
+        {
+          "assetId": "78fec66d9f337174b4a95ab0a5d10733d8fb2c4b8c65e06c9c53a1ae0642145c",
+          "fileName": "main.py",
+          "sha256": "b67ef4e85f4860de8f1208c93d8ad593a83e6b9363eb67c0299331692fba99c0",
+          "size": 872
+        },
+        {
+          "assetId": "673a96ba8cab197b149507736604c454b778710c8dcf5102051e45147d727239",
+          "fileName": "analyzer.py",
+          "sha256": "ae8ce263cd355c53fa295e5067552913b50155ea2d8d688b4867f816abb01750",
+          "size": 2280
+        },
+        {
+          "assetId": "532299871de0525569247e49c250d209246919ac92942319f590dd2804c4e7ab",
+          "fileName": "loader.py",
+          "sha256": "96eb7778a458e05d1d8c82341d574a114788597a1cf1d3ea7d378598e796519a",
+          "size": 419
+        },
+        {
+          "assetId": "2209e208d65df38d2bcff5c2408e74a336759752b7bfaa909aadaf1e5df0bd0a",
+          "fileName": "__init__.py",
+          "sha256": "550d5370c7d0f7329cc3a9bad8739d00b86ee7ad971d1cc48443e6b27e08005f",
+          "size": 27
+        }
+      ],
+      "realModel": true,
+      "realSilo": true,
+      "applicationHttpSpiAcceptance": true,
+      "existingAnalysisEntry": false,
+      "businessScenario": "SYNTHETIC_CSV_STATISTICS"
+    },
+    "stage-parquet": {
+      "passed": true,
+      "checks": {
+        "normalJavaApiCompleted": true,
+        "independentStatistics": true,
+        "multipleDynamicSources": true,
+        "markdown": true,
+        "png": true,
+        "allRegisteredHashesVerified": true,
+        "realModelReceipts": true,
+        "javaDoesNotClaimBusinessValidation": true,
+        "executorStopConfirmed": true,
+        "observedPythonException": true,
+        "sourceChangeAndRerunEvidence": true
+      },
+      "elapsedSeconds": 108.09117417410016,
+      "taskId": "native-735ad55893dadb23434879b7066ecb0563a4bec76afa1fb1602fdfa0edad71c1",
+      "runId": "asset-analysis-cf960f8fc93c4e6bca32bbfbb34b003a1a8ee350cf2c7e1e1902b6094fad2b8a",
+      "downloadedObjects": [
+        {
+          "assetId": "d56cee2501d10ffa05750563e55cd89a56c0b15fa256b7cb4df548bb2061a6df",
+          "fileName": "chart.png",
+          "sha256": "531880798ca7e2f8a0fe9edbf9aba124ca3b1c3f8e06887136528a8f2ce21275",
+          "size": 26441
+        },
+        {
+          "assetId": "c19da12c77e9eaa679e0ab7bedbc1a883a06a4cb7478cf4fcae858ad6c9fe0ed",
+          "fileName": "RESULT.json",
+          "sha256": "3f230aff8d452d7c1647afb8c57e2624b817e8540fcb229fca268c450e35da77",
+          "size": 91
+        },
+        {
+          "assetId": "5a8e3e4fbc992fc5a01b4db8b72379b57c33f1af822a433b6c97c2b84aab993a",
+          "fileName": "REPORT.md",
+          "sha256": "2bb071d44b88e3c04f0d673ace1453b1c00b9b7d5c18daf4bd09716e2aa24ac0",
+          "size": 569
+        },
+        {
+          "assetId": "7bf3b61007b6e82dedca3aa3e28f9c7d62103620c12ac1e880ec0fd23d72daab",
+          "fileName": "main.py",
+          "sha256": "32c6b408472c8a83d24a6180863787da147b916741b2e0097b69af2bee42a248",
+          "size": 1942
+        },
+        {
+          "assetId": "4bb940db8a68c12b4779d48c256dfc4cfa09267088c55baa1caad6d5edd482cc",
+          "fileName": "report_builder.py",
+          "sha256": "75e46b0929c60b085a1a73025ce4a90ca821b08a4290a84664b13b8b09f96f8b",
+          "size": 3368
+        },
+        {
+          "assetId": "816579505d7f4fdcadff711e46996f597ee8674c471796166ac383b3b0ff63ae",
+          "fileName": "data_loader.py",
+          "sha256": "36b129afe54b798ddd8df9aae8985673e3599cc856aa57c95cce1f90284d4447",
+          "size": 1197
+        },
+        {
+          "assetId": "49ade3703f429f6371d27759022d48a4407d1bbf59bf484de1479ec8d40b9d9b",
+          "fileName": "__init__.py",
+          "sha256": "cee55601a40333971835b4806288b717e35f3d79edc72bf26022a99d22bc5844",
+          "size": 82
+        }
+      ],
+      "realModel": true,
+      "realSilo": true,
+      "applicationHttpSpiAcceptance": true,
+      "existingAnalysisEntry": true,
+      "businessScenario": "SYNTHETIC_PARQUET_STATISTICS"
+    },
+    "stage-cancel": {
+      "passed": true,
+      "checks": {
+        "realPythonRunningBeforeCancel": true,
+        "javaCancelled": true,
+        "actualExecutorStopConfirmed": true,
+        "noFormalArtifacts": true,
+        "noCompletionAfterCancel": true
+      },
+      "taskId": "native-5873deeb01ade8d5cb3d6e87cf7eba0ca07222c6123612129b7eb50eae05f01d",
+      "runId": "coding-9bf0d0db754452d6d78a7d461d4563f0f7768f97d9aef0f838fc94981d79d0df",
+      "realModel": true
+    },
+    "stage-monitor-protocol": {
+      "passed": true,
+      "realProviderRequestCount": 9,
+      "inputTokens": 62805,
+      "outputTokens": 4323,
+      "checks": {
+        "providerReceiptsMatchJava": true,
+        "requestIdsUnique": true,
+        "historicalSse": true,
+        "lastEventIdReconnect": true
+      }
+    },
+    "idempotent-resubmission": {
+      "passed": true,
+      "taskId": "native-d48745b61510cbbf33498defd3a2d5cda74ceb408a44f8612728d3624bc7b39f",
+      "modelRequestsBefore": 9,
+      "modelRequestsAfter": 9,
+      "newModelLoopStarted": false
+    }
+  },
+  "retainedFailures": [
+    "First Java task: native workspace-storage ownership",
+    "First cancel: asynchronous stop proof read too soon",
+    "First stage activation: CONFIG environment key missing _FILE; automatic rollback restored previous image/configuration"
+  ],
+  "remainingReleaseGates": [
+    "A-H five independent runs per scenario",
+    "Official CLI full comparison",
+    "All Skills/MCP scenarios and transfer-failure acceptance",
+    "Final reviewed Git commit and push",
+    "Formal 1.0.0 promotion, SBOM and image archive or authorized registry digest"
+  ],
+  "uiChecks": {
+    "unauthenticatedDenied": true,
+    "invalidTokenDenied": true,
+    "actualLoginAndTaskList": true,
+    "accountHeader": true,
+    "foreignRunDenied": true,
+    "compactTitleAndDefaultCollapsed": true,
+    "actualTimelineVisible": true,
+    "realRepairEvidenceVisible": true,
+    "dynamicPythonSourcePreview": true,
+    "actualChartPreview": true,
+    "noBrowserErrors": true
+  },
+  "passed": true,
+  "finalHealth": true,
+  "obsoleteCandidateServicesStopped": 4,
+  "sourceFingerprints": {
+    "scripts/connect-native-stage.py": "e77b9d1d7518d28c72a51ba8fc733a08a606a5d34c68f16b3db4d7fef6aeb6b9",
+    "scripts/verify-native-runtime-http.py": "3fc22b1e675464629ecaa098a3a6040f667794e9d55b129489fdb27392755604",
+    "scripts/verify-native-runtime-cancel.py": "f17f569e5a345c10750902809d78400f281deeb1c32209ca0cefbdc49f30daa4",
+    "scripts/verify-native-monitor-protocol.py": "4ee6d414df318a25d763403c9b40543f3c0572ebdf75a1e47a68a2687a211355",
+    "scripts/verify-native-runtime-monitor.mjs": "dbef59055c4ced1cbbf2aa03a420c146ba67ad1c987a594244f3ee16a467d85f",
+    "cline-agent-server/src/server.mjs": "0a577cb7d3dbaeae6656b0c1b9b74919bf33abbf34037f79e1b2511f7a76b1b3",
+    "chatchat-api/src/main/java/com/chatchat/api/runtime/coding/nativecline/NativeS3CodingAdapter.java": "6b5ac857796b0e80d50e25422c54386599572a3b2e5ecef75701af46aa5ddb97",
+    "chatchat-api/src/main/resources/coding-monitor/app.js": "32c9732300ee32f320dc8a868400aba3787b306da627a8e61208bf229c66a5cb",
+    "chatchat-api/src/main/resources/coding-monitor/style.css": "4ac09cf499dbbf787dbf2dd78ba1f9d8b7388581bdf422a3a5a217a1ea208bb9",
+    "chatchat-api/src/main/resources/coding-monitor/index.html": "f182c73eec67571524353a337e2fff9e9a16e5ec0a1d02cc14dc165d92d80cf2"
+  }
+}

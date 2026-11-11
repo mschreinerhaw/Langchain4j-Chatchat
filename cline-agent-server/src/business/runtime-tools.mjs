@@ -73,7 +73,7 @@ export function runtimeTools(run,gateway,workspace,emit) {
   if(run.activeOperations.size)throw Error('Previous Python operation unresolved; use code_read for its actual receipt and do not dispatch again');
   run.lastOperation=null;run.reviewedResult=null;run.reviewDelivery=null;
   if(run.lastReceipt?.executionFeedback?.repair?.action==='STOP')throw Error('Runtime repair policy requires STOP');
-  const sourceFile=args.sourceFile.startsWith('/poc/project/')?args.sourceFile.slice('/poc/project/'.length):args.sourceFile;
+  const sourceFile=args.sourceFile.startsWith('/workspace/')?args.sourceFile.slice('/workspace/'.length):args.sourceFile;
   const base=realpathSync(workspace),file=realpathSync(resolve(base,sourceFile));if(!file.startsWith(base+sep))throw Error('Source outside native workspace');
   const bytes=readFileSync(file);if(bytes.length>256000)throw Error('Source exceeds Runtime boundary');
   const source=bytes.toString('utf8'),codeSha256=createHash('sha256').update(bytes).digest('hex');

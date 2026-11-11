@@ -1,0 +1,1240 @@
+{
+  "origin": "http://192.168.195.221:18100",
+  "diagnosticOnly": false,
+  "pageErrors": [],
+  "checks": {
+    "unauthenticatedDenied": true,
+    "invalidTokenDenied": true,
+    "actualLoginAndTaskList": true,
+    "accountHeader": true,
+    "foreignRunDenied": true,
+    "compactTitleAndDefaultCollapsed": true,
+    "actualTimelineVisible": true,
+    "realRepairEvidenceVisible": true,
+    "dynamicPythonSourcePreview": true,
+    "actualChartPreview": true,
+    "noBrowserErrors": true
+  },
+  "tasks": [
+    {
+      "taskId": "native-735ad55893dadb23434879b7066ecb0563a4bec76afa1fb1602fdfa0edad71c1",
+      "status": "COMPLETED",
+      "modelRequests": 10,
+      "verifiedRepairs": 1,
+      "events": 124,
+      "files": [
+        {
+          "path": "delivery-results.json",
+          "state": "AVAILABLE",
+          "size": 2129,
+          "sha256": "bbb28708945aeb9fbd10c3b70ce6fd8fb55e6ceb0f76e9cdd9f5080616918ec0"
+        },
+        {
+          "path": "executor-stop.json",
+          "state": "AVAILABLE",
+          "size": 141,
+          "sha256": "d7cbc8b317b3e874ebeef8e075b82cd3651c6805236b83856c01410f6530163b"
+        },
+        {
+          "path": "native-events.json",
+          "state": "AVAILABLE",
+          "size": 598833,
+          "sha256": "6c1e52128f40454a114fd7fb5fbd0c013769cb71e2c88c5ef6b7fc20bbded2ee"
+        },
+        {
+          "path": "delivery-validation.json",
+          "state": "AVAILABLE",
+          "size": 174,
+          "sha256": "40aff6bbd4f346038d78f7512c773d642fe34d414f1ef064d755e98a8e8166eb"
+        },
+        {
+          "path": "delivery_manifest.json",
+          "state": "AVAILABLE",
+          "size": 3561,
+          "sha256": "78ce2250b174512c454d89e739126b03e535bc641c091b15691249c2937e1c8c"
+        },
+        {
+          "path": "chart.png",
+          "state": "AVAILABLE",
+          "size": 26441,
+          "sha256": "531880798ca7e2f8a0fe9edbf9aba124ca3b1c3f8e06887136528a8f2ce21275"
+        },
+        {
+          "path": "RESULT.json",
+          "state": "AVAILABLE",
+          "size": 91,
+          "sha256": "3f230aff8d452d7c1647afb8c57e2624b817e8540fcb229fca268c450e35da77"
+        },
+        {
+          "path": "REPORT.md",
+          "state": "AVAILABLE",
+          "size": 569,
+          "sha256": "2bb071d44b88e3c04f0d673ace1453b1c00b9b7d5c18daf4bd09716e2aa24ac0"
+        },
+        {
+          "path": "main.py",
+          "state": "AVAILABLE",
+          "size": 1942,
+          "sha256": "32c6b408472c8a83d24a6180863787da147b916741b2e0097b69af2bee42a248"
+        },
+        {
+          "path": "report_builder.py",
+          "state": "AVAILABLE",
+          "size": 3368,
+          "sha256": "75e46b0929c60b085a1a73025ce4a90ca821b08a4290a84664b13b8b09f96f8b"
+        },
+        {
+          "path": "data_loader.py",
+          "state": "AVAILABLE",
+          "size": 1197,
+          "sha256": "36b129afe54b798ddd8df9aae8985673e3599cc856aa57c95cce1f90284d4447"
+        },
+        {
+          "path": "__init__.py",
+          "state": "AVAILABLE",
+          "size": 82,
+          "sha256": "cee55601a40333971835b4806288b717e35f3d79edc72bf26022a99d22bc5844"
+        },
+        {
+          "path": "native-core-receipt.json",
+          "state": "AVAILABLE",
+          "size": 1267,
+          "sha256": "287128ad82e64dbb3f7d7ee04f2080c826098b8097ae564052a0720ea1ce479d"
+        },
+        {
+          "path": "native-core-receipt.json",
+          "state": "AVAILABLE",
+          "size": 338,
+          "sha256": "160d60e2fe6ad7a66821666f68809e9709a2ad0a5f45de29e57f4fc356d92d8e"
+        },
+        {
+          "path": "native-core-receipt.json",
+          "state": "AVAILABLE",
+          "size": 1061,
+          "sha256": "fcc773bb77a17114d7f8ec733a4b42168dd72a9fc772bec5e1a4050d08cf7b63"
+        },
+        {
+          "path": "native-core-receipt.json",
+          "state": "AVAILABLE",
+          "size": 1062,
+          "sha256": "9edea60bdddef98bfb5cf3e427563f8f191e0979f82f6bbd463c3869953a32c0"
+        },
+        {
+          "path": "native-core-receipt.json",
+          "state": "AVAILABLE",
+          "size": 678,
+          "sha256": "3cd871dbe5aa233e9a0bde73cb4cf6dcc4951a8a1e0d9bd7fa3e10d85e0030f2"
+        },
+        {
+          "path": "native-core-receipt.json",
+          "state": "AVAILABLE",
+          "size": 678,
+          "sha256": "0ae3dd0f93c170750cd6565231f5a7d95d891a5689c0b10469dafbae35f61212"
+        },
+        {
+          "path": "native-core-receipt.json",
+          "state": "AVAILABLE",
+          "size": 253,
+          "sha256": "cd1b2cd0def1fb3a332a55331d38ab1eba8d9384440d9e3d80a9b6ae5585c8f1"
+        },
+        {
+          "path": "native-core-receipt.json",
+          "state": "AVAILABLE",
+          "size": 253,
+          "sha256": "f30e16087410e0a07733fe1abb52f5c3c0f8c88b6be2f9098aae552652f9342e"
+        },
+        {
+          "path": "native-core-receipt.json",
+          "state": "AVAILABLE",
+          "size": 1268,
+          "sha256": "7c99e0dd748fe828521adb466ffc83f57a1caa4c450fb8660242205e73e6d60e"
+        },
+        {
+          "path": "native-core-events.json",
+          "state": "AVAILABLE",
+          "size": 6915,
+          "sha256": "1ce8a7abfc6512a79db658a0ecf3f8beb11a68cdd951f68df55ba4036912c91b"
+        },
+        {
+          "path": "native-provider-receipt.json",
+          "state": "AVAILABLE",
+          "size": 1322,
+          "sha256": "1c1023ad601b93e4729300fb1f2702eca4924c870beb45195a87fb4e311606b3"
+        },
+        {
+          "path": "native-provider-events.json",
+          "state": "AVAILABLE",
+          "size": 1370,
+          "sha256": "ca80941a6b9cdb9072f622452fb6f14375cec0848bfc820e16fce7d3142fc516"
+        },
+        {
+          "path": "native-core-receipt.json",
+          "state": "AVAILABLE",
+          "size": 1061,
+          "sha256": "39d293b9d7a855ce249eb7bb96d11b83380918f7242c7f1ca7d52eabf2791236"
+        },
+        {
+          "path": "native-core-receipt.json",
+          "state": "AVAILABLE",
+          "size": 678,
+          "sha256": "11aa5d85a1c89260ef20145093e9b8254a8340c78cd16c63e60f8e6f37283878"
+        },
+        {
+          "path": "native-core-receipt.json",
+          "state": "AVAILABLE",
+          "size": 2467,
+          "sha256": "b7f11981434eeadb842d58ee556746413d5bd8624f19ad8ab868ce6ec8e35718"
+        },
+        {
+          "path": "native-core-receipt.json",
+          "state": "AVAILABLE",
+          "size": 1056,
+          "sha256": "72752109bc0eb460deaa44bb97074c55132fcdf5738f7e4f0789feffe8191421"
+        },
+        {
+          "path": "native-core-receipt.json",
+          "state": "AVAILABLE",
+          "size": 675,
+          "sha256": "cbd2537a95b61abcbac6230aad801b68cb911dcca18d6999567f69038b72fe4a"
+        },
+        {
+          "path": "native-core-events.json",
+          "state": "AVAILABLE",
+          "size": 39932,
+          "sha256": "b59793f57e5ffc12f2964377a3e102328fd9aa195869d374383bc6be4c2fd29e"
+        },
+        {
+          "path": "native-core-events.json",
+          "state": "AVAILABLE",
+          "size": 25104,
+          "sha256": "e79ab16a56c122ced828b99fffd25f24859cb5ca442aababf45b06ed19264638"
+        },
+        {
+          "path": "native-core-events.json",
+          "state": "AVAILABLE",
+          "size": 25647,
+          "sha256": "91ae51a09dfe9cdd0d6584688bdaf1ffb867efc04095bc2f6f0839c941acb0b1"
+        },
+        {
+          "path": "native-core-events.json",
+          "state": "AVAILABLE",
+          "size": 21495,
+          "sha256": "38641641682cc7f6c6859314f748a03eb3b1dc47d197778a48f62731faf66269"
+        },
+        {
+          "path": "native-core-events.json",
+          "state": "AVAILABLE",
+          "size": 19834,
+          "sha256": "1818f556f1d37f108ad3a015eedff73f69f06413ace66ef99d3d085887a59fd6"
+        },
+        {
+          "path": "native-core-events.json",
+          "state": "AVAILABLE",
+          "size": 18121,
+          "sha256": "ceb088a6477b82649ae9e33cbe897e6281b62c21850b2e0cc2e2384843c7cf72"
+        },
+        {
+          "path": "native-core-events.json",
+          "state": "AVAILABLE",
+          "size": 16618,
+          "sha256": "74c228ee0f6b194c1e06e3481218d72cef9f2a7a3c72a2c38eb74609b25f0604"
+        },
+        {
+          "path": "native-core-events.json",
+          "state": "AVAILABLE",
+          "size": 15632,
+          "sha256": "ed1e98af30f005e83ddcd86c4501f10124d6d87ba9edca49ca1c4e6bfb9dd550"
+        },
+        {
+          "path": "native-core-events.json",
+          "state": "AVAILABLE",
+          "size": 14811,
+          "sha256": "7c78f8342ad1e817fd833f83a2db530208c80bf04b92353028f96af530cb6aaf"
+        },
+        {
+          "path": "native-core-events.json",
+          "state": "AVAILABLE",
+          "size": 16061,
+          "sha256": "28dc233503d00b78905eeb8af013b3be27e5d4edd1f5387f45bac0fb03a7046b"
+        },
+        {
+          "path": "native-core-events.json",
+          "state": "AVAILABLE",
+          "size": 12822,
+          "sha256": "e340c7ac72426608a8e054db8d6ecfea171099d801d14a23e356b2262363124b"
+        },
+        {
+          "path": "native-core-events.json",
+          "state": "AVAILABLE",
+          "size": 11736,
+          "sha256": "13e8708a6b43226570836384d935648a4b02873e315cf8f26eb1c8b590149f5e"
+        },
+        {
+          "path": "native-core-events.json",
+          "state": "AVAILABLE",
+          "size": 7956,
+          "sha256": "180d38927a520d3a770912766f2068d4e85a595a1738b67b52c0b6bd8c7ecb6a"
+        },
+        {
+          "path": "native-core-events.json",
+          "state": "AVAILABLE",
+          "size": 2435,
+          "sha256": "f3caa2c8e0c9fcab04aa5d82abce440466500cc5f722a9d013a7eafe86b43079"
+        },
+        {
+          "path": "native-provider-receipt.json",
+          "state": "AVAILABLE",
+          "size": 537,
+          "sha256": "3d9f19a5733e11c73322b9ed3fb39982446a511b3af2878190cd0aee089ec69b"
+        },
+        {
+          "path": "native-provider-events.json",
+          "state": "AVAILABLE",
+          "size": 585,
+          "sha256": "b48dcd155121975f8fd74a7520cc29af645dd2edd5e24d71654ef4bc7324a212"
+        },
+        {
+          "path": "native-core-receipt.json",
+          "state": "AVAILABLE",
+          "size": 305,
+          "sha256": "b289b1242a7435bc431b6bed5afe63ca89a6b694943670d042cefe79a41ddd8e"
+        },
+        {
+          "path": "native-core-receipt.json",
+          "state": "AVAILABLE",
+          "size": 1342,
+          "sha256": "4face31a31a34611a3e014d32f10b27c583a7d50be3d2c40d7cba099089fd6b1"
+        },
+        {
+          "path": "native-core-receipt.json",
+          "state": "AVAILABLE",
+          "size": 1055,
+          "sha256": "5f9c47e3912fe3f9f9a8bcff45f4602feb1407b136d5b5b982fe4dd1ccd42d45"
+        },
+        {
+          "path": "native-core-receipt.json",
+          "state": "AVAILABLE",
+          "size": 675,
+          "sha256": "b08027eb958b27bc2e8ba1180743f985803ed28ec08f93d6ec8b3f117b31438b"
+        },
+        {
+          "path": "main.py",
+          "state": "AVAILABLE",
+          "size": 1942,
+          "sha256": "32c6b408472c8a83d24a6180863787da147b916741b2e0097b69af2bee42a248"
+        },
+        {
+          "path": "expense_analyzer_report_builder.py",
+          "state": "AVAILABLE",
+          "size": 3368,
+          "sha256": "75e46b0929c60b085a1a73025ce4a90ca821b08a4290a84664b13b8b09f96f8b"
+        },
+        {
+          "path": "expense_analyzer_data_loader.py",
+          "state": "AVAILABLE",
+          "size": 1197,
+          "sha256": "36b129afe54b798ddd8df9aae8985673e3599cc856aa57c95cce1f90284d4447"
+        },
+        {
+          "path": "expense_analyzer___init__.py",
+          "state": "AVAILABLE",
+          "size": 82,
+          "sha256": "cee55601a40333971835b4806288b717e35f3d79edc72bf26022a99d22bc5844"
+        },
+        {
+          "path": "command-30f5350d-f5ea-4a26-9b16-ec7b94168c4e-stderr.txt",
+          "state": "AVAILABLE",
+          "size": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        {
+          "path": "command-30f5350d-f5ea-4a26-9b16-ec7b94168c4e-stdout.txt",
+          "state": "AVAILABLE",
+          "size": 35,
+          "sha256": "a83d73981e880c57d0d20d5279f9eb2b0b6a29cb4d01a9555d829171b288842d"
+        },
+        {
+          "path": "native-core-receipt.json",
+          "state": "AVAILABLE",
+          "size": 1854,
+          "sha256": "a853124556caf1573fdf70be0877c4f8491644306ccaaf883a303a2c0b878e69"
+        },
+        {
+          "path": "main.py",
+          "state": "AVAILABLE",
+          "size": 1942,
+          "sha256": "32c6b408472c8a83d24a6180863787da147b916741b2e0097b69af2bee42a248"
+        },
+        {
+          "path": "expense_analyzer_report_builder.py",
+          "state": "AVAILABLE",
+          "size": 3368,
+          "sha256": "75e46b0929c60b085a1a73025ce4a90ca821b08a4290a84664b13b8b09f96f8b"
+        },
+        {
+          "path": "expense_analyzer_data_loader.py",
+          "state": "AVAILABLE",
+          "size": 1197,
+          "sha256": "36b129afe54b798ddd8df9aae8985673e3599cc856aa57c95cce1f90284d4447"
+        },
+        {
+          "path": "expense_analyzer___init__.py",
+          "state": "AVAILABLE",
+          "size": 82,
+          "sha256": "cee55601a40333971835b4806288b717e35f3d79edc72bf26022a99d22bc5844"
+        },
+        {
+          "path": "command-cb5ddce8-a8be-44a0-8289-641b8547d4aa-stderr.txt",
+          "state": "AVAILABLE",
+          "size": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        {
+          "path": "command-cb5ddce8-a8be-44a0-8289-641b8547d4aa-stdout.txt",
+          "state": "AVAILABLE",
+          "size": 219,
+          "sha256": "cf22e5aa534e9b90c891a48a3f7d1ccd6d70330dc64167ba54f4ae89a124153b"
+        },
+        {
+          "path": "native-core-receipt.json",
+          "state": "AVAILABLE",
+          "size": 2240,
+          "sha256": "5943ff4a5815e1b03510e16ccbda69a0db0f57f8717c368cf869c74244121858"
+        },
+        {
+          "path": "native-core-receipt.json",
+          "state": "AVAILABLE",
+          "size": 1063,
+          "sha256": "5070aa3189a2fa8cc9803bcf1f8e088ccdde557f72c959bb16397ba9bd0c901b"
+        },
+        {
+          "path": "native-core-receipt.json",
+          "state": "AVAILABLE",
+          "size": 678,
+          "sha256": "190d0188404e1408d2866911fe4cc496ff90dc217c0d5c534e40142c428ccf1e"
+        },
+        {
+          "path": "native-core-receipt.json",
+          "state": "AVAILABLE",
+          "size": 1466,
+          "sha256": "fb6a55572821cb2f07dee25196a63a10bdce069a710ee4ccef26382fbb88a25b"
+        },
+        {
+          "path": "native-core-receipt.json",
+          "state": "AVAILABLE",
+          "size": 1849,
+          "sha256": "e7cc95b76dd867871a55aa7621e8fceb3d573e68ecb777f2c1fe82a6fb567a88"
+        },
+        {
+          "path": "native-core-receipt.json",
+          "state": "AVAILABLE",
+          "size": 1068,
+          "sha256": "3ec3ee38849a7dd8f838575b662eccab5399f6555e3b7e2dfa381aebee62bf14"
+        },
+        {
+          "path": "native-core-receipt.json",
+          "state": "AVAILABLE",
+          "size": 328,
+          "sha256": "717c0c7ebc5082c8e3242b46307bae2ca3af8b600c8af2d12df94c659de5fb1e"
+        },
+        {
+          "path": "native-core-receipt.json",
+          "state": "AVAILABLE",
+          "size": 313,
+          "sha256": "676d06d8b17d8d55fd48b3445b8a673e0de566758990e65cc99648516869c658"
+        },
+        {
+          "path": "native-core-receipt.json",
+          "state": "AVAILABLE",
+          "size": 1345,
+          "sha256": "2deb14d697670c4f31fd592d08f2293c12163bc3fce28610dae20b506eb2d0e9"
+        },
+        {
+          "path": "native-core-receipt.json",
+          "state": "AVAILABLE",
+          "size": 1056,
+          "sha256": "87ed5ac9e670bab03bf0b606d4f52ad9b09b4a3742d73fc9d3556bcd4cc5bbc9"
+        },
+        {
+          "path": "native-core-receipt.json",
+          "state": "AVAILABLE",
+          "size": 675,
+          "sha256": "51750fb3d2293809eb7b0d84b386382cd4dcff8eb6fc33a6a989a1ceb37681df"
+        },
+        {
+          "path": "native-core-events.json",
+          "state": "AVAILABLE",
+          "size": 34060,
+          "sha256": "33d6342bf6c1f1cb73d864d1eb9f54d331c851dc8bf4dc77339fa6cfa7ea634c"
+        },
+        {
+          "path": "native-provider-receipt.json",
+          "state": "AVAILABLE",
+          "size": 1321,
+          "sha256": "4d8132b7d9959162c666691bf0de8ea72c6fc9e32b8b0e17c34579f64a8cdf7d"
+        },
+        {
+          "path": "native-provider-events.json",
+          "state": "AVAILABLE",
+          "size": 1369,
+          "sha256": "78e1f0320bd8da19013335ed8b213c1715ce3884dc1b3441e07ba1929fed63d1"
+        },
+        {
+          "path": "native-core-events.json",
+          "state": "AVAILABLE",
+          "size": 1921,
+          "sha256": "44d968b1c54e2edd633f89774f312ceb64b0e5eb27f84fc5930b91da6e6f97b1"
+        },
+        {
+          "path": "native-core-events.json",
+          "state": "AVAILABLE",
+          "size": 462,
+          "sha256": "6426bab68d3ddf091455f71de0172597377ca2a74f325b414064328df6bac508"
+        },
+        {
+          "path": "native-core-receipt.json",
+          "state": "AVAILABLE",
+          "size": 304,
+          "sha256": "9c114a3b44775ffba0846bbdd0ccf22a72baa24dd86a9f2c93fedcb1d14adaf5"
+        },
+        {
+          "path": "native-core-receipt.json",
+          "state": "AVAILABLE",
+          "size": 3816,
+          "sha256": "d49630c705affe566bfce3172fa2fc8f04671338eb8003ff70a51266b7391ea2"
+        },
+        {
+          "path": "native-core-receipt.json",
+          "state": "AVAILABLE",
+          "size": 1055,
+          "sha256": "c372673277603b3b67cc98d336c4fa4ff7e4c9660938c5a7e500acff80c0611b"
+        },
+        {
+          "path": "native-core-receipt.json",
+          "state": "AVAILABLE",
+          "size": 675,
+          "sha256": "5e54308e51308456979bce67f12f8df86030bdcdbc89e762387d06136a19c5a7"
+        },
+        {
+          "path": "native-core-receipt.json",
+          "state": "AVAILABLE",
+          "size": 539,
+          "sha256": "364f00d87ee40917b3775f58678215e6a2aaa09fa4464317661f7ba2e5235327"
+        },
+        {
+          "path": "native-core-receipt.json",
+          "state": "AVAILABLE",
+          "size": 1137,
+          "sha256": "3e579790f9c1184b4f433d5d2f7d5b74355b71b8042c75ff98ef787f308b3aeb"
+        },
+        {
+          "path": "native-core-receipt.json",
+          "state": "AVAILABLE",
+          "size": 1055,
+          "sha256": "9756847c65a4b0e2079b56fd7dc473bdd63f1234f251484e89d2aa95e8ac4ed2"
+        },
+        {
+          "path": "native-core-receipt.json",
+          "state": "AVAILABLE",
+          "size": 675,
+          "sha256": "804c8b097e9e0ea64aa90f1ab05341950f5edb505d2fb60bf651102b14ba59c1"
+        },
+        {
+          "path": "native-core-receipt.json",
+          "state": "AVAILABLE",
+          "size": 1146,
+          "sha256": "03895e168fb291b5c28961b8e62006182cf7a857d6ef1e3cd38cdf0628d82f8f"
+        },
+        {
+          "path": "native-core-receipt.json",
+          "state": "AVAILABLE",
+          "size": 757,
+          "sha256": "41a7f231cd4da41b02bdc15a8f1859e475bcf8e9bbdb5f079115111c5f4ffb9f"
+        },
+        {
+          "path": "native-core-receipt.json",
+          "state": "AVAILABLE",
+          "size": 486,
+          "sha256": "512e57da3afa02cd0b1fd2f7f2c22d445fa90263ea320406e2a9286b1aef3348"
+        },
+        {
+          "path": "native-core-receipt.json",
+          "state": "AVAILABLE",
+          "size": 328,
+          "sha256": "29701807e86d5f1fec1428ffb8daabeee5fb4591493c73b2d8223afc2db1f7af"
+        },
+        {
+          "path": "native-core-receipt.json",
+          "state": "AVAILABLE",
+          "size": 313,
+          "sha256": "0212a493a096cb48a8c4fbd498ccd73a10a7b8385580bfec3f66d26d2cace6c4"
+        },
+        {
+          "path": "native-core-events.json",
+          "state": "AVAILABLE",
+          "size": 25024,
+          "sha256": "ea6212af8d1d9c26063c3268960dd4a8f505b1fc59034186ffd052efa67fd7d2"
+        },
+        {
+          "path": "native-provider-receipt.json",
+          "state": "AVAILABLE",
+          "size": 537,
+          "sha256": "334b1b9e7f4ebf315d8c9cbdc3e9921e30ad86d9a3323e787e5001759e22599c"
+        },
+        {
+          "path": "native-provider-receipt.json",
+          "state": "AVAILABLE",
+          "size": 1313,
+          "sha256": "c51b0006838f049f487ca002c1aedfb4c940c40cd4be9c903287f21dbb2d0e6d"
+        },
+        {
+          "path": "native-provider-events.json",
+          "state": "AVAILABLE",
+          "size": 1899,
+          "sha256": "e16eccdc0869d05e9198c017dc4356bcf619c45593b571dd55647ca10d312020"
+        },
+        {
+          "path": "native-core-receipt.json",
+          "state": "AVAILABLE",
+          "size": 816,
+          "sha256": "a8f939fc9f2170afb247a4e0deffe7fe051e0a7e0d59c1e86135a10cc141112c"
+        },
+        {
+          "path": "native-core-receipt.json",
+          "state": "AVAILABLE",
+          "size": 1055,
+          "sha256": "94cd9407c0ab039afbd67849c13bae36e72037209a3987a8a104931e97316ea7"
+        },
+        {
+          "path": "native-core-receipt.json",
+          "state": "AVAILABLE",
+          "size": 675,
+          "sha256": "4fa9c62e6f3c9f1178d75d51ff9a169204dae73c8e0cf43cc7c9a5e5601f6cc4"
+        },
+        {
+          "path": "native-core-receipt.json",
+          "state": "AVAILABLE",
+          "size": 328,
+          "sha256": "1e0ac13d884c731dfd283f75b8b908ec3b294be947763699cb21e19a8e9fffcb"
+        },
+        {
+          "path": "native-core-receipt.json",
+          "state": "AVAILABLE",
+          "size": 313,
+          "sha256": "5d7782260361dded3042b408a5d7782f869087b530423f8ea8f0f806812162c4"
+        }
+      ],
+      "validationStatus": "INCONCLUSIVE"
+    },
+    {
+      "taskId": "native-d48745b61510cbbf33498defd3a2d5cda74ceb408a44f8612728d3624bc7b39f",
+      "status": "COMPLETED",
+      "modelRequests": 9,
+      "verifiedRepairs": 1,
+      "events": 117,
+      "files": [
+        {
+          "path": "delivery-results.json",
+          "state": "AVAILABLE",
+          "size": 76,
+          "sha256": "2661a8958abd1b6780fc8cf351b1bb1aab0fd011e70f32fc56890b086f97a1a2"
+        },
+        {
+          "path": "executor-stop.json",
+          "state": "AVAILABLE",
+          "size": 141,
+          "sha256": "d970304e7de59931e82c538d20ee2a6ffe72757e42f0744dfb1bd3378724b7f3"
+        },
+        {
+          "path": "native-events.json",
+          "state": "AVAILABLE",
+          "size": 572940,
+          "sha256": "41147785812356de213632b3ff473368ef9c5e5d8d08ed66ca52835d3f70017b"
+        },
+        {
+          "path": "delivery-validation.json",
+          "state": "AVAILABLE",
+          "size": 174,
+          "sha256": "ff02dd596dd2f4c4e5805869e3c3f67b6e30acba0d1add87e806282302eb09bb"
+        },
+        {
+          "path": "delivery_manifest.json",
+          "state": "AVAILABLE",
+          "size": 3359,
+          "sha256": "f6bc8762e3a990f227fe09ff60f27069a2472b78c6d7a00ddf25ebff4165f6e1"
+        },
+        {
+          "path": "chart.png",
+          "state": "AVAILABLE",
+          "size": 33991,
+          "sha256": "a70636f65c1f671dbdb562696f71ec989f079189f9bd1bd0f359028ed4ed08c5"
+        },
+        {
+          "path": "result.json",
+          "state": "AVAILABLE",
+          "size": 91,
+          "sha256": "3f230aff8d452d7c1647afb8c57e2624b817e8540fcb229fca268c450e35da77"
+        },
+        {
+          "path": "report.md",
+          "state": "AVAILABLE",
+          "size": 316,
+          "sha256": "2fa09d176cfcd0cf47fd93607e7ce416c4fd06dd8708b5da05851fd0c129b2dc"
+        },
+        {
+          "path": "main.py",
+          "state": "AVAILABLE",
+          "size": 872,
+          "sha256": "b67ef4e85f4860de8f1208c93d8ad593a83e6b9363eb67c0299331692fba99c0"
+        },
+        {
+          "path": "analyzer.py",
+          "state": "AVAILABLE",
+          "size": 2280,
+          "sha256": "ae8ce263cd355c53fa295e5067552913b50155ea2d8d688b4867f816abb01750"
+        },
+        {
+          "path": "loader.py",
+          "state": "AVAILABLE",
+          "size": 419,
+          "sha256": "96eb7778a458e05d1d8c82341d574a114788597a1cf1d3ea7d378598e796519a"
+        },
+        {
+          "path": "__init__.py",
+          "state": "AVAILABLE",
+          "size": 27,
+          "sha256": "550d5370c7d0f7329cc3a9bad8739d00b86ee7ad971d1cc48443e6b27e08005f"
+        },
+        {
+          "path": "native-core-receipt.json",
+          "state": "AVAILABLE",
+          "size": 1215,
+          "sha256": "daa7441de22f8be4277755fea63c90bf66f35d017e5702646522283d95107da8"
+        },
+        {
+          "path": "native-core-receipt.json",
+          "state": "AVAILABLE",
+          "size": 338,
+          "sha256": "4b972d965f2f298bc4520210fd176d12275d47e8cb4575e1887f5a62ab256169"
+        },
+        {
+          "path": "native-core-receipt.json",
+          "state": "AVAILABLE",
+          "size": 1061,
+          "sha256": "3491a5c466e48f1784525d90e1122f7f129726953edec62e95938098604f5aa4"
+        },
+        {
+          "path": "native-core-receipt.json",
+          "state": "AVAILABLE",
+          "size": 1062,
+          "sha256": "b116362d542fef569f0d205fc16633a30620cb6c60a2df1c62e64066bd58fc43"
+        },
+        {
+          "path": "native-core-receipt.json",
+          "state": "AVAILABLE",
+          "size": 678,
+          "sha256": "747f698828a19486b733b0aaca8a892c40b566da38250ed095c9c8622d6e1217"
+        },
+        {
+          "path": "native-core-receipt.json",
+          "state": "AVAILABLE",
+          "size": 678,
+          "sha256": "9bb348d707d9081dcbb7c3c62eaba534eceb074e23c1482a2931f1bc63ea72bd"
+        },
+        {
+          "path": "native-core-receipt.json",
+          "state": "AVAILABLE",
+          "size": 253,
+          "sha256": "17e2ceed5e7d880a7cad884a16e20793fa70cdb2ea0ed9349c08f9dcba23a026"
+        },
+        {
+          "path": "native-core-receipt.json",
+          "state": "AVAILABLE",
+          "size": 253,
+          "sha256": "f72cfbbe926cefa773058b1f2bebf81c58a25cf68d1efdb2b7c9add47bedbdbf"
+        },
+        {
+          "path": "native-core-receipt.json",
+          "state": "AVAILABLE",
+          "size": 384,
+          "sha256": "98ee884c8b429706f35a59cfadfdc95ba23207adb21aaf279f16e407fe1fabca"
+        },
+        {
+          "path": "native-core-receipt.json",
+          "state": "AVAILABLE",
+          "size": 1216,
+          "sha256": "6ac865637734f997b57be4684a4253dcc918f120ec2c0f24a061778286acfef4"
+        },
+        {
+          "path": "native-core-events.json",
+          "state": "AVAILABLE",
+          "size": 7196,
+          "sha256": "9eeb5c4675b37a27610e0d410be514decb064a7fc2431d21afa0da8c27ca9508"
+        },
+        {
+          "path": "native-provider-receipt.json",
+          "state": "AVAILABLE",
+          "size": 1319,
+          "sha256": "15b50e4c3d466b336190c52bb356c2fa9196213a7cbcbd8966cc2863c908672f"
+        },
+        {
+          "path": "native-provider-events.json",
+          "state": "AVAILABLE",
+          "size": 1367,
+          "sha256": "3aef2a6cb44aff0e5d2d3ff8cbd773f22d43ceb9a4bf7eb32e54ff72a29425ca"
+        },
+        {
+          "path": "native-core-receipt.json",
+          "state": "AVAILABLE",
+          "size": 1062,
+          "sha256": "ea519d1009da34383fa2cdf16d167b734e6fa5ee8754ee1c273f3c27ba683073"
+        },
+        {
+          "path": "native-core-receipt.json",
+          "state": "AVAILABLE",
+          "size": 678,
+          "sha256": "1492c29d1458e036ef2f9891d577f494b414301295e7c38a283ea696086462b9"
+        },
+        {
+          "path": "native-core-receipt.json",
+          "state": "AVAILABLE",
+          "size": 2157,
+          "sha256": "58b2aa2933397483245b93062d52b56b3168ac7db29cd0f1b8af4e6380be22fa"
+        },
+        {
+          "path": "native-core-receipt.json",
+          "state": "AVAILABLE",
+          "size": 1055,
+          "sha256": "aae0d33db7dad90f0ce54cecf4874438207f5780d47f6f41319ea5ae3fbf78a2"
+        },
+        {
+          "path": "native-core-receipt.json",
+          "state": "AVAILABLE",
+          "size": 675,
+          "sha256": "4d74c775e9f4b7c33970da5aef16574f3a0887941ab0a5239b4efee206d322ea"
+        },
+        {
+          "path": "native-core-events.json",
+          "state": "AVAILABLE",
+          "size": 26035,
+          "sha256": "73b723bc3a3384b22c6fffc315e0113b97dd84244d2d403b21c718c8fd56ad9e"
+        },
+        {
+          "path": "native-core-events.json",
+          "state": "AVAILABLE",
+          "size": 24595,
+          "sha256": "bc2b5c54f2fee0e1903404ba8c27153d48bb4462db0cdb21652b3e2e4a9309fb"
+        },
+        {
+          "path": "native-core-events.json",
+          "state": "AVAILABLE",
+          "size": 24533,
+          "sha256": "9354dd307479718f0fed0d319d93107da731ab0f8acc02b65f3834834649a50c"
+        },
+        {
+          "path": "native-core-events.json",
+          "state": "AVAILABLE",
+          "size": 19456,
+          "sha256": "d2353e14357234c5c4bf76288d5b624f6fea8b026c975bc9b25ab33ff105f20b"
+        },
+        {
+          "path": "native-core-events.json",
+          "state": "AVAILABLE",
+          "size": 17874,
+          "sha256": "5a8458bdd33c350e1ccd884abf7db7e97da5bdb63d79f54ddeebf6d90b223568"
+        },
+        {
+          "path": "native-core-events.json",
+          "state": "AVAILABLE",
+          "size": 18379,
+          "sha256": "ffbbfb415797ae6d6bf6a13bc338601b4cc48db3e815f5567f4f601668bb9e85"
+        },
+        {
+          "path": "native-core-events.json",
+          "state": "AVAILABLE",
+          "size": 16450,
+          "sha256": "801af8887f31386cbd6230b0b987ab19aa99695d085044a5cde98fdd483c7564"
+        },
+        {
+          "path": "native-core-events.json",
+          "state": "AVAILABLE",
+          "size": 14585,
+          "sha256": "aa590073cd89a5ac184af7ac2835361c2af2d28007e2b03e634bbb8990b5fcdd"
+        },
+        {
+          "path": "native-core-events.json",
+          "state": "AVAILABLE",
+          "size": 11733,
+          "sha256": "43ed0f8fd2ea738d6d3c5a9149b7af54a0327b39c67ba58341f81e17411edafb"
+        },
+        {
+          "path": "native-core-events.json",
+          "state": "AVAILABLE",
+          "size": 9863,
+          "sha256": "e5d6c6296e9fe794c7a633c4f7ec44e12a9a82f8d331a1dc03d7fe470c435219"
+        },
+        {
+          "path": "native-core-events.json",
+          "state": "AVAILABLE",
+          "size": 8563,
+          "sha256": "351d16fffd8632b35699a405c9a5c81c491045dcc8f98df7be2847d36d103529"
+        },
+        {
+          "path": "native-core-events.json",
+          "state": "AVAILABLE",
+          "size": 6919,
+          "sha256": "ab034bde42bcd625fd17538d572857c52a43346fb56de9c288a7eb96120298ed"
+        },
+        {
+          "path": "native-provider-receipt.json",
+          "state": "AVAILABLE",
+          "size": 537,
+          "sha256": "3a3a011148680e7a3d51de49004efdc1afac0bb5b389a1f25a03085b94498f8d"
+        },
+        {
+          "path": "native-provider-events.json",
+          "state": "AVAILABLE",
+          "size": 585,
+          "sha256": "cccbafa4df2d2ea4003dedde7c7b2c42a0bfe154363e54b2a7989f041e3f719b"
+        },
+        {
+          "path": "native-core-receipt.json",
+          "state": "AVAILABLE",
+          "size": 304,
+          "sha256": "3bce1febfee002add4ea80834b6aa4525fe69ff32f4cc1a63c37abeb93a0e166"
+        },
+        {
+          "path": "native-core-receipt.json",
+          "state": "AVAILABLE",
+          "size": 2246,
+          "sha256": "404fc6ab47d27ecfa53ed36077f9c4d9dccafd2c44b72b065f3c355ce4b114bb"
+        },
+        {
+          "path": "native-core-receipt.json",
+          "state": "AVAILABLE",
+          "size": 1055,
+          "sha256": "1458dd43d76ded4e6c1a5498a60a0aa331ee5f86f028f32e082130ad98e721c5"
+        },
+        {
+          "path": "native-core-receipt.json",
+          "state": "AVAILABLE",
+          "size": 675,
+          "sha256": "cf16b688a7dc76e4b61fbbd93649e9d5920c581401c83e46b242ef487e6b9587"
+        },
+        {
+          "path": "src_loader.py",
+          "state": "AVAILABLE",
+          "size": 419,
+          "sha256": "96eb7778a458e05d1d8c82341d574a114788597a1cf1d3ea7d378598e796519a"
+        },
+        {
+          "path": "src_analyzer.py",
+          "state": "AVAILABLE",
+          "size": 2280,
+          "sha256": "ae8ce263cd355c53fa295e5067552913b50155ea2d8d688b4867f816abb01750"
+        },
+        {
+          "path": "src___init__.py",
+          "state": "AVAILABLE",
+          "size": 27,
+          "sha256": "550d5370c7d0f7329cc3a9bad8739d00b86ee7ad971d1cc48443e6b27e08005f"
+        },
+        {
+          "path": "main.py",
+          "state": "AVAILABLE",
+          "size": 872,
+          "sha256": "b67ef4e85f4860de8f1208c93d8ad593a83e6b9363eb67c0299331692fba99c0"
+        },
+        {
+          "path": "command-ef12da72-989d-438e-9d9e-5d359130216f-stderr.txt",
+          "state": "AVAILABLE",
+          "size": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        {
+          "path": "command-ef12da72-989d-438e-9d9e-5d359130216f-stdout.txt",
+          "state": "AVAILABLE",
+          "size": 1119,
+          "sha256": "57fe75f8466835684a8e2992a036bd00df1b0b6109ef12275c7715cf992494a7"
+        },
+        {
+          "path": "native-core-receipt.json",
+          "state": "AVAILABLE",
+          "size": 3023,
+          "sha256": "05438f8db277dc9fb17a7cb037b8ac41b36690586483a18a2e7e2f35e2376472"
+        },
+        {
+          "path": "native-core-receipt.json",
+          "state": "AVAILABLE",
+          "size": 1171,
+          "sha256": "3d9bb1476fd342b2d64c01bf118e6a289aacb933683b30afc33c67b26cc32fe2"
+        },
+        {
+          "path": "native-core-receipt.json",
+          "state": "AVAILABLE",
+          "size": 782,
+          "sha256": "51735d8e53b13ee5fce3575f1baf6dc6917d6a36f78b0d668e137bae5267ce8e"
+        },
+        {
+          "path": "native-core-receipt.json",
+          "state": "AVAILABLE",
+          "size": 2629,
+          "sha256": "fca0e5659ba4d10847a70a1ce83c4257a107bb21633ff90a89a126ed45320104"
+        },
+        {
+          "path": "native-core-receipt.json",
+          "state": "AVAILABLE",
+          "size": 1865,
+          "sha256": "4d7982510ae4fe546c5b58c7e8a6dda3b65e91e8fd5f5cde1104bad0178cc568"
+        },
+        {
+          "path": "native-core-receipt.json",
+          "state": "AVAILABLE",
+          "size": 328,
+          "sha256": "66cc51bfd9635e949e9cae47d43b2ab5c021272fda942729e349adf3e47cf9d3"
+        },
+        {
+          "path": "native-core-receipt.json",
+          "state": "AVAILABLE",
+          "size": 313,
+          "sha256": "842834ec55ac65ca488cf5b54f2d2d7135a4580329d51d0ddb72226c23b68c34"
+        },
+        {
+          "path": "native-core-events.json",
+          "state": "AVAILABLE",
+          "size": 28876,
+          "sha256": "d7604fd4171c5f5efa7c113fa26c56bb11dd848578d5820d18c0f503aaba3a39"
+        },
+        {
+          "path": "native-provider-receipt.json",
+          "state": "AVAILABLE",
+          "size": 1307,
+          "sha256": "ace8d061e54a74389bdc1350c543a68f82c5f332c3cd640a1f033c7ab217da2e"
+        },
+        {
+          "path": "native-provider-events.json",
+          "state": "AVAILABLE",
+          "size": 1355,
+          "sha256": "644636196ee28143e912ec35df69511862ecf1dafa59e72d4687f7ed210bb985"
+        },
+        {
+          "path": "native-core-receipt.json",
+          "state": "AVAILABLE",
+          "size": 2142,
+          "sha256": "902518adf41047a233a77b77d688ad4fed1ff1a740b73f5f6bd554e3de5d847e"
+        },
+        {
+          "path": "native-core-receipt.json",
+          "state": "AVAILABLE",
+          "size": 1055,
+          "sha256": "64ff5669a6a36a19bbbc289ab15e4ddc9bb6ecb620c33cc24ee1ff4d73387020"
+        },
+        {
+          "path": "native-core-receipt.json",
+          "state": "AVAILABLE",
+          "size": 675,
+          "sha256": "5745b35dcfe603331c4d92d4f661e49401a6d6c8b6ed57941d260a038f198159"
+        },
+        {
+          "path": "native-core-events.json",
+          "state": "AVAILABLE",
+          "size": 9319,
+          "sha256": "ea05d6bc1950292f63f249cb9c5695ac34e7fa92e7d658105c9b095fa07a7187"
+        },
+        {
+          "path": "native-core-events.json",
+          "state": "AVAILABLE",
+          "size": 2188,
+          "sha256": "451affeb5c86cb0282306a35ea6210c555ab4cb3b09eed5be9efe56245043072"
+        },
+        {
+          "path": "native-core-events.json",
+          "state": "AVAILABLE",
+          "size": 1905,
+          "sha256": "8760dab613bbfd526c2b288bfb468072c88d210fdac5d54796ed6505db36096e"
+        },
+        {
+          "path": "native-provider-receipt.json",
+          "state": "AVAILABLE",
+          "size": 537,
+          "sha256": "7bc7d23beb43ffb8ae0fcb105db7f409cafa6d0bbf43fb036bb792fdb9e5bf9e"
+        },
+        {
+          "path": "native-provider-receipt.json",
+          "state": "AVAILABLE",
+          "size": 1317,
+          "sha256": "8ec0c96888a140e229dbf4b3d9d3b1a9bd14e89ff35eb163876ca4e2bae344a6"
+        },
+        {
+          "path": "native-provider-events.json",
+          "state": "AVAILABLE",
+          "size": 1903,
+          "sha256": "2ee2f7fd3182fb66d94472195c4d42785a15f4e1459095092e6791eb42b24d17"
+        },
+        {
+          "path": "native-core-receipt.json",
+          "state": "AVAILABLE",
+          "size": 304,
+          "sha256": "cdab8b2dee038f4012ce4c063e143a7396e158082d8f2e205158936bc9f58286"
+        },
+        {
+          "path": "native-core-receipt.json",
+          "state": "AVAILABLE",
+          "size": 516,
+          "sha256": "a2857de3b1e5e0a4d90eca310cb90c5d91a1c3b79dfae61527273b3f658e8434"
+        },
+        {
+          "path": "native-core-receipt.json",
+          "state": "AVAILABLE",
+          "size": 1055,
+          "sha256": "e67af3998e041e16633ebad829ecccaa8ef3ef7f96b0ddf0b64e74cb934a984a"
+        },
+        {
+          "path": "native-core-receipt.json",
+          "state": "AVAILABLE",
+          "size": 675,
+          "sha256": "4a485e1846d4ea3bc2c1c770eb1f80b5782ba345eff9c7b91c7c3cd20238d7c6"
+        },
+        {
+          "path": "native-core-receipt.json",
+          "state": "AVAILABLE",
+          "size": 901,
+          "sha256": "8703be282aba0f27a87445a3b9822603b85198f17b1f240365cba041b4bbfa91"
+        },
+        {
+          "path": "native-core-receipt.json",
+          "state": "AVAILABLE",
+          "size": 328,
+          "sha256": "55f1ff51e5e32b1246b7e7ea7461bae336c57637278d3746c01860ceb2437531"
+        },
+        {
+          "path": "native-core-receipt.json",
+          "state": "AVAILABLE",
+          "size": 313,
+          "sha256": "b370c5a22caa46e7eb1f267bd73bec310edb2f22e8b7ed7fc3229349365fe811"
+        },
+        {
+          "path": "native-core-receipt.json",
+          "state": "AVAILABLE",
+          "size": 1178,
+          "sha256": "e8ae1d21f094ac3316ea0a71e03ace6a12f434db69860428110b8a93d57b98d3"
+        },
+        {
+          "path": "native-core-receipt.json",
+          "state": "AVAILABLE",
+          "size": 1055,
+          "sha256": "bce823b2a2bbf3249c959d448a9df73ce9a5ab13357c749ef1813a00f0752d16"
+        },
+        {
+          "path": "native-core-receipt.json",
+          "state": "AVAILABLE",
+          "size": 675,
+          "sha256": "550d460be4ac2e1826c875d191a17ce1c606725147e373c0192f02b8f8cad9a8"
+        },
+        {
+          "path": "native-core-events.json",
+          "state": "AVAILABLE",
+          "size": 18825,
+          "sha256": "10c5503534fe19846be3836aa9b2ff62aeb3c19347d3981e8423bebf7e5e232c"
+        },
+        {
+          "path": "native-core-events.json",
+          "state": "AVAILABLE",
+          "size": 4743,
+          "sha256": "f05af3a396ac872215b503ef797c592be75ef03103d870203b7f068aacfb8efc"
+        },
+        {
+          "path": "native-core-events.json",
+          "state": "AVAILABLE",
+          "size": 948,
+          "sha256": "8ff45121082bfab2187af7214f865c6efd452e29f16dbc10c7bbbb3f5cf25871"
+        },
+        {
+          "path": "native-provider-receipt.json",
+          "state": "AVAILABLE",
+          "size": 537,
+          "sha256": "c5719012e2ccb5d3ac2a60cf46132f0949bd5020fd8061e02117ea07c07bc635"
+        },
+        {
+          "path": "native-provider-events.json",
+          "state": "AVAILABLE",
+          "size": 585,
+          "sha256": "2b0cd4331d5b00c5b5408dba67673bb54099d6849d1508bd1781e7ec073a6048"
+        },
+        {
+          "path": "native-core-receipt.json",
+          "state": "AVAILABLE",
+          "size": 304,
+          "sha256": "707f0c0d4e5a816004eaa8dcd39cb425d85bfe355dc4fe24d2cb1013f0ad961f"
+        },
+        {
+          "path": "native-core-receipt.json",
+          "state": "AVAILABLE",
+          "size": 1226,
+          "sha256": "f6c9d2038c4969e90568476a9d3422328db04d7f6b40f8eb56c9197aabc0ad10"
+        },
+        {
+          "path": "native-core-receipt.json",
+          "state": "AVAILABLE",
+          "size": 1055,
+          "sha256": "b5a03d4fa780c2008a55d4c59749cc8c78b45ce7d353167417f2605c40267dbe"
+        },
+        {
+          "path": "native-core-receipt.json",
+          "state": "AVAILABLE",
+          "size": 675,
+          "sha256": "e66e2da09aad4bcf5e1d7f5e19ecbb4bb398a331220e5bf3be20bdae3a86f371"
+        },
+        {
+          "path": "native-core-receipt.json",
+          "state": "AVAILABLE",
+          "size": 1098,
+          "sha256": "aca038c8fc784f5c7ad0d1f1a35833d9951bf5c024cfe3ef1eec757590dc02f6"
+        },
+        {
+          "path": "native-core-receipt.json",
+          "state": "AVAILABLE",
+          "size": 1072,
+          "sha256": "e56dd3d1a21cebe2a01d817594bcbf33424c24d77452f83bf698f6430db2c302"
+        },
+        {
+          "path": "native-core-receipt.json",
+          "state": "AVAILABLE",
+          "size": 1072,
+          "sha256": "948b95dce8165a943d7005eca7cea065c2a0d16ae2bfe701a2db126f2fc76211"
+        },
+        {
+          "path": "native-core-receipt.json",
+          "state": "AVAILABLE",
+          "size": 683,
+          "sha256": "f5e4a896eb25498d8c139f822c776809413a552760cb70d7071fb16761f663f0"
+        },
+        {
+          "path": "native-core-receipt.json",
+          "state": "AVAILABLE",
+          "size": 685,
+          "sha256": "03d76579e86487ca10597c0606621c8e1e2a53249777997690a7309a576a0f05"
+        },
+        {
+          "path": "native-core-receipt.json",
+          "state": "AVAILABLE",
+          "size": 708,
+          "sha256": "e90a170184275f00fd00e3eeac172b8f07a4e8b012a3e017be23c34078036ecf"
+        },
+        {
+          "path": "native-core-receipt.json",
+          "state": "AVAILABLE",
+          "size": 505,
+          "sha256": "6b86baf54402ba96318d2ff8f06a9b8da96a93ae3dc19447fc4de5a301616a30"
+        },
+        {
+          "path": "native-core-receipt.json",
+          "state": "AVAILABLE",
+          "size": 328,
+          "sha256": "8ecfebbadd4705f8f44656f9e365e72948339e43555f906b97c190566c3ec38b"
+        }
+      ],
+      "validationStatus": "INCONCLUSIVE"
+    }
+  ]
+}

@@ -1,0 +1,13 @@
+# Differential-test image only. The formal Node image retains its Standalone
+# entrypoint. Here the ONLY Agent entrypoint is the unmodified official CLI.
+ARG CODING_NODE_BASE
+ARG OFFICIAL_CLI_BASE
+FROM ${OFFICIAL_CLI_BASE} AS cli
+FROM ${CODING_NODE_BASE}
+USER root
+COPY --from=cli /srv/cline/ /opt/official-cline/
+RUN python -c "import hashlib,pathlib; p=pathlib.Path('/opt/official-cline/bin/cline'); assert hashlib.sha256(p.read_bytes()).hexdigest()=='80ee64f82f895ccc695b95acd18252e00f17186a308257d7b169d444a2b27ef4'" \
+    && /opt/official-cline/bin/cline --version
+USER 10001:10001
+ENTRYPOINT ["/opt/official-cline/bin/cline"]
+CMD ["--help"]

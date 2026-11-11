@@ -26,6 +26,25 @@ import static org.assertj.core.api.Assertions.*;
 
 /** Real JDBC transactions and independent connections. No mocked store, CAS, lock or recovery. */
 class CodingTaskPersistenceTest {
+    @Test void largeModelIdentifiersRemainVisibleWithoutSixDigitOrIntegerProjectionLimits(){
+        service=new DurableCodingTaskService(evidence,json,clock,
+            new BoundCodingTaskAccess(()->scope,EnumSet.allOf(CodingTaskAccess.Action.class)),
+            (owner,reference)->true,(s,t,o,h,p)->true,workers,new ConcurrentTaskScheduler(timer));
+        var base=contract("large-model-identities",10);var old=base.budget();
+        var unlimited=new CodingTaskContract.Budget(old.budgetId(),old.deadlineAt(),-1,-1,-1,-1,"unlimited",old.costCurrency(),-1,old.maxMemoryBytes(),old.maxOutputBytes());
+        var contract=new CodingTaskContract(base.schemaVersion(),base.taskId(),base.scope(),base.objective(),base.inputSnapshotRef(),base.metadataRefs(),base.workspaceRef(),
+            base.authorization(),unlimited,base.environmentRef(),base.validationPlanRef(),base.outputContract());
+        service.submit(contract);var lease=claim(contract.taskId(),"worker");
+        for(String id:List.of("model-3000000000","model-1000000")){
+            service.reserve(scope,contract.taskId(),lease,rev(contract.taskId()),id,intent,CodingJournal.OperationKind.MODEL,new Counters(1,1,0,0,0,0,0,"0"));
+            service.startIntent(scope,contract.taskId(),lease,rev(contract.taskId()),id,"runtime-model:"+id);
+            service.reconcileStopped(scope,contract.taskId(),lease,rev(contract.taskId()),id,"proof:"+id);
+            service.settle(scope,contract.taskId(),lease,rev(contract.taskId()),id,new Counters(1,1,0,0,0,0,0,"0"),true);
+        }
+        assertThat(service.startedModelOperations(scope,contract.taskId())).extracting(DurableCodingTaskService.StartedModelOperation::operationId)
+            .containsExactly("model-1000000","model-3000000000");
+        assertThat(service.get(scope,contract.taskId()).usage().consumed().modelCalls()).isEqualTo(2);
+    }
     @Test void tenOwnersWithTheSameTaskIdsAllocateAndRecoverTwentyIndependentVersionRecords() throws Exception {
         var pool=Executors.newFixedThreadPool(10);var start=new CountDownLatch(1);
         var futures=new ArrayList<Future<List<String>>>();

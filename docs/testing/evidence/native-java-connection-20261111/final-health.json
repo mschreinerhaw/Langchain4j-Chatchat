@@ -1,0 +1,66 @@
+{
+  "passed": true,
+  "http": {
+    "http://127.0.0.1:18100/monitor/": 200,
+    "http://127.0.0.1:18351/monitor/": 200,
+    "/api/v1/coding-monitor/tasks": 401,
+    "/api/v1/coding/tasks/runs/unknown/unknown": 401
+  },
+  "containers": {
+    "runtime-os-app-stage-api-1": {
+      "imageId": "sha256:6914ece103e4f2c4fa7d4658ac823a7f7420970ec371f882e686d9da7c3242eb",
+      "status": "running",
+      "restarts": 0,
+      "health": null
+    },
+    "runtime-os-app-stage-gateway-1": {
+      "imageId": "sha256:c05939e13a616cd46ade6515e869aa24451ce7dc28d6f4f9ee8c6b1ec03fbf39",
+      "status": "running",
+      "restarts": 0,
+      "health": "healthy"
+    },
+    "runtime-coding-integrated-node": {
+      "imageId": "sha256:03d65518c97d14310829639a7bcddd31636d5a74d04e2196b0eae6fc0d1be758",
+      "status": "running",
+      "restarts": 0,
+      "health": null
+    },
+    "runtime-coding-integrated-executor": {
+      "imageId": "sha256:03d65518c97d14310829639a7bcddd31636d5a74d04e2196b0eae6fc0d1be758",
+      "status": "running",
+      "restarts": 0,
+      "health": null
+    },
+    "runtime-coding-candidate-monitor": {
+      "imageId": "sha256:c05939e13a616cd46ade6515e869aa24451ce7dc28d6f4f9ee8c6b1ec03fbf39",
+      "status": "running",
+      "restarts": 0,
+      "health": null
+    },
+    "runtime-os-app-stage-mcp-1": {
+      "imageId": "sha256:abf832a95d436e215e3f2f699fe7c81fd68204612d6f9dd1e2d718a4ecdba56e",
+      "status": "running",
+      "restarts": 0,
+      "health": null
+    },
+    "runtime-os-app-stage-news-1": {
+      "imageId": "sha256:a1f1e1356df06e18a515afe88a3d92d2a0d35d1b3e27a55b85163bb1e0ce27b1",
+      "status": "running",
+      "restarts": 0,
+      "health": null
+    },
+    "silo": {
+      "imageId": "sha256:be37cae6c0545e6d3910e5b5578df376b9069c7f9cfe05d521cd91cabfa6cc38",
+      "status": "running",
+      "restarts": 0,
+      "health": null
+    },
+    "postgresql18": {
+      "imageId": "sha256:662db3da228c2ea2649b3ae04db4b4479e85fea5979f6a917a7f6d5cb1e7ec39",
+      "status": "running",
+      "restarts": 0,
+      "health": null
+    }
+  },
+  "monitor18351UsesSameApiAs18100": true
+}

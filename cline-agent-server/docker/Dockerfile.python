@@ -1,0 +1,26 @@
+# Context: repository root plus runtime/ containing verified Standalone assets.
+# Both base arguments must be immutable local image IDs or registry digests.
+ARG NODE_BASE
+ARG PYTHON_BASE
+FROM ${NODE_BASE} AS node
+FROM ${PYTHON_BASE} AS coding-node
+USER root
+# Reuse Python's newer Debian libraries. Never overwrite its loader/glibc with
+# libraries copied from the Node image; the build verifies every native module.
+COPY --from=node /usr/local/bin/node /usr/local/bin/node
+COPY runtime/ /srv/runtime/
+COPY cline-agent-server/ /srv/service/
+COPY deploy/docker/python-runtime/requirements.lock /opt/chatchat/requirements.lock
+RUN /usr/sbin/usermod --shell /bin/bash runner \
+    && mkdir -p /srv/state /workspace /home/runner/.cache \
+    && chown -R 10001:10001 /srv/state /workspace /home/runner/.cache \
+    && node /srv/service/scripts/verify-runtime.mjs /srv/runtime \
+    && python /srv/service/docker/verify-python-runtime.py \
+    && node /srv/service/docker/verify-native-modules.mjs /srv/runtime
+ENV CLINE_SERVER_CONFIG=/run/cline-node.json HOME=/home/runner \
+    PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin SHELL=/bin/bash CLINE_PYTHON_RUNTIME=1
+WORKDIR /srv/service
+USER 10001:10001
+RUN python /opt/chatchat/verify-fonts.py
+EXPOSE 18326
+CMD ["node", "/srv/service/src/server.mjs"]

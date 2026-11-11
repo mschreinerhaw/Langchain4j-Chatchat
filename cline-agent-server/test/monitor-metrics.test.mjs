@@ -1,6 +1,9 @@
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
 import {executionMetrics} from '../monitor/metrics.mjs';
+test('an existing task outcome cannot manufacture a zero native repair count',()=>{
+ assert.equal(executionMetrics({outcome:{status:'COMPLETED'},executions:[]}).automaticRepairs,null);
+});
 test('unpriced usage remains unknown while observed counts survive',()=>{
  const x=executionMetrics({outcome:{startedAt:'2026-11-10T00:00:00Z',endedAt:'2026-11-10T00:01:00Z',usage:{meteringComplete:false,consumed:{modelCalls:41,toolCalls:40,modelTokens:900,costAmount:'0'}}},modelReceipts:[{usage:{inputTokens:600,outputTokens:300}}],executions:[{repair:{attemptsUsed:8}}],assets:[{},{}]});
  assert.equal(x.modelRequests,41);assert.equal(x.toolCalls,40);assert.equal(x.tokens,900);

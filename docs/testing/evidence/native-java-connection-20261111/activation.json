@@ -1,0 +1,10 @@
+{
+  "apiImageId": "sha256:6914ece103e4f2c4fa7d4658ac823a7f7420970ec371f882e686d9da7c3242eb",
+  "previousApiImageId": "sha256:faa12b5a27271fdb28ef2f000769ecd6cb439f43255b6f48543c4650d166ed3a",
+  "rollback": "/opt/runtime-os-docker-stage/rollback/native-s3-20261111T094811Z/rollback.sh",
+  "businessPort": 18100,
+  "monitorPath": "/monitor/",
+  "nodeEndpoint": "http://host.docker.internal:18360",
+  "databaseAndModelsUnchanged": true,
+  "formalRelease": false
+}

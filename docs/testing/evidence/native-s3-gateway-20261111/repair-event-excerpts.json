@@ -1,0 +1,378 @@
+{
+  "generic-protocol-v2-fixed-1": {
+    "sourceJournalSha256": "72f0b5ed5f8826b3ae3f10ab6981c924395d9b22afb47a77946ab9332d85b627",
+    "events": [
+      {
+        "sessionId": "7a4ff112-819d-46d3-b786-0d24e1d92dda",
+        "taskId": "b2d0e97b-f0f8-4e96-ae6d-f6dddb3406ea",
+        "epoch": "f56eac5a-0f3b-4054-b196-467f458ceafa",
+        "eventType": "tool.failed",
+        "payload": {
+          "type": "content_end",
+          "contentType": "tool",
+          "toolName": "run_commands",
+          "toolCallId": "call_af65e533f5d6451b86a57677",
+          "output": [
+            {
+              "query": "cd /poc/project && python3 src/main.py 2>&1",
+              "result": "[Command exited with code 1]\nLoaded 3 rows from /poc/project/data/expenses.csv\nTraceback (most recent call last):\n  File \"/usr/local/lib/python3.11/site-packages/pandas/core/ops/array_ops.py\", line 218, in _na_arithmetic_op\n    result = func(left, right)\n             ^^^^^^^^^^^^^^^^^\n  File \"/usr/local/lib/python3.11/site-packages/pandas/core/computation/expressions.py\", line 242, in evaluate\n    return _evaluate(op, op_str, a, b)  # type: ignore[misc]\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/usr/local/lib/python3.11/site-packages/pandas/core/computation/expressions.py\", line 73, in _evaluate_standard\n    return op(a, b)\n           ^^^^^^^^\nTypeError: can only concatenate str (not \"float\") to str\n\nDuring handling of the above exception, another exception occurred:\n\nTraceback (most recent call last):\n  File \"/poc/project/src/main.py\", line 42, in <module>\n    main()\n  File \"/poc/project/src/main.py\", line 24, in main\n    stats = compute_statistics(df)\n            ^^^^^^^^^^^^^^^^^^^^^^\n  File \"/poc/project/src/analyzer.py\", line 21, in compute_statistics\n    total = df[\"label\"] + df[\"amount\"]\n            ~~~~~~~~~~~~^~~~~~~~~~~~~~\n  File \"/usr/local/lib/python3.11/site-packages/pandas/core/ops/common.py\", line 76, in new_method\n    return method(self, other)\n           ^^^^^^^^^^^^^^^^^^^\n  File \"/usr/local/lib/python3.11/site-packages/pandas/core/arraylike.py\", line 186, in __add__\n    return self._arith_method(other, operator.add)\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/usr/local/lib/python3.11/site-packages/pandas/core/series.py\", line 6154, in _arith_method\n    return base.IndexOpsMixin._arith_method(self, other, op)\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/usr/local/lib/python3.11/site-packages/pandas/core/base.py\", line 1391, in _arith_method\n    result = ops.arithmetic_op(lvalues, rvalues, op)\n             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/usr/local/lib/python3.11/site-packages/pandas/core/ops/array_ops.py\", line 283, in arithmetic_op\n    res_values = _na_arithmetic_op(left, right, op)  # type: ignore[arg-type]\n                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/usr/local/lib/python3.11/site-packages/pandas/core/ops/array_ops.py\", line 227, in _na_arithmetic_op\n    result = _masked_arith_op(left, right, op)\n             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/usr/local/lib/python3.11/site-packages/pandas/core/ops/array_ops.py\", line 163, in _masked_arith_op\n    result[mask] = op(xrav[mask], yrav[mask])\n                   ^^^^^^^^^^^^^^^^^^^^^^^^^^\nTypeError: can only concatenate str (not \"float\") to str\n",
+              "error": "Command exited with code 1",
+              "success": false
+            }
+          ],
+          "durationMs": 2049
+        },
+        "eventId": "190",
+        "timestamp": "2026-11-11T02:24:54.461Z"
+      },
+      {
+        "sessionId": "7a4ff112-819d-46d3-b786-0d24e1d92dda",
+        "taskId": "b2d0e97b-f0f8-4e96-ae6d-f6dddb3406ea",
+        "epoch": "f56eac5a-0f3b-4054-b196-467f458ceafa",
+        "eventType": "tool.completed",
+        "payload": {
+          "type": "content_end",
+          "contentType": "tool",
+          "toolName": "editor",
+          "toolCallId": "call_051e9d0d67e8493c94876d72",
+          "output": {
+            "query": "edit:/poc/project/src/analyzer.py",
+            "result": "Edited /poc/project/src/analyzer.py\n```diff\n-19:     # BUG: label column is string, amount is numeric — adding them\n-20:     # produces a TypeError at runtime.\n-21:     total = df[\"label\"] + df[\"amount\"]\n+19:     total = df[\"amount\"].sum()\n```",
+            "success": true
+          },
+          "durationMs": 25
+        },
+        "eventId": "221",
+        "timestamp": "2026-11-11T02:25:03.446Z"
+      },
+      {
+        "sessionId": "7a4ff112-819d-46d3-b786-0d24e1d92dda",
+        "taskId": "b2d0e97b-f0f8-4e96-ae6d-f6dddb3406ea",
+        "epoch": "f56eac5a-0f3b-4054-b196-467f458ceafa",
+        "eventType": "tool.completed",
+        "payload": {
+          "type": "content_end",
+          "contentType": "tool",
+          "toolName": "run_commands",
+          "toolCallId": "call_90d0c0aff7cc4fcfb574b437",
+          "output": [
+            {
+              "query": "cd /poc/project && python3 src/main.py 2>&1",
+              "result": "Loaded 3 rows from /poc/project/data/expenses.csv\nStatistics: {'rows': 3, 'total': np.float64(47.5), 'mean': np.float64(15.833333333333334), 'dataStatus': 'synthetic_test_fixture'}\nWrote output/report.md\nWrote output/result.json\nWrote output/chart.png\n",
+              "success": true
+            }
+          ],
+          "durationMs": 1922
+        },
+        "eventId": "247",
+        "timestamp": "2026-11-11T02:25:08.347Z"
+      }
+    ]
+  },
+  "generic-protocol-v2-fixed-2": {
+    "sourceJournalSha256": "1f73cf244a51a56d54261d98efb7e4ddde46e461ed471a431000687c2949134b",
+    "events": [
+      {
+        "sessionId": "5090b44d-2329-47dd-9b89-66c719d95e15",
+        "taskId": "de74809a-8812-4249-ae3e-5fb295593f49",
+        "epoch": "1568d51c-2fa8-437f-997f-a3cde41a5690",
+        "eventType": "tool.completed",
+        "payload": {
+          "type": "content_end",
+          "contentType": "tool",
+          "toolName": "run_commands",
+          "toolCallId": "call_ba9c84eb423140d2b50947ef",
+          "output": [
+            {
+              "query": "cd /poc/project && python3 main.py 2>&1; echo \"EXIT_CODE=$?\"",
+              "result": "[main] Loading expenses from /poc/project/data/expenses.csv\n[main] Loaded 3 rows\n[main] Computing statistics …\nTraceback (most recent call last):\n  File \"/poc/project/main.py\", line 45, in <module>\n    main()\n  File \"/poc/project/main.py\", line 24, in main\n    stats = compute_statistics(df)\n            ^^^^^^^^^^^^^^^^^^^^^^\n  File \"/poc/project/src/analyzer.py\", line 27, in compute_statistics\n    summary = \"Processed \" + rows + \" expense rows.\"  # BUG: rows is int\n              ~~~~~~~~~~~~~^~~~~~\nTypeError: can only concatenate str (not \"int\") to str\nEXIT_CODE=1\n",
+              "success": true
+            }
+          ],
+          "durationMs": 1957
+        },
+        "eventId": "200",
+        "timestamp": "2026-11-11T02:26:49.936Z"
+      },
+      {
+        "sessionId": "5090b44d-2329-47dd-9b89-66c719d95e15",
+        "taskId": "de74809a-8812-4249-ae3e-5fb295593f49",
+        "epoch": "1568d51c-2fa8-437f-997f-a3cde41a5690",
+        "eventType": "tool.completed",
+        "payload": {
+          "type": "content_end",
+          "contentType": "tool",
+          "toolName": "editor",
+          "toolCallId": "call_d96d9493aa034e428365ded7",
+          "output": {
+            "query": "edit:/poc/project/src/analyzer.py",
+            "result": "Edited /poc/project/src/analyzer.py\n```diff\n-26:     # --- intentional bug: str + int TypeError ---\n-27:     summary = \"Processed \" + rows + \" expense rows.\"  # BUG: rows is int\n-28:     # --------------------------------------------\n+26:     # --- repaired: use f-string to avoid str+int TypeError ---\n+27:     summary = f\"Processed {rows} expense rows.\"\n+28:     # ---------------------------------------------------------\n```",
+            "success": true
+          },
+          "durationMs": 20
+        },
+        "eventId": "239",
+        "timestamp": "2026-11-11T02:26:56.005Z"
+      },
+      {
+        "sessionId": "5090b44d-2329-47dd-9b89-66c719d95e15",
+        "taskId": "de74809a-8812-4249-ae3e-5fb295593f49",
+        "epoch": "1568d51c-2fa8-437f-997f-a3cde41a5690",
+        "eventType": "tool.completed",
+        "payload": {
+          "type": "content_end",
+          "contentType": "tool",
+          "toolName": "run_commands",
+          "toolCallId": "call_185f0e0c6ec34e2c9dc23587",
+          "output": [
+            {
+              "query": "cd /poc/project && python3 main.py 2>&1; echo \"EXIT_CODE=$?\"",
+              "result": "[main] Loading expenses from /poc/project/data/expenses.csv\n[main] Loaded 3 rows\n[main] Computing statistics …\n[main] Processed 3 expense rows.\n[main] Markdown report → /poc/project/output/report.md\n[main] JSON result   → /poc/project/output/result.json\n[main] Chart PNG     → /poc/project/output/chart.png\n[main] Done.\nEXIT_CODE=0\n",
+              "success": true
+            }
+          ],
+          "durationMs": 1821
+        },
+        "eventId": "264",
+        "timestamp": "2026-11-11T02:27:00.308Z"
+      }
+    ]
+  },
+  "generic-protocol-v2-fixed-3": {
+    "sourceJournalSha256": "fcf62edb1dd6391862b748abddbe49c658ba56ff45c21e8dae879aad91a5d450",
+    "events": [
+      {
+        "sessionId": "91c5b4c7-b7f0-491f-8f70-a3963ae05558",
+        "taskId": "485ffdab-3d92-4a1e-a380-fb0aa67cca28",
+        "epoch": "ecf6ca4e-4a2d-418b-b75b-e10ec22818df",
+        "eventType": "tool.completed",
+        "payload": {
+          "type": "content_end",
+          "contentType": "tool",
+          "toolName": "run_commands",
+          "toolCallId": "call_bac5920f8a0d45e28326b6f4",
+          "output": [
+            {
+              "query": "cd /poc/project && python3 src/main.py 2>&1; echo \"EXIT_CODE=$?\"",
+              "result": "[main] Loading CSV from: /poc/project/data/expenses.csv\n[main] Loaded 3 rows.\n[main] Computing statistics...\nTraceback (most recent call last):\n  File \"/poc/project/src/main.py\", line 46, in <module>\n    main()\n  File \"/poc/project/src/main.py\", line 26, in main\n    stats = compute_statistics(df)\n            ^^^^^^^^^^^^^^^^^^^^^^\n  File \"/poc/project/src/analyzer.py\", line 27, in compute_statistics\n    record_id = \"expense_\" + i\n                ~~~~~~~~~~~^~~\nTypeError: can only concatenate str (not \"int\") to str\nEXIT_CODE=1\n",
+              "success": true
+            }
+          ],
+          "durationMs": 1914
+        },
+        "eventId": "240",
+        "timestamp": "2026-11-11T02:28:54.449Z"
+      },
+      {
+        "sessionId": "91c5b4c7-b7f0-491f-8f70-a3963ae05558",
+        "taskId": "485ffdab-3d92-4a1e-a380-fb0aa67cca28",
+        "epoch": "ecf6ca4e-4a2d-418b-b75b-e10ec22818df",
+        "eventType": "tool.completed",
+        "payload": {
+          "type": "content_end",
+          "contentType": "tool",
+          "toolName": "editor",
+          "toolCallId": "call_9bcae1d6f8cd4b368b70184d",
+          "output": {
+            "query": "edit:/poc/project/src/analyzer.py",
+            "result": "Edited /poc/project/src/analyzer.py\n```diff\n-26:         # BUG: str + int TypeError - cannot concatenate str and int\n-27:         record_id = \"expense_\" + i\n+26:         # FIXED: convert int index to string for concatenation\n+27:         record_id = \"expense_\" + str(i)\n```",
+            "success": true
+          },
+          "durationMs": 21
+        },
+        "eventId": "271",
+        "timestamp": "2026-11-11T02:29:02.063Z"
+      },
+      {
+        "sessionId": "91c5b4c7-b7f0-491f-8f70-a3963ae05558",
+        "taskId": "485ffdab-3d92-4a1e-a380-fb0aa67cca28",
+        "epoch": "ecf6ca4e-4a2d-418b-b75b-e10ec22818df",
+        "eventType": "tool.completed",
+        "payload": {
+          "type": "content_end",
+          "contentType": "tool",
+          "toolName": "run_commands",
+          "toolCallId": "call_da7136dd59504fae917f83a5",
+          "output": [
+            {
+              "query": "cd /poc/project && python3 src/main.py 2>&1; echo \"EXIT_CODE=$?\"",
+              "result": "[main] Loading CSV from: /poc/project/data/expenses.csv\n[main] Loaded 3 rows.\n[main] Computing statistics...\n[main] rows=3  total=47.5  mean=15.833333333333334\n[main] Writing Markdown report -> /poc/project/output/report.md\n[main] Writing JSON result -> /poc/project/output/result.json\n[main] Generating chart -> /poc/project/output/chart.png\n[main] Done.\nEXIT_CODE=0\n",
+              "success": true
+            }
+          ],
+          "durationMs": 1873
+        },
+        "eventId": "296",
+        "timestamp": "2026-11-11T02:29:06.415Z"
+      }
+    ]
+  },
+  "generic-protocol-v2-fixed-4": {
+    "sourceJournalSha256": "47d9df26235c449c7204fb606d686615a8ef8d92d7f0c49968fba1017104c1ae",
+    "events": [
+      {
+        "sessionId": "3a93f50c-6af4-47e4-b043-d9e96d354483",
+        "taskId": "75e6fed8-10a6-45d1-95a1-c8d9ab0a01bb",
+        "epoch": "3f869587-8afb-4242-bcfe-c8f4537efbe7",
+        "eventType": "tool.failed",
+        "payload": {
+          "type": "content_end",
+          "contentType": "tool",
+          "toolName": "run_commands",
+          "toolCallId": "call_61d728a5096b48c496cd0ee1",
+          "output": [
+            {
+              "query": "cd /poc/project && python3 src/main.py 2>&1",
+              "result": "[Command exited with code 1]\nTraceback (most recent call last):\n  File \"/poc/project/src/main.py\", line 53, in <module>\n    main()\n  File \"/poc/project/src/main.py\", line 22, in main\n    stats = compute_statistics(df)\n            ^^^^^^^^^^^^^^^^^^^^^^\n  File \"/poc/project/src/analyzer.py\", line 23, in compute_statistics\n    summary_line = \"Processed \" + rows + \" expense rows\"\n                   ~~~~~~~~~~~~~^~~~~~\nTypeError: can only concatenate str (not \"int\") to str\n",
+              "error": "Command exited with code 1",
+              "success": false
+            }
+          ],
+          "durationMs": 2033
+        },
+        "eventId": "181",
+        "timestamp": "2026-11-11T02:30:47.639Z"
+      },
+      {
+        "sessionId": "3a93f50c-6af4-47e4-b043-d9e96d354483",
+        "taskId": "75e6fed8-10a6-45d1-95a1-c8d9ab0a01bb",
+        "epoch": "3f869587-8afb-4242-bcfe-c8f4537efbe7",
+        "eventType": "tool.completed",
+        "payload": {
+          "type": "content_end",
+          "contentType": "tool",
+          "toolName": "editor",
+          "toolCallId": "call_6ab3b19d40a948ecb6705077",
+          "output": {
+            "query": "edit:/poc/project/src/analyzer.py",
+            "result": "Edited /poc/project/src/analyzer.py\n```diff\n-22:     # INTENTIONAL BUG: str + int TypeError — cannot concatenate str and int\n-23:     summary_line = \"Processed \" + rows + \" expense rows\"\n+22:     # REPAIRED: convert int to str before concatenation\n+23:     summary_line = \"Processed \" + str(rows) + \" expense rows\"\n```",
+            "success": true
+          },
+          "durationMs": 25
+        },
+        "eventId": "210",
+        "timestamp": "2026-11-11T02:30:52.133Z"
+      },
+      {
+        "sessionId": "3a93f50c-6af4-47e4-b043-d9e96d354483",
+        "taskId": "75e6fed8-10a6-45d1-95a1-c8d9ab0a01bb",
+        "epoch": "3f869587-8afb-4242-bcfe-c8f4537efbe7",
+        "eventType": "tool.completed",
+        "payload": {
+          "type": "content_end",
+          "contentType": "tool",
+          "toolName": "run_commands",
+          "toolCallId": "call_50cbfaf6a2eb41b492177261",
+          "output": [
+            {
+              "query": "cd /poc/project && python3 src/main.py 2>&1",
+              "result": "Processed 3 expense rows\nAll artifacts written successfully.\n",
+              "success": true
+            }
+          ],
+          "durationMs": 1809
+        },
+        "eventId": "234",
+        "timestamp": "2026-11-11T02:30:56.419Z"
+      },
+      {
+        "sessionId": "3a93f50c-6af4-47e4-b043-d9e96d354483",
+        "taskId": "75e6fed8-10a6-45d1-95a1-c8d9ab0a01bb",
+        "epoch": "3f869587-8afb-4242-bcfe-c8f4537efbe7",
+        "eventType": "delivery.selection.invalid",
+        "payload": {
+          "deliveryVersion": "v1",
+          "message": "Reserved delivery path",
+          "selectionSha256": "0531af73448add9b1b3896f580c65447e4a6cdf997d46336e3ac7034f764b4e6",
+          "source": "HOST_DELIVERY_PROTOCOL"
+        },
+        "eventId": "462",
+        "timestamp": "2026-11-11T02:31:22.535Z"
+      },
+      {
+        "sessionId": "3a93f50c-6af4-47e4-b043-d9e96d354483",
+        "taskId": "0250cfcb-7e71-47f2-94b8-2899bc165bd5",
+        "epoch": "3f869587-8afb-4242-bcfe-c8f4537efbe7",
+        "eventType": "delivery.selection.invalid",
+        "payload": {
+          "deliveryVersion": "v2",
+          "message": "Reserved delivery path",
+          "selectionSha256": "0531af73448add9b1b3896f580c65447e4a6cdf997d46336e3ac7034f764b4e6",
+          "source": "HOST_DELIVERY_PROTOCOL"
+        },
+        "eventId": "759",
+        "timestamp": "2026-11-11T02:32:25.837Z"
+      }
+    ]
+  },
+  "generic-protocol-v2-fixed-5": {
+    "sourceJournalSha256": "db1f51973326966c0392731c3d9d9709ec8bfd61f98cfa6c6cfef73730a56fd6",
+    "events": [
+      {
+        "sessionId": "b6917a1f-86f5-4f8d-823e-dba397993414",
+        "taskId": "06125759-93f4-499c-a456-10508d524722",
+        "epoch": "41fc65b0-c031-4e0d-bdb3-6255db2716ea",
+        "eventType": "tool.failed",
+        "payload": {
+          "type": "content_end",
+          "contentType": "tool",
+          "toolName": "run_commands",
+          "toolCallId": "call_786f621bac9d457ca1523e7a",
+          "output": [
+            {
+              "query": "cd /poc/project && python3 src/main.py 2>&1",
+              "result": "[Command exited with code 1]\nLoading expenses from: /poc/project/data/test_expenses.csv\nLoaded 3 rows.\nStatistics: {'rows': 3, 'total': 47.5, 'mean': 15.833333333333334, 'dataStatus': 'synthetic_test_fixture'}\nTraceback (most recent call last):\n  File \"/poc/project/src/main.py\", line 39, in <module>\n    main()\n  File \"/poc/project/src/main.py\", line 28, in main\n    summary = build_summary_line(stats)\n              ^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/poc/project/src/analyze.py\", line 35, in build_summary_line\n    summary = \"Rows: \" + stats[\"rows\"] + \" | Total: \" + str(stats[\"total\"]) + \" | Mean: \" + str(stats[\"mean\"])\n              ~~~~~~~~~^~~~~~~~~~~~~~~\nTypeError: can only concatenate str (not \"int\") to str\n",
+              "error": "Command exited with code 1",
+              "success": false
+            }
+          ],
+          "durationMs": 1934
+        },
+        "eventId": "167",
+        "timestamp": "2026-11-11T02:34:34.171Z"
+      },
+      {
+        "sessionId": "b6917a1f-86f5-4f8d-823e-dba397993414",
+        "taskId": "06125759-93f4-499c-a456-10508d524722",
+        "epoch": "41fc65b0-c031-4e0d-bdb3-6255db2716ea",
+        "eventType": "tool.completed",
+        "payload": {
+          "type": "content_end",
+          "contentType": "tool",
+          "toolName": "editor",
+          "toolCallId": "call_0952e5239e584a63890daa75",
+          "output": {
+            "query": "edit:/poc/project/src/analyze.py",
+            "result": "Edited /poc/project/src/analyze.py\n```diff\n-30:     \"\"\"Build a human-readable summary line from statistics.\n-31: \n-32:     BUG: str + int TypeError — len(df) returns int, cannot concatenate with str.\n-33:     \"\"\"\n-34:     # Intentional bug: concatenating str with int\n-35:     summary = \"Rows: \" + stats[\"rows\"] + \" | Total: \" + str(stats[\"total\"]) + \" | Mean: \" + str(stats[\"mean\"])\n+30:     \"\"\"Build a human-readable summary line from statistics.\"\"\"\n+31:     summary = (\n+32:         \"Rows: \" + str(stats[\"rows\"])\n+33:         + \" | Total: \" + str(stats[\"total\"])\n+34:         + \" | Mean: \" + str(stats[\"mean\"])\n+35:     )\n```",
+            "success": true
+          },
+          "durationMs": 23
+        },
+        "eventId": "203",
+        "timestamp": "2026-11-11T02:34:42.766Z"
+      },
+      {
+        "sessionId": "b6917a1f-86f5-4f8d-823e-dba397993414",
+        "taskId": "06125759-93f4-499c-a456-10508d524722",
+        "epoch": "41fc65b0-c031-4e0d-bdb3-6255db2716ea",
+        "eventType": "tool.completed",
+        "payload": {
+          "type": "content_end",
+          "contentType": "tool",
+          "toolName": "run_commands",
+          "toolCallId": "call_6a05c4150fce4330b1520c74",
+          "output": [
+            {
+              "query": "cd /poc/project && python3 src/main.py 2>&1",
+              "result": "Loading expenses from: /poc/project/data/test_expenses.csv\nLoaded 3 rows.\nStatistics: {'rows': 3, 'total': 47.5, 'mean': 15.833333333333334, 'dataStatus': 'synthetic_test_fixture'}\nRows: 3 | Total: 47.5 | Mean: 15.833333333333334\nAll outputs written to: /poc/project/output\n",
+              "success": true
+            }
+          ],
+          "durationMs": 2021
+        },
+        "eventId": "227",
+        "timestamp": "2026-11-11T02:34:47.264Z"
+      }
+    ]
+  }
+}

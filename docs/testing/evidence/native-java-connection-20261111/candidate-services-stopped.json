@@ -1,0 +1,28 @@
+{
+  "stopped": [
+    {
+      "name": "runtime-coding-candidate-api",
+      "id": "e3957ac4c5803aa5f6e139a4c70b8689e44adc39943bd44e97a6d7e0e44a73cc",
+      "imageId": "sha256:6914ece103e4f2c4fa7d4658ac823a7f7420970ec371f882e686d9da7c3242eb"
+    },
+    {
+      "name": "runtime-coding-candidate-node",
+      "id": "3a4b760d4162367fbaeaf34f9acb886c09c81400aa5bf237022df085208d34dc",
+      "imageId": "sha256:95dea80f941158d737335a4cccb634ffe0f4f1ed3dfe38d04049793d00a063b5"
+    },
+    {
+      "name": "runtime-coding-candidate-executor",
+      "id": "30743cd3e1e1646c14261078568bc8edb4f28e137f6a4bd9d1988ff1dfb00302",
+      "imageId": "sha256:95dea80f941158d737335a4cccb634ffe0f4f1ed3dfe38d04049793d00a063b5"
+    },
+    {
+      "name": "runtime-coding-candidate-model-audit",
+      "id": "dad85286920310643a1e66d008254e2215021011dd81a67ce33fae7d3d195647",
+      "imageId": "sha256:95dea80f941158d737335a4cccb634ffe0f4f1ed3dfe38d04049793d00a063b5"
+    }
+  ],
+  "monitor18351Retained": true,
+  "volumesDeleted": false,
+  "imagesDeleted": false,
+  "formalRelease": false
+}

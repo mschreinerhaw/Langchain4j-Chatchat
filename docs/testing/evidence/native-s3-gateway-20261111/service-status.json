@@ -1,0 +1,16 @@
+{
+  "checkedAt": "2026-11-11T11:14:40.293481+08:00",
+  "productionDefaultChanged": false,
+  "userConfirmedSharedServicesRestoring": true,
+  "endpoints": {
+    "nativeS3Gateway": {
+      "httpStatus": 200
+    },
+    "silo": {
+      "error": "<urlopen error [Errno 111] Connection refused>"
+    },
+    "application": {
+      "error": "<urlopen error [Errno 111] Connection refused>"
+    }
+  }
+}

@@ -40,6 +40,8 @@ public final class ClineCodingAdapter implements CodingAgentSPI {
     private final java.time.Clock clock;
     private final String workerId = "cline-adapter:" + UUID.randomUUID();
     private CodingWorkspaceService workspace;
+    private com.chatchat.api.runtime.coding.nativecline.NativeSiloTaskService nativeSilo;
+    public void setNativeSilo(com.chatchat.api.runtime.coding.nativecline.NativeSiloTaskService value){this.nativeSilo=value;}
     private boolean nativeSessions;
     /** Backend-specific recovery must never turn SDK checkpoints into native sessions. */
     public void setNativeSessions(boolean value) { this.nativeSessions = value; }
@@ -83,7 +85,10 @@ public final class ClineCodingAdapter implements CodingAgentSPI {
     @Override public CodingTaskOutcome submit(CodingTaskContract contract) {
         requireDispatchLicense();
         boolean deferredTools=com.chatchat.common.runtime.coding.CodingProtocol.deferredTools(contract);
-        if (CodingWorkspaceService.supports(contract)) {
+        if(com.chatchat.api.runtime.coding.nativecline.NativeSiloTaskService.supports(contract)){
+            if(!nativeSessions||nativeSilo==null)throw new IllegalStateException("Native Silo execution profile is not enabled");
+            nativeSilo.requireAuthorized(contract);
+        } else if (CodingWorkspaceService.supports(contract)) {
             if (workspace == null) throw new IllegalStateException("Workspace Coding profile is not enabled");
             workspace.requireAuthorized(contract);
         } else {
@@ -447,6 +452,15 @@ public final class ClineCodingAdapter implements CodingAgentSPI {
         throw new CodingContractException(CodingErrorCode.AUTHORIZATION_DENIED, message);
     }
     private void requireInputCapabilities(CodingTaskContract contract) {
+        if(com.chatchat.api.runtime.coding.nativecline.NativeSiloTaskService.supports(contract)){
+            var capabilities=request("/v1/input-capabilities",Map.of());boolean supported=false;
+            for(var profile:capabilities.path("workspaceProfiles"))
+                if(com.chatchat.api.runtime.coding.nativecline.NativeSiloTaskService.PROFILE.equals(profile.asText()))supported=true;
+            if(!nativeSessions||!supported||capabilities.path("nativeSiloProtocolVersion").asInt()!=1
+                    ||!"none".equals(capabilities.path("nativeExecutionNetwork").asText()))
+                throw new IllegalStateException("Native Silo workspace execution has not been negotiated; no legacy Sandbox fallback");
+            return;
+        }
         boolean deferredTools=CodingProtocol.deferredTools(contract);
         boolean fast=contract.metadataRefs().contains("runtime-coding:analysis-fast-path:v1");
         boolean workspaceFast=contract.metadataRefs().contains(CodingWorkspaceService.FAST_PATH_REF);

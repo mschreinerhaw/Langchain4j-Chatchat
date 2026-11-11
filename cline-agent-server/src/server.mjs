@@ -1,6 +1,6 @@
 import http from 'node:http';
 import {spawnSync} from 'node:child_process';
-import {readFileSync,writeFileSync,mkdirSync,existsSync,readdirSync,realpathSync} from 'node:fs';
+import {readFileSync,writeFileSync,mkdirSync,existsSync,readdirSync,realpathSync,openSync,readSync,closeSync,chownSync,chmodSync,lstatSync} from 'node:fs';
 import {join,resolve} from 'node:path';
 import {randomUUID,createHash,timingSafeEqual} from 'node:crypto';
 import {Journal} from './journal.mjs';
@@ -9,8 +9,11 @@ import {toolFailed} from './tool-outcome.mjs';
 import {validateRuntime} from './runtime-assets.mjs';
 import {nativeModelSettings} from './native-model-settings.mjs';
 import {forkNativeWorker} from './native-process.mjs';
+import {buildDeliveryManifest,writeDeliveryManifest,readDeliverySelection} from './delivery-manifest.mjs';
+import {commandEvidence,executionRecords,executionContent} from './command-evidence.mjs';
 
 const config=JSON.parse(readFileSync(process.env.CLINE_SERVER_CONFIG,'utf8'));
+if(config.coreUid!==undefined&&(!Number.isSafeInteger(config.coreUid)||config.coreUid<1000||config.coreGid!==config.coreUid||process.getuid?.()!==0))throw Error('Explicit non-root Core identity requires a trusted Host supervisor');
 const modelSettings=nativeModelSettings(config);
 for(const k of ['sourceRoot','distDir','stateDir','apiToken','model','baseUrl','apiKey','workspaces'])if(!config[k])throw Error('Missing config '+k);
 const runtimeAssets=validateRuntime(config.distDir);
@@ -22,20 +25,26 @@ const redact=x=>JSON.parse(JSON.stringify(x??null,(_k,v)=>{
  return v;
 }));
 mkdirSync(config.stateDir,{recursive:true,mode:0o700});
-function persist(s){writeFileSync(join(s.dir,'session.json'),JSON.stringify({id:s.id,workspaceRef:s.workspaceRef,editTool:s.editTool,status:s.status,taskId:s.taskId,nativeSessionId:s.nativeSessionId,epoch:s.epoch,revision:s.revision,commands:s.commands}),{mode:0o600});}
+if(config.coreUid!==undefined)chmodSync(config.stateDir,0o711);
+function coreTree(path,own=false){
+ const stat=lstatSync(path);if(stat.isSymbolicLink())throw Error('Symlink in managed Core state');
+ if(stat.isDirectory())for(const name of readdirSync(path))coreTree(join(path,name),own);
+ if(own)chownSync(path,config.coreUid,config.coreGid);
+}
+function persist(s){writeFileSync(join(s.dir,'session.json'),JSON.stringify({id:s.id,workspaceRef:s.workspaceRef,editTool:s.editTool,status:s.status,taskId:s.taskId,nativeSessionId:s.nativeSessionId,epoch:s.epoch,revision:s.revision,commands:s.commands,delivery:s.delivery}),{mode:0o600});}
 function emit(s,eventType,payload={}){
  const event=s.journal.append({sessionId:s.id,taskId:s.taskId??null,epoch:s.epoch,eventType,payload:redact(payload)});
  for(const response of s.subscribers){if(!response.write(`id: ${event.eventId}\nevent: ${eventType}\ndata: ${JSON.stringify(event)}\n\n`)){s.subscribers.delete(response);response.end();}}
  return event;
 }
 function status(s,state){s.status=state;s.revision++;persist(s);}
-function failure(s,error){if(s.status==='cancelled'||s.status==='cancelling')return;status(s,'failed');emit(s,'task.failed',{message:String(error.message??error)});}
+function failure(s,error){if(['cancelled','cancelling','sealing','sealed'].includes(s.status))return;status(s,'failed');emit(s,'task.failed',{message:String(error.message??error)});}
 for(const name of readdirSync(config.stateDir)){
  const file=join(config.stateDir,name,'session.json');if(!existsSync(file))continue;
  const state=JSON.parse(readFileSync(file,'utf8'));
  const s={...state,dir:join(config.stateDir,name),journal:new Journal(join(config.stateDir,name,'events.jsonl')),subscribers:new Set(),acks:new Map(),workspace:config.workspaces[state.workspaceRef]};
  sessions.set(s.id,s);
- if(!['cancelled','failed'].includes(s.status)){
+ if(!['cancelled','failed','sealed'].includes(s.status)){
   s.status='recoverable';s.epoch=randomUUID();persist(s);
   emit(s,'session.recovery_required',{reason:'Worker ownership lost; automatic native/remote-operation replay is disabled in POC'});
  }
@@ -64,13 +73,14 @@ function nativeEvent(s,event){
   emit(s,'model.error',a);
   if(a.recoverable===false)failure(s,Error(a.error?.message??'Unrecoverable native model error'));
  }
- if(a?.type==='done'&&!['cancelling','cancelled','failed'].includes(s.status)){
+ if(a?.type==='done'&&!['cancelling','cancelled','failed','sealing','sealed'].includes(s.status)){
   if(a.reason!=='completed'){failure(s,Error('Native Agent stopped: '+a.reason));return;}
   status(s,'turn_completed');emit(s,'turn.completed',{...a,deliveryValidated:false});
  }
 }
 async function startWorker(s){
  s.bridge=await startHostBridge(native,s.workspace,(t,p)=>emit(s,t,p));
+ if(config.coreUid!==undefined){chmodSync(s.dir,0o711);if(existsSync(join(s.dir,'cline')))coreTree(join(s.dir,'cline'));}
  const data=join(s.dir,'cline','data');mkdirSync(data,{recursive:true,mode:0o700});
  const global={mode:'act',planModeApiProvider:'openai',actModeApiProvider:'openai',openAiBaseUrl:config.baseUrl,
   planModeOpenAiModelId:config.model,actModeOpenAiModelId:config.model,...modelSettings.global,
@@ -81,17 +91,28 @@ async function startWorker(s){
  if(modelSettings.providers){const settings=join(data,'settings');mkdirSync(settings,{recursive:true,mode:0o700});writeFileSync(join(settings,'providers.json'),JSON.stringify(modelSettings.providers),{mode:0o600});}
  if(config.mcpServers){const settings=join(data,'settings');mkdirSync(settings,{recursive:true,mode:0o700});writeFileSync(join(settings,'cline_mcp_settings.json'),JSON.stringify({mcpServers:config.mcpServers}),{mode:0o600});}
  const port=await freePort();
- const env={PATH:process.env.PATH,LANG:'C.UTF-8',HOME:join(s.dir,'home'),CLINE_DIR:join(s.dir,'cline'),CLINE_DATA_DIR:data,
+ const pythonEnvironment=Object.fromEntries(['PYTHONDONTWRITEBYTECODE','PYTHONUNBUFFERED','MPLCONFIGDIR','MATPLOTLIBRC','TZ','LC_ALL','SHELL'].filter(k=>process.env[k]).map(k=>[k,process.env[k]]));
+ const env={...pythonEnvironment,PATH:process.env.PATH,LANG:'C.UTF-8',HOME:join(s.dir,'home'),CLINE_DIR:join(s.dir,'cline'),CLINE_DATA_DIR:data,
   WORKSPACE_STORAGE_DIR:join(s.dir,'workspace-storage'),INSTALL_DIR:resolve(config.distDir),
   HOST_BRIDGE_ADDRESS:`127.0.0.1:${s.bridge.port}`,PROTOBUS_ADDRESS:`127.0.0.1:${port}`,
   CLINE_SERVER_EPOCH:s.epoch,CLINE_SERVER_OPERATION_CONTEXT:config.operationContext?'1':'0',CLINE_SERVER_EDIT_TOOL:s.editTool??'editor',CLINE_SERVER_REQUIRE_SUBMIT:config.requireSubmitAndExit?'1':'0',...(config.requireSubmitAndExit?{CLINE_SERVER_BROKER_TOKEN:config.apiKey}:{}),CLINE_SESSION_BACKEND_MODE:'local',DO_NOT_TRACK:'1'};
  mkdirSync(env.HOME,{recursive:true,mode:0o700});
- s.worker=forkNativeWorker(join(config.distDir,'cline-core.js'),['--config',join(s.dir,'cline')],{cwd:resolve(config.distDir),env,detached:true,stdio:['ignore','pipe','pipe','ipc']});
+ mkdirSync(env.WORKSPACE_STORAGE_DIR,{recursive:true,mode:0o700});
+ if(config.coreUid!==undefined){coreTree(join(s.dir,'cline'),true);coreTree(env.HOME,true);coreTree(env.WORKSPACE_STORAGE_DIR,true);}
+ s.worker=forkNativeWorker(join(config.distDir,'cline-core.js'),['--config',join(s.dir,'cline')],{cwd:resolve(config.distDir),env,detached:true,stdio:['ignore','pipe','pipe','ipc'],
+  ...(config.observeCommands?{execArgv:[...process.execArgv,'--import',new URL('./native-command-observer.mjs',import.meta.url).href]}:{}),
+  ...(config.coreUid!==undefined?{uid:config.coreUid,gid:config.coreGid}:{})});
  const ready=new Promise((res,rej)=>{
   const timer=setTimeout(()=>rej(Error('Native startup deadline exceeded; inspect worker.log and host.unsupported')),90000);
   s.worker.once('error',e=>{clearTimeout(timer);rej(e);});
-  s.worker.once('exit',(code,signal)=>{clearTimeout(timer);if(!s.workerReady)rej(Error(`Native worker exited during startup: ${code}/${signal}`));else if(!['cancelling','cancelled'].includes(s.status))failure(s,Error(`Native worker exited: ${code}/${signal}`));});
+  s.worker.once('exit',(code,signal)=>{clearTimeout(timer);if(!s.workerReady)rej(Error(`Native worker exited during startup: ${code}/${signal}`));else if(!['cancelling','cancelled','sealing','sealed'].includes(s.status))failure(s,Error(`Native worker exited: ${code}/${signal}`));});
   s.worker.on('message',message=>{
+   if(message.kind==='host.command'&&config.observeCommands&&message.corePid===s.worker.pid){
+    try{commandEvidence(s,message.event,(type,payload)=>emit(s,type,payload));}
+    catch(error){emit(s,'command.observation.failed',{message:error.message,recordId:message.event?.recordId});}
+    return;
+   }
+   if(['native.permission','native.question'].includes(message.kind)&&['cancelling','cancelled','sealing','sealed'].includes(s.status)){emit(s,'interaction.rejected',{kind:message.kind,reason:'Worker closing; no new operation admitted'});return;}
    if(message.kind==='native.ready'){s.workerReady=true;clearTimeout(timer);res();}
    if(message.kind==='native.event')nativeEvent(s,message.event);
    if(message.kind==='native.question'){s.question=message;status(s,'awaiting_input');emit(s,'interaction.requested',message);}
@@ -129,11 +150,11 @@ function descendants(pid){
  const found=new Set([pid]);for(let n=0;n<map.length;n++){let added=false;for(const p of map)if(found.has(p.ppid)&&!found.has(p.pid)){found.add(p.pid);added=true;}if(!added)break;}
  return map.filter(p=>found.has(p.pid)&&p.state!=='Z').map(p=>p.pid);
 }
-async function cancel(s){
- status(s,'cancelling');emit(s,'task.cancel.requested',{});
+async function cancel(s,{seal=false}={}){
+ status(s,seal?'sealing':'cancelling');emit(s,seal?'delivery.seal.requested':'task.cancel.requested',{});
  for(const p of permissions.values())if(p.sessionId===s.id&&p.state==='pending'){clearTimeout(p.timer);p.state='cancelled';emit(s,'permission.resolved',{id:p.id,decision:'deny',reason:'cancelled'});}
  let pids=s.worker?.pid?descendants(s.worker.pid):[];
- if(s.taskClient)await Promise.race([rpc(s.taskClient,'cancelTask',{}).catch(e=>emit(s,'cancel.native_error',{message:e.message})),sleep(3000)]);
+ if(s.taskClient&&!seal)await Promise.race([rpc(s.taskClient,'cancelTask',{}).catch(e=>emit(s,'cancel.native_error',{message:e.message})),sleep(3000)]);
  if(s.worker?.pid){pids=[...new Set([...pids,...descendants(s.worker.pid)])];try{process.kill(-s.worker.pid,'SIGTERM');}catch{}for(const pid of pids)try{process.kill(pid,'SIGTERM');}catch{}}
  await sleep(750);
  for(const pid of pids)if(existsSync(`/proc/${pid}`))try{process.kill(pid,'SIGKILL');}catch{}
@@ -141,7 +162,7 @@ async function cancel(s){
  const alive=pids.filter(pid=>{try{return readFileSync(`/proc/${pid}/stat`,'utf8').split(') ')[1].split(' ')[0]!=='Z';}catch{return false;}});
  s.bridge?.close();s.taskClient?.close();s.workerReady=false;
  if(alive.length){emit(s,'task.stop_unconfirmed',{pids:alive});return;}
- status(s,'cancelled');emit(s,'task.cancelled',{localProcesses:pids,localStopConfirmed:true,externalOperations:config.mcpServers?'remote-stop-unverified':'none-configured-in-poc',...(config.mcpServers?{remoteStopConfirmed:false}:{})});
+ status(s,seal?'sealed':'cancelled');emit(s,seal?'delivery.sealed':'task.cancelled',{localProcesses:pids,localStopConfirmed:true,externalOperations:config.mcpServers?'remote-stop-unverified':'none-configured-in-poc',...(config.mcpServers?{remoteStopConfirmed:false}:{})});
 }
 const send=(res,code,body)=>{res.writeHead(code,{'content-type':'application/json; charset=utf-8'});res.end(JSON.stringify(body));};
 async function body(req){let s='';for await(const c of req){s+=c;if(s.length>1024*1024)throw Object.assign(Error('Request too large'),{status:413});}try{return JSON.parse(s||'{}');}catch{throw Object.assign(Error('Invalid JSON'),{status:400});}}
@@ -179,7 +200,55 @@ const server=http.createServer(async(req,res)=>{
   if(parts[3]==='diff'&&method==='GET'){
    const r=spawnSync('git',['diff','--no-ext-diff','HEAD','--'],{cwd:s.workspace,encoding:'utf8',maxBuffer:8*1024*1024});if(r.status!==0)throw Error(r.stderr);return send(res,200,{patch:r.stdout,sha256:digest(r.stdout)});
   }
-  if(parts[3]==='artifacts'&&method==='GET')return send(res,200,{artifacts:[],deliveryValidated:false});
+  if(parts[3]==='artifacts'&&method==='GET')return send(res,200,{artifacts:s.delivery?.artifacts??[],deliveryValidated:false,acceptanceStatus:'PENDING_RUNTIME_VALIDATION'});
+  if(parts[3]==='delivery-content'&&method==='POST'){
+   if(!config.deliveryBinding||!['turn_completed','sealed'].includes(s.status)||!s.delivery)return send(res,409,{code:'REVIEWABLE_DELIVERY_REQUIRED'});
+   const b=await body(req),artifact=s.delivery.artifacts.find(a=>a.path===b.path);
+   if(b.deliveryVersion!==s.delivery.deliveryVersion||!artifact)return send(res,409,{code:'DELIVERY_CONTENT_BINDING_MISMATCH'});
+   if(artifact.size>8*1024*1024)return send(res,413,{code:'REVIEW_CONTENT_EXCEEDS_8_MIB_USE_S3_DELIVERY'});
+   const root=realpathSync(s.workspace),path=realpathSync(join(root,artifact.path));
+   if(!path.startsWith(root+'/'))return send(res,409,{code:'DELIVERY_PATH_CHANGED'});
+   const fd=openSync(path,'r'),buffer=Buffer.alloc(artifact.size+1);let used=0;
+   try{while(used<buffer.length){const n=readSync(fd,buffer,used,buffer.length-used,null);if(!n)break;used+=n;}}finally{closeSync(fd);}
+   const data=buffer.subarray(0,used),sha256=createHash('sha256').update(data).digest('hex');
+   if(data.length!==artifact.size||sha256!==artifact.sha256)return send(res,409,{code:'DELIVERY_CONTENT_CHANGED'});
+   emit(s,'delivery.content.reviewed',{path:artifact.path,deliveryVersion:b.deliveryVersion,size:data.length,sha256});
+   return send(res,200,{path:artifact.path,size:data.length,sha256,encoding:'base64',data:data.toString('base64')});
+  }
+  if(['delivery','delivery-preview'].includes(parts[3])&&method==='POST'){
+   if(!config.deliveryBinding)return send(res,409,{code:'TRUSTED_DELIVERY_BINDING_REQUIRED'});
+   const preview=parts[3]==='delivery-preview';
+   if(preview&&config.allowDeliveryPreview!==true)return send(res,409,{code:'DELIVERY_PREVIEW_NOT_ENABLED'});
+   if(s.status!==(preview?'turn_completed':'sealed'))return send(res,409,{code:preview?'ONLY_COMPLETED_TURN_CAN_BE_REVIEWED':'SEAL_COMPLETED_WORKER_BEFORE_DELIVERY'});
+   const b=await body(req);
+   const version=b.deliveryVersion??s.delivery?.deliveryVersion??config.deliveryBinding.deliveryVersion;
+   if(typeof version!=='string'||!version.match(/^[A-Za-z0-9_-]{1,96}$/))return send(res,400,{code:'INVALID_DELIVERY_VERSION'});
+   if(!preview&&s.delivery&&version!==s.delivery.deliveryVersion)return send(res,409,{code:'SEAL_DELIVERY_VERSION_MISMATCH'});
+   let files=b.files;
+   if(config.requireDeliverySelection===true){
+    try{files=await readDeliverySelection(s.workspace);}
+    catch(error){emit(s,'delivery.selection.invalid',{deliveryVersion:version,message:error.message,selectionSha256:error.selectionSha256??null,source:'HOST_DELIVERY_PROTOCOL'});return send(res,422,{code:'DELIVERY_SELECTION_INVALID',message:redact(error.message),selectionSha256:error.selectionSha256??null});}
+   }
+   let manifest;
+   try{manifest=await buildDeliveryManifest({workspace:s.workspace,binding:{...config.deliveryBinding,deliveryVersion:version},session:s,files});}
+   catch(error){
+    if(config.requireDeliverySelection!==true||!error.deliveryContentError)throw error;
+    emit(s,'delivery.selection.invalid',{deliveryVersion:version,message:error.message,source:'HOST_DELIVERY_PROTOCOL'});
+    return send(res,422,{code:'DELIVERY_CONTENT_INVALID',message:redact(error.message)});
+   }
+   // This endpoint prepares an inventory only. Runtime must independently verify
+   // immutable Silo versions and its current run fence before formal acceptance.
+   s.delivery=await writeDeliveryManifest(s.workspace,manifest);
+   persist(s);
+   emit(s,preview?'delivery.previewed':'delivery.prepared',{artifacts:manifest.artifacts,deliveryVersion:version,acceptanceStatus:manifest.acceptanceStatus});
+   return send(res,200,manifest);
+  }
+  if(parts[3]==='seal'&&method==='POST'){
+   if(!config.deliveryBinding)return send(res,409,{code:'TRUSTED_DELIVERY_BINDING_REQUIRED'});
+   if(s.status==='sealed')return send(res,200,{status:s.status});
+   if(s.status!=='turn_completed')return send(res,409,{code:'ONLY_COMPLETED_TURN_CAN_BE_SEALED'});
+   await cancel(s,{seal:true});return send(res,s.status==='sealed'?200:503,{status:s.status});
+  }
   if(parts[3]==='messages'&&method==='POST'){
    const b=await body(req),key=req.headers['idempotency-key'];if(!key||typeof b.text!=='string'||!b.text.trim())return send(res,400,{code:'TEXT_AND_IDEMPOTENCY_KEY_REQUIRED'});
    if(s.commands[key])return send(res,s.commands[key].hash===digest(b)?202:409,s.commands[key].hash===digest(b)?s.commands[key].response:{code:'IDEMPOTENCY_CONFLICT'});
@@ -188,12 +257,14 @@ const server=http.createServer(async(req,res)=>{
     const response={taskId:s.taskId,status:'accepted'};s.commands[key]={hash:digest(b),response};s.worker.send({kind:'question.respond',epoch:s.epoch,questionId:s.question.questionId,text:b.text});s.question=null;status(s,'running');emit(s,'interaction.resolved',{});return send(res,202,response);
    }
    if(!s.workerReady||!['idle','turn_completed'].includes(s.status))return send(res,409,{code:'SESSION_BUSY_OR_UNAVAILABLE',status:s.status});
+   if(s.delivery){emit(s,'delivery.revision.started',{previousDeliveryVersion:s.delivery.deliveryVersion});s.delivery=null;}
    s.taskId=randomUUID();const response={taskId:s.taskId,status:'accepted'};s.commands[key]={hash:digest(b),response};status(s,'running');emit(s,'task.accepted',{text:b.text});send(res,202,response);
    const isNew=!s.nativeSessionId;
    const operation=isNew?rpc(s.taskClient,'newTask',{text:b.text,images:[],files:[]}):rpc(s.taskClient,'askResponse',{responseType:'messageResponse',text:b.text,images:[],files:[]});
    operation.then(result=>{if(isNew&&!result.value)throw Error('Native newTask returned empty ID');if(result.value)s.nativeSessionId=result.value;persist(s);emit(s,'task.started',{nativeSessionId:s.nativeSessionId});}).catch(e=>failure(s,e));return;
   }
   if(parts[3]==='cancel'&&method==='POST'){
+   if(['sealing','sealed'].includes(s.status))return send(res,409,{code:'DELIVERY_SEAL_ALREADY_STARTED'});
    if(s.status==='cancelled')return send(res,200,{status:'cancelled'});if(s.status==='cancelling')return send(res,202,{status:'cancelling'});
    if(!s.worker)return send(res,409,{code:'NO_OWNED_WORKER'});send(res,202,{status:'cancelling'});cancel(s).catch(e=>failure(s,e));return;
   }
@@ -201,5 +272,5 @@ const server=http.createServer(async(req,res)=>{
  }catch(error){if(!res.headersSent)send(res,error.status??500,{code:'REQUEST_FAILED',message:redact(error.message)});else res.end();}
 });
 server.listen(config.socketPath?{path:config.socketPath}:{port:config.port??18326,host:config.host??'127.0.0.1'},()=>console.log(JSON.stringify({event:'listening',transport:config.socketPath?'private-unix-socket':'http',port:config.port??18326,upstream:'v4.1.26',mode:'single-worker'})));
-async function shutdown(){server.close();for(const s of sessions.values())if(s.worker?.exitCode===null&&s.status!=='cancelled')await cancel(s);process.exit(0);}
+async function shutdown(){server.close();for(const s of sessions.values())if(s.worker?.exitCode===null&&!['cancelled','sealed'].includes(s.status))await cancel(s);process.exit(0);}
 process.on('SIGTERM',shutdown);process.on('SIGINT',shutdown);

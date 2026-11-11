@@ -31,6 +31,9 @@ import org.springframework.stereotype.Service;
 @ConditionalOnProperty(prefix="chatchat.coding",name="enabled",havingValue="true")
 @ConditionalOnProperty(prefix="chatchat.coding.analysis",name="enabled",havingValue="true")
 public final class CodingAnalysisService implements AnalysisCodingPort {
+    private NativeAnalysisBridge nativeS3Bridge;
+    @org.springframework.beans.factory.annotation.Autowired(required=false)
+    public void setNativeS3Bridge(NativeAnalysisBridge bridge){this.nativeS3Bridge=bridge;}
     private boolean nativeBackend;
     @org.springframework.beans.factory.annotation.Value("${chatchat.coding.cline.backend:sdk}")
     public void setBackend(String backend){nativeBackend="native".equals(backend);}
@@ -135,6 +138,7 @@ public final class CodingAnalysisService implements AnalysisCodingPort {
 
     /** Reads the accepted task and its archived result; never admits, resumes or replays work. */
     public Optional<Map<String,Object>> primarySnapshot(KernelDataScope caller,boolean visual) {
+        if(nativeS3Bridge!=null)return nativeS3Bridge.snapshot(caller,visual);
         String requestId=visual?"primary-data-analysis-visual-v1":"primary-data-analysis-v1";
         String taskId="analysis-coding-"+hash(Map.of("tenant",caller.tenantId(),"user",caller.userId(),"run",caller.runId(),"request",requestId));
         return identity.as(caller,Set.of(CodingTaskAccess.Action.READ),()->{
@@ -268,6 +272,7 @@ public final class CodingAnalysisService implements AnalysisCodingPort {
     @Override public Map<String,Object> executePrimaryAnalysis(
             AnalysisCoverageCoordinator.Request context, Map<String,Dataset> sources,
             java.util.function.Consumer<Map<String,Object>> observer) {
+        if(nativeS3Bridge!=null)return nativeS3Bridge.primary(context,sources,observer);
         String userObjective=context.query();
         if(userObjective!=null && userObjective.length()>6000 && sources!=null) {
             String messageRef="runtime-user-message:"+context.isolationScope().runId();
@@ -284,18 +289,6 @@ public final class CodingAnalysisService implements AnalysisCodingPort {
             throw new IllegalArgumentException("Primary Coding requires delivered data or a supply-status receipt");
         if (sources.size() > MAX_PRIMARY_DATASETS)
             throw new IllegalArgumentException("Primary Coding analysis dataset limit exceeded");
-        if(customerVerification(context)!=null && sources.values().stream()
-                .filter(dataset->!"DATA_SUPPLY_STATUS".equals(dataset.analysisContext().get("recordType"))
-                    &&!"ORIGINAL_USER_MESSAGE".equals(dataset.analysisContext().get("recordMeaning")))
-                .noneMatch(dataset->dataset.recordCount()>0)){
-            Object supply=context.metadata().get("dataSupply");
-            String sourceStatus=supply instanceof Map<?,?> status?Objects.toString(status.get("status"),"UNAVAILABLE"):"UNAVAILABLE";
-            context.metadata().put("primaryCodingDispatchCount",0);
-            observer.accept(Map.of("eventKind","CODING_INPUT_UNAVAILABLE","source","JAVA_RUNTIME","dataSupplyStatus",sourceStatus,"codingDispatched",false));
-            return Map.of("operation","RUN_CODING","status","INPUT_REQUIRED","reasonCode","CUSTOMER_ACCOUNT_INPUT_UNAVAILABLE",
-                "dataSupplyStatus",sourceStatus,"resultAvailable",false,"businessValidationPassed",false,"codingDispatched",false,
-                "summary","The explicit account verification requires actual customer business rows. Supply-status observations are not business data; no Native/Python execution was dispatched.");
-        }
         String objective = "Answer the user's data-analysis objective using only the authorized immutable datasets. "
             + "Inspect delivered schemas and quality. Choose your own analysis methods and verify computed output. "
             + "For this manifest's own parts, access each logical column by manifest.columns[].storageName; schema.presenceColumns are separate Boolean flags, not business values. Native original files have their own schemas, not the transport manifest's column map. "
@@ -336,20 +329,6 @@ public final class CodingAnalysisService implements AnalysisCodingPort {
             var required=new ArrayList<String>((List<String>)reportSchema.get("required"));required.add("verifiedSummary");
             reportSchema=Map.of("type","object","properties",properties,"required",required,"additionalProperties",false);
             request.put("instruction",CodingCsvMetricObjective.objective(Objects.toString(context.runtimeAttributes().get("csvMetricObjective"),context.query()),Objects.toString(context.runtimeAttributes().get("validationValueField"))));
-        }
-        var account=customerVerification(context);
-        if(account!=null){
-            var properties=new LinkedHashMap<String,Object>((Map<String,Object>)reportSchema.get("properties"));
-            properties.put("verifiedAccountSummary",com.chatchat.api.runtime.coding.evidence.CodingCustomerAccountVerifier.summarySchema());
-            var required=new ArrayList<String>((List<String>)reportSchema.get("required"));required.add("verifiedAccountSummary");
-            reportSchema=Map.of("type","object","properties",properties,"required",required,"additionalProperties",false);
-            request.put("instruction",request.get("instruction")+"\nExplicit customer account verification: customerNumber="+account.get("customerNumber")
-                +". Include verifiedAccountSummary using the exact schema. inputSha256 is the frozen input manifest SHA-256; businessDate is the asset RQ and actual template query date. "
-                +"assetTotal/cash/securitiesValue/accountDayPnl use asset ZZC/ZJYE/ZQSZ/DRYK. Sum position ZXSZ/CCCB/DRYK/LJYK into positionMarketValue/positionCost/positionDayPnl/positionCumulativeRealizedPnl. "
-                +"assetRows/positionRows/transactionRows are complete source row counts. transactionQuantity sums CJSL. Prefer an actual delivered settlement dataset with CJRQ/CJJE; transactionGrossAmount sums CJJE and transactionMetricBasis is SETTLEMENT_CJJE. "
-                +"Otherwise use the delivered order dataset WTRQ/CJSL/CJJG; transactionGrossAmount sums CJSL*CJJG and transactionMetricBasis is ORDER_EXECUTED_QUANTITY_TIMES_PRICE_EXCLUDING_FEES. These metrics do not establish settled cash flow or fees. "
-                +"Use exact Decimal strings for amounts and quantities, integer counts, and the exact customer string. State the historical/default date, differing P&L scopes and single-day preference limits. "
-                +"Keep the report concise: asset overview, position totals, transactions, P&L basis, observed behavior and limitations. Do not reproduce every raw record or write a long background section. The same supported metrics must appear consistently in the report.");
         }
         request.put("outputSchema",reportSchema);
         request.put("reviewResult", true);
@@ -413,6 +392,12 @@ public final class CodingAnalysisService implements AnalysisCodingPort {
             if (part.isBlank() || Set.of("anonymous","default","unknown-request").contains(part))
                 throw new SecurityException("Authenticated Runtime run identity is required for Coding");
         var scope=new KernelDataScope(owner.tenantId(),owner.userId(),owner.requestId(),owner.conversationId(),owner.runId(),null,Map.of());
+        if(nativeS3Bridge!=null){
+            var selected=new LinkedHashMap<String,Dataset>();for(String ref:selectedReferences)selected.put(ref,sources.get(ref));
+            var result=nativeS3Bridge.execute(context,scope,requestId,instruction,rowSchema,selected,observer,VisualReportMode.analysisRequested(context.runtimeAttributes()));
+            if(result.get("datasetReference") instanceof String ref&&selected.containsKey(ref))sources.put(ref,selected.get(ref));
+            return result;
+        }
         String taskId="analysis-coding-"+hash(Map.of("tenant",owner.tenantId(),"user",owner.userId(),"run",owner.runId(),"request",requestId));
         Object codeProject=context.runtimeAttributes().get("pythonStudioCodeProject");
         if(codeProject!=null)PythonCodeProject.fromContext(codeProject);
@@ -472,10 +457,7 @@ public final class CodingAnalysisService implements AnalysisCodingPort {
             observer.accept(Map.of("eventKind","CODING_INPUT_READY","taskId",taskId,"source","JAVA_RUNTIME",
                 "snapshotRef",input.reference(),"fileId",input.fileId(),"sha256",input.sha256(),"rowCount",input.rowCount(),
                 "format",description.getOrDefault("format","JSON_LINES"),"durationMs",(System.nanoTime()-inputStarted)/1_000_000));
-            var account=customerVerification(context);
-            var verification=account!=null
-                ? new CodingValidationPlanService.Plan("runtime-customer-account","v1",Map.of("rowSchema",schema,"customerNumber",account.get("customerNumber"),"sourceVersions",source.analysisContext().get("inputVersions")))
-                : "csv-count-sum-v1".equals(context.runtimeAttributes().get("validationProfile"))
+            var verification="csv-count-sum-v1".equals(context.runtimeAttributes().get("validationProfile"))
                 ? new CodingValidationPlanService.Plan("runtime-csv-count-sum","v1",Map.of("rowSchema",schema,"valueField",context.runtimeAttributes().get("validationValueField")))
                 : new CodingValidationPlanService.Plan("runtime-result-schema","v1",Map.of("rowSchema",schema));
             var plan=plans.register(scope,taskId,input,verification);
@@ -957,17 +939,6 @@ public final class CodingAnalysisService implements AnalysisCodingPort {
             if(!bindings.isEmpty())audit.put("datasets",bindings);
         }
         return audit;
-    }
-
-    private static Map<String,Object> customerVerification(AnalysisCoverageCoordinator.Request context){
-        if(!(context.runtimeAttributes().get("responseContract") instanceof Map<?,?> response)
-            ||!response.containsKey("customerAccountVerification"))return null;
-        if(!(response.get("customerAccountVerification") instanceof Map<?,?> account)
-            ||!account.keySet().equals(Set.of("profile","customerNumber"))
-            ||!com.chatchat.api.runtime.coding.evidence.CodingCustomerAccountVerifier.PROFILE.equals(account.get("profile"))
-            ||!(account.get("customerNumber") instanceof String customer)||!customer.matches("[0-9]{1,32}"))
-            throw new IllegalArgumentException("Explicit customer-account-v1 string scope required");
-        return Map.of("customerNumber",customer);
     }
 
     private Dataset selectSources(Map<String,Object> request,Map<String,Dataset> sources) {

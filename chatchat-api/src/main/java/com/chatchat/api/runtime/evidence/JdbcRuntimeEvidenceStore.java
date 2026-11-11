@@ -30,6 +30,7 @@ public class JdbcRuntimeEvidenceStore implements EvidenceStorePort, AnalysisProg
     private final JdbcTemplate jdbc;
     private final ObjectMapper mapper;
     private final TransactionTemplate tx;
+    private final ThreadLocal<String> atomicExecutionPartition=new ThreadLocal<>();
     // Maintenance cursor only; losing it repeats a safe scan, never an execution.
     private String payloadCleanupCursor = "";
 
@@ -456,6 +457,8 @@ public class JdbcRuntimeEvidenceStore implements EvidenceStorePort, AnalysisProg
 
     private <T> T locked(KernelDataScope scope, Supplier<T> work) {
         String id = partition(scope);
+        var atomic=atomicExecutionPartition.get();
+        if(atomic!=null){if(!atomic.equals(id))throw new SecurityException("Atomic execution transaction cannot cross owner partitions");return work.get();}
         // Creation is its own transaction: a competing insert cannot poison the subsequent lock transaction.
         try {
             tx.execute(status -> {
@@ -468,6 +471,15 @@ public class JdbcRuntimeEvidenceStore implements EvidenceStorePort, AnalysisProg
         return tx.execute(status -> {
             jdbc.queryForObject("select id from runtime_evidence_partition where id=? for update", String.class, id);
             return work.get();
+        });
+    }
+    /** Trusted composition of existing checkpoints/evidence for one owner run.
+     * The original partition lock and REQUIRES_NEW transaction remain the
+     * authority; nested work in this scope joins it rather than self-deadlocking.
+     */
+    public <T>T atomicExecutionCheckpoints(KernelDataScope scope,Supplier<T> action){
+        return locked(scope,()->{String prior=atomicExecutionPartition.get();atomicExecutionPartition.set(partition(scope));
+            try{return action.get();}finally{if(prior==null)atomicExecutionPartition.remove();else atomicExecutionPartition.set(prior);}
         });
     }
 

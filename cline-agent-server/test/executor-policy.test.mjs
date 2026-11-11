@@ -21,6 +21,31 @@ test('Executor verifies grants independently and expired grants authorize observ
  assert.deepEqual(taskGrant(signContract(contract,key),cfg),contract);assert.throws(()=>taskGrant(signContract({...contract,userId:'bob'},key),cfg),{status:403});
  const expired=signContract({...contract,expiresAt:Date.now()-1000},key);assert.throws(()=>taskGrant(expired,cfg));assert.equal(taskGrant(expired,cfg,true).userId,'alice');assert.throws(()=>taskGrant(signContract(contract,'x'.repeat(64)),cfg));
 });
+
+test('Python image profile keeps resource/network isolation and mounts only its own input read-only',()=>{
+ const b=request(),s=buildSpec(contract,b,{...cfg,workerRuntime:'cline-python311'}).spec;
+ assert.equal(s.User,'0:0');
+ assert.deepEqual(s.HostConfig.CapAdd,['SETUID','SETGID','CHOWN','KILL','DAC_OVERRIDE']);
+ assert.equal(s.HostConfig.Init,true);
+ assert(s.Env.includes('HOME=/home/runner'));
+ assert(s.Env.includes('SHELL=/bin/bash'));
+ assert.equal(s.HostConfig.NetworkMode,'none');
+ assert.equal(s.HostConfig.ReadonlyRootfs,true);
+ assert.equal(s.HostConfig.Memory,cfg.resources.memoryBytes);
+ assert.equal(s.HostConfig.PidsLimit,cfg.resources.pidsLimit);
+ assert.deepEqual(s.HostConfig.Binds.filter(p=>p.endsWith(':/workspace/input:ro')),['/isolated/workers/'+b.workerId+'/workspace/input:/workspace/input:ro']);
+ assert(s.HostConfig.Binds.every(p=>p.startsWith('/isolated/workers/'+b.workerId+'/')));
+ assert.throws(()=>buildSpec(contract,b,{...cfg,workerRuntime:'root'}),/Unknown/);
+ assert.throws(()=>validateCreate({...b,workerRuntime:'cline-python311'}),{status:403});
+});
+
+test('native Silo grant requires an explicitly enabled Python Executor',()=>{
+ const bound={...contract,version:2,runtimeProfile:'native-python-silo-v1',deliveryBinding:{tenantId:contract.tenantId,taskId:contract.taskId,runId:'run-a',inputSnapshotVersion:'snapshot-a'}};
+ const token=signContract(bound,key);
+ assert.throws(()=>taskGrant(token,cfg),{status:403});
+ assert.throws(()=>taskGrant(token,{...cfg,workerRuntime:'cline-python311'}),{status:403});
+ assert.deepEqual(taskGrant(token,{...cfg,workerRuntime:'cline-python311',enableNativeSilo:true}),bound);
+});
 test('symbolic-link mount anchors are rejected, even inside an otherwise permitted root',()=>{
  const root=mkdtempSync(join(tmpdir(),'cline-executor-')),id=randomUUID();
  try{mkdirSync(join(root,id));for(const d of ['workspace','state','bridge'])mkdirSync(join(root,id,d));writeFileSync(join(root,id,'config.json'),'{}');assertAnchors(root,id);rmdirSync(join(root,id,'workspace'));symlinkSync(join(root,id,'state'),join(root,id,'workspace'),'junction');assert.throws(()=>assertAnchors(root,id),{status:403});}

@@ -1,0 +1,13 @@
+{
+  "tag": "runtime-os-coding-node:cline-4.1.26-python3.11",
+  "pythonBase": "sha256:7ee4b2b77a89220c023fbb8e67d6861a0bea8d8fab3c15b0f9e8f9b35cf7d986",
+  "nodeBase": "sha256:7ee4b2b77a89220c023fbb8e67d6861a0bea8d8fab3c15b0f9e8f9b35cf7d986",
+  "officialSourceCommit": "a459f1d04dea030833b558be645011ab739c463b",
+  "elapsedSeconds": 6.902411699295044,
+  "buildExitCode": 0,
+  "runtimeManifestSha256": "40e55f9d35788dd1a208a1229d2a0ccc03432b0f00d59c562b841a19b91d7989",
+  "sourceFilesManifestSha256": "55eea947c477bf5322e5bd714cdf44580a8e078d6f66ca599bb4075ca34a7013",
+  "imageId": "sha256:cb6e8b7fbfbc26088dfdfcbdfd2b2f3f53b7099480dd60228f58dff81b946fb3",
+  "repoDigests": [],
+  "attemptEvidence": "/srv/cs3-build-20261111/evidence/build-1794362891662081278"
+}

@@ -39,6 +39,8 @@ public class ClineCodingConfiguration {
             com.chatchat.common.mcp.license.McpLicenseEntitlementPort licenseEntitlements,
             org.springframework.beans.factory.ObjectProvider<CodingWorkspaceService> workspace,
             org.springframework.beans.factory.ObjectProvider<CodingDataSupplyService> dataSupply,
+            org.springframework.beans.factory.ObjectProvider<com.chatchat.api.runtime.coding.nativecline.NativeSiloTaskService> nativeSilo,
+            org.springframework.beans.factory.ObjectProvider<com.chatchat.api.runtime.coding.nativecline.NativeS3CodingAdapter> nativeS3,
             @Value("${chatchat.coding.cline.node-url:http://127.0.0.1:8791}") String nodeUrl,
             @Value("${chatchat.coding.cline.shared-secret:}") String secret,
             @Value("${chatchat.coding.cline.shared-secret-file:}") String secretFile,
@@ -48,8 +50,10 @@ public class ClineCodingConfiguration {
             URI.create(nodeUrl), CodingSecrets.resolve(secret,secretFile), mapper);
         adapter.setWorkspace(workspace.getIfAvailable());
         adapter.setDataSupply(dataSupply.getIfAvailable());
+        adapter.setNativeSilo(nativeSilo.getIfAvailable());
         adapter.setLicenseEntitlements(licenseEntitlements);
         adapter.setNativeSessions("native".equals(backend));
-        return "native".equals(backend)?new ClineNativeCodingAdapter(adapter,URI.create(nodeUrl),CodingSecrets.resolve(secret,secretFile),mapper):adapter;
+        CodingAgentSPI selected="native".equals(backend)?new ClineNativeCodingAdapter(adapter,URI.create(nodeUrl),CodingSecrets.resolve(secret,secretFile),mapper):adapter;
+        return new com.chatchat.api.runtime.coding.nativecline.NativeAwareCodingAdapter(selected,nativeS3.getIfAvailable(),tasks);
     }
 }

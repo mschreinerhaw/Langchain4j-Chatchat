@@ -1,0 +1,1921 @@
+{
+  "schemaVersion": "native_s3_acceptance_summary.v1",
+  "officialSourceCommit": "a459f1d04dea030833b558be645011ab739c463b",
+  "imageId": "sha256:cb6e8b7fbfbc26088dfdfcbdfd2b2f3f53b7099480dd60228f58dff81b946fb3",
+  "registryRepoDigests": [],
+  "oci": {
+    "imageId": "sha256:cb6e8b7fbfbc26088dfdfcbdfd2b2f3f53b7099480dd60228f58dff81b946fb3",
+    "ociManifestDigest": "sha256:0e89df2b625b24fca5b0effa911cb2ea2c25cdd5f8c7c78b1fc6c3ec90148111",
+    "registryRepoDigest": null,
+    "layout": "/srv/cs3-v5-20261111/oci-image",
+    "layerCount": 29,
+    "officialSourceCommit": "a459f1d04dea030833b558be645011ab739c463b"
+  },
+  "productionDefaultChanged": false,
+  "realSiloAcceptance": false,
+  "applicationHttpSpiAcceptance": false,
+  "cases": [
+    {
+      "case": "cancel-fixed-1",
+      "sessionId": "cancel-6adc05a64f57400c83f67d13d8630b9d",
+      "formalBusinessAccepted": false,
+      "cancellationVerification": {
+        "checks": {
+          "actualPythonObserved": true,
+          "executorStopped": true,
+          "stopReceipt": true,
+          "revoked": true,
+          "noLateLocalWrites": true,
+          "lateuploadDenied": true,
+          "lateacceptanceDenied": true,
+          "oldGrantRecreationDenied": true
+        },
+        "passed": true,
+        "containerId": "8c5e51ca04dabe3a1d44e1009684a32c42ef9759c4c53146edf3f5b114a55db5",
+        "elapsedSeconds": 32.60913998261094,
+        "sessionRestored": false,
+        "realSiloAcceptance": false,
+        "applicationHttpSpiAcceptance": false
+      },
+      "nativeJournalSha256": "ef550486059bbaf0441923a27947b8cff7bc94c588a9582db3627733723dbbec",
+      "nativeEvents": {
+        "session.created": 1,
+        "worker.ready": 1,
+        "host.notification": 1,
+        "task.accepted": 1,
+        "native.event": 70,
+        "task.started": 1,
+        "model.iteration.started": 2,
+        "model.usage": 2,
+        "permission.requested": 2,
+        "permission.decision": 2,
+        "permission.resolved": 2,
+        "tool.started": 2,
+        "tool.completed": 1,
+        "task.cancel.requested": 2,
+        "tool.failed": 1,
+        "host.shutdown.requested": 1,
+        "task.cancelled": 2
+      },
+      "pythonRepairObservation": {
+        "failures": [],
+        "observedErrorEditExecutionChains": [],
+        "actualErrorObserved": false,
+        "subsequentPythonExecution": false
+      },
+      "container": {
+        "containerId": "8c5e51ca04dabe3a1d44e1009684a32c42ef9759c4c53146edf3f5b114a55db5",
+        "imageId": "sha256:cb6e8b7fbfbc26088dfdfcbdfd2b2f3f53b7099480dd60228f58dff81b946fb3",
+        "running": false,
+        "startedAt": "2026-11-11T02:10:41.668859478Z",
+        "finishedAt": "2026-11-11T02:11:11.082295268Z",
+        "memoryBytes": 3221225472,
+        "nanoCpus": 2000000000,
+        "pidsLimit": 256,
+        "network": "none",
+        "readOnlyRoot": true,
+        "user": "10001:10001",
+        "privileged": false,
+        "capDrop": [
+          "ALL"
+        ],
+        "inputReadOnly": true,
+        "workspaceBind": [
+          "/srv/cs3-v5-20261111/workers/8315c7c9-96fd-45ad-a996-97106f0c2a08/workspace:/poc/project:rw"
+        ],
+        "noDockerSocketMount": true
+      },
+      "providerMetering": {
+        "requestFiles": 2,
+        "receiptFiles": 2,
+        "tokens": 7982,
+        "observedTokenSubtotal": 7982,
+        "meteringComplete": true,
+        "cost": null,
+        "automaticRepairs": null
+      }
+    },
+    {
+      "case": "cancel-fixed-2",
+      "sessionId": "cancel-0e4e01d12f1b4180b9a5b4ffab02ee2b",
+      "formalBusinessAccepted": false,
+      "cancellationVerification": {
+        "checks": {
+          "actualPythonObserved": true,
+          "executorStopped": true,
+          "stopReceipt": true,
+          "revoked": true,
+          "noLateLocalWrites": true,
+          "lateuploadDenied": true,
+          "lateacceptanceDenied": true,
+          "oldGrantRecreationDenied": true
+        },
+        "passed": true,
+        "containerId": "67aa3974d1d24a654563849fb813f9c66b44588853bc3051087373ee92d91143",
+        "elapsedSeconds": 28.807091556489468,
+        "sessionRestored": false,
+        "realSiloAcceptance": false,
+        "applicationHttpSpiAcceptance": false
+      },
+      "nativeJournalSha256": "7fe933dcc47c5db87adcf1a7f92f171100002eafea6d6cdc7240f0f0ec83dcb6",
+      "nativeEvents": {
+        "session.created": 1,
+        "worker.ready": 1,
+        "host.notification": 1,
+        "task.accepted": 1,
+        "native.event": 58,
+        "task.started": 1,
+        "model.iteration.started": 3,
+        "model.usage": 2,
+        "permission.requested": 2,
+        "permission.decision": 2,
+        "permission.resolved": 2,
+        "tool.started": 2,
+        "tool.completed": 2,
+        "task.cancel.requested": 2,
+        "host.shutdown.requested": 1,
+        "task.cancelled": 2
+      },
+      "pythonRepairObservation": {
+        "failures": [],
+        "observedErrorEditExecutionChains": [],
+        "actualErrorObserved": false,
+        "subsequentPythonExecution": false
+      },
+      "container": {
+        "containerId": "67aa3974d1d24a654563849fb813f9c66b44588853bc3051087373ee92d91143",
+        "imageId": "sha256:cb6e8b7fbfbc26088dfdfcbdfd2b2f3f53b7099480dd60228f58dff81b946fb3",
+        "running": false,
+        "startedAt": "2026-11-11T02:11:13.960751081Z",
+        "finishedAt": "2026-11-11T02:11:40.017744645Z",
+        "memoryBytes": 3221225472,
+        "nanoCpus": 2000000000,
+        "pidsLimit": 256,
+        "network": "none",
+        "readOnlyRoot": true,
+        "user": "10001:10001",
+        "privileged": false,
+        "capDrop": [
+          "ALL"
+        ],
+        "inputReadOnly": true,
+        "workspaceBind": [
+          "/srv/cs3-v5-20261111/workers/f7216a6f-9cd8-46ce-a515-9785e38dc3be/workspace:/poc/project:rw"
+        ],
+        "noDockerSocketMount": true
+      },
+      "providerMetering": {
+        "requestFiles": 3,
+        "receiptFiles": 3,
+        "tokens": null,
+        "observedTokenSubtotal": 7783,
+        "meteringComplete": false,
+        "cost": null,
+        "automaticRepairs": null
+      }
+    },
+    {
+      "case": "cancel-fixed-3",
+      "sessionId": "cancel-38ec390c4e7642d0b99b14da50d853b0",
+      "formalBusinessAccepted": false,
+      "cancellationVerification": {
+        "checks": {
+          "actualPythonObserved": true,
+          "executorStopped": true,
+          "stopReceipt": true,
+          "revoked": true,
+          "noLateLocalWrites": true,
+          "lateuploadDenied": true,
+          "lateacceptanceDenied": true,
+          "oldGrantRecreationDenied": true
+        },
+        "passed": true,
+        "containerId": "23070c14cb0354ec03f56b38f78460558b6ddf660d12f3631df8eda1e92b1a94",
+        "elapsedSeconds": 32.84194433130324,
+        "sessionRestored": false,
+        "realSiloAcceptance": false,
+        "applicationHttpSpiAcceptance": false
+      },
+      "nativeJournalSha256": "24fcb46cffab7435766d52f2e5eebd644e2d2f861fa04dbfcd6046f3b7b3af1f",
+      "nativeEvents": {
+        "session.created": 1,
+        "worker.ready": 1,
+        "host.notification": 1,
+        "task.accepted": 1,
+        "native.event": 69,
+        "task.started": 1,
+        "model.iteration.started": 3,
+        "model.usage": 3,
+        "permission.requested": 3,
+        "permission.decision": 3,
+        "permission.resolved": 3,
+        "tool.started": 3,
+        "tool.completed": 2,
+        "task.cancel.requested": 2,
+        "tool.failed": 1,
+        "host.shutdown.requested": 1,
+        "task.cancelled": 2
+      },
+      "pythonRepairObservation": {
+        "failures": [],
+        "observedErrorEditExecutionChains": [],
+        "actualErrorObserved": false,
+        "subsequentPythonExecution": false
+      },
+      "container": {
+        "containerId": "23070c14cb0354ec03f56b38f78460558b6ddf660d12f3631df8eda1e92b1a94",
+        "imageId": "sha256:cb6e8b7fbfbc26088dfdfcbdfd2b2f3f53b7099480dd60228f58dff81b946fb3",
+        "running": false,
+        "startedAt": "2026-11-11T02:11:42.895220376Z",
+        "finishedAt": "2026-11-11T02:12:10.011356392Z",
+        "memoryBytes": 3221225472,
+        "nanoCpus": 2000000000,
+        "pidsLimit": 256,
+        "network": "none",
+        "readOnlyRoot": true,
+        "user": "10001:10001",
+        "privileged": false,
+        "capDrop": [
+          "ALL"
+        ],
+        "inputReadOnly": true,
+        "workspaceBind": [
+          "/srv/cs3-v5-20261111/workers/35a6f913-59a5-4d1c-915a-fe74f375f720/workspace:/poc/project:rw"
+        ],
+        "noDockerSocketMount": true
+      },
+      "providerMetering": {
+        "requestFiles": 3,
+        "receiptFiles": 3,
+        "tokens": 11332,
+        "observedTokenSubtotal": 11332,
+        "meteringComplete": true,
+        "cost": null,
+        "automaticRepairs": null
+      }
+    },
+    {
+      "case": "cancel-fixed-4",
+      "sessionId": "cancel-b5b4da5a2d594c8e8a08cbbd1630d108",
+      "formalBusinessAccepted": false,
+      "cancellationVerification": {
+        "checks": {
+          "actualPythonObserved": true,
+          "executorStopped": true,
+          "stopReceipt": true,
+          "revoked": true,
+          "noLateLocalWrites": true,
+          "lateuploadDenied": true,
+          "lateacceptanceDenied": true,
+          "oldGrantRecreationDenied": true
+        },
+        "passed": true,
+        "containerId": "2c1348bf8b607e3ca19ab874f3be0c98adec7e0f5f32fcb5a58056d53f82a8a6",
+        "elapsedSeconds": 38.315509827807546,
+        "sessionRestored": false,
+        "realSiloAcceptance": false,
+        "applicationHttpSpiAcceptance": false
+      },
+      "nativeJournalSha256": "0782ef1a00ab17368955fed50ff387e53a1941ab14a0722d87aa9333a9bdfc61",
+      "nativeEvents": {
+        "session.created": 1,
+        "worker.ready": 1,
+        "host.notification": 1,
+        "task.accepted": 1,
+        "native.event": 93,
+        "task.started": 1,
+        "model.iteration.started": 2,
+        "model.usage": 2,
+        "permission.requested": 2,
+        "permission.decision": 2,
+        "permission.resolved": 2,
+        "tool.started": 2,
+        "tool.completed": 1,
+        "task.cancel.requested": 2,
+        "tool.failed": 1,
+        "host.shutdown.requested": 1,
+        "task.cancelled": 2
+      },
+      "pythonRepairObservation": {
+        "failures": [],
+        "observedErrorEditExecutionChains": [],
+        "actualErrorObserved": false,
+        "subsequentPythonExecution": false
+      },
+      "container": {
+        "containerId": "2c1348bf8b607e3ca19ab874f3be0c98adec7e0f5f32fcb5a58056d53f82a8a6",
+        "imageId": "sha256:cb6e8b7fbfbc26088dfdfcbdfd2b2f3f53b7099480dd60228f58dff81b946fb3",
+        "running": false,
+        "startedAt": "2026-11-11T02:12:15.928296353Z",
+        "finishedAt": "2026-11-11T02:12:51.430991925Z",
+        "memoryBytes": 3221225472,
+        "nanoCpus": 2000000000,
+        "pidsLimit": 256,
+        "network": "none",
+        "readOnlyRoot": true,
+        "user": "10001:10001",
+        "privileged": false,
+        "capDrop": [
+          "ALL"
+        ],
+        "inputReadOnly": true,
+        "workspaceBind": [
+          "/srv/cs3-v5-20261111/workers/c7bc2f8b-5a30-45ad-8fbc-03201a7819ad/workspace:/poc/project:rw"
+        ],
+        "noDockerSocketMount": true
+      },
+      "providerMetering": {
+        "requestFiles": 2,
+        "receiptFiles": 2,
+        "tokens": 8333,
+        "observedTokenSubtotal": 8333,
+        "meteringComplete": true,
+        "cost": null,
+        "automaticRepairs": null
+      }
+    },
+    {
+      "case": "cancel-fixed-5",
+      "sessionId": "cancel-dcc1109d96f840a9bc4f8eb88576af08",
+      "formalBusinessAccepted": false,
+      "cancellationVerification": {
+        "checks": {
+          "actualPythonObserved": true,
+          "executorStopped": true,
+          "stopReceipt": true,
+          "revoked": true,
+          "noLateLocalWrites": true,
+          "lateuploadDenied": true,
+          "lateacceptanceDenied": true,
+          "oldGrantRecreationDenied": true
+        },
+        "passed": true,
+        "containerId": "b4dd0b2b7673c6bdb79d20ccf9ed17abc9d64df9ebdc66e3ea075fdec2125005",
+        "elapsedSeconds": 22.23144855722785,
+        "sessionRestored": false,
+        "realSiloAcceptance": false,
+        "applicationHttpSpiAcceptance": false
+      },
+      "nativeJournalSha256": "bd01f52facefc6d63cb50fa130bdca415d559300b137479076914b2de4dba631",
+      "nativeEvents": {
+        "session.created": 1,
+        "host.notification": 1,
+        "worker.ready": 1,
+        "task.accepted": 1,
+        "native.event": 35,
+        "task.started": 1,
+        "model.iteration.started": 2,
+        "model.usage": 2,
+        "permission.requested": 2,
+        "permission.decision": 2,
+        "permission.resolved": 2,
+        "tool.started": 2,
+        "tool.completed": 1,
+        "task.cancel.requested": 2,
+        "tool.failed": 1,
+        "host.shutdown.requested": 1,
+        "task.cancelled": 2
+      },
+      "pythonRepairObservation": {
+        "failures": [],
+        "observedErrorEditExecutionChains": [],
+        "actualErrorObserved": false,
+        "subsequentPythonExecution": false
+      },
+      "container": {
+        "containerId": "b4dd0b2b7673c6bdb79d20ccf9ed17abc9d64df9ebdc66e3ea075fdec2125005",
+        "imageId": "sha256:cb6e8b7fbfbc26088dfdfcbdfd2b2f3f53b7099480dd60228f58dff81b946fb3",
+        "running": false,
+        "startedAt": "2026-11-11T02:12:54.32055628Z",
+        "finishedAt": "2026-11-11T02:13:13.818760609Z",
+        "memoryBytes": 3221225472,
+        "nanoCpus": 2000000000,
+        "pidsLimit": 256,
+        "network": "none",
+        "readOnlyRoot": true,
+        "user": "10001:10001",
+        "privileged": false,
+        "capDrop": [
+          "ALL"
+        ],
+        "inputReadOnly": true,
+        "workspaceBind": [
+          "/srv/cs3-v5-20261111/workers/dbd691d2-0601-494d-aee3-751f21070f83/workspace:/poc/project:rw"
+        ],
+        "noDockerSocketMount": true
+      },
+      "providerMetering": {
+        "requestFiles": 2,
+        "receiptFiles": 2,
+        "tokens": 7264,
+        "observedTokenSubtotal": 7264,
+        "meteringComplete": true,
+        "cost": null,
+        "automaticRepairs": null
+      }
+    },
+    {
+      "case": "generic-fixed-1",
+      "sessionId": "s3-976c7df4460f469fa0a65b73c9790fa3",
+      "formalBusinessAccepted": false,
+      "independentLocalVerification": {
+        "checks": {
+          "rows": true,
+          "total": true,
+          "mean": true,
+          "multipleSourceFiles": true,
+          "png": true,
+          "markdown": true,
+          "stopped": true,
+          "realTypeError": true,
+          "subsequentToolSuccess": true
+        },
+        "passed": true,
+        "realModel": true,
+        "realSiloAcceptance": false,
+        "applicationHttpSpiAcceptance": false,
+        "elapsedSeconds": 111.11767093650997,
+        "modelRequests": 12,
+        "toolCompleted": 14,
+        "toolFailed": 1,
+        "finalState": "SEALED_PENDING_UPLOAD",
+        "source": "Native journal and actual sealed local artifacts"
+      },
+      "artifactTypes": {
+        "SOURCE": 4,
+        "REPORT": 1,
+        "RESULT": 1,
+        "CHART": 1,
+        "AUXILIARY": 1
+      },
+      "artifactInventory": [
+        {
+          "path": "expense_analyzer/src/analyzer.py",
+          "type": "SOURCE",
+          "size": 1093,
+          "sha256": "7f666b14a67b39feae18b481b03f9e0906eda647c52838186851ccd7bc8c465d"
+        },
+        {
+          "path": "expense_analyzer/src/reporter.py",
+          "type": "SOURCE",
+          "size": 2106,
+          "sha256": "973bd69459750f1410ccdee03b01e9fd65aea95c246091572e188102e11dcf5f"
+        },
+        {
+          "path": "expense_analyzer/src/main.py",
+          "type": "SOURCE",
+          "size": 1093,
+          "sha256": "4c0486ee14a69cc7034cc918d933e58f26dfc11ea2953225eb1208b008a5641a"
+        },
+        {
+          "path": "expense_analyzer/src/__init__.py",
+          "type": "SOURCE",
+          "size": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        {
+          "path": "expense_analyzer/output/report.md",
+          "type": "REPORT",
+          "size": 499,
+          "sha256": "e9fcb73c24969c99377881de4576c22eb196858ef87d349fef26314b721cffe0"
+        },
+        {
+          "path": "expense_analyzer/output/result.json",
+          "type": "RESULT",
+          "size": 104,
+          "sha256": "ca97db9e0ca954508f3e6b10133317fa70b63fb92f137a65c8a2c359a774478d"
+        },
+        {
+          "path": "expense_analyzer/output/chart.png",
+          "type": "CHART",
+          "size": 21909,
+          "sha256": "125a23610d5840df890ad86ab332f2a1d96a11f392be721297db937973d6f94c"
+        },
+        {
+          "path": "expense_analyzer/data/expenses.csv",
+          "type": "AUXILIARY",
+          "size": 41,
+          "sha256": "a594448057ef437ce1397e1a49cfae51832587bd765494a67db9b965c31dab29"
+        }
+      ],
+      "nativeJournalSha256": "c5ed501a6ef61dfbc5c396c4df36e4c5a1df560bffd6d41992e00fe22111e8ee",
+      "nativeEvents": {
+        "session.created": 1,
+        "host.notification": 1,
+        "worker.ready": 1,
+        "task.accepted": 1,
+        "native.event": 314,
+        "task.started": 1,
+        "model.iteration.started": 12,
+        "model.usage": 12,
+        "permission.requested": 15,
+        "permission.decision": 15,
+        "permission.resolved": 15,
+        "tool.started": 15,
+        "tool.completed": 14,
+        "tool.failed": 1,
+        "turn.completed": 1,
+        "delivery.previewed": 1,
+        "delivery.content.reviewed": 1,
+        "delivery.seal.requested": 1,
+        "host.shutdown.requested": 1,
+        "delivery.sealed": 1,
+        "delivery.prepared": 1
+      },
+      "pythonRepairObservation": {
+        "failures": [
+          {
+            "eventId": "196",
+            "toolCallId": "call_2b431b67100341c6939272ab",
+            "nativeEventType": "tool.completed",
+            "pythonExitCode": null
+          }
+        ],
+        "observedErrorEditExecutionChains": [
+          {
+            "failureEventId": "196",
+            "editEventId": "230",
+            "executionEventId": "254"
+          }
+        ],
+        "actualErrorObserved": true,
+        "subsequentPythonExecution": true
+      },
+      "container": {
+        "containerId": "19c21d3fd9b4ef4cdfd887fc5494ceba9729e28fe24bed54c809ab92949eee99",
+        "imageId": "sha256:cb6e8b7fbfbc26088dfdfcbdfd2b2f3f53b7099480dd60228f58dff81b946fb3",
+        "running": false,
+        "startedAt": "2026-11-11T02:10:41.346970472Z",
+        "finishedAt": "2026-11-11T02:12:29.672923669Z",
+        "memoryBytes": 3221225472,
+        "nanoCpus": 2000000000,
+        "pidsLimit": 256,
+        "network": "none",
+        "readOnlyRoot": true,
+        "user": "10001:10001",
+        "privileged": false,
+        "capDrop": [
+          "ALL"
+        ],
+        "inputReadOnly": true,
+        "workspaceBind": [
+          "/srv/cs3-v5-20261111/workers/f70e70f9-fce8-4a69-9f31-03988b2d7699/workspace:/poc/project:rw"
+        ],
+        "noDockerSocketMount": true
+      },
+      "providerMetering": {
+        "requestFiles": 12,
+        "receiptFiles": 12,
+        "tokens": 85169,
+        "observedTokenSubtotal": 85169,
+        "meteringComplete": true,
+        "cost": null,
+        "automaticRepairs": null
+      }
+    },
+    {
+      "case": "generic-fixed-2",
+      "sessionId": "s3-4d29f220af0e4caa8288e1fc7ee03daf",
+      "formalBusinessAccepted": false,
+      "independentLocalVerification": {
+        "checks": {
+          "rows": true,
+          "total": true,
+          "mean": true,
+          "multipleSourceFiles": true,
+          "png": true,
+          "markdown": true,
+          "stopped": true,
+          "realTypeError": true,
+          "subsequentToolSuccess": true
+        },
+        "passed": true,
+        "realModel": true,
+        "realSiloAcceptance": false,
+        "applicationHttpSpiAcceptance": false,
+        "elapsedSeconds": 95.26603498123586,
+        "modelRequests": 9,
+        "toolCompleted": 11,
+        "toolFailed": 2,
+        "finalState": "SEALED_PENDING_UPLOAD",
+        "source": "Native journal and actual sealed local artifacts"
+      },
+      "artifactTypes": {
+        "SOURCE": 4,
+        "AUXILIARY": 1,
+        "REPORT": 1,
+        "RESULT": 1,
+        "CHART": 1
+      },
+      "artifactInventory": [
+        {
+          "path": "expense_analyzer/analyzer.py",
+          "type": "SOURCE",
+          "size": 860,
+          "sha256": "fc157ca86bb1662ffa0e496f6132977cd82ece18a6a6b1fb247490b809bd2c7d"
+        },
+        {
+          "path": "expense_analyzer/reporter.py",
+          "type": "SOURCE",
+          "size": 2165,
+          "sha256": "060c42f6c07aecd30ef07d696a53ba21dddecbbf35231fc97bec7329b5618b82"
+        },
+        {
+          "path": "expense_analyzer/main.py",
+          "type": "SOURCE",
+          "size": 2436,
+          "sha256": "6750ca689eb04cc1b86ddf45b825b36778ebd9aeeaa9b0bc51178fd6b3b8cdee"
+        },
+        {
+          "path": "expense_analyzer/__init__.py",
+          "type": "SOURCE",
+          "size": 66,
+          "sha256": "855b884c80bacd999d3e48e1eca42f27b87da055e26e90c756c0e29cf6ce5f31"
+        },
+        {
+          "path": "data/test_expenses.csv",
+          "type": "AUXILIARY",
+          "size": 41,
+          "sha256": "a594448057ef437ce1397e1a49cfae51832587bd765494a67db9b965c31dab29"
+        },
+        {
+          "path": "output/report.md",
+          "type": "REPORT",
+          "size": 420,
+          "sha256": "41cf00fa35c16c05ea60805823370eb285287a363e9806df400048b0cffeb156"
+        },
+        {
+          "path": "output/result.json",
+          "type": "RESULT",
+          "size": 114,
+          "sha256": "d9a6c6c9157fffb18c2f22454a3cf70c744c588c922e7b38ff46bea41897ccd2"
+        },
+        {
+          "path": "output/chart.png",
+          "type": "CHART",
+          "size": 21566,
+          "sha256": "4b86e79f633d7a75528228dea84e8d43d3562440367bb346820a2fb2b6f46c3f"
+        }
+      ],
+      "nativeJournalSha256": "05292f2dc94e7a4dc960beba5700867cd13ac54fdb9e9e73641b6adc5204e4b2",
+      "nativeEvents": {
+        "session.created": 1,
+        "worker.ready": 1,
+        "host.notification": 1,
+        "task.accepted": 1,
+        "native.event": 350,
+        "task.started": 1,
+        "model.iteration.started": 9,
+        "model.usage": 9,
+        "permission.requested": 13,
+        "permission.decision": 13,
+        "permission.resolved": 13,
+        "tool.started": 13,
+        "tool.completed": 11,
+        "tool.failed": 2,
+        "turn.completed": 1,
+        "delivery.previewed": 1,
+        "delivery.content.reviewed": 1,
+        "delivery.seal.requested": 1,
+        "host.shutdown.requested": 1,
+        "delivery.sealed": 1,
+        "delivery.prepared": 1
+      },
+      "pythonRepairObservation": {
+        "failures": [
+          {
+            "eventId": "148",
+            "toolCallId": "call_ec200b07c7a14d7b94a57725",
+            "nativeEventType": "tool.failed",
+            "pythonExitCode": 1
+          }
+        ],
+        "observedErrorEditExecutionChains": [
+          {
+            "failureEventId": "148",
+            "editEventId": "176",
+            "executionEventId": "200"
+          }
+        ],
+        "actualErrorObserved": true,
+        "subsequentPythonExecution": true
+      },
+      "container": {
+        "containerId": "fec9bc8a9730ba0e8b459c416f545cf2d216558d43b66f0787358a0448977212",
+        "imageId": "sha256:cb6e8b7fbfbc26088dfdfcbdfd2b2f3f53b7099480dd60228f58dff81b946fb3",
+        "running": false,
+        "startedAt": "2026-11-11T02:12:32.402564024Z",
+        "finishedAt": "2026-11-11T02:14:07.226983047Z",
+        "memoryBytes": 3221225472,
+        "nanoCpus": 2000000000,
+        "pidsLimit": 256,
+        "network": "none",
+        "readOnlyRoot": true,
+        "user": "10001:10001",
+        "privileged": false,
+        "capDrop": [
+          "ALL"
+        ],
+        "inputReadOnly": true,
+        "workspaceBind": [
+          "/srv/cs3-v5-20261111/workers/6811a8c0-b7aa-438e-a76b-ebf7e97d1ab1/workspace:/poc/project:rw"
+        ],
+        "noDockerSocketMount": true
+      },
+      "providerMetering": {
+        "requestFiles": 9,
+        "receiptFiles": 9,
+        "tokens": 64681,
+        "observedTokenSubtotal": 64681,
+        "meteringComplete": true,
+        "cost": null,
+        "automaticRepairs": null
+      }
+    },
+    {
+      "case": "generic-fixed-3",
+      "sessionId": "s3-d5d906b5ee394c23af2ce05233163520",
+      "formalBusinessAccepted": false,
+      "independentLocalVerification": {
+        "checks": {
+          "rows": true,
+          "total": true,
+          "mean": true,
+          "multipleSourceFiles": true,
+          "png": true,
+          "markdown": true,
+          "stopped": true,
+          "realTypeError": true,
+          "subsequentToolSuccess": true
+        },
+        "passed": true,
+        "realModel": true,
+        "realSiloAcceptance": false,
+        "applicationHttpSpiAcceptance": false,
+        "elapsedSeconds": 116.77805888652802,
+        "modelRequests": 9,
+        "toolCompleted": 11,
+        "toolFailed": 1,
+        "finalState": "SEALED_PENDING_UPLOAD",
+        "source": "Native journal and actual sealed local artifacts"
+      },
+      "artifactTypes": {
+        "SOURCE": 4,
+        "REPORT": 1,
+        "RESULT": 1,
+        "CHART": 1,
+        "AUXILIARY": 1
+      },
+      "artifactInventory": [
+        {
+          "path": "expense_analyzer/analyzer.py",
+          "type": "SOURCE",
+          "size": 914,
+          "sha256": "6b746e8f24b1698bec334115d58433a8ba7347481e3debb5fcd4b695d005eb11"
+        },
+        {
+          "path": "expense_analyzer/reporter.py",
+          "type": "SOURCE",
+          "size": 2404,
+          "sha256": "fb96aeac28b79e6b0e654c9889052b9b5d48df00827ef054ad7c6009f2c6884b"
+        },
+        {
+          "path": "expense_analyzer/__init__.py",
+          "type": "SOURCE",
+          "size": 56,
+          "sha256": "2c524a50534e4c646a530e5a7e97e1048d7c674ba88b55828ddce2286e38c478"
+        },
+        {
+          "path": "main.py",
+          "type": "SOURCE",
+          "size": 2223,
+          "sha256": "1257b0170803e3074394fdd6f01d8b2bced3cd12c838dc8a13639dc7c14061ba"
+        },
+        {
+          "path": "output/report.md",
+          "type": "REPORT",
+          "size": 445,
+          "sha256": "c2b51294bfb7fb4d92e14fbd916b0477dfc2d7a711620f9902e833c3453de411"
+        },
+        {
+          "path": "output/result.json",
+          "type": "RESULT",
+          "size": 105,
+          "sha256": "6f693222f3d7ccc397b95867621bcfa0a67de8ca4b412658dcd9e026164f577e"
+        },
+        {
+          "path": "output/chart.png",
+          "type": "CHART",
+          "size": 21186,
+          "sha256": "6b5502d89c8a5481f71ab017b173871f8c141ab77655e628d732759a93eb7a80"
+        },
+        {
+          "path": "data/test_expenses.csv",
+          "type": "AUXILIARY",
+          "size": 41,
+          "sha256": "a594448057ef437ce1397e1a49cfae51832587bd765494a67db9b965c31dab29"
+        }
+      ],
+      "nativeJournalSha256": "83edc4102796c28a3cdbe3cc1ceff3fa7b54fa85a9042ae93e0aef1df59a406d",
+      "nativeEvents": {
+        "session.created": 1,
+        "worker.ready": 1,
+        "host.notification": 1,
+        "task.accepted": 1,
+        "native.event": 424,
+        "task.started": 1,
+        "model.iteration.started": 9,
+        "model.usage": 9,
+        "permission.requested": 12,
+        "permission.decision": 12,
+        "permission.resolved": 12,
+        "tool.started": 12,
+        "tool.completed": 11,
+        "tool.failed": 1,
+        "turn.completed": 1,
+        "delivery.previewed": 1,
+        "delivery.content.reviewed": 1,
+        "delivery.seal.requested": 1,
+        "host.shutdown.requested": 1,
+        "delivery.sealed": 1,
+        "delivery.prepared": 1
+      },
+      "pythonRepairObservation": {
+        "failures": [
+          {
+            "eventId": "178",
+            "toolCallId": "call_9e1407861c564fa1b3ac73fa",
+            "nativeEventType": "tool.completed",
+            "pythonExitCode": 1
+          }
+        ],
+        "observedErrorEditExecutionChains": [
+          {
+            "failureEventId": "178",
+            "editEventId": "232",
+            "executionEventId": "280"
+          }
+        ],
+        "actualErrorObserved": true,
+        "subsequentPythonExecution": true
+      },
+      "container": {
+        "containerId": "27b4a5eeddbc56a5889a92d5b644cc018e96d217e6745d9d208b54599d51d95c",
+        "imageId": "sha256:cb6e8b7fbfbc26088dfdfcbdfd2b2f3f53b7099480dd60228f58dff81b946fb3",
+        "running": false,
+        "startedAt": "2026-11-11T02:14:07.831037133Z",
+        "finishedAt": "2026-11-11T02:16:04.048718695Z",
+        "memoryBytes": 3221225472,
+        "nanoCpus": 2000000000,
+        "pidsLimit": 256,
+        "network": "none",
+        "readOnlyRoot": true,
+        "user": "10001:10001",
+        "privileged": false,
+        "capDrop": [
+          "ALL"
+        ],
+        "inputReadOnly": true,
+        "workspaceBind": [
+          "/srv/cs3-v5-20261111/workers/3d36a363-36e1-466a-89ac-f30c4f6e8d55/workspace:/poc/project:rw"
+        ],
+        "noDockerSocketMount": true
+      },
+      "providerMetering": {
+        "requestFiles": 9,
+        "receiptFiles": 9,
+        "tokens": 67368,
+        "observedTokenSubtotal": 67368,
+        "meteringComplete": true,
+        "cost": null,
+        "automaticRepairs": null
+      }
+    },
+    {
+      "case": "generic-fixed-4",
+      "sessionId": "s3-00f325155c2e41c6a84f09ae78a45118",
+      "formalBusinessAccepted": false,
+      "failure": {
+        "error": "HTTP Error 422: Unprocessable Entity",
+        "elapsedSeconds": 140.55126127786934,
+        "failedSampleRetained": true
+      },
+      "nativeJournalSha256": "6055ba1114f87c7a46aee9ff01a1a59ca8cba41b901ac2738288c252f73adf1b",
+      "nativeEvents": {
+        "session.created": 1,
+        "worker.ready": 1,
+        "host.notification": 1,
+        "task.accepted": 1,
+        "native.event": 540,
+        "task.started": 1,
+        "model.iteration.started": 16,
+        "model.usage": 16,
+        "permission.requested": 20,
+        "permission.decision": 20,
+        "permission.resolved": 20,
+        "tool.started": 20,
+        "tool.failed": 3,
+        "model.error": 1,
+        "tool.completed": 17,
+        "turn.completed": 1,
+        "delivery.selection.invalid": 1,
+        "task.cancel.requested": 2,
+        "host.shutdown.requested": 1,
+        "task.cancelled": 2
+      },
+      "pythonRepairObservation": {
+        "failures": [
+          {
+            "eventId": "221",
+            "toolCallId": "call_8382b42937db4ace986ed1bd",
+            "nativeEventType": "tool.failed",
+            "pythonExitCode": 1
+          }
+        ],
+        "observedErrorEditExecutionChains": [
+          {
+            "failureEventId": "221",
+            "editEventId": "270",
+            "executionEventId": "295"
+          }
+        ],
+        "actualErrorObserved": true,
+        "subsequentPythonExecution": true
+      },
+      "container": {
+        "containerId": "4c3311b14a7e2374582042172ffcedb4021a091869eebfaabff7fad38f3689f4",
+        "imageId": "sha256:cb6e8b7fbfbc26088dfdfcbdfd2b2f3f53b7099480dd60228f58dff81b946fb3",
+        "running": false,
+        "startedAt": "2026-11-11T02:16:04.722888286Z",
+        "finishedAt": "2026-11-11T02:18:26.098805279Z",
+        "memoryBytes": 3221225472,
+        "nanoCpus": 2000000000,
+        "pidsLimit": 256,
+        "network": "none",
+        "readOnlyRoot": true,
+        "user": "10001:10001",
+        "privileged": false,
+        "capDrop": [
+          "ALL"
+        ],
+        "inputReadOnly": true,
+        "workspaceBind": [
+          "/srv/cs3-v5-20261111/workers/d49f0ac0-c2e5-43dd-9ae9-e87a55688ecd/workspace:/poc/project:rw"
+        ],
+        "noDockerSocketMount": true
+      },
+      "providerMetering": {
+        "requestFiles": 16,
+        "receiptFiles": 16,
+        "tokens": 128213,
+        "observedTokenSubtotal": 128213,
+        "meteringComplete": true,
+        "cost": null,
+        "automaticRepairs": null
+      }
+    },
+    {
+      "case": "generic-fixed-5",
+      "sessionId": "s3-6d5d3a9d698544e3ab193a2e9a706a33",
+      "formalBusinessAccepted": false,
+      "independentLocalVerification": {
+        "checks": {
+          "rows": true,
+          "total": true,
+          "mean": true,
+          "multipleSourceFiles": true,
+          "png": true,
+          "markdown": true,
+          "stopped": true,
+          "realTypeError": true,
+          "subsequentToolSuccess": true
+        },
+        "passed": true,
+        "realModel": true,
+        "realSiloAcceptance": false,
+        "applicationHttpSpiAcceptance": false,
+        "elapsedSeconds": 121.39196267165244,
+        "modelRequests": 12,
+        "toolCompleted": 14,
+        "toolFailed": 1,
+        "finalState": "SEALED_PENDING_UPLOAD",
+        "source": "Native journal and actual sealed local artifacts"
+      },
+      "artifactTypes": {
+        "SOURCE": 3,
+        "AUXILIARY": 2,
+        "REPORT": 1,
+        "RESULT": 1,
+        "CHART": 1
+      },
+      "artifactInventory": [
+        {
+          "path": "src/analyzer.py",
+          "type": "SOURCE",
+          "size": 1162,
+          "sha256": "e3eb00571a9b7a486e5136908c776103e21b77a85e441024130b6f2ecf803ec7"
+        },
+        {
+          "path": "src/reporter.py",
+          "type": "SOURCE",
+          "size": 2621,
+          "sha256": "b911e399317c7c126817a7c76b563d8868bcf01098fa42767ad016d45c73209b"
+        },
+        {
+          "path": "src/main.py",
+          "type": "SOURCE",
+          "size": 1122,
+          "sha256": "7db0ff311ff764993faf66a7ba1fdf209650cc6834dbbca9d706ead397359e3c"
+        },
+        {
+          "path": "src/__init__.py",
+          "type": "AUXILIARY",
+          "size": 27,
+          "sha256": "ef69a3f55b6e10eb87011a1a302fda23d62484024b1b0dbeb2719e7fbaa331b5"
+        },
+        {
+          "path": "data/expenses.csv",
+          "type": "AUXILIARY",
+          "size": 41,
+          "sha256": "a594448057ef437ce1397e1a49cfae51832587bd765494a67db9b965c31dab29"
+        },
+        {
+          "path": "output/report.md",
+          "type": "REPORT",
+          "size": 413,
+          "sha256": "220ed681be65004dac4ef2b1947f18db52ffb60c4334e6057fa30a7c638ee52e"
+        },
+        {
+          "path": "output/result.json",
+          "type": "RESULT",
+          "size": 105,
+          "sha256": "65c8bc4ff80f8e52ab8ae05dba1c38f9a957f5c9ccae6024bf027f71b9517499"
+        },
+        {
+          "path": "output/chart.png",
+          "type": "CHART",
+          "size": 23673,
+          "sha256": "49f8e8d4d5c95c6436076d44da941b2675d5979f182f394abf6bab6b062ff56e"
+        }
+      ],
+      "nativeJournalSha256": "35841955e628b48ee04811f27b5799f1d800f164e968717d00667e53f302ab0b",
+      "nativeEvents": {
+        "session.created": 1,
+        "worker.ready": 1,
+        "host.notification": 1,
+        "task.accepted": 1,
+        "native.event": 484,
+        "task.started": 1,
+        "model.iteration.started": 12,
+        "model.usage": 12,
+        "permission.requested": 15,
+        "permission.decision": 15,
+        "permission.resolved": 15,
+        "tool.started": 15,
+        "tool.completed": 14,
+        "tool.failed": 1,
+        "turn.completed": 1,
+        "delivery.previewed": 1,
+        "delivery.content.reviewed": 1,
+        "delivery.seal.requested": 1,
+        "host.shutdown.requested": 1,
+        "delivery.sealed": 1,
+        "delivery.prepared": 1
+      },
+      "pythonRepairObservation": {
+        "failures": [
+          {
+            "eventId": "217",
+            "toolCallId": "call_9c17596c297f4beeb5dafe42",
+            "nativeEventType": "tool.completed",
+            "pythonExitCode": 1
+          }
+        ],
+        "observedErrorEditExecutionChains": [
+          {
+            "failureEventId": "217",
+            "editEventId": "265",
+            "executionEventId": "291"
+          }
+        ],
+        "actualErrorObserved": true,
+        "subsequentPythonExecution": true
+      },
+      "container": {
+        "containerId": "d594ce7b106d691a8791387e3160684bea36b4e770f8b79540e63e01127c2bb7",
+        "imageId": "sha256:cb6e8b7fbfbc26088dfdfcbdfd2b2f3f53b7099480dd60228f58dff81b946fb3",
+        "running": false,
+        "startedAt": "2026-11-11T02:18:26.53721026Z",
+        "finishedAt": "2026-11-11T02:20:26.31353965Z",
+        "memoryBytes": 3221225472,
+        "nanoCpus": 2000000000,
+        "pidsLimit": 256,
+        "network": "none",
+        "readOnlyRoot": true,
+        "user": "10001:10001",
+        "privileged": false,
+        "capDrop": [
+          "ALL"
+        ],
+        "inputReadOnly": true,
+        "workspaceBind": [
+          "/srv/cs3-v5-20261111/workers/3ffe8801-912f-468f-8145-68d40909f8d9/workspace:/poc/project:rw"
+        ],
+        "noDockerSocketMount": true
+      },
+      "providerMetering": {
+        "requestFiles": 12,
+        "receiptFiles": 12,
+        "tokens": 89851,
+        "observedTokenSubtotal": 89851,
+        "meteringComplete": true,
+        "cost": null,
+        "automaticRepairs": null
+      }
+    },
+    {
+      "case": "generic-protocol-v2-fixed-1",
+      "sessionId": "s3-d2a1048bda224915a671c4336905e8fd",
+      "formalBusinessAccepted": false,
+      "independentLocalVerification": {
+        "checks": {
+          "rows": true,
+          "total": true,
+          "mean": true,
+          "multipleSourceFiles": true,
+          "png": true,
+          "markdown": true,
+          "stopped": true,
+          "realTypeError": true,
+          "subsequentToolSuccess": true
+        },
+        "passed": true,
+        "realModel": true,
+        "realSiloAcceptance": false,
+        "applicationHttpSpiAcceptance": false,
+        "elapsedSeconds": 110.3494642674923,
+        "modelRequests": 12,
+        "toolCompleted": 14,
+        "toolFailed": 2,
+        "finalState": "SEALED_PENDING_UPLOAD",
+        "source": "Native journal and actual sealed local artifacts"
+      },
+      "artifactTypes": {
+        "AUXILIARY": 1,
+        "SOURCE": 4,
+        "REPORT": 1,
+        "RESULT": 1,
+        "CHART": 1
+      },
+      "artifactInventory": [
+        {
+          "path": "data/expenses.csv",
+          "type": "AUXILIARY",
+          "size": 41,
+          "sha256": "a594448057ef437ce1397e1a49cfae51832587bd765494a67db9b965c31dab29"
+        },
+        {
+          "path": "src/__init__.py",
+          "type": "SOURCE",
+          "size": 27,
+          "sha256": "ef69a3f55b6e10eb87011a1a302fda23d62484024b1b0dbeb2719e7fbaa331b5"
+        },
+        {
+          "path": "src/analyzer.py",
+          "type": "SOURCE",
+          "size": 659,
+          "sha256": "e98f7b9454c69a6e06d36c3787bd4213049f51957c7ac9a6075a00a12f648026"
+        },
+        {
+          "path": "src/reporter.py",
+          "type": "SOURCE",
+          "size": 1747,
+          "sha256": "980ba9532d4601dd9265f8168f9df95cc4afc7915f73e8e83fc46e9f515ce1a4"
+        },
+        {
+          "path": "src/main.py",
+          "type": "SOURCE",
+          "size": 1212,
+          "sha256": "7a2a918354b7e9d4ee568ba031512396b92e6c7acbbd0aa7ba7d7226c3756c1e"
+        },
+        {
+          "path": "output/report.md",
+          "type": "REPORT",
+          "size": 480,
+          "sha256": "99e4bf20b2d67d042376796c4ec0950ff89913ac6aadd41bb289ea2013301934"
+        },
+        {
+          "path": "output/result.json",
+          "type": "RESULT",
+          "size": 293,
+          "sha256": "e0b3bf36c61b1d00e562ec860a31e44b628482c28c31a2004ab243c5e6eb68ba"
+        },
+        {
+          "path": "output/chart.png",
+          "type": "CHART",
+          "size": 19169,
+          "sha256": "14721bc40ce86a7f98cc11c0836ead9b0c22637e31c2afa44408e121b75fa97d"
+        }
+      ],
+      "nativeJournalSha256": "72f0b5ed5f8826b3ae3f10ab6981c924395d9b22afb47a77946ab9332d85b627",
+      "nativeEvents": {
+        "session.created": 1,
+        "host.notification": 1,
+        "worker.ready": 1,
+        "task.accepted": 1,
+        "native.event": 428,
+        "task.started": 1,
+        "model.iteration.started": 12,
+        "model.usage": 12,
+        "permission.requested": 16,
+        "permission.decision": 16,
+        "permission.resolved": 16,
+        "tool.started": 16,
+        "tool.completed": 14,
+        "tool.failed": 2,
+        "turn.completed": 1,
+        "delivery.previewed": 1,
+        "delivery.content.reviewed": 1,
+        "delivery.seal.requested": 1,
+        "host.shutdown.requested": 1,
+        "delivery.sealed": 1,
+        "delivery.prepared": 1
+      },
+      "pythonRepairObservation": {
+        "failures": [
+          {
+            "eventId": "190",
+            "toolCallId": "call_af65e533f5d6451b86a57677",
+            "nativeEventType": "tool.failed",
+            "pythonExitCode": 1
+          }
+        ],
+        "observedErrorEditExecutionChains": [
+          {
+            "failureEventId": "190",
+            "editEventId": "221",
+            "executionEventId": "247"
+          }
+        ],
+        "actualErrorObserved": true,
+        "subsequentPythonExecution": true
+      },
+      "container": {
+        "containerId": "a468211ab19c427cc5f55e813aa1dc796c634f2b651a5a08a9b45ed11b41fcd3",
+        "imageId": "sha256:cb6e8b7fbfbc26088dfdfcbdfd2b2f3f53b7099480dd60228f58dff81b946fb3",
+        "running": false,
+        "startedAt": "2026-11-11T02:24:04.432487681Z",
+        "finishedAt": "2026-11-11T02:25:54.335945505Z",
+        "memoryBytes": 3221225472,
+        "nanoCpus": 2000000000,
+        "pidsLimit": 256,
+        "network": "none",
+        "readOnlyRoot": true,
+        "user": "10001:10001",
+        "privileged": false,
+        "capDrop": [
+          "ALL"
+        ],
+        "inputReadOnly": true,
+        "workspaceBind": [
+          "/srv/cs3-v5-20261111/workers/0a6c3e29-d0aa-4be9-af94-38ca8d6fab5f/workspace:/poc/project:rw"
+        ],
+        "noDockerSocketMount": true
+      },
+      "providerMetering": {
+        "requestFiles": 12,
+        "receiptFiles": 12,
+        "tokens": 91203,
+        "observedTokenSubtotal": 91203,
+        "meteringComplete": true,
+        "cost": null,
+        "automaticRepairs": null
+      }
+    },
+    {
+      "case": "generic-protocol-v2-fixed-2",
+      "sessionId": "s3-a158876122ce44b5ae295e18f01142b7",
+      "formalBusinessAccepted": false,
+      "independentLocalVerification": {
+        "checks": {
+          "rows": true,
+          "total": true,
+          "mean": true,
+          "multipleSourceFiles": true,
+          "png": true,
+          "markdown": true,
+          "stopped": true,
+          "realTypeError": true,
+          "subsequentToolSuccess": true
+        },
+        "passed": true,
+        "realModel": true,
+        "realSiloAcceptance": false,
+        "applicationHttpSpiAcceptance": false,
+        "elapsedSeconds": 107.91384048201144,
+        "modelRequests": 11,
+        "toolCompleted": 14,
+        "toolFailed": 0,
+        "finalState": "SEALED_PENDING_UPLOAD",
+        "source": "Native journal and actual sealed local artifacts"
+      },
+      "artifactTypes": {
+        "SOURCE": 4,
+        "AUXILIARY": 1,
+        "REPORT": 1,
+        "RESULT": 1,
+        "CHART": 1
+      },
+      "artifactInventory": [
+        {
+          "path": "main.py",
+          "type": "SOURCE",
+          "size": 1374,
+          "sha256": "27892708a1b8f9274dac03386df9e503628a193fa82f5c5d32ca53cf42367614"
+        },
+        {
+          "path": "src/__init__.py",
+          "type": "SOURCE",
+          "size": 43,
+          "sha256": "4f49322de5b6b8d1d35955183f31d4b4d294b527f86ba4b630bebb83f569825b"
+        },
+        {
+          "path": "src/analyzer.py",
+          "type": "SOURCE",
+          "size": 1005,
+          "sha256": "27899c075a5145f3ea30886d9cdf0be8ce47d670c0c305e0d65b287f9280b55a"
+        },
+        {
+          "path": "src/reporter.py",
+          "type": "SOURCE",
+          "size": 1803,
+          "sha256": "dd0bca0dac97e8559bb4da74f1744cfd321c41d1e22a0922f1cecbe26297db1c"
+        },
+        {
+          "path": "data/expenses.csv",
+          "type": "AUXILIARY",
+          "size": 41,
+          "sha256": "a594448057ef437ce1397e1a49cfae51832587bd765494a67db9b965c31dab29"
+        },
+        {
+          "path": "output/report.md",
+          "type": "REPORT",
+          "size": 312,
+          "sha256": "69f6613a210c409a1d96b3e5bc921e0214f75e10485f79d6797707cfb2873c63"
+        },
+        {
+          "path": "output/result.json",
+          "type": "RESULT",
+          "size": 293,
+          "sha256": "e0b3bf36c61b1d00e562ec860a31e44b628482c28c31a2004ab243c5e6eb68ba"
+        },
+        {
+          "path": "output/chart.png",
+          "type": "CHART",
+          "size": 17536,
+          "sha256": "81b27c1ff04818e5eb109cb87bc01388ffb855b472b766f2562b842cfb72094f"
+        }
+      ],
+      "nativeJournalSha256": "1f73cf244a51a56d54261d98efb7e4ddde46e461ed471a431000687c2949134b",
+      "nativeEvents": {
+        "session.created": 1,
+        "host.notification": 1,
+        "worker.ready": 1,
+        "task.accepted": 1,
+        "native.event": 438,
+        "task.started": 1,
+        "model.iteration.started": 11,
+        "model.usage": 11,
+        "permission.requested": 14,
+        "permission.decision": 14,
+        "permission.resolved": 14,
+        "tool.started": 14,
+        "tool.completed": 14,
+        "turn.completed": 1,
+        "delivery.previewed": 1,
+        "delivery.content.reviewed": 1,
+        "delivery.seal.requested": 1,
+        "host.shutdown.requested": 1,
+        "delivery.sealed": 1,
+        "delivery.prepared": 1
+      },
+      "pythonRepairObservation": {
+        "failures": [
+          {
+            "eventId": "200",
+            "toolCallId": "call_ba9c84eb423140d2b50947ef",
+            "nativeEventType": "tool.completed",
+            "pythonExitCode": 1
+          }
+        ],
+        "observedErrorEditExecutionChains": [
+          {
+            "failureEventId": "200",
+            "editEventId": "239",
+            "executionEventId": "264"
+          }
+        ],
+        "actualErrorObserved": true,
+        "subsequentPythonExecution": true
+      },
+      "container": {
+        "containerId": "263f5b540d445a810fd610848bafbd17885d1ec3b4dda1c9983c5751a659059f",
+        "imageId": "sha256:cb6e8b7fbfbc26088dfdfcbdfd2b2f3f53b7099480dd60228f58dff81b946fb3",
+        "running": false,
+        "startedAt": "2026-11-11T02:25:54.884756296Z",
+        "finishedAt": "2026-11-11T02:27:42.352280654Z",
+        "memoryBytes": 3221225472,
+        "nanoCpus": 2000000000,
+        "pidsLimit": 256,
+        "network": "none",
+        "readOnlyRoot": true,
+        "user": "10001:10001",
+        "privileged": false,
+        "capDrop": [
+          "ALL"
+        ],
+        "inputReadOnly": true,
+        "workspaceBind": [
+          "/srv/cs3-v5-20261111/workers/fd9047c2-65a1-48b9-994a-9ab7570261fd/workspace:/poc/project:rw"
+        ],
+        "noDockerSocketMount": true
+      },
+      "providerMetering": {
+        "requestFiles": 11,
+        "receiptFiles": 11,
+        "tokens": 80236,
+        "observedTokenSubtotal": 80236,
+        "meteringComplete": true,
+        "cost": null,
+        "automaticRepairs": null
+      }
+    },
+    {
+      "case": "generic-protocol-v2-fixed-3",
+      "sessionId": "s3-bda20f73efcc441889ed06746ff26498",
+      "formalBusinessAccepted": false,
+      "independentLocalVerification": {
+        "checks": {
+          "rows": true,
+          "total": true,
+          "mean": true,
+          "multipleSourceFiles": true,
+          "png": true,
+          "markdown": true,
+          "stopped": true,
+          "realTypeError": true,
+          "subsequentToolSuccess": true
+        },
+        "passed": true,
+        "realModel": true,
+        "realSiloAcceptance": false,
+        "applicationHttpSpiAcceptance": false,
+        "elapsedSeconds": 127.8748028986156,
+        "modelRequests": 18,
+        "toolCompleted": 16,
+        "toolFailed": 1,
+        "finalState": "SEALED_PENDING_UPLOAD",
+        "source": "Native journal and actual sealed local artifacts"
+      },
+      "artifactTypes": {
+        "SOURCE": 3,
+        "AUXILIARY": 1,
+        "REPORT": 1,
+        "RESULT": 1,
+        "CHART": 1
+      },
+      "artifactInventory": [
+        {
+          "path": "src/analyzer.py",
+          "type": "SOURCE",
+          "size": 974,
+          "sha256": "1e8069250cfb3714a0a01f87e4112aedc9abba10ed3c73e34d7b1a52cb0be8d8"
+        },
+        {
+          "path": "src/reporter.py",
+          "type": "SOURCE",
+          "size": 2720,
+          "sha256": "83ac18fbc879008a8f110e7bfad2bb4fe45be67891594e89eb7f124447d54c2e"
+        },
+        {
+          "path": "src/main.py",
+          "type": "SOURCE",
+          "size": 1469,
+          "sha256": "9a3166f7b73a0ad954ab66ddd2a402dca0e14efbef3c849ee83048e6a8fe06cb"
+        },
+        {
+          "path": "data/expenses.csv",
+          "type": "AUXILIARY",
+          "size": 41,
+          "sha256": "a594448057ef437ce1397e1a49cfae51832587bd765494a67db9b965c31dab29"
+        },
+        {
+          "path": "output/report.md",
+          "type": "REPORT",
+          "size": 536,
+          "sha256": "c2eef6bf7f16fb3970a45f500cd005d5e14ee037c55073da3ecf755f6b380154"
+        },
+        {
+          "path": "output/result.json",
+          "type": "RESULT",
+          "size": 164,
+          "sha256": "f2bb8dc4c1307eace8db17756379ce814a7d254d9e8b6291f8853e5ee82ac76e"
+        },
+        {
+          "path": "output/chart.png",
+          "type": "CHART",
+          "size": 24570,
+          "sha256": "a3c929da35c4eb733b4d623fa2666f3f2a5d173cafcbdb4d97cdaf47db29ee64"
+        }
+      ],
+      "nativeJournalSha256": "fcf62edb1dd6391862b748abddbe49c658ba56ff45c21e8dae879aad91a5d450",
+      "nativeEvents": {
+        "session.created": 1,
+        "worker.ready": 1,
+        "host.notification": 1,
+        "task.accepted": 1,
+        "native.event": 487,
+        "task.started": 1,
+        "model.iteration.started": 18,
+        "model.usage": 18,
+        "permission.requested": 17,
+        "permission.decision": 17,
+        "permission.resolved": 17,
+        "tool.started": 17,
+        "tool.completed": 16,
+        "tool.failed": 1,
+        "turn.completed": 1,
+        "delivery.previewed": 1,
+        "delivery.content.reviewed": 1,
+        "delivery.seal.requested": 1,
+        "host.shutdown.requested": 1,
+        "delivery.sealed": 1,
+        "delivery.prepared": 1
+      },
+      "pythonRepairObservation": {
+        "failures": [
+          {
+            "eventId": "240",
+            "toolCallId": "call_bac5920f8a0d45e28326b6f4",
+            "nativeEventType": "tool.completed",
+            "pythonExitCode": 1
+          }
+        ],
+        "observedErrorEditExecutionChains": [
+          {
+            "failureEventId": "240",
+            "editEventId": "271",
+            "executionEventId": "296"
+          }
+        ],
+        "actualErrorObserved": true,
+        "subsequentPythonExecution": true
+      },
+      "container": {
+        "containerId": "955e524f7061faa53ab6a378d44497fdaf2a33b433561762a9bb340d90432d3f",
+        "imageId": "sha256:cb6e8b7fbfbc26088dfdfcbdfd2b2f3f53b7099480dd60228f58dff81b946fb3",
+        "running": false,
+        "startedAt": "2026-11-11T02:27:42.908340851Z",
+        "finishedAt": "2026-11-11T02:29:50.298974969Z",
+        "memoryBytes": 3221225472,
+        "nanoCpus": 2000000000,
+        "pidsLimit": 256,
+        "network": "none",
+        "readOnlyRoot": true,
+        "user": "10001:10001",
+        "privileged": false,
+        "capDrop": [
+          "ALL"
+        ],
+        "inputReadOnly": true,
+        "workspaceBind": [
+          "/srv/cs3-v5-20261111/workers/66dc0e2e-789e-400f-9811-b070b406664b/workspace:/poc/project:rw"
+        ],
+        "noDockerSocketMount": true
+      },
+      "providerMetering": {
+        "requestFiles": 18,
+        "receiptFiles": 18,
+        "tokens": 135602,
+        "observedTokenSubtotal": 135602,
+        "meteringComplete": true,
+        "cost": null,
+        "automaticRepairs": null
+      }
+    },
+    {
+      "case": "generic-protocol-v2-fixed-4",
+      "sessionId": "s3-e68d84d9823e4e3db1ed80e55035f6a1",
+      "formalBusinessAccepted": false,
+      "independentLocalVerification": {
+        "checks": {
+          "rows": true,
+          "total": true,
+          "mean": true,
+          "multipleSourceFiles": true,
+          "png": true,
+          "markdown": true,
+          "stopped": true,
+          "realTypeError": true,
+          "subsequentToolSuccess": true
+        },
+        "passed": true,
+        "realModel": true,
+        "realSiloAcceptance": false,
+        "applicationHttpSpiAcceptance": false,
+        "elapsedSeconds": 229.9384119976312,
+        "modelRequests": 21,
+        "toolCompleted": 22,
+        "toolFailed": 2,
+        "finalState": "SEALED_PENDING_UPLOAD",
+        "source": "Native journal and actual sealed local artifacts"
+      },
+      "artifactTypes": {
+        "SOURCE": 3,
+        "REPORT": 1,
+        "RESULT": 1,
+        "CHART": 1,
+        "AUXILIARY": 1
+      },
+      "artifactInventory": [
+        {
+          "path": "src/analyzer.py",
+          "type": "SOURCE",
+          "size": 881,
+          "sha256": "8bd40de9e125916d971ada5e3f9d6a5280e1c8ac0c08eaef906a6bd3800dae3c"
+        },
+        {
+          "path": "src/reporter.py",
+          "type": "SOURCE",
+          "size": 2128,
+          "sha256": "eb48b11ad74c7f603b7e1cd6f468fd3d4146b9fa17bdb5e20603444f7a0467ad"
+        },
+        {
+          "path": "src/main.py",
+          "type": "SOURCE",
+          "size": 1772,
+          "sha256": "4c5fb7f51c813be367b847d6563e84ec7b8cdf764cf0a18827790036f53ed8c6"
+        },
+        {
+          "path": "output/report.md",
+          "type": "REPORT",
+          "size": 507,
+          "sha256": "b700da93aeeed4d20fbbed1830c27439931a51edb4fe7041a147d3dbd579d125"
+        },
+        {
+          "path": "output/result.json",
+          "type": "RESULT",
+          "size": 136,
+          "sha256": "b26f8942bc995f9efa49970f141a86b47a922300f18928cb42ca6e84543e8a4a"
+        },
+        {
+          "path": "output/chart.png",
+          "type": "CHART",
+          "size": 17852,
+          "sha256": "ec7d7a4efb7c5d06db96f5ff5ac49837de92f9d3b4e39bc917277576cace89fe"
+        },
+        {
+          "path": "data/test_expenses.csv",
+          "type": "AUXILIARY",
+          "size": 41,
+          "sha256": "a594448057ef437ce1397e1a49cfae51832587bd765494a67db9b965c31dab29"
+        }
+      ],
+      "nativeJournalSha256": "47d9df26235c449c7204fb606d686615a8ef8d92d7f0c49968fba1017104c1ae",
+      "nativeEvents": {
+        "session.created": 1,
+        "worker.ready": 1,
+        "host.notification": 1,
+        "task.accepted": 3,
+        "native.event": 937,
+        "task.started": 3,
+        "model.iteration.started": 21,
+        "model.usage": 21,
+        "permission.requested": 24,
+        "permission.decision": 24,
+        "permission.resolved": 24,
+        "tool.started": 24,
+        "tool.completed": 22,
+        "tool.failed": 2,
+        "turn.completed": 3,
+        "delivery.selection.invalid": 2,
+        "delivery.previewed": 1,
+        "delivery.content.reviewed": 1,
+        "delivery.seal.requested": 1,
+        "host.shutdown.requested": 1,
+        "delivery.sealed": 1,
+        "delivery.prepared": 1
+      },
+      "pythonRepairObservation": {
+        "failures": [
+          {
+            "eventId": "181",
+            "toolCallId": "call_61d728a5096b48c496cd0ee1",
+            "nativeEventType": "tool.failed",
+            "pythonExitCode": 1
+          }
+        ],
+        "observedErrorEditExecutionChains": [
+          {
+            "failureEventId": "181",
+            "editEventId": "210",
+            "executionEventId": "234"
+          }
+        ],
+        "actualErrorObserved": true,
+        "subsequentPythonExecution": true
+      },
+      "container": {
+        "containerId": "4a9a2158f65cd5ce5b84cbce6d683a96b2bb77fb66a9b6900c9538369b86faf4",
+        "imageId": "sha256:cb6e8b7fbfbc26088dfdfcbdfd2b2f3f53b7099480dd60228f58dff81b946fb3",
+        "running": false,
+        "startedAt": "2026-11-11T02:29:50.866700546Z",
+        "finishedAt": "2026-11-11T02:33:40.35280524Z",
+        "memoryBytes": 3221225472,
+        "nanoCpus": 2000000000,
+        "pidsLimit": 256,
+        "network": "none",
+        "readOnlyRoot": true,
+        "user": "10001:10001",
+        "privileged": false,
+        "capDrop": [
+          "ALL"
+        ],
+        "inputReadOnly": true,
+        "workspaceBind": [
+          "/srv/cs3-v5-20261111/workers/d57b3eca-5d4e-46f5-a8e3-29723ba0e6e5/workspace:/poc/project:rw"
+        ],
+        "noDockerSocketMount": true
+      },
+      "providerMetering": {
+        "requestFiles": 21,
+        "receiptFiles": 21,
+        "tokens": 233808,
+        "observedTokenSubtotal": 233808,
+        "meteringComplete": true,
+        "cost": null,
+        "automaticRepairs": null
+      }
+    },
+    {
+      "case": "generic-protocol-v2-fixed-5",
+      "sessionId": "s3-9ca6773b6ce84ce09a036c873ce52ff6",
+      "formalBusinessAccepted": false,
+      "independentLocalVerification": {
+        "checks": {
+          "rows": true,
+          "total": true,
+          "mean": true,
+          "multipleSourceFiles": true,
+          "png": true,
+          "markdown": true,
+          "stopped": true,
+          "realTypeError": true,
+          "subsequentToolSuccess": true
+        },
+        "passed": true,
+        "realModel": true,
+        "realSiloAcceptance": false,
+        "applicationHttpSpiAcceptance": false,
+        "elapsedSeconds": 126.53672901168466,
+        "modelRequests": 16,
+        "toolCompleted": 16,
+        "toolFailed": 3,
+        "finalState": "SEALED_PENDING_UPLOAD",
+        "source": "Native journal and actual sealed local artifacts"
+      },
+      "artifactTypes": {
+        "SOURCE": 3,
+        "REPORT": 1,
+        "RESULT": 1,
+        "CHART": 1,
+        "AUXILIARY": 1
+      },
+      "artifactInventory": [
+        {
+          "path": "src/analyze.py",
+          "type": "SOURCE",
+          "size": 1293,
+          "sha256": "286d797dcedd0774e0af187f2f70b6f5bba6b2e553ee80ba8d00635fc49662d3"
+        },
+        {
+          "path": "src/report.py",
+          "type": "SOURCE",
+          "size": 1913,
+          "sha256": "b5035a3c020d6fee6bbd47b78c245571291fd838c080e8be6cade38183437d47"
+        },
+        {
+          "path": "src/main.py",
+          "type": "SOURCE",
+          "size": 1113,
+          "sha256": "0c861241fbb19f3e531dc2052a630605b2cbff5612c038db7c1b3487bff27573"
+        },
+        {
+          "path": "output/report.md",
+          "type": "REPORT",
+          "size": 485,
+          "sha256": "3dcf3abfd638971a0aeeca0b5a886a37861c9487b1c8a64f8bc5b36ba82e1786"
+        },
+        {
+          "path": "output/result.json",
+          "type": "RESULT",
+          "size": 104,
+          "sha256": "ca97db9e0ca954508f3e6b10133317fa70b63fb92f137a65c8a2c359a774478d"
+        },
+        {
+          "path": "output/chart.png",
+          "type": "CHART",
+          "size": 22029,
+          "sha256": "2edd6af3a19e8b58cb56816d2270ea32792580ad8bbb0024445c4350278806e1"
+        },
+        {
+          "path": "data/test_expenses.csv",
+          "type": "AUXILIARY",
+          "size": 41,
+          "sha256": "a594448057ef437ce1397e1a49cfae51832587bd765494a67db9b965c31dab29"
+        }
+      ],
+      "nativeJournalSha256": "db1f51973326966c0392731c3d9d9709ec8bfd61f98cfa6c6cfef73730a56fd6",
+      "nativeEvents": {
+        "session.created": 1,
+        "worker.ready": 1,
+        "host.notification": 1,
+        "task.accepted": 1,
+        "native.event": 451,
+        "task.started": 1,
+        "model.iteration.started": 16,
+        "model.usage": 16,
+        "permission.requested": 19,
+        "permission.decision": 19,
+        "permission.resolved": 19,
+        "tool.started": 19,
+        "tool.completed": 16,
+        "tool.failed": 3,
+        "turn.completed": 1,
+        "delivery.previewed": 1,
+        "delivery.content.reviewed": 1,
+        "delivery.seal.requested": 1,
+        "host.shutdown.requested": 1,
+        "delivery.sealed": 1,
+        "delivery.prepared": 1
+      },
+      "pythonRepairObservation": {
+        "failures": [
+          {
+            "eventId": "167",
+            "toolCallId": "call_786f621bac9d457ca1523e7a",
+            "nativeEventType": "tool.failed",
+            "pythonExitCode": 1
+          }
+        ],
+        "observedErrorEditExecutionChains": [
+          {
+            "failureEventId": "167",
+            "editEventId": "203",
+            "executionEventId": "227"
+          }
+        ],
+        "actualErrorObserved": true,
+        "subsequentPythonExecution": true
+      },
+      "container": {
+        "containerId": "44cef5f44d4134867e2dad7273b5bbb3ad61e534bb35643680c9885b2527e989",
+        "imageId": "sha256:cb6e8b7fbfbc26088dfdfcbdfd2b2f3f53b7099480dd60228f58dff81b946fb3",
+        "running": false,
+        "startedAt": "2026-11-11T02:33:40.950581269Z",
+        "finishedAt": "2026-11-11T02:35:47.020860465Z",
+        "memoryBytes": 3221225472,
+        "nanoCpus": 2000000000,
+        "pidsLimit": 256,
+        "network": "none",
+        "readOnlyRoot": true,
+        "user": "10001:10001",
+        "privileged": false,
+        "capDrop": [
+          "ALL"
+        ],
+        "inputReadOnly": true,
+        "workspaceBind": [
+          "/srv/cs3-v5-20261111/workers/73ecd076-461c-4960-b8a2-0a56a60ce73b/workspace:/poc/project:rw"
+        ],
+        "noDockerSocketMount": true
+      },
+      "providerMetering": {
+        "requestFiles": 16,
+        "receiptFiles": 16,
+        "tokens": 126161,
+        "observedTokenSubtotal": 126161,
+        "meteringComplete": true,
+        "cost": null,
+        "automaticRepairs": null
+      }
+    }
+  ],
+  "isolation": {
+    "distinctWorkspaceMounts": true,
+    "allPinnedImages": true,
+    "allNetworkNone": true,
+    "allInputReadOnly": true,
+    "allResourceLimitsEnforced": true
+  }
+}

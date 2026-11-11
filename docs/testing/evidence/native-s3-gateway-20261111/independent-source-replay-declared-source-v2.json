@@ -1,0 +1,192 @@
+[
+  {
+    "case": "generic-protocol-v2-fixed-1",
+    "imageId": "sha256:cb6e8b7fbfbc26088dfdfcbdfd2b2f3f53b7099480dd60228f58dff81b946fb3",
+    "containerId": "12eaf1ba167e7951c12d1f4334d2e0d628187afc36be2b1c1fbc958e235b0e4b",
+    "running": false,
+    "exitCode": 0,
+    "originalCommandEventId": "247",
+    "network": "none",
+    "noOriginalOutputCopied": true,
+    "noCoreStateCopied": true,
+    "outputs": [
+      {
+        "path": "output/report.md",
+        "type": "REPORT",
+        "expectedSha256": "99e4bf20b2d67d042376796c4ec0950ff89913ac6aadd41bb289ea2013301934",
+        "actualSha256": "99e4bf20b2d67d042376796c4ec0950ff89913ac6aadd41bb289ea2013301934",
+        "byteIdentical": true
+      },
+      {
+        "path": "output/result.json",
+        "type": "RESULT",
+        "expectedSha256": "e0b3bf36c61b1d00e562ec860a31e44b628482c28c31a2004ab243c5e6eb68ba",
+        "actualSha256": "e0b3bf36c61b1d00e562ec860a31e44b628482c28c31a2004ab243c5e6eb68ba",
+        "byteIdentical": true
+      },
+      {
+        "path": "output/chart.png",
+        "type": "CHART",
+        "expectedSha256": "14721bc40ce86a7f98cc11c0836ead9b0c22637e31c2afa44408e121b75fa97d",
+        "actualSha256": "14721bc40ce86a7f98cc11c0836ead9b0c22637e31c2afa44408e121b75fa97d",
+        "byteIdentical": true
+      }
+    ],
+    "passed": true,
+    "realSiloAcceptance": false,
+    "applicationHttpSpiAcceptance": false,
+    "verifierSha256": "0b020c36a7f85e515e0423e3955b260a4b773a65ba17399beb9bfa832c40dfce"
+  },
+  {
+    "case": "generic-protocol-v2-fixed-2",
+    "imageId": "sha256:cb6e8b7fbfbc26088dfdfcbdfd2b2f3f53b7099480dd60228f58dff81b946fb3",
+    "containerId": "1e067cccb1a8a4f06e1edf2e1e02d90907601d21feca57890e5f2e15449315e0",
+    "running": false,
+    "exitCode": 0,
+    "originalCommandEventId": "264",
+    "network": "none",
+    "noOriginalOutputCopied": true,
+    "noCoreStateCopied": true,
+    "outputs": [
+      {
+        "path": "output/report.md",
+        "type": "REPORT",
+        "expectedSha256": "69f6613a210c409a1d96b3e5bc921e0214f75e10485f79d6797707cfb2873c63",
+        "actualSha256": "69f6613a210c409a1d96b3e5bc921e0214f75e10485f79d6797707cfb2873c63",
+        "byteIdentical": true
+      },
+      {
+        "path": "output/result.json",
+        "type": "RESULT",
+        "expectedSha256": "e0b3bf36c61b1d00e562ec860a31e44b628482c28c31a2004ab243c5e6eb68ba",
+        "actualSha256": "e0b3bf36c61b1d00e562ec860a31e44b628482c28c31a2004ab243c5e6eb68ba",
+        "byteIdentical": true
+      },
+      {
+        "path": "output/chart.png",
+        "type": "CHART",
+        "expectedSha256": "81b27c1ff04818e5eb109cb87bc01388ffb855b472b766f2562b842cfb72094f",
+        "actualSha256": "81b27c1ff04818e5eb109cb87bc01388ffb855b472b766f2562b842cfb72094f",
+        "byteIdentical": true
+      }
+    ],
+    "passed": true,
+    "realSiloAcceptance": false,
+    "applicationHttpSpiAcceptance": false,
+    "verifierSha256": "0b020c36a7f85e515e0423e3955b260a4b773a65ba17399beb9bfa832c40dfce"
+  },
+  {
+    "case": "generic-protocol-v2-fixed-3",
+    "imageId": "sha256:cb6e8b7fbfbc26088dfdfcbdfd2b2f3f53b7099480dd60228f58dff81b946fb3",
+    "containerId": "d861095e537f774562663c03058ce6b53ba6c7d29eff9061054fa00d05d332b6",
+    "running": false,
+    "exitCode": 0,
+    "originalCommandEventId": "296",
+    "network": "none",
+    "noOriginalOutputCopied": true,
+    "noCoreStateCopied": true,
+    "outputs": [
+      {
+        "path": "output/report.md",
+        "type": "REPORT",
+        "expectedSha256": "c2eef6bf7f16fb3970a45f500cd005d5e14ee037c55073da3ecf755f6b380154",
+        "actualSha256": "c2eef6bf7f16fb3970a45f500cd005d5e14ee037c55073da3ecf755f6b380154",
+        "byteIdentical": true
+      },
+      {
+        "path": "output/result.json",
+        "type": "RESULT",
+        "expectedSha256": "f2bb8dc4c1307eace8db17756379ce814a7d254d9e8b6291f8853e5ee82ac76e",
+        "actualSha256": "f2bb8dc4c1307eace8db17756379ce814a7d254d9e8b6291f8853e5ee82ac76e",
+        "byteIdentical": true
+      },
+      {
+        "path": "output/chart.png",
+        "type": "CHART",
+        "expectedSha256": "a3c929da35c4eb733b4d623fa2666f3f2a5d173cafcbdb4d97cdaf47db29ee64",
+        "actualSha256": "a3c929da35c4eb733b4d623fa2666f3f2a5d173cafcbdb4d97cdaf47db29ee64",
+        "byteIdentical": true
+      }
+    ],
+    "passed": true,
+    "realSiloAcceptance": false,
+    "applicationHttpSpiAcceptance": false,
+    "verifierSha256": "0b020c36a7f85e515e0423e3955b260a4b773a65ba17399beb9bfa832c40dfce"
+  },
+  {
+    "case": "generic-protocol-v2-fixed-4",
+    "imageId": "sha256:cb6e8b7fbfbc26088dfdfcbdfd2b2f3f53b7099480dd60228f58dff81b946fb3",
+    "containerId": "3b83100165a985132788615d4620c6efabeaf7469cd3bdaad55e86c82787c9f9",
+    "running": false,
+    "exitCode": 0,
+    "originalCommandEventId": "981",
+    "network": "none",
+    "noOriginalOutputCopied": true,
+    "noCoreStateCopied": true,
+    "outputs": [
+      {
+        "path": "output/report.md",
+        "type": "REPORT",
+        "expectedSha256": "b700da93aeeed4d20fbbed1830c27439931a51edb4fe7041a147d3dbd579d125",
+        "actualSha256": "b700da93aeeed4d20fbbed1830c27439931a51edb4fe7041a147d3dbd579d125",
+        "byteIdentical": true
+      },
+      {
+        "path": "output/result.json",
+        "type": "RESULT",
+        "expectedSha256": "b26f8942bc995f9efa49970f141a86b47a922300f18928cb42ca6e84543e8a4a",
+        "actualSha256": "b26f8942bc995f9efa49970f141a86b47a922300f18928cb42ca6e84543e8a4a",
+        "byteIdentical": true
+      },
+      {
+        "path": "output/chart.png",
+        "type": "CHART",
+        "expectedSha256": "ec7d7a4efb7c5d06db96f5ff5ac49837de92f9d3b4e39bc917277576cace89fe",
+        "actualSha256": "ec7d7a4efb7c5d06db96f5ff5ac49837de92f9d3b4e39bc917277576cace89fe",
+        "byteIdentical": true
+      }
+    ],
+    "passed": true,
+    "realSiloAcceptance": false,
+    "applicationHttpSpiAcceptance": false,
+    "verifierSha256": "0b020c36a7f85e515e0423e3955b260a4b773a65ba17399beb9bfa832c40dfce"
+  },
+  {
+    "case": "generic-protocol-v2-fixed-5",
+    "imageId": "sha256:cb6e8b7fbfbc26088dfdfcbdfd2b2f3f53b7099480dd60228f58dff81b946fb3",
+    "containerId": "db96234a0b2a5a12c147fba7f10e47b6aac163bfba9232bdef27fb1a3018daa5",
+    "running": false,
+    "exitCode": 0,
+    "originalCommandEventId": "227",
+    "network": "none",
+    "noOriginalOutputCopied": true,
+    "noCoreStateCopied": true,
+    "outputs": [
+      {
+        "path": "output/report.md",
+        "type": "REPORT",
+        "expectedSha256": "3dcf3abfd638971a0aeeca0b5a886a37861c9487b1c8a64f8bc5b36ba82e1786",
+        "actualSha256": "3dcf3abfd638971a0aeeca0b5a886a37861c9487b1c8a64f8bc5b36ba82e1786",
+        "byteIdentical": true
+      },
+      {
+        "path": "output/result.json",
+        "type": "RESULT",
+        "expectedSha256": "ca97db9e0ca954508f3e6b10133317fa70b63fb92f137a65c8a2c359a774478d",
+        "actualSha256": "ca97db9e0ca954508f3e6b10133317fa70b63fb92f137a65c8a2c359a774478d",
+        "byteIdentical": true
+      },
+      {
+        "path": "output/chart.png",
+        "type": "CHART",
+        "expectedSha256": "2edd6af3a19e8b58cb56816d2270ea32792580ad8bbb0024445c4350278806e1",
+        "actualSha256": "2edd6af3a19e8b58cb56816d2270ea32792580ad8bbb0024445c4350278806e1",
+        "byteIdentical": true
+      }
+    ],
+    "passed": true,
+    "realSiloAcceptance": false,
+    "applicationHttpSpiAcceptance": false,
+    "verifierSha256": "0b020c36a7f85e515e0423e3955b260a4b773a65ba17399beb9bfa832c40dfce"
+  }
+]

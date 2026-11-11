@@ -1,0 +1,45 @@
+# Build context: repository source, without credentials or installed app binaries.
+# All three arguments resolve to immutable, independently recorded image IDs.
+ARG RUNTIME_ARTIFACT_IMAGE
+ARG NODE_IMAGE
+ARG PYTHON_IMAGE
+FROM ${RUNTIME_ARTIFACT_IMAGE} AS official-runtime
+FROM ${NODE_IMAGE} AS node
+FROM ${PYTHON_IMAGE} AS coding-node
+ARG VERSION=1.0.0
+ARG GIT_COMMIT
+ARG BUILD_TIME
+LABEL org.opencontainers.image.title="Runtime OS Coding Node Agent" \
+      org.opencontainers.image.version="${VERSION}" \
+      org.opencontainers.image.revision="${GIT_COMMIT}" \
+      org.opencontainers.image.created="${BUILD_TIME}" \
+      runtime-os.cline.version="4.1.26" \
+      runtime-os.cline.source="a459f1d04dea030833b558be645011ab739c463b" \
+      runtime-os.python.version="3.11"
+USER root
+# Import verified upstream artifacts only. No old Server/SDK/Worker filesystem
+# or layers enter the final image; Python is an independent immutable base.
+COPY --from=official-runtime /poc/runtime/ /opt/runtime-os/cline/runtime/
+COPY --from=node /usr/local/bin/node /usr/local/bin/node
+COPY cline-agent-server/ /opt/runtime-os/coding-node/service/
+COPY coding-agent-node/package.json /opt/runtime-os/coding-node/coding-agent-node/package.json
+COPY coding-agent-node/src/completion-context.js coding-agent-node/src/execution-limits.js coding-agent-node/src/knowledge-tools.js coding-agent-node/src/code-repair.js coding-agent-node/src/skill-distribution.js /opt/runtime-os/coding-node/coding-agent-node/src/
+COPY coding-agent-node/skills/ /opt/runtime-os/coding-node/coding-agent-node/skills/
+COPY deploy/docker/python-runtime/requirements.lock /opt/chatchat/requirements.lock
+RUN /usr/sbin/usermod --shell /bin/bash runner \
+    && mkdir -p /workspace /var/lib/runtime-os/coding-node /run/runtime-os/coding-node/bridge /home/runner/.cache \
+    && chown -R 10001:10001 /workspace /var/lib/runtime-os/coding-node /run/runtime-os/coding-node /home/runner/.cache \
+    && node /opt/runtime-os/coding-node/service/scripts/verify-runtime.mjs /opt/runtime-os/cline/runtime \
+    && node /opt/runtime-os/coding-node/service/docker/verify-native-modules.mjs /opt/runtime-os/cline/runtime \
+    && python /opt/runtime-os/coding-node/service/docker/verify-python-runtime.py \
+    && python /opt/chatchat/verify-fonts.py \
+    && test ! -e /poc
+ENV CLINE_SERVER_CONFIG=/run/runtime-os/coding-node/config.json \
+    HOME=/home/runner SHELL=/bin/bash CLINE_PYTHON_RUNTIME=1 \
+    PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin \
+    PYTHONDONTWRITEBYTECODE=1 PYTHONUNBUFFERED=1 MPLCONFIGDIR=/tmp/matplotlib
+WORKDIR /opt/runtime-os/coding-node/service
+USER 10001:10001
+EXPOSE 18326
+ENTRYPOINT []
+CMD ["node", "/opt/runtime-os/coding-node/service/src/server.mjs"]

@@ -82,6 +82,16 @@ public class UserAssetService {
         return store(owner,Kind.DOCUMENT,"","",deleted==0?"upload":"upload:"+deleted,name,type,data);
     }
     public File store(Owner owner, Kind kind, String task, String run, String source, String name, String type, byte[] data) {
+        return store(owner,kind,task,run,source,name,type,data,null);
+    }
+    /** Trusted task snapshot publication with the same quota/STAGED transaction
+     * and immutable version checks as ordinary asset upload. */
+    File storeTaskInput(Owner owner,String task,String run,String source,String name,String type,byte[] data,String objectKey){
+        String prefix="tenants/"+hash(owner.tenant().getBytes(StandardCharsets.UTF_8))+"/users/"+owner.id()+"/tasks/coding-node/";
+        if(objectKey==null||!objectKey.startsWith(prefix)||!objectKey.contains("/input/")||!source.startsWith("coding-node-input:"))throw new SecurityException("Task input object scope required");
+        return store(owner,Kind.DATASET,task,run,source,name,type,data,objectKey);
+    }
+    private File store(Owner owner, Kind kind, String task, String run, String source, String name, String type, byte[] data,String taskInputKey) {
         Objects.requireNonNull(data); Objects.requireNonNull(kind);
         if (data.length>policy.getMaxFileBytes()) throw new ResponseStatusException(HttpStatus.PAYLOAD_TOO_LARGE,"Asset exceeds file limit");
         name=name(name); task=bounded(task,256); run=bounded(run,256); source=bounded(source,1024);
@@ -89,7 +99,7 @@ public class UserAssetService {
         ensure(owner);
         String digest=hash(data);
         String id=hash((owner.id()+"\0"+kind+"\0"+task+"\0"+run+"\0"+source+"\0"+name+"\0"+digest).getBytes(StandardCharsets.UTF_8));
-        String key="tenants/"+hash(owner.tenant().getBytes(StandardCharsets.UTF_8))+"/users/"+owner.id()+"/"
+        String key=taskInputKey!=null?taskInputKey:"tenants/"+hash(owner.tenant().getBytes(StandardCharsets.UTF_8))+"/users/"+owner.id()+"/"
             +switch(kind){case DOCUMENT->"documents";case DATASET->"datasets";case CONTEXT->"context";case ARTIFACT->"artifacts";default->"tasks";}
             +"/"+id+"/"+digest;
         final String fileName=name, contentType=type,taskId=task,runId=run,sourceRef=source;
@@ -122,6 +132,37 @@ public class UserAssetService {
     public File get(Owner owner,String id) {
         var rows=jdbc.query("select * from runtime_workspace_file where workspace_id=? and id=? and state<>'DELETED'",UserAssetService::file,owner.id(),id);
         if(rows.isEmpty()) throw missing(); return rows.get(0);
+    }
+    /** Called only after task/run authorization. Never expose object keys in public asset responses. */
+    String taskInputCapability(KernelDataScope scope,String task,String id,int seconds){
+        Owner owner=Owner.of(scope);File file=get(owner,id);
+        if(!Objects.equals(task,file.taskId())||!Objects.equals(scope.runId(),file.runId())||!"AVAILABLE".equals(file.state()))
+            throw new SecurityException("Input outside authorized task snapshot");
+        var row=requireRow(owner,id);
+        return blobs.presignRead((String)row.get("object_key"),(String)row.get("object_version"),seconds);
+    }
+    String taskInputVersion(KernelDataScope scope,String task,String id){
+        var file=get(Owner.of(scope),id);if(!Objects.equals(task,file.taskId())||!Objects.equals(scope.runId(),file.runId()))throw new SecurityException("Input outside task");
+        return (String)requireRow(Owner.of(scope),id).get("object_version");
+    }
+    /** The caller must hold the durable task fence through this registration transaction. */
+    File registerTaskObject(Owner owner,Kind kind,String task,String run,String source,String fileName,String type,
+                            String objectKey,String version,long size,String digest){
+        if(!Set.of(Kind.CODE,Kind.ARTIFACT,Kind.LOG).contains(kind)||task==null||task.isBlank()||run==null||run.isBlank()
+                ||size<0||size>policy.getMaxFileBytes()||digest==null||!digest.matches("[a-f0-9]{64}"))throw new IllegalArgumentException("Invalid task delivery");
+        name(fileName);bounded(task,256);bounded(run,256);bounded(source,1024);ensure(owner);
+        String id=hash((owner.id()+"\0"+kind+"\0"+task+"\0"+run+"\0"+source+"\0"+fileName+"\0"+digest).getBytes(StandardCharsets.UTF_8));
+        return tx.execute(s->{
+            Space space=lockSpace(owner);var found=rows(owner,id);
+            if(!found.isEmpty()){
+                if(!"AVAILABLE".equals(found.get(0).get("state")))throw new IllegalStateException("Delivery identity unavailable");
+                return get(owner,id);
+            }
+            if(space.usedBytes()>space.quotaBytes()-size)throw new ResponseStatusException(HttpStatus.INSUFFICIENT_STORAGE,"User asset quota exceeded");
+            jdbc.update("insert into runtime_workspace_file(id,workspace_id,kind,file_name,content_type,object_key,object_version,sha256,size_bytes,state,task_id,run_id,source_ref,created_at) values(?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
+                id,owner.id(),kind.name(),fileName,type,objectKey,version,digest,size,"AVAILABLE",task,run,source,System.currentTimeMillis());
+            jdbc.update("update runtime_user_workspace set used_bytes=used_bytes+? where id=?",size,owner.id());return get(owner,id);
+        });
     }
     public byte[] read(Owner owner,String id) {
         var row=requireRow(owner,id);

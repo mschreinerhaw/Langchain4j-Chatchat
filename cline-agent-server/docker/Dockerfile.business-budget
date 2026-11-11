@@ -2,5 +2,5 @@
 # as context. Official Worker/Core images are independent and remain unchanged.
 ARG BUSINESS_BASE
 FROM ${BUSINESS_BASE}
-COPY coding-agent-node/src/completion-context.js /poc/coding-agent-node/src/completion-context.js
-COPY coding-agent-node/src/execution-limits.js /poc/coding-agent-node/src/execution-limits.js
+COPY coding-agent-node/src/completion-context.js /srv/coding-agent-node/src/completion-context.js
+COPY coding-agent-node/src/execution-limits.js /srv/coding-agent-node/src/execution-limits.js

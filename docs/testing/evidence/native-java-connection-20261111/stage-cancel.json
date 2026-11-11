@@ -1,0 +1,13 @@
+{
+  "passed": true,
+  "checks": {
+    "realPythonRunningBeforeCancel": true,
+    "javaCancelled": true,
+    "actualExecutorStopConfirmed": true,
+    "noFormalArtifacts": true,
+    "noCompletionAfterCancel": true
+  },
+  "taskId": "native-5873deeb01ade8d5cb3d6e87cf7eba0ca07222c6123612129b7eb50eae05f01d",
+  "runId": "coding-9bf0d0db754452d6d78a7d461d4563f0f7768f97d9aef0f838fc94981d79d0df",
+  "realModel": true
+}

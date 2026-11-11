@@ -6,9 +6,15 @@ import {workerContainerSpec} from './docker-engine.mjs';
 
 export const reject=(message,status=403)=>Object.assign(Error(message),{status});
 export const uuid=/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/;
+export function workerRuntime(cfg){
+ if(cfg.workerRuntime===undefined||cfg.workerRuntime==='cline-standalone')return {uid:1000,home:'/home/cline',python:false};
+ if(cfg.workerRuntime==='cline-python311')return {uid:10001,supervisorUid:0,home:'/home/runner',python:true};
+ throw reject('Unknown fixed Worker runtime profile');
+}
 export function exact(value,keys){if(!value||Array.isArray(value)||typeof value!=='object'||Object.keys(value).some(k=>!keys.includes(k)))throw reject('Unexpected request fields');}
 export function taskGrant(token,cfg,allowExpired=false){
  const c=verifyContract(token,cfg.signingKey,Date.now(),{allowExpired});const t=Object.hasOwn(cfg.tenants,c.tenantId)?cfg.tenants[c.tenantId]:null;
+ if(c.version===2&&(!workerRuntime(cfg).python||cfg.enableNativeSilo!==true))throw reject('Native Silo profile is not enabled on this Executor');
  if(!t||!t.users.includes(c.userId)||!Object.hasOwn(t.workspaces,c.workspaceRef)||!t.models.includes(c.modelProfile)||!c.toolPermissions.every(x=>t.tools.includes(x))||!c.dataPermissions.every(x=>t.datasets.includes(x)))throw reject('Executor task policy denied');
  return c;
 }
@@ -23,6 +29,17 @@ export function assertAnchors(root,id){const anchor=mountAnchor(root,id);safeTre
 export function buildSpec(c,body,cfg){
  validateCreate(body);const i=identity(c,cfg);const ownership=createHmac('sha256',cfg.ownershipKey).update(i.owner+'\0'+body.workerId).digest('hex');
  const spec=workerContainerSpec({image:cfg.workerImage,root:posix.join(cfg.hostWorkersRoot,body.workerId),workerId:body.workerId,sessionId:c.sessionId,tenantId:c.tenantId,memoryBytes:cfg.resources.memoryBytes,cpuSet:cfg.resources.cpuSet});
+ const runtime=workerRuntime(cfg);
+ if(runtime.python){
+  // The trusted Host owns evidence/configuration; the official Core and every
+  // Shell/Python child are explicitly dropped to runtime.uid before execution.
+  spec.User='0:0';
+  spec.HostConfig.CapAdd=['SETUID','SETGID','CHOWN','KILL','DAC_OVERRIDE'];
+  spec.HostConfig.Init=true; // Reap detached Python children while the task runs.
+  spec.Env=spec.Env.filter(value=>!value.startsWith('HOME='));
+  spec.Env.push('HOME='+runtime.home,'SHELL=/bin/bash','CLINE_PYTHON_RUNTIME=1','PYTHONDONTWRITEBYTECODE=1','MPLCONFIGDIR=/tmp/matplotlib');
+  spec.HostConfig.Binds.push(posix.join(cfg.hostWorkersRoot,body.workerId,'workspace/input')+':/workspace/input:ro');
+ }
  spec.HostConfig.NanoCpus=cfg.resources.nanoCpus;spec.HostConfig.PidsLimit=cfg.resources.pidsLimit;
  const normalized={workerId:body.workerId,resourceProfile:body.resourceProfile,apiToken:body.apiToken,brokerToken:body.brokerToken,editTool:body.editTool};
  spec.Labels={...spec.Labels,'cline.executor':cfg.instanceId,'cline.owner':i.owner,'cline.contract':i.contractHash,'cline.ownership':ownership,'cline.request':createHash('sha256').update(JSON.stringify(normalized)).digest('hex')};

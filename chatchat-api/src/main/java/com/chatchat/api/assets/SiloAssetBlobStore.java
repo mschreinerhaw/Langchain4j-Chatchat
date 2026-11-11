@@ -10,17 +10,26 @@ import org.springframework.stereotype.Component;
 
 @Component
 @ConditionalOnProperty(prefix="chatchat.assets", name="enabled", havingValue="true")
-public final class SiloAssetBlobStore implements AssetBlobStore {
+public final class SiloAssetBlobStore implements AssetBlobStore, AutoCloseable {
     private final MinioClient client;
+    private final okhttp3.OkHttpClient http;
     private final String bucket;
     public SiloAssetBlobStore(AssetStorageProperties settings) {
         bucket = settings.getBucket();
-        var http = new okhttp3.OkHttpClient.Builder().connectTimeout(10, TimeUnit.SECONDS)
+        http = new okhttp3.OkHttpClient.Builder().connectTimeout(10, TimeUnit.SECONDS)
             .readTimeout(60, TimeUnit.SECONDS).writeTimeout(60, TimeUnit.SECONDS)
             .callTimeout(120, TimeUnit.SECONDS).build();
         client = MinioClient.builder().endpoint(settings.getEndpoint()).region(settings.getRegion())
             .credentials(secret(settings.getAccessKeyFile(), settings.getAccessKey()),
                 secret(settings.getSecretKeyFile(), settings.getSecretKey())).httpClient(http).build();
+    }
+    /** Release this store's HTTP resources after its owner has stopped work.
+     * In particular, standalone acceptance fixtures must return normally rather
+     * than force JVM exit to bypass the connection pool's idle lifetime.
+     */
+    @Override public void close(){
+        http.dispatcher().executorService().shutdown();
+        http.connectionPool().evictAll();
     }
     private static String secret(String file, String value) {
         try {
@@ -56,6 +65,34 @@ public final class SiloAssetBlobStore implements AssetBlobStore {
     @Override public void delete(String key, String version) {
         try { client.removeObject(RemoveObjectArgs.builder().bucket(bucket).object(key).versionId(version).build()); }
         catch (Exception e) { throw new IllegalStateException("Asset object deletion failed", e); }
+    }
+    private static int expiry(int seconds){if(seconds<1||seconds>900)throw new IllegalArgumentException("Task capability expiry must be 1..900 seconds");return seconds;}
+    @Override public String presignRead(String key,String version,int seconds){
+        if(version==null||version.isBlank()||"null".equals(version))throw new IllegalArgumentException("Immutable object version required");
+        try{return client.getPresignedObjectUrl(GetPresignedObjectUrlArgs.builder().method(io.minio.http.Method.GET)
+            .bucket(bucket).object(key).versionId(version).expiry(expiry(seconds)).build());}
+        catch(Exception failure){throw new IllegalStateException("Silo input capability unavailable",failure);}
+    }
+    @Override public String presignWrite(String key,int seconds){
+        try{return client.getPresignedObjectUrl(GetPresignedObjectUrlArgs.builder().method(io.minio.http.Method.PUT)
+            .bucket(bucket).object(key).expiry(expiry(seconds)).build());}
+        catch(Exception failure){throw new IllegalStateException("Silo output capability unavailable",failure);}
+    }
+    @Override public ObjectInfo stat(String key,String version){
+        if(version==null||version.isBlank()||"null".equals(version))throw new IllegalArgumentException("Immutable object version required");
+        try{var info=client.statObject(StatObjectArgs.builder().bucket(bucket).object(key).versionId(version).build());return new ObjectInfo(info.versionId(),info.size());}
+        catch(Exception failure){throw new IllegalStateException("Silo object metadata unavailable",failure);}
+    }
+    @Override public Stored compose(String key,java.util.List<ObjectPart> parts){
+        if(parts==null||parts.isEmpty()||parts.size()>10000)throw new IllegalArgumentException("Invalid Silo part count");
+        try{
+            var sources=new java.util.ArrayList<ComposeSource>();
+            for(var part:parts){if(part.versionId()==null||part.versionId().isBlank()||"null".equals(part.versionId()))throw new IllegalArgumentException("Immutable part version required");
+                sources.add(ComposeSource.builder().bucket(bucket).object(part.key()).versionId(part.versionId()).build());}
+            var result=client.composeObject(ComposeObjectArgs.builder().bucket(bucket).object(key).sources(sources).build());
+            if(result.versionId()==null||"null".equals(result.versionId()))throw new IllegalStateException("Silo object versioning required");
+            return new Stored(result.versionId());
+        }catch(Exception failure){throw new IllegalStateException("Silo part composition failed",failure);}
     }
     @Override public void copy(String key,String version,long limit,OutputStream output)throws IOException {
         try(var input=client.getObject(GetObjectArgs.builder().bucket(bucket).object(key).versionId(version).build())){

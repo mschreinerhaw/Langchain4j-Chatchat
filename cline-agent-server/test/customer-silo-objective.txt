@@ -1,0 +1,15 @@
+请分析当前授权工作区 input/manifest.json 列出的真实数据文件，完成客户号字符串 {{customerNumber}} 的账户资产、持仓、交易和盈亏分析。保留客户号前导零。文件均是已授权、冻结的原始快照，不需要查询外部业务接口。
+
+请自主读取清单、原始 manifest.json、schema.json、business-context.json 和 Parquet，识别实际物理列、逻辑字段、字段含义、数据来源与真实空结果。工作区清单中的路径才是本次真实路径；历史元数据中的 nativePath、virtualPath 不代表当前目录。日期采用来源快照实际业务日期，不得称为今日。缺失值不能写成零，不能把空成交来源解释为其他来源也没有交易。
+
+由你自主决定具有业务含义的源码名称、目录和模块结构，至少生成两个互相调用的 Python 源码文件，实际运行并检查计算结果。发现普通代码错误时自行修改和重新执行。交付完整中文 Markdown 报告，以及一个 JSON 结构化业务结果；报告与结果的文件名和目录由你决定。不得用只有代码或没有实际计算结果的说明代替报告，不得编造数据。
+
+完成时请在工作区根目录写入 delivery_manifest.json，声明你选择交付的文件：schemaVersion 为 coding_node_delivery_selection.v1，artifacts 为由 path、type 组成的数组。path 使用工作区内相对路径；类型支持 SOURCE、REPORT、RESULT、CHART、TEST、AUXILIARY。包含全部需要归档的源码、正式报告、结构化结果和必要辅助文件；修复说明、README 和草稿使用 AUXILIARY。Node 会计算真实大小、SHA-256、任务身份和原生回执并写回同一个清单；收到验算反馈后，你可以更新 artifacts 声明并再次交付。无需将该清单自身列为产物。此约定不限制源码或业务报告的名称和目录。
+
+本次结构化验收要求：JSON 根对象含 analysisStatus、verifiedAccountSummary、limitations。完成时 analysisStatus 为 COMPLETE；limitations 为非空字符串数组，说明数据范围、来源缺失和无法证明的结论。verifiedAccountSummary 必须包含：
+customerNumber、businessDate、inputSha256、transactionMetricBasis；
+assetTotal、cash、securitiesValue、accountDayPnl、positionMarketValue、positionCost、positionDayPnl、positionCumulativeRealizedPnl、transactionQuantity、transactionGrossAmount；
+assetRows、positionRows、transactionRows。
+后三个记录数用 JSON 整数；金额和数量合计用精确十进制字符串；其余字段用字符串。inputSha256 是原始业务 manifest.json 文件内容的 SHA-256，而非工作区 input/manifest.json 清单的 SHA-256。
+
+指标按真实来源字段含义计算，资产来源为 ZZC、ZJYE、ZQSZ、DRYK，持仓汇总使用 ZXSZ、CCCB、DRYK、LJYK。LJYK 是来源声明的累计已实现盈亏，不能冒充持仓浮动盈亏。交易口径须根据实际可用来源明确区分：结算成交 CJJE，或委托实际成交数量 CJSL 乘成交价格 CJJG（不含手续费）；transactionMetricBasis 分别填写 SETTLEMENT_CJJE 或 ORDER_EXECUTED_QUANTITY_TIMES_PRICE_EXCLUDING_FEES。检查来源、客户和日期的一致性。报告应说明资产概况、持仓汇总、交易统计、盈亏口径、可观察到的单日行为及限制；单日快照不能证明长期偏好、长期收益率或完整历史盈亏。

@@ -1,0 +1,25 @@
+{
+  "allUnchanged": true,
+  "containers": {
+    "runtime-os-app-stage-mcp-1": {
+      "containerId": "c66c84af8bfb22b330f0f946815f32530882e20a4bf75f29ee5ce79a1185563f",
+      "imageId": "sha256:abf832a95d436e215e3f2f699fe7c81fd68204612d6f9dd1e2d718a4ecdba56e",
+      "running": true
+    },
+    "runtime-os-app-stage-news-1": {
+      "containerId": "0a2319792198a764fb63c7cd5863f9e7409f6503054485f4eba02096bd2d564f",
+      "imageId": "sha256:a1f1e1356df06e18a515afe88a3d92d2a0d35d1b3e27a55b85163bb1e0ce27b1",
+      "running": true
+    },
+    "silo": {
+      "containerId": "26c552bbbf829776d80000dcee9206418322a36bdfb3603e6734d765ea9a3a30",
+      "imageId": "sha256:be37cae6c0545e6d3910e5b5578df376b9069c7f9cfe05d521cd91cabfa6cc38",
+      "running": true
+    },
+    "postgresql18": {
+      "containerId": "e41b433f03c86df7efe1e50582f9ad616c0a9fc261eca5683829456de3fb573d",
+      "imageId": "sha256:662db3da228c2ea2649b3ae04db4b4479e85fea5979f6a917a7f6d5cb1e7ec39",
+      "running": true
+    }
+  }
+}

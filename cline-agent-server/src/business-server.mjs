@@ -1,8 +1,9 @@
 // Runtime compatibility transport. The official Standalone Core owns the Agent loop.
 import http from 'node:http';
-import {readFileSync,writeFileSync,mkdirSync,existsSync,readdirSync,chmodSync,unlinkSync} from 'node:fs';
+import {readFileSync,writeFileSync,mkdirSync,existsSync,readdirSync,chmodSync,chownSync,unlinkSync} from 'node:fs';
 import {join} from 'node:path';
 import {randomBytes,randomUUID,timingSafeEqual} from 'node:crypto';
+import {workerRuntime} from './worker-executor-policy.mjs';
 import {WorkerExecutorClient} from './worker-executor-client.mjs';
 import {signContract} from './task-contract.mjs';
 import {Journal} from './journal.mjs';
@@ -91,7 +92,7 @@ async function broker(r){
    send(res,200,{jsonrpc:'2.0',id:b.id,result});
   }catch(e){audit(r,'broker.failure',{message:e.message,feedback:e.feedback});if(!res.headersSent)send(res,e.status??502,{error:{message:e.message}});else res.destroy();}
  });
- const path=join(r.workerDir,'bridge/broker.sock');if(existsSync(path))unlinkSync(path);await new Promise((resolve,reject)=>{server.once('error',reject);server.listen(path,resolve);});chmodSync(path,0o600);r.broker=server;
+ const path=join(r.workerDir,'bridge/broker.sock');if(existsSync(path))unlinkSync(path);await new Promise((resolve,reject)=>{server.once('error',reject);server.listen(path,resolve);});const runtime=workerRuntime(cfg),uid=runtime.supervisorUid??runtime.uid;chownSync(path,uid,uid);chmodSync(path,0o600);r.broker=server;
 }
 async function cancel(r,reason){
  if(r.cancelPending)return r.cancelPending;

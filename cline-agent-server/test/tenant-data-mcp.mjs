@@ -4,7 +4,7 @@ import http from 'node:http';
 import {readFileSync} from 'node:fs';
 import {createRequire} from 'node:module';
 import {Journal} from '../src/journal.mjs';
-const config=JSON.parse(readFileSync(process.env.TENANT_MCP_CONFIG,'utf8')),require=createRequire(process.env.MCP_SDK_PACKAGE??'/poc/runtime/package.json');
+const config=JSON.parse(readFileSync(process.env.TENANT_MCP_CONFIG,'utf8')),require=createRequire(process.env.MCP_SDK_PACKAGE??'/opt/runtime-os/cline/runtime/package.json');
 const {McpServer}=require('@modelcontextprotocol/sdk/server/mcp.js'),{StreamableHTTPServerTransport}=require('@modelcontextprotocol/sdk/server/streamableHttp.js'),{z}=require('zod');
 const journal=new Journal(config.journal);
 http.createServer(async(req,res)=>{

@@ -4,7 +4,7 @@ import {join} from 'node:path';
 import {fork} from 'node:child_process';
 import {createHash} from 'node:crypto';
 import {loadNative,startHostBridge} from '../src/host-bridge.mjs';
-const config=JSON.parse(readFileSync('/run/cline-poc.json','utf8'));
+const config=JSON.parse(readFileSync('/run/runtime-os/coding-node/config.json','utf8'));
 const dir='/poc/stock-state',runtime='/poc/stock-runtime',workspace='/poc/stock-project';
 mkdirSync(join(dir,'data'),{recursive:true,mode:0o700});mkdirSync(join(dir,'home'),{recursive:true,mode:0o700});
 const json=(name,data)=>writeFileSync(join(dir,name),JSON.stringify(data,null,2)+'\n');

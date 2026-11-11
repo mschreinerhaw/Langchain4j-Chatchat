@@ -7,7 +7,7 @@ export function promptContext(contract,delivery){
    .filter(k=>runtimeContext[k]!==undefined).map(k=>[k,runtimeContext[k]]));
   return {objective,outputContract:{...contract.outputContract,...delivery.context?.outputContract},runtimeContext:visible,inputSnapshotRef:contract.inputSnapshotRef,
    executionLimits:{taskBudget:contract.budget,modelContext:delivery.modelBudget?.modelContext},
-   workspacePaths:{nativeSourceRoot:'/poc/project',pythonSourceFileArgument:'Relative to /poc/project; assemble the complete program here before python_execute.',
+   workspacePaths:{nativeSourceRoot:'/workspace',pythonSourceFileArgument:'Relative to /workspace; assemble the complete program here before python_execute.',
     sandboxInputRoot:'/data/input',sandboxResultRoot:'/workspace/output/results',
     boundary:'Native file editing cannot write /workspace or /data/input; those paths exist only in Managed Python. The official editor limits each edit text to 6000 UTF-16 code units. Use smaller native edits when required; a partial source fragment is not a completed program.'},
    ...(delivery.context?.fileLayout?{inputLayout:delivery.context.fileLayout}:{}),

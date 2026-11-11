@@ -1,0 +1,411 @@
+[
+  {
+    "case": "generic-protocol-v2-fixed-1",
+    "checks": {
+      "sourceReadsCsv": true,
+      "sourceAggregates": true,
+      "noHardcodedMainAnswerNumbers": true,
+      "declaredSyntheticCsvMatchesFixture": true,
+      "markdownNumbersAndSyntheticDisclosure": true
+    },
+    "sources": [
+      {
+        "path": "src/__init__.py",
+        "readCsv": false,
+        "aggregate": false,
+        "meanOrDivision": false,
+        "hardcodedMainAnswerNumber": false
+      },
+      {
+        "path": "src/analyzer.py",
+        "readCsv": true,
+        "aggregate": true,
+        "meanOrDivision": true,
+        "hardcodedMainAnswerNumber": false
+      },
+      {
+        "path": "src/reporter.py",
+        "readCsv": false,
+        "aggregate": false,
+        "meanOrDivision": false,
+        "hardcodedMainAnswerNumber": false
+      },
+      {
+        "path": "src/main.py",
+        "readCsv": false,
+        "aggregate": false,
+        "meanOrDivision": true,
+        "hardcodedMainAnswerNumber": false
+      }
+    ],
+    "datasets": [
+      {
+        "path": "data/expenses.csv",
+        "rows": 3,
+        "amountSum": "47.5",
+        "sha256": "a594448057ef437ce1397e1a49cfae51832587bd765494a67db9b965c31dab29"
+      }
+    ],
+    "reports": [
+      {
+        "path": "output/report.md",
+        "syntheticExplicit": true,
+        "statistics": {
+          "Rows": {
+            "reported": "3",
+            "correctAtDeclaredDisplayPrecision": true
+          },
+          "Total": {
+            "reported": "47.5000",
+            "correctAtDeclaredDisplayPrecision": true
+          },
+          "Mean": {
+            "reported": "15.8333",
+            "correctAtDeclaredDisplayPrecision": true
+          }
+        },
+        "sha256": "99e4bf20b2d67d042376796c4ec0950ff89913ac6aadd41bb289ea2013301934"
+      }
+    ],
+    "chartVisualReview": {
+      "performed": true,
+      "labels": [
+        "alpha",
+        "beta",
+        "gamma"
+      ],
+      "barValues": [
+        12.5,
+        20.0,
+        15.0
+      ],
+      "meanLineWhenPresent": 15.83,
+      "correct": true
+    },
+    "passed": true,
+    "formalBusinessAcceptance": false
+  },
+  {
+    "case": "generic-protocol-v2-fixed-2",
+    "checks": {
+      "sourceReadsCsv": true,
+      "sourceAggregates": true,
+      "noHardcodedMainAnswerNumbers": true,
+      "declaredSyntheticCsvMatchesFixture": true,
+      "markdownNumbersAndSyntheticDisclosure": true
+    },
+    "sources": [
+      {
+        "path": "main.py",
+        "readCsv": false,
+        "aggregate": false,
+        "meanOrDivision": false,
+        "hardcodedMainAnswerNumber": false
+      },
+      {
+        "path": "src/__init__.py",
+        "readCsv": false,
+        "aggregate": false,
+        "meanOrDivision": false,
+        "hardcodedMainAnswerNumber": false
+      },
+      {
+        "path": "src/analyzer.py",
+        "readCsv": true,
+        "aggregate": true,
+        "meanOrDivision": true,
+        "hardcodedMainAnswerNumber": false
+      },
+      {
+        "path": "src/reporter.py",
+        "readCsv": false,
+        "aggregate": false,
+        "meanOrDivision": false,
+        "hardcodedMainAnswerNumber": false
+      }
+    ],
+    "datasets": [
+      {
+        "path": "data/expenses.csv",
+        "rows": 3,
+        "amountSum": "47.5",
+        "sha256": "a594448057ef437ce1397e1a49cfae51832587bd765494a67db9b965c31dab29"
+      }
+    ],
+    "reports": [
+      {
+        "path": "output/report.md",
+        "syntheticExplicit": true,
+        "statistics": {
+          "Rows": {
+            "reported": "3",
+            "correctAtDeclaredDisplayPrecision": true
+          },
+          "Total": {
+            "reported": "47.5000",
+            "correctAtDeclaredDisplayPrecision": true
+          },
+          "Mean": {
+            "reported": "15.8333",
+            "correctAtDeclaredDisplayPrecision": true
+          }
+        },
+        "sha256": "69f6613a210c409a1d96b3e5bc921e0214f75e10485f79d6797707cfb2873c63"
+      }
+    ],
+    "chartVisualReview": {
+      "performed": true,
+      "labels": [
+        "alpha",
+        "beta",
+        "gamma"
+      ],
+      "barValues": [
+        12.5,
+        20.0,
+        15.0
+      ],
+      "meanLineWhenPresent": 15.83,
+      "correct": true
+    },
+    "passed": true,
+    "formalBusinessAcceptance": false
+  },
+  {
+    "case": "generic-protocol-v2-fixed-3",
+    "checks": {
+      "sourceReadsCsv": true,
+      "sourceAggregates": true,
+      "noHardcodedMainAnswerNumbers": true,
+      "declaredSyntheticCsvMatchesFixture": true,
+      "markdownNumbersAndSyntheticDisclosure": true
+    },
+    "sources": [
+      {
+        "path": "src/analyzer.py",
+        "readCsv": true,
+        "aggregate": true,
+        "meanOrDivision": true,
+        "hardcodedMainAnswerNumber": false
+      },
+      {
+        "path": "src/reporter.py",
+        "readCsv": false,
+        "aggregate": true,
+        "meanOrDivision": true,
+        "hardcodedMainAnswerNumber": false
+      },
+      {
+        "path": "src/main.py",
+        "readCsv": false,
+        "aggregate": false,
+        "meanOrDivision": false,
+        "hardcodedMainAnswerNumber": false
+      }
+    ],
+    "datasets": [
+      {
+        "path": "data/expenses.csv",
+        "rows": 3,
+        "amountSum": "47.5",
+        "sha256": "a594448057ef437ce1397e1a49cfae51832587bd765494a67db9b965c31dab29"
+      }
+    ],
+    "reports": [
+      {
+        "path": "output/report.md",
+        "syntheticExplicit": true,
+        "statistics": {
+          "Rows": {
+            "reported": "3",
+            "correctAtDeclaredDisplayPrecision": true
+          },
+          "Total": {
+            "reported": "47.50",
+            "correctAtDeclaredDisplayPrecision": true
+          },
+          "Mean": {
+            "reported": "15.83",
+            "correctAtDeclaredDisplayPrecision": true
+          }
+        },
+        "sha256": "c2eef6bf7f16fb3970a45f500cd005d5e14ee037c55073da3ecf755f6b380154"
+      }
+    ],
+    "chartVisualReview": {
+      "performed": true,
+      "labels": [
+        "alpha",
+        "beta",
+        "gamma"
+      ],
+      "barValues": [
+        12.5,
+        20.0,
+        15.0
+      ],
+      "meanLineWhenPresent": 15.83,
+      "correct": true
+    },
+    "passed": true,
+    "formalBusinessAcceptance": false
+  },
+  {
+    "case": "generic-protocol-v2-fixed-4",
+    "checks": {
+      "sourceReadsCsv": true,
+      "sourceAggregates": true,
+      "noHardcodedMainAnswerNumbers": true,
+      "declaredSyntheticCsvMatchesFixture": true,
+      "markdownNumbersAndSyntheticDisclosure": true
+    },
+    "sources": [
+      {
+        "path": "src/analyzer.py",
+        "readCsv": true,
+        "aggregate": true,
+        "meanOrDivision": true,
+        "hardcodedMainAnswerNumber": false
+      },
+      {
+        "path": "src/reporter.py",
+        "readCsv": false,
+        "aggregate": false,
+        "meanOrDivision": true,
+        "hardcodedMainAnswerNumber": false
+      },
+      {
+        "path": "src/main.py",
+        "readCsv": false,
+        "aggregate": false,
+        "meanOrDivision": true,
+        "hardcodedMainAnswerNumber": false
+      }
+    ],
+    "datasets": [
+      {
+        "path": "data/test_expenses.csv",
+        "rows": 3,
+        "amountSum": "47.5",
+        "sha256": "a594448057ef437ce1397e1a49cfae51832587bd765494a67db9b965c31dab29"
+      }
+    ],
+    "reports": [
+      {
+        "path": "output/report.md",
+        "syntheticExplicit": true,
+        "statistics": {
+          "Rows": {
+            "reported": "3",
+            "correctAtDeclaredDisplayPrecision": true
+          },
+          "Total": {
+            "reported": "47.5000",
+            "correctAtDeclaredDisplayPrecision": true
+          },
+          "Mean": {
+            "reported": "15.8333",
+            "correctAtDeclaredDisplayPrecision": true
+          }
+        },
+        "sha256": "b700da93aeeed4d20fbbed1830c27439931a51edb4fe7041a147d3dbd579d125"
+      }
+    ],
+    "chartVisualReview": {
+      "performed": true,
+      "labels": [
+        "alpha",
+        "beta",
+        "gamma"
+      ],
+      "barValues": [
+        12.5,
+        20.0,
+        15.0
+      ],
+      "meanLineWhenPresent": 15.83,
+      "correct": true
+    },
+    "passed": true,
+    "formalBusinessAcceptance": false
+  },
+  {
+    "case": "generic-protocol-v2-fixed-5",
+    "checks": {
+      "sourceReadsCsv": true,
+      "sourceAggregates": true,
+      "noHardcodedMainAnswerNumbers": true,
+      "declaredSyntheticCsvMatchesFixture": true,
+      "markdownNumbersAndSyntheticDisclosure": true
+    },
+    "sources": [
+      {
+        "path": "src/analyze.py",
+        "readCsv": true,
+        "aggregate": true,
+        "meanOrDivision": true,
+        "hardcodedMainAnswerNumber": false
+      },
+      {
+        "path": "src/report.py",
+        "readCsv": false,
+        "aggregate": false,
+        "meanOrDivision": true,
+        "hardcodedMainAnswerNumber": false
+      },
+      {
+        "path": "src/main.py",
+        "readCsv": false,
+        "aggregate": false,
+        "meanOrDivision": false,
+        "hardcodedMainAnswerNumber": false
+      }
+    ],
+    "datasets": [
+      {
+        "path": "data/test_expenses.csv",
+        "rows": 3,
+        "amountSum": "47.5",
+        "sha256": "a594448057ef437ce1397e1a49cfae51832587bd765494a67db9b965c31dab29"
+      }
+    ],
+    "reports": [
+      {
+        "path": "output/report.md",
+        "syntheticExplicit": true,
+        "statistics": {
+          "Rows": {
+            "reported": "3",
+            "correctAtDeclaredDisplayPrecision": true
+          },
+          "Total": {
+            "reported": "47.5",
+            "correctAtDeclaredDisplayPrecision": true
+          },
+          "Mean": {
+            "reported": "15.83",
+            "correctAtDeclaredDisplayPrecision": true
+          }
+        },
+        "sha256": "3dcf3abfd638971a0aeeca0b5a886a37861c9487b1c8a64f8bc5b36ba82e1786"
+      }
+    ],
+    "chartVisualReview": {
+      "performed": true,
+      "labels": [
+        "alpha",
+        "beta",
+        "gamma"
+      ],
+      "barValues": [
+        12.5,
+        20.0,
+        15.0
+      ],
+      "meanLineWhenPresent": 15.83,
+      "correct": true
+    },
+    "passed": true,
+    "formalBusinessAcceptance": false
+  }
+]

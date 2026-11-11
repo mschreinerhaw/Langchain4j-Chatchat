@@ -1,0 +1,485 @@
+{
+  "branch": "feature/runtime-cline-cli-native-20261107",
+  "baseCommit": "e06eabaf4c8554469ab48fc8841ef1ccc200986e",
+  "finalChangeCommit": null,
+  "workingTreeUncommitted": true,
+  "reason": "Final business acceptance not completed; pre-existing task changes preserved; no production default switch",
+  "worktreeCodeManifestSha256": "dfab662a942323727173356a39c4ffbdc0ce1c2cfb9229baf3af83da31387383",
+  "files": [
+    {
+      "path": "chatchat-agents/src/main/java/com/chatchat/agents/runtime/coding/DurableCodingTaskService.java",
+      "size": 73396,
+      "sha256": "92b02400e9f809b639f224408c5844446f21d52ba091ab65d489bee399217da1"
+    },
+    {
+      "path": "chatchat-api/src/main/java/com/chatchat/api/assets/AssetBlobStore.java",
+      "size": 1321,
+      "sha256": "93bd357e3e4dfabfad0fdc1e76a8185dcca295a01e68ce85bb2743340525cac8"
+    },
+    {
+      "path": "chatchat-api/src/main/java/com/chatchat/api/assets/CustomerIntradayClaimVerifier.java",
+      "size": 4963,
+      "sha256": "f748a0b87a4048f419cd422eadc34713e6eb4afa3d61bce4de2420ff8279160f"
+    },
+    {
+      "path": "chatchat-api/src/main/java/com/chatchat/api/assets/CustomerReportSourceMeaning.java",
+      "size": 4535,
+      "sha256": "13e6ff27bb685dad0e13f6864fea60aeac6631416c615c7e8e06c7bac664eedb"
+    },
+    {
+      "path": "chatchat-api/src/main/java/com/chatchat/api/assets/NativeCustomerDeliveryVerifier.java",
+      "size": 8271,
+      "sha256": "28dd03d12378a00064812a5bb8adc8ab66d3a26aa516be6a720b97b33d477e42"
+    },
+    {
+      "path": "chatchat-api/src/main/java/com/chatchat/api/assets/SiloAssetBlobStore.java",
+      "size": 7913,
+      "sha256": "7700c8ef4f694cb81ec990e938e667f75ca2dd567e79eeeafe0f8956f56c2dc5"
+    },
+    {
+      "path": "chatchat-api/src/main/java/com/chatchat/api/assets/SiloCodingWorkspaceService.java",
+      "size": 24369,
+      "sha256": "4550e6c602611273dc2bd9577dbe07b763beb493ead8808a54a0ab915ae56cfc"
+    },
+    {
+      "path": "chatchat-api/src/main/java/com/chatchat/api/assets/UserAssetService.java",
+      "size": 19951,
+      "sha256": "5f26459663b33962d3022f7540faa7ab1923079164ab59c3060f05f5482a81a8"
+    },
+    {
+      "path": "chatchat-api/src/main/java/com/chatchat/api/runtime/coding/cline/ClineCodingAdapter.java",
+      "size": 37550,
+      "sha256": "7e0fbcd5a671df1ffcc265589a9d9ff73bceb76fc78f820bf2f2ada253b84aa6"
+    },
+    {
+      "path": "chatchat-api/src/main/java/com/chatchat/api/runtime/coding/cline/ClineCodingConfiguration.java",
+      "size": 3834,
+      "sha256": "57971f91d92513dca2c194785b47fc39435a8c446b3365c18b33d72dacb94262"
+    },
+    {
+      "path": "chatchat-api/src/main/java/com/chatchat/api/runtime/coding/evidence/CodingCustomerAccountVerifier.java",
+      "size": 11564,
+      "sha256": "336f39550806fb71f9ec2018abcd380f250a53d862c321c4bffca5c009caa857"
+    },
+    {
+      "path": "chatchat-api/src/main/java/com/chatchat/api/runtime/coding/nativecline/NativeS3NodeClient.java",
+      "size": 10814,
+      "sha256": "f595a713b2166e4f386abfd6615eae14b28f8413711f8760e7253003f9ca386e"
+    },
+    {
+      "path": "chatchat-api/src/main/java/com/chatchat/api/runtime/coding/nativecline/NativeSiloTaskService.java",
+      "size": 10544,
+      "sha256": "a4a4e15af582412c93b1814cddceaaeaf1f651bcd72ea5e9f524bc9e8097fbee"
+    },
+    {
+      "path": "chatchat-api/src/test/java/com/chatchat/api/assets/CustomerIntradayClaimVerifierTest.java",
+      "size": 3814,
+      "sha256": "2e38361193c9daa5eeed7e95e5e64e7d47b6d4d48b12ea0bf2d5d3f2c962947c"
+    },
+    {
+      "path": "chatchat-api/src/test/java/com/chatchat/api/assets/CustomerReportSourceMeaningTest.java",
+      "size": 6613,
+      "sha256": "1529d5617cf8ba2be3eea69f304448f0196bf29ebd5ffc433f07c15e44c4ad05"
+    },
+    {
+      "path": "chatchat-api/src/test/java/com/chatchat/api/assets/NativeCustomerDeliveryVerifierTest.java",
+      "size": 9080,
+      "sha256": "e1250c67c8ce264e823eab8aa1462f33bee8c6adc223ca1d74d1ad4bdb6ad912"
+    },
+    {
+      "path": "chatchat-api/src/test/java/com/chatchat/api/assets/NativeSiloAcceptanceDriver.java",
+      "size": 29300,
+      "sha256": "b9b672a44d8fc4c089988c9014d96139760379acbb9d7eadf271e2193d58f0c3"
+    },
+    {
+      "path": "chatchat-api/src/test/java/com/chatchat/api/assets/NativeSiloTaskServiceTest.java",
+      "size": 7903,
+      "sha256": "d3b5f92b8834ffaa3d8f71ed8654a8b4b60dee74862e859185ce0795defe0739"
+    },
+    {
+      "path": "chatchat-api/src/test/java/com/chatchat/api/assets/SiloCodingWorkspaceServiceTest.java",
+      "size": 18787,
+      "sha256": "3818d14d21f9b83a5141d495d675fc9d01a878b9259c2a7acae8b500da09dbe8"
+    },
+    {
+      "path": "chatchat-api/src/test/java/com/chatchat/api/assets/SiloTransportAcceptanceFixture.java",
+      "size": 5719,
+      "sha256": "7b00217f31307bb1e3cbd9c0acdf675b5dd933d904327559c3263e5e8d18685c"
+    },
+    {
+      "path": "chatchat-api/src/test/java/com/chatchat/api/runtime/coding/CodingTaskPersistenceTest.java",
+      "size": 53862,
+      "sha256": "195485885f9b99bb50d9f66bd3aec29e2ee8119bded5f2cf8c9d4f6b8331c825"
+    },
+    {
+      "path": "chatchat-api/src/test/java/com/chatchat/api/runtime/coding/NativeS3NodeClientTest.java",
+      "size": 6866,
+      "sha256": "22f533dcc1cfa40562933ebbe2cdf1e10becffac05d4524e7ae7c19c219794dd"
+    },
+    {
+      "path": "cline-agent-server/README.s3.md",
+      "size": 10899,
+      "sha256": "24dcd392c8f81dae41d64c67c764a48f35f7c04168b8556c22b25d33b7e505fd"
+    },
+    {
+      "path": "cline-agent-server/docker/Dockerfile",
+      "size": 1096,
+      "sha256": "af3f65365a93ec8e0415a9253ad5729028919ddd005c7d2c5382fb03afd284f5"
+    },
+    {
+      "path": "cline-agent-server/docker/Dockerfile.business-budget",
+      "size": 393,
+      "sha256": "488f27295746b89ed2fb3f99c6a561bb045ec8973f5d3a4904f347760cb0428f"
+    },
+    {
+      "path": "cline-agent-server/docker/Dockerfile.cli-test",
+      "size": 647,
+      "sha256": "b0b4e677ad93377f91a930a74ea209c3989519a0c06a95d3346bd821f72df3ff"
+    },
+    {
+      "path": "cline-agent-server/docker/Dockerfile.governance",
+      "size": 220,
+      "sha256": "352973f0939d3e5a7429a1c9d5a5d1ce81403444e9b38c40e2a742222a463b25"
+    },
+    {
+      "path": "cline-agent-server/docker/Dockerfile.python",
+      "size": 1315,
+      "sha256": "19c2584e0004a719b065af16c57de127c4a07cad911486327ca54323b5054c40"
+    },
+    {
+      "path": "cline-agent-server/docker/Dockerfile.python.dockerignore",
+      "size": 36,
+      "sha256": "725d8b213bc50dad5a464533c988ec961d5905831c0869220ae5bee3dd14026e"
+    },
+    {
+      "path": "cline-agent-server/docker/verify-native-modules.mjs",
+      "size": 953,
+      "sha256": "8f9c8faa4859dc859d3f5d43d5b58027c9f38e9dbd50ef5cbae619bcfabb3bc5"
+    },
+    {
+      "path": "cline-agent-server/docker/verify-python-runtime.py",
+      "size": 1162,
+      "sha256": "a5dbf3f62cb2bb5f7ab6690dbaf07f8723ada988ede60247c608335c894a8f93"
+    },
+    {
+      "path": "cline-agent-server/monitor/metrics.mjs",
+      "size": 2571,
+      "sha256": "4b20b4067a3bad7ee8948e234e82937862f153508d591cfeebd0c429fdf7839f"
+    },
+    {
+      "path": "cline-agent-server/scripts/build-python-node.py",
+      "size": 4065,
+      "sha256": "29480cfc9b64460b127ad8d94cc4df02c92c247ddfd5210de9d552cfabade5d3"
+    },
+    {
+      "path": "cline-agent-server/scripts/collect-s3-evidence.py",
+      "size": 6190,
+      "sha256": "be99479f5719fa653f4c060f48c8ff3b385e9ae39da78ebe3dfac0b3ad8a1bc3"
+    },
+    {
+      "path": "cline-agent-server/scripts/export-oci-evidence.py",
+      "size": 4108,
+      "sha256": "325edb25eef5ede0d1d7f10d1e3205a6cc85e69efd1df37b73e7a631697f137c"
+    },
+    {
+      "path": "cline-agent-server/scripts/install-s3-gateway.py",
+      "size": 5875,
+      "sha256": "c1805ad93d8e6bf52d865f136c2e308a71fb163ae96a572abf5d06c37c5eb3cb"
+    },
+    {
+      "path": "cline-agent-server/scripts/prepare-test-daemon.py",
+      "size": 9065,
+      "sha256": "a0dee8bcbb9699a90c68bfdf93b94d7f5846ff353f8d80607ca076d1e0d3a19c"
+    },
+    {
+      "path": "cline-agent-server/scripts/replay-s3-artifacts.py",
+      "size": 6143,
+      "sha256": "0b020c36a7f85e515e0423e3955b260a4b773a65ba17399beb9bfa832c40dfce"
+    },
+    {
+      "path": "cline-agent-server/scripts/s3-model-audit-proxy.py",
+      "size": 1167,
+      "sha256": "78ea3e6040e32857352c9a1a1d86c8f592db85dadd8b3eb8d8c7a55a4eea70d5"
+    },
+    {
+      "path": "cline-agent-server/src/delivery-manifest.mjs",
+      "size": 5378,
+      "sha256": "999905301f844012216545973ee980d66067f0b54caa3f04222c4a34d32c5ec0"
+    },
+    {
+      "path": "cline-agent-server/src/executor-daemon-policy.mjs",
+      "size": 3849,
+      "sha256": "d2f58fe52b0e1bab05388b824a5f1884ea7e29182bb755ee7ba462ee5973bdf4"
+    },
+    {
+      "path": "cline-agent-server/src/governance-server.mjs",
+      "size": 29093,
+      "sha256": "4b63bc30a742ea77e759d6cb6bbb6027d4fa0fa08c9c56d48e930aea2a43f986"
+    },
+    {
+      "path": "cline-agent-server/src/s3-task-transport.mjs",
+      "size": 7811,
+      "sha256": "bdf5b6eef185370793cf3ba232cf2c0cc0116cd1e3892a6d0a028f0c8e33e866"
+    },
+    {
+      "path": "cline-agent-server/src/server.mjs",
+      "size": 24795,
+      "sha256": "381e6faefb93dabb5d0b735686681a32e10a068ad114a12b13bd8870079299f0"
+    },
+    {
+      "path": "cline-agent-server/src/silo-transfer.mjs",
+      "size": 5658,
+      "sha256": "c90483861bedb95fb7b53f5558b441fa87731ef906855628aefac9c0b73b73ba"
+    },
+    {
+      "path": "cline-agent-server/src/task-contract.mjs",
+      "size": 3035,
+      "sha256": "2a5c5f48eb2e3f8beeea92030b6cc460a8ef0b2ac61252075c8cf1d75167eef5"
+    },
+    {
+      "path": "cline-agent-server/src/worker-executor-policy.mjs",
+      "size": 4742,
+      "sha256": "d344c7f5aaf2c2facfb4cd7042bcb92d38e416df130261a43dd7a9585af4d94f"
+    },
+    {
+      "path": "cline-agent-server/src/worker-executor.mjs",
+      "size": 11160,
+      "sha256": "5b23478622882a57eb65177f1d1efe8d64682f28d877d60b9b5c08fb5fff4afe"
+    },
+    {
+      "path": "cline-agent-server/src/workspace-transfer.mjs",
+      "size": 2895,
+      "sha256": "8dac11ea7a7845d684bb0f126b2889cb8be11093fd4a45a649e11f350afca06f"
+    },
+    {
+      "path": "cline-agent-server/test/archive-live-evidence.py",
+      "size": 4769,
+      "sha256": "1dab634e7bedfb5fcfa86f8c36a68018a61da51403bbecbda875a00a7d19fb33"
+    },
+    {
+      "path": "cline-agent-server/test/configure-official-cli.py",
+      "size": 1409,
+      "sha256": "9a7c8604a7eccf29da54f2e5ce21f62db5c2d5362b2c5ff400736d4810bf8cf6"
+    },
+    {
+      "path": "cline-agent-server/test/customer-fixed-cohort.py",
+      "size": 8914,
+      "sha256": "78cd7f3c1e22ca6e80ce0cb1992f2b89f7fe2bdf051860d63dd7d165572a699c"
+    },
+    {
+      "path": "cline-agent-server/test/customer-silo-objective.txt",
+      "size": 3458,
+      "sha256": "2adf53263fcc313843a65f51b23ba2213fcb203a759458b5324e9a0bd82c9ae8"
+    },
+    {
+      "path": "cline-agent-server/test/delivery-manifest.test.mjs",
+      "size": 2252,
+      "sha256": "9ddbc2ebf3b8556b3caf223411dea8c46810fc279edffa90ee80b5d7ba6fab50"
+    },
+    {
+      "path": "cline-agent-server/test/delivery-selection.test.mjs",
+      "size": 2252,
+      "sha256": "6b25bbe1e2bdb3f675191bf274223c850894c2501000651f212220cfbe925feb"
+    },
+    {
+      "path": "cline-agent-server/test/executor-daemon-policy.test.mjs",
+      "size": 3332,
+      "sha256": "8f735d0893ef603f4b61f9d88b5232d301d6592331215e59923e76d3029c8e57"
+    },
+    {
+      "path": "cline-agent-server/test/executor-policy.test.mjs",
+      "size": 5494,
+      "sha256": "8b473961c29c8fdabf6c98ce91464de1b30c9d79159432c1ba368ce7cd754bf7"
+    },
+    {
+      "path": "cline-agent-server/test/export-registered-native-delivery.py",
+      "size": 4143,
+      "sha256": "e6b93f0de1064ed32c686755d86944fe31c40dba225a8bba2e0e05cc1ca0c94f"
+    },
+    {
+      "path": "cline-agent-server/test/generic-s3-cancel-live.py",
+      "size": 6920,
+      "sha256": "8d4db7c9ec176277caea062853a7f4eca4e4441db3efde3dd5e6039eca9714cd"
+    },
+    {
+      "path": "cline-agent-server/test/generic-s3-cohort.py",
+      "size": 3552,
+      "sha256": "c86b0182cd550aba0b3d909b9b483d5d7eb967269cfd0f0b647022194a8375cd"
+    },
+    {
+      "path": "cline-agent-server/test/generic-s3-live.py",
+      "size": 10819,
+      "sha256": "f794eb04f2a5677526ead828dfc7c227d40a7f2e994ee9fcf4eb5bbc70f91be7"
+    },
+    {
+      "path": "cline-agent-server/test/governance-boundaries.test.mjs",
+      "size": 3815,
+      "sha256": "c47c311b9dfb0b8cfae8e4d6c7a71e85f17db058e56d787db2659ed947011eb1"
+    },
+    {
+      "path": "cline-agent-server/test/live_model_audit.py",
+      "size": 5720,
+      "sha256": "83d4e0dc10cc0601408775dd0823e2594cf960111baece682518cc6ed0c1c606"
+    },
+    {
+      "path": "cline-agent-server/test/monitor-metrics.test.mjs",
+      "size": 2400,
+      "sha256": "32611280fdaab1de309dcba8fbf124ae69bef158b235ae7200708fb218976d68"
+    },
+    {
+      "path": "cline-agent-server/test/native-model-parameter-probe.py",
+      "size": 5309,
+      "sha256": "bd7db827d59b4c28f820eec84c95700f0d66804e37bc276b24b6780fc0609f9b"
+    },
+    {
+      "path": "cline-agent-server/test/native-silo-live.py",
+      "size": 18950,
+      "sha256": "a16ff3a02fcbb2d49afa41678298862f9b48222a497e97cf13cd5537f32782a3"
+    },
+    {
+      "path": "cline-agent-server/test/native_execution_observation.py",
+      "size": 2249,
+      "sha256": "83ff73b063463f346c8faf766d1cdf4ee059ab9206fa7bb926a5f662ea6ccdbb"
+    },
+    {
+      "path": "cline-agent-server/test/native_restricted_control.py",
+      "size": 9897,
+      "sha256": "11f7b932efb5daae5a75f48c7186d593b838f3d759b1cbcca199e837a47f9959"
+    },
+    {
+      "path": "cline-agent-server/test/native_silo_control.py",
+      "size": 11694,
+      "sha256": "e60330dfafba8d9f9e818a1ac6be52b9ea62faaf7c53a2b8a6f35b18ecdcb3a5"
+    },
+    {
+      "path": "cline-agent-server/test/observe-live-execution.py",
+      "size": 4202,
+      "sha256": "cb8768abb86f92f767d489fd12e47873e40dfa7da5bebbaad6251ff8540bc84b"
+    },
+    {
+      "path": "cline-agent-server/test/official-acp-parameter-probe.py",
+      "size": 5909,
+      "sha256": "24a3f91ca7f57c46b68f4d39eef646a1a2ce17ed9488b26bba3cd56b558b79da"
+    },
+    {
+      "path": "cline-agent-server/test/official-acp-silo-live.py",
+      "size": 17494,
+      "sha256": "620ecd1a75c13b99130c3c34a47b456d82417f4cdc165a56b885cdb920126948"
+    },
+    {
+      "path": "cline-agent-server/test/official-cli-entrypoint.py",
+      "size": 2142,
+      "sha256": "98be562c49c58555f573914aa60fee483d9d46a3a998fcf139d88e81eefdd4af"
+    },
+    {
+      "path": "cline-agent-server/test/official-cli-silo-counter.py",
+      "size": 7901,
+      "sha256": "0122a61cc74e07b15f22d397d74370e9c72fe980ad9007f5fb63b99a0669f0ca"
+    },
+    {
+      "path": "cline-agent-server/test/official_acp_client.py",
+      "size": 3903,
+      "sha256": "41d61236035403624f30401c62b4fad82b36da7694ec697cf3aa6498c088e7bb"
+    },
+    {
+      "path": "cline-agent-server/test/owned_core_observation.py",
+      "size": 2267,
+      "sha256": "33a13bb095696a3e17f9e77e92cfdd52777b6df48b0c985060250b8df0caa4aa"
+    },
+    {
+      "path": "cline-agent-server/test/prepare-silo-comparison-case.py",
+      "size": 5810,
+      "sha256": "17c972ae2d3efb29a3adf5e8c5943a33bb3e0414719880fa5df3f0320754cd3f"
+    },
+    {
+      "path": "cline-agent-server/test/replay-registered-native-delivery.py",
+      "size": 8128,
+      "sha256": "28626ad59a64a88c4180a1fcaf3a300eb8b2b0410aa7aa4dbd56d5e4079e378e"
+    },
+    {
+      "path": "cline-agent-server/test/resource_registry.py",
+      "size": 1284,
+      "sha256": "6484b256b1e50e32b875b5a166ebbe6a16868b6eac1120ac98e3a547b64cd662"
+    },
+    {
+      "path": "cline-agent-server/test/s3-gateway-http.test.mjs",
+      "size": 9792,
+      "sha256": "a66ba0a45dd59095db936f10858d82927469e391b1e90324e2d7071d72fc1a6e"
+    },
+    {
+      "path": "cline-agent-server/test/s3-task-transport.test.mjs",
+      "size": 5442,
+      "sha256": "1b56a61cb2c1f86db4acd1db0c4ee6ea0cf34a1af8971e165a222fe19766b061"
+    },
+    {
+      "path": "cline-agent-server/test/silo-capability-probe.py",
+      "size": 2498,
+      "sha256": "39c5b471715831913e2b83259dda398d91e87341a9c90c7ed655daf57dd70aff"
+    },
+    {
+      "path": "cline-agent-server/test/silo-transfer.test.mjs",
+      "size": 3608,
+      "sha256": "25542c9dc911cb1dccb95e3cdb3c2e5d220849e2be9113da45db17f3869c4353"
+    },
+    {
+      "path": "cline-agent-server/test/silo-transport-live-probe.mjs",
+      "size": 4986,
+      "sha256": "4475e3db9fd52f2e9fc62937607bedf027f2931dc313fab8a4ab8a3be1bf8b76"
+    },
+    {
+      "path": "cline-agent-server/test/strict-executor-live-probe.py",
+      "size": 10610,
+      "sha256": "00310f25bc8b3203f139f32388666d3a29bbd046515c7fc28ac4cfd834d70746"
+    },
+    {
+      "path": "cline-agent-server/test/test_native_execution_observation.py",
+      "size": 1448,
+      "sha256": "b244eda9e6e22ee72b9850ea7adda3d8f713de8efe84b5733764c09acb66c94d"
+    },
+    {
+      "path": "cline-agent-server/test/test_native_silo_feedback.py",
+      "size": 2224,
+      "sha256": "efdd67fe56b9f1760127e0a1ce500c15557bc38dd7f69a0837649afc864b2388"
+    },
+    {
+      "path": "cline-python-runtime/.dockerignore",
+      "size": 47,
+      "sha256": "a0a79bd91ccc9e2020704daacbe678aa6149b8246962e448a9a5c5121553e803"
+    },
+    {
+      "path": "cline-python-runtime/Dockerfile",
+      "size": 829,
+      "sha256": "d072fad7c7311181defc62e8c9bbdf08a951a680a5b36a3973d3f49bf27d7f56"
+    },
+    {
+      "path": "cline-python-runtime/README.md",
+      "size": 2058,
+      "sha256": "1b49a93598f3a05354df004be1fff239e9e6ea5310a5a6c5bfb51a05aa73f7b8"
+    },
+    {
+      "path": "cline-python-runtime/entrypoint.py",
+      "size": 1590,
+      "sha256": "5236f60c1d7c3c32dde7d0d9b4b2a9afde9e6817ffbd99366794ccc649f0f628"
+    },
+    {
+      "path": "cline-python-runtime/run-isolation-tests.py",
+      "size": 11465,
+      "sha256": "c1bcda4e090c2b3bd604c6a0810331076b006a719d4168ebaa84f3d91b458d82"
+    },
+    {
+      "path": "deploy/docker/python-runtime/Dockerfile",
+      "size": 2433,
+      "sha256": "b52e40432c8f8b6a908413094f7fb3d084522322ae1d8a30f1936204d2114ba5"
+    },
+    {
+      "path": "deploy/docker/python-runtime/requirements.in",
+      "size": 4379,
+      "sha256": "4245f0ea9b5e3483c0a183479d980b3dfc66c029eba29be88b6a5ea17a7049f8"
+    },
+    {
+      "path": "deploy/docker/python-runtime/requirements.lock",
+      "size": 3330,
+      "sha256": "f0aa0e051fefc3034a98d7b4a7f6190d9f0f314bb3add6f7342c39e3b02b943e"
+    }
+  ]
+}

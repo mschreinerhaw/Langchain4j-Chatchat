@@ -25,45 +25,23 @@ import static org.mockito.Mockito.*;
 
 class CodingAnalysisServiceTest {
     @org.junit.jupiter.params.ParameterizedTest
-    @org.junit.jupiter.params.provider.ValueSource(strings={"SELECTION_FAILED","EMPTY_RESULT"})
-    void accountMetricsCannotSpendCodingBudgetOnSupplyStatusOrVerifiedEmptyInput(String state){
-        var parent=context("tenant");var attrs=Map.<String,Object>of("responseContract",Map.of("customerAccountVerification",Map.of("profile","customer-account-v1","customerNumber","0007")));
-        parent.metadata().put("dataSupply",Map.of("status",state));
-        var scoped=new AnalysisCoverageCoordinator.Request(parent.model(),"Account 0007",null,attrs,parent.metadata(),()->false,()->{},parent.isolationScope(),null);
-        var dataset="SELECTION_FAILED".equals(state)
-            ?new Dataset("supply-status:run",Map.of("recordType","DATA_SUPPLY_STATUS"),List.of(Map.of("businessDataAvailable",false)))
-            :new Dataset("empty",Map.of("sourceVerifiedEmpty",true),List.of());
-        var receipt=service().executePrimaryAnalysis(scoped,new LinkedHashMap<>(Map.of(dataset.reference(),dataset)),event->{});
-        assertThat(receipt).containsEntry("status","INPUT_REQUIRED").containsEntry("dataSupplyStatus",state)
-            .containsEntry("codingDispatched",false).containsEntry("resultAvailable",false);
-        assertThat(parent.metadata()).containsEntry("primaryCodingDispatchCount",0);
-        verifyNoInteractions(agent,plans);
-        verify(inputs,never()).captureConfigured(any(),anyString(),anyList(),anyString(),anyString(),anyString(),anyLong(),anyLong(),any());
-    }
-
-    @Test void explicitCustomerContractRegistersTheExistingIndependentPlanAndRequiredSummary(){
+    @org.junit.jupiter.params.provider.ValueSource(strings={"research", "inventory", "customer-account-v1"})
+    void callerBusinessMetadataDoesNotInstallABuiltInReportVerifier(String domain){
         prepare(outcome(CodingTaskOutcome.Status.FAILED,CodingTaskOutcome.ValidationStatus.NOT_RUN));
         when(inputs.captureConfigured(any(),anyString(),anyList(),anyString(),anyString(),anyString(),anyLong(),anyLong(),any()))
             .thenReturn(new CodingInputSnapshotService.Snapshot("runtime-evidence:input","c"+"a".repeat(63),"input.jsonl","a".repeat(64),1,30,"source"));
         var parent=context("tenant");
-        var attrs=Map.<String,Object>of("responseContract",Map.of("customerAccountVerification",Map.of("profile","customer-account-v1","customerNumber","0007")));
-        var scoped=new AnalysisCoverageCoordinator.Request(parent.model(),"Account 0007",null,attrs,parent.metadata(),()->false,()->{},parent.isolationScope(),null);
+        var attrs=Map.<String,Object>of("responseContract",Map.of("customerAccountVerification",Map.of("profile",domain,"customerNumber",7)));
+        var scoped=new AnalysisCoverageCoordinator.Request(parent.model(),"Analyze authorized inputs",null,attrs,parent.metadata(),()->false,()->{},parent.isolationScope(),null);
         service().executePrimaryAnalysis(scoped,sources(),event->{});
         var plan=org.mockito.ArgumentCaptor.forClass(CodingValidationPlanService.Plan.class);
         verify(plans).register(any(),anyString(),any(),plan.capture());
-        assertThat(plan.getValue().verifierId()).isEqualTo("runtime-customer-account");
-        assertThat(plan.getValue().rules()).containsEntry("customerNumber","0007").containsKey("sourceVersions");
+        assertThat(plan.getValue().verifierId()).isEqualTo("runtime-result-schema");
+        assertThat(plan.getValue().rules()).containsOnlyKeys("rowSchema");
         var schema=(Map<?,?>)plan.getValue().rules().get("rowSchema");
-        assertThat(((List<?>)schema.get("required")).contains("verifiedAccountSummary")).isTrue();
+        assertThat(((List<?>)schema.get("required")).contains("verifiedAccountSummary")).isFalse();
         var contract=org.mockito.ArgumentCaptor.forClass(CodingTaskContract.class);verify(agent).submit(contract.capture());
-        assertThat(contract.getValue().objective().instruction()).contains("customerNumber=0007","transactionMetricBasis");
-    }
-
-    @Test void numericCustomerScopeIsRejectedBeforeDispatchInsteadOfLosingLeadingZeros(){
-        var parent=context("tenant");var attrs=Map.<String,Object>of("responseContract",Map.of("customerAccountVerification",Map.of("profile","customer-account-v1","customerNumber",7)));
-        var scoped=new AnalysisCoverageCoordinator.Request(parent.model(),"Account",null,attrs,parent.metadata(),()->false,()->{},parent.isolationScope(),null);
-        assertThatThrownBy(()->service().executePrimaryAnalysis(scoped,sources(),event->{})).isInstanceOf(IllegalArgumentException.class);
-        verifyNoInteractions(agent);
+        assertThat(contract.getValue().objective().instruction()).doesNotContain("Explicit customer account verification", "SETTLEMENT_CJJE", "positionCumulativeRealizedPnl");
     }
 
     @org.junit.jupiter.params.ParameterizedTest

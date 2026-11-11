@@ -52,8 +52,7 @@ RUN groupadd --gid "${RUNTIME_GID}" runner \
 # ============================================================
 COPY requirements.lock /opt/chatchat/requirements.lock
 
-RUN python -m pip install --upgrade pip setuptools wheel \
-    && pip install \
+RUN python -m pip install \
         --no-cache-dir \
         --requirement /opt/chatchat/requirements.lock \
     && python -m pip check

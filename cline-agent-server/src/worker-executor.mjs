@@ -3,7 +3,8 @@ import {readFileSync,writeFileSync,mkdirSync,readdirSync,cpSync,chmodSync,chownS
 import {join} from 'node:path';
 import {timingSafeEqual} from 'node:crypto';
 import {DockerEngine} from './docker-engine.mjs';
-import {reject,exact,taskGrant,identity,validateCreate,safeTree,mountAnchor,assertAnchors,buildSpec,verifyOwned,uuid} from './worker-executor-policy.mjs';
+import {verifyExecutorDaemon} from './executor-daemon-policy.mjs';
+import {reject,exact,taskGrant,identity,validateCreate,safeTree,mountAnchor,assertAnchors,buildSpec,verifyOwned,uuid,workerRuntime} from './worker-executor-policy.mjs';
 
 const cfg=JSON.parse(readFileSync(process.env.CLINE_EXECUTOR_CONFIG));
 if(cfg.mcpServerName&&!['runtime','tenant_data'].includes(cfg.mcpServerName))throw Error('Unknown fixed MCP transport profile');
@@ -12,9 +13,9 @@ if(cfg.mcpServerName==='runtime'&&Object.values(cfg.tenants??{}).some(t=>!t.tool
 if(!/^sha256:[a-f0-9]{64}$/.test(cfg.workerImage)||!cfg.expectedDaemonId||!cfg.ownershipKey||!cfg.instanceId||!cfg.apiToken||!cfg.signingKey)throw Error('Pinned Executor policy required');
 const docker=new DockerEngine(cfg.dockerSocket);
 const daemon=await docker.call('GET','/info');
-if(daemon.ID!==cfg.expectedDaemonId||!daemon.SecurityOptions?.includes('name=rootless'))throw Error('Wrong daemon or rootful daemon: refusing Executor startup');
-const resourceSupport=daemon.CgroupDriver!=='none'&&daemon.MemoryLimit&&daemon.CpuCfsQuota&&daemon.PidsLimit;
-if(!resourceSupport&&!cfg.allowUnenforcedPrototype)throw Error('Per-Worker cgroup resource enforcement unavailable');
+const daemonPolicy=verifyExecutorDaemon(cfg,daemon);
+const resourceSupport=daemonPolicy.resourceSupport;
+const runtime=workerRuntime(cfg);
 mkdirSync(cfg.workersRoot,{recursive:true,mode:0o755});chmodSync(cfg.workersRoot,0o755);
 mkdirSync(cfg.controlRoot,{recursive:true,mode:0o750});
 const journal=join(cfg.controlRoot,'executor-audit.jsonl');
@@ -32,11 +33,21 @@ function prepare(c,b){
  const root=mountAnchor(cfg.workersRoot,b.workerId);if(existsSync(root))throw reject('UNKNOWN: prepared anchor without confirmed container; manual reconciliation required',409);
  mkdirSync(root,{mode:0o755});
  for(const name of ['workspace','state','bridge'])mkdirSync(join(root,name),{mode:0o700});
- const template=cfg.tenants[c.tenantId].workspaces[c.workspaceRef];tree(template);cpSync(template,join(root,'workspace'),{recursive:true,dereference:false});tree(join(root,'workspace'),p=>chownSync(p,1000,1000));
- for(const name of ['state','bridge'])chownSync(join(root,name),1000,1000);
- const privateConfig={operationContext:!!cfg.operationContext,requireSubmitAndExit:cfg.mcpServerName==='runtime',sourceRoot:'/not-mounted/upstream',distDir:'/poc/runtime',stateDir:'/poc/state',socketPath:'/poc/bridge/worker.sock',apiToken:b.apiToken,apiKey:b.brokerToken,model:cfg.modelNames[c.modelProfile],baseUrl:'http://127.0.0.1:18329/model/v1',workspaces:{project:'/poc/project'},toolPermissions:c.toolPermissions,
+ const template=cfg.tenants[c.tenantId].workspaces[c.workspaceRef];tree(template);cpSync(template,join(root,'workspace'),{recursive:true,dereference:false});
+ if(runtime.python&&!existsSync(join(root,'workspace/input')))mkdirSync(join(root,'workspace/input'),{mode:0o700});
+ tree(join(root,'workspace'),p=>chownSync(p,runtime.uid,runtime.uid));
+ for(const name of ['state','bridge'])chownSync(join(root,name),runtime.supervisorUid??runtime.uid,runtime.supervisorUid??runtime.uid);
+ const privateConfig={operationContext:!!cfg.operationContext,requireSubmitAndExit:cfg.mcpServerName==='runtime',sourceRoot:'/opt/runtime-os/cline/runtime',distDir:'/opt/runtime-os/cline/runtime',stateDir:'/var/lib/runtime-os/coding-node',socketPath:'/run/runtime-os/coding-node/bridge/worker.sock',apiToken:b.apiToken,apiKey:b.brokerToken,model:cfg.modelNames[c.modelProfile],baseUrl:'http://127.0.0.1:18329/model/v1',workspaces:{project:'/workspace'},toolPermissions:c.toolPermissions,
   ...(cfg.tenants[c.tenantId].mcp?{mcpServers:{[cfg.mcpServerName??'tenant_data']:{type:'streamableHttp',url:'http://127.0.0.1:18329/mcp',headers:{Authorization:'Bearer '+b.brokerToken},disabled:false,autoApprove:[]}}}:{})};
- const p=join(root,'config.json');writeFileSync(p,JSON.stringify(privateConfig),{mode:0o440});chownSync(p,0,1000);assertAnchors(cfg.workersRoot,b.workerId);
+ if(c.version===2){
+  privateConfig.requireSubmitAndExit=false;
+  privateConfig.deliveryBinding=c.deliveryBinding;
+  privateConfig.allowDeliveryPreview=true;
+  privateConfig.requireDeliverySelection=true;
+  privateConfig.modelOptions=cfg.modelOptions??{};
+ }
+ if(runtime.python){privateConfig.coreUid=runtime.uid;privateConfig.coreGid=runtime.uid;privateConfig.observeCommands=true;}
+ const p=join(root,'config.json'),mode=runtime.python?0o400:0o440;writeFileSync(p,JSON.stringify(privateConfig),{mode});chmodSync(p,mode);chownSync(p,0,runtime.python?0:runtime.uid);assertAnchors(cfg.workersRoot,b.workerId);
 }
 async function create(c,b){
  validateCreate(b);const built=buildSpec(c,b,cfg);let existing;
@@ -82,7 +93,7 @@ async function route(req,b){
  throw reject('Method not granted',405);
 }
 const server=http.createServer(async(req,res)=>{let code=200,value;try{
- if(req.method==='GET'&&req.url==='/health/live'){value={live:true,daemon:'dedicated-rootless',resourceEnforced:!!resourceSupport,productionReady:false};}
+ if(req.method==='GET'&&req.url==='/health/live'){value={live:true,daemon:daemonPolicy.mode,resourceEnforced:!!resourceSupport,productionReady:false};}
  else{
   const a=Buffer.from(req.headers.authorization??''),e=Buffer.from('Bearer '+cfg.apiToken);if(a.length!==e.length||!timingSafeEqual(a,e))throw reject('Executor service credential rejected',401);
   let size=0;const chunks=[];for await(const b of req){size+=b.length;if(size>32768)throw reject('Request too large',413);chunks.push(b);}let b;try{b=JSON.parse(Buffer.concat(chunks).toString()||'{}');}catch{throw reject('Invalid JSON',400);}value=await route(req,b);
@@ -91,5 +102,5 @@ const server=http.createServer(async(req,res)=>{let code=200,value;try{
 res.writeHead(code,{'content-type':'application/json','cache-control':'no-store'});res.end(JSON.stringify(value));});
 server.requestTimeout=10000;server.headersTimeout=10000;
 if(existsSync(cfg.socketPath))unlinkSync(cfg.socketPath);
-await new Promise((resolve,reject)=>{server.once('error',reject);server.listen(cfg.socketPath,resolve);});chownSync(cfg.socketPath,0,1000);chmodSync(cfg.socketPath,0o660);
-console.log(JSON.stringify({event:'restricted-executor.ready',daemonId:daemon.ID,rootless:true,resourceEnforced:!!resourceSupport,productionReady:false}));
+await new Promise((resolve,reject)=>{server.once('error',reject);server.listen(cfg.socketPath,resolve);});chownSync(cfg.socketPath,0,runtime.uid);chmodSync(cfg.socketPath,0o660);
+console.log(JSON.stringify({event:'restricted-executor.ready',daemonId:daemon.ID,daemon:daemonPolicy.mode,rootless:daemonPolicy.rootless,resourceEnforced:!!resourceSupport,productionReady:false}));

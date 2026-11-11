@@ -24,6 +24,9 @@ import org.springframework.stereotype.Service;
 @Service
 @ConditionalOnProperty(prefix = "chatchat.coding", name = "enabled", havingValue = "true")
 public class CodingEvidenceCollector {
+    private com.chatchat.api.assets.UserAssetService nativeAssets;
+    @org.springframework.beans.factory.annotation.Autowired(required=false)
+    public void setNativeAssets(com.chatchat.api.assets.UserAssetService value){nativeAssets=value;}
     private VisualReportArtifacts visualReports;
     @org.springframework.beans.factory.annotation.Autowired(required=false)
     public void setVisualReports(VisualReportArtifacts value){visualReports=value;}
@@ -385,6 +388,15 @@ public class CodingEvidenceCollector {
         EvidenceRecord record = resolve(scope, taskId, resultRef);
         if (!"CODING_STRUCTURED_DATASET".equals(record.evidenceType())) throw new IllegalArgumentException("Not a structured dataset");
         Map<String, Object> p = record.payload();
+        if("NATIVE_SILO_ROWS".equals(p.get("delivery"))){
+            if(nativeAssets==null)throw new IllegalStateException("Native Silo archive is unavailable");
+            byte[] bytes=nativeAssets.readTask(scope,taskId,(String)p.get("assetId"));
+            if(bytes.length!=((Number)p.get("size")).longValue()||!sha(bytes).equals(p.get("artifactSha256")))throw new SecurityException("Native result archive integrity changed");
+            try{var rows=mapper.readValue(bytes,new com.fasterxml.jackson.core.type.TypeReference<List<Map<String,Object>>>(){});
+                if(rows.size()!=((Number)p.get("rowCount")).longValue())throw new SecurityException("Native row count changed");
+                return new com.chatchat.agents.orchestration.analysis.dataset.InMemoryDatasetHandle(rows);
+            }catch(java.io.IOException invalid){throw new IllegalStateException("Invalid Native result rows",invalid);}
+        }
         if("INLINE_ANALYSIS_REPORT".equals(p.get("delivery"))) {
             var rows=mapper.convertValue(p.get("rows"),new com.fasterxml.jackson.core.type.TypeReference<List<Map<String,Object>>>(){});
             byte[] content=mapperBytes(rows);

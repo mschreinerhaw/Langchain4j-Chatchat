@@ -1,0 +1,8 @@
+{
+  "imageId": "sha256:cb6e8b7fbfbc26088dfdfcbdfd2b2f3f53b7099480dd60228f58dff81b946fb3",
+  "ociManifestDigest": "sha256:0e89df2b625b24fca5b0effa911cb2ea2c25cdd5f8c7c78b1fc6c3ec90148111",
+  "registryRepoDigest": null,
+  "layout": "/srv/cs3-v5-20261111/oci-image",
+  "layerCount": 29,
+  "officialSourceCommit": "a459f1d04dea030833b558be645011ab739c463b"
+}

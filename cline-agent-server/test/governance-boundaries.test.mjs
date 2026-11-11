@@ -16,6 +16,14 @@ test('session authorization binds tenant, user, task, immutable grant and revoca
  assert.throws(()=>authorizeSession({...contract,dataPermissions:['dataset-b']},r),{status:409});
  assert.throws(()=>authorizeSession(contract,{...r,revoked:true}),{status:403});
 });
+
+test('native Silo grant binds the trusted snapshot and delivery identity without caller paths',()=>{
+ const bound={...contract,version:2,runtimeProfile:'native-python-silo-v1',deliveryBinding:{tenantId:contract.tenantId,taskId:contract.taskId,runId:'run-a',inputSnapshotVersion:'snapshot-immutable'}};
+ assert.deepEqual(verifyContract(signContract(bound,key),key),bound);
+ for(const delta of [{tenantId:'other'}, {taskId:'other'}, {runId:'../other'}, {inputSnapshotVersion:''}, {workspace:'/host'}])
+  assert.throws(()=>verifyContract(signContract({...bound,deliveryBinding:{...bound.deliveryBinding,...delta}},key),key),{status:401});
+ assert.throws(()=>verifyContract(signContract({...bound,version:1},key),key),{status:401});
+});
 test('worker launch provides no network, host ports, docker socket or shared tenant state',()=>{
  const a=workerContainerSpec({image:'sha256:pin',root:'/isolated/a',workerId:'a',sessionId:'sa',tenantId:'ta',memoryBytes:1024,cpuSet:'8,9'});
  const b=workerContainerSpec({image:'sha256:pin',root:'/isolated/b',workerId:'b',sessionId:'sb',tenantId:'tb',memoryBytes:1024,cpuSet:'10,11'});

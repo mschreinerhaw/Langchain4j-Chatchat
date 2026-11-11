@@ -17,7 +17,7 @@ export function executionMetrics({outcome,modelReceipts,executions,events,starte
   cost:outcome?.usage?.meteringComplete===true?consumed?.costAmount:null,currency:outcome?.usage?.costCurrency??null,
   toolCalls:Array.isArray(events)?new Set(events.filter(x=>x.type==='tool.started').map((x,i)=>x.payload?.toolCallId??x.id??i)).size:known(consumed?.toolCalls)?consumed.toolCalls:null,
   managedToolCalls:known(consumed?.toolCalls)?consumed.toolCalls:null,
-  automaticRepairs:repairs.length?Math.max(...repairs):outcome?0:null,elapsedMillis:known(elapsed)?elapsed:null,
+  automaticRepairs:repairs.length?Math.max(...repairs):null,elapsedMillis:known(elapsed)?elapsed:null,
   phase:outcome?.endedAt?outcome.status:executions?.at(-1)?.status==='RUNNING'?'PYTHON_RUNNING':receipts?.at(-1)?.state==='STARTED'?'MODEL_RUNNING':outcome?.status??events?.at(-1)?.type??null,
   interruptionReason:outcome?.endedAt&&outcome.reasonCode!=='NONE'?outcome.reasonCode:null,
   archivedFiles:Array.isArray(assets)?assets.length:null,

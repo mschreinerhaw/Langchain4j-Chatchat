@@ -27,7 +27,7 @@ c['services']['gateway']['healthcheck']['test']=['CMD-SHELL',"curl --silent --sh
 mount={'type':'bind','source':str(connection),'target':'/run/secrets/native-coding-connection.json','read_only':True,'bind':{'create_host_path':False}}
 api['volumes']=[v for v in api['volumes'] if not isinstance(v,dict) or v.get('target')!=mount['target']]+[mount]
 text=gateway.read_text();text=text.replace('set $monitor_endpoint api:8792;','set $monitor_endpoint api:8080;')
-start=text.index('    # Native monitor API routes');end=text.index('    location = / {',start)
+start=text.index('    # Native monitor API routes') if '    # Native monitor API routes' in text else text.index('    # Node management');end=text.index('    location = / {',start)
 text=text[:start]+'    # Node management APIs are not exposed through the business gateway.\n    location ~ ^/api/(login|logout|config|sessions|dispatches|inputs|assets)(/|$) { return 404; }\n'+text[end:]
 text=text.replace('proxy_pass http://$monitor_endpoint;','proxy_pass http://$api_endpoint;')
 # Compatibility URLs lead to the Java monitor, never the removed Node page.

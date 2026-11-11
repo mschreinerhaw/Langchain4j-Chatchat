@@ -35,6 +35,8 @@ public final class ClineContextAnswerService implements CodingAnswerPort {
     @org.springframework.beans.factory.annotation.Autowired
     private org.springframework.beans.factory.ObjectProvider<com.chatchat.api.runtime.coding.knowledge.CodingKnowledgeService> knowledgeTools;
     @org.springframework.beans.factory.annotation.Autowired(required=false)
+    private LocalMarketWorkflow localMarketWorkflow;
+    @org.springframework.beans.factory.annotation.Autowired(required=false)
     private com.chatchat.api.runtime.coding.knowledge.KnowledgeDisclosureGuard memoryProvenance;
     @Override public boolean knowledgeExplorationAvailable(){return knowledgeTools!=null && knowledgeTools.getIfAvailable()!=null && codingServices.get()!=null;}
 
@@ -179,6 +181,8 @@ public final class ClineContextAnswerService implements CodingAnswerPort {
             Map.of("eventKind", "SQL_INTENT_IDENTIFIED", "sqlIntent", sqlIntent == null ? "UNCLASSIFIED" : sqlIntent.name(),
                 "sourceKind", "SQL_SOURCE", "sourceCharacters", sqlSource.length(), "sqlExecuted", false)));
         sources.put(reference, new Dataset(reference, contextMetadata(inputKind), List.of(input)));
+        boolean marketWorkflow=localMarketWorkflow!=null&&localMarketWorkflow.requested(request.getQuery());
+        if(marketWorkflow){phase(runId,"LOCAL_MARKET_LOADING","RUNNING");sources.putAll(localMarketWorkflow.supply(request.getTenantId(),request.getUserId(),agent==null?null:agent.id(),request.getQuery()));phase(runId,"LOCAL_MARKET_LOADING","COMPLETED");}
         if (withAttachments) {
             phase(runId, "FILE_REFERENCES_PREPARING", "RUNNING");
             var manifest = describeFiles(request);
@@ -227,6 +231,7 @@ public final class ClineContextAnswerService implements CodingAnswerPort {
             + "Read the complete user objective from the immutable context input " + reference + ". "
             + "SQL over attached files may use in-memory SQLite with explicit table mappings. Never connect to an external source. ";
         boolean conditionalVisual=taskType==null&&com.chatchat.common.runtime.coding.VisualReportMode.active(attrs);
+        if(marketWorkflow)instruction="Analyze the user's objective using the delivered authorized local market snapshots. The market snapshot JSONL files contain collected observations with source/day metadata; they are not live quotes. Resolve the requested security using the directory and actual rows. If no code was resolved, inspect the supplied full source/day files yourself; never invent a match or substitute another security. Disclose missing data, date coverage, units and adjustment basis. Produce the declared report row and cite the exact delivered dataset references. The separate analysis-materials input contains the user objective and untrusted context.\n"+request.getQuery();
         boolean resourceReport=Boolean.TRUE.equals(attrs.get("resourceExplorationConfigured"));
         boolean visual=conditionalVisual||com.chatchat.common.runtime.coding.VisualReportMode.analysisRequested(attrs);
         if(visual)instruction+="\n"+(conditionalVisual?"This context-only route has no preclassified analytical task. The report preference NEVER changes the user's task. "
@@ -244,7 +249,7 @@ public final class ClineContextAnswerService implements CodingAnswerPort {
             phase(runId, "CLINE_SUBMITTING", "RUNNING", inputKind);
             var receipt = coding.executeObserved(invocation, Map.of("operation", "RUN_CODING",
                 "requestId", codingRequestId, "datasetReferences", List.copyOf(sources.keySet()), "instruction", instruction,
-                "outputSchema", CodingAnalysisService.primaryReportSchema(visual,!conditionalVisual&&!resourceReport), "reviewResult", true), sources,
+                "outputSchema", CodingAnalysisService.authorizedReportSchema(CodingAnalysisService.primaryReportSchema(visual,!conditionalVisual&&!resourceReport),authorizedReferences), "reviewResult", true), sources,
                 event -> {
                     if ("TASK_CREATED".equals(event.get("codingEventType"))) phase(runId, "CLINE_SUBMITTING", "COMPLETED", inputKind);
                     runs.recordObservation(runId, new AgentObservation("coding", "coding_agent", "Coding task progress", event));

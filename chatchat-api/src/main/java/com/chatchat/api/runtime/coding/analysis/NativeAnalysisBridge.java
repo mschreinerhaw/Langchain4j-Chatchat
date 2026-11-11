@@ -25,14 +25,14 @@ public final class NativeAnalysisBridge {
     public Map<String,Object> primary(AnalysisCoverageCoordinator.Request context,Map<String,Dataset> sources,java.util.function.Consumer<Map<String,Object>> observer){
         var owner=context.isolationScope();var scope=new KernelDataScope(owner.tenantId(),owner.userId(),owner.requestId(),owner.conversationId(),owner.runId(),null,Map.of());
         boolean visual=VisualReportMode.analysisRequested(context.runtimeAttributes());
-        return execute(context,scope,visual?"primary-data-analysis-visual-v1":"primary-data-analysis-v1",context.query(),CodingAnalysisService.primaryReportSchema(false),sources,observer,visual);
+        return execute(context,scope,visual?"primary-data-analysis-visual-v1":"primary-data-analysis-v1",context.query(),CodingAnalysisService.authorizedReportSchema(CodingAnalysisService.primaryReportSchema(false),sources.keySet()),sources,observer,visual);
     }
     public Map<String,Object> execute(AnalysisCoverageCoordinator.Request context,KernelDataScope scope,String request,String objective,Map<String,Object> schema,Map<String,Dataset> sources,java.util.function.Consumer<Map<String,Object>> observer,boolean visual){
         if(sources==null||sources.isEmpty())throw new IllegalArgumentException("Authorized data or an explicit supply-status receipt required");
         if(sources.size()>com.chatchat.common.runtime.coding.CodingProtocol.MAX_ANALYSIS_SOURCES)throw new IllegalArgumentException("Authorized source count exceeds Runtime policy");
         for(String part:List.of(scope.tenantId(),scope.userId(),scope.runId()))if(part.isBlank()||Set.of("anonymous","default","unknown-request").contains(part))throw new SecurityException("Authenticated Runtime scope required");
         return identity.as(scope,Set.of(READ,SUBMIT,STOP),()->{
-            var files=new ArrayList<String>();long bytes=0,rows=0;int index=0;
+            var files=new ArrayList<String>();var authorizedReferences=sources.values().stream().map(Dataset::reference).toList();long bytes=0,rows=0;int index=0;
             String snapshotTask=NativeCodingTasks.taskId(scope,request);
             for(var source:sources.values()){
                 var output=new ByteArrayOutputStream();long offset=0;
@@ -58,7 +58,8 @@ public final class NativeAnalysisBridge {
             String model=Objects.toString(context.metadata().get("modelName"),null);
             var submitted=coding.submit(scope,request,files,instruction,model,types,schema);
             observer.accept(Map.of("eventKind","CODING_TASK_SUBMITTED","taskId",submitted.taskId(),"source","JAVA_NATIVE_S3"));
-            var result=coding.await(scope,submitted.taskId(),context.cancellationCheck());
+            var result=coding.await(scope,submitted.taskId(),context.cancellationCheck(),observer);
+            result.put("authorizedDatasetReferences",authorizedReferences);
             if(result.get("datasetReference") instanceof String ref&&result.get("results") instanceof List<?> raw){
                 @SuppressWarnings("unchecked") var values=(List<Map<String,Object>>)raw;
                 sources.put(ref,new Dataset(ref,Map.of("taskId",submitted.taskId(),"validationScope","STRUCTURAL_AND_OBJECT_INTEGRITY","businessEvaluated",false),values));

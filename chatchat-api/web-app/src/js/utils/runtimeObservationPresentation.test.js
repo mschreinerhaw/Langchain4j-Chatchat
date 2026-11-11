@@ -6,6 +6,31 @@ import {
   runtimeObservationPresentation, businessEventPresentation, businessTaskProgress, executionWorkbench, userEventTimeline
 } from "./runtimeObservationPresentation.js";
 
+it('projects committed Native receipts using their real operation identity and clock without counting replays twice',()=>{
+  const native=(sequence,normalizedType,receipt)=>({sequence,eventId:`parent-${sequence}`,type:'RUNTIME_OBSERVATION',createTime:1000+sequence*1000,payload:{metadata:{eventKind:'CODING_TRACE',codingEventType:'RECOVERY_RECONCILED',payload:{normalizedType,...receipt}}}});
+  const events=[native(1,'MODEL_REQUEST_STARTED',{requestId:'provider-a',startedAt:2000}),native(2,'MODEL_REQUEST_COMPLETED',{requestId:'provider-a',startedAt:2000,finishedAt:4000,durationMs:2000}),native(3,'TOOL_STARTED',{tool:'read_files',toolCallId:'read-a'}),native(4,'TOOL_COMPLETED',{tool:'read_files',toolCallId:'read-a'}),native(5,'COMMAND_STARTED',{operationId:'cmd-native-a',startedAt:6000})];
+  const view=executionWorkbench([...events,events[1]],{canonicalState:'RUNNING',executionSnapshot:{createTime:1000}},9000);
+  expect(view.status).toBe('active');expect(view.completedOperations).toBe(2);expect(view.phaseTitle).toBe('编码分析');expect(view.elapsedLabel).toBe('00:08');expect(view.phaseElapsedLabel).toBe('00:03');
+  expect(view.currentActivity).toBe('分析计算正在执行');expect(view.timings.find(t=>t.kind==='MODEL').durationLabel).toBe('00:02');
+});
+
+it('keeps a running parent active while explicitly showing that independent operation receipts have not arrived',()=>{
+  const view=executionWorkbench([],{canonicalState:'RUNNING',executionSnapshot:{createTime:1000}},6000);
+  expect(view.status).toBe('active');expect(view.completedOperations).toBe(0);expect(view.currentEvidenceLabel).toBe('尚无独立操作确认');expect(view.elapsedLabel).toBe('00:05');
+});
+
+it('does not present missing historical Native receipts as zero executed operations',()=>{
+  const dispatch={sequence:1,type:'RUNTIME_OBSERVATION',createTime:1000,payload:{metadata:{eventKind:'CODING_TASK_SUBMITTED',taskId:'native-existing'}}};
+  const view=executionWorkbench([dispatch],{canonicalState:'RUNNING'},5000);
+  expect(view.completedOperations).toBeNull();expect(view.status).toBe('active');expect(view.alerts.join(' ')).toContain('原生执行回执尚未同步');
+});
+
+it('reads Native identity from compacted persisted JSON even when workerActivity contains only timing fields',()=>{
+  const event={sequence:22,type:'RUNTIME_OBSERVATION',createTime:4000,payload:JSON.stringify({payload:{metadata:{eventKind:'CODING_TRACE',codingEventType:'RECOVERY_RECONCILED',payload:{normalizedType:'MODEL_REQUEST_COMPLETED',requestId:'real-request',status:'SUCCEEDED',startedAt:2000,finishedAt:4000},workerActivity:{status:'SUCCEEDED',durationMs:2000}}}})};
+  const view=executionWorkbench([event],{canonicalState:'EXECUTING',executionSnapshot:{createTime:1000}},5000);
+  expect(view.completedOperations).toBe(1);expect(view.status).toBe('active');expect(view.allActivities[0].operationId).toBe('real-request');
+});
+
 it('returns to data exploration after coding, preserving actual phase duration and raw receipts',()=>{
   const events=[{sequence:1,type:'RUNTIME_OBSERVATION',createTime:1000,payload:{metadata:{eventKind:'CODING_TRACE',
     workerActivity:{type:'CODE_READY',scriptVersion:1}}}},

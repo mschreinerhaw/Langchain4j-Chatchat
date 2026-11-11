@@ -1,0 +1,90 @@
+{
+  "passed": true,
+  "snapshots": [
+    {
+      "reference": "market:snapshot:margin_trade_daily:26:2026-11-10",
+      "rows": 101,
+      "size": 117651,
+      "sha256": "e53cdcdaf471bc61f90a5bba13dcaed13b1c35dbecae749d8715aa5a1692cec1",
+      "targetNameMatches": 0
+    },
+    {
+      "reference": "market:snapshot:market_statistics_daily:37:2026-11-11",
+      "rows": 15,
+      "size": 21958,
+      "sha256": "ad7565e64d04d7f0230e2c3aa40c9a4a755f9d3fbe449808bf9b29bdef9c1f0e",
+      "targetNameMatches": 0
+    },
+    {
+      "reference": "market:snapshot:bond_collateral_monthly:36:2026-10-31",
+      "rows": 7,
+      "size": 6859,
+      "sha256": "edc2bff838f3a114202852454f54fbe668bf55c17caf6d3b4212cc0ca4a684c1",
+      "targetNameMatches": 0
+    },
+    {
+      "reference": "market:snapshot:bond_settlement_daily:36:2026-11-11",
+      "rows": 6,
+      "size": 5652,
+      "sha256": "dbe90b1f0ef4087ab2f15a4fae1e6319f5e607d422bde22eb8fb08b51b8b78a5",
+      "targetNameMatches": 0
+    },
+    {
+      "reference": "market:snapshot:bond_counter_quote_daily:36:2026-11-11",
+      "rows": 21,
+      "size": 22493,
+      "sha256": "5f11be08b097529340263c1a0b31a8a0bc2f6973ef85087b559379cde6fd64aa",
+      "targetNameMatches": 0
+    },
+    {
+      "reference": "market:snapshot:bond_yield_curve_daily:36:2026-11-11",
+      "rows": 505,
+      "size": 414460,
+      "sha256": "06814326bd5ce61b68f52364be17db4b84ab5837892ea609493407eb0870218d",
+      "targetNameMatches": 0
+    },
+    {
+      "reference": "market:snapshot:bond_market_overview_monthly:36:2026-09-30",
+      "rows": 8,
+      "size": 7391,
+      "sha256": "7d3a3d4db53ab3f9ac065c043a300f5a21c0e0dec74953defb2b9a6084a632b5",
+      "targetNameMatches": 0
+    },
+    {
+      "reference": "market:snapshot:market_quote_daily:37:2026-11-11",
+      "rows": 2360,
+      "size": 2387161,
+      "sha256": "279b5148d518f6464922c9392171ab07acdc2eaf74d15d7da1aa1e1f8f19f2ce",
+      "targetNameMatches": 1
+    },
+    {
+      "reference": "market:snapshot:stock_dividend_event:26:2026-11-10",
+      "rows": 2,
+      "size": 2200,
+      "sha256": "85dca2ca0f15aa97e6593627e0d7605a2937e649c118c838807ad9d502880496",
+      "targetNameMatches": 0
+    },
+    {
+      "reference": "market:snapshot:bond_market_daily:37:2026-11-10",
+      "rows": 17,
+      "size": 13526,
+      "sha256": "9f91f6518f7688703db033afa193c4084554fae65f1b846dac58e60b4b88dcf1",
+      "targetNameMatches": 0
+    },
+    {
+      "reference": "market:snapshot:bond_market_daily:38:2026-11-10",
+      "rows": 19,
+      "size": 15631,
+      "sha256": "4528cfc38e683fdfab7d9e81423ea65f2a414865f2f4eb7117ab64bc2767b753",
+      "targetNameMatches": 0
+    },
+    {
+      "reference": "market:snapshot:etf_scale_daily:28:2026-11-10",
+      "rows": 923,
+      "size": 665328,
+      "sha256": "14be0271c893e4cdc401ef8e3bf14ab023c435e05fe563f23ae448f9e9f7cfab",
+      "targetNameMatches": 0
+    }
+  ],
+  "totalRows": 3984
+}

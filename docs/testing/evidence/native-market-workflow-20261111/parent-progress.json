@@ -1,0 +1,10 @@
+{
+  "passed": true,
+  "parentState": "SUCCEEDED",
+  "nativeReceipts": 109,
+  "modelRequestsCompleted": 9,
+  "nativeToolsCompleted": 11,
+  "parentTaskId": "7f7d6f1e-aa7a-3eb6-b64d-8eb583a9e253",
+  "attemptId": "att-1-89d0e318-e691-4ed0-ac73-a142909aa519",
+  "liveParentEventBridge": true
+}

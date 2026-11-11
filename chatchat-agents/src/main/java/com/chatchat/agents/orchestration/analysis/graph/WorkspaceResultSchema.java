@@ -5,7 +5,7 @@ import java.util.*;
 
 /** Explicit JSON Schema subset for typed batch results. Unsupported contracts fail closed. */
 public final class WorkspaceResultSchema {
-    private static final Set<String> KEYS = Set.of("type", "properties", "required", "items", "enum", "additionalProperties", "description", "title");
+    private static final Set<String> KEYS = Set.of("type", "properties", "required", "items", "minItems", "enum", "additionalProperties", "description", "title");
     public static void checkContract(Map<String,Object> schema) {
         checkContract(schema, 0);
     }
@@ -15,6 +15,7 @@ public final class WorkspaceResultSchema {
         if (!(schema.get("type") instanceof String type) || !Set.of("object","array","string","number","integer","boolean","null").contains(type))
             throw new IllegalArgumentException("outputSchema requires a supported type");
         if (schema.containsKey("enum") && !(schema.get("enum") instanceof List<?>)) throw new IllegalArgumentException("enum must be an array");
+        if(schema.containsKey("minItems")&&(!"array".equals(type)||!(schema.get("minItems") instanceof Number n)||n.doubleValue()<0||!Double.isFinite(n.doubleValue())||n.doubleValue()!=n.longValue()))throw new IllegalArgumentException("minItems must be a nonnegative integer on an array");
         if ("object".equals(type)) {
             Map<String,Object> properties = object(schema.getOrDefault("properties", Map.of()));
             if (properties.size() > 128) throw new IllegalArgumentException("Too many output properties");
@@ -48,7 +49,10 @@ public final class WorkspaceResultSchema {
                 throw new IllegalArgumentException("Output has undeclared fields");
             values.forEach((key,item) -> { if (properties.containsKey(key)) validate(item, object(properties.get(key))); });
         }
-        if (value instanceof List<?> values && "array".equals(type)) values.forEach(item -> validate(item, object(schema.get("items"))));
+        if (value instanceof List<?> values && "array".equals(type)) {
+            if(schema.get("minItems") instanceof Number minimum&&values.size()<minimum.longValue())throw new IllegalArgumentException("Output array has fewer than minItems");
+            values.forEach(item -> validate(item, object(schema.get("items"))));
+        }
     }
     public static Map<String,Object> object(Object value) {
         if (!(value instanceof Map<?,?> raw)) throw new IllegalArgumentException("Expected an object");

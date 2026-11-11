@@ -180,6 +180,10 @@ public final class NativeS3CodingAdapter implements CodingAgentSPI {
         }
         var proof=new LinkedHashMap<String,Object>();proof.put("taskId",r.c.taskId());proof.put("sessionId",state(r,BINDING).path("sessionId").asText());proof.put("operationId",operation==null?"observation":operation);proof.put("stopped",complete);proof.put("source",channel.equals("provider")?"PROVIDER_HTTP_OBSERVATION":"NATIVE_ROOT_HOST_OBSERVATION");proof.put("nativeEventId",event.path("eventId").asText());proof.put("rawAssetId",rawAsset);proof.put("sha256",evidence.hash(event));
         String ref=evidence.register(r.c,NativeS3ExecutionProofVerifier.TYPE,channel+":"+event.path("eventId").asText(),proof,List.of(r.c.inputSnapshotRef()));
+        if(operation!=null)projected.put("operationId",operation);
+        if(p.hasNonNull("toolName"))projected.put("tool",p.path("toolName").asText());
+        for(String field:List.of("status","startedAt","finishedAt","durationMs"))if(p.hasNonNull(field))projected.put(field,json.convertValue(p.get(field),Object.class));
+        if(event.hasNonNull("timestamp"))projected.put("nativeOccurredAt",event.path("timestamp").asText());
         JsonNode telemetry=group==null?null:p.deepCopy();
         if("execution".equals(group)){
             var commandRecord=(ObjectNode)telemetry;commandRecord.put("command",summary);commandRecord.put("detailAssetId",rawAsset);commandRecord.put("nativeEventId",event.path("eventId").asText());

@@ -6,6 +6,9 @@ function objectValue(value) {
   return value && typeof value === "object" && !Array.isArray(value) ? value : {};
 }
 
+function workerReceipt(metadata){return {...objectValue(metadata.payload),...objectValue(metadata.workerActivity)};}
+function eventMetadata(event){let p=event.payload||{};try{if(typeof p==='string')p=JSON.parse(p);}catch{return {}; }return objectValue(objectValue(p.payload||p).metadata);}
+
 const BUSINESS_STEPS = ['需求理解', '计划生成', '数据探索', '编码分析', '结果交付'];
 const STOPPED = new Set(['error', 'cancelled', 'timeout', 'empty']);
 function businessState(state) {
@@ -46,10 +49,11 @@ const OPERATION_LABELS = {
   VALIDATION: ['正在校验结果产物', '结果校验操作已结束'], PLAN: ['正在生成执行计划', '执行计划已生成'],
   KNOWLEDGE: ['正在检索与阅读授权文档', '文档探索已完成'],
   NEWS: ['正在查询与阅读财经新闻', '新闻探索已完成'],
-  MARKET: ['正在获取金融行情与指标', '金融数据探索已完成']
+  MARKET: ['正在获取金融行情与指标', '金融数据探索已完成'],
+  TOOL: ['原生工具正在执行', '原生工具已返回']
 };
 function executionActivity(event, runtime, metadata) {
-  const worker = objectValue(metadata.workerActivity || metadata.payload);
+  const worker = workerReceipt(metadata);
   const kind = upper(metadata.eventKind), type = upper(event.type), codingType = upper(metadata.codingEventType);
   const workerType = upper(worker.type), stage = upper(metadata.stage || runtime.stage);
   let category, state, identity, phase;
@@ -57,7 +61,21 @@ function executionActivity(event, runtime, metadata) {
   const observedAt = moment(metadata.observedAt || worker.timestamp || metadata.occurredAt || event.createTime || event.timestamp);
   const owner = metadata.taskId || event.runId || event.attemptId || 'task';
   const operation = metadata.operationId || worker.operationId;
-  if (kind === 'ANALYSIS_OPERATION') {
+  const nativeType=upper(worker.normalizedType);
+  if(kind==='CODING_TRACE' && nativeType){
+    const failed=nativeType==='ERROR_OCCURRED'||['FAILED','ERROR','REJECTED'].includes(upper(worker.status));
+    if(nativeType.startsWith('MODEL_REQUEST_')){
+      category='MODEL';phase=3;identity=worker.requestId||operation;
+      state=failed?'error':nativeType==='MODEL_REQUEST_COMPLETED'?'done':'active';
+    }else if(worker.toolCallId){
+      const tool=worker.tool;
+      category=['read_files','search_codebase'].includes(tool)?'DATA':['editor','apply_patch'].includes(tool)?'PROGRAM':'TOOL';
+      phase=category==='DATA'?2:3;identity=worker.toolCallId;
+      state=failed?'error':nativeType==='TOOL_STARTED'?'active':'done';
+    }else if(operation && (nativeType.startsWith('COMMAND_')||nativeType==='ERROR_OCCURRED')){
+      category='EXECUTION';phase=3;identity=operation;state=failed?'error':nativeType==='COMMAND_COMPLETED'?'done':'active';
+    }else return null;
+  }else if (kind === 'ANALYSIS_OPERATION') {
     category = 'EXECUTION'; phase = 3; identity = operation;
     state = metadata.executorStopped ? businessState(status) : metadata.executorConfirmed ? 'active' : 'waiting';
     if (metadata.executorStopped && state === 'active') state = 'waiting';
@@ -136,6 +154,8 @@ export function businessEventPresentation(event = {}) {
     ...(activity ? {activity} : {}),
     ...(metadata.planningOwner ? {planningOwner:metadata.planningOwner} : {}),
     reason: STOPPED.has(status) ? businessReason(reason, status) : '' });
+  if(kind==='CODING_TRACE'&&workerReceipt(metadata).normalizedType&&activity)
+    return result(activity.phase,activity.state);
   if (['RECOVERY_RECONCILED', 'BUDGET_UPDATED'].includes(codingType || type)) {
     return activity ? result(activity.phase, stopped ? state : 'active') : stopped ? result(3) : null;
   }
@@ -151,7 +171,7 @@ export function businessEventPresentation(event = {}) {
   if (type === 'STATUS' || type === 'HEARTBEAT') return stopped ? result(null, state, true) : null;
   if (['NEEDS_CONFIRMATION', 'RUNTIME_CONFIRMATION'].includes(type)) return result(null, 'waiting');
   if (kind === 'CODING_TRACE') {
-    const workerType=upper(objectValue(metadata.workerActivity || metadata.payload).type);
+    const workerType=upper(workerReceipt(metadata).type);
     if(workerType==='PLAN_READY')return result(1,'done');
     if (['MODEL_USAGE','MODEL_TIMING','TOOL_TIMING'].includes(workerType)) return activity ? result(null) : null;
     if (codingType === 'VALIDATION_RECORDED') return result(4, stopped ? state : 'active');
@@ -199,7 +219,7 @@ export function userEventTimeline(events = []) {
     let payload=event.payload||{};
     try { if(typeof payload==='string')payload=JSON.parse(payload); } catch { payload={}; }
     const runtime=objectValue(payload.payload||payload),metadata=objectValue(runtime.metadata);
-    const worker=objectValue(metadata.workerActivity||metadata.payload),type=upper(event.type);
+    const worker=workerReceipt(metadata),type=upper(event.type);
     const projection=businessEventPresentation(event),activity=projection?.activity;
     const denied=['AUTHORIZATION_DENIED','PERMISSION_DENIED'].includes(type)
       || ['AUTHORIZATION_DENIED','PERMISSION_DENIED'].includes(upper(metadata.reasonCode||event.errorCode));
@@ -281,6 +301,9 @@ export function executionWorkbench(events = [], task = {}, now = Date.now(), pol
       retryAttempt:Math.max(previous?.retryAttempt||0,next.retryAttempt||0)});
   }
   const values=[...operations.values()];
+  const nativeDispatch=events.some(event=>eventMetadata(event).eventKind==='CODING_TASK_SUBMITTED');
+  const nativeReceipts=events.some(event=>Boolean(workerReceipt(eventMetadata(event)).normalizedType));
+  const nativeHistoryMissing=nativeDispatch&&!nativeReceipts;
   // A local operation failure may recover; only an explicit repair receipt for
   // that same operation can clear it. Parent terminal failures remain authoritative.
   const recovered = observation => {
@@ -323,8 +346,9 @@ export function executionWorkbench(events = [], task = {}, now = Date.now(), pol
   let status=progress.terminal ? progress.status : 'active';
   if (!progress.terminal) status=transportStale||executionUnconfirmed?'unconfirmed'
     :currentOperation?.retryAttempt>0 || ['RETRY_WAIT','REPAIRING'].includes(upper(phaseTask.canonicalState || task.status))?'retrying':failedOperation?'attention'
-      :longOperation||repeatedResponses?'long_running':currentOperation?.state||'waiting';
+      :longOperation||repeatedResponses?'long_running':currentOperation?.state||(['RUNNING','EXECUTING','STREAMING','FINALIZING','DELIVERING','EVALUATING','PLANNING','AUTHORIZING','PLAN_VALIDATING'].includes(upper(phaseTask.canonicalState||task.status))?'active':'waiting');
   const alerts=[];
+  if(nativeHistoryMissing)alerts.push('原生执行回执尚未同步，操作数量未提供；可在 Coding 任务监控查看已保存的原始记录。');
   if(task.progressHydrating)alerts.push('正在同步完整运行记录，当前显示上次收到的执行依据。');
   if(task.historyIncomplete)alerts.push('历史执行记录尚未完整同步，统计仅覆盖当前已收到的操作。');
   if(transportStale)alerts.push('状态同步已中断；当前执行状态无法确认。以下保留最后收到的执行记录。');
@@ -354,7 +378,7 @@ export function executionWorkbench(events = [], task = {}, now = Date.now(), pol
       .sort((a,b)=>a[0]-b[0]);
     let sum=0,end=0;
     for(const [start,finish]of intervals){if(finish>Math.max(start,end))sum+=finish-Math.max(start,end);end=Math.max(end,finish);}
-    return {kind,label:{MODEL:'分析响应',PLAN:'需求识别',DATA:'数据操作',PROGRAM:'程序准备',CODE_CHECK:'程序检查',EXECUTION:'计算执行',VALIDATION:'结果校验'}[kind],
+    return {kind,label:{MODEL:'分析响应',PLAN:'需求识别',DATA:'数据操作',PROGRAM:'程序准备',CODE_CHECK:'程序检查',EXECUTION:'计算执行',VALIDATION:'结果校验',TOOL:'原生工具'}[kind],
       durationLabel:intervals.length?executionDuration(sum):'未单独记录'};
   });
   const phase=progress.current;
@@ -368,7 +392,7 @@ export function executionWorkbench(events = [], task = {}, now = Date.now(), pol
     phaseElapsedLabel:phaseStartedAt?executionDuration((progress.terminal?finishedAt||phaseStartedAt:now)-phaseStartedAt):'未单独记录',
     completed:phases.filter(step=>step.status==='done').length,
     phaseTitle:phases[phase-1].title,completedLabel:`${String(phases.filter(step=>step.status==='done').length).padStart(2,'0')} / ${String(progress.total).padStart(2,'0')}`,
-    completedOperations:values.filter(operation=>operation.state==='done').length,
+    completedOperations:nativeHistoryMissing?null:values.filter(operation=>operation.state==='done').length,
     elapsedLabel:executionDuration(elapsedMs),activities:rows.slice(0,6),allActivities:rows,timings,alerts,
     currentActivity:rows.find(operation=>operation.id===currentOperation?.id)?.title|| (progress.terminal?'本次任务已结束':'等待新的执行状态'),
     currentEvidenceLabel:currentOperation?.timeBasis==='OBSERVED_STATE'?`最近执行确认：${executionDuration(now-currentOperation.lastSeenAt)} 前`

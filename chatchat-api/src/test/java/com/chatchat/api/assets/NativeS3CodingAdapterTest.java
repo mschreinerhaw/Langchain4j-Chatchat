@@ -70,6 +70,11 @@ class NativeS3CodingAdapterTest {
         CodingTaskOutcome result=null;for(int i=0;i<100;i++){result=authorized(()->tasks.get(fixture.scope,"native-cancel"));if(result.status().terminal())break;Thread.sleep(100);}
         assertThat(result.status()).isEqualTo(CodingTaskOutcome.Status.CANCELLED);assertThat(result.executionControl().executorStopped()).isTrue();
         assertThat(result.resultDatasetRef()).isNull();assertThat(System.nanoTime()).isGreaterThanOrEqualTo(stopReadyAt);
+        var facade=new NativeCodingTasks(capture,adapter,new NativeS3Settings(directory.resolve("connection.json").toString(),json),identity,fixture.assets,null,tasks);
+        var traces=new ArrayList<Map<String,Object>>();var receipt=authorized(()->facade.await(fixture.scope,"native-cancel",()->false,traces::add));
+        var committed=authorized(()->tasks.events(fixture.scope,"native-cancel",0,128));
+        assertThat(traces).hasSize(committed.size());assertThat(traces.stream().map(t->t.get("eventId"))).containsExactlyElementsOf(committed.stream().map(CodingExecutionEvent::eventId).toList());
+        assertThat(receipt.get("analysisEvents")).asList().isNotEmpty();assertThat(receipt.get("status")).isEqualTo("CANCELLED");
     }
     private void node(HttpExchange exchange)throws java.io.IOException{
         try{

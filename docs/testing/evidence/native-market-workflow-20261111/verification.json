@@ -1,0 +1,47 @@
+{
+  "passed": true,
+  "deployedApiImage": "runtime-os-api:integration-native-market-20261111-r2",
+  "imageId": "sha256:e53b354c8697f21245df39e815de5f275d517bd67d013a6389bafde0f3608341",
+  "javaTestsPassed": 99,
+  "frontendTestsPassed": 107,
+  "stage": {
+    "passed": true,
+    "parentState": "PARTIAL",
+    "nativeReceipts": 131,
+    "modelRequestsCompleted": 13,
+    "nativeToolsCompleted": 11,
+    "parentTaskId": "b847aeea-39f4-352b-9d95-aa2372c1998d",
+    "attemptId": "att-1-cbf02ca2-ca47-4439-a282-25075708b57b",
+    "liveParentEventBridge": true
+  },
+  "frontend": {
+    "passed": true,
+    "status": "partial",
+    "completedOperations": 33,
+    "elapsed": "04:00",
+    "phaseElapsed": "00:00",
+    "currentPhase": "缁撴灉浜や粯",
+    "eventCount": 159
+  },
+  "candidateInputs": {
+    "passed": true,
+    "marketFilesDelivered": true,
+    "rows": 3984,
+    "snapshotCount": 12,
+    "parentStatus": "PARTIAL",
+    "scope": "Data supply, real Cline execution and honest partial completion; not full numeric business acceptance",
+    "authorizationRejection": false,
+    "modelRequestsCompleted": 15
+  },
+  "formalRelease": false,
+  "preservedFailures": [
+    "Unsupported CHAT mode in initial test client",
+    "Missing Native parent event bridge",
+    "Authorized report references rejected after seal before schema fix",
+    "Compressed workerActivity omitted native receipt identity before merge fix"
+  ],
+  "remainingLimitations": [
+    "Snapshots use the latest collected source/day; no claim of live prices or complete historical coverage",
+    "Original failed task remains failed; historical receipts are not fabricated"
+  ]
+}

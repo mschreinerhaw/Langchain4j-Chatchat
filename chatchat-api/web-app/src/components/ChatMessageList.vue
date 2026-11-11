@@ -62,9 +62,9 @@
                 @click="toggleExecutionSteps(message)"><ChevronDown v-if="executionStepsExpanded(message)" :size="16"/><ChevronRight v-else :size="16"/></button>
             </header>
             <dl class="workbench-metrics">
-              <div><dd>{{ workbench.phaseElapsedLabel }}</dd><dt>当前阶段用时</dt></div>
-              <div><dd>{{ workbench.elapsedLabel }}</dd><dt>累计运行</dt></div>
-              <div><dd>{{ workbench.completedOperations }}</dd><dt>已完成操作</dt></div>
+              <div title="从最近一次进入当前阶段的真实事件开始计算"><dd>{{ workbench.phaseElapsedLabel }}</dd><dt>当前阶段用时</dt></div>
+              <div title="从 Runtime 任务创建开始计算，包含授权、准备和子任务执行"><dd>{{ workbench.elapsedLabel }}</dd><dt>任务总用时</dt></div>
+              <div title="仅统计已同步的独立完成回执，缺失历史时显示未同步"><dd>{{ workbench.completedOperations ?? '未同步' }}</dd><dt>已确认操作</dt></div>
             </dl>
             <div class="workbench-phase-heading"><strong>当前阶段：{{ workbench.phaseTitle }}</strong><span>根据实际动作更新，可返回之前阶段</span></div>
             <ol class="workbench-phase-strip" aria-label="业务阶段状态">

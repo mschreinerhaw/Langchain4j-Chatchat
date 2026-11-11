@@ -1,0 +1,10 @@
+{
+  "passed": true,
+  "marketFilesDelivered": true,
+  "rows": 3984,
+  "snapshotCount": 12,
+  "parentStatus": "PARTIAL",
+  "scope": "Data supply, real Cline execution and honest partial completion; not full numeric business acceptance",
+  "authorizationRejection": false,
+  "modelRequestsCompleted": 15
+}

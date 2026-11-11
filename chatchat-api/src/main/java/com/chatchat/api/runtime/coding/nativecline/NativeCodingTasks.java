@@ -23,8 +23,9 @@ public final class NativeCodingTasks {
     private final CodingInvocationContext identity;
     private final UserAssetService assets;
     private final CodingEvidenceCollector collector;
-    public NativeCodingTasks(NativeSiloTaskService capture,NativeS3CodingAdapter adapter,NativeS3Settings settings,CodingInvocationContext identity,UserAssetService assets,CodingEvidenceCollector collector){
-        this.capture=capture;this.adapter=adapter;this.settings=settings;this.identity=identity;this.assets=assets;this.collector=collector;
+    private final com.chatchat.agents.runtime.coding.DurableCodingTaskService tasks;
+    public NativeCodingTasks(NativeSiloTaskService capture,NativeS3CodingAdapter adapter,NativeS3Settings settings,CodingInvocationContext identity,UserAssetService assets,CodingEvidenceCollector collector,com.chatchat.agents.runtime.coding.DurableCodingTaskService tasks){
+        this.capture=capture;this.adapter=adapter;this.settings=settings;this.identity=identity;this.assets=assets;this.collector=collector;this.tasks=tasks;
     }
     public record Submitted(String taskId,String runId,CodingTaskOutcome outcome){}
     public static String taskId(KernelDataScope scope,String requestId){return "native-"+UserAssetService.hash((scope.tenantId()+"\0"+scope.userId()+"\0"+scope.runId()+"\0"+requestId).getBytes(StandardCharsets.UTF_8));}
@@ -55,13 +56,26 @@ public final class NativeCodingTasks {
     private Map<String,Object> receipt(KernelDataScope scope,String task,CodingTaskOutcome outcome){
         var result=new LinkedHashMap<String,Object>();result.put("operation","RUN_CODING");result.put("taskId",task);result.put("runId",scope.runId());result.put("status",outcome.status().name());result.put("terminal",outcome.status().terminal());result.put("validationStatus",outcome.validationStatus().name());result.put("businessValidationPassed",false);
         result.put("resultAvailable",outcome.resultDatasetRef()!=null);result.put("summary",outcome.summary());result.put("eventCursor",outcome.lastEventSequence());result.put("taskRevision",outcome.revision());result.put("cancellationRequested",outcome.cancellationRequested());result.put("reconciliationRequired",outcome.executionControl().reconciliationRequired());
+        result.put("analysisStartedAt",outcome.startedAt()==null?outcome.createdAt().toString():outcome.startedAt().toString());if(outcome.endedAt()!=null)result.put("analysisFinishedAt",outcome.endedAt().toString());result.put("usage",outcome.usage());result.put("stageSnapshotChecked",outcome.status().terminal());
+        try{result.put("analysisEvents",tasks.events(scope,task,Math.max(0,outcome.lastEventSequence()-256),256).stream().map(event->Map.of("eventId",event.eventId(),"sequence",event.sequence(),"occurredAt",event.occurredAt().toString(),"payload",NativeCodingProgress.trace(event))).toList());result.put("progressHistoryStatus",outcome.lastEventSequence()>256?"RECENT_WINDOW":"AVAILABLE");}
+        catch(CodingContractException compacted){if(compacted.error().code()!=CodingErrorCode.EVENT_CURSOR_EXPIRED)throw compacted;result.put("analysisEvents",List.of());result.put("progressHistoryStatus","COMPACTED");}
         result.put("artifacts",assets.list(UserAssetService.Owner.of(scope),null,task,100).stream().filter(f->Set.of("CODE","ARTIFACT").contains(f.kind())&&scope.runId().equals(f.runId())).toList());
         if(outcome.resultDatasetRef()!=null){var dataset=collector.registeredResult(scope,task,outcome.resultDatasetRef());result.put("datasetReference",dataset.reference());result.put("results",dataset.handle().readPage(0,100).rows());}
         return result;
     }
     public Map<String,Object> await(KernelDataScope scope,String task,BooleanSupplier cancelled){
+        return await(scope,task,cancelled,null);
+    }
+    public Map<String,Object> await(KernelDataScope scope,String task,BooleanSupplier cancelled,java.util.function.Consumer<Map<String,Object>> observer){
+        long cursor=0;
         for(;;){
             var outcome=adapter.get(scope,task);
+            if(observer!=null){
+                try{for(int page=0;page<4;page++){
+                    var events=tasks.events(scope,task,cursor,128);for(var event:events){observer.accept(NativeCodingProgress.trace(event));cursor=event.sequence();}if(events.size()<128)break;
+                }}catch(CodingContractException compacted){if(compacted.error().code()!=CodingErrorCode.EVENT_CURSOR_EXPIRED)throw compacted;observer.accept(Map.of("eventKind","CODING_PROGRESS_HISTORY_COMPACTED","taskId",task,"eventCursor",outcome.lastEventSequence()));cursor=Math.max(cursor,outcome.lastEventSequence()-1);}
+                if(outcome.status().terminal()&&cursor<outcome.lastEventSequence())continue;
+            }
             if(outcome.status().terminal()){
                 return receipt(scope,task,outcome);
             }

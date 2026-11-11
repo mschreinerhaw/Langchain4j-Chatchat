@@ -27,7 +27,7 @@ async function request(path,{body,raw=false}={}){
 async function authenticate(){const user=await request('/api/v1/enterprise/auth/me');$('account').textContent=user.displayName||user.username||'已登录';$('login').hidden=true;$('logout').hidden=false;await showList();}
 $('login-form').onsubmit=async event=>{event.preventDefault();notice('');const form=event.currentTarget;try{const user=await request('/api/v1/enterprise/auth/login',{body:{username:form.username.value,password:form.password.value}});form.password.value='';if(!user.token)throw Error('Java 服务未返回登录凭据');token=user.token;sessionStorage.setItem(storage,token);await authenticate();}catch(error){notice(error.message);}};
 $('logout').onclick=()=>signOut('已退出监控页面。');
-function badge(value){return text('span',labels[value]||value,'badge '+value);}
+function badge(value,validation){return text('span',value==='COMPLETED'&&validation==='INCONCLUSIVE'?'\u4ea4\u4ed8\u5df2\u767b\u8bb0':labels[value]||value,'badge '+value);}
 function stopStream(){if(stream)stream.abort();stream=null;clearTimeout(refreshTimer);}
 async function showList(){selected=null;stopStream();$('detail').hidden=true;$('list').hidden=false;await loadList();}
 $('back').onclick=()=>showList().catch(error=>notice(error.message));
@@ -41,7 +41,7 @@ async function loadList(){
  const result=await request(root+'/tasks?'+params);if(selected)return;total=result.total;$('rows').replaceChildren();
  for(const row of result.items){const tr=document.createElement('tr'),title=document.createElement('td'),link=text('button',row.name,'link');link.onclick=()=>openTask(row.runId,row.taskId).catch(error=>notice(error.message));title.append(link,text('small',row.taskId));tr.append(title);
   const times=document.createElement('td');times.append(text('span',date(row.createdAt)),text('small','开始 '+date(row.startedAt)));tr.append(times);
-  const state=document.createElement('td');state.append(badge(row.status),text('small',row.currentAction));tr.append(state,text('td',row.lastError||'—'),text('td',number(row.modelRequests)),text('td',row.tokens==null&&row.confirmedTokenLowerBound>0?'Confirmed '+number(row.confirmedTokenLowerBound):number(row.tokens)),text('td',elapsed(row)));$('rows').append(tr);}
+  const state=document.createElement('td');state.append(badge(row.status,row.validationStatus),text('small',row.currentAction));tr.append(state,text('td',row.lastError||'—'),text('td',number(row.modelRequests)),text('td',row.tokens==null&&row.confirmedTokenLowerBound>0?'Confirmed '+number(row.confirmedTokenLowerBound):number(row.tokens)),text('td',elapsed(row)));$('rows').append(tr);}
  $('empty').hidden=result.items.length>0;$('page').textContent=`第 ${page+1} 页 · 共 ${total} 个任务`;$('previous').disabled=page===0;$('next').disabled=(page+1)*20>=total;
  notice(result.projectionLagging?'监控查询投影正在补读；执行仍由原任务日志控制。':'');
 }
@@ -54,7 +54,7 @@ async function openTask(runId,taskId){
 function facts(values){const dl=document.createElement('dl');dl.className='facts';for(const [name,value]of values){const div=document.createElement('div');div.append(text('dt',name),text('dd',value));dl.append(div);}return dl;}
 async function loadDetail(){
  if(!selected)return;const key=selected.runId+'\0'+selected.taskId,result=await request(route());if(!selected||key!==selected.runId+'\0'+selected.taskId)return;
- selected={...selected,...result};const out=result.outcome;$('overview').replaceChildren(text('h1',result.name),badge(out.status),facts([['Task ID',result.taskId],['Run ID',result.runId],['Cline Session',result.sessionId||'未建立'],['创建时间',date(out.createdAt)],['启动时间',date(out.startedAt)],['已执行时间',elapsed(out)],['Java 验收',out.validationStatus||'NOT_RUN']]));
+ selected={...selected,...result};const out=result.outcome;$('overview').replaceChildren(text('h1',result.name),badge(out.status,out.validationStatus),facts([['Task ID',result.taskId],['Run ID',result.runId],['Cline Session',result.sessionId||'未建立'],['创建时间',date(out.createdAt)],['启动时间',date(out.startedAt)],['已执行时间',elapsed(out)],['Java 验收',out.validationStatus||'NOT_RUN']]));
  if(candidate&&typeof out.fixtureValidationPassed==='boolean')$('overview').append(facts([['Independent fixture verification',out.fixtureValidationPassed?'PASSED':'FAILED']]));
  renderModels(result.modelReceipts);renderExecutions(result.executions);renderRepairs();
 }

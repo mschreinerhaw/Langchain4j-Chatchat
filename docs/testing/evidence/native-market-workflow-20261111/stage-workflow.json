@@ -1,0 +1,10 @@
+{
+  "passed": true,
+  "parentState": "PARTIAL",
+  "nativeReceipts": 131,
+  "modelRequestsCompleted": 13,
+  "nativeToolsCompleted": 11,
+  "parentTaskId": "b847aeea-39f4-352b-9d95-aa2372c1998d",
+  "attemptId": "att-1-cbf02ca2-ca47-4439-a282-25075708b57b",
+  "liveParentEventBridge": true
+}

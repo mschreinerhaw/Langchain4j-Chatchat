@@ -335,6 +335,14 @@ public final class CodingAnalysisService implements AnalysisCodingPort {
         return executeObserved(context, request, sources, observer);
     }
 
+    /** Bind the report citation field to the caller's already authorized input
+     * identities before execution, so rejection can be repaired before seal. */
+    static Map<String,Object> authorizedReportSchema(Map<String,Object> schema,Collection<String> references){
+        var result=new LinkedHashMap<String,Object>(schema);
+        var properties=new LinkedHashMap<String,Object>(WorkspaceResultSchema.object(schema.get("properties")));
+        properties.put("evidenceReferences",Map.of("type","array","minItems",1,"items",Map.of("type","string","enum",references.stream().distinct().sorted().toList())));
+        result.put("properties",properties);return result;
+    }
     static Map<String,Object> primaryReportSchema() {
         return primaryReportSchema(false);
     }

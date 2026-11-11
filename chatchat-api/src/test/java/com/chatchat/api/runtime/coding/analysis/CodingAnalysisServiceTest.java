@@ -963,4 +963,17 @@ class CodingAnalysisServiceTest {
         when(collector.registeredResult(any(),anyString(),eq("runtime-evidence:result")))
             .thenReturn(new Dataset("runtime-evidence:result",Map.of("parentEvidenceIds",List.of("input")),List.of(Map.of("value","computed"))));
     }
+    @org.junit.jupiter.api.Test void reportReferencesAreBoundBeforeSealWithoutMutatingTheSharedSchema(){
+        var source=CodingAnalysisService.primaryReportSchema(false);
+        var bound=CodingAnalysisService.authorizedReportSchema(source,java.util.List.of("authorized-b","authorized-a"));
+        var properties=com.chatchat.agents.orchestration.analysis.graph.WorkspaceResultSchema.object(bound.get("properties"));
+        var field=com.chatchat.agents.orchestration.analysis.graph.WorkspaceResultSchema.object(properties.get("evidenceReferences"));
+        com.chatchat.agents.orchestration.analysis.graph.WorkspaceResultSchema.checkContract(bound);
+        com.chatchat.agents.orchestration.analysis.graph.WorkspaceResultSchema.validate(java.util.List.of("authorized-a"),field);
+        org.assertj.core.api.Assertions.assertThatThrownBy(()->com.chatchat.agents.orchestration.analysis.graph.WorkspaceResultSchema.validate(java.util.List.of("source-1.jsonl"),field)).isInstanceOf(IllegalArgumentException.class);
+        org.assertj.core.api.Assertions.assertThatThrownBy(()->com.chatchat.agents.orchestration.analysis.graph.WorkspaceResultSchema.validate(java.util.List.of(),field)).isInstanceOf(IllegalArgumentException.class);
+        org.assertj.core.api.Assertions.assertThat(bound).isEqualTo(CodingAnalysisService.authorizedReportSchema(source,java.util.List.of("authorized-a","authorized-b")));
+        org.assertj.core.api.Assertions.assertThat(source).isEqualTo(CodingAnalysisService.primaryReportSchema(false));
+    }
+
 }

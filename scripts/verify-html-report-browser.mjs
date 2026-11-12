@@ -21,7 +21,13 @@ try{
  await page.evaluate(async bundle=>{localStorage.setItem('acceptance-token','MUST_NOT_BE_DISCLOSED');const iframe=document.createElement('iframe');iframe.setAttribute('sandbox','allow-scripts');iframe.style.cssText='width:1200px;height:800px';iframe.srcdoc=await window.assemble(bundle);document.body.append(iframe);},bundle);
  const frame=await (await page.waitForSelector('iframe')).contentFrame();await frame.waitForSelector('body');
  if(!process.env.RUNTIME_TEST_HTML_BUNDLE){await frame.locator('#total').filter({hasText:'42'}).waitFor();assert.equal(await frame.locator('#isolation').textContent(),'ISOLATED');await frame.locator('#toggle').click();assert.equal(await frame.locator('#detail').isVisible(),true);assert.equal(await frame.locator('body').evaluate(el=>getComputedStyle(el).color),'rgb(12, 34, 56)');}
- else {await page.waitForTimeout(2000);assert.ok((await frame.locator('body').innerText()).trim().length>20);}
+ else {
+   await page.waitForTimeout(2000);const before=await frame.locator('body').innerText();assert.ok(before.trim().length>20);
+   assert.match(before,/\b42\b/);assert.match(before,/\b14\b/);
+   const button=frame.getByRole('button').filter({hasText:/show|hide|detail|row|原始|明细|详情|数据/i}).first();
+   assert.ok(await button.count(),'Need the requested actual row-detail interaction');await button.click();await page.waitForTimeout(250);
+   assert.notEqual(await frame.locator('body').innerText(),before,'Interaction must change the displayed content');
+ }
  assert.notEqual(await frame.locator('html').getAttribute('data-report-error'),'true');
  await page.screenshot({path:resolve(output,'report.png'),fullPage:true});
  await writeFile(resolve(output,'browser-verification.json'),JSON.stringify({passed:true,realDeliveredBundle:!!process.env.RUNTIME_TEST_HTML_BUNDLE,opaqueSandbox:true,scriptErrorsObserved:false,fixtureInteractionChecked:!process.env.RUNTIME_TEST_HTML_BUNDLE},null,2));

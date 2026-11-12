@@ -1,0 +1,17 @@
+{
+  "http": {
+    "18100/": 200,
+    "18353/monitor/": 200,
+    "18353/api/v1/coding-monitor/tasks": 401
+  },
+  "actualApiImage": "sha256:ce6e5a8856c49442d9d1cd7052f66bcf589685e3221cd48a845c5d7a1fa6b9b5",
+  "rollbackImage": "sha256:4d93d02480199906ff6c5242385702f030b7d44ff9eb99565367eb4c5fbe7d31",
+  "removedValidationContainers": [
+    "45ab8a0f6e1ffc8da2e59b322eb5ddabff877d854f7c54eba63f45b233e9bbc7"
+  ],
+  "intermediateImageTagRemoved": true,
+  "retainedWorkerImage": true,
+  "modelRoutingUnchanged": true,
+  "freeBytesBefore": 51184893952,
+  "freeBytesAfter": 51117551616
+}

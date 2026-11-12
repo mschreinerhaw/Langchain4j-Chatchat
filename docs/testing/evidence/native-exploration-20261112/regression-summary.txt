@@ -1,0 +1,4 @@
+native-exploration-java.log
+[INFO] Tests run: 16, Failures: 0, Errors: 0, Skipped: 0
+[INFO] BUILD SUCCESS
+native-exploration-front-final.log

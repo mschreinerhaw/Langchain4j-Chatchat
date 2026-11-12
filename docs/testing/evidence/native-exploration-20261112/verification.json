@@ -1,0 +1,47 @@
+{
+  "passed": true,
+  "scope": "REAL_DEPLOYED_EXPLORATION_NATIVE_SILO",
+  "startedAt": "2026-11-12T04:44:19.555Z",
+  "workspaceId": "c6e628ea-2fa6-493b-81e7-46b4656c4281",
+  "nodeId": "7c34ca2c-9188-427f-addd-fb64a7217019",
+  "inputSha256": "9efad5e4f6fff39dc9c489cee3e9f2da48313932bc8a2b7a85a9f5c31ad05288",
+  "agentTaskId": "26bad3fa-9139-3300-89b9-6ce1023d06a8",
+  "chartSha256": "f36040e7d738da1a5fcf971c6be81f53fa99192b4ce64a2c61d7cd75f388f367",
+  "eventCount": 132,
+  "nativeTypes": [
+    "OBSERVATION",
+    "MODEL_REQUEST_STARTED",
+    "MODEL_REQUEST_COMPLETED",
+    "TOOL_STARTED",
+    "TOOL_COMPLETED",
+    "ERROR_OCCURRED",
+    "COMMAND_STARTED",
+    "COMMAND_COMPLETED"
+  ],
+  "stages": [
+    {
+      "key": "model",
+      "label": "模型响应",
+      "value": "已响应"
+    },
+    {
+      "key": "data",
+      "label": "数据供给",
+      "value": "已读取"
+    },
+    {
+      "key": "execution",
+      "label": "Python 执行",
+      "value": "进程已结束"
+    },
+    {
+      "key": "report",
+      "label": "报告交付",
+      "value": "已归档"
+    }
+  ],
+  "actualProductionPage": true,
+  "refreshRetainsChartAndEvents": true,
+  "pageErrors": [],
+  "finishedAt": "2026-11-12T04:46:51.645Z"
+}

@@ -1,0 +1,12 @@
+{
+  "passed": true,
+  "input": "SYNTHETIC-category-amount.csv",
+  "expected": {
+    "rows": 3,
+    "total": 47.5,
+    "mean": 15.833333333333334
+  },
+  "reportedMean": 15.8333,
+  "meanTolerance": 0.0001,
+  "scope": "Explicit synthetic fixture statistics only; not a platform business rule"
+}

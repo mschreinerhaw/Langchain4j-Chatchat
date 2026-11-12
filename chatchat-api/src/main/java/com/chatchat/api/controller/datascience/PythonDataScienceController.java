@@ -153,7 +153,7 @@ public class PythonDataScienceController {
     @PostMapping("/assist/plan")
     public ApiResponse<?> assistPlan(@RequestBody PythonCodeAssistantService.AssistRequest body, HttpServletRequest request) {
         return call(() -> {
-            Scope s = scope(request);
+            Scope s = assistantScope(request);
             return codeAssistant.plan(s.tenant(), s.user(), body);
         });
     }
@@ -161,7 +161,7 @@ public class PythonDataScienceController {
     @PostMapping("/assist")
     public ApiResponse<?> assist(@RequestBody PythonCodeAssistantService.AssistRequest body, HttpServletRequest request) {
         return call(() -> {
-            Scope s = scope(request);
+            Scope s = assistantScope(request);
             var answer=codeAssistant.assist(s.tenant(), s.user(), body);
             assistantHistory.record(request,body,answer);
             return answer;
@@ -173,19 +173,19 @@ public class PythonDataScienceController {
     }
     @PostMapping("/assist/coding")
     public ApiResponse<?> startCoding(@RequestBody PythonCodeAssistantService.CodingAssistRequest body,HttpServletRequest request) {
-        return call(()->{Scope s=scope(request);return codeAssistant.startCoding(s.tenant(),s.user(),body);});
+        return call(()->{Scope s=assistantScope(request);return codeAssistant.startCoding(s.tenant(),s.user(),body);});
     }
     @GetMapping("/assist/coding/{task}")
     public ApiResponse<?> codingResult(@PathVariable("task") String task,HttpServletRequest request) {
-        return call(()->{Scope s=scope(request);return codeAssistant.codingResult(s.tenant(),s.user(),task,false);});
+        return call(()->{Scope s=assistantScope(request);return codeAssistant.codingResult(s.tenant(),s.user(),task,false);});
     }
     @PostMapping("/assist/coding/{task}/cancel")
     public ApiResponse<?> cancelCoding(@PathVariable("task") String task,HttpServletRequest request) {
-        return call(()->{Scope s=scope(request);return codeAssistant.codingResult(s.tenant(),s.user(),task,true);});
+        return call(()->{Scope s=assistantScope(request);return codeAssistant.codingResult(s.tenant(),s.user(),task,true);});
     }
     @PostMapping("/assist/coding/{task}/resume")
     public ApiResponse<?> resumeCoding(@PathVariable("task") String task,HttpServletRequest request) {
-        return call(()->{Scope s=scope(request);return codeAssistant.resumeCoding(s.tenant(),s.user(),task);});
+        return call(()->{Scope s=assistantScope(request);return codeAssistant.resumeCoding(s.tenant(),s.user(),task);});
     }
 
     private record AssistSkillOption(String id, String name, String category, String description) { }
@@ -220,6 +220,15 @@ public class PythonDataScienceController {
             Scope s = scope(request);
             return service.importExampleData(s.tenant(), s.user(), id);
         });
+    }
+
+    // Native grants, Skills and model bindings use the authenticated account ID.
+    // Legacy Python asset ownership remains on its existing storage identity.
+    private Scope assistantScope(HttpServletRequest r) {
+        String tenant=attr(r,ApiAuthenticationFilter.CURRENT_TENANT_ID,"");
+        String user=attr(r,ApiAuthenticationFilter.CURRENT_USER_ID,"");
+        if(tenant.isBlank()||user.isBlank())throw new org.springframework.web.server.ResponseStatusException(org.springframework.http.HttpStatus.UNAUTHORIZED,"Authenticated Python assistant identity required");
+        return new Scope(tenant,user);
     }
 
     private Scope scope(HttpServletRequest r) {

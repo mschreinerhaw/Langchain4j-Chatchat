@@ -2,8 +2,11 @@ import {mkdirSync,writeFileSync,chownSync,lstatSync,readdirSync} from 'node:fs';
 import {join} from 'node:path';
 import {createHash} from 'node:crypto';
 import {taskSkillPackages,imageSkillBytes,safeResourcePath} from '../../../coding-agent-node/src/skill-distribution.js';
+import {workspaceContract} from './workspace.mjs';
 export async function deliver(run,gateway,workspace) {
- const c=run.contract,original=await gateway.readInputContext(c,run.abort.signal),inventory=[];
+ const c=run.contract,studio=workspaceContract(c),original=studio
+  ?await gateway.readWorkspace(c,'workspace-'+createHash('sha256').update(c.taskId+'\0native-context').digest('hex'),run.abort.signal)
+  :await gateway.readInputContext(c,run.abort.signal),inventory=[];
  if(c.metadataRefs?.includes('runtime-coding:analysis-reviewed-path:v1')
     &&original.outputContract?.rowSchema?.type!=='object')
   throw Error('INPUT_OUTPUT_SCHEMA_UNAVAILABLE: Runtime did not deliver the committed result rowSchema. No Native model session was started. Repair the validation-plan/input-context mapping before a new request.');
@@ -13,7 +16,7 @@ export async function deliver(run,gateway,workspace) {
  const first=['outputContract','analysisPreview','fileLayout','inputVersions'];
  const context=Object.fromEntries([...first.filter(k=>Object.hasOwn(original,k)),
   ...Object.keys(original).filter(k=>!first.includes(k))].map(k=>[k,original[k]]));
- for(const file of context.files??[]) {
+ for(const file of studio?[]:context.files??[]) {
   if(!/^[a-zA-Z0-9_.-]+$/.test(file.fileId)||!file.fileName||/[\\/]/.test(file.fileName))throw Error('Unsafe input descriptor');
   const chunks=[];let offset=0,descriptor;
   do {

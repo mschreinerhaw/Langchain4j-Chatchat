@@ -325,7 +325,10 @@ public final class ClineRuntimeModelBridge {
             }
             if(name!=null&&name.startsWith("runtime__")) {
                 String runtimeTool=name.substring("runtime__".length());
-                if(ClineToolProfiles.ANALYSIS.contains(runtimeTool)&&contract.authorization().allowedTools().contains(runtimeTool))return name;
+                Set<String> nativeProfile=CodingWorkspaceService.supports(contract)
+                    ? com.chatchat.api.datascience.sql.SqlWorkspaceMetadataTools.tools(com.chatchat.api.datascience.sql.SqlWorkspaceMetadataTools.enabled(contract))
+                    : ClineToolProfiles.ANALYSIS;
+                if(nativeProfile.contains(runtimeTool)&&contract.authorization().allowedTools().contains(runtimeTool))return name;
                 if(com.chatchat.common.runtime.coding.CodingProtocol.deferredTools(contract)&&runtimeTool.equals(com.chatchat.common.runtime.coding.CodingProtocol.TOOL_DESCRIBE))return name;
                 throw new SecurityException("Native MCP tool is outside Runtime authorization");
             }

@@ -23,6 +23,28 @@ import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.*;
 
 class ClineRuntimeModelBridgeTest {
+    @Test void nativeStudioMcpUsesWorkspaceProfileAndRetainsFrozenToolGrants() throws Exception {
+        var resources=mock(ModelResourceRegistry.class);var factory=mock(ConfigurableChatModelFactory.class);
+        when(resources.defaultChatModel()).thenReturn("registered-model");
+        var parent=mock(ChatModel.class);
+        when(parent.chat(any(ChatRequest.class))).thenReturn(ChatResponse.builder().aiMessage(AiMessage.from("done")).tokenUsage(new TokenUsage(2,1,3)).build());
+        var bridge=new ClineRuntimeModelBridge(resources,factory,json);
+        org.springframework.test.util.ReflectionTestUtils.setField(bridge,"backend","native");
+        bridge.setWorkspace(mock(com.chatchat.api.runtime.coding.workspace.CodingWorkspaceService.class));
+        var registry=new CodingParentModels();bridge.setParentModels(registry);
+        json.findAndRegisterModules();var frozen=(com.fasterxml.jackson.databind.node.ObjectNode)json.valueToTree(contract());
+        frozen.put("schemaVersion",CodingProtocol.WORKSPACE_VERSION);
+        ((com.fasterxml.jackson.databind.node.ObjectNode)frozen.path("outputContract")).put("resultFormat","WORKSPACE_FILES").put("resultSchemaRef","python-studio.output.v1");
+        ((com.fasterxml.jackson.databind.node.ObjectNode)frozen.path("authorization")).set("allowedTools",json.valueToTree(List.of("workspace_read","workspace_propose")));
+        var task=json.treeToValue(frozen,CodingTaskContract.class);
+        var request=json.readTree("{\"messages\":[{\"role\":\"user\",\"content\":[{\"type\":\"text\",\"text\":\"generate source\"}]}],\"tools\":[{\"name\":\"runtime__workspace_propose\",\"inputSchema\":{\"type\":\"object\"}}]}");
+        try(var binding=registry.bind(task.scope(),task.taskId(),parent)) {
+            assertThat(bridge.complete(task,request)).containsEntry("text","done");
+            ((com.fasterxml.jackson.databind.node.ObjectNode)request.path("tools").get(0)).put("name","runtime__workspace_metadata");
+            assertThatThrownBy(()->bridge.complete(task,request)).isInstanceOf(ClineRuntimeModelBridge.InvalidModelResponseException.class).hasCauseInstanceOf(SecurityException.class);
+            verify(parent,times(1)).chat(any(ChatRequest.class));
+        }
+    }
     @Test void longValidConversationDoesNotBecomeAnIndirectIterationLimit() throws Exception {
         var resources=mock(ModelResourceRegistry.class);var factory=mock(ConfigurableChatModelFactory.class);
         var parent=mock(ChatModel.class);when(resources.defaultChatModel()).thenReturn("registered-model");

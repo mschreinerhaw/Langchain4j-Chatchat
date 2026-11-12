@@ -1,0 +1,7 @@
+# Compatibility transport update on an immutable, verified Native/Python image.
+ARG CODING_NODE_IMAGE
+FROM ${CODING_NODE_IMAGE}
+ARG GIT_COMMIT
+LABEL org.opencontainers.image.revision="${GIT_COMMIT}" runtime-os.profile="native-studio"
+COPY cline-agent-server/src/business-server.mjs /opt/runtime-os/coding-node/service/src/business-server.mjs
+COPY cline-agent-server/src/business/delivery.mjs cline-agent-server/src/business/workspace.mjs cline-agent-server/src/business/runtime-callback.mjs /opt/runtime-os/coding-node/service/src/business/

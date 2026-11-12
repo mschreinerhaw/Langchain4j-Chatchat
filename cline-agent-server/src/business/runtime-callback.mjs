@@ -66,7 +66,7 @@ export function httpGateway(callbackUrl, secret, binding, { timeoutMs = 90000 } 
     if (remaining <= 0) throw new Error('Runtime Coding deadline reached before callback dispatch');
     const timeout = AbortSignal.timeout(remaining);
     const transport = action === 'model' ? modelRequest : fetch;
-    const answer = await transport(`${callbackUrl}${path}`, {
+    const answer = await transport(new URL(path,callbackUrl).href, {
       method: 'POST', headers: { authorization: `Bearer ${secret}`, 'content-type': 'application/json', accept: 'application/json',
         'x-chatchat-timestamp': timestamp, 'x-chatchat-nonce': nonce,
         'x-chatchat-signature': signature, 'x-chatchat-signature-version': '2' },

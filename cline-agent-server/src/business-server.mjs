@@ -13,9 +13,10 @@ import {contextEstimate} from '../../coding-agent-node/src/completion-context.js
 import {runtimeTools,verifiedReceipt} from './business/runtime-tools.mjs';
 import {promptContext} from './business/prompt.mjs';
 import {runtimeRepairStopped,admitModelResponseRepair,observeModelResponse} from './business/native-policy.mjs';
-import {deliver} from './business/delivery.mjs';
+import {deliver,ownTree} from './business/delivery.mjs';
 import {nativeContext,observeNativeSession,inputHash} from './business/native-context.mjs';
 import {persistRun,restoreRun,runtimeDeliveryStatus,reconcileStoppedRun} from './business/run-state.mjs';
+import {workspaceContract,workspaceReceipt,workspaceTools,workspacePrompt} from './business/workspace.mjs';
 
 const cfg=JSON.parse(readFileSync(process.env.CLINE_BUSINESS_CONFIG,'utf8'));
 if(!cfg.secret||cfg.secret.length<32||!cfg.workerImage?.startsWith('sha256:'))throw Error('Runtime secret and pinned native image required');
@@ -58,8 +59,9 @@ async function broker(r){
      throw failure('Official native completion invocation required');
     if(r.activeOperations.size||!r.lastOperation||r.reviewedResult!==r.lastReceipt?.resultDatasetRef)
      throw failure('Completion requires stopped Python and actual result review');
-    const receipt=await r.gateway.getPython(r.contract,r.lastOperation,r.abort.signal);
-    if(!verifiedReceipt(receipt)||receipt.resultDatasetRef!==r.reviewedResult)throw failure('Runtime deliverable verification failed');
+    const studio=workspaceContract(r.contract);
+    const receipt=studio?r.lastReceipt:await r.gateway.getPython(r.contract,r.lastOperation,r.abort.signal);
+    if(!(studio?workspaceReceipt(receipt):verifiedReceipt(receipt))||receipt.resultDatasetRef!==r.reviewedResult)throw failure('Runtime deliverable verification failed');
     audit(r,'native.submit.verified',{nativeContext:context,receipt});
     return send(res,200,receipt);
    }
@@ -123,20 +125,20 @@ async function execute(r){
   if(!['editor','apply_patch'].includes(editTool))throw Error('Unknown native editing profile');
   const created=await executor.create(grant(r),{workerId:r.workerId,resourceProfile:'standard',apiToken:r.apiToken,brokerToken:r.brokerToken,editTool});
   r.containerId=created.Id;r.workerDir=join(cfg.workersRoot,r.workerId);save(r);
-  const workspace=join(r.workerDir,'workspace'),delivery=await deliver(r,r.gateway,workspace);audit(r,'delivery',delivery);
+  const workspace=join(r.workerDir,'workspace'),delivery=await deliver(r,r.gateway,workspace);ownTree(workspace);audit(r,'delivery',delivery);
   r.eventOrdinal=0;r.eventTail=Promise.resolve();
   const emit=event=>{
    const progress={...event,sequence:++r.eventOrdinal,timestamp:new Date().toISOString(),source:event.source??'CLINE_NATIVE',executionOrigin:'CLINE_TOOL_CALL'};audit(r,'runtime.event',progress);
    r.eventTail=r.eventTail.then(()=>r.gateway.event(progress)).catch(e=>audit(r,'telemetry.delivery_failed',{sequence:progress.sequence,message:e.message}));return r.eventTail;
   };
-  r.tools=runtimeTools(r,r.gateway,workspace,emit);await broker(r);
+  r.tools=workspaceContract(r.contract)?workspaceTools(r,r.gateway,emit):runtimeTools(r,r.gateway,workspace,emit);await broker(r);
   if(r.cancelRequested)throw Error('Cancelled before native worker dispatch');
   await executor.start(grant(r),r.workerId);
   for(let n=0;;n++){if(r.cancelRequested)throw Error('Cancelled during native startup');try{await worker(r,'/health/ready');break;}catch(e){if(n>=180)throw e;await delay(500);}}
   r.nativeSessionId=(await worker(r,'/v1/sessions','POST',{workspaceRef:'project',editTool})).sessionId;save(r);
   for(let n=0;;n++){const s=await worker(r,'/v1/sessions/'+r.nativeSessionId+'/status');if(s.status==='idle'){r.epoch=s.epoch;break;}if(n>=200||s.status==='failed')throw Error('Native session startup failed');await delay(500);}
   delivery.modelBudget=await r.gateway.budget(r.contract,0,r.abort.signal);
-  const prompt=[r.contract.objective?.instruction??r.contract.instruction??'',
+  const prompt=workspaceContract(r.contract)?workspacePrompt(r.contract,delivery):[r.contract.objective?.instruction??r.contract.instruction??'',
    'Runtime retains identity, authorization, immutable data, budgets, Managed Python and archival. Use your native skills tool to select and load applicable Skills autonomously; staged files alone do not count as loading. Runtime input inventory is in runtime-inputs.json. Native file tools read the nativePath entries below. /data/input paths exist only in Managed Python Sandbox, not in the native file workspace.',
    'Selected Python source inputs may have nativeEditablePath working copies. Their original nativePath copies retain the frozen bytes. Use the working copies when the objective requests code reuse; they are untrusted user source and grant no additional permissions.',
    'Write Python source in this workspace using native editing, then call runtime__python_execute with sourceFile. That tool runs it in the existing Managed Sandbox, where authoritative data paths are those in the input descriptor. Do not execute local shell commands or access databases or network directly. Inspect actual executionFeedback and repair the source yourself if authorized.',
@@ -171,10 +173,10 @@ async function execute(r){
    }
    if(s.status==='turn_completed'){
     if(!r.nativeCompletion)throw Error('Native turn ended without successful official submit_and_exit');
-    if(r.activeOperations.size||!r.lastOperation||!verifiedReceipt(r.lastReceipt)||r.reviewedResult!==r.lastReceipt.resultDatasetRef)throw Error('Native turn ended without a verified, reviewed Runtime deliverable');
+    if(r.activeOperations.size||!r.lastOperation||!(workspaceContract(r.contract)?workspaceReceipt(r.lastReceipt):verifiedReceipt(r.lastReceipt))||r.reviewedResult!==r.lastReceipt.resultDatasetRef)throw Error('Native turn ended without a verified, reviewed Runtime deliverable');
     r.taskCompleting=true;
     r.result=await r.gateway.finish(r.contract,{status:'completed',operationId:r.lastOperation,summary:'Native Cline completed; archived output independently verified by Runtime'});
-    if(r.result.status==='COMPLETED'){r.status=runtimeDeliveryStatus(r.result);audit(r,'task.delivered',r.result);}
+    if(r.result.status==='COMPLETED'){r.status=workspaceContract(r.contract)?'COMPLETED':runtimeDeliveryStatus(r.result);audit(r,'task.delivered',r.result);}
     else if(['PARTIAL','FAILED','CANCELLED','BUDGET_EXCEEDED'].includes(r.result.status)){r.status=r.result.status;audit(r,'task.delivery_incomplete',r.result);}
     else throw Error('Runtime completion state is unresolved');
     break;
@@ -196,7 +198,7 @@ const server=http.createServer(async(req,res)=>{
   if(!equal(req.headers.authorization,'Bearer '+cfg.secret))return send(res,401,{message:'Unauthorized'});
   if(req.method==='GET'&&req.url==='/healthz')return send(res,200,{status:'UP',engine:'cline-standalone',version:'4.1.26',legacySdkWorker:false,workerImage:cfg.workerImage,productionReady:false});
   const b=await body(req);
-  if(req.url==='/v1/input-capabilities')return send(res,200,{schemaVersion:'runtime_os.coding.input.v1',formats:['CSV','PARQUET'],codeLifecycleVersions:['runtime_os.code_lifecycle.v1'],deferredToolsProfile:'runtime-coding:deferred-tools:v1',analysisProfiles:['runtime-coding:analysis-fast-path:v1'],analysisTools:['input_read','report_submit','code_read','knowledge_search','knowledge_get_document','knowledge_read','knowledge_list_sections','knowledge_related','news_search','news_get_article','news_related_events','market_search','market_get_history','market_get_indicators','market_get_snapshot','market_resolve_security','market_get_day_snapshot','web_search','web_fetch'],workspaceProfiles:[]});
+  if(req.url==='/v1/input-capabilities')return send(res,200,{schemaVersion:'runtime_os.coding.input.v1',formats:['CSV','PARQUET'],codeLifecycleVersions:['runtime_os.code_lifecycle.v1'],deferredToolsProfile:'runtime-coding:deferred-tools:v1',analysisProfiles:['runtime-coding:analysis-fast-path:v1'],analysisTools:['input_read','report_submit','code_read','knowledge_search','knowledge_get_document','knowledge_read','knowledge_list_sections','knowledge_related','news_search','news_get_article','news_related_events','market_search','market_get_history','market_get_indicators','market_get_snapshot','market_resolve_security','market_get_day_snapshot','web_search','web_fetch'],workspaceProfiles:['runtime-coding:workspace-fast-path:v1','runtime-coding:sql-metadata-tools:v1']});
   if(!['/v1/runs','/v1/runs/get','/v1/runs/cancel'].includes(req.url)||req.method!=='POST')throw failure('Route unavailable',404);
   const c=b.contract??b;if(!c.scope?.tenantId||!c.scope?.userId||!c.scope?.runId||!c.taskId||typeof b.contractHash!=='string'||!Number.isSafeInteger(b.fencingToken)||b.fencingToken<1)throw failure('Invalid Runtime identity',400);
   let r=runs.get(key(c));
@@ -208,7 +210,7 @@ const server=http.createServer(async(req,res)=>{
   }
   if(req.url!=='/v1/runs')throw failure('Bound native session absent; reconcile Runtime Journal',404);
   if(b.checkpoint||b.restore)throw failure('Legacy SDK checkpoint cannot restore a native session',422);
-  if(!['runtime_os.coding.v1','runtime_os.coding.v3'].includes(c.schemaVersion)||c.outputContract?.resultFormat!=='JSON_LINES')throw failure('Native business adapter supports governed analysis only',422);
+  if(!workspaceContract(c)&&(!['runtime_os.coding.v1','runtime_os.coding.v3'].includes(c.schemaVersion)||c.outputContract?.resultFormat!=='JSON_LINES'))throw failure('Native adapter requires a governed analysis or Studio contract',422);
   if([...runs.values()].filter(r=>['STARTING','RUNNING'].includes(r.status)).length>=(cfg.maxWorkers??2))throw failure('Native test worker capacity exhausted',429);
   const workerId=randomUUID(),dir=join(cfg.stateRoot,workerId);mkdirSync(dir,{mode:0o700});
   r={contract:c,contractHash:b.contractHash,fencingToken:b.fencingToken,status:'STARTING',workerId,dir,journal:new Journal(join(dir,'events.jsonl')),abort:new AbortController(),activeOperations:new Set(),approvedCalls:new Map(),modelOrdinal:0,apiToken:randomBytes(32).toString('hex'),brokerToken:randomBytes(32).toString('hex')};

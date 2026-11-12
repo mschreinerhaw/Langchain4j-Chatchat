@@ -1,0 +1,23 @@
+{
+  "passed": true,
+  "checks": {
+    "bothPreviouslyUnmappedModelsExecuted": true,
+    "nativeStaticProfilesUnchanged": true,
+    "executorStaticModelNamesUnchanged": true,
+    "javaStaticMapUnchanged": true,
+    "twoIsolatedWorkers": true,
+    "noProviderCredentialInWorkerOrWorkspace": true
+  },
+  "cases": [
+    {
+      "model": "qwen3.8-max",
+      "taskId": "native-3659eff6d1e78c0d4ff4b697ed4988becdcaae6a6ab36b236e612498f2e601d5",
+      "modelRequests": 7
+    },
+    {
+      "model": "qwen3.8-flash",
+      "taskId": "native-03e1a04c92cf3b66483ae0fe771996874b6ef10c6c4fb9fae1b6293b06c220fc",
+      "modelRequests": 9
+    }
+  ]
+}

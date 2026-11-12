@@ -1,5 +1,7 @@
 # Native 模型发布修复（2026-11-12）
 
+后续已上线 [按任务动态解析模型](native-dynamic-models-20261112.md)。下文手工发布工具仅保留作静态兼容部署使用；主环境新增发布模型不再需要维护 Native 名单。
+
 用户界面报错 `Selected model is not published on this Native node`。已发布的 `financial-news-agent` 选择 `qwen3.6-plus`，但主部署 Java 的私有 `modelProfiles`、Node 的模型档案和执行器允许列表只包含默认的 `qwen3.7-plus`。
 
 本次依据现有 `platform_model_publication` 的启用记录补齐该模型的三处映射，保留真正的 provider_model、凭据和 HTTPS 地址。不修改 Agent 定义、平台模型表或联网授权，不回退到默认模型，不引入业务校验或分析规划代码。模型映射是部署配置，Native Core 和镜像应用代码无需重建。

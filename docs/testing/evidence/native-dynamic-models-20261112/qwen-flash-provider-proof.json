@@ -1,0 +1,294 @@
+{
+  "selectedModel": "qwen3.8-flash",
+  "profile": "runtime-4608cdf0383a2f7c07fd509c064b311c9683314ffe9118fa669b447cca779245",
+  "signedModel": {
+    "providerModel": "qwen3.8-flash",
+    "logicalName": "qwen3.8-flash"
+  },
+  "taskId": "native-03e1a04c92cf3b66483ae0fe771996874b6ef10c6c4fb9fae1b6293b06c220fc",
+  "workerId": "2c60dbf7-af59-4204-b63e-15a07c54d82a",
+  "providerRequests": [
+    {
+      "requestId": "3f399ef1-fdeb-416b-9fb9-2966957f2fb1",
+      "model": "qwen3.8-flash",
+      "providerModel": "qwen3.8-flash",
+      "httpStatus": 200,
+      "status": "SUCCEEDED",
+      "durationMs": 6016,
+      "usage": {
+        "inputTokens": 4007,
+        "outputTokens": 519,
+        "totalTokens": 4526,
+        "cacheReadTokens": 0,
+        "cacheWriteTokens": null,
+        "reasoningTokens": 181,
+        "totalSource": "PROVIDER",
+        "cacheAccounting": "CACHE_IS_INPUT_SUBSET",
+        "raw": {
+          "prompt_tokens": 4007,
+          "total_tokens": 4526,
+          "completion_tokens": 519,
+          "prompt_tokens_details": {
+            "cached_tokens": 0,
+            "text_tokens": 4007
+          },
+          "completion_tokens_details": {
+            "reasoning_tokens": 181,
+            "text_tokens": 519
+          }
+        }
+      }
+    },
+    {
+      "requestId": "503b152f-0921-4e34-888f-c00041855c83",
+      "model": "qwen3.8-flash",
+      "providerModel": "qwen3.8-flash",
+      "httpStatus": 200,
+      "status": "SUCCEEDED",
+      "durationMs": 4640,
+      "usage": {
+        "inputTokens": 5243,
+        "outputTokens": 418,
+        "totalTokens": 5661,
+        "cacheReadTokens": 3584,
+        "cacheWriteTokens": null,
+        "reasoningTokens": 26,
+        "totalSource": "PROVIDER",
+        "cacheAccounting": "CACHE_IS_INPUT_SUBSET",
+        "raw": {
+          "prompt_tokens": 5243,
+          "total_tokens": 5661,
+          "completion_tokens": 418,
+          "prompt_tokens_details": {
+            "cached_tokens": 3584,
+            "text_tokens": 5243
+          },
+          "completion_tokens_details": {
+            "reasoning_tokens": 26,
+            "text_tokens": 418
+          }
+        }
+      }
+    },
+    {
+      "requestId": "cd27d464-341a-4622-bdd2-299b801e6565",
+      "model": "qwen3.8-flash",
+      "providerModel": "qwen3.8-flash",
+      "httpStatus": 200,
+      "status": "SUCCEEDED",
+      "durationMs": 6132,
+      "usage": {
+        "inputTokens": 7637,
+        "outputTokens": 543,
+        "totalTokens": 8180,
+        "cacheReadTokens": 5120,
+        "cacheWriteTokens": null,
+        "reasoningTokens": 395,
+        "totalSource": "PROVIDER",
+        "cacheAccounting": "CACHE_IS_INPUT_SUBSET",
+        "raw": {
+          "prompt_tokens": 7637,
+          "total_tokens": 8180,
+          "completion_tokens": 543,
+          "prompt_tokens_details": {
+            "cached_tokens": 5120,
+            "text_tokens": 7637
+          },
+          "completion_tokens_details": {
+            "reasoning_tokens": 395,
+            "text_tokens": 543
+          }
+        }
+      }
+    },
+    {
+      "requestId": "59cd68a2-20a9-4bac-98f6-dbdbc200ae69",
+      "model": "qwen3.8-flash",
+      "providerModel": "qwen3.8-flash",
+      "httpStatus": 200,
+      "status": "SUCCEEDED",
+      "durationMs": 5051,
+      "usage": {
+        "inputTokens": 11321,
+        "outputTokens": 494,
+        "totalTokens": 11815,
+        "cacheReadTokens": 7168,
+        "cacheWriteTokens": null,
+        "reasoningTokens": 257,
+        "totalSource": "PROVIDER",
+        "cacheAccounting": "CACHE_IS_INPUT_SUBSET",
+        "raw": {
+          "prompt_tokens": 11321,
+          "total_tokens": 11815,
+          "completion_tokens": 494,
+          "prompt_tokens_details": {
+            "cached_tokens": 7168,
+            "text_tokens": 11321
+          },
+          "completion_tokens_details": {
+            "reasoning_tokens": 257,
+            "text_tokens": 494
+          }
+        }
+      }
+    },
+    {
+      "requestId": "8041b24d-2ba8-4b8b-b0eb-eeded6bc5c99",
+      "model": "qwen3.8-flash",
+      "providerModel": "qwen3.8-flash",
+      "httpStatus": 200,
+      "status": "SUCCEEDED",
+      "durationMs": 26343,
+      "usage": {
+        "inputTokens": 12129,
+        "outputTokens": 2726,
+        "totalTokens": 14855,
+        "cacheReadTokens": 11264,
+        "cacheWriteTokens": null,
+        "reasoningTokens": 1187,
+        "totalSource": "PROVIDER",
+        "cacheAccounting": "CACHE_IS_INPUT_SUBSET",
+        "raw": {
+          "prompt_tokens": 12129,
+          "total_tokens": 14855,
+          "completion_tokens": 2726,
+          "prompt_tokens_details": {
+            "cached_tokens": 11264,
+            "text_tokens": 12129
+          },
+          "completion_tokens_details": {
+            "reasoning_tokens": 1187,
+            "text_tokens": 2726
+          }
+        }
+      }
+    },
+    {
+      "requestId": "bbaa8542-003e-421d-b3e9-c3fb6ee71001",
+      "model": "qwen3.8-flash",
+      "providerModel": "qwen3.8-flash",
+      "httpStatus": 200,
+      "status": "SUCCEEDED",
+      "durationMs": 3244,
+      "usage": {
+        "inputTokens": 14904,
+        "outputTokens": 214,
+        "totalTokens": 15118,
+        "cacheReadTokens": 11264,
+        "cacheWriteTokens": null,
+        "reasoningTokens": 10,
+        "totalSource": "PROVIDER",
+        "cacheAccounting": "CACHE_IS_INPUT_SUBSET",
+        "raw": {
+          "prompt_tokens": 14904,
+          "total_tokens": 15118,
+          "completion_tokens": 214,
+          "prompt_tokens_details": {
+            "cached_tokens": 11264,
+            "text_tokens": 14904
+          },
+          "completion_tokens_details": {
+            "reasoning_tokens": 10,
+            "text_tokens": 214
+          }
+        }
+      }
+    },
+    {
+      "requestId": "7d5dd8b9-c087-46d0-9e66-33366815412e",
+      "model": "qwen3.8-flash",
+      "providerModel": "qwen3.8-flash",
+      "httpStatus": 200,
+      "status": "SUCCEEDED",
+      "durationMs": 16179,
+      "usage": {
+        "inputTokens": 15533,
+        "outputTokens": 1454,
+        "totalTokens": 16987,
+        "cacheReadTokens": 14336,
+        "cacheWriteTokens": null,
+        "reasoningTokens": 95,
+        "totalSource": "PROVIDER",
+        "cacheAccounting": "CACHE_IS_INPUT_SUBSET",
+        "raw": {
+          "prompt_tokens": 15533,
+          "total_tokens": 16987,
+          "completion_tokens": 1454,
+          "prompt_tokens_details": {
+            "cached_tokens": 14336,
+            "text_tokens": 15533
+          },
+          "completion_tokens_details": {
+            "reasoning_tokens": 95,
+            "text_tokens": 1454
+          }
+        }
+      }
+    },
+    {
+      "requestId": "e4c7f89c-5815-40bb-bb7a-7b3af91db61a",
+      "model": "qwen3.8-flash",
+      "providerModel": "qwen3.8-flash",
+      "httpStatus": 200,
+      "status": "SUCCEEDED",
+      "durationMs": 7441,
+      "usage": {
+        "inputTokens": 17070,
+        "outputTokens": 725,
+        "totalTokens": 17795,
+        "cacheReadTokens": 15360,
+        "cacheWriteTokens": null,
+        "reasoningTokens": 60,
+        "totalSource": "PROVIDER",
+        "cacheAccounting": "CACHE_IS_INPUT_SUBSET",
+        "raw": {
+          "prompt_tokens": 17070,
+          "total_tokens": 17795,
+          "completion_tokens": 725,
+          "prompt_tokens_details": {
+            "cached_tokens": 15360,
+            "text_tokens": 17070
+          },
+          "completion_tokens_details": {
+            "reasoning_tokens": 60,
+            "text_tokens": 725
+          }
+        }
+      }
+    },
+    {
+      "requestId": "9a1906b3-ec44-48c2-8e78-f25e25e9041c",
+      "model": "qwen3.8-flash",
+      "providerModel": "qwen3.8-flash",
+      "httpStatus": 200,
+      "status": "SUCCEEDED",
+      "durationMs": 8141,
+      "usage": {
+        "inputTokens": 18074,
+        "outputTokens": 820,
+        "totalTokens": 18894,
+        "cacheReadTokens": 16384,
+        "cacheWriteTokens": null,
+        "reasoningTokens": 165,
+        "totalSource": "PROVIDER",
+        "cacheAccounting": "CACHE_IS_INPUT_SUBSET",
+        "raw": {
+          "prompt_tokens": 18074,
+          "total_tokens": 18894,
+          "completion_tokens": 820,
+          "prompt_tokens_details": {
+            "cached_tokens": 16384,
+            "text_tokens": 18074
+          },
+          "completion_tokens_details": {
+            "reasoning_tokens": 165,
+            "text_tokens": 820
+          }
+        }
+      }
+    }
+  ],
+  "workerUsesOnlyBrokerCredential": true,
+  "workspaceHasNoProviderCredential": true,
+  "businessVerified": true
+}

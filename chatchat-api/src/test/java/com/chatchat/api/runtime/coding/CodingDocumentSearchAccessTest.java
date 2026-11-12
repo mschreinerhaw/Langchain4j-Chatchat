@@ -51,6 +51,7 @@ class CodingDocumentSearchAccessTest {
         assertThat(request.getValue().getTenantId()).isEqualTo("tenant");assertThat(request.getValue().getUserId()).isEqualTo("user");
         assertThat(request.getValue().getAttributes()).containsEntry("authorizationAgentId","agent");
         assertThat(request.getValue().getToolInput().getParameters()).doesNotContainKeys("tenantId","roles","agentId");
+        assertThat(request.getValue().getToolInput().getParameters()).containsEntry("fileIds",List.of("doc-1"));
     }
     @Test void agentWithoutBoundKnowledgeCannotExposeDocumentTool(){
         when(scopes.resolve("tenant","user","agent",List.of(),List.of())).thenReturn(new SkillExecutionScopePort.EffectiveScope(List.of(),List.of(),List.of(),true,true));
@@ -102,5 +103,12 @@ class CodingDocumentSearchAccessTest {
         assertThat(service.read(contract,"wrapped",json.valueToTree(Map.of("query","q"))).toString()).contains("Authorized").doesNotContain("SECRET");
         when(runtime.execute(any())).thenReturn(new ToolRuntimeExecution(ToolOutput.success(Map.of("schemaVersion","mcp_analysis_payload.v1","data",Map.of(),"rawData",result("doc-1","Raw").output().getData())),null,null,"success",Map.of()));
         assertThatThrownBy(()->service.read(contract,"raw",json.valueToTree(Map.of("query","q")))).isInstanceOf(IllegalStateException.class);
+    }
+    @Test void tagScopeIsAppliedByTheServerBeforeRetrieval(){
+        when(scopes.resolve("tenant","user","agent",List.of(),List.of())).thenReturn(new SkillExecutionScopePort.EffectiveScope(List.of(),List.of("authorized-tag"),List.of("reader"),true,true));
+        when(runtime.execute(any())).thenReturn(result("doc-1","Authorized"));
+        service.read(contract,"tags",json.valueToTree(Map.of("query","q")));
+        var request=org.mockito.ArgumentCaptor.forClass(ToolRuntimeRequest.class);verify(runtime).execute(request.capture());
+        assertThat(request.getValue().getToolInput().getParameters()).containsEntry("filters",Map.of("tags",List.of("authorized-tag")));
     }
 }

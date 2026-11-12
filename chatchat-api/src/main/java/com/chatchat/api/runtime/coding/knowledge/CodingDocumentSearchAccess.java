@@ -67,6 +67,10 @@ public class CodingDocumentSearchAccess {
             requireDocuments(c.scope(),agent,before,ids);
         }
         var parameters=json.convertValue(args,new com.fasterxml.jackson.core.type.TypeReference<LinkedHashMap<String,Object>>(){});
+        // Account-level document grants can be broader than this Agent's bindings.
+        // Narrow the existing retriever before IO, then verify every returned ID.
+        if(!before.documentIds().isEmpty()&&!parameters.containsKey("fileIds"))parameters.put("fileIds",before.documentIds());
+        if(!before.tags().isEmpty())parameters.put("filters",Map.of("tags",before.tags()));
         String request=com.chatchat.agents.protocol.ModelProtocolJson.sha256Hex(c.taskId()+"\0"+call);
         var invocation=ToolRuntimeRequest.builder().toolName(LOCAL_TOOL).runtimeMode("coding")
             .tenantId(c.scope().tenantId()).userId(c.scope().userId()).requestId(request).allowedTools(List.of(LOCAL_TOOL))

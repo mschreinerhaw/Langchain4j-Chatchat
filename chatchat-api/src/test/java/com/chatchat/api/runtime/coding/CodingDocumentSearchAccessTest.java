@@ -78,4 +78,16 @@ class CodingDocumentSearchAccessTest {
         verify(resources,atLeastOnce()).resolve("tenant","user","agent",false);
         verify(resources,never()).resolve(anyString(),anyString(),anyString(),eq(true));
     }
+    @Test void signedReadCapabilityUsesExistingArgumentBoundConfirmation(){
+        when(runtime.checkRecoveryAdmission(any())).thenReturn(new ToolRuntimeExecution(ToolOutput.failure("confirmation"),null,null,"confirmation_required",Map.of("confirmation",Map.of("token","bound-token"))));
+        when(runtime.execute(any())).thenReturn(result("doc-1","Authorized evidence"));
+        assertThat(service.read(contract,"confirmed",json.valueToTree(Map.of("query","q")))).containsEntry("status","MATCHES");
+        var request=org.mockito.ArgumentCaptor.forClass(ToolRuntimeRequest.class);verify(runtime).execute(request.capture());
+        assertThat(request.getValue().getAttributes()).containsEntry("mcpConfirmation",Map.of("approved",true,"token","bound-token"));
+    }
+    @Test void taskApprovalCannotOverrideRuntimeDeny(){
+        when(runtime.checkRecoveryAdmission(any())).thenReturn(new ToolRuntimeExecution(ToolOutput.failure("policy denied"),null,null,"denied",Map.of()));
+        assertThat(service.read(contract,"denied",json.valueToTree(Map.of("query","q")))).containsEntry("status","ERROR");
+        verify(runtime,never()).execute(any());
+    }
 }

@@ -106,7 +106,7 @@ public final class NativeSiloTaskService {
             new EvidenceLineage(null,inputId(task),scope,List.of(),task,"NativeSiloTaskService",null,Map.of()));
         var runtime=new LinkedHashMap<String,Object>(capabilities);runtime.put("schemaVersion","runtime_os.coding.context.v1");runtime.put("consistency","TASK_SNAPSHOT");runtime.put("model",Map.of("selectedModel",selectedModel));CodingRuntimeContext.validate(runtime);
         var tools=new ArrayList<String>(TOOLS);if(runtime.containsKey("internetSearch")){tools.addAll(com.chatchat.api.runtime.coding.knowledge.CodingInternetAccess.NATIVE_TOOLS);tools.add("runtime__*");}
-        if(runtime.containsKey("documentSearch")){tools.add("document_search");if(!tools.contains("runtime__*"))tools.add("runtime__*");}
+        if(runtime.containsKey("documentSearch")){tools.add("document_search");tools.add("runtime__document_search");}
         var contract=new CodingTaskContract(CodingProtocol.WORKSPACE_VERSION,task,scope,
             new CodingTaskContract.Objective(instruction,artifactTypes,List.of(profile)),
             "runtime-evidence:"+inputId(task),List.of(PROFILE),work,

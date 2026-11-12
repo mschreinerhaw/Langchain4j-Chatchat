@@ -68,10 +68,20 @@ public class CodingDocumentSearchAccess {
         }
         var parameters=json.convertValue(args,new com.fasterxml.jackson.core.type.TypeReference<LinkedHashMap<String,Object>>(){});
         String request=com.chatchat.agents.protocol.ModelProtocolJson.sha256Hex(c.taskId()+"\0"+call);
-        var execution=runtime.execute(ToolRuntimeRequest.builder().toolName(LOCAL_TOOL).runtimeMode("coding")
+        var invocation=ToolRuntimeRequest.builder().toolName(LOCAL_TOOL).runtimeMode("coding")
             .tenantId(c.scope().tenantId()).userId(c.scope().userId()).requestId(request).allowedTools(List.of(LOCAL_TOOL))
             .toolInput(ToolInput.builder().parameters(parameters).requestId(request).build())
-            .attributes(Map.of("authorizationAgentId",agent)).build());
+            .attributes(new LinkedHashMap<>(Map.of("authorizationAgentId",agent))).build();
+        // The signed task capability approves this specific read-only tool. Bind
+        // that approval to the unchanged invocation using the existing Runtime
+        // confirmation protocol; schema, resource and deny gates still apply.
+        var admission=runtime.checkRecoveryAdmission(invocation);
+        if(admission!=null&&"confirmation_required".equals(admission.outcome())){
+            Object confirmation=admission.audit().get("confirmation");
+            if(confirmation instanceof Map<?,?> value&&value.get("token") instanceof String token)
+                invocation.getAttributes().put("mcpConfirmation",Map.of("approved",true,"token",token));
+        }
+        var execution=admission!=null&&!"confirmation_required".equals(admission.outcome())?admission:runtime.execute(invocation);
         if(!before.equals(live(c.scope(),agent,requested)))throw new SecurityException("Document authorization changed during retrieval");
         if(execution==null||execution.output()==null||!execution.output().isSuccess())
             return Map.of("status","ERROR","errorCode",execution!=null&&"confirmation_required".equals(execution.outcome())?"DOCUMENT_SEARCH_REQUIRES_CONFIRMATION":"DOCUMENT_SEARCH_FAILED",

@@ -7,6 +7,7 @@ export const defaultReportPresentation = Object.freeze({
   autoCharts: true,
   autoImages: true,
   styleProfile: "financial-auto",
+  scenario: "financial-analysis",
 });
 export function reportPresentation(value = {}) {
   const clean = { ...defaultReportPresentation };
@@ -20,6 +21,9 @@ export function reportPresentation(value = {}) {
   for (const key of ["autoCharts", "autoImages"])
     if (typeof value?.[key] === "boolean") clean[key] = value[key];
   if(typeof value?.styleProfile==='string'&&/^[a-z][a-z0-9-]{0,63}$/.test(value.styleProfile))clean.styleProfile=value.styleProfile;
+  if(typeof value?.scenario==='string'&&/^[a-z][a-z0-9-]{0,63}$/.test(value.scenario))clean.scenario=value.scenario;
+  if(clean.styleProfile==='auto')clean.scenario='general-analysis';
+  else if(clean.styleProfile.startsWith('financial-'))clean.scenario='financial-analysis';
   return clean;
 }
 

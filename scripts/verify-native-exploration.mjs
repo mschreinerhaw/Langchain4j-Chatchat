@@ -1,7 +1,7 @@
 /** Real deployed exploration/Agent/Native/Silo acceptance; no mocked routes or authored analysis code. */
 import assert from 'node:assert/strict';
-import {mkdir,writeFile} from 'node:fs/promises';
-import {resolve} from 'node:path';
+import {mkdir,writeFile,readFile} from 'node:fs/promises';
+import {resolve,basename} from 'node:path';
 import {createHash} from 'node:crypto';
 import {chromium} from '../chatchat-api/web-app/node_modules/playwright-core/index.mjs';
 import {explorationDeliveryStages} from '../chatchat-api/web-app/src/js/utils/explorationWorkspace.js';
@@ -22,12 +22,12 @@ try{
  auth=await api('/enterprise/auth/login',{username:process.env.RUNTIME_TEST_USER,password:process.env.RUNTIME_TEST_PASSWORD});
  const options=await api('/data-science/explorations/agents'),agentId=process.env.RUNTIME_TEST_AGENT||'financial-news-agent';
  assert.ok(options.some(a=>a.id===agentId),'Agent must be published and authorized');
- const input=Buffer.from('category,amount\nA,12.5\nB,20\nC,15\n'),form=new FormData();
- form.append('file',new Blob([input],{type:'text/csv'}),'SYNTHETIC-category-amount.csv');
+ const input=process.env.RUNTIME_TEST_INPUT?await readFile(process.env.RUNTIME_TEST_INPUT):Buffer.from('category,amount\nA,12.5\nB,20\nC,15\n'),form=new FormData();
+ form.append('file',new Blob([input],{type:'text/csv'}),process.env.RUNTIME_TEST_INPUT?basename(process.env.RUNTIME_TEST_INPUT):'SYNTHETIC-category-amount.csv');
  const asset=await api('/data-science/explorations/attachments',form);
  assert.equal(asset.sha256,createHash('sha256').update(input).digest('hex'));
  let space=await api('/data-science/explorations',{title:'Native 图文分析与活动记录验证'});
- space=await api(`/data-science/explorations/${space.id}/nodes`,{version:space.version,agentId,fileIds:[asset.id],question:'分析附件中明确标记为 SYNTHETIC 的验收数据。核对行数、amount 总和与均值，比较各类别，给出简洁的分析报告和结构化数值结果。数据没有声明单位，不要推断货币或单位；本次不需要联网。'});
+ space=await api(`/data-science/explorations/${space.id}/nodes`,{version:space.version,agentId,fileIds:[asset.id],question:process.env.RUNTIME_TEST_QUESTION||'分析附件中明确标记为 SYNTHETIC 的验收数据。核对行数、amount 总和与均值，比较各类别，给出简洁的分析报告和结构化数值结果。数据没有声明单位，不要推断货币或单位；本次不需要联网。',...(process.env.RUNTIME_TEST_STYLE_PROFILE?{reportPresentation:{styleProfile:process.env.RUNTIME_TEST_STYLE_PROFILE,scenario:process.env.RUNTIME_TEST_STYLE_PROFILE.startsWith('financial-')?'financial-analysis':'general-analysis'}}:{})});
  const nodeId=space.nodes.at(-1).id;result.workspaceId=space.id;result.nodeId=nodeId;result.inputSha256=asset.sha256;
  space=await api(`/data-science/explorations/${space.id}/nodes/${nodeId}/execute`,{});
  const seen=new Map(),deadline=Date.now()+1200000;
@@ -35,6 +35,7 @@ try{
  while(Date.now()<deadline){
   space=await api(`/data-science/explorations/${space.id}/nodes/${nodeId}/status`);
   receipt=space.nodes.find(n=>n.id===nodeId).receipt;
+  await writeFile(resolve(out,'progress.json'),JSON.stringify({workspaceId:space.id,nodeId,agentTaskId:receipt.agentTaskId,status:receipt.status,eventCount:receipt.analysisEvents?.length||0}));
   for(const event of receipt.analysisEvents||[])seen.set(event.sequence,event);
   if(receipt.terminal)break;
   await new Promise(r=>setTimeout(r,3000));
@@ -49,6 +50,22 @@ try{
  const bytes=await api('/interactions/user-assets/'+chart.artifact.fileId+'/content',null,true);
  assert.equal(createHash('sha256').update(bytes).digest('hex'),chart.artifact.sha256);
  await writeFile(resolve(out,'real-chart.png'),bytes);
+ if(process.env.RUNTIME_TEST_STYLE_PROFILE){
+  assert.equal(receipt.visualReport.presentation.styleProfile,process.env.RUNTIME_TEST_STYLE_PROFILE);
+  const charts=[];let i=0;
+  for(const item of receipt.visualReport.charts.filter(c=>c.kind==='png')){
+   const data=await api('/interactions/user-assets/'+item.artifact.fileId+'/content',null,true);
+   assert.equal(createHash('sha256').update(data).digest('hex'),item.artifact.sha256);
+   const path=`chart-${++i}.png`;await writeFile(resolve(out,path),data);charts.push({path,title:item.title,sha256:item.artifact.sha256});
+  }
+  result.styleProfile=process.env.RUNTIME_TEST_STYLE_PROFILE;result.charts=charts;
+  const code=[];
+  for(const taskId of new Set(events.map(e=>e.payload?.metadata?.taskId).filter(Boolean))){
+   const files=await api('/interactions/user-assets?kind=CODE&personalOnly=false&taskId='+encodeURIComponent(taskId)+'&limit=100');
+   for(const file of files){const data=await api('/interactions/user-assets/'+file.id+'/content',null,true);assert.equal(createHash('sha256').update(data).digest('hex'),file.sha256);const path='source-'+code.length+'-'+basename(file.fileName);await writeFile(resolve(out,path),data);code.push({path,fileName:file.fileName,sha256:file.sha256});}
+  }
+  result.sourceFiles=code;
+ }
  const stages=explorationDeliveryStages(events,receipt),workbench=executionWorkbench(events,{canonicalState:receipt.status,createTime:receipt.analysisStartedAt,finishedAt:receipt.analysisFinishedAt});
  assert.equal(stages.find(s=>s.key==='model').value,'已响应');assert.equal(stages.find(s=>s.key==='execution').value,'进程已结束');
  assert.ok(workbench.visibleActivities.length>0);assert.ok(workbench.visibleActivities.some(a=>a.title.includes('分析计算')));

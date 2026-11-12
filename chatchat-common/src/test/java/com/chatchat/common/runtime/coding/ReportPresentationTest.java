@@ -7,7 +7,7 @@ import static org.assertj.core.api.Assertions.*;
 
 class ReportPresentationTest {
     @Test void forwardsAnOpaqueStyleProfileWithoutBusinessRulesOrExecutableValues(){
-        var attributes=Map.<String,Object>of("reportPresentation",Map.of("styleProfile","financial-cn"));
+        var attributes=Map.<String,Object>of("reportPresentation",Map.of("styleProfile","financial-cn","scenario","financial-analysis"));
         assertThat(ReportPresentation.read(attributes)).containsEntry("styleProfile","financial-cn");
         assertThat(ReportPresentation.instruction(attributes)).contains("\"styleProfile\":\"financial-cn\"","authorized visualization Skill");
         assertThat(ReportPresentation.read(Map.of("reportPresentation",Map.of("styleProfile","custom-style-v2"))))

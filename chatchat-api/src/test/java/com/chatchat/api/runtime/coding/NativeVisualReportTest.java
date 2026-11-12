@@ -13,6 +13,12 @@ import static org.mockito.Mockito.*;
 import static org.assertj.core.api.Assertions.*;
 
 class NativeVisualReportTest {
+    @Test void declaredSceneRequiresResolvingTheSelectedProfileWithoutGuessingAColorConvention(){
+        assertThat(NativeVisualReport.instruction(Map.of("reportMode","visual","reportPresentation",Map.of("styleProfile","financial-cn","scenario","financial-analysis"))))
+            .contains("Declared visualization scene: financial-analysis","Selected style profile: financial-cn","Resolve its definition","use neutral colors");
+        assertThat(NativeVisualReport.instruction(Map.of())).isEmpty();
+    }
+
     final UserAssetService assets=mock(UserAssetService.class);
     final NativeVisualReport reports=new NativeVisualReport(assets,new ObjectMapper());
     final KernelDataScope scope=new KernelDataScope("tenant","user",null,null,"run",null,Map.of());

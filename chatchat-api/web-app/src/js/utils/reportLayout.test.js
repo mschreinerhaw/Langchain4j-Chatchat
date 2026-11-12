@@ -5,7 +5,7 @@ import scheduling from '../../../../src/test/resources/visual-report/scheduling-
 
 describe("the existing report protocol supports content-driven layouts", () => {
   it('carries the visualization scenario as a preference without accepting executable style inputs',()=>{
-    expect(reportPresentation().styleProfile).toBe('financial-auto');
+    expect(reportPresentation().styleProfile).toBe('financial-auto');expect(reportPresentation().scenario).toBe('financial-analysis');expect(reportPresentation({styleProfile:'auto'}).scenario).toBe('general-analysis');
     expect(reportPresentation({styleProfile:'financial-cn'}).styleProfile).toBe('financial-cn');
     expect(reportPresentation({styleProfile:'custom-style-v2'}).styleProfile).toBe('custom-style-v2');
     expect(reportPresentation({styleProfile:'https://internal/'}).styleProfile).toBe('financial-auto');

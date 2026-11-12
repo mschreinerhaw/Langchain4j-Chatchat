@@ -8,6 +8,17 @@ const event=(sequence,type,extra={})=>({eventId:`e-${sequence}`,sequence,createT
   eventKind:'CODING_TRACE',taskId:'task',workerActivity:{type,tool:'input_read',toolCallId:'read-1',status:'SUCCEEDED',...extra}}}});
 async function mount(props){host=document.createElement('div');document.body.append(host);app=createApp({render:()=>h(Panel,props)});app.mount(host);await settle();}
 afterEach(()=>{app?.unmount();host?.remove();vi.useRealTimers();});
+it('renders Native snapshot identities as real activity and retains their native type in diagnostics',async()=>{
+ const native=(sequence,normalizedType,fields)=>({sequence,eventId:`native-${sequence}`,type:'RUNTIME_OBSERVATION',createTime:new Date(sequence*1000).toISOString(),payload:{metadata:{eventKind:'CODING_TRACE',codingEventType:'RECOVERY_RECONCILED',payload:{normalizedType,...fields}}}});
+ await mount({running:true,status:'RUNNING',events:[native(1,'MODEL_REQUEST_COMPLETED',{requestId:'r1'}),native(2,'COMMAND_STARTED',{operationId:'cmd-1'}),native(3,'COMMAND_COMPLETED',{operationId:'cmd-1',exitCode:0})]});
+ expect(host.querySelector('[aria-label="分析交付状态"]').textContent).toContain('模型响应已响应');
+ expect(host.querySelector('[aria-label="分析交付状态"]').textContent).toContain('Python 执行进程已结束');
+ expect(host.querySelector('[aria-label="分析交付状态"]').textContent).toContain('报告交付待校验');
+ expect(host.querySelectorAll('tbody tr')).toHaveLength(2);
+ expect(host.textContent).toContain('分析计算已结束');
+ host.querySelectorAll('[role=tab]')[1].click();await settle();
+ expect(host.textContent).toContain('MODEL_REQUEST_COMPLETED');expect(host.textContent).toContain('COMMAND_COMPLETED');
+});
 it('separates model response and stopped Python from a missing report using actual receipt fields',async()=>{
   await mount({running:false,status:'FAILED',events:[event(1,'MODEL_TIMING',{status:'SUCCEEDED'}),
     event(2,'TOOL_FINISHED',{tool:'python_execute',executorStopped:true,status:'SUCCEEDED',resultAvailable:false,outputStatus:'REQUIRED_OUTPUT_MISSING'})]});

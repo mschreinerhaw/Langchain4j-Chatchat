@@ -21,7 +21,7 @@ async function followLatest(){following.value=true;await nextTick();if(scroller.
 watch(()=>visibleRows.value.map(row=>`${row.id}:${row.sequence}:${row.state}:${row.count}`).join('|'),()=>{if(following.value)void followLatest();});
 watch([expanded,tab],()=>{if(following.value)void followLatest();});
 function technicalType(event){let value=event.payload||{};try{if(typeof value==='string')value=JSON.parse(value);}catch{return event.type||'EVENT';}
-  const meta=(value.payload||value).metadata||{};return meta.workerActivity?.type||meta.codingEventType||event.type||'EVENT';}
+  const meta=(value.payload||value).metadata||{},worker={...(meta.payload||{}),...(meta.workerActivity||{})};return worker.normalizedType||worker.nativeEventType||worker.type||meta.codingEventType||event.type||'EVENT';}
 function actionTitle(row){
   const event=row.sourceEvents.at(-1);let payload=event?.payload||{};
   try{if(typeof payload==='string')payload=JSON.parse(payload);}catch{return row.title;}

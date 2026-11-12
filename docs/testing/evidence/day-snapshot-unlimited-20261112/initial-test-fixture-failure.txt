@@ -1,0 +1,21 @@
+-------------------------------------------------------------------------------
+Test set: com.chatchat.api.runtime.coding.data.CodingDataSupplyServiceTest
+-------------------------------------------------------------------------------
+Tests run: 14, Failures: 0, Errors: 1, Skipped: 1, Time elapsed: 7.856 s <<< FAILURE! -- in com.chatchat.api.runtime.coding.data.CodingDataSupplyServiceTest
+com.chatchat.api.runtime.coding.data.CodingDataSupplyServiceTest.completeDailyFileExceedsFormerRowAndInlineByteLimitsWithoutTruncation -- Time elapsed: 0.281 s <<< ERROR!
+java.lang.NullPointerException
+	at java.base/java.util.Objects.requireNonNull(Objects.java:209)
+	at java.base/java.util.ImmutableCollections$MapN.<init>(ImmutableCollections.java:1186)
+	at java.base/java.util.Map.ofEntries(Map.java:1668)
+	at java.base/java.util.Map.copyOf(Map.java:1734)
+	at com.chatchat.agents.orchestration.analysis.dataset.AnalysisEvidenceCoordinator$Dataset.<init>(AnalysisEvidenceCoordinator.java:757)
+	at com.chatchat.agents.orchestration.analysis.dataset.AnalysisEvidenceCoordinator$Dataset.<init>(AnalysisEvidenceCoordinator.java:751)
+	at com.chatchat.api.runtime.coding.data.CodingDataSupplyService.captureResource(CodingDataSupplyService.java:93)
+	at com.chatchat.api.runtime.coding.data.CodingDataSupplyServiceTest.lambda$completeDailyFileExceedsFormerRowAndInlineByteLimitsWithoutTruncation$8(CodingDataSupplyServiceTest.java:78)
+	at com.chatchat.api.runtime.coding.CodingInvocationContext.as(CodingInvocationContext.java:33)
+	at com.chatchat.api.runtime.coding.data.CodingDataSupplyServiceTest.actor(CodingDataSupplyServiceTest.java:46)
+	at com.chatchat.api.runtime.coding.data.CodingDataSupplyServiceTest.completeDailyFileExceedsFormerRowAndInlineByteLimitsWithoutTruncation(CodingDataSupplyServiceTest.java:78)
+	at java.base/java.lang.reflect.Method.invoke(Method.java:569)
+	at java.base/java.util.ArrayList.forEach(ArrayList.java:1511)
+	at java.base/java.util.ArrayList.forEach(ArrayList.java:1511)
+

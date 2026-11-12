@@ -73,6 +73,6 @@ Image ID 不冒充镜像仓库 RepoDigest。镜像从提交源码构建，记录
 
 ## 剩余问题与范围
 
-* 既有行情供数 `DAY_SNAPSHOT_ROW_LIMIT` 和一次交付 `Task metadata binding required` 在本次留有失败证据，未在配色改造中放宽授权、伪造输入或改成成功。完整行情业务仍需单独排查。
+* 配色验收中既有行情供数 `DAY_SNAPSHOT_ROW_LIMIT` 和一次交付 `Task metadata binding required` 均保留原始失败证据。随后已在[完整日文件供数修复](market-day-snapshot-unlimited-20261112.md)解除日文件行数及内联窗口限制，真实返回 24,380 行；这里的历史失败没有改成成功。交付绑定问题不属于该供数修复范围。
 * 最终为两个明确夹具各一次通过，不是所有金融市场、复杂图形、五轮重复或全系统正式发布验收。
 * 收尾脚本最初错误探测了未公开的管理地址，已改用既有用户入口及真实执行验证。首次清理前磁盘快照未落盘，不能可靠宣称回收字节数；仅记录 [清理后检查](evidence/financial-visualization-20261112/final-check.json) 的容器、镜像和可用空间事实。

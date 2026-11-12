@@ -1,0 +1,4 @@
+-------------------------------------------------------------------------------
+Test set: com.chatchat.api.runtime.coding.data.CodingDataSupplyServiceTest
+-------------------------------------------------------------------------------
+Tests run: 14, Failures: 0, Errors: 0, Skipped: 1, Time elapsed: 8.094 s -- in com.chatchat.api.runtime.coding.data.CodingDataSupplyServiceTest

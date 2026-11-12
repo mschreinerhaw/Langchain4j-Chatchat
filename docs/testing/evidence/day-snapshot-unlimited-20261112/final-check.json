@@ -1,0 +1,37 @@
+{
+  "activeImages": {
+    "api": "sha256:a2e76af8350163e85ff85f5734cc38e25970a3ed887f768e25c7c7e32951ac7a",
+    "mcp": "sha256:8e4ce47bbd085aa93162c588922ec4a49a57f297364bcbc8f012e0965d3d468a",
+    "node": "sha256:f77ba87c83cfbc0ecdb4397bdc7f17cb3f3b58579d06a052ad4ff8c9f53fdc14"
+  },
+  "stableRollback": {
+    "api": "sha256:0646027a8e359c071cc642160bbe6e5c0a16cbab9ac5aec46ae6cbd708bd03fb",
+    "mcp": "sha256:94f95194b83f908ba4fd724b56d962f16e591458ca4a9d62762f5f85807e0a71"
+  },
+  "http": {
+    "18100/": 200,
+    "18353/monitor/": 200,
+    "18353/api/v1/coding-monitor/tasks": 401
+  },
+  "removedValidationContainers": [
+    "d01a3ea0e54e963a4d68997f832a02e3308ac84fbd1931cbf9c01ef0bdfbb5ac"
+  ],
+  "intermediateImages": [
+    {
+      "tag": "runtime-os-mcp:day-snapshot-unlimited-20261112-r1",
+      "removed": true
+    },
+    {
+      "tag": "runtime-os-api:day-snapshot-unlimited-20261112-r2",
+      "removed": true
+    },
+    {
+      "tag": "runtime-os-mcp:day-snapshot-unlimited-20261112-r2",
+      "removed": true
+    }
+  ],
+  "freeBytesBefore": 42348912640,
+  "freeBytesAfter": 42248232960,
+  "measurementScope": "Filesystem free-space delta during scoped cleanup, includes concurrent system writes; not a Docker layer accounting total",
+  "checkedAt": "2026-11-12T07:41:00.815889+00:00"
+}

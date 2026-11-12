@@ -1,0 +1,28 @@
+{
+  "commit": "7d2437308b78314f4273bd87c2c527040a0cac9e",
+  "images": {
+    "api": {
+      "tag": "runtime-os-api:day-snapshot-unlimited-20261112-r3",
+      "exitCode": 0,
+      "imageId": "sha256:a2e76af8350163e85ff85f5734cc38e25970a3ed887f768e25c7c7e32951ac7a"
+    },
+    "mcp": {
+      "tag": "runtime-os-mcp:day-snapshot-unlimited-20261112-r3",
+      "exitCode": 0,
+      "imageId": "sha256:8e4ce47bbd085aa93162c588922ec4a49a57f297364bcbc8f012e0965d3d468a"
+    }
+  },
+  "readiness": {
+    "api": {
+      "responding": true,
+      "anonymousRejected": true
+    },
+    "mcp": {
+      "responding": true,
+      "anonymousRejected": true
+    }
+  },
+  "nodeUnchanged": true,
+  "modelConfigurationUnchanged": true,
+  "deployedAt": "2026-11-12T07:29:21.390639+00:00"
+}

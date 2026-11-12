@@ -1,0 +1,4 @@
+-------------------------------------------------------------------------------
+Test set: com.chatchat.runtime.market.storage.FinancialDataStoreTest
+-------------------------------------------------------------------------------
+Tests run: 21, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 6.108 s -- in com.chatchat.runtime.market.storage.FinancialDataStoreTest

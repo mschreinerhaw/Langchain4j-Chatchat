@@ -1,0 +1,16 @@
+{
+  "imageId": "sha256:8e4ce47bbd085aa93162c588922ec4a49a57f297364bcbc8f012e0965d3d468a",
+  "scope": "AUTHENTICATED_REAL_MCP_MARKET_DAY_SNAPSHOT",
+  "arguments": {
+    "dataset": "market_quote_daily",
+    "trade_date": "2026-11-11",
+    "source_id": 38
+  },
+  "count": 24380,
+  "complete": true,
+  "delivery": "IMMUTABLE_DAY_FILE",
+  "responseBytes": 25644715,
+  "responseSha256": "fa7f4b46235bd1c8f6dbe12df2d35a6899efb97e445f7ccb3dc1f95a75fac431",
+  "coverage": "Complete stored daily-hot observations for this dataset/source/day; not proof of full exchange collection. Missing days are not trading-calendar evidence.",
+  "verifiedAt": "2026-11-12T07:30:11.811672+00:00"
+}

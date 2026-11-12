@@ -1,0 +1,24 @@
+{
+  "verifiedDownloads": [
+    {
+      "sha256": "f0c93e0bafd8b99b4cd9857c950984533ad0a7ab38ebb5f49ecfa9cc2c28b2f3",
+      "mediaType": "image/svg+xml",
+      "fileId": "767b53bf2f32fd6ccfb76ddf63da4066f23c84194e4d37054c1163827cee363a",
+      "size": 42527,
+      "fileName": "xuelong_price_chart.svg",
+      "verified": true
+    },
+    {
+      "sha256": "88d7fafaa8b74a62f12aded12b9542c962b12abdb843e13a173a7694caef374c",
+      "mediaType": "image/png",
+      "fileId": "1fd037aeb4e1c19b61c409f7dc918b74976fe944aac1935d655dea65b15f6787",
+      "size": 48546,
+      "fileName": "xuelong_price_chart.png",
+      "verified": true
+    }
+  ],
+  "deliveryStatus": "FINAL",
+  "taskStatus": "PARTIAL",
+  "businessValidationPassed": false,
+  "validationScope": "STRUCTURE_AND_OBJECT_INTEGRITY"
+}

@@ -1,0 +1,7 @@
+{
+  "passed": false,
+  "scope": "REAL_DEPLOYED_MARKET_TO_NATIVE",
+  "startedAt": "2026-11-12T07:23:25.088Z",
+  "error": "/data-science/explorations/agents: HTTP 500\n\n500 !== 200\n",
+  "finishedAt": "2026-11-12T07:23:26.641Z"
+}

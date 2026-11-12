@@ -1,0 +1,18 @@
+{
+  "commit": "7d2437308b78314f4273bd87c2c527040a0cac9e",
+  "sourceArchiveSha256": "e22e91167ba41db322878a0ed917e784593d5e17ca85852c9bd1e5332900cbd0",
+  "startedAt": "2026-11-12T07:27:02.501615+00:00",
+  "images": {
+    "api": {
+      "tag": "runtime-os-api:day-snapshot-unlimited-20261112-r3",
+      "exitCode": 0,
+      "imageId": "sha256:a2e76af8350163e85ff85f5734cc38e25970a3ed887f768e25c7c7e32951ac7a"
+    },
+    "mcp": {
+      "tag": "runtime-os-mcp:day-snapshot-unlimited-20261112-r3",
+      "exitCode": 0,
+      "imageId": "sha256:8e4ce47bbd085aa93162c588922ec4a49a57f297364bcbc8f012e0965d3d468a"
+    }
+  },
+  "completedAt": "2026-11-12T07:28:36.890888+00:00"
+}

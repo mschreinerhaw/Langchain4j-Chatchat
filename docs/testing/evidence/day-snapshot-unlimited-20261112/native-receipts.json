@@ -1,0 +1,385 @@
+{
+  "workerId": "880cb78c-a4ef-4fce-a5b7-9cf88eeeb26b",
+  "taskId": "native-0480d717609aadc8a0737a408d0c5b446db6a8c43eee51816fbc9186efef39b4",
+  "runId": "att-1-7a55d81f-fcbf-428d-a0f5-01f10841d504",
+  "workerState": "STOPPED",
+  "rawEventCounts": {
+    "session.created": 1,
+    "command.started": 69,
+    "command.completed": 69,
+    "worker.ready": 1,
+    "host.notification": 1,
+    "task.accepted": 1,
+    "native.event": 446,
+    "task.started": 1,
+    "model.iteration.started": 21,
+    "model.usage": 21,
+    "permission.requested": 21,
+    "permission.decision": 21,
+    "permission.resolved": 21,
+    "tool.started": 21,
+    "tool.completed": 18,
+    "tool.failed": 3,
+    "turn.completed": 1,
+    "delivery.previewed": 1,
+    "delivery.content.reviewed": 1,
+    "delivery.seal.requested": 1,
+    "host.shutdown.requested": 1,
+    "delivery.sealed": 1,
+    "delivery.prepared": 1
+  },
+  "toolReceipts": [
+    {
+      "eventId": "59",
+      "eventType": "tool.started",
+      "toolName": "read_files",
+      "toolCallId": "call_b6c95b07461b4ed6b92bc781",
+      "payloadSha256": "c28309d57eb7515a790e4d0cab83683182a9047700ed274f7f4c844221093915",
+      "pythonCommandRequested": false
+    },
+    {
+      "eventId": "63",
+      "eventType": "tool.completed",
+      "toolName": "read_files",
+      "toolCallId": "call_b6c95b07461b4ed6b92bc781",
+      "payloadSha256": "80a5ea051f5c6b3b4cb308720acf0a38298b99068c63c463e4d668df75d1b9fe",
+      "pythonCommandRequested": false
+    },
+    {
+      "eventId": "65",
+      "eventType": "tool.started",
+      "toolName": "run_commands",
+      "toolCallId": "call_86c56d4a8f7d4298be3fb642",
+      "payloadSha256": "8bca75c652202bcbe662599c473a2393d3c8265070d07c660a04426849f69527",
+      "pythonCommandRequested": false
+    },
+    {
+      "eventId": "77",
+      "eventType": "tool.completed",
+      "toolName": "run_commands",
+      "toolCallId": "call_86c56d4a8f7d4298be3fb642",
+      "payloadSha256": "5998d54a42ccd5bcdebab58d719bcf42efc5809a50f67c733f77b729aebef7f8",
+      "pythonCommandRequested": false
+    },
+    {
+      "eventId": "101",
+      "eventType": "tool.started",
+      "toolName": "run_commands",
+      "toolCallId": "call_8e7b9bf937a3447fadf12bf2",
+      "payloadSha256": "2a917d7180744ae66452e518806a7d26c57c4d560aeed796accdb6317b7cab1c",
+      "pythonCommandRequested": false
+    },
+    {
+      "eventId": "109",
+      "eventType": "tool.completed",
+      "toolName": "run_commands",
+      "toolCallId": "call_8e7b9bf937a3447fadf12bf2",
+      "payloadSha256": "46f4b7a69672d3f918d31d3755aef0be582ebf291f83e975b37645aecefb954b",
+      "pythonCommandRequested": false
+    },
+    {
+      "eventId": "132",
+      "eventType": "tool.started",
+      "toolName": "editor",
+      "toolCallId": "call_cc4d30d573804e13a47d6967",
+      "payloadSha256": "093b88fb02266d2ddc7f131eff2723348a7b723547c9c18b0223eb22e945f998",
+      "pythonCommandRequested": false
+    },
+    {
+      "eventId": "136",
+      "eventType": "tool.failed",
+      "toolName": "editor",
+      "toolCallId": "call_cc4d30d573804e13a47d6967",
+      "payloadSha256": "f55418b15fadbc87ec5adce280e8b1882e47988d98a962d6261fd4f7849f3c49",
+      "pythonCommandRequested": false
+    },
+    {
+      "eventId": "157",
+      "eventType": "tool.started",
+      "toolName": "editor",
+      "toolCallId": "call_bfd67e369a804955a3f4bbf6",
+      "payloadSha256": "ab5144f20933b2211a2c03394d3ed28de7d177e30b715dfff72cc917b05f5420",
+      "pythonCommandRequested": false
+    },
+    {
+      "eventId": "161",
+      "eventType": "tool.completed",
+      "toolName": "editor",
+      "toolCallId": "call_bfd67e369a804955a3f4bbf6",
+      "payloadSha256": "a6ab7d7b2fc55801a4717c2d3c9d1f9329c8dae6ad2aecb833c454fa7f1d0826",
+      "pythonCommandRequested": false
+    },
+    {
+      "eventId": "177",
+      "eventType": "tool.started",
+      "toolName": "editor",
+      "toolCallId": "call_d24a68e1702d4f31a5d86083",
+      "payloadSha256": "3da90950dcd4b5cd9bed4ebba87bed5f29c6dd38e8a9652def487bd88d4102a5",
+      "pythonCommandRequested": false
+    },
+    {
+      "eventId": "181",
+      "eventType": "tool.completed",
+      "toolName": "editor",
+      "toolCallId": "call_d24a68e1702d4f31a5d86083",
+      "payloadSha256": "b8ad8f72be1a0d17712013aedb4d581330ac42c01ab5bbf752b0fa7f35782d07",
+      "pythonCommandRequested": false
+    },
+    {
+      "eventId": "197",
+      "eventType": "tool.started",
+      "toolName": "editor",
+      "toolCallId": "call_2fbc2b535f8144d0bee3e350",
+      "payloadSha256": "d64ca4283ca05de7565da5abc3bd175e41021bf2b8bd374e454f591fafcdeba4",
+      "pythonCommandRequested": false
+    },
+    {
+      "eventId": "201",
+      "eventType": "tool.completed",
+      "toolName": "editor",
+      "toolCallId": "call_2fbc2b535f8144d0bee3e350",
+      "payloadSha256": "57d8759596f3e3d8b7756622462dfa4f18103cf62e9e69b9c75d8becdfbfdddb",
+      "pythonCommandRequested": false
+    },
+    {
+      "eventId": "221",
+      "eventType": "tool.started",
+      "toolName": "editor",
+      "toolCallId": "call_16642557439e49db9018ee40",
+      "payloadSha256": "9188a848f7411f027f492f15328f4872dcc8c82fef2284c5942c552fbe4d82ca",
+      "pythonCommandRequested": false
+    },
+    {
+      "eventId": "225",
+      "eventType": "tool.completed",
+      "toolName": "editor",
+      "toolCallId": "call_16642557439e49db9018ee40",
+      "payloadSha256": "9833c3846e299d192ae5372692b7c1f900e91e1701469853ee6df51f362d242d",
+      "pythonCommandRequested": false
+    },
+    {
+      "eventId": "241",
+      "eventType": "tool.started",
+      "toolName": "editor",
+      "toolCallId": "call_5a69d73940644a0c98d6455e",
+      "payloadSha256": "d2fbd9ea8e51b9cf769a314aff6bd78d331be806777762f8399c8b24f03eaaa1",
+      "pythonCommandRequested": false
+    },
+    {
+      "eventId": "245",
+      "eventType": "tool.completed",
+      "toolName": "editor",
+      "toolCallId": "call_5a69d73940644a0c98d6455e",
+      "payloadSha256": "077f952483b99dc282fe04f730b21426c76a94188c965a9223bbf7e0e95a5b11",
+      "pythonCommandRequested": false
+    },
+    {
+      "eventId": "261",
+      "eventType": "tool.started",
+      "toolName": "editor",
+      "toolCallId": "call_01188f5b87f7491c85274fb4",
+      "payloadSha256": "9c81d06ce41a31573609e56c0c734a74a29191215515537623d16adf1267e076",
+      "pythonCommandRequested": false
+    },
+    {
+      "eventId": "265",
+      "eventType": "tool.completed",
+      "toolName": "editor",
+      "toolCallId": "call_01188f5b87f7491c85274fb4",
+      "payloadSha256": "2b0a1a96bee41b3427936c56f61f5348a674ac65f638b9339b12061c53111fe1",
+      "pythonCommandRequested": false
+    },
+    {
+      "eventId": "284",
+      "eventType": "tool.started",
+      "toolName": "run_commands",
+      "toolCallId": "call_a23b0bb906554bbd937076b9",
+      "payloadSha256": "d0b301474a684ae0048cdcd4a8961576608e2a6ef277f64c1039f0e4806b7004",
+      "pythonCommandRequested": true
+    },
+    {
+      "eventId": "292",
+      "eventType": "tool.failed",
+      "toolName": "run_commands",
+      "toolCallId": "call_a23b0bb906554bbd937076b9",
+      "payloadSha256": "e8b2270d5f3982e5032bf4681035fdb72688da521da2b43701f471880c1db8ef",
+      "pythonCommandRequested": false
+    },
+    {
+      "eventId": "308",
+      "eventType": "tool.started",
+      "toolName": "read_files",
+      "toolCallId": "call_ff337be7fbbb4f0bbbee6279",
+      "payloadSha256": "543ca869a83c8b252b49bf2049ab6d495a169ce57b7cfda9bed829871acbbb96",
+      "pythonCommandRequested": false
+    },
+    {
+      "eventId": "312",
+      "eventType": "tool.completed",
+      "toolName": "read_files",
+      "toolCallId": "call_ff337be7fbbb4f0bbbee6279",
+      "payloadSha256": "6eee1553e68a44cd426469804bc2311246caca69240196cffc8aad81ac76abca",
+      "pythonCommandRequested": false
+    },
+    {
+      "eventId": "336",
+      "eventType": "tool.started",
+      "toolName": "read_files",
+      "toolCallId": "call_008c8dbed4624492b31f7acd",
+      "payloadSha256": "11bf98d98700feb49339baea280d392bef9f2df19503853dd049908614e42b4d",
+      "pythonCommandRequested": false
+    },
+    {
+      "eventId": "340",
+      "eventType": "tool.completed",
+      "toolName": "read_files",
+      "toolCallId": "call_008c8dbed4624492b31f7acd",
+      "payloadSha256": "cd066dcbf5871d6a8c4321da1b5ee8ea0297e503c6384a7ac63b11712ee535b6",
+      "pythonCommandRequested": false
+    },
+    {
+      "eventId": "362",
+      "eventType": "tool.started",
+      "toolName": "run_commands",
+      "toolCallId": "call_027f87a23a384427b8ca7865",
+      "payloadSha256": "ffcdd51f9c76d1e6fe382ba9b691312582f5d8a051b0b6169f9e727ba4f936cf",
+      "pythonCommandRequested": false
+    },
+    {
+      "eventId": "369",
+      "eventType": "tool.completed",
+      "toolName": "run_commands",
+      "toolCallId": "call_027f87a23a384427b8ca7865",
+      "payloadSha256": "80ad8727136e6cf8253002e2e277f71bd0a1cc932f634a9cbb270c95a26a44a4",
+      "pythonCommandRequested": false
+    },
+    {
+      "eventId": "385",
+      "eventType": "tool.started",
+      "toolName": "run_commands",
+      "toolCallId": "call_b3bd1dac82444ab0bb9c9056",
+      "payloadSha256": "f2dac8fe80a8dcf4a5f8af8c2ea1e4c46189b3bab650a63664d23c8a7a31e7e2",
+      "pythonCommandRequested": true
+    },
+    {
+      "eventId": "393",
+      "eventType": "tool.completed",
+      "toolName": "run_commands",
+      "toolCallId": "call_b3bd1dac82444ab0bb9c9056",
+      "payloadSha256": "13bfe07d9429fae9f04f3737d6024413613dc6ffb3e6d9771991774dbb77c1ff",
+      "pythonCommandRequested": false
+    },
+    {
+      "eventId": "409",
+      "eventType": "tool.started",
+      "toolName": "run_commands",
+      "toolCallId": "call_6162eb07d99f4afab7dea6c3",
+      "payloadSha256": "ba6c83b49467e37b8d6cdb0f4cbcc0c07de5a6d2a0d61f76e9d048cec21465e8",
+      "pythonCommandRequested": true
+    },
+    {
+      "eventId": "418",
+      "eventType": "tool.completed",
+      "toolName": "run_commands",
+      "toolCallId": "call_6162eb07d99f4afab7dea6c3",
+      "payloadSha256": "bc1362644f745a48fa9d4e2f8b3c622e8d9bf88c87ee858ef1064131958f71a9",
+      "pythonCommandRequested": false
+    },
+    {
+      "eventId": "441",
+      "eventType": "tool.started",
+      "toolName": "run_commands",
+      "toolCallId": "call_6a57dfaee90747ee8545526b",
+      "payloadSha256": "c7d9bb8c19c958886e91e6202f14a6824bea315bbd048b272d3152048e85b97e",
+      "pythonCommandRequested": false
+    },
+    {
+      "eventId": "453",
+      "eventType": "tool.completed",
+      "toolName": "run_commands",
+      "toolCallId": "call_6a57dfaee90747ee8545526b",
+      "payloadSha256": "7aa3ff3ba2de4c7ab611bb15c5282c62fc7fef9e2831640c54437fa988324682",
+      "pythonCommandRequested": false
+    },
+    {
+      "eventId": "476",
+      "eventType": "tool.started",
+      "toolName": "run_commands",
+      "toolCallId": "call_bb4d0741d9824adebc6cb4d3",
+      "payloadSha256": "112a8a23bbc8b132ccfed6773524467a76c2990617341b1914bd3f62d28fcec6",
+      "pythonCommandRequested": true
+    },
+    {
+      "eventId": "484",
+      "eventType": "tool.completed",
+      "toolName": "run_commands",
+      "toolCallId": "call_bb4d0741d9824adebc6cb4d3",
+      "payloadSha256": "4b0f499e7acb43aea91805350a68ee330e3109a8c45ec7842ba5b8fc128539db",
+      "pythonCommandRequested": false
+    },
+    {
+      "eventId": "500",
+      "eventType": "tool.started",
+      "toolName": "run_commands",
+      "toolCallId": "call_b8135b995ef5479c9b0e669c",
+      "payloadSha256": "0d4c3540b37a29a15169ec1065ad3f924982ac9490238c4c3a7bfc21f9a13bfd",
+      "pythonCommandRequested": false
+    },
+    {
+      "eventId": "508",
+      "eventType": "tool.completed",
+      "toolName": "run_commands",
+      "toolCallId": "call_b8135b995ef5479c9b0e669c",
+      "payloadSha256": "bd1c073010336cffe975f922915e2e90c142722e2bdecb0fe53f94087b88f9d4",
+      "pythonCommandRequested": false
+    },
+    {
+      "eventId": "529",
+      "eventType": "tool.started",
+      "toolName": "run_commands",
+      "toolCallId": "call_ffc716497a1f4625a854cae5",
+      "payloadSha256": "570bacb0da711461cbe8b772977104fca6dc23a460a74121307ac77be8706ecc",
+      "pythonCommandRequested": true
+    },
+    {
+      "eventId": "538",
+      "eventType": "tool.failed",
+      "toolName": "run_commands",
+      "toolCallId": "call_ffc716497a1f4625a854cae5",
+      "payloadSha256": "26e4f7eabbd19317f7500ffef7df0eef12d7bd15cfbdad3b381c762647487927",
+      "pythonCommandRequested": false
+    },
+    {
+      "eventId": "554",
+      "eventType": "tool.started",
+      "toolName": "run_commands",
+      "toolCallId": "call_be75acd8bc074102b76f111d",
+      "payloadSha256": "9d2ddb887012b12be0a915a50350bd6a196ee12f6789fee9e30fe45e5b1829d0",
+      "pythonCommandRequested": true
+    },
+    {
+      "eventId": "562",
+      "eventType": "tool.completed",
+      "toolName": "run_commands",
+      "toolCallId": "call_be75acd8bc074102b76f111d",
+      "payloadSha256": "c89b22836dc73933a0578b3a6430efd755c1208fec4a5a075d81b8805d76a882",
+      "pythonCommandRequested": false
+    }
+  ],
+  "inputFiles": [
+    {
+      "path": "input/data/0/source-1.jsonl",
+      "size": 1088416,
+      "sha256": "fba8f9a1d0ef2574c95fb1bdc8a65b976aca431358a79465bebb323c21a7ef01",
+      "objectVersion": "2714a31c-9ee0-4b83-99c8-67536078dcc9",
+      "verified": true
+    },
+    {
+      "path": "input/data/1/source-1-context.json",
+      "size": 251,
+      "sha256": "b389005969ddddcbc0c877866f2d89384c2774233f9551ec661ed9881f4189e5",
+      "objectVersion": "b3fa67e3-4498-4267-8a31-2e40df001e51",
+      "verified": true
+    }
+  ]
+}

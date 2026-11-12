@@ -1,0 +1,22 @@
+{
+  "passed": true,
+  "scope": "REAL_DEPLOYED_MARKET_TO_NATIVE",
+  "startedAt": "2026-11-12T07:29:22.262Z",
+  "workspaceId": "0d3805d9-f4de-45d7-bdfc-f48517e6c47c",
+  "nodeId": "50d381c2-ea6a-4591-a385-f746057bb48f",
+  "agentTaskId": "0d62bdf5-88d5-318c-81bf-9e75fd256b02",
+  "status": "PARTIAL",
+  "eventCount": 265,
+  "nativeTypes": [
+    "OBSERVATION",
+    "MODEL_REQUEST_STARTED",
+    "MODEL_REQUEST_COMPLETED",
+    "TOOL_STARTED",
+    "TOOL_COMPLETED",
+    "ERROR_OCCURRED",
+    "FILE_CHANGED",
+    "COMMAND_STARTED",
+    "COMMAND_COMPLETED"
+  ],
+  "finishedAt": "2026-11-12T07:37:19.740Z"
+}

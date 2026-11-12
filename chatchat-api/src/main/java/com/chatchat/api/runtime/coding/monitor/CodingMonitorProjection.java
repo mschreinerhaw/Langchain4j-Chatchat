@@ -91,6 +91,8 @@ public final class CodingMonitorProjection implements DurableCodingTaskService.P
         String name=contract.objective().instruction().split("\n",2)[0];if(name.length()>256)name=name.substring(0,256);
         var summary=new LinkedHashMap<String,Object>();summary.put("taskId",contract.taskId());summary.put("runId",scope.runId());summary.put("name",name);
         summary.put("status",outcome.status());summary.put("createdAt",outcome.createdAt());summary.put("startedAt",outcome.startedAt());summary.put("updatedAt",outcome.updatedAt());summary.put("endedAt",outcome.endedAt());
+        summary.put("canStop",!outcome.status().terminal());
+        summary.put("stopPending",!outcome.status().terminal()&&(outcome.cancellationRequested()||outcome.executionControl().stopReason()!=null));
         summary.put("modelRequests",outcome.usage().consumed().modelCalls());summary.put("tokens",outcome.usage().meteringComplete()?outcome.usage().consumed().modelTokens():null);
         summary.put("confirmedTokenLowerBound",outcome.usage().consumed().modelTokens());
         var providerRows=jdbc.queryForList("select event_json from runtime_coding_event_view where view_id=? and normalized_type='MODEL_REQUEST_COMPLETED'",id);

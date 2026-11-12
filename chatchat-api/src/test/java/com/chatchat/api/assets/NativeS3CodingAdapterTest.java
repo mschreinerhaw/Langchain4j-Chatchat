@@ -32,7 +32,7 @@ class NativeS3CodingAdapterTest {
     JsonNode grant,manifest;boolean created,messaged,sealed;final AtomicInteger messageCalls=new AtomicInteger();
     volatile boolean blockStatus;
     final java.util.concurrent.CountDownLatch blockedStatus=new java.util.concurrent.CountDownLatch(1),releaseStatus=new java.util.concurrent.CountDownLatch(1);
-    volatile boolean asynchronousStop;volatile long stopReadyAt;
+    volatile boolean asynchronousStop,missingStoppedTelemetry;volatile long stopReadyAt;
     final byte[] output="{\"value\":42}".getBytes(java.nio.charset.StandardCharsets.UTF_8);
     @BeforeEach void setup()throws Exception{
         fixture=new SiloCodingWorkspaceServiceTest();fixture.setup();
@@ -63,8 +63,8 @@ class NativeS3CodingAdapterTest {
         assertThatThrownBy(()->capture.capture(fixture.scope,"native-test",List.of(),"Analyze","published-model",null)).isInstanceOf(CodingContractException.class);
         assertThat(created).isFalse();
     }
-    @Test void cancellationWaitsForTheAsynchronousExecutorProofInsteadOfTreating202AsStopped()throws Exception{
-        asynchronousStop=true;
+    @Test void cancellationWaitsForExecutorProofAndCanSettleWhenHistoricalTelemetryIsMissing()throws Exception{
+        asynchronousStop=true;missingStoppedTelemetry=true;
         String file=fixture.assets.upload(fixture.owner,"input.csv","value\n42\n".getBytes()).id();
         var contract=authorized(()->capture.capture(fixture.scope,"native-cancel",List.of(file),"Long running task","published-model",new CodingTaskContract.Budget("cancel-budget",Instant.now().plusSeconds(90).truncatedTo(java.time.temporal.ChronoUnit.MILLIS),-1,-1,-1,-1,"unlimited","USD",-1,1024*1024,1024*1024),Map.of("profile","artifact-integrity-v1"),List.of("RESULT")));
         authorized(()->adapter.submit(contract));for(int i=0;i<100&&messageCalls.get()==0;i++)Thread.sleep(50);
@@ -101,7 +101,10 @@ class NativeS3CodingAdapterTest {
             if(path.equals("/v1/sessions")){created=true;grant=identity;reply(exchange,201,state());return;}
             if(!created){reply(exchange,404,Map.of("code","NOT_FOUND"));return;}
             if(path.endsWith("/status")){if(blockStatus&&messaged){blockedStatus.countDown();releaseStatus.await(5,java.util.concurrent.TimeUnit.SECONDS);}reply(exchange,200,state());return;}
-            if(path.endsWith("/observations")||path.endsWith("/receipts")){reply(exchange,200,Map.of("events",List.of(),"nextEventId",0,"hasMore",false));return;}
+            if(path.endsWith("/observations")||path.endsWith("/receipts")){
+                if(sealed&&missingStoppedTelemetry){reply(exchange,410,Map.of("code","HISTORICAL_TELEMETRY_UNAVAILABLE"));return;}
+                reply(exchange,200,Map.of("events",List.of(),"nextEventId",0,"hasMore",false));return;
+            }
             if(path.endsWith("/messages")){messageCalls.incrementAndGet();messaged=true;reply(exchange,202,Map.of("accepted",true));return;}
             if(path.endsWith("/delivery-preview")||path.endsWith("/delivery")){
                 manifest=json.valueToTree(new SiloCodingWorkspaceService.Delivery("coding_node_delivery.v1",grant.path("taskId").asText(),grant.path("deliveryBinding").path("runId").asText(),grant.path("tenantId").asText(),grant.path("deliveryBinding").path("inputSnapshotVersion").asText(),"v1","native-session","native-epoch","NATIVE_TURN_COMPLETED","PENDING_RUNTIME_VALIDATION",List.of(new SiloCodingWorkspaceService.Artifact("output/answer.json","RESULT",output.length,UserAssetService.hash(output))),List.of(new SiloCodingWorkspaceService.Receipt("1","turn.completed","native-session","native-epoch"))));

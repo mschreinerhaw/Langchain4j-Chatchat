@@ -97,8 +97,9 @@ public final class NativeS3CodingAdapter implements CodingAgentSPI {
             var existing=tasks.get(c.scope(),c.taskId());if(existing.status().terminal())return;
             var held=tasks.ownership(c.scope(),c.taskId());
             var lease=owner.equals(held.owner())&&held.leaseUntil().isAfter(Instant.now())?held:tasks.claim(c.scope(),c.taskId(),owner,Duration.ofMinutes(3),existing.revision());
-            run=new Run(c,lease);if(!license.codingDispatchEntitlement().licenseValid())throw new SecurityException("Coding dispatch entitlement required");
+            run=new Run(c,lease);
             if(outcome(run).executionControl().stopReason()!=null){stop(run,false,"Cancellation requested");return;}
+            if(!license.codingDispatchEntitlement().licenseValid())throw new SecurityException("Coding dispatch entitlement required");
             var binding=state(run,BINDING);
             if(binding==null){binding=binding(run);save(run,BINDING,binding);}
             String grant=binding.path("grant").asText(),session=binding.path("sessionId").asText();
@@ -343,7 +344,13 @@ public final class NativeS3CodingAdapter implements CodingAgentSPI {
             try{Thread.sleep(200);}catch(InterruptedException interrupted){Thread.currentThread().interrupt();throw new IllegalStateException("Stop reconciliation interrupted",interrupted);}
             remote=settings.client.status(b.path("grant").asText(),b.path("sessionId").asText());
         }
-        poll(r,"core");poll(r,"provider");String proof=stopReference(r,remote);reconcile(r,proof);
+        String proof=stopReference(r,remote);reconcile(r,proof);
+        // A missing historical telemetry file must not discard an actual Executor stop proof.
+        try{poll(r,"core");poll(r,"provider");}catch(RuntimeException unavailable){
+            try{evidence.archive(r.c,"stop-telemetry-unavailable","stop-telemetry-unavailable.json",
+                evidence.bytes(Map.of("workerStopVerified",true,"telemetryAvailable",false)));}
+            catch(RuntimeException archiveUnavailable){/* The verified stop proof is already durable. */}
+        }
         var prior=outcome(r);if(prior.status().terminal())return;
         if(prior.executionControl().stopReason()!=null){tasks.finishStoppedAfterReconciliation(r.c.scope(),r.c.taskId(),r.lease,prior.revision());return;}
         var at=Instant.now().truncatedTo(java.time.temporal.ChronoUnit.MILLIS);var proposal=new CodingTaskOutcome(prior.schemaVersion(),prior.taskId(),prior.scope(),prior.contractSha256(),Status.FAILED,prior.revision()+1,prior.lastEventSequence()+1,prior.createdAt(),at,prior.startedAt(),at,false,CodingErrorCode.EXECUTION_FAILED,

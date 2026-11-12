@@ -9,6 +9,12 @@ for(const [content,id,title] of [['timeline','timeline-panel','执行时间线']
  const panel=document.createElement('details'),summary=textHeading(title);panel.id=id;panel.className='panel fold';section.replaceWith(panel);panel.append(summary,...section.childNodes);panel.querySelector('h2')?.remove();
 }
 function textHeading(title){const summary=document.createElement('summary');summary.textContent=title;return summary;}
+const terminalStatuses=new Set(['COMPLETED','PARTIAL','FAILED','CANCELLED','BUDGET_EXCEEDED']);
+const taskKey=row=>row.runId+'\0'+row.taskId;
+const canStop=row=>!candidate&&!terminalStatuses.has(row.status);
+const stopPending=row=>row.stopPending===true||row.cancellationRequested===true||['CANCEL_REQUESTED','DEADLINE_EXCEEDED'].includes(row.lastError)||row.executionControl?.stopReason!=null;
+let visibleRows=[],stopBusy=false;const checkedTasks=new Map(),stopResults=new Map();
+if(candidate)$('stop-toolbar').hidden=true;
 const labels={SEALED_PENDING_VALIDATION:"Native sealed; awaiting acceptance",CREATED:'已创建',RUNNING:'执行中',COMPLETED:'已完成',PARTIAL:'部分完成',FAILED:'失败',CANCELLED:'已取消',BUDGET_EXCEEDED:'超时 / 资源限制',TASK_STARTED:'任务开始',MODEL_REQUEST_STARTED:'模型请求',MODEL_REQUEST_COMPLETED:'模型回执',TOOL_STARTED:'工具开始',TOOL_COMPLETED:'工具完成',FILE_CHANGED:'文件修改',COMMAND_STARTED:'命令执行',COMMAND_COMPLETED:'执行回执',ERROR_OCCURRED:'执行失败',REPAIR_ATTEMPTED:'修复证据',ARTIFACT_UPLOADED:'成果上传',DELIVERY_VALIDATED:'Java 验收',TASK_COMPLETED:'任务完成',TASK_FAILED:'任务失败',TASK_CANCELLED:'任务取消',OBSERVATION:'执行记录'};
 let token=sessionStorage.getItem(storage)||'',page=0,total=0,selected=null,events=new Map(),cursor=0,stream=null,refreshTimer=null,objectUrl=null;
 const text=(tag,value,cls)=>{const n=document.createElement(tag);n.textContent=value??'—';if(cls)n.className=cls;return n;};
@@ -17,7 +23,7 @@ const number=value=>typeof value==='number'&&Number.isFinite(value)?value.toLoca
 const duration=ms=>typeof ms==='number'&&Number.isFinite(ms)?ms>=60000?`${Math.floor(ms/60000)} 分 ${Math.floor(ms%60000/1000)} 秒`:`${(ms/1000).toFixed(1)} 秒`:'未提供';
 const elapsed=row=>{const start=Date.parse(row.startedAt||row.createdAt),end=row.endedAt?Date.parse(row.endedAt):Date.now();return Number.isFinite(start)&&Number.isFinite(end)?duration(Math.max(0,end-start)):'—';};
 const notice=message=>{$('notice').textContent=message||'';};
-function signOut(message){token='';sessionStorage.removeItem(storage);selected=null;stopStream();$('login').hidden=false;$('list').hidden=true;$('detail').hidden=true;$('logout').hidden=true;$('account').textContent='';notice(message);}
+function signOut(message){checkedTasks.clear();visibleRows=[];token='';sessionStorage.removeItem(storage);selected=null;stopStream();$('login').hidden=false;$('list').hidden=true;$('detail').hidden=true;$('logout').hidden=true;$('account').textContent='';notice(message);}
 async function request(path,{body,raw=false}={}){
  const response=await fetch(path,{method:body===undefined?'GET':'POST',headers:{...(token?{Authorization:'Bearer '+token}:{}),...(body===undefined?{}:{'Content-Type':'application/json'})},body:body===undefined?undefined:JSON.stringify(body),cache:'no-store'});
  if(response.status===401){signOut('登录状态已失效，请重新认证。');throw Error('请重新登录');}
@@ -27,21 +33,21 @@ async function request(path,{body,raw=false}={}){
 async function authenticate(){const user=await request('/api/v1/enterprise/auth/me');$('account').textContent=user.displayName||user.username||'已登录';$('login').hidden=true;$('logout').hidden=false;await showList();}
 $('login-form').onsubmit=async event=>{event.preventDefault();notice('');const form=event.currentTarget;try{const user=await request('/api/v1/enterprise/auth/login',{body:{username:form.username.value,password:form.password.value}});form.password.value='';if(!user.token)throw Error('Java 服务未返回登录凭据');token=user.token;sessionStorage.setItem(storage,token);await authenticate();}catch(error){notice(error.message);}};
 $('logout').onclick=()=>signOut('已退出监控页面。');
-function badge(value,validation){return text('span',value==='COMPLETED'&&validation==='INCONCLUSIVE'?'\u4ea4\u4ed8\u5df2\u767b\u8bb0':labels[value]||value,'badge '+value);}
+function badge(value,validation,pending=false){if(!terminalStatuses.has(value)&&pending)return text('span','\u505c\u6b62\u5f85\u786e\u8ba4','badge STOPPING');return text('span',value==='COMPLETED'&&validation==='INCONCLUSIVE'?'\u4ea4\u4ed8\u5df2\u767b\u8bb0':labels[value]||value,'badge '+value);}
 function stopStream(){if(stream)stream.abort();stream=null;clearTimeout(refreshTimer);}
 async function showList(){selected=null;stopStream();$('detail').hidden=true;$('list').hidden=false;await loadList();}
 $('back').onclick=()=>showList().catch(error=>notice(error.message));
-$('filters').onsubmit=event=>{event.preventDefault();page=0;loadList().catch(error=>notice(error.message));};
+$('filters').onsubmit=event=>{event.preventDefault();page=0;checkedTasks.clear();loadList().catch(error=>notice(error.message));};
 $('refresh').onclick=()=>loadList().catch(error=>notice(error.message));
-$('previous').onclick=()=>{page=Math.max(0,page-1);loadList().catch(error=>notice(error.message));};
-$('next').onclick=()=>{page++;loadList().catch(error=>notice(error.message));};
+$('previous').onclick=()=>{page=Math.max(0,page-1);checkedTasks.clear();loadList().catch(error=>notice(error.message));};
+$('next').onclick=()=>{page++;checkedTasks.clear();loadList().catch(error=>notice(error.message));};
 async function loadList(){
  if(!token||selected)return;const filter=$('filters'),params=new URLSearchParams({page:String(page),size:'20',name:filter.elements.namedItem('name').value,status:filter.status.value});
  if(filter.from.value)params.set('from',String(new Date(filter.from.value).getTime()));if(filter.to.value)params.set('to',String(new Date(filter.to.value).getTime()));
- const result=await request(root+'/tasks?'+params);if(selected)return;total=result.total;$('rows').replaceChildren();
- for(const row of result.items){const tr=document.createElement('tr'),title=document.createElement('td'),link=text('button',row.name,'link');link.onclick=()=>openTask(row.runId,row.taskId).catch(error=>notice(error.message));title.append(link,text('small',row.taskId));tr.append(title);
+ const result=await request(root+'/tasks?'+params);if(selected)return;total=result.total;visibleRows=result.items;for(const key of checkedTasks.keys())if(!visibleRows.some(row=>taskKey(row)===key&&canStop(row)))checkedTasks.delete(key);$('rows').replaceChildren();
+ for(const row of result.items){const tr=document.createElement('tr'),title=document.createElement('td'),link=text('button',row.name,'link');link.onclick=()=>openTask(row.runId,row.taskId).catch(error=>notice(error.message));title.append(link,text('small',row.taskId));const select=document.createElement('td'),checkbox=document.createElement('input');checkbox.type='checkbox';checkbox.disabled=!canStop(row)||stopBusy;checkbox.checked=checkedTasks.has(taskKey(row));checkbox.setAttribute('aria-label','\u9009\u62e9\u4efb\u52a1 '+row.taskId);checkbox.onchange=()=>{if(checkbox.checked)checkedTasks.set(taskKey(row),row);else checkedTasks.delete(taskKey(row));updateSelection();};select.append(checkbox);tr.append(select,title);
   const times=document.createElement('td');times.append(text('span',date(row.createdAt)),text('small','开始 '+date(row.startedAt)));tr.append(times);
-  const state=document.createElement('td');state.append(badge(row.status,row.validationStatus),text('small',row.currentAction));tr.append(state,text('td',row.lastError||'—'),text('td',number(row.modelRequests)),text('td',row.tokens==null&&row.confirmedTokenLowerBound>0?'Confirmed '+number(row.confirmedTokenLowerBound):number(row.tokens)),text('td',elapsed(row)));$('rows').append(tr);}
+  const state=document.createElement('td');state.append(badge(row.status,row.validationStatus,stopPending(row)),text('small',row.currentAction));tr.append(state,text('td',row.lastError||'—'),text('td',number(row.modelRequests)),text('td',row.tokens==null&&row.confirmedTokenLowerBound>0?'Confirmed '+number(row.confirmedTokenLowerBound):number(row.tokens)),text('td',elapsed(row)));const controls=document.createElement('td');if(canStop(row)){const button=text('button',stopPending(row)?'\u91cd\u8bd5\u505c\u6b62':'\u505c\u6b62','danger stop-task');button.disabled=stopBusy;button.onclick=()=>stopTasks([row]);controls.append(button);}if(stopResults.has(taskKey(row)))controls.append(text('small',stopResults.get(taskKey(row))));tr.append(controls);$('rows').append(tr);}updateSelection();
  $('empty').hidden=result.items.length>0;$('page').textContent=`第 ${page+1} 页 · 共 ${total} 个任务`;$('previous').disabled=page===0;$('next').disabled=(page+1)*20>=total;
  notice(result.projectionLagging?'监控查询投影正在补读；执行仍由原任务日志控制。':'');
 }
@@ -54,7 +60,8 @@ async function openTask(runId,taskId){
 function facts(values){const dl=document.createElement('dl');dl.className='facts';for(const [name,value]of values){const div=document.createElement('div');div.append(text('dt',name),text('dd',value));dl.append(div);}return dl;}
 async function loadDetail(){
  if(!selected)return;const key=selected.runId+'\0'+selected.taskId,result=await request(route());if(!selected||key!==selected.runId+'\0'+selected.taskId)return;
- selected={...selected,...result};const out=result.outcome;$('overview').replaceChildren(text('h1',result.name),badge(out.status,out.validationStatus),facts([['Task ID',result.taskId],['Run ID',result.runId],['Cline Session',result.sessionId||'未建立'],['创建时间',date(out.createdAt)],['启动时间',date(out.startedAt)],['已执行时间',elapsed(out)],['Java 验收',out.validationStatus||'NOT_RUN']]));
+ selected={...selected,...result};const out=result.outcome;$('overview').replaceChildren(text('h1',result.name),badge(out.status,out.validationStatus,stopPending(out)),facts([['Task ID',result.taskId],['Run ID',result.runId],['Cline Session',result.sessionId||'未建立'],['创建时间',date(out.createdAt)],['启动时间',date(out.startedAt)],['已执行时间',elapsed(out)],['Java 验收',out.validationStatus||'NOT_RUN']]));
+ if(!candidate&&!terminalStatuses.has(out.status)){const stop=text('button',stopPending(out)?'\u91cd\u8bd5\u505c\u6b62':'\u505c\u6b62\u4efb\u52a1','danger');stop.disabled=stopBusy;stop.onclick=()=>stopTasks([result]);$('overview').append(stop);}
  if(candidate&&typeof out.fixtureValidationPassed==='boolean')$('overview').append(facts([['Independent fixture verification',out.fixtureValidationPassed?'PASSED':'FAILED']]));
  renderModels(result.modelReceipts);renderExecutions(result.executions);renderRepairs();
 }
@@ -119,5 +126,27 @@ async function preview(id,name){const response=await request(route('/artifacts/'
  if(response.headers.get('Content-Type')?.startsWith('image/png')){objectUrl=URL.createObjectURL(await response.blob());const img=document.createElement('img');img.alt=name;img.src=objectUrl;$('preview-body').append(img);}else $('preview-body').append(text('pre',await response.text()));$('preview').showModal();}
 async function downloadFile(file){const response=await request(route('/artifacts/')+encodeURIComponent(file.id)+'/content?download=true',{raw:true}),url=URL.createObjectURL(await response.blob()),link=document.createElement('a');link.href=url;link.download=file.fileName;link.click();setTimeout(()=>URL.revokeObjectURL(url),1000);}
 $('close-preview').onclick=()=>{$('preview').close();if(objectUrl)URL.revokeObjectURL(objectUrl);objectUrl=null;};
-setInterval(()=>{if(token&&!selected&&!$('list').hidden)loadList().catch(error=>notice(error.message));},15000);
+setInterval(()=>{if(token&&!selected&&!stopBusy&&!$('list').hidden)loadList().catch(error=>notice(error.message));},15000);
 if(token)authenticate().catch(error=>signOut(error.message));
+
+function updateSelection(){
+ const eligible=visibleRows.filter(canStop);$('select-all').disabled=stopBusy||eligible.length===0;$('select-all').checked=eligible.length>0&&eligible.every(row=>checkedTasks.has(taskKey(row)));$('select-all').indeterminate=checkedTasks.size>0&&!$('select-all').checked;
+ $('stop-selected').disabled=stopBusy||checkedTasks.size===0;$('selection-count').textContent=checkedTasks.size?'已选择 '+checkedTasks.size+' 个本页任务':'未选择任务';
+}
+$('select-all').onchange=event=>{checkedTasks.clear();if(event.target.checked)for(const row of visibleRows.filter(canStop))checkedTasks.set(taskKey(row),row);loadList().catch(error=>notice(error.message));};
+$('stop-selected').onclick=()=>stopTasks([...checkedTasks.values()]);
+async function stopTasks(rows){
+ if(stopBusy||candidate||!rows.length)return;
+ if(!window.confirm('停止所选 '+rows.length+' 个任务？将终止任务执行，保留历史记录及已有产物。'))return;
+ const accountToken=token;stopBusy=true;updateSelection();let index=0,finished=0,pending=0,failed=0;
+ const progress=()=>{$('stop-result').textContent=`已处理 ${finished}/${rows.length} · 停止待确认 ${pending} · 失败 ${failed}`;};progress();
+ try{
+  await Promise.all(Array.from({length:Math.min(2,rows.length)},async()=>{
+   while(index<rows.length&&token&&token===accountToken){const row=rows[index++];
+    try{const result=await request(root+'/tasks/'+encodeURIComponent(row.runId)+'/'+encodeURIComponent(row.taskId)+'/cancel',{body:{}});const waiting=result.stopState!=='TERMINAL';if(waiting)pending++;stopResults.set(taskKey(row),waiting?'\u505c\u6b62\u5f85\u786e\u8ba4\uff0c\u53ef\u91cd\u8bd5':labels[result.outcome.status]||result.outcome.status);checkedTasks.delete(taskKey(row));}
+    catch(error){failed++;stopResults.set(taskKey(row),error.message);}
+    finished++;progress();
+   }
+  }));
+ }finally{stopBusy=false;updateSelection();if(token&&token===accountToken){try{if(selected)await loadDetail();else await loadList();}catch(error){notice(error.message);}progress();}}
+}

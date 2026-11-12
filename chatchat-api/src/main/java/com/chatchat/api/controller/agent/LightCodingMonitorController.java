@@ -25,8 +25,8 @@ import org.springframework.web.server.ResponseStatusException;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 import org.springframework.web.servlet.mvc.method.annotation.StreamingResponseBody;
 
-/** Read-only Java authority facade. No Node administration, execution controls,
- * provider keys or storage capabilities are exposed to the browser. */
+/** Java authority facade. Owner-scoped stops use the existing Coding SPI;
+ * Node administration, provider keys and storage capabilities stay private. */
 @RestController
 @RequestMapping("/api/v1/coding-monitor")
 @ConditionalOnProperty(prefix="chatchat.coding",name="enabled",havingValue="true")
@@ -35,9 +35,11 @@ public final class LightCodingMonitorController {
     private final CodingMonitorProjection projection;private final EnterpriseAdminService accounts;
     private final ObjectProvider<ClineModelReceiptStore> models;private final ObjectProvider<CodingExecutionFeedbackService> executions;
     private final ObjectProvider<UserAssetService> assets;
+    private final CodingAgentSPI coding;
     public LightCodingMonitorController(DurableCodingTaskService tasks,CodingInvocationContext identity,CodingMonitorProjection projection,
-            EnterpriseAdminService accounts,ObjectProvider<ClineModelReceiptStore> models,ObjectProvider<CodingExecutionFeedbackService> executions,ObjectProvider<UserAssetService> assets){
+            EnterpriseAdminService accounts,ObjectProvider<ClineModelReceiptStore> models,ObjectProvider<CodingExecutionFeedbackService> executions,ObjectProvider<UserAssetService> assets,CodingAgentSPI coding){
         this.tasks=tasks;this.identity=identity;this.projection=projection;this.accounts=accounts;this.models=models;this.executions=executions;this.assets=assets;
+        this.coding=coding;
     }
     private String attribute(HttpServletRequest request,String name){Object value=request.getAttribute(name);if(value==null)throw new ResponseStatusException(HttpStatus.UNAUTHORIZED);return value.toString();}
     private KernelDataScope scope(HttpServletRequest request,String run){
@@ -75,8 +77,28 @@ public final class LightCodingMonitorController {
             var execution=executions.getIfAvailable();
             result.put("executions",nativeTask?tasks.nativeTelemetry(scope,taskId,"execution"):execution==null?List.of():execution.timeline(scope,taskId));
             result.put("repairs",nativeTask?tasks.nativeTelemetry(scope,taskId,"repair"):List.of());
-            result.put("readOnly",true);return ApiResponse.success(result);
+            result.put("readOnly",false);result.put("canStop",!outcome.status().terminal());return ApiResponse.success(result);
         });
+    }
+    @PostMapping("/tasks/{runId}/{taskId}/cancel") public ApiResponse<?> cancel(HttpServletRequest request,
+            @PathVariable("runId")String runId,@PathVariable("taskId")String taskId){
+        var scope=scope(request,runId);
+        // Exact owner/tenant/run validation happens before granting execution control.
+        return read(scope,taskId,()->identity.as(scope,EnumSet.of(CodingTaskAccess.Action.READ,
+                CodingTaskAccess.Action.STOP,CodingTaskAccess.Action.RECOVER,CodingTaskAccess.Action.WORKER,
+                CodingTaskAccess.Action.EVIDENCE),()->{
+            var outcome=tasks.get(scope,taskId);
+            if(!outcome.status().terminal()){
+                coding.cancel(scope,taskId,"Stopped by authenticated owner from Coding monitor");
+                // Existing adapters reconcile old stop requests; never dispatch a new objective.
+                if(!tasks.get(scope,taskId).status().terminal())try{coding.resume(scope,taskId);}
+                catch(RuntimeException unavailable){/* Stop remains durable, not falsely terminal. */}
+                outcome=tasks.get(scope,taskId);
+            }
+            return ApiResponse.success(Map.of("taskId",taskId,"runId",runId,"outcome",outcome,
+                "stopState",outcome.status().terminal()?"TERMINAL":"STOPPING",
+                "message",outcome.status().terminal()?"任务已结束":"停止请求已记录，等待执行节点确认；可重试停止"));
+        }));
     }
     @GetMapping("/tasks/{runId}/{taskId}/events") public ApiResponse<?> events(HttpServletRequest request,@PathVariable("runId") String runId,@PathVariable("taskId") String taskId,
             @RequestParam(name="afterSequence",defaultValue="0")long afterSequence,@RequestParam(name="limit",defaultValue="128")int limit){

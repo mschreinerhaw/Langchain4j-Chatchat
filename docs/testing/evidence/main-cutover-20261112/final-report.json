@@ -1,0 +1,11 @@
+{
+  "18100/": 200,
+  "18353/monitor/": 200,
+  "18353/api/v1/coding-monitor/tasks": 401,
+  "mainNativeBusinessSmoke": true,
+  "removedContainers": 92,
+  "removedImageTags": 38,
+  "netReclaimedBytes": 139784192,
+  "sourceCommit": "0d3163eb8697d6ef4ce525322664ee56abc60408",
+  "rollback": "/opt/runtime-os/releases/20261112-0d3163eb/rollback-main.py"
+}

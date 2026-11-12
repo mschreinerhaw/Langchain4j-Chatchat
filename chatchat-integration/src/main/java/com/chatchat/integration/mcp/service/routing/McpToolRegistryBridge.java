@@ -1179,6 +1179,9 @@ public class McpToolRegistryBridge {
         // Runtime-owned calls use Cline's separately governed Internet tools.
         // A model argument or inherited context must never revive the legacy paid fallback.
         mcpContext.put("legacyExternalSearchAllowed", false);
+        // Carry only Runtime-owned Agent identity to the remote document ACL filter.
+        mcpContext.remove("authorizationAgentId");mcpContext.remove("agentId");mcpContext.remove("skillId");
+        if(invokingAgent!=null)mcpContext.put("authorizationAgentId",invokingAgent);
         arguments.put("mcpContext", mcpContext);
     }
 

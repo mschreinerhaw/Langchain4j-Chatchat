@@ -25,6 +25,7 @@ class NativeRuntimeMcpControllerTest {
     CodingTaskContract contract=mock(CodingTaskContract.class,RETURNS_DEEP_STUBS);
     CodingTaskOutcome outcome=mock(CodingTaskOutcome.class,RETURNS_DEEP_STUBS);
     MockMvc mvc;NativeS3Settings settings;String token;
+    com.chatchat.api.runtime.coding.knowledge.CodingDocumentSearchAccess documents=mock(com.chatchat.api.runtime.coding.knowledge.CodingDocumentSearchAccess.class);
     @BeforeEach void setup()throws Exception{
         var file=directory.resolve("private.json");Files.writeString(file,json.writeValueAsString(Map.of("issuerKey","k".repeat(64),"endpoint","http://127.0.0.1:1","defaultModel","model","modelProfiles",Map.of("model","fixed"))));
         settings=new NativeS3Settings(file.toString(),json);token=grant(System.currentTimeMillis()+60000,"run");
@@ -42,6 +43,22 @@ class NativeRuntimeMcpControllerTest {
     }
     String grant(long expiry,String run){return settings.client.signGrant(Map.of("version",2,"tenantId","tenant","userId","user","taskId","task","expiresAt",expiry,"deliveryBinding",Map.of("runId",run)),settings.issuerKey);}
     ResultActions request(String bearer,String body)throws Exception{return mvc.perform(post("/internal/runtime/native-coding/mcp").header("Authorization","Bearer "+bearer).contentType("application/json").content(body));}
+    @Test void nativeDocumentToolUsesTheExistingDocumentAdapterWithoutEnablingInternet()throws Exception{
+        var evidence=mock(NativeS3Evidence.class);when(evidence.bytes(any())).thenAnswer(call->json.writeValueAsBytes(call.getArgument(0)));
+        var controller=new NativeRuntimeMcpController(settings,json,new CodingInvocationContext(),tasks,internet,skills,evidence);
+        org.springframework.test.util.ReflectionTestUtils.setField(controller,"documents",documents);
+        mvc=standaloneSetup(controller).setMessageConverters(new org.springframework.http.converter.json.MappingJackson2HttpMessageConverter(json)).build();
+        when(contract.authorization().allowedTools()).thenReturn(List.of("document_search"));
+        when(contract.runtimeContext()).thenReturn(Map.of("documentSearch",Map.of("agentId","agent")));
+        request(token,"{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"tools/list\"}").andExpect(status().isOk()).andExpect(jsonPath("$.result.tools[0].name").value("document_search")).andExpect(jsonPath("$.result.tools.length()").value(1));
+        when(documents.read(eq(contract),eq("native-mcp-2"),any())).thenReturn(new LinkedHashMap<>(Map.of("status","MATCHES","results",List.of(Map.of("fileId","assigned-doc","content","Real source text")))));
+        request(token,"{\"jsonrpc\":\"2.0\",\"id\":2,\"method\":\"tools/call\",\"params\":{\"name\":\"document_search\",\"arguments\":{\"query\":\"terms\"}}}")
+            .andExpect(status().isOk()).andExpect(jsonPath("$.result.isError").value(false)).andExpect(jsonPath("$.result.content[0].text").value(org.hamcrest.Matchers.containsString("assigned-doc")));
+        verifyNoInteractions(internet);
+        when(outcome.status()).thenReturn(CodingTaskOutcome.Status.CANCELLED);
+        request(token,"{\"jsonrpc\":\"2.0\",\"id\":3,\"method\":\"tools/call\",\"params\":{\"name\":\"document_search\",\"arguments\":{\"query\":\"terms\"}}}").andExpect(status().isConflict());
+        verify(documents,times(1)).read(any(),anyString(),any());
+    }
     @Test void invalidAndExpiredTaskCapabilitiesCannotReachAnyRuntimeTool()throws Exception{
         request("invalid","{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"tools/list\"}").andExpect(status().isUnauthorized());
         request(grant(System.currentTimeMillis()-1,"run"),"{}").andExpect(status().isUnauthorized());

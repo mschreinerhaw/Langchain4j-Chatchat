@@ -5,6 +5,12 @@ import {signContract} from '../src/task-contract.mjs';
 import {verifyIssuedContract} from '../src/task-issuer.mjs';
 import {storageGrant} from '../src/s3-task-transport.mjs';
 const grant={version:1,tenantId:'alpha',userId:'alice',sessionId:'session',taskId:'task',workspaceRef:'project',modelProfile:'model',toolPermissions:['read_files'],dataPermissions:[],networkPolicy:'broker-only',budgetPolicy:{status:'DEFERRED_STAGE_2_REVIEW'},expiresAt:Date.now()+3600000};
+test('Native task document search is explicit and does not grant arbitrary MCP tools',()=>{
+ const config={signingKey:'r'.repeat(64),issuerKeys:{alpha:'a'.repeat(64)}};
+ const c={...grant,version:2,runtimeProfile:'native-python-silo-v1',deliveryBinding:{tenantId:'alpha',taskId:'task',runId:'run',inputSnapshotVersion:'v1'},runtimeTools:['document_search']};
+ assert.deepEqual(verifyIssuedContract(signContract(c,config.issuerKeys.alpha),config).runtimeTools,['document_search']);
+ assert.throws(()=>verifyIssuedContract(signContract({...c,runtimeTools:['document_admin']},config.issuerKeys.alpha),config));
+});
 test('a tenant issuer cannot sign another tenant or fall back to the Executor root key',()=>{
  const config={signingKey:'r'.repeat(64),issuerKeys:{alpha:'a'.repeat(64),beta:'b'.repeat(64)}};
  assert.equal(verifyIssuedContract(signContract(grant,config.issuerKeys.alpha),config).tenantId,'alpha');

@@ -12,6 +12,7 @@ import org.springframework.stereotype.Service;
 @org.springframework.boot.autoconfigure.condition.ConditionalOnProperty(prefix="chatchat.runtime.coding.unified",name="enabled",havingValue="true")
 public class NativeTaskCapabilities {
     private final CodingInternetAccess internet;
+    @org.springframework.beans.factory.annotation.Autowired private com.chatchat.api.runtime.coding.knowledge.CodingDocumentSearchAccess documents;
     private final NativeS3Settings settings;
     private final com.chatchat.chat.skills.release.AgentReleaseService releases;
     private final com.chatchat.common.retrieval.SkillExecutionScopePort scopes;
@@ -35,6 +36,7 @@ public class NativeTaskCapabilities {
             value.put("reportMode","visual");value.put("reportPresentation",com.chatchat.common.runtime.coding.ReportPresentation.read(attributes));
         }
         String agent=Objects.toString(attributes.get("authorizationAgentId"),"");
+        if(documents!=null){var documentPolicy=documents.snapshot(scope,agent,Boolean.TRUE.equals(attributes.get("resourceExplorationApproved")));if(!documentPolicy.isEmpty())value.put("documentSearch",documentPolicy);}
         var policy=internet.snapshot(scope,agent,model,Boolean.TRUE.equals(attributes.get("resourceExplorationApproved")));
         if(!policy.isEmpty())value.put("internetSearch",policy);
         value.put("internetAvailability",internet.availability(scope,agent,model,Boolean.TRUE.equals(attributes.get("resourceExplorationApproved")),!policy.isEmpty()));

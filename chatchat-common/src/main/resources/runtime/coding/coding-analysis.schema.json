@@ -523,7 +523,7 @@
         },
         "runtimeContext": {
           "type": "object",
-          "maxProperties": 14,
+          "maxProperties": 15,
           "properties": {
             "schemaVersion": {
               "const": "runtime_os.coding.context.v1"
@@ -540,6 +540,7 @@
             "skills": {
               "type": "object"
             },
+            "documentSearch": {"type": "object"},
             "configuredSkillIds": {
               "type": "array",
               "items": {

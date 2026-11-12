@@ -8,7 +8,16 @@ public final class CodingRuntimeContext {
     public static Map<String, Object> validate(Map<String, Object> value) {
         if (value == null || value.isEmpty()) return Map.of();
         CodingProtocol.require(value.keySet().stream().allMatch(Set.of("schemaVersion", "capturedAt",
-            "consistency", "model", "skills", "builtinSkillPolicy", "configuredSkillIds", "inputFiles", "executionProfile", "reportMode", "reportPresentation", "pythonEnvironment", "scriptPurpose", "codingLifecycle", "analysisResultMode", "analysisInstructions", "codeProject", "knowledgeExploration", "internetSearch", "internetAvailability")::contains), "Unknown Coding context field");
+            "consistency", "model", "skills", "builtinSkillPolicy", "configuredSkillIds", "inputFiles", "executionProfile", "reportMode", "reportPresentation", "pythonEnvironment", "scriptPurpose", "codingLifecycle", "analysisResultMode", "analysisInstructions", "codeProject", "knowledgeExploration", "internetSearch", "internetAvailability", "documentSearch")::contains), "Unknown Coding context field");
+        if(value.containsKey("documentSearch")){
+            CodingProtocol.require(value.get("documentSearch") instanceof Map<?,?>,"Document capability required");
+            var p=(Map<?,?>)value.get("documentSearch");
+            CodingProtocol.require(p.keySet().equals(Set.of("schemaVersion","agentId","toolName","explicitlyRequested"))
+                &&"runtime_os.document_search.v1".equals(p.get("schemaVersion"))
+                &&"mcp_chatchat_mcp_server_document_search".equals(p.get("toolName"))
+                &&p.get("agentId") instanceof String agent&&!agent.isBlank()&&agent.length()<=256
+                &&p.get("explicitlyRequested") instanceof Boolean,"Invalid document capability");
+        }
         if(value.containsKey("internetAvailability")){
             CodingProtocol.require(value.get("internetAvailability") instanceof Map<?,?>,"Internet availability status required");
             var p=(Map<?,?>)value.get("internetAvailability");

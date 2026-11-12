@@ -12,6 +12,16 @@ import static org.mockito.Mockito.*;
 import static org.assertj.core.api.Assertions.*;
 
 class NativeTaskCapabilitiesTest {
+    @org.junit.jupiter.api.Test void documentCapabilityUsesTheSelectedAgentIndependentlyOfInternet(){
+        var documents=org.mockito.Mockito.mock(com.chatchat.api.runtime.coding.knowledge.CodingDocumentSearchAccess.class);
+        org.springframework.test.util.ReflectionTestUtils.setField(service,"documents",documents);
+        var profile=Map.<String,Object>of("schemaVersion","runtime_os.document_search.v1","agentId","agent","toolName","mcp_chatchat_mcp_server_document_search","explicitlyRequested",false);
+        org.mockito.Mockito.when(documents.snapshot(scope,"agent",false)).thenReturn(profile);
+        org.mockito.Mockito.when(internet.snapshot(scope,"agent","model",false)).thenReturn(Map.of());
+        org.mockito.Mockito.when(internet.availability(scope,"agent","model",false,false)).thenReturn(CodingInternetAccess.availabilityStatus("UNAVAILABLE","MODEL_INTERNET_DISABLED"));
+        var value=service.capture(scope,"model",Map.of("authorizationAgentId","agent"),Map.of());
+        assertThat(value).containsEntry("documentSearch",profile).doesNotContainKey("internetSearch");
+    }
     final CodingInternetAccess internet=mock(CodingInternetAccess.class);
     final SkillExecutionScopePort scopes=mock(SkillExecutionScopePort.class);
     final AgentReleaseService releases=mock(AgentReleaseService.class);

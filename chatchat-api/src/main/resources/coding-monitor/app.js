@@ -13,7 +13,7 @@ const terminalStatuses=new Set(['COMPLETED','PARTIAL','FAILED','CANCELLED','BUDG
 const taskKey=row=>row.runId+'\0'+row.taskId;
 const canStop=row=>!candidate&&!terminalStatuses.has(row.status);
 const stopPending=row=>row.stopPending===true||row.cancellationRequested===true||['CANCEL_REQUESTED','DEADLINE_EXCEEDED'].includes(row.lastError)||row.executionControl?.stopReason!=null;
-let visibleRows=[],stopBusy=false;const checkedTasks=new Map(),stopResults=new Map();
+let visibleRows=[],stopBusy=false,listGeneration=0;const checkedTasks=new Map(),stopResults=new Map();
 if(candidate)$('stop-toolbar').hidden=true;
 const labels={SEALED_PENDING_VALIDATION:"Native sealed; awaiting acceptance",CREATED:'已创建',RUNNING:'执行中',COMPLETED:'已完成',PARTIAL:'部分完成',FAILED:'失败',CANCELLED:'已取消',BUDGET_EXCEEDED:'超时 / 资源限制',TASK_STARTED:'任务开始',MODEL_REQUEST_STARTED:'模型请求',MODEL_REQUEST_COMPLETED:'模型回执',TOOL_STARTED:'工具开始',TOOL_COMPLETED:'工具完成',FILE_CHANGED:'文件修改',COMMAND_STARTED:'命令执行',COMMAND_COMPLETED:'执行回执',ERROR_OCCURRED:'执行失败',REPAIR_ATTEMPTED:'修复证据',ARTIFACT_UPLOADED:'成果上传',DELIVERY_VALIDATED:'Java 验收',TASK_COMPLETED:'任务完成',TASK_FAILED:'任务失败',TASK_CANCELLED:'任务取消',OBSERVATION:'执行记录'};
 let token=sessionStorage.getItem(storage)||'',page=0,total=0,selected=null,events=new Map(),cursor=0,stream=null,refreshTimer=null,objectUrl=null;
@@ -42,9 +42,9 @@ $('refresh').onclick=()=>loadList().catch(error=>notice(error.message));
 $('previous').onclick=()=>{page=Math.max(0,page-1);checkedTasks.clear();loadList().catch(error=>notice(error.message));};
 $('next').onclick=()=>{page++;checkedTasks.clear();loadList().catch(error=>notice(error.message));};
 async function loadList(){
- if(!token||selected)return;const filter=$('filters'),params=new URLSearchParams({page:String(page),size:'20',name:filter.elements.namedItem('name').value,status:filter.status.value});
+ if(!token||selected)return;const generation=++listGeneration,accountToken=token,filter=$('filters'),params=new URLSearchParams({page:String(page),size:'20',name:filter.elements.namedItem('name').value,status:filter.status.value});
  if(filter.from.value)params.set('from',String(new Date(filter.from.value).getTime()));if(filter.to.value)params.set('to',String(new Date(filter.to.value).getTime()));
- const result=await request(root+'/tasks?'+params);if(selected)return;total=result.total;visibleRows=result.items;for(const key of checkedTasks.keys())if(!visibleRows.some(row=>taskKey(row)===key&&canStop(row)))checkedTasks.delete(key);$('rows').replaceChildren();
+ const result=await request(root+'/tasks?'+params);if(selected||generation!==listGeneration||accountToken!==token)return;total=result.total;visibleRows=result.items;for(const key of checkedTasks.keys())if(!visibleRows.some(row=>taskKey(row)===key&&canStop(row)))checkedTasks.delete(key);$('rows').replaceChildren();
  for(const row of result.items){const tr=document.createElement('tr'),title=document.createElement('td'),link=text('button',row.name,'link');link.onclick=()=>openTask(row.runId,row.taskId).catch(error=>notice(error.message));title.append(link,text('small',row.taskId));const select=document.createElement('td'),checkbox=document.createElement('input');checkbox.type='checkbox';checkbox.disabled=!canStop(row)||stopBusy;checkbox.checked=checkedTasks.has(taskKey(row));checkbox.setAttribute('aria-label','\u9009\u62e9\u4efb\u52a1 '+row.taskId);checkbox.onchange=()=>{if(checkbox.checked)checkedTasks.set(taskKey(row),row);else checkedTasks.delete(taskKey(row));updateSelection();};select.append(checkbox);tr.append(select,title);
   const times=document.createElement('td');times.append(text('span',date(row.createdAt)),text('small','开始 '+date(row.startedAt)));tr.append(times);
   const state=document.createElement('td');state.append(badge(row.status,row.validationStatus,stopPending(row)),text('small',row.currentAction));tr.append(state,text('td',row.lastError||'—'),text('td',number(row.modelRequests)),text('td',row.tokens==null&&row.confirmedTokenLowerBound>0?'Confirmed '+number(row.confirmedTokenLowerBound):number(row.tokens)),text('td',elapsed(row)));const controls=document.createElement('td');if(canStop(row)){const button=text('button',stopPending(row)?'\u91cd\u8bd5\u505c\u6b62':'\u505c\u6b62','danger stop-task');button.disabled=stopBusy;button.onclick=()=>stopTasks([row]);controls.append(button);}if(stopResults.has(taskKey(row)))controls.append(text('small',stopResults.get(taskKey(row))));tr.append(controls);$('rows').append(tr);}updateSelection();
@@ -137,7 +137,8 @@ $('select-all').onchange=event=>{checkedTasks.clear();if(event.target.checked)fo
 $('stop-selected').onclick=()=>stopTasks([...checkedTasks.values()]);
 async function stopTasks(rows){
  if(stopBusy||candidate||!rows.length)return;
- if(!window.confirm('停止所选 '+rows.length+' 个任务？将终止任务执行，保留历史记录及已有产物。'))return;
+ const names=rows.map(row=>(row.name||row.taskId).slice(0,80)+' ['+row.taskId.slice(-12)+']').join('\n');
+ if(!window.confirm('停止所选 '+rows.length+' 个任务？将终止任务执行，保留历史记录及已有产物。\n\n'+names))return;
  const accountToken=token;stopBusy=true;updateSelection();let index=0,finished=0,pending=0,failed=0;
  const progress=()=>{$('stop-result').textContent=`已处理 ${finished}/${rows.length} · 停止待确认 ${pending} · 失败 ${failed}`;};progress();
  try{

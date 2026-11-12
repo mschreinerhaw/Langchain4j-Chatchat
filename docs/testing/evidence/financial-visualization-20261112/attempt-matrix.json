@@ -1,0 +1,57 @@
+{
+  "finalCandidatePassed": true,
+  "finalCasesPassed": 2,
+  "finalCases": 2,
+  "allAttemptsRetained": true,
+  "attempts": [
+    {
+      "case": "supply-cn",
+      "outcome": "FAILED_SUPPLY",
+      "agentTaskId": "0deaaccf-6709-3770-972e-0172d11d5d4a",
+      "transportAndDisplayPassed": false,
+      "colorAcceptancePassed": false
+    },
+    {
+      "case": "supply-hk-cancelled",
+      "outcome": "CANCELLED_BY_VERIFIER",
+      "agentTaskId": "8df4e882-6542-3568-8ec3-91612ddd9902",
+      "transportAndDisplayPassed": false,
+      "colorAcceptancePassed": false
+    },
+    {
+      "case": "render-cn-r1",
+      "outcome": "FAILED_COLOR",
+      "agentTaskId": "d9233e4d-cc9b-3a64-b6eb-0fee59ef21d3",
+      "transportAndDisplayPassed": true,
+      "colorAcceptancePassed": false
+    },
+    {
+      "case": "delivery-hk-r1",
+      "outcome": "FAILED_METADATA_BINDING",
+      "agentTaskId": "78bcf389-7a3f-3ada-8a12-c1e4eb927e5c",
+      "transportAndDisplayPassed": false,
+      "colorAcceptancePassed": false
+    },
+    {
+      "case": "render-cn-r2",
+      "outcome": "FAILED_PREFERRED_STYLE",
+      "agentTaskId": "1649ed4e-35eb-33c1-8a28-42faf85f0a12",
+      "transportAndDisplayPassed": true,
+      "colorAcceptancePassed": false
+    },
+    {
+      "case": "final-cn",
+      "outcome": "PASSED",
+      "agentTaskId": "216df96e-3053-3422-83ff-af3fa063ebf8",
+      "transportAndDisplayPassed": true,
+      "colorAcceptancePassed": true
+    },
+    {
+      "case": "final-hk",
+      "outcome": "PASSED",
+      "agentTaskId": "cdbb0683-26ce-35c4-9bc7-56dd92b5b64f",
+      "transportAndDisplayPassed": true,
+      "colorAcceptancePassed": true
+    }
+  ]
+}

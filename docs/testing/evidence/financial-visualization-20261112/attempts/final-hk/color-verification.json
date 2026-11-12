@@ -1,0 +1,64 @@
+{
+  "passed": true,
+  "scope": "SYNTHETIC_PLUS2_MINUS1_ZERO_FIXTURE_ONLY",
+  "convention": "international",
+  "checks": {
+    "actualDirectionalPlotPresent": true,
+    "allInspectedDirectionRegionsMatchFixture": true,
+    "neutralComparisonSeriesPresent": true
+  },
+  "files": [
+    {
+      "file": "chart-1.png",
+      "sha256": "2f7e7e2ee68859921b782490b73fe81156b2f57f21d9c6d4e0d820db30ea2a2a",
+      "size": [
+        900,
+        600
+      ],
+      "pixelCounts": {
+        "red": 17893,
+        "green": 35038,
+        "flat": 704,
+        "blue": 0,
+        "teal": 0,
+        "purple": 0,
+        "ochre": 0
+      },
+      "colorCentroidY": {
+        "red": 408.3027999776449,
+        "green": 217.31814030481192,
+        "flat": 161.5,
+        "blue": null,
+        "teal": null,
+        "purple": null,
+        "ochre": null
+      }
+    },
+    {
+      "file": "chart-2.png",
+      "sha256": "c582740cca321df0777b1b607724c5e90a2f3f571ef2c81d78a5dfd3be23df93",
+      "size": [
+        900,
+        600
+      ],
+      "pixelCounts": {
+        "red": 0,
+        "green": 0,
+        "flat": 0,
+        "blue": 55148,
+        "teal": 37190,
+        "purple": 41578,
+        "ochre": 0
+      },
+      "colorCentroidY": {
+        "red": null,
+        "green": null,
+        "flat": null,
+        "blue": 295.6781750924784,
+        "teal": 363.8145200322667,
+        "purple": 345.95528885468275,
+        "ochre": null
+      }
+    }
+  ]
+}

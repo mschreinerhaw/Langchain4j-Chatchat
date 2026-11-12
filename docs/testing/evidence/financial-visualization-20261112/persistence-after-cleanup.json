@@ -1,0 +1,18 @@
+{
+  "passed": true,
+  "source": "Authenticated Java artifact content endpoint after validation containers were removed",
+  "checks": [
+    {
+      "case": "final-cn",
+      "passed": true,
+      "sha256": "9593035e556a46576cc57c03f8f4db68f02b4810075ac993e13e0e363dcb8346",
+      "bytes": 76001
+    },
+    {
+      "case": "final-hk",
+      "passed": true,
+      "sha256": "2f7e7e2ee68859921b782490b73fe81156b2f57f21d9c6d4e0d820db30ea2a2a",
+      "bytes": 50894
+    }
+  ]
+}

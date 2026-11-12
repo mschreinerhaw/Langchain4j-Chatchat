@@ -1,0 +1,4 @@
+exchange,security,change,amount
+HKEX,DEMO_A,2,120
+HKEX,DEMO_B,-1,80
+HKEX,DEMO_C,0,100

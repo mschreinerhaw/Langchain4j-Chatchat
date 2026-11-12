@@ -1,0 +1,48 @@
+{
+  "http": {
+    "18100/": 200,
+    "18353/monitor/": 200,
+    "18353/api/v1/coding-monitor/tasks": 401
+  },
+  "nodeProcessRunning": true,
+  "nativeEndToEndVerified": true,
+  "actualApiImage": "sha256:0646027a8e359c071cc642160bbe6e5c0a16cbab9ac5aec46ae6cbd708bd03fb",
+  "actualNodeImage": "sha256:f77ba87c83cfbc0ecdb4397bdc7f17cb3f3b58579d06a052ad4ff8c9f53fdc14",
+  "privateWorkerImage": "sha256:f77ba87c83cfbc0ecdb4397bdc7f17cb3f3b58579d06a052ad4ff8c9f53fdc14",
+  "rollbackImages": {
+    "api": "sha256:ce6e5a8856c49442d9d1cd7052f66bcf589685e3221cd48a845c5d7a1fa6b9b5",
+    "node": "sha256:8d9238cd519d478fae77b448d514584a2ceec10d073ebf6dc47980c7fab502ce"
+  },
+  "rollbackScript": "/opt/runtime-os/releases/financial-visualization-20261112-r1/rollback.py",
+  "removedValidationContainers": [
+    "6cc78acd11855c7cc9fda9d53729557460ffb0edca1d0d448927c5c6aa06240e",
+    "041f783d1d1ce85e54ee6bf4ddd69267c12c3b472e09fcca36eaab558c234b62",
+    "58026306d33c1000bc0226836cba271a32b4e22e143d61b994aa83c838e81a44",
+    "3849517e534ef344bc71a0219e2cb4ea21b953864fd6b053fd77ee23cdc0c104",
+    "3e491681ac679081b95275b67f27d0b3acbe8db4a691fda0e72df8ff00f210d5",
+    "d0085f1746a1c4133c6bcda00e222e01ee78abb6cc7b988cbf47bbdb440a9850"
+  ],
+  "intermediateImages": [
+    {
+      "tag": "runtime-os-api:financial-visualization-20261112-r1",
+      "daemon": "default",
+      "absentAfterCleanup": true
+    },
+    {
+      "tag": "runtime-os-coding-node:financial-visualization-20261112-r1",
+      "daemon": "default",
+      "absentAfterCleanup": true
+    },
+    {
+      "tag": "runtime-os-coding-node:financial-visualization-20261112-r1",
+      "daemon": "private",
+      "absentAfterCleanup": true
+    }
+  ],
+  "postCleanupFreeBytes": 46806872064,
+  "reclaimedBytes": null,
+  "measurementNote": "Cleanup completed before the health probe was corrected from a non-published host port to container-internal health; the original before snapshot was not persisted, so reclaimed bytes are not claimed",
+  "modelConfigurationUnchanged": true,
+  "officialCoreUnchanged": true,
+  "checkedAt": "2026-11-12T06:39:40.064494+00:00"
+}

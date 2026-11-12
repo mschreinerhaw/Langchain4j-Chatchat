@@ -1,0 +1,20 @@
+financial-style-java.log
+[INFO] Tests run: 47, Failures: 0, Errors: 0, Skipped: 0
+[INFO] Tests run: 64, Failures: 0, Errors: 0, Skipped: 0
+[INFO] BUILD SUCCESS
+financial-style-r2-java.log
+[INFO] Tests run: 47, Failures: 0, Errors: 0, Skipped: 0
+[INFO] Tests run: 26, Failures: 0, Errors: 0, Skipped: 0
+[INFO] BUILD SUCCESS
+financial-style-r2-front.log
+ Test Files  7 passed (7)
+      Tests  133 passed (133)
+financial-style-r2-node.log
+ℹ tests 18
+ℹ pass 18
+ℹ fail 0
+financial-style-discovery-node.log
+
+ℹ tests 14
+ℹ pass 14
+ℹ fail 0

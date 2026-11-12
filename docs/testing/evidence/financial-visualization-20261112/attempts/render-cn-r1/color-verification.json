@@ -1,0 +1,64 @@
+{
+  "passed": false,
+  "scope": "SYNTHETIC_PLUS2_MINUS1_ZERO_FIXTURE_ONLY",
+  "convention": "cn",
+  "checks": {
+    "actualDirectionalPlotPresent": false,
+    "allInspectedDirectionRegionsMatchFixture": false,
+    "neutralComparisonSeriesPresent": false
+  },
+  "files": [
+    {
+      "file": "chart-1.png",
+      "sha256": "d9f4dd947fd2b4b47daf75f1050be1b8e8e118d8452bdea1409b5c69fe279834",
+      "size": [
+        1481,
+        773
+      ],
+      "pixelCounts": {
+        "red": 0,
+        "green": 0,
+        "flat": 0,
+        "blue": 0,
+        "teal": 0,
+        "purple": 0,
+        "ochre": 0
+      },
+      "colorCentroidY": {
+        "red": null,
+        "green": null,
+        "flat": null,
+        "blue": null,
+        "teal": null,
+        "purple": null,
+        "ochre": null
+      }
+    },
+    {
+      "file": "chart-2.png",
+      "sha256": "a8155f21f1ce18396a6f7b9e3be25a67ccef58896059fffd8cb9c14d2141374f",
+      "size": [
+        2082,
+        771
+      ],
+      "pixelCounts": {
+        "red": 0,
+        "green": 0,
+        "flat": 0,
+        "blue": 0,
+        "teal": 0,
+        "purple": 0,
+        "ochre": 0
+      },
+      "colorCentroidY": {
+        "red": null,
+        "green": null,
+        "flat": null,
+        "blue": null,
+        "teal": null,
+        "purple": null,
+        "ochre": null
+      }
+    }
+  ]
+}

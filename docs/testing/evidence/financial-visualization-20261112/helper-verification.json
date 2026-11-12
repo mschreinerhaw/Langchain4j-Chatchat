@@ -1,0 +1,12 @@
+{
+  "passed": true,
+  "pythonVersion": "3.11.18",
+  "cases": [
+    "cn",
+    "hk",
+    "flat",
+    "missing",
+    "nonfinite",
+    "unknown-market"
+  ]
+}

@@ -1,0 +1,3576 @@
+{
+  "agentTaskId": "216df96e-3053-3422-83ff-af3fa063ebf8",
+  "agentSessionId": "exploration-99e775a5-8adc-4d4f-b128-5bf0cef39317",
+  "agentId": "financial-news-agent",
+  "taskId": "216df96e-3053-3422-83ff-af3fa063ebf8",
+  "status": "SUCCEEDED",
+  "analysisStartedAt": "2026-11-12T06:01:38.600590Z",
+  "analysisFinishedAt": "2026-11-12T06:07:28.737Z",
+  "datasets": [],
+  "analysisEvents": [
+    {
+      "eventId": "d874ae2c-1f10-47e9-9397-5dde2e1e6380",
+      "sequence": 101,
+      "type": "RUNTIME_OBSERVATION",
+      "status": "RUNNING",
+      "createTime": 1794463503876,
+      "attemptId": "att-1-0a12b927-732b-40d2-98db-eda94609dfb0",
+      "runId": "att-1-0a12b927-732b-40d2-98db-eda94609dfb0",
+      "parentEventId": "8c79554c-87d2-43ff-b376-ec259189ea97",
+      "payload": {
+        "metadata": {
+          "eventKind": "CODING_TRACE",
+          "eventState": "RUNNING",
+          "codingEventType": "RECOVERY_RECONCILED",
+          "taskId": "native-52020e7844b8bd4a837385bd327d71d07ffcd5c911f99c8164b1330f44126025",
+          "operationId": "model-347078a5-5a7b-4a5c-9378-3e09c88a6ea3",
+          "occurredAt": "2026-11-12T06:05:03.482Z",
+          "workerActivity": {
+            "normalizedType": "MODEL_REQUEST_COMPLETED",
+            "nativeEventType": "model.request.completed",
+            "nativeEventId": "31",
+            "nativeEvidenceRef": "runtime-evidence:coding:native:e76cea41766547af18639d24b624dfbf81b4679cd133679d0b975df82bb42586",
+            "sessionId": "***",
+            "requestId": "347078a5-5a7b-4a5c-9378-3e09c88a6ea3",
+            "model": "qwen3.6-plus",
+            "providerModel": "qwen3.6-plus",
+            "nativeOccurredAt": "2026-11-12T06:05:02.713Z",
+            "status": "SUCCEEDED",
+            "operationId": "model-347078a5-5a7b-4a5c-9378-3e09c88a6ea3",
+            "startedAt": "2026-11-12T06:05:00.825Z",
+            "finishedAt": "2026-11-12T06:05:02.713Z",
+            "durationMs": 1888
+          }
+        }
+      }
+    },
+    {
+      "eventId": "526aff7d-d70b-4a39-a146-820fbf8d141b",
+      "sequence": 102,
+      "type": "RUNTIME_OBSERVATION",
+      "status": "RUNNING",
+      "createTime": 1794463504447,
+      "attemptId": "att-1-0a12b927-732b-40d2-98db-eda94609dfb0",
+      "runId": "att-1-0a12b927-732b-40d2-98db-eda94609dfb0",
+      "parentEventId": "8c79554c-87d2-43ff-b376-ec259189ea97",
+      "payload": {
+        "metadata": {
+          "eventKind": "CODING_TRACE",
+          "eventState": "RUNNING",
+          "codingEventType": "RECOVERY_RECONCILED",
+          "taskId": "native-52020e7844b8bd4a837385bd327d71d07ffcd5c911f99c8164b1330f44126025",
+          "occurredAt": "2026-11-12T06:05:04.218Z",
+          "workerActivity": {
+            "normalizedType": "OBSERVATION",
+            "nativeEventType": "permission.decision",
+            "nativeEventId": "172",
+            "nativeEvidenceRef": "runtime-evidence:coding:native:60ef378fa1b048c984440cd8f4a62b67d1061ae8b8355371b3a0999e5da1863d",
+            "sessionId": "***",
+            "nativeOccurredAt": "2026-11-12T06:05:03.226Z"
+          }
+        }
+      }
+    },
+    {
+      "eventId": "dcae3002-69bb-47f4-bc0f-6472df07fa44",
+      "sequence": 103,
+      "type": "RUNTIME_OBSERVATION",
+      "status": "RUNNING",
+      "createTime": 1794463504457,
+      "attemptId": "att-1-0a12b927-732b-40d2-98db-eda94609dfb0",
+      "runId": "att-1-0a12b927-732b-40d2-98db-eda94609dfb0",
+      "parentEventId": "8c79554c-87d2-43ff-b376-ec259189ea97",
+      "payload": {
+        "metadata": {
+          "eventKind": "CODING_TRACE",
+          "eventState": "RUNNING",
+          "codingEventType": "RECOVERY_RECONCILED",
+          "taskId": "native-52020e7844b8bd4a837385bd327d71d07ffcd5c911f99c8164b1330f44126025",
+          "occurredAt": "2026-11-12T06:05:04.310Z",
+          "workerActivity": {
+            "normalizedType": "OBSERVATION",
+            "nativeEventType": "permission.resolved",
+            "nativeEventId": "173",
+            "nativeEvidenceRef": "runtime-evidence:coding:native:067656cfe1cb8160b3bd4d309bc67d8225740e45ad4269fba94321221737ca9d",
+            "sessionId": "***",
+            "nativeOccurredAt": "2026-11-12T06:05:03.228Z"
+          }
+        }
+      }
+    },
+    {
+      "eventId": "b46008d5-1e2e-49fe-af44-126e6a0187dd",
+      "sequence": 104,
+      "type": "RUNTIME_OBSERVATION",
+      "status": "RUNNING",
+      "createTime": 1794463504466,
+      "attemptId": "att-1-0a12b927-732b-40d2-98db-eda94609dfb0",
+      "runId": "att-1-0a12b927-732b-40d2-98db-eda94609dfb0",
+      "parentEventId": "8c79554c-87d2-43ff-b376-ec259189ea97",
+      "payload": {
+        "metadata": {
+          "eventKind": "CODING_TRACE",
+          "eventState": "RUNNING",
+          "codingEventType": "RECOVERY_RECONCILED",
+          "taskId": "native-52020e7844b8bd4a837385bd327d71d07ffcd5c911f99c8164b1330f44126025",
+          "operationId": "tool-0732d984b79e100286075d30776a749d",
+          "occurredAt": "2026-11-12T06:05:04.416Z",
+          "workerActivity": {
+            "normalizedType": "TOOL_STARTED",
+            "nativeEventType": "tool.started",
+            "nativeEventId": "177",
+            "nativeEvidenceRef": "runtime-evidence:coding:native:fe470979e5da23a21bceb20b962b53153f34843e04350e28395133adecefffb5",
+            "sessionId": "***",
+            "nativeOccurredAt": "2026-11-12T06:05:03.236Z",
+            "tool": "run_commands",
+            "toolCallId": "call_4ef4a8f744ef418ba9da2640",
+            "operationId": "tool-0732d984b79e100286075d30776a749d"
+          }
+        }
+      }
+    },
+    {
+      "eventId": "965a3675-af06-4d8d-8ea2-653fe25d5025",
+      "sequence": 105,
+      "type": "RUNTIME_OBSERVATION",
+      "status": "RUNNING",
+      "createTime": 1794463505006,
+      "attemptId": "att-1-0a12b927-732b-40d2-98db-eda94609dfb0",
+      "runId": "att-1-0a12b927-732b-40d2-98db-eda94609dfb0",
+      "parentEventId": "8c79554c-87d2-43ff-b376-ec259189ea97",
+      "payload": {
+        "metadata": {
+          "eventKind": "CODING_TRACE",
+          "eventState": "RUNNING",
+          "codingEventType": "RECOVERY_RECONCILED",
+          "taskId": "native-52020e7844b8bd4a837385bd327d71d07ffcd5c911f99c8164b1330f44126025",
+          "operationId": "cmd-cf95bb79-1412-446b-be07-32747d91a03e",
+          "occurredAt": "2026-11-12T06:05:04.514Z",
+          "workerActivity": {
+            "normalizedType": "COMMAND_STARTED",
+            "nativeEventType": "command.started",
+            "nativeEventId": "178",
+            "nativeEvidenceRef": "runtime-evidence:coding:native:ea5d08b2f00842da0424413b7fcbe39d86516d99ae81ee6c3670dca91a0b4870",
+            "sessionId": "***",
+            "nativeOccurredAt": "2026-11-12T06:05:03.264Z",
+            "status": "RUNNING",
+            "operationId": "cmd-cf95bb79-1412-446b-be07-32747d91a03e",
+            "startedAt": "2026-11-12T06:05:03.258Z"
+          }
+        }
+      }
+    },
+    {
+      "eventId": "8b658e35-efbd-4487-a91f-d66819b6bb3d",
+      "sequence": 106,
+      "type": "RUNTIME_OBSERVATION",
+      "status": "RUNNING",
+      "createTime": 1794463507187,
+      "attemptId": "att-1-0a12b927-732b-40d2-98db-eda94609dfb0",
+      "runId": "att-1-0a12b927-732b-40d2-98db-eda94609dfb0",
+      "parentEventId": "8c79554c-87d2-43ff-b376-ec259189ea97",
+      "payload": {
+        "metadata": {
+          "eventKind": "CODING_TRACE",
+          "eventState": "RUNNING",
+          "codingEventType": "RECOVERY_RECONCILED",
+          "taskId": "native-52020e7844b8bd4a837385bd327d71d07ffcd5c911f99c8164b1330f44126025",
+          "operationId": "cmd-cf95bb79-1412-446b-be07-32747d91a03e",
+          "occurredAt": "2026-11-12T06:05:06.811Z",
+          "workerActivity": {
+            "normalizedType": "COMMAND_COMPLETED",
+            "nativeEventType": "command.completed",
+            "nativeEventId": "181",
+            "nativeEvidenceRef": "runtime-evidence:coding:native:59098bdbcb7269035f839db58ea79b41c98a9171ab59b700155aa8473e5855e3",
+            "sessionId": "***",
+            "nativeOccurredAt": "2026-11-12T06:05:06.025Z",
+            "status": "SUCCEEDED",
+            "exitCode": 0,
+            "operationId": "cmd-cf95bb79-1412-446b-be07-32747d91a03e",
+            "startedAt": "2026-11-12T06:05:03.258Z",
+            "finishedAt": "2026-11-12T06:05:06.024Z",
+            "durationMs": 2766.093973
+          }
+        }
+      }
+    },
+    {
+      "eventId": "e08e9aa3-97f2-41aa-9d10-a5f2707eb5d4",
+      "sequence": 107,
+      "type": "RUNTIME_OBSERVATION",
+      "status": "RUNNING",
+      "createTime": 1794463507201,
+      "attemptId": "att-1-0a12b927-732b-40d2-98db-eda94609dfb0",
+      "runId": "att-1-0a12b927-732b-40d2-98db-eda94609dfb0",
+      "parentEventId": "8c79554c-87d2-43ff-b376-ec259189ea97",
+      "payload": {
+        "metadata": {
+          "eventKind": "CODING_TRACE",
+          "eventState": "RUNNING",
+          "codingEventType": "RECOVERY_RECONCILED",
+          "taskId": "native-52020e7844b8bd4a837385bd327d71d07ffcd5c911f99c8164b1330f44126025",
+          "operationId": "tool-0732d984b79e100286075d30776a749d",
+          "occurredAt": "2026-11-12T06:05:07.013Z",
+          "workerActivity": {
+            "normalizedType": "TOOL_COMPLETED",
+            "nativeEventType": "tool.completed",
+            "nativeEventId": "185",
+            "nativeEvidenceRef": "runtime-evidence:coding:native:e8f4d55970213fd6970087d524b0f0c077e249236a4023074a295340cf5cf440",
+            "sessionId": "***",
+            "nativeOccurredAt": "2026-11-12T06:05:06.061Z",
+            "tool": "run_commands",
+            "toolCallId": "call_4ef4a8f744ef418ba9da2640",
+            "operationId": "tool-0732d984b79e100286075d30776a749d",
+            "durationMs": 2826
+          }
+        }
+      }
+    },
+    {
+      "eventId": "d5a1a27d-415d-45a1-9019-bef3290e1457",
+      "sequence": 108,
+      "type": "RUNTIME_OBSERVATION",
+      "status": "RUNNING",
+      "createTime": 1794463507212,
+      "attemptId": "att-1-0a12b927-732b-40d2-98db-eda94609dfb0",
+      "runId": "att-1-0a12b927-732b-40d2-98db-eda94609dfb0",
+      "parentEventId": "8c79554c-87d2-43ff-b376-ec259189ea97",
+      "payload": {
+        "metadata": {
+          "eventKind": "CODING_TRACE",
+          "eventState": "RUNNING",
+          "codingEventType": "RECOVERY_RECONCILED",
+          "taskId": "native-52020e7844b8bd4a837385bd327d71d07ffcd5c911f99c8164b1330f44126025",
+          "occurredAt": "2026-11-12T06:05:07.146Z",
+          "workerActivity": {
+            "normalizedType": "OBSERVATION",
+            "nativeEventType": "model.iteration.started",
+            "nativeEventId": "188",
+            "nativeEvidenceRef": "runtime-evidence:coding:native:75a87111963fd99222165d7ea821b8b3cbfdf21f21ea8208dcf3ac076316d39b",
+            "sessionId": "***",
+            "nativeOccurredAt": "2026-11-12T06:05:06.064Z"
+          }
+        }
+      }
+    },
+    {
+      "eventId": "b5217d9e-4f13-4b25-8fcf-caca21d1feec",
+      "sequence": 109,
+      "type": "RUNTIME_OBSERVATION",
+      "status": "RUNNING",
+      "createTime": 1794463507749,
+      "attemptId": "att-1-0a12b927-732b-40d2-98db-eda94609dfb0",
+      "runId": "att-1-0a12b927-732b-40d2-98db-eda94609dfb0",
+      "parentEventId": "8c79554c-87d2-43ff-b376-ec259189ea97",
+      "payload": {
+        "metadata": {
+          "eventKind": "CODING_TRACE",
+          "eventState": "RUNNING",
+          "codingEventType": "RECOVERY_RECONCILED",
+          "taskId": "native-52020e7844b8bd4a837385bd327d71d07ffcd5c911f99c8164b1330f44126025",
+          "operationId": "model-fa41da40-2ae3-4d07-822c-ceea3c329325",
+          "occurredAt": "2026-11-12T06:05:07.418Z",
+          "workerActivity": {
+            "normalizedType": "MODEL_REQUEST_STARTED",
+            "nativeEventType": "model.request.started",
+            "nativeEventId": "32",
+            "nativeEvidenceRef": "runtime-evidence:coding:native:29fcb4a500fa67de55c7fc9e7b34422f516599dd106ed591af447d4444e58e33",
+            "sessionId": "***",
+            "requestId": "fa41da40-2ae3-4d07-822c-ceea3c329325",
+            "model": "qwen3.6-plus",
+            "nativeOccurredAt": "2026-11-12T06:05:06.090Z",
+            "operationId": "model-fa41da40-2ae3-4d07-822c-ceea3c329325",
+            "startedAt": "2026-11-12T06:05:06.089Z"
+          }
+        }
+      }
+    },
+    {
+      "eventId": "54f38fc2-a589-4d05-bcc5-20ec502a65e1",
+      "sequence": 110,
+      "type": "RUNTIME_OBSERVATION",
+      "status": "RUNNING",
+      "createTime": 1794463508301,
+      "attemptId": "att-1-0a12b927-732b-40d2-98db-eda94609dfb0",
+      "runId": "att-1-0a12b927-732b-40d2-98db-eda94609dfb0",
+      "parentEventId": "8c79554c-87d2-43ff-b376-ec259189ea97",
+      "payload": {
+        "metadata": {
+          "eventKind": "CODING_TRACE",
+          "eventState": "RUNNING",
+          "codingEventType": "RECOVERY_RECONCILED",
+          "taskId": "native-52020e7844b8bd4a837385bd327d71d07ffcd5c911f99c8164b1330f44126025",
+          "occurredAt": "2026-11-12T06:05:08.151Z"
+        }
+      }
+    },
+    {
+      "eventId": "16dc60e3-0fb1-4acf-a41a-ace8506d120b",
+      "sequence": 111,
+      "type": "RUNTIME_OBSERVATION",
+      "status": "RUNNING",
+      "createTime": 1794463518036,
+      "attemptId": "att-1-0a12b927-732b-40d2-98db-eda94609dfb0",
+      "runId": "att-1-0a12b927-732b-40d2-98db-eda94609dfb0",
+      "parentEventId": "8c79554c-87d2-43ff-b376-ec259189ea97",
+      "payload": {
+        "metadata": {
+          "eventKind": "CODING_TRACE",
+          "eventState": "RUNNING",
+          "codingEventType": "RECOVERY_RECONCILED",
+          "taskId": "native-52020e7844b8bd4a837385bd327d71d07ffcd5c911f99c8164b1330f44126025",
+          "occurredAt": "2026-11-12T06:05:17.876Z",
+          "workerActivity": {
+            "normalizedType": "OBSERVATION",
+            "nativeEventType": "permission.requested",
+            "nativeEventId": "195",
+            "nativeEvidenceRef": "runtime-evidence:coding:native:bc7121e715c3cba0d781d4caa4198a3fbc0dda906895ada38860eeb24dd18a79",
+            "sessionId": "***",
+            "nativeOccurredAt": "2026-11-12T06:05:17.442Z",
+            "tool": "run_commands"
+          }
+        }
+      }
+    },
+    {
+      "eventId": "c06df89a-59a4-430a-b416-6062e75a0447",
+      "sequence": 112,
+      "type": "RUNTIME_OBSERVATION",
+      "status": "RUNNING",
+      "createTime": 1794463518580,
+      "attemptId": "att-1-0a12b927-732b-40d2-98db-eda94609dfb0",
+      "runId": "att-1-0a12b927-732b-40d2-98db-eda94609dfb0",
+      "parentEventId": "8c79554c-87d2-43ff-b376-ec259189ea97",
+      "payload": {
+        "metadata": {
+          "eventKind": "CODING_TRACE",
+          "eventState": "RUNNING",
+          "codingEventType": "RECOVERY_RECONCILED",
+          "taskId": "native-52020e7844b8bd4a837385bd327d71d07ffcd5c911f99c8164b1330f44126025",
+          "operationId": "model-fa41da40-2ae3-4d07-822c-ceea3c329325",
+          "occurredAt": "2026-11-12T06:05:18.140Z",
+          "workerActivity": {
+            "normalizedType": "MODEL_REQUEST_COMPLETED",
+            "nativeEventType": "model.request.completed",
+            "nativeEventId": "33",
+            "nativeEvidenceRef": "runtime-evidence:coding:native:af7519497d24e1f8e7c49099067e4544fc6bd80db35023b9c65995677cc65465",
+            "sessionId": "***",
+            "requestId": "fa41da40-2ae3-4d07-822c-ceea3c329325",
+            "model": "qwen3.6-plus",
+            "providerModel": "qwen3.6-plus",
+            "nativeOccurredAt": "2026-11-12T06:05:17.387Z",
+            "status": "SUCCEEDED",
+            "operationId": "model-fa41da40-2ae3-4d07-822c-ceea3c329325",
+            "startedAt": "2026-11-12T06:05:06.089Z",
+            "finishedAt": "2026-11-12T06:05:17.386Z",
+            "durationMs": 11297
+          }
+        }
+      }
+    },
+    {
+      "eventId": "9c81b7ee-748d-4d34-bc95-80d17eef0d6e",
+      "sequence": 113,
+      "type": "RUNTIME_OBSERVATION",
+      "status": "RUNNING",
+      "createTime": 1794463518591,
+      "attemptId": "att-1-0a12b927-732b-40d2-98db-eda94609dfb0",
+      "runId": "att-1-0a12b927-732b-40d2-98db-eda94609dfb0",
+      "parentEventId": "8c79554c-87d2-43ff-b376-ec259189ea97",
+      "payload": {
+        "metadata": {
+          "eventKind": "CODING_TRACE",
+          "eventState": "RUNNING",
+          "codingEventType": "RECOVERY_RECONCILED",
+          "taskId": "native-52020e7844b8bd4a837385bd327d71d07ffcd5c911f99c8164b1330f44126025",
+          "operationId": "model-120ad985-924c-47e1-9c55-b8bac970ce9a",
+          "occurredAt": "2026-11-12T06:05:18.262Z",
+          "workerActivity": {
+            "normalizedType": "MODEL_REQUEST_STARTED",
+            "nativeEventType": "model.request.started",
+            "nativeEventId": "34",
+            "nativeEvidenceRef": "runtime-evidence:coding:native:0a12e8cdd8aac7772b69e346a86a9232fb73d726dec853652127e821f731e232",
+            "sessionId": "***",
+            "requestId": "120ad985-924c-47e1-9c55-b8bac970ce9a",
+            "model": "qwen3.6-plus",
+            "nativeOccurredAt": "2026-11-12T06:05:17.972Z",
+            "operationId": "model-120ad985-924c-47e1-9c55-b8bac970ce9a",
+            "startedAt": "2026-11-12T06:05:17.970Z"
+          }
+        }
+      }
+    },
+    {
+      "eventId": "393c9e64-e1e8-43ba-8935-8ee984212e0d",
+      "sequence": 114,
+      "type": "RUNTIME_OBSERVATION",
+      "status": "RUNNING",
+      "createTime": 1794463519681,
+      "attemptId": "att-1-0a12b927-732b-40d2-98db-eda94609dfb0",
+      "runId": "att-1-0a12b927-732b-40d2-98db-eda94609dfb0",
+      "parentEventId": "8c79554c-87d2-43ff-b376-ec259189ea97",
+      "payload": {
+        "metadata": {
+          "eventKind": "CODING_TRACE",
+          "eventState": "RUNNING",
+          "codingEventType": "RECOVERY_RECONCILED",
+          "taskId": "native-52020e7844b8bd4a837385bd327d71d07ffcd5c911f99c8164b1330f44126025",
+          "occurredAt": "2026-11-12T06:05:19.162Z",
+          "workerActivity": {
+            "normalizedType": "OBSERVATION",
+            "nativeEventType": "permission.decision",
+            "nativeEventId": "196",
+            "nativeEvidenceRef": "runtime-evidence:coding:native:8ffac16d7222f764d9c6c9fb94aa4ec29467419bd817c4f591e71a6f43075675",
+            "sessionId": "***",
+            "nativeOccurredAt": "2026-11-12T06:05:17.740Z"
+          }
+        }
+      }
+    },
+    {
+      "eventId": "33ecce39-c084-4d93-9141-6ea1e20629fe",
+      "sequence": 115,
+      "type": "RUNTIME_OBSERVATION",
+      "status": "RUNNING",
+      "createTime": 1794463519700,
+      "attemptId": "att-1-0a12b927-732b-40d2-98db-eda94609dfb0",
+      "runId": "att-1-0a12b927-732b-40d2-98db-eda94609dfb0",
+      "parentEventId": "8c79554c-87d2-43ff-b376-ec259189ea97",
+      "payload": {
+        "metadata": {
+          "eventKind": "CODING_TRACE",
+          "eventState": "RUNNING",
+          "codingEventType": "RECOVERY_RECONCILED",
+          "taskId": "native-52020e7844b8bd4a837385bd327d71d07ffcd5c911f99c8164b1330f44126025",
+          "occurredAt": "2026-11-12T06:05:19.293Z",
+          "workerActivity": {
+            "normalizedType": "OBSERVATION",
+            "nativeEventType": "permission.resolved",
+            "nativeEventId": "197",
+            "nativeEvidenceRef": "runtime-evidence:coding:native:30bf40f72625923b5ac4ec27b2207b3ed7bb09ef63eda5cfa1d22bd93e93c245",
+            "sessionId": "***",
+            "nativeOccurredAt": "2026-11-12T06:05:17.744Z"
+          }
+        }
+      }
+    },
+    {
+      "eventId": "4e0c796c-d365-4a52-b8f8-2652c3fd3b46",
+      "sequence": 116,
+      "type": "RUNTIME_OBSERVATION",
+      "status": "RUNNING",
+      "createTime": 1794463519717,
+      "attemptId": "att-1-0a12b927-732b-40d2-98db-eda94609dfb0",
+      "runId": "att-1-0a12b927-732b-40d2-98db-eda94609dfb0",
+      "parentEventId": "8c79554c-87d2-43ff-b376-ec259189ea97",
+      "payload": {
+        "metadata": {
+          "eventKind": "CODING_TRACE",
+          "eventState": "RUNNING",
+          "codingEventType": "RECOVERY_RECONCILED",
+          "taskId": "native-52020e7844b8bd4a837385bd327d71d07ffcd5c911f99c8164b1330f44126025",
+          "operationId": "tool-9c0ad2de4a4d6a758d3fa1d26ed820f5",
+          "occurredAt": "2026-11-12T06:05:19.402Z",
+          "workerActivity": {
+            "normalizedType": "TOOL_STARTED",
+            "nativeEventType": "tool.started",
+            "nativeEventId": "201",
+            "nativeEvidenceRef": "runtime-evidence:coding:native:6a9769243d3e49df2e78c14660852bb87060653593725e165a709ddd5a24d807",
+            "sessionId": "***",
+            "nativeOccurredAt": "2026-11-12T06:05:17.749Z",
+            "tool": "run_commands",
+            "toolCallId": "call_3cb2272929b24ee6b14bbe14",
+            "operationId": "tool-9c0ad2de4a4d6a758d3fa1d26ed820f5"
+          }
+        }
+      }
+    },
+    {
+      "eventId": "7d4aa3cd-2584-40de-a7e0-b41cd53e095a",
+      "sequence": 117,
+      "type": "RUNTIME_OBSERVATION",
+      "status": "RUNNING",
+      "createTime": 1794463519728,
+      "attemptId": "att-1-0a12b927-732b-40d2-98db-eda94609dfb0",
+      "runId": "att-1-0a12b927-732b-40d2-98db-eda94609dfb0",
+      "parentEventId": "8c79554c-87d2-43ff-b376-ec259189ea97",
+      "payload": {
+        "metadata": {
+          "eventKind": "CODING_TRACE",
+          "eventState": "RUNNING",
+          "codingEventType": "RECOVERY_RECONCILED",
+          "taskId": "native-52020e7844b8bd4a837385bd327d71d07ffcd5c911f99c8164b1330f44126025",
+          "operationId": "cmd-cb651549-b719-47ab-8a1c-35081469e8d5",
+          "occurredAt": "2026-11-12T06:05:19.557Z",
+          "workerActivity": {
+            "normalizedType": "COMMAND_STARTED",
+            "nativeEventType": "command.started",
+            "nativeEventId": "203",
+            "nativeEvidenceRef": "runtime-evidence:coding:native:4145fd1063f2ce6546f6a82bd6b11505f3422f56594b388df1167a5df700e8c8",
+            "sessionId": "***",
+            "nativeOccurredAt": "2026-11-12T06:05:17.800Z",
+            "status": "RUNNING",
+            "operationId": "cmd-cb651549-b719-47ab-8a1c-35081469e8d5",
+            "startedAt": "2026-11-12T06:05:17.793Z"
+          }
+        }
+      }
+    },
+    {
+      "eventId": "ea680b19-fefe-45fc-8bc6-b90827c1ef18",
+      "sequence": 118,
+      "type": "RUNTIME_OBSERVATION",
+      "status": "RUNNING",
+      "createTime": 1794463520287,
+      "attemptId": "att-1-0a12b927-732b-40d2-98db-eda94609dfb0",
+      "runId": "att-1-0a12b927-732b-40d2-98db-eda94609dfb0",
+      "parentEventId": "8c79554c-87d2-43ff-b376-ec259189ea97",
+      "payload": {
+        "metadata": {
+          "eventKind": "CODING_TRACE",
+          "eventState": "RUNNING",
+          "codingEventType": "RECOVERY_RECONCILED",
+          "taskId": "native-52020e7844b8bd4a837385bd327d71d07ffcd5c911f99c8164b1330f44126025",
+          "operationId": "cmd-cb651549-b719-47ab-8a1c-35081469e8d5",
+          "occurredAt": "2026-11-12T06:05:19.854Z",
+          "workerActivity": {
+            "normalizedType": "COMMAND_COMPLETED",
+            "nativeEventType": "command.completed",
+            "nativeEventId": "209",
+            "nativeEvidenceRef": "runtime-evidence:coding:native:1f72b51b312597300b44d1b98ba9bd1cbbba826b117d8880a0c98d46dd4a4258",
+            "sessionId": "***",
+            "nativeOccurredAt": "2026-11-12T06:05:17.901Z",
+            "status": "SUCCEEDED",
+            "exitCode": 0,
+            "operationId": "cmd-cb651549-b719-47ab-8a1c-35081469e8d5",
+            "startedAt": "2026-11-12T06:05:17.793Z",
+            "finishedAt": "2026-11-12T06:05:17.900Z",
+            "durationMs": 106.921366
+          }
+        }
+      }
+    },
+    {
+      "eventId": "4ee88aee-e406-4421-aead-b987753bd5cb",
+      "sequence": 119,
+      "type": "RUNTIME_OBSERVATION",
+      "status": "RUNNING",
+      "createTime": 1794463520305,
+      "attemptId": "att-1-0a12b927-732b-40d2-98db-eda94609dfb0",
+      "runId": "att-1-0a12b927-732b-40d2-98db-eda94609dfb0",
+      "parentEventId": "8c79554c-87d2-43ff-b376-ec259189ea97",
+      "payload": {
+        "metadata": {
+          "eventKind": "CODING_TRACE",
+          "eventState": "RUNNING",
+          "codingEventType": "RECOVERY_RECONCILED",
+          "taskId": "native-52020e7844b8bd4a837385bd327d71d07ffcd5c911f99c8164b1330f44126025",
+          "operationId": "tool-9c0ad2de4a4d6a758d3fa1d26ed820f5",
+          "occurredAt": "2026-11-12T06:05:20.090Z",
+          "workerActivity": {
+            "normalizedType": "ERROR_OCCURRED",
+            "nativeEventType": "tool.failed",
+            "nativeEventId": "214",
+            "nativeEvidenceRef": "runtime-evidence:coding:native:465a350d1c95e6aba8b9778da424ee0d5ec74128c92d568c30416721bd93ff96",
+            "sessionId": "***",
+            "nativeOccurredAt": "2026-11-12T06:05:17.937Z",
+            "tool": "run_commands",
+            "toolCallId": "call_3cb2272929b24ee6b14bbe14",
+            "operationId": "tool-9c0ad2de4a4d6a758d3fa1d26ed820f5",
+            "durationMs": 189
+          }
+        }
+      }
+    },
+    {
+      "eventId": "a52fe2c6-fd56-496d-b85f-d6ebf3596644",
+      "sequence": 120,
+      "type": "RUNTIME_OBSERVATION",
+      "status": "RUNNING",
+      "createTime": 1794463520316,
+      "attemptId": "att-1-0a12b927-732b-40d2-98db-eda94609dfb0",
+      "runId": "att-1-0a12b927-732b-40d2-98db-eda94609dfb0",
+      "parentEventId": "8c79554c-87d2-43ff-b376-ec259189ea97",
+      "payload": {
+        "metadata": {
+          "eventKind": "CODING_TRACE",
+          "eventState": "RUNNING",
+          "codingEventType": "RECOVERY_RECONCILED",
+          "taskId": "native-52020e7844b8bd4a837385bd327d71d07ffcd5c911f99c8164b1330f44126025",
+          "occurredAt": "2026-11-12T06:05:20.221Z",
+          "workerActivity": {
+            "normalizedType": "OBSERVATION",
+            "nativeEventType": "model.iteration.started",
+            "nativeEventId": "217",
+            "nativeEvidenceRef": "runtime-evidence:coding:native:5d37bb9afa4076bb62128730d82262e39a8fcf789259d96ec74cad7721e02533",
+            "sessionId": "***",
+            "nativeOccurredAt": "2026-11-12T06:05:17.939Z"
+          }
+        }
+      }
+    },
+    {
+      "eventId": "ad43d450-b840-49bb-bbd3-0afdc3939ca7",
+      "sequence": 121,
+      "type": "RUNTIME_OBSERVATION",
+      "status": "RUNNING",
+      "createTime": 1794463532306,
+      "attemptId": "att-1-0a12b927-732b-40d2-98db-eda94609dfb0",
+      "runId": "att-1-0a12b927-732b-40d2-98db-eda94609dfb0",
+      "parentEventId": "8c79554c-87d2-43ff-b376-ec259189ea97",
+      "payload": {
+        "metadata": {
+          "eventKind": "CODING_TRACE",
+          "eventState": "RUNNING",
+          "codingEventType": "RECOVERY_RECONCILED",
+          "taskId": "native-52020e7844b8bd4a837385bd327d71d07ffcd5c911f99c8164b1330f44126025",
+          "occurredAt": "2026-11-12T06:05:32.237Z",
+          "workerActivity": {
+            "normalizedType": "OBSERVATION",
+            "nativeEventType": "permission.requested",
+            "nativeEventId": "233",
+            "nativeEvidenceRef": "runtime-evidence:coding:native:5adf3f20b748b9d2d6ac454083d897eebcd220fc0b029f6ea1be9bc4d9dfb68e",
+            "sessionId": "***",
+            "nativeOccurredAt": "2026-11-12T06:05:31.589Z",
+            "tool": "run_commands"
+          }
+        }
+      }
+    },
+    {
+      "eventId": "f0930738-fe21-440c-9156-6358ba5aa014",
+      "sequence": 122,
+      "type": "RUNTIME_OBSERVATION",
+      "status": "RUNNING",
+      "createTime": 1794463532861,
+      "attemptId": "att-1-0a12b927-732b-40d2-98db-eda94609dfb0",
+      "runId": "att-1-0a12b927-732b-40d2-98db-eda94609dfb0",
+      "parentEventId": "8c79554c-87d2-43ff-b376-ec259189ea97",
+      "payload": {
+        "metadata": {
+          "eventKind": "CODING_TRACE",
+          "eventState": "RUNNING",
+          "codingEventType": "RECOVERY_RECONCILED",
+          "taskId": "native-52020e7844b8bd4a837385bd327d71d07ffcd5c911f99c8164b1330f44126025",
+          "occurredAt": "2026-11-12T06:05:32.373Z",
+          "workerActivity": {
+            "normalizedType": "OBSERVATION",
+            "nativeEventType": "permission.decision",
+            "nativeEventId": "234",
+            "nativeEvidenceRef": "runtime-evidence:coding:native:f9bb1d4ba322fe2e9fd328a6c3cd50ff75a475c59d8ba33dea4b87fcea3b285f",
+            "sessionId": "***",
+            "nativeOccurredAt": "2026-11-12T06:05:31.745Z"
+          }
+        }
+      }
+    },
+    {
+      "eventId": "a96dcb34-0db4-46e9-adbd-6d2924bab175",
+      "sequence": 123,
+      "type": "RUNTIME_OBSERVATION",
+      "status": "RUNNING",
+      "createTime": 1794463532873,
+      "attemptId": "att-1-0a12b927-732b-40d2-98db-eda94609dfb0",
+      "runId": "att-1-0a12b927-732b-40d2-98db-eda94609dfb0",
+      "parentEventId": "8c79554c-87d2-43ff-b376-ec259189ea97",
+      "payload": {
+        "metadata": {
+          "eventKind": "CODING_TRACE",
+          "eventState": "RUNNING",
+          "codingEventType": "RECOVERY_RECONCILED",
+          "taskId": "native-52020e7844b8bd4a837385bd327d71d07ffcd5c911f99c8164b1330f44126025",
+          "occurredAt": "2026-11-12T06:05:32.505Z",
+          "workerActivity": {
+            "normalizedType": "OBSERVATION",
+            "nativeEventType": "permission.resolved",
+            "nativeEventId": "235",
+            "nativeEvidenceRef": "runtime-evidence:coding:native:168deba311238a58766fff781eb9ccbe50ddc194a8166a8f77e45e2b70acd110",
+            "sessionId": "***",
+            "nativeOccurredAt": "2026-11-12T06:05:31.747Z"
+          }
+        }
+      }
+    },
+    {
+      "eventId": "b4868dcb-c7e4-4e04-a518-635ae301b140",
+      "sequence": 124,
+      "type": "RUNTIME_OBSERVATION",
+      "status": "RUNNING",
+      "createTime": 1794463532884,
+      "attemptId": "att-1-0a12b927-732b-40d2-98db-eda94609dfb0",
+      "runId": "att-1-0a12b927-732b-40d2-98db-eda94609dfb0",
+      "parentEventId": "8c79554c-87d2-43ff-b376-ec259189ea97",
+      "payload": {
+        "metadata": {
+          "eventKind": "CODING_TRACE",
+          "eventState": "RUNNING",
+          "codingEventType": "RECOVERY_RECONCILED",
+          "taskId": "native-52020e7844b8bd4a837385bd327d71d07ffcd5c911f99c8164b1330f44126025",
+          "operationId": "tool-ed3f2cf3681acc1b1a99b4bf8ca2ab0e",
+          "occurredAt": "2026-11-12T06:05:32.639Z",
+          "workerActivity": {
+            "normalizedType": "TOOL_STARTED",
+            "nativeEventType": "tool.started",
+            "nativeEventId": "239",
+            "nativeEvidenceRef": "runtime-evidence:coding:native:dbeb446fb6595e5b7ecb24ddcaa79f41b59cb4b3cfdb98847f091f23d1e7fb49",
+            "sessionId": "***",
+            "nativeOccurredAt": "2026-11-12T06:05:31.754Z",
+            "tool": "run_commands",
+            "toolCallId": "call_7a2c3a877e5244db887bcbf7",
+            "operationId": "tool-ed3f2cf3681acc1b1a99b4bf8ca2ab0e"
+          }
+        }
+      }
+    },
+    {
+      "eventId": "c013a199-be1d-4164-bb5b-4bac4e3e81fa",
+      "sequence": 125,
+      "type": "RUNTIME_OBSERVATION",
+      "status": "RUNNING",
+      "createTime": 1794463532896,
+      "attemptId": "att-1-0a12b927-732b-40d2-98db-eda94609dfb0",
+      "runId": "att-1-0a12b927-732b-40d2-98db-eda94609dfb0",
+      "parentEventId": "8c79554c-87d2-43ff-b376-ec259189ea97",
+      "payload": {
+        "metadata": {
+          "eventKind": "CODING_TRACE",
+          "eventState": "RUNNING",
+          "codingEventType": "RECOVERY_RECONCILED",
+          "taskId": "native-52020e7844b8bd4a837385bd327d71d07ffcd5c911f99c8164b1330f44126025",
+          "operationId": "cmd-adbf9119-281c-4c78-bbbe-41f9a2e92d6b",
+          "occurredAt": "2026-11-12T06:05:32.754Z",
+          "workerActivity": {
+            "normalizedType": "COMMAND_STARTED",
+            "nativeEventType": "command.started",
+            "nativeEventId": "240",
+            "nativeEvidenceRef": "runtime-evidence:coding:native:24b098f519885832c99fdd7ef7b1cc2f548a1107013f43cf9d4916b59f5ad9b5",
+            "sessionId": "***",
+            "nativeOccurredAt": "2026-11-12T06:05:31.778Z",
+            "status": "RUNNING",
+            "operationId": "cmd-adbf9119-281c-4c78-bbbe-41f9a2e92d6b",
+            "startedAt": "2026-11-12T06:05:31.777Z"
+          }
+        }
+      }
+    },
+    {
+      "eventId": "7000d59e-6101-4348-9497-120f59e6d469",
+      "sequence": 126,
+      "type": "RUNTIME_OBSERVATION",
+      "status": "RUNNING",
+      "createTime": 1794463533481,
+      "attemptId": "att-1-0a12b927-732b-40d2-98db-eda94609dfb0",
+      "runId": "att-1-0a12b927-732b-40d2-98db-eda94609dfb0",
+      "parentEventId": "8c79554c-87d2-43ff-b376-ec259189ea97",
+      "payload": {
+        "metadata": {
+          "eventKind": "CODING_TRACE",
+          "eventState": "RUNNING",
+          "codingEventType": "RECOVERY_RECONCILED",
+          "taskId": "native-52020e7844b8bd4a837385bd327d71d07ffcd5c911f99c8164b1330f44126025",
+          "operationId": "cmd-adbf9119-281c-4c78-bbbe-41f9a2e92d6b",
+          "occurredAt": "2026-11-12T06:05:32.941Z",
+          "workerActivity": {
+            "normalizedType": "COMMAND_COMPLETED",
+            "nativeEventType": "command.completed",
+            "nativeEventId": "242",
+            "nativeEvidenceRef": "runtime-evidence:coding:native:e29cba6fd954712d98cf4c701654882ff5286071eb77d58dfd7b602e82384e25",
+            "sessionId": "***",
+            "nativeOccurredAt": "2026-11-12T06:05:31.787Z",
+            "status": "SUCCEEDED",
+            "exitCode": 0,
+            "operationId": "cmd-adbf9119-281c-4c78-bbbe-41f9a2e92d6b",
+            "startedAt": "2026-11-12T06:05:31.777Z",
+            "finishedAt": "2026-11-12T06:05:31.782Z",
+            "durationMs": 4.970827
+          }
+        }
+      }
+    },
+    {
+      "eventId": "7091c2d7-7f67-4e50-93d4-ad54f38a1dc9",
+      "sequence": 127,
+      "type": "RUNTIME_OBSERVATION",
+      "status": "RUNNING",
+      "createTime": 1794463533493,
+      "attemptId": "att-1-0a12b927-732b-40d2-98db-eda94609dfb0",
+      "runId": "att-1-0a12b927-732b-40d2-98db-eda94609dfb0",
+      "parentEventId": "8c79554c-87d2-43ff-b376-ec259189ea97",
+      "payload": {
+        "metadata": {
+          "eventKind": "CODING_TRACE",
+          "eventState": "RUNNING",
+          "codingEventType": "RECOVERY_RECONCILED",
+          "taskId": "native-52020e7844b8bd4a837385bd327d71d07ffcd5c911f99c8164b1330f44126025",
+          "operationId": "tool-ed3f2cf3681acc1b1a99b4bf8ca2ab0e",
+          "occurredAt": "2026-11-12T06:05:33.183Z",
+          "workerActivity": {
+            "normalizedType": "TOOL_COMPLETED",
+            "nativeEventType": "tool.completed",
+            "nativeEventId": "246",
+            "nativeEvidenceRef": "runtime-evidence:coding:native:c0ee0ba9de9315fb4b128b1d6eb7bb292295e652cd217a0b751e0d75ebd97c38",
+            "sessionId": "***",
+            "nativeOccurredAt": "2026-11-12T06:05:31.820Z",
+            "tool": "run_commands",
+            "toolCallId": "call_7a2c3a877e5244db887bcbf7",
+            "operationId": "tool-ed3f2cf3681acc1b1a99b4bf8ca2ab0e",
+            "durationMs": 65
+          }
+        }
+      }
+    },
+    {
+      "eventId": "77d3bf51-27be-431b-8679-31fd77b6ed31",
+      "sequence": 128,
+      "type": "RUNTIME_OBSERVATION",
+      "status": "RUNNING",
+      "createTime": 1794463533505,
+      "attemptId": "att-1-0a12b927-732b-40d2-98db-eda94609dfb0",
+      "runId": "att-1-0a12b927-732b-40d2-98db-eda94609dfb0",
+      "parentEventId": "8c79554c-87d2-43ff-b376-ec259189ea97",
+      "payload": {
+        "metadata": {
+          "eventKind": "CODING_TRACE",
+          "eventState": "RUNNING",
+          "codingEventType": "RECOVERY_RECONCILED",
+          "taskId": "native-52020e7844b8bd4a837385bd327d71d07ffcd5c911f99c8164b1330f44126025",
+          "occurredAt": "2026-11-12T06:05:33.328Z",
+          "workerActivity": {
+            "normalizedType": "OBSERVATION",
+            "nativeEventType": "model.iteration.started",
+            "nativeEventId": "249",
+            "nativeEvidenceRef": "runtime-evidence:coding:native:f9b5594ea06e24072c6a0dd883f3e5a5d37675849c90f3a1624e1239699459ea",
+            "sessionId": "***",
+            "nativeOccurredAt": "2026-11-12T06:05:31.823Z"
+          }
+        }
+      }
+    },
+    {
+      "eventId": "54dfdd2b-0df1-4122-a2b8-e1066a4df1e0",
+      "sequence": 129,
+      "type": "RUNTIME_OBSERVATION",
+      "status": "RUNNING",
+      "createTime": 1794463534062,
+      "attemptId": "att-1-0a12b927-732b-40d2-98db-eda94609dfb0",
+      "runId": "att-1-0a12b927-732b-40d2-98db-eda94609dfb0",
+      "parentEventId": "8c79554c-87d2-43ff-b376-ec259189ea97",
+      "payload": {
+        "metadata": {
+          "eventKind": "CODING_TRACE",
+          "eventState": "RUNNING",
+          "codingEventType": "RECOVERY_RECONCILED",
+          "taskId": "native-52020e7844b8bd4a837385bd327d71d07ffcd5c911f99c8164b1330f44126025",
+          "operationId": "model-120ad985-924c-47e1-9c55-b8bac970ce9a",
+          "occurredAt": "2026-11-12T06:05:33.619Z",
+          "workerActivity": {
+            "normalizedType": "MODEL_REQUEST_COMPLETED",
+            "nativeEventType": "model.request.completed",
+            "nativeEventId": "35",
+            "nativeEvidenceRef": "runtime-evidence:coding:native:631f2cd7442d5cdb240870259495022f7cb1b2ae58efaf8f465b7ccd761d535c",
+            "sessionId": "***",
+            "requestId": "120ad985-924c-47e1-9c55-b8bac970ce9a",
+            "model": "qwen3.6-plus",
+            "providerModel": "qwen3.6-plus",
+            "nativeOccurredAt": "2026-11-12T06:05:31.534Z",
+            "status": "SUCCEEDED",
+            "operationId": "model-120ad985-924c-47e1-9c55-b8bac970ce9a",
+            "startedAt": "2026-11-12T06:05:17.970Z",
+            "finishedAt": "2026-11-12T06:05:31.533Z",
+            "durationMs": 13563
+          }
+        }
+      }
+    },
+    {
+      "eventId": "8386e435-9178-4c04-b7e5-141d6ff2bd8e",
+      "sequence": 130,
+      "type": "RUNTIME_OBSERVATION",
+      "status": "RUNNING",
+      "createTime": 1794463534084,
+      "attemptId": "att-1-0a12b927-732b-40d2-98db-eda94609dfb0",
+      "runId": "att-1-0a12b927-732b-40d2-98db-eda94609dfb0",
+      "parentEventId": "8c79554c-87d2-43ff-b376-ec259189ea97",
+      "payload": {
+        "metadata": {
+          "eventKind": "CODING_TRACE",
+          "eventState": "RUNNING",
+          "codingEventType": "RECOVERY_RECONCILED",
+          "taskId": "native-52020e7844b8bd4a837385bd327d71d07ffcd5c911f99c8164b1330f44126025",
+          "operationId": "model-2bc84686-4d3a-46b6-964f-06c834f2a28f",
+          "occurredAt": "2026-11-12T06:05:33.760Z",
+          "workerActivity": {
+            "normalizedType": "MODEL_REQUEST_STARTED",
+            "nativeEventType": "model.request.started",
+            "nativeEventId": "36",
+            "nativeEvidenceRef": "runtime-evidence:coding:native:312dd61add13fdff1b3c221ed58394459da31be2b90f25bc8df0e164027be84f",
+            "sessionId": "***",
+            "requestId": "2bc84686-4d3a-46b6-964f-06c834f2a28f",
+            "model": "qwen3.6-plus",
+            "nativeOccurredAt": "2026-11-12T06:05:31.853Z",
+            "operationId": "model-2bc84686-4d3a-46b6-964f-06c834f2a28f",
+            "startedAt": "2026-11-12T06:05:31.851Z"
+          }
+        }
+      }
+    },
+    {
+      "eventId": "b46605de-c354-4bcf-9d18-a9e3201bad6b",
+      "sequence": 131,
+      "type": "RUNTIME_OBSERVATION",
+      "status": "RUNNING",
+      "createTime": 1794463538998,
+      "attemptId": "att-1-0a12b927-732b-40d2-98db-eda94609dfb0",
+      "runId": "att-1-0a12b927-732b-40d2-98db-eda94609dfb0",
+      "parentEventId": "8c79554c-87d2-43ff-b376-ec259189ea97",
+      "payload": {
+        "metadata": {
+          "eventKind": "CODING_TRACE",
+          "eventState": "RUNNING",
+          "codingEventType": "RECOVERY_RECONCILED",
+          "taskId": "native-52020e7844b8bd4a837385bd327d71d07ffcd5c911f99c8164b1330f44126025",
+          "occurredAt": "2026-11-12T06:05:38.834Z"
+        }
+      }
+    },
+    {
+      "eventId": "97e6d4d7-931e-4c1f-8dd9-83f97756fbc0",
+      "sequence": 132,
+      "type": "RUNTIME_OBSERVATION",
+      "status": "RUNNING",
+      "createTime": 1794463559575,
+      "attemptId": "att-1-0a12b927-732b-40d2-98db-eda94609dfb0",
+      "runId": "att-1-0a12b927-732b-40d2-98db-eda94609dfb0",
+      "parentEventId": "8c79554c-87d2-43ff-b376-ec259189ea97",
+      "payload": {
+        "metadata": {
+          "eventKind": "CODING_TRACE",
+          "eventState": "RUNNING",
+          "codingEventType": "RECOVERY_RECONCILED",
+          "taskId": "native-52020e7844b8bd4a837385bd327d71d07ffcd5c911f99c8164b1330f44126025",
+          "occurredAt": "2026-11-12T06:05:59.254Z",
+          "workerActivity": {
+            "normalizedType": "OBSERVATION",
+            "nativeEventType": "permission.requested",
+            "nativeEventId": "256",
+            "nativeEvidenceRef": "runtime-evidence:coding:native:38dcf040cea9823b0434acd71a91503ca5dd8decdd1cda753886c4ff0cf0558e",
+            "sessionId": "***",
+            "nativeOccurredAt": "2026-11-12T06:05:59.007Z",
+            "tool": "run_commands"
+          }
+        }
+      }
+    },
+    {
+      "eventId": "7a5dcd3b-c8be-43b4-87ab-941ec2d3e72c",
+      "sequence": 133,
+      "type": "RUNTIME_OBSERVATION",
+      "status": "RUNNING",
+      "createTime": 1794463559589,
+      "attemptId": "att-1-0a12b927-732b-40d2-98db-eda94609dfb0",
+      "runId": "att-1-0a12b927-732b-40d2-98db-eda94609dfb0",
+      "parentEventId": "8c79554c-87d2-43ff-b376-ec259189ea97",
+      "payload": {
+        "metadata": {
+          "eventKind": "CODING_TRACE",
+          "eventState": "RUNNING",
+          "codingEventType": "RECOVERY_RECONCILED",
+          "taskId": "native-52020e7844b8bd4a837385bd327d71d07ffcd5c911f99c8164b1330f44126025",
+          "operationId": "model-2bc84686-4d3a-46b6-964f-06c834f2a28f",
+          "occurredAt": "2026-11-12T06:05:59.481Z",
+          "workerActivity": {
+            "normalizedType": "MODEL_REQUEST_COMPLETED",
+            "nativeEventType": "model.request.completed",
+            "nativeEventId": "37",
+            "nativeEvidenceRef": "runtime-evidence:coding:native:63c108415ccc860da822902a29dd9cffcd3467d351bfca20045c38b5826f20a4",
+            "sessionId": "***",
+            "requestId": "2bc84686-4d3a-46b6-964f-06c834f2a28f",
+            "model": "qwen3.6-plus",
+            "providerModel": "qwen3.6-plus",
+            "nativeOccurredAt": "2026-11-12T06:05:58.958Z",
+            "status": "SUCCEEDED",
+            "operationId": "model-2bc84686-4d3a-46b6-964f-06c834f2a28f",
+            "startedAt": "2026-11-12T06:05:31.851Z",
+            "finishedAt": "2026-11-12T06:05:58.958Z",
+            "durationMs": 27107
+          }
+        }
+      }
+    },
+    {
+      "eventId": "fb9236af-6fba-4b91-bdf4-f133f6dc2427",
+      "sequence": 134,
+      "type": "RUNTIME_OBSERVATION",
+      "status": "RUNNING",
+      "createTime": 1794463560133,
+      "attemptId": "att-1-0a12b927-732b-40d2-98db-eda94609dfb0",
+      "runId": "att-1-0a12b927-732b-40d2-98db-eda94609dfb0",
+      "parentEventId": "8c79554c-87d2-43ff-b376-ec259189ea97",
+      "payload": {
+        "metadata": {
+          "eventKind": "CODING_TRACE",
+          "eventState": "RUNNING",
+          "codingEventType": "RECOVERY_RECONCILED",
+          "taskId": "native-52020e7844b8bd4a837385bd327d71d07ffcd5c911f99c8164b1330f44126025",
+          "operationId": "model-9baaa76d-6821-4190-8521-619af05f4194",
+          "occurredAt": "2026-11-12T06:05:59.601Z",
+          "workerActivity": {
+            "normalizedType": "MODEL_REQUEST_STARTED",
+            "nativeEventType": "model.request.started",
+            "nativeEventId": "38",
+            "nativeEvidenceRef": "runtime-evidence:coding:native:bdf52314c51e746d79b2f39a1eb4a28e34bb6e8dfa972e2a2e22556d370ceb7b",
+            "sessionId": "***",
+            "requestId": "9baaa76d-6821-4190-8521-619af05f4194",
+            "model": "qwen3.6-plus",
+            "nativeOccurredAt": "2026-11-12T06:05:59.374Z",
+            "operationId": "model-9baaa76d-6821-4190-8521-619af05f4194",
+            "startedAt": "2026-11-12T06:05:59.372Z"
+          }
+        }
+      }
+    },
+    {
+      "eventId": "0e8f403a-0d08-4d98-8f45-07790544b729",
+      "sequence": 135,
+      "type": "RUNTIME_OBSERVATION",
+      "status": "RUNNING",
+      "createTime": 1794463560700,
+      "attemptId": "att-1-0a12b927-732b-40d2-98db-eda94609dfb0",
+      "runId": "att-1-0a12b927-732b-40d2-98db-eda94609dfb0",
+      "parentEventId": "8c79554c-87d2-43ff-b376-ec259189ea97",
+      "payload": {
+        "metadata": {
+          "eventKind": "CODING_TRACE",
+          "eventState": "RUNNING",
+          "codingEventType": "RECOVERY_RECONCILED",
+          "taskId": "native-52020e7844b8bd4a837385bd327d71d07ffcd5c911f99c8164b1330f44126025",
+          "occurredAt": "2026-11-12T06:06:00.440Z",
+          "workerActivity": {
+            "normalizedType": "OBSERVATION",
+            "nativeEventType": "permission.decision",
+            "nativeEventId": "257",
+            "nativeEvidenceRef": "runtime-evidence:coding:native:dc1b36b5c2f53389fe2c5c5ad473c7c19250d0ebcc2cfc495eaf9df10db29d58",
+            "sessionId": "***",
+            "nativeOccurredAt": "2026-11-12T06:05:59.259Z"
+          }
+        }
+      }
+    },
+    {
+      "eventId": "ef82b52d-e36b-4400-ab3c-95e366442f91",
+      "sequence": 136,
+      "type": "RUNTIME_OBSERVATION",
+      "status": "RUNNING",
+      "createTime": 1794463560712,
+      "attemptId": "att-1-0a12b927-732b-40d2-98db-eda94609dfb0",
+      "runId": "att-1-0a12b927-732b-40d2-98db-eda94609dfb0",
+      "parentEventId": "8c79554c-87d2-43ff-b376-ec259189ea97",
+      "payload": {
+        "metadata": {
+          "eventKind": "CODING_TRACE",
+          "eventState": "RUNNING",
+          "codingEventType": "RECOVERY_RECONCILED",
+          "taskId": "native-52020e7844b8bd4a837385bd327d71d07ffcd5c911f99c8164b1330f44126025",
+          "occurredAt": "2026-11-12T06:06:00.538Z",
+          "workerActivity": {
+            "normalizedType": "OBSERVATION",
+            "nativeEventType": "permission.resolved",
+            "nativeEventId": "258",
+            "nativeEvidenceRef": "runtime-evidence:coding:native:b301744739809053af62157937e86d20b42838bd36ad7f8439af1d0be36cca18",
+            "sessionId": "***",
+            "nativeOccurredAt": "2026-11-12T06:05:59.261Z"
+          }
+        }
+      }
+    },
+    {
+      "eventId": "49efc609-3dd2-49da-8d67-8460c2b210b3",
+      "sequence": 137,
+      "type": "RUNTIME_OBSERVATION",
+      "status": "RUNNING",
+      "createTime": 1794463560723,
+      "attemptId": "att-1-0a12b927-732b-40d2-98db-eda94609dfb0",
+      "runId": "att-1-0a12b927-732b-40d2-98db-eda94609dfb0",
+      "parentEventId": "8c79554c-87d2-43ff-b376-ec259189ea97",
+      "payload": {
+        "metadata": {
+          "eventKind": "CODING_TRACE",
+          "eventState": "RUNNING",
+          "codingEventType": "RECOVERY_RECONCILED",
+          "taskId": "native-52020e7844b8bd4a837385bd327d71d07ffcd5c911f99c8164b1330f44126025",
+          "operationId": "tool-cb0c1d9abc12330f609b321ec577459f",
+          "occurredAt": "2026-11-12T06:06:00.638Z",
+          "workerActivity": {
+            "normalizedType": "TOOL_STARTED",
+            "nativeEventType": "tool.started",
+            "nativeEventId": "262",
+            "nativeEvidenceRef": "runtime-evidence:coding:native:2487a66bc1d4e81fad2bb7ea67a3fa4339aeef2beaa363732f678c2133c8d084",
+            "sessionId": "***",
+            "nativeOccurredAt": "2026-11-12T06:05:59.268Z",
+            "tool": "run_commands",
+            "toolCallId": "call_07aefbd43aee4dd7b445a3bd",
+            "operationId": "tool-cb0c1d9abc12330f609b321ec577459f"
+          }
+        }
+      }
+    },
+    {
+      "eventId": "0c5b2c13-73e0-4d70-897f-0d5a35a172c2",
+      "sequence": 138,
+      "type": "RUNTIME_OBSERVATION",
+      "status": "RUNNING",
+      "createTime": 1794463561295,
+      "attemptId": "att-1-0a12b927-732b-40d2-98db-eda94609dfb0",
+      "runId": "att-1-0a12b927-732b-40d2-98db-eda94609dfb0",
+      "parentEventId": "8c79554c-87d2-43ff-b376-ec259189ea97",
+      "payload": {
+        "metadata": {
+          "eventKind": "CODING_TRACE",
+          "eventState": "RUNNING",
+          "codingEventType": "RECOVERY_RECONCILED",
+          "taskId": "native-52020e7844b8bd4a837385bd327d71d07ffcd5c911f99c8164b1330f44126025",
+          "operationId": "cmd-9075c5a9-e41f-40bd-8ab0-6dc8f6ecfdbe",
+          "occurredAt": "2026-11-12T06:06:00.737Z",
+          "workerActivity": {
+            "normalizedType": "COMMAND_STARTED",
+            "nativeEventType": "command.started",
+            "nativeEventId": "263",
+            "nativeEvidenceRef": "runtime-evidence:coding:native:8d306f546e2b0a4ef64facc4574cfd3969d6e9ab5c16f079646eb7c914cc224a",
+            "sessionId": "***",
+            "nativeOccurredAt": "2026-11-12T06:05:59.293Z",
+            "status": "RUNNING",
+            "operationId": "cmd-9075c5a9-e41f-40bd-8ab0-6dc8f6ecfdbe",
+            "startedAt": "2026-11-12T06:05:59.291Z"
+          }
+        }
+      }
+    },
+    {
+      "eventId": "d022b359-00ec-4950-9aa2-cef653bf649d",
+      "sequence": 139,
+      "type": "RUNTIME_OBSERVATION",
+      "status": "RUNNING",
+      "createTime": 1794463561307,
+      "attemptId": "att-1-0a12b927-732b-40d2-98db-eda94609dfb0",
+      "runId": "att-1-0a12b927-732b-40d2-98db-eda94609dfb0",
+      "parentEventId": "8c79554c-87d2-43ff-b376-ec259189ea97",
+      "payload": {
+        "metadata": {
+          "eventKind": "CODING_TRACE",
+          "eventState": "RUNNING",
+          "codingEventType": "RECOVERY_RECONCILED",
+          "taskId": "native-52020e7844b8bd4a837385bd327d71d07ffcd5c911f99c8164b1330f44126025",
+          "operationId": "cmd-9075c5a9-e41f-40bd-8ab0-6dc8f6ecfdbe",
+          "occurredAt": "2026-11-12T06:06:00.894Z",
+          "workerActivity": {
+            "normalizedType": "COMMAND_COMPLETED",
+            "nativeEventType": "command.completed",
+            "nativeEventId": "265",
+            "nativeEvidenceRef": "runtime-evidence:coding:native:c1257d6bc998d70f575a4afeaf4d593555487597d08de8a311da048d25d0d38e",
+            "sessionId": "***",
+            "nativeOccurredAt": "2026-11-12T06:05:59.299Z",
+            "status": "SUCCEEDED",
+            "exitCode": 0,
+            "operationId": "cmd-9075c5a9-e41f-40bd-8ab0-6dc8f6ecfdbe",
+            "startedAt": "2026-11-12T06:05:59.291Z",
+            "finishedAt": "2026-11-12T06:05:59.295Z",
+            "durationMs": 4.021875
+          }
+        }
+      }
+    },
+    {
+      "eventId": "83a90af3-f7ad-4a8a-8f70-5bedabc626be",
+      "sequence": 140,
+      "type": "RUNTIME_OBSERVATION",
+      "status": "RUNNING",
+      "createTime": 1794463561319,
+      "attemptId": "att-1-0a12b927-732b-40d2-98db-eda94609dfb0",
+      "runId": "att-1-0a12b927-732b-40d2-98db-eda94609dfb0",
+      "parentEventId": "8c79554c-87d2-43ff-b376-ec259189ea97",
+      "payload": {
+        "metadata": {
+          "eventKind": "CODING_TRACE",
+          "eventState": "RUNNING",
+          "codingEventType": "RECOVERY_RECONCILED",
+          "taskId": "native-52020e7844b8bd4a837385bd327d71d07ffcd5c911f99c8164b1330f44126025",
+          "operationId": "tool-cb0c1d9abc12330f609b321ec577459f",
+          "occurredAt": "2026-11-12T06:06:01.141Z",
+          "workerActivity": {
+            "normalizedType": "TOOL_COMPLETED",
+            "nativeEventType": "tool.completed",
+            "nativeEventId": "269",
+            "nativeEvidenceRef": "runtime-evidence:coding:native:1f3323529ed2ad4a29f623f8efba1bd471d2ad748dc74f0238f69e5f334832fc",
+            "sessionId": "***",
+            "nativeOccurredAt": "2026-11-12T06:05:59.338Z",
+            "tool": "run_commands",
+            "toolCallId": "call_07aefbd43aee4dd7b445a3bd",
+            "operationId": "tool-cb0c1d9abc12330f609b321ec577459f",
+            "durationMs": 70
+          }
+        }
+      }
+    },
+    {
+      "eventId": "33971b62-3cdc-4e8e-99b7-b3ab612ae00d",
+      "sequence": 141,
+      "type": "RUNTIME_OBSERVATION",
+      "status": "RUNNING",
+      "createTime": 1794463561888,
+      "attemptId": "att-1-0a12b927-732b-40d2-98db-eda94609dfb0",
+      "runId": "att-1-0a12b927-732b-40d2-98db-eda94609dfb0",
+      "parentEventId": "8c79554c-87d2-43ff-b376-ec259189ea97",
+      "payload": {
+        "metadata": {
+          "eventKind": "CODING_TRACE",
+          "eventState": "RUNNING",
+          "codingEventType": "RECOVERY_RECONCILED",
+          "taskId": "native-52020e7844b8bd4a837385bd327d71d07ffcd5c911f99c8164b1330f44126025",
+          "occurredAt": "2026-11-12T06:06:01.301Z",
+          "workerActivity": {
+            "normalizedType": "OBSERVATION",
+            "nativeEventType": "model.iteration.started",
+            "nativeEventId": "272",
+            "nativeEvidenceRef": "runtime-evidence:coding:native:f6f2fe07b801be08f7ff226737041358c1e7835e0512edab03d441b2775199dc",
+            "sessionId": "***",
+            "nativeOccurredAt": "2026-11-12T06:05:59.341Z"
+          }
+        }
+      }
+    },
+    {
+      "eventId": "0b0db6d8-e107-4290-9de6-abaf6e70c1b3",
+      "sequence": 142,
+      "type": "RUNTIME_OBSERVATION",
+      "status": "RUNNING",
+      "createTime": 1794463569502,
+      "attemptId": "att-1-0a12b927-732b-40d2-98db-eda94609dfb0",
+      "runId": "att-1-0a12b927-732b-40d2-98db-eda94609dfb0",
+      "parentEventId": "8c79554c-87d2-43ff-b376-ec259189ea97",
+      "payload": {
+        "metadata": {
+          "eventKind": "CODING_TRACE",
+          "eventState": "RUNNING",
+          "codingEventType": "RECOVERY_RECONCILED",
+          "taskId": "native-52020e7844b8bd4a837385bd327d71d07ffcd5c911f99c8164b1330f44126025",
+          "occurredAt": "2026-11-12T06:06:09.138Z"
+        }
+      }
+    },
+    {
+      "eventId": "be5c5044-512d-4053-83c9-8a871fff3219",
+      "sequence": 143,
+      "type": "RUNTIME_OBSERVATION",
+      "status": "RUNNING",
+      "createTime": 1794463599785,
+      "attemptId": "att-1-0a12b927-732b-40d2-98db-eda94609dfb0",
+      "runId": "att-1-0a12b927-732b-40d2-98db-eda94609dfb0",
+      "parentEventId": "8c79554c-87d2-43ff-b376-ec259189ea97",
+      "payload": {
+        "metadata": {
+          "eventKind": "CODING_TRACE",
+          "eventState": "RUNNING",
+          "codingEventType": "RECOVERY_RECONCILED",
+          "taskId": "native-52020e7844b8bd4a837385bd327d71d07ffcd5c911f99c8164b1330f44126025",
+          "occurredAt": "2026-11-12T06:06:39.418Z"
+        }
+      }
+    },
+    {
+      "eventId": "cd7a4e6a-e55c-46ed-ac3d-3695638c2897",
+      "sequence": 144,
+      "type": "RUNTIME_OBSERVATION",
+      "status": "RUNNING",
+      "createTime": 1794463606345,
+      "attemptId": "att-1-0a12b927-732b-40d2-98db-eda94609dfb0",
+      "runId": "att-1-0a12b927-732b-40d2-98db-eda94609dfb0",
+      "parentEventId": "8c79554c-87d2-43ff-b376-ec259189ea97",
+      "payload": {
+        "metadata": {
+          "eventKind": "CODING_TRACE",
+          "eventState": "RUNNING",
+          "codingEventType": "RECOVERY_RECONCILED",
+          "taskId": "native-52020e7844b8bd4a837385bd327d71d07ffcd5c911f99c8164b1330f44126025",
+          "operationId": "model-9baaa76d-6821-4190-8521-619af05f4194",
+          "occurredAt": "2026-11-12T06:06:46.268Z",
+          "workerActivity": {
+            "normalizedType": "MODEL_REQUEST_COMPLETED",
+            "nativeEventType": "model.request.completed",
+            "nativeEventId": "39",
+            "nativeEvidenceRef": "runtime-evidence:coding:native:976b26d2fcbe1b30925232f9209d3ec46e9c6aa8acfcb5b08280057601436274",
+            "sessionId": "***",
+            "requestId": "9baaa76d-6821-4190-8521-619af05f4194",
+            "model": "qwen3.6-plus",
+            "providerModel": "qwen3.6-plus",
+            "nativeOccurredAt": "2026-11-12T06:06:46.139Z",
+            "status": "SUCCEEDED",
+            "operationId": "model-9baaa76d-6821-4190-8521-619af05f4194",
+            "startedAt": "2026-11-12T06:05:59.372Z",
+            "finishedAt": "2026-11-12T06:06:46.139Z",
+            "durationMs": 46767
+          }
+        }
+      }
+    },
+    {
+      "eventId": "7d4d62b1-cc64-469c-b482-9ecde279d216",
+      "sequence": 145,
+      "type": "RUNTIME_OBSERVATION",
+      "status": "RUNNING",
+      "createTime": 1794463607505,
+      "attemptId": "att-1-0a12b927-732b-40d2-98db-eda94609dfb0",
+      "runId": "att-1-0a12b927-732b-40d2-98db-eda94609dfb0",
+      "parentEventId": "8c79554c-87d2-43ff-b376-ec259189ea97",
+      "payload": {
+        "metadata": {
+          "eventKind": "CODING_TRACE",
+          "eventState": "RUNNING",
+          "codingEventType": "RECOVERY_RECONCILED",
+          "taskId": "native-52020e7844b8bd4a837385bd327d71d07ffcd5c911f99c8164b1330f44126025",
+          "occurredAt": "2026-11-12T06:06:47.281Z",
+          "workerActivity": {
+            "normalizedType": "OBSERVATION",
+            "nativeEventType": "permission.requested",
+            "nativeEventId": "279",
+            "nativeEvidenceRef": "runtime-evidence:coding:native:8adeb863933851a701f9df53941bfa467a83d274f61ad324f91966b8fbc05123",
+            "sessionId": "***",
+            "nativeOccurredAt": "2026-11-12T06:06:46.191Z",
+            "tool": "run_commands"
+          }
+        }
+      }
+    },
+    {
+      "eventId": "37823e23-ec5b-4586-9d65-2f68a6b36803",
+      "sequence": 146,
+      "type": "RUNTIME_OBSERVATION",
+      "status": "RUNNING",
+      "createTime": 1794463607519,
+      "attemptId": "att-1-0a12b927-732b-40d2-98db-eda94609dfb0",
+      "runId": "att-1-0a12b927-732b-40d2-98db-eda94609dfb0",
+      "parentEventId": "8c79554c-87d2-43ff-b376-ec259189ea97",
+      "payload": {
+        "metadata": {
+          "eventKind": "CODING_TRACE",
+          "eventState": "RUNNING",
+          "codingEventType": "RECOVERY_RECONCILED",
+          "taskId": "native-52020e7844b8bd4a837385bd327d71d07ffcd5c911f99c8164b1330f44126025",
+          "occurredAt": "2026-11-12T06:06:47.434Z",
+          "workerActivity": {
+            "normalizedType": "OBSERVATION",
+            "nativeEventType": "permission.decision",
+            "nativeEventId": "280",
+            "nativeEvidenceRef": "runtime-evidence:coding:native:09391f04138af7196058974676cf705e45d12f44b7f70938e4a185c60e9b2a0b",
+            "sessionId": "***",
+            "nativeOccurredAt": "2026-11-12T06:06:46.274Z"
+          }
+        }
+      }
+    },
+    {
+      "eventId": "ad8ba0a6-808a-402f-b68b-9bc028adc5f1",
+      "sequence": 147,
+      "type": "RUNTIME_OBSERVATION",
+      "status": "RUNNING",
+      "createTime": 1794463608083,
+      "attemptId": "att-1-0a12b927-732b-40d2-98db-eda94609dfb0",
+      "runId": "att-1-0a12b927-732b-40d2-98db-eda94609dfb0",
+      "parentEventId": "8c79554c-87d2-43ff-b376-ec259189ea97",
+      "payload": {
+        "metadata": {
+          "eventKind": "CODING_TRACE",
+          "eventState": "RUNNING",
+          "codingEventType": "RECOVERY_RECONCILED",
+          "taskId": "native-52020e7844b8bd4a837385bd327d71d07ffcd5c911f99c8164b1330f44126025",
+          "occurredAt": "2026-11-12T06:06:47.584Z",
+          "workerActivity": {
+            "normalizedType": "OBSERVATION",
+            "nativeEventType": "permission.resolved",
+            "nativeEventId": "281",
+            "nativeEvidenceRef": "runtime-evidence:coding:native:750734642f4080c1b061de560923bf5c3f989c42a83d29d8e17ba273864dfa22",
+            "sessionId": "***",
+            "nativeOccurredAt": "2026-11-12T06:06:46.275Z"
+          }
+        }
+      }
+    },
+    {
+      "eventId": "2155cac8-37f6-4f0a-961d-67d12399d4bb",
+      "sequence": 148,
+      "type": "RUNTIME_OBSERVATION",
+      "status": "RUNNING",
+      "createTime": 1794463608097,
+      "attemptId": "att-1-0a12b927-732b-40d2-98db-eda94609dfb0",
+      "runId": "att-1-0a12b927-732b-40d2-98db-eda94609dfb0",
+      "parentEventId": "8c79554c-87d2-43ff-b376-ec259189ea97",
+      "payload": {
+        "metadata": {
+          "eventKind": "CODING_TRACE",
+          "eventState": "RUNNING",
+          "codingEventType": "RECOVERY_RECONCILED",
+          "taskId": "native-52020e7844b8bd4a837385bd327d71d07ffcd5c911f99c8164b1330f44126025",
+          "operationId": "tool-ee365738fc27fddc7f33094d9cb7ec11",
+          "occurredAt": "2026-11-12T06:06:47.727Z",
+          "workerActivity": {
+            "normalizedType": "TOOL_STARTED",
+            "nativeEventType": "tool.started",
+            "nativeEventId": "285",
+            "nativeEvidenceRef": "runtime-evidence:coding:native:6e59bc4b792c358e3ad05541b77131909cabf927e009af6c4240fc62ddce0189",
+            "sessionId": "***",
+            "nativeOccurredAt": "2026-11-12T06:06:46.282Z",
+            "tool": "run_commands",
+            "toolCallId": "call_6e2214b2215c4f4883975a45",
+            "operationId": "tool-ee365738fc27fddc7f33094d9cb7ec11"
+          }
+        }
+      }
+    },
+    {
+      "eventId": "d8b00998-c18a-4c52-8733-d5bc34a51799",
+      "sequence": 149,
+      "type": "RUNTIME_OBSERVATION",
+      "status": "RUNNING",
+      "createTime": 1794463608111,
+      "attemptId": "att-1-0a12b927-732b-40d2-98db-eda94609dfb0",
+      "runId": "att-1-0a12b927-732b-40d2-98db-eda94609dfb0",
+      "parentEventId": "8c79554c-87d2-43ff-b376-ec259189ea97",
+      "payload": {
+        "metadata": {
+          "eventKind": "CODING_TRACE",
+          "eventState": "RUNNING",
+          "codingEventType": "RECOVERY_RECONCILED",
+          "taskId": "native-52020e7844b8bd4a837385bd327d71d07ffcd5c911f99c8164b1330f44126025",
+          "operationId": "cmd-5fa69bd9-e8e5-4e3f-8965-f4fa47c164a3",
+          "occurredAt": "2026-11-12T06:06:47.843Z",
+          "workerActivity": {
+            "normalizedType": "COMMAND_STARTED",
+            "nativeEventType": "command.started",
+            "nativeEventId": "286",
+            "nativeEvidenceRef": "runtime-evidence:coding:native:f473569054423dcacce0f5f0665e894a5c3fd4bbf92f2411da66f9aa06861f77",
+            "sessionId": "***",
+            "nativeOccurredAt": "2026-11-12T06:06:46.303Z",
+            "status": "RUNNING",
+            "operationId": "cmd-5fa69bd9-e8e5-4e3f-8965-f4fa47c164a3",
+            "startedAt": "2026-11-12T06:06:46.302Z"
+          }
+        }
+      }
+    },
+    {
+      "eventId": "bf418792-0a91-46bd-b782-b12272eceb9d",
+      "sequence": 150,
+      "type": "RUNTIME_OBSERVATION",
+      "status": "RUNNING",
+      "createTime": 1794463608130,
+      "attemptId": "att-1-0a12b927-732b-40d2-98db-eda94609dfb0",
+      "runId": "att-1-0a12b927-732b-40d2-98db-eda94609dfb0",
+      "parentEventId": "8c79554c-87d2-43ff-b376-ec259189ea97",
+      "payload": {
+        "metadata": {
+          "eventKind": "CODING_TRACE",
+          "eventState": "RUNNING",
+          "codingEventType": "RECOVERY_RECONCILED",
+          "taskId": "native-52020e7844b8bd4a837385bd327d71d07ffcd5c911f99c8164b1330f44126025",
+          "operationId": "cmd-5fa69bd9-e8e5-4e3f-8965-f4fa47c164a3",
+          "occurredAt": "2026-11-12T06:06:47.990Z",
+          "workerActivity": {
+            "normalizedType": "COMMAND_COMPLETED",
+            "nativeEventType": "command.completed",
+            "nativeEventId": "288",
+            "nativeEvidenceRef": "runtime-evidence:coding:native:f83928805adaad0a0cf16e6ac739f872dec9bae5a4e5de64a2d9075643969fe2",
+            "sessionId": "***",
+            "nativeOccurredAt": "2026-11-12T06:06:46.310Z",
+            "status": "SUCCEEDED",
+            "exitCode": 0,
+            "operationId": "cmd-5fa69bd9-e8e5-4e3f-8965-f4fa47c164a3",
+            "startedAt": "2026-11-12T06:06:46.302Z",
+            "finishedAt": "2026-11-12T06:06:46.309Z",
+            "durationMs": 6.600101
+          }
+        }
+      }
+    },
+    {
+      "eventId": "446aac3a-1bad-4d22-98e4-6492555c8d20",
+      "sequence": 151,
+      "type": "RUNTIME_OBSERVATION",
+      "status": "RUNNING",
+      "createTime": 1794463608749,
+      "attemptId": "att-1-0a12b927-732b-40d2-98db-eda94609dfb0",
+      "runId": "att-1-0a12b927-732b-40d2-98db-eda94609dfb0",
+      "parentEventId": "8c79554c-87d2-43ff-b376-ec259189ea97",
+      "payload": {
+        "metadata": {
+          "eventKind": "CODING_TRACE",
+          "eventState": "RUNNING",
+          "codingEventType": "RECOVERY_RECONCILED",
+          "taskId": "native-52020e7844b8bd4a837385bd327d71d07ffcd5c911f99c8164b1330f44126025",
+          "operationId": "tool-ee365738fc27fddc7f33094d9cb7ec11",
+          "occurredAt": "2026-11-12T06:06:48.213Z",
+          "workerActivity": {
+            "normalizedType": "TOOL_COMPLETED",
+            "nativeEventType": "tool.completed",
+            "nativeEventId": "292",
+            "nativeEvidenceRef": "runtime-evidence:coding:native:d64b6d4326b2a55418308fdf95b1a9c89da75f1185b6b90f52c348138166149f",
+            "sessionId": "***",
+            "nativeOccurredAt": "2026-11-12T06:06:46.347Z",
+            "tool": "run_commands",
+            "toolCallId": "call_6e2214b2215c4f4883975a45",
+            "operationId": "tool-ee365738fc27fddc7f33094d9cb7ec11",
+            "durationMs": 65
+          }
+        }
+      }
+    },
+    {
+      "eventId": "437a21c9-2d7f-4320-a874-0e1f022180fc",
+      "sequence": 152,
+      "type": "RUNTIME_OBSERVATION",
+      "status": "RUNNING",
+      "createTime": 1794463608762,
+      "attemptId": "att-1-0a12b927-732b-40d2-98db-eda94609dfb0",
+      "runId": "att-1-0a12b927-732b-40d2-98db-eda94609dfb0",
+      "parentEventId": "8c79554c-87d2-43ff-b376-ec259189ea97",
+      "payload": {
+        "metadata": {
+          "eventKind": "CODING_TRACE",
+          "eventState": "RUNNING",
+          "codingEventType": "RECOVERY_RECONCILED",
+          "taskId": "native-52020e7844b8bd4a837385bd327d71d07ffcd5c911f99c8164b1330f44126025",
+          "occurredAt": "2026-11-12T06:06:48.350Z",
+          "workerActivity": {
+            "normalizedType": "OBSERVATION",
+            "nativeEventType": "model.iteration.started",
+            "nativeEventId": "295",
+            "nativeEvidenceRef": "runtime-evidence:coding:native:06db5744e7c85fff1e88d04b073a5e2e056542611f965ff4b0d865407e170a5b",
+            "sessionId": "***",
+            "nativeOccurredAt": "2026-11-12T06:06:46.351Z"
+          }
+        }
+      }
+    },
+    {
+      "eventId": "fec1c64f-7304-447d-b2b7-a0f76dd0ea28",
+      "sequence": 153,
+      "type": "RUNTIME_OBSERVATION",
+      "status": "RUNNING",
+      "createTime": 1794463608776,
+      "attemptId": "att-1-0a12b927-732b-40d2-98db-eda94609dfb0",
+      "runId": "att-1-0a12b927-732b-40d2-98db-eda94609dfb0",
+      "parentEventId": "8c79554c-87d2-43ff-b376-ec259189ea97",
+      "payload": {
+        "metadata": {
+          "eventKind": "CODING_TRACE",
+          "eventState": "RUNNING",
+          "codingEventType": "RECOVERY_RECONCILED",
+          "taskId": "native-52020e7844b8bd4a837385bd327d71d07ffcd5c911f99c8164b1330f44126025",
+          "operationId": "model-4ad4a3a2-03d2-4621-a8a6-6c5947f03a82",
+          "occurredAt": "2026-11-12T06:06:48.657Z",
+          "workerActivity": {
+            "normalizedType": "MODEL_REQUEST_STARTED",
+            "nativeEventType": "model.request.started",
+            "nativeEventId": "40",
+            "nativeEvidenceRef": "runtime-evidence:coding:native:7e5d91f9dc3477b80075091ac45945c3b3562ed744f4626136874f677c08eb35",
+            "sessionId": "***",
+            "requestId": "4ad4a3a2-03d2-4621-a8a6-6c5947f03a82",
+            "model": "qwen3.6-plus",
+            "nativeOccurredAt": "2026-11-12T06:06:46.382Z",
+            "operationId": "model-4ad4a3a2-03d2-4621-a8a6-6c5947f03a82",
+            "startedAt": "2026-11-12T06:06:46.381Z"
+          }
+        }
+      }
+    },
+    {
+      "eventId": "90a0d1c4-1b25-4e6a-ac53-31e3bb4b753f",
+      "sequence": 154,
+      "type": "RUNTIME_OBSERVATION",
+      "status": "RUNNING",
+      "createTime": 1794463609936,
+      "attemptId": "att-1-0a12b927-732b-40d2-98db-eda94609dfb0",
+      "runId": "att-1-0a12b927-732b-40d2-98db-eda94609dfb0",
+      "parentEventId": "8c79554c-87d2-43ff-b376-ec259189ea97",
+      "payload": {
+        "metadata": {
+          "eventKind": "CODING_TRACE",
+          "eventState": "RUNNING",
+          "codingEventType": "RECOVERY_RECONCILED",
+          "taskId": "native-52020e7844b8bd4a837385bd327d71d07ffcd5c911f99c8164b1330f44126025",
+          "occurredAt": "2026-11-12T06:06:49.682Z",
+          "workerActivity": {
+            "normalizedType": "OBSERVATION",
+            "nativeEventType": "permission.requested",
+            "nativeEventId": "302",
+            "nativeEvidenceRef": "runtime-evidence:coding:native:ee49ecbc375555e040b873917155ea0b9737d8e5c2409d6faad59422788fe33a",
+            "sessionId": "***",
+            "nativeOccurredAt": "2026-11-12T06:06:48.659Z",
+            "tool": "run_commands"
+          }
+        }
+      }
+    },
+    {
+      "eventId": "02f233ce-0fe4-4914-8941-60257733ae41",
+      "sequence": 155,
+      "type": "RUNTIME_OBSERVATION",
+      "status": "RUNNING",
+      "createTime": 1794463609955,
+      "attemptId": "att-1-0a12b927-732b-40d2-98db-eda94609dfb0",
+      "runId": "att-1-0a12b927-732b-40d2-98db-eda94609dfb0",
+      "parentEventId": "8c79554c-87d2-43ff-b376-ec259189ea97",
+      "payload": {
+        "metadata": {
+          "eventKind": "CODING_TRACE",
+          "eventState": "RUNNING",
+          "codingEventType": "RECOVERY_RECONCILED",
+          "taskId": "native-52020e7844b8bd4a837385bd327d71d07ffcd5c911f99c8164b1330f44126025",
+          "occurredAt": "2026-11-12T06:06:49.836Z",
+          "workerActivity": {
+            "normalizedType": "OBSERVATION",
+            "nativeEventType": "permission.decision",
+            "nativeEventId": "303",
+            "nativeEvidenceRef": "runtime-evidence:coding:native:896f05635b7a7d44950d37e994e78d3d7bbc9e54a39ec59982cb58ab71963abc",
+            "sessionId": "***",
+            "nativeOccurredAt": "2026-11-12T06:06:48.773Z"
+          }
+        }
+      }
+    },
+    {
+      "eventId": "b844fa19-bcf9-46c2-a1cc-559b947402a3",
+      "sequence": 156,
+      "type": "RUNTIME_OBSERVATION",
+      "status": "RUNNING",
+      "createTime": 1794463610525,
+      "attemptId": "att-1-0a12b927-732b-40d2-98db-eda94609dfb0",
+      "runId": "att-1-0a12b927-732b-40d2-98db-eda94609dfb0",
+      "parentEventId": "8c79554c-87d2-43ff-b376-ec259189ea97",
+      "payload": {
+        "metadata": {
+          "eventKind": "CODING_TRACE",
+          "eventState": "RUNNING",
+          "codingEventType": "RECOVERY_RECONCILED",
+          "taskId": "native-52020e7844b8bd4a837385bd327d71d07ffcd5c911f99c8164b1330f44126025",
+          "occurredAt": "2026-11-12T06:06:49.991Z",
+          "workerActivity": {
+            "normalizedType": "OBSERVATION",
+            "nativeEventType": "permission.resolved",
+            "nativeEventId": "304",
+            "nativeEvidenceRef": "runtime-evidence:coding:native:9709932d51a0415a648051fe88be1f07a984d42814126540dd1a48a76b5a902a",
+            "sessionId": "***",
+            "nativeOccurredAt": "2026-11-12T06:06:48.774Z"
+          }
+        }
+      }
+    },
+    {
+      "eventId": "7c87b0c0-1f44-49b1-8146-8a1b1e361864",
+      "sequence": 157,
+      "type": "RUNTIME_OBSERVATION",
+      "status": "RUNNING",
+      "createTime": 1794463610541,
+      "attemptId": "att-1-0a12b927-732b-40d2-98db-eda94609dfb0",
+      "runId": "att-1-0a12b927-732b-40d2-98db-eda94609dfb0",
+      "parentEventId": "8c79554c-87d2-43ff-b376-ec259189ea97",
+      "payload": {
+        "metadata": {
+          "eventKind": "CODING_TRACE",
+          "eventState": "RUNNING",
+          "codingEventType": "RECOVERY_RECONCILED",
+          "taskId": "native-52020e7844b8bd4a837385bd327d71d07ffcd5c911f99c8164b1330f44126025",
+          "operationId": "tool-91e932cddfc5add92e5c2e69a858ab68",
+          "occurredAt": "2026-11-12T06:06:50.147Z",
+          "workerActivity": {
+            "normalizedType": "TOOL_STARTED",
+            "nativeEventType": "tool.started",
+            "nativeEventId": "308",
+            "nativeEvidenceRef": "runtime-evidence:coding:native:e1b413d2eca30efb4f4992eb30e4c59cbd7b1634e7f24f7ceb852e2434c1d297",
+            "sessionId": "***",
+            "nativeOccurredAt": "2026-11-12T06:06:48.778Z",
+            "tool": "run_commands",
+            "toolCallId": "call_ce7758d98d58405fa7400233",
+            "operationId": "tool-91e932cddfc5add92e5c2e69a858ab68"
+          }
+        }
+      }
+    },
+    {
+      "eventId": "6232110e-9471-4759-ac14-7d2f5721c399",
+      "sequence": 158,
+      "type": "RUNTIME_OBSERVATION",
+      "status": "RUNNING",
+      "createTime": 1794463610556,
+      "attemptId": "att-1-0a12b927-732b-40d2-98db-eda94609dfb0",
+      "runId": "att-1-0a12b927-732b-40d2-98db-eda94609dfb0",
+      "parentEventId": "8c79554c-87d2-43ff-b376-ec259189ea97",
+      "payload": {
+        "metadata": {
+          "eventKind": "CODING_TRACE",
+          "eventState": "RUNNING",
+          "codingEventType": "RECOVERY_RECONCILED",
+          "taskId": "native-52020e7844b8bd4a837385bd327d71d07ffcd5c911f99c8164b1330f44126025",
+          "operationId": "cmd-1ae6cd18-bf7e-4cf4-907b-b9ead41775ce",
+          "occurredAt": "2026-11-12T06:06:50.289Z",
+          "workerActivity": {
+            "normalizedType": "COMMAND_STARTED",
+            "nativeEventType": "command.started",
+            "nativeEventId": "309",
+            "nativeEvidenceRef": "runtime-evidence:coding:native:dd5e43b29de0716c71c39deb6c61a378b751864d7857812489269cd200716636",
+            "sessionId": "***",
+            "nativeOccurredAt": "2026-11-12T06:06:48.802Z",
+            "status": "RUNNING",
+            "operationId": "cmd-1ae6cd18-bf7e-4cf4-907b-b9ead41775ce",
+            "startedAt": "2026-11-12T06:06:48.799Z"
+          }
+        }
+      }
+    },
+    {
+      "eventId": "4b41df0f-706e-4056-bd8b-7d7b99fc67fc",
+      "sequence": 159,
+      "type": "RUNTIME_OBSERVATION",
+      "status": "RUNNING",
+      "createTime": 1794463611125,
+      "attemptId": "att-1-0a12b927-732b-40d2-98db-eda94609dfb0",
+      "runId": "att-1-0a12b927-732b-40d2-98db-eda94609dfb0",
+      "parentEventId": "8c79554c-87d2-43ff-b376-ec259189ea97",
+      "payload": {
+        "metadata": {
+          "eventKind": "CODING_TRACE",
+          "eventState": "RUNNING",
+          "codingEventType": "RECOVERY_RECONCILED",
+          "taskId": "native-52020e7844b8bd4a837385bd327d71d07ffcd5c911f99c8164b1330f44126025",
+          "operationId": "model-4ad4a3a2-03d2-4621-a8a6-6c5947f03a82",
+          "occurredAt": "2026-11-12T06:06:50.600Z",
+          "workerActivity": {
+            "normalizedType": "MODEL_REQUEST_COMPLETED",
+            "nativeEventType": "model.request.completed",
+            "nativeEventId": "41",
+            "nativeEvidenceRef": "runtime-evidence:coding:native:fd21d7d1900bb8ec1972493ad99a3660909abf3184e67458a7facf8a7a531d72",
+            "sessionId": "***",
+            "requestId": "4ad4a3a2-03d2-4621-a8a6-6c5947f03a82",
+            "model": "qwen3.6-plus",
+            "providerModel": "qwen3.6-plus",
+            "nativeOccurredAt": "2026-11-12T06:06:48.604Z",
+            "status": "SUCCEEDED",
+            "operationId": "model-4ad4a3a2-03d2-4621-a8a6-6c5947f03a82",
+            "startedAt": "2026-11-12T06:06:46.381Z",
+            "finishedAt": "2026-11-12T06:06:48.603Z",
+            "durationMs": 2222
+          }
+        }
+      }
+    },
+    {
+      "eventId": "b2fedc05-f4d2-42c5-8daf-adafa6dc05c4",
+      "sequence": 160,
+      "type": "RUNTIME_OBSERVATION",
+      "status": "RUNNING",
+      "createTime": 1794463611739,
+      "attemptId": "att-1-0a12b927-732b-40d2-98db-eda94609dfb0",
+      "runId": "att-1-0a12b927-732b-40d2-98db-eda94609dfb0",
+      "parentEventId": "8c79554c-87d2-43ff-b376-ec259189ea97",
+      "payload": {
+        "metadata": {
+          "eventKind": "CODING_TRACE",
+          "eventState": "RUNNING",
+          "codingEventType": "RECOVERY_RECONCILED",
+          "taskId": "native-52020e7844b8bd4a837385bd327d71d07ffcd5c911f99c8164b1330f44126025",
+          "operationId": "cmd-1ae6cd18-bf7e-4cf4-907b-b9ead41775ce",
+          "occurredAt": "2026-11-12T06:06:51.648Z",
+          "workerActivity": {
+            "normalizedType": "COMMAND_COMPLETED",
+            "nativeEventType": "command.completed",
+            "nativeEventId": "314",
+            "nativeEvidenceRef": "runtime-evidence:coding:native:3402d69cd0d055c4cfc0ae1e06cee27beb07dff4dc4aa9603ffd94a23e3b5197",
+            "sessionId": "***",
+            "nativeOccurredAt": "2026-11-12T06:06:51.303Z",
+            "status": "SUCCEEDED",
+            "exitCode": 0,
+            "operationId": "cmd-1ae6cd18-bf7e-4cf4-907b-b9ead41775ce",
+            "startedAt": "2026-11-12T06:06:48.799Z",
+            "finishedAt": "2026-11-12T06:06:51.302Z",
+            "durationMs": 2502.519006
+          }
+        }
+      }
+    },
+    {
+      "eventId": "67a84dd8-a244-46d9-8a39-4e4716aa8f84",
+      "sequence": 161,
+      "type": "RUNTIME_OBSERVATION",
+      "status": "RUNNING",
+      "createTime": 1794463612316,
+      "attemptId": "att-1-0a12b927-732b-40d2-98db-eda94609dfb0",
+      "runId": "att-1-0a12b927-732b-40d2-98db-eda94609dfb0",
+      "parentEventId": "8c79554c-87d2-43ff-b376-ec259189ea97",
+      "payload": {
+        "metadata": {
+          "eventKind": "CODING_TRACE",
+          "eventState": "RUNNING",
+          "codingEventType": "RECOVERY_RECONCILED",
+          "taskId": "native-52020e7844b8bd4a837385bd327d71d07ffcd5c911f99c8164b1330f44126025",
+          "operationId": "tool-91e932cddfc5add92e5c2e69a858ab68",
+          "occurredAt": "2026-11-12T06:06:51.944Z",
+          "workerActivity": {
+            "normalizedType": "TOOL_COMPLETED",
+            "nativeEventType": "tool.completed",
+            "nativeEventId": "318",
+            "nativeEvidenceRef": "runtime-evidence:coding:native:286eb5bebfb1373c90d46109d2fcf27099bf1f88cde45cc147821c825fc93133",
+            "sessionId": "***",
+            "nativeOccurredAt": "2026-11-12T06:06:51.329Z",
+            "tool": "run_commands",
+            "toolCallId": "call_ce7758d98d58405fa7400233",
+            "operationId": "tool-91e932cddfc5add92e5c2e69a858ab68",
+            "durationMs": 2550
+          }
+        }
+      }
+    },
+    {
+      "eventId": "d38ed2ce-c640-44aa-96e7-a8db04680bfa",
+      "sequence": 162,
+      "type": "RUNTIME_OBSERVATION",
+      "status": "RUNNING",
+      "createTime": 1794463612331,
+      "attemptId": "att-1-0a12b927-732b-40d2-98db-eda94609dfb0",
+      "runId": "att-1-0a12b927-732b-40d2-98db-eda94609dfb0",
+      "parentEventId": "8c79554c-87d2-43ff-b376-ec259189ea97",
+      "payload": {
+        "metadata": {
+          "eventKind": "CODING_TRACE",
+          "eventState": "RUNNING",
+          "codingEventType": "RECOVERY_RECONCILED",
+          "taskId": "native-52020e7844b8bd4a837385bd327d71d07ffcd5c911f99c8164b1330f44126025",
+          "occurredAt": "2026-11-12T06:06:52.099Z",
+          "workerActivity": {
+            "normalizedType": "OBSERVATION",
+            "nativeEventType": "model.iteration.started",
+            "nativeEventId": "321",
+            "nativeEvidenceRef": "runtime-evidence:coding:native:193c74fe1d35649873d9330ca643ea885b74fc9e4bb1ebfe14d779bef49dc5de",
+            "sessionId": "***",
+            "nativeOccurredAt": "2026-11-12T06:06:51.332Z"
+          }
+        }
+      }
+    },
+    {
+      "eventId": "ec548596-89b1-4da0-8e1c-7ea51dd6e0ce",
+      "sequence": 163,
+      "type": "RUNTIME_OBSERVATION",
+      "status": "RUNNING",
+      "createTime": 1794463612888,
+      "attemptId": "att-1-0a12b927-732b-40d2-98db-eda94609dfb0",
+      "runId": "att-1-0a12b927-732b-40d2-98db-eda94609dfb0",
+      "parentEventId": "8c79554c-87d2-43ff-b376-ec259189ea97",
+      "payload": {
+        "metadata": {
+          "eventKind": "CODING_TRACE",
+          "eventState": "RUNNING",
+          "codingEventType": "RECOVERY_RECONCILED",
+          "taskId": "native-52020e7844b8bd4a837385bd327d71d07ffcd5c911f99c8164b1330f44126025",
+          "operationId": "model-ca57ba6d-3651-4ba6-94ec-294978f5daab",
+          "occurredAt": "2026-11-12T06:06:52.448Z",
+          "workerActivity": {
+            "normalizedType": "MODEL_REQUEST_STARTED",
+            "nativeEventType": "model.request.started",
+            "nativeEventId": "42",
+            "nativeEvidenceRef": "runtime-evidence:coding:native:12a7add874bb18ab90d53998b17c1b907a0543cf4441b2afaf327fb976898a2f",
+            "sessionId": "***",
+            "requestId": "ca57ba6d-3651-4ba6-94ec-294978f5daab",
+            "model": "qwen3.6-plus",
+            "nativeOccurredAt": "2026-11-12T06:06:51.360Z",
+            "operationId": "model-ca57ba6d-3651-4ba6-94ec-294978f5daab",
+            "startedAt": "2026-11-12T06:06:51.359Z"
+          }
+        }
+      }
+    },
+    {
+      "eventId": "7ab106fe-27b8-4f5e-af75-669603081baa",
+      "sequence": 164,
+      "type": "RUNTIME_OBSERVATION",
+      "status": "RUNNING",
+      "createTime": 1794463617302,
+      "attemptId": "att-1-0a12b927-732b-40d2-98db-eda94609dfb0",
+      "runId": "att-1-0a12b927-732b-40d2-98db-eda94609dfb0",
+      "parentEventId": "8c79554c-87d2-43ff-b376-ec259189ea97",
+      "payload": {
+        "metadata": {
+          "eventKind": "CODING_TRACE",
+          "eventState": "RUNNING",
+          "codingEventType": "RECOVERY_RECONCILED",
+          "taskId": "native-52020e7844b8bd4a837385bd327d71d07ffcd5c911f99c8164b1330f44126025",
+          "occurredAt": "2026-11-12T06:06:57.190Z",
+          "workerActivity": {
+            "normalizedType": "OBSERVATION",
+            "nativeEventType": "permission.requested",
+            "nativeEventId": "328",
+            "nativeEvidenceRef": "runtime-evidence:coding:native:3d3a3eb3fdc8367b5bdd9c719a54d935991b9559ffca1ad6f19bc0a1f080c8fc",
+            "sessionId": "***",
+            "nativeOccurredAt": "2026-11-12T06:06:56.778Z",
+            "tool": "run_commands"
+          }
+        }
+      }
+    },
+    {
+      "eventId": "f96fc1d2-9ae8-4044-8d19-8b0a7742edd8",
+      "sequence": 165,
+      "type": "RUNTIME_OBSERVATION",
+      "status": "RUNNING",
+      "createTime": 1794463617864,
+      "attemptId": "att-1-0a12b927-732b-40d2-98db-eda94609dfb0",
+      "runId": "att-1-0a12b927-732b-40d2-98db-eda94609dfb0",
+      "parentEventId": "8c79554c-87d2-43ff-b376-ec259189ea97",
+      "payload": {
+        "metadata": {
+          "eventKind": "CODING_TRACE",
+          "eventState": "RUNNING",
+          "codingEventType": "RECOVERY_RECONCILED",
+          "taskId": "native-52020e7844b8bd4a837385bd327d71d07ffcd5c911f99c8164b1330f44126025",
+          "occurredAt": "2026-11-12T06:06:57.356Z",
+          "workerActivity": {
+            "normalizedType": "OBSERVATION",
+            "nativeEventType": "permission.decision",
+            "nativeEventId": "329",
+            "nativeEvidenceRef": "runtime-evidence:coding:native:255575a950fb758af5c18559bc5d0261f97adec700c9504a825953a9d8bead3e",
+            "sessionId": "***",
+            "nativeOccurredAt": "2026-11-12T06:06:56.783Z"
+          }
+        }
+      }
+    },
+    {
+      "eventId": "764e68b6-c942-4a9e-ba41-866fd5ebd194",
+      "sequence": 166,
+      "type": "RUNTIME_OBSERVATION",
+      "status": "RUNNING",
+      "createTime": 1794463617884,
+      "attemptId": "att-1-0a12b927-732b-40d2-98db-eda94609dfb0",
+      "runId": "att-1-0a12b927-732b-40d2-98db-eda94609dfb0",
+      "parentEventId": "8c79554c-87d2-43ff-b376-ec259189ea97",
+      "payload": {
+        "metadata": {
+          "eventKind": "CODING_TRACE",
+          "eventState": "RUNNING",
+          "codingEventType": "RECOVERY_RECONCILED",
+          "taskId": "native-52020e7844b8bd4a837385bd327d71d07ffcd5c911f99c8164b1330f44126025",
+          "occurredAt": "2026-11-12T06:06:57.510Z",
+          "workerActivity": {
+            "normalizedType": "OBSERVATION",
+            "nativeEventType": "permission.resolved",
+            "nativeEventId": "330",
+            "nativeEvidenceRef": "runtime-evidence:coding:native:af654a4fd0bb936e092d244bb00f2af7da22bfac294a4893e4f7a128ecf14d27",
+            "sessionId": "***",
+            "nativeOccurredAt": "2026-11-12T06:06:56.784Z"
+          }
+        }
+      }
+    },
+    {
+      "eventId": "7443fc0a-13b8-4b02-9b55-7b183829a20b",
+      "sequence": 167,
+      "type": "RUNTIME_OBSERVATION",
+      "status": "RUNNING",
+      "createTime": 1794463617905,
+      "attemptId": "att-1-0a12b927-732b-40d2-98db-eda94609dfb0",
+      "runId": "att-1-0a12b927-732b-40d2-98db-eda94609dfb0",
+      "parentEventId": "8c79554c-87d2-43ff-b376-ec259189ea97",
+      "payload": {
+        "metadata": {
+          "eventKind": "CODING_TRACE",
+          "eventState": "RUNNING",
+          "codingEventType": "RECOVERY_RECONCILED",
+          "taskId": "native-52020e7844b8bd4a837385bd327d71d07ffcd5c911f99c8164b1330f44126025",
+          "operationId": "tool-7ae5916728e112a2eb7c7631f82311aa",
+          "occurredAt": "2026-11-12T06:06:57.664Z",
+          "workerActivity": {
+            "normalizedType": "TOOL_STARTED",
+            "nativeEventType": "tool.started",
+            "nativeEventId": "334",
+            "nativeEvidenceRef": "runtime-evidence:coding:native:31d34ddf9698865eef5552b5ac8d1f2e8e71796502f41f7fd07a0d73f22931f7",
+            "sessionId": "***",
+            "nativeOccurredAt": "2026-11-12T06:06:56.788Z",
+            "tool": "run_commands",
+            "toolCallId": "call_e8bfe6b819ee4cd4b21361aa",
+            "operationId": "tool-7ae5916728e112a2eb7c7631f82311aa"
+          }
+        }
+      }
+    },
+    {
+      "eventId": "2325f2cf-cac2-4329-a52d-f49b51b1697e",
+      "sequence": 168,
+      "type": "RUNTIME_OBSERVATION",
+      "status": "RUNNING",
+      "createTime": 1794463618495,
+      "attemptId": "att-1-0a12b927-732b-40d2-98db-eda94609dfb0",
+      "runId": "att-1-0a12b927-732b-40d2-98db-eda94609dfb0",
+      "parentEventId": "8c79554c-87d2-43ff-b376-ec259189ea97",
+      "payload": {
+        "metadata": {
+          "eventKind": "CODING_TRACE",
+          "eventState": "RUNNING",
+          "codingEventType": "RECOVERY_RECONCILED",
+          "taskId": "native-52020e7844b8bd4a837385bd327d71d07ffcd5c911f99c8164b1330f44126025",
+          "operationId": "cmd-de204729-ca16-4823-8e7e-83472ceb535d",
+          "occurredAt": "2026-11-12T06:06:57.871Z",
+          "workerActivity": {
+            "normalizedType": "COMMAND_STARTED",
+            "nativeEventType": "command.started",
+            "nativeEventId": "336",
+            "nativeEvidenceRef": "runtime-evidence:coding:native:0ad0110e15891d86a79d3202e3bf1ea970e1c5f7aac1be0e43ff852fa9b02f88",
+            "sessionId": "***",
+            "nativeOccurredAt": "2026-11-12T06:06:56.827Z",
+            "status": "RUNNING",
+            "operationId": "cmd-de204729-ca16-4823-8e7e-83472ceb535d",
+            "startedAt": "2026-11-12T06:06:56.821Z"
+          }
+        }
+      }
+    },
+    {
+      "eventId": "263fd4d5-2dc2-4000-9389-9323e515572c",
+      "sequence": 169,
+      "type": "RUNTIME_OBSERVATION",
+      "status": "RUNNING",
+      "createTime": 1794463618514,
+      "attemptId": "att-1-0a12b927-732b-40d2-98db-eda94609dfb0",
+      "runId": "att-1-0a12b927-732b-40d2-98db-eda94609dfb0",
+      "parentEventId": "8c79554c-87d2-43ff-b376-ec259189ea97",
+      "payload": {
+        "metadata": {
+          "eventKind": "CODING_TRACE",
+          "eventState": "RUNNING",
+          "codingEventType": "RECOVERY_RECONCILED",
+          "taskId": "native-52020e7844b8bd4a837385bd327d71d07ffcd5c911f99c8164b1330f44126025",
+          "operationId": "cmd-dace6aac-2e6b-431a-9c21-d8e79648c5ad",
+          "occurredAt": "2026-11-12T06:06:58.040Z",
+          "workerActivity": {
+            "normalizedType": "COMMAND_STARTED",
+            "nativeEventType": "command.started",
+            "nativeEventId": "337",
+            "nativeEvidenceRef": "runtime-evidence:coding:native:d97a8e3fdc06bd710152c1a1dca1b56f93145b2375549986784a4d2233a94a19",
+            "sessionId": "***",
+            "nativeOccurredAt": "2026-11-12T06:06:56.854Z",
+            "status": "RUNNING",
+            "operationId": "cmd-dace6aac-2e6b-431a-9c21-d8e79648c5ad",
+            "startedAt": "2026-11-12T06:06:56.843Z"
+          }
+        }
+      }
+    },
+    {
+      "eventId": "3e5dff3e-49fb-41f3-be42-387ec7680177",
+      "sequence": 170,
+      "type": "RUNTIME_OBSERVATION",
+      "status": "RUNNING",
+      "createTime": 1794463618530,
+      "attemptId": "att-1-0a12b927-732b-40d2-98db-eda94609dfb0",
+      "runId": "att-1-0a12b927-732b-40d2-98db-eda94609dfb0",
+      "parentEventId": "8c79554c-87d2-43ff-b376-ec259189ea97",
+      "payload": {
+        "metadata": {
+          "eventKind": "CODING_TRACE",
+          "eventState": "RUNNING",
+          "codingEventType": "RECOVERY_RECONCILED",
+          "taskId": "native-52020e7844b8bd4a837385bd327d71d07ffcd5c911f99c8164b1330f44126025",
+          "operationId": "cmd-de204729-ca16-4823-8e7e-83472ceb535d",
+          "occurredAt": "2026-11-12T06:06:58.363Z",
+          "workerActivity": {
+            "normalizedType": "COMMAND_COMPLETED",
+            "nativeEventType": "command.completed",
+            "nativeEventId": "343",
+            "nativeEvidenceRef": "runtime-evidence:coding:native:db9f36b8e3d2aa860729a58a9351d5951cec43f5cc8683d1ddeaea0cc27d08e7",
+            "sessionId": "***",
+            "nativeOccurredAt": "2026-11-12T06:06:56.932Z",
+            "status": "SUCCEEDED",
+            "exitCode": 0,
+            "operationId": "cmd-de204729-ca16-4823-8e7e-83472ceb535d",
+            "startedAt": "2026-11-12T06:06:56.821Z",
+            "finishedAt": "2026-11-12T06:06:56.931Z",
+            "durationMs": 109.791796
+          }
+        }
+      }
+    },
+    {
+      "eventId": "bab52b8a-3942-49ee-b94b-0ea11c46dedd",
+      "sequence": 171,
+      "type": "RUNTIME_OBSERVATION",
+      "status": "RUNNING",
+      "createTime": 1794463619188,
+      "attemptId": "att-1-0a12b927-732b-40d2-98db-eda94609dfb0",
+      "runId": "att-1-0a12b927-732b-40d2-98db-eda94609dfb0",
+      "parentEventId": "8c79554c-87d2-43ff-b376-ec259189ea97",
+      "payload": {
+        "metadata": {
+          "eventKind": "CODING_TRACE",
+          "eventState": "RUNNING",
+          "codingEventType": "RECOVERY_RECONCILED",
+          "taskId": "native-52020e7844b8bd4a837385bd327d71d07ffcd5c911f99c8164b1330f44126025",
+          "operationId": "cmd-dace6aac-2e6b-431a-9c21-d8e79648c5ad",
+          "occurredAt": "2026-11-12T06:06:59.010Z",
+          "workerActivity": {
+            "normalizedType": "COMMAND_COMPLETED",
+            "nativeEventType": "command.completed",
+            "nativeEventId": "345",
+            "nativeEvidenceRef": "runtime-evidence:coding:native:d2820a50cdeef07e22c374ee11016025ed59cb06924bb6c6bbdff38b6fa3aa2b",
+            "sessionId": "***",
+            "nativeOccurredAt": "2026-11-12T06:06:56.943Z",
+            "status": "SUCCEEDED",
+            "exitCode": 0,
+            "operationId": "cmd-dace6aac-2e6b-431a-9c21-d8e79648c5ad",
+            "startedAt": "2026-11-12T06:06:56.843Z",
+            "finishedAt": "2026-11-12T06:06:56.942Z",
+            "durationMs": 98.188625
+          }
+        }
+      }
+    },
+    {
+      "eventId": "c0972043-b188-434f-bb37-4dcf77416a3a",
+      "sequence": 172,
+      "type": "RUNTIME_OBSERVATION",
+      "status": "RUNNING",
+      "createTime": 1794463619763,
+      "attemptId": "att-1-0a12b927-732b-40d2-98db-eda94609dfb0",
+      "runId": "att-1-0a12b927-732b-40d2-98db-eda94609dfb0",
+      "parentEventId": "8c79554c-87d2-43ff-b376-ec259189ea97",
+      "payload": {
+        "metadata": {
+          "eventKind": "CODING_TRACE",
+          "eventState": "RUNNING",
+          "codingEventType": "RECOVERY_RECONCILED",
+          "taskId": "native-52020e7844b8bd4a837385bd327d71d07ffcd5c911f99c8164b1330f44126025",
+          "operationId": "tool-7ae5916728e112a2eb7c7631f82311aa",
+          "occurredAt": "2026-11-12T06:06:59.393Z",
+          "workerActivity": {
+            "normalizedType": "TOOL_COMPLETED",
+            "nativeEventType": "tool.completed",
+            "nativeEventId": "350",
+            "nativeEvidenceRef": "runtime-evidence:coding:native:bc3e4155aa6f302876564f3f8c9d88ec6ba882a6c061d06eec1fabdf3998405f",
+            "sessionId": "***",
+            "nativeOccurredAt": "2026-11-12T06:06:56.978Z",
+            "tool": "run_commands",
+            "toolCallId": "call_e8bfe6b819ee4cd4b21361aa",
+            "operationId": "tool-7ae5916728e112a2eb7c7631f82311aa",
+            "durationMs": 190
+          }
+        }
+      }
+    },
+    {
+      "eventId": "7fdded45-edaf-4f7d-9c03-70d397f56330",
+      "sequence": 173,
+      "type": "RUNTIME_OBSERVATION",
+      "status": "RUNNING",
+      "createTime": 1794463620366,
+      "attemptId": "att-1-0a12b927-732b-40d2-98db-eda94609dfb0",
+      "runId": "att-1-0a12b927-732b-40d2-98db-eda94609dfb0",
+      "parentEventId": "8c79554c-87d2-43ff-b376-ec259189ea97",
+      "payload": {
+        "metadata": {
+          "eventKind": "CODING_TRACE",
+          "eventState": "RUNNING",
+          "codingEventType": "RECOVERY_RECONCILED",
+          "taskId": "native-52020e7844b8bd4a837385bd327d71d07ffcd5c911f99c8164b1330f44126025",
+          "operationId": "model-ca57ba6d-3651-4ba6-94ec-294978f5daab",
+          "occurredAt": "2026-11-12T06:06:59.771Z",
+          "workerActivity": {
+            "normalizedType": "MODEL_REQUEST_COMPLETED",
+            "nativeEventType": "model.request.completed",
+            "nativeEventId": "43",
+            "nativeEvidenceRef": "runtime-evidence:coding:native:ba09a4bf81210ffdabb3d70b228122b51c798eadaa1fcd410cae7f05e52de662",
+            "sessionId": "***",
+            "requestId": "ca57ba6d-3651-4ba6-94ec-294978f5daab",
+            "model": "qwen3.6-plus",
+            "providerModel": "qwen3.6-plus",
+            "nativeOccurredAt": "2026-11-12T06:06:56.726Z",
+            "status": "SUCCEEDED",
+            "operationId": "model-ca57ba6d-3651-4ba6-94ec-294978f5daab",
+            "startedAt": "2026-11-12T06:06:51.359Z",
+            "finishedAt": "2026-11-12T06:06:56.725Z",
+            "durationMs": 5366
+          }
+        }
+      }
+    },
+    {
+      "eventId": "f35f1b0e-4954-44e1-9d25-4ab04f216168",
+      "sequence": 174,
+      "type": "RUNTIME_OBSERVATION",
+      "status": "RUNNING",
+      "createTime": 1794463620385,
+      "attemptId": "att-1-0a12b927-732b-40d2-98db-eda94609dfb0",
+      "runId": "att-1-0a12b927-732b-40d2-98db-eda94609dfb0",
+      "parentEventId": "8c79554c-87d2-43ff-b376-ec259189ea97",
+      "payload": {
+        "metadata": {
+          "eventKind": "CODING_TRACE",
+          "eventState": "RUNNING",
+          "codingEventType": "RECOVERY_RECONCILED",
+          "taskId": "native-52020e7844b8bd4a837385bd327d71d07ffcd5c911f99c8164b1330f44126025",
+          "operationId": "model-84915e35-5a66-47c5-87ed-5f691c624667",
+          "occurredAt": "2026-11-12T06:06:59.938Z",
+          "workerActivity": {
+            "normalizedType": "MODEL_REQUEST_STARTED",
+            "nativeEventType": "model.request.started",
+            "nativeEventId": "44",
+            "nativeEvidenceRef": "runtime-evidence:coding:native:ec64dbfe83bdb26ff94d2e09d612c4bd31427708b9ffa195616a65d21959f710",
+            "sessionId": "***",
+            "requestId": "84915e35-5a66-47c5-87ed-5f691c624667",
+            "model": "qwen3.6-plus",
+            "nativeOccurredAt": "2026-11-12T06:06:57.010Z",
+            "operationId": "model-84915e35-5a66-47c5-87ed-5f691c624667",
+            "startedAt": "2026-11-12T06:06:57.009Z"
+          }
+        }
+      }
+    },
+    {
+      "eventId": "20e4a1e5-bec5-4ab8-9697-26c20c9c1016",
+      "sequence": 175,
+      "type": "RUNTIME_OBSERVATION",
+      "status": "RUNNING",
+      "createTime": 1794463620401,
+      "attemptId": "att-1-0a12b927-732b-40d2-98db-eda94609dfb0",
+      "runId": "att-1-0a12b927-732b-40d2-98db-eda94609dfb0",
+      "parentEventId": "8c79554c-87d2-43ff-b376-ec259189ea97",
+      "payload": {
+        "metadata": {
+          "eventKind": "CODING_TRACE",
+          "eventState": "RUNNING",
+          "codingEventType": "RECOVERY_RECONCILED",
+          "taskId": "native-52020e7844b8bd4a837385bd327d71d07ffcd5c911f99c8164b1330f44126025",
+          "operationId": "model-84915e35-5a66-47c5-87ed-5f691c624667",
+          "occurredAt": "2026-11-12T06:07:00.123Z",
+          "workerActivity": {
+            "normalizedType": "MODEL_REQUEST_COMPLETED",
+            "nativeEventType": "model.request.completed",
+            "nativeEventId": "45",
+            "nativeEvidenceRef": "runtime-evidence:coding:native:80433feb151c2dbd802fe6d894b362af00b0669d14bf680e8af0e09f2f1666d5",
+            "sessionId": "***",
+            "requestId": "84915e35-5a66-47c5-87ed-5f691c624667",
+            "model": "qwen3.6-plus",
+            "providerModel": "qwen3.6-plus",
+            "nativeOccurredAt": "2026-11-12T06:06:58.876Z",
+            "status": "SUCCEEDED",
+            "operationId": "model-84915e35-5a66-47c5-87ed-5f691c624667",
+            "startedAt": "2026-11-12T06:06:57.009Z",
+            "finishedAt": "2026-11-12T06:06:58.875Z",
+            "durationMs": 1866
+          }
+        }
+      }
+    },
+    {
+      "eventId": "11655f23-ad4d-4edf-8407-49ef89bf7cfe",
+      "sequence": 176,
+      "type": "RUNTIME_OBSERVATION",
+      "status": "RUNNING",
+      "createTime": 1794463620417,
+      "attemptId": "att-1-0a12b927-732b-40d2-98db-eda94609dfb0",
+      "runId": "att-1-0a12b927-732b-40d2-98db-eda94609dfb0",
+      "parentEventId": "8c79554c-87d2-43ff-b376-ec259189ea97",
+      "payload": {
+        "metadata": {
+          "eventKind": "CODING_TRACE",
+          "eventState": "RUNNING",
+          "codingEventType": "RECOVERY_RECONCILED",
+          "taskId": "native-52020e7844b8bd4a837385bd327d71d07ffcd5c911f99c8164b1330f44126025",
+          "operationId": "model-2cd3d079-c4a9-49e0-99cd-432aa9214406",
+          "occurredAt": "2026-11-12T06:07:00.276Z",
+          "workerActivity": {
+            "normalizedType": "MODEL_REQUEST_STARTED",
+            "nativeEventType": "model.request.started",
+            "nativeEventId": "46",
+            "nativeEvidenceRef": "runtime-evidence:coding:native:3eea0170f2292e8546a81d6ba9c1bd8bd9303eb7f49d824e06ad34a0ce93d8aa",
+            "sessionId": "***",
+            "requestId": "2cd3d079-c4a9-49e0-99cd-432aa9214406",
+            "model": "qwen3.6-plus",
+            "nativeOccurredAt": "2026-11-12T06:06:59.370Z",
+            "operationId": "model-2cd3d079-c4a9-49e0-99cd-432aa9214406",
+            "startedAt": "2026-11-12T06:06:59.368Z"
+          }
+        }
+      }
+    },
+    {
+      "eventId": "aa0e2aa4-5258-418a-96ce-82cd937b8ce1",
+      "sequence": 177,
+      "type": "RUNTIME_OBSERVATION",
+      "status": "RUNNING",
+      "createTime": 1794463621576,
+      "attemptId": "att-1-0a12b927-732b-40d2-98db-eda94609dfb0",
+      "runId": "att-1-0a12b927-732b-40d2-98db-eda94609dfb0",
+      "parentEventId": "8c79554c-87d2-43ff-b376-ec259189ea97",
+      "payload": {
+        "metadata": {
+          "eventKind": "CODING_TRACE",
+          "eventState": "RUNNING",
+          "codingEventType": "RECOVERY_RECONCILED",
+          "taskId": "native-52020e7844b8bd4a837385bd327d71d07ffcd5c911f99c8164b1330f44126025",
+          "occurredAt": "2026-11-12T06:07:01.318Z",
+          "workerActivity": {
+            "normalizedType": "OBSERVATION",
+            "nativeEventType": "model.iteration.started",
+            "nativeEventId": "353",
+            "nativeEvidenceRef": "runtime-evidence:coding:native:d2abd271730133af181099f544601c3f96ec2dc5867d9be1d1b37ba1ee51152a",
+            "sessionId": "***",
+            "nativeOccurredAt": "2026-11-12T06:06:56.981Z"
+          }
+        }
+      }
+    },
+    {
+      "eventId": "ea22057a-e5bd-4817-b94c-9a9642e61d25",
+      "sequence": 178,
+      "type": "RUNTIME_OBSERVATION",
+      "status": "RUNNING",
+      "createTime": 1794463622223,
+      "attemptId": "att-1-0a12b927-732b-40d2-98db-eda94609dfb0",
+      "runId": "att-1-0a12b927-732b-40d2-98db-eda94609dfb0",
+      "parentEventId": "8c79554c-87d2-43ff-b376-ec259189ea97",
+      "payload": {
+        "metadata": {
+          "eventKind": "CODING_TRACE",
+          "eventState": "RUNNING",
+          "codingEventType": "RECOVERY_RECONCILED",
+          "taskId": "native-52020e7844b8bd4a837385bd327d71d07ffcd5c911f99c8164b1330f44126025",
+          "occurredAt": "2026-11-12T06:07:01.579Z",
+          "workerActivity": {
+            "normalizedType": "OBSERVATION",
+            "nativeEventType": "permission.requested",
+            "nativeEventId": "360",
+            "nativeEvidenceRef": "runtime-evidence:coding:native:375228311304ab0e07a7d45bfd176dcfea4bd7e554cf29767170326c598d95f7",
+            "sessionId": "***",
+            "nativeOccurredAt": "2026-11-12T06:06:58.922Z",
+            "tool": "read_files"
+          }
+        }
+      }
+    },
+    {
+      "eventId": "a039f495-0bac-4cbb-9862-bde4b4124e96",
+      "sequence": 179,
+      "type": "RUNTIME_OBSERVATION",
+      "status": "RUNNING",
+      "createTime": 1794463622241,
+      "attemptId": "att-1-0a12b927-732b-40d2-98db-eda94609dfb0",
+      "runId": "att-1-0a12b927-732b-40d2-98db-eda94609dfb0",
+      "parentEventId": "8c79554c-87d2-43ff-b376-ec259189ea97",
+      "payload": {
+        "metadata": {
+          "eventKind": "CODING_TRACE",
+          "eventState": "RUNNING",
+          "codingEventType": "RECOVERY_RECONCILED",
+          "taskId": "native-52020e7844b8bd4a837385bd327d71d07ffcd5c911f99c8164b1330f44126025",
+          "occurredAt": "2026-11-12T06:07:01.736Z",
+          "workerActivity": {
+            "normalizedType": "OBSERVATION",
+            "nativeEventType": "permission.decision",
+            "nativeEventId": "361",
+            "nativeEvidenceRef": "runtime-evidence:coding:native:57aa18079c3943f042204c0d0ab520325e89642c4b4758cd3afa218544cb5b87",
+            "sessionId": "***",
+            "nativeOccurredAt": "2026-11-12T06:06:59.279Z"
+          }
+        }
+      }
+    },
+    {
+      "eventId": "9dd9b0fa-f005-48c9-b7c1-0fd49e6f2e41",
+      "sequence": 180,
+      "type": "RUNTIME_OBSERVATION",
+      "status": "RUNNING",
+      "createTime": 1794463622265,
+      "attemptId": "att-1-0a12b927-732b-40d2-98db-eda94609dfb0",
+      "runId": "att-1-0a12b927-732b-40d2-98db-eda94609dfb0",
+      "parentEventId": "8c79554c-87d2-43ff-b376-ec259189ea97",
+      "payload": {
+        "metadata": {
+          "eventKind": "CODING_TRACE",
+          "eventState": "RUNNING",
+          "codingEventType": "RECOVERY_RECONCILED",
+          "taskId": "native-52020e7844b8bd4a837385bd327d71d07ffcd5c911f99c8164b1330f44126025",
+          "occurredAt": "2026-11-12T06:07:01.930Z",
+          "workerActivity": {
+            "normalizedType": "OBSERVATION",
+            "nativeEventType": "permission.resolved",
+            "nativeEventId": "362",
+            "nativeEvidenceRef": "runtime-evidence:coding:native:97d271a03307ea39fa48aed1b90fa8f450b0ee5f1f872c17366c644f27bbd142",
+            "sessionId": "***",
+            "nativeOccurredAt": "2026-11-12T06:06:59.281Z"
+          }
+        }
+      }
+    },
+    {
+      "eventId": "a35e2067-3297-45e2-865d-8bf20443512b",
+      "sequence": 181,
+      "type": "RUNTIME_OBSERVATION",
+      "status": "RUNNING",
+      "createTime": 1794463622282,
+      "attemptId": "att-1-0a12b927-732b-40d2-98db-eda94609dfb0",
+      "runId": "att-1-0a12b927-732b-40d2-98db-eda94609dfb0",
+      "parentEventId": "8c79554c-87d2-43ff-b376-ec259189ea97",
+      "payload": {
+        "metadata": {
+          "eventKind": "CODING_TRACE",
+          "eventState": "RUNNING",
+          "codingEventType": "RECOVERY_RECONCILED",
+          "taskId": "native-52020e7844b8bd4a837385bd327d71d07ffcd5c911f99c8164b1330f44126025",
+          "operationId": "tool-dce7ba389ba1804b1c2bce65257a1b12",
+          "occurredAt": "2026-11-12T06:07:02.104Z",
+          "workerActivity": {
+            "normalizedType": "TOOL_STARTED",
+            "nativeEventType": "tool.started",
+            "nativeEventId": "366",
+            "nativeEvidenceRef": "runtime-evidence:coding:native:9485ac5795b114de8ecc0b351f57a47188fc9662ee8c8c7f01ebaab9a4eb6c50",
+            "sessionId": "***",
+            "nativeOccurredAt": "2026-11-12T06:06:59.285Z",
+            "tool": "read_files",
+            "toolCallId": "call_d0fe66c59cbb4bb1899a1c21",
+            "operationId": "tool-dce7ba389ba1804b1c2bce65257a1b12"
+          }
+        }
+      }
+    },
+    {
+      "eventId": "f38fe946-24b1-4f9d-b866-7958cfa53814",
+      "sequence": 182,
+      "type": "RUNTIME_OBSERVATION",
+      "status": "RUNNING",
+      "createTime": 1794463622861,
+      "attemptId": "att-1-0a12b927-732b-40d2-98db-eda94609dfb0",
+      "runId": "att-1-0a12b927-732b-40d2-98db-eda94609dfb0",
+      "parentEventId": "8c79554c-87d2-43ff-b376-ec259189ea97",
+      "payload": {
+        "metadata": {
+          "eventKind": "CODING_TRACE",
+          "eventState": "RUNNING",
+          "codingEventType": "RECOVERY_RECONCILED",
+          "taskId": "native-52020e7844b8bd4a837385bd327d71d07ffcd5c911f99c8164b1330f44126025",
+          "operationId": "tool-dce7ba389ba1804b1c2bce65257a1b12",
+          "occurredAt": "2026-11-12T06:07:02.381Z",
+          "workerActivity": {
+            "normalizedType": "TOOL_COMPLETED",
+            "nativeEventType": "tool.completed",
+            "nativeEventId": "370",
+            "nativeEvidenceRef": "runtime-evidence:coding:native:5203e55351d73f750861d33b22c5f76e1dea97ecd108eb88812d77d863e5e5aa",
+            "sessionId": "***",
+            "nativeOccurredAt": "2026-11-12T06:06:59.323Z",
+            "tool": "read_files",
+            "toolCallId": "call_d0fe66c59cbb4bb1899a1c21",
+            "operationId": "tool-dce7ba389ba1804b1c2bce65257a1b12",
+            "durationMs": 39
+          }
+        }
+      }
+    },
+    {
+      "eventId": "28d5632f-50d3-4262-98ae-437eba77fc40",
+      "sequence": 183,
+      "type": "RUNTIME_OBSERVATION",
+      "status": "RUNNING",
+      "createTime": 1794463622882,
+      "attemptId": "att-1-0a12b927-732b-40d2-98db-eda94609dfb0",
+      "runId": "att-1-0a12b927-732b-40d2-98db-eda94609dfb0",
+      "parentEventId": "8c79554c-87d2-43ff-b376-ec259189ea97",
+      "payload": {
+        "metadata": {
+          "eventKind": "CODING_TRACE",
+          "eventState": "RUNNING",
+          "codingEventType": "RECOVERY_RECONCILED",
+          "taskId": "native-52020e7844b8bd4a837385bd327d71d07ffcd5c911f99c8164b1330f44126025",
+          "occurredAt": "2026-11-12T06:07:02.571Z",
+          "workerActivity": {
+            "normalizedType": "OBSERVATION",
+            "nativeEventType": "model.iteration.started",
+            "nativeEventId": "373",
+            "nativeEvidenceRef": "runtime-evidence:coding:native:5e10f9872f59f3a458407aa0a1f3d1121e9b62a7ef11453a946b6bf29103bcb5",
+            "sessionId": "***",
+            "nativeOccurredAt": "2026-11-12T06:06:59.328Z"
+          }
+        }
+      }
+    },
+    {
+      "eventId": "248a4975-7ae3-434a-88cf-0b20f1453aac",
+      "sequence": 184,
+      "type": "RUNTIME_OBSERVATION",
+      "status": "RUNNING",
+      "createTime": 1794463624018,
+      "attemptId": "att-1-0a12b927-732b-40d2-98db-eda94609dfb0",
+      "runId": "att-1-0a12b927-732b-40d2-98db-eda94609dfb0",
+      "parentEventId": "8c79554c-87d2-43ff-b376-ec259189ea97",
+      "payload": {
+        "metadata": {
+          "eventKind": "CODING_TRACE",
+          "eventState": "RUNNING",
+          "codingEventType": "RECOVERY_RECONCILED",
+          "taskId": "native-52020e7844b8bd4a837385bd327d71d07ffcd5c911f99c8164b1330f44126025",
+          "occurredAt": "2026-11-12T06:07:03.704Z",
+          "workerActivity": {
+            "normalizedType": "OBSERVATION",
+            "nativeEventType": "permission.requested",
+            "nativeEventId": "380",
+            "nativeEvidenceRef": "runtime-evidence:coding:native:e9420a73c59c9879979d91994582d524638db86c011244957f22e3c6599f3241",
+            "sessionId": "***",
+            "nativeOccurredAt": "2026-11-12T06:07:03.051Z",
+            "tool": "run_commands"
+          }
+        }
+      }
+    },
+    {
+      "eventId": "5e3e033f-8a23-4f30-b370-7adfc4ef4633",
+      "sequence": 185,
+      "type": "RUNTIME_OBSERVATION",
+      "status": "RUNNING",
+      "createTime": 1794463624037,
+      "attemptId": "att-1-0a12b927-732b-40d2-98db-eda94609dfb0",
+      "runId": "att-1-0a12b927-732b-40d2-98db-eda94609dfb0",
+      "parentEventId": "8c79554c-87d2-43ff-b376-ec259189ea97",
+      "payload": {
+        "metadata": {
+          "eventKind": "CODING_TRACE",
+          "eventState": "RUNNING",
+          "codingEventType": "RECOVERY_RECONCILED",
+          "taskId": "native-52020e7844b8bd4a837385bd327d71d07ffcd5c911f99c8164b1330f44126025",
+          "occurredAt": "2026-11-12T06:07:03.865Z",
+          "workerActivity": {
+            "normalizedType": "OBSERVATION",
+            "nativeEventType": "permission.decision",
+            "nativeEventId": "381",
+            "nativeEvidenceRef": "runtime-evidence:coding:native:c44e38ae02f2e2f6ad1f996825383cd7aac0260ae250eb8d080b7d93001688bc",
+            "sessionId": "***",
+            "nativeOccurredAt": "2026-11-12T06:07:03.281Z"
+          }
+        }
+      }
+    },
+    {
+      "eventId": "39fe5fc5-a493-449a-9055-153f6565c671",
+      "sequence": 186,
+      "type": "RUNTIME_OBSERVATION",
+      "status": "RUNNING",
+      "createTime": 1794463624611,
+      "attemptId": "att-1-0a12b927-732b-40d2-98db-eda94609dfb0",
+      "runId": "att-1-0a12b927-732b-40d2-98db-eda94609dfb0",
+      "parentEventId": "8c79554c-87d2-43ff-b376-ec259189ea97",
+      "payload": {
+        "metadata": {
+          "eventKind": "CODING_TRACE",
+          "eventState": "RUNNING",
+          "codingEventType": "RECOVERY_RECONCILED",
+          "taskId": "native-52020e7844b8bd4a837385bd327d71d07ffcd5c911f99c8164b1330f44126025",
+          "occurredAt": "2026-11-12T06:07:04.054Z",
+          "workerActivity": {
+            "normalizedType": "OBSERVATION",
+            "nativeEventType": "permission.resolved",
+            "nativeEventId": "382",
+            "nativeEvidenceRef": "runtime-evidence:coding:native:40c5bde2e7dda63cf5b84a197cee75dc47644b886f6585a7ee86919a9f34e9fc",
+            "sessionId": "***",
+            "nativeOccurredAt": "2026-11-12T06:07:03.282Z"
+          }
+        }
+      }
+    },
+    {
+      "eventId": "5946af68-05ed-44b5-91f9-c6876f8a8ecf",
+      "sequence": 187,
+      "type": "RUNTIME_OBSERVATION",
+      "status": "RUNNING",
+      "createTime": 1794463624629,
+      "attemptId": "att-1-0a12b927-732b-40d2-98db-eda94609dfb0",
+      "runId": "att-1-0a12b927-732b-40d2-98db-eda94609dfb0",
+      "parentEventId": "8c79554c-87d2-43ff-b376-ec259189ea97",
+      "payload": {
+        "metadata": {
+          "eventKind": "CODING_TRACE",
+          "eventState": "RUNNING",
+          "codingEventType": "RECOVERY_RECONCILED",
+          "taskId": "native-52020e7844b8bd4a837385bd327d71d07ffcd5c911f99c8164b1330f44126025",
+          "operationId": "tool-cfa68ae8ea4c7cbc95c4b6f7331e385a",
+          "occurredAt": "2026-11-12T06:07:04.228Z",
+          "workerActivity": {
+            "normalizedType": "TOOL_STARTED",
+            "nativeEventType": "tool.started",
+            "nativeEventId": "386",
+            "nativeEvidenceRef": "runtime-evidence:coding:native:089281586ece632a7ec8b352b5743c3dd2243e3767b664cd5464b58027b2a585",
+            "sessionId": "***",
+            "nativeOccurredAt": "2026-11-12T06:07:03.286Z",
+            "tool": "run_commands",
+            "toolCallId": "call_227648e56c6d4113bb5d6027",
+            "operationId": "tool-cfa68ae8ea4c7cbc95c4b6f7331e385a"
+          }
+        }
+      }
+    },
+    {
+      "eventId": "2fec0ff9-ae20-4409-a19e-b4b52f6b1a74",
+      "sequence": 188,
+      "type": "RUNTIME_OBSERVATION",
+      "status": "RUNNING",
+      "createTime": 1794463624650,
+      "attemptId": "att-1-0a12b927-732b-40d2-98db-eda94609dfb0",
+      "runId": "att-1-0a12b927-732b-40d2-98db-eda94609dfb0",
+      "parentEventId": "8c79554c-87d2-43ff-b376-ec259189ea97",
+      "payload": {
+        "metadata": {
+          "eventKind": "CODING_TRACE",
+          "eventState": "RUNNING",
+          "codingEventType": "RECOVERY_RECONCILED",
+          "taskId": "native-52020e7844b8bd4a837385bd327d71d07ffcd5c911f99c8164b1330f44126025",
+          "operationId": "cmd-68b22774-63ec-4fb2-953a-42817310bd00",
+          "occurredAt": "2026-11-12T06:07:04.409Z",
+          "workerActivity": {
+            "normalizedType": "COMMAND_STARTED",
+            "nativeEventType": "command.started",
+            "nativeEventId": "387",
+            "nativeEvidenceRef": "runtime-evidence:coding:native:e0a4bb649f97840b7f96bdf48905917992210437b035a81a2a3b24e8079b896e",
+            "sessionId": "***",
+            "nativeOccurredAt": "2026-11-12T06:07:03.308Z",
+            "status": "RUNNING",
+            "operationId": "cmd-68b22774-63ec-4fb2-953a-42817310bd00",
+            "startedAt": "2026-11-12T06:07:03.305Z"
+          }
+        }
+      }
+    },
+    {
+      "eventId": "ffbb5d2a-9357-4942-9f7a-cafd7857306b",
+      "sequence": 189,
+      "type": "RUNTIME_OBSERVATION",
+      "status": "RUNNING",
+      "createTime": 1794463625238,
+      "attemptId": "att-1-0a12b927-732b-40d2-98db-eda94609dfb0",
+      "runId": "att-1-0a12b927-732b-40d2-98db-eda94609dfb0",
+      "parentEventId": "8c79554c-87d2-43ff-b376-ec259189ea97",
+      "payload": {
+        "metadata": {
+          "eventKind": "CODING_TRACE",
+          "eventState": "RUNNING",
+          "codingEventType": "RECOVERY_RECONCILED",
+          "taskId": "native-52020e7844b8bd4a837385bd327d71d07ffcd5c911f99c8164b1330f44126025",
+          "operationId": "cmd-68b22774-63ec-4fb2-953a-42817310bd00",
+          "occurredAt": "2026-11-12T06:07:04.738Z",
+          "workerActivity": {
+            "normalizedType": "COMMAND_COMPLETED",
+            "nativeEventType": "command.completed",
+            "nativeEventId": "389",
+            "nativeEvidenceRef": "runtime-evidence:coding:native:ebca9d593422d56401d1b201c821db166c40eb7c1fa4805269d65f5d51a1c6fd",
+            "sessionId": "***",
+            "nativeOccurredAt": "2026-11-12T06:07:03.330Z",
+            "status": "SUCCEEDED",
+            "exitCode": 0,
+            "operationId": "cmd-68b22774-63ec-4fb2-953a-42817310bd00",
+            "startedAt": "2026-11-12T06:07:03.305Z",
+            "finishedAt": "2026-11-12T06:07:03.329Z",
+            "durationMs": 24.707305
+          }
+        }
+      }
+    },
+    {
+      "eventId": "74572f5d-b01a-4ac2-be61-46f602fd7996",
+      "sequence": 190,
+      "type": "RUNTIME_OBSERVATION",
+      "status": "RUNNING",
+      "createTime": 1794463625254,
+      "attemptId": "att-1-0a12b927-732b-40d2-98db-eda94609dfb0",
+      "runId": "att-1-0a12b927-732b-40d2-98db-eda94609dfb0",
+      "parentEventId": "8c79554c-87d2-43ff-b376-ec259189ea97",
+      "payload": {
+        "metadata": {
+          "eventKind": "CODING_TRACE",
+          "eventState": "RUNNING",
+          "codingEventType": "RECOVERY_RECONCILED",
+          "taskId": "native-52020e7844b8bd4a837385bd327d71d07ffcd5c911f99c8164b1330f44126025",
+          "operationId": "tool-cfa68ae8ea4c7cbc95c4b6f7331e385a",
+          "occurredAt": "2026-11-12T06:07:05.050Z",
+          "workerActivity": {
+            "normalizedType": "TOOL_COMPLETED",
+            "nativeEventType": "tool.completed",
+            "nativeEventId": "394",
+            "nativeEvidenceRef": "runtime-evidence:coding:native:0b97c54232fde41f51e44dacc0c920ac8621291e89ba9a85566c26d935863ebe",
+            "sessionId": "***",
+            "nativeOccurredAt": "2026-11-12T06:07:03.361Z",
+            "tool": "run_commands",
+            "toolCallId": "call_227648e56c6d4113bb5d6027",
+            "operationId": "tool-cfa68ae8ea4c7cbc95c4b6f7331e385a",
+            "durationMs": 73
+          }
+        }
+      }
+    },
+    {
+      "eventId": "692a301b-567d-4a60-9d1c-abd23cfbd445",
+      "sequence": 191,
+      "type": "RUNTIME_OBSERVATION",
+      "status": "RUNNING",
+      "createTime": 1794463625896,
+      "attemptId": "att-1-0a12b927-732b-40d2-98db-eda94609dfb0",
+      "runId": "att-1-0a12b927-732b-40d2-98db-eda94609dfb0",
+      "parentEventId": "8c79554c-87d2-43ff-b376-ec259189ea97",
+      "payload": {
+        "metadata": {
+          "eventKind": "CODING_TRACE",
+          "eventState": "RUNNING",
+          "codingEventType": "RECOVERY_RECONCILED",
+          "taskId": "native-52020e7844b8bd4a837385bd327d71d07ffcd5c911f99c8164b1330f44126025",
+          "occurredAt": "2026-11-12T06:07:05.248Z",
+          "workerActivity": {
+            "normalizedType": "OBSERVATION",
+            "nativeEventType": "model.iteration.started",
+            "nativeEventId": "397",
+            "nativeEvidenceRef": "runtime-evidence:coding:native:6cc5f2e50b421f5912ecc460921a51f0c7ffe6ccbfc7248c196518e198e4479d",
+            "sessionId": "***",
+            "nativeOccurredAt": "2026-11-12T06:07:03.363Z"
+          }
+        }
+      }
+    },
+    {
+      "eventId": "8656302e-aaf7-4c8e-b152-071ce8a73150",
+      "sequence": 192,
+      "type": "RUNTIME_OBSERVATION",
+      "status": "RUNNING",
+      "createTime": 1794463625912,
+      "attemptId": "att-1-0a12b927-732b-40d2-98db-eda94609dfb0",
+      "runId": "att-1-0a12b927-732b-40d2-98db-eda94609dfb0",
+      "parentEventId": "8c79554c-87d2-43ff-b376-ec259189ea97",
+      "payload": {
+        "metadata": {
+          "eventKind": "CODING_TRACE",
+          "eventState": "RUNNING",
+          "codingEventType": "RECOVERY_RECONCILED",
+          "taskId": "native-52020e7844b8bd4a837385bd327d71d07ffcd5c911f99c8164b1330f44126025",
+          "operationId": "model-2cd3d079-c4a9-49e0-99cd-432aa9214406",
+          "occurredAt": "2026-11-12T06:07:05.645Z",
+          "workerActivity": {
+            "normalizedType": "MODEL_REQUEST_COMPLETED",
+            "nativeEventType": "model.request.completed",
+            "nativeEventId": "47",
+            "nativeEvidenceRef": "runtime-evidence:coding:native:9df97c1b7b59b1ef59d18275a37f0dcc862aee6cbdf584e2d5cf480abeedb30d",
+            "sessionId": "***",
+            "requestId": "2cd3d079-c4a9-49e0-99cd-432aa9214406",
+            "model": "qwen3.6-plus",
+            "providerModel": "qwen3.6-plus",
+            "nativeOccurredAt": "2026-11-12T06:07:03.007Z",
+            "status": "SUCCEEDED",
+            "operationId": "model-2cd3d079-c4a9-49e0-99cd-432aa9214406",
+            "startedAt": "2026-11-12T06:06:59.368Z",
+            "finishedAt": "2026-11-12T06:07:03.006Z",
+            "durationMs": 3638
+          }
+        }
+      }
+    },
+    {
+      "eventId": "d4b6782a-07a7-48ec-9d18-25694b78b8e8",
+      "sequence": 193,
+      "type": "RUNTIME_OBSERVATION",
+      "status": "RUNNING",
+      "createTime": 1794463625935,
+      "attemptId": "att-1-0a12b927-732b-40d2-98db-eda94609dfb0",
+      "runId": "att-1-0a12b927-732b-40d2-98db-eda94609dfb0",
+      "parentEventId": "8c79554c-87d2-43ff-b376-ec259189ea97",
+      "payload": {
+        "metadata": {
+          "eventKind": "CODING_TRACE",
+          "eventState": "RUNNING",
+          "codingEventType": "RECOVERY_RECONCILED",
+          "taskId": "native-52020e7844b8bd4a837385bd327d71d07ffcd5c911f99c8164b1330f44126025",
+          "operationId": "model-495e3743-200b-4d65-8b23-b61fc0cfcbd8",
+          "occurredAt": "2026-11-12T06:07:05.820Z",
+          "workerActivity": {
+            "normalizedType": "MODEL_REQUEST_STARTED",
+            "nativeEventType": "model.request.started",
+            "nativeEventId": "48",
+            "nativeEvidenceRef": "runtime-evidence:coding:native:d39bc72c36e81268f792ea7343a8cf5a2330bed277bbecb9e1d30154b0338db4",
+            "sessionId": "***",
+            "requestId": "495e3743-200b-4d65-8b23-b61fc0cfcbd8",
+            "model": "qwen3.6-plus",
+            "nativeOccurredAt": "2026-11-12T06:07:03.400Z",
+            "operationId": "model-495e3743-200b-4d65-8b23-b61fc0cfcbd8",
+            "startedAt": "2026-11-12T06:07:03.398Z"
+          }
+        }
+      }
+    },
+    {
+      "eventId": "f0de71a4-e7fb-4b66-93aa-3ff308a799ce",
+      "sequence": 194,
+      "type": "RUNTIME_OBSERVATION",
+      "status": "RUNNING",
+      "createTime": 1794463629863,
+      "attemptId": "att-1-0a12b927-732b-40d2-98db-eda94609dfb0",
+      "runId": "att-1-0a12b927-732b-40d2-98db-eda94609dfb0",
+      "parentEventId": "8c79554c-87d2-43ff-b376-ec259189ea97",
+      "payload": {
+        "metadata": {
+          "eventKind": "CODING_TRACE",
+          "eventState": "RUNNING",
+          "codingEventType": "RECOVERY_RECONCILED",
+          "taskId": "native-52020e7844b8bd4a837385bd327d71d07ffcd5c911f99c8164b1330f44126025",
+          "occurredAt": "2026-11-12T06:07:09.704Z"
+        }
+      }
+    },
+    {
+      "eventId": "da44c1e3-9a1b-4f96-ab9f-10c6b01fa4c8",
+      "sequence": 195,
+      "type": "RUNTIME_OBSERVATION",
+      "status": "RUNNING",
+      "createTime": 1794463633213,
+      "attemptId": "att-1-0a12b927-732b-40d2-98db-eda94609dfb0",
+      "runId": "att-1-0a12b927-732b-40d2-98db-eda94609dfb0",
+      "parentEventId": "8c79554c-87d2-43ff-b376-ec259189ea97",
+      "payload": {
+        "metadata": {
+          "eventKind": "CODING_TRACE",
+          "eventState": "RUNNING",
+          "codingEventType": "RECOVERY_RECONCILED",
+          "taskId": "native-52020e7844b8bd4a837385bd327d71d07ffcd5c911f99c8164b1330f44126025",
+          "occurredAt": "2026-11-12T06:07:12.993Z",
+          "workerActivity": {
+            "normalizedType": "OBSERVATION",
+            "nativeEventType": "permission.requested",
+            "nativeEventId": "404",
+            "nativeEvidenceRef": "runtime-evidence:coding:native:84d39e29f175bb0853e8130992b3f4bbca3de259a96b5c52a1b67d032d5252e8",
+            "sessionId": "***",
+            "nativeOccurredAt": "2026-11-12T06:07:12.309Z",
+            "tool": "run_commands"
+          }
+        }
+      }
+    },
+    {
+      "eventId": "7086f983-d92c-430f-a472-fc4d0df90300",
+      "sequence": 196,
+      "type": "RUNTIME_OBSERVATION",
+      "status": "RUNNING",
+      "createTime": 1794463633795,
+      "attemptId": "att-1-0a12b927-732b-40d2-98db-eda94609dfb0",
+      "runId": "att-1-0a12b927-732b-40d2-98db-eda94609dfb0",
+      "parentEventId": "8c79554c-87d2-43ff-b376-ec259189ea97",
+      "payload": {
+        "metadata": {
+          "eventKind": "CODING_TRACE",
+          "eventState": "RUNNING",
+          "codingEventType": "RECOVERY_RECONCILED",
+          "taskId": "native-52020e7844b8bd4a837385bd327d71d07ffcd5c911f99c8164b1330f44126025",
+          "operationId": "model-495e3743-200b-4d65-8b23-b61fc0cfcbd8",
+          "occurredAt": "2026-11-12T06:07:13.340Z",
+          "workerActivity": {
+            "normalizedType": "MODEL_REQUEST_COMPLETED",
+            "nativeEventType": "model.request.completed",
+            "nativeEventId": "49",
+            "nativeEvidenceRef": "runtime-evidence:coding:native:72eaa65878679287f2b3021208e4fcf881e26f2e94910da27dcbf75f011d0fbf",
+            "sessionId": "***",
+            "requestId": "495e3743-200b-4d65-8b23-b61fc0cfcbd8",
+            "model": "qwen3.6-plus",
+            "providerModel": "qwen3.6-plus",
+            "nativeOccurredAt": "2026-11-12T06:07:12.267Z",
+            "status": "SUCCEEDED",
+            "operationId": "model-495e3743-200b-4d65-8b23-b61fc0cfcbd8",
+            "startedAt": "2026-11-12T06:07:03.398Z",
+            "finishedAt": "2026-11-12T06:07:12.266Z",
+            "durationMs": 8868
+          }
+        }
+      }
+    },
+    {
+      "eventId": "766fec67-2955-4cb3-9501-c114983412b6",
+      "sequence": 197,
+      "type": "RUNTIME_OBSERVATION",
+      "status": "RUNNING",
+      "createTime": 1794463633812,
+      "attemptId": "att-1-0a12b927-732b-40d2-98db-eda94609dfb0",
+      "runId": "att-1-0a12b927-732b-40d2-98db-eda94609dfb0",
+      "parentEventId": "8c79554c-87d2-43ff-b376-ec259189ea97",
+      "payload": {
+        "metadata": {
+          "eventKind": "CODING_TRACE",
+          "eventState": "RUNNING",
+          "codingEventType": "RECOVERY_RECONCILED",
+          "taskId": "native-52020e7844b8bd4a837385bd327d71d07ffcd5c911f99c8164b1330f44126025",
+          "operationId": "model-d192bd07-ce50-473f-8aa4-410a517e81c0",
+          "occurredAt": "2026-11-12T06:07:13.495Z",
+          "workerActivity": {
+            "normalizedType": "MODEL_REQUEST_STARTED",
+            "nativeEventType": "model.request.started",
+            "nativeEventId": "50",
+            "nativeEvidenceRef": "runtime-evidence:coding:native:a2ca3f5a69e2b97d3bd4288b846afaa48811dec7f0541f8cf623110f1685822d",
+            "sessionId": "***",
+            "requestId": "d192bd07-ce50-473f-8aa4-410a517e81c0",
+            "model": "qwen3.6-plus",
+            "nativeOccurredAt": "2026-11-12T06:07:12.972Z",
+            "operationId": "model-d192bd07-ce50-473f-8aa4-410a517e81c0",
+            "startedAt": "2026-11-12T06:07:12.971Z"
+          }
+        }
+      }
+    },
+    {
+      "eventId": "1b4b9581-7038-4be6-82df-c63515c7fbfd",
+      "sequence": 198,
+      "type": "RUNTIME_OBSERVATION",
+      "status": "RUNNING",
+      "createTime": 1794463635000,
+      "attemptId": "att-1-0a12b927-732b-40d2-98db-eda94609dfb0",
+      "runId": "att-1-0a12b927-732b-40d2-98db-eda94609dfb0",
+      "parentEventId": "8c79554c-87d2-43ff-b376-ec259189ea97",
+      "payload": {
+        "metadata": {
+          "eventKind": "CODING_TRACE",
+          "eventState": "RUNNING",
+          "codingEventType": "RECOVERY_RECONCILED",
+          "taskId": "native-52020e7844b8bd4a837385bd327d71d07ffcd5c911f99c8164b1330f44126025",
+          "occurredAt": "2026-11-12T06:07:14.497Z",
+          "workerActivity": {
+            "normalizedType": "OBSERVATION",
+            "nativeEventType": "permission.decision",
+            "nativeEventId": "405",
+            "nativeEvidenceRef": "runtime-evidence:coding:native:329f9493badf108f6cbb656a58986ab9481f8f363cba087c0ad0b06eb388675a",
+            "sessionId": "***",
+            "nativeOccurredAt": "2026-11-12T06:07:12.790Z"
+          }
+        }
+      }
+    },
+    {
+      "eventId": "367d974e-8469-4448-b781-128c1729b114",
+      "sequence": 199,
+      "type": "RUNTIME_OBSERVATION",
+      "status": "RUNNING",
+      "createTime": 1794463635024,
+      "attemptId": "att-1-0a12b927-732b-40d2-98db-eda94609dfb0",
+      "runId": "att-1-0a12b927-732b-40d2-98db-eda94609dfb0",
+      "parentEventId": "8c79554c-87d2-43ff-b376-ec259189ea97",
+      "payload": {
+        "metadata": {
+          "eventKind": "CODING_TRACE",
+          "eventState": "RUNNING",
+          "codingEventType": "RECOVERY_RECONCILED",
+          "taskId": "native-52020e7844b8bd4a837385bd327d71d07ffcd5c911f99c8164b1330f44126025",
+          "occurredAt": "2026-11-12T06:07:14.655Z",
+          "workerActivity": {
+            "normalizedType": "OBSERVATION",
+            "nativeEventType": "permission.resolved",
+            "nativeEventId": "406",
+            "nativeEvidenceRef": "runtime-evidence:coding:native:f78e65ec1ff9c6bee189a233f66bfbc4001c567ddb4b74851bdddfc6aa089ee4",
+            "sessionId": "***",
+            "nativeOccurredAt": "2026-11-12T06:07:12.791Z"
+          }
+        }
+      }
+    },
+    {
+      "eventId": "6d4d2797-1872-4164-a1b6-23a7168eea19",
+      "sequence": 200,
+      "type": "RUNTIME_OBSERVATION",
+      "status": "RUNNING",
+      "createTime": 1794463635050,
+      "attemptId": "att-1-0a12b927-732b-40d2-98db-eda94609dfb0",
+      "runId": "att-1-0a12b927-732b-40d2-98db-eda94609dfb0",
+      "parentEventId": "8c79554c-87d2-43ff-b376-ec259189ea97",
+      "payload": {
+        "metadata": {
+          "eventKind": "CODING_TRACE",
+          "eventState": "RUNNING",
+          "codingEventType": "RECOVERY_RECONCILED",
+          "taskId": "native-52020e7844b8bd4a837385bd327d71d07ffcd5c911f99c8164b1330f44126025",
+          "operationId": "tool-5e937c353d4d3b78892d9358356ff102",
+          "occurredAt": "2026-11-12T06:07:14.818Z",
+          "workerActivity": {
+            "normalizedType": "TOOL_STARTED",
+            "nativeEventType": "tool.started",
+            "nativeEventId": "410",
+            "nativeEvidenceRef": "runtime-evidence:coding:native:4e0604b8d76962650262de059e557d645f479bbc9c180e21fe052d61d0dc77d0",
+            "sessionId": "***",
+            "nativeOccurredAt": "2026-11-12T06:07:12.795Z",
+            "tool": "run_commands",
+            "toolCallId": "call_63557cb1b2f6458bbf1cfe86",
+            "operationId": "tool-5e937c353d4d3b78892d9358356ff102"
+          }
+        }
+      }
+    },
+    {
+      "eventId": "21437b1c-ec87-4931-9995-b89220b84950",
+      "sequence": 201,
+      "type": "RUNTIME_OBSERVATION",
+      "status": "RUNNING",
+      "createTime": 1794463635657,
+      "attemptId": "att-1-0a12b927-732b-40d2-98db-eda94609dfb0",
+      "runId": "att-1-0a12b927-732b-40d2-98db-eda94609dfb0",
+      "parentEventId": "8c79554c-87d2-43ff-b376-ec259189ea97",
+      "payload": {
+        "metadata": {
+          "eventKind": "CODING_TRACE",
+          "eventState": "RUNNING",
+          "codingEventType": "RECOVERY_RECONCILED",
+          "taskId": "native-52020e7844b8bd4a837385bd327d71d07ffcd5c911f99c8164b1330f44126025",
+          "operationId": "cmd-262f9463-bbf0-4434-8d71-37f140f8e475",
+          "occurredAt": "2026-11-12T06:07:15.007Z",
+          "workerActivity": {
+            "normalizedType": "COMMAND_STARTED",
+            "nativeEventType": "command.started",
+            "nativeEventId": "411",
+            "nativeEvidenceRef": "runtime-evidence:coding:native:d6aebdea6736b6c988ab2712816fc11bfba7ade8a49311b47b19a2ecddd4b778",
+            "sessionId": "***",
+            "nativeOccurredAt": "2026-11-12T06:07:12.818Z",
+            "status": "RUNNING",
+            "operationId": "cmd-262f9463-bbf0-4434-8d71-37f140f8e475",
+            "startedAt": "2026-11-12T06:07:12.814Z"
+          }
+        }
+      }
+    },
+    {
+      "eventId": "4b73d56e-a8a4-48a2-b047-3ddd51601ce5",
+      "sequence": 202,
+      "type": "RUNTIME_OBSERVATION",
+      "status": "RUNNING",
+      "createTime": 1794463635678,
+      "attemptId": "att-1-0a12b927-732b-40d2-98db-eda94609dfb0",
+      "runId": "att-1-0a12b927-732b-40d2-98db-eda94609dfb0",
+      "parentEventId": "8c79554c-87d2-43ff-b376-ec259189ea97",
+      "payload": {
+        "metadata": {
+          "eventKind": "CODING_TRACE",
+          "eventState": "RUNNING",
+          "codingEventType": "RECOVERY_RECONCILED",
+          "taskId": "native-52020e7844b8bd4a837385bd327d71d07ffcd5c911f99c8164b1330f44126025",
+          "operationId": "cmd-262f9463-bbf0-4434-8d71-37f140f8e475",
+          "occurredAt": "2026-11-12T06:07:15.274Z",
+          "workerActivity": {
+            "normalizedType": "COMMAND_COMPLETED",
+            "nativeEventType": "command.completed",
+            "nativeEventId": "413",
+            "nativeEvidenceRef": "runtime-evidence:coding:native:424fe879ff189e8f36286f4d8e3612c04d3973652acfecb2600057a882be3179",
+            "sessionId": "***",
+            "nativeOccurredAt": "2026-11-12T06:07:12.906Z",
+            "status": "SUCCEEDED",
+            "exitCode": 0,
+            "operationId": "cmd-262f9463-bbf0-4434-8d71-37f140f8e475",
+            "startedAt": "2026-11-12T06:07:12.814Z",
+            "finishedAt": "2026-11-12T06:07:12.903Z",
+            "durationMs": 88.547877
+          }
+        }
+      }
+    },
+    {
+      "eventId": "969a96cd-817c-4cb7-9660-cf32077e6f78",
+      "sequence": 203,
+      "type": "RUNTIME_OBSERVATION",
+      "status": "RUNNING",
+      "createTime": 1794463635700,
+      "attemptId": "att-1-0a12b927-732b-40d2-98db-eda94609dfb0",
+      "runId": "att-1-0a12b927-732b-40d2-98db-eda94609dfb0",
+      "parentEventId": "8c79554c-87d2-43ff-b376-ec259189ea97",
+      "payload": {
+        "metadata": {
+          "eventKind": "CODING_TRACE",
+          "eventState": "RUNNING",
+          "codingEventType": "RECOVERY_RECONCILED",
+          "taskId": "native-52020e7844b8bd4a837385bd327d71d07ffcd5c911f99c8164b1330f44126025",
+          "operationId": "tool-5e937c353d4d3b78892d9358356ff102",
+          "occurredAt": "2026-11-12T06:07:15.552Z",
+          "workerActivity": {
+            "normalizedType": "TOOL_COMPLETED",
+            "nativeEventType": "tool.completed",
+            "nativeEventId": "418",
+            "nativeEvidenceRef": "runtime-evidence:coding:native:0031642d7f3480e63051cf5980733873f023f4f27689530b3cf2653ca1f20290",
+            "sessionId": "***",
+            "nativeOccurredAt": "2026-11-12T06:07:12.938Z",
+            "tool": "run_commands",
+            "toolCallId": "call_63557cb1b2f6458bbf1cfe86",
+            "operationId": "tool-5e937c353d4d3b78892d9358356ff102",
+            "durationMs": 142
+          }
+        }
+      }
+    },
+    {
+      "eventId": "1945d736-e980-4871-9851-6e2a68a2631d",
+      "sequence": 204,
+      "type": "RUNTIME_OBSERVATION",
+      "status": "RUNNING",
+      "createTime": 1794463636282,
+      "attemptId": "att-1-0a12b927-732b-40d2-98db-eda94609dfb0",
+      "runId": "att-1-0a12b927-732b-40d2-98db-eda94609dfb0",
+      "parentEventId": "8c79554c-87d2-43ff-b376-ec259189ea97",
+      "payload": {
+        "metadata": {
+          "eventKind": "CODING_TRACE",
+          "eventState": "RUNNING",
+          "codingEventType": "RECOVERY_RECONCILED",
+          "taskId": "native-52020e7844b8bd4a837385bd327d71d07ffcd5c911f99c8164b1330f44126025",
+          "occurredAt": "2026-11-12T06:07:15.712Z",
+          "workerActivity": {
+            "normalizedType": "OBSERVATION",
+            "nativeEventType": "model.iteration.started",
+            "nativeEventId": "421",
+            "nativeEvidenceRef": "runtime-evidence:coding:native:49f97f00fda2c498013ea7d52668e3e2bed93835e7e4767fcd2fb9696aaa4998",
+            "sessionId": "***",
+            "nativeOccurredAt": "2026-11-12T06:07:12.941Z"
+          }
+        }
+      }
+    },
+    {
+      "eventId": "10cf1be2-abc3-42b9-87a8-6b0176c53f4d",
+      "sequence": 205,
+      "type": "RUNTIME_OBSERVATION",
+      "status": "RUNNING",
+      "createTime": 1794463643221,
+      "attemptId": "att-1-0a12b927-732b-40d2-98db-eda94609dfb0",
+      "runId": "att-1-0a12b927-732b-40d2-98db-eda94609dfb0",
+      "parentEventId": "8c79554c-87d2-43ff-b376-ec259189ea97",
+      "payload": {
+        "metadata": {
+          "eventKind": "CODING_TRACE",
+          "eventState": "RUNNING",
+          "codingEventType": "RECOVERY_RECONCILED",
+          "taskId": "native-52020e7844b8bd4a837385bd327d71d07ffcd5c911f99c8164b1330f44126025",
+          "operationId": "model-d192bd07-ce50-473f-8aa4-410a517e81c0",
+          "occurredAt": "2026-11-12T06:07:22.934Z",
+          "workerActivity": {
+            "normalizedType": "MODEL_REQUEST_COMPLETED",
+            "nativeEventType": "model.request.completed",
+            "nativeEventId": "51",
+            "nativeEvidenceRef": "runtime-evidence:coding:native:7941d3a13370cb7df2a3702677dc696e802575d274c4755862aea03504254d03",
+            "sessionId": "***",
+            "requestId": "d192bd07-ce50-473f-8aa4-410a517e81c0",
+            "model": "qwen3.6-plus",
+            "providerModel": "qwen3.6-plus",
+            "nativeOccurredAt": "2026-11-12T06:07:22.364Z",
+            "status": "SUCCEEDED",
+            "operationId": "model-d192bd07-ce50-473f-8aa4-410a517e81c0",
+            "startedAt": "2026-11-12T06:07:12.971Z",
+            "finishedAt": "2026-11-12T06:07:22.363Z",
+            "durationMs": 9392
+          }
+        }
+      }
+    },
+    {
+      "eventId": "c22f027e-2a91-40da-9581-92a91681c67d",
+      "sequence": 206,
+      "type": "RUNTIME_OBSERVATION",
+      "status": "RUNNING",
+      "createTime": 1794463643824,
+      "attemptId": "att-1-0a12b927-732b-40d2-98db-eda94609dfb0",
+      "runId": "att-1-0a12b927-732b-40d2-98db-eda94609dfb0",
+      "parentEventId": "8c79554c-87d2-43ff-b376-ec259189ea97",
+      "payload": {
+        "metadata": {
+          "eventKind": "CODING_TRACE",
+          "eventState": "RUNNING",
+          "codingEventType": "RECOVERY_RECONCILED",
+          "taskId": "native-52020e7844b8bd4a837385bd327d71d07ffcd5c911f99c8164b1330f44126025",
+          "occurredAt": "2026-11-12T06:07:23.455Z",
+          "workerActivity": {
+            "normalizedType": "OBSERVATION",
+            "nativeEventType": "turn.completed",
+            "nativeEventId": "562",
+            "nativeEvidenceRef": "runtime-evidence:coding:native:33c43e4c872e563ced5f9efe382d21f827012857460057380f39cb10f9c4a8f0",
+            "sessionId": "***",
+            "nativeOccurredAt": "2026-11-12T06:07:22.434Z"
+          }
+        }
+      }
+    },
+    {
+      "eventId": "ab5617da-34e5-44ea-8e94-715be5b6a355",
+      "sequence": 207,
+      "type": "RUNTIME_OBSERVATION",
+      "status": "RUNNING",
+      "createTime": 1794463645690,
+      "attemptId": "att-1-0a12b927-732b-40d2-98db-eda94609dfb0",
+      "runId": "att-1-0a12b927-732b-40d2-98db-eda94609dfb0",
+      "parentEventId": "8c79554c-87d2-43ff-b376-ec259189ea97",
+      "payload": {
+        "metadata": {
+          "eventKind": "CODING_TRACE",
+          "eventState": "RUNNING",
+          "codingEventType": "RECOVERY_RECONCILED",
+          "taskId": "native-52020e7844b8bd4a837385bd327d71d07ffcd5c911f99c8164b1330f44126025",
+          "occurredAt": "2026-11-12T06:07:25.529Z",
+          "workerActivity": {
+            "normalizedType": "OBSERVATION",
+            "nativeEventType": "delivery.previewed",
+            "nativeEventId": "567",
+            "nativeEvidenceRef": "runtime-evidence:coding:native:aaae1297806ef6136b85ffa95a39b39d19aeb4dac7dd6e45e76eea7aaea46855",
+            "sessionId": "***",
+            "nativeOccurredAt": "2026-11-12T06:07:23.892Z"
+          }
+        }
+      }
+    },
+    {
+      "eventId": "34158926-3491-4e08-a7d1-05f5d8fa9ba3",
+      "sequence": 208,
+      "type": "RUNTIME_OBSERVATION",
+      "status": "RUNNING",
+      "createTime": 1794463646402,
+      "attemptId": "att-1-0a12b927-732b-40d2-98db-eda94609dfb0",
+      "runId": "att-1-0a12b927-732b-40d2-98db-eda94609dfb0",
+      "parentEventId": "8c79554c-87d2-43ff-b376-ec259189ea97",
+      "payload": {
+        "metadata": {
+          "eventKind": "CODING_TRACE",
+          "eventState": "RUNNING",
+          "codingEventType": "RECOVERY_RECONCILED",
+          "taskId": "native-52020e7844b8bd4a837385bd327d71d07ffcd5c911f99c8164b1330f44126025",
+          "occurredAt": "2026-11-12T06:07:25.777Z",
+          "workerActivity": {
+            "normalizedType": "OBSERVATION",
+            "nativeEventType": "delivery.content.reviewed",
+            "nativeEventId": "568",
+            "nativeEvidenceRef": "runtime-evidence:coding:native:4e655a6dbdbd096a2a58bb3a91e2f516b029be3562a6146e7ad416bb5fc5324f",
+            "sessionId": "***",
+            "nativeOccurredAt": "2026-11-12T06:07:23.933Z"
+          }
+        }
+      }
+    },
+    {
+      "eventId": "02f29d63-5ffb-4444-8cd1-59475a266a7f",
+      "sequence": 209,
+      "type": "RUNTIME_OBSERVATION",
+      "status": "RUNNING",
+      "createTime": 1794463646427,
+      "attemptId": "att-1-0a12b927-732b-40d2-98db-eda94609dfb0",
+      "runId": "att-1-0a12b927-732b-40d2-98db-eda94609dfb0",
+      "parentEventId": "8c79554c-87d2-43ff-b376-ec259189ea97",
+      "payload": {
+        "metadata": {
+          "eventKind": "CODING_TRACE",
+          "eventState": "RUNNING",
+          "codingEventType": "RECOVERY_RECONCILED",
+          "taskId": "native-52020e7844b8bd4a837385bd327d71d07ffcd5c911f99c8164b1330f44126025",
+          "occurredAt": "2026-11-12T06:07:26.006Z",
+          "workerActivity": {
+            "normalizedType": "OBSERVATION",
+            "nativeEventType": "delivery.seal.requested",
+            "nativeEventId": "569",
+            "nativeEvidenceRef": "runtime-evidence:coding:native:03d4a07aa13070eb02678b2e19da18bd28c83045862f7a1dcde58dc4f98bddb5",
+            "sessionId": "***",
+            "nativeOccurredAt": "2026-11-12T06:07:23.939Z"
+          }
+        }
+      }
+    },
+    {
+      "eventId": "0b281104-5c7b-473a-a052-52d3b8c62d97",
+      "sequence": 210,
+      "type": "RUNTIME_OBSERVATION",
+      "status": "RUNNING",
+      "createTime": 1794463646458,
+      "attemptId": "att-1-0a12b927-732b-40d2-98db-eda94609dfb0",
+      "runId": "att-1-0a12b927-732b-40d2-98db-eda94609dfb0",
+      "parentEventId": "8c79554c-87d2-43ff-b376-ec259189ea97",
+      "payload": {
+        "metadata": {
+          "eventKind": "CODING_TRACE",
+          "eventState": "RUNNING",
+          "codingEventType": "RECOVERY_RECONCILED",
+          "taskId": "native-52020e7844b8bd4a837385bd327d71d07ffcd5c911f99c8164b1330f44126025",
+          "occurredAt": "2026-11-12T06:07:26.238Z",
+          "workerActivity": {
+            "normalizedType": "OBSERVATION",
+            "nativeEventType": "host.shutdown.requested",
+            "nativeEventId": "570",
+            "nativeEvidenceRef": "runtime-evidence:coding:native:d2dfb891fb46959db8022551d26606636d327d170f5cea2ee987908f3d279134",
+            "sessionId": "***",
+            "nativeOccurredAt": "2026-11-12T06:07:23.945Z"
+          }
+        }
+      }
+    },
+    {
+      "eventId": "c912f2f8-d2a1-4bd3-b969-5c2076dd89f9",
+      "sequence": 211,
+      "type": "RUNTIME_OBSERVATION",
+      "status": "RUNNING",
+      "createTime": 1794463647103,
+      "attemptId": "att-1-0a12b927-732b-40d2-98db-eda94609dfb0",
+      "runId": "att-1-0a12b927-732b-40d2-98db-eda94609dfb0",
+      "parentEventId": "8c79554c-87d2-43ff-b376-ec259189ea97",
+      "payload": {
+        "metadata": {
+          "eventKind": "CODING_TRACE",
+          "eventState": "RUNNING",
+          "codingEventType": "RECOVERY_RECONCILED",
+          "taskId": "native-52020e7844b8bd4a837385bd327d71d07ffcd5c911f99c8164b1330f44126025",
+          "occurredAt": "2026-11-12T06:07:26.664Z",
+          "workerActivity": {
+            "normalizedType": "OBSERVATION",
+            "nativeEventType": "delivery.sealed",
+            "nativeEventId": "575",
+            "nativeEvidenceRef": "runtime-evidence:coding:native:05278f083ebdc6fd0d6fd2edc2dd35fe5218dbcfbffa9bc028625146193ad5fe",
+            "sessionId": "***",
+            "nativeOccurredAt": "2026-11-12T06:07:24.994Z"
+          }
+        }
+      }
+    },
+    {
+      "eventId": "306f577d-75f6-42e9-b1d2-41ae5c5484d1",
+      "sequence": 212,
+      "type": "RUNTIME_OBSERVATION",
+      "status": "RUNNING",
+      "createTime": 1794463647127,
+      "attemptId": "att-1-0a12b927-732b-40d2-98db-eda94609dfb0",
+      "runId": "att-1-0a12b927-732b-40d2-98db-eda94609dfb0",
+      "parentEventId": "8c79554c-87d2-43ff-b376-ec259189ea97",
+      "payload": {
+        "metadata": {
+          "eventKind": "CODING_TRACE",
+          "eventState": "RUNNING",
+          "codingEventType": "RECOVERY_RECONCILED",
+          "taskId": "native-52020e7844b8bd4a837385bd327d71d07ffcd5c911f99c8164b1330f44126025",
+          "occurredAt": "2026-11-12T06:07:26.842Z",
+          "workerActivity": {
+            "normalizedType": "OBSERVATION",
+            "nativeEventType": "delivery.prepared",
+            "nativeEventId": "576",
+            "nativeEvidenceRef": "runtime-evidence:coding:native:c6c05fc379708eb3d25e9e13501217e9b41739996bbf789519b7c0628769ad93",
+            "sessionId": "***",
+            "nativeOccurredAt": "2026-11-12T06:07:25.009Z"
+          }
+        }
+      }
+    },
+    {
+      "eventId": "7b3712bb-73d8-4f3d-b473-753b9c0d4d0a",
+      "sequence": 213,
+      "type": "RUNTIME_OBSERVATION",
+      "status": "SUCCESS",
+      "createTime": 1794463648277,
+      "attemptId": "att-1-0a12b927-732b-40d2-98db-eda94609dfb0",
+      "runId": "att-1-0a12b927-732b-40d2-98db-eda94609dfb0",
+      "parentEventId": "8c79554c-87d2-43ff-b376-ec259189ea97",
+      "payload": {
+        "metadata": {
+          "eventKind": "CODING_TRACE",
+          "eventState": "COMPLETED",
+          "codingEventType": "TASK_FINISHED",
+          "taskId": "native-52020e7844b8bd4a837385bd327d71d07ffcd5c911f99c8164b1330f44126025",
+          "occurredAt": "2026-11-12T06:07:27.880Z"
+        }
+      }
+    },
+    {
+      "eventId": "7b29b13c-b07e-4202-b056-5704f681b60a",
+      "sequence": 214,
+      "type": "RUNTIME_OBSERVATION",
+      "status": "RUNNING",
+      "createTime": 1794463648555,
+      "attemptId": "att-1-0a12b927-732b-40d2-98db-eda94609dfb0",
+      "runId": "att-1-0a12b927-732b-40d2-98db-eda94609dfb0",
+      "parentEventId": "8c79554c-87d2-43ff-b376-ec259189ea97",
+      "payload": {
+        "metadata": {
+          "eventKind": "FILE_ANALYSIS",
+          "eventState": "RUNNING",
+          "stage": "RESULT_VALIDATING"
+        }
+      }
+    },
+    {
+      "eventId": "3b283f98-ebcf-4be6-a48f-6776bea918e3",
+      "sequence": 215,
+      "type": "RUNTIME_OBSERVATION",
+      "status": "SUCCESS",
+      "createTime": 1794463648591,
+      "attemptId": "att-1-0a12b927-732b-40d2-98db-eda94609dfb0",
+      "runId": "att-1-0a12b927-732b-40d2-98db-eda94609dfb0",
+      "parentEventId": "8c79554c-87d2-43ff-b376-ec259189ea97",
+      "payload": {
+        "metadata": {
+          "eventKind": "FILE_ANALYSIS",
+          "eventState": "COMPLETED",
+          "stage": "RESULT_VALIDATING"
+        }
+      }
+    },
+    {
+      "eventId": "5976f0c5-9b9b-4612-8e2f-0905e51fd330",
+      "sequence": 216,
+      "type": "RUNTIME_OBSERVATION",
+      "status": "SUCCESS",
+      "createTime": 1794463648621,
+      "attemptId": "att-1-0a12b927-732b-40d2-98db-eda94609dfb0",
+      "runId": "att-1-0a12b927-732b-40d2-98db-eda94609dfb0",
+      "parentEventId": "8c79554c-87d2-43ff-b376-ec259189ea97",
+      "payload": {
+        "metadata": {}
+      }
+    },
+    {
+      "eventId": "553f59a9-2074-4af3-898a-48e0058aa793",
+      "sequence": 217,
+      "type": "RUNTIME_COMPLETED",
+      "status": "RUNNING",
+      "createTime": 1794463648645,
+      "attemptId": "att-1-0a12b927-732b-40d2-98db-eda94609dfb0",
+      "runId": "att-1-0a12b927-732b-40d2-98db-eda94609dfb0",
+      "parentEventId": "8c79554c-87d2-43ff-b376-ec259189ea97",
+      "payload": {
+        "metadata": {}
+      }
+    },
+    {
+      "eventId": "a91d6005-992f-4b6b-b581-5500685a44e5",
+      "sequence": 218,
+      "type": "THINK",
+      "status": "RUNNING",
+      "createTime": 1794463298675,
+      "attemptId": "att-1-0a12b927-732b-40d2-98db-eda94609dfb0",
+      "runId": "att-1-0a12b927-732b-40d2-98db-eda94609dfb0",
+      "parentEventId": "8c79554c-87d2-43ff-b376-ec259189ea97",
+      "payload": {
+        "metadata": {}
+      }
+    },
+    {
+      "eventId": "9321149d-3031-43c4-a956-9565c7dc364d",
+      "sequence": 219,
+      "type": "ANSWER",
+      "status": "SUCCESS",
+      "createTime": 1794463648715,
+      "attemptId": "att-1-0a12b927-732b-40d2-98db-eda94609dfb0",
+      "runId": "att-1-0a12b927-732b-40d2-98db-eda94609dfb0",
+      "parentEventId": "8c79554c-87d2-43ff-b376-ec259189ea97",
+      "payload": {
+        "metadata": {}
+      }
+    },
+    {
+      "eventId": "9c8a9920-277d-4567-a658-a81d1cd4cfc6",
+      "sequence": 220,
+      "type": "COMPLETE",
+      "status": "SUCCESS",
+      "createTime": 1794463648737,
+      "attemptId": "att-1-0a12b927-732b-40d2-98db-eda94609dfb0",
+      "runId": "att-1-0a12b927-732b-40d2-98db-eda94609dfb0",
+      "parentEventId": "9321149d-3031-43c4-a956-9565c7dc364d",
+      "payload": {
+        "metadata": {}
+      }
+    }
+  ],
+  "analysisEventLimit": 120,
+  "eventCursor": 220,
+  "hasMoreEvents": false,
+  "terminal": true,
+  "answer": "# SYNTHETIC 验收数据核对报告\n\n## 数据来源与验证\n\n- **文件**: SYNTHETIC-market-visualization.csv\n- **引用**: user-asset:43db4c57e86a4c9c80e208b8ab86572d8d3ee3dbd17f62b66ba69339688a9904:5f247adf63b1e98985675eeed7a7da7bbd341a4f6c7db932c758f420fbdb1199\n- **上下文引用**: runtime-context:att-1-0a12b927-732b-40d2-98db-eda94609dfb0\n- **SHA256 校验**: 通过\n\n## 行数核对\n\n- **数据行数**: 3 行（不含表头）\n- **类别**: A, B, C\n- **所属市场**: SSE\n\n## amount 统计\n\n| 指标 | 值 |\n|------|-----|\n| 各值 | 120, 80, 100 |\n| 总和 | 300 |\n| 均值 | 100 |\n\n> 单位未声明，仅报告数值。\n\n## change 统计\n\n| 指标 | 值 |\n|------|-----|\n| 各值 | 2, -1, 0 |\n| 总和 | 1 |\n| 均值 | 0.3333333333333333333333333333 |\n\n> change 为有符号变动，与 amount（存量）不同量纲。\n\n## 各类别对比\n\n| 类别 | change | amount | 方向 |\n|------|--------|--------|------|\n| A | 2 | 120 | 正向 |\n| B | -1 | 80 | 负向 |\n| C | 0 | 100 | 零变动 |\n\n### 零变动说明\n\n**类别 C 的 change = 0**，表示该类别在观测期间无变动（持平）。零变动是实际观测值，不代表缺失数据。\n\n## 量纲分离说明\n\n- **amount**: 现有存量。总和 300，均值 100。\n- **change**: 有符号变动。总和 1，均值 0.3333333333333333333333333333。\n- 两个量纲分开呈现，不混合绘制于同一坐标轴。\n\n## 可视化\n\n### amount 存量对比\n\n![amount](output/charts/amount_by_category.png)\n\namount 使用稳定比较色（蓝/青/紫），不按正负着色。\n\n### change 变动对比\n\n![change](output/charts/change_by_category.png)\n\n采用 **financial-cn** 约定（SSE: 红涨绿跌）：\n- 红色 (#C62828): 正向变动 — 类别 A\n- 绿色 (#16845B): 负向变动 — 类别 B\n- 灰色 (#64748B): 零变动 — 类别 C\n\n### 分项对照\n\n![combined](output/charts/amount_change_combined.png)\n\n左右分栏呈现两个不同量纲。\n\n## 局限性\n\n1. **单位未声明**: amount 和 change 的计量单位均未提供。\n2. **样本量小**: 仅 3 条记录，统计意义有限。\n3. **变动基准未知**: change 的参考基准未声明。\n4. **时间窗口未知**: 观测期间未声明。\n5. **单一数据源**: 仅分析 SYNTHETIC CSV，无外部数据。\n6. **零变动为观测值**: 类别 C 的 change=0 表示持平，非缺失。",
+  "results": [
+    {
+      "reportMarkdown": "# SYNTHETIC 验收数据核对报告\n\n## 数据来源与验证\n\n- **文件**: SYNTHETIC-market-visualization.csv\n- **引用**: user-asset:43db4c57e86a4c9c80e208b8ab86572d8d3ee3dbd17f62b66ba69339688a9904:5f247adf63b1e98985675eeed7a7da7bbd341a4f6c7db932c758f420fbdb1199\n- **上下文引用**: runtime-context:att-1-0a12b927-732b-40d2-98db-eda94609dfb0\n- **SHA256 校验**: 通过\n\n## 行数核对\n\n- **数据行数**: 3 行（不含表头）\n- **类别**: A, B, C\n- **所属市场**: SSE\n\n## amount 统计\n\n| 指标 | 值 |\n|------|-----|\n| 各值 | 120, 80, 100 |\n| 总和 | 300 |\n| 均值 | 100 |\n\n> 单位未声明，仅报告数值。\n\n## change 统计\n\n| 指标 | 值 |\n|------|-----|\n| 各值 | 2, -1, 0 |\n| 总和 | 1 |\n| 均值 | 0.3333333333333333333333333333 |\n\n> change 为有符号变动，与 amount（存量）不同量纲。\n\n## 各类别对比\n\n| 类别 | change | amount | 方向 |\n|------|--------|--------|------|\n| A | 2 | 120 | 正向 |\n| B | -1 | 80 | 负向 |\n| C | 0 | 100 | 零变动 |\n\n### 零变动说明\n\n**类别 C 的 change = 0**，表示该类别在观测期间无变动（持平）。零变动是实际观测值，不代表缺失数据。\n\n## 量纲分离说明\n\n- **amount**: 现有存量。总和 300，均值 100。\n- **change**: 有符号变动。总和 1，均值 0.3333333333333333333333333333。\n- 两个量纲分开呈现，不混合绘制于同一坐标轴。\n\n## 可视化\n\n### amount 存量对比\n\n![amount](output/charts/amount_by_category.png)\n\namount 使用稳定比较色（蓝/青/紫），不按正负着色。\n\n### change 变动对比\n\n![change](output/charts/change_by_category.png)\n\n采用 **financial-cn** 约定（SSE: 红涨绿跌）：\n- 红色 (#C62828): 正向变动 — 类别 A\n- 绿色 (#16845B): 负向变动 — 类别 B\n- 灰色 (#64748B): 零变动 — 类别 C\n\n### 分项对照\n\n![combined](output/charts/amount_change_combined.png)\n\n左右分栏呈现两个不同量纲。\n\n## 局限性\n\n1. **单位未声明**: amount 和 change 的计量单位均未提供。\n2. **样本量小**: 仅 3 条记录，统计意义有限。\n3. **变动基准未知**: change 的参考基准未声明。\n4. **时间窗口未知**: 观测期间未声明。\n5. **单一数据源**: 仅分析 SYNTHETIC CSV，无外部数据。\n6. **零变动为观测值**: 类别 C 的 change=0 表示持平，非缺失。"
+    }
+  ],
+  "visualReport": {
+    "schemaVersion": "python_visual_report.v1",
+    "reportMode": "visual",
+    "title": "SYNTHETIC 验收数据核对报告",
+    "summary": "",
+    "markdown": "# SYNTHETIC 验收数据核对报告\n\n## 数据来源与验证\n\n- **文件**: SYNTHETIC-market-visualization.csv\n- **引用**: user-asset:43db4c57e86a4c9c80e208b8ab86572d8d3ee3dbd17f62b66ba69339688a9904:5f247adf63b1e98985675eeed7a7da7bbd341a4f6c7db932c758f420fbdb1199\n- **上下文引用**: runtime-context:att-1-0a12b927-732b-40d2-98db-eda94609dfb0\n- **SHA256 校验**: 通过\n\n## 行数核对\n\n- **数据行数**: 3 行（不含表头）\n- **类别**: A, B, C\n- **所属市场**: SSE\n\n## amount 统计\n\n| 指标 | 值 |\n|------|-----|\n| 各值 | 120, 80, 100 |\n| 总和 | 300 |\n| 均值 | 100 |\n\n> 单位未声明，仅报告数值。\n\n## change 统计\n\n| 指标 | 值 |\n|------|-----|\n| 各值 | 2, -1, 0 |\n| 总和 | 1 |\n| 均值 | 0.3333333333333333333333333333 |\n\n> change 为有符号变动，与 amount（存量）不同量纲。\n\n## 各类别对比\n\n| 类别 | change | amount | 方向 |\n|------|--------|--------|------|\n| A | 2 | 120 | 正向 |\n| B | -1 | 80 | 负向 |\n| C | 0 | 100 | 零变动 |\n\n### 零变动说明\n\n**类别 C 的 change = 0**，表示该类别在观测期间无变动（持平）。零变动是实际观测值，不代表缺失数据。\n\n## 量纲分离说明\n\n- **amount**: 现有存量。总和 300，均值 100。\n- **change**: 有符号变动。总和 1，均值 0.3333333333333333333333333333。\n- 两个量纲分开呈现，不混合绘制于同一坐标轴。\n\n## 可视化\n\n### amount 存量对比\n\n![amount](output/charts/amount_by_category.png)\n\namount 使用稳定比较色（蓝/青/紫），不按正负着色。\n\n### change 变动对比\n\n![change](output/charts/change_by_category.png)\n\n采用 **financial-cn** 约定（SSE: 红涨绿跌）：\n- 红色 (#C62828): 正向变动 — 类别 A\n- 绿色 (#16845B): 负向变动 — 类别 B\n- 灰色 (#64748B): 零变动 — 类别 C\n\n### 分项对照\n\n![combined](output/charts/amount_change_combined.png)\n\n左右分栏呈现两个不同量纲。\n\n## 局限性\n\n1. **单位未声明**: amount 和 change 的计量单位均未提供。\n2. **样本量小**: 仅 3 条记录，统计意义有限。\n3. **变动基准未知**: change 的参考基准未声明。\n4. **时间窗口未知**: 观测期间未声明。\n5. **单一数据源**: 仅分析 SYNTHETIC CSV，无外部数据。\n6. **零变动为观测值**: 类别 C 的 change=0 表示持平，非缺失。\n",
+    "status": "SUCCESS",
+    "presentation": {
+      "density": "comfortable",
+      "autoCharts": true,
+      "strategy": "auto",
+      "template": "briefing",
+      "autoImages": true,
+      "scenario": "financial-analysis",
+      "styleProfile": "financial-cn"
+    },
+    "metrics": [],
+    "tables": [],
+    "charts": [
+      {
+        "kind": "png",
+        "caption": "",
+        "id": "native-chart-1",
+        "title": "amount_change_combined.png",
+        "artifact": {
+          "mediaType": "image/png",
+          "fileId": "7b5945b54fb0453c9d21de1313accadb4960f6f06ac65993cec41581cdd2d86b",
+          "size": 76001,
+          "fileName": "amount_change_combined.png",
+          "sha256": "9593035e556a46576cc57c03f8f4db68f02b4810075ac993e13e0e363dcb8346"
+        }
+      },
+      {
+        "kind": "png",
+        "caption": "",
+        "id": "native-chart-2",
+        "title": "change_by_category.png",
+        "artifact": {
+          "mediaType": "image/png",
+          "fileId": "7206956f000f599d738aab3fcc6c88082c6f63554da418c8ca5976dd6d58342c",
+          "size": 63062,
+          "fileName": "change_by_category.png",
+          "sha256": "45bbb21b6ba38d803785f5f449474b046320c88e00bb6be66f359e9b7a10dfe2"
+        }
+      },
+      {
+        "kind": "png",
+        "caption": "",
+        "id": "native-chart-3",
+        "title": "amount_by_category.png",
+        "artifact": {
+          "mediaType": "image/png",
+          "fileId": "bc65b086aadd124cb4c4b9e1c9d658ce74eee7d5a820858510bb7707d7429da2",
+          "size": 37997,
+          "fileName": "amount_by_category.png",
+          "sha256": "e418ec829aa44d7ec4b1a0f353863733470f52b82ade4a8ad632693f3446a3e4"
+        }
+      }
+    ],
+    "sections": [
+      {
+        "chartIds": [
+          "native-chart-1",
+          "native-chart-2",
+          "native-chart-3"
+        ],
+        "tableIds": [],
+        "id": "native-report-body",
+        "title": "报告正文",
+        "narrative": "# SYNTHETIC 验收数据核对报告\n\n## 数据来源与验证\n\n- **文件**: SYNTHETIC-market-visualization.csv\n- **引用**: user-asset:43db4c57e86a4c9c80e208b8ab86572d8d3ee3dbd17f62b66ba69339688a9904:5f247adf63b1e98985675eeed7a7da7bbd341a4f6c7db932c758f420fbdb1199\n- **上下文引用**: runtime-context:att-1-0a12b927-732b-40d2-98db-eda94609dfb0\n- **SHA256 校验**: 通过\n\n## 行数核对\n\n- **数据行数**: 3 行（不含表头）\n- **类别**: A, B, C\n- **所属市场**: SSE\n\n## amount 统计\n\n| 指标 | 值 |\n|------|-----|\n| 各值 | 120, 80, 100 |\n| 总和 | 300 |\n| 均值 | 100 |\n\n> 单位未声明，仅报告数值。\n\n## change 统计\n\n| 指标 | 值 |\n|------|-----|\n| 各值 | 2, -1, 0 |\n| 总和 | 1 |\n| 均值 | 0.3333333333333333333333333333 |\n\n> change 为有符号变动，与 amount（存量）不同量纲。\n\n## 各类别对比\n\n| 类别 | change | amount | 方向 |\n|------|--------|--------|------|\n| A | 2 | 120 | 正向 |\n| B | -1 | 80 | 负向 |\n| C | 0 | 100 | 零变动 |\n\n### 零变动说明\n\n**类别 C 的 change = 0**，表示该类别在观测期间无变动（持平）。零变动是实际观测值，不代表缺失数据。\n\n## 量纲分离说明\n\n- **amount**: 现有存量。总和 300，均值 100。\n- **change**: 有符号变动。总和 1，均值 0.3333333333333333333333333333。\n- 两个量纲分开呈现，不混合绘制于同一坐标轴。\n\n## 可视化\n\n### amount 存量对比\n\n![amount](output/charts/amount_by_category.png)\n\namount 使用稳定比较色（蓝/青/紫），不按正负着色。\n\n### change 变动对比\n\n![change](output/charts/change_by_category.png)\n\n采用 **financial-cn** 约定（SSE: 红涨绿跌）：\n- 红色 (#C62828): 正向变动 — 类别 A\n- 绿色 (#16845B): 负向变动 — 类别 B\n- 灰色 (#64748B): 零变动 — 类别 C\n\n### 分项对照\n\n![combined](output/charts/amount_change_combined.png)\n\n左右分栏呈现两个不同量纲。\n\n## 局限性\n\n1. **单位未声明**: amount 和 change 的计量单位均未提供。\n2. **样本量小**: 仅 3 条记录，统计意义有限。\n3. **变动基准未知**: change 的参考基准未声明。\n4. **时间窗口未知**: 观测期间未声明。\n5. **单一数据源**: 仅分析 SYNTHETIC CSV，无外部数据。\n6. **零变动为观测值**: 类别 C 的 change=0 表示持平，非缺失。\n"
+      }
+    ],
+    "dataSources": [
+      "runtime-context:att-1-0a12b927-732b-40d2-98db-eda94609dfb0",
+      "user-asset:43db4c57e86a4c9c80e208b8ab86572d8d3ee3dbd17f62b66ba69339688a9904:5f247adf63b1e98985675eeed7a7da7bbd341a4f6c7db932c758f420fbdb1199"
+    ],
+    "limitations": [
+      "单位未声明：amount 和 change 的计量单位均未在附件中提供。",
+      "样本量小：仅 3 条观测记录。",
+      "变动基准未声明：change 的参考基准未提供。",
+      "时间窗口未知：观测期间未声明。",
+      "单一数据源：仅分析 SYNTHETIC CSV。",
+      "零变动为实际观测值：类别 C 的 change=0 表示持平，不是缺失数据。"
+    ],
+    "validation": {
+      "checks": [],
+      "warnings": []
+    },
+    "validationScope": "STRUCTURE_AND_OBJECT_INTEGRITY",
+    "businessValidationPassed": false
+  },
+  "resultAvailable": true,
+  "provisional": false,
+  "deliveryStatus": "FINAL"
+}

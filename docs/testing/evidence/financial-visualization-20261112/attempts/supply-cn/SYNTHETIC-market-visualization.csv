@@ -1,0 +1,4 @@
+exchange,security,change,amount
+SSE,DEMO_A,2,120
+SSE,DEMO_B,-1,80
+SSE,DEMO_C,0,100

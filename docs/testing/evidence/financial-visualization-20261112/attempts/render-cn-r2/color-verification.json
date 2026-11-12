@@ -1,0 +1,90 @@
+{
+  "passed": false,
+  "scope": "SYNTHETIC_PLUS2_MINUS1_ZERO_FIXTURE_ONLY",
+  "convention": "cn",
+  "checks": {
+    "actualDirectionalPlotPresent": false,
+    "allInspectedDirectionRegionsMatchFixture": false,
+    "neutralComparisonSeriesPresent": false
+  },
+  "files": [
+    {
+      "file": "chart-1.png",
+      "sha256": "3af1247a44d5327140ead1cfb17432386ee0772722756c23900ce3619403eed2",
+      "size": [
+        1784,
+        697
+      ],
+      "pixelCounts": {
+        "red": 0,
+        "green": 0,
+        "flat": 0,
+        "blue": 0,
+        "teal": 0,
+        "purple": 0,
+        "ochre": 0
+      },
+      "colorCentroidY": {
+        "red": null,
+        "green": null,
+        "flat": null,
+        "blue": null,
+        "teal": null,
+        "purple": null,
+        "ochre": null
+      }
+    },
+    {
+      "file": "chart-2.png",
+      "sha256": "f776f78c6e160634c727edc3c78295bbe617b0d591c7143f680f277900a1ae27",
+      "size": [
+        1183,
+        658
+      ],
+      "pixelCounts": {
+        "red": 0,
+        "green": 0,
+        "flat": 0,
+        "blue": 0,
+        "teal": 0,
+        "purple": 0,
+        "ochre": 0
+      },
+      "colorCentroidY": {
+        "red": null,
+        "green": null,
+        "flat": null,
+        "blue": null,
+        "teal": null,
+        "purple": null,
+        "ochre": null
+      }
+    },
+    {
+      "file": "chart-3.png",
+      "sha256": "71c184f775ae621a933a9af08f4d3dd5582b2ad95a8195e99d83295f6ef6f04c",
+      "size": [
+        1182,
+        659
+      ],
+      "pixelCounts": {
+        "red": 0,
+        "green": 0,
+        "flat": 0,
+        "blue": 0,
+        "teal": 0,
+        "purple": 0,
+        "ochre": 0
+      },
+      "colorCentroidY": {
+        "red": null,
+        "green": null,
+        "flat": null,
+        "blue": null,
+        "teal": null,
+        "purple": null,
+        "ochre": null
+      }
+    }
+  ]
+}

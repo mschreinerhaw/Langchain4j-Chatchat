@@ -1,0 +1,67 @@
+{
+  "passed": true,
+  "scope": "REAL_DEPLOYED_EXPLORATION_NATIVE_SILO",
+  "startedAt": "2026-11-12T05:29:44.902Z",
+  "workspaceId": "04df8b90-60e1-44d0-a1d7-24c66de977d5",
+  "nodeId": "e347805b-9cee-4ab1-964f-5fa2168ed9c8",
+  "inputSha256": "5f247adf63b1e98985675eeed7a7da7bbd341a4f6c7db932c758f420fbdb1199",
+  "styleProfile": "financial-cn",
+  "charts": [
+    {
+      "path": "chart-1.png",
+      "title": "chart_combined.png",
+      "sha256": "3af1247a44d5327140ead1cfb17432386ee0772722756c23900ce3619403eed2"
+    },
+    {
+      "path": "chart-2.png",
+      "title": "chart_change.png",
+      "sha256": "f776f78c6e160634c727edc3c78295bbe617b0d591c7143f680f277900a1ae27"
+    },
+    {
+      "path": "chart-3.png",
+      "title": "chart_amount.png",
+      "sha256": "71c184f775ae621a933a9af08f4d3dd5582b2ad95a8195e99d83295f6ef6f04c"
+    }
+  ],
+  "sourceFiles": [],
+  "agentTaskId": "1649ed4e-35eb-33c1-8a28-42faf85f0a12",
+  "chartSha256": "3af1247a44d5327140ead1cfb17432386ee0772722756c23900ce3619403eed2",
+  "eventCount": 177,
+  "nativeTypes": [
+    "OBSERVATION",
+    "MODEL_REQUEST_STARTED",
+    "TOOL_STARTED",
+    "TOOL_COMPLETED",
+    "MODEL_REQUEST_COMPLETED",
+    "FILE_CHANGED",
+    "COMMAND_STARTED",
+    "COMMAND_COMPLETED",
+    "ERROR_OCCURRED"
+  ],
+  "stages": [
+    {
+      "key": "model",
+      "label": "模型响应",
+      "value": "已响应"
+    },
+    {
+      "key": "data",
+      "label": "数据供给",
+      "value": "已读取"
+    },
+    {
+      "key": "execution",
+      "label": "Python 执行",
+      "value": "进程已结束"
+    },
+    {
+      "key": "report",
+      "label": "报告交付",
+      "value": "已归档"
+    }
+  ],
+  "actualProductionPage": true,
+  "refreshRetainsChartAndEvents": true,
+  "pageErrors": [],
+  "finishedAt": "2026-11-12T05:34:30.458Z"
+}

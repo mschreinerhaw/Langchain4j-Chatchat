@@ -1,0 +1,97 @@
+✔ legacy disable hints cannot remove authorized image packages or mutate metadata (2.2815ms)
+✔ delivery rejects duplicate source identities; SDK namespaces handle names (1.0198ms)
+✖ image delivery rejects traversal and undeclared resource paths (1.453ms)
+✔ financial scene resources are image-owned and delivered through the existing manifest (1.3049ms)
+✔ native preparation retains one Agent entry and cannot activate a standalone host file reader (316.7316ms)
+✔ official package discovery and service load all image Skills; only native tools are exposed (299.8377ms)
+✔ official skills invocation supplies its root and native read_files loads the requested reference (372.94ms)
+✔ several relevant native Skills can cooperate without loading unrelated bodies (331.0517ms)
+✖ official discovery retains every authorized package beyond metadata query and old catalog limits (1747.5148ms)
+✔ legacy methodology distribution preserves its body and exposes SDK-discovered purpose metadata (195.016ms)
+✔ dynamic original package bytes and resources remain exact; distribution is not model loading (188.2018ms)
+✔ native resource access remains task isolated and cannot read the host or another tenant workspace (407.9393ms)
+✔ revoked dynamic authorization blocks cached native Skill instructions and reference reads (245.227ms)
+✔ staged content tampering is rejected before the native file executor discloses it (222.1355ms)
+✔ SDK discovery resumes at stable task paths after service disposal and redistribution (386.2244ms)
+✔ new Node processes independently rediscover the same authorized original packages (2537.6756ms)
+✔ native Skill can be loaded again after real installed SDK compaction removes its prior output (240.7265ms)
+✔ one real Cline session may skip all Skills and directly propose simple CSV analysis code (147.1443ms)
+ℹ tests 18
+ℹ suites 0
+ℹ pass 16
+ℹ fail 2
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 25082.3641
+
+✖ failing tests:
+
+test at test\builtin-skills.test.js:14:1
+✖ image delivery rejects traversal and undeclared resource paths (1.453ms)
+  AssertionError [ERR_ASSERTION]: The input did not match the regular expression /Python Sandbox/. Input:
+  
+  '---\r\n' +
+    'name: python-data-analysis\r\n' +
+    'description: Analyze delivered Python datasets, inspect quality, join sources, compute statistics and business metrics, and deliver reproducible static charts and Runtime OS reports.\r\n' +
+    'metadata:\r\n' +
+    '  version: 1.3.4\r\n' +
+    '---\r\n' +
+    '\r\n' +
+    '# Python data analysis in Runtime OS\r\n' +
+    '\r\n' +
+    'Use this capability when the objective requires dataset exploration, calculations or charts. Choose the methods warranted by the question and evidence. For reusable program design and tests, also consider `python-code-development`.\r\n' +
+    '\r\n' +
+    '## Input and evidence\r\n' +
+    '\r\n' +
+    "Read the task's input manifest and schema before interpreting storage columns. Runtime OS supplies immutable authorized files; Skills provide methodology only. Use the delivered paths, mappings, presence markers, exact decimal scales and dataset reference IDs. Do not query another database, install packages or infer authorization from examples. Use the execution capability actually advertised by the task: Native Cline tasks run Python through native Shell in their local workspace; managed tasks may advertise `python_execute` for the existing Sandbox. Public supplementary files may be obtained through an authorized `web_download` tool and its verified local path. This Skill itself grants no tool or network authority.\r\n" +
+    '\r\n' +
+    'Inspect row counts, field types, units, date coverage, missing versus null values, duplicate keys and outliers. Preserve identifiers such as customer numbers as strings, including leading zeroes. Report absent fields and incomplete coverage; never invent observations, business definitions, joins, profit, loss or dates.\r\n' +
+    '\r\n' +
+    'For Runtime tabular snapshots, the delivered reader descriptor names the installed checksum-verifying transport functions. They return logical dictionaries and leave source selection and analysis to you. Consult [references/data-methods.md](references/data-methods.md) as needed for original formats, multi-source checks and bounded-memory patterns.\r\n' +
+    '\r\n' +
+    '## Analysis\r\n' +
+    '\r\n' +
+    'Use pandas and NumPy for transformations, profiling and grouped statistics. Use SciPy or scikit-learn when the task calls for statistical tests or models and those packages are already installed in the selected environment. State assumptions, sample size, missing-value treatment and uncertainty. Distinguish descriptive correlation from causation and validate model results with held-out data where applicable.\r\n' +
+    '\r\n' +
+    'Define numerator, denominator, units, population and time window before calculating metrics. Use Decimal for exact financial values; retain full precision until presentation. Sort and align periods before time-series, year-over-year or period-over-period comparisons. Distinguish a missing period from zero activity. Guard zero denominators. Check join key cardinality and reconcile row counts and totals after joins; preaggregate where necessary to prevent multiplying amounts.\r\n' +
+    '\r\n' +
+    '## Charts and delivery\r\n' +
+    '\r\n' +
+    "Use Matplotlib with a noninteractive backend for static charts. Choose line charts for trends, bars for category comparisons, histograms/box plots for distributions, and pie charts only for a small, nonnegative part-to-whole distribution. Label titles, axes, units, legends and dates. Use the environment's configured Chinese fonts; do not download fonts at runtime. Close figures after saving and avoid huge images.\r\n" +
+    '\r\n' +
+    'Use declared currency/scale and comparable valuation, trade or settlement periods; separate monetary values, percentages, percentage points and basis points. Use a restrained research-report style, signed zero baselines and an explicit market color convention. Distinguish orders from fills, cash flows from returns, and observed activity from inferred long-term preferences. Derive every reconciliation label from actual calculations and retain unresolved evidence limits. Consult [references/financial-reporting.md](references/financial-reporting.md) when the objective needs accounting reconciliation, ambiguous flow ordering or portfolio hypotheses. A price trend or other financial topic alone does not require loading that reference.\r\n' +
+    '\r\n' +
+    "Follow the task's existing output row schema, required filenames and visual-report contract. Save charts through the supplied artifact paths and reference only registered artifacts and exact authorized dataset references. A PNG or stdout alone is not the report. Deliver calculated metrics, their basis, data-quality findings, conclusions and explicit limitations. Inspect the actual execution receipt and reviewed report; repair unsupported findings before confirming completion. If required data is unavailable, return the contract's supported limitation/input-required outcome instead of fabricated metrics.\r\n"
+  
+      at TestContext.<anonymous> (file:///D:/IdeaProjects/LangChain4j-AIChat/Langchain4j-Chatchat/coding-agent-node/test/builtin-skills.test.js:16:10)
+      at Test.runInAsyncScope (node:async_hooks:213:14)
+      at Test.run (node:internal/test_runner/test:1106:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:788:18)
+      at Test.postRun (node:internal/test_runner/test:1235:19)
+      at Test.run (node:internal/test_runner/test:1163:12)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:788:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: "---\r\nname: python-data-analysis\r\ndescription: Analyze delivered Python datasets, inspect quality, join sources, compute statistics and business metrics, and deliver reproducible static charts and Runtime OS reports.\r\nmetadata:\r\n  version: 1.3.4\r\n---\r\n\r\n# Python data analysis in Runtime OS\r\n\r\nUse this capability when the objective requires dataset exploration, calculations or charts. Choose the methods warranted by the question and evidence. For reusable program design and tests, also consider `python-code-development`.\r\n\r\n## Input and evidence\r\n\r\nRead the task's input manifest and schema before interpreting storage columns. Runtime OS supplies immutable authorized files; Skills provide methodology only. Use the delivered paths, mappings, presence markers, exact decimal scales and dataset reference IDs. Do not query another database, install packages or infer authorization from examples. Use the execution capability actually advertised by the task: Native Cline tasks run Python through native Shell in their local workspace; managed tasks may advertise `python_execute` for the existing Sandbox. Public supplementary files may be obtained through an authorized `web_download` tool and its verified local path. This Skill itself grants no tool or network authority.\r\n\r\nInspect row counts, field types, units, date coverage, missing versus null values, duplicate keys and outliers. Preserve identifiers such as customer numbers as strings, including leading zeroes. Report absent fields and incomplete coverage; never invent observations, business definitions, joins, profit, loss or dates.\r\n\r\nFor Runtime tabular snapshots, the delivered reader descriptor names the installed checksum-verifying transport functions. They return logical dictionaries and leave source selection and analysis to you. Consult [references/data-methods.md](references/data-methods.md) as needed for original formats, multi-source checks and bounded-memory patterns.\r\n\r\n## Analysis\r\n\r\nUse pandas and NumPy for transformations, profiling and grouped statistics. Use SciPy or scikit-learn when the task calls for statistical tests or models and those packages are already installed in the selected environment. State assumptions, sample size, missing-value treatment and uncertainty. Distinguish descriptive correlation from causation and validate model results with held-out data where applicable.\r\n\r\nDefine numerator, denominator, units, population and time window before calculating metrics. Use Decimal for exact financial values; retain full precision until presentation. Sort and align periods before time-series, year-over-year or period-over-period comparisons. Distinguish a missing period from zero activity. Guard zero denominators. Check join key cardinality and reconcile row counts and totals after joins; preaggregate where necessary to prevent multiplying amounts.\r\n\r\n## Charts and delivery\r\n\r\nUse Matplotlib with a noninteractive backend for static charts. Choose line charts for trends, bars for category comparisons, histograms/box plots for distributions, and pie charts only for a small, nonnegative part-to-whole distribution. Label titles, axes, units, legends and dates. Use the environment's configured Chinese fonts; do not download fonts at runtime. Close figures after saving and avoid huge images.\r\n\r\nUse declared currency/scale and comparable valuation, trade or settlement periods; separate monetary values, percentages, percentage points and basis points. Use a restrained research-report style, signed zero baselines and an explicit market color convention. Distinguish orders from fills, cash flows from returns, and observed activity from inferred long-term preferences. Derive every reconciliation label from actual calculations and retain unresolved evidence limits. Consult [references/financial-reporting.md](references/financial-reporting.md) when the objective needs accounting reconciliation, ambiguous flow ordering or portfolio hypotheses. A price trend or other financial topic alone does not require loading that reference.\r\n\r\nFollow the task's existing output row schema, required filenames and visual-report contract. Save charts through the supplied artifact paths and reference only registered artifacts and exact authorized dataset references. A PNG or stdout alone is not the report. Deliver calculated metrics, their basis, data-quality findings, conclusions and explicit limitations. Inspect the actual execution receipt and reviewed report; repair unsupported findings before confirming completion. If required data is unavailable, return the contract's supported limitation/input-required outcome instead of fabricated metrics.\r\n",
+    expected: /Python Sandbox/,
+    operator: 'match',
+    diff: 'simple'
+  }
+
+test at test\native-skills.test.js:85:1
+✖ official discovery retains every authorized package beyond metadata query and old catalog limits (1747.5148ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  
+  139 !== 138
+  
+      at TestContext.<anonymous> (file:///D:/IdeaProjects/LangChain4j-AIChat/Langchain4j-Chatchat/coding-agent-node/test/native-skills.test.js:96:12)
+      at async Test.run (node:internal/test_runner/test:1113:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:788:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: 139,
+    expected: 138,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }

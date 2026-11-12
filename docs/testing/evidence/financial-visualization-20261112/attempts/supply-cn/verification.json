@@ -1,0 +1,10 @@
+{
+  "passed": false,
+  "scope": "REAL_DEPLOYED_EXPLORATION_NATIVE_SILO",
+  "startedAt": "2026-11-12T05:09:17.382Z",
+  "workspaceId": "d63ad6d0-bc3a-4d96-99d4-50786aca64c3",
+  "nodeId": "027b796d-8d93-4eb1-93d4-2dc1c1157b1d",
+  "inputSha256": "9e9d07cb5c9d58b426f1b0c758a5bcedd57b40c64bbeca6a2914ce6d4721b56b",
+  "error": "Task must finish with a registered deliverable",
+  "finishedAt": "2026-11-12T05:10:12.609Z"
+}

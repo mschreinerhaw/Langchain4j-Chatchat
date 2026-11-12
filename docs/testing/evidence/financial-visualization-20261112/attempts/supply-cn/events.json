@@ -1,0 +1,199 @@
+[
+  {
+    "eventId": "f9583294-4bf9-425c-8da0-b7dca4756712",
+    "sequence": 1,
+    "type": "QUESTION",
+    "status": "PENDING",
+    "createTime": 1794460161932,
+    "attemptId": "att-1-1abda465-fbaf-45e7-91f3-ed38ac10feb4",
+    "runId": "att-1-1abda465-fbaf-45e7-91f3-ed38ac10feb4",
+    "payload": {
+      "metadata": {}
+    }
+  },
+  {
+    "eventId": "e53ad991-7c49-4e95-a408-ad89f86e2f64",
+    "sequence": 2,
+    "type": "STATUS",
+    "status": "RUNNING",
+    "createTime": 1794460162060,
+    "attemptId": "att-1-1abda465-fbaf-45e7-91f3-ed38ac10feb4",
+    "runId": "att-1-1abda465-fbaf-45e7-91f3-ed38ac10feb4",
+    "parentEventId": "f9583294-4bf9-425c-8da0-b7dca4756712",
+    "payload": {
+      "metadata": {}
+    }
+  },
+  {
+    "eventId": "d6c59280-d93d-4b4f-834a-421b0195a25f",
+    "sequence": 3,
+    "type": "STATUS",
+    "status": "WAIT_MODEL",
+    "createTime": 1794460162090,
+    "attemptId": "att-1-1abda465-fbaf-45e7-91f3-ed38ac10feb4",
+    "runId": "att-1-1abda465-fbaf-45e7-91f3-ed38ac10feb4",
+    "parentEventId": "f9583294-4bf9-425c-8da0-b7dca4756712",
+    "payload": {
+      "metadata": {}
+    }
+  },
+  {
+    "eventId": "c337ffee-9463-409d-bdb4-006f33a2c99d",
+    "sequence": 4,
+    "type": "RUNTIME_OBSERVATION",
+    "status": "SUCCESS",
+    "createTime": 1794460162313,
+    "attemptId": "att-1-1abda465-fbaf-45e7-91f3-ed38ac10feb4",
+    "runId": "att-1-1abda465-fbaf-45e7-91f3-ed38ac10feb4",
+    "parentEventId": "f9583294-4bf9-425c-8da0-b7dca4756712",
+    "payload": {
+      "metadata": {}
+    }
+  },
+  {
+    "eventId": "b086a9ee-7564-4fcb-acaf-b88dd533808e",
+    "sequence": 5,
+    "type": "RUNTIME_OBSERVATION",
+    "status": "SUCCESS",
+    "createTime": 1794460162382,
+    "attemptId": "att-1-1abda465-fbaf-45e7-91f3-ed38ac10feb4",
+    "runId": "att-1-1abda465-fbaf-45e7-91f3-ed38ac10feb4",
+    "parentEventId": "f9583294-4bf9-425c-8da0-b7dca4756712",
+    "payload": {
+      "metadata": {}
+    }
+  },
+  {
+    "eventId": "1ff25dd2-0343-473f-b7a8-4f9d2bdf7fa5",
+    "sequence": 6,
+    "type": "RUNTIME_OBSERVATION",
+    "status": "RUNNING",
+    "createTime": 1794460162388,
+    "attemptId": "att-1-1abda465-fbaf-45e7-91f3-ed38ac10feb4",
+    "runId": "att-1-1abda465-fbaf-45e7-91f3-ed38ac10feb4",
+    "parentEventId": "f9583294-4bf9-425c-8da0-b7dca4756712",
+    "payload": {
+      "metadata": {
+        "eventKind": "FILE_ANALYSIS",
+        "eventState": "RUNNING",
+        "stage": "FILE_REFERENCES_PREPARING"
+      }
+    }
+  },
+  {
+    "eventId": "4323f9c1-bcd8-4018-9813-b39747c30544",
+    "sequence": 7,
+    "type": "RUNTIME_OBSERVATION",
+    "status": "SUCCESS",
+    "createTime": 1794460162390,
+    "attemptId": "att-1-1abda465-fbaf-45e7-91f3-ed38ac10feb4",
+    "runId": "att-1-1abda465-fbaf-45e7-91f3-ed38ac10feb4",
+    "parentEventId": "f9583294-4bf9-425c-8da0-b7dca4756712",
+    "payload": {
+      "metadata": {
+        "eventKind": "FILE_ANALYSIS",
+        "eventState": "COMPLETED",
+        "stage": "FILE_REFERENCES_PREPARING"
+      }
+    }
+  },
+  {
+    "eventId": "cd017808-8856-40fa-90f6-0abd6f963af7",
+    "sequence": 8,
+    "type": "RUNTIME_OBSERVATION",
+    "status": "RUNNING",
+    "createTime": 1794460162484,
+    "attemptId": "att-1-1abda465-fbaf-45e7-91f3-ed38ac10feb4",
+    "runId": "att-1-1abda465-fbaf-45e7-91f3-ed38ac10feb4",
+    "parentEventId": "f9583294-4bf9-425c-8da0-b7dca4756712",
+    "payload": {
+      "metadata": {
+        "eventState": "RUNNING"
+      }
+    }
+  },
+  {
+    "eventId": "c901ab9f-ed6a-4a4e-a70c-f449aade7d23",
+    "sequence": 9,
+    "type": "RUNTIME_OBSERVATION",
+    "status": "SUCCESS",
+    "createTime": 1794460207348,
+    "attemptId": "att-1-1abda465-fbaf-45e7-91f3-ed38ac10feb4",
+    "runId": "att-1-1abda465-fbaf-45e7-91f3-ed38ac10feb4",
+    "parentEventId": "f9583294-4bf9-425c-8da0-b7dca4756712",
+    "payload": {
+      "metadata": {
+        "eventState": "COMPLETED"
+      }
+    }
+  },
+  {
+    "eventId": "812a71fb-6090-4b07-b541-5f684504c5f5",
+    "sequence": 10,
+    "type": "RUNTIME_STARTED",
+    "status": "RUNNING",
+    "createTime": 1794460209397,
+    "attemptId": "att-1-1abda465-fbaf-45e7-91f3-ed38ac10feb4",
+    "runId": "att-1-1abda465-fbaf-45e7-91f3-ed38ac10feb4",
+    "parentEventId": "f9583294-4bf9-425c-8da0-b7dca4756712",
+    "payload": {
+      "metadata": {}
+    }
+  },
+  {
+    "eventId": "f44b29dd-2b12-4dca-a3fa-66fbb4fd5dab",
+    "sequence": 11,
+    "type": "RUNTIME_OBSERVATION",
+    "status": "RUNNING",
+    "createTime": 1794460209524,
+    "attemptId": "att-1-1abda465-fbaf-45e7-91f3-ed38ac10feb4",
+    "runId": "att-1-1abda465-fbaf-45e7-91f3-ed38ac10feb4",
+    "parentEventId": "f9583294-4bf9-425c-8da0-b7dca4756712",
+    "payload": {
+      "metadata": {
+        "eventKind": "FILE_ANALYSIS",
+        "eventState": "RUNNING",
+        "stage": "LOCAL_MARKET_LOADING"
+      }
+    }
+  },
+  {
+    "eventId": "a2f1b25a-6980-47bb-889a-a4b2114a3a35",
+    "sequence": 12,
+    "type": "RUNTIME_FAILED",
+    "status": "FAILED",
+    "createTime": 1794460212936,
+    "attemptId": "att-1-1abda465-fbaf-45e7-91f3-ed38ac10feb4",
+    "runId": "att-1-1abda465-fbaf-45e7-91f3-ed38ac10feb4",
+    "parentEventId": "f9583294-4bf9-425c-8da0-b7dca4756712",
+    "payload": {
+      "metadata": {}
+    }
+  },
+  {
+    "eventId": "9e2c318d-2610-425a-970e-f9a1d87484bd",
+    "sequence": 13,
+    "type": "ERROR",
+    "status": "FAILED",
+    "createTime": 1794460212955,
+    "attemptId": "att-1-1abda465-fbaf-45e7-91f3-ed38ac10feb4",
+    "runId": "att-1-1abda465-fbaf-45e7-91f3-ed38ac10feb4",
+    "parentEventId": "f9583294-4bf9-425c-8da0-b7dca4756712",
+    "payload": {
+      "metadata": {}
+    }
+  },
+  {
+    "eventId": "265ba643-f42c-4222-8487-d481f936d74e",
+    "sequence": 14,
+    "type": "COMPLETE",
+    "status": "FAILED",
+    "createTime": 1794460212958,
+    "attemptId": "att-1-1abda465-fbaf-45e7-91f3-ed38ac10feb4",
+    "runId": "att-1-1abda465-fbaf-45e7-91f3-ed38ac10feb4",
+    "parentEventId": "9e2c318d-2610-425a-970e-f9a1d87484bd",
+    "payload": {
+      "metadata": {}
+    }
+  }
+]

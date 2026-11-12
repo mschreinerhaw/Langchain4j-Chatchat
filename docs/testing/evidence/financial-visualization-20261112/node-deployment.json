@@ -1,0 +1,13 @@
+{
+  "commit": "a4a5bd016bcbd1070d17e939f11040dab76a569e",
+  "node": {
+    "tag": "runtime-os-coding-node:financial-visualization-20261112-r3",
+    "exitCode": 0,
+    "imageId": "sha256:f77ba87c83cfbc0ecdb4397bdc7f17cb3f3b58579d06a052ad4ff8c9f53fdc14"
+  },
+  "apiImage": "sha256:0646027a8e359c071cc642160bbe6e5c0a16cbab9ac5aec46ae6cbd708bd03fb",
+  "rollbackCandidateNode": "sha256:9aa76b1927eb9936240f3d4fe1a5f331fb72b26d73eee7b202b4221814701176",
+  "officialCoreUnchanged": true,
+  "modelCatalogUnchanged": true,
+  "deployedAt": "2026-11-12T06:01:32.491108+00:00"
+}

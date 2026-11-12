@@ -1,0 +1,618 @@
+{
+  "source": "NATIVE_PROVIDER_RECEIPT",
+  "requests": [
+    {
+      "eventId": "18",
+      "eventType": "model.request.started",
+      "requestId": "f30f7298-3db1-4c08-8d3b-09230a712aeb",
+      "model": "qwen3.6-plus",
+      "timestamp": "2026-11-12T06:02:45.031Z"
+    },
+    {
+      "eventId": "19",
+      "eventType": "model.request.completed",
+      "requestId": "f30f7298-3db1-4c08-8d3b-09230a712aeb",
+      "model": "qwen3.6-plus",
+      "providerModel": "qwen3.6-plus",
+      "durationMs": 6580,
+      "usage": {
+        "inputTokens": 7236,
+        "outputTokens": 330,
+        "totalTokens": 7566,
+        "cacheReadTokens": null,
+        "cacheWriteTokens": null,
+        "reasoningTokens": 220,
+        "totalSource": "PROVIDER",
+        "cacheAccounting": "CACHE_IS_INPUT_SUBSET",
+        "raw": {
+          "prompt_tokens": 7236,
+          "total_tokens": 7566,
+          "completion_tokens": 330,
+          "completion_tokens_details": {
+            "reasoning_tokens": 220,
+            "text_tokens": 330
+          }
+        }
+      },
+      "status": "SUCCEEDED",
+      "timestamp": "2026-11-12T06:02:51.612Z"
+    },
+    {
+      "eventId": "20",
+      "eventType": "model.request.started",
+      "requestId": "e07afc25-0f10-4773-8109-4e43929ba180",
+      "model": "qwen3.6-plus",
+      "timestamp": "2026-11-12T06:02:51.763Z"
+    },
+    {
+      "eventId": "21",
+      "eventType": "model.request.completed",
+      "requestId": "e07afc25-0f10-4773-8109-4e43929ba180",
+      "model": "qwen3.6-plus",
+      "providerModel": "qwen3.6-plus",
+      "durationMs": 8726,
+      "usage": {
+        "inputTokens": 8873,
+        "outputTokens": 460,
+        "totalTokens": 9333,
+        "cacheReadTokens": null,
+        "cacheWriteTokens": null,
+        "reasoningTokens": 337,
+        "totalSource": "PROVIDER",
+        "cacheAccounting": "CACHE_IS_INPUT_SUBSET",
+        "raw": {
+          "prompt_tokens": 8873,
+          "total_tokens": 9333,
+          "completion_tokens": 460,
+          "completion_tokens_details": {
+            "reasoning_tokens": 337,
+            "text_tokens": 460
+          }
+        }
+      },
+      "status": "SUCCEEDED",
+      "timestamp": "2026-11-12T06:03:00.490Z"
+    },
+    {
+      "eventId": "22",
+      "eventType": "model.request.started",
+      "requestId": "a67c0703-58e7-4e4f-85c6-503e1ff4c919",
+      "model": "qwen3.6-plus",
+      "timestamp": "2026-11-12T06:03:00.753Z"
+    },
+    {
+      "eventId": "23",
+      "eventType": "model.request.completed",
+      "requestId": "a67c0703-58e7-4e4f-85c6-503e1ff4c919",
+      "model": "qwen3.6-plus",
+      "providerModel": "qwen3.6-plus",
+      "durationMs": 3017,
+      "usage": {
+        "inputTokens": 12133,
+        "outputTokens": 121,
+        "totalTokens": 12254,
+        "cacheReadTokens": null,
+        "cacheWriteTokens": null,
+        "reasoningTokens": 21,
+        "totalSource": "PROVIDER",
+        "cacheAccounting": "CACHE_IS_INPUT_SUBSET",
+        "raw": {
+          "prompt_tokens": 12133,
+          "total_tokens": 12254,
+          "completion_tokens": 121,
+          "completion_tokens_details": {
+            "reasoning_tokens": 21,
+            "text_tokens": 121
+          }
+        }
+      },
+      "status": "SUCCEEDED",
+      "timestamp": "2026-11-12T06:03:03.770Z"
+    },
+    {
+      "eventId": "24",
+      "eventType": "model.request.started",
+      "requestId": "f336931e-6a53-4a12-8ba3-baf8b46192d6",
+      "model": "qwen3.6-plus",
+      "timestamp": "2026-11-12T06:03:04.258Z"
+    },
+    {
+      "eventId": "25",
+      "eventType": "model.request.completed",
+      "requestId": "f336931e-6a53-4a12-8ba3-baf8b46192d6",
+      "model": "qwen3.6-plus",
+      "providerModel": "qwen3.6-plus",
+      "durationMs": 6972,
+      "usage": {
+        "inputTokens": 14062,
+        "outputTokens": 360,
+        "totalTokens": 14422,
+        "cacheReadTokens": null,
+        "cacheWriteTokens": null,
+        "reasoningTokens": 298,
+        "totalSource": "PROVIDER",
+        "cacheAccounting": "CACHE_IS_INPUT_SUBSET",
+        "raw": {
+          "prompt_tokens": 14062,
+          "total_tokens": 14422,
+          "completion_tokens": 360,
+          "completion_tokens_details": {
+            "reasoning_tokens": 298,
+            "text_tokens": 360
+          }
+        }
+      },
+      "status": "SUCCEEDED",
+      "timestamp": "2026-11-12T06:03:11.229Z"
+    },
+    {
+      "eventId": "26",
+      "eventType": "model.request.started",
+      "requestId": "809c4766-470e-457d-a2be-ae7929356e91",
+      "model": "qwen3.6-plus",
+      "timestamp": "2026-11-12T06:03:11.826Z"
+    },
+    {
+      "eventId": "27",
+      "eventType": "model.request.completed",
+      "requestId": "809c4766-470e-457d-a2be-ae7929356e91",
+      "model": "qwen3.6-plus",
+      "providerModel": "qwen3.6-plus",
+      "durationMs": 93699,
+      "usage": {
+        "inputTokens": 14459,
+        "outputTokens": 5448,
+        "totalTokens": 19907,
+        "cacheReadTokens": null,
+        "cacheWriteTokens": null,
+        "reasoningTokens": 14,
+        "totalSource": "PROVIDER",
+        "cacheAccounting": "CACHE_IS_INPUT_SUBSET",
+        "raw": {
+          "prompt_tokens": 14459,
+          "total_tokens": 19907,
+          "completion_tokens": 5448,
+          "completion_tokens_details": {
+            "reasoning_tokens": 14,
+            "text_tokens": 5448
+          }
+        }
+      },
+      "status": "SUCCEEDED",
+      "timestamp": "2026-11-12T06:04:45.524Z"
+    },
+    {
+      "eventId": "28",
+      "eventType": "model.request.started",
+      "requestId": "181e52a4-4da8-4e2c-83de-00a4157b1b7a",
+      "model": "qwen3.6-plus",
+      "timestamp": "2026-11-12T06:04:45.799Z"
+    },
+    {
+      "eventId": "29",
+      "eventType": "model.request.completed",
+      "requestId": "181e52a4-4da8-4e2c-83de-00a4157b1b7a",
+      "model": "qwen3.6-plus",
+      "providerModel": "qwen3.6-plus",
+      "durationMs": 14599,
+      "usage": {
+        "inputTokens": 19987,
+        "outputTokens": 798,
+        "totalTokens": 20785,
+        "cacheReadTokens": null,
+        "cacheWriteTokens": null,
+        "reasoningTokens": 22,
+        "totalSource": "PROVIDER",
+        "cacheAccounting": "CACHE_IS_INPUT_SUBSET",
+        "raw": {
+          "prompt_tokens": 19987,
+          "total_tokens": 20785,
+          "completion_tokens": 798,
+          "completion_tokens_details": {
+            "reasoning_tokens": 22,
+            "text_tokens": 798
+          }
+        }
+      },
+      "status": "SUCCEEDED",
+      "timestamp": "2026-11-12T06:05:00.397Z"
+    },
+    {
+      "eventId": "30",
+      "eventType": "model.request.started",
+      "requestId": "347078a5-5a7b-4a5c-9378-3e09c88a6ea3",
+      "model": "qwen3.6-plus",
+      "timestamp": "2026-11-12T06:05:00.825Z"
+    },
+    {
+      "eventId": "31",
+      "eventType": "model.request.completed",
+      "requestId": "347078a5-5a7b-4a5c-9378-3e09c88a6ea3",
+      "model": "qwen3.6-plus",
+      "providerModel": "qwen3.6-plus",
+      "durationMs": 1888,
+      "usage": {
+        "inputTokens": 20886,
+        "outputTokens": 62,
+        "totalTokens": 20948,
+        "cacheReadTokens": null,
+        "cacheWriteTokens": null,
+        "reasoningTokens": 23,
+        "totalSource": "PROVIDER",
+        "cacheAccounting": "CACHE_IS_INPUT_SUBSET",
+        "raw": {
+          "prompt_tokens": 20886,
+          "total_tokens": 20948,
+          "completion_tokens": 62,
+          "completion_tokens_details": {
+            "reasoning_tokens": 23,
+            "text_tokens": 62
+          }
+        }
+      },
+      "status": "SUCCEEDED",
+      "timestamp": "2026-11-12T06:05:02.713Z"
+    },
+    {
+      "eventId": "32",
+      "eventType": "model.request.started",
+      "requestId": "fa41da40-2ae3-4d07-822c-ceea3c329325",
+      "model": "qwen3.6-plus",
+      "timestamp": "2026-11-12T06:05:06.090Z"
+    },
+    {
+      "eventId": "33",
+      "eventType": "model.request.completed",
+      "requestId": "fa41da40-2ae3-4d07-822c-ceea3c329325",
+      "model": "qwen3.6-plus",
+      "providerModel": "qwen3.6-plus",
+      "durationMs": 11297,
+      "usage": {
+        "inputTokens": 21075,
+        "outputTokens": 623,
+        "totalTokens": 21698,
+        "cacheReadTokens": null,
+        "cacheWriteTokens": null,
+        "reasoningTokens": 311,
+        "totalSource": "PROVIDER",
+        "cacheAccounting": "CACHE_IS_INPUT_SUBSET",
+        "raw": {
+          "prompt_tokens": 21075,
+          "total_tokens": 21698,
+          "completion_tokens": 623,
+          "completion_tokens_details": {
+            "reasoning_tokens": 311,
+            "text_tokens": 623
+          }
+        }
+      },
+      "status": "SUCCEEDED",
+      "timestamp": "2026-11-12T06:05:17.387Z"
+    },
+    {
+      "eventId": "34",
+      "eventType": "model.request.started",
+      "requestId": "120ad985-924c-47e1-9c55-b8bac970ce9a",
+      "model": "qwen3.6-plus",
+      "timestamp": "2026-11-12T06:05:17.972Z"
+    },
+    {
+      "eventId": "35",
+      "eventType": "model.request.completed",
+      "requestId": "120ad985-924c-47e1-9c55-b8bac970ce9a",
+      "model": "qwen3.6-plus",
+      "providerModel": "qwen3.6-plus",
+      "durationMs": 13563,
+      "usage": {
+        "inputTokens": 22139,
+        "outputTokens": 760,
+        "totalTokens": 22899,
+        "cacheReadTokens": null,
+        "cacheWriteTokens": null,
+        "reasoningTokens": 68,
+        "totalSource": "PROVIDER",
+        "cacheAccounting": "CACHE_IS_INPUT_SUBSET",
+        "raw": {
+          "prompt_tokens": 22139,
+          "total_tokens": 22899,
+          "completion_tokens": 760,
+          "completion_tokens_details": {
+            "reasoning_tokens": 68,
+            "text_tokens": 760
+          }
+        }
+      },
+      "status": "SUCCEEDED",
+      "timestamp": "2026-11-12T06:05:31.534Z"
+    },
+    {
+      "eventId": "36",
+      "eventType": "model.request.started",
+      "requestId": "2bc84686-4d3a-46b6-964f-06c834f2a28f",
+      "model": "qwen3.6-plus",
+      "timestamp": "2026-11-12T06:05:31.853Z"
+    },
+    {
+      "eventId": "37",
+      "eventType": "model.request.completed",
+      "requestId": "2bc84686-4d3a-46b6-964f-06c834f2a28f",
+      "model": "qwen3.6-plus",
+      "providerModel": "qwen3.6-plus",
+      "durationMs": 27107,
+      "usage": {
+        "inputTokens": 22991,
+        "outputTokens": 1536,
+        "totalTokens": 24527,
+        "cacheReadTokens": null,
+        "cacheWriteTokens": null,
+        "reasoningTokens": 9,
+        "totalSource": "PROVIDER",
+        "cacheAccounting": "CACHE_IS_INPUT_SUBSET",
+        "raw": {
+          "prompt_tokens": 22991,
+          "total_tokens": 24527,
+          "completion_tokens": 1536,
+          "completion_tokens_details": {
+            "reasoning_tokens": 9,
+            "text_tokens": 1536
+          }
+        }
+      },
+      "status": "SUCCEEDED",
+      "timestamp": "2026-11-12T06:05:58.958Z"
+    },
+    {
+      "eventId": "38",
+      "eventType": "model.request.started",
+      "requestId": "9baaa76d-6821-4190-8521-619af05f4194",
+      "model": "qwen3.6-plus",
+      "timestamp": "2026-11-12T06:05:59.374Z"
+    },
+    {
+      "eventId": "39",
+      "eventType": "model.request.completed",
+      "requestId": "9baaa76d-6821-4190-8521-619af05f4194",
+      "model": "qwen3.6-plus",
+      "providerModel": "qwen3.6-plus",
+      "durationMs": 46767,
+      "usage": {
+        "inputTokens": 24639,
+        "outputTokens": 2694,
+        "totalTokens": 27333,
+        "cacheReadTokens": null,
+        "cacheWriteTokens": null,
+        "reasoningTokens": 9,
+        "totalSource": "PROVIDER",
+        "cacheAccounting": "CACHE_IS_INPUT_SUBSET",
+        "raw": {
+          "prompt_tokens": 24639,
+          "total_tokens": 27333,
+          "completion_tokens": 2694,
+          "completion_tokens_details": {
+            "reasoning_tokens": 9,
+            "text_tokens": 2694
+          }
+        }
+      },
+      "status": "SUCCEEDED",
+      "timestamp": "2026-11-12T06:06:46.139Z"
+    },
+    {
+      "eventId": "40",
+      "eventType": "model.request.started",
+      "requestId": "4ad4a3a2-03d2-4621-a8a6-6c5947f03a82",
+      "model": "qwen3.6-plus",
+      "timestamp": "2026-11-12T06:06:46.382Z"
+    },
+    {
+      "eventId": "41",
+      "eventType": "model.request.completed",
+      "requestId": "4ad4a3a2-03d2-4621-a8a6-6c5947f03a82",
+      "model": "qwen3.6-plus",
+      "providerModel": "qwen3.6-plus",
+      "durationMs": 2222,
+      "usage": {
+        "inputTokens": 27447,
+        "outputTokens": 58,
+        "totalTokens": 27505,
+        "cacheReadTokens": null,
+        "cacheWriteTokens": null,
+        "reasoningTokens": 17,
+        "totalSource": "PROVIDER",
+        "cacheAccounting": "CACHE_IS_INPUT_SUBSET",
+        "raw": {
+          "prompt_tokens": 27447,
+          "total_tokens": 27505,
+          "completion_tokens": 58,
+          "completion_tokens_details": {
+            "reasoning_tokens": 17,
+            "text_tokens": 58
+          }
+        }
+      },
+      "status": "SUCCEEDED",
+      "timestamp": "2026-11-12T06:06:48.604Z"
+    },
+    {
+      "eventId": "42",
+      "eventType": "model.request.started",
+      "requestId": "ca57ba6d-3651-4ba6-94ec-294978f5daab",
+      "model": "qwen3.6-plus",
+      "timestamp": "2026-11-12T06:06:51.360Z"
+    },
+    {
+      "eventId": "43",
+      "eventType": "model.request.completed",
+      "requestId": "ca57ba6d-3651-4ba6-94ec-294978f5daab",
+      "model": "qwen3.6-plus",
+      "providerModel": "qwen3.6-plus",
+      "durationMs": 5366,
+      "usage": {
+        "inputTokens": 27611,
+        "outputTokens": 263,
+        "totalTokens": 27874,
+        "cacheReadTokens": null,
+        "cacheWriteTokens": null,
+        "reasoningTokens": 16,
+        "totalSource": "PROVIDER",
+        "cacheAccounting": "CACHE_IS_INPUT_SUBSET",
+        "raw": {
+          "prompt_tokens": 27611,
+          "total_tokens": 27874,
+          "completion_tokens": 263,
+          "completion_tokens_details": {
+            "reasoning_tokens": 16,
+            "text_tokens": 263
+          }
+        }
+      },
+      "status": "SUCCEEDED",
+      "timestamp": "2026-11-12T06:06:56.726Z"
+    },
+    {
+      "eventId": "44",
+      "eventType": "model.request.started",
+      "requestId": "84915e35-5a66-47c5-87ed-5f691c624667",
+      "model": "qwen3.6-plus",
+      "timestamp": "2026-11-12T06:06:57.010Z"
+    },
+    {
+      "eventId": "45",
+      "eventType": "model.request.completed",
+      "requestId": "84915e35-5a66-47c5-87ed-5f691c624667",
+      "model": "qwen3.6-plus",
+      "providerModel": "qwen3.6-plus",
+      "durationMs": 1866,
+      "usage": {
+        "inputTokens": 28912,
+        "outputTokens": 57,
+        "totalTokens": 28969,
+        "cacheReadTokens": null,
+        "cacheWriteTokens": null,
+        "reasoningTokens": 16,
+        "totalSource": "PROVIDER",
+        "cacheAccounting": "CACHE_IS_INPUT_SUBSET",
+        "raw": {
+          "prompt_tokens": 28912,
+          "total_tokens": 28969,
+          "completion_tokens": 57,
+          "completion_tokens_details": {
+            "reasoning_tokens": 16,
+            "text_tokens": 57
+          }
+        }
+      },
+      "status": "SUCCEEDED",
+      "timestamp": "2026-11-12T06:06:58.876Z"
+    },
+    {
+      "eventId": "46",
+      "eventType": "model.request.started",
+      "requestId": "2cd3d079-c4a9-49e0-99cd-432aa9214406",
+      "model": "qwen3.6-plus",
+      "timestamp": "2026-11-12T06:06:59.370Z"
+    },
+    {
+      "eventId": "47",
+      "eventType": "model.request.completed",
+      "requestId": "2cd3d079-c4a9-49e0-99cd-432aa9214406",
+      "model": "qwen3.6-plus",
+      "providerModel": "qwen3.6-plus",
+      "durationMs": 3638,
+      "usage": {
+        "inputTokens": 30222,
+        "outputTokens": 156,
+        "totalTokens": 30378,
+        "cacheReadTokens": null,
+        "cacheWriteTokens": null,
+        "reasoningTokens": 15,
+        "totalSource": "PROVIDER",
+        "cacheAccounting": "CACHE_IS_INPUT_SUBSET",
+        "raw": {
+          "prompt_tokens": 30222,
+          "total_tokens": 30378,
+          "completion_tokens": 156,
+          "completion_tokens_details": {
+            "reasoning_tokens": 15,
+            "text_tokens": 156
+          }
+        }
+      },
+      "status": "SUCCEEDED",
+      "timestamp": "2026-11-12T06:07:03.007Z"
+    },
+    {
+      "eventId": "48",
+      "eventType": "model.request.started",
+      "requestId": "495e3743-200b-4d65-8b23-b61fc0cfcbd8",
+      "model": "qwen3.6-plus",
+      "timestamp": "2026-11-12T06:07:03.400Z"
+    },
+    {
+      "eventId": "49",
+      "eventType": "model.request.completed",
+      "requestId": "495e3743-200b-4d65-8b23-b61fc0cfcbd8",
+      "model": "qwen3.6-plus",
+      "providerModel": "qwen3.6-plus",
+      "durationMs": 8868,
+      "usage": {
+        "inputTokens": 30544,
+        "outputTokens": 461,
+        "totalTokens": 31005,
+        "cacheReadTokens": null,
+        "cacheWriteTokens": null,
+        "reasoningTokens": 25,
+        "totalSource": "PROVIDER",
+        "cacheAccounting": "CACHE_IS_INPUT_SUBSET",
+        "raw": {
+          "prompt_tokens": 30544,
+          "total_tokens": 31005,
+          "completion_tokens": 461,
+          "completion_tokens_details": {
+            "reasoning_tokens": 25,
+            "text_tokens": 461
+          }
+        }
+      },
+      "status": "SUCCEEDED",
+      "timestamp": "2026-11-12T06:07:12.267Z"
+    },
+    {
+      "eventId": "50",
+      "eventType": "model.request.started",
+      "requestId": "d192bd07-ce50-473f-8aa4-410a517e81c0",
+      "model": "qwen3.6-plus",
+      "timestamp": "2026-11-12T06:07:12.972Z"
+    },
+    {
+      "eventId": "51",
+      "eventType": "model.request.completed",
+      "requestId": "d192bd07-ce50-473f-8aa4-410a517e81c0",
+      "model": "qwen3.6-plus",
+      "providerModel": "qwen3.6-plus",
+      "durationMs": 9392,
+      "usage": {
+        "inputTokens": 31365,
+        "outputTokens": 496,
+        "totalTokens": 31861,
+        "cacheReadTokens": null,
+        "cacheWriteTokens": null,
+        "reasoningTokens": 16,
+        "totalSource": "PROVIDER",
+        "cacheAccounting": "CACHE_IS_INPUT_SUBSET",
+        "raw": {
+          "prompt_tokens": 31365,
+          "total_tokens": 31861,
+          "completion_tokens": 496,
+          "completion_tokens_details": {
+            "reasoning_tokens": 16,
+            "text_tokens": 496
+          }
+        }
+      },
+      "status": "SUCCEEDED",
+      "timestamp": "2026-11-12T06:07:22.364Z"
+    }
+  ],
+  "requestCount": 17
+}

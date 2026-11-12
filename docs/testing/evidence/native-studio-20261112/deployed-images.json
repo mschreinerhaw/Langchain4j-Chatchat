@@ -1,0 +1,42 @@
+{
+  "runtime-os-app-stage-api-1": {
+    "image": "sha256:84ee8ab548eef454179143ec4c9e6f7420e7bde5c6bbdfd2a22581ddf1fa7043",
+    "state": "running",
+    "containerId": "a975100c1126c27e5a3409776b2f0aeb7aaea619a1890a8319d0e0b840ff09d3",
+    "sourceRevision": "283ff32566b7dc36db0f2de50fd310f4f59dbafb",
+    "repoDigests": []
+  },
+  "runtime-coding-studio-gateway": {
+    "image": "sha256:969c49ecf5fd15d3f259439f4d8e61690299d7468dd3198ec1ee2f4f5cac78f4",
+    "state": "running",
+    "containerId": "72bac7676d76e32ac2e78fc7bb5881a8060f8a278b33ad715e6767a249e827a7",
+    "sourceRevision": "283ff32566b7dc36db0f2de50fd310f4f59dbafb",
+    "repoDigests": []
+  },
+  "runtime-coding-studio-executor": {
+    "image": "sha256:60641b46986f7b260de9e89c491f9bb956ca0322038dbbc034683390a448953a",
+    "state": "running",
+    "containerId": "97382361af4d303cce64c7fb1a7742b9450f08af69ec337af09eabde65c69d2f"
+  },
+  "runtime-coding-integrated-node": {
+    "image": "sha256:60641b46986f7b260de9e89c491f9bb956ca0322038dbbc034683390a448953a",
+    "state": "running",
+    "containerId": "7b3eabed60e5b73678f6fd73d88b1fd492f5086387bfe3c6da074696b24cc9e3"
+  },
+  "runtime-os-app-stage-mcp-1": {
+    "image": "sha256:8e4ce47bbd085aa93162c588922ec4a49a57f297364bcbc8f012e0965d3d468a",
+    "state": "running",
+    "containerId": "b82f9b452684d7bf7cd1853a046a8e05cdad1e1cf0e893e76e2cd40157dd3bac"
+  },
+  "runtime-os-app-stage-news-1": {
+    "image": "sha256:bb3eb1e22e3d14582f6df98d83a7cfbe8f31f6ad9b4bce7b80e5adc32fa9a40c",
+    "state": "running",
+    "containerId": "9eaace46b770cb2c230d2b1e6764b8b9c3da6ff007414d226b375dd0cae9f745"
+  },
+  "verification": {
+    "sharedApiNamespace": true,
+    "unauthenticatedNativeHealth": 401,
+    "sourceCommit": "283ff32566b7dc36db0f2de50fd310f4f59dbafb",
+    "observedAt": "2026-11-12T15:21:52.551867+00:00"
+  }
+}

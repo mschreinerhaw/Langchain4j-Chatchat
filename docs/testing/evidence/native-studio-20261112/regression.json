@@ -1,0 +1,39 @@
+{
+  "java": [
+    {
+      "name": "com.chatchat.api.runtime.coding.cline.ClineRuntimeModelBridgeTest",
+      "tests": "25",
+      "errors": "0",
+      "failures": "0",
+      "skipped": "0"
+    },
+    {
+      "name": "com.chatchat.api.datascience.python.PythonCodeAssistantServiceTest",
+      "tests": "12",
+      "errors": "0",
+      "failures": "0",
+      "skipped": "0"
+    },
+    {
+      "name": "com.chatchat.api.controller.datascience.PythonStudioIdentityTest",
+      "tests": "1",
+      "errors": "0",
+      "failures": "0",
+      "skipped": "0"
+    },
+    {
+      "name": "com.chatchat.api.runtime.coding.workspace.CodingWorkspaceServiceTest",
+      "tests": "13",
+      "errors": "0",
+      "failures": "0",
+      "skipped": "13"
+    }
+  ],
+  "node": {
+    "tests": 36,
+    "pass": 36,
+    "fail": 0,
+    "skipped": 0,
+    "command": "node --test cline-agent-server/test/workspace-native.test.mjs cline-agent-server/test/business-protocol.test.mjs cline-agent-server/test/business-recovery.test.mjs cline-agent-server/test/business-prompt.test.mjs"
+  }
+}

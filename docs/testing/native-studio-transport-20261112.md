@@ -48,3 +48,16 @@ python3 scripts/deploy-native-studio.py --image sha256:<已检查的镜像ID>
 - Oracle 部分检索和详细对象索引返回过 502 / METADATA_INDEX_MISS。授权目录枚举及最终目录说明已验证；不宣称所有外部数据库索引和网络都正常。
 - Studio 的成功表示源码候选经过解析并归档，业务语义及数据库执行不属于该成功状态。实际执行仍走现有用户授权入口。
 - 修复前使用登录名创建的 Python 失败任务不自动重放；请使用新请求执行。
+
+## 最终源码镜像复验与归档
+
+源码提交：`283ff32566b7dc36db0f2de50fd310f4f59dbafb`。随后重新上传该提交的源码构建镜像，并在新容器中复验：
+
+- API：`runtime-os-api:native-studio-20261112-r3`，image ID `sha256:84ee8ab548eef454179143ec4c9e6f7420e7bde5c6bbdfd2a22581ddf1fa7043`。
+- Studio gateway：`runtime-os-coding-node:native-studio-20261112-r1`，image ID `sha256:969c49ecf5fd15d3f259439f4d8e61690299d7468dd3198ec1ee2f4f5cac78f4`。
+- 两个镜像的源码 revision 均与上述提交一致；未推送新镜像仓库，RepoDigest 为空，不将本地 image ID 冒充仓库 Digest。
+- 新 SQL 任务 `sql-coding-a5b96b21-3313-4e3f-ae54-761b69eb3b2c` 成功，新 Python 任务 `python-coding-e699aa8fec44bd500e792bd481648d278d3cfa71d63ad3c1578852ba92dafa55` 完成；新生成的 4 项 Python unittest 再次全部通过。
+- 已核对 gateway 与当前 Java 容器网络命名空间一致，无认证访问 Native health 返回 401。既有 S3 Node、MCP、News 运行中。
+- 归档日志后删除本次专用 Executor 的 8 个已停止测试 Worker，以及 4 个无引用的中间候选镜像；保留运行镜像、回滚镜像和状态/证据，不删除卷，不执行全局清理。实际可用空间增加 524,288 字节。
+
+脱敏回执、真实模型 Token、镜像、回归和清理记录见 [evidence/native-studio-20261112](evidence/native-studio-20261112/acceptance.json)。原始事件、模型响应、目录检索结果、构建日志和回滚配置保存在服务器 `/opt/runtime-os/releases/native-studio-20261112-r3/`、`/opt/runtime-os/cn2/studio-state/`；必要的私有测试产物同时保存在 r2 发布目录。

@@ -1,0 +1,15 @@
+test_mixed_sign (test_arithmetic.TestAdd.test_mixed_sign)
+A positive and a negative number should cancel partially. ... ok
+test_negative_inputs (test_arithmetic.TestAdd.test_negative_inputs)
+Adding two negative numbers should yield their negative sum. ... ok
+test_positive_integers (test_arithmetic.TestAdd.test_positive_integers)
+2 + 3 should equal 5. ... ok
+test_zero (test_arithmetic.TestAdd.test_zero)
+Adding zero should return the other operand. ... ok
+
+----------------------------------------------------------------------
+Ran 4 tests in 0.001s
+
+OK
+
+exit=0

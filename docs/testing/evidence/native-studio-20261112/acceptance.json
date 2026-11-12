@@ -1,0 +1,351 @@
+{
+  "at": "2026-11-12T15:22:33.001277+00:00",
+  "tasks": [
+    {
+      "scenario": "sql-generation",
+      "taskId": "sql-coding-27f3a36f-678e-4647-824d-ed078b16c718",
+      "status": "COMPLETED",
+      "workerStopped": true,
+      "modelRequests": 2,
+      "modelReceipts": [
+        {
+          "operationId": "model-1",
+          "model": "qwen3.7-plus",
+          "providerModel": "qwen3.7-plus",
+          "usage": {
+            "inputTokens": 12399,
+            "outputTokens": 416,
+            "cacheReadTokens": 0,
+            "reasoningTokens": 208
+          },
+          "durationMs": 8460,
+          "error": null
+        },
+        {
+          "operationId": "model-2",
+          "model": "qwen3.7-plus",
+          "providerModel": "qwen3.7-plus",
+          "usage": {
+            "inputTokens": 13306,
+            "outputTokens": 413,
+            "cacheReadTokens": 0,
+            "reasoningTokens": 192
+          },
+          "durationMs": 7967,
+          "error": null
+        }
+      ],
+      "runtimeTools": [
+        "workspace_propose"
+      ],
+      "officialCompletionObserved": true,
+      "journalSha256": "1a800f66aab9c31b504bc70d8e196e868d8f11a18aea7254a3d626c5adc066a4"
+    },
+    {
+      "scenario": "python-multifile",
+      "taskId": "python-coding-bb18f5de443cbf406c19934196a719fc120fee39e0da30edf5b3d950d0f0d4ad",
+      "status": "COMPLETED",
+      "workerStopped": true,
+      "modelRequests": 2,
+      "modelReceipts": [
+        {
+          "operationId": "model-1",
+          "model": "qwen3.7-plus",
+          "providerModel": "qwen3.7-plus",
+          "usage": {
+            "inputTokens": 12527,
+            "outputTokens": 775,
+            "cacheReadTokens": 2304,
+            "reasoningTokens": 151
+          },
+          "durationMs": 13569,
+          "error": null
+        },
+        {
+          "operationId": "model-2",
+          "model": "qwen3.7-plus",
+          "providerModel": "qwen3.7-plus",
+          "usage": {
+            "inputTokens": 13843,
+            "outputTokens": 392,
+            "cacheReadTokens": 2304,
+            "reasoningTokens": 118
+          },
+          "durationMs": 8236,
+          "error": null
+        }
+      ],
+      "runtimeTools": [
+        "workspace_propose"
+      ],
+      "officialCompletionObserved": true,
+      "journalSha256": "2ca03f70ff01bdb3c5d4347f0d1d9a6b65a6012f5d796e58f877d81a30f02750"
+    },
+    {
+      "scenario": "alternate-model",
+      "taskId": "python-coding-49e716ba0698cfce17b763ddd1441f78835b20d4197898730516b46a3f20d088",
+      "status": "COMPLETED",
+      "workerStopped": true,
+      "modelRequests": 2,
+      "modelReceipts": [
+        {
+          "operationId": "model-1",
+          "model": "qwen3.6-plus",
+          "providerModel": "qwen3.6-plus",
+          "usage": {
+            "inputTokens": 12518,
+            "outputTokens": 359,
+            "reasoningTokens": 131
+          },
+          "durationMs": 7229,
+          "error": null
+        },
+        {
+          "operationId": "model-2",
+          "model": "qwen3.6-plus",
+          "providerModel": "qwen3.6-plus",
+          "usage": {
+            "inputTokens": 13381,
+            "outputTokens": 223,
+            "reasoningTokens": 39
+          },
+          "durationMs": 4801,
+          "error": null
+        }
+      ],
+      "runtimeTools": [
+        "workspace_propose"
+      ],
+      "officialCompletionObserved": true,
+      "journalSha256": "322450716e5ad5098dc3172b770d13b537957100864b5754384bc77c1b38fe2b"
+    },
+    {
+      "scenario": "oracle-metadata",
+      "taskId": "sql-coding-62d2a687-eb3f-47bf-828c-f3fe9cb9ded8",
+      "status": "COMPLETED",
+      "workerStopped": true,
+      "modelRequests": 6,
+      "modelReceipts": [
+        {
+          "operationId": "model-1",
+          "model": "qwen3.7-plus",
+          "providerModel": "qwen3.7-plus",
+          "usage": {
+            "inputTokens": 12507,
+            "outputTokens": 138,
+            "cacheReadTokens": 0,
+            "reasoningTokens": 88
+          },
+          "durationMs": 3517,
+          "error": null
+        },
+        {
+          "operationId": "model-2",
+          "model": "qwen3.7-plus",
+          "providerModel": "qwen3.7-plus",
+          "usage": {
+            "inputTokens": 13365,
+            "outputTokens": 257,
+            "cacheReadTokens": 2304,
+            "reasoningTokens": 86
+          },
+          "durationMs": 5326,
+          "error": null
+        },
+        {
+          "operationId": "model-3",
+          "model": "qwen3.7-plus",
+          "providerModel": "qwen3.7-plus",
+          "usage": {
+            "inputTokens": 14638,
+            "outputTokens": 285,
+            "cacheReadTokens": 2304,
+            "reasoningTokens": 182
+          },
+          "durationMs": 5788,
+          "error": null
+        },
+        {
+          "operationId": "model-4",
+          "model": "qwen3.7-plus",
+          "providerModel": "qwen3.7-plus",
+          "usage": {
+            "inputTokens": 15000,
+            "outputTokens": 387,
+            "cacheReadTokens": 2304,
+            "reasoningTokens": 35
+          },
+          "durationMs": 7526,
+          "error": null
+        },
+        {
+          "operationId": "model-5",
+          "model": "qwen3.7-plus",
+          "providerModel": "qwen3.7-plus",
+          "usage": {
+            "inputTokens": 30603,
+            "outputTokens": 987,
+            "cacheReadTokens": 2304,
+            "reasoningTokens": 179
+          },
+          "durationMs": 19541,
+          "error": null
+        },
+        {
+          "operationId": "model-6",
+          "model": "qwen3.7-plus",
+          "providerModel": "qwen3.7-plus",
+          "usage": {
+            "inputTokens": 31989,
+            "outputTokens": 470,
+            "cacheReadTokens": 2304,
+            "reasoningTokens": 269
+          },
+          "durationMs": 9602,
+          "error": null
+        }
+      ],
+      "runtimeTools": [
+        "workspace_read",
+        "workspace_metadata",
+        "workspace_metadata",
+        "workspace_metadata",
+        "workspace_metadata",
+        "workspace_metadata",
+        "workspace_metadata",
+        "workspace_metadata",
+        "workspace_propose"
+      ],
+      "officialCompletionObserved": true,
+      "journalSha256": "66077512f44316514de0d5acb5d02a6e48f1d488a39b80a1527820d51e275434"
+    },
+    {
+      "scenario": "final-image-sql",
+      "taskId": "sql-coding-a5b96b21-3313-4e3f-ae54-761b69eb3b2c",
+      "status": "COMPLETED",
+      "workerStopped": true,
+      "modelRequests": 3,
+      "modelReceipts": [
+        {
+          "operationId": "model-1",
+          "model": "qwen3.7-plus",
+          "providerModel": "qwen3.7-plus",
+          "usage": {
+            "inputTokens": 12399,
+            "outputTokens": 142,
+            "cacheReadTokens": 0,
+            "reasoningTokens": 123
+          },
+          "durationMs": 3890,
+          "error": null
+        },
+        {
+          "operationId": "model-2",
+          "model": "qwen3.7-plus",
+          "providerModel": "qwen3.7-plus",
+          "usage": {
+            "inputTokens": 13317,
+            "outputTokens": 398,
+            "cacheReadTokens": 2304,
+            "reasoningTokens": 128
+          },
+          "durationMs": 7666,
+          "error": null
+        },
+        {
+          "operationId": "model-3",
+          "model": "qwen3.7-plus",
+          "providerModel": "qwen3.7-plus",
+          "usage": {
+            "inputTokens": 14310,
+            "outputTokens": 177,
+            "cacheReadTokens": 2304,
+            "reasoningTokens": 46
+          },
+          "durationMs": 4183,
+          "error": null
+        }
+      ],
+      "runtimeTools": [
+        "workspace_read",
+        "workspace_propose"
+      ],
+      "officialCompletionObserved": true,
+      "journalSha256": "a2e9e52d92263ec3e790f44f3501e86445d94d1d1ea5fa05f6ec1b05748e85ba"
+    },
+    {
+      "scenario": "final-image-python",
+      "taskId": "python-coding-e699aa8fec44bd500e792bd481648d278d3cfa71d63ad3c1578852ba92dafa55",
+      "status": "COMPLETED",
+      "workerStopped": true,
+      "modelRequests": 2,
+      "modelReceipts": [
+        {
+          "operationId": "model-1",
+          "model": "qwen3.7-plus",
+          "providerModel": "qwen3.7-plus",
+          "usage": {
+            "inputTokens": 12526,
+            "outputTokens": 603,
+            "cacheReadTokens": 2304,
+            "reasoningTokens": 122
+          },
+          "durationMs": 10794,
+          "error": null
+        },
+        {
+          "operationId": "model-2",
+          "model": "qwen3.7-plus",
+          "providerModel": "qwen3.7-plus",
+          "usage": {
+            "inputTokens": 13675,
+            "outputTokens": 297,
+            "cacheReadTokens": 2304,
+            "reasoningTokens": 67
+          },
+          "durationMs": 5858,
+          "error": null
+        }
+      ],
+      "runtimeTools": [
+        "workspace_propose"
+      ],
+      "officialCompletionObserved": true,
+      "journalSha256": "f2b935646536855207cfe56daabd9c85736be65e153a16f22005137ca503483c"
+    }
+  ],
+  "failedCandidates": [
+    {
+      "taskId": "sql-coding-105836f8-2758-4fb3-a205-4ebe2041de30",
+      "status": "UNKNOWN",
+      "error": "No route or static resource found: internal/coding/cline/preflight",
+      "workerCreated": false,
+      "workerStopped": false,
+      "journalSha256": "b424eec7e77837d6eeee01fd3ff61a439c0077883b73d6abb6aa00d5a1ab20d0"
+    },
+    {
+      "taskId": "python-coding-d313bfe1bee33b96319db2c84a2373800e67b02c220c64cc2161b677e3cad45a",
+      "status": "UNKNOWN",
+      "error": "No route or static resource found: internal/coding/cline/preflight",
+      "workerCreated": false,
+      "workerStopped": false,
+      "journalSha256": "4e751bd6dcdccd760b654eb71e0b3971843176f95133ad06290a1bceee51ed5e"
+    },
+    {
+      "taskId": "sql-coding-ced7a756-11ca-4ed1-9a96-fe15050e9af7",
+      "status": "FAILED",
+      "error": "Native execution requires reconciliation or user input: failed",
+      "workerCreated": true,
+      "workerStopped": true,
+      "journalSha256": "e6f2eb4f8fd4b2494e3674f90cac70e32227d98c14afa1ec637e839fa808aa0b"
+    },
+    {
+      "taskId": "sql-coding-a7ae5ba3-d8d7-43a2-886f-20c01c7abcbf",
+      "status": "UNKNOWN",
+      "error": "Native execution requires reconciliation or user input: failed",
+      "workerCreated": true,
+      "workerStopped": true,
+      "journalSha256": "926c6fb8b3e65c490db863b580054e3607779a14a85a74dd80c0f18d9da390b4"
+    }
+  ]
+}

@@ -1,5 +1,6 @@
 import {getStoredAuthSession} from '../../services/api';
 import {workspaceHeaders} from './workspaceContext';
+import {sha256} from '@noble/hashes/sha256';
 
 const mime=path=>({'js':'text/javascript','css':'text/css','json':'application/json','csv':'text/csv','txt':'text/plain','png':'image/png','jpg':'image/jpeg','jpeg':'image/jpeg','svg':'image/svg+xml','webp':'image/webp','woff':'font/woff','woff2':'font/woff2','html':'text/html'}[path.split('.').pop().toLowerCase()]||'application/octet-stream');
 const policy="default-src 'none'; script-src 'unsafe-inline' data:; style-src 'unsafe-inline'; img-src data:; font-src data:; connect-src 'none'; frame-src 'none'; object-src 'none'; base-uri 'none'; form-action 'none'";
@@ -20,7 +21,8 @@ export async function assembleHtmlReport(bundle){
     if(!file.path||file.path.startsWith('/')||file.path.includes('\\')||file.path.split('/').some(p=>!p||p==='.'||p==='..')||files.has(file.path))throw new Error('报告资源路径无效');
     const bytes=Uint8Array.from(atob(file.content),c=>c.charCodeAt(0));total+=bytes.length;
     if(bytes.length!==file.size||bytes.length>8*1024*1024||total>24*1024*1024)throw new Error('报告资源大小校验失败');
-    const hash=Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256',bytes)),x=>x.toString(16).padStart(2,'0')).join('');
+    const digest=globalThis.crypto?.subtle?new Uint8Array(await crypto.subtle.digest('SHA-256',bytes)):sha256(bytes);
+    const hash=Array.from(digest,x=>x.toString(16).padStart(2,'0')).join('');
     if(hash!==file.sha256)throw new Error('报告资源完整性校验失败');
     files.set(file.path,{...file,text:new TextDecoder().decode(bytes),type:mime(file.path)});
   }

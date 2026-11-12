@@ -20,3 +20,8 @@ it('removes redirects, embedded browsing contexts and navigational links',async(
  const html=await assembleHtmlReport(await bundle('<meta http-equiv="refresh" content="0;url=https://example.org"><iframe src="https://example.org"></iframe><a href="https://example.org" ping="https://example.org">Source</a>'));
  const doc=new DOMParser().parseFromString(html,'text/html');expect(doc.querySelector('iframe')).toBeNull();expect(doc.querySelector('a').hasAttribute('href')).toBe(false);expect(doc.querySelector('meta[http-equiv="refresh"]')).toBeNull();
 });
+it('still verifies hashes on HTTP where Web Crypto is unavailable',async()=>{
+ Object.defineProperty(globalThis,'crypto',{value:{},configurable:true});
+ try{const value=await bundle('<h1>HTTP report</h1>');expect(await assembleHtmlReport(value)).toContain('HTTP report');value.files[0].sha256='0'.repeat(64);await expect(assembleHtmlReport(value)).rejects.toThrow();}
+ finally{Object.defineProperty(globalThis,'crypto',{value:webcrypto,configurable:true});}
+});

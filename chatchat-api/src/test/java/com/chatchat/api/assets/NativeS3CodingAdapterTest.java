@@ -32,7 +32,7 @@ class NativeS3CodingAdapterTest {
     JsonNode grant,manifest;boolean created,messaged,sealed;final AtomicInteger messageCalls=new AtomicInteger();
     volatile boolean blockStatus;
     final java.util.concurrent.CountDownLatch blockedStatus=new java.util.concurrent.CountDownLatch(1),releaseStatus=new java.util.concurrent.CountDownLatch(1);
-    volatile boolean asynchronousStop,missingStoppedTelemetry;volatile long stopReadyAt;
+    volatile boolean asynchronousStop,missingStoppedTelemetry,rejectAllocation;volatile long stopReadyAt;
     final byte[] output="{\"value\":42}".getBytes(java.nio.charset.StandardCharsets.UTF_8);
     @BeforeEach void setup()throws Exception{
         fixture=new SiloCodingWorkspaceServiceTest();fixture.setup();
@@ -93,12 +93,23 @@ class NativeS3CodingAdapterTest {
             assertThat(authorized(()->tasks.privateState(fixture.scope,"native-restart","native-s3:binding"))).isNotNull();
         }finally{releaseStatus.countDown();}
     }
+    @Test void capacityRejectedTaskCancelsWithoutInventingAWorkerStopReceipt()throws Exception{
+        rejectAllocation=true;
+        String file=fixture.assets.upload(fixture.owner,"input.csv","value\n42\n".getBytes()).id();
+        var contract=authorized(()->capture.capture(fixture.scope,"native-capacity",List.of(file),"Queued task","published-model",new CodingTaskContract.Budget("capacity-budget",Instant.now().plusSeconds(90).truncatedTo(java.time.temporal.ChronoUnit.MILLIS),-1,-1,-1,-1,"unlimited","USD",-1,1024*1024,1024*1024),Map.of("profile","artifact-integrity-v1"),List.of("RESULT")));
+        authorized(()->adapter.submit(contract));
+        for(int i=0;i<100&&authorized(()->tasks.privateState(fixture.scope,"native-capacity","native-s3:binding"))==null;i++)Thread.sleep(30);
+        authorized(()->adapter.cancel(fixture.scope,"native-capacity","Owner stopped queued task"));
+        CodingTaskOutcome result=null;for(int i=0;i<100;i++){result=authorized(()->tasks.get(fixture.scope,"native-capacity"));if(result.status().terminal())break;Thread.sleep(50);}
+        assertThat(result.status()).isEqualTo(CodingTaskOutcome.Status.CANCELLED);
+        assertThat(result.summary()).contains("before any external dispatch");assertThat(result.executionReceiptRef()).isNull();assertThat(messageCalls).hasValue(0);assertThat(created).isFalse();
+    }
     private void node(HttpExchange exchange)throws java.io.IOException{
         try{
             String path=exchange.getRequestURI().getPath();byte[] body=exchange.getRequestBody().readAllBytes();JsonNode request=body.length==0?json.createObjectNode():json.readTree(body);
             if(path.equals("/health/live")){reply(exchange,200,Map.of("engine","cline-standalone","version","4.1.26","legacySdkWorker",false));return;}
             String token=exchange.getRequestHeaders().getFirst("Authorization").substring(7);var identity=json.readTree(Base64.getUrlDecoder().decode(token.split("\\.")[0]));
-            if(path.equals("/v1/sessions")){created=true;grant=identity;reply(exchange,201,state());return;}
+            if(path.equals("/v1/sessions")){if(rejectAllocation){reply(exchange,429,Map.of("code","CAPACITY_EXHAUSTED"));return;}created=true;grant=identity;reply(exchange,201,state());return;}
             if(!created){reply(exchange,404,Map.of("code","NOT_FOUND"));return;}
             if(path.endsWith("/status")){if(blockStatus&&messaged){blockedStatus.countDown();releaseStatus.await(5,java.util.concurrent.TimeUnit.SECONDS);}reply(exchange,200,state());return;}
             if(path.endsWith("/observations")||path.endsWith("/receipts")){

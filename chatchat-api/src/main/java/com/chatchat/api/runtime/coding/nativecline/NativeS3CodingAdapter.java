@@ -339,7 +339,16 @@ public final class NativeS3CodingAdapter implements CodingAgentSPI {
         if(ownership.fencingToken()!=r.lease.fencingToken()||!Objects.equals(ownership.owner(),r.lease.owner())||!ownership.leaseUntil().isAfter(Instant.now()))throw new IllegalStateException("Stale Java controller cannot cancel a Native session");
         var b=state(r,BINDING);if(b==null){var prior=outcome(r);if(prior.executionControl().stopReason()!=null)tasks.finishStoppedWithoutExecution(r.c.scope(),r.c.taskId(),prior.revision());return;}
         var ws=workspace.get(r.c.scope(),r.c.taskId());if(!Set.of("COMPLETED","CANCELLED","FAILED").contains(ws.status()))workspace.cancel(r.c.scope(),r.c.taskId(),ws.epoch());
-        settings.client.cancel(b.path("grant").asText(),b.path("sessionId").asText());var remote=settings.client.status(b.path("grant").asText(),b.path("sessionId").asText());
+        JsonNode remote;
+        try{settings.client.cancel(b.path("grant").asText(),b.path("sessionId").asText());remote=settings.client.status(b.path("grant").asText(),b.path("sessionId").asText());}
+        catch(NativeS3NodeClient.NodeException absent){
+            // Host persists the Session before allocating a Worker; objective dispatch is
+            // preceded by our durable message intent. A missing Session alone is NOT proof.
+            if(absent.status()!=404||state(r,"native-s3:message-intent")!=null
+                    ||tasks.hasStartedOperations(r.c.scope(),r.c.taskId())
+                    ||outcome(r).executionControl().stopReason()==null)throw absent;
+            tasks.finishStoppedWithoutExecution(r.c.scope(),r.c.taskId(),outcome(r).revision());return;
+        }
         for(int attempt=0;attempt<150&&!remote.path("stopProof").path("running").isBoolean();attempt++){
             try{Thread.sleep(200);}catch(InterruptedException interrupted){Thread.currentThread().interrupt();throw new IllegalStateException("Stop reconciliation interrupted",interrupted);}
             remote=settings.client.status(b.path("grant").asText(),b.path("sessionId").asText());

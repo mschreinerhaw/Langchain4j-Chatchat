@@ -18,6 +18,8 @@ import org.junit.jupiter.api.io.TempDir;
 import org.springframework.jdbc.datasource.DataSourceTransactionManager;
 import org.springframework.scheduling.concurrent.ThreadPoolTaskScheduler;
 import static org.assertj.core.api.Assertions.*;
+import static org.mockito.Mockito.*;
+import static org.mockito.ArgumentMatchers.*;
 import static com.chatchat.agents.runtime.coding.CodingTaskAccess.Action.*;
 
 /** Real Runtime SQL/Silo registry transactions over an explicit fake Node and
@@ -28,6 +30,7 @@ class NativeS3CodingAdapterTest {
     final CodingInvocationContext identity=new CodingInvocationContext();
     SiloCodingWorkspaceServiceTest fixture;SiloCodingWorkspaceService workspace;
     DurableCodingTaskService tasks;NativeSiloTaskService capture;NativeS3CodingAdapter adapter;
+    NativeS3Evidence nativeEvidence;
     ThreadPoolTaskScheduler scheduler;HttpServer http;
     JsonNode grant,manifest;boolean created,messaged,sealed;final AtomicInteger messageCalls=new AtomicInteger();
     volatile boolean blockStatus;
@@ -44,7 +47,8 @@ class NativeS3CodingAdapterTest {
         http=HttpServer.create(new InetSocketAddress("127.0.0.1",0),0);http.createContext("/",this::node);http.start();
         Path config=directory.resolve("connection.json");Files.writeString(config,json.writeValueAsString(Map.of("endpoint","http://127.0.0.1:"+http.getAddress().getPort(),"issuerKey","k".repeat(64),"defaultModel","published-model","modelProfiles",Map.of("published-model","fixed"))));
         McpLicenseEntitlementPort license=new McpLicenseEntitlementPort(){public CodingDispatchEntitlement codingDispatchEntitlement(){return new CodingDispatchEntitlement(true,"VALID");}};
-        adapter=new NativeS3CodingAdapter(tasks,capture,workspace,new NativeS3Settings(config.toString(),json),new NativeS3Evidence(fixture.assets,store,json),identity,json,fixture.jdbc,license,tx);
+        nativeEvidence=spy(new NativeS3Evidence(fixture.assets,store,json));
+        adapter=new NativeS3CodingAdapter(tasks,capture,workspace,new NativeS3Settings(config.toString(),json),nativeEvidence,identity,json,fixture.jdbc,license,tx);
     }
     @AfterEach void stop(){if(adapter!=null)adapter.close();if(http!=null)http.stop(0);if(scheduler!=null)scheduler.shutdown();}
     <T>T authorized(java.util.function.Supplier<T> action){return identity.as(fixture.scope,Set.of(READ,SUBMIT,WORKER,EVIDENCE,STOP,RECOVER),action);}
@@ -103,6 +107,20 @@ class NativeS3CodingAdapterTest {
         CodingTaskOutcome result=null;for(int i=0;i<100;i++){result=authorized(()->tasks.get(fixture.scope,"native-capacity"));if(result.status().terminal())break;Thread.sleep(50);}
         assertThat(result.status()).isEqualTo(CodingTaskOutcome.Status.CANCELLED);
         assertThat(result.summary()).contains("before any external dispatch");assertThat(result.executionReceiptRef()).isNull();assertThat(messageCalls).hasValue(0);assertThat(created).isFalse();
+    }
+    @Test void cancellationDuringControllerExitRetainsItsWakeup()throws Exception{
+        rejectAllocation=true;
+        var atExit=new java.util.concurrent.CountDownLatch(1);var release=new java.util.concurrent.CountDownLatch(1);
+        doAnswer(call->{atExit.countDown();if(!release.await(5,java.util.concurrent.TimeUnit.SECONDS))throw new AssertionError("Controller exit not released");return call.callRealMethod();})
+            .when(nativeEvidence).archive(any(),eq("control-error"),anyString(),any());
+        String file=fixture.assets.upload(fixture.owner,"race.csv","value\n42\n".getBytes()).id();
+        var contract=authorized(()->capture.capture(fixture.scope,"native-exit-cancel",List.of(file),"Queued task","published-model",new CodingTaskContract.Budget("race-budget",Instant.now().plusSeconds(90).truncatedTo(java.time.temporal.ChronoUnit.MILLIS),-1,-1,-1,-1,"unlimited","USD",-1,1024*1024,1024*1024),Map.of("profile","artifact-integrity-v1"),List.of("RESULT")));
+        try{
+            authorized(()->adapter.submit(contract));assertThat(atExit.await(5,java.util.concurrent.TimeUnit.SECONDS)).isTrue();
+            authorized(()->adapter.cancel(fixture.scope,contract.taskId(),"Stop during exit"));release.countDown();
+            CodingTaskOutcome result=null;for(int i=0;i<100;i++){result=authorized(()->tasks.get(fixture.scope,contract.taskId()));if(result.status().terminal())break;Thread.sleep(50);}
+            assertThat(result.status()).isEqualTo(CodingTaskOutcome.Status.CANCELLED);assertThat(result.executionReceiptRef()).isNull();assertThat(messageCalls).hasValue(0);assertThat(created).isFalse();
+        }finally{release.countDown();}
     }
     private void node(HttpExchange exchange)throws java.io.IOException{
         try{

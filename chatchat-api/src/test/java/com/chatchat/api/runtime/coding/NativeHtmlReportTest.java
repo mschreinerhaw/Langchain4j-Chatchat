@@ -20,9 +20,9 @@ class NativeHtmlReportTest {
         assertThatThrownBy(()->NativeHtmlReport.resources("task","run",List.of(file("one","ARTIFACT","run","output/a.js"),file("two","CODE","run","output/a.js")))).isInstanceOf(IllegalArgumentException.class);
     }
     @Test void htmlOnlyDeliveryProjectsWithoutInventingMarkdownChartsOrBusinessValidation(){
-        var assets=mock(UserAssetService.class);var report=new NativeVisualReport(assets,new ObjectMapper()).project(new KernelDataScope("t","u",null,null,"run",null,Map.of()),"task",Map.of("reportMode","visual"),List.of(),List.of(file("html","ARTIFACT","run","output/site/report.html"))).orElseThrow();
+        var assets=mock(UserAssetService.class);when(assets.readTask(any(),eq("task"),eq("html"))).thenReturn("<title>Actual &amp; Dynamic Title</title>".getBytes(java.nio.charset.StandardCharsets.UTF_8));var report=new NativeVisualReport(assets,new ObjectMapper()).project(new KernelDataScope("t","u",null,null,"run",null,Map.of()),"task",Map.of("reportMode","visual"),List.of(),List.of(file("html","ARTIFACT","run","output/site/report.html"))).orElseThrow();
         assertThat(report).containsKey("htmlReport").containsEntry("markdown","").containsEntry("businessValidationPassed",false);
-        assertThat((List<?>)report.get("charts")).isEmpty();verifyNoInteractions(assets);
+        assertThat((List<?>)report.get("charts")).isEmpty();assertThat(report).containsEntry("title","Actual & Dynamic Title");
         assertThat(NativeVisualReport.instruction(Map.of("reportMode","visual"))).contains("exactly one","HTML","no CDN","Local fetch");
     }
 }

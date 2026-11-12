@@ -45,6 +45,7 @@ public final class NativeS3CodingAdapter implements CodingAgentSPI {
     // HttpClient wraps interrupted IO; Java shutdown must not cancel a live Native session.
     private volatile boolean shuttingDown;
     private final ConcurrentMap<String,Boolean> active=new ConcurrentHashMap<>();
+    private final Set<String> stopWakeups=ConcurrentHashMap.newKeySet();
     private final ThreadPoolExecutor workers=new ThreadPoolExecutor(2,2,0,TimeUnit.SECONDS,new ArrayBlockingQueue<>(128),r->{var t=new Thread(r,"native-s3-control");t.setDaemon(true);return t;});
     @jakarta.annotation.PreDestroy public void close(){shuttingDown=true;workers.shutdownNow();}
     public NativeS3CodingAdapter(DurableCodingTaskService tasks,NativeSiloTaskService inputs,SiloCodingWorkspaceService workspace,
@@ -61,7 +62,13 @@ public final class NativeS3CodingAdapter implements CodingAgentSPI {
         var accepted=tasks.submit(c);if(!accepted.status().terminal())schedule(c);return accepted;
     }
     private void schedule(CodingTaskContract c){String key=key(c.scope(),c.taskId());if(active.putIfAbsent(key,true)!=null)return;
-        try{workers.execute(()->{try{worker(c.scope(),()->{execute(c);return null;});}finally{active.remove(key);}});}catch(RejectedExecutionException busy){active.remove(key);}
+        try{workers.execute(()->{stopWakeups.remove(key);try{worker(c.scope(),()->{execute(c);return null;});}finally{
+            active.remove(key);
+            // A cancellation arriving while the controller exits must not lose
+            // its wakeup. The next pass reads the durable stop fence before any
+            // dispatch; it never starts another Agent loop.
+            if(stopWakeups.remove(key)&&!shuttingDown)schedule(c);
+        }});}catch(RejectedExecutionException busy){active.remove(key);}
     }
     /** Projection is a discovery index only. Every candidate is re-authorized
      * against the authoritative contract and journal before ownership is taken. */
@@ -85,7 +92,7 @@ public final class NativeS3CodingAdapter implements CodingAgentSPI {
         catch(IllegalStateException sealed){if(tasks.get(s,task).status().terminal())return tasks.get(s,task);throw sealed;}
         var binding=tasks.privateState(s,task,BINDING);
         if(binding!=null)try{settings.client.cancel(binding.path("grant").asText(),binding.path("sessionId").asText());}catch(RuntimeException unknown){/* Worker reconciles actual stop. */}
-        schedule(c);return requested;
+        stopWakeups.add(key(s,task));schedule(c);return requested;
     }
     private record Run(CodingTaskContract c,CodingJournal.Lease lease){}
     private CodingTaskOutcome outcome(Run r){return tasks.get(r.c.scope(),r.c.taskId());}

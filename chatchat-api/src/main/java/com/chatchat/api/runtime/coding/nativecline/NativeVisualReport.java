@@ -31,7 +31,11 @@ public final class NativeVisualReport {
         if(html.size()>1)throw new IllegalArgumentException("Exactly one HTML report entry required");
         if(html.size()==1){
             var entry=html.get(0);NativeHtmlReport.path(entry);
-            var result=new LinkedHashMap<String,Object>();result.put("schemaVersion",VisualReportMode.SCHEMA);result.put("reportMode","visual");result.put("status","SUCCESS");result.put("title",Objects.toString(raw.get("title"),"Interactive report"));result.put("summary","");result.put("markdown",markdown);result.put("htmlReport",NativeHtmlReport.descriptor(entry));
+            if(entry.size()>8L*1024*1024)throw new IllegalArgumentException("HTML entry exceeds presentation budget");
+            String content=new String(assets.readTask(scope,task,entry.id()),StandardCharsets.UTF_8);
+            var pageTitle=Pattern.compile("(?is)<title(?:\\s[^>]*)?>([^<]{1,240})</title>").matcher(content);
+            String htmlTitle=pageTitle.find()?org.springframework.web.util.HtmlUtils.htmlUnescape(pageTitle.group(1).trim()):Objects.toString(raw.get("title"),entry.fileName());
+            var result=new LinkedHashMap<String,Object>();result.put("schemaVersion",VisualReportMode.SCHEMA);result.put("reportMode","visual");result.put("status","SUCCESS");result.put("title",htmlTitle);result.put("summary","");result.put("markdown",markdown);result.put("htmlReport",NativeHtmlReport.descriptor(entry));
             result.put("presentation",ReportPresentation.read(context));for(String key:List.of("charts","tables","metrics","sections","limitations","dataSources"))result.put(key,List.of());result.put("validation",Map.of("checks",List.of("TASK_OBJECT_INTEGRITY"),"warnings",List.of()));result.put("validationScope","STRUCTURE_AND_OBJECT_INTEGRITY");result.put("businessValidationPassed",false);return Optional.of(result);
         }
         if(markdown.isBlank())return Optional.empty();

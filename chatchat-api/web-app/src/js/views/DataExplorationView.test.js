@@ -9,9 +9,9 @@ let app,host;const settle=async()=>{for(let i=0;i<15;i++)await nextTick();};
 it('shows delivery facts for a restored completed file task without a retained activity stream',async()=>{
  const state={...structuredClone(space),nodes:[{...node('root'),agentId:undefined,receipt:{taskId:'coding-task',status:'COMPLETED',terminal:true,resultAvailable:true,
   visualReport:{status:'SUCCESS',title:'Archived report',summary:'Verified report',charts:[],execution:{operationId:'own',executorStopped:true,inputSnapshotRef:'snapshot'}}}}]};
- await mount(state);expect(host.querySelector('[aria-label="分析交付状态"]')).not.toBeNull();
- expect(host.querySelector('[aria-label="当前分析阶段"]').textContent).toContain('报告交付成功');
- expect(host.querySelector('[aria-label="分析交付状态"]').textContent).toContain('响应记录待核对');
+ await mount(state);expect(host.querySelector('[aria-label="实时分析活动"]')).toBeNull();
+
+
  expect(api.executeExploration).not.toHaveBeenCalled();
 });
 it('hydrates a failed files own archived stage once and keeps the failure visible',async()=>{
@@ -30,7 +30,7 @@ it('reads restored terminal file progress once without executing or continuously
  const restored=structuredClone(state);restored.version=4;restored.nodes[0].receipt={...state.nodes[0].receipt,progressSnapshotChecked:true,
   analysisEvents:[{payload:{workerActivity:{type:'MODEL_TIMING',status:'SUCCEEDED'}}}]};
  api.explorationNodeStatus.mockResolvedValue(restored);await mount(state);
- await vi.advanceTimersByTimeAsync(1501);await settle();expect(host.querySelector('[aria-label="分析交付状态"]').textContent).toContain('已响应');
+ await vi.advanceTimersByTimeAsync(1501);await settle();expect(host.querySelector('[aria-label="实时分析活动"]')).toBeNull();
  await vi.advanceTimersByTimeAsync(3001);await settle();expect(api.explorationNodeStatus).toHaveBeenCalledTimes(1);expect(api.executeExploration).not.toHaveBeenCalled();
  }finally{vi.useRealTimers();}
 });
@@ -95,15 +95,16 @@ it('does not restore running state when the original submission returns after st
  finish(prepared);await pending;await settle();expect(vm.selectedState.code).toBe('CANCELLED');expect(vm.notice).toContain('已停止');
  expect(vm.space.version).toBe(5);expect(vm.report.title).toBe('客户资产结构');
 });
-it('renders only the selected nodes live analysis events and keeps them after completion',async()=>{
+it('shows compact activity while running and hides it after completion',async()=>{
  const activity={sequence:1,type:'RUNTIME_OBSERVATION',createTime:Date.now(),payload:{metadata:{eventKind:'CODING_TRACE',
    taskId:'task',workerActivity:{type:'TOOL_STARTED',tool:'input_read',toolCallId:'read'}}}};
  const pending={...node('root'),receipt:{agentTaskId:'task',terminal:false,resultAvailable:false,status:'EXECUTING',analysisEvents:[activity]}};
  const vm=await mount({...space,nodes:[pending]});
- expect(host.querySelector('[aria-label="实时分析活动"]').textContent).toContain('正在获取授权数据');
+ expect(host.querySelector('[aria-label="实时分析活动"]').textContent).toContain('分析活动');
  vm.space.nodes[0].receipt.analysisEvents.push({...activity,sequence:2,payload:{metadata:{...activity.payload.metadata,
    workerActivity:{type:'TOOL_FINISHED',tool:'input_read',toolCallId:'read',status:'SUCCEEDED'}}}});
- await settle();expect(host.querySelector('[aria-label="实时分析活动"]').textContent).toContain('数据操作已完成');
+ await settle();expect(host.querySelector('[aria-label="实时分析活动"]').textContent).not.toContain('TOOL_FINISHED');
+ vm.space.nodes[0].receipt={...vm.space.nodes[0].receipt,terminal:true,status:'COMPLETED',resultAvailable:true};await settle();expect(host.querySelector('[aria-label="实时分析活动"]')).toBeNull();
  vm.startRoot();await settle();expect(host.querySelector('[aria-label="实时分析活动"]')).toBeNull();
  expect(api.executeExploration).not.toHaveBeenCalled();
 });

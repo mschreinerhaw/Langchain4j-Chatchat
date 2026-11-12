@@ -335,16 +335,12 @@ public class FinancialDataStore {
             market,market,term,like,like,term,term,Math.max(1,Math.min(requestedLimit,20)));
     }
 
-    /** One bounded daily-hot SQL snapshot. Weekly history cannot establish a full trading day. */
+    /** Complete single-source/day export. Interactive row limits do not truncate file delivery. */
     public Map<String,Object> daySnapshot(String dataset,LocalDate day,long sourceId) {
         if(day==null||sourceId<1)throw new IllegalArgumentException("Exact trading day and source required");
-        int ceiling=properties.getMaxDaySnapshotRows();
-        if(ceiling<1||ceiling>10000)throw new IllegalStateException("Invalid daily snapshot ceiling");
         var filters=new LinkedHashMap<String,Object>();filters.put("source_id",sourceId);
         if(schemaFields(FinancialDatasetDefinition.normalizeCode(dataset)).containsKey("legal_risk"))filters.put("legal_risk",false);
-        var result=queryBounded(dataset,filters,day,day,ceiling+1,"daily",ceiling+1);
-        int count=((Number)result.get("count")).intValue();
-        if(count>ceiling)throw new IllegalStateException("DAY_SNAPSHOT_ROW_LIMIT: no complete daily snapshot delivered");
+        var result=queryBounded(dataset,filters,day,day,0,"daily",null);
         result.put("complete",true);result.put("trade_date",day.toString());result.put("source_id",sourceId);
         result.put("coverage","Complete stored daily-hot observations for this dataset/source/day; not proof of full exchange collection. Missing days are not trading-calendar evidence.");
         return result;
@@ -502,7 +498,7 @@ public class FinancialDataStore {
         return queryBounded(datasetCode,filters,startDate,endDate,requestedLimit,requestedHistoryMode,properties.getMaxQueryLimit());
     }
     private Map<String,Object> queryBounded(String datasetCode,Map<String,Object> filters,LocalDate startDate,
-            LocalDate endDate,int requestedLimit,String requestedHistoryMode,int maximumRows) {
+            LocalDate endDate,int requestedLimit,String requestedHistoryMode,Integer maximumRows) {
         boolean acquired = false;
         try {
             acquired = queryPermits.tryAcquire(
@@ -521,7 +517,7 @@ public class FinancialDataStore {
 
     private Map<String, Object> queryInsideBulkhead(String datasetCode, Map<String, Object> filters,
                                                     LocalDate startDate, LocalDate endDate, int requestedLimit,
-                                                    String requestedHistoryMode,int maximumRows) {
+                                                    String requestedHistoryMode,Integer maximumRows) {
         CancellationSupport.throwIfCancelled("financial data query");
         long startedAt = System.currentTimeMillis();
         String code = FinancialDatasetDefinition.normalizeCode(datasetCode);
@@ -532,7 +528,7 @@ public class FinancialDataStore {
         String archiveTable = archiveValue == null || String.valueOf(archiveValue).isBlank()
             ? archiveTable(table) : identifier(String.valueOf(archiveValue));
         Map<String, String> allowed = schemaFields(code);
-        int limit = Math.max(1, Math.min(requestedLimit <= 0 ? properties.getDefaultQueryLimit() : requestedLimit,
+        Integer limit = maximumRows == null ? null : Math.max(1, Math.min(requestedLimit <= 0 ? properties.getDefaultQueryLimit() : requestedLimit,
             maximumRows));
         String mode = normalizeHistoryMode(requestedHistoryMode);
         log.info("Financial data query started dataset={} table={} filters={} startDate={} endDate={} historyMode={} limit={}",
@@ -558,8 +554,9 @@ public class FinancialDataStore {
             String key = logicalObservationKey(row);
             unique.merge(key, row, this::newerObservation);
         }
-        List<Map<String, Object>> rows = unique.values().stream()
-            .sorted(Comparator.comparing(this::rowSortKey).reversed()).limit(limit).toList();
+        var sortedRows = unique.values().stream().sorted(Comparator.comparing(this::rowSortKey).reversed());
+        List<Map<String, Object>> rows = (limit == null ? sortedRows : sortedRows.limit(limit)).toList();
+        CancellationSupport.throwIfCancelled("financial data query completed");
         Map<String, Object> result = new LinkedHashMap<>();
         result.put("dataset", code);
         result.put("asset", asset);
@@ -568,11 +565,13 @@ public class FinancialDataStore {
         result.put("count", rows.size());
         result.put("rows", rows);
         result.put("retention_policy", retentionPolicy());
-        result.put("query_constraints", Map.of(
-            "max_rows", maximumRows,
-            "read_only", true,
-            "filter_operators", List.of("exact", "Like"),
-            "selection_strategy", "latest_stable_observation_then_batch_diversity"));
+        var constraints = new LinkedHashMap<String,Object>();
+        if (maximumRows != null) constraints.put("max_rows", maximumRows);
+        constraints.put("row_limit_applied", maximumRows != null);
+        constraints.put("read_only", true);
+        constraints.put("filter_operators", List.of("exact", "Like"));
+        constraints.put("selection_strategy", "latest_stable_observation_then_batch_diversity");
+        result.put("query_constraints", constraints);
         log.info("Financial data query completed dataset={} table={} storageTiers={} returnedRows={} durationMs={}",
             code, table, tiers, rows.size(), System.currentTimeMillis() - startedAt);
         return result;
@@ -887,7 +886,7 @@ public class FinancialDataStore {
 
     private List<Map<String, Object>> queryTable(String table, String code, Map<String, String> allowed,
                                                   Map<String, Object> filters, LocalDate startDate,
-                                                  LocalDate endDate, int limit, String tier) {
+                                                  LocalDate endDate, Integer limit, String tier) {
         // Rank lightweight identities first. Ranking payload_json and every collected field
         // materializes the entire history in H2 even when the caller requests a small page.
         StringBuilder sql = new StringBuilder("select id,observation_date,source_code,source_url,collected_at from `").append(table).append("` where 1=1");
@@ -929,13 +928,13 @@ public class FinancialDataStore {
                 + "order by collected_at desc,id desc) as _group_rank from (")
                 .append(latestIdentity)
                 .append(") latest_rows) diversified_rows "
-                    + "order by observation_date desc,_group_rank asc,collected_at desc,id desc limit ?");
+                    + "order by observation_date desc,_group_rank asc,collected_at desc,id desc");
         } else {
             sql = new StringBuilder("select * from (")
                 .append(latestIdentity)
-                .append(") latest_rows order by observation_date desc,collected_at desc,id desc limit ?");
+                .append(") latest_rows order by observation_date desc,collected_at desc,id desc");
         }
-        args.add(limit);
+        if (limit != null) { sql.append(" limit ?"); args.add(limit); }
         String pageSql = "select observations.* from `" + table + "` observations join (" + sql
             + ") selected on observations.id=selected.id order by selected.observation_date desc,"
             + (filters == null || filters.isEmpty() ? "selected._group_rank asc," : "")

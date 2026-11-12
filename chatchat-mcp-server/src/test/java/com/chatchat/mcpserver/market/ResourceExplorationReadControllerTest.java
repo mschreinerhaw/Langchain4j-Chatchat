@@ -31,7 +31,7 @@ class ResourceExplorationReadControllerTest {
             json.writeValueAsString(Map.of("tool","market_get_history","query",args,"response",result,"evidenceScope","ISOLATED_H2_REAL_STORAGE_AND_MCP_CONTROLLER")));
         assertThatThrownBy(()->real.validDatasetCoverage("not_a_registered_dataset")).isInstanceOf(IllegalArgumentException.class);
     }
-    @Test void dailySnapshotIsBoundedCompleteAndCannotReturnRestrictedRowsOrAcceptRawSql() throws Exception {
+    @Test void dailySnapshotIsCompleteAndCannotReturnRestrictedRowsOrAcceptRawSql() throws Exception {
         var day=java.time.LocalDate.parse("2026-11-05");
         when(store.catalog("quotes")).thenReturn(Map.of("dataset_code","quotes","table_name","private_table"));
         when(store.daySnapshot("quotes",day,6L)).thenReturn(Map.of("complete",true,"rows",List.of(Map.of("quote_code","300608","payload_json","raw")),"coverage","stored source/day"));
@@ -41,6 +41,19 @@ class ResourceExplorationReadControllerTest {
         assertThatThrownBy(()->read("market_get_day_snapshot",Map.of("dataset","quotes","trade_date","2026-11-05","source_id",6,"sql","select *"))).isInstanceOf(IllegalArgumentException.class);
         when(store.daySnapshot("quotes",day,6L)).thenReturn(Map.of("complete",true,"rows",List.of(Map.of("legal_risk",true))));
         assertThatThrownBy(()->read("market_get_day_snapshot",Map.of("dataset","quotes","trade_date","2026-11-05","source_id",6))).isInstanceOf(SecurityException.class);
+    }
+    @Test void dailySnapshotDeliversMoreThanTenThousandRowsAndStillRejectsIncompleteSnapshots() throws Exception {
+        var day=java.time.LocalDate.parse("2026-11-05");
+        var rows=java.util.stream.IntStream.rangeClosed(1,10001)
+            .mapToObj(i->Map.<String,Object>of("quote_code",String.format("%06d",i))).toList();
+        when(store.catalog("quotes")).thenReturn(Map.of("dataset_code","quotes"));
+        when(store.daySnapshot("quotes",day,6L)).thenReturn(Map.of("complete",true,"rows",rows,"coverage","stored source/day"));
+        var args=Map.<String,Object>of("dataset","quotes","trade_date","2026-11-05","source_id",6);
+        var result=read("market_get_day_snapshot",args);
+        assertThat(result).containsEntry("count",10001).containsEntry("complete",true);
+        assertThat((List<?>)result.get("items")).hasSize(10001);
+        when(store.daySnapshot("quotes",day,6L)).thenReturn(Map.of("complete",false,"rows",rows));
+        assertThatThrownBy(()->read("market_get_day_snapshot",args)).hasMessageContaining("Incomplete daily source snapshot");
     }
     final ObjectMapper json=new ObjectMapper().findAndRegisterModules();
     final NewsRuntimeClient news=mock(NewsRuntimeClient.class);

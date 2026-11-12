@@ -26,19 +26,22 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 class FinancialDataStoreTest {
-    @Test void dailyFileSnapshotExceedsInteractiveWindowWithoutTruncationAndRefusesOversizedDelivery() throws Exception {
+    @Test void dailyFileSnapshotExceedsFormerCeilingWithoutTruncatingOrChangingInteractiveLimits() throws Exception {
         var ds=new DriverManagerDataSource("jdbc:h2:mem:daily_snapshot;MODE=MySQL;DATABASE_TO_LOWER=TRUE;DB_CLOSE_DELAY=-1","sa","");
         var jdbc=new JdbcTemplate(ds);var policy=new MarketModuleProperties();
         var store=new FinancialDataStore(jdbc,ds,new ObjectMapper(),policy);store.initialize();
         var source=new MarketSource(6L,"sse_daily_snapshot","SSE snapshot","https://example.test");
         var observations=new java.util.ArrayList<MarketObservation>();
-        for(int i=1;i<=201;i++)observations.add(quote(source,String.format("%06d",i),"Security "+i,"10.50"));
+        for(int i=1;i<=10001;i++)observations.add(quote(source,String.format("%06d",i),"Security "+i,"10.50"));
         store.storeAll(observations);
         assertThat(store.query("market_quote_daily",Map.of("source_id",6),LocalDate.parse("2026-07-23"),LocalDate.parse("2026-07-23"),10000,"daily").get("count")).isEqualTo(200);
         var snapshot=store.daySnapshot("market_quote_daily",LocalDate.parse("2026-07-23"),6);
-        assertThat(snapshot).containsEntry("complete",true).containsEntry("count",201);
-        policy.setMaxDaySnapshotRows(200);
-        assertThatThrownBy(()->store.daySnapshot("market_quote_daily",LocalDate.parse("2026-07-23"),6)).hasMessageContaining("DAY_SNAPSHOT_ROW_LIMIT");
+        assertThat(snapshot).containsEntry("complete",true).containsEntry("count",10001);
+        assertThat((Map<String,Object>)snapshot.get("query_constraints"))
+            .containsEntry("row_limit_applied",false).doesNotContainKey("max_rows");
+        assertThat((List<Map<String,Object>>)snapshot.get("rows")).hasSize(10001)
+            .extracting(row->row.get("quote_code")).contains("000001","010001");
+        assertThat(store.daySnapshot("market_quote_daily",LocalDate.parse("2026-07-23"),7)).containsEntry("count",0);
         assertThatThrownBy(()->store.daySnapshot("market_quote_daily",null,6)).isInstanceOf(IllegalArgumentException.class);
         assertThat(store.daySnapshot("market_quote_daily",LocalDate.parse("2026-07-24"),6)).containsEntry("count",0);
     }

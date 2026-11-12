@@ -65,7 +65,7 @@ public class ResourceExplorationReadController {
                 throw new IllegalArgumentException("Exact source_id required");
             var raw=market.daySnapshot(dataset,day,a.path("source_id").asLong());
             var rows=json.convertValue(raw.get("rows"),new com.fasterxml.jackson.core.type.TypeReference<List<Map<String,Object>>>(){});
-            if(!Boolean.TRUE.equals(raw.get("complete"))||rows.size()>10000)throw new IllegalStateException("Incomplete daily source snapshot");
+            if(!Boolean.TRUE.equals(raw.get("complete")))throw new IllegalStateException("Incomplete daily source snapshot");
             if(rows.stream().anyMatch(row->"true".equalsIgnoreCase(Objects.toString(row.get("legal_risk"),""))))throw new SecurityException("Restricted financial source");
             result=new LinkedHashMap<>();result.put("dataset",dataset);result.put("asset",asset(market.catalog(dataset)));
             result.put("items",rows.stream().map(this::observation).toList());result.put("count",rows.size());result.put("complete",true);

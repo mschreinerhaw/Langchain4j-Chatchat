@@ -1,0 +1,32 @@
+[
+  {
+    "taskId": "native-936aba9b2662d6cd07195fe8321a1b3dc85772ac7afd523657b6f668a1ebf885",
+    "workerId": "1b7422bc-b641-444b-84e9-a68feae6b153",
+    "state": "STOPPED",
+    "removed": true
+  },
+  {
+    "taskId": "native-0402d2b9e53b6856c9ab10712f2c47f034c3902493b171ce68f9962b99a953b9",
+    "workerId": "68045ecb-0f05-4982-b573-e95461000072",
+    "state": "STOPPED",
+    "removed": true
+  },
+  {
+    "taskId": "native-758c3ab4628f0f52d84df00af1fbe1da62ebb5a27362a1209265f9f60a9e2082",
+    "workerId": "85309a58-6a33-4f2b-9d83-874553c8dd04",
+    "state": "STOPPED",
+    "removed": true
+  },
+  {
+    "taskId": "native-c593750c973513c61d5de1729d931426849fbb3a33a146a64888e67764e4ce90",
+    "workerId": "51dcffec-2457-4bfb-8af5-372c8fde60cb",
+    "state": "STOPPED",
+    "removed": true
+  },
+  {
+    "taskId": "native-17ed7eeb88516bbad0bf0c8aec5262dfdaec9220532c47670169b50269480912",
+    "workerId": "cdabfd8f-c24d-4223-9c0e-5042315dad71",
+    "state": "STOPPED",
+    "removed": true
+  }
+]

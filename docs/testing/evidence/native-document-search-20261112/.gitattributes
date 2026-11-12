@@ -1,0 +1,4 @@
+# Preserve original delivered bytes for SHA-256 verification on Windows checkouts.
+0-result.json -text
+1-report.md -text
+2-document-search-receipt.json -text

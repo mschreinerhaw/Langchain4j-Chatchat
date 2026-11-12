@@ -1,0 +1,31 @@
+[INFO] Tests run: 10, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.846 s -- in com.chatchat.common.runtime.coding.CodingRuntimeContextTest
+[INFO] Tests run: 10, Failures: 0, Errors: 0, Skipped: 0
+[INFO] Tests run: 2, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 1.651 s -- in com.chatchat.integration.mcp.service.routing.McpAgentContextPropagationTest
+[INFO] Tests run: 2, Failures: 0, Errors: 0, Skipped: 0
+[INFO] Tests run: 2, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 2.007 s -- in com.chatchat.mcpserver.document.DocumentEvidenceAuthorizationFilterTest
+[INFO] Tests run: 2, Failures: 0, Errors: 0, Skipped: 0
+[INFO] Tests run: 11, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 4.157 s -- in com.chatchat.api.runtime.coding.CodingDocumentSearchAccessTest
+[INFO] Tests run: 7, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 2.987 s -- in com.chatchat.api.runtime.coding.NativeRuntimeMcpControllerTest
+[INFO] Tests run: 6, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.106 s -- in com.chatchat.api.runtime.coding.NativeTaskCapabilitiesTest
+[INFO] Tests run: 24, Failures: 0, Errors: 0, Skipped: 0
+[INFO] BUILD SUCCESS
+[INFO] Total time:  51.997 s
+
+✔ signed task identities reject tampering, expiry and arbitrary workspace paths (1.7644ms)
+✔ session authorization binds tenant, user, task, immutable grant and revocation (0.3659ms)
+✔ native Silo grant binds the trusted snapshot and delivery identity without caller paths (0.4969ms)
+✔ worker launch provides no network, host ports, docker socket or shared tenant state (0.2271ms)
+✔ uncertain or failed provisioning cannot free a worker slot without a stop proof (0.1044ms)
+✔ dynamic models require exact signed descriptor and explicit Executor tenant opt-in (1.5437ms)
+✔ model credentials use only fixed authority; response is task-bound and never follows redirects (3.2127ms)
+✔ Native task document search is explicit and does not grant arbitrary MCP tools (1.6941ms)
+✔ a tenant issuer cannot sign another tenant or fall back to the Executor root key (0.4749ms)
+✔ formal S3 task scopes bind tenant, owner, task, run and the same transport epoch (1.5186ms)
+ℹ tests 10
+ℹ suites 0
+ℹ pass 10
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 82.971

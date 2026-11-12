@@ -1,0 +1,7 @@
+{
+  "passed": false,
+  "scope": "REAL_NATIVE_DOCUMENT_SEARCH_AGENT_ACL_DELIVERY",
+  "startedAt": "2026-11-12T10:05:50.266Z",
+  "error": "/coding/tasks: HTTP 503",
+  "finishedAt": "2026-11-12T10:05:53.886Z"
+}

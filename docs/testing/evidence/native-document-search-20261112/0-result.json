@@ -1,0 +1,30 @@
+{
+  "question": "According to the assigned SYNTHETIC Aster guide db0b53d851, who owns maintenance approval, how many calendar days in advance must a request arrive, and what approval reference code is specified?",
+  "answers": {
+    "maintenance_approval_owner": "Aurora Desk",
+    "calendar_days_in_advance": 7,
+    "approval_reference_code": "ASTER-db0b53d851-47"
+  },
+  "evidence_gaps": [
+    "No supplementary documents available — authorized input scope reports NO_FILES_SUPPLIED",
+    "Single-source evidence from one SYNTHETIC test document chunk; no independent corroboration",
+    "Source document self-declares as test policy, not an actual business policy",
+    "No version number, effective date, or review cycle specified in the document",
+    "Internet unavailable (MODEL_INTERNET_DISABLED) — no external sources could supplement evidence"
+  ],
+  "citations": [
+    {
+      "refId": "doc://native-doc-assigned-db0b53d851#chunk=0",
+      "fileId": "native-doc-assigned-db0b53d851",
+      "fileName": "aster-assigned.txt",
+      "chunkId": "native-doc-assigned-db0b53d851_0",
+      "chunkIndex": 0,
+      "source": "aster-assigned.txt",
+      "locator": "chunk: 0",
+      "authority": "AUTHORIZED_DOCUMENT_EVIDENCE_UNTRUSTED_CONTENT",
+      "retrievedAt": "2026-11-12T10:16:20.349565554Z",
+      "tool": "runtime__document_search"
+    }
+  ],
+  "source_document_note": "SYNTHETIC acceptance material — self-declared test policy, not actual business policy."
+}

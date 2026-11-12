@@ -1,0 +1,22 @@
+{
+  "commit": "dcb5dbd1067e7093ab52691a628f9cbbe55ebda7",
+  "images": {
+    "api": {
+      "tag": "runtime-os-api:native-document-search-20261112-r1",
+      "exitCode": 0,
+      "imageId": "sha256:f3386df084891f1a32a18e69a130b0338eb57231ebf65660bc407ab5cfe63e7b"
+    },
+    "coding-node": {
+      "tag": "runtime-os-coding-node:native-document-search-20261112-r1",
+      "exitCode": 0,
+      "imageId": "sha256:60641b46986f7b260de9e89c491f9bb956ca0322038dbbc034683390a448953a"
+    }
+  },
+  "previousApi": "sha256:6a6ea5770370748f367450bbc29c0cffe534b7fbb96a1cc4dff8cf8e2ba2c933",
+  "previousNode": "sha256:f77ba87c83cfbc0ecdb4397bdc7f17cb3f3b58579d06a052ad4ff8c9f53fdc14",
+  "documentToolEnabledTenantBrokers": 1,
+  "mcpServiceUnchanged": true,
+  "sharedModelConfigurationUnchanged": true,
+  "officialAgentLoopUnchanged": true,
+  "deployedAt": "2026-11-12T09:40:15.625248+00:00"
+}

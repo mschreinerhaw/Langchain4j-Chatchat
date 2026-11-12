@@ -1,0 +1,12 @@
+{
+  "commit": "4e0baa1743a8e4c9fcad208490cee265bc8cfeb5",
+  "images": {
+    "api": {
+      "tag": "runtime-os-api:native-document-search-20261112-r2",
+      "exitCode": 0,
+      "imageId": "sha256:862e7f4bbe4c95ea9d175d883b2db3d24535722f880ff031a286995163fcc641"
+    }
+  },
+  "previousApi": "sha256:f3386df084891f1a32a18e69a130b0338eb57231ebf65660bc407ab5cfe63e7b",
+  "deployedAt": "2026-11-12T09:53:11.359209+00:00"
+}

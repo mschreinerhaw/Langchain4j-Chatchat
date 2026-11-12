@@ -1,0 +1,128 @@
+{
+  "nonce": "db0b53d851",
+  "agent": {
+    "id": "native-document-qa-db0b53d851",
+    "name": "SYNTHETIC document QA db0b53d851",
+    "description": "Isolated Native document search acceptance",
+    "defaultMode": "agent_chat",
+    "modelName": "qwen3.7-plus",
+    "systemPrompt": "Answer the user objective using the authorized resources when useful. Cite supporting document evidence and clearly state missing information. Choose your own tools and reasoning.",
+    "boundDocumentIds": [
+      "native-doc-assigned-db0b53d851"
+    ],
+    "boundDocumentTags": [],
+    "boundMcpToolNames": [
+      "mcp_chatchat_mcp_server_document_search"
+    ],
+    "boundMcpServiceIds": [],
+    "boundDomainSkillIds": [],
+    "workflowConfig": {
+      "resourceExploration": {
+        "resourcePermissions": [
+          {
+            "resourceId": "knowledge_documents",
+            "enabled": true,
+            "access": "read"
+          }
+        ],
+        "selectionStrategy": "task_driven"
+      }
+    },
+    "marketStatus": "draft",
+    "defaultAgent": false
+  },
+  "documents": [
+    {
+      "docId": "native-doc-assigned-db0b53d851",
+      "title": "SYNTHETIC Aster assigned db0b53d851",
+      "content": "SYNTHETIC acceptance material. The Aster maintenance approval process is owned by Aurora Desk. A request must be submitted 7 calendar days before maintenance. The approval reference code is ASTER-db0b53d851-47. This is a test policy, not an actual business policy.",
+      "source": "native-document-search-acceptance",
+      "date": "2026-11-12",
+      "tags": [
+        "native-document-search-acceptance-db0b53d851"
+      ],
+      "companies": [],
+      "industries": [],
+      "keywords": [
+        "maintenance",
+        "policy",
+        "approval",
+        "aster",
+        "material",
+        "desk",
+        "acceptance",
+        "db0b53d851",
+        "reference",
+        "submitted",
+        "synthetic",
+        "business"
+      ],
+      "fileName": "aster-assigned.txt",
+      "filePath": null,
+      "documentType": "text",
+      "fileSize": null,
+      "uploadedAt": 1794475807567,
+      "updatedAt": 1794475807567,
+      "versionGroupId": "native-doc-assigned-db0b53d851",
+      "version": 1,
+      "latestVersion": true,
+      "tenantId": "9001fee4-482b-4851-9eb9-df269765291f",
+      "userId": "2f219487-11a3-4a1d-9130-ac500b62f268",
+      "visibility": "private",
+      "permissionRoles": [],
+      "lifecycleStatus": "INDEXED",
+      "indexedAt": 1794475807567,
+      "deletedAt": null,
+      "errorMessage": null
+    },
+    {
+      "docId": "native-doc-unassigned-db0b53d851",
+      "title": "SYNTHETIC Aster unassigned db0b53d851",
+      "content": "SYNTHETIC unassigned document. The Aster maintenance approval process contains CANARY-UNASSIGNED-db0b53d851. This text is intentionally NOT assigned to the test Agent.",
+      "source": "native-document-search-acceptance",
+      "date": "2026-11-12",
+      "tags": [
+        "native-document-search-acceptance-db0b53d851"
+      ],
+      "companies": [],
+      "industries": [],
+      "keywords": [
+        "unassigned",
+        "db0b53d851",
+        "intentionally",
+        "maintenance",
+        "synthetic",
+        "approval",
+        "assigned",
+        "contains",
+        "process",
+        "canary",
+        "agent",
+        "aster"
+      ],
+      "fileName": "aster-unassigned.txt",
+      "filePath": null,
+      "documentType": "text",
+      "fileSize": null,
+      "uploadedAt": 1794475808250,
+      "updatedAt": 1794475808250,
+      "versionGroupId": "native-doc-unassigned-db0b53d851",
+      "version": 1,
+      "latestVersion": true,
+      "tenantId": "9001fee4-482b-4851-9eb9-df269765291f",
+      "userId": "2f219487-11a3-4a1d-9130-ac500b62f268",
+      "visibility": "private",
+      "permissionRoles": [],
+      "lifecycleStatus": "INDEXED",
+      "indexedAt": 1794475808250,
+      "deletedAt": null,
+      "errorMessage": null
+    }
+  ],
+  "expected": {
+    "team": "Aurora Desk",
+    "days": 7,
+    "reference": "ASTER-db0b53d851-47",
+    "forbidden": "CANARY-UNASSIGNED-db0b53d851"
+  }
+}

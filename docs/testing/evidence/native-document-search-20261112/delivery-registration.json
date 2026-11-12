@@ -1,0 +1,15 @@
+{
+  "taskId": "native-17ed7eeb88516bbad0bf0c8aec5262dfdaec9220532c47670169b50269480912",
+  "status": "COMPLETED",
+  "validationStatus": "INCONCLUSIVE",
+  "inputSnapshotRef": "runtime-evidence:coding:native-silo-input:native-17ed7eeb88516bbad0bf0c8aec5262dfdaec9220532c47670169b50269480912",
+  "executionReceiptRef": "runtime-evidence:coding:native:12bebbcdc4022e82741b40e60184af1ba3182c1e8cd4dc94a206496cc55cab93",
+  "resultDatasetRef": "runtime-evidence:coding:native:27ea5c829f48da7ec7d84e6a6d0a9faa44b1cea8e84aae0a93dce3314c249cc6",
+  "validationRecordRef": "runtime-evidence:coding:native:1d9344533709dcf1f4c160dbcbcb622702ecfb66fb16f9602483461f6a10bbd6",
+  "evidenceBundleRef": "runtime-evidence:coding:native-bundle:109783a63fb949d5b6a8b3059a43190fd975bd2b9e59f053aa5cf61924dde55c",
+  "summary": "Native delivery completed; Silo versions and SHA-256 verified",
+  "startedAt": "2026-11-12T10:15:59.664Z",
+  "endedAt": "2026-11-12T10:17:11.634Z",
+  "sessionId": "native-2410806d-8261-41d4-bbad-808362ae9c4b",
+  "qaAgentRecalled": true
+}

@@ -85,13 +85,14 @@ public final class CodingDataSupplyService {
             if(snapshots(c,null).size()>=17)throw new IllegalStateException("Resource calculation input limit reached");
             boolean day="IMMUTABLE_DAY_FILE".equals(body.get("delivery"));
             List<Map<String,Object>> rows=day?json.convertValue(body.get("items"),new com.fasterxml.jackson.core.type.TypeReference<>(){}):List.of(body);
-            if(day&&(!Boolean.TRUE.equals(body.get("complete"))||rows==null||rows.size()>10000
+            if(day&&(!Boolean.TRUE.equals(body.get("complete"))||rows==null
                     ||!(body.get("count") instanceof Number count)||count.intValue()!=rows.size()))
                 throw new IllegalStateException("Incomplete daily snapshot cannot be delivered");
             var metadata=new LinkedHashMap<String,Object>();metadata.put("sourceEvidenceId",reference);metadata.put("resourceId",fact.payload().get("resource_id"));
             if(day)for(String field:List.of("dataset","trade_date","source_id","coverage","asset","complete"))metadata.put(field,body.get(field));
             var dataset=new Dataset(source,metadata,rows);
-            snapshot=inputs.captureForTask(c,List.of(dataset),source,day?10000:1,day?8*1024*1024:1024*1024);
+            snapshot=inputs.captureForTask(c,List.of(dataset),source,day?rows.size():1,
+                day?policy.getMaxResourceInputBytes():1024*1024);
             String receipt="coding:data:"+hash(Map.of("task",c.taskId(),"operation",operation));
             var payload=Map.<String,Object>of("taskId",c.taskId(),"sourceEvidenceId",reference,"snapshot",snapshot,"sourceHash",hash(body));
             if(evidence.find(c.scope(),receipt).isEmpty())evidence.register(new EvidenceRecord(null,receipt,c.scope(),

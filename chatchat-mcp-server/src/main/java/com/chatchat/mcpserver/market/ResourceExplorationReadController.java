@@ -74,7 +74,8 @@ public class ResourceExplorationReadController {
             result.put("delivery","IMMUTABLE_DAY_FILE");
             if(rows.isEmpty()&&((Map<?,?>)result.get("asset")).get("last_observation_date")==null)
                 result.put("source_coverage",market.validDatasetCoverage(dataset));
-            if(json.writeValueAsBytes(result).length>8*1024*1024)throw new IllegalStateException("DAY_SNAPSHOT_BYTE_LIMIT: no complete daily snapshot delivered");
+            // File exports are governed by the receiving task's snapshot byte budget,
+            // not the small inline/interactive response window below.
             return ApiResponse.success(result);
         }
         if(tool.startsWith("news_"))return ApiResponse.success(json.convertValue(news.post("/resource-exploration",request),new com.fasterxml.jackson.core.type.TypeReference<Map<String,Object>>(){}));

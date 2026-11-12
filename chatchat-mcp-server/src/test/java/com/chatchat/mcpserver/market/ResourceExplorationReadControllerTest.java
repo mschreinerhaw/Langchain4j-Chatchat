@@ -45,13 +45,14 @@ class ResourceExplorationReadControllerTest {
     @Test void dailySnapshotDeliversMoreThanTenThousandRowsAndStillRejectsIncompleteSnapshots() throws Exception {
         var day=java.time.LocalDate.parse("2026-11-05");
         var rows=java.util.stream.IntStream.rangeClosed(1,10001)
-            .mapToObj(i->Map.<String,Object>of("quote_code",String.format("%06d",i))).toList();
+            .mapToObj(i->Map.<String,Object>of("quote_code",String.format("%06d",i),"source_note","x".repeat(900))).toList();
         when(store.catalog("quotes")).thenReturn(Map.of("dataset_code","quotes"));
         when(store.daySnapshot("quotes",day,6L)).thenReturn(Map.of("complete",true,"rows",rows,"coverage","stored source/day"));
         var args=Map.<String,Object>of("dataset","quotes","trade_date","2026-11-05","source_id",6);
         var result=read("market_get_day_snapshot",args);
         assertThat(result).containsEntry("count",10001).containsEntry("complete",true);
         assertThat((List<?>)result.get("items")).hasSize(10001);
+        assertThat(json.writeValueAsBytes(result).length).isGreaterThan(8*1024*1024);
         when(store.daySnapshot("quotes",day,6L)).thenReturn(Map.of("complete",false,"rows",rows));
         assertThatThrownBy(()->read("market_get_day_snapshot",args)).hasMessageContaining("Incomplete daily source snapshot");
     }

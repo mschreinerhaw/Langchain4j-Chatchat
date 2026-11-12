@@ -13,6 +13,8 @@ import com.chatchat.common.mcp.python.McpPythonControlPlanePort;
 import com.chatchat.common.runtime.analysis.evidence.ToolAnalysisEvidence;
 import com.chatchat.common.runtime.analysis.execution.WorkflowExecutionResult;
 import com.chatchat.common.runtime.coding.*;
+import com.chatchat.common.runtime.evidence.EvidenceRecord;
+import com.chatchat.common.runtime.evidence.EvidenceLineage;
 import com.fasterxml.jackson.databind.*;
 import java.time.*;
 import java.util.*;
@@ -64,6 +66,29 @@ class CodingDataSupplyServiceTest {
         respond(List.of(Map.of("date","2026-10-14","price","101.00")));
     }
     @AfterEach void close(){timer.shutdownNow();}
+    @Test void completeDailyFileExceedsFormerRowAndInlineByteLimitsWithoutTruncation() {
+        String id="knowledge:"+"d".repeat(64),ref="runtime-evidence:"+id;
+        var payload=Map.<String,Object>of("taskId",contract.taskId(),"resource_id","financial_market");
+        actor(()->evidence.register(new EvidenceRecord(null,id,scope,
+            "RESOURCE_MARKET_REFERENCE","CodingKnowledgeService",evidence.contentHash(payload),payload,null,0,Map.of()),
+            new EvidenceLineage(null,id,scope,List.of(),contract.taskId(),"CodingKnowledgeService",null,Map.of())));
+        var rows=java.util.stream.IntStream.rangeClosed(1,10001)
+            .mapToObj(i->Map.<String,Object>of("code",i,"note","x".repeat(900))).toList();
+        var body=new LinkedHashMap<String,Object>(Map.of("delivery","IMMUTABLE_DAY_FILE","complete",true,"count",rows.size(),"items",rows,
+            "dataset","quotes","trade_date","2026-11-05","source_id",6,"coverage","stored source/day","asset",Map.of("dataset_code","quotes")));
+        actor(()->service.captureResource(contract,lease,ref,body));
+        var delivered=actor(()->service.snapshots(contract,null)).get(1);
+        assertThat(delivered.rowCount()).isEqualTo(10001);
+        assertThat(delivered.size()).isGreaterThan(8*1024*1024);
+        body.put("count",10000);
+        assertThatThrownBy(()->actor(()->service.captureResource(contract,lease,ref,body)))
+            .hasMessageContaining("Incomplete daily snapshot");
+        body.put("count",rows.size());policy.setMaxResourceInputBytes(1024);
+        body.put("coverage","new bounded attempt");
+        assertThatThrownBy(()->actor(()->service.captureResource(contract,lease,ref,body)))
+            .isInstanceOf(IllegalArgumentException.class);
+        verifyNoInteractions(tool);
+    }
     @Test void resourceSnapshotsUseExistingFrozenExecutionInputsAndDoNotAcquireAnotherTemplate() {
         String id="knowledge:"+"a".repeat(64),ref="runtime-evidence:"+id;
         var payload=Map.<String,Object>of("taskId",contract.taskId(),"resource_id","financial_market");

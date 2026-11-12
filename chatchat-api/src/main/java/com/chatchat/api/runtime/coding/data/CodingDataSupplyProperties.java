@@ -10,6 +10,8 @@ import org.springframework.stereotype.Component;
 public class CodingDataSupplyProperties {
     private boolean enabled;
     private int maxRounds = 4;
+    /** Byte budget for authorized resource files; separate from interactive response windows. */
+    private long maxResourceInputBytes = 64L * 1024 * 1024;
     private List<Grant> grants = List.of();
     public record Grant(String tenantId, String userId, String skillId, String templateId,
         String assetName, String environment, Map<String,List<String>> parameterValues, List<String> requiredFields) { }

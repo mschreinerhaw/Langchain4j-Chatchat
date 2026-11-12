@@ -90,4 +90,17 @@ class CodingDocumentSearchAccessTest {
         assertThat(service.read(contract,"denied",json.valueToTree(Map.of("query","q")))).containsEntry("status","ERROR");
         verify(runtime,never()).execute(any());
     }
+    @Test void registryWarmupCannotSilentlyRemoveAuthorizedDocumentCapability(){
+        when(catalog.registeredTools()).thenReturn(List.of());
+        assertThatThrownBy(()->service.snapshot(scope,"agent",false)).isInstanceOf(org.springframework.web.server.ResponseStatusException.class)
+            .hasMessageContaining("503");
+        verifyNoInteractions(runtime);
+    }
+    @Test void existingMcpAnalysisEnvelopeUsesGovernedDataAndNeverRawFallback(){
+        var envelope=Map.of("schemaVersion","mcp_analysis_payload.v1","data",result("doc-1","Authorized").output().getData(),"rawData",result("other-doc","SECRET").output().getData());
+        when(runtime.execute(any())).thenReturn(new ToolRuntimeExecution(ToolOutput.success(envelope),null,null,"success",Map.of()));
+        assertThat(service.read(contract,"wrapped",json.valueToTree(Map.of("query","q"))).toString()).contains("Authorized").doesNotContain("SECRET");
+        when(runtime.execute(any())).thenReturn(new ToolRuntimeExecution(ToolOutput.success(Map.of("schemaVersion","mcp_analysis_payload.v1","data",Map.of(),"rawData",result("doc-1","Raw").output().getData())),null,null,"success",Map.of()));
+        assertThatThrownBy(()->service.read(contract,"raw",json.valueToTree(Map.of("query","q")))).isInstanceOf(IllegalStateException.class);
+    }
 }

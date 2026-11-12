@@ -41,7 +41,7 @@ public class CodingDocumentSearchAccess {
         var metadata=registry.getToolMetadata(LOCAL_TOOL);
         if(metadata==null||!registry.hasTool(LOCAL_TOOL)||!"read".equalsIgnoreCase(metadata.getOperationType())
                 ||catalog.registeredTools().stream().noneMatch(t->LOCAL_TOOL.equals(t.localToolName())&&TOOL.equals(t.remoteToolName())&&"chatchat-mcp-server".equals(t.serviceId())))
-            throw new SecurityException("Document search tool is unavailable");
+            throw new org.springframework.web.server.ResponseStatusException(org.springframework.http.HttpStatus.SERVICE_UNAVAILABLE,"Authorized document search tool is not ready; retry after MCP registration");
         return effective;
     }
     public Map<String,Object> snapshot(KernelDataScope scope,String agent,boolean requested){
@@ -86,7 +86,7 @@ public class CodingDocumentSearchAccess {
         if(execution==null||execution.output()==null||!execution.output().isSuccess())
             return Map.of("status","ERROR","errorCode",execution!=null&&"confirmation_required".equals(execution.outcome())?"DOCUMENT_SEARCH_REQUIRES_CONFIRMATION":"DOCUMENT_SEARCH_FAILED",
                 "message",execution==null||execution.output()==null?"Document search did not return a receipt":com.chatchat.common.runtime.analysis.execution.RuntimeToolReceipt.safeError(Objects.toString(execution.output().getErrorMessage(),"Document search failed")),"requestId",request);
-        var data=json.valueToTree(execution.output().getData());
+        var data=json.valueToTree(com.chatchat.common.mcp.runtime.McpAnalysisPayload.canonicalData(execution.output().getData()));
         if(!"document_evidence_v1".equals(data.path("contractVersion").asText()))throw new IllegalStateException("Invalid document evidence contract");
         var result=json.convertValue(data,DocumentSearchResult.class);var ids=new HashSet<String>();
         result.results().forEach(v->{if(v.tenantId()!=null&&!v.tenantId().equals(c.scope().tenantId()))throw new SecurityException("Cross-tenant document evidence denied");ids.add(v.fileId());});

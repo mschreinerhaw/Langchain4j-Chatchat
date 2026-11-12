@@ -1,0 +1,22 @@
+import {readFile,mkdir,writeFile} from 'node:fs/promises';
+import {resolve} from 'node:path';
+import {fileURLToPath,pathToFileURL} from 'node:url';
+import assert from 'node:assert/strict';
+const app=fileURLToPath(new URL('../chatchat-api/web-app/',import.meta.url));
+const {createServer}=await import(pathToFileURL(resolve(app,'node_modules/vite/dist/node/index.js')));
+const {chromium}=await import(pathToFileURL(resolve(app,'node_modules/playwright-core/index.mjs')));
+const reportFile=process.argv[2],output=resolve(process.argv[3]);await mkdir(output,{recursive:true});
+const origin=process.env.NATIVE_VISUAL_ORIGIN||'http://192.168.195.221:18100';
+const response=JSON.parse(await readFile(reportFile,'utf8'));
+const html=`<!doctype html><html><head><meta charset="utf-8"><style>body{margin:24px;background:#f5f7fb;font-family:Arial,sans-serif}#app{max-width:1200px;margin:auto;background:white;padding:24px}</style></head><body><div id="app"></div><script type="module">import {createApp,h} from 'vue';import Messages from '/src/components/ChatMessageList.vue';import Chat from '/src/js/views/ChatAssistantView.js';const r=await fetch('/real-native-response.json').then(r=>r.json());const state={conversationId:'',historyId:'',lastResponse:{}};Chat.methods.applyResponseMetadata.call(state,r);createApp({render:()=>h(Messages,{messages:[{id:'verified-native-report',role:'assistant',content:r.answer||r.content||'',uiResponse:state.lastResponse.uiResponse,streaming:false,status:'completed',timestamp:Date.now(),sources:r.sources||[]}]})}).mount('#app');</script></body></html>`;
+const server=await createServer({root:app,configFile:false,plugins:[(await import(pathToFileURL(resolve(app,'node_modules/@vitejs/plugin-vue/dist/index.mjs')))).default(),{name:'real-native-report',configureServer(s){s.middlewares.use((req,res,next)=>{if(req.url==='/real-native-report'){res.setHeader('Content-Type','text/html');s.transformIndexHtml('/real-native-report',html).then(value=>res.end(value));}else if(req.url==='/real-native-response.json'){res.setHeader('Content-Type','application/json');res.end(JSON.stringify(response));}else next();});}}],server:{host:'127.0.0.1',port:18581,proxy:{'/api':{target:origin,changeOrigin:true}}}});
+await server.listen();const browser=await chromium.launch({headless:true,executablePath:process.env.CODING_BROWSER_PATH||'C:/Program Files (x86)/Microsoft/Edge/Application/msedge.exe',args:['--no-proxy-server']});
+try{
+ const context=await browser.newContext({viewport:{width:1440,height:1050},locale:'zh-CN'});const login=await context.request.post(origin+'/api/v1/enterprise/auth/login',{data:{username:process.env.RUNTIME_TEST_USER,password:process.env.RUNTIME_TEST_PASSWORD}});assert.equal(login.status(),200);const auth=(await login.json()).data;assert(auth.token);
+ const page=await context.newPage(),errors=[];page.on('pageerror',e=>errors.push(e.message));await page.addInitScript(v=>localStorage.setItem('chatchat.auth.session',JSON.stringify(v)),auth);
+ await page.goto('http://127.0.0.1:18581/real-native-report',{waitUntil:'domcontentloaded'});
+ const chart=page.locator('.python-report-chart').first();await chart.waitFor({timeout:60000});await chart.scrollIntoViewIfNeeded();const img=chart.locator('img');await img.waitFor({timeout:30000});
+ for(let i=0;i<100&&!(await img.evaluate(e=>e.complete&&e.naturalWidth>0));i++)await page.waitForTimeout(200);
+ assert(await img.evaluate(e=>e.complete&&e.naturalWidth>0),'Actual Silo image did not render');assert.equal(await page.locator('.report-renderer').count(),1);assert.deepEqual(errors,[]);
+ await page.screenshot({path:resolve(output,'real-native-chat-report.png'),fullPage:true});await writeFile(resolve(output,'browser-verification.json'),JSON.stringify({passed:true,actualChatMessageComponent:true,actualChatNormalization:true,actualBackendMetadata:true,realAuthenticatedSiloImage:true,pageErrors:errors},null,2));
+}finally{await browser.close();await server.close();}

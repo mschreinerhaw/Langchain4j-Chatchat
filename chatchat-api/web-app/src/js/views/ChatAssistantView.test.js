@@ -716,3 +716,17 @@ describe("restored assistant result deduplication", () => {
       .toEqual(expect.objectContaining({ status: "done" }));
   });
 });
+
+
+describe('Native illustrated-report response admission',()=>{
+ it('preserves the backend report through actual chat normalization and history payloads',()=>{
+  const report={schemaVersion:'python_visual_report.v1',charts:[{id:'native',kind:'png',artifact:{fileId:'owned-asset'}}]};
+  const context={conversationId:'current',historyId:'current',lastResponse:{}};
+  ChatAssistantView.methods.applyResponseMetadata.call(context,{answer:'real report',metadata:{visualReport:report}});
+  expect(context.lastResponse.uiResponse.visualReport).toEqual(report);
+  ChatAssistantView.methods.applyResponseMetadata.call(context,{answer:'wrapped',metadata:{agent:{visualReport:report},uiResponse:{answer:'kept',other:'preserved'}}});
+  expect(context.lastResponse.uiResponse).toEqual({answer:'kept',other:'preserved',visualReport:report});
+  ChatAssistantView.methods.applyResponseMetadata.call(context,{answer:'plain',metadata:{}});
+  expect(context.lastResponse.uiResponse?.visualReport).toBeUndefined();
+ });
+});

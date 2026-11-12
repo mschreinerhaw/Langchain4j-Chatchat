@@ -1515,7 +1515,7 @@ function normalizeResponsePayload(response = {}) {
   const directRuntimeUiResponse = /^ui_response(?:_|$)/i.test(String(runtimePayload?.contractVersion || ""))
     ? runtimePayload
     : null;
-  const uiResponse = firstObject(
+  const baseUiResponse = firstObject(
     payload?.uiResponse,
     runtimePayload?.uiResponse,
     payload?.metadata?.uiResponse,
@@ -1525,6 +1525,11 @@ function normalizeResponsePayload(response = {}) {
     directUiResponse,
     directRuntimeUiResponse
   );
+  const report = firstObject(baseUiResponse?.visualReport, payload?.metadata?.visualReport,
+    payload?.metadata?.agent?.visualReport, runtimePayload?.metadata?.visualReport,
+    runtimePayload?.metadata?.agent?.visualReport);
+  const uiResponse = report?.schemaVersion === 'python_visual_report.v1'
+    ? { ...(baseUiResponse || {}), visualReport: report } : baseUiResponse;
   const visualizationSpec = firstVisualizationSpec(
     uiResponse?.visualizationSpec,
     uiResponse?.dataVisualization,

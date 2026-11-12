@@ -1,0 +1,9 @@
+{
+  "passed": true,
+  "actualChatMessageComponent": true,
+  "actualChatNormalization": true,
+  "productionBundleNormalization": true,
+  "actualBackendMetadata": true,
+  "realAuthenticatedSiloImage": true,
+  "pageErrors": []
+}

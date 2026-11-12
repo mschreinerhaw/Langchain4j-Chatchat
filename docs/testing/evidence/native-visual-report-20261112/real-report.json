@@ -1,0 +1,58 @@
+{
+  "schemaVersion": "python_visual_report.v1",
+  "reportMode": "visual",
+  "title": "Category Amount Analysis",
+  "summary": "",
+  "markdown": "# Category Amount Analysis\n\n## Data Source\nThe analysis uses the delivered CSV file `SYNTHETIC-category-amount.csv` (user-asset reference: `user-asset:5d9e640e88818b2c09f23bbb41530a829fb71f164484ee0c1cba589de054e23c:9efad5e4f6fff39dc9c489cee3e9f2da48313932bc8a2b7a85a9f5c31ad05288`), verified via SHA-256 hash match on the base64-decoded original chunk.\n\n## Dataset Summary\n- **Total rows**: 3 (excluding header)\n- **Categories**: A, B, C\n- **Unit**: Not provided; no currency inferred\n\n## Per-Category Statistics\n\n| Category | Count | Sum | Mean |\n|----------|-------|-----|------|\n| A | 1 | 12.5 | 12.5 |\n| B | 1 | 20.0 | 20.0 |\n| C | 1 | 15.0 | 15.0 |\n\n## Overall\n- **Total rows**: 3\n- **Grand total (sum)**: 47.5\n- **Overall mean**: 15.8333\n\n## Comparison\n- **Highest amount**: B (mean=20.0)\n- **Lowest amount**: A (mean=12.5)\n\n## Chart\n![Category Comparison](chart_category_amount.png)\n",
+  "status": "SUCCESS",
+  "presentation": {
+    "strategy": "concise",
+    "autoCharts": true,
+    "density": "compact",
+    "autoImages": false,
+    "template": "briefing"
+  },
+  "metrics": [],
+  "tables": [],
+  "charts": [
+    {
+      "title": "chart_category_amount.png",
+      "id": "native-chart-1",
+      "caption": "",
+      "kind": "png",
+      "artifact": {
+        "sha256": "30f4d0c314da483bbdcaddd2bade150c44f307ee829acf598141cfde01083558",
+        "fileName": "chart_category_amount.png",
+        "size": 29931,
+        "fileId": "78445b31d42cb606b7c50addf2ae32bd5d0ffb5494bcf2358510bf85ac33eb21",
+        "mediaType": "image/png"
+      }
+    }
+  ],
+  "sections": [
+    {
+      "narrative": "# Category Amount Analysis\n\n## Data Source\nThe analysis uses the delivered CSV file `SYNTHETIC-category-amount.csv` (user-asset reference: `user-asset:5d9e640e88818b2c09f23bbb41530a829fb71f164484ee0c1cba589de054e23c:9efad5e4f6fff39dc9c489cee3e9f2da48313932bc8a2b7a85a9f5c31ad05288`), verified via SHA-256 hash match on the base64-decoded original chunk.\n\n## Dataset Summary\n- **Total rows**: 3 (excluding header)\n- **Categories**: A, B, C\n- **Unit**: Not provided; no currency inferred\n\n## Per-Category Statistics\n\n| Category | Count | Sum | Mean |\n|----------|-------|-----|------|\n| A | 1 | 12.5 | 12.5 |\n| B | 1 | 20.0 | 20.0 |\n| C | 1 | 15.0 | 15.0 |\n\n## Overall\n- **Total rows**: 3\n- **Grand total (sum)**: 47.5\n- **Overall mean**: 15.8333\n\n## Comparison\n- **Highest amount**: B (mean=20.0)\n- **Lowest amount**: A (mean=12.5)\n\n## Chart\n![Category Comparison](chart_category_amount.png)\n",
+      "title": "报告正文",
+      "id": "native-report-body",
+      "tableIds": [],
+      "chartIds": [
+        "native-chart-1"
+      ]
+    }
+  ],
+  "dataSources": [
+    "runtime-context:da55c28c-472f-4a4e-8a84-161a46dfec57",
+    "user-asset:5d9e640e88818b2c09f23bbb41530a829fb71f164484ee0c1cba589de054e23c:9efad5e4f6fff39dc9c489cee3e9f2da48313932bc8a2b7a85a9f5c31ad05288"
+  ],
+  "limitations": [
+    "Unit/currency not specified in source data; values reported as-is.",
+    "Internet access unavailable; no external reference data consulted.",
+    "Dataset is synthetic; results reflect only the provided snapshot."
+  ],
+  "validation": {
+    "checks": [],
+    "warnings": []
+  },
+  "validationScope": "STRUCTURE_AND_OBJECT_INTEGRITY",
+  "businessValidationPassed": false
+}

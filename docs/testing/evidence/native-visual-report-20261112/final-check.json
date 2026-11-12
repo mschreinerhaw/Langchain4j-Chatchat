@@ -1,0 +1,11 @@
+{
+  "http": {
+    "18100/": 200,
+    "18353/monitor/": 200,
+    "18353/api/v1/coding-monitor/tasks": 401
+  },
+  "actualApiImage": "sha256:4d93d02480199906ff6c5242385702f030b7d44ff9eb99565367eb4c5fbe7d31",
+  "intermediateImageTagRemoved": true,
+  "rollbackImage": "sha256:4a0aee24a5b9ff1d2ec0fa62e21e31ed67838fffa15e07ef54b15e382255f941",
+  "modelRoutingUnchanged": true
+}

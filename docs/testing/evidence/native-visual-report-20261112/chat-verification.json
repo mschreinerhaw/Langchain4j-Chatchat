@@ -1,0 +1,15 @@
+{
+  "visual": {
+    "passed": true,
+    "authorizedCharts": [
+      "78445b31d42cb606b7c50addf2ae32bd5d0ffb5494bcf2358510bf85ac33eb21"
+    ],
+    "presentationPreserved": true,
+    "elapsedSeconds": 206.42834091745317
+  },
+  "off": {
+    "passed": true,
+    "noVisualMetadata": true,
+    "elapsedSeconds": 134.70970586128533
+  }
+}

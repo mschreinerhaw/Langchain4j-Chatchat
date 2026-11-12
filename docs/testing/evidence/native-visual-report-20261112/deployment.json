@@ -1,0 +1,10 @@
+{
+  "commit": "d750a13d550acd32280dfea4101fa9eae950e9ef",
+  "api": {
+    "tag": "runtime-os-api:native-visual-20261112-r2",
+    "exitCode": 0,
+    "imageId": "sha256:4d93d02480199906ff6c5242385702f030b7d44ff9eb99565367eb4c5fbe7d31"
+  },
+  "nodeUnchanged": true,
+  "modelCatalogUnchanged": true
+}

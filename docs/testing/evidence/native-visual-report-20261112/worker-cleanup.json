@@ -1,0 +1,13 @@
+{
+  "http": {
+    "18100/": 200,
+    "18353/monitor/": 200,
+    "18353/api/v1/coding-monitor/tasks": 401
+  },
+  "removedValidationContainers": [
+    "b9fea6d9011df6cae143680347f7dfd87677aa8abbe7bfe5fa087ba6fe0bb64e",
+    "febb38161378f0584ff96038cacfbd8e738cd5556620be63c408f1c57b475b45"
+  ],
+  "currentWorkerImagePresent": true,
+  "modelRoutingUnchanged": true
+}

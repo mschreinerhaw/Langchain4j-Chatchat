@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Synthetic Acceptance Report</title>
+<style>
+:root{--bg:#f8f9fa;--card:#fff;--text:#212529;--muted:#6c757d;--accent:#5B8DB8;--border:#dee2e6;--radius:8px}
+*,*::before,*::after{box-sizing:border-box}
+body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;background:var(--bg);color:var(--text);margin:0;padding:24px 16px;line-height:1.6}
+.container{max-width:860px;margin:0 auto}
+h1{font-size:1.6rem;margin:0 0 4px}
+.subtitle{color:var(--muted);font-size:.95rem;margin:0 0 24px}
+.card{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:20px 24px;margin-bottom:20px}
+.card h2{font-size:1.15rem;margin:0 0 12px}
+.stats{display:flex;gap:16px;flex-wrap:wrap}
+.stat{flex:1 1 140px;text-align:center;padding:16px 12px;background:var(--bg);border-radius:var(--radius);border:1px solid var(--border)}
+.stat .value{font-size:1.8rem;font-weight:700;color:var(--accent)}
+.stat .label{font-size:.85rem;color:var(--muted);margin-top:4px}
+.chart-img{max-width:100%;height:auto;border-radius:var(--radius);margin:8px 0}
+.btn{display:inline-block;padding:8px 18px;font-size:.9rem;border:1px solid var(--accent);border-radius:var(--radius);background:var(--accent);color:#fff;cursor:pointer;transition:background .15s}
+.btn:hover{background:#4a7ca5}
+.btn-outline{background:transparent;color:var(--accent)}
+.btn-outline:hover{background:var(--accent);color:#fff}
+table{width:100%;border-collapse:collapse;margin-top:12px;font-size:.92rem}
+th,td{padding:8px 12px;text-align:left;border-bottom:1px solid var(--border)}
+th{background:var(--bg);font-weight:600}
+.hidden{display:none}
+.note{font-size:.85rem;color:var(--muted);border-left:3px solid var(--accent);padding:8px 14px;margin:12px 0 0}
+.section-label{font-size:.8rem;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);margin-bottom:6px}
+</style>
+</head>
+<body>
+<div class="container">
+<h1>Synthetic Acceptance Data &mdash; Analysis Report</h1>
+<p class="subtitle">Source: <code>input/data/0/synthetic-html-acceptance.csv</code> &middot; Generated 2026-11-12</p>
+
+<div class="card">
+<h2>Key Statistics</h2>
+<div class="stats">
+<div class="stat"><div class="value">3</div><div class="label">Record Count</div></div>
+<div class="stat"><div class="value">42</div><div class="label">Total Amount</div></div>
+<div class="stat"><div class="value">14.00</div><div class="label">Mean Amount</div></div>
+</div>
+</div>
+
+<div class="card">
+<h2>Category Comparison</h2>
+<p class="section-label">Bar chart &mdash; amount by category</p>
+<img class="chart-img" src="category_comparison.png" alt="Category comparison bar chart">
+<p class="note"><strong>Color convention:</strong> Neutral palette used (no financial rise/fall semantics). The &ldquo;auto&rdquo; style profile was selected; its specific semantic-color definition was not available for this non-financial synthetic dataset, so distinct neutral hues distinguish categories without implying positive/negative direction.</p>
+</div>
+
+<div class="card">
+<h2>Original Rows</h2>
+<button class="btn btn-outline" id="toggleBtn" onclick="toggleRows()">Show Rows</button>
+<div id="rowsContainer" class="hidden">
+<table>
+<thead><tr><th>#</th><th>Category</th><th>Amount</th></tr></thead>
+<tbody id="rowsBody"></tbody>
+</table>
+</div>
+</div>
+
+<div class="card">
+<h2>About This Report</h2>
+<p>This report analyzes a <strong>synthetic acceptance CSV</strong> &mdash; a small, intentionally constructed dataset used for pipeline verification, not real business observations. The file contains 3 records across 3 categories (A, B, C) with integer amounts.</p>
+<p><strong>Source:</strong> <code>/workspace/input/data/0/synthetic-html-acceptance.csv</code> &mdash; read directly from the authorized workspace input path. All computations were performed natively with Python&rsquo;s <code>csv</code> module; no data was substituted or invented.</p>
+<p><strong>Limitations:</strong> With only 3 records, statistical summaries (mean&nbsp;=&nbsp;14.00) are descriptive only and carry no inferential weight. Categories are nominal labels without temporal or hierarchical structure. This dataset is explicitly synthetic and should not be interpreted as representing real transactions, revenues, or business metrics.</p>
+</div>
+
+</div>
+<script>
+var DATA = [{"category": "A", "amount": 12}, {"category": "B", "amount": 25}, {"category": "C", "amount": 5}];
+var tbody = document.getElementById("rowsBody");
+DATA.forEach(function(r, i) {
+  var tr = document.createElement("tr");
+  tr.innerHTML = "<td>" + (i+1) + "</td><td>" + r.category + "</td><td>" + r.amount + "</td>";
+  tbody.appendChild(tr);
+});
+function toggleRows() {
+  var c = document.getElementById("rowsContainer");
+  var b = document.getElementById("toggleBtn");
+  if (c.classList.contains("hidden")) {
+    c.classList.remove("hidden");
+    b.textContent = "Hide Rows";
+  } else {
+    c.classList.add("hidden");
+    b.textContent = "Show Rows";
+  }
+}
+</script>
+</body>
+</html>

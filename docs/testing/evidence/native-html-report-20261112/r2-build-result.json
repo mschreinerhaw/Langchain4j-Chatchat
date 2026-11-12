@@ -1,0 +1,13 @@
+{
+  "commit": "bc9e8f3dafc609132a1a266337bce431ef94cd46",
+  "sourceArchiveSha256": "a83ef584a4d514724677096907301281c88fcb59a313333291b47bb6171c34e5",
+  "startedAt": "2026-11-12T13:26:06.889591+00:00",
+  "images": {
+    "api": {
+      "tag": "runtime-os-api:native-html-report-20261112-r2",
+      "exitCode": 0,
+      "imageId": "sha256:95ae2cf2d15d50fcc09eba62a28ce56977ff54891cc4c51aab08f19664ff702b"
+    }
+  },
+  "completedAt": "2026-11-12T13:28:47.770671+00:00"
+}

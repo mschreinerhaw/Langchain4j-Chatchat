@@ -1,0 +1,654 @@
+{
+  "passed": true,
+  "startedAt": "2026-11-12T13:26:33.886Z",
+  "taskId": "native-01000be31db3187cf81e63312cb8162779536bb1f8e10227d6cf1b51899847e0",
+  "runId": "coding-34678891589c0a186325a9051480fdf5e26e2e3c474a92a1818db05992d376c4",
+  "inputSha256": "421c32ed6a03200be0a8a76fcabac0826ccee3ea3ffc2b5584bd5ffa46a823fb",
+  "artifacts": [
+    {
+      "path": "output/synthetic-acceptance-report/category_comparison.png",
+      "sha256": "4dd21351f511567e12b4bb3fa9a4820d2e9eabf85165ab8297b0e65789670a69",
+      "size": 31200
+    },
+    {
+      "path": "output/synthetic-acceptance-report/result.json",
+      "sha256": "d88e9e0aa8fc6fe413a182ac732eb87c83be13438d1f5f0db78fd8eac6c45f3f",
+      "size": 47
+    },
+    {
+      "path": "output/synthetic-acceptance-report/report.html",
+      "sha256": "b35f2bcbc4e33bf2458be995857120eadbb58c6aa52b1c5bb2e9943c1935c9d9",
+      "size": 5129
+    }
+  ],
+  "statisticsVerified": true,
+  "htmlEntry": "output/synthetic-acceptance-report/report.html",
+  "modelReceipts": [
+    {
+      "eventType": "model.request.completed",
+      "taskId": "native-01000be31db3187cf81e63312cb8162779536bb1f8e10227d6cf1b51899847e0",
+      "sessionId": "native-559919ae-6607-4b84-8f61-83a44f343651",
+      "tenantId": "9001fee4-482b-4851-9eb9-df269765291f",
+      "sourceEventId": "4238",
+      "requestId": "035363fb-e0dd-4838-9e55-f229d2f6a83b",
+      "model": "qwen3.7-plus",
+      "providerModel": "qwen3.7-plus",
+      "providerRequestId": "8d31a541-bdae-9a27-8007-4c667e9ee095",
+      "startedAt": "2026-11-12T13:29:47.289Z",
+      "finishedAt": "2026-11-12T13:29:57.806Z",
+      "durationMs": 10517,
+      "httpStatus": 200,
+      "status": "SUCCEEDED",
+      "errorType": null,
+      "providerDispatched": true,
+      "usage": {
+        "inputTokens": 24422,
+        "outputTokens": 591,
+        "totalTokens": 25013,
+        "cacheReadTokens": 23040,
+        "cacheWriteTokens": null,
+        "reasoningTokens": 89,
+        "totalSource": "PROVIDER",
+        "cacheAccounting": "CACHE_IS_INPUT_SUBSET",
+        "raw": {
+          "prompt_tokens": 24422,
+          "total_tokens": 25013,
+          "completion_tokens": 591,
+          "prompt_tokens_details": {
+            "cached_tokens": 23040,
+            "text_tokens": 24422
+          },
+          "completion_tokens_details": {
+            "reasoning_tokens": 89,
+            "text_tokens": 591
+          }
+        }
+      },
+      "responseBytes": 44786,
+      "responseSha256": "b8792f48c5983cc6171db83e81543590a44db3614dbd8cdd488c4e13c8c278ce",
+      "requestSha256": "818080fa32020903ac20506c38e605f453ecff5fcb0ba8c5e47e9f51d4c6adcf",
+      "observationTruncated": false,
+      "source": "PROVIDER_HTTP_OBSERVATION",
+      "eventId": "42",
+      "timestamp": "2026-11-12T13:29:57.806Z"
+    },
+    {
+      "eventType": "model.request.completed",
+      "taskId": "native-01000be31db3187cf81e63312cb8162779536bb1f8e10227d6cf1b51899847e0",
+      "sessionId": "native-559919ae-6607-4b84-8f61-83a44f343651",
+      "tenantId": "9001fee4-482b-4851-9eb9-df269765291f",
+      "sourceEventId": "4221",
+      "requestId": "10b12d60-16cd-40be-9c5d-225658e40e8b",
+      "model": "qwen3.7-plus",
+      "providerModel": "qwen3.7-plus",
+      "providerRequestId": "82ed91c6-59ef-9f70-b711-989c56189150",
+      "startedAt": "2026-11-12T13:29:21.601Z",
+      "finishedAt": "2026-11-12T13:29:24.974Z",
+      "durationMs": 3373,
+      "httpStatus": 200,
+      "status": "SUCCEEDED",
+      "errorType": null,
+      "providerDispatched": true,
+      "usage": {
+        "inputTokens": 20168,
+        "outputTokens": 140,
+        "totalTokens": 20308,
+        "cacheReadTokens": 19584,
+        "cacheWriteTokens": null,
+        "reasoningTokens": 31,
+        "totalSource": "PROVIDER",
+        "cacheAccounting": "CACHE_IS_INPUT_SUBSET",
+        "raw": {
+          "prompt_tokens": 20168,
+          "total_tokens": 20308,
+          "completion_tokens": 140,
+          "prompt_tokens_details": {
+            "cached_tokens": 19584,
+            "text_tokens": 20168
+          },
+          "completion_tokens_details": {
+            "reasoning_tokens": 31,
+            "text_tokens": 140
+          }
+        }
+      },
+      "responseBytes": 7016,
+      "responseSha256": "c4c4b3305c34826781184524fb6b150e2c175ef7db9c0c07584907c79e2f7eb8",
+      "requestSha256": "a7af74d8a2eb1d3430ecbcdb1d8549be1ad8634a27e4b67389df44c8a9e77bef",
+      "observationTruncated": false,
+      "source": "PROVIDER_HTTP_OBSERVATION",
+      "eventId": "32",
+      "timestamp": "2026-11-12T13:29:24.975Z"
+    },
+    {
+      "eventType": "model.request.completed",
+      "taskId": "native-01000be31db3187cf81e63312cb8162779536bb1f8e10227d6cf1b51899847e0",
+      "sessionId": "native-559919ae-6607-4b84-8f61-83a44f343651",
+      "tenantId": "9001fee4-482b-4851-9eb9-df269765291f",
+      "sourceEventId": "4218",
+      "requestId": "3a2e5f2f-87cb-48d9-b613-bfff017107fd",
+      "model": "qwen3.7-plus",
+      "providerModel": "qwen3.7-plus",
+      "providerRequestId": "525e74c4-72ca-9e86-bdde-09724b85e757",
+      "startedAt": "2026-11-12T13:29:15.438Z",
+      "finishedAt": "2026-11-12T13:29:17.642Z",
+      "durationMs": 2204,
+      "httpStatus": 200,
+      "status": "SUCCEEDED",
+      "errorType": null,
+      "providerDispatched": true,
+      "usage": {
+        "inputTokens": 19976,
+        "outputTokens": 77,
+        "totalTokens": 20053,
+        "cacheReadTokens": 17280,
+        "cacheWriteTokens": null,
+        "reasoningTokens": 18,
+        "totalSource": "PROVIDER",
+        "cacheAccounting": "CACHE_IS_INPUT_SUBSET",
+        "raw": {
+          "prompt_tokens": 19976,
+          "total_tokens": 20053,
+          "completion_tokens": 77,
+          "prompt_tokens_details": {
+            "cached_tokens": 17280,
+            "text_tokens": 19976
+          },
+          "completion_tokens_details": {
+            "reasoning_tokens": 18,
+            "text_tokens": 77
+          }
+        }
+      },
+      "responseBytes": 5422,
+      "responseSha256": "a59b113eeb28d966fa38ecee9289e7b3b1d8dec5cceb1ec815511fb417c52317",
+      "requestSha256": "cdb46ec3095b644064b04de76c8e165b846c37234721329f19d095520bdb3544",
+      "observationTruncated": false,
+      "source": "PROVIDER_HTTP_OBSERVATION",
+      "eventId": "30",
+      "timestamp": "2026-11-12T13:29:17.643Z"
+    },
+    {
+      "eventType": "model.request.completed",
+      "taskId": "native-01000be31db3187cf81e63312cb8162779536bb1f8e10227d6cf1b51899847e0",
+      "sessionId": "native-559919ae-6607-4b84-8f61-83a44f343651",
+      "tenantId": "9001fee4-482b-4851-9eb9-df269765291f",
+      "sourceEventId": "4205",
+      "requestId": "531b7805-8a6f-47f6-8f09-a604efcf4bca",
+      "model": "qwen3.7-plus",
+      "providerModel": "qwen3.7-plus",
+      "providerRequestId": "db09a31c-6f7d-9cf8-a168-044c463777f5",
+      "startedAt": "2026-11-12T13:27:47.842Z",
+      "finishedAt": "2026-11-12T13:28:00.866Z",
+      "durationMs": 13024,
+      "httpStatus": 200,
+      "status": "SUCCEEDED",
+      "errorType": null,
+      "providerDispatched": true,
+      "usage": {
+        "inputTokens": 14609,
+        "outputTokens": 737,
+        "totalTokens": 15346,
+        "cacheReadTokens": 11520,
+        "cacheWriteTokens": null,
+        "reasoningTokens": 59,
+        "totalSource": "PROVIDER",
+        "cacheAccounting": "CACHE_IS_INPUT_SUBSET",
+        "raw": {
+          "prompt_tokens": 14609,
+          "total_tokens": 15346,
+          "completion_tokens": 737,
+          "prompt_tokens_details": {
+            "cached_tokens": 11520,
+            "text_tokens": 14609
+          },
+          "completion_tokens_details": {
+            "reasoning_tokens": 59,
+            "text_tokens": 737
+          }
+        }
+      },
+      "responseBytes": 66931,
+      "responseSha256": "eb9bee6a740f99a488cd7901b8d89be0abc906f60872cabca8bf1e67549bf77c",
+      "requestSha256": "075e937869b5f3bd44ead3e61ca13ef0165cb68a0bb4d8d4e3e70d2d61b4844f",
+      "observationTruncated": false,
+      "source": "PROVIDER_HTTP_OBSERVATION",
+      "eventId": "24",
+      "timestamp": "2026-11-12T13:28:00.868Z"
+    },
+    {
+      "eventType": "model.request.completed",
+      "taskId": "native-01000be31db3187cf81e63312cb8162779536bb1f8e10227d6cf1b51899847e0",
+      "sessionId": "native-559919ae-6607-4b84-8f61-83a44f343651",
+      "tenantId": "9001fee4-482b-4851-9eb9-df269765291f",
+      "sourceEventId": "4215",
+      "requestId": "696f25f1-c966-4f77-b1df-a6813612d847",
+      "model": "qwen3.7-plus",
+      "providerModel": "qwen3.7-plus",
+      "providerRequestId": "8a6a6cb0-4cd9-9f0c-9c93-61dd1779a4c9",
+      "startedAt": "2026-11-12T13:28:32.878Z",
+      "finishedAt": "2026-11-12T13:29:14.924Z",
+      "durationMs": 42046,
+      "httpStatus": 200,
+      "status": "SUCCEEDED",
+      "errorType": null,
+      "providerDispatched": true,
+      "usage": {
+        "inputTokens": 17367,
+        "outputTokens": 2504,
+        "totalTokens": 19871,
+        "cacheReadTokens": 14976,
+        "cacheWriteTokens": null,
+        "reasoningTokens": 87,
+        "totalSource": "PROVIDER",
+        "cacheAccounting": "CACHE_IS_INPUT_SUBSET",
+        "raw": {
+          "prompt_tokens": 17367,
+          "total_tokens": 19871,
+          "completion_tokens": 2504,
+          "prompt_tokens_details": {
+            "cached_tokens": 14976,
+            "text_tokens": 17367
+          },
+          "completion_tokens_details": {
+            "reasoning_tokens": 87,
+            "text_tokens": 2504
+          }
+        }
+      },
+      "responseBytes": 19733,
+      "responseSha256": "ea7565b2b2d74aef45e1ff77da7bb6c763a3736c2699d9e491987d26852aa3f2",
+      "requestSha256": "169989db2ce0c11ea7ba38a6f3949cf6b53ec4771db3460603a7a8cef2b8d945",
+      "observationTruncated": false,
+      "source": "PROVIDER_HTTP_OBSERVATION",
+      "eventId": "28",
+      "timestamp": "2026-11-12T13:29:14.925Z"
+    },
+    {
+      "eventType": "model.request.completed",
+      "taskId": "native-01000be31db3187cf81e63312cb8162779536bb1f8e10227d6cf1b51899847e0",
+      "sessionId": "native-559919ae-6607-4b84-8f61-83a44f343651",
+      "tenantId": "9001fee4-482b-4851-9eb9-df269765291f",
+      "sourceEventId": "4195",
+      "requestId": "70e1370b-d32c-4dee-add3-9b37fffdb5f5",
+      "model": "qwen3.7-plus",
+      "providerModel": "qwen3.7-plus",
+      "providerRequestId": "9bb25276-9f32-9012-9881-41b680d5f872",
+      "startedAt": "2026-11-12T13:26:49.333Z",
+      "finishedAt": "2026-11-12T13:26:57.485Z",
+      "durationMs": 8152,
+      "httpStatus": 200,
+      "status": "SUCCEEDED",
+      "errorType": null,
+      "providerDispatched": true,
+      "usage": {
+        "inputTokens": 11158,
+        "outputTokens": 444,
+        "totalTokens": 11602,
+        "cacheReadTokens": 6272,
+        "cacheWriteTokens": null,
+        "reasoningTokens": 301,
+        "totalSource": "PROVIDER",
+        "cacheAccounting": "CACHE_IS_INPUT_SUBSET",
+        "raw": {
+          "prompt_tokens": 11158,
+          "total_tokens": 11602,
+          "completion_tokens": 444,
+          "prompt_tokens_details": {
+            "cached_tokens": 6272,
+            "text_tokens": 11158
+          },
+          "completion_tokens_details": {
+            "reasoning_tokens": 301,
+            "text_tokens": 444
+          }
+        }
+      },
+      "responseBytes": 33297,
+      "responseSha256": "ece30ddb17ad33dbf28a6300846bef17a2ebdc71842f4e92ceb832c9b93bfc5b",
+      "requestSha256": "5b226266d6420108e029378ad9e516f63f1604d075b382ec98ac0a4445ff1130",
+      "observationTruncated": false,
+      "source": "PROVIDER_HTTP_OBSERVATION",
+      "eventId": "20",
+      "timestamp": "2026-11-12T13:26:57.486Z"
+    },
+    {
+      "eventType": "model.request.completed",
+      "taskId": "native-01000be31db3187cf81e63312cb8162779536bb1f8e10227d6cf1b51899847e0",
+      "sessionId": "native-559919ae-6607-4b84-8f61-83a44f343651",
+      "tenantId": "9001fee4-482b-4851-9eb9-df269765291f",
+      "sourceEventId": "4227",
+      "requestId": "817aa6fa-a5ba-4877-bd53-219cd35650db",
+      "model": "qwen3.7-plus",
+      "providerModel": "qwen3.7-plus",
+      "providerRequestId": "5334b69f-0aa4-9c23-b506-a70b33f67169",
+      "startedAt": "2026-11-12T13:29:30.592Z",
+      "finishedAt": "2026-11-12T13:29:33.056Z",
+      "durationMs": 2464,
+      "httpStatus": 200,
+      "status": "SUCCEEDED",
+      "errorType": null,
+      "providerDispatched": true,
+      "usage": {
+        "inputTokens": 21111,
+        "outputTokens": 95,
+        "totalTokens": 21206,
+        "cacheReadTokens": 20736,
+        "cacheWriteTokens": null,
+        "reasoningTokens": 31,
+        "totalSource": "PROVIDER",
+        "cacheAccounting": "CACHE_IS_INPUT_SUBSET",
+        "raw": {
+          "prompt_tokens": 21111,
+          "total_tokens": 21206,
+          "completion_tokens": 95,
+          "prompt_tokens_details": {
+            "cached_tokens": 20736,
+            "text_tokens": 21111
+          },
+          "completion_tokens_details": {
+            "reasoning_tokens": 31,
+            "text_tokens": 95
+          }
+        }
+      },
+      "responseBytes": 6819,
+      "responseSha256": "a81e9f2300a5a4f36c2bd82ba92593b348d1c4f8ef0e3162a98c4af7d2854b3f",
+      "requestSha256": "b2bf00b99079b37845f163903e41525aebce5e56d11af5d5ad33d905708566be",
+      "observationTruncated": false,
+      "source": "PROVIDER_HTTP_OBSERVATION",
+      "eventId": "36",
+      "timestamp": "2026-11-12T13:29:33.057Z"
+    },
+    {
+      "eventType": "model.request.completed",
+      "taskId": "native-01000be31db3187cf81e63312cb8162779536bb1f8e10227d6cf1b51899847e0",
+      "sessionId": "native-559919ae-6607-4b84-8f61-83a44f343651",
+      "tenantId": "9001fee4-482b-4851-9eb9-df269765291f",
+      "sourceEventId": "4232",
+      "requestId": "925fb43e-6b11-4c4a-bd78-fc7fed5f2e34",
+      "model": "qwen3.7-plus",
+      "providerModel": "qwen3.7-plus",
+      "providerRequestId": "475cb541-20f9-98d6-9f57-f035ab3e1967",
+      "startedAt": "2026-11-12T13:29:33.406Z",
+      "finishedAt": "2026-11-12T13:29:40.709Z",
+      "durationMs": 7303,
+      "httpStatus": 200,
+      "status": "SUCCEEDED",
+      "errorType": null,
+      "providerDispatched": true,
+      "usage": {
+        "inputTokens": 23186,
+        "outputTokens": 386,
+        "totalTokens": 23572,
+        "cacheReadTokens": 20736,
+        "cacheWriteTokens": null,
+        "reasoningTokens": 168,
+        "totalSource": "PROVIDER",
+        "cacheAccounting": "CACHE_IS_INPUT_SUBSET",
+        "raw": {
+          "prompt_tokens": 23186,
+          "total_tokens": 23572,
+          "completion_tokens": 386,
+          "prompt_tokens_details": {
+            "cached_tokens": 20736,
+            "text_tokens": 23186
+          },
+          "completion_tokens_details": {
+            "reasoning_tokens": 168,
+            "text_tokens": 386
+          }
+        }
+      },
+      "responseBytes": 31526,
+      "responseSha256": "fe2fb294885a92e8f37a249f18d5d22f673636583556094928507c50e6cc52c7",
+      "requestSha256": "ad6a99281bbda640febfff1f4a73883344d5592ceb9715d6954242e284a6c1e4",
+      "observationTruncated": false,
+      "source": "PROVIDER_HTTP_OBSERVATION",
+      "eventId": "38",
+      "timestamp": "2026-11-12T13:29:40.710Z"
+    },
+    {
+      "eventType": "model.request.completed",
+      "taskId": "native-01000be31db3187cf81e63312cb8162779536bb1f8e10227d6cf1b51899847e0",
+      "sessionId": "native-559919ae-6607-4b84-8f61-83a44f343651",
+      "tenantId": "9001fee4-482b-4851-9eb9-df269765291f",
+      "sourceEventId": "4200",
+      "requestId": "aa0487b1-0829-4bea-b378-bce6e5fa2361",
+      "model": "qwen3.7-plus",
+      "providerModel": "qwen3.7-plus",
+      "providerRequestId": "395db2af-03d0-9084-a849-ccf0381df3fc",
+      "startedAt": "2026-11-12T13:27:00.708Z",
+      "finishedAt": "2026-11-12T13:27:47.335Z",
+      "durationMs": 46627,
+      "httpStatus": 200,
+      "status": "SUCCEEDED",
+      "errorType": null,
+      "providerDispatched": true,
+      "usage": {
+        "inputTokens": 11674,
+        "outputTokens": 2846,
+        "totalTokens": 14520,
+        "cacheReadTokens": 10880,
+        "cacheWriteTokens": null,
+        "reasoningTokens": 39,
+        "totalSource": "PROVIDER",
+        "cacheAccounting": "CACHE_IS_INPUT_SUBSET",
+        "raw": {
+          "prompt_tokens": 11674,
+          "total_tokens": 14520,
+          "completion_tokens": 2846,
+          "prompt_tokens_details": {
+            "cached_tokens": 10880,
+            "text_tokens": 11674
+          },
+          "completion_tokens_details": {
+            "reasoning_tokens": 39,
+            "text_tokens": 2846
+          }
+        }
+      },
+      "responseBytes": 268912,
+      "responseSha256": "9d2f5520f04b6a0d1aa2080e54eef31975b2e4af3de2a4b8fc8046de832e46ca",
+      "requestSha256": "c43d640d64094d5e96f264347d76f72892b88278082457b97dc0e7c1f1a75893",
+      "observationTruncated": false,
+      "source": "PROVIDER_HTTP_OBSERVATION",
+      "eventId": "22",
+      "timestamp": "2026-11-12T13:27:47.336Z"
+    },
+    {
+      "eventType": "model.request.completed",
+      "taskId": "native-01000be31db3187cf81e63312cb8162779536bb1f8e10227d6cf1b51899847e0",
+      "sessionId": "native-559919ae-6607-4b84-8f61-83a44f343651",
+      "tenantId": "9001fee4-482b-4851-9eb9-df269765291f",
+      "sourceEventId": "4224",
+      "requestId": "b185d4b2-7f72-40db-a0c1-98b461bc1901",
+      "model": "qwen3.7-plus",
+      "providerModel": "qwen3.7-plus",
+      "providerRequestId": "31be4f62-7ed6-9454-9100-3707fb55d20d",
+      "startedAt": "2026-11-12T13:29:25.568Z",
+      "finishedAt": "2026-11-12T13:29:29.947Z",
+      "durationMs": 4379,
+      "httpStatus": 200,
+      "status": "SUCCEEDED",
+      "errorType": null,
+      "providerDispatched": true,
+      "usage": {
+        "inputTokens": 20784,
+        "outputTokens": 201,
+        "totalTokens": 20985,
+        "cacheReadTokens": 20096,
+        "cacheWriteTokens": null,
+        "reasoningTokens": 25,
+        "totalSource": "PROVIDER",
+        "cacheAccounting": "CACHE_IS_INPUT_SUBSET",
+        "raw": {
+          "prompt_tokens": 20784,
+          "total_tokens": 20985,
+          "completion_tokens": 201,
+          "prompt_tokens_details": {
+            "cached_tokens": 20096,
+            "text_tokens": 20784
+          },
+          "completion_tokens_details": {
+            "reasoning_tokens": 25,
+            "text_tokens": 201
+          }
+        }
+      },
+      "responseBytes": 6798,
+      "responseSha256": "5f8a009b4e8760495e8fd998f0d8a41b98f97813dcb97bbe566f09e999fe3e5b",
+      "requestSha256": "b6b4d1e3f66cb614e051a0451f094fbf03c04a814a9ab0d68aee18a6a443f74b",
+      "observationTruncated": false,
+      "source": "PROVIDER_HTTP_OBSERVATION",
+      "eventId": "34",
+      "timestamp": "2026-11-12T13:29:29.948Z"
+    },
+    {
+      "eventType": "model.request.completed",
+      "taskId": "native-01000be31db3187cf81e63312cb8162779536bb1f8e10227d6cf1b51899847e0",
+      "sessionId": "native-559919ae-6607-4b84-8f61-83a44f343651",
+      "tenantId": "9001fee4-482b-4851-9eb9-df269765291f",
+      "sourceEventId": "4192",
+      "requestId": "c8b15acf-af83-4225-9686-9bc7631aaef0",
+      "model": "qwen3.7-plus",
+      "providerModel": "qwen3.7-plus",
+      "providerRequestId": "b03ab2ee-f2fd-9fc8-b6a9-a16a5b89bded",
+      "startedAt": "2026-11-12T13:26:43.485Z",
+      "finishedAt": "2026-11-12T13:26:49.122Z",
+      "durationMs": 5637,
+      "httpStatus": 200,
+      "status": "SUCCEEDED",
+      "errorType": null,
+      "providerDispatched": true,
+      "usage": {
+        "inputTokens": 6437,
+        "outputTokens": 279,
+        "totalTokens": 6716,
+        "cacheReadTokens": 0,
+        "cacheWriteTokens": null,
+        "reasoningTokens": 122,
+        "totalSource": "PROVIDER",
+        "cacheAccounting": "CACHE_IS_INPUT_SUBSET",
+        "raw": {
+          "prompt_tokens": 6437,
+          "total_tokens": 6716,
+          "completion_tokens": 279,
+          "prompt_tokens_details": {
+            "cached_tokens": 0,
+            "text_tokens": 6437
+          },
+          "completion_tokens_details": {
+            "reasoning_tokens": 122,
+            "text_tokens": 279
+          }
+        }
+      },
+      "responseBytes": 14437,
+      "responseSha256": "cc9d518d249aa0a935191cc815abf1a95196698965ad5f4da06e3d9e3ae4bc84",
+      "requestSha256": "8a47c1c9efcc74000ec33ceff80ff2f663e9582f7e5c46853ee75e96ecb20322",
+      "observationTruncated": false,
+      "source": "PROVIDER_HTTP_OBSERVATION",
+      "eventId": "18",
+      "timestamp": "2026-11-12T13:26:49.123Z"
+    },
+    {
+      "eventType": "model.request.completed",
+      "taskId": "native-01000be31db3187cf81e63312cb8162779536bb1f8e10227d6cf1b51899847e0",
+      "sessionId": "native-559919ae-6607-4b84-8f61-83a44f343651",
+      "tenantId": "9001fee4-482b-4851-9eb9-df269765291f",
+      "sourceEventId": "4235",
+      "requestId": "e3e905cb-65b9-44cd-a697-06dfdb16dbf8",
+      "model": "qwen3.7-plus",
+      "providerModel": "qwen3.7-plus",
+      "providerRequestId": "26a3d2db-9688-9e5a-b394-3de9cfdf1e5b",
+      "startedAt": "2026-11-12T13:29:40.928Z",
+      "finishedAt": "2026-11-12T13:29:46.672Z",
+      "durationMs": 5744,
+      "httpStatus": 200,
+      "status": "SUCCEEDED",
+      "errorType": null,
+      "providerDispatched": true,
+      "usage": {
+        "inputTokens": 23617,
+        "outputTokens": 287,
+        "totalTokens": 23904,
+        "cacheReadTokens": 23040,
+        "cacheWriteTokens": null,
+        "reasoningTokens": 26,
+        "totalSource": "PROVIDER",
+        "cacheAccounting": "CACHE_IS_INPUT_SUBSET",
+        "raw": {
+          "prompt_tokens": 23617,
+          "total_tokens": 23904,
+          "completion_tokens": 287,
+          "prompt_tokens_details": {
+            "cached_tokens": 23040,
+            "text_tokens": 23617
+          },
+          "completion_tokens_details": {
+            "reasoning_tokens": 26,
+            "text_tokens": 287
+          }
+        }
+      },
+      "responseBytes": 6880,
+      "responseSha256": "6ba810fe7d6d1124942e0cf4865f1ee6138214d5b2b56838dc3975f831b11a92",
+      "requestSha256": "5d00d3ea3fddf74a7f664bd0bb2d1a7dd654666aafc77e7b97afa85349f88761",
+      "observationTruncated": false,
+      "source": "PROVIDER_HTTP_OBSERVATION",
+      "eventId": "40",
+      "timestamp": "2026-11-12T13:29:46.673Z"
+    },
+    {
+      "eventType": "model.request.completed",
+      "taskId": "native-01000be31db3187cf81e63312cb8162779536bb1f8e10227d6cf1b51899847e0",
+      "sessionId": "native-559919ae-6607-4b84-8f61-83a44f343651",
+      "tenantId": "9001fee4-482b-4851-9eb9-df269765291f",
+      "sourceEventId": "4210",
+      "requestId": "f25f1f7d-c62b-4ae2-88ed-083c1a3b3651",
+      "model": "qwen3.7-plus",
+      "providerModel": "qwen3.7-plus",
+      "providerRequestId": "56e7b919-1cd3-91fb-8c69-a31169e98a2b",
+      "startedAt": "2026-11-12T13:28:01.354Z",
+      "finishedAt": "2026-11-12T13:28:32.472Z",
+      "durationMs": 31118,
+      "httpStatus": 200,
+      "status": "SUCCEEDED",
+      "errorType": null,
+      "providerDispatched": true,
+      "usage": {
+        "inputTokens": 15405,
+        "outputTokens": 1872,
+        "totalTokens": 17277,
+        "cacheReadTokens": 14336,
+        "cacheWriteTokens": null,
+        "reasoningTokens": 12,
+        "totalSource": "PROVIDER",
+        "cacheAccounting": "CACHE_IS_INPUT_SUBSET",
+        "raw": {
+          "prompt_tokens": 15405,
+          "total_tokens": 17277,
+          "completion_tokens": 1872,
+          "prompt_tokens_details": {
+            "cached_tokens": 14336,
+            "text_tokens": 15405
+          },
+          "completion_tokens_details": {
+            "reasoning_tokens": 12,
+            "text_tokens": 1872
+          }
+        }
+      },
+      "responseBytes": 166695,
+      "responseSha256": "6496dc5fb5e747566624d4c7bce7197cfc1135c910cf6186234b593fb3a49da6",
+      "requestSha256": "419cb56b5cecc5d675a1d7285a94ad9169d38fa9933f91fb77f250e1ec2de1c6",
+      "observationTruncated": false,
+      "source": "PROVIDER_HTTP_OBSERVATION",
+      "eventId": "26",
+      "timestamp": "2026-11-12T13:28:32.474Z"
+    }
+  ],
+  "executions": 6,
+  "finishedAt": "2026-11-12T13:30:04.292Z"
+}

@@ -1,0 +1,7 @@
+{
+  "passed": true,
+  "fullscreen": true,
+  "offlineDownload": true,
+  "offlineRender": true,
+  "opaqueSandbox": true
+}

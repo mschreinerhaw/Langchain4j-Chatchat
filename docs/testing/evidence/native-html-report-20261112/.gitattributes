@@ -1,0 +1,3 @@
+# Keep original delivery bytes so recorded SHA-256 survives Windows checkouts.
+inline/files/** -text
+separate/files/** -text

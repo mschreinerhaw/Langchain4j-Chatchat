@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Synthetic Acceptance Report</title>
+  <link rel="stylesheet" href="report.css">
+</head>
+<body>
+
+  <!-- Header -->
+  <header class="report-header">
+    <h1>Synthetic Acceptance Data — Briefing Report</h1>
+    <p class="subtitle">Computed statistics and category comparison from the supplied acceptance CSV fixture.</p>
+    <span class="badge">Synthetic Data</span>
+  </header>
+
+  <div id="report-content">
+
+    <!-- Narrative -->
+    <section class="card">
+      <h2>Overview</h2>
+      <div class="narrative">
+        <p>This report analyzes the <strong>synthetic-html-acceptance.csv</strong> file delivered as a test fixture. The dataset contains <strong>3 records</strong> across three categories (A, B, C) with numeric amount values. All computations were performed natively from the actual file — no data was invented or substituted.</p>
+        <p><strong>Important:</strong> This is explicitly <em>synthetic acceptance data</em>, not real business data. The observations have no financial, operational, or real-world interpretation. They exist solely for report pipeline validation and acceptance testing.</p>
+      </div>
+    </section>
+
+    <!-- Summary Statistics -->
+    <section class="card">
+      <h2>Computed Statistics</h2>
+      <div class="stats-grid">
+        <div class="stat-item">
+          <span class="stat-value" id="stat-count">—</span>
+          <span class="stat-label">Record Count</span>
+        </div>
+        <div class="stat-item">
+          <span class="stat-value" id="stat-total">—</span>
+          <span class="stat-label">Total Amount</span>
+        </div>
+        <div class="stat-item">
+          <span class="stat-value" id="stat-mean">—</span>
+          <span class="stat-label">Mean Amount</span>
+        </div>
+      </div>
+    </section>
+
+    <!-- Category Comparison Chart -->
+    <section class="card">
+      <h2>Category Comparison</h2>
+      <div class="chart-container">
+        <img src="category-chart.png" alt="Bar chart comparing amounts across categories A, B, and C">
+        <p class="chart-caption">Figure 1: Amount by category — sorted A, B, C. Neutral palette (non-financial synthetic data).</p>
+      </div>
+      <table class="category-table">
+        <thead>
+          <tr>
+            <th>Category</th>
+            <th>Amount</th>
+            <th>Record Count</th>
+          </tr>
+        </thead>
+        <tbody id="category-tbody">
+          <!-- Populated by report.js -->
+        </tbody>
+      </table>
+    </section>
+
+    <!-- Original Rows Toggle -->
+    <section class="card">
+      <h2>Source Data Inspection</h2>
+      <p class="narrative" style="margin-bottom:12px;">Inspect the original row values from the acceptance CSV. Use the button below to reveal or conceal the raw data.</p>
+      <button class="toggle-btn" id="toggle-rows-btn" type="button">
+        <span class="icon">&#9660;</span>
+        <span class="btn-label">Show Original Rows</span>
+      </button>
+      <div class="rows-panel" id="rows-panel">
+        <table class="category-table">
+          <thead>
+            <tr>
+              <th>#</th>
+              <th>Category</th>
+              <th>Amount</th>
+            </tr>
+          </thead>
+          <tbody id="rows-tbody">
+            <!-- Populated by report.js -->
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- Source & Limitations -->
+    <section class="card">
+      <h2>Source &amp; Limitations</h2>
+      <div class="source-note">
+        <h3>Data Source</h3>
+        <p>File: <code id="source-file">input/data/0/synthetic-html-acceptance.csv</code></p>
+        <p style="margin-top:8px;"><strong>Nature of data:</strong> All observations in this report are derived from a synthetic test fixture. The CSV was generated for acceptance testing of the reporting pipeline. No real-world business, financial, or operational data is represented. Statistics (count, total, mean) are computed directly from the file and must not be interpreted as meaningful business metrics.</p>
+        <p style="margin-top:8px;"><strong>Limitations:</strong> The dataset contains only 3 records across 3 categories with integer amounts. No temporal dimension, no statistical significance, and no extrapolation is warranted. The category comparison visualization uses a neutral color palette because the data is non-financial and the "auto" style profile resolves to neutral conventions for synthetic fixtures.</p>
+      </div>
+    </section>
+
+  </div>
+
+  <!-- Footer -->
+  <footer class="report-footer">
+    <p>Synthetic Acceptance Report &middot; Generated from local computation &middot; No external data sources</p>
+  </footer>
+
+  <script src="report.js"></script>
+</body>
+</html>

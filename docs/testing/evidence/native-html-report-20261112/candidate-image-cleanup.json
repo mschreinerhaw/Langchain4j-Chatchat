@@ -1,0 +1,23 @@
+{
+  "removed": [
+    {
+      "imageId": "sha256:3bb4cc9759ddfb3f7cdf0298240f9c0276e98208303d47d84838a22d3f902825",
+      "tag": "runtime-os-api:native-html-report-20261112-r1"
+    },
+    {
+      "imageId": "sha256:95ae2cf2d15d50fcc09eba62a28ce56977ff54891cc4c51aab08f19664ff702b",
+      "tag": "runtime-os-api:native-html-report-20261112-r2"
+    },
+    {
+      "imageId": "sha256:7e686b7242b4d5e5950431badf405760eb812b454f13e6ff152080ff74ec8730",
+      "tag": "runtime-os-api:native-html-report-20261112-r3"
+    }
+  ],
+  "skipped": [],
+  "currentImage": "sha256:d2489fc306e08ea952a73cd7bd23982f0e784cc819365aa806ce4962232f233a",
+  "rollbackImage": "sha256:880bfec8b6af5ba3fee13e84f81d7cf5b5f4423028ba2d8d92f08719b51e746f",
+  "freeBeforeBytes": 15092649984,
+  "freeAfterBytes": 15092649984,
+  "globalPrune": false,
+  "volumesDeleted": false
+}

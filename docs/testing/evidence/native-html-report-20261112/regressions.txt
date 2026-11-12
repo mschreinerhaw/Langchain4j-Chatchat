@@ -1,0 +1,11 @@
+[INFO] Tests run: 6, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 8.799 s -- in com.chatchat.api.assets.NativeS3CodingAdapterTest
+[INFO] Tests run: 6, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 1.627 s -- in com.chatchat.api.assets.UserAssetControllerHttpTest
+[INFO] Tests run: 10, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.117 s -- in com.chatchat.api.assets.UserAssetServiceTest
+[INFO] Tests run: 16, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.769 s -- in com.chatchat.api.exploration.ExplorationAgentBridgeTest
+[INFO] Tests run: 4, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.102 s -- in com.chatchat.api.runtime.coding.analysis.CodingNativeAnalysisObjectiveTest
+[INFO] Tests run: 3, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.068 s -- in com.chatchat.api.runtime.coding.NativeHtmlReportTest
+[INFO] Tests run: 5, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.130 s -- in com.chatchat.api.runtime.coding.NativeVisualReportTest
+[INFO] Tests run: 50, Failures: 0, Errors: 0, Skipped: 0
+[INFO] BUILD SUCCESS
+ Test Files  4 passed (4)
+      Tests  53 passed (53)

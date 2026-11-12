@@ -1,0 +1,104 @@
+[
+  {
+    "recordId": "28b13956-f7d7-496e-bbfb-cab67c7e55a9",
+    "command": "/bin/bash [\"-c\",\"cd /workspace/output/synthetic-acceptance-report && python3 analyze.py\"]",
+    "status": "SUCCEEDED",
+    "exitCode": 0,
+    "startedAt": "2026-11-12T13:29:17.860Z",
+    "finishedAt": "2026-11-12T13:29:21.540Z",
+    "durationMs": 3680.323842,
+    "stdout": {
+      "size": 276,
+      "sha256": "c02ca009788eb90d9a09f6d5d503d264fb43b697d1af3542fac092fb8b617148"
+    },
+    "stderr": {
+      "size": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    }
+  },
+  {
+    "recordId": "3aa2eb40-befd-46fe-8846-09e42419cc65",
+    "command": "/bin/bash [\"-c\",\"python3 -c \\\"import matplotlib; print(matplotlib.__version__)\\\"\"]",
+    "status": "SUCCEEDED",
+    "exitCode": 0,
+    "startedAt": "2026-11-12T13:26:57.821Z",
+    "finishedAt": "2026-11-12T13:27:00.652Z",
+    "durationMs": 2831.957269,
+    "stdout": {
+      "size": 7,
+      "sha256": "ac67a8a961ce1353733aeef7762757f3f3b28d1f4ef1bf97369f3b5a329b3b4b"
+    },
+    "stderr": {
+      "size": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    }
+  },
+  {
+    "recordId": "6353ec6a-675d-4fb5-942d-708819616594",
+    "command": "/bin/bash [\"-c\",\"python3 -c \\\"\\nimport re\\nwith open('/workspace/output/synthetic-acceptance-report/report.html') as f:\\n    html = f.read()\\nscripts = re.findall(r'<script>(.*?)</script>', html, re.DOTALL)\\nfor i, s in enumerate(scripts):\\n    with open(f'/tmp/script_{i}.js', 'w') as f:\\n        f.write(s)\\n    print(f'Script {i}: {len(s)} chars')\\n\\\" && node --check /tmp/script_0.js && echo 'JS syntax OK'\"]",
+    "status": "SUCCEEDED",
+    "exitCode": 0,
+    "startedAt": "2026-11-12T13:29:30.367Z",
+    "finishedAt": "2026-11-12T13:29:30.523Z",
+    "durationMs": 156.591109,
+    "stdout": {
+      "size": 33,
+      "sha256": "46189d03ba266bec65a90af5fe4d284779b244fe6e76efdf3c82edc75611f2c1"
+    },
+    "stderr": {
+      "size": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    }
+  },
+  {
+    "recordId": "ae530eb7-b05d-466d-a9ca-7ecc53403e97",
+    "command": "/bin/bash [\"-c\",\"cat > /workspace/output/synthetic-acceptance-report/analyze.py << 'PYEOF'\\n#!/usr/bin/env python3\\n\\\"\\\"\\\"Analyze synthetic-html-acceptance.csv and produce all report artifacts.\\\"\\\"\\\"\\nimport csv, json, os, datetime\\nimport matplotlib\\nmatplotlib.use(\\\"Agg\\\")\\nimport matplotlib.pyplot as plt\\nimport matplotlib.ticker as mticker\\n\\nSRC_CSV = \\\"/workspace/input/data/0/synthetic-html-acceptance.csv\\\"\\nOUT_DIR = \\\"/workspace/output/synthetic-acceptance-report\\\"\\nCHART_PNG = os.path.join(OUT_DIR, \\\"category_comparison.png\\\")\\nRESULT_JSON = os.path.join(OUT_DIR, \\\"result.json\\\")\\nREPORT_HTML = os.path.join(OUT_DIR, \\\"report.html\\\")\\n\\n# 1. Read & compute\\nrows = []\\nwith open(SRC_CSV, newline=\\\"\\\") as f:\\n    for r in csv.DictReader(f):\\n        rows.append({\\\"category\\\": r[\\\"category\\\"].strip(), \\\"amount\\\": int(r[\\\"amount\\\"].strip())})\\n\\ncount = len(rows)\\ntotal = sum(r[\\\"amount\\\"] for r in rows)\\nmean = total / count if count else 0.0\\nprint(f\\\"Records: {count}, Total: {total}, Mean: {mean}\\\")\\n\\n# 2. RESULT JSON\\nresult = {\\\"count\\\": count, \\\"total\\\": total, \\\"mean\\\": mean}\\nwith open(RESULT_JSON, \\\"w\\\") as f:\\n    json.dump(result, f, indent=2)\\nprint(f\\\"Wrote {RESULT_JSON}\\\")\\n\\n# 3. Bar chart\\ncategories = [r[\\\"category\\\"] for r in rows]\\namounts = [r[\\\"amount\\\"] for r in rows]\\ncolors = [\\\"#5B8DB8\\\", \\\"#7BA67B\\\", \\\"#C4A35A\\\"]\\nfig, ax = plt.subplots(figsize=(7, 4.5))\\nbars = ax.bar(categories, amounts, color=colors[:len(categories)], edgecolor=\\\"#333\\\", linewidth=0.6)\\nfor bar, val in zip(bars, amounts):\\n    ax.text(bar.get_x(), bar.get_height() + 0.5, str(val),\\n            ha=\\\"center\\\", va=\\\"bottom\\\", fontsize=12, fontweight=\\\"bold\\\")\\nax.set_xlabel(\\\"Category\\\", fontsize=11)\\nax.set_ylabel(\\\"Amount\\\", fontsize=11)\\nax.set_title(\\\"Category Comparison - Synthetic Acceptance Data\\\", fontsize=13, fontweight=\\\"bold\\\")\\nax.yaxis.set_major_locator(mticker.MaxNLocator(integer=True))\\nax.set_ylim(0, max(amounts) * 1.25)\\nax.spines[\\\"top\\\"].set_visible(False)\\nax.spines[\\\"right\\\"].set_visible(False)\\nfig.tight_layout()\\nfig.savefig(CHART_PNG, dpi=150)\\nplt.close(fig)\\nprint(f\\\"Wrote {CHART_PNG}\\\")\\n\\n# 4. HTML report\\nnum_cats = len(set(r[\\\"category\\\"] for r in rows))\\nrows_json = json.dumps(rows)\\ntoday = datetime.date.today().isoformat()\\n\\nhtml_parts = []\\nhtml_parts.append('''<!DOCTYPE html>\\n<html lang=\\\"en\\\">\\n<head>\\n<meta charset=\\\"UTF-8\\\">\\n<meta name=\\\"viewport\\\" content=\\\"width=device-width, initial-scale=1.0\\\">\\n<title>Synthetic Acceptance Report</title>\\n<style>\\n:root{--bg:#f8f9fa;--card:#fff;--text:#212529;--muted:#6c757d;--accent:#5B8DB8;--border:#dee2e6;--radius:8px}\\n*,*::before,*::after{box-sizing:border-box}\\nbody{font-family:-apple-system,BlinkMacSystemFont,\\\"Segoe UI\\\",Roboto,Helvetica,Arial,sans-serif;background:var(--bg);color:var(--text);margin:0;padding:24px 16px;line-height:1.6}\\n.container{max-width:860px;margin:0 auto}\\nh1{font-size:1.6rem;margin:0 0 4px}\\n.subtitle{color:var(--muted);font-size:.95rem;margin:0 0 24px}\\n.card{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:20px 24px;margin-bottom:20px}\\n.card h2{font-size:1.15rem;margin:0 0 12px}\\n.stats{display:flex;gap:16px;flex-wrap:wrap}\\n.stat{flex:1 1 140px;text-align:center;padding:16px 12px;background:var(--bg);border-radius:var(--radius);border:1px solid var(--border)}\\n.stat .value{font-size:1.8rem;font-weight:700;color:var(--accent)}\\n.stat .label{font-size:.85rem;color:var(--muted);margin-top:4px}\\n.chart-img{max-width:100%;height:auto;border-radius:var(--radius);margin:8px 0}\\n.btn{display:inline-block;padding:8px 18px;font-size:.9rem;border:1px solid var(--accent);border-radius:var(--radius);background:var(--accent);color:#fff;cursor:pointer;transition:background .15s}\\n.btn:hover{background:#4a7ca5}\\n.btn-outline{background:transparent;color:var(--accent)}\\n.btn-outline:hover{background:var(--accent);color:#fff}\\ntable{width:100%;border-collapse:collapse;margin-top:12px;font-size:.92rem}\\nth,td{padding:8px 12px;text-align:left;border-bottom:1px solid var(--border)}\\nth{background:var(--bg);font-weight:600}\\n.hidden{display:none}\\n.note{font-size:.85rem;color:var(--muted);border-left:3px solid var(--accent);padding:8px 14px;margin:12px 0 0}\\n.section-label{font-size:.8rem;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);margin-bottom:6px}\\n</style>\\n</head>\\n<body>\\n<div class=\\\"container\\\">\\n''')\\n\\nhtml_parts.append(f'<h1>Synthetic Acceptance Data &mdash; Analysis Report</h1>\\\\n')\\nhtml_parts.append(f'<p class=\\\"subtitle\\\">Source: <code>input/data/0/synthetic-html-acceptance.csv</code> &middot; Generated {today}</p>\\\\n')\\n\\nhtml_parts.append(f'''\\n<div class=\\\"card\\\">\\n<h2>Key Statistics</h2>\\n<div class=\\\"stats\\\">\\n<div class=\\\"stat\\\"><div class=\\\"value\\\">{count}</div><div class=\\\"label\\\">Record Count</div></div>\\n<div class=\\\"stat\\\"><div class=\\\"value\\\">{total}</div><div class=\\\"label\\\">Total Amount</div></div>\\n<div class=\\\"stat\\\"><div class=\\\"value\\\">{mean:.2f}</div><div class=\\\"label\\\">Mean Amount</div></div>\\n</div>\\n</div>\\n\\n<div class=\\\"card\\\">\\n<h2>Category Comparison</h2>\\n<p class=\\\"section-label\\\">Bar chart &mdash; amount by category</p>\\n<img class=\\\"chart-img\\\" src=\\\"category_comparison.png\\\" alt=\\\"Category comparison bar chart\\\">\\n<p class=\\\"note\\\"><strong>Color convention:</strong> Neutral palette used (no financial rise/fall semantics). The &ldquo;auto&rdquo; style profile was selected; its specific semantic-color definition was not available for this non-financial synthetic dataset, so distinct neutral hues distinguish categories without implying positive/negative direction.</p>\\n</div>\\n\\n<div class=\\\"card\\\">\\n<h2>Original Rows</h2>\\n<button class=\\\"btn btn-outline\\\" id=\\\"toggleBtn\\\" onclick=\\\"toggleRows()\\\">Show Rows</button>\\n<div id=\\\"rowsContainer\\\" class=\\\"hidden\\\">\\n<table>\\n<thead><tr><th>#</th><th>Category</th><th>Amount</th></tr></thead>\\n<tbody id=\\\"rowsBody\\\"></tbody>\\n</table>\\n</div>\\n</div>\\n\\n<div class=\\\"card\\\">\\n<h2>About This Report</h2>\\n<p>This report analyzes a <strong>synthetic acceptance CSV</strong> &mdash; a small, intentionally constructed dataset used for pipeline verification, not real business observations. The file contains {count} records across {num_cats} categories (A, B, C) with integer amounts.</p>\\n<p><strong>Source:</strong> <code>{SRC_CSV}</code> &mdash; read directly from the authorized workspace input path. All computations were performed natively with Python&rsquo;s <code>csv</code> module; no data was substituted or invented.</p>\\n<p><strong>Limitations:</strong> With only {count} records, statistical summaries (mean&nbsp;=&nbsp;{mean:.2f}) are descriptive only and carry no inferential weight. Categories are nominal labels without temporal or hierarchical structure. This dataset is explicitly synthetic and should not be interpreted as representing real transactions, revenues, or business metrics.</p>\\n</div>\\n\\n</div>\\n<script>\\nvar DATA = {rows_json};\\nvar tbody = document.getElementById(\\\"rowsBody\\\");\\nDATA.forEach(function(r, i) {{\\n  var tr = document.createElement(\\\"tr\\\");\\n  tr.innerHTML = \\\"<td>\\\" + (i+1) + \\\"</td><td>\\\" + r.category + \\\"</td><td>\\\" + r.amount + \\\"</td>\\\";\\n  tbody.appendChild(tr);\\n}});\\nfunction toggleRows() {{\\n  var c = document.getElementById(\\\"rowsContainer\\\");\\n  var b = document.getElementById(\\\"toggleBtn\\\");\\n  if (c.classList.contains(\\\"hidden\\\")) {{\\n    c.classList.remove(\\\"hidden\\\");\\n    b.textContent = \\\"Hide Rows\\\";\\n  }} else {{\\n    c.classList.add(\\\"hidden\\\");\\n    b.textContent = \\\"Show Rows\\\";\\n  }}\\n}}\\n</script>\\n</body>\\n</html>''')\\n\\nhtml = \\\"\\\".join(html_parts)\\nwith open(REPORT_HTML, \\\"w\\\") as f:\\n    f.write(html)\\nprint(f\\\"Wrote {REPORT_HTML}\\\")\\nprint(\\\"All artifacts generated successfully.\\\")\\nPYEOF\\n\"]",
+    "status": "SUCCEEDED",
+    "exitCode": 0,
+    "startedAt": "2026-11-12T13:29:15.365Z",
+    "finishedAt": "2026-11-12T13:29:15.369Z",
+    "durationMs": 4.474754,
+    "stdout": {
+      "size": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "stderr": {
+      "size": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    }
+  },
+  {
+    "recordId": "d6119e12-ecec-402f-9d90-c8420f625a29",
+    "command": "/bin/bash [\"-c\",\"python3 -c \\\"\\nfrom PIL import Image\\nimg = Image.open('/workspace/output/synthetic-acceptance-report/category_comparison.png')\\nprint(f'Chart: {img.size[0]}x{img.size[1]} px, mode={img.mode}')\\n\\\"\"]",
+    "status": "SUCCEEDED",
+    "exitCode": 0,
+    "startedAt": "2026-11-12T13:29:46.963Z",
+    "finishedAt": "2026-11-12T13:29:47.212Z",
+    "durationMs": 249.526382,
+    "stdout": {
+      "size": 30,
+      "sha256": "b06ca5d2584560d72a50d59252ef9fa3d6f5d08ff7de3aa7b0359a6bb993d875"
+    },
+    "stderr": {
+      "size": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    }
+  },
+  {
+    "recordId": "ffb9b71f-e2e1-4653-aeaa-4b73354d5adb",
+    "command": "/bin/bash [\"-c\",\"python3 -c \\\"\\nimport json, os\\nwith open('/workspace/delivery_manifest.json') as f:\\n    m = json.load(f)\\nprint(f'Schema: {m[\\\\\\\"schemaVersion\\\\\\\"]}')\\nfor a in m['artifacts']:\\n    p = os.path.join('/workspace', a['path'])\\n    exists = os.path.isfile(p)\\n    size = os.path.getsize(p) if exists else 0\\n    print(f'  {a[\\\\\\\"type\\\\\\\"]:10s} {a[\\\\\\\"path\\\\\\\"]:55s} exists={exists} size={size}')\\n\\\"\"]",
+    "status": "SUCCEEDED",
+    "exitCode": 0,
+    "startedAt": "2026-11-12T13:29:46.919Z",
+    "finishedAt": "2026-11-12T13:29:47.022Z",
+    "durationMs": 103.170919,
+    "stdout": {
+      "size": 408,
+      "sha256": "3a523e5325d6616d4753a7920c341a06438017d5a95505c322fe4f3381d213a4"
+    },
+    "stderr": {
+      "size": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    }
+  }
+]

@@ -1,0 +1,70 @@
+[
+  {
+    "recordId": "22e484a7-cce4-4669-acb5-3bd3d940359d",
+    "command": "/bin/bash [\"-c\",\"cd /workspace/output/synthetic-acceptance-report && python3 compute.py\"]",
+    "status": "SUCCEEDED",
+    "exitCode": 0,
+    "startedAt": "2026-11-12T13:32:51.480Z",
+    "finishedAt": "2026-11-12T13:32:53.121Z",
+    "durationMs": 1640.43978,
+    "stdout": {
+      "size": 413,
+      "sha256": "2121f02ea9c0a199c27d9ce36408a40617a9fa4a533225d935c37ed637388853"
+    },
+    "stderr": {
+      "size": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    }
+  },
+  {
+    "recordId": "29fc161e-b871-4e5c-ad00-4603dcf59ea0",
+    "command": "/bin/bash [\"-c\",\"python3 -c \\\"import json; d=json.load(open('/workspace/output/synthetic-acceptance-report/result.json')); assert set(['count','total','mean']).issubset(d.keys()); assert isinstance(d['count'], int); assert isinstance(d['total'], (int,float)); assert isinstance(d['mean'], (int,float)); print('RESULT JSON valid:', d)\\\"\"]",
+    "status": "SUCCEEDED",
+    "exitCode": 0,
+    "startedAt": "2026-11-12T13:34:18.534Z",
+    "finishedAt": "2026-11-12T13:34:18.642Z",
+    "durationMs": 107.70867,
+    "stdout": {
+      "size": 61,
+      "sha256": "f421577ea96710309c84273f444150a8ea5bae603ac5c5c7f40006a9589f45d6"
+    },
+    "stderr": {
+      "size": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    }
+  },
+  {
+    "recordId": "60de5188-dbb5-4449-ae47-b003b3a15203",
+    "command": "/bin/bash [\"-c\",\"python3 -c \\\"\\nimport json\\n\\n# Validate delivery manifest\\nwith open('/workspace/delivery_manifest.json') as f:\\n    m = json.load(f)\\nassert m['schemaVersion'] == 'coding_node_delivery_selection.v1'\\nassert len(m['artifacts']) == 7\\ntypes = [a['type'] for a in m['artifacts']]\\nassert 'REPORT' in types\\nassert 'RESULT' in types\\nassert 'AUXILIARY' in types\\nassert 'CHART' in types\\nassert 'SOURCE' in types\\nprint('Manifest valid:', len(m['artifacts']), 'artifacts')\\n\\n# Verify all files exist\\nimport os\\nfor a in m['artifacts']:\\n    p = os.path.join('/workspace', a['path'])\\n    assert os.path.isfile(p), f'Missing: {p}'\\n    print(f'  OK: {a[\\\\\\\"path\\\\\\\"]} ({a[\\\\\\\"type\\\\\\\"]})')\\n\\n# Validate result.json schema\\nwith open('/workspace/output/synthetic-acceptance-report/result.json') as f:\\n    r = json.load(f)\\nassert isinstance(r['count'], int)\\nassert isinstance(r['total'], (int, float))\\nassert isinstance(r['mean'], (int, float))\\nprint('RESULT schema valid')\\nprint('All checks passed!')\\n\\\"\"]",
+    "status": "SUCCEEDED",
+    "exitCode": 0,
+    "startedAt": "2026-11-12T13:34:35.526Z",
+    "finishedAt": "2026-11-12T13:34:35.619Z",
+    "durationMs": 92.399968,
+    "stdout": {
+      "size": 511,
+      "sha256": "bdbab884040a8c6e704f7e16ab5444d5d91d1dcb21f4dda01417af610c653a45"
+    },
+    "stderr": {
+      "size": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    }
+  },
+  {
+    "recordId": "a01c94af-b31d-4b4c-b80e-4f915028bdfc",
+    "command": "/bin/bash [\"-c\",\"python3 -c \\\"\\nfrom PIL import Image\\nimg = Image.open('/workspace/output/synthetic-acceptance-report/category-chart.png')\\nprint(f'Chart dimensions: {img.size[0]}x{img.size[1]} px')\\nprint(f'Chart mode: {img.mode}')\\n\\\"\"]",
+    "status": "SUCCEEDED",
+    "exitCode": 0,
+    "startedAt": "2026-11-12T13:34:56.537Z",
+    "finishedAt": "2026-11-12T13:34:56.741Z",
+    "durationMs": 203.622112,
+    "stdout": {
+      "size": 47,
+      "sha256": "f6fe901c5689fb0787b02dab4cb422d509df36e5b43ad53759c7e53c1d6cf47c"
+    },
+    "stderr": {
+      "size": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    }
+  }
+]

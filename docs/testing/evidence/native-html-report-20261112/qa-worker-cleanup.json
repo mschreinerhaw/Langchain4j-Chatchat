@@ -1,0 +1,14 @@
+[
+  {
+    "taskId": "native-01000be31db3187cf81e63312cb8162779536bb1f8e10227d6cf1b51899847e0",
+    "workerId": "245b30e1-1c26-4432-9432-d160af2ddcc9",
+    "state": "STOPPED",
+    "removed": true
+  },
+  {
+    "taskId": "native-624a05066db91106197b5c4fc08867a247e7a6f78c7d63743804eed09accf94d",
+    "workerId": "4449f13f-fa43-47ce-9550-998db12be311",
+    "state": "STOPPED",
+    "removed": true
+  }
+]

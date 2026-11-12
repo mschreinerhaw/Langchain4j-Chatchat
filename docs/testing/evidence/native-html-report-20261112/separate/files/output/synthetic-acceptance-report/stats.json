@@ -1,0 +1,43 @@
+{
+  "summary": {
+    "count": 3,
+    "total": 42.0,
+    "mean": 14.0
+  },
+  "categories": [
+    {
+      "category": "A",
+      "amount": 12.0,
+      "count": 1
+    },
+    {
+      "category": "B",
+      "amount": 25.0,
+      "count": 1
+    },
+    {
+      "category": "C",
+      "amount": 5.0,
+      "count": 1
+    }
+  ],
+  "rows": [
+    {
+      "category": "A",
+      "amount": 12.0
+    },
+    {
+      "category": "B",
+      "amount": 25.0
+    },
+    {
+      "category": "C",
+      "amount": 5.0
+    }
+  ],
+  "source": {
+    "file": "input/data/0/synthetic-html-acceptance.csv",
+    "description": "Synthetic acceptance CSV \u2014 not real business data. Generated for report validation.",
+    "nature": "All observations are synthetic test fixtures. No financial, operational, or real-world interpretation should be applied."
+  }
+}

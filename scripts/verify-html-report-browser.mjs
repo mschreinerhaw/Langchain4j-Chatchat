@@ -1,3 +1,4 @@
+import {build} from '../chatchat-api/web-app/node_modules/esbuild/lib/main.js';
 /** Real Chromium checks of the same assembler used by the exploration iframe. */
 import {createServer} from 'node:http';
 import {readFile,mkdir,writeFile} from 'node:fs/promises';
@@ -7,11 +8,12 @@ import assert from 'node:assert/strict';
 import {chromium} from '../chatchat-api/web-app/node_modules/playwright-core/index.mjs';
 const output=resolve(process.env.RUNTIME_TEST_OUTPUT||'target/html-report-browser');await mkdir(output,{recursive:true});
 const source=(await readFile('chatchat-api/web-app/src/js/utils/htmlReport.js','utf8')).replace(/^import .*;\r?\n/gm,'').replace(/export /g,'');
-const server=createServer((req,res)=>{res.setHeader('Content-Type','text/html');res.end('<!doctype html><html><body><script>'+source+';window.assemble=assembleHtmlReport;</script></body></html>');});
+const hasher=(await build({stdin:{contents:"import {sha256} from '@noble/hashes/sha256';window.sha256=sha256;",resolveDir:resolve('chatchat-api/web-app')},bundle:true,write:false,format:'iife',platform:'browser'})).outputFiles[0].text;
+const server=createServer((req,res)=>{res.setHeader('Content-Type','text/html');res.end('<!doctype html><html><body><script>'+hasher+source+';window.assemble=assembleHtmlReport;</script></body></html>');});
 await new Promise(r=>server.listen(0,'127.0.0.1',r));let browser;
 try{
  const executablePath=process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH||process.env.LOCALAPPDATA+'/ms-playwright/chromium-1179/chrome-win/chrome.exe';
- browser=await chromium.launch({executablePath,headless:true});const page=await browser.newPage();await page.goto(`http://127.0.0.1:${server.address().port}/`);
+ browser=await chromium.launch({executablePath,headless:true});const page=await browser.newPage();await page.addInitScript(()=>Object.defineProperty(globalThis,'crypto',{value:{},configurable:true}));await page.goto(`http://127.0.0.1:${server.address().port}/`);
  const sources={'output/site/report.html':'<!doctype html><html><head><link rel="stylesheet" href="styles.css"><script defer src="app.js"></script></head><body><h1>Interactive acceptance</h1><p id="total">Loading</p><button id="toggle">Show detail</button><p id="detail" hidden>Original source values</p><p id="isolation"></p></body></html>',
  'output/site/styles.css':'body{color:rgb(12,34,56)}',
  'output/site/app.js':`fetch('data.json').then(r=>r.json()).then(data=>document.querySelector('#total').textContent=String(data.values.reduce((a,b)=>a+b,0)));document.querySelector('#toggle').onclick=()=>document.querySelector('#detail').hidden=false;try{parent.localStorage.getItem('acceptance-token');document.querySelector('#isolation').textContent='LEAK';}catch{document.querySelector('#isolation').textContent='ISOLATED';}`,

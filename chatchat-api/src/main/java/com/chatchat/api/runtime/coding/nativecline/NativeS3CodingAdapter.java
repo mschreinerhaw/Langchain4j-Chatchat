@@ -135,7 +135,7 @@ public final class NativeS3CodingAdapter implements CodingAgentSPI {
         var files=inputs.inputCapabilities(c).stream().map(i->new NativeS3NodeClient.Input(i.input().path(),i.input().size(),i.input().sha256(),i.input().objectVersion(),i.url())).toList();
         String session="native-"+UUID.randomUUID();var grant=new LinkedHashMap<String,Object>();
         grant.put("version",2);grant.put("tenantId",c.scope().tenantId());grant.put("userId",c.scope().userId());grant.put("taskId",c.taskId());grant.put("sessionId",session);grant.put("workspaceRef","project");
-        grant.put("modelProfile",settings.profile(frozen.get("selectedModel").toString()));grant.put("budgetPolicy",Map.of("status","DEFERRED_STAGE_2_REVIEW"));
+        grant.put("modelProfile",settings.profile(frozen.get("selectedModel").toString()));if(settings.dynamicModels)grant.put("runtimeModel",settings.descriptor(frozen.get("selectedModel").toString()));grant.put("budgetPolicy",Map.of("status","DEFERRED_STAGE_2_REVIEW"));
         grant.put("toolPermissions",c.authorization().allowedTools());grant.put("dataPermissions",List.of());grant.put("networkPolicy","broker-only");grant.put("expiresAt",c.budget().deadlineAt().toEpochMilli());grant.put("runtimeProfile","native-python-silo-v1");
         grant.put("deliveryBinding",Map.of("tenantId",c.scope().tenantId(),"taskId",c.taskId(),"runId",c.scope().runId(),"inputSnapshotVersion",ws.snapshotVersion()));
         grant.put("runtimeTools",c.authorization().allowedTools().stream().filter(com.chatchat.api.runtime.coding.knowledge.CodingInternetAccess.NATIVE_TOOLS::contains).toList());

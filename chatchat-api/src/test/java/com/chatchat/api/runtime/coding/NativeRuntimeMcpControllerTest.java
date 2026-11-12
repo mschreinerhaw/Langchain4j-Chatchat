@@ -67,4 +67,23 @@ class NativeRuntimeMcpControllerTest {
         verifyNoInteractions(internet,skills);
     }
 
+    @Test void dynamicModelAuthorityRequiresBoundLiveGrantAndNeverCachesCredentials()throws Exception{
+        var file=directory.resolve("dynamic.json");Files.writeString(file,json.writeValueAsString(Map.of("issuerKey","k".repeat(64),"endpoint","http://127.0.0.1:1","defaultModel","model","dynamicModels",true)));
+        settings=new NativeS3Settings(file.toString(),json);
+        var catalog=mock(com.chatchat.api.model.PlatformModelCatalogService.class);settings.setCatalog(catalog);
+        var config=new com.chatchat.common.config.ModelsConfig.ModelConnectionConfig();config.setModelName("actual-provider");config.setBaseUrl("https://provider.example/v1/chat/completions");config.setProtocol("openai");config.setApiKey("fixture-only-secret");
+        when(catalog.chatModelNames()).thenReturn(List.of("selected"));when(catalog.resolveChatModel("selected")).thenReturn(new com.chatchat.common.config.ModelsConfig.ResolvedModelConnection("selected","selected",config,com.chatchat.common.config.ModelsConfig.ModelMatchType.CONFIG_KEY));
+        var inputs=mock(NativeSiloTaskService.class);when(inputs.requireAuthorized(contract)).thenReturn(Map.of("selectedModel","selected"));
+        var controller=new NativeRuntimeMcpController(settings,json,new CodingInvocationContext(),tasks,internet,skills,mock(NativeS3Evidence.class));org.springframework.test.util.ReflectionTestUtils.setField(controller,"modelInputs",inputs);
+        mvc=standaloneSetup(controller).setMessageConverters(new org.springframework.http.converter.json.MappingJackson2HttpMessageConverter(json)).build();
+        var values=new LinkedHashMap<String,Object>();values.put("version",2);values.put("tenantId","tenant");values.put("userId","user");values.put("taskId","task");values.put("expiresAt",System.currentTimeMillis()+60000);values.put("deliveryBinding",Map.of("runId","run"));values.put("modelProfile",settings.profile("selected"));values.put("runtimeModel",settings.descriptor("selected"));
+        token=settings.client.signGrant(values,settings.issuerKey);when(tasks.privateState(any(),eq("task"),eq("native-s3:binding"))).thenReturn(json.valueToTree(Map.of("grant",token)));
+        mvc.perform(post("/internal/runtime/native-coding/model").header("Authorization","Bearer invalid")).andExpect(status().isUnauthorized());
+        mvc.perform(post("/internal/runtime/native-coding/model").header("Authorization","Bearer "+token)).andExpect(status().isOk()).andExpect(header().string("Cache-Control","no-store")).andExpect(jsonPath("$.model").value("actual-provider")).andExpect(jsonPath("$.baseUrl").value("https://provider.example/v1"));
+        values.put("runtimeModel",Map.of("logicalName","selected","providerModel","other"));token=settings.client.signGrant(values,settings.issuerKey);when(tasks.privateState(any(),eq("task"),eq("native-s3:binding"))).thenReturn(json.valueToTree(Map.of("grant",token)));
+        mvc.perform(post("/internal/runtime/native-coding/model").header("Authorization","Bearer "+token)).andExpect(status().isForbidden());
+        when(outcome.status()).thenReturn(CodingTaskOutcome.Status.CANCELLED);
+        mvc.perform(post("/internal/runtime/native-coding/model").header("Authorization","Bearer "+token)).andExpect(status().isConflict());
+    }
+
 }

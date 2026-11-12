@@ -37,7 +37,7 @@ function prepare(c,b){
  if(runtime.python&&!existsSync(join(root,'workspace/input')))mkdirSync(join(root,'workspace/input'),{mode:0o700});
  tree(join(root,'workspace'),p=>chownSync(p,runtime.uid,runtime.uid));
  for(const name of ['state','bridge'])chownSync(join(root,name),runtime.supervisorUid??runtime.uid,runtime.supervisorUid??runtime.uid);
- const privateConfig={operationContext:!!cfg.operationContext,requireSubmitAndExit:cfg.mcpServerName==='runtime',sourceRoot:'/opt/runtime-os/cline/runtime',distDir:'/opt/runtime-os/cline/runtime',stateDir:'/var/lib/runtime-os/coding-node',socketPath:'/run/runtime-os/coding-node/bridge/worker.sock',apiToken:b.apiToken,apiKey:b.brokerToken,model:cfg.modelNames[c.modelProfile],baseUrl:'http://127.0.0.1:18329/model/v1',workspaces:{project:'/workspace'},toolPermissions:c.toolPermissions,
+ const privateConfig={operationContext:!!cfg.operationContext,requireSubmitAndExit:cfg.mcpServerName==='runtime',sourceRoot:'/opt/runtime-os/cline/runtime',distDir:'/opt/runtime-os/cline/runtime',stateDir:'/var/lib/runtime-os/coding-node',socketPath:'/run/runtime-os/coding-node/bridge/worker.sock',apiToken:b.apiToken,apiKey:b.brokerToken,model:c.runtimeModel?.providerModel??cfg.modelNames[c.modelProfile],baseUrl:'http://127.0.0.1:18329/model/v1',workspaces:{project:'/workspace'},toolPermissions:c.toolPermissions,
   ...(cfg.tenants[c.tenantId].mcp?{mcpServers:{[cfg.mcpServerName??'tenant_data']:{type:'streamableHttp',url:'http://127.0.0.1:18329/mcp',headers:{Authorization:'Bearer '+b.brokerToken},disabled:false,autoApprove:[]}}}:{})};
  if(c.version===2){
   privateConfig.requireSubmitAndExit=false;

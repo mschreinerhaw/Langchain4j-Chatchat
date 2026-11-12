@@ -97,6 +97,17 @@ public class NativeRuntimeMcpController {
         }else if(tool.equals("web_fetch"))fields.put("max_content_length",Map.of("type","integer","minimum",200,"maximum",20000));
         return Map.of("type","object","properties",fields,"required",List.of(field),"additionalProperties",false);
     }
+    @org.springframework.beans.factory.annotation.Autowired private NativeSiloTaskService modelInputs;
+    @PostMapping("/model") public ResponseEntity<?> model(@RequestHeader(HttpHeaders.AUTHORIZATION)String auth){
+        return authorized(auth,c->{
+            if(!settings.dynamicModels)throw new ResponseStatusException(HttpStatus.FORBIDDEN,"Dynamic model routing disabled");
+            var grant=verify(auth);String selected=modelInputs.requireAuthorized(c).get("selectedModel").toString();
+            var descriptor=settings.descriptor(selected);
+            if(!grant.path("runtimeModel").equals(json.valueToTree(descriptor))||!grant.path("modelProfile").asText().equals(settings.profile(selected)))throw new ResponseStatusException(HttpStatus.FORBIDDEN,"Published model binding changed");
+            var connection=settings.connection(selected);if(!connection.get("model").equals(descriptor.get("providerModel")))throw new ResponseStatusException(HttpStatus.CONFLICT,"Model publication changed during allocation");
+            return ResponseEntity.ok().cacheControl(CacheControl.noStore()).body(connection);
+        });
+    }
     @PostMapping("/skills") public Object skills(@RequestHeader(HttpHeaders.AUTHORIZATION)String auth){return authorized(auth,c->{
         var packages=new ArrayList<Map<String,Object>>();var catalog=c.runtimeContext().get("skills");
         if(catalog instanceof Map<?,?> map&&map.get("skills") instanceof List<?> cards)for(Object raw:cards){

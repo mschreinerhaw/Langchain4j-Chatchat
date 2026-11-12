@@ -1,3 +1,4 @@
+import {resolveRuntimeModel} from './runtime-model.mjs';
 import {stageNativeSkills,stageNativeDownload,runtimeMcpReply} from './native-capability-files.mjs';
 import http from 'node:http';
 import {readFileSync,writeFileSync,mkdirSync,readdirSync,existsSync,renameSync,chownSync,chmodSync,cpSync,unlinkSync,lstatSync} from 'node:fs';
@@ -106,7 +107,7 @@ async function broker(r,path){
     url=tenant.mcp.url;headers={'Authorization':'Bearer '+(['task-grant','native-runtime'].includes(tenant.mcp.authMode)?signContract(r.contract,issuerKey(cfg,r.contract.tenantId)):tenant.mcp.token),'Accept':'application/json, text/event-stream','content-type':'application/json'};
     if(req.headers['mcp-protocol-version'])headers['mcp-protocol-version']=req.headers['mcp-protocol-version'];
    }else if(['/model/v1/chat/completions','/model/v1/responses'].includes(req.url)&&req.method==='POST'){
-    requestBody=await body(req);const profile=cfg.modelProfiles[r.contract.modelProfile];modelProfile=profile;
+    requestBody=await body(req);const profile=(r.modelConnection??cfg.modelProfiles[r.contract.modelProfile]);modelProfile=profile;
     if(requestBody.model!==profile.model)throw error('Model outside task profile',403);
     url=profile.baseUrl.replace('{sessionId}',r.contract.sessionId).replace(/\/$/,'')+req.url.slice('/model/v1'.length);headers={'Authorization':'Bearer '+profile.apiKey,'content-type':'application/json'};
     event(r,'model.forwarded',{model:profile.model});
@@ -148,6 +149,7 @@ async function allocate(r){
  const dir=join(cfg.stateRoot,'workers',r.workerId),tenant=cfg.tenants[r.contract.tenantId];
  try{
   r.workerState='STARTING';save(r);event(r,'worker.starting');
+  if(r.contract.runtimeModel){r.modelConnection=await resolveRuntimeModel(r.contract,tenant.runtimeModelAuthority,signContract(r.contract,issuerKey(cfg,r.contract.tenantId)));if(r.revoked)throw Error('Allocation revoked');save(r);event(r,'model.bound',{model:r.contract.runtimeModel.logicalName,providerModel:r.modelConnection.model});}
   if(executor){
    if(r.revoked)throw Error('Allocation revoked');r.provisioningAttempted=true;save(r);
    const created=await executor.create(grant(r),{workerId:r.workerId,resourceProfile:'standard',apiToken:r.apiToken,brokerToken:r.brokerToken,editTool:r.editTool});
@@ -172,7 +174,7 @@ async function allocate(r){
   for(const name of ['workspace','state','bridge']){mkdirSync(join(dir,name),{recursive:true,mode:0o700});chownSync(join(dir,name),1000,1000);}
   templateFiles(tenant.workspaces[r.contract.workspaceRef]);cpSync(tenant.workspaces[r.contract.workspaceRef],join(dir,'workspace'),{recursive:true,dereference:false});templateFiles(join(dir,'workspace'),p=>chownSync(p,1000,1000));
   // Template ownership is prepared by the deployment owner; no host path comes from a client.
-  const profile=cfg.modelProfiles[r.contract.modelProfile];
+  const profile=(r.modelConnection??cfg.modelProfiles[r.contract.modelProfile]);
   const privateConfig={operationContext:!!cfg.operations,sourceRoot:'/opt/runtime-os/cline/runtime',distDir:'/opt/runtime-os/cline/runtime',stateDir:'/var/lib/runtime-os/coding-node',socketPath:'/run/runtime-os/coding-node/bridge/worker.sock',apiToken:r.apiToken,apiKey:r.brokerToken,model:profile.model,baseUrl:'http://127.0.0.1:18329/model/v1',workspaces:{project:'/workspace'},toolPermissions:r.contract.toolPermissions,
    ...(tenant.mcp?{mcpServers:{tenant_data:{type:'streamableHttp',url:'http://127.0.0.1:18329/mcp',headers:{Authorization:'Bearer '+r.brokerToken},disabled:false,autoApprove:[]}}}:{})};
   const configFile=join(dir,'config.json');writeFileSync(configFile,JSON.stringify(privateConfig),{mode:0o600});chownSync(configFile,1000,1000);
@@ -192,7 +194,7 @@ const server=http.createServer(async(req,res)=>{
  try{
   const path=new URL(req.url,'http://control').pathname;
   if(path==='/health/live')return send(res,200,{live:true,engine:'cline-standalone',version:'4.1.26',legacySdkWorker:false,releaseVersion:'1.0.0',enterpriseAcceptance:false});
-  const c=granted(req),tenant=Object.hasOwn(cfg.tenants,c.tenantId)?cfg.tenants[c.tenantId]:undefined;if(!tenant||!tenant.users.includes(c.userId)||!Object.hasOwn(tenant.workspaces,c.workspaceRef)||!tenant.models.includes(c.modelProfile)||!c.dataPermissions.every(x=>tenant.datasets.includes(x))||!c.toolPermissions.every(x=>tenant.tools.includes(x)))throw error('Task policy not granted',403);
+  const c=granted(req),tenant=Object.hasOwn(cfg.tenants,c.tenantId)?cfg.tenants[c.tenantId]:undefined;if(!tenant||!tenant.users.includes(c.userId)||!Object.hasOwn(tenant.workspaces,c.workspaceRef)||!(c.runtimeModel?typeof tenant.runtimeModelAuthority==='string':tenant.models.includes(c.modelProfile))||!c.dataPermissions.every(x=>tenant.datasets.includes(x))||!c.toolPermissions.every(x=>tenant.tools.includes(x)))throw error('Task policy not granted',403);
   if(path==='/v1/sessions'&&req.method==='POST'){
    const b=await body(req),key=req.headers['idempotency-key'];if(!key||Object.keys(b).some(k=>!['editTool',...(c.s3?['inputs']:[])].includes(k))||b.editTool&&!['editor','apply_patch'].includes(b.editTool))throw error('Invalid create request');
    if(c.s3)validateS3Inputs(c,b.inputs,cfg.s3);

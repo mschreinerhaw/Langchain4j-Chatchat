@@ -15,7 +15,7 @@ export function exact(value,keys){if(!value||Array.isArray(value)||typeof value!
 export function taskGrant(token,cfg,allowExpired=false){
  const c=verifyContract(token,cfg.signingKey,Date.now(),{allowExpired});const t=Object.hasOwn(cfg.tenants,c.tenantId)?cfg.tenants[c.tenantId]:null;
  if(c.version===2&&(!workerRuntime(cfg).python||cfg.enableNativeSilo!==true))throw reject('Native Silo profile is not enabled on this Executor');
- if(!t||!t.users.includes(c.userId)||!Object.hasOwn(t.workspaces,c.workspaceRef)||!t.models.includes(c.modelProfile)||!c.toolPermissions.every(x=>t.tools.includes(x))||!c.dataPermissions.every(x=>t.datasets.includes(x)))throw reject('Executor task policy denied');
+ if(!t||!t.users.includes(c.userId)||!Object.hasOwn(t.workspaces,c.workspaceRef)||!(c.runtimeModel?cfg.dynamicModels===true&&t.dynamicModels===true:t.models.includes(c.modelProfile))||!c.toolPermissions.every(x=>t.tools.includes(x))||!c.dataPermissions.every(x=>t.datasets.includes(x)))throw reject('Executor task policy denied');
  return c;
 }
 export function identity(c,cfg){const owner=createHash('sha256').update(JSON.stringify([c.tenantId,c.userId,c.taskId,c.sessionId])).digest('hex');return {name:'cline-p331-'+owner.slice(0,40),owner,contractHash:contractHash(c)};}

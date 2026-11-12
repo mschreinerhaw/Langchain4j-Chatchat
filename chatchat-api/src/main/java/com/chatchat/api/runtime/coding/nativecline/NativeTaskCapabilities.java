@@ -28,7 +28,7 @@ public class NativeTaskCapabilities {
         return capture(scope,model,Map.of("authorizationAgentId",agentId,"resourceExplorationApproved",requested,com.chatchat.agents.runtime.context.SkillAnalysisContext.ATTRIBUTE,catalogs.prepare(request,agent,effective.roles())),Map.of());
     }
     public Map<String,Object> capture(KernelDataScope scope,String model,Map<String,Object> attributes,Map<String,Object> metadata){
-        if(model==null||model.isBlank())model=settings.defaultModel;
+        if(model==null||model.isBlank())model=settings.defaultModel();
         var value=new LinkedHashMap<String,Object>(CodingConfigurationSnapshot.capture(attributes,metadata));
         value.put("model",Map.of("selectedModel",model));
         String agent=Objects.toString(attributes.get("authorizationAgentId"),"");

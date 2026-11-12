@@ -1,5 +1,5 @@
 import {resolveRuntimeModel} from './runtime-model.mjs';
-import {stageNativeSkills,stageNativeDownload,runtimeMcpReply} from './native-capability-files.mjs';
+import {stageNativeSkills,stageNativeDownload,runtimeMcpReply,nativeSkillDiscoveryContext} from './native-capability-files.mjs';
 import http from 'node:http';
 import {readFileSync,writeFileSync,mkdirSync,readdirSync,existsSync,renameSync,chownSync,chmodSync,cpSync,unlinkSync,lstatSync} from 'node:fs';
 import {join} from 'node:path';
@@ -166,7 +166,7 @@ async function allocate(r){
      const response=await fetch(tenant.mcp.url.replace(/\/mcp$/,'/skills'),{method:'POST',headers:{Authorization:'Bearer '+signContract(r.contract,issuerKey(cfg,r.contract.tenantId))},signal:AbortSignal.timeout(60000),redirect:'error'});
      if(!response.ok)throw Error('Authorized Skill package delivery failed');packages=(await response.json()).packages;
     }
-    await stageNativeSkills(join(cfg.workerRoot,r.workerId,'workspace'),packages,(type,payload)=>event(r,type,payload));
+    r.nativeSkillIndex=await stageNativeSkills(join(cfg.workerRoot,r.workerId,'workspace'),packages,(type,payload)=>event(r,type,payload));save(r);
    }
    await broker(r,join(bridgeRoot(r),'broker.sock'));
    if(r.revoked)throw Error('Allocation revoked');await executor.start(grant(r),r.workerId);
@@ -291,7 +291,10 @@ const server=http.createServer(async(req,res)=>{
    if(pending&&pending.toolName.startsWith('tenant_data__'))await operation(r,'/bind',{epoch:pending.epoch,nativeSessionId:native.nativeSessionId,nativeToolCallId:pending.toolCallId,toolName:pending.toolName.slice('tenant_data__'.length),arguments:pending.input});
   }
   if(!live(r))throw error('Task lease inactive',403);
-  if(parts[3]==='messages'&&req.method==='POST'){r.workerState='RUNNING';r.taskState='RUNNING';save(r);}
+  if(parts[3]==='messages'&&req.method==='POST'){
+   if(typeof value.text==='string')value.text+=nativeSkillDiscoveryContext(r.nativeSkillIndex);
+   r.workerState='RUNNING';r.taskState='RUNNING';save(r);
+  }
   const reply=await workerRequest(r,route,req.method,value,{'accept':req.headers.accept??'application/json',...(req.headers['last-event-id']?{'last-event-id':req.headers['last-event-id']}:{}),...(req.headers['idempotency-key']?{'idempotency-key':req.headers['idempotency-key']}:{} )});
   if(parts[3]==='status'&&reply.statusCode===200){const chunks=[];for await(const b of reply)chunks.push(b);if(r.revoked)return send(res,200,publicState(r));const native=JSON.parse(Buffer.concat(chunks));if(r.workerState==='STARTING')return send(res,200,publicState(r,native));r.workerState=native.status==='awaiting_permission'?'WAITING_APPROVAL':native.status==='turn_completed'?'COMPLETED':native.status==='failed'?'RECOVERABLE':native.status==='idle'?'READY':'RUNNING';r.taskState=native.status==='turn_completed'?'AGENT_TURN_COMPLETED':native.status==='failed'?'UNKNOWN':r.taskState;save(r);if(r.contract.s3&&['failed','recoverable','cancelled'].includes(native.status))void stop(r,'native-core-unavailable');return send(res,200,publicState(r,native));}
   res.writeHead(reply.statusCode,{'content-type':reply.headers['content-type']??'application/json','cache-control':'no-store'});

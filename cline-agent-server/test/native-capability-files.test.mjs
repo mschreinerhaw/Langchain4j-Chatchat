@@ -4,12 +4,16 @@ import {mkdtemp,readFile,readdir,writeFile,mkdir,symlink,rm} from 'node:fs/promi
 import {tmpdir} from 'node:os';
 import {join} from 'node:path';
 import {createHash} from 'node:crypto';
-import {stageNativeSkills,stageNativeDownload,runtimeMcpReply} from '../src/native-capability-files.mjs';
+import {stageNativeSkills,stageNativeDownload,runtimeMcpReply,nativeSkillDiscoveryContext} from '../src/native-capability-files.mjs';
 const sha=b=>createHash('sha256').update(b).digest('hex');
 async function root(t){const p=await mkdtemp(join(tmpdir(),'capability-'));t.after(()=>rm(p,{recursive:true,force:true}));return p;}
 const card={id:'agent-skill',name:'python-data-analysis',description:'Custom authorized methodology',version:'v1',files:[{path:'SKILL.md',content:'---\nname: original-name\ndescription: Custom methodology\ndisable-model-invocation: true\n---\nRead references/check.txt',encoding:'utf8'},{path:'references/check.txt',content:'data quality checklist',encoding:'utf8'}]};
 test('native task directories preserve image Skills, namespace Agent collisions, metadata and resources',async t=>{
- const p=await root(t),events=[];await stageNativeSkills(p,[card],(type,data)=>events.push({type,...data}));
+ const p=await root(t),events=[];const index=await stageNativeSkills(p,[card],(type,data)=>events.push({type,...data}));
+ const entry=index.find(s=>s.id===card.id);assert.equal(entry.version,'v1');assert.equal(entry.description,card.description);
+ assert.equal(await readFile(join(p,entry.path),'utf8').then(t=>t.includes('disable-model-invocation: true')),true);
+ const context=nativeSkillDiscoveryContext(index);assert(context.includes(entry.path));assert(context.includes('Respect each Skill frontmatter'));
+ assert(!context.includes('data quality checklist'));assert.equal(nativeSkillDiscoveryContext([]),'');
  const folders=await readdir(join(p,'.agents/skills'));assert(folders.some(n=>n.startsWith('runtime-image-')));
  const name=folders.find(n=>n.startsWith('runtime-agent-'));
  const text=await readFile(join(p,'.agents/skills',name,'SKILL.md'),'utf8');assert(text.includes('disable-model-invocation: true'));assert(text.includes('name: '+name));assert(text.includes('Read references/check.txt'));

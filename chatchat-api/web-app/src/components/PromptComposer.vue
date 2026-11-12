@@ -95,6 +95,12 @@
         <details v-if="!compact && reportMode === 'visual'" class="report-layout-settings">
           <summary>报告排版</summary>
           <div>
+            <label>图形场景<select v-model="reportPresentation.styleProfile" :disabled="loading" aria-label="图形场景与配色">
+              <option value="financial-auto">金融分析 · 按市场适配</option>
+              <option value="financial-cn">金融分析 · 红涨绿跌</option>
+              <option value="financial-international">金融分析 · 绿涨红跌</option>
+              <option value="auto">通用分析</option>
+            </select></label>
             <label
               >排版策略<select
                 v-model="reportPresentation.strategy"
@@ -150,6 +156,12 @@
       </div>
 
       <div v-if="(compact && showIdea) || allowFilePicker" class="composer-idea-control">
+        <details v-if="compact" class="report-layout-settings"><summary>图形场景</summary><div>
+          <label>场景与配色<select v-model="reportPresentation.styleProfile" :disabled="loading" aria-label="图形场景与配色">
+            <option value="financial-auto">金融分析 · 按市场适配</option><option value="financial-cn">金融分析 · 红涨绿跌</option>
+            <option value="financial-international">金融分析 · 绿涨红跌</option><option value="auto">通用分析</option>
+          </select></label><small>作用于新分析；金额和类别比较不按涨跌着色。</small>
+        </div></details>
         <template v-if="allowFilePicker"><input ref="attachmentInput" type="file" multiple class="composer-file-input" accept=".pdf,.docx,.xlsx,.csv,.parquet,.txt,.md,.json,.jsonl,.png,.jpg,.jpeg,.webp,.gif" aria-label="选择补充资料" :disabled="loading || inputDisabled" @change="pickFiles" /><button type="button" class="composer-attach-button" aria-label="添加补充资料" :disabled="loading || inputDisabled" @click="$refs.attachmentInput.click()"><Paperclip :size="17" />补充资料</button></template>
         <button v-if="showIdea && compact" type="button" class="composer-idea-button" aria-label="提问灵感" :aria-expanded="ideasOpen" :disabled="loading || inputDisabled || attachments.some(f=>f.state!=='ready')" title="结合当前分析生成提问建议" @click="toggleIdeas">
           <LoaderCircle v-if="ideasLoading" :size="19" class="composer-idea-spinner" aria-hidden="true" /><Lightbulb v-else :size="19" stroke-width="1.9" /><span>{{ ideasLoading ? '思考中' : '灵感' }}</span>

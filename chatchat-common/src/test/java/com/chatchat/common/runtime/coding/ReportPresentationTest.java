@@ -6,6 +6,16 @@ import org.junit.jupiter.api.Test;
 import static org.assertj.core.api.Assertions.*;
 
 class ReportPresentationTest {
+    @Test void forwardsAnOpaqueStyleProfileWithoutBusinessRulesOrExecutableValues(){
+        var attributes=Map.<String,Object>of("reportPresentation",Map.of("styleProfile","financial-cn"));
+        assertThat(ReportPresentation.read(attributes)).containsEntry("styleProfile","financial-cn");
+        assertThat(ReportPresentation.instruction(attributes)).contains("\"styleProfile\":\"financial-cn\"","authorized visualization Skill");
+        assertThat(ReportPresentation.read(Map.of("reportPresentation",Map.of("styleProfile","custom-style-v2"))))
+            .containsEntry("styleProfile","custom-style-v2");
+        for(Object invalid:List.of("https://internal/","<script>","a".repeat(65),42))
+            assertThatThrownBy(()->ReportPresentation.read(Map.of("reportPresentation",Map.of("styleProfile",invalid))))
+                .isInstanceOf(IllegalArgumentException.class);
+    }
     @Test void recoversOnlyUnambiguousSectionTitlesAndQuarantinesBadBlocks(){
         var refs=Map.of("section",Set.of("section-1"),"chart",Set.of("trend"));
         var raw=Map.of("schemaVersion","report_layout.v1","blocks",List.of(

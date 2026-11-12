@@ -4,6 +4,12 @@ import { reportLayoutCases } from "./fixtures/report-layout-cases";
 import scheduling from '../../../../src/test/resources/visual-report/scheduling-layout.json';
 
 describe("the existing report protocol supports content-driven layouts", () => {
+  it('carries the visualization scenario as a preference without accepting executable style inputs',()=>{
+    expect(reportPresentation().styleProfile).toBe('financial-auto');
+    expect(reportPresentation({styleProfile:'financial-cn'}).styleProfile).toBe('financial-cn');
+    expect(reportPresentation({styleProfile:'custom-style-v2'}).styleProfile).toBe('custom-style-v2');
+    expect(reportPresentation({styleProfile:'https://internal/'}).styleProfile).toBe('financial-auto');
+  });
   it('recovers the observed section-title mismatch without losing valid authored placement or chart data',()=>{
     const raw=structuredClone(scheduling.visualReport),before=JSON.stringify(raw),layout=reportLayout(raw);
     expect(layout.diagnostics.filter(d=>d.code==='SECTION_TITLE_RESOLVED')).toHaveLength(2);

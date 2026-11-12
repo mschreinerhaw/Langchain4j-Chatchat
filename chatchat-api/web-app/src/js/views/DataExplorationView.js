@@ -14,6 +14,7 @@ import {workspaceStorageKey} from '../utils/workspaceContext';
 import {workspaceBusinessName,businessNodeTitle,explorationNodeState,explorationCanvasNode,reconcileExploration,explorationMetricDisplay} from '../utils/explorationWorkspace';
 import {explorationFigure} from '../utils/explorationPresentation';
 import {splitThinkBlocks} from '../utils/thinkBlocks';
+import {reportPresentation} from '../utils/reportLayout';
 import {chartDisplayTitle} from '../utils/chartDisplayTitle';
 
 export default {
@@ -209,7 +210,7 @@ export default {
       const serial=++analysisSerial;
       try{
         if(parent&&!parent.saved)await save(parent.chartTypes||{},true,parent.id);
-        const prepared=await prepareExploration(id,{version:space.value.version,parentId:parent?.id||null,agentId:selectedAgentId.value,fileIds,question:text,modelName:parent?.modelName||null});
+        const prepared=await prepareExploration(id,{version:space.value.version,parentId:parent?.id||null,agentId:selectedAgentId.value,fileIds,question:text,modelName:parent?.modelName||null,reportPresentation:reportPresentation(payload?.reportPresentation||parent?.reportPresentation||{})});
         const node=prepared.nodes.at(-1);runningId.value=node.id;
         if(space.value?.id===id){applySpace(prepared);if(activeId.value===selectionAtSend){activeId.value=node.id;tableOpen.value=false;remember();}}
         question.value='';attachments.value=[];mutationBusy.value=false;await execute(id,node);

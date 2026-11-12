@@ -93,10 +93,13 @@ it('persists adaptive layout preferences in the existing user/workspace scope an
   mount();host.querySelector('[role=switch]').click();await nextTick();
   const strategy=host.querySelector('[aria-label="报告排版策略"]');expect(strategy.value).toBe('auto');
   strategy.value='concise';strategy.dispatchEvent(new Event('change',{bubbles:true}));await nextTick();
+  const profile=host.querySelector('[aria-label="图形场景与配色"]');expect(profile.value).toBe('financial-auto');
+  profile.value='financial-cn';profile.dispatchEvent(new Event('change',{bubbles:true}));await nextTick();
   host.querySelector('form').dispatchEvent(new Event('submit',{bubbles:true,cancelable:true}));await nextTick();
-  expect(sends[0].reportPresentation).toMatchObject({strategy:'concise',autoCharts:true,autoImages:true});
+  expect(sends[0].reportPresentation).toMatchObject({strategy:'concise',autoCharts:true,autoImages:true,styleProfile:'financial-cn'});
   app.unmount();mount();host.querySelector('[role=switch]').click();await nextTick();
   expect(host.querySelector('[aria-label="报告排版策略"]').value).toBe('concise');
+  expect(host.querySelector('[aria-label="图形场景与配色"]').value).toBe('financial-cn');
   app.unmount();setWorkspaceContext({...scope,userId:'another-owner'});mount();host.querySelector('[role=switch]').click();await nextTick();
   expect(host.querySelector('[aria-label="报告排版策略"]').value).toBe('auto');
 });

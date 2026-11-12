@@ -6,6 +6,7 @@ export const defaultReportPresentation = Object.freeze({
   density: "comfortable",
   autoCharts: true,
   autoImages: true,
+  styleProfile: "financial-auto",
 });
 export function reportPresentation(value = {}) {
   const clean = { ...defaultReportPresentation };
@@ -18,6 +19,7 @@ export function reportPresentation(value = {}) {
   }
   for (const key of ["autoCharts", "autoImages"])
     if (typeof value?.[key] === "boolean") clean[key] = value[key];
+  if(typeof value?.styleProfile==='string'&&/^[a-z][a-z0-9-]{0,63}$/.test(value.styleProfile))clean.styleProfile=value.styleProfile;
   return clean;
 }
 

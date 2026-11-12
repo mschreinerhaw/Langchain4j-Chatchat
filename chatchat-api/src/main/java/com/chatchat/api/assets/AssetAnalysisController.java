@@ -31,7 +31,8 @@ public class AssetAnalysisController {
     private final ObjectAccessService access;
     private final RuntimeAssetArchive archive;
     private final com.chatchat.api.exploration.ExplorationAgentBridge agents;
-    public record Request(String requestId,List<String> fileIds,List<String> contextIds,String instruction,String modelName,String agentId,String validationProfile,String valueField,List<String> requiredArtifacts) {
+    public record Request(String requestId,List<String> fileIds,List<String> contextIds,String instruction,String modelName,String agentId,String validationProfile,String valueField,List<String> requiredArtifacts,Map<String,Object> reportPresentation) {
+        public Request(String requestId,List<String> fileIds,List<String> contextIds,String instruction,String modelName,String agentId,String validationProfile,String valueField,List<String> requiredArtifacts){this(requestId,fileIds,contextIds,instruction,modelName,agentId,validationProfile,valueField,requiredArtifacts,null);}
         public Request(String requestId,List<String> fileIds,List<String> contextIds,String instruction,String modelName,String agentId,String validationProfile,String valueField){this(requestId,fileIds,contextIds,instruction,modelName,agentId,validationProfile,valueField,null);}
         public Request(String requestId,List<String> fileIds,List<String> contextIds,String instruction,String modelName,String agentId){this(requestId,fileIds,contextIds,instruction,modelName,agentId,null,null);}
         public Request(String requestId,List<String> fileIds,List<String> contextIds,String instruction,String modelName){
@@ -98,7 +99,7 @@ public class AssetAnalysisController {
             return nativeIdentity.as(scope,Set.of(com.chatchat.agents.runtime.coding.CodingTaskAccess.Action.READ,com.chatchat.agents.runtime.coding.CodingTaskAccess.Action.SUBMIT,com.chatchat.agents.runtime.coding.CodingTaskAccess.Action.STOP),()->{
                 var types=List.of("REPORT","RESULT");
                 var capabilities=new LinkedHashMap<String,Object>(nativeCapabilities==null?Map.of():nativeCapabilities.forAgent(scope,body.agentId(),body.modelName(),false,body.instruction()));
-                if(visual){capabilities.put("reportMode","visual");capabilities.put("reportPresentation",com.chatchat.common.runtime.coding.ReportPresentation.defaults());}
+                if(visual){capabilities.put("reportMode","visual");capabilities.put("reportPresentation",com.chatchat.common.runtime.coding.ReportPresentation.read(body.reportPresentation()==null?Map.of():Map.of("reportPresentation",body.reportPresentation())));}
                 var admitted=nativeTasks.submit(scope,visual?"primary-data-analysis-visual-v1":"primary-data-analysis-v1",ids,body.instruction(),body.modelName(),types,Map.of(),capabilities);
                 return ApiResponse.success(nativeTasks.await(scope,admitted.taskId(),()->false));
             });
@@ -119,7 +120,7 @@ public class AssetAnalysisController {
             attributes.put("resourceExplorationApproved",true);
             attributes.put("taskType","DATA_ANALYSIS"); // Preserve optional Python/immutable-data tools alongside text submission.
         }
-        if(visual){attributes.put("reportMode","visual");attributes.put("taskType","DATA_ANALYSIS");attributes.put("contextOnlyAnswer",false);}
+        if(visual){attributes.put("reportPresentation",com.chatchat.common.runtime.coding.ReportPresentation.read(body.reportPresentation()==null?Map.of():Map.of("reportPresentation",body.reportPresentation())));attributes.put("reportMode","visual");attributes.put("taskType","DATA_ANALYSIS");attributes.put("contextOnlyAnswer",false);}
         String instruction=(body.agentId()==null?"Analyze only these explicitly authorized files. ":
             "Analyze these explicitly authorized files; when insufficient, explore only the selected Agent's existing authorized resources through the provided tools. ")
             +"Prefer manifest nativeFiles, the exact verified original bytes in their actual format. "

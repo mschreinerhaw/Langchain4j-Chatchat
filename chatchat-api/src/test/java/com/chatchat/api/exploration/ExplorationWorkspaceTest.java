@@ -16,6 +16,11 @@ import static org.mockito.ArgumentMatchers.*;
 
 /** Real SQL persistence, mocked execution boundary. These are NOT live Coding acceptance evidence. */
 class ExplorationWorkspaceTest {
+    @Test void persistsTheGenericStyleProfileWithThePreparedNode(){
+        var state=store.create(alice,"Visualization");String id=state.path("id").asText();
+        controller.prepare(http,id,new ExplorationWorkspaceController.Question(0,null,List.of(),"Analyze",null,"authorized",Map.of("styleProfile","financial-cn")));
+        assertThat(store.get(alice,id).path("nodes").get(0).path("reportPresentation").path("styleProfile").asText()).isEqualTo("financial-cn");
+    }
     @Test void terminalFileReceiptBackfillsProgressOnceWithoutReplacingItsReportOrReexecuting(){
         var state=prepared();String id=state.path("id").asText(),node=nodeId(state);
         var original=Map.of("taskId","task","status","COMPLETED","terminal",true,"resultAvailable",true,

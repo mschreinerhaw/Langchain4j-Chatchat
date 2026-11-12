@@ -502,5 +502,23 @@
       "adapted": true,
       "importedAt": "2026-11-04"
     }
-  }
+  },
+{
+  "id": "builtin:financial-visualization",
+  "name": "financial-visualization",
+  "description": "Render financial analysis and exploratory reports with semantic colors, market-specific rise/fall conventions, stable comparison palettes, clear units and legible Chinese labels. Use for financial-auto, financial-cn and financial-international visualization style profiles, market movements, portfolio comparisons, allocation and financial report charts.",
+  "version": "1.0.0",
+  "origin": "SYSTEM_BUILTIN",
+  "category": "Visualization",
+  "references": [
+    "references/style-guide.md",
+    "references/financial_style.py"
+  ],
+  "displayName": "金融图形规范",
+  "descriptionZh": "按市场涨跌惯例和真实指标语义绘制金融分析图表。",
+  "source": "Runtime OS",
+  "sourceVersion": "1.0.0",
+  "builtin": true,
+  "enabled": true
+}
 ]

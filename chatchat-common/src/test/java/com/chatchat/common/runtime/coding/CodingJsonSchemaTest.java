@@ -80,7 +80,7 @@ class CodingJsonSchemaTest {
     @Test void reportPreferencesAreAcceptedByThePublishedTaskSchemaAndJava()throws Exception{
         var node=fixture("task");
         node.set("runtimeContext",JSON.valueToTree(Map.of("schemaVersion","runtime_os.coding.context.v1","consistency","TASK_SNAPSHOT",
-            "reportMode","visual","reportPresentation",Map.of("strategy","auto","density","compact","autoCharts",true,"autoImages",false))));
+            "reportMode","visual","reportPresentation",Map.of("strategy","auto","density","compact","autoCharts",true,"autoImages",false,"styleProfile","financial-cn"))));
         assertThat(schema("task").validate(node)).isEmpty();
         assertThat(JSON.treeToValue(node,CodingTaskContract.class).runtimeContext()).containsKey("reportPresentation");
         set(node,"/runtimeContext/reportPresentation/strategy","execute-html");

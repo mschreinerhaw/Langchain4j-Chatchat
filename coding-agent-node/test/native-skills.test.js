@@ -31,7 +31,7 @@ test('native preparation retains one Agent entry and cannot activate a standalon
 test('official package discovery and service load all image Skills; only native tools are exposed',async()=>{
   const events=[],r=await prepare(task(),gateway,{observe:e=>events.push(e)});
   try {
-    assert.equal(r.records.length,15);assert.deepEqual(r.tools.map(t=>t.name).sort(),['read_files','skills']);
+    assert.equal(r.records.length,taskSkillPackages().length);assert.deepEqual(r.tools.map(t=>t.name).sort(),['read_files','skills']);
     const discovered=events.find(e=>e.type==='SKILLS_DISCOVERED');
     assert.equal(discovered.discovery,'loadAgentPluginPackages');assert.equal(discovered.loader,'createUserInstructionConfigService');
     assert.equal(events.some(e=>e.type==='SKILLS_LOADED'),false);
@@ -91,9 +91,9 @@ test('official discovery retains every authorized package beyond metadata query 
     return{skillId:id,version:'frozen',nativeOriginal:true,instructions,contentSha256:sha256(instructions),resources:[]};
   }},{observe:e=>events.push(e)});
   try{
-    assert.equal(r.records.length,15+cards.length);
+    assert.equal(r.records.length,taskSkillPackages().length+cards.length);
     assert.equal(r.records.filter(r=>r.id.startsWith('runtime-agent-')).length,cards.length);
-    assert.equal(events.find(e=>e.type==='SKILLS_DISCOVERED').nativeSkillCount,138);
+    assert.equal(events.find(e=>e.type==='SKILLS_DISCOVERED').nativeSkillCount,taskSkillPackages().length+cards.length);
     assert.equal(events.filter(e=>e.type==='SKILLS_LOADED').length,0);
   }finally{await r.dispose();}
 });
@@ -182,7 +182,7 @@ test('new Node processes independently rediscover the same authorized original p
   const program=`import {prepareNativeSkills} from ${JSON.stringify(url)};const r=await prepareNativeSkills(${JSON.stringify(t)},{},{sessionId:'process-restart'});console.log(JSON.stringify(r.records.map(x=>[x.id,x.filePath])));await r.dispose();`;
   const run=promisify(execFile);const one=await run(process.execPath,['--input-type=module','-e',program]);
   const two=await run(process.execPath,['--input-type=module','-e',program]);
-  assert.deepEqual(JSON.parse(two.stdout),JSON.parse(one.stdout));assert.equal(JSON.parse(one.stdout).length,15);
+  assert.deepEqual(JSON.parse(two.stdout),JSON.parse(one.stdout));assert.equal(JSON.parse(one.stdout).length,taskSkillPackages().length);
 });
 
 test('native Skill can be loaded again after real installed SDK compaction removes its prior output',async()=>{

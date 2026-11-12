@@ -9,13 +9,15 @@ public final class ReportPresentation {
         Object raw=attributes==null?null:attributes.get("reportPresentation");
         if(raw==null)return defaults();
         if(!(raw instanceof Map<?,?> map))throw new IllegalArgumentException("reportPresentation must be an object");
-        if(!Set.of("strategy","template","density","autoCharts","autoImages").containsAll(map.keySet()))
+        if(!Set.of("strategy","template","density","autoCharts","autoImages","styleProfile").containsAll(map.keySet()))
             throw new IllegalArgumentException("Unknown report presentation option");
         var result=new LinkedHashMap<String,Object>(defaults());
         map.forEach((key,value)->result.put((String)key,value));
         choice(result,"strategy",Set.of("auto","template","concise"));
         choice(result,"template",Set.of("briefing","evidence-first"));
         choice(result,"density",Set.of("comfortable","compact"));
+        if(result.containsKey("styleProfile")&&(!(result.get("styleProfile") instanceof String profile)
+            ||!profile.matches("[a-z][a-z0-9-]{0,63}")))throw new IllegalArgumentException("Invalid report styleProfile");
         for(String key:List.of("autoCharts","autoImages"))if(!(result.get(key) instanceof Boolean))
             throw new IllegalArgumentException(key+" must be boolean");
         return Collections.unmodifiableMap(result);
@@ -30,6 +32,7 @@ public final class ReportPresentation {
 
             Report presentation protocol (additive to python_visual_report.v1):
             Persist presentation=%s in visualReport. Give each section a unique safe id.
+            styleProfile identifies the visualization scenario and its display conventions, not a business calculation or authorization. Consult the matching authorized visualization Skill when useful; keep explicit user instructions and the actual market/data semantics visible. Never recolor archived images or change measured values merely to fit a style.
             In the SAME report/program, author layout:{schemaVersion:'report_layout.v1',blocks:[{id,type,ref?,span?,emphasis?}]}.
             Allowed block types ONLY: summary, metric, section, chart, table, limitations, sources.
             metric/section/chart/table ref MUST name an existing element id in the matching array. Sections MUST have explicit safe IDs; a section title is display text, never its reference. Never put inline data, HTML, JavaScript, CSS, component names or external URLs in layout.
@@ -46,6 +49,7 @@ public final class ReportPresentation {
     private static String json(Map<String,Object> value){
         return "{\"strategy\":\""+value.get("strategy")+"\",\"template\":\""+value.get("template")
             +"\",\"density\":\""+value.get("density")+"\",\"autoCharts\":"+value.get("autoCharts")
-            +",\"autoImages\":"+value.get("autoImages")+"}";
+            +",\"autoImages\":"+value.get("autoImages")
+            +(value.containsKey("styleProfile")?",\"styleProfile\":\""+value.get("styleProfile")+"\"":"")+"}";
     }
 }

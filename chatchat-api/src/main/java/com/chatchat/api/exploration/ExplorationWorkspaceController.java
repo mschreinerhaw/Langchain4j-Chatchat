@@ -29,7 +29,8 @@ public class ExplorationWorkspaceController {
     public record Create(String title,String sourceWorkspaceId,String sourceNodeId){
         public Create(String title){this(title,null,null);}
     }
-    public record Question(long version,String parentId,List<String> fileIds,String question,String modelName,String agentId){
+    public record Question(long version,String parentId,List<String> fileIds,String question,String modelName,String agentId,Map<String,Object> reportPresentation){
+        public Question(long version,String parentId,List<String> fileIds,String question,String modelName,String agentId){this(version,parentId,fileIds,question,modelName,agentId,null);}
         public Question(long version,String parentId,List<String> fileIds,String question,String modelName){this(version,parentId,fileIds,question,modelName,null);}
     }
     public record Presentation(long version,boolean saved,Map<String,String> chartTypes){}
@@ -97,6 +98,7 @@ public class ExplorationWorkspaceController {
         files=List.copyOf(combined);
         validateFiles(owner,files);
         var node=state.withArray("nodes").addObject();node.put("id",UUID.randomUUID().toString());node.put("parentId",parentId);
+        node.set("reportPresentation",json.valueToTree(com.chatchat.common.runtime.coding.ReportPresentation.read(body.reportPresentation()==null?Map.of():Map.of("reportPresentation",body.reportPresentation()))));
         node.put("question",body.question().strip());node.put("modelName",Objects.toString(model,""));node.put("status","PREPARED");
         long now=System.currentTimeMillis();node.put("createdAt",now);node.put("updatedAt",now);
         if(!agentId.isBlank())node.put("agentId",agentId);
@@ -118,7 +120,7 @@ public class ExplorationWorkspaceController {
             var receipt=agents.submit(owner,node,parent);
             return ApiResponse.success(finish(owner,id,nodeId,receipt,null));
         }
-        var request=new AssetAnalysisController.Request(nodeId,strings(node,"fileIds"),strings(node,"contextIds"),node.path("question").asText(),node.path("modelName").asText().isBlank()?null:node.path("modelName").asText());
+        var request=new AssetAnalysisController.Request(nodeId,strings(node,"fileIds"),strings(node,"contextIds"),node.path("question").asText(),node.path("modelName").asText().isBlank()?null:node.path("modelName").asText(),null,null,null,null,json.convertValue(node.path("reportPresentation"),Map.class));
         // Persist dispatch intent before the long HTTP call, so refresh can read status without submitting again.
         for(int attempt=0;attempt<8;attempt++){
             var current=store.get(owner,id);var persisted=node(current,nodeId);

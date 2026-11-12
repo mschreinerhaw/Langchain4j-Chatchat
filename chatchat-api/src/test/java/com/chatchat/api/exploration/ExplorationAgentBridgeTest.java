@@ -14,6 +14,13 @@ import static org.mockito.Mockito.*;
 import static org.mockito.ArgumentMatchers.*;
 /** Execution boundaries are mocked; these tests are not live Agent evidence. */
 class ExplorationAgentBridgeTest {
+ @Test void freezesThePreparedVisualizationScenarioIntoTheExistingAgentTask(){
+   when(tasks.submit(any())).thenReturn(task);
+   var node=json.createObjectNode().put("id","node").put("agentId","authorized").put("question","Compare supplied data");
+   node.putObject("reportPresentation").put("styleProfile","financial-cn");
+   bridge.submit(owner,node,null);
+   verify(tasks).submit(argThat(request->((Map<?,?>)request.getToolInput().get("reportPresentation")).get("styleProfile").equals("financial-cn")));
+ }
  @Test void preservesNativeIdentitiesAndTimingWithoutCopyingCommandsOrCredentials(){
    var event=AgentEvent.builder().sequence(1L).type("RUNTIME_OBSERVATION").payload("""
      {"payload":{"metadata":{"eventKind":"CODING_TRACE","payload":{"normalizedType":"MODEL_REQUEST_COMPLETED","requestId":"provider-1","model":"configured-model","nativeOccurredAt":"2026-11-12T01:02:03Z","durationMs":2000,"command":"private","apiKey":"private"},"workerActivity":{"status":"SUCCEEDED"}}}}

@@ -13,3 +13,7 @@
 部署路径为 `/opt/runtime-os-docker-stage/compose.yaml` 和 `/opt/runtime-os/cn2/compose.json`。备份和日志保存在 `/opt/runtime-os/releases/20261112-0d3163eb/main-cutover/`。回滚入口为服务器上的 `python3 /opt/runtime-os/releases/20261112-0d3163eb/rollback-main.py`，恢复此次切换前的配置快照及 API/Node 镜像；执行前应确认没有后续配置变更需要保留。
 
 本记录仅证明本次主环境切换及计算交付验证，不宣称此前未完成的全场景五轮稳定性、CLI 对照或正式 1.0.0 发布门槛已全部完成。
+
+## 后续修正
+
+后续模型联调发现上述清理错误移除了隔离 Docker 的当前 Worker 镜像副本；主 Docker 中的运行镜像仍在。已恢复副本、修正保留规则并重新完成主环境真实 Worker 验证，详见 [模型发布修复](native-model-publication-20261112.md)。上面的切换验证发生于清理前，不能作为清理后隔离 Worker 可创建的证明。

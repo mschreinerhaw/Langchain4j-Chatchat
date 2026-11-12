@@ -1,0 +1,295 @@
+{
+  "passed": true,
+  "agentId": "financial-news-agent",
+  "selectedModel": "qwen3.6-plus",
+  "profile": "model-60e888230a7c",
+  "taskId": "native-89110ce59cbdcced16e155c49f99ab1105a7542c4a2dc87aa82fc02f3682af54",
+  "requests": [
+    {
+      "requestId": "badd5ae4-0aff-4f57-8f0c-edfd3b2a14f5",
+      "model": "qwen3.6-plus",
+      "providerModel": "qwen3.6-plus",
+      "httpStatus": 200,
+      "status": "SUCCEEDED",
+      "durationMs": 3800,
+      "usage": {
+        "inputTokens": 3981,
+        "outputTokens": 166,
+        "totalTokens": 4147,
+        "cacheReadTokens": null,
+        "cacheWriteTokens": null,
+        "reasoningTokens": 96,
+        "totalSource": "PROVIDER",
+        "cacheAccounting": "CACHE_IS_INPUT_SUBSET",
+        "raw": {
+          "prompt_tokens": 3981,
+          "total_tokens": 4147,
+          "completion_tokens": 166,
+          "completion_tokens_details": {
+            "reasoning_tokens": 96,
+            "text_tokens": 166
+          }
+        }
+      },
+      "responseSha256": "d0b18eb2f1d612f1200d0e70abdbce17952099efec10963c4dad551ca3d9cc90"
+    },
+    {
+      "requestId": "73ef269d-6b19-4763-8db2-98d2d301ac76",
+      "model": "qwen3.6-plus",
+      "providerModel": "qwen3.6-plus",
+      "httpStatus": 200,
+      "status": "SUCCEEDED",
+      "durationMs": 2496,
+      "usage": {
+        "inputTokens": 4424,
+        "outputTokens": 100,
+        "totalTokens": 4524,
+        "cacheReadTokens": null,
+        "cacheWriteTokens": null,
+        "reasoningTokens": 36,
+        "totalSource": "PROVIDER",
+        "cacheAccounting": "CACHE_IS_INPUT_SUBSET",
+        "raw": {
+          "prompt_tokens": 4424,
+          "total_tokens": 4524,
+          "completion_tokens": 100,
+          "completion_tokens_details": {
+            "reasoning_tokens": 36,
+            "text_tokens": 100
+          }
+        }
+      },
+      "responseSha256": "5321870440d0ce25a0dd78c0bcd7cf056b456babf745e52eeaa6517cd540eebd"
+    },
+    {
+      "requestId": "3b441322-6ba8-4ba6-bdcb-6b901275691d",
+      "model": "qwen3.6-plus",
+      "providerModel": "qwen3.6-plus",
+      "httpStatus": 200,
+      "status": "SUCCEEDED",
+      "durationMs": 4515,
+      "usage": {
+        "inputTokens": 4603,
+        "outputTokens": 219,
+        "totalTokens": 4822,
+        "cacheReadTokens": null,
+        "cacheWriteTokens": null,
+        "reasoningTokens": 28,
+        "totalSource": "PROVIDER",
+        "cacheAccounting": "CACHE_IS_INPUT_SUBSET",
+        "raw": {
+          "prompt_tokens": 4603,
+          "total_tokens": 4822,
+          "completion_tokens": 219,
+          "completion_tokens_details": {
+            "reasoning_tokens": 28,
+            "text_tokens": 219
+          }
+        }
+      },
+      "responseSha256": "375bc2b1731dcb5133c9898f161419678e720b565c6b3d329fc573970b97d174"
+    },
+    {
+      "requestId": "dcd98b8e-2534-4a00-8924-c9d1007a133d",
+      "model": "qwen3.6-plus",
+      "providerModel": "qwen3.6-plus",
+      "httpStatus": 200,
+      "status": "SUCCEEDED",
+      "durationMs": 4722,
+      "usage": {
+        "inputTokens": 5174,
+        "outputTokens": 229,
+        "totalTokens": 5403,
+        "cacheReadTokens": null,
+        "cacheWriteTokens": null,
+        "reasoningTokens": 160,
+        "totalSource": "PROVIDER",
+        "cacheAccounting": "CACHE_IS_INPUT_SUBSET",
+        "raw": {
+          "prompt_tokens": 5174,
+          "total_tokens": 5403,
+          "completion_tokens": 229,
+          "completion_tokens_details": {
+            "reasoning_tokens": 160,
+            "text_tokens": 229
+          }
+        }
+      },
+      "responseSha256": "a651112a9a11ac6a370f57decc4bbcd6211f988a11a09f2c138b8c62fc7bc19d"
+    },
+    {
+      "requestId": "ee69835f-6fd1-47c3-a84f-84eb7f773a82",
+      "model": "qwen3.6-plus",
+      "providerModel": "qwen3.6-plus",
+      "httpStatus": 200,
+      "status": "SUCCEEDED",
+      "durationMs": 13537,
+      "usage": {
+        "inputTokens": 5437,
+        "outputTokens": 753,
+        "totalTokens": 6190,
+        "cacheReadTokens": null,
+        "cacheWriteTokens": null,
+        "reasoningTokens": 21,
+        "totalSource": "PROVIDER",
+        "cacheAccounting": "CACHE_IS_INPUT_SUBSET",
+        "raw": {
+          "prompt_tokens": 5437,
+          "total_tokens": 6190,
+          "completion_tokens": 753,
+          "completion_tokens_details": {
+            "reasoning_tokens": 21,
+            "text_tokens": 753
+          }
+        }
+      },
+      "responseSha256": "c58d97a010d5a91b735e194605bdcb44d95933cb98621fb1bff989f43e1ebd00"
+    },
+    {
+      "requestId": "a663aa5f-473d-4ab7-b846-b5a29917a628",
+      "model": "qwen3.6-plus",
+      "providerModel": "qwen3.6-plus",
+      "httpStatus": 200,
+      "status": "SUCCEEDED",
+      "durationMs": 1893,
+      "usage": {
+        "inputTokens": 6237,
+        "outputTokens": 58,
+        "totalTokens": 6295,
+        "cacheReadTokens": null,
+        "cacheWriteTokens": null,
+        "reasoningTokens": 14,
+        "totalSource": "PROVIDER",
+        "cacheAccounting": "CACHE_IS_INPUT_SUBSET",
+        "raw": {
+          "prompt_tokens": 6237,
+          "total_tokens": 6295,
+          "completion_tokens": 58,
+          "completion_tokens_details": {
+            "reasoning_tokens": 14,
+            "text_tokens": 58
+          }
+        }
+      },
+      "responseSha256": "7908c2077dd334fed4b1fb51e224f971c98c12f9fc0eb34b6efdf940d806908a"
+    },
+    {
+      "requestId": "c6ed89ba-6569-4a7e-96c9-adb0b4cdad33",
+      "model": "qwen3.6-plus",
+      "providerModel": "qwen3.6-plus",
+      "httpStatus": 200,
+      "status": "SUCCEEDED",
+      "durationMs": 3334,
+      "usage": {
+        "inputTokens": 6395,
+        "outputTokens": 159,
+        "totalTokens": 6554,
+        "cacheReadTokens": null,
+        "cacheWriteTokens": null,
+        "reasoningTokens": 19,
+        "totalSource": "PROVIDER",
+        "cacheAccounting": "CACHE_IS_INPUT_SUBSET",
+        "raw": {
+          "prompt_tokens": 6395,
+          "total_tokens": 6554,
+          "completion_tokens": 159,
+          "completion_tokens_details": {
+            "reasoning_tokens": 19,
+            "text_tokens": 159
+          }
+        }
+      },
+      "responseSha256": "73f725effbdf5e72b98d81c6a84e37c4723cc0d39790901b2e8da0c119deda30"
+    },
+    {
+      "requestId": "d580bf2c-de26-43da-a2d3-6efa3060e4b0",
+      "model": "qwen3.6-plus",
+      "providerModel": "qwen3.6-plus",
+      "httpStatus": 200,
+      "status": "SUCCEEDED",
+      "durationMs": 2651,
+      "usage": {
+        "inputTokens": 6597,
+        "outputTokens": 123,
+        "totalTokens": 6720,
+        "cacheReadTokens": null,
+        "cacheWriteTokens": null,
+        "reasoningTokens": 15,
+        "totalSource": "PROVIDER",
+        "cacheAccounting": "CACHE_IS_INPUT_SUBSET",
+        "raw": {
+          "prompt_tokens": 6597,
+          "total_tokens": 6720,
+          "completion_tokens": 123,
+          "completion_tokens_details": {
+            "reasoning_tokens": 15,
+            "text_tokens": 123
+          }
+        }
+      },
+      "responseSha256": "2252305f64dbf51af245c690bb3b28f2110ea266ffeaf938d287c51d6a58f3aa"
+    },
+    {
+      "requestId": "fe0540d1-7111-40e1-a221-b5befdcddc9e",
+      "model": "qwen3.6-plus",
+      "providerModel": "qwen3.6-plus",
+      "httpStatus": 200,
+      "status": "SUCCEEDED",
+      "durationMs": 5822,
+      "usage": {
+        "inputTokens": 8002,
+        "outputTokens": 288,
+        "totalTokens": 8290,
+        "cacheReadTokens": null,
+        "cacheWriteTokens": null,
+        "reasoningTokens": 21,
+        "totalSource": "PROVIDER",
+        "cacheAccounting": "CACHE_IS_INPUT_SUBSET",
+        "raw": {
+          "prompt_tokens": 8002,
+          "total_tokens": 8290,
+          "completion_tokens": 288,
+          "completion_tokens_details": {
+            "reasoning_tokens": 21,
+            "text_tokens": 288
+          }
+        }
+      },
+      "responseSha256": "b65e4e5ba22eb7fd85b6e4d029c2be4e0f950368de11643951d27958e03fed00"
+    },
+    {
+      "requestId": "d7a2a140-88eb-4bd2-9d2c-3bebe02803bd",
+      "model": "qwen3.6-plus",
+      "providerModel": "qwen3.6-plus",
+      "httpStatus": 200,
+      "status": "SUCCEEDED",
+      "durationMs": 6135,
+      "usage": {
+        "inputTokens": 8486,
+        "outputTokens": 312,
+        "totalTokens": 8798,
+        "cacheReadTokens": null,
+        "cacheWriteTokens": null,
+        "reasoningTokens": 18,
+        "totalSource": "PROVIDER",
+        "cacheAccounting": "CACHE_IS_INPUT_SUBSET",
+        "raw": {
+          "prompt_tokens": 8486,
+          "total_tokens": 8798,
+          "completion_tokens": 312,
+          "completion_tokens_details": {
+            "reasoning_tokens": 18,
+            "text_tokens": 312
+          }
+        }
+      },
+      "responseSha256": "087762c68e82a5333cc85b58fd0ada2ca5c6f632dfbd38d10f8d7510edb6b97a"
+    }
+  ],
+  "noFallbackModel": true,
+  "failedAttemptsRetained": [
+    "model-profile-verification: isolated Worker image missing",
+    "model-profile-verification-r2: full chat endpoint required normalization"
+  ],
+  "cleanupFix": "Current configured Executor workerImage is retained even with zero Worker containers"
+}

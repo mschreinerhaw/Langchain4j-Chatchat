@@ -7,6 +7,12 @@ import java.util.*;
  * progress stream. Never publishes grants, tool arguments, source or stdout. */
 public final class NativeCodingProgress {
     private NativeCodingProgress(){}
+    /** Same journal envelope consumed by chat and exploration, including snapshots after refresh. */
+    public static Map<String,Object> eventView(CodingExecutionEvent event){
+        return Map.of("eventId",event.eventId(),"sequence",event.sequence(),"type","RUNTIME_OBSERVATION",
+            "createTime",event.occurredAt().toString(),"runId",event.scope().runId(),
+            "payload",Map.of("metadata",trace(event)));
+    }
     public static Map<String,Object> trace(CodingExecutionEvent event){
         var payload=new LinkedHashMap<String,Object>();
         for(String key:List.of("normalizedType","nativeEventType","nativeEventId","nativeEvidenceRef","sessionId","operationId","tool","toolCallId","requestId","model","providerModel","status","startedAt","finishedAt","durationMs","exitCode","nativeOccurredAt")){

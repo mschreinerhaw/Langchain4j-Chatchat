@@ -22,8 +22,17 @@ export function explorationDeliveryStages(events=[],receipt={}){
   for(const event of events){
     let body=event.payload||event;
     try{if(typeof body==='string')body=JSON.parse(body);}catch{continue;}
-    const payload=body.payload||body,meta=payload.metadata||{},worker=meta.workerActivity||payload.workerActivity||payload;
-    const type=String(worker.type||meta.codingEventType||meta.eventKind||event.type||'').toUpperCase();
+    const payload=body.payload||body,meta=payload.metadata||{},worker={...(meta.payload||{}),...(meta.workerActivity||payload.workerActivity||(!meta.eventKind?payload:{}))};
+    const type=String(worker.normalizedType||worker.type||meta.codingEventType||meta.eventKind||event.type||'').toUpperCase();
+    if(type==='MODEL_REQUEST_STARTED')state.model='等待响应';
+    if(type==='MODEL_REQUEST_COMPLETED')state.model='已响应';
+    if(type==='ERROR_OCCURRED'&&worker.requestId&&!worker.toolCallId)state.model='响应失败';
+    if(type==='TOOL_COMPLETED'&&['read_files','search_codebase'].includes(worker.tool))state.data='已读取';
+    if(type==='COMMAND_STARTED'){state.execution='执行中';latestPythonOperation=worker.operationId||null;}
+    if(type==='COMMAND_COMPLETED'||type==='ERROR_OCCURRED'&&String(worker.operationId||meta.operationId||'').startsWith('cmd-')){
+      state.execution=type==='ERROR_OCCURRED'||worker.exitCode!==0?'执行失败':'进程已结束';
+      state.report='待校验';
+    }
     if(type==='MODEL_STARTED')state.model='等待响应';
     if(type==='PLAN_READY'||type==='MODEL_TIMING'&&worker.status==='SUCCEEDED')state.model='已响应';
     if(type==='MODEL_FAILED')state.model='响应失败';
@@ -62,8 +71,14 @@ export function explorationLifecycleStatus(events=[],receipt={}){
   for(const event of events){
     let body=event.payload||event;
     try{if(typeof body==='string')body=JSON.parse(body);}catch{continue;}
-    const payload=body.payload||body,meta=payload.metadata||{},worker=meta.workerActivity||payload.workerActivity||payload;
-    const type=String(worker.type||meta.codingEventType||meta.eventKind||event.type||'').toUpperCase();
+    const payload=body.payload||body,meta=payload.metadata||{},worker={...(meta.payload||{}),...(meta.workerActivity||payload.workerActivity||(!meta.eventKind?payload:{}))};
+    const type=String(worker.normalizedType||worker.type||meta.codingEventType||meta.eventKind||event.type||'').toUpperCase();
+    if(['MODEL_REQUEST_STARTED','MODEL_REQUEST_COMPLETED','FILE_CHANGED'].includes(type))code='ANALYZING';
+    if(type==='TOOL_COMPLETED'&&['read_files','search_codebase'].includes(worker.tool))code='DATA_READY';
+    if(type==='COMMAND_STARTED'){code='EXECUTING';detail='';}
+    if(type==='COMMAND_COMPLETED')code='ANALYZING';
+    // A failed command is repairable; only the authoritative task receipt makes the task failed.
+    if(type==='ERROR_OCCURRED') {code='ANALYZING';detail='执行出现异常，等待后续修复或任务状态确认';}
     if(type==='MODEL_STARTED'||type==='PLAN_READY'||type==='CODE_READY')code='ANALYZING';
     if(type==='CODING_INPUT_READY')code='DATA_READY';
     if(type==='TOOL_STARTED'){

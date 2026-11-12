@@ -95,7 +95,11 @@ public class ExplorationAgentBridge {
         JsonNode visual=same&&validVisual(previous.path("visualReport"))?previous.path("visualReport"):null;
         var events=new ArrayList<com.chatchat.chat.task.event.AgentEvent>();
         boolean backlog=false;
-        if(previous==null)events.addAll(tasks.listEvents(owner.tenant(),taskId,1000));
+        if(previous==null){
+            events.addAll(tasks.listEvents(owner.tenant(),taskId,1000));
+            // AgentTaskService caps this read at 500. Continue from the cursor before declaring terminal.
+            backlog=events.size()>=500;
+        }
         else for(int page=0;page<4;page++){
             var batch=tasks.listEventsAfter(owner.tenant(),taskId,cursor,128);events.addAll(batch);
             for(var event:batch)if(event.getSequence()!=null)cursor=Math.max(cursor,event.getSequence());
@@ -171,8 +175,8 @@ public class ExplorationAgentBridge {
                     "attemptId","observedAt","occurredAt","reasonCode","publicReason","errorMessage","executorStopped","executorConfirmed"));
                 var worker=original.path("workerActivity").isObject()?original.path("workerActivity"):original.path("payload");
                 var activity=json.createObjectNode();
-                copyProgressFields(activity,original.path("payload"),List.of("toolCallId","operationId","startedAt","finishedAt","durationMs","toolDurationMs","planText","executionOrigin","admissionPending"));
-                copyProgressFields(activity,worker,List.of("type","tool","toolCallId","operationId","modelCall","scriptVersion","status",
+                copyProgressFields(activity,original.path("payload"),List.of("normalizedType","nativeEventType","nativeEventId","nativeEvidenceRef","sessionId","requestId","model","providerModel","nativeOccurredAt","tool","status","exitCode","toolCallId","operationId","startedAt","finishedAt","durationMs","toolDurationMs","planText","executionOrigin","admissionPending"));
+                copyProgressFields(activity,worker,List.of("normalizedType","nativeEventType","nativeEventId","nativeEvidenceRef","sessionId","requestId","model","providerModel","nativeOccurredAt","type","tool","toolCallId","operationId","modelCall","scriptVersion","status",
                     "timestamp","startedAt","finishedAt","durationMs","toolDurationMs","planText","executionOrigin","reason","admissionPending",
                     "executorStopped","exitCode","resultAvailable","resultDatasetRef","validationRecordRef","evidenceBundleRef"));
                 if(!activity.isEmpty())meta.set("workerActivity",activity);

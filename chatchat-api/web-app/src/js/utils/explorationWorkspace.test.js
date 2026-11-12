@@ -1,4 +1,18 @@
 import {it,expect} from 'vitest';
+it('projects Native receipts through discovery, execution, repair and delivery without promoting process success',()=>{
+ const native=(normalizedType,fields={})=>({payload:{metadata:{eventKind:'CODING_TRACE',payload:{normalizedType,...fields},workerActivity:{status:'SUCCEEDED'}}}});
+ const events=[native('MODEL_REQUEST_STARTED',{requestId:'r1'}),native('MODEL_REQUEST_COMPLETED',{requestId:'r1'}),native('TOOL_COMPLETED',{tool:'read_files',toolCallId:'read1'}),native('COMMAND_STARTED',{operationId:'cmd-1'})];
+ const stages=receipt=>Object.fromEntries(explorationDeliveryStages(events,receipt).map(x=>[x.key,x.value]));
+ expect(stages()).toMatchObject({model:'已响应',data:'已读取',execution:'执行中',report:'未交付'});
+ expect(explorationLifecycleStatus(events).code).toBe('EXECUTING');
+ events.push(native('ERROR_OCCURRED',{operationId:'cmd-1',exitCode:1}));
+ expect(stages()).toMatchObject({execution:'执行失败',report:'待校验'});
+ expect(explorationLifecycleStatus(events).code).toBe('ANALYZING');
+ events.push(native('COMMAND_STARTED',{operationId:'cmd-2'}),native('COMMAND_COMPLETED',{operationId:'cmd-2',exitCode:0}));
+ expect(stages()).toMatchObject({execution:'进程已结束',report:'待校验'});
+ expect(explorationLifecycleStatus(events).code).not.toBe('DELIVERED');
+ expect(stages({terminal:true,resultAvailable:true})).toMatchObject({report:'已归档'});
+});
 import {explorationTreeRows,sortedTableRows,workspaceBusinessName,businessNodeTitle,explorationCanvasNode,reconcileExploration,explorationNodeState,explorationMetricDisplay,explorationDeliveryStages,explorationLifecycleStatus} from './explorationWorkspace';
 it('shows the actual discovery, delivery, execution and review lifecycle without promoting zero exit',()=>{
  const events=[];expect(explorationLifecycleStatus(events).label).toBe('任务已提交');

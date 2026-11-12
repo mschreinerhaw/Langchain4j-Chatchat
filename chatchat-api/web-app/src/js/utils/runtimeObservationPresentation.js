@@ -58,13 +58,13 @@ function executionActivity(event, runtime, metadata) {
   const workerType = upper(worker.type), stage = upper(metadata.stage || runtime.stage);
   let category, state, identity, phase;
   const status = metadata.eventState || runtime.status || event.status;
-  const observedAt = moment(metadata.observedAt || worker.timestamp || metadata.occurredAt || event.createTime || event.timestamp);
+  const observedAt = moment(metadata.observedAt || worker.nativeOccurredAt || worker.timestamp || metadata.occurredAt || event.createTime || event.timestamp);
   const owner = metadata.taskId || event.runId || event.attemptId || 'task';
   const operation = metadata.operationId || worker.operationId;
   const nativeType=upper(worker.normalizedType);
   if(kind==='CODING_TRACE' && nativeType){
     const failed=nativeType==='ERROR_OCCURRED'||['FAILED','ERROR','REJECTED'].includes(upper(worker.status));
-    if(nativeType.startsWith('MODEL_REQUEST_')){
+    if(nativeType.startsWith('MODEL_REQUEST_') || nativeType==='ERROR_OCCURRED' && worker.requestId && !worker.toolCallId){
       category='MODEL';phase=3;identity=worker.requestId||operation;
       state=failed?'error':nativeType==='MODEL_REQUEST_COMPLETED'?'done':'active';
     }else if(worker.toolCallId){
@@ -233,13 +233,13 @@ export function userEventTimeline(events = []) {
       metadata.eventKind,worker.tool,activity?.kind,projection?.index,state]);
     const labels=OPERATION_LABELS[activity?.kind];
     const row={id:`display-${event.eventId||rows.length}-${event.sequence||0}`,count:1,sourceEvents:[event],
-      groupKey:key,observedAt:activity?.observedAt||0,
+      groupKey:key,observedAt:activity?.observedAt||moment(event.createTime||event.timestamp),
       sequence:Number(event.sequence||0),state,critical,
       title:denied?'权限请求被拒绝':confirmation?'需要用户确认':labels?(state==='done'?labels[1]:labels[0]):'任务状态更新',
       detail:activity?.summary || (critical?businessReason(metadata.publicReason||runtime.errorMessage||payload.errorMessage,state)||
         (confirmation?'请核对请求并确认后继续。':denied?'该操作未获授权，未扩大访问范围。':'执行已停止，请展开技术日志核对。'):
         state==='done'?'已收到操作完成记录。':'等待真实执行回执。'),
-      timeLabel:activity?.observedAt?new Date(activity.observedAt).toLocaleTimeString('zh-CN',{hour12:false}):'时间未记录',
+      timeLabel:(activity?.observedAt||moment(event.createTime||event.timestamp))?new Date(activity?.observedAt||moment(event.createTime||event.timestamp)).toLocaleTimeString('zh-CN',{hour12:false}):'时间未记录',
       statusLabel:executionStatusLabel(state),durationLabel:executionDuration(activity?.durationMs)};
     const lifecycleIdentity=activity&&(['KNOWLEDGE','NEWS','MARKET'].includes(activity.kind)
       ?worker.toolCallId||worker.operationId||metadata.operationId||activity.id:activity.id);

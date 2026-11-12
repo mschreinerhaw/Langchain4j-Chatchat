@@ -6,6 +6,11 @@ import {
   runtimeObservationPresentation, businessEventPresentation, businessTaskProgress, executionWorkbench, userEventTimeline
 } from "./runtimeObservationPresentation.js";
 
+it('retains terminal event time when no operation is attached',()=>{
+ const rows=userEventTimeline([{sequence:1,eventId:'failed',type:'ERROR',status:'FAILED',createTime:'2026-11-12T01:02:03Z'}]);
+ expect(rows).toHaveLength(1);expect(rows[0].observedAt).toBe(Date.parse('2026-11-12T01:02:03Z'));
+ expect(rows[0].timeLabel).not.toBe('时间未记录');
+});
 it('projects committed Native receipts using their real operation identity and clock without counting replays twice',()=>{
   const native=(sequence,normalizedType,receipt)=>({sequence,eventId:`parent-${sequence}`,type:'RUNTIME_OBSERVATION',createTime:1000+sequence*1000,payload:{metadata:{eventKind:'CODING_TRACE',codingEventType:'RECOVERY_RECONCILED',payload:{normalizedType,...receipt}}}});
   const events=[native(1,'MODEL_REQUEST_STARTED',{requestId:'provider-a',startedAt:2000}),native(2,'MODEL_REQUEST_COMPLETED',{requestId:'provider-a',startedAt:2000,finishedAt:4000,durationMs:2000}),native(3,'TOOL_STARTED',{tool:'read_files',toolCallId:'read-a'}),native(4,'TOOL_COMPLETED',{tool:'read_files',toolCallId:'read-a'}),native(5,'COMMAND_STARTED',{operationId:'cmd-native-a',startedAt:6000})];

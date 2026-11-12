@@ -2,7 +2,7 @@
   "java": [
     {
       "name": "AnalysisTaskWorkflowTest",
-      "tests": 4,
+      "tests": 6,
       "failures": 0,
       "errors": 0,
       "skipped": 0
@@ -85,7 +85,11 @@
       "skipped": 0
     }
   ],
-  "javaTotal": 58,
+  "javaTotal": 60,
   "nodePolicyTests": 21,
-  "nodeFailures": 0
+  "nodeFailures": 0,
+  "realHistoryReplay": [
+    "history-temporal-cancel-live.json",
+    "history-temporal-storage-live.json"
+  ]
 }

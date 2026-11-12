@@ -30,14 +30,41 @@ class AnalysisTaskWorkflowTest {
         try(var env=TestWorkflowEnvironment.newInstance()){
             var worker=env.newWorker("native-cancel",WorkerOptions.newBuilder().setMaxConcurrentActivityExecutionSize(1).build());worker.registerWorkflowImplementationTypes(AnalysisTaskWorkflowImpl.class);
             var stopped=new AtomicInteger();
-            worker.registerActivitiesImplementations(new NativeAnalysisActivity(){
+            var activities=new NativeAnalysisActivity(){
                 public NativeAnalysisResult run(NativeAnalysisReference r){for(;;){Activity.getExecutionContext().heartbeat("real activity pending");try{Thread.sleep(10);}catch(InterruptedException e){Thread.currentThread().interrupt();throw new IllegalStateException(e);}}}
                 public NativeAnalysisResult stop(NativeAnalysisReference r,String reason){stopped.incrementAndGet();return new NativeAnalysisResult(r.taskId(),"CANCELLED","node",null,null);}
-            });env.start();
+            };worker.registerActivitiesImplementations(activities);
+            env.newWorker("native-cancel.control").registerActivitiesImplementations(activities);env.start();
             var workflow=env.getWorkflowClient().newWorkflowStub(AnalysisTaskWorkflow.class,WorkflowOptions.newBuilder().setWorkflowId("cancel-analysis").setTaskQueue("native-cancel").build());
             WorkflowClient.start(workflow::execute,reference());env.sleep(Duration.ofSeconds(1));WorkflowStub.fromTyped(workflow).cancel();
             assertThatThrownBy(()->WorkflowStub.fromTyped(workflow).getResult(NativeAnalysisResult.class)).isInstanceOf(WorkflowFailedException.class).hasCauseInstanceOf(io.temporal.failure.CanceledFailure.class);
             assertThat(stopped).hasValue(1);
+        }
+    }
+    @Test void queuedCancellationHasControlCapacityWhileTheAnalysisSlotIsOccupied()throws Exception{
+        try(var env=TestWorkflowEnvironment.newInstance()){
+            var worker=env.newWorker("native-saturated",WorkerOptions.newBuilder().setMaxConcurrentActivityExecutionSize(1).build());worker.registerWorkflowImplementationTypes(AnalysisTaskWorkflowImpl.class);
+            var occupied=new java.util.concurrent.CountDownLatch(1);var stopped=new AtomicInteger();
+            var activities=new NativeAnalysisActivity(){
+                public NativeAnalysisResult run(NativeAnalysisReference r){
+                    assertThat(r.taskId()).isEqualTo("busy");occupied.countDown();
+                    for(;;){Activity.getExecutionContext().heartbeat("analysis slot occupied");try{Thread.sleep(10);}catch(InterruptedException e){Thread.currentThread().interrupt();throw new IllegalStateException(e);}}
+                }
+                public NativeAnalysisResult stop(NativeAnalysisReference r,String reason){stopped.incrementAndGet();return new NativeAnalysisResult(r.taskId(),"CANCELLED","node",null,null);}
+            };
+            worker.registerActivitiesImplementations(activities);env.newWorker("native-saturated.control").registerActivitiesImplementations(activities);env.start();
+            var busy=env.getWorkflowClient().newWorkflowStub(AnalysisTaskWorkflow.class,WorkflowOptions.newBuilder().setWorkflowId("busy-analysis").setTaskQueue("native-saturated").build());
+            var queued=env.getWorkflowClient().newWorkflowStub(AnalysisTaskWorkflow.class,WorkflowOptions.newBuilder().setWorkflowId("queued-analysis").setTaskQueue("native-saturated").build());
+            WorkflowClient.start(busy::execute,new NativeAnalysisReference("tenant","user","run","busy","0".repeat(64),System.currentTimeMillis()+600000));
+            assertThat(occupied.await(5,java.util.concurrent.TimeUnit.SECONDS)).isTrue();
+            try{
+                WorkflowClient.start(queued::execute,reference());env.sleep(Duration.ofSeconds(1));WorkflowStub.fromTyped(queued).cancel();
+                assertThatThrownBy(()->WorkflowStub.fromTyped(queued).getResult(15,java.util.concurrent.TimeUnit.SECONDS,NativeAnalysisResult.class)).isInstanceOf(WorkflowFailedException.class).hasCauseInstanceOf(io.temporal.failure.CanceledFailure.class);
+                assertThat(stopped).hasValue(1);
+            }finally{
+                WorkflowStub.fromTyped(busy).cancel();
+                assertThatThrownBy(()->WorkflowStub.fromTyped(busy).getResult(NativeAnalysisResult.class)).isInstanceOf(WorkflowFailedException.class);
+            }
         }
     }
     @Test void failedBusinessOutcomeCannotCompleteTheTemporalWorkflowSuccessfully(){
@@ -56,5 +83,12 @@ class AnalysisTaskWorkflowTest {
     @Test void historyReferenceCannotCarryUnboundedAnalysisMaterials(){
         assertThatThrownBy(()->new NativeAnalysisReference("tenant","user","run","x".repeat(1024),"0".repeat(64),1)).isInstanceOf(IllegalArgumentException.class);
         assertThatThrownBy(()->new NativeAnalysisReference("tenant","user","run","task","not-a-hash",1)).isInstanceOf(IllegalArgumentException.class);
+    }
+    @Test void recordedPreControlQueueHistoriesRemainReplayCompatible()throws Exception{
+        var root=java.nio.file.Path.of("").toAbsolutePath();
+        while(root!=null&&!java.nio.file.Files.isDirectory(root.resolve("docs/testing/evidence/native-temporal-20261113")))root=root.getParent();
+        assertThat(root).as("Recorded real candidate histories").isNotNull();
+        for(String file:java.util.List.of("history-temporal-cancel-live.json","history-temporal-storage-live.json"))
+            io.temporal.testing.WorkflowReplayer.replayWorkflowExecution(root.resolve("docs/testing/evidence/native-temporal-20261113").resolve(file).toFile(),AnalysisTaskWorkflowImpl.class);
     }
 }

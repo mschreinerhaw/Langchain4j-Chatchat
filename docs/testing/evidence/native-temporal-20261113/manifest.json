@@ -56,8 +56,8 @@
   },
   {
     "path": "regression.json",
-    "bytes": 1774,
-    "sha256": "72e8cc5ac6f1669e81cfaece8c110901944633500a02b211988876160f0b74a1"
+    "bytes": 1890,
+    "sha256": "6eb8fd1ebdf2d597a0593793548cde836f8750f1ce78c62528f9cf876c2f0739"
   },
   {
     "path": "storage-restart.json",

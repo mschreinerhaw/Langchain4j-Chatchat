@@ -61,7 +61,13 @@ public class NativeTemporalConfiguration {
         private final WorkerFactory factory;private final Worker worker;private final NativeS3Settings settings;private volatile boolean running;
         NativeWorkerLifecycle(WorkflowClient client,NativeAnalysisPort port,NativeTemporalProperties p,NativeS3Settings settings){
             this.settings=settings;factory=WorkerFactory.newInstance(client);worker=factory.newWorker(p.getTaskQueue(),WorkerOptions.newBuilder().setMaxConcurrentActivityExecutionSize(p.getMaxConcurrentTasks()).setMaxConcurrentWorkflowTaskExecutionSize(8).build());
-            worker.registerWorkflowImplementationTypes(AnalysisTaskWorkflowImpl.class);worker.registerActivitiesImplementations(new NativeAnalysisActivityImpl(port,client));
+            var activity=new NativeAnalysisActivityImpl(port,client);
+            worker.registerWorkflowImplementationTypes(AnalysisTaskWorkflowImpl.class);worker.registerActivitiesImplementations(activity);
+            // Control remains available even when the local Native Gateway is
+            // offline or every analysis slot is occupied. Only the main
+            // analysis worker is suspended by the Native health check.
+            var control=factory.newWorker(p.getTaskQueue()+".control",WorkerOptions.newBuilder().setMaxConcurrentActivityExecutionSize(1).build());
+            control.registerActivitiesImplementations(activity);
         }
         public void start(){factory.start();running=true;}public void stop(){running=false;factory.suspendPolling();factory.shutdown();}public boolean isRunning(){return running;}
         @Scheduled(initialDelay=5000,fixedDelay=5000)public void localNodeHealth(){if(!running)return;try{settings.client(settings.nodeId()).requireNativeIdentity();worker.resumePolling();}catch(RuntimeException offline){worker.suspendPolling();}}

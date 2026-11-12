@@ -89,7 +89,7 @@ Temporal Worker。确认真实进程与 readiness 文件后才注入故障；不
 | 跨租户 | PASS；新建第二个测试租户和账户，读取第一租户任务及监控详情均为 403 |
 | 监控 | PASS；真实浏览器无页面/API 错误；Workflow、节点、历史时间线可见；时间线/交付默认折叠；离线重连与刷新后历史仍可查询 |
 | Temporal mTLS | PASS；带证书的真实 SDK/CLI 连接成功，不提供客户端证书的连接被拒绝 |
-| 回归 | PASS；58 个 Java 测试、16 个 Node policy/issuer/governance 测试，失败 0 |
+| 回归 | PASS；60 个 Java 测试、21 个 Node policy/daemon/issuer/governance 测试，失败 0；包含分析槽位被占满时的控制队列取消及两份真实旧 History 回放 |
 | 联网正向检索 | 未执行通过；现有模型策略为 MODEL_INTERNET_DISABLED，保留原授权，未修改共享模型配置来制造成功 |
 
 证据：[取消](evidence/native-temporal-20261113/cancellation.json)、
@@ -126,6 +126,7 @@ Temporal 启动耗时，不能将该值宣传为 Temporal 重启 RTO。
 | 联网回归 1 | 本机系统代理中断测试连接，无 Workflow；后续显式直连候选入口 |
 | 联网回归 2 | 冻结授权明确为 MODEL_INTERNET_DISABLED，无 web 工具；取消该不可满足任务，保留失败，不通过改共享策略掩盖 |
 | 浏览器探针 1/2 | 测试选择器误用 a 标签、waitForFunction 触发 CSP；改用实际 button 和 Locator，保留 CSP，最终源码脚本通过 |
+| 固定源码首轮并发取消复验 | 进程和 Java 已取消，Temporal 停止回收仍与长分析争抢槽位，瞬时终态断言失败；新增独立 `.control` 标准队列和版本标记，分析槽位不再阻塞新任务的停止回收。SDK 饱和槽位测试与真实旧 History 回放通过，镜像复验另行记录 |
 
 ## 发布状态与边界
 

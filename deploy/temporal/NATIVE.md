@@ -70,6 +70,14 @@ to the local Gateway and restricted Executor capacity. The API process uses
 Worker/Native/Executor pair adds a consumer to the standard queue. No Java node
 picker, model planner, tool scheduler or model-request count limit is introduced.
 
+Stop/reconciliation Activities use the standard queue `<task-queue>.control`,
+with one independent control slot per Java Worker Adapter. That consumer stays
+available when the local Native Gateway is offline or analysis slots are full.
+It never plans or executes an analysis. `Workflow.getVersion` preserves replay
+of pre-control-queue histories; both queues retain the old Activity registration
+until old workflows drain. Recorded real cancellation and restart histories are
+replayed in the SDK regression suite.
+
 Relevant properties under `chatchat.runtime.coding.temporal`:
 
 | Property | Purpose |

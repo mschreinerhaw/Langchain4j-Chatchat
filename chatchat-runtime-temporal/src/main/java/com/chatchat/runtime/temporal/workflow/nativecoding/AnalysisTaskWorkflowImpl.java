@@ -30,9 +30,15 @@ public final class AnalysisTaskWorkflowImpl implements AnalysisTaskWorkflow {
         }
     }
     private void cleanup(NativeAnalysisReference ref,String reason){
+        // Old histories scheduled cleanup on the analysis queue. Keep their
+        // replay deterministic; new executions reserve a separate control
+        // queue so long analyses cannot starve physical-stop reconciliation.
+        int version=Workflow.getVersion("native-stop-control-queue",Workflow.DEFAULT_VERSION,1);
+        String queue=Workflow.getInfo().getTaskQueue()+(version==Workflow.DEFAULT_VERSION?"":".control");
         // Cancellation is not considered complete until another available
         // Worker has reconciled the real Executor stop, even after a crash.
         Workflow.newDetachedCancellationScope(()->Workflow.newActivityStub(NativeAnalysisActivity.class,ActivityOptions.newBuilder()
+            .setTaskQueue(queue)
             .setStartToCloseTimeout(Duration.ofMinutes(2)).setHeartbeatTimeout(Duration.ofSeconds(30))
             .setRetryOptions(RetryOptions.newBuilder().setInitialInterval(Duration.ofSeconds(2)).setMaximumInterval(Duration.ofSeconds(30)).build()).build()).stop(ref,reason)).run();
     }

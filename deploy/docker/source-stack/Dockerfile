@@ -24,10 +24,12 @@ WORKDIR /source
 COPY . .
 COPY --from=frontend /frontend /frontend
 RUN --mount=type=cache,id=runtime-os-source-maven,target=/root/.m2/repository \
+    test -s coding-agent-node/skills/catalog.json && \
     mvn -B -ntp -pl chatchat-api,chatchat-mcp-server,chatchat-runtime-news -am \
     -Dfrontend.skip=true -Dfrontend.install.skip=true -Dcontainer.image=true \
     -Dweb.static.directory=/frontend/api -Dmcp.web.static.directory=/frontend/mcp \
-    -Dassembly.skipAssembly=true -Dmaven.test.skip=true clean package
+    -Dassembly.skipAssembly=true -Dmaven.test.skip=true clean package && \
+    test -s chatchat-chat/target/classes/coding-skills/catalog.json
 
 FROM ${JAVA_RUNTIME_IMAGE} AS java-runtime
 ENV LANG=C.UTF-8 LC_ALL=C.UTF-8 TZ=Asia/Shanghai

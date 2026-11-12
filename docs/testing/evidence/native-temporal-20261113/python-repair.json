@@ -1,0 +1,115 @@
+{
+  "taskId": "temporal-native-da45ec77ce980eeea5b74feefbe06277ccfbe865525c0d7c7ed10938d2f57b4f",
+  "runId": "coding-2731c3dcb1a50d03ad7c8f7029ff8429093921b3ffda6f3c35d87ffec7bedca5",
+  "status": "COMPLETED",
+  "executions": [
+    {
+      "recordId": "131aae6c-b100-4cb5-99af-4e52e810cbcd",
+      "pid": 179,
+      "command": "/bin/bash [\"-c\",\"python3 -c \\\"\\nimport pyarrow.parquet as pq\\nt = pq.read_table('/workspace/input/data/0/synthetic-analysis.parquet')\\ndf = t.to_pandas()\\namounts = df['amount'].tolist()\\ncount = len(amounts)\\ntotal = sum(amounts)\\nmean = total / count\\nprint(f'Shell independent verification:')\\nprint(f'  amounts = {amounts}')\\nprint(f'  count = {count}')\\nprint(f'  total = {total}')\\nprint(f'  mean  = {mean}')\\n\\\"\"]",
+      "status": "SUCCEEDED",
+      "exitCode": 0,
+      "startedAt": "2026-11-12T17:49:24.755Z",
+      "finishedAt": "2026-11-12T17:49:26.251Z",
+      "exceptionSummary": null,
+      "stdoutAssetId": "32646dd0dee110d43a84c46bb72f643b33f46077e9b9eb27b1aa3a9333d11df9",
+      "stderrAssetId": "4eac8302578f16a1d80b932aabeb23babfa97d8a53a80f640311ea0e1c73f7e3"
+    },
+    {
+      "recordId": "92bf48ef-42e7-49f8-8d8f-1e41520b8a7f",
+      "pid": 242,
+      "command": "/bin/bash [\"-c\",\"echo \\\"=== File listing ===\\\" && ls -la /workspace/synthetic_amount_analysis/ && echo && echo \\\"=== Manifest ===\\\" && cat /workspace/delivery_manifest.json && echo && echo \\\"=== Result JSON validation ===\\\" && python3 -c \\\"\\nimport json\\nwith open('/workspace/synthetic_amount_analysis/result.json') as f:\\n    data = json.load(f)\\n# Schema check\\nassert isinstance(data, dict), 'Must be object'\\nassert set(data.keys()) == {'count', 'total', 'mean'}, f'Keys: {data.keys()}'\\nassert isinstance(data['count'], int), f'count must be int, got {type(data[\\\\\\\"count\\\\\\\"])}'\\nassert isinstance(data['total'], (int, float)), f'total must be number'\\nassert isinstance(data['mean'], (int, float)), f'mean must be number'\\nprint(f'count={data[\\\\\\\"count\\\\\\\"]} (type={type(data[\\\\\\\"count\\\\\\\"]).__name__})')\\nprint(f'total={data[\\\\\\\"total\\\\\\\"]} (type={type(data[\\\\\\\"total\\\\\\\"]).__name__})')\\nprint(f'mean={data[\\\\\\\"mean\\\\\\\"]} (type={type(data[\\\\\\\"mean\\\\\\\"]).__name__})')\\nprint('RESULT JSON schema: VALID')\\n\\\" && echo && echo \\\"=== Manifest validation ===\\\" && python3 -c \\\"\\nimport json\\nfrom pathlib import Path\\nwith open('/workspace/delivery_manifest.json') as f:\\n    m = json.load(f)\\nassert m['schemaVersion'] == 'coding_node_delivery_selection.v1'\\nfor a in m['artifacts']:\\n    p = Path('/workspace') / a['path']\\n    assert p.exists(), f'Missing: {a[\\\\\\\"path\\\\\\\"]}'\\n    assert a['type'] in ('SOURCE','REPORT','RESULT','CHART','TEST','AUXILIARY')\\n    print(f'  {a[\\\\\\\"path\\\\\\\"]} [{a[\\\\\\\"type\\\\\\\"]}] EXISTS')\\nprint('MANIFEST: VALID - all artifacts exist')\\n\\\" && echo && echo \\\"=== Error evidence preserved ===\\\" && cat /workspace/synthetic_amount_analysis/error_log.txt\"]",
+      "status": "SUCCEEDED",
+      "exitCode": 0,
+      "startedAt": "2026-11-12T17:49:48.250Z",
+      "finishedAt": "2026-11-12T17:49:48.498Z",
+      "exceptionSummary": "TypeError: can only concatenate str (not \"int\") to str",
+      "stdoutAssetId": "8dd496947736afb2c973653ae634cc386edeb3e240138b59405dca5d4b6705e9",
+      "stderrAssetId": "ad034abba527c3dba7c47471b520b7d84e7f41b9f8095caad710040e36c5754e"
+    },
+    {
+      "recordId": "95714f59-84ce-4a38-aad2-91204399451f",
+      "pid": 177,
+      "command": "/bin/bash [\"-c\",\"cd /workspace/synthetic_amount_analysis && python3 main.py 2>&1; echo \\\"EXIT_CODE=$?\\\"\"]",
+      "status": "SUCCEEDED",
+      "exitCode": 0,
+      "startedAt": "2026-11-12T17:49:24.738Z",
+      "finishedAt": "2026-11-12T17:49:26.220Z",
+      "exceptionSummary": null,
+      "stdoutAssetId": "5fe293aaf8d75a1393aca302491b312e1341578fca04f213da5dbc00d6fcebdd",
+      "stderrAssetId": "c435d76d38b3b45439b90bee72315e59608e27788e26051a1d5f4eba297be5c8"
+    },
+    {
+      "recordId": "a236aa21-52c7-4352-acba-4f1e4b2de331",
+      "pid": 46,
+      "command": "/bin/bash [\"-c\",\"python3 -c \\\"import pyarrow.parquet as pq; t = pq.read_table('/workspace/input/data/0/synthetic-analysis.parquet'); print('Schema:'); print(t.schema); print(); print('Rows:', t.num_rows); print(); print('Data:'); print(t.to_pandas())\\\"\"]",
+      "status": "SUCCEEDED",
+      "exitCode": 0,
+      "startedAt": "2026-11-12T17:48:12.649Z",
+      "finishedAt": "2026-11-12T17:48:14.931Z",
+      "exceptionSummary": null,
+      "stdoutAssetId": "998a2b0d7ab44b95df013995dfc7dc9a1a411d91cd62159bdfb6568e3876eb87",
+      "stderrAssetId": "7bbffa85539b7635403d03c5dbdbb57fc290d086bb94983004a016848389506f"
+    },
+    {
+      "recordId": "bc5bd319-dac9-414f-af08-d4c8e2f83518",
+      "pid": 141,
+      "command": "/bin/bash [\"-c\",\"cd /workspace/synthetic_amount_analysis && python3 main.py 2>&1; echo \\\"EXIT_CODE=$?\\\"\"]",
+      "status": "SUCCEEDED",
+      "exitCode": 0,
+      "startedAt": "2026-11-12T17:49:08.723Z",
+      "finishedAt": "2026-11-12T17:49:10.047Z",
+      "exceptionSummary": "TypeError: can only concatenate str (not \"int\") to str",
+      "stdoutAssetId": "c1b2b35ca20b8272303d01febd49dd805cb001954a428472fef6d9a17e36d0f2",
+      "stderrAssetId": "9f0c3ae778daa278d8d28bf1a9b33fbbf4c28ff24e16e134319d902a1cf1a1ce"
+    },
+    {
+      "recordId": "bdd9d873-8155-4cf3-907d-f250dafe200d",
+      "pid": 48,
+      "command": "/bin/bash [\"-c\",\"python3 -c \\\"import pyarrow.parquet as pq; t = pq.read_table('/workspace/input/data/0/synthetic-analysis.parquet'); df = t.to_pandas(); print('dtypes:'); print(df.dtypes); print(); print('head:'); print(df.head(20)); print(); print('describe:'); print(df.describe())\\\"\"]",
+      "status": "SUCCEEDED",
+      "exitCode": 0,
+      "startedAt": "2026-11-12T17:48:12.680Z",
+      "finishedAt": "2026-11-12T17:48:14.958Z",
+      "exceptionSummary": null,
+      "stdoutAssetId": "60c33520e04bd8c9e6059710fa4ca9fc587321fa75f9f974744a4e42a615c23e",
+      "stderrAssetId": "063e21713d21a437da38f3c7c189c3497aa9c20f7cb4053390c5c7cafdbb3fbe"
+    },
+    {
+      "recordId": "ddef23ab-0ebb-4c03-8a6b-7f6cdcb2cff2",
+      "pid": 47,
+      "command": "/bin/bash [\"-c\",\"python3 -c \\\"import pandas; print('pandas:', pandas.__version__); import pyarrow; print('pyarrow:', pyarrow.__version__)\\\"\"]",
+      "status": "SUCCEEDED",
+      "exitCode": 0,
+      "startedAt": "2026-11-12T17:48:12.664Z",
+      "finishedAt": "2026-11-12T17:48:14.884Z",
+      "exceptionSummary": null,
+      "stdoutAssetId": "fa786a6d8006173809922df9a4b25ec3a2c0427c1d01ebad4df0b266673024bb",
+      "stderrAssetId": "96faeb8648ab643315132388a244bf77bfc6bcde402341861538ed5ff764c3fa"
+    }
+  ],
+  "repairs": [
+    {
+      "verified": true,
+      "failureEventId": "285",
+      "editEventId": "345",
+      "executionEventId": "374",
+      "exceptionSummary": "TypeError: can only concatenate str (not \"int\") to str",
+      "changedSources": [
+        {
+          "afterSha256": "5b7f6da48fdaa2520e89977aea9736b18bd83113a099df75a596f92836281734",
+          "beforeAssetId": "d576f5d886ae63629a70e901d89297d3ed29482de65b5475116cba221dc178d3",
+          "afterAssetId": "2528317b42b7410dbc2754e273ac5a7a1c54235f5000d00b6d08f38f834cf2a4",
+          "beforeSha256": "f5bf9db43417afd5849e06a819e155d0ef5a7b5e76cf967c1be7b01b8c700016",
+          "path": "synthetic_amount_analysis/statistics.py"
+        }
+      ],
+      "failureStdoutAssetId": "c1b2b35ca20b8272303d01febd49dd805cb001954a428472fef6d9a17e36d0f2",
+      "failureStderrAssetId": "9f0c3ae778daa278d8d28bf1a9b33fbbf4c28ff24e16e134319d902a1cf1a1ce",
+      "rerunStdoutAssetId": "5fe293aaf8d75a1393aca302491b312e1341578fca04f213da5dbc00d6fcebdd",
+      "verification": "CHANGED_SOURCE_SNAPSHOT_AND_SAME_COMMAND_RERUN_WITHOUT_OBSERVED_EXCEPTION"
+    }
+  ],
+  "realTypeError": true,
+  "verifiedRepair": true
+}

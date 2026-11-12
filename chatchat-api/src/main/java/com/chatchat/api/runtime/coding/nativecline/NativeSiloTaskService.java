@@ -151,6 +151,21 @@ public final class NativeSiloTaskService {
     /** Trusted Node callback only; signed capabilities must never become a
      * public user response, model context or a file inside the Agent workspace.
      */
+    public CodingTaskContract prepared(com.chatchat.common.kernel.KernelDataScope scope,String task){
+        identity.require(scope,CodingTaskAccess.Action.READ);
+        var contract=decode(evidence.readExecutionCheckpoint(scope,contractKey(task)).orElseThrow());
+        requireAuthorized(contract);return contract;
+    }
+    /** Durable request-to-execution identity, including across scheduler
+     * rollback. Existing local requests never become a second Temporal task. */
+    public String taskIdentity(com.chatchat.common.kernel.KernelDataScope scope,String legacy,String preferred){
+        identity.require(scope,CodingTaskAccess.Action.READ);
+        String key="native-dispatch-identity:"+legacy;
+        var saved=evidence.readExecutionCheckpoint(scope,key);if(saved.isPresent())return saved.get();
+        String selected=evidence.readExecutionCheckpoint(scope,contractKey(legacy)).isPresent()?legacy:preferred;
+        evidence.compareAndSetExecutionCheckpoint(scope,key,null,selected);
+        return evidence.readExecutionCheckpoint(scope,key).orElseThrow();
+    }
     public List<SiloCodingWorkspaceService.InputCapability> inputCapabilities(CodingTaskContract contract){
         requireAuthorized(contract);var state=workspace.get(contract.scope(),contract.taskId());
         return workspace.inputCapabilities(contract.scope(),contract.taskId(),state.epoch());

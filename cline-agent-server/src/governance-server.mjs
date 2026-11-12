@@ -50,7 +50,13 @@ function granted(req){
   ||/^\/v1\/sessions\/[A-Za-z0-9_-]+\/(?:cancel|revoke|execution-content)$/.test(path)&&req.method==='POST';
  return verifyIssuedContract((req.headers.authorization??'').replace(/^Bearer /,''),cfg,{allowExpired:allowedExpired});
 }
-function live(r){return !r.revoked&&r.contract.expiresAt>Date.now()&&!['STOPPED','RECOVERABLE','START_FAILED'].includes(r.workerState);}
+function live(r){return !r.revoked&&!existsSync(join(cfg.stateRoot,'revocations',r.contract.sessionId+'.json'))&&r.contract.expiresAt>Date.now()&&!['STOPPED','RECOVERABLE','START_FAILED'].includes(r.workerState);}
+function refreshRevocation(r){
+ const marker=join(cfg.stateRoot,'revocations',r.contract.sessionId+'.json');if(!existsSync(marker))return;
+ const revoked=JSON.parse(readFileSync(marker,'utf8'));
+ if(revoked.sessionId!==r.contract.sessionId||revoked.taskId!==r.contract.taskId)throw error('Recovery marker identity differs',409);
+ if(revoked.stopProof?.allocationFenced===true&&revoked.stopProof.running===false){r.revoked=true;r.workerState='STOPPED';r.taskState='CANCELLED';r.stopProof=revoked.stopProof;save(r);}
+}
 function workerRequest(r,path,method='GET',value,headers={}){return new Promise((resolve,reject)=>{
  const req=http.request({socketPath:join(bridgeRoot(r),'worker.sock'),path,method,headers:{authorization:'Bearer '+r.apiToken,'content-type':'application/json',...headers}},resolve);
  req.setTimeout(95000,()=>req.destroy(error('Native control timeout',504)));req.on('error',reject);req.end(value===undefined?undefined:JSON.stringify(value));
@@ -193,13 +199,19 @@ async function allocate(r){
 const server=http.createServer(async(req,res)=>{
  try{
   const path=new URL(req.url,'http://control').pathname;
-  if(path==='/health/live')return send(res,200,{live:true,engine:'cline-standalone',version:'4.1.26',legacySdkWorker:false,releaseVersion:'1.0.0',enterpriseAcceptance:false});
-  const c=granted(req),tenant=Object.hasOwn(cfg.tenants,c.tenantId)?cfg.tenants[c.tenantId]:undefined;if(!tenant||!tenant.users.includes(c.userId)||!Object.hasOwn(tenant.workspaces,c.workspaceRef)||!(c.runtimeModel?typeof tenant.runtimeModelAuthority==='string':tenant.models.includes(c.modelProfile))||!c.dataPermissions.every(x=>tenant.datasets.includes(x))||!c.toolPermissions.every(x=>tenant.tools.includes(x)))throw error('Task policy not granted',403);
+  if(path==='/health/live'){
+   for(const r of records.values())refreshRevocation(r);const active=[...records.values()].filter(holdsCapacity);
+   let memoryBytes=0,cpuTimeNanos=0,available=!!executor;
+   if(executor)for(const r of active)try{const m=await executor.metrics(grant(r),r.workerId);if(!Number.isSafeInteger(m.memoryBytes)||!Number.isSafeInteger(m.cpuTimeNanos)){available=false;continue;}memoryBytes+=m.memoryBytes;cpuTimeNanos+=m.cpuTimeNanos;}catch{available=false;}
+   return send(res,200,{live:true,engine:'cline-standalone',version:'4.1.26',legacySdkWorker:false,releaseVersion:'1.0.0',enterpriseAcceptance:false,capacity:{maxWorkers:cfg.maxWorkers,activeWorkers:active.length},gatewayMemoryBytes:process.memoryUsage().rss,workerMemoryBytes:available?memoryBytes:null,workerCpuTimeNanos:available?cpuTimeNanos:null});
+  }
+  const c=granted(req),tenant=Object.hasOwn(cfg.tenants,c.tenantId)?cfg.tenants[c.tenantId]:undefined;if(!tenant||!(tenant.users.includes(c.userId)||c.version===2&&tenant.dynamicUsers===true)||!Object.hasOwn(tenant.workspaces,c.workspaceRef)||!(c.runtimeModel?typeof tenant.runtimeModelAuthority==='string':tenant.models.includes(c.modelProfile))||!c.dataPermissions.every(x=>tenant.datasets.includes(x))||!c.toolPermissions.every(x=>tenant.tools.includes(x)))throw error('Task policy not granted',403);
   if(path==='/v1/sessions'&&req.method==='POST'){
    const b=await body(req),key=req.headers['idempotency-key'];if(!key||Object.keys(b).some(k=>!['editTool',...(c.s3?['inputs']:[])].includes(k))||b.editTool&&!['editor','apply_patch'].includes(b.editTool))throw error('Invalid create request');
    if(c.s3)validateS3Inputs(c,b.inputs,cfg.s3);
    if(c.expiresAt<=Date.now())throw error('Task identity expired',401);
    let r=records.get(c.sessionId);if(r){authorizeSession(c,r);if(r.createKey!==key||r.editTool!==(b.editTool??'editor'))throw error('Create conflict',409);return send(res,200,publicState(r));}
+   for(const r of records.values())refreshRevocation(r);
    const active=[...records.values()].filter(holdsCapacity);if(active.length>=cfg.maxWorkers||active.filter(x=>x.contract.tenantId===c.tenantId).length>=cfg.maxPerTenant)throw error('Worker capacity exhausted',429);
    const slot=Array.from({length:cfg.maxWorkers},(_,i)=>i).find(i=>!active.some(x=>x.slot===i));
    r={contract:c,contractHash:contractHash(c),workerId:randomUUID(),slot,workerState:'CREATED',taskState:'CREATED',revoked:false,createKey:key,editTool:b.editTool??'editor',apiToken:randomBytes(32).toString('hex'),brokerToken:randomBytes(32).toString('hex'),...(c.s3?{s3Inputs:b.inputs}: {})};

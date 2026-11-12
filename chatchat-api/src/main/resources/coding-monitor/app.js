@@ -41,8 +41,14 @@ $('filters').onsubmit=event=>{event.preventDefault();page=0;checkedTasks.clear()
 $('refresh').onclick=()=>loadList().catch(error=>notice(error.message));
 $('previous').onclick=()=>{page=Math.max(0,page-1);checkedTasks.clear();loadList().catch(error=>notice(error.message));};
 $('next').onclick=()=>{page++;checkedTasks.clear();loadList().catch(error=>notice(error.message));};
+async function loadNodes(){
+ if(!$('nodes-panel'))return;
+ try{const value=await request(root+'/scheduler/nodes');$('nodes-panel').hidden=value.engine!=='temporal';$('nodes').replaceChildren();
+  for(const node of value.nodes||[])$('nodes').append(facts([['Node',node.nodeId],['Status',node.online?'ONLINE':'OFFLINE'],['Native slots',`${node.activeWorkers??'--'} / ${node.maxWorkers??'--'}`],['Cline memory',node.workerMemoryBytes==null?'--':`${(node.workerMemoryBytes/1048576).toFixed(1)} MiB`],['Cline CPU time',node.workerCpuTimeNanos==null?'--':`${(node.workerCpuTimeNanos/1e9).toFixed(1)} s`]]));
+ }catch{ $('nodes-panel').hidden=true; }
+}
 async function loadList(){
- if(!token||selected)return;const generation=++listGeneration,accountToken=token,filter=$('filters'),params=new URLSearchParams({page:String(page),size:'20',name:filter.elements.namedItem('name').value,status:filter.status.value});
+ if(!token||selected)return;void loadNodes();const generation=++listGeneration,accountToken=token,filter=$('filters'),params=new URLSearchParams({page:String(page),size:'20',name:filter.elements.namedItem('name').value,status:filter.status.value});
  if(filter.from.value)params.set('from',String(new Date(filter.from.value).getTime()));if(filter.to.value)params.set('to',String(new Date(filter.to.value).getTime()));
  const result=await request(root+'/tasks?'+params);if(selected||generation!==listGeneration||accountToken!==token)return;total=result.total;visibleRows=result.items;for(const key of checkedTasks.keys())if(!visibleRows.some(row=>taskKey(row)===key&&canStop(row)))checkedTasks.delete(key);$('rows').replaceChildren();
  for(const row of result.items){const tr=document.createElement('tr'),title=document.createElement('td'),link=text('button',row.name,'link');link.onclick=()=>openTask(row.runId,row.taskId).catch(error=>notice(error.message));title.append(link,text('small',row.taskId));const select=document.createElement('td'),checkbox=document.createElement('input');checkbox.type='checkbox';checkbox.disabled=!canStop(row)||stopBusy;checkbox.checked=checkedTasks.has(taskKey(row));checkbox.setAttribute('aria-label','\u9009\u62e9\u4efb\u52a1 '+row.taskId);checkbox.onchange=()=>{if(checkbox.checked)checkedTasks.set(taskKey(row),row);else checkedTasks.delete(taskKey(row));updateSelection();};select.append(checkbox);tr.append(select,title);
@@ -61,6 +67,7 @@ function facts(values){const dl=document.createElement('dl');dl.className='facts
 async function loadDetail(){
  if(!selected)return;const key=selected.runId+'\0'+selected.taskId,result=await request(route());if(!selected||key!==selected.runId+'\0'+selected.taskId)return;
  selected={...selected,...result};const out=result.outcome;$('overview').replaceChildren(text('h1',result.name),badge(out.status,out.validationStatus,stopPending(out)),facts([['Task ID',result.taskId],['Run ID',result.runId],['Cline Session',result.sessionId||'未建立'],['创建时间',date(out.createdAt)],['启动时间',date(out.startedAt)],['已执行时间',elapsed(out)],['Java 验收',out.validationStatus||'NOT_RUN']]));
+ if(result.workflow)$('overview').append(facts([['Workflow ID',result.workflowId||result.workflow.workflowId],['Temporal',result.workflow.workflowStatus||result.workflow.availability],['Node',result.nodeId||'QUEUED'],['Execution Epoch',result.executionEpoch||'--']]));
  if(!candidate&&!terminalStatuses.has(out.status)){const stop=text('button',stopPending(out)?'\u91cd\u8bd5\u505c\u6b62':'\u505c\u6b62\u4efb\u52a1','danger');stop.disabled=stopBusy;stop.onclick=()=>stopTasks([result]);$('overview').append(stop);}
  if(candidate&&typeof out.fixtureValidationPassed==='boolean')$('overview').append(facts([['Independent fixture verification',out.fixtureValidationPassed?'PASSED':'FAILED']]));
  renderModels(result.modelReceipts);renderExecutions(result.executions);renderRepairs();

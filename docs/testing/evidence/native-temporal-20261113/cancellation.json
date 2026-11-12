@@ -1,0 +1,10 @@
+{
+  "passed": true,
+  "taskId": "temporal-native-72acc3cc94ff9e9eded59711c16a5e17341b88cc4df92415eedab5baad0a43c0",
+  "runId": "coding-d6f5b0c5308069dccee645d280641d916dcc72cec551a1987f7d51ddf69d00d5",
+  "status": "CANCELLED",
+  "workflowStatus": "WORKFLOW_EXECUTION_STATUS_CANCELED",
+  "actualExecutorStopped": true,
+  "noEffectiveFinalResult": true,
+  "elapsedSeconds": 6.336482763290405
+}

@@ -1,0 +1,16 @@
+{
+  "passed": true,
+  "taskId": "temporal-native-f698c0a82441b95a762372b5a220b905639469a5b9e6e7ef3694ab1021f30e4c",
+  "sessionId": "native-48f04648-a0c7-41c6-aabd-3748482f21f9",
+  "executionEpoch": "dee771d5-9b11-40e1-accd-2fb76435b01e",
+  "workflowRunId": "01a1d0eb-e184-7523-90d0-e634b9c02ad1",
+  "sameLiveSession": true,
+  "sameWorkflowRun": true,
+  "storageFault": {
+    "temporalServingAfterRestart": true,
+    "storageProbeExit": 0,
+    "storageProbeLog": "{\"startedAt\": 1794506537.3534722, \"namespaceInode\": 4026533011, \"targets\": [\"172.18.0.2\"], \"seconds\": 40, \"hostFirewallModified\": false, \"cleanup\": true, \"blockedProbe\": \"SILO_CONNECTION_REJECTED\", \"packetCounters\": [\"10      452 REJECT     tcp  --  *      *       0.0.0.0/0            172.18.0.2           tcp dpt:9000 /* runtime-native-temporal-test-23fc1594dccb44348d65e9309a48ea85 */ reject-with tcp-reset\"], \"finishedAt\": 1794506577.4895217}\n",
+    "compoundProbeElapsedSeconds": 39.30068016052246,
+    "temporalRestartDurationSeparatelyMeasured": false
+  }
+}

@@ -1,0 +1,87 @@
+[
+  {
+    "path": "benchmark.json",
+    "bytes": 78965,
+    "sha256": "98da1ef5329a0a697bab80dbb90ce092801a02b07478e457f68ef4226b2c35f2"
+  },
+  {
+    "path": "browser.json",
+    "bytes": 310,
+    "sha256": "76f07eae88f12c26759d5836a2dfb4b07821fecb66f27a73caeb2f308ec4ec61"
+  },
+  {
+    "path": "cancellation.json",
+    "bytes": 400,
+    "sha256": "c2bdf9dacb3b698bd36ad168ac9284c047d3eb935725c1a9e74d9eecd862014f"
+  },
+  {
+    "path": "document-search.json",
+    "bytes": 8106,
+    "sha256": "e245c6241e2c7daca88ac71e5070b548754841880bf3a384aef494c5acf18e62"
+  },
+  {
+    "path": "history-temporal-cancel-live.json",
+    "bytes": 16246,
+    "sha256": "5e555dbca60d721837b9f0dc2179e2665a9d9af4cbc5bb2e56bffe8315b3d8cb"
+  },
+  {
+    "path": "history-temporal-fault2-live.json",
+    "bytes": 14863,
+    "sha256": "d073601066ebe4a94f174e254b9efed36925f73aca1f5f10eb96f309af7b7ffa"
+  },
+  {
+    "path": "history-temporal-storage-live.json",
+    "bytes": 19168,
+    "sha256": "a6005b15857dce70b8ae07065ae03a5da51010b9ba63d5527df335d402366b8e"
+  },
+  {
+    "path": "native-skill-read-35.json",
+    "bytes": 564,
+    "sha256": "b72d1582a03a1715a132c7b209856f5eb45aab4ab72c1ee082b60e7b3572f290"
+  },
+  {
+    "path": "native-skill-read-56.json",
+    "bytes": 607,
+    "sha256": "bb67e88326c6f58ea69567dd06f738e0fb1d3700a2df85a2515f15e9b6cd04c9"
+  },
+  {
+    "path": "node-recovery.json",
+    "bytes": 716,
+    "sha256": "0864b47b4324862061efccfc5819af75a76599a0e1e6458b35dd68f41b40a085"
+  },
+  {
+    "path": "python-repair.json",
+    "bytes": 8092,
+    "sha256": "eae79225f7308b5f5ab1c82b1ba7004cbcfcf07d6652b2e45e7aca508c272cd6"
+  },
+  {
+    "path": "regression.json",
+    "bytes": 1774,
+    "sha256": "72e8cc5ac6f1669e81cfaece8c110901944633500a02b211988876160f0b74a1"
+  },
+  {
+    "path": "storage-restart.json",
+    "bytes": 1067,
+    "sha256": "de34167cfd0de6be39dc89d20bbe56aa6f4f73f49c28ecaeb8df2f6b938b7e91"
+  },
+  {
+    "path": "task-detail.png",
+    "bytes": 717973,
+    "sha256": "b08dce46f860224613ac048b6c5de5b91f378232e5fc420e7c9336b114316628"
+  },
+  {
+    "path": "task-list.png",
+    "bytes": 312774,
+    "sha256": "15eb3139135de4d378b914298176a39af54b0cc202143df12d3210955c70022d"
+  },
+  {
+    "path": "tenant-isolation.json",
+    "bytes": 605,
+    "sha256": "bf2c7021c6c86b39e468d4267c0c37d5ebd8103d1276e1c5285f075f94789501"
+  },
+  {
+    "path": "workflow-history-manifest.json",
+    "bytes": 11183,
+    "sha256": "0e49dfac9dbe289cc02db9ba111bc8f365eace29c2d29a5de71fde41e5513898"
+  }
+]

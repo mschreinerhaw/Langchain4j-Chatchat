@@ -1,0 +1,11 @@
+ARG CODING_NODE_IMAGE
+FROM ${CODING_NODE_IMAGE}
+ARG GIT_COMMIT
+LABEL org.opencontainers.image.revision="${GIT_COMMIT}" runtime-os.profile="temporal-native"
+# Reuse the verified official Core, native tools, MCP/Skills and Python image.
+# Only Host control and the existing restricted Executor change here.
+COPY cline-agent-server/src/governance-server.mjs cline-agent-server/src/worker-executor.mjs cline-agent-server/src/worker-executor-client.mjs cline-agent-server/src/worker-executor-policy.mjs cline-agent-server/src/recovery-server.mjs /opt/runtime-os/coding-node/service/src/
+RUN node /opt/runtime-os/coding-node/service/scripts/verify-runtime.mjs /opt/runtime-os/cline/runtime \
+    && node /opt/runtime-os/coding-node/service/docker/verify-native-modules.mjs /opt/runtime-os/cline/runtime \
+    && python /opt/runtime-os/coding-node/service/docker/verify-python-runtime.py \
+    && test ! -e /poc

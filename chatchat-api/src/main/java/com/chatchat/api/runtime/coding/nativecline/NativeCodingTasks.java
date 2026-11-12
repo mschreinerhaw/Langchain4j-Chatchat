@@ -30,6 +30,7 @@ public final class NativeCodingTasks {
     }
     public record Submitted(String taskId,String runId,CodingTaskOutcome outcome){}
     public static String taskId(KernelDataScope scope,String requestId){return "native-"+UserAssetService.hash((scope.tenantId()+"\0"+scope.userId()+"\0"+scope.runId()+"\0"+requestId).getBytes(StandardCharsets.UTF_8));}
+    public String taskIdentity(KernelDataScope scope,String requestId){String legacy=taskId(scope,requestId);return capture.taskIdentity(scope,legacy,adapter.temporalScheduling()?"temporal-"+legacy:legacy);}
     public Submitted submit(KernelDataScope scope,String requestId,List<String> files,String instruction,String model,List<String> artifactTypes,Map<String,Object> schema){
         return submit(scope,requestId,files,instruction,model,artifactTypes,schema,Map.of());
     }
@@ -39,7 +40,7 @@ public final class NativeCodingTasks {
         if(requestId==null||!requestId.matches("[A-Za-z0-9_-]{1,128}")||instruction==null||instruction.isBlank()||instruction.length()>24000)throw new IllegalArgumentException("Explicit request identity and objective required");
         String selected=model==null||model.isBlank()?settings.defaultModel():model;settings.profile(selected);
         if(schema==null)schema=Map.of();if(!schema.isEmpty())new CodingSchemaResultVerifier().validateRules(Map.of("rowSchema",schema));
-        String task=taskId(scope,requestId);
+        String task=taskIdentity(scope,requestId);
         var original=files==null?List.<String>of():List.copyOf(files);
         if(original.isEmpty()){
             var metadata=assets.store(UserAssetService.Owner.of(scope),UserAssetService.Kind.DATASET,task,scope.runId(),"native-empty-input:"+task,"authorized-input-scope.json","application/json","{\"inputStatus\":\"NO_FILES_SUPPLIED\",\"sources\":[]}".getBytes(StandardCharsets.UTF_8));
@@ -54,7 +55,7 @@ public final class NativeCodingTasks {
     public CodingTaskOutcome cancel(KernelDataScope scope,String task){return adapter.cancel(scope,task,"Authenticated caller cancelled Native task");}
     public CodingTaskOutcome resume(KernelDataScope scope,String task){return adapter.resume(scope,task);}
     public Optional<Map<String,Object>> snapshot(KernelDataScope scope,String requestId){
-        String task=taskId(scope,requestId);
+        String task=taskIdentity(scope,requestId);
         try{return Optional.of(receipt(scope,task,adapter.get(scope,task)));}
         catch(CodingContractException absent){if(absent.error().code()==CodingErrorCode.NOT_FOUND)return Optional.empty();throw absent;}
     }

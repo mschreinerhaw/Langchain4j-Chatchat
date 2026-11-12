@@ -82,6 +82,17 @@ public class SiloCodingWorkspaceService {
     public List<InputCapability> inputCapabilities(KernelDataScope scope,String task,String epoch){
         var state=running(scope,task,epoch);return state.inputs().stream().map(input->new InputCapability(input,assets.taskInputCapability(scope,task,input.assetId(),900))).toList();
     }
+    /** Trusted controller only, after the independent Executor proved the old
+     * allocation stopped/fenced. Preserve the immutable input object epoch;
+     * the journal's new Session/executionEpoch fences the replacement attempt. */
+    public State restartStoppedExecution(KernelDataScope scope,String task,String epoch){
+        get(scope,task);
+        return decode(checkpoints.mutateExecutionCheckpoint(scope,key(task),value->{var s=decode(value);
+            if(!s.epoch().equals(epoch)||!Set.of("RUNNING","RECEIVED_PENDING_BUSINESS_VALIDATION","BUSINESS_VALIDATED_PENDING_SEAL","DELIVERY_VALIDATED_PENDING_SEAL","BUSINESS_VALIDATION_FAILED").contains(s.status()))
+                throw new IllegalStateException("Terminal/cancelled snapshot cannot restart");
+            return encode(new State(s.taskId(),s.runId(),s.tenantId(),s.userId(),s.epoch(),s.snapshotVersion(),"RUNNING",s.inputs(),null,null,List.of()));
+        }));
+    }
     public State cancel(KernelDataScope scope,String task,String epoch){
         get(scope,task);
         return decode(checkpoints.mutateExecutionCheckpoint(scope,key(task),value->{var s=decode(value);if(!Objects.equals(s.epoch(),epoch))throw new IllegalStateException("Stale task cancellation");

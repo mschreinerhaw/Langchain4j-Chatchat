@@ -31,6 +31,9 @@ import static com.chatchat.agents.runtime.coding.CodingTaskAccess.Action.*;
 @ConditionalOnProperty(prefix="chatchat.runtime.coding.unified",name="enabled",havingValue="true")
 public final class NativeS3CodingAdapter implements CodingAgentSPI {
     private static final org.slf4j.Logger log=org.slf4j.LoggerFactory.getLogger(NativeS3CodingAdapter.class);
+    private NativeTaskDispatch dispatch;
+    public boolean temporalScheduling(){return dispatch!=null;}
+    @org.springframework.beans.factory.annotation.Autowired(required=false) public void setDispatch(NativeTaskDispatch value){dispatch=value;}
     private static final String BINDING="native-s3:binding";
     private final DurableCodingTaskService tasks;
     private final NativeSiloTaskService inputs;
@@ -58,10 +61,14 @@ public final class NativeS3CodingAdapter implements CodingAgentSPI {
     @Override public CodingTaskOutcome submit(CodingTaskContract c){
         inputs.requireAuthorized(c);settings.profile((String)inputs.requireAuthorized(c).get("selectedModel"));
         if(!license.codingDispatchEntitlement().licenseValid())throw new SecurityException("Coding dispatch entitlement required");
+        try{var existing=tasks.get(c.scope(),c.taskId());if(existing.status().terminal())return existing;}
+        catch(CodingContractException absent){if(absent.error().code()!=CodingErrorCode.NOT_FOUND)throw absent;}
+        if((dispatch!=null)!=c.taskId().startsWith("temporal-native-"))throw new IllegalStateException("Task belongs to its original scheduler; drain or explicitly migrate it, never fall back to another execution loop");
+        if(dispatch!=null){dispatch.start(c);return tasks.submit(c);}
         settings.client.requireNativeIdentity();
         var accepted=tasks.submit(c);if(!accepted.status().terminal())schedule(c);return accepted;
     }
-    private void schedule(CodingTaskContract c){String key=key(c.scope(),c.taskId());if(active.putIfAbsent(key,true)!=null)return;
+    private void schedule(CodingTaskContract c){if((dispatch!=null)!=c.taskId().startsWith("temporal-native-"))throw new IllegalStateException("Original task scheduler must reconcile this request");if(dispatch!=null){dispatch.start(c);return;}String key=key(c.scope(),c.taskId());if(active.putIfAbsent(key,true)!=null)return;
         try{workers.execute(()->{stopWakeups.remove(key);try{worker(c.scope(),()->{execute(c);return null;});}finally{
             active.remove(key);
             // A cancellation arriving while the controller exits must not lose
@@ -73,6 +80,7 @@ public final class NativeS3CodingAdapter implements CodingAgentSPI {
     /** Projection is a discovery index only. Every candidate is re-authorized
      * against the authoritative contract and journal before ownership is taken. */
     @Scheduled(initialDelay=15000,fixedDelay=15000) public void recover(){
+        if(dispatch!=null)return;
         try{for(var row:jdbc.queryForList("select tenant_id,user_id,run_id,task_id from runtime_coding_task_view where status in ('CREATED','RUNNING') and task_id like 'native-%' order by updated_at limit 64")){
             var scope=new KernelDataScope(row.get("tenant_id").toString(),row.get("user_id").toString(),null,null,row.get("run_id").toString(),null,Map.of());
             try{worker(scope,()->{var c=tasks.contract(scope,row.get("task_id").toString());if(NativeSiloTaskService.supports(c)&&!tasks.get(scope,c.taskId()).status().terminal()){inputs.requireAuthorized(c);schedule(c);}return null;});}catch(RuntimeException unavailable){log.debug("Native recovery candidate unavailable: {}",row.get("task_id"));}
@@ -91,41 +99,72 @@ public final class NativeS3CodingAdapter implements CodingAgentSPI {
         try{requested=evidence.atomic(c,()->{workspace.cancel(s,task,state.epoch());return tasks.cancel(s,task,reason);});}
         catch(IllegalStateException sealed){if(tasks.get(s,task).status().terminal())return tasks.get(s,task);throw sealed;}
         var binding=tasks.privateState(s,task,BINDING);
-        if(binding!=null)try{settings.client.cancel(binding.path("grant").asText(),binding.path("sessionId").asText());}catch(RuntimeException unknown){/* Worker reconciles actual stop. */}
+        if(dispatch!=null)try{dispatch.cancel(s,task);}catch(RuntimeException unavailable){log.warn("Temporal cancellation delivery pending for {}",task);}
+        if(binding!=null)try{settings.client(binding.path("nodeId").asText("default")).cancel(binding.path("grant").asText(),binding.path("sessionId").asText());}catch(RuntimeException unknown){/* Worker reconciles actual stop. */}
+        if(dispatch!=null||c.taskId().startsWith("temporal-native-"))return requested;
         stopWakeups.add(key(s,task));schedule(c);return requested;
     }
-    private record Run(CodingTaskContract c,CodingJournal.Lease lease){}
+    private record Run(CodingTaskContract c,CodingJournal.Lease lease,NativeExecutionControl control){}
     private CodingTaskOutcome outcome(Run r){return tasks.get(r.c.scope(),r.c.taskId());}
-    private JsonNode state(Run r,String key){return tasks.privateState(r.c.scope(),r.c.taskId(),key);}
-    private void save(Run r,String key,Object value){var old=state(r,key);tasks.privateState(r.c.scope(),r.c.taskId(),r.lease,key,old,json.valueToTree(value));}
-    private void execute(CodingTaskContract c){
+    private JsonNode state(Run r,String key){assertCurrent(r);var value=tasks.privateState(r.c.scope(),r.c.taskId(),key);return value==null||value.isNull()?null:value;}
+    private void assertCurrent(Run r){var lease=tasks.ownership(r.c.scope(),r.c.taskId());if(lease.fencingToken()!=r.lease.fencingToken()||!Objects.equals(lease.owner(),r.lease.owner())||!lease.leaseUntil().isAfter(Instant.now()))throw new IllegalStateException("Stale Native execution fence");}
+    private <T>T guarded(Run r,Supplier<T> work){return evidence.atomic(r.c,()->{assertCurrent(r);return work.get();});}
+    private NativeS3NodeClient client(Run r){var b=state(r,BINDING);return settings.client(b==null?settings.nodeId():b.path("nodeId").asText("default"));}
+    public CodingTaskOutcome runManaged(KernelDataScope scope,String task,NativeExecutionControl control){return worker(scope,()->{settings.client(settings.nodeId()).requireNativeIdentity();var c=inputs.prepared(scope,task);tasks.submit(c);execute(c,control);var result=tasks.get(scope,task);if(!result.status().terminal())throw new IllegalStateException("Native execution remains unresolved");return result;});}
+    public CodingTaskOutcome stopManaged(KernelDataScope scope,String task,String reason){return worker(scope,()->{
+        var current=tasks.get(scope,task);if(current.status().terminal())return current;
+        boolean workflowFailure=reason.startsWith("Temporal execution failed");
+        if(!workflowFailure){cancel(scope,task,reason);current=tasks.get(scope,task);if(current.status().terminal())return current;}
+        var c=tasks.contract(scope,task);var lease=tasks.ownership(scope,task);
+        // Once the business stop fence is durable, cleanup may share the
+        // current lease to stop processes; it can never dispatch another task.
+        if(!lease.leaseUntil().isAfter(Instant.now()))lease=tasks.claim(scope,task,owner,Duration.ofMinutes(3),current.revision());
+        if(workflowFailure&&current.executionControl().stopReason()==null){var held=lease;guarded(new Run(c,held,null),()->{tasks.requestFailureStop(scope,task,held,tasks.get(scope,task).revision(),reason);var ws=workspace.get(scope,task);workspace.failActive(scope,task,ws.epoch(),reason);return null;});}
+        stop(new Run(c,lease,new NativeExecutionControl(){public String owner(){return NativeS3CodingAdapter.this.owner;}public int attempt(){return 1;}public String workflowId(){return "stop";}public void heartbeat(String p,String n,String s,String e){}}),false,reason);
+        var result=tasks.get(scope,task);if(!result.status().terminal())throw new IllegalStateException("Native stop is not reconciled");return result;
+    });}
+
+    private void save(Run r,String key,Object value){var old=tasks.privateState(r.c.scope(),r.c.taskId(),key);tasks.privateState(r.c.scope(),r.c.taskId(),r.lease,key,old,json.valueToTree(value));}
+    private void execute(CodingTaskContract c){execute(c,null);}
+    private void execute(CodingTaskContract c,NativeExecutionControl control){
         Run run=null;
         try{
             var existing=tasks.get(c.scope(),c.taskId());if(existing.status().terminal())return;
             var held=tasks.ownership(c.scope(),c.taskId());
-            var lease=owner.equals(held.owner())&&held.leaseUntil().isAfter(Instant.now())?held:tasks.claim(c.scope(),c.taskId(),owner,Duration.ofMinutes(3),existing.revision());
-            run=new Run(c,lease);
+            String controller=control==null?owner:control.owner();
+            while(control!=null&&!controller.equals(held.owner())&&held.leaseUntil().isAfter(Instant.now())){control.heartbeat("RECOVERING",settings.nodeId(),null,null);Thread.sleep(500);held=tasks.ownership(c.scope(),c.taskId());}
+            existing=tasks.get(c.scope(),c.taskId());if(existing.status().terminal())return;
+            var lease=controller.equals(held.owner())&&held.leaseUntil().isAfter(Instant.now())?held:tasks.claim(c.scope(),c.taskId(),controller,Duration.ofMinutes(3),existing.revision());
+            run=new Run(c,lease,control);
             if(outcome(run).executionControl().stopReason()!=null){stop(run,false,"Cancellation requested");return;}
             if(!license.codingDispatchEntitlement().licenseValid())throw new SecurityException("Coding dispatch entitlement required");
             var binding=state(run,BINDING);
             if(binding==null){binding=binding(run);save(run,BINDING,binding);}
+            else if(control!=null&&control.attempt()>1){recoverBinding(run);binding=state(run,BINDING);}
             String grant=binding.path("grant").asText(),session=binding.path("sessionId").asText();
             var inputFiles=json.convertValue(binding.path("inputs"),new com.fasterxml.jackson.core.type.TypeReference<List<NativeS3NodeClient.Input>>(){});
             // Stable grant/body/key make allocation retry safe. An unknown model
             // message is never blindly replayed after a Java process restart.
-            try{settings.client.status(grant,session);}catch(NativeS3NodeClient.NodeException absent){if(absent.status()!=404)throw absent;settings.client.create(grant,inputFiles,"create-"+session);}
+            try{client(run).status(grant,session);}catch(NativeS3NodeClient.NodeException absent){if(absent.status()!=404)throw absent;client(run).create(grant,inputFiles,"create-"+session);}
             Instant renewAt=Instant.now().plusSeconds(30);
             for(;;){
+                if(control!=null){var b=state(run,BINDING);control.heartbeat("RUNNING",b.path("nodeId").asText("default"),b.path("sessionId").asText(),b.path("executionEpoch").asText());}
                 var current=outcome(run);if(current.status().terminal())return;
                 tasks.enforceDeadline(c.scope(),c.taskId(),run.lease,current.revision());
                 if(outcome(run).executionControl().stopReason()!=null){stop(run,false,"Task stopped by Runtime");return;}
-                if(Instant.now().isAfter(renewAt)){run=new Run(c,tasks.renew(c.scope(),c.taskId(),run.lease,Duration.ofMinutes(3),outcome(run).revision()));renewAt=Instant.now().plusSeconds(30);}
+                if(Instant.now().isAfter(renewAt)){run=new Run(c,tasks.renew(c.scope(),c.taskId(),run.lease,Duration.ofMinutes(3),outcome(run).revision()),control);renewAt=Instant.now().plusSeconds(30);}
                 poll(run,"core");poll(run,"provider");
-                var remote=settings.client.status(grant,session);String nativeStatus=remote.path("native").path("status").asText();
+                var remote=client(run).status(grant,session);
+                if(remote.path("native").hasNonNull("sessionId")&&remote.path("native").hasNonNull("epoch")){
+                    var currentBinding=state(run,BINDING);var nativeState=remote.path("native");
+                    if(currentBinding.hasNonNull("receiptSessionId")&&(!currentBinding.path("receiptSessionId").equals(nativeState.path("sessionId"))||!currentBinding.path("receiptEpoch").equals(nativeState.path("epoch"))))throw new IllegalStateException("Native receipt Session changed without execution recovery");
+                    if(!currentBinding.hasNonNull("receiptSessionId")){var bound=(ObjectNode)currentBinding.deepCopy();bound.set("receiptSessionId",nativeState.get("sessionId"));bound.set("receiptEpoch",nativeState.get("epoch"));save(run,BINDING,bound);}
+                }
+                String nativeStatus=remote.path("native").path("status").asText();
                 if(Set.of("START_FAILED","RECOVERABLE").contains(remote.path("workerState").asText()))throw new IllegalStateException("Native Worker requires recovery; no replacement model loop was started");
                 if(state(run,"native-s3:message-intent")==null&&"READY".equals(remote.path("workerState").asText())){
                     save(run,"native-s3:message-intent",Map.of("messageId","objective-"+session,"persistedAt",Instant.now().toString()));
-                    settings.client.message(grant,session,instruction(run),"objective-"+session);save(run,"native-s3:message-ack",Map.of("acknowledged",true));
+                    client(run).message(grant,session,instruction(run),"objective-"+session);save(run,"native-s3:message-ack",Map.of("acknowledged",true));
                 }
                 if("turn_completed".equals(nativeStatus)||remote.hasNonNull("delivery")){
                     poll(run,"core");poll(run,"provider");
@@ -134,9 +173,9 @@ public final class NativeS3CodingAdapter implements CodingAgentSPI {
                 if("STOPPED".equals(remote.path("workerState").asText()))throw new IllegalStateException("Native Worker stopped without a committed delivery");
                 Thread.sleep(500);
             }
-        }catch(CodingContractException lost){if(shuttingDown||Thread.currentThread().isInterrupted())return;log.warn("Native task {} control rejected: {}",c.taskId(),lost.getMessage());if(run!=null)try{if(!outcome(run).status().terminal())stop(run,true,"Native control fence or contract rejected");}catch(RuntimeException unknown){recordControlFailure(run,unknown);}}
-        catch(InterruptedException closing){Thread.currentThread().interrupt();/* Java restart leaves a durable binding, never a second Agent. */}
-        catch(Exception failed){if(shuttingDown||Thread.currentThread().isInterrupted())return;log.warn("Native task {} failed",c.taskId(),failed);if(run!=null)try{stop(run,true,failed.getMessage()==null?failed.getClass().getSimpleName():failed.getMessage());}catch(RuntimeException unknown){recordControlFailure(run,unknown);}}
+        }catch(CodingContractException lost){if(control!=null)throw lost;if(shuttingDown||Thread.currentThread().isInterrupted())return;log.warn("Native task {} control rejected: {}",c.taskId(),lost.getMessage());if(run!=null)try{if(!outcome(run).status().terminal())stop(run,true,"Native control fence or contract rejected");}catch(RuntimeException unknown){recordControlFailure(run,unknown);}}
+        catch(InterruptedException closing){Thread.currentThread().interrupt();if(control!=null)throw new IllegalStateException("Temporal controller interrupted",closing);/* Java restart leaves a durable binding, never a second Agent. */}
+        catch(Exception failed){if(control!=null)throw failed instanceof RuntimeException re?re:new IllegalStateException(failed);if(shuttingDown||Thread.currentThread().isInterrupted())return;log.warn("Native task {} failed",c.taskId(),failed);if(run!=null)try{stop(run,true,failed.getMessage()==null?failed.getClass().getSimpleName():failed.getMessage());}catch(RuntimeException unknown){recordControlFailure(run,unknown);}}
     }
     private JsonNode binding(Run r){
         var c=r.c;var frozen=inputs.requireAuthorized(c);var ws=workspace.get(c.scope(),c.taskId());var policy=workspace.transferPolicy(c.scope(),c.taskId(),ws.epoch());
@@ -147,8 +186,31 @@ public final class NativeS3CodingAdapter implements CodingAgentSPI {
         grant.put("toolPermissions",c.authorization().allowedTools());grant.put("dataPermissions",List.of());grant.put("networkPolicy","broker-only");grant.put("expiresAt",c.budget().deadlineAt().toEpochMilli());grant.put("runtimeProfile","native-python-silo-v1");
         grant.put("deliveryBinding",Map.of("tenantId",c.scope().tenantId(),"taskId",c.taskId(),"runId",c.scope().runId(),"inputSnapshotVersion",ws.snapshotVersion()));
         grant.put("runtimeTools",c.authorization().allowedTools().stream().filter(t->com.chatchat.api.runtime.coding.knowledge.CodingInternetAccess.NATIVE_TOOLS.contains(t)||com.chatchat.api.runtime.coding.knowledge.CodingDocumentSearchAccess.NATIVE_TOOLS.contains(t)).toList());
-        grant.put("s3",Map.of("origin",policy.get("origin"),"inputPrefix",policy.get("inputPrefix"),"outputPrefix",policy.get("outputPrefix"),"inputManifestSha256",settings.client.inputManifestHash(files)));
-        return json.valueToTree(Map.of("sessionId",session,"grant",settings.client.signGrant(grant,settings.issuerKey),"inputs",files,"transportEpoch",ws.epoch()));
+        grant.put("s3",Map.of("origin",policy.get("origin"),"inputPrefix",policy.get("inputPrefix"),"outputPrefix",policy.get("outputPrefix"),"inputManifestSha256",client(r).inputManifestHash(files)));
+        return json.valueToTree(Map.of("sessionId",session,"grant",client(r).signGrant(grant,settings.issuerKey),"inputs",files,"transportEpoch",ws.epoch(),"nodeId",settings.nodeId(),"executionEpoch",UUID.randomUUID().toString(),"workflowId",r.control==null?"":r.control.workflowId(),"fencingToken",r.lease.fencingToken()));
+    }
+    private void recoverBinding(Run r){
+        var prior=state(r,BINDING);boolean restart;
+        try{var remote=client(r).status(prior.path("grant").asText(),prior.path("sessionId").asText());restart=Set.of("RECOVERABLE","START_FAILED","STOPPED").contains(remote.path("workerState").asText())&&!remote.hasNonNull("delivery");}
+        catch(NativeS3NodeClient.NodeException error){if(error.status()!=404&&error.status()<500)throw error;restart=true;}
+        catch(IllegalStateException unavailable){if(unavailable.getCause()==null)throw unavailable;restart=true;}
+        if(!restart)return; // Observe the original live Session; never replay its objective.
+        r.control.heartbeat("RECOVERING",prior.path("nodeId").asText("default"),prior.path("sessionId").asText(),prior.path("executionEpoch").asText());
+        var stopped=settings.recovery(prior.path("nodeId").asText("default")).recoveryStop(prior.path("grant").asText(),prior.path("sessionId").asText());
+        var proof=stopped.path("stopProof");
+        if(proof.path("running").asBoolean(true)||!proof.path("allocationFenced").asBoolean())throw new IllegalStateException("Old Native allocation has not been fenced and stopped");
+        if(proof.hasNonNull("containerId"))reconcile(r,stopReference(r,stopped));
+        else if(!proof.path("neverAllocated").asBoolean()||tasks.hasStartedOperations(r.c.scope(),r.c.taskId()))throw new IllegalStateException("Unallocated stop cannot reconcile actual starts");
+        guarded(r,()->{
+            save(r,"native-s3:retired:"+prior.path("sessionId").asText(),prior);
+            workspace.restartStoppedExecution(r.c.scope(),r.c.taskId(),prior.path("transportEpoch").asText());
+            for(String channel:List.of("core","provider")){
+                save(r,"native-s3:read:"+channel,Map.of("sequence",0));
+                save(r,"native-s3:cursor:"+channel,Map.of("sequence",0,"sha256",""));
+            }
+            for(String key:List.of("native-s3:message-intent","native-s3:message-ack","native-s3:delivery-version"))save(r,key,null);
+            save(r,BINDING,binding(r));return null;
+        });
     }
     private String instruction(Run r){
         var frozen=inputs.requireAuthorized(r.c);var ws=workspace.get(r.c.scope(),r.c.taskId());
@@ -162,7 +224,7 @@ public final class NativeS3CodingAdapter implements CodingAgentSPI {
     private long cursor(Run r,String channel){var n=state(r,"native-s3:read:"+channel);return n==null?0:n.path("sequence").asLong();}
     private void poll(Run r,String channel){
         var b=state(r,BINDING);long after=cursor(r,channel);for(int page=0;page<16;page++){
-            var response=channel.equals("core")?settings.client.observations(b.path("grant").asText(),b.path("sessionId").asText(),after,128):settings.client.receipts(b.path("grant").asText(),b.path("sessionId").asText(),after,128);
+            var response=channel.equals("core")?client(r).observations(b.path("grant").asText(),b.path("sessionId").asText(),after,128):client(r).receipts(b.path("grant").asText(),b.path("sessionId").asText(),after,128);
             var events=response.path("events");if(events.isEmpty())return;
             var raw=evidence.archive(r.c,channel+"-events","native-"+channel+"-events.json",evidence.bytes(response));
             for(var event:events){String type=event.path("eventType").asText();if(Set.of("native.event","model.text.delta","model.usage").contains(type))continue;observe(r,channel,event,raw.id());}
@@ -172,7 +234,7 @@ public final class NativeS3CodingAdapter implements CodingAgentSPI {
     private void observe(Run r,String channel,JsonNode event,String rawAsset){
         String type=event.path("eventType").asText();rawAsset=evidence.archive(r.c,channel+"-event-"+event.path("eventId").asText(),"native-"+channel+"-receipt.json",evidence.bytes(event)).id();JsonNode p=channel.equals("provider")?event:event.path("payload");
         String operation=null,group=null,telemetryId=null;CodingJournal.OperationKind kind=null;Counters actual=null;boolean complete=false,metered=false;
-        var projected=new LinkedHashMap<String,Object>();projected.put("nativeEventType",type);projected.put("sessionId",state(r,BINDING).path("sessionId").asText());projected.put("detailAssetId",rawAsset);
+        var projected=new LinkedHashMap<String,Object>();projected.put("nativeEventType",type);projected.put("sessionId",state(r,BINDING).path("sessionId").asText());projected.put("detailAssetId",rawAsset);var execution=state(r,BINDING);for(String field:List.of("nodeId","executionEpoch","workflowId","fencingToken"))if(execution.has(field))projected.put(field,json.convertValue(execution.get(field),Object.class));
         String normalized="OBSERVATION",summary=type;
         if(channel.equals("provider")&&type.startsWith("model.request.")){
             operation="model-"+p.path("requestId").asText();kind=CodingJournal.OperationKind.MODEL;complete=type.equals("model.request.completed");long tokens=p.path("usage").path("totalTokens").asLong();
@@ -194,7 +256,7 @@ public final class NativeS3CodingAdapter implements CodingAgentSPI {
             group="execution";telemetryId=p.path("recordId").asText();
         }
         var proof=new LinkedHashMap<String,Object>();proof.put("taskId",r.c.taskId());proof.put("sessionId",state(r,BINDING).path("sessionId").asText());proof.put("operationId",operation==null?"observation":operation);proof.put("stopped",complete);proof.put("source",channel.equals("provider")?(type.startsWith("model.request.")?"PROVIDER_HTTP_OBSERVATION":"RUNTIME_CAPABILITY_OBSERVATION"):"NATIVE_ROOT_HOST_OBSERVATION");proof.put("nativeEventId",event.path("eventId").asText());proof.put("rawAssetId",rawAsset);proof.put("sha256",evidence.hash(event));
-        String ref=evidence.register(r.c,NativeS3ExecutionProofVerifier.TYPE,channel+":"+event.path("eventId").asText(),proof,List.of(r.c.inputSnapshotRef()));
+        String ref=evidence.register(r.c,NativeS3ExecutionProofVerifier.TYPE,state(r,BINDING).path("sessionId").asText()+":"+channel+":"+event.path("eventId").asText(),proof,List.of(r.c.inputSnapshotRef()));
         if(operation!=null)projected.put("operationId",operation);
         if(p.hasNonNull("toolName"))projected.put("tool",p.path("toolName").asText());
         for(String field:List.of("status","startedAt","finishedAt","durationMs"))if(p.hasNonNull(field))projected.put(field,json.convertValue(p.get(field),Object.class));
@@ -215,7 +277,7 @@ public final class NativeS3CodingAdapter implements CodingAgentSPI {
         var b=state(r,BINDING);String id=record.path("recordId").asText();
         for(String stream:List.of("stdout","stderr")){
             var meta=record.path(stream);if(!meta.has("sha256"))continue;
-            byte[] bytes=settings.client.executionContent(b.path("grant").asText(),b.path("sessionId").asText(),id,stream,null,meta.path("size").asLong(),meta.path("sha256").asText());
+            byte[] bytes=client(r).executionContent(b.path("grant").asText(),b.path("sessionId").asText(),id,stream,null,meta.path("size").asLong(),meta.path("sha256").asText());
             var asset=evidence.archive(r.c,"execution-"+id+"-"+stream,"command-"+id+"-"+stream+".txt",bytes);record.put(stream+"AssetId",asset.id());
             String output=new String(bytes,StandardCharsets.UTF_8);
             if(output.contains("Traceback (most recent call last):")){
@@ -225,7 +287,7 @@ public final class NativeS3CodingAdapter implements CodingAgentSPI {
         }
         record.put("pythonExceptionWithZeroShellExit",record.hasNonNull("exceptionSummary")&&record.path("exitCode").asInt(-1)==0);
         for(var source:record.path("sourceSnapshots")){
-            byte[] bytes=settings.client.executionContent(b.path("grant").asText(),b.path("sessionId").asText(),id,"source",source.path("path").asText(),source.path("size").asLong(),source.path("sha256").asText());
+            byte[] bytes=client(r).executionContent(b.path("grant").asText(),b.path("sessionId").asText(),id,"source",source.path("path").asText(),source.path("size").asLong(),source.path("sha256").asText());
             var asset=evidence.archive(r.c,"source-"+id+"-"+source.path("sha256").asText(),source.path("path").asText().replace('/','_'),bytes);((ObjectNode)source).put("assetId",asset.id());
         }
     }
@@ -250,33 +312,33 @@ public final class NativeS3CodingAdapter implements CodingAgentSPI {
         JsonNode manifest;
         if(remote.hasNonNull("delivery"))manifest=remote.get("delivery");else{
             JsonNode preview;
-            try{preview=settings.client.preview(grant,session,version);}catch(NativeS3NodeClient.NodeException invalid){if(invalid.validationFeedback()==null)throw invalid;feedback(r,version,invalid.validationFeedback());return false;}
+            try{preview=client(r).preview(grant,session,version);}catch(NativeS3NodeClient.NodeException invalid){if(invalid.validationFeedback()==null)throw invalid;feedback(r,version,invalid.validationFeedback());return false;}
             String rejection=validateCandidate(r,preview);
             if(rejection!=null){feedback(r,version,rejection);return false;}
-            manifest=settings.client.seal(grant,session,version);
+            manifest=client(r).seal(grant,session,version);
         }
         // Drain genuine receipts after seal; no synthetic final tool events.
-        poll(r,"core");poll(r,"provider");remote=settings.client.status(grant,session);
+        poll(r,"core");poll(r,"provider");remote=client(r).status(grant,session);
         if(!remote.path("stopProof").path("running").isBoolean()||remote.path("stopProof").path("running").asBoolean(true))throw new IllegalStateException("Native Executor stop not confirmed");
         String stopRef=stopReference(r,remote);reconcile(r,stopRef);
         ws=workspace.get(r.c.scope(),r.c.taskId());JsonNode upload=remote.path("uploadReceipt");
         if("RUNNING".equals(ws.status())){
-            var delivery=json.convertValue(manifest,SiloCodingWorkspaceService.Delivery.class);var plans=workspace.plan(r.c.scope(),r.c.taskId(),ws.epoch(),delivery);
+            var delivery=json.convertValue(manifest,SiloCodingWorkspaceService.Delivery.class);if(!b.path("receiptSessionId").asText().equals(delivery.sessionId())||!b.path("receiptEpoch").asText().equals(delivery.epoch()))throw new SecurityException("Delivery from a superseded Native receipt Session");var allocation=ws;var plans=guarded(r,()->workspace.plan(r.c.scope(),r.c.taskId(),allocation.epoch(),delivery));
             var plan=new LinkedHashMap<String,Object>();plan.put("manifestSha256",evidence.hash(manifest));plan.put("artifacts",plans);plan.putAll(workspace.metadataUploadPlan(r.c.scope(),r.c.taskId(),ws.epoch()));
-            upload=settings.client.upload(grant,session,json.valueToTree(plan));
-            workspace.commit(r.c.scope(),r.c.taskId(),ws.epoch(),json.convertValue(upload.path("artifacts"),new com.fasterxml.jackson.core.type.TypeReference<List<SiloCodingWorkspaceService.Uploaded>>(){}));
+            upload=client(r).upload(grant,session,json.valueToTree(plan));
+            var uploaded=upload;guarded(r,()->workspace.commit(r.c.scope(),r.c.taskId(),allocation.epoch(),json.convertValue(uploaded.path("artifacts"),new com.fasterxml.jackson.core.type.TypeReference<List<SiloCodingWorkspaceService.Uploaded>>(){})));
         }
-        ws=workspace.get(r.c.scope(),r.c.taskId());if("RECEIVED_PENDING_BUSINESS_VALIDATION".equals(ws.status()))ws=workspace.verifyDeliveryIntegrity(r.c.scope(),r.c.taskId(),ws.epoch());
+        ws=workspace.get(r.c.scope(),r.c.taskId());if("RECEIVED_PENDING_BUSINESS_VALIDATION".equals(ws.status())){var verifying=ws;ws=guarded(r,()->workspace.verifyDeliveryIntegrity(r.c.scope(),r.c.taskId(),verifying.epoch()));}
         var meta=upload.path("evidence");byte[] journal=workspace.transferEvidence(r.c.scope(),r.c.taskId(),ws.epoch(),"evidence",meta.path("objectVersion").asText(),meta.path("size").asLong());
         if(!UserAssetService.hash(journal).equals(meta.path("sha256").asText()))throw new IllegalStateException("Native Silo journal hash differs");
         archiveExecutions(r);
         var finalRemote=remote;var stateBeforeCommit=ws;
-        evidence.atomic(r.c,()->{
+        guarded(r,()->{
             if(!"COMPLETED".equals(stateBeforeCommit.status()))workspace.finalizeSealed(r.c.scope(),r.c.taskId(),stateBeforeCommit.epoch(),stateBeforeCommit.deliveryHash(),journal,
                 ignored->new SiloCodingWorkspaceService.StopObservation(finalRemote.path("stopProof").path("containerId").asText(),true,"NATIVE_EXECUTOR_OBSERVATION"));
             commit(r,stopRef);if(outcome(r).status()!=Status.COMPLETED)throw new IllegalStateException("Runtime stop/deadline prevents delivery completion");return null;
         });
-        try{settings.client.accept(grant,session,evidence.hash(manifest),true,outcome(r).validationRecordRef());}catch(RuntimeException ackUnknown){evidence.archive(r.c,"node-acceptance-ack","node-acceptance-ack.json",evidence.bytes(Map.of("acknowledgement","UNKNOWN","runtimeAcceptanceCommitted",true)));}return true;
+        try{client(r).accept(grant,session,evidence.hash(manifest),true,outcome(r).validationRecordRef());}catch(RuntimeException ackUnknown){evidence.archive(r.c,"node-acceptance-ack","node-acceptance-ack.json",evidence.bytes(Map.of("acknowledgement","UNKNOWN","runtimeAcceptanceCommitted",true)));}return true;
     }
     private static boolean matches(Map<String,Object> schema,Map<String,Object> row){try{com.chatchat.agents.orchestration.analysis.graph.WorkspaceResultSchema.validate(row,schema);return true;}catch(IllegalArgumentException mismatch){return false;}}
     private String validateCandidate(Run r,JsonNode preview){
@@ -288,7 +350,7 @@ public final class NativeS3CodingAdapter implements CodingAgentSPI {
         }
         var schema=(Map<String,Object>)frozen.getOrDefault("resultSchema",Map.of());if(schema.isEmpty())return null;
         var b=state(r,BINDING);for(var a:preview.path("artifacts"))if(a.path("type").asText().equals("RESULT"))try{
-            var data=json.readTree(settings.client.previewContent(b.path("grant").asText(),b.path("sessionId").asText(),preview,a.path("path").asText()));
+            var data=json.readTree(client(r).previewContent(b.path("grant").asText(),b.path("sessionId").asText(),preview,a.path("path").asText()));
             var rows=json.convertValue(data.isArray()?data:json.createArrayNode().add(data),new com.fasterxml.jackson.core.type.TypeReference<List<Map<String,Object>>>(){});
 
             if(!rows.isEmpty()&&rows.stream().allMatch(row->matches(schema,row)))return null;
@@ -298,24 +360,24 @@ public final class NativeS3CodingAdapter implements CodingAgentSPI {
     private void feedback(Run r,String version,String rejection){
         var receipt=evidence.archive(r.c,"delivery-rejection-"+version,"delivery-rejection.json",evidence.bytes(Map.of("deliveryVersion",version,"reason",rejection,"source","JAVA_DELIVERY_CONTRACT_VALIDATION")));
         int next=Integer.parseInt(version.substring(1))+1;save(r,"native-s3:delivery-version",Map.of("version","v"+next,"rejectedVersion",version,"receiptAssetId",receipt.id()));
-        var b=state(r,BINDING);settings.client.message(b.path("grant").asText(),b.path("sessionId").asText(),"Actual Runtime delivery contract rejection: "+rejection+". Correct the deliverable and its selection manifest in this same session, then finish again.","delivery-rejection-"+version);
+        var b=state(r,BINDING);client(r).message(b.path("grant").asText(),b.path("sessionId").asText(),"Actual Runtime delivery contract rejection: "+rejection+". Correct the deliverable and its selection manifest in this same session, then finish again.","delivery-rejection-"+version);
     }
     private String stopReference(Run r,JsonNode remote){
         var proof=remote.path("stopProof");if(!proof.path("containerId").asText().matches("[a-f0-9]{64}")||proof.path("running").asBoolean(true))throw new IllegalStateException("Actual scoped Executor stop proof required");
-        return evidence.register(r.c,NativeS3ExecutionProofVerifier.STOP_TYPE,"stop",Map.of("taskId",r.c.taskId(),"sessionId",state(r,BINDING).path("sessionId").asText(),"workerStopped",true,"containerId",proof.path("containerId").asText(),"stopProof",json.convertValue(proof,Map.class)),List.of(r.c.inputSnapshotRef()));
+        return evidence.register(r.c,NativeS3ExecutionProofVerifier.STOP_TYPE,"stop-"+state(r,BINDING).path("sessionId").asText(),Map.of("taskId",r.c.taskId(),"sessionId",state(r,BINDING).path("sessionId").asText(),"workerStopped",true,"containerId",proof.path("containerId").asText(),"stopProof",json.convertValue(proof,Map.class)),List.of(r.c.inputSnapshotRef()));
     }
     private void reconcile(Run r,String proof){for(String operation:tasks.unresolvedOperations(r.c.scope(),r.c.taskId()))tasks.reconcileStopped(r.c.scope(),r.c.taskId(),r.lease,outcome(r).revision(),operation,proof);}
     private void archiveExecutions(Run r){
-        var b=state(r,BINDING);var list=settings.client.executions(b.path("grant").asText(),b.path("sessionId").asText());
+        var b=state(r,BINDING);var list=client(r).executions(b.path("grant").asText(),b.path("sessionId").asText());
         for(var record:list.path("executions")){
             if(!record.path("command").toString().matches("(?is).*(?:python|pytest).*"))continue;
             String id=record.path("recordId").asText();if(!record.has("stdout"))continue;
             for(String stream:List.of("stdout","stderr")){
-                var meta=record.path(stream);byte[] bytes=settings.client.executionContent(b.path("grant").asText(),b.path("sessionId").asText(),id,stream,null,meta.path("size").asLong(),meta.path("sha256").asText());
+                var meta=record.path(stream);byte[] bytes=client(r).executionContent(b.path("grant").asText(),b.path("sessionId").asText(),id,stream,null,meta.path("size").asLong(),meta.path("sha256").asText());
                 evidence.archive(r.c,"execution-"+id+"-"+stream,"command-"+id+"-"+stream+".txt",bytes);
             }
             for(var source:record.path("sourceSnapshots")){
-                byte[] bytes=settings.client.executionContent(b.path("grant").asText(),b.path("sessionId").asText(),id,"source",source.path("path").asText(),source.path("size").asLong(),source.path("sha256").asText());
+                byte[] bytes=client(r).executionContent(b.path("grant").asText(),b.path("sessionId").asText(),id,"source",source.path("path").asText(),source.path("size").asLong(),source.path("sha256").asText());
                 evidence.archive(r.c,"source-"+id+"-"+source.path("sha256").asText(),source.path("path").asText().replace('/','_'),bytes);
             }
         }
@@ -351,7 +413,7 @@ public final class NativeS3CodingAdapter implements CodingAgentSPI {
         var b=state(r,BINDING);if(b==null){var prior=outcome(r);if(prior.executionControl().stopReason()!=null)tasks.finishStoppedWithoutExecution(r.c.scope(),r.c.taskId(),prior.revision());return;}
         var ws=workspace.get(r.c.scope(),r.c.taskId());if(!Set.of("COMPLETED","CANCELLED","FAILED").contains(ws.status()))workspace.cancel(r.c.scope(),r.c.taskId(),ws.epoch());
         JsonNode remote;
-        try{settings.client.cancel(b.path("grant").asText(),b.path("sessionId").asText());remote=settings.client.status(b.path("grant").asText(),b.path("sessionId").asText());}
+        try{client(r).cancel(b.path("grant").asText(),b.path("sessionId").asText());remote=client(r).status(b.path("grant").asText(),b.path("sessionId").asText());}
         catch(NativeS3NodeClient.NodeException absent){
             // Host persists the Session before allocating a Worker; objective dispatch is
             // preceded by our durable message intent. A missing Session alone is NOT proof.
@@ -360,9 +422,14 @@ public final class NativeS3CodingAdapter implements CodingAgentSPI {
                     ||outcome(r).executionControl().stopReason()==null)throw absent;
             tasks.finishStoppedWithoutExecution(r.c.scope(),r.c.taskId(),outcome(r).revision());return;
         }
+        catch(IllegalStateException unavailable){
+            if(r.control==null||unavailable.getCause()==null)throw unavailable;
+            remote=settings.recovery(b.path("nodeId").asText("default")).recoveryStop(b.path("grant").asText(),b.path("sessionId").asText());
+            if(remote.path("stopProof").path("neverAllocated").asBoolean()&&!tasks.hasStartedOperations(r.c.scope(),r.c.taskId())){tasks.finishStoppedWithoutExecution(r.c.scope(),r.c.taskId(),outcome(r).revision());return;}
+        }
         for(int attempt=0;attempt<150&&!remote.path("stopProof").path("running").isBoolean();attempt++){
             try{Thread.sleep(200);}catch(InterruptedException interrupted){Thread.currentThread().interrupt();throw new IllegalStateException("Stop reconciliation interrupted",interrupted);}
-            remote=settings.client.status(b.path("grant").asText(),b.path("sessionId").asText());
+            remote=client(r).status(b.path("grant").asText(),b.path("sessionId").asText());
         }
         String proof=stopReference(r,remote);reconcile(r,proof);
         // A missing historical telemetry file must not discard an actual Executor stop proof.

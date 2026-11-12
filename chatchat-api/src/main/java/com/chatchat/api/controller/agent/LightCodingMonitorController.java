@@ -36,6 +36,7 @@ public final class LightCodingMonitorController {
     private final ObjectProvider<ClineModelReceiptStore> models;private final ObjectProvider<CodingExecutionFeedbackService> executions;
     private final ObjectProvider<UserAssetService> assets;
     private final CodingAgentSPI coding;
+    @org.springframework.beans.factory.annotation.Autowired(required=false) private com.chatchat.api.runtime.coding.nativecline.NativeTaskDispatch scheduler;
     public LightCodingMonitorController(DurableCodingTaskService tasks,CodingInvocationContext identity,CodingMonitorProjection projection,
             EnterpriseAdminService accounts,ObjectProvider<ClineModelReceiptStore> models,ObjectProvider<CodingExecutionFeedbackService> executions,ObjectProvider<UserAssetService> assets,CodingAgentSPI coding){
         this.tasks=tasks;this.identity=identity;this.projection=projection;this.accounts=accounts;this.models=models;this.executions=executions;this.assets=assets;
@@ -62,12 +63,19 @@ public final class LightCodingMonitorController {
         if(!status.isEmpty())try{CodingTaskOutcome.Status.valueOf(status);}catch(IllegalArgumentException invalid){throw new ResponseStatusException(HttpStatus.BAD_REQUEST);}
         return ApiResponse.success(projection.list(attribute(request,ApiAuthenticationFilter.CURRENT_TENANT_ID),attribute(request,ApiAuthenticationFilter.CURRENT_USER_ID),name,status,from,to,page,size));
     }
+    @GetMapping("/scheduler/nodes") public ApiResponse<?> nodes(HttpServletRequest request){
+        attribute(request,ApiAuthenticationFilter.CURRENT_TENANT_ID);attribute(request,ApiAuthenticationFilter.CURRENT_USER_ID);
+        return ApiResponse.success(scheduler==null?Map.of("engine","local","nodes",List.of()):Map.of("engine","temporal","nodes",scheduler.nodes()));
+    }
     @GetMapping("/tasks/{runId}/{taskId}") public ApiResponse<?> task(HttpServletRequest request,@PathVariable("runId") String runId,@PathVariable("taskId") String taskId){
         var scope=scope(request,runId);return read(scope,taskId,()->{
             var result=new LinkedHashMap<String,Object>();var contract=tasks.contract(scope,taskId);var outcome=tasks.get(scope,taskId);
             result.put("taskId",taskId);result.put("runId",runId);result.put("name",contract.objective().instruction().split("\n",2)[0]);result.put("outcome",outcome);
             var binding=tasks.privateState(scope,taskId,"native-s3:binding");result.put("sessionId",binding==null?null:binding.path("sessionId").asText(null));
+            if(binding!=null)for(String field:List.of("workflowId","nodeId","executionEpoch","fencingToken"))
+                result.put(field,binding.hasNonNull(field)?binding.path(field).asText():null);
             boolean nativeTask=com.chatchat.api.runtime.coding.nativecline.NativeSiloTaskService.supports(contract);
+            if(nativeTask&&scheduler!=null)result.put("workflow",scheduler.status(scope,taskId));
             if(nativeTask)result.put("modelReceipts",tasks.nativeTelemetry(scope,taskId,"model"));
             else{
                 var store=models.getIfAvailable();var receipts=new ArrayList<CodingModelCallTelemetry>();

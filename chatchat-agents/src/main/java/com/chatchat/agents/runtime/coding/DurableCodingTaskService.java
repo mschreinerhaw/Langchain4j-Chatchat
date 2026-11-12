@@ -113,6 +113,11 @@ public final class DurableCodingTaskService implements CodingAgentSPI {
         require(observation.sourceSha256()!=null&&observation.sourceSha256().matches("[0-9a-f]{64}")&&evidence.isCommitted(scope,observation.evidenceRef()),OUTPUT_CONTRACT_VIOLATION,"Committed original Native receipt required");
         return mutateTask(scope,taskId,WORKER,task->{
             fence(task,lease);active(task);
+            var nativeBinding=task.privateState.get("native-s3:binding");
+            if(nativeBinding!=null&&nativeBinding.hasNonNull("executionEpoch"))
+                require(Objects.equals(nativeBinding.path("sessionId").asText(),observation.payload().get("sessionId"))
+                    &&Objects.equals(nativeBinding.path("executionEpoch").asText(),observation.payload().get("executionEpoch")),
+                    AUTHORIZATION_DENIED,"Native observation belongs to a superseded execution");
             require(task.contract.metadataRefs().contains("runtime-coding:native-python-silo:v1")
                 &&CodingLimit.unlimited(task.contract.budget().maxModelCalls())&&CodingLimit.unlimited(task.contract.budget().maxToolCalls())&&CodingLimit.unlimited(task.contract.budget().maxCodeExecutions()),AUTHORIZATION_DENIED,"Frozen Native execution profile required");
             String cursorKey="native-s3:cursor:"+observation.channel();var old=task.privateState.get(cursorKey);
@@ -441,6 +446,12 @@ public final class DurableCodingTaskService implements CodingAgentSPI {
     public CodingTaskOutcome enforceDeadline(KernelDataScope scope,String taskId,CodingJournal.Lease lease,long expectedRevision){
         return mutateTask(scope,taskId,WORKER,task->{revision(task,expectedRevision);fence(task,lease);if(!task.outcome.status().terminal())deadline(task);}).outcome;
     }
+    /** Orchestrator terminal failure revokes delivery immediately, but cannot
+     * become terminal until actual execution stop proofs are reconciled. */
+    public CodingTaskOutcome requestFailureStop(KernelDataScope scope,String taskId,CodingJournal.Lease lease,long expectedRevision,String reason){
+        bounded(reason,"failure reason");
+        return mutateTask(scope,taskId,WORKER,task->{revision(task,expectedRevision);fence(task,lease);requestStop(task,EXECUTION_FAILED,"Workflow execution failed: "+reason);}).outcome;
+    }
 
     /** Same-task recovery after all starts are proven stopped; fence out the ended SDK instance. */
     public CodingJournal.Lease recoveryFence(KernelDataScope scope,String taskId,CodingJournal.Lease lease,long expectedRevision) {
@@ -625,7 +636,7 @@ public final class DurableCodingTaskService implements CodingAgentSPI {
             revision(task,expectedRevision);
             require(task.outcome.executionControl().stopReason()!=null,INVALID_STATE_TRANSITION,"Stop request is required");
             require(task.operations.values().stream().noneMatch(op->op.startIntent),EXECUTION_OUTCOME_UNKNOWN,"A start intent requires execution-node reconciliation");
-            Status target=task.outcome.executionControl().stopReason()==CANCEL_REQUESTED ? Status.CANCELLED : Status.BUDGET_EXCEEDED;
+            Status target=stopStatus(task.outcome.executionControl().stopReason());
             advance(task,TASK_FINISHED,task.outcome.executionControl().stopReason(),"Stopped before any external dispatch",null,List.of(),
                 copy(task,target,task.outcome.executionControl().stopReason(),control(task,true,false),null));
         }).outcome;
@@ -640,7 +651,7 @@ public final class DurableCodingTaskService implements CodingAgentSPI {
             var stop=task.outcome.executionControl().stopReason();
             require(stop!=null,INVALID_STATE_TRANSITION,"Stop request is required");
             require(!unresolved(task),EXECUTION_OUTCOME_UNKNOWN,"Started operation still needs stop proof");
-            Status target=stop==CANCEL_REQUESTED ? Status.CANCELLED : Status.BUDGET_EXCEEDED;
+            Status target=stopStatus(stop);
             advance(task,TASK_FINISHED,stop,"Worker stopped; all started operations reconciled",null,List.of(),
                 copy(task,target,stop,control(task,true,false),null));
         }).outcome;
@@ -661,7 +672,7 @@ public final class DurableCodingTaskService implements CodingAgentSPI {
             var stop=task.outcome.executionControl().stopReason();
             // Return the persisted stop snapshot, including a deadline discovered by this call.
             // Throwing here would roll back that newly accepted stop request.
-            if(stop!=null && proposal.status()!=(stop==CANCEL_REQUESTED ? Status.CANCELLED : Status.BUDGET_EXCEEDED))return;
+            if(stop!=null && proposal.status()!=(stopStatus(stop)))return;
             // All control fields, revisions and usage are built from the authoritative journal, not the proposal.
             advance(task,TASK_FINISHED,proposal.reasonCode(),proposal.summary(),null,refs,
                 copy(task,proposal.status(),proposal.reasonCode(),control(task,true,false),proposal));
@@ -958,6 +969,7 @@ public final class DurableCodingTaskService implements CodingAgentSPI {
         var budget=task.contract.budget();
         return CodingLimit.unlimited(budget.maxModelCalls())||CodingLimit.unlimited(budget.maxToolCalls())||CodingLimit.unlimited(budget.maxCodeExecutions());
     }
+    private static Status stopStatus(CodingErrorCode reason){return reason==CANCEL_REQUESTED?Status.CANCELLED:reason==EXECUTION_FAILED?Status.FAILED:Status.BUDGET_EXCEEDED;}
     private void deadline(CodingJournal.Task task) { if(!now().isBefore(task.contract.budget().deadlineAt()))requestStop(task,DEADLINE_EXCEEDED,"Task deadline reached"); }
     private void requestStop(CodingJournal.Task task,CodingErrorCode reason,String summary) {
         if(task.outcome.status().terminal() || task.outcome.executionControl().stopReason()!=null)return;

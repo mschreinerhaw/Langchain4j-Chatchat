@@ -67,13 +67,34 @@ async function create(c,b){
 }
 async function route(req,b){
  const url=new URL(req.url,'http://executor');if(url.search||url.pathname!==req.url)throw reject('Canonical capability routes only',404);
+ if(req.url==='/internal/tasks/revoke'&&req.method==='POST'){
+  exact(b,[]);const c=taskGrant(req.headers['x-cline-task'],cfg,true,true);
+  return serial(async()=>{
+   // Same serial barrier as create/start: a late allocation cannot pass this
+   // durable task fence, including when the Gateway died before its response.
+   durableMark(taskClosed(c),cfg.controlRoot);
+   let info;try{info=await docker.inspect(identity(c,cfg).name);}catch(e){if(e.dockerStatus!==404)throw e;}
+   if(!info){audit('task.revoked.unallocated',{owner:identity(c,cfg).owner});return {running:false,neverAllocated:true,allocationFenced:true};}
+   const id=info.Config.Labels['cline.workerId'];verifyOwned(info,c,id,cfg);freeze(c,id);
+   try{await docker.call('POST','/containers/'+info.Id+'/stop?t=8');}catch(e){if(e.dockerStatus!==304)throw e;}
+   const final=await docker.inspect(info.Id);if(final.State.Running)throw reject('UNKNOWN: Worker stop not confirmed',503);
+   audit('task.revoked.stopped',{workerId:id,containerId:info.Id});
+   return {containerId:info.Id,running:false,exitCode:final.State.ExitCode,finishedAt:final.State.FinishedAt,allocationFenced:true};
+  });
+ }
  const parts=url.pathname.split('/').filter(Boolean);if(parts[0]!=='internal'||parts[1]!=='workers')throw reject('No Docker/API forwarding capability',404);
- const action=parts[3];if(parts.length>4||action&&!['start','stop','kill','health'].includes(action))throw reject('Unknown Worker capability',404);
+ const action=parts[3];if(parts.length>4||action&&!['start','stop','kill','health','metrics'].includes(action))throw reject('Unknown Worker capability',404);
  const token=req.headers['x-cline-task'];const c=taskGrant(token,cfg,req.method==='GET'||['stop','kill'].includes(action)||req.method==='DELETE');
  if(parts.length===2&&req.method==='POST')return serial(()=>create(c,b));
  if(parts.length<3)throw reject('Route not found',404);
  const id=parts[2];
  if(req.method==='GET'&&(!action||action==='health')){exact(b,[]);return view(await owned(c,id),c,id);}
+ if(req.method==='GET'&&action==='metrics'){
+  exact(b,[]);const info=await owned(c,id);
+  if(!info.State.Running)return {running:false,memoryBytes:0,cpuTimeNanos:0};
+  const stats=await docker.call('GET','/containers/'+info.Id+'/stats?stream=false&one-shot=true');
+  return {running:true,memoryBytes:stats.memory_stats?.usage??null,cpuTimeNanos:stats.cpu_stats?.cpu_usage?.total_usage??null};
+ }
  if(req.method==='POST'&&['start','stop','kill'].includes(action)){
   exact(b,[]);return serial(async()=>{const info=await owned(c,id);assertAnchors(cfg.workersRoot,id);
    if(action==='start'){

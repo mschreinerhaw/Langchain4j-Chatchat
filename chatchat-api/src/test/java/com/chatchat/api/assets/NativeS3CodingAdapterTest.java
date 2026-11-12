@@ -34,6 +34,7 @@ class NativeS3CodingAdapterTest {
     ThreadPoolTaskScheduler scheduler;HttpServer http;
     JsonNode grant,manifest;boolean created,messaged,sealed;final AtomicInteger messageCalls=new AtomicInteger();
     volatile boolean blockStatus;
+    volatile boolean wrongReceiptSession;
     final java.util.concurrent.CountDownLatch blockedStatus=new java.util.concurrent.CountDownLatch(1),releaseStatus=new java.util.concurrent.CountDownLatch(1);
     volatile boolean asynchronousStop,missingStoppedTelemetry,rejectAllocation;volatile long stopReadyAt;
     final byte[] output="{\"value\":42}".getBytes(java.nio.charset.StandardCharsets.UTF_8);
@@ -66,6 +67,19 @@ class NativeS3CodingAdapterTest {
     @Test void unknownFrozenModelAndUnauthenticatedCaptureFailBeforeAllocatingAnyNode(){
         assertThatThrownBy(()->capture.capture(fixture.scope,"native-test",List.of(),"Analyze","published-model",null)).isInstanceOf(CodingContractException.class);
         assertThat(created).isFalse();
+    }
+    @Test void schedulerChangesCannotCreateAnotherTaskForTheSameRequest(){
+        assertThat(authorized(()->capture.taskIdentity(fixture.scope,"native-request","temporal-native-request"))).isEqualTo("temporal-native-request");
+        assertThat(authorized(()->capture.taskIdentity(fixture.scope,"native-request","native-request"))).isEqualTo("temporal-native-request");
+        assertThat(created).isFalse();
+    }
+    @Test void lateManifestFromAnotherReceiptSessionCannotBecomeFinal()throws Exception{
+        wrongReceiptSession=true;
+        String file=fixture.assets.upload(fixture.owner,"input.csv","value\n42\n".getBytes()).id();
+        var contract=authorized(()->capture.capture(fixture.scope,"native-stale",List.of(file),"Analyze authorized input","published-model",new CodingTaskContract.Budget("stale-budget",Instant.now().plusSeconds(90).truncatedTo(java.time.temporal.ChronoUnit.MILLIS),-1,-1,-1,-1,"unlimited","USD",-1,1024*1024,1024*1024),Map.of("profile","artifact-integrity-v1"),List.of("RESULT")));
+        authorized(()->adapter.submit(contract));CodingTaskOutcome result=null;
+        for(int i=0;i<100;i++){result=authorized(()->tasks.get(fixture.scope,"native-stale"));if(result.status().terminal())break;Thread.sleep(100);}
+        assertThat(result.status()).isEqualTo(CodingTaskOutcome.Status.FAILED);assertThat(result.resultDatasetRef()).isNull();
     }
     @Test void cancellationWaitsForExecutorProofAndCanSettleWhenHistoricalTelemetryIsMissing()throws Exception{
         asynchronousStop=true;missingStoppedTelemetry=true;
@@ -136,7 +150,7 @@ class NativeS3CodingAdapterTest {
             }
             if(path.endsWith("/messages")){messageCalls.incrementAndGet();messaged=true;reply(exchange,202,Map.of("accepted",true));return;}
             if(path.endsWith("/delivery-preview")||path.endsWith("/delivery")){
-                manifest=json.valueToTree(new SiloCodingWorkspaceService.Delivery("coding_node_delivery.v1",grant.path("taskId").asText(),grant.path("deliveryBinding").path("runId").asText(),grant.path("tenantId").asText(),grant.path("deliveryBinding").path("inputSnapshotVersion").asText(),"v1","native-session","native-epoch","NATIVE_TURN_COMPLETED","PENDING_RUNTIME_VALIDATION",List.of(new SiloCodingWorkspaceService.Artifact("output/answer.json","RESULT",output.length,UserAssetService.hash(output))),List.of(new SiloCodingWorkspaceService.Receipt("1","turn.completed","native-session","native-epoch"))));
+                manifest=json.valueToTree(new SiloCodingWorkspaceService.Delivery("coding_node_delivery.v1",grant.path("taskId").asText(),grant.path("deliveryBinding").path("runId").asText(),grant.path("tenantId").asText(),grant.path("deliveryBinding").path("inputSnapshotVersion").asText(),"v1",wrongReceiptSession?"old-session":"native-session","native-epoch","NATIVE_TURN_COMPLETED","PENDING_RUNTIME_VALIDATION",List.of(new SiloCodingWorkspaceService.Artifact("output/answer.json","RESULT",output.length,UserAssetService.hash(output))),List.of(new SiloCodingWorkspaceService.Receipt("1","turn.completed","native-session","native-epoch"))));
                 if(path.endsWith("/delivery"))sealed=true;reply(exchange,200,manifest);return;
             }
             if(path.endsWith("/executions")){reply(exchange,200,Map.of("executions",List.of()));return;}
@@ -150,7 +164,7 @@ class NativeS3CodingAdapterTest {
             reply(exchange,404,Map.of("path",path));
         }catch(Exception failed){reply(exchange,500,Map.of("error",failed.toString()));}
     }
-    private Map<String,Object> state(){if(stopReadyAt>0&&System.nanoTime()>=stopReadyAt)sealed=true;var state=new LinkedHashMap<String,Object>();state.put("workerState",sealed?"STOPPED":messaged?asynchronousStop?"RUNNING":"COMPLETED":"READY");state.put("native",Map.of("status",messaged?asynchronousStop?"running":"turn_completed":"idle"));if(sealed){if(manifest!=null)state.put("delivery",manifest);state.put("stopProof",Map.of("containerId","a".repeat(64),"running",false));}return state;}
+    private Map<String,Object> state(){if(stopReadyAt>0&&System.nanoTime()>=stopReadyAt)sealed=true;var state=new LinkedHashMap<String,Object>();state.put("workerState",sealed?"STOPPED":messaged?asynchronousStop?"RUNNING":"COMPLETED":"READY");state.put("native",Map.of("sessionId","native-session","epoch","native-epoch","status",messaged?asynchronousStop?"running":"turn_completed":"idle"));if(sealed){if(manifest!=null)state.put("delivery",manifest);state.put("stopProof",Map.of("containerId","a".repeat(64),"running",false));}return state;}
     private Map<String,Object> put(String url,byte[] bytes){String key=url.substring("put:".length());var stored=fixture.blobs.put(key,bytes,"application/octet-stream",UserAssetService.hash(bytes));return Map.of("size",bytes.length,"sha256",UserAssetService.hash(bytes),"objectVersion",stored.versionId());}
     private void reply(HttpExchange e,int code,Object value)throws java.io.IOException{byte[] bytes=json.writeValueAsBytes(value);e.getResponseHeaders().set("Content-Type","application/json");e.sendResponseHeaders(code,bytes.length);try(var out=e.getResponseBody()){out.write(bytes);}}
 }

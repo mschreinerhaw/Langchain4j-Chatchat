@@ -12,10 +12,14 @@ export function workerRuntime(cfg){
  throw reject('Unknown fixed Worker runtime profile');
 }
 export function exact(value,keys){if(!value||Array.isArray(value)||typeof value!=='object'||Object.keys(value).some(k=>!keys.includes(k)))throw reject('Unexpected request fields');}
-export function taskGrant(token,cfg,allowExpired=false){
+export function taskGrant(token,cfg,allowExpired=false,reconciliationOnly=false){
  const c=verifyContract(token,cfg.signingKey,Date.now(),{allowExpired});const t=Object.hasOwn(cfg.tenants,c.tenantId)?cfg.tenants[c.tenantId]:null;
+ // Only the authenticated revoke capability uses this path. A retired user,
+ // model or tool must not prevent stopping an already owned process. Exact
+ // Executor/container ownership is still verified before any Docker action.
+ if(reconciliationOnly)return c;
  if(c.version===2&&(!workerRuntime(cfg).python||cfg.enableNativeSilo!==true))throw reject('Native Silo profile is not enabled on this Executor');
- if(!t||!t.users.includes(c.userId)||!Object.hasOwn(t.workspaces,c.workspaceRef)||!(c.runtimeModel?cfg.dynamicModels===true&&t.dynamicModels===true:t.models.includes(c.modelProfile))||!c.toolPermissions.every(x=>t.tools.includes(x))||!c.dataPermissions.every(x=>t.datasets.includes(x)))throw reject('Executor task policy denied');
+ if(!t||!(t.users.includes(c.userId)||c.version===2&&t.dynamicUsers===true)||!Object.hasOwn(t.workspaces,c.workspaceRef)||!(c.runtimeModel?cfg.dynamicModels===true&&t.dynamicModels===true:t.models.includes(c.modelProfile))||!c.toolPermissions.every(x=>t.tools.includes(x))||!c.dataPermissions.every(x=>t.datasets.includes(x)))throw reject('Executor task policy denied');
  return c;
 }
 export function identity(c,cfg){const owner=createHash('sha256').update(JSON.stringify([c.tenantId,c.userId,c.taskId,c.sessionId])).digest('hex');return {name:'cline-p331-'+owner.slice(0,40),owner,contractHash:contractHash(c)};}

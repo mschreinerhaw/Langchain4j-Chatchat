@@ -36,7 +36,7 @@ public final class NativeAnalysisBridge {
             var files=new ArrayList<String>();
             if(context.runtimeAttributes().get("nativeOriginalAssetIds") instanceof List<?> original)for(Object id:original)files.add((String)id);
             var authorizedReferences=sources.values().stream().map(Dataset::reference).toList();long bytes=0,rows=0;int index=0;
-            String snapshotTask=NativeCodingTasks.taskId(scope,request);
+            String snapshotTask=coding.taskIdentity(scope,request);
             for(var source:sources.values()){
                 var output=new ByteArrayOutputStream();long offset=0;
                 for(;;){

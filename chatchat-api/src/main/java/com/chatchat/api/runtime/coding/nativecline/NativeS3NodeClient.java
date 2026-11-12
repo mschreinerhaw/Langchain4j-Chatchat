@@ -68,7 +68,8 @@ public final class NativeS3NodeClient {
         }catch(java.security.GeneralSecurityException failure){throw new IllegalStateException("Grant signing unavailable",failure);}
     }
     public JsonNode create(String grant,List<Input> inputs,String idempotencyKey){return request("/v1/sessions",grant,Map.of("inputs",inputs),idempotencyKey);}
-    public void requireNativeIdentity(){
+    public void requireNativeIdentity(){health();}
+    public JsonNode health(){
         try{
             var request=HttpRequest.newBuilder(endpoint.resolve("/health/live")).timeout(Duration.ofSeconds(5)).GET().build();
             var reply=http.send(request,HttpResponse.BodyHandlers.ofInputStream());
@@ -76,11 +77,13 @@ public final class NativeS3NodeClient {
                 byte[] bytes=body.readNBytes(65537);if(bytes.length>65536)throw new IllegalStateException("Native identity response exceeds limit");
                 var value=json.readTree(bytes);
                 if(reply.statusCode()!=200||!"cline-standalone".equals(value.path("engine").asText())||!"4.1.26".equals(value.path("version").asText())||value.path("legacySdkWorker").asBoolean(true))throw new IllegalStateException("Native Core identity not verified; no legacy fallback");
+                return value;
             }
         }catch(InterruptedException interrupted){Thread.currentThread().interrupt();throw new IllegalStateException("Native identity check interrupted",interrupted);}
         catch(IOException unavailable){throw new IllegalStateException("Native identity check unavailable",unavailable);}
     }
     public JsonNode status(String grant,String session){return request(path(session,"status"),grant,null,null);}
+    public JsonNode recoveryStop(String grant,String session){return request(path(session,"recovery-stop"),grant,Map.of(),null);}
     public JsonNode observations(String grant,String session,long after,int limit){
         if(after<0||limit<1||limit>256)throw new IllegalArgumentException("Bounded Native event cursor required");
         return request(path(session,"observations")+"?afterEventId="+after+"&limit="+limit,grant,null,null);

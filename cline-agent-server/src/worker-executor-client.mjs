@@ -10,6 +10,7 @@ export class WorkerExecutorClient {
  });}
  create(grant,value){return this.request('POST','/internal/workers',grant,value);}
  inspect(grant,id){return this.request('GET','/internal/workers/'+encodeURIComponent(id),grant);}
+ metrics(grant,id){return this.request('GET','/internal/workers/'+encodeURIComponent(id)+'/metrics',grant);}
  start(grant,id){return this.request('POST','/internal/workers/'+encodeURIComponent(id)+'/start',grant,{});}
  stop(grant,id){return this.request('POST','/internal/workers/'+encodeURIComponent(id)+'/stop',grant,{});}
 }

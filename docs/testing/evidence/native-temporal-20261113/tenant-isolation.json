@@ -1,0 +1,15 @@
+{
+  "passed": true,
+  "tenantA": "9001fee4-482b-4851-9eb9-df269765291f",
+  "tenantB": "456382b7-3111-4907-be70-1f06063893f0",
+  "checks": [
+    {
+      "path": "/coding/tasks/runs/coding-f246f08f83f172024e7ecb7d840f14537c793277f3c07692527941b592f2478e/temporal-native-c594eee72ddbca00cbff4d6f89990df9e77dd6204bde7e94d71bbc3ac11296fb",
+      "status": 403
+    },
+    {
+      "path": "/coding-monitor/tasks/coding-f246f08f83f172024e7ecb7d840f14537c793277f3c07692527941b592f2478e/temporal-native-c594eee72ddbca00cbff4d6f89990df9e77dd6204bde7e94d71bbc3ac11296fb",
+      "status": 403
+    }
+  ]
+}

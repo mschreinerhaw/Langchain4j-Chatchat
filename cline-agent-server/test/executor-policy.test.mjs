@@ -46,6 +46,20 @@ test('native Silo grant requires an explicitly enabled Python Executor',()=>{
  assert.throws(()=>taskGrant(token,{...cfg,workerRuntime:'cline-python311'}),{status:403});
  assert.deepEqual(taskGrant(token,{...cfg,workerRuntime:'cline-python311',enableNativeSilo:true}),bound);
 });
+test('Runtime-issued Native users are opt-in, tenant bound, and never grant SDK worker access',()=>{
+ const policy={...cfg,workerRuntime:'cline-python311',enableNativeSilo:true,tenants:{...cfg.tenants,alpha:{...cfg.tenants.alpha,dynamicUsers:true}}};
+ const bound={...contract,userId:'bob',version:2,runtimeProfile:'native-python-silo-v1',deliveryBinding:{tenantId:'alpha',taskId:contract.taskId,runId:'run',inputSnapshotVersion:'snapshot'}};
+ assert.equal(taskGrant(signContract(bound,key),policy).userId,'bob');
+ assert.throws(()=>taskGrant(signContract({...contract,userId:'bob'},key),policy),{status:403});
+ assert.throws(()=>taskGrant(signContract({...bound,tenantId:'other',deliveryBinding:{...bound.deliveryBinding,tenantId:'other'}},key),policy),{status:403});
+});
+test('revocation can stop a retired signed grant without granting another create',()=>{
+ const retired={...contract,userId:'retired',modelProfile:'removed',expiresAt:Date.now()-1000};
+ const token=signContract(retired,key);
+ assert.throws(()=>taskGrant(token,cfg,true),{status:403});
+ assert.deepEqual(taskGrant(token,cfg,true,true),retired);
+ assert.throws(()=>taskGrant(signContract(retired,'wrong-key'),cfg,true,true),{status:401});
+});
 test('symbolic-link mount anchors are rejected, even inside an otherwise permitted root',()=>{
  const root=mkdtempSync(join(tmpdir(),'cline-executor-')),id=randomUUID();
  try{mkdirSync(join(root,id));for(const d of ['workspace','state','bridge'])mkdirSync(join(root,id,d));writeFileSync(join(root,id,'config.json'),'{}');assertAnchors(root,id);rmdirSync(join(root,id,'workspace'));symlinkSync(join(root,id,'state'),join(root,id,'workspace'),'junction');assert.throws(()=>assertAnchors(root,id),{status:403});}

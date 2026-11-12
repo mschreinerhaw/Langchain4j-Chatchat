@@ -1,0 +1,553 @@
+[
+  {
+    "taskId": "native-80038be963be8b9b32e735c63fe57bfb6a7224e2e2b797d1b1a32442f35cf7a8",
+    "runId": "coding-ec2851c0730285cce4a92e43635c23ea64fdcfab0f94ea35d539732562976f4d",
+    "name": "Monitor batch stop 72365e0e 1",
+    "outcome": {
+      "schemaVersion": "runtime_os.coding.v2",
+      "taskId": "native-80038be963be8b9b32e735c63fe57bfb6a7224e2e2b797d1b1a32442f35cf7a8",
+      "scope": {
+        "tenantId": "9001fee4-482b-4851-9eb9-df269765291f",
+        "userId": "2f219487-11a3-4a1d-9130-ac500b62f268",
+        "requestId": null,
+        "conversationId": null,
+        "runId": "coding-ec2851c0730285cce4a92e43635c23ea64fdcfab0f94ea35d539732562976f4d",
+        "environment": null,
+        "attributes": {}
+      },
+      "contractSha256": "da250677b3f8803dbf93a55ab59e8608e705e675540df53ce3db674b803048f9",
+      "status": "CANCELLED",
+      "revision": 100,
+      "lastEventSequence": 101,
+      "createdAt": "2026-11-12T08:24:28.868Z",
+      "updatedAt": "2026-11-12T08:25:45.891Z",
+      "startedAt": "2026-11-12T08:24:28.881Z",
+      "endedAt": "2026-11-12T08:25:45.891Z",
+      "cancellationRequested": true,
+      "reasonCode": "CANCEL_REQUESTED",
+      "summary": "Worker stopped; all started operations reconciled",
+      "limitations": [
+        "A2 enforces cumulative admission reservations only; model/process hard limits, instantaneous memory and disk enforcement require execution-node adapters.",
+        "Required execution evidence was not produced"
+      ],
+      "inputSnapshotRef": "runtime-evidence:coding:native-silo-input:native-80038be963be8b9b32e735c63fe57bfb6a7224e2e2b797d1b1a32442f35cf7a8",
+      "codeArtifactRef": null,
+      "executionReceiptRef": null,
+      "resultDatasetRef": null,
+      "validationRecordRef": null,
+      "evidenceBundleRef": null,
+      "validationStatus": "NOT_RUN",
+      "reproducibility": {
+        "level": "CONDITIONAL",
+        "limitations": [
+          "Execution and reproducibility have not been verified"
+        ],
+        "dependencyRefs": [
+          "native-runtime:cline4.1.26-python3.11"
+        ]
+      },
+      "usage": {
+        "budgetId": "native-budget:native-80038be963be8b9b32e735c63fe57bfb6a7224e2e2b797d1b1a32442f35cf7a8",
+        "costCurrency": "USD",
+        "consumed": {
+          "modelCalls": 7,
+          "modelTokens": 50900,
+          "toolCalls": 9,
+          "codeExecutions": 1,
+          "cpuMillis": 0,
+          "peakMemoryBytes": 0,
+          "outputBytes": 0,
+          "costAmount": "0"
+        },
+        "reserved": {
+          "modelCalls": 0,
+          "modelTokens": 0,
+          "toolCalls": 0,
+          "codeExecutions": 0,
+          "cpuMillis": 0,
+          "peakMemoryBytes": 0,
+          "outputBytes": 0,
+          "costAmount": "0"
+        },
+        "meteringComplete": false
+      },
+      "executionControl": {
+        "stopReason": "CANCEL_REQUESTED",
+        "stopRequestedAt": "2026-11-12T08:25:43.631Z",
+        "executorStopped": true,
+        "reconciliationRequired": false
+      },
+      "parentTaskId": null,
+      "supersedesTaskId": null,
+      "perArtifactCompleteness": {}
+    },
+    "sessionId": "native-340a87f2-8aa5-4221-9bb3-d790a6e0e0e5",
+    "modelReceipts": [
+      {
+        "eventType": "model.request.completed",
+        "taskId": "native-80038be963be8b9b32e735c63fe57bfb6a7224e2e2b797d1b1a32442f35cf7a8",
+        "sessionId": "native-340a87f2-8aa5-4221-9bb3-d790a6e0e0e5",
+        "tenantId": "9001fee4-482b-4851-9eb9-df269765291f",
+        "sourceEventId": "2871",
+        "requestId": "372ff00f-a9e2-4f63-b91b-54c28359cfc4",
+        "model": "qwen3.7-plus",
+        "providerModel": "qwen3.7-plus",
+        "providerRequestId": null,
+        "startedAt": "2026-11-12T08:25:39.801Z",
+        "finishedAt": "2026-11-12T08:25:43.682Z",
+        "durationMs": 3881,
+        "httpStatus": 200,
+        "status": "FAILED",
+        "errorType": "AbortError",
+        "providerDispatched": true,
+        "usage": null,
+        "responseBytes": 14546,
+        "responseSha256": "b9285f8f825db67b6cc7a1ac5fcbb8f7c0e388e8cf9ac9c0626cd8e67397ef02",
+        "requestSha256": "f747d879fe9c9e62c04e9a609214c8ffcaf7dbc43def7d4f7b45193a5767471d",
+        "observationTruncated": false,
+        "source": "PROVIDER_HTTP_OBSERVATION",
+        "eventId": "30",
+        "timestamp": "2026-11-12T08:25:43.682Z"
+      },
+      {
+        "eventType": "model.request.completed",
+        "taskId": "native-80038be963be8b9b32e735c63fe57bfb6a7224e2e2b797d1b1a32442f35cf7a8",
+        "sessionId": "native-340a87f2-8aa5-4221-9bb3-d790a6e0e0e5",
+        "tenantId": "9001fee4-482b-4851-9eb9-df269765291f",
+        "sourceEventId": "2867",
+        "requestId": "6cb2a986-319f-4bec-9c09-3bdd589ef7ad",
+        "model": "qwen3.7-plus",
+        "providerModel": "qwen3.7-plus",
+        "providerRequestId": "2bd5ef4d-bf32-9fd4-b6cf-21e920af7bc1",
+        "startedAt": "2026-11-12T08:25:36.277Z",
+        "finishedAt": "2026-11-12T08:25:39.289Z",
+        "durationMs": 3012,
+        "httpStatus": 200,
+        "status": "SUCCEEDED",
+        "errorType": null,
+        "providerDispatched": true,
+        "usage": {
+          "inputTokens": 9536,
+          "outputTokens": 141,
+          "totalTokens": 9677,
+          "cacheReadTokens": 9216,
+          "cacheWriteTokens": null,
+          "reasoningTokens": 55,
+          "totalSource": "PROVIDER",
+          "cacheAccounting": "CACHE_IS_INPUT_SUBSET",
+          "raw": {
+            "prompt_tokens": 9536,
+            "total_tokens": 9677,
+            "completion_tokens": 141,
+            "prompt_tokens_details": {
+              "cached_tokens": 9216,
+              "text_tokens": 9536
+            },
+            "completion_tokens_details": {
+              "reasoning_tokens": 55,
+              "text_tokens": 141
+            }
+          }
+        },
+        "responseBytes": 8130,
+        "responseSha256": "83bf614beee0e70bd85499b351550ffb46dbdad429bc7d1b80ea7769acf82928",
+        "requestSha256": "d84bd306e9b2cb5b28b1b5e417e6661290693f8073c728f54aae4ca262e0d7fe",
+        "observationTruncated": false,
+        "source": "PROVIDER_HTTP_OBSERVATION",
+        "eventId": "28",
+        "timestamp": "2026-11-12T08:25:39.290Z"
+      },
+      {
+        "eventType": "model.request.completed",
+        "taskId": "native-80038be963be8b9b32e735c63fe57bfb6a7224e2e2b797d1b1a32442f35cf7a8",
+        "sessionId": "native-340a87f2-8aa5-4221-9bb3-d790a6e0e0e5",
+        "tenantId": "9001fee4-482b-4851-9eb9-df269765291f",
+        "sourceEventId": "2853",
+        "requestId": "aa50a02d-34c6-42d3-993e-fa63cf4bbc37",
+        "model": "qwen3.7-plus",
+        "providerModel": "qwen3.7-plus",
+        "providerRequestId": "dd4edad0-9356-96fb-9903-fb1e09c833f7",
+        "startedAt": "2026-11-12T08:24:43.314Z",
+        "finishedAt": "2026-11-12T08:25:04.684Z",
+        "durationMs": 21370,
+        "httpStatus": 200,
+        "status": "SUCCEEDED",
+        "errorType": null,
+        "providerDispatched": true,
+        "usage": {
+          "inputTokens": 6374,
+          "outputTokens": 1267,
+          "totalTokens": 7641,
+          "cacheReadTokens": 5760,
+          "cacheWriteTokens": null,
+          "reasoningTokens": 1185,
+          "totalSource": "PROVIDER",
+          "cacheAccounting": "CACHE_IS_INPUT_SUBSET",
+          "raw": {
+            "prompt_tokens": 6374,
+            "total_tokens": 7641,
+            "completion_tokens": 1267,
+            "prompt_tokens_details": {
+              "cached_tokens": 5760,
+              "text_tokens": 6374
+            },
+            "completion_tokens_details": {
+              "reasoning_tokens": 1185,
+              "text_tokens": 1267
+            }
+          }
+        },
+        "responseBytes": 101597,
+        "responseSha256": "bea509b41f31816819ce1e6e4aa4c0e64fa960cc5f13b371d75fdc1b9b4447a0",
+        "requestSha256": "46d41d597aef3ac7f2d44b38fdb5b0c04c47a1d88f146ca0335106f8ba2096ce",
+        "observationTruncated": false,
+        "source": "PROVIDER_HTTP_OBSERVATION",
+        "eventId": "20",
+        "timestamp": "2026-11-12T08:25:04.685Z"
+      },
+      {
+        "eventType": "model.request.completed",
+        "taskId": "native-80038be963be8b9b32e735c63fe57bfb6a7224e2e2b797d1b1a32442f35cf7a8",
+        "sessionId": "native-340a87f2-8aa5-4221-9bb3-d790a6e0e0e5",
+        "tenantId": "9001fee4-482b-4851-9eb9-df269765291f",
+        "sourceEventId": "2856",
+        "requestId": "ae1e701c-919b-42da-9713-6400821018a9",
+        "model": "qwen3.7-plus",
+        "providerModel": "qwen3.7-plus",
+        "providerRequestId": "c9b8ba30-7da6-9d7c-b7ef-2aa25a2a39ad",
+        "startedAt": "2026-11-12T08:25:05.264Z",
+        "finishedAt": "2026-11-12T08:25:24.059Z",
+        "durationMs": 18795,
+        "httpStatus": 200,
+        "status": "SUCCEEDED",
+        "errorType": null,
+        "providerDispatched": true,
+        "usage": {
+          "inputTokens": 7677,
+          "outputTokens": 1116,
+          "totalTokens": 8793,
+          "cacheReadTokens": 6272,
+          "cacheWriteTokens": null,
+          "reasoningTokens": 12,
+          "totalSource": "PROVIDER",
+          "cacheAccounting": "CACHE_IS_INPUT_SUBSET",
+          "raw": {
+            "prompt_tokens": 7677,
+            "total_tokens": 8793,
+            "completion_tokens": 1116,
+            "prompt_tokens_details": {
+              "cached_tokens": 6272,
+              "text_tokens": 7677
+            },
+            "completion_tokens_details": {
+              "reasoning_tokens": 12,
+              "text_tokens": 1116
+            }
+          }
+        },
+        "responseBytes": 108331,
+        "responseSha256": "d10658c4dbc35724f0019b364da43409774097a39a66177643a9b3aaa0de8208",
+        "requestSha256": "70709165b027be341a0bb018570f8af6dbc2aca5f63edb9ccc1f1ab4c2bff3c1",
+        "observationTruncated": false,
+        "source": "PROVIDER_HTTP_OBSERVATION",
+        "eventId": "22",
+        "timestamp": "2026-11-12T08:25:24.060Z"
+      },
+      {
+        "eventType": "model.request.completed",
+        "taskId": "native-80038be963be8b9b32e735c63fe57bfb6a7224e2e2b797d1b1a32442f35cf7a8",
+        "sessionId": "native-340a87f2-8aa5-4221-9bb3-d790a6e0e0e5",
+        "tenantId": "9001fee4-482b-4851-9eb9-df269765291f",
+        "sourceEventId": "2864",
+        "requestId": "c2d49ad0-a1fe-462b-b31d-d2acea319104",
+        "model": "qwen3.7-plus",
+        "providerModel": "qwen3.7-plus",
+        "providerRequestId": "abf4e13c-d544-9bcb-a1ef-19dfd77113b5",
+        "startedAt": "2026-11-12T08:25:32.307Z",
+        "finishedAt": "2026-11-12T08:25:35.000Z",
+        "durationMs": 2693,
+        "httpStatus": 200,
+        "status": "SUCCEEDED",
+        "errorType": null,
+        "providerDispatched": true,
+        "usage": {
+          "inputTokens": 9277,
+          "outputTokens": 101,
+          "totalTokens": 9378,
+          "cacheReadTokens": 8576,
+          "cacheWriteTokens": null,
+          "reasoningTokens": 23,
+          "totalSource": "PROVIDER",
+          "cacheAccounting": "CACHE_IS_INPUT_SUBSET",
+          "raw": {
+            "prompt_tokens": 9277,
+            "total_tokens": 9378,
+            "completion_tokens": 101,
+            "prompt_tokens_details": {
+              "cached_tokens": 8576,
+              "text_tokens": 9277
+            },
+            "completion_tokens_details": {
+              "reasoning_tokens": 23,
+              "text_tokens": 101
+            }
+          }
+        },
+        "responseBytes": 6529,
+        "responseSha256": "e4be077d3b0d59420c87c32b13e236a2dc473692d2036345171b3936d71eb89f",
+        "requestSha256": "13ee78473d2496eefef30eabdbbe0257b76d7b4801efdf5a7dd16ef0b6a89357",
+        "observationTruncated": false,
+        "source": "PROVIDER_HTTP_OBSERVATION",
+        "eventId": "26",
+        "timestamp": "2026-11-12T08:25:35.001Z"
+      },
+      {
+        "eventType": "model.request.completed",
+        "taskId": "native-80038be963be8b9b32e735c63fe57bfb6a7224e2e2b797d1b1a32442f35cf7a8",
+        "sessionId": "native-340a87f2-8aa5-4221-9bb3-d790a6e0e0e5",
+        "tenantId": "9001fee4-482b-4851-9eb9-df269765291f",
+        "sourceEventId": "2848",
+        "requestId": "d9046e2a-5564-4bed-9277-19102a2db2a8",
+        "model": "qwen3.7-plus",
+        "providerModel": "qwen3.7-plus",
+        "providerRequestId": "04003b30-e6db-97bd-92ff-d3e44be8ac99",
+        "startedAt": "2026-11-12T08:24:36.267Z",
+        "finishedAt": "2026-11-12T08:24:42.307Z",
+        "durationMs": 6040,
+        "httpStatus": 200,
+        "status": "SUCCEEDED",
+        "errorType": null,
+        "providerDispatched": true,
+        "usage": {
+          "inputTokens": 5942,
+          "outputTokens": 303,
+          "totalTokens": 6245,
+          "cacheReadTokens": 0,
+          "cacheWriteTokens": null,
+          "reasoningTokens": 181,
+          "totalSource": "PROVIDER",
+          "cacheAccounting": "CACHE_IS_INPUT_SUBSET",
+          "raw": {
+            "prompt_tokens": 5942,
+            "total_tokens": 6245,
+            "completion_tokens": 303,
+            "prompt_tokens_details": {
+              "cached_tokens": 0,
+              "text_tokens": 5942
+            },
+            "completion_tokens_details": {
+              "reasoning_tokens": 181,
+              "text_tokens": 303
+            }
+          }
+        },
+        "responseBytes": 19574,
+        "responseSha256": "d9d1e16182a874b6ea605dc27d3f74b38142759d2d874d85c1895d804afa8a26",
+        "requestSha256": "cc6f7271eb8b7c717284aa412ca6766dd0c8a2b36d9d9dd091d1a9d1696b0ea4",
+        "observationTruncated": false,
+        "source": "PROVIDER_HTTP_OBSERVATION",
+        "eventId": "18",
+        "timestamp": "2026-11-12T08:24:42.308Z"
+      },
+      {
+        "eventType": "model.request.completed",
+        "taskId": "native-80038be963be8b9b32e735c63fe57bfb6a7224e2e2b797d1b1a32442f35cf7a8",
+        "sessionId": "native-340a87f2-8aa5-4221-9bb3-d790a6e0e0e5",
+        "tenantId": "9001fee4-482b-4851-9eb9-df269765291f",
+        "sourceEventId": "2859",
+        "requestId": "d98dbf45-476e-4a85-8512-042f3e6b391a",
+        "model": "qwen3.7-plus",
+        "providerModel": "qwen3.7-plus",
+        "providerRequestId": "fc927e90-dd6d-9e42-a189-da7e1a100c9b",
+        "startedAt": "2026-11-12T08:25:24.789Z",
+        "finishedAt": "2026-11-12T08:25:30.332Z",
+        "durationMs": 5543,
+        "httpStatus": 200,
+        "status": "SUCCEEDED",
+        "errorType": null,
+        "providerDispatched": true,
+        "usage": {
+          "inputTokens": 8874,
+          "outputTokens": 292,
+          "totalTokens": 9166,
+          "cacheReadTokens": 7424,
+          "cacheWriteTokens": null,
+          "reasoningTokens": 50,
+          "totalSource": "PROVIDER",
+          "cacheAccounting": "CACHE_IS_INPUT_SUBSET",
+          "raw": {
+            "prompt_tokens": 8874,
+            "total_tokens": 9166,
+            "completion_tokens": 292,
+            "prompt_tokens_details": {
+              "cached_tokens": 7424,
+              "text_tokens": 8874
+            },
+            "completion_tokens_details": {
+              "reasoning_tokens": 50,
+              "text_tokens": 292
+            }
+          }
+        },
+        "responseBytes": 21755,
+        "responseSha256": "336ff0c590307faa1ddcdd6de7b9947abe6fb38c1c6986a3ddd8a95b441b35cb",
+        "requestSha256": "54a2505c9710a6c5cd9feaf1c49c08951155bc57887f6e2fb69c81e8ed4db860",
+        "observationTruncated": false,
+        "source": "PROVIDER_HTTP_OBSERVATION",
+        "eventId": "24",
+        "timestamp": "2026-11-12T08:25:30.333Z"
+      }
+    ],
+    "executions": [
+      {
+        "recordId": "575b637d-54d9-4056-93fa-be0009e1df73",
+        "pid": 59,
+        "command": "/bin/bash [\"-c\",\"cd /workspace && nohup python3 src/monitor_stop.py > output/monitor_stop.log 2>&1 & echo \\\"PID=$!\\\"\"]",
+        "cwd": "/workspace",
+        "startedAt": "2026-11-12T08:25:31.211Z",
+        "status": "RUNNING",
+        "sourceSnapshots": [
+          {
+            "path": ".agents/skills/runtime-image-18623cdc25a6-skill-creator/scripts/init_skill.py",
+            "size": 10863,
+            "sha256": "0bba250b94caa4cb2b28b15dad26fdcf371aeda4c9797b8120e55c2e33e0c73c",
+            "capture": "PROCESS_START_WORKSPACE_SNAPSHOT"
+          },
+          {
+            "path": ".agents/skills/runtime-image-18623cdc25a6-skill-creator/scripts/package_skill.py",
+            "size": 3288,
+            "sha256": "b31fbcb3e362d5c5308e99255ff8e83cde3a513e0636953964a648494ca10931",
+            "capture": "PROCESS_START_WORKSPACE_SNAPSHOT"
+          },
+          {
+            "path": ".agents/skills/runtime-image-18623cdc25a6-skill-creator/scripts/quick_validate.py",
+            "size": 3523,
+            "sha256": "381ab2d3d1fd5ec32371016413063eff99d0d48c415747085c61517e967dbb87",
+            "capture": "PROCESS_START_WORKSPACE_SNAPSHOT"
+          },
+          {
+            "path": ".agents/skills/runtime-image-36c7404089c7-financial-visualization/references/financial_style.py",
+            "size": 1455,
+            "sha256": "8e30f071cf4a413d50a034bf0f56370017b6d3fb31a5903319bdb2062586e101",
+            "capture": "PROCESS_START_WORKSPACE_SNAPSHOT"
+          },
+          {
+            "path": ".agents/skills/runtime-image-c54083ff3155-mcp-builder/scripts/connections.py",
+            "size": 4875,
+            "sha256": "9403668a2041568772082a8b334122c1f88daf0541fb393af4522d0094a47a6e",
+            "capture": "PROCESS_START_WORKSPACE_SNAPSHOT"
+          },
+          {
+            "path": ".agents/skills/runtime-image-c54083ff3155-mcp-builder/scripts/evaluation.py",
+            "size": 12579,
+            "sha256": "49ed1d17cdce5da101b210197740713f49b935c29d4f339542a14b132658e6f7",
+            "capture": "PROCESS_START_WORKSPACE_SNAPSHOT"
+          },
+          {
+            "path": "src/monitor_stop.py",
+            "size": 2501,
+            "sha256": "0b5f06e133ab9473619d5a2f15a32439eb8bf4e676d5a205f2da1ad581f3b198",
+            "capture": "PROCESS_START_WORKSPACE_SNAPSHOT"
+          }
+        ],
+        "sourceCaptureTruncated": false,
+        "sourceSemantics": "Workspace files at process-start observation; not a claim that every module was loaded",
+        "source": "HOST_CHILD_PROCESS_OBSERVATION",
+        "detailAssetId": "86c670d4394108d23e091424c3f6af35b98fd13c4d61df9fab49933c219c4dcc",
+        "nativeEventId": "184"
+      }
+    ],
+    "repairs": [],
+    "readOnly": false,
+    "canStop": false
+  },
+  {
+    "taskId": "native-ef8a120e7c75c6797ca360014c665495290e11c13b3587f801a4cc9db300af98",
+    "runId": "coding-c8f84155b6aa6b6da76f5baff060b725abfa96d0ec6e2bc4ed739e7d0f71db60",
+    "name": "Monitor batch stop 72365e0e 2",
+    "outcome": {
+      "schemaVersion": "runtime_os.coding.v2",
+      "taskId": "native-ef8a120e7c75c6797ca360014c665495290e11c13b3587f801a4cc9db300af98",
+      "scope": {
+        "tenantId": "9001fee4-482b-4851-9eb9-df269765291f",
+        "userId": "2f219487-11a3-4a1d-9130-ac500b62f268",
+        "requestId": null,
+        "conversationId": null,
+        "runId": "coding-c8f84155b6aa6b6da76f5baff060b725abfa96d0ec6e2bc4ed739e7d0f71db60",
+        "environment": null,
+        "attributes": {}
+      },
+      "contractSha256": "8a9661022a80ad32e823d30c4de4de049c3d998b5902273fcd722ff257452ecb",
+      "status": "CANCELLED",
+      "revision": 5,
+      "lastEventSequence": 6,
+      "createdAt": "2026-11-12T08:24:29.215Z",
+      "updatedAt": "2026-11-12T08:25:45.927Z",
+      "startedAt": "2026-11-12T08:24:41.051Z",
+      "endedAt": "2026-11-12T08:25:45.927Z",
+      "cancellationRequested": true,
+      "reasonCode": "CANCEL_REQUESTED",
+      "summary": "Stopped before any external dispatch",
+      "limitations": [
+        "A2 enforces cumulative admission reservations only; model/process hard limits, instantaneous memory and disk enforcement require execution-node adapters.",
+        "Required execution evidence was not produced"
+      ],
+      "inputSnapshotRef": "runtime-evidence:coding:native-silo-input:native-ef8a120e7c75c6797ca360014c665495290e11c13b3587f801a4cc9db300af98",
+      "codeArtifactRef": null,
+      "executionReceiptRef": null,
+      "resultDatasetRef": null,
+      "validationRecordRef": null,
+      "evidenceBundleRef": null,
+      "validationStatus": "NOT_RUN",
+      "reproducibility": {
+        "level": "CONDITIONAL",
+        "limitations": [
+          "Execution and reproducibility have not been verified"
+        ],
+        "dependencyRefs": [
+          "native-runtime:cline4.1.26-python3.11"
+        ]
+      },
+      "usage": {
+        "budgetId": "native-budget:native-ef8a120e7c75c6797ca360014c665495290e11c13b3587f801a4cc9db300af98",
+        "costCurrency": "USD",
+        "consumed": {
+          "modelCalls": 0,
+          "modelTokens": 0,
+          "toolCalls": 0,
+          "codeExecutions": 0,
+          "cpuMillis": 0,
+          "peakMemoryBytes": 0,
+          "outputBytes": 0,
+          "costAmount": "0"
+        },
+        "reserved": {
+          "modelCalls": 0,
+          "modelTokens": 0,
+          "toolCalls": 0,
+          "codeExecutions": 0,
+          "cpuMillis": 0,
+          "peakMemoryBytes": 0,
+          "outputBytes": 0,
+          "costAmount": "0"
+        },
+        "meteringComplete": true
+      },
+      "executionControl": {
+        "stopReason": "CANCEL_REQUESTED",
+        "stopRequestedAt": "2026-11-12T08:25:43.555Z",
+        "executorStopped": true,
+        "reconciliationRequired": false
+      },
+      "parentTaskId": null,
+      "supersedesTaskId": null,
+      "perArtifactCompleteness": {}
+    },
+    "sessionId": "native-55c07267-5453-451f-97c2-979289509563",
+    "modelReceipts": [],
+    "executions": [],
+    "repairs": [],
+    "readOnly": false,
+    "canStop": false
+  }
+]

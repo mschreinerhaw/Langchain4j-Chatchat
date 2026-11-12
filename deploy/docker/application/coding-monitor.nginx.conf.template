@@ -1,0 +1,23 @@
+# Render these two deployment variables before mounting as /etc/nginx/nginx.conf.
+# Assets and task authorization are owned by the same Java release.
+events { worker_connections 128; }
+http {
+  server {
+    listen ${CODING_MONITOR_PORT};
+    server_name _;
+    client_max_body_size 65m;
+    proxy_read_timeout 1300s;
+    proxy_buffering off;
+    location = / { return 302 /monitor/; }
+    location /monitor { proxy_pass ${RUNTIME_API_ORIGIN}; }
+    location = /api/v1/enterprise/auth/login { proxy_pass ${RUNTIME_API_ORIGIN}; }
+    location = /api/v1/enterprise/auth/me { limit_except GET { deny all; } proxy_pass ${RUNTIME_API_ORIGIN}; }
+    location ~ ^/api/v1/coding-monitor/tasks/[^/]+/[^/]+/cancel$ {
+      limit_except POST { deny all; }
+      proxy_pass ${RUNTIME_API_ORIGIN};
+    }
+    location /api/v1/coding-monitor/ { limit_except GET { deny all; } proxy_pass ${RUNTIME_API_ORIGIN}; }
+    location /api/v1/coding-node-diagnostics/ { limit_except GET { deny all; } proxy_pass ${RUNTIME_API_ORIGIN}; }
+    location / { return 404; }
+  }
+}

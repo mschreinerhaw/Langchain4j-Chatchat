@@ -1,0 +1,180 @@
+[
+  {
+    "taskId": "native-52561c95b3ecebee7ee273a516ad3e86a5452692f79373d92d68ff96e973ba0f",
+    "runId": "coding-0630c355794b22228df2ec924859327fde193ff8e4fa51c102397994d343cbff",
+    "response": {
+      "stopState": "TERMINAL",
+      "outcome": {
+        "schemaVersion": "runtime_os.coding.v2",
+        "taskId": "native-52561c95b3ecebee7ee273a516ad3e86a5452692f79373d92d68ff96e973ba0f",
+        "scope": {
+          "tenantId": "9001fee4-482b-4851-9eb9-df269765291f",
+          "userId": "2f219487-11a3-4a1d-9130-ac500b62f268",
+          "requestId": null,
+          "conversationId": null,
+          "runId": "coding-0630c355794b22228df2ec924859327fde193ff8e4fa51c102397994d343cbff",
+          "environment": null,
+          "attributes": {}
+        },
+        "contractSha256": "2b95a652c8f486569ec789c0b1d11ea2d1cfad518c4d8edff50a7731441931c6",
+        "status": "FAILED",
+        "revision": 296,
+        "lastEventSequence": 297,
+        "createdAt": "2026-11-12T08:06:53.370Z",
+        "updatedAt": "2026-11-12T08:14:15.423Z",
+        "startedAt": "2026-11-12T08:06:53.568Z",
+        "endedAt": "2026-11-12T08:14:15.423Z",
+        "cancellationRequested": false,
+        "reasonCode": "EXECUTION_FAILED",
+        "summary": "Native S3 Node rejected request: HTTP 503",
+        "limitations": [
+          "Native execution failed; original receipts and partial artifacts are retained",
+          "A2 enforces cumulative admission reservations only; model/process hard limits, instantaneous memory and disk enforcement require execution-node adapters.",
+          "Required execution evidence was not produced"
+        ],
+        "inputSnapshotRef": "runtime-evidence:coding:native-silo-input:native-52561c95b3ecebee7ee273a516ad3e86a5452692f79373d92d68ff96e973ba0f",
+        "codeArtifactRef": null,
+        "executionReceiptRef": "runtime-evidence:coding:native:a0a9cd58f92225f946d3b86bb33551e2d63ffa12b376fa2fd6e3f666048b4638",
+        "resultDatasetRef": null,
+        "validationRecordRef": null,
+        "evidenceBundleRef": null,
+        "validationStatus": "NOT_RUN",
+        "reproducibility": {
+          "level": "CONDITIONAL",
+          "limitations": [
+            "Execution and reproducibility have not been verified"
+          ],
+          "dependencyRefs": [
+            "native-runtime:cline4.1.26-python3.11"
+          ]
+        },
+        "usage": {
+          "budgetId": "native-budget:native-52561c95b3ecebee7ee273a516ad3e86a5452692f79373d92d68ff96e973ba0f",
+          "costCurrency": "USD",
+          "consumed": {
+            "modelCalls": 29,
+            "modelTokens": 362497,
+            "toolCalls": 31,
+            "codeExecutions": 4,
+            "cpuMillis": 0,
+            "peakMemoryBytes": 0,
+            "outputBytes": 858,
+            "costAmount": "0"
+          },
+          "reserved": {
+            "modelCalls": 0,
+            "modelTokens": 0,
+            "toolCalls": 0,
+            "codeExecutions": 0,
+            "cpuMillis": 0,
+            "peakMemoryBytes": 0,
+            "outputBytes": 0,
+            "costAmount": "0"
+          },
+          "meteringComplete": false
+        },
+        "executionControl": {
+          "stopReason": null,
+          "stopRequestedAt": null,
+          "executorStopped": true,
+          "reconciliationRequired": false
+        },
+        "parentTaskId": null,
+        "supersedesTaskId": null,
+        "perArtifactCompleteness": {}
+      },
+      "taskId": "native-52561c95b3ecebee7ee273a516ad3e86a5452692f79373d92d68ff96e973ba0f",
+      "message": "任务已结束",
+      "runId": "coding-0630c355794b22228df2ec924859327fde193ff8e4fa51c102397994d343cbff"
+    }
+  },
+  {
+    "taskId": "native-3cc5b28b9b7ca1ca4aacba8435900bba6bee2bf50ead7a4d7da1e747b534ef10",
+    "runId": "coding-8b901b3a3a45f573e6d6f593551f20d8273d6cbda776d8009776c1ee7739c30e",
+    "response": {
+      "stopState": "TERMINAL",
+      "outcome": {
+        "schemaVersion": "runtime_os.coding.v2",
+        "taskId": "native-3cc5b28b9b7ca1ca4aacba8435900bba6bee2bf50ead7a4d7da1e747b534ef10",
+        "scope": {
+          "tenantId": "9001fee4-482b-4851-9eb9-df269765291f",
+          "userId": "2f219487-11a3-4a1d-9130-ac500b62f268",
+          "requestId": null,
+          "conversationId": null,
+          "runId": "coding-8b901b3a3a45f573e6d6f593551f20d8273d6cbda776d8009776c1ee7739c30e",
+          "environment": null,
+          "attributes": {}
+        },
+        "contractSha256": "2c47e9ad35508bf01cce0641d379d4562695cc3b88a2449ca84df709db77b2ff",
+        "status": "FAILED",
+        "revision": 192,
+        "lastEventSequence": 193,
+        "createdAt": "2026-11-12T08:06:54.073Z",
+        "updatedAt": "2026-11-12T08:19:15.699Z",
+        "startedAt": "2026-11-12T08:06:54.098Z",
+        "endedAt": "2026-11-12T08:19:15.699Z",
+        "cancellationRequested": false,
+        "reasonCode": "EXECUTION_FAILED",
+        "summary": "Task metadata binding required",
+        "limitations": [
+          "Native execution failed; original receipts and partial artifacts are retained",
+          "A2 enforces cumulative admission reservations only; model/process hard limits, instantaneous memory and disk enforcement require execution-node adapters.",
+          "Required execution evidence was not produced"
+        ],
+        "inputSnapshotRef": "runtime-evidence:coding:native-silo-input:native-3cc5b28b9b7ca1ca4aacba8435900bba6bee2bf50ead7a4d7da1e747b534ef10",
+        "codeArtifactRef": null,
+        "executionReceiptRef": "runtime-evidence:coding:native:362dfa0f271ce53967268f38561e6891873d5f6b63535e8c9f76e51861996919",
+        "resultDatasetRef": null,
+        "validationRecordRef": null,
+        "evidenceBundleRef": null,
+        "validationStatus": "NOT_RUN",
+        "reproducibility": {
+          "level": "CONDITIONAL",
+          "limitations": [
+            "Execution and reproducibility have not been verified"
+          ],
+          "dependencyRefs": [
+            "native-runtime:cline4.1.26-python3.11"
+          ]
+        },
+        "usage": {
+          "budgetId": "native-budget:native-3cc5b28b9b7ca1ca4aacba8435900bba6bee2bf50ead7a4d7da1e747b534ef10",
+          "costCurrency": "USD",
+          "consumed": {
+            "modelCalls": 16,
+            "modelTokens": 267069,
+            "toolCalls": 16,
+            "codeExecutions": 7,
+            "cpuMillis": 0,
+            "peakMemoryBytes": 0,
+            "outputBytes": 1466,
+            "costAmount": "0"
+          },
+          "reserved": {
+            "modelCalls": 0,
+            "modelTokens": 0,
+            "toolCalls": 0,
+            "codeExecutions": 0,
+            "cpuMillis": 0,
+            "peakMemoryBytes": 0,
+            "outputBytes": 0,
+            "costAmount": "0"
+          },
+          "meteringComplete": false
+        },
+        "executionControl": {
+          "stopReason": null,
+          "stopRequestedAt": null,
+          "executorStopped": true,
+          "reconciliationRequired": false
+        },
+        "parentTaskId": null,
+        "supersedesTaskId": null,
+        "perArtifactCompleteness": {}
+      },
+      "taskId": "native-3cc5b28b9b7ca1ca4aacba8435900bba6bee2bf50ead7a4d7da1e747b534ef10",
+      "message": "任务已结束",
+      "runId": "coding-8b901b3a3a45f573e6d6f593551f20d8273d6cbda776d8009776c1ee7739c30e"
+    }
+  }
+]

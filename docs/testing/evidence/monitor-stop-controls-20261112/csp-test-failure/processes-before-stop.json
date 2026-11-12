@@ -1,0 +1,17 @@
+[
+  {
+    "taskId": "native-8e931ecda30b077bb9d60d4e011ad83d56792dea568b7db942bd285e3459eb37",
+    "workerId": "8685c1b3-ee13-4184-a19e-1df69f73a51c",
+    "containerId": "c046f4e5a41d55ca8b21d1805bb367f1bd65704c6d1a9eb2e044d795a83fd826",
+    "running": true,
+    "pythonProcesses": [
+      {
+        "pid": "2401311",
+        "ppid": "2401308",
+        "pgid": "2401306",
+        "commandSha256": "eb298d535d4750dab5aee7260b73ed696e01c90519ad2ba441ba8e7cfe2828ef"
+      }
+    ],
+    "lateResultAbsent": true
+  }
+]

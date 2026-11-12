@@ -1,0 +1,11 @@
+{
+  "passed": true,
+  "origin": "http://192.168.195.221:18353",
+  "actualMonitorPage": true,
+  "cancelledTasksPersistAfterRedeploy": true,
+  "terminalCancelIdempotent": true,
+  "wrongRunStopRejected": 403,
+  "remainingOwnerNonterminalTasks": 60,
+  "remainingSampleStopPending": 55,
+  "pageErrors": []
+}

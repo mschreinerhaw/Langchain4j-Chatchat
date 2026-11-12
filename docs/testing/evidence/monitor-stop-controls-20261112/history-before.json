@@ -1,0 +1,365 @@
+{
+  "runningProjectionTotal": 60,
+  "sample": [
+    {
+      "runId": "coding-e8bcf92411d2df22a6a39a196ab23a1ed95b81d64983df98cc7ff15bf8e24ebc",
+      "taskId": "native-cff3135999bb4d5b60dfc2bc8addb2851f2d729979a7788ad47e694176b6995b",
+      "lastError": "CANCEL_REQUESTED",
+      "updatedAt": "2026-11-12T08:03:57.802Z"
+    },
+    {
+      "runId": "att-1-b18f3aaa-b109-480d-8829-140141e1195d",
+      "taskId": "analysis-coding-e24ee39f2fcefdd6349607ece6fdb205f810666339c8d41b175a32132e6fc2e2",
+      "lastError": "CANCEL_REQUESTED",
+      "updatedAt": "2026-11-05T13:16:11.775Z"
+    },
+    {
+      "runId": "att-1-48e0ae69-80f4-47a3-a907-f8e9c0e2dbfc",
+      "taskId": "analysis-coding-c43d7ccb3fbde7d982dfa8deee243731381b06b89cca90dd83adba9373c42980",
+      "lastError": "CANCEL_REQUESTED",
+      "updatedAt": "2026-11-05T11:17:18.200Z"
+    },
+    {
+      "runId": "att-1-0fb1a869-1afa-4adf-90d5-e8f3ad7186b9",
+      "taskId": "analysis-coding-767792a242a56a9d574d92b827287042fd56e2a825b9fada6aa3781557deecb0",
+      "lastError": "DEADLINE_EXCEEDED",
+      "updatedAt": "2026-11-05T05:57:28.859Z"
+    },
+    {
+      "runId": "att-1-337bb36c-1fa7-4c0d-8cd5-9a2071f2cfca",
+      "taskId": "analysis-coding-5aadc5391378e474caeebef00315c5af9dfcddb3145f7993cf76c9bf79d87969",
+      "lastError": "CANCEL_REQUESTED",
+      "updatedAt": "2026-11-04T18:42:35.609Z"
+    },
+    {
+      "runId": "att-1-a2edc2c1-5757-4fe8-b869-e10dc9dafdf1",
+      "taskId": "analysis-coding-6ad6bca0ccb72e1b6105ba7ae3c1cda2101d065a9ffaed2ade6d2d8d42a2e0a4",
+      "lastError": "CANCEL_REQUESTED",
+      "updatedAt": "2026-11-04T18:25:27.009Z"
+    },
+    {
+      "runId": "att-1-42a3b9a0-1dfa-42e1-85f0-2fc2201076be",
+      "taskId": "analysis-coding-2b6e97338c135034097c3a9347592d2fc3f97c04513e4c93cdd3b88e01c91f9e",
+      "lastError": "CANCEL_REQUESTED",
+      "updatedAt": "2026-11-04T13:59:33.461Z"
+    },
+    {
+      "runId": "att-1-890760a0-9012-4951-a371-a22a6b6331af",
+      "taskId": "analysis-coding-c085e9a0d6c1c20a724cc660de33af764de9481c616940b4a33ec34eeef60c9f",
+      "lastError": "CANCEL_REQUESTED",
+      "updatedAt": "2026-11-04T13:59:33.529Z"
+    },
+    {
+      "runId": "att-1-bcd5b0cf-22fc-4bec-929e-e03f565b09fb",
+      "taskId": "analysis-coding-190c724b36d00e7ac6af099ea703d496c43dc353db9e1248186f3a6b81438130",
+      "lastError": "CANCEL_REQUESTED",
+      "updatedAt": "2026-11-03T06:37:09.465Z"
+    },
+    {
+      "runId": "att-1-bb674577-820f-4f4a-98c7-80f7a430f6c0",
+      "taskId": "analysis-coding-1b700846ea367e3b79c87f0932a1fb3b8ad47da019fca11b4cfbeabcdf143077",
+      "lastError": "DEADLINE_EXCEEDED",
+      "updatedAt": "2026-11-03T03:20:23.824Z"
+    },
+    {
+      "runId": "att-1-9a2879b7-32d6-4a03-a326-1d2578cff574",
+      "taskId": "analysis-coding-84dc74cca3175d6dac6e2f6ab6f9516c3935023913ed3baa8679d62eccd18375",
+      "lastError": "CANCEL_REQUESTED",
+      "updatedAt": "2026-11-03T02:33:46.482Z"
+    },
+    {
+      "runId": "att-1-7342209c-291e-4266-98a5-149316402714",
+      "taskId": "analysis-coding-d6241f2b10af4d483d2b1cd2454d7c74d4598ce80bec7153ae61dbadead18786",
+      "lastError": "CANCEL_REQUESTED",
+      "updatedAt": "2026-11-01T10:27:14.463Z"
+    },
+    {
+      "runId": "att-1-373e36f6-2450-4324-a95b-67244ff70959",
+      "taskId": "analysis-coding-0d5d4f86e72a96c0827c65538ce91320dead35697268dca1c91f34458a52470e",
+      "lastError": "CANCEL_REQUESTED",
+      "updatedAt": "2026-10-31T18:54:26.138Z"
+    },
+    {
+      "runId": "att-1-7977487b-043a-4900-a351-71e698449b84",
+      "taskId": "analysis-coding-5b99471fddc04c1a98be2f27c0f4144c4573da97422c1236c1b40411b38a8837",
+      "lastError": "CANCEL_REQUESTED",
+      "updatedAt": "2026-10-31T16:08:25.433Z"
+    },
+    {
+      "runId": "att-1-22202adc-7040-47bf-b3f6-ae53521ba1c4",
+      "taskId": "analysis-coding-8cbf88d313b16a487bbbf7eeeeb857b011b199bf6952cb8a18cd1ef5640a8408",
+      "lastError": "CANCEL_REQUESTED",
+      "updatedAt": "2026-10-31T15:59:20.638Z"
+    },
+    {
+      "runId": "att-1-656f1955-fe8a-4485-8429-f5c94224dac9",
+      "taskId": "analysis-coding-6d8b1b2fa8a77dcf4891b7bf4174400b2aff9dc79dc41b830b983b61a0e28da2",
+      "lastError": "CANCEL_REQUESTED",
+      "updatedAt": "2026-10-31T04:38:10.175Z"
+    },
+    {
+      "runId": "att-1-7d55b9f1-1b99-41a4-8151-689e61c025ed",
+      "taskId": "analysis-coding-6cd62070b68a2e2f995bc5b7f04fcc0739dd234b6cc3cfb0ed4e3f22093657a1",
+      "lastError": "CANCEL_REQUESTED",
+      "updatedAt": "2026-10-31T04:11:50.710Z"
+    },
+    {
+      "runId": "att-1-9eca6ca9-2763-4e30-965b-856d38eb6f24",
+      "taskId": "analysis-coding-6369e172def69a18a95648ccd6f84a49f1be56c4a43283aee23256865554c602",
+      "lastError": "CANCEL_REQUESTED",
+      "updatedAt": "2026-10-31T02:07:24.994Z"
+    },
+    {
+      "runId": "att-1-ce6904dd-f5e5-4eb3-a9fc-5812e0dd8789",
+      "taskId": "analysis-coding-902fc1f727b11c30b954dbcee66224692f4bd05339e4876a3e6dc88a9c8658f3",
+      "lastError": "CANCEL_REQUESTED",
+      "updatedAt": "2026-10-31T01:57:04.842Z"
+    },
+    {
+      "runId": "att-1-39f334a7-5ec4-444d-ae56-64f7345a35fb",
+      "taskId": "analysis-coding-e5b141c18aacf198198ff7a0a7d285e2ff415607e6cf222bcfed2a28f71d2875",
+      "lastError": "CANCEL_REQUESTED",
+      "updatedAt": "2026-10-31T01:45:09.620Z"
+    },
+    {
+      "runId": "att-1-c71439f1-b461-453e-9c35-c3e0f2857d9e",
+      "taskId": "analysis-coding-128d7d908e301f0687f090768b2f452782aef87437bbaf0a58a5c93fb90179b0",
+      "lastError": "CANCEL_REQUESTED",
+      "updatedAt": "2026-10-31T01:32:07.944Z"
+    },
+    {
+      "runId": "att-1-2c698bc7-7e9e-47ef-a29a-fc2516151902",
+      "taskId": "analysis-coding-675294153b7daee5b9a6830c73c9d49cc4e963767927a9fc1a83503b51e4f969",
+      "lastError": "CANCEL_REQUESTED",
+      "updatedAt": "2026-10-30T23:52:34.651Z"
+    },
+    {
+      "runId": "att-1-01ad0813-91ff-4225-95bf-f6635b89c6d3",
+      "taskId": "analysis-coding-aebe94fd1cab2f964a22a17bb7d3b5fa695c51b5b98ecfde73a1ccd03697feb5",
+      "lastError": "CANCEL_REQUESTED",
+      "updatedAt": "2026-10-28T08:36:51.872Z"
+    },
+    {
+      "runId": "att-1-1fb99032-b472-4233-92c3-2a959a5719af",
+      "taskId": "analysis-coding-b72fc3f15a84dcd9944153ab76b921ff85396ae9bf0ae472fa357458fd8875a9",
+      "lastError": "CANCEL_REQUESTED",
+      "updatedAt": "2026-10-28T07:15:43.592Z"
+    },
+    {
+      "runId": "att-1-5bcd4772-766e-4976-86bc-d9d4a37be358",
+      "taskId": "analysis-coding-7eee1b565a1b3532fab091e245b3eb60b3696d4cc68a6947b2bb0a5f67596ee6",
+      "lastError": "CANCEL_REQUESTED",
+      "updatedAt": "2026-10-28T04:23:58.279Z"
+    },
+    {
+      "runId": "att-1-5946a8d4-937a-43e9-9931-173145f2d60d",
+      "taskId": "analysis-coding-a580891231840f13894bd534a0c54810f12f4e32757db5f8065dab03a835568c",
+      "lastError": "CANCEL_REQUESTED",
+      "updatedAt": "2026-10-27T13:07:18.065Z"
+    },
+    {
+      "runId": "att-1-58f9c43c-6d43-45bd-aa11-c80c97578cf4",
+      "taskId": "analysis-coding-17d90c77e45b489776177be232af32df486024e75958b8c4265ddf3c4d6be93d",
+      "lastError": "CANCEL_REQUESTED",
+      "updatedAt": "2026-10-27T08:49:20.775Z"
+    },
+    {
+      "runId": "att-1-5aa608f9-26be-4a29-97ff-aa11f68b6e42",
+      "taskId": "analysis-coding-890e2372279a526d830f34ab0a188c124b0455bec32b68fbcf1bb60bf7fcc06c",
+      "lastError": "CANCEL_REQUESTED",
+      "updatedAt": "2026-10-27T07:08:01.519Z"
+    },
+    {
+      "runId": "att-1-be166283-efcc-46fe-b102-c0c4e25416c9",
+      "taskId": "analysis-coding-ecb34108c31cca32421c5e36480563046f19076734ef7c7c6275eaced086a1d4",
+      "lastError": "CANCEL_REQUESTED",
+      "updatedAt": "2026-10-27T04:37:03.787Z"
+    },
+    {
+      "runId": "att-1-9d26434d-ab73-44c4-8157-b6005af2d22a",
+      "taskId": "analysis-coding-8b0d2de6e8ea32585b4bed0f98ffdde2c8aa213bafd23873d0656d488f62a20b",
+      "lastError": "CANCEL_REQUESTED",
+      "updatedAt": "2026-10-27T03:35:25.413Z"
+    },
+    {
+      "runId": "att-1-1eedb94c-b6b1-48c2-9a27-bfddfa3eedd9",
+      "taskId": "analysis-coding-c0b99b0a98c3961538e93690431d501cb034264c38f98e9528a2c59942527b11",
+      "lastError": "CANCEL_REQUESTED",
+      "updatedAt": "2026-10-27T03:15:43.459Z"
+    },
+    {
+      "runId": "att-1-972f8709-a409-4371-a4a5-1dafe4dbcb66",
+      "taskId": "analysis-coding-ee5d35050bd5d702c411e59a55173d9a88b8f560a5f409be2e9f9e9148edda1b",
+      "lastError": "CANCEL_REQUESTED",
+      "updatedAt": "2026-10-27T03:01:03.760Z"
+    },
+    {
+      "runId": "att-1-c7b1b969-0331-4f76-b87f-75b22866cf41",
+      "taskId": "analysis-coding-ebcfb79569a9195dcc6fe6543ede0b82ac7b6eebd9862b0cba24888c5c59f334",
+      "lastError": "DEADLINE_EXCEEDED",
+      "updatedAt": "2026-10-26T08:30:35.493Z"
+    },
+    {
+      "runId": "att-4-ada49712-6774-4945-8bc1-61db403066ae",
+      "taskId": "analysis-coding-2e0830f83c2f88b9504ffac19b18794780787458a91ec6693b3ae227d9960daa",
+      "lastError": "DEADLINE_EXCEEDED",
+      "updatedAt": "2026-10-26T01:42:02.813Z"
+    },
+    {
+      "runId": "att-1-1eb70505-fdf3-4f4a-a852-d1c49bcafd05",
+      "taskId": "analysis-coding-3903e58e22130d963b63aacc6f764faef893f1888b98dd499eac12ea934d7a9d",
+      "lastError": "CANCEL_REQUESTED",
+      "updatedAt": "2026-10-24T12:04:11.887Z"
+    },
+    {
+      "runId": "att-1-b848801d-f647-4f29-a071-8701d250c78c",
+      "taskId": "analysis-coding-6e588138cf7757edfa4e004665f7ba4d9d0895be582591054866dc2a7ef69234",
+      "lastError": "CANCEL_REQUESTED",
+      "updatedAt": "2026-10-24T11:42:20.186Z"
+    },
+    {
+      "runId": "att-3-a04035be-1399-4a14-8c9f-502839f860f4",
+      "taskId": "analysis-coding-b9fabc160e5b0f9800cafa149aef62f257e33c4715eedbdc56d1998492d3c919",
+      "lastError": "DEADLINE_EXCEEDED",
+      "updatedAt": "2026-10-24T09:27:39.034Z"
+    },
+    {
+      "runId": "att-2-23579419-8331-42db-af88-79a936e12d17",
+      "taskId": "analysis-coding-85d1ce1ed342aa66b6b609222f8501f2af43a534a08ae1fe6120e84cca9b56f3",
+      "lastError": "CANCEL_REQUESTED",
+      "updatedAt": "2026-10-24T08:26:23.265Z"
+    },
+    {
+      "runId": "att-1-6f9acf14-7d39-43b9-bfea-a01d62e801b0",
+      "taskId": "analysis-coding-56566946d22ae98bff44015902f1d81c5e19147049b6a9c7d53137fa31f2fead",
+      "lastError": "CANCEL_REQUESTED",
+      "updatedAt": "2026-10-21T15:41:35.991Z"
+    },
+    {
+      "runId": "att-1-41afb185-baa8-4abf-8a0d-072f55992239",
+      "taskId": "analysis-coding-415cc5312299d797d2e00b9611b251689c9f8590a8888c7d2a2865dc875011c2",
+      "lastError": "CANCEL_REQUESTED",
+      "updatedAt": "2026-10-21T09:19:18.644Z"
+    },
+    {
+      "runId": "att-1-c97d0e46-dd69-4777-9f60-39a1b7bc97af",
+      "taskId": "analysis-coding-92b53abf6a0d295873eabb733f86226b6d48018311e18af14f269b0f010ad4d9",
+      "lastError": "CANCEL_REQUESTED",
+      "updatedAt": "2026-10-21T09:19:18.385Z"
+    },
+    {
+      "runId": "asset-analysis-c21620bcba0d2872049b4897cc7d06303465fc3fad57291e03e56f8cbe8371b2",
+      "taskId": "analysis-coding-9a5ce4ee4d19aa665b7cb6b10d5fdff07990888d81abc921b3b315216164d4f4",
+      "lastError": "CANCEL_REQUESTED",
+      "updatedAt": "2026-10-21T01:48:31.848Z"
+    },
+    {
+      "runId": "att-1-e5b5f893-96b3-41da-b7f8-d859beb6a0fd",
+      "taskId": "analysis-coding-0712ce3a1756f8596fbfb445dc5c3576ed19f7eb72887b093197a36d137dd109",
+      "lastError": "CANCEL_REQUESTED",
+      "updatedAt": "2026-10-20T14:33:13.489Z"
+    },
+    {
+      "runId": "att-1-83fc1ddf-17f0-4c6b-b995-70757373a534",
+      "taskId": "analysis-coding-a998892d8ad4be41728776365d247bf2a36b0b8dea99e6080b70584331a6f883",
+      "lastError": "CANCEL_REQUESTED",
+      "updatedAt": "2026-10-20T10:54:50.251Z"
+    },
+    {
+      "runId": "att-1-b34aef44-a8e1-4b40-a613-b291fdd48d2a",
+      "taskId": "analysis-coding-1a629b9e9444df63ecce128d089e5d5d91939b7dbbb6fb21d001930e72936e81",
+      "lastError": "CANCEL_REQUESTED",
+      "updatedAt": "2026-10-20T09:24:44.155Z"
+    },
+    {
+      "runId": "att-1-90e6556f-a004-4b45-9249-db98b3825f0d",
+      "taskId": "analysis-coding-64b523197da642aec55391aa11d01fe490beb30712e279fcd5c11dba3cc092ee",
+      "lastError": "CANCEL_REQUESTED",
+      "updatedAt": "2026-10-20T02:13:57.333Z"
+    },
+    {
+      "runId": "att-1-86f031cf-24cf-48aa-aedf-fdfca9b8a290",
+      "taskId": "analysis-coding-c52e22fc8fb14b2264a800e09a3d652fa3e44789cc4d9a765633835aa12eeae7",
+      "lastError": "DEADLINE_EXCEEDED",
+      "updatedAt": "2026-10-20T00:14:08.747Z"
+    },
+    {
+      "runId": "att-2-ae83fff3-ddb6-4a1a-b424-e5cee30137c5",
+      "taskId": "analysis-coding-0172fdd373e7d7d710f9fe53b6bfa25310cbcc60ff07e78b51ee3c339a50f999",
+      "lastError": "DEADLINE_EXCEEDED",
+      "updatedAt": "2026-10-19T15:59:05.944Z"
+    },
+    {
+      "runId": "att-1-7ed04ae1-a8d2-41b7-bbc1-a829e27bf329",
+      "taskId": "analysis-coding-2b9b133ddb6530430441c774fa829694aa894522db1ab9f11748bfd8de31ce8d",
+      "lastError": "CANCEL_REQUESTED",
+      "updatedAt": "2026-10-19T15:20:46.120Z"
+    },
+    {
+      "runId": "att-1-4fce4d50-2f13-4c9e-bd68-3918998a153a",
+      "taskId": "analysis-coding-f65f3141e0580b599b710e43d3c3cf1f45c4598f93e6943e1fb187c22d4389eb",
+      "lastError": "CANCEL_REQUESTED",
+      "updatedAt": "2026-10-19T13:13:23.856Z"
+    },
+    {
+      "runId": "att-1-4fce4d50-2f13-4c9e-bd68-3918998a153a",
+      "taskId": "analysis-coding-18b3d833919bc0c5b73b264f578c7275ec935ef2a0d79f53dfa1bbea20fef11f",
+      "lastError": "DEADLINE_EXCEEDED",
+      "updatedAt": "2026-10-19T13:13:23.210Z"
+    },
+    {
+      "runId": "att-1-4fce4d50-2f13-4c9e-bd68-3918998a153a",
+      "taskId": "analysis-coding-9901ec07bd6e05eb028d032718eb3769bfd8d907fd8264298041566093f1b734",
+      "lastError": "DEADLINE_EXCEEDED",
+      "updatedAt": "2026-10-19T13:13:22.636Z"
+    },
+    {
+      "runId": "att-1-4fce4d50-2f13-4c9e-bd68-3918998a153a",
+      "taskId": "analysis-coding-9fb3d3748652ecab898201d87f910f7cfb11023568986d67141b75c632beb1e6",
+      "lastError": "DEADLINE_EXCEEDED",
+      "updatedAt": "2026-10-19T13:13:21.876Z"
+    },
+    {
+      "runId": "att-1-4fce4d50-2f13-4c9e-bd68-3918998a153a",
+      "taskId": "analysis-coding-2306598b8753d41581b7cfef27643fe6480309878a620a86b3a51ebb521243df",
+      "lastError": "DEADLINE_EXCEEDED",
+      "updatedAt": "2026-10-19T13:13:21.140Z"
+    },
+    {
+      "runId": "att-1-4fce4d50-2f13-4c9e-bd68-3918998a153a",
+      "taskId": "analysis-coding-3eaddae3356377d7e7a7a2900c3fac2f2cf2c6434bb0880fbffc4bcfdcc7506d",
+      "lastError": "DEADLINE_EXCEEDED",
+      "updatedAt": "2026-10-19T13:13:20.459Z"
+    },
+    {
+      "runId": "att-1-dd5902ff-e55e-4ae4-a956-0e3a911f7588",
+      "taskId": "analysis-coding-017c4ca845cb0df2b558b95949b6961d685c3c9ba2069743da4dc0a4f68fb629",
+      "lastError": null,
+      "updatedAt": "2026-10-18T05:20:23.720Z"
+    },
+    {
+      "runId": "att-1-12ce3690-7446-48eb-81b9-01e6eecc97d3",
+      "taskId": "analysis-coding-f4c77d160bd4368725620d94ba0de5aba81770472492562eb8d02fec9c4202f3",
+      "lastError": null,
+      "updatedAt": "2026-10-18T04:46:07.349Z"
+    },
+    {
+      "runId": "att-1-6a6d7224-69b1-49fd-9fa0-9d085290b8f5",
+      "taskId": "analysis-coding-f1048e499c7fece8a72a274d807b7e160f41eb03eaaf4753eca2cedf3cfc0c2b",
+      "lastError": null,
+      "updatedAt": "2026-10-18T03:38:28.290Z"
+    },
+    {
+      "runId": "att-1-93e5438b-4def-451d-844d-a82328b00b37",
+      "taskId": "analysis-coding-0d1360eb1ad856b5564568f2a166c9b9257a3d84374db545609ac1abdc4b7f92",
+      "lastError": null,
+      "updatedAt": "2026-10-18T02:49:18.554Z"
+    },
+    {
+      "runId": "att-1-13914b55-201d-4124-af9b-eb3c2d86f6d4",
+      "taskId": "analysis-coding-e140bb2d89a7a428909ca6f4fd48fa682be6e3a78055ff6f8a9f6226c4eba122",
+      "lastError": null,
+      "updatedAt": "2026-10-18T01:22:39.567Z"
+    }
+  ]
+}

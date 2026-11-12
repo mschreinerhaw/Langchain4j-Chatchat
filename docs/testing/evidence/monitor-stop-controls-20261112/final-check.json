@@ -1,0 +1,82 @@
+{
+  "workers": [
+    {
+      "taskId": "native-52561c95b3ecebee7ee273a516ad3e86a5452692f79373d92d68ff96e973ba0f",
+      "workerId": "bdd455ef-1bad-4df4-a7c8-efbb00fddd56",
+      "containerId": "0d1169415a96650ed81d373555ffada2463ed22b853a8b28937f9281744fa2b6",
+      "workerState": "STOPPED",
+      "actualDockerRunning": false,
+      "stopProof": {
+        "containerId": "0d1169415a96650ed81d373555ffada2463ed22b853a8b28937f9281744fa2b6",
+        "running": false,
+        "exitCode": 0,
+        "finishedAt": "2026-11-12T08:14:13.273341786Z"
+      },
+      "lateResultAbsent": false,
+      "removedStoppedValidationContainer": true
+    },
+    {
+      "taskId": "native-3cc5b28b9b7ca1ca4aacba8435900bba6bee2bf50ead7a4d7da1e747b534ef10",
+      "workerId": "2b4c56ca-1841-4934-9985-e2c46ddaa994",
+      "containerId": "4b4d85125dfbbfa1611ca68e2ed2799c2e870b69bc92736ea6123d7a9394b38f",
+      "workerState": "STOPPED",
+      "actualDockerRunning": false,
+      "stopProof": {
+        "containerId": "4b4d85125dfbbfa1611ca68e2ed2799c2e870b69bc92736ea6123d7a9394b38f",
+        "running": false,
+        "exitCode": 0,
+        "finishedAt": "2026-11-12T08:19:14.45093225Z"
+      },
+      "lateResultAbsent": false,
+      "removedStoppedValidationContainer": true
+    },
+    {
+      "taskId": "native-8e931ecda30b077bb9d60d4e011ad83d56792dea568b7db942bd285e3459eb37",
+      "workerId": "8685c1b3-ee13-4184-a19e-1df69f73a51c",
+      "containerId": "c046f4e5a41d55ca8b21d1805bb367f1bd65704c6d1a9eb2e044d795a83fd826",
+      "workerState": "STOPPED",
+      "actualDockerRunning": false,
+      "stopProof": {
+        "containerId": "c046f4e5a41d55ca8b21d1805bb367f1bd65704c6d1a9eb2e044d795a83fd826",
+        "running": false,
+        "exitCode": 0,
+        "finishedAt": "2026-11-12T08:23:16.006952253Z"
+      },
+      "lateResultAbsent": true,
+      "removedStoppedValidationContainer": true
+    },
+    {
+      "taskId": "native-80038be963be8b9b32e735c63fe57bfb6a7224e2e2b797d1b1a32442f35cf7a8",
+      "workerId": "ed2e50a2-a084-4b1a-ae20-493d1ed1e5f1",
+      "containerId": "789fd8cbfbe1471433623d328996c0c9213a6b70fb1e144d1dd4673d9942de5f",
+      "workerState": "STOPPED",
+      "actualDockerRunning": false,
+      "stopProof": {
+        "containerId": "789fd8cbfbe1471433623d328996c0c9213a6b70fb1e144d1dd4673d9942de5f",
+        "running": false,
+        "exitCode": 0,
+        "finishedAt": "2026-11-12T08:25:44.914184254Z"
+      },
+      "lateResultAbsent": true,
+      "removedStoppedValidationContainer": true
+    }
+  ],
+  "activeImages": {
+    "api": "sha256:6a6ea5770370748f367450bbc29c0cffe534b7fbb96a1cc4dff8cf8e2ba2c933",
+    "mcp": "sha256:8e4ce47bbd085aa93162c588922ec4a49a57f297364bcbc8f012e0965d3d468a",
+    "node": "sha256:f77ba87c83cfbc0ecdb4397bdc7f17cb3f3b58579d06a052ad4ff8c9f53fdc14"
+  },
+  "preChangeApiRollback": "sha256:a2e76af8350163e85ff85f5734cc38e25970a3ed887f768e25c7c7e32951ac7a",
+  "removedIntermediateTags": [
+    "runtime-os-api:monitor-stop-controls-20261112-r1"
+  ],
+  "http": {
+    "18100/monitor/": 200,
+    "18353/monitor/": 200,
+    "18353/api/v1/coding-monitor/tasks": 401
+  },
+  "freeBytesBefore": 38192119808,
+  "freeBytesAfter": 38232625152,
+  "diskMeasurement": "Concurrent filesystem free-space observations; no global prune or volumes removed",
+  "checkedAt": "2026-11-12T08:31:32.157767+00:00"
+}

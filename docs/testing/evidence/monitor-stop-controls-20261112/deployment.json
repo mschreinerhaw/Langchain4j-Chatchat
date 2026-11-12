@@ -1,0 +1,23 @@
+{
+  "commit": "267b5b2030558fa3381efc2d01e681ad3825a786",
+  "images": {
+    "api": {
+      "tag": "runtime-os-api:monitor-stop-controls-20261112-r3",
+      "exitCode": 0,
+      "imageId": "sha256:6a6ea5770370748f367450bbc29c0cffe534b7fbb96a1cc4dff8cf8e2ba2c933"
+    }
+  },
+  "readiness": {
+    "api": {
+      "responding": true,
+      "anonymousRejected": true
+    },
+    "mcp": {
+      "responding": true,
+      "anonymousRejected": true
+    }
+  },
+  "nodeUnchanged": true,
+  "modelConfigurationUnchanged": true,
+  "deployedAt": "2026-11-12T08:30:40.687807+00:00"
+}

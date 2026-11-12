@@ -1,0 +1,4 @@
+-------------------------------------------------------------------------------
+Test set: com.chatchat.api.assets.NativeS3CodingAdapterTest
+-------------------------------------------------------------------------------
+Tests run: 5, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 6.371 s -- in com.chatchat.api.assets.NativeS3CodingAdapterTest

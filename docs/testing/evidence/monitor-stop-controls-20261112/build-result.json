@@ -1,0 +1,13 @@
+{
+  "commit": "267b5b2030558fa3381efc2d01e681ad3825a786",
+  "sourceArchiveSha256": "f8eac30058cc5308fa9303a10f5cc0f6161305e6bd6ce8c1dfe4931e8858fd16",
+  "startedAt": "2026-11-12T08:28:41.958537+00:00",
+  "images": {
+    "api": {
+      "tag": "runtime-os-api:monitor-stop-controls-20261112-r3",
+      "exitCode": 0,
+      "imageId": "sha256:6a6ea5770370748f367450bbc29c0cffe534b7fbb96a1cc4dff8cf8e2ba2c933"
+    }
+  },
+  "completedAt": "2026-11-12T08:30:05.849855+00:00"
+}

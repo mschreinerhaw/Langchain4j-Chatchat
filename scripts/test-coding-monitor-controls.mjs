@@ -18,7 +18,7 @@ try{
    if(id==='denied'){await route.fulfill({status:403,json:{code:403,message:'Forbidden fixture'}});return;}
    const row=rows.find(x=>x.taskId===id);if(id==='active')row.status='CANCELLED';else row.stopPending=true;
    data={outcome:{status:row.status},stopState:id==='active'?'TERMINAL':'STOPPING'};
-  }else data={items:rows,total:rows.length};
+  }else {const name=url.searchParams.get('name');if(name==='stale')await new Promise(r=>setTimeout(r,300));const listed=name==='latest'?rows.slice(1,3):rows;data={items:listed,total:listed.length};}
   await route.fulfill({json:{code:200,data}});
  });
  await page.goto('http://monitor.test/monitor/');await page.locator('#rows tr').nth(3).waitFor();
@@ -34,5 +34,9 @@ try{
  assert.match(await page.locator('#rows tr').nth(0).textContent(),/已取消/);
  assert.match(await page.locator('#rows tr').nth(1).textContent(),/停止待确认/);
  assert.match(await page.locator('#rows tr').nth(3).textContent(),/Forbidden fixture/);
+ await page.locator('#filters input[name=name]').fill('stale');await page.locator('#filters button').click();
+ await page.locator('#filters input[name=name]').fill('latest');await page.locator('#filters button').click();
+ await page.waitForTimeout(600);assert.equal(await page.locator('#rows tr').count(),2);
+ assert.equal(await page.locator('#rows input:checked').count(),0);assert.equal(await page.locator('#stop-selected').isDisabled(),true);
  assert.deepEqual(errors,[]);console.log('PASS: batch selection, terminal exclusion, declined confirmation, pending stop, partial failure and no browser errors (mocked API regression)');
 }finally{await browser.close();}

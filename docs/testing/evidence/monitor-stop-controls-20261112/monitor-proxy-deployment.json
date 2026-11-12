@@ -1,0 +1,7 @@
+{
+  "container": "runtime-coding-monitor",
+  "proxyConfigSha256": "9996077bc8679b2a4129801d510c4c8802d0b4907fd4f84663a597450ad39bca",
+  "assetsFromJavaImage": true,
+  "onlyOwnerScopedCancelPostAdded": true,
+  "otherRoutesPreserved": true
+}

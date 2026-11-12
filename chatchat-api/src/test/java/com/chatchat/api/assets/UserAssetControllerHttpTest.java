@@ -72,4 +72,17 @@ class UserAssetControllerHttpTest {
             .andExpect(status().isOk()).andExpect(jsonPath("$.data[0].id").value(runtime.id()));
         assertThat(assets.read(alice,runtime.id())).isEqualTo(new byte[]{66});
     }
+    @Test void htmlBundleUsesOnlyOwnedSameTaskRunDeliveryResources()throws Exception{
+        var alice=new UserAssetService.Owner("tenant","alice");
+        var entry=assets.store(alice,UserAssetService.Kind.ARTIFACT,"task","run","coding-node:v1:output/site/report.html","report.html","text/html","<h1>Report</h1>".getBytes());
+        assets.store(alice,UserAssetService.Kind.CODE,"task","run","coding-node:v1:output/site/app.js","app.js","text/javascript",new byte[]{65});
+        assets.store(alice,UserAssetService.Kind.ARTIFACT,"task","foreign-run","coding-node:v1:output/secret.json","secret.json","application/json",new byte[]{66});
+        assets.store(new UserAssetService.Owner("tenant","bob"),UserAssetService.Kind.ARTIFACT,"task","run","coding-node:v1:output/private.json","private.json","application/json",new byte[]{67});
+        mvc.perform(get(route+"/"+entry.id()+"/report-bundle").header("X-Test-Principal","alice"))
+            .andExpect(status().isOk()).andExpect(jsonPath("$.data.report.taskId").value("task")).andExpect(jsonPath("$.data.files.length()").value(2));
+        mvc.perform(get(route+"/"+entry.id()+"/report-bundle").header("X-Test-Principal","bob")).andExpect(status().isNotFound());
+        mvc.perform(get(route+"/"+entry.id()+"/report-bundle")).andExpect(status().isUnauthorized());
+        var uploaded=assets.store(alice,UserAssetService.Kind.DOCUMENT,"","","upload","unregistered.html","text/html","<h1>Not a delivery</h1>".getBytes());
+        mvc.perform(get(route+"/"+uploaded.id()+"/report-bundle").header("X-Test-Principal","alice")).andExpect(status().isForbidden());
+    }
 }

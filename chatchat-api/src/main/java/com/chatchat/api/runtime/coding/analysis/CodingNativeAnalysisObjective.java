@@ -16,7 +16,7 @@ final class CodingNativeAnalysisObjective {
         var declarations=new java.util.LinkedHashMap<String,Object>();
         declarations.put("sourceRepresentation",source);declarations.put("templateParameterBinding",binding);
         if(com.chatchat.common.runtime.coding.VisualReportMode.active(attributes))
-            declarations.put("visualReportContract",com.chatchat.common.runtime.coding.VisualReportMode.instruction(attributes));
+            declarations.put("visualReportContract",com.chatchat.api.runtime.coding.nativecline.NativeVisualReport.instruction(new java.util.LinkedHashMap<>(attributes)));
         String json=com.chatchat.agents.protocol.ModelProtocolJson.compact(declarations);
         var chunks=new ArrayList<String>();chunks.add(CONTEXT_PROFILE);
         for(int start=0;start<json.length();) {

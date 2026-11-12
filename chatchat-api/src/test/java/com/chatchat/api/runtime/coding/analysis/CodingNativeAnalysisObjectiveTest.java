@@ -13,7 +13,7 @@ class CodingNativeAnalysisObjectiveTest {
         var json=new com.fasterxml.jackson.databind.ObjectMapper();
         var restored=json.readTree(String.join("",chunks.subList(1,chunks.size())));
         assertThat(restored.path("visualReportContract").asText()).isEqualTo(
-            com.chatchat.common.runtime.coding.VisualReportMode.instruction(attributes));
+            com.chatchat.api.runtime.coding.nativecline.NativeVisualReport.instruction(attributes));
         var off=CodingNativeAnalysisObjective.contextInstructions(java.util.Map.of(),java.util.Map.of());
         assertThat(json.readTree(String.join("",off.subList(1,off.size()))).has("visualReportContract")).isFalse();
     }

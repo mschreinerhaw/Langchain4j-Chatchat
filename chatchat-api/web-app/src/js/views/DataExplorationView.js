@@ -1,3 +1,4 @@
+import HtmlReportFrame from '../../components/HtmlReportFrame.vue';
 import {reportExcerpt} from '../utils/reportExcerpt';
 import {computed,onMounted,onBeforeUnmount,ref,watch} from 'vue';
 import {ChevronDown,RefreshCw,Save,PanelLeftOpen,Maximize2,Table2,Info,X,Plus,LoaderCircle,Check,ChevronRight,Ellipsis,Pencil,Trash2,Square} from '@lucide/vue';
@@ -19,7 +20,7 @@ import {reportPresentation} from '../utils/reportLayout';
 import {chartDisplayTitle} from '../utils/chartDisplayTitle';
 
 export default {
-  name:'DataExplorationView',components:{PythonReportChart,ReportMarkdown,PromptComposer,ExplorationChain,ExplorationDataTable,ExplorationActivityPanel,AppConfirmDialog,
+  name:'DataExplorationView',components:{HtmlReportFrame,PythonReportChart,ReportMarkdown,PromptComposer,ExplorationChain,ExplorationDataTable,ExplorationActivityPanel,AppConfirmDialog,
     ChevronDown,RefreshCw,Save,PanelLeftOpen,Maximize2,Table2,Info,X,Plus,LoaderCircle,Check,ChevronRight,Ellipsis,Pencil,Trash2,Square},
   props:{workspaceContext:{type:Object,default:null}},
   setup(props){

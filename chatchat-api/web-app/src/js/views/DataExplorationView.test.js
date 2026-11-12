@@ -5,7 +5,12 @@ const api=vi.hoisted(()=>Object.fromEntries(['createExploration','listExploratio
 vi.mock('../../services/explorationApi',()=>api);
 vi.mock('../../components/PythonReportChart.vue',()=>({default:{props:['chart','presentation'],render(){return h('div',{'data-chart-type':this.presentation},this.chart.title);}}}));
 import View from '../../views/DataExplorationView.vue';
+vi.mock('../../components/HtmlReportFrame.vue',()=>({default:{props:['report'],render(){return h('div',{'data-html-entry':this.report.entryFileId});}}}));
 let app,host;const settle=async()=>{for(let i=0;i<15;i++)await nextTick();};
+it('shows delivered HTML directly instead of rebuilding its charts and conclusion',async()=>{
+ const state=structuredClone(space);state.nodes[0].receipt.visualReport.htmlReport={entryFileId:'delivered-html',entryPath:'output/report.html',taskId:'task',runId:'run'};
+ await mount(state);expect(host.querySelector('[data-html-entry="delivered-html"]')).not.toBeNull();expect(host.querySelector('.exploration-conclusion')).toBeNull();
+});
 it('shows delivery facts for a restored completed file task without a retained activity stream',async()=>{
  const state={...structuredClone(space),nodes:[{...node('root'),agentId:undefined,receipt:{taskId:'coding-task',status:'COMPLETED',terminal:true,resultAvailable:true,
   visualReport:{status:'SUCCESS',title:'Archived report',summary:'Verified report',charts:[],execution:{operationId:'own',executorStopped:true,inputSnapshotRef:'snapshot'}}}}]};

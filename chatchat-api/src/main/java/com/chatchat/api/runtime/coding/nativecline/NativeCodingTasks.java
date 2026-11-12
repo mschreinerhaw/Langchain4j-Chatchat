@@ -50,6 +50,7 @@ public final class NativeCodingTasks {
         return new Submitted(task,scope.runId(),adapter.submit(contract));
     }
     public CodingTaskOutcome get(KernelDataScope scope,String task){return adapter.get(scope,task);}
+    public Map<String,Object> delivery(KernelDataScope scope,String task){return receipt(scope,task,adapter.get(scope,task));}
     public CodingTaskOutcome cancel(KernelDataScope scope,String task){return adapter.cancel(scope,task,"Authenticated caller cancelled Native task");}
     public CodingTaskOutcome resume(KernelDataScope scope,String task){return adapter.resume(scope,task);}
     public Optional<Map<String,Object>> snapshot(KernelDataScope scope,String requestId){

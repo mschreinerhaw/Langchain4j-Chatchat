@@ -23,7 +23,7 @@ public final class NativeCodingTaskController {
     private final com.chatchat.api.runtime.coding.nativecline.NativeTaskCapabilities capabilities;
     private final NativeCodingTasks coding;private final CodingInvocationContext identity;
     public NativeCodingTaskController(NativeCodingTasks coding,CodingInvocationContext identity,com.chatchat.api.runtime.coding.nativecline.NativeTaskCapabilities capabilities){this.coding=coding;this.identity=identity;this.capabilities=capabilities;}
-    public record Request(String requestId,List<String> fileIds,String instruction,String modelName,List<String> artifactTypes,Map<String,Object> resultSchema,String agentId,Boolean resourceExplorationApproved){}
+    public record Request(String requestId,List<String> fileIds,String instruction,String modelName,List<String> artifactTypes,Map<String,Object> resultSchema,String agentId,Boolean resourceExplorationApproved,String reportMode,Map<String,Object> reportPresentation){}
     private String actor(HttpServletRequest request,String key){var value=request.getAttribute(key);if(value==null)throw new ResponseStatusException(HttpStatus.UNAUTHORIZED);return value.toString();}
     private KernelDataScope scope(HttpServletRequest request,String run){
         if(run==null||!run.matches("[A-Za-z0-9_-]{1,128}"))throw new ResponseStatusException(HttpStatus.BAD_REQUEST);
@@ -34,7 +34,8 @@ public final class NativeCodingTaskController {
         String run="coding-"+UserAssetService.hash((actor(http,ApiAuthenticationFilter.CURRENT_TENANT_ID)+"\0"+actor(http,ApiAuthenticationFilter.CURRENT_USER_ID)+"\0"+request.requestId()).getBytes(StandardCharsets.UTF_8));
         var scope=scope(http,run);
         return identity.as(scope,Set.of(READ,SUBMIT),()->{
-            var snapshot=capabilities.forAgent(scope,request.agentId(),request.modelName(),Boolean.TRUE.equals(request.resourceExplorationApproved()),request.instruction());
+            var snapshot=new LinkedHashMap<String,Object>(capabilities.forAgent(scope,request.agentId(),request.modelName(),Boolean.TRUE.equals(request.resourceExplorationApproved()),request.instruction()));
+            if(request.reportMode()!=null){snapshot.put("reportMode",com.chatchat.common.runtime.coding.VisualReportMode.read(Map.of("reportMode",request.reportMode())));snapshot.put("reportPresentation",com.chatchat.common.runtime.coding.ReportPresentation.read(request.reportPresentation()==null?Map.of():Map.of("reportPresentation",request.reportPresentation())));}
             var result=coding.submit(scope,request.requestId(),request.fileIds(),request.instruction(),request.modelName(),request.artifactTypes(),request.resultSchema(),snapshot);
             return ResponseEntity.accepted().body(ApiResponse.success(result));
         });
@@ -43,6 +44,7 @@ public final class NativeCodingTaskController {
         if(Set.of(com.chatchat.common.runtime.coding.CodingErrorCode.NOT_FOUND,com.chatchat.common.runtime.coding.CodingErrorCode.AUTHORIZATION_DENIED).contains(denied.error().code()))throw new ResponseStatusException(HttpStatus.FORBIDDEN,"Task is outside this authenticated account");throw denied;
     }}
     @GetMapping("/runs/{runId}/{taskId}") public ApiResponse<?> get(HttpServletRequest http,@PathVariable("runId")String run,@PathVariable("taskId")String task){var scope=scope(http,run);return identity.as(scope,Set.of(READ),()->ApiResponse.success(authorized(()->coding.get(scope,task))));}
+    @GetMapping("/runs/{runId}/{taskId}/delivery") public ApiResponse<?> delivery(HttpServletRequest http,@PathVariable("runId")String run,@PathVariable("taskId")String task){var scope=scope(http,run);return identity.as(scope,Set.of(READ),()->ApiResponse.success(authorized(()->coding.delivery(scope,task))));}
     @PostMapping("/runs/{runId}/{taskId}/cancel") public ApiResponse<?> cancel(HttpServletRequest http,@PathVariable("runId")String run,@PathVariable("taskId")String task){var scope=scope(http,run);return identity.as(scope,Set.of(READ,STOP),()->ApiResponse.success(authorized(()->coding.cancel(scope,task))));}
     @PostMapping("/runs/{runId}/{taskId}/resume") public ApiResponse<?> resume(HttpServletRequest http,@PathVariable("runId")String run,@PathVariable("taskId")String task){var scope=scope(http,run);return identity.as(scope,Set.of(READ,RECOVER),()->ApiResponse.success(authorized(()->coding.resume(scope,task))));}
 }

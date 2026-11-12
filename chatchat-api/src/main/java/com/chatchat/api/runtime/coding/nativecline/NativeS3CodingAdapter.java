@@ -275,6 +275,10 @@ public final class NativeS3CodingAdapter implements CodingAgentSPI {
     private String validateCandidate(Run r,JsonNode preview){
         var frozen=inputs.requireAuthorized(r.c);var types=new HashSet<String>();preview.path("artifacts").forEach(a->types.add(a.path("type").asText()));
         if(!types.containsAll((List<?>)frozen.get("artifactTypes")))return "Missing declared artifact types: "+frozen.get("artifactTypes");
+        if(com.chatchat.common.runtime.coding.VisualReportMode.active(r.c.runtimeContext())){
+            long entries=java.util.stream.StreamSupport.stream(preview.path("artifacts").spliterator(),false).filter(a->"REPORT".equals(a.path("type").asText())&&a.path("path").asText().toLowerCase(java.util.Locale.ROOT).endsWith(".html")).count();
+            if(entries!=1)return "Interactive report delivery requires exactly one HTML entry with type REPORT and its local dependencies in the delivery selection. Inspect and repair the deliverables.";
+        }
         var schema=(Map<String,Object>)frozen.getOrDefault("resultSchema",Map.of());if(schema.isEmpty())return null;
         var b=state(r,BINDING);for(var a:preview.path("artifacts"))if(a.path("type").asText().equals("RESULT"))try{
             var data=json.readTree(settings.client.previewContent(b.path("grant").asText(),b.path("sessionId").asText(),preview,a.path("path").asText()));

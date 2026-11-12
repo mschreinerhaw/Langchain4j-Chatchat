@@ -15,8 +15,9 @@
             <button v-if="!taskRunning && !busy && showingPrevious" type="button" @click="continueFromCanvas">从已有成果重新探索</button><button v-else-if="!taskRunning && !busy && !active.receipt?.resultAvailable && !active.receipt?.terminal" type="button" @click="recover">恢复分析</button>
           </section>
           <ExplorationActivityPanel v-if="active && ['RUNNING','STOPPING'].includes(selectedState.code)" :key="active.id" :events="active.receipt?.analysisEvents || []" :receipt="active.receipt || {}" :running="['RUNNING','STOPPING'].includes(selectedState.code)" :status="active.receipt?.status || selectedState.code" :started-at="active.receipt?.analysisStartedAt" :finished-at="active.receipt?.analysisFinishedAt" />
-          <p v-if="summary" class="exploration-summary">{{ summary }}</p>
+          <p v-if="summary && !report?.htmlReport" class="exploration-summary">{{ summary }}</p>
           <div v-if="loading && !canvasNode" class="exploration-loading" role="status"><LoaderCircle :size="20" class="is-spinning" />正在恢复分析…</div>
+          <HtmlReportFrame v-else-if="canvasNode?.receipt?.resultAvailable && report?.htmlReport" :key="canvasNode.id" :report="report.htmlReport" />
           <template v-else-if="canvasNode?.receipt?.resultAvailable">
             <dl v-if="metrics.length" class="exploration-metrics" aria-label="分析指标"><div v-for="metric in metrics.slice(0,4)" :key="metric.id || metric.label"><dt>{{ metric.label }}</dt><dd><span :title="'原始值：'+metric.value">{{ explorationMetricDisplay(metric.value) }}</span> <small>{{ metric.unit }}</small></dd></div></dl>
             <p v-if="metrics.length>4" class="exploration-metric-note">其余 {{ metrics.length-4 }} 项指标可在分析说明中查看。</p>

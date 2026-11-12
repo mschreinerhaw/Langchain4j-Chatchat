@@ -7,7 +7,7 @@
         <button type="button" class="chain-select" :data-node-id="node.id" :data-state="node.state.code" :aria-label="node.businessTitle" @click="$emit('select',node)">
           <span class="chain-title"><LoaderCircle v-if="['RUNNING','STOPPING'].includes(node.state.code)" :size="13" class="chain-spinner" /><CircleCheck v-else-if="node.state.code==='COMPLETED'" :size="13" class="chain-completed" /><CircleAlert v-else-if="node.state.code==='FAILED'" :size="13" class="chain-failed" /><CircleMinus v-else-if="node.state.code==='CANCELLED'" :size="13" /><span v-else class="chain-pending" />{{ node.businessTitle }}</span>
           <span v-if="node.description" class="chain-description">{{ node.description }}</span>
-          <small v-if="node.receipt?.visualReport" class="chain-artifacts"><ChartColumn :size="12" />{{ node.receipt.visualReport.charts?.length || 0 }} 图表 · {{ node.receipt.visualReport.tables?.length || 0 }} 数据表</small>
+          <small v-if="node.receipt?.visualReport" class="chain-artifacts"><ChartColumn :size="12" /><template v-if="node.receipt.visualReport.htmlReport">交互式报告</template><template v-else>{{ node.receipt.visualReport.charts?.length || 0 }} 图表 · {{ node.receipt.visualReport.tables?.length || 0 }} 数据表</template></small>
           <small class="chain-status">{{ node.id===selectedId ? '当前选中节点 · ' : '' }}{{ node.state.label }}</small>
         </button>
       </div>

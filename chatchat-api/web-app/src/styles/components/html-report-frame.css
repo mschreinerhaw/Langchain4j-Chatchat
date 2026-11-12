@@ -1,0 +1,5 @@
+.html-report-viewer{width:100%;min-width:0;background:#fff;border:1px solid #e5edf8;border-radius:12px;overflow:hidden}
+.html-report-viewer iframe{display:block;width:100%;height:calc(100vh - 260px);min-height:560px;border:0;background:#fff}
+.html-report-viewer p{padding:20px;color:#718096}
+.html-report-viewer [role=alert]{color:#b54735}
+@media(max-width:600px){.html-report-viewer iframe{min-height:420px;height:70vh}}

@@ -1,3 +1,4 @@
+import {reportExcerpt} from '../utils/reportExcerpt';
 import {computed,onMounted,onBeforeUnmount,ref,watch} from 'vue';
 import {ChevronDown,RefreshCw,Save,PanelLeftOpen,Maximize2,Table2,Info,X,Plus,LoaderCircle,Check,ChevronRight,Ellipsis,Pencil,Trash2,Square} from '@lucide/vue';
 import MarkdownIt from 'markdown-it';
@@ -81,7 +82,7 @@ export default {
     });
     const heading=computed(()=>canvasNode.value?businessNodeTitle(canvasNode.value):active.value?businessNodeTitle(active.value):'新的分析');
     const ideaContext=computed(()=>({hasResult:!!active.value?.receipt?.resultAvailable,title:heading.value}));
-    const summary=computed(()=>{const text=report.value?.summary||authoredReport.value.replace(/^#{1,6}[^\n]*\n/gm,'').replace(/[*#`]/g,'').trim().split('\n').filter(Boolean).slice(0,2).join(' ');return text.length>190?text.slice(0,189)+'…':text;});
+    const summary=computed(()=>reportExcerpt(report.value?.summary,authoredReport.value));
     const hasData=computed(()=>!!(active.value?.fileIds?.length||selected.value.length||space.value?.fileIds?.length));
     const contentStyle=computed(()=>({'--chain-width':sidebarCollapsed.value?'0px':`${sidebarWidth.value}px`}));
     function message(value){notice.value=value;clearTimeout(noticeTimer);noticeTimer=setTimeout(()=>notice.value='',4000);}

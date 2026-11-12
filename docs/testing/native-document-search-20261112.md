@@ -59,6 +59,7 @@ Node 10 项通过：task-issuer、runtime-model、governance-boundaries。验证
 - 8 个真实模型请求：输入 67,447 Token、输出 3,025 Token、总计 70,472 Token。缓存是输入的子集，不重复相加。完整验收耗时 87.658 秒，含启动准入重试和下载验证。
 - 本轮启动期间 2 次 503 准入重试使用相同 requestId，成功准入后才开始模型任务。没有通过重新发送模型任务掩盖错误。
 - 验收后已召回隔离 QA Agent，保留测试文档和任务证据；生产 Agent、共享模型配置未修改。
+- 已核对 Worker 标签及停止状态，归档日志后仅删除本次 5 个已停止的 QA Worker 容器；没有执行全局清理或删除持久化数据卷。
 
 源码镜像：API `runtime-os-api:native-document-search-20261112-r4`，image ID `sha256:7371ac334707f823b8d430db9410788582e61d128b40bf0542c86cf9bd8bf8e5`，源码提交 `e01575fc6460b4fe9800702078864ae90018214a`。Node/Executor 使用 `runtime-os-coding-node:native-document-search-20261112-r1`，image ID `sha256:60641b46986f7b260de9e89c491f9bb956ca0322038dbbc034683390a448953a`，Node 源码提交 `dcb5dbd1067e7093ab52691a628f9cbbe55ebda7`。这里记录本机 image ID，未冒称镜像仓库的远端 Digest。
 

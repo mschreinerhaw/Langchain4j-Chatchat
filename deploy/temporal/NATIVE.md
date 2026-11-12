@@ -162,6 +162,25 @@ production container names. It also tests old-grant replay after restoration.
 
 ## Verification, upgrade and rollback
 
+The tested offline release package contains three Docker image manifests: the
+Java API/Adapter, the Native Node/Executor/Recovery host and its exact immutable
+Cline + Python Worker image. Load all three, verify their image IDs against the
+release record, and import the Worker image into the separately trusted execution
+daemon as well. For the recorded release, after loading the archive in the build
+daemon, an operator can stream the pinned Worker without rebuilding it:
+
+```sh
+docker image save sha256:60641b46986f7b260de9e89c491f9bb956ca0322038dbbc034683390a448953a |
+  docker --host unix:///path/to/trusted-execution/docker.sock image load
+```
+
+Use the operator's verified socket path and confirm the expected daemon ID before
+importing. Preserve this Worker pin in Executor configuration; merely loading the
+Node host image does not register the Worker's Docker image configuration. The
+offline package does not include PostgreSQL, Silo or the Temporal dependency
+image; provision those using the documented fixed versions/digests. No registry
+push is implied by a local image ID or an archive SHA-256.
+
 Use `scripts/verify-native-temporal-live.mjs` with two private test accounts,
 explicit candidate origin and a synthetic Parquet. Run identical four-task batches
 with one then two consumers. `verify-native-temporal-results.mjs` independently

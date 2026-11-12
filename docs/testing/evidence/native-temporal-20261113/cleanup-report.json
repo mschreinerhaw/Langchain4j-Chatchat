@@ -1,0 +1,61 @@
+{
+  "at": "2026-11-12T19:25:04.386973+00:00",
+  "removedStoppedOwnedCoreContainers": [
+    "6f1abdaff249",
+    "dd54442f3440",
+    "37a3cfe01df5",
+    "3e00b980206b",
+    "a1170d9f4585",
+    "db55da1c6971",
+    "e393eb5d70e1",
+    "f3a9b16dc620",
+    "20718ecfe3fa",
+    "57bf5ab94bc2",
+    "80370820d37d",
+    "522b08828517",
+    "14486e889c21",
+    "60cc2917ae57",
+    "a277f6629db2",
+    "5dc8a26dd329",
+    "082a93432791",
+    "f646ee0cf6f3",
+    "d534f9e6cedf",
+    "e6bc785c8e0c",
+    "9d196f485e4e",
+    "31b77d5cba05",
+    "1e65740454ff",
+    "1264c0e6a904",
+    "a7d9c799fdb6",
+    "3d1ca9eb33d9",
+    "ae1b402ab510",
+    "a88f313b3349",
+    "36616f2d6a82",
+    "ed771da7ab78",
+    "f87ed78c8f51",
+    "aac5ce76cb3d",
+    "b73b15c9fc56",
+    "94fa7f845f12",
+    "c49265b35c5c",
+    "67e55bf7ed49",
+    "75c602b6d1a6",
+    "3d060cd26813"
+  ],
+  "skipped": [],
+  "removedUnusedInitialImages": [
+    {
+      "Id": "sha256:ef5f798cdd993d2a4ced2df3b3520bdbda29db6d5b8909abaf1619d38b40fc6b",
+      "tag": "runtime-os-api:temporal-native-20261112-r1"
+    },
+    {
+      "Id": "sha256:69738212d5fa85a6e3c16c9b6fc314767cd30603b7be42f2cf17c9e8333a3aa7",
+      "tag": "runtime-os-coding-node:temporal-native-20261112-r1"
+    }
+  ],
+  "freeBeforeBytes": 14795046912,
+  "freeAfterBytes": 14925680640,
+  "actualFreeIncreaseBytes": 130633728,
+  "retained": "final 10 service containers, final API/Host/Worker images, ea727660 rollback, production images, all state fences, workspaces, Silo/PostgreSQL data and raw evidence",
+  "globalPrune": false,
+  "volumesRemoved": false,
+  "sharedBuildCachePruned": false
+}

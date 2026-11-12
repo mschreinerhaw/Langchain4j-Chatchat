@@ -1,0 +1,5119 @@
+{
+  "bomFormat": "CycloneDX",
+  "specVersion": "1.5",
+  "serialNumber": "urn:uuid:d542534a-83de-4d59-abda-a242c82dd1a8",
+  "version": 1,
+  "metadata": {
+    "timestamp": "2026-11-12T18:53:51.174667+00:00",
+    "component": {
+      "type": "application",
+      "name": "runtime-os-native-temporal",
+      "version": "d1d706f72bdb78a95cc254df8aa29344f9f65b50"
+    },
+    "properties": [
+      {
+        "name": "source.commit",
+        "value": "d1d706f72bdb78a95cc254df8aa29344f9f65b50"
+      },
+      {
+        "name": "api.image.id",
+        "value": "sha256:4458af182ff49ae526d39092ae0830079c8184c88bfe7fee596e2f8ff4fddb03"
+      },
+      {
+        "name": "coding-node.image.id",
+        "value": "sha256:173f7368811538659bc122f5608dfd9debaa3647ea7c0cad57357eebad2dd822"
+      },
+      {
+        "name": "inventory.scope",
+        "value": "Installed filesystem package metadata; bundled dependencies without package metadata are covered by the pinned upstream runtime integrity manifest, not expanded here."
+      }
+    ]
+  },
+  "components": [
+    {
+      "type": "library",
+      "name": "aiobotocore",
+      "version": "3.10.0",
+      "purl": "pkg:pypi/aiobotocore@3.10.0"
+    },
+    {
+      "type": "library",
+      "name": "aiohappyeyeballs",
+      "version": "2.7.1",
+      "purl": "pkg:pypi/aiohappyeyeballs@2.7.1"
+    },
+    {
+      "type": "library",
+      "name": "aiohttp",
+      "version": "3.14.5",
+      "purl": "pkg:pypi/aiohttp@3.14.5"
+    },
+    {
+      "type": "library",
+      "name": "aioitertools",
+      "version": "0.13.0",
+      "purl": "pkg:pypi/aioitertools@0.13.0"
+    },
+    {
+      "type": "library",
+      "name": "aiosignal",
+      "version": "1.4.0",
+      "purl": "pkg:pypi/aiosignal@1.4.0"
+    },
+    {
+      "type": "library",
+      "name": "altair",
+      "version": "6.3.0",
+      "purl": "pkg:pypi/altair@6.3.0"
+    },
+    {
+      "type": "library",
+      "name": "annotated-types",
+      "version": "0.8.0",
+      "purl": "pkg:pypi/annotated-types@0.8.0"
+    },
+    {
+      "type": "library",
+      "name": "anyio",
+      "version": "4.16.0",
+      "purl": "pkg:pypi/anyio@4.16.0"
+    },
+    {
+      "type": "library",
+      "name": "argon2-cffi",
+      "version": "25.1.0",
+      "purl": "pkg:pypi/argon2-cffi@25.1.0"
+    },
+    {
+      "type": "library",
+      "name": "argon2-cffi-bindings",
+      "version": "26.1.0",
+      "purl": "pkg:pypi/argon2-cffi-bindings@26.1.0"
+    },
+    {
+      "type": "library",
+      "name": "atpublic",
+      "version": "9.0.0",
+      "purl": "pkg:pypi/atpublic@9.0.0"
+    },
+    {
+      "type": "library",
+      "name": "attrs",
+      "version": "26.1.0",
+      "purl": "pkg:pypi/attrs@26.1.0"
+    },
+    {
+      "type": "library",
+      "name": "babel",
+      "version": "2.18.0",
+      "purl": "pkg:pypi/babel@2.18.0"
+    },
+    {
+      "type": "library",
+      "name": "backports.zstd",
+      "version": "1.8.0",
+      "purl": "pkg:pypi/backports.zstd@1.8.0"
+    },
+    {
+      "type": "library",
+      "name": "botocore",
+      "version": "1.43.117",
+      "purl": "pkg:pypi/botocore@1.43.117"
+    },
+    {
+      "type": "library",
+      "name": "cachebox",
+      "version": "5.2.3",
+      "purl": "pkg:pypi/cachebox@5.2.3"
+    },
+    {
+      "type": "library",
+      "name": "cachetools",
+      "version": "7.2.8",
+      "purl": "pkg:pypi/cachetools@7.2.8"
+    },
+    {
+      "type": "library",
+      "name": "certifi",
+      "version": "2026.10.23",
+      "purl": "pkg:pypi/certifi@2026.10.23"
+    },
+    {
+      "type": "library",
+      "name": "cffi",
+      "version": "2.1.1",
+      "purl": "pkg:pypi/cffi@2.1.1"
+    },
+    {
+      "type": "library",
+      "name": "chardet",
+      "version": "7.7.0",
+      "purl": "pkg:pypi/chardet@7.7.0"
+    },
+    {
+      "type": "library",
+      "name": "charset-normalizer",
+      "version": "3.5.2",
+      "purl": "pkg:pypi/charset-normalizer@3.5.2"
+    },
+    {
+      "type": "library",
+      "name": "choreographer",
+      "version": "1.4.0",
+      "purl": "pkg:pypi/choreographer@1.4.0"
+    },
+    {
+      "type": "library",
+      "name": "click",
+      "version": "8.5.0",
+      "purl": "pkg:pypi/click@8.5.0"
+    },
+    {
+      "type": "library",
+      "name": "clickhouse-connect",
+      "version": "1.11.0",
+      "purl": "pkg:pypi/clickhouse-connect@1.11.0"
+    },
+    {
+      "type": "library",
+      "name": "cloudpickle",
+      "version": "3.1.2",
+      "purl": "pkg:pypi/cloudpickle@3.1.2"
+    },
+    {
+      "type": "library",
+      "name": "colorama",
+      "version": "0.4.6",
+      "purl": "pkg:pypi/colorama@0.4.6"
+    },
+    {
+      "type": "library",
+      "name": "colorcet",
+      "version": "3.2.1",
+      "purl": "pkg:pypi/colorcet@3.2.1"
+    },
+    {
+      "type": "library",
+      "name": "contourpy",
+      "version": "1.3.3",
+      "purl": "pkg:pypi/contourpy@1.3.3"
+    },
+    {
+      "type": "library",
+      "name": "cryptography",
+      "version": "50.0.2",
+      "purl": "pkg:pypi/cryptography@50.0.2"
+    },
+    {
+      "type": "library",
+      "name": "cycler",
+      "version": "0.12.1",
+      "purl": "pkg:pypi/cycler@0.12.1"
+    },
+    {
+      "type": "library",
+      "name": "dacite",
+      "version": "1.9.2",
+      "purl": "pkg:pypi/dacite@1.9.2"
+    },
+    {
+      "type": "library",
+      "name": "dask",
+      "version": "2026.8.0",
+      "purl": "pkg:pypi/dask@2026.8.0"
+    },
+    {
+      "type": "library",
+      "name": "datashader",
+      "version": "0.19.1",
+      "purl": "pkg:pypi/datashader@0.19.1"
+    },
+    {
+      "type": "library",
+      "name": "deepdiff",
+      "version": "9.1.0",
+      "purl": "pkg:pypi/deepdiff@9.1.0"
+    },
+    {
+      "type": "library",
+      "name": "diff_cover",
+      "version": "11.0.0",
+      "purl": "pkg:pypi/diff-cover@11.0.0"
+    },
+    {
+      "type": "library",
+      "name": "duckdb",
+      "version": "2.0.0",
+      "purl": "pkg:pypi/duckdb@2.0.0"
+    },
+    {
+      "type": "library",
+      "name": "duckdb_engine",
+      "version": "0.17.0",
+      "purl": "pkg:pypi/duckdb-engine@0.17.0"
+    },
+    {
+      "type": "library",
+      "name": "et_xmlfile",
+      "version": "2.0.0",
+      "purl": "pkg:pypi/et-xmlfile@2.0.0"
+    },
+    {
+      "type": "library",
+      "name": "faicons",
+      "version": "0.2.2",
+      "purl": "pkg:pypi/faicons@0.2.2"
+    },
+    {
+      "type": "library",
+      "name": "filetype",
+      "version": "1.2.0",
+      "purl": "pkg:pypi/filetype@1.2.0"
+    },
+    {
+      "type": "library",
+      "name": "fonttools",
+      "version": "4.68.0",
+      "purl": "pkg:pypi/fonttools@4.68.0"
+    },
+    {
+      "type": "library",
+      "name": "formulaic",
+      "version": "1.2.2",
+      "purl": "pkg:pypi/formulaic@1.2.2"
+    },
+    {
+      "type": "library",
+      "name": "frozenlist",
+      "version": "1.8.0",
+      "purl": "pkg:pypi/frozenlist@1.8.0"
+    },
+    {
+      "type": "library",
+      "name": "fsspec",
+      "version": "2026.9.0",
+      "purl": "pkg:pypi/fsspec@2026.9.0"
+    },
+    {
+      "type": "library",
+      "name": "future",
+      "version": "1.0.0",
+      "purl": "pkg:pypi/future@1.0.0"
+    },
+    {
+      "type": "library",
+      "name": "great-tables",
+      "version": "1.1.0",
+      "purl": "pkg:pypi/great-tables@1.1.0"
+    },
+    {
+      "type": "library",
+      "name": "h11",
+      "version": "0.16.0",
+      "purl": "pkg:pypi/h11@0.16.0"
+    },
+    {
+      "type": "library",
+      "name": "htmltools",
+      "version": "0.7.0",
+      "purl": "pkg:pypi/htmltools@0.7.0"
+    },
+    {
+      "type": "library",
+      "name": "httpcore",
+      "version": "1.0.9",
+      "purl": "pkg:pypi/httpcore@1.0.9"
+    },
+    {
+      "type": "library",
+      "name": "httpx",
+      "version": "0.28.1",
+      "purl": "pkg:pypi/httpx@0.28.1"
+    },
+    {
+      "type": "library",
+      "name": "hypothesis",
+      "version": "6.170.14",
+      "purl": "pkg:pypi/hypothesis@6.170.14"
+    },
+    {
+      "type": "library",
+      "name": "ibis-framework",
+      "version": "12.0.0",
+      "purl": "pkg:pypi/ibis-framework@12.0.0"
+    },
+    {
+      "type": "library",
+      "name": "idna",
+      "version": "3.20",
+      "purl": "pkg:pypi/idna@3.20"
+    },
+    {
+      "type": "library",
+      "name": "ImageHash",
+      "version": "4.3.2",
+      "purl": "pkg:pypi/imagehash@4.3.2"
+    },
+    {
+      "type": "library",
+      "name": "importlib_metadata",
+      "version": "10.1.0",
+      "purl": "pkg:pypi/importlib-metadata@10.1.0"
+    },
+    {
+      "type": "library",
+      "name": "importlib_resources",
+      "version": "7.1.0",
+      "purl": "pkg:pypi/importlib-resources@7.1.0"
+    },
+    {
+      "type": "library",
+      "name": "iniconfig",
+      "version": "2.3.1",
+      "purl": "pkg:pypi/iniconfig@2.3.1"
+    },
+    {
+      "type": "library",
+      "name": "interface_meta",
+      "version": "2.0.1",
+      "purl": "pkg:pypi/interface-meta@2.0.1"
+    },
+    {
+      "type": "library",
+      "name": "itables",
+      "version": "2.9.1",
+      "purl": "pkg:pypi/itables@2.9.1"
+    },
+    {
+      "type": "library",
+      "name": "Jinja2",
+      "version": "3.1.6",
+      "purl": "pkg:pypi/jinja2@3.1.6"
+    },
+    {
+      "type": "library",
+      "name": "jmespath",
+      "version": "1.1.0",
+      "purl": "pkg:pypi/jmespath@1.1.0"
+    },
+    {
+      "type": "library",
+      "name": "joblib",
+      "version": "1.6.0",
+      "purl": "pkg:pypi/joblib@1.6.0"
+    },
+    {
+      "type": "library",
+      "name": "jsonschema",
+      "version": "4.26.0",
+      "purl": "pkg:pypi/jsonschema@4.26.0"
+    },
+    {
+      "type": "library",
+      "name": "jsonschema-specifications",
+      "version": "2025.9.1",
+      "purl": "pkg:pypi/jsonschema-specifications@2025.9.1"
+    },
+    {
+      "type": "library",
+      "name": "kaleido",
+      "version": "1.5.0",
+      "purl": "pkg:pypi/kaleido@1.5.0"
+    },
+    {
+      "type": "library",
+      "name": "kiwisolver",
+      "version": "1.5.1",
+      "purl": "pkg:pypi/kiwisolver@1.5.1"
+    },
+    {
+      "type": "library",
+      "name": "llvmlite",
+      "version": "0.45.1",
+      "purl": "pkg:pypi/llvmlite@0.45.1"
+    },
+    {
+      "type": "library",
+      "name": "locket",
+      "version": "1.0.0",
+      "purl": "pkg:pypi/locket@1.0.0"
+    },
+    {
+      "type": "library",
+      "name": "logistro",
+      "version": "2.0.1",
+      "purl": "pkg:pypi/logistro@2.0.1"
+    },
+    {
+      "type": "library",
+      "name": "lz4",
+      "version": "4.4.5",
+      "purl": "pkg:pypi/lz4@4.4.5"
+    },
+    {
+      "type": "library",
+      "name": "markdown-it-py",
+      "version": "4.2.0",
+      "purl": "pkg:pypi/markdown-it-py@4.2.0"
+    },
+    {
+      "type": "library",
+      "name": "MarkupSafe",
+      "version": "3.0.4",
+      "purl": "pkg:pypi/markupsafe@3.0.4"
+    },
+    {
+      "type": "library",
+      "name": "matplotlib",
+      "version": "3.10.0",
+      "purl": "pkg:pypi/matplotlib@3.10.0"
+    },
+    {
+      "type": "library",
+      "name": "mdurl",
+      "version": "0.1.2",
+      "purl": "pkg:pypi/mdurl@0.1.2"
+    },
+    {
+      "type": "library",
+      "name": "minify_html",
+      "version": "0.18.1",
+      "purl": "pkg:pypi/minify-html@0.18.1"
+    },
+    {
+      "type": "library",
+      "name": "minio",
+      "version": "7.2.20",
+      "purl": "pkg:pypi/minio@7.2.20"
+    },
+    {
+      "type": "library",
+      "name": "missingno",
+      "version": "0.5.2",
+      "purl": "pkg:pypi/missingno@0.5.2"
+    },
+    {
+      "type": "library",
+      "name": "mmh3",
+      "version": "5.3.1",
+      "purl": "pkg:pypi/mmh3@5.3.1"
+    },
+    {
+      "type": "library",
+      "name": "multidict",
+      "version": "7.2.1",
+      "purl": "pkg:pypi/multidict@7.2.1"
+    },
+    {
+      "type": "library",
+      "name": "multimark",
+      "version": "0.4.0",
+      "purl": "pkg:pypi/multimark@0.4.0"
+    },
+    {
+      "type": "library",
+      "name": "multimethod",
+      "version": "1.12",
+      "purl": "pkg:pypi/multimethod@1.12"
+    },
+    {
+      "type": "library",
+      "name": "multipledispatch",
+      "version": "1.0.0",
+      "purl": "pkg:pypi/multipledispatch@1.0.0"
+    },
+    {
+      "type": "library",
+      "name": "mypy_extensions",
+      "version": "1.1.0",
+      "purl": "pkg:pypi/mypy-extensions@1.1.0"
+    },
+    {
+      "type": "library",
+      "name": "narwhals",
+      "version": "2.28.0",
+      "purl": "pkg:pypi/narwhals@2.28.0"
+    },
+    {
+      "type": "library",
+      "name": "networkx",
+      "version": "3.6.1",
+      "purl": "pkg:pypi/networkx@3.6.1"
+    },
+    {
+      "type": "library",
+      "name": "nodeenv",
+      "version": "1.12.0",
+      "purl": "pkg:pypi/nodeenv@1.12.0"
+    },
+    {
+      "type": "library",
+      "name": "nokap",
+      "version": "0.1.0",
+      "purl": "pkg:pypi/nokap@0.1.0"
+    },
+    {
+      "type": "library",
+      "name": "numba",
+      "version": "0.62.1",
+      "purl": "pkg:pypi/numba@0.62.1"
+    },
+    {
+      "type": "library",
+      "name": "numpy",
+      "version": "2.3.5",
+      "purl": "pkg:pypi/numpy@2.3.5"
+    },
+    {
+      "type": "library",
+      "name": "openpyxl",
+      "version": "3.1.5",
+      "purl": "pkg:pypi/openpyxl@3.1.5"
+    },
+    {
+      "type": "library",
+      "name": "oracledb",
+      "version": "26.1.0",
+      "purl": "pkg:pypi/oracledb@26.1.0"
+    },
+    {
+      "type": "library",
+      "name": "orderly-set",
+      "version": "5.5.0",
+      "purl": "pkg:pypi/orderly-set@5.5.0"
+    },
+    {
+      "type": "library",
+      "name": "orjson",
+      "version": "3.13.0",
+      "purl": "pkg:pypi/orjson@3.13.0"
+    },
+    {
+      "type": "library",
+      "name": "packaging",
+      "version": "26.3",
+      "purl": "pkg:pypi/packaging@26.3"
+    },
+    {
+      "type": "library",
+      "name": "pandas",
+      "version": "2.3.3",
+      "purl": "pkg:pypi/pandas@2.3.3"
+    },
+    {
+      "type": "library",
+      "name": "pandera",
+      "version": "0.35.0",
+      "purl": "pkg:pypi/pandera@0.35.0"
+    },
+    {
+      "type": "library",
+      "name": "param",
+      "version": "2.4.2",
+      "purl": "pkg:pypi/param@2.4.2"
+    },
+    {
+      "type": "library",
+      "name": "parsy",
+      "version": "2.2",
+      "purl": "pkg:pypi/parsy@2.2"
+    },
+    {
+      "type": "library",
+      "name": "partd",
+      "version": "1.4.2",
+      "purl": "pkg:pypi/partd@1.4.2"
+    },
+    {
+      "type": "library",
+      "name": "pathspec",
+      "version": "1.1.1",
+      "purl": "pkg:pypi/pathspec@1.1.1"
+    },
+    {
+      "type": "library",
+      "name": "patsy",
+      "version": "1.0.3",
+      "purl": "pkg:pypi/patsy@1.0.3"
+    },
+    {
+      "type": "library",
+      "name": "phik",
+      "version": "0.12.5",
+      "purl": "pkg:pypi/phik@0.12.5"
+    },
+    {
+      "type": "library",
+      "name": "pillow",
+      "version": "13.0.0",
+      "purl": "pkg:pypi/pillow@13.0.0"
+    },
+    {
+      "type": "library",
+      "name": "pip",
+      "version": "26.2.2",
+      "purl": "pkg:pypi/pip@26.2.2"
+    },
+    {
+      "type": "library",
+      "name": "platformdirs",
+      "version": "4.14.3",
+      "purl": "pkg:pypi/platformdirs@4.14.3"
+    },
+    {
+      "type": "library",
+      "name": "plotly",
+      "version": "7.1.0",
+      "purl": "pkg:pypi/plotly@7.1.0"
+    },
+    {
+      "type": "library",
+      "name": "pluggy",
+      "version": "1.7.0",
+      "purl": "pkg:pypi/pluggy@1.7.0"
+    },
+    {
+      "type": "library",
+      "name": "polars",
+      "version": "2.1.0",
+      "purl": "pkg:pypi/polars@2.1.0"
+    },
+    {
+      "type": "library",
+      "name": "polars-runtime-32",
+      "version": "2.1.0",
+      "purl": "pkg:pypi/polars-runtime-32@2.1.0"
+    },
+    {
+      "type": "library",
+      "name": "propcache",
+      "version": "0.5.4",
+      "purl": "pkg:pypi/propcache@0.5.4"
+    },
+    {
+      "type": "library",
+      "name": "psutil",
+      "version": "7.2.2",
+      "purl": "pkg:pypi/psutil@7.2.2"
+    },
+    {
+      "type": "library",
+      "name": "psycopg",
+      "version": "3.3.6",
+      "purl": "pkg:pypi/psycopg@3.3.6"
+    },
+    {
+      "type": "library",
+      "name": "psycopg-binary",
+      "version": "3.3.6",
+      "purl": "pkg:pypi/psycopg-binary@3.3.6"
+    },
+    {
+      "type": "library",
+      "name": "pure-sasl",
+      "version": "0.6.2",
+      "purl": "pkg:pypi/pure-sasl@0.6.2"
+    },
+    {
+      "type": "library",
+      "name": "puremagic",
+      "version": "1.30",
+      "purl": "pkg:pypi/puremagic@1.30"
+    },
+    {
+      "type": "library",
+      "name": "pyarrow",
+      "version": "26.0.0",
+      "purl": "pkg:pypi/pyarrow@26.0.0"
+    },
+    {
+      "type": "library",
+      "name": "pycparser",
+      "version": "3.12",
+      "purl": "pkg:pypi/pycparser@3.12"
+    },
+    {
+      "type": "library",
+      "name": "pycryptodome",
+      "version": "4.2.0",
+      "purl": "pkg:pypi/pycryptodome@4.2.0"
+    },
+    {
+      "type": "library",
+      "name": "pyct",
+      "version": "0.6.0",
+      "purl": "pkg:pypi/pyct@0.6.0"
+    },
+    {
+      "type": "library",
+      "name": "pydantic",
+      "version": "2.14.2",
+      "purl": "pkg:pypi/pydantic@2.14.2"
+    },
+    {
+      "type": "library",
+      "name": "pydantic_core",
+      "version": "2.50.2",
+      "purl": "pkg:pypi/pydantic-core@2.50.2"
+    },
+    {
+      "type": "library",
+      "name": "Pygments",
+      "version": "2.21.0",
+      "purl": "pkg:pypi/pygments@2.21.0"
+    },
+    {
+      "type": "library",
+      "name": "PyHive",
+      "version": "0.7.0",
+      "purl": "pkg:pypi/pyhive@0.7.0"
+    },
+    {
+      "type": "library",
+      "name": "pyiceberg",
+      "version": "0.12.0",
+      "purl": "pkg:pypi/pyiceberg@0.12.0"
+    },
+    {
+      "type": "library",
+      "name": "PyMySQL",
+      "version": "1.2.3",
+      "purl": "pkg:pypi/pymysql@1.2.3"
+    },
+    {
+      "type": "library",
+      "name": "pyodbc",
+      "version": "5.3.0",
+      "purl": "pkg:pypi/pyodbc@5.3.0"
+    },
+    {
+      "type": "library",
+      "name": "pyparsing",
+      "version": "3.3.3",
+      "purl": "pkg:pypi/pyparsing@3.3.3"
+    },
+    {
+      "type": "library",
+      "name": "pyright",
+      "version": "1.1.414",
+      "purl": "pkg:pypi/pyright@1.1.414"
+    },
+    {
+      "type": "library",
+      "name": "pyroaring",
+      "version": "1.2.0",
+      "purl": "pkg:pypi/pyroaring@1.2.0"
+    },
+    {
+      "type": "library",
+      "name": "pytest",
+      "version": "9.2.0",
+      "purl": "pkg:pypi/pytest@9.2.0"
+    },
+    {
+      "type": "library",
+      "name": "python-dateutil",
+      "version": "2.9.0.post0",
+      "purl": "pkg:pypi/python-dateutil@2.9.0.post0"
+    },
+    {
+      "type": "library",
+      "name": "pytz",
+      "version": "2026.6",
+      "purl": "pkg:pypi/pytz@2026.6"
+    },
+    {
+      "type": "library",
+      "name": "PyWavelets",
+      "version": "1.9.0",
+      "purl": "pkg:pypi/pywavelets@1.9.0"
+    },
+    {
+      "type": "library",
+      "name": "PyYAML",
+      "version": "6.0.3",
+      "purl": "pkg:pypi/pyyaml@6.0.3"
+    },
+    {
+      "type": "library",
+      "name": "referencing",
+      "version": "0.37.0",
+      "purl": "pkg:pypi/referencing@0.37.0"
+    },
+    {
+      "type": "library",
+      "name": "regex",
+      "version": "2026.9.29",
+      "purl": "pkg:pypi/regex@2026.9.29"
+    },
+    {
+      "type": "library",
+      "name": "requests",
+      "version": "2.34.2",
+      "purl": "pkg:pypi/requests@2.34.2"
+    },
+    {
+      "type": "library",
+      "name": "rich",
+      "version": "15.0.0",
+      "purl": "pkg:pypi/rich@15.0.0"
+    },
+    {
+      "type": "library",
+      "name": "rpds-py",
+      "version": "2026.9.1",
+      "purl": "pkg:pypi/rpds-py@2026.9.1"
+    },
+    {
+      "type": "library",
+      "name": "ruff",
+      "version": "0.17.3",
+      "purl": "pkg:pypi/ruff@0.17.3"
+    },
+    {
+      "type": "library",
+      "name": "s3fs",
+      "version": "2026.9.0",
+      "purl": "pkg:pypi/s3fs@2026.9.0"
+    },
+    {
+      "type": "library",
+      "name": "scikit-learn",
+      "version": "1.9.1",
+      "purl": "pkg:pypi/scikit-learn@1.9.1"
+    },
+    {
+      "type": "library",
+      "name": "scipy",
+      "version": "1.16.3",
+      "purl": "pkg:pypi/scipy@1.16.3"
+    },
+    {
+      "type": "library",
+      "name": "seaborn",
+      "version": "0.13.2",
+      "purl": "pkg:pypi/seaborn@0.13.2"
+    },
+    {
+      "type": "library",
+      "name": "setuptools",
+      "version": "84.2.1",
+      "purl": "pkg:pypi/setuptools@84.2.1"
+    },
+    {
+      "type": "library",
+      "name": "shap",
+      "version": "0.51.0",
+      "purl": "pkg:pypi/shap@0.51.0"
+    },
+    {
+      "type": "library",
+      "name": "simplejson",
+      "version": "4.2.0",
+      "purl": "pkg:pypi/simplejson@4.2.0"
+    },
+    {
+      "type": "library",
+      "name": "six",
+      "version": "1.17.0",
+      "purl": "pkg:pypi/six@1.17.0"
+    },
+    {
+      "type": "library",
+      "name": "slicer",
+      "version": "0.0.8",
+      "purl": "pkg:pypi/slicer@0.0.8"
+    },
+    {
+      "type": "library",
+      "name": "sortedcontainers",
+      "version": "2.4.0",
+      "purl": "pkg:pypi/sortedcontainers@2.4.0"
+    },
+    {
+      "type": "library",
+      "name": "SQLAlchemy",
+      "version": "2.1.6",
+      "purl": "pkg:pypi/sqlalchemy@2.1.6"
+    },
+    {
+      "type": "library",
+      "name": "sqlfluff",
+      "version": "4.5.0",
+      "purl": "pkg:pypi/sqlfluff@4.5.0"
+    },
+    {
+      "type": "library",
+      "name": "sqlglot",
+      "version": "30.27.0",
+      "purl": "pkg:pypi/sqlglot@30.27.0"
+    },
+    {
+      "type": "library",
+      "name": "statsmodels",
+      "version": "0.15.0",
+      "purl": "pkg:pypi/statsmodels@0.15.0"
+    },
+    {
+      "type": "library",
+      "name": "strictyaml",
+      "version": "1.7.3",
+      "purl": "pkg:pypi/strictyaml@1.7.3"
+    },
+    {
+      "type": "library",
+      "name": "tblib",
+      "version": "3.2.2",
+      "purl": "pkg:pypi/tblib@3.2.2"
+    },
+    {
+      "type": "library",
+      "name": "tenacity",
+      "version": "9.2.1",
+      "purl": "pkg:pypi/tenacity@9.2.1"
+    },
+    {
+      "type": "library",
+      "name": "threadpoolctl",
+      "version": "3.7.0",
+      "purl": "pkg:pypi/threadpoolctl@3.7.0"
+    },
+    {
+      "type": "library",
+      "name": "thrift",
+      "version": "0.25.0",
+      "purl": "pkg:pypi/thrift@0.25.0"
+    },
+    {
+      "type": "library",
+      "name": "thrift-sasl",
+      "version": "0.4.3",
+      "purl": "pkg:pypi/thrift-sasl@0.4.3"
+    },
+    {
+      "type": "library",
+      "name": "toolz",
+      "version": "1.2.0",
+      "purl": "pkg:pypi/toolz@1.2.0"
+    },
+    {
+      "type": "library",
+      "name": "tqdm",
+      "version": "4.70.1",
+      "purl": "pkg:pypi/tqdm@4.70.1"
+    },
+    {
+      "type": "library",
+      "name": "trino",
+      "version": "0.340.0",
+      "purl": "pkg:pypi/trino@0.340.0"
+    },
+    {
+      "type": "library",
+      "name": "typeguard",
+      "version": "4.6.0",
+      "purl": "pkg:pypi/typeguard@4.6.0"
+    },
+    {
+      "type": "library",
+      "name": "typing_extensions",
+      "version": "4.16.0",
+      "purl": "pkg:pypi/typing-extensions@4.16.0"
+    },
+    {
+      "type": "library",
+      "name": "typing-inspect",
+      "version": "0.9.0",
+      "purl": "pkg:pypi/typing-inspect@0.9.0"
+    },
+    {
+      "type": "library",
+      "name": "typing-inspection",
+      "version": "0.4.4",
+      "purl": "pkg:pypi/typing-inspection@0.4.4"
+    },
+    {
+      "type": "library",
+      "name": "tzdata",
+      "version": "2026.6",
+      "purl": "pkg:pypi/tzdata@2026.6"
+    },
+    {
+      "type": "library",
+      "name": "tzlocal",
+      "version": "5.4.5",
+      "purl": "pkg:pypi/tzlocal@5.4.5"
+    },
+    {
+      "type": "library",
+      "name": "urllib3",
+      "version": "2.8.0",
+      "purl": "pkg:pypi/urllib3@2.8.0"
+    },
+    {
+      "type": "library",
+      "name": "visions",
+      "version": "0.8.1",
+      "purl": "pkg:pypi/visions@0.8.1"
+    },
+    {
+      "type": "library",
+      "name": "websockets",
+      "version": "17.4",
+      "purl": "pkg:pypi/websockets@17.4"
+    },
+    {
+      "type": "library",
+      "name": "wheel",
+      "version": "0.48.0",
+      "purl": "pkg:pypi/wheel@0.48.0"
+    },
+    {
+      "type": "library",
+      "name": "wordcloud",
+      "version": "1.9.6",
+      "purl": "pkg:pypi/wordcloud@1.9.6"
+    },
+    {
+      "type": "library",
+      "name": "wrapt",
+      "version": "2.5.2",
+      "purl": "pkg:pypi/wrapt@2.5.2"
+    },
+    {
+      "type": "library",
+      "name": "xarray",
+      "version": "2026.9.0",
+      "purl": "pkg:pypi/xarray@2026.9.0"
+    },
+    {
+      "type": "library",
+      "name": "xlsxwriter",
+      "version": "3.3.1",
+      "purl": "pkg:pypi/xlsxwriter@3.3.1"
+    },
+    {
+      "type": "library",
+      "name": "yarl",
+      "version": "1.25.1",
+      "purl": "pkg:pypi/yarl@1.25.1"
+    },
+    {
+      "type": "library",
+      "name": "ydata-profiling",
+      "version": "4.18.4",
+      "purl": "pkg:pypi/ydata-profiling@4.18.4"
+    },
+    {
+      "type": "library",
+      "name": "zipp",
+      "version": "4.1.2",
+      "purl": "pkg:pypi/zipp@4.1.2"
+    },
+    {
+      "type": "library",
+      "name": "zstandard",
+      "version": "0.25.0",
+      "purl": "pkg:pypi/zstandard@0.25.0"
+    },
+    {
+      "type": "library",
+      "name": "dpkg:adduser",
+      "version": "3.152"
+    },
+    {
+      "type": "library",
+      "name": "dpkg:apt",
+      "version": "3.0.4"
+    },
+    {
+      "type": "library",
+      "name": "dpkg:base-files",
+      "version": "13.8+deb13u7"
+    },
+    {
+      "type": "library",
+      "name": "dpkg:base-passwd",
+      "version": "3.6.7"
+    },
+    {
+      "type": "library",
+      "name": "dpkg:bash",
+      "version": "5.2.37-2+b10"
+    },
+    {
+      "type": "library",
+      "name": "dpkg:binutils",
+      "version": "2.44-3"
+    },
+    {
+      "type": "library",
+      "name": "dpkg:binutils-common",
+      "version": "2.44-3"
+    },
+    {
+      "type": "library",
+      "name": "dpkg:binutils-x86-64-linux-gnu",
+      "version": "2.44-3"
+    },
+    {
+      "type": "library",
+      "name": "dpkg:bsdutils",
+      "version": "1:2.41.5-0+deb13u1"
+    },
+    {
+      "type": "library",
+      "name": "dpkg:ca-certificates",
+      "version": "20250419+deb13u1"
+    },
+    {
+      "type": "library",
+      "name": "dpkg:comerr-dev",
+      "version": "2.1-1.47.2-3+b12"
+    },
+    {
+      "type": "library",
+      "name": "dpkg:coreutils",
+      "version": "9.7-3"
+    },
+    {
+      "type": "library",
+      "name": "dpkg:cpp",
+      "version": "4:14.2.0-1"
+    },
+    {
+      "type": "library",
+      "name": "dpkg:cpp-14",
+      "version": "14.2.0-19"
+    },
+    {
+      "type": "library",
+      "name": "dpkg:cpp-14-x86-64-linux-gnu",
+      "version": "14.2.0-19"
+    },
+    {
+      "type": "library",
+      "name": "dpkg:cpp-x86-64-linux-gnu",
+      "version": "4:14.2.0-1"
+    },
+    {
+      "type": "library",
+      "name": "dpkg:curl",
+      "version": "8.14.1-2+deb13u7"
+    },
+    {
+      "type": "library",
+      "name": "dpkg:dash",
+      "version": "0.5.12-12"
+    },
+    {
+      "type": "library",
+      "name": "dpkg:debconf",
+      "version": "1.5.91"
+    },
+    {
+      "type": "library",
+      "name": "dpkg:debian-archive-keyring",
+      "version": "2025.1"
+    },
+    {
+      "type": "library",
+      "name": "dpkg:debianutils",
+      "version": "5.23.2"
+    },
+    {
+      "type": "library",
+      "name": "dpkg:diffutils",
+      "version": "1:3.10-4"
+    },
+    {
+      "type": "library",
+      "name": "dpkg:dpkg",
+      "version": "1.22.22"
+    },
+    {
+      "type": "library",
+      "name": "dpkg:findutils",
+      "version": "4.10.0-3"
+    },
+    {
+      "type": "library",
+      "name": "dpkg:fontconfig",
+      "version": "2.15.0-2.3"
+    },
+    {
+      "type": "library",
+      "name": "dpkg:fontconfig-config",
+      "version": "2.15.0-2.3"
+    },
+    {
+      "type": "library",
+      "name": "dpkg:fonts-dejavu-core",
+      "version": "2.37-8"
+    },
+    {
+      "type": "library",
+      "name": "dpkg:fonts-dejavu-mono",
+      "version": "2.37-8"
+    },
+    {
+      "type": "library",
+      "name": "dpkg:fonts-noto-cjk",
+      "version": "1:20240730+repack1-1"
+    },
+    {
+      "type": "library",
+      "name": "dpkg:g++",
+      "version": "4:14.2.0-1"
+    },
+    {
+      "type": "library",
+      "name": "dpkg:g++-14",
+      "version": "14.2.0-19"
+    },
+    {
+      "type": "library",
+      "name": "dpkg:g++-14-x86-64-linux-gnu",
+      "version": "14.2.0-19"
+    },
+    {
+      "type": "library",
+      "name": "dpkg:g++-x86-64-linux-gnu",
+      "version": "4:14.2.0-1"
+    },
+    {
+      "type": "library",
+      "name": "dpkg:gcc",
+      "version": "4:14.2.0-1"
+    },
+    {
+      "type": "library",
+      "name": "dpkg:gcc-14",
+      "version": "14.2.0-19"
+    },
+    {
+      "type": "library",
+      "name": "dpkg:gcc-14-base",
+      "version": "14.2.0-19"
+    },
+    {
+      "type": "library",
+      "name": "dpkg:gcc-14-x86-64-linux-gnu",
+      "version": "14.2.0-19"
+    },
+    {
+      "type": "library",
+      "name": "dpkg:gcc-x86-64-linux-gnu",
+      "version": "4:14.2.0-1"
+    },
+    {
+      "type": "library",
+      "name": "dpkg:git",
+      "version": "1:2.47.3-0+deb13u1"
+    },
+    {
+      "type": "library",
+      "name": "dpkg:git-man",
+      "version": "1:2.47.3-0+deb13u1"
+    },
+    {
+      "type": "library",
+      "name": "dpkg:grep",
+      "version": "3.11-4"
+    },
+    {
+      "type": "library",
+      "name": "dpkg:gzip",
+      "version": "1.13-1+deb13u1"
+    },
+    {
+      "type": "library",
+      "name": "dpkg:hostname",
+      "version": "3.25"
+    },
+    {
+      "type": "library",
+      "name": "dpkg:init-system-helpers",
+      "version": "1.69~deb13u1"
+    },
+    {
+      "type": "library",
+      "name": "dpkg:krb5-multidev",
+      "version": "1.21.3-5+deb13u1"
+    },
+    {
+      "type": "library",
+      "name": "dpkg:krb5-user",
+      "version": "1.21.3-5+deb13u1"
+    },
+    {
+      "type": "library",
+      "name": "dpkg:libacl1",
+      "version": "2.3.2-2+b1"
+    },
+    {
+      "type": "library",
+      "name": "dpkg:libapt-pkg7.0",
+      "version": "3.0.4"
+    },
+    {
+      "type": "library",
+      "name": "dpkg:libasan8",
+      "version": "14.2.0-19"
+    },
+    {
+      "type": "library",
+      "name": "dpkg:libatomic1",
+      "version": "14.2.0-19"
+    },
+    {
+      "type": "library",
+      "name": "dpkg:libattr1",
+      "version": "1:2.5.2-3"
+    },
+    {
+      "type": "library",
+      "name": "dpkg:libaudit-common",
+      "version": "1:4.0.2-2+deb13u1"
+    },
+    {
+      "type": "library",
+      "name": "dpkg:libaudit1",
+      "version": "1:4.0.2-2+deb13u1"
+    },
+    {
+      "type": "library",
+      "name": "dpkg:libbinutils",
+      "version": "2.44-3"
+    },
+    {
+      "type": "library",
+      "name": "dpkg:libblkid1",
+      "version": "2.41.5-0+deb13u1"
+    },
+    {
+      "type": "library",
+      "name": "dpkg:libbrotli1",
+      "version": "1.1.0-2+deb13u1"
+    },
+    {
+      "type": "library",
+      "name": "dpkg:libbsd0",
+      "version": "0.12.2-2"
+    },
+    {
+      "type": "library",
+      "name": "dpkg:libbz2-1.0",
+      "version": "1.0.8-6"
+    },
+    {
+      "type": "library",
+      "name": "dpkg:libc-bin",
+      "version": "2.41-12+deb13u4"
+    },
+    {
+      "type": "library",
+      "name": "dpkg:libc-dev-bin",
+      "version": "2.41-12+deb13u4"
+    },
+    {
+      "type": "library",
+      "name": "dpkg:libc6",
+      "version": "2.41-12+deb13u4"
+    },
+    {
+      "type": "library",
+      "name": "dpkg:libc6-dev",
+      "version": "2.41-12+deb13u4"
+    },
+    {
+      "type": "library",
+      "name": "dpkg:libcap-ng0",
+      "version": "0.8.5-4+b1"
+    },
+    {
+      "type": "library",
+      "name": "dpkg:libcap2",
+      "version": "1:2.75-10+deb13u1+b3"
+    },
+    {
+      "type": "library",
+      "name": "dpkg:libcc1-0",
+      "version": "14.2.0-19"
+    },
+    {
+      "type": "library",
+      "name": "dpkg:libcom-err2",
+      "version": "1.47.2-3+b12"
+    },
+    {
+      "type": "library",
+      "name": "dpkg:libcrypt-dev",
+      "version": "1:4.4.38-1"
+    },
+    {
+      "type": "library",
+      "name": "dpkg:libcrypt1",
+      "version": "1:4.4.38-1"
+    },
+    {
+      "type": "library",
+      "name": "dpkg:libctf-nobfd0",
+      "version": "2.44-3"
+    },
+    {
+      "type": "library",
+      "name": "dpkg:libctf0",
+      "version": "2.44-3"
+    },
+    {
+      "type": "library",
+      "name": "dpkg:libcurl3t64-gnutls",
+      "version": "8.14.1-2+deb13u7"
+    },
+    {
+      "type": "library",
+      "name": "dpkg:libcurl4t64",
+      "version": "8.14.1-2+deb13u7"
+    },
+    {
+      "type": "library",
+      "name": "dpkg:libdb5.3t64",
+      "version": "5.3.28+dfsg2-9"
+    },
+    {
+      "type": "library",
+      "name": "dpkg:libdebconfclient0",
+      "version": "0.280"
+    },
+    {
+      "type": "library",
+      "name": "dpkg:liberror-perl",
+      "version": "0.17030-1"
+    },
+    {
+      "type": "library",
+      "name": "dpkg:libexpat1",
+      "version": "2.9.0-1~deb13u1"
+    },
+    {
+      "type": "library",
+      "name": "dpkg:libffi8",
+      "version": "3.4.8-2"
+    },
+    {
+      "type": "library",
+      "name": "dpkg:libfontconfig1",
+      "version": "2.15.0-2.3"
+    },
+    {
+      "type": "library",
+      "name": "dpkg:libfreetype6",
+      "version": "2.13.3+dfsg-1+deb13u1"
+    },
+    {
+      "type": "library",
+      "name": "dpkg:libgcc-14-dev",
+      "version": "14.2.0-19"
+    },
+    {
+      "type": "library",
+      "name": "dpkg:libgcc-s1",
+      "version": "14.2.0-19"
+    },
+    {
+      "type": "library",
+      "name": "dpkg:libgdbm-compat4t64",
+      "version": "1.24-2"
+    },
+    {
+      "type": "library",
+      "name": "dpkg:libgdbm6t64",
+      "version": "1.24-2"
+    },
+    {
+      "type": "library",
+      "name": "dpkg:libgmp10",
+      "version": "2:6.3.0+dfsg-3"
+    },
+    {
+      "type": "library",
+      "name": "dpkg:libgnutls30t64",
+      "version": "3.8.9-3+deb13u4"
+    },
+    {
+      "type": "library",
+      "name": "dpkg:libgomp1",
+      "version": "14.2.0-19"
+    },
+    {
+      "type": "library",
+      "name": "dpkg:libgprofng0",
+      "version": "2.44-3"
+    },
+    {
+      "type": "library",
+      "name": "dpkg:libgssapi-krb5-2",
+      "version": "1.21.3-5+deb13u1"
+    },
+    {
+      "type": "library",
+      "name": "dpkg:libgssrpc4t64",
+      "version": "1.21.3-5+deb13u1"
+    },
+    {
+      "type": "library",
+      "name": "dpkg:libhogweed6t64",
+      "version": "3.10.1-1"
+    },
+    {
+      "type": "library",
+      "name": "dpkg:libhwasan0",
+      "version": "14.2.0-19"
+    },
+    {
+      "type": "library",
+      "name": "dpkg:libidn2-0",
+      "version": "2.3.8-2"
+    },
+    {
+      "type": "library",
+      "name": "dpkg:libisl23",
+      "version": "0.27-1"
+    },
+    {
+      "type": "library",
+      "name": "dpkg:libitm1",
+      "version": "14.2.0-19"
+    },
+    {
+      "type": "library",
+      "name": "dpkg:libjansson4",
+      "version": "2.14-2+b3"
+    },
+    {
+      "type": "library",
+      "name": "dpkg:libk5crypto3",
+      "version": "1.21.3-5+deb13u1"
+    },
+    {
+      "type": "library",
+      "name": "dpkg:libkadm5clnt-mit12",
+      "version": "1.21.3-5+deb13u1"
+    },
+    {
+      "type": "library",
+      "name": "dpkg:libkadm5srv-mit12",
+      "version": "1.21.3-5+deb13u1"
+    },
+    {
+      "type": "library",
+      "name": "dpkg:libkdb5-10t64",
+      "version": "1.21.3-5+deb13u1"
+    },
+    {
+      "type": "library",
+      "name": "dpkg:libkeyutils1",
+      "version": "1.6.3-6"
+    },
+    {
+      "type": "library",
+      "name": "dpkg:libkrb5-3",
+      "version": "1.21.3-5+deb13u1"
+    },
+    {
+      "type": "library",
+      "name": "dpkg:libkrb5-dev",
+      "version": "1.21.3-5+deb13u1"
+    },
+    {
+      "type": "library",
+      "name": "dpkg:libkrb5support0",
+      "version": "1.21.3-5+deb13u1"
+    },
+    {
+      "type": "library",
+      "name": "dpkg:liblastlog2-2",
+      "version": "2.41.5-0+deb13u1"
+    },
+    {
+      "type": "library",
+      "name": "dpkg:libldap2",
+      "version": "2.6.10+dfsg-1"
+    },
+    {
+      "type": "library",
+      "name": "dpkg:liblsan0",
+      "version": "14.2.0-19"
+    },
+    {
+      "type": "library",
+      "name": "dpkg:libltdl7",
+      "version": "2.5.4-4"
+    },
+    {
+      "type": "library",
+      "name": "dpkg:liblz4-1",
+      "version": "1.10.0-4"
+    },
+    {
+      "type": "library",
+      "name": "dpkg:liblzma5",
+      "version": "5.8.1-1+deb13u2"
+    },
+    {
+      "type": "library",
+      "name": "dpkg:libmd0",
+      "version": "1.1.0-2+b1"
+    },
+    {
+      "type": "library",
+      "name": "dpkg:libmount1",
+      "version": "2.41.5-0+deb13u1"
+    },
+    {
+      "type": "library",
+      "name": "dpkg:libmpc3",
+      "version": "1.3.1-1+b3"
+    },
+    {
+      "type": "library",
+      "name": "dpkg:libmpfr6",
+      "version": "4.2.2-1"
+    },
+    {
+      "type": "library",
+      "name": "dpkg:libncursesw6",
+      "version": "6.5+20250216-2"
+    },
+    {
+      "type": "library",
+      "name": "dpkg:libnettle8t64",
+      "version": "3.10.1-1"
+    },
+    {
+      "type": "library",
+      "name": "dpkg:libnghttp2-14",
+      "version": "1.64.0-1.1+deb13u1"
+    },
+    {
+      "type": "library",
+      "name": "dpkg:libnghttp3-9",
+      "version": "1.8.0-1"
+    },
+    {
+      "type": "library",
+      "name": "dpkg:libngtcp2-16",
+      "version": "1.11.0-1+deb13u1"
+    },
+    {
+      "type": "library",
+      "name": "dpkg:libngtcp2-crypto-gnutls8",
+      "version": "1.11.0-1+deb13u1"
+    },
+    {
+      "type": "library",
+      "name": "dpkg:libodbc2",
+      "version": "2.3.12-2+deb13u1"
+    },
+    {
+      "type": "library",
+      "name": "dpkg:libodbccr2",
+      "version": "2.3.12-2+deb13u1"
+    },
+    {
+      "type": "library",
+      "name": "dpkg:libodbcinst2",
+      "version": "2.3.12-2+deb13u1"
+    },
+    {
+      "type": "library",
+      "name": "dpkg:libp11-kit0",
+      "version": "0.25.5-3"
+    },
+    {
+      "type": "library",
+      "name": "dpkg:libpam-modules",
+      "version": "1.7.0-5"
+    },
+    {
+      "type": "library",
+      "name": "dpkg:libpam-modules-bin",
+      "version": "1.7.0-5"
+    },
+    {
+      "type": "library",
+      "name": "dpkg:libpam-runtime",
+      "version": "1.7.0-5"
+    },
+    {
+      "type": "library",
+      "name": "dpkg:libpam0g",
+      "version": "1.7.0-5"
+    },
+    {
+      "type": "library",
+      "name": "dpkg:libpcre2-8-0",
+      "version": "10.46-1~deb13u3"
+    },
+    {
+      "type": "library",
+      "name": "dpkg:libperl5.40",
+      "version": "5.40.1-6+deb13u1"
+    },
+    {
+      "type": "library",
+      "name": "dpkg:libpng16-16t64",
+      "version": "1.6.48-1+deb13u6"
+    },
+    {
+      "type": "library",
+      "name": "dpkg:libpq-dev",
+      "version": "17.11-0+deb13u1"
+    },
+    {
+      "type": "library",
+      "name": "dpkg:libpq5",
+      "version": "17.11-0+deb13u1"
+    },
+    {
+      "type": "library",
+      "name": "dpkg:libpsl5t64",
+      "version": "0.21.2-1.1+b1"
+    },
+    {
+      "type": "library",
+      "name": "dpkg:libquadmath0",
+      "version": "14.2.0-19"
+    },
+    {
+      "type": "library",
+      "name": "dpkg:libreadline8t64",
+      "version": "8.2-6"
+    },
+    {
+      "type": "library",
+      "name": "dpkg:librtmp1",
+      "version": "2.4+20151223.gitfa8646d.1-2+b5"
+    },
+    {
+      "type": "library",
+      "name": "dpkg:libsasl2-2",
+      "version": "2.1.28+dfsg1-9"
+    },
+    {
+      "type": "library",
+      "name": "dpkg:libsasl2-dev",
+      "version": "2.1.28+dfsg1-9"
+    },
+    {
+      "type": "library",
+      "name": "dpkg:libsasl2-modules",
+      "version": "2.1.28+dfsg1-9"
+    },
+    {
+      "type": "library",
+      "name": "dpkg:libsasl2-modules-db",
+      "version": "2.1.28+dfsg1-9"
+    },
+    {
+      "type": "library",
+      "name": "dpkg:libseccomp2",
+      "version": "2.6.0-2"
+    },
+    {
+      "type": "library",
+      "name": "dpkg:libselinux1",
+      "version": "3.8.1-1"
+    },
+    {
+      "type": "library",
+      "name": "dpkg:libsemanage-common",
+      "version": "3.8.1-1"
+    },
+    {
+      "type": "library",
+      "name": "dpkg:libsemanage2",
+      "version": "3.8.1-1"
+    },
+    {
+      "type": "library",
+      "name": "dpkg:libsepol2",
+      "version": "3.8.1-1"
+    },
+    {
+      "type": "library",
+      "name": "dpkg:libsframe1",
+      "version": "2.44-3"
+    },
+    {
+      "type": "library",
+      "name": "dpkg:libsmartcols1",
+      "version": "2.41.5-0+deb13u1"
+    },
+    {
+      "type": "library",
+      "name": "dpkg:libsqlite3-0",
+      "version": "3.46.1-7+deb13u2"
+    },
+    {
+      "type": "library",
+      "name": "dpkg:libss2",
+      "version": "1.47.2-3+b12"
+    },
+    {
+      "type": "library",
+      "name": "dpkg:libssh2-1t64",
+      "version": "1.11.1-1+deb13u2"
+    },
+    {
+      "type": "library",
+      "name": "dpkg:libssl-dev",
+      "version": "3.5.7-1~deb13u3"
+    },
+    {
+      "type": "library",
+      "name": "dpkg:libssl3t64",
+      "version": "3.5.7-1~deb13u3"
+    },
+    {
+      "type": "library",
+      "name": "dpkg:libstdc++-14-dev",
+      "version": "14.2.0-19"
+    },
+    {
+      "type": "library",
+      "name": "dpkg:libstdc++6",
+      "version": "14.2.0-19"
+    },
+    {
+      "type": "library",
+      "name": "dpkg:libsystemd0",
+      "version": "257.13-1~deb13u1"
+    },
+    {
+      "type": "library",
+      "name": "dpkg:libtasn1-6",
+      "version": "4.20.0-2+deb13u1"
+    },
+    {
+      "type": "library",
+      "name": "dpkg:libtinfo6",
+      "version": "6.5+20250216-2"
+    },
+    {
+      "type": "library",
+      "name": "dpkg:libtsan2",
+      "version": "14.2.0-19"
+    },
+    {
+      "type": "library",
+      "name": "dpkg:libubsan1",
+      "version": "14.2.0-19"
+    },
+    {
+      "type": "library",
+      "name": "dpkg:libudev1",
+      "version": "257.13-1~deb13u1"
+    },
+    {
+      "type": "library",
+      "name": "dpkg:libunistring5",
+      "version": "1.3-2"
+    },
+    {
+      "type": "library",
+      "name": "dpkg:libuuid1",
+      "version": "2.41.5-0+deb13u1"
+    },
+    {
+      "type": "library",
+      "name": "dpkg:libxxhash0",
+      "version": "0.8.3-2"
+    },
+    {
+      "type": "library",
+      "name": "dpkg:libzstd1",
+      "version": "1.5.7+dfsg-1"
+    },
+    {
+      "type": "library",
+      "name": "dpkg:linux-libc-dev",
+      "version": "6.12.116-1"
+    },
+    {
+      "type": "library",
+      "name": "dpkg:login",
+      "version": "1:4.16.0-2+really2.41.5-0+deb13u1"
+    },
+    {
+      "type": "library",
+      "name": "dpkg:login.defs",
+      "version": "1:4.17.4-2"
+    },
+    {
+      "type": "library",
+      "name": "dpkg:make",
+      "version": "4.4.1-2"
+    },
+    {
+      "type": "library",
+      "name": "dpkg:mawk",
+      "version": "1.3.4.20250131-1"
+    },
+    {
+      "type": "library",
+      "name": "dpkg:mount",
+      "version": "2.41.5-0+deb13u1"
+    },
+    {
+      "type": "library",
+      "name": "dpkg:ncurses-base",
+      "version": "6.5+20250216-2"
+    },
+    {
+      "type": "library",
+      "name": "dpkg:ncurses-bin",
+      "version": "6.5+20250216-2"
+    },
+    {
+      "type": "library",
+      "name": "dpkg:netbase",
+      "version": "6.5"
+    },
+    {
+      "type": "library",
+      "name": "dpkg:openssl",
+      "version": "3.5.7-1~deb13u3"
+    },
+    {
+      "type": "library",
+      "name": "dpkg:openssl-provider-legacy",
+      "version": "3.5.7-1~deb13u3"
+    },
+    {
+      "type": "library",
+      "name": "dpkg:passwd",
+      "version": "1:4.17.4-2"
+    },
+    {
+      "type": "library",
+      "name": "dpkg:perl",
+      "version": "5.40.1-6+deb13u1"
+    },
+    {
+      "type": "library",
+      "name": "dpkg:perl-base",
+      "version": "5.40.1-6+deb13u1"
+    },
+    {
+      "type": "library",
+      "name": "dpkg:perl-modules-5.40",
+      "version": "5.40.1-6+deb13u1"
+    },
+    {
+      "type": "library",
+      "name": "dpkg:readline-common",
+      "version": "8.2-6"
+    },
+    {
+      "type": "library",
+      "name": "dpkg:rpcsvc-proto",
+      "version": "1.4.3-1"
+    },
+    {
+      "type": "library",
+      "name": "dpkg:sed",
+      "version": "4.9-2+deb13u1"
+    },
+    {
+      "type": "library",
+      "name": "dpkg:sqv",
+      "version": "1.3.0-3+b2"
+    },
+    {
+      "type": "library",
+      "name": "dpkg:sysvinit-utils",
+      "version": "3.14-4"
+    },
+    {
+      "type": "library",
+      "name": "dpkg:tar",
+      "version": "1.35+dfsg-3.1"
+    },
+    {
+      "type": "library",
+      "name": "dpkg:tzdata",
+      "version": "2026f-0+deb13u1"
+    },
+    {
+      "type": "library",
+      "name": "dpkg:unixodbc",
+      "version": "2.3.12-2+deb13u1"
+    },
+    {
+      "type": "library",
+      "name": "dpkg:unixodbc-common",
+      "version": "2.3.12-2+deb13u1"
+    },
+    {
+      "type": "library",
+      "name": "dpkg:unixodbc-dev",
+      "version": "2.3.12-2+deb13u1"
+    },
+    {
+      "type": "library",
+      "name": "dpkg:util-linux",
+      "version": "2.41.5-0+deb13u1"
+    },
+    {
+      "type": "library",
+      "name": "dpkg:wget",
+      "version": "1.25.0-2"
+    },
+    {
+      "type": "library",
+      "name": "dpkg:zlib1g",
+      "version": "1:1.3.dfsg+really1.3.1-1+b1"
+    },
+    {
+      "type": "library",
+      "name": "claude-dev",
+      "version": "4.1.26",
+      "properties": [
+        {
+          "name": "runtime.path",
+          "value": "/opt/runtime-os/cline/runtime/extension/package.json"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "name": "@grpc/grpc-js",
+      "version": "1.13.7",
+      "properties": [
+        {
+          "name": "runtime.path",
+          "value": "/opt/runtime-os/cline/runtime/node_modules/@grpc/grpc-js/package.json"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "name": "@grpc/proto-loader",
+      "version": "0.7.15",
+      "properties": [
+        {
+          "name": "runtime.path",
+          "value": "/opt/runtime-os/cline/runtime/node_modules/@grpc/proto-loader/package.json"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "name": "@grpc/reflection",
+      "version": "1.0.4",
+      "properties": [
+        {
+          "name": "runtime.path",
+          "value": "/opt/runtime-os/cline/runtime/node_modules/@grpc/reflection/package.json"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "name": "@js-sdsl/ordered-map",
+      "version": "4.4.2",
+      "properties": [
+        {
+          "name": "runtime.path",
+          "value": "/opt/runtime-os/cline/runtime/node_modules/@js-sdsl/ordered-map/package.json"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "name": "@protobufjs/aspromise",
+      "version": "1.1.2",
+      "properties": [
+        {
+          "name": "runtime.path",
+          "value": "/opt/runtime-os/cline/runtime/node_modules/@protobufjs/aspromise/package.json"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "name": "@protobufjs/base64",
+      "version": "1.1.2",
+      "properties": [
+        {
+          "name": "runtime.path",
+          "value": "/opt/runtime-os/cline/runtime/node_modules/@protobufjs/base64/package.json"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "name": "@protobufjs/codegen",
+      "version": "2.0.5",
+      "properties": [
+        {
+          "name": "runtime.path",
+          "value": "/opt/runtime-os/cline/runtime/node_modules/@protobufjs/codegen/package.json"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "name": "@protobufjs/eventemitter",
+      "version": "1.1.1",
+      "properties": [
+        {
+          "name": "runtime.path",
+          "value": "/opt/runtime-os/cline/runtime/node_modules/@protobufjs/eventemitter/package.json"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "name": "@protobufjs/fetch",
+      "version": "1.1.1",
+      "properties": [
+        {
+          "name": "runtime.path",
+          "value": "/opt/runtime-os/cline/runtime/node_modules/@protobufjs/fetch/package.json"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "name": "@protobufjs/float",
+      "version": "1.0.2",
+      "properties": [
+        {
+          "name": "runtime.path",
+          "value": "/opt/runtime-os/cline/runtime/node_modules/@protobufjs/float/package.json"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "name": "@protobufjs/path",
+      "version": "1.1.2",
+      "properties": [
+        {
+          "name": "runtime.path",
+          "value": "/opt/runtime-os/cline/runtime/node_modules/@protobufjs/path/package.json"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "name": "@protobufjs/pool",
+      "version": "1.1.0",
+      "properties": [
+        {
+          "name": "runtime.path",
+          "value": "/opt/runtime-os/cline/runtime/node_modules/@protobufjs/pool/package.json"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "name": "@protobufjs/utf8",
+      "version": "1.1.1",
+      "properties": [
+        {
+          "name": "runtime.path",
+          "value": "/opt/runtime-os/cline/runtime/node_modules/@protobufjs/utf8/package.json"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "name": "@types/node",
+      "version": "22.15.18",
+      "properties": [
+        {
+          "name": "runtime.path",
+          "value": "/opt/runtime-os/cline/runtime/node_modules/@types/node/package.json"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "name": "ansi-regex",
+      "version": "5.0.1",
+      "properties": [
+        {
+          "name": "runtime.path",
+          "value": "/opt/runtime-os/cline/runtime/node_modules/ansi-regex/package.json"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "name": "ansi-styles",
+      "version": "4.3.0",
+      "properties": [
+        {
+          "name": "runtime.path",
+          "value": "/opt/runtime-os/cline/runtime/node_modules/ansi-styles/package.json"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "name": "b4a",
+      "version": "1.7.3",
+      "properties": [
+        {
+          "name": "runtime.path",
+          "value": "/opt/runtime-os/cline/runtime/node_modules/b4a/package.json"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "name": "bare-events",
+      "version": "2.8.0",
+      "properties": [
+        {
+          "name": "runtime.path",
+          "value": "/opt/runtime-os/cline/runtime/node_modules/bare-events/package.json"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "name": "bare-fs",
+      "version": "4.4.11",
+      "properties": [
+        {
+          "name": "runtime.path",
+          "value": "/opt/runtime-os/cline/runtime/node_modules/bare-fs/package.json"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "name": "bare-os",
+      "version": "3.6.2",
+      "properties": [
+        {
+          "name": "runtime.path",
+          "value": "/opt/runtime-os/cline/runtime/node_modules/bare-os/package.json"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "name": "bare-path",
+      "version": "3.0.0",
+      "properties": [
+        {
+          "name": "runtime.path",
+          "value": "/opt/runtime-os/cline/runtime/node_modules/bare-path/package.json"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "name": "bare-stream",
+      "version": "2.7.0",
+      "properties": [
+        {
+          "name": "runtime.path",
+          "value": "/opt/runtime-os/cline/runtime/node_modules/bare-stream/package.json"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "name": "bare-url",
+      "version": "2.3.1",
+      "properties": [
+        {
+          "name": "runtime.path",
+          "value": "/opt/runtime-os/cline/runtime/node_modules/bare-url/package.json"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "name": "better-sqlite3",
+      "version": "12.4.1",
+      "properties": [
+        {
+          "name": "runtime.path",
+          "value": "/opt/runtime-os/cline/runtime/node_modules/better-sqlite3/package.json"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "name": "bindings",
+      "version": "1.5.0",
+      "properties": [
+        {
+          "name": "runtime.path",
+          "value": "/opt/runtime-os/cline/runtime/node_modules/bindings/package.json"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "name": "bundle-name",
+      "version": "4.1.0",
+      "properties": [
+        {
+          "name": "runtime.path",
+          "value": "/opt/runtime-os/cline/runtime/node_modules/bundle-name/package.json"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "name": "cliui",
+      "version": "8.0.1",
+      "properties": [
+        {
+          "name": "runtime.path",
+          "value": "/opt/runtime-os/cline/runtime/node_modules/cliui/package.json"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "name": "color-convert",
+      "version": "2.0.1",
+      "properties": [
+        {
+          "name": "runtime.path",
+          "value": "/opt/runtime-os/cline/runtime/node_modules/color-convert/package.json"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "name": "color-name",
+      "version": "1.1.4",
+      "properties": [
+        {
+          "name": "runtime.path",
+          "value": "/opt/runtime-os/cline/runtime/node_modules/color-name/package.json"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "name": "decompress-response",
+      "version": "6.0.0",
+      "properties": [
+        {
+          "name": "runtime.path",
+          "value": "/opt/runtime-os/cline/runtime/node_modules/decompress-response/package.json"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "name": "deep-extend",
+      "version": "0.6.0",
+      "properties": [
+        {
+          "name": "runtime.path",
+          "value": "/opt/runtime-os/cline/runtime/node_modules/deep-extend/package.json"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "name": "default-browser",
+      "version": "5.2.1",
+      "properties": [
+        {
+          "name": "runtime.path",
+          "value": "/opt/runtime-os/cline/runtime/node_modules/default-browser/package.json"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "name": "default-browser-id",
+      "version": "5.0.0",
+      "properties": [
+        {
+          "name": "runtime.path",
+          "value": "/opt/runtime-os/cline/runtime/node_modules/default-browser-id/package.json"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "name": "define-lazy-prop",
+      "version": "3.0.0",
+      "properties": [
+        {
+          "name": "runtime.path",
+          "value": "/opt/runtime-os/cline/runtime/node_modules/define-lazy-prop/package.json"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "name": "detect-libc",
+      "version": "2.0.4",
+      "properties": [
+        {
+          "name": "runtime.path",
+          "value": "/opt/runtime-os/cline/runtime/node_modules/detect-libc/package.json"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "name": "emoji-regex",
+      "version": "8.0.0",
+      "properties": [
+        {
+          "name": "runtime.path",
+          "value": "/opt/runtime-os/cline/runtime/node_modules/emoji-regex/package.json"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "name": "end-of-stream",
+      "version": "1.4.5",
+      "properties": [
+        {
+          "name": "runtime.path",
+          "value": "/opt/runtime-os/cline/runtime/node_modules/end-of-stream/package.json"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "name": "escalade",
+      "version": "3.2.0",
+      "properties": [
+        {
+          "name": "runtime.path",
+          "value": "/opt/runtime-os/cline/runtime/node_modules/escalade/package.json"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "name": "events-universal",
+      "version": "1.0.1",
+      "properties": [
+        {
+          "name": "runtime.path",
+          "value": "/opt/runtime-os/cline/runtime/node_modules/events-universal/package.json"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "name": "expand-template",
+      "version": "2.0.3",
+      "properties": [
+        {
+          "name": "runtime.path",
+          "value": "/opt/runtime-os/cline/runtime/node_modules/expand-template/package.json"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "name": "fast-fifo",
+      "version": "1.3.2",
+      "properties": [
+        {
+          "name": "runtime.path",
+          "value": "/opt/runtime-os/cline/runtime/node_modules/fast-fifo/package.json"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "name": "file-uri-to-path",
+      "version": "1.0.0",
+      "properties": [
+        {
+          "name": "runtime.path",
+          "value": "/opt/runtime-os/cline/runtime/node_modules/file-uri-to-path/package.json"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "name": "get-caller-file",
+      "version": "2.0.5",
+      "properties": [
+        {
+          "name": "runtime.path",
+          "value": "/opt/runtime-os/cline/runtime/node_modules/get-caller-file/package.json"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "name": "beep-boop",
+      "version": "1.2.3",
+      "properties": [
+        {
+          "name": "runtime.path",
+          "value": "/opt/runtime-os/cline/runtime/node_modules/github-from-package/example/package.json"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "name": "github-from-package",
+      "version": "0.0.0",
+      "properties": [
+        {
+          "name": "runtime.path",
+          "value": "/opt/runtime-os/cline/runtime/node_modules/github-from-package/package.json"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "name": "grpc-health-check",
+      "version": "2.0.2",
+      "properties": [
+        {
+          "name": "runtime.path",
+          "value": "/opt/runtime-os/cline/runtime/node_modules/grpc-health-check/package.json"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "name": "ini",
+      "version": "1.3.8",
+      "properties": [
+        {
+          "name": "runtime.path",
+          "value": "/opt/runtime-os/cline/runtime/node_modules/ini/package.json"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "name": "is-docker",
+      "version": "3.0.0",
+      "properties": [
+        {
+          "name": "runtime.path",
+          "value": "/opt/runtime-os/cline/runtime/node_modules/is-docker/package.json"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "name": "is-fullwidth-code-point",
+      "version": "3.0.0",
+      "properties": [
+        {
+          "name": "runtime.path",
+          "value": "/opt/runtime-os/cline/runtime/node_modules/is-fullwidth-code-point/package.json"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "name": "is-inside-container",
+      "version": "1.0.0",
+      "properties": [
+        {
+          "name": "runtime.path",
+          "value": "/opt/runtime-os/cline/runtime/node_modules/is-inside-container/package.json"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "name": "is-wsl",
+      "version": "3.1.0",
+      "properties": [
+        {
+          "name": "runtime.path",
+          "value": "/opt/runtime-os/cline/runtime/node_modules/is-wsl/package.json"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "name": "lodash.camelcase",
+      "version": "4.3.0",
+      "properties": [
+        {
+          "name": "runtime.path",
+          "value": "/opt/runtime-os/cline/runtime/node_modules/lodash.camelcase/package.json"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "name": "long",
+      "version": "5.3.2",
+      "properties": [
+        {
+          "name": "runtime.path",
+          "value": "/opt/runtime-os/cline/runtime/node_modules/long/package.json"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "name": "mimic-response",
+      "version": "3.1.0",
+      "properties": [
+        {
+          "name": "runtime.path",
+          "value": "/opt/runtime-os/cline/runtime/node_modules/mimic-response/package.json"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "name": "minimist",
+      "version": "1.2.8",
+      "properties": [
+        {
+          "name": "runtime.path",
+          "value": "/opt/runtime-os/cline/runtime/node_modules/minimist/package.json"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "name": "mkdirp-classic",
+      "version": "0.5.3",
+      "properties": [
+        {
+          "name": "runtime.path",
+          "value": "/opt/runtime-os/cline/runtime/node_modules/mkdirp-classic/package.json"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "name": "napi-build-utils",
+      "version": "2.0.0",
+      "properties": [
+        {
+          "name": "runtime.path",
+          "value": "/opt/runtime-os/cline/runtime/node_modules/napi-build-utils/package.json"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "name": "node-abi",
+      "version": "3.77.0",
+      "properties": [
+        {
+          "name": "runtime.path",
+          "value": "/opt/runtime-os/cline/runtime/node_modules/node-abi/package.json"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "name": "once",
+      "version": "1.4.0",
+      "properties": [
+        {
+          "name": "runtime.path",
+          "value": "/opt/runtime-os/cline/runtime/node_modules/once/package.json"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "name": "open",
+      "version": "10.1.2",
+      "properties": [
+        {
+          "name": "runtime.path",
+          "value": "/opt/runtime-os/cline/runtime/node_modules/open/package.json"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "name": "prebuild-install",
+      "version": "7.1.3",
+      "properties": [
+        {
+          "name": "runtime.path",
+          "value": "/opt/runtime-os/cline/runtime/node_modules/prebuild-install/package.json"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "name": "protobufjs",
+      "version": "7.6.5",
+      "properties": [
+        {
+          "name": "runtime.path",
+          "value": "/opt/runtime-os/cline/runtime/node_modules/protobufjs/package.json"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "name": "pump",
+      "version": "3.0.3",
+      "properties": [
+        {
+          "name": "runtime.path",
+          "value": "/opt/runtime-os/cline/runtime/node_modules/pump/package.json"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "name": "rc",
+      "version": "1.2.8",
+      "properties": [
+        {
+          "name": "runtime.path",
+          "value": "/opt/runtime-os/cline/runtime/node_modules/rc/package.json"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "name": "require-directory",
+      "version": "2.1.1",
+      "properties": [
+        {
+          "name": "runtime.path",
+          "value": "/opt/runtime-os/cline/runtime/node_modules/require-directory/package.json"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "name": "run-applescript",
+      "version": "7.0.0",
+      "properties": [
+        {
+          "name": "runtime.path",
+          "value": "/opt/runtime-os/cline/runtime/node_modules/run-applescript/package.json"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "name": "safe-buffer",
+      "version": "5.2.1",
+      "properties": [
+        {
+          "name": "runtime.path",
+          "value": "/opt/runtime-os/cline/runtime/node_modules/safe-buffer/package.json"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "name": "semver",
+      "version": "7.7.2",
+      "properties": [
+        {
+          "name": "runtime.path",
+          "value": "/opt/runtime-os/cline/runtime/node_modules/semver/package.json"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "name": "simple-concat",
+      "version": "1.0.1",
+      "properties": [
+        {
+          "name": "runtime.path",
+          "value": "/opt/runtime-os/cline/runtime/node_modules/simple-concat/package.json"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "name": "simple-get",
+      "version": "4.0.1",
+      "properties": [
+        {
+          "name": "runtime.path",
+          "value": "/opt/runtime-os/cline/runtime/node_modules/simple-get/package.json"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "name": "streamx",
+      "version": "2.23.0",
+      "properties": [
+        {
+          "name": "runtime.path",
+          "value": "/opt/runtime-os/cline/runtime/node_modules/streamx/package.json"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "name": "string-width",
+      "version": "4.2.3",
+      "properties": [
+        {
+          "name": "runtime.path",
+          "value": "/opt/runtime-os/cline/runtime/node_modules/string-width/package.json"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "name": "strip-ansi",
+      "version": "6.0.1",
+      "properties": [
+        {
+          "name": "runtime.path",
+          "value": "/opt/runtime-os/cline/runtime/node_modules/strip-ansi/package.json"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "name": "strip-json-comments",
+      "version": "2.0.1",
+      "properties": [
+        {
+          "name": "runtime.path",
+          "value": "/opt/runtime-os/cline/runtime/node_modules/strip-json-comments/package.json"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "name": "tar-fs",
+      "version": "3.1.1",
+      "properties": [
+        {
+          "name": "runtime.path",
+          "value": "/opt/runtime-os/cline/runtime/node_modules/tar-fs/package.json"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "name": "tar-stream",
+      "version": "3.1.7",
+      "properties": [
+        {
+          "name": "runtime.path",
+          "value": "/opt/runtime-os/cline/runtime/node_modules/tar-stream/package.json"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "name": "text-decoder",
+      "version": "1.2.3",
+      "properties": [
+        {
+          "name": "runtime.path",
+          "value": "/opt/runtime-os/cline/runtime/node_modules/text-decoder/package.json"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "name": "tunnel-agent",
+      "version": "0.6.0",
+      "properties": [
+        {
+          "name": "runtime.path",
+          "value": "/opt/runtime-os/cline/runtime/node_modules/tunnel-agent/package.json"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "name": "undici-types",
+      "version": "6.21.0",
+      "properties": [
+        {
+          "name": "runtime.path",
+          "value": "/opt/runtime-os/cline/runtime/node_modules/undici-types/package.json"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "name": "vscode",
+      "version": "1.0.0",
+      "properties": [
+        {
+          "name": "runtime.path",
+          "value": "/opt/runtime-os/cline/runtime/node_modules/vscode/package.json"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "name": "vscode-uri",
+      "version": "3.1.0",
+      "properties": [
+        {
+          "name": "runtime.path",
+          "value": "/opt/runtime-os/cline/runtime/node_modules/vscode-uri/package.json"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "name": "wrap-ansi",
+      "version": "7.0.0",
+      "properties": [
+        {
+          "name": "runtime.path",
+          "value": "/opt/runtime-os/cline/runtime/node_modules/wrap-ansi/package.json"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "name": "wrappy",
+      "version": "1.0.2",
+      "properties": [
+        {
+          "name": "runtime.path",
+          "value": "/opt/runtime-os/cline/runtime/node_modules/wrappy/package.json"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "name": "y18n",
+      "version": "5.0.8",
+      "properties": [
+        {
+          "name": "runtime.path",
+          "value": "/opt/runtime-os/cline/runtime/node_modules/y18n/package.json"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "name": "yargs",
+      "version": "17.7.2",
+      "properties": [
+        {
+          "name": "runtime.path",
+          "value": "/opt/runtime-os/cline/runtime/node_modules/yargs/package.json"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "name": "yargs-parser",
+      "version": "21.1.1",
+      "properties": [
+        {
+          "name": "runtime.path",
+          "value": "/opt/runtime-os/cline/runtime/node_modules/yargs-parser/package.json"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "name": "cline-core",
+      "version": "0.0.1",
+      "properties": [
+        {
+          "name": "runtime.path",
+          "value": "/opt/runtime-os/cline/runtime/package.json"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "name": "@cline/agents",
+      "version": "0.2.0",
+      "properties": [
+        {
+          "name": "runtime.path",
+          "value": "/opt/runtime-os/cline/runtime/plugin-runtime/node_modules/@cline/agents/package.json"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "name": "@cline/core",
+      "version": "0.2.0",
+      "properties": [
+        {
+          "name": "runtime.path",
+          "value": "/opt/runtime-os/cline/runtime/plugin-runtime/node_modules/@cline/core/package.json"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "name": "@cline/llms",
+      "version": "0.2.0",
+      "properties": [
+        {
+          "name": "runtime.path",
+          "value": "/opt/runtime-os/cline/runtime/plugin-runtime/node_modules/@cline/llms/package.json"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "name": "@cline/sdk",
+      "version": "0.2.0",
+      "properties": [
+        {
+          "name": "runtime.path",
+          "value": "/opt/runtime-os/cline/runtime/plugin-runtime/node_modules/@cline/sdk/package.json"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "name": "@cline/shared",
+      "version": "0.2.0",
+      "properties": [
+        {
+          "name": "runtime.path",
+          "value": "/opt/runtime-os/cline/runtime/plugin-runtime/node_modules/@cline/shared/package.json"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "name": "json-schema-validator",
+      "group": "com.networknt",
+      "version": "2.0.4",
+      "purl": "pkg:maven/com.networknt/json-schema-validator@2.0.4"
+    },
+    {
+      "type": "library",
+      "name": "itu",
+      "group": "com.ethlo.time",
+      "version": "1.14.0",
+      "purl": "pkg:maven/com.ethlo.time/itu@1.14.0"
+    },
+    {
+      "type": "library",
+      "name": "jackson-dataformat-yaml",
+      "group": "com.fasterxml.jackson.dataformat",
+      "version": "2.19.1",
+      "purl": "pkg:maven/com.fasterxml.jackson.dataformat/jackson-dataformat-yaml@2.19.1"
+    },
+    {
+      "type": "library",
+      "name": "slf4j-api",
+      "group": "org.slf4j",
+      "version": "2.0.17",
+      "purl": "pkg:maven/org.slf4j/slf4j-api@2.0.17"
+    },
+    {
+      "type": "library",
+      "name": "guava",
+      "group": "com.google.guava",
+      "version": "33.3.1-jre",
+      "purl": "pkg:maven/com.google.guava/guava@33.3.1-jre"
+    },
+    {
+      "type": "library",
+      "name": "failureaccess",
+      "group": "com.google.guava",
+      "version": "1.0.2",
+      "purl": "pkg:maven/com.google.guava/failureaccess@1.0.2"
+    },
+    {
+      "type": "library",
+      "name": "listenablefuture",
+      "group": "com.google.guava",
+      "version": "9999.0-empty-to-avoid-conflict-with-guava",
+      "purl": "pkg:maven/com.google.guava/listenablefuture@9999.0-empty-to-avoid-conflict-with-guava"
+    },
+    {
+      "type": "library",
+      "name": "jsr305",
+      "group": "com.google.code.findbugs",
+      "version": "3.0.2",
+      "purl": "pkg:maven/com.google.code.findbugs/jsr305@3.0.2"
+    },
+    {
+      "type": "library",
+      "name": "j2objc-annotations",
+      "group": "com.google.j2objc",
+      "version": "3.0.0",
+      "purl": "pkg:maven/com.google.j2objc/j2objc-annotations@3.0.0"
+    },
+    {
+      "type": "library",
+      "name": "annotations",
+      "group": "org.jetbrains",
+      "version": "13.0",
+      "purl": "pkg:maven/org.jetbrains/annotations@13.0"
+    },
+    {
+      "type": "library",
+      "name": "jackson-core",
+      "group": "com.fasterxml.jackson.core",
+      "version": "2.19.1",
+      "purl": "pkg:maven/com.fasterxml.jackson.core/jackson-core@2.19.1"
+    },
+    {
+      "type": "library",
+      "name": "commons-compress",
+      "group": "org.apache.commons",
+      "version": "1.27.1",
+      "purl": "pkg:maven/org.apache.commons/commons-compress@1.27.1"
+    },
+    {
+      "type": "library",
+      "name": "commons-io",
+      "group": "commons-io",
+      "version": "2.16.1",
+      "purl": "pkg:maven/commons-io/commons-io@2.16.1"
+    },
+    {
+      "type": "library",
+      "name": "commons-codec",
+      "group": "commons-codec",
+      "version": "1.18.0",
+      "purl": "pkg:maven/commons-codec/commons-codec@1.18.0"
+    },
+    {
+      "type": "library",
+      "name": "jackson-dataformat-csv",
+      "group": "com.fasterxml.jackson.dataformat",
+      "version": "2.19.1",
+      "purl": "pkg:maven/com.fasterxml.jackson.dataformat/jackson-dataformat-csv@2.19.1"
+    },
+    {
+      "type": "library",
+      "name": "parquet-hadoop",
+      "group": "org.apache.parquet",
+      "version": "1.16.0",
+      "purl": "pkg:maven/org.apache.parquet/parquet-hadoop@1.16.0"
+    },
+    {
+      "type": "library",
+      "name": "parquet-column",
+      "group": "org.apache.parquet",
+      "version": "1.16.0",
+      "purl": "pkg:maven/org.apache.parquet/parquet-column@1.16.0"
+    },
+    {
+      "type": "library",
+      "name": "zero-allocation-hashing",
+      "group": "net.openhft",
+      "version": "0.27ea0",
+      "purl": "pkg:maven/net.openhft/zero-allocation-hashing@0.27ea0"
+    },
+    {
+      "type": "library",
+      "name": "parquet-encoding",
+      "group": "org.apache.parquet",
+      "version": "1.16.0",
+      "purl": "pkg:maven/org.apache.parquet/parquet-encoding@1.16.0"
+    },
+    {
+      "type": "library",
+      "name": "jts-core",
+      "group": "org.locationtech.jts",
+      "version": "1.20.0",
+      "purl": "pkg:maven/org.locationtech.jts/jts-core@1.20.0"
+    },
+    {
+      "type": "library",
+      "name": "parquet-format-structures",
+      "group": "org.apache.parquet",
+      "version": "1.16.0",
+      "purl": "pkg:maven/org.apache.parquet/parquet-format-structures@1.16.0"
+    },
+    {
+      "type": "library",
+      "name": "parquet-common",
+      "group": "org.apache.parquet",
+      "version": "1.16.0",
+      "purl": "pkg:maven/org.apache.parquet/parquet-common@1.16.0"
+    },
+    {
+      "type": "library",
+      "name": "parquet-jackson",
+      "group": "org.apache.parquet",
+      "version": "1.16.0",
+      "purl": "pkg:maven/org.apache.parquet/parquet-jackson@1.16.0"
+    },
+    {
+      "type": "library",
+      "name": "jackson-core",
+      "group": "com.fasterxml.jackson.core",
+      "version": "2.19.2",
+      "purl": "pkg:maven/com.fasterxml.jackson.core/jackson-core@2.19.2"
+    },
+    {
+      "type": "library",
+      "name": "jackson-annotations",
+      "group": "com.fasterxml.jackson.core",
+      "version": "2.19.2",
+      "purl": "pkg:maven/com.fasterxml.jackson.core/jackson-annotations@2.19.2"
+    },
+    {
+      "type": "library",
+      "name": "jackson-databind",
+      "group": "com.fasterxml.jackson.core",
+      "version": "2.19.2",
+      "purl": "pkg:maven/com.fasterxml.jackson.core/jackson-databind@2.19.2"
+    },
+    {
+      "type": "library",
+      "name": "aircompressor",
+      "group": "io.airlift",
+      "version": "2.0.2",
+      "purl": "pkg:maven/io.airlift/aircompressor@2.0.2"
+    },
+    {
+      "type": "library",
+      "name": "commons-pool",
+      "group": "commons-pool",
+      "version": "1.6",
+      "purl": "pkg:maven/commons-pool/commons-pool@1.6"
+    },
+    {
+      "type": "library",
+      "name": "hadoop-common",
+      "group": "org.apache.hadoop",
+      "version": "3.4.1",
+      "purl": "pkg:maven/org.apache.hadoop/hadoop-common@3.4.1"
+    },
+    {
+      "type": "library",
+      "name": "hadoop-mapreduce-client-core",
+      "group": "org.apache.hadoop",
+      "version": "3.4.1",
+      "purl": "pkg:maven/org.apache.hadoop/hadoop-mapreduce-client-core@3.4.1"
+    },
+    {
+      "type": "library",
+      "name": "chatchat-common",
+      "group": "com.chatchat",
+      "version": "1.0.0-SNAPSHOT",
+      "purl": "pkg:maven/com.chatchat/chatchat-common@1.0.0-SNAPSHOT"
+    },
+    {
+      "type": "library",
+      "name": "chatchat-mcp-grpc",
+      "group": "com.chatchat",
+      "version": "1.0.0-SNAPSHOT",
+      "purl": "pkg:maven/com.chatchat/chatchat-mcp-grpc@1.0.0-SNAPSHOT"
+    },
+    {
+      "type": "library",
+      "name": "proto-google-common-protos",
+      "group": "com.google.api.grpc",
+      "version": "2.64.1",
+      "purl": "pkg:maven/com.google.api.grpc/proto-google-common-protos@2.64.1"
+    },
+    {
+      "type": "library",
+      "name": "javax.annotation-api",
+      "group": "javax.annotation",
+      "version": "1.3.2",
+      "purl": "pkg:maven/javax.annotation/javax.annotation-api@1.3.2"
+    },
+    {
+      "type": "library",
+      "name": "annotations",
+      "group": "com.google.android",
+      "version": "4.1.1.4",
+      "purl": "pkg:maven/com.google.android/annotations@4.1.1.4"
+    },
+    {
+      "type": "library",
+      "name": "error_prone_annotations",
+      "group": "com.google.errorprone",
+      "version": "2.50.0",
+      "purl": "pkg:maven/com.google.errorprone/error_prone_annotations@2.50.0"
+    },
+    {
+      "type": "library",
+      "name": "animal-sniffer-annotations",
+      "group": "org.codehaus.mojo",
+      "version": "1.27",
+      "purl": "pkg:maven/org.codehaus.mojo/animal-sniffer-annotations@1.27"
+    },
+    {
+      "type": "library",
+      "name": "chatchat-platform-spring",
+      "group": "com.chatchat",
+      "version": "1.0.0-SNAPSHOT",
+      "purl": "pkg:maven/com.chatchat/chatchat-platform-spring@1.0.0-SNAPSHOT"
+    },
+    {
+      "type": "library",
+      "name": "logback-classic",
+      "group": "ch.qos.logback",
+      "version": "1.5.18",
+      "purl": "pkg:maven/ch.qos.logback/logback-classic@1.5.18"
+    },
+    {
+      "type": "library",
+      "name": "logback-core",
+      "group": "ch.qos.logback",
+      "version": "1.5.18",
+      "purl": "pkg:maven/ch.qos.logback/logback-core@1.5.18"
+    },
+    {
+      "type": "library",
+      "name": "log4j-to-slf4j",
+      "group": "org.apache.logging.log4j",
+      "version": "2.24.3",
+      "purl": "pkg:maven/org.apache.logging.log4j/log4j-to-slf4j@2.24.3"
+    },
+    {
+      "type": "library",
+      "name": "jul-to-slf4j",
+      "group": "org.slf4j",
+      "version": "2.0.17",
+      "purl": "pkg:maven/org.slf4j/jul-to-slf4j@2.0.17"
+    },
+    {
+      "type": "library",
+      "name": "jakarta.annotation-api",
+      "group": "jakarta.annotation",
+      "version": "2.1.1",
+      "purl": "pkg:maven/jakarta.annotation/jakarta.annotation-api@2.1.1"
+    },
+    {
+      "type": "library",
+      "name": "chatchat-agents",
+      "group": "com.chatchat",
+      "version": "1.0.0-SNAPSHOT",
+      "purl": "pkg:maven/com.chatchat/chatchat-agents@1.0.0-SNAPSHOT"
+    },
+    {
+      "type": "library",
+      "name": "langgraph4j-core",
+      "group": "org.bsc.langgraph4j",
+      "version": "1.8.20",
+      "purl": "pkg:maven/org.bsc.langgraph4j/langgraph4j-core@1.8.20"
+    },
+    {
+      "type": "library",
+      "name": "async-generator",
+      "group": "org.bsc.async",
+      "version": "4.3.1",
+      "purl": "pkg:maven/org.bsc.async/async-generator@4.3.1"
+    },
+    {
+      "type": "library",
+      "name": "langchain4j-core",
+      "group": "dev.langchain4j",
+      "version": "1.20.0",
+      "purl": "pkg:maven/dev.langchain4j/langchain4j-core@1.20.0"
+    },
+    {
+      "type": "library",
+      "name": "gson",
+      "group": "com.google.code.gson",
+      "version": "2.13.1",
+      "purl": "pkg:maven/com.google.code.gson/gson@2.13.1"
+    },
+    {
+      "type": "library",
+      "name": "snakeyaml",
+      "group": "org.yaml",
+      "version": "2.4",
+      "purl": "pkg:maven/org.yaml/snakeyaml@2.4"
+    },
+    {
+      "type": "library",
+      "name": "commons-lang3",
+      "group": "org.apache.commons",
+      "version": "3.17.0",
+      "purl": "pkg:maven/org.apache.commons/commons-lang3@3.17.0"
+    },
+    {
+      "type": "library",
+      "name": "jackson-datatype-jsr310",
+      "group": "com.fasterxml.jackson.datatype",
+      "version": "2.19.1",
+      "purl": "pkg:maven/com.fasterxml.jackson.datatype/jackson-datatype-jsr310@2.19.1"
+    },
+    {
+      "type": "library",
+      "name": "chatchat-runtime-mcp",
+      "group": "com.chatchat",
+      "version": "1.0.0-SNAPSHOT",
+      "purl": "pkg:maven/com.chatchat/chatchat-runtime-mcp@1.0.0-SNAPSHOT"
+    },
+    {
+      "type": "library",
+      "name": "mcp",
+      "group": "io.modelcontextprotocol.sdk",
+      "version": "2.0.1",
+      "purl": "pkg:maven/io.modelcontextprotocol.sdk/mcp@2.0.1"
+    },
+    {
+      "type": "library",
+      "name": "mcp-core",
+      "group": "io.modelcontextprotocol.sdk",
+      "version": "2.0.1",
+      "purl": "pkg:maven/io.modelcontextprotocol.sdk/mcp-core@2.0.1"
+    },
+    {
+      "type": "library",
+      "name": "mcp-json-jackson2",
+      "group": "io.modelcontextprotocol.sdk",
+      "version": "2.0.1",
+      "purl": "pkg:maven/io.modelcontextprotocol.sdk/mcp-json-jackson2@2.0.1"
+    },
+    {
+      "type": "library",
+      "name": "netty-common",
+      "group": "io.netty",
+      "version": "4.1.122.Final",
+      "purl": "pkg:maven/io.netty/netty-common@4.1.122.Final"
+    },
+    {
+      "type": "library",
+      "name": "jctools-core",
+      "group": "org.jctools",
+      "version": "4.0.5",
+      "purl": "pkg:maven/org.jctools/jctools-core@4.0.5"
+    },
+    {
+      "type": "library",
+      "name": "netty-handler",
+      "group": "io.netty",
+      "version": "4.1.122.Final",
+      "purl": "pkg:maven/io.netty/netty-handler@4.1.122.Final"
+    },
+    {
+      "type": "library",
+      "name": "netty-resolver",
+      "group": "io.netty",
+      "version": "4.1.122.Final",
+      "purl": "pkg:maven/io.netty/netty-resolver@4.1.122.Final"
+    },
+    {
+      "type": "library",
+      "name": "netty-buffer",
+      "group": "io.netty",
+      "version": "4.1.122.Final",
+      "purl": "pkg:maven/io.netty/netty-buffer@4.1.122.Final"
+    },
+    {
+      "type": "library",
+      "name": "netty-transport-native-unix-common",
+      "group": "io.netty",
+      "version": "4.1.122.Final",
+      "purl": "pkg:maven/io.netty/netty-transport-native-unix-common@4.1.122.Final"
+    },
+    {
+      "type": "library",
+      "name": "netty-codec",
+      "group": "io.netty",
+      "version": "4.1.122.Final",
+      "purl": "pkg:maven/io.netty/netty-codec@4.1.122.Final"
+    },
+    {
+      "type": "library",
+      "name": "netty-transport",
+      "group": "io.netty",
+      "version": "4.1.122.Final",
+      "purl": "pkg:maven/io.netty/netty-transport@4.1.122.Final"
+    },
+    {
+      "type": "library",
+      "name": "angus-activation",
+      "group": "org.eclipse.angus",
+      "version": "2.0.2",
+      "purl": "pkg:maven/org.eclipse.angus/angus-activation@2.0.2"
+    },
+    {
+      "type": "library",
+      "name": "commonmark",
+      "group": "org.commonmark",
+      "version": "0.28.0",
+      "purl": "pkg:maven/org.commonmark/commonmark@0.28.0"
+    },
+    {
+      "type": "library",
+      "name": "commonmark-ext-gfm-tables",
+      "group": "org.commonmark",
+      "version": "0.28.0",
+      "purl": "pkg:maven/org.commonmark/commonmark-ext-gfm-tables@0.28.0"
+    },
+    {
+      "type": "library",
+      "name": "jcl-over-slf4j",
+      "group": "org.slf4j",
+      "version": "2.0.17",
+      "purl": "pkg:maven/org.slf4j/jcl-over-slf4j@2.0.17"
+    },
+    {
+      "type": "library",
+      "name": "commons-math3",
+      "group": "org.apache.commons",
+      "version": "3.6.1",
+      "purl": "pkg:maven/org.apache.commons/commons-math3@3.6.1"
+    },
+    {
+      "type": "library",
+      "name": "SparseBitSet",
+      "group": "com.zaxxer",
+      "version": "1.3",
+      "purl": "pkg:maven/com.zaxxer/SparseBitSet@1.3"
+    },
+    {
+      "type": "library",
+      "name": "curvesapi",
+      "group": "com.github.virtuald",
+      "version": "1.08",
+      "purl": "pkg:maven/com.github.virtuald/curvesapi@1.08"
+    },
+    {
+      "type": "library",
+      "name": "log4j-api",
+      "group": "org.apache.logging.log4j",
+      "version": "2.24.3",
+      "purl": "pkg:maven/org.apache.logging.log4j/log4j-api@2.24.3"
+    },
+    {
+      "type": "library",
+      "name": "commons-collections4",
+      "group": "org.apache.commons",
+      "version": "4.4",
+      "purl": "pkg:maven/org.apache.commons/commons-collections4@4.4"
+    },
+    {
+      "type": "library",
+      "name": "httpclient",
+      "group": "org.apache.httpcomponents",
+      "version": "4.5.14",
+      "purl": "pkg:maven/org.apache.httpcomponents/httpclient@4.5.14"
+    },
+    {
+      "type": "library",
+      "name": "httpcore",
+      "group": "org.apache.httpcomponents",
+      "version": "4.4.16",
+      "purl": "pkg:maven/org.apache.httpcomponents/httpcore@4.4.16"
+    },
+    {
+      "type": "library",
+      "name": "httpasyncclient",
+      "group": "org.apache.httpcomponents",
+      "version": "4.1.5",
+      "purl": "pkg:maven/org.apache.httpcomponents/httpasyncclient@4.1.5"
+    },
+    {
+      "type": "library",
+      "name": "httpcore-nio",
+      "group": "org.apache.httpcomponents",
+      "version": "4.4.16",
+      "purl": "pkg:maven/org.apache.httpcomponents/httpcore-nio@4.4.16"
+    },
+    {
+      "type": "library",
+      "name": "commons-logging",
+      "group": "commons-logging",
+      "version": "1.2",
+      "purl": "pkg:maven/commons-logging/commons-logging@1.2"
+    },
+    {
+      "type": "library",
+      "name": "chatchat-runtime-skill",
+      "group": "com.chatchat",
+      "version": "1.0.0-SNAPSHOT",
+      "purl": "pkg:maven/com.chatchat/chatchat-runtime-skill@1.0.0-SNAPSHOT"
+    },
+    {
+      "type": "library",
+      "name": "chatchat-runtime-temporal",
+      "group": "com.chatchat",
+      "version": "1.0.0-SNAPSHOT",
+      "purl": "pkg:maven/com.chatchat/chatchat-runtime-temporal@1.0.0-SNAPSHOT"
+    },
+    {
+      "type": "library",
+      "name": "HdrHistogram",
+      "group": "org.hdrhistogram",
+      "version": "2.2.2",
+      "purl": "pkg:maven/org.hdrhistogram/HdrHistogram@2.2.2"
+    },
+    {
+      "type": "library",
+      "name": "LatencyUtils",
+      "group": "org.latencyutils",
+      "version": "2.0.3",
+      "purl": "pkg:maven/org.latencyutils/LatencyUtils@2.0.3"
+    },
+    {
+      "type": "library",
+      "name": "jackson-datatype-jdk8",
+      "group": "com.fasterxml.jackson.datatype",
+      "version": "2.19.1",
+      "purl": "pkg:maven/com.fasterxml.jackson.datatype/jackson-datatype-jdk8@2.19.1"
+    },
+    {
+      "type": "library",
+      "name": "chatchat-knowledge-base",
+      "group": "com.chatchat",
+      "version": "1.0.0-SNAPSHOT",
+      "purl": "pkg:maven/com.chatchat/chatchat-knowledge-base@1.0.0-SNAPSHOT"
+    },
+    {
+      "type": "library",
+      "name": "langchain4j-skills",
+      "group": "dev.langchain4j",
+      "version": "1.20.0-beta30",
+      "purl": "pkg:maven/dev.langchain4j/langchain4j-skills@1.20.0-beta30"
+    },
+    {
+      "type": "library",
+      "name": "langchain4j",
+      "group": "dev.langchain4j",
+      "version": "1.20.0",
+      "purl": "pkg:maven/dev.langchain4j/langchain4j@1.20.0"
+    },
+    {
+      "type": "library",
+      "name": "opennlp-tools",
+      "group": "org.apache.opennlp",
+      "version": "2.5.11",
+      "purl": "pkg:maven/org.apache.opennlp/opennlp-tools@2.5.11"
+    },
+    {
+      "type": "library",
+      "name": "commonmark-ext-yaml-front-matter",
+      "group": "org.commonmark",
+      "version": "0.28.0",
+      "purl": "pkg:maven/org.commonmark/commonmark-ext-yaml-front-matter@0.28.0"
+    },
+    {
+      "type": "library",
+      "name": "tika-core",
+      "group": "org.apache.tika",
+      "version": "3.2.1",
+      "purl": "pkg:maven/org.apache.tika/tika-core@3.2.1"
+    },
+    {
+      "type": "library",
+      "name": "tika-parsers-standard-package",
+      "group": "org.apache.tika",
+      "version": "3.2.1",
+      "purl": "pkg:maven/org.apache.tika/tika-parsers-standard-package@3.2.1"
+    },
+    {
+      "type": "library",
+      "name": "tika-parser-apple-module",
+      "group": "org.apache.tika",
+      "version": "3.2.1",
+      "purl": "pkg:maven/org.apache.tika/tika-parser-apple-module@3.2.1"
+    },
+    {
+      "type": "library",
+      "name": "tika-parser-zip-commons",
+      "group": "org.apache.tika",
+      "version": "3.2.1",
+      "purl": "pkg:maven/org.apache.tika/tika-parser-zip-commons@3.2.1"
+    },
+    {
+      "type": "library",
+      "name": "dd-plist",
+      "group": "com.googlecode.plist",
+      "version": "1.28",
+      "purl": "pkg:maven/com.googlecode.plist/dd-plist@1.28"
+    },
+    {
+      "type": "library",
+      "name": "tika-parser-audiovideo-module",
+      "group": "org.apache.tika",
+      "version": "3.2.1",
+      "purl": "pkg:maven/org.apache.tika/tika-parser-audiovideo-module@3.2.1"
+    },
+    {
+      "type": "library",
+      "name": "metadata-extractor",
+      "group": "com.drewnoakes",
+      "version": "2.19.0",
+      "purl": "pkg:maven/com.drewnoakes/metadata-extractor@2.19.0"
+    },
+    {
+      "type": "library",
+      "name": "tika-parser-cad-module",
+      "group": "org.apache.tika",
+      "version": "3.2.1",
+      "purl": "pkg:maven/org.apache.tika/tika-parser-cad-module@3.2.1"
+    },
+    {
+      "type": "library",
+      "name": "tika-parser-code-module",
+      "group": "org.apache.tika",
+      "version": "3.2.1",
+      "purl": "pkg:maven/org.apache.tika/tika-parser-code-module@3.2.1"
+    },
+    {
+      "type": "library",
+      "name": "jhighlight",
+      "group": "org.codelibs",
+      "version": "1.1.0",
+      "purl": "pkg:maven/org.codelibs/jhighlight@1.1.0"
+    },
+    {
+      "type": "library",
+      "name": "jsoup",
+      "group": "org.jsoup",
+      "version": "1.21.1",
+      "purl": "pkg:maven/org.jsoup/jsoup@1.21.1"
+    },
+    {
+      "type": "library",
+      "name": "jmatio",
+      "group": "org.tallison",
+      "version": "1.5",
+      "purl": "pkg:maven/org.tallison/jmatio@1.5"
+    },
+    {
+      "type": "library",
+      "name": "tika-parser-crypto-module",
+      "group": "org.apache.tika",
+      "version": "3.2.1",
+      "purl": "pkg:maven/org.apache.tika/tika-parser-crypto-module@3.2.1"
+    },
+    {
+      "type": "library",
+      "name": "tika-parser-digest-commons",
+      "group": "org.apache.tika",
+      "version": "3.2.1",
+      "purl": "pkg:maven/org.apache.tika/tika-parser-digest-commons@3.2.1"
+    },
+    {
+      "type": "library",
+      "name": "tika-parser-font-module",
+      "group": "org.apache.tika",
+      "version": "3.2.1",
+      "purl": "pkg:maven/org.apache.tika/tika-parser-font-module@3.2.1"
+    },
+    {
+      "type": "library",
+      "name": "fontbox",
+      "group": "org.apache.pdfbox",
+      "version": "3.0.5",
+      "purl": "pkg:maven/org.apache.pdfbox/fontbox@3.0.5"
+    },
+    {
+      "type": "library",
+      "name": "pdfbox-io",
+      "group": "org.apache.pdfbox",
+      "version": "3.0.5",
+      "purl": "pkg:maven/org.apache.pdfbox/pdfbox-io@3.0.5"
+    },
+    {
+      "type": "library",
+      "name": "tika-parser-html-module",
+      "group": "org.apache.tika",
+      "version": "3.2.1",
+      "purl": "pkg:maven/org.apache.tika/tika-parser-html-module@3.2.1"
+    },
+    {
+      "type": "library",
+      "name": "tika-parser-image-module",
+      "group": "org.apache.tika",
+      "version": "3.2.1",
+      "purl": "pkg:maven/org.apache.tika/tika-parser-image-module@3.2.1"
+    },
+    {
+      "type": "library",
+      "name": "jai-imageio-core",
+      "group": "com.github.jai-imageio",
+      "version": "1.4.0",
+      "purl": "pkg:maven/com.github.jai-imageio/jai-imageio-core@1.4.0"
+    },
+    {
+      "type": "library",
+      "name": "jbig2-imageio",
+      "group": "org.apache.pdfbox",
+      "version": "3.0.4",
+      "purl": "pkg:maven/org.apache.pdfbox/jbig2-imageio@3.0.4"
+    },
+    {
+      "type": "library",
+      "name": "tika-parser-mail-module",
+      "group": "org.apache.tika",
+      "version": "3.2.1",
+      "purl": "pkg:maven/org.apache.tika/tika-parser-mail-module@3.2.1"
+    },
+    {
+      "type": "library",
+      "name": "tika-parser-mail-commons",
+      "group": "org.apache.tika",
+      "version": "3.2.1",
+      "purl": "pkg:maven/org.apache.tika/tika-parser-mail-commons@3.2.1"
+    },
+    {
+      "type": "library",
+      "name": "apache-mime4j-core",
+      "group": "org.apache.james",
+      "version": "0.8.12",
+      "purl": "pkg:maven/org.apache.james/apache-mime4j-core@0.8.12"
+    },
+    {
+      "type": "library",
+      "name": "apache-mime4j-dom",
+      "group": "org.apache.james",
+      "version": "0.8.12",
+      "purl": "pkg:maven/org.apache.james/apache-mime4j-dom@0.8.12"
+    },
+    {
+      "type": "library",
+      "name": "tika-parser-microsoft-module",
+      "group": "org.apache.tika",
+      "version": "3.2.1",
+      "purl": "pkg:maven/org.apache.tika/tika-parser-microsoft-module@3.2.1"
+    },
+    {
+      "type": "library",
+      "name": "java-libpst",
+      "group": "com.pff",
+      "version": "0.9.3",
+      "purl": "pkg:maven/com.pff/java-libpst@0.9.3"
+    },
+    {
+      "type": "library",
+      "name": "jackcess",
+      "group": "com.healthmarketscience.jackcess",
+      "version": "4.0.8",
+      "purl": "pkg:maven/com.healthmarketscience.jackcess/jackcess@4.0.8"
+    },
+    {
+      "type": "library",
+      "name": "jackcess-encrypt",
+      "group": "com.healthmarketscience.jackcess",
+      "version": "4.0.3",
+      "purl": "pkg:maven/com.healthmarketscience.jackcess/jackcess-encrypt@4.0.3"
+    },
+    {
+      "type": "library",
+      "name": "tika-parser-miscoffice-module",
+      "group": "org.apache.tika",
+      "version": "3.2.1",
+      "purl": "pkg:maven/org.apache.tika/tika-parser-miscoffice-module@3.2.1"
+    },
+    {
+      "type": "library",
+      "name": "tika-parser-news-module",
+      "group": "org.apache.tika",
+      "version": "3.2.1",
+      "purl": "pkg:maven/org.apache.tika/tika-parser-news-module@3.2.1"
+    },
+    {
+      "type": "library",
+      "name": "rome",
+      "group": "com.rometools",
+      "version": "2.1.0",
+      "purl": "pkg:maven/com.rometools/rome@2.1.0"
+    },
+    {
+      "type": "library",
+      "name": "rome-utils",
+      "group": "com.rometools",
+      "version": "2.1.0",
+      "purl": "pkg:maven/com.rometools/rome-utils@2.1.0"
+    },
+    {
+      "type": "library",
+      "name": "tika-parser-ocr-module",
+      "group": "org.apache.tika",
+      "version": "3.2.1",
+      "purl": "pkg:maven/org.apache.tika/tika-parser-ocr-module@3.2.1"
+    },
+    {
+      "type": "library",
+      "name": "commons-exec",
+      "group": "org.apache.commons",
+      "version": "1.5.0",
+      "purl": "pkg:maven/org.apache.commons/commons-exec@1.5.0"
+    },
+    {
+      "type": "library",
+      "name": "tika-parser-pdf-module",
+      "group": "org.apache.tika",
+      "version": "3.2.1",
+      "purl": "pkg:maven/org.apache.tika/tika-parser-pdf-module@3.2.1"
+    },
+    {
+      "type": "library",
+      "name": "pdfbox",
+      "group": "org.apache.pdfbox",
+      "version": "3.0.5",
+      "purl": "pkg:maven/org.apache.pdfbox/pdfbox@3.0.5"
+    },
+    {
+      "type": "library",
+      "name": "pdfbox-tools",
+      "group": "org.apache.pdfbox",
+      "version": "3.0.5",
+      "purl": "pkg:maven/org.apache.pdfbox/pdfbox-tools@3.0.5"
+    },
+    {
+      "type": "library",
+      "name": "jempbox",
+      "group": "org.apache.pdfbox",
+      "version": "1.8.17",
+      "purl": "pkg:maven/org.apache.pdfbox/jempbox@1.8.17"
+    },
+    {
+      "type": "library",
+      "name": "tika-parser-pkg-module",
+      "group": "org.apache.tika",
+      "version": "3.2.1",
+      "purl": "pkg:maven/org.apache.tika/tika-parser-pkg-module@3.2.1"
+    },
+    {
+      "type": "library",
+      "name": "dec",
+      "group": "org.brotli",
+      "version": "0.1.2",
+      "purl": "pkg:maven/org.brotli/dec@0.1.2"
+    },
+    {
+      "type": "library",
+      "name": "tika-parser-text-module",
+      "group": "org.apache.tika",
+      "version": "3.2.1",
+      "purl": "pkg:maven/org.apache.tika/tika-parser-text-module@3.2.1"
+    },
+    {
+      "type": "library",
+      "name": "juniversalchardet",
+      "group": "com.github.albfernandez",
+      "version": "2.5.0",
+      "purl": "pkg:maven/com.github.albfernandez/juniversalchardet@2.5.0"
+    },
+    {
+      "type": "library",
+      "name": "commons-csv",
+      "group": "org.apache.commons",
+      "version": "1.14.0",
+      "purl": "pkg:maven/org.apache.commons/commons-csv@1.14.0"
+    },
+    {
+      "type": "library",
+      "name": "tika-parser-webarchive-module",
+      "group": "org.apache.tika",
+      "version": "3.2.1",
+      "purl": "pkg:maven/org.apache.tika/tika-parser-webarchive-module@3.2.1"
+    },
+    {
+      "type": "library",
+      "name": "jwarc",
+      "group": "org.netpreserve",
+      "version": "0.31.1",
+      "purl": "pkg:maven/org.netpreserve/jwarc@0.31.1"
+    },
+    {
+      "type": "library",
+      "name": "tika-parser-xml-module",
+      "group": "org.apache.tika",
+      "version": "3.2.1",
+      "purl": "pkg:maven/org.apache.tika/tika-parser-xml-module@3.2.1"
+    },
+    {
+      "type": "library",
+      "name": "tika-parser-xmp-commons",
+      "group": "org.apache.tika",
+      "version": "3.2.1",
+      "purl": "pkg:maven/org.apache.tika/tika-parser-xmp-commons@3.2.1"
+    },
+    {
+      "type": "library",
+      "name": "xmpbox",
+      "group": "org.apache.pdfbox",
+      "version": "3.0.5",
+      "purl": "pkg:maven/org.apache.pdfbox/xmpbox@3.0.5"
+    },
+    {
+      "type": "library",
+      "name": "vorbis-java-tika",
+      "group": "org.gagravarr",
+      "version": "0.8",
+      "purl": "pkg:maven/org.gagravarr/vorbis-java-tika@0.8"
+    },
+    {
+      "type": "library",
+      "name": "vorbis-java-core",
+      "group": "org.gagravarr",
+      "version": "0.8",
+      "purl": "pkg:maven/org.gagravarr/vorbis-java-core@0.8"
+    },
+    {
+      "type": "library",
+      "name": "chatchat-integration",
+      "group": "com.chatchat",
+      "version": "1.0.0-SNAPSHOT",
+      "purl": "pkg:maven/com.chatchat/chatchat-integration@1.0.0-SNAPSHOT"
+    },
+    {
+      "type": "library",
+      "name": "chatchat-enterprise",
+      "group": "com.chatchat",
+      "version": "1.0.0-SNAPSHOT",
+      "purl": "pkg:maven/com.chatchat/chatchat-enterprise@1.0.0-SNAPSHOT"
+    },
+    {
+      "type": "library",
+      "name": "chatchat-chat",
+      "group": "com.chatchat",
+      "version": "1.0.0-SNAPSHOT",
+      "purl": "pkg:maven/com.chatchat/chatchat-chat@1.0.0-SNAPSHOT"
+    },
+    {
+      "type": "library",
+      "name": "google-adk-langchain4j",
+      "group": "com.google.adk",
+      "version": "1.7.0",
+      "purl": "pkg:maven/com.google.adk/google-adk-langchain4j@1.7.0"
+    },
+    {
+      "type": "library",
+      "name": "google-adk",
+      "group": "com.google.adk",
+      "version": "1.7.0",
+      "purl": "pkg:maven/com.google.adk/google-adk@1.7.0"
+    },
+    {
+      "type": "library",
+      "name": "swagger-annotations",
+      "group": "io.swagger.core.v3",
+      "version": "2.2.31",
+      "purl": "pkg:maven/io.swagger.core.v3/swagger-annotations@2.2.31"
+    },
+    {
+      "type": "library",
+      "name": "jackson-module-kotlin",
+      "group": "com.fasterxml.jackson.module",
+      "version": "2.19.1",
+      "purl": "pkg:maven/com.fasterxml.jackson.module/jackson-module-kotlin@2.19.1"
+    },
+    {
+      "type": "library",
+      "name": "httpcore5",
+      "group": "org.apache.httpcomponents.core5",
+      "version": "5.3.4",
+      "purl": "pkg:maven/org.apache.httpcomponents.core5/httpcore5@5.3.4"
+    },
+    {
+      "type": "library",
+      "name": "jsonschema-generator",
+      "group": "com.github.victools",
+      "version": "4.38.0",
+      "purl": "pkg:maven/com.github.victools/jsonschema-generator@4.38.0"
+    },
+    {
+      "type": "library",
+      "name": "jsonschema-module-jackson",
+      "group": "com.github.victools",
+      "version": "4.38.0",
+      "purl": "pkg:maven/com.github.victools/jsonschema-module-jackson@4.38.0"
+    },
+    {
+      "type": "library",
+      "name": "jsonschema-module-swagger-2",
+      "group": "com.github.victools",
+      "version": "4.38.0",
+      "purl": "pkg:maven/com.github.victools/jsonschema-module-swagger-2@4.38.0"
+    },
+    {
+      "type": "library",
+      "name": "google-cloud-speech",
+      "group": "com.google.cloud",
+      "version": "4.80.0",
+      "purl": "pkg:maven/com.google.cloud/google-cloud-speech@4.80.0"
+    },
+    {
+      "type": "library",
+      "name": "proto-google-cloud-speech-v1p1beta1",
+      "group": "com.google.api.grpc",
+      "version": "2.80.0",
+      "purl": "pkg:maven/com.google.api.grpc/proto-google-cloud-speech-v1p1beta1@2.80.0"
+    },
+    {
+      "type": "library",
+      "name": "proto-google-cloud-speech-v2",
+      "group": "com.google.api.grpc",
+      "version": "4.80.0",
+      "purl": "pkg:maven/com.google.api.grpc/proto-google-cloud-speech-v2@4.80.0"
+    },
+    {
+      "type": "library",
+      "name": "proto-google-iam-v1",
+      "group": "com.google.api.grpc",
+      "version": "1.60.1",
+      "purl": "pkg:maven/com.google.api.grpc/proto-google-iam-v1@1.60.1"
+    },
+    {
+      "type": "library",
+      "name": "proto-google-cloud-speech-v1",
+      "group": "com.google.api.grpc",
+      "version": "4.80.0",
+      "purl": "pkg:maven/com.google.api.grpc/proto-google-cloud-speech-v1@4.80.0"
+    },
+    {
+      "type": "library",
+      "name": "auto-value-annotations",
+      "group": "com.google.auto.value",
+      "version": "1.11.0",
+      "purl": "pkg:maven/com.google.auto.value/auto-value-annotations@1.11.0"
+    },
+    {
+      "type": "library",
+      "name": "gax",
+      "group": "com.google.api",
+      "version": "2.74.1",
+      "purl": "pkg:maven/com.google.api/gax@2.74.1"
+    },
+    {
+      "type": "library",
+      "name": "google-auth-library-credentials",
+      "group": "com.google.auth",
+      "version": "1.42.1",
+      "purl": "pkg:maven/com.google.auth/google-auth-library-credentials@1.42.1"
+    },
+    {
+      "type": "library",
+      "name": "gax-grpc",
+      "group": "com.google.api",
+      "version": "2.74.1",
+      "purl": "pkg:maven/com.google.api/gax-grpc@2.74.1"
+    },
+    {
+      "type": "library",
+      "name": "gax-httpjson",
+      "group": "com.google.api",
+      "version": "2.74.1",
+      "purl": "pkg:maven/com.google.api/gax-httpjson@2.74.1"
+    },
+    {
+      "type": "library",
+      "name": "google-http-client",
+      "group": "com.google.http-client",
+      "version": "2.1.0",
+      "purl": "pkg:maven/com.google.http-client/google-http-client@2.1.0"
+    },
+    {
+      "type": "library",
+      "name": "google-http-client-gson",
+      "group": "com.google.http-client",
+      "version": "2.1.0",
+      "purl": "pkg:maven/com.google.http-client/google-http-client-gson@2.1.0"
+    },
+    {
+      "type": "library",
+      "name": "threetenbp",
+      "group": "org.threeten",
+      "version": "1.7.0",
+      "purl": "pkg:maven/org.threeten/threetenbp@1.7.0"
+    },
+    {
+      "type": "library",
+      "name": "google-cloud-aiplatform",
+      "group": "com.google.cloud",
+      "version": "3.86.0",
+      "purl": "pkg:maven/com.google.cloud/google-cloud-aiplatform@3.86.0"
+    },
+    {
+      "type": "library",
+      "name": "proto-google-cloud-aiplatform-v1beta1",
+      "group": "com.google.api.grpc",
+      "version": "0.102.0",
+      "purl": "pkg:maven/com.google.api.grpc/proto-google-cloud-aiplatform-v1beta1@0.102.0"
+    },
+    {
+      "type": "library",
+      "name": "proto-google-cloud-aiplatform-v1",
+      "group": "com.google.api.grpc",
+      "version": "3.86.0",
+      "purl": "pkg:maven/com.google.api.grpc/proto-google-cloud-aiplatform-v1@3.86.0"
+    },
+    {
+      "type": "library",
+      "name": "docker-java",
+      "group": "com.github.docker-java",
+      "version": "3.7.0",
+      "purl": "pkg:maven/com.github.docker-java/docker-java@3.7.0"
+    },
+    {
+      "type": "library",
+      "name": "docker-java-core",
+      "group": "com.github.docker-java",
+      "version": "3.7.0",
+      "purl": "pkg:maven/com.github.docker-java/docker-java-core@3.7.0"
+    },
+    {
+      "type": "library",
+      "name": "docker-java-api",
+      "group": "com.github.docker-java",
+      "version": "3.7.0",
+      "purl": "pkg:maven/com.github.docker-java/docker-java-api@3.7.0"
+    },
+    {
+      "type": "library",
+      "name": "docker-java-transport-jersey",
+      "group": "com.github.docker-java",
+      "version": "3.7.0",
+      "purl": "pkg:maven/com.github.docker-java/docker-java-transport-jersey@3.7.0"
+    },
+    {
+      "type": "library",
+      "name": "jersey-apache-connector",
+      "group": "org.glassfish.jersey.connectors",
+      "version": "3.1.10",
+      "purl": "pkg:maven/org.glassfish.jersey.connectors/jersey-apache-connector@3.1.10"
+    },
+    {
+      "type": "library",
+      "name": "jersey-common",
+      "group": "org.glassfish.jersey.core",
+      "version": "3.1.10",
+      "purl": "pkg:maven/org.glassfish.jersey.core/jersey-common@3.1.10"
+    },
+    {
+      "type": "library",
+      "name": "osgi-resource-locator",
+      "group": "org.glassfish.hk2",
+      "version": "1.0.3",
+      "purl": "pkg:maven/org.glassfish.hk2/osgi-resource-locator@1.0.3"
+    },
+    {
+      "type": "library",
+      "name": "jakarta.ws.rs-api",
+      "group": "jakarta.ws.rs",
+      "version": "3.1.0",
+      "purl": "pkg:maven/jakarta.ws.rs/jakarta.ws.rs-api@3.1.0"
+    },
+    {
+      "type": "library",
+      "name": "jersey-client",
+      "group": "org.glassfish.jersey.core",
+      "version": "3.1.10",
+      "purl": "pkg:maven/org.glassfish.jersey.core/jersey-client@3.1.10"
+    },
+    {
+      "type": "library",
+      "name": "jersey-hk2",
+      "group": "org.glassfish.jersey.inject",
+      "version": "3.1.10",
+      "purl": "pkg:maven/org.glassfish.jersey.inject/jersey-hk2@3.1.10"
+    },
+    {
+      "type": "library",
+      "name": "hk2-locator",
+      "group": "org.glassfish.hk2",
+      "version": "3.0.6",
+      "purl": "pkg:maven/org.glassfish.hk2/hk2-locator@3.0.6"
+    },
+    {
+      "type": "library",
+      "name": "aopalliance-repackaged",
+      "group": "org.glassfish.hk2.external",
+      "version": "3.0.6",
+      "purl": "pkg:maven/org.glassfish.hk2.external/aopalliance-repackaged@3.0.6"
+    },
+    {
+      "type": "library",
+      "name": "hk2-api",
+      "group": "org.glassfish.hk2",
+      "version": "3.0.6",
+      "purl": "pkg:maven/org.glassfish.hk2/hk2-api@3.0.6"
+    },
+    {
+      "type": "library",
+      "name": "hk2-utils",
+      "group": "org.glassfish.hk2",
+      "version": "3.0.6",
+      "purl": "pkg:maven/org.glassfish.hk2/hk2-utils@3.0.6"
+    },
+    {
+      "type": "library",
+      "name": "javassist",
+      "group": "org.javassist",
+      "version": "3.30.2-GA",
+      "purl": "pkg:maven/org.javassist/javassist@3.30.2-GA"
+    },
+    {
+      "type": "library",
+      "name": "junixsocket-common",
+      "group": "com.kohlschutter.junixsocket",
+      "version": "2.10.1",
+      "purl": "pkg:maven/com.kohlschutter.junixsocket/junixsocket-common@2.10.1"
+    },
+    {
+      "type": "library",
+      "name": "junixsocket-native-common",
+      "group": "com.kohlschutter.junixsocket",
+      "version": "2.10.1",
+      "purl": "pkg:maven/com.kohlschutter.junixsocket/junixsocket-native-common@2.10.1"
+    },
+    {
+      "type": "library",
+      "name": "docker-java-transport-netty",
+      "group": "com.github.docker-java",
+      "version": "3.7.0",
+      "purl": "pkg:maven/com.github.docker-java/docker-java-transport-netty@3.7.0"
+    },
+    {
+      "type": "library",
+      "name": "netty-transport-native-kqueue",
+      "group": "io.netty",
+      "version": "4.1.122.Final",
+      "purl": "pkg:maven/io.netty/netty-transport-native-kqueue@4.1.122.Final"
+    },
+    {
+      "type": "library",
+      "name": "netty-transport-classes-kqueue",
+      "group": "io.netty",
+      "version": "4.1.122.Final",
+      "purl": "pkg:maven/io.netty/netty-transport-classes-kqueue@4.1.122.Final"
+    },
+    {
+      "type": "library",
+      "name": "docker-java-transport-httpclient5",
+      "group": "com.github.docker-java",
+      "version": "3.7.0",
+      "purl": "pkg:maven/com.github.docker-java/docker-java-transport-httpclient5@3.7.0"
+    },
+    {
+      "type": "library",
+      "name": "docker-java-transport",
+      "group": "com.github.docker-java",
+      "version": "3.7.0",
+      "purl": "pkg:maven/com.github.docker-java/docker-java-transport@3.7.0"
+    },
+    {
+      "type": "library",
+      "name": "httpclient5",
+      "group": "org.apache.httpcomponents.client5",
+      "version": "5.5",
+      "purl": "pkg:maven/org.apache.httpcomponents.client5/httpclient5@5.5"
+    },
+    {
+      "type": "library",
+      "name": "httpcore5-h2",
+      "group": "org.apache.httpcomponents.core5",
+      "version": "5.3.4",
+      "purl": "pkg:maven/org.apache.httpcomponents.core5/httpcore5-h2@5.3.4"
+    },
+    {
+      "type": "library",
+      "name": "google-auth-library-oauth2-http",
+      "group": "com.google.auth",
+      "version": "1.42.1",
+      "purl": "pkg:maven/com.google.auth/google-auth-library-oauth2-http@1.42.1"
+    },
+    {
+      "type": "library",
+      "name": "google-cloud-storage",
+      "group": "com.google.cloud",
+      "version": "2.63.0",
+      "purl": "pkg:maven/com.google.cloud/google-cloud-storage@2.63.0"
+    },
+    {
+      "type": "library",
+      "name": "jackson-dataformat-xml",
+      "group": "com.fasterxml.jackson.dataformat",
+      "version": "2.19.1",
+      "purl": "pkg:maven/com.fasterxml.jackson.dataformat/jackson-dataformat-xml@2.19.1"
+    },
+    {
+      "type": "library",
+      "name": "stax2-api",
+      "group": "org.codehaus.woodstox",
+      "version": "4.2.2",
+      "purl": "pkg:maven/org.codehaus.woodstox/stax2-api@4.2.2"
+    },
+    {
+      "type": "library",
+      "name": "woodstox-core",
+      "group": "com.fasterxml.woodstox",
+      "version": "7.0.0",
+      "purl": "pkg:maven/com.fasterxml.woodstox/woodstox-core@7.0.0"
+    },
+    {
+      "type": "library",
+      "name": "xsdlib",
+      "group": "net.java.dev.msv",
+      "version": "2022.7",
+      "purl": "pkg:maven/net.java.dev.msv/xsdlib@2022.7"
+    },
+    {
+      "type": "library",
+      "name": "isorelax",
+      "group": "com.sun.xml.bind.jaxb",
+      "version": "20090621",
+      "purl": "pkg:maven/com.sun.xml.bind.jaxb/isorelax@20090621"
+    },
+    {
+      "type": "library",
+      "name": "google-http-client-jackson2",
+      "group": "com.google.http-client",
+      "version": "2.1.0",
+      "purl": "pkg:maven/com.google.http-client/google-http-client-jackson2@2.1.0"
+    },
+    {
+      "type": "library",
+      "name": "google-api-client",
+      "group": "com.google.api-client",
+      "version": "2.7.2",
+      "purl": "pkg:maven/com.google.api-client/google-api-client@2.7.2"
+    },
+    {
+      "type": "library",
+      "name": "google-oauth-client",
+      "group": "com.google.oauth-client",
+      "version": "1.39.0",
+      "purl": "pkg:maven/com.google.oauth-client/google-oauth-client@1.39.0"
+    },
+    {
+      "type": "library",
+      "name": "google-http-client-apache-v2",
+      "group": "com.google.http-client",
+      "version": "2.1.0",
+      "purl": "pkg:maven/com.google.http-client/google-http-client-apache-v2@2.1.0"
+    },
+    {
+      "type": "library",
+      "name": "google-api-services-storage",
+      "group": "com.google.apis",
+      "version": "v1-rev20251118-2.0.0",
+      "purl": "pkg:maven/com.google.apis/google-api-services-storage@v1-rev20251118-2.0.0"
+    },
+    {
+      "type": "library",
+      "name": "google-cloud-core",
+      "group": "com.google.cloud",
+      "version": "2.64.1",
+      "purl": "pkg:maven/com.google.cloud/google-cloud-core@2.64.1"
+    },
+    {
+      "type": "library",
+      "name": "google-cloud-core-http",
+      "group": "com.google.cloud",
+      "version": "2.64.1",
+      "purl": "pkg:maven/com.google.cloud/google-cloud-core-http@2.64.1"
+    },
+    {
+      "type": "library",
+      "name": "google-http-client-appengine",
+      "group": "com.google.http-client",
+      "version": "2.1.0",
+      "purl": "pkg:maven/com.google.http-client/google-http-client-appengine@2.1.0"
+    },
+    {
+      "type": "library",
+      "name": "google-cloud-core-grpc",
+      "group": "com.google.cloud",
+      "version": "2.64.1",
+      "purl": "pkg:maven/com.google.cloud/google-cloud-core-grpc@2.64.1"
+    },
+    {
+      "type": "library",
+      "name": "proto-google-cloud-storage-v2",
+      "group": "com.google.api.grpc",
+      "version": "2.63.0",
+      "purl": "pkg:maven/com.google.api.grpc/proto-google-cloud-storage-v2@2.63.0"
+    },
+    {
+      "type": "library",
+      "name": "grpc-google-cloud-storage-v2",
+      "group": "com.google.api.grpc",
+      "version": "2.63.0",
+      "purl": "pkg:maven/com.google.api.grpc/grpc-google-cloud-storage-v2@2.63.0"
+    },
+    {
+      "type": "library",
+      "name": "gapic-google-cloud-storage-v2",
+      "group": "com.google.api.grpc",
+      "version": "2.63.0",
+      "purl": "pkg:maven/com.google.api.grpc/gapic-google-cloud-storage-v2@2.63.0"
+    },
+    {
+      "type": "library",
+      "name": "google-cloud-monitoring",
+      "group": "com.google.cloud",
+      "version": "3.52.0",
+      "purl": "pkg:maven/com.google.cloud/google-cloud-monitoring@3.52.0"
+    },
+    {
+      "type": "library",
+      "name": "proto-google-cloud-monitoring-v3",
+      "group": "com.google.api.grpc",
+      "version": "3.52.0",
+      "purl": "pkg:maven/com.google.api.grpc/proto-google-cloud-monitoring-v3@3.52.0"
+    },
+    {
+      "type": "library",
+      "name": "Java-WebSocket",
+      "group": "org.java-websocket",
+      "version": "1.6.0",
+      "purl": "pkg:maven/org.java-websocket/Java-WebSocket@1.6.0"
+    },
+    {
+      "type": "library",
+      "name": "jctools-core",
+      "group": "org.jctools",
+      "version": "4.0.5",
+      "purl": "pkg:maven/org.jctools/jctools-core@4.0.5"
+    },
+    {
+      "type": "library",
+      "name": "google-cloud-bigquery",
+      "group": "com.google.cloud",
+      "version": "2.40.0",
+      "purl": "pkg:maven/com.google.cloud/google-cloud-bigquery@2.40.0"
+    },
+    {
+      "type": "library",
+      "name": "google-api-services-bigquery",
+      "group": "com.google.apis",
+      "version": "v2-rev20240323-2.0.0",
+      "purl": "pkg:maven/com.google.apis/google-api-services-bigquery@v2-rev20240323-2.0.0"
+    },
+    {
+      "type": "library",
+      "name": "threeten-extra",
+      "group": "org.threeten",
+      "version": "1.8.0",
+      "purl": "pkg:maven/org.threeten/threeten-extra@1.8.0"
+    },
+    {
+      "type": "library",
+      "name": "google-cloud-bigquerystorage",
+      "group": "com.google.cloud",
+      "version": "3.5.0",
+      "purl": "pkg:maven/com.google.cloud/google-cloud-bigquerystorage@3.5.0"
+    },
+    {
+      "type": "library",
+      "name": "auto-value",
+      "group": "com.google.auto.value",
+      "version": "1.10.4",
+      "purl": "pkg:maven/com.google.auto.value/auto-value@1.10.4"
+    },
+    {
+      "type": "library",
+      "name": "auto-common",
+      "group": "com.google.auto",
+      "version": "1.2.2",
+      "purl": "pkg:maven/com.google.auto/auto-common@1.2.2"
+    },
+    {
+      "type": "library",
+      "name": "auto-service-annotations",
+      "group": "com.google.auto.service",
+      "version": "1.1.1",
+      "purl": "pkg:maven/com.google.auto.service/auto-service-annotations@1.1.1"
+    },
+    {
+      "type": "library",
+      "name": "error_prone_annotations",
+      "group": "com.google.errorprone",
+      "version": "2.21.1",
+      "purl": "pkg:maven/com.google.errorprone/error_prone_annotations@2.21.1"
+    },
+    {
+      "type": "library",
+      "name": "escapevelocity",
+      "group": "com.google.escapevelocity",
+      "version": "1.1",
+      "purl": "pkg:maven/com.google.escapevelocity/escapevelocity@1.1"
+    },
+    {
+      "type": "library",
+      "name": "guava",
+      "group": "com.google.guava",
+      "version": "32.1.2-jre",
+      "purl": "pkg:maven/com.google.guava/guava@32.1.2-jre"
+    },
+    {
+      "type": "library",
+      "name": "failureaccess",
+      "group": "com.google.guava",
+      "version": "1.0.1",
+      "purl": "pkg:maven/com.google.guava/failureaccess@1.0.1"
+    },
+    {
+      "type": "library",
+      "name": "listenablefuture",
+      "group": "com.google.guava",
+      "version": "9999.0-empty-to-avoid-conflict-with-guava",
+      "purl": "pkg:maven/com.google.guava/listenablefuture@9999.0-empty-to-avoid-conflict-with-guava"
+    },
+    {
+      "type": "library",
+      "name": "j2objc-annotations",
+      "group": "com.google.j2objc",
+      "version": "2.8",
+      "purl": "pkg:maven/com.google.j2objc/j2objc-annotations@2.8"
+    },
+    {
+      "type": "library",
+      "name": "javapoet",
+      "group": "com.squareup",
+      "version": "1.13.0",
+      "purl": "pkg:maven/com.squareup/javapoet@1.13.0"
+    },
+    {
+      "type": "library",
+      "name": "annotations",
+      "group": "org.jetbrains",
+      "version": "13.0",
+      "purl": "pkg:maven/org.jetbrains/annotations@13.0"
+    },
+    {
+      "type": "library",
+      "name": "proto-google-cloud-bigquerystorage-v1beta1",
+      "group": "com.google.api.grpc",
+      "version": "0.177.0",
+      "purl": "pkg:maven/com.google.api.grpc/proto-google-cloud-bigquerystorage-v1beta1@0.177.0"
+    },
+    {
+      "type": "library",
+      "name": "proto-google-cloud-bigquerystorage-v1beta2",
+      "group": "com.google.api.grpc",
+      "version": "0.177.0",
+      "purl": "pkg:maven/com.google.api.grpc/proto-google-cloud-bigquerystorage-v1beta2@0.177.0"
+    },
+    {
+      "type": "library",
+      "name": "json",
+      "group": "org.json",
+      "version": "20240303",
+      "purl": "pkg:maven/org.json/json@20240303"
+    },
+    {
+      "type": "library",
+      "name": "grpc-google-cloud-bigquerystorage-v1beta1",
+      "group": "com.google.api.grpc",
+      "version": "0.177.0",
+      "purl": "pkg:maven/com.google.api.grpc/grpc-google-cloud-bigquerystorage-v1beta1@0.177.0"
+    },
+    {
+      "type": "library",
+      "name": "grpc-google-cloud-bigquerystorage-v1beta2",
+      "group": "com.google.api.grpc",
+      "version": "0.177.0",
+      "purl": "pkg:maven/com.google.api.grpc/grpc-google-cloud-bigquerystorage-v1beta2@0.177.0"
+    },
+    {
+      "type": "library",
+      "name": "grpc-google-cloud-bigquerystorage-v1",
+      "group": "com.google.api.grpc",
+      "version": "3.5.0",
+      "purl": "pkg:maven/com.google.api.grpc/grpc-google-cloud-bigquerystorage-v1@3.5.0"
+    },
+    {
+      "type": "library",
+      "name": "proto-google-cloud-bigquerystorage-v1",
+      "group": "com.google.api.grpc",
+      "version": "3.5.0",
+      "purl": "pkg:maven/com.google.api.grpc/proto-google-cloud-bigquerystorage-v1@3.5.0"
+    },
+    {
+      "type": "library",
+      "name": "arrow-format",
+      "group": "org.apache.arrow",
+      "version": "15.0.2",
+      "purl": "pkg:maven/org.apache.arrow/arrow-format@15.0.2"
+    },
+    {
+      "type": "library",
+      "name": "flatbuffers-java",
+      "group": "com.google.flatbuffers",
+      "version": "23.5.26",
+      "purl": "pkg:maven/com.google.flatbuffers/flatbuffers-java@23.5.26"
+    },
+    {
+      "type": "library",
+      "name": "eclipse-collections",
+      "group": "org.eclipse.collections",
+      "version": "11.1.0",
+      "purl": "pkg:maven/org.eclipse.collections/eclipse-collections@11.1.0"
+    },
+    {
+      "type": "library",
+      "name": "eclipse-collections-api",
+      "group": "org.eclipse.collections",
+      "version": "11.1.0",
+      "purl": "pkg:maven/org.eclipse.collections/eclipse-collections-api@11.1.0"
+    },
+    {
+      "type": "library",
+      "name": "arrow-vector",
+      "group": "org.apache.arrow",
+      "version": "17.0.0",
+      "purl": "pkg:maven/org.apache.arrow/arrow-vector@17.0.0"
+    },
+    {
+      "type": "library",
+      "name": "arrow-memory-core",
+      "group": "org.apache.arrow",
+      "version": "17.0.0",
+      "purl": "pkg:maven/org.apache.arrow/arrow-memory-core@17.0.0"
+    },
+    {
+      "type": "library",
+      "name": "arrow-memory-netty",
+      "group": "org.apache.arrow",
+      "version": "17.0.0",
+      "purl": "pkg:maven/org.apache.arrow/arrow-memory-netty@17.0.0"
+    },
+    {
+      "type": "library",
+      "name": "arrow-memory-netty-buffer-patch",
+      "group": "org.apache.arrow",
+      "version": "17.0.0",
+      "purl": "pkg:maven/org.apache.arrow/arrow-memory-netty-buffer-patch@17.0.0"
+    },
+    {
+      "type": "library",
+      "name": "google-genai",
+      "group": "com.google.genai",
+      "version": "1.58.0",
+      "purl": "pkg:maven/com.google.genai/google-genai@1.58.0"
+    },
+    {
+      "type": "library",
+      "name": "jakarta.validation-api",
+      "group": "jakarta.validation",
+      "version": "3.0.2",
+      "purl": "pkg:maven/jakarta.validation/jakarta.validation-api@3.0.2"
+    },
+    {
+      "type": "library",
+      "name": "jackson-module-parameter-names",
+      "group": "com.fasterxml.jackson.module",
+      "version": "2.19.1",
+      "purl": "pkg:maven/com.fasterxml.jackson.module/jackson-module-parameter-names@2.19.1"
+    },
+    {
+      "type": "library",
+      "name": "netty-codec-http",
+      "group": "io.netty",
+      "version": "4.1.122.Final",
+      "purl": "pkg:maven/io.netty/netty-codec-http@4.1.122.Final"
+    },
+    {
+      "type": "library",
+      "name": "netty-codec-http2",
+      "group": "io.netty",
+      "version": "4.1.122.Final",
+      "purl": "pkg:maven/io.netty/netty-codec-http2@4.1.122.Final"
+    },
+    {
+      "type": "library",
+      "name": "netty-resolver-dns",
+      "group": "io.netty",
+      "version": "4.1.122.Final",
+      "purl": "pkg:maven/io.netty/netty-resolver-dns@4.1.122.Final"
+    },
+    {
+      "type": "library",
+      "name": "netty-codec-dns",
+      "group": "io.netty",
+      "version": "4.1.122.Final",
+      "purl": "pkg:maven/io.netty/netty-codec-dns@4.1.122.Final"
+    },
+    {
+      "type": "library",
+      "name": "netty-resolver-dns-native-macos",
+      "group": "io.netty",
+      "version": "4.1.122.Final",
+      "purl": "pkg:maven/io.netty/netty-resolver-dns-native-macos@4.1.122.Final"
+    },
+    {
+      "type": "library",
+      "name": "netty-resolver-dns-classes-macos",
+      "group": "io.netty",
+      "version": "4.1.122.Final",
+      "purl": "pkg:maven/io.netty/netty-resolver-dns-classes-macos@4.1.122.Final"
+    },
+    {
+      "type": "library",
+      "name": "netty-transport-native-epoll",
+      "group": "io.netty",
+      "version": "4.1.122.Final",
+      "purl": "pkg:maven/io.netty/netty-transport-native-epoll@4.1.122.Final"
+    },
+    {
+      "type": "library",
+      "name": "netty-transport-classes-epoll",
+      "group": "io.netty",
+      "version": "4.1.122.Final",
+      "purl": "pkg:maven/io.netty/netty-transport-classes-epoll@4.1.122.Final"
+    },
+    {
+      "type": "library",
+      "name": "netty-handler-proxy",
+      "group": "io.netty",
+      "version": "4.1.122.Final",
+      "purl": "pkg:maven/io.netty/netty-handler-proxy@4.1.122.Final"
+    },
+    {
+      "type": "library",
+      "name": "netty-codec-socks",
+      "group": "io.netty",
+      "version": "4.1.122.Final",
+      "purl": "pkg:maven/io.netty/netty-codec-socks@4.1.122.Final"
+    },
+    {
+      "type": "library",
+      "name": "hibernate-validator",
+      "group": "org.hibernate.validator",
+      "version": "8.0.2.Final",
+      "purl": "pkg:maven/org.hibernate.validator/hibernate-validator@8.0.2.Final"
+    },
+    {
+      "type": "library",
+      "name": "classmate",
+      "group": "com.fasterxml",
+      "version": "1.7.0",
+      "purl": "pkg:maven/com.fasterxml/classmate@1.7.0"
+    },
+    {
+      "type": "library",
+      "name": "HikariCP",
+      "group": "com.zaxxer",
+      "version": "6.3.0",
+      "purl": "pkg:maven/com.zaxxer/HikariCP@6.3.0"
+    },
+    {
+      "type": "library",
+      "name": "jakarta.persistence-api",
+      "group": "jakarta.persistence",
+      "version": "3.1.0",
+      "purl": "pkg:maven/jakarta.persistence/jakarta.persistence-api@3.1.0"
+    },
+    {
+      "type": "library",
+      "name": "jakarta.transaction-api",
+      "group": "jakarta.transaction",
+      "version": "2.0.1",
+      "purl": "pkg:maven/jakarta.transaction/jakarta.transaction-api@2.0.1"
+    },
+    {
+      "type": "library",
+      "name": "jandex",
+      "group": "io.smallrye",
+      "version": "3.2.0",
+      "purl": "pkg:maven/io.smallrye/jandex@3.2.0"
+    },
+    {
+      "type": "library",
+      "name": "byte-buddy",
+      "group": "net.bytebuddy",
+      "version": "1.17.6",
+      "purl": "pkg:maven/net.bytebuddy/byte-buddy@1.17.6"
+    },
+    {
+      "type": "library",
+      "name": "jaxb-runtime",
+      "group": "org.glassfish.jaxb",
+      "version": "4.0.5",
+      "purl": "pkg:maven/org.glassfish.jaxb/jaxb-runtime@4.0.5"
+    },
+    {
+      "type": "library",
+      "name": "jaxb-core",
+      "group": "org.glassfish.jaxb",
+      "version": "4.0.5",
+      "purl": "pkg:maven/org.glassfish.jaxb/jaxb-core@4.0.5"
+    },
+    {
+      "type": "library",
+      "name": "txw2",
+      "group": "org.glassfish.jaxb",
+      "version": "4.0.5",
+      "purl": "pkg:maven/org.glassfish.jaxb/txw2@4.0.5"
+    },
+    {
+      "type": "library",
+      "name": "istack-commons-runtime",
+      "group": "com.sun.istack",
+      "version": "4.1.2",
+      "purl": "pkg:maven/com.sun.istack/istack-commons-runtime@4.1.2"
+    },
+    {
+      "type": "library",
+      "name": "jakarta.inject-api",
+      "group": "jakarta.inject",
+      "version": "2.0.1",
+      "purl": "pkg:maven/jakarta.inject/jakarta.inject-api@2.0.1"
+    },
+    {
+      "type": "library",
+      "name": "antlr4-runtime",
+      "group": "org.antlr",
+      "version": "4.13.0",
+      "purl": "pkg:maven/org.antlr/antlr4-runtime@4.13.0"
+    },
+    {
+      "type": "library",
+      "name": "spring-data-jpa",
+      "group": "org.springframework.data",
+      "version": "3.5.1",
+      "purl": "pkg:maven/org.springframework.data/spring-data-jpa@3.5.1"
+    },
+    {
+      "type": "library",
+      "name": "spring-data-commons",
+      "group": "org.springframework.data",
+      "version": "3.5.1",
+      "purl": "pkg:maven/org.springframework.data/spring-data-commons@3.5.1"
+    },
+    {
+      "type": "library",
+      "name": "jboss-logging",
+      "group": "org.jboss.logging",
+      "version": "3.6.1.Final",
+      "purl": "pkg:maven/org.jboss.logging/jboss-logging@3.6.1.Final"
+    },
+    {
+      "type": "library",
+      "name": "springdoc-openapi-starter-webmvc-ui",
+      "group": "org.springdoc",
+      "version": "2.1.0",
+      "purl": "pkg:maven/org.springdoc/springdoc-openapi-starter-webmvc-ui@2.1.0"
+    },
+    {
+      "type": "library",
+      "name": "springdoc-openapi-starter-webmvc-api",
+      "group": "org.springdoc",
+      "version": "2.1.0",
+      "purl": "pkg:maven/org.springdoc/springdoc-openapi-starter-webmvc-api@2.1.0"
+    },
+    {
+      "type": "library",
+      "name": "springdoc-openapi-starter-common",
+      "group": "org.springdoc",
+      "version": "2.1.0",
+      "purl": "pkg:maven/org.springdoc/springdoc-openapi-starter-common@2.1.0"
+    },
+    {
+      "type": "library",
+      "name": "swagger-core",
+      "group": "io.swagger.core.v3",
+      "version": "2.2.9",
+      "purl": "pkg:maven/io.swagger.core.v3/swagger-core@2.2.9"
+    },
+    {
+      "type": "library",
+      "name": "swagger-annotations",
+      "group": "io.swagger.core.v3",
+      "version": "2.2.9",
+      "purl": "pkg:maven/io.swagger.core.v3/swagger-annotations@2.2.9"
+    },
+    {
+      "type": "library",
+      "name": "swagger-models",
+      "group": "io.swagger.core.v3",
+      "version": "2.2.9",
+      "purl": "pkg:maven/io.swagger.core.v3/swagger-models@2.2.9"
+    },
+    {
+      "type": "library",
+      "name": "swagger-ui",
+      "group": "org.webjars",
+      "version": "4.18.2",
+      "purl": "pkg:maven/org.webjars/swagger-ui@4.18.2"
+    },
+    {
+      "type": "library",
+      "name": "jackson-databind",
+      "group": "com.fasterxml.jackson.core",
+      "version": "2.19.1",
+      "purl": "pkg:maven/com.fasterxml.jackson.core/jackson-databind@2.19.1"
+    },
+    {
+      "type": "library",
+      "name": "jackson-annotations",
+      "group": "com.fasterxml.jackson.core",
+      "version": "2.19.2",
+      "purl": "pkg:maven/com.fasterxml.jackson.core/jackson-annotations@2.19.2"
+    },
+    {
+      "type": "library",
+      "name": "langchain4j-http-client-jdk",
+      "group": "dev.langchain4j",
+      "version": "1.20.0",
+      "purl": "pkg:maven/dev.langchain4j/langchain4j-http-client-jdk@1.20.0"
+    },
+    {
+      "type": "library",
+      "name": "langchain4j-http-client",
+      "group": "dev.langchain4j",
+      "version": "1.20.0",
+      "purl": "pkg:maven/dev.langchain4j/langchain4j-http-client@1.20.0"
+    },
+    {
+      "type": "library",
+      "name": "mutiny-zero",
+      "group": "io.smallrye.reactive",
+      "version": "1.3.1",
+      "purl": "pkg:maven/io.smallrye.reactive/mutiny-zero@1.3.1"
+    },
+    {
+      "type": "library",
+      "name": "langchain4j-open-ai",
+      "group": "dev.langchain4j",
+      "version": "1.20.0",
+      "purl": "pkg:maven/dev.langchain4j/langchain4j-open-ai@1.20.0"
+    },
+    {
+      "type": "library",
+      "name": "langchain4j-reactive-streaming",
+      "group": "dev.langchain4j",
+      "version": "1.20.0-beta30",
+      "purl": "pkg:maven/dev.langchain4j/langchain4j-reactive-streaming@1.20.0-beta30"
+    },
+    {
+      "type": "library",
+      "name": "java-uuid-generator",
+      "group": "com.fasterxml.uuid",
+      "version": "4.0.1",
+      "purl": "pkg:maven/com.fasterxml.uuid/java-uuid-generator@4.0.1"
+    },
+    {
+      "type": "library",
+      "name": "jakarta.xml.bind-api",
+      "group": "jakarta.xml.bind",
+      "version": "4.0.2",
+      "purl": "pkg:maven/jakarta.xml.bind/jakarta.xml.bind-api@4.0.2"
+    },
+    {
+      "type": "library",
+      "name": "jakarta.activation-api",
+      "group": "jakarta.activation",
+      "version": "2.1.3",
+      "purl": "pkg:maven/jakarta.activation/jakarta.activation-api@2.1.3"
+    }
+  ]
+}

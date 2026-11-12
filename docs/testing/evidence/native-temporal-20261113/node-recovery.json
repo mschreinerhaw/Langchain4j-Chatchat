@@ -1,13 +1,13 @@
 {
   "passed": true,
-  "oldSession": "native-2e4c6f29-d698-4597-821e-bbfa0fb459b0",
-  "newSession": "native-c8cf2265-2109-4055-861a-7c5671ce037e",
-  "oldEpoch": "3b16d22e-9331-4751-ad61-892aaaf31925",
-  "newEpoch": "cb1ad808-d5c0-412e-9370-4f8085b9a001",
+  "oldSession": "native-e976fb54-8295-4cd4-9714-899df6ccd2cb",
+  "newSession": "native-b5546a6e-a564-464b-a312-6477ae61e791",
+  "oldEpoch": "615ed7ba-53b3-46c7-a5f2-221dbf611b7b",
+  "newEpoch": "55ca02d8-ad70-454b-8cfd-c24483fccb66",
   "oldNode": "cline-worker-2",
   "newNode": "cline-worker-1",
   "replay": {
-    "taskId": "temporal-native-3db1b7c29388fcf271db8f2e670eaaecf2f9ccbfa1b228cb3094ae25ce02638b",
+    "taskId": "temporal-native-890650e52d9e1757a5a5b07b03c1ee08c489eb6a037e7a610a1a19c089af9f64",
     "oldContainerStopped": true,
     "rejected": [
       {

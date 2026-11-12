@@ -1,0 +1,1586 @@
+[
+  {
+    "file": "BOOT-INF/lib/json-schema-validator-2.0.4.jar",
+    "sha256": "4856729c8f38ffba02380b0895b7e98a511f6e68a1fb6424782f3e6549dbba07"
+  },
+  {
+    "file": "BOOT-INF/lib/itu-1.14.0.jar",
+    "sha256": "5cf40ab0cc77828ab2b875b1f3ecd71c8295d7721933476abc2e08fddcea164a"
+  },
+  {
+    "file": "BOOT-INF/lib/jackson-dataformat-yaml-2.19.1.jar",
+    "sha256": "d0d538c5ba235ac88c8c3c52e146d3d5e1bbcc8b90e3d757cf0dbe39225e8d00"
+  },
+  {
+    "file": "BOOT-INF/lib/slf4j-api-2.0.17.jar",
+    "sha256": "7b751d952061954d5abfed7181c1f645d336091b679891591d63329c622eb832"
+  },
+  {
+    "file": "BOOT-INF/lib/minio-8.5.17.jar",
+    "sha256": "9cd43ea8c79ca3c6ce81e7d4be81c5c8115febd2750f493f699fa41b92e209b3"
+  },
+  {
+    "file": "BOOT-INF/lib/simple-xml-safe-2.7.1.jar",
+    "sha256": "4506e4bb57d41481936f0ac684468ca4b2cc9e002ca8466ee19e23228d455957"
+  },
+  {
+    "file": "BOOT-INF/lib/guava-33.3.1-jre.jar",
+    "sha256": "4bf0e2c5af8e4525c96e8fde17a4f7307f97f8478f11c4c8e35a0e3298ae4e90"
+  },
+  {
+    "file": "BOOT-INF/lib/failureaccess-1.0.2.jar",
+    "sha256": "8a8f81cf9b359e3f6dfa691a1e776985c061ef2f223c9b2c80753e1b458e8064"
+  },
+  {
+    "file": "BOOT-INF/lib/listenablefuture-9999.0-empty-to-avoid-conflict-with-guava.jar",
+    "sha256": "b372a037d4230aa57fbeffdef30fd6123f9c0c2db85d0aced00c91b974f33f99"
+  },
+  {
+    "file": "BOOT-INF/lib/jsr305-3.0.2.jar",
+    "sha256": "766ad2a0783f2687962c8ad74ceecc38a28b9f72a2d085ee438b7813e928d0c7"
+  },
+  {
+    "file": "BOOT-INF/lib/j2objc-annotations-3.0.0.jar",
+    "sha256": "88241573467ddca44ffd4d74aa04c2bbfd11bf7c17e0c342c94c9de7a70a7c64"
+  },
+  {
+    "file": "BOOT-INF/lib/okhttp-4.12.0.jar",
+    "sha256": "b1050081b14bb7a3a7e55a4d3ef01b5dcfabc453b4573a4fc019767191d5f4e0"
+  },
+  {
+    "file": "BOOT-INF/lib/okio-3.6.0.jar",
+    "sha256": "8e63292e5c53bb93c4a6b0c213e79f15990fed250c1340f1c343880e1c9c39b5"
+  },
+  {
+    "file": "BOOT-INF/lib/okio-jvm-3.6.0.jar",
+    "sha256": "67543f0736fc422ae927ed0e504b98bc5e269fda0d3500579337cb713da28412"
+  },
+  {
+    "file": "BOOT-INF/lib/kotlin-stdlib-common-1.9.25.jar",
+    "sha256": "8202e7f032c8dc6698d00c62867701546a7c12c4731ebddfb8eec0788e2eeee4"
+  },
+  {
+    "file": "BOOT-INF/lib/kotlin-stdlib-jdk8-1.9.25.jar",
+    "sha256": "f94fdf78390ce9be30383bf039c5a935caea33b11f037fc7f86bbcee19287e5a"
+  },
+  {
+    "file": "BOOT-INF/lib/kotlin-stdlib-1.9.25.jar",
+    "sha256": "f9cdcdbff1f5de85380ae526977e683726c2aa42db1ed6e6e50ae89e496e95fd"
+  },
+  {
+    "file": "BOOT-INF/lib/annotations-13.0.jar",
+    "sha256": "ace2a10dc8e2d5fd34925ecac03e4988b2c0f851650c94b8cef49ba1bd111478"
+  },
+  {
+    "file": "BOOT-INF/lib/kotlin-stdlib-jdk7-1.9.25.jar",
+    "sha256": "fb5373dd761b4e93e3f538c5e853bba38a71143a181536e8f193ed6e4eddb3b8"
+  },
+  {
+    "file": "BOOT-INF/lib/jackson-core-2.19.1.jar",
+    "sha256": "c46369e1a21810100adbc92503b62f15a9ef1640427932f4fe1588ef7ce7e480"
+  },
+  {
+    "file": "BOOT-INF/lib/bcprov-jdk18on-1.78.1.jar",
+    "sha256": "add5915e6acfc6ab5836e1fd8a5e21c6488536a8c1f21f386eeb3bf280b702d7"
+  },
+  {
+    "file": "BOOT-INF/lib/commons-compress-1.27.1.jar",
+    "sha256": "293d80f54b536b74095dcd7ea3cf0a29bbfc3402519281332495f4420d370d16"
+  },
+  {
+    "file": "BOOT-INF/lib/commons-io-2.16.1.jar",
+    "sha256": "f41f7baacd716896447ace9758621f62c1c6b0a91d89acee488da26fc477c84f"
+  },
+  {
+    "file": "BOOT-INF/lib/commons-codec-1.18.0.jar",
+    "sha256": "ba005f304cef92a3dede24a38ad5ac9b8afccf0d8f75839d6c1338634cf7f6e4"
+  },
+  {
+    "file": "BOOT-INF/lib/snappy-java-1.1.10.7.jar",
+    "sha256": "4c766cb3f855415ee734b2392949a0b6f12a60879334a74518deaf6270d32e36"
+  },
+  {
+    "file": "BOOT-INF/lib/jackson-dataformat-csv-2.19.1.jar",
+    "sha256": "75832b5f0ffb9a60a61e51530f7babcc7629b6a9e97d3cfb42c402fc423714d7"
+  },
+  {
+    "file": "BOOT-INF/lib/parquet-hadoop-1.16.0.jar",
+    "sha256": "06d9ecec624434c21680d736833aa4873655438dda9e64ccbeec1772d52cdfd5"
+  },
+  {
+    "file": "BOOT-INF/lib/parquet-column-1.16.0.jar",
+    "sha256": "034ec38dc4c58a0677bdaed666c9a7a8c68c269cce0d61dce4b7b49f7a0b9d7e"
+  },
+  {
+    "file": "BOOT-INF/lib/parquet-encoding-1.16.0.jar",
+    "sha256": "da7b8f3a458871e70de6f883539a39d8dc9e8ec67312d3b95ea1dbca4b68f5b3"
+  },
+  {
+    "file": "BOOT-INF/lib/jts-core-1.20.0.jar",
+    "sha256": "6a783d8f9dba3d3cf7265435f134402f63c05838aa6cbcc4297ad3a5b2842baf"
+  },
+  {
+    "file": "BOOT-INF/lib/parquet-format-structures-1.16.0.jar",
+    "sha256": "aae70622e2ab2f6a6678d03054a8bf94731ecea98025dedbea6c7a6defbc9ee0"
+  },
+  {
+    "file": "BOOT-INF/lib/parquet-common-1.16.0.jar",
+    "sha256": "7c7d120b83c923f9f5044e53518e6e8cc26d7993b89051b2a9979c3afdbc7811"
+  },
+  {
+    "file": "BOOT-INF/lib/parquet-jackson-1.16.0.jar",
+    "sha256": "12e8fbc43d989fc26336c2649b7cfcc82f5ee82b808258b6f79c24320aee001f"
+  },
+  {
+    "file": "BOOT-INF/lib/aircompressor-2.0.2.jar",
+    "sha256": "0c2a96bf86d5fb24ff7f20c92483c61391cb10d440a4bd278c77365a2b165698"
+  },
+  {
+    "file": "BOOT-INF/lib/commons-pool-1.6.jar",
+    "sha256": "46c42b4a38dc6b2db53a9ee5c92c63db103665d56694e2cfce2c95d51a6860cc"
+  },
+  {
+    "file": "BOOT-INF/lib/zstd-jni-1.5.7-3.jar",
+    "sha256": "a38a4a97f1b43b878c91e0dd7f1e3d17f0e70beec71d95bacaf56a2f207624a3"
+  },
+  {
+    "file": "BOOT-INF/lib/hadoop-common-3.4.1.jar",
+    "sha256": "85ab34eb0efc42651290991473341fc77491de2e0cfa7f2d02d20c57abed3aeb"
+  },
+  {
+    "file": "BOOT-INF/lib/hadoop-mapreduce-client-core-3.4.1.jar",
+    "sha256": "75a69313a362bb1784e52e9f5e532c6cf2d905a871801ed86f529d97cc5c5966"
+  },
+  {
+    "file": "BOOT-INF/lib/chatchat-common-1.0.0-SNAPSHOT.jar",
+    "sha256": "660b4adfab7d0f9fa5e522de5947edd78653c480e2ffc920c9ad76662cc89f1b"
+  },
+  {
+    "file": "BOOT-INF/lib/chatchat-mcp-grpc-1.0.0-SNAPSHOT.jar",
+    "sha256": "4e5fecac07e02ac41ce1b0c91c68dd962c506f9bb19b7b1445b2ece5090e551c"
+  },
+  {
+    "file": "BOOT-INF/lib/grpc-protobuf-1.83.1.jar",
+    "sha256": "f58e9b04850e8d5a820081de1ba1d93fd641af3182e743f4066818645f1ee58f"
+  },
+  {
+    "file": "BOOT-INF/lib/proto-google-common-protos-2.64.1.jar",
+    "sha256": "beb8107f340dc0bb04bf40d1a61631a21e450c58aad93c160959f0292136d99f"
+  },
+  {
+    "file": "BOOT-INF/lib/grpc-protobuf-lite-1.83.1.jar",
+    "sha256": "70fd274685f8f8b94aeecfd082168ce9518d04da9add5192aeffd46f582de103"
+  },
+  {
+    "file": "BOOT-INF/lib/grpc-stub-1.83.1.jar",
+    "sha256": "431c1280d85dd34c93f2ede7cc192c591b660a1becb6053da1423b0a6526c86a"
+  },
+  {
+    "file": "BOOT-INF/lib/protobuf-java-4.36.0.jar",
+    "sha256": "06515776b10bfed334b610273ffdd8884098a9333cb816314b4e4876bfcd2041"
+  },
+  {
+    "file": "BOOT-INF/lib/javax.annotation-api-1.3.2.jar",
+    "sha256": "e04ba5195bcd555dc95650f7cc614d151e4bcd52d29a10b8aa2197f3ab89ab9b"
+  },
+  {
+    "file": "BOOT-INF/lib/grpc-netty-shaded-1.83.1.jar",
+    "sha256": "fc7a54cca004df57d8d416f335e851d53b188926b598151c5714498ff60dced5"
+  },
+  {
+    "file": "BOOT-INF/lib/grpc-util-1.83.1.jar",
+    "sha256": "4e722bf41a8d305e0436f16e69f7787ce5a227dc0dac45be06e8c197f08275e4"
+  },
+  {
+    "file": "BOOT-INF/lib/grpc-core-1.83.1.jar",
+    "sha256": "e417d5fe3b273aba8e24c5bf8edaf400297ae88a2ede828a2b75c3403b3d13e3"
+  },
+  {
+    "file": "BOOT-INF/lib/annotations-4.1.1.4.jar",
+    "sha256": "ba734e1e84c09d615af6a09d33034b4f0442f8772dec120efb376d86a565ae15"
+  },
+  {
+    "file": "BOOT-INF/lib/grpc-context-1.83.1.jar",
+    "sha256": "8224f45eccae567d68e34e7e0d2fde2f4ed36afc56d6496470f5c156b886b768"
+  },
+  {
+    "file": "BOOT-INF/lib/error_prone_annotations-2.50.0.jar",
+    "sha256": "4667724877f1d37a689202da191e23efa7657c62eef93ccdac406eccfe5cdd0a"
+  },
+  {
+    "file": "BOOT-INF/lib/perfmark-api-0.27.0.jar",
+    "sha256": "c7b478503ec524e55df19b424d46d27c8a68aeb801664fadd4f069b71f52d0f6"
+  },
+  {
+    "file": "BOOT-INF/lib/grpc-api-1.83.1.jar",
+    "sha256": "96a94b488a8a9a922e9e455ac4c87d9edcb37be4ed79ec1f14e98da267a6c505"
+  },
+  {
+    "file": "BOOT-INF/lib/animal-sniffer-annotations-1.27.jar",
+    "sha256": "cfd7e51a828fe6b98bc0dbb99e34900c9e9012322cb9ddd57fd8dd0b02da5e27"
+  },
+  {
+    "file": "BOOT-INF/lib/chatchat-platform-spring-1.0.0-SNAPSHOT.jar",
+    "sha256": "583f231236a595a72604dd8f448394c6faee1f164768a36733d575dace13cb0f"
+  },
+  {
+    "file": "BOOT-INF/lib/spring-boot-3.5.3.jar",
+    "sha256": "246c008f5a131bd12194883031d8039e1f98016400d94f80382828e1360f8965"
+  },
+  {
+    "file": "BOOT-INF/lib/spring-boot-autoconfigure-3.5.3.jar",
+    "sha256": "bcbc5b37d915304134af4d65603c92bb0cd1df522edbd2d7abeecb95f2c57531"
+  },
+  {
+    "file": "BOOT-INF/lib/logback-classic-1.5.18.jar",
+    "sha256": "3e1533d0321f8815eef46750aee0111b41554f9a4644c3c4d2d404744b09f60f"
+  },
+  {
+    "file": "BOOT-INF/lib/logback-core-1.5.18.jar",
+    "sha256": "85139e7b57b464f8e5e36326dd81317648bed199ccc4f98cd42585f8d7571027"
+  },
+  {
+    "file": "BOOT-INF/lib/log4j-to-slf4j-2.24.3.jar",
+    "sha256": "c7f2b0c612a4eb05b1587d1c880eb4cf5f4f53850676a8ede8da2b8fabb4f73f"
+  },
+  {
+    "file": "BOOT-INF/lib/jul-to-slf4j-2.0.17.jar",
+    "sha256": "a7afcd23b9cfd1475e55c94f943b808c5922035e7e2c2a5c65a487a4106bc538"
+  },
+  {
+    "file": "BOOT-INF/lib/jakarta.annotation-api-2.1.1.jar",
+    "sha256": "5f65fdaf424eee2b55e1d882ba9bb376be93fb09b37b808be6e22e8851c909fe"
+  },
+  {
+    "file": "BOOT-INF/lib/chatchat-agents-1.0.0-SNAPSHOT.jar",
+    "sha256": "bc8876ae428bcc0c174bd13b5c959d253af8bf65278447126ec6286c74d1fb7a"
+  },
+  {
+    "file": "BOOT-INF/lib/langgraph4j-core-1.8.20.jar",
+    "sha256": "14004f1d718284871a42d3429b98790be5d9cd330b7936765ff88b96cd173343"
+  },
+  {
+    "file": "BOOT-INF/lib/async-generator-4.3.1.jar",
+    "sha256": "59561296ca50b1717697f1182f70c787993c295bb31ec4c5a189769edc8cd70b"
+  },
+  {
+    "file": "BOOT-INF/lib/langchain4j-core-1.20.0.jar",
+    "sha256": "bd762fc911cad8ee514456672f385ecd5596dc6115faddf1db9d5340a0edcd6b"
+  },
+  {
+    "file": "BOOT-INF/lib/jspecify-1.0.0.jar",
+    "sha256": "1fad6e6be7557781e4d33729d49ae1cdc8fdda6fe477bb0cc68ce351eafdfbab"
+  },
+  {
+    "file": "BOOT-INF/lib/gson-2.13.1.jar",
+    "sha256": "94855942d4992f112946d3de1c334e709237b8126d8130bf07807c018a4a2120"
+  },
+  {
+    "file": "BOOT-INF/lib/snakeyaml-2.4.jar",
+    "sha256": "ef779af5d29a9dde8cc70ce0341f5c6f7735e23edff9685ceaa9d35359b7bb7f"
+  },
+  {
+    "file": "BOOT-INF/lib/commons-lang3-3.17.0.jar",
+    "sha256": "6ee731df5c8e5a2976a1ca023b6bb320ea8d3539fbe64c8a1d5cb765127c33b4"
+  },
+  {
+    "file": "BOOT-INF/lib/rocksdbjni-10.10.1.1.jar",
+    "sha256": "e862cc37a22df8f1e7c12556f5141ce65d782af77e30aee1bd7d488d7c554fde"
+  },
+  {
+    "file": "BOOT-INF/lib/jackson-datatype-jsr310-2.19.1.jar",
+    "sha256": "366eb89065d568a7c0ede73c26a343f293f076d2f8efd0dc69cbe574ca01220e"
+  },
+  {
+    "file": "BOOT-INF/lib/chatchat-runtime-mcp-1.0.0-SNAPSHOT.jar",
+    "sha256": "f35be9451fbe1c9558d136af5bd915ea326e0f15b59831426be58239508f31bd"
+  },
+  {
+    "file": "BOOT-INF/lib/mcp-2.0.1.jar",
+    "sha256": "c0f10b4e0eb8825dae1396c3c688b61b5df1a15ff5c0a7262a4a478d93e85f62"
+  },
+  {
+    "file": "BOOT-INF/lib/mcp-core-2.0.1.jar",
+    "sha256": "1217c23097ca3bd36121ef14daf14a55ff07aa3777e31b578894407bd98a3735"
+  },
+  {
+    "file": "BOOT-INF/lib/mcp-json-jackson2-2.0.1.jar",
+    "sha256": "30dd78d36c8c58c9e2d21fcf4f03a9afc464a3fcbf74fd1a06b3193f16f6b828"
+  },
+  {
+    "file": "BOOT-INF/lib/netty-common-4.1.122.Final.jar",
+    "sha256": "87ec3ea7aca1414f2473006f0ab0efd7bafb7368c4974fcc7178d162e3d8b1a3"
+  },
+  {
+    "file": "BOOT-INF/lib/netty-handler-4.1.122.Final.jar",
+    "sha256": "c6bd37ef208fbe12273a75d3f5d6eb85832991c9fa0c9e8bba9621e9bee02f98"
+  },
+  {
+    "file": "BOOT-INF/lib/netty-resolver-4.1.122.Final.jar",
+    "sha256": "b61fdaad24575329b4cc3097336089482f6db0d28491318a431d8b2852b703f6"
+  },
+  {
+    "file": "BOOT-INF/lib/netty-buffer-4.1.122.Final.jar",
+    "sha256": "6f4ea81fa0ccb6af2433c915ac59ff5976ae487835cffc5c16af015a3a02b470"
+  },
+  {
+    "file": "BOOT-INF/lib/netty-transport-native-unix-common-4.1.122.Final.jar",
+    "sha256": "3e340b145bd1303697f355f6517a4f26a3d6b61a674cad92105780b0cff79612"
+  },
+  {
+    "file": "BOOT-INF/lib/netty-codec-4.1.122.Final.jar",
+    "sha256": "e842dbecbe7d2b4444bb837229c86d8466d07a77c4b064a8991054307fdd0f64"
+  },
+  {
+    "file": "BOOT-INF/lib/netty-transport-4.1.122.Final.jar",
+    "sha256": "89a65e5f20f49fce4856ad4ac95024b5a67453c1d9aceef7a7650e4ebf979e37"
+  },
+  {
+    "file": "BOOT-INF/lib/angus-activation-2.0.2.jar",
+    "sha256": "6dd3bcffc22bce83b07376a0e2e094e4964a3195d4118fb43e380ef35436cc1e"
+  },
+  {
+    "file": "BOOT-INF/lib/commonmark-0.28.0.jar",
+    "sha256": "f8b28e00f97c568329ee1b2496cfec5c3ef8664b565ea09cf8988894183b956d"
+  },
+  {
+    "file": "BOOT-INF/lib/commonmark-ext-gfm-tables-0.28.0.jar",
+    "sha256": "80439c7c4809daa6c35ccb260f48f8b71cda30e8cc923dbd68bb3be049359ecb"
+  },
+  {
+    "file": "BOOT-INF/lib/jcl-over-slf4j-2.0.17.jar",
+    "sha256": "affd06771589ebfe454bb11315a4f466ecaa135b95f3e7939534cf1d2fd7064c"
+  },
+  {
+    "file": "BOOT-INF/lib/commons-math3-3.6.1.jar",
+    "sha256": "1e56d7b058d28b65abd256b8458e3885b674c1d588fa43cd7d1cbb9c7ef2b308"
+  },
+  {
+    "file": "BOOT-INF/lib/lucene-core-9.12.2.jar",
+    "sha256": "3a5426c7082a16adfe39a55502eecf4e69547e62d3dcf292c730e228fbaad2fd"
+  },
+  {
+    "file": "BOOT-INF/lib/lucene-analysis-common-9.12.2.jar",
+    "sha256": "a472f61b4d7738787bf1a637beac0ebf134d785c37aa069fb071e9715568c8b8"
+  },
+  {
+    "file": "BOOT-INF/lib/poi-ooxml-5.2.5.jar",
+    "sha256": "c6ad01a10cefa1d2a9c1b552bd4293a3eca29b513353f1ec814041d38da9ec5b"
+  },
+  {
+    "file": "BOOT-INF/lib/poi-5.2.5.jar",
+    "sha256": "352e1b44a5777af2df3d7dc408cda9f75f932d0e0125fa1a7d336a13c0a663a7"
+  },
+  {
+    "file": "BOOT-INF/lib/SparseBitSet-1.3.jar",
+    "sha256": "f76b85adb0c00721ae267b7cfde4da7f71d3121cc2160c9fc00c0c89f8c53c8a"
+  },
+  {
+    "file": "BOOT-INF/lib/poi-ooxml-lite-5.2.5.jar",
+    "sha256": "6d4ce6736c422c52e47ffbfa08c784e1b8c188efb69583ac001a0ab16022d774"
+  },
+  {
+    "file": "BOOT-INF/lib/xmlbeans-5.2.0.jar",
+    "sha256": "5a344f323c049b7024edd39bbd58a38e77eb44218aad2794879e7f4ac3ca1de1"
+  },
+  {
+    "file": "BOOT-INF/lib/curvesapi-1.08.jar",
+    "sha256": "ad95b08b8bbf9d7d17e5e00814898fa23324f32bc5b62f1a37801e6a56ce0079"
+  },
+  {
+    "file": "BOOT-INF/lib/log4j-api-2.24.3.jar",
+    "sha256": "5b4a0a0cd0e751ded431c162442bdbdd53328d1f8bb2bae5fc1bbeee0f66d80f"
+  },
+  {
+    "file": "BOOT-INF/lib/commons-collections4-4.4.jar",
+    "sha256": "1df8b9430b5c8ed143d7815e403e33ef5371b2400aadbe9bda0883762e0846d1"
+  },
+  {
+    "file": "BOOT-INF/lib/opensearch-rest-client-2.12.0.jar",
+    "sha256": "de79d8ebc5322aaff5cfda6bb55357a305eba58613c12c787ab5f109ec3d05cb"
+  },
+  {
+    "file": "BOOT-INF/lib/httpclient-4.5.14.jar",
+    "sha256": "c8bc7e1c51a6d4ce72f40d2ebbabf1c4b68bfe76e732104b04381b493478e9d6"
+  },
+  {
+    "file": "BOOT-INF/lib/httpcore-4.4.16.jar",
+    "sha256": "6c9b3dd142a09dc468e23ad39aad6f75a0f2b85125104469f026e52a474e464f"
+  },
+  {
+    "file": "BOOT-INF/lib/httpasyncclient-4.1.5.jar",
+    "sha256": "0c1877489a9d1ba4fa50f6cfcab11d1123618858cb31d56afaab5afdd5064d99"
+  },
+  {
+    "file": "BOOT-INF/lib/httpcore-nio-4.4.16.jar",
+    "sha256": "4018736ede2d321034e8517ea90baefb31831a8608afccc446d8a699fb1d00d4"
+  },
+  {
+    "file": "BOOT-INF/lib/commons-logging-1.2.jar",
+    "sha256": "daddea1ea0be0f56978ab3006b8ac92834afeefbd9b7e4e6316fca57df0fa636"
+  },
+  {
+    "file": "BOOT-INF/lib/reactive-streams-1.0.4.jar",
+    "sha256": "f75ca597789b3dac58f61857b9ac2e1034a68fa672db35055a8fb4509e325f28"
+  },
+  {
+    "file": "BOOT-INF/lib/reactor-core-3.7.7.jar",
+    "sha256": "cb5eb2fa3c1e4d279ad4f9b9b8b1bebe0ca864e1947ea975b230074174e86d36"
+  },
+  {
+    "file": "BOOT-INF/lib/chatchat-runtime-skill-1.0.0-SNAPSHOT.jar",
+    "sha256": "239ec7b4140c9df64b6a9109f3a466f0ce69f60f7230a8ecd296617cafbdcede"
+  },
+  {
+    "file": "BOOT-INF/lib/chatchat-runtime-temporal-1.0.0-SNAPSHOT.jar",
+    "sha256": "07ef9cc468cc1096aa57b36ab4a5431d0b83bef58e7d9192879876e0bd243d70"
+  },
+  {
+    "file": "BOOT-INF/lib/temporal-sdk-1.37.0.jar",
+    "sha256": "7f924e03690b89819c2fa64dddab08a51d1ac11fdfef7af27311e062ac283c80"
+  },
+  {
+    "file": "BOOT-INF/lib/temporal-serviceclient-1.37.0.jar",
+    "sha256": "a3f8e0b3cf954316f889b08207d1b4e0d7907de254ef5233a89308abd9e0bb26"
+  },
+  {
+    "file": "BOOT-INF/lib/grpc-services-1.76.0.jar",
+    "sha256": "64ed014542d83664b401faed38d6b32cbd624234481c71a7277c777937c0e902"
+  },
+  {
+    "file": "BOOT-INF/lib/grpc-inprocess-1.76.0.jar",
+    "sha256": "cb1f0095ab7f2603508433554ec7bd9602bbe0e3340ade262c58e911cb8ccc63"
+  },
+  {
+    "file": "BOOT-INF/lib/protobuf-java-util-3.25.8.jar",
+    "sha256": "e7196eaefc3f81afa1571821635c7aefe2933f4be4a9df9e601fb59214b50269"
+  },
+  {
+    "file": "BOOT-INF/lib/tally-core-0.13.0.jar",
+    "sha256": "b3ccc572be36be91c47447c7778bc141a74591279cdb40224882e8ac8271b58b"
+  },
+  {
+    "file": "BOOT-INF/lib/micrometer-core-1.15.1.jar",
+    "sha256": "5d9fbc17664de839c062e2d3b909a9358a96bfc8ce46efd86113eae1d98a5483"
+  },
+  {
+    "file": "BOOT-INF/lib/micrometer-commons-1.15.1.jar",
+    "sha256": "6799381c0809a74b80fd4bfaa10b4278f6adb0331a641013ff89dff4cc1f3484"
+  },
+  {
+    "file": "BOOT-INF/lib/HdrHistogram-2.2.2.jar",
+    "sha256": "22d1d4316c4ec13a68b559e98c8256d69071593731da96136640f864fa14fad8"
+  },
+  {
+    "file": "BOOT-INF/lib/LatencyUtils-2.0.3.jar",
+    "sha256": "a32a9ffa06b2f4e01c5360f8f9df7bc5d9454a5d373cd8f361347fa5a57165ec"
+  },
+  {
+    "file": "BOOT-INF/lib/nexus-sdk-0.5.0-alpha.jar",
+    "sha256": "0619e8f4559b17bdc3610a4aeb9b961e414b3642ca15fcf1c9e3aed14b573175"
+  },
+  {
+    "file": "BOOT-INF/lib/jackson-datatype-jdk8-2.19.1.jar",
+    "sha256": "5966c02022a0812b8761d999e5510c0a269d87178cb5ef67e138d54ead6966c6"
+  },
+  {
+    "file": "BOOT-INF/lib/chatchat-knowledge-base-1.0.0-SNAPSHOT.jar",
+    "sha256": "26f9069390735e548638367f837b521925e398d9d0b4286f05b509c13a9adb8b"
+  },
+  {
+    "file": "BOOT-INF/lib/langchain4j-skills-1.20.0-beta30.jar",
+    "sha256": "b2bbc9337aa72c81f0956e4717348e230a22359f35fd00b4b28a1c3711a6c730"
+  },
+  {
+    "file": "BOOT-INF/lib/langchain4j-1.20.0.jar",
+    "sha256": "a5a0d3eeae4805e79105749039a5a6ee27c9cfde76c527e44e4a5295c20b9e30"
+  },
+  {
+    "file": "BOOT-INF/lib/opennlp-tools-2.5.11.jar",
+    "sha256": "58c0ee5e20d30ba47daf4cd546c6426a7fe762a7b197b2308eb0b89cf5b48c77"
+  },
+  {
+    "file": "BOOT-INF/lib/commonmark-ext-yaml-front-matter-0.28.0.jar",
+    "sha256": "0c384a30bc3e990c4fb65b9f153cfca66fff49f2fcdae5c04c17b65e52a92f2e"
+  },
+  {
+    "file": "BOOT-INF/lib/spring-web-6.2.8.jar",
+    "sha256": "152405afabc056dc8007dca8ef105503c7cbbb132f7d1ab75fef3e27eaabd461"
+  },
+  {
+    "file": "BOOT-INF/lib/spring-beans-6.2.8.jar",
+    "sha256": "a6ae270c6eb06e9502aa7e47ee3fc66deb1853285b4a4e020f3d22767f2fabd3"
+  },
+  {
+    "file": "BOOT-INF/lib/micrometer-observation-1.15.1.jar",
+    "sha256": "5008b13db990cdaa3fa1b6f518f6f9535a7ea84421424a2a25aa88870ffbb31d"
+  },
+  {
+    "file": "BOOT-INF/lib/tika-core-3.2.1.jar",
+    "sha256": "e350357ca104dd81374443eed9ac40a609927b099aa9eb1c488a791065fb4289"
+  },
+  {
+    "file": "BOOT-INF/lib/tika-parsers-standard-package-3.2.1.jar",
+    "sha256": "02486841c82413c6bdaeb9c71f2f5e1b25d2da462bcaa020e2749789ba124191"
+  },
+  {
+    "file": "BOOT-INF/lib/tika-parser-apple-module-3.2.1.jar",
+    "sha256": "03afca4f6127c0c9e43310db4e3f9640db60ccf92d2222d28790a97e45a86fdc"
+  },
+  {
+    "file": "BOOT-INF/lib/tika-parser-zip-commons-3.2.1.jar",
+    "sha256": "c6f3919ccd5379b2611f82570d6f82c55d47e03a4cdae337ce19b988bf23b329"
+  },
+  {
+    "file": "BOOT-INF/lib/dd-plist-1.28.jar",
+    "sha256": "88ed8e730f7386297485176c4387146c6914a38c0e58fc296e8a01cdc3b621e1"
+  },
+  {
+    "file": "BOOT-INF/lib/tika-parser-audiovideo-module-3.2.1.jar",
+    "sha256": "b251c6342b9afb9b19d7000d7e363a763ba1dbc1dd3feb2df87724efe0225446"
+  },
+  {
+    "file": "BOOT-INF/lib/metadata-extractor-2.19.0.jar",
+    "sha256": "e51bb454ed08ea2bfcc3ad147d088ad1aa73a999e0072563f8ae50021a2fcadb"
+  },
+  {
+    "file": "BOOT-INF/lib/xmpcore-6.1.11.jar",
+    "sha256": "8f7033c579b99fa0d9d6ddcb9448875b5e4b577c350002278ce46997d678b737"
+  },
+  {
+    "file": "BOOT-INF/lib/tika-parser-cad-module-3.2.1.jar",
+    "sha256": "da560e573217863d1dc84d87e44a0486d9b68e7b6bc20db8c24cb2f914d71837"
+  },
+  {
+    "file": "BOOT-INF/lib/tika-parser-code-module-3.2.1.jar",
+    "sha256": "cb7cada26edd16e2a09f72cff5dcee354b9c54889edeb698eb5f66f93d5009c6"
+  },
+  {
+    "file": "BOOT-INF/lib/jhighlight-1.1.0.jar",
+    "sha256": "2f7d5c92db46e76a7564dd98d4d00b822d808e21b01a2c9b60e8249c41351ed1"
+  },
+  {
+    "file": "BOOT-INF/lib/jsoup-1.21.1.jar",
+    "sha256": "436adf71fe9f326e04fe134cd2785b261f0f4b9b60876adda1de3b6919463394"
+  },
+  {
+    "file": "BOOT-INF/lib/asm-9.8.jar",
+    "sha256": "876eab6a83daecad5ca67eb9fcabb063c97b5aeb8cf1fca7a989ecde17522051"
+  },
+  {
+    "file": "BOOT-INF/lib/parso-2.0.14.jar",
+    "sha256": "3b7e7a32915e04caed5dba31be1430aa57b4f9fa2b3d0ab0ed29067510d16575"
+  },
+  {
+    "file": "BOOT-INF/lib/jmatio-1.5.jar",
+    "sha256": "70db8cf9a1818072f290fd464f14a8369c9c58993e6640128a6e8a6379d67ac7"
+  },
+  {
+    "file": "BOOT-INF/lib/tika-parser-crypto-module-3.2.1.jar",
+    "sha256": "a724b398d8c22d2e3ba1869681ce42c4cc9a17b440800bb3fbab29593a208933"
+  },
+  {
+    "file": "BOOT-INF/lib/bcjmail-jdk18on-1.81.jar",
+    "sha256": "b030f5255c7122bae525cb5b29d36a984f59b04dab3b119b9d833e412fe299a2"
+  },
+  {
+    "file": "BOOT-INF/lib/bcpkix-jdk18on-1.81.1.jar",
+    "sha256": "c437686255f7e202aba1bd1a07c76a2e620877da3dc407f71aa4869790ef9782"
+  },
+  {
+    "file": "BOOT-INF/lib/bcutil-jdk18on-1.81.1.jar",
+    "sha256": "c7c5bea9de6625d66b5bce347c59ada8454a613f1979fd6a12abcde286790d46"
+  },
+  {
+    "file": "BOOT-INF/lib/tika-parser-digest-commons-3.2.1.jar",
+    "sha256": "f046b2600cc55b40999c4812d795a59889db25171554576b353487361d17d781"
+  },
+  {
+    "file": "BOOT-INF/lib/tika-parser-font-module-3.2.1.jar",
+    "sha256": "d2161736ef0e4cbd7bdea51625fa9102610a480bfc6e3554dc93ae2456d93590"
+  },
+  {
+    "file": "BOOT-INF/lib/fontbox-3.0.5.jar",
+    "sha256": "e8a62be2df27a0d44191b6669c0b18df6efe5271232db8dcb8745d5d9774755b"
+  },
+  {
+    "file": "BOOT-INF/lib/pdfbox-io-3.0.5.jar",
+    "sha256": "6df3f3b4db4fd55ef502847ea4e4ebc58e28908800e86eab031345efe219b705"
+  },
+  {
+    "file": "BOOT-INF/lib/tika-parser-html-module-3.2.1.jar",
+    "sha256": "de587848d586a9c360fe87c66c08e3bea66f3823b216e96754c4866868395470"
+  },
+  {
+    "file": "BOOT-INF/lib/tika-parser-image-module-3.2.1.jar",
+    "sha256": "e0e01a7e08e2a339a78b4367f8dc3cbd8b3effcef369eef9fdd1746e1c95e3b0"
+  },
+  {
+    "file": "BOOT-INF/lib/jai-imageio-core-1.4.0.jar",
+    "sha256": "8ad3c68e9efffb10ac87ff8bc589adf64b04a729c5194c079efd0643607fd72a"
+  },
+  {
+    "file": "BOOT-INF/lib/jbig2-imageio-3.0.4.jar",
+    "sha256": "29cb2951622f10acf61fd0656c4e6fa5562194a9095f7a1d26aa426e2f6b17eb"
+  },
+  {
+    "file": "BOOT-INF/lib/tika-parser-mail-module-3.2.1.jar",
+    "sha256": "e28dd9b7e61f14539c44dc34e520a36a78f469f2a28e0a71dba94970c4c654c3"
+  },
+  {
+    "file": "BOOT-INF/lib/tika-parser-mail-commons-3.2.1.jar",
+    "sha256": "4cc8d05af4a26a73f39dfa4c05469c81fa45ef29d2969d6fbcf862ce70493167"
+  },
+  {
+    "file": "BOOT-INF/lib/apache-mime4j-core-0.8.12.jar",
+    "sha256": "b2180c13b97ade21edb5f52581ade0a6f82b5084bb9ca5bdf83584deb6225a69"
+  },
+  {
+    "file": "BOOT-INF/lib/apache-mime4j-dom-0.8.12.jar",
+    "sha256": "d8de21f9091a0109bdfe68d323f2a5ffb326922f8493f88b1203a04a69198940"
+  },
+  {
+    "file": "BOOT-INF/lib/tika-parser-microsoft-module-3.2.1.jar",
+    "sha256": "149ffb567b5de1ca4b3297bab9e16b2758d61ec7a5506e2d4b275e7b0826ac95"
+  },
+  {
+    "file": "BOOT-INF/lib/java-libpst-0.9.3.jar",
+    "sha256": "039cd61635ded94dba67f909d3b1763e13f9c23d02f9750eb6259af10e1dabdb"
+  },
+  {
+    "file": "BOOT-INF/lib/poi-scratchpad-5.4.1.jar",
+    "sha256": "6497ba15c1cba7062aa71661a8d776d321b1f998bb2bfa19b57d7e35606381f1"
+  },
+  {
+    "file": "BOOT-INF/lib/jackcess-4.0.8.jar",
+    "sha256": "bb84e5c7367dedf3a5cea7ad2d37e6874bb688f9003edb92749ef032be25671e"
+  },
+  {
+    "file": "BOOT-INF/lib/jackcess-encrypt-4.0.3.jar",
+    "sha256": "d40a7871ac1dc6343cd2e433c3ee484eb59cdff728b7a1e22dcfc8b3f400a18a"
+  },
+  {
+    "file": "BOOT-INF/lib/tika-parser-miscoffice-module-3.2.1.jar",
+    "sha256": "7bd74738ada8e1815d16b1438010f729dbc03feada64b48876cb914ed4dad576"
+  },
+  {
+    "file": "BOOT-INF/lib/tika-parser-news-module-3.2.1.jar",
+    "sha256": "aef22d16b4de3dd07d6819184a0420e078f4e17c1139e3d94812642558cc5cc4"
+  },
+  {
+    "file": "BOOT-INF/lib/rome-2.1.0.jar",
+    "sha256": "d4e0bb6857a25ee15e2082be6e83e1da897cfbabb025bfe01ae00346d7db7c78"
+  },
+  {
+    "file": "BOOT-INF/lib/rome-utils-2.1.0.jar",
+    "sha256": "6e1c3b022dff4cf7492acddbba22356f424ade3d869a42a2a4d74a28454334a4"
+  },
+  {
+    "file": "BOOT-INF/lib/jdom2-2.0.6.1.jar",
+    "sha256": "0b20f45e3a0fd8f0d12cdc5316b06776e902b1365db00118876f9175c60f302c"
+  },
+  {
+    "file": "BOOT-INF/lib/tika-parser-ocr-module-3.2.1.jar",
+    "sha256": "88239c945a5e1e045c96a08c80cef2f0ee95139fade7ebb36acdb9dcedd40468"
+  },
+  {
+    "file": "BOOT-INF/lib/commons-exec-1.5.0.jar",
+    "sha256": "d52d35801747902527826cca30734034e65baa7f36836cc0facf67131025f703"
+  },
+  {
+    "file": "BOOT-INF/lib/tika-parser-pdf-module-3.2.1.jar",
+    "sha256": "781628e0f5c0d62262d98f405ff9e07a552fade373cec83b395055324c30fe69"
+  },
+  {
+    "file": "BOOT-INF/lib/pdfbox-3.0.5.jar",
+    "sha256": "f0e5d3a1e573c707e4fbcc2ee8e42ea8ca1d5261bdcb3a05a08d2118553c1e5a"
+  },
+  {
+    "file": "BOOT-INF/lib/pdfbox-tools-3.0.5.jar",
+    "sha256": "234a81bb54196d83b34f67b48e60cd65586db79306fdeec53a1c045cb0910984"
+  },
+  {
+    "file": "BOOT-INF/lib/picocli-4.7.6.jar",
+    "sha256": "ed441183f309b93f104ca9e071e314a4062a893184e18a3c7ad72ec9cba12ba0"
+  },
+  {
+    "file": "BOOT-INF/lib/jempbox-1.8.17.jar",
+    "sha256": "ded9c81038dd1bbcba18f07e1028d70c9ceaf0b48ac56cea8ab6ec2c255fc1b3"
+  },
+  {
+    "file": "BOOT-INF/lib/tika-parser-pkg-module-3.2.1.jar",
+    "sha256": "3bbb3ed36a2def36436f351fd04bea146d8029e9631cc31d126ae2e9334e5c85"
+  },
+  {
+    "file": "BOOT-INF/lib/xz-1.10.jar",
+    "sha256": "95c63c1a55b22dd6453890a419cc1a640f790bbf7d8ae82db1e30aefefb08888"
+  },
+  {
+    "file": "BOOT-INF/lib/dec-0.1.2.jar",
+    "sha256": "615c0c3efef990d77831104475fba6a1f7971388691d4bad1471ad84101f6d52"
+  },
+  {
+    "file": "BOOT-INF/lib/junrar-7.5.5.jar",
+    "sha256": "e01b949687e2a5b4c68011c1702aa5d2cc8e6c458656ac2c91658b69cebb1bb3"
+  },
+  {
+    "file": "BOOT-INF/lib/tika-parser-text-module-3.2.1.jar",
+    "sha256": "eb88f99cd874a27934078ec39b9dbf60da58b88a3e517b45bec42cef6c0d1eb1"
+  },
+  {
+    "file": "BOOT-INF/lib/juniversalchardet-2.5.0.jar",
+    "sha256": "ceb271653ed99e15ffe52e4aedecdef8918434f19a4378a67f7ebe0ea8439058"
+  },
+  {
+    "file": "BOOT-INF/lib/commons-csv-1.14.0.jar",
+    "sha256": "2f34d69f89dc94d606e250d5eb26205923e5dbc2c3891d3575f86c849f7f8726"
+  },
+  {
+    "file": "BOOT-INF/lib/tika-parser-webarchive-module-3.2.1.jar",
+    "sha256": "9a5c51193181c4d799627d17eaf0007336dde5578641b06a32f0a260093e2813"
+  },
+  {
+    "file": "BOOT-INF/lib/jwarc-0.31.1.jar",
+    "sha256": "277cf7aa8259d94a4cc8bc0b05979a01341176b9a0491884632a0460438f3c23"
+  },
+  {
+    "file": "BOOT-INF/lib/tika-parser-xml-module-3.2.1.jar",
+    "sha256": "91181e240bbd28cfab5122e97acc3da2f7f67923f1672f171931f52dbd339484"
+  },
+  {
+    "file": "BOOT-INF/lib/tika-parser-xmp-commons-3.2.1.jar",
+    "sha256": "230760fa34424cf908f0a0aacceda0d221d8476efaf6835581da4873f86b506b"
+  },
+  {
+    "file": "BOOT-INF/lib/xmpbox-3.0.5.jar",
+    "sha256": "017899b2fb5c2af714d30c52cca92cde8f12999abf3140d4f0d5f11334f62fdd"
+  },
+  {
+    "file": "BOOT-INF/lib/vorbis-java-tika-0.8.jar",
+    "sha256": "a1b62281a99aec10dc69db1d2f8250952dca5841eedf1167b6b6f9585e2d0d26"
+  },
+  {
+    "file": "BOOT-INF/lib/vorbis-java-core-0.8.jar",
+    "sha256": "879bb0c8923fea686609e207fd9050ab246e001868341c725929405e755cf68e"
+  },
+  {
+    "file": "BOOT-INF/lib/chatchat-integration-1.0.0-SNAPSHOT.jar",
+    "sha256": "1dbaa9f00d42f7931aaa0155fc2acac724096012ee990d3ad3c4e44d16720857"
+  },
+  {
+    "file": "BOOT-INF/lib/chatchat-enterprise-1.0.0-SNAPSHOT.jar",
+    "sha256": "f5137df38ab1f19bf0dee9a46ddac925ef876b7471858cdc84c36c9009d694f6"
+  },
+  {
+    "file": "BOOT-INF/lib/chatchat-chat-1.0.0-SNAPSHOT.jar",
+    "sha256": "dd2dfd2016ecbabbe8881f1e2517c6ce1fe034bbef9c690e5c004b47823a19b1"
+  },
+  {
+    "file": "BOOT-INF/lib/google-adk-langchain4j-1.7.0.jar",
+    "sha256": "3b413ff8314b43658693993d18620ab3938d464f41123c881a91e80f7686222e"
+  },
+  {
+    "file": "BOOT-INF/lib/google-adk-1.7.0.jar",
+    "sha256": "a27b6ba58987e5e616eaf318cfff0e72629d9e5df0b8ced8a318dc8278181af7"
+  },
+  {
+    "file": "BOOT-INF/lib/anthropic-java-2.15.0.jar",
+    "sha256": "d4aaf4cd8114edb47bdc2230fc206522b5a5c622c229fc679dc267e192159720"
+  },
+  {
+    "file": "BOOT-INF/lib/anthropic-java-client-okhttp-2.15.0.jar",
+    "sha256": "eb29b26155c3b054e7930b05f2827bbe888df5f67aac53c6dd32c980db91d5c9"
+  },
+  {
+    "file": "BOOT-INF/lib/logging-interceptor-4.12.0.jar",
+    "sha256": "f3e8d5f0903c250c2b55d2f47fcfe008e80634385da8385161c7a63aaed0c74c"
+  },
+  {
+    "file": "BOOT-INF/lib/anthropic-java-vertex-2.15.0.jar",
+    "sha256": "875af08bdda18320c184dc589f706e2a6864312fff4093e64734b0503ea4fdc2"
+  },
+  {
+    "file": "BOOT-INF/lib/anthropic-java-core-2.15.0.jar",
+    "sha256": "e5130e2be994e0c74f73e45f08012d86719f218b2665c1686639ca6dbe5d039d"
+  },
+  {
+    "file": "BOOT-INF/lib/swagger-annotations-2.2.31.jar",
+    "sha256": "8cb2155211480e5fbd24388a6dc81baeea6dd50f8fcc6504cf4f39e4e3acf96c"
+  },
+  {
+    "file": "BOOT-INF/lib/jackson-module-kotlin-2.19.1.jar",
+    "sha256": "8339c47ad7fa52bd194cf9e8ba9fd8faa50476cb87d72b1366bed87b2a9820ac"
+  },
+  {
+    "file": "BOOT-INF/lib/kotlin-reflect-1.9.25.jar",
+    "sha256": "0f8386ddfd69e7f454a1e6b90b271dccd901d96a257fdf633ecf052fb8951d9f"
+  },
+  {
+    "file": "BOOT-INF/lib/httpcore5-5.3.4.jar",
+    "sha256": "f2b2fd7a0164e8c3120cd8437bc9fea439239e165c17262b3e907daa7e979f80"
+  },
+  {
+    "file": "BOOT-INF/lib/jsonschema-generator-4.38.0.jar",
+    "sha256": "ade4aeb301db4028ac6bcba016c31405677e37aae6eebaf13c99de3fdb3531b4"
+  },
+  {
+    "file": "BOOT-INF/lib/jsonschema-module-jackson-4.38.0.jar",
+    "sha256": "36fbd3f1c27379c3ba8420ac2cb0b42411f7bc3b3df8bdd11d8d7e024a1c28ca"
+  },
+  {
+    "file": "BOOT-INF/lib/jsonschema-module-swagger-2-4.38.0.jar",
+    "sha256": "b76c0df657bcf88cca46d7ad540938552e10127a7c28d2136f62b631666997c1"
+  },
+  {
+    "file": "BOOT-INF/lib/google-cloud-speech-4.80.0.jar",
+    "sha256": "400eebde89478ee3f239f559b9db3304df291c7101ee862c08422943f81acb9c"
+  },
+  {
+    "file": "BOOT-INF/lib/proto-google-cloud-speech-v1p1beta1-2.80.0.jar",
+    "sha256": "7c3c2ec5c7c8228becbbb26ed1d6a5cdaca28450b25df8bb043fd0e4a181df38"
+  },
+  {
+    "file": "BOOT-INF/lib/proto-google-cloud-speech-v2-4.80.0.jar",
+    "sha256": "0225170bf4c6e9a4b998902f788b611f3aae3f3fd9c8fe66b3f1d501bc0d730e"
+  },
+  {
+    "file": "BOOT-INF/lib/proto-google-iam-v1-1.60.1.jar",
+    "sha256": "560ca1d0e61f95a8d7c9931d15911fc814b278a50274f2bbb775e9ce32cb1187"
+  },
+  {
+    "file": "BOOT-INF/lib/proto-google-cloud-speech-v1-4.80.0.jar",
+    "sha256": "442a32ee6cf7f3856c880b528b64fc4e6ee6c1f7c8d03345e138b86cfcbd8aee"
+  },
+  {
+    "file": "BOOT-INF/lib/auto-value-annotations-1.11.0.jar",
+    "sha256": "5a055ce4255333b3346e1a8703da5bf8ff049532286fdcd31712d624abe111dd"
+  },
+  {
+    "file": "BOOT-INF/lib/gax-2.74.1.jar",
+    "sha256": "e8d42d4ac4f3fe1f13f5d7ff866536a6cf834762eba86976623c0a866056d662"
+  },
+  {
+    "file": "BOOT-INF/lib/google-auth-library-credentials-1.42.1.jar",
+    "sha256": "d29934610c3e9eb6c60e95ad05ca34ce486c3867c2f3689548b4aa2c2dd6ec52"
+  },
+  {
+    "file": "BOOT-INF/lib/opencensus-api-0.31.1.jar",
+    "sha256": "f1474d47f4b6b001558ad27b952e35eda5cc7146788877fc52938c6eba24b382"
+  },
+  {
+    "file": "BOOT-INF/lib/gax-grpc-2.74.1.jar",
+    "sha256": "7aea2cb1004fa151da6451d7e484a4e2b92646461a5032f5773f6a00c562dec8"
+  },
+  {
+    "file": "BOOT-INF/lib/grpc-alts-1.76.2.jar",
+    "sha256": "b53bfb144def7803317ddf6ff4318fdafff7092f0e17a0826ddf085b8e113fd7"
+  },
+  {
+    "file": "BOOT-INF/lib/grpc-grpclb-1.76.2.jar",
+    "sha256": "e9efb20aea79b58bedb81da3e0ddee2be1f13ce99dfc443e4ba8fe2f6dca6065"
+  },
+  {
+    "file": "BOOT-INF/lib/conscrypt-openjdk-uber-2.5.2.jar",
+    "sha256": "eaf537d98e033d0f0451cd1b8cc74e02d7b55ec882da63c88060d806ba89c348"
+  },
+  {
+    "file": "BOOT-INF/lib/grpc-auth-1.76.2.jar",
+    "sha256": "66928fb5388e4d9d0ace7617d5fc82208ecb8bbdd2453c6039c0c46909253ca2"
+  },
+  {
+    "file": "BOOT-INF/lib/grpc-googleapis-1.76.2.jar",
+    "sha256": "6372ddbcd3a2aa53753ab18d067e1d0a0841eb486af4a5ac3e4d7864f7cc6c37"
+  },
+  {
+    "file": "BOOT-INF/lib/grpc-xds-1.76.2.jar",
+    "sha256": "16fd53a43872d8fc1771c854ac42408422a4b270ca260a75cb47dc5b6ee6f4ed"
+  },
+  {
+    "file": "BOOT-INF/lib/re2j-1.8.jar",
+    "sha256": "7b52c72156dd7f98b3237a5b35c1d34fba381b21048c89208913ad80a45dfbd7"
+  },
+  {
+    "file": "BOOT-INF/lib/gax-httpjson-2.74.1.jar",
+    "sha256": "38df47e2ed3ddc4ed74228578b095106ffcb405cc31ec7d27bbc2aaed776a684"
+  },
+  {
+    "file": "BOOT-INF/lib/google-http-client-2.1.0.jar",
+    "sha256": "20aa0948f6ceb5cfa9b2b3adddd9b7e990ab40230e084081642cbb81235d3eef"
+  },
+  {
+    "file": "BOOT-INF/lib/opencensus-contrib-http-util-0.31.1.jar",
+    "sha256": "3ea995b55a4068be22989b70cc29a4d788c2d328d1d50613a7a9afd13fdd2d0a"
+  },
+  {
+    "file": "BOOT-INF/lib/google-http-client-gson-2.1.0.jar",
+    "sha256": "3cf72c7b88375a34bf721c664f42edc8e096e2370e4126c9b8933c3c92e591f3"
+  },
+  {
+    "file": "BOOT-INF/lib/threetenbp-1.7.0.jar",
+    "sha256": "857917d2319a4e92dc1c5e3aeb75a0dac84445ed315e7ac3d82bb8d2b298977f"
+  },
+  {
+    "file": "BOOT-INF/lib/google-cloud-aiplatform-3.86.0.jar",
+    "sha256": "ae1ef7723f749c68dbfd076034490b929507c42bf52ed451def583805f28bdfe"
+  },
+  {
+    "file": "BOOT-INF/lib/proto-google-cloud-aiplatform-v1beta1-0.102.0.jar",
+    "sha256": "6f6745d0d57f40c7e8e26425ddbb8534c716862665b5b354b881d12eb939402d"
+  },
+  {
+    "file": "BOOT-INF/lib/proto-google-cloud-aiplatform-v1-3.86.0.jar",
+    "sha256": "4fc38fde17b0daf3f19d49bc712a9e2d581a3f6b03ce3d4b0915bd21ba1dd380"
+  },
+  {
+    "file": "BOOT-INF/lib/docker-java-3.7.0.jar",
+    "sha256": "187c120717ad9b228dac79b01314f2bcddc3e45591c6d7673cdc28552d61ae87"
+  },
+  {
+    "file": "BOOT-INF/lib/docker-java-core-3.7.0.jar",
+    "sha256": "0c8de515a25a28c166e1dc042e5a03d6d1f2dd59130995a5a3a77117341073ff"
+  },
+  {
+    "file": "BOOT-INF/lib/docker-java-api-3.7.0.jar",
+    "sha256": "4c157ca47f8f14a28055ff7b3232940f226fcb6d415ba21f96a8cd1c2b7707c9"
+  },
+  {
+    "file": "BOOT-INF/lib/docker-java-transport-jersey-3.7.0.jar",
+    "sha256": "35ff00deb9fc9ceca40681419d056d375fc60fb37b22f48a5143eae9ad026703"
+  },
+  {
+    "file": "BOOT-INF/lib/jersey-apache-connector-3.1.10.jar",
+    "sha256": "4e47d876b57fff2df9d6661294723c0966a9be845c1803dd6abc53b8625a6f7a"
+  },
+  {
+    "file": "BOOT-INF/lib/jersey-common-3.1.10.jar",
+    "sha256": "b8df5de87d48d6abf555f340755a056c8cb29a660af958e959db8a4cb3552b54"
+  },
+  {
+    "file": "BOOT-INF/lib/osgi-resource-locator-1.0.3.jar",
+    "sha256": "aab5d7849f7cfcda2cc7c541ba1bd365151d42276f151c825387245dfde3dd74"
+  },
+  {
+    "file": "BOOT-INF/lib/jakarta.ws.rs-api-3.1.0.jar",
+    "sha256": "6b3b3628b8b4aedda0d24c3354335e985497d8ef3c510b8f3028e920d5b8663d"
+  },
+  {
+    "file": "BOOT-INF/lib/jersey-client-3.1.10.jar",
+    "sha256": "96cf86c23b515da20a30a39633a920f12a420d1e5f02c55ef5577ca2694d11c6"
+  },
+  {
+    "file": "BOOT-INF/lib/jersey-hk2-3.1.10.jar",
+    "sha256": "00ed71c496a856ac1f73272482a7abe27b5a96b823c29cc08f4b708c8d3e647e"
+  },
+  {
+    "file": "BOOT-INF/lib/hk2-locator-3.0.6.jar",
+    "sha256": "e2664d21b017c3aa1518b913264602bea604edc54d356103c10afba99abd04fc"
+  },
+  {
+    "file": "BOOT-INF/lib/aopalliance-repackaged-3.0.6.jar",
+    "sha256": "a82b6d1a348324ef88dc807c7cd7aaf633985cbff7b30036fb61a1b86981d840"
+  },
+  {
+    "file": "BOOT-INF/lib/hk2-api-3.0.6.jar",
+    "sha256": "c049a21a9fd9316c7e291a2bc28835f70d25affb623dc1599a83b6b84ec83a4f"
+  },
+  {
+    "file": "BOOT-INF/lib/hk2-utils-3.0.6.jar",
+    "sha256": "fc84d85a0744b576d9ec7db5845eeb998ed532a9450dd19c8c922c3ee6926206"
+  },
+  {
+    "file": "BOOT-INF/lib/javassist-3.30.2-GA.jar",
+    "sha256": "eba37290994b5e4868f3af98ff113f6244a6b099385d9ad46881307d3cb01aaf"
+  },
+  {
+    "file": "BOOT-INF/lib/junixsocket-common-2.10.1.jar",
+    "sha256": "19e5f7615ad2293f3532bc3f991b31396c1161834e89d9a6aa0c7def939c6729"
+  },
+  {
+    "file": "BOOT-INF/lib/junixsocket-native-common-2.10.1.jar",
+    "sha256": "0126ce0baf1ceb575ef517807d4d2b14b9f32f06180204e12ec73ab4a772567a"
+  },
+  {
+    "file": "BOOT-INF/lib/docker-java-transport-netty-3.7.0.jar",
+    "sha256": "58dbdd69f66f7089328e4de718233fee6bdf979124a555b88975028f52c1e4c0"
+  },
+  {
+    "file": "BOOT-INF/lib/netty-transport-native-kqueue-4.1.122.Final-osx-x86_64.jar",
+    "sha256": "563f4391e26fe03928fd1c1c20e525b8ef001f1acb74f23dec29eec2fb723577"
+  },
+  {
+    "file": "BOOT-INF/lib/netty-transport-classes-kqueue-4.1.122.Final.jar",
+    "sha256": "294d7d36d361405410924e9881e00660c60fa411a3e74e88a9a85ee6e4d525f8"
+  },
+  {
+    "file": "BOOT-INF/lib/docker-java-transport-httpclient5-3.7.0.jar",
+    "sha256": "18e57830a78d48361f5ae1f2b198a828e8cd0b120781d1af4a26f0d7151c9d2b"
+  },
+  {
+    "file": "BOOT-INF/lib/docker-java-transport-3.7.0.jar",
+    "sha256": "303ec4bf06b7c3c659e24d337b644d561d78139cfba3c7ab5011545a6d11e5ea"
+  },
+  {
+    "file": "BOOT-INF/lib/httpclient5-5.5.jar",
+    "sha256": "496b4b0e8d5f3a8139a5d2638486d304758bac3a9c39d76989f663cfd9354fc9"
+  },
+  {
+    "file": "BOOT-INF/lib/httpcore5-h2-5.3.4.jar",
+    "sha256": "1fb4f34e4b612e7c127ad693335583587850b17ce9b1c366f9de1ca49fe2c781"
+  },
+  {
+    "file": "BOOT-INF/lib/jna-5.18.1.jar",
+    "sha256": "260c4b1e22b1db9e110ee441c4f13ce115f841fa48c41d78750986214b395557"
+  },
+  {
+    "file": "BOOT-INF/lib/google-auth-library-oauth2-http-1.42.1.jar",
+    "sha256": "fb54ada3c0223ffb4470fb6d8fbd55f764588dbd244dc7c05caaf4ab62977898"
+  },
+  {
+    "file": "BOOT-INF/lib/google-cloud-storage-2.63.0.jar",
+    "sha256": "174ad1e7a58909b446822a3bd9b53715b2ffd6d59b1da904caa5608302f009c1"
+  },
+  {
+    "file": "BOOT-INF/lib/jackson-dataformat-xml-2.19.1.jar",
+    "sha256": "cc14e2159c2f78897e484d5dc2d10f029524e28ac57a3aa2f878445fd0cd912a"
+  },
+  {
+    "file": "BOOT-INF/lib/stax2-api-4.2.2.jar",
+    "sha256": "a61c48d553efad78bc01fffc4ac528bebbae64cbaec170b2a5e39cf61eb51abe"
+  },
+  {
+    "file": "BOOT-INF/lib/woodstox-core-7.0.0.jar",
+    "sha256": "eeb3853282c24964a93a6eb4c1bbcb60c8d09fd8e0ffc75ab64ad21045a1fa78"
+  },
+  {
+    "file": "BOOT-INF/lib/google-http-client-jackson2-2.1.0.jar",
+    "sha256": "369a3a9ff7254869da24a6d259ee49e1425f6294186ee3cba3fb7980d117f59e"
+  },
+  {
+    "file": "BOOT-INF/lib/google-api-client-2.7.2.jar",
+    "sha256": "63b754b7c4a92347c4992c42d295812f8d2ed6b9e8743edba4a8c98b92e9ca9b"
+  },
+  {
+    "file": "BOOT-INF/lib/google-oauth-client-1.39.0.jar",
+    "sha256": "27fc61ee2d526e33d31350b5ea383091c0879345e261f9b2e6fcc97a20c86f88"
+  },
+  {
+    "file": "BOOT-INF/lib/google-http-client-apache-v2-2.1.0.jar",
+    "sha256": "8bc85182d22bf5ea39a33c6b5e4cf38c0bc3166a47d64879de117a5eadb4439b"
+  },
+  {
+    "file": "BOOT-INF/lib/google-api-services-storage-v1-rev20251118-2.0.0.jar",
+    "sha256": "5b43beab740db6a583fe1868168f91a20a1a0aed4bda4570f74185ba63663f6c"
+  },
+  {
+    "file": "BOOT-INF/lib/google-cloud-core-2.64.1.jar",
+    "sha256": "31aa0f2a40198cc2c53cb767cd95aaf077aba756564b13f2918bc93164631b90"
+  },
+  {
+    "file": "BOOT-INF/lib/google-cloud-core-http-2.64.1.jar",
+    "sha256": "1580f1427fd77eb2d5a5dcbabf5f856ce2276a447e89832c8ee59e09c30a4d57"
+  },
+  {
+    "file": "BOOT-INF/lib/google-http-client-appengine-2.1.0.jar",
+    "sha256": "75daee37c354c87c40c32453e8be942597ecaf3b38b7ac4974312f8ce4b3d207"
+  },
+  {
+    "file": "BOOT-INF/lib/google-cloud-core-grpc-2.64.1.jar",
+    "sha256": "fdca3d5819dbea79b85827551a3a4c96617ffac5dbe80828ae00c63a12971248"
+  },
+  {
+    "file": "BOOT-INF/lib/opentelemetry-context-1.49.0.jar",
+    "sha256": "17de3c85b341240b3b216c43adbd244c9fbd39c9e5448306d56460f80599a76b"
+  },
+  {
+    "file": "BOOT-INF/lib/proto-google-cloud-storage-v2-2.63.0.jar",
+    "sha256": "c9d6a4eb068b5430054791e9cddad7a195453fc62be4739eb8688654d07f4a65"
+  },
+  {
+    "file": "BOOT-INF/lib/grpc-google-cloud-storage-v2-2.63.0.jar",
+    "sha256": "e8f0ae5930ab9860e83bd822d9f5f9e9528dafb5237d6b271cf2e4caf77d9663"
+  },
+  {
+    "file": "BOOT-INF/lib/gapic-google-cloud-storage-v2-2.63.0.jar",
+    "sha256": "08102445ba64c14484339ac8a13070e7cf75a1614957b2318097c93ea47ea86b"
+  },
+  {
+    "file": "BOOT-INF/lib/grpc-opentelemetry-1.76.2.jar",
+    "sha256": "3c2fee12c7cbae2aa5b3d064d41a0ae3b0cc6c7a4539ba3557f49c1ab030a2da"
+  },
+  {
+    "file": "BOOT-INF/lib/opentelemetry-sdk-metrics-1.49.0.jar",
+    "sha256": "cf28ea29fcfd4577a4a3bda388ac08cbbb86e4b1b534822848ea5c5554bfd603"
+  },
+  {
+    "file": "BOOT-INF/lib/opentelemetry-sdk-common-1.49.0.jar",
+    "sha256": "b06214ccf3cda749edcd426c1492483e201e1fcfadb9f9cba8ecb439ff5c5d0f"
+  },
+  {
+    "file": "BOOT-INF/lib/opentelemetry-sdk-extension-autoconfigure-spi-1.49.0.jar",
+    "sha256": "b3091033e5b4b4b49334709707858d993afb92fe5c32d4a0b27e02d2e956c5b7"
+  },
+  {
+    "file": "BOOT-INF/lib/opentelemetry-semconv-1.29.0-alpha.jar",
+    "sha256": "a95f1aed7e3f64353ec625c6def72a0caaf06b6c53970f578fdd513dafd995fd"
+  },
+  {
+    "file": "BOOT-INF/lib/exporter-metrics-0.33.0.jar",
+    "sha256": "7a9ab87683a97357a95389ff3cec9684785648076f9b158d44da3becb93bb036"
+  },
+  {
+    "file": "BOOT-INF/lib/google-cloud-monitoring-3.52.0.jar",
+    "sha256": "9727aa7d94d8dd036bffccf9abc5d18970b1e5e9827896f9907f7450ed10f5e6"
+  },
+  {
+    "file": "BOOT-INF/lib/proto-google-cloud-monitoring-v3-3.52.0.jar",
+    "sha256": "8238b3216aa59ffeed9a157833d7fcc844a7dc9f101b23d728f1cdec6c5c3ba2"
+  },
+  {
+    "file": "BOOT-INF/lib/shared-resourcemapping-0.33.0.jar",
+    "sha256": "eea9a3e11db783626cc15dd1835c1ed09f53b70a1fca8c58bf723ce813e9f843"
+  },
+  {
+    "file": "BOOT-INF/lib/opentelemetry-gcp-resources-1.37.0-alpha.jar",
+    "sha256": "f7b6baddfbbe57f0e3e1e3cc08eb68bb61c29ef6c17898ce7ce35b1f3029d3e6"
+  },
+  {
+    "file": "BOOT-INF/lib/detector-resources-support-0.33.0.jar",
+    "sha256": "94b0def27754083ceaa67b56a4d483d294e9f17066493df3ef7e81ec5c3bb2c0"
+  },
+  {
+    "file": "BOOT-INF/lib/grpc-rls-1.76.2.jar",
+    "sha256": "f9dda6e7c948000d5895fe6fd5c2aa4603141225d8a1fbfedfeff95ec59f9e9b"
+  },
+  {
+    "file": "BOOT-INF/lib/okhttp-jvm-5.3.2.jar",
+    "sha256": "c771f48075b763f6c322055e21129a94b7de4c1faf3f8f58ace320b0c9517a30"
+  },
+  {
+    "file": "BOOT-INF/lib/Java-WebSocket-1.6.0.jar",
+    "sha256": "eae29213e4f16515639c28957200f011b3967fffcada1962cf0255d24919c22f"
+  },
+  {
+    "file": "BOOT-INF/lib/rxjava-3.1.10.jar",
+    "sha256": "e9f256f9e805572dd5fd45b140db360d7dc444d0c383049b2d3d7ebf05d84aab"
+  },
+  {
+    "file": "BOOT-INF/lib/opentelemetry-api-1.49.0.jar",
+    "sha256": "a813c9a92b82a4ffa3a62e88216a9e9ef9a407fcd41614fe596b2895167ed638"
+  },
+  {
+    "file": "BOOT-INF/lib/opentelemetry-sdk-1.49.0.jar",
+    "sha256": "d6fdaf0f04724d5c9362db2f809fd21f36e95c9c039d22fe695692d606107bff"
+  },
+  {
+    "file": "BOOT-INF/lib/opentelemetry-exporter-otlp-1.49.0.jar",
+    "sha256": "b69c1664dbd75e7a4c5ab2e187766e7e4fcdb208c94dc569f1453c388d595812"
+  },
+  {
+    "file": "BOOT-INF/lib/opentelemetry-exporter-otlp-common-1.49.0.jar",
+    "sha256": "be16d6802be0eb2d08389fc9af1e801fc98f96061fe6bcda2562dcb7e2e0dd5b"
+  },
+  {
+    "file": "BOOT-INF/lib/opentelemetry-exporter-common-1.49.0.jar",
+    "sha256": "06d08af00b9fec8e99b6a4fda2eb201facbe2fe38a89eb11cbbfbe4183b73141"
+  },
+  {
+    "file": "BOOT-INF/lib/opentelemetry-exporter-sender-okhttp-1.49.0.jar",
+    "sha256": "1783a33e5bb241a5d6062c01b5c8cae9b0e1d296aff0b4c1fe3280b136bf4ad4"
+  },
+  {
+    "file": "BOOT-INF/lib/opentelemetry-sdk-logs-1.49.0.jar",
+    "sha256": "edf7f2411d5180099efebc5a5e2f01378f647897671aa9819f2064e24b6f7e9f"
+  },
+  {
+    "file": "BOOT-INF/lib/opentelemetry-sdk-trace-1.49.0.jar",
+    "sha256": "483bf21dde1df1a2c9875ba7dff1e3c8c1a63789cd45ad58223ec64b5951318e"
+  },
+  {
+    "file": "BOOT-INF/lib/google-cloud-bigquery-2.40.0.jar",
+    "sha256": "4b5b29a78bb536e93641fa5fd8c6bc9f9c243554dca401f7af365aec2ff34046"
+  },
+  {
+    "file": "BOOT-INF/lib/checker-compat-qual-2.5.6.jar",
+    "sha256": "11d134b245e9cacc474514d2d66b5b8618f8039a1465cdc55bbc0b34e0008b7a"
+  },
+  {
+    "file": "BOOT-INF/lib/google-api-services-bigquery-v2-rev20240323-2.0.0.jar",
+    "sha256": "ed62a113a60084d0e02e691c11dd2beeb5116d44e782e9a1686ab295f00bd0ab"
+  },
+  {
+    "file": "BOOT-INF/lib/threeten-extra-1.8.0.jar",
+    "sha256": "51e4d21edc4e9447f7760c050e0baee75d7d973f387ba605a17abdc4d24fd6d8"
+  },
+  {
+    "file": "BOOT-INF/lib/google-cloud-bigquerystorage-3.5.0.jar",
+    "sha256": "2caf4191e99f0ba3cd6efe9eabf6e64a8c6ad2fff10113f9c4c960ab6999ec2b"
+  },
+  {
+    "file": "BOOT-INF/lib/auto-value-1.10.4.jar",
+    "sha256": "f3c438d1f82904bbcb452084d488b660f3c7488e9274c3a58f049e121632d434"
+  },
+  {
+    "file": "BOOT-INF/lib/proto-google-cloud-bigquerystorage-v1beta1-0.177.0.jar",
+    "sha256": "5f4d0ed7391dacc44c85e78da51808e4aed203c0e7e4b6acfbb31a58e86b310d"
+  },
+  {
+    "file": "BOOT-INF/lib/proto-google-cloud-bigquerystorage-v1beta2-0.177.0.jar",
+    "sha256": "584f321a54a800634cc2c7846bc8fde3a76fa5c0490ff9e0b00e6cd0856b9e1a"
+  },
+  {
+    "file": "BOOT-INF/lib/json-20240303.jar",
+    "sha256": "3cf6cd6892e32e2b4c1c39e0f52f5248a2f5b37646fdfbb79a66b46b618414ed"
+  },
+  {
+    "file": "BOOT-INF/lib/grpc-google-cloud-bigquerystorage-v1beta1-0.177.0.jar",
+    "sha256": "9881070468f609a61d2a60e67ce57c3f936f25c7adee6f2a837926c5dc80b713"
+  },
+  {
+    "file": "BOOT-INF/lib/grpc-google-cloud-bigquerystorage-v1beta2-0.177.0.jar",
+    "sha256": "e7a03bc9851ccbb60aef1f3ffbb99a9e1d4d386eeac93a3cbcdd27f8caebb971"
+  },
+  {
+    "file": "BOOT-INF/lib/grpc-google-cloud-bigquerystorage-v1-3.5.0.jar",
+    "sha256": "f6414ecc384e747ab60135a56f84daa61153ccc27fdf62d73cefb388daf27cdf"
+  },
+  {
+    "file": "BOOT-INF/lib/proto-google-cloud-bigquerystorage-v1-3.5.0.jar",
+    "sha256": "8db1d64bfe9bc34404beccc46db9e9f73de461654fb7636ad62bc15ea35f54ee"
+  },
+  {
+    "file": "BOOT-INF/lib/arrow-format-15.0.2.jar",
+    "sha256": "84cf1d5b0cbb607b21ad2d4b517341d5895a9191044b6e0d0ff21560b2652321"
+  },
+  {
+    "file": "BOOT-INF/lib/flatbuffers-java-23.5.26.jar",
+    "sha256": "8d10cac2ea9878896077ba437d76fdb1b9a07f55a863c560bb8a024b04103f8b"
+  },
+  {
+    "file": "BOOT-INF/lib/eclipse-collections-11.1.0.jar",
+    "sha256": "8881749de791c28c6ccea621314a3a154cfe76ef77c30054b6e714c3dc76969d"
+  },
+  {
+    "file": "BOOT-INF/lib/eclipse-collections-api-11.1.0.jar",
+    "sha256": "1b8608ecf4e681f031c29a28c403f71476fe5df3a8f0c0dd8c7ad33b91984212"
+  },
+  {
+    "file": "BOOT-INF/lib/arrow-vector-17.0.0.jar",
+    "sha256": "8aeacff8d78d933e5f00310a725a9d40c254b32c32594b752dca477b169341fb"
+  },
+  {
+    "file": "BOOT-INF/lib/arrow-memory-core-17.0.0.jar",
+    "sha256": "27b7d85a152b23dc9b03356b71dec6ae3335c3a704ee70f6454f92791eb64e7a"
+  },
+  {
+    "file": "BOOT-INF/lib/arrow-memory-netty-17.0.0.jar",
+    "sha256": "1dc550cd8242056d7fcedc9ed9cd36d9b194c6ae139234c567bf0ce4af54b893"
+  },
+  {
+    "file": "BOOT-INF/lib/arrow-memory-netty-buffer-patch-17.0.0.jar",
+    "sha256": "8540acb104d41294cfea6b027e6607da96b685c5b3cd9d77abb1152b695c5232"
+  },
+  {
+    "file": "BOOT-INF/lib/google-genai-1.58.0.jar",
+    "sha256": "e9c17f77c17ac74e8aa4d5862c53f9f4fc8161b3a3a54b22f0da340072960152"
+  },
+  {
+    "file": "BOOT-INF/lib/api-common-2.45.0.jar",
+    "sha256": "335933f1043d3b4022e301a7bba2a5614bbd59df88e6eb7e311d780669d55c20"
+  },
+  {
+    "file": "BOOT-INF/lib/spring-jdbc-6.2.8.jar",
+    "sha256": "83d52866301cfba6252fde96c3fbc5912ba60c18e4884e900c70028b3629d291"
+  },
+  {
+    "file": "BOOT-INF/lib/spring-tx-6.2.8.jar",
+    "sha256": "e2a7d229f39b79729e4fef093775d32a03c079e98e6f6c8fddf886700d9d05bf"
+  },
+  {
+    "file": "BOOT-INF/lib/jakarta.validation-api-3.0.2.jar",
+    "sha256": "291c25e6910cc6a7ebd96d4c6baebf6d7c37676c5482c2d96146e901b62c1fc9"
+  },
+  {
+    "file": "BOOT-INF/lib/jackson-module-parameter-names-2.19.1.jar",
+    "sha256": "55eadd4a008add686e24c5963fac37a5b496eea320f74f092a059aeb6feecd6e"
+  },
+  {
+    "file": "BOOT-INF/lib/tomcat-embed-core-10.1.42.jar",
+    "sha256": "c0ca6acafe5ad63cd5de16ec8894318a7b53ea11e3db1bc217fd5f2a9746a790"
+  },
+  {
+    "file": "BOOT-INF/lib/tomcat-embed-websocket-10.1.42.jar",
+    "sha256": "de13dd7f8d1719a8f0c17e24e838d7d1705c9e32fc81665e5c5daf79eb012701"
+  },
+  {
+    "file": "BOOT-INF/lib/spring-webmvc-6.2.8.jar",
+    "sha256": "897e6d34737d1a475cdcb9e414abf42de51d5d547232345cfb7f34d344992f5d"
+  },
+  {
+    "file": "BOOT-INF/lib/spring-aop-6.2.8.jar",
+    "sha256": "e74bfc1e95b60c73785258559020929885424ede9667a5163a9651d51b894e38"
+  },
+  {
+    "file": "BOOT-INF/lib/spring-context-6.2.8.jar",
+    "sha256": "1cf85780301b86f8d876a2dfbfbdd9ee187179cdb361337a2ba4ee56025f6432"
+  },
+  {
+    "file": "BOOT-INF/lib/spring-expression-6.2.8.jar",
+    "sha256": "d46b922eb2200710ec5100f00d35fd8786d5e7bc459d09c8bbda32432726a5ba"
+  },
+  {
+    "file": "BOOT-INF/lib/reactor-netty-http-1.2.7.jar",
+    "sha256": "3ba56a3a317781607d8ee61f4fde51929c97524da46ce46b111ba93d3b2976ba"
+  },
+  {
+    "file": "BOOT-INF/lib/netty-codec-http-4.1.122.Final.jar",
+    "sha256": "d0c6a9d73a6a968a5719e73c53a2464ff8b20362161b853fcee439eda2b8248b"
+  },
+  {
+    "file": "BOOT-INF/lib/netty-codec-http2-4.1.122.Final.jar",
+    "sha256": "4cae7b65fe7398006c1847f69c580356551b22c72f87b129dd0b35d3d30640b7"
+  },
+  {
+    "file": "BOOT-INF/lib/netty-resolver-dns-4.1.122.Final.jar",
+    "sha256": "3f5d9a382bc286a602fb7abd349f04fd3b32cd6344c08a4a8cb6212d45032294"
+  },
+  {
+    "file": "BOOT-INF/lib/netty-codec-dns-4.1.122.Final.jar",
+    "sha256": "527eb7fc8abe763d27f4fccc3338e67b20dec76b377a72fb68225ad280f4ddc7"
+  },
+  {
+    "file": "BOOT-INF/lib/netty-resolver-dns-native-macos-4.1.122.Final-osx-x86_64.jar",
+    "sha256": "dca7f916343b3b2f5bf57581c4fea9db19cc6ae93936032facb39d534d6aa0a1"
+  },
+  {
+    "file": "BOOT-INF/lib/netty-resolver-dns-classes-macos-4.1.122.Final.jar",
+    "sha256": "54a05b4e5620681a3bc6a7b350fe53cbcc0ad1f06fcaedfa4b7a072422129e9e"
+  },
+  {
+    "file": "BOOT-INF/lib/netty-transport-native-epoll-4.1.122.Final-linux-x86_64.jar",
+    "sha256": "215d8b7fee2869275541ec3781545bda5850824c54601579b52caad574d95ca1"
+  },
+  {
+    "file": "BOOT-INF/lib/netty-transport-classes-epoll-4.1.122.Final.jar",
+    "sha256": "fc8f7e1935d5cb26ef1f5f183502e4a968c7c43cf5bfa4e7d196a459652efbdc"
+  },
+  {
+    "file": "BOOT-INF/lib/reactor-netty-core-1.2.7.jar",
+    "sha256": "09735d0a03d719b3a6e431ef414ef3c0dabe7b53ad597fae53e6e83667cb7bd5"
+  },
+  {
+    "file": "BOOT-INF/lib/netty-handler-proxy-4.1.122.Final.jar",
+    "sha256": "3bced326b9af7bdab8ed991c0a1b054825abcd8591c96a16eb50fb8a1a2f98cf"
+  },
+  {
+    "file": "BOOT-INF/lib/netty-codec-socks-4.1.122.Final.jar",
+    "sha256": "53f285de5233883551adc22b9c5747b2df39ccf971123ddf784e423e3c404071"
+  },
+  {
+    "file": "BOOT-INF/lib/spring-webflux-6.2.8.jar",
+    "sha256": "cc1a5081a04d75b3945382ae507b9229ea0c59e15c7562e682a2e1d165b57482"
+  },
+  {
+    "file": "BOOT-INF/lib/tomcat-embed-el-10.1.42.jar",
+    "sha256": "45b3ae7ce47e7f15add01a25cb7ccaf37a07d4cdc4942f9d662c34e763d05df8"
+  },
+  {
+    "file": "BOOT-INF/lib/hibernate-validator-8.0.2.Final.jar",
+    "sha256": "2f2224a5a19bdcfa73540e9ff5c971b6c425ad80415876f305259fe873a15b2f"
+  },
+  {
+    "file": "BOOT-INF/lib/classmate-1.7.0.jar",
+    "sha256": "cb868f231c5cceb89d795ea00e6e1b7a93b8f4ac1ce1d8be76dde322dff4a046"
+  },
+  {
+    "file": "BOOT-INF/lib/HikariCP-6.3.0.jar",
+    "sha256": "07c6344059af30a135144209c7c8bd666b8823124422ec859864d209d4ab7ca1"
+  },
+  {
+    "file": "BOOT-INF/lib/hibernate-core-6.6.18.Final.jar",
+    "sha256": "db9534f6995ed0d6a16ebe45fdb4a4807146160aa51b7332eeb392fb4d9f020a"
+  },
+  {
+    "file": "BOOT-INF/lib/jakarta.persistence-api-3.1.0.jar",
+    "sha256": "475389446d35c6f46c565728b756dc508c284644ea2690644e0d8e7e339d42fd"
+  },
+  {
+    "file": "BOOT-INF/lib/jakarta.transaction-api-2.0.1.jar",
+    "sha256": "50c0a7c760c13ae6c042acf182b28f0047413db95b4636fb8879bcffab5ba875"
+  },
+  {
+    "file": "BOOT-INF/lib/hibernate-commons-annotations-7.0.3.Final.jar",
+    "sha256": "0db2fd57d5e43688ac6ed5cdf36deaf05d84340dcc24c2dd2a2114de38e5175d"
+  },
+  {
+    "file": "BOOT-INF/lib/jandex-3.2.0.jar",
+    "sha256": "6da3e9ce8d0c0a433f3e7ce610a3c66accb00c71fee67aa0ff3e5a841395ac15"
+  },
+  {
+    "file": "BOOT-INF/lib/byte-buddy-1.17.6.jar",
+    "sha256": "d26382a839cb26d5c62a0b0f04715bcef55a531f96ac6ce40de452a1c0539e70"
+  },
+  {
+    "file": "BOOT-INF/lib/jaxb-runtime-4.0.5.jar",
+    "sha256": "485d8940e76373a7f300815ea5504bf5b726c234425ad30971019d133124cca4"
+  },
+  {
+    "file": "BOOT-INF/lib/jaxb-core-4.0.5.jar",
+    "sha256": "ad3fd9bf00de3eda9859f70b6cfb011e2fe9904804e16a2665092888ece0fdca"
+  },
+  {
+    "file": "BOOT-INF/lib/txw2-4.0.5.jar",
+    "sha256": "917355bc451481f30d043b24d123110517966af34383901773882810dca480e5"
+  },
+  {
+    "file": "BOOT-INF/lib/istack-commons-runtime-4.1.2.jar",
+    "sha256": "7fd6792361f4dd00f8c56af4a20cecc0066deea4a8f3dec38348af23fc2296ee"
+  },
+  {
+    "file": "BOOT-INF/lib/jakarta.inject-api-2.0.1.jar",
+    "sha256": "f7dc98062fccf14126abb751b64fab12c312566e8cbdc8483598bffcea93af7c"
+  },
+  {
+    "file": "BOOT-INF/lib/antlr4-runtime-4.13.0.jar",
+    "sha256": "bd7f7b5d07bc0b047f10915b32ca4bb1de9e57d8049098882e4453c88c076a5d"
+  },
+  {
+    "file": "BOOT-INF/lib/spring-data-jpa-3.5.1.jar",
+    "sha256": "c18353bfa941d5fd7d38fd7ddf7bf8548ea2dc6af397847b6384e8d0bb029467"
+  },
+  {
+    "file": "BOOT-INF/lib/spring-data-commons-3.5.1.jar",
+    "sha256": "139fcb68434b4188fa2363e01e8a0a150fbe69f9945c175e4992825cb0fc21d7"
+  },
+  {
+    "file": "BOOT-INF/lib/spring-orm-6.2.8.jar",
+    "sha256": "7d65701324bf41c1412f784d5bd9283cd8c1bfc90f9bf57fec0195d22b52fe38"
+  },
+  {
+    "file": "BOOT-INF/lib/spring-aspects-6.2.8.jar",
+    "sha256": "ed823ced0c60bbf6faca049bc048e45a73a8ca8414344d09a0b10fb11ff4b11a"
+  },
+  {
+    "file": "BOOT-INF/lib/aspectjweaver-1.9.24.jar",
+    "sha256": "75e4227fb7dc5f97c3d4689cd1c2439f4db0bd18cea2fa242c4656cd93c599aa"
+  },
+  {
+    "file": "BOOT-INF/lib/h2-2.3.232.jar",
+    "sha256": "8dae62d22db8982c3dcb3826edb9c727c5d302063a67eef7d63d82de401f07d3"
+  },
+  {
+    "file": "BOOT-INF/lib/hibernate-community-dialects-6.6.18.Final.jar",
+    "sha256": "14613904a78b3a3426ff95644b37d119f4855788023406bf3234227bb8b11780"
+  },
+  {
+    "file": "BOOT-INF/lib/jboss-logging-3.6.1.Final.jar",
+    "sha256": "5e08a4b092dc85b337f0910a740571d8720cfa565fabd880a8caf94a657ca416"
+  },
+  {
+    "file": "BOOT-INF/lib/postgresql-42.7.7.jar",
+    "sha256": "157963d60ae66d607e09466e8c0cdf8087e9cb20d0159899ffca96bca2528460"
+  },
+  {
+    "file": "BOOT-INF/lib/checker-qual-3.49.3.jar",
+    "sha256": "367edbf2fe9f606c1fdb5a8ba6e1c9c27625993e1ff954e3868de70bcc6416b7"
+  },
+  {
+    "file": "BOOT-INF/lib/mysql-connector-j-9.2.0.jar",
+    "sha256": "7e9941bbdcca244d878ea95bfff788fd9ba6a65af757f24be6c632930d61c7ed"
+  },
+  {
+    "file": "BOOT-INF/lib/springdoc-openapi-starter-webmvc-ui-2.1.0.jar",
+    "sha256": "b20ccbf0529bb08a91c205ee223f89f2a8838897e9fd0647fe6a9caeca63b074"
+  },
+  {
+    "file": "BOOT-INF/lib/springdoc-openapi-starter-webmvc-api-2.1.0.jar",
+    "sha256": "d4745d8d17172b1e11b338c460fb01d0a869adbd4ebd22f2979ee90db1f3c56b"
+  },
+  {
+    "file": "BOOT-INF/lib/springdoc-openapi-starter-common-2.1.0.jar",
+    "sha256": "1aef1950e2a99d1adb58d3b78bfce04e3475e905b49b119c6a47ed5122a6a56d"
+  },
+  {
+    "file": "BOOT-INF/lib/swagger-core-jakarta-2.2.9.jar",
+    "sha256": "38a9bd5e8384839f55b4d1c4ca241e7bf85224ec9bcaa3070a1d085402e3e961"
+  },
+  {
+    "file": "BOOT-INF/lib/swagger-annotations-jakarta-2.2.9.jar",
+    "sha256": "a0a419d37350a1b8f0dad8a1d16d1d285e1fad3138ab924b6e6715b6ad143907"
+  },
+  {
+    "file": "BOOT-INF/lib/swagger-models-jakarta-2.2.9.jar",
+    "sha256": "7d9cf175e493581e8cfb2b67c15286abc108106d1400992f8bee3271ff122b5c"
+  },
+  {
+    "file": "BOOT-INF/lib/swagger-ui-4.18.2.jar",
+    "sha256": "b052e715aba12f58f4ce430ed0df69ffe8d4ca7a5e22f48fbe924e956dc16fa4"
+  },
+  {
+    "file": "BOOT-INF/lib/spring-messaging-6.2.8.jar",
+    "sha256": "c202b58b3913a5135709f769c33af4e16349a6713893fea9db99f7c44e16567b"
+  },
+  {
+    "file": "BOOT-INF/lib/spring-websocket-6.2.8.jar",
+    "sha256": "928560d8062da4eadc3830a265e290c2349e5f0b8d66577b0c6281e4ae2e450b"
+  },
+  {
+    "file": "BOOT-INF/lib/jackson-databind-2.19.1.jar",
+    "sha256": "0bc539401d52c6b14e668947c851dcc49f78a4ada3d1fc8e8f71440613fc26ce"
+  },
+  {
+    "file": "BOOT-INF/lib/jackson-annotations-2.19.2.jar",
+    "sha256": "e516743a316dcf83c572ffc9cb6e8c5e8c134880c8c5155b02f7b34e9c5dc3cf"
+  },
+  {
+    "file": "BOOT-INF/lib/langchain4j-http-client-jdk-1.20.0.jar",
+    "sha256": "03abb346d95d956b9e02e8eddbeef6236e69108b689d9037f6a6b298f2c7c097"
+  },
+  {
+    "file": "BOOT-INF/lib/langchain4j-http-client-1.20.0.jar",
+    "sha256": "867abe5012fa5d6101f5194c076292caf56300a818f68b171f48df87959888c9"
+  },
+  {
+    "file": "BOOT-INF/lib/mutiny-zero-1.3.1.jar",
+    "sha256": "10455d395ca9e3d8256bb216672684ad9482288d331efc48db4196eba804273b"
+  },
+  {
+    "file": "BOOT-INF/lib/langchain4j-open-ai-1.20.0.jar",
+    "sha256": "bc357587924fb34a1902da5d6dfb20179bbe537395b5c1e7ede5ca0fc03138b9"
+  },
+  {
+    "file": "BOOT-INF/lib/langchain4j-reactive-streaming-1.20.0-beta30.jar",
+    "sha256": "dc2edd7dc0dd920c38f81c00297b0449eadbc02db9123b684ed0cf17ee063be4"
+  },
+  {
+    "file": "BOOT-INF/lib/jtokkit-1.1.0.jar",
+    "sha256": "1501ce0259ab897c6746ccfafa1d208acd404fb17e1ac62e157172f2678b1183"
+  },
+  {
+    "file": "BOOT-INF/lib/java-uuid-generator-4.0.1.jar",
+    "sha256": "48493b2a15b1db47bc7769e7015916081930d07bce52b0e2558288afd3bc08f7"
+  },
+  {
+    "file": "BOOT-INF/lib/jakarta.xml.bind-api-4.0.2.jar",
+    "sha256": "0d6bcfe47763e85047acf7c398336dc84ff85ebcad0a7cb6f3b9d3e981245406"
+  },
+  {
+    "file": "BOOT-INF/lib/jakarta.activation-api-2.1.3.jar",
+    "sha256": "01b176d718a169263e78290691fc479977186bcc6b333487325084d6586f4627"
+  },
+  {
+    "file": "BOOT-INF/lib/spring-core-6.2.8.jar",
+    "sha256": "27f640340164d74a0e90ee176b75d5a18a93f82fa96f444a757acf0bf3ae7257"
+  },
+  {
+    "file": "BOOT-INF/lib/spring-jcl-6.2.8.jar",
+    "sha256": "bd8b6add12db54602bc5926b8449a48fd922a36778323218aea88cfaea591e72"
+  },
+  {
+    "file": "BOOT-INF/lib/lombok-1.18.32.jar",
+    "sha256": "97574674e2a25f567a313736ace00df8787d443de316407d57fc877d9f19a65d"
+  },
+  {
+    "file": "BOOT-INF/lib/spring-boot-jarmode-tools-3.5.3.jar",
+    "sha256": "357aa2d14066b7b7a7585681840a8598ce1de50e31a3758247e76bd06bb52046"
+  }
+]

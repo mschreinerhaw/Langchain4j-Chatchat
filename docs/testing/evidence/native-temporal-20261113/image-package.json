@@ -1,0 +1,34 @@
+{
+  "sourceCommit": "d1d706f72bdb78a95cc254df8aa29344f9f65b50",
+  "images": {
+    "api": {
+      "Id": "sha256:4458af182ff49ae526d39092ae0830079c8184c88bfe7fee596e2f8ff4fddb03",
+      "RepoTags": [
+        "runtime-os-api:temporal-native-d1d706f72bdb"
+      ],
+      "RepoDigests": [],
+      "Size": 896596844,
+      "Architecture": "amd64"
+    },
+    "coding-node": {
+      "Id": "sha256:173f7368811538659bc122f5608dfd9debaa3647ea7c0cad57357eebad2dd822",
+      "RepoTags": [
+        "runtime-os-coding-node:temporal-native-d1d706f72bdb"
+      ],
+      "RepoDigests": [],
+      "Size": 2624667262,
+      "Architecture": "amd64"
+    },
+    "worker-runtime": {
+      "Id": "sha256:60641b46986f7b260de9e89c491f9bb956ca0322038dbbc034683390a448953a",
+      "version": "cline4.1.26-python3.11",
+      "source": "verified immutable Native runtime component"
+    }
+  },
+  "archive": "/opt/runtime-os/releases/temporal-native-d1d706f72bdb-20261113/distribution/runtime-os-temporal-d1d706f72bdb.tar.gz",
+  "archiveBytes": 1602040714,
+  "archiveSha256": "e842f70d9d516e24c806bff87ea45aee3ca04a8d5929a3b8b062e8e47ea1bb97",
+  "registryPushed": false,
+  "repoDigestAvailable": false,
+  "elapsedSeconds": 231.04015016555786
+}

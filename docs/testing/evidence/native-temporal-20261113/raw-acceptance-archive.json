@@ -1,0 +1,7 @@
+{
+  "archive": "/opt/runtime-os/native-temporal/rc-20261112/evidence/temporal-native-raw-acceptance-20261113.zip",
+  "files": 348,
+  "bytes": 5322216,
+  "sha256": "bfed94d1f44ff456352128a7a1173d56bdf3f7366192d539cb5bb87e8f2d6569",
+  "scope": "raw synthetic acceptance runs including failed attempts; private server evidence, not public artifact"
+}

@@ -6,1528 +6,1506 @@
       "total": 4,
       "completed": 4,
       "failed": 0,
-      "elapsedSeconds": 387.365,
-      "throughputPerMinute": 0.6195706891433145,
+      "elapsedSeconds": 381.06,
+      "throughputPerMinute": 0.629822075263738,
       "tasks": [
         {
-          "taskId": "temporal-native-c594eee72ddbca00cbff4d6f89990df9e77dd6204bde7e94d71bbc3ac11296fb",
-          "runId": "coding-f246f08f83f172024e7ecb7d840f14537c793277f3c07692527941b592f2478e",
+          "taskId": "temporal-native-a42b42672e63ad0a4a990983d08b32c5585eb87327b8ed23a8a397472ac2ec78",
+          "runId": "coding-b126d5b49ed61474c1184b38199ba056575e49e8a34b9a6b83ef68a8329e4be9",
           "userId": "fe1b8d47-5750-46f8-8393-e8c662b8c86b",
           "nodeId": "cline-worker-1",
-          "sessionId": "native-d0c38151-8a29-453f-8c52-99befeba7e4e",
-          "executionEpoch": "3110c13d-2294-4190-a0f0-f82bf81d32f4",
-          "workflowId": "native-analysis-v1-8d16614c3b7c1d6fc3dced0d4fee582f08c517bdbf6663ece879379fc3a07188",
+          "sessionId": "native-36424f20-7f47-4c39-a565-aadb191c2fd4",
+          "executionEpoch": "a6e97fed-1f6c-4817-9649-be2c24430c76",
+          "workflowId": "native-analysis-v1-83ab2c9820084bc9da007fbaff7dbffc105ab361b2a38b8517799d55f289d3ab",
           "historyEvents": 15,
-          "nativeStart": 1794503546652,
-          "nativeEnd": 1794503617068,
+          "nativeStart": 1794509639649,
+          "nativeEnd": 1794509716928,
           "usage": {
-            "requests": 8,
-            "inputTokens": 79163,
-            "outputTokens": 3471,
+            "requests": 9,
+            "inputTokens": 93236,
+            "outputTokens": 3724,
             "unknownUsageRequests": 0
           },
           "downloads": [
             {
               "fileName": "synthetic_amount_analysis.py",
-              "sha256": "b468ad93c509802e77eeac74fdfcfe7ce5cbd6820e42dda1f4a9c9996d19fd06",
-              "size": 4109,
-              "id": "bb6ce89eeb190494edb2aa9798745504df8a2363b7f36749c4b25906a2e61c3b"
+              "sha256": "8fc3bfc21d70da32235ae14598bd6dde0b307f21529250e48d63b48162afe0d0",
+              "size": 5816,
+              "id": "03fdce75381cba0cb282a6186d164472495a4b1813b00c96a36fc69d8a9e7f19"
             },
             {
               "fileName": "synthetic_amount_result.json",
-              "sha256": "1095a6de26f051004773145a4ab5abcd356a806b1b7c1bc8aaf029ad314f43b0",
-              "size": 50,
-              "id": "b7a636e3dd527549175e54003d1a64ba0e14fa7211ef8bdbff6a0e8a39e289cf"
+              "sha256": "a8ed471e72255ee3420a6097e32b9f826e72c8e1766a279df2a140e9cb8e040d",
+              "size": 49,
+              "id": "0d0b0e0fd488c391e3da063fb798de545e7db0e37efc478ba3c7e0af5cacd41b"
             },
             {
               "fileName": "synthetic_amount_report.md",
-              "sha256": "0c83630b95002110c70678372b6ff0acee9a24e2e0a67c6c57d76c5cd13d105c",
-              "size": 1055,
-              "id": "d8769d50bd8114b2d1eee55df239b31d471c4410aaf5e57087c25e03f8aeca2f"
+              "sha256": "9904ad9143bd14e3309606468333f1fcef8a2039b54c1815bcaad0969ea9fe26",
+              "size": 1465,
+              "id": "f65b9d3a825aedc993cce35ec52daa9fcb6f74db52980f444b8e6b84fbda17b6"
             }
           ],
           "ownerIsolation": "PASS",
-          "numericValidation": "PASS"
+          "numericValidation": "PASS",
+          "finalDeliveryUnchanged": "PASS"
         },
         {
-          "taskId": "temporal-native-07084c3a52218c9e0824b3b79f79479725853523c2dc172ef61cd0a3fbb8aa1c",
-          "runId": "coding-8430a249aa6e4bb828d5de63071421239b67331cfcca05d235e64ce32136b8d7",
+          "taskId": "temporal-native-900097429540316ebcdd373943d0fb886ec3dc4904a7470281eb03ed027bd0d9",
+          "runId": "coding-9dcf93b58c32391ffa145267f7e9c2ebb22e272eb9cb4d69975670847b7159a0",
           "userId": "4eef238e-04a2-4105-b0b0-4c5791216b2a",
           "nodeId": "cline-worker-1",
-          "sessionId": "native-ed9d4259-79ad-4a1e-a1b6-9bd938f1022e",
-          "executionEpoch": "97f84735-eaef-4415-a3a9-f325b0ea1b69",
-          "workflowId": "native-analysis-v1-c611bde16416b9cc08556d9072c32e2e027fcdb22c5b9b4d986b1b0af1bec178",
+          "sessionId": "native-ac74d4b3-31fa-401f-95a5-066b30ff21ce",
+          "executionEpoch": "69672605-2b35-4115-a0b1-e58554080814",
+          "workflowId": "native-analysis-v1-05bc9bd640ea8500401c8393d30919fdf91400b25ec4c9ba188f9fefa2545c69",
           "historyEvents": 15,
-          "nativeStart": 1794503629812,
-          "nativeEnd": 1794503721730,
+          "nativeStart": 1794509821818,
+          "nativeEnd": 1794509922682,
           "usage": {
-            "requests": 11,
-            "inputTokens": 131273,
-            "outputTokens": 4341,
+            "requests": 9,
+            "inputTokens": 109598,
+            "outputTokens": 5397,
             "unknownUsageRequests": 0
           },
           "downloads": [
             {
               "fileName": "synthetic_amount_analysis.py",
-              "sha256": "c53954c6bed16ce3e192a3115c5e2e6882a289d156c7f23807df69132d82a0d7",
-              "size": 4697,
-              "id": "e7c3afb27e7e13d589a10c1d29d9f083dc281b304326a43caad81776096c10e4"
+              "sha256": "db5b53edd61480364aaf253a7a9cfd9dcd0366f9bf9fd1b7312353c6c2bfc18d",
+              "size": 5187,
+              "id": "450bcf1e23f362324c2c73215a2d23897fcebf8ce1ea9a1286338227c78f9271"
             },
             {
-              "fileName": "synthetic_amount_result.json",
-              "sha256": "1095a6de26f051004773145a4ab5abcd356a806b1b7c1bc8aaf029ad314f43b0",
-              "size": 50,
-              "id": "e0a8c9849b730b68cf8042b5ce9fb7edc4910b3c7dbd85a99ecc4150a8eee8e3"
+              "fileName": "result.json",
+              "sha256": "a8ed471e72255ee3420a6097e32b9f826e72c8e1766a279df2a140e9cb8e040d",
+              "size": 49,
+              "id": "3f8bc80c598f9af053b62e47c0d9fd2b09affd0fbb11fbdbc97fcb0c9053c77e"
             },
             {
-              "fileName": "synthetic_amount_report.md",
-              "sha256": "10c8402fdd50a16276a14ea16b439062f9f9f2fe8f94d51034f355b693e266e2",
-              "size": 1246,
-              "id": "aaedcd0fd04e013513ee4c139bf6570d1c52d97ff624026338d3cd22120cc755"
+              "fileName": "report.md",
+              "sha256": "3685243ae3d81d645e3e4052b1c0d1e86e4841f7223d484bfb8ee1b47f67f905",
+              "size": 2068,
+              "id": "176bd70a720bd14d650a71d5d24720fe8c107f54756dfa0dbe0b93b0f9adaeb8"
             }
           ],
           "ownerIsolation": "PASS",
-          "numericValidation": "PASS"
+          "numericValidation": "PASS",
+          "finalDeliveryUnchanged": "PASS"
         },
         {
-          "taskId": "temporal-native-dcd7b1158c5d9dbad2848874ac964ec4a2f6a1ad5299945dc5d2d6493fd60821",
-          "runId": "coding-db659f7d8b4d7dd7692510a5bd9430d00dd95c3d935e24a23679f501b5d2e20e",
+          "taskId": "temporal-native-822b43eade0e7da9bb270abef36387ec72475fef9aaa33340dafe1a5565fc890",
+          "runId": "coding-4cf424eed825d348d91e518379b1938b8cc40eb15734380c04ebe74636e71bf4",
           "userId": "fe1b8d47-5750-46f8-8393-e8c662b8c86b",
           "nodeId": "cline-worker-1",
-          "sessionId": "native-dc445791-4737-4f2c-9cc2-9aacb3ce1661",
-          "executionEpoch": "12567d59-d992-4082-bd66-d95afc76f67e",
-          "workflowId": "native-analysis-v1-e924f30b431592c6ebb0d6e999bf985fe701728b939f3654c7adfe091618e792",
+          "sessionId": "native-30cb28a3-b6e6-4a62-bf3b-c57cfeff3b73",
+          "executionEpoch": "88633dbd-71dc-4f60-b25e-b376c86c79c5",
+          "workflowId": "native-analysis-v1-4cb9fc4c6c314991403eb8e4353622ff34d79dcdd3ffcdbba032b499348f282a",
           "historyEvents": 15,
-          "nativeStart": 1794503736433,
-          "nativeEnd": 1794503796924,
+          "nativeStart": 1794509729678,
+          "nativeEnd": 1794509806028,
           "usage": {
-            "requests": 8,
-            "inputTokens": 79307,
-            "outputTokens": 2941,
+            "requests": 10,
+            "inputTokens": 99822,
+            "outputTokens": 3132,
             "unknownUsageRequests": 0
           },
           "downloads": [
             {
               "fileName": "synthetic_amount_analysis.py",
-              "sha256": "e2feaed39ee4dcb9554a50915a17b08f39b3ab00203e2a355963e8c89c2d2a49",
-              "size": 3849,
-              "id": "b94cb744f099814f362b9486271d6aef68011f798eae84048f65006995dab3a9"
+              "sha256": "b44232f7b2fe618c7063fa01f690e3cf075f56bc83f8904ded47fdba44fd1fa5",
+              "size": 4177,
+              "id": "221f3c6334fc456600ecbe49e0e3da984a6f64810da7de9052cc328b5da62473"
             },
             {
-              "fileName": "synthetic_amount_result.json",
+              "fileName": "result.json",
               "sha256": "1095a6de26f051004773145a4ab5abcd356a806b1b7c1bc8aaf029ad314f43b0",
               "size": 50,
-              "id": "5d669558378e4ecfac50800d322739d42d395a5668a7b3bbe89f61550c83cfc8"
+              "id": "c62157950fc6ce812c2a66823a9f827211f07b74bae9a9407236a7f803a13166"
             },
             {
-              "fileName": "synthetic_amount_report.md",
-              "sha256": "4ab3d71a4548d8084926510bbfbac201c22aec9ef000fbb6485199d65789b10e",
-              "size": 860,
-              "id": "63246a0247754520803f84e6cf8c14dd63223f6d6757133e1e8caec8e5065ea7"
+              "fileName": "report.md",
+              "sha256": "3f371b015e50f6605f71f265922d8f0680ee572ed6078b25b1baf416cbd2b25c",
+              "size": 1195,
+              "id": "809a87951876b691f9e00b6e3e6bbb6d4abef1aa2b10c1748916f6c818928fc7"
             }
           ],
           "ownerIsolation": "PASS",
-          "numericValidation": "PASS"
+          "numericValidation": "PASS",
+          "finalDeliveryUnchanged": "PASS"
         },
         {
-          "taskId": "temporal-native-72d7012cb2cedf09703bb0f7f98bea4387ba1c231fde71801d65c25de744822b",
-          "runId": "coding-8c9e5d9575f5ef506acef840b792ed043a60b3f3d618a226d0d192c4afc5d25e",
+          "taskId": "temporal-native-def21de337dfac7fbc40d93a2857cc1856375bbadc9718959295d4bf80bc6997",
+          "runId": "coding-7691bd802ac0d84276059fdc93193914aa32ae4867a658404f2fc606fa76730b",
           "userId": "4eef238e-04a2-4105-b0b0-4c5791216b2a",
           "nodeId": "cline-worker-1",
-          "sessionId": "native-58b06808-6b18-4028-969a-43dbc16f74f7",
-          "executionEpoch": "d0aed676-cbde-4249-812f-41687315f06e",
-          "workflowId": "native-analysis-v1-e3fa517c98da88fc03670d63e9437caeb3fbe32182bc359b36b1d9747121e853",
+          "sessionId": "native-9fab9714-c657-42e4-a75d-1292d75cdcc2",
+          "executionEpoch": "106ebb74-df7e-4634-88cc-441010e8c351",
+          "workflowId": "native-analysis-v1-c9cac33fc19651da09399ed1b18fc8b502c306d44e255f8b30cb9afba3e2947a",
           "historyEvents": 15,
-          "nativeStart": 1794503808062,
-          "nativeEnd": 1794503912672,
+          "nativeStart": 1794509937009,
+          "nativeEnd": 1794510001300,
           "usage": {
-            "requests": 11,
-            "inputTokens": 143155,
-            "outputTokens": 4857,
+            "requests": 9,
+            "inputTokens": 80135,
+            "outputTokens": 3195,
             "unknownUsageRequests": 0
           },
           "downloads": [
             {
               "fileName": "synthetic_amount_analysis.py",
-              "sha256": "77822077b2e51b971470af9cb1cda60974c75c635d68490ef30799fd6da8118c",
-              "size": 5025,
-              "id": "3839184e26fbdbd75fbdeac8d9881a7092c13c4112a9f0d28b13cda86dee3fce"
-            },
-            {
-              "fileName": "shell_verify_amount.sh",
-              "sha256": "f2b2587bc93b933fb381e3e4528933908da518e15b42adf0fcbf2d27728e19ee",
-              "size": 1551,
-              "id": "2c57ab2bc73872b0bfabcaad0ec40b34a6d8150a9ed355c31d4f5ff2ee93eea8"
+              "sha256": "68ca413c7e8a1145581e5d0760e2599ab9fb4e73e4ab8f3d2edea74e06654555",
+              "size": 4336,
+              "id": "84591afdc574de65bcfd259219bc62c4fb2beeea7ddf9c5830604fba7cf0c085"
             },
             {
               "fileName": "synthetic_amount_result.json",
               "sha256": "1095a6de26f051004773145a4ab5abcd356a806b1b7c1bc8aaf029ad314f43b0",
               "size": 50,
-              "id": "56a85be89094507fdf1f4f7fe68aa09c06ef4788493969eeac60ff35597788a2"
+              "id": "184a9285a4bfce83ccbeeace0459c7fc6f85653a8d7f7712a910598294f58668"
             },
             {
               "fileName": "synthetic_amount_report.md",
-              "sha256": "cc1900cd2cf9f82505c11e0f09ce1088e28666150702031e1e501ef01d5ffaa9",
-              "size": 1528,
-              "id": "7fba1807d745f860fe6a7ef96af08fe9e6932f75ba766912dfcbbc2d66a963db"
+              "sha256": "07953c56757a7069036e3676e49e93ededfc92001386f806ca2ed14cdea6a166",
+              "size": 918,
+              "id": "61ec1fd8537f1d0ed4e4e78ea2ddd9243dfe4a5a838a405d8ca64174eae71ab1"
             }
           ],
           "ownerIsolation": "PASS",
-          "numericValidation": "PASS"
+          "numericValidation": "PASS",
+          "finalDeliveryUnchanged": "PASS"
         }
       ],
       "overlaps": [],
       "queueSeconds": {
-        "mean": 133.2065,
-        "p95": 261.027
+        "mean": 142.934,
+        "p95": 296.991
       },
       "executionSeconds": {
-        "mean": 95.1365,
-        "p95": 118.411
+        "mean": 92.58349999999999,
+        "p95": 113.258
       },
       "nodes": [
         "cline-worker-1"
       ],
       "resources": [
         {
-          "at": 1794503539851,
+          "at": 1794509631860,
+          "nodeId": "cline-worker-2",
+          "online": true,
+          "workerMemoryBytes": 0,
+          "workerCpuTimeNanos": 0,
+          "activeWorkers": 0,
+          "maxWorkers": 1,
+          "gatewayMemoryBytes": 75788288
+        },
+        {
+          "at": 1794509631860,
           "nodeId": "cline-worker-1",
           "online": true,
-          "workerMemoryBytes": 88780800,
-          "workerCpuTimeNanos": 1397141560,
+          "workerMemoryBytes": 141938688,
+          "workerCpuTimeNanos": 434362043,
           "activeWorkers": 1,
           "maxWorkers": 1,
-          "gatewayMemoryBytes": 96935936
+          "gatewayMemoryBytes": 94732288
         },
         {
-          "at": 1794503539851,
+          "at": 1794509637971,
           "nodeId": "cline-worker-2",
           "online": true,
           "workerMemoryBytes": 0,
           "workerCpuTimeNanos": 0,
           "activeWorkers": 0,
           "maxWorkers": 1,
-          "gatewayMemoryBytes": 71786496
+          "gatewayMemoryBytes": 76058624
         },
         {
-          "at": 1794503545842,
+          "at": 1794509637971,
           "nodeId": "cline-worker-1",
           "online": true,
-          "workerMemoryBytes": 760078336,
-          "workerCpuTimeNanos": 7883395670,
+          "workerMemoryBytes": 810360832,
+          "workerCpuTimeNanos": 7129285791,
           "activeWorkers": 1,
           "maxWorkers": 1,
-          "gatewayMemoryBytes": 96935936
+          "gatewayMemoryBytes": 95600640
         },
         {
-          "at": 1794503545842,
+          "at": 1794509643901,
           "nodeId": "cline-worker-2",
           "online": true,
           "workerMemoryBytes": 0,
           "workerCpuTimeNanos": 0,
           "activeWorkers": 0,
           "maxWorkers": 1,
-          "gatewayMemoryBytes": 71786496
+          "gatewayMemoryBytes": 76058624
         },
         {
-          "at": 1794503551834,
+          "at": 1794509643901,
           "nodeId": "cline-worker-1",
           "online": true,
-          "workerMemoryBytes": 765296640,
-          "workerCpuTimeNanos": 8820463755,
+          "workerMemoryBytes": 818184192,
+          "workerCpuTimeNanos": 8019714442,
           "activeWorkers": 1,
           "maxWorkers": 1,
-          "gatewayMemoryBytes": 97538048
+          "gatewayMemoryBytes": 96698368
         },
         {
-          "at": 1794503551834,
+          "at": 1794509649865,
           "nodeId": "cline-worker-2",
           "online": true,
           "workerMemoryBytes": 0,
           "workerCpuTimeNanos": 0,
           "activeWorkers": 0,
           "maxWorkers": 1,
-          "gatewayMemoryBytes": 71786496
+          "gatewayMemoryBytes": 76058624
         },
         {
-          "at": 1794503557780,
+          "at": 1794509649865,
           "nodeId": "cline-worker-1",
           "online": true,
-          "workerMemoryBytes": 731176960,
-          "workerCpuTimeNanos": 10460108223,
+          "workerMemoryBytes": 824221696,
+          "workerCpuTimeNanos": 8791687473,
           "activeWorkers": 1,
           "maxWorkers": 1,
-          "gatewayMemoryBytes": 97902592
+          "gatewayMemoryBytes": 97120256
         },
         {
-          "at": 1794503557780,
+          "at": 1794509655772,
           "nodeId": "cline-worker-2",
           "online": true,
           "workerMemoryBytes": 0,
           "workerCpuTimeNanos": 0,
           "activeWorkers": 0,
           "maxWorkers": 1,
-          "gatewayMemoryBytes": 71786496
+          "gatewayMemoryBytes": 76058624
         },
         {
-          "at": 1794503563671,
+          "at": 1794509655772,
           "nodeId": "cline-worker-1",
           "online": true,
-          "workerMemoryBytes": 743768064,
-          "workerCpuTimeNanos": 12367723983,
+          "workerMemoryBytes": 691879936,
+          "workerCpuTimeNanos": 11406955557,
           "activeWorkers": 1,
           "maxWorkers": 1,
-          "gatewayMemoryBytes": 98009088
+          "gatewayMemoryBytes": 98181120
         },
         {
-          "at": 1794503563671,
+          "at": 1794509661705,
           "nodeId": "cline-worker-2",
           "online": true,
           "workerMemoryBytes": 0,
           "workerCpuTimeNanos": 0,
           "activeWorkers": 0,
           "maxWorkers": 1,
-          "gatewayMemoryBytes": 71766016
+          "gatewayMemoryBytes": 76058624
         },
         {
-          "at": 1794503569642,
+          "at": 1794509661705,
           "nodeId": "cline-worker-1",
           "online": true,
-          "workerMemoryBytes": 587014144,
-          "workerCpuTimeNanos": 13576970681,
+          "workerMemoryBytes": 715358208,
+          "workerCpuTimeNanos": 12276200198,
           "activeWorkers": 1,
           "maxWorkers": 1,
-          "gatewayMemoryBytes": 98205696
+          "gatewayMemoryBytes": 99393536
         },
         {
-          "at": 1794503569642,
+          "at": 1794509667726,
           "nodeId": "cline-worker-2",
           "online": true,
           "workerMemoryBytes": 0,
           "workerCpuTimeNanos": 0,
           "activeWorkers": 0,
           "maxWorkers": 1,
-          "gatewayMemoryBytes": 71766016
+          "gatewayMemoryBytes": 76058624
         },
         {
-          "at": 1794503575526,
+          "at": 1794509667726,
           "nodeId": "cline-worker-1",
           "online": true,
-          "workerMemoryBytes": 582467584,
-          "workerCpuTimeNanos": 14257655050,
+          "workerMemoryBytes": 715485184,
+          "workerCpuTimeNanos": 12459638272,
           "activeWorkers": 1,
           "maxWorkers": 1,
-          "gatewayMemoryBytes": 98402304
+          "gatewayMemoryBytes": 99860480
         },
         {
-          "at": 1794503575526,
+          "at": 1794509673839,
           "nodeId": "cline-worker-2",
           "online": true,
           "workerMemoryBytes": 0,
           "workerCpuTimeNanos": 0,
           "activeWorkers": 0,
           "maxWorkers": 1,
-          "gatewayMemoryBytes": 71766016
+          "gatewayMemoryBytes": 76058624
         },
         {
-          "at": 1794503581441,
+          "at": 1794509673839,
           "nodeId": "cline-worker-1",
           "online": true,
-          "workerMemoryBytes": 583032832,
-          "workerCpuTimeNanos": 14383174494,
+          "workerMemoryBytes": 700256256,
+          "workerCpuTimeNanos": 13271554864,
           "activeWorkers": 1,
           "maxWorkers": 1,
-          "gatewayMemoryBytes": 98402304
+          "gatewayMemoryBytes": 100159488
         },
         {
-          "at": 1794503581441,
+          "at": 1794509679971,
           "nodeId": "cline-worker-2",
           "online": true,
           "workerMemoryBytes": 0,
           "workerCpuTimeNanos": 0,
           "activeWorkers": 0,
           "maxWorkers": 1,
-          "gatewayMemoryBytes": 71766016
+          "gatewayMemoryBytes": 76058624
         },
         {
-          "at": 1794503587427,
+          "at": 1794509679971,
           "nodeId": "cline-worker-1",
           "online": true,
-          "workerMemoryBytes": 587145216,
-          "workerCpuTimeNanos": 14730398541,
+          "workerMemoryBytes": 700006400,
+          "workerCpuTimeNanos": 13461666649,
           "activeWorkers": 1,
           "maxWorkers": 1,
-          "gatewayMemoryBytes": 98598912
+          "gatewayMemoryBytes": 100691968
         },
         {
-          "at": 1794503587427,
+          "at": 1794509686318,
           "nodeId": "cline-worker-2",
           "online": true,
           "workerMemoryBytes": 0,
           "workerCpuTimeNanos": 0,
           "activeWorkers": 0,
           "maxWorkers": 1,
-          "gatewayMemoryBytes": 71766016
+          "gatewayMemoryBytes": 76058624
         },
         {
-          "at": 1794503593449,
+          "at": 1794509686318,
           "nodeId": "cline-worker-1",
           "online": true,
-          "workerMemoryBytes": 591785984,
-          "workerCpuTimeNanos": 18007033616,
+          "workerMemoryBytes": 703426560,
+          "workerCpuTimeNanos": 13958714774,
           "activeWorkers": 1,
           "maxWorkers": 1,
-          "gatewayMemoryBytes": 98594816
+          "gatewayMemoryBytes": 101785600
         },
         {
-          "at": 1794503593449,
+          "at": 1794509692427,
           "nodeId": "cline-worker-2",
           "online": true,
           "workerMemoryBytes": 0,
           "workerCpuTimeNanos": 0,
           "activeWorkers": 0,
           "maxWorkers": 1,
-          "gatewayMemoryBytes": 71757824
+          "gatewayMemoryBytes": 76058624
         },
         {
-          "at": 1794503599486,
+          "at": 1794509692427,
           "nodeId": "cline-worker-1",
           "online": true,
-          "workerMemoryBytes": 604590080,
-          "workerCpuTimeNanos": 18754007941,
+          "workerMemoryBytes": 712921088,
+          "workerCpuTimeNanos": 16205105830,
           "activeWorkers": 1,
           "maxWorkers": 1,
-          "gatewayMemoryBytes": 96976896
+          "gatewayMemoryBytes": 102871040
         },
         {
-          "at": 1794503599486,
+          "at": 1794509698610,
           "nodeId": "cline-worker-2",
           "online": true,
           "workerMemoryBytes": 0,
           "workerCpuTimeNanos": 0,
           "activeWorkers": 0,
           "maxWorkers": 1,
-          "gatewayMemoryBytes": 71757824
+          "gatewayMemoryBytes": 76058624
         },
         {
-          "at": 1794503606642,
+          "at": 1794509698610,
           "nodeId": "cline-worker-1",
           "online": true,
-          "workerMemoryBytes": 604794880,
-          "workerCpuTimeNanos": 19528937098,
+          "workerMemoryBytes": 719208448,
+          "workerCpuTimeNanos": 17345287543,
           "activeWorkers": 1,
           "maxWorkers": 1,
-          "gatewayMemoryBytes": 97681408
+          "gatewayMemoryBytes": 101761024
         },
         {
-          "at": 1794503606642,
+          "at": 1794509704738,
           "nodeId": "cline-worker-2",
           "online": true,
           "workerMemoryBytes": 0,
           "workerCpuTimeNanos": 0,
           "activeWorkers": 0,
           "maxWorkers": 1,
-          "gatewayMemoryBytes": 71757824
+          "gatewayMemoryBytes": 76058624
         },
         {
-          "at": 1794503612656,
+          "at": 1794509704738,
           "nodeId": "cline-worker-1",
           "online": true,
-          "workerMemoryBytes": 612794368,
-          "workerCpuTimeNanos": 20165542000,
+          "workerMemoryBytes": 719470592,
+          "workerCpuTimeNanos": 17364553042,
           "activeWorkers": 1,
           "maxWorkers": 1,
-          "gatewayMemoryBytes": 97251328
+          "gatewayMemoryBytes": 107438080
         },
         {
-          "at": 1794503612656,
+          "at": 1794509710910,
           "nodeId": "cline-worker-2",
           "online": true,
           "workerMemoryBytes": 0,
           "workerCpuTimeNanos": 0,
           "activeWorkers": 0,
           "maxWorkers": 1,
-          "gatewayMemoryBytes": 71757824
+          "gatewayMemoryBytes": 76058624
         },
         {
-          "at": 1794503619513,
+          "at": 1794509710910,
           "nodeId": "cline-worker-1",
           "online": true,
-          "workerMemoryBytes": 0,
-          "workerCpuTimeNanos": 0,
-          "activeWorkers": 0,
-          "maxWorkers": 1,
-          "gatewayMemoryBytes": 101421056
-        },
-        {
-          "at": 1794503619513,
-          "nodeId": "cline-worker-2",
-          "online": true,
-          "workerMemoryBytes": 0,
-          "workerCpuTimeNanos": 0,
-          "activeWorkers": 0,
-          "maxWorkers": 1,
-          "gatewayMemoryBytes": 71757824
-        },
-        {
-          "at": 1794503625643,
-          "nodeId": "cline-worker-1",
-          "online": true,
-          "workerMemoryBytes": 526577664,
-          "workerCpuTimeNanos": 3745035767,
+          "workerMemoryBytes": 728305664,
+          "workerCpuTimeNanos": 19726230587,
           "activeWorkers": 1,
           "maxWorkers": 1,
-          "gatewayMemoryBytes": 100888576
+          "gatewayMemoryBytes": 102141952
         },
         {
-          "at": 1794503625643,
+          "at": 1794509717020,
           "nodeId": "cline-worker-2",
           "online": true,
           "workerMemoryBytes": 0,
           "workerCpuTimeNanos": 0,
           "activeWorkers": 0,
           "maxWorkers": 1,
-          "gatewayMemoryBytes": 71757824
+          "gatewayMemoryBytes": 76058624
         },
         {
-          "at": 1794503632560,
+          "at": 1794509717020,
           "nodeId": "cline-worker-1",
           "online": true,
-          "workerMemoryBytes": 755081216,
-          "workerCpuTimeNanos": 8251950101,
+          "workerMemoryBytes": 736514048,
+          "workerCpuTimeNanos": 21518254067,
           "activeWorkers": 1,
           "maxWorkers": 1,
-          "gatewayMemoryBytes": 101220352
+          "gatewayMemoryBytes": 106254336
         },
         {
-          "at": 1794503632560,
+          "at": 1794509723142,
           "nodeId": "cline-worker-2",
           "online": true,
           "workerMemoryBytes": 0,
           "workerCpuTimeNanos": 0,
           "activeWorkers": 0,
           "maxWorkers": 1,
-          "gatewayMemoryBytes": 71757824
+          "gatewayMemoryBytes": 76058624
         },
         {
-          "at": 1794503638364,
+          "at": 1794509723142,
           "nodeId": "cline-worker-1",
           "online": true,
-          "workerMemoryBytes": 761237504,
-          "workerCpuTimeNanos": 9150804203,
+          "workerMemoryBytes": 74166272,
+          "workerCpuTimeNanos": 1168888223,
           "activeWorkers": 1,
           "maxWorkers": 1,
-          "gatewayMemoryBytes": 101228544
+          "gatewayMemoryBytes": 104767488
         },
         {
-          "at": 1794503638364,
+          "at": 1794509729841,
           "nodeId": "cline-worker-2",
           "online": true,
           "workerMemoryBytes": 0,
           "workerCpuTimeNanos": 0,
           "activeWorkers": 0,
           "maxWorkers": 1,
-          "gatewayMemoryBytes": 71757824
+          "gatewayMemoryBytes": 76058624
         },
         {
-          "at": 1794503644155,
+          "at": 1794509729841,
           "nodeId": "cline-worker-1",
           "online": true,
-          "workerMemoryBytes": 725958656,
-          "workerCpuTimeNanos": 13080011938,
+          "workerMemoryBytes": 746835968,
+          "workerCpuTimeNanos": 8059860992,
           "activeWorkers": 1,
           "maxWorkers": 1,
-          "gatewayMemoryBytes": 101228544
+          "gatewayMemoryBytes": 105062400
         },
         {
-          "at": 1794503644155,
+          "at": 1794509735603,
           "nodeId": "cline-worker-2",
           "online": true,
           "workerMemoryBytes": 0,
           "workerCpuTimeNanos": 0,
           "activeWorkers": 0,
           "maxWorkers": 1,
-          "gatewayMemoryBytes": 71757824
+          "gatewayMemoryBytes": 76058624
         },
         {
-          "at": 1794503650497,
+          "at": 1794509735603,
           "nodeId": "cline-worker-1",
           "online": true,
-          "workerMemoryBytes": 742776832,
-          "workerCpuTimeNanos": 14112179176,
+          "workerMemoryBytes": 756080640,
+          "workerCpuTimeNanos": 9034136584,
           "activeWorkers": 1,
           "maxWorkers": 1,
-          "gatewayMemoryBytes": 101490688
+          "gatewayMemoryBytes": 105062400
         },
         {
-          "at": 1794503650497,
+          "at": 1794509741375,
           "nodeId": "cline-worker-2",
           "online": true,
           "workerMemoryBytes": 0,
           "workerCpuTimeNanos": 0,
           "activeWorkers": 0,
           "maxWorkers": 1,
-          "gatewayMemoryBytes": 73498624
+          "gatewayMemoryBytes": 76058624
         },
         {
-          "at": 1794503656322,
+          "at": 1794509741375,
           "nodeId": "cline-worker-1",
           "online": true,
-          "workerMemoryBytes": 582516736,
-          "workerCpuTimeNanos": 15285022900,
+          "workerMemoryBytes": 759865344,
+          "workerCpuTimeNanos": 10907513757,
           "activeWorkers": 1,
           "maxWorkers": 1,
-          "gatewayMemoryBytes": 101707776
+          "gatewayMemoryBytes": 105074688
         },
         {
-          "at": 1794503656322,
+          "at": 1794509747325,
           "nodeId": "cline-worker-2",
           "online": true,
           "workerMemoryBytes": 0,
           "workerCpuTimeNanos": 0,
           "activeWorkers": 0,
           "maxWorkers": 1,
-          "gatewayMemoryBytes": 73498624
+          "gatewayMemoryBytes": 76058624
         },
         {
-          "at": 1794503662174,
+          "at": 1794509747325,
           "nodeId": "cline-worker-1",
           "online": true,
-          "workerMemoryBytes": 579321856,
-          "workerCpuTimeNanos": 16058533450,
+          "workerMemoryBytes": 579047424,
+          "workerCpuTimeNanos": 13230621613,
           "activeWorkers": 1,
           "maxWorkers": 1,
-          "gatewayMemoryBytes": 102158336
+          "gatewayMemoryBytes": 105074688
         },
         {
-          "at": 1794503662174,
+          "at": 1794509753124,
           "nodeId": "cline-worker-2",
           "online": true,
           "workerMemoryBytes": 0,
           "workerCpuTimeNanos": 0,
           "activeWorkers": 0,
           "maxWorkers": 1,
-          "gatewayMemoryBytes": 73498624
+          "gatewayMemoryBytes": 76058624
         },
         {
-          "at": 1794503667985,
+          "at": 1794509753124,
           "nodeId": "cline-worker-1",
           "online": true,
-          "workerMemoryBytes": 580112384,
-          "workerCpuTimeNanos": 16226066851,
+          "workerMemoryBytes": 579760128,
+          "workerCpuTimeNanos": 13398070793,
           "activeWorkers": 1,
           "maxWorkers": 1,
-          "gatewayMemoryBytes": 99799040
+          "gatewayMemoryBytes": 105525248
         },
         {
-          "at": 1794503667985,
+          "at": 1794509758903,
           "nodeId": "cline-worker-2",
           "online": true,
           "workerMemoryBytes": 0,
           "workerCpuTimeNanos": 0,
           "activeWorkers": 0,
           "maxWorkers": 1,
-          "gatewayMemoryBytes": 73498624
+          "gatewayMemoryBytes": 76058624
         },
         {
-          "at": 1794503673831,
+          "at": 1794509758903,
           "nodeId": "cline-worker-1",
           "online": true,
-          "workerMemoryBytes": 583712768,
-          "workerCpuTimeNanos": 16641259176,
+          "workerMemoryBytes": 580186112,
+          "workerCpuTimeNanos": 13567303510,
           "activeWorkers": 1,
           "maxWorkers": 1,
-          "gatewayMemoryBytes": 100024320
+          "gatewayMemoryBytes": 105529344
         },
         {
-          "at": 1794503673831,
+          "at": 1794509764646,
           "nodeId": "cline-worker-2",
           "online": true,
           "workerMemoryBytes": 0,
           "workerCpuTimeNanos": 0,
           "activeWorkers": 0,
           "maxWorkers": 1,
-          "gatewayMemoryBytes": 73498624
+          "gatewayMemoryBytes": 76058624
         },
         {
-          "at": 1794503679685,
+          "at": 1794509764646,
           "nodeId": "cline-worker-1",
           "online": true,
-          "workerMemoryBytes": 590483456,
-          "workerCpuTimeNanos": 18637137474,
+          "workerMemoryBytes": 581890048,
+          "workerCpuTimeNanos": 14023652603,
           "activeWorkers": 1,
           "maxWorkers": 1,
-          "gatewayMemoryBytes": 100331520
+          "gatewayMemoryBytes": 105586688
         },
         {
-          "at": 1794503679685,
+          "at": 1794509770517,
           "nodeId": "cline-worker-2",
           "online": true,
           "workerMemoryBytes": 0,
           "workerCpuTimeNanos": 0,
           "activeWorkers": 0,
           "maxWorkers": 1,
-          "gatewayMemoryBytes": 73486336
+          "gatewayMemoryBytes": 76058624
         },
         {
-          "at": 1794503685566,
+          "at": 1794509770517,
           "nodeId": "cline-worker-1",
           "online": true,
-          "workerMemoryBytes": 592908288,
-          "workerCpuTimeNanos": 18933917419,
+          "workerMemoryBytes": 585818112,
+          "workerCpuTimeNanos": 16059307995,
           "activeWorkers": 1,
           "maxWorkers": 1,
-          "gatewayMemoryBytes": 100761600
+          "gatewayMemoryBytes": 106668032
         },
         {
-          "at": 1794503685566,
+          "at": 1794509776425,
           "nodeId": "cline-worker-2",
           "online": true,
           "workerMemoryBytes": 0,
           "workerCpuTimeNanos": 0,
           "activeWorkers": 0,
           "maxWorkers": 1,
-          "gatewayMemoryBytes": 73486336
+          "gatewayMemoryBytes": 76058624
         },
         {
-          "at": 1794503691485,
+          "at": 1794509776425,
           "nodeId": "cline-worker-1",
           "online": true,
-          "workerMemoryBytes": 600813568,
-          "workerCpuTimeNanos": 21307106805,
+          "workerMemoryBytes": 588083200,
+          "workerCpuTimeNanos": 16882098084,
           "activeWorkers": 1,
           "maxWorkers": 1,
-          "gatewayMemoryBytes": 100749312
+          "gatewayMemoryBytes": 107835392
         },
         {
-          "at": 1794503691485,
+          "at": 1794509782255,
           "nodeId": "cline-worker-2",
           "online": true,
           "workerMemoryBytes": 0,
           "workerCpuTimeNanos": 0,
           "activeWorkers": 0,
           "maxWorkers": 1,
-          "gatewayMemoryBytes": 73474048
+          "gatewayMemoryBytes": 75931648
         },
         {
-          "at": 1794503697262,
+          "at": 1794509782255,
           "nodeId": "cline-worker-1",
           "online": true,
-          "workerMemoryBytes": 602722304,
-          "workerCpuTimeNanos": 23251155713,
+          "workerMemoryBytes": 589529088,
+          "workerCpuTimeNanos": 18553181220,
           "activeWorkers": 1,
           "maxWorkers": 1,
-          "gatewayMemoryBytes": 100925440
+          "gatewayMemoryBytes": 107712512
         },
         {
-          "at": 1794503697262,
+          "at": 1794509788459,
           "nodeId": "cline-worker-2",
           "online": true,
           "workerMemoryBytes": 0,
           "workerCpuTimeNanos": 0,
           "activeWorkers": 0,
           "maxWorkers": 1,
-          "gatewayMemoryBytes": 73469952
+          "gatewayMemoryBytes": 75931648
         },
         {
-          "at": 1794503703267,
+          "at": 1794509788459,
           "nodeId": "cline-worker-1",
           "online": true,
-          "workerMemoryBytes": 614948864,
-          "workerCpuTimeNanos": 23848185265,
+          "workerMemoryBytes": 595214336,
+          "workerCpuTimeNanos": 19322783825,
           "activeWorkers": 1,
           "maxWorkers": 1,
-          "gatewayMemoryBytes": 101462016
+          "gatewayMemoryBytes": 108310528
         },
         {
-          "at": 1794503703267,
+          "at": 1794509794418,
           "nodeId": "cline-worker-2",
           "online": true,
           "workerMemoryBytes": 0,
           "workerCpuTimeNanos": 0,
           "activeWorkers": 0,
           "maxWorkers": 1,
-          "gatewayMemoryBytes": 73469952
+          "gatewayMemoryBytes": 75931648
         },
         {
-          "at": 1794503709204,
+          "at": 1794509794418,
           "nodeId": "cline-worker-1",
           "online": true,
-          "workerMemoryBytes": 614678528,
-          "workerCpuTimeNanos": 23889630571,
+          "workerMemoryBytes": 600883200,
+          "workerCpuTimeNanos": 19680774300,
           "activeWorkers": 1,
           "maxWorkers": 1,
-          "gatewayMemoryBytes": 102379520
+          "gatewayMemoryBytes": 108920832
         },
         {
-          "at": 1794503709204,
+          "at": 1794509800348,
           "nodeId": "cline-worker-2",
           "online": true,
           "workerMemoryBytes": 0,
           "workerCpuTimeNanos": 0,
           "activeWorkers": 0,
           "maxWorkers": 1,
-          "gatewayMemoryBytes": 73469952
+          "gatewayMemoryBytes": 75599872
         },
         {
-          "at": 1794503715090,
+          "at": 1794509800348,
           "nodeId": "cline-worker-1",
           "online": true,
-          "workerMemoryBytes": 618463232,
-          "workerCpuTimeNanos": 25216474411,
+          "workerMemoryBytes": 601923584,
+          "workerCpuTimeNanos": 22470088466,
           "activeWorkers": 1,
           "maxWorkers": 1,
-          "gatewayMemoryBytes": 104341504
+          "gatewayMemoryBytes": 109715456
         },
         {
-          "at": 1794503715090,
+          "at": 1794509806316,
           "nodeId": "cline-worker-2",
           "online": true,
           "workerMemoryBytes": 0,
           "workerCpuTimeNanos": 0,
           "activeWorkers": 0,
           "maxWorkers": 1,
-          "gatewayMemoryBytes": 73469952
+          "gatewayMemoryBytes": 75599872
         },
         {
-          "at": 1794503720983,
+          "at": 1794509806316,
           "nodeId": "cline-worker-1",
           "online": true,
-          "workerMemoryBytes": 624439296,
-          "workerCpuTimeNanos": 26050924832,
+          "workerMemoryBytes": 611201024,
+          "workerCpuTimeNanos": 23407908056,
           "activeWorkers": 1,
           "maxWorkers": 1,
-          "gatewayMemoryBytes": 107192320
+          "gatewayMemoryBytes": 106987520
         },
         {
-          "at": 1794503720983,
+          "at": 1794509812312,
           "nodeId": "cline-worker-2",
           "online": true,
           "workerMemoryBytes": 0,
           "workerCpuTimeNanos": 0,
           "activeWorkers": 0,
           "maxWorkers": 1,
-          "gatewayMemoryBytes": 73469952
+          "gatewayMemoryBytes": 75599872
         },
         {
-          "at": 1794503726891,
+          "at": 1794509812312,
           "nodeId": "cline-worker-1",
           "online": true,
           "workerMemoryBytes": 0,
           "workerCpuTimeNanos": 0,
           "activeWorkers": 0,
           "maxWorkers": 1,
-          "gatewayMemoryBytes": 104181760
+          "gatewayMemoryBytes": 109666304
         },
         {
-          "at": 1794503726891,
+          "at": 1794509818731,
           "nodeId": "cline-worker-2",
           "online": true,
           "workerMemoryBytes": 0,
           "workerCpuTimeNanos": 0,
           "activeWorkers": 0,
           "maxWorkers": 1,
-          "gatewayMemoryBytes": 73469952
+          "gatewayMemoryBytes": 75599872
         },
         {
-          "at": 1794503732907,
+          "at": 1794509818731,
           "nodeId": "cline-worker-1",
           "online": true,
-          "workerMemoryBytes": 668098560,
-          "workerCpuTimeNanos": 5161679364,
+          "workerMemoryBytes": 677691392,
+          "workerCpuTimeNanos": 5435570298,
           "activeWorkers": 1,
           "maxWorkers": 1,
-          "gatewayMemoryBytes": 104722432
+          "gatewayMemoryBytes": 109805568
         },
         {
-          "at": 1794503732907,
+          "at": 1794509824308,
           "nodeId": "cline-worker-2",
           "online": true,
           "workerMemoryBytes": 0,
           "workerCpuTimeNanos": 0,
           "activeWorkers": 0,
           "maxWorkers": 1,
-          "gatewayMemoryBytes": 73469952
+          "gatewayMemoryBytes": 75599872
         },
         {
-          "at": 1794503739496,
+          "at": 1794509824308,
           "nodeId": "cline-worker-1",
           "online": true,
-          "workerMemoryBytes": 759566336,
-          "workerCpuTimeNanos": 8714228267,
+          "workerMemoryBytes": 751136768,
+          "workerCpuTimeNanos": 8624615944,
           "activeWorkers": 1,
           "maxWorkers": 1,
-          "gatewayMemoryBytes": 104722432
+          "gatewayMemoryBytes": 109805568
         },
         {
-          "at": 1794503739496,
+          "at": 1794509829887,
           "nodeId": "cline-worker-2",
           "online": true,
           "workerMemoryBytes": 0,
           "workerCpuTimeNanos": 0,
           "activeWorkers": 0,
           "maxWorkers": 1,
-          "gatewayMemoryBytes": 73740288
+          "gatewayMemoryBytes": 75599872
         },
         {
-          "at": 1794503745044,
+          "at": 1794509829887,
           "nodeId": "cline-worker-1",
           "online": true,
-          "workerMemoryBytes": 803061760,
-          "workerCpuTimeNanos": 10146107295,
+          "workerMemoryBytes": 704831488,
+          "workerCpuTimeNanos": 10084301022,
           "activeWorkers": 1,
           "maxWorkers": 1,
-          "gatewayMemoryBytes": 104722432
+          "gatewayMemoryBytes": 109805568
         },
         {
-          "at": 1794503745044,
+          "at": 1794509835474,
           "nodeId": "cline-worker-2",
           "online": true,
           "workerMemoryBytes": 0,
           "workerCpuTimeNanos": 0,
           "activeWorkers": 0,
           "maxWorkers": 1,
-          "gatewayMemoryBytes": 73740288
+          "gatewayMemoryBytes": 75599872
         },
         {
-          "at": 1794503750604,
+          "at": 1794509835474,
           "nodeId": "cline-worker-1",
           "online": true,
-          "workerMemoryBytes": 733020160,
-          "workerCpuTimeNanos": 12080988821,
+          "workerMemoryBytes": 706707456,
+          "workerCpuTimeNanos": 12114653414,
           "activeWorkers": 1,
           "maxWorkers": 1,
-          "gatewayMemoryBytes": 101359616
+          "gatewayMemoryBytes": 109805568
         },
         {
-          "at": 1794503750604,
+          "at": 1794509841037,
           "nodeId": "cline-worker-2",
           "online": true,
           "workerMemoryBytes": 0,
           "workerCpuTimeNanos": 0,
           "activeWorkers": 0,
           "maxWorkers": 1,
-          "gatewayMemoryBytes": 73740288
+          "gatewayMemoryBytes": 75599872
         },
         {
-          "at": 1794503756315,
+          "at": 1794509841037,
           "nodeId": "cline-worker-1",
           "online": true,
-          "workerMemoryBytes": 733442048,
-          "workerCpuTimeNanos": 12705908590,
+          "workerMemoryBytes": 573169664,
+          "workerCpuTimeNanos": 13173740623,
           "activeWorkers": 1,
           "maxWorkers": 1,
-          "gatewayMemoryBytes": 101359616
+          "gatewayMemoryBytes": 110436352
         },
         {
-          "at": 1794503756315,
+          "at": 1794509846604,
           "nodeId": "cline-worker-2",
           "online": true,
           "workerMemoryBytes": 0,
           "workerCpuTimeNanos": 0,
           "activeWorkers": 0,
           "maxWorkers": 1,
-          "gatewayMemoryBytes": 73740288
+          "gatewayMemoryBytes": 75599872
         },
         {
-          "at": 1794503762001,
+          "at": 1794509846604,
           "nodeId": "cline-worker-1",
           "online": true,
-          "workerMemoryBytes": 573079552,
-          "workerCpuTimeNanos": 13940475429,
+          "workerMemoryBytes": 571359232,
+          "workerCpuTimeNanos": 13882892967,
           "activeWorkers": 1,
           "maxWorkers": 1,
-          "gatewayMemoryBytes": 101359616
+          "gatewayMemoryBytes": 110534656
         },
         {
-          "at": 1794503762001,
+          "at": 1794509852185,
           "nodeId": "cline-worker-2",
           "online": true,
           "workerMemoryBytes": 0,
           "workerCpuTimeNanos": 0,
           "activeWorkers": 0,
           "maxWorkers": 1,
-          "gatewayMemoryBytes": 73740288
+          "gatewayMemoryBytes": 75599872
         },
         {
-          "at": 1794503767591,
+          "at": 1794509852185,
           "nodeId": "cline-worker-1",
           "online": true,
-          "workerMemoryBytes": 572862464,
-          "workerCpuTimeNanos": 14068586255,
+          "workerMemoryBytes": 572071936,
+          "workerCpuTimeNanos": 14053871616,
           "activeWorkers": 1,
           "maxWorkers": 1,
-          "gatewayMemoryBytes": 101359616
+          "gatewayMemoryBytes": 110903296
         },
         {
-          "at": 1794503767591,
+          "at": 1794509857776,
           "nodeId": "cline-worker-2",
           "online": true,
           "workerMemoryBytes": 0,
           "workerCpuTimeNanos": 0,
           "activeWorkers": 0,
           "maxWorkers": 1,
-          "gatewayMemoryBytes": 73740288
+          "gatewayMemoryBytes": 75993088
         },
         {
-          "at": 1794503773506,
+          "at": 1794509857776,
           "nodeId": "cline-worker-1",
           "online": true,
-          "workerMemoryBytes": 576335872,
-          "workerCpuTimeNanos": 14363251252,
+          "workerMemoryBytes": 572747776,
+          "workerCpuTimeNanos": 14223054762,
           "activeWorkers": 1,
           "maxWorkers": 1,
-          "gatewayMemoryBytes": 101359616
+          "gatewayMemoryBytes": 107401216
         },
         {
-          "at": 1794503773506,
+          "at": 1794509863355,
           "nodeId": "cline-worker-2",
           "online": true,
           "workerMemoryBytes": 0,
           "workerCpuTimeNanos": 0,
           "activeWorkers": 0,
           "maxWorkers": 1,
-          "gatewayMemoryBytes": 73740288
+          "gatewayMemoryBytes": 75993088
         },
         {
-          "at": 1794503779271,
+          "at": 1794509863355,
           "nodeId": "cline-worker-1",
           "online": true,
-          "workerMemoryBytes": 583499776,
-          "workerCpuTimeNanos": 16335732397,
+          "workerMemoryBytes": 573161472,
+          "workerCpuTimeNanos": 14406309278,
           "activeWorkers": 1,
           "maxWorkers": 1,
-          "gatewayMemoryBytes": 101625856
+          "gatewayMemoryBytes": 107499520
         },
         {
-          "at": 1794503779271,
+          "at": 1794509868931,
           "nodeId": "cline-worker-2",
           "online": true,
           "workerMemoryBytes": 0,
           "workerCpuTimeNanos": 0,
           "activeWorkers": 0,
           "maxWorkers": 1,
-          "gatewayMemoryBytes": 73740288
+          "gatewayMemoryBytes": 75993088
         },
         {
-          "at": 1794503784905,
+          "at": 1794509868931,
           "nodeId": "cline-worker-1",
           "online": true,
-          "workerMemoryBytes": 592457728,
-          "workerCpuTimeNanos": 16812272775,
+          "workerMemoryBytes": 579268608,
+          "workerCpuTimeNanos": 15011006221,
           "activeWorkers": 1,
           "maxWorkers": 1,
-          "gatewayMemoryBytes": 101945344
+          "gatewayMemoryBytes": 107864064
         },
         {
-          "at": 1794503784905,
+          "at": 1794509874648,
           "nodeId": "cline-worker-2",
           "online": true,
           "workerMemoryBytes": 0,
           "workerCpuTimeNanos": 0,
           "activeWorkers": 0,
           "maxWorkers": 1,
-          "gatewayMemoryBytes": 73740288
+          "gatewayMemoryBytes": 75993088
         },
         {
-          "at": 1794503790671,
+          "at": 1794509874648,
           "nodeId": "cline-worker-1",
           "online": true,
-          "workerMemoryBytes": 594227200,
-          "workerCpuTimeNanos": 17719536165,
+          "workerMemoryBytes": 580800512,
+          "workerCpuTimeNanos": 15208577387,
           "activeWorkers": 1,
           "maxWorkers": 1,
-          "gatewayMemoryBytes": 102711296
+          "gatewayMemoryBytes": 108613632
         },
         {
-          "at": 1794503790671,
+          "at": 1794509880365,
           "nodeId": "cline-worker-2",
           "online": true,
           "workerMemoryBytes": 0,
           "workerCpuTimeNanos": 0,
           "activeWorkers": 0,
           "maxWorkers": 1,
-          "gatewayMemoryBytes": 73740288
+          "gatewayMemoryBytes": 75993088
         },
         {
-          "at": 1794503796402,
+          "at": 1794509880365,
           "nodeId": "cline-worker-1",
           "online": true,
-          "workerMemoryBytes": 608432128,
-          "workerCpuTimeNanos": 18502781699,
+          "workerMemoryBytes": 580698112,
+          "workerCpuTimeNanos": 15339680135,
           "activeWorkers": 1,
           "maxWorkers": 1,
-          "gatewayMemoryBytes": 102834176
+          "gatewayMemoryBytes": 108826624
         },
         {
-          "at": 1794503796402,
+          "at": 1794509886039,
           "nodeId": "cline-worker-2",
           "online": true,
           "workerMemoryBytes": 0,
           "workerCpuTimeNanos": 0,
           "activeWorkers": 0,
           "maxWorkers": 1,
-          "gatewayMemoryBytes": 73740288
+          "gatewayMemoryBytes": 75993088
         },
         {
-          "at": 1794503802239,
+          "at": 1794509886039,
           "nodeId": "cline-worker-1",
           "online": true,
-          "workerMemoryBytes": 276299776,
-          "workerCpuTimeNanos": 1481444139,
+          "workerMemoryBytes": 581111808,
+          "workerCpuTimeNanos": 15495860421,
           "activeWorkers": 1,
           "maxWorkers": 1,
-          "gatewayMemoryBytes": 103845888
+          "gatewayMemoryBytes": 109305856
         },
         {
-          "at": 1794503802239,
+          "at": 1794509891770,
           "nodeId": "cline-worker-2",
           "online": true,
           "workerMemoryBytes": 0,
           "workerCpuTimeNanos": 0,
           "activeWorkers": 0,
           "maxWorkers": 1,
-          "gatewayMemoryBytes": 73740288
+          "gatewayMemoryBytes": 75993088
         },
         {
-          "at": 1794503808424,
+          "at": 1794509891770,
           "nodeId": "cline-worker-1",
           "online": true,
-          "workerMemoryBytes": 754335744,
-          "workerCpuTimeNanos": 7185986738,
+          "workerMemoryBytes": 580919296,
+          "workerCpuTimeNanos": 15627641600,
           "activeWorkers": 1,
           "maxWorkers": 1,
-          "gatewayMemoryBytes": 103845888
+          "gatewayMemoryBytes": 110051328
         },
         {
-          "at": 1794503808424,
+          "at": 1794509897484,
           "nodeId": "cline-worker-2",
           "online": true,
           "workerMemoryBytes": 0,
           "workerCpuTimeNanos": 0,
           "activeWorkers": 0,
           "maxWorkers": 1,
-          "gatewayMemoryBytes": 73740288
+          "gatewayMemoryBytes": 75984896
         },
         {
-          "at": 1794503813821,
+          "at": 1794509897484,
           "nodeId": "cline-worker-1",
           "online": true,
-          "workerMemoryBytes": 758669312,
-          "workerCpuTimeNanos": 7731387272,
+          "workerMemoryBytes": 585105408,
+          "workerCpuTimeNanos": 17711409909,
           "activeWorkers": 1,
           "maxWorkers": 1,
-          "gatewayMemoryBytes": 103845888
+          "gatewayMemoryBytes": 110256128
         },
         {
-          "at": 1794503813821,
+          "at": 1794509903185,
           "nodeId": "cline-worker-2",
           "online": true,
           "workerMemoryBytes": 0,
           "workerCpuTimeNanos": 0,
           "activeWorkers": 0,
           "maxWorkers": 1,
-          "gatewayMemoryBytes": 73740288
+          "gatewayMemoryBytes": 75984896
         },
         {
-          "at": 1794503819197,
+          "at": 1794509903185,
           "nodeId": "cline-worker-1",
           "online": true,
-          "workerMemoryBytes": 763150336,
-          "workerCpuTimeNanos": 8225135349,
+          "workerMemoryBytes": 593866752,
+          "workerCpuTimeNanos": 19085611759,
           "activeWorkers": 1,
           "maxWorkers": 1,
-          "gatewayMemoryBytes": 103845888
+          "gatewayMemoryBytes": 112922624
         },
         {
-          "at": 1794503819197,
+          "at": 1794509908893,
           "nodeId": "cline-worker-2",
           "online": true,
           "workerMemoryBytes": 0,
           "workerCpuTimeNanos": 0,
           "activeWorkers": 0,
           "maxWorkers": 1,
-          "gatewayMemoryBytes": 73740288
+          "gatewayMemoryBytes": 75984896
         },
         {
-          "at": 1794503824570,
+          "at": 1794509908893,
           "nodeId": "cline-worker-1",
           "online": true,
-          "workerMemoryBytes": 600801280,
-          "workerCpuTimeNanos": 12948859745,
+          "workerMemoryBytes": 595488768,
+          "workerCpuTimeNanos": 19603371521,
           "activeWorkers": 1,
           "maxWorkers": 1,
-          "gatewayMemoryBytes": 103845888
+          "gatewayMemoryBytes": 107130880
         },
         {
-          "at": 1794503824570,
+          "at": 1794509914633,
           "nodeId": "cline-worker-2",
           "online": true,
           "workerMemoryBytes": 0,
           "workerCpuTimeNanos": 0,
           "activeWorkers": 0,
           "maxWorkers": 1,
-          "gatewayMemoryBytes": 73740288
+          "gatewayMemoryBytes": 75984896
         },
         {
-          "at": 1794503829993,
+          "at": 1794509914633,
           "nodeId": "cline-worker-1",
           "online": true,
-          "workerMemoryBytes": 589258752,
-          "workerCpuTimeNanos": 13781298406,
+          "workerMemoryBytes": 597188608,
+          "workerCpuTimeNanos": 19949067356,
           "activeWorkers": 1,
           "maxWorkers": 1,
-          "gatewayMemoryBytes": 101654528
+          "gatewayMemoryBytes": 112803840
         },
         {
-          "at": 1794503829993,
+          "at": 1794509920392,
           "nodeId": "cline-worker-2",
           "online": true,
           "workerMemoryBytes": 0,
           "workerCpuTimeNanos": 0,
           "activeWorkers": 0,
           "maxWorkers": 1,
-          "gatewayMemoryBytes": 73740288
+          "gatewayMemoryBytes": 75984896
         },
         {
-          "at": 1794503835446,
+          "at": 1794509920392,
           "nodeId": "cline-worker-1",
           "online": true,
-          "workerMemoryBytes": 598151168,
-          "workerCpuTimeNanos": 15164555715,
+          "workerMemoryBytes": 609337344,
+          "workerCpuTimeNanos": 21523302243,
           "activeWorkers": 1,
           "maxWorkers": 1,
-          "gatewayMemoryBytes": 101654528
+          "gatewayMemoryBytes": 112996352
         },
         {
-          "at": 1794503835446,
+          "at": 1794509926078,
           "nodeId": "cline-worker-2",
           "online": true,
           "workerMemoryBytes": 0,
           "workerCpuTimeNanos": 0,
           "activeWorkers": 0,
           "maxWorkers": 1,
-          "gatewayMemoryBytes": 73740288
+          "gatewayMemoryBytes": 75984896
         },
         {
-          "at": 1794503840847,
+          "at": 1794509926078,
           "nodeId": "cline-worker-1",
           "online": true,
-          "workerMemoryBytes": 597590016,
-          "workerCpuTimeNanos": 15352193312,
-          "activeWorkers": 1,
+          "workerMemoryBytes": 0,
+          "workerCpuTimeNanos": 0,
+          "activeWorkers": 0,
           "maxWorkers": 1,
-          "gatewayMemoryBytes": 101654528
+          "gatewayMemoryBytes": 109420544
         },
         {
-          "at": 1794503840847,
+          "at": 1794509931835,
           "nodeId": "cline-worker-2",
           "online": true,
           "workerMemoryBytes": 0,
           "workerCpuTimeNanos": 0,
           "activeWorkers": 0,
           "maxWorkers": 1,
-          "gatewayMemoryBytes": 73740288
+          "gatewayMemoryBytes": 75984896
         },
         {
-          "at": 1794503846308,
+          "at": 1794509931835,
           "nodeId": "cline-worker-1",
           "online": true,
-          "workerMemoryBytes": 579870720,
-          "workerCpuTimeNanos": 16232487235,
+          "workerMemoryBytes": 494682112,
+          "workerCpuTimeNanos": 2929071992,
           "activeWorkers": 1,
           "maxWorkers": 1,
-          "gatewayMemoryBytes": 101654528
+          "gatewayMemoryBytes": 109420544
         },
         {
-          "at": 1794503846308,
+          "at": 1794509938050,
           "nodeId": "cline-worker-2",
           "online": true,
           "workerMemoryBytes": 0,
           "workerCpuTimeNanos": 0,
           "activeWorkers": 0,
           "maxWorkers": 1,
-          "gatewayMemoryBytes": 74256384
+          "gatewayMemoryBytes": 75984896
         },
         {
-          "at": 1794503852178,
+          "at": 1794509938050,
           "nodeId": "cline-worker-1",
           "online": true,
-          "workerMemoryBytes": 579940352,
-          "workerCpuTimeNanos": 16407663213,
+          "workerMemoryBytes": 746176512,
+          "workerCpuTimeNanos": 8244703307,
           "activeWorkers": 1,
           "maxWorkers": 1,
-          "gatewayMemoryBytes": 101916672
+          "gatewayMemoryBytes": 109420544
         },
         {
-          "at": 1794503852178,
+          "at": 1794509943414,
           "nodeId": "cline-worker-2",
           "online": true,
           "workerMemoryBytes": 0,
           "workerCpuTimeNanos": 0,
           "activeWorkers": 0,
           "maxWorkers": 1,
-          "gatewayMemoryBytes": 74256384
+          "gatewayMemoryBytes": 75984896
         },
         {
-          "at": 1794503857603,
+          "at": 1794509943414,
           "nodeId": "cline-worker-1",
           "online": true,
-          "workerMemoryBytes": 580030464,
-          "workerCpuTimeNanos": 16569170144,
+          "workerMemoryBytes": 754585600,
+          "workerCpuTimeNanos": 9243848851,
           "activeWorkers": 1,
           "maxWorkers": 1,
-          "gatewayMemoryBytes": 102440960
+          "gatewayMemoryBytes": 109420544
         },
         {
-          "at": 1794503857603,
+          "at": 1794509948795,
           "nodeId": "cline-worker-2",
           "online": true,
           "workerMemoryBytes": 0,
           "workerCpuTimeNanos": 0,
           "activeWorkers": 0,
           "maxWorkers": 1,
-          "gatewayMemoryBytes": 74256384
+          "gatewayMemoryBytes": 75984896
         },
         {
-          "at": 1794503863062,
+          "at": 1794509948795,
           "nodeId": "cline-worker-1",
           "online": true,
-          "workerMemoryBytes": 584728576,
-          "workerCpuTimeNanos": 17047081856,
+          "workerMemoryBytes": 756822016,
+          "workerCpuTimeNanos": 10998114960,
           "activeWorkers": 1,
           "maxWorkers": 1,
-          "gatewayMemoryBytes": 103337984
+          "gatewayMemoryBytes": 109420544
         },
         {
-          "at": 1794503863062,
+          "at": 1794509954207,
           "nodeId": "cline-worker-2",
           "online": true,
           "workerMemoryBytes": 0,
           "workerCpuTimeNanos": 0,
           "activeWorkers": 0,
           "maxWorkers": 1,
-          "gatewayMemoryBytes": 74256384
+          "gatewayMemoryBytes": 75984896
         },
         {
-          "at": 1794503868573,
+          "at": 1794509954207,
           "nodeId": "cline-worker-1",
           "online": true,
-          "workerMemoryBytes": 586366976,
-          "workerCpuTimeNanos": 17350525515,
+          "workerMemoryBytes": 582004736,
+          "workerCpuTimeNanos": 12448446526,
           "activeWorkers": 1,
           "maxWorkers": 1,
-          "gatewayMemoryBytes": 103968768
+          "gatewayMemoryBytes": 109420544
         },
         {
-          "at": 1794503868573,
+          "at": 1794509959610,
           "nodeId": "cline-worker-2",
           "online": true,
           "workerMemoryBytes": 0,
           "workerCpuTimeNanos": 0,
           "activeWorkers": 0,
           "maxWorkers": 1,
-          "gatewayMemoryBytes": 74256384
+          "gatewayMemoryBytes": 75984896
         },
         {
-          "at": 1794503874078,
+          "at": 1794509959610,
           "nodeId": "cline-worker-1",
           "online": true,
-          "workerMemoryBytes": 626323456,
-          "workerCpuTimeNanos": 22830310918,
+          "workerMemoryBytes": 573317120,
+          "workerCpuTimeNanos": 13331718544,
           "activeWorkers": 1,
           "maxWorkers": 1,
-          "gatewayMemoryBytes": 104017920
+          "gatewayMemoryBytes": 109424640
         },
         {
-          "at": 1794503874078,
+          "at": 1794509965011,
           "nodeId": "cline-worker-2",
           "online": true,
           "workerMemoryBytes": 0,
           "workerCpuTimeNanos": 0,
           "activeWorkers": 0,
           "maxWorkers": 1,
-          "gatewayMemoryBytes": 74256384
+          "gatewayMemoryBytes": 75984896
         },
         {
-          "at": 1794503879594,
+          "at": 1794509965011,
+          "nodeId": "cline-worker-1",
+          "online": true,
+          "workerMemoryBytes": 574234624,
+          "workerCpuTimeNanos": 13450211017,
+          "activeWorkers": 1,
+          "maxWorkers": 1,
+          "gatewayMemoryBytes": 109428736
+        },
+        {
+          "at": 1794509970427,
+          "nodeId": "cline-worker-2",
+          "online": true,
+          "workerMemoryBytes": 0,
+          "workerCpuTimeNanos": 0,
+          "activeWorkers": 0,
+          "maxWorkers": 1,
+          "gatewayMemoryBytes": 75984896
+        },
+        {
+          "at": 1794509970427,
+          "nodeId": "cline-worker-1",
+          "online": true,
+          "workerMemoryBytes": 574283776,
+          "workerCpuTimeNanos": 13563774443,
+          "activeWorkers": 1,
+          "maxWorkers": 1,
+          "gatewayMemoryBytes": 109821952
+        },
+        {
+          "at": 1794509975840,
+          "nodeId": "cline-worker-2",
+          "online": true,
+          "workerMemoryBytes": 0,
+          "workerCpuTimeNanos": 0,
+          "activeWorkers": 0,
+          "maxWorkers": 1,
+          "gatewayMemoryBytes": 75984896
+        },
+        {
+          "at": 1794509975840,
+          "nodeId": "cline-worker-1",
+          "online": true,
+          "workerMemoryBytes": 577462272,
+          "workerCpuTimeNanos": 13849956081,
+          "activeWorkers": 1,
+          "maxWorkers": 1,
+          "gatewayMemoryBytes": 110215168
+        },
+        {
+          "at": 1794509981253,
+          "nodeId": "cline-worker-2",
+          "online": true,
+          "workerMemoryBytes": 0,
+          "workerCpuTimeNanos": 0,
+          "activeWorkers": 0,
+          "maxWorkers": 1,
+          "gatewayMemoryBytes": 75984896
+        },
+        {
+          "at": 1794509981253,
+          "nodeId": "cline-worker-1",
+          "online": true,
+          "workerMemoryBytes": 583315456,
+          "workerCpuTimeNanos": 15883205540,
+          "activeWorkers": 1,
+          "maxWorkers": 1,
+          "gatewayMemoryBytes": 110215168
+        },
+        {
+          "at": 1794509986679,
+          "nodeId": "cline-worker-2",
+          "online": true,
+          "workerMemoryBytes": 0,
+          "workerCpuTimeNanos": 0,
+          "activeWorkers": 0,
+          "maxWorkers": 1,
+          "gatewayMemoryBytes": 75984896
+        },
+        {
+          "at": 1794509986679,
+          "nodeId": "cline-worker-1",
+          "online": true,
+          "workerMemoryBytes": 592523264,
+          "workerCpuTimeNanos": 16411898212,
+          "activeWorkers": 1,
+          "maxWorkers": 1,
+          "gatewayMemoryBytes": 110215168
+        },
+        {
+          "at": 1794509992170,
+          "nodeId": "cline-worker-2",
+          "online": true,
+          "workerMemoryBytes": 0,
+          "workerCpuTimeNanos": 0,
+          "activeWorkers": 0,
+          "maxWorkers": 1,
+          "gatewayMemoryBytes": 75984896
+        },
+        {
+          "at": 1794509992170,
+          "nodeId": "cline-worker-1",
+          "online": true,
+          "workerMemoryBytes": 592801792,
+          "workerCpuTimeNanos": 17067797558,
+          "activeWorkers": 1,
+          "maxWorkers": 1,
+          "gatewayMemoryBytes": 110751744
+        },
+        {
+          "at": 1794509997668,
+          "nodeId": "cline-worker-2",
+          "online": true,
+          "workerMemoryBytes": 0,
+          "workerCpuTimeNanos": 0,
+          "activeWorkers": 0,
+          "maxWorkers": 1,
+          "gatewayMemoryBytes": 76890112
+        },
+        {
+          "at": 1794509997668,
           "nodeId": "cline-worker-1",
           "online": true,
           "workerMemoryBytes": 603123712,
-          "workerCpuTimeNanos": 24616611044,
+          "workerCpuTimeNanos": 17877675862,
           "activeWorkers": 1,
           "maxWorkers": 1,
-          "gatewayMemoryBytes": 104812544
+          "gatewayMemoryBytes": 110370816
         },
         {
-          "at": 1794503879594,
+          "at": 1794510003163,
           "nodeId": "cline-worker-2",
           "online": true,
           "workerMemoryBytes": 0,
           "workerCpuTimeNanos": 0,
           "activeWorkers": 0,
           "maxWorkers": 1,
-          "gatewayMemoryBytes": 74256384
+          "gatewayMemoryBytes": 76890112
         },
         {
-          "at": 1794503885159,
-          "nodeId": "cline-worker-1",
-          "online": true,
-          "workerMemoryBytes": 606384128,
-          "workerCpuTimeNanos": 26559300047,
-          "activeWorkers": 1,
-          "maxWorkers": 1,
-          "gatewayMemoryBytes": 106520576
-        },
-        {
-          "at": 1794503885159,
-          "nodeId": "cline-worker-2",
-          "online": true,
-          "workerMemoryBytes": 0,
-          "workerCpuTimeNanos": 0,
-          "activeWorkers": 0,
-          "maxWorkers": 1,
-          "gatewayMemoryBytes": 74256384
-        },
-        {
-          "at": 1794503890739,
-          "nodeId": "cline-worker-1",
-          "online": true,
-          "workerMemoryBytes": 610484224,
-          "workerCpuTimeNanos": 27312152469,
-          "activeWorkers": 1,
-          "maxWorkers": 1,
-          "gatewayMemoryBytes": 103866368
-        },
-        {
-          "at": 1794503890739,
-          "nodeId": "cline-worker-2",
-          "online": true,
-          "workerMemoryBytes": 0,
-          "workerCpuTimeNanos": 0,
-          "activeWorkers": 0,
-          "maxWorkers": 1,
-          "gatewayMemoryBytes": 74256384
-        },
-        {
-          "at": 1794503896260,
-          "nodeId": "cline-worker-1",
-          "online": true,
-          "workerMemoryBytes": 617836544,
-          "workerCpuTimeNanos": 28230683907,
-          "activeWorkers": 1,
-          "maxWorkers": 1,
-          "gatewayMemoryBytes": 106024960
-        },
-        {
-          "at": 1794503896260,
-          "nodeId": "cline-worker-2",
-          "online": true,
-          "workerMemoryBytes": 0,
-          "workerCpuTimeNanos": 0,
-          "activeWorkers": 0,
-          "maxWorkers": 1,
-          "gatewayMemoryBytes": 74256384
-        },
-        {
-          "at": 1794503901806,
-          "nodeId": "cline-worker-1",
-          "online": true,
-          "workerMemoryBytes": 617590784,
-          "workerCpuTimeNanos": 28248327296,
-          "activeWorkers": 1,
-          "maxWorkers": 1,
-          "gatewayMemoryBytes": 106180608
-        },
-        {
-          "at": 1794503901806,
-          "nodeId": "cline-worker-2",
-          "online": true,
-          "workerMemoryBytes": 0,
-          "workerCpuTimeNanos": 0,
-          "activeWorkers": 0,
-          "maxWorkers": 1,
-          "gatewayMemoryBytes": 74256384
-        },
-        {
-          "at": 1794503907278,
-          "nodeId": "cline-worker-1",
-          "online": true,
-          "workerMemoryBytes": 618962944,
-          "workerCpuTimeNanos": 29391442895,
-          "activeWorkers": 1,
-          "maxWorkers": 1,
-          "gatewayMemoryBytes": 107393024
-        },
-        {
-          "at": 1794503907278,
-          "nodeId": "cline-worker-2",
-          "online": true,
-          "workerMemoryBytes": 0,
-          "workerCpuTimeNanos": 0,
-          "activeWorkers": 0,
-          "maxWorkers": 1,
-          "gatewayMemoryBytes": 74256384
-        },
-        {
-          "at": 1794503912828,
-          "nodeId": "cline-worker-1",
-          "online": true,
-          "workerMemoryBytes": 620773376,
-          "workerCpuTimeNanos": 30343313286,
-          "activeWorkers": 1,
-          "maxWorkers": 1,
-          "gatewayMemoryBytes": 108863488
-        },
-        {
-          "at": 1794503912828,
-          "nodeId": "cline-worker-2",
-          "online": true,
-          "workerMemoryBytes": 0,
-          "workerCpuTimeNanos": 0,
-          "activeWorkers": 0,
-          "maxWorkers": 1,
-          "gatewayMemoryBytes": 74256384
-        },
-        {
-          "at": 1794503918446,
+          "at": 1794510003163,
           "nodeId": "cline-worker-1",
           "online": true,
           "workerMemoryBytes": 0,
           "workerCpuTimeNanos": 0,
           "activeWorkers": 0,
           "maxWorkers": 1,
-          "gatewayMemoryBytes": 105537536
+          "gatewayMemoryBytes": 112713728
         },
         {
-          "at": 1794503918446,
+          "at": 1794510008655,
           "nodeId": "cline-worker-2",
           "online": true,
           "workerMemoryBytes": 0,
           "workerCpuTimeNanos": 0,
           "activeWorkers": 0,
           "maxWorkers": 1,
-          "gatewayMemoryBytes": 74256384
+          "gatewayMemoryBytes": 76890112
         },
         {
-          "at": 1794503923973,
+          "at": 1794510008655,
           "nodeId": "cline-worker-1",
           "online": true,
           "workerMemoryBytes": 0,
           "workerCpuTimeNanos": 0,
           "activeWorkers": 0,
           "maxWorkers": 1,
-          "gatewayMemoryBytes": 105537536
-        },
-        {
-          "at": 1794503923973,
-          "nodeId": "cline-worker-2",
-          "online": true,
-          "workerMemoryBytes": 0,
-          "workerCpuTimeNanos": 0,
-          "activeWorkers": 0,
-          "maxWorkers": 1,
-          "gatewayMemoryBytes": 74256384
+          "gatewayMemoryBytes": 111636480
         }
       ]
     },
@@ -1536,189 +1514,193 @@
       "total": 4,
       "completed": 4,
       "failed": 0,
-      "elapsedSeconds": 208.375,
-      "throughputPerMinute": 1.1517696460707858,
+      "elapsedSeconds": 180.864,
+      "throughputPerMinute": 1.326963906581741,
       "tasks": [
         {
-          "taskId": "temporal-native-9c81e5b9336b876d5b6f99118610406a9b48f133ec06f559cccc2282311c080a",
-          "runId": "coding-5e91ea25239b910133020b38853222d14382cf00c5ef381737c01dd519d73e5e",
+          "taskId": "temporal-native-85ad112945768d80f7541edd54d3da1fcbc395f8279b79990b138b96783bbea4",
+          "runId": "coding-034346519fc8c6c3a41c6b1743789d8405d273a6a4bebf132544c6ded7027d94",
           "userId": "fe1b8d47-5750-46f8-8393-e8c662b8c86b",
           "nodeId": "cline-worker-2",
-          "sessionId": "native-e5e7030e-6bae-432b-96fd-2f62bd9923ec",
-          "executionEpoch": "052acb94-bc2e-4fe0-8b20-dc6a0caac7ea",
-          "workflowId": "native-analysis-v1-5e62a6433c4fc46f6d2062e0a5d519088e88ffa0099a0f83cc8738b6e384d938",
+          "sessionId": "native-7d301653-4788-4ca0-8dcd-2a0bea043658",
+          "executionEpoch": "1e67b379-2d3e-4150-b1af-325c6127a77c",
+          "workflowId": "native-analysis-v1-dae0344ad95f74f2e4c40cb2bba7eed12273a981d0f5fc3b317eae196e0ff790",
           "historyEvents": 15,
-          "nativeStart": 1794503991260,
-          "nativeEnd": 1794504091473,
-          "usage": {
-            "requests": 11,
-            "inputTokens": 133399,
-            "outputTokens": 4685,
-            "unknownUsageRequests": 0
-          },
-          "downloads": [
-            {
-              "fileName": "synthetic_amount_analysis.py",
-              "sha256": "eae149665ed8fdeb73c08db7bedc9bf54446ef67e42066e92b42a931bc058364",
-              "size": 5946,
-              "id": "81fc97efd752cd70b0a9760a29e57977be0e7b3fdfb807cc584dda15d9d11eb6"
-            },
-            {
-              "fileName": "synthetic_amount_result.json",
-              "sha256": "1095a6de26f051004773145a4ab5abcd356a806b1b7c1bc8aaf029ad314f43b0",
-              "size": 50,
-              "id": "148290e655a278c0426c4f45143052f727abc2bff350210b090467168e38bebc"
-            },
-            {
-              "fileName": "synthetic_amount_report.md",
-              "sha256": "2d031098a7b6f43d99f25400ec6212b531ba6d2e795740983976ffa2b1ebffba",
-              "size": 951,
-              "id": "a98a4f90b697dca9b6d45c1e7376aa3b37cfb9df309734fd6c65a6f137a32a29"
-            }
-          ],
-          "ownerIsolation": "PASS",
-          "numericValidation": "PASS"
-        },
-        {
-          "taskId": "temporal-native-679973b56779d7a0815c20489b81fba80d2b9ddf7ff423518add263ef21f23a0",
-          "runId": "coding-25bdd11cd32831f37fa70e908cabbb3aad529589ef3d0414e7d0c665eaeccbbc",
-          "userId": "4eef238e-04a2-4105-b0b0-4c5791216b2a",
-          "nodeId": "cline-worker-1",
-          "sessionId": "native-18d95154-212f-46f4-bbde-cbbf01ad88bf",
-          "executionEpoch": "cd9f87ce-8c73-49a3-93f5-ae6869b71515",
-          "workflowId": "native-analysis-v1-51831f06bfa8ae12dd8f58314fc1a70af9c6f75eb6dd56ced0a7360bdb314588",
-          "historyEvents": 15,
-          "nativeStart": 1794503991242,
-          "nativeEnd": 1794504097979,
+          "nativeStart": 1794510076682,
+          "nativeEnd": 1794510151972,
           "usage": {
             "requests": 9,
-            "inputTokens": 106413,
-            "outputTokens": 5558,
+            "inputTokens": 81572,
+            "outputTokens": 3260,
             "unknownUsageRequests": 0
           },
           "downloads": [
             {
               "fileName": "synthetic_amount_analysis.py",
-              "sha256": "a48da3e71bbcabb1d59d479c6364ada88d701c995f4787158b4a0f2514a25377",
-              "size": 6477,
-              "id": "fb381e83308185e4d49f37cf9255dcdd70c16ac67486536e515b09e3cfefcbdb"
-            },
-            {
-              "fileName": "synthetic_amount_result.json",
-              "sha256": "1095a6de26f051004773145a4ab5abcd356a806b1b7c1bc8aaf029ad314f43b0",
-              "size": 50,
-              "id": "77fd98b7eb3b832235b96235d1ce204b966d318fdd486fc7c05e18a638d3ec94"
-            },
-            {
-              "fileName": "synthetic_amount_report.md",
-              "sha256": "ed33001b66ff0927398e8fb2f8a73b1d0972aa6b030950bf514ff754ec306a65",
-              "size": 1374,
-              "id": "b8436bfb121f7045d66d6035c70b046bf291bc01e09ef336032f205dea19cfeb"
-            }
-          ],
-          "ownerIsolation": "PASS",
-          "numericValidation": "PASS"
-        },
-        {
-          "taskId": "temporal-native-367bedf3ca375c6963f08365576e481ee109dcd3fec7a609a94946df03077d1a",
-          "runId": "coding-9bb73585cb89a040b2a3be840ac0e7997295266d9b35b9fd62bee74b0aa8f643",
-          "userId": "fe1b8d47-5750-46f8-8393-e8c662b8c86b",
-          "nodeId": "cline-worker-1",
-          "sessionId": "native-80f2d68f-cf79-47c1-81c6-3acfbb4181e6",
-          "executionEpoch": "73372638-fad6-4eed-b6e2-0ed984692604",
-          "workflowId": "native-analysis-v1-d25a50f29a88a9e2c899e98bfd8cdc4a440597cf3d5b0494566b77590bd18b92",
-          "historyEvents": 15,
-          "nativeStart": 1794504112082,
-          "nativeEnd": 1794504174428,
-          "usage": {
-            "requests": 7,
-            "inputTokens": 68064,
-            "outputTokens": 3067,
-            "unknownUsageRequests": 0
-          },
-          "downloads": [
-            {
-              "fileName": "synthetic_amount_analysis.py",
-              "sha256": "8684396b5e833a97eaf53a0850fdbd3e442257b9a436466c9832a8ec6b68fdb7",
-              "size": 4200,
-              "id": "97f1da5443f5f756e41f418e15e0bc15916010ea296fd6397a21b3830d06e236"
+              "sha256": "972a3f2dc8e42697ac4a30313fe743ae0300d3430348f1db7b633c87dc02f827",
+              "size": 4624,
+              "id": "b6860a089df52b2e7366ea72f49076c88f749eb4f6f1c6a3abcb03b3dbf36804"
             },
             {
               "fileName": "result.json",
-              "sha256": "1095a6de26f051004773145a4ab5abcd356a806b1b7c1bc8aaf029ad314f43b0",
-              "size": 50,
-              "id": "9405fe7268c10665997607e091a9655521c23c6cf45522d441444da4adfeaeac"
+              "sha256": "a8ed471e72255ee3420a6097e32b9f826e72c8e1766a279df2a140e9cb8e040d",
+              "size": 49,
+              "id": "12d603fc2d19a5c82bd10ea9dc73ecdd9ca9d6f25f7a0a33d17327869697700c"
             },
             {
               "fileName": "report.md",
-              "sha256": "a5f462b9039d8f94674d065ad67857c43d038162a9f5505215a78802aa9fef63",
-              "size": 1030,
-              "id": "99a36f6dfbf24d139de1a88398e13544b3fe45212a0face5eb50548421fd9ef5"
+              "sha256": "4d201304e2fa6bf67f46e4afaee4c5ca856f812455b9b749b539f39b6ba40cd7",
+              "size": 1165,
+              "id": "dc70ae3bca0309269fb96ffa3665adfb45cb5b6a8edf7811ebbb16fdf4c1c335"
             }
           ],
           "ownerIsolation": "PASS",
-          "numericValidation": "PASS"
+          "numericValidation": "PASS",
+          "finalDeliveryUnchanged": "PASS"
         },
         {
-          "taskId": "temporal-native-6509ba6240b26ef900e8a7347b2a6d58fe2a1dbc2ea9a2c5b63eed1a87b87c68",
-          "runId": "coding-d93db7c655fbf5be2e92debf1a19814fa84a41427a0d587f277d4dcf66c9eec5",
+          "taskId": "temporal-native-7cc040eb3d00b7405bde95d848aefd248f9e66ccf74e775ab6c896f726029f7f",
+          "runId": "coding-5a8d8e0f1443eef83b261ab82ae499e819de3d454156dbbdd118b6c39ed6a3c3",
           "userId": "4eef238e-04a2-4105-b0b0-4c5791216b2a",
-          "nodeId": "cline-worker-2",
-          "sessionId": "native-56e2bcbf-f038-47e0-8ff8-3feb0dc8f6c7",
-          "executionEpoch": "0e84d054-035a-44a6-b515-e5bda40ea1d9",
-          "workflowId": "native-analysis-v1-440ac90da161b8724e8989ee875bb28d280a975e8a0448239161c9996afeeab5",
+          "nodeId": "cline-worker-1",
+          "sessionId": "native-9efb90a5-5fb7-4ea0-94c4-b6481331c6d2",
+          "executionEpoch": "8446f1a3-0f90-4b52-ab75-5445fc80d147",
+          "workflowId": "native-analysis-v1-22467ccd3207fee8cdd21626d213c39a06d7804498bb43214a988f2c0e9997f5",
           "historyEvents": 15,
-          "nativeStart": 1794504104672,
-          "nativeEnd": 1794504180984,
+          "nativeStart": 1794510076458,
+          "nativeEnd": 1794510144985,
           "usage": {
-            "requests": 9,
-            "inputTokens": 93140,
-            "outputTokens": 3775,
+            "requests": 8,
+            "inputTokens": 71809,
+            "outputTokens": 2899,
             "unknownUsageRequests": 0
           },
           "downloads": [
             {
-              "fileName": "synthetic_amount_analysis.py",
-              "sha256": "b9458829dc13a133cdfc10eb942702710d02c2c241b5389f1db805108653dc11",
-              "size": 4910,
-              "id": "28561a586ca1d3abbf0692242e2d7a6c81f396005361075a2fd080b369b3e35a"
+              "fileName": "analyze_synthetic_amounts.py",
+              "sha256": "86910e0797171f3704f0a76523048ce0c4a0351394c4ee2aeec6481358553c00",
+              "size": 3901,
+              "id": "83bd52bbb7921b9c7fe759d58525d7c5d35525bc438ac3aea4328290ea974e93"
             },
             {
               "fileName": "synthetic_amount_result.json",
               "sha256": "1095a6de26f051004773145a4ab5abcd356a806b1b7c1bc8aaf029ad314f43b0",
               "size": 50,
-              "id": "1a5161855221627ce43f041dcd3d37340d16eab715008baf1701e3e8e2b5d9fe"
+              "id": "caf943976a149cce3299362755e95d8aab928849f9f5ed1aafb9d87cc2fc55b8"
             },
             {
               "fileName": "synthetic_amount_report.md",
-              "sha256": "b7c7b356fce32688d2e44f7382a1c8f7f4eb9a64fc9b522a765cce922207ccfa",
-              "size": 1554,
-              "id": "df18c8abe6dcbe90db86630720a4cc7e7e76010b4ce8b92b43c546a756c69071"
+              "sha256": "119a463e18c735f574bf966c068d2a42bed2a0f9de1f78c30fe5a0317094153b",
+              "size": 1408,
+              "id": "aab6d667dc73eb0de315cab13282a57da33c25de693a42ebcab714a9da581bec"
             }
           ],
           "ownerIsolation": "PASS",
-          "numericValidation": "PASS"
+          "numericValidation": "PASS",
+          "finalDeliveryUnchanged": "PASS"
+        },
+        {
+          "taskId": "temporal-native-aded0bab94a8ba9328b7c58394916e8671ffb7a3245dc42271c671852949babb",
+          "runId": "coding-23aa933d983d7326b747a8f836037bf8804cb821f5c676745fdba24ec3a2a567",
+          "userId": "fe1b8d47-5750-46f8-8393-e8c662b8c86b",
+          "nodeId": "cline-worker-1",
+          "sessionId": "native-41be866d-2155-487e-8e9e-bc31af8cafde",
+          "executionEpoch": "d527fddd-b714-4aa2-957b-736c5bec258e",
+          "workflowId": "native-analysis-v1-87a2b2e4197da1cecbfdb30ee95f578d829e9c1d39d86726d6a6a9cd7f244fde",
+          "historyEvents": 15,
+          "nativeStart": 1794510157282,
+          "nativeEnd": 1794510209738,
+          "usage": {
+            "requests": 7,
+            "inputTokens": 61312,
+            "outputTokens": 2537,
+            "unknownUsageRequests": 0
+          },
+          "downloads": [
+            {
+              "fileName": "synthetic_amount_analysis.py",
+              "sha256": "2795875de033dbef0efc342c696528313288f9ff7cebce574137c6bf16d60cfb",
+              "size": 2997,
+              "id": "c0f35b5310c0113db9b6d370f23a6764ac2962eda944f3b546e617060050e1ed"
+            },
+            {
+              "fileName": "synthetic_amount_result.json",
+              "sha256": "1095a6de26f051004773145a4ab5abcd356a806b1b7c1bc8aaf029ad314f43b0",
+              "size": 50,
+              "id": "02bb8d627da6ee2672d8a82228e4dfc514730c6214d60d49109b0d9883d35323"
+            },
+            {
+              "fileName": "synthetic_amount_report.md",
+              "sha256": "3d8db339fb439cdc9bf3d593cb8f47b3e7af4a15a1cbcac59373ddc091fced18",
+              "size": 1045,
+              "id": "2ef3355a6b17e8d2f637e94b627d6a1f5945ccba651d2ab26e7187408d40e525"
+            }
+          ],
+          "ownerIsolation": "PASS",
+          "numericValidation": "PASS",
+          "finalDeliveryUnchanged": "PASS"
+        },
+        {
+          "taskId": "temporal-native-8148fbf7c90b8b72b62eb02f3ee1eca0d02a6dc0d713d0b66b7fb91d34fea0f8",
+          "runId": "coding-71d2f037c3a7cc29dba6ec570e296fc5075c06fa62f0aadcbaae1f4a4753a252",
+          "userId": "4eef238e-04a2-4105-b0b0-4c5791216b2a",
+          "nodeId": "cline-worker-2",
+          "sessionId": "native-d3918aa8-7c73-46da-bd07-ecc57c8ca739",
+          "executionEpoch": "b9fb1dcd-2d2c-41f2-b323-8f2bfcb4c2d3",
+          "workflowId": "native-analysis-v1-aae7058883aeac1e12ceb9c6325d35f2ba9efda80884de48faedcdf2f0197081",
+          "historyEvents": 15,
+          "nativeStart": 1794510164750,
+          "nativeEnd": 1794510237324,
+          "usage": {
+            "requests": 10,
+            "inputTokens": 90759,
+            "outputTokens": 3482,
+            "unknownUsageRequests": 0
+          },
+          "downloads": [
+            {
+              "fileName": "synthetic_amount_analysis.py",
+              "sha256": "7b612ba78a675fb10e16ae63ee02599381c8a19df92c9440f40f2bb64fc4df0e",
+              "size": 5773,
+              "id": "bb95b9ade717dce7c7a96bba5ddba674827fe2bff6408182646d0bd9de75dc3f"
+            },
+            {
+              "fileName": "synthetic_amount_result.json",
+              "sha256": "1095a6de26f051004773145a4ab5abcd356a806b1b7c1bc8aaf029ad314f43b0",
+              "size": 50,
+              "id": "52e2d956be73e37c463d8e813837d38c046232edb6814dd090982396870e5642"
+            },
+            {
+              "fileName": "synthetic_amount_report.md",
+              "sha256": "8f8f7e68d4f85f1f6b311348a824035e856d0dfa683b4b4236f5b2d43f0c682c",
+              "size": 1230,
+              "id": "926a1cf703c52130bb23b26da7a4e0729abb91649b3fb92c2b9b3d848c631a23"
+            }
+          ],
+          "ownerIsolation": "PASS",
+          "numericValidation": "PASS",
+          "finalDeliveryUnchanged": "PASS"
         }
       ],
       "overlaps": [
         {
-          "taskA": "temporal-native-9c81e5b9336b876d5b6f99118610406a9b48f133ec06f559cccc2282311c080a",
-          "taskB": "temporal-native-679973b56779d7a0815c20489b81fba80d2b9ddf7ff423518add263ef21f23a0",
-          "seconds": 100.213
+          "taskA": "temporal-native-85ad112945768d80f7541edd54d3da1fcbc395f8279b79990b138b96783bbea4",
+          "taskB": "temporal-native-7cc040eb3d00b7405bde95d848aefd248f9e66ccf74e775ab6c896f726029f7f",
+          "seconds": 68.303
         },
         {
-          "taskA": "temporal-native-367bedf3ca375c6963f08365576e481ee109dcd3fec7a609a94946df03077d1a",
-          "taskB": "temporal-native-6509ba6240b26ef900e8a7347b2a6d58fe2a1dbc2ea9a2c5b63eed1a87b87c68",
-          "seconds": 62.346
+          "taskA": "temporal-native-aded0bab94a8ba9328b7c58394916e8671ffb7a3245dc42271c671852949babb",
+          "taskB": "temporal-native-8148fbf7c90b8b72b62eb02f3ee1eca0d02a6dc0d713d0b66b7fb91d34fea0f8",
+          "seconds": 44.988
         }
       ],
       "queueSeconds": {
-        "mean": 58.07725,
-        "p95": 119.866
+        "mean": 42.20025,
+        "p95": 87.848
       },
       "executionSeconds": {
-        "mean": 98.96674999999999,
-        "p95": 119.109
+        "mean": 80.22900000000001,
+        "p95": 89.028
       },
       "nodes": [
         "cline-worker-2",
@@ -1726,707 +1708,630 @@
       ],
       "resources": [
         {
-          "at": 1794503984634,
-          "nodeId": "cline-worker-1",
-          "online": true,
-          "workerMemoryBytes": 59256832,
-          "workerCpuTimeNanos": 861091803,
-          "activeWorkers": 1,
-          "maxWorkers": 1,
-          "gatewayMemoryBytes": 105775104
-        },
-        {
-          "at": 1794503984634,
+          "at": 1794510069270,
           "nodeId": "cline-worker-2",
           "online": true,
-          "workerMemoryBytes": 84709376,
-          "workerCpuTimeNanos": 1267251848,
+          "workerMemoryBytes": 59711488,
+          "workerCpuTimeNanos": 742247209,
           "activeWorkers": 1,
           "maxWorkers": 1,
-          "gatewayMemoryBytes": 85987328
+          "gatewayMemoryBytes": 89366528
         },
         {
-          "at": 1794503990631,
+          "at": 1794510069270,
           "nodeId": "cline-worker-1",
           "online": true,
-          "workerMemoryBytes": 747958272,
-          "workerCpuTimeNanos": 7359983904,
+          "workerMemoryBytes": 54820864,
+          "workerCpuTimeNanos": 762872166,
           "activeWorkers": 1,
           "maxWorkers": 1,
-          "gatewayMemoryBytes": 105644032
+          "gatewayMemoryBytes": 109875200
         },
         {
-          "at": 1794503990631,
+          "at": 1794510075255,
           "nodeId": "cline-worker-2",
           "online": true,
-          "workerMemoryBytes": 750383104,
-          "workerCpuTimeNanos": 7344248238,
+          "workerMemoryBytes": 755679232,
+          "workerCpuTimeNanos": 7283851168,
           "activeWorkers": 1,
           "maxWorkers": 1,
-          "gatewayMemoryBytes": 87511040
+          "gatewayMemoryBytes": 90505216
         },
         {
-          "at": 1794503996566,
+          "at": 1794510075255,
           "nodeId": "cline-worker-1",
           "online": true,
-          "workerMemoryBytes": 755331072,
-          "workerCpuTimeNanos": 7971035690,
+          "workerMemoryBytes": 748998656,
+          "workerCpuTimeNanos": 7417887522,
           "activeWorkers": 1,
           "maxWorkers": 1,
-          "gatewayMemoryBytes": 102404096
+          "gatewayMemoryBytes": 109875200
         },
         {
-          "at": 1794503996566,
+          "at": 1794510081155,
           "nodeId": "cline-worker-2",
           "online": true,
-          "workerMemoryBytes": 753508352,
-          "workerCpuTimeNanos": 7833396801,
+          "workerMemoryBytes": 764063744,
+          "workerCpuTimeNanos": 8446834631,
           "activeWorkers": 1,
           "maxWorkers": 1,
-          "gatewayMemoryBytes": 88248320
+          "gatewayMemoryBytes": 92381184
         },
         {
-          "at": 1794504002482,
+          "at": 1794510081155,
           "nodeId": "cline-worker-1",
           "online": true,
-          "workerMemoryBytes": 704483328,
-          "workerCpuTimeNanos": 9083483715,
+          "workerMemoryBytes": 756187136,
+          "workerCpuTimeNanos": 8408927668,
           "activeWorkers": 1,
           "maxWorkers": 1,
-          "gatewayMemoryBytes": 102404096
+          "gatewayMemoryBytes": 109875200
         },
         {
-          "at": 1794504002482,
+          "at": 1794510087067,
           "nodeId": "cline-worker-2",
           "online": true,
-          "workerMemoryBytes": 705376256,
-          "workerCpuTimeNanos": 9072441214,
+          "workerMemoryBytes": 713129984,
+          "workerCpuTimeNanos": 9503814921,
           "activeWorkers": 1,
           "maxWorkers": 1,
-          "gatewayMemoryBytes": 89329664
+          "gatewayMemoryBytes": 92921856
         },
         {
-          "at": 1794504008383,
+          "at": 1794510087067,
           "nodeId": "cline-worker-1",
           "online": true,
-          "workerMemoryBytes": 577425408,
-          "workerCpuTimeNanos": 13511639982,
+          "workerMemoryBytes": 756453376,
+          "workerCpuTimeNanos": 8429273304,
           "activeWorkers": 1,
           "maxWorkers": 1,
-          "gatewayMemoryBytes": 102313984
+          "gatewayMemoryBytes": 109875200
         },
         {
-          "at": 1794504008383,
+          "at": 1794510093013,
           "nodeId": "cline-worker-2",
           "online": true,
-          "workerMemoryBytes": 573046784,
-          "workerCpuTimeNanos": 13060488550,
+          "workerMemoryBytes": 573231104,
+          "workerCpuTimeNanos": 10859293699,
           "activeWorkers": 1,
           "maxWorkers": 1,
-          "gatewayMemoryBytes": 89800704
+          "gatewayMemoryBytes": 92860416
         },
         {
-          "at": 1794504014431,
+          "at": 1794510093013,
           "nodeId": "cline-worker-1",
           "online": true,
-          "workerMemoryBytes": 583798784,
-          "workerCpuTimeNanos": 13876933561,
+          "workerMemoryBytes": 757780480,
+          "workerCpuTimeNanos": 10531546014,
           "activeWorkers": 1,
           "maxWorkers": 1,
-          "gatewayMemoryBytes": 102510592
+          "gatewayMemoryBytes": 109875200
         },
         {
-          "at": 1794504014431,
+          "at": 1794510098936,
           "nodeId": "cline-worker-2",
           "online": true,
-          "workerMemoryBytes": 595468288,
-          "workerCpuTimeNanos": 13693028515,
+          "workerMemoryBytes": 579186688,
+          "workerCpuTimeNanos": 12831757971,
           "activeWorkers": 1,
           "maxWorkers": 1,
-          "gatewayMemoryBytes": 90419200
+          "gatewayMemoryBytes": 92991488
         },
         {
-          "at": 1794504020535,
+          "at": 1794510098936,
           "nodeId": "cline-worker-1",
           "online": true,
-          "workerMemoryBytes": 584110080,
-          "workerCpuTimeNanos": 14010488809,
+          "workerMemoryBytes": 714825728,
+          "workerCpuTimeNanos": 11657757463,
           "activeWorkers": 1,
           "maxWorkers": 1,
-          "gatewayMemoryBytes": 102912000
+          "gatewayMemoryBytes": 109879296
         },
         {
-          "at": 1794504020535,
+          "at": 1794510104841,
           "nodeId": "cline-worker-2",
           "online": true,
-          "workerMemoryBytes": 585527296,
-          "workerCpuTimeNanos": 14293423651,
+          "workerMemoryBytes": 596615168,
+          "workerCpuTimeNanos": 13761793230,
           "activeWorkers": 1,
           "maxWorkers": 1,
-          "gatewayMemoryBytes": 90419200
+          "gatewayMemoryBytes": 93118464
         },
         {
-          "at": 1794504026587,
+          "at": 1794510104841,
           "nodeId": "cline-worker-1",
           "online": true,
-          "workerMemoryBytes": 584187904,
-          "workerCpuTimeNanos": 14141478615,
+          "workerMemoryBytes": 578220032,
+          "workerCpuTimeNanos": 13250732024,
           "activeWorkers": 1,
           "maxWorkers": 1,
-          "gatewayMemoryBytes": 103112704
+          "gatewayMemoryBytes": 104660992
         },
         {
-          "at": 1794504026587,
+          "at": 1794510110920,
           "nodeId": "cline-worker-2",
           "online": true,
-          "workerMemoryBytes": 585576448,
-          "workerCpuTimeNanos": 14417943406,
+          "workerMemoryBytes": 596103168,
+          "workerCpuTimeNanos": 14361150331,
           "activeWorkers": 1,
           "maxWorkers": 1,
-          "gatewayMemoryBytes": 90697728
+          "gatewayMemoryBytes": 93130752
         },
         {
-          "at": 1794504033184,
+          "at": 1794510110920,
           "nodeId": "cline-worker-1",
           "online": true,
-          "workerMemoryBytes": 584572928,
-          "workerCpuTimeNanos": 14295039585,
+          "workerMemoryBytes": 578281472,
+          "workerCpuTimeNanos": 13370362187,
           "activeWorkers": 1,
           "maxWorkers": 1,
-          "gatewayMemoryBytes": 103866368
+          "gatewayMemoryBytes": 104665088
         },
         {
-          "at": 1794504033184,
+          "at": 1794510116931,
           "nodeId": "cline-worker-2",
           "online": true,
-          "workerMemoryBytes": 585621504,
-          "workerCpuTimeNanos": 14537640649,
+          "workerMemoryBytes": 596406272,
+          "workerCpuTimeNanos": 14486761733,
           "activeWorkers": 1,
           "maxWorkers": 1,
-          "gatewayMemoryBytes": 90914816
+          "gatewayMemoryBytes": 93401088
         },
         {
-          "at": 1794504039257,
+          "at": 1794510116931,
           "nodeId": "cline-worker-1",
           "online": true,
-          "workerMemoryBytes": 584110080,
-          "workerCpuTimeNanos": 14405128095,
+          "workerMemoryBytes": 578363392,
+          "workerCpuTimeNanos": 13499407242,
           "activeWorkers": 1,
           "maxWorkers": 1,
-          "gatewayMemoryBytes": 104239104
+          "gatewayMemoryBytes": 105062400
         },
         {
-          "at": 1794504039257,
+          "at": 1794510123363,
           "nodeId": "cline-worker-2",
           "online": true,
-          "workerMemoryBytes": 659927040,
-          "workerCpuTimeNanos": 16247120759,
+          "workerMemoryBytes": 596180992,
+          "workerCpuTimeNanos": 14619026794,
           "activeWorkers": 1,
           "maxWorkers": 1,
-          "gatewayMemoryBytes": 91103232
+          "gatewayMemoryBytes": 93818880
         },
         {
-          "at": 1794504045457,
+          "at": 1794510123363,
           "nodeId": "cline-worker-1",
           "online": true,
-          "workerMemoryBytes": 587718656,
-          "workerCpuTimeNanos": 14893365383,
+          "workerMemoryBytes": 586739712,
+          "workerCpuTimeNanos": 15372214368,
           "activeWorkers": 1,
           "maxWorkers": 1,
-          "gatewayMemoryBytes": 104775680
+          "gatewayMemoryBytes": 105525248
         },
         {
-          "at": 1794504045457,
+          "at": 1794510129495,
           "nodeId": "cline-worker-2",
           "online": true,
-          "workerMemoryBytes": 594067456,
-          "workerCpuTimeNanos": 16615977692,
+          "workerMemoryBytes": 598032384,
+          "workerCpuTimeNanos": 16486623839,
           "activeWorkers": 1,
           "maxWorkers": 1,
-          "gatewayMemoryBytes": 92086272
+          "gatewayMemoryBytes": 94134272
         },
         {
-          "at": 1794504051608,
+          "at": 1794510129495,
           "nodeId": "cline-worker-1",
           "online": true,
-          "workerMemoryBytes": 588312576,
-          "workerCpuTimeNanos": 15005365392,
+          "workerMemoryBytes": 595980288,
+          "workerCpuTimeNanos": 15912007939,
           "activeWorkers": 1,
           "maxWorkers": 1,
-          "gatewayMemoryBytes": 104775680
+          "gatewayMemoryBytes": 106258432
         },
         {
-          "at": 1794504051608,
+          "at": 1794510135603,
           "nodeId": "cline-worker-2",
           "online": true,
-          "workerMemoryBytes": 594132992,
-          "workerCpuTimeNanos": 16719997489,
+          "workerMemoryBytes": 599613440,
+          "workerCpuTimeNanos": 17645041193,
           "activeWorkers": 1,
           "maxWorkers": 1,
-          "gatewayMemoryBytes": 92348416
+          "gatewayMemoryBytes": 94416896
         },
         {
-          "at": 1794504057760,
+          "at": 1794510135603,
           "nodeId": "cline-worker-1",
           "online": true,
-          "workerMemoryBytes": 589414400,
-          "workerCpuTimeNanos": 15263306351,
+          "workerMemoryBytes": 596807680,
+          "workerCpuTimeNanos": 16706170950,
           "activeWorkers": 1,
           "maxWorkers": 1,
-          "gatewayMemoryBytes": 104775680
+          "gatewayMemoryBytes": 106446848
         },
         {
-          "at": 1794504057760,
+          "at": 1794510141819,
           "nodeId": "cline-worker-2",
           "online": true,
-          "workerMemoryBytes": 595869696,
-          "workerCpuTimeNanos": 16834705787,
+          "workerMemoryBytes": 601063424,
+          "workerCpuTimeNanos": 17924565190,
           "activeWorkers": 1,
           "maxWorkers": 1,
-          "gatewayMemoryBytes": 92540928
+          "gatewayMemoryBytes": 95571968
         },
         {
-          "at": 1794504063872,
+          "at": 1794510141819,
           "nodeId": "cline-worker-1",
           "online": true,
-          "workerMemoryBytes": 589656064,
-          "workerCpuTimeNanos": 15369068322,
+          "workerMemoryBytes": 607473664,
+          "workerCpuTimeNanos": 17694748510,
           "activeWorkers": 1,
           "maxWorkers": 1,
-          "gatewayMemoryBytes": 104771584
+          "gatewayMemoryBytes": 107114496
         },
         {
-          "at": 1794504063872,
+          "at": 1794510147959,
           "nodeId": "cline-worker-2",
           "online": true,
-          "workerMemoryBytes": 601333760,
-          "workerCpuTimeNanos": 18768455801,
+          "workerMemoryBytes": 606863360,
+          "workerCpuTimeNanos": 18575061662,
           "activeWorkers": 1,
           "maxWorkers": 1,
-          "gatewayMemoryBytes": 92463104
+          "gatewayMemoryBytes": 96522240
         },
         {
-          "at": 1794504070078,
-          "nodeId": "cline-worker-1",
-          "online": true,
-          "workerMemoryBytes": 589922304,
-          "workerCpuTimeNanos": 15475676792,
-          "activeWorkers": 1,
-          "maxWorkers": 1,
-          "gatewayMemoryBytes": 104771584
-        },
-        {
-          "at": 1794504070078,
-          "nodeId": "cline-worker-2",
-          "online": true,
-          "workerMemoryBytes": 605212672,
-          "workerCpuTimeNanos": 19748127852,
-          "activeWorkers": 1,
-          "maxWorkers": 1,
-          "gatewayMemoryBytes": 94056448
-        },
-        {
-          "at": 1794504076334,
-          "nodeId": "cline-worker-1",
-          "online": true,
-          "workerMemoryBytes": 590733312,
-          "workerCpuTimeNanos": 15839668461,
-          "activeWorkers": 1,
-          "maxWorkers": 1,
-          "gatewayMemoryBytes": 104235008
-        },
-        {
-          "at": 1794504076334,
-          "nodeId": "cline-worker-2",
-          "online": true,
-          "workerMemoryBytes": 610045952,
-          "workerCpuTimeNanos": 20100683597,
-          "activeWorkers": 1,
-          "maxWorkers": 1,
-          "gatewayMemoryBytes": 95584256
-        },
-        {
-          "at": 1794504082451,
-          "nodeId": "cline-worker-1",
-          "online": true,
-          "workerMemoryBytes": 595374080,
-          "workerCpuTimeNanos": 18151586488,
-          "activeWorkers": 1,
-          "maxWorkers": 1,
-          "gatewayMemoryBytes": 102809600
-        },
-        {
-          "at": 1794504082451,
-          "nodeId": "cline-worker-2",
-          "online": true,
-          "workerMemoryBytes": 612470784,
-          "workerCpuTimeNanos": 21946147355,
-          "activeWorkers": 1,
-          "maxWorkers": 1,
-          "gatewayMemoryBytes": 93978624
-        },
-        {
-          "at": 1794504088668,
-          "nodeId": "cline-worker-1",
-          "online": true,
-          "workerMemoryBytes": 603783168,
-          "workerCpuTimeNanos": 18734995164,
-          "activeWorkers": 1,
-          "maxWorkers": 1,
-          "gatewayMemoryBytes": 104783872
-        },
-        {
-          "at": 1794504088668,
-          "nodeId": "cline-worker-2",
-          "online": true,
-          "workerMemoryBytes": 625369088,
-          "workerCpuTimeNanos": 23100704938,
-          "activeWorkers": 1,
-          "maxWorkers": 1,
-          "gatewayMemoryBytes": 99897344
-        },
-        {
-          "at": 1794504094823,
-          "nodeId": "cline-worker-1",
-          "online": true,
-          "workerMemoryBytes": 607334400,
-          "workerCpuTimeNanos": 19809489849,
-          "activeWorkers": 1,
-          "maxWorkers": 1,
-          "gatewayMemoryBytes": 107151360
-        },
-        {
-          "at": 1794504094823,
-          "nodeId": "cline-worker-2",
-          "online": true,
-          "workerMemoryBytes": 0,
-          "workerCpuTimeNanos": 0,
-          "activeWorkers": 0,
-          "maxWorkers": 1,
-          "gatewayMemoryBytes": 98103296
-        },
-        {
-          "at": 1794504100904,
+          "at": 1794510147959,
           "nodeId": "cline-worker-1",
           "online": true,
           "workerMemoryBytes": 0,
           "workerCpuTimeNanos": 0,
           "activeWorkers": 0,
           "maxWorkers": 1,
-          "gatewayMemoryBytes": 104128512
+          "gatewayMemoryBytes": 110456832
         },
         {
-          "at": 1794504100904,
-          "nodeId": "cline-worker-2",
-          "online": true,
-          "workerMemoryBytes": 620101632,
-          "workerCpuTimeNanos": 4176857759,
-          "activeWorkers": 1,
-          "maxWorkers": 1,
-          "gatewayMemoryBytes": 98492416
-        },
-        {
-          "at": 1794504107564,
-          "nodeId": "cline-worker-1",
-          "online": true,
-          "workerMemoryBytes": 472379392,
-          "workerCpuTimeNanos": 3387558977,
-          "activeWorkers": 1,
-          "maxWorkers": 1,
-          "gatewayMemoryBytes": 104194048
-        },
-        {
-          "at": 1794504107564,
-          "nodeId": "cline-worker-2",
-          "online": true,
-          "workerMemoryBytes": 766529536,
-          "workerCpuTimeNanos": 7850340145,
-          "activeWorkers": 1,
-          "maxWorkers": 1,
-          "gatewayMemoryBytes": 98455552
-        },
-        {
-          "at": 1794504113948,
-          "nodeId": "cline-worker-1",
-          "online": true,
-          "workerMemoryBytes": 755056640,
-          "workerCpuTimeNanos": 8097879853,
-          "activeWorkers": 1,
-          "maxWorkers": 1,
-          "gatewayMemoryBytes": 104194048
-        },
-        {
-          "at": 1794504113948,
-          "nodeId": "cline-worker-2",
-          "online": true,
-          "workerMemoryBytes": 772599808,
-          "workerCpuTimeNanos": 8614236997,
-          "activeWorkers": 1,
-          "maxWorkers": 1,
-          "gatewayMemoryBytes": 99266560
-        },
-        {
-          "at": 1794504119692,
-          "nodeId": "cline-worker-1",
-          "online": true,
-          "workerMemoryBytes": 731557888,
-          "workerCpuTimeNanos": 9920735179,
-          "activeWorkers": 1,
-          "maxWorkers": 1,
-          "gatewayMemoryBytes": 104194048
-        },
-        {
-          "at": 1794504119692,
-          "nodeId": "cline-worker-2",
-          "online": true,
-          "workerMemoryBytes": 741937152,
-          "workerCpuTimeNanos": 11009134328,
-          "activeWorkers": 1,
-          "maxWorkers": 1,
-          "gatewayMemoryBytes": 99348480
-        },
-        {
-          "at": 1794504125280,
-          "nodeId": "cline-worker-1",
-          "online": true,
-          "workerMemoryBytes": 713416704,
-          "workerCpuTimeNanos": 11551492011,
-          "activeWorkers": 1,
-          "maxWorkers": 1,
-          "gatewayMemoryBytes": 104202240
-        },
-        {
-          "at": 1794504125280,
-          "nodeId": "cline-worker-2",
-          "online": true,
-          "workerMemoryBytes": 755617792,
-          "workerCpuTimeNanos": 11941933669,
-          "activeWorkers": 1,
-          "maxWorkers": 1,
-          "gatewayMemoryBytes": 99352576
-        },
-        {
-          "at": 1794504130830,
-          "nodeId": "cline-worker-1",
-          "online": true,
-          "workerMemoryBytes": 568664064,
-          "workerCpuTimeNanos": 12947223470,
-          "activeWorkers": 1,
-          "maxWorkers": 1,
-          "gatewayMemoryBytes": 104202240
-        },
-        {
-          "at": 1794504130830,
-          "nodeId": "cline-worker-2",
-          "online": true,
-          "workerMemoryBytes": 595988480,
-          "workerCpuTimeNanos": 13549365731,
-          "activeWorkers": 1,
-          "maxWorkers": 1,
-          "gatewayMemoryBytes": 99352576
-        },
-        {
-          "at": 1794504136437,
-          "nodeId": "cline-worker-1",
-          "online": true,
-          "workerMemoryBytes": 568877056,
-          "workerCpuTimeNanos": 13069613095,
-          "activeWorkers": 1,
-          "maxWorkers": 1,
-          "gatewayMemoryBytes": 104210432
-        },
-        {
-          "at": 1794504136437,
-          "nodeId": "cline-worker-2",
-          "online": true,
-          "workerMemoryBytes": 596090880,
-          "workerCpuTimeNanos": 13665491798,
-          "activeWorkers": 1,
-          "maxWorkers": 1,
-          "gatewayMemoryBytes": 100151296
-        },
-        {
-          "at": 1794504142156,
-          "nodeId": "cline-worker-1",
-          "online": true,
-          "workerMemoryBytes": 569516032,
-          "workerCpuTimeNanos": 13196223664,
-          "activeWorkers": 1,
-          "maxWorkers": 1,
-          "gatewayMemoryBytes": 104214528
-        },
-        {
-          "at": 1794504142156,
-          "nodeId": "cline-worker-2",
-          "online": true,
-          "workerMemoryBytes": 596119552,
-          "workerCpuTimeNanos": 13814509406,
-          "activeWorkers": 1,
-          "maxWorkers": 1,
-          "gatewayMemoryBytes": 99901440
-        },
-        {
-          "at": 1794504148213,
-          "nodeId": "cline-worker-1",
-          "online": true,
-          "workerMemoryBytes": 572588032,
-          "workerCpuTimeNanos": 13547288335,
-          "activeWorkers": 1,
-          "maxWorkers": 1,
-          "gatewayMemoryBytes": 104480768
-        },
-        {
-          "at": 1794504148213,
-          "nodeId": "cline-worker-2",
-          "online": true,
-          "workerMemoryBytes": 596176896,
-          "workerCpuTimeNanos": 13983311032,
-          "activeWorkers": 1,
-          "maxWorkers": 1,
-          "gatewayMemoryBytes": 98717696
-        },
-        {
-          "at": 1794504153830,
-          "nodeId": "cline-worker-1",
-          "online": true,
-          "workerMemoryBytes": 587599872,
-          "workerCpuTimeNanos": 16902464330,
-          "activeWorkers": 1,
-          "maxWorkers": 1,
-          "gatewayMemoryBytes": 105234432
-        },
-        {
-          "at": 1794504153830,
-          "nodeId": "cline-worker-2",
-          "online": true,
-          "workerMemoryBytes": 605982720,
-          "workerCpuTimeNanos": 14435914546,
-          "activeWorkers": 1,
-          "maxWorkers": 1,
-          "gatewayMemoryBytes": 99254272
-        },
-        {
-          "at": 1794504159568,
-          "nodeId": "cline-worker-1",
-          "online": true,
-          "workerMemoryBytes": 596582400,
-          "workerCpuTimeNanos": 17854812470,
-          "activeWorkers": 1,
-          "maxWorkers": 1,
-          "gatewayMemoryBytes": 104697856
-        },
-        {
-          "at": 1794504159568,
-          "nodeId": "cline-worker-2",
-          "online": true,
-          "workerMemoryBytes": 609665024,
-          "workerCpuTimeNanos": 17682325334,
-          "activeWorkers": 1,
-          "maxWorkers": 1,
-          "gatewayMemoryBytes": 98725888
-        },
-        {
-          "at": 1794504165695,
-          "nodeId": "cline-worker-1",
-          "online": true,
-          "workerMemoryBytes": 596955136,
-          "workerCpuTimeNanos": 17971229938,
-          "activeWorkers": 1,
-          "maxWorkers": 1,
-          "gatewayMemoryBytes": 105234432
-        },
-        {
-          "at": 1794504165695,
-          "nodeId": "cline-worker-2",
-          "online": true,
-          "workerMemoryBytes": 617992192,
-          "workerCpuTimeNanos": 18704887217,
-          "activeWorkers": 1,
-          "maxWorkers": 1,
-          "gatewayMemoryBytes": 102739968
-        },
-        {
-          "at": 1794504171605,
-          "nodeId": "cline-worker-1",
-          "online": true,
-          "workerMemoryBytes": 598515712,
-          "workerCpuTimeNanos": 18886237039,
-          "activeWorkers": 1,
-          "maxWorkers": 1,
-          "gatewayMemoryBytes": 104701952
-        },
-        {
-          "at": 1794504171605,
-          "nodeId": "cline-worker-2",
-          "online": true,
-          "workerMemoryBytes": 618196992,
-          "workerCpuTimeNanos": 18797018581,
-          "activeWorkers": 1,
-          "maxWorkers": 1,
-          "gatewayMemoryBytes": 98578432
-        },
-        {
-          "at": 1794504177491,
-          "nodeId": "cline-worker-1",
-          "online": true,
-          "workerMemoryBytes": 0,
-          "workerCpuTimeNanos": 0,
-          "activeWorkers": 0,
-          "maxWorkers": 1,
-          "gatewayMemoryBytes": 103587840
-        },
-        {
-          "at": 1794504177491,
-          "nodeId": "cline-worker-2",
-          "online": true,
-          "workerMemoryBytes": 626987008,
-          "workerCpuTimeNanos": 19632232875,
-          "activeWorkers": 1,
-          "maxWorkers": 1,
-          "gatewayMemoryBytes": 99565568
-        },
-        {
-          "at": 1794504183419,
-          "nodeId": "cline-worker-1",
-          "online": true,
-          "workerMemoryBytes": 0,
-          "workerCpuTimeNanos": 0,
-          "activeWorkers": 0,
-          "maxWorkers": 1,
-          "gatewayMemoryBytes": 102780928
-        },
-        {
-          "at": 1794504183419,
+          "at": 1794510154138,
           "nodeId": "cline-worker-2",
           "online": true,
           "workerMemoryBytes": 0,
           "workerCpuTimeNanos": 0,
           "activeWorkers": 0,
           "maxWorkers": 1,
-          "gatewayMemoryBytes": 104407040
+          "gatewayMemoryBytes": 98324480
         },
         {
-          "at": 1794504189946,
+          "at": 1794510154138,
+          "nodeId": "cline-worker-1",
+          "online": true,
+          "workerMemoryBytes": 712351744,
+          "workerCpuTimeNanos": 4924898287,
+          "activeWorkers": 1,
+          "maxWorkers": 1,
+          "gatewayMemoryBytes": 106221568
+        },
+        {
+          "at": 1794510160648,
+          "nodeId": "cline-worker-2",
+          "online": true,
+          "workerMemoryBytes": 571662336,
+          "workerCpuTimeNanos": 3988741402,
+          "activeWorkers": 1,
+          "maxWorkers": 1,
+          "gatewayMemoryBytes": 98754560
+        },
+        {
+          "at": 1794510160648,
+          "nodeId": "cline-worker-1",
+          "online": true,
+          "workerMemoryBytes": 769163264,
+          "workerCpuTimeNanos": 8415847577,
+          "activeWorkers": 1,
+          "maxWorkers": 1,
+          "gatewayMemoryBytes": 106221568
+        },
+        {
+          "at": 1794510167011,
+          "nodeId": "cline-worker-2",
+          "online": true,
+          "workerMemoryBytes": 749572096,
+          "workerCpuTimeNanos": 8169707626,
+          "activeWorkers": 1,
+          "maxWorkers": 1,
+          "gatewayMemoryBytes": 99024896
+        },
+        {
+          "at": 1794510167011,
+          "nodeId": "cline-worker-1",
+          "online": true,
+          "workerMemoryBytes": 774340608,
+          "workerCpuTimeNanos": 10530299479,
+          "activeWorkers": 1,
+          "maxWorkers": 1,
+          "gatewayMemoryBytes": 106295296
+        },
+        {
+          "at": 1794510172538,
+          "nodeId": "cline-worker-2",
+          "online": true,
+          "workerMemoryBytes": 756322304,
+          "workerCpuTimeNanos": 9066288443,
+          "activeWorkers": 1,
+          "maxWorkers": 1,
+          "gatewayMemoryBytes": 99024896
+        },
+        {
+          "at": 1794510172538,
+          "nodeId": "cline-worker-1",
+          "online": true,
+          "workerMemoryBytes": 744878080,
+          "workerCpuTimeNanos": 12164246615,
+          "activeWorkers": 1,
+          "maxWorkers": 1,
+          "gatewayMemoryBytes": 106295296
+        },
+        {
+          "at": 1794510178126,
+          "nodeId": "cline-worker-2",
+          "online": true,
+          "workerMemoryBytes": 559955968,
+          "workerCpuTimeNanos": 11632449239,
+          "activeWorkers": 1,
+          "maxWorkers": 1,
+          "gatewayMemoryBytes": 99082240
+        },
+        {
+          "at": 1794510178126,
+          "nodeId": "cline-worker-1",
+          "online": true,
+          "workerMemoryBytes": 744947712,
+          "workerCpuTimeNanos": 12300722957,
+          "activeWorkers": 1,
+          "maxWorkers": 1,
+          "gatewayMemoryBytes": 106295296
+        },
+        {
+          "at": 1794510183740,
+          "nodeId": "cline-worker-2",
+          "online": true,
+          "workerMemoryBytes": 576065536,
+          "workerCpuTimeNanos": 14869395722,
+          "activeWorkers": 1,
+          "maxWorkers": 1,
+          "gatewayMemoryBytes": 99557376
+        },
+        {
+          "at": 1794510183740,
+          "nodeId": "cline-worker-1",
+          "online": true,
+          "workerMemoryBytes": 582332416,
+          "workerCpuTimeNanos": 13863735896,
+          "activeWorkers": 1,
+          "maxWorkers": 1,
+          "gatewayMemoryBytes": 106295296
+        },
+        {
+          "at": 1794510189391,
+          "nodeId": "cline-worker-2",
+          "online": true,
+          "workerMemoryBytes": 580104192,
+          "workerCpuTimeNanos": 15272785732,
+          "activeWorkers": 1,
+          "maxWorkers": 1,
+          "gatewayMemoryBytes": 100171776
+        },
+        {
+          "at": 1794510189391,
+          "nodeId": "cline-worker-1",
+          "online": true,
+          "workerMemoryBytes": 589963264,
+          "workerCpuTimeNanos": 16072007443,
+          "activeWorkers": 1,
+          "maxWorkers": 1,
+          "gatewayMemoryBytes": 106295296
+        },
+        {
+          "at": 1794510195124,
+          "nodeId": "cline-worker-2",
+          "online": true,
+          "workerMemoryBytes": 581120000,
+          "workerCpuTimeNanos": 15429300808,
+          "activeWorkers": 1,
+          "maxWorkers": 1,
+          "gatewayMemoryBytes": 100433920
+        },
+        {
+          "at": 1794510195124,
+          "nodeId": "cline-worker-1",
+          "online": true,
+          "workerMemoryBytes": 602722304,
+          "workerCpuTimeNanos": 16880247784,
+          "activeWorkers": 1,
+          "maxWorkers": 1,
+          "gatewayMemoryBytes": 106430464
+        },
+        {
+          "at": 1794510200891,
+          "nodeId": "cline-worker-2",
+          "online": true,
+          "workerMemoryBytes": 582402048,
+          "workerCpuTimeNanos": 15586219495,
+          "activeWorkers": 1,
+          "maxWorkers": 1,
+          "gatewayMemoryBytes": 100675584
+        },
+        {
+          "at": 1794510200891,
+          "nodeId": "cline-worker-1",
+          "online": true,
+          "workerMemoryBytes": 604508160,
+          "workerCpuTimeNanos": 18006634712,
+          "activeWorkers": 1,
+          "maxWorkers": 1,
+          "gatewayMemoryBytes": 106594304
+        },
+        {
+          "at": 1794510206724,
+          "nodeId": "cline-worker-2",
+          "online": true,
+          "workerMemoryBytes": 584458240,
+          "workerCpuTimeNanos": 15730987244,
+          "activeWorkers": 1,
+          "maxWorkers": 1,
+          "gatewayMemoryBytes": 101470208
+        },
+        {
+          "at": 1794510206724,
+          "nodeId": "cline-worker-1",
+          "online": true,
+          "workerMemoryBytes": 614715392,
+          "workerCpuTimeNanos": 18695417151,
+          "activeWorkers": 1,
+          "maxWorkers": 1,
+          "gatewayMemoryBytes": 106741760
+        },
+        {
+          "at": 1794510212542,
+          "nodeId": "cline-worker-2",
+          "online": true,
+          "workerMemoryBytes": 642277376,
+          "workerCpuTimeNanos": 17476443227,
+          "activeWorkers": 1,
+          "maxWorkers": 1,
+          "gatewayMemoryBytes": 101498880
+        },
+        {
+          "at": 1794510212542,
           "nodeId": "cline-worker-1",
           "online": true,
           "workerMemoryBytes": 0,
           "workerCpuTimeNanos": 0,
           "activeWorkers": 0,
           "maxWorkers": 1,
-          "gatewayMemoryBytes": 102780928
+          "gatewayMemoryBytes": 110522368
         },
         {
-          "at": 1794504189946,
+          "at": 1794510218331,
+          "nodeId": "cline-worker-2",
+          "online": true,
+          "workerMemoryBytes": 590299136,
+          "workerCpuTimeNanos": 18885039217,
+          "activeWorkers": 1,
+          "maxWorkers": 1,
+          "gatewayMemoryBytes": 99807232
+        },
+        {
+          "at": 1794510218331,
+          "nodeId": "cline-worker-1",
+          "online": true,
+          "workerMemoryBytes": 0,
+          "workerCpuTimeNanos": 0,
+          "activeWorkers": 0,
+          "maxWorkers": 1,
+          "gatewayMemoryBytes": 106795008
+        },
+        {
+          "at": 1794510224605,
+          "nodeId": "cline-worker-2",
+          "online": true,
+          "workerMemoryBytes": 593051648,
+          "workerCpuTimeNanos": 19256932574,
+          "activeWorkers": 1,
+          "maxWorkers": 1,
+          "gatewayMemoryBytes": 101154816
+        },
+        {
+          "at": 1794510224605,
+          "nodeId": "cline-worker-1",
+          "online": true,
+          "workerMemoryBytes": 0,
+          "workerCpuTimeNanos": 0,
+          "activeWorkers": 0,
+          "maxWorkers": 1,
+          "gatewayMemoryBytes": 106795008
+        },
+        {
+          "at": 1794510230075,
+          "nodeId": "cline-worker-2",
+          "online": true,
+          "workerMemoryBytes": 593653760,
+          "workerCpuTimeNanos": 19772354578,
+          "activeWorkers": 1,
+          "maxWorkers": 1,
+          "gatewayMemoryBytes": 105455616
+        },
+        {
+          "at": 1794510230075,
+          "nodeId": "cline-worker-1",
+          "online": true,
+          "workerMemoryBytes": 0,
+          "workerCpuTimeNanos": 0,
+          "activeWorkers": 0,
+          "maxWorkers": 1,
+          "gatewayMemoryBytes": 106795008
+        },
+        {
+          "at": 1794510235671,
+          "nodeId": "cline-worker-2",
+          "online": true,
+          "workerMemoryBytes": 604901376,
+          "workerCpuTimeNanos": 21463463045,
+          "activeWorkers": 1,
+          "maxWorkers": 1,
+          "gatewayMemoryBytes": 100204544
+        },
+        {
+          "at": 1794510235671,
+          "nodeId": "cline-worker-1",
+          "online": true,
+          "workerMemoryBytes": 0,
+          "workerCpuTimeNanos": 0,
+          "activeWorkers": 0,
+          "maxWorkers": 1,
+          "gatewayMemoryBytes": 106795008
+        },
+        {
+          "at": 1794510241278,
           "nodeId": "cline-worker-2",
           "online": true,
           "workerMemoryBytes": 0,
           "workerCpuTimeNanos": 0,
           "activeWorkers": 0,
           "maxWorkers": 1,
-          "gatewayMemoryBytes": 98344960
+          "gatewayMemoryBytes": 104726528
+        },
+        {
+          "at": 1794510241278,
+          "nodeId": "cline-worker-1",
+          "online": true,
+          "workerMemoryBytes": 0,
+          "workerCpuTimeNanos": 0,
+          "activeWorkers": 0,
+          "maxWorkers": 1,
+          "gatewayMemoryBytes": 106795008
+        },
+        {
+          "at": 1794510246839,
+          "nodeId": "cline-worker-2",
+          "online": true,
+          "workerMemoryBytes": 0,
+          "workerCpuTimeNanos": 0,
+          "activeWorkers": 0,
+          "maxWorkers": 1,
+          "gatewayMemoryBytes": 104726528
+        },
+        {
+          "at": 1794510246839,
+          "nodeId": "cline-worker-1",
+          "online": true,
+          "workerMemoryBytes": 0,
+          "workerCpuTimeNanos": 0,
+          "activeWorkers": 0,
+          "maxWorkers": 1,
+          "gatewayMemoryBytes": 106795008
         }
       ]
     }
   ],
-  "speedup": 1.858980203959208
+  "speedup": 2.106886942675159,
+  "sourceCommit": "d1d706f72bdb78a95cc254df8aa29344f9f65b50",
+  "apiImageId": "sha256:4458af182ff49ae526d39092ae0830079c8184c88bfe7fee596e2f8ff4fddb03",
+  "codingNodeImageId": "sha256:173f7368811538659bc122f5608dfd9debaa3647ea7c0cad57357eebad2dd822"
 }

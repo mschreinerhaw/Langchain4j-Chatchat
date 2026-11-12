@@ -1,0 +1,22 @@
+{
+  "passed": true,
+  "taskId": "temporal-native-e240db5de906b56b43625692f2a2c61cc9adabc4f48bad8d7b922664c72cb9a4",
+  "runId": "coding-a5827fb2067a0a5414a90e964e917143b3553bf129a250392fb9d591dd82d54a",
+  "status": "CANCELLED",
+  "workflowStatus": "WORKFLOW_EXECUTION_STATUS_CANCELED",
+  "actualExecutorStopped": true,
+  "noEffectiveFinalResult": true,
+  "elapsedSeconds": 5.163718223571777,
+  "competingAnalysis": {
+    "taskId": "temporal-native-890650e52d9e1757a5a5b07b03c1ee08c489eb6a037e7a610a1a19c089af9f64",
+    "status": "RUNNING",
+    "pendingActivities": [
+      {
+        "workerIdentity": "cline-worker-1",
+        "activityId": "04b7c882-acb7-3582-bfb7-83e57829fcbe",
+        "state": "PENDING_ACTIVITY_STATE_STARTED",
+        "attempt": 2
+      }
+    ]
+  }
+}

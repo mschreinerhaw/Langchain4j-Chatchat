@@ -214,5 +214,105 @@
     "eventCount": 26,
     "lastEventType": "EVENT_TYPE_WORKFLOW_EXECUTION_CANCELED",
     "containsUrlCredentials": false
+  },
+  {
+    "label": "temporal-final-single-live",
+    "workflowId": "native-analysis-v1-83ab2c9820084bc9da007fbaff7dbffc105ab361b2a38b8517799d55f289d3ab",
+    "taskId": "temporal-native-a42b42672e63ad0a4a990983d08b32c5585eb87327b8ed23a8a397472ac2ec78",
+    "bytes": 10336,
+    "sha256": "76f8fc1fa88d191105f1781ea0607174353ae34133f7924ad49181d1234bb6e6",
+    "eventCount": 15,
+    "lastEventType": "EVENT_TYPE_WORKFLOW_EXECUTION_COMPLETED",
+    "containsUrlCredentials": false
+  },
+  {
+    "label": "temporal-final-single-live",
+    "workflowId": "native-analysis-v1-05bc9bd640ea8500401c8393d30919fdf91400b25ec4c9ba188f9fefa2545c69",
+    "taskId": "temporal-native-900097429540316ebcdd373943d0fb886ec3dc4904a7470281eb03ed027bd0d9",
+    "bytes": 10336,
+    "sha256": "7efe9b5377666a5c09bfdca42ea1da49769f3e56a39217ba641208e480aed332",
+    "eventCount": 15,
+    "lastEventType": "EVENT_TYPE_WORKFLOW_EXECUTION_COMPLETED",
+    "containsUrlCredentials": false
+  },
+  {
+    "label": "temporal-final-single-live",
+    "workflowId": "native-analysis-v1-4cb9fc4c6c314991403eb8e4353622ff34d79dcdd3ffcdbba032b499348f282a",
+    "taskId": "temporal-native-822b43eade0e7da9bb270abef36387ec72475fef9aaa33340dafe1a5565fc890",
+    "bytes": 10336,
+    "sha256": "dfebbea267e6e04b62bd695e47f363d972b15c18d38b4d31f65b15721bf7c736",
+    "eventCount": 15,
+    "lastEventType": "EVENT_TYPE_WORKFLOW_EXECUTION_COMPLETED",
+    "containsUrlCredentials": false
+  },
+  {
+    "label": "temporal-final-single-live",
+    "workflowId": "native-analysis-v1-c9cac33fc19651da09399ed1b18fc8b502c306d44e255f8b30cb9afba3e2947a",
+    "taskId": "temporal-native-def21de337dfac7fbc40d93a2857cc1856375bbadc9718959295d4bf80bc6997",
+    "bytes": 10336,
+    "sha256": "af10145615f741f63ace3f8a39737fa4c006eafd4f74fd01fab2540f6561f097",
+    "eventCount": 15,
+    "lastEventType": "EVENT_TYPE_WORKFLOW_EXECUTION_COMPLETED",
+    "containsUrlCredentials": false
+  },
+  {
+    "label": "temporal-final-dual-live",
+    "workflowId": "native-analysis-v1-dae0344ad95f74f2e4c40cb2bba7eed12273a981d0f5fc3b317eae196e0ff790",
+    "taskId": "temporal-native-85ad112945768d80f7541edd54d3da1fcbc395f8279b79990b138b96783bbea4",
+    "bytes": 10336,
+    "sha256": "7fc87e3ac8ff8333d320721c2b3368f00755fbc6dd010941289097f37761d557",
+    "eventCount": 15,
+    "lastEventType": "EVENT_TYPE_WORKFLOW_EXECUTION_COMPLETED",
+    "containsUrlCredentials": false
+  },
+  {
+    "label": "temporal-final-dual-live",
+    "workflowId": "native-analysis-v1-22467ccd3207fee8cdd21626d213c39a06d7804498bb43214a988f2c0e9997f5",
+    "taskId": "temporal-native-7cc040eb3d00b7405bde95d848aefd248f9e66ccf74e775ab6c896f726029f7f",
+    "bytes": 10336,
+    "sha256": "e611c0519ba960e43c1f386bc88abfc5eb97f48a5cc18e635a9e38013871c621",
+    "eventCount": 15,
+    "lastEventType": "EVENT_TYPE_WORKFLOW_EXECUTION_COMPLETED",
+    "containsUrlCredentials": false
+  },
+  {
+    "label": "temporal-final-dual-live",
+    "workflowId": "native-analysis-v1-87a2b2e4197da1cecbfdb30ee95f578d829e9c1d39d86726d6a6a9cd7f244fde",
+    "taskId": "temporal-native-aded0bab94a8ba9328b7c58394916e8671ffb7a3245dc42271c671852949babb",
+    "bytes": 10336,
+    "sha256": "6a8c752bce172243604894e1a0cab6379b7eb8424b66eecd568984b2aeba3322",
+    "eventCount": 15,
+    "lastEventType": "EVENT_TYPE_WORKFLOW_EXECUTION_COMPLETED",
+    "containsUrlCredentials": false
+  },
+  {
+    "label": "temporal-final-dual-live",
+    "workflowId": "native-analysis-v1-aae7058883aeac1e12ceb9c6325d35f2ba9efda80884de48faedcdf2f0197081",
+    "taskId": "temporal-native-8148fbf7c90b8b72b62eb02f3ee1eca0d02a6dc0d713d0b66b7fb91d34fea0f8",
+    "bytes": 10336,
+    "sha256": "9c5ac9f4bf1fd787703f52513954e0ed0a4f2c43e2e168b9e1486f251aab1c91",
+    "eventCount": 15,
+    "lastEventType": "EVENT_TYPE_WORKFLOW_EXECUTION_COMPLETED",
+    "containsUrlCredentials": false
+  },
+  {
+    "label": "temporal-control-final-cancel-live",
+    "workflowId": "native-analysis-v1-8a2b8c1f44df985c82bb87911d964e2af82fa93e891662bdf19d1968eb3029d3",
+    "taskId": "temporal-native-e240db5de906b56b43625692f2a2c61cc9adabc4f48bad8d7b922664c72cb9a4",
+    "bytes": 18692,
+    "sha256": "8053698bd718261a5e4bbafee94062c12a2879eaf07f5c3caea4b735794dd76e",
+    "eventCount": 27,
+    "lastEventType": "EVENT_TYPE_WORKFLOW_EXECUTION_CANCELED",
+    "containsUrlCredentials": false
+  },
+  {
+    "label": "temporal-control-final-fault-live",
+    "workflowId": "native-analysis-v1-f8bf92225294342297b03d464230c7af8bc3d2defe364847b93a1650ba95a8cc",
+    "taskId": "temporal-native-890650e52d9e1757a5a5b07b03c1ee08c489eb6a037e7a610a1a19c089af9f64",
+    "bytes": 16921,
+    "sha256": "0123c00645e253fa3d5e9442a692a2e895b94b289d9655cc8b870f31b3ef39ec",
+    "eventCount": 27,
+    "lastEventType": "EVENT_TYPE_WORKFLOW_EXECUTION_COMPLETED",
+    "containsUrlCredentials": false
   }
 ]

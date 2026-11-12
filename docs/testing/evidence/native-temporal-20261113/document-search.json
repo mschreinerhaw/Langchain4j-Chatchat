@@ -1,253 +1,189 @@
 {
   "passed": true,
   "scope": "REAL_NATIVE_DOCUMENT_SEARCH_AGENT_ACL_DELIVERY",
-  "startedAt": "2026-11-12T17:47:47.846Z",
-  "taskId": "temporal-native-d22f31b690d79f8dacf0f97aba8eff4a4c67b5b647ac0fdc17b38d3ab0cd9df9",
-  "runId": "coding-5f20a97945e1a421c49090d5022b316da60fb8a981fd2ac6e23a50a8cd694b6d",
+  "startedAt": "2026-11-12T19:21:22.957Z",
+  "taskId": "temporal-native-ee98c6100edc5e1116f1c0236967848aabb9f203acf95b77a78cdfb81877d8ea",
+  "runId": "coding-0cdcb76e164d3bb6dd7ec021208b2eb74025b5ccce3e00b49f64288da0881f58",
   "status": "COMPLETED",
   "modelReceipts": [
     {
       "eventType": "model.request.completed",
-      "requestId": "164e6d20-04d2-4cd6-acef-4a8a501c306c",
-      "providerRequestId": "f05bfb7d-6298-9325-8327-e0f0f415e6b0",
+      "requestId": "19b31ee6-669f-4ece-8d62-8b7d2bb2b465",
+      "providerRequestId": "36ecc767-0612-9ade-b8e4-11bf4ab04299",
       "model": "qwen3.7-plus",
       "status": "SUCCEEDED",
       "usage": {
-        "inputTokens": 10001,
-        "outputTokens": 417,
-        "totalTokens": 10418,
-        "cacheReadTokens": 8576,
-        "cacheWriteTokens": null,
-        "reasoningTokens": 170,
-        "totalSource": "PROVIDER",
-        "cacheAccounting": "CACHE_IS_INPUT_SUBSET",
-        "raw": {
-          "prompt_tokens": 10001,
-          "total_tokens": 10418,
-          "completion_tokens": 417,
-          "prompt_tokens_details": {
-            "cached_tokens": 8576,
-            "text_tokens": 10001
-          },
-          "completion_tokens_details": {
-            "reasoning_tokens": 170,
-            "text_tokens": 417
-          }
-        }
-      },
-      "durationMs": 7523,
-      "httpStatus": 200
-    },
-    {
-      "eventType": "model.request.completed",
-      "requestId": "2e0d0f85-f39d-4014-b9dc-98014d4d7ae2",
-      "providerRequestId": "8dda176e-a353-9250-b459-475d5eb57baf",
-      "model": "qwen3.7-plus",
-      "status": "SUCCEEDED",
-      "usage": {
-        "inputTokens": 7747,
-        "outputTokens": 841,
-        "totalTokens": 8588,
-        "cacheReadTokens": 6912,
-        "cacheWriteTokens": null,
-        "reasoningTokens": 22,
-        "totalSource": "PROVIDER",
-        "cacheAccounting": "CACHE_IS_INPUT_SUBSET",
-        "raw": {
-          "prompt_tokens": 7747,
-          "total_tokens": 8588,
-          "completion_tokens": 841,
-          "prompt_tokens_details": {
-            "cached_tokens": 6912,
-            "text_tokens": 7747
-          },
-          "completion_tokens_details": {
-            "reasoning_tokens": 22,
-            "text_tokens": 841
-          }
-        }
-      },
-      "durationMs": 14506,
-      "httpStatus": 200
-    },
-    {
-      "eventType": "model.request.completed",
-      "requestId": "729c0720-67c2-41e7-b713-573da284f689",
-      "providerRequestId": "8c7a55ed-4e5e-94c0-9c0a-a8dd27db33ef",
-      "model": "qwen3.7-plus",
-      "status": "SUCCEEDED",
-      "usage": {
-        "inputTokens": 6471,
-        "outputTokens": 132,
-        "totalTokens": 6603,
-        "cacheReadTokens": 5760,
-        "cacheWriteTokens": null,
-        "reasoningTokens": 42,
-        "totalSource": "PROVIDER",
-        "cacheAccounting": "CACHE_IS_INPUT_SUBSET",
-        "raw": {
-          "prompt_tokens": 6471,
-          "total_tokens": 6603,
-          "completion_tokens": 132,
-          "prompt_tokens_details": {
-            "cached_tokens": 5760,
-            "text_tokens": 6471
-          },
-          "completion_tokens_details": {
-            "reasoning_tokens": 42,
-            "text_tokens": 132
-          }
-        }
-      },
-      "durationMs": 3055,
-      "httpStatus": 200
-    },
-    {
-      "eventType": "model.request.completed",
-      "requestId": "8289520f-de6e-43e1-857e-ae0c4f7bd8c5",
-      "providerRequestId": "6b225cb2-2bbd-99fb-b520-2319f4f02c54",
-      "model": "qwen3.7-plus",
-      "status": "SUCCEEDED",
-      "usage": {
-        "inputTokens": 8854,
-        "outputTokens": 142,
-        "totalTokens": 8996,
-        "cacheReadTokens": 8576,
-        "cacheWriteTokens": null,
-        "reasoningTokens": 12,
-        "totalSource": "PROVIDER",
-        "cacheAccounting": "CACHE_IS_INPUT_SUBSET",
-        "raw": {
-          "prompt_tokens": 8854,
-          "total_tokens": 8996,
-          "completion_tokens": 142,
-          "prompt_tokens_details": {
-            "cached_tokens": 8576,
-            "text_tokens": 8854
-          },
-          "completion_tokens_details": {
-            "reasoning_tokens": 12,
-            "text_tokens": 142
-          }
-        }
-      },
-      "durationMs": 3110,
-      "httpStatus": 200
-    },
-    {
-      "eventType": "model.request.completed",
-      "requestId": "9a6d4cdc-ab7d-47d5-8841-50fc1bf7cc19",
-      "providerRequestId": "e3568636-536d-9c45-a031-dc0060239508",
-      "model": "qwen3.7-plus",
-      "status": "SUCCEEDED",
-      "usage": {
-        "inputTokens": 8659,
-        "outputTokens": 150,
-        "totalTokens": 8809,
-        "cacheReadTokens": 7424,
-        "cacheWriteTokens": null,
-        "reasoningTokens": 33,
-        "totalSource": "PROVIDER",
-        "cacheAccounting": "CACHE_IS_INPUT_SUBSET",
-        "raw": {
-          "prompt_tokens": 8659,
-          "total_tokens": 8809,
-          "completion_tokens": 150,
-          "prompt_tokens_details": {
-            "cached_tokens": 7424,
-            "text_tokens": 8659
-          },
-          "completion_tokens_details": {
-            "reasoning_tokens": 33,
-            "text_tokens": 150
-          }
-        }
-      },
-      "durationMs": 3501,
-      "httpStatus": 200
-    },
-    {
-      "eventType": "model.request.completed",
-      "requestId": "a6a895b8-776c-42c1-966f-79797b78209d",
-      "providerRequestId": "87d27a56-af86-9012-88c9-46bcd7fde735",
-      "model": "qwen3.7-plus",
-      "status": "SUCCEEDED",
-      "usage": {
-        "inputTokens": 7477,
-        "outputTokens": 237,
-        "totalTokens": 7714,
-        "cacheReadTokens": 6272,
+        "inputTokens": 6099,
+        "outputTokens": 299,
+        "totalTokens": 6398,
+        "cacheReadTokens": 0,
         "cacheWriteTokens": null,
         "reasoningTokens": 181,
         "totalSource": "PROVIDER",
         "cacheAccounting": "CACHE_IS_INPUT_SUBSET",
         "raw": {
-          "prompt_tokens": 7477,
-          "total_tokens": 7714,
-          "completion_tokens": 237,
+          "prompt_tokens": 6099,
+          "total_tokens": 6398,
+          "completion_tokens": 299,
           "prompt_tokens_details": {
-            "cached_tokens": 6272,
-            "text_tokens": 7477
+            "cached_tokens": 0,
+            "text_tokens": 6099
           },
           "completion_tokens_details": {
             "reasoning_tokens": 181,
-            "text_tokens": 237
+            "text_tokens": 299
           }
         }
       },
-      "durationMs": 4755,
+      "durationMs": 6061,
       "httpStatus": 200
     },
     {
       "eventType": "model.request.completed",
-      "requestId": "eafcbd8c-36a0-414b-b11d-8911bdb5b745",
-      "providerRequestId": "545092d0-a757-9d4c-be7e-73983cd2f807",
+      "requestId": "2032bed8-1288-4e53-a25c-92a1683239b5",
+      "providerRequestId": "8c9331c1-176e-934a-9063-3c38cf64643e",
       "model": "qwen3.7-plus",
       "status": "SUCCEEDED",
       "usage": {
-        "inputTokens": 6101,
-        "outputTokens": 272,
-        "totalTokens": 6373,
-        "cacheReadTokens": 0,
+        "inputTokens": 6850,
+        "outputTokens": 1033,
+        "totalTokens": 7883,
+        "cacheReadTokens": 5760,
         "cacheWriteTokens": null,
-        "reasoningTokens": 186,
+        "reasoningTokens": 321,
         "totalSource": "PROVIDER",
         "cacheAccounting": "CACHE_IS_INPUT_SUBSET",
         "raw": {
-          "prompt_tokens": 6101,
-          "total_tokens": 6373,
-          "completion_tokens": 272,
+          "prompt_tokens": 6850,
+          "total_tokens": 7883,
+          "completion_tokens": 1033,
           "prompt_tokens_details": {
-            "cached_tokens": 0,
-            "text_tokens": 6101
+            "cached_tokens": 5760,
+            "text_tokens": 6850
           },
           "completion_tokens_details": {
-            "reasoning_tokens": 186,
-            "text_tokens": 272
+            "reasoning_tokens": 321,
+            "text_tokens": 1033
           }
         }
       },
-      "durationMs": 5439,
+      "durationMs": 17300,
+      "httpStatus": 200
+    },
+    {
+      "eventType": "model.request.completed",
+      "requestId": "2c09c2e9-49d4-4360-aafb-5b507510d6c0",
+      "providerRequestId": "a5976682-3e9f-91e6-a444-5e653d40d311",
+      "model": "qwen3.7-plus",
+      "status": "SUCCEEDED",
+      "usage": {
+        "inputTokens": 8996,
+        "outputTokens": 332,
+        "totalTokens": 9328,
+        "cacheReadTokens": 8064,
+        "cacheWriteTokens": null,
+        "reasoningTokens": 16,
+        "totalSource": "PROVIDER",
+        "cacheAccounting": "CACHE_IS_INPUT_SUBSET",
+        "raw": {
+          "prompt_tokens": 8996,
+          "total_tokens": 9328,
+          "completion_tokens": 332,
+          "prompt_tokens_details": {
+            "cached_tokens": 8064,
+            "text_tokens": 8996
+          },
+          "completion_tokens_details": {
+            "reasoning_tokens": 16,
+            "text_tokens": 332
+          }
+        }
+      },
+      "durationMs": 6180,
+      "httpStatus": 200
+    },
+    {
+      "eventType": "model.request.completed",
+      "requestId": "59a48360-2856-4b64-aa3a-848817dd2794",
+      "providerRequestId": "617837c7-a090-98fd-8a3b-73715b0a651a",
+      "model": "qwen3.7-plus",
+      "status": "SUCCEEDED",
+      "usage": {
+        "inputTokens": 7950,
+        "outputTokens": 145,
+        "totalTokens": 8095,
+        "cacheReadTokens": 6272,
+        "cacheWriteTokens": null,
+        "reasoningTokens": 17,
+        "totalSource": "PROVIDER",
+        "cacheAccounting": "CACHE_IS_INPUT_SUBSET",
+        "raw": {
+          "prompt_tokens": 7950,
+          "total_tokens": 8095,
+          "completion_tokens": 145,
+          "prompt_tokens_details": {
+            "cached_tokens": 6272,
+            "text_tokens": 7950
+          },
+          "completion_tokens_details": {
+            "reasoning_tokens": 17,
+            "text_tokens": 145
+          }
+        }
+      },
+      "durationMs": 3262,
+      "httpStatus": 200
+    },
+    {
+      "eventType": "model.request.completed",
+      "requestId": "6f8d29ed-9122-4fb6-9926-3083ea478241",
+      "providerRequestId": "70f2795c-63d0-9142-b870-f8012e8ea1b1",
+      "model": "qwen3.7-plus",
+      "status": "SUCCEEDED",
+      "usage": {
+        "inputTokens": 8140,
+        "outputTokens": 81,
+        "totalTokens": 8221,
+        "cacheReadTokens": 7424,
+        "cacheWriteTokens": null,
+        "reasoningTokens": 12,
+        "totalSource": "PROVIDER",
+        "cacheAccounting": "CACHE_IS_INPUT_SUBSET",
+        "raw": {
+          "prompt_tokens": 8140,
+          "total_tokens": 8221,
+          "completion_tokens": 81,
+          "prompt_tokens_details": {
+            "cached_tokens": 7424,
+            "text_tokens": 8140
+          },
+          "completion_tokens_details": {
+            "reasoning_tokens": 12,
+            "text_tokens": 81
+          }
+        }
+      },
+      "durationMs": 2240,
       "httpStatus": 200
     }
   ],
   "artifacts": [
     {
       "name": "0-result.json",
-      "sha256": "10cb8331316ed5726e483abfa475913f6af21ae2583d59aa0a153a6e998a7d05",
-      "size": 1139,
+      "sha256": "fb6949c6b6770ccedeaf709853c7fa9c1acf396ec2127e9b8f7157012e7c4782",
+      "size": 1023,
       "kind": "ARTIFACT"
     },
     {
       "name": "1-report.md",
-      "sha256": "0921bba454cc056087229fecb45108f1533d519b1685968a1e69e9a3a04a2d55",
-      "size": 1541,
+      "sha256": "418f1bd14da42e7407acb789e185ad5c1022361405c05a2800521e3905ca5c07",
+      "size": 1382,
       "kind": "ARTIFACT"
     },
     {
       "name": "2-document-search-receipt.json",
-      "sha256": "3c908977a4e104dfb0f3a1c7fe8e21f4367e698f4b3fe56ac2f2b2171505dcb9",
-      "size": 1121,
+      "sha256": "2b606d67528efebb533a4fd951a9df6306e5e88d92feadc2da39b7d2ba05b833",
+      "size": 1161,
       "kind": "LOG"
     }
   ],
@@ -257,5 +193,5 @@
   ],
   "unassignedDocumentExcluded": true,
   "independentSourceFactsVerified": true,
-  "finishedAt": "2026-11-12T17:48:49.422Z"
+  "finishedAt": "2026-11-12T19:22:20.257Z"
 }

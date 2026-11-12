@@ -1,0 +1,52 @@
+{
+  "commit": "d1d706f72bdb78a95cc254df8aa29344f9f65b50",
+  "sourceManifestSha256": "63c42bbb9282b55f61ed16ade01b19b58da4ddb5fc3b3eef73aafded609ab348",
+  "bases": {
+    "NODE_BUILD_IMAGE": {
+      "imageId": "sha256:280af3207172947339cc2e8c9d2efac585716fd906af49f57d6fdf0dbb829a73",
+      "repoDigests": [
+        "node@sha256:01d566e8d94d8c619591d78652babfccd3c6992a3dffa9ed5ab39e11cf6c70e9"
+      ],
+      "local": "runtime-native-build-base:280af3207172947339cc"
+    },
+    "JAVA_BUILD_IMAGE": {
+      "imageId": "sha256:fee8cb4328cdfa329ad5e2d14266ab9f70132d533f7fab5ebb1dba45758d71c2",
+      "repoDigests": [
+        "eclipse-temurin@sha256:057a0daec60e87c96571bf5c9c7792065bcb19e804d584cd37d4144038a35717"
+      ],
+      "local": "runtime-native-build-base:fee8cb4328cdfa329ad5"
+    },
+    "JAVA_RUNTIME_IMAGE": {
+      "imageId": "sha256:fee8cb4328cdfa329ad5e2d14266ab9f70132d533f7fab5ebb1dba45758d71c2",
+      "repoDigests": [
+        "eclipse-temurin@sha256:057a0daec60e87c96571bf5c9c7792065bcb19e804d584cd37d4144038a35717"
+      ],
+      "local": "runtime-native-build-base:fee8cb4328cdfa329ad5"
+    },
+    "CODING_BASE_IMAGE": {
+      "imageId": "sha256:969c49ecf5fd15d3f259439f4d8e61690299d7468dd3198ec1ee2f4f5cac78f4",
+      "repoDigests": [],
+      "local": "runtime-native-build-base:969c49ecf5fd15d3f259"
+    }
+  },
+  "images": {
+    "api": {
+      "Id": "sha256:4458af182ff49ae526d39092ae0830079c8184c88bfe7fee596e2f8ff4fddb03",
+      "RepoTags": [
+        "runtime-os-api:temporal-native-d1d706f72bdb"
+      ],
+      "RepoDigests": [],
+      "Size": 896596844,
+      "Architecture": "amd64"
+    },
+    "coding-node": {
+      "Id": "sha256:173f7368811538659bc122f5608dfd9debaa3647ea7c0cad57357eebad2dd822",
+      "RepoTags": [
+        "runtime-os-coding-node:temporal-native-d1d706f72bdb"
+      ],
+      "RepoDigests": [],
+      "Size": 2624667262,
+      "Architecture": "amd64"
+    }
+  }
+}

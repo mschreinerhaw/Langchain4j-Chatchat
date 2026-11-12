@@ -1,0 +1,27 @@
+{
+  "passed": true,
+  "oldSession": "native-2e4c6f29-d698-4597-821e-bbfa0fb459b0",
+  "newSession": "native-c8cf2265-2109-4055-861a-7c5671ce037e",
+  "oldEpoch": "3b16d22e-9331-4751-ad61-892aaaf31925",
+  "newEpoch": "cb1ad808-d5c0-412e-9370-4f8085b9a001",
+  "oldNode": "cline-worker-2",
+  "newNode": "cline-worker-1",
+  "replay": {
+    "taskId": "temporal-native-3db1b7c29388fcf271db8f2e670eaaecf2f9ccbfa1b228cb3094ae25ce02638b",
+    "oldContainerStopped": true,
+    "rejected": [
+      {
+        "route": "messages",
+        "status": 403
+      },
+      {
+        "route": "delivery",
+        "status": 403
+      },
+      {
+        "route": "model",
+        "status": 403
+      }
+    ]
+  }
+}

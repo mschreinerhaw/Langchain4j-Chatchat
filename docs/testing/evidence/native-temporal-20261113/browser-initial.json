@@ -1,0 +1,11 @@
+{
+  "passed": true,
+  "pageErrors": [],
+  "failures": [],
+  "taskId": "temporal-native-c594eee72ddbca00cbff4d6f89990df9e77dd6204bde7e94d71bbc3ac11296fb",
+  "workflowVisible": true,
+  "historyAfterReload": true,
+  "offlineReconnect": true,
+  "nativeTimelineVisible": true,
+  "defaultCollapsed": true
+}

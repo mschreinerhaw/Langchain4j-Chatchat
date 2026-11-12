@@ -1,0 +1,23 @@
+{
+  "passed": true,
+  "disabledOwnedTestUsers": [
+    "4eef238e-04a2-4105-b0b0-4c5791216b2a",
+    "49f58dec-daab-444a-8cab-1f97b375c721",
+    "fe1b8d47-5750-46f8-8393-e8c662b8c86b"
+  ],
+  "revokedOwnedRoleIds": [
+    "8e831d28-9360-4509-bba6-7fd31a29ad7c",
+    "dc0af523-dbf5-4e55-b7f2-a8742c92f0fd"
+  ],
+  "testUserLoginChecks": [
+    {
+      "id": "fe1b8d47-5750-46f8-8393-e8c662b8c86b",
+      "loginDenied": true
+    },
+    {
+      "id": "4eef238e-04a2-4105-b0b0-4c5791216b2a",
+      "loginDenied": true
+    }
+  ],
+  "originalAdminUnchanged": true
+}

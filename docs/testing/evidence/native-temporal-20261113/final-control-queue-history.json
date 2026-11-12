@@ -1,0 +1,132 @@
+{
+  "passed": true,
+  "workflowId": "native-analysis-v1-8a2b8c1f44df985c82bb87911d964e2af82fa93e891662bdf19d1968eb3029d3",
+  "historySha256": "8053698bd718261a5e4bbafee94062c12a2879eaf07f5c3caea4b735794dd76e",
+  "decodedMarkers": [
+    {
+      "name": "Version",
+      "details": {
+        "changeId": [
+          "\"native-stop-control-queue\""
+        ],
+        "version": [
+          "1"
+        ]
+      }
+    }
+  ],
+  "events": [
+    {
+      "eventId": "5",
+      "eventTime": "2026-11-12T19:05:48.268589238Z",
+      "eventType": "EVENT_TYPE_ACTIVITY_TASK_SCHEDULED",
+      "taskId": "8388673",
+      "activityTaskScheduledEventAttributes": {
+        "activityId": "4b222848-0510-3757-b5bf-1ead290b4b78",
+        "activityType": {
+          "name": "RuntimeNativeAnalysisRun.v1"
+        },
+        "taskQueue": {
+          "name": "runtime-native-analysis-v1",
+          "kind": "TASK_QUEUE_KIND_NORMAL"
+        },
+        "header": {},
+        "input": {
+          "payloads": [
+            {
+              "metadata": {
+                "encoding": "anNvbi9wbGFpbg=="
+              },
+              "data": "eyJ0ZW5hbnRJZCI6IjkwMDFmZWU0LTQ4MmItNDg1MS05ZWI5LWRmMjY5NzY1MjkxZiIsInVzZXJJZCI6IjJmMjE5NDg3LTExYTMtNGExZC05MTMwLWFjNTAwYjYyZjI2OCIsInJ1bklkIjoiY29kaW5nLWE1ODI3ZmIyMDY3YTBhNTQxNGE5MGU5NjRlOTE3MTQzYjM1NTNiZjEyOWEyNTAzOTJmYjlkNTkxZGQ4MmQ1NGEiLCJ0YXNrSWQiOiJ0ZW1wb3JhbC1uYXRpdmUtZTI0MGRiNWRlOTA2YjU2YjQzNjI1NjkyZjJhMmM2MWNjOWFkYWJjNGY0OGJhZDhkN2I5MjI2NjRjNzJjYjlhNCIsImNvbnRyYWN0U2hhMjU2IjoiZGJkYmViZTM2NGI5MmE3YmUzMWQyM2NiZWQzNjA1MWRjZjk3YmUyNTM5ZjMwZDhkMWEzOGIwZDg2MTUyNWM3NiIsImRlYWRsaW5lRXBvY2hNaWxsaXMiOjE3OTQ1MTE1NDgxODF9"
+            }
+          ]
+        },
+        "scheduleToCloseTimeout": "1199.928s",
+        "scheduleToStartTimeout": "1199.928s",
+        "startToCloseTimeout": "1199.928s",
+        "heartbeatTimeout": "30s",
+        "workflowTaskCompletedEventId": "4",
+        "retryPolicy": {
+          "initialInterval": "2s",
+          "backoffCoefficient": 2,
+          "maximumInterval": "20s"
+        }
+      }
+    },
+    {
+      "eventId": "20",
+      "eventTime": "2026-11-12T19:08:02.001910863Z",
+      "eventType": "EVENT_TYPE_MARKER_RECORDED",
+      "taskId": "8388725",
+      "markerRecordedEventAttributes": {
+        "markerName": "Version",
+        "details": {
+          "changeId": {
+            "payloads": [
+              {
+                "metadata": {
+                  "encoding": "anNvbi9wbGFpbg=="
+                },
+                "data": "Im5hdGl2ZS1zdG9wLWNvbnRyb2wtcXVldWUi"
+              }
+            ]
+          },
+          "version": {
+            "payloads": [
+              {
+                "metadata": {
+                  "encoding": "anNvbi9wbGFpbg=="
+                },
+                "data": "MQ=="
+              }
+            ]
+          }
+        },
+        "workflowTaskCompletedEventId": "19"
+      }
+    },
+    {
+      "eventId": "21",
+      "eventTime": "2026-11-12T19:08:02.001939557Z",
+      "eventType": "EVENT_TYPE_ACTIVITY_TASK_SCHEDULED",
+      "taskId": "8388726",
+      "activityTaskScheduledEventAttributes": {
+        "activityId": "952113d7-f6e7-3b9b-9e5e-8adce3f528e9",
+        "activityType": {
+          "name": "RuntimeNativeAnalysisStop.v1"
+        },
+        "taskQueue": {
+          "name": "runtime-native-analysis-v1.control",
+          "kind": "TASK_QUEUE_KIND_NORMAL"
+        },
+        "header": {},
+        "input": {
+          "payloads": [
+            {
+              "metadata": {
+                "encoding": "anNvbi9wbGFpbg=="
+              },
+              "data": "eyJ0ZW5hbnRJZCI6IjkwMDFmZWU0LTQ4MmItNDg1MS05ZWI5LWRmMjY5NzY1MjkxZiIsInVzZXJJZCI6IjJmMjE5NDg3LTExYTMtNGExZC05MTMwLWFjNTAwYjYyZjI2OCIsInJ1bklkIjoiY29kaW5nLWE1ODI3ZmIyMDY3YTBhNTQxNGE5MGU5NjRlOTE3MTQzYjM1NTNiZjEyOWEyNTAzOTJmYjlkNTkxZGQ4MmQ1NGEiLCJ0YXNrSWQiOiJ0ZW1wb3JhbC1uYXRpdmUtZTI0MGRiNWRlOTA2YjU2YjQzNjI1NjkyZjJhMmM2MWNjOWFkYWJjNGY0OGJhZDhkN2I5MjI2NjRjNzJjYjlhNCIsImNvbnRyYWN0U2hhMjU2IjoiZGJkYmViZTM2NGI5MmE3YmUzMWQyM2NiZWQzNjA1MWRjZjk3YmUyNTM5ZjMwZDhkMWEzOGIwZDg2MTUyNWM3NiIsImRlYWRsaW5lRXBvY2hNaWxsaXMiOjE3OTQ1MTE1NDgxODF9"
+            },
+            {
+              "metadata": {
+                "encoding": "anNvbi9wbGFpbg=="
+              },
+              "data": "IlRlbXBvcmFsIGV4ZWN1dGlvbiBmYWlsZWQgb3IgdGltZWQgb3V0Ig=="
+            }
+          ]
+        },
+        "scheduleToCloseTimeout": "0s",
+        "scheduleToStartTimeout": "0s",
+        "startToCloseTimeout": "120s",
+        "heartbeatTimeout": "30s",
+        "workflowTaskCompletedEventId": "19",
+        "retryPolicy": {
+          "initialInterval": "2s",
+          "backoffCoefficient": 2,
+          "maximumInterval": "30s"
+        }
+      }
+    }
+  ]
+}

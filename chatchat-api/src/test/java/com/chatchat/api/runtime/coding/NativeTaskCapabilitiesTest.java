@@ -37,4 +37,12 @@ class NativeTaskCapabilitiesTest {
         var value=service.capture(scope,"model",Map.of("authorizationAgentId","agent"),Map.of());
         assertThat(value).containsKeys("model","skills").doesNotContainKey("internetSearch");verify(internet).snapshot(scope,"agent","model",false);verifyNoInteractions(scopes,releases,catalogs);
     }
+    @Test void visualPreferenceSurvivesNativeCaptureEvenForQaAndDoesNotGrantTools(){
+        when(internet.snapshot(scope,"agent","model",false)).thenReturn(Map.of());
+        when(internet.availability(scope,"agent","model",false,false)).thenReturn(CodingInternetAccess.availabilityStatus("UNAVAILABLE","MODEL_INTERNET_DISABLED"));
+        var value=service.capture(scope,"model",Map.of("authorizationAgentId","agent","taskType","QA","reportMode","visual","reportPresentation",Map.of("density","compact","autoCharts",false)),Map.of());
+        assertThat(value).containsEntry("reportMode","visual").doesNotContainKey("internetSearch");
+        assertThat((Map<String,Object>)value.get("reportPresentation")).containsEntry("density","compact").containsEntry("autoCharts",false);
+    }
+
 }

@@ -17,6 +17,7 @@ import org.springframework.stereotype.Service;
 @Service
 @ConditionalOnProperty(prefix="chatchat.runtime.coding.unified",name="enabled",havingValue="true")
 public final class NativeCodingTasks {
+    @org.springframework.beans.factory.annotation.Autowired private NativeVisualReport visualReports;
     private final NativeSiloTaskService capture;
     private final NativeS3CodingAdapter adapter;
     private final NativeS3Settings settings;
@@ -62,8 +63,14 @@ public final class NativeCodingTasks {
         result.put("analysisStartedAt",outcome.startedAt()==null?outcome.createdAt().toString():outcome.startedAt().toString());if(outcome.endedAt()!=null)result.put("analysisFinishedAt",outcome.endedAt().toString());result.put("usage",outcome.usage());result.put("stageSnapshotChecked",outcome.status().terminal());
         try{result.put("analysisEvents",tasks.events(scope,task,Math.max(0,outcome.lastEventSequence()-256),256).stream().map(event->Map.of("eventId",event.eventId(),"sequence",event.sequence(),"occurredAt",event.occurredAt().toString(),"payload",NativeCodingProgress.trace(event))).toList());result.put("progressHistoryStatus",outcome.lastEventSequence()>256?"RECENT_WINDOW":"AVAILABLE");}
         catch(CodingContractException compacted){if(compacted.error().code()!=CodingErrorCode.EVENT_CURSOR_EXPIRED)throw compacted;result.put("analysisEvents",List.of());result.put("progressHistoryStatus","COMPACTED");}
-        result.put("artifacts",assets.list(UserAssetService.Owner.of(scope),null,task,100).stream().filter(f->Set.of("CODE","ARTIFACT").contains(f.kind())&&scope.runId().equals(f.runId())).toList());
+        var files=new ArrayList<UserAssetService.File>();
+        for(var kind:List.of(UserAssetService.Kind.CODE,UserAssetService.Kind.ARTIFACT))files.addAll(assets.list(UserAssetService.Owner.of(scope),kind,task,100).stream().filter(f->scope.runId().equals(f.runId())).toList());
+        result.put("artifacts",files);
         if(outcome.resultDatasetRef()!=null){var dataset=collector.registeredResult(scope,task,outcome.resultDatasetRef());result.put("datasetReference",dataset.reference());result.put("results",dataset.handle().readPage(0,100).rows());}
+        if(outcome.status()==CodingTaskOutcome.Status.COMPLETED&&visualReports!=null){
+            var rows=result.get("results") instanceof List<?> values?values:List.of();
+            visualReports.project(scope,task,tasks.contract(scope,task).runtimeContext(),rows,files).ifPresent(report->result.put("visualReport",report));
+        }
         return result;
     }
     public Map<String,Object> await(KernelDataScope scope,String task,BooleanSupplier cancelled){

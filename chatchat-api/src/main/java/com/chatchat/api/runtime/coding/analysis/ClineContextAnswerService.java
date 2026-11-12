@@ -231,11 +231,11 @@ public final class ClineContextAnswerService implements CodingAnswerPort {
             + "use actual Python execution for calculations and inspect its result with artifact_read. Review before delivery. "
             + "Read the complete user objective from the immutable context input " + reference + ". "
             + "SQL over attached files may use in-memory SQLite with explicit table mappings. Never connect to an external source. ";
-        boolean conditionalVisual=taskType==null&&com.chatchat.common.runtime.coding.VisualReportMode.active(attrs);
+        boolean conditionalVisual=(taskType==null||coding.nativeExecutionEnabled()&&taskType!=com.chatchat.common.runtime.capability.ProblemAnalysisPlan.TaskType.DATA_ANALYSIS)&&com.chatchat.common.runtime.coding.VisualReportMode.active(attrs);
         if(marketWorkflow)instruction="Analyze the user's objective using the delivered authorized local market snapshots. The market snapshot JSONL files contain collected observations with source/day metadata; they are not live quotes. Resolve the requested security using the directory and actual rows. If no code was resolved, inspect the supplied full source/day files yourself; never invent a match or substitute another security. Disclose missing data, date coverage, units and adjustment basis. Produce the declared report row and cite the exact delivered dataset references. The separate analysis-materials input contains the user objective and untrusted context.\n"+request.getQuery();
         boolean resourceReport=Boolean.TRUE.equals(attrs.get("resourceExplorationConfigured"));
         boolean visual=conditionalVisual||com.chatchat.common.runtime.coding.VisualReportMode.analysisRequested(attrs);
-        if(visual)instruction+="\n"+(conditionalVisual?"This context-only route has no preclassified analytical task. The report preference NEVER changes the user's task. "
+        if(visual&&!coding.nativeExecutionEnabled())instruction+="\n"+(conditionalVisual?"This context-only route has no preclassified analytical task. The report preference NEVER changes the user's task. "
             +"For ordinary knowledge questions, explanations, writing, translations or proposed code/schema designs, OMIT visualReport entirely and answer normally; do not create charts or invent data to satisfy the preference. "
             +"ONLY if the actual request requires calculations on supplied data, apply the following visual-output contract. An optional output field is not a requirement to perform analysis.\n":"")
             +com.chatchat.common.runtime.coding.VisualReportMode.instruction(attrs);

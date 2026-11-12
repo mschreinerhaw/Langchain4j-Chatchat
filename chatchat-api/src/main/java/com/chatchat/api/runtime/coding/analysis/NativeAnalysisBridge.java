@@ -57,7 +57,7 @@ public final class NativeAnalysisBridge {
             String instruction=objective;
             if(instruction.length()>16000){byte[] data=instruction.getBytes(java.nio.charset.StandardCharsets.UTF_8);var file=assets.store(UserAssetService.Owner.of(scope),UserAssetService.Kind.DATASET,snapshotTask,scope.runId(),"native-original-objective:"+UserAssetService.hash(data),"original-task-objective.txt","text/plain",data);files.add(file.id());instruction="Read original-task-objective.txt from the supplied files for the full original user objective.";}
             instruction+="\nUse the frozen source contexts to interpret the supplied JSONL rows and distinguish missing data from verified empty results. Preserve source references and field names. Choose your own source structure and computation. Provide a complete Markdown report and the requested structured result; never treat transport/status observations as business data.";
-            var types=visual?List.of("REPORT","RESULT","CHART"):List.of("REPORT","RESULT");
+            var types=List.of("REPORT","RESULT"); // Charts are optional: missing evidence must never force invented figures.
             String model=Objects.toString(context.metadata().get("modelName"),null);
             var submitted=coding.submit(scope,request,files,instruction,model,types,schema,capabilities.capture(scope,model,context.runtimeAttributes(),context.metadata()));
             observer.accept(Map.of("eventKind","CODING_TASK_SUBMITTED","taskId",submitted.taskId(),"source","JAVA_NATIVE_S3"));

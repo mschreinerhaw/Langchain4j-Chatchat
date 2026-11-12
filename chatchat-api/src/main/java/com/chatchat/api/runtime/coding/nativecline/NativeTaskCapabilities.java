@@ -31,6 +31,9 @@ public class NativeTaskCapabilities {
         if(model==null||model.isBlank())model=settings.defaultModel();
         var value=new LinkedHashMap<String,Object>(CodingConfigurationSnapshot.capture(attributes,metadata));
         value.put("model",Map.of("selectedModel",model));
+        if(com.chatchat.common.runtime.coding.VisualReportMode.active(attributes)){
+            value.put("reportMode","visual");value.put("reportPresentation",com.chatchat.common.runtime.coding.ReportPresentation.read(attributes));
+        }
         String agent=Objects.toString(attributes.get("authorizationAgentId"),"");
         var policy=internet.snapshot(scope,agent,model,Boolean.TRUE.equals(attributes.get("resourceExplorationApproved")));
         if(!policy.isEmpty())value.put("internetSearch",policy);

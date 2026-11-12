@@ -34,6 +34,7 @@ public final class CodingAnalysisService implements AnalysisCodingPort {
     private NativeAnalysisBridge nativeS3Bridge;
     @org.springframework.beans.factory.annotation.Autowired(required=false)
     public void setNativeS3Bridge(NativeAnalysisBridge bridge){this.nativeS3Bridge=bridge;}
+    public boolean nativeExecutionEnabled(){return nativeS3Bridge!=null;}
     private boolean nativeBackend;
     @org.springframework.beans.factory.annotation.Value("${chatchat.coding.cline.backend:sdk}")
     public void setBackend(String backend){nativeBackend="native".equals(backend);}
@@ -383,7 +384,7 @@ public final class CodingAnalysisService implements AnalysisCodingPort {
         // Validate the analytical request before adding the platform-owned output contract.
         // Keep the final instruction/fingerprint identical for existing visual checkpoints.
         String instruction=analyticalInstruction+("primary-data-analysis-visual-v1".equals(requestId)
-            && VisualReportMode.analysisRequested(context.runtimeAttributes())?"\n"+VisualReportMode.instruction(context.runtimeAttributes()):"");
+            && nativeS3Bridge==null && VisualReportMode.analysisRequested(context.runtimeAttributes())?"\n"+VisualReportMode.instruction(context.runtimeAttributes()):"");
         List<String> selectedReferences = selectedReferences(request);
         boolean reviewResult = Boolean.TRUE.equals(request.get("reviewResult"));
         if (request.containsKey("reviewResult") && !(request.get("reviewResult") instanceof Boolean))

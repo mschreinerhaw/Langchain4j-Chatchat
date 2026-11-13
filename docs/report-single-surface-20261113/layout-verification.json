@@ -1,0 +1,19 @@
+{
+  "status": "passed",
+  "results": [
+    {
+      "width": 1440,
+      "height": 4073,
+      "noInnerVerticalScroll": true,
+      "growsAndShrinks": true,
+      "messageBorder": "0px"
+    },
+    {
+      "width": 390,
+      "height": 5794,
+      "noInnerVerticalScroll": true,
+      "growsAndShrinks": true,
+      "messageBorder": "0px"
+    }
+  ]
+}

@@ -1,9 +1,10 @@
-.html-report-viewer{width:100%;min-width:0;background:#fff;border:1px solid #e5edf8;border-radius:12px;overflow:hidden}
-.html-report-viewer iframe{display:block;width:100%;height:calc(100vh - 260px);min-height:560px;border:0;background:#fff}
+.html-report-viewer{width:100%;min-width:0;background:transparent}
+.html-report-viewer iframe{display:block;width:100%;border:0;background:transparent}
 .html-report-viewer p{padding:20px;color:#718096}
-.html-report-viewer header{display:flex;align-items:center;justify-content:space-between;padding:10px 16px;border-bottom:1px solid #e5edf8;font-size:13px;color:#718096}
-.html-report-viewer header div{display:flex;gap:10px}
-.html-report-viewer button{border:1px solid #dce6f4;border-radius:6px;padding:5px 10px;background:#fff;color:#4d7bb5;cursor:pointer;font:inherit}
-.html-report-viewer:fullscreen iframe{height:calc(100vh - 54px)}
+.html-report-viewer header{display:flex;align-items:center;justify-content:flex-end;gap:12px;padding:0 0 8px;font-size:13px;color:#718096}
+.html-report-viewer button{border:0;border-radius:4px;padding:4px 6px;background:transparent;color:#4d7bb5;cursor:pointer;font:inherit}
+.html-report-viewer button:hover{background:#edf4ff}
+.html-report-viewer button:focus-visible{outline:2px solid #4d7bb5;outline-offset:2px}
+.html-report-viewer:fullscreen{overflow:auto;background:#fff;padding:16px;box-sizing:border-box}
+.html-report-viewer:fullscreen header{position:sticky;top:0;background:#fff;z-index:1}
 .html-report-viewer [role=alert]{color:#b54735}
-@media(max-width:600px){.html-report-viewer iframe{min-height:420px;height:70vh}}

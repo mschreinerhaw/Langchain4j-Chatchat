@@ -650,6 +650,7 @@
   letter-spacing: 0;
 }
 
+.chat-message.assistant.has-html-report .message-bubble{background:transparent;border:0;box-shadow:none;padding:0}
 .message-bubble {
   width: 100%;
   min-width: 0;

@@ -1,0 +1,8 @@
+{
+  "image": "runtime-public-gateway:report-single-surface-20261113",
+  "imageId": "sha256:c49c7d4787903b432ddf908947cfda1995c51d1a9afe8d59755e298e21ab31ea",
+  "backendImageUnchanged": true,
+  "entry": "http://192.168.195.221:18100/",
+  "indexSha256": "5ea13529118d6277562452b8bd86cf1aef221e08d9c47c5ca20886615c52fa74",
+  "servedAssetsVerified": true
+}

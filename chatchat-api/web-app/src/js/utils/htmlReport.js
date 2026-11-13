@@ -63,5 +63,8 @@ export async function assembleHtmlReport(bundle){
   const meta=doc.createElement('meta');meta.httpEquiv='Content-Security-Policy';meta.content=policy;
   const script=doc.createElement('script');script.textContent=bootstrap;
   doc.head.prepend(meta,script);
+  const sizing=doc.createElement('script');
+  sizing.textContent=`(()=>{let last=0,pending=false;const measure=()=>{pending=false;const body=document.body;if(!body)return;const style=getComputedStyle(body);const height=Math.ceil(Math.max(body.scrollHeight,body.getBoundingClientRect().height)+(parseFloat(style.marginTop)||0)+(parseFloat(style.marginBottom)||0));if(height>0&&height!==last){last=height;parent.postMessage({type:'runtime-html-report-size',height},'*');}};const queue=()=>{if(!pending){pending=true;requestAnimationFrame(measure);}};const start=()=>{if(typeof ResizeObserver!=='undefined')new ResizeObserver(queue).observe(document.body);queue();document.fonts?.ready.then(queue);};if(document.readyState==='loading')addEventListener('DOMContentLoaded',start,{once:true});else start();addEventListener('load',queue);addEventListener('resize',queue);})();`;
+  doc.body.append(sizing);
   return '<!doctype html>\n'+doc.documentElement.outerHTML;
 }

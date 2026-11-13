@@ -11,6 +11,7 @@
           streaming: message.streaming,
           executing: isExecutionRunning(message),
           'streaming-has-content': message.streaming && message.content,
+          'has-html-report': !message.streaming && !!messageVisualReport(message)?.htmlReport,
         },
       ]"
     >

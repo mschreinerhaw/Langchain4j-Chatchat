@@ -1,0 +1,19 @@
+{
+  "status": "passed",
+  "entry": "http://192.168.195.221:18100/",
+  "deployedComponent": true,
+  "authenticatedBundleLoaded": true,
+  "secureContext": false,
+  "images": [
+    {
+      "complete": true,
+      "width": 1406,
+      "height": 810
+    },
+    {
+      "complete": true,
+      "width": 1415,
+      "height": 521
+    }
+  ]
+}

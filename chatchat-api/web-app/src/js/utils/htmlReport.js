@@ -30,6 +30,16 @@ export async function assembleHtmlReport(bundle){
   const base='https://report.invalid/'+bundle.report.entryPath;
   function resource(ref,from=base){const url=new URL(ref,from);if(url.origin!=='https://report.invalid'||url.search||url.hash)throw new Error('报告包含未交付的外部资源');const file=files.get(decodeURIComponent(url.pathname.slice(1)));if(!file)throw new Error('报告依赖文件缺失：'+ref);return file;}
   const data=file=>`data:${file.type};base64,${file.content}`;
+  // These bytes are already covered by the delivered HTML's verified SHA-256.
+  // Treat supported embedded images as local content, never as network URLs.
+  function embeddedImage(ref){
+    if(!/^data:/i.test(ref))return null;
+    const match=/^data:(image\/(?:png|jpeg|webp|svg\+xml));base64,([A-Za-z0-9+/]*={0,2})$/i.exec(ref);
+    if(!match)throw new Error('报告内嵌图片格式无效');
+    let bytes;try{bytes=atob(match[2]);}catch{throw new Error('报告内嵌图片编码无效');}
+    if(!bytes.length||bytes.length>8*1024*1024)throw new Error('报告内嵌图片大小校验失败');
+    return `data:${match[1].toLowerCase()};base64,${match[2]}`;
+  }
   function css(text,from){if(/@import\b/i.test(text))throw new Error('请将样式依赖打包后交付');return text.replace(/url\(\s*(['"]?)(.*?)\1\s*\)/gi,(_,quote,ref)=>(/^(?:#|data:(?:image\/|font\/))/i.test(ref))?`url(${ref})`:`url("${data(resource(ref,from))}")`);}
   const doc=new DOMParser().parseFromString(entry.text,'text/html');
   doc.querySelectorAll('base,meta[http-equiv],iframe,frame,object,embed,form').forEach(el=>el.remove());
@@ -44,7 +54,7 @@ export async function assembleHtmlReport(bundle){
     if(el.type==='module')throw new Error('请将模块脚本打包为普通 JS 后交付');
     if(el.hasAttribute('src')){const file=resource(el.getAttribute('src'));if(file.type!=='text/javascript')throw new Error('脚本资源类型不匹配');el.setAttribute('src',data(file));el.removeAttribute('integrity');}
   }
-  for(const el of doc.querySelectorAll('[src]:not(script)')){el.setAttribute('src',data(resource(el.getAttribute('src'))));el.removeAttribute('srcset');}
+  for(const el of doc.querySelectorAll('[src]:not(script)')){const ref=el.getAttribute('src');el.setAttribute('src',(el.tagName==='IMG'&&embeddedImage(ref))||data(resource(ref)));el.removeAttribute('srcset');}
   doc.querySelectorAll('[srcset]').forEach(el=>el.removeAttribute('srcset'));
   doc.querySelectorAll('a[href],area[href]').forEach(el=>{if(!el.getAttribute('href').startsWith('#'))el.removeAttribute('href');el.removeAttribute('target');el.removeAttribute('ping');});
   const virtual=Object.fromEntries([...files].map(([path,file])=>[path,{content:file.content,type:file.type}]));

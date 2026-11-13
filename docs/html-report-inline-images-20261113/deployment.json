@@ -1,0 +1,14 @@
+{
+  "image": "runtime-public-gateway:inline-images-20261113",
+  "gatewayImageId": "sha256:cfe72569a45c87308f7f3fa67741b5c6542de9413e26a9846abba359bcc3b452",
+  "backendImageUnchanged": true,
+  "apiImageId": "sha256:4458af182ff49ae526d39092ae0830079c8184c88bfe7fee596e2f8ff4fddb03",
+  "entryAddress": "http://192.168.195.221:18100/",
+  "indexSha256": "c682aac515cecaa37ecc920567479c7d08c2930c094ec6bce9a5d195fe547528",
+  "servedIndexMatchesBuild": true,
+  "deploymentManifest": "/opt/runtime-os-docker-stage/compose.gateway-ui.json",
+  "legacyComposeIssue": "Existing studio-gateway dependency references removed api service; gateway deployed through scoped manifest without changing unrelated services",
+  "maintenanceProject": "runtime-os-stage-maintenance",
+  "staticAssetPermissions": "world-readable in image; root filesystem remains read-only",
+  "productionBrowserVerified": true
+}

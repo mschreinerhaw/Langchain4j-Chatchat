@@ -25,3 +25,14 @@ it('still verifies hashes on HTTP where Web Crypto is unavailable',async()=>{
  try{const value=await bundle('<h1>HTTP report</h1>');expect(await assembleHtmlReport(value)).toContain('HTTP report');value.files[0].sha256='0'.repeat(64);await expect(assembleHtmlReport(value)).rejects.toThrow();}
  finally{Object.defineProperty(globalThis,'crypto',{value:webcrypto,configurable:true});}
 });
+it('renders embedded PNGs covered by the delivered HTML hash without separate files',async()=>{
+ const png='data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAusB9Wl6PQAAAABJRU5ErkJggg==';
+ const result=await assembleHtmlReport(await bundle(`<h1>Delivered report</h1><img src="${png}">`));
+ const doc=new DOMParser().parseFromString(result,'text/html');expect(doc.querySelector('img').getAttribute('src')).toBe(png);
+ expect(result).toContain("connect-src 'none'");
+ const changed=await bundle(`<img src="${png}">`);changed.files[0].sha256='0'.repeat(64);await expect(assembleHtmlReport(changed)).rejects.toThrow('完整性');
+});
+it('rejects non-image data URLs and malformed embedded images',async()=>{
+ for(const ref of ['data:text/html;base64,PHNjcmlwdD4=','data:image/png;base64,@@@@','data:image/png;base64,'])await expect(assembleHtmlReport(await bundle(`<img src="${ref}">`))).rejects.toThrow();
+ await expect(assembleHtmlReport(await bundle('<script src="data:text/javascript;base64,YWxlcnQoMSk="></script>'))).rejects.toThrow();
+});

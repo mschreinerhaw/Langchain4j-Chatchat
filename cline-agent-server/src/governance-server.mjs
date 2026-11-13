@@ -1,4 +1,4 @@
-import {resolveRuntimeModel} from './runtime-model.mjs';
+import {resolveRuntimeModel,applyPublishedModelLimit} from './runtime-model.mjs';
 import {proxyFrontend,stageFrontendTransport} from './frontend-proxy.mjs';
 import {stageNativeSkills,stageNativeDownload,runtimeMcpReply,nativeSkillDiscoveryContext} from './native-capability-files.mjs';
 import http from 'node:http';
@@ -118,7 +118,8 @@ async function broker(r,path){
     requestBody=await body(req);const profile=(r.modelConnection??cfg.modelProfiles[r.contract.modelProfile]);modelProfile=profile;
     if(requestBody.model!==profile.model)throw error('Model outside task profile',403);
     url=profile.baseUrl.replace('{sessionId}',r.contract.sessionId).replace(/\/$/,'')+req.url.slice('/model/v1'.length);headers={'Authorization':'Bearer '+profile.apiKey,'content-type':'application/json'};
-    event(r,'model.forwarded',{model:profile.model});
+    applyPublishedModelLimit(requestBody,profile,req.url.endsWith('/responses'));
+    event(r,'model.forwarded',{model:profile.model,maxTokens:profile.maxTokens??null});
    }else throw error('Broker route not found',404);
    if(!live(r))throw error('Task lease inactive',403);
    const controller=new AbortController();if(!calls.has(r.workerId))calls.set(r.workerId,new Set());calls.get(r.workerId).add(controller);

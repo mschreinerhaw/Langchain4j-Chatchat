@@ -1,0 +1,30 @@
+{
+  "tests": {
+    "ExplorationAgentBridgeTest": 17,
+    "NativeSiloTaskServiceTest": 8,
+    "runtimeModelNodeTests": 3,
+    "failures": 0
+  },
+  "deployment": {
+    "host": "192.168.195.221",
+    "apiImage": "sha256:59b6de7a5c0ef743b7d58c804faae590d15895c973d909bfa9c4ee349b77c464",
+    "nodeImage": "sha256:b9d7014578a1d1d9b863176f6fb15250a62fd2a373789fdee2112d2c3309e9f6",
+    "backup": "/opt/runtime-os/releases/exploration-model-fix-20261113/compose.before.private.json"
+  },
+  "live": {
+    "workspaceId": "f5da0c16-b005-4490-9287-02d9352b18d4",
+    "nodeId": "9fc21999-ce3b-41e8-b879-dfa844c87cca",
+    "codingTaskId": "temporal-native-8785ef6ea46f6cadf00111c7029fc6db8b99a8805ee151ef65392e1844942e39",
+    "observedProviderModel": "qwen3.6-plus",
+    "observedPublishedMaxTokens": -1,
+    "status": "PARTIAL",
+    "snapshotLimitPassed": true,
+    "finalReportVerified": true,
+    "terminal": true,
+    "resultAvailable": true,
+    "deliveryStatus": "FINAL",
+    "reportCharacters": 1121,
+    "completeFourStockAnalysis": false,
+    "limitations": "Partial report: source data incomplete; no complete four-stock visual report acceptance."
+  }
+}

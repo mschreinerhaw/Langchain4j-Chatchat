@@ -37,14 +37,14 @@ public final class NativeS3Settings {
         var config=resolve(model);
         return Map.of("logicalName",model,"providerModel",config.getModelName());
     }
-    public Map<String,String> connection(String model){
+    public Map<String,Object> connection(String model){
         var config=resolve(model);
         if(!Set.of("openai","auto").contains(Objects.toString(config.getProtocol(),"auto").toLowerCase(Locale.ROOT)))throw new IllegalArgumentException("Native model requires OpenAI compatible transport");
         var uri=URI.create(config.getBaseUrl());
         if(!Set.of("http","https").contains(uri.getScheme())||uri.getHost()==null||uri.getUserInfo()!=null||uri.getQuery()!=null||uri.getFragment()!=null||config.getApiKey()==null||config.getApiKey().isBlank())throw new IllegalArgumentException("Invalid published model connection");
         String path=uri.getPath().replaceAll("/+$", "");
         if(path.endsWith("/chat/completions"))path=path.substring(0,path.length()-"/chat/completions".length());
-        return Map.of("model",config.getModelName(),"baseUrl",uri.getScheme()+"://"+uri.getRawAuthority()+path,"apiKey",config.getApiKey());
+        return Map.of("model",config.getModelName(),"baseUrl",uri.getScheme()+"://"+uri.getRawAuthority()+path,"apiKey",config.getApiKey(),"maxTokens",config.getMaxTokens());
     }
     public NativeS3Settings(@Value("${chatchat.runtime.coding.unified.config-file}")String file,ObjectMapper json)throws Exception{
         Path path=Path.of(file);

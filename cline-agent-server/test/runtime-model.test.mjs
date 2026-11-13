@@ -1,6 +1,6 @@
 ﻿import test from 'node:test';
 import assert from 'node:assert/strict';
-import {resolveRuntimeModel} from '../src/runtime-model.mjs';
+import {resolveRuntimeModel,applyPublishedModelLimit} from '../src/runtime-model.mjs';
 import {signContract,verifyContract,runtimeModelProfile} from '../src/task-contract.mjs';
 import {taskGrant} from '../src/worker-executor-policy.mjs';
 const model={logicalName:'selected-new',providerModel:'actual-provider-id'};
@@ -22,4 +22,11 @@ test('model credentials use only fixed authority; response is task-bound and nev
  await assert.rejects(resolve({model:'other',baseUrl:'https://provider/v1',apiKey:'private'}),/binding differs/);
  await assert.rejects(resolve({},403),/authority rejected/);
  await assert.rejects(resolve({model:model.providerModel,baseUrl:'https://provider/v1',apiKey:'x'.repeat(40000)}),/byte budget/);
+});
+
+test('publication overrides Core defaults and unlimited removes all token caps',()=>{
+ assert.deepEqual(applyPublishedModelLimit({max_tokens:8192,max_completion_tokens:12},{maxTokens:65536}),{max_tokens:65536});
+ assert.deepEqual(applyPublishedModelLimit({max_output_tokens:8192},{maxTokens:-1},true),{});
+ assert.deepEqual(applyPublishedModelLimit({},{maxTokens:123},true),{max_output_tokens:123});
+ assert.throws(()=>applyPublishedModelLimit({},{maxTokens:0}));
 });

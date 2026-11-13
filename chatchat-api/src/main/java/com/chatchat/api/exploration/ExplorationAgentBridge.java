@@ -61,6 +61,8 @@ public class ExplorationAgentBridge {
         var input=new LinkedHashMap<String,Object>();input.put("reportMode","visual");input.put("reportPresentation",com.chatchat.common.runtime.coding.ReportPresentation.read(node.path("reportPresentation").isObject()?Map.of("reportPresentation",json.convertValue(node.path("reportPresentation"),Map.class)):Map.of()));input.put("visualizationSupportedTypes",List.of("bar","line","scatter","pie"));
         var files=new ArrayList<String>();node.path("fileIds").forEach(id->files.add(id.asText()));
         if(!files.isEmpty())input.put("__userAssetIds",List.copyOf(files));
+        String selected=node.path("modelName").asText("");
+        request.setModelName(selected.isBlank()?skill.modelName():selected);
         request.setQuery(query);request.setToolInput(input);
         var submitted=tasks.submit(request);return snapshot(owner,submitted.taskId());
     }
@@ -157,7 +159,7 @@ public class ExplorationAgentBridge {
         receipt.put("resultAvailable",visual!=null||success&&!answer.isBlank());
         receipt.put("provisional",!state.terminal());
         receipt.put("deliveryStatus",!state.terminal()?"IN_PROGRESS":success?"FINAL":visual!=null?"PRESERVED_AFTER_FAILURE":"UNAVAILABLE");
-        if(state.terminal()&&!success&&state!=AgentExecutionState.CANCELLED)receipt.put("error",Objects.toString(task.errorMessage(),"分析未完成"));
+        if(state.terminal()&&!success&&state!=AgentExecutionState.CANCELLED)receipt.put("error",Objects.toString(task.errorMessage()==null||task.errorMessage().isBlank()?(answer.isBlank()?null:answer):task.errorMessage(),"分析未完成"));
         return receipt;
     }
     private ObjectNode progressEvent(com.chatchat.chat.task.event.AgentEvent event) {

@@ -41,8 +41,8 @@ public class CodingAnalysisProperties {
     public void setMaxToolCalls(CodingLimit value){maxToolCalls=value;}
     private String maxCostAmount = "10";
     private String costCurrency = "USD";
-    private long maxInputRows = 100000;
-    private long maxInputBytes = 16L * 1024 * 1024;
+    private long maxInputRows = 1000000;
+    private long maxInputBytes = 256L * 1024 * 1024;
     private long maxResultRows = 10000;
     private long maxResultBytes = 4L * 1024 * 1024;
     private long maxMemoryBytes = 512L * 1024 * 1024;

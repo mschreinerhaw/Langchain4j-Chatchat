@@ -14,6 +14,13 @@ import static org.mockito.Mockito.*;
 import static org.mockito.ArgumentMatchers.*;
 /** Execution boundaries are mocked; these tests are not live Agent evidence. */
 class ExplorationAgentBridgeTest {
+ @Test void forwardsExplicitModelAndFallsBackToPublishedAgentModel(){
+   when(tasks.submit(any())).thenReturn(task);when(agent.modelName()).thenReturn("agent-model");
+   var node=json.createObjectNode().put("id","node").put("agentId","authorized").put("question","Analyze");
+   bridge.submit(owner,node,null);verify(tasks).submit(argThat(r->"agent-model".equals(r.getModelName())));
+   clearInvocations(tasks);node.put("modelName","selected-model");bridge.submit(owner,node,null);
+   verify(tasks).submit(argThat(r->"selected-model".equals(r.getModelName())));
+ }
  @Test void freezesThePreparedVisualizationScenarioIntoTheExistingAgentTask(){
    when(tasks.submit(any())).thenReturn(task);
    var node=json.createObjectNode().put("id","node").put("agentId","authorized").put("question","Compare supplied data");

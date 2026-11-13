@@ -31,7 +31,9 @@ public class NativeTaskCapabilities {
     public Map<String,Object> capture(KernelDataScope scope,String model,Map<String,Object> attributes,Map<String,Object> metadata){
         if(model==null||model.isBlank())model=settings.defaultModel();
         var value=new LinkedHashMap<String,Object>(CodingConfigurationSnapshot.capture(attributes,metadata));
-        value.put("model",Map.of("selectedModel",model));
+        var modelSnapshot=new LinkedHashMap<String,Object>((Map<String,Object>)value.get("model"));
+        modelSnapshot.put("selectedModel",model);
+        value.put("model",modelSnapshot);
         if(com.chatchat.common.runtime.coding.VisualReportMode.active(attributes)){
             value.put("reportMode","visual");value.put("reportPresentation",com.chatchat.common.runtime.coding.ReportPresentation.read(attributes));
         }

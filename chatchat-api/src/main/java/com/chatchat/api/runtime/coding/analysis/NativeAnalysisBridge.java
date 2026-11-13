@@ -43,7 +43,7 @@ public final class NativeAnalysisBridge {
                     if(context.cancellationCheck().getAsBoolean())throw new java.util.concurrent.CancellationException();
                     var page=source.handle().readPage(offset,1024);
                     for(var row:page.rows())try{byte[] data=json.writeValueAsBytes(row);output.write(data);output.write('\n');bytes+=data.length+1;rows++;
-                        if(bytes>policy.getMaxInputBytes()||rows>policy.getMaxInputRows())throw new IllegalArgumentException("Authorized Native snapshot exceeds configured input resources");
+                        if(bytes>policy.getMaxInputBytes()||rows>policy.getMaxInputRows())throw new IllegalArgumentException("Authorized Native snapshot exceeds configured input resources: rows="+rows+"/"+policy.getMaxInputRows()+", bytes="+bytes+"/"+policy.getMaxInputBytes()+", source="+source.reference());
                     }catch(java.io.IOException invalid){throw new IllegalStateException("Authorized row snapshot encoding failed",invalid);}
                     offset+=page.rows().size();if(!page.hasMore())break;if(page.rows().isEmpty())throw new IllegalStateException("Source paging made no progress");
                 }

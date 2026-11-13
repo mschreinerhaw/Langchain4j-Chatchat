@@ -1,0 +1,78 @@
+{
+  "passed": true,
+  "origin": "http://192.168.195.221:18100",
+  "tasks": [
+    {
+      "taskId": "temporal-native-7d0e8b394e6133870096a20511b23a2d0cec0c2a7c899ff38e38f2813ba06858",
+      "runId": "coding-dac20dbc2f93435b0e197118179efa69cf301cab038852545c666faf5634414e",
+      "nodeId": "cline-worker-1",
+      "workflowId": "native-analysis-v1-e36e17002ef77116e0b6db02b97ef45b4ce13531b19f4c8427e6105eed2d2bc8",
+      "workflowStatus": "WORKFLOW_EXECUTION_STATUS_COMPLETED",
+      "status": "COMPLETED",
+      "numericValidation": {
+        "count": 4,
+        "total": 40,
+        "mean": 10
+      },
+      "artifacts": [
+        {
+          "id": "78ab6effc563379c40c0760ba24993cd09677aae3216d319bf2791d06c553ae6",
+          "fileName": "analyze_synthetic_amount.py",
+          "size": 4950,
+          "sha256": "36c956f513e5b12d5beb51e2f668b4e3c5a5e21c39c00047baadd81b93d52ed6"
+        },
+        {
+          "id": "a06a3d162f8f20960aa23fe53f5844f5a2ccbc5bd3d0e2a2fb1600cd733c52a6",
+          "fileName": "synthetic_amount_result.json",
+          "size": 50,
+          "sha256": "1095a6de26f051004773145a4ab5abcd356a806b1b7c1bc8aaf029ad314f43b0"
+        },
+        {
+          "id": "5070edf89563c6dc342ff839d57204edae0fc8a1e32de0bab488080ccb5f7a27",
+          "fileName": "synthetic_amount_report.md",
+          "size": 1248,
+          "sha256": "60ae9cf9926c93340b8081646719860bfc021f862706d88bb5a2d32c8e067361"
+        }
+      ],
+      "realModelRequests": 9,
+      "commands": 5
+    },
+    {
+      "taskId": "temporal-native-63e4e96610fbae6954cc4518b1138c1f9658ffc9b86aa8c943a8561911b3242a",
+      "runId": "coding-4079912873e0f0d10c9ef2a3c8155e6bf1cec8ee04b8cea719ebee85f68fdfe8",
+      "nodeId": "cline-worker-2",
+      "workflowId": "native-analysis-v1-17adb31b34d1c50edad9427ece0e010c330b2e23516cae510e4283869a56da76",
+      "workflowStatus": "WORKFLOW_EXECUTION_STATUS_COMPLETED",
+      "status": "COMPLETED",
+      "numericValidation": {
+        "count": 4,
+        "total": 40,
+        "mean": 10
+      },
+      "artifacts": [
+        {
+          "id": "b1f77888254e8802549b65bc49c9ed7428e04b044ac51a6b5e7c3ea785d15348",
+          "fileName": "synthetic_amount_analysis.py",
+          "size": 5233,
+          "sha256": "32f2d45ffdb60c95c8d34ef5795ef6316f23ce16893586926ce224a3881f1caa"
+        },
+        {
+          "id": "73221f353c8443b653d5e6952fdb56de03db01292de884a9ebe7ce720a7cd837",
+          "fileName": "synthetic_amount_result.json",
+          "size": 50,
+          "sha256": "1095a6de26f051004773145a4ab5abcd356a806b1b7c1bc8aaf029ad314f43b0"
+        },
+        {
+          "id": "3ad1ff2dc43fa2287940520c2930eb36b7160aa1abb17e2707bfecf903d4e274",
+          "fileName": "synthetic_amount_report.md",
+          "size": 1149,
+          "sha256": "9cbded349030eceafc1d02da60ed2775429892c248fb8aa0ed2ab069ea0d1090"
+        }
+      ],
+      "realModelRequests": 7,
+      "commands": 3
+    }
+  ],
+  "firstProbeHarnessNetworkFailurePreserved": true,
+  "storageFaultTaskRecovered": true
+}

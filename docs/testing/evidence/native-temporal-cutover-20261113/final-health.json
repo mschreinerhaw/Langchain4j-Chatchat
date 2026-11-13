@@ -1,0 +1,71 @@
+{
+  "passed": true,
+  "at": "2026-11-13T01:45:47.356388+00:00",
+  "productionDataRetained": true,
+  "productionQueueEnabled": true,
+  "scheduler": "temporal",
+  "oldApiStoppedAndDisconnected": true,
+  "pageAndMonitorAndSiloHealth": "PASS",
+  "unauthorizedMonitorStatuses": [
+    401,
+    401
+  ],
+  "freeDiskBytes": 12927258624,
+  "services": [
+    {
+      "name": "runtime-native-temporal-api",
+      "imageId": "sha256:4458af182ff49ae526d39092ae0830079c8184c88bfe7fee596e2f8ff4fddb03",
+      "status": "running"
+    },
+    {
+      "name": "runtime-native-temporal-worker1",
+      "imageId": "sha256:4458af182ff49ae526d39092ae0830079c8184c88bfe7fee596e2f8ff4fddb03",
+      "status": "running"
+    },
+    {
+      "name": "runtime-native-temporal-worker2",
+      "imageId": "sha256:4458af182ff49ae526d39092ae0830079c8184c88bfe7fee596e2f8ff4fddb03",
+      "status": "running"
+    },
+    {
+      "name": "runtime-native-temporal-node1",
+      "imageId": "sha256:173f7368811538659bc122f5608dfd9debaa3647ea7c0cad57357eebad2dd822",
+      "status": "running"
+    },
+    {
+      "name": "runtime-native-temporal-node2",
+      "imageId": "sha256:173f7368811538659bc122f5608dfd9debaa3647ea7c0cad57357eebad2dd822",
+      "status": "running"
+    },
+    {
+      "name": "runtime-native-temporal-server",
+      "imageId": "sha256:475c66b65627b0d2d4a79c8943280b7faec46be24d9652d5e8d0ee710338249a",
+      "status": "running"
+    },
+    {
+      "name": "runtime-os-app-stage-gateway-1",
+      "imageId": "sha256:c05939e13a616cd46ade6515e869aa24451ce7dc28d6f4f9ee8c6b1ec03fbf39",
+      "status": "running"
+    },
+    {
+      "name": "runtime-os-app-stage-mcp-1",
+      "imageId": "sha256:8e4ce47bbd085aa93162c588922ec4a49a57f297364bcbc8f012e0965d3d468a",
+      "status": "running"
+    },
+    {
+      "name": "runtime-os-app-stage-news-1",
+      "imageId": "sha256:bb3eb1e22e3d14582f6df98d83a7cfbe8f31f6ad9b4bce7b80e5adc32fa9a40c",
+      "status": "running"
+    },
+    {
+      "name": "silo",
+      "imageId": "sha256:be37cae6c0545e6d3910e5b5578df376b9069c7f9cfe05d521cd91cabfa6cc38",
+      "status": "running"
+    },
+    {
+      "name": "postgresql18",
+      "imageId": "sha256:662db3da228c2ea2649b3ae04db4b4479e85fea5979f6a917a7f6d5cb1e7ec39",
+      "status": "running"
+    }
+  ]
+}

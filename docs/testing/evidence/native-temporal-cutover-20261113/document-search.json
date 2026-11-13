@@ -1,0 +1,229 @@
+{
+  "passed": true,
+  "scope": "REAL_NATIVE_DOCUMENT_SEARCH_AGENT_ACL_DELIVERY",
+  "startedAt": "2026-11-13T01:43:24.233Z",
+  "taskId": "temporal-native-db67a54c530cf64eddae3c6afe34680389d6e5d52b1f53ea4a1a12fcfd1106cb",
+  "runId": "coding-7eab27d6d628abcac6ac4d4dba115c0e542c6da281c9bc3c3f0a56b891d563fa",
+  "status": "COMPLETED",
+  "modelReceipts": [
+    {
+      "eventType": "model.request.completed",
+      "requestId": "1781a104-2693-4d3f-91bf-c8bce380878d",
+      "providerRequestId": "0f9756a8-e5c0-9604-bc9f-72e172fb543a",
+      "model": "qwen3.7-plus",
+      "status": "SUCCEEDED",
+      "usage": {
+        "inputTokens": 8748,
+        "outputTokens": 262,
+        "totalTokens": 9010,
+        "cacheReadTokens": 8064,
+        "cacheWriteTokens": null,
+        "reasoningTokens": 15,
+        "totalSource": "PROVIDER",
+        "cacheAccounting": "CACHE_IS_INPUT_SUBSET",
+        "raw": {
+          "prompt_tokens": 8748,
+          "total_tokens": 9010,
+          "completion_tokens": 262,
+          "prompt_tokens_details": {
+            "cached_tokens": 8064,
+            "text_tokens": 8748
+          },
+          "completion_tokens_details": {
+            "reasoning_tokens": 15,
+            "text_tokens": 262
+          }
+        }
+      },
+      "durationMs": 5252,
+      "httpStatus": 200
+    },
+    {
+      "eventType": "model.request.completed",
+      "requestId": "48df5879-64e8-4ba6-ac71-a1196c325873",
+      "providerRequestId": "fc0e4a8a-299c-9cb7-adbd-5e70b0b061d5",
+      "model": "qwen3.7-plus",
+      "status": "SUCCEEDED",
+      "usage": {
+        "inputTokens": 6412,
+        "outputTokens": 145,
+        "totalTokens": 6557,
+        "cacheReadTokens": 5760,
+        "cacheWriteTokens": null,
+        "reasoningTokens": 51,
+        "totalSource": "PROVIDER",
+        "cacheAccounting": "CACHE_IS_INPUT_SUBSET",
+        "raw": {
+          "prompt_tokens": 6412,
+          "total_tokens": 6557,
+          "completion_tokens": 145,
+          "prompt_tokens_details": {
+            "cached_tokens": 5760,
+            "text_tokens": 6412
+          },
+          "completion_tokens_details": {
+            "reasoning_tokens": 51,
+            "text_tokens": 145
+          }
+        }
+      },
+      "durationMs": 3202,
+      "httpStatus": 200
+    },
+    {
+      "eventType": "model.request.completed",
+      "requestId": "8cb74743-0d81-44e6-b49e-9f069a1ca37f",
+      "providerRequestId": "bce4e510-7cc3-9a84-99ba-0fc6d4991604",
+      "model": "qwen3.7-plus",
+      "status": "SUCCEEDED",
+      "usage": {
+        "inputTokens": 6099,
+        "outputTokens": 216,
+        "totalTokens": 6315,
+        "cacheReadTokens": 0,
+        "cacheWriteTokens": null,
+        "reasoningTokens": 131,
+        "totalSource": "PROVIDER",
+        "cacheAccounting": "CACHE_IS_INPUT_SUBSET",
+        "raw": {
+          "prompt_tokens": 6099,
+          "total_tokens": 6315,
+          "completion_tokens": 216,
+          "prompt_tokens_details": {
+            "cached_tokens": 0,
+            "text_tokens": 6099
+          },
+          "completion_tokens_details": {
+            "reasoning_tokens": 131,
+            "text_tokens": 216
+          }
+        }
+      },
+      "durationMs": 4931,
+      "httpStatus": 200
+    },
+    {
+      "eventType": "model.request.completed",
+      "requestId": "c81cfb2b-8b66-4762-94f3-32983e7c6f46",
+      "providerRequestId": "351fa2bb-b0da-9e15-ac98-6bce532eef45",
+      "model": "qwen3.7-plus",
+      "status": "SUCCEEDED",
+      "usage": {
+        "inputTokens": 8495,
+        "outputTokens": 88,
+        "totalTokens": 8583,
+        "cacheReadTokens": 8064,
+        "cacheWriteTokens": null,
+        "reasoningTokens": 10,
+        "totalSource": "PROVIDER",
+        "cacheAccounting": "CACHE_IS_INPUT_SUBSET",
+        "raw": {
+          "prompt_tokens": 8495,
+          "total_tokens": 8583,
+          "completion_tokens": 88,
+          "prompt_tokens_details": {
+            "cached_tokens": 8064,
+            "text_tokens": 8495
+          },
+          "completion_tokens_details": {
+            "reasoning_tokens": 10,
+            "text_tokens": 88
+          }
+        }
+      },
+      "durationMs": 2257,
+      "httpStatus": 200
+    },
+    {
+      "eventType": "model.request.completed",
+      "requestId": "ce725c1d-f696-4f6b-acb3-2f83fe728f65",
+      "providerRequestId": "99f4295c-7f2a-9ab0-b804-7a3f983806fa",
+      "model": "qwen3.7-plus",
+      "status": "SUCCEEDED",
+      "usage": {
+        "inputTokens": 8322,
+        "outputTokens": 128,
+        "totalTokens": 8450,
+        "cacheReadTokens": 6912,
+        "cacheWriteTokens": null,
+        "reasoningTokens": 13,
+        "totalSource": "PROVIDER",
+        "cacheAccounting": "CACHE_IS_INPUT_SUBSET",
+        "raw": {
+          "prompt_tokens": 8322,
+          "total_tokens": 8450,
+          "completion_tokens": 128,
+          "prompt_tokens_details": {
+            "cached_tokens": 6912,
+            "text_tokens": 8322
+          },
+          "completion_tokens_details": {
+            "reasoning_tokens": 13,
+            "text_tokens": 128
+          }
+        }
+      },
+      "durationMs": 3013,
+      "httpStatus": 200
+    },
+    {
+      "eventType": "model.request.completed",
+      "requestId": "ed9dfa67-3a89-4e2c-9eae-6bc80722ee72",
+      "providerRequestId": "b5920ba0-c65d-9ab2-81ae-b87946b6dd20",
+      "model": "qwen3.7-plus",
+      "status": "SUCCEEDED",
+      "usage": {
+        "inputTokens": 7423,
+        "outputTokens": 832,
+        "totalTokens": 8255,
+        "cacheReadTokens": 6272,
+        "cacheWriteTokens": null,
+        "reasoningTokens": 170,
+        "totalSource": "PROVIDER",
+        "cacheAccounting": "CACHE_IS_INPUT_SUBSET",
+        "raw": {
+          "prompt_tokens": 7423,
+          "total_tokens": 8255,
+          "completion_tokens": 832,
+          "prompt_tokens_details": {
+            "cached_tokens": 6272,
+            "text_tokens": 7423
+          },
+          "completion_tokens_details": {
+            "reasoning_tokens": 170,
+            "text_tokens": 832
+          }
+        }
+      },
+      "durationMs": 14273,
+      "httpStatus": 200
+    }
+  ],
+  "artifacts": [
+    {
+      "name": "0-result.json",
+      "sha256": "c45d6afa803612fbb2e490ff4021d6a9d788ab6f449f2aa3169a2e92a3504aeb",
+      "size": 932,
+      "kind": "ARTIFACT"
+    },
+    {
+      "name": "1-report.md",
+      "sha256": "d88abbeb1470300322821d60cd0447f0e9e35664fc4b8be1383a7385a61c6142",
+      "size": 1240,
+      "kind": "ARTIFACT"
+    },
+    {
+      "name": "2-document-search-receipt.json",
+      "sha256": "7a620942bda420e7c980e8cbcf4eb974c5043d0d5de6c791727b4d20cfe8109c",
+      "size": 1131,
+      "kind": "LOG"
+    }
+  ],
+  "documentSearchReceiptCount": 1,
+  "returnedDocumentIds": [
+    "native-doc-assigned-dfcecdc8f5"
+  ],
+  "unassignedDocumentExcluded": true,
+  "independentSourceFactsVerified": true,
+  "finishedAt": "2026-11-13T01:44:22.006Z"
+}

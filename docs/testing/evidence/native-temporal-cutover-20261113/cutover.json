@@ -1,0 +1,13 @@
+{
+  "status": "SWITCHED",
+  "at": "2026-11-13T01:31:56.168345+00:00",
+  "entry": "http://192.168.195.221:18100",
+  "monitor": "http://192.168.195.221:18100/monitor/",
+  "sourceCommit": "d1d706f72bdb78a95cc254df8aa29344f9f65b50",
+  "backupDirectory": "/opt/runtime-os/native-temporal/rc-20261112/evidence/cutover-20261113-093044",
+  "oldApiStopped": true,
+  "oldApiRestartPolicy": "no",
+  "productionDataRetained": true,
+  "productionBackgroundQueueRetained": "true",
+  "authenticatedLogin": true
+}

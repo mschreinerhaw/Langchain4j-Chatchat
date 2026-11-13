@@ -1,0 +1,12 @@
+{
+  "at": "2026-11-13T01:30:31.565478+00:00",
+  "offlineArchiveRelocatedTo": "/root/runtime-os-release-archives/runtime-os-temporal-d1d706f72bdb.tar.gz",
+  "sha256": "e842f70d9d516e24c806bff87ea45aee3ca04a8d5929a3b8b062e8e47ea1bb97",
+  "originalPathSymlinkRetained": "/opt/runtime-os/releases/temporal-native-d1d706f72bdb-20261113/distribution/runtime-os-temporal-d1d706f72bdb.tar.gz",
+  "removedReextractableBuildSources": [
+    "/opt/runtime-os/releases/temporal-native-ea727660584c-20261113/source",
+    "/opt/runtime-os/releases/temporal-native-20261112-r1/source"
+  ],
+  "freeBefore": 20480,
+  "freeAfter": 1820073984
+}

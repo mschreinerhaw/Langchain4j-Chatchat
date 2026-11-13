@@ -1,0 +1,742 @@
+{
+  "label": "production-entry-final",
+  "passed": true,
+  "startedAt": "2026-11-13T01:44:00.004Z",
+  "tasks": [
+    {
+      "index": 0,
+      "userId": "2f219487-11a3-4a1d-9130-ac500b62f268",
+      "requestId": "temporal-9fe899eb-183c-4a8f-a80d-32f796ec7f34",
+      "taskId": "temporal-native-63e4e96610fbae6954cc4518b1138c1f9658ffc9b86aa8c943a8561911b3242a",
+      "runId": "coding-4079912873e0f0d10c9ef2a3c8155e6bf1cec8ee04b8cea719ebee85f68fdfe8",
+      "submittedAt": 1794534241168,
+      "finishedAt": 1794534318656,
+      "status": "COMPLETED",
+      "detailFile": "task-0.json",
+      "numericVerified": true,
+      "receiptsVerified": true,
+      "artifacts": [
+        {
+          "id": "b1f77888254e8802549b65bc49c9ed7428e04b044ac51a6b5e7c3ea785d15348",
+          "name": "synthetic_amount_analysis.py",
+          "sha256": "32f2d45ffdb60c95c8d34ef5795ef6316f23ce16893586926ce224a3881f1caa",
+          "size": 5233
+        },
+        {
+          "id": "73221f353c8443b653d5e6952fdb56de03db01292de884a9ebe7ce720a7cd837",
+          "name": "synthetic_amount_result.json",
+          "sha256": "1095a6de26f051004773145a4ab5abcd356a806b1b7c1bc8aaf029ad314f43b0",
+          "size": 50
+        },
+        {
+          "id": "3ad1ff2dc43fa2287940520c2930eb36b7160aa1abb17e2707bfecf903d4e274",
+          "name": "synthetic_amount_report.md",
+          "sha256": "9cbded349030eceafc1d02da60ed2775429892c248fb8aa0ed2ab069ea0d1090",
+          "size": 1149
+        }
+      ]
+    }
+  ],
+  "samples": [
+    {
+      "at": 1794534241795,
+      "index": 0,
+      "status": "RUNNING",
+      "workflow": {
+        "workflowId": "native-analysis-v1-17adb31b34d1c50edad9427ece0e010c330b2e23516cae510e4283869a56da76",
+        "taskQueue": "runtime-native-analysis-v1",
+        "availability": "AVAILABLE",
+        "workflowStatus": "WORKFLOW_EXECUTION_STATUS_RUNNING",
+        "workflowRunId": "01a1d293-7585-7cb2-81bf-faf0100f41f6",
+        "historyEvents": 9,
+        "pendingActivities": [
+          {
+            "workerIdentity": "cline-worker-2",
+            "attempt": 1,
+            "state": "PENDING_ACTIVITY_STATE_STARTED",
+            "activityId": "177778e4-0dbd-34fb-9332-c24e4ffc3130"
+          }
+        ]
+      },
+      "nodeId": "cline-worker-2",
+      "executions": 0,
+      "modelRequests": 0
+    },
+    {
+      "at": 1794534248354,
+      "index": 0,
+      "status": "RUNNING",
+      "workflow": {
+        "workflowId": "native-analysis-v1-17adb31b34d1c50edad9427ece0e010c330b2e23516cae510e4283869a56da76",
+        "taskQueue": "runtime-native-analysis-v1",
+        "availability": "AVAILABLE",
+        "workflowStatus": "WORKFLOW_EXECUTION_STATUS_RUNNING",
+        "workflowRunId": "01a1d293-7585-7cb2-81bf-faf0100f41f6",
+        "historyEvents": 9,
+        "pendingActivities": [
+          {
+            "workerIdentity": "cline-worker-2",
+            "attempt": 1,
+            "state": "PENDING_ACTIVITY_STATE_STARTED",
+            "activityId": "177778e4-0dbd-34fb-9332-c24e4ffc3130"
+          }
+        ]
+      },
+      "nodeId": "cline-worker-2",
+      "executions": 0,
+      "modelRequests": 0
+    },
+    {
+      "at": 1794534254207,
+      "index": 0,
+      "status": "RUNNING",
+      "workflow": {
+        "workflowId": "native-analysis-v1-17adb31b34d1c50edad9427ece0e010c330b2e23516cae510e4283869a56da76",
+        "taskQueue": "runtime-native-analysis-v1",
+        "availability": "AVAILABLE",
+        "workflowStatus": "WORKFLOW_EXECUTION_STATUS_RUNNING",
+        "workflowRunId": "01a1d293-7585-7cb2-81bf-faf0100f41f6",
+        "historyEvents": 9,
+        "pendingActivities": [
+          {
+            "workerIdentity": "cline-worker-2",
+            "attempt": 1,
+            "state": "PENDING_ACTIVITY_STATE_STARTED",
+            "activityId": "177778e4-0dbd-34fb-9332-c24e4ffc3130"
+          }
+        ]
+      },
+      "nodeId": "cline-worker-2",
+      "executions": 0,
+      "modelRequests": 1
+    },
+    {
+      "at": 1794534259941,
+      "index": 0,
+      "status": "RUNNING",
+      "workflow": {
+        "workflowId": "native-analysis-v1-17adb31b34d1c50edad9427ece0e010c330b2e23516cae510e4283869a56da76",
+        "taskQueue": "runtime-native-analysis-v1",
+        "availability": "AVAILABLE",
+        "workflowStatus": "WORKFLOW_EXECUTION_STATUS_RUNNING",
+        "workflowRunId": "01a1d293-7585-7cb2-81bf-faf0100f41f6",
+        "historyEvents": 9,
+        "pendingActivities": [
+          {
+            "workerIdentity": "cline-worker-2",
+            "attempt": 1,
+            "state": "PENDING_ACTIVITY_STATE_STARTED",
+            "activityId": "177778e4-0dbd-34fb-9332-c24e4ffc3130"
+          }
+        ]
+      },
+      "nodeId": "cline-worker-2",
+      "executions": 1,
+      "modelRequests": 1
+    },
+    {
+      "at": 1794534265733,
+      "index": 0,
+      "status": "RUNNING",
+      "workflow": {
+        "workflowId": "native-analysis-v1-17adb31b34d1c50edad9427ece0e010c330b2e23516cae510e4283869a56da76",
+        "taskQueue": "runtime-native-analysis-v1",
+        "availability": "AVAILABLE",
+        "workflowStatus": "WORKFLOW_EXECUTION_STATUS_RUNNING",
+        "workflowRunId": "01a1d293-7585-7cb2-81bf-faf0100f41f6",
+        "historyEvents": 9,
+        "pendingActivities": [
+          {
+            "workerIdentity": "cline-worker-2",
+            "attempt": 1,
+            "state": "PENDING_ACTIVITY_STATE_STARTED",
+            "activityId": "177778e4-0dbd-34fb-9332-c24e4ffc3130"
+          }
+        ]
+      },
+      "nodeId": "cline-worker-2",
+      "executions": 1,
+      "modelRequests": 2
+    },
+    {
+      "at": 1794534271584,
+      "index": 0,
+      "status": "RUNNING",
+      "workflow": {
+        "workflowId": "native-analysis-v1-17adb31b34d1c50edad9427ece0e010c330b2e23516cae510e4283869a56da76",
+        "taskQueue": "runtime-native-analysis-v1",
+        "availability": "AVAILABLE",
+        "workflowStatus": "WORKFLOW_EXECUTION_STATUS_RUNNING",
+        "workflowRunId": "01a1d293-7585-7cb2-81bf-faf0100f41f6",
+        "historyEvents": 9,
+        "pendingActivities": [
+          {
+            "workerIdentity": "cline-worker-2",
+            "attempt": 1,
+            "state": "PENDING_ACTIVITY_STATE_STARTED",
+            "activityId": "177778e4-0dbd-34fb-9332-c24e4ffc3130"
+          }
+        ]
+      },
+      "nodeId": "cline-worker-2",
+      "executions": 1,
+      "modelRequests": 2
+    },
+    {
+      "at": 1794534277437,
+      "index": 0,
+      "status": "RUNNING",
+      "workflow": {
+        "workflowId": "native-analysis-v1-17adb31b34d1c50edad9427ece0e010c330b2e23516cae510e4283869a56da76",
+        "taskQueue": "runtime-native-analysis-v1",
+        "availability": "AVAILABLE",
+        "workflowStatus": "WORKFLOW_EXECUTION_STATUS_RUNNING",
+        "workflowRunId": "01a1d293-7585-7cb2-81bf-faf0100f41f6",
+        "historyEvents": 9,
+        "pendingActivities": [
+          {
+            "workerIdentity": "cline-worker-2",
+            "attempt": 1,
+            "state": "PENDING_ACTIVITY_STATE_STARTED",
+            "activityId": "177778e4-0dbd-34fb-9332-c24e4ffc3130"
+          }
+        ]
+      },
+      "nodeId": "cline-worker-2",
+      "executions": 1,
+      "modelRequests": 2
+    },
+    {
+      "at": 1794534283262,
+      "index": 0,
+      "status": "RUNNING",
+      "workflow": {
+        "workflowId": "native-analysis-v1-17adb31b34d1c50edad9427ece0e010c330b2e23516cae510e4283869a56da76",
+        "taskQueue": "runtime-native-analysis-v1",
+        "availability": "AVAILABLE",
+        "workflowStatus": "WORKFLOW_EXECUTION_STATUS_RUNNING",
+        "workflowRunId": "01a1d293-7585-7cb2-81bf-faf0100f41f6",
+        "historyEvents": 9,
+        "pendingActivities": [
+          {
+            "workerIdentity": "cline-worker-2",
+            "attempt": 1,
+            "state": "PENDING_ACTIVITY_STATE_STARTED",
+            "activityId": "177778e4-0dbd-34fb-9332-c24e4ffc3130"
+          }
+        ]
+      },
+      "nodeId": "cline-worker-2",
+      "executions": 1,
+      "modelRequests": 2
+    },
+    {
+      "at": 1794534289211,
+      "index": 0,
+      "status": "RUNNING",
+      "workflow": {
+        "workflowId": "native-analysis-v1-17adb31b34d1c50edad9427ece0e010c330b2e23516cae510e4283869a56da76",
+        "taskQueue": "runtime-native-analysis-v1",
+        "availability": "AVAILABLE",
+        "workflowStatus": "WORKFLOW_EXECUTION_STATUS_RUNNING",
+        "workflowRunId": "01a1d293-7585-7cb2-81bf-faf0100f41f6",
+        "historyEvents": 9,
+        "pendingActivities": [
+          {
+            "workerIdentity": "cline-worker-2",
+            "attempt": 1,
+            "state": "PENDING_ACTIVITY_STATE_STARTED",
+            "activityId": "177778e4-0dbd-34fb-9332-c24e4ffc3130"
+          }
+        ]
+      },
+      "nodeId": "cline-worker-2",
+      "executions": 2,
+      "modelRequests": 3
+    },
+    {
+      "at": 1794534295193,
+      "index": 0,
+      "status": "RUNNING",
+      "workflow": {
+        "workflowId": "native-analysis-v1-17adb31b34d1c50edad9427ece0e010c330b2e23516cae510e4283869a56da76",
+        "taskQueue": "runtime-native-analysis-v1",
+        "availability": "AVAILABLE",
+        "workflowStatus": "WORKFLOW_EXECUTION_STATUS_RUNNING",
+        "workflowRunId": "01a1d293-7585-7cb2-81bf-faf0100f41f6",
+        "historyEvents": 9,
+        "pendingActivities": [
+          {
+            "workerIdentity": "cline-worker-2",
+            "attempt": 1,
+            "state": "PENDING_ACTIVITY_STATE_STARTED",
+            "activityId": "177778e4-0dbd-34fb-9332-c24e4ffc3130"
+          }
+        ]
+      },
+      "nodeId": "cline-worker-2",
+      "executions": 2,
+      "modelRequests": 5
+    },
+    {
+      "at": 1794534301090,
+      "index": 0,
+      "status": "RUNNING",
+      "workflow": {
+        "workflowId": "native-analysis-v1-17adb31b34d1c50edad9427ece0e010c330b2e23516cae510e4283869a56da76",
+        "taskQueue": "runtime-native-analysis-v1",
+        "availability": "AVAILABLE",
+        "workflowStatus": "WORKFLOW_EXECUTION_STATUS_RUNNING",
+        "workflowRunId": "01a1d293-7585-7cb2-81bf-faf0100f41f6",
+        "historyEvents": 9,
+        "pendingActivities": [
+          {
+            "workerIdentity": "cline-worker-2",
+            "attempt": 1,
+            "state": "PENDING_ACTIVITY_STATE_STARTED",
+            "activityId": "177778e4-0dbd-34fb-9332-c24e4ffc3130"
+          }
+        ]
+      },
+      "nodeId": "cline-worker-2",
+      "executions": 2,
+      "modelRequests": 6
+    },
+    {
+      "at": 1794534306929,
+      "index": 0,
+      "status": "RUNNING",
+      "workflow": {
+        "workflowId": "native-analysis-v1-17adb31b34d1c50edad9427ece0e010c330b2e23516cae510e4283869a56da76",
+        "taskQueue": "runtime-native-analysis-v1",
+        "availability": "AVAILABLE",
+        "workflowStatus": "WORKFLOW_EXECUTION_STATUS_RUNNING",
+        "workflowRunId": "01a1d293-7585-7cb2-81bf-faf0100f41f6",
+        "historyEvents": 9,
+        "pendingActivities": [
+          {
+            "workerIdentity": "cline-worker-2",
+            "attempt": 1,
+            "state": "PENDING_ACTIVITY_STATE_STARTED",
+            "activityId": "177778e4-0dbd-34fb-9332-c24e4ffc3130"
+          }
+        ]
+      },
+      "nodeId": "cline-worker-2",
+      "executions": 3,
+      "modelRequests": 7
+    },
+    {
+      "at": 1794534312755,
+      "index": 0,
+      "status": "RUNNING",
+      "workflow": {
+        "workflowId": "native-analysis-v1-17adb31b34d1c50edad9427ece0e010c330b2e23516cae510e4283869a56da76",
+        "taskQueue": "runtime-native-analysis-v1",
+        "availability": "AVAILABLE",
+        "workflowStatus": "WORKFLOW_EXECUTION_STATUS_RUNNING",
+        "workflowRunId": "01a1d293-7585-7cb2-81bf-faf0100f41f6",
+        "historyEvents": 9,
+        "pendingActivities": [
+          {
+            "workerIdentity": "cline-worker-2",
+            "attempt": 1,
+            "state": "PENDING_ACTIVITY_STATE_STARTED",
+            "activityId": "177778e4-0dbd-34fb-9332-c24e4ffc3130"
+          }
+        ]
+      },
+      "nodeId": "cline-worker-2",
+      "executions": 3,
+      "modelRequests": 7
+    },
+    {
+      "at": 1794534318655,
+      "index": 0,
+      "status": "COMPLETED",
+      "workflow": {
+        "workflowId": "native-analysis-v1-17adb31b34d1c50edad9427ece0e010c330b2e23516cae510e4283869a56da76",
+        "taskQueue": "runtime-native-analysis-v1",
+        "availability": "AVAILABLE",
+        "workflowStatus": "WORKFLOW_EXECUTION_STATUS_COMPLETED",
+        "workflowRunId": "01a1d293-7585-7cb2-81bf-faf0100f41f6",
+        "historyEvents": 15,
+        "pendingActivities": []
+      },
+      "nodeId": "cline-worker-2",
+      "executions": 3,
+      "modelRequests": 7
+    }
+  ],
+  "nodeSamples": [
+    {
+      "at": 1794534241420,
+      "fleet": {
+        "engine": "temporal",
+        "nodes": [
+          {
+            "nodeId": "cline-worker-1",
+            "online": true,
+            "workerMemoryBytes": 568856576,
+            "workerCpuTimeNanos": 11909588392,
+            "activeWorkers": 1,
+            "maxWorkers": 1,
+            "gatewayMemoryBytes": 95391744
+          },
+          {
+            "nodeId": "cline-worker-2",
+            "online": true,
+            "workerMemoryBytes": 0,
+            "workerCpuTimeNanos": 0,
+            "activeWorkers": 1,
+            "maxWorkers": 1,
+            "gatewayMemoryBytes": 78663680
+          }
+        ]
+      }
+    },
+    {
+      "at": 1794534246798,
+      "fleet": {
+        "engine": "temporal",
+        "nodes": [
+          {
+            "nodeId": "cline-worker-1",
+            "online": true,
+            "workerMemoryBytes": 587743232,
+            "workerCpuTimeNanos": 12682587487,
+            "activeWorkers": 1,
+            "maxWorkers": 1,
+            "gatewayMemoryBytes": 96276480
+          },
+          {
+            "nodeId": "cline-worker-2",
+            "online": true,
+            "workerMemoryBytes": 725938176,
+            "workerCpuTimeNanos": 6593584868,
+            "activeWorkers": 1,
+            "maxWorkers": 1,
+            "gatewayMemoryBytes": 89341952
+          }
+        ]
+      }
+    },
+    {
+      "at": 1794534253366,
+      "fleet": {
+        "engine": "temporal",
+        "nodes": [
+          {
+            "nodeId": "cline-worker-1",
+            "online": true,
+            "workerMemoryBytes": 597983232,
+            "workerCpuTimeNanos": 14261345421,
+            "activeWorkers": 1,
+            "maxWorkers": 1,
+            "gatewayMemoryBytes": 96546816
+          },
+          {
+            "nodeId": "cline-worker-2",
+            "online": true,
+            "workerMemoryBytes": 748531712,
+            "workerCpuTimeNanos": 8704250017,
+            "activeWorkers": 1,
+            "maxWorkers": 1,
+            "gatewayMemoryBytes": 90546176
+          }
+        ]
+      }
+    },
+    {
+      "at": 1794534259216,
+      "fleet": {
+        "engine": "temporal",
+        "nodes": [
+          {
+            "nodeId": "cline-worker-1",
+            "online": true,
+            "workerMemoryBytes": 0,
+            "workerCpuTimeNanos": 0,
+            "activeWorkers": 0,
+            "maxWorkers": 1,
+            "gatewayMemoryBytes": 97603584
+          },
+          {
+            "nodeId": "cline-worker-2",
+            "online": true,
+            "workerMemoryBytes": 699854848,
+            "workerCpuTimeNanos": 11407781721,
+            "activeWorkers": 1,
+            "maxWorkers": 1,
+            "gatewayMemoryBytes": 90451968
+          }
+        ]
+      }
+    },
+    {
+      "at": 1794534264951,
+      "fleet": {
+        "engine": "temporal",
+        "nodes": [
+          {
+            "nodeId": "cline-worker-1",
+            "online": true,
+            "workerMemoryBytes": 0,
+            "workerCpuTimeNanos": 0,
+            "activeWorkers": 0,
+            "maxWorkers": 1,
+            "gatewayMemoryBytes": 97603584
+          },
+          {
+            "nodeId": "cline-worker-2",
+            "online": true,
+            "workerMemoryBytes": 700153856,
+            "workerCpuTimeNanos": 12158204223,
+            "activeWorkers": 1,
+            "maxWorkers": 1,
+            "gatewayMemoryBytes": 90894336
+          }
+        ]
+      }
+    },
+    {
+      "at": 1794534270743,
+      "fleet": {
+        "engine": "temporal",
+        "nodes": [
+          {
+            "nodeId": "cline-worker-1",
+            "online": true,
+            "workerMemoryBytes": 0,
+            "workerCpuTimeNanos": 0,
+            "activeWorkers": 0,
+            "maxWorkers": 1,
+            "gatewayMemoryBytes": 97603584
+          },
+          {
+            "nodeId": "cline-worker-2",
+            "online": true,
+            "workerMemoryBytes": 559968256,
+            "workerCpuTimeNanos": 13014951223,
+            "activeWorkers": 1,
+            "maxWorkers": 1,
+            "gatewayMemoryBytes": 90898432
+          }
+        ]
+      }
+    },
+    {
+      "at": 1794534276589,
+      "fleet": {
+        "engine": "temporal",
+        "nodes": [
+          {
+            "nodeId": "cline-worker-1",
+            "online": true,
+            "workerMemoryBytes": 0,
+            "workerCpuTimeNanos": 0,
+            "activeWorkers": 0,
+            "maxWorkers": 1,
+            "gatewayMemoryBytes": 97603584
+          },
+          {
+            "nodeId": "cline-worker-2",
+            "online": true,
+            "workerMemoryBytes": 558559232,
+            "workerCpuTimeNanos": 13854080859,
+            "activeWorkers": 1,
+            "maxWorkers": 1,
+            "gatewayMemoryBytes": 91164672
+          }
+        ]
+      }
+    },
+    {
+      "at": 1794534282451,
+      "fleet": {
+        "engine": "temporal",
+        "nodes": [
+          {
+            "nodeId": "cline-worker-1",
+            "online": true,
+            "workerMemoryBytes": 0,
+            "workerCpuTimeNanos": 0,
+            "activeWorkers": 0,
+            "maxWorkers": 1,
+            "gatewayMemoryBytes": 97603584
+          },
+          {
+            "nodeId": "cline-worker-2",
+            "online": true,
+            "workerMemoryBytes": 558997504,
+            "workerCpuTimeNanos": 14011118302,
+            "activeWorkers": 1,
+            "maxWorkers": 1,
+            "gatewayMemoryBytes": 91025408
+          }
+        ]
+      }
+    },
+    {
+      "at": 1794534288274,
+      "fleet": {
+        "engine": "temporal",
+        "nodes": [
+          {
+            "nodeId": "cline-worker-1",
+            "online": true,
+            "workerMemoryBytes": 0,
+            "workerCpuTimeNanos": 0,
+            "activeWorkers": 0,
+            "maxWorkers": 1,
+            "gatewayMemoryBytes": 97603584
+          },
+          {
+            "nodeId": "cline-worker-2",
+            "online": true,
+            "workerMemoryBytes": 617238528,
+            "workerCpuTimeNanos": 15768627080,
+            "activeWorkers": 1,
+            "maxWorkers": 1,
+            "gatewayMemoryBytes": 91275264
+          }
+        ]
+      }
+    },
+    {
+      "at": 1794534294221,
+      "fleet": {
+        "engine": "temporal",
+        "nodes": [
+          {
+            "nodeId": "cline-worker-1",
+            "online": true,
+            "workerMemoryBytes": 0,
+            "workerCpuTimeNanos": 0,
+            "activeWorkers": 0,
+            "maxWorkers": 1,
+            "gatewayMemoryBytes": 97472512
+          },
+          {
+            "nodeId": "cline-worker-2",
+            "online": true,
+            "workerMemoryBytes": 582565888,
+            "workerCpuTimeNanos": 16917439240,
+            "activeWorkers": 1,
+            "maxWorkers": 1,
+            "gatewayMemoryBytes": 92311552
+          }
+        ]
+      }
+    },
+    {
+      "at": 1794534300205,
+      "fleet": {
+        "engine": "temporal",
+        "nodes": [
+          {
+            "nodeId": "cline-worker-1",
+            "online": true,
+            "workerMemoryBytes": 0,
+            "workerCpuTimeNanos": 0,
+            "activeWorkers": 0,
+            "maxWorkers": 1,
+            "gatewayMemoryBytes": 97472512
+          },
+          {
+            "nodeId": "cline-worker-2",
+            "online": true,
+            "workerMemoryBytes": 585932800,
+            "workerCpuTimeNanos": 17932140195,
+            "activeWorkers": 1,
+            "maxWorkers": 1,
+            "gatewayMemoryBytes": 92647424
+          }
+        ]
+      }
+    },
+    {
+      "at": 1794534306107,
+      "fleet": {
+        "engine": "temporal",
+        "nodes": [
+          {
+            "nodeId": "cline-worker-1",
+            "online": true,
+            "workerMemoryBytes": 0,
+            "workerCpuTimeNanos": 0,
+            "activeWorkers": 0,
+            "maxWorkers": 1,
+            "gatewayMemoryBytes": 97472512
+          },
+          {
+            "nodeId": "cline-worker-2",
+            "online": true,
+            "workerMemoryBytes": 587546624,
+            "workerCpuTimeNanos": 18854681935,
+            "activeWorkers": 1,
+            "maxWorkers": 1,
+            "gatewayMemoryBytes": 94892032
+          }
+        ]
+      }
+    },
+    {
+      "at": 1794534311932,
+      "fleet": {
+        "engine": "temporal",
+        "nodes": [
+          {
+            "nodeId": "cline-worker-1",
+            "online": true,
+            "workerMemoryBytes": 0,
+            "workerCpuTimeNanos": 0,
+            "activeWorkers": 0,
+            "maxWorkers": 1,
+            "gatewayMemoryBytes": 97472512
+          },
+          {
+            "nodeId": "cline-worker-2",
+            "online": true,
+            "workerMemoryBytes": 96055296,
+            "workerCpuTimeNanos": 19790156457,
+            "activeWorkers": 1,
+            "maxWorkers": 1,
+            "gatewayMemoryBytes": 95584256
+          }
+        ]
+      }
+    },
+    {
+      "at": 1794534317758,
+      "fleet": {
+        "engine": "temporal",
+        "nodes": [
+          {
+            "nodeId": "cline-worker-1",
+            "online": true,
+            "workerMemoryBytes": 0,
+            "workerCpuTimeNanos": 0,
+            "activeWorkers": 0,
+            "maxWorkers": 1,
+            "gatewayMemoryBytes": 97472512
+          },
+          {
+            "nodeId": "cline-worker-2",
+            "online": true,
+            "workerMemoryBytes": 0,
+            "workerCpuTimeNanos": 0,
+            "activeWorkers": 0,
+            "maxWorkers": 1,
+            "gatewayMemoryBytes": 95821824
+          }
+        ]
+      }
+    }
+  ],
+  "inputSha256": "b5d72c99af9d40235f3c4cca045ad96009a2779179f541daf1f6883318c77296",
+  "elapsedSeconds": 78.645,
+  "completed": 1,
+  "throughputPerMinute": 0.7629219912263971,
+  "finishedAt": "2026-11-13T01:45:19.513Z"
+}

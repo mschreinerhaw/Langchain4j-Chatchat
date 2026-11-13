@@ -1,0 +1,115 @@
+{
+  "at": "2026-11-13T01:41:54.403024+00:00",
+  "scope": "exact IDs of reclaimable nonshared project Maven build caches, newest two retained",
+  "freeBeforeBytes": 1630281728,
+  "freeAfterBytes": 13245046784,
+  "removed": [
+    {
+      "id": "inily1dsstnibvqhuayvqqw09",
+      "description": "mount / from exec /bin/sh -c test -s coding-agent-node/skills/catalog.json &&     mvn -B -ntp -pl chatchat-api,chatchat-mcp-server,chatchat-runtime-news -am     -Dfrontend.skip=true -Dfrontend.install.skip=true -Dcontainer.image=true     -Dweb.static.directory=/frontend/api -Dmcp.web.static.directory=/frontend/mcp     -Dassembly.skipAssembly=true -Dmaven.test.skip=true clean package &&     test -s chatchat-chat/target/classes/coding-skills/catalog.json",
+      "output": "ID\t\t\t\t\t\tRECLAIMABLE\tSIZE\t\tLAST ACCESSED\ninily1dsstnibvqhuayvqqw09*              \ttrue \t\t983.2MB   \t9 hours ago\nTotal:\t983.2MB\n"
+    },
+    {
+      "id": "fozkn6rs02ju2805o2b80qahl",
+      "description": "mount / from exec /bin/sh -c test -s coding-agent-node/skills/catalog.json &&     mvn -B -ntp -pl chatchat-api,chatchat-mcp-server,chatchat-runtime-news -am     -Dfrontend.skip=true -Dfrontend.install.skip=true -Dcontainer.image=true     -Dweb.static.directory=/frontend/api -Dmcp.web.static.directory=/frontend/mcp     -Dassembly.skipAssembly=true -Dmaven.test.skip=true clean package &&     test -s chatchat-chat/target/classes/coding-skills/catalog.json",
+      "output": "ID\t\t\t\t\t\tRECLAIMABLE\tSIZE\t\tLAST ACCESSED\nfozkn6rs02ju2805o2b80qahl*              \ttrue \t\t983MB     \t10 hours ago\nTotal:\t983MB\n"
+    },
+    {
+      "id": "n29v59ikmzewbgg6sjlbco6ft",
+      "description": "mount / from exec /bin/sh -c test -s coding-agent-node/skills/catalog.json &&     mvn -B -ntp -pl chatchat-api,chatchat-mcp-server,chatchat-runtime-news -am     -Dfrontend.skip=true -Dfrontend.install.skip=true -Dcontainer.image=true     -Dweb.static.directory=/frontend/api -Dmcp.web.static.directory=/frontend/mcp     -Dassembly.skipAssembly=true -Dmaven.test.skip=true clean package &&     test -s chatchat-chat/target/classes/coding-skills/catalog.json",
+      "output": "ID\t\t\t\t\t\tRECLAIMABLE\tSIZE\t\tLAST ACCESSED\nn29v59ikmzewbgg6sjlbco6ft*              \ttrue \t\t983MB     \t11 hours ago\nTotal:\t983MB\n"
+    },
+    {
+      "id": "ht91spgdzsga4asv45f7h7vqu",
+      "description": "mount / from exec /bin/sh -c test -s coding-agent-node/skills/catalog.json &&     mvn -B -ntp -pl chatchat-api,chatchat-mcp-server,chatchat-runtime-news -am     -Dfrontend.skip=true -Dfrontend.install.skip=true -Dcontainer.image=true     -Dweb.static.directory=/frontend/api -Dmcp.web.static.directory=/frontend/mcp     -Dassembly.skipAssembly=true -Dmaven.test.skip=true clean package &&     test -s chatchat-chat/target/classes/coding-skills/catalog.json",
+      "output": "ID\t\t\t\t\t\tRECLAIMABLE\tSIZE\t\tLAST ACCESSED\nht91spgdzsga4asv45f7h7vqu*              \ttrue \t\t983MB     \t11 hours ago\nTotal:\t983MB\n"
+    },
+    {
+      "id": "u81bwqq4t2ouurx3lpr36ism6",
+      "description": "mount / from exec /bin/sh -c test -s coding-agent-node/skills/catalog.json &&     mvn -B -ntp -pl chatchat-api,chatchat-mcp-server,chatchat-runtime-news -am     -Dfrontend.skip=true -Dfrontend.install.skip=true -Dcontainer.image=true     -Dweb.static.directory=/frontend/api -Dmcp.web.static.directory=/frontend/mcp     -Dassembly.skipAssembly=true -Dmaven.test.skip=true clean package &&     test -s chatchat-chat/target/classes/coding-skills/catalog.json",
+      "output": "ID\t\t\t\t\t\tRECLAIMABLE\tSIZE\t\tLAST ACCESSED\nu81bwqq4t2ouurx3lpr36ism6*              \ttrue \t\t983MB     \t12 hours ago\nTotal:\t983MB\n"
+    },
+    {
+      "id": "ucgeu04oel2acbp0z4ufrexj4",
+      "description": "mount / from exec /bin/sh -c test -s coding-agent-node/skills/catalog.json &&     mvn -B -ntp -pl chatchat-api,chatchat-mcp-server,chatchat-runtime-news -am     -Dfrontend.skip=true -Dfrontend.install.skip=true -Dcontainer.image=true     -Dweb.static.directory=/frontend/api -Dmcp.web.static.directory=/frontend/mcp     -Dassembly.skipAssembly=true -Dmaven.test.skip=true clean package &&     test -s chatchat-chat/target/classes/coding-skills/catalog.json",
+      "output": "ID\t\t\t\t\t\tRECLAIMABLE\tSIZE\t\tLAST ACCESSED\nucgeu04oel2acbp0z4ufrexj4*              \ttrue \t\t983MB     \t12 hours ago\nTotal:\t983MB\n"
+    },
+    {
+      "id": "mvtugmowlxmjs7mm8n9hn6rih",
+      "description": "mount / from exec /bin/sh -c test -s coding-agent-node/skills/catalog.json &&     mvn -B -ntp -pl chatchat-api,chatchat-mcp-server,chatchat-runtime-news -am     -Dfrontend.skip=true -Dfrontend.install.skip=true -Dcontainer.image=true     -Dweb.static.directory=/frontend/api -Dmcp.web.static.directory=/frontend/mcp     -Dassembly.skipAssembly=true -Dmaven.test.skip=true clean package &&     test -s chatchat-chat/target/classes/coding-skills/catalog.json",
+      "output": "ID\t\t\t\t\t\tRECLAIMABLE\tSIZE\t\tLAST ACCESSED\nmvtugmowlxmjs7mm8n9hn6rih*              \ttrue \t\t983MB     \t12 hours ago\nTotal:\t983MB\n"
+    },
+    {
+      "id": "hfd72uombp3hgh9s63aje8r45",
+      "description": "mount / from exec /bin/sh -c test -s coding-agent-node/skills/catalog.json &&     mvn -B -ntp -pl chatchat-api,chatchat-mcp-server,chatchat-runtime-news -am     -Dfrontend.skip=true -Dfrontend.install.skip=true -Dcontainer.image=true     -Dweb.static.directory=/frontend/api -Dmcp.web.static.directory=/frontend/mcp     -Dassembly.skipAssembly=true -Dmaven.test.skip=true clean package &&     test -s chatchat-chat/target/classes/coding-skills/catalog.json",
+      "output": "ID\t\t\t\t\t\tRECLAIMABLE\tSIZE\t\tLAST ACCESSED\nhfd72uombp3hgh9s63aje8r45*              \ttrue \t\t983MB     \t12 hours ago\nTotal:\t983MB\n"
+    },
+    {
+      "id": "mhted1ky3h4a28mumx4mllyw8",
+      "description": "mount / from exec /bin/sh -c test -s coding-agent-node/skills/catalog.json &&     mvn -B -ntp -pl chatchat-api,chatchat-mcp-server,chatchat-runtime-news -am     -Dfrontend.skip=true -Dfrontend.install.skip=true -Dcontainer.image=true     -Dweb.static.directory=/frontend/api -Dmcp.web.static.directory=/frontend/mcp     -Dassembly.skipAssembly=true -Dmaven.test.skip=true clean package &&     test -s chatchat-chat/target/classes/coding-skills/catalog.json",
+      "output": "ID\t\t\t\t\t\tRECLAIMABLE\tSIZE\t\tLAST ACCESSED\nmhted1ky3h4a28mumx4mllyw8*              \ttrue \t\t982.9MB   \t13 hours ago\nTotal:\t982.9MB\n"
+    },
+    {
+      "id": "6e8jf1hipln75s7207voyz0gd",
+      "description": "mount / from exec /bin/sh -c test -s coding-agent-node/skills/catalog.json &&     mvn -B -ntp -pl chatchat-api,chatchat-mcp-server,chatchat-runtime-news -am     -Dfrontend.skip=true -Dfrontend.install.skip=true -Dcontainer.image=true     -Dweb.static.directory=/frontend/api -Dmcp.web.static.directory=/frontend/mcp     -Dassembly.skipAssembly=true -Dmaven.test.skip=true clean package &&     test -s chatchat-chat/target/classes/coding-skills/catalog.json",
+      "output": "ID\t\t\t\t\t\tRECLAIMABLE\tSIZE\t\tLAST ACCESSED\n6e8jf1hipln75s7207voyz0gd*              \ttrue \t\t982.9MB   \t13 hours ago\nTotal:\t982.9MB\n"
+    },
+    {
+      "id": "97o9hw7d18cis3lxt0nnh4yr1",
+      "description": "mount / from exec /bin/sh -c test -s coding-agent-node/skills/catalog.json &&     mvn -B -ntp -pl chatchat-api,chatchat-mcp-server,chatchat-runtime-news -am     -Dfrontend.skip=true -Dfrontend.install.skip=true -Dcontainer.image=true     -Dweb.static.directory=/frontend/api -Dmcp.web.static.directory=/frontend/mcp     -Dassembly.skipAssembly=true -Dmaven.test.skip=true clean package &&     test -s chatchat-chat/target/classes/coding-skills/catalog.json",
+      "output": "ID\t\t\t\t\t\tRECLAIMABLE\tSIZE\t\tLAST ACCESSED\n97o9hw7d18cis3lxt0nnh4yr1*              \ttrue \t\t982.9MB   \t15 hours ago\nTotal:\t982.9MB\n"
+    },
+    {
+      "id": "bjgbdc31bndou1wbi35wrihzi",
+      "description": "mount / from exec /bin/sh -c test -s coding-agent-node/skills/catalog.json &&     mvn -B -ntp -pl chatchat-api,chatchat-mcp-server,chatchat-runtime-news -am     -Dfrontend.skip=true -Dfrontend.install.skip=true -Dcontainer.image=true     -Dweb.static.directory=/frontend/api -Dmcp.web.static.directory=/frontend/mcp     -Dassembly.skipAssembly=true -Dmaven.test.skip=true clean package &&     test -s chatchat-chat/target/classes/coding-skills/catalog.json",
+      "output": "ID\t\t\t\t\t\tRECLAIMABLE\tSIZE\t\tLAST ACCESSED\nbjgbdc31bndou1wbi35wrihzi*              \ttrue \t\t982.9MB   \t16 hours ago\nTotal:\t982.9MB\n"
+    },
+    {
+      "id": "5b43mhpknxipj9i0cylweamkl",
+      "description": "mount / from exec /bin/sh -c test -s coding-agent-node/skills/catalog.json &&     mvn -B -ntp -pl chatchat-api,chatchat-mcp-server,chatchat-runtime-news -am     -Dfrontend.skip=true -Dfrontend.install.skip=true -Dcontainer.image=true     -Dweb.static.directory=/frontend/api -Dmcp.web.static.directory=/frontend/mcp     -Dassembly.skipAssembly=true -Dmaven.test.skip=true clean package &&     test -s chatchat-chat/target/classes/coding-skills/catalog.json",
+      "output": "ID\t\t\t\t\t\tRECLAIMABLE\tSIZE\t\tLAST ACCESSED\n5b43mhpknxipj9i0cylweamkl*              \ttrue \t\t982.9MB   \t16 hours ago\nTotal:\t982.9MB\n"
+    },
+    {
+      "id": "pkfwkqlkwkc649t7ld5jtbhp4",
+      "description": "mount / from exec /bin/sh -c test -s coding-agent-node/skills/catalog.json &&     mvn -B -ntp -pl chatchat-api,chatchat-mcp-server,chatchat-runtime-news -am     -Dfrontend.skip=true -Dfrontend.install.skip=true -Dcontainer.image=true     -Dweb.static.directory=/frontend/api -Dmcp.web.static.directory=/frontend/mcp     -Dassembly.skipAssembly=true -Dmaven.test.skip=true clean package &&     test -s chatchat-chat/target/classes/coding-skills/catalog.json",
+      "output": "ID\t\t\t\t\t\tRECLAIMABLE\tSIZE\t\tLAST ACCESSED\npkfwkqlkwkc649t7ld5jtbhp4*              \ttrue \t\t982.9MB   \t16 hours ago\nTotal:\t982.9MB\n"
+    },
+    {
+      "id": "jkkzb9oq8s7odjqy0e353bffb",
+      "description": "mount / from exec /bin/sh -c test -s coding-agent-node/skills/catalog.json &&     mvn -B -ntp -pl chatchat-api,chatchat-mcp-server,chatchat-runtime-news -am     -Dfrontend.skip=true -Dfrontend.install.skip=true -Dcontainer.image=true     -Dweb.static.directory=/frontend/api -Dmcp.web.static.directory=/frontend/mcp     -Dassembly.skipAssembly=true -Dmaven.test.skip=true clean package &&     test -s chatchat-chat/target/classes/coding-skills/catalog.json",
+      "output": "ID\t\t\t\t\t\tRECLAIMABLE\tSIZE\t\tLAST ACCESSED\njkkzb9oq8s7odjqy0e353bffb*              \ttrue \t\t982.9MB   \t17 hours ago\nTotal:\t982.9MB\n"
+    },
+    {
+      "id": "idb0ca09n0nchvgbrrnqrjgmn",
+      "description": "mount / from exec /bin/sh -c test -s coding-agent-node/skills/catalog.json &&     mvn -B -ntp -pl chatchat-api,chatchat-mcp-server,chatchat-runtime-news -am     -Dfrontend.skip=true -Dfrontend.install.skip=true -Dcontainer.image=true     -Dweb.static.directory=/frontend/api -Dmcp.web.static.directory=/frontend/mcp     -Dassembly.skipAssembly=true -Dmaven.test.skip=true clean package &&     test -s chatchat-chat/target/classes/coding-skills/catalog.json",
+      "output": "ID\t\t\t\t\t\tRECLAIMABLE\tSIZE\t\tLAST ACCESSED\nidb0ca09n0nchvgbrrnqrjgmn*              \ttrue \t\t982.9MB   \t17 hours ago\nTotal:\t982.9MB\n"
+    },
+    {
+      "id": "y8tu7qmj3r81sm6kgyos365ss",
+      "description": "mount / from exec /bin/sh -c test -s coding-agent-node/skills/catalog.json &&     mvn -B -ntp -pl chatchat-api,chatchat-mcp-server,chatchat-runtime-news -am     -Dfrontend.skip=true -Dfrontend.install.skip=true -Dcontainer.image=true     -Dweb.static.directory=/frontend/api -Dmcp.web.static.directory=/frontend/mcp     -Dassembly.skipAssembly=true -Dmaven.test.skip=true clean package &&     test -s chatchat-chat/target/classes/coding-skills/catalog.json",
+      "output": "ID\t\t\t\t\t\tRECLAIMABLE\tSIZE\t\tLAST ACCESSED\ny8tu7qmj3r81sm6kgyos365ss*              \ttrue \t\t982.9MB   \t18 hours ago\nTotal:\t982.9MB\n"
+    },
+    {
+      "id": "tp0p4fpp30pex1l43n9skctlm",
+      "description": "mount / from exec /bin/sh -c test -s coding-agent-node/skills/catalog.json &&     mvn -B -ntp -pl chatchat-api,chatchat-mcp-server,chatchat-runtime-news -am     -Dfrontend.skip=true -Dfrontend.install.skip=true -Dcontainer.image=true     -Dweb.static.directory=/frontend/api -Dmcp.web.static.directory=/frontend/mcp     -Dassembly.skipAssembly=true -Dmaven.test.skip=true clean package &&     test -s chatchat-chat/target/classes/coding-skills/catalog.json",
+      "output": "ID\t\t\t\t\t\tRECLAIMABLE\tSIZE\t\tLAST ACCESSED\ntp0p4fpp30pex1l43n9skctlm*              \ttrue \t\t982.9MB   \t18 hours ago\nTotal:\t982.9MB\n"
+    },
+    {
+      "id": "y0rulldsi3uxlniftmmd969dm",
+      "description": "mount / from exec /bin/sh -c mvn -B -ntp -pl chatchat-api,chatchat-mcp-server,chatchat-runtime-news -am     -Dfrontend.skip=true -Dfrontend.install.skip=true -Dcontainer.image=true     -Dweb.static.directory=/frontend/api -Dmcp.web.static.directory=/frontend/mcp     -Dassembly.skipAssembly=true -Dmaven.test.skip=true clean package",
+      "output": "ID\t\t\t\t\t\tRECLAIMABLE\tSIZE\t\tLAST ACCESSED\ny0rulldsi3uxlniftmmd969dm*              \ttrue \t\t982.8MB   \t18 hours ago\nTotal:\t982.8MB\n"
+    },
+    {
+      "id": "altl2dlfnf42e36w1xtloljfu",
+      "description": "mount / from exec /bin/sh -c mvn -B -ntp -pl chatchat-api,chatchat-mcp-server,chatchat-runtime-news -am     -Dfrontend.skip=true -Dfrontend.install.skip=true -Dcontainer.image=true     -Dweb.static.directory=/frontend/api -Dmcp.web.static.directory=/frontend/mcp     -Dassembly.skipAssembly=true -Dmaven.test.skip=true clean package",
+      "output": "ID\t\t\t\t\t\tRECLAIMABLE\tSIZE\t\tLAST ACCESSED\naltl2dlfnf42e36w1xtloljfu*              \ttrue \t\t982.8MB   \t19 hours ago\nTotal:\t982.8MB\n"
+    },
+    {
+      "id": "hhwksbove3ypc4txz3712v8mf",
+      "description": "mount / from exec /bin/sh -c mvn -B -ntp -pl chatchat-api,chatchat-mcp-server,chatchat-runtime-news -am     -Dfrontend.skip=true -Dfrontend.install.skip=true -Dcontainer.image=true     -Dweb.static.directory=/frontend/api -Dmcp.web.static.directory=/frontend/mcp     -Dassembly.skipAssembly=true -Dmaven.test.skip=true clean package",
+      "output": "ID\t\t\t\t\t\tRECLAIMABLE\tSIZE\t\tLAST ACCESSED\nhhwksbove3ypc4txz3712v8mf*              \ttrue \t\t982.9MB   \t20 hours ago\nTotal:\t982.9MB\n"
+    }
+  ],
+  "globalPrune": false,
+  "imagesOrVolumesRemoved": false
+}

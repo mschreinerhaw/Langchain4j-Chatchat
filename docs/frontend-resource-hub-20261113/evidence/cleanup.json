@@ -1,0 +1,18 @@
+{
+  "onlyImagesFromThisReleaseBuildLogs": true,
+  "forceUsed": false,
+  "images": [
+    {
+      "image": "sha256:451d3062aa62f259aebb09c828123faf9b743379f9d55c0317d4e649c414c62f",
+      "removed": true
+    },
+    {
+      "image": "sha256:ddc5cb2505010f93b588c89c59c3ad8c385b938b8ccb7d8dc43f77c72b00b119",
+      "removed": true
+    },
+    {
+      "image": "sha256:b3836766be292bd976b7a4ed24053ade74396db8f8bd560799c87ae9ea219b95",
+      "removed": true
+    }
+  ]
+}

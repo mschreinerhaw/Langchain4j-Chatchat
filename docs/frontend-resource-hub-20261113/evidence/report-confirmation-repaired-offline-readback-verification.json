@@ -1,0 +1,31 @@
+{
+  "scenario": "report-confirmation-repaired",
+  "status": "passed",
+  "checks": [
+    {
+      "viewport": {
+        "width": 1440,
+        "height": 900
+      },
+      "fixtureValues": "passed",
+      "chartValues": [
+        120,
+        150
+      ],
+      "offline": "passed"
+    },
+    {
+      "viewport": {
+        "width": 390,
+        "height": 844
+      },
+      "fixtureValues": "passed",
+      "chartValues": [
+        120,
+        150
+      ],
+      "offline": "passed"
+    }
+  ],
+  "businessScope": "Synthetic domain fixture mappings and offline rendering; no production data or server-side mutations"
+}

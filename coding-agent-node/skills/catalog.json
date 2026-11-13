@@ -520,5 +520,22 @@
   "sourceVersion": "1.0.0",
   "builtin": true,
   "enabled": true
+},
+{
+  "id": "builtin:frontend-design",
+  "name": "frontend-design",
+  "description": "Generate HTML business pages and charts using internal resources, browser validation, Cline repair and Runtime Silo delivery.",
+  "version": "1.0.0",
+  "origin": "SYSTEM_BUILTIN",
+  "category": "Frontend",
+  "references": [
+    "deliver.py"
+  ],
+  "displayName": "Frontend design and validation",
+  "descriptionZh": "Frontend Resource Hub",
+  "source": "Runtime OS",
+  "sourceVersion": "1.0.0",
+  "builtin": true,
+  "enabled": true
 }
 ]

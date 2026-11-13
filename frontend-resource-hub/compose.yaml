@@ -1,0 +1,48 @@
+name: frontend-resource-hub
+services:
+  frontend-resource-hub:
+    image: frontend-resource-hub:1.0.0
+    build: .
+    restart: unless-stopped
+    read_only: true
+    cap_drop: [ALL]
+    security_opt: [no-new-privileges:true]
+    mem_limit: 256m
+    cpus: 0.5
+    environment:
+      HUB_TOKEN: ${HUB_TOKEN:?set HUB_TOKEN}
+      PUBLIC_URL: ${PUBLIC_URL:-http://frontend-resource-hub:8080}
+    ports: ["127.0.0.1:18220:8080"]
+    networks: [hub, coding]
+    healthcheck:
+      test: [CMD, node, -e, "fetch('http://localhost:8080/api/v1/health').then(r=>process.exit(r.ok?0:1))"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+  frontend-preview-worker:
+    image: frontend-resource-hub:1.0.0
+    command: [node, worker.mjs]
+    restart: unless-stopped
+    read_only: true
+    cap_drop: [ALL]
+    security_opt: ["no-new-privileges:true", "seccomp=./seccomp_profile.json"]
+    mem_limit: 2g
+    cpus: 2
+    pids_limit: 256
+    shm_size: 256m
+    tmpfs: ["/tmp:size=256m", "/app/jobs:uid=1001,gid=1001,size=768m"]
+    environment:
+      HUB_TOKEN: ${HUB_TOKEN:?set HUB_TOKEN}
+      HUB_ORIGIN: ${PUBLIC_URL:-http://frontend-resource-hub:8080}
+    networks: [hub]
+    healthcheck:
+      test: [CMD, node, -e, "fetch('http://localhost:8081/health').then(r=>process.exit(r.ok?0:1))"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+networks:
+  hub:
+    internal: true
+  coding:
+    external: true
+    name: runtime-os-app-stage_coding

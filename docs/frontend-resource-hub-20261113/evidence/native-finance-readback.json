@@ -1,0 +1,89 @@
+{
+  "scenario": "native-acceptance",
+  "taskId": "temporal-native-043997012c9f9ef1cdc02e415496b6b09e3c25eccbfabc8abec24ccfb2507451",
+  "runId": "coding-5b267e22f29a4b7499a8b8e7d9347815b46bd75ba0acb2e4521ec9c98b4478e7",
+  "nodeId": "cline-worker-2",
+  "status": "COMPLETED",
+  "runtimeValidationStatus": "INCONCLUSIVE",
+  "businessValidationPassed": false,
+  "nativeModelReceipts": 25,
+  "nativeExecutions": 14,
+  "allSiloReadbackHashesMatch": true,
+  "artifacts": [
+    {
+      "path": "frontend/standalone.html",
+      "sha256": "6de36ee69e43b6efd89b6a3bd033571353293988c2c61fc55aaa96b5453946ec",
+      "size": 5952
+    },
+    {
+      "path": "frontend/index.html",
+      "sha256": "0ea2dc0a1de366a05c5c103b05b8719b1b2b09f297c1efa9e65c5e1c5750568f",
+      "size": 5955
+    },
+    {
+      "path": "frontend/manifest.json",
+      "sha256": "47e0a5eb0e3d5a2b6d35e0c5832c10a78b706b4b06cf1d3c04b9a28b6bdf2563",
+      "size": 339
+    },
+    {
+      "path": "frontend/assets/tabler/LICENSE",
+      "sha256": "4f88a82d13be3c5c63a12c5631eae914aa4381b6dc17641bf1ab85f3f8f6c8a5",
+      "size": 1090
+    },
+    {
+      "path": "frontend/assets/tabler/css/tabler.min.css",
+      "sha256": "7ef750bd10546a695d0b12767ad8048bd8f3ec5de7daefb1067f9d0daa3d1c9a",
+      "size": 536141
+    },
+    {
+      "path": "frontend/assets/echarts/LICENSE",
+      "sha256": "634293835b43a6dd2094fa39182a3d9a6b9ca43b7fdb9ac354e8037af2a3093a",
+      "size": 11990
+    },
+    {
+      "path": "frontend/assets/echarts/echarts.min.js",
+      "sha256": "b66b25aeb4df84e33199dc21694014d336d222cbd9deb0e5a7c14bd6aa0d0fd0",
+      "size": 1121883
+    },
+    {
+      "path": "frontend/themes/enterprise-blue.css",
+      "sha256": "136a0f2de29b0e6e5a584390ecc70702ca9156c656cf9a6fb527787d24a1c909",
+      "size": 624
+    },
+    {
+      "path": "frontend/repair-history.json",
+      "sha256": "f5c5ddcc608564a10dba74a0d9dd50d546b14616f8dfeb8333fbce39d0569b65",
+      "size": 4137
+    },
+    {
+      "path": "frontend/dependencies.json",
+      "sha256": "3e02ad34dddf7af185102302518ea76179a508e5010af1329ab6078909a0b0d6",
+      "size": 4504
+    },
+    {
+      "path": "frontend/validation-report.json",
+      "sha256": "1808c2203a6186f080547595333222109315628753bd4db4f55bf31db3b96f88",
+      "size": 703
+    },
+    {
+      "path": "frontend/mobile.png",
+      "sha256": "07124762fb41fb12a5d9322c557526feca55d67467e4333f020317729a99d91d",
+      "size": 54206
+    },
+    {
+      "path": "frontend/desktop.png",
+      "sha256": "98ffcd9fda9b8544a042a0be64fc55d3a631d5a65dafcb3efc2e485ac42dab7e",
+      "size": 52047
+    },
+    {
+      "path": "frontend-acceptance/RESULT.json",
+      "sha256": "f7cbd60b9f04ea3ced4dfb963e37ff63db7a90fdb5210bc7101fa94e91eee64a",
+      "size": 620
+    },
+    {
+      "path": "frontend-acceptance/acceptance.md",
+      "sha256": "d5bb00b4be6cd89106ab7d14fceec703f28c06528ea719550a9f398cc1855a1e",
+      "size": 1902
+    }
+  ]
+}

@@ -1,0 +1,69 @@
+{
+  "scenario": "report-confirmation-repaired",
+  "taskId": "temporal-native-05c6f7209df1a4f73eb58cf84bc0af677fe4f5dbdcc784487616d0eac3c9a02b",
+  "runId": "coding-fef3a4fa21a533b332f50ad1c8bf9630e0092efe006291e1900b2b1e58e5a10d",
+  "nodeId": "cline-worker-1",
+  "status": "COMPLETED",
+  "runtimeValidationStatus": "INCONCLUSIVE",
+  "businessValidationPassed": false,
+  "nativeModelReceipts": 28,
+  "nativeExecutions": 11,
+  "allSiloReadbackHashesMatch": true,
+  "artifacts": [
+    {
+      "path": "tasks/temporal-native-05c6f7209df1a4f73eb58cf84bc0af677fe4f5dbdcc784487616d0eac3c9a02b/frontend/standalone.html",
+      "sha256": "e34bdf032f9d0fa1f0b07ed460537a3d2e60e76c6d99f6377f744cbf2a79db45",
+      "size": 12847
+    },
+    {
+      "path": "tasks/temporal-native-05c6f7209df1a4f73eb58cf84bc0af677fe4f5dbdcc784487616d0eac3c9a02b/frontend/index.html",
+      "sha256": "e34bdf032f9d0fa1f0b07ed460537a3d2e60e76c6d99f6377f744cbf2a79db45",
+      "size": 12847
+    },
+    {
+      "path": "tasks/temporal-native-05c6f7209df1a4f73eb58cf84bc0af677fe4f5dbdcc784487616d0eac3c9a02b/frontend/assets/echarts/LICENSE",
+      "sha256": "634293835b43a6dd2094fa39182a3d9a6b9ca43b7fdb9ac354e8037af2a3093a",
+      "size": 11990
+    },
+    {
+      "path": "tasks/temporal-native-05c6f7209df1a4f73eb58cf84bc0af677fe4f5dbdcc784487616d0eac3c9a02b/frontend/assets/echarts/echarts.min.js",
+      "sha256": "b66b25aeb4df84e33199dc21694014d336d222cbd9deb0e5a7c14bd6aa0d0fd0",
+      "size": 1121883
+    },
+    {
+      "path": "tasks/temporal-native-05c6f7209df1a4f73eb58cf84bc0af677fe4f5dbdcc784487616d0eac3c9a02b/frontend/dependencies.json",
+      "sha256": "84cfa910431d9b325c3eb395df7bc5c18bf798f58893c7eefffd9a9ff6cbd60a",
+      "size": 4428
+    },
+    {
+      "path": "tasks/temporal-native-05c6f7209df1a4f73eb58cf84bc0af677fe4f5dbdcc784487616d0eac3c9a02b/frontend/manifest.json",
+      "sha256": "0406f20096e4a4d231420eebf925e366b88243b1a89cefdc8d53a3eaa8b2f179",
+      "size": 339
+    },
+    {
+      "path": "tasks/temporal-native-05c6f7209df1a4f73eb58cf84bc0af677fe4f5dbdcc784487616d0eac3c9a02b/frontend/repair-history.json",
+      "sha256": "e149f92775f9c93b25ca2c3a9b198b1c9af5d78ef6d22f9d8c93b48025c4dd5f",
+      "size": 3124
+    },
+    {
+      "path": "tasks/temporal-native-05c6f7209df1a4f73eb58cf84bc0af677fe4f5dbdcc784487616d0eac3c9a02b/frontend/validation-report.json",
+      "sha256": "33f81e46917fdb2f54d2503d304f70ebbf71bd0f7f8023089f2bdc0900f89ed7",
+      "size": 703
+    },
+    {
+      "path": "tasks/temporal-native-05c6f7209df1a4f73eb58cf84bc0af677fe4f5dbdcc784487616d0eac3c9a02b/frontend/mobile.png",
+      "sha256": "7ab93b0b8bd70a1c9004a7311cb3f3c9685282dd0a8b296087e17f14d701f322",
+      "size": 89274
+    },
+    {
+      "path": "tasks/temporal-native-05c6f7209df1a4f73eb58cf84bc0af677fe4f5dbdcc784487616d0eac3c9a02b/frontend/desktop.png",
+      "sha256": "e2ec16ec421c93c5d0f1a100b325787db8009b8edaf4b97ade6b304f007ea87c",
+      "size": 90401
+    },
+    {
+      "path": "tasks/temporal-native-05c6f7209df1a4f73eb58cf84bc0af677fe4f5dbdcc784487616d0eac3c9a02b/frontend/acceptance.md",
+      "sha256": "77241cd177b5d12c3c535a8c23a9b120d3d2e9cb0f090f39d4a23ea749ea7395",
+      "size": 3605
+    }
+  ]
+}

@@ -1,0 +1,25 @@
+{
+  "scenario": "oa-extraction-approval",
+  "status": "passed",
+  "checks": [
+    {
+      "viewport": {
+        "width": 1440,
+        "height": 900
+      },
+      "fixtureValues": "passed",
+      "chartValues": [],
+      "offline": "passed"
+    },
+    {
+      "viewport": {
+        "width": 390,
+        "height": 844
+      },
+      "fixtureValues": "passed",
+      "chartValues": [],
+      "offline": "passed"
+    }
+  ],
+  "businessScope": "Synthetic domain fixture mappings and offline rendering; no production data or server-side mutations"
+}

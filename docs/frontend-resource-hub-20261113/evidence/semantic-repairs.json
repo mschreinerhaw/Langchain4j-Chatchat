@@ -1,0 +1,24 @@
+[
+  {
+    "originalTaskId": "temporal-native-b5a9d97315acc66e447ee0623f2c7cfae2aeced5ca50f001967ec5263bfb2334",
+    "originalRunId": "coding-de076faee6e2e4ad4d90b6c75bda114d23f914f18bb1e46cc672c46aa2f5b44b",
+    "replacementTaskId": "temporal-native-a93769a389511c67e37e7f787f8fd3b28bf592a7887daa3091decf95db5d7510",
+    "replacementRunId": "coding-9ec5d7bbe16b3efd3ed2aaece0d58b130b3524e1ff65a7d94c6d9ec552b6ee2f",
+    "expected": "Query INV-001 shows exactly that matching row",
+    "originalObserved": "Query produced an empty table",
+    "rootCause": "Generic binder and custom renderer both attached",
+    "replacementVerified": true,
+    "originalSiloEvidenceRetained": true
+  },
+  {
+    "originalTaskId": "temporal-native-e33332a3d9c444cfda8ac4c06ff262825bb2a64e36ab38985413964e75f54205",
+    "originalRunId": "coding-78ba33b05879dff94f267d7c6f4d5831052e80734310f2a1f682bae2c73f3aa9",
+    "replacementTaskId": "temporal-native-05c6f7209df1a4f73eb58cf84bc0af677fe4f5dbdcc784487616d0eac3c9a02b",
+    "replacementRunId": "coding-fef3a4fa21a533b332f50ad1c8bf9630e0092efe006291e1900b2b1e58e5a10d",
+    "expected": 2,
+    "originalObserved": 4,
+    "rootCause": "Generic binder and custom renderer both attached",
+    "replacementVerified": true,
+    "originalSiloEvidenceRetained": true
+  }
+]

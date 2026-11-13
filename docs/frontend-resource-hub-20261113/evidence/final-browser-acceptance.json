@@ -1,0 +1,406 @@
+{
+  "date": "2026-11-13T04:13:02.819Z",
+  "data": "Synthetic acceptance fixtures; not production business acceptance",
+  "cases": [
+    {
+      "template": "management-list",
+      "theme": "enterprise-blue",
+      "id": "bb468dde-7530-40e0-82e1-5ce57a24e488",
+      "status": "passed",
+      "createdAt": 1794543183102,
+      "report": {
+        "status": "passed",
+        "viewports": [
+          {
+            "name": "desktop",
+            "width": 1440,
+            "height": 900,
+            "screenshot": "/api/v1/preview/bb468dde-7530-40e0-82e1-5ce57a24e488/desktop.png"
+          },
+          {
+            "name": "mobile",
+            "width": 390,
+            "height": 844,
+            "screenshot": "/api/v1/preview/bb468dde-7530-40e0-82e1-5ce57a24e488/mobile.png"
+          }
+        ],
+        "errors": [],
+        "htmlSha256": "d4ba48b320c9a542dbb4b961413aefa490aa7863b7c1435c8d1db72034664d0f",
+        "checks": [
+          "console",
+          "resources",
+          "external-dependencies",
+          "horizontal-overflow",
+          "echarts",
+          "required-elements",
+          "declared-interactions"
+        ],
+        "businessValidation": "Not evaluated by browser"
+      },
+      "bundle": true,
+      "offline": {
+        "status": "passed",
+        "chartMapping": 0,
+        "interactions": "checked where present"
+      }
+    },
+    {
+      "template": "data-analysis",
+      "theme": "financial-light",
+      "id": "1ef09a52-780d-490c-a038-6171ae7ad386",
+      "status": "passed",
+      "createdAt": 1794543185181,
+      "report": {
+        "status": "passed",
+        "viewports": [
+          {
+            "name": "desktop",
+            "width": 1440,
+            "height": 900,
+            "screenshot": "/api/v1/preview/1ef09a52-780d-490c-a038-6171ae7ad386/desktop.png"
+          },
+          {
+            "name": "mobile",
+            "width": 390,
+            "height": 844,
+            "screenshot": "/api/v1/preview/1ef09a52-780d-490c-a038-6171ae7ad386/mobile.png"
+          }
+        ],
+        "errors": [],
+        "htmlSha256": "9c5fe8a04b6014aeeb48660aa1ef9069528f42548c1f62639f9327441af50c80",
+        "checks": [
+          "console",
+          "resources",
+          "external-dependencies",
+          "horizontal-overflow",
+          "echarts",
+          "required-elements",
+          "declared-interactions"
+        ],
+        "businessValidation": "Not evaluated by browser"
+      },
+      "bundle": true,
+      "offline": {
+        "status": "passed",
+        "chartMapping": 2,
+        "interactions": "checked where present"
+      }
+    },
+    {
+      "template": "business-report",
+      "theme": "dashboard-dark",
+      "id": "4beb2ddc-aec3-4bef-9a3a-a8d1642dfbea",
+      "status": "passed",
+      "createdAt": 1794543188223,
+      "report": {
+        "status": "passed",
+        "viewports": [
+          {
+            "name": "desktop",
+            "width": 1440,
+            "height": 900,
+            "screenshot": "/api/v1/preview/4beb2ddc-aec3-4bef-9a3a-a8d1642dfbea/desktop.png"
+          },
+          {
+            "name": "mobile",
+            "width": 390,
+            "height": 844,
+            "screenshot": "/api/v1/preview/4beb2ddc-aec3-4bef-9a3a-a8d1642dfbea/mobile.png"
+          }
+        ],
+        "errors": [],
+        "htmlSha256": "18991c18649e0752f328d914769d4b5c3a3d6920400d30804fc929cf48c2ccd2",
+        "checks": [
+          "console",
+          "resources",
+          "external-dependencies",
+          "horizontal-overflow",
+          "echarts",
+          "required-elements",
+          "declared-interactions"
+        ],
+        "businessValidation": "Not evaluated by browser"
+      },
+      "bundle": true,
+      "offline": {
+        "status": "passed",
+        "chartMapping": 1,
+        "interactions": "checked where present"
+      }
+    },
+    {
+      "template": "oa-form",
+      "theme": "enterprise-blue",
+      "id": "bd402f23-509b-49bf-a1b1-db173fafd295",
+      "status": "passed",
+      "createdAt": 1794543191250,
+      "report": {
+        "status": "passed",
+        "viewports": [
+          {
+            "name": "desktop",
+            "width": 1440,
+            "height": 900,
+            "screenshot": "/api/v1/preview/bd402f23-509b-49bf-a1b1-db173fafd295/desktop.png"
+          },
+          {
+            "name": "mobile",
+            "width": 390,
+            "height": 844,
+            "screenshot": "/api/v1/preview/bd402f23-509b-49bf-a1b1-db173fafd295/mobile.png"
+          }
+        ],
+        "errors": [],
+        "htmlSha256": "18788f6fce7aadbe753809af5b35e185aa6dad50a58db5c843f8bd26729ae949",
+        "checks": [
+          "console",
+          "resources",
+          "external-dependencies",
+          "horizontal-overflow",
+          "echarts",
+          "required-elements",
+          "declared-interactions"
+        ],
+        "businessValidation": "Not evaluated by browser"
+      },
+      "bundle": true,
+      "offline": {
+        "status": "passed",
+        "chartMapping": 0,
+        "interactions": "checked where present"
+      }
+    },
+    {
+      "template": "login-portal",
+      "theme": "financial-light",
+      "id": "692b6e00-fd7c-40d4-8916-3979ba3c86fb",
+      "status": "passed",
+      "createdAt": 1794543193265,
+      "report": {
+        "status": "passed",
+        "viewports": [
+          {
+            "name": "desktop",
+            "width": 1440,
+            "height": 900,
+            "screenshot": "/api/v1/preview/692b6e00-fd7c-40d4-8916-3979ba3c86fb/desktop.png"
+          },
+          {
+            "name": "mobile",
+            "width": 390,
+            "height": 844,
+            "screenshot": "/api/v1/preview/692b6e00-fd7c-40d4-8916-3979ba3c86fb/mobile.png"
+          }
+        ],
+        "errors": [],
+        "htmlSha256": "d14d01ca84fc26af0149d58d3fabc710e4caf6101780bcc71cc3a2f627b9531f",
+        "checks": [
+          "console",
+          "resources",
+          "external-dependencies",
+          "horizontal-overflow",
+          "echarts",
+          "required-elements",
+          "declared-interactions"
+        ],
+        "businessValidation": "Not evaluated by browser"
+      },
+      "bundle": true,
+      "offline": {
+        "status": "passed",
+        "chartMapping": 0,
+        "interactions": "checked where present"
+      }
+    }
+  ],
+  "libraries": [
+    {
+      "name": "datatable-bootstrap-alpine-icons",
+      "id": "bc1313c4-01e3-48d5-8ce8-b2068305ad87",
+      "status": "passed",
+      "createdAt": 1794543199314,
+      "report": {
+        "status": "passed",
+        "viewports": [
+          {
+            "name": "desktop",
+            "width": 1440,
+            "height": 900,
+            "screenshot": "/api/v1/preview/bc1313c4-01e3-48d5-8ce8-b2068305ad87/desktop.png"
+          },
+          {
+            "name": "mobile",
+            "width": 390,
+            "height": 844,
+            "screenshot": "/api/v1/preview/bc1313c4-01e3-48d5-8ce8-b2068305ad87/mobile.png"
+          }
+        ],
+        "errors": [],
+        "htmlSha256": "b303c49f364fe63d7d433141e76fb9d606ab42e3b068e4553b89ed6c75e8d697",
+        "checks": [
+          "console",
+          "resources",
+          "external-dependencies",
+          "horizontal-overflow",
+          "echarts",
+          "required-elements",
+          "declared-interactions"
+        ],
+        "businessValidation": "Not evaluated by browser"
+      },
+      "bundle": true
+    },
+    {
+      "name": "mermaid",
+      "id": "fc32a391-306b-404a-8098-1468fdb93bf5",
+      "status": "passed",
+      "createdAt": 1794543201338,
+      "report": {
+        "status": "passed",
+        "viewports": [
+          {
+            "name": "desktop",
+            "width": 1440,
+            "height": 900,
+            "screenshot": "/api/v1/preview/fc32a391-306b-404a-8098-1468fdb93bf5/desktop.png"
+          },
+          {
+            "name": "mobile",
+            "width": 390,
+            "height": 844,
+            "screenshot": "/api/v1/preview/fc32a391-306b-404a-8098-1468fdb93bf5/mobile.png"
+          }
+        ],
+        "errors": [],
+        "htmlSha256": "a75310c616016318adbce2a29330bf758d212460e6765727a882d75e77e5e353",
+        "checks": [
+          "console",
+          "resources",
+          "external-dependencies",
+          "horizontal-overflow",
+          "echarts",
+          "required-elements",
+          "declared-interactions"
+        ],
+        "businessValidation": "Not evaluated by browser"
+      },
+      "bundle": true
+    }
+  ],
+  "repair": {
+    "method": "Deterministic test repair; native Cline autonomous repair still requires business task acceptance",
+    "before": {
+      "id": "a9c75acd-79c9-4b26-bbdb-ee29c2d82946",
+      "status": "failed",
+      "createdAt": 1794543195282,
+      "report": {
+        "status": "failed",
+        "viewports": [
+          {
+            "name": "desktop",
+            "width": 1440,
+            "height": 900,
+            "screenshot": "/api/v1/preview/a9c75acd-79c9-4b26-bbdb-ee29c2d82946/desktop.png"
+          },
+          {
+            "name": "mobile",
+            "width": 390,
+            "height": 844,
+            "screenshot": "/api/v1/preview/a9c75acd-79c9-4b26-bbdb-ee29c2d82946/mobile.png"
+          }
+        ],
+        "errors": [
+          {
+            "viewport": "desktop",
+            "type": "resource",
+            "url": "http://169.254.169.254/latest/meta-data/",
+            "message": "Unregistered dependency http://169.254.169.254/latest/meta-data/"
+          },
+          {
+            "viewport": "desktop",
+            "type": "javascript",
+            "message": "fixture defect"
+          },
+          {
+            "viewport": "desktop",
+            "type": "console",
+            "message": "Failed to load resource: net::ERR_FAILED"
+          },
+          {
+            "viewport": "desktop",
+            "type": "layout",
+            "message": "horizontal-overflow"
+          },
+          {
+            "viewport": "mobile",
+            "type": "resource",
+            "url": "http://169.254.169.254/latest/meta-data/",
+            "message": "Unregistered dependency http://169.254.169.254/latest/meta-data/"
+          },
+          {
+            "viewport": "mobile",
+            "type": "javascript",
+            "message": "fixture defect"
+          },
+          {
+            "viewport": "mobile",
+            "type": "console",
+            "message": "Failed to load resource: net::ERR_FAILED"
+          },
+          {
+            "viewport": "mobile",
+            "type": "layout",
+            "message": "horizontal-overflow"
+          }
+        ],
+        "htmlSha256": "5f95f60836f71a2c12721be49b8503a8852f1011778f33f023de982a1badec66",
+        "checks": [
+          "console",
+          "resources",
+          "external-dependencies",
+          "horizontal-overflow",
+          "echarts",
+          "required-elements",
+          "declared-interactions"
+        ],
+        "businessValidation": "Not evaluated by browser"
+      },
+      "bundle": true
+    },
+    "after": {
+      "id": "7b866c6e-0db6-468d-8249-89dd7145d949",
+      "status": "passed",
+      "createdAt": 1794543197296,
+      "report": {
+        "status": "passed",
+        "viewports": [
+          {
+            "name": "desktop",
+            "width": 1440,
+            "height": 900,
+            "screenshot": "/api/v1/preview/7b866c6e-0db6-468d-8249-89dd7145d949/desktop.png"
+          },
+          {
+            "name": "mobile",
+            "width": 390,
+            "height": 844,
+            "screenshot": "/api/v1/preview/7b866c6e-0db6-468d-8249-89dd7145d949/mobile.png"
+          }
+        ],
+        "errors": [],
+        "htmlSha256": "eca827f90661fd2ace2e4a8afa95c9fbce43b16549ec5737fcf9c50fffc2ed36",
+        "checks": [
+          "console",
+          "resources",
+          "external-dependencies",
+          "horizontal-overflow",
+          "echarts",
+          "required-elements",
+          "declared-interactions"
+        ],
+        "businessValidation": "Not evaluated by browser"
+      },
+      "bundle": true
+    }
+  }
+}

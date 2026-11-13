@@ -1,4 +1,5 @@
 import {resolveRuntimeModel} from './runtime-model.mjs';
+import {proxyFrontend,stageFrontendTransport} from './frontend-proxy.mjs';
 import {stageNativeSkills,stageNativeDownload,runtimeMcpReply,nativeSkillDiscoveryContext} from './native-capability-files.mjs';
 import http from 'node:http';
 import {readFileSync,writeFileSync,mkdirSync,readdirSync,existsSync,renameSync,chownSync,chmodSync,cpSync,unlinkSync,lstatSync} from 'node:fs';
@@ -94,6 +95,7 @@ async function broker(r,path){
    const provided=Buffer.from(req.headers.authorization??''),expected=Buffer.from('Bearer '+r.brokerToken);
    if(provided.length!==expected.length||!timingSafeEqual(provided,expected))throw error('Broker authorization rejected',401);
    if(!live(r))throw error('Task lease inactive',403);
+   if(await proxyFrontend(req,res,cfg.frontendHub,r,{save}))return;
    const tenant=cfg.tenants[r.contract.tenantId];let url,headers,modelProfile;
    if(req.url==='/mcp'){
     if(!tenant.mcp)throw error('MCP not granted',403);
@@ -172,7 +174,9 @@ async function allocate(r){
      const response=await fetch(tenant.mcp.url.replace(/\/mcp$/,'/skills'),{method:'POST',headers:{Authorization:'Bearer '+signContract(r.contract,issuerKey(cfg,r.contract.tenantId))},signal:AbortSignal.timeout(60000),redirect:'error'});
      if(!response.ok)throw Error('Authorized Skill package delivery failed');packages=(await response.json()).packages;
     }
-    r.nativeSkillIndex=await stageNativeSkills(join(cfg.workerRoot,r.workerId,'workspace'),packages,(type,payload)=>event(r,type,payload));save(r);
+    r.nativeSkillIndex=await stageNativeSkills(join(cfg.workerRoot,r.workerId,'workspace'),packages,(type,payload)=>event(r,type,payload));
+    if(cfg.frontendHub)await stageFrontendTransport(join(cfg.workerRoot,r.workerId,'workspace'),r.brokerToken,workerRuntime(cfg).uid);
+    save(r);
    }
    await broker(r,join(bridgeRoot(r),'broker.sock'));
    if(r.revoked)throw Error('Allocation revoked');await executor.start(grant(r),r.workerId);

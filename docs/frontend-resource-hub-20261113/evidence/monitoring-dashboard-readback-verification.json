@@ -1,0 +1,89 @@
+{
+  "scenario": "monitoring-dashboard",
+  "taskId": "temporal-native-03c2e6f97e25bb24379e5c3c31c2ade831545801a4eab499cdb3b60c5062e60f",
+  "runId": "coding-82f961a6248344076d3fdc79f432c30fc0aa2995f469373d5a1f0cab381197cc",
+  "nodeId": "cline-worker-1",
+  "status": "COMPLETED",
+  "runtimeValidationStatus": "INCONCLUSIVE",
+  "businessValidationPassed": false,
+  "nativeModelReceipts": 23,
+  "nativeExecutions": 14,
+  "allSiloReadbackHashesMatch": true,
+  "artifacts": [
+    {
+      "path": "tasks/frontend/standalone.html",
+      "sha256": "c0da2648c940bb298f9b704db239111322a0467bbf52a47200c915eeb8789725",
+      "size": 5339
+    },
+    {
+      "path": "tasks/frontend/index.html",
+      "sha256": "2223c6670df3e557a5808b70a3b4e75ec271971ba98f919eeae190d01b395d59",
+      "size": 5342
+    },
+    {
+      "path": "tasks/frontend/result.json",
+      "sha256": "ee721b3aea7b324d628372255078a1f37a27d24a9d78506644b11ed621e9569d",
+      "size": 578
+    },
+    {
+      "path": "tasks/frontend/acceptance.md",
+      "sha256": "7787cd598f4ac0ddadd1677e017e289309d2b1b4f61fd1c2353e67750f52deca",
+      "size": 2102
+    },
+    {
+      "path": "tasks/frontend/assets/tabler/css/tabler.min.css",
+      "sha256": "7ef750bd10546a695d0b12767ad8048bd8f3ec5de7daefb1067f9d0daa3d1c9a",
+      "size": 536141
+    },
+    {
+      "path": "tasks/frontend/assets/tabler/LICENSE",
+      "sha256": "4f88a82d13be3c5c63a12c5631eae914aa4381b6dc17641bf1ab85f3f8f6c8a5",
+      "size": 1090
+    },
+    {
+      "path": "tasks/frontend/assets/echarts/echarts.min.js",
+      "sha256": "b66b25aeb4df84e33199dc21694014d336d222cbd9deb0e5a7c14bd6aa0d0fd0",
+      "size": 1121883
+    },
+    {
+      "path": "tasks/frontend/assets/echarts/LICENSE",
+      "sha256": "634293835b43a6dd2094fa39182a3d9a6b9ca43b7fdb9ac354e8037af2a3093a",
+      "size": 11990
+    },
+    {
+      "path": "tasks/frontend/assets/hub/bind.js",
+      "sha256": "425e3d919cfe9c281d6c1b9b491bb45eccf745df25f34372591d393fbe144ea6",
+      "size": 1984
+    },
+    {
+      "path": "tasks/frontend/desktop.png",
+      "sha256": "a5d66714df9b5e8258d588e9150f3e8e1ea0cba568698b7737c6dc152544f4ae",
+      "size": 68604
+    },
+    {
+      "path": "tasks/frontend/mobile.png",
+      "sha256": "793cf3cd2ed16ce8c4e6b15545b2098fddfff30ba29fbd643e1090ed2fc0e990",
+      "size": 62766
+    },
+    {
+      "path": "tasks/frontend/validation-report.json",
+      "sha256": "dd71804bae84aadf9cc813de3b5d8e09a75725cb6cd27ef43bc660dcdaab3002",
+      "size": 703
+    },
+    {
+      "path": "tasks/frontend/dependencies.json",
+      "sha256": "cda57a3d986404842f84beb8d551557c7d29d3ecd6ef6fc100ac95cb779410b8",
+      "size": 4496
+    },
+    {
+      "path": "tasks/frontend/manifest.json",
+      "sha256": "367b67dc69b26fa84a9a21407ba798eac2add882b2da63b5f8cd869342182f83",
+      "size": 339
+    },
+    {
+      "path": "tasks/frontend/repair-history.json",
+      "sha256": "2c636f0bec6c807f62cf043cdfd6506003c0e540e0087cbf7a45a9dcf4a5b394",
+      "size": 2468
+    }
+  ]
+}

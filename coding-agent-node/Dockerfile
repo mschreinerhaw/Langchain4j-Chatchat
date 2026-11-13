@@ -34,7 +34,7 @@ COPY --chown=node:node src/healthcheck.js ./src/healthcheck.js
 RUN mkdir /srv/monitor-data && chown node:node /srv/monitor-data
 USER node
 RUN node dist/sdk-packages.js \
-    && node --input-type=module -e "import {prepareNativeSkills} from './dist/native-skills.js'; const r=await prepareNativeSkills({taskId:'image-gate',scope:{tenantId:'image',userId:'image',runId:'image'}},{},{sessionId:'image-gate'}); try {if (r.records.length!==15 || r.tools.map(t=>t.name).sort().join(',')!=='read_files,skills') throw new Error('Native Skills gate failed');} finally {await r.dispose();}"
+    && node --input-type=module -e "import {prepareNativeSkills} from './dist/native-skills.js'; const r=await prepareNativeSkills({taskId:'image-gate',scope:{tenantId:'image',userId:'image',runId:'image'}},{},{sessionId:'image-gate'}); try {if (r.records.length!==17 || r.tools.map(t=>t.name).sort().join(',')!=='read_files,skills') throw new Error('Native Skills gate failed');} finally {await r.dispose();}"
 EXPOSE 3100
 HEALTHCHECK --interval=15s --timeout=5s --start-period=15s --retries=3 CMD ["node", "dist/healthcheck.js"]
 CMD ["node", "dist/server.js"]

@@ -1,0 +1,14 @@
+{
+  "status": "passed",
+  "fixture": "explicitly synthetic",
+  "workbook": "frontend/ledger.xlsx",
+  "expectedInvoiceIds": [
+    "INV-001",
+    "INV-002"
+  ],
+  "expectedAmounts": [
+    120,
+    150
+  ],
+  "storedWorkbookValuesVerified": true
+}

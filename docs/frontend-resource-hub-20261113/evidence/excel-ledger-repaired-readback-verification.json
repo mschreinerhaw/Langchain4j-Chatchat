@@ -1,0 +1,84 @@
+{
+  "scenario": "excel-ledger-repaired",
+  "taskId": "temporal-native-a93769a389511c67e37e7f787f8fd3b28bf592a7887daa3091decf95db5d7510",
+  "runId": "coding-9ec5d7bbe16b3efd3ed2aaece0d58b130b3524e1ff65a7d94c6d9ec552b6ee2f",
+  "nodeId": "cline-worker-2",
+  "status": "COMPLETED",
+  "runtimeValidationStatus": "INCONCLUSIVE",
+  "businessValidationPassed": false,
+  "nativeModelReceipts": 17,
+  "nativeExecutions": 7,
+  "allSiloReadbackHashesMatch": true,
+  "artifacts": [
+    {
+      "path": "tasks/ledger-repair/frontend/standalone.html",
+      "sha256": "934a48ca956d064cda757fcfff30090df1506eae511267de577dfa556a8a3846",
+      "size": 6748
+    },
+    {
+      "path": "tasks/ledger-repair/frontend/index.html",
+      "sha256": "934a48ca956d064cda757fcfff30090df1506eae511267de577dfa556a8a3846",
+      "size": 6748
+    },
+    {
+      "path": "tasks/ledger-repair/index.html",
+      "sha256": "934a48ca956d064cda757fcfff30090df1506eae511267de577dfa556a8a3846",
+      "size": 6748
+    },
+    {
+      "path": "tasks/ledger-repair/frontend/assets/tabler/LICENSE",
+      "sha256": "4f88a82d13be3c5c63a12c5631eae914aa4381b6dc17641bf1ab85f3f8f6c8a5",
+      "size": 1090
+    },
+    {
+      "path": "tasks/ledger-repair/frontend/assets/tabler/css/tabler.min.css",
+      "sha256": "7ef750bd10546a695d0b12767ad8048bd8f3ec5de7daefb1067f9d0daa3d1c9a",
+      "size": 536141
+    },
+    {
+      "path": "tasks/ledger-repair/frontend/themes/enterprise-blue.css",
+      "sha256": "136a0f2de29b0e6e5a584390ecc70702ca9156c656cf9a6fb527787d24a1c909",
+      "size": 624
+    },
+    {
+      "path": "tasks/ledger-repair/frontend/dependencies.json",
+      "sha256": "7c2a1f8726c557c9462a14dc7a9cf51f98a8ca8f3ffad65ccceb72eeca7e201f",
+      "size": 4466
+    },
+    {
+      "path": "tasks/ledger-repair/frontend/manifest.json",
+      "sha256": "48bf156bf20eccdd1aacc979601a4c84df996c949cb7ebaa779419aa2b22b9d7",
+      "size": 339
+    },
+    {
+      "path": "tasks/ledger-repair/frontend/repair-history.json",
+      "sha256": "d3ea7262e32cf12a8d06d49cd49a7dd249c3617a6ad62a4d7d22edb8b39f00a9",
+      "size": 967
+    },
+    {
+      "path": "tasks/ledger-repair/frontend/validation-report.json",
+      "sha256": "37ff49ea5e48b2fbe6b68157f657c9629240b80289e85d8f98035ee7b1a13d53",
+      "size": 703
+    },
+    {
+      "path": "tasks/ledger-repair/frontend/mobile.png",
+      "sha256": "13db1fe07617da741ee0506d0cb1ef518f4e79e7111b361a1af0a787e29aeaa1",
+      "size": 33193
+    },
+    {
+      "path": "tasks/ledger-repair/frontend/desktop.png",
+      "sha256": "79ece539c65fd0d9b69750076ed49b972f63da8e88dd634edb12b6f64806b837",
+      "size": 37345
+    },
+    {
+      "path": "tasks/ledger-repair/result.json",
+      "sha256": "5fd74a1082fc53a757b54858e11840f77c3d876477a2644cd0c2d2e5de1c6f04",
+      "size": 2250
+    },
+    {
+      "path": "tasks/ledger-repair/acceptance.md",
+      "sha256": "ababfeb4d565049b55efa5fc0710e67dfd0b1fe68d1cee56ebf143bc82d31356",
+      "size": 3863
+    }
+  ]
+}

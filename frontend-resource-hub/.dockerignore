@@ -1,0 +1,8 @@
+node_modules
+public
+jobs
+.env
+*-acceptance.json
+audit.json
+README.md
+__pycache__

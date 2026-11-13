@@ -1,0 +1,130 @@
+[
+  {
+    "id": "d0002799-9050-435d-9c0c-a0c6fe7ae8bd",
+    "status": "failed",
+    "createdAt": 1794541561178,
+    "report": {
+      "status": "failed",
+      "viewports": [
+        {
+          "name": "desktop",
+          "width": 1440,
+          "height": 900,
+          "screenshot": "/api/v1/preview/d0002799-9050-435d-9c0c-a0c6fe7ae8bd/desktop.png"
+        },
+        {
+          "name": "mobile",
+          "width": 390,
+          "height": 844,
+          "screenshot": "/api/v1/preview/d0002799-9050-435d-9c0c-a0c6fe7ae8bd/mobile.png"
+        }
+      ],
+      "errors": [
+        {
+          "viewport": "desktop",
+          "type": "javascript",
+          "message": "acceptance-repair-required"
+        },
+        {
+          "viewport": "desktop",
+          "type": "layout",
+          "message": "chart-not-initialized-or-empty"
+        },
+        {
+          "viewport": "desktop",
+          "type": "layout",
+          "message": "chart-not-initialized-or-empty"
+        },
+        {
+          "viewport": "mobile",
+          "type": "javascript",
+          "message": "acceptance-repair-required"
+        },
+        {
+          "viewport": "mobile",
+          "type": "layout",
+          "message": "chart-not-initialized-or-empty"
+        },
+        {
+          "viewport": "mobile",
+          "type": "layout",
+          "message": "chart-not-initialized-or-empty"
+        }
+      ],
+      "htmlSha256": "708e820ae89a964c618d9063464e642d337d967e7e02550012a5a3b7bd376676",
+      "checks": [
+        "console",
+        "resources",
+        "external-dependencies",
+        "horizontal-overflow",
+        "echarts",
+        "required-elements",
+        "declared-interactions"
+      ],
+      "businessValidation": "Not evaluated by browser"
+    },
+    "bundle": true
+  },
+  {
+    "id": "831263da-b53b-4148-aa68-dd82166d614f",
+    "status": "failed",
+    "createdAt": 1794541582209,
+    "report": {
+      "status": "failed",
+      "viewports": [],
+      "errors": [
+        {
+          "type": "worker",
+          "message": "locator.click: Timeout 10000ms exceeded.\nCall log:\n  - waiting for locator('[data-preview-click]').first()\n    - locator resolved to <button disabled id=\"btn-prev\" data-page=\"prev\" data-preview-click=\"\">\u4e0a\u4e00\u9875</button>\n  - attempting click action\n    2 \u00d7 waiting for element to be visible, enabled and stable\n      - element is not enabled\n    - retrying click action\n    - waiting 20ms\n    2 \u00d7 waiting for element to be visible, enabled and stable\n      - element is not enabled\n    - retrying click action\n      - waiting 100ms\n    19 \u00d7 waiting for element to be visible, enabled and stable\n       - element is not enabled\n     - retrying click action\n       - waiting 500ms\n"
+        }
+      ],
+      "htmlSha256": "3b3bde47db6c775a156d857bc5046848b74afa046e5e292c45d6e123de1e15ad",
+      "checks": [
+        "console",
+        "resources",
+        "external-dependencies",
+        "horizontal-overflow",
+        "echarts",
+        "required-elements",
+        "declared-interactions"
+      ],
+      "businessValidation": "Not evaluated by browser"
+    },
+    "bundle": true
+  },
+  {
+    "id": "9644e40b-f493-434c-9f54-24b83cc9b584",
+    "status": "passed",
+    "createdAt": 1794541610719,
+    "report": {
+      "status": "passed",
+      "viewports": [
+        {
+          "name": "desktop",
+          "width": 1440,
+          "height": 900,
+          "screenshot": "/api/v1/preview/9644e40b-f493-434c-9f54-24b83cc9b584/desktop.png"
+        },
+        {
+          "name": "mobile",
+          "width": 390,
+          "height": 844,
+          "screenshot": "/api/v1/preview/9644e40b-f493-434c-9f54-24b83cc9b584/mobile.png"
+        }
+      ],
+      "errors": [],
+      "htmlSha256": "0ea2dc0a1de366a05c5c103b05b8719b1b2b09f297c1efa9e65c5e1c5750568f",
+      "checks": [
+        "console",
+        "resources",
+        "external-dependencies",
+        "horizontal-overflow",
+        "echarts",
+        "required-elements",
+        "declared-interactions"
+      ],
+      "businessValidation": "Not evaluated by browser"
+    },
+    "bundle": true
+  }
+]

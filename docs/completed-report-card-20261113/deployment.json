@@ -1,0 +1,8 @@
+{
+  "image": "runtime-public-gateway:completed-report-card-20261113",
+  "imageId": "sha256:62191f2485adfbab59168d42319afc035de11a9cc39bb52faf5a63579c2184f0",
+  "backendImageUnchanged": true,
+  "entry": "http://192.168.195.221:18100/",
+  "indexSha256": "ff1fdc7cbee2598b09dbb798218e577a23eb9d4c058cc38c4f153b3827e25ad5",
+  "servedAssetsVerified": true
+}

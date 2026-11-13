@@ -1,0 +1,9 @@
+{
+  "status": "passed",
+  "deployedComponent": true,
+  "running": true,
+  "finalizing": true,
+  "completed": false,
+  "partial": false,
+  "failed": true
+}

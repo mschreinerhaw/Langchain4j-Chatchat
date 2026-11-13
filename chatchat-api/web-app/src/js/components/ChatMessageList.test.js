@@ -73,14 +73,14 @@ it('renders five numbered business steps and keeps technical recovery receipts o
     expect(host.querySelector('.runtime-progress-track')).toBeNull();
   } finally {app.unmount();host.remove();}
 });
-it('retains a collapsible execution summary beside completed reports',()=>{
-  const context={isExecutionRunning:()=>false,messageVisualReport:()=>({status:'SUCCESS'}),messageUiArtifact:()=>null};
-  const message={role:'assistant',taskId:'internal-task',status:'completed'};
-  expect(methods.shouldShowSteps.call(context,message)).toBe(true);
-  context.isExecutionRunning=()=>true;
-  expect(methods.shouldShowSteps.call(context,message)).toBe(true);
-  context.isExecutionRunning=()=>false;context.messageVisualReport=()=>null;
-  expect(methods.shouldShowSteps.call(context,message)).toBe(true);
+it('removes the progress card when analysis finishes and keeps the report visible',async()=>{
+  const message=reactive({id:'finished-report',role:'assistant',taskId:'internal-task',status:'running',content:''});
+  const host=document.createElement('div');const app=createApp({render:()=>h(ChatMessageListVue,{messages:[message]})});
+  try{
+    app.mount(host);await nextTick();expect(host.querySelector('.task-workbench')).not.toBeNull();
+    message.status='completed';message.content='分析报告正文';await nextTick();
+    expect(host.querySelector('.task-workbench')).toBeNull();expect(host.textContent).toContain('分析报告正文');
+  }finally{app.unmount();}
 });
 it('allows exporting a completed report even when the text fallback is empty',()=>{
   const context={messageHasRenderableContent:()=>false,messageVisualReport:()=>({schemaVersion:'python_visual_report.v1'}),messageUiArtifact:()=>null};

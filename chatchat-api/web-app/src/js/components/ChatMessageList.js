@@ -322,6 +322,7 @@ export default {
     },
     shouldShowSteps(message = {}) {
       return message.role === "assistant"
+        && !["completed", "success", "succeeded", "partial", "partial_success"].includes(String(message.status || "").toLowerCase())
         && (!!message.taskId || (Array.isArray(message.steps) && message.steps.length > 0));
     },
     executionMessageKey(message = {}) {

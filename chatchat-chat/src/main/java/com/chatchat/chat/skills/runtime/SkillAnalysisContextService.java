@@ -19,6 +19,9 @@ import org.springframework.stereotype.Component;
 @Component
 @lombok.extern.slf4j.Slf4j
 public final class SkillAnalysisContextService {
+    @org.springframework.beans.factory.annotation.Value("${chatchat.runtime.control-plane.java-skills-enabled:true}")
+    private boolean javaSkillsEnabled = true;
+    public void setJavaSkillsEnabled(boolean enabled) { javaSkillsEnabled = enabled; }
     private final SkillRouter router;
     private final ObjectProvider<AgentRunEventPublisher> publishers;
     // Constructor compatibility with existing integrations; no model is created or called here.
@@ -32,6 +35,15 @@ public final class SkillAnalysisContextService {
     public Map<String,Object> prepare(InteractionRequest request, SkillDefinition agent, List<String> roles,
                                      com.chatchat.chat.interaction.model.InteractionContext conversation) {
         InteractionExecution.checkCancellation(request);
+        if (!javaSkillsEnabled) {
+            Object configured=agent.workflowConfig()==null?null:agent.workflowConfig().get("boundDomainSkillIds");
+            var ids=BuiltinCodingSkills.businessIds(configured instanceof List<?> values
+                ?values.stream().filter(String.class::isInstance).map(String.class::cast).toList():List.of());
+            var references=ids.stream().map(id->Map.<String,Object>of("id",id,"version","ON_DEMAND",
+                "name",id,"description","Optional authorized Agent Skill; load only when needed.",
+                "category","AUTHORIZED_REFERENCE","agentId",agent.id(),"selectionOwner","CLINE","contentDelivery","ON_DEMAND")).toList();
+            return completed(request,SkillAnalysisContext.create("DEFERRED_TO_CLINE",references,Map.of()),agent);
+        }
         var identity = new SkillRoleContext(request.getTenantId(),request.getUserId(),roles,List.of(),Map.of("agentId",agent.id(),"skillPurpose","AGENT_NATIVE"));
         Object bound = agent.workflowConfig() == null ? null : agent.workflowConfig().get("boundDomainSkillIds");
         List<String> ids = BuiltinCodingSkills.businessIds(bound instanceof List<?> list
@@ -99,7 +111,7 @@ public final class SkillAnalysisContextService {
                 if (skill.get(key) != null) fields.put(key,skill.get(key));
             provenance.add(Map.copyOf(fields));
         }
-        var event = Map.<String,Object>of("stage","SKILL_ANALYSIS_CONTEXT","status",state,
+        var event = Map.<String,Object>of("stage",javaSkillsEnabled?"SKILL_ANALYSIS_CONTEXT":"AUTHORIZED_SKILL_REFERENCES","status",state,
             "contextStatus",context.getOrDefault("status",state),"fingerprint",context.getOrDefault("fingerprint",""),
             "skills",List.copyOf(provenance),"engine","RUNTIME_CONTEXT_DELIVERY",
             "modelCalls",0,"analysisDecisionOwner","CLINE");

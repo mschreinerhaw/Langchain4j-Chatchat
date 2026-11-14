@@ -1,3 +1,8 @@
 ﻿spring:
   profiles:
     default: dev
+# Controls Java front Skills only; classification, planning and input parsing retain their existing paths.
+chatchat:
+  runtime:
+    control-plane:
+      java-skills-enabled: ${RUNTIME_JAVA_FRONT_SKILLS:true}

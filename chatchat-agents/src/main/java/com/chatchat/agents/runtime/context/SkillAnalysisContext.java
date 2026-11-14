@@ -101,9 +101,9 @@ public final class SkillAnalysisContext {
         result.put("status", context.get("status"));
         result.put("configuredSkillIds", configuredIds == null ? List.of() : List.copyOf(configuredIds));
         result.put("configuredCount", configuredIds == null ? 0 : configuredIds.size());
-        result.put("selectedCount", skills.size());
+        result.put("selectedCount", "DEFERRED_TO_CLINE".equals(context.get("status")) ? 0 : skills.size());
         result.put("activatedCount", activated.size());
-        result.put("loadedCount", String.valueOf(context.get("status")).startsWith("AVAILABLE") ? 0 : skills.size());
+        result.put("loadedCount", "DEFERRED_TO_CLINE".equals(context.get("status")) || String.valueOf(context.get("status")).startsWith("AVAILABLE") ? 0 : skills.size());
         result.put("skills", skills);
         result.put("activatedSkills", activated);
         result.put("fingerprint", context.get("fingerprint"));

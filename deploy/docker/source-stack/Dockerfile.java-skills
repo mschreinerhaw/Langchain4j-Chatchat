@@ -1,0 +1,41 @@
+# Build context is an uploaded, fingerprinted source snapshot, not local JARs.
+ARG NODE_BUILD_IMAGE
+ARG JAVA_BUILD_IMAGE
+ARG JAVA_RUNTIME_IMAGE
+ARG CODING_BASE_IMAGE
+ARG API_RUNTIME_IMAGE=runtime-api:studio-lease-20261114
+
+FROM ${NODE_BUILD_IMAGE} AS frontend
+WORKDIR /build/chatchat-api/web-app
+COPY chatchat-api/web-app/package*.json ./
+RUN --mount=type=cache,target=/root/.npm npm ci --no-audit --no-fund
+COPY chatchat-api/web-app/ ./
+COPY chatchat-common/src/main/resources/runtime/ /build/chatchat-common/src/main/resources/runtime/
+RUN node node_modules/vite/bin/vite.js build --outDir /frontend/api
+WORKDIR /build/chatchat-mcp-server/web-app-mcp
+COPY chatchat-mcp-server/web-app-mcp/package*.json ./
+RUN --mount=type=cache,target=/root/.npm npm ci --no-audit --no-fund
+COPY chatchat-mcp-server/web-app-mcp/ ./
+RUN node node_modules/vite/bin/vite.js build --outDir /frontend/mcp
+
+FROM ${JAVA_BUILD_IMAGE} AS java-build
+ARG SOURCE_REVISION
+ARG SOURCE_TESTS=SkillAnalysisContextServiceTest,RuntimeOsDomainSkillAdapterTest,DomainSkillPlanningRouterTest,SkillAnalysisContextTest,CodingSkillReaderTest,NativeRuntimeMcpControllerTest,NativeSiloTaskServiceTest,NativeS3CodingAdapterTest,AgentChatModeHandlerTest,RoleChatModeHandlerTest,ClineContextAnswerServiceTest
+COPY tools/maven/ /opt/maven/
+ENV PATH=/opt/maven/bin:$PATH MAVEN_OPTS="-Xmx1536m -Dfile.encoding=UTF-8"
+WORKDIR /source
+COPY . .
+COPY --from=frontend /frontend /frontend
+RUN --mount=type=cache,id=runtime-os-source-maven,target=/root/.m2/repository \
+    test -s coding-agent-node/skills/catalog.json && \
+    mvn -B -ntp -pl chatchat-api,chatchat-mcp-server,chatchat-runtime-news -am \
+    -Dfrontend.skip=true -Dfrontend.install.skip=true -Dcontainer.image=true \
+    -Dweb.static.directory=/frontend/api -Dmcp.web.static.directory=/frontend/mcp \
+    -Dassembly.skipAssembly=true -Dtest=${SOURCE_TESTS} -Dsurefire.failIfNoSpecifiedTests=false clean package && \
+    test -s chatchat-chat/target/classes/coding-skills/catalog.json
+
+# The application JAR comes only from the source build above. Reuse verified runtime dependencies.
+FROM ${API_RUNTIME_IMAGE} AS api
+ARG SOURCE_REVISION
+LABEL org.opencontainers.image.revision="${SOURCE_REVISION}" runtime-os.build="server-source"
+COPY --from=java-build /source/chatchat-api/target/chatchat-api-1.0.0-SNAPSHOT.jar /srv/app/app.jar

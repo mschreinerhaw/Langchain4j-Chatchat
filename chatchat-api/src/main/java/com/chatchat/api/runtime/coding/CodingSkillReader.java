@@ -33,6 +33,7 @@ public final class CodingSkillReader {
         if (contract.runtimeContext().get("skills") instanceof Map<?,?> catalog
                 && catalog.get("skills") instanceof List<?> cards)
             for (Object item : cards) if (item instanceof Map<?,?> card && card.get("id") instanceof String id) {
+                if("ON_DEMAND".equals(card.get("version")))continue;
                 // Native SDK plugin namespaces keep image and Agent package names
                 // separate. Freeze every authorized identity, not a Java name selection.
                 String key="skill-snapshot:"+ModelProtocolJson.sha256Hex(id);
@@ -58,10 +59,11 @@ public final class CodingSkillReader {
         var snapshot=tasks.privateState(contract.scope(),contract.taskId(),snapshotKey);
         // Recheck live authorization, while retaining the content already acquired by
         // this task. Publishing a new version affects subsequent tasks only.
-        var resolution=resolver.resolve(new SkillResolutionRequest(id,snapshot==null?version:"",identity));
+        var resolution=resolver.resolve(new SkillResolutionRequest(id,snapshot==null&&!"ON_DEMAND".equals(version)?version:"",identity));
         if (!resolution.resolved() || !id.equals(resolution.skill().descriptor().id())
-                || snapshot==null && !version.equals(resolution.skill().descriptor().version())) throw denied();
-        if (snapshot!=null) return frozenRead(snapshot,id,version,path);
+                || snapshot==null && !"ON_DEMAND".equals(version) && !version.equals(resolution.skill().descriptor().version())) throw denied();
+        if (snapshot!=null) return frozenRead(snapshot,id,snapshot.path("version").asText(version),path);
+        version=resolution.skill().descriptor().version();
         var skill=resolution.skill();
         boolean nativeOriginal=Boolean.TRUE.equals(skill.metadata().get("nativeOriginal"));
         String hash=ModelProtocolJson.sha256Hex(skill.instructions());
@@ -98,13 +100,13 @@ public final class CodingSkillReader {
                 throw new IllegalArgumentException("Skill resource cannot be disclosed",invalid);
             }
         }
-        snapshot=json.valueToTree(Map.of("instructions",skill.instructions(),"contentSha256",hash,"resources",resources,"nativeOriginal",nativeOriginal));
+        snapshot=json.valueToTree(Map.of("version",version,"instructions",skill.instructions(),"contentSha256",hash,"resources",resources,"nativeOriginal",nativeOriginal));
         if (snapshot.toString().length()>(nativeTask?6*1024*1024:250000)) throw new IllegalArgumentException("Skill snapshot exceeds disclosure budget");
         tasks.privateState(contract.scope(),contract.taskId(),lease,snapshotKey,null,snapshot);
         return frozenRead(snapshot,id,version,path);
     }
     private Map<String,Object> frozenRead(com.fasterxml.jackson.databind.JsonNode snapshot,String id,String version,String path) {
-        if (path==null || path.isBlank() || path.equals("SKILL.md") && snapshot.path("nativeOriginal").asBoolean()) {
+        if (path==null || path.isBlank() || path.equals("SKILL.md")) {
             var resources=new ArrayList<Map<String,Object>>();
             snapshot.path("resources").forEach(r -> resources.add(Map.of("path",r.path("path").asText(),"sha256",r.path("sha256").asText(),"encoding",r.path("encoding").asText("utf-8"))));
             return Map.of("skillId",id,"version",version,"contentSha256",snapshot.path("contentSha256").asText(),

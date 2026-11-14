@@ -22,6 +22,8 @@ import java.util.Set;
 @RequiredArgsConstructor
 @Slf4j
 public class DomainSkillPlanningRouter {
+    @org.springframework.beans.factory.annotation.Value("${chatchat.runtime.control-plane.java-skills-enabled:true}")
+    private boolean javaSkillsEnabled = true;
     private static final int MAX_LIST_ITEMS = 16;
 
     private final ChatModel defaultChatModel;
@@ -32,6 +34,7 @@ public class DomainSkillPlanningRouter {
 
     public RoutingResult route(String query, String agentModel,
                                List<DomainSkillRuntimePort.DomainSkillContent> candidates) {
+        if(!javaSkillsEnabled)return RoutingResult.empty();
         List<DomainSkillRuntimePort.DomainSkillContent> selected = candidates == null
             ? List.of() : candidates.stream().filter(item -> item != null).toList();
         if (selected.isEmpty()) return RoutingResult.empty();

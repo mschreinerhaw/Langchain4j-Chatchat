@@ -105,7 +105,12 @@ public final class NativeSiloTaskService {
                 evidence.contentHash(payload),payload,null,System.currentTimeMillis(),Map.of()),
             new EvidenceLineage(null,inputId(task),scope,List.of(),task,"NativeSiloTaskService",null,Map.of()));
         var runtime=new LinkedHashMap<String,Object>(capabilities);runtime.put("schemaVersion","runtime_os.coding.context.v1");runtime.put("consistency","TASK_SNAPSHOT");var effectiveModel=new LinkedHashMap<String,Object>();if(runtime.get("model") instanceof Map<?,?> captured)captured.forEach((k,v)->effectiveModel.put(k.toString(),v));effectiveModel.put("selectedModel",selectedModel);runtime.put("model",effectiveModel);CodingRuntimeContext.validate(runtime);
-        var tools=new ArrayList<String>(TOOLS);if(runtime.containsKey("internetSearch")){tools.addAll(com.chatchat.api.runtime.coding.knowledge.CodingInternetAccess.NATIVE_TOOLS);tools.add("runtime__*");}
+        var tools=new ArrayList<String>(TOOLS);
+        if(runtime.get("skills") instanceof Map<?,?> catalog && catalog.get("skills") instanceof List<?> cards
+                && cards.stream().anyMatch(card->card instanceof Map<?,?> m&&"ON_DEMAND".equals(m.get("version")))) {
+            tools.add("agent_skill_read");tools.add("runtime__agent_skill_read");
+        }
+        if(runtime.containsKey("internetSearch")){tools.addAll(com.chatchat.api.runtime.coding.knowledge.CodingInternetAccess.NATIVE_TOOLS);tools.add("runtime__*");}
         if(runtime.containsKey("documentSearch")){tools.add("document_search");tools.add("runtime__document_search");}
         var contract=new CodingTaskContract(CodingProtocol.WORKSPACE_VERSION,task,scope,
             new CodingTaskContract.Objective(instruction,artifactTypes,List.of(profile)),

@@ -5,6 +5,12 @@ import java.util.*;
 import static org.assertj.core.api.Assertions.*;
 
 class SkillAnalysisContextTest {
+    @Test void deferredReferencesAreNotReportedAsJavaSelectedOrLoadedSkills(){
+        var context=SkillAnalysisContext.create("DEFERRED_TO_CLINE",List.of(Map.of("id","method","version","ON_DEMAND")),Map.of());
+        assertThat(SkillAnalysisContext.planningProjection(context,List.of("method")))
+            .containsEntry("selectedCount",0).containsEntry("loadedCount",0).containsEntry("activatedCount",0);
+        assertThat(SkillAnalysisContext.prompt(context,"PLAN")).isEmpty();
+    }
     @Test void activationProjectionUsesValidatedMethodologyWithoutExposingInstructions() throws Exception {
         var skill = Map.<String, Object>of("id", "s", "name", "Research", "version", "v1", "contentSha256", "digest");
         var snapshot = SkillAnalysisContext.create("APPLIED", List.of(skill), Map.of("PLAN", List.of("private method")));

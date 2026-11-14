@@ -45,6 +45,16 @@ class CodingSkillReaderTest {
         when(resolver.resolve(any())).thenReturn(new SkillResolution(
             new ResolvedSkill(descriptor,instructions,resources,null,Map.of()),allowed,"db","RESOLVED",Map.of()));
     }
+    @Test void authorizationReferenceResolvesOnlyOnReadAndPinsTheAcquiredVersion() {
+        when(contract.runtimeContext()).thenReturn(Map.of("skills",Map.of("skills",List.of(Map.of("id","method","version","ON_DEMAND","agentId","agent")))));
+        clearInvocations(resolver);
+        reader.freezeCatalog(contract,lease);verifyNoInteractions(resolver);
+        assertThat(reader.read(contract,lease,"method","SKILL.md")).containsEntry("version","v1").containsEntry("instructions","ORIGINAL_METHOD");
+        var published=new SkillDescriptor("method","v2","Comparison","Changed","","DB","","","",1,Map.of());
+        when(resolver.resolve(any())).thenReturn(new SkillResolution(new ResolvedSkill(published,"NEW_CONTENT",List.of(),null,Map.of()),allowed,"db","RESOLVED",Map.of()));
+        assertThat(reader.read(contract,lease,"method","SKILL.md")).containsEntry("version","v1").containsEntry("instructions","ORIGINAL_METHOD");
+        verify(resolver,times(2)).resolve(argThat(r->r.version().isEmpty()));
+    }
     @Test void readsOnlyRequestedInstructionsUsingLiveOwnerAndAgentAuthorization() {
         assertThat(reader.read(contract,lease,"method","")).containsEntry("instructions","ORIGINAL_METHOD");
         verify(scopes).resolve("tenant","owner","agent",List.of(),List.of());

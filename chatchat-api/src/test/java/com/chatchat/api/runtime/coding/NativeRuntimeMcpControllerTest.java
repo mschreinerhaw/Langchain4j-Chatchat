@@ -42,6 +42,19 @@ class NativeRuntimeMcpControllerTest {
         mvc=standaloneSetup(new NativeRuntimeMcpController(settings,json,new CodingInvocationContext(),tasks,internet,skills,mock(NativeS3Evidence.class))).setMessageConverters(new org.springframework.http.converter.json.MappingJackson2HttpMessageConverter(json)).build();
     }
     String grant(long expiry,String run){return settings.client.signGrant(Map.of("version",2,"tenantId","tenant","userId","user","taskId","task","expiresAt",expiry,"deliveryBinding",Map.of("runId",run)),settings.issuerKey);}
+    @Test void referenceAllocationDoesNotLoadSkillContentAndClineCanExplicitlyReadIt()throws Exception{
+        var evidence=mock(NativeS3Evidence.class);when(evidence.bytes(any())).thenAnswer(call->json.writeValueAsBytes(call.getArgument(0)));
+        mvc=standaloneSetup(new NativeRuntimeMcpController(settings,json,new CodingInvocationContext(),tasks,internet,skills,evidence)).setMessageConverters(new org.springframework.http.converter.json.MappingJackson2HttpMessageConverter(json)).build();
+        when(contract.authorization().allowedTools()).thenReturn(List.of("agent_skill_read"));
+        when(contract.runtimeContext()).thenReturn(Map.of("skills",Map.of("skills",List.of(Map.of("id","method","version","ON_DEMAND","name","Method")))));
+        mvc.perform(post("/internal/runtime/native-coding/skills").header("Authorization","Bearer "+token))
+            .andExpect(status().isOk()).andExpect(jsonPath("$.packages[0].version").value("ON_DEMAND"));
+        verifyNoInteractions(skills);
+        when(skills.read(any(),any(),eq("method"),eq("SKILL.md"))).thenReturn(Map.of("instructions","SELECTED_METHOD"));
+        request(token,"{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"tools/call\",\"params\":{\"name\":\"agent_skill_read\",\"arguments\":{\"skillId\":\"method\",\"path\":\"SKILL.md\"}}}")
+            .andExpect(status().isOk()).andExpect(jsonPath("$.result.isError").value(false));
+        verify(skills).read(eq(contract),any(),eq("method"),eq("SKILL.md"));
+    }
     ResultActions request(String bearer,String body)throws Exception{return mvc.perform(post("/internal/runtime/native-coding/mcp").header("Authorization","Bearer "+bearer).contentType("application/json").content(body));}
     @Test void nativeDocumentToolUsesTheExistingDocumentAdapterWithoutEnablingInternet()throws Exception{
         var evidence=mock(NativeS3Evidence.class);when(evidence.bytes(any())).thenAnswer(call->json.writeValueAsBytes(call.getArgument(0)));

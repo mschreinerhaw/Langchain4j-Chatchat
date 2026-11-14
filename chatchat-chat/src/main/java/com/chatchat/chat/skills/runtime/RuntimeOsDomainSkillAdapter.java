@@ -21,6 +21,8 @@ import java.util.Map;
 @Primary
 @RequiredArgsConstructor
 public class RuntimeOsDomainSkillAdapter implements DomainSkillRuntimePort {
+    @org.springframework.beans.factory.annotation.Value("${chatchat.runtime.control-plane.java-skills-enabled:true}")
+    private boolean javaSkillsEnabled = true;
     private final SkillRouter router;
     private final SkillResolver resolver;
 
@@ -40,6 +42,7 @@ public class RuntimeOsDomainSkillAdapter implements DomainSkillRuntimePort {
     public List<DomainSkillContent> retrievePublishedForAgent(String tenantId, String userId,
                                                               List<String> roles, String query,
                                                               List<String> skillIds, String agentId) {
+        if(!javaSkillsEnabled)return List.of();
         SkillRoleContext context = new SkillRoleContext(tenantId, userId, roles, List.of(),
             agentId == null || agentId.isBlank() ? Map.of() : Map.of("agentId", agentId));
         int limit = Math.max(1, Math.min(20, skillIds == null || skillIds.isEmpty() ? 12 : skillIds.size()));
@@ -58,6 +61,7 @@ public class RuntimeOsDomainSkillAdapter implements DomainSkillRuntimePort {
     @Override
     public EvidenceSkillActivation activateForEvidenceForAgent(String tenantId, String userId,
         List<String> roles, String query, List<EvidencePreview> previews, int maxActivatedSkills, String agentId) {
+        if(!javaSkillsEnabled)return EvidenceSkillActivation.empty("DEFERRED_TO_CLINE");
         SkillRoleContext context = new SkillRoleContext(tenantId, userId, roles, List.of(),
             agentId == null || agentId.isBlank() ? Map.of() : Map.of("agentId", agentId));
         int activationLimit = Math.max(1, Math.min(5, maxActivatedSkills));

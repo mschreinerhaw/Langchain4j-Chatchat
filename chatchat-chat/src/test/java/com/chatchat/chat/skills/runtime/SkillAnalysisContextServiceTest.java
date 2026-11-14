@@ -38,6 +38,13 @@ class SkillAnalysisContextServiceTest {
     @SuppressWarnings("unchecked") Map<String,Object> delivered(Map<String,Object> result) {
         return ((List<Map<String,Object>>)result.get("skills")).get(0);
     }
+    @Test void disabledJavaPreparationCopiesAuthorizationReferencesWithoutDiscoveryOrContentReads() {
+        service.setJavaSkillsEnabled(false);
+        var result=service.prepare(request,agent,List.of("role"));
+        assertThat(result.get("status")).isEqualTo("DEFERRED_TO_CLINE");
+        assertThat(delivered(result)).containsEntry("id","method-a").containsEntry("version","ON_DEMAND");
+        verifyNoInteractions(router,resolver,models);
+    }
     @Test void bindingRegistersOnlyCapabilityCardsWithoutResolvingContentOrCallingAModel() {
         var result=service.prepare(request,agent,List.of("role"));
         assertThat(result).containsEntry("status","AVAILABLE").containsEntry("stages",Map.of());

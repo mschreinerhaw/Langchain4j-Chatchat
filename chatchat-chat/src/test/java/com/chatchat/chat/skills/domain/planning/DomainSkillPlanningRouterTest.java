@@ -16,6 +16,14 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 class DomainSkillPlanningRouterTest {
+    @Test void disabledJavaSkillsDoesNotRunTheSkillMethodologyModel(){
+        var model=mock(ChatModel.class);var resources=mock(ModelResourceRegistry.class);var factory=mock(ConfigurableChatModelFactory.class);
+        var router=new DomainSkillPlanningRouter(model,new ObjectMapper(),resources,factory,new DomainSkillCompilerProperties());
+        org.springframework.test.util.ReflectionTestUtils.setField(router,"javaSkillsEnabled",false);
+        var candidate=new DomainSkillRuntimePort.DomainSkillContent("method","Method","category","body");
+        assertThat(router.route("question","model",List.of(candidate)).selected()).isEmpty();
+        org.mockito.Mockito.verifyNoInteractions(model,resources,factory);
+    }
 
     @Test
     void modelSelectsAuthorizedSkillsAndFusesBoundedPlanningKnowledge() {

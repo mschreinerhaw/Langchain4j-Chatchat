@@ -22,6 +22,14 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 class RuntimeOsDomainSkillAdapterTest {
+    @Test void disabledJavaSkillsBypassesBothRetrievalAndEvidenceActivation(){
+        var router=mock(SkillRouter.class);var resolver=mock(SkillResolver.class);
+        var adapter=new RuntimeOsDomainSkillAdapter(router,resolver);
+        org.springframework.test.util.ReflectionTestUtils.setField(adapter,"javaSkillsEnabled",false);
+        assertThat(adapter.retrievePublishedForAgent("tenant","user",List.of(),"question",List.of("method"),"agent")).isEmpty();
+        assertThat(adapter.activateForEvidenceForAgent("tenant","user",List.of(),"question",List.of(),3,"agent").status()).isEqualTo("DEFERRED_TO_CLINE");
+        org.mockito.Mockito.verifyNoInteractions(router,resolver);
+    }
     @Test
     void resolvesFullInstructionsOnlyForMetadataCandidatesSelectedByTheRuntimeRouter() {
         SkillRouter router = mock(SkillRouter.class);

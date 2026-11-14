@@ -25,7 +25,7 @@ def main():
 USER root
 COPY coding-agent-node/skills/ /opt/runtime-os/coding-node/coding-agent-node/skills/
 COPY coding-agent-node/src/skill-distribution.js /opt/runtime-os/coding-node/coding-agent-node/src/
-COPY cline-agent-server/src/delivery-manifest.mjs cline-agent-server/src/professional-report-review.mjs cline-agent-server/src/worker-executor-policy.mjs /opt/runtime-os/coding-node/service/src/
+COPY cline-agent-server/src/delivery-manifest.mjs cline-agent-server/src/professional-report-review.mjs cline-agent-server/src/worker-executor-policy.mjs cline-agent-server/src/frontend-proxy.mjs /opt/runtime-os/coding-node/service/src/
 RUN node --check /opt/runtime-os/coding-node/service/src/professional-report-review.mjs && python -m py_compile /opt/runtime-os/coding-node/coding-agent-node/skills/report-designer/scripts/reportkit.py
 USER 10001:10001
 '''

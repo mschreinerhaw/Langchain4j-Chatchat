@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {Readable} from 'node:stream';
+import {createHash} from 'node:crypto';
 import {proxyFrontend} from '../src/frontend-proxy.mjs';
 const config={url:'http://internal-hub:8080',token:'host-only-token'};
 function req(path,method='GET',body=''){const r=Readable.from([Buffer.from(body)]);r.url=path;r.method=method;return r}
@@ -24,4 +25,14 @@ test('oversized HTML is rejected before upstream; unrelated routes remain owned 
  await assert.rejects(proxyFrontend(req('/frontend/api/v1/preview','POST','x'.repeat(2*1024*1024+1)),res(),config,{}),/too large/);
  assert.equal(await proxyFrontend(req('/mcp'),res(),config,{}),false);
  await assert.rejects(proxyFrontend(req('/frontend/api/v1/resources'),res(),undefined,{}),/unavailable/);
+});
+test('asset transport permits only catalog-pinned task resources and verifies actual bytes',async()=>{
+ const bytes=Buffer.from('shared chart dependency'),path='/assets/echarts/echarts.min.js',task={};
+ const sha256=createHash('sha256').update(bytes).digest('hex');
+ await assert.rejects(proxyFrontend(req('/frontend'+path),res(),config,task),/route denied/);
+ await proxyFrontend(req('/frontend/api/v1/resources'),res(),config,task,{fetcher:async()=>new Response(JSON.stringify([{id:'echarts',files:[{path,sha256}]}]))});
+ const response=res();await proxyFrontend(req('/frontend'+path),response,config,task,{fetcher:async()=>new Response(bytes)});
+ assert.deepEqual(Buffer.concat(response.chunks),bytes);
+ await assert.rejects(proxyFrontend(req('/frontend'+path),res(),config,task,{fetcher:async()=>new Response('tampered')}),/digest differs/);
+ await assert.rejects(proxyFrontend(req('/frontend/assets/echarts/../../secret'),res(),config,task),/route denied/);
 });

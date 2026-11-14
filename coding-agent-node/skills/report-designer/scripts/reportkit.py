@@ -118,7 +118,7 @@ def build(model, output, echarts=None):
     (root/'assets').mkdir(parents=True, exist_ok=True)
     (root/'charts').mkdir(exist_ok=True)
     for name in ['report.css', 'report.js']: shutil.copy2(ASSETS/name, root/'assets'/name)
-    if echarts: shutil.copy2(echarts, root/'assets/echarts.min.js')
+    if echarts and Path(echarts).resolve()!=(root/'assets/echarts.min.js').resolve(): shutil.copy2(echarts, root/'assets/echarts.min.js')
     esc = lambda x: html.escape(str(x), quote=True)
     refs = lambda ids: ' '.join('<a href="#source-'+esc(i)+'">['+esc(i)+']</a>' for i in ids)
     parts = ['<!doctype html><html lang="zh-CN"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>'+esc(model['title'])+'</title><link rel="stylesheet" href="assets/report.css"><body data-theme="'+esc(model.get('theme','corporate-blue'))+'"><main><header><small>RUNTIME OS · 专业分析</small><h1>'+esc(model['title'])+'</h1><p class="metadata">'+esc(model['period'])+'</p></header>', '<section class="summary"><h2>执行摘要</h2><p>'+esc(model['summary'])+'</p></section><div class="kpis">']

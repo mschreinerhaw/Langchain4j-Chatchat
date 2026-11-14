@@ -566,9 +566,19 @@
         "size": 20
       },
       {
+        "path": "scripts/finalize_report.py",
+        "sha256": "0b4ec12929457d0858e5d55e559d6fafc0b670a4863b2ba126643fe1d32f30fd",
+        "size": 4952
+      },
+      {
+        "path": "scripts/prepare_report_assets.py",
+        "sha256": "0f2bbaed9f0b68756ac309b408da82961b42b5c9f39770a51d0880c7e11f28cd",
+        "size": 2549
+      },
+      {
         "path": "scripts/reportkit.py",
-        "sha256": "d946bd8dd22ecd7101516df11e75dd19f75d0c311abca7acecc5807116e3381b",
-        "size": 13093
+        "sha256": "a9caea5d82c8e2caa3efd2734a38bc044fc32bf515860c986a75b623a82b92ab",
+        "size": 13163
       }
     ]
   },

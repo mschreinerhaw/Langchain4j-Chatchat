@@ -50,4 +50,13 @@ class ProfessionalReportsTest(unittest.TestCase):
         self.assertTrue(kit.equivalent([[0,1,2],[1,0,None]],[[0,1,2],[1,0,None]]))
         self.assertFalse(kit.equivalent([[0,1,None]],[[0,1,0]]))
 
+    def test_existing_prepared_chart_asset_can_be_reused_in_place(self):
+        with tempfile.TemporaryDirectory() as d:
+            root=Path(d);model=self.fixture(root);(root/'assets').mkdir()
+            chart=root/'assets/echarts.min.js';chart.write_text('/* dependency fixture */')
+            quality=kit.build(model,root,chart)
+            self.assertEqual(chart.read_text(),'/* dependency fixture */')
+            self.assertNotIn('local ECharts resource missing',quality['pending'])
+            self.assertEqual(quality['status'],'INCOMPLETE')
+
 if __name__=='__main__':unittest.main()

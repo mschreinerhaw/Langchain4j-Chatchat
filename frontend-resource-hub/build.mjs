@@ -27,4 +27,8 @@ for(const file of ['report.css','report.js']){
  reportFiles.push({path,sha256:createHash('sha256').update(bytes).digest('hex')});
 }
 resources.push({id:'professional-report',package:'runtime-os-professional-report',version:reportVersion,license:'platform',dependencies:['echarts'],conflicts:[],files:reportFiles});
+for(const resource of resources){
+ const path='/assets/'+resource.id+'/LICENSE';
+ resource.files.push({path,sha256:createHash('sha256').update(await readFile('public'+path)).digest('hex')});
+}
 await writeFile('public/resources.json',JSON.stringify(resources,null,2));

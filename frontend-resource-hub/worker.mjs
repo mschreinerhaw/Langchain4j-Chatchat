@@ -48,6 +48,12 @@ async function run(job,html){
  for(const message of issues)report.errors.push({viewport:name,type:'layout',message});
  for(const el of await page.locator('[data-preview-click]').all())await el.click();
  await page.screenshot({path:`${dir}/${name}.png`,fullPage:true,timeout:10000});
+ if(name==='desktop'){
+  await page.emulateMedia({media:'print'});
+  const printable=await page.locator('.print-chart').evaluateAll(images=>images.every(i=>i.complete&&i.naturalWidth>0));
+  if(!printable)report.errors.push({viewport:'print',type:'chart',message:'print-chart-image-missing'});
+  await page.pdf({path:`${dir}/report.pdf`,format:'A4',printBackground:true});report.printChecked=true;
+ }
  report.viewports.push({name,width,height,screenshot:`/api/v1/preview/${job.id}/${name}.png`});await context.close();
  }}finally{clearTimeout(timer)}
  report.status=report.errors.length?'failed':'passed';

@@ -26,7 +26,8 @@ if(process.argv.includes('--cancel-case')){
    const report=delivery.visualReport?.htmlReport;if(!report)throw Error('No archived HTML projection');
    const bundle=await api(`/interactions/user-assets/${report.entryFileId}/report-bundle`);await writeFile(out+'/'+name+'-bundle.json',JSON.stringify(bundle,null,2));
    let totalVerified=false;
-   for(const file of bundle.files){const bytes=Buffer.from(file.content,'base64');if(createHash('sha256').update(bytes).digest('hex')!==file.sha256)throw Error('Authenticated readback hash mismatch');if(file.path.endsWith('.json')){try{const data=JSON.parse(bytes.toString());if(data.total===expected)totalVerified=true;}catch{}}}
+   for(const file of bundle.files){const bytes=Buffer.from(file.content,'base64');if(createHash('sha256').update(bytes).digest('hex')!==file.sha256)throw Error('Authenticated readback hash mismatch');if(file.path.endsWith('.json')){try{const data=JSON.parse(bytes.toString());const total=data.total??data.computedTotal??data.totalAssets??data.totalRevenue;if(total===expected)totalVerified=true;}catch{}}}
+   if(process.argv.includes('--require-professional'))for(const required of ['report.html','report_manifest.json','evidence.json','quality_report.json'])if(!bundle.files.some(f=>f.path.split('/').at(-1)===required))throw Error('Missing professional companion: '+required);
    await writeFile(out+'/'+name+'-readback.json',JSON.stringify({totalVerified,expected,files:bundle.files.map(({content,...file})=>file)},null,2));if(!totalVerified)throw Error('Computed total not verified in returned bundle');
   }
  }

@@ -22,6 +22,8 @@ FROM ${JAVA_BUILD_IMAGE} AS java-build
 ARG SOURCE_REVISION
 ARG SOURCE_TESTS=SkillAnalysisContextServiceTest,RuntimeOsDomainSkillAdapterTest,DomainSkillPlanningRouterTest,SkillAnalysisContextTest,CodingSkillReaderTest,NativeRuntimeMcpControllerTest,NativeSiloTaskServiceTest,NativeS3CodingAdapterTest,AgentChatModeHandlerTest,RoleChatModeHandlerTest,ClineContextAnswerServiceTest
 COPY tools/maven/ /opt/maven/
+# A host Maven distribution may pin a host-only JDK. Use the build image JDK.
+RUN sed -i '/^export JAVA_HOME=/d' /opt/maven/bin/mvn
 ENV PATH=/opt/maven/bin:$PATH MAVEN_OPTS="-Xmx1536m -Dfile.encoding=UTF-8"
 WORKDIR /source
 COPY . .

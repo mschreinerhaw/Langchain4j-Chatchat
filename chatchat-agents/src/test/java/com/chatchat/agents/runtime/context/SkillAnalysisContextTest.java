@@ -8,7 +8,7 @@ class SkillAnalysisContextTest {
     @Test void deferredReferencesAreNotReportedAsJavaSelectedOrLoadedSkills(){
         var context=SkillAnalysisContext.create("DEFERRED_TO_CLINE",List.of(Map.of("id","method","version","ON_DEMAND")),Map.of());
         assertThat(SkillAnalysisContext.planningProjection(context,List.of("method")))
-            .containsEntry("selectedCount",0).containsEntry("loadedCount",0).containsEntry("activatedCount",0);
+            .containsEntry("selectedCount",0).containsEntry("loadedCount",0).containsEntry("activatedCount",0).containsEntry("skills",List.of());
         assertThat(SkillAnalysisContext.prompt(context,"PLAN")).isEmpty();
     }
     @Test void activationProjectionUsesValidatedMethodologyWithoutExposingInstructions() throws Exception {

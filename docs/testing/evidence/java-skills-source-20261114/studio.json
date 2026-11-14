@@ -1,0 +1,13 @@
+{
+  "python": {
+    "taskId": "python-coding-436c624ce107c4afd986763f0f119a1af7d089bf94607b39f83c90cdbebcf329",
+    "status": "COMPLETED"
+  },
+  "sql": {
+    "generationId": "c0bbe28c-50f0-4c04-8e16-83c79609c372",
+    "status": "SUCCESS",
+    "proposedFiles": 1
+  },
+  "userFilesApplied": false,
+  "businessCodeExecuted": false
+}

@@ -1,0 +1,15 @@
+{
+  "taskId": "temporal-native-8266fe25836b60b246cdbcb117a691dc6b667eb6c5960c30a995e96cb47188e3",
+  "runId": "coding-96f95ae49ca62e3da714d9098fe6668ee38e5fff3449c30b23c25b20b6a5385c",
+  "status": "COMPLETED",
+  "readProof": [
+    {
+      "skillId": "7704e35b-f526-48d4-819d-8b465ac4731e",
+      "version": "95a9af4e-d510-42d7-b155-7b3cd4423830:dcf79cdb-9f04-32a0-a11e-87454fd18378:GOOGLE_ADK_NATIVE",
+      "contentSha256": "2b129093fa1ad68df771395b4348e361079f1f955855d5ee3883b3a61688b1b0",
+      "receiptAssetId": "33ba432f1fdd6cc98e73fdeb1473755668c3edef73c29ee97abac7bb45d97c79",
+      "instructionsBytes": 6880
+    }
+  ],
+  "logFilesInspected": 173
+}

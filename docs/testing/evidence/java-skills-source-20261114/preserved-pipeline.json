@@ -1,0 +1,37 @@
+[
+  {
+    "path": "chatchat-chat/src/main/java/com/chatchat/chat/interaction/service/handler/AgentChatModeHandler.java",
+    "unchangedFromBaseline": true,
+    "sha256": "e1d0fc0958957852f142e3069dc8e286923a4cb14fb6419441faa5f73a66283e"
+  },
+  {
+    "path": "chatchat-chat/src/main/java/com/chatchat/chat/interaction/service/handler/RoleChatModeHandler.java",
+    "unchangedFromBaseline": true,
+    "sha256": "d6f2a146256981a8d48eed8cce5ead474d9295d45ee53b714da24e729315b3b3"
+  },
+  {
+    "path": "chatchat-chat/src/main/java/com/chatchat/chat/interaction/service/ProblemAnalysisPlanner.java",
+    "unchangedFromBaseline": true,
+    "sha256": "3f69a389740e9162023d27ce2b260d1a7d93bc237e718cb79a75d20b39b59991"
+  },
+  {
+    "path": "chatchat-api/src/main/java/com/chatchat/api/runtime/coding/analysis/ClineContextAnswerService.java",
+    "unchangedFromBaseline": true,
+    "sha256": "46d2ffbde62373ef3ae316581cab4a379c40bdddec058fa85d8084c24d923486"
+  },
+  {
+    "path": "chatchat-api/src/main/java/com/chatchat/api/runtime/coding/analysis/NativeAnalysisBridge.java",
+    "unchangedFromBaseline": true,
+    "sha256": "a55d2855b1611e44f9f7d6bdfe7ed1703c91562f7d52dfb2280148ce4bd9e5c2"
+  },
+  {
+    "path": "chatchat-api/src/main/java/com/chatchat/api/assets/AssetAnalysisInputs.java",
+    "unchangedFromBaseline": true,
+    "sha256": "03d7b0dff3b3bebb2e5c6a9228bce7e5ff95a6542e45b0df0bd7f9512ab8ad74"
+  },
+  {
+    "path": "chatchat-agents/src/main/java/com/chatchat/agents/orchestration/AgentPlanner.java",
+    "unchangedFromBaseline": true,
+    "sha256": "9f72467091e63309d2ea63f7c15e1797a83c11dadada61076d339a18e464855b"
+  }
+]

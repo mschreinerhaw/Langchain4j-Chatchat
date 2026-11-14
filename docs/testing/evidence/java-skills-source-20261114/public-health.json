@@ -1,0 +1,21 @@
+{
+  "version": {
+    "release": "java-skills-source-20261114",
+    "sourceCommit": "e96710f909a83852cc3e8af2b1d5289042e6c22f",
+    "frontendSourceCommit": "e96710f909a83852cc3e8af2b1d5289042e6c22f",
+    "monitorSourceCommit": "e96710f909a83852cc3e8af2b1d5289042e6c22f",
+    "api": "java-skills-source-20261114",
+    "nativeNodes": "java-skills-source-20261114",
+    "studio": "pagination-r2-20261114",
+    "javaFrontSkillsEnabled": false,
+    "javaClassificationPlanningAttachmentParsing": "PRESERVED"
+  },
+  "loginSucceeded": true,
+  "http": {
+    "/": 200,
+    "/monitor/": 200,
+    "/monitor/app.js": 200,
+    "/monitor/style.css": 200
+  },
+  "observedAtEpochMs": 1794636188863
+}

@@ -1,0 +1,83 @@
+{
+  "initialBusinessBatch": [
+    {
+      "case": "statistics",
+      "workspaceId": "06ec0885-a030-4439-8e4a-c0ebc8a2043c",
+      "nodeId": "67cfd65b-ea47-4694-be29-5b3728bea43e",
+      "agentTaskId": "28fbdfdd-a8e2-3d69-b12b-4bdb322457ac",
+      "status": "SUCCEEDED",
+      "terminal": true,
+      "resultAvailable": true,
+      "elapsedMs": 187943,
+      "error": null
+    },
+    {
+      "case": "multiple-datasets",
+      "workspaceId": "f4a2b4d4-328b-4518-b9c3-5ad468cd0ebc",
+      "nodeId": "167af526-03fb-48d1-a141-4721527c3420",
+      "agentTaskId": "bf9807ed-03fc-314c-a6ea-c8593d11288a",
+      "status": "SUCCEEDED",
+      "terminal": true,
+      "resultAvailable": true,
+      "elapsedMs": 405602,
+      "error": null
+    },
+    {
+      "case": "chart-report",
+      "workspaceId": "f1abb4d4-6197-4740-872c-37c2a9f35b9d",
+      "nodeId": "463f3f74-5b24-4f4f-adbd-0c5bfe34c9f4",
+      "agentTaskId": "b2a96b00-1744-3c4e-b90a-7544fdcb703a",
+      "status": "FAILED",
+      "terminal": true,
+      "resultAvailable": false,
+      "elapsedMs": 364170,
+      "error": "本次执行失败，但失败信息已被捕获并返回。\n\n失败类型：IllegalArgumentException\n失败原因：Exactly one HTML report entry required\n\n已将该失败作为本次任务结果反馈给用户端。请根据工具执行日志、权限配置、参数绑定或模型服务状态继续排查。"
+    }
+  ],
+  "retests": [
+    {
+      "case": "chart-report",
+      "workspaceId": "f32ace72-9bc2-4674-bed5-0b4f4f67ec1d",
+      "nodeId": "a670a08c-a300-4078-939b-cd80dc94b1ab",
+      "agentTaskId": "477cb7fc-8086-3238-b92e-99198a57bfe2",
+      "status": "SUCCEEDED",
+      "terminal": true,
+      "resultAvailable": true,
+      "elapsedMs": 417133,
+      "error": null
+    },
+    {
+      "case": "stock",
+      "workspaceId": "432ffccf-de54-4043-ac3e-c29b56d6e3c8",
+      "nodeId": "58f92d46-973a-4ed4-a63a-a8b2052c4a70",
+      "agentTaskId": "ba52cfb8-c043-3589-b840-ab8d1ea87143",
+      "status": "FAILED",
+      "terminal": true,
+      "resultAvailable": false,
+      "elapsedMs": 71980,
+      "error": "507 INSUFFICIENT_STORAGE \"ARTIFACT_STORAGE_FULL: 本次文件发布被存储容量保护拒绝。请释放存储空间后核对当前任务状态，再恢复原请求；此错误不代表业务数据不存在。\""
+    }
+  ],
+  "functionalChecks": {
+    "statistics": {
+      "rows": 4,
+      "sum": 100,
+      "mean": 25,
+      "populationStdDev": 11.180339887498949,
+      "groupTotals": {
+        "A": 30,
+        "B": 70
+      }
+    },
+    "multipleDatasets": {
+      "East": 30,
+      "West": 30,
+      "unmatchedKeys": 0
+    }
+  },
+  "knownLimitations": [
+    "Chart first attempt failed HTML report entry selection; same-input retest succeeded.",
+    "Stock regression failed with 507 ARTIFACT_STORAGE_FULL; not accepted. Personal asset accounting was 377373822/2147483648 bytes, so this does not prove personal quota exhaustion. Artifact write chain requires separate diagnosis."
+  ],
+  "performanceClaim": null
+}

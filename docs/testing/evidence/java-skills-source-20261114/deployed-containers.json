@@ -1,0 +1,85 @@
+{
+  "observedAtEpochMs": 1794641107668,
+  "containers": [
+    {
+      "name": "runtime-native-temporal-api",
+      "imageId": "sha256:48099dcb0ac044aa8f1b9a752e568272cfeaecf83e88242c3212dc98383fefd3",
+      "image": "runtime-api:java-skills-source-20261114",
+      "running": true,
+      "restartCount": 0,
+      "javaFrontSkillsEnabled": "false"
+    },
+    {
+      "name": "runtime-native-temporal-worker1",
+      "imageId": "sha256:48099dcb0ac044aa8f1b9a752e568272cfeaecf83e88242c3212dc98383fefd3",
+      "image": "runtime-api:java-skills-source-20261114",
+      "running": true,
+      "restartCount": 0,
+      "javaFrontSkillsEnabled": "false"
+    },
+    {
+      "name": "runtime-native-temporal-worker2",
+      "imageId": "sha256:48099dcb0ac044aa8f1b9a752e568272cfeaecf83e88242c3212dc98383fefd3",
+      "image": "runtime-api:java-skills-source-20261114",
+      "running": true,
+      "restartCount": 0,
+      "javaFrontSkillsEnabled": "false"
+    },
+    {
+      "name": "runtime-native-temporal-node1",
+      "imageId": "sha256:a4cb6172437ea89039152c768bf4cbf4bab295b4eab33c080c5fede8be0019b8",
+      "image": "runtime-node:java-skills-source-20261114",
+      "running": true,
+      "restartCount": 0,
+      "javaFrontSkillsEnabled": null
+    },
+    {
+      "name": "runtime-native-temporal-node2",
+      "imageId": "sha256:a4cb6172437ea89039152c768bf4cbf4bab295b4eab33c080c5fede8be0019b8",
+      "image": "runtime-node:java-skills-source-20261114",
+      "running": true,
+      "restartCount": 0,
+      "javaFrontSkillsEnabled": null
+    },
+    {
+      "name": "runtime-native-temporal-executor1",
+      "imageId": "sha256:a4cb6172437ea89039152c768bf4cbf4bab295b4eab33c080c5fede8be0019b8",
+      "image": "runtime-node:java-skills-source-20261114",
+      "running": true,
+      "restartCount": 0,
+      "javaFrontSkillsEnabled": null
+    },
+    {
+      "name": "runtime-native-temporal-executor2",
+      "imageId": "sha256:a4cb6172437ea89039152c768bf4cbf4bab295b4eab33c080c5fede8be0019b8",
+      "image": "runtime-node:java-skills-source-20261114",
+      "running": true,
+      "restartCount": 0,
+      "javaFrontSkillsEnabled": null
+    },
+    {
+      "name": "runtime-native-temporal-recovery1",
+      "imageId": "sha256:a4cb6172437ea89039152c768bf4cbf4bab295b4eab33c080c5fede8be0019b8",
+      "image": "runtime-node:java-skills-source-20261114",
+      "running": true,
+      "restartCount": 0,
+      "javaFrontSkillsEnabled": null
+    },
+    {
+      "name": "runtime-native-temporal-recovery2",
+      "imageId": "sha256:a4cb6172437ea89039152c768bf4cbf4bab295b4eab33c080c5fede8be0019b8",
+      "image": "runtime-node:java-skills-source-20261114",
+      "running": true,
+      "restartCount": 0,
+      "javaFrontSkillsEnabled": null
+    },
+    {
+      "name": "runtime-os-app-stage-gateway-1",
+      "imageId": "sha256:352a8f6a0a85546287bed87662c63449d5642b27dd01a00c04dfc0c90e8a9678",
+      "image": "runtime-public-gateway:java-skills-source-20261114",
+      "running": true,
+      "restartCount": 0,
+      "javaFrontSkillsEnabled": null
+    }
+  ]
+}

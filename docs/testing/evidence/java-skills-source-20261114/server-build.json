@@ -1,0 +1,34 @@
+{
+  "sourceCommit": "e96710f909a83852cc3e8af2b1d5289042e6c22f",
+  "sourceFiles": 5628,
+  "archiveSha256": "cfc8456bd4dec73014aa33b58b236675d325ac64b4d2f803be964b10dd156ef3",
+  "buildLocation": "192.168.195.221",
+  "prebuiltApplicationIncluded": false,
+  "images": {
+    "api": {
+      "tag": "runtime-api:java-skills-source-20261114",
+      "id": "sha256:48099dcb0ac044aa8f1b9a752e568272cfeaecf83e88242c3212dc98383fefd3",
+      "revision": "e96710f909a83852cc3e8af2b1d5289042e6c22f"
+    },
+    "node": {
+      "tag": "runtime-node:java-skills-source-20261114",
+      "id": "sha256:a4cb6172437ea89039152c768bf4cbf4bab295b4eab33c080c5fede8be0019b8",
+      "revision": "e96710f909a83852cc3e8af2b1d5289042e6c22f"
+    },
+    "gateway": {
+      "tag": "runtime-public-gateway:java-skills-source-20261114",
+      "id": "sha256:352a8f6a0a85546287bed87662c63449d5642b27dd01a00c04dfc0c90e8a9678"
+    }
+  },
+  "nodeTestsExitCode": 0,
+  "historicalTestFixtures": "supplemental repository evidence fixtures; no deployed application binaries",
+  "protocolAlignedServices": [
+    "node1",
+    "node2",
+    "executor1",
+    "executor2",
+    "recovery1",
+    "recovery2"
+  ],
+  "monitorSourceDirectory": "chatchat-api/src/main/resources/coding-monitor"
+}

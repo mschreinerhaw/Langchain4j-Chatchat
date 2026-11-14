@@ -1,0 +1,89 @@
+{
+  "java": [
+    {
+      "tests": "6",
+      "failures": "0",
+      "errors": "0",
+      "skipped": "0",
+      "suite": "com.chatchat.agents.runtime.context.SkillAnalysisContextTest"
+    },
+    {
+      "tests": "3",
+      "failures": "0",
+      "errors": "0",
+      "skipped": "0",
+      "suite": "com.chatchat.chat.skills.runtime.RuntimeOsDomainSkillAdapterTest"
+    },
+    {
+      "tests": "10",
+      "failures": "0",
+      "errors": "0",
+      "skipped": "0",
+      "suite": "com.chatchat.chat.skills.runtime.SkillAnalysisContextServiceTest"
+    },
+    {
+      "tests": "3",
+      "failures": "0",
+      "errors": "0",
+      "skipped": "0",
+      "suite": "com.chatchat.chat.skills.domain.planning.DomainSkillPlanningRouterTest"
+    },
+    {
+      "tests": "8",
+      "failures": "0",
+      "errors": "0",
+      "skipped": "0",
+      "suite": "com.chatchat.chat.interaction.service.handler.RoleChatModeHandlerTest"
+    },
+    {
+      "tests": "29",
+      "failures": "0",
+      "errors": "0",
+      "skipped": "0",
+      "suite": "com.chatchat.chat.interaction.service.handler.AgentChatModeHandlerTest"
+    },
+    {
+      "tests": "25",
+      "failures": "0",
+      "errors": "0",
+      "skipped": "0",
+      "suite": "com.chatchat.api.runtime.coding.analysis.ClineContextAnswerServiceTest"
+    },
+    {
+      "tests": "13",
+      "failures": "0",
+      "errors": "0",
+      "skipped": "0",
+      "suite": "com.chatchat.api.runtime.coding.CodingSkillReaderTest"
+    },
+    {
+      "tests": "8",
+      "failures": "0",
+      "errors": "0",
+      "skipped": "0",
+      "suite": "com.chatchat.api.runtime.coding.NativeRuntimeMcpControllerTest"
+    },
+    {
+      "tests": "8",
+      "failures": "0",
+      "errors": "0",
+      "skipped": "0",
+      "suite": "com.chatchat.api.assets.NativeSiloTaskServiceTest"
+    },
+    {
+      "tests": "8",
+      "failures": "0",
+      "errors": "0",
+      "skipped": "0",
+      "suite": "com.chatchat.api.assets.NativeS3CodingAdapterTest"
+    }
+  ],
+  "javaTotal": 121,
+  "buildSuccess": true,
+  "node": {
+    "total": 119,
+    "passed": 117,
+    "skipped": 2,
+    "failed": 0
+  }
+}

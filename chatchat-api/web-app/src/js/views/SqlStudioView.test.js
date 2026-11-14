@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import {createApp,h,nextTick,reactive} from 'vue';
 import {afterEach,beforeEach,expect,it,vi} from 'vitest';
-const sql=vi.hoisted(()=>Object.fromEntries(['sqlProjects','sqlFiles','sqlGenerations','sqlReferences','sqlFolders','sqlAgentOptions','deleteSqlProject','deleteSqlGeneration','sqlGeneration','prepareSqlGeneration'].map(name=>[name,vi.fn()])));
+const sql=vi.hoisted(()=>Object.fromEntries(['sqlProjects','sqlFiles','sqlGenerations','sqlReferences','sqlFolders','sqlAgentOptions','deleteSqlProject','deleteSqlGeneration','sqlGeneration','prepareSqlGeneration','cancelSqlCodingGeneration'].map(name=>[name,vi.fn()])));
 vi.mock('../../services/sqlStudioApi',()=>sql);
 vi.mock('../../components/sql-studio/SqlEditorPane.vue',()=>({default:{render:()=>null}}));
 vi.mock('../../components/editor/CodeChangeReview.vue',()=>({default:{render:()=>null}}));
@@ -24,6 +24,14 @@ beforeEach(()=>{
 });
 afterEach(()=>{app?.unmount();document.body.innerHTML='';});
 function seedAssistant(){view.generationId='old-generation';view.result={task:{taskId:'sql-coding-old',status:'SUCCESS'}};view.chatTurns=[{id:'old-answer'}];view.prompt='old prompt';view.reviewOpen=true;view.pollError='old error';}
+it('stops a restored SQL Coding task through the Coding endpoint when prepared metadata is missing',async()=>{
+  await mount([{id:'p1',name:'Project'}]);seedAssistant();
+  view.result.task.status='RUNNING';sql.cancelSqlCodingGeneration.mockResolvedValue(true);
+  sql.sqlGeneration.mockResolvedValue({generation:{id:'old-generation'},task:{taskId:'sql-coding-old',status:'CANCELLED'},events:[],files:[]});
+  await view.cancel();
+  expect(sql.cancelSqlCodingGeneration).toHaveBeenCalledWith('p1','old-generation');
+  expect(view.result.task.status).toBe('CANCELLED');
+});
 it('deletes the selected history only after acknowledgement and clears a deleted current conversation',async()=>{
   await mount([{id:'p1',name:'Project'}]);seedAssistant();view.generations=[{id:'old-generation'},{id:'kept'}];
   sql.deleteSqlGeneration.mockResolvedValue(true);await view.deleteGeneration('old-generation');

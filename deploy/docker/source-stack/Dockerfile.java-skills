@@ -11,6 +11,7 @@ COPY chatchat-api/web-app/package*.json ./
 RUN --mount=type=cache,target=/root/.npm npm ci --no-audit --no-fund
 COPY chatchat-api/web-app/ ./
 COPY chatchat-common/src/main/resources/runtime/ /build/chatchat-common/src/main/resources/runtime/
+RUN NODE_OPTIONS=--no-experimental-webstorage node node_modules/vitest/vitest.mjs run src/js/views/SqlStudioView.test.js
 RUN node node_modules/vite/bin/vite.js build --outDir /frontend/api
 WORKDIR /build/chatchat-mcp-server/web-app-mcp
 COPY chatchat-mcp-server/web-app-mcp/package*.json ./
@@ -20,7 +21,7 @@ RUN node node_modules/vite/bin/vite.js build --outDir /frontend/mcp
 
 FROM ${JAVA_BUILD_IMAGE} AS java-build
 ARG SOURCE_REVISION
-ARG SOURCE_TESTS=SkillAnalysisContextServiceTest,RuntimeOsDomainSkillAdapterTest,DomainSkillPlanningRouterTest,SkillAnalysisContextTest,CodingSkillReaderTest,NativeRuntimeMcpControllerTest,NativeSiloTaskServiceTest,NativeS3CodingAdapterTest,AgentChatModeHandlerTest,RoleChatModeHandlerTest,ClineContextAnswerServiceTest
+ARG SOURCE_TESTS=CodingFailureStopTest,SkillAnalysisContextServiceTest,RuntimeOsDomainSkillAdapterTest,DomainSkillPlanningRouterTest,SkillAnalysisContextTest,CodingSkillReaderTest,NativeRuntimeMcpControllerTest,NativeSiloTaskServiceTest,NativeS3CodingAdapterTest,AgentChatModeHandlerTest,RoleChatModeHandlerTest,ClineContextAnswerServiceTest
 COPY tools/maven/ /opt/maven/
 # A host Maven distribution may pin a host-only JDK. Use the build image JDK.
 RUN sed -i '/^export JAVA_HOME=/d' /opt/maven/bin/mvn

@@ -386,7 +386,8 @@ async function apply() { await action(async () => {
   preview.value = null; reviewOpen.value=false; if (saved[0]) openFile(saved[0].id); await refreshGeneration(); references.value = await sql.sqlReferences(); persist(); message.value = `已保存 ${saved.length} 个生成文件`;
 }); }
 async function cancel() { await action(async () => {
-  if(result.value?.generation?.prepared?.taskRequest?.toolInput?.codingWorkspaceProfile === 'SQL_WORKSPACE_V2')
+  if(result.value?.generation?.prepared?.taskRequest?.toolInput?.codingWorkspaceProfile === 'SQL_WORKSPACE_V2'
+      || result.value?.task?.taskId?.startsWith('sql-coding-'))
     await sql.cancelSqlCodingGeneration(projectId.value,generationId.value);
   else await cancelAgentTask(result.value.task.taskId, props.tenantId);
   await refreshGeneration();

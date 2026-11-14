@@ -160,7 +160,7 @@ public record CodingTaskOutcome(String schemaVersion, String taskId, KernelDataS
             CodingProtocol.require((stopReason == null) == (stopRequestedAt == null), "stop reason and time must occur together");
             if (stopReason != null) {
                 CodingProtocol.require(stopReason == CodingErrorCode.CANCEL_REQUESTED || stopReason == CodingErrorCode.BUDGET_EXCEEDED
-                    || stopReason == CodingErrorCode.DEADLINE_EXCEEDED, "invalid stop reason");
+                    || stopReason == CodingErrorCode.DEADLINE_EXCEEDED || stopReason == CodingErrorCode.EXECUTION_FAILED, "invalid stop reason");
                 CodingProtocol.time(stopRequestedAt, "stopRequestedAt");
             }
         }

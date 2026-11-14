@@ -33,9 +33,9 @@ def main():
     for code in codes:
         records=sorted([r for r in rows if r['quote_code']==code],key=lambda r:r['trade_date'])
         latest_pe.append(records[-1].get('pe_ratio'))
-    before=dict(model,metrics=[dict(id='before-pe-rank',value=list(range(5)),unit='rank',sourceIds=['quotes'],check=dict(op='rank',inputs=latest_pe))],claims=[dict(id='before-one-year-ranking',text='原报告最近一年综合表现排序',kind='inference',sourceIds=['quotes'],horizon='long-term',observations=max(sum(r['quote_code']==c for r in rows) for c in codes))])
+    before=dict(model,metrics=[dict(id='before-pe-rank',value=list(range(5)),unit='rank',sourceIds=['quotes'],check=dict(op='rank',inputs=latest_pe))],claims=[dict(id='before-one-year-ranking',text='原报告最近一年综合表现排序',kind='inference',sourceIds=['quotes'],horizon='long-term',frequency='daily',windowDays=365,timeSeries=dict(sourceId='quotes',path=[],field='trade_date'),observations=max(sum(r['quote_code']==c for r in rows) for c in codes))])
     rejected=kit.validate(before,a.output)
     rejected['analysisMethod']='Original problematic claims encoded as a structured executable regression; not arbitrary prose semantic validation'
     kit.dump(a.output/'before_quality_report.json',rejected)
-    kit.dump(a.output/'baseline-review.json',{'originalReportSha256':hashlib.sha256((a.original/'report.html').read_bytes()).hexdigest(),'findings':[{'code':'UNSUPPORTED_LONG_TERM_RANK','evidence':'3-4 observations do not establish one-year performance'},{'code':'PE_COVERAGE_ONE_OF_FIVE','evidence':'Only 000001 has pe_ratio; lowest valuation cannot be established'},{'code':'DROPPED_VALID_OBSERVATION','evidence':'Original code excludes SZSE 2026-11-12; SSE missing date must stay missing'}]})
+    kit.dump(a.output/'baseline-review.json',{'originalReportSha256':hashlib.sha256((a.original/'report.html').read_bytes()).hexdigest(),'findings':[{'code':'UNSUPPORTED_LONG_TERM_RANK','evidence':'3-4 observations do not establish one-year performance'},{'code':'PE_COVERAGE_ONE_OF_FIVE','evidence':'Only 000001 has pe_ratio; lowest valuation cannot be established'}]})
 if __name__=='__main__':main()

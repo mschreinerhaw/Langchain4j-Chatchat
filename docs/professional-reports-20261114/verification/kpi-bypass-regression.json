@@ -1,0 +1,15 @@
+{
+  "status": "PASSED",
+  "results": [
+    {
+      "case": "native-client-assets",
+      "result": "REJECTED_AS_EXPECTED",
+      "reason": "Professional report metric not independently checked"
+    },
+    {
+      "case": "native-operations",
+      "result": "REJECTED_AS_EXPECTED",
+      "reason": "Professional report metric not independently checked"
+    }
+  ]
+}

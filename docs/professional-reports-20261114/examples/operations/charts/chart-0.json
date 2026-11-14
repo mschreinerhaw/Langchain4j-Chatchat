@@ -1,0 +1,49 @@
+{
+  "id": "comparison",
+  "purpose": "月度测试收入",
+  "type": "line",
+  "period": "SYNTHETIC / 2026-Q1",
+  "unit": "万元",
+  "basis": "SYNTHETIC_TEST_ONLY",
+  "sourceIds": [
+    "fixture"
+  ],
+  "labels": [
+    "一月",
+    "二月",
+    "三月"
+  ],
+  "series": [
+    {
+      "name": "合成测试值",
+      "values": [
+        100,
+        120,
+        110
+      ],
+      "sourceInputs": [
+        {
+          "sourceId": "fixture",
+          "path": [
+            "values",
+            0
+          ]
+        },
+        {
+          "sourceId": "fixture",
+          "path": [
+            "values",
+            1
+          ]
+        },
+        {
+          "sourceId": "fixture",
+          "path": [
+            "values",
+            2
+          ]
+        }
+      ]
+    }
+  ]
+}

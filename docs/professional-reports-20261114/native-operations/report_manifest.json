@@ -1,0 +1,24 @@
+{
+  "schemaVersion": "professional-report.v1",
+  "reportType": "professional-briefing",
+  "dataRange": "2026-01 to 2026-03",
+  "generatedAt": "2026-11-14T16:55:34.655201+00:00",
+  "resources": {
+    "version": "1.0.2",
+    "files": {
+      "assets/report.css": "a0f578bcd1589678dde22636c3633b30305d2ec2ddc8017d06458f7ec99be4b1",
+      "assets/report.js": "2674a895432eabce371bcb3f13703648b7443e758845c4cf7ea9bdf8f684aee2",
+      "assets/LICENSE.professional-report": "191015a5e5d0e847f0cff8dcc2b1e4468e3dbfbcf6e888646576532879f81cdf",
+      "assets/echarts.min.js": "b66b25aeb4df84e33199dc21694014d336d222cbd9deb0e5a7c14bd6aa0d0fd0",
+      "assets/LICENSE.echarts": "634293835b43a6dd2094fa39182a3d9a6b9ca43b7fdb9ac354e8037af2a3093a",
+      "assets/resource_versions.json": "695804ecbaa8257e72f79ac065ade0bc50ffdee7cd43c9bfb71695f9a19849e8",
+      "assets/echarts/LICENSE": "634293835b43a6dd2094fa39182a3d9a6b9ca43b7fdb9ac354e8037af2a3093a",
+      "assets/echarts/echarts.min.js": "b66b25aeb4df84e33199dc21694014d336d222cbd9deb0e5a7c14bd6aa0d0fd0",
+      "assets/professional-report/LICENSE": "191015a5e5d0e847f0cff8dcc2b1e4468e3dbfbcf6e888646576532879f81cdf",
+      "assets/professional-report/1.0.2/report.js": "2674a895432eabce371bcb3f13703648b7443e758845c4cf7ea9bdf8f684aee2",
+      "assets/professional-report/1.0.2/report.css": "a0f578bcd1589678dde22636c3633b30305d2ec2ddc8017d06458f7ec99be4b1"
+    }
+  },
+  "qualityStatus": "PASSED",
+  "browserPreviewId": "3eb1097f-fd14-4c40-ba0f-fcadcb3a0097"
+}

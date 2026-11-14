@@ -1,0 +1,69 @@
+{
+  "sources": [
+    {
+      "id": "fixture",
+      "file": "source.json",
+      "dataset": "operations synthetic fixture",
+      "fields": [
+        "labels",
+        "values"
+      ],
+      "period": "SYNTHETIC / 2026-Q1",
+      "basis": "SYNTHETIC_TEST_ONLY",
+      "sha256": "ce0c3db0b3b65d63eb8aeba2655a4f7f09adea71624fd702b586ce2004612e02"
+    }
+  ],
+  "metrics": [
+    {
+      "id": "total",
+      "label": "测试季度收入",
+      "value": 330,
+      "unit": "万元",
+      "sourceIds": [
+        "fixture"
+      ],
+      "formula": "sum(values)",
+      "check": {
+        "op": "sum",
+        "inputs": [
+          100,
+          120,
+          110
+        ],
+        "sourceInputs": [
+          {
+            "sourceId": "fixture",
+            "path": [
+              "values",
+              0
+            ]
+          },
+          {
+            "sourceId": "fixture",
+            "path": [
+              "values",
+              1
+            ]
+          },
+          {
+            "sourceId": "fixture",
+            "path": [
+              "values",
+              2
+            ]
+          }
+        ]
+      }
+    }
+  ],
+  "claims": [
+    {
+      "id": "scope",
+      "text": "测试收入先增后降。没有成本、同期数据及季节性信息，不推断利润变化或增长原因。",
+      "kind": "inference",
+      "sourceIds": [
+        "fixture"
+      ]
+    }
+  ]
+}

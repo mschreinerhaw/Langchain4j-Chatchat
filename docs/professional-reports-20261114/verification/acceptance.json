@@ -1,0 +1,46 @@
+{
+  "status": "PASSED",
+  "applicationSourceCommit": "babd7ceb55e12f76cdfd776e646b4f7f88da9382",
+  "canary": "node2",
+  "node1": "previous mode retained",
+  "resourceVersion": "1.0.2",
+  "automatedTests": {
+    "status": "PASSED",
+    "nativeNode": {
+      "tests": 124,
+      "passed": 121,
+      "skipped": 3
+    },
+    "skillRegistry": {
+      "passed": 5
+    },
+    "pythonReport": {
+      "passed": 8
+    },
+    "totalPassed": 134,
+    "totalSkipped": 3,
+    "totalFailed": 0,
+    "resourceSync": "PASSED"
+  },
+  "liveCases": [
+    {
+      "status": "PASSED",
+      "taskId": "temporal-native-4ca609c6e2e5314c3a93f065a27f04e000a4c28b549be2a7ca41e3dbd44e099a",
+      "runId": "coding-8e6ebc2f951e055796310d449b9a6f795cca50f7485daae58f38de90e50c7922",
+      "nodeId": "cline-worker-2",
+      "expectedTotal": 100,
+      "qualityStatus": "PASSED",
+      "resourceVersion": "1.0.2"
+    },
+    {
+      "status": "PASSED",
+      "taskId": "temporal-native-415dd28b8c14fef5aef4f29d2aca27518104a1d621ff6bd81aa08b3b0a7f5475",
+      "runId": "coding-df33843b487bf6ee893e1727d8843eef783dcb6923fb3f2bb4357bb20a3a7a90",
+      "nodeId": "cline-worker-2",
+      "expectedTotal": 330,
+      "qualityStatus": "PASSED",
+      "resourceVersion": "1.0.2"
+    }
+  ],
+  "semanticScope": "Technical checks do not certify arbitrary prose, causality or suitability; reviewed synthetic models are distinguished from first-run autonomous analysis."
+}

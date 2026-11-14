@@ -64,3 +64,29 @@ node --test cline-agent-server/test/*.test.mjs
 服务器复现：`scripts/deploy-professional-reports.py RELEASE [--activate]`；共享资源使用 `scripts/deploy-professional-report-resources.py RELEASE [--activate]`。源码摘要清单、服务器构建/测试日志和不含凭据的部署记录保存在 release 目录。回退使用对应的私有 compose/Executor 配置备份，恢复镜像及开关后按原 compose 项目重建第二节点；关闭开关即可停止新 Skills 分发及新增专业报告 admission。
 
 测试结果及真实模型/Silo 回读记录见同目录证据文件。真实模型任务与静态夹具测试分别记录，不能相互替代。
+
+## 交付与验收记录（2026-11-15）
+
+服务器 `192.168.195.221` 使用 Git 源码字节在服务器构建镜像，第二节点灰度启用；第一节点保留原模式。应用部署提交为 `babd7ceb55e12f76cdfd776e646b4f7f88da9382`，资源版本为 1.0.2。最终文档提交另外包含测试脚本和真实产物，不改变已部署的应用代码。部署记录的 remainingAcceptance 是部署当时的待办快照，完成状态以这里的真实任务回读记录为准。
+
+| 验收项 | 证据与结果 |
+| --- | --- |
+| 真实银行改造前后 | [原报告](examples/bank-original/before.html)、[新版](examples/bank-original/report.html)、[PDF](examples/bank-original/report.pdf)；不再把快照价格变化包装为一年收益，PE 缺失不参与排名 |
+| 错误结论拦截 | [原问题结构化回归](examples/bank-original/before_quality_report.json)为 FAILED；这是两个已知问题的可执行回归，不声称能理解任意自然语言 |
+| 首屏、移动、图表、禁网打印 | [四份样例浏览器检查](verification/examples-browser.json)验证实际系列值、图表实例数、尺寸、缺失断点、日志与溢出 |
+| 客户资产泛化 | [静态样例](examples/client-assets/report.html)、[真实 Cline 交付](native-client-assets/report.html)、[归档回读](verification/native-client-assets.json)；明确标注合成测试数据 |
+| 企业运营泛化 | [静态样例](examples/operations/report.html)、[真实 Cline 交付](native-operations/report.html)、[归档回读](verification/native-operations.json)；按运营问题组织章节，明确标注合成测试数据 |
+| 独立程序校验 | [Node 重放](trusted-admission.json)重新计算归档哈希、指标及图表；[绕过回归](verification/kpi-bypass-regression.json)确认省略公式的未验证 KPI 被拒绝 |
+| 资源复用 | [Hub 实际预览](verification/hub-preview.json)含桌面、手机、printChecked；[Skill 字节校验](verification/skill-integrity.json)验证全部 21 个包、63 个资源文件 |
+| 兼容与回退 | 开关关闭保留原模式，源代码/无报告交付兼容；独立回退备份路径见[部署记录](verification/deployment.json)，私密配置不入库 |
+| Java 轻量化 | 本次没有修改 Java 应用代码，复用原任务授权、产物选择、Silo 归档和 HTML 查看接口 |
+
+最终自动化回归：原生 Node 运行时 124 项，121 通过、3 跳过；Skills 注册及兼容检查 5 项通过；Python 报告测试 8 项通过。合计 **134 通过、3 跳过、0 失败**，另有浏览器、Hub 和真实归档验证。跳过项属于原套件已有条件测试，不算通过。
+
+两份真实 Cline 泛化任务的输入来自先前鉴权回读的合成数据：客户资产使用 CSV/JSON，运营使用保留三期观测的 JSON 快照。报告模型经审阅修正后，再由 Cline 完成 Python 计算、资源获取、真实预览、PDF、产物选择和 Silo 交付。因此它们验证可复用生成/交付闭环，不能冒充完全无提示的首次分析测试。
+
+最初自主分析也用于发现并修复问题：一次客户任务因原执行证据目录缺少 record.json，归档重试直至 BUDGET_EXCEEDED；修复采用原子元数据、保留真实输出和明确的 EVIDENCE_INCOMPLETE 状态，没有补造命令或将失败任务改为成功。人工审阅还发现初版客户样例套用未证明适用的 HHI 等级、重复金额/比例柱状图；最终样例删除这些内容，Skills 加强阈值适用性与图表去重指导。
+
+所有非空 KPI 都要求可执行源数据绑定；没有支持的检查时保留 INCOMPLETE，不通过删掉 formula 字段规避。技术 PASSED 不代表投资建议、因果解释或任意业务判断已获认证；这些内容需要证据审阅，不能用渲染成功代替专业判断。
+
+离线交付需保留整个报告文件夹及相对资源路径。`report.html` 可直接打开，图表数据表和下载随包提供。原始归档文件保持字节不变，禁网复验在副本上执行，以免改写归档质量记录及 PDF。PDF 逐页人工检查见 [PDF 记录](pdf-review.json)。

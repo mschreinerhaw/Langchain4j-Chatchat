@@ -1,0 +1,118 @@
+{
+  "title": "五家银行股票对比 · 合成回归样例",
+  "reportType": "bank-regression",
+  "period": "SYNTHETIC / 2026-Q1",
+  "theme": "financial-research",
+  "summary": "本报告使用明确标注的合成测试数据验证布局与检查程序，不构成真实业务或投资结论。仅有短期测试观测，不支持长期收益或投资价值判断。PE 按同口径正值升序为 B、E、D、A；C 缺失，不参与排名。",
+  "metrics": [
+    {
+      "id": "missing-pe",
+      "label": "测试银行C PE",
+      "value": null,
+      "unit": "倍",
+      "sourceIds": [
+        "fixture"
+      ],
+      "limitation": "源数据缺失；不补零、不参与排名"
+    }
+  ],
+  "sections": [
+    {
+      "title": "收益与估值口径",
+      "text": "仅有短期测试观测，不支持长期收益或投资价值判断。PE 按同口径正值升序为 B、E、D、A；C 缺失，不参与排名。"
+    }
+  ],
+  "sources": [
+    {
+      "id": "fixture",
+      "file": "source.json",
+      "dataset": "bank-regression synthetic fixture",
+      "fields": [
+        "labels",
+        "values"
+      ],
+      "period": "SYNTHETIC / 2026-Q1",
+      "basis": "SYNTHETIC_TEST_ONLY",
+      "sha256": "67f06f54759c561c6b1fe60c22a6c0f2f71093b269bdba988271446f7ea7367c"
+    }
+  ],
+  "claims": [
+    {
+      "id": "scope",
+      "text": "仅有短期测试观测，不支持长期收益或投资价值判断。PE 按同口径正值升序为 B、E、D、A；C 缺失，不参与排名。",
+      "kind": "inference",
+      "sourceIds": [
+        "fixture"
+      ]
+    }
+  ],
+  "charts": [
+    {
+      "id": "comparison",
+      "purpose": "同口径测试PE比较",
+      "type": "bar",
+      "period": "SYNTHETIC / 2026-Q1",
+      "unit": "倍",
+      "basis": "SYNTHETIC_TEST_ONLY",
+      "sourceIds": [
+        "fixture"
+      ],
+      "labels": [
+        "测试银行A",
+        "测试银行B",
+        "测试银行C",
+        "测试银行D",
+        "测试银行E"
+      ],
+      "series": [
+        {
+          "name": "合成测试值",
+          "values": [
+            8,
+            5,
+            null,
+            7,
+            6
+          ],
+          "sourceInputs": [
+            {
+              "sourceId": "fixture",
+              "path": [
+                "values",
+                0
+              ]
+            },
+            {
+              "sourceId": "fixture",
+              "path": [
+                "values",
+                1
+              ]
+            },
+            {
+              "sourceId": "fixture",
+              "path": [
+                "values",
+                2
+              ]
+            },
+            {
+              "sourceId": "fixture",
+              "path": [
+                "values",
+                3
+              ]
+            },
+            {
+              "sourceId": "fixture",
+              "path": [
+                "values",
+                4
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

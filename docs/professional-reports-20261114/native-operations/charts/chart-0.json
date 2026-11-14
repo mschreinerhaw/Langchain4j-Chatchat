@@ -1,0 +1,52 @@
+{
+  "id": "chart-revenue-trend",
+  "purpose": "Monthly Operating Revenue Trend",
+  "type": "line",
+  "period": "2026-01 to 2026-03",
+  "unit": "units",
+  "sourceIds": [
+    "src-csv"
+  ],
+  "basis": "Monthly revenue from synthetic operations CSV",
+  "labels": [
+    "2026-01",
+    "2026-02",
+    "2026-03"
+  ],
+  "series": [
+    {
+      "name": "Revenue",
+      "values": [
+        100,
+        120,
+        110
+      ],
+      "sourceInputs": [
+        {
+          "sourceId": "src-csv",
+          "path": [
+            "rows",
+            0,
+            "revenue"
+          ]
+        },
+        {
+          "sourceId": "src-csv",
+          "path": [
+            "rows",
+            1,
+            "revenue"
+          ]
+        },
+        {
+          "sourceId": "src-csv",
+          "path": [
+            "rows",
+            2,
+            "revenue"
+          ]
+        }
+      ]
+    }
+  ]
+}

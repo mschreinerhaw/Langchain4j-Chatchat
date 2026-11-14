@@ -1,0 +1,21 @@
+{
+  "caseName": "client-assets-finalized",
+  "dataStatus": "SYNTHETIC_TEST_ONLY",
+  "total": 100,
+  "computedFrom": "sources/client-assets-SYNTHETIC.csv",
+  "observations": [
+    {
+      "category": "cash",
+      "amount": "20"
+    },
+    {
+      "category": "stock",
+      "amount": "30"
+    },
+    {
+      "category": "fund",
+      "amount": "50"
+    }
+  ],
+  "method": "sum of amount column from CSV"
+}

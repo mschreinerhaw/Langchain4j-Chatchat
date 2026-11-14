@@ -1,0 +1,17 @@
+{
+  "schemaVersion": "professional-report-quality.v1",
+  "status": "PASSED",
+  "errors": [],
+  "pending": [],
+  "automatedChecks": [
+    "provenance",
+    "sourceHashes",
+    "calculations",
+    "rankings",
+    "coverage",
+    "chartShape",
+    "horizon"
+  ],
+  "semanticReview": "REQUIRED",
+  "browserCheckedHtmlSha256": "c06788a3ed16d422b7114cfeec9663f9d08f28267b99014934999a7ec681fc15"
+}

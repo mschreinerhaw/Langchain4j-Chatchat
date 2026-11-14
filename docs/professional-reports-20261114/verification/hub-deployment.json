@@ -1,0 +1,8 @@
+{
+  "buildMode": "server-source",
+  "baseImage": "sha256:72ce6ba7a68274bacb65f828a8e3edfcaf3aab6b318b61f25595a1ad99fc8336",
+  "image": "sha256:66305b4f6c51d580b0901416674975ef82323da36194d2f8f63b865c43e1f7f2",
+  "activation": "ACTIVE",
+  "resourceCount": 9,
+  "rollback": "/opt/runtime-os/releases/professional-reports-20261114/hub-compose.rollback-66305b4f6c51.yaml"
+}

@@ -1,0 +1,46 @@
+{
+  "id": "allocation-bar",
+  "purpose": "Category Amount Comparison",
+  "type": "bar",
+  "period": "Single snapshot",
+  "unit": "units",
+  "basis": "CSV category amounts sorted by value descending",
+  "sourceIds": [
+    "src-json"
+  ],
+  "labels": [
+    "fund",
+    "stock",
+    "cash"
+  ],
+  "series": [
+    {
+      "name": "Amount",
+      "values": [
+        50,
+        30,
+        20
+      ],
+      "sourceInputs": [
+        {
+          "sourceId": "src-json",
+          "path": [
+            "fund"
+          ]
+        },
+        {
+          "sourceId": "src-json",
+          "path": [
+            "stock"
+          ]
+        },
+        {
+          "sourceId": "src-json",
+          "path": [
+            "cash"
+          ]
+        }
+      ]
+    }
+  ]
+}

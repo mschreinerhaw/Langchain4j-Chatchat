@@ -1,0 +1,16 @@
+{
+  "schemaVersion": "professional-report.v1",
+  "reportType": "stock-comparison",
+  "dataRange": "2026-11-10/2026-11-13",
+  "generatedAt": "2026-11-14T16:44:14.726671+00:00",
+  "resources": {
+    "version": "1.0.2",
+    "files": {
+      "assets/report.css": "a0f578bcd1589678dde22636c3633b30305d2ec2ddc8017d06458f7ec99be4b1",
+      "assets/report.js": "2674a895432eabce371bcb3f13703648b7443e758845c4cf7ea9bdf8f684aee2",
+      "assets/echarts.min.js": "b66b25aeb4df84e33199dc21694014d336d222cbd9deb0e5a7c14bd6aa0d0fd0",
+      "assets/LICENSE.echarts": "634293835b43a6dd2094fa39182a3d9a6b9ca43b7fdb9ac354e8037af2a3093a"
+    }
+  },
+  "qualityStatus": "PASSED"
+}

@@ -1,0 +1,8 @@
+{
+  "jobId": "d7366baa-02f1-4a34-8cb1-9c26b93394c0",
+  "status": "PASSED",
+  "originalHtmlSha256": "8b21638b194dce3db815c6c9c1599a94b3628ef58ebdfec66b259f9233621ab2",
+  "finalHtmlSha256": "c06788a3ed16d422b7114cfeec9663f9d08f28267b99014934999a7ec681fc15",
+  "printChecked": true,
+  "offlineTransform": "Existing Hub standalone bundle; only registered dependency URLs rewritten"
+}

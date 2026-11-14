@@ -1,0 +1,47 @@
+{
+  "status": "PASSED",
+  "offline": true,
+  "checks": [
+    {
+      "name": "client-assets-finalized",
+      "htmlSha256": "c06788a3ed16d422b7114cfeec9663f9d08f28267b99014934999a7ec681fc15",
+      "viewports": [
+        {
+          "label": "desktop",
+          "count": 1,
+          "values": [
+            [
+              [
+                50,
+                30,
+                20
+              ]
+            ]
+          ],
+          "dimensionsValid": true,
+          "gapsPreserved": true,
+          "overflow": false,
+          "summaryBottom": 430.078125
+        },
+        {
+          "label": "mobile",
+          "count": 1,
+          "values": [
+            [
+              [
+                50,
+                30,
+                20
+              ]
+            ]
+          ],
+          "dimensionsValid": true,
+          "gapsPreserved": true,
+          "overflow": false,
+          "summaryBottom": 544.984375
+        }
+      ]
+    }
+  ],
+  "errors": []
+}

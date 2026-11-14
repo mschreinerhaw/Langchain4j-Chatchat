@@ -1,0 +1,18 @@
+{
+  "status": "PASSED",
+  "nativeNode": {
+    "tests": 124,
+    "passed": 121,
+    "skipped": 3
+  },
+  "skillRegistry": {
+    "passed": 5
+  },
+  "pythonReport": {
+    "passed": 8
+  },
+  "totalPassed": 134,
+  "totalSkipped": 3,
+  "totalFailed": 0,
+  "resourceSync": "PASSED"
+}

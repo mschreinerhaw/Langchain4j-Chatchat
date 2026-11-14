@@ -1,0 +1,24 @@
+{
+  "schemaVersion": "professional-report-quality.v1",
+  "status": "FAILED",
+  "errors": [
+    "before-pe-rank: invalid calculation",
+    "before-one-year-ranking: insufficient long-term evidence (window/frequency/sample)",
+    "before-one-year-ranking: declared history exceeds actual source dates"
+  ],
+  "pending": [
+    "before-pe-rank: calculation inputs not bound to source cells",
+    "independent browser desktop/mobile/print validation required"
+  ],
+  "automatedChecks": [
+    "provenance",
+    "sourceHashes",
+    "calculations",
+    "rankings",
+    "coverage",
+    "chartShape",
+    "horizon"
+  ],
+  "semanticReview": "REQUIRED",
+  "analysisMethod": "Original problematic claims encoded as a structured executable regression; not arbitrary prose semantic validation"
+}

@@ -1,0 +1,219 @@
+{
+  "sources": [
+    {
+      "id": "quotes",
+      "file": "source.json",
+      "dataset": "market_quote_daily / archived source-1.jsonl filtered by five equity codes",
+      "fields": [
+        "quote_code",
+        "quote_name",
+        "trade_date",
+        "close",
+        "pe_ratio",
+        "source_url",
+        "provider"
+      ],
+      "period": "2026-11-10/2026-11-13",
+      "basis": "交易所归档快照；收盘价复权口径与PE盈余口径未核实",
+      "sha256": "382027f2484181bb1aa6c5948f0ec63e6482565c5cab46628b8fb43e3b111352",
+      "parentSha256": "27baaed85083c394388b566648fffa79f63620014f37bd5e489fe963d6ef7223",
+      "urls": [
+        "https://www.sse.com.cn/market/price/report/#snapshot-equity-2026-11-13#observation=600036",
+        "https://www.sse.com.cn/market/price/report/#snapshot-equity-2026-11-13#observation=601166",
+        "https://www.sse.com.cn/market/price/report/#snapshot-equity-2026-11-13#observation=601398",
+        "https://www.sse.com.cn/market/price/report/#snapshot-equity-2026-11-13#observation=601939",
+        "https://www.szse.cn/market/trend/index.html#snapshot-EQUITY-2026-11-13#observation=000001"
+      ]
+    }
+  ],
+  "metrics": [
+    {
+      "id": "000001",
+      "label": "平安银行 · 快照价格变化",
+      "value": 0.01770657672849918,
+      "unit": "ratio",
+      "sourceIds": [
+        "quotes"
+      ],
+      "formula": "last_close/first_close-1",
+      "check": {
+        "op": "return",
+        "inputs": [
+          11.86,
+          12.07
+        ],
+        "sourceInputs": [
+          {
+            "sourceId": "quotes",
+            "path": [
+              3,
+              "close"
+            ]
+          },
+          {
+            "sourceId": "quotes",
+            "path": [
+              0,
+              "close"
+            ]
+          }
+        ]
+      },
+      "limitation": "仅覆盖4次观测；非总回报，不外推长期收益"
+    },
+    {
+      "id": "600036",
+      "label": "招商银行 · 快照价格变化",
+      "value": -0.0018600325505695459,
+      "unit": "ratio",
+      "sourceIds": [
+        "quotes"
+      ],
+      "formula": "last_close/first_close-1",
+      "check": {
+        "op": "return",
+        "inputs": [
+          43.01,
+          42.93
+        ],
+        "sourceInputs": [
+          {
+            "sourceId": "quotes",
+            "path": [
+              6,
+              "close"
+            ]
+          },
+          {
+            "sourceId": "quotes",
+            "path": [
+              4,
+              "close"
+            ]
+          }
+        ]
+      },
+      "limitation": "仅覆盖3次观测；非总回报，不外推长期收益"
+    },
+    {
+      "id": "601166",
+      "label": "兴业银行 · 快照价格变化",
+      "value": 0.008134214539908369,
+      "unit": "ratio",
+      "sourceIds": [
+        "quotes"
+      ],
+      "formula": "last_close/first_close-1",
+      "check": {
+        "op": "return",
+        "inputs": [
+          19.67,
+          19.83
+        ],
+        "sourceInputs": [
+          {
+            "sourceId": "quotes",
+            "path": [
+              9,
+              "close"
+            ]
+          },
+          {
+            "sourceId": "quotes",
+            "path": [
+              7,
+              "close"
+            ]
+          }
+        ]
+      },
+      "limitation": "仅覆盖3次观测；非总回报，不外推长期收益"
+    },
+    {
+      "id": "601398",
+      "label": "工商银行 · 快照价格变化",
+      "value": 0.029069767441860517,
+      "unit": "ratio",
+      "sourceIds": [
+        "quotes"
+      ],
+      "formula": "last_close/first_close-1",
+      "check": {
+        "op": "return",
+        "inputs": [
+          8.6,
+          8.85
+        ],
+        "sourceInputs": [
+          {
+            "sourceId": "quotes",
+            "path": [
+              12,
+              "close"
+            ]
+          },
+          {
+            "sourceId": "quotes",
+            "path": [
+              10,
+              "close"
+            ]
+          }
+        ]
+      },
+      "limitation": "仅覆盖3次观测；非总回报，不外推长期收益"
+    },
+    {
+      "id": "601939",
+      "label": "建设银行 · 快照价格变化",
+      "value": 0.006650041562759723,
+      "unit": "ratio",
+      "sourceIds": [
+        "quotes"
+      ],
+      "formula": "last_close/first_close-1",
+      "check": {
+        "op": "return",
+        "inputs": [
+          12.03,
+          12.11
+        ],
+        "sourceInputs": [
+          {
+            "sourceId": "quotes",
+            "path": [
+              15,
+              "close"
+            ]
+          },
+          {
+            "sourceId": "quotes",
+            "path": [
+              13,
+              "close"
+            ]
+          }
+        ]
+      },
+      "limitation": "仅覆盖3次观测；非总回报，不外推长期收益"
+    }
+  ],
+  "claims": [
+    {
+      "id": "short-window",
+      "text": "本样本仅3至4次观测，不足以支持长期表现或因果判断。",
+      "kind": "inference",
+      "sourceIds": [
+        "quotes"
+      ]
+    },
+    {
+      "id": "pe-coverage",
+      "text": "只有平安银行存在最新PE快照值5.84；其余四家缺失，且盈余口径未明确，不做估值排名。",
+      "kind": "fact",
+      "sourceIds": [
+        "quotes"
+      ]
+    }
+  ]
+}

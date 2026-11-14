@@ -1,0 +1,13 @@
+{
+  "labels": [
+    "现金",
+    "股票",
+    "基金"
+  ],
+  "values": [
+    20,
+    30,
+    50
+  ],
+  "dataStatus": "SYNTHETIC_TEST_ONLY"
+}

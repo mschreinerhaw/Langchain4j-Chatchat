@@ -1,0 +1,36 @@
+{
+  "id": "ab64471c-3762-4f4c-93a0-f083c5c9c5c7",
+  "status": "passed",
+  "createdAt": 1794674436640,
+  "report": {
+    "status": "passed",
+    "viewports": [
+      {
+        "name": "desktop",
+        "width": 1440,
+        "height": 900,
+        "screenshot": "/api/v1/preview/ab64471c-3762-4f4c-93a0-f083c5c9c5c7/desktop.png"
+      },
+      {
+        "name": "mobile",
+        "width": 390,
+        "height": 844,
+        "screenshot": "/api/v1/preview/ab64471c-3762-4f4c-93a0-f083c5c9c5c7/mobile.png"
+      }
+    ],
+    "errors": [],
+    "htmlSha256": "9ae84f5ab7dadd18b3d86f4b9b88056aec18394a808dbb2cdf470f18f8b1e422",
+    "checks": [
+      "console",
+      "resources",
+      "external-dependencies",
+      "horizontal-overflow",
+      "echarts",
+      "required-elements",
+      "declared-interactions"
+    ],
+    "businessValidation": "Not evaluated by browser",
+    "printChecked": true
+  },
+  "bundle": true
+}

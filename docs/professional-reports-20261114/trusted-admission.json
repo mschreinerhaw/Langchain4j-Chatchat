@@ -1,0 +1,35 @@
+{
+  "reviewer": "Node delivery-side independent recomputation",
+  "results": [
+    {
+      "name": "examples/bank-original",
+      "status": "PASSED",
+      "artifacts": 21
+    },
+    {
+      "name": "examples/bank-regression",
+      "status": "PASSED",
+      "artifacts": 16
+    },
+    {
+      "name": "examples/client-assets",
+      "status": "PASSED",
+      "artifacts": 16
+    },
+    {
+      "name": "examples/operations",
+      "status": "PASSED",
+      "artifacts": 16
+    },
+    {
+      "name": "native-client-assets",
+      "status": "PASSED",
+      "artifacts": 38
+    },
+    {
+      "name": "native-operations",
+      "status": "PASSED",
+      "artifacts": 37
+    }
+  ]
+}

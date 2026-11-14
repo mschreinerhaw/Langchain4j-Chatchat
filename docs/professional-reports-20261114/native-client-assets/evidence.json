@@ -1,0 +1,174 @@
+{
+  "sources": [
+    {
+      "id": "src-csv",
+      "dataset": "client-assets-SYNTHETIC.csv",
+      "file": "sources/client-assets-SYNTHETIC.csv",
+      "fields": [
+        "category",
+        "amount"
+      ],
+      "period": "Single as-of snapshot (no date column)",
+      "basis": "Synthetic test data; not real client data",
+      "sha256": "01afca19de75af5c467544497ef9bb9a8d2067382cc6a0bf267c7b8eae2e2e28",
+      "urls": []
+    },
+    {
+      "id": "src-json",
+      "dataset": "client-assets-SYNTHETIC (JSON mirror for cell bindings)",
+      "file": "sources/client-assets-SYNTHETIC.json",
+      "fields": [
+        "cash",
+        "stock",
+        "fund"
+      ],
+      "period": "Single as-of snapshot",
+      "basis": "JSON mirror of CSV data for programmatic cell-binding verification",
+      "sha256": "5db45fda37f15835be456c2f9721414cc682e660ef0f36c1bddc117ffce11655",
+      "urls": []
+    }
+  ],
+  "metrics": [
+    {
+      "id": "total-assets",
+      "label": "Total Assets",
+      "value": 100,
+      "unit": "units",
+      "sourceIds": [
+        "src-json"
+      ],
+      "check": {
+        "op": "sum",
+        "inputs": [
+          20,
+          30,
+          50
+        ],
+        "sourceInputs": [
+          {
+            "sourceId": "src-json",
+            "path": [
+              "cash"
+            ]
+          },
+          {
+            "sourceId": "src-json",
+            "path": [
+              "stock"
+            ]
+          },
+          {
+            "sourceId": "src-json",
+            "path": [
+              "fund"
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "fund-amount",
+      "label": "Fund Amount",
+      "value": 50,
+      "unit": "synthetic units",
+      "sourceIds": [
+        "src-json"
+      ],
+      "check": {
+        "op": "sum",
+        "inputs": [
+          50
+        ],
+        "sourceInputs": [
+          {
+            "sourceId": "src-json",
+            "path": [
+              "fund"
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "stock-amount",
+      "label": "Stock Amount",
+      "value": 30,
+      "unit": "synthetic units",
+      "sourceIds": [
+        "src-json"
+      ],
+      "check": {
+        "op": "sum",
+        "inputs": [
+          30
+        ],
+        "sourceInputs": [
+          {
+            "sourceId": "src-json",
+            "path": [
+              "stock"
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "cash-amount",
+      "label": "Cash Amount",
+      "value": 20,
+      "unit": "synthetic units",
+      "sourceIds": [
+        "src-json"
+      ],
+      "check": {
+        "op": "sum",
+        "inputs": [
+          20
+        ],
+        "sourceInputs": [
+          {
+            "sourceId": "src-json",
+            "path": [
+              "cash"
+            ]
+          }
+        ]
+      }
+    }
+  ],
+  "claims": [
+    {
+      "id": "claim-total",
+      "kind": "calculation",
+      "text": "Total portfolio value computed as sum of all category amounts = 100 units.",
+      "sourceIds": [
+        "src-json"
+      ],
+      "metricId": "total-assets"
+    },
+    {
+      "id": "claim-largest",
+      "kind": "fact",
+      "text": "Fund is the largest single allocation at 50.0% of total assets.",
+      "sourceIds": [
+        "src-json"
+      ]
+    },
+    {
+      "id": "claim-gap-cashflow",
+      "kind": "inference",
+      "text": "Cash flow history and risk suitability metadata are unavailable; no suitability assessment is possible.",
+      "sourceIds": [
+        "src-json"
+      ]
+    },
+    {
+      "id": "claim-gap-sample",
+      "kind": "inference",
+      "text": "Single-period snapshot with 3 rows; statistical conclusions are not meaningful.",
+      "sourceIds": [
+        "src-json"
+      ]
+    }
+  ]
+}

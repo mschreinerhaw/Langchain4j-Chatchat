@@ -1,0 +1,19 @@
+{
+  "rows": [
+    {
+      "month": "2026-01",
+      "revenue": 100
+    },
+    {
+      "month": "2026-02",
+      "revenue": 120
+    },
+    {
+      "month": "2026-03",
+      "revenue": 110
+    }
+  ],
+  "total_revenue": 330,
+  "average_revenue": 110.0,
+  "row_count": 3
+}

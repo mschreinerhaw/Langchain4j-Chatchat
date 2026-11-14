@@ -1,0 +1,30 @@
+{
+  "status": "passed",
+  "viewports": [
+    {
+      "name": "desktop",
+      "width": 1440,
+      "height": 900,
+      "screenshot": "/api/v1/preview/d7366baa-02f1-4a34-8cb1-9c26b93394c0/desktop.png"
+    },
+    {
+      "name": "mobile",
+      "width": 390,
+      "height": 844,
+      "screenshot": "/api/v1/preview/d7366baa-02f1-4a34-8cb1-9c26b93394c0/mobile.png"
+    }
+  ],
+  "errors": [],
+  "htmlSha256": "8b21638b194dce3db815c6c9c1599a94b3628ef58ebdfec66b259f9233621ab2",
+  "checks": [
+    "console",
+    "resources",
+    "external-dependencies",
+    "horizontal-overflow",
+    "echarts",
+    "required-elements",
+    "declared-interactions"
+  ],
+  "businessValidation": "Not evaluated by browser",
+  "printChecked": true
+}

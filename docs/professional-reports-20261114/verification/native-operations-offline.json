@@ -1,0 +1,47 @@
+{
+  "status": "PASSED",
+  "offline": true,
+  "checks": [
+    {
+      "name": "operations-report",
+      "htmlSha256": "5545bdb77641d694746ac7a9b4942121a5d078d7ebe8a095ee6885a3e5cd1e87",
+      "viewports": [
+        {
+          "label": "desktop",
+          "count": 1,
+          "values": [
+            [
+              [
+                100,
+                120,
+                110
+              ]
+            ]
+          ],
+          "dimensionsValid": true,
+          "gapsPreserved": true,
+          "overflow": false,
+          "summaryBottom": 454.828125
+        },
+        {
+          "label": "mobile",
+          "count": 1,
+          "values": [
+            [
+              [
+                100,
+                120,
+                110
+              ]
+            ]
+          ],
+          "dimensionsValid": true,
+          "gapsPreserved": true,
+          "overflow": false,
+          "summaryBottom": 586.734375
+        }
+      ]
+    }
+  ],
+  "errors": []
+}

@@ -1,0 +1,46 @@
+{
+  "name": "bank-regression",
+  "htmlSha256": "1427fe22305139671be94578324edb191590b3e21605c67f97b416ebd9eb010c",
+  "viewports": [
+    {
+      "label": "desktop",
+      "count": 1,
+      "values": [
+        [
+          [
+            8,
+            5,
+            null,
+            7,
+            6
+          ]
+        ]
+      ],
+      "dimensionsValid": true,
+      "gapsPreserved": true,
+      "overflow": false,
+      "summaryBottom": 430.078125
+    },
+    {
+      "label": "mobile",
+      "count": 1,
+      "values": [
+        [
+          [
+            8,
+            5,
+            null,
+            7,
+            6
+          ]
+        ]
+      ],
+      "dimensionsValid": true,
+      "gapsPreserved": true,
+      "overflow": false,
+      "summaryBottom": 487.734375
+    }
+  ],
+  "status": "PASSED",
+  "offline": true
+}

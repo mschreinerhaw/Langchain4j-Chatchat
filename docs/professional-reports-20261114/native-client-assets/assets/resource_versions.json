@@ -1,0 +1,26 @@
+{
+  "reportVersion": "1.0.2",
+  "echartsVersion": "6.1.0",
+  "files": {
+    "report.css": {
+      "path": "/assets/professional-report/1.0.2/report.css",
+      "sha256": "a0f578bcd1589678dde22636c3633b30305d2ec2ddc8017d06458f7ec99be4b1"
+    },
+    "report.js": {
+      "path": "/assets/professional-report/1.0.2/report.js",
+      "sha256": "2674a895432eabce371bcb3f13703648b7443e758845c4cf7ea9bdf8f684aee2"
+    },
+    "LICENSE.professional-report": {
+      "path": "/assets/professional-report/LICENSE",
+      "sha256": "191015a5e5d0e847f0cff8dcc2b1e4468e3dbfbcf6e888646576532879f81cdf"
+    },
+    "echarts.min.js": {
+      "path": "/assets/echarts/echarts.min.js",
+      "sha256": "b66b25aeb4df84e33199dc21694014d336d222cbd9deb0e5a7c14bd6aa0d0fd0"
+    },
+    "LICENSE.echarts": {
+      "path": "/assets/echarts/LICENSE",
+      "sha256": "634293835b43a6dd2094fa39182a3d9a6b9ca43b7fdb9ac354e8037af2a3093a"
+    }
+  }
+}

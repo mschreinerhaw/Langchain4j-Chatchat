@@ -1,0 +1,131 @@
+{
+  "title": "企业运营分析 · 合成泛化样例",
+  "reportType": "operations",
+  "period": "SYNTHETIC / 2026-Q1",
+  "theme": "corporate-blue",
+  "summary": "本报告使用明确标注的合成测试数据验证布局与检查程序，不构成真实业务或投资结论。测试收入先增后降。没有成本、同期数据及季节性信息，不推断利润变化或增长原因。",
+  "metrics": [
+    {
+      "id": "total",
+      "label": "测试季度收入",
+      "value": 330,
+      "unit": "万元",
+      "sourceIds": [
+        "fixture"
+      ],
+      "formula": "sum(values)",
+      "check": {
+        "op": "sum",
+        "inputs": [
+          100,
+          120,
+          110
+        ],
+        "sourceInputs": [
+          {
+            "sourceId": "fixture",
+            "path": [
+              "values",
+              0
+            ]
+          },
+          {
+            "sourceId": "fixture",
+            "path": [
+              "values",
+              1
+            ]
+          },
+          {
+            "sourceId": "fixture",
+            "path": [
+              "values",
+              2
+            ]
+          }
+        ]
+      }
+    }
+  ],
+  "sections": [
+    {
+      "title": "经营趋势与局限",
+      "text": "测试收入先增后降。没有成本、同期数据及季节性信息，不推断利润变化或增长原因。"
+    }
+  ],
+  "sources": [
+    {
+      "id": "fixture",
+      "file": "source.json",
+      "dataset": "operations synthetic fixture",
+      "fields": [
+        "labels",
+        "values"
+      ],
+      "period": "SYNTHETIC / 2026-Q1",
+      "basis": "SYNTHETIC_TEST_ONLY",
+      "sha256": "ce0c3db0b3b65d63eb8aeba2655a4f7f09adea71624fd702b586ce2004612e02"
+    }
+  ],
+  "claims": [
+    {
+      "id": "scope",
+      "text": "测试收入先增后降。没有成本、同期数据及季节性信息，不推断利润变化或增长原因。",
+      "kind": "inference",
+      "sourceIds": [
+        "fixture"
+      ]
+    }
+  ],
+  "charts": [
+    {
+      "id": "comparison",
+      "purpose": "月度测试收入",
+      "type": "line",
+      "period": "SYNTHETIC / 2026-Q1",
+      "unit": "万元",
+      "basis": "SYNTHETIC_TEST_ONLY",
+      "sourceIds": [
+        "fixture"
+      ],
+      "labels": [
+        "一月",
+        "二月",
+        "三月"
+      ],
+      "series": [
+        {
+          "name": "合成测试值",
+          "values": [
+            100,
+            120,
+            110
+          ],
+          "sourceInputs": [
+            {
+              "sourceId": "fixture",
+              "path": [
+                "values",
+                0
+              ]
+            },
+            {
+              "sourceId": "fixture",
+              "path": [
+                "values",
+                1
+              ]
+            },
+            {
+              "sourceId": "fixture",
+              "path": [
+                "values",
+                2
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

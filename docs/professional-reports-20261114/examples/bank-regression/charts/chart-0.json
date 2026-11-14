@@ -1,0 +1,67 @@
+{
+  "id": "comparison",
+  "purpose": "同口径测试PE比较",
+  "type": "bar",
+  "period": "SYNTHETIC / 2026-Q1",
+  "unit": "倍",
+  "basis": "SYNTHETIC_TEST_ONLY",
+  "sourceIds": [
+    "fixture"
+  ],
+  "labels": [
+    "测试银行A",
+    "测试银行B",
+    "测试银行C",
+    "测试银行D",
+    "测试银行E"
+  ],
+  "series": [
+    {
+      "name": "合成测试值",
+      "values": [
+        8,
+        5,
+        null,
+        7,
+        6
+      ],
+      "sourceInputs": [
+        {
+          "sourceId": "fixture",
+          "path": [
+            "values",
+            0
+          ]
+        },
+        {
+          "sourceId": "fixture",
+          "path": [
+            "values",
+            1
+          ]
+        },
+        {
+          "sourceId": "fixture",
+          "path": [
+            "values",
+            2
+          ]
+        },
+        {
+          "sourceId": "fixture",
+          "path": [
+            "values",
+            3
+          ]
+        },
+        {
+          "sourceId": "fixture",
+          "path": [
+            "values",
+            4
+          ]
+        }
+      ]
+    }
+  ]
+}

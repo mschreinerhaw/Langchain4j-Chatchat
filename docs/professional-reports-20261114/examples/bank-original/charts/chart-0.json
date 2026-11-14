@@ -1,0 +1,195 @@
+{
+  "id": "normalized",
+  "purpose": "归档价格路径（共同起点=100；非含息收益）",
+  "type": "line",
+  "period": "2026-11-10/2026-11-13",
+  "unit": "指数（起点100）",
+  "basis": "交易所归档快照；收盘价复权口径与PE盈余口径未核实；仅描述观测路径，不用于投资排名",
+  "sourceIds": [
+    "quotes"
+  ],
+  "labels": [
+    "2026-11-10",
+    "2026-11-11",
+    "2026-11-12",
+    "2026-11-13"
+  ],
+  "series": [
+    {
+      "name": "平安银行",
+      "values": [
+        100.0,
+        98.73524451939292,
+        99.4097807757167,
+        101.77065767284992
+      ],
+      "sourceInputs": [
+        {
+          "sourceId": "quotes",
+          "path": [
+            3,
+            "close"
+          ]
+        },
+        {
+          "sourceId": "quotes",
+          "path": [
+            2,
+            "close"
+          ]
+        },
+        {
+          "sourceId": "quotes",
+          "path": [
+            1,
+            "close"
+          ]
+        },
+        {
+          "sourceId": "quotes",
+          "path": [
+            0,
+            "close"
+          ]
+        }
+      ],
+      "transform": "rebased-100"
+    },
+    {
+      "name": "招商银行",
+      "values": [
+        100.0,
+        98.9537316903046,
+        null,
+        99.81399674494304
+      ],
+      "sourceInputs": [
+        {
+          "sourceId": "quotes",
+          "path": [
+            6,
+            "close"
+          ]
+        },
+        {
+          "sourceId": "quotes",
+          "path": [
+            5,
+            "close"
+          ]
+        },
+        null,
+        {
+          "sourceId": "quotes",
+          "path": [
+            4,
+            "close"
+          ]
+        }
+      ],
+      "transform": "rebased-100"
+    },
+    {
+      "name": "兴业银行",
+      "values": [
+        100.0,
+        99.38993390950685,
+        null,
+        100.81342145399084
+      ],
+      "sourceInputs": [
+        {
+          "sourceId": "quotes",
+          "path": [
+            9,
+            "close"
+          ]
+        },
+        {
+          "sourceId": "quotes",
+          "path": [
+            8,
+            "close"
+          ]
+        },
+        null,
+        {
+          "sourceId": "quotes",
+          "path": [
+            7,
+            "close"
+          ]
+        }
+      ],
+      "transform": "rebased-100"
+    },
+    {
+      "name": "工商银行",
+      "values": [
+        100.0,
+        99.18604651162791,
+        null,
+        102.90697674418605
+      ],
+      "sourceInputs": [
+        {
+          "sourceId": "quotes",
+          "path": [
+            12,
+            "close"
+          ]
+        },
+        {
+          "sourceId": "quotes",
+          "path": [
+            11,
+            "close"
+          ]
+        },
+        null,
+        {
+          "sourceId": "quotes",
+          "path": [
+            10,
+            "close"
+          ]
+        }
+      ],
+      "transform": "rebased-100"
+    },
+    {
+      "name": "建设银行",
+      "values": [
+        100.0,
+        99.08561928512054,
+        null,
+        100.66500415627597
+      ],
+      "sourceInputs": [
+        {
+          "sourceId": "quotes",
+          "path": [
+            15,
+            "close"
+          ]
+        },
+        {
+          "sourceId": "quotes",
+          "path": [
+            14,
+            "close"
+          ]
+        },
+        null,
+        {
+          "sourceId": "quotes",
+          "path": [
+            13,
+            "close"
+          ]
+        }
+      ],
+      "transform": "rebased-100"
+    }
+  ]
+}

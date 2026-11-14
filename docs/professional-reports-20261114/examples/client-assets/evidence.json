@@ -1,0 +1,69 @@
+{
+  "sources": [
+    {
+      "id": "fixture",
+      "file": "source.json",
+      "dataset": "client-assets synthetic fixture",
+      "fields": [
+        "labels",
+        "values"
+      ],
+      "period": "SYNTHETIC / 2026-Q1",
+      "basis": "SYNTHETIC_TEST_ONLY",
+      "sha256": "3e4b2824e1a2a0c82ee65619031ff48f3529b8686883e31f145331ca1d10367f"
+    }
+  ],
+  "metrics": [
+    {
+      "id": "total",
+      "label": "测试资产合计",
+      "value": 100,
+      "unit": "万元",
+      "sourceIds": [
+        "fixture"
+      ],
+      "formula": "sum(values)",
+      "check": {
+        "op": "sum",
+        "inputs": [
+          20,
+          30,
+          50
+        ],
+        "sourceInputs": [
+          {
+            "sourceId": "fixture",
+            "path": [
+              "values",
+              0
+            ]
+          },
+          {
+            "sourceId": "fixture",
+            "path": [
+              "values",
+              1
+            ]
+          },
+          {
+            "sourceId": "fixture",
+            "path": [
+              "values",
+              2
+            ]
+          }
+        ]
+      }
+    }
+  ],
+  "claims": [
+    {
+      "id": "scope",
+      "text": "合成资产合计100万元。基金占50%；未提供风险等级及现金流，不推断风险适配性，不计算账户投资收益。",
+      "kind": "inference",
+      "sourceIds": [
+        "fixture"
+      ]
+    }
+  ]
+}

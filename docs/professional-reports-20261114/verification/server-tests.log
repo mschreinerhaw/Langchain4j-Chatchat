@@ -1,0 +1,24 @@
+✔ source snapshot failure retains actual process completion and stream bytes (12.739618ms)
+✔ historical incomplete metadata is explicit and does not prevent listing intact records (3.971356ms)
+✔ the Agent declares dynamic deliverables; Markdown repair notes are auxiliary (11.958775ms)
+✔ unsafe, absent, duplicate and oversized delivery declarations fail closed (9.978042ms)
+✔ professional HTML requires companions while source-only delivery remains compatible (2.45777ms)
+✔ trusted delivery review detects wrong ranks despite model declaring quality passed (23.612258ms)
+✔ legacy disable hints cannot remove authorized image packages or mutate metadata (4.468184ms)
+✔ delivery rejects duplicate source identities; SDK namespaces handle names (1.615616ms)
+✔ image delivery rejects traversal and undeclared resource paths (7.05601ms)
+✔ financial scene resources are image-owned and delivered through the existing manifest (22.984484ms)
+✔ report rollout uses node configuration and permits task scoped rollback (103.834569ms)
+ℹ tests 11
+ℹ suites 0
+ℹ pass 11
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 227.614691
+........
+----------------------------------------------------------------------
+Ran 8 tests in 0.012s
+
+OK

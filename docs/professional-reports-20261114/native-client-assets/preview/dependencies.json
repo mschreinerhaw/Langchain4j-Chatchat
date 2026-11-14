@@ -1,0 +1,232 @@
+{
+  "paths": [
+    "/assets/professional-report/1.0.2/report.css",
+    "/assets/professional-report/1.0.2/report.js",
+    "/assets/echarts/echarts.min.js"
+  ],
+  "resources": [
+    {
+      "id": "bootstrap",
+      "package": "bootstrap",
+      "version": "5.3.8",
+      "license": "MIT",
+      "source": {
+        "type": "git",
+        "url": "git+https://github.com/twbs/bootstrap.git"
+      },
+      "dependencies": [],
+      "conflicts": [
+        "tabler"
+      ],
+      "files": [
+        {
+          "path": "/assets/bootstrap/css/bootstrap.min.css",
+          "sha256": "d85327d99c7a3ee1f9b5d0500d1370acea3ad2db39c163c2f51f232baedbdede"
+        },
+        {
+          "path": "/assets/bootstrap/js/bootstrap.bundle.min.js",
+          "sha256": "e4fd49181388c48ec5040bd3fe66f57c29c8e67fcd8502b3354b96ec7ab47cc7"
+        },
+        {
+          "path": "/assets/bootstrap/LICENSE",
+          "sha256": "4620c84ad5ce8602ff65640ed6b7c8b78ebb9e036584f0ebc1ccc88206a4bb51"
+        }
+      ]
+    },
+    {
+      "id": "tabler",
+      "package": "@tabler/core",
+      "version": "1.4.0",
+      "license": "MIT",
+      "source": {
+        "type": "git",
+        "url": "git+https://github.com/tabler/tabler.git"
+      },
+      "dependencies": [],
+      "conflicts": [
+        "bootstrap"
+      ],
+      "files": [
+        {
+          "path": "/assets/tabler/css/tabler.min.css",
+          "sha256": "7ef750bd10546a695d0b12767ad8048bd8f3ec5de7daefb1067f9d0daa3d1c9a"
+        },
+        {
+          "path": "/assets/tabler/js/tabler.min.js",
+          "sha256": "b60c76160e97624574dbb8cf10abe6aee9a6493b60096fdfc15dd1dd2bd99eb9"
+        },
+        {
+          "path": "/assets/tabler/LICENSE",
+          "sha256": "4f88a82d13be3c5c63a12c5631eae914aa4381b6dc17641bf1ab85f3f8f6c8a5"
+        }
+      ]
+    },
+    {
+      "id": "echarts",
+      "package": "echarts",
+      "version": "6.1.0",
+      "license": "Apache-2.0",
+      "source": {
+        "type": "git",
+        "url": "git+https://github.com/apache/echarts.git"
+      },
+      "dependencies": [],
+      "conflicts": [],
+      "files": [
+        {
+          "path": "/assets/echarts/echarts.min.js",
+          "sha256": "b66b25aeb4df84e33199dc21694014d336d222cbd9deb0e5a7c14bd6aa0d0fd0"
+        },
+        {
+          "path": "/assets/echarts/LICENSE",
+          "sha256": "634293835b43a6dd2094fa39182a3d9a6b9ca43b7fdb9ac354e8037af2a3093a"
+        }
+      ]
+    },
+    {
+      "id": "icons",
+      "package": "lucide-static",
+      "version": "0.468.0",
+      "license": "ISC",
+      "source": {
+        "type": "git",
+        "url": "https://github.com/lucide-icons/lucide.git"
+      },
+      "dependencies": [],
+      "conflicts": [],
+      "files": [
+        {
+          "path": "/assets/icons/activity.svg",
+          "sha256": "df8e413c714521cc3d424bd7af3c1644d63409f7e0a7dec75ff0fa48aa6daedb"
+        },
+        {
+          "path": "/assets/icons/LICENSE",
+          "sha256": "1e7290b35280a048667bbf0ebabac1c7fd52a75300e8b2946ac165715997f2bc"
+        }
+      ]
+    },
+    {
+      "id": "alpine",
+      "package": "alpinejs",
+      "version": "3.14.9",
+      "license": "MIT",
+      "source": {
+        "type": "git",
+        "url": "https://github.com/alpinejs/alpine.git",
+        "directory": "packages/alpinejs"
+      },
+      "dependencies": [],
+      "conflicts": [],
+      "files": [
+        {
+          "path": "/assets/alpine/cdn.min.js",
+          "sha256": "3ed1eed252488921df65e363d6715deb04d7f92aaedb9e52199fdf73cb1e0ad3"
+        },
+        {
+          "path": "/assets/alpine/LICENSE",
+          "sha256": "5f05c4925dd3edf049a70b4b403ac0dd43b20f72501d9359911ddd25d5ac657d"
+        }
+      ]
+    },
+    {
+      "id": "datatables",
+      "package": "datatables.net-dt",
+      "version": "2.3.5",
+      "license": "MIT",
+      "source": {
+        "type": "git",
+        "url": "https://github.com/DataTables/Dist-DataTables-DataTables.git"
+      },
+      "dependencies": [
+        "jquery"
+      ],
+      "conflicts": [],
+      "files": [
+        {
+          "path": "/assets/datatables/css/dataTables.dataTables.min.css",
+          "sha256": "d140c200ecffe14ab03ff4f04ff4fe0c6ce78b005b4bda18bf4095d3c0c6b48b"
+        },
+        {
+          "path": "/assets/datatables/js/dataTables.min.js",
+          "sha256": "4ed9cba7221afc108f6a2c864848325ac5458b75e39462cc347a77aed80a6542"
+        },
+        {
+          "path": "/assets/datatables/js/dataTables.dataTables.min.js",
+          "sha256": "d73b55b747b578beaa1871397af7271a66aa9324f2ab4ee71e3eb7e1692c555b"
+        },
+        {
+          "path": "/assets/datatables/LICENSE",
+          "sha256": "62b5fdd54371b4f6bd07a60dbc78b38814f49a8028213f540dc2733cad605382"
+        }
+      ]
+    },
+    {
+      "id": "jquery",
+      "package": "jquery",
+      "version": "3.7.1",
+      "license": "MIT",
+      "source": {
+        "type": "git",
+        "url": "https://github.com/jquery/jquery.git"
+      },
+      "dependencies": [],
+      "conflicts": [],
+      "files": [
+        {
+          "path": "/assets/jquery/jquery.min.js",
+          "sha256": "fc9a93dd241f6b045cbff0481cf4e1901becd0e12fb45166a8f17f95823f0b1a"
+        },
+        {
+          "path": "/assets/jquery/LICENSE",
+          "sha256": "d4db9ebe6f29f5168eac45ad713f055623ac5d0dcd5ba92da23d650ae012020d"
+        }
+      ]
+    },
+    {
+      "id": "mermaid",
+      "package": "mermaid",
+      "version": "12.3.0",
+      "license": "MIT",
+      "source": {
+        "type": "git",
+        "url": "https://github.com/mermaid-js/mermaid"
+      },
+      "dependencies": [],
+      "conflicts": [],
+      "files": [
+        {
+          "path": "/assets/mermaid/mermaid.min.js",
+          "sha256": "336df803d87a38b70a01e736e666c8f7601d2ce42f5e47c8fafe5d721074b9a3"
+        },
+        {
+          "path": "/assets/mermaid/LICENSE",
+          "sha256": "ec9fb67dcb25eccc416ed56e1aab819222c805a2a4bfe4cb19e7556bf2ffde80"
+        }
+      ]
+    },
+    {
+      "id": "professional-report",
+      "package": "runtime-os-professional-report",
+      "version": "1.0.2",
+      "license": "platform",
+      "dependencies": [
+        "echarts"
+      ],
+      "conflicts": [],
+      "files": [
+        {
+          "path": "/assets/professional-report/1.0.2/report.css",
+          "sha256": "a0f578bcd1589678dde22636c3633b30305d2ec2ddc8017d06458f7ec99be4b1"
+        },
+        {
+          "path": "/assets/professional-report/1.0.2/report.js",
+          "sha256": "2674a895432eabce371bcb3f13703648b7443e758845c4cf7ea9bdf8f684aee2"
+        },
+        {
+          "path": "/assets/professional-report/LICENSE",
+          "sha256": "191015a5e5d0e847f0cff8dcc2b1e4468e3dbfbcf6e888646576532879f81cdf"
+        }
+      ]
+    }
+  ]
+}

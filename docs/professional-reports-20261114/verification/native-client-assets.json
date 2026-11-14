@@ -1,0 +1,168 @@
+{
+  "status": "PASSED",
+  "taskId": "temporal-native-4ca609c6e2e5314c3a93f065a27f04e000a4c28b549be2a7ca41e3dbd44e099a",
+  "runId": "coding-8e6ebc2f951e055796310d449b9a6f795cca50f7485daae58f38de90e50c7922",
+  "nodeId": "cline-worker-2",
+  "totalVerified": true,
+  "expectedTotal": 100,
+  "qualityStatus": "PASSED",
+  "resourceVersion": "1.0.2",
+  "viewerEntry": "output/client-assets-finalized/report.html",
+  "pdf": {
+    "id": "f40f3a753aea283dcec8336053a913385f2085752c67f3014cba9a278aa098d3",
+    "sha256": "b5a8f4e6c0b02f84e4fdefd4e785d48a1124620f67bfbe7098824f5576ae8f34",
+    "size": 186341
+  },
+  "files": [
+    {
+      "sha256": "97fe9df4275cbaeec0c4106e6c601df6ed73596e76e3f41ad0b74ab97f0b796e",
+      "size": 759,
+      "path": "output/client-assets-finalized/charts/chart-0.json"
+    },
+    {
+      "sha256": "a0f578bcd1589678dde22636c3633b30305d2ec2ddc8017d06458f7ec99be4b1",
+      "size": 2103,
+      "path": "output/client-assets-finalized/assets/professional-report/1.0.2/report.css"
+    },
+    {
+      "sha256": "2674a895432eabce371bcb3f13703648b7443e758845c4cf7ea9bdf8f684aee2",
+      "size": 2052,
+      "path": "output/client-assets-finalized/assets/professional-report/1.0.2/report.js"
+    },
+    {
+      "sha256": "b66b25aeb4df84e33199dc21694014d336d222cbd9deb0e5a7c14bd6aa0d0fd0",
+      "size": 1121883,
+      "path": "output/client-assets-finalized/assets/echarts/echarts.min.js"
+    },
+    {
+      "sha256": "695804ecbaa8257e72f79ac065ade0bc50ffdee7cd43c9bfb71695f9a19849e8",
+      "size": 916,
+      "path": "output/client-assets-finalized/assets/resource_versions.json"
+    },
+    {
+      "sha256": "b66b25aeb4df84e33199dc21694014d336d222cbd9deb0e5a7c14bd6aa0d0fd0",
+      "size": 1121883,
+      "path": "output/client-assets-finalized/assets/echarts.min.js"
+    },
+    {
+      "sha256": "2674a895432eabce371bcb3f13703648b7443e758845c4cf7ea9bdf8f684aee2",
+      "size": 2052,
+      "path": "output/client-assets-finalized/assets/report.js"
+    },
+    {
+      "sha256": "a0f578bcd1589678dde22636c3633b30305d2ec2ddc8017d06458f7ec99be4b1",
+      "size": 2103,
+      "path": "output/client-assets-finalized/assets/report.css"
+    },
+    {
+      "sha256": "5db45fda37f15835be456c2f9721414cc682e660ef0f36c1bddc117ffce11655",
+      "size": 45,
+      "path": "output/client-assets-finalized/sources/client-assets-SYNTHETIC.json"
+    },
+    {
+      "sha256": "01afca19de75af5c467544497ef9bb9a8d2067382cc6a0bf267c7b8eae2e2e28",
+      "size": 41,
+      "path": "output/client-assets-finalized/sources/client-assets-SYNTHETIC.csv"
+    },
+    {
+      "sha256": "863fcb1ac92a4a060eb9dc8ed06733e881f13feb93f167957df27dd54d0c164a",
+      "size": 379,
+      "path": "output/client-assets-finalized/browser_validation.json"
+    },
+    {
+      "sha256": "c06788a3ed16d422b7114cfeec9663f9d08f28267b99014934999a7ec681fc15",
+      "size": 5869,
+      "path": "output/client-assets-finalized/index.html"
+    },
+    {
+      "sha256": "8b21638b194dce3db815c6c9c1599a94b3628ef58ebdfec66b259f9233621ab2",
+      "size": 5872,
+      "path": "output/client-assets-finalized/preview-source.html"
+    },
+    {
+      "sha256": "bb6a148df9cdc6073b509f3947b8b865413ab11c9daa5b1e9b4e82bf51a29a91",
+      "size": 1535,
+      "path": "output/client-assets-finalized/report_manifest.json"
+    },
+    {
+      "sha256": "db7dfe28b836006012f52b2ba4ce8a2ca8514b0d0742e91217454618c206a31f",
+      "size": 390,
+      "path": "output/client-assets-finalized/quality_report.json"
+    },
+    {
+      "sha256": "b15ed5b8510e91ddf6d4bb23cfab2bdad9ab9416ed3dc33335b5347f59c78d01",
+      "size": 3760,
+      "path": "output/client-assets-finalized/evidence.json"
+    },
+    {
+      "sha256": "c06788a3ed16d422b7114cfeec9663f9d08f28267b99014934999a7ec681fc15",
+      "size": 5869,
+      "path": "output/client-assets-finalized/report.html"
+    },
+    {
+      "sha256": "15fbdd0bc1239bf8be4159e105e5bf65e4b5a64488b802e79c33a9f73e1156a8",
+      "size": 405,
+      "path": "output/client-assets-finalized/result.json"
+    },
+    {
+      "sha256": "cec0d70e8b44dad5bdb4fe3a4da72d3bb07514900086daa7d22910da003e8082",
+      "size": 6803,
+      "path": "output/client-assets-finalized/report_model.json"
+    },
+    {
+      "sha256": "a0f578bcd1589678dde22636c3633b30305d2ec2ddc8017d06458f7ec99be4b1",
+      "size": 2103,
+      "path": "output/client-assets-finalized/preview/assets/professional-report/1.0.2/report.css"
+    },
+    {
+      "sha256": "2674a895432eabce371bcb3f13703648b7443e758845c4cf7ea9bdf8f684aee2",
+      "size": 2052,
+      "path": "output/client-assets-finalized/preview/assets/professional-report/1.0.2/report.js"
+    },
+    {
+      "sha256": "b66b25aeb4df84e33199dc21694014d336d222cbd9deb0e5a7c14bd6aa0d0fd0",
+      "size": 1121883,
+      "path": "output/client-assets-finalized/preview/assets/echarts/echarts.min.js"
+    },
+    {
+      "sha256": "99d5ecf829cca6946971943d353e19ad5e1345771b72f3d1a28a770a8c1ef974",
+      "size": 300956,
+      "path": "output/client-assets-finalized/preview/desktop.png"
+    },
+    {
+      "sha256": "4dfe4d3a23a809afd277ce601e0e5c29294e37d00b7edf59da38df66034529dc",
+      "size": 288696,
+      "path": "output/client-assets-finalized/preview/mobile.png"
+    },
+    {
+      "sha256": "ddcff321046452ac52cbd8f6a460be7777fee2c651ea8d08c5bcf12f565d8585",
+      "size": 727,
+      "path": "output/client-assets-finalized/preview/validation-report.json"
+    },
+    {
+      "sha256": "c06788a3ed16d422b7114cfeec9663f9d08f28267b99014934999a7ec681fc15",
+      "size": 5869,
+      "path": "output/client-assets-finalized/preview/standalone.html"
+    },
+    {
+      "sha256": "09c2fc27337c60510ea46ccd557bc35788bd35fa858485d2ed4a2088d74ddade",
+      "size": 6682,
+      "path": "output/client-assets-finalized/preview/dependencies.json"
+    },
+    {
+      "sha256": "5462690ec6f6e558e6b0fb01e3b04aee550c4b45d63eb7c7f7a732029d6024e1",
+      "size": 339,
+      "path": "output/client-assets-finalized/preview/manifest.json"
+    },
+    {
+      "sha256": "8b21638b194dce3db815c6c9c1599a94b3628ef58ebdfec66b259f9233621ab2",
+      "size": 5872,
+      "path": "output/client-assets-finalized/preview/index.html"
+    },
+    {
+      "sha256": "ea24b4c4020bb52382f89ff2664e04477644682a06824bbc8bb02dc71be3bddc",
+      "size": 995,
+      "path": "output/client-assets-finalized/preview/repair-history.json"
+    }
+  ]
+}

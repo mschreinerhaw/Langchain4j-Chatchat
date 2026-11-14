@@ -1,0 +1,431 @@
+{
+  "title": "五家银行股票表现对比分析",
+  "reportType": "stock-comparison",
+  "theme": "financial-research",
+  "period": "2026-11-10/2026-11-13",
+  "summary": "数据只支持11月10日至13日的快照价格比较，不足以形成最近一年收益排序。只有平安银行有PE=5.84，无法判断五家银行中谁估值最低。沪市四家银行缺少11月12日观测，保留断点。",
+  "sources": [
+    {
+      "id": "quotes",
+      "file": "source.json",
+      "dataset": "market_quote_daily / archived source-1.jsonl filtered by five equity codes",
+      "fields": [
+        "quote_code",
+        "quote_name",
+        "trade_date",
+        "close",
+        "pe_ratio",
+        "source_url",
+        "provider"
+      ],
+      "period": "2026-11-10/2026-11-13",
+      "basis": "交易所归档快照；收盘价复权口径与PE盈余口径未核实",
+      "sha256": "382027f2484181bb1aa6c5948f0ec63e6482565c5cab46628b8fb43e3b111352",
+      "parentSha256": "27baaed85083c394388b566648fffa79f63620014f37bd5e489fe963d6ef7223",
+      "urls": [
+        "https://www.sse.com.cn/market/price/report/#snapshot-equity-2026-11-13#observation=600036",
+        "https://www.sse.com.cn/market/price/report/#snapshot-equity-2026-11-13#observation=601166",
+        "https://www.sse.com.cn/market/price/report/#snapshot-equity-2026-11-13#observation=601398",
+        "https://www.sse.com.cn/market/price/report/#snapshot-equity-2026-11-13#observation=601939",
+        "https://www.szse.cn/market/trend/index.html#snapshot-EQUITY-2026-11-13#observation=000001"
+      ]
+    }
+  ],
+  "metrics": [
+    {
+      "id": "000001",
+      "label": "平安银行 · 快照价格变化",
+      "value": 0.01770657672849918,
+      "unit": "ratio",
+      "sourceIds": [
+        "quotes"
+      ],
+      "formula": "last_close/first_close-1",
+      "check": {
+        "op": "return",
+        "inputs": [
+          11.86,
+          12.07
+        ],
+        "sourceInputs": [
+          {
+            "sourceId": "quotes",
+            "path": [
+              3,
+              "close"
+            ]
+          },
+          {
+            "sourceId": "quotes",
+            "path": [
+              0,
+              "close"
+            ]
+          }
+        ]
+      },
+      "limitation": "仅覆盖4次观测；非总回报，不外推长期收益"
+    },
+    {
+      "id": "600036",
+      "label": "招商银行 · 快照价格变化",
+      "value": -0.0018600325505695459,
+      "unit": "ratio",
+      "sourceIds": [
+        "quotes"
+      ],
+      "formula": "last_close/first_close-1",
+      "check": {
+        "op": "return",
+        "inputs": [
+          43.01,
+          42.93
+        ],
+        "sourceInputs": [
+          {
+            "sourceId": "quotes",
+            "path": [
+              6,
+              "close"
+            ]
+          },
+          {
+            "sourceId": "quotes",
+            "path": [
+              4,
+              "close"
+            ]
+          }
+        ]
+      },
+      "limitation": "仅覆盖3次观测；非总回报，不外推长期收益"
+    },
+    {
+      "id": "601166",
+      "label": "兴业银行 · 快照价格变化",
+      "value": 0.008134214539908369,
+      "unit": "ratio",
+      "sourceIds": [
+        "quotes"
+      ],
+      "formula": "last_close/first_close-1",
+      "check": {
+        "op": "return",
+        "inputs": [
+          19.67,
+          19.83
+        ],
+        "sourceInputs": [
+          {
+            "sourceId": "quotes",
+            "path": [
+              9,
+              "close"
+            ]
+          },
+          {
+            "sourceId": "quotes",
+            "path": [
+              7,
+              "close"
+            ]
+          }
+        ]
+      },
+      "limitation": "仅覆盖3次观测；非总回报，不外推长期收益"
+    },
+    {
+      "id": "601398",
+      "label": "工商银行 · 快照价格变化",
+      "value": 0.029069767441860517,
+      "unit": "ratio",
+      "sourceIds": [
+        "quotes"
+      ],
+      "formula": "last_close/first_close-1",
+      "check": {
+        "op": "return",
+        "inputs": [
+          8.6,
+          8.85
+        ],
+        "sourceInputs": [
+          {
+            "sourceId": "quotes",
+            "path": [
+              12,
+              "close"
+            ]
+          },
+          {
+            "sourceId": "quotes",
+            "path": [
+              10,
+              "close"
+            ]
+          }
+        ]
+      },
+      "limitation": "仅覆盖3次观测；非总回报，不外推长期收益"
+    },
+    {
+      "id": "601939",
+      "label": "建设银行 · 快照价格变化",
+      "value": 0.006650041562759723,
+      "unit": "ratio",
+      "sourceIds": [
+        "quotes"
+      ],
+      "formula": "last_close/first_close-1",
+      "check": {
+        "op": "return",
+        "inputs": [
+          12.03,
+          12.11
+        ],
+        "sourceInputs": [
+          {
+            "sourceId": "quotes",
+            "path": [
+              15,
+              "close"
+            ]
+          },
+          {
+            "sourceId": "quotes",
+            "path": [
+              13,
+              "close"
+            ]
+          }
+        ]
+      },
+      "limitation": "仅覆盖3次观测；非总回报，不外推长期收益"
+    }
+  ],
+  "sections": [
+    {
+      "title": "核心修正与分析边界",
+      "text": "删除原报告“最近一年综合表现”排序及“平安银行PE最低/安全边际”判断。未取得完整长期复权价格、分红、可比PE/PB/ROE，不计算长期收益、年化波动或投资价值排名。新闻片段未核对原文、发布日期和完整期间，不能替代行情序列。"
+    },
+    {
+      "title": "样本覆盖",
+      "text": "平安银行: 4次观测，最新PE=5.84；招商银行: 3次观测，最新PE=缺失；兴业银行: 3次观测，最新PE=缺失；工商银行: 3次观测，最新PE=缺失；建设银行: 3次观测，最新PE=缺失"
+    }
+  ],
+  "claims": [
+    {
+      "id": "short-window",
+      "text": "本样本仅3至4次观测，不足以支持长期表现或因果判断。",
+      "kind": "inference",
+      "sourceIds": [
+        "quotes"
+      ]
+    },
+    {
+      "id": "pe-coverage",
+      "text": "只有平安银行存在最新PE快照值5.84；其余四家缺失，且盈余口径未明确，不做估值排名。",
+      "kind": "fact",
+      "sourceIds": [
+        "quotes"
+      ]
+    }
+  ],
+  "charts": [
+    {
+      "id": "normalized",
+      "purpose": "归档价格路径（共同起点=100；非含息收益）",
+      "type": "line",
+      "period": "2026-11-10/2026-11-13",
+      "unit": "指数（起点100）",
+      "basis": "交易所归档快照；收盘价复权口径与PE盈余口径未核实；仅描述观测路径，不用于投资排名",
+      "sourceIds": [
+        "quotes"
+      ],
+      "labels": [
+        "2026-11-10",
+        "2026-11-11",
+        "2026-11-12",
+        "2026-11-13"
+      ],
+      "series": [
+        {
+          "name": "平安银行",
+          "values": [
+            100.0,
+            98.73524451939292,
+            99.4097807757167,
+            101.77065767284992
+          ],
+          "sourceInputs": [
+            {
+              "sourceId": "quotes",
+              "path": [
+                3,
+                "close"
+              ]
+            },
+            {
+              "sourceId": "quotes",
+              "path": [
+                2,
+                "close"
+              ]
+            },
+            {
+              "sourceId": "quotes",
+              "path": [
+                1,
+                "close"
+              ]
+            },
+            {
+              "sourceId": "quotes",
+              "path": [
+                0,
+                "close"
+              ]
+            }
+          ],
+          "transform": "rebased-100"
+        },
+        {
+          "name": "招商银行",
+          "values": [
+            100.0,
+            98.9537316903046,
+            null,
+            99.81399674494304
+          ],
+          "sourceInputs": [
+            {
+              "sourceId": "quotes",
+              "path": [
+                6,
+                "close"
+              ]
+            },
+            {
+              "sourceId": "quotes",
+              "path": [
+                5,
+                "close"
+              ]
+            },
+            null,
+            {
+              "sourceId": "quotes",
+              "path": [
+                4,
+                "close"
+              ]
+            }
+          ],
+          "transform": "rebased-100"
+        },
+        {
+          "name": "兴业银行",
+          "values": [
+            100.0,
+            99.38993390950685,
+            null,
+            100.81342145399084
+          ],
+          "sourceInputs": [
+            {
+              "sourceId": "quotes",
+              "path": [
+                9,
+                "close"
+              ]
+            },
+            {
+              "sourceId": "quotes",
+              "path": [
+                8,
+                "close"
+              ]
+            },
+            null,
+            {
+              "sourceId": "quotes",
+              "path": [
+                7,
+                "close"
+              ]
+            }
+          ],
+          "transform": "rebased-100"
+        },
+        {
+          "name": "工商银行",
+          "values": [
+            100.0,
+            99.18604651162791,
+            null,
+            102.90697674418605
+          ],
+          "sourceInputs": [
+            {
+              "sourceId": "quotes",
+              "path": [
+                12,
+                "close"
+              ]
+            },
+            {
+              "sourceId": "quotes",
+              "path": [
+                11,
+                "close"
+              ]
+            },
+            null,
+            {
+              "sourceId": "quotes",
+              "path": [
+                10,
+                "close"
+              ]
+            }
+          ],
+          "transform": "rebased-100"
+        },
+        {
+          "name": "建设银行",
+          "values": [
+            100.0,
+            99.08561928512054,
+            null,
+            100.66500415627597
+          ],
+          "sourceInputs": [
+            {
+              "sourceId": "quotes",
+              "path": [
+                15,
+                "close"
+              ]
+            },
+            {
+              "sourceId": "quotes",
+              "path": [
+                14,
+                "close"
+              ]
+            },
+            null,
+            {
+              "sourceId": "quotes",
+              "path": [
+                13,
+                "close"
+              ]
+            }
+          ],
+          "transform": "rebased-100"
+        }
+      ]
+    }
+  ]
+}

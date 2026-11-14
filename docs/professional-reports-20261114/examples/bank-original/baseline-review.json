@@ -1,0 +1,13 @@
+{
+  "originalReportSha256": "907a8d633e4139759171d7f4eed54543aba4bcf0cb60b1d3ee39a732d6fbaefb",
+  "findings": [
+    {
+      "code": "UNSUPPORTED_LONG_TERM_RANK",
+      "evidence": "3-4 observations do not establish one-year performance"
+    },
+    {
+      "code": "PE_COVERAGE_ONE_OF_FIVE",
+      "evidence": "Only 000001 has pe_ratio; lowest valuation cannot be established"
+    }
+  ]
+}

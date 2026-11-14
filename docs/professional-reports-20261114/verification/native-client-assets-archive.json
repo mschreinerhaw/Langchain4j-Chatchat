@@ -1,0 +1,230 @@
+[
+  {
+    "path": "output/client-assets-finalized/index.html",
+    "id": "08e00130c1cc9c26e66aa8840e44e23c88550deb0f7297057c9d20c5bc4cfcb4",
+    "sha256": "c06788a3ed16d422b7114cfeec9663f9d08f28267b99014934999a7ec681fc15",
+    "size": 5869
+  },
+  {
+    "path": "output/client-assets-finalized/preview-source.html",
+    "id": "11855989dd10eb42021ab267fcaa1f5fa38c1e42ac1efedf78b1ad274a2defb8",
+    "sha256": "8b21638b194dce3db815c6c9c1599a94b3628ef58ebdfec66b259f9233621ab2",
+    "size": 5872
+  },
+  {
+    "path": "output/client-assets-finalized/preview/standalone.html",
+    "id": "bf2fa0c665c1f87ca112e11b4b2e46704c6bd4b1124519f964345c76146f7fe9",
+    "sha256": "c06788a3ed16d422b7114cfeec9663f9d08f28267b99014934999a7ec681fc15",
+    "size": 5869
+  },
+  {
+    "path": "output/client-assets-finalized/preview/index.html",
+    "id": "92e11e8de3750a0c95849b19121384fbd7d0fcd371ea2f3f98199f4076d8163a",
+    "sha256": "8b21638b194dce3db815c6c9c1599a94b3628ef58ebdfec66b259f9233621ab2",
+    "size": 5872
+  },
+  {
+    "path": "output/client-assets-finalized/charts/chart-0.json",
+    "id": "34e9b972088054375fe9c9d7d864613d726276d63058ef1024768e96a9a26c8e",
+    "sha256": "97fe9df4275cbaeec0c4106e6c601df6ed73596e76e3f41ad0b74ab97f0b796e",
+    "size": 759
+  },
+  {
+    "path": "output/client-assets-finalized/assets/professional-report/1.0.2/report.css",
+    "id": "e66ccf9534aee741d8f1e1e0d34c29d638fcc740de93848349ae4fe435805bc7",
+    "sha256": "a0f578bcd1589678dde22636c3633b30305d2ec2ddc8017d06458f7ec99be4b1",
+    "size": 2103
+  },
+  {
+    "path": "output/client-assets-finalized/assets/professional-report/1.0.2/report.js",
+    "id": "0be40036c6aea6b224c656883256a301e4b2a119fab5fb20d7e112e3ee4980bc",
+    "sha256": "2674a895432eabce371bcb3f13703648b7443e758845c4cf7ea9bdf8f684aee2",
+    "size": 2052
+  },
+  {
+    "path": "output/client-assets-finalized/assets/professional-report/LICENSE",
+    "id": "029752a1b7a142797df73ed24405efd107828a729948fc9e6f7cf67d584afab9",
+    "sha256": "191015a5e5d0e847f0cff8dcc2b1e4468e3dbfbcf6e888646576532879f81cdf",
+    "size": 163
+  },
+  {
+    "path": "output/client-assets-finalized/assets/echarts/echarts.min.js",
+    "id": "4cdd0ba6db6116faaba7c02b4471ab013c7207ec342cabbfdba35acb038ef4ba",
+    "sha256": "b66b25aeb4df84e33199dc21694014d336d222cbd9deb0e5a7c14bd6aa0d0fd0",
+    "size": 1121883
+  },
+  {
+    "path": "output/client-assets-finalized/assets/echarts/LICENSE",
+    "id": "13cec5a76d7f35f42096a39ccc192ea4ed2a9efed3f68d731764f98699c2af00",
+    "sha256": "634293835b43a6dd2094fa39182a3d9a6b9ca43b7fdb9ac354e8037af2a3093a",
+    "size": 11990
+  },
+  {
+    "path": "output/client-assets-finalized/assets/resource_versions.json",
+    "id": "520f511508ea226cd2d1972b2a247c33a517d3450eb5c25b2a97ad25a21dbb6e",
+    "sha256": "695804ecbaa8257e72f79ac065ade0bc50ffdee7cd43c9bfb71695f9a19849e8",
+    "size": 916
+  },
+  {
+    "path": "output/client-assets-finalized/assets/LICENSE.echarts",
+    "id": "7889e919afb372ef8b4e929a345cba2329d18544fc58c25b3c314c70a2ed891a",
+    "sha256": "634293835b43a6dd2094fa39182a3d9a6b9ca43b7fdb9ac354e8037af2a3093a",
+    "size": 11990
+  },
+  {
+    "path": "output/client-assets-finalized/assets/echarts.min.js",
+    "id": "52761787d3e529b7b41cf3bf614b8cae11f80930c1f215a30d4a3655c7e3c328",
+    "sha256": "b66b25aeb4df84e33199dc21694014d336d222cbd9deb0e5a7c14bd6aa0d0fd0",
+    "size": 1121883
+  },
+  {
+    "path": "output/client-assets-finalized/assets/LICENSE.professional-report",
+    "id": "30623b9c7e52da0ed8a6a0e9e25b0a0b8bf3cd41002e1f4e01cb9411649029e5",
+    "sha256": "191015a5e5d0e847f0cff8dcc2b1e4468e3dbfbcf6e888646576532879f81cdf",
+    "size": 163
+  },
+  {
+    "path": "output/client-assets-finalized/assets/report.js",
+    "id": "275864efad2ef30c88adcda0d04a8b93b767eed19d113b43c87425a243493b60",
+    "sha256": "2674a895432eabce371bcb3f13703648b7443e758845c4cf7ea9bdf8f684aee2",
+    "size": 2052
+  },
+  {
+    "path": "output/client-assets-finalized/assets/report.css",
+    "id": "f62b6b04f497e210f057aaa912fc7b00941d8fbd34ed7519f9354b45acc67779",
+    "sha256": "a0f578bcd1589678dde22636c3633b30305d2ec2ddc8017d06458f7ec99be4b1",
+    "size": 2103
+  },
+  {
+    "path": "output/client-assets-finalized/sources/client-assets-SYNTHETIC.json",
+    "id": "7e7062f73d0faf14a175e71707c1cd9590db49b4b3312553af9ab7ac6cd84847",
+    "sha256": "5db45fda37f15835be456c2f9721414cc682e660ef0f36c1bddc117ffce11655",
+    "size": 45
+  },
+  {
+    "path": "output/client-assets-finalized/sources/client-assets-SYNTHETIC.csv",
+    "id": "9fd181ca838e3462277773145f8c9c1c259986afb07a077f2171e31d39c140b2",
+    "sha256": "01afca19de75af5c467544497ef9bb9a8d2067382cc6a0bf267c7b8eae2e2e28",
+    "size": 41
+  },
+  {
+    "path": "output/client-assets-finalized/browser_validation.json",
+    "id": "ba26e89b0d84166d2973bdf074e05de80262edd3fd88fdc7515d711a89e20a05",
+    "sha256": "863fcb1ac92a4a060eb9dc8ed06733e881f13feb93f167957df27dd54d0c164a",
+    "size": 379
+  },
+  {
+    "path": "output/client-assets-finalized/report.pdf",
+    "id": "f40f3a753aea283dcec8336053a913385f2085752c67f3014cba9a278aa098d3",
+    "sha256": "b5a8f4e6c0b02f84e4fdefd4e785d48a1124620f67bfbe7098824f5576ae8f34",
+    "size": 186341
+  },
+  {
+    "path": "output/client-assets-finalized/report_manifest.json",
+    "id": "30dab758aa85d25f549e37545e4c3cfc8d70198265bec297ee417452f95c191e",
+    "sha256": "bb6a148df9cdc6073b509f3947b8b865413ab11c9daa5b1e9b4e82bf51a29a91",
+    "size": 1535
+  },
+  {
+    "path": "output/client-assets-finalized/quality_report.json",
+    "id": "5feca441dd8114589209baafc064903de21cd720508c41eec23f71ff0e6f7538",
+    "sha256": "db7dfe28b836006012f52b2ba4ce8a2ca8514b0d0742e91217454618c206a31f",
+    "size": 390
+  },
+  {
+    "path": "output/client-assets-finalized/evidence.json",
+    "id": "bc3c2d6d6a61689cfb3128283482fac113f8c3f76da7f17026c365e7ba6af38c",
+    "sha256": "b15ed5b8510e91ddf6d4bb23cfab2bdad9ab9416ed3dc33335b5347f59c78d01",
+    "size": 3760
+  },
+  {
+    "path": "output/client-assets-finalized/report.html",
+    "id": "41614c22f3b1848939644df0e1a74a98c4f763200d8ba67226a7308c8fc2acc5",
+    "sha256": "c06788a3ed16d422b7114cfeec9663f9d08f28267b99014934999a7ec681fc15",
+    "size": 5869
+  },
+  {
+    "path": "output/client-assets-finalized/result.json",
+    "id": "e1935ca55a220b2562207ec1c0285383de96bf6367f0c71b50d7fc23a15bcda0",
+    "sha256": "15fbdd0bc1239bf8be4159e105e5bf65e4b5a64488b802e79c33a9f73e1156a8",
+    "size": 405
+  },
+  {
+    "path": "output/client-assets-finalized/report_model.json",
+    "id": "963c611775a6e5c4674992ff53f8080c2bf3c7f7dcf9201055f262d8c978d36c",
+    "sha256": "cec0d70e8b44dad5bdb4fe3a4da72d3bb07514900086daa7d22910da003e8082",
+    "size": 6803
+  },
+  {
+    "path": "output/client-assets-finalized/preview/assets/professional-report/1.0.2/report.css",
+    "id": "9ec8aea0145004c27828ba46e8605f7284a0efe9c415a879029b541918095f97",
+    "sha256": "a0f578bcd1589678dde22636c3633b30305d2ec2ddc8017d06458f7ec99be4b1",
+    "size": 2103
+  },
+  {
+    "path": "output/client-assets-finalized/preview/assets/professional-report/1.0.2/report.js",
+    "id": "659a88f8b990505f87d3bb2fa9e34225076467061b9651c05339cbce7a3e833a",
+    "sha256": "2674a895432eabce371bcb3f13703648b7443e758845c4cf7ea9bdf8f684aee2",
+    "size": 2052
+  },
+  {
+    "path": "output/client-assets-finalized/preview/assets/professional-report/LICENSE",
+    "id": "e40b1fcce06fbd147a853c2ca0ecd07bf3e2b291c078e715bd9ed08e7f212832",
+    "sha256": "191015a5e5d0e847f0cff8dcc2b1e4468e3dbfbcf6e888646576532879f81cdf",
+    "size": 163
+  },
+  {
+    "path": "output/client-assets-finalized/preview/assets/echarts/echarts.min.js",
+    "id": "6be0d57ced1a54ecefcd6d6a43f52ee8aac8277cc575a67c1cfb1a369c623b9d",
+    "sha256": "b66b25aeb4df84e33199dc21694014d336d222cbd9deb0e5a7c14bd6aa0d0fd0",
+    "size": 1121883
+  },
+  {
+    "path": "output/client-assets-finalized/preview/assets/echarts/LICENSE",
+    "id": "5dddaf2e59f62ee06de23721ef6ed043b126583da1c76e3334c0c27283d3f48e",
+    "sha256": "634293835b43a6dd2094fa39182a3d9a6b9ca43b7fdb9ac354e8037af2a3093a",
+    "size": 11990
+  },
+  {
+    "path": "output/client-assets-finalized/preview/desktop.png",
+    "id": "b90e85a93f8dd6df181999aedc19ea6e6a41b5ff0883a8f103760c7c41ef2787",
+    "sha256": "99d5ecf829cca6946971943d353e19ad5e1345771b72f3d1a28a770a8c1ef974",
+    "size": 300956
+  },
+  {
+    "path": "output/client-assets-finalized/preview/report.pdf",
+    "id": "4b3b8686240e4fe03e8247a0ae655d6fbcd666cf4a90e8053abeced0d52fb4f8",
+    "sha256": "b5a8f4e6c0b02f84e4fdefd4e785d48a1124620f67bfbe7098824f5576ae8f34",
+    "size": 186341
+  },
+  {
+    "path": "output/client-assets-finalized/preview/mobile.png",
+    "id": "ec6d403a293d575cb041b2b0dc34e11a3b6da9d8ccc2411ac26c6d67f8a6f523",
+    "sha256": "4dfe4d3a23a809afd277ce601e0e5c29294e37d00b7edf59da38df66034529dc",
+    "size": 288696
+  },
+  {
+    "path": "output/client-assets-finalized/preview/validation-report.json",
+    "id": "26335373d742f1ee5cd7d95c21fe7d5fd4431907644723927c01635772a9c918",
+    "sha256": "ddcff321046452ac52cbd8f6a460be7777fee2c651ea8d08c5bcf12f565d8585",
+    "size": 727
+  },
+  {
+    "path": "output/client-assets-finalized/preview/dependencies.json",
+    "id": "8c1433ae09f0f985c213b485349defb542e561f0959a83b26f93c68d79bdd322",
+    "sha256": "09c2fc27337c60510ea46ccd557bc35788bd35fa858485d2ed4a2088d74ddade",
+    "size": 6682
+  },
+  {
+    "path": "output/client-assets-finalized/preview/manifest.json",
+    "id": "4bf7fd37320a6fb2dea4dfcc642d23f8645b219d0ba78003bd9bf70f8e49be77",
+    "sha256": "5462690ec6f6e558e6b0fb01e3b04aee550c4b45d63eb7c7f7a732029d6024e1",
+    "size": 339
+  },
+  {
+    "path": "output/client-assets-finalized/preview/repair-history.json",
+    "id": "5a682c26ae452edcc3dbd07968b5592489caf92b96ff7babd3076278e8ecff5e",
+    "sha256": "ea24b4c4020bb52382f89ff2664e04477644682a06824bbc8bb02dc71be3bddc",
+    "size": 995
+  }
+]

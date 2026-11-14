@@ -1,0 +1,54 @@
+{
+  "status": "PASSED",
+  "containers": [
+    {
+      "name": "runtime-native-temporal-node1",
+      "image": "sha256:bda9994501df943d272071bf970bf1209b915c1db8ccad4f5c776d86f8156bd1",
+      "running": true,
+      "paused": false,
+      "professionalReports": "false"
+    },
+    {
+      "name": "runtime-native-temporal-node2",
+      "image": "sha256:708efd1310ce6112f649c841271eeba9653f160454b922ef96204467f75c32b7",
+      "running": true,
+      "paused": false,
+      "professionalReports": "true"
+    },
+    {
+      "name": "runtime-native-temporal-executor2",
+      "image": "sha256:708efd1310ce6112f649c841271eeba9653f160454b922ef96204467f75c32b7",
+      "running": true,
+      "paused": false,
+      "professionalReports": "true"
+    },
+    {
+      "name": "runtime-native-temporal-worker1",
+      "image": "sha256:3d02ff706eca116fcb94cec8b37269646c2db910601aa2b0bc71833dd6bd4b59",
+      "running": true,
+      "paused": false,
+      "professionalReports": "false"
+    },
+    {
+      "name": "runtime-native-temporal-worker2",
+      "image": "sha256:564614ef8fa273ca9ee0cbff2618403a46a7321c95098f2e054279efbaaa8dcd",
+      "running": true,
+      "paused": false,
+      "professionalReports": "false"
+    },
+    {
+      "name": "frontend-resource-hub-frontend-resource-hub-1",
+      "image": "sha256:66305b4f6c51d580b0901416674975ef82323da36194d2f8f63b865c43e1f7f2",
+      "running": true,
+      "paused": false,
+      "professionalReports": "false"
+    },
+    {
+      "name": "frontend-resource-hub-frontend-preview-worker-1",
+      "image": "sha256:66305b4f6c51d580b0901416674975ef82323da36194d2f8f63b865c43e1f7f2",
+      "running": true,
+      "paused": false,
+      "professionalReports": "false"
+    }
+  ]
+}

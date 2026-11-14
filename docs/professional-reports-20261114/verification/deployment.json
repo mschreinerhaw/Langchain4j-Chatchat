@@ -1,0 +1,16 @@
+{
+  "buildLocation": "192.168.195.221",
+  "buildMode": "server-source",
+  "sourceCommit": "babd7ceb55e12f76cdfd776e646b4f7f88da9382",
+  "image": "sha256:708efd1310ce6112f649c841271eeba9653f160454b922ef96204467f75c32b7",
+  "tag": "runtime-node:professional-reports-20261114",
+  "sourceFiles": 265,
+  "tests": "PASSED",
+  "activation": "CANARY_NODE2",
+  "skills": 4,
+  "rollback": "/opt/runtime-os/releases/professional-reports-20261114/rollback-708efd1310ce",
+  "remainingAcceptance": [
+    "live autonomous Cline report generation",
+    "Silo archive and authenticated readback"
+  ]
+}

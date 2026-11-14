@@ -1,0 +1,49 @@
+{
+  "id": "comparison",
+  "purpose": "资产分布",
+  "type": "bar",
+  "period": "SYNTHETIC / 2026-Q1",
+  "unit": "万元",
+  "basis": "SYNTHETIC_TEST_ONLY",
+  "sourceIds": [
+    "fixture"
+  ],
+  "labels": [
+    "现金",
+    "股票",
+    "基金"
+  ],
+  "series": [
+    {
+      "name": "合成测试值",
+      "values": [
+        20,
+        30,
+        50
+      ],
+      "sourceInputs": [
+        {
+          "sourceId": "fixture",
+          "path": [
+            "values",
+            0
+          ]
+        },
+        {
+          "sourceId": "fixture",
+          "path": [
+            "values",
+            1
+          ]
+        },
+        {
+          "sourceId": "fixture",
+          "path": [
+            "values",
+            2
+          ]
+        }
+      ]
+    }
+  ]
+}

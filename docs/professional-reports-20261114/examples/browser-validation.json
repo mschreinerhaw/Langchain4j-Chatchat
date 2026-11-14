@@ -1,0 +1,221 @@
+{
+  "status": "PASSED",
+  "offline": true,
+  "checks": [
+    {
+      "name": "bank-original",
+      "htmlSha256": "ef9808bd594ba08f43a8372804f69a0191dc5811073ba8fc67a1019ebd9c1378",
+      "viewports": [
+        {
+          "label": "desktop",
+          "count": 1,
+          "values": [
+            [
+              [
+                100,
+                98.73524451939292,
+                99.4097807757167,
+                101.77065767284992
+              ],
+              [
+                100,
+                98.9537316903046,
+                null,
+                99.81399674494304
+              ],
+              [
+                100,
+                99.38993390950685,
+                null,
+                100.81342145399084
+              ],
+              [
+                100,
+                99.18604651162791,
+                null,
+                102.90697674418605
+              ],
+              [
+                100,
+                99.08561928512054,
+                null,
+                100.66500415627597
+              ]
+            ]
+          ],
+          "dimensionsValid": true,
+          "gapsPreserved": true,
+          "overflow": false,
+          "summaryBottom": 430.078125
+        },
+        {
+          "label": "mobile",
+          "count": 1,
+          "values": [
+            [
+              [
+                100,
+                98.73524451939292,
+                99.4097807757167,
+                101.77065767284992
+              ],
+              [
+                100,
+                98.9537316903046,
+                null,
+                99.81399674494304
+              ],
+              [
+                100,
+                99.38993390950685,
+                null,
+                100.81342145399084
+              ],
+              [
+                100,
+                99.18604651162791,
+                null,
+                102.90697674418605
+              ],
+              [
+                100,
+                99.08561928512054,
+                null,
+                100.66500415627597
+              ]
+            ]
+          ],
+          "dimensionsValid": true,
+          "gapsPreserved": true,
+          "overflow": false,
+          "summaryBottom": 430.484375
+        }
+      ]
+    },
+    {
+      "name": "bank-regression",
+      "htmlSha256": "1427fe22305139671be94578324edb191590b3e21605c67f97b416ebd9eb010c",
+      "viewports": [
+        {
+          "label": "desktop",
+          "count": 1,
+          "values": [
+            [
+              [
+                8,
+                5,
+                null,
+                7,
+                6
+              ]
+            ]
+          ],
+          "dimensionsValid": true,
+          "gapsPreserved": true,
+          "overflow": false,
+          "summaryBottom": 430.078125
+        },
+        {
+          "label": "mobile",
+          "count": 1,
+          "values": [
+            [
+              [
+                8,
+                5,
+                null,
+                7,
+                6
+              ]
+            ]
+          ],
+          "dimensionsValid": true,
+          "gapsPreserved": true,
+          "overflow": false,
+          "summaryBottom": 487.734375
+        }
+      ]
+    },
+    {
+      "name": "client-assets",
+      "htmlSha256": "e86578289a0c1812766ae39cd4cf08d0fcee0da73049079a4ece837ba95575e8",
+      "viewports": [
+        {
+          "label": "desktop",
+          "count": 1,
+          "values": [
+            [
+              [
+                20,
+                30,
+                50
+              ]
+            ]
+          ],
+          "dimensionsValid": true,
+          "gapsPreserved": true,
+          "overflow": false,
+          "summaryBottom": 430.078125
+        },
+        {
+          "label": "mobile",
+          "count": 1,
+          "values": [
+            [
+              [
+                20,
+                30,
+                50
+              ]
+            ]
+          ],
+          "dimensionsValid": true,
+          "gapsPreserved": true,
+          "overflow": false,
+          "summaryBottom": 455.234375
+        }
+      ]
+    },
+    {
+      "name": "operations",
+      "htmlSha256": "024dba5050524df3eb5f4f64da51d1b63ab7513ddc8985f7ca63a75167365c15",
+      "viewports": [
+        {
+          "label": "desktop",
+          "count": 1,
+          "values": [
+            [
+              [
+                100,
+                120,
+                110
+              ]
+            ]
+          ],
+          "dimensionsValid": true,
+          "gapsPreserved": true,
+          "overflow": false,
+          "summaryBottom": 430.078125
+        },
+        {
+          "label": "mobile",
+          "count": 1,
+          "values": [
+            [
+              [
+                100,
+                120,
+                110
+              ]
+            ]
+          ],
+          "dimensionsValid": true,
+          "gapsPreserved": true,
+          "overflow": false,
+          "summaryBottom": 430.484375
+        }
+      ]
+    }
+  ],
+  "errors": []
+}

@@ -1,0 +1,241 @@
+{
+  "title": "Synthetic Client Asset Allocation & Concentration Report",
+  "reportType": "asset-allocation",
+  "period": "As-of snapshot (single period; no time series available)",
+  "theme": "corporate-blue",
+  "summary": "Synthetic single-period allocation totals 100 abstract units: fund 50, stock 30 and cash 20. Only category amounts are available; no cash-flow, look-through holdings, historical returns or client suitability assessment can be established.",
+  "metrics": [
+    {
+      "id": "total-assets",
+      "label": "Total Assets",
+      "value": 100,
+      "unit": "units",
+      "sourceIds": [
+        "src-json"
+      ],
+      "check": {
+        "op": "sum",
+        "inputs": [
+          20,
+          30,
+          50
+        ],
+        "sourceInputs": [
+          {
+            "sourceId": "src-json",
+            "path": [
+              "cash"
+            ]
+          },
+          {
+            "sourceId": "src-json",
+            "path": [
+              "stock"
+            ]
+          },
+          {
+            "sourceId": "src-json",
+            "path": [
+              "fund"
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "fund-amount",
+      "label": "Fund Amount",
+      "value": 50,
+      "unit": "synthetic units",
+      "sourceIds": [
+        "src-json"
+      ],
+      "check": {
+        "op": "sum",
+        "inputs": [
+          50
+        ],
+        "sourceInputs": [
+          {
+            "sourceId": "src-json",
+            "path": [
+              "fund"
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "stock-amount",
+      "label": "Stock Amount",
+      "value": 30,
+      "unit": "synthetic units",
+      "sourceIds": [
+        "src-json"
+      ],
+      "check": {
+        "op": "sum",
+        "inputs": [
+          30
+        ],
+        "sourceInputs": [
+          {
+            "sourceId": "src-json",
+            "path": [
+              "stock"
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "cash-amount",
+      "label": "Cash Amount",
+      "value": 20,
+      "unit": "synthetic units",
+      "sourceIds": [
+        "src-json"
+      ],
+      "check": {
+        "op": "sum",
+        "inputs": [
+          20
+        ],
+        "sourceInputs": [
+          {
+            "sourceId": "src-json",
+            "path": [
+              "cash"
+            ]
+          }
+        ]
+      }
+    }
+  ],
+  "sections": [
+    {
+      "title": "Scope & Limitations",
+      "text": "This analysis is based exclusively on a synthetic CSV file containing three asset categories (cash, stock, fund) with integer amounts. Cash flow history, risk suitability metadata, benchmark data, time-series prices, and client profile information are NOT available. No values have been invented or interpolated. All computations are performed from the delivered source file with full SHA-256 integrity verification. The sample is extremely small (3 rows, single period) and should not be interpreted as representative of any real portfolio or market condition."
+    },
+    {
+      "title": "Allocation Analysis",
+      "text": "Fund accounts for 50 of 100 abstract units, stock 30 and cash 20. These category shares describe this synthetic snapshot only. Category labels do not reveal underlying fund holdings or issuer exposures; concentration risk and suitability cannot be established from these three rows."
+    },
+    {
+      "title": "Data Quality & Evidence Gaps",
+      "text": "The following data dimensions are unavailable and could not be analyzed: (1) Cash flow history - no inflow/outflow records; (2) Risk suitability metadata - no client risk profile or tolerance data; (3) Time-series prices - single snapshot only, no trend analysis possible; (4) Currency and units - the CSV provides no currency label; amounts are treated as abstract units; (5) Valuation methodology - no indication of mark-to-market, cost basis, or other valuation method. These gaps are recorded as evidence limitations, not as zero values."
+    }
+  ],
+  "claims": [
+    {
+      "id": "claim-total",
+      "kind": "calculation",
+      "text": "Total portfolio value computed as sum of all category amounts = 100 units.",
+      "sourceIds": [
+        "src-json"
+      ],
+      "metricId": "total-assets"
+    },
+    {
+      "id": "claim-largest",
+      "kind": "fact",
+      "text": "Fund is the largest single allocation at 50.0% of total assets.",
+      "sourceIds": [
+        "src-json"
+      ]
+    },
+    {
+      "id": "claim-gap-cashflow",
+      "kind": "inference",
+      "text": "Cash flow history and risk suitability metadata are unavailable; no suitability assessment is possible.",
+      "sourceIds": [
+        "src-json"
+      ]
+    },
+    {
+      "id": "claim-gap-sample",
+      "kind": "inference",
+      "text": "Single-period snapshot with 3 rows; statistical conclusions are not meaningful.",
+      "sourceIds": [
+        "src-json"
+      ]
+    }
+  ],
+  "charts": [
+    {
+      "id": "allocation-bar",
+      "purpose": "Category Amount Comparison",
+      "type": "bar",
+      "period": "Single snapshot",
+      "unit": "units",
+      "basis": "CSV category amounts sorted by value descending",
+      "sourceIds": [
+        "src-json"
+      ],
+      "labels": [
+        "fund",
+        "stock",
+        "cash"
+      ],
+      "series": [
+        {
+          "name": "Amount",
+          "values": [
+            50,
+            30,
+            20
+          ],
+          "sourceInputs": [
+            {
+              "sourceId": "src-json",
+              "path": [
+                "fund"
+              ]
+            },
+            {
+              "sourceId": "src-json",
+              "path": [
+                "stock"
+              ]
+            },
+            {
+              "sourceId": "src-json",
+              "path": [
+                "cash"
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "sources": [
+    {
+      "id": "src-csv",
+      "dataset": "client-assets-SYNTHETIC.csv",
+      "file": "sources/client-assets-SYNTHETIC.csv",
+      "fields": [
+        "category",
+        "amount"
+      ],
+      "period": "Single as-of snapshot (no date column)",
+      "basis": "Synthetic test data; not real client data",
+      "sha256": "01afca19de75af5c467544497ef9bb9a8d2067382cc6a0bf267c7b8eae2e2e28",
+      "urls": []
+    },
+    {
+      "id": "src-json",
+      "dataset": "client-assets-SYNTHETIC (JSON mirror for cell bindings)",
+      "file": "sources/client-assets-SYNTHETIC.json",
+      "fields": [
+        "cash",
+        "stock",
+        "fund"
+      ],
+      "period": "Single as-of snapshot",
+      "basis": "JSON mirror of CSV data for programmatic cell-binding verification",
+      "sha256": "5db45fda37f15835be456c2f9721414cc682e660ef0f36c1bddc117ffce11655",
+      "urls": []
+    }
+  ]
+}

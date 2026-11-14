@@ -1,0 +1,131 @@
+{
+  "title": "客户资产分析 · 合成泛化样例",
+  "reportType": "client-assets",
+  "period": "SYNTHETIC / 2026-Q1",
+  "theme": "corporate-blue",
+  "summary": "本报告使用明确标注的合成测试数据验证布局与检查程序，不构成真实业务或投资结论。合成资产合计100万元。基金占50%；未提供风险等级及现金流，不推断风险适配性，不计算账户投资收益。",
+  "metrics": [
+    {
+      "id": "total",
+      "label": "测试资产合计",
+      "value": 100,
+      "unit": "万元",
+      "sourceIds": [
+        "fixture"
+      ],
+      "formula": "sum(values)",
+      "check": {
+        "op": "sum",
+        "inputs": [
+          20,
+          30,
+          50
+        ],
+        "sourceInputs": [
+          {
+            "sourceId": "fixture",
+            "path": [
+              "values",
+              0
+            ]
+          },
+          {
+            "sourceId": "fixture",
+            "path": [
+              "values",
+              1
+            ]
+          },
+          {
+            "sourceId": "fixture",
+            "path": [
+              "values",
+              2
+            ]
+          }
+        ]
+      }
+    }
+  ],
+  "sections": [
+    {
+      "title": "资产核对与集中度",
+      "text": "合成资产合计100万元。基金占50%；未提供风险等级及现金流，不推断风险适配性，不计算账户投资收益。"
+    }
+  ],
+  "sources": [
+    {
+      "id": "fixture",
+      "file": "source.json",
+      "dataset": "client-assets synthetic fixture",
+      "fields": [
+        "labels",
+        "values"
+      ],
+      "period": "SYNTHETIC / 2026-Q1",
+      "basis": "SYNTHETIC_TEST_ONLY",
+      "sha256": "3e4b2824e1a2a0c82ee65619031ff48f3529b8686883e31f145331ca1d10367f"
+    }
+  ],
+  "claims": [
+    {
+      "id": "scope",
+      "text": "合成资产合计100万元。基金占50%；未提供风险等级及现金流，不推断风险适配性，不计算账户投资收益。",
+      "kind": "inference",
+      "sourceIds": [
+        "fixture"
+      ]
+    }
+  ],
+  "charts": [
+    {
+      "id": "comparison",
+      "purpose": "资产分布",
+      "type": "bar",
+      "period": "SYNTHETIC / 2026-Q1",
+      "unit": "万元",
+      "basis": "SYNTHETIC_TEST_ONLY",
+      "sourceIds": [
+        "fixture"
+      ],
+      "labels": [
+        "现金",
+        "股票",
+        "基金"
+      ],
+      "series": [
+        {
+          "name": "合成测试值",
+          "values": [
+            20,
+            30,
+            50
+          ],
+          "sourceInputs": [
+            {
+              "sourceId": "fixture",
+              "path": [
+                "values",
+                0
+              ]
+            },
+            {
+              "sourceId": "fixture",
+              "path": [
+                "values",
+                1
+              ]
+            },
+            {
+              "sourceId": "fixture",
+              "path": [
+                "values",
+                2
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

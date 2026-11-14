@@ -1,0 +1,42 @@
+{
+  "name": "operations",
+  "htmlSha256": "024dba5050524df3eb5f4f64da51d1b63ab7513ddc8985f7ca63a75167365c15",
+  "viewports": [
+    {
+      "label": "desktop",
+      "count": 1,
+      "values": [
+        [
+          [
+            100,
+            120,
+            110
+          ]
+        ]
+      ],
+      "dimensionsValid": true,
+      "gapsPreserved": true,
+      "overflow": false,
+      "summaryBottom": 430.078125
+    },
+    {
+      "label": "mobile",
+      "count": 1,
+      "values": [
+        [
+          [
+            100,
+            120,
+            110
+          ]
+        ]
+      ],
+      "dimensionsValid": true,
+      "gapsPreserved": true,
+      "overflow": false,
+      "summaryBottom": 430.484375
+    }
+  ],
+  "status": "PASSED",
+  "offline": true
+}

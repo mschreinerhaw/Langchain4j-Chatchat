@@ -1,0 +1,34 @@
+[
+  {
+    "name": "examples/bank-original",
+    "pages": 3,
+    "textCharacters": [
+      534,
+      525,
+      741
+    ],
+    "visualReview": "all pages reviewed; charts present; no clipping or missing glyph blocks"
+  },
+  {
+    "name": "native-client-assets",
+    "pages": 4,
+    "textCharacters": [
+      1119,
+      875,
+      578,
+      417
+    ],
+    "visualReview": "all pages reviewed; charts present; no clipping or missing glyph blocks"
+  },
+  {
+    "name": "native-operations",
+    "pages": 4,
+    "textCharacters": [
+      864,
+      1395,
+      805,
+      216
+    ],
+    "visualReview": "all pages reviewed; charts present; no clipping or missing glyph blocks"
+  }
+]

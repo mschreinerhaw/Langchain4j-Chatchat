@@ -1,0 +1,196 @@
+{
+  "sources": [
+    {
+      "id": "src-csv",
+      "dataset": "operations-SYNTHETIC.csv",
+      "file": "source_data.json",
+      "fields": [
+        "month",
+        "revenue"
+      ],
+      "period": "2026-01 to 2026-03",
+      "basis": "Synthetic monthly operating revenue data provided for testing",
+      "sha256": "a1e9e7bf5eb0920ef2260b705fb7ff99f6f8d961b3998b84de8e2470cff165bb",
+      "kind": "data"
+    }
+  ],
+  "metrics": [
+    {
+      "id": "total-revenue",
+      "label": "Total Operating Revenue",
+      "value": 330,
+      "unit": "units",
+      "sourceIds": [
+        "src-csv"
+      ],
+      "limitation": "Computed from 3 monthly observations only; no cost data available.",
+      "check": {
+        "op": "sum",
+        "inputs": [
+          100,
+          120,
+          110
+        ],
+        "sourceInputs": [
+          {
+            "sourceId": "src-csv",
+            "path": [
+              "rows",
+              0,
+              "revenue"
+            ]
+          },
+          {
+            "sourceId": "src-csv",
+            "path": [
+              "rows",
+              1,
+              "revenue"
+            ]
+          },
+          {
+            "sourceId": "src-csv",
+            "path": [
+              "rows",
+              2,
+              "revenue"
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "avg-revenue",
+      "label": "Monthly Average Revenue",
+      "value": 110.0,
+      "unit": "units/month",
+      "sourceIds": [
+        "src-csv"
+      ],
+      "limitation": "Based on 3 observations; insufficient for seasonal adjustment.",
+      "check": {
+        "op": "ratio",
+        "inputs": [
+          330,
+          3
+        ],
+        "sourceInputs": [
+          {
+            "sourceId": "src-csv",
+            "path": [
+              "total_revenue"
+            ]
+          },
+          {
+            "sourceId": "src-csv",
+            "path": [
+              "row_count"
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "peak-revenue",
+      "label": "Peak Monthly Revenue",
+      "value": 120,
+      "unit": "units",
+      "sourceIds": [
+        "src-csv"
+      ],
+      "limitation": "Peak observed in Feb 2026; no prior-year comparison available.",
+      "check": {
+        "op": "sum",
+        "inputs": [
+          120
+        ],
+        "sourceInputs": [
+          {
+            "sourceId": "src-csv",
+            "path": [
+              "rows",
+              1,
+              "revenue"
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "observation-count",
+      "label": "Observation Count",
+      "value": 3,
+      "unit": "months",
+      "sourceIds": [
+        "src-csv"
+      ],
+      "limitation": "Only 3 months of data; costs and prior-year data are unavailable.",
+      "check": {
+        "op": "sum",
+        "inputs": [
+          3
+        ],
+        "sourceInputs": [
+          {
+            "sourceId": "src-csv",
+            "path": [
+              "row_count"
+            ]
+          }
+        ]
+      }
+    }
+  ],
+  "claims": [
+    {
+      "id": "claim-1",
+      "kind": "calculation",
+      "text": "Total operating revenue across Jan–Mar 2026 is 330 units, computed as the sum of monthly values 100 + 120 + 110.",
+      "sourceIds": [
+        "src-csv"
+      ],
+      "metricId": "total-revenue"
+    },
+    {
+      "id": "claim-2",
+      "kind": "fact",
+      "text": "Revenue peaked at 120 units in February 2026, a 20.0% month-over-month increase from January.",
+      "sourceIds": [
+        "src-csv"
+      ],
+      "metricId": "peak-revenue"
+    },
+    {
+      "id": "claim-3",
+      "kind": "inference",
+      "text": "No cost data is available; profitability analysis is not possible.",
+      "sourceIds": [
+        "src-csv"
+      ]
+    },
+    {
+      "id": "claim-4",
+      "kind": "inference",
+      "text": "No prior-year data exists; year-over-year comparison is unavailable.",
+      "sourceIds": [
+        "src-csv"
+      ]
+    },
+    {
+      "id": "claim-5",
+      "kind": "inference",
+      "text": "Only 3 monthly observations; seasonality cannot be determined.",
+      "sourceIds": [
+        "src-csv"
+      ]
+    },
+    {
+      "id": "claim-6",
+      "kind": "fact",
+      "text": "Data is explicitly marked SYNTHETIC_TEST_ONLY and does not represent real business operations.",
+      "sourceIds": [
+        "src-csv"
+      ]
+    }
+  ]
+}

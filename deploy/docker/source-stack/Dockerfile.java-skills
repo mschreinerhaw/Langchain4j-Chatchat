@@ -12,11 +12,6 @@ RUN --mount=type=cache,target=/root/.npm npm ci --no-audit --no-fund
 COPY chatchat-api/web-app/ ./
 COPY chatchat-common/src/main/resources/runtime/ /build/chatchat-common/src/main/resources/runtime/
 RUN node node_modules/vite/bin/vite.js build --outDir /frontend/api
-WORKDIR /build/chatchat-mcp-server/web-app-mcp
-COPY chatchat-mcp-server/web-app-mcp/package*.json ./
-RUN --mount=type=cache,target=/root/.npm npm ci --no-audit --no-fund
-COPY chatchat-mcp-server/web-app-mcp/ ./
-RUN node node_modules/vite/bin/vite.js build --outDir /frontend/mcp
 
 FROM ${JAVA_BUILD_IMAGE} AS java-build
 ARG SOURCE_REVISION
@@ -30,7 +25,7 @@ COPY . .
 COPY --from=frontend /frontend /frontend
 RUN --mount=type=cache,id=runtime-os-source-maven,target=/root/.m2/repository \
     test -s coding-agent-node/skills/catalog.json && \
-    mvn -B -ntp -pl chatchat-api,chatchat-mcp-server,chatchat-runtime-news -am \
+    mvn -B -ntp -pl chatchat-api -am \
     -Dfrontend.skip=true -Dfrontend.install.skip=true -Dcontainer.image=true \
     -Dweb.static.directory=/frontend/api -Dmcp.web.static.directory=/frontend/mcp \
     -Dassembly.skipAssembly=true -Dtest=${SOURCE_TESTS} -Dsurefire.failIfNoSpecifiedTests=false clean package && \

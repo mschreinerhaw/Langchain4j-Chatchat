@@ -172,7 +172,8 @@ public final class CodingWorkspaceService {
     public CodingTaskOutcome get(KernelDataScope scope,String task){
         return identity.as(scope,EnumSet.allOf(CodingTaskAccess.Action.class),()->{
             var agent=agents.getObject();var current=agent.get(scope,task);
-            if(!current.status().terminal() && !Instant.now().isBefore(tasks.contract(scope,task).budget().deadlineAt()))
+            if(!current.status().terminal() && (current.executionControl().stopReason()!=null
+                    || !Instant.now().isBefore(tasks.contract(scope,task).budget().deadlineAt())))
                 current=agent.resume(scope,task);
             projectHistory(scope,task,current);
             return current;

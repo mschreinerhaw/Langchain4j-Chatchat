@@ -123,7 +123,17 @@ class ClineCodingAdapterRecoveryTest {
                 URI.create("http://127.0.0.1:" + server.getAddress().getPort()),
                 "0123456789abcdef0123456789abcdef", new ObjectMapper().findAndRegisterModules());
             adapter.setNativeSessions(scenario.startsWith("NATIVE_"));
-            var result = scenario.endsWith("_POLL") ? adapter.get(scope, contract.taskId())
+            var beans = new org.springframework.beans.factory.support.DefaultListableBeanFactory();
+            beans.registerSingleton("adapter",adapter);
+            var workspace = new com.chatchat.api.runtime.coding.workspace.CodingWorkspaceService(tasks,
+                new com.chatchat.api.runtime.coding.CodingInvocationContext(),
+                mock(com.chatchat.api.runtime.evidence.JdbcRuntimeEvidenceStore.class),
+                beans.getBeanProvider(CodingAgentSPI.class),mock(com.chatchat.api.datascience.sql.SqlGlotToolchain.class),
+                new ObjectMapper().findAndRegisterModules(),300);
+            // Read-only history/monitor callers must not gain recovery side effects.
+            assertThat(adapter.get(scope,contract.taskId())).isSameAs(current);
+            verify(tasks,never()).resume(any(),anyString());
+            var result = scenario.endsWith("_POLL") ? workspace.get(scope, contract.taskId())
                 : scenario.endsWith("_CANCEL") ? adapter.cancel(scope, contract.taskId(), "User stop")
                 : adapter.resume(scope, contract.taskId());
             if (scenario.startsWith("NATIVE_")) {

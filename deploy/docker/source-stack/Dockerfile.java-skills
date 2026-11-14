@@ -21,7 +21,7 @@ RUN node node_modules/vite/bin/vite.js build --outDir /frontend/mcp
 
 FROM ${JAVA_BUILD_IMAGE} AS java-build
 ARG SOURCE_REVISION
-ARG SOURCE_TESTS=CodingFailureStopTest,SkillAnalysisContextServiceTest,RuntimeOsDomainSkillAdapterTest,DomainSkillPlanningRouterTest,SkillAnalysisContextTest,CodingSkillReaderTest,NativeRuntimeMcpControllerTest,NativeSiloTaskServiceTest,NativeS3CodingAdapterTest,AgentChatModeHandlerTest,RoleChatModeHandlerTest,ClineContextAnswerServiceTest
+ARG SOURCE_TESTS=ClineCodingAdapterRecoveryTest,CodingFailureStopTest,SkillAnalysisContextServiceTest,RuntimeOsDomainSkillAdapterTest,DomainSkillPlanningRouterTest,SkillAnalysisContextTest,CodingSkillReaderTest,NativeRuntimeMcpControllerTest,NativeSiloTaskServiceTest,NativeS3CodingAdapterTest,AgentChatModeHandlerTest,RoleChatModeHandlerTest,ClineContextAnswerServiceTest
 COPY tools/maven/ /opt/maven/
 # A host Maven distribution may pin a host-only JDK. Use the build image JDK.
 RUN sed -i '/^export JAVA_HOME=/d' /opt/maven/bin/mvn

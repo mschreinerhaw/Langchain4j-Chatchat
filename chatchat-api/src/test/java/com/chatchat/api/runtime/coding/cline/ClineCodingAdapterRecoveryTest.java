@@ -31,7 +31,7 @@ import static org.mockito.Mockito.*;
 /** Real HTTP worker status; execution/collector doubles do not constitute Docker or SDK recovery. */
 class ClineCodingAdapterRecoveryTest {
     @ParameterizedTest
-    @ValueSource(strings = {"COMPLETED", "FAILED", "CANCELLED", "MISSING", "UNKNOWN_MODEL", "FAILED_PYTHON", "MISSING_FAILED_PYTHON", "MISSING_STOPPED", "MISSING_STOPPED_UNKNOWN_MODEL", "MODEL_ONLY", "MISSING_MODEL_ONLY", "LIVE_UNKNOWN_MODEL", "UNAVAILABLE_UNKNOWN_MODEL", "NO_RESULT", "INVALID_RESULT", "COMPLETION_RACE", "MISSING_STOPPED_RESOURCE", "LIVE_RESOURCE", "MISSING_STOPPED_RESOURCE_NO_PROOF", "NATIVE_FAILED", "NATIVE_MISSING"})
+    @ValueSource(strings = {"COMPLETED", "FAILED", "CANCELLED", "MISSING", "UNKNOWN_MODEL", "FAILED_PYTHON", "MISSING_FAILED_PYTHON", "MISSING_STOPPED", "MISSING_STOPPED_POLL", "MISSING_STOPPED_CANCEL", "MISSING_STOPPED_UNKNOWN_MODEL", "MODEL_ONLY", "MISSING_MODEL_ONLY", "LIVE_UNKNOWN_MODEL", "UNAVAILABLE_UNKNOWN_MODEL", "NO_RESULT", "INVALID_RESULT", "COMPLETION_RACE", "MISSING_STOPPED_RESOURCE", "LIVE_RESOURCE", "MISSING_STOPPED_RESOURCE_NO_PROOF", "NATIVE_FAILED", "NATIVE_MISSING"})
     void stoppedWorkerRequiresVerifiedLatestExecutionBeforeEvidenceOnlyRecovery(String scenario) throws Exception {
         var scope = new KernelDataScope("tenant", "owner", null, null, "run", null, Map.of());
         var contract = ClineCodingAdapterDispatchTest.contract(scope);
@@ -56,6 +56,7 @@ class ClineCodingAdapterRecoveryTest {
             new CodingTaskOutcome.Usage(contract.budget().budgetId(), "USD", zero, zero, false),
             new CodingTaskOutcome.ExecutionControl(stopping ? CodingErrorCode.CANCEL_REQUESTED : null, stopping ? at : null, false, stopping), null, null, Map.of());
         when(tasks.resume(scope, contract.taskId())).thenReturn(current);
+        when(tasks.cancel(scope, contract.taskId(), "User stop")).thenReturn(current);
         when(tasks.get(scope, contract.taskId())).thenReturn(current);
         when(tasks.contract(scope, contract.taskId())).thenReturn(contract);
         when(tasks.ownership(scope, contract.taskId())).thenReturn(new CodingJournal.Lease("old", Instant.EPOCH, 0));
@@ -122,7 +123,9 @@ class ClineCodingAdapterRecoveryTest {
                 URI.create("http://127.0.0.1:" + server.getAddress().getPort()),
                 "0123456789abcdef0123456789abcdef", new ObjectMapper().findAndRegisterModules());
             adapter.setNativeSessions(scenario.startsWith("NATIVE_"));
-            var result = adapter.resume(scope, contract.taskId());
+            var result = scenario.endsWith("_POLL") ? adapter.get(scope, contract.taskId())
+                : scenario.endsWith("_CANCEL") ? adapter.cancel(scope, contract.taskId(), "User stop")
+                : adapter.resume(scope, contract.taskId());
             if (scenario.startsWith("NATIVE_")) {
                 assertThat(result.status()).isEqualTo(CodingTaskOutcome.Status.FAILED);
                 verifyNoInteractions(collector);

@@ -125,7 +125,13 @@ public final class ClineCodingAdapter implements CodingAgentSPI {
         return tasks.get(scope, contract.taskId());
     }
 
-    @Override public CodingTaskOutcome get(KernelDataScope scope, String taskId) { return tasks.get(scope, taskId); }
+    @Override public CodingTaskOutcome get(KernelDataScope scope, String taskId) {
+        CodingTaskOutcome current = tasks.get(scope, taskId);
+        // Reconcile durable stops even when the SDK ended without its final callback.
+        // resume requires worker/operation stop proofs and cannot redispatch a stopped task.
+        return !current.status().terminal() && current.executionControl().stopReason() != null
+            ? resume(scope, taskId) : current;
+    }
 
     @Override public CodingTaskOutcome cancel(KernelDataScope scope, String taskId, String reason) {
         CodingTaskOutcome stopped = tasks.cancel(scope, taskId, reason);
@@ -138,7 +144,7 @@ public final class ClineCodingAdapter implements CodingAgentSPI {
             try { python.cancel(scope, taskId, operationId, reason); }
             catch (RuntimeException unavailable) { /* Leave reconciliationRequired/stop request visible to Runtime. */ }
         }
-        return tasks.get(scope, taskId);
+        return get(scope, taskId);
     }
 
     @Override public CodingTaskOutcome resume(KernelDataScope scope, String taskId) {

@@ -1,0 +1,24 @@
+{
+  "version": {
+    "release": "public-entry-20261114",
+    "sourceCommit": "7ccfd561f",
+    "api": "exploration-model-fix-20261113",
+    "cline": "exploration-model-fix-20261113",
+    "monitor": "7ccfd561f-20261114"
+  },
+  "login": true,
+  "workspaceVisible": true,
+  "assetErrors": [],
+  "pageErrors": [],
+  "/api/v1/coding-monitor/tasks?limit=1": 200,
+  "/api/v1/coding-monitor/scheduler/nodes": 200,
+  "monitorLogin": true,
+  "monitorLoaded": true,
+  "publicUrl": "http://192.168.195.221:18100",
+  "gatewayImage": "sha256:94205296c30ca8725accb61b14ccc0bbf1cc2c8449122e5d6c6a69a70e04071e",
+  "backupDirectory": "/opt/runtime-os/releases/public-entry-20261114",
+  "clineNodesOnline": [
+    "cline-worker-1",
+    "cline-worker-2"
+  ]
+}

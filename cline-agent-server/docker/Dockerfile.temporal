@@ -9,6 +9,7 @@ COPY coding-agent-node/src/skill-distribution.js /opt/runtime-os/coding-node/cod
 COPY coding-agent-node/skills/ /opt/runtime-os/coding-node/coding-agent-node/skills/
 COPY cline-agent-server/src/delivery-manifest.mjs cline-agent-server/src/professional-report-review.mjs /opt/runtime-os/coding-node/service/src/
 COPY cline-agent-server/src/frontend-proxy.mjs /opt/runtime-os/coding-node/service/src/
+COPY cline-agent-server/src/command-evidence.mjs /opt/runtime-os/coding-node/service/src/
 RUN node /opt/runtime-os/coding-node/service/scripts/verify-runtime.mjs /opt/runtime-os/cline/runtime \
     && node /opt/runtime-os/coding-node/service/docker/verify-native-modules.mjs /opt/runtime-os/cline/runtime \
     && python /opt/runtime-os/coding-node/service/docker/verify-python-runtime.py \

@@ -26,6 +26,7 @@ USER root
 COPY coding-agent-node/skills/ /opt/runtime-os/coding-node/coding-agent-node/skills/
 COPY coding-agent-node/src/skill-distribution.js /opt/runtime-os/coding-node/coding-agent-node/src/
 COPY cline-agent-server/src/delivery-manifest.mjs cline-agent-server/src/professional-report-review.mjs cline-agent-server/src/worker-executor-policy.mjs cline-agent-server/src/frontend-proxy.mjs /opt/runtime-os/coding-node/service/src/
+COPY cline-agent-server/src/command-evidence.mjs /opt/runtime-os/coding-node/service/src/
 RUN node --check /opt/runtime-os/coding-node/service/src/professional-report-review.mjs && python -m py_compile /opt/runtime-os/coding-node/coding-agent-node/skills/report-designer/scripts/reportkit.py
 USER 10001:10001
 '''
@@ -42,7 +43,7 @@ USER 10001:10001
         finally:producer.stdout.close()
         if producer.wait()!=0:raise RuntimeError('Executor image export failed')
     if run('docker','--host',daemon,'image','inspect',image,'--format','{{.Id}}')!=image:raise RuntimeError('Executor image load digest differs')
-    test=run('docker','run','--rm','-v',str(source)+':/source:ro','-w','/source',tag,'sh','-c','node --test coding-agent-node/test/builtin-skills.test.js coding-agent-node/test/professional-reports.test.js cline-agent-server/test/professional-report-review.test.mjs cline-agent-server/test/delivery-selection.test.mjs && python -m unittest scripts.tests.test_professional_reports')
+    test=run('docker','run','--rm','-v',str(source)+':/source:ro','-w','/source',tag,'sh','-c','node --test coding-agent-node/test/builtin-skills.test.js coding-agent-node/test/professional-reports.test.js cline-agent-server/test/professional-report-review.test.mjs cline-agent-server/test/delivery-selection.test.mjs cline-agent-server/test/command-evidence-recovery.test.mjs && python -m unittest scripts.tests.test_professional_reports')
     (release/'server-tests.log').write_text(test)
     evidence={'buildLocation':'192.168.195.221','buildMode':'server-source','sourceCommit':revision,'image':image,'tag':tag,'sourceFiles':len(expected),'tests':'PASSED','activation':'NOT_ACTIVATED'}
     (release/'deployment.json').write_text(json.dumps(evidence,indent=2))

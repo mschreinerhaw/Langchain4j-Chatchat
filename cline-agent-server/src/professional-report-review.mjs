@@ -19,7 +19,19 @@ export async function reviewProfessionalReports(workspace,artifacts){
   const sources=new Set((evidence.sources??[]).map(s=>s.id));
   for(const item of [...(evidence.metrics??[]),...(evidence.claims??[])]){
    if(!item.sourceIds?.length||item.sourceIds.some(id=>!sources.has(id)))throw Error('Professional report evidence coverage failed');
-   if(item.horizon==='long-term'&&(item.observations??0)<252)throw Error('Professional report unsupported long-term conclusion');
+   if(item.horizon==='long-term'){
+    let minimum={daily:252,weekly:52,monthly:12,quarterly:4,annual:2}[item.frequency];
+    const metric=evidence.metrics?.find(m=>m.id===item.metricId);
+    if(['fact','calculation'].includes(item.kind)&&metric?.check?.op==='return')minimum=2;
+    if(!minimum||(item.windowDays??0)<365||(item.observations??0)<minimum)throw Error('Professional report unsupported long-term conclusion');
+    if(!item.timeSeries){if(quality.status==='PASSED')throw Error('Professional report history not bound to source dates');}
+    else{
+     const binding=item.timeSeries,source=evidence.sources.find(s=>s.id===binding.sourceId);if(!source)throw Error('Professional report time source missing');
+     let values=await read(source.file);for(const key of binding.path??[])values=values[key];
+     const dates=new Set(values.map(v=>{let value=String(binding.field?v[binding.field]:v).split('T')[0];if(/^\d{8}$/.test(value))value=value.slice(0,4)+'-'+value.slice(4,6)+'-'+value.slice(6);const time=Date.parse(value+'T00:00:00Z');if(!Number.isFinite(time)||new Date(time).toISOString().slice(0,10)!==value)throw Error('Professional report invalid source date');return time;}));
+     if(dates.size<(item.observations??0)||(Math.max(...dates)-Math.min(...dates))/86400000<(item.windowDays??0))throw Error('Professional report history exceeds actual source dates');
+    }
+   }
    if(item.check){
     const xs=item.check.inputs;
     if(!Array.isArray(xs)||!xs.length||xs.some(v=>!Number.isFinite(v)))throw Error('Professional report invalid computation input');

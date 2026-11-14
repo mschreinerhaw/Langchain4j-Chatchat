@@ -59,4 +59,19 @@ class ProfessionalReportsTest(unittest.TestCase):
             self.assertNotIn('local ECharts resource missing',quality['pending'])
             self.assertEqual(quality['status'],'INCOMPLETE')
 
+    def test_monthly_history_is_not_treated_as_daily_history(self):
+        with tempfile.TemporaryDirectory() as d:
+            root=Path(d);model=self.fixture(root)
+            rows=[dict(date=f'{2020+i//12:04}-{1+i%12:02}-01',value=i) for i in range(60)]
+            kit.dump(root/'source.json',rows);model['sources'][0]['sha256']=hashlib.sha256((root/'source.json').read_bytes()).hexdigest()
+            model['sources'][0].update(fields=['date','value'],period='2020-01-01/2024-12-01');model['period']='2020-01-01/2024-12-01'
+            model['metrics']=[];model['charts']=[];model['claims'][0].pop('metricId')
+            model['claims'][0].update(text='Five years of synthetic monthly observations',horizon='long-term',frequency='monthly',windowDays=1796,observations=60,kind='inference',timeSeries=dict(sourceId='s1',path=[],field='date'))
+            self.assertFalse(any('long-term' in e for e in kit.validate(model,root)['errors']))
+            self.assertFalse(any('coverage not bound' in e for e in kit.validate(model,root)['pending']))
+            model['claims'][0]['windowDays']=5000
+            self.assertTrue(any('actual source dates' in e for e in kit.validate(model,root)['errors']))
+            model['claims'][0]['windowDays']=4
+            self.assertTrue(any('long-term' in e for e in kit.validate(model,root)['errors']))
+
 if __name__=='__main__':unittest.main()

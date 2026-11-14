@@ -4,7 +4,7 @@ import html
 import json
 import math
 import shutil
-from datetime import datetime, timezone
+from datetime import date, datetime, timezone
 from pathlib import Path
 
 ASSETS = Path(__file__).resolve().parents[1] / 'assets'
@@ -79,7 +79,22 @@ def validate(model, root):
         refs(claim, claim['id'])
         if claim.get('kind') not in ['fact', 'calculation', 'opinion', 'inference']: errors.append(claim['id'] + ': claim kind missing')
         if claim.get('metricId') and claim['metricId'] not in metrics: errors.append(claim['id'] + ': metric missing')
-        if claim.get('horizon') == 'long-term' and claim.get('observations', 0) < 252: errors.append(claim['id'] + ': insufficient long-term evidence')
+        if claim.get('horizon') == 'long-term':
+            minimum={'daily':252,'weekly':52,'monthly':12,'quarterly':4,'annual':2}.get(claim.get('frequency'))
+            metric=metrics.get(claim.get('metricId'),{})
+            if claim.get('kind') in ['fact','calculation'] and metric.get('check',{}).get('op')=='return': minimum=2
+            if minimum is None or claim.get('windowDays',0)<365 or claim.get('observations',0)<minimum: errors.append(claim['id'] + ': insufficient long-term evidence (window/frequency/sample)')
+            binding=claim.get('timeSeries')
+            if not binding: pending.append(claim['id'] + ': long-term coverage not bound to source dates')
+            else:
+                try:
+                    file=(root/sources[binding['sourceId']]['file']).resolve()
+                    if not file.is_relative_to(root.resolve()): raise ValueError('unsafe time source')
+                    values=json.loads(file.read_text(encoding='utf-8'))
+                    for key in binding.get('path',[]): values=values[key]
+                    dates={date.fromisoformat(str(v[binding['field']] if binding.get('field') else v).split('T')[0]) for v in values}
+                    if not dates or (max(dates)-min(dates)).days<claim.get('windowDays',0) or len(dates)<claim.get('observations',0):errors.append(claim['id'] + ': declared history exceeds actual source dates')
+                except (OSError,KeyError,ValueError,TypeError,IndexError):errors.append(claim['id'] + ': invalid source date coverage')
     chart_ids = set()
     for c in model.get('charts', []):
         refs(c, c['id'])

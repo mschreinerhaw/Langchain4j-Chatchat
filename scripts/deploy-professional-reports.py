@@ -53,7 +53,8 @@ USER 10001:10001
     gateway=json.loads(Path('/opt/runtime-os/native-temporal/rc-20261112/private/gateway2.json').read_text())
     for registry in (Path(gateway['stateRoot'])/'workers').glob('*/registry.json'):
         worker=json.loads(registry.read_text())
-        if not worker.get('revoked') and worker.get('workerState') not in ['STOPPED','START_FAILED']:raise RuntimeError('Active canary task prevents replacement')
+        proof=worker.get('stopProof') or {}
+        if worker.get('workerState') not in ['STOPPED','START_FAILED'] and not (proof.get('allocationFenced') is True and proof.get('running') is False):raise RuntimeError('Active or unconfirmed canary task prevents replacement')
     base=Path('/opt/runtime-os/native-temporal/rc-20261112');compose=base/'compose.private.json';executor=base/'private/executor2.json';backup=release/('rollback-'+image.split(':')[1][:12]);backup.mkdir(mode=0o700,exist_ok=False)
     for p in [compose,executor]:shutil.copy2(p,backup/p.name);(backup/p.name).chmod(0o600)
     command=['docker','compose','--project-name','runtime-native-temporal-candidate','-f',str(compose)]

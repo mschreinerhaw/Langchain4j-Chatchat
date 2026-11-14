@@ -1,0 +1,24 @@
+[
+  {
+    "generationId": "54104b0c-1ce3-462c-904d-5db5eb563884",
+    "uiStatus": "CANCELLED",
+    "status": "CANCELLED",
+    "executionControl": {
+      "stopReason": "CANCEL_REQUESTED",
+      "stopRequestedAt": "2026-11-14T03:33:06.991Z",
+      "executorStopped": true,
+      "reconciliationRequired": false
+    }
+  },
+  {
+    "generationId": "d38a3887-1213-405d-bf6f-a3de67d9fbfd",
+    "uiStatus": "MODEL_BUDGET_EXHAUSTED",
+    "status": "BUDGET_EXCEEDED",
+    "executionControl": {
+      "stopReason": "BUDGET_EXCEEDED",
+      "stopRequestedAt": "2026-11-14T03:11:47.411Z",
+      "executorStopped": true,
+      "reconciliationRequired": false
+    }
+  }
+]

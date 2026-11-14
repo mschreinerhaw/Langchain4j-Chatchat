@@ -1,0 +1,126 @@
+{
+  "sourceCommit": "146a3a3db969d2a442b7a0dda0fed416c9f9100f",
+  "sourceFiles": 5629,
+  "archiveSha256": "b45c64ffd05217a37eca3cd12747f974f140423be688c91feb4fddc6e14269e1",
+  "buildLocation": "192.168.195.221",
+  "prebuiltApplicationIncluded": false,
+  "images": {
+    "api": {
+      "tag": "runtime-api:task-cancel-source-20261114",
+      "id": "sha256:ea02be53ee2ed1cb1c948c0ed81cd3063639a29f9858454c8b5956f5e8d35f23",
+      "revision": "146a3a3db969d2a442b7a0dda0fed416c9f9100f"
+    },
+    "node": {
+      "tag": "runtime-node:task-cancel-source-20261114",
+      "id": "sha256:bda9994501df943d272071bf970bf1209b915c1db8ccad4f5c776d86f8156bd1",
+      "revision": "146a3a3db969d2a442b7a0dda0fed416c9f9100f"
+    },
+    "gateway": {
+      "tag": "runtime-public-gateway:task-cancel-source-20261114",
+      "id": "sha256:53178d53e6d31fb404d5c0ba7e53e879df8059c35370d6ea54d395f597d7533d"
+    }
+  },
+  "nodeTestsExitCode": 0,
+  "javaTestClasses": [
+    {
+      "class": "com.chatchat.common.runtime.coding.CodingFailureStopTest",
+      "tests": 2,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    {
+      "class": "com.chatchat.agents.runtime.context.SkillAnalysisContextTest",
+      "tests": 6,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    {
+      "class": "com.chatchat.chat.skills.runtime.RuntimeOsDomainSkillAdapterTest",
+      "tests": 3,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    {
+      "class": "com.chatchat.chat.skills.runtime.SkillAnalysisContextServiceTest",
+      "tests": 10,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    {
+      "class": "com.chatchat.chat.skills.domain.planning.DomainSkillPlanningRouterTest",
+      "tests": 3,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    {
+      "class": "com.chatchat.chat.interaction.service.handler.RoleChatModeHandlerTest",
+      "tests": 8,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    {
+      "class": "com.chatchat.chat.interaction.service.handler.AgentChatModeHandlerTest",
+      "tests": 29,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    {
+      "class": "com.chatchat.api.runtime.coding.analysis.ClineContextAnswerServiceTest",
+      "tests": 25,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    {
+      "class": "com.chatchat.api.runtime.coding.cline.ClineCodingAdapterRecoveryTest",
+      "tests": 24,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    {
+      "class": "com.chatchat.api.runtime.coding.CodingSkillReaderTest",
+      "tests": 13,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    {
+      "class": "com.chatchat.api.runtime.coding.NativeRuntimeMcpControllerTest",
+      "tests": 8,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    {
+      "class": "com.chatchat.api.assets.NativeSiloTaskServiceTest",
+      "tests": 8,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    {
+      "class": "com.chatchat.api.assets.NativeS3CodingAdapterTest",
+      "tests": 8,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    }
+  ],
+  "javaTests": 147,
+  "nodeTestSummary": "tive metadata calls preserve sequential Java transactions (19.431522ms)\n✔ callback base with trailing slash preserves the exact signed route (48.525201ms)\n✔ later metadata pages require the actual first-page snapshot before dispatch (0.847589ms)\nℹ tests 119\nℹ suites 0\nℹ pass 117\nℹ fail 0\nℹ cancelled 0\nℹ skipped 2\nℹ todo 0\nℹ duration_ms 1046.078703\n",
+  "frontendTests": {
+    "tests": 12,
+    "passed": 12,
+    "failed": 0,
+    "serverBuildTestStage": "matching successful Docker cache",
+    "finalLocalRerun": "2026-11-14 16:15 Asia/Shanghai"
+  }
+}

@@ -1,0 +1,41 @@
+{
+  "sourceCommit": "146a3a3db969d2a442b7a0dda0fed416c9f9100f",
+  "projectId": "d41c6a88-3b57-490b-93c0-e121d0f9cb2e",
+  "generationId": "89146d78-52dd-476e-953a-92a1e848318b",
+  "taskId": "sql-coding-89146d78-52dd-476e-953a-92a1e848318b",
+  "status": "CANCELLED",
+  "cancelToTerminalMs": 2363,
+  "beforeEvents": [
+    "TASK_CREATED",
+    "TASK_STARTED",
+    "BUDGET_UPDATED",
+    "RECOVERY_RECONCILED",
+    "RECOVERY_RECONCILED",
+    "BUDGET_UPDATED",
+    "BUDGET_UPDATED",
+    "RECOVERY_RECONCILED",
+    "RECOVERY_RECONCILED"
+  ],
+  "beforeStartEvidence": [
+    {
+      "attemptId": "sql-coding-89146d78-52dd-476e-953a-92a1e848318b:fence-1",
+      "source": "JAVA_RUNTIME",
+      "stage": "CONTEXT_READY",
+      "summary": "Start intent committed; execution result is not yet known"
+    },
+    {
+      "attemptId": "sql-coding-89146d78-52dd-476e-953a-92a1e848318b:fence-1",
+      "source": "JAVA_RUNTIME",
+      "stage": "CODING",
+      "summary": "Start intent committed; execution result is not yet known"
+    }
+  ],
+  "executionControl": {
+    "stopReason": "CANCEL_REQUESTED",
+    "stopRequestedAt": "2026-11-14T08:24:45.264Z",
+    "executorStopped": true,
+    "reconciliationRequired": false
+  },
+  "deliveredFilesAfterCancel": 0,
+  "terminalStableAfterMs": 5000
+}

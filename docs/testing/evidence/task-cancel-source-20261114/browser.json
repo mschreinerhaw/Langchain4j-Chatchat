@@ -1,0 +1,17 @@
+{
+  "sourceCommit": "146a3a3db969d2a442b7a0dda0fed416c9f9100f",
+  "projectId": "6e8ba68b-8934-41bc-9e3f-e64308e09295",
+  "generationId": "f9035faa-b88c-4374-b438-e51da0c470b6",
+  "taskId": "sql-coding-f9035faa-b88c-4374-b438-e51da0c470b6",
+  "status": "CANCELLED",
+  "cancelToVisibleTerminalMs": 3337,
+  "cancelEndpoint": "/api/v1/data-science/sql/projects/6e8ba68b-8934-41bc-9e3f-e64308e09295/generations/f9035faa-b88c-4374-b438-e51da0c470b6/coding/cancel",
+  "executionControl": {
+    "stopReason": "CANCEL_REQUESTED",
+    "stopRequestedAt": "2026-11-14T08:28:06.593Z",
+    "executorStopped": true,
+    "reconciliationRequired": false
+  },
+  "pageErrors": [],
+  "remainingStopButtons": 0
+}

@@ -14,7 +14,8 @@ import subprocess
 
 
 def deploy(root, secret_file, image, api_port=8080,
-           application_compose=Path('/opt/runtime-os-docker-stage/compose.yaml')):
+           application_compose=Path('/opt/runtime-os-docker-stage/compose.yaml'),
+           application_service='api', application_project='runtime-os-stage-maintenance'):
     if not re.fullmatch(r'sha256:[a-f0-9]{64}', image):
         raise ValueError('Use an inspected immutable Studio image ID')
     compose_file = root / 'compose.json'
@@ -63,15 +64,15 @@ def deploy(root, secret_file, image, api_port=8080,
         if name=='studio-gateway':
             # Java's existing endpoint is loopback inside its container, not the
             # Docker host. Compose restarts this sidecar when it replaces Java.
-            service['network_mode'] = 'service:api'
-            service['depends_on'] = {'api':{'condition':'service_started','restart':True}}
+            service['network_mode'] = 'service:'+application_service
+            service['depends_on'] = {application_service:{'condition':'service_started','restart':True}}
             service.pop('extra_hosts', None)
             studio_gateway = service
         else:
             compose['services'][name] = service
     app = json.loads(application_compose.read_text())
-    if 'api' not in app['services']:
-        raise ValueError('Application Compose must contain the existing api service')
+    if application_service not in app['services']:
+        raise ValueError('Application Compose must contain the selected API service: '+application_service)
     # One-time migration of the candidate sidecar; never stops the S3 Node.
     if 'studio-gateway' in compose['services']:
         subprocess.run(['docker','compose','-p','runtime-coding-integrated','-f',str(compose_file),
@@ -88,9 +89,12 @@ def deploy(root, secret_file, image, api_port=8080,
     application_compose.write_text(json.dumps(app, indent=2)+'\n')
     subprocess.run(['docker', 'compose', '-p', 'runtime-coding-integrated', '-f', str(compose_file),
                     'up', '-d', '--no-deps', 'studio-executor'], check=True)
-    subprocess.run(['docker','compose','--env-file',str(application_compose.parent/'config/deployment.env'),
-                    '-p','runtime-os-stage-maintenance','-f',str(application_compose),
+    command=['docker','compose']
+    env_file=application_compose.parent/'config/deployment.env'
+    if env_file.is_file():command+=['--env-file',str(env_file)]
+    subprocess.run(command+['-p',application_project,'-f',str(application_compose),
                     'up','-d','--no-deps','studio-gateway'],check=True)
+
 
 
 if __name__ == '__main__':
@@ -100,5 +104,7 @@ if __name__ == '__main__':
     parser.add_argument('--image', required=True)
     parser.add_argument('--api-port', type=int, default=8080)
     parser.add_argument('--application-compose',type=Path,default=Path('/opt/runtime-os-docker-stage/compose.yaml'))
+    parser.add_argument('--application-service',default='api')
+    parser.add_argument('--application-project',default='runtime-os-stage-maintenance')
     args = parser.parse_args()
-    deploy(args.root, args.secret_file, args.image, args.api_port,args.application_compose)
+    deploy(args.root, args.secret_file, args.image, args.api_port,args.application_compose,args.application_service,args.application_project)

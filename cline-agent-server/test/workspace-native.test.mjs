@@ -52,3 +52,12 @@ test('callback base with trailing slash preserves the exact signed route',async(
  try{await httpGateway(`http://127.0.0.1:${server.address().port}/`,secret,{}).preflight();assert.deepEqual(observed,{path:'/internal/coding/cline/preflight',signature:true});}
  finally{server.closeAllConnections();await new Promise(resolve=>server.close(resolve));}
 });
+
+test('later metadata pages require the actual first-page snapshot before dispatch',async()=>{
+ const {run,context}=fixture();let calls=0;
+ const tools=workspaceTools(run,{queryWorkspaceMetadata:async(c,id,args)=>{calls++;assert.equal(args.expectedSnapshotId,'snapshot-1');return {status:'SUCCEEDED'};}},()=>{});
+ const missing=await tools.call('workspace_metadata',{operation:'LIST_TABLES',page:2},context);
+ assert.equal(missing.errorCode,'METADATA_SNAPSHOT_REQUIRED');assert.equal(calls,0);
+ await tools.call('workspace_metadata',{operation:'LIST_TABLES',page:2,expectedSnapshotId:'snapshot-1'},{...context,toolCallId:'corrected'});
+ assert.equal(calls,1);
+});

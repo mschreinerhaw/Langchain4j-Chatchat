@@ -1,0 +1,40 @@
+{
+  "origin": "http://192.168.195.221:18100",
+  "tests": {
+    "ClineModelCallbackControllerTest": 25,
+    "workspaceNativeNodeTests": 6,
+    "nativeStudioDeploymentTest": 1,
+    "failures": 0
+  },
+  "deployment": {
+    "apiImage": "sha256:c4652046d3c00fae5b2e2e6146f920003aa466921b35e246cc4d0cefc8ad10d1",
+    "studioImage": "sha256:39ecc43078dfabb19412ec4a8360e6d48c72aa85aeb38e43ff652fbb3d03d8bd",
+    "studioNetworkMode": "service:temporal-control-api",
+    "composeProject": "runtime-native-temporal-candidate",
+    "backupDirectory": "/opt/runtime-os/releases/studio-network-repair-20261114"
+  },
+  "sqlOriginalOperation": {
+    "generationId": "99e07831-9dce-4a1c-9d1b-6ab0fdf75297",
+    "status": "COMPLETED",
+    "validation": "EVIDENCE_ONLY; SQL_NOT_GENERATED",
+    "outputError": "",
+    "sourceTableCount": 196,
+    "observedCompletionSeconds": 140,
+    "exceededOriginal90SecondLease": true,
+    "notesAvailable": true
+  },
+  "pythonGeneration": {
+    "taskId": "python-coding-af9d92999a3ddad124b3d405ae77ed9bd1ffeb54a5dcebb3a56e7b3a53fdbe33",
+    "status": "COMPLETED",
+    "parserValid": true,
+    "codeExecuted": false
+  },
+  "explorationFollowup": {
+    "nodeId": "dcf05ad0-e437-4883-92f9-7fec68fe32e7",
+    "status": "SUCCEEDED",
+    "terminal": true,
+    "resultAvailable": true,
+    "reportCharacters": 1146,
+    "limitation": "Source price history does not cover the full requested year; execution success is not complete one-year business acceptance."
+  }
+}

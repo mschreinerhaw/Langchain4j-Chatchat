@@ -38,6 +38,33 @@ import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.*;
 
 class ClineModelCallbackControllerTest {
+    @Test void authenticatedNativeCallbacksRenewTheSameFenceBeyondInitialLease() {
+        var source=new DriverManagerDataSource("jdbc:h2:mem:native-lease-"+UUID.randomUUID()+";DB_CLOSE_DELAY=-1","sa","");
+        new ResourceDatabasePopulator(new ClassPathResource("runtime-evidence-schema.sql")).execute(source);
+        var json=new ObjectMapper().findAndRegisterModules();
+        var store=new JdbcRuntimeEvidenceStore(new JdbcTemplate(source),json,new DataSourceTransactionManager(source));
+        var scope=new KernelDataScope("tenant","owner",null,null,"run",null,Map.of());
+        var input=Map.<String,Object>of("fixture","authorized");
+        store.register(new EvidenceRecord(null,"input",scope,"CODING_INPUT_SNAPSHOT","test",store.contentHash(input),input,null,System.currentTimeMillis(),Map.of()),
+            new EvidenceLineage(null,"input",scope,List.of(),"task","test",null,Map.of()));
+        var access=new CodingInvocationContext();var timer=Executors.newSingleThreadScheduledExecutor();
+        var now=new AtomicReference<>(Instant.now());var clock=mock(Clock.class);
+        when(clock.instant()).thenAnswer(call->now.get());when(clock.millis()).thenAnswer(call->now.get().toEpochMilli());
+        try {
+            var receipts=new ClineModelReceiptStore(store);
+            var tasks=new DurableCodingTaskService(store,json,clock,access,(owner,ref)->true,receipts,Runnable::run,new ConcurrentTaskScheduler(timer));
+            var contract=contract(scope);var grants=EnumSet.allOf(CodingTaskAccess.Action.class);
+            var lease=access.as(scope,grants,()->{var accepted=tasks.submit(contract);return tasks.claim(scope,"task","cline-adapter:test",Duration.ofSeconds(45),accepted.revision());});
+            var controller=new ClineModelCallbackController(access,tasks,mock(ClineRuntimeModelBridge.class),receipts,mock(CodingInputSnapshotService.class),mock(CodingValidationPlanService.class),mock(CodingEvidenceCollector.class),json);
+            var body=json.createObjectNode().put("taskId","task").put("contractHash",CodingCanonicalHash.sha256(contract)).put("fencingToken",lease.fencingToken()).put("contextTokensEstimate",1);
+            body.set("scope",json.valueToTree(scope));body.set("contract",json.valueToTree(contract));
+            controller.budget(body);
+            var renewed=access.as(scope,grants,()->tasks.ownership(scope,"task"));
+            assertThat(renewed.leaseUntil()).isAfter(lease.leaseUntil());assertThat(renewed.fencingToken()).isEqualTo(lease.fencingToken());
+            now.set(now.get().plusSeconds(100));controller.budget(body);
+        } finally {timer.shutdownNow();}
+    }
+
     @Test void restoredSdkConsumesOnlyItsBoundReceiptWithoutProviderDispatchOrSecondCharge() {
         var source=new DriverManagerDataSource("jdbc:h2:mem:receipt-restore-"+UUID.randomUUID()+";DB_CLOSE_DELAY=-1;DATABASE_TO_LOWER=TRUE","sa","");
         new ResourceDatabasePopulator(new ClassPathResource("runtime-evidence-schema.sql")).execute(source);

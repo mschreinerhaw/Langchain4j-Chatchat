@@ -787,6 +787,17 @@ public final class ClineModelCallbackController {
                             || snapshot.executionControl().stopReason() != null))
                     throw new ResponseStatusException(HttpStatus.CONFLICT,
                         "Callback task, lease, or stop state is no longer current");
+                // Native Studio calls reserve/settle directly instead of the legacy /model
+                // transport, so that transport's scheduled renewal does not protect them.
+                // Renew the current authenticated fence before short leases expire.
+                if (!snapshot.status().terminal() && snapshot.executionControl().stopReason() == null
+                        && lease.leaseUntil().isBefore(Instant.now().plusSeconds(60))) {
+                    var currentLease = lease;
+                    CodingTaskRevisions.mutate(tasks, scope, taskId, revision ->
+                        tasks.renew(scope, taskId, currentLease, Duration.ofMinutes(5), revision));
+                    lease = tasks.ownership(scope, taskId);
+                    snapshot = tasks.get(scope, taskId);
+                }
                 return operation.apply(new Call(scope, taskId, contractHash, lease, snapshot));
             });
         } catch (ResponseStatusException known) { throw known; }

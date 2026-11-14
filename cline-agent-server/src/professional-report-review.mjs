@@ -57,7 +57,7 @@ export async function reviewProfessionalReports(workspace,artifacts){
     if(Array.isArray(expected)?JSON.stringify(expected)!==JSON.stringify(item.value):!Number.isFinite(expected)||!Number.isFinite(item.value)||Math.abs(expected-item.value)>1e-8*Math.max(1,Math.abs(expected)))throw Error('Professional report calculation/ranking mismatch');
     if(quality.status==='PASSED'&&!item.check.sourceInputs?.length)throw Error('Professional report computation inputs not bound to source cells');
    }
-   if(quality.status==='PASSED'&&item.formula&&item.value!==null&&!item.check)throw Error('Professional report calculation not independently checked');
+   if(quality.status==='PASSED'&&evidence.metrics?.includes(item)&&item.value!==null&&!item.check)throw Error('Professional report metric not independently checked');
   }
   for(const s of evidence.sources??[]){
    if(!s.file||posix.isAbsolute(s.file)||s.file.split('/').some(x=>x==='..')||s.file.includes('\\'))throw Error('Professional report unsafe evidence path');

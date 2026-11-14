@@ -15,6 +15,9 @@ test('trusted delivery review detects wrong ranks despite model declaring qualit
  await assert.rejects(reviewProfessionalReports(root,artifacts),/ranking mismatch/);
  files['evidence.json'].metrics[0].value=[1,0];await writeFile(join(root,'evidence.json'),JSON.stringify(files['evidence.json']));
  await reviewProfessionalReports(root,artifacts);
+ files['evidence.json'].metrics.push({id:'unchecked',value:999,sourceIds:['s']});await writeFile(join(root,'evidence.json'),JSON.stringify(files['evidence.json']));
+ await assert.rejects(reviewProfessionalReports(root,artifacts),/metric not independently checked/);
+ files['evidence.json'].metrics.pop();
  const bound=files['evidence.json'].metrics[0].check.sourceInputs;
  delete files['evidence.json'].metrics[0].check.sourceInputs;await writeFile(join(root,'evidence.json'),JSON.stringify(files['evidence.json']));
  await assert.rejects(reviewProfessionalReports(root,artifacts),/not bound to source cells/);

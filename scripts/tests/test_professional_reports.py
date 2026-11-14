@@ -9,6 +9,13 @@ spec=importlib.util.spec_from_file_location('reportkit', ROOT/'coding-agent-node
 kit=importlib.util.module_from_spec(spec);spec.loader.exec_module(kit)
 
 class ProfessionalReportsTest(unittest.TestCase):
+    def test_omitting_formula_does_not_bypass_metric_verification(self):
+        with tempfile.TemporaryDirectory() as d:
+            root=Path(d);m=self.fixture(root)
+            m['metrics'].append(dict(id='unchecked',value=999,unit='units',sourceIds=['s1']))
+            q=kit.validate(m,root)
+            self.assertTrue(any('unchecked: metric not independently checked' in p for p in q['pending']))
+
     def fixture(self, root):
         (root/'source.json').write_text('[10,12]',encoding='utf-8')
         return dict(title='测试 <script>bad()</script>',reportType='stock-comparison',period='2026-11-01/2026-11-02',summary='仅两次观测，不支持长期判断',sources=[dict(id='s1',file='source.json',dataset='synthetic',fields=['price'],period='two observations',basis='unadjusted synthetic',sha256=hashlib.sha256((root/'source.json').read_bytes()).hexdigest())],metrics=[dict(id='r',label='区间收益',value=.2,unit='ratio',sourceIds=['s1'],formula='last/first-1',check=dict(op='return',inputs=[10,12]))],claims=[dict(id='c1',text='测试区间上涨20%',kind='calculation',sourceIds=['s1'],metricId='r')],charts=[dict(id='price',purpose='短期观测比较',type='line',period='two observations',unit='CNY',basis='synthetic',sourceIds=['s1'],labels=['day1','day2'],series=[dict(name='A',values=[10,None])])])

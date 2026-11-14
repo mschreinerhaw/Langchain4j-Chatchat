@@ -74,7 +74,7 @@ def validate(model, root):
                 valid = actual == expected if isinstance(expected, list) else isinstance(actual, (int, float)) and math.isclose(actual, expected, rel_tol=1e-8, abs_tol=1e-10)
                 if not valid: errors.append(m['id'] + ': calculation/ranking mismatch')
             except (ValueError, ZeroDivisionError, IndexError, TypeError, KeyError, OSError): errors.append(m['id'] + ': invalid calculation')
-        elif m.get('formula') and m.get('value') is not None: pending.append(m['id'] + ': calculation not independently recomputed')
+        elif m.get('value') is not None: pending.append(m['id'] + ': metric not independently checked (bind a source fact with sum of one cell)')
     for claim in model.get('claims', []):
         refs(claim, claim['id'])
         if claim.get('kind') not in ['fact', 'calculation', 'opinion', 'inference']: errors.append(claim['id'] + ': claim kind missing')

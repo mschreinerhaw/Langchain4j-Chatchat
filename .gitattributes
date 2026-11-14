@@ -29,6 +29,11 @@ coding-agent-node/skills/azure-kusto/** -text -whitespace
 coding-agent-node/skills/azure-ai-ml-py/** -text -whitespace
 coding-agent-node/skills/mcp-builder/** -text -whitespace
 coding-agent-node/skills/skill-creator/** -text -whitespace
+coding-agent-node/skills/analyzer/** -text whitespace=cr-at-eol
+coding-agent-node/skills/plotting/** -text whitespace=cr-at-eol
+coding-agent-node/skills/artifact-management/** -text whitespace=cr-at-eol
+coding-agent-node/skills/runtime-internet-research/LICENSE.tavily -text whitespace=cr-at-eol
+coding-agent-node/skills/runtime-internet-research/references/upstream/** -text whitespace=cr-at-eol
 
 # Preserve the hash-verified deployment evidence, including original patch whitespace.
 docs/runtime-os-audit-20261027/deployed-source.patch -text -whitespace

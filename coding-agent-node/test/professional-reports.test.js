@@ -10,7 +10,7 @@ test('report rollout uses node configuration and permits task scoped rollback',(
   process.env.CLINE_PROFESSIONAL_REPORTS='true';
   assert.equal(taskSkillPackages().filter(p=>p.card.professionalReport).length,4);
   assert.equal(taskSkillPackages({professionalReports:{enabled:false}}).filter(p=>p.card.professionalReport).length,0);
-  for(const pkg of taskSkillPackages().filter(p=>p.card.professionalReport)){
+  for(const pkg of taskSkillPackages()){
    assert(imageSkillBytes(pkg).length);
    for(const resource of pkg.resources)assert(imageSkillBytes(pkg,resource.path).length);
   }

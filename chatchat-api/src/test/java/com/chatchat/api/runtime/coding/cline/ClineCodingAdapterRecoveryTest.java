@@ -31,7 +31,7 @@ import static org.mockito.Mockito.*;
 /** Real HTTP worker status; execution/collector doubles do not constitute Docker or SDK recovery. */
 class ClineCodingAdapterRecoveryTest {
     @ParameterizedTest
-    @ValueSource(strings = {"COMPLETED", "FAILED", "CANCELLED", "MISSING", "UNKNOWN_MODEL", "FAILED_PYTHON", "MISSING_FAILED_PYTHON", "MISSING_STOPPED", "MISSING_STOPPED_POLL", "MISSING_STOPPED_CANCEL", "MISSING_STOPPED_UNKNOWN_MODEL", "MODEL_ONLY", "MISSING_MODEL_ONLY", "LIVE_UNKNOWN_MODEL", "UNAVAILABLE_UNKNOWN_MODEL", "NO_RESULT", "INVALID_RESULT", "COMPLETION_RACE", "MISSING_STOPPED_RESOURCE", "LIVE_RESOURCE", "MISSING_STOPPED_RESOURCE_NO_PROOF", "NATIVE_FAILED", "NATIVE_MISSING"})
+    @ValueSource(strings = {"COMPLETED", "FAILED", "CANCELLED", "MISSING", "UNKNOWN_MODEL", "FAILED_PYTHON", "MISSING_FAILED_PYTHON", "MISSING_STOPPED", "MISSING_STOPPED_POLL", "MISSING_STOPPED_CANCEL", "MISSING_STOPPED_UNKNOWN_MODEL", "MODEL_ONLY", "MISSING_MODEL_ONLY", "LIVE_UNKNOWN_MODEL", "UNAVAILABLE_UNKNOWN_MODEL", "NO_RESULT", "INVALID_RESULT", "COMPLETION_RACE", "MISSING_STOPPED_RESOURCE", "MISSING_STOPPED_WORKSPACE", "LIVE_RESOURCE", "MISSING_STOPPED_RESOURCE_NO_PROOF", "NATIVE_FAILED", "NATIVE_MISSING"})
     void stoppedWorkerRequiresVerifiedLatestExecutionBeforeEvidenceOnlyRecovery(String scenario) throws Exception {
         var scope = new KernelDataScope("tenant", "owner", null, null, "run", null, Map.of());
         var contract = ClineCodingAdapterDispatchTest.contract(scope);
@@ -44,7 +44,7 @@ class ClineCodingAdapterRecoveryTest {
         var at = Instant.now().minusSeconds(1).truncatedTo(ChronoUnit.MILLIS);
         boolean stopping = scenario.startsWith("MISSING_STOPPED");
         boolean unknownModel = scenario.endsWith("UNKNOWN_MODEL");
-        boolean resource=scenario.contains("_RESOURCE"),resourceNoProof=scenario.endsWith("RESOURCE_NO_PROOF");
+        boolean resource=(scenario.contains("_RESOURCE") || scenario.contains("_WORKSPACE")),resourceNoProof=scenario.endsWith("RESOURCE_NO_PROOF");
         var zero = new CodingTaskOutcome.Counters(0, 0, 0, 0, 0, 0, 0, "0");
         var current = new CodingTaskOutcome(CodingProtocol.VERSION, contract.taskId(), scope,
             CodingCanonicalHash.sha256(contract), CodingTaskOutcome.Status.RUNNING, 4, 4,
@@ -68,8 +68,8 @@ class ClineCodingAdapterRecoveryTest {
         if(resource) {
             String read="workspace-"+"c".repeat(64);var settled=new java.util.concurrent.atomic.AtomicBoolean();
             when(tasks.unresolvedOperations(scope,contract.taskId())).thenAnswer(call->settled.get()?List.of():List.of(read));
-            when(tasks.reconcileStopped(eq(scope),eq(contract.taskId()),any(),eq(current.revision()),eq(read),eq("runtime-evidence:knowledge-tool:"+read)))
-                .thenAnswer(call->{if(resourceNoProof)throw new CodingContractException(CodingErrorCode.EXECUTION_OUTCOME_UNKNOWN,"No verified execution-node stop confirmation is available");settled.set(true);return current;});
+            when(tasks.reconcileStopped(eq(scope),eq(contract.taskId()),any(),eq(current.revision()),eq(read),anyString()))
+                .thenAnswer(call->{if(resourceNoProof || scenario.endsWith("_WORKSPACE") && !call.<String>getArgument(5).equals("runtime-evidence:coding:workspace:"+read+":receipt"))throw new CodingContractException(CodingErrorCode.EXECUTION_OUTCOME_UNKNOWN,"No verified execution-node stop confirmation is available");settled.set(true);return current;});
             when(tasks.settle(eq(scope),eq(contract.taskId()),any(),eq(current.revision()),eq(read),any(),eq(false))).thenReturn(current);
         }
         when(tasks.finishStoppedAfterReconciliation(eq(scope), eq(contract.taskId()), any(), eq(current.revision())))

@@ -34,6 +34,7 @@ export function buildSpec(c,body,cfg){
  validateCreate(body);const i=identity(c,cfg);const ownership=createHmac('sha256',cfg.ownershipKey).update(i.owner+'\0'+body.workerId).digest('hex');
  const spec=workerContainerSpec({image:cfg.workerImage,root:posix.join(cfg.hostWorkersRoot,body.workerId),workerId:body.workerId,sessionId:c.sessionId,tenantId:c.tenantId,memoryBytes:cfg.resources.memoryBytes,cpuSet:cfg.resources.cpuSet});
  const runtime=workerRuntime(cfg);
+ spec.Env.push('CLINE_PROFESSIONAL_REPORTS='+(process.env.CLINE_PROFESSIONAL_REPORTS==='true'?'true':'false'));
  if(runtime.python){
   // The trusted Host owns evidence/configuration; the official Core and every
   // Shell/Python child are explicitly dropped to runtime.uid before execution.

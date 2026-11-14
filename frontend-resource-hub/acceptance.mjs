@@ -5,7 +5,7 @@ const base=process.env.HUB_URL||'http://localhost:8080',headers={authorization:`
 async function get(path,options){const r=await fetch(base+path,options);assert(r.ok,`${path}: ${r.status}`);return r.json()}
 async function preview(html){const j=await get('/api/v1/preview',{method:'POST',headers,body:JSON.stringify({html})});for(let n=0;n<90;n++){await new Promise(r=>setTimeout(r,1000));const r=await get(`/api/v1/preview/${j.id}/result`,{headers});if(r.status!=='running'&&(r.bundle||r.bundleError||r.error))return r}throw Error('Preview polling timeout')}
 const evidence={date:new Date().toISOString(),data:'Synthetic acceptance fixtures; not production business acceptance',cases:[]};
-const resources=await get('/api/v1/resources');assert.equal(resources.length,8);
+const resources=await get('/api/v1/resources');assert(resources.length>=9);assert(resources.some(r=>r.id==='professional-report'));
 for(const r of resources)for(const f of r.files){const res=await fetch(base+f.path);assert(res.ok,f.path)}
 assert.equal((await fetch(base+'/api/v1/preview/no-auth')).status,401);
 const all=await get('/api/v1/templates');assert.equal(all.length,5);

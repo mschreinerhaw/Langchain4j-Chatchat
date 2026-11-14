@@ -1,0 +1,7 @@
+ARG HUB_IMAGE
+FROM ${HUB_IMAGE}
+USER root
+COPY report-assets /app/report-assets
+COPY build.mjs acceptance.mjs /app/
+RUN node build.mjs && chown -R pwuser:pwuser /app/public
+USER pwuser

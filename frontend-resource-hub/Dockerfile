@@ -5,6 +5,7 @@ RUN npm ci --ignore-scripts
 COPY build.mjs catalog.mjs server.mjs worker.mjs ./
 COPY acceptance.mjs offline-check.mjs verify-delivered.mjs ./
 COPY licenses ./licenses
+COPY report-assets ./report-assets
 RUN node build.mjs && mkdir jobs && chown pwuser:pwuser jobs
 USER pwuser
 CMD ["node","server.mjs"]

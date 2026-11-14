@@ -1,0 +1,10 @@
+---
+name: evidence-reviewer
+description: Audit professional report claims with executable evidence, coverage, missing-data, comparison and artifact checks before existing Runtime delivery.
+---
+
+Use report-designer/scripts/reportkit.py validate() on the actual final bundle, not a model self-score. Sources declare id, file, dataset, fields, period, basis, sha256; news/opinion sources additionally declare url and publishedAt (unknown stays unknown). Claims declare id, text, kind (fact/calculation/opinion/inference), sourceIds and optional metricId. Metrics declare id, value (null if missing), unit, sourceIds, formula and optional check {op,inputs}; supported reproducible checks are sum, ratio, return and rank. Retain source snapshots through authorized archival and verify their hashes. Review substantive explanations separately; automated checks cannot establish causation or investment merit.
+
+Reject dangling references, missing statistical scope/units, fabricated missing values, inconsistent calculations/ranks, chart shape errors and unsupported claims. A long-term conclusion with fewer than 252 observations must fail the explicit horizon check. Explicitly record limitations for unavailable data. Persist independent evidence.json and quality_report.json. Missing browser validation, source snapshots or unsupported calculation checks must stay incomplete, never pass by default. Re-run validation after edits. Existing delivery admission still controls publication; do not bypass its hashes, scope, paths or schema.
+
+Bind computed metric check inputs to original JSON cells with check.sourceInputs: [{sourceId, path: [rowIndex, field]}]. Nested source objects may use paths such as ["values", 0]. Chart series use sourceInputs in the same order as values; null bindings represent absent observations, never zero. The optional series transform "rebased-100" recomputes values from the first positive source price. Unbound computed metrics or chart values cannot claim PASSED. Native delivery independently repeats these checks outside Cline. A browser result must match the final HTML SHA-256; a stale screenshot or earlier preview is insufficient.

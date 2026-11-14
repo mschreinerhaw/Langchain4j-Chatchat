@@ -1,0 +1,10 @@
+---
+name: financial-report-analysis
+description: Define comparable security, bank, fund and client portfolio metrics, qualify missing observations and avoid unsupported long-term or valuation conclusions.
+---
+
+Use financial-market-analysis for authorized discovery and financial-visualization for existing specialist style helpers. Choose only metrics relevant to the question. Price return = last/first - 1 on positive aligned adjusted prices; total return requires dividends/reinvestment evidence. Volatility = sample standard deviation of periodic simple returns times sqrt(periods/year), with declared frequency, sample count and convention; sparse data cannot establish daily volatility. Max drawdown = minimum(price/running peak - 1), observed window only. Annualizing short history must not support long-term performance claims. Never infer long-term investment merit from a short price window.
+
+PE = price / EPS: declare TTM/forward/static, price date, earnings period and treatment of losses. Nonpositive earnings are not meaningful positive PE ranks. PB = price / book value per share, matching share basis and positive equity; ROE requires net income attributable to common holders / declared average equity basis and matching accounting periods. Compare only the same currency, date, accounting basis, adjustment and frequency. Missing PE/PB/ROE remains unknown; never substitute sector averages. Ascending PE ranks mean lower comparable positive PE, not best investment. Recompute rankings in Python; report ties and exclusions explicitly.
+
+Multi-stock: common coverage and comparable valuation; client assets: reconciliation, allocation, concentration and missing risk metadata (cash flows require money/time weighted methodology); operations: denominator, scope, period, seasonality and reconciliation before trends. Distinguish fact, calculation, external opinion and model inference. Separate verified findings from explanations and disclose sample gaps. Important conclusions need actual observations and source/field/formula mappings.

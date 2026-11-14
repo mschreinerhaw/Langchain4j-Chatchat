@@ -1,4 +1,10 @@
 *.sh text eol=lf
+coding-agent-node/skills/report-designer/** -text whitespace=cr-at-eol
+coding-agent-node/skills/chart-designer/** -text whitespace=cr-at-eol
+coding-agent-node/skills/financial-report-analysis/** -text whitespace=cr-at-eol
+coding-agent-node/skills/evidence-reviewer/** -text whitespace=cr-at-eol
+frontend-resource-hub/report-assets/** -text whitespace=cr-at-eol
+docs/professional-reports-20261114/** -text -whitespace
 docs/testing/evidence/native-cline-monitor-20261109/** -text -whitespace
 docs/testing/evidence/native-cline-delivery-20261109/** -text -whitespace
 docs/testing/evidence/native-cline-task-first-20261109/** -text -whitespace

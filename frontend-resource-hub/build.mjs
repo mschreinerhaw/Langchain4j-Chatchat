@@ -16,4 +16,15 @@ for(const [id,pkg,dir] of specs){
  await cp(license?`${root}/${license}`:`licenses/${id}-LICENSE`,`public/assets/${id}/LICENSE`);
  resources.push({id,package:pkg,version:meta.version,license:meta.license,source:meta.repository,dependencies:id==='datatables'?['jquery']:[],conflicts:id==='tabler'?['bootstrap']:id==='bootstrap'?['tabler']:[],files:await Promise.all(files[id].map(async f=>({path:`/assets/${id}/${f}`,sha256:createHash('sha256').update(await readFile(`public/assets/${id}/${f}`)).digest('hex')})))});
 }
+const reportVersion=JSON.parse(await readFile('report-assets/version.json','utf8')).version;
+await mkdir('public/assets/professional-report/'+reportVersion,{recursive:true});
+await writeFile('public/assets/professional-report/LICENSE','First-party Runtime OS report resources. No additional third-party licensing terms are introduced by these files. ECharts retains its separately packaged license.\n');
+const reportFiles=[];
+for(const file of ['report.css','report.js']){
+ const bytes=await readFile('report-assets/'+file);
+ const path='/assets/professional-report/'+reportVersion+'/'+file;
+ await writeFile('public'+path,bytes);
+ reportFiles.push({path,sha256:createHash('sha256').update(bytes).digest('hex')});
+}
+resources.push({id:'professional-report',package:'runtime-os-professional-report',version:reportVersion,license:'platform',dependencies:['echarts'],conflicts:[],files:reportFiles});
 await writeFile('public/resources.json',JSON.stringify(resources,null,2));

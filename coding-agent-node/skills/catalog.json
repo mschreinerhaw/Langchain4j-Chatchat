@@ -503,39 +503,112 @@
       "importedAt": "2026-11-04"
     }
   },
-{
-  "id": "builtin:financial-visualization",
-  "name": "financial-visualization",
-  "description": "Render financial analysis and exploratory reports with semantic colors, market-specific rise/fall conventions, stable comparison palettes, clear units and legible Chinese labels. Use for financial-auto, financial-cn and financial-international visualization style profiles, market movements, portfolio comparisons, allocation and financial report charts.",
-  "version": "1.0.0",
-  "origin": "SYSTEM_BUILTIN",
-  "category": "Visualization",
-  "references": [
-    "references/style-guide.md",
-    "references/financial_style.py"
-  ],
-  "displayName": "金融图形规范",
-  "descriptionZh": "按市场涨跌惯例和真实指标语义绘制金融分析图表。",
-  "source": "Runtime OS",
-  "sourceVersion": "1.0.0",
-  "builtin": true,
-  "enabled": true
-},
-{
-  "id": "builtin:frontend-design",
-  "name": "frontend-design",
-  "description": "Generate HTML business pages and charts using internal resources, browser validation, Cline repair and Runtime Silo delivery.",
-  "version": "1.0.0",
-  "origin": "SYSTEM_BUILTIN",
-  "category": "Frontend",
-  "references": [
-    "deliver.py"
-  ],
-  "displayName": "Frontend design and validation",
-  "descriptionZh": "Frontend Resource Hub",
-  "source": "Runtime OS",
-  "sourceVersion": "1.0.0",
-  "builtin": true,
-  "enabled": true
-}
+  {
+    "id": "builtin:financial-visualization",
+    "name": "financial-visualization",
+    "description": "Render financial analysis and exploratory reports with semantic colors, market-specific rise/fall conventions, stable comparison palettes, clear units and legible Chinese labels. Use for financial-auto, financial-cn and financial-international visualization style profiles, market movements, portfolio comparisons, allocation and financial report charts.",
+    "version": "1.0.0",
+    "origin": "SYSTEM_BUILTIN",
+    "category": "Visualization",
+    "references": [
+      "references/style-guide.md",
+      "references/financial_style.py"
+    ],
+    "displayName": "金融图形规范",
+    "descriptionZh": "按市场涨跌惯例和真实指标语义绘制金融分析图表。",
+    "source": "Runtime OS",
+    "sourceVersion": "1.0.0",
+    "builtin": true,
+    "enabled": true
+  },
+  {
+    "id": "builtin:frontend-design",
+    "name": "frontend-design",
+    "description": "Generate HTML business pages and charts using internal resources, browser validation, Cline repair and Runtime Silo delivery.",
+    "version": "1.0.0",
+    "origin": "SYSTEM_BUILTIN",
+    "category": "Frontend",
+    "references": [
+      "deliver.py"
+    ],
+    "displayName": "Frontend design and validation",
+    "descriptionZh": "Frontend Resource Hub",
+    "source": "Runtime OS",
+    "sourceVersion": "1.0.0",
+    "builtin": true,
+    "enabled": true
+  },
+  {
+    "id": "builtin:report-designer",
+    "name": "report-designer",
+    "description": "Design platform professional HTML reports with reusable themes, accessible layouts and offline deliverables when professional reporting is enabled.",
+    "version": "1.0.2",
+    "origin": "SYSTEM_BUILTIN",
+    "category": "Reports",
+    "source": "Runtime OS",
+    "builtin": true,
+    "enabled": true,
+    "professionalReport": true,
+    "resources": [
+      {
+        "path": "assets/report.css",
+        "sha256": "a0f578bcd1589678dde22636c3633b30305d2ec2ddc8017d06458f7ec99be4b1",
+        "size": 2103
+      },
+      {
+        "path": "assets/report.js",
+        "sha256": "2674a895432eabce371bcb3f13703648b7443e758845c4cf7ea9bdf8f684aee2",
+        "size": 2052
+      },
+      {
+        "path": "assets/version.json",
+        "sha256": "9c95b15ebede9992876d1e9964fc4f9b7d9faed4a4387aa187dec630702aeb68",
+        "size": 20
+      },
+      {
+        "path": "scripts/reportkit.py",
+        "sha256": "d946bd8dd22ecd7101516df11e75dd19f75d0c311abca7acecc5807116e3381b",
+        "size": 13093
+      }
+    ]
+  },
+  {
+    "id": "builtin:chart-designer",
+    "name": "chart-designer",
+    "description": "Choose useful ECharts charts with consistent styling, comparable financial series, visible source metadata and offline print fallbacks.",
+    "version": "1.0.2",
+    "origin": "SYSTEM_BUILTIN",
+    "category": "Reports",
+    "source": "Runtime OS",
+    "builtin": true,
+    "enabled": true,
+    "professionalReport": true,
+    "resources": []
+  },
+  {
+    "id": "builtin:financial-report-analysis",
+    "name": "financial-report-analysis",
+    "description": "Define comparable security, bank, fund and client portfolio metrics, qualify missing observations and avoid unsupported long-term or valuation conclusions.",
+    "version": "1.0.2",
+    "origin": "SYSTEM_BUILTIN",
+    "category": "Reports",
+    "source": "Runtime OS",
+    "builtin": true,
+    "enabled": true,
+    "professionalReport": true,
+    "resources": []
+  },
+  {
+    "id": "builtin:evidence-reviewer",
+    "name": "evidence-reviewer",
+    "description": "Audit professional report claims with executable evidence, coverage, missing-data, comparison and artifact checks before existing Runtime delivery.",
+    "version": "1.0.2",
+    "origin": "SYSTEM_BUILTIN",
+    "category": "Reports",
+    "source": "Runtime OS",
+    "builtin": true,
+    "enabled": true,
+    "professionalReport": true,
+    "resources": []
+  }
 ]

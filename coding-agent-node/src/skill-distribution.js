@@ -13,7 +13,9 @@ export function safeResourcePath(path) {
   return path;
 }
 export function taskSkillPackages(context = {}) {
-  const packages = definitions.filter(c => c.enabled !== false).map(card => ({ card: structuredClone(card), builtin: true,
+  const policy = context.professionalReports ?? {};
+  const enabled = policy.enabled ?? process.env.CLINE_PROFESSIONAL_REPORTS === 'true';
+  const packages = definitions.filter(c => c.enabled !== false && (!c.professionalReport || enabled)).map(card => ({ card: structuredClone(card), builtin: true,
     resources: structuredClone(card.resources ?? (card.references ?? []).map(path => ({ path }))),
     filePath: fileURLToPath(new URL(`${card.name}/SKILL.md`, root)) }));
   const ids = new Set(packages.map(p => p.card.id));

@@ -2,6 +2,7 @@ import {createHash} from 'node:crypto';
 import {createReadStream,constants} from 'node:fs';
 import {lstat,realpath,writeFile,rename,open} from 'node:fs/promises';
 import {join,resolve,relative,isAbsolute} from 'node:path';
+import {reviewProfessionalReports} from './professional-report-review.mjs';
 
 export function deliveryPath(value){
  if(typeof value!=='string'||!value||value.length>768||value.includes('\\')||value.includes(':')||/[\x00-\x1f]/.test(value)||isAbsolute(value)||value.split('/').some(p=>!p||p==='.'||p==='..'))throw Error('Invalid delivery path');
@@ -48,6 +49,7 @@ export async function hashDeliveryArtifacts(workspace,files){
   if(before.size!==after.size||before.mtimeMs!==after.mtimeMs||before.ino!==after.ino||digest.size!==after.size)throw Error('Delivery changed during hashing');
   artifacts.push({path,type:item.type,...digest});
  }
+ if(process.env.CLINE_PROFESSIONAL_REPORTS==='true')await reviewProfessionalReports(root,artifacts);
  return artifacts;
  }catch(error){error.deliveryContentError=true;throw error;}
 }

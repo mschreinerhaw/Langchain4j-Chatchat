@@ -567,8 +567,8 @@
       },
       {
         "path": "scripts/finalize_report.py",
-        "sha256": "0b4ec12929457d0858e5d55e559d6fafc0b670a4863b2ba126643fe1d32f30fd",
-        "size": 4952
+        "sha256": "65dbc000a0c517daf9bb1c99f0b2d7af3a7eaf30ddcb3ed1aceaaa20d2fae510",
+        "size": 5225
       },
       {
         "path": "scripts/prepare_report_assets.py",

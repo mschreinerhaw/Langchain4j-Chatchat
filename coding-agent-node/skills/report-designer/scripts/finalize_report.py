@@ -34,6 +34,9 @@ def finalize(root):
             if not target.is_relative_to(root):raise ValueError('Preview asset destination escaped report folder')
             target.parent.mkdir(parents=True,exist_ok=True);target.write_bytes(file.read_bytes())
     final=(preview/'standalone.html').read_bytes();(root/'report.html').write_bytes(final)
+    # The existing viewer prefers index.html; retain an identical canonical alias.
+    (root/'index.html').write_bytes(final)
+    if (root/'standalone.html').exists():(root/'standalone.html').write_bytes(final)
     (root/'report.pdf').write_bytes((preview/'report.pdf').read_bytes())
     model=json.loads((root/'report_model.json').read_text(encoding='utf-8'));quality=kit.validate(model,root)
     quality['pending']=[p for p in quality['pending'] if p!='independent browser desktop/mobile/print validation required']
@@ -42,6 +45,7 @@ def finalize(root):
     kit.dump(root/'quality_report.json',quality)
     kit.dump(root/'browser_validation.json',{'jobId':job['id'],'status':'PASSED','originalHtmlSha256':job['report']['htmlSha256'],'finalHtmlSha256':quality['browserCheckedHtmlSha256'],'printChecked':True,'offlineTransform':'Existing Hub standalone bundle; only registered dependency URLs rewritten'})
     manifest=json.loads((root/'report_manifest.json').read_text(encoding='utf-8'));manifest['qualityStatus']=quality['status']
+    manifest['resources']['version']=receipt['reportVersion']
     manifest['resources']['files']={str(p.relative_to(root)):hashlib.sha256(p.read_bytes()).hexdigest() for p in (root/'assets').rglob('*') if p.is_file()}
     manifest['browserPreviewId']=job['id'];kit.dump(root/'report_manifest.json',manifest)
     selection_path=workspace/'delivery_manifest.json'

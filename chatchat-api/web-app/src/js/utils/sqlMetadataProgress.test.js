@@ -51,3 +51,13 @@ describe('SQL metadata progress from backend facts',()=>{
     expect(sqlMetadataProgress(undefined,null).running).toBe(false);
   });
 });
+
+it.each(['MODEL_BUDGET_EXHAUSTED','TIME_BUDGET_EXHAUSTED','TIMEOUT_CANCELLED','DLQ','KILLED','EMPTY','NO_PRESENTABLE_RESULT','PARTIAL_SUCCESS'])('freezes elapsed time and stops all Coding phases for terminal %s',status=>{
+ const result={task:{taskId:'old',status,createTime:'2026-11-14T11:09:16Z',finishedAt:'2026-11-14T11:24:18Z'}};
+ const progress=sqlCodingMetadataProgress(result,'',0,Date.parse('2026-11-14T14:00:00Z'));
+ expect(progress.terminal).toBe(true);expect(progress.running).toBe(false);expect(progress.elapsed).toBe(902);
+ expect(progress.metadataGroups.every(group=>!['RUNNING','PENDING'].includes(group.state))).toBe(true);
+});
+it('honors canonical exhausted budget even with a stale running projection',()=>{
+ expect(sqlMetadataProgress([],{taskId:'old',canonicalState:'BUDGET_EXCEEDED',status:'RUNNING'}).running).toBe(false);
+});

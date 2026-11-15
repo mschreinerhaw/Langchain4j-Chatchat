@@ -38,7 +38,9 @@ import { pythonAssistantHistory, pythonAssistantConversation, deletePythonAssist
 import StudioCodePlan from "../../components/editor/StudioCodePlan.vue";
 import { requestPlannedPythonAssist } from '../../services/studioCodePlanning';
 import { runPythonCoding, cancelPythonCoding, resumePythonCoding } from '../../services/pythonCoding';
-import { studioAiLabels, studioAiProgress, pythonProposalSource } from '../utils/studioAi';
+import { studioAiLabels, studioAiProgress, pythonProposalSource, studioReadOnlyAction, pythonAssistantText } from '../utils/studioAi';
+import ReportMarkdown from '../../components/ReportMarkdown.vue';
+import {renderReportNarrative} from '../utils/reportNarrative';
 import { beginStudioExchange, studioAssistantTurn, updateStudioTurn } from '../utils/studioConversation';
 import EditorPreferences from "../../components/editor/EditorPreferences.vue";
 import { Search, ChevronRight, ChevronDown, Folder, FileCode2, Plus, X, Play, Save, Settings2, PanelLeft,
@@ -87,7 +89,7 @@ const workspaceLayoutStorageKey = "chatchat.python-studio.layout.v1";
 
 export default {
   name: "DataScienceView",
-  components: { StudioConversationHistory, History, AppConfirmDialog, UserSpaceBrowser, StudioCodePlan, CodeChangeReview, PythonCodeDiff, EditorPreferences, Search, ChevronRight, ChevronDown, Folder, FileCode2, Plus, X,
+  components: { ReportMarkdown, StudioConversationHistory, History, AppConfirmDialog, UserSpaceBrowser, StudioCodePlan, CodeChangeReview, PythonCodeDiff, EditorPreferences, Search, ChevronRight, ChevronDown, Folder, FileCode2, Plus, X,
     Play, Save, Settings2, PanelLeft, PanelRight, PanelBottom, Maximize2, Minimize2, Sparkles, Send,
     RefreshCw, ListTree, Box, Terminal, CircleCheck, CircleAlert, LoaderCircle, Trash2, Code2, BookOpen, FlaskConical, WandSparkles },
   props: {
@@ -539,6 +541,7 @@ export default {
     this.finishIdeDialog(false);
   },
   methods: {
+    renderAssistantNarrative: renderReportNarrative,
     openStudioSearch(mode = 'all') {
       this.studioSearchMode = mode; this.studioSearchQuery = mode === 'commands' ? '> ' : '';
       this.studioSearchIndex = 0; this.studioSearchOpen = true;
@@ -1430,7 +1433,7 @@ export default {
       this.aiAppliedInfo = null;
       this.aiStage = "planning";
       this.aiCodePlan = null;
-      this.aiRequestAction = this.aiAction;
+      this.aiRequestAction = studioReadOnlyAction(this.aiAction,this.aiPrompt);
       this.error = "";
       const startedAt = Date.now();
       const sourceContext = {key:this.activeEditorTabKey,source:this.form.sourceCode,fileName:this.form.fileName,
@@ -1473,7 +1476,7 @@ export default {
         if(suggestion.files)this.aiDiff.changed=this.aiReviewFiles.some(file=>file.before!==file.after);
         this.aiElapsedMs = Date.now() - startedAt;
         this.aiStage = "ready";
-        updateStudioTurn(studioAssistantTurn(requestMessages,requestId),'ready',['explain','ask'].includes(suggestion.action) ? suggestion.code : `为 ${sourceContext.fileName} 生成了${studioAiLabels[suggestion.action] || '代码'}建议，等待审查。`,{plan:suggestion.plan?.interpretationPlan || this.aiCodePlan?.interpretationPlan,planId:suggestion.plan?.planId || this.aiCodePlan?.planId});
+        updateStudioTurn(studioAssistantTurn(requestMessages,requestId),'ready',pythonAssistantText(suggestion,sourceContext.fileName),{plan:suggestion.plan?.interpretationPlan || this.aiCodePlan?.interpretationPlan,planId:suggestion.plan?.planId || this.aiCodePlan?.planId});
         const originTab = this.editorTabs.find(tab => tab.key === sourceContext.key);
         if (originTab) originTab.aiMessages = requestMessages.slice(-16);
         if (this.activeEditorTabKey === sourceContext.key) this.aiMessages = requestMessages.slice(-16);
@@ -1611,7 +1614,12 @@ export default {
       }, 1000);
     },
     scrollAiMessages() {
-      nextTick(()=>{const box=this.$refs.aiMessagesScroll;if(box&&this.aiFollowOutput)box.scrollTop=box.scrollHeight;});
+      nextTick(()=>{
+        const box=this.$refs.aiMessagesScroll;if(!box || !this.aiFollowOutput)return;
+        const answer=!this.aiBusy && this.aiIsTextAnswer?box.querySelector('.ai-result.is-answer'):null;
+        if(answer)box.scrollTop+=answer.getBoundingClientRect().top-box.getBoundingClientRect().top-8;
+        else box.scrollTop=box.scrollHeight;
+      });
     },
     trackAiScroll() {
       const box=this.$refs.aiMessagesScroll;

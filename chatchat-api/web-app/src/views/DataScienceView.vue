@@ -595,8 +595,15 @@
                     : ""
                 }}{{ turn.fileName ? " · " + turn.fileName : "" }}</small
               >
+              <ReportMarkdown
+                v-if="turn.role === 'assistant' && (turn.id !== aiCurrentTurn?.id || (!aiBusy && !aiSuggestion))"
+                :content="turn.text"
+                :render-markdown="renderAssistantNarrative"
+                :class="{ 'studio-ai-error': turn.status === 'failed' }"
+                :role="turn.status === 'failed' ? 'alert' : undefined"
+              />
               <p
-                v-if="turn.id !== aiCurrentTurn?.id || (!aiBusy && !aiSuggestion)"
+                v-else-if="turn.id !== aiCurrentTurn?.id || (!aiBusy && !aiSuggestion)"
                 :class="{ 'studio-ai-error': turn.status === 'failed' }"
                 :role="turn.status === 'failed' ? 'alert' : undefined"
                 >{{ turn.text }}</p
@@ -651,9 +658,10 @@
                     aiSuggestion.appliedSkills.map((skill) => skill.name).join("、")
                   }}</p
                 >
-                <p v-if="aiIsTextAnswer" class="studio-text-answer">{{ aiSuggestion.code }}</p>
+                <ReportMarkdown v-if="aiIsTextAnswer" class="studio-text-answer" :content="aiSuggestion.code" :render-markdown="renderAssistantNarrative" />
                 <template v-else
-                  ><p v-if="aiAppliedInfo" class="ai-applied-notice"
+                  ><ReportMarkdown v-if="aiSuggestion.notes" class="studio-text-answer" :content="aiSuggestion.notes" :render-markdown="renderAssistantNarrative" />
+                  <p v-if="aiAppliedInfo" class="ai-applied-notice"
                     ><b>已{{ aiAppliedInfo.verb }}{{ aiAppliedInfo.mode }}</b
                     ><span>{{ aiAppliedInfo.lines }} 行代码已写入，当前修改尚未保存。</span></p
                   ><p v-if="aiSuggestionStale" class="studio-ai-error" role="alert"

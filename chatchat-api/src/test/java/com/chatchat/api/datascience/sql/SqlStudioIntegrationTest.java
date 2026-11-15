@@ -560,7 +560,7 @@ class SqlStudioIntegrationTest {
         assertThat(examples.toString()).contains("SELECT project_id","SELECT group_id","REFERENCE_ONLY_NOT_EXECUTION_OR_PHYSICAL_AUTHORITY");
         assertThat(studio.sqlExamplesScoped(new com.chatchat.common.kernel.KernelDataScope(tenant,"another-owner",null,null,"test",null,Map.of()),"ld_dataservice_api")).isEmpty();
     }
-    @Test void databaseAssistantRoutesToExistingClineWorkspaceWithoutPreselectedTablesOrExtraPlanModel() throws Exception {
+    @Test void databaseAssistantRoutesToMetadataConversationWithoutCodingOrExtraPlanModel() throws Exception {
         String p=project();
         when(metadataGateway.invoke(any(),any(),anyMap())).thenReturn(new SqlStudioMetadataGateway.Result("registered",Map.of(
             "items",List.of(Map.of("assetRef","authorized-asset","sourceDialect","mysql")))));
@@ -571,8 +571,10 @@ class SqlStudioIntegrationTest {
             .content(json(Map.of("action","explore","prompt","Find stored service SQL by project and group","dialect","mysql","metadataBindingContextId",context.path("discoveryId").asText()))))
             .andExpect(status().isOk()).andReturn());
         var tool=prepared.path("taskRequest").path("toolInput");
-        assertThat(tool.path("codingWorkspaceProfile").asText()).isEqualTo("SQL_WORKSPACE_V2");
-        assertThat(tool.path("sqlCodingDiscoveryId").asText()).isEqualTo(tool.path("sqlMetadataDiscoveryId").asText());
+        assertThat(tool.has("codingWorkspaceProfile")).isFalse();
+        assertThat(tool.path("sqlMetadataDiscoveryId").asText()).isNotBlank();
+        assertThat(prepared.path("taskRequest").path("query").asText()).isEqualTo("Find stored service SQL by project and group");
+        assertThat(prepared.path("taskRequest").path("mode").asText()).isEqualTo("llm_chat");
         assertThat(tool.has("sqlCodingMetadataSelection")).isFalse();
         verifyNoInteractions(codePlans,model);
     }

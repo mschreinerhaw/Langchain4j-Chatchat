@@ -151,6 +151,7 @@
 .python-studio .ai-result-head span { color: #99a9c2; font-size: 9px; }
 .python-studio .ai-result pre { max-height: 400px; padding: 12px; color: #547194; font-size: 11px; }
 .studio-text-answer { margin: 0; padding: 12px; color: #5f7598; font-size: 11px; line-height: 1.9; white-space: pre-wrap; overflow-wrap: anywhere; }
+.python-studio .report-markdown.studio-text-answer { white-space: normal; }
 .python-studio .ai-composer { padding: 8px 11px 5px; border-top: 0; background: #f9fbff; }
 .studio-ai-context { display: flex; align-items: center; gap: 5px; margin-bottom: 7px; color: #98a7c0; font-size: 9px; }
 .studio-ai-context span:first-of-type { max-width: 160px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }

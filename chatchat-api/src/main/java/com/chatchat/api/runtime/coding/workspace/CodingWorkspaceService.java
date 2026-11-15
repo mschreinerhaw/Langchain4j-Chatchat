@@ -76,6 +76,12 @@ public final class CodingWorkspaceService {
     }
     private long maxModelTokens=262144;
     private boolean unlimitedExecutionCounts;
+    private boolean sqlCumulativeLimitsEnabled;
+    @Value("${chatchat.coding.workspace.sql-cumulative-limits-enabled:false}")
+    public void setSqlCumulativeLimitsEnabled(boolean enabled){sqlCumulativeLimitsEnabled=enabled;}
+    private boolean pythonCumulativeLimitsEnabled;
+    @Value("${chatchat.coding.workspace.python-cumulative-limits-enabled:false}")
+    public void setPythonCumulativeLimitsEnabled(boolean enabled){pythonCumulativeLimitsEnabled=enabled;}
     private String maxCostAmount="1";
     @Value("${chatchat.coding.workspace.execution-count-limit:configured}")
     public void setExecutionCountLimit(String value){
@@ -134,15 +140,16 @@ public final class CodingWorkspaceService {
             }else{
                 String inputId="coding:workspace-input:"+task;
                 String decision="studio-workspace:"+task, workspace="studio-workspace:"+task;
+                boolean unlimitedStudio=python?!pythonCumulativeLimitsEnabled:!sqlCumulativeLimitsEnabled;
                 var payload=Map.<String,Object>of("taskId",task,"context",context,"dialect",dialect,
                     "modelName",Objects.toString(modelName,""),"decisionRef",decision,"workspaceRef",workspace,"schema",schema,
-                    "sqlRepairPolicy",Map.of("maxRepairAttempts",unlimitedExecutionCounts?-1:maxSqlRepairAttempts));
+                    "sqlRepairPolicy",Map.of("maxRepairAttempts",unlimitedStudio||unlimitedExecutionCounts?-1:maxSqlRepairAttempts));
                 boolean autonomous=!python && schema.get("discoveryId") instanceof String && schema.get("projectId") instanceof String;
                 boolean fast=fastPathEnabled && !autonomous && encode(payload).getBytes(StandardCharsets.UTF_8).length<=fastPathMaxContextBytes;
                 register(scope,inputId,INPUT_TYPE,payload,List.of(),task,null);
                 var budget=new CodingTaskContract.Budget("workspace-budget:"+task,
-                    Instant.now().plusSeconds(autonomous?sqlMetadataTimeoutSeconds:timeoutSeconds).truncatedTo(ChronoUnit.MILLIS),unlimitedExecutionCounts?-1:autonomous?sqlMetadataMaxModelCalls:8,autonomous?sqlMetadataMaxModelTokens:maxModelTokens,unlimitedExecutionCounts?-1:autonomous?sqlMetadataMaxToolCalls:16,0,
-                    maxCostAmount,"USD",0,0,1024*1024);
+                    Instant.now().plusSeconds(autonomous?sqlMetadataTimeoutSeconds:timeoutSeconds).truncatedTo(ChronoUnit.MILLIS),unlimitedStudio||unlimitedExecutionCounts?-1:autonomous?sqlMetadataMaxModelCalls:8,unlimitedStudio?-1:autonomous?sqlMetadataMaxModelTokens:maxModelTokens,unlimitedStudio||unlimitedExecutionCounts?-1:autonomous?sqlMetadataMaxToolCalls:16,0,
+                    unlimitedStudio?"unlimited":maxCostAmount,"USD",0,0,unlimitedStudio?-1:1024*1024);
                 var metadataRefs=new ArrayList<String>(autonomous?List.of(SqlWorkspaceMetadataTools.PROFILE):fast?List.of(FAST_PATH_REF):List.of());
                 var grantedTools=new ArrayList<>(SqlWorkspaceMetadataTools.tools(autonomous));
                 if(deferredToolsEnabled) { metadataRefs.add(CodingProtocol.DEFERRED_TOOLS_PROFILE);grantedTools.add(CodingProtocol.TOOL_DESCRIBE); }

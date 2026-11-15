@@ -1,6 +1,11 @@
 import {describe,it,expect} from 'vitest';
 import {sqlTaskPresentation,sqlExplorationPhase} from './sqlTaskPresentation';
 describe('Cline SQL business progress',()=>{
+  it('shows the authoritative success of a review without stale engineering failure phases',()=>{
+    const result=sqlTaskPresentation({generation:{prepared:{taskRequest:{toolInput:{sqlStudioAction:'explain'}}}},
+      task:{taskId:'review',status:'SUCCESS'},events:[{payload:{businessProgress:{index:3,status:'error',reason:'older attempt failed'}}}]});
+    expect(result.title).toBe('分析已完成');expect(result.steps).toEqual([]);expect(result.detail).not.toContain('older attempt failed');
+  });
   it('keeps newer business progress when an older polling page is replayed',()=>{
     const finding={eventId:'one',sequence:1,payload:{sqlProgressPhase:'FINDING_TABLES'}};
     const validating={eventId:'two',sequence:2,payload:{sqlProgressPhase:'VALIDATING_SQL'}};

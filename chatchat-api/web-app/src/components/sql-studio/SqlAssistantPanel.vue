@@ -43,7 +43,7 @@
           >{{ turn.role === "user" ? "我" : turn.action === 'explore' ? 'AI 数据库助手' : "AI 工程助手"
           }}{{ turn.action ? " · " + studioAiLabels[turn.action] : "" }}</b
         >
-        <SqlAssistantMessage v-if="turn.role==='assistant' && (!isCurrentTurn(turn) || !progress.running)" :content="turn.text"
+        <SqlAssistantMessage v-if="turn.role==='assistant' && (!isCurrentTurn(turn) || !progress.running) && !(isCurrentTurn(turn) && resultAction==='explain')" :content="turn.text"
           :insertable="canInsertTurn(turn)" :replaceable="canInsertTurn(turn) && editorSelectionAvailable"
           @insert="$emit('insert-sql',$event)" @replace="$emit('replace-sql',$event)" />
         <p
@@ -114,13 +114,13 @@
         <small v-if="isCurrentTurn(turn) && result?.metadataExploration?.stats" class="sql-metadata-stats">本次尝试：模型 {{ result.metadataExploration.stats.modelCalls }} 次 · 工具选择 {{ result.metadataExploration.stats.toolCalls }} 次 · 复用 {{ result.metadataExploration.stats.reusedEvidenceCount }} 份证据 · 耗时 {{ (result.metadataExploration.stats.totalMs/1000).toFixed(1) }} 秒</small>
         <button v-if="isCurrentTurn(turn) && result?.metadataExploration?.candidates?.length && terminal" type="button" @click="followupSql">据此生成 SQL</button>
         <StudioCodePlan
-          v-if="turn.role === 'assistant' && (turn.plan || (isCurrentTurn(turn) && codePlan))"
+          v-if="turn.role === 'assistant' && turn.action!=='explain' && (turn.plan || (isCurrentTurn(turn) && codePlan))"
           :plan="isCurrentTurn(turn) ? codePlan || turn.plan : turn.plan"
           :state="
             isCurrentTurn(turn) ? codePlanState : turn.status === 'failed' ? 'failed' : 'complete'
           "
         />
-        <ol v-if="turn.activity?.length" class="studio-message-activity" aria-label="请求处理记录"
+        <ol v-if="turn.action!=='explain' && turn.activity?.length" class="studio-message-activity" aria-label="请求处理记录"
           ><li v-for="entry in turn.activity" :key="entry.id" :data-status="entry.status">{{
             entry.title
           }}</li></ol
@@ -165,6 +165,7 @@
           <AppNotice v-if="!progress.running && (result.task?.errorMessage || result.outputError)" kind="error">{{
             sqlAssistantError(result.task?.errorMessage || result.outputError)
           }}</AppNotice>
+          <SqlAssistantMessage v-if="resultAction==='explain' && !progress.running" :content="turn.text" />
           <div v-for="file in result.files" :key="file.path" class="sql-proposed-file"
             ><button @click="$emit('preview', file)"
               >{{

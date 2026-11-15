@@ -870,6 +870,30 @@ class CodingAnalysisServiceTest {
         verify(agent,times(1)).submit(any());verify(agent,never()).cancel(any(),anyString(),anyString());
     }
 
+    @org.junit.jupiter.params.ParameterizedTest
+    @org.junit.jupiter.params.provider.ValueSource(booleans={false,true})
+    void pythonStudioReuseHasNoCumulativeCeilingsByDefaultButKeepsProcessIsolation(boolean configured) {
+        policy.setPythonStudioCumulativeLimitsEnabled(configured);
+        prepare(outcome(CodingTaskOutcome.Status.FAILED,CodingTaskOutcome.ValidationStatus.NOT_RUN));
+        var parent=context("tenant");
+        var project=new com.chatchat.common.runtime.coding.PythonCodeProject.Project("main.py",List.of(
+            new com.chatchat.common.runtime.coding.PythonCodeProject.File("main.py","print(1)")));
+        var projectContext=com.chatchat.common.runtime.coding.PythonCodeProject.context(project,p->"{\"entryPath\":\"main.py\",\"files\":[{\"path\":\"main.py\",\"content\":\"print(1)\"}]}");
+        var context=new AnalysisCoverageCoordinator.Request(parent.model(),parent.query(),null,Map.of("pythonStudioCodeProject",projectContext),
+            parent.metadata(),()->false,()->{},parent.isolationScope(),null);
+        service().execute(context,request(),sources());
+        var capture=org.mockito.ArgumentCaptor.forClass(CodingTaskContract.class);verify(agent).submit(capture.capture());
+        var budget=capture.getValue().budget();
+        assertThat(budget.maxModelCalls()).isEqualTo(configured?policy.getMaxModelCalls().value():-1);
+        assertThat(budget.maxModelTokens()).isEqualTo(configured?policy.getMaxModelTokens().value():-1);
+        assertThat(budget.maxToolCalls()).isEqualTo(configured?policy.getMaxToolCalls().value():-1);
+        assertThat(budget.maxCodeExecutions()).isEqualTo(configured?policy.getMaxCodeExecutions().value():-1);
+        assertThat(budget.maxOutputBytes()).isEqualTo(configured?policy.getMaxResultBytes():-1);
+        assertThat(budget.maxCpuMillis()).isEqualTo(configured?policy.getMaxCpuMillis():-1);
+        assertThat(budget.maxCostAmount()).isEqualTo(configured?policy.getMaxCostAmount():"unlimited");
+        assertThat(budget.maxMemoryBytes()).isEqualTo(policy.getMaxMemoryBytes());
+        assertThat(capture.getValue().outputContract().maxResultBytes()).isEqualTo(policy.getMaxResultBytes());
+    }
     @Test void runtimeRegistersCommittedResultsWithoutCallingABusinessReviewer() {
         prepare(outcome(CodingTaskOutcome.Status.COMPLETED,CodingTaskOutcome.ValidationStatus.INCONCLUSIVE));
         var parent=context("tenant");

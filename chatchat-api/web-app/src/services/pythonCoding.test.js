@@ -21,9 +21,10 @@ describe('shared Python Coding task lifecycle',()=>{
   it('retains all proposed files and evidence for user review without saving or executing source',async()=>{
     const files=[{path:'main.py',content:'print(2)'},{path:'helpers.py',content:'x=1'}];
     apiRequest.mockResolvedValueOnce({enabled:true}).mockResolvedValueOnce({taskId:'bound-task',plan:{planId:'accepted-plan'}})
-      .mockResolvedValueOnce({status:'COMPLETED',output:{files,validation:{codeExecuted:false}},outcome:{evidenceBundleRef:'bundle'}});
+      .mockResolvedValueOnce({status:'COMPLETED',output:{files,notes:'Review: handle empty input before dividing.',validation:{codeExecuted:false}},outcome:{evidenceBundleRef:'bundle'}});
     const onTask=vi.fn();const result=await runPythonCoding(request,{...context,onTask});
     expect(onTask).toHaveBeenCalledWith('bound-task');expect(result.files).toEqual(files);expect(result.replaceSelection).toBe(false);
+    expect(result.notes).toBe('Review: handle empty input before dividing.');
     expect(result.coding.outcome.evidenceBundleRef).toBe('bundle');expect(requestPythonCodeAssist).not.toHaveBeenCalled();
     expect(apiRequest.mock.calls.map(call=>call[0])).not.toContain('/data-science/python/scripts');
     expect(JSON.parse(apiRequest.mock.calls[1][1].body).request.planId).toBe('accepted-plan');
@@ -32,6 +33,15 @@ describe('shared Python Coding task lifecycle',()=>{
     apiRequest.mockResolvedValueOnce({enabled:true}).mockResolvedValueOnce({taskId:'bound-task'})
       .mockResolvedValueOnce({status:'FAILED',outcome:{summary:'Runtime failure'}});
     await expect(runPythonCoding(request,context)).rejects.toThrow('Runtime failure');expect(requestPythonCodeAssist).not.toHaveBeenCalled();
+  });
+  it.each(['FAILED','CANCELLED','BUDGET_EXCEEDED','PARTIAL'])('stops polling and publishes the final %s state before rejecting',async status=>{
+    apiRequest.mockResolvedValueOnce({enabled:true}).mockResolvedValueOnce({taskId:'bound-task'})
+      .mockResolvedValueOnce({status,outcome:{summary:'Task ended'}});
+    const onProgress=vi.fn();
+    await expect(runPythonCoding(request,{...context,onProgress})).rejects.toThrow('Task ended');
+    expect(onProgress).toHaveBeenCalledWith(expect.objectContaining({status}));
+    expect(apiRequest).toHaveBeenCalledTimes(3);
+    expect(apiRequest.mock.calls.some(([path])=>path.endsWith('/cancel'))).toBe(false);
   });
   it('keeps unknown execution pending and sends cancellation only to the bound task',async()=>{
     apiRequest.mockResolvedValueOnce({enabled:true}).mockResolvedValueOnce({taskId:'bound-task'})

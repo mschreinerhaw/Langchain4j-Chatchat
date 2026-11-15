@@ -92,12 +92,18 @@ def main():
     classes = release / 'classes'
     classes.mkdir(exist_ok=True)
     javac = '/opt/jdk-17.0.5/bin/javac'
+    classpath = str(dependencies / 'BOOT-INF/classes') + ':' + str(dependencies / 'BOOT-INF/lib/*')
+    lombok = release / 'lombok.jar'
+    if lombok.is_file():
+        if hashlib.sha256(lombok.read_bytes()).hexdigest() != (release/'lombok.sha256').read_text().strip():
+            raise RuntimeError('Compile dependency hash mismatch')
+        classpath += ':' + str(lombok)
     compile_log = run(javac, '--release', '17', '-encoding', 'UTF-8', '-cp',
-                      str(dependencies / 'BOOT-INF/classes') + ':' + str(dependencies / 'BOOT-INF/lib/*'),
+                      classpath,
                       '-d', str(classes), *[str(source / name) for name in expected if name.endswith('.java')])
     (release / 'compile.log').write_text(run(javac, '-version') + '\n' + compile_log)
     chat_replacements = {p.relative_to(classes).as_posix(): p.read_bytes()
-                         for p in (classes / 'com/chatchat/chat/uiartifact').glob('*.class')}
+                         for p in (classes / 'com/chatchat/chat').rglob('*.class')}
     api_replacements = {'BOOT-INF/classes/' + p.relative_to(classes).as_posix(): p.read_bytes()
                         for p in (classes / 'com/chatchat/api/runtime/coding/monitor').glob('*.class')}
     deployments = {}
@@ -151,6 +157,14 @@ def main():
     try:
         run(*command, 'up', '-d', '--no-deps', *names)
         receipt['networkNamespace'] = refresh_shared_namespace(compose, command)
+        for attempt in range(120):
+            if all('Agent persistent task dispatch activated after runtime capability bootstrap' in
+                   run('docker', 'logs', '--tail', '500', name) for name in names.values()):
+                receipt['runtimeBootstrap'] = 'PASSED'
+                break
+            if attempt == 119:
+                raise RuntimeError('Runtime capability bootstrap deadline')
+            time.sleep(1)
         ready = False
         for _ in range(120):
             try:

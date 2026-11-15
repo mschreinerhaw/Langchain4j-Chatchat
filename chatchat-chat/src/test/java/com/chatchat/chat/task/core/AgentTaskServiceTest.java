@@ -69,6 +69,31 @@ import static org.mockito.Mockito.when;
 
 class AgentTaskServiceTest {
     @org.junit.jupiter.params.ParameterizedTest
+    @org.junit.jupiter.params.provider.ValueSource(booleans={true,false})
+    void localRecoveryCannotStealDurableQueueTasks(boolean claimed) {
+        var repository=mock(AgentTaskLatestRepository.class);var bus=mock(AgentEventBus.class);
+        var store=mock(AgentEventStore.class);var task=waitingTask("durable-owner");
+        task.setStatus("WAIT_MODEL");
+        if(claimed)task.setClaimToken("api-lease");else task.setRequiredWorkerVersion("1.0");
+        when(repository.findByStatusInOrderByCreateTimeAsc(any())).thenReturn(List.of(task));
+        var service=taskService(bus,store,repository,mock(TaskConfirmRepository.class),new ObjectMapper());
+        assertThat(service.recoverActiveTasks()).isZero();
+        assertThat(task.getStatus()).isEqualTo("WAIT_MODEL");
+        verify(repository,never()).save(any());verify(bus,never()).publish(any(AgentEvent.class));
+    }
+
+    @Test void durableSubmissionRecordsItsQueueOriginBeforeWorkersCanRecoverIt() throws Exception {
+        var repository=mock(AgentTaskLatestRepository.class);var bus=mock(AgentEventBus.class);
+        when(repository.save(any(AgentTaskLatestEntity.class))).thenAnswer(i->i.getArgument(0));
+        var service=taskService(bus,mock(AgentEventStore.class),repository,mock(TaskConfirmRepository.class),new ObjectMapper());
+        Field field=AgentTaskService.class.getDeclaredField("queueCoordinator");field.setAccessible(true);field.set(service,mock(AgentTaskQueueCoordinator.class));
+        service.submit(idempotentRequest("durable-origin","test queue ownership"));
+        var capture=ArgumentCaptor.forClass(AgentTaskLatestEntity.class);
+        verify(repository,times(2)).save(capture.capture());
+        assertThat(capture.getValue().getRequiredWorkerVersion()).isEqualTo("1.0");
+        verify(bus,never()).publish(any(AgentEvent.class));
+    }
+    @org.junit.jupiter.params.ParameterizedTest
     @org.junit.jupiter.params.provider.ValueSource(strings = {"FAILED", "CANCELLED"})
     void retryPreservesTerminalOutcomeAndCreatesNewAttempt(String terminal) throws Exception {
         var mapper = new ObjectMapper();

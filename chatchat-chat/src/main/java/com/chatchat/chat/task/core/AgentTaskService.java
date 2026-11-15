@@ -1018,6 +1018,11 @@ public class AgentTaskService {
         }
         int recovered = 0;
         for (AgentTaskLatestEntity task : tasks.stream().limit(properties.getRecoveryBatchSize()).toList()) {
+            // A worker with the database dispatcher disabled must not recover
+            // tasks owned by the API's durable queue during its own startup.
+            String requiredVersion = task.getRequiredWorkerVersion();
+            if (task.getClaimToken() != null || (requiredVersion != null && !requiredVersion.isBlank()
+                && !requiredVersion.startsWith("in-process-"))) continue;
             String status = normalizeStatus(task.getStatus());
             if ("WAIT_CONFIRMATION".equals(status) || "WAITING_CONFIRM".equals(status)) {
                 pendingConfirmationCommand(task).ifPresent(eventBus::publishConfirmation);
@@ -2051,6 +2056,9 @@ public class AgentTaskService {
             // PENDING rows remain durable in local-queue mode, but must not be visible to
             // database workers belonging to another deployment that shares the database.
             latest.setRequiredWorkerVersion(IN_PROCESS_WORKER_VERSION);
+        } else if (latest.getRequiredWorkerVersion() == null || latest.getRequiredWorkerVersion().isBlank()) {
+            String version = properties.getWorkerVersion();
+            latest.setRequiredWorkerVersion(version == null || version.isBlank() ? "1.0" : version.trim());
         }
         AgentTaskLatestEntity queued = saveTask(latest);
         if (databaseQueueEnabled()) {

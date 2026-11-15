@@ -1,0 +1,9 @@
+Removed obsolete failed-package transport copy; immutable store and history preserved. Bytes: 8099808015
+Exported api schema from sha256:bedc847a8620b362e6e194797c6236346dc5f8abf9e85407dca25e7df641b2a0
+Exported mcp schema from sha256:8e4ce47bbd085aa93162c588922ec4a49a57f297364bcbc8f012e0965d3d468a
+Exported news schema from sha256:bb3eb1e22e3d14582f6df98d83a7cfbe8f31f6ad9b4bce7b80e5adc32fa9a40c
+{"manifest": "/opt/deployment-ops/tests/runtime-os-release/recipe-v5/manifest.json", "assets": "/opt/deployment-ops/tests/runtime-os-release/recipe-v5", "components": 15, "note": "Use build-package.py to pin/export/sign the chosen images. No existing environment was read."}
+Exporting pinned offline images...
+Hashing release payloads...
+Writing signed offline archive...
+{"file": "/opt/deployment-ops/tests/runtime-os-release/runtime-os-source-20261115-r5.ops.zip", "sha256": "f480f75f61a11e531b1705c1dde5babf8c591acd5ca8c8becab0b5f459e8878d", "package": "runtime-os", "version": "source-20261115-r5"}

@@ -1,6 +1,10 @@
 # Deployment Ops
 
-Independent offline Docker operations management. This is a working first release, not completion of every original requirement. See [Test report](docs/TEST-REPORT.md) and [Known issues](docs/KNOWN-ISSUES.md).
+Independent offline Docker operations management. Includes an independent H2 manager and a signed, resumable multi-service offline installer. See [Test report](docs/TEST-REPORT.md) and [Known issues](docs/KNOWN-ISSUES.md).
+
+## Install an OS environment
+
+Start with **Offline packages**, then **Install OS**. The manager starts without PostgreSQL; the OS package provisions its own private application databases and services. Read the [Operator quick start](docs/OPERATOR-QUICKSTART.md), then [Environment installation](docs/ENVIRONMENT-BOOTSTRAP.md) for signing, source-image preparation, profiles, preflight and recovery.
 
 ## Existing installation
 
@@ -80,19 +84,21 @@ sh scripts/offline-images.sh import /new/path/ops-images.tar
 
 ## Web functions
 
+- Install OS: signed multi-service installation, preflight, initialization, progress and compatible recovery.
+- Offline packages: trusted releases, resumable import and version selection.
 - Overview: real application, container, image and node counts.
 - Applications / Containers: discovery, filtering, details, logs, raw metrics, start/stop/restart.
 - Images: local inventory and checksum-verified TAR import.
 - Deployments: single-container manifests, history and rollback.
 - Nodes: executor registration.
-- Application links: manually registered application addresses.
+- Application links: registered addresses plus ready installation links.
 - Users and roles: administrator and read-only viewer accounts.
 - Audit log: authentication and management records.
 - Registry: repository/tag queries when the optional service is available.
 
 The interface is English. Data comes from Docker nodes or the management database, not mock values.
 
-## Managed application deployment
+## Legacy stateless application deployment
 
 1. Use docker save on a preparation machine to produce an image TAR; compute its SHA-256 offline.
 2. In Images, select the target node and upload the TAR. Supply SHA-256 manually over HTTP when browser Web Crypto is unavailable. Limits: Web 256 MiB; executor 2 GiB.

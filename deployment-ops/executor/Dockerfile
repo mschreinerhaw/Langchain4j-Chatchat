@@ -1,5 +1,5 @@
 FROM python:3.11-slim
 WORKDIR /app
-COPY executor/agent.py .
+COPY executor/*.py ./
 ENV PYTHONDONTWRITEBYTECODE=1
 CMD ["python","agent.py"]

@@ -10,3 +10,7 @@ test-artifacts/
 **/*.mv.db
 **/*.trace.db
 **/*.lock.db
+
+*.ops.zip
+*.der
+trust/*.json

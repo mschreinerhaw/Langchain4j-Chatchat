@@ -1,8 +1,9 @@
-import unittest,importlib.util,os,tempfile,json
+import unittest,importlib.util,os,tempfile,json,sys
 from unittest.mock import patch
 os.environ['EXECUTOR_TOKEN']='test-token'
 _tmp=tempfile.TemporaryDirectory();os.environ['OPS_STATE']=_tmp.name
 from pathlib import Path
+sys.path.insert(0,str(Path(__file__).resolve().parents[1]/'executor'))
 spec=importlib.util.spec_from_file_location('agent',Path(__file__).resolve().parents[1]/'executor/agent.py');a=importlib.util.module_from_spec(spec);spec.loader.exec_module(a)
 class SafetyTests(unittest.TestCase):
  def test_reject_invalid_id(self):

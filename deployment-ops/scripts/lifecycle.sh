@@ -15,6 +15,8 @@ case "${1:-}" in
   docker compose cp web:/data "$folder/data"
   docker compose cp executor:/state "$folder/executor-state"
   cp .env "$folder/environment"
+  if [ -d trust ]; then cp -R trust "$folder/trust"; fi
+  printf '%s\n' 'Keep the immutable ops-packages volume or original signed offline releases separately; image archives are not duplicated by this metadata backup.' > "$folder/PACKAGES.txt"
   printf '%s\n' 'H2 offline backup; restore only while Web and executor are stopped.' > "$folder/README.txt"
   touch "$folder/COMPLETE"
   docker compose start executor web
@@ -22,6 +24,7 @@ case "${1:-}" in
   echo "Backup: $folder; store a secured copy on another disk."
   ;;
  upgrade)
+  docker image inspect eclipse-temurin:17-jdk-jammy python:3.11-slim >/dev/null
   docker compose config --quiet
   sh scripts/lifecycle.sh backup
   docker image tag deployment-ops-web:1.0.0 deployment-ops-web:recovery

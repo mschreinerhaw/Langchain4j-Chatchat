@@ -3,3 +3,5 @@
 .row-menu{display:inline-block;vertical-align:middle;margin:3px}.row-menu summary{font-size:10px;cursor:pointer;color:#5b7486;padding:5px 8px;border:1px solid var(--line);border-radius:6px}.row-menu[open]{display:block;padding:8px;background:#f6f9fb;border-radius:7px}.row-menu[open] summary{border:0}.section-tools~p{font-size:12px}
 
 .steps{width:100%}
+
+progress{width:100%;height:12px;accent-color:var(--teal)}input[type=checkbox]{width:20px;height:20px}.installation-review{width:100%}.installation-review li{font-size:12px;padding:5px}.installation-review li small{color:var(--muted)}

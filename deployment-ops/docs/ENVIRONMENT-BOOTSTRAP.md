@@ -1,71 +1,109 @@
-# Product direction: install Runtime OS into a new environment
+# Install Runtime OS in a new environment
 
-## Purpose
+The product starts with an independent H2 management service, then installs Runtime OS and its dependencies. PostgreSQL is an application component, never a prerequisite for the manager.
 
-The primary product is an offline installation and upgrade entry point for Runtime OS and its applications across different customer environments. Container operations are supporting diagnostics, not the primary installation experience.
+## Operator workflow
 
-A new environment must not already have Runtime OS, its database, its scheduler, or its registry. The deployment manager must start first and remain usable when those managed services are unavailable.
+1. Install Docker Engine 26+ and Compose v2 from offline media.
+2. Verify and load the manager image bundle, then run `scripts/install-offline.sh`. Preserve its generated credentials and dedicated volumes.
+3. Register the target executor. On each target, provision the release publisher public key under `trust/<key-id>.json` using a trusted administrative channel. Restart/recreate the executor only when no installation is running.
+4. Open **Offline packages**, select the target, choose the signed `.ops.zip` and enter its published SHA-256. Upload uses durable 4 MiB chunks; reopening with the same file/checksum resumes it. Verification runs on disk, outside H2.
+5. Open **Install OS**, choose the release and node, give the environment a unique name, and enter its private address, available ports, real license host MAC and a new administrator password.
+6. Review preflight and dependency order. Start installation, follow component progress/logs, and open the resulting application links after verification succeeds.
+7. Export a profile to reuse non-secret configuration on another environment. Change its environment name/address/ports; supply new secrets. A profile is configuration, not a database backup.
 
-## Two separate data layers
+For existing environments, leave secret fields blank to retain the current credentials. Credential rotation is blocked until it has a dedicated verified workflow. The environment name determines ownership and is not a cosmetic rename.
 
-1. Management data: local H2 embedded file database, owned by deployment-ops. It stores local accounts, registered nodes, links, audit records, and future installation plans. No PostgreSQL service is required to start it.
-2. Application data: databases and persistent storage needed by Runtime OS or another package. These are installed as managed components, or explicitly mapped to approved existing services. They must never be reused as the manager's own storage.
+## Prepare a release from source
 
-The default manager is one Java process opening one local H2 file database. Do not share that file between replicas or across a network filesystem. If control-plane HA is required later, design a separate storage and failover mode rather than sharing an embedded file.
+Use Python 3.11+ for release preparation. Build application images from the reviewed source on the release server, using its offline dependency caches. The target machine consumes pinned images and does not need Maven/npm/pip. No live application data, environment files or credentials are copied into a release.
 
-## New environment path
+The repository Cline adapter can also be built from source with a prepared npm cache, without package downloads:
 
-1. Prepare Linux and a supported Docker Engine/Compose installation from offline media.
-2. Copy the deployment-ops bootstrap bundle and verify its checksums.
-3. Run scripts/install-offline.sh with the manager image TAR. It loads images, checks the manager/executor image OS and CPU architecture against Docker, generates unique local credentials if missing, and starts Web plus executor with a local H2 volume.
-4. Open the manager and import/select a compatible Runtime OS installation package.
-5. Choose the target node and environment-specific parameters.
-6. Run preflight and show a clear installation review.
-7. Install required infrastructure services, initialize application schemas, deploy Runtime OS, then deploy optional applications in dependency order.
-8. Run health checks, record the installed versions, and show ready-to-open application links.
+```sh
+python3 scripts/prepare-coding-adapter.py --source /source/coding-agent-node \
+  --npm-cache /offline/npm-cache --base-image node:24-bookworm-slim \
+  --output /large-disk/coding-adapter-context
+# First load the matching Node base image from offline media.
+docker image inspect node:24-bookworm-slim
+docker build --pull=false --network=none \
+  -t deployment-ops-coding-adapter:source /large-disk/coding-adapter-context
+```
 
-Steps 1-3 are implemented for the manager. Steps 4-8 describe the next product workflow for a full multi-service OS package; the current single-container wizard is not a complete OS installer.
+The preparer checks every npm tarball against `package-lock.json`, copies only explicit application source and required public package cache entries, and strips authentication headers from cache metadata. The server compiles the existing adapter and checks its actual bundled skills. No application SDK changes or online install scripts are introduced. Use this adapter image as `--node-image` below.
 
-## Offline package contract (next implementation)
+Prepare the search image from trusted, unpacked offline vendor plugins for OpenSearch 2.19.1:
 
-A release package should contain:
+```sh
+python3 scripts/prepare-search-image.py --plugins /media/opensearch-plugins \
+  --output /large-disk/search-image-context --build
+```
 
-- Immutable package identity, Runtime OS version, supported CPU architectures and compatible upgrade source versions.
-- Exact component image references/digests and their offline TAR files.
-- Parameter schema with required values, defaults, constraints, secret flags and environment-specific overrides.
-- Component dependency graph, health gates, persistent data ownership and port mappings.
-- Explicit application schema initialization/migration steps executed by approved components, not arbitrary uploaded host shell scripts.
-- SHA-256 inventory and a trusted signature/verification policy.
-- Upgrade compatibility rules and recovery instructions, including data migration limitations.
+The media directory contains `analysis-icu`, `analysis-ik` and `analysis-pinyin`. The builder checks engine versions, records software checksums and generates fresh dictionary settings. Preserve vendor licenses with the artifacts. Running search settings, indexes and business data are not release inputs. The recipe defaults to `deployment-ops-opensearch:2.19.1-offline` and verifies its plugin list before preparing a release.
 
-Environment configuration is separate from the immutable release: private IP/domain, host ports, storage roots, secrets, resource settings and new-versus-existing application database choices. Exported reusable profiles must omit secrets by default.
+Generate an offline publisher key using the built manager image (keep the private key outside source control):
 
-Do not require target-side Maven/npm/pip downloads, an online registry, or per-environment application source changes. The release preparation environment builds images once for each supported architecture; the target imports and configures them offline.
+```sh
+mkdir -m 700 /secure/runtime-signing
+# Use a host path appropriate to the release server.
+docker run --rm --network none --user 0:0 \
+  --mount type=bind,source=/secure/runtime-signing,target=/keys \
+  deployment-ops-web:1.0.0 java -cp 'classes:lib/*' PackageSigner \
+  keygen /keys/private.der /keys/public.json runtime-os-release
+```
 
-## Preflight requirements
+Copy only `public.json` to each target's `trust/runtime-os-release.json`. Verify its fingerprint through the offline distribution channel. Do not offer a Web endpoint for adding trust keys.
 
-Check package integrity, architecture, Docker/Compose compatibility, disk capacity for both archives and extracted layers, memory requirements from package metadata, host port conflicts, writable managed storage, dependency availability and upgrade compatibility. Do not invent fixed capacity requirements without measurements for the real OS package.
+```sh
+python3 scripts/prepare-runtime-os.py \
+  --api-image YOUR_SOURCE_API_IMAGE --mcp-image YOUR_SOURCE_MCP_IMAGE \
+  --news-image YOUR_SOURCE_NEWS_IMAGE --node-image YOUR_SOURCE_NODE_IMAGE \
+  --gateway-image YOUR_SOURCE_GATEWAY_IMAGE \
+  --version YOUR_RELEASE --output /large-disk/runtime-recipe
+python3 scripts/build-package.py \
+  --manifest /large-disk/runtime-recipe/manifest.json \
+  --assets /large-disk/runtime-recipe \
+  --private-key /secure/runtime-signing/private.der --key-id runtime-os-release \
+  --signer-image deployment-ops-web:1.0.0 \
+  --output /large-disk/runtime-YOUR_RELEASE.ops.zip
+```
 
-Existing database integration must be explicitly selected and tested without destructive initialization. New managed databases receive dedicated volumes and credentials. Never erase or reinitialize an existing data directory as a retry strategy.
+For a package already copied to the target server, the host administrator can avoid a browser upload with `python3 scripts/import-package.py /large-disk/runtime-YOUR_RELEASE.ops.zip`. It prompts for the management password, creates the same audited upload, copies only into its generated staging ID on the local Compose executor, then invokes the same signature and payload verification. This local CLI requires Docker host administration access and is not a Web shell capability. Remote nodes use resumable Web upload.
 
-## Execution and recovery
+The preparation script bundles reviewed configuration and exports PostgreSQL DDL from the exact selected application images. The release-time exporter uses their packaged JPA classes and actual entity package scopes in a network-disabled JDK container, without starting application services or reading a live database. This includes knowledge-base entities scanned by MCP which the older repository MCP-only SQL omitted. `--repository-schema` is an explicit fallback only for releases whose committed DDL has been verified against the selected image scope. Select explicit infrastructure images with its command-line options; defaults include PostgreSQL 18, Redis, OpenSearch and Temporal. The PostgreSQL mount layout is for version 18. Other major versions need a reviewed recipe, not only a changed image argument. Every selected image must already exist locally. Optional `--image-archive` reuses a reviewed Docker-save TAR after checking that it contains every selected image ID. `--store-images` trades archive size for faster packaging; allow the extra disk space. `build-package.py` exports a deduplicated Docker-save TAR, pins image IDs/platforms, hashes every payload and signs the inventory with RSA/SHA-256. Use a new output path for every release.
 
-The independent executor should persist each installation step, target environment, package version and result before advancing. Retrying a failed plan must reconcile owned resources and resume, not create duplicates. Ownership is scoped to an environment and package; discovered unrelated containers remain untouched.
+This recipe uses the repository SDK adapter profile (`chatchat.coding.cline.backend=sdk`), with its image health probe and existing callback protocol. A raw Standalone native-worker image is not a drop-in adapter image. Existing governed native executors/daemons remain separately managed deployments; this recipe does not copy their live configuration or bypass their dedicated-daemon policy.
 
-Health success gates each dependency stage. Keep the last compatible version and persistent data. Container rollback alone does not reverse a destructive database migration. Such upgrades require an explicit backup and tested data recovery plan.
+The complete recipe includes private PostgreSQL databases and transactional schema initialization, Temporal and its own database, Redis authentication, a private search CA/security setup, News, MCP, API, the repository Cline SDK adapter, its private proxy, an HTTP gateway and an authenticated administrator verification job. It generates fresh internal credentials compatible with the existing OS encryption format and seeds the initial MCP administrator using the supplied OS administrator password. Existing administrator rows are never overwritten. The OS license and model configuration remain real application prerequisites; no license or model service is fabricated.
 
-The manager's own upgrade remains an external host-owned operation. Its local database, credentials and executor journals are backed up together. Its recovery must not depend on starting Runtime OS.
+Fresh API initialization also publishes the repository's formal default Runtime semantic policy when absent. This required configuration comes from the reviewed migration source, with its source checksum recorded in the asset. Startup validation remains enabled. The final verification requires OS and MCP login/identity checks to stay successful through a readiness window.
 
-## Large packages
+## Package contract
 
-A complete OS bundle may exceed the current 256 MiB Web import and 2 GiB executor limit. The full installer needs resumable streaming into a quota-controlled persistent staging area, path/symlink checks, archive size limits, integrity verification and explicit retention. Do not put images into H2 or buffer multi-gigabyte packages in Web memory/tmpfs.
+A ZIP contains `manifest.json`, `checksums.json`, `signature.json` and the exact signed payload inventory. Image TARs and configuration files are payloads. Paths must be relative ASCII paths without traversal, symlinks or duplicates. The trusted key verifies the signed inventory before image loading or container creation. All required images must match immutable `sha256:` IDs and the target CPU/OS. Existing tags may not be replaced with different images.
 
-## Current delivery boundary
+`manifest.json` declares schemaVersion 1, name/version/platform, images, typed parameters, named volumes, components, dependency edges, health gates, links, capacity requirements and upgrade compatibility. Components are services, bounded initialization/verification jobs or explicit private TCP dependencies. Container commands are reviewed, signed application instructions; the Web API provides no host shell, host bind mounts, devices, privileged mode or Docker socket for workloads. Limited capabilities are explicitly allowlisted.
 
-Implemented now: embedded H2 manager storage; offline manager bootstrap; independent file backup; one-time legacy PostgreSQL management-data migration tooling; existing single-container application deployment.
+See the generated Runtime OS manifest and `tests/test_installations.py` for executable examples. External-service recipes require their own non-destructive verification jobs; the supplied Runtime OS recipe provisions new isolated databases.
 
-Still required: package catalog/import, parameter profiles, dependency-aware OS execution, owned named-volume provisioning, schema initialization jobs, durable plan progress and full OS installation acceptance on a clean target. These are functional work, not another UI-only redesign.
+## Capacity and data protection
 
-## Repeat the bootstrap acceptance check
+Packages default to a 16 GiB compressed limit and use the persistent `ops-packages` volume with a 1 GiB free-space reserve. Ensure enough space for the compressed upload, uncompressed archive and Docker's layer storage. Streaming avoids loading large archives into Web memory. Shared archive blobs are deduplicated; existing images and volumes are never pruned automatically. Failed staging may be retained for operator diagnosis. Check the filesystem actually backing `/opt` and Docker, not only `/`.
 
-On a Linux Docker host with the built manager/executor images loaded, run `python3 tests/bootstrap-smoke.py`. It starts a separate deployment-ops-bootstrap-check Compose project on loopback port 19224, verifies local credential generation, H2 storage, exactly two services and repeat-install data preservation, then removes only its own labeled test containers/volumes. It refuses to reuse an existing fixture directory. No managed application is deployed or controlled.
+Preflight checks signature/content, architecture, real available memory, disk, immutable images, host/container port conflicts, resource ownership and declared upgrade compatibility. Owned resources are named `ops-env-<environment>-<component>` and carry installation labels. Existing unrelated resources are never adopted by name alone.
+
+Upgrade capacity credits only anonymous resident memory already used by this environment, sampled from Docker. Reclaimable file cache receives no extra credit because it is already included in available host memory. A new environment must meet the full declared budget.
+
+## Recovery and upgrades
+
+The executor persists redacted jobs plus private resolved plans under `ops-state`, including per-step progress. Initialization jobs must declare a safe retry contract. Executor restart marks unfinished work interrupted; **Resume safely** reconciles only owned resources and retains data. Cancellation stops newly created services and retains volumes and diagnostic containers.
+
+Compatible upgrades require `--upgrade-from OLD_VERSION` when preparing a release, which declares backward-compatible application data. Initialization jobs are skipped on upgrade. Data-changing always-run jobs and changes to schema-sensitive infrastructure image IDs are blocked. Retained previous containers enable manual rollback, and failed health gates automatically restore/recheck a compatible previous version. Rollback changes containers/configuration; it never rewinds database contents. Destructive schema migrations require a separate tested backup/recovery procedure.
+
+**Stop environment** and **Start environment** act in dependency order and retain all volumes. Do not use individual container controls for installation-owned services. Keep manager/executor journals, H2, trust keys and original signed packages together in your recovery plan. The cold lifecycle backup includes H2/state/config/trust; keep the large immutable package volume or offline release media separately.
+
+The manager's own upgrade uses the independent host lifecycle script and does not depend on Runtime OS. Do not run Compose recreation while an installation is active unless intentionally testing interruption.
+
+## Acceptance scope
+
+See TEST-REPORT.md for measured results. Same-host isolated environments exercise real Docker, SQL, health gates and recovery. They do not prove a second physical node, whole-server disconnection or a fully licensed business workflow. `tests/bootstrap-smoke.py` separately verifies manager bootstrap without PostgreSQL.

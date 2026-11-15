@@ -13,3 +13,15 @@ test-artifacts/
 *.trace.db
 *.lock.db
 tests/bootstrap-check/
+
+*.der
+*.ops.zip
+trust/*.json
+
+tests/installation-fixture/
+tests/runtime-os-release/
+
+tests/coding-adapter-build*/
+
+tests/search-vendor-artifacts/
+tests/search-image-build/

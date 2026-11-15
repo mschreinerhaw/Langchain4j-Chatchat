@@ -11,9 +11,9 @@ const artifacts=process.env.OPS_TEST_ARTIFACTS || 'test-artifacts';fs.mkdirSync(
  if(await page.locator('#notice').innerText())throw Error('Unexpected initial login error');
  await page.screenshot({path:path.join(artifacts,'login-english.png'),fullPage:true});
  await page.locator('[name=username]').fill('admin');await page.locator('[name=password]').fill(process.env.OPS_TEST_PASSWORD);await page.locator('#loginForm button').click();
- await page.locator('#content .cards').waitFor();
- const nav=await page.locator('[data-page]').evaluateAll(bs=>bs.map(b=>({id:b.dataset.page,label:b.textContent})));
- if(nav.length!==10||new Set(nav.map(n=>n.id)).size!==10||new Set(nav.map(n=>n.label)).size!==10)throw Error('Duplicate navigation');
+ await page.locator('#content h2').waitFor();
+ const nav=await page.locator('[data-page]').evaluateAll(bs=>bs.map(b=>({id:b.dataset.page,label:b.querySelector("span").textContent})));
+ if(nav.length!==12||new Set(nav.map(n=>n.id)).size!==12||new Set(nav.map(n=>n.label)).size!==12)throw Error('Duplicate navigation');
  const report=[];
  for(const item of nav){
   await page.locator(`[data-page="${item.id}"]`).click();

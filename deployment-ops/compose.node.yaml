@@ -11,6 +11,8 @@ services:
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
       - node-state:/state
+      - node-packages:/packages
+      - ./trust:/trust:ro
       - ./tls:/tls:ro
     ports: ["${NODE_BIND:?set private IP}:8091:8091"]
     networks: [apps]
@@ -22,3 +24,4 @@ networks:
   apps: {}
 volumes:
   node-state:
+  node-packages:

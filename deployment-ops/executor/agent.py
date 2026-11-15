@@ -78,7 +78,25 @@ def cid(v):
 def protected(v):
  info=docker('GET','/containers/'+cid(v)+'/json'); labels=info['Config'].get('Labels') or {}
  if labels.get('com.docker.compose.project')=='deployment-ops': raise ValueError('system containers require external recovery procedure')
+ if labels.get('deployment-ops.installation')=='true':raise ValueError('Use the installation workflow for this container')
  return info
+def raw_put(path,data):
+ c=UnixHTTP('localhost');c.request('PUT','/v1.45'+path,data,{'Content-Type':'application/x-tar'});r=c.getresponse();body=r.read();c.close()
+ if r.status>=300:raise ValueError('Docker config injection failed')
+def raw_load(file):
+ with open(file,'rb') as source:
+  c=UnixHTTP('localhost');c.putrequest('POST','/v1.45/images/load?quiet=1');c.putheader('Content-Type','application/x-tar');c.putheader('Content-Length',str(file.stat().st_size));c.endheaders();c.sock.settimeout(1800)
+  for block in iter(lambda:source.read(1024**2),b''):c.send(block)
+  response=c.getresponse();data=response.read();c.close()
+  if response.status>=300:raise ValueError('Docker image import failed')
+  for line in data.splitlines():
+   try:
+    if json.loads(line).get('error'):raise ValueError('Docker rejected the image archive')
+   except json.JSONDecodeError:pass
+from package_store import PackageStore,MAX_CHUNK
+from installations import Installer
+STORE=None
+INSTALLER=None
 class Handler(BaseHTTPRequestHandler):
  def log_message(self,*a):pass
  def do_GET(self): self.handle_request()
@@ -88,7 +106,11 @@ class Handler(BaseHTTPRequestHandler):
    if not hmac.compare_digest(self.headers.get('Authorization',''),'Bearer '+TOKEN): return self.send(401,{'error':'executor authentication required'})
    path=self.path
    if self.command=='GET':
-    if path=='/releases':
+    if path=='/packages':result=STORE.catalog()
+    elif re.fullmatch('/packages/uploads/[a-f0-9]{32}',path):result=STORE.upload_status(path.rsplit('/',1)[-1])
+    elif path=='/installations':result=INSTALLER.list()
+    elif re.fullmatch('/installations/[a-f0-9]{32}',path):result=INSTALLER.get(path.rsplit('/',1)[-1])
+    elif path=='/releases':
      result=[json.loads(f.read_text()) for f in sorted(STATE.glob('*.json'),reverse=True)]
     elif path=='/registry':
      url=os.getenv('REGISTRY_URL','http://registry:5000')
@@ -103,9 +125,27 @@ class Handler(BaseHTTPRequestHandler):
      info=docker('GET','/info'); result={'containers':docker('GET','/containers/json?all=1'),'images':docker('GET','/images/json'),'node':{k:info.get(k) for k in ['Name','NCPU','MemTotal','ContainersRunning','DockerRootDir','ServerVersion','ID']},'collectedAt':time.time()}
     elif re.fullmatch('/containers/[a-f0-9]{12,64}/(logs|stats|inspect)',path):
      _,_,v,action=path.split('/'); suffix={'logs':'logs?stdout=1&stderr=1&timestamps=1&tail=200','stats':'stats?stream=false','inspect':'json'}[action]; result=docker('GET','/containers/'+v+'/'+suffix)
+     if action=='inspect' and self.headers.get('X-Ops-Role')!='admin':
+      for field in ('Env','Cmd','Entrypoint','Healthcheck'):result.get('Config',{}).pop(field,None)
     else: return self.send(404,{'error':'unsupported route'})
    else:
-    if path=='/releases':
+    if INSTALLER and INSTALLER.busy and not (path.startswith('/packages/') or path.startswith('/installations')):raise ValueError('An installation is running on this node; retry the operation after it finishes')
+    if path.startswith('/packages/') or path.startswith('/installations'):
+     size=int(self.headers.get('Content-Length','0'));limit=MAX_CHUNK if re.fullmatch('/packages/uploads/[a-f0-9]{32}/[0-9]+',path) else 1024**2
+     if not 0<=size<=limit:raise ValueError('Request size exceeds allowed limit')
+     data=self.rfile.read(size)
+     if len(data)!=size:raise ValueError('Incomplete request')
+     if re.fullmatch('/packages/[a-f0-9]{64}/retire',path):result=STORE.retire(path.split('/')[2],self.headers.get('X-Ops-Actor','executor-admin'))
+     elif path=='/packages/uploads':result=STORE.create_upload(json.loads(data))
+     elif re.fullmatch('/packages/uploads/[a-f0-9]{32}/[0-9]+',path):
+      parts=path.split('/');result=STORE.chunk(parts[3],int(parts[4]),data)
+     elif re.fullmatch('/packages/uploads/[a-f0-9]{32}/commit',path):result=STORE.begin_commit(path.split('/')[3],LOCK)
+     elif path=='/installations/preflight':result=INSTALLER.preflight(json.loads(data))
+     elif path=='/installations':result=INSTALLER.submit(json.loads(data),self.headers.get('X-Ops-Actor','executor-admin'))
+     elif re.fullmatch('/installations/[a-f0-9]{32}/(resume|cancel|rollback|stop|start)',path):
+      _,_,ident,action=path.split('/');result=INSTALLER.control(ident,action,self.headers.get('X-Ops-Actor','executor-admin')) if action in ('stop','start') else INSTALLER.rollback(ident,self.headers.get('X-Ops-Actor','executor-admin')) if action=='rollback' else getattr(INSTALLER,action)(ident)
+     else:return self.send(404,{'error':'Unsupported package/installation operation'})
+    elif path=='/releases':
      size=int(self.headers.get('Content-Length','0'))
      if not 0<size<=65536:raise ValueError('manifest size invalid')
      spec=json.loads(self.rfile.read(size))
@@ -176,6 +216,8 @@ def recover_pending():
   file.write_text(json.dumps(record))
 if __name__=='__main__':
  recover_pending()
+ STORE=PackageStore(os.getenv('OPS_PACKAGES','/packages'),os.getenv('OPS_TRUST','/trust'),docker,raw_load)
+ INSTALLER=Installer(STATE/'installations',STORE,docker,raw_put,LOCK)
  server=ThreadingHTTPServer(('0.0.0.0',8091),Handler)
  if os.getenv('TLS_CERT'):
   import ssl

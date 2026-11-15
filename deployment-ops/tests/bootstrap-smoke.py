@@ -32,7 +32,7 @@ try:
  assert before==(fixture/'.env').read_bytes();assert any(e['name']=='Fresh environment proof' for e in req('/entries'));print('Repeated bootstrap preserves credentials and existing management data PASS',flush=True)
 finally:
  print(run(['docker','compose','down']),flush=True)
- for name in ['deployment-ops-bootstrap-check_ops-data','deployment-ops-bootstrap-check_ops-state']:
+ for name in ['deployment-ops-bootstrap-check_ops-data','deployment-ops-bootstrap-check_ops-state','deployment-ops-bootstrap-check_ops-packages']:
   project=run(['docker','volume','inspect','--format','{{index .Labels "com.docker.compose.project"}}',name])
   assert project=='deployment-ops-bootstrap-check'
   run(['docker','volume','rm',name])

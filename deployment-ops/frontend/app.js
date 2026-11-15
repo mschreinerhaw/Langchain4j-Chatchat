@@ -1,7 +1,7 @@
 const $ = s => document.querySelector(s);
 const esc = v => String(v ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-const pages = {overview:'Overview', applications:'Applications', containers:'Containers', images:'Images', deployments:'Deployments', registry:'Registry', nodes:'Nodes', entries:'Application links', users:'Users and roles', audit:'Audit log'};
-let page = 'overview', nodes = [], generation = 0, currentUser = {}, latestInventory = [], nextFilter = '';
+const pages = {installations:'Install OS',packages:'Offline packages',overview:'Overview', applications:'Applications', containers:'Containers', images:'Images', deployments:'Deployments', registry:'Registry', nodes:'Nodes', entries:'Application links', users:'Users and roles', audit:'Audit log'};
+let page = 'installations', nodes = [], generation = 0, currentUser = {}, latestInventory = [], nextFilter = '';
 function session(active) {
   $('#login').hidden = !active; $('#content').hidden = active;
   for (const id of ['nav','logout','refresh']) $('#'+id).hidden = active;
@@ -37,6 +37,7 @@ async function renderPage() {
   session(false); $('#title').textContent = pages[selected];
   document.querySelectorAll('[data-page]').forEach(b=>b.classList.toggle('active',b.dataset.page===selected));
   const el = $('#content'); el.innerHTML = '<p>Loading...</p>';
+  if(['installations','packages'].includes(selected)){await renderInstallationPages(selected,el,current);return;}
   if (selected === 'audit') {
     const records=await api('/audit'); if(current!==generation)return;
     el.innerHTML='<h2>Recent operations</h2>'+table(['Time','Actor','Action','Target','Result'],records.map(a=>row([a.created_at,a.actor,a.action,a.target,a.outcome].map(esc)))); return;

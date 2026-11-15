@@ -1,0 +1,6 @@
+{
+  "taskId": "4d6e3f23-bdae-4fda-882f-80d7ccdc0821",
+  "status": "FAILED",
+  "errorMessage": "Failed to persist artifact object resources/answer.json",
+  "questionSha256": "e09d6e6dcedc488542d8229b5cbf33bc04cfcd47d58a339b8cd1b117f99f42ba"
+}

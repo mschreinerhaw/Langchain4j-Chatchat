@@ -1,0 +1,107 @@
+{
+  "status": "PASSED",
+  "containers": [
+    {
+      "service": "temporal-control-api",
+      "name": "/runtime-native-temporal-api",
+      "image": "sha256:6abf06ac4fa5a900b70f76650bccd4c9c315b1e81b8ff365a0a39a2227a01b93",
+      "running": true,
+      "paused": false,
+      "networkMode": "3361532634b80c369ca3d0d2706ab45a9009884df2ba0c7b9b80ac47c6eb7ed4"
+    },
+    {
+      "service": "worker1",
+      "name": "/runtime-native-temporal-worker1",
+      "image": "sha256:6abf06ac4fa5a900b70f76650bccd4c9c315b1e81b8ff365a0a39a2227a01b93",
+      "running": true,
+      "paused": false,
+      "networkMode": "container:315aa70edcb10dbc2715487d61288f471087ee17a6b4efa65226887c3d1d7398"
+    },
+    {
+      "service": "worker2",
+      "name": "/runtime-native-temporal-worker2",
+      "image": "sha256:bedc847a8620b362e6e194797c6236346dc5f8abf9e85407dca25e7df641b2a0",
+      "running": true,
+      "paused": false,
+      "networkMode": "container:315aa70edcb10dbc2715487d61288f471087ee17a6b4efa65226887c3d1d7398"
+    },
+    {
+      "service": "node1",
+      "name": "/runtime-native-temporal-node1",
+      "image": "sha256:bda9994501df943d272071bf970bf1209b915c1db8ccad4f5c776d86f8156bd1",
+      "running": true,
+      "paused": false,
+      "networkMode": "container:315aa70edcb10dbc2715487d61288f471087ee17a6b4efa65226887c3d1d7398"
+    },
+    {
+      "service": "recovery1",
+      "name": "/runtime-native-temporal-recovery1",
+      "image": "sha256:bda9994501df943d272071bf970bf1209b915c1db8ccad4f5c776d86f8156bd1",
+      "running": true,
+      "paused": false,
+      "networkMode": "container:315aa70edcb10dbc2715487d61288f471087ee17a6b4efa65226887c3d1d7398"
+    },
+    {
+      "service": "executor1",
+      "name": "/runtime-native-temporal-executor1",
+      "image": "sha256:bda9994501df943d272071bf970bf1209b915c1db8ccad4f5c776d86f8156bd1",
+      "running": true,
+      "paused": false,
+      "networkMode": "host"
+    },
+    {
+      "service": "node2",
+      "name": "/runtime-native-temporal-node2",
+      "image": "sha256:708efd1310ce6112f649c841271eeba9653f160454b922ef96204467f75c32b7",
+      "running": true,
+      "paused": false,
+      "networkMode": "container:315aa70edcb10dbc2715487d61288f471087ee17a6b4efa65226887c3d1d7398"
+    },
+    {
+      "service": "recovery2",
+      "name": "/runtime-native-temporal-recovery2",
+      "image": "sha256:bda9994501df943d272071bf970bf1209b915c1db8ccad4f5c776d86f8156bd1",
+      "running": true,
+      "paused": false,
+      "networkMode": "container:315aa70edcb10dbc2715487d61288f471087ee17a6b4efa65226887c3d1d7398"
+    },
+    {
+      "service": "executor2",
+      "name": "/runtime-native-temporal-executor2",
+      "image": "sha256:708efd1310ce6112f649c841271eeba9653f160454b922ef96204467f75c32b7",
+      "running": true,
+      "paused": false,
+      "networkMode": "host"
+    },
+    {
+      "service": "temporal",
+      "name": "/runtime-native-temporal-server",
+      "image": "sha256:475c66b65627b0d2d4a79c8943280b7faec46be24d9652d5e8d0ee710338249a",
+      "running": true,
+      "paused": false,
+      "networkMode": "container:315aa70edcb10dbc2715487d61288f471087ee17a6b4efa65226887c3d1d7398"
+    },
+    {
+      "service": "studio-gateway",
+      "name": "/runtime-coding-studio-gateway",
+      "image": "sha256:39ecc43078dfabb19412ec4a8360e6d48c72aa85aeb38e43ff652fbb3d03d8bd",
+      "running": true,
+      "paused": false,
+      "networkMode": "container:315aa70edcb10dbc2715487d61288f471087ee17a6b4efa65226887c3d1d7398"
+    }
+  ],
+  "projectionDuplicateErrorsSinceFinalApiStart": 0,
+  "apiStartedAt": "2026-11-15T01:08:14.562800439Z",
+  "optDisk": {
+    "total": 193179156480,
+    "used": 124386037760,
+    "free": 68793118720
+  },
+  "postgresLogging": {
+    "Type": "json-file",
+    "Config": {
+      "max-file": "3",
+      "max-size": "100m"
+    }
+  }
+}

@@ -1,0 +1,11 @@
+{
+  "container": "/postgresql18",
+  "archivedBytes": 74527328098,
+  "rawSha256": "4cb378a6dd07fe5cafb5ef74fb997178b0ffb01c9db769dcf300a6314b66f24e",
+  "compressedBytes": 3897250934,
+  "seconds": 375.91,
+  "archive": "/var/backups/runtime-os-storage-20261115/postgresql-json.log.gz",
+  "volumesModified": false,
+  "status": "ARCHIVED_AND_ROTATED",
+  "archiveVerification": "FULL_DECOMPRESSION_SHA256_PASSED"
+}

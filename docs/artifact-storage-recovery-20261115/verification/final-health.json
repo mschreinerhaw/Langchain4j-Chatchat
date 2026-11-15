@@ -1,0 +1,18 @@
+{
+  "nodes": [
+    {
+      "name": "runtime-native-temporal-node1",
+      "live": true,
+      "activeWorkers": 0
+    },
+    {
+      "name": "runtime-native-temporal-node2",
+      "live": true,
+      "activeWorkers": 0
+    }
+  ],
+  "monitorProjectionLagging": false,
+  "optFreeBytes": 68704718848,
+  "publicEntry": 18100,
+  "status": "PASSED"
+}

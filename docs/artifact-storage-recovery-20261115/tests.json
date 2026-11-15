@@ -1,0 +1,64 @@
+{
+  "status": "PASSED",
+  "java": [
+    {
+      "name": "com.chatchat.api.datascience.sql.SqlStudioIntegrationTest",
+      "tests": 44,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    {
+      "name": "com.chatchat.api.runtime.coding.analysis.CodingAnalysisServiceTest",
+      "tests": 70,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    {
+      "name": "com.chatchat.api.runtime.coding.monitor.CodingMonitorProjectionReplayTest",
+      "tests": 2,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    {
+      "name": "com.chatchat.api.runtime.coding.workspace.CodingWorkspaceServiceTest",
+      "tests": 15,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    {
+      "name": "com.chatchat.chat.task.core.AgentTaskServiceTest",
+      "tests": 47,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    {
+      "name": "com.chatchat.chat.uiartifact.UiArtifactFailureRecoveryTest",
+      "tests": 2,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    {
+      "name": "com.chatchat.chat.uiartifact.UiArtifactServiceTest",
+      "tests": 19,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    }
+  ],
+  "javaTotal": 199,
+  "pythonDeployment": 2,
+  "uiSql": 205,
+  "uiPython": 16,
+  "frontendBuilds": [
+    "API integrated source",
+    "MCP source"
+  ],
+  "node24TestOption": "--no-experimental-webstorage",
+  "sqlglot": "30.23.0 (hash-locked isolated venv)"
+}

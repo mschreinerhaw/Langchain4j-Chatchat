@@ -1,0 +1,3 @@
+javac 17.0.5
+Note: /opt/runtime-os/releases/artifact-storage-recovery-20261115-r2/source/chatchat-chat/src/main/java/com/chatchat/chat/task/core/AgentTaskService.java uses unchecked or unsafe operations.
+Note: Recompile with -Xlint:unchecked for details.

@@ -1,0 +1,17 @@
+{
+  "status": "PASSED",
+  "taskId": "2ddf619e-d87d-3dc0-a853-415df47f108e",
+  "businessState": "SUCCEEDED",
+  "originalFailedTaskId": "4d6e3f23-bdae-4fda-882f-80d7ccdc0821",
+  "originalFailurePreserved": true,
+  "artifactId": "ui_1cc34758282c428c90eeed3c5b015bbb",
+  "objectKey": "resources/answer.json",
+  "byteLength": 1770,
+  "sha256": "ec15ae4e02d0ad8b0f3784a141298e61433b6f05976a1dfa8247575a4d4107a7",
+  "authenticatedReadback": true,
+  "physicalObjectVerified": true,
+  "metadataVerified": true,
+  "sameQuestionAndAgent": true,
+  "agentId": "financial-news-agent",
+  "publicEntryPort": 18100
+}

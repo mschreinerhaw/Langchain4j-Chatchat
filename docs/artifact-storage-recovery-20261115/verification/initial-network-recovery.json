@@ -1,0 +1,15 @@
+{
+  "status": "PASSED",
+  "namespaceOwner": "f9584147347d99968e0f95505df3a1485b34b4e5be3f57ef37bbe0225d016318",
+  "refreshedServices": [
+    "worker1",
+    "worker2",
+    "node1",
+    "recovery1",
+    "node2",
+    "recovery2",
+    "temporal",
+    "studio-gateway"
+  ],
+  "temporalTcpReachable": true
+}

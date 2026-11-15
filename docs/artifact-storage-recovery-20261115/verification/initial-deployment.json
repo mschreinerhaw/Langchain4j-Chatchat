@@ -1,0 +1,53 @@
+{
+  "buildMode": "server-javac-source",
+  "sourceCommit": "c6e97ec39c99928ea8f72b950736c619a3e91ee3",
+  "sourceHashes": {
+    "chatchat-api/src/main/java/com/chatchat/api/runtime/coding/monitor/CodingMonitorProjection.java": "9597a5209711788f17ea0451c96e5d46acbc7fa35a3a0480ec5b5fb3d3c051f6",
+    "chatchat-chat/src/main/java/com/chatchat/chat/uiartifact/FilesystemArtifactBlobStore.java": "19a38976c342f477ed9d760e734ad353aa248ffcd795b458e43b0726ee5397b7",
+    "chatchat-chat/src/main/java/com/chatchat/chat/uiartifact/UiArtifactService.java": "fa672513239e2842c8289875f8322c3c5747a7aab6bf37d3f95ab2d7da7b7cad",
+    "scripts/deploy-artifact-storage-recovery.py": "c9f951d3807afed59b5fe005c3424fef168464a8455752bdba45d58c1f024758"
+  },
+  "baselines": {
+    "sha256:3d02ff706eca116fcb94cec8b37269646c2db910601aa2b0bc71833dd6bd4b59": {
+      "image": "sha256:01c5c6a1368ffe3d155fa708fcf9efb8c7920a12c4836a8bdf19e1c6c008f18e",
+      "tag": "runtime-api:storage-recovery-3d02ff706eca-20261115",
+      "changedAppEntries": [
+        "BOOT-INF/classes/com/chatchat/api/runtime/coding/monitor/CodingMonitorProjection$Update.class",
+        "BOOT-INF/classes/com/chatchat/api/runtime/coding/monitor/CodingMonitorProjection$1.class",
+        "BOOT-INF/classes/com/chatchat/api/runtime/coding/monitor/CodingMonitorProjection$2.class",
+        "BOOT-INF/classes/com/chatchat/api/runtime/coding/monitor/CodingMonitorProjection$3.class",
+        "BOOT-INF/classes/com/chatchat/api/runtime/coding/monitor/CodingMonitorProjection.class",
+        "BOOT-INF/lib/chatchat-chat-1.0.0-SNAPSHOT.jar"
+      ],
+      "changedChatEntries": [
+        "com/chatchat/chat/uiartifact/UiArtifactService$1.class",
+        "com/chatchat/chat/uiartifact/UiArtifactService$Presentation.class",
+        "com/chatchat/chat/uiartifact/UiArtifactService$StoredResource.class",
+        "com/chatchat/chat/uiartifact/UiArtifactService.class",
+        "com/chatchat/chat/uiartifact/FilesystemArtifactBlobStore.class"
+      ]
+    },
+    "sha256:564614ef8fa273ca9ee0cbff2618403a46a7321c95098f2e054279efbaaa8dcd": {
+      "image": "sha256:cfe6ceaa29cffc3875bc38aa8f5b45423b44ecb1ac34d583c6b1c178b092a6e1",
+      "tag": "runtime-api:storage-recovery-564614ef8fa2-20261115",
+      "changedAppEntries": [
+        "BOOT-INF/classes/com/chatchat/api/runtime/coding/monitor/CodingMonitorProjection$Update.class",
+        "BOOT-INF/classes/com/chatchat/api/runtime/coding/monitor/CodingMonitorProjection$1.class",
+        "BOOT-INF/classes/com/chatchat/api/runtime/coding/monitor/CodingMonitorProjection$2.class",
+        "BOOT-INF/classes/com/chatchat/api/runtime/coding/monitor/CodingMonitorProjection$3.class",
+        "BOOT-INF/classes/com/chatchat/api/runtime/coding/monitor/CodingMonitorProjection.class",
+        "BOOT-INF/lib/chatchat-chat-1.0.0-SNAPSHOT.jar"
+      ],
+      "changedChatEntries": [
+        "com/chatchat/chat/uiartifact/UiArtifactService$1.class",
+        "com/chatchat/chat/uiartifact/UiArtifactService$Presentation.class",
+        "com/chatchat/chat/uiartifact/UiArtifactService$StoredResource.class",
+        "com/chatchat/chat/uiartifact/UiArtifactService.class",
+        "com/chatchat/chat/uiartifact/FilesystemArtifactBlobStore.class"
+      ]
+    }
+  },
+  "activated": true,
+  "readiness": "authenticated route rejects anonymous access",
+  "dataVolumesChanged": false
+}

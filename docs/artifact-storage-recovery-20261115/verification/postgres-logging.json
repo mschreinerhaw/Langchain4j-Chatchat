@@ -1,0 +1,18 @@
+{
+  "status": "PASSED",
+  "container": "postgresql18",
+  "image": "sha256:662db3da228c2ea2649b3ae04db4b4479e85fea5979f6a917a7f6d5cb1e7ec39",
+  "logging": {
+    "Type": "json-file",
+    "Config": {
+      "max-size": "100m",
+      "max-file": "3"
+    }
+  },
+  "sameMounts": true,
+  "sameEnvironment": true,
+  "samePublishedPorts": true,
+  "authenticatedQuery": "SELECT 1",
+  "rollbackContainer": "postgresql18-storage-rollback-20261115",
+  "dataVolumesModified": false
+}

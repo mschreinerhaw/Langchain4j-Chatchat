@@ -1,0 +1,66 @@
+{
+  "buildMode": "server-javac-source",
+  "sourceCommit": "97c838416fbe1b6554bdc484db90f7091b2c3d1a",
+  "sourceHashes": {
+    "chatchat-api/src/main/java/com/chatchat/api/runtime/coding/monitor/CodingMonitorProjection.java": "9597a5209711788f17ea0451c96e5d46acbc7fa35a3a0480ec5b5fb3d3c051f6",
+    "chatchat-chat/src/main/java/com/chatchat/chat/uiartifact/FilesystemArtifactBlobStore.java": "19a38976c342f477ed9d760e734ad353aa248ffcd795b458e43b0726ee5397b7",
+    "chatchat-chat/src/main/java/com/chatchat/chat/uiartifact/UiArtifactService.java": "fa672513239e2842c8289875f8322c3c5747a7aab6bf37d3f95ab2d7da7b7cad",
+    "chatchat-chat/src/main/java/com/chatchat/chat/task/core/AgentTaskService.java": "fae37d4ec7ed869065db95dbcbc625730d9f836fba25373f02d343cc7733a2e1",
+    "scripts/deploy-artifact-storage-recovery.py": "f756606be5ca3ea8465c724b79a420cdfce9ab5769c85731e303b175386c3db4"
+  },
+  "baselines": {
+    "sha256:cfe6ceaa29cffc3875bc38aa8f5b45423b44ecb1ac34d583c6b1c178b092a6e1": {
+      "image": "sha256:bedc847a8620b362e6e194797c6236346dc5f8abf9e85407dca25e7df641b2a0",
+      "tag": "runtime-api:storage-recovery-cfe6ceaa29cf-20261115",
+      "changedAppEntries": [
+        "BOOT-INF/lib/chatchat-chat-1.0.0-SNAPSHOT.jar"
+      ],
+      "changedChatEntries": [
+        "com/chatchat/chat/task/core/AgentTaskService$AgentNotificationContent.class",
+        "com/chatchat/chat/task/core/AgentTaskService$1.class",
+        "com/chatchat/chat/task/core/AgentTaskService$AgentTaskPage.class",
+        "com/chatchat/chat/task/core/AgentTaskService$StaleTaskClaimException.class",
+        "com/chatchat/chat/task/core/AgentTaskService$ExecutionResultContract.class",
+        "com/chatchat/chat/task/core/AgentTaskService$UiResponseContract.class",
+        "com/chatchat/chat/task/core/AgentTaskService$AgentTaskStoppedException.class",
+        "com/chatchat/chat/task/core/AgentTaskService.class"
+      ]
+    },
+    "sha256:01c5c6a1368ffe3d155fa708fcf9efb8c7920a12c4836a8bdf19e1c6c008f18e": {
+      "image": "sha256:6abf06ac4fa5a900b70f76650bccd4c9c315b1e81b8ff365a0a39a2227a01b93",
+      "tag": "runtime-api:storage-recovery-01c5c6a1368f-20261115",
+      "changedAppEntries": [
+        "BOOT-INF/lib/chatchat-chat-1.0.0-SNAPSHOT.jar"
+      ],
+      "changedChatEntries": [
+        "com/chatchat/chat/task/core/AgentTaskService$AgentNotificationContent.class",
+        "com/chatchat/chat/task/core/AgentTaskService$1.class",
+        "com/chatchat/chat/task/core/AgentTaskService$AgentTaskPage.class",
+        "com/chatchat/chat/task/core/AgentTaskService$StaleTaskClaimException.class",
+        "com/chatchat/chat/task/core/AgentTaskService$ExecutionResultContract.class",
+        "com/chatchat/chat/task/core/AgentTaskService$UiResponseContract.class",
+        "com/chatchat/chat/task/core/AgentTaskService$AgentTaskStoppedException.class",
+        "com/chatchat/chat/task/core/AgentTaskService.class"
+      ]
+    }
+  },
+  "activated": true,
+  "networkNamespace": {
+    "status": "PASSED",
+    "namespaceOwner": "315aa70edcb10dbc2715487d61288f471087ee17a6b4efa65226887c3d1d7398",
+    "refreshedServices": [
+      "worker1",
+      "worker2",
+      "node1",
+      "recovery1",
+      "node2",
+      "recovery2",
+      "temporal",
+      "studio-gateway"
+    ],
+    "temporalTcpReachable": true
+  },
+  "runtimeBootstrap": "PASSED",
+  "readiness": "authenticated route rejects anonymous access",
+  "dataVolumesChanged": false
+}

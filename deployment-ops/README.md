@@ -97,8 +97,8 @@ The interface is English. Data comes from Docker nodes or the management databas
 
 1. Use docker save on a preparation machine to produce an image TAR; compute its SHA-256 offline.
 2. In Images, select the target node and upload the TAR. Supply SHA-256 manually over HTTP when browser Web Crypto is unavailable. Limits: Web 256 MiB; executor 2 GiB.
-3. Prepare a JSON manifest using [manifest.example.json](docs/manifest.example.json).
-4. Check the host port is free. Select the node and upload the manifest in Deployments.
+3. In Deployments, choose New deployment. Select a node and local image, then enter the application name, access ports and HTTP health check. Environment variables are optional.
+4. Review the configuration before choosing Deploy application. For existing JSON files, expand Advanced: import a JSON manifest; see [manifest.example.json](docs/manifest.example.json).
 5. The image must already exist on that node. Missing images are never pulled automatically.
 6. Check the release result. Failed HTTP health checks attempt to restore the previous container; retained containers support manual rollback.
 
@@ -171,3 +171,9 @@ Missing-image errors require loading the matching offline image. Node errors req
 The default smoke test writes a directory entry and creates/updates acceptance_viewer. Deployment checks additionally require deployment-ops-acceptance:local and free port 19221; use --deploy-test. TAR checks require tests/fixture/image.tar; use --import-test. Fixtures are not fetched online.
 
 Browser checks use existing local Chrome and playwright-core; see [English UI verification](docs/ENGLISH-UI-FIX.md). Destructive tests require an isolated installation and --confirm-isolated-system-test for tests/recovery-system.py; they intentionally interrupt the management Web service.
+
+## Product interface
+
+The workspace groups navigation by daily work, infrastructure and administration. Applications are grouped by project and node. Search and pagination keep long lists manageable. Status badges and readable container/resource summaries avoid requiring JSON inspection for routine checks. Technical details remain expandable.
+
+Create and import actions open labeled dialogs. Container changes and rollback require an explicit confirmation. Unavailable optional Registry service has a setup state instead of a raw error. Read-only accounts do not see mutation controls; the server still enforces permissions. See [PRODUCT-UX.md](docs/PRODUCT-UX.md) for validation.

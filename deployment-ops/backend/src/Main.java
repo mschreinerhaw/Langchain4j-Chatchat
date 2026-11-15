@@ -28,6 +28,7 @@ public class Main {
   }
   String cookie=x.getRequestHeaders().getFirst("Cookie"),token="";if(cookie!=null)for(String c:cookie.split(";"))if(c.trim().startsWith("ops_session="))token=c.trim().substring(12);
   var user=sql("SELECT u.username,u.role FROM sessions s JOIN users u USING(username) WHERE s.token=? AND expires>now()",hash(token,"session"));if(user.isEmpty()){send(x,401,Map.of("error","login required"));return;}
+  if(path.equals("/api/me")&&method.equals("GET")){send(x,200,user.get(0));return;}
   String actor=user.get(0).get("username").toString();boolean write=!method.equals("GET");
   if(write){if(!path.equals("/api/logout")&&!"admin".equals(user.get(0).get("role"))){send(x,403,Map.of("error","admin required"));return;}if(!"1".equals(x.getRequestHeaders().getFirst("X-Ops-Request"))){send(x,403,Map.of("error","request header required"));return;}}
   if(path.equals("/api/logout")&&write){sql("DELETE FROM sessions WHERE token=?",hash(token,"session"));send(x,200,Map.of("ok",true));return;}

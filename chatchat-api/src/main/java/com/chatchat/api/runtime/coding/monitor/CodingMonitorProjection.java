@@ -79,14 +79,26 @@ public final class CodingMonitorProjection implements DurableCodingTaskService.P
     }
     private void write(Update update){
         var contract=update.contract();var outcome=update.outcome();var scope=contract.scope();String id=id(scope.tenantId(),scope.userId(),scope.runId(),contract.taskId());
+        // Polling/backfill replays the whole journal. Duplicate-key exceptions are
+        // logged by PostgreSQL even when Java catches them; never use them as the
+        // normal replay path. Read once, retaining the source identity check.
+        Map<Long,String> existing=new HashMap<>();
+        jdbc.query("select sequence,event_json from runtime_coding_event_view where view_id=?",
+            (org.springframework.jdbc.core.RowCallbackHandler) row -> existing.put(row.getLong("sequence"),row.getString("event_json")),id);
         for(var event:update.events()){
             var view=event(event);String encoded=encode(view);
+            String known=existing.get(event.sequence());
+            if(known!=null){
+                if(!encoded.equals(known))throw new IllegalStateException("Monitor event source identity conflict");
+                continue;
+            }
             try{jdbc.update("insert into runtime_coding_event_view(view_id,sequence,occurred_at,native_type,normalized_type,event_json) values(?,?,?,?,?,?)",
                 id,event.sequence(),event.occurredAt().toEpochMilli(),view.get("nativeEventType"),view.get("type"),encoded);}
             catch(org.springframework.dao.DuplicateKeyException duplicate){
                 String prior=jdbc.queryForObject("select event_json from runtime_coding_event_view where view_id=? and sequence=?",String.class,id,event.sequence());
                 if(!encoded.equals(prior))throw new IllegalStateException("Monitor event source identity conflict");
             }
+            existing.put(event.sequence(),encoded);
         }
         String name=contract.objective().instruction().split("\n",2)[0];if(name.length()>256)name=name.substring(0,256);
         var summary=new LinkedHashMap<String,Object>();summary.put("taskId",contract.taskId());summary.put("runId",scope.runId());summary.put("name",name);

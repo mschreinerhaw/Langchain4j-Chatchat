@@ -165,11 +165,17 @@ public class UiArtifactService {
             metadataEntity.setStatus("ACTIVE");
             repository.save(metadataEntity);
         } catch (RuntimeException ex) {
-            resources.keySet().forEach(resourceId -> blobStore.delete(
-                new ArtifactLocation(tenantId, artifactId, resources.get(resourceId).objectKey())));
-            blobStore.delete(new ArtifactLocation(tenantId, artifactId, "manifest.json"));
+            // A full/unavailable filesystem may also reject cleanup. Preserve the
+            // original publication failure and never expose a partial ACTIVE item.
+            for (StoredResource resource : resources.values()) {
+                try { blobStore.delete(new ArtifactLocation(tenantId, artifactId, resource.objectKey())); }
+                catch (RuntimeException cleanup) { if (cleanup != ex) ex.addSuppressed(cleanup); }
+            }
+            try { blobStore.delete(new ArtifactLocation(tenantId, artifactId, "manifest.json")); }
+            catch (RuntimeException cleanup) { if (cleanup != ex) ex.addSuppressed(cleanup); }
             metadataEntity.setStatus("FAILED");
-            repository.save(metadataEntity);
+            try { repository.save(metadataEntity); }
+            catch (RuntimeException cleanup) { if (cleanup != ex) ex.addSuppressed(cleanup); }
             throw ex;
         }
 

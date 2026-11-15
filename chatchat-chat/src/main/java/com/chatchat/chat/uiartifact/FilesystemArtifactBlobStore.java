@@ -11,6 +11,7 @@ import java.nio.channels.FileChannel;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.AtomicMoveNotSupportedException;
 import java.nio.file.Files;
+import java.nio.file.FileSystemException;
 import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
 import java.nio.file.StandardOpenOption;
@@ -70,7 +71,8 @@ public class FilesystemArtifactBlobStore implements ArtifactBlobStore {
             try {
                 try (FileChannel channel = FileChannel.open(
                     metadataTemporary, StandardOpenOption.WRITE, StandardOpenOption.TRUNCATE_EXISTING)) {
-                    channel.write(ByteBuffer.wrap(metadataBytes));
+                    ByteBuffer buffer = ByteBuffer.wrap(metadataBytes);
+                    while (buffer.hasRemaining()) channel.write(buffer);
                     channel.force(true);
                 }
                 moveAtomically(metadataTemporary, metadataTarget);
@@ -79,6 +81,14 @@ public class FilesystemArtifactBlobStore implements ArtifactBlobStore {
                 Files.deleteIfExists(metadataTemporary);
             }
         } catch (IOException ex) {
+            if (ex instanceof FileSystemException fs && fs.getReason() != null) {
+                String reason = fs.getReason().toLowerCase(java.util.Locale.ROOT);
+                if (reason.contains("no space left") || reason.contains("disk full")
+                    || reason.contains("not enough space") || reason.contains("quota exceeded")) {
+                    throw new IllegalStateException(
+                        "ARTIFACT_STORAGE_FULL: 报告归档因存储空间或配额不足失败。请释放空间后核对任务状态，再重试；此错误不代表业务数据缺失。", ex);
+                }
+            }
             throw new IllegalStateException("Failed to persist artifact object " + location.objectKey(), ex);
         }
     }

@@ -280,3 +280,10 @@ describe('Schema Explorer API integration',()=>{
   });
 
 });
+
+it('clears the loading indicator when the project is cleared during initialization',async()=>{
+ let finish;api.sqlMetadataProviders.mockImplementation(()=>new Promise(resolve=>{finish=resolve;}));
+ const props=await mount({},false);expect(host.textContent).toContain('正在加载数据库上下文');
+ props.projectId='';await tick();expect(host.textContent).not.toContain('正在加载数据库上下文');
+ finish([]);await tick();expect(host.textContent).not.toContain('正在加载数据库上下文');
+});

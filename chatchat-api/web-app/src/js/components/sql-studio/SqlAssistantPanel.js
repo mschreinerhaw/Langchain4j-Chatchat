@@ -78,7 +78,11 @@ export default {
     }
     function trackScroll() { if (scroll.value) followOutput.value = scroll.value.scrollHeight - scroll.value.scrollTop - scroll.value.clientHeight < 64; }
     watch(() => [props.messages?.length, props.messages?.at(-1)?.text, props.result?.files?.length, props.result?.rawAnswer, props.result?.task?.canonicalState, props.pendingPhase, progress.value.steps.length,props.result?.events?.length], () => nextTick(() => {
-      if (scroll.value && followOutput.value) scroll.value.scrollTop = scroll.value.scrollHeight;
+      if (scroll.value && followOutput.value) {
+        const answer=resultAction.value==='explain' && progress.value.terminal?scroll.value.querySelector('.sql-chat-result'):null;
+        if(answer)scroll.value.scrollTop+=answer.getBoundingClientRect().top-scroll.value.getBoundingClientRect().top-8;
+        else scroll.value.scrollTop = scroll.value.scrollHeight;
+      }
     }));
     function send(event) { if (event?.isComposing) return; if (canSend.value) { followOutput.value=true;emit('send'); } }
     function showDialog(dialog){if(!dialog || dialog.open)return;if(typeof dialog.showModal==='function')dialog.showModal();else dialog.setAttribute('open','');}

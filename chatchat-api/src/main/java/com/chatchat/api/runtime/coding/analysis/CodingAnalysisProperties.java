@@ -10,6 +10,7 @@ import com.chatchat.common.runtime.coding.CodingLimit;
 @ConfigurationProperties(prefix="chatchat.coding.analysis")
 public class CodingAnalysisProperties {
     private boolean enabled;
+    private boolean pythonStudioCumulativeLimitsEnabled;
     private boolean fastPathEnabled = true;
     /** Optional registered aliases. Blank values retain the run's selected model. */
     private String simpleModelName;

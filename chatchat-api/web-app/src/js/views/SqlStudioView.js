@@ -20,6 +20,7 @@ import { clampSqlPanel, restoreSqlLayout, sqlAssistantAnswer, sqlConversationPro
 import { sqlTaskPresentation } from '../utils/sqlTaskPresentation';
 import {sqlTaskStatus} from '../utils/sqlMetadataProgress';
 import { beginStudioExchange, studioAssistantTurn, updateStudioTurn } from '../utils/studioConversation';
+import {studioReadOnlyAction} from '../utils/studioAi';
 export default {
   components: { SqlTemplatePublicationPanel, SqlUserDocuments, SqlSchemaExplorer, CodeChangeReview, AppNotice, AppConfirmDialog, SqlProjectTree, SqlEditorPane, SqlAssistantPanel, SqlBottomPanel, FolderTree, PanelBottom, Sparkles, Plus, Save, WandSparkles, FileCode2, CircleCheck },
   props: { workspaceContext: Object, tenantId: String, userId: String },
@@ -270,34 +271,35 @@ async function saveActive() {
 }
 async function upload({ files:uploads, kind }) { await action(async () => { for (const file of uploads) { const fileKind = kind === 'AUTO' ? file.name.toLowerCase().endsWith('.sql') ? 'REFERENCE' : 'MAPPING' : kind; const saved = await sql.uploadSqlInput(projectId.value, file, fileKind); files.value.push({ ...saved, draft:saved.content, draftBaseVersion:saved.version }); if (fileKind === 'MAPPING') mappingIds.value.push(saved.id); openFile(saved.id); } references.value = await sql.sqlReferences(); }); }
 async function generate() { if(documentsUploading.value)return; await action(async () => {
-  if(aiAction.value==='explore' && !schemaExplorer.value?.assistantContext?.()) throw new Error('请先选择数据源，并等待数据库上下文加载完成。');
+  const requestAction=studioReadOnlyAction(aiAction.value,prompt.value.trim());
+  if(requestAction==='explore' && !schemaExplorer.value?.assistantContext?.()) throw new Error('请先选择数据源，并等待数据库上下文加载完成。');
   if(executionMode.value==='agent'&&!agents.value.some(agent=>agent.id===agentId.value))throw new Error('\u8bf7\u9009\u62e9\u5df2\u53d1\u5e03\u4e14\u6709\u6743\u4f7f\u7528\u7684 Agent');
   if (taskRunning.value) throw new Error('当前任务仍在运行，请等待结果或取消后再发送。');
   if (files.value.some(dirtySqlFile)) throw new Error('请先保存工程中的编辑内容，让生成任务读取一致的文件版本。');
   const id = projectId.value, text = prompt.value.trim();
   if (!text) return;
-  const codeContext=selectedCode.value || (includeCurrentFile.value && activeFile.value?.kind==='SQL'
+  const codeContext=selectedCode.value || ((includeCurrentFile.value || requestAction==='explain') && activeFile.value?.kind==='SQL'
     ? {path:activeFile.value.path,text:activeFile.value.draft ?? activeFile.value.content} : null);
   if(codeContext && selectedCode.value && (selectedCode.value.fileId && selectedCode.value.fileId!==activeId.value
       || selectedCode.value.path!==activeFile.value?.path))throw new Error('SQL 引用所属文件已变化，请重新选择代码。');
   if(selectedCode.value?.version!=null && selectedCode.value.version!==activeFile.value?.version)
     throw new Error('SQL 引用对应的文件版本已变化，请重新选择代码。');
-  const request = aiAction.value==='explore'?sqlExplorationPrompt(text,codeContext):sqlConversationPrompt(`${activeFile.value ? 'Target file: '+activeFile.value.path+'\n' : ''}${text}`, chatTurns.value, codeContext);
-  const localId = beginStudioExchange(chatTurns.value, text, aiAction.value, activeFile.value?.path || '');
+  const request = requestAction==='explore'?sqlExplorationPrompt(text,codeContext):sqlConversationPrompt(`${activeFile.value ? 'Target file: '+activeFile.value.path+'\n' : ''}${text}`, chatTurns.value, codeContext);
+  const localId = beginStudioExchange(chatTurns.value, text, requestAction, activeFile.value?.path || '');
   const assistantTurn = () => studioAssistantTurn(chatTurns.value, localId);
   prompt.value = '';
   pendingPhase.value = 'PREPARING'; pendingStartedAt.value = Date.now(); pollError.value = ''; result.value = null;
   try {
-    const prepared = await sql.prepareSqlGeneration(id, { action:aiAction.value, prompt:request, dialect:dialect.value, mappingDocumentIds:mappingDocumentIds.value, mappingIds:mappingIds.value, referenceIds:referenceIds.value, userDocuments:userDocuments.value.map(({fileId,purpose})=>({fileId,purpose})), agentId:executionMode.value === 'agent' ? agentId.value || null : null, modelName:executionMode.value === 'model' ? modelName.value || null : null,
+    const prepared = await sql.prepareSqlGeneration(id, { action:requestAction, prompt:request, dialect:dialect.value, mappingDocumentIds:mappingDocumentIds.value, mappingIds:mappingIds.value, referenceIds:[...new Set([...referenceIds.value,...(requestAction==='explain' && activeFile.value?.kind==='SQL'?[activeFile.value.id]:[])])], userDocuments:userDocuments.value.map(({fileId,purpose})=>({fileId,purpose})), agentId:executionMode.value === 'agent' ? agentId.value || null : null, modelName:executionMode.value === 'model' ? modelName.value || null : null,
       codingMetadataSelection:aiAction.value==='explore'?null:schemaExplorer.value?.codingSelection?.() || null,
       metadataDiscoveryId:assistantBindingContext.value && assistantBindingContext.value!==schemaExplorer.value?.assistantContext?.()?null:assistantDiscoveryId.value,
       metadataBindingContextId:schemaExplorer.value?.assistantContext?.() || null });
     if (id !== projectId.value || !active) return;
-    if(aiAction.value==='explore'){assistantDiscoveryId.value=prepared.taskRequest?.toolInput?.sqlMetadataDiscoveryId;assistantBindingContext.value=schemaExplorer.value?.assistantContext?.() || null;}
+    if(requestAction==='explore'){assistantDiscoveryId.value=prepared.taskRequest?.toolInput?.sqlMetadataDiscoveryId;assistantBindingContext.value=schemaExplorer.value?.assistantContext?.() || null;}
     for (const turn of chatTurns.value.filter(turn => turn.id.endsWith(localId))) {
       turn.id = `${turn.role}:${prepared.generationId}`; turn.generationId = prepared.generationId;
     }
-    updateStudioTurn(assistantTurn(), 'submitting', aiAction.value==='explore'?'授权发现上下文已保存，正在提交任务。':'计划已通过校验，正在提交分析任务。', {
+    updateStudioTurn(assistantTurn(), 'submitting', requestAction==='explore'?'授权发现上下文已保存，正在提交任务。':'计划已通过校验，正在提交分析任务。', {
       plan: prepared.taskRequest?.toolInput?.studioCodePlan?.interpretationPlan,
       planId: prepared.taskRequest?.toolInput?.studioCodePlan?.planId
     });

@@ -129,11 +129,35 @@ class CodingWorkspaceServiceTest {
         var beans=new DefaultListableBeanFactory();beans.registerSingleton("codingAgent",tasks);
         service=new CodingWorkspaceService(tasks,identity,evidence,beans.getBeanProvider(CodingAgentSPI.class),
             new SqlGlotToolchain(System.getProperty("coding.sqlglotPython"),json),json,120);
+        service.setSqlCumulativeLimitsEnabled(true);
+        service.setPythonCumulativeLimitsEnabled(true);
         service.submit(scope,"task","User request: modify sql/a.sql, preserve unrelated SQL. Mapping: source->target. Historical style: uppercase.","mysql","");
         contract=actor(()->tasks.contract(scope,"task"));
         lease=actor(()->tasks.claim(scope,"task","cline-adapter:test",Duration.ofMinutes(2),tasks.get(scope,"task").revision()));
     }
     @AfterEach void close(){timer.shutdownNow();}
+    @org.junit.jupiter.params.ParameterizedTest
+    @org.junit.jupiter.params.provider.ValueSource(strings={"mysql","python"})
+    void studioCanReserveBeyondFormerCumulativeLimitsWithoutChangingFrozenTasks(String dialect){
+        service.setSqlCumulativeLimitsEnabled(false);
+        service.setPythonCumulativeLimitsEnabled(false);
+        service.submit(scope,"unlimited-sql","Generate reconciliation source",dialect,"");
+        var unlimited=actor(()->tasks.contract(scope,"unlimited-sql"));
+        assertThat(unlimited.budget().maxModelCalls()).isEqualTo(-1);
+        assertThat(unlimited.budget().maxModelTokens()).isEqualTo(-1);
+        assertThat(unlimited.budget().maxToolCalls()).isEqualTo(-1);
+        assertThat(unlimited.budget().maxOutputBytes()).isEqualTo(-1);
+        assertThat(unlimited.budget().maxCostAmount()).isEqualTo("unlimited");
+        assertThat(unlimited.budget().maxCodeExecutions()).isZero();
+        assertThat(actor(()->tasks.contract(scope,"task"))).isEqualTo(contract);
+        var owner=actor(()->tasks.claim(scope,"unlimited-sql","cline-adapter:unlimited",Duration.ofMinutes(2),tasks.get(scope,"unlimited-sql").revision()));
+        for(int i=0;i<3;i++){
+            String op="large-reservation-"+i;
+            var admitted=actor(()->tasks.reserve(scope,"unlimited-sql",owner,tasks.get(scope,"unlimited-sql").revision(),
+                op,"a".repeat(64),CodingJournal.OperationKind.TOOL,new CodingTaskOutcome.Counters(100,2000000,100,0,0,0,4*1024*1024,"100")));
+            assertThat(admitted.admitted()).isTrue();
+        }
+    }
     @Test void fastPathIsExplicitBoundedAndFrozenAcrossConfigurationChanges(){
         assertThat(contract.metadataRefs()).doesNotContain(CodingWorkspaceService.FAST_PATH_REF);
         service.setFastPathEnabled(true);

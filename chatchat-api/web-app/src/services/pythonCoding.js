@@ -27,7 +27,7 @@ async function waitForCoding(started,request,context) {
     if(state.status==='COMPLETED') {
       const files=state.output?.files;
       if(!files?.length)throw new Error('Coding task completed without reviewed source files');
-      return {code:(files.find(f=>f.path===context.entryPath)||files[0]).content,files,
+      return {code:(files.find(f=>f.path===context.entryPath)||files[0]).content,files,notes:state.output?.notes || '',
         action:request.action,replaceSelection:false,modelName:request.modelName,plan:started.plan,
         coding:{taskId:started.taskId,outcome:state.outcome,events:state.events,validation:state.output.validation}};
     }

@@ -145,6 +145,7 @@ export default defineComponent({
       }
     }
     async function initialize() {
+      busy.value = false;
       selectedTables.value = [];
       serial++;
       session.bind(null);

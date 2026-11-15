@@ -798,14 +798,16 @@ public final class CodingAnalysisService implements AnalysisCodingPort {
                 receipt.put("diagnostic", "Revise the analytical objective/outputSchema and submit a new requestId with an independent tool budget. "
                     + "Request computed metrics, derived text or structural summaries; do not reproduce source rows for the model to analyze. "
                     + "Same-shape transformations remain valid when their values are actually derived.");
-                var failureBudget = recordRejectionBudget(scope, taskId, true);
-                receipt.put("rejectionBudget", Map.of("limit", failureBudget.path("limit").asInt(),
-                    "consecutiveRejectedTasks", failureBudget.path("consecutiveRejectedTasks").asInt(), "scope", "RUN"));
-                if (failureBudget.path("consecutiveRejectedTasks").asInt() >= failureBudget.path("limit").asInt()) {
-                    receipt.put("analysisBlocked", true);
-                    receipt.put("replanningRequired", false);
-                    receipt.put("diagnostic", "Run Coding rejection budget exhausted; new request IDs cannot reset it. "
-                        + "End this analysis with the archived failure evidence and revise the parent workflow before a new run.");
+                if(!unlimitedPythonStudio(context)){
+                    var failureBudget = recordRejectionBudget(scope, taskId, true);
+                    receipt.put("rejectionBudget", Map.of("limit", failureBudget.path("limit").asInt(),
+                        "consecutiveRejectedTasks", failureBudget.path("consecutiveRejectedTasks").asInt(), "scope", "RUN"));
+                    if (failureBudget.path("consecutiveRejectedTasks").asInt() >= failureBudget.path("limit").asInt()) {
+                        receipt.put("analysisBlocked", true);
+                        receipt.put("replanningRequired", false);
+                        receipt.put("diagnostic", "Run Coding rejection budget exhausted; new request IDs cannot reset it. "
+                            + "End this analysis with the archived failure evidence and revise the parent workflow before a new run.");
+                    }
                 }
             }
             if(outcome.executionControl().stopReason()!=null)receipt.put("stopReason",outcome.executionControl().stopReason().name());
@@ -1027,14 +1029,18 @@ public final class CodingAnalysisService implements AnalysisCodingPort {
         if(parentDeadline instanceof Number value && value.longValue()>0)
             deadline=deadline.isBefore(Instant.ofEpochMilli(value.longValue()))?deadline:Instant.ofEpochMilli(value.longValue());
         if(!deadline.isAfter(Instant.now()))throw new com.chatchat.agents.orchestration.model.AgentDeadlineExceededException("Global deadline reached before Coding admission");
+        boolean unlimitedStudio=unlimitedPythonStudio(context);
         var budget=new CodingTaskContract.Budget("analysis-coding-tool-budget:"+taskId,deadline,
-            policy.getMaxModelCalls().value(),policy.getMaxModelTokens().value(),policy.getMaxToolCalls().value(),policy.getMaxCodeExecutions().value(),
-            policy.getMaxCostAmount(),policy.getCostCurrency(),
-            policy.getMaxCumulativeCpuMillis()==null?policy.getMaxCpuMillis():policy.getMaxCumulativeCpuMillis().value(),
-            policy.getMaxMemoryBytes(),policy.getMaxCumulativeOutputBytes()==null?policy.getMaxResultBytes():policy.getMaxCumulativeOutputBytes().value());
+            unlimitedStudio?-1:policy.getMaxModelCalls().value(),unlimitedStudio?-1:policy.getMaxModelTokens().value(),unlimitedStudio?-1:policy.getMaxToolCalls().value(),unlimitedStudio?-1:policy.getMaxCodeExecutions().value(),
+            unlimitedStudio?"unlimited":policy.getMaxCostAmount(),policy.getCostCurrency(),
+            unlimitedStudio?-1:policy.getMaxCumulativeCpuMillis()==null?policy.getMaxCpuMillis():policy.getMaxCumulativeCpuMillis().value(),
+            policy.getMaxMemoryBytes(),unlimitedStudio?-1:policy.getMaxCumulativeOutputBytes()==null?policy.getMaxResultBytes():policy.getMaxCumulativeOutputBytes().value());
         String encoded=encode(budget);
         if(checkpoints.compareAndSetExecutionCheckpoint(scope,key,null,encoded))return budget;
         return convert(tree(checkpoints.readExecutionCheckpoint(scope,key).orElseThrow()),CodingTaskContract.Budget.class);
+    }
+    private boolean unlimitedPythonStudio(AnalysisCoverageCoordinator.Request context){
+        return context.runtimeAttributes().containsKey("pythonStudioCodeProject")&&!policy.isPythonStudioCumulativeLimitsEnabled();
     }
     private String encode(Object value){try{return json.writeValueAsString(value);}catch(Exception e){throw new IllegalArgumentException("Coding checkpoint invalid",e);}}
     private String hash(Object value) {

@@ -524,26 +524,18 @@ public class SqlStudioService {
         return new Prepared(id, taskRequest);
     }
     private Prepared prepareExploration(HttpServletRequest request,Project project,Generate body,String id){
-        require(coding!=null,"Cline SQL workspace is unavailable");
         require(body.agentId()==null||body.agentId().isBlank()||body.modelName()==null||body.modelName().isBlank(),"Choose either Agent or model");
         String selected=body.agentId()==null||body.agentId().isBlank()?body.modelName():requireUsableAgent(project.ownerId(),body.agentId()).modelName();
         var context=metadataAssistant.getObject().prepare(request,project.id(),body.metadataDiscoveryId(),body.metadataBindingContextId(),dialect(body.dialect()));
-        var previous=previousExplorationContext(request,project,context);
         var session=origins.createForStudio(request,"SQL_STUDIO","SQL metadata: "+project.name());
         var task=new AgentTaskSubmitRequest();task.setTenantId(project.tenantId());task.setUserId(project.ownerId());
         task.setSessionId(session.getId());task.setHistoryWindow(0);task.setMode("llm_chat");task.setModelName(selected);
-        task.setQuery(body.prompt()+"\nExplore the authorized database using workspace_metadata. No business tables are preselected. "
-            +"Search the metadata index, describe objects and expand related fields as needed. Reading stored SQL is a detail lookup, not a definition of a new business metric. "
-            +"Missing foreign keys require evidence-labelled candidate joins, not automatic termination. Do not invent identifiers or claim an inferred join is a declared constraint. "
-            +"Use workspace_validate and repair actual field/dialect errors. Deliver SQL source and evidence/unknown conditions in proposal notes, without executing SQL. "
-            +"If essential objects truly cannot be found, submit an evidence-only proposal with empty files and explanatory notes.");
+        // Database conversation uses the owner-bound metadata assistant, not file engineering.
+        // Preserve the question verbatim: SQL proposals are produced only when requested.
+        task.setQuery(body.prompt());
         task.setIdempotencyKey("sql-generation:"+id);
-        var input=new LinkedHashMap<String,Object>(Map.of("sqlStudioAction","explore","sqlMetadataGenerationId",id,"sqlMetadataDiscoveryId",context.discoveryId(),
-            "sqlStudioDialect",dialect(body.dialect()),"studioUserRequest",body.prompt(),"codingWorkspaceProfile","SQL_WORKSPACE_V2",
-            "sqlCodingDiscoveryId",context.discoveryId(),"sqlCodingProjectId",project.id()));
-        if(!previous.isEmpty())input.put("sqlCodingMetadata",previous);
-        task.setToolInput(input);
-        if(!previous.isEmpty())task.setQuery(task.getQuery()+"\nPrevious conversation evidence (revalidated authorization and structure version; incomplete cache, not a table allowlist): "+json(previous));
+        task.setToolInput(new LinkedHashMap<>(Map.of("sqlStudioAction","explore","sqlMetadataGenerationId",id,
+            "sqlMetadataDiscoveryId",context.discoveryId(),"sqlStudioDialect",dialect(body.dialect()),"studioUserRequest",body.prompt())));
         var base=new LinkedHashMap<String,Integer>();files(request,project.id()).forEach(file->base.put(file.path().toLowerCase(Locale.ROOT),file.version()));
         jdbc.update("insert into ds_sql_generation(id,project_id,context_json,base_versions_json,applied,created_at) values(?,?,?,?,false,CURRENT_TIMESTAMP)",id,project.id(),json(task),json(base));
         generationScopes.register(new SqlStudioGenerationScopeStore.Scope(session.getId(),project.id(),project.tenantId(),project.ownerId()));

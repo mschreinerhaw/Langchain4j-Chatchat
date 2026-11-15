@@ -62,6 +62,16 @@ it('blocks exploration while the selected source is missing or being reauthorize
   expect(sql.prepareSqlGeneration).not.toHaveBeenCalled();expect(view.prompt).toBe('find tables');
   expect(view.error).toContain('请先选择数据源');
 });
+it('reviews the full current SQL through the answer route without waiting for database discovery',async()=>{
+  await mount([{id:'p1',name:'Project'}]);
+  view.files=[{id:'f',path:'sql/current.sql',kind:'SQL',version:2,content:'SELECT 1;',draft:'SELECT 1;'}];view.activeId='f';await settle();
+  view.prompt='审查当前 SQL，只给审查结果，不要修改代码';
+  view.schemaExplorer={assistantContext:()=>null};
+  sql.prepareSqlGeneration.mockRejectedValue(new Error('stop after prepare'));
+  await view.generate();
+  expect(sql.prepareSqlGeneration).toHaveBeenCalledWith('p1',expect.objectContaining({action:'explain',referenceIds:['f']}));
+  expect(view.chatTurns.find(turn=>turn.role==='assistant').action).toBe('explain');
+});
 it('passes the actual shared binding to exploration without requiring explicit tables',async()=>{
   await mount([{id:'p1',name:'Project'}]);view.prompt='find tables';
   view.schemaExplorer={assistantContext:()=> 'current-authorized-context',codingSelection:()=>null};

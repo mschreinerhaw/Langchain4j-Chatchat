@@ -39,7 +39,9 @@ export function sqlTaskPresentation(result, pendingPhase = '', pendingStartedAt 
   const progress = businessTaskProgress(result?.events || [], task || {});
   const steps = progress.steps;
   const files = result?.files || [];
+  const readOnly=result?.generation?.prepared?.taskRequest?.toolInput?.sqlStudioAction==='explain';
   const title = result?.outputError && !pendingPhase ? '生成结果需要检查'
+    : terminal&&['SUCCESS','PARTIAL','PARTIAL_SUCCESS'].includes(status)?labels[status]
     : ({error:'分析失败',cancelled:'任务已取消',timeout:'任务已超时',empty:'需要补充输入'}[progress.status])
       || labels[status] || '任务处理中';
   const detail = pendingPhase === 'PREPARING' ? '模型制定任务目标与探索计划，校验通过后继续。'
@@ -54,6 +56,6 @@ export function sqlTaskPresentation(result, pendingPhase = '', pendingStartedAt 
   const end = terminal ? Date.parse(task.finishedAt || task.updateTime || '') || start : now;
   const elapsed = start ? Math.max(0, Math.floor((end - start) / 1000)) : 0;
   const exploration=running?sqlExplorationPhase(result?.events):'';
-  return { status, title:exploration||title, detail: exploration||progress.reason || detail, running, terminal, steps, progressLabel: exploration||progress.label, elapsed,
+  return { status, title:exploration||title, detail: exploration||(!readOnly&&progress.reason) || detail, running, terminal, steps:readOnly?[]:steps, progressLabel: exploration||(readOnly?'':progress.label), elapsed,
     elapsedLabel: `${Math.floor(elapsed / 60).toString().padStart(2, '0')}:${(elapsed % 60).toString().padStart(2, '0')}` };
 }

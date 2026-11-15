@@ -3,3 +3,4 @@
 *.java text eol=lf
 *.py text eol=lf
 *.jar binary
+*.md text eol=lf

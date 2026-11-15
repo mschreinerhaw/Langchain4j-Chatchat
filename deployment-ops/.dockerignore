@@ -4,3 +4,9 @@
 *.tar.gz
 tests
 docs
+backups/
+test-artifacts/
+.env.bootstrap.*
+**/*.mv.db
+**/*.trace.db
+**/*.lock.db

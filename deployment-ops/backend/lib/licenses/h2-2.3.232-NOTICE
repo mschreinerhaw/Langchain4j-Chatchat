@@ -1,0 +1,6 @@
+Unmodified H2 Database Engine 2.3.232 is bundled for embedded management storage.
+Upstream project: https://h2database.com
+Source: https://github.com/h2database/h2database
+License information: https://www.h2database.com/html/license.html
+The bundled release POM lists MPL 2.0 and EPL 1.0; see h2-2.3.232-pom.xml.
+The SHA-256 of the bundled JAR is recorded in deployment-ops/docs/dependencies.json.

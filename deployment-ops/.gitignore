@@ -7,3 +7,9 @@ backups/
 tests/fixture/
 tests/*-result.log
 test-artifacts/
+
+.env.bootstrap.*
+*.mv.db
+*.trace.db
+*.lock.db
+tests/bootstrap-check/

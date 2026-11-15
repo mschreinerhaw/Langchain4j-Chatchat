@@ -1,5 +1,9 @@
 [
   {
+    "file": "h2-2.3.232.jar",
+    "sha256": "8dae62d22db8982c3dcb3826edb9c727c5d302063a67eef7d63d82de401f07d3"
+  },
+  {
     "file": "jackson-annotations-2.18.3.jar",
     "sha256": "8aa5740d80b5a5025508b41bbadbaa1fb3772267c628b2e30681a4f45f8b8931"
   },

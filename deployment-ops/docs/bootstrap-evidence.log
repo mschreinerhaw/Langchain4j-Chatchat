@@ -1,0 +1,36 @@
+Generated .env with unique credentials. Review OPS_BIND and read ADMIN_PASSWORD locally before LAN access.
+ Network deployment-ops-bootstrap-check_ops  Creating
+ Network deployment-ops-bootstrap-check_ops  Created
+ Network deployment-ops-bootstrap-check_edge  Creating
+ Network deployment-ops-bootstrap-check_edge  Created
+ Volume "deployment-ops-bootstrap-check_ops-state"  Creating
+ Volume "deployment-ops-bootstrap-check_ops-state"  Created
+ Volume "deployment-ops-bootstrap-check_ops-data"  Creating
+ Volume "deployment-ops-bootstrap-check_ops-data"  Created
+ Container deployment-ops-bootstrap-check-executor-1  Creating
+ Container deployment-ops-bootstrap-check-executor-1  Created
+ Container deployment-ops-bootstrap-check-web-1  Creating
+ Container deployment-ops-bootstrap-check-web-1  Created
+ Container deployment-ops-bootstrap-check-executor-1  Starting
+ Container deployment-ops-bootstrap-check-executor-1  Started
+ Container deployment-ops-bootstrap-check-web-1  Starting
+ Container deployment-ops-bootstrap-check-web-1  Started
+Started. Web listener: 127.0.0.1:19224. Credentials: protected .env file. No database server is required.
+Fresh .env, local H2 database and exactly two services; no PostgreSQL service PASS
+Container deployment-ops-bootstrap-check-executor-1  Running
+ Container deployment-ops-bootstrap-check-web-1  Running
+Started. Web listener: 127.0.0.1:19224. Credentials: protected .env file. No database server is required.
+Repeated bootstrap preserves credentials and existing management data PASS
+Container deployment-ops-bootstrap-check-web-1  Stopping
+ Container deployment-ops-bootstrap-check-web-1  Stopped
+ Container deployment-ops-bootstrap-check-web-1  Removing
+ Container deployment-ops-bootstrap-check-web-1  Removed
+ Container deployment-ops-bootstrap-check-executor-1  Stopping
+ Container deployment-ops-bootstrap-check-executor-1  Stopped
+ Container deployment-ops-bootstrap-check-executor-1  Removing
+ Container deployment-ops-bootstrap-check-executor-1  Removed
+ Network deployment-ops-bootstrap-check_ops  Removing
+ Network deployment-ops-bootstrap-check_edge  Removing
+ Network deployment-ops-bootstrap-check_ops  Removed
+ Network deployment-ops-bootstrap-check_edge  Removed
+Removed only generated bootstrap fixture, containers and verified test volumes

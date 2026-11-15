@@ -10,21 +10,6 @@ services:
     restart: unless-stopped
     environment:
       REGISTRY_STORAGE_DELETE_ENABLED: "false"
-  db:
-    image: postgres:18
-    pull_policy: never
-    environment:
-      POSTGRES_DB: deployment_ops
-      POSTGRES_USER: deployment_ops
-      POSTGRES_PASSWORD: ${DB_PASSWORD:?set DB_PASSWORD}
-    volumes: ["ops-db:/var/lib/postgresql"]
-    networks: [ops]
-    restart: unless-stopped
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U deployment_ops"]
-      interval: 5s
-      timeout: 3s
-      retries: 30
   executor:
     image: deployment-ops-executor:1.0.0
     pull_policy: never
@@ -47,14 +32,13 @@ services:
       context: .
       dockerfile: backend/Dockerfile
     environment:
-      DB_PASSWORD: ${DB_PASSWORD}
+      DB_PASSWORD: ${DB_PASSWORD:?set local database password}
       EXECUTOR_TOKEN: ${EXECUTOR_TOKEN}
       ADMIN_PASSWORD: ${ADMIN_PASSWORD:?set ADMIN_PASSWORD}
       JAVA_TOOL_OPTIONS: ${JAVA_TOOL_OPTIONS:-}
+    volumes: ["ops-data:/data"]
     ports: ["${OPS_BIND:-127.0.0.1}:${OPS_PORT:-19220}:8080"]
     depends_on:
-      db:
-        condition: service_healthy
       executor:
         condition: service_started
     networks: [ops, edge]
@@ -68,6 +52,6 @@ networks:
   ops:
     internal: true
 volumes:
-  ops-db:
+  ops-data:
   ops-state:
   ops-registry:

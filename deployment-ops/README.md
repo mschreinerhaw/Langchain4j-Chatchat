@@ -10,23 +10,22 @@ Independent offline Docker operations management. This is a working first releas
 - Login: use the configured administrator credentials.
 - Branch: `feature/deployment-ops-offline-20261115`.
 
-Runtime OS, Cline and MCP are managed workloads, not runtime dependencies. The Java backend, frontend, PostgreSQL database and executor have independent configuration and lifecycles.
+Runtime OS, Cline and MCP are managed workloads, not runtime dependencies. Deployment-ops owns its backend, frontend, local storage and executor. H2 shares the Java process and persists in its dedicated volume; no Runtime OS service is required.
 
 ## Architecture and offline prerequisites
 
 Java 17 provides authentication, roles, audits and the Web API. It has no Docker socket, host directory mount or shell endpoint. Only the separate Python executor mounts the Docker socket and uses allowlisted Docker Engine API operations. Protect its token and network because it has Docker host administration privileges.
 
-PostgreSQL 18 has a dedicated database and volume on an internal network. Web and executor also use a management bridge. No public API, CDN, package repository or SaaS authentication is needed at runtime.
+H2 runs inside the Java Web process and stores management data in the dedicated ops-data volume at /data/deployment-ops.mv.db. No database server or database image is required. Run one Web instance per local database; do not share this file across replicas or a network filesystem. Web and executor also use a management bridge. No public API, CDN, package repository or SaaS authentication is needed at runtime.
 
 Install Docker Engine 26+ and Compose v2 from offline media. Load these trusted image TARs before building:
 
 ```text
 eclipse-temurin:17-jdk-jammy
 python:3.11-slim
-postgres:18
 ```
 
-Java dependencies and licenses are in `backend/lib`; checksums are in `docs/dependencies.json`. Python uses its standard library. The frontend uses local assets. No Maven, npm or pip download is required. Host Python 3 is used for optional checks; Node is only used for JavaScript checks.
+The default database is H2 2.3.232, bundled with Java. The PostgreSQL JDBC JAR is retained only for the explicit legacy migration tool, not as a runtime database dependency. Java dependencies and licenses are in `backend/lib`; checksums are in `docs/dependencies.json`. Python uses its standard library. The frontend uses local assets. No Maven, npm or pip download is required. Host Python 3 is used for optional checks; Node is only used for JavaScript checks.
 
 ## Disk space
 
@@ -49,7 +48,7 @@ chmod 600 .env
 
 Edit `.env`: set new random `DB_PASSWORD` and `EXECUTOR_TOKEN`, initial `ADMIN_PASSWORD`, and the desired `OPS_BIND` and `OPS_PORT`. Defaults bind to 127.0.0.1:19220. Use a specific private IP for LAN access. Never commit `.env`.
 
-On the existing server, preserve `.env`, database credentials and executor token. Changing ADMIN_PASSWORD does not reset an existing database account; use Users and roles for password changes.
+On the existing server, preserve `.env`, local H2 credentials, the ops-data volume and executor token. Changing ADMIN_PASSWORD does not reset an existing database account; use Users and roles for password changes.
 
 ```sh
 python3 scripts/check-docs.py
@@ -61,7 +60,7 @@ docker compose ps
 curl -fsS http://127.0.0.1:19220/api/health
 ```
 
-The Docker build compiles Java source with javac on the target server and packages the independent frontend directory. First startup initializes the dedicated database. Expect health status UP. Reuse a private HTTPS reverse proxy when available. Session cookies use HttpOnly and SameSite=Strict.
+The Docker build compiles Java source with javac on the target server and packages the independent frontend directory. First startup initializes the embedded file database. Expect health status UP with database H2 embedded. Reuse a private HTTPS reverse proxy when available. Session cookies use HttpOnly and SameSite=Strict.
 
 ## Offline transport
 
@@ -71,12 +70,12 @@ On a preparation machine with the required images:
 sh scripts/offline-images.sh export /media/offline/ops-images.tar
 ```
 
-Transfer the TAR, its .sha256 file and this source directory. The export includes Web, executor, PostgreSQL and Java/Python bases. It excludes Registry and database/application data.
+Transfer the TAR, its .sha256 file and this source directory. The export includes Web, executor and Java/Python bases. It excludes Registry and database/application data.
 
-The checksum file records the ORIGINAL export path. The import helper works when the absolute path is unchanged. If the destination path differs, compare the first digest in the .sha256 file with `sha256sum /new/path/ops-images.tar`. Only after they match, run:
+The import helper verifies the stored digest against the supplied path, so the export and import paths may differ. Run:
 
 ```sh
-docker load -i /new/path/ops-images.tar
+sh scripts/offline-images.sh import /new/path/ops-images.tar
 ```
 
 ## Web functions
@@ -140,9 +139,9 @@ sh scripts/lifecycle.sh upgrade
 sh scripts/lifecycle.sh recover
 ```
 
-Upgrade backs up the database, .env and executor journal, preserves recovery image tags, builds source, starts services and checks health. Failed health checks invoke image recovery. Recovery requires retained images; it does not undo destructive database migrations or restore application data.
+Upgrade briefly stops Web/executor to close and copy the H2 file, .env and executor journal, preserves recovery image tags, builds source, starts services and checks health. Failed health checks invoke image recovery. Recovery requires retained images; it does not undo destructive database migrations or restore application data.
 
-Backups are in backups/TIMESTAMP and contain database.sql, environment and executor-state. They contain secrets. Keep a secured copy on a separate disk. Test SQL restoration in a separate empty database first. Before live restoration, stop Web/executor and restore the matching environment, database and journal. Referenced retained application containers must still exist for journal recovery.
+Backups are in backups/TIMESTAMP and contain data/, environment, executor-state/ and a COMPLETE marker. They contain secrets. Copy them to secure separate storage. Never copy a live open H2 file as a consistent backup. Stop Web/executor before restoring matching data files, environment and journals, preserve UID/GID 10001 access to /data, then start services. First verify the snapshot with VerifyBackup in an isolated read-only container. Referenced retained application containers must still exist for journal recovery. Restore using the same H2 version before attempting any database engine upgrade.
 
 ```sh
 sh scripts/lifecycle.sh stop
@@ -156,7 +155,7 @@ Uninstall removes this Compose project's containers and networks but keeps its n
 
 ```sh
 docker compose ps
-docker compose logs --tail 100 web executor db
+docker compose logs --tail 100 web executor
 curl -fsS http://127.0.0.1:19220/api/health
 df -h /
 python3 scripts/check-docs.py
@@ -177,3 +176,21 @@ Browser checks use existing local Chrome and playwright-core; see [English UI ve
 The workspace groups navigation by daily work, infrastructure and administration. Applications are grouped by project and node. Search and pagination keep long lists manageable. Status badges and readable container/resource summaries avoid requiring JSON inspection for routine checks. Technical details remain expandable.
 
 Create and import actions open labeled dialogs. Container changes and rollback require an explicit confirmation. Unavailable optional Registry service has a setup state instead of a raw error. Read-only accounts do not see mutation controls; the server still enforces permissions. See [PRODUCT-UX.md](docs/PRODUCT-UX.md) for validation.
+
+## New-environment bootstrap
+
+The primary goal is to install Runtime OS and applications on a new offline host. The manager starts FIRST with H2; application databases are installed later as managed components. See [Environment bootstrap design](docs/ENVIRONMENT-BOOTSTRAP.md).
+
+On a new Docker/Compose host, copy the manager source/release directory and verified image TAR, then run:
+
+```sh
+sh scripts/install-offline.sh /media/offline/ops-images.tar
+```
+
+No PostgreSQL, Runtime OS, Java host installation or Python host installation is required. If .env is missing, the script creates unique credentials using the already loaded executor image. Read the protected .env locally, set the desired private OPS_BIND, and run the installer again to apply configuration. It never overwrites existing .env or data volumes.
+
+The current application wizard deploys one container. Complete Runtime OS packages still require dependency-aware infrastructure installation, persistent volumes, application schema jobs and environment profiles. This functionality is explicitly separate from the implemented manager bootstrap.
+
+## One-time legacy management database migration
+
+Do not run the new Web service against an existing PostgreSQL URL. Its supported runtime is embedded H2 only. To preserve an older manager installation, see [H2 migration](docs/H2-MIGRATION.md). Managed applications may continue using their own PostgreSQL service; that is independent of manager storage.

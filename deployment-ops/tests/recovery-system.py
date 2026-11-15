@@ -25,14 +25,13 @@ try:
 finally:
  print(run(['sh','scripts/lifecycle.sh','recover']),flush=True)
 wait();print('self image recovery PASS',flush=True)
-backup=sorted(Path('backups').glob('*/database.sql'))[-1]
-name='ops_restore_check_20261115'
-run(['docker','compose','exec','-T','db','createdb','-U','deployment_ops',name])
-try:
- print(run(['docker','compose','exec','-T','db','psql','-v','ON_ERROR_STOP=1','-U','deployment_ops','-d',name],input=backup.read_text()),flush=True)
- count=run(['docker','compose','exec','-T','db','psql','-U','deployment_ops','-d',name,'-Atc','SELECT count(*) FROM users']).strip()
- assert int(count)>0;print('database backup restored to isolated database PASS',flush=True)
-finally:run(['docker','compose','exec','-T','db','dropdb','-U','deployment_ops',name])
+backup=sorted(Path('backups').glob('*/COMPLETE'))[-1].parent/'data'
+assert (backup/'deployment-ops.mv.db').is_file()
+for line in Path('.env').read_text().splitlines():
+ if line.startswith('DB_PASSWORD='):os.environ['DB_PASSWORD']=line.split('=',1)[1]
+os.environ['DB_URL']='jdbc:h2:file:/data/deployment-ops;MODE=PostgreSQL;DATABASE_TO_LOWER=TRUE;IFEXISTS=TRUE;ACCESS_MODE_DATA=r;FILE_LOCK=NO'
+print(run(['docker','run','--rm','--network','none','--mount','type=bind,source='+str(backup.resolve())+',target=/data,readonly','-e','DB_PASSWORD','-e','DB_URL','deployment-ops-web:1.0.0','java','-cp','classes:lib/*','VerifyBackup']),flush=True)
+print('offline H2 backup opened in independent engine PASS',flush=True)
 for container in ['deployment-ops-web-1','deployment-ops-executor-1']:run(['docker','network','disconnect','deployment-ops_edge',container])
 try:
  code="""import urllib.request,json,http.cookiejar

@@ -2,6 +2,18 @@
 
 Date: 2026-11-15 (Asia/Shanghai). Target: 192.168.195.221. Source directory: /opt/deployment-ops. Web port: 19220.
 
+## H2 bootstrap and transition (current)
+
+- Ten local automated tests pass: seven executor safety tests plus real H2 authentication/role/timestamp tests, failed-login query checks and immediate forced-process restart persistence.
+- The H2 candidate was compiled on the supplied server with networking disabled for build steps. A read-only legacy migration into an isolated test volume preserved administrator credentials, node/link/audit records and identity sequences. Discovery and container restart persistence passed.
+- Production migration copied 2 users, 1 node, 3 entries and 113 historical audit records. Sessions were intentionally invalidated; account password hashes were preserved. Subsequent audit IDs advanced correctly.
+- The old dedicated manager PostgreSQL container was stopped. H2 health, authentication and Docker discovery continued working. The separate business database was not stopped or modified.
+- Cold H2/environment/journal backup and restart passed. A read-only backup snapshot opened successfully in an independent H2 JVM without network access.
+- Across the cutover, the status and StartedAt values of 33 unrelated containers were unchanged. Approximately 7.9 GiB remained free on the root filesystem.
+- A separate fresh bootstrap fixture generated protected unique credentials and created only Web and executor. No PostgreSQL service was created. Repeating bootstrap preserved credentials and stored management data. Only those explicitly generated fixture containers/volumes were removed.
+
+The sections below are historical baseline checks from the earlier PostgreSQL-backed manager, not a requirement to install PostgreSQL for the current release.
+
 ## Build and safety checks
 
 Java 17 compilation, Node JavaScript syntax and local frontend asset checks passed. The server built from source using existing local base images, without Maven/npm/pip installation. Web, dedicated PostgreSQL and executor started independently.

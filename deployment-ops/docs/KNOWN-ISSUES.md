@@ -13,5 +13,7 @@ This first release does not satisfy every original requirement.
 - Authentication: no built-in HTTPS termination, MFA, external secret vault or full session administration UI. Use an existing private HTTPS proxy. Executor tokens are stored in the dedicated database; protect it and its backups.
 - Compatibility: Docker API v1.45 requires Engine 26+. Tags are not pinned by digest. Preserve trusted offline archives, checksums and provenance.
 - Uploads: Web limit 256 MiB; executor limit 2 GiB. Executor temporary files use tmpfs and consume memory. Large-image disk staging and upload progress are incomplete.
-- Export helper: checksum files retain their original export path. When importing at a different path, follow the explicit checksum verification instructions in README.md.
+- Embedded storage: one Web process owns one H2 file database. No shared-file HA, automatic cross-engine conversion or live-file-copy backup. Cold backup briefly interrupts the manager.
 - Browser validation: English login, all ten pages, unique navigation, rendered text and logout passed in Chrome. The optional Registry page reports unavailable; this is not proof of a functioning Registry service.
+
+The manager now bootstraps without PostgreSQL. A full multi-service Runtime OS installer remains distinct from the current single-container application wizard; see ENVIRONMENT-BOOTSTRAP.md.

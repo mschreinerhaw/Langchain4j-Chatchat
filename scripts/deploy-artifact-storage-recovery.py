@@ -86,10 +86,16 @@ def main():
         changes = dict(api_replacements)
         changes[chat_name] = (folder / 'chat.jar').read_bytes()
         changed_app = patch_jar(original, folder / 'app.jar', changes)
-        (folder / 'Dockerfile').write_text('FROM ' + image + '\nLABEL org.opencontainers.image.revision="' + revision + '"\nCOPY app.jar /srv/app/app.jar\n')
+        base_tag = 'runtime-api:storage-recovery-baseline-' + image.split(':')[1][:12]
+        run('docker', 'tag', image, base_tag)
+        (folder / 'Dockerfile').write_text('FROM ' + base_tag + '\nLABEL org.opencontainers.image.revision="' + revision + '"\nCOPY app.jar /srv/app/app.jar\n')
         (folder / '.dockerignore').write_text('**\n!app.jar\n!Dockerfile\n')
         tag = 'runtime-api:storage-recovery-' + image.split(':')[1][:12] + '-20261115'
-        (folder / 'build.log').write_text(run('docker', 'build', '-t', tag, str(folder)))
+        try:
+            (folder / 'build.log').write_text(run('docker', 'build', '-t', tag, str(folder)))
+        except subprocess.CalledProcessError as error:
+            (folder / 'build.log').write_text(error.output)
+            raise
         deployments[image] = dict(image=json.loads(run('docker', 'inspect', tag))[0]['Id'], tag=tag,
                                   changedAppEntries=changed_app, changedChatEntries=changed_chat)
     receipt = dict(buildMode='server-javac-source', sourceCommit=revision,

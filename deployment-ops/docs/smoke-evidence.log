@@ -1,0 +1,97 @@
+health True
+anonymous denied True
+login True
+real inventory True
+system discovered True
+self stop denied True
+CSRF denied True
+entry stored True
+deploy healthy True
+upgrade healthy True
+manual rollback True
+unhealthy release rejected True
+failed deployment automatically rolled back True
+viewer login True
+viewer read True
+viewer mutation denied True
+TAR invalid checksum denied True
+TAR checksum import True
+audited True
+[
+  {
+    "name": "health",
+    "passed": true
+  },
+  {
+    "name": "anonymous denied",
+    "passed": true
+  },
+  {
+    "name": "login",
+    "passed": true
+  },
+  {
+    "name": "real inventory",
+    "passed": true
+  },
+  {
+    "name": "system discovered",
+    "passed": true
+  },
+  {
+    "name": "self stop denied",
+    "passed": true
+  },
+  {
+    "name": "CSRF denied",
+    "passed": true
+  },
+  {
+    "name": "entry stored",
+    "passed": true
+  },
+  {
+    "name": "deploy healthy",
+    "passed": true
+  },
+  {
+    "name": "upgrade healthy",
+    "passed": true
+  },
+  {
+    "name": "manual rollback",
+    "passed": true
+  },
+  {
+    "name": "unhealthy release rejected",
+    "passed": true
+  },
+  {
+    "name": "failed deployment automatically rolled back",
+    "passed": true
+  },
+  {
+    "name": "viewer login",
+    "passed": true
+  },
+  {
+    "name": "viewer read",
+    "passed": true
+  },
+  {
+    "name": "viewer mutation denied",
+    "passed": true
+  },
+  {
+    "name": "TAR invalid checksum denied",
+    "passed": true
+  },
+  {
+    "name": "TAR checksum import",
+    "passed": true
+  },
+  {
+    "name": "audited",
+    "passed": true
+  }
+]

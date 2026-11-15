@@ -1,0 +1,6 @@
+.env
+.git
+*.tar
+*.tar.gz
+tests
+docs

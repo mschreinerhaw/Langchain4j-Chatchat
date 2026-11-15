@@ -1,0 +1,73 @@
+name: deployment-ops
+services:
+  registry:
+    image: registry:2.8.3
+    pull_policy: never
+    profiles: [registry]
+    volumes: ["ops-registry:/var/lib/registry"]
+    ports: ["127.0.0.1:19225:5000"]
+    networks: [ops]
+    restart: unless-stopped
+    environment:
+      REGISTRY_STORAGE_DELETE_ENABLED: "false"
+  db:
+    image: postgres:18
+    pull_policy: never
+    environment:
+      POSTGRES_DB: deployment_ops
+      POSTGRES_USER: deployment_ops
+      POSTGRES_PASSWORD: ${DB_PASSWORD:?set DB_PASSWORD}
+    volumes: ["ops-db:/var/lib/postgresql"]
+    networks: [ops]
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U deployment_ops"]
+      interval: 5s
+      timeout: 3s
+      retries: 30
+  executor:
+    image: deployment-ops-executor:1.0.0
+    pull_policy: never
+    build:
+      context: .
+      dockerfile: executor/Dockerfile
+    environment:
+      EXECUTOR_TOKEN: ${EXECUTOR_TOKEN:?set EXECUTOR_TOKEN}
+      OPS_NETWORK: deployment-ops_edge
+    volumes: ["/var/run/docker.sock:/var/run/docker.sock", "ops-state:/state"]
+    networks: [ops, edge]
+    restart: unless-stopped
+    read_only: true
+    tmpfs: ["/tmp:size=3g"]
+    security_opt: ["no-new-privileges:true"]
+  web:
+    image: deployment-ops-web:1.0.0
+    pull_policy: never
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
+    environment:
+      DB_PASSWORD: ${DB_PASSWORD}
+      EXECUTOR_TOKEN: ${EXECUTOR_TOKEN}
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD:?set ADMIN_PASSWORD}
+      JAVA_TOOL_OPTIONS: ${JAVA_TOOL_OPTIONS:-}
+    ports: ["${OPS_BIND:-127.0.0.1}:${OPS_PORT:-19220}:8080"]
+    depends_on:
+      db:
+        condition: service_healthy
+      executor:
+        condition: service_started
+    networks: [ops, edge]
+    restart: unless-stopped
+    read_only: true
+    tmpfs: ["/tmp:size=64m"]
+    cap_drop: [ALL]
+    security_opt: ["no-new-privileges:true"]
+networks:
+  edge: {}
+  ops:
+    internal: true
+volumes:
+  ops-db:
+  ops-state:
+  ops-registry:

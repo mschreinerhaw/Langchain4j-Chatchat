@@ -1,0 +1,8 @@
+.env
+*.tar
+*.tar.gz
+__pycache__/
+backend/classes/
+backups/
+tests/fixture/
+tests/*-result.log

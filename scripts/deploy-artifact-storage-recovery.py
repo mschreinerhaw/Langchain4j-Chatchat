@@ -35,6 +35,34 @@ def patch_jar(source, target, replacements):
     return changed
 
 
+def refresh_shared_namespace(compose, command):
+    """API is the namespace owner; replacing it invalidates every follower."""
+    config = json.loads(compose.read_text())
+    followers = [role for role, cfg in config['services'].items()
+                 if cfg.get('network_mode') == 'service:temporal-control-api' and not cfg.get('profiles')]
+    if 'temporal' not in followers:
+        raise RuntimeError('Expected the declared Temporal namespace dependency')
+    run(*command, 'up', '-d', '--no-deps', '--force-recreate', 'temporal')
+    owner = json.loads(run('docker', 'inspect', 'runtime-native-temporal-api'))[0]
+    for attempt in range(60):
+        try:
+            run('nsenter', '--target', str(owner['State']['Pid']), '--net', 'python3', '-c',
+                "import socket; socket.create_connection(('127.0.0.1',7233),timeout=1).close()")
+            break
+        except subprocess.CalledProcessError:
+            if attempt == 59:
+                raise RuntimeError('Temporal is not reachable in the new API namespace')
+            time.sleep(1)
+    remaining = [role for role in followers if role != 'temporal']
+    run(*command, 'up', '-d', '--no-deps', '--force-recreate', *remaining)
+    for role in followers:
+        actual = json.loads(run('docker', 'inspect', config['services'][role]['container_name']))[0]
+        if not actual['State']['Running'] or actual['HostConfig']['NetworkMode'] != 'container:' + owner['Id']:
+            raise RuntimeError('Shared namespace follower is stale: ' + role)
+    return dict(status='PASSED', namespaceOwner=owner['Id'], refreshedServices=followers,
+                temporalTcpReachable=True)
+
+
 def main():
     release = Path(sys.argv[1]).resolve()
     source = release / 'source'
@@ -122,6 +150,7 @@ def main():
     command = ['docker', 'compose', '-p', 'runtime-native-temporal-candidate', '-f', str(compose)]
     try:
         run(*command, 'up', '-d', '--no-deps', *names)
+        receipt['networkNamespace'] = refresh_shared_namespace(compose, command)
         ready = False
         for _ in range(120):
             try:
@@ -141,6 +170,7 @@ def main():
     except Exception:
         compose.write_bytes(original)
         run(*command, 'up', '-d', '--no-deps', *names)
+        refresh_shared_namespace(compose, command)
         raise
     receipt.update(activated=True, readiness='authenticated route rejects anonymous access', dataVolumesChanged=False)
     (release / 'deployment.json').write_text(json.dumps(receipt, indent=2))

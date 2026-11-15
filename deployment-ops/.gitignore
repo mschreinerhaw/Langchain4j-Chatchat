@@ -6,3 +6,4 @@ backend/classes/
 backups/
 tests/fixture/
 tests/*-result.log
+test-artifacts/

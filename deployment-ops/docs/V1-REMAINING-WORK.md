@@ -1,95 +1,32 @@
-# Deployment Ops V1.0 acceptance ledger - 2026-11-17
+# Deployment Ops V1.0 交付台账
 
-Status: **INCOMPLETE. Candidate only; no formal V1.0 tag.**
-Baseline `8dbd6b915`, branch `feature/deployment-ops-offline-20261115`.
+基线 `8dbd6b915`，分支 `feature/deployment-ops-offline-20261115`。
+本台账替代早期候选版的阶段清单。详细执行记录见
+`evidence/native-product-20261117/` 和 `RELEASE-1.0.0.md`。
 
-## Implemented and executed
+已实施并实际验证：原生 Spring Boot/H2、模块化 Vue、管理员/只读角色、
+配置/入口/审计、真实主机/镜像/容器监控和操作、离线签名镜像导入、
+Native/Temporal Runtime OS 24 组件部署、平台中途重启与显式任务恢复、
+真实业务镜像升级、部署失败自动回滚、页面手动回滚、业务数据保留、
+平台升级及失败恢复、H2 一致性备份恢复、会话失效、依赖不可达时独立启动、
+隔离挂载视图中缺盘拒启。未卸载真实数据盘，未停止主机 Docker。
 
-- Native Spring Boot + embedded H2, shared persisted authentication, roles and audit,
-  existing signed-package and Docker APIs integrated without discarding verified code.
-- Modular Vue: lazy routes, console layout, domain API clients, stores, reusable
-  tables/charts, dashboard, hosts, images, containers, applications, deployment
-  wizard, task details, alerts, audit and separate system management components.
-- Real confirmed Docker volume/create/start/logs/metrics/stop/delete browser flow:
-  17 checks passed; persistent volume retained on the data disk.
-- Native source compilation on target using JDK17 and offline dependency seed.
-  Two native systemd services; no business-service stop propagation.
-- Persisted configurable HTTP/TCP service checks, alert transitions, settings/users.
-- Consistent H2 backup, verified restore and session invalidation. Actual restore
-  recovered the before-backup record and removed the later record; all existing
-  business container identities/start times stayed unchanged.
-- Actual isolated-network native install/start/login/API/H2 restart persistence
-  acceptance passed. Required dependencies inaccessible; platform remained UP.
-- Actual missing-mount refusal passed in a transient private systemd mount view;
-  host /mnt/disk01 stayed mounted. No host unmount or recursive business chown.
-- Local latest regression: Java 11 tests and Python 51 tests passed; Vue production
-  build passed. These do not replace Runtime OS acceptance.
+最终修复：首次探针连接失败与初始 UNKNOWN 同名时漏记告警历史。
+新增真实端点集成测试，验证首条记录存在且相同状态不重复刷屏。
+最新 Java 自动测试 12 项、Python 51 项；Vue 构建、格式检查及真实页面回归。
 
-## Additional real acceptance completed
+发行前最后核对：完整证据聚合门禁、正式 ZIP 和完整离线介质的清单/SHA、
+正式包新状态安装与服务器源码编译、正式包自升级隔离验证、提交推送。
+这些操作结果单独存入最终交付记录；不得用本台账代替执行结果。
+正式标签只能在上述结果全部通过后创建。
 
-- Browser imported the entire signed 6.2 GiB Native/Temporal Runtime OS release.
-- The real Vue wizard submitted deployment c8ef8046c7504acf95075a2887ba2803.
-  Initial host-network HOSTNAME incompatibility was diagnosed and fixed in the
-  adapter. Explicit recovery completed all 24 services and source-product checks:
-  administrator login, persistent Temporal, Native Core and Python runtime.
-- Actual compatible upgrade 2a6d29cebc8d4bffbd92fbff740c5223 passed; ports changed
-  to 19402/19403 and actual OS/MCP administrator identities were verified.
-- Deliberate signed QA installer exit 42 triggered automatic rollback, task
-  cfa606d3551a4adc981ca539188294e4 ended rolled_back. Other workloads unchanged.
-  The QA package was retired after acceptance.
-- Native offline ZIP rc.1 was checksum/inventory verified, compiled on the server,
-  installed into empty state, logged in, and restarted with persistent H2 records.
-- Platform rc.2 replacement and deliberately broken JAR recovery passed on that
-  fresh instance. All 44 business container IDs/start times stayed unchanged.
-  The extra fresh-instance services were stopped/disabled after acceptance.
+当前实例：`http://192.168.195.221:19240`，服务
+`deployment-ops-v1-release` / `deployment-ops-v1-release-executor`，
+状态目录 `/mnt/disk01/deployment-ops-v1-release/state`。
+Runtime 环境 `runtime-release-v1`，入口 19400，MCP 入口 19401，项目
+`ops-env-runtime-release-v1`，数据目录 `/mnt/disk01/ops/r/99f2-076e271c2551`。
+凭据单独保存在服务器受保护文件中，不进入 Git、报告或通用离线包。
 
-## Remaining acceptance and delivery work (continue without phase stop)
-
-The modular native console, real Docker lifecycle, image TAR import/version tags,
-three native Unix-socket executor probes, RBAC, configured health check edit/disable,
-consistent H2 restore/session invalidation and isolated startup/missing-mount refusal
-all have real execution evidence. Native application stop/start/stop also passed;
-all original 20 workloads were unchanged and every persistent directory/volume was
-retained. Only the 24 stopped containers created by this acceptance were removed
-after strict project/image/mount checks to free memory for the final cold install.
-
-1. Freeze source and build the final coherent candidate JAR on the target server.
-   Install that exact offline distribution into empty release/state directories;
-   import the complete signed media and submit a fresh Runtime OS GUI deployment.
-2. During that deployment, restart only the two native platform services and
-   explicitly resume the durable task through the page. Verify the same installer
-   and all existing business container identities/start times are retained.
-3. Verify actual gateway image replacement, a deliberately failing gateway after
-   replacement, automatic image rollback and retained application data. Previous
-   configuration/version upgrade and early-installer failure already passed.
-4. Regress the latest unified service alerts and final compact monitoring layout;
-   finish all source/build/browser/server reports and the native offline bundle.
-5. Aggregate reports through the formal source/JAR/evidence gate, verify the final
-   archive inventory/SHA, publish the verified commits and only then tag V1.0.
-
-Checkpoint ad2304370 is pushed. Formal release is still gated; do not stop at this
-checkpoint or describe candidate acceptance as completed V1 delivery.
-
-## Environment and scope
-
-Candidate URL: http://192.168.195.221:19240
-Candidate home: /mnt/disk01/deployment-ops-v1-candidate/release
-Candidate state: /mnt/disk01/deployment-ops-v1-candidate/state
-Services: deployment-ops-v1 and deployment-ops-v1-executor.
-Never stop or adopt existing production containers for tests. Never delete data
-volumes. Runtime OS tests use a new ops-env-* project and separate short data root.
-DolphinScheduler multi-address checks are implemented, but no real cluster endpoint
-has been supplied; actual cluster acceptance remains conditional/unverified.
-
-## Resume and evidence
-
-- tests/native-product-browser.cjs: actual page and container lifecycle acceptance.
-- tests/native-runtime-browser.cjs: actual multi-GB package import and Runtime wizard.
-- tests/native-platform-live.py: actual H2 backup/restore and business isolation.
-- tests/native-server-acceptance.py: native independent startup and mount refusal.
-- target/native-browser-lifecycle-r2/result.json: 17 passed browser checks.
-- docs/evidence/native-integration-20261116/restore-acceptance.json.
-- Server /mnt/disk01/deployment-ops-v1-validation/full-native-acceptance.json.
-- Server /mnt/disk01/deployment-ops-v1-validation/runtime-browser/ (active run).
-- Server /mnt/disk01/ops-publisher-20261116/ contains signed Runtime media.
-  Private publisher keys are restricted there and must never enter Git or releases.
+没有提供真实 DolphinScheduler 集群地址，多地址 HTTP/TCP 能力已验证，
+真实 DS 集群接入仍未验证。业务许可证、外部模型和企业网络配置由部署方提供。
+H2 备份仅覆盖平台管理数据，业务数据库/数据卷和执行器目录按业务方案备份。

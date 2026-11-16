@@ -111,6 +111,12 @@ class Handler(BaseHTTPRequestHandler):
   try:
    if not hmac.compare_digest(self.headers.get('Authorization',''),'Bearer '+TOKEN): return self.send(401,{'error':'executor authentication required'})
    path=self.path
+   if self.command=='POST' and os.getenv('OPS_NATIVE')=='1':
+    from native_storage import validate
+    validate()
+   if path=='/platform/maintenance' and self.command=='GET':
+    from platform_maintenance import list_jobs
+    return self.send(200,list_jobs())
    if path=='/platform/maintenance' and self.command=='POST':
     from platform_maintenance import submit
     size=int(self.headers.get('Content-Length','0'))
@@ -152,6 +158,7 @@ class Handler(BaseHTTPRequestHandler):
     elif path=='/inventory':
      info=docker('GET','/info'); result={'containers':docker('GET','/containers/json?all=1'),'images':docker('GET','/images/json'),'node':{k:info.get(k) for k in ['Name','NCPU','MemTotal','ContainersRunning','DockerRootDir','ServerVersion','ID']},'collectedAt':time.time()}
      for item in result['containers']:item['managerMetrics']=MANAGER.latest(item['Id'])
+     if os.getenv('OPS_NATIVE')=='1':result['managementOwner']=MANAGER.owner
     elif re.fullmatch('/containers/[a-f0-9]{12,64}/(logs|stats|inspect)',path):
      _,_,v,action=path.split('/'); suffix={'logs':'logs?stdout=1&stderr=1&timestamps=1&tail=200','stats':'stats?stream=false','inspect':'json'}[action]; result=docker('GET','/containers/'+v+'/'+suffix)
      if action=='inspect':

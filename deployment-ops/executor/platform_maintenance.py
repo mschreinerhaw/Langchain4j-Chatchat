@@ -12,6 +12,22 @@ def checksum(path):
         for chunk in iter(lambda:source.read(1024**2),b''):digest.update(chunk)
     return digest.hexdigest()
 
+def list_jobs():
+    require(os.getenv('OPS_NATIVE')=='1','Native maintenance is not configured')
+    root=Path(os.environ['OPS_DATA_DIR']).resolve().parent/'maintenance'
+    result=[]
+    for file in root.glob('*.json'):
+        job=read(file)
+        result.append(dict({key:value for key,value in job.items() if key in ('id','action','actor','status','createdAt','startedAt','finishedAt','error','steps')},target=Path(job['archive']).name))
+    return sorted(result,key=lambda job:job['createdAt'],reverse=True)
+
+def advance(job,name):
+    steps=job.setdefault('steps',[])
+    for step in steps:
+        if step['status']=='running':step.update(status='succeeded',completedAt=time.time())
+    steps.append({'id':name,'kind':'job','status':'running','startedAt':time.time()})
+    atomic(Path(job['state'])/'maintenance'/(job['id']+'.json'),job)
+
 def checked_archive(path):
     require(not path.is_symlink() and path.is_file(),'Archive missing or symlinked')
     expected=path.with_name(path.name+'.sha256').read_text().split()[0]
@@ -67,6 +83,7 @@ def wait_healthy(values):
     raise ValueError('Platform health check failed after maintenance')
 
 def restore(job,values,work):
+    advance(job,'verify_archive')
     archive=Path(job['archive']);checked_archive(archive)
     with zipfile.ZipFile(archive) as package:
         require(set(package.namelist())=={'manifest.json','database.zip'},'Unsupported backup contents')
@@ -75,6 +92,7 @@ def restore(job,values,work):
         database=work/'database.zip'
         with package.open('database.zip') as source,database.open('xb') as output:shutil.copyfileobj(source,output,1024**2)
     require(checksum(database)==manifest['databaseSha256'],'Backup database checksum mismatch')
+    advance(job,'verify_database')
     verified=work/'verified';verified.mkdir()
     with zipfile.ZipFile(database) as package:
         require(package.namelist()==['deployment-ops.mv.db'],'Backup must contain one embedded database')
@@ -83,11 +101,12 @@ def restore(job,values,work):
     runtime_env={**os.environ,**values}
     subprocess.run([values['JAVA_BIN'],'-jar',str(Path(values['OPS_HOME'])/'lib/deployment-ops.jar'),'--prepare-restore',str(verified)],check=True,env=runtime_env,timeout=120,capture_output=True,text=True)
     data=below(Path(values['OPS_DATA_DIR'])/'deployment-ops.mv.db',job['state']);saved=work/'before-restore.mv.db'
-    systemctl('stop',job['service'])
+    advance(job,'stop_platform');systemctl('stop',job['service'])
     try:
+        advance(job,'restore_database')
         shutil.copy2(data,saved);identity=data.stat();replacement=verified/'deployment-ops.mv.db'
         os.chown(replacement,identity.st_uid,identity.st_gid);os.chmod(replacement,stat.S_IMODE(identity.st_mode));os.replace(replacement,data)
-        systemctl('start',job['service']);wait_healthy(values)
+        advance(job,'start_platform');systemctl('start',job['service']);advance(job,'health_check');wait_healthy(values)
     except Exception:
         systemctl('stop',job['service'])
         if saved.exists():shutil.copy2(saved,data)
@@ -117,30 +136,36 @@ def extract_release(archive,target):
         require((target/'lib/deployment-ops.jar').is_file() and (target/'executor/agent.py').is_file(),'Incomplete native release')
 
 def upgrade(job,values,work):
+    advance(job,'verify_archive')
     archive=Path(job['archive']);checked_archive(archive)
     target=Path(job['state'])/'releases'/job['id'];target.mkdir(parents=True)
-    extract_release(archive,target)
+    advance(job,'extract_release');extract_release(archive,target)
     # Validate candidate against an isolated copy before replacing either process.
-    systemctl('stop',job['service']);data=Path(values['OPS_DATA_DIR'])/'deployment-ops.mv.db';snapshot=work/'before-upgrade.mv.db';shutil.copy2(data,snapshot)
+    advance(job,'stop_platform');systemctl('stop',job['service']);advance(job,'snapshot_database');data=Path(values['OPS_DATA_DIR'])/'deployment-ops.mv.db';snapshot=work/'before-upgrade.mv.db';shutil.copy2(data,snapshot)
     config=Path(job['config']);old=config.read_bytes();(work/'manager.env.before').write_bytes(old);executor=job['service']+'-executor'
     try:
+        advance(job,'install_release')
         systemctl('stop',executor)
         updated=dict(values,OPS_HOME=str(target),OPS_JAR=str(target/'lib/deployment-ops.jar'))
         text=''.join(k+'="'+str(v).replace('\\','\\\\').replace('"','\\"')+'"\n' for k,v in updated.items())
-        config.write_text(text);systemctl('start',executor);systemctl('start',job['service']);wait_healthy(updated)
+        config.write_text(text);systemctl('start',executor);systemctl('start',job['service']);advance(job,'health_check');wait_healthy(updated)
     except Exception:
         systemctl('stop',job['service']);systemctl('stop',executor);config.write_bytes(old);shutil.copy2(snapshot,data);systemctl('start',executor);systemctl('start',job['service']);raise
 
 def execute(file):
     job=read(file);state=Path(job['state']);require(Path('/mnt/disk01').is_mount() and Path('/mnt/disk01') in state.resolve().parents,'Required storage unavailable')
     work=state/'maintenance'/job['id'];work.mkdir(mode=0o700)
+    values=environment(Path(job['config']));os.environ.update({key:value for key,value in values.items() if key.startswith('OPS_')});os.environ['OPS_NATIVE']='1'
     try:
         job.update(status='running',startedAt=time.time());atomic(file,job)
-        values=environment(Path(job['config']))
         require(values['OPS_PLATFORM_SERVICE']==job['service'] and Path(values['OPS_DATA_DIR']).resolve().parent==state.resolve(),'Maintenance scope mismatch')
         (restore if job['action']=='restore' else upgrade)(job,values,work)
+        for step in job.get('steps',[]):
+            if step['status']=='running':step.update(status='succeeded',completedAt=time.time())
         job.update(status='succeeded',finishedAt=time.time());atomic(file,job)
     except Exception as error:
+        for step in job.get('steps',[]):
+            if step['status']=='running':step.update(status='failed',completedAt=time.time())
         job.update(status='failed',error=type(error).__name__+': '+str(error),finishedAt=time.time());atomic(file,job)
     finally:
         lock=state/'maintenance/active.lock'

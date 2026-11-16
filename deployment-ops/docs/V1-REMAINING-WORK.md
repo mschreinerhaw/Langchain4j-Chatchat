@@ -1,88 +1,69 @@
-# V1.0 remaining work and verified bootstrap — 2026-11-16
+# Deployment Ops V1.0 acceptance ledger - 2026-11-17
 
-Status: **INCOMPLETE — not a V1 release**. Baseline: `8dbd6b915` on
-`feature/deployment-ops-offline-20261115`. Historical P0 acceptance does not prove
-the native Spring Boot product works. No release tag has been created.
+Status: **INCOMPLETE. Candidate only; no formal V1.0 tag.**
+Baseline `8dbd6b915`, branch `feature/deployment-ops-offline-20261115`.
 
-## Repository assessment
+## Implemented and executed
 
-The legacy `backend`, `frontend`, and Python `executor` contain the existing
-authentication, audit, signed package import, Docker observation, deployment plans,
-installation journals and recovery implementation. Preserve these implementations
-and their existing tests when migrating. They have not been connected to the new
-Spring Boot application. The Vue page checks connectivity only. `RuntimeAdapter`
-is an interface; `ApplicationRelease` validates dependency graphs but executes none.
+- Native Spring Boot + embedded H2, shared persisted authentication, roles and audit,
+  existing signed-package and Docker APIs integrated without discarding verified code.
+- Modular Vue: lazy routes, console layout, domain API clients, stores, reusable
+  tables/charts, dashboard, hosts, images, containers, applications, deployment
+  wizard, task details, alerts, audit and separate system management components.
+- Real confirmed Docker volume/create/start/logs/metrics/stop/delete browser flow:
+  17 checks passed; persistent volume retained on the data disk.
+- Native source compilation on target using JDK17 and offline dependency seed.
+  Two native systemd services; no business-service stop propagation.
+- Persisted configurable HTTP/TCP service checks, alert transitions, settings/users.
+- Consistent H2 backup, verified restore and session invalidation. Actual restore
+  recovered the before-backup record and removed the later record; all existing
+  business container identities/start times stayed unchanged.
+- Actual isolated-network native install/start/login/API/H2 restart persistence
+  acceptance passed. Required dependencies inaccessible; platform remained UP.
+- Actual missing-mount refusal passed in a transient private systemd mount view;
+  host /mnt/disk01 stayed mounted. No host unmount or recursive business chown.
+- Local latest regression: Java 11 tests and Python 46 tests passed; Vue production
+  build passed. These do not replace Runtime OS acceptance.
 
-## Changes and executed evidence
+## In execution / requires actual acceptance
 
-- Native Java entry point checks actual Linux mountinfo before Spring/H2 startup;
-  rejects absent mount, mount symlink, data outside mount, and ancestor symlink escape.
-- H2 default path is under `/mnt/disk01`; removed working-directory fallback.
-- Added native install/stop/restart/status helpers, Java 17 prerequisite validation,
-  disk-based process logs and temporary directory configuration. Installation
-  helpers are not yet installation-acceptance tested.
-- Added network-free target-host source compiler using a prepared Spring Boot loader
-  and dependency archive. Includes no precompiled application classes in that archive.
-- Local `mvn -o -pl deployment-ops package`: 5 tests passed, 0 failures.
-- Real server `192.168.195.221:5221`: Java 17 compilation passed without Maven/network.
-  Server JAR SHA256: `fda1d2db16c5e68b5ee6678fb392d2a4bd5503610a4431ac7dd96fcb9c922153`.
-- Real transient systemd service with private network and inaccessible Docker socket:
-  startup and restart health `UP`, H2 file exists, shutdown leaves all previously
-  running business container IDs, StartedAt and running state unchanged.
-  The test service has been stopped. Existing deployment has not been replaced.
-- First offline repackaging attempt failed because the classes directory ZIP entry
-  was absent; corrected and recompiled on the server, then passed the real check.
+1. Current Native/Temporal Runtime OS adapter: signed scoped publisher capability,
+   immutable image pins, source-built product installer, isolated project/data path,
+   preflight, durable job/logs, explicit recovery and compatible rollback.
+   A 6.2 GiB signed offline package was produced from the already source-built
+   13.4 GB image archive. Browser import and fresh platform-driven deployment
+   are in progress. No Runtime OS delivery claim until this passes.
+2. Actual application compatible upgrade, deliberate failure and rollback.
+3. Actual platform upgrade success and failed-candidate recovery, preserving all
+   business containers. Add explicit recovery health result in the journal.
+4. Assemble candidate native offline ZIP with JAR, source/compiler seed, scripts,
+   trusted public keys, checksums, documentation and executable acceptance tests.
+   Install from that immutable ZIP into fresh server state and verify login.
+5. Rerun isolation/missing-mount acceptance against final built artifact; archive
+   browser/API/source-build evidence and exact hashes/commit IDs.
+6. Complete operations documentation, final complete regression, checkpoint/push.
+   Formal tag requires every mandatory real acceptance to pass.
 
-Evidence: [server acceptance](evidence/native-bootstrap-20261116/server-acceptance.json)
-and [server source build](evidence/native-bootstrap-20261116/server-build.log).
-Generated Spring development password has been redacted from archived logs.
+## Environment and scope
 
-The isolation test proves independence when dependencies are inaccessible; it does
-not claim Docker or the production databases were stopped. Production services
-were deliberately left running. The mount namespace unmount experiment was rejected
-by automatic approval review (`blocked by policy`); actual absent-mount startup
-acceptance remains unverified. Unit tests do not replace that acceptance.
+Candidate URL: http://192.168.195.221:19240
+Candidate home: /mnt/disk01/deployment-ops-v1-candidate/release
+Candidate state: /mnt/disk01/deployment-ops-v1-candidate/state
+Services: deployment-ops-v1 and deployment-ops-v1-executor.
+Never stop or adopt existing production containers for tests. Never delete data
+volumes. Runtime OS tests use a new ops-env-* project and separate short data root.
+DolphinScheduler multi-address checks are implemented, but no real cluster endpoint
+has been supplied; actual cluster acceptance remains conditional/unverified.
 
-## Required remaining work, in dependency order
+## Resume and evidence
 
-1. Migrate existing authenticated APIs and persistent users/roles/audit into Boot;
-   implement schema version migrations and preserve P0 credentials/data explicitly.
-   Remove development generated authentication from the production flow.
-2. Package and install the Python executor as an independent local non-container
-   service with least privilege, mount validation and durable state paths. Connect
-   Docker discovery and operation plans; test disconnected Docker behavior.
-3. Connect the real Vue management pages to those APIs, preserving confirmation,
-   role checks, audits, import verification, logs and metrics.
-4. Implement current Temporal Runtime OS release contract and dependency adapter,
-   configuration/ports/volumes, immutable versions, upgrade and rollback history.
-   Legacy SDK recipes do not qualify as current Runtime OS acceptance.
-5. Add persistent sampled service health, alerts and host resource charts; implement
-   Coding Agent/MCP/Python and multi-address DolphinScheduler checks.
-6. Implement native consistent H2/config/executor-state backups, isolated restore
-   checks, versioned platform replacement and failure recovery. Verify no business
-   shutdown during platform upgrade, not just during restart.
-7. Complete reproducible offline release assembly, dependency/license checksums,
-   installation documentation and clean-host install/initialize/login acceptance.
-8. Execute all required real acceptance scenarios, then commit/push and tag V1.0.
-
-## Reproduce bootstrap source compilation only
-
-This is a developer validation procedure, **not a full server installation guide**.
-Source work directory on the server:
-`/mnt/disk01/deployment-ops-v1-validation/source`.
-The prepared dependency archive is its sibling `boot-runtime.zip`.
-
-```sh
-cd /mnt/disk01/deployment-ops-v1-validation/source
-JAVA_HOME=/opt/jdk-17.0.5 TMPDIR=/mnt/disk01/deployment-ops-v1-validation \
-  python3 scripts/build-native-offline.py --runtime ../boot-runtime.zip \
-  --output ../lib/deployment-ops.jar
-python3 native-server-acceptance.py \
-  --java /opt/jdk-17.0.5/bin/java \
-  --jar /mnt/disk01/deployment-ops-v1-validation/lib/deployment-ops.jar \
-  --work /mnt/disk01/deployment-ops-v1-validation \
-  --report /mnt/disk01/deployment-ops-v1-validation/acceptance.json
-```
-
-No complete offline V1 installation package, verified Runtime OS deployment, data
-restore result, production login endpoint or V1 commit is delivered by this bootstrap.
+- tests/native-product-browser.cjs: actual page and container lifecycle acceptance.
+- tests/native-runtime-browser.cjs: actual multi-GB package import and Runtime wizard.
+- tests/native-platform-live.py: actual H2 backup/restore and business isolation.
+- tests/native-server-acceptance.py: native independent startup and mount refusal.
+- target/native-browser-lifecycle-r2/result.json: 17 passed browser checks.
+- docs/evidence/native-integration-20261116/restore-acceptance.json.
+- Server /mnt/disk01/deployment-ops-v1-validation/full-native-acceptance.json.
+- Server /mnt/disk01/deployment-ops-v1-validation/runtime-browser/ (active run).
+- Server /mnt/disk01/ops-publisher-20261116/ contains signed Runtime media.
+  Private publisher keys are restricted there and must never enter Git or releases.

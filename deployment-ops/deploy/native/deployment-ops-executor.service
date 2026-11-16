@@ -15,7 +15,7 @@ UMask=0077
 NoNewPrivileges=true
 ProtectSystem=strict
 ProtectHome=true
-ReadWritePaths=/mnt/disk01/deployment-ops
+ReadWritePaths=/mnt/disk01/deployment-ops /mnt/disk01/ops
 StandardOutput=append:/mnt/disk01/deployment-ops/logs/executor.log
 StandardError=append:/mnt/disk01/deployment-ops/logs/executor.log
 

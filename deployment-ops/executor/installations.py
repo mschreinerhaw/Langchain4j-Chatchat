@@ -41,6 +41,13 @@ def parameters(schema,provided,previous=None):
     return result
 
 class Installer:
+    def delegate(self,spec=None,ident=None):
+        digest=self.get(ident)['package'] if ident else spec.get('package')
+        _,manifest=self.store.package(digest)
+        if manifest.get('runtimeInstaller'):
+            from runtime_os import RuntimeOsAdapter
+            return RuntimeOsAdapter(self)
+        return None
     def __init__(self,root,store,engine,raw_put,engine_lock,self_id=None):
         self.root=Path(root);self.root.mkdir(parents=True,exist_ok=True);self.store=store;self.engine=engine;self.raw_put=raw_put;self.engine_lock=engine_lock;self.self_id=self_id or socket.gethostname();self.guard=threading.RLock();self.busy=False
         for file in self.root.glob('*/job.json'):
@@ -90,6 +97,8 @@ class Installer:
             selected.append(c)
         return folder,m,params,prior,selected
     def preflight(self,spec):
+        delegate=self.delegate(spec=spec)
+        if delegate:return delegate.preflight(spec)
         checks=[]
         try:
             folder,m,params,prior,components=self.resolved(spec)
@@ -164,6 +173,14 @@ class Installer:
     def container_name(self,env,component):return 'ops-env-'+safe_name(env)+'-'+safe_name(component)
     def volume_name(self,env,volume):return 'ops-env-'+safe_name(env)+'-'+safe_name(volume)
     def probe_ports(self,ports):
+        if os.getenv('OPS_NATIVE')=='1':
+            sockets=[]
+            try:
+                for port in ports:
+                    probe=socket.socket();sockets.append(probe);probe.bind(('0.0.0.0',port))
+            finally:
+                for probe in sockets:probe.close()
+            return
         if not ports:return
         own=self.engine('GET','/containers/'+self.self_id+'/json')
         command=['python','-c','import socket,json,sys; sockets=[]\nfor port in json.loads(sys.argv[1]):\n s=socket.socket(); s.bind(("0.0.0.0",port)); sockets.append(s)\n',json.dumps(ports)]
@@ -172,6 +189,8 @@ class Installer:
         try:self.engine('POST','/containers/'+ident+'/start');status=self.engine('POST','/containers/'+ident+'/wait?condition=not-running');require(status['StatusCode']==0,'A requested host port is already in use by a host process')
         finally:self.engine('DELETE','/containers/'+ident+'?force=true&v=false')
     def submit(self,spec,actor):
+        delegate=self.delegate(spec=spec)
+        if delegate:return delegate.submit(spec,actor)
         with self.guard:
             require(not self.busy,'Another installation operation is running on this node')
             token=spec.get('reviewToken','');require(re.fullmatch(r'[a-f0-9]{64}',token),'Preflight review token required')
@@ -189,6 +208,8 @@ class Installer:
         self.busy=True
         threading.Thread(target=self.work,args=(ident,rollback),daemon=True).start()
     def resume(self,ident):
+        delegate=self.delegate(ident=ident)
+        if delegate:return delegate.resume(ident)
         with self.guard:
             require(not self.busy,'Node is busy');job=self.get(ident);require(job['status'] in ('interrupted','failed','cancelled'),'Only an interrupted/failed installation can resume')
             require(self.previous(job['environment'])['lastRun']==ident,'A newer installation supersedes this run')
@@ -205,6 +226,8 @@ class Installer:
         if component:labels.update({'deployment-ops.component':component['id'],'deployment-ops.kind':component.get('kind','service'),'deployment-ops.run':job['id']})
         return labels
     def work(self,ident,rollback=False):
+        delegate=self.delegate(ident=ident)
+        if delegate:return delegate.work(ident,rollback)
         job=self.get(ident)
         try:
             with self.engine_lock:
@@ -212,15 +235,24 @@ class Installer:
                 network='ops-env-'+job['environment'];existing=self.inspect_optional('/networks/'+network)
                 if existing:self.owned(existing,job['environment'])
                 else:self.engine('POST','/networks/create',json.dumps({'Name':network,'Driver':'bridge','Labels':self.labels(job)}).encode())
-                own=self.engine('GET','/containers/'+self.self_id+'/json')
-                if network not in own['NetworkSettings']['Networks']:self.engine('POST','/networks/'+network+'/connect',json.dumps({'Container':self.self_id}).encode())
+                if os.getenv('OPS_NATIVE')!='1':
+                    own=self.engine('GET','/containers/'+self.self_id+'/json')
+                    if network not in own['NetworkSettings']['Networks']:self.engine('POST','/networks/'+network+'/connect',json.dumps({'Container':self.self_id}).encode())
                 if rollback in ('stop','start'):self.power(job,components,rollback);return
                 if rollback:self.perform_rollback(job,components,manual=True);return
                 job['status']='running';job['message']='Preparing owned resources';self.save(job)
                 for name in m.get('volumes',{}):
                     value=self.inspect_optional('/volumes/'+self.volume_name(job['environment'],name))
                     if value:self.owned(value,job['environment'])
-                    else:self.engine('POST','/volumes/create',json.dumps({'Name':self.volume_name(job['environment'],name),'Labels':self.labels(job)}).encode())
+                    else:
+                        config={'Name':self.volume_name(job['environment'],name),'Labels':self.labels(job)}
+                        if os.getenv('OPS_APP_DATA'):
+                            base=Path(os.environ['OPS_APP_DATA']).resolve()
+                            target=base/safe_name(job['environment'])/safe_name(name)
+                            require(base in target.resolve().parents,'Application volume escapes storage root')
+                            target.mkdir(parents=True,exist_ok=True)
+                            config.update(Driver='local',DriverOpts={'type':'none','o':'bind','device':str(target)})
+                        self.engine('POST','/volumes/create',json.dumps(config).encode())
                 for component,step in zip(components,job['steps']):
                     self.cancelled(job);job['message']='Installing '+component['id'];step['startedAt']=stamp();self.save(job)
                     if component.get('kind')=='external':self.external_health(component['health']);step['status']='succeeded';self.save(job);continue
@@ -326,6 +358,8 @@ class Installer:
             time.sleep(1)
         raise ValueError('Health check timed out: '+c['id'])
     def rollback(self,ident,actor):
+        delegate=self.delegate(ident=ident)
+        if delegate:return delegate.rollback(ident,actor)
         with self.guard:
             require(not self.busy,'Node is busy');job=self.get(ident);require(job['status']=='succeeded' and job.get('previousRun'),'No previous compatible installation available')
             require(self.previous(job['environment'])['activeRun']==ident,'Only the active installation can be rolled back');job['rollbackActor']=actor;job['status']='rolling_back';atomic(self.path(ident)/'job.json',job);self.launch(ident,True);return self.get(ident)
@@ -360,6 +394,8 @@ class Installer:
         self.save(job)
 
     def control(self,ident,action,actor):
+        delegate=self.delegate(ident=ident)
+        if delegate:return delegate.control(ident,action,actor)
         with self.guard:
             require(not self.busy,'Node is busy');job=self.get(ident)
             require(action in ('stop','start') and job['active'],'Only the active owned environment can be controlled')

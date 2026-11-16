@@ -26,6 +26,8 @@ public class NativeApiController {
     }
     @RequestMapping("/api/**")
     public void handle(HttpServletRequest request,HttpServletResponse response) throws Exception {
+        try {com.chatchat.deployment.storage.StorageGuard.verifyRuntime();}
+        catch(java.io.IOException error){response.setStatus(503);response.setContentType("application/json");json.writeValue(response.getOutputStream(),java.util.Map.of("error","Required data mount is unavailable; refusing database and filesystem operations"));return;}
         response.setHeader("Cache-Control","no-store");
         response.setHeader("X-Content-Type-Options","nosniff");
         try {handler.invoke(null,new ServletExchange(request,response));}

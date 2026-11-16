@@ -58,6 +58,7 @@ class Manager:
         self.docker = docker
         self.lock = lock or threading.Lock()
         self.read_only = os.getenv('OPS_READ_ONLY', '1') != '0' if read_only is None else read_only
+        self.owner=os.getenv('OPS_INSTANCE_ID') or hashlib.sha256(str(self.root.resolve()).encode()).hexdigest()[:32]
         self.previous = None
         self.stopping = threading.Event()
         with self.db() as db:
@@ -75,6 +76,9 @@ class Manager:
 
     @contextmanager
     def db(self):
+        if os.getenv('OPS_NATIVE')=='1':
+            from native_storage import validate
+            validate()
         db = sqlite3.connect(self.path, timeout=20)
         db.row_factory = sqlite3.Row
         try:
@@ -100,6 +104,8 @@ class Manager:
             raise ValueError('Control plane is protected; use the external recovery procedure')
         if labels.get('deployment-ops.installation') == 'true':
             raise ValueError('Use the owning signed installation workflow for this container')
+        if os.getenv('OPS_STRICT_OWNERSHIP')=='1' and (not any(labels.get(key)=='true' for key in ('deployment-ops.manager','deployment-ops.managed')) or labels.get('deployment-ops.owner')!=self.owner):
+            raise ValueError('External containers are discovery-only; no lifecycle ownership')
         return item
 
     def image(self, ident):
@@ -149,9 +155,14 @@ class Manager:
             if not target.startswith('/') or '..' in target.split('/') or target == '/' or target.startswith(('/proc', '/sys', '/dev')):
                 raise ValueError('Invalid volume target')
             info = self.docker('GET', '/volumes/' + encoded(volume['source']))
-            if (info.get('Labels') or {}).get('deployment-ops.manager') != 'true' and not volume.get('readOnly', False):
+            labels=info.get('Labels') or {}
+            if (labels.get('deployment-ops.manager') != 'true' or (os.getenv('OPS_NATIVE')=='1' and labels.get('deployment-ops.owner')!=self.owner)) and not volume.get('readOnly', False):
                 raise ValueError('External volumes can only be mounted read-only')
             mounts.append({'Type': 'volume', 'Source': volume['source'], 'Target': target, 'ReadOnly': bool(volume.get('readOnly', False))})
+        if os.getenv('OPS_NATIVE')=='1':
+            declared=set((image.get('Config') or {}).get('Volumes') or {})
+            if declared-{mount['Target'] for mount in mounts}:
+                raise ValueError('Map every image-declared persistent volume explicitly; anonymous system-disk volumes are forbidden')
         restart = spec.get('restart', 'unless-stopped')
         if restart not in ('no', 'unless-stopped', 'on-failure', 'always'):
             raise ValueError('Invalid restart policy')
@@ -165,6 +176,7 @@ class Manager:
             if not re.fullmatch(r'[0-9]{1,10}:[0-9]{1,10}', spec['user']):
                 raise ValueError('Runtime user must be numeric UID:GID')
             result['User'] = spec['user']
+        if os.getenv('OPS_NATIVE')=='1':result['Labels']['deployment-ops.owner']=self.owner
         if spec.get('healthcheck'):
             check = spec['healthcheck']
             if set(check) - {'command', 'intervalSeconds', 'timeoutSeconds', 'retries'} or not isinstance(check.get('command'), list) or not check['command'] or any(not isinstance(x, str) for x in check['command']):
@@ -301,7 +313,14 @@ class Manager:
                         if json.loads(line).get('error'):
                             raise ValueError('Registry rejected pull; inspect registry configuration')
                 elif action == 'volume.create':
-                    result = self.docker('POST', '/volumes/create', json.dumps({'Name': spec['name'], 'Labels': {'deployment-ops.manager': 'true'}}).encode())
+                    config={'Name':spec['name'],'Labels':{'deployment-ops.manager':'true'}}
+                    if os.getenv('OPS_NATIVE')=='1':config['Labels']['deployment-ops.owner']=self.owner
+                    if os.getenv('OPS_APP_DATA'):
+                        base=Path(os.environ['OPS_APP_DATA']).resolve();target=base/'volumes'/spec['name']
+                        if base not in target.resolve().parents:raise ValueError('Volume path escapes managed data root')
+                        target.mkdir(parents=True,exist_ok=True)
+                        config.update(Driver='local',DriverOpts={'type':'none','o':'bind','device':str(target)})
+                    result = self.docker('POST','/volumes/create',json.dumps(config).encode())
                 else:
                     raise ValueError('Unsupported action')
                 with self.db() as db:
@@ -356,6 +375,9 @@ class Manager:
         return {'at': row['at'], **json.loads(row['payload'])} if row else None
 
     def host_metrics(self):
+        if os.getenv('OPS_NATIVE')=='1':
+            from native_storage import validate
+            validate()
         proc = Path(os.getenv('OPS_HOST_PROC', '/host/proc'))
         disk = Path(os.getenv('OPS_HOST_ROOT', '/host/root'))
         now = time.monotonic()
@@ -374,7 +396,7 @@ class Manager:
         fs = os.statvfs(disk)
         total, available = fs.f_blocks * fs.f_frsize, fs.f_bavail * fs.f_frsize
         result.update(memoryTotalBytes=memory['MemTotal'], memoryUsedBytes=memory['MemTotal'] - memory['MemAvailable'], memoryPercent=(1 - memory['MemAvailable'] / memory['MemTotal']) * 100,
-                      diskTotalBytes=total, diskAvailableBytes=available, diskPercent=(1 - available / total) * 100, diskMount='/', cpuPercent=None, networkRxPerSecond=None, networkTxPerSecond=None)
+                      diskTotalBytes=total, diskAvailableBytes=available, diskPercent=(1 - available / total) * 100, diskMount=str(disk), cpuPercent=None, networkRxPerSecond=None, networkTxPerSecond=None)
         if self.previous:
             before, old, old_rx, old_tx = self.previous
             delta = sum(ticks) - sum(old)
@@ -390,7 +412,8 @@ class Manager:
             try:
                 self.sample('host', self.host_metrics())
             except Exception:
-                self.sample('host', {'scope': 'host', 'available': False, 'reason': 'Host collection failed'})
+                try:self.sample('host', {'scope': 'host', 'available': False, 'reason': 'Host collection failed'})
+                except Exception:pass
             self.stopping.wait(10)
 
     def collect_containers(self):

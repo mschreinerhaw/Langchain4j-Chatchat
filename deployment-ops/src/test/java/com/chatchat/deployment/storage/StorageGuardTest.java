@@ -8,6 +8,12 @@ import java.util.List;
 import static org.junit.jupiter.api.Assertions.*;
 
 class StorageGuardTest {
+    @Test void rejectsExternalOrRedirectedDatasource(){
+        for(String url:List.of("jdbc:postgresql://localhost/business","jdbc:h2:mem:test","jdbc:h2:file:/tmp/deployment-ops")){
+            var environment=new org.springframework.mock.env.MockEnvironment().withProperty("spring.datasource.url",url).withProperty("spring.datasource.driver-class-name","org.h2.Driver");
+            assertThrows(IllegalArgumentException.class,()->StorageGuard.validateDatasource(environment));
+        }
+    }
     @TempDir Path temporary;
     @Test void rejectsDirectoryOnRootFilesystem() {
         assertThrows(java.io.IOException.class, () -> StorageGuard.validate(temporary, temporary.resolve("data"), List.of("1 0 8:0 / / rw - xfs /dev/root rw")));

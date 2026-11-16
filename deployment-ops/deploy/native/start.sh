@@ -2,6 +2,12 @@
 # Native control-plane launcher. Never invokes Docker or a business application.
 set -eu
 umask 077
+if [ -z "${INVOCATION_ID:-}" ] && [ "${OPS_FOREGROUND:-0}" != 1 ]; then
+  SERVICE=${OPS_SERVICE:-deployment-ops}
+  case "$SERVICE" in deployment-ops|deployment-ops-*) ;; *) echo 'Invalid platform service name' >&2; exit 1 ;; esac
+  case "$SERVICE" in *[!a-z0-9-]*) echo 'Invalid platform service name' >&2; exit 1 ;; esac
+  exec systemctl start "$SERVICE-executor.service" "$SERVICE.service"
+fi
 OPS_HOME=${OPS_HOME:-$(CDPATH= cd -- "$(dirname -- "$0")/../.." && pwd)}
 OPS_DATA_MOUNT=${OPS_DATA_MOUNT:-/mnt/disk01}
 [ "$OPS_DATA_MOUNT" = /mnt/disk01 ] || { echo 'Required data mount must be /mnt/disk01' >&2; exit 1; }

@@ -11,6 +11,9 @@ def require(ok, message):
     if not ok: raise ValueError(message)
 
 def atomic(path, value):
+    if os.getenv('OPS_NATIVE')=='1':
+        from native_storage import validate
+        validate()
     path.parent.mkdir(parents=True, exist_ok=True)
     temp=path.with_name(path.name+'.tmp')
     with open(temp,'w',encoding='utf-8') as stream:
@@ -40,6 +43,10 @@ def verify_signature(data, signature, key):
     expected=b'\x00\x01'+b'\xff'*(size-len(tail)-3)+b'\x00'+tail
     actual=pow(int.from_bytes(signature,'big'),e,n).to_bytes(size,'big')
     require(hmac.compare_digest(actual,expected), 'Package signature is invalid')
+
+def authorize_manifest(manifest,key):
+    if key.get('allowedPackages') is not None:require(manifest.get('name') in key['allowedPackages'],'Signer is not authorized for this application')
+    if manifest.get('runtimeInstaller'):require('runtime-os-native/v1' in key.get('capabilities',[]),'Signer is not authorized for privileged native Runtime OS deployment')
 
 class PackageStore:
     def __init__(self,root,trust,engine,raw_load):
@@ -84,7 +91,7 @@ class PackageStore:
         require(DIGEST.fullmatch(digest or ''),'Invalid package digest')
         folder=self.root/digest;require((folder/'receipt.json').is_file(),'Package is not verified')
         receipt=read(folder/'receipt.json');manifest=read(folder/'manifest.json')
-        checksum_bytes=(folder/'checksums.json').read_bytes();signature=read(folder/'signature.json');require(signature['keyId']==receipt['keyId'],'Signer changed');verify_signature(checksum_bytes,signature['signature'],read(self.trust/(safe_name(receipt['keyId'])+'.json')))
+        checksum_bytes=(folder/'checksums.json').read_bytes();signature=read(folder/'signature.json');require(signature['keyId']==receipt['keyId'],'Signer changed');key=read(self.trust/(safe_name(receipt['keyId'])+'.json'));verify_signature(checksum_bytes,signature['signature'],key);authorize_manifest(manifest,key)
         require(json.loads(checksum_bytes)==receipt['checksums'],'Package inventory changed')
         vector=tuple((name,(folder/member_name(name)).stat().st_size,(folder/name).stat().st_mtime_ns) for name in sorted(receipt['checksums']))
         if self.verified_cache.get(digest)!=vector:
@@ -146,7 +153,7 @@ class PackageStore:
                             with blob.open('rb') as existing:require(hashlib.file_digest(existing,'sha256').hexdigest()==checksums[info.filename],'Image staging cache is corrupt')
                             out.unlink();os.link(blob,out)
                         else:os.link(out,blob)
-            manifest=read(destination/'manifest.json');validate_manifest(manifest,checksums)
+            manifest=read(destination/'manifest.json');validate_manifest(manifest,checksums);authorize_manifest(manifest,key)
             # Signed Docker-save images only. Refuse to replace any existing tag with another image.
             missing=[]
             for image in manifest['images'].values():
@@ -179,13 +186,21 @@ class PackageStore:
 
 def validate_manifest(m,files):
     require(m.get('schemaVersion')==1,'Unsupported package schema')
-    require(set(m)<= {'schemaVersion','name','version','description','platform','requirements','parameters','images','volumes','components','upgradeFrom','dataCompatibility','links'},'Unknown package fields')
+    require(set(m)<= {'schemaVersion','name','version','description','platform','requirements','parameters','images','volumes','components','upgradeFrom','dataCompatibility','links','runtimeInstaller'},'Unknown package fields')
     safe_name(m.get('name'));require(re.fullmatch(r'[A-Za-z0-9][A-Za-z0-9_.-]{0,63}',m.get('version','')),'Invalid version')
     require(re.fullmatch(r'linux/(amd64|arm64|arm)',m.get('platform','')),'Unsupported platform')
     require(isinstance(m.get('images'),dict) and 0<len(m['images'])<=100,'Images required')
     for name,image in m['images'].items():
         safe_name(name);require(set(image)<= {'id','archive','size'},'Unknown image fields');require(IMAGE.fullmatch(image.get('id','')),'Pin every image by content ID');require(member_name(image['archive']) in files,'Image archive missing from signed inventory');require(type(image.get('size')) is int and image['size']>=0,'Image size required')
     params=m.get('parameters',{});require(isinstance(params,dict) and len(params)<=100,'Invalid parameter schema')
+    if 'runtimeInstaller' in m:
+        adapter=m['runtimeInstaller'];require(m['name']=='runtime-os' and isinstance(adapter,dict),'Native Runtime OS adapter requires a Runtime OS release')
+        require(set(adapter)<= {'protocol','image','imageMap','services','schemaHashes','sourceCommit'},'Unknown Runtime OS adapter field')
+        require(adapter.get('protocol')=='runtime-os-native/v1' and adapter.get('image') in m['images'],'Pinned native Runtime OS installer required')
+        require(member_name(adapter.get('imageMap')) in files,'Signed Runtime OS image map required')
+        require(isinstance(adapter.get('services'),list) and 0<len(adapter['services'])<=64,'Runtime OS service inventory required')
+        for name in adapter['services']:safe_name(name)
+        require(isinstance(adapter.get('schemaHashes'),dict) and bool(adapter['schemaHashes']) and all(isinstance(value,str) and DIGEST.fullmatch(value) for value in adapter['schemaHashes'].values()),'Runtime OS schema hashes required')
     for name,p in params.items():
         require(re.fullmatch(r'[A-Za-z][A-Za-z0-9_]{0,63}',name),'Invalid parameter name')
         require(set(p)<= {'type','label','description','default','required','secret','generate','enum','pattern','min','max'},'Unknown parameter fields')

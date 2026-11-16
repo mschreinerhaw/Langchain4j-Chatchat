@@ -1,3 +1,6 @@
 #!/bin/sh
 set -eu
-exec systemctl status deployment-ops.service --no-pager
+SERVICE=${OPS_SERVICE:-deployment-ops}
+case "$SERVICE" in deployment-ops|deployment-ops-*) ;; *) echo 'Invalid platform service name' >&2; exit 1 ;; esac
+case "$SERVICE" in *[!a-z0-9-]*) echo 'Invalid platform service name' >&2; exit 1 ;; esac
+exec systemctl status "$SERVICE.service" "$SERVICE-executor.service" --no-pager

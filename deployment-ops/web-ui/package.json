@@ -2,7 +2,16 @@
   "name": "deployment-ops-ui",
   "version": "0.1.0",
   "private": true,
-  "scripts": {"serve": "vue-cli-service serve", "build": "vue-cli-service build"},
-  "dependencies": {"vue": "3.5.13"},
-  "devDependencies": {"@vue/cli-service": "5.0.8", "@vue/compiler-sfc": "3.5.13"}
+  "scripts": {
+    "serve": "vue-cli-service serve",
+    "build": "vue-cli-service build"
+  },
+  "dependencies": {
+    "vue": "3.5.13",
+    "vue-router": "4.6.4"
+  },
+  "devDependencies": {
+    "@vue/cli-service": "5.0.8",
+    "@vue/compiler-sfc": "3.5.13"
+  }
 }

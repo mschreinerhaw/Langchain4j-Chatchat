@@ -63,5 +63,11 @@ class PlatformServicesIntegrationTest {
         var viewer=new HttpHeaders();viewer.set(HttpHeaders.COOKIE,login.getHeaders().getFirst(HttpHeaders.SET_COOKIE).split(";")[0]);viewer.set("X-Ops-Request","1");
         assertEquals(403,client.postForEntity("/api/backups",new HttpEntity<>(Map.of(),viewer),Map.class).getStatusCode().value());
         assertEquals(403,client.postForEntity("/api/services",new HttpEntity<>(Map.of(),viewer),Map.class).getStatusCode().value());
+        assertEquals(403,client.exchange("/api/backups",HttpMethod.GET,new HttpEntity<>(viewer),Map.class).getStatusCode().value());
+    }
+    @Test void configurationUpdatesPersistMonotonicRevision(){
+        for(String name:List.of("Acceptance organization","Updated organization"))assertEquals(200,client.postForEntity("/api/configuration",new HttpEntity<>(Map.of("key","organization.name","value",name),headers),Object.class).getStatusCode().value());
+        assertEquals("Updated organization",db.queryForObject("SELECT setting_value FROM platform_settings WHERE setting_key='organization.name'",String.class));
+        assertEquals(2,db.queryForObject("SELECT revision FROM platform_settings WHERE setting_key='organization.name'",Integer.class));
     }
 }

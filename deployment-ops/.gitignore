@@ -1,4 +1,7 @@
 .env
+target/
+web-ui/node_modules/
+web-ui/dist/
 *.tar
 *.tar.gz
 __pycache__/

@@ -1,5 +1,18 @@
 # Deployment Ops
 
+## Spring Boot / Vue 3 migration
+
+The target architecture is now a Maven child module with a Spring Boot control plane
+and a Vue 3 CLI frontend. See [the application platform implementation contract](docs/APPLICATION-PLATFORM.md).
+This migration is in progress; the existing Compose distribution below still runs P0.
+
+Build the new backend from the repository root: `mvn -pl deployment-ops package`.
+The new backend defaults to loopback port 19240 and Spring Security authentication.
+The Vue development project lives in `web-ui`: run `npm ci`, then `npm run serve`
+(loopback port 19241), or `npm run build` for the static distribution.
+The new UI currently checks control-plane connectivity only; it does not yet expose deployment actions.
+Do not treat this development scaffold as a replacement for the tested P0 distribution.
+
 The new **Runtime OS Deployment Manager P0** opens at `/` or `/manager.html`.
 Read [architecture, operation approvals and offline delivery](docs/DEPLOYMENT-MANAGER.md).
 See the [single-host acceptance report](docs/MANAGER-ACCEPTANCE-20261116.md) for real test results and remaining boundaries.

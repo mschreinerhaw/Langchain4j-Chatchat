@@ -44,3 +44,14 @@ test('HTTP success without an actual MCP result cannot be reported as tool succe
  for(const value of [{code:500,message:'backend failure'},null,{jsonrpc:'2.0',id:1,error:{code:-32000,message:'failed'}}])assert.throws(()=>runtimeMcpReply(Buffer.from(JSON.stringify(value)),200),{status:502});
  assert.throws(()=>runtimeMcpReply(Buffer.from(JSON.stringify(reply)),403),{status:403});
 });
+
+
+test('Skill directories remain traversable with private supervisor umask',{skip:process.platform!=='linux'},async t=>{
+ const p=await root(t),previous=process.umask(0o077);
+ try{await stageNativeSkills(p,[{...card,files:[{path:'SKILL.md',content:'test'},{path:'references/check.txt',content:'ok'}]}]);}
+ finally{process.umask(previous);}
+ const {stat}=await import('node:fs/promises');
+ for(const folder of ['.agents','.agents/skills'])assert.equal((await stat(join(p,folder))).mode&0o777,0o755);
+ const names=await readdir(join(p,'.agents/skills'));
+ for(const name of names)assert.equal((await stat(join(p,'.agents/skills',name))).mode&0o777,0o755);
+});

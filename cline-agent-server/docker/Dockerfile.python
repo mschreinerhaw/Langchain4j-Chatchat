@@ -19,6 +19,7 @@ RUN /usr/sbin/usermod --shell /bin/bash runner \
     && node /srv/service/docker/verify-native-modules.mjs /srv/runtime
 ENV CLINE_SERVER_CONFIG=/run/cline-node.json HOME=/home/runner \
     PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin SHELL=/bin/bash CLINE_PYTHON_RUNTIME=1
+RUN node --test /srv/service/test/workspace-initialize.test.mjs /srv/service/test/workspace-access.test.mjs
 WORKDIR /srv/service
 USER 10001:10001
 RUN python /opt/chatchat/verify-fonts.py

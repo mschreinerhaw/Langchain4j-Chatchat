@@ -34,6 +34,7 @@ RUN /usr/sbin/usermod --shell /bin/bash runner \
     && python /opt/runtime-os/coding-node/service/docker/verify-python-runtime.py \
     && python /opt/chatchat/verify-fonts.py \
     && test ! -e /poc
+RUN node --test /opt/runtime-os/coding-node/service/test/workspace-initialize.test.mjs /opt/runtime-os/coding-node/service/test/workspace-access.test.mjs
 ENV CLINE_SERVER_CONFIG=/run/runtime-os/coding-node/config.json \
     HOME=/home/runner SHELL=/bin/bash CLINE_PYTHON_RUNTIME=1 \
     PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin \

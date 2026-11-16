@@ -4,6 +4,8 @@ import {readFileSync,writeFileSync,mkdirSync,existsSync,readdirSync,realpathSync
 import {join,resolve} from 'node:path';
 import {randomUUID,createHash,timingSafeEqual} from 'node:crypto';
 import {Journal} from './journal.mjs';
+import {verifyWorkspaceAccess} from './workspace-access.mjs';
+import {initializeWorkspace} from './workspace-initialize.mjs';
 import {loadNative,startHostBridge} from './host-bridge.mjs';
 import {toolFailed} from './tool-outcome.mjs';
 import {validateRuntime} from './runtime-assets.mjs';
@@ -79,6 +81,8 @@ function nativeEvent(s,event){
  }
 }
 async function startWorker(s){
+ initializeWorkspace(s.workspace,{uid:config.coreUid,gid:config.coreGid});
+ verifyWorkspaceAccess(s.workspace,{uid:config.coreUid,gid:config.coreGid});
  s.bridge=await startHostBridge(native,s.workspace,(t,p)=>emit(s,t,p));
  if(config.coreUid!==undefined){chmodSync(s.dir,0o711);if(existsSync(join(s.dir,'cline')))coreTree(join(s.dir,'cline'));}
  const data=join(s.dir,'cline','data');mkdirSync(data,{recursive:true,mode:0o700});

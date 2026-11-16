@@ -27,7 +27,7 @@ if '-' not in a.version:
 if a.output.exists():raise SystemExit('Output exists; choose an immutable new package filename')
 if not (ROOT/'web-ui/dist/index.html').is_file():raise SystemExit('Build the Vue frontend before packaging')
 files=dict(acceptance_files)
-for name in ['src/main','backend/src','backend/lib','backend/schema.sql','executor','frontend','web-ui/dist','web-ui/src','web-ui/public','web-ui/package.json','web-ui/package-lock.json','web-ui/vue.config.js','deploy/native','recipes/runtime-os-native','pom.xml','docs/dependencies.json','release/trust','tests','docs/NATIVE-OPERATIONS.md','docs/APPLICATION-PLATFORM.md']:
+for name in ['src/main','backend/src','backend/lib','backend/schema.sql','executor','frontend','web-ui/dist','web-ui/src','web-ui/public','web-ui/package.json','web-ui/package-lock.json','web-ui/.prettierrc.json','web-ui/vue.config.js','deploy/native','recipes/runtime-os-native','pom.xml','docs/dependencies.json','release/trust','tests','docs/NATIVE-OPERATIONS.md','docs/APPLICATION-PLATFORM.md']:
     source=ROOT/name
     for path in source.rglob('*') if source.is_dir() else [source]:
         if path.is_symlink():raise SystemExit('Release source contains symlink: '+str(path))

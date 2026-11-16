@@ -3,7 +3,8 @@
   <modelVersion>4.0.0</modelVersion>
   <parent><groupId>com.chatchat</groupId><artifactId>langchain4j-chatchat</artifactId><version>1.0.0-SNAPSHOT</version></parent>
   <artifactId>deployment-ops</artifactId>
-  <name>Runtime OS Deployment Manager</name>
+  <version>1.0.0</version>
+  <name>Deployment Ops</name>
   <properties><chatchat.main-class>com.chatchat.deployment.DeploymentOpsApplication</chatchat.main-class></properties>
   <dependencies>
     <dependency><groupId>org.springframework.boot</groupId><artifactId>spring-boot-starter-jdbc</artifactId></dependency>

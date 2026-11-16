@@ -1,7 +1,58 @@
-<template><div class="toolbar"><span class="state-badge" :class="connected?'success':'warning'">{{connected?'实时日志已连接':'日志连接未就绪'}}</span><button @click="paused=!paused">{{paused?'继续更新':'暂停更新'}}</button><input v-model="query" class="search" placeholder="搜索当前日志" aria-label="搜索日志"></div><p v-if="error" class="notice warning" role="alert">{{error}}</p><pre class="log-viewer" aria-label="容器实时日志">{{display||'等待日志；连接重建时自动重新订阅。'}}</pre><small class="muted">{{updated?'最近接收：'+dateTime(updated):'仅展示最近 200 行，已按执行器规则脱敏。'}}</small></template>
+<template>
+  <div class="toolbar">
+    <span class="state-badge" :class="connected ? 'success' : 'warning'">
+      {{ connected ? '实时日志已连接' : '日志连接未就绪' }}
+    </span>
+    <button @click="paused = !paused">{{ paused ? '继续更新' : '暂停更新' }}</button>
+    <input v-model="query" class="search" placeholder="搜索当前日志" aria-label="搜索日志" />
+  </div>
+  <p v-if="error" class="notice warning" role="alert">{{ error }}</p>
+  <pre class="log-viewer" aria-label="容器实时日志">{{
+    display || '等待日志；连接重建时自动重新订阅。'
+  }}</pre>
+  <small class="muted">
+    {{ updated ? '最近接收：' + dateTime(updated) : '仅展示最近 200 行，已按执行器规则脱敏。' }}
+  </small>
+</template>
 <script setup>
-import {ref,computed,onMounted,onUnmounted} from 'vue';import {dateTime} from '../../utils/format';
-const props=defineProps({node:[String,Number],id:String}),text=ref(''),query=ref(''),paused=ref(false),connected=ref(false),error=ref(''),updated=ref(null);let stream;
-const display=computed(()=>query.value?text.value.split('\n').filter(line=>line.toLowerCase().includes(query.value.toLowerCase())).join('\n'):text.value);
-onMounted(()=>{stream=new EventSource(`/api/nodes/${props.node}/manager/logs/${props.id}`);stream.onopen=()=>{connected.value=true;error.value='';};stream.addEventListener('logs',event=>{try{if(!paused.value){text.value=JSON.parse(event.data).text||'';updated.value=Date.now();}}catch{error.value='无法解析日志采样。';}});stream.onerror=()=>{connected.value=false;error.value='日志连接已中断，正在自动重连。';};});onUnmounted(()=>stream?.close());
+  import { ref, computed, onMounted, onUnmounted } from 'vue';
+  import { dateTime } from '../../utils/format';
+  const props = defineProps({ node: [String, Number], id: String }),
+    text = ref(''),
+    query = ref(''),
+    paused = ref(false),
+    connected = ref(false),
+    error = ref(''),
+    updated = ref(null);
+  let stream;
+  const display = computed(() =>
+    query.value
+      ? text.value
+          .split('\n')
+          .filter((line) => line.toLowerCase().includes(query.value.toLowerCase()))
+          .join('\n')
+      : text.value
+  );
+  onMounted(() => {
+    stream = new EventSource(`/api/nodes/${props.node}/manager/logs/${props.id}`);
+    stream.onopen = () => {
+      connected.value = true;
+      error.value = '';
+    };
+    stream.addEventListener('logs', (event) => {
+      try {
+        if (!paused.value) {
+          text.value = JSON.parse(event.data).text || '';
+          updated.value = Date.now();
+        }
+      } catch {
+        error.value = '无法解析日志采样。';
+      }
+    });
+    stream.onerror = () => {
+      connected.value = false;
+      error.value = '日志连接已中断，正在自动重连。';
+    };
+  });
+  onUnmounted(() => stream?.close());
 </script>

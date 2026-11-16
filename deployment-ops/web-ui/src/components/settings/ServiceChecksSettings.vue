@@ -1,4 +1,120 @@
-<template><div class="grid-two"><PanelCard title="服务健康检测地址" description="DolphinScheduler 多个地址可使用相同集群名分组。"><ResourceState :error="error" @retry="refresh"/><DataTable :rows="data||[]" :columns="columns"><template #status="{row}"><StateBadge :status="row.enabled?row.status:'disabled'"/></template><template #action="{row}"><button @click="edit(row)">编辑检测</button></template></DataTable></PanelCard><PanelCard title="添加服务检查"><form @submit.prevent="save"><label>服务名称<input v-model="form.name" maxlength="128" required></label><label>集群名称<input v-model="form.clusterName" maxlength="128"></label><label>服务类型<select v-model="form.kind"><option v-for="kind in kinds" :key="kind" :value="kind">{{kind}}</option></select></label><label>检测地址<input v-model="form.url" placeholder="http://host:port/health 或 tcp://host:port" required><small>填写实际健康端点，不可包含口令或令牌。</small></label><label>期望 HTTP 状态码<input v-model.number="form.expectedStatus" type="number" min="100" max="599" required></label><label><input v-model="form.enabled" type="checkbox"> 启用定期健康检测</label><p v-if="saveError" class="notice danger" role="alert">{{saveError}}</p><button class="primary" :disabled="busy">保存检测配置</button><button v-if="form.id" type="button" @click="reset">取消编辑</button></form></PanelCard></div></template>
+<template>
+  <div class="grid-two">
+    <PanelCard
+      title="服务健康检测地址"
+      description="DolphinScheduler 多个地址可使用相同集群名分组。"
+    >
+      <ResourceState :error="error" @retry="refresh" />
+      <DataTable :rows="data || []" :columns="columns">
+        <template #status="{ row }">
+          <StateBadge :status="row.enabled ? row.status : 'disabled'" />
+        </template>
+        <template #action="{ row }"><button @click="edit(row)">编辑检测</button></template>
+      </DataTable>
+    </PanelCard>
+    <PanelCard title="添加服务检查">
+      <form @submit.prevent="save">
+        <label>
+          服务名称
+          <input v-model="form.name" maxlength="128" required />
+        </label>
+        <label>
+          集群名称
+          <input v-model="form.clusterName" maxlength="128" />
+        </label>
+        <label>
+          服务类型
+          <select v-model="form.kind">
+            <option v-for="kind in kinds" :key="kind" :value="kind">{{ kind }}</option>
+          </select>
+        </label>
+        <label>
+          检测地址
+          <input
+            v-model="form.url"
+            placeholder="http://host:port/health 或 tcp://host:port"
+            required
+          />
+          <small>填写实际健康端点，不可包含口令或令牌。</small>
+        </label>
+        <label>
+          期望 HTTP 状态码
+          <input v-model.number="form.expectedStatus" type="number" min="100" max="599" required />
+        </label>
+        <label>
+          <input v-model="form.enabled" type="checkbox" />
+          启用定期健康检测
+        </label>
+        <p v-if="saveError" class="notice danger" role="alert">{{ saveError }}</p>
+        <button class="primary" :disabled="busy">保存检测配置</button>
+        <button v-if="form.id" type="button" @click="reset">取消编辑</button>
+      </form>
+    </PanelCard>
+  </div>
+</template>
 <script setup>
-import {ref,reactive} from 'vue';import {platformApi} from '../../api/platform';import {useResource} from '../../composables/useResource';import PanelCard from '../ui/PanelCard.vue';import DataTable from '../ui/DataTable.vue';import StateBadge from '../ui/StateBadge.vue';import ResourceState from '../ui/ResourceState.vue';const {data,error,refresh}=useResource(platformApi.services,{initial:[],interval:15000}),form=reactive({name:'',clusterName:'',kind:'runtime-os',url:'',expectedStatus:200,enabled:true}),busy=ref(false),saveError=ref(''),kinds=['runtime-os','coding-agent','mcp','python','dolphinscheduler','http','tcp'];const columns=[{key:'name',label:'服务'},{key:'cluster_name',label:'集群'},{key:'url',label:'地址'},{key:'action',label:'管理'},{key:'status',label:'状态'}];function reset(){delete form.id;Object.assign(form,{name:'',clusterName:'',kind:'runtime-os',url:'',expectedStatus:200,enabled:true});}function edit(row){Object.assign(form,{id:row.id,name:row.name,clusterName:row.cluster_name,kind:row.kind,url:row.url,expectedStatus:row.expected_status,enabled:row.enabled});}async function save(){busy.value=true;saveError.value='';try{await platformApi.saveService({...form});reset();await refresh();}catch(e){saveError.value=e.message;}finally{busy.value=false;}}
+  import { ref, reactive } from 'vue';
+  import { platformApi } from '../../api/platform';
+  import { useResource } from '../../composables/useResource';
+  import PanelCard from '../ui/PanelCard.vue';
+  import DataTable from '../ui/DataTable.vue';
+  import StateBadge from '../ui/StateBadge.vue';
+  import ResourceState from '../ui/ResourceState.vue';
+  const { data, error, refresh } = useResource(platformApi.services, {
+      initial: [],
+      interval: 15000,
+    }),
+    form = reactive({
+      name: '',
+      clusterName: '',
+      kind: 'runtime-os',
+      url: '',
+      expectedStatus: 200,
+      enabled: true,
+    }),
+    busy = ref(false),
+    saveError = ref(''),
+    kinds = ['runtime-os', 'coding-agent', 'mcp', 'python', 'dolphinscheduler', 'http', 'tcp'];
+  const columns = [
+    { key: 'name', label: '服务' },
+    { key: 'cluster_name', label: '集群' },
+    { key: 'url', label: '地址' },
+    { key: 'action', label: '管理' },
+    { key: 'status', label: '状态' },
+  ];
+  function reset() {
+    delete form.id;
+    Object.assign(form, {
+      name: '',
+      clusterName: '',
+      kind: 'runtime-os',
+      url: '',
+      expectedStatus: 200,
+      enabled: true,
+    });
+  }
+  function edit(row) {
+    Object.assign(form, {
+      id: row.id,
+      name: row.name,
+      clusterName: row.cluster_name,
+      kind: row.kind,
+      url: row.url,
+      expectedStatus: row.expected_status,
+      enabled: row.enabled,
+    });
+  }
+  async function save() {
+    busy.value = true;
+    saveError.value = '';
+    try {
+      await platformApi.saveService({ ...form });
+      reset();
+      await refresh();
+    } catch (e) {
+      saveError.value = e.message;
+    } finally {
+      busy.value = false;
+    }
+  }
 </script>

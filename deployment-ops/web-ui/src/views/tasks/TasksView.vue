@@ -1,7 +1,85 @@
-<template><div class="tabs"><button :class="{active:tab==='deployments'}" @click="tab='deployments'">部署任务</button><button :class="{active:tab==='operations'}" @click="tab='operations'">资源操作</button><button :class="{active:tab==='maintenance'}" @click="tab='maintenance'">平台维护</button></div><MaintenanceTasks v-if="tab==='maintenance'"/><PanelCard v-if="tab==='deployments'" title="部署与升级任务" description="任务结果与应用当前健康状态分别展示。"><DataTable :rows="jobs" :columns="deploymentColumns"><template #environment="{row}"><RouterLink :to="`/tasks/deployment/${row.nodeId}/${row.id}`">{{row.environment}}</RouterLink><small>{{row.packageName}} / {{row.version}}</small></template><template #status="{row}"><StateBadge :status="row.status"/><small v-if="!row.online">执行器失联 · 显示持久化记录</small></template><template #createdAt="{row}">{{dateTime(row.createdAt)}}</template></DataTable></PanelCard><PanelCard v-else-if="tab==='operations'" title="已审批资源操作"><ResourceState :loading="loading" :error="error" @retry="refresh"/><DataTable :rows="data||[]" :columns="operationColumns"><template #target="{row}"><RouterLink :to="`/tasks/operation/${row.nodeId}/${row.id}`">{{row.target}}</RouterLink></template><template #status="{row}"><StateBadge :status="row.status"/></template><template #created="{row}">{{dateTime(row.created)}}</template></DataTable></PanelCard></template>
+<template>
+  <div class="tabs">
+    <button :class="{ active: tab === 'deployments' }" @click="tab = 'deployments'">
+      部署任务
+    </button>
+    <button :class="{ active: tab === 'operations' }" @click="tab = 'operations'">资源操作</button>
+    <button :class="{ active: tab === 'maintenance' }" @click="tab = 'maintenance'">
+      平台维护
+    </button>
+  </div>
+  <MaintenanceTasks v-if="tab === 'maintenance'" />
+  <PanelCard
+    v-if="tab === 'deployments'"
+    title="部署与升级任务"
+    description="任务结果与应用当前健康状态分别展示。"
+  >
+    <DataTable :rows="jobs" :columns="deploymentColumns">
+      <template #environment="{ row }">
+        <RouterLink :to="`/tasks/deployment/${row.nodeId}/${row.id}`">
+          {{ row.environment }}
+        </RouterLink>
+        <small>{{ row.packageName }} / {{ row.version }}</small>
+      </template>
+      <template #status="{ row }">
+        <StateBadge :status="row.status" />
+        <small v-if="!row.online">执行器失联 · 显示持久化记录</small>
+      </template>
+      <template #createdAt="{ row }">{{ dateTime(row.createdAt) }}</template>
+    </DataTable>
+  </PanelCard>
+  <PanelCard v-else-if="tab === 'operations'" title="已审批资源操作">
+    <ResourceState :loading="loading" :error="error" @retry="refresh" />
+    <DataTable :rows="data || []" :columns="operationColumns">
+      <template #target="{ row }">
+        <RouterLink :to="`/tasks/operation/${row.nodeId}/${row.id}`">{{ row.target }}</RouterLink>
+      </template>
+      <template #status="{ row }"><StateBadge :status="row.status" /></template>
+      <template #created="{ row }">{{ dateTime(row.created) }}</template>
+    </DataTable>
+  </PanelCard>
+</template>
 <script setup>
-import {ref,watch} from 'vue';import MaintenanceTasks from '../../components/tasks/MaintenanceTasks.vue';import {useCluster} from '../../stores/cluster';import {infrastructureApi} from '../../api/infrastructure';import {useResource} from '../../composables/useResource';import {dateTime} from '../../utils/format';import PanelCard from '../../components/ui/PanelCard.vue';import DataTable from '../../components/ui/DataTable.vue';import StateBadge from '../../components/ui/StateBadge.vue';import ResourceState from '../../components/ui/ResourceState.vue';
-const {jobs,nodes}=useCluster(),tab=ref('deployments');const {data,loading,error,refresh}=useResource(async signal=>{const values=await Promise.all(nodes.value.map(async node=>(await infrastructureApi.jobs(node.id,signal)).map(job=>({...job,nodeId:node.id,nodeName:node.name}))));return values.flat().sort((a,b)=>b.created-a.created);},{interval:10000,initial:[]});
-watch(nodes,()=>refresh());
-const deploymentColumns=[{key:'environment',label:'环境 / 版本'},{key:'status',label:'任务状态'},{key:'nodeName',label:'主机'},{key:'actor',label:'操作人'},{key:'createdAt',label:'提交时间'},{key:'message',label:'最新执行信息'}],operationColumns=[{key:'target',label:'目标资源'},{key:'action',label:'操作'},{key:'status',label:'执行结果'},{key:'nodeName',label:'主机'},{key:'actor',label:'操作人'},{key:'created',label:'时间'}];
+  import { ref, watch } from 'vue';
+  import MaintenanceTasks from '../../components/tasks/MaintenanceTasks.vue';
+  import { useCluster } from '../../stores/cluster';
+  import { infrastructureApi } from '../../api/infrastructure';
+  import { useResource } from '../../composables/useResource';
+  import { dateTime } from '../../utils/format';
+  import PanelCard from '../../components/ui/PanelCard.vue';
+  import DataTable from '../../components/ui/DataTable.vue';
+  import StateBadge from '../../components/ui/StateBadge.vue';
+  import ResourceState from '../../components/ui/ResourceState.vue';
+  const { jobs, nodes } = useCluster(),
+    tab = ref('deployments');
+  const { data, loading, error, refresh } = useResource(
+    async (signal) => {
+      const values = await Promise.all(
+        nodes.value.map(async (node) =>
+          (
+            await infrastructureApi.jobs(node.id, signal)
+          ).map((job) => ({ ...job, nodeId: node.id, nodeName: node.name }))
+        )
+      );
+      return values.flat().sort((a, b) => b.created - a.created);
+    },
+    { interval: 10000, initial: [] }
+  );
+  watch(nodes, () => refresh());
+  const deploymentColumns = [
+      { key: 'environment', label: '环境 / 版本' },
+      { key: 'status', label: '任务状态' },
+      { key: 'nodeName', label: '主机' },
+      { key: 'actor', label: '操作人' },
+      { key: 'createdAt', label: '提交时间' },
+      { key: 'message', label: '最新执行信息' },
+    ],
+    operationColumns = [
+      { key: 'target', label: '目标资源' },
+      { key: 'action', label: '操作' },
+      { key: 'status', label: '执行结果' },
+      { key: 'nodeName', label: '主机' },
+      { key: 'actor', label: '操作人' },
+      { key: 'created', label: '时间' },
+    ];
 </script>

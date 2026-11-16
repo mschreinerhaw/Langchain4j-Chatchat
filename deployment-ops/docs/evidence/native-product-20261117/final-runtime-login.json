@@ -1,0 +1,17 @@
+{
+  "passed": true,
+  "services": {
+    "Runtime OS": {
+      "port": 19400,
+      "administratorLogin": true,
+      "authenticatedIdentity": true
+    },
+    "MCP": {
+      "port": 19401,
+      "administratorLogin": true,
+      "authenticatedIdentity": true
+    }
+  },
+  "qaPackagesRetired": true,
+  "originalReviewedReleaseActive": true
+}

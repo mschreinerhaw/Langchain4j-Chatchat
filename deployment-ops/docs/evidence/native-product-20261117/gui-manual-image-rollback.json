@@ -1,0 +1,219 @@
+{
+  "passed": true,
+  "explicitGuiRollback": true,
+  "restoredVersion": "1.0.0-native-20261116",
+  "activeJob": "d511e6d4714840fbba14c4bc631adace",
+  "task": {
+    "id": "3aa7bf7552cd4a109bcb035c85be0bd1",
+    "environment": "runtime-release-v1",
+    "package": "3f65d56e77606b9fbd542d1f6d6533c51dc720395a700f7a262dc701a9c9ade3",
+    "packageName": "runtime-os",
+    "version": "1.0.1-image-qa",
+    "actor": "admin",
+    "createdAt": 1794854003.345757,
+    "updatedAt": 1794855426.7285378,
+    "status": "rolled_back",
+    "message": "Previous Native Runtime OS version restored and verified; application data retained",
+    "links": [
+      {
+        "name": "Runtime OS",
+        "url": "http://192.168.195.221:19402/"
+      },
+      {
+        "name": "MCP 管理入口",
+        "url": "http://192.168.195.221:19403/"
+      }
+    ],
+    "previousRun": "d511e6d4714840fbba14c4bc631adace",
+    "parameters": {
+      "serverAddress": "192.168.195.221",
+      "httpPort": 19402,
+      "mcpPort": 19403,
+      "directoryName": ""
+    },
+    "steps": [
+      {
+        "id": "postgresql",
+        "kind": "service",
+        "status": "rolled_back",
+        "container": "af26c8debf3c07fe3cdec85cba1781311ac26265b56c29978d907fbaa5743041",
+        "message": "Up 37 minutes (healthy)"
+      },
+      {
+        "id": "temporal-db",
+        "kind": "service",
+        "status": "rolled_back",
+        "container": "9ab5ea3c85f8d297bcd040c775b706a83f100ef773cc468ce59789c789416b74",
+        "message": "Up 37 minutes (healthy)"
+      },
+      {
+        "id": "temporal",
+        "kind": "service",
+        "status": "rolled_back",
+        "container": "c323cc9a679f8dcfe1fe898225b25749544e6bbcb8a4f0b2ad17fea4615a132f",
+        "message": "Up 36 minutes (healthy)"
+      },
+      {
+        "id": "redis",
+        "kind": "service",
+        "status": "rolled_back",
+        "container": "9738b235d56987a1be61ac272180a7a8893c19eb96f3fd03866bb7d19baed10f",
+        "message": "Up 37 minutes (healthy)"
+      },
+      {
+        "id": "opensearch",
+        "kind": "service",
+        "status": "rolled_back",
+        "container": "823b518257e28b306fdda90de6da4dd1f0233c7d9992ded80d9c02f4df0d4722",
+        "message": "Up 37 minutes (healthy)"
+      },
+      {
+        "id": "silo",
+        "kind": "service",
+        "status": "rolled_back",
+        "container": "bc2ae099e15f46de333766f3afebddc1a55bc722dae54535d7d69130d85f6200",
+        "message": "Up 37 minutes (healthy)"
+      },
+      {
+        "id": "news",
+        "kind": "service",
+        "status": "rolled_back",
+        "container": "a689b71958adec54e8b70f2ad8b49567956ce18f1ddecec3a6a1daa0b0c06d41",
+        "message": "Up 36 minutes (healthy)"
+      },
+      {
+        "id": "mcp",
+        "kind": "service",
+        "status": "rolled_back",
+        "container": "7abf0b89e1044edbd7e3d99c6dc3fe5e92ed67deba1ace34e96577576231176a",
+        "message": "Up 36 minutes (healthy)"
+      },
+      {
+        "id": "api",
+        "kind": "service",
+        "status": "rolled_back",
+        "container": "5a57a989128468c68d6ac4a1334661050570c73c782966d671375ac062bef146",
+        "message": "Up 35 minutes (healthy)"
+      },
+      {
+        "id": "executor-daemon",
+        "kind": "service",
+        "status": "rolled_back",
+        "container": "e4518f03628a1c59b500e3ff33c822d8fe2079ba407cba8a3353a67c915c0868",
+        "message": "Up 37 minutes"
+      },
+      {
+        "id": "executor1",
+        "kind": "service",
+        "status": "rolled_back",
+        "container": "209afc44d38ebc02f9fc217f27c966b771419ba1021d17c6ef8587716139d839",
+        "message": "Up 31 minutes"
+      },
+      {
+        "id": "executor2",
+        "kind": "service",
+        "status": "rolled_back",
+        "container": "7cf8899fa39a199104395ce52d32ef1f529f908dedbb79901de513f274fc908c",
+        "message": "Up 31 minutes"
+      },
+      {
+        "id": "studio-executor",
+        "kind": "service",
+        "status": "rolled_back",
+        "container": "f863cabca4cd76a118bf41e4d9374dc7597422ee4719adeb0880eb5d32fc34fc",
+        "message": "Up 31 minutes"
+      },
+      {
+        "id": "recovery1",
+        "kind": "service",
+        "status": "rolled_back",
+        "container": "0ea29e5e9b5e8c1048c04861f2ab6b5d0c005b2098a4c7f27250daab3863661d",
+        "message": "Up 31 minutes"
+      },
+      {
+        "id": "recovery2",
+        "kind": "service",
+        "status": "rolled_back",
+        "container": "6ba99d83309c28e8b0716668da54cab2ec84a9651a696709ab260dfc43b0ec1f",
+        "message": "Up 31 minutes"
+      },
+      {
+        "id": "node1",
+        "kind": "service",
+        "status": "rolled_back",
+        "container": "2ee83f9ffee6bdc9779bca0d0ad0dd30899a25137b2fa6a6404c51023085af09",
+        "message": "Up 31 minutes"
+      },
+      {
+        "id": "node2",
+        "kind": "service",
+        "status": "rolled_back",
+        "container": "2795dd81534f15074890dbf6572d01193284fcafd41ada85926dbb1938fadc08",
+        "message": "Up 31 minutes"
+      },
+      {
+        "id": "studio",
+        "kind": "service",
+        "status": "rolled_back",
+        "container": "29952c30729894df74a0cf0b55aaa580e5d6bf7d10e00f69eddf04d0aed505fb",
+        "message": "Up 31 minutes"
+      },
+      {
+        "id": "worker1",
+        "kind": "service",
+        "status": "rolled_back",
+        "container": "a67f3ae57cefd1eda73cf414ac3276d1844eefb363fd21f0d1ffe81734b7d5d7",
+        "message": "Up 31 minutes"
+      },
+      {
+        "id": "worker2",
+        "kind": "service",
+        "status": "rolled_back",
+        "container": "09e8b5ea07206a900ce3ea6ca9924bbddc37e7d734f99c6ea0452c62b34106e1",
+        "message": "Up 31 minutes"
+      },
+      {
+        "id": "frontend-resource-hub",
+        "kind": "service",
+        "status": "rolled_back",
+        "container": "b0540803514668327be2206b5efdd6aa40eb824e4b4be99e72248ba6a632b2ba",
+        "message": "Up 31 minutes (healthy)"
+      },
+      {
+        "id": "frontend-worker",
+        "kind": "service",
+        "status": "rolled_back",
+        "container": "8fedacb07a8db3a6a40c3e96ed0e1bb175063c5eb709c22d1ca3b5553c11ddc6",
+        "message": "Up 31 minutes (healthy)"
+      },
+      {
+        "id": "gateway",
+        "kind": "service",
+        "status": "rolled_back",
+        "container": "38a55151c2c2dbd7d81ebac7024edcdfdc0843d1cd16d60869157aa332ea4054",
+        "message": "Up 26 seconds (healthy)"
+      },
+      {
+        "id": "manager",
+        "kind": "service",
+        "status": "rolled_back",
+        "container": "dd5de7d19e226b7543ca2d3b9884b9b861fc23609550f03b2a95c5f8322fa218",
+        "message": "Up 1 second"
+      }
+    ],
+    "runtimeAdapter": "runtime-os-native/v1",
+    "active": false,
+    "cancelRequested": false,
+    "runtimeContainer": "4adb3adcbb46c96ab550bcb15ae88e7b40af066714a0c6535a5fc6224172907c",
+    "runtimeOperation": {
+      "package": "666f59d853dfc042e1307b0351d395fedcaca07197d6ab65e09a44738e21467c",
+      "command": "install",
+      "root": "/mnt/disk01/ops/r/99f2-076e271c2551",
+      "project": "ops-env-runtime-release-v1"
+    },
+    "installerLog": "2026-11-16T18:56:32.164580153Z Private CA, credentials and truststore are ready.\n2026-11-16T18:56:32.756192624Z  Container ops-env-runtime-release-v1-temporal-db  Running\n2026-11-16T18:56:32.756231340Z  Container ops-env-runtime-release-v1-executor-daemon  Running\n2026-11-16T18:56:32.756236019Z  Container ops-env-runtime-release-v1-opensearch  Running\n2026-11-16T18:56:32.756329707Z  Container ops-env-runtime-release-v1-redis  Running\n2026-11-16T18:56:32.756448811Z  Container ops-env-runtime-release-v1-postgresql  Running\n2026-11-16T18:56:32.756811421Z  Container ops-env-runtime-release-v1-silo  Running\n2026-11-16T18:56:33.505705975Z ALTER ROLE\n2026-11-16T18:56:33.514393593Z ALTER ROLE\n2026-11-16T18:56:33.523260111Z ALTER ROLE\n2026-11-16T18:56:33.524255305Z REVOKE\n2026-11-16T18:56:33.524550327Z REVOKE\n2026-11-16T18:56:33.524848159Z REVOKE\n2026-11-16T18:56:33.720497233Z Application schemas initialized transactionally.\n2026-11-16T18:56:34.443436772Z OpenSearch authenticated health check passed\n2026-11-16T18:56:35.169087380Z Silo bucket, immutable versions and object read/write verified.\n2026-11-16T18:56:36.087546675Z  Container ops-env-runtime-release-v1-temporal  Running\n2026-11-16T18:56:36.537929986Z  Container ops-env-runtime-release-v1-news  Running\n2026-11-16T18:56:36.965742684Z  Container ops-env-runtime-release-v1-mcp  Running\n2026-11-16T18:56:37.385876213Z  Container ops-env-runtime-release-v1-api  Running\n2026-11-16T18:56:39.274974343Z  Container ops-env-runtime-release-v1-studio  Running\n2026-11-16T18:56:39.274998287Z  Container ops-env-runtime-release-v1-worker2  Running\n2026-11-16T18:56:39.275003018Z  Container ops-env-runtime-release-v1-frontend-worker  Running\n2026-11-16T18:56:39.275006364Z  Container ops-env-runtime-release-v1-node2  Running\n2026-11-16T18:56:39.275055958Z  Container ops-env-runtime-release-v1-node1  Running\n2026-11-16T18:56:39.275061145Z  Container ops-env-runtime-release-v1-recovery1  Running\n2026-11-16T18:56:39.275065534Z  Container ops-env-runtime-release-v1-worker1  Running\n2026-11-16T18:56:39.275068859Z  Container ops-env-runtime-release-v1-executor2  Running\n2026-11-16T18:56:39.275171114Z  Container ops-env-runtime-release-v1-studio-executor  Running\n2026-11-16T18:56:39.275175592Z  Container ops-env-runtime-release-v1-gateway  Recreate\n2026-11-16T18:56:39.275241755Z  Container ops-env-runtime-release-v1-frontend-resource-hub  Running\n2026-11-16T18:56:39.275431249Z  Container ops-env-runtime-release-v1-recovery2  Running\n2026-11-16T18:56:39.275435783Z  Container ops-env-runtime-release-v1-executor1  Running\n2026-11-16T18:56:39.656130018Z  Container ops-env-runtime-release-v1-gateway  Recreated\n2026-11-16T18:56:39.672404458Z  Container ops-env-runtime-release-v1-gateway  Starting\n2026-11-16T18:56:40.142326432Z  Container ops-env-runtime-release-v1-gateway  Started\n2026-11-16T18:56:48.502287046Z {\"sourceCommit\":\"a459f1d04dea030833b558be645011ab739c463b\",\"verifiedFiles\":1850,\"descriptorSha256\":\"d28dace3b4daff727770c3625917b22a0c54a8f855c4222530de1923b493086f\",\"descriptorServices\":22,\"node\":\"v24.22.2\",\"nodeABI\":\"137\",\"sqlite\":\"3.50.4\",\"status\":\"PASS\"}\n2026-11-16T18:56:48.715617959Z {\"node\":\"v24.22.2\",\"abi\":\"137\",\"nativeModules\":1,\"sqliteExecuted\":true}\n2026-11-16T18:56:52.261229090Z No broken requirements found.\n2026-11-16T18:56:52.314025089Z {\"python\": \"3.11.18 (main, Nov  5 2026, 07:57:53) [GCC 14.2.0]\", \"sqlite\": \"3.46.1\", \"imports\": [\"pandas\", \"numpy\", \"pyarrow\", \"duckdb\", \"matplotlib\", \"openpyxl\", \"pytest\", \"psycopg\", \"pyodbc\", \"oracledb\", \"scipy\", \"sklearn\"], \"lockVerified\": true}\n2026-11-16T18:56:53.291197269Z  Container ops-env-runtime-release-v1-manager  Recreate\n2026-11-16T18:57:04.278454974Z  Container ops-env-runtime-release-v1-manager  Recreated\n2026-11-16T18:57:04.292494970Z  Container ops-env-runtime-release-v1-manager  Starting\n2026-11-16T18:57:04.717143287Z  Container ops-env-runtime-release-v1-manager  Started\n2026-11-16T18:57:04.726492219Z \n2026-11-16T18:57:04.726512389Z Environment ready. HTTP port: 19400; MCP port: 19401\n2026-11-16T18:57:04.726516635Z Existing administrator credentials and persistent data retained.\n2026-11-16T18:57:04.726519951Z Persistent installation directory: /mnt/disk01/ops/r/99f2-076e271c2551\n",
+    "rollbackRequested": false,
+    "rollbackActor": "admin",
+    "failedInstallerLog": "2026-11-16T18:33:27.833955432Z Private CA, credentials and truststore are ready.\n2026-11-16T18:33:28.291212775Z  Container ops-env-runtime-release-v1-opensearch  Running\n2026-11-16T18:33:28.291246257Z  Container ops-env-runtime-release-v1-temporal-db  Running\n2026-11-16T18:33:28.291253784Z  Container ops-env-runtime-release-v1-postgresql  Running\n2026-11-16T18:33:28.291257006Z  Container ops-env-runtime-release-v1-silo  Running\n2026-11-16T18:33:28.291259866Z  Container ops-env-runtime-release-v1-redis  Running\n2026-11-16T18:33:28.291335519Z  Container ops-env-runtime-release-v1-executor-daemon  Running\n2026-11-16T18:33:29.159730489Z ALTER ROLE\n2026-11-16T18:33:29.168520033Z ALTER ROLE\n2026-11-16T18:33:29.177331072Z ALTER ROLE\n2026-11-16T18:33:29.178858575Z REVOKE\n2026-11-16T18:33:29.179053489Z REVOKE\n2026-11-16T18:33:29.179341851Z REVOKE\n2026-11-16T18:33:29.366237649Z Application schemas initialized transactionally.\n2026-11-16T18:33:30.588775563Z OpenSearch authenticated health check passed\n2026-11-16T18:33:31.600266827Z Silo bucket, immutable versions and object read/write verified.\n2026-11-16T18:33:32.137912145Z  Container ops-env-runtime-release-v1-temporal  Running\n2026-11-16T18:33:32.572819818Z  Container ops-env-runtime-release-v1-news  Running\n2026-11-16T18:33:32.948498722Z  Container ops-env-runtime-release-v1-mcp  Running\n2026-11-16T18:33:33.318165419Z  Container ops-env-runtime-release-v1-api  Running\n2026-11-16T18:33:35.785749438Z  Container ops-env-runtime-release-v1-node2  Running\n2026-11-16T18:33:35.785775156Z  Container ops-env-runtime-release-v1-recovery2  Running\n2026-11-16T18:33:35.786005371Z  Container ops-env-runtime-release-v1-executor2  Running\n2026-11-16T18:33:35.786018678Z  Container ops-env-runtime-release-v1-executor1  Running\n2026-11-16T18:33:35.786022212Z  Container ops-env-runtime-release-v1-studio  Running\n2026-11-16T18:33:35.786026688Z  Container ops-env-runtime-release-v1-studio-executor  Running\n2026-11-16T18:33:35.786031177Z  Container ops-env-runtime-release-v1-recovery1  Running\n2026-11-16T18:33:35.786038879Z  Container ops-env-runtime-release-v1-worker1  Running\n2026-11-16T18:33:35.786170369Z  Container ops-env-runtime-release-v1-frontend-worker  Running\n2026-11-16T18:33:35.786180943Z  Container ops-env-runtime-release-v1-worker2  Running\n2026-11-16T18:33:35.786601733Z  Container ops-env-runtime-release-v1-gateway  Recreate\n2026-11-16T18:33:35.786606795Z  Container ops-env-runtime-release-v1-node1  Running\n2026-11-16T18:33:35.786764640Z  Container ops-env-runtime-release-v1-frontend-resource-hub  Running\n2026-11-16T18:33:36.345753747Z  Container ops-env-runtime-release-v1-gateway  Recreated\n2026-11-16T18:33:36.356942187Z  Container ops-env-runtime-release-v1-gateway  Starting\n2026-11-16T18:33:36.779203297Z  Container ops-env-runtime-release-v1-gateway  Started\n2026-11-16T18:33:46.266942707Z {\"sourceCommit\":\"a459f1d04dea030833b558be645011ab739c463b\",\"verifiedFiles\":1850,\"descriptorSha256\":\"d28dace3b4daff727770c3625917b22a0c54a8f855c4222530de1923b493086f\",\"descriptorServices\":22,\"node\":\"v24.22.2\",\"nodeABI\":\"137\",\"sqlite\":\"3.50.4\",\"status\":\"PASS\"}\n2026-11-16T18:33:47.180024835Z {\"node\":\"v24.22.2\",\"abi\":\"137\",\"nativeModules\":1,\"sqliteExecuted\":true}\n2026-11-16T18:34:00.099282298Z No broken requirements found.\n2026-11-16T18:34:00.158089763Z {\"python\": \"3.11.18 (main, Nov  5 2026, 07:57:53) [GCC 14.2.0]\", \"sqlite\": \"3.46.1\", \"imports\": [\"pandas\", \"numpy\", \"pyarrow\", \"duckdb\", \"matplotlib\", \"openpyxl\", \"pytest\", \"psycopg\", \"pyodbc\", \"oracledb\", \"scipy\", \"sklearn\"], \"lockVerified\": true}\n2026-11-16T18:34:01.133279034Z  Container ops-env-runtime-release-v1-manager  Recreate\n2026-11-16T18:34:12.761747152Z  Container ops-env-runtime-release-v1-manager  Recreated\n2026-11-16T18:34:12.781111334Z  Container ops-env-runtime-release-v1-manager  Starting\n2026-11-16T18:34:13.227667087Z  Container ops-env-runtime-release-v1-manager  Started\n2026-11-16T18:34:13.238950806Z \n2026-11-16T18:34:13.238983574Z Environment ready. HTTP port: 19402; MCP port: 19403\n2026-11-16T18:34:13.238993314Z Existing administrator credentials and persistent data retained.\n2026-11-16T18:34:13.239001426Z Persistent installation directory: /mnt/disk01/ops/r/99f2-076e271c2551\n"
+  }
+}

@@ -1,4 +1,51 @@
-<template><PanelCard title="创建持久化数据卷" description="数据目录固定在 /mnt/disk01 的平台专属应用目录中，不接管外部业务目录。"><form @submit.prevent="submit"><div class="form-grid"><label>目标主机<select v-model="node" required><option v-for="host in nodes" :key="host.id" :value="host.id">{{host.name}}</option></select></label><label>数据卷名称<input v-model="name" pattern="ops-[a-z0-9][a-z0-9_.-]{1,60}" placeholder="ops-application-data" required></label></div><p v-if="error" class="notice danger" role="alert">{{error}}</p><div class="form-actions"><button type="button" @click="$emit('cancel')">取消</button><button class="primary" :disabled="busy">预览数据卷计划</button></div></form></PanelCard></template>
+<template>
+  <PanelCard
+    title="创建持久化数据卷"
+    description="数据目录固定在 /mnt/disk01 的平台专属应用目录中，不接管外部业务目录。"
+  >
+    <form @submit.prevent="submit">
+      <div class="form-grid">
+        <label>
+          目标主机
+          <select v-model="node" required>
+            <option v-for="host in nodes" :key="host.id" :value="host.id">{{ host.name }}</option>
+          </select>
+        </label>
+        <label>
+          数据卷名称
+          <input
+            v-model="name"
+            pattern="ops-[a-z0-9][a-z0-9_.-]{1,60}"
+            placeholder="ops-application-data"
+            required
+          />
+        </label>
+      </div>
+      <p v-if="error" class="notice danger" role="alert">{{ error }}</p>
+      <div class="form-actions">
+        <button type="button" @click="$emit('cancel')">取消</button>
+        <button class="primary" :disabled="busy">预览数据卷计划</button>
+      </div>
+    </form>
+  </PanelCard>
+</template>
 <script setup>
-import {ref} from 'vue';import {useCluster} from '../../stores/cluster';import {useOperations} from '../../composables/useOperations';import PanelCard from '../ui/PanelCard.vue';const emit=defineEmits(['cancel','planned']),{nodes}=useCluster(),{preview,busy}=useOperations(),node=ref(nodes.value[0]?.id),name=ref(''),error=ref('');async function submit(){try{await preview(node.value,{action:'volume.create',name:name.value});emit('planned');}catch(e){error.value=e.message;}}
+  import { ref } from 'vue';
+  import { useCluster } from '../../stores/cluster';
+  import { useOperations } from '../../composables/useOperations';
+  import PanelCard from '../ui/PanelCard.vue';
+  const emit = defineEmits(['cancel', 'planned']),
+    { nodes } = useCluster(),
+    { preview, busy } = useOperations(),
+    node = ref(nodes.value[0]?.id),
+    name = ref(''),
+    error = ref('');
+  async function submit() {
+    try {
+      await preview(node.value, { action: 'volume.create', name: name.value });
+      emit('planned');
+    } catch (e) {
+      error.value = e.message;
+    }
+  }
 </script>

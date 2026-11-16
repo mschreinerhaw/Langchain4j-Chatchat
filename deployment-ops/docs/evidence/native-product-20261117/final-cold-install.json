@@ -1,0 +1,21 @@
+{
+  "passed": true,
+  "archiveSha256": "bc09fff76418b63abb1dbba8223c43429017f99ef21cfcbab1afeb9e5f2b1725",
+  "sourceCommit": "37f49456da68c9d6c64a15eeaa1b3877874fd163",
+  "emptyStateInitialization": true,
+  "administratorLogin": true,
+  "managedRuntimeNotYetDeployed": true,
+  "compiledOnTargetFromBundledSource": true,
+  "installedJarSha256": "d66bb64e1b50b3f71b5d293b7db004e3a10ecbd18c36257b55f0cd8c819ea53a",
+  "health": {
+    "databaseType": "H2 embedded",
+    "database": "UP",
+    "platform": "UP",
+    "mounted": true,
+    "schemaVersion": 2,
+    "requiredMount": "/mnt/disk01",
+    "dataDirectory": "/mnt/disk01/deployment-ops-v1-release/state/data",
+    "sourceCommit": "37f49456da68c9d6c64a15eeaa1b3877874fd163",
+    "version": "1.0.0-rc.4"
+  }
+}

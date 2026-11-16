@@ -1,18 +1,122 @@
 <template>
-  <div class="summary-grid"><article v-for="item in summary" :key="item.label" class="summary-card" :class="{alert:item.alert}"><span class="summary-icon"><AppIcon :name="item.icon"/></span><div><small>{{item.label}}</small><strong>{{item.value}}</strong></div></article></div>
-  <div class="overview-row">
-    <PanelCard title="CPU / 内存趋势" description="来自主机执行器的真实采样"><ResourceTrendChart v-if="nodes.length" :node="nodes[0].id"/><ResourceState v-else :loading="loading" :empty="!loading" title="尚未注册主机"/></PanelCard>
-    <PanelCard title="应用运行状态" description="结合容器状态与已有 Docker 健康检查"><div class="health-summary"><div class="health-donut" :style="{background:donut}"><div><strong>{{applications.length}}</strong><small>应用环境</small></div></div><div class="legend"><span><i/>运行中 {{healthy}}</span><span><i class="warning"/>部分异常 {{degraded}}</span><span><i class="danger"/>未知 / 未部署 {{applications.length-healthy-degraded}}</span></div></div></PanelCard>
-    <PanelCard title="监控异常" description="最近发现的 5 条异常"><template #actions><RouterLink to="/alerts">全部 →</RouterLink></template><ul class="alert-list"><li v-for="alert in alerts.slice(0,5)" :key="alert.id"><RouterLink :to="alert.route">{{alert.title}}</RouterLink><small>{{alert.resource}}</small></li></ul><ResourceState :empty="!alerts.length" title="当前未发现异常" description="主机失联、容器异常与部署失败会在此显示。"/></PanelCard>
+  <div class="summary-grid">
+    <article
+      v-for="item in summary"
+      :key="item.label"
+      class="summary-card"
+      :class="{ alert: item.alert }"
+    >
+      <span class="summary-icon"><AppIcon :name="item.icon" /></span>
+      <div>
+        <small>{{ item.label }}</small>
+        <strong>{{ item.value }}</strong>
+      </div>
+    </article>
   </div>
-  <PanelCard title="关键应用" description="按应用环境组织服务、配置、资源监控和部署历史"><template #actions><RouterLink v-if="admin" to="/deploy" class="button primary">部署应用</RouterLink></template><DataTable :rows="applications" :columns="columns" row-key="key" :page-size="8"><template #environment="{row}"><RouterLink :to="detail(row)">{{row.environment}}</RouterLink><small>{{row.job?.packageName||'现有业务应用'}}</small></template><template #status="{row}"><StateBadge :status="row.status"/></template><template #version="{row}">{{row.job?.version||'外部管理'}}</template><template #components="{row}">{{row.services.filter(c=>c.State==='running').length}} / {{row.services.length}} 运行</template><template #action="{row}"><RouterLink :to="detail(row)">查看详情</RouterLink></template></DataTable></PanelCard>
+  <div class="overview-row">
+    <PanelCard title="CPU / 内存趋势" description="来自主机执行器的真实采样">
+      <ResourceTrendChart v-if="nodes.length" :node="nodes[0].id" />
+      <ResourceState v-else :loading="loading" :empty="!loading" title="尚未注册主机" />
+    </PanelCard>
+    <PanelCard title="应用运行状态" description="结合容器状态与已有 Docker 健康检查">
+      <div class="health-summary">
+        <div class="health-donut" :style="{ background: donut }">
+          <div>
+            <strong>{{ applications.length }}</strong>
+            <small>应用环境</small>
+          </div>
+        </div>
+        <div class="legend">
+          <span>
+            <i />
+            运行中 {{ healthy }}
+          </span>
+          <span>
+            <i class="warning" />
+            部分异常 {{ degraded }}
+          </span>
+          <span>
+            <i class="danger" />
+            未知 / 未部署 {{ applications.length - healthy - degraded }}
+          </span>
+        </div>
+      </div>
+    </PanelCard>
+    <PanelCard title="监控异常" description="最近发现的 5 条异常">
+      <template #actions><RouterLink to="/alerts">全部 →</RouterLink></template>
+      <ul class="alert-list">
+        <li v-for="alert in alerts.slice(0, 5)" :key="alert.id">
+          <RouterLink :to="alert.route">{{ alert.title }}</RouterLink>
+          <small>{{ alert.resource }}</small>
+        </li>
+      </ul>
+      <ResourceState
+        :empty="!alerts.length"
+        title="当前未发现异常"
+        description="主机失联、容器异常与部署失败会在此显示。"
+      />
+    </PanelCard>
+  </div>
+  <PanelCard title="关键应用" description="按应用环境组织服务、配置、资源监控和部署历史">
+    <template #actions>
+      <RouterLink v-if="admin" to="/deploy" class="button primary">部署应用</RouterLink>
+    </template>
+    <DataTable :rows="applications" :columns="columns" row-key="key" :page-size="8">
+      <template #environment="{ row }">
+        <RouterLink :to="detail(row)">{{ row.environment }}</RouterLink>
+        <small>{{ row.job?.packageName || '现有业务应用' }}</small>
+      </template>
+      <template #status="{ row }"><StateBadge :status="row.status" /></template>
+      <template #version="{ row }">{{ row.job?.version || '外部管理' }}</template>
+      <template #components="{ row }">
+        {{ row.services.filter((c) => c.State === 'running').length }} /
+        {{ row.services.length }} 运行
+      </template>
+      <template #action="{ row }"><RouterLink :to="detail(row)">查看详情</RouterLink></template>
+    </DataTable>
+  </PanelCard>
 </template>
 <script setup>
-import {computed} from 'vue';import {useCluster} from '../../stores/cluster';import {useSession} from '../../stores/session';import PanelCard from '../ui/PanelCard.vue';import DataTable from '../ui/DataTable.vue';import StateBadge from '../ui/StateBadge.vue';import ResourceState from '../ui/ResourceState.vue';import AppIcon from '../ui/AppIcon.vue';import ResourceTrendChart from '../metrics/ResourceTrendChart.vue';
-const {nodes,applications,alerts,jobs,loading}=useCluster(),{admin}=useSession();
-const healthy=computed(()=>applications.value.filter(a=>a.status==='running').length),degraded=computed(()=>applications.value.filter(a=>a.status==='degraded').length);
-const summary=computed(()=>[{label:'服务器',value:nodes.value.length,icon:'servers'},{label:'运行应用',value:healthy.value,icon:'containers'},{label:'异常告警',value:alerts.value.length,icon:'warning',alert:true},{label:'今日部署',value:jobs.value.filter(j=>new Date(j.createdAt*1000).toDateString()===new Date().toDateString()).length,icon:'rocket'}]);
-const donut=computed(()=>{const n=applications.value.length||1,a=healthy.value/n*100,b=(healthy.value+degraded.value)/n*100;return applications.value.length?`conic-gradient(#37a268 0 ${a}%,#e7b348 ${a}% ${b}%,#d9e2ef ${b}% 100%)`:'#e8edf4';});
-const detail=row=>`/applications/${row.nodeId}/${encodeURIComponent(row.environment)}`;
-const columns=[{key:'environment',label:'应用'},{key:'status',label:'状态'},{key:'version',label:'版本'},{key:'nodeName',label:'主机'},{key:'components',label:'服务组件'},{key:'action',label:'操作'}];
+  import { computed } from 'vue';
+  import { useCluster } from '../../stores/cluster';
+  import { useSession } from '../../stores/session';
+  import PanelCard from '../ui/PanelCard.vue';
+  import DataTable from '../ui/DataTable.vue';
+  import StateBadge from '../ui/StateBadge.vue';
+  import ResourceState from '../ui/ResourceState.vue';
+  import AppIcon from '../ui/AppIcon.vue';
+  import ResourceTrendChart from '../metrics/ResourceTrendChart.vue';
+  const { nodes, applications, alerts, jobs, loading } = useCluster(),
+    { admin } = useSession();
+  const healthy = computed(() => applications.value.filter((a) => a.status === 'running').length),
+    degraded = computed(() => applications.value.filter((a) => a.status === 'degraded').length);
+  const summary = computed(() => [
+    { label: '服务器', value: nodes.value.length, icon: 'servers' },
+    { label: '运行应用', value: healthy.value, icon: 'containers' },
+    { label: '异常告警', value: alerts.value.length, icon: 'warning', alert: true },
+    {
+      label: '今日部署',
+      value: jobs.value.filter(
+        (j) => new Date(j.createdAt * 1000).toDateString() === new Date().toDateString()
+      ).length,
+      icon: 'rocket',
+    },
+  ]);
+  const donut = computed(() => {
+    const n = applications.value.length || 1,
+      a = (healthy.value / n) * 100,
+      b = ((healthy.value + degraded.value) / n) * 100;
+    return applications.value.length
+      ? `conic-gradient(#37a268 0 ${a}%,#e7b348 ${a}% ${b}%,#d9e2ef ${b}% 100%)`
+      : '#e8edf4';
+  });
+  const detail = (row) => `/applications/${row.nodeId}/${encodeURIComponent(row.environment)}`;
+  const columns = [
+    { key: 'environment', label: '应用' },
+    { key: 'status', label: '状态' },
+    { key: 'version', label: '版本' },
+    { key: 'nodeName', label: '主机' },
+    { key: 'components', label: '服务组件' },
+    { key: 'action', label: '操作' },
+  ];
 </script>

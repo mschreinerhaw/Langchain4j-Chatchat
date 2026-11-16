@@ -1,5 +1,10 @@
 # Deployment Ops
 
+**New release requirement:** Deployment Manager itself runs natively on the host,
+with embedded H2, and must start without Docker or any Runtime OS application.
+The Compose/Docker instructions below describe historical P0 only. They are not
+the installation method for the forthcoming Spring Boot/Vue release.
+
 ## Spring Boot / Vue 3 migration
 
 The target architecture is now a Maven child module with a Spring Boot control plane

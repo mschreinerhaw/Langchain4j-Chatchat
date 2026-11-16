@@ -7,4 +7,4 @@
 
 .parameter-field{margin-bottom:20px}.parameter-field>label{margin-bottom:0}.parameter-input{display:flex;gap:6px;align-items:center}.parameter-input input{min-width:0}.parameter-input button{white-space:nowrap;font-size:10px;margin-top:7px}.parameter-field>small{display:block;margin-top:7px;line-height:1.6}
 
-.runtime-service-list{display:grid;gap:6px;max-height:155px;overflow:auto}.runtime-service-list>a{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:5px 0;border-bottom:1px solid var(--line)}.runtime-service-list .state-badge{font-size:10px;white-space:nowrap}
+.runtime-service-list{display:grid;gap:6px;max-height:155px;overflow:auto}.runtime-service-list>a{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:5px 0;border-bottom:1px solid var(--border)}.runtime-service-list .state-badge{font-size:10px;white-space:nowrap}

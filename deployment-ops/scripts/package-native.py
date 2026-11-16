@@ -9,20 +9,25 @@ acceptance_files={}
 if '-' not in a.version:
     if not a.acceptance_report:raise SystemExit('Formal release requires a complete real acceptance report; use an explicit candidate version until then')
     report=json.loads(a.acceptance_report.read_text(encoding='utf-8'))
+    if subprocess.run(['git','diff','--quiet','HEAD','--','.'],cwd=ROOT).returncode:raise SystemExit('Commit tracked source changes before formal packaging')
+    for name in subprocess.check_output(['git','ls-files','--others','--exclude-standard','--','.'],cwd=ROOT,text=True).splitlines():
+        extra=(ROOT/name).resolve()
+        if extra!=a.acceptance_report.resolve() and not extra.is_relative_to(ROOT/'docs/evidence'):raise SystemExit('Uncommitted source file prevents formal packaging: '+name)
     required={'offline_install','h2_persistence','independent_startup','admin_login_api','offline_image_import','runtime_deployment_ui','runtime_live_status','platform_restart_isolation','platform_upgrade_isolation','application_upgrade_rollback','backup_restore','missing_mount_refusal'}
     if report.get('format')!='deployment-ops-acceptance/v1' or commit=='unknown' or report.get('sourceCommit')!=commit:raise SystemExit('Acceptance report must identify this exact source commit')
+    if report.get('jarSha256')!=hashlib.sha256(a.jar.read_bytes()).hexdigest():raise SystemExit('Acceptance report must identify the packaged server-built JAR')
     scenarios=report.get('scenarios',{})
     if set(scenarios)!=required or any(item.get('status')!='passed' or not item.get('evidence') for item in scenarios.values()):raise SystemExit('Every mandatory real acceptance scenario must have passed evidence')
     for item in scenarios.values():
         for evidence in item['evidence']:
             source=(ROOT/evidence['path']).resolve();source.relative_to(ROOT)
             if not source.is_file() or hashlib.sha256(source.read_bytes()).hexdigest()!=evidence['sha256']:raise SystemExit('Acceptance evidence checksum mismatch')
-            acceptance_files['docs/acceptance/'+source.relative_to(ROOT).as_posix()]=source.read_bytes()
+            acceptance_files[source.relative_to(ROOT).as_posix()]=source.read_bytes()
     acceptance_files['docs/acceptance/report.json']=a.acceptance_report.read_bytes()
 if a.output.exists():raise SystemExit('Output exists; choose an immutable new package filename')
 if not (ROOT/'web-ui/dist/index.html').is_file():raise SystemExit('Build the Vue frontend before packaging')
 files=dict(acceptance_files)
-for name in ['src/main','backend/src','backend/lib','backend/schema.sql','executor','frontend','web-ui/dist','web-ui/src','web-ui/public','web-ui/package.json','web-ui/package-lock.json','web-ui/vue.config.js','deploy/native','recipes/runtime-os','release/trust','tests','docs/NATIVE-OPERATIONS.md','docs/APPLICATION-PLATFORM.md']:
+for name in ['src/main','backend/src','backend/lib','backend/schema.sql','executor','frontend','web-ui/dist','web-ui/src','web-ui/public','web-ui/package.json','web-ui/package-lock.json','web-ui/vue.config.js','deploy/native','recipes/runtime-os-native','pom.xml','docs/dependencies.json','release/trust','tests','docs/NATIVE-OPERATIONS.md','docs/APPLICATION-PLATFORM.md']:
     source=ROOT/name
     for path in source.rglob('*') if source.is_dir() else [source]:
         if path.is_symlink():raise SystemExit('Release source contains symlink: '+str(path))
@@ -31,7 +36,7 @@ for name in ['src/main','backend/src','backend/lib','backend/schema.sql','execut
             content=path.read_bytes()
             if path.suffix in ('.sh','.py','.java','.vue','.js','.css','.md','.json','.yml','.service'):content=content.replace(b'\r\n',b'\n')
             files[path.relative_to(ROOT).as_posix()]=content
-for name in ['build-native-offline.py','package-native.py','build-package.py','prepare-runtime-os.py','prepare-native-runtime.py','export-image-schema.py','ImageSchemaExporter.java']:
+for name in ['build-native-offline.py','package-native.py','build-package.py','import-offline-package.py','prepare-native-runtime.py','export-image-schema.py','ImageSchemaExporter.java']:
     files['scripts/'+name]=(ROOT/'scripts'/name).read_bytes().replace(b'\r\n',b'\n')
 if (ROOT/'docs/NATIVE-OPERATIONS.md').exists():files['README.md']=(ROOT/'docs/NATIVE-OPERATIONS.md').read_bytes()
 files['lib/deployment-ops.jar']=a.jar.read_bytes()

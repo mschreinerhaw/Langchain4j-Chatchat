@@ -19,7 +19,7 @@
 - 第一阶段完整实现 Runtime OS，Docker 为首个执行适配器，保留其他运行方式的接口；不声明已支持 systemd。
 - 管理平台独立于业务认证、业务数据库和业务任务系统。控制面停止不应停止、重建或恢复业务工作负载。
 - 现有容器、镜像、卷、网络先只读发现。关联现有应用不等于取得生命周期管理授权。
-- 新验收目录位于 `/mnt/disk01`。已只读确认该目录为独立 `/dev/sdc` XFS 挂载，可用约 99.2 GiB。后续安装必须再次检查挂载、容量和内存，禁止挂载丢失后静默写入根盘。
+- 新验收目录位于 `/mnt/disk01`。已只读确认该目录为独立 `/dev/sdc` XFS 挂载，实际容量以安装时检查为准。后续安装必须再次检查挂载、容量和内存，禁止挂载丢失后静默写入根盘。
 - 当前运行的 P0 管理平台和业务环境不随源码迁移自动替换。
 
 ## 核心对象和流程
@@ -38,10 +38,24 @@
 
 自动化第一阶段包含定时采样、异常事件、诊断与受控运维任务。自动重启、数据迁移和版本回滚必须有明确策略、所有权与兼容性校验，不能默认作用于发现的业务资源。
 
-## 迁移状态与验收
+## Native implementation and acceptance
 
-新代码目录：`src/main/java`、`src/main/resources`、`web-ui`。现有 `backend`、`frontend`、`executor` 保留，以便逐项迁移已验证的鉴权、审计、签名包、持久任务和安全检查；当前 Compose 仍运行旧版本，不能当作新栈验收结果。
+The native Spring Boot application now hosts the persisted authentication, audit,
+resource plans and signed-package APIs. The Vue console uses lazy domain routes,
+shared state/API clients and independent components for deployment, applications,
+containers, monitoring, tasks and system management. Legacy verified source remains
+available without starting a second legacy Web server.
 
-当前新增的是 Maven/Spring Boot 工程、Vue CLI 工程、运行时适配接口和组件依赖校验。尚未完成业务接口迁移、发布包协议转换、原生 Temporal Runtime OS 完整发布包、应用健康聚合、前端向导和新栈部署验收。不得用旧 SDK 安装配方冒充当前 Runtime OS 的部署验证。
+The signed Native/Temporal Runtime OS adapter uses the reviewed source-built
+product installer, immutable images, dedicated project/data scope and explicit
+compatible upgrades. Real deployment of all 24 services, OS/MCP administrator
+login, Native Core/Python checks, upgrade, failed-release rollback, platform
+replacement and H2 restore have execution evidence. The target host compiles Java
+from source using only the bundled dependency archive.
 
-最终验收必须从源码构建管理平台安装包和 Runtime OS 发布包，在新盘创建独立环境，通过页面上传、配置、预检、真实安装并验证应用功能；停止管理平台后业务继续运行；已有业务资源保持原状。随后验证管理平台重启、节点失联、步骤失败及任务恢复的真实状态。
+Current release status and exact remaining gates are maintained in
+[V1 acceptance ledger](V1-REMAINING-WORK.md); installation and maintenance are in
+[native operations](NATIVE-OPERATIONS.md). Mandatory real execution evidence is
+archived under `docs/evidence/native-product-20261117`. A formal package requires
+all mandatory scenarios, the exact source commit/JAR and checked evidence hashes.
+Historical Compose results do not stand in for native-platform acceptance.

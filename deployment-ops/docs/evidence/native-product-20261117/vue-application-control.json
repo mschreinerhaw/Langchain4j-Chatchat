@@ -1,0 +1,10 @@
+{
+  "passed": true,
+  "environment": "runtime-native-v1",
+  "checks": [
+    "confirmed scoped stop completed as stopped",
+    "confirmed scoped start completed as succeeded",
+    "confirmed scoped stop completed as stopped"
+  ],
+  "finalState": "stopped"
+}

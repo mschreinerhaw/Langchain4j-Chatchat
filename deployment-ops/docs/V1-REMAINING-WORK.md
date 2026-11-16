@@ -22,7 +22,7 @@ Baseline `8dbd6b915`, branch `feature/deployment-ops-offline-20261115`.
   acceptance passed. Required dependencies inaccessible; platform remained UP.
 - Actual missing-mount refusal passed in a transient private systemd mount view;
   host /mnt/disk01 stayed mounted. No host unmount or recursive business chown.
-- Local latest regression: Java 11 tests and Python 47 tests passed; Vue production
+- Local latest regression: Java 11 tests and Python 51 tests passed; Vue production
   build passed. These do not replace Runtime OS acceptance.
 
 ## Additional real acceptance completed
@@ -45,17 +45,30 @@ Baseline `8dbd6b915`, branch `feature/deployment-ops-offline-20261115`.
 
 ## Remaining acceptance and delivery work (continue without phase stop)
 
-1. Roll out the latest native executor health endpoint and modular service overview;
-   verify actual Unix-socket Coding/Studio resource-policy health through Java/Vue.
-   A method-name conflict found during live testing has been corrected; rerun it.
-2. Regress latest Vue including image version tagging and independent TAR import,
-   viewer restrictions, service probe edit/disable and enterprise overview layout.
-3. Repeat H2 restore with explicit old-session invalidation, final native isolated
-   startup/mount refusal, and platform restart business-container isolation.
-4. Produce final coherent source-built native offline artifact, verify file/SHA
-   inventory and clean installation; include Runtime media/public trust and docs.
-5. Aggregate actual reports through the formal release gate; push all verified
-   source and evidence. No formal V1 tag before all required real scenarios pass.
+The modular native console, real Docker lifecycle, image TAR import/version tags,
+three native Unix-socket executor probes, RBAC, configured health check edit/disable,
+consistent H2 restore/session invalidation and isolated startup/missing-mount refusal
+all have real execution evidence. Native application stop/start/stop also passed;
+all original 20 workloads were unchanged and every persistent directory/volume was
+retained. Only the 24 stopped containers created by this acceptance were removed
+after strict project/image/mount checks to free memory for the final cold install.
+
+1. Freeze source and build the final coherent candidate JAR on the target server.
+   Install that exact offline distribution into empty release/state directories;
+   import the complete signed media and submit a fresh Runtime OS GUI deployment.
+2. During that deployment, restart only the two native platform services and
+   explicitly resume the durable task through the page. Verify the same installer
+   and all existing business container identities/start times are retained.
+3. Verify actual gateway image replacement, a deliberately failing gateway after
+   replacement, automatic image rollback and retained application data. Previous
+   configuration/version upgrade and early-installer failure already passed.
+4. Regress the latest unified service alerts and final compact monitoring layout;
+   finish all source/build/browser/server reports and the native offline bundle.
+5. Aggregate reports through the formal source/JAR/evidence gate, verify the final
+   archive inventory/SHA, publish the verified commits and only then tag V1.0.
+
+Checkpoint ad2304370 is pushed. Formal release is still gated; do not stop at this
+checkpoint or describe candidate acceptance as completed V1 delivery.
 
 ## Environment and scope
 

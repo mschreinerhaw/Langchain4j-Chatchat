@@ -21,7 +21,7 @@ const {chromium}=require(process.env.PLAYWRIGHT_MODULE||'/app/node_modules/playw
   await upload.locator('input[type=file]').setInputFiles(media);await upload.getByLabel('发行方 SHA-256',{exact:true}).fill(process.env.OPS_MEDIA_SHA256);
   await upload.getByRole('button',{name:'上传并验证应用包',exact:true}).click();console.log('Uploading signed offline package through Vue');
   await page.getByText('签名与离线镜像验证通过 100%',{exact:true}).waitFor({timeout:1800000});await capture('offline-import-verified');checks.push('Vue resumable offline package upload and real signature/image verification');
-  }else checks.push('previous real Vue offline import retained with matching SHA256');
+  }else checks.push('reviewed signed offline package already verified on target with matching SHA256');
   if(!process.env.OPS_RUNTIME_JOB){
   await page.goto(base+'/#/deploy');await page.getByLabel('应用环境名称').fill(env);await page.locator('label').filter({hasText:'目标服务器'}).locator('select').selectOption('1');await page.getByRole('button',{name:'检查主机并继续',exact:true}).click();
   const catalog=await api('/api/nodes/1/packages'),release=catalog.find(p=>p.name==='runtime-os'&&p.digest===process.env.OPS_MEDIA_SHA256);assert(release,'Reviewed native Runtime OS release missing');
@@ -31,10 +31,13 @@ const {chromium}=require(process.env.PLAYWRIGHT_MODULE||'/app/node_modules/playw
   const response=page.waitForResponse(r=>r.url().endsWith('/installations')&&r.request().method()==='POST');await page.getByRole('button',{name:'确认部署 / 升级',exact:true}).click();const started=await response;assert.equal(started.status(),200);job=await started.json();checks.push('deployment submitted through real Vue wizard');console.log('Runtime deployment task '+job.id);
   }else{job=await api('/api/nodes/1/installations/'+process.env.OPS_RUNTIME_JOB);await page.goto(base+'/#/tasks/deployment/1/'+job.id);checks.push('observed retained task after explicit recovery');}
   for(let attempt=0;attempt<600;attempt++){
-   job=await api('/api/nodes/1/installations/'+job.id);
+   try{job=await api('/api/nodes/1/installations/'+job.id);}catch(error){if(!process.env.OPS_RESTART_ACCEPTANCE||attempt>590)throw error;await page.waitForTimeout(3000);continue;}
    fs.writeFileSync(out+'/deployment-task.json',JSON.stringify(job,null,2));
    if(attempt%12===0)console.log('Runtime task: '+job.status+' '+job.message);
    if(job.status==='succeeded')break;
+   if(job.status==='interrupted'&&process.env.OPS_RESTART_ACCEPTANCE){
+    const installer=job.runtimeContainer;await page.goto(base+'/#/tasks/deployment/1/'+job.id);await page.getByRole('button',{name:'恢复执行',exact:true}).click();await page.getByLabel('输入环境名称确认',{exact:true}).fill(env);const resumed=page.waitForResponse(r=>r.url().endsWith('/'+job.id+'/resume'),{timeout:180000});await page.getByRole('button',{name:'确认恢复执行',exact:true}).click();assert.equal((await resumed).status(),200);const current=await api('/api/nodes/1/installations/'+job.id);assert.equal(current.runtimeContainer,installer);checks.push('explicit GUI recovery retained the installer after native platform restart');await capture('inflight-recovery');continue;
+   }
    if(!['queued','running','starting','rolling_back'].includes(job.status))throw Error('Deployment failed: '+job.status+' '+job.message);
    await page.waitForTimeout(3000);
   }

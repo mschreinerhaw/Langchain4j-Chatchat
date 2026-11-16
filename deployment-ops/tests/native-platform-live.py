@@ -2,7 +2,7 @@
 import argparse,json,os,subprocess,time,uuid,urllib.request,urllib.error,http.cookiejar
 from pathlib import Path
 p=argparse.ArgumentParser();p.add_argument('--state',type=Path,required=True);p.add_argument('--report',type=Path,required=True);p.add_argument('--url',default='http://127.0.0.1:19240');a=p.parse_args()
-if a.state.resolve()!=Path('/mnt/disk01/deployment-ops-v1-candidate/state'):raise SystemExit('This acceptance runner only operates on the isolated candidate state directory')
+if a.state.resolve() not in [Path('/mnt/disk01/deployment-ops-v1-candidate/state'),Path('/mnt/disk01/deployment-ops-v1-release/state')]:raise SystemExit('This acceptance runner only operates on the isolated candidate state directory')
 op=urllib.request.build_opener(urllib.request.ProxyHandler({}),urllib.request.HTTPCookieProcessor(http.cookiejar.CookieJar()))
 def request(path,data=None):
     with op.open(urllib.request.Request(a.url+'/api'+path,data=json.dumps(data).encode() if data is not None else None,headers={'X-Ops-Request':'1','Content-Type':'application/json'}),timeout=40) as response:return json.load(response)
@@ -10,7 +10,7 @@ def login():return request('/login',{'username':'admin','password':os.environ['O
 def containers():
     ids=subprocess.check_output(['docker','ps','-q'],text=True).split()
     return subprocess.check_output(['docker','inspect','--format','{{.Id}} {{.State.StartedAt}} {{.State.Running}}',*ids],text=True).splitlines() if ids else []
-results={'before':containers()};login();ident=uuid.uuid4().hex
+results={'before':containers()};login();assert request('/platform/health')['dataDirectory']==str(a.state/'data'),'Wrong platform instance';ident=uuid.uuid4().hex
 request('/entries',{'name':'restore-retained-'+ident,'url':'http://127.0.0.1:19300','project':'native-acceptance'})
 backup=request('/backups',{});results['backup']=backup
 request('/entries',{'name':'restore-discarded-'+ident,'url':'http://127.0.0.1:19300','project':'native-acceptance'})

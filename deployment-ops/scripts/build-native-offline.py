@@ -6,6 +6,7 @@ import shutil
 import subprocess
 import tempfile
 import zipfile
+import os
 
 parser = argparse.ArgumentParser()
 parser.add_argument('--runtime', type=Path, required=True)
@@ -33,7 +34,8 @@ with tempfile.TemporaryDirectory() as temp:
         shutil.copytree(root / 'web-ui/dist', classes / 'static', dirs_exist_ok=True)
     shutil.copytree(root / 'frontend', classes / 'static/legacy', dirs_exist_ok=True)
     args.output.parent.mkdir(parents=True, exist_ok=True)
-    with zipfile.ZipFile(args.runtime) as runtime, zipfile.ZipFile(args.output, 'w', zipfile.ZIP_DEFLATED) as output:
+    staged = args.output.with_name(args.output.name + '.building-' + str(os.getpid()))
+    with zipfile.ZipFile(args.runtime) as runtime, zipfile.ZipFile(staged, 'w', zipfile.ZIP_DEFLATED, strict_timestamps=False) as output:
         output.writestr('BOOT-INF/classes/', b'')
         for entry in runtime.infolist():
             if not entry.filename.startswith('BOOT-INF/classes/'):
@@ -44,4 +46,5 @@ with tempfile.TemporaryDirectory() as temp:
                 output.write(path, 'BOOT-INF/classes/' + path.relative_to(classes).as_posix())
             elif path.is_dir():
                 output.writestr('BOOT-INF/classes/' + path.relative_to(classes).as_posix() + '/', b'')
+    os.replace(staged,args.output)
 print(hashlib.sha256(args.output.read_bytes()).hexdigest(), args.output)

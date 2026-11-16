@@ -1,6 +1,6 @@
 # Deployment Ops 原生安装与运维
 
-本文件适用于原生候选发行包。候选包不代表 V1.0 全部验收已经通过；以随包验收报告中的实际结果为准。
+本文件适用于 `deployment-ops-native/v1` 原生发行包。实际版本见 `release.json`；正式包的执行证据见 `docs/acceptance/report.json`。RC 候选包不得当作正式 V1.0 验收通过。
 
 ## 安装前提
 
@@ -10,10 +10,10 @@ Linux x86_64、systemd、Python 3.11+、Java 17+，以及真实挂载在 `/mnt/d
 
 ```sh
 findmnt -M /mnt/disk01
-sha256sum -c deployment-ops-1.0.0-rc.1.zip.sha256
-mkdir -p /mnt/disk01/deployment-ops-releases/1.0.0-rc.1
-python3 -m zipfile -e deployment-ops-1.0.0-rc.1.zip /mnt/disk01/deployment-ops-releases/1.0.0-rc.1
-cd /mnt/disk01/deployment-ops-releases/1.0.0-rc.1
+sha256sum -c deployment-ops-1.0.0.zip.sha256
+mkdir -p /mnt/disk01/deployment-ops-releases/1.0.0
+python3 -m zipfile -e deployment-ops-1.0.0.zip /mnt/disk01/deployment-ops-releases/1.0.0
+cd /mnt/disk01/deployment-ops-releases/1.0.0
 ```
 
 ## 服务器源码编译与首次安装
@@ -69,6 +69,15 @@ sh deploy/native/restart.sh
 3. 在“部署发布”选择主机、新环境名、已验证版本，配置访问地址、入口端口、MCP 端口及 Runtime 管理员密码。
 4. 执行预检，核对独立项目、短数据目录、资源预算、不可变镜像和端口；输入完整环境名后提交。
 5. 在任务中心查看真实步骤、安装器日志及失败原因。只有产品安装器完成 Native Core/Python 验证后才会报告成功。
+
+介质已复制到服务器时，也可由 root 使用下面的本地导入命令，避免多 GB 镜像包再次经过管理网络上传。该命令仍需平台管理员登录，并调用相同的签名、清单、镜像验证和审计 API；同盘只创建临时硬链接，跨盘复制到受控数据目录，不删除输入介质。它不会绕过发行方公钥或赋予普通签名包原生安装器权限。
+
+```sh
+python3 scripts/import-offline-package.py \
+  --config /mnt/disk01/deployment-ops/manager.env \
+  --file /mnt/disk01/offline-media/runtime-os.ops.zip \
+  --sha256 发行方提供的64位SHA256
+```
 
 已有生产容器只读展示，不会因名称相似而被接管。新部署使用独立 `ops-env-环境名` 项目。不可变版本不允许换包覆盖。应用升级须声明兼容版本并保持已验证的数据结构与基础组件；不兼容数据库迁移需要独立验证。
 

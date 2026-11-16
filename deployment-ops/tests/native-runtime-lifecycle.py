@@ -6,8 +6,9 @@ the same authenticated signature/image verification and deployment endpoints.
 """
 import argparse,hashlib,http.cookiejar,json,os,subprocess,time,urllib.request,uuid
 from pathlib import Path
-p=argparse.ArgumentParser();p.add_argument('--media',type=Path,required=True);p.add_argument('--version',required=True);p.add_argument('--report',type=Path,required=True);p.add_argument('--environment',default='runtime-native-v1');p.add_argument('--expect',choices=['succeeded','rolled_back'],default='succeeded');p.add_argument('--http-port',type=int,default=19402);p.add_argument('--mcp-port',type=int,default=19403);a=p.parse_args()
-state=Path('/mnt/disk01/deployment-ops-v1-candidate/state');base='http://127.0.0.1:19240/api'
+p=argparse.ArgumentParser();p.add_argument('--media',type=Path,required=True);p.add_argument('--version',required=True);p.add_argument('--report',type=Path,required=True);p.add_argument('--environment',default='runtime-native-v1');p.add_argument('--expect',choices=['succeeded','rolled_back'],default='succeeded');p.add_argument('--http-port',type=int,default=19402);p.add_argument('--mcp-port',type=int,default=19403);p.add_argument('--state',type=Path,default=Path('/mnt/disk01/deployment-ops-v1-candidate/state'));p.add_argument('--require-image-change',action='store_true');a=p.parse_args()
+state=a.state.resolve();base='http://127.0.0.1:19240/api'
+if state not in [Path('/mnt/disk01/deployment-ops-v1-candidate/state'),Path('/mnt/disk01/deployment-ops-v1-release/state')]:raise SystemExit('Restricted to isolated native acceptance state directories')
 if os.geteuid()!=0 or not a.media.resolve().is_relative_to('/mnt/disk01/ops-publisher-20261116'):raise SystemExit('Restricted to root and isolated QA publisher media')
 op=urllib.request.build_opener(urllib.request.ProxyHandler({}),urllib.request.HTTPCookieProcessor(http.cookiejar.CookieJar()))
 def call(path,data=None):
@@ -15,7 +16,8 @@ def call(path,data=None):
 def workloads():
     ids=subprocess.check_output(['docker','ps','-aq'],text=True).split();items=json.loads(subprocess.check_output(['docker','inspect',*ids])) if ids else []
     return sorted((c['Id'],c['State']['StartedAt'],c['State']['Running']) for c in items if c['State']['Running'] and (c['Config'].get('Labels') or {}).get('com.docker.compose.project')!='ops-env-'+a.environment and (c['Config'].get('Labels') or {}).get('deployment-ops.environment')!=a.environment)
-result={'version':a.version,'expected':a.expect,'before':workloads()};call('/login',{'username':'admin','password':os.environ['OPS_TEST_PASSWORD']})
+gateway_name='ops-env-'+a.environment+'-gateway';gateway_before=json.loads(subprocess.check_output(['docker','inspect',gateway_name]))[0]
+result={'version':a.version,'expected':a.expect,'before':workloads(),'gatewayBefore':{'id':gateway_before['Id'],'image':gateway_before['Image']}};call('/login',{'username':'admin','password':os.environ['OPS_TEST_PASSWORD']});assert call('/platform/health')['dataDirectory']==str(state/'data'),'Wrong platform instance'
 with a.media.open('rb') as source:digest=hashlib.file_digest(source,'sha256').hexdigest()
 catalog=call('/nodes/1/packages')
 if not any(item['digest']==digest for item in catalog):
@@ -37,5 +39,9 @@ for index in range(1200):
     if index%15==0:print(job['status']+' '+job.get('message',''),flush=True)
     if job['status'] not in ['queued','running','starting','rolling_back']:break
     time.sleep(2)
-result['task']=job;result['after']=workloads();result['businessUnchanged']=result['before']==result['after'];result['passed']=job['status']==a.expect and result['businessUnchanged'];a.report.write_text(json.dumps(result,indent=2));assert result['passed'],job
+result['task']=job;result['after']=workloads();result['businessUnchanged']=result['before']==result['after'];gateway_after=json.loads(subprocess.check_output(['docker','inspect',gateway_name]))[0];result['gatewayAfter']={'id':gateway_after['Id'],'image':gateway_after['Image']}
+active=next(j for j in call('/nodes/1/installations') if j['active'] and j['environment']==a.environment);active_manifest=json.loads((state/'packages'/active['package']/'manifest.json').read_text());assert gateway_after['Image']==active_manifest['images']['gateway']['id'] and gateway_after['State']['Running']
+if a.require_image_change:assert gateway_before['Image']!=gateway_after['Image'] and gateway_before['Id']!=gateway_after['Id'],'No real image replacement occurred'
+if a.expect=='rolled_back':assert gateway_before['Image']==gateway_after['Image'],'Previous gateway image was not restored'
+result['passed']=job['status']==a.expect and result['businessUnchanged'];a.report.write_text(json.dumps(result,indent=2));assert result['passed'],job
 print(json.dumps({'passed':True,'task':job['id'],'status':job['status'],'businessUnchanged':True}))

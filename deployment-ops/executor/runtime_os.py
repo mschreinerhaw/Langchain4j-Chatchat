@@ -160,18 +160,22 @@ class RuntimeOsAdapter:
                 self.engine('POST','/images/'+item['imageId']+'/tag?'+urlencode({'repo':repository,'tag':tag}))
     def run(self,job,manifest,private,command,reuse=True,package=None,ignore_cancel=False):
         target=Path(private['runtimeRoot']);target.mkdir(parents=True,exist_ok=True);project=private['project'];folder,_=self.base.store.package(package or job['package']);self.aliases(self.image_map(folder,manifest))
-        ident=job.get('runtimeContainer') if reuse else None;existing=None
+        operation={'package':package or job['package'],'command':command,'root':str(target),'project':project}
+        if reuse and job.get('runtimeContainer') and job.get('runtimeOperation')!=operation:
+            other=self.engine('GET','/containers/'+job['runtimeContainer']+'/json')['State']
+            require(not other['Running'],'A different or legacy installer operation is still running; reconcile its recorded task before replay')
+        ident=job.get('runtimeContainer') if reuse and job.get('runtimeOperation')==operation else None;existing=None
         if ident:
             try:existing=self.engine('GET','/containers/'+ident+'/json')
             except ValueError:ident=None
-            if existing and not existing['State']['Running']:ident=None
+            if existing and not existing['State']['Running'] and existing['State'].get('ExitCode')!=0:ident=None
         if not ident:
             labels={'deployment-ops.installation':'true','deployment-ops.environment':job['environment'],'deployment-ops.component':'native-installer','deployment-ops.kind':'job','deployment-ops.run':job['id']}
             socket_path=os.getenv('DOCKER_SOCKET','/var/run/docker.sock')
             container_name=project+'-installer-'+job['id'][:10]+'-'+uuid.uuid4().hex[:6]
             environment={'HOSTNAME':container_name,'PROJECT':project,'HTTP_PORT':str(private['parameters']['httpPort']),'MCP_PORT':str(private['parameters']['mcpPort']),'ADMIN_PASSWORD':private['parameters']['osAdminPassword']}
             config={'Image':manifest['images'][manifest['runtimeInstaller']['image']]['id'],'Cmd':[command],'Env':[key+'='+value for key,value in environment.items()],'Labels':labels,'User':'0:0','HostConfig':{'NetworkMode':'host','Binds':[socket_path+':/var/run/docker.sock',str(target)+':/install'],'RestartPolicy':{'Name':'no'},'Memory':512*1024**2,'PidsLimit':128}}
-            ident=self.engine('POST','/containers/create?'+urlencode({'name':container_name}),json.dumps(config).encode())['Id'];job['runtimeContainer']=ident;self.base.save(job);self.engine('POST','/containers/'+ident+'/start')
+            ident=self.engine('POST','/containers/create?'+urlencode({'name':container_name}),json.dumps(config).encode())['Id'];job['runtimeContainer']=ident;job['runtimeOperation']=operation;self.base.save(job);self.engine('POST','/containers/'+ident+'/start')
         started=stamp();last_log=0
         while stamp()-started<3600:
             state=self.engine('GET','/containers/'+ident+'/json');self.update_components(job,project)
@@ -192,9 +196,11 @@ class RuntimeOsAdapter:
                 folder,m=self.base.store.package(job['package'])
                 if action is True:return self.perform_rollback(job,private)
                 if action in ('start','stop'):
-                    self.run(job,m,private,action,reuse=False);job['status']='stopped' if action=='stop' else 'succeeded';job['message']='Native Runtime OS '+action+' completed; persistent data retained';job.pop('requestedControl',None)
+                    self.run(job,m,private,action,reuse=True);job['status']='stopped' if action=='stop' else 'succeeded';job['message']='Native Runtime OS '+action+' completed; persistent data retained';job.pop('requestedControl',None)
                     if action=='stop':
                         for step in job['steps']:step['status']='stopped'
+                    else:
+                        for step in job['steps']:step['status']='succeeded'
                     self.base.save(job);return
                 job['status']='running';job['message']='Installing Native/Temporal Runtime OS using its source-built installer';self.base.save(job)
                 if job.get('previousRun') and (target/'installation.json').exists():
@@ -226,21 +232,31 @@ class RuntimeOsAdapter:
         snapshot=self.base.path(job['id'])/'runtime-state.before.json';require(snapshot.is_file(),'Retained pre-upgrade Runtime OS state is missing')
         monitor_existing=False
         if job.get('rollbackRequested') and job.get('runtimeContainer'):
-            monitor_existing=self.engine('GET','/containers/'+job['runtimeContainer']+'/json')['State']['Running']
+            expected={'package':previous['package'],'command':'install','root':old_private['runtimeRoot'],'project':old_private['project']}
+            state=self.engine('GET','/containers/'+job['runtimeContainer']+'/json')['State']
+            monitor_existing=job.get('runtimeOperation')==expected and (state['Running'] or state.get('ExitCode')==0)
         if not monitor_existing:atomic(target/'installation.json',read(snapshot))
         job['status']='rolling_back';job['rollbackRequested']=True;job['message']='Restoring the previous compatible native image set';job['failedInstallerLog']=job.get('installerLog','');self.base.save(job)
         self.run(job,m,old_private,'install',reuse=monitor_existing,package=previous['package'],ignore_cancel=True)
         atomic(self.base.environment(job['environment']),{'packageName':'runtime-os','version':previous['version'],'activeRun':previous['id'],'lastRun':job['id']})
+        for step in job['steps']:step['status']='rolled_back'
         job['status']='rolled_back';job['rollbackRequested']=False;job['message']='Previous Native Runtime OS version restored and verified; application data retained';self.base.save(job)
     def rollback(self,ident,actor):
         with self.base.guard:
             require(not self.base.busy,'Node is busy');job=self.base.get(ident);require(job['active'] and job['status']=='succeeded' and job.get('previousRun'),'Only an active compatible upgrade can be rolled back')
-            job['status']='rolling_back';job['rollbackActor']=actor;atomic(self.base.path(ident)/'job.json',job);self.base.launch(ident,True);return self.base.get(ident)
+            self.require_settled_environment(job)
+            record=self.base.previous(job['environment']);record['lastRun']=ident;atomic(self.base.environment(job['environment']),record)
+            job['status']='rolling_back';job['rollbackRequested']=True;job['rollbackActor']=actor;atomic(self.base.path(ident)/'job.json',job);self.base.launch(ident,True);return self.base.get(ident)
     def control(self,ident,action,actor):
         with self.base.guard:
             require(not self.base.busy,'Node is busy');job=self.base.get(ident);require(job['active'] and action in ('stop','start'),'Only the active native environment can be controlled')
+            self.require_settled_environment(job)
             require(job['status']==('succeeded' if action=='stop' else 'stopped'),'Unexpected application state')
-            job['status']='stopping' if action=='stop' else 'starting';job['controlActor']=actor;job['requestedControl']=action;atomic(self.base.path(ident)/'job.json',job);self.base.launch(ident,action);return self.base.get(ident)
+            record=self.base.previous(job['environment']);record['lastRun']=ident;atomic(self.base.environment(job['environment']),record)
+            job['status']='stopping' if action=='stop' else 'starting';job['message']='Native Runtime OS '+action+' requested; reconciling owned service states';job['controlActor']=actor;job['requestedControl']=action;job.pop('runtimeContainer',None);job.pop('runtimeOperation',None);atomic(self.base.path(ident)/'job.json',job);self.base.launch(ident,action);return self.base.get(ident)
+    def require_settled_environment(self,job):
+        record=self.base.previous(job['environment']);latest=self.base.get(record['lastRun'])
+        require(latest['status'] not in ACTIVE|{'interrupted','recovery_required'},'Resolve the latest environment task before starting another lifecycle operation')
     def resume(self,ident):
         with self.base.guard:
             require(not self.base.busy,'Node is busy');job=self.base.get(ident)

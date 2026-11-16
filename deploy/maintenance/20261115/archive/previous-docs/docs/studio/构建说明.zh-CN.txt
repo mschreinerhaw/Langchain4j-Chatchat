@@ -1,0 +1,5 @@
+Studio 源码构建
+cd /opt/runtime-os/releases/latest-main-20261115/source
+docker build -f Dockerfile.studio-update -t native-studio:latest-main-20261115 .
+基础镜像为本批次构建的 runtime-node:latest-main-20261115，先完成 Native 镜像构建。
+构建后通过对应 Compose 重建 studio-gateway；日志应显示 Native Runtime business adapter listening。

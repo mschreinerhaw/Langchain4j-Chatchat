@@ -1,0 +1,42 @@
+opensearch 保留服务：启动、构建与维护
+保留镜像：opensearchproject/opensearch:2.19.1
+当前镜像 ID：sha256:731779f1c50424e38335b0af191058642a4964a2b2c62175ebcc8d5734fee13a
+当前上游 digest：["opensearchproject/opensearch@sha256:72fe2fc84be8295906b8efca020b46c58ed45c8da60cd9b8b49e1991e38e89a4"]
+维护来源：https://docs.opensearch.org/2.19/install-and-configure/install-opensearch/docker/
+本次操作保留原容器、配置、网络和数据目录，没有重建此服务。
+启动：docker start opensearch-node
+停止：docker stop -t 60 opensearch-node
+重启：docker restart -t 60 opensearch-node
+日志：docker logs --tail 100 opensearch-node
+配置取证：维护目录 private/ 与 containers-before.private.json；敏感快照仅限 root。
+构建说明：直接使用上游发布的标准镜像，不构建数据库分叉。
+拉取更新（不会自动改变正在运行的镜像）：docker pull opensearchproject/opensearch:2.19.1
+更新前先备份数据、记录新旧 RepoDigest，并通过审核过的同等挂载配置重建。
+备份要求：OpenSearch 使用快照仓库备份索引；Redis 备份 AOF/RDB；Silo 同时备份对象目录及对应对象元数据数据库。
+不要删除这些挂载或执行卷清理。
+日常状态检查与排障命令
+OpenSearch（容器：opensearch-node）
+启动：
+  docker start opensearch-node
+停止：
+  docker stop -t 60 opensearch-node
+重启：
+  docker restart -t 60 opensearch-node
+检查运行及健康状态：
+  docker inspect --format '{{json .State}}' opensearch-node
+查看最近日志：
+  docker logs --tail 100 --timestamps opensearch-node
+实时跟踪日志（Ctrl+C 只退出日志查看）：
+  docker logs -f --tail 100 opensearch-node
+查看 CPU、内存等资源占用：
+  docker stats --no-stream opensearch-node
+查看端口映射：
+  docker port opensearch-node
+核对数据与配置挂载：
+  docker inspect --format '{{json .Mounts}}' opensearch-node
+核对自动重启策略：
+  docker inspect --format '{{json .HostConfig.RestartPolicy}}' opensearch-node
+
+完整重建入口
+见同目录 完整创建命令.zh-CN.txt，其中列出所有外置挂载及 docker run 完整参数。
+/opt/runtime-os/standard-maintenance-20261115/rebuild/create-opensearch-node.sh

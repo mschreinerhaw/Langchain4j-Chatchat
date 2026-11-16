@@ -1,0 +1,13 @@
+*
+!Dockerfile*
+!installer.py
+!images.json
+!daemon-entrypoint.sh
+!assets/
+!assets/**
+!tools/
+!tools/**
+!drivers/
+!drivers/**
+!node-src/
+!node-src/**

@@ -1,0 +1,4 @@
+ARG DOCKER_IMAGE=docker:27.5.1-dind
+FROM ${DOCKER_IMAGE}
+COPY --chmod=0755 daemon-entrypoint.sh /usr/local/bin/runtime-daemon
+ENTRYPOINT ["/usr/local/bin/runtime-daemon"]

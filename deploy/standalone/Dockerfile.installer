@@ -1,0 +1,10 @@
+ARG API_IMAGE=runtime-api:latest-main-20261115
+FROM ${API_IMAGE}
+USER root
+COPY tools/docker /usr/local/bin/docker
+COPY --chmod=0755 tools/docker-compose /usr/local/lib/docker/cli-plugins/docker-compose
+COPY assets/ /opt/ops-config/
+COPY installer.py /opt/product/installer.py
+COPY images.json /opt/product/images.json
+ENTRYPOINT ["python3", "/opt/product/installer.py"]
+CMD ["install"]

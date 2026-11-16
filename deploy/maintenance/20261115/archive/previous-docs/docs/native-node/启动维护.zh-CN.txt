@@ -1,0 +1,32 @@
+native-node 镜像启动与维护说明
+镜像标签：runtime-node:latest-main-20261115
+镜像 ID：sha256:63bbbf6fd5828a935ba26e534e7b80f3fd14bad64dae60b84573a5ff2c0908df
+上游 digest：[]
+服务角色：executor1 executor2 recovery1 recovery2 node1 node2
+上游文档：本项目源码；不冒充 Docker Hub 官方业务镜像。
+
+查看配置（可能包含私密环境变量，仅限管理员本机查看）：
+  docker compose -p runtime-native-temporal-candidate -f /opt/runtime-os/native-temporal/rc-20261112/compose.private.json config -q
+启动：
+  docker compose -p runtime-native-temporal-candidate -f /opt/runtime-os/native-temporal/rc-20261112/compose.private.json up -d --no-deps executor1 executor2 recovery1 recovery2 node1 node2
+停止：
+  docker compose -p runtime-native-temporal-candidate -f /opt/runtime-os/native-temporal/rc-20261112/compose.private.json stop executor1 executor2 recovery1 recovery2 node1 node2
+重启：
+  docker compose -p runtime-native-temporal-candidate -f /opt/runtime-os/native-temporal/rc-20261112/compose.private.json restart executor1 executor2 recovery1 recovery2 node1 node2
+更新配置或镜像后重建容器：
+  docker compose -p runtime-native-temporal-candidate -f /opt/runtime-os/native-temporal/rc-20261112/compose.private.json up -d --no-deps --force-recreate executor1 executor2 recovery1 recovery2 node1 node2
+查看日志：
+  docker compose -p runtime-native-temporal-candidate -f /opt/runtime-os/native-temporal/rc-20261112/compose.private.json logs --tail 100 executor1 executor2 recovery1 recovery2 node1 node2
+
+持久化挂载及网络由上述 Compose 文件维护。只修改镜像版本不改变原有数据目录。
+不要执行 down -v，也不要删除数据库卷、Silo 对象数据和聊天正文目录。
+升级顺序：先备份，再拉取/构建，再修改 Compose 中已审核的 digest，重建并验证。
+回退：恢复 private 目录中的原配置和原镜像；数据库模式变更需要单独审核，不能通过镜像降级代替数据库恢复。
+
+源码构建说明：业务源码位于 /opt/runtime-os/releases/latest-main-20261115/source，完整源码包和哈希位于 source.zip、source-manifest.json。
+源码提交：5892f5b46db9515e0468df268f167f26ff7466ba。
+在服务器上按顺序执行以下命令构建整套业务镜像（不会自动切换线上服务）：
+  python3 /opt/runtime-os/releases/latest-main-20261115/build.py
+  python3 /opt/runtime-os/releases/latest-main-20261115/continue-build.py
+构建结果及测试日志位于 /opt/runtime-os/releases/latest-main-20261115；构建要求保留 tools/maven、Dockerfile 使用的固定基础镜像。
+不要直接运行历史 deploy.py：本次维护已将网关替换为官方 Nginx，日常更新通过维护目录的 start-all.sh 和对应 Compose 完成。

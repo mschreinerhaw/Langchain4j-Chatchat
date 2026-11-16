@@ -1,0 +1,32 @@
+{
+  "name": "/postgresql18",
+  "mounts": [
+    {
+      "Type": "volume",
+      "Name": "998a12dcec518fdb8a7201c81cbd3d507cae16d6e817851638a9d2cbadd3adf5",
+      "Source": "/opt/docker/volumes/998a12dcec518fdb8a7201c81cbd3d507cae16d6e817851638a9d2cbadd3adf5/_data",
+      "Destination": "/var/lib/postgresql",
+      "Driver": "local",
+      "Mode": "z",
+      "RW": true,
+      "Propagation": ""
+    },
+    {
+      "Type": "bind",
+      "Source": "/data/postgresql/18/docker",
+      "Destination": "/var/lib/postgresql/18/docker",
+      "Mode": "",
+      "RW": true,
+      "Propagation": "rprivate"
+    }
+  ],
+  "networkMode": "bridge",
+  "ports": {
+    "5432/tcp": [
+      {
+        "HostIp": "",
+        "HostPort": "5432"
+      }
+    ]
+  }
+}

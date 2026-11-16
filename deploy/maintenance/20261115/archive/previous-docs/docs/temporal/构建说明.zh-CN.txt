@@ -1,0 +1,10 @@
+镜像构建与升级说明：temporal
+实际镜像 ID、digest、挂载与运行命令见同目录启动维护文档。
+构建/安装说明：使用上游已发布镜像，不编译第三方数据库源码。
+  docker pull temporalio/server:1.29.7
+  docker image inspect temporalio/server:1.29.7
+将实际 RepoDigest 固定到 Compose；拉取标签不会自动升级当前固定 digest。
+
+使用已有 PostgreSQL Temporal/visibility 数据库及 TLS 证书。入口脚本只启动服务，不执行 autosetup、建库或自动模式升级。
+服务与 temporal-control-api 共享网络命名空间；启动前须先启动 API，重建 API 后须重建 Temporal 和其余共享网络服务。
+Temporal 数据库备份需同时保存主库和 visibility 库。模式升级使用匹配版本的 temporalio/admin-tools，需独立审核。

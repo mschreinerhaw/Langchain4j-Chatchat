@@ -1,0 +1,9 @@
+镜像构建与升级说明：native-node
+实际镜像 ID、digest、挂载与运行命令见同目录启动维护文档。
+源码构建说明：业务源码位于 /opt/runtime-os/releases/latest-main-20261115/source，完整源码包和哈希位于 source.zip、source-manifest.json。
+源码提交：5892f5b46db9515e0468df268f167f26ff7466ba。
+在服务器上按顺序执行以下命令构建整套业务镜像（不会自动切换线上服务）：
+  python3 /opt/runtime-os/releases/latest-main-20261115/build.py
+  python3 /opt/runtime-os/releases/latest-main-20261115/continue-build.py
+构建结果及测试日志位于 /opt/runtime-os/releases/latest-main-20261115；构建要求保留 tools/maven、Dockerfile 使用的固定基础镜像。
+不要直接运行历史 deploy.py：本次维护已将网关替换为官方 Nginx，日常更新通过维护目录的 start-all.sh 和对应 Compose 完成。

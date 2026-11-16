@@ -1,0 +1,5 @@
+浏览器资源服务构建
+cd /opt/frontend-resource-hub/1.0.0
+docker build -t runtime-frontend-resource-hub:1.0.0 .
+基础镜像使用 Playwright 官方 MCR 发布版本；完整 digest 在 Dockerfile 中固定。
+随后运行该服务 Compose 的 up -d --no-build，并验证健康状态与预览服务。

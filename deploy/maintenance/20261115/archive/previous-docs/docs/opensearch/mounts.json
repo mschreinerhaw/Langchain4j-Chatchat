@@ -1,0 +1,26 @@
+[
+  {
+    "Type": "bind",
+    "Source": "/data/opensearch/data",
+    "Destination": "/usr/share/opensearch/data",
+    "Mode": "",
+    "RW": true,
+    "Propagation": "rprivate"
+  },
+  {
+    "Type": "bind",
+    "Source": "/data/opensearch/logs",
+    "Destination": "/usr/share/opensearch/logs",
+    "Mode": "",
+    "RW": true,
+    "Propagation": "rprivate"
+  },
+  {
+    "Type": "bind",
+    "Source": "/data/opensearch/plugins",
+    "Destination": "/usr/share/opensearch/plugins",
+    "Mode": "",
+    "RW": true,
+    "Propagation": "rprivate"
+  }
+]

@@ -1,0 +1,4 @@
+ARG NGINX_IMAGE=nginx:1.28-alpine
+FROM ${NGINX_IMAGE}
+COPY assets/public-gateway.conf /etc/nginx/nginx.conf
+COPY assets/coding-monitor/ /srv/coding-monitor/

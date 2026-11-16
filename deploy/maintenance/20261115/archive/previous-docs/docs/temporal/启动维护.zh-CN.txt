@@ -1,0 +1,33 @@
+temporal 镜像启动与维护说明
+镜像标签：temporalio/server:1.29.7
+镜像 ID：sha256:1552391639f89ef91dc335ea10b74be712b6d4e461cbe0f84eff9d5f11cbe8b3
+上游 digest：["temporalio/server@sha256:688da708d0daca6ff8083334a4a7fbbdbc7e70d1cca8e2eda8c05b21fdbd601e"]
+服务角色：temporal
+上游文档：https://docs.temporal.io/self-hosted-guide/deployment
+
+查看配置（可能包含私密环境变量，仅限管理员本机查看）：
+  docker compose -p runtime-native-temporal-candidate -f /opt/runtime-os/native-temporal/rc-20261112/compose.private.json config -q
+启动：
+  docker compose -p runtime-native-temporal-candidate -f /opt/runtime-os/native-temporal/rc-20261112/compose.private.json up -d --no-deps temporal
+停止：
+  docker compose -p runtime-native-temporal-candidate -f /opt/runtime-os/native-temporal/rc-20261112/compose.private.json stop temporal
+重启：
+  docker compose -p runtime-native-temporal-candidate -f /opt/runtime-os/native-temporal/rc-20261112/compose.private.json restart temporal
+更新配置或镜像后重建容器：
+  docker compose -p runtime-native-temporal-candidate -f /opt/runtime-os/native-temporal/rc-20261112/compose.private.json up -d --no-deps --force-recreate temporal
+查看日志：
+  docker compose -p runtime-native-temporal-candidate -f /opt/runtime-os/native-temporal/rc-20261112/compose.private.json logs --tail 100 temporal
+
+持久化挂载及网络由上述 Compose 文件维护。只修改镜像版本不改变原有数据目录。
+不要执行 down -v，也不要删除数据库卷、Silo 对象数据和聊天正文目录。
+升级顺序：先备份，再拉取/构建，再修改 Compose 中已审核的 digest，重建并验证。
+回退：恢复 private 目录中的原配置和原镜像；数据库模式变更需要单独审核，不能通过镜像降级代替数据库恢复。
+
+构建/安装说明：使用上游已发布镜像，不编译第三方数据库源码。
+  docker pull temporalio/server:1.29.7
+  docker image inspect temporalio/server:1.29.7
+将实际 RepoDigest 固定到 Compose；拉取标签不会自动升级当前固定 digest。
+
+使用已有 PostgreSQL Temporal/visibility 数据库及 TLS 证书。入口脚本只启动服务，不执行 autosetup、建库或自动模式升级。
+服务与 temporal-control-api 共享网络命名空间；启动前须先启动 API，重建 API 后须重建 Temporal 和其余共享网络服务。
+Temporal 数据库备份需同时保存主库和 visibility 库。模式升级使用匹配版本的 temporalio/admin-tools，需独立审核。

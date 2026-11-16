@@ -1,0 +1,15 @@
+{
+  "name": "/runtime-coding-studio-gateway",
+  "mounts": [
+    {
+      "Type": "bind",
+      "Source": "/opt/runtime-os/cn2",
+      "Destination": "/opt/runtime-os/cn2",
+      "Mode": "rw",
+      "RW": true,
+      "Propagation": "rprivate"
+    }
+  ],
+  "networkMode": "container:6626b748c68ff0dd63d4f867952419c5610ae767e5181b3f4ad9de0b9d244a72",
+  "ports": {}
+}

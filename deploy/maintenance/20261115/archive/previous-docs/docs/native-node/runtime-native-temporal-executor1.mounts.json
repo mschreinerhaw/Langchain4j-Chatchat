@@ -1,0 +1,23 @@
+{
+  "name": "/runtime-native-temporal-executor1",
+  "mounts": [
+    {
+      "Type": "bind",
+      "Source": "/srv/runtime-os-coding-node-20261110/strict-daemon-3",
+      "Destination": "/srv/runtime-os-coding-node-20261110/strict-daemon-3",
+      "Mode": "ro",
+      "RW": false,
+      "Propagation": "rprivate"
+    },
+    {
+      "Type": "bind",
+      "Source": "/opt/runtime-os/native-temporal/rc-20261112",
+      "Destination": "/opt/runtime-os/native-temporal/rc-20261112",
+      "Mode": "rw",
+      "RW": true,
+      "Propagation": "rprivate"
+    }
+  ],
+  "networkMode": "host",
+  "ports": {}
+}

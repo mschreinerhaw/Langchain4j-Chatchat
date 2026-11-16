@@ -1,0 +1,13 @@
+{
+  "name": "/frontend-resource-hub-frontend-resource-hub-1",
+  "mounts": [],
+  "networkMode": "3361532634b80c369ca3d0d2706ab45a9009884df2ba0c7b9b80ac47c6eb7ed4",
+  "ports": {
+    "8080/tcp": [
+      {
+        "HostIp": "127.0.0.1",
+        "HostPort": "18220"
+      }
+    ]
+  }
+}

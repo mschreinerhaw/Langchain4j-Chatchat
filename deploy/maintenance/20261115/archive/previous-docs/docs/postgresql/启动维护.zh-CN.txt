@@ -1,0 +1,39 @@
+postgresql 镜像启动与维护说明
+镜像标签：postgres:18.6
+镜像 ID：sha256:8bca9649e52d948114ccc8164b55b7ab26b64e729893e420114bb5c87bf7c7cc
+上游 digest：["postgres@sha256:e3d24f6906d0760bf4da0dae872415391ededefad23fd471c47dc53b0ddf3c42"]
+服务角色：postgresql
+上游文档：https://hub.docker.com/_/postgres
+
+查看配置（可能包含私密环境变量，仅限管理员本机查看）：
+  docker compose -f /opt/runtime-os/standard-maintenance-20261115/infrastructure.compose.json config -q
+启动：
+  docker compose -f /opt/runtime-os/standard-maintenance-20261115/infrastructure.compose.json up -d --no-deps postgresql
+停止：
+  docker compose -f /opt/runtime-os/standard-maintenance-20261115/infrastructure.compose.json stop postgresql
+重启：
+  docker compose -f /opt/runtime-os/standard-maintenance-20261115/infrastructure.compose.json restart postgresql
+更新配置或镜像后重建容器：
+  docker compose -f /opt/runtime-os/standard-maintenance-20261115/infrastructure.compose.json up -d --no-deps --force-recreate postgresql
+查看日志：
+  docker compose -f /opt/runtime-os/standard-maintenance-20261115/infrastructure.compose.json logs --tail 100 postgresql
+
+持久化挂载及网络由上述 Compose 文件维护。只修改镜像版本不改变原有数据目录。
+不要执行 down -v，也不要删除数据库卷、Silo 对象数据和聊天正文目录。
+升级顺序：先备份，再拉取/构建，再修改 Compose 中已审核的 digest，重建并验证。
+回退：恢复 private 目录中的原配置和原镜像；数据库模式变更需要单独审核，不能通过镜像降级代替数据库恢复。
+
+构建/安装说明：使用上游已发布镜像，不编译第三方数据库源码。
+  docker pull postgres:18.6
+  docker image inspect postgres:18.6
+将实际 RepoDigest 固定到 Compose；拉取标签不会自动升级当前固定 digest。
+
+数据目录：/data/postgresql/18/docker，容器 PGDATA 保持同一路径。外层原 Docker 卷也保留。
+密码文件：private/postgres.env（权限 0600）。
+备份：docker exec postgresql18 pg_dumpall -U postgres > /受控备份目录/all.sql
+健康检查：docker exec postgresql18 pg_isready -U postgres
+跨主版本升级必须 pg_upgrade 或导出导入，不直接替换主版本标签。
+
+完整重建入口
+见同目录 完整创建命令.zh-CN.txt，其中列出所有外置挂载及 docker run 完整参数。
+/opt/runtime-os/standard-maintenance-20261115/rebuild/create-postgresql18.sh

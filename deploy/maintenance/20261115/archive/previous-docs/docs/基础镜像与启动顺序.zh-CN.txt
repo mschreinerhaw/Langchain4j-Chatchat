@@ -1,0 +1,17 @@
+依赖启动顺序
+原 OpenSearch、Silo、Redis → PostgreSQL → News/MCP → 浏览器资源服务 → Native 控制 API → Temporal/Executor/Recovery/Node/Studio → Worker → Nginx。
+Native 多个服务共享 API 网络命名空间；重建 API 后，通过 start-all.sh 重建关联服务。
+MCP/News 原 Compose 已精简为这两个必要服务；不恢复旧验收环境。
+
+构建基础镜像（保留用于后续服务器编译）：
+runtime-source-base:node-build-image-280af32071729473：前端 Node 构建环境。
+runtime-source-base:java-build-image-fee8cb4328cdfa32：Java 17 构建环境。
+runtime-api:studio-lease-20261114：已验证的 Python/SQL 工具链 API 运行基础。
+runtime-node:exploration-model-fix-20261113：固定 Cline Core/Python Native 运行基础。
+runtime-os-coding-base:verified-20261111：Core/Python 基础工件。
+它们属于构建依赖，不是另外运行的旧部署。精确镜像 ID 见 image-inventory.json。
+
+受限执行 Docker daemon
+/srv/runtime-os-coding-node-20261110/strict-daemon-3/run/docker.sock
+检查时没有运行中的容器。其进程身份、镜像策略和历史执行审计记录由 Native Executor 使用，本次未重置。
+业务镜像必须从源码构建，数据库与网关采用上游标准镜像并固定 digest。

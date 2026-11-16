@@ -1,0 +1,7 @@
+{
+  "opensearch-node": "PASS",
+  "silo": "PASS",
+  "redis": "PASS",
+  "postgresql18": "PASS",
+  "runningContainers": 20
+}

@@ -1,5 +1,7 @@
 # Docker 部署与手工维护
 
+新环境统一使用[Docker-only 安装镜像](standalone/README.md)：加载交付包并运行安装镜像即可。本文保留为旧部署参考，不要求新部署用户逐条执行。
+
 维护已有 `/opt/runtime-os-docker-stage` 实例，请先看[当前服务器逐容器维护命令](CONTAINER-OPERATIONS.zh-CN.md)。本文的新安装镜像、空卷初始化和 `docker run` 模板不能直接覆盖现有部署。
 
 以下命令在 Linux Docker 主机使用 Bash 执行。主入口是 `deploy/docker/application/compose.yaml`，Compose V2 负责完整栈。容器名通过 Compose 查询，不依赖某台服务器的 IP。镜像版本与现有客户端兼容；发布时将镜像变量替换为已审核的固定 digest。

@@ -1,0 +1,15 @@
+{
+  "name": "/runtime-native-temporal-recovery2",
+  "mounts": [
+    {
+      "Type": "bind",
+      "Source": "/opt/runtime-os/native-temporal/rc-20261112",
+      "Destination": "/opt/runtime-os/native-temporal/rc-20261112",
+      "Mode": "rw",
+      "RW": true,
+      "Propagation": "rprivate"
+    }
+  ],
+  "networkMode": "container:6626b748c68ff0dd63d4f867952419c5610ae767e5181b3f4ad9de0b9d244a72",
+  "ports": {}
+}

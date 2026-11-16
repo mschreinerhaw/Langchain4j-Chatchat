@@ -1,0 +1,48 @@
+{
+  "name": "runtime-infrastructure",
+  "services": {
+    "postgresql": {
+      "image": "postgres@sha256:e3d24f6906d0760bf4da0dae872415391ededefad23fd471c47dc53b0ddf3c42",
+      "container_name": "postgresql18",
+      "restart": "unless-stopped",
+      "network_mode": "bridge",
+      "ports": [
+        "5432:5432"
+      ],
+      "env_file": [
+        "/opt/runtime-os/standard-maintenance-20261115/private/postgres.env"
+      ],
+      "volumes": [
+        {
+          "type": "volume",
+          "source": "998a12dcec518fdb8a7201c81cbd3d507cae16d6e817851638a9d2cbadd3adf5",
+          "target": "/var/lib/postgresql"
+        },
+        {
+          "type": "bind",
+          "source": "/data/postgresql/18/docker",
+          "target": "/var/lib/postgresql/18/docker",
+          "bind": {
+            "create_host_path": false
+          }
+        }
+      ],
+      "healthcheck": {
+        "test": [
+          "CMD-SHELL",
+          "pg_isready -U \"$${POSTGRES_USER}\""
+        ],
+        "interval": "5s",
+        "timeout": "5s",
+        "retries": 30
+      },
+      "stop_grace_period": "60s"
+    }
+  },
+  "volumes": {
+    "998a12dcec518fdb8a7201c81cbd3d507cae16d6e817851638a9d2cbadd3adf5": {
+      "external": true,
+      "name": "998a12dcec518fdb8a7201c81cbd3d507cae16d6e817851638a9d2cbadd3adf5"
+    }
+  }
+}

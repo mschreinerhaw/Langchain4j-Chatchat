@@ -8,11 +8,28 @@ import tempfile
 import unittest
 from unittest.mock import patch
 import zipfile
+from types import SimpleNamespace
 
 spec=importlib.util.spec_from_file_location('manage',Path(__file__).resolve().parents[1]/'manage.py')
 m=importlib.util.module_from_spec(spec);spec.loader.exec_module(m)
 
 class OperationsTest(unittest.TestCase):
+    def test_same_owner_id_can_still_have_an_obsolete_network_namespace(self):
+        child={'HostConfig':{'NetworkMode':'container:owner'},'State':{'Running':True,'Pid':20}}
+        owner={'State':{'Running':True,'Pid':10}}
+        inspected=SimpleNamespace(returncode=0,stdout=json.dumps([owner]))
+        with patch.object(m.subprocess,'run',return_value=inspected),patch.object(m.os,'stat',side_effect=[SimpleNamespace(st_ino=1),SimpleNamespace(st_ino=2)]):
+            self.assertTrue(m.stale_network_namespace(child))
+        with patch.object(m.subprocess,'run',return_value=inspected),patch.object(m.os,'stat',return_value=SimpleNamespace(st_ino=2)):
+            self.assertFalse(m.stale_network_namespace(child))
+
+    def test_start_recreates_running_child_with_stale_namespace(self):
+        with patch.object(m,'order',return_value=['worker1']),patch.object(m,'container',return_value={'State':{'Running':True}}),patch.object(m,'stale_network_namespace',return_value=True),patch.object(m,'execute') as execute,patch.object(m,'ready') as ready,contextlib.redirect_stdout(io.StringIO()):
+            m.start_roles(['worker1'])
+        self.assertIn('--force-recreate',execute.call_args.args[0])
+        self.assertEqual(execute.call_args.args[0][-1],'worker1')
+        ready.assert_called_once_with('worker1')
+
     def test_all_roles_are_unique_and_dependencies_start_first(self):
         ordered=m.order(m.GROUPS['all'])
         self.assertEqual(len(ordered),20)

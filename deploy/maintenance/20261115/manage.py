@@ -3,6 +3,7 @@
 import argparse
 import datetime
 import json
+import os
 from pathlib import Path
 import shlex
 import subprocess
@@ -81,11 +82,25 @@ def compose(role):
     if path.parent==STAGE:cmd+=['--env-file',str(STAGE/'config/deployment.env')]
     return cmd+['-f',str(path)]
 
+def stale_network_namespace(c):
+    mode=c.get('HostConfig',{}).get('NetworkMode','')
+    if not mode.startswith('container:'):return False
+    result=subprocess.run(['docker','inspect',mode.split(':',1)[1]],capture_output=True,text=True)
+    if result.returncode:raise RuntimeError('Shared network owner is missing')
+    owner=json.loads(result.stdout)[0]
+    if not owner['State']['Running']:raise RuntimeError('Shared network owner is stopped')
+    if not c['State']['Running']:return True
+    # Docker can report the current owner ID while a running child still holds
+    # the old namespace after the owner was restarted. Compare actual inodes.
+    return os.stat('/proc/'+str(c['State']['Pid'])+'/ns/net').st_ino != os.stat('/proc/'+str(owner['State']['Pid'])+'/ns/net').st_ino
+
+
 def ready(role, timeout=120):
     limit=time.monotonic()+timeout
     while time.monotonic()<limit:
         c=container(role)
         if not c or not c['State']['Running']:raise RuntimeError(ROLES[role][0]+' did not stay running; check logs')
+        if stale_network_namespace(c):raise RuntimeError(ROLES[role][0]+' has a stale shared network namespace; run start to recreate it')
         health=c['State'].get('Health',{}).get('Status')
         if health is None or health=='healthy':return
         if health=='unhealthy':raise RuntimeError(ROLES[role][0]+' is unhealthy; check logs')
@@ -97,6 +112,11 @@ def start_roles(targets,dry=False):
     print('Start in order: '+', '.join(ROLES[r][0] for r in roles),flush=True)
     for role in roles:
         c=container(role)
+        if c and stale_network_namespace(c):
+            if not ROLES[role][2]:raise RuntimeError('Cannot recreate shared network child without Compose: '+role)
+            execute(compose(role)+['up','-d','--no-deps','--no-build','--force-recreate',ROLES[role][3]],dry)
+            if not dry:ready(role)
+            continue
         if c and c['State']['Running']:
             print('RUNNING '+ROLES[role][0],flush=True)
             if not dry:ready(role)

@@ -54,4 +54,10 @@ class SafetyTests(unittest.TestCase):
   with patch.object(a,'docker',return_value={}) as engine:a.recover_pending()
   self.assertEqual(json.loads(file.read_text())['status'],'interrupted-restored')
   self.assertTrue(any(call.args[1]=='/containers/'+'c'*64+'/start' for call in engine.call_args_list))
+ def test_startup_reconciliation_does_not_change_workloads(self):
+  file=a.STATE/'12345678901234567891.json'
+  file.write_text(json.dumps({'id':'12345678901234567891','status':'pending','previous':'c'*64,'container':'d'*64}))
+  with patch.object(a,'docker') as engine:a.mark_pending_unknown()
+  engine.assert_not_called()
+  self.assertEqual(json.loads(file.read_text())['status'],'unknown')
 if __name__=='__main__':unittest.main()

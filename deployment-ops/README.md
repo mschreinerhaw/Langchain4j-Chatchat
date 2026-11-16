@@ -1,5 +1,12 @@
 # Deployment Ops
 
+The new **Runtime OS Deployment Manager P0** opens at `/` or `/manager.html`.
+Read [architecture, operation approvals and offline delivery](docs/DEPLOYMENT-MANAGER.md).
+See the [single-host acceptance report](docs/MANAGER-ACCEPTANCE-20261116.md) for real test results and remaining boundaries.
+Existing package installation pages remain at `/index.html`. Nodes now default to
+read-only discovery (`OPS_READ_ONLY=1`); enabling operations requires the deployment
+owner to set `OPS_READ_ONLY=0`, followed by per-operation preview and confirmation.
+
 Independent offline Docker operations management. Includes an independent H2 manager and a signed, resumable multi-service offline installer. See [Test report](docs/TEST-REPORT.md) and [Known issues](docs/KNOWN-ISSUES.md).
 
 ## Install an OS environment

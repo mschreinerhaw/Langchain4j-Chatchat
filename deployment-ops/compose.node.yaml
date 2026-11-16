@@ -1,11 +1,15 @@
 name: deployment-ops-node
 services:
   executor:
+    labels:
+      deployment-ops.control-plane: "true"
     image: deployment-ops-executor:1.0.0
     pull_policy: never
     environment:
       EXECUTOR_TOKEN: ${EXECUTOR_TOKEN:?set token}
       OPS_NETWORK: deployment-ops-node_apps
+      OPS_READ_ONLY: ${OPS_READ_ONLY:-1}
+      OPS_ALLOWED_REGISTRIES: ${OPS_ALLOWED_REGISTRIES:-}
       TLS_CERT: /tls/server.crt
       TLS_KEY: /tls/server.key
     volumes:
@@ -14,6 +18,8 @@ services:
       - node-packages:/packages
       - ./trust:/trust:ro
       - ./tls:/tls:ro
+      - /proc:/host/proc:ro
+      - /:/host/root:ro,rslave
     ports: ["${NODE_BIND:?set private IP}:8091:8091"]
     networks: [apps]
     read_only: true

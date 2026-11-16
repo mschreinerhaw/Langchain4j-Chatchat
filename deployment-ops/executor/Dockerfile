@@ -1,5 +1,7 @@
-FROM python:3.11-slim
+ARG PYTHON_IMAGE=python:3.11-slim
+FROM ${PYTHON_IMAGE}
 WORKDIR /app
 COPY executor/*.py ./
 ENV PYTHONDONTWRITEBYTECODE=1
-CMD ["python","agent.py"]
+ENTRYPOINT []
+CMD ["python3","agent.py"]

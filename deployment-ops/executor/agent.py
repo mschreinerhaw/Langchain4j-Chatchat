@@ -3,6 +3,8 @@ import os,json,hmac,http.client,socket,re,time,hashlib,threading
 from http.server import ThreadingHTTPServer,BaseHTTPRequestHandler
 TOKEN=os.environ['EXECUTOR_TOKEN']
 from pathlib import Path
+from urllib.parse import urlencode
+from manager import Manager,redact
 STATE=Path(os.getenv('OPS_STATE','/state')); STATE.mkdir(exist_ok=True)
 LOCK=threading.Lock()
 def release(spec):
@@ -97,6 +99,7 @@ from package_store import PackageStore,MAX_CHUNK
 from installations import Installer
 STORE=None
 INSTALLER=None
+MANAGER=Manager(STATE,docker,LOCK)
 class Handler(BaseHTTPRequestHandler):
  def log_message(self,*a):pass
  def do_GET(self): self.handle_request()
@@ -106,7 +109,22 @@ class Handler(BaseHTTPRequestHandler):
    if not hmac.compare_digest(self.headers.get('Authorization',''),'Bearer '+TOKEN): return self.send(401,{'error':'executor authentication required'})
    path=self.path
    if self.command=='GET':
-    if path=='/packages':result=STORE.catalog()
+    if re.fullmatch('/manager/export/[a-f0-9]{64}',path):
+     ident='sha256:'+path.rsplit('/',1)[1];info=MANAGER.image(ident)
+     tags=[tag for tag in info.get('RepoTags') or [] if tag!='<none>:<none>']
+     export_path='/images/get?'+urlencode({'names':tags},doseq=True) if tags else '/images/'+ident+'/get'
+     connection=UnixHTTP('localhost');connection.request('GET','/v1.45'+export_path);response=connection.getresponse()
+     if response.status!=200:connection.close();raise ValueError('Image export failed')
+     self.send_response(200);self.send_header('Content-Type','application/x-tar');self.send_header('Connection','close');self.end_headers();self.close_connection=True
+     try:
+      while True:
+       block=response.read(65536)
+       if not block:break
+       self.wfile.write(block)
+     finally:connection.close()
+     return
+    elif path.startswith('/manager/'):result=MANAGER.get(path)
+    elif path=='/packages':result=STORE.catalog()
     elif re.fullmatch('/packages/uploads/[a-f0-9]{32}',path):result=STORE.upload_status(path.rsplit('/',1)[-1])
     elif path=='/installations':result=INSTALLER.list()
     elif re.fullmatch('/installations/[a-f0-9]{32}',path):result=INSTALLER.get(path.rsplit('/',1)[-1])
@@ -123,12 +141,24 @@ class Handler(BaseHTTPRequestHandler):
       with urllib.request.urlopen(url+'/v2/'+quote(repo,safe='/')+'/tags/list',timeout=10) as r:result['tags'][repo]=json.load(r).get('tags',[])
     elif path=='/inventory':
      info=docker('GET','/info'); result={'containers':docker('GET','/containers/json?all=1'),'images':docker('GET','/images/json'),'node':{k:info.get(k) for k in ['Name','NCPU','MemTotal','ContainersRunning','DockerRootDir','ServerVersion','ID']},'collectedAt':time.time()}
+     for item in result['containers']:item['managerMetrics']=MANAGER.latest(item['Id'])
     elif re.fullmatch('/containers/[a-f0-9]{12,64}/(logs|stats|inspect)',path):
      _,_,v,action=path.split('/'); suffix={'logs':'logs?stdout=1&stderr=1&timestamps=1&tail=200','stats':'stats?stream=false','inspect':'json'}[action]; result=docker('GET','/containers/'+v+'/'+suffix)
-     if action=='inspect' and self.headers.get('X-Ops-Role')!='admin':
-      for field in ('Env','Cmd','Entrypoint','Healthcheck'):result.get('Config',{}).pop(field,None)
+     if action=='inspect':
+      result=redact(result)
+      if self.headers.get('X-Ops-Role')!='admin':
+       for field in ('Env','Cmd','Entrypoint','Healthcheck'):result.get('Config',{}).pop(field,None)
     else: return self.send(404,{'error':'unsupported route'})
    else:
+    if INSTALLER and INSTALLER.busy and path.startswith('/manager/') and path!='/manager/plans':raise ValueError('A signed installation is running; retry after it finishes')
+    if path in ('/manager/plans','/manager/execute') or re.fullmatch('/manager/jobs/[a-f0-9]{32}/cancel',path):
+     size=int(self.headers.get('Content-Length','0'))
+     if not 0<size<=65536:raise ValueError('Operation payload size invalid')
+     data=json.loads(self.rfile.read(size));actor=self.headers.get('X-Ops-Actor','')
+     if not actor:raise ValueError('Authenticated actor required')
+     result=MANAGER.cancel(path.split('/')[3]) if path.endswith('/cancel') else MANAGER.plan(data,actor) if path.endswith('/plans') else MANAGER.submit(data,actor)
+     return self.send(200,result)
+    if MANAGER.read_only:raise ValueError('Node is read-only; deployment owner must explicitly enable writes')
     if INSTALLER and INSTALLER.busy and not (path.startswith('/packages/') or path.startswith('/installations')):raise ValueError('An installation is running on this node; retry the operation after it finishes')
     if path.startswith('/packages/') or path.startswith('/installations'):
      size=int(self.headers.get('Content-Length','0'));limit=MAX_CHUNK if re.fullmatch('/packages/uploads/[a-f0-9]{32}/[0-9]+',path) else 1024**2
@@ -187,6 +217,20 @@ class Handler(BaseHTTPRequestHandler):
        if not block: raise ValueError('incomplete upload')
        f.write(block); digest.update(block); left-=len(block)
       if digest.hexdigest()!=expected: raise ValueError('SHA256 mismatch')
+      # Docker load may overwrite tag bindings. Inspect the archive first and
+      # reject collisions with existing image identities before calling load.
+      import tarfile
+      f.seek(0)
+      with tarfile.open(fileobj=f,mode='r:*') as archive:
+       member=archive.getmember('manifest.json')
+       if member.size>1024**2:raise ValueError('Archive manifest is too large')
+       manifest=json.load(archive.extractfile(member))
+       tags={tag:image['Id'] for image in docker('GET','/images/json') for tag in image.get('RepoTags') or []}
+       for image in manifest:
+        config=archive.getmember(image['Config'])
+        if config.size>16*1024**2:raise ValueError('Image configuration is too large')
+        identity='sha256:'+hashlib.sha256(archive.extractfile(config).read()).hexdigest()
+        if any(tag in tags and tags[tag]!=identity for tag in image.get('RepoTags') or []):raise ValueError('Archive would overwrite an existing image tag')
       f.seek(0); c=UnixHTTP('localhost'); c.putrequest('POST','/v1.45/images/load?quiet=1'); c.putheader('Content-Type','application/x-tar'); c.putheader('Content-Length',str(size)); c.endheaders()
       while True:
        b=f.read(1024*1024)
@@ -194,6 +238,8 @@ class Handler(BaseHTTPRequestHandler):
        c.send(b)
       r=c.getresponse(); data=r.read(); c.close()
       if r.status>=300:raise ValueError(data.decode(errors='replace'))
+      for line in data.splitlines():
+       if json.loads(line).get('error'):raise ValueError('Docker rejected the image archive')
       result={'sha256':expected,'output':data.decode(errors='replace')}
     else:return self.send(404,{'error':'unsupported operation'})
    self.send(200,result)
@@ -201,6 +247,7 @@ class Handler(BaseHTTPRequestHandler):
  def send(self,status,value):
   b=json.dumps(value).encode(); self.send_response(status); self.send_header('Content-Type','application/json'); self.send_header('Content-Length',str(len(b))); self.end_headers(); self.wfile.write(b)
 def recover_pending():
+ # Legacy manual recovery helper. Never invoke automatically at process startup.
  for file in STATE.glob('*.json'):
   record=json.loads(file.read_text())
   if record.get('status')!='pending':continue
@@ -214,10 +261,20 @@ def recover_pending():
    record['status']='interrupted-restored' if previous else 'interrupted'
   except Exception as e:record['status']='recovery-required';record['error']=str(e)
   file.write_text(json.dumps(record))
+
+def mark_pending_unknown():
+ # Control-plane recovery must not stop, start, rename or recreate workloads.
+ for file in STATE.glob('*.json'):
+  record=json.loads(file.read_text())
+  if record.get('status')=='pending':
+   record['status']='unknown';record['error']='Agent restarted; inspect actual containers before explicit recovery'
+   file.write_text(json.dumps(record))
 if __name__=='__main__':
- recover_pending()
+ mark_pending_unknown()
  STORE=PackageStore(os.getenv('OPS_PACKAGES','/packages'),os.getenv('OPS_TRUST','/trust'),docker,raw_load)
  INSTALLER=Installer(STATE/'installations',STORE,docker,raw_put,LOCK)
+ threading.Thread(target=MANAGER.collect,daemon=True).start()
+ threading.Thread(target=MANAGER.collect_containers,daemon=True).start()
  server=ThreadingHTTPServer(('0.0.0.0',8091),Handler)
  if os.getenv('TLS_CERT'):
   import ssl

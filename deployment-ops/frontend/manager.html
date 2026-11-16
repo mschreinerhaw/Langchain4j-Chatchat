@@ -1,0 +1,10 @@
+<!doctype html>
+<html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Runtime OS · Deployment Manager</title><link rel="stylesheet" href="/manager.css"></head>
+<body>
+<aside><a class="brand" href="/manager.html"><span class="brand-mark">R</span><span>Runtime OS<small>DEPLOYMENT MANAGER</small></span></a><div class="cluster"><span class="dot"></span>Docker 基础设施<small>独立控制面 · 离线运行</small></div><nav id="navigation"></nav><footer>业务容器独立运行<br><a href="/index.html">离线安装与旧版工作台 ↗</a></footer></aside>
+<div class="workspace"><header><span id="breadcrumb">基础设施 / 监控总览</span><div class="header-right"><select id="nodeFilter" aria-label="选择主机"><option value="">全部主机</option></select><span id="identity"></span><button id="logout" hidden>退出</button></div></header>
+<main><div id="notice" role="status" hidden></div><section id="login" class="login"><span class="eyebrow">RUNTIME OS OPERATIONS</span><h1>登录部署管理平台</h1><p>发现资源、管理容器、追踪每一次操作。</p><form id="loginForm"><label>用户名<input name="username" autocomplete="username" required></label><label>密码<input name="password" type="password" autocomplete="current-password" required></label><button class="primary">登录</button></form><small>使用平台独立账户；Runtime OS 业务服务不参与认证。</small></section>
+<section id="authenticated" hidden><div class="page-heading"><div><span class="eyebrow">INFRASTRUCTURE OPERATIONS</span><h1 id="pageTitle">监控总览</h1><p id="pageDescription"></p></div><div class="tools"><span id="lastRefresh"></span><button id="refresh">↻ 刷新</button></div></div><div id="content" aria-live="polite"></div></section>
+</main></div>
+<dialog id="dialog"><div class="dialog-heading"><h2 id="dialogTitle"></h2><button id="closeDialog" aria-label="关闭">✕</button></div><div id="dialogContent"></div></dialog>
+<script type="module" src="/manager-ui.js"></script></body></html>

@@ -15,13 +15,14 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 public class NativeApiController {
     private final Method handler;
     private final ObjectMapper json;
-    public NativeApiController(DataSource dataSource, Environment env,ObjectMapper json) throws Exception {
+    public NativeApiController(DataSource dataSource, Environment env,ObjectMapper json, NativeManagementRoutes routes) throws Exception {
         this.json=json;
         Class<?> api=Class.forName("Main");
         String schema=new ClassPathResource("schema.sql").getContentAsString(StandardCharsets.UTF_8);
         api.getMethod("initializeNative",DataSource.class,String.class,String.class,String.class,String.class)
             .invoke(null,dataSource,schema,env.getProperty("ADMIN_PASSWORD"),env.getProperty("EXECUTOR_TOKEN"),env.getProperty("OPS_EXECUTOR_URL","http://127.0.0.1:19242"));
         handler=api.getMethod("handleNative",HttpExchange.class);
+        api.getMethod("registerNativeRoutes",Object.class).invoke(null,routes);
     }
     @RequestMapping("/api/**")
     public void handle(HttpServletRequest request,HttpServletResponse response) throws Exception {

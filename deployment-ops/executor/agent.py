@@ -2,6 +2,9 @@
 import os,json,hmac,http.client,socket,re,time,hashlib,threading
 from http.server import ThreadingHTTPServer,BaseHTTPRequestHandler
 TOKEN=os.environ['EXECUTOR_TOKEN']
+if os.getenv('OPS_NATIVE')=='1':
+ from native_storage import validate
+ validate()
 from pathlib import Path
 from urllib.parse import urlencode
 from manager import Manager,redact
@@ -108,6 +111,13 @@ class Handler(BaseHTTPRequestHandler):
   try:
    if not hmac.compare_digest(self.headers.get('Authorization',''),'Bearer '+TOKEN): return self.send(401,{'error':'executor authentication required'})
    path=self.path
+   if path=='/platform/maintenance' and self.command=='POST':
+    from platform_maintenance import submit
+    size=int(self.headers.get('Content-Length','0'))
+    if not 0<size<=65536:raise ValueError('Invalid maintenance request size')
+    if INSTALLER and INSTALLER.busy:raise ValueError('Deployment running; retry platform maintenance later')
+    return self.send(200,submit(json.loads(self.rfile.read(size)),self.headers.get('X-Ops-Actor','')))
+   if self.command=='POST' and os.getenv('OPS_NATIVE')=='1' and (Path(os.environ['OPS_DATA_DIR']).parent/'maintenance/active.lock').exists():raise ValueError('Platform maintenance active; mutations temporarily blocked')
    if self.command=='GET':
     if re.fullmatch('/manager/export/[a-f0-9]{64}',path):
      ident='sha256:'+path.rsplit('/',1)[1];info=MANAGER.image(ident)
@@ -270,12 +280,15 @@ def mark_pending_unknown():
    record['status']='unknown';record['error']='Agent restarted; inspect actual containers before explicit recovery'
    file.write_text(json.dumps(record))
 if __name__=='__main__':
+ if os.getenv('OPS_NATIVE')=='1':
+  from native_storage import validate
+  validate()
  mark_pending_unknown()
  STORE=PackageStore(os.getenv('OPS_PACKAGES','/packages'),os.getenv('OPS_TRUST','/trust'),docker,raw_load)
  INSTALLER=Installer(STATE/'installations',STORE,docker,raw_put,LOCK)
  threading.Thread(target=MANAGER.collect,daemon=True).start()
  threading.Thread(target=MANAGER.collect_containers,daemon=True).start()
- server=ThreadingHTTPServer(('0.0.0.0',8091),Handler)
+ server=ThreadingHTTPServer((os.getenv('OPS_EXECUTOR_BIND','0.0.0.0'),int(os.getenv('OPS_EXECUTOR_PORT','8091'))),Handler)
  if os.getenv('TLS_CERT'):
   import ssl
   context=ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER);context.minimum_version=ssl.TLSVersion.TLSv1_2

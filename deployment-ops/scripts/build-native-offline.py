@@ -42,4 +42,6 @@ with tempfile.TemporaryDirectory() as temp:
         for path in classes.rglob('*'):
             if path.is_file():
                 output.write(path, 'BOOT-INF/classes/' + path.relative_to(classes).as_posix())
+            elif path.is_dir():
+                output.writestr('BOOT-INF/classes/' + path.relative_to(classes).as_posix() + '/', b'')
 print(hashlib.sha256(args.output.read_bytes()).hexdigest(), args.output)

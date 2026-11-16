@@ -12,8 +12,12 @@ public final class StorageGuard {
     public static void verify() throws IOException {
         Path mount = Path.of("/mnt/disk01");
         Path data = Path.of(System.getenv().getOrDefault("OPS_DATA_DIR", "/mnt/disk01/deployment-ops/data"));
-        validate(mount, data, Files.readAllLines(Path.of("/proc/self/mountinfo")));
-        Files.createDirectories(data);
+        try {
+            validate(mount, data, Files.readAllLines(Path.of("/proc/self/mountinfo")));
+            Files.createDirectories(data);
+        } catch(IOException error) {
+            throw new IOException("Required real storage mount /mnt/disk01 is unavailable or invalid; refusing startup without system-disk fallback",error);
+        }
     }
 
     static void validate(Path mount, Path data, List<String> mountInfo) throws IOException {

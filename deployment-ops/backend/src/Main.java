@@ -4,18 +4,20 @@ import java.net.*;import java.net.http.*;import java.nio.file.*;import java.io.*
 public class Main {
  static final ObjectMapper J=new ObjectMapper(); static final HttpClient HTTP=HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(5)).build();
  static volatile javax.sql.DataSource nativeDataSource;
+ static volatile Object nativeRoutes;
+ public static void registerNativeRoutes(Object routes){nativeRoutes=routes;}
  public static void initializeNative(javax.sql.DataSource source,String schema,String password,String token,String executorUrl)throws Exception{
   nativeDataSource=source;
   sql("CREATE TABLE IF NOT EXISTS schema_version(version int PRIMARY KEY, installed_at timestamp with time zone DEFAULT CURRENT_TIMESTAMP)");
   var versions=sql("SELECT MAX(version) AS version FROM schema_version");
-  if(versions.get(0).get("version") instanceof Number v && v.intValue()>1)throw new IllegalStateException("Database schema is newer than this application; restore compatible version");
+  if(versions.get(0).get("version") instanceof Number v && v.intValue()>2)throw new IllegalStateException("Database schema is newer than this application; restore compatible version");
   for(String statement:schema.split(";"))if(!statement.isBlank())sql(statement);
   if(sql("SELECT username FROM users").isEmpty()){
    if(password==null||password.length()<6)throw new IllegalArgumentException("Set ADMIN_PASSWORD (6+ characters) for first installation");
    String salt=random();sql("INSERT INTO users VALUES(?,?,?,?)","admin",salt,hash(password,salt),"admin");
   }
   if(token!=null&&!token.isBlank()&&sql("SELECT id FROM nodes").isEmpty())sql("INSERT INTO nodes(name,url,token) VALUES(?,?,?)","local",executorUrl,token);
-  sql("MERGE INTO schema_version(version) KEY(version) VALUES(1)");
+  sql("MERGE INTO schema_version(version) KEY(version) VALUES(2)");
  }
  public static void handleNative(HttpExchange exchange)throws Exception{api(exchange);}
  static String env(String n,String d){return System.getenv().getOrDefault(n,d);} static Connection db() throws Exception{if(nativeDataSource!=null)return nativeDataSource.getConnection();return DriverManager.getConnection(env("DB_URL","jdbc:h2:file:/data/deployment-ops;MODE=PostgreSQL;DATABASE_TO_LOWER=TRUE;DB_CLOSE_DELAY=-1;DB_CLOSE_ON_EXIT=FALSE;LOCK_TIMEOUT=10000;WRITE_DELAY=0"),"deployment_ops",env("DB_PASSWORD",""));}
@@ -66,6 +68,7 @@ public class Main {
   String actor=user.get(0).get("username").toString();boolean write=!method.equals("GET");
   if(write){if(!path.equals("/api/logout")&&!"admin".equals(user.get(0).get("role"))){send(x,403,Map.of("error","admin required"));return;}if(!"1".equals(x.getRequestHeaders().getFirst("X-Ops-Request"))){send(x,403,Map.of("error","request header required"));return;}}
   if(ManagerApi.route(x,actor,user.get(0).get("role").toString()))return;
+  if(nativeRoutes!=null){try{if(Boolean.TRUE.equals(nativeRoutes.getClass().getMethod("route",HttpExchange.class,String.class,String.class).invoke(nativeRoutes,x,actor,user.get(0).get("role").toString())))return;}catch(java.lang.reflect.InvocationTargetException error){if(error.getCause() instanceof Exception cause)throw cause;throw error;}}
   if(path.equals("/api/logout")&&write){sql("DELETE FROM sessions WHERE token=?",hash(token,"session"));send(x,200,Map.of("ok",true));return;}
   if(path.equals("/api/nodes")){
    if(write){var b=body(x);URI uri=URI.create(b.get("url").toString());if(!List.of("http","https").contains(uri.getScheme())||uri.getHost()==null||uri.getUserInfo()!=null||uri.getQuery()!=null||!List.of("", "/").contains(uri.getPath()))throw new IllegalArgumentException("executor base URL required");if(uri.getScheme().equals("http")&&!List.of("executor","localhost","127.0.0.1","[::1]").contains(uri.getHost()))throw new IllegalArgumentException("Remote node HTTPS is required");sql("INSERT INTO nodes(name,url,token) VALUES(?,?,?)",b.get("name"),b.get("url").toString().replaceAll("/$",""),b.get("token"));audit(actor,"node-register",b.get("name").toString(),"success");}
@@ -104,6 +107,7 @@ public class Main {
   if(path.equals("/api/audit")){send(x,200,sql("SELECT * FROM audit ORDER BY id DESC LIMIT 500"));return;}
   if(path.matches("/api/nodes/[0-9]+/(containers/[a-f0-9]{12,64}/(logs|stats|inspect|start|stop|restart)|images/import|releases|rollback|registry)")){
    String[] parts=path.split("/",5);var nodes=sql("SELECT * FROM nodes WHERE id=?",Long.parseLong(parts[3]));if(nodes.isEmpty())throw new IllegalArgumentException("node missing");String op="/"+parts[4];boolean release=op.equals("/releases")||op.equals("/rollback");boolean mut=op.matches(".*(start|stop|restart|import)$");if(!release&&mut!=write)throw new IllegalArgumentException("invalid method");
+   if(nativeDataSource!=null&&((release&&write)||(mut&&!op.endsWith("import"))))throw new IllegalArgumentException("Use approved resource plans or the signed application workflow");
    audit(actor,"requested:"+method,path,"pending");try{byte[] bytes=null;if(release&&write)bytes=J.writeValueAsBytes(body(x));Object result=op.endsWith("import")?upload(nodes.get(0),x):op.endsWith("/inspect")?ManagerApi.call(nodes.get(0),op,method,bytes,actor,user.get(0).get("role").toString()):agent(nodes.get(0),op,method,bytes,null);audit(actor,method,path,"success");send(x,200,result);}catch(Exception e){audit(actor,method,path,"failed: "+e.getMessage());throw e;}return;
   }
   send(x,404,Map.of("error","route not found"));

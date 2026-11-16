@@ -1,0 +1,23 @@
+[Unit]
+Description=Deployment Ops native Docker executor
+After=local-fs.target network.target
+RequiresMountsFor=/mnt/disk01
+
+[Service]
+Type=simple
+User=root
+WorkingDirectory=/opt/deployment-ops
+EnvironmentFile=/etc/deployment-ops/manager.env
+ExecStart=/bin/sh /opt/deployment-ops/deploy/native/executor.sh
+Restart=on-failure
+RestartSec=5
+UMask=0077
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/mnt/disk01/deployment-ops
+StandardOutput=append:/mnt/disk01/deployment-ops/logs/executor.log
+StandardError=append:/mnt/disk01/deployment-ops/logs/executor.log
+
+[Install]
+WantedBy=multi-user.target

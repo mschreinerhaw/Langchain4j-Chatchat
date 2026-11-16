@@ -27,4 +27,4 @@ case "$OPS_DATA_DIR/" in
 esac
 export OPS_DATA_DIR OPS_BIND OPS_PORT
 cd "$OPS_HOME"
-exec "$JAVA_BIN" -Djava.io.tmpdir=/mnt/disk01/deployment-ops/tmp -Xms128m -Xmx512m -jar "$OPS_JAR"
+exec "$JAVA_BIN" -Djava.io.tmpdir=${OPS_TMP_DIR:-/mnt/disk01/deployment-ops/tmp} -Xms128m -Xmx512m -jar "$OPS_JAR"

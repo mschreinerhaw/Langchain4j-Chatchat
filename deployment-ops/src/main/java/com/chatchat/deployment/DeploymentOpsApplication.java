@@ -6,7 +6,8 @@ import org.springframework.boot.autoconfigure.SpringBootApplication;
 /** Independent control plane; deliberately has no Runtime OS business dependencies. */
 @SpringBootApplication
 public class DeploymentOpsApplication {
-    public static void main(String[] args) {
+    public static void main(String[] args) throws Exception {
+        com.chatchat.deployment.storage.StorageGuard.verify();
         SpringApplication.run(DeploymentOpsApplication.class, args);
     }
 }

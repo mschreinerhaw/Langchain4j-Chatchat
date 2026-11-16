@@ -4,6 +4,7 @@ set -eu
 umask 077
 OPS_HOME=${OPS_HOME:-$(CDPATH= cd -- "$(dirname -- "$0")/../.." && pwd)}
 OPS_DATA_MOUNT=${OPS_DATA_MOUNT:-/mnt/disk01}
+[ "$OPS_DATA_MOUNT" = /mnt/disk01 ] || { echo 'Required data mount must be /mnt/disk01' >&2; exit 1; }
 OPS_DATA_DIR=${OPS_DATA_DIR:-$OPS_DATA_MOUNT/deployment-ops/data}
 OPS_PORT=${OPS_PORT:-19240}
 OPS_BIND=${OPS_BIND:-127.0.0.1}
@@ -26,4 +27,4 @@ case "$OPS_DATA_DIR/" in
 esac
 export OPS_DATA_DIR OPS_BIND OPS_PORT
 cd "$OPS_HOME"
-exec "$JAVA_BIN" -Xms128m -Xmx512m -jar "$OPS_JAR"
+exec "$JAVA_BIN" -Djava.io.tmpdir=/mnt/disk01/deployment-ops/tmp -Xms128m -Xmx512m -jar "$OPS_JAR"

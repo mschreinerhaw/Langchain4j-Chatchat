@@ -25,8 +25,13 @@ with tempfile.TemporaryDirectory() as temp:
     java_home = __import__('os').environ.get('JAVA_HOME')
     javac = str(Path(java_home) / 'bin/javac') if java_home else 'javac'
     subprocess.run([javac, '--release', '17', '-encoding', 'UTF-8', '-cp', str(libs / '*'),
-                    '-d', str(classes), *map(str, (root / 'src/main/java').rglob('*.java'))], check=True)
+                    '-d', str(classes), *map(str, (root / 'src/main/java').rglob('*.java')),
+                    str(root / 'backend/src/Main.java'), str(root / 'backend/src/ManagerApi.java')], check=True)
     shutil.copytree(root / 'src/main/resources', classes, dirs_exist_ok=True)
+    shutil.copy2(root / 'backend/schema.sql', classes / 'schema.sql')
+    if (root / 'web-ui/dist').is_dir():
+        shutil.copytree(root / 'web-ui/dist', classes / 'static', dirs_exist_ok=True)
+    shutil.copytree(root / 'frontend', classes / 'static/legacy', dirs_exist_ok=True)
     args.output.parent.mkdir(parents=True, exist_ok=True)
     with zipfile.ZipFile(args.runtime) as runtime, zipfile.ZipFile(args.output, 'w', zipfile.ZIP_DEFLATED) as output:
         output.writestr('BOOT-INF/classes/', b'')

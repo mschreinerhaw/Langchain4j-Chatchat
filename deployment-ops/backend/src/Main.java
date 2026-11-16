@@ -3,7 +3,22 @@ import com.fasterxml.jackson.databind.*;
 import java.net.*;import java.net.http.*;import java.nio.file.*;import java.io.*;import java.sql.*;import java.util.*;import java.util.concurrent.*;import java.security.*;import javax.crypto.*;import javax.crypto.spec.*;import java.time.*;
 public class Main {
  static final ObjectMapper J=new ObjectMapper(); static final HttpClient HTTP=HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(5)).build();
- static String env(String n,String d){return System.getenv().getOrDefault(n,d);} static Connection db() throws Exception{return DriverManager.getConnection(env("DB_URL","jdbc:h2:file:/data/deployment-ops;MODE=PostgreSQL;DATABASE_TO_LOWER=TRUE;DB_CLOSE_DELAY=-1;DB_CLOSE_ON_EXIT=FALSE;LOCK_TIMEOUT=10000;WRITE_DELAY=0"),"deployment_ops",env("DB_PASSWORD",""));}
+ static volatile javax.sql.DataSource nativeDataSource;
+ public static void initializeNative(javax.sql.DataSource source,String schema,String password,String token,String executorUrl)throws Exception{
+  nativeDataSource=source;
+  sql("CREATE TABLE IF NOT EXISTS schema_version(version int PRIMARY KEY, installed_at timestamp with time zone DEFAULT CURRENT_TIMESTAMP)");
+  var versions=sql("SELECT MAX(version) AS version FROM schema_version");
+  if(versions.get(0).get("version") instanceof Number v && v.intValue()>1)throw new IllegalStateException("Database schema is newer than this application; restore compatible version");
+  for(String statement:schema.split(";"))if(!statement.isBlank())sql(statement);
+  if(sql("SELECT username FROM users").isEmpty()){
+   if(password==null||password.length()<6)throw new IllegalArgumentException("Set ADMIN_PASSWORD (6+ characters) for first installation");
+   String salt=random();sql("INSERT INTO users VALUES(?,?,?,?)","admin",salt,hash(password,salt),"admin");
+  }
+  if(token!=null&&!token.isBlank()&&sql("SELECT id FROM nodes").isEmpty())sql("INSERT INTO nodes(name,url,token) VALUES(?,?,?)","local",executorUrl,token);
+  sql("MERGE INTO schema_version(version) KEY(version) VALUES(1)");
+ }
+ public static void handleNative(HttpExchange exchange)throws Exception{api(exchange);}
+ static String env(String n,String d){return System.getenv().getOrDefault(n,d);} static Connection db() throws Exception{if(nativeDataSource!=null)return nativeDataSource.getConnection();return DriverManager.getConnection(env("DB_URL","jdbc:h2:file:/data/deployment-ops;MODE=PostgreSQL;DATABASE_TO_LOWER=TRUE;DB_CLOSE_DELAY=-1;DB_CLOSE_ON_EXIT=FALSE;LOCK_TIMEOUT=10000;WRITE_DELAY=0"),"deployment_ops",env("DB_PASSWORD",""));}
  static List<Map<String,Object>> sql(String s,Object...args)throws Exception{try(var c=db();var q=c.prepareStatement(s)){for(int i=0;i<args.length;i++)q.setObject(i+1,args[i]);if(!q.execute())return List.of();try(var r=q.getResultSet()){var out=new ArrayList<Map<String,Object>>();while(r.next()){var row=new LinkedHashMap<String,Object>();for(int i=1;i<=r.getMetaData().getColumnCount();i++)row.put(r.getMetaData().getColumnLabel(i),jsonValue(r.getObject(i)));out.add(row);}return out;}}}
  static Object jsonValue(Object value){if(value instanceof java.time.OffsetDateTime t)return t.toInstant().toString();if(value instanceof java.sql.Timestamp t)return t.toInstant().toString();return value;}
  static String hash(String pass,String salt)throws Exception{return HexFormat.of().formatHex(SecretKeyFactory.getInstance("PBKDF2WithHmacSHA256").generateSecret(new PBEKeySpec(pass.toCharArray(),salt.getBytes(),210000,256)).getEncoded());}

@@ -52,7 +52,7 @@ class PackageStore:
     def __init__(self,root,trust,engine,raw_load):
         self.root=Path(root); self.trust=Path(trust); self.engine=engine; self.raw_load=raw_load
         self.root.mkdir(parents=True,exist_ok=True); (self.root/'uploads').mkdir(exist_ok=True)
-        self.lock=threading.RLock(); self.importing=set(); self.verified_cache={}; self.reserve=int(os.getenv('OPS_DISK_RESERVE_BYTES',str(1024**3)))
+        self.lock=threading.RLock(); self.importing=set(); self.verified_cache={}; self.blob_cache={}; self.reserve=int(os.getenv('OPS_DISK_RESERVE_BYTES',str(1024**3)))
         for file in (self.root/'uploads').glob('*.json'):
             meta=read(file)
             if meta.get('status')=='verifying':
@@ -93,14 +93,25 @@ class PackageStore:
         receipt=read(folder/'receipt.json');manifest=read(folder/'manifest.json')
         checksum_bytes=(folder/'checksums.json').read_bytes();signature=read(folder/'signature.json');require(signature['keyId']==receipt['keyId'],'Signer changed');key=read(self.trust/(safe_name(receipt['keyId'])+'.json'));verify_signature(checksum_bytes,signature['signature'],key);authorize_manifest(manifest,key)
         require(json.loads(checksum_bytes)==receipt['checksums'],'Package inventory changed')
-        vector=tuple((name,(folder/member_name(name)).stat().st_size,(folder/name).stat().st_mtime_ns) for name in sorted(receipt['checksums']))
+        vector=self.payload_vector(folder,receipt['checksums'])
         if self.verified_cache.get(digest)!=vector:
             for name,expected in receipt['checksums'].items():
                 file=folder/member_name(name)
-                with file.open('rb') as stream:actual=hashlib.file_digest(stream,'sha256').hexdigest()
-                require(actual==expected,'Stored package changed; re-import the signed release')
+                cached=name.startswith('images/') and self.blob_cache.get(expected)==self.blob_vector(file)
+                if not cached:
+                    with file.open('rb') as stream:actual=hashlib.file_digest(stream,'sha256').hexdigest()
+                    require(actual==expected,'Stored package changed; re-import the signed release')
+                    if name.startswith('images/'):self.blob_cache[expected]=self.blob_vector(file)
             self.verified_cache[digest]=vector
         return folder,manifest
+    def payload_vector(self,folder,checksums):
+        result=[]
+        for name in sorted(checksums):
+            file=folder/member_name(name);require(not file.is_symlink() and file.is_file(),'Stored payload must remain a regular file')
+            state=file.stat();result.append((name,state.st_size,state.st_mtime_ns,state.st_ctime_ns))
+        return tuple(result)
+    def blob_vector(self,file):
+        state=file.stat();return (state.st_dev,state.st_ino,state.st_size,state.st_mtime_ns,state.st_ctime_ns)
     def retire(self,digest,actor):
         folder,manifest=self.package(digest);atomic(folder/'retired.json',{'actor':actor,'retired':True});return {'status':'retired','digest':digest}
     def begin_commit(self,ident,engine_lock):
@@ -141,6 +152,19 @@ class PackageStore:
                 destination.mkdir(mode=0o700,exist_ok=True)
                 for info in infos:
                     out=destination/info.filename;out.parent.mkdir(mode=0o700,parents=True,exist_ok=True)
+                    if info.filename.startswith('images/') and info.filename in checksums:
+                        blob=self.root/'blobs'/checksums[info.filename]
+                        if blob.exists():
+                            require(not blob.is_symlink() and blob.is_file() and blob.stat().st_size==info.file_size,'Image staging cache differs from signed payload')
+                            vector=self.blob_vector(blob)
+                            if self.blob_cache.get(blob.name)!=vector:
+                                with blob.open('rb') as source:require(hashlib.file_digest(source,'sha256').hexdigest()==blob.name,'Image staging cache is corrupt')
+                            if out.exists():out.unlink()
+                            os.link(blob,out)
+                            self.blob_cache[blob.name]=self.blob_vector(blob)
+                            # Use the verified immutable payload rather than expanding
+                            # the identical multi-GB bytes again during each upgrade.
+                            continue
                     with archive.open(info) as source,open(out,'wb') as target:
                         os.chmod(out,0o600);digest=hashlib.sha256();count=0
                         for block in iter(lambda:source.read(1024**2),b''):
@@ -153,6 +177,7 @@ class PackageStore:
                             with blob.open('rb') as existing:require(hashlib.file_digest(existing,'sha256').hexdigest()==checksums[info.filename],'Image staging cache is corrupt')
                             out.unlink();os.link(blob,out)
                         else:os.link(out,blob)
+                        self.blob_cache[blob.name]=self.blob_vector(blob)
             manifest=read(destination/'manifest.json');validate_manifest(manifest,checksums);authorize_manifest(manifest,key)
             # Signed Docker-save images only. Refuse to replace any existing tag with another image.
             missing=[]
@@ -180,6 +205,9 @@ class PackageStore:
                 for image in images:
                     loaded=self.engine('GET','/images/'+image['id']+'/json');require(loaded['Id']==image['id'],'Loaded image ID differs from signed release');require(loaded.get('Os','linux')+'/'+loaded['Architecture']==manifest['platform'],'Loaded image platform differs from package')
             atomic(destination/'receipt.json',{'keyId':key_id,'checksums':checksums})
+            # Every byte above was just hashed; preserve that verified identity so
+            # the first deployment need not synchronously rehash multi-GB images.
+            self.verified_cache[meta['sha256']]=self.payload_vector(destination,checksums)
             meta['status']='verified';atomic(file.with_suffix('.json'),meta)
             # This is the completed temporary upload only, not an image/volume/history cleanup.
             file.unlink();return {'digest':meta['sha256'],'status':'verified','name':manifest['name'],'version':manifest['version']}

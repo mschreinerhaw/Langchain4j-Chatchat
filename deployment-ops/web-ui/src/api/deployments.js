@@ -3,6 +3,7 @@ export const deploymentsApi = {
   list: signal => get('/installations', signal),
   catalog: (node, signal) => get(nodePath(node, '/packages'), signal),
   job: (node, id, signal) => get(nodePath(node, `/installations/${id}`), signal),
+  health: (node,id,signal) => get(nodePath(node, `/installations/${id}/health`), signal),
   preflight: (node, spec) => post(nodePath(node, '/installations/preflight'), spec),
   deploy: (node, spec) => post(nodePath(node, '/installations'), spec),
   control: (node, id, action) => post(nodePath(node, `/installations/${id}/${action}`)),

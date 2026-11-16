@@ -5,9 +5,11 @@ ROOT=Path(__file__).resolve().parents[1]
 sys.path.insert(0,str(ROOT/'executor'))
 from package_store import validate_manifest,member_name,safe_name
 p=argparse.ArgumentParser(description=__doc__)
-p.add_argument('--image-archive',type=Path);p.add_argument('--store-images',action='store_true');p.add_argument('--manifest',required=True,type=Path);p.add_argument('--assets',required=True,type=Path);p.add_argument('--private-key',required=True,type=Path);p.add_argument('--key-id',required=True);p.add_argument('--output',required=True,type=Path);p.add_argument('--signer-image');p.add_argument('--classes',type=Path,default=ROOT/'backend/classes');p.add_argument('--libraries',type=Path,default=ROOT/'backend/lib');args=p.parse_args()
+p.add_argument('--image-archive',type=Path);p.add_argument('--image-archives',type=Path,help='Reviewed JSON mapping image roles to existing Docker-save TAR paths');p.add_argument('--store-images',action='store_true');p.add_argument('--manifest',required=True,type=Path);p.add_argument('--assets',required=True,type=Path);p.add_argument('--private-key',required=True,type=Path);p.add_argument('--key-id',required=True);p.add_argument('--output',required=True,type=Path);p.add_argument('--signer-image');p.add_argument('--classes',type=Path,default=ROOT/'backend/classes');p.add_argument('--libraries',type=Path,default=ROOT/'backend/lib');args=p.parse_args()
 if args.output.exists():raise SystemExit('Output already exists; use a new release filename')
 manifest=json.loads(args.manifest.read_text(encoding='utf-8'))
+reuse=json.loads(args.image_archives.read_text()) if args.image_archives else None
+if reuse is not None and (args.image_archive or set(reuse)!=set(manifest['images'])):raise SystemExit('Archive map must cover every image role and cannot combine with --image-archive')
 def run(argv):return subprocess.check_output(argv,stderr=subprocess.STDOUT)
 with tempfile.TemporaryDirectory(prefix='ops-package-',dir=args.output.resolve().parent) as temp:
  folder=Path(temp);payload={}
@@ -18,12 +20,21 @@ with tempfile.TemporaryDirectory(prefix='ops-package-',dir=args.output.resolve()
   if info.get('Os','linux')+'/'+info['Architecture']!=manifest['platform']:raise ValueError('Image platform differs from release: '+key)
   image.update({'id':info['Id'],'size':info['Size'],'archive':'images/all.tar'});references.append(info['Id'])
  print('Exporting pinned offline images...',flush=True)
- target=args.image_archive.resolve() if args.image_archive else folder/'all-images.tar'
- if not args.image_archive:run(['docker','save','-o',str(target),*sorted(set(references))])
- with tarfile.open(target,'r:') as saved:
-  entries=json.load(saved.extractfile('manifest.json'));present={'sha256:'+hashlib.sha256(saved.extractfile(entry['Config']).read()).hexdigest() for entry in entries}
-  if not set(references)<=present:raise ValueError('The reused archive does not contain every selected image ID')
- payload['images/all.tar']=target
+ if reuse is None:
+  target=args.image_archive.resolve() if args.image_archive else folder/'all-images.tar'
+  if not args.image_archive:run(['docker','save','-o',str(target),*sorted(set(references))])
+  archives={target:set(references)};names={target:'images/all.tar'}
+ else:
+  archives={};names={}
+  for role,image in manifest['images'].items():
+   target=Path(reuse[role]).resolve()
+   if target not in names:names[target]='images/archive-'+str(len(names)+1)+'.tar'
+   image['archive']=names[target];archives.setdefault(target,set()).add(image['id'])
+ for target,identities in archives.items():
+  with tarfile.open(target,'r:') as saved:
+   entries=json.load(saved.extractfile('manifest.json'));present={'sha256:'+hashlib.sha256(saved.extractfile(entry['Config']).read()).hexdigest() for entry in entries}
+   if not identities<=present:raise ValueError('The reused archive does not contain every selected image ID')
+  payload[names[target]]=target
  for c in manifest['components']:
   for asset in c.get('files',[]):
    name=member_name(asset['source']);source=(args.assets/name).resolve();source.relative_to(args.assets.resolve())

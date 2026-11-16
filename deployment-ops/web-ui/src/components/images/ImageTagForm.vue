@@ -1,0 +1,6 @@
+<template><form @submit.prevent="submit" class="form-grid"><label>源镜像<input :value="image.Id" readonly></label><label>仓库名称<input v-model="repository" required pattern="[a-z0-9][a-z0-9._/:-]*" placeholder="runtime-os/api"></label><label>新版本标签<input v-model="tag" required pattern="[A-Za-z0-9_][A-Za-z0-9_.-]{0,127}" placeholder="1.0.1"></label><p class="muted full">创建本地版本标签，已有标签不允许覆盖。执行前须核对不可变镜像 ID 并确认。</p><p v-if="error" class="notice danger full" role="alert">{{error}}</p><footer class="form-actions full"><button type="button" @click="$emit('close')">取消</button><button class="primary" :disabled="busy">预览版本标签计划</button></footer></form></template>
+<script setup>
+import {ref} from 'vue';import {useOperations} from '../../composables/useOperations';
+const props=defineProps({node:[String,Number],image:{type:Object,required:true}}),emit=defineEmits(['close']),{preview}=useOperations(),repository=ref(''),tag=ref(''),busy=ref(false),error=ref('');
+async function submit(){busy.value=true;error.value='';try{await preview(props.node,{action:'image.tag',id:props.image.Id,repository:repository.value,tag:tag.value});emit('close');}catch(e){error.value=e.message;}finally{busy.value=false;}}
+</script>

@@ -15,6 +15,23 @@ ACTIVE={'queued','running','starting','stopping','rolling_back'}
 
 class RuntimeOsAdapter:
     def __init__(self,installer):self.base=installer;self.engine=installer.engine
+    def health(self,ident):
+        import http.client
+        job=self.base.get(ident);private=read(self.base.path(ident)/'private.json');target=Path(private['runtimeRoot'])
+        require(target.resolve()==self.root(job['environment'],private['parameters']).resolve(),'Runtime OS health scope mismatch')
+        probes=[]
+        for role in ['1','2','s']:
+            started=time.monotonic();status='UNKNOWN';enforced=False
+            client=http.client.HTTPConnection('localhost',timeout=1)
+            try:
+                client.sock=socket.socket(socket.AF_UNIX,socket.SOCK_STREAM);client.sock.settimeout(1);client.sock.connect(str(target/'n'/role/'executor.sock'))
+                client.request('GET','/health/live');response=client.getresponse();value=json.loads(response.read(65536));enforced=value.get('resourceEnforced') is True
+                status='HEALTHY' if response.status==200 and enforced else 'UNHEALTHY'
+            except Exception:pass
+            finally:client.close()
+            probes.append({'name':{'1':'Coding Executor 1','2':'Coding Executor 2','s':'Studio Executor'}[role],'status':status,'resourceEnforced':enforced,'latencyMs':round((time.monotonic()-started)*1000)})
+        verified=target/'verification.json';value=read(verified) if verified.is_file() else {}
+        return {'jobId':ident,'environment':job['environment'],'sampledAt':stamp(),'executors':probes,'installationVerification':{key:value[key] for key in ('status','nativeCoreVerified','pythonRuntimeVerified','privateExecutorDaemon','offlineImages') if key in value},'verifiedAt':verified.stat().st_mtime if verified.exists() else None}
     def root(self,environment,params):
         base=Path(os.getenv('OPS_RUNTIME_ROOT','/mnt/disk01/ops/r')).resolve()
         require(Path('/mnt/disk01') in base.parents,'Runtime OS root must remain below required mount')
@@ -36,6 +53,7 @@ class RuntimeOsAdapter:
         return mapping
     def resolved(self,spec):
         folder,m=self.base.store.package(spec.get('package'));require(m.get('runtimeInstaller',{}).get('protocol')=='runtime-os-native/v1','Unsupported Runtime OS protocol')
+        require(not (folder/'retired.json').exists(),'Package is retired; choose a current verified release')
         safe_name(spec.get('environment'));prior=self.base.previous(spec['environment']);old={}
         if prior:old=read(self.base.path(prior.get('activeRun') or prior['lastRun'])/'private.json')['parameters']
         params=parameters(m.get('parameters',{}),spec.get('parameters',{}),old)
@@ -96,7 +114,7 @@ class RuntimeOsAdapter:
             token=uuid.uuid4().hex+uuid.uuid4().hex
             atomic(self.base.root/'plans'/(token+'.json'),{'createdAt':stamp(),'package':spec['package'],'environment':spec['environment'],'parameters':params,'activeRun':(prior or {}).get('activeRun'),'adapter':'runtime-os-native/v1'})
             public={key:value for key,value in params.items() if not m.get('parameters',{}).get(key,{}).get('secret')}
-            return {'ok':True,'checks':checks,'environment':spec['environment'],'package':spec['package'],'packageName':m['name'],'version':m['version'],'reviewToken':token,'parameters':public,'links':render(m.get('links',[]),params),'components':[{'id':name,'kind':'service','dependsOn':[]} for name in m['runtimeInstaller']['services']],'upgrade':bool(prior and prior.get('activeRun')),'deploymentDirectory':str(target)}
+            return {'ok':True,'checks':checks,'environment':spec['environment'],'package':spec['package'],'packageName':m['name'],'version':m['version'],'reviewToken':token,'parameters':public,'links':render(m.get('links',[]),params),'components':[{'id':name,'kind':'service','dependsOn':[]} for name in m['runtimeInstaller']['services']],'upgrade':bool(prior and prior.get('activeRun')),'deploymentDirectory':str(target),'orchestration':'runtime-os-native/v1'}
         except Exception as error:
             return {'ok':False,'checks':checks+[{'name':'Preflight','status':'failed','detail':str(error)}]}
     def submit(self,spec,actor):
@@ -150,9 +168,10 @@ class RuntimeOsAdapter:
         if not ident:
             labels={'deployment-ops.installation':'true','deployment-ops.environment':job['environment'],'deployment-ops.component':'native-installer','deployment-ops.kind':'job','deployment-ops.run':job['id']}
             socket_path=os.getenv('DOCKER_SOCKET','/var/run/docker.sock')
-            environment={'PROJECT':project,'HTTP_PORT':str(private['parameters']['httpPort']),'MCP_PORT':str(private['parameters']['mcpPort']),'ADMIN_PASSWORD':private['parameters']['osAdminPassword']}
+            container_name=project+'-installer-'+job['id'][:10]+'-'+uuid.uuid4().hex[:6]
+            environment={'HOSTNAME':container_name,'PROJECT':project,'HTTP_PORT':str(private['parameters']['httpPort']),'MCP_PORT':str(private['parameters']['mcpPort']),'ADMIN_PASSWORD':private['parameters']['osAdminPassword']}
             config={'Image':manifest['images'][manifest['runtimeInstaller']['image']]['id'],'Cmd':[command],'Env':[key+'='+value for key,value in environment.items()],'Labels':labels,'User':'0:0','HostConfig':{'NetworkMode':'host','Binds':[socket_path+':/var/run/docker.sock',str(target)+':/install'],'RestartPolicy':{'Name':'no'},'Memory':512*1024**2,'PidsLimit':128}}
-            ident=self.engine('POST','/containers/create?'+urlencode({'name':project+'-installer-'+job['id'][:10]+'-'+uuid.uuid4().hex[:6]}),json.dumps(config).encode())['Id'];job['runtimeContainer']=ident;self.base.save(job);self.engine('POST','/containers/'+ident+'/start')
+            ident=self.engine('POST','/containers/create?'+urlencode({'name':container_name}),json.dumps(config).encode())['Id'];job['runtimeContainer']=ident;self.base.save(job);self.engine('POST','/containers/'+ident+'/start')
         started=stamp();last_log=0
         while stamp()-started<3600:
             state=self.engine('GET','/containers/'+ident+'/json');self.update_components(job,project)

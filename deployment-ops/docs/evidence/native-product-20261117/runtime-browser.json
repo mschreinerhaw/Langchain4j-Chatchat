@@ -1,0 +1,11 @@
+{
+  "passed": true,
+  "checks": [
+    "native platform authenticated",
+    "previous real Vue offline import retained with matching SHA256",
+    "observed retained task after explicit recovery",
+    "source-built native Temporal Runtime OS successfully installed and verified"
+  ],
+  "job": "c8ef8046c7504acf95075a2887ba2803",
+  "errors": []
+}

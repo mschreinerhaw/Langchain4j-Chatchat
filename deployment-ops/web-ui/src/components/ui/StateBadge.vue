@@ -6,6 +6,7 @@ const states = {
   running: ['运行中', 'success'], healthy: ['健康', 'success'], succeeded: ['成功', 'success'], success: ['成功', 'success'], passed: ['通过', 'success'],
   failed: ['失败', 'danger'], unhealthy: ['不健康', 'danger'], critical: ['严重', 'danger'], recovery_required: ['需要恢复', 'danger'],
   pending: ['等待执行', 'neutral'], queued: ['排队中', 'neutral'], created: ['已创建', 'neutral'],
+  disabled: ['已禁用', 'neutral'],
   stopped: ['已停止', 'neutral'], exited: ['已退出', 'warning'], degraded: ['部分异常', 'warning'], warning: ['警告', 'warning'],
   interrupted: ['执行中断', 'warning'], unknown: ['状态未知', 'warning'], not_deployed: ['未部署', 'neutral'],
   cancelled: ['已取消', 'neutral'], rolled_back: ['已回滚', 'neutral'], rolling_back: ['回滚中', 'info'],

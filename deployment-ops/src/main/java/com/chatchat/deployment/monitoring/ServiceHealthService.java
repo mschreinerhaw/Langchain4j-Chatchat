@@ -27,7 +27,7 @@ public class ServiceHealthService {
             if(db.update("UPDATE service_checks SET name=?,cluster_name=?,kind=?,url=?,expected_status=?,enabled=?,status='UNKNOWN',checked_at=NULL WHERE id=?",name,cluster,kind,url.toString(),status,!Boolean.FALSE.equals(spec.get("enabled")),id.longValue())!=1)throw new IllegalArgumentException("Service not found");
         }else{
             if(db.queryForObject("SELECT COUNT(*) FROM service_checks",Integer.class)>=100)throw new IllegalArgumentException("Service limit reached");
-            db.update("INSERT INTO service_checks(name,cluster_name,kind,url,expected_status) VALUES(?,?,?,?,?)",name,cluster,kind,url.toString(),status);
+            db.update("INSERT INTO service_checks(name,cluster_name,kind,url,expected_status,enabled) VALUES(?,?,?,?,?,?)",name,cluster,kind,url.toString(),status,!Boolean.FALSE.equals(spec.get("enabled")));
         }
     }
     @Scheduled(fixedDelayString="${ops.monitor.interval:30000}",initialDelay=5000)

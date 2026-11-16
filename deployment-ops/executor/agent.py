@@ -122,6 +122,7 @@ class Handler(BaseHTTPRequestHandler):
     size=int(self.headers.get('Content-Length','0'))
     if not 0<size<=65536:raise ValueError('Invalid maintenance request size')
     if INSTALLER and INSTALLER.busy:raise ValueError('Deployment running; retry platform maintenance later')
+    if STORE and STORE.importing:raise ValueError('Offline package verification running; retry platform maintenance later')
     return self.send(200,submit(json.loads(self.rfile.read(size)),self.headers.get('X-Ops-Actor','')))
    if self.command=='POST' and os.getenv('OPS_NATIVE')=='1' and (Path(os.environ['OPS_DATA_DIR']).parent/'maintenance/active.lock').exists():raise ValueError('Platform maintenance active; mutations temporarily blocked')
    if self.command=='GET':
@@ -143,6 +144,7 @@ class Handler(BaseHTTPRequestHandler):
     elif path=='/packages':result=STORE.catalog()
     elif re.fullmatch('/packages/uploads/[a-f0-9]{32}',path):result=STORE.upload_status(path.rsplit('/',1)[-1])
     elif path=='/installations':result=INSTALLER.list()
+    elif re.fullmatch('/installations/[a-f0-9]{32}/health',path):result=INSTALLER.runtime_health(path.split('/')[2])
     elif re.fullmatch('/installations/[a-f0-9]{32}',path):result=INSTALLER.get(path.rsplit('/',1)[-1])
     elif path=='/releases':
      result=[json.loads(f.read_text()) for f in sorted(STATE.glob('*.json'),reverse=True)]

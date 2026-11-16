@@ -1,5 +1,5 @@
 """Real native H2 restore and workload isolation acceptance, restricted to the candidate instance."""
-import argparse,json,os,subprocess,time,uuid,urllib.request,http.cookiejar
+import argparse,json,os,subprocess,time,uuid,urllib.request,urllib.error,http.cookiejar
 from pathlib import Path
 p=argparse.ArgumentParser();p.add_argument('--state',type=Path,required=True);p.add_argument('--report',type=Path,required=True);p.add_argument('--url',default='http://127.0.0.1:19240');a=p.parse_args()
 if a.state.resolve()!=Path('/mnt/disk01/deployment-ops-v1-candidate/state'):raise SystemExit('This acceptance runner only operates on the isolated candidate state directory')
@@ -23,9 +23,13 @@ while time.time()<end:
     time.sleep(2)
 else:raise RuntimeError('Maintenance timed out; inspect the retained journal')
 assert results['maintenance']['status']=='succeeded',results['maintenance']
+try:
+    request('/me');raise AssertionError('A pre-restore session remained valid')
+except urllib.error.HTTPError as error:
+    assert error.code==401;results['old_sessions_invalidated']=True
 login();entries=request('/entries');names={entry['name'] for entry in entries}
 results['retained_entry_restored']='restore-retained-'+ident in names
 results['post_backup_entry_absent']='restore-discarded-'+ident not in names
 results['h2_health']=request('/health');results['platform_health']=request('/platform/health');results['after']=containers();results['business_unchanged']=results['before']==results['after']
-results['passed']=all(results[key] for key in ['retained_entry_restored','post_backup_entry_absent','business_unchanged'])
+results['passed']=all(results[key] for key in ['retained_entry_restored','post_backup_entry_absent','business_unchanged','old_sessions_invalidated'])
 a.report.write_text(json.dumps(results,indent=2));print(json.dumps({key:value for key,value in results.items() if key not in ['before','after','maintenance']},indent=2));raise SystemExit(0 if results['passed'] else 1)

@@ -22,27 +22,40 @@ Baseline `8dbd6b915`, branch `feature/deployment-ops-offline-20261115`.
   acceptance passed. Required dependencies inaccessible; platform remained UP.
 - Actual missing-mount refusal passed in a transient private systemd mount view;
   host /mnt/disk01 stayed mounted. No host unmount or recursive business chown.
-- Local latest regression: Java 11 tests and Python 46 tests passed; Vue production
+- Local latest regression: Java 11 tests and Python 47 tests passed; Vue production
   build passed. These do not replace Runtime OS acceptance.
 
-## In execution / requires actual acceptance
+## Additional real acceptance completed
 
-1. Current Native/Temporal Runtime OS adapter: signed scoped publisher capability,
-   immutable image pins, source-built product installer, isolated project/data path,
-   preflight, durable job/logs, explicit recovery and compatible rollback.
-   A 6.2 GiB signed offline package was produced from the already source-built
-   13.4 GB image archive. Browser import and fresh platform-driven deployment
-   are in progress. No Runtime OS delivery claim until this passes.
-2. Actual application compatible upgrade, deliberate failure and rollback.
-3. Actual platform upgrade success and failed-candidate recovery, preserving all
-   business containers. Add explicit recovery health result in the journal.
-4. Assemble candidate native offline ZIP with JAR, source/compiler seed, scripts,
-   trusted public keys, checksums, documentation and executable acceptance tests.
-   Install from that immutable ZIP into fresh server state and verify login.
-5. Rerun isolation/missing-mount acceptance against final built artifact; archive
-   browser/API/source-build evidence and exact hashes/commit IDs.
-6. Complete operations documentation, final complete regression, checkpoint/push.
-   Formal tag requires every mandatory real acceptance to pass.
+- Browser imported the entire signed 6.2 GiB Native/Temporal Runtime OS release.
+- The real Vue wizard submitted deployment c8ef8046c7504acf95075a2887ba2803.
+  Initial host-network HOSTNAME incompatibility was diagnosed and fixed in the
+  adapter. Explicit recovery completed all 24 services and source-product checks:
+  administrator login, persistent Temporal, Native Core and Python runtime.
+- Actual compatible upgrade 2a6d29cebc8d4bffbd92fbff740c5223 passed; ports changed
+  to 19402/19403 and actual OS/MCP administrator identities were verified.
+- Deliberate signed QA installer exit 42 triggered automatic rollback, task
+  cfa606d3551a4adc981ca539188294e4 ended rolled_back. Other workloads unchanged.
+  The QA package was retired after acceptance.
+- Native offline ZIP rc.1 was checksum/inventory verified, compiled on the server,
+  installed into empty state, logged in, and restarted with persistent H2 records.
+- Platform rc.2 replacement and deliberately broken JAR recovery passed on that
+  fresh instance. All 44 business container IDs/start times stayed unchanged.
+  The extra fresh-instance services were stopped/disabled after acceptance.
+
+## Remaining acceptance and delivery work (continue without phase stop)
+
+1. Roll out the latest native executor health endpoint and modular service overview;
+   verify actual Unix-socket Coding/Studio resource-policy health through Java/Vue.
+   A method-name conflict found during live testing has been corrected; rerun it.
+2. Regress latest Vue including image version tagging and independent TAR import,
+   viewer restrictions, service probe edit/disable and enterprise overview layout.
+3. Repeat H2 restore with explicit old-session invalidation, final native isolated
+   startup/mount refusal, and platform restart business-container isolation.
+4. Produce final coherent source-built native offline artifact, verify file/SHA
+   inventory and clean installation; include Runtime media/public trust and docs.
+5. Aggregate actual reports through the formal release gate; push all verified
+   source and evidence. No formal V1 tag before all required real scenarios pass.
 
 ## Environment and scope
 

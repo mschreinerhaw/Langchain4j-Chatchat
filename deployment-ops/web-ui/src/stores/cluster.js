@@ -38,7 +38,7 @@ const applications = computed(() => {
   return [...groups.values()].map(app => {
     const node = inventory.value.find(n => n.id === app.nodeId);
     const services = app.containers.filter(c => c.Labels?.['deployment-ops.kind'] !== 'job');
-    return { ...app, services, status: node?.error || node == null ? 'UNKNOWN' : !services.length ? 'not_deployed' : services.every(c => c.State === 'running' && c.managerMetrics?.health !== 'unhealthy') ? 'running' : 'degraded' };
+    return { ...app, services, status: node?.error || node == null ? 'UNKNOWN' : !services.length ? 'not_deployed' : services.every(c => c.State === 'running' && !['unhealthy','starting'].includes(c.managerMetrics?.health)) ? 'running' : 'degraded' };
   });
 });
 const alerts = computed(() => [

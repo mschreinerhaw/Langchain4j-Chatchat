@@ -59,6 +59,11 @@ class Installer:
         value=copy.deepcopy(job);env=self.previous(job['environment']) if job.get('environment') else None;value['active']=bool(env and env.get('activeRun')==job.get('id'));return value
     def list(self):return [self.public(read(f)) for f in sorted(self.root.glob('*/job.json'),key=lambda f:f.parent.name)][::-1]
     def get(self,ident):return self.public(read(self.path(ident)/'job.json'))
+    def runtime_health(self,ident):
+        job=self.get(ident)
+        require(job.get('runtimeAdapter')=='runtime-os-native/v1','This release does not expose native executor health')
+        from runtime_os import RuntimeOsAdapter
+        return RuntimeOsAdapter(self).health(ident)
     def environment(self,name):return self.root/('env-'+safe_name(name)+'.json')
     def previous(self,name):
         file=self.environment(name);return read(file) if file.exists() else None

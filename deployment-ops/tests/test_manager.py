@@ -62,6 +62,14 @@ class ManagerTests(unittest.TestCase):
         p=m.plan({'action':'container.start','id':CID},'admin')
         with self.assertRaisesRegex(ValueError,'read-only'):m.submit({'planId':p['id'],'confirmation':p['target'],'idempotencyKey':'readonly-key-1234'},'admin')
         self.assertFalse(self.engine.writes)
+    def test_native_instance_cannot_operate_another_instances_container(self):
+        original=self.m.inspect_container
+        def inspected(ident):
+            item=original(ident);item['Config']['Labels']={'deployment-ops.manager':'true','deployment-ops.owner':'another-instance'};return item
+        self.m.inspect_container=inspected
+        with patch.dict(os.environ,{'OPS_STRICT_OWNERSHIP':'1'}):
+            with self.assertRaisesRegex(ValueError,'discovery-only'):self.m.plan({'action':'container.stop','id':CID},'admin')
+        self.assertFalse(self.engine.writes)
     def test_actor_target_and_snapshot_are_bound_to_approval(self):
         p=self.m.plan({'action':'container.start','id':CID},'admin')
         data={'planId':p['id'],'confirmation':'wrong','idempotencyKey':'bound-test-key-12'}

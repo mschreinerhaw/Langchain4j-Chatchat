@@ -1,0 +1,12 @@
+{
+  "status": "PASSED",
+  "administratorLogins": [
+    "api",
+    "mcp"
+  ],
+  "privateExecutorDaemon": true,
+  "nativeCoreVerified": true,
+  "pythonRuntimeVerified": true,
+  "offlineImages": true,
+  "productionDataImported": false
+}

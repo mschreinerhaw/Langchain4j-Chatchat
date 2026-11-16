@@ -18,7 +18,7 @@ def list_jobs():
     result=[]
     for file in root.glob('*.json'):
         job=read(file)
-        result.append(dict({key:value for key,value in job.items() if key in ('id','action','actor','status','createdAt','startedAt','finishedAt','error','steps')},target=Path(job['archive']).name))
+        result.append(dict({key:value for key,value in job.items() if key in ('id','action','actor','status','createdAt','startedAt','finishedAt','error','steps','recovery')},target=Path(job['archive']).name))
     return sorted(result,key=lambda job:job['createdAt'],reverse=True)
 
 def advance(job,name):
@@ -107,10 +107,14 @@ def restore(job,values,work):
         shutil.copy2(data,saved);identity=data.stat();replacement=verified/'deployment-ops.mv.db'
         os.chown(replacement,identity.st_uid,identity.st_gid);os.chmod(replacement,stat.S_IMODE(identity.st_mode));os.replace(replacement,data)
         advance(job,'start_platform');systemctl('start',job['service']);advance(job,'health_check');wait_healthy(values)
-    except Exception:
+    except Exception as original:
+        job['recovery']={'status':'running','reason':type(original).__name__}
         systemctl('stop',job['service'])
         if saved.exists():shutil.copy2(saved,data)
-        systemctl('start',job['service']);raise
+        systemctl('start',job['service'])
+        try:wait_healthy(values);job['recovery']['status']='succeeded'
+        except Exception as recovery:job['recovery'].update(status='failed',error=str(recovery));raise
+        raise original
 
 def extract_release(archive,target):
     with zipfile.ZipFile(archive) as package:
@@ -140,7 +144,7 @@ def upgrade(job,values,work):
     archive=Path(job['archive']);checked_archive(archive)
     target=Path(job['state'])/'releases'/job['id'];target.mkdir(parents=True)
     advance(job,'extract_release');extract_release(archive,target)
-    # Validate candidate against an isolated copy before replacing either process.
+    # Preserve the exact previous database/configuration before replacing processes.
     advance(job,'stop_platform');systemctl('stop',job['service']);advance(job,'snapshot_database');data=Path(values['OPS_DATA_DIR'])/'deployment-ops.mv.db';snapshot=work/'before-upgrade.mv.db';shutil.copy2(data,snapshot)
     config=Path(job['config']);old=config.read_bytes();(work/'manager.env.before').write_bytes(old);executor=job['service']+'-executor'
     try:
@@ -149,8 +153,12 @@ def upgrade(job,values,work):
         updated=dict(values,OPS_HOME=str(target),OPS_JAR=str(target/'lib/deployment-ops.jar'))
         text=''.join(k+'="'+str(v).replace('\\','\\\\').replace('"','\\"')+'"\n' for k,v in updated.items())
         config.write_text(text);systemctl('start',executor);systemctl('start',job['service']);advance(job,'health_check');wait_healthy(updated)
-    except Exception:
-        systemctl('stop',job['service']);systemctl('stop',executor);config.write_bytes(old);shutil.copy2(snapshot,data);systemctl('start',executor);systemctl('start',job['service']);raise
+    except Exception as original:
+        job['recovery']={'status':'running','reason':type(original).__name__}
+        systemctl('stop',job['service']);systemctl('stop',executor);config.write_bytes(old);shutil.copy2(snapshot,data);systemctl('start',executor);systemctl('start',job['service'])
+        try:wait_healthy(values);job['recovery']['status']='succeeded'
+        except Exception as recovery:job['recovery'].update(status='failed',error=str(recovery));raise
+        raise original
 
 def execute(file):
     job=read(file);state=Path(job['state']);require(Path('/mnt/disk01').is_mount() and Path('/mnt/disk01') in state.resolve().parents,'Required storage unavailable')

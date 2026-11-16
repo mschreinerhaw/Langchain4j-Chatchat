@@ -41,7 +41,7 @@ public class ServiceHealthService {
             }catch(Exception error){status="UNKNOWN";message=error.getClass().getSimpleName()+": endpoint unavailable";if(error instanceof InterruptedException)Thread.currentThread().interrupt();}
             long latency=(System.nanoTime()-start)/1_000_000;
             db.update("UPDATE service_checks SET status=?,message=?,latency_ms=?,checked_at=CURRENT_TIMESTAMP WHERE id=?",status,message,latency,item.get("id"));
-            if(!status.equals(item.get("status")))db.update("INSERT INTO service_alerts(service_id,status,message) VALUES(?,?,?)",item.get("id"),status,message);
+            if(item.get("checked_at")==null||!status.equals(item.get("status")))db.update("INSERT INTO service_alerts(service_id,status,message) VALUES(?,?,?)",item.get("id"),status,message);
         }
         db.update("DELETE FROM service_alerts WHERE created_at < ?",OffsetDateTime.now(ZoneOffset.UTC).minusDays(30));
     }

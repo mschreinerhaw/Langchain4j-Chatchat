@@ -45,6 +45,17 @@ class PlatformServicesIntegrationTest {
             assertEquals(2,db.queryForObject("SELECT COUNT(*) FROM service_alerts a JOIN service_checks s ON s.id=a.service_id WHERE s.name='MCP health acceptance'",Integer.class));
         }finally{server.stop(0);}
     }
+    @Test void firstUnreachableSampleIsRecordedWithoutRepeatingUnchangedAlerts()throws Exception{
+        int port;
+        try(var socket=new java.net.ServerSocket(0,1,java.net.InetAddress.getLoopbackAddress())){port=socket.getLocalPort();}
+        String name="Unreachable-"+UUID.randomUUID();
+        health.save(Map.of("name",name,"kind","tcp","url","tcp://127.0.0.1:"+port));
+        health.sample();
+        assertEquals("UNKNOWN",db.queryForObject("SELECT status FROM service_checks WHERE name=?",String.class,name));
+        assertNotNull(db.queryForObject("SELECT checked_at FROM service_checks WHERE name=?",Object.class,name));
+        health.sample();
+        assertEquals(1,db.queryForObject("SELECT COUNT(*) FROM service_alerts a JOIN service_checks s ON s.id=a.service_id WHERE s.name=?",Integer.class,name));
+    }
     @Test void consistentBackupContainsRestorableManagementRecords()throws Exception{
         String name="Backup-entry-"+UUID.randomUUID();
         client.postForEntity("/api/entries",new HttpEntity<>(Map.of("name",name,"url","http://127.0.0.1:19300"),headers),Object.class);

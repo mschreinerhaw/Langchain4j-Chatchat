@@ -60,7 +60,7 @@ gateway=json.loads((STAGE/'compose.gateway-ui.json').read_text())
 gateway_text=(STAGE/'config/public-gateway.conf').read_text()
 metadata=json.dumps({'release':a.version,'sourceCommit':a.source_commit,'nativeNodes':'1.3','existingStageDataReused':True},separators=(',',':'))
 gateway_text='\n'.join(('    location = /version.json { default_type application/json; add_header Cache-Control no-store; return 200 '+"'"+metadata+"'; }") if 'location = /version.json ' in line else line for line in gateway_text.splitlines())+'\n'
-gateway_file=release/('public-gateway-'+a.version+'.conf')
+gateway_file=release/('public-gateway-'+a.plan.stem+'.conf')
 assert not gateway_file.exists(),'Release gateway configuration already exists'
 gateway_file.write_text(gateway_text);gateway_file.chmod(0o644)
 generated_text={};security_sources={str(gateway_file):hashlib.sha256(gateway_file.read_bytes()).hexdigest()}

@@ -1,0 +1,18 @@
+{
+  "passed": true,
+  "checks": [
+    "interrupted complete offline upload reverified without retransmitting media",
+    "compatible native upgrade changed the actual gateway image",
+    "all three real native executor Unix health endpoints enforce resources",
+    "all unrelated containers retained their identities and states"
+  ],
+  "job": "627f19a2162844fea62552974601c02c",
+  "prior": {
+    "id": "c3cc478e6cf0bf6d7f580f3cbfe410162bbd91f9d515775b2a441492439793a3",
+    "image": "sha256:28f1859e40168b3d66b0ae1046ccdd3c33ace247446aa504d1d27cf230b1b1ee"
+  },
+  "after": {
+    "id": "1bded764fcbfe8cb781029d7f5c21a009dc56c451d9c44d04349ed773cda3874",
+    "image": "sha256:0fc453892edf427a59ab96bcd2599793d98d95a83edb70bf5588bcf3cfcc4e56"
+  }
+}

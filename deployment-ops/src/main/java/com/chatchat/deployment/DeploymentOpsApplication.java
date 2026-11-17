@@ -7,11 +7,16 @@ import org.springframework.boot.autoconfigure.SpringBootApplication;
 @SpringBootApplication(exclude = org.springframework.boot.autoconfigure.security.servlet.UserDetailsServiceAutoConfiguration.class)
 @org.springframework.scheduling.annotation.EnableScheduling
 public class DeploymentOpsApplication {
+    @org.springframework.context.annotation.Bean
+    org.springframework.boot.web.server.WebServerFactoryCustomizer<org.springframework.boot.web.embedded.tomcat.TomcatServletWebServerFactory> dataDiskDocumentRoot() {
+        return factory->{String temporary=System.getProperty("OPS_VALIDATED_TMP");if(temporary!=null)try{factory.setDocumentRoot(com.chatchat.deployment.storage.StorageGuard.managedDirectory(java.nio.file.Path.of(temporary).resolve("tomcat-docbase")).toFile());}catch(java.io.IOException error){throw new IllegalStateException("Data-disk Tomcat document root unavailable",error);}};
+    }
     public static void main(String[] args) throws Exception {
         com.chatchat.deployment.storage.StorageGuard.verify();
         java.nio.file.Path data=java.nio.file.Path.of(System.getenv().getOrDefault("OPS_DATA_DIR","/mnt/disk01/deployment-ops/data"));
         java.nio.file.Path temporary=com.chatchat.deployment.storage.StorageGuard.managedDirectory(java.nio.file.Path.of(System.getenv().getOrDefault("OPS_TMP_DIR",data.toAbsolutePath().getParent().resolve("tmp").toString())));
         System.setProperty("java.io.tmpdir",temporary.toString());
+        System.setProperty("OPS_VALIDATED_TMP",temporary.toString());
         System.setProperty("server.tomcat.basedir",com.chatchat.deployment.storage.StorageGuard.managedDirectory(temporary.resolve("tomcat")).toString());
         System.setProperty("spring.servlet.multipart.location",com.chatchat.deployment.storage.StorageGuard.managedDirectory(temporary.resolve("uploads")).toString());
         if(args.length>0 && args[0].equals("--import-package")) {
@@ -49,6 +54,6 @@ public class DeploymentOpsApplication {
         com.chatchat.deployment.runtime.StandaloneRuntime.start();
         SpringApplication application=new SpringApplication(DeploymentOpsApplication.class);
         application.addInitializers(context->com.chatchat.deployment.storage.StorageGuard.validateDatasource(context.getEnvironment()));
-        application.run(args);
+        try{application.run(args);}catch(Throwable failure){com.chatchat.deployment.runtime.StandaloneRuntime.close();throw failure;}
     }
 }

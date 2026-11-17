@@ -71,6 +71,13 @@ Java 原有13项测试通过，新增3项协议安全/依赖/凭据测试通过�
 继续入口：完成新检查点源码服务器编译，`--install-service` 注册独立QA服务19290/19292，
 通过网页初始化后执行实际平台升级/失败升级回退；不要覆盖原19240正式服务或已验证Runtime数据。
 
+继续进展：Native失败升级任务 `95ae648f80d341e6baf1f175e6c6071b` 已自动回滚至1.0.1，
+再通过任务 `627f19a2162844fea62552974601c02c` 手动回滚至初始版本；两项及三个Unix健康门禁通过。
+新systemd服务首次测试发现 Tomcat docbase 使用系统临时目录且 Spring 启动失败后节点仍存活；
+已修复为显式数据盘 docbase、启动失败关闭内部节点、JVM启动参数前置临时目录，16项Java测试重跑通过。
+旧失败QA服务 `deployment-ops-jdk-clean-qa` 已停止并禁用，保留其文件；不能将其记为安装验收通过。
+下一候选需以新实例 `deployment-ops-jdk-clean-v2-qa`、新数据目录重新验收19290/19292。
+
 当前Java源码在 src/main/java/com/chatchat/deployment/{docker,execution,protocol}。
 StandaloneRuntime 已选择 JdkExecutor，不再启动解释器。Maven及离线构建不向运行JAR复制Python执行器。
 共享变更锁阻止互相干扰；平台关闭只终止HTTP服务/线程，不执行业务停止。

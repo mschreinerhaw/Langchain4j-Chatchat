@@ -44,6 +44,7 @@ public final class StandaloneRuntime {
         }
         executor=new com.chatchat.deployment.execution.JdkExecutor(root.resolve("jdk"),trust,config,Integer.parseInt(port));
         System.setProperty("OPS_EXECUTOR_IMPLEMENTATION","JDK");
-        Runtime.getRuntime().addShutdownHook(new Thread(executor::close));
+        Runtime.getRuntime().addShutdownHook(new Thread(StandaloneRuntime::close));
     }
+    public static synchronized void close(){if(executor!=null){executor.close();executor=null;}try{if(lock!=null&&lock.isValid())lock.release();if(channel!=null)channel.close();}catch(java.io.IOException ignored){}}
 }

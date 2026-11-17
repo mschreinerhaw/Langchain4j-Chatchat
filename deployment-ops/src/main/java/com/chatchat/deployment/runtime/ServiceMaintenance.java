@@ -37,7 +37,7 @@ public final class ServiceMaintenance {
         require(text.lines().filter(line->line.startsWith("ExecStart=")).count()==1,"Ambiguous platform command");return text;
     }
     private static Path installedJar(String definition)throws Exception {
-        String line=definition.lines().filter(s->s.startsWith("ExecStart=")).findFirst().orElseThrow();String prefix="ExecStart="+Path.of(System.getProperty("java.home"),"bin/java")+" -jar ";require(line.startsWith(prefix),"Unsupported platform command");Path jar=Path.of(line.substring(prefix.length())).toAbsolutePath().normalize();require(jar.getParent().equals(state().resolve("jars"))&&Files.isRegularFile(jar,LinkOption.NOFOLLOW_LINKS)&&jar.getFileName().toString().equals(SignedPackageStore.sha(jar)+".jar"),"Installed JAR is outside this instance or its checksum changed");return jar;
+        String line=definition.lines().filter(s->s.startsWith("ExecStart=")).findFirst().orElseThrow();String prefix="ExecStart="+Path.of(System.getProperty("java.home"),"bin/java")+" -Djava.io.tmpdir="+state().resolve("tmp")+" -jar ";require(line.startsWith(prefix),"Unsupported platform command");Path jar=Path.of(line.substring(prefix.length())).toAbsolutePath().normalize();require(jar.getParent().equals(state().resolve("jars"))&&Files.isRegularFile(jar,LinkOption.NOFOLLOW_LINKS)&&jar.getFileName().toString().equals(SignedPackageStore.sha(jar)+".jar"),"Installed JAR is outside this instance or its checksum changed");return jar;
     }
     public static Object submit(JsonNode request,String actor)throws Exception {
         require(StandaloneRuntime.executor()!=null,"Maintenance requires the in-process JDK executor");String action=request.path("action").asText(),name=request.path("name").asText(),service=service();

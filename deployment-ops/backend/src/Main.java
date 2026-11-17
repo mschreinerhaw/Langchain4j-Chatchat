@@ -12,12 +12,19 @@ public class Main {
   var versions=sql("SELECT MAX(version) AS version FROM schema_version");
   if(versions.get(0).get("version") instanceof Number v && v.intValue()>2)throw new IllegalStateException("Database schema is newer than this application; restore compatible version");
   for(String statement:schema.split(";"))if(!statement.isBlank())sql(statement);
-  if(sql("SELECT username FROM users").isEmpty()){
+  if(sql("SELECT username FROM users").isEmpty() && password!=null){
    if(password==null||password.length()<6)throw new IllegalArgumentException("Set ADMIN_PASSWORD (6+ characters) for first installation");
    String salt=random();sql("INSERT INTO users VALUES(?,?,?,?)","admin",salt,hash(password,salt),"admin");
   }
   if(token!=null&&!token.isBlank()&&sql("SELECT id FROM nodes").isEmpty())sql("INSERT INTO nodes(name,url,token) VALUES(?,?,?)","local",executorUrl,token);
   sql("MERGE INTO schema_version(version) KEY(version) VALUES(2)");
+ }
+ static synchronized void initializeAdministrator(HttpExchange x)throws Exception{
+  if(!sql("SELECT username FROM users").isEmpty()){send(x,409,Map.of("error","Already initialized"));return;}
+  var b=body(x);String expected=System.getProperty("OPS_SETUP_TOKEN",System.getenv().getOrDefault("OPS_SETUP_TOKEN",""));
+  if(expected.isBlank()||!"1".equals(x.getRequestHeaders().getFirst("X-Ops-Request"))||!MessageDigest.isEqual(expected.getBytes(java.nio.charset.StandardCharsets.UTF_8),String.valueOf(b.get("token")).getBytes(java.nio.charset.StandardCharsets.UTF_8))){send(x,403,Map.of("error","Local installation token required"));return;}
+  String password=String.valueOf(b.getOrDefault("password",""));if(password.length()<12||password.length()>128)throw new IllegalArgumentException("Administrator password must contain 12 to 128 characters");
+  String salt=random();sql("INSERT INTO users VALUES(?,?,?,?)","admin",salt,hash(password,salt),"admin");audit("admin","initialize","platform","success");send(x,200,Map.of("initialized",true));
  }
  public static void handleNative(HttpExchange exchange)throws Exception{api(exchange);}
  static String env(String n,String d){return System.getenv().getOrDefault(n,d);} static Connection db() throws Exception{if(nativeDataSource!=null)return nativeDataSource.getConnection();return DriverManager.getConnection(env("DB_URL","jdbc:h2:file:/data/deployment-ops;MODE=PostgreSQL;DATABASE_TO_LOWER=TRUE;DB_CLOSE_DELAY=-1;DB_CLOSE_ON_EXIT=FALSE;LOCK_TIMEOUT=10000;WRITE_DELAY=0"),"deployment_ops",env("DB_PASSWORD",""));}
@@ -56,6 +63,8 @@ public class Main {
  static void api(HttpExchange x)throws Exception{
   String path=x.getRequestURI().getPath(),method=x.getRequestMethod();
   if(path.equals("/api/health")){sql("SELECT 1");send(x,200,Map.of("status","UP","database","H2 embedded"));return;}
+  if(path.equals("/api/setup")&&method.equals("GET")){send(x,200,Map.of("required",sql("SELECT username FROM users").isEmpty()));return;}
+  if(path.equals("/api/setup")&&method.equals("POST")){initializeAdministrator(x);return;}
   if(path.equals("/api/login")&&method.equals("POST")){
    String peer=x.getRemoteAddress().getAddress().getHostAddress();var recent=sql("SELECT count(*) AS n FROM audit WHERE actor=? AND action='login-failed' AND created_at>?",peer,java.time.OffsetDateTime.now(java.time.ZoneOffset.UTC).minusMinutes(5));if(((Number)recent.get(0).get("n")).intValue()>=10){send(x,429,Map.of("error","too many attempts"));return;}
    var b=body(x);var users=sql("SELECT * FROM users WHERE username=?",b.get("username"));

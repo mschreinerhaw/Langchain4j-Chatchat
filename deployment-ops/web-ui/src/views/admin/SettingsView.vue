@@ -15,8 +15,14 @@
       <PlatformConfiguration v-if="tab === 'configuration'" />
       <UsersSettings v-else-if="tab === 'users'" />
       <ServiceChecksSettings v-else-if="tab === 'services'" />
-      <BackupSettings v-else-if="tab === 'backups'" />
-      <UpgradeSettings v-else-if="tab === 'upgrade'" />
+      <BackupSettings
+        v-else-if="tab === 'backups'"
+        :managed="data?.maintenanceMode === 'systemd'"
+      />
+      <UpgradeSettings
+        v-else-if="tab === 'upgrade'"
+        :managed="data?.maintenanceMode === 'systemd'"
+      />
     </div>
     <PanelCard title="平台健康状态">
       <ResourceState :error="error" @retry="refresh" />

@@ -30,7 +30,8 @@ public class NativeManagementRoutes {
                 if(metadata.path("format").asText().equals("deployment-ops-native/v1"))return Map.of("version",metadata.path("version").asText("unknown"),"sourceCommit",metadata.path("sourceCommit").asText("unknown"));
             }
         }catch(Exception ignored){}
-        return Map.of("version","development","sourceCommit","unknown");
+        String version=com.chatchat.deployment.DeploymentOpsApplication.class.getPackage().getImplementationVersion();
+        return Map.of("version",version==null?"development":version,"sourceCommit","unknown");
     }
     public boolean route(HttpExchange x,String actor,String role)throws Exception{
         String path=x.getRequestURI().getPath(),method=x.getRequestMethod();
@@ -43,7 +44,7 @@ public class NativeManagementRoutes {
             if(path.equals("/api/platform/health")&&!write){
                 boolean mounted=false;try{mounted=Files.readAllLines(Path.of("/proc/self/mountinfo")).stream().anyMatch(line->line.split(" ")[4].equals("/mnt/disk01"));}catch(Exception ignored){}
                 db.queryForObject("SELECT 1",Integer.class);
-                Map<String,Object> detail=new LinkedHashMap<>(Map.of("platform","UP","database","UP","databaseType","H2 embedded","requiredMount","/mnt/disk01","mounted",mounted,"schemaVersion",db.queryForObject("SELECT MAX(version) FROM schema_version",Integer.class),"dataDirectory",env.getProperty("OPS_DATA_DIR","/mnt/disk01/deployment-ops/data")));detail.putAll(buildIdentity());value=detail;
+                Map<String,Object> detail=new LinkedHashMap<>(Map.of("platform","UP","database","UP","databaseType","H2 embedded","requiredMount","/mnt/disk01","mounted",mounted,"schemaVersion",db.queryForObject("SELECT MAX(version) FROM schema_version",Integer.class),"dataDirectory",env.getProperty("OPS_DATA_DIR","/mnt/disk01/deployment-ops/data")));detail.put("maintenanceMode",env.getProperty("OPS_PLATFORM_SERVICE","").isBlank()?"standalone":"systemd");detail.putAll(buildIdentity());value=detail;
             }else if(path.equals("/api/services")){if(write)health.save(body(x));value=health.list();}
             else if(path.equals("/api/alerts")&&!write)value=health.alerts();
             else if(path.equals("/api/backups"))value=write?backups.create():backups.list();

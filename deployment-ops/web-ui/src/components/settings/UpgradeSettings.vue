@@ -1,6 +1,10 @@
 <template>
   <PanelCard title="平台自身升级" description="使用原生离线发行包，升级期间业务容器继续运行。">
-    <form @submit.prevent="upload">
+    <p v-if="!managed" class="notice">
+      当前使用 java -jar 直接启动。请保留旧 JAR 和平台数据，停止平台进程后替换 JAR
+      并重新启动；业务容器独立运行。下方自动切换流程仅适用于原生 systemd 服务模式。
+    </p>
+    <form v-if="managed" @submit.prevent="upload">
       <div class="form-grid">
         <label>
           原生平台发行包 (.zip)
@@ -48,6 +52,7 @@
   import { ref } from 'vue';
   import { platformApi } from '../../api/platform';
   import PanelCard from '../ui/PanelCard.vue';
+  defineProps({ managed: Boolean });
   const file = ref(null),
     digest = ref(''),
     release = ref(null),

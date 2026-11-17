@@ -85,7 +85,7 @@ class PackageStore:
         result=[]
         for folder in self.root.glob('[a-f0-9]'*64):
             if folder.is_dir() and (folder/'receipt.json').exists() and not (folder/'retired.json').exists():
-                manifest=read(folder/'manifest.json');result.append({'digest':folder.name,'name':manifest['name'],'version':manifest['version'],'description':manifest.get('description',''),'parameters':manifest.get('parameters',{}),'components':len(manifest['components']),'platform':manifest['platform'],'requirements':manifest.get('requirements',{}),'keyId':read(folder/'receipt.json')['keyId']})
+                manifest=read(folder/'manifest.json');result.append({'digest':folder.name,'name':manifest['name'],'version':manifest['version'],'description':manifest.get('description',''),'parameters':manifest.get('parameters',{}),'components':len(manifest['components']),'platform':manifest['platform'],'requirements':manifest.get('requirements',{}),'installationProtocol':{k:manifest[k] for k in ['schemaVersion','name','version','images','components','volumes','runtimeInstaller'] if k in manifest},'keyId':read(folder/'receipt.json')['keyId']})
         return result
     def package(self,digest):
         require(DIGEST.fullmatch(digest or ''),'Invalid package digest')

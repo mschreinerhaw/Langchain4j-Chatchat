@@ -17,6 +17,7 @@ public class DeploymentOpsApplication {
             com.chatchat.deployment.backup.BackupVerifier.prepare(java.nio.file.Path.of(args[1]));
             return;
         }
+        com.chatchat.deployment.runtime.StandaloneRuntime.start();
         SpringApplication application=new SpringApplication(DeploymentOpsApplication.class);
         application.addInitializers(context->com.chatchat.deployment.storage.StorageGuard.validateDatasource(context.getEnvironment()));
         application.run(args);

@@ -16,7 +16,7 @@
   </dependencies>
   <build>
     <sourceDirectory>${project.basedir}</sourceDirectory>
-    <resources><resource><directory>src/main/resources</directory></resource><resource><directory>backend</directory><includes><include>schema.sql</include></includes></resource><resource><directory>web-ui/dist</directory><targetPath>static</targetPath></resource><resource><directory>frontend</directory><targetPath>static/legacy</targetPath></resource></resources>
+    <resources><resource><directory>executor</directory><targetPath>standalone/executor</targetPath><includes><include>*.py</include></includes></resource><resource><directory>release/trust</directory><targetPath>standalone/trust</targetPath><includes><include>*.json</include></includes></resource><resource><directory>src/main/resources</directory></resource><resource><directory>backend</directory><includes><include>schema.sql</include></includes></resource><resource><directory>web-ui/dist</directory><targetPath>static</targetPath></resource><resource><directory>frontend</directory><targetPath>static/legacy</targetPath></resource></resources>
     <plugins>
     <plugin><groupId>org.apache.maven.plugins</groupId><artifactId>maven-compiler-plugin</artifactId><executions><execution><id>default-compile</id><configuration><includes><include>src/main/java/**/*.java</include><include>backend/src/Main.java</include><include>backend/src/ManagerApi.java</include></includes></configuration></execution></executions></plugin><plugin><groupId>org.springframework.boot</groupId><artifactId>spring-boot-maven-plugin</artifactId></plugin></plugins></build>
 </project>

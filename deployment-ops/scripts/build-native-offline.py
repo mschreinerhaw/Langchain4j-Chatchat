@@ -37,6 +37,8 @@ with tempfile.TemporaryDirectory() as temp:
                     str(root / 'backend/src/Main.java'), str(root / 'backend/src/ManagerApi.java')], check=True)
     shutil.copytree(root / 'src/main/resources', classes, dirs_exist_ok=True)
     shutil.copy2(root / 'backend/schema.sql', classes / 'schema.sql')
+    shutil.copytree(root / 'executor', classes / 'standalone/executor', ignore=shutil.ignore_patterns('__pycache__'), dirs_exist_ok=True)
+    shutil.copytree(root / 'release/trust', classes / 'standalone/trust', dirs_exist_ok=True)
     if (root / 'web-ui/dist').is_dir():
         shutil.copytree(root / 'web-ui/dist', classes / 'static', dirs_exist_ok=True)
     shutil.copytree(root / 'frontend', classes / 'static/legacy', dirs_exist_ok=True)

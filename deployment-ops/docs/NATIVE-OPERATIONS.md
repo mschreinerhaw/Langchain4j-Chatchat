@@ -1,5 +1,15 @@
 # Deployment Ops 原生安装与运维
 
+## 单 JAR 入口（新增）
+
+可直接使用 `java -jar deployment-ops.jar` 启动，执行器与 Vue 资源随 JAR 提供。
+首次访问 `http://127.0.0.1:19240`，填写启动终端显示的安装令牌，自行设置管理员密码。
+随后导入签名离线包、查看安装协议、填写业务账号密码并部署；不需要先执行安装脚本。
+当前前提仍为 Linux、真实 `/mnt/disk01`、Java17、Python3.11，部署业务时需 Docker。
+如需远程访问，在启动命令前设置 `OPS_BIND=0.0.0.0`，并限制管理网访问。
+协议约定及示例见 `INSTALLATION-PROTOCOL.md`。已有 systemd 部署模式继续支持。
+单 JAR 模式的进程更新采用停止 JVM、替换 JAR、重新启动；不使用 systemd 自升级接口。
+
 本文件适用于 `deployment-ops-native/v1` 原生发行包。实际版本见 `release.json`；正式包的执行证据见 `docs/acceptance/report.json`。RC 候选包不得当作正式 V1.0 验收通过。
 
 ## 安装前提

@@ -9,6 +9,10 @@
       </button>
     </template>
     <ResourceState :error="error" @retry="refresh" />
+    <p v-if="!managed" class="notice">
+      当前直接启动模式可创建、下载一致性备份。自动停止及替换数据库的恢复流程需要原生服务模式；请勿在平台运行时覆盖
+      H2 文件。
+    </p>
     <p v-if="message" class="notice success" role="status">{{ message }}</p>
     <p v-if="operationError" class="notice danger" role="alert">{{ operationError }}</p>
     <DataTable :rows="data || []" :columns="columns" row-key="name">
@@ -19,6 +23,7 @@
         <div class="table-actions">
           <a class="button" :href="'/api/backups/' + row.name + '/download'">下载</a>
           <button
+            :disabled="!managed"
             @click="
               selected = row;
               confirmation = '';
@@ -55,6 +60,7 @@
   import DataTable from '../ui/DataTable.vue';
   import StateBadge from '../ui/StateBadge.vue';
   import ResourceState from '../ui/ResourceState.vue';
+  defineProps({ managed: Boolean });
   const { data, error, refresh } = useResource(platformApi.backups, { initial: [] }),
     busy = ref(false),
     message = ref(''),

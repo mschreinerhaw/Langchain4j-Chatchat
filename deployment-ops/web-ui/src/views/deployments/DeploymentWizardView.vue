@@ -41,6 +41,7 @@
         </footer>
       </form>
       <template v-else-if="step === 1">
+        <InstallationProtocol :protocol="release?.installationProtocol" />
         <label>
           选择可信离线发行包
           <select v-model="digest" @change="initializeParameters">
@@ -62,6 +63,7 @@
         </footer>
       </template>
       <form v-else-if="step === 2" @submit.prevent="preflight">
+        <InstallationProtocol :protocol="release?.installationProtocol" />
         <ParameterFields
           v-model="parameters"
           :fields="release?.parameters || {}"
@@ -147,6 +149,7 @@
   import StateBadge from '../../components/ui/StateBadge.vue';
   import PackageUpload from '../../components/deployments/PackageUpload.vue';
   import ParameterFields from '../../components/deployments/ParameterFields.vue';
+  import InstallationProtocol from '../../components/deployments/InstallationProtocol.vue';
   import PreflightReview from '../../components/deployments/PreflightReview.vue';
   import TaskSteps from '../../components/tasks/TaskSteps.vue';
   const route = useRoute(),

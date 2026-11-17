@@ -21,25 +21,47 @@
     </section>
     <section class="login-card">
       <p class="eyebrow">ADMINISTRATOR ACCESS</p>
-      <h2>登录运维工作台</h2>
-      <p class="muted">使用首次安装时配置的管理员账号。</p>
+      <h2>{{ setup ? '首次安装 · 创建管理员' : '登录运维工作台' }}</h2>
+      <p class="muted">
+        {{
+          setup
+            ? '输入启动终端中的安装令牌，并自行设置管理员密码。'
+            : '使用首次安装时配置的管理员账号。'
+        }}
+      </p>
       <form @submit.prevent="login">
         <label>
           账号
-          <input v-model="credentials.username" autocomplete="username" required />
+          <input
+            v-model="credentials.username"
+            :readonly="setup"
+            autocomplete="username"
+            required
+          />
         </label>
         <label>
           密码
           <input
             v-model="credentials.password"
             type="password"
-            autocomplete="current-password"
+            :autocomplete="setup ? 'new-password' : 'current-password'"
+            :minlength="setup ? 12 : 1"
             required
           />
         </label>
+        <template v-if="setup">
+          <label>
+            确认密码
+            <input v-model="confirmation" type="password" autocomplete="new-password" required />
+          </label>
+          <label>
+            安装令牌
+            <input v-model="token" type="password" autocomplete="off" required />
+          </label>
+        </template>
         <p v-if="error" class="notice danger" role="alert">{{ error }}</p>
         <button class="primary full-width" :disabled="busy">
-          {{ busy ? '正在登录…' : '登录' }}
+          {{ busy ? '正在处理…' : setup ? '创建管理员并登录' : '登录' }}
         </button>
       </form>
       <small class="muted">登录和管理操作会记录在平台审计日志中。</small>
@@ -47,7 +69,8 @@
   </main>
 </template>
 <script setup>
-  import { reactive, ref } from 'vue';
+  import { reactive, ref, onMounted } from 'vue';
+  import { get, post } from '../../api/client';
   import { useRouter, useRoute } from 'vue-router';
   import { useSession } from '../../stores/session';
   const credentials = reactive({ username: 'admin', password: '' }),
@@ -56,10 +79,27 @@
     router = useRouter(),
     route = useRoute(),
     session = useSession();
+  const setup = ref(false),
+    token = ref(''),
+    confirmation = ref('');
+  onMounted(async () => {
+    try {
+      setup.value = (await get('/setup')).required;
+    } catch (e) {
+      error.value = e.message;
+    }
+  });
   async function login() {
     busy.value = true;
     error.value = '';
     try {
+      if (setup.value) {
+        if (credentials.password !== confirmation.value) throw new Error('两次输入的密码不一致');
+        await post('/setup', { token: token.value, password: credentials.password });
+        setup.value = false;
+        token.value = '';
+        confirmation.value = '';
+      }
       await session.login(credentials);
       credentials.password = '';
       const destination = String(route.query.redirect || '/overview');

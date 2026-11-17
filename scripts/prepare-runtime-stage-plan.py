@@ -12,6 +12,7 @@ p.add_argument('--installer-image',required=True)
 p.add_argument('--plan',type=pathlib.Path,required=True)
 p.add_argument('--recipe',type=pathlib.Path,required=True)
 p.add_argument('--version',required=True)
+p.add_argument('--upgrade-from',action='append',default=[],help='Explicit verified predecessor release version')
 p.add_argument('--source-commit',required=True)
 a=p.parse_args();assert not a.plan.exists() and not a.recipe.exists()
 STAGE=pathlib.Path('/opt/runtime-os-docker-stage');NATIVE=pathlib.Path('/opt/runtime-os/native-temporal/rc-20261112')
@@ -59,6 +60,7 @@ gateway=json.loads((STAGE/'compose.gateway-ui.json').read_text())
 gateway_text=(STAGE/'config/public-gateway.conf').read_text()
 metadata=json.dumps({'release':a.version,'sourceCommit':a.source_commit,'nativeNodes':'1.3','existingStageDataReused':True},separators=(',',':'))
 gateway_text='\n'.join(('    location = /version.json { default_type application/json; add_header Cache-Control no-store; return 200 '+"'"+metadata+"'; }") if 'location = /version.json ' in line else line for line in gateway_text.splitlines())+'\n'
+generated_text={'public-gateway.conf':gateway_text};security_sources={}
 for mount in gateway['services']['gateway']['volumes']:
  if mount['target']=='/srv/task-lifecycle-ui':mount['source']=str(ui)
  if mount['target']=='/srv/coding-monitor':mount['source']=str(monitor)
@@ -99,9 +101,16 @@ for group,definition in [('legacy',legacy),('native',native),('frontend',fronten
    if old_name:
     for network in service['networks'].values():network.setdefault('aliases',[]).append(old_name)
   if service.get('depends_on'):service['depends_on']={rename.get(n,n):v for n,v in service['depends_on'].items()}
-  for option in service.get('security_opt',[]):
-   if option.startswith('seccomp=') and option[8:].startswith('/'):
-    profile=pathlib.Path(option[8:]);service['security_opt'][service['security_opt'].index(option)]='seccomp='+json.dumps(json.loads(profile.read_text()),separators=(',',':'))
+  for index,option in enumerate(service.get('security_opt',[])):
+   if option.startswith(('seccomp=','seccomp:')):
+    value=option[8:]
+    if value=='unconfined':raise RuntimeError('An existing-stage release must retain an explicit seccomp profile')
+    if value.startswith('{'):profile=json.loads(value)
+    else:
+     file=pathlib.Path(value)
+     if not file.is_absolute():file=({'frontend':pathlib.Path('/opt/frontend-resource-hub/1.0.0'),'native':NATIVE,'legacy':STAGE,'gateway':STAGE}[group]/file).resolve()
+     profile=json.loads(file.read_text());security_sources[str(file)]=hashlib.sha256(file.read_bytes()).hexdigest()
+    filename=name+'-seccomp.conf';generated_text[filename]=json.dumps(profile,separators=(',',':'))+'\n';service['security_opt'][index]='seccomp=/install/generated/'+filename
   for mount in service.get('volumes',[]):
    source=mount.get('source') if isinstance(mount,dict) else mount.split(':')[0]
    if not source.startswith('/'):raise RuntimeError('Only explicit existing bind paths are allowed in this stage: '+name)
@@ -132,8 +141,8 @@ for name,service in compose['services'].items():
     candidate={'socket':original['dockerSocket'],'expectedId':original['expectedDaemonId']}
     if daemon is None:daemon=candidate
     assert daemon==candidate,'Executor profiles do not share the reviewed dedicated daemon'
-plan={'format':'runtime-os-stage-plan/v1','stageRoot':str(STAGE),'compose':compose,'stages':stages,'executionImage':images['node']['imageId'],'administratorUrls':['http://127.0.0.1:18180/api/v1/enterprise/auth','http://127.0.0.1:18190/api/v1/admin/auth'],'executorSockets':sockets,'executorDaemon':daemon,'generatedProfiles':generated,'generatedText':{'public-gateway.conf':gateway_text}}
-sources={}
+plan={'format':'runtime-os-stage-plan/v1','stageRoot':str(STAGE),'compose':compose,'stages':stages,'executionImage':images['node']['imageId'],'administratorUrls':['http://127.0.0.1:18180/api/v1/enterprise/auth','http://127.0.0.1:18190/api/v1/admin/auth'],'executorSockets':sockets,'executorDaemon':daemon,'generatedProfiles':generated,'generatedText':generated_text}
+sources=dict(security_sources)
 for f in [STAGE/'config/api.env',STAGE/'config/mcp.env',STAGE/'config/news.env',STAGE/'config/deployment.env',NATIVE/'compose.private.json',STAGE/'compose.yaml',STAGE/'config/public-gateway.conf']:
  sources[str(f)]=hashlib.sha256(f.read_bytes()).hexdigest()
 for service in compose['services'].values():
@@ -157,7 +166,7 @@ for group in stages:
   if s.get('network_mode','').startswith('service:'):dep.append(s['network_mode'].split(':',1)[1])
   components.append({'id':name,'image':roles[name],'dependsOn':sorted(set(dep)),'entrypoint':[x.replace('${','$${') for x in s['entrypoint']],'command':[x.replace('${','$${') for x in s['command']],'health':{'type':'docker','source':'docker' if s.get('healthcheck') else 'native-installer'}})
  previous=group
-manifest={'schemaVersion':1,'name':'runtime-os','version':a.version,'platform':'linux/amd64','description':'Explicit existing-stage data/configuration reuse. No database initialization, password reset, data copying, volume removal or directory ownership change. Private plan is hash-pinned outside this archive.','requirements':{'memoryBytes':3*1024**3,'diskBytes':1024**3},'upgradeFrom':[],'dataCompatibility':'initial-only','parameters':{'serverAddress':{'type':'string','label':'Server address','default':'192.168.195.221'},'httpPort':{'type':'integer','label':'Existing HTTP port','default':18100,'min':18100,'max':18100},'mcpPort':{'type':'integer','label':'Existing MCP port','default':18101,'min':18101,'max':18101},'directoryName':{'type':'string','label':'Management journal directory','default':'stage-v13','pattern':'[a-z0-9-]{1,16}'},'osAdminPassword':{'type':'string','label':'Existing Runtime administrator password (not reset)','secret':True,'required':True,'pattern':'.{1,128}'}},'images':{r:{'source':e['reference']} for r,e in images.items()},'volumes':{},'components':components,'runtimeInstaller':{'protocol':'runtime-os-native/v1','contractVersion':1,'image':'installer','imageMap':'assets/runtime-images.json','services':list(compose['services']),'schemaHashes':{'existing-stage-no-schema-initialization':hashlib.sha256(b'validate-only-no-schema-initialization-v1').hexdigest()},'stagePlan':{'name':a.plan.name,'sha256':hashlib.sha256(a.plan.read_bytes()).hexdigest()}},'links':[{'name':'Runtime OS','url':'http://${serverAddress}:${httpPort}/'},{'name':'MCP','url':'http://${serverAddress}:${mcpPort}/'}]}
+manifest={'schemaVersion':1,'name':'runtime-os','version':a.version,'platform':'linux/amd64','description':'Explicit existing-stage data/configuration reuse. No database initialization, password reset, data copying, volume removal or directory ownership change. Private plan is hash-pinned outside this archive.','requirements':{'memoryBytes':3*1024**3,'diskBytes':1024**3},'upgradeFrom':a.upgrade_from,'dataCompatibility':'backward-compatible' if a.upgrade_from else 'initial-only','parameters':{'serverAddress':{'type':'string','label':'Server address','default':'192.168.195.221'},'httpPort':{'type':'integer','label':'Existing HTTP port','default':18100,'min':18100,'max':18100},'mcpPort':{'type':'integer','label':'Existing MCP port','default':18101,'min':18101,'max':18101},'directoryName':{'type':'string','label':'Management journal directory','default':'stage-v13','pattern':'[a-z0-9-]{1,16}'},'osAdminPassword':{'type':'string','label':'Existing Runtime administrator password (not reset)','secret':True,'required':True,'pattern':'.{1,128}'}},'images':{r:{'source':e['reference']} for r,e in images.items()},'volumes':{},'components':components,'runtimeInstaller':{'protocol':'runtime-os-native/v1','contractVersion':1,'image':'installer','imageMap':'assets/runtime-images.json','services':list(compose['services']),'schemaHashes':{'existing-stage-no-schema-initialization':hashlib.sha256(b'validate-only-no-schema-initialization-v1').hexdigest()},'stagePlan':{'name':a.plan.name,'sha256':hashlib.sha256(a.plan.read_bytes()).hexdigest()}},'links':[{'name':'Runtime OS','url':'http://${serverAddress}:${httpPort}/'},{'name':'MCP','url':'http://${serverAddress}:${mcpPort}/'}]}
 (a.recipe/'manifest.json').write_text(json.dumps(manifest,indent=2)+'\n')
 mounts=[]
 for name,service in compose['services'].items():

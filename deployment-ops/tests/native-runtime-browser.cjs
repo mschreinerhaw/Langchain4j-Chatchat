@@ -31,7 +31,13 @@ const {chromium}=require(process.env.PLAYWRIGHT_MODULE||'/app/node_modules/playw
   await page.locator('#parameter-serverAddress').fill('192.168.195.221');await page.locator('#parameter-httpPort').fill(process.env.OPS_RUNTIME_HTTP_PORT||'19400');await page.locator('#parameter-mcpPort').fill(process.env.OPS_RUNTIME_MCP_PORT||'19401');await page.locator('#parameter-osAdminPassword').fill(process.env.OPS_RUNTIME_PASSWORD);
   const preflight=page.waitForResponse(r=>r.url().endsWith('/installations/preflight'),{timeout:180000});await page.getByRole('button',{name:'运行部署预检',exact:true}).click();const reviewed=await preflight;assert.equal(reviewed.status(),200);const review=await reviewed.json();assert.equal(review.ok,true,JSON.stringify(review));await page.getByLabel('输入环境名称确认执行',{exact:true}).fill(env);await capture('deployment-preflight');
   const response=page.waitForResponse(r=>r.url().endsWith('/installations')&&r.request().method()==='POST');await page.getByRole('button',{name:'确认部署 / 升级',exact:true}).click();const started=await response;assert.equal(started.status(),200);job=await started.json();checks.push('deployment submitted through real Vue wizard');console.log('Runtime deployment task '+job.id);
-  }else{job=await api('/api/nodes/1/installations/'+process.env.OPS_RUNTIME_JOB);await page.goto(base+'/#/tasks/deployment/1/'+job.id);checks.push('observed retained task after explicit recovery');}
+  }else{job=await api('/api/nodes/1/installations/'+process.env.OPS_RUNTIME_JOB);await page.goto(base+'/#/tasks/deployment/1/'+job.id);checks.push('observed retained task after explicit recovery');
+  if(job.status==='failed'&&process.env.OPS_RESUME_FAILED==='1'){
+   await page.getByRole('button',{name:'\u6062\u590d\u6267\u884c',exact:true}).click();await page.getByLabel('\u8f93\u5165\u73af\u5883\u540d\u79f0\u786e\u8ba4',{exact:true}).fill(env);
+   const resumed=page.waitForResponse(r=>r.url().endsWith('/'+job.id+'/resume'),{timeout:180000});
+   await page.getByRole('button',{name:'\u786e\u8ba4\u6062\u590d\u6267\u884c',exact:true}).click();assert.equal((await resumed).status(),200);
+   checks.push('explicit GUI recovery after repairing verified missing configuration');await capture('configuration-recovery');
+  }}
   for(let attempt=0;attempt<600;attempt++){
    try{job=await api('/api/nodes/1/installations/'+job.id);}catch(error){if(!process.env.OPS_RESTART_ACCEPTANCE||attempt>590)throw error;await page.waitForTimeout(3000);continue;}
    fs.writeFileSync(out+'/deployment-task.json',JSON.stringify(job,null,2));

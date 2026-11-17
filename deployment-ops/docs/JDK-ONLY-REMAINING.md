@@ -53,6 +53,24 @@ Java 原有13项测试通过，新增3项协议安全/依赖/凭据测试通过�
 正式发布标签仍禁止创建。`deploy/native` 属于旧外部Python执行器的兼容安装目录，
 新产品默认入口应采用 `deploy/jdk`，不能用旧安装器的验收替代新实现验收。
 
+最新检查点补充：
+
+- rc.6 源码 `0f9dad45f`，服务器JAR SHA-256
+  `795f46cf1a17331392e0279930180342d036a06fd1479a99c46022673db80b90`。
+  当前19270测试单元 `deployment-ops-jdk-only-qa-r6`；rc.5于20:29收到SIGTERM退出，
+  完整上传 `80b64294475e41dd80b298ce984f697a` 已从网页API重新校验，无需重传。
+- 私有网络/不可访问DockerSocket真实启动、首次创建管理员、H2配置持久化、
+  重启后登录及主机实际指标两轮通过；rc.6 JAR检查无 `.py` 资源。
+- Native真实升级到1.0.1-image-qa成功，任务 `627f19a2162844fea62552974601c02c`，
+  gateway已换成 `sha256:0fc453892edf427a59ab96bcd2599793d98d95a83edb70bf5588bcf3cfcc4e56`，
+  三个执行器Unix健康接口均HEALTHY且resourceEnforced=true。失败升级介质正在导入。
+- 新增纯Java systemd独立维护进程：验证发行包、冻结业务变更、保存两H2及实例配置、
+  平台JAR切换、真实PID/健康门禁、失败快照恢复、显式中断恢复入口；仍待服务安装后的实测。
+- 新操作文档 `JDK-OPERATIONS.md`，离线包默认README改为此入口；旧兼容源码仍保留。
+
+继续入口：完成新检查点源码服务器编译，`--install-service` 注册独立QA服务19290/19292，
+通过网页初始化后执行实际平台升级/失败升级回退；不要覆盖原19240正式服务或已验证Runtime数据。
+
 当前Java源码在 src/main/java/com/chatchat/deployment/{docker,execution,protocol}。
 StandaloneRuntime 已选择 JdkExecutor，不再启动解释器。Maven及离线构建不向运行JAR复制Python执行器。
 共享变更锁阻止互相干扰；平台关闭只终止HTTP服务/线程，不执行业务停止。

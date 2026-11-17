@@ -55,10 +55,15 @@ public class NativeManagementRoutes {
             else if(path.matches("/api/backups/backup-[a-f0-9-]{36}\\.zip/download")&&!write){
                 Path file=backups.file(path.split("/")[3]);audit(actor,"backup-download",file.getFileName().toString(),"requested");x.getResponseHeaders().set("Content-Type","application/zip");x.getResponseHeaders().set("Content-Disposition","attachment; filename="+file.getFileName());x.sendResponseHeaders(200,Files.size(file));Files.copy(file,x.getResponseBody());x.close();return true;
             }else if(path.equals("/api/platform/maintenance")){
+                if(!role.equals("admin")){send(x,403,Map.of("error","Administrator required"));return true;}
                 Map<String,Object> request=write?body(x):Map.of();String action=String.valueOf(request.get("action"));
                 if(write){
                 if(!Set.of("restore","upgrade").contains(action))throw new IllegalArgumentException("Unsupported platform operation");
                 String target=String.valueOf(request.get("name"));if(!String.valueOf(request.get("confirmation")).equals(action.toUpperCase(Locale.ROOT)+":"+target))throw new IllegalArgumentException("Exact maintenance scope confirmation required");
+                }
+                if(env.getProperty("OPS_EXECUTOR_IMPLEMENTATION","").equals("JDK")) {
+                    value=write?com.chatchat.deployment.runtime.ServiceMaintenance.submit(json.valueToTree(request),actor):com.chatchat.deployment.runtime.ServiceMaintenance.list();
+                    if(write)audit(actor,method,path,"accepted");send(x,value);return true;
                 }
                 var client=HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(3)).build();
                 var builder=HttpRequest.newBuilder(URI.create(env.getProperty("OPS_EXECUTOR_URL","http://127.0.0.1:19242")+"/platform/maintenance")).timeout(Duration.ofSeconds(10)).header("Authorization","Bearer "+env.getProperty("EXECUTOR_TOKEN","")).header("X-Ops-Actor",actor);

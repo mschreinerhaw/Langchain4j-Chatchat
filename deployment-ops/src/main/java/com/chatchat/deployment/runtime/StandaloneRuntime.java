@@ -20,6 +20,8 @@ public final class StandaloneRuntime {
         root=com.chatchat.deployment.storage.StorageGuard.managedDirectory(root);Files.setPosixFilePermissions(root,PosixFilePermissions.fromString("rwx------"));
         channel=FileChannel.open(root.resolve("process.lock"),StandardOpenOption.CREATE,StandardOpenOption.WRITE);lock=channel.tryLock();
         if(lock==null)throw new IllegalStateException("This standalone instance is already running");
+        ServiceMaintenance.checkStartup();
+        System.setProperty("OPS_MAINTENANCE_FLAG",root.getParent().resolve("maintenance/active-jdk.json").toString());
         Properties config=new Properties();Path file=root.resolve("instance.properties");
         if(Files.exists(file)){if(!Files.isRegularFile(file,LinkOption.NOFOLLOW_LINKS))throw new IllegalStateException("Invalid private instance configuration");try(var in=Files.newInputStream(file)){config.load(in);}}
         else{

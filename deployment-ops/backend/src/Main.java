@@ -76,6 +76,7 @@ public class Main {
   if(path.equals("/api/me")&&method.equals("GET")){send(x,200,user.get(0));return;}
   String actor=user.get(0).get("username").toString();boolean write=!method.equals("GET");
   if(write){if(!path.equals("/api/logout")&&!"admin".equals(user.get(0).get("role"))){send(x,403,Map.of("error","admin required"));return;}if(!"1".equals(x.getRequestHeaders().getFirst("X-Ops-Request"))){send(x,403,Map.of("error","request header required"));return;}}
+  if(write&&System.getProperty("OPS_MAINTENANCE_FLAG")!=null&&Files.exists(Path.of(System.getProperty("OPS_MAINTENANCE_FLAG")))){send(x,409,Map.of("error","Platform maintenance is active; wait for health check or recovery"));return;}
   if(ManagerApi.route(x,actor,user.get(0).get("role").toString()))return;
   if(nativeRoutes!=null){try{if(Boolean.TRUE.equals(nativeRoutes.getClass().getMethod("route",HttpExchange.class,String.class,String.class).invoke(nativeRoutes,x,actor,user.get(0).get("role").toString())))return;}catch(java.lang.reflect.InvocationTargetException error){if(error.getCause() instanceof Exception cause)throw cause;throw error;}}
   if(path.equals("/api/logout")&&write){sql("DELETE FROM sessions WHERE token=?",hash(token,"session"));send(x,200,Map.of("ok",true));return;}

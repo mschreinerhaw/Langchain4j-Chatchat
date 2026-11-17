@@ -18,12 +18,24 @@ public class DeploymentOpsApplication {
             com.chatchat.deployment.protocol.LocalPackageImport.run(args);
             return;
         }
+        if(args.length==2 && args[0].equals("--resume-import")) {
+            com.chatchat.deployment.protocol.LocalPackageImport.resume(args[1]);
+            return;
+        }
         if(args.length>0 && args[0].equals("--restore-backup")) {
             com.chatchat.deployment.backup.LocalRecovery.run(args);
             return;
         }
         if(args.length>0 && args[0].equals("--install-service")) {
             com.chatchat.deployment.runtime.ServiceInstaller.run(args);
+            return;
+        }
+        if(args.length==2 && args[0].equals("--service-maintenance")) {
+            com.chatchat.deployment.runtime.ServiceMaintenance.run(args[1]);
+            return;
+        }
+        if(args.length==2 && args[0].equals("--recover-maintenance")) {
+            com.chatchat.deployment.runtime.ServiceMaintenance.recover(args[1]);
             return;
         }
         if(args.length==2 && args[0].equals("--verify-backup")) {

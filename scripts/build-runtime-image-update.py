@@ -31,7 +31,7 @@ for role,entry in images.items():assert inspect(entry['reference'])['Id']==entry
 for role in list(images):
  ref='runtime-os-'+role+':'+a.version
  exists=subprocess.run(['docker','image','inspect',ref],stdout=subprocess.DEVNULL,stderr=subprocess.DEVNULL).returncode==0
- assert not exists or role not in ('node','studio') and inspect(ref)['Id']==entry['imageId'],'Immutable release image already differs: '+ref
+ assert not exists or role not in ('node','studio') and inspect(ref)['Id']==images[role]['imageId'],'Immutable release image already differs: '+ref
  if role not in ('node','studio'):run(['docker','tag',images[role]['imageId'],ref])
  images[role]['reference']=ref
 node=a.source/'cline-agent-server'

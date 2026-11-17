@@ -5,8 +5,13 @@ ROOT=Path(__file__).resolve().parents[1]
 sys.path.insert(0,str(ROOT/'executor'))
 from package_store import validate_manifest,member_name,safe_name
 p=argparse.ArgumentParser(description=__doc__)
-p.add_argument('--image-archive',type=Path);p.add_argument('--image-archives',type=Path,help='Reviewed JSON mapping image roles to existing Docker-save TAR paths');p.add_argument('--store-images',action='store_true');p.add_argument('--manifest',required=True,type=Path);p.add_argument('--assets',required=True,type=Path);p.add_argument('--private-key',required=True,type=Path);p.add_argument('--key-id',required=True);p.add_argument('--output',required=True,type=Path);p.add_argument('--signer-image');p.add_argument('--classes',type=Path,default=ROOT/'backend/classes');p.add_argument('--libraries',type=Path,default=ROOT/'backend/lib');args=p.parse_args()
+p.add_argument('--image-archive',type=Path);p.add_argument('--image-archives',type=Path,help='Reviewed JSON mapping image roles to existing Docker-save TAR paths');p.add_argument('--store-images',action='store_true');p.add_argument('--manifest',required=True,type=Path);p.add_argument('--assets',required=True,type=Path);p.add_argument('--private-key',required=True,type=Path);p.add_argument('--key-id',required=True);p.add_argument('--output',required=True,type=Path);p.add_argument('--signer-image');p.add_argument('--classes',type=Path,default=ROOT/'backend/classes');p.add_argument('--libraries',type=Path,default=ROOT/'backend/lib');p.add_argument("--reflink-from",type=Path,help="Trusted complete base ZIP on a reflink filesystem");p.add_argument("--reflink-sha256",help="Required publisher SHA256 for the base ZIP");args=p.parse_args()
 if args.output.exists():raise SystemExit('Output already exists; use a new release filename')
+if args.reflink_from:
+ if not args.reflink_sha256 or len(args.reflink_sha256)!=64:raise SystemExit('Publisher SHA-256 is required for reflink base')
+ if args.reflink_from.is_symlink() or not args.reflink_from.is_file():raise SystemExit('Reflink source must be a regular complete archive')
+ with args.reflink_from.open('rb') as stream:
+  if hashlib.file_digest(stream,'sha256').hexdigest()!=args.reflink_sha256:raise SystemExit('Reflink base SHA-256 mismatch')
 manifest=json.loads(args.manifest.read_text(encoding='utf-8'))
 reuse=json.loads(args.image_archives.read_text()) if args.image_archives else None
 if reuse is not None and (args.image_archive or set(reuse)!=set(manifest['images'])):raise SystemExit('Archive map must cover every image role and cannot combine with --image-archive')
@@ -58,8 +63,31 @@ with tempfile.TemporaryDirectory(prefix='ops-package-',dir=args.output.resolve()
 
  payload.update({'checksums.json':inventory,'signature.json':folder/'signature.json'})
  print('Writing signed offline archive...',flush=True)
- with zipfile.ZipFile(args.output,'w',compression=zipfile.ZIP_DEFLATED,compresslevel=1,allowZip64=True) as archive:
-  for name,file in sorted(payload.items()):archive.write(file,name,compress_type=zipfile.ZIP_STORED if args.store_images and name.startswith('images/') else zipfile.ZIP_DEFLATED)
+ if args.reflink_from:
+  # Preserve image compressed bytes using filesystem CoW. Old metadata is removed
+  # from the central directory; no original file or private key is modified.
+  with zipfile.ZipFile(args.reflink_from) as base:
+   old_checks=json.loads(base.read('checksums.json'));retained={}
+   for name,file in payload.items():
+    if name.startswith('images/'):
+     entry=base.getinfo(name)
+     if old_checks.get(name)!=checksums[name] or entry.file_size!=file.stat().st_size:raise ValueError('Reflink base image differs from selected pinned archive')
+     retained[name]=entry
+  try:
+   run(['/bin/cp','--reflink=always','--',str(args.reflink_from),str(args.output)])
+   with zipfile.ZipFile(args.output,'a',compression=zipfile.ZIP_DEFLATED,compresslevel=1,allowZip64=True) as archive:
+    archive.filelist=list(retained.values());archive.NameToInfo=dict(retained)
+    for name,file in sorted(payload.items()):
+     if name not in retained:archive.write(file,name)
+   with zipfile.ZipFile(args.output) as archive:
+    if set(archive.namelist())!=set(payload) or len(archive.namelist())!=len(payload):raise ValueError('Reflink ZIP member inventory mismatch')
+  except Exception:
+   # Only the uniquely named output created by this invocation is disposable.
+   if args.output.exists():args.output.unlink()
+   raise
+ else:
+  with zipfile.ZipFile(args.output,'w',compression=zipfile.ZIP_DEFLATED,compresslevel=1,allowZip64=True) as archive:
+   for name,file in sorted(payload.items()):archive.write(file,name,compress_type=zipfile.ZIP_STORED if args.store_images and name.startswith('images/') else zipfile.ZIP_DEFLATED)
 with args.output.open('rb') as stream:digest=hashlib.file_digest(stream,'sha256').hexdigest()
 args.output.with_suffix(args.output.suffix+'.sha256').write_text(digest+'  '+args.output.name+'\n',encoding='ascii')
 print(json.dumps({'file':str(args.output),'sha256':digest,'package':manifest['name'],'version':manifest['version']}))

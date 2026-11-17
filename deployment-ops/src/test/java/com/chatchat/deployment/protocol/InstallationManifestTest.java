@@ -37,4 +37,9 @@ class InstallationManifestTest {
         for(String name:new String[]{"../escape","/absolute","assets/../../escape","assets//file"})assertThrows(IllegalArgumentException.class,()->InstallationManifest.member(name));
         for(String path:new String[]{"/proc/1/root","/var/run/docker.sock","/data/../../etc","/"})assertThrows(IllegalArgumentException.class,()->InstallationManifest.containerPath(path));
     }
+    @Test void distinguishesLiteralContainerVariablesFromUserParameters()throws Exception {
+        var parameters=json.createObjectNode().put("password","$${must_stay_literal}").put("root","/data");
+        assertEquals("${HOME} /data $${must_stay_literal}",InstallationManifest.render(json.getNodeFactory().textNode("$${HOME} ${root} ${password}"),parameters).asText());
+        assertThrows(IllegalArgumentException.class,()->InstallationManifest.render(json.getNodeFactory().textNode("${unknown}"),parameters));
+    }
 }

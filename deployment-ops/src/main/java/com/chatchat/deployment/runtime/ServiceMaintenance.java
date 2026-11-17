@@ -63,6 +63,14 @@ public final class ServiceMaintenance {
     }
     private static void progress(ObjectNode job,String phase)throws Exception{job.put("status","running").put("phase",phase).put("updatedAt",StateFiles.now());jobs().write(job.path("id").asText()+".json",job);}
     public static void run(String id)throws Exception {
+        exclusive(()->execute(id));
+    }
+    @FunctionalInterface private interface Work {void run()throws Exception;}
+    private static void exclusive(Work work)throws Exception {
+        Path directory=StorageGuard.managedDirectory(state().resolve("maintenance")),file=directory.resolve("worker.lock");require(!Files.isSymbolicLink(file),"Invalid maintenance worker lock");
+        try(FileChannel channel=FileChannel.open(file,StandardOpenOption.CREATE,StandardOpenOption.WRITE);FileLock lock=channel.tryLock()){require(lock!=null,"A maintenance worker is still running");work.run();}
+    }
+    private static void execute(String id)throws Exception {
         require(id.matches("[a-f0-9]{32}"),"Invalid maintenance ID");ObjectNode job=(ObjectNode)jobs().read(id+".json");String service=service();require(service.equals(job.path("service").asText())&&job.path("status").asText().equals("queued"),"Maintenance scope or state changed");Path active=state().resolve("maintenance/active-jdk.json");require(Files.readString(active).equals(id),"Maintenance lock mismatch");String old=definition(service);Path oldJar=installedJar(old),archive=Path.of(job.path("archive").asText()).toAbsolutePath().normalize();require(archive.getParent().equals(state().resolve(job.path("action").asText().equals("restore")?"backups":"upgrades"))&&SignedPackageStore.sha(archive).equals(job.path("sha256").asText()),"Archive changed before execution");
         Path work=StorageGuard.managedDirectory(state().resolve("maintenance/work-"+id));Files.setPosixFilePermissions(work,PosixFilePermissions.fromString("rwx------"));Path unit=Path.of("/etc/systemd/system/"+service+".service");List<Path> files=List.of(data().resolve("deployment-ops.mv.db"),state().resolve("standalone/jdk/journal/execution.mv.db"),state().resolve("standalone/instance.properties"));boolean stopped=false,snapshotted=false;
         try {
@@ -77,7 +85,11 @@ public final class ServiceMaintenance {
         }finally{job.put("finishedAt",StateFiles.now());jobs().write(id+".json",job);if(Files.readString(active).equals(id)&&!job.path("recovery").path("status").asText().equals("failed"))Files.delete(active);}
     }
     public static void recover(String id)throws Exception {
+        exclusive(()->restoreSnapshot(id));
+    }
+    private static void restoreSnapshot(String id)throws Exception {
         require(id.matches("[a-f0-9]{32}"),"Invalid maintenance ID");Path active=state().resolve("maintenance/active-jdk.json");require(Files.exists(active)&&Files.readString(active).equals(id),"No matching incomplete maintenance");ObjectNode job=(ObjectNode)jobs().read(id+".json");String service=service();require(job.path("service").asText().equals(service),"Recovery service mismatch");
+        if(!job.has("snapshotHashes")){require(Set.of("queued","validate","stop_platform").contains(job.path("phase").asText("queued")),"Snapshot is incomplete; inspect retained files before recovery");String unchanged=definition(service);Path jar=installedJar(unchanged);systemctl("stop",service);job.put("phase","recovering");job.remove("recovery");jobs().write(id+".json",job);systemctl("start",service);health(service,jar);job.put("status","failed").put("finishedAt",StateFiles.now());job.set("recovery",StateFiles.JSON.createObjectNode().put("status","succeeded").put("message","Operation stopped before snapshot; unchanged platform restarted"));jobs().write(id+".json",job);Files.delete(active);return;}
         Path work=StorageGuard.managedDirectory(state().resolve("maintenance/work-"+id));String old=Files.readString(work.resolve("unit.before"));require(old.contains("\nWorkingDirectory="+state()+"\n")&&old.contains("\nEnvironment=OPS_DATA_DIR="+data()+"\n")&&old.contains("\nEnvironment=OPS_PLATFORM_SERVICE="+service+"\n"),"Snapshot unit scope mismatch");installedJar(old);
         require(SignedPackageStore.sha(work.resolve("unit.before")).equals(job.path("snapshotHashes").path("unit").asText()),"Unit snapshot checksum mismatch");List<Path> files=List.of(data().resolve("deployment-ops.mv.db"),state().resolve("standalone/jdk/journal/execution.mv.db"),state().resolve("standalone/instance.properties"));
         for(int i=0;i<files.size();i++)require(Files.isRegularFile(work.resolve("before-"+i),LinkOption.NOFOLLOW_LINKS)&&SignedPackageStore.sha(work.resolve("before-"+i)).equals(job.path("snapshotHashes").path(Integer.toString(i)).asText()),"Recovery snapshot checksum mismatch");

@@ -9,7 +9,7 @@ import java.security.SecureRandom;
 /** Executable signed installation contract shared by the generic and native adapters. */
 public final class InstallationManifest {
     private static final ObjectMapper JSON=new ObjectMapper();
-    private static final Pattern PARAMETER=Pattern.compile("\\$\\{([A-Za-z][A-Za-z0-9_]*)}");
+    private static final Pattern PARAMETER=Pattern.compile("\\$\\$\\{([A-Za-z][A-Za-z0-9_]*)}|\\$\\{([A-Za-z][A-Za-z0-9_]*)}");
     private InstallationManifest(){}
     public static void require(boolean ok,String message){if(!ok)throw new IllegalArgumentException(message);}
     public static String name(String value){require(value!=null&&value.matches("[a-z][a-z0-9-]{0,39}"),"Use a lowercase name, max 40 characters");return value;}
@@ -50,7 +50,7 @@ public final class InstallationManifest {
         }
         for(JsonNode link:manifest.path("links")){fields(link,"name,url");parameters.fields().forEachRemaining(e->{if(e.getValue().path("secret").asBoolean())require(!link.path("url").asText().contains("${"+e.getKey()+"}"),"Secret in application link");});}
         require(Set.of("initial-only","backward-compatible").contains(manifest.path("dataCompatibility").asText("initial-only")),"Invalid data compatibility");
-        if(manifest.has("runtimeInstaller")){JsonNode adapter=manifest.path("runtimeInstaller");fields(adapter,"protocol,image,imageMap,services,schemaHashes,sourceCommit");require(manifest.path("name").asText().equals("runtime-os")&&adapter.path("protocol").asText().equals("runtime-os-native/v1"),"Invalid native adapter");require(images.has(adapter.path("image").asText())&&files.contains(member(adapter.path("imageMap").asText())),"Unsigned native installer");require(adapter.path("services").isArray()&&adapter.path("services").size()>0&&adapter.path("services").size()<=64,"Native service inventory required");for(JsonNode service:adapter.path("services"))name(service.asText());require(adapter.path("schemaHashes").isObject()&&adapter.path("schemaHashes").size()>0,"Schema identities required");adapter.path("schemaHashes").fields().forEachRemaining(e->require(e.getValue().asText().matches("[a-f0-9]{64}"),"Invalid schema identity"));}
+        if(manifest.has("runtimeInstaller")){JsonNode adapter=manifest.path("runtimeInstaller");fields(adapter,"protocol,image,imageMap,services,schemaHashes,sourceCommit,contractVersion");require(manifest.path("name").asText().equals("runtime-os")&&adapter.path("protocol").asText().equals("runtime-os-native/v1"),"Invalid native adapter");require(images.has(adapter.path("image").asText())&&files.contains(member(adapter.path("imageMap").asText())),"Unsigned native installer");require(adapter.path("services").isArray()&&adapter.path("services").size()>0&&adapter.path("services").size()<=64,"Native service inventory required");Set<String> serviceNames=new HashSet<>();for(JsonNode service:adapter.path("services"))require(serviceNames.add(name(service.asText())),"Duplicate native service");if(adapter.has("contractVersion")){require(adapter.path("contractVersion").asInt()==1&&serviceNames.equals(byId.keySet()),"Native contract inventory mismatch");for(JsonNode c:components)require(c.has("entrypoint")&&c.has("command")&&c.has("dependsOn")&&c.path("entrypoint").size()+c.path("command").size()>0,"Native contract requires explicit startup argv and dependencies");}require(adapter.path("schemaHashes").isObject()&&adapter.path("schemaHashes").size()>0,"Schema identities required");adapter.path("schemaHashes").fields().forEachRemaining(e->require(e.getValue().asText().matches("[a-f0-9]{64}"),"Invalid schema identity"));}
         return order;
     }
     public static ObjectNode parameters(JsonNode schema,JsonNode provided,JsonNode previous){
@@ -67,7 +67,7 @@ public final class InstallationManifest {
         });return result;
     }
     public static JsonNode render(JsonNode value,JsonNode parameters){
-        if(value.isTextual()){Matcher match=PARAMETER.matcher(value.asText());StringBuffer output=new StringBuffer();while(match.find()){require(parameters.has(match.group(1)),"Unknown template parameter: "+match.group(1));match.appendReplacement(output,Matcher.quoteReplacement(parameters.path(match.group(1)).asText()));}match.appendTail(output);return TextNode.valueOf(output.toString());}
+        if(value.isTextual()){Matcher match=PARAMETER.matcher(value.asText());StringBuffer output=new StringBuffer();while(match.find()){if(match.group(1)!=null)match.appendReplacement(output,Matcher.quoteReplacement("${"+match.group(1)+"}"));else{require(parameters.has(match.group(2)),"Unknown template parameter: "+match.group(2));match.appendReplacement(output,Matcher.quoteReplacement(parameters.path(match.group(2)).asText()));}}match.appendTail(output);return TextNode.valueOf(output.toString());}
         if(value.isArray()){ArrayNode out=JSON.createArrayNode();for(JsonNode item:value)out.add(render(item,parameters));return out;}
         if(value.isObject()){ObjectNode out=JSON.createObjectNode();value.fields().forEachRemaining(e->out.set(e.getKey(),render(e.getValue(),parameters)));return out;}
         return value.deepCopy();

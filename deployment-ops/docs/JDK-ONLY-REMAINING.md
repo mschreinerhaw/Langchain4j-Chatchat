@@ -78,6 +78,27 @@ Java 原有13项测试通过，新增3项协议安全/依赖/凭据测试通过�
 旧失败QA服务 `deployment-ops-jdk-clean-qa` 已停止并禁用，保留其文件；不能将其记为安装验收通过。
 下一候选需以新实例 `deployment-ops-jdk-clean-v2-qa`、新数据目录重新验收19290/19292。
 
+上述新实例安装与网页首次初始化已通过。源码993e38a2e的rc.8 JAR
+`5cf29156371f661664aaeadc1aad6a1e326bcd0f888e2875de1138b6ba890e07`，
+完整候选ZIP `target/releases/deployment-ops-1.1.0-jdk-rc.8.zip`。
+该实例通过网页完整ZIP上传实际升级到rc.9（JAR
+`a30cd48942c0d77ebc77ce693eae11342afb407d5868501c38553b8d92d6b9cb`），
+任务 `9cb707e149574bd89b4720f1d61858c4` 成功。再上传真实无效端口配置的失败JAR发行包，
+任务 `95bb610234814a3f84eb314b4bda8a88` 失败并自动恢复rc.9及两个H2，原会话、配置和业务容器不变。
+
+当前新增完整原生安装合同：发布器在无网络/无DockerSocket/无客户目录的容器中调用
+受信源码纯渲染方法，输出24组件的依赖、ENTRYPOINT、CMD。Java新增contractVersion=1
+校验及实际容器argv比对；支持 `$${VAR}` 原样传递容器变量，不重新解释用户密码。
+新签名完整Runtime包 `/mnt/disk01/ops-publisher-20261116/runtime-os-1.0.3-protocol-20261117.ops.zip`，
+SHA256 `296d3b1757755df1a3f1acb12488aa64be1a634649a4a25132511542f37138c9`。
+用同盘CoW复用已验证镜像压缩字节，没有修改原包、镜像归档或私钥。新协议实际升级验收尚待执行。
+
+21:24回归：Java17项、Python兼容51项通过；Vue格式检查与生产构建通过。
+恢复入口：编译下一候选、在现有JDK Runtime管理数据目录注册纯Java系统服务
+`deployment-ops-jdk-runtime-qa`（19270/19272），停止旧测试平台进程但保持业务运行。
+验证新合同实际升级，然后完成GUI资源回归、服务维护中断恢复、最终离线包安装及发行报告。
+正式标签仍未发布。
+
 当前Java源码在 src/main/java/com/chatchat/deployment/{docker,execution,protocol}。
 StandaloneRuntime 已选择 JdkExecutor，不再启动解释器。Maven及离线构建不向运行JAR复制Python执行器。
 共享变更锁阻止互相干扰；平台关闭只终止HTTP服务/线程，不执行业务停止。

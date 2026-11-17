@@ -9,6 +9,7 @@ EnvironmentFile=/mnt/disk01/deployment-ops/manager.env
 ExecStart=/usr/bin/java -jar /mnt/disk01/deployment-ops/lib/deployment-ops.jar
 Restart=on-failure
 TimeoutStopSec=45
+SuccessExitStatus=143
 KillMode=process
 UMask=0077
 

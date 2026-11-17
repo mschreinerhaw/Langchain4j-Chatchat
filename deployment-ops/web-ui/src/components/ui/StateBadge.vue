@@ -30,6 +30,7 @@
     unknown: ['状态未知', 'warning'],
     not_deployed: ['未部署', 'neutral'],
     cancelled: ['已取消', 'neutral'],
+    resolved: ['已结束', 'neutral'],
     rolled_back: ['已回滚', 'neutral'],
     rolling_back: ['回滚中', 'info'],
     starting: ['启动中', 'info'],

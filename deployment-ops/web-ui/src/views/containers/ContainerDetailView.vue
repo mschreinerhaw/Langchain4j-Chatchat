@@ -1,0 +1,84 @@
+<template>
+  <ResourceState :loading="loading && !data" :error="error" @retry="refresh" />
+  <template v-if="data">
+    <div class="application-banner">
+      <div>
+        <h2>
+          {{ data.inspect.Name?.replace(/^\//, '') }}
+          <StateBadge :status="data.inspect.State?.Status" />
+        </h2>
+        <p class="muted">{{ data.inspect.Config?.Image }} · {{ route.params.id.slice(0, 12) }}</p>
+      </div>
+      <RouterLink to="/containers" class="button">返回容器列表</RouterLink>
+    </div>
+    <div class="summary-grid">
+      <article class="summary-card">
+        <div>
+          <small>CPU 使用率</small>
+          <strong>{{ percent(data.metrics.cpuPercent) }}</strong>
+        </div>
+      </article>
+      <article class="summary-card">
+        <div>
+          <small>内存使用</small>
+          <strong>{{ bytes(data.metrics.memoryBytes) }}</strong>
+        </div>
+      </article>
+      <article class="summary-card">
+        <div>
+          <small>网络接收</small>
+          <strong>{{ bytes(data.metrics.networkRxBytes) }}</strong>
+        </div>
+      </article>
+      <article class="summary-card">
+        <div>
+          <small>网络发送</small>
+          <strong>{{ bytes(data.metrics.networkTxBytes) }}</strong>
+        </div>
+      </article>
+    </div>
+    <PanelCard title="实时日志">
+      <LogViewer :node="route.params.node" :id="route.params.id" />
+    </PanelCard>
+    <PanelCard title="运行配置与数据卷">
+      <dl class="facts">
+        <dt>启动时间</dt>
+        <dd>{{ dateTime(data.inspect.State?.StartedAt) }}</dd>
+        <dt>重启次数</dt>
+        <dd>{{ data.inspect.RestartCount }}</dd>
+        <dt>环境变量</dt>
+        <dd>
+          <code>{{ data.inspect.Config?.Env || '当前账号无权查看 / 无变量' }}</code>
+        </dd>
+        <dt>数据卷映射</dt>
+        <dd>
+          <p v-for="mount in data.inspect.Mounts || []" :key="mount.Destination">
+            <code>{{ mount.Name || mount.Source }} → {{ mount.Destination }}</code>
+            · {{ mount.RW ? '读写' : '只读' }}
+          </p>
+        </dd>
+      </dl>
+    </PanelCard>
+  </template>
+</template>
+<script setup>
+  import { useRoute } from 'vue-router';
+  import { infrastructureApi } from '../../api/infrastructure';
+  import { useResource } from '../../composables/useResource';
+  import { bytes, percent, dateTime } from '../../utils/format';
+  import PanelCard from '../../components/ui/PanelCard.vue';
+  import StateBadge from '../../components/ui/StateBadge.vue';
+  import ResourceState from '../../components/ui/ResourceState.vue';
+  import LogViewer from '../../components/containers/LogViewer.vue';
+  const route = useRoute();
+  const { data, loading, error, refresh } = useResource(
+    async (signal) => {
+      const inspect = await infrastructureApi.inspect(route.params.node, route.params.id, signal);
+      const metrics = inspect.State?.Running
+        ? await infrastructureApi.metrics(route.params.node, route.params.id, signal)
+        : {};
+      return { inspect, metrics };
+    },
+    { interval: 15000 }
+  );
+</script>

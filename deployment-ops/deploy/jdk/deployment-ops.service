@@ -1,0 +1,17 @@
+[Unit]
+Description=Deployment Ops single JAR (use --install-service to generate pinned paths)
+After=network.target
+RequiresMountsFor=/mnt/disk01
+
+[Service]
+Type=simple
+EnvironmentFile=/mnt/disk01/deployment-ops/manager.env
+ExecStart=/usr/bin/java -jar /mnt/disk01/deployment-ops/lib/deployment-ops.jar
+Restart=on-failure
+TimeoutStopSec=45
+SuccessExitStatus=143
+KillMode=process
+UMask=0077
+
+[Install]
+WantedBy=multi-user.target

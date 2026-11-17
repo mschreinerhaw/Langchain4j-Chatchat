@@ -1,0 +1,17 @@
+{
+  "Bootstrap.java": "21f03c4bb27ee0d70dc954cb153d776ee0041ae317a27902839c9914f2039bdb",
+  "chatchat-api-post-schema.sql": "20b1b30e804a176819d75375268ec82c15e4a6d4d660776905f369cf5ce96e2a",
+  "chatchat-api.sql": "a07a88311a037bebd3c4a2ac5b6bc16a0c4e0efbaea77ef0629718f7726bcad5",
+  "chatchat-mcp-extra-schema.sql": "0f45ab3208142dfe42cbb32bc1a93b3ea3222807c04bc7a7236df42b7fb1812b",
+  "chatchat-mcp-server.sql": "c455d4d3d2146fbf5f2061430a33e2c91ceb79c76c0e7c9577df258a4b25567c",
+  "chatchat-runtime-news.sql": "4966b239945207825fd9deb5c6e119dff3fb20c9f04c724963c4497f91d01565",
+  "initialize-databases.sh": "7923815174bacae236f48f3fe3ed92ed655e65b3c36188c988ff455d26c9aaf9",
+  "node-proxy.conf": "1eba2f9ae741ad1865a0f40ee76c04abc093e5091f42f4f83c7c62dec5de65e4",
+  "opensearch-init-security.sh": "12734bcde84b3f0ce62b35b0066059829ffda2d64fc7b17a49dcb6b9261eebc3",
+  "opensearch.yml": "8bd9b4cf39a32fc973fbd0da477bca409d8e165645686232d8f4d92c08ff72a6",
+  "prepare.sh": "6399338b77600264deec0e70fdb7666fb415695e1745b4415b76a4604b0b7068",
+  "public-gateway.conf": "4a94c81494cf922d647e71369bc2b6d6f08af72d6c5ed9c19280e60459a0070e",
+  "runtime-semantic-policy.sql": "d0a6fd0ab5ad2bbd648de1631685e5ab7175475587cb60259bb4eb9208a566b1",
+  "service-healthcheck.sh": "0865ca2fa9630fb851ef9b877ce18404420975c8d6ff23690f690816f73f8a5a",
+  "verify.py": "b9b025ff695fb0c4aa055a9041547025407afbebe9f54462225f12c98df648b9"
+}

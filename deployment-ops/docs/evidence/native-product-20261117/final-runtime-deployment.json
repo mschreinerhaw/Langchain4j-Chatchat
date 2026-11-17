@@ -1,0 +1,210 @@
+{
+  "id": "d511e6d4714840fbba14c4bc631adace",
+  "environment": "runtime-release-v1",
+  "package": "666f59d853dfc042e1307b0351d395fedcaca07197d6ab65e09a44738e21467c",
+  "packageName": "runtime-os",
+  "version": "1.0.0-native-20261116",
+  "actor": "admin",
+  "createdAt": 1794853164.8127992,
+  "updatedAt": 1794853556.7721152,
+  "status": "succeeded",
+  "message": "Native Runtime OS administrator, Temporal, Core, Python and executor checks passed",
+  "links": [
+    {
+      "name": "Runtime OS",
+      "url": "http://192.168.195.221:19400/"
+    },
+    {
+      "name": "MCP 管理入口",
+      "url": "http://192.168.195.221:19401/"
+    }
+  ],
+  "previousRun": null,
+  "parameters": {
+    "serverAddress": "192.168.195.221",
+    "httpPort": 19400,
+    "mcpPort": 19401,
+    "directoryName": ""
+  },
+  "steps": [
+    {
+      "id": "postgresql",
+      "kind": "service",
+      "status": "succeeded",
+      "container": "af26c8debf3c07fe3cdec85cba1781311ac26265b56c29978d907fbaa5743041",
+      "message": "Up 6 minutes (healthy)"
+    },
+    {
+      "id": "temporal-db",
+      "kind": "service",
+      "status": "succeeded",
+      "container": "9ab5ea3c85f8d297bcd040c775b706a83f100ef773cc468ce59789c789416b74",
+      "message": "Up 6 minutes (healthy)"
+    },
+    {
+      "id": "temporal",
+      "kind": "service",
+      "status": "succeeded",
+      "container": "c323cc9a679f8dcfe1fe898225b25749544e6bbcb8a4f0b2ad17fea4615a132f",
+      "message": "Up 5 minutes (healthy)"
+    },
+    {
+      "id": "redis",
+      "kind": "service",
+      "status": "succeeded",
+      "container": "9738b235d56987a1be61ac272180a7a8893c19eb96f3fd03866bb7d19baed10f",
+      "message": "Up 6 minutes (healthy)"
+    },
+    {
+      "id": "opensearch",
+      "kind": "service",
+      "status": "succeeded",
+      "container": "823b518257e28b306fdda90de6da4dd1f0233c7d9992ded80d9c02f4df0d4722",
+      "message": "Up 6 minutes (healthy)"
+    },
+    {
+      "id": "silo",
+      "kind": "service",
+      "status": "succeeded",
+      "container": "bc2ae099e15f46de333766f3afebddc1a55bc722dae54535d7d69130d85f6200",
+      "message": "Up 6 minutes (healthy)"
+    },
+    {
+      "id": "news",
+      "kind": "service",
+      "status": "succeeded",
+      "container": "a689b71958adec54e8b70f2ad8b49567956ce18f1ddecec3a6a1daa0b0c06d41",
+      "message": "Up 5 minutes (healthy)"
+    },
+    {
+      "id": "mcp",
+      "kind": "service",
+      "status": "succeeded",
+      "container": "7abf0b89e1044edbd7e3d99c6dc3fe5e92ed67deba1ace34e96577576231176a",
+      "message": "Up 4 minutes (healthy)"
+    },
+    {
+      "id": "api",
+      "kind": "service",
+      "status": "succeeded",
+      "container": "5a57a989128468c68d6ac4a1334661050570c73c782966d671375ac062bef146",
+      "message": "Up 4 minutes (healthy)"
+    },
+    {
+      "id": "executor-daemon",
+      "kind": "service",
+      "status": "succeeded",
+      "container": "e4518f03628a1c59b500e3ff33c822d8fe2079ba407cba8a3353a67c915c0868",
+      "message": "Up 6 minutes"
+    },
+    {
+      "id": "executor1",
+      "kind": "service",
+      "status": "succeeded",
+      "container": "209afc44d38ebc02f9fc217f27c966b771419ba1021d17c6ef8587716139d839",
+      "message": "Up 49 seconds"
+    },
+    {
+      "id": "executor2",
+      "kind": "service",
+      "status": "succeeded",
+      "container": "7cf8899fa39a199104395ce52d32ef1f529f908dedbb79901de513f274fc908c",
+      "message": "Up 49 seconds"
+    },
+    {
+      "id": "studio-executor",
+      "kind": "service",
+      "status": "succeeded",
+      "container": "f863cabca4cd76a118bf41e4d9374dc7597422ee4719adeb0880eb5d32fc34fc",
+      "message": "Up 49 seconds"
+    },
+    {
+      "id": "recovery1",
+      "kind": "service",
+      "status": "succeeded",
+      "container": "0ea29e5e9b5e8c1048c04861f2ab6b5d0c005b2098a4c7f27250daab3863661d",
+      "message": "Up 49 seconds"
+    },
+    {
+      "id": "recovery2",
+      "kind": "service",
+      "status": "succeeded",
+      "container": "6ba99d83309c28e8b0716668da54cab2ec84a9651a696709ab260dfc43b0ec1f",
+      "message": "Up 49 seconds"
+    },
+    {
+      "id": "node1",
+      "kind": "service",
+      "status": "succeeded",
+      "container": "2ee83f9ffee6bdc9779bca0d0ad0dd30899a25137b2fa6a6404c51023085af09",
+      "message": "Up 49 seconds"
+    },
+    {
+      "id": "node2",
+      "kind": "service",
+      "status": "succeeded",
+      "container": "2795dd81534f15074890dbf6572d01193284fcafd41ada85926dbb1938fadc08",
+      "message": "Up 49 seconds"
+    },
+    {
+      "id": "studio",
+      "kind": "service",
+      "status": "succeeded",
+      "container": "29952c30729894df74a0cf0b55aaa580e5d6bf7d10e00f69eddf04d0aed505fb",
+      "message": "Up 49 seconds"
+    },
+    {
+      "id": "worker1",
+      "kind": "service",
+      "status": "succeeded",
+      "container": "a67f3ae57cefd1eda73cf414ac3276d1844eefb363fd21f0d1ffe81734b7d5d7",
+      "message": "Up 49 seconds"
+    },
+    {
+      "id": "worker2",
+      "kind": "service",
+      "status": "succeeded",
+      "container": "09e8b5ea07206a900ce3ea6ca9924bbddc37e7d734f99c6ea0452c62b34106e1",
+      "message": "Up 49 seconds"
+    },
+    {
+      "id": "frontend-resource-hub",
+      "kind": "service",
+      "status": "succeeded",
+      "container": "b0540803514668327be2206b5efdd6aa40eb824e4b4be99e72248ba6a632b2ba",
+      "message": "Up 48 seconds (healthy)"
+    },
+    {
+      "id": "frontend-worker",
+      "kind": "service",
+      "status": "succeeded",
+      "container": "8fedacb07a8db3a6a40c3e96ed0e1bb175063c5eb709c22d1ca3b5553c11ddc6",
+      "message": "Up 48 seconds (healthy)"
+    },
+    {
+      "id": "gateway",
+      "kind": "service",
+      "status": "succeeded",
+      "container": "b851bcbd0743b9e8479b62f4ce9deeead8b5919101eb418c0c42a18a9d727c6b",
+      "message": "Up 48 seconds (healthy)"
+    },
+    {
+      "id": "manager",
+      "kind": "service",
+      "status": "succeeded",
+      "container": "bce42d6660675b7765d374a68c8ec9686465b1ac7210b5f22e3a0ce64e425b59",
+      "message": "Up 1 second"
+    }
+  ],
+  "runtimeAdapter": "runtime-os-native/v1",
+  "active": true,
+  "cancelRequested": false,
+  "runtimeContainer": "f43d4b36b83a20aa6690db9958fd82b4a1c5d9d71685f03075cd00f3a75832df",
+  "runtimeOperation": {
+    "package": "666f59d853dfc042e1307b0351d395fedcaca07197d6ab65e09a44738e21467c",
+    "command": "install",
+    "root": "/mnt/disk01/ops/r/99f2-076e271c2551",
+    "project": "ops-env-runtime-release-v1"
+  },
+  "installerLog": "2026-11-16T18:20:26.611517842Z CREATE TABLE\n2026-11-16T18:20:26.613196048Z CREATE TABLE\n2026-11-16T18:20:26.613606628Z CREATE INDEX\n2026-11-16T18:20:26.614135559Z CREATE INDEX\n2026-11-16T18:20:26.614619377Z CREATE INDEX\n2026-11-16T18:20:26.615166147Z CREATE INDEX\n2026-11-16T18:20:26.615576141Z CREATE INDEX\n2026-11-16T18:20:26.616132593Z CREATE INDEX\n2026-11-16T18:20:26.616513424Z CREATE INDEX\n2026-11-16T18:20:26.617064239Z CREATE INDEX\n2026-11-16T18:20:26.617567802Z CREATE INDEX\n2026-11-16T18:20:26.618091910Z CREATE INDEX\n2026-11-16T18:20:26.618541513Z CREATE INDEX\n2026-11-16T18:20:26.620434073Z ALTER TABLE\n2026-11-16T18:20:26.621294781Z ALTER TABLE\n2026-11-16T18:20:26.622173976Z ALTER TABLE\n2026-11-16T18:20:26.624422426Z CREATE TABLE\n2026-11-16T18:20:26.626499984Z CREATE TABLE\n2026-11-16T18:20:26.631887502Z INSERT 0 1\n2026-11-16T18:20:26.632461622Z CREATE TABLE\n2026-11-16T18:20:26.632467270Z INSERT 0 1\n2026-11-16T18:20:26.761794049Z CREATE TABLE\n2026-11-16T18:20:26.764026569Z CREATE TABLE\n2026-11-16T18:20:26.766282174Z CREATE TABLE\n2026-11-16T18:20:26.768318606Z CREATE TABLE\n2026-11-16T18:20:26.769239573Z CREATE INDEX\n2026-11-16T18:20:26.770431027Z CREATE TABLE\n2026-11-16T18:20:26.770450027Z INSERT 0 1\n2026-11-16T18:20:26.773253026Z Application schemas initialized transactionally.\n2026-11-16T18:20:30.854735968Z Security Admin v7\n2026-11-16T18:20:31.345469529Z Will connect to opensearch:9200 ... done\n2026-11-16T18:20:33.555900676Z Connected as \"CN=chatchat-opensearch-admin\"\n2026-11-16T18:20:33.693517114Z OpenSearch Version: 2.19.1\n2026-11-16T18:20:33.694669365Z Contacting opensearch cluster 'opensearch' and wait for YELLOW clusterstate ...\n2026-11-16T18:20:33.808523624Z Clustername: chatchat-search\n2026-11-16T18:20:33.808552410Z Clusterstate: GREEN\n2026-11-16T18:20:33.808578699Z Number of nodes: 1\n2026-11-16T18:20:33.808754253Z Number of data nodes: 1\n2026-11-16T18:20:34.117335028Z .opendistro_security index does not exists, attempt to create it ... done (0-all replicas)\n2026-11-16T18:20:34.117343841Z Populate config from /tmp/tmp.08X3iM3Jwu/security/\n2026-11-16T18:20:34.300849781Z Will update '/config' with /tmp/tmp.08X3iM3Jwu/security/config.yml \n2026-11-16T18:20:34.421940493Z    SUCC: Configuration for 'config' created or updated\n2026-11-16T18:20:34.447386964Z Will update '/roles' with /tmp/tmp.08X3iM3Jwu/security/roles.yml \n2026-11-16T18:20:34.521487308Z    SUCC: Configuration for 'roles' created or updated\n2026-11-16T18:20:34.527276406Z Will update '/rolesmapping' with /tmp/tmp.08X3iM3Jwu/security/roles_mapping.yml \n2026-11-16T18:20:34.591658866Z    SUCC: Configuration for 'rolesmapping' created or updated\n2026-11-16T18:20:34.599386991Z Will update '/internalusers' with /tmp/tmp.08X3iM3Jwu/security/internal_users.yml \n2026-11-16T18:20:34.664048276Z    SUCC: Configuration for 'internalusers' created or updated\n2026-11-16T18:20:34.675010681Z Will update '/actiongroups' with /tmp/tmp.08X3iM3Jwu/security/action_groups.yml \n2026-11-16T18:20:34.738394884Z    SUCC: Configuration for 'actiongroups' created or updated\n2026-11-16T18:20:34.742795572Z Will update '/tenants' with /tmp/tmp.08X3iM3Jwu/security/tenants.yml \n2026-11-16T18:20:34.798906169Z    SUCC: Configuration for 'tenants' created or updated\n2026-11-16T18:20:34.803535350Z Will update '/nodesdn' with /tmp/tmp.08X3iM3Jwu/security/nodes_dn.yml \n2026-11-16T18:20:34.861776870Z    SUCC: Configuration for 'nodesdn' created or updated\n2026-11-16T18:20:34.879549743Z Will update '/whitelist' with /tmp/tmp.08X3iM3Jwu/security/whitelist.yml \n2026-11-16T18:20:34.947397068Z    SUCC: Configuration for 'whitelist' created or updated\n2026-11-16T18:20:35.489012089Z Will update '/audit' with /tmp/tmp.08X3iM3Jwu/security/audit.yml \n2026-11-16T18:20:35.568579848Z    SUCC: Configuration for 'audit' created or updated\n2026-11-16T18:20:35.586834920Z Will update '/allowlist' with /tmp/tmp.08X3iM3Jwu/security/allowlist.yml \n2026-11-16T18:20:35.652632225Z    SUCC: Configuration for 'allowlist' created or updated\n2026-11-16T18:20:35.741371879Z SUCC: Expected 10 config types for node {\"updated_config_types\":[\"allowlist\",\"tenants\",\"rolesmapping\",\"nodesdn\",\"audit\",\"roles\",\"whitelist\",\"actiongroups\",\"config\",\"internalusers\"],\"updated_config_size\":10,\"message\":null} is 10 ([\"allowlist\",\"tenants\",\"rolesmapping\",\"nodesdn\",\"audit\",\"roles\",\"whitelist\",\"actiongroups\",\"config\",\"internalusers\"]) due to: null\n2026-11-16T18:20:35.741394391Z Done with success\n2026-11-16T18:20:36.262480750Z OpenSearch authenticated health check passed\n2026-11-16T18:20:37.902774061Z Silo bucket, immutable versions and object read/write verified.\n2026-11-16T18:20:38.695009158Z  Container ops-env-runtime-release-v1-temporal  Creating\n2026-11-16T18:20:38.787413797Z  Container ops-env-runtime-release-v1-temporal  Created\n2026-11-16T18:20:38.790941800Z  Container ops-env-runtime-release-v1-temporal  Starting\n2026-11-16T18:20:39.133773640Z  Container ops-env-runtime-release-v1-temporal  Started\n2026-11-16T18:20:45.567986214Z  Container ops-env-runtime-release-v1-news  Creating\n2026-11-16T18:20:46.145541847Z  Container ops-env-runtime-release-v1-news  Created\n2026-11-16T18:20:46.149653908Z  Container ops-env-runtime-release-v1-news  Starting\n2026-11-16T18:20:46.640003779Z  Container ops-env-runtime-release-v1-news  Started\n2026-11-16T18:20:59.166921515Z  Container ops-env-runtime-release-v1-mcp  Creating\n2026-11-16T18:20:59.257412679Z  Container ops-env-runtime-release-v1-mcp  Created\n2026-11-16T18:20:59.262414927Z  Container ops-env-runtime-release-v1-mcp  Starting\n2026-11-16T18:21:00.147128506Z  Container ops-env-runtime-release-v1-mcp  Started\n2026-11-16T18:21:27.867565681Z  Container ops-env-runtime-release-v1-api  Creating\n2026-11-16T18:21:28.211109074Z  Container ops-env-runtime-release-v1-api  Created\n2026-11-16T18:21:28.215902122Z  Container ops-env-runtime-release-v1-api  Starting\n2026-11-16T18:21:28.620383664Z  Container ops-env-runtime-release-v1-api  Started\n2026-11-16T18:25:04.127071467Z Loaded image: runtime-os-node:20261115-docker-only\n2026-11-16T18:25:07.096570874Z  Container ops-env-runtime-release-v1-executor1  Creating\n2026-11-16T18:25:07.096614237Z  Container ops-env-runtime-release-v1-studio  Creating\n2026-11-16T18:25:07.096621270Z  Container ops-env-runtime-release-v1-node1  Creating\n2026-11-16T18:25:07.096627112Z  Container ops-env-runtime-release-v1-studio-executor  Creating\n2026-11-16T18:25:07.096632280Z  Container ops-env-runtime-release-v1-frontend-worker  Creating\n2026-11-16T18:25:07.096659397Z  Container ops-env-runtime-release-v1-node2  Creating\n2026-11-16T18:25:07.096668338Z  Container ops-env-runtime-release-v1-executor2  Creating\n2026-11-16T18:25:07.096673461Z  Container ops-env-runtime-release-v1-worker1  Creating\n2026-11-16T18:25:07.096679496Z  Container ops-env-runtime-release-v1-worker2  Creating\n2026-11-16T18:25:07.096714208Z  Container ops-env-runtime-release-v1-recovery2  Creating\n2026-11-16T18:25:07.096749545Z  Container ops-env-runtime-release-v1-recovery1  Creating\n2026-11-16T18:25:07.096756569Z  Container ops-env-runtime-release-v1-gateway  Creating\n2026-11-16T18:25:07.096819100Z  Container ops-env-runtime-release-v1-frontend-resource-hub  Creating\n2026-11-16T18:25:07.190782810Z  Container ops-env-runtime-release-v1-executor2  Created\n2026-11-16T18:25:07.200278881Z  Container ops-env-runtime-release-v1-worker1  Created\n2026-11-16T18:25:07.204790751Z  Container ops-env-runtime-release-v1-node1  Created\n2026-11-16T18:25:07.205032586Z  Container ops-env-runtime-release-v1-recovery2  Created\n2026-11-16T18:25:07.211607510Z  Container ops-env-runtime-release-v1-frontend-resource-hub  Created\n2026-11-16T18:25:07.211694922Z  Container ops-env-runtime-release-v1-studio-executor  Created\n2026-11-16T18:25:07.211710776Z  Container ops-env-runtime-release-v1-worker2  Created\n2026-11-16T18:25:07.220451432Z  Container ops-env-runtime-release-v1-studio  Created\n2026-11-16T18:25:07.221705591Z  Container ops-env-runtime-release-v1-gateway  Created\n2026-11-16T18:25:07.221720486Z  Container ops-env-runtime-release-v1-recovery1  Created\n2026-11-16T18:25:07.221724568Z  Container ops-env-runtime-release-v1-executor1  Created\n2026-11-16T18:25:07.221727899Z  Container ops-env-runtime-release-v1-node2  Created\n2026-11-16T18:25:07.222143492Z  Container ops-env-runtime-release-v1-frontend-worker  Created\n2026-11-16T18:25:07.235523017Z  Container ops-env-runtime-release-v1-frontend-resource-hub  Starting\n2026-11-16T18:25:07.235540751Z  Container ops-env-runtime-release-v1-worker2  Starting\n2026-11-16T18:25:07.235544714Z  Container ops-env-runtime-release-v1-node1  Starting\n2026-11-16T18:25:07.235548222Z  Container ops-env-runtime-release-v1-recovery1  Starting\n2026-11-16T18:25:07.235551562Z  Container ops-env-runtime-release-v1-recovery2  Starting\n2026-11-16T18:25:07.235554698Z  Container ops-env-runtime-release-v1-executor1  Starting\n2026-11-16T18:25:07.235569945Z  Container ops-env-runtime-release-v1-worker1  Starting\n2026-11-16T18:25:07.235573428Z  Container ops-env-runtime-release-v1-studio-executor  Starting\n2026-11-16T18:25:07.235576536Z  Container ops-env-runtime-release-v1-gateway  Starting\n2026-11-16T18:25:07.235579618Z  Container ops-env-runtime-release-v1-node2  Starting\n2026-11-16T18:25:07.235607986Z  Container ops-env-runtime-release-v1-executor2  Starting\n2026-11-16T18:25:07.235611624Z  Container ops-env-runtime-release-v1-studio  Starting\n2026-11-16T18:25:07.235614760Z  Container ops-env-runtime-release-v1-frontend-worker  Starting\n2026-11-16T18:25:07.560786762Z  Container ops-env-runtime-release-v1-worker1  Started\n2026-11-16T18:25:07.579472776Z  Container ops-env-runtime-release-v1-studio-executor  Started\n2026-11-16T18:25:07.609428560Z  Container ops-env-runtime-release-v1-recovery1  Started\n2026-11-16T18:25:07.642030016Z  Container ops-env-runtime-release-v1-executor2  Started\n2026-11-16T18:25:07.660306691Z  Container ops-env-runtime-release-v1-node1  Started\n2026-11-16T18:25:07.663260765Z  Container ops-env-runtime-release-v1-worker2  Started\n2026-11-16T18:25:07.722137578Z  Container ops-env-runtime-release-v1-executor1  Started\n2026-11-16T18:25:07.726893867Z  Container ops-env-runtime-release-v1-node2  Started\n2026-11-16T18:25:07.732620858Z  Container ops-env-runtime-release-v1-recovery2  Started\n2026-11-16T18:25:07.737410270Z  Container ops-env-runtime-release-v1-studio  Started\n2026-11-16T18:25:07.931022467Z  Container ops-env-runtime-release-v1-frontend-worker  Started\n2026-11-16T18:25:08.092852327Z  Container ops-env-runtime-release-v1-frontend-resource-hub  Started\n2026-11-16T18:25:08.092882434Z  Container ops-env-runtime-release-v1-gateway  Started\n2026-11-16T18:25:38.974436582Z OS and MCP administrator logins and identities remained healthy through the readiness window.\n2026-11-16T18:25:38.974486455Z Signed internal MCP request passed; license status: NOT_INSTALLED\n2026-11-16T18:25:38.974497262Z API to MCP standalone authentication and tool discovery passed.\n2026-11-16T18:25:38.974505998Z Licensed MCP service catalog remains protected until a product license is imported.\n2026-11-16T18:25:40.868389740Z {\"sourceCommit\":\"a459f1d04dea030833b558be645011ab739c463b\",\"verifiedFiles\":1850,\"descriptorSha256\":\"d28dace3b4daff727770c3625917b22a0c54a8f855c4222530de1923b493086f\",\"descriptorServices\":22,\"node\":\"v24.22.2\",\"nodeABI\":\"137\",\"sqlite\":\"3.50.4\",\"status\":\"PASS\"}\n2026-11-16T18:25:41.024014076Z {\"node\":\"v24.22.2\",\"abi\":\"137\",\"nativeModules\":1,\"sqliteExecuted\":true}\n2026-11-16T18:25:52.262718397Z No broken requirements found.\n2026-11-16T18:25:52.324669964Z {\"python\": \"3.11.18 (main, Nov  5 2026, 07:57:53) [GCC 14.2.0]\", \"sqlite\": \"3.46.1\", \"imports\": [\"pandas\", \"numpy\", \"pyarrow\", \"duckdb\", \"matplotlib\", \"openpyxl\", \"pytest\", \"psycopg\", \"pyodbc\", \"oracledb\", \"scipy\", \"sklearn\"], \"lockVerified\": true}\n2026-11-16T18:25:53.638670247Z  Container ops-env-runtime-release-v1-manager  Creating\n2026-11-16T18:25:53.727472080Z  Container ops-env-runtime-release-v1-manager  Created\n2026-11-16T18:25:53.740216000Z  Container ops-env-runtime-release-v1-manager  Starting\n2026-11-16T18:25:55.058591668Z  Container ops-env-runtime-release-v1-manager  Started\n2026-11-16T18:25:55.070557378Z \n2026-11-16T18:25:55.070582644Z Environment ready. HTTP port: 19400; MCP port: 19401\n2026-11-16T18:25:55.070587310Z Administrator: admin\n2026-11-16T18:25:55.070590839Z Initial password: [REDACTED]\n2026-11-16T18:25:55.070594561Z Persistent installation directory: /mnt/disk01/ops/r/99f2-076e271c2551\n"
+}

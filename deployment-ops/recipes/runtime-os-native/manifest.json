@@ -1,0 +1,314 @@
+{
+  "schemaVersion": 1,
+  "name": "runtime-os",
+  "version": "1.0.0-native-20261116",
+  "platform": "linux/amd64",
+  "description": "Native/Temporal Runtime OS: persistent workflow engine, API/MCP/News, restricted Core/Python executors, recovery nodes and application frontend. Uses the reviewed source-built product installer. No SDK substitute, online pull, customer data or production secrets.",
+  "requirements": {
+    "memoryBytes": 8589934592,
+    "diskBytes": 12884901888
+  },
+  "upgradeFrom": [],
+  "dataCompatibility": "initial-only",
+  "parameters": {
+    "serverAddress": {
+      "label": "\u670d\u52a1\u5668\u8bbf\u95ee\u5730\u5740",
+      "type": "string",
+      "default": "127.0.0.1",
+      "pattern": "[A-Za-z0-9.-]+"
+    },
+    "httpPort": {
+      "label": "Runtime OS \u5165\u53e3\u7aef\u53e3",
+      "type": "integer",
+      "default": 19400,
+      "min": 1024,
+      "max": 65535
+    },
+    "mcpPort": {
+      "label": "MCP \u5165\u53e3\u7aef\u53e3",
+      "type": "integer",
+      "default": 19401,
+      "min": 1024,
+      "max": 65535
+    },
+    "directoryName": {
+      "label": "\u90e8\u7f72\u76ee\u5f55\u540d\uff08\u53ef\u9009\uff09",
+      "type": "string",
+      "default": "",
+      "pattern": "([a-z0-9][a-z0-9-]{0,15})?",
+      "description": "\u76ee\u5f55\u56fa\u5b9a\u5728 /mnt/disk01/ops/r \u4e0b\uff1b\u7559\u7a7a\u751f\u6210\u72ec\u7acb\u76ee\u5f55\uff0c\u5df2\u6709\u73af\u5883\u4e0d\u5141\u8bb8\u53d8\u66f4\u6570\u636e\u6839\u76ee\u5f55\u3002"
+    },
+    "osAdminPassword": {
+      "label": "Runtime OS \u7ba1\u7406\u5458\u521d\u59cb\u5bc6\u7801",
+      "type": "string",
+      "secret": true,
+      "required": true,
+      "pattern": "[A-Za-z0-9_!@#%+.,:-]{12,128}",
+      "description": "\u9996\u6b21\u90e8\u7f72\u8bbe\u7f6e 12\u2013128 \u4f4d\u5bc6\u7801\uff0cOS \u548c MCP \u5171\u7528\u521d\u59cb\u7ba1\u7406\u5458\u51ed\u636e\u3002\u5347\u7ea7\u65f6\u7559\u7a7a\u4fdd\u7559\u539f\u51ed\u636e\u3002"
+    }
+  },
+  "images": {
+    "postgres": {
+      "source": "runtime-os-postgres:20261115-docker-only"
+    },
+    "redis": {
+      "source": "runtime-os-redis:20261115-docker-only"
+    },
+    "silo": {
+      "source": "runtime-os-silo:20261115-docker-only"
+    },
+    "temporal": {
+      "source": "runtime-os-temporal:20261115-docker-only"
+    },
+    "frontend": {
+      "source": "runtime-os-frontend:20261115-docker-only"
+    },
+    "search": {
+      "source": "runtime-os-search:20261115-docker-only"
+    },
+    "api": {
+      "source": "runtime-os-api:20261115-docker-only"
+    },
+    "mcp": {
+      "source": "runtime-os-mcp:20261115-docker-only"
+    },
+    "node": {
+      "source": "runtime-os-node:20261115-docker-only"
+    },
+    "studio": {
+      "source": "runtime-os-node:20261115-docker-only"
+    },
+    "news": {
+      "source": "runtime-os-news:20261115-docker-only"
+    },
+    "gateway": {
+      "source": "runtime-os-gateway:20261115-docker-only"
+    },
+    "daemon": {
+      "source": "runtime-os-daemon:20261115-docker-only"
+    },
+    "installer": {
+      "source": "runtime-os-installer:20261115-docker-only"
+    }
+  },
+  "volumes": {},
+  "components": [
+    {
+      "id": "postgresql",
+      "image": "postgres",
+      "health": {
+        "type": "docker"
+      }
+    },
+    {
+      "id": "temporal-db",
+      "image": "postgres",
+      "health": {
+        "type": "docker"
+      }
+    },
+    {
+      "id": "temporal",
+      "image": "temporal",
+      "health": {
+        "type": "docker"
+      }
+    },
+    {
+      "id": "redis",
+      "image": "redis",
+      "health": {
+        "type": "docker"
+      }
+    },
+    {
+      "id": "opensearch",
+      "image": "search",
+      "health": {
+        "type": "docker"
+      }
+    },
+    {
+      "id": "silo",
+      "image": "silo",
+      "health": {
+        "type": "docker"
+      }
+    },
+    {
+      "id": "news",
+      "image": "news",
+      "health": {
+        "type": "docker"
+      }
+    },
+    {
+      "id": "mcp",
+      "image": "mcp",
+      "health": {
+        "type": "docker"
+      }
+    },
+    {
+      "id": "api",
+      "image": "api",
+      "health": {
+        "type": "docker"
+      }
+    },
+    {
+      "id": "executor-daemon",
+      "image": "daemon",
+      "health": {
+        "type": "docker"
+      }
+    },
+    {
+      "id": "executor1",
+      "image": "node",
+      "health": {
+        "type": "docker"
+      }
+    },
+    {
+      "id": "executor2",
+      "image": "node",
+      "health": {
+        "type": "docker"
+      }
+    },
+    {
+      "id": "studio-executor",
+      "image": "node",
+      "health": {
+        "type": "docker"
+      }
+    },
+    {
+      "id": "recovery1",
+      "image": "node",
+      "health": {
+        "type": "docker"
+      }
+    },
+    {
+      "id": "recovery2",
+      "image": "node",
+      "health": {
+        "type": "docker"
+      }
+    },
+    {
+      "id": "node1",
+      "image": "node",
+      "health": {
+        "type": "docker"
+      }
+    },
+    {
+      "id": "node2",
+      "image": "node",
+      "health": {
+        "type": "docker"
+      }
+    },
+    {
+      "id": "studio",
+      "image": "node",
+      "health": {
+        "type": "docker"
+      }
+    },
+    {
+      "id": "worker1",
+      "image": "api",
+      "health": {
+        "type": "docker"
+      }
+    },
+    {
+      "id": "worker2",
+      "image": "api",
+      "health": {
+        "type": "docker"
+      }
+    },
+    {
+      "id": "frontend-resource-hub",
+      "image": "frontend",
+      "health": {
+        "type": "docker"
+      }
+    },
+    {
+      "id": "frontend-worker",
+      "image": "frontend",
+      "health": {
+        "type": "docker"
+      }
+    },
+    {
+      "id": "gateway",
+      "image": "gateway",
+      "health": {
+        "type": "docker"
+      }
+    },
+    {
+      "id": "manager",
+      "image": "installer",
+      "health": {
+        "type": "docker"
+      }
+    }
+  ],
+  "runtimeInstaller": {
+    "protocol": "runtime-os-native/v1",
+    "image": "installer",
+    "imageMap": "assets/runtime-images.json",
+    "services": [
+      "postgresql",
+      "temporal-db",
+      "temporal",
+      "redis",
+      "opensearch",
+      "silo",
+      "news",
+      "mcp",
+      "api",
+      "executor-daemon",
+      "executor1",
+      "executor2",
+      "studio-executor",
+      "recovery1",
+      "recovery2",
+      "node1",
+      "node2",
+      "studio",
+      "worker1",
+      "worker2",
+      "frontend-resource-hub",
+      "frontend-worker",
+      "gateway",
+      "manager"
+    ],
+    "schemaHashes": {
+      "chatchat-api-post-schema.sql": "20b1b30e804a176819d75375268ec82c15e4a6d4d660776905f369cf5ce96e2a",
+      "chatchat-api.sql": "e42839c8e457a985be47e679867213dc4717217c81c6cf7711c2476457f740cd",
+      "chatchat-mcp-extra-schema.sql": "0f45ab3208142dfe42cbb32bc1a93b3ea3222807c04bc7a7236df42b7fb1812b",
+      "chatchat-mcp-server.sql": "775a8bde5bb9361357df74f7caa63fd16e95d370670e9a77e8aefbb776727943",
+      "chatchat-runtime-news.sql": "b36e1d78eb1e5110faeed1f4f07e9b296fbf93c8b44e53f308070872d4184ecd",
+      "runtime-semantic-policy.sql": "d0a6fd0ab5ad2bbd648de1631685e5ab7175475587cb60259bb4eb9208a566b1"
+    }
+  },
+  "links": [
+    {
+      "name": "Runtime OS",
+      "url": "http://${serverAddress}:${httpPort}/"
+    },
+    {
+      "name": "MCP \u7ba1\u7406\u5165\u53e3",
+      "url": "http://${serverAddress}:${mcpPort}/"
+    }
+  ]
+}

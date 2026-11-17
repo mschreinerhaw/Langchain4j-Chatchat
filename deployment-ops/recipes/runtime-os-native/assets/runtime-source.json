@@ -1,0 +1,12 @@
+{
+  "installerImage": "runtime-os-installer:20261115-docker-only",
+  "installerSourceSha256": "ab7a5ed1d51695171d577b12752e064dc1cf7ffe9b1377df1a5d468e35239717",
+  "schemaHashes": {
+    "chatchat-api-post-schema.sql": "20b1b30e804a176819d75375268ec82c15e4a6d4d660776905f369cf5ce96e2a",
+    "chatchat-api.sql": "e42839c8e457a985be47e679867213dc4717217c81c6cf7711c2476457f740cd",
+    "chatchat-mcp-extra-schema.sql": "0f45ab3208142dfe42cbb32bc1a93b3ea3222807c04bc7a7236df42b7fb1812b",
+    "chatchat-mcp-server.sql": "775a8bde5bb9361357df74f7caa63fd16e95d370670e9a77e8aefbb776727943",
+    "chatchat-runtime-news.sql": "b36e1d78eb1e5110faeed1f4f07e9b296fbf93c8b44e53f308070872d4184ecd",
+    "runtime-semantic-policy.sql": "d0a6fd0ab5ad2bbd648de1631685e5ab7175475587cb60259bb4eb9208a566b1"
+  }
+}

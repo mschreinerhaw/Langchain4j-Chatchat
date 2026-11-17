@@ -1,0 +1,40 @@
+<template>
+  <svg
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    stroke-width="1.65"
+    stroke-linecap="round"
+    stroke-linejoin="round"
+    aria-hidden="true"
+  >
+    <path v-for="(path, index) in paths[name] || paths.applications" :key="index" :d="path" />
+  </svg>
+</template>
+<script setup>
+  defineProps({ name: String });
+  const paths = {
+    dashboard: ['M3 10.5 12 3l9 7.5', 'M5 9v11h5v-6h4v6h5V9'],
+    servers: ['M4 3h16v7H4zM4 14h16v7H4z', 'M7 6.5h.01M7 17.5h.01M15 6.5h3M15 17.5h3'],
+    applications: ['M3 3h7v7H3zM14 3h7v7h-7zM3 14h7v7H3zM14 14h7v7h-7z'],
+    containers: ['m12 3 9 5v8l-9 5-9-5V8z', 'm3 8 9 5 9-5M12 13v8'],
+    images: ['m12 3 9 5-9 5-9-5z', 'm3 12 9 5 9-5M3 16l9 5 9-5'],
+    rocket: [
+      'M14 5c3-3 7-2 7-2s1 4-2 7l-7 7-5-5z',
+      'm7 12-4 1 1-5 5-1M12 17l-1 4 5-1 1-5M6 17l-3 4 4-3',
+      'M16 7h.01',
+    ],
+    tasks: ['M8 5h13M8 12h13M8 19h13', 'm2 5 1 1 2-2m-3 8 1 1 2-2m-3 8 1 1 2-2'],
+    bell: ['M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9M10 21h4'],
+    audit: ['M5 3h11l3 3v15H5z', 'M15 3v4h4M8 11h8M8 15h8M8 18h5'],
+    settings: [
+      'm9 3-.5 3-2 1.2-2.8-1-2 3.5L4 12l-2.3 2.3 2 3.5 2.8-1 2 1.2.5 3h4l.5-3 2-1.2 2.8 1 2-3.5L20 12l2.3-2.3-2-3.5-2.8 1-2-1.2L15 3z',
+      'M15 12a3 3 0 1 1-6 0 3 3 0 0 1 6 0',
+    ],
+    warning: ['M12 3 2 21h20z', 'M12 9v5M12 17h.01'],
+    database: [
+      'M21 6c0 2.2-4 4-9 4S3 8.2 3 6s4-4 9-4 9 1.8 9 4z',
+      'M3 6v12c0 2.2 4 4 9 4s9-1.8 9-4V6M3 12c0 2.2 4 4 9 4s9-1.8 9-4',
+    ],
+  };
+</script>

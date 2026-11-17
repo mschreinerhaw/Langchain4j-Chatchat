@@ -1,0 +1,8 @@
+{
+  "application": "example-service",
+  "image": "example-service:1.0.0",
+  "environment": {"APP_MODE": "production"},
+  "ports": {"8080": "19300"},
+  "healthPort": 8080,
+  "healthPath": "/health"
+}

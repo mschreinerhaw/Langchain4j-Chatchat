@@ -1,0 +1,8 @@
+{
+  "passed": true,
+  "executorStarted": true,
+  "realHostMetricsAvailable": true,
+  "dockerUnavailable": true,
+  "readOnly": true,
+  "method": "absent configured Unix socket plus systemd inaccessible real socket"
+}

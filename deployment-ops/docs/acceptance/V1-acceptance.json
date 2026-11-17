@@ -1,0 +1,164 @@
+{
+  "format": "deployment-ops-acceptance/v1",
+  "sourceCommit": "209781c4ee6a93123e75b0bc651f05a3c7b2c07c",
+  "jarSha256": "e04c78d52fd8423699abeff78c2cdb2c912f9cfb93f92c3ffba41b0231800303",
+  "scenarios": {
+    "offline_install": {
+      "status": "passed",
+      "evidence": [
+        {
+          "path": "docs/evidence/native-product-20261117/final-cold-install.json",
+          "sha256": "59ef5b58453c9a3a92d7ab48236c4afbdc573eb34d8f626289e7dcd9d966bbb9"
+        },
+        {
+          "path": "docs/RELEASE-1.0.0.md",
+          "sha256": "722899d399a92bb2e6d82a1f5d4837d21448e935ec2ce045f2bbbb5c04f427b0"
+        },
+        {
+          "path": "docs/evidence/native-product-20261117/local-build-tests.json",
+          "sha256": "6b472b326956444adc062f09e6524696ec45e8010260658e07603b84bed37885"
+        }
+      ]
+    },
+    "h2_persistence": {
+      "status": "passed",
+      "evidence": [
+        {
+          "path": "docs/evidence/native-product-20261117/final-alert-jar-isolation.json",
+          "sha256": "d57dbd99b36a54ecf5a3a9d3cb8e68e11ac995ad6270cb736ddb0065b9ce3311"
+        },
+        {
+          "path": "docs/evidence/native-product-20261117/final-release-h2-restore.json",
+          "sha256": "de2155c4e1a48b8e35140b9e1be104b690d16eaaa7276940b4cab09d92657d3f"
+        }
+      ]
+    },
+    "independent_startup": {
+      "status": "passed",
+      "evidence": [
+        {
+          "path": "docs/evidence/native-product-20261117/final-alert-jar-isolation.json",
+          "sha256": "d57dbd99b36a54ecf5a3a9d3cb8e68e11ac995ad6270cb736ddb0065b9ce3311"
+        },
+        {
+          "path": "docs/evidence/native-product-20261117/native-executor-without-docker.json",
+          "sha256": "a7d41c5b27c702755491b48d807e934d133e383b08eeb09d1372fbf1cc824b25"
+        }
+      ]
+    },
+    "admin_login_api": {
+      "status": "passed",
+      "evidence": [
+        {
+          "path": "docs/evidence/native-product-20261117/final-vue-container-regression.json",
+          "sha256": "3d4294400133b808741384a8d7e1cab7662852d60178b223f96059e2277fe84c"
+        },
+        {
+          "path": "docs/evidence/native-product-20261117/final-vue-admin-monitoring.json",
+          "sha256": "ac960c10c92b305916c1b9cf88b5ac8cc13420c0ff8204a66f91b8f920d8e7d0"
+        }
+      ]
+    },
+    "offline_image_import": {
+      "status": "passed",
+      "evidence": [
+        {
+          "path": "docs/evidence/native-product-20261117/final-vue-offline-images.json",
+          "sha256": "04563a6c81d76533f7725c439b5fbdae661ab76cae995400f011aa75a041deb4"
+        },
+        {
+          "path": "docs/evidence/native-product-20261117/final-full-media-load.json",
+          "sha256": "e7192d888991e1e27381801a3b3e845b92d3aa3cd11e1cdfdc2af7f2ac60d4e7"
+        }
+      ]
+    },
+    "runtime_deployment_ui": {
+      "status": "passed",
+      "evidence": [
+        {
+          "path": "docs/evidence/native-product-20261117/final-runtime-browser.json",
+          "sha256": "dca78ba6dbc73e0a3fe72bfc51cd9c7115f8dad1b3ce9a7c80621f68ff1a2b41"
+        },
+        {
+          "path": "docs/evidence/native-product-20261117/final-runtime-deployment.json",
+          "sha256": "761739c662d7448eedfd8ec3eb552ee1cfb58e94db20d0e42e2608d5d031fd3d"
+        }
+      ]
+    },
+    "runtime_live_status": {
+      "status": "passed",
+      "evidence": [
+        {
+          "path": "docs/evidence/native-product-20261117/final-vue-admin-monitoring.json",
+          "sha256": "ac960c10c92b305916c1b9cf88b5ac8cc13420c0ff8204a66f91b8f920d8e7d0"
+        },
+        {
+          "path": "docs/evidence/native-product-20261117/final-runtime-login.json",
+          "sha256": "9d601755b5eec3cc6023b40717945102d00b9e5cdfa587948349ec117603336b"
+        }
+      ]
+    },
+    "platform_restart_isolation": {
+      "status": "passed",
+      "evidence": [
+        {
+          "path": "docs/evidence/native-product-20261117/final-inflight-restart.json",
+          "sha256": "3ec8d210287eee91ced22693df3d19d10ef9a3e28cb726ff141e61d6df521459"
+        },
+        {
+          "path": "docs/evidence/native-product-20261117/final-alert-jar-isolation.json",
+          "sha256": "d57dbd99b36a54ecf5a3a9d3cb8e68e11ac995ad6270cb736ddb0065b9ce3311"
+        }
+      ]
+    },
+    "platform_upgrade_isolation": {
+      "status": "passed",
+      "evidence": [
+        {
+          "path": "docs/evidence/native-product-20261117/final-rc6-platform-upgrade.json",
+          "sha256": "653da464f8a380307eb6dd3cba721bb6904f939e00b437cc691ace64ec31cf9c"
+        },
+        {
+          "path": "docs/evidence/native-product-20261117/platform-upgrade.json",
+          "sha256": "c4a4fd707b883a7296a326e4eaf0ecbf7cdc4be0795329a8792d1f480a79e32c"
+        }
+      ]
+    },
+    "application_upgrade_rollback": {
+      "status": "passed",
+      "evidence": [
+        {
+          "path": "docs/evidence/native-product-20261117/final-image-upgrade.json",
+          "sha256": "09198a678e647bf45e9104caeb4189e730b760fe53d0dc074bd03b9b4f84206d"
+        },
+        {
+          "path": "docs/evidence/native-product-20261117/final-image-failure-rollback.json",
+          "sha256": "244b3d4093f6a5ef16f27e9c957c7df1d4c1c27cc78260fb79cedf55fadafff5"
+        },
+        {
+          "path": "docs/evidence/native-product-20261117/gui-manual-image-rollback.json",
+          "sha256": "f53d4b2f36f29e8f5a681f6773a787354ff792a50ca036b51566dd338e92cc98"
+        }
+      ]
+    },
+    "backup_restore": {
+      "status": "passed",
+      "evidence": [
+        {
+          "path": "docs/evidence/native-product-20261117/final-release-h2-restore.json",
+          "sha256": "de2155c4e1a48b8e35140b9e1be104b690d16eaaa7276940b4cab09d92657d3f"
+        }
+      ]
+    },
+    "missing_mount_refusal": {
+      "status": "passed",
+      "evidence": [
+        {
+          "path": "docs/evidence/native-product-20261117/final-alert-jar-isolation.json",
+          "sha256": "d57dbd99b36a54ecf5a3a9d3cb8e68e11ac995ad6270cb736ddb0065b9ce3311"
+        }
+      ]
+    }
+  },
+  "scope": "Real Linux target and owned QA environments; original production containers preserved. No supplied DolphinScheduler endpoint; real cluster validation excluded and explicitly unverified."
+}

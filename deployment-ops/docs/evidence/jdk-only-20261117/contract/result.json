@@ -1,0 +1,12 @@
+{
+  "passed": true,
+  "checks": [
+    "all 24 signed components declare pinned image startup argv and stage dependencies",
+    "complete contract is visible in the modular Vue deployment review",
+    "Java native executor verified actual image ENTRYPOINT and CMD for every running component",
+    "metadata-only compatible upgrade preserved every existing business container identity and state",
+    "real executor Unix health gates remain healthy and resource enforced"
+  ],
+  "job": "7309586762064801bafe43db0f610894",
+  "digest": "296d3b1757755df1a3f1acb12488aa64be1a634649a4a25132511542f37138c9"
+}

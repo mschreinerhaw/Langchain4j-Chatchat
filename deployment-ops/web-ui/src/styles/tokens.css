@@ -1,0 +1,17 @@
+:root {
+  --primary: #0969eb;
+  --primary-soft: #eaf2ff;
+  --accent: #1678ea;
+  --accent-wash: #e8f2ff;
+  --ink: #162840;
+  --muted: #64748b;
+  --border: #dfe6ef;
+  --surface: #fff;
+  --background: #f4f7fb;
+  --success: #278653;
+  --danger: #c73d4b;
+  --warning: #af751b;
+  --radius: 8px;
+  --sidebar: 214px;
+  --shadow: 0 2px 7px #14294905;
+}

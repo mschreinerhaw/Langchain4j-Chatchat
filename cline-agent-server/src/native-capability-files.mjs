@@ -11,7 +11,7 @@ async function parents(root,path){
  let current=root;
  for(const part of dirname(path).split('/').filter(p=>p!=='.')){
   current=join(current,part);
-  try{await mkdir(current);}catch(e){if(e.code!=='EEXIST')throw e;}
+  try{await mkdir(current,{mode:0o755});if(process.platform==='linux'){const directory=await open(current,constants.O_RDONLY|constants.O_DIRECTORY|constants.O_NOFOLLOW);try{await directory.chmod(0o755);}finally{await directory.close();}}}catch(e){if(e.code!=='EEXIST')throw e;}
   const stat=await lstat(current);if(stat.isSymbolicLink()||!stat.isDirectory())throw Error('Capability directory symlink forbidden');
  }
 }

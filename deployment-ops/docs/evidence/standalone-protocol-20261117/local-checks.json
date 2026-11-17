@@ -1,0 +1,8 @@
+{
+  "passed": true,
+  "javaTests": 13,
+  "pythonTests": 51,
+  "vueBuild": true,
+  "vueFormat": true,
+  "candidateJarSha256": "2bac965d643bb5e7a0ff33380b5620e53f4374fb32a82e1cab47e0096c00b341"
+}

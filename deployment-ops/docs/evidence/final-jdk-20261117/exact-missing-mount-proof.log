@@ -1,0 +1,2 @@
+Nov 17 23:30:06 livedata java[1303748]: Caused by: java.io.IOException: Required real storage mount /mnt/disk01 is unavailable or invalid; refusing startup without system-disk fallback
+Nov 17 23:30:06 livedata systemd[1]: deployment-ops-final-exact-missing-mount.service: Main process exited, code=exited, status=1/FAILURE

@@ -1,0 +1,11 @@
+{
+  "passed": true,
+  "archive": "deployment-ops-1.0.0-rc.1.zip",
+  "sha256": "8f23ee32c56edaff86b2602e025b7cc4336933a4eca0686e1334fda8ad276cc1",
+  "sourceBuildOnServer": true,
+  "emptyStateInstall": true,
+  "administratorLogin": true,
+  "h2PersistenceAfterRestart": true,
+  "businessContainersUnchanged": true,
+  "h2FileExists": true
+}

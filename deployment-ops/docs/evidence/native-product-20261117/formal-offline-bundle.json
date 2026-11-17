@@ -1,0 +1,22 @@
+{
+  "passed": true,
+  "platformZip": "/mnt/disk01/deployment-ops-releases/1.0.0/deployment-ops-1.0.0.zip",
+  "platformSha256": "56fc75ea09a084b90f3b05266270b73d4e7164e6ab6e1be6e487d5767e8cfc20",
+  "serverBuiltJarSha256": "e04c78d52fd8423699abeff78c2cdb2c912f9cfb93f92c3ffba41b0231800303",
+  "sourceCommit": "209781c4ee6a93123e75b0bc651f05a3c7b2c07c",
+  "bundle": "/mnt/disk01/deployment-ops-releases/1.0.0/deployment-ops-1.0.0-offline-linux-amd64.tar",
+  "bundleBytes": 6705438720,
+  "bundleSha256": "da856d34e84ed89e54a96d86829bbd73b84ba0f6e916a0db5eaca1ee0ca9b991",
+  "allTarMemberChecksumsVerified": true,
+  "platformInventoryFiles": 225,
+  "members": {
+    "deployment-ops-1.0.0.zip": "56fc75ea09a084b90f3b05266270b73d4e7164e6ab6e1be6e487d5767e8cfc20",
+    "runtime-os-1.0.0-native-20261116.ops.zip": "666f59d853dfc042e1307b0351d395fedcaca07197d6ab65e09a44738e21467c",
+    "deployment-ops-1.0.0.zip.sha256": "3a2f3d1c5a6fb8896400aac6646cf5ed81870169b89dba41bf0695375d6f1b8c",
+    "runtime-os-1.0.0-native-20261116.ops.zip.sha256": "044252ad92bd2885ebf4b9991cdb02f7112c08739727f37ee61dd4998e88b78d",
+    "INSTALL.md": "d15a0c190d1f23dbde3bf17d1375beed0b5cf7775c382f8ce53b8725efa44f89",
+    "ACCEPTANCE.json": "fd08cd341091db858a77c5bd887bfbbb159730190a0adf7a0705c986466b30d3",
+    "runtime-source-provenance.json": "db95c2ba974ee60cea45402d8e03094759ddaf527c2913b48dcf490675dccf99"
+  },
+  "privateKeysOrInstanceConfigurationIncluded": false
+}

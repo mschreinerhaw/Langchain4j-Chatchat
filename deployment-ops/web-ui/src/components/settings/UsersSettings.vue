@@ -1,0 +1,67 @@
+<template>
+  <div class="grid-two">
+    <PanelCard title="用户与权限">
+      <ResourceState :error="error" @retry="refresh" />
+      <DataTable :rows="data || []" :columns="columns" row-key="username" />
+    </PanelCard>
+    <PanelCard title="创建或更新账号">
+      <form @submit.prevent="save">
+        <label>
+          用户名
+          <input v-model="form.username" pattern="[A-Za-z0-9_-]{3,40}" required />
+        </label>
+        <label>
+          新密码
+          <input
+            v-model="form.password"
+            type="password"
+            minlength="8"
+            autocomplete="new-password"
+            required
+          />
+        </label>
+        <label>
+          角色
+          <select v-model="form.role">
+            <option value="viewer">只读用户：查看资源与状态</option>
+            <option value="admin">管理员：执行审批与维护</option>
+          </select>
+        </label>
+        <p v-if="message" class="notice success">{{ message }}</p>
+        <p v-if="saveError" class="notice danger" role="alert">{{ saveError }}</p>
+        <button class="primary" :disabled="busy">保存账号</button>
+      </form>
+    </PanelCard>
+  </div>
+</template>
+<script setup>
+  import { reactive, ref } from 'vue';
+  import { adminApi } from '../../api/admin';
+  import { useResource } from '../../composables/useResource';
+  import PanelCard from '../ui/PanelCard.vue';
+  import DataTable from '../ui/DataTable.vue';
+  import ResourceState from '../ui/ResourceState.vue';
+  const { data, error, refresh } = useResource(adminApi.users, { initial: [] }),
+    form = reactive({ username: '', password: '', role: 'viewer' }),
+    busy = ref(false),
+    message = ref(''),
+    saveError = ref('');
+  const columns = [
+    { key: 'username', label: '账号' },
+    { key: 'role', label: '角色' },
+  ];
+  async function save() {
+    busy.value = true;
+    saveError.value = '';
+    try {
+      await adminApi.saveUser({ ...form });
+      form.password = '';
+      message.value = '账号已保存，该账号的旧会话已失效。';
+      await refresh();
+    } catch (e) {
+      saveError.value = e.message;
+    } finally {
+      busy.value = false;
+    }
+  }
+</script>

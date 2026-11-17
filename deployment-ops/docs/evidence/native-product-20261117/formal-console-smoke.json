@@ -1,0 +1,17 @@
+{
+  "passed": true,
+  "health": {
+    "dataDirectory": "/mnt/disk01/deployment-ops-v1-release/state/data",
+    "requiredMount": "/mnt/disk01",
+    "schemaVersion": 2,
+    "mounted": true,
+    "platform": "UP",
+    "database": "UP",
+    "databaseType": "H2 embedded",
+    "version": "1.0.0",
+    "sourceCommit": "209781c4ee6a93123e75b0bc651f05a3c7b2c07c"
+  },
+  "runningRuntimeComponents": 24,
+  "finalBrowserLogin": true,
+  "javascriptErrors": []
+}

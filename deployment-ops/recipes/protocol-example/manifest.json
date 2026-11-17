@@ -1,0 +1,99 @@
+{
+  "schemaVersion": 1,
+  "name": "java-business",
+  "version": "1.0.0",
+  "platform": "linux/amd64",
+  "parameters": {
+    "dbUser": {
+      "type": "string",
+      "label": "\u6570\u636e\u5e93\u7528\u6237\u540d",
+      "required": true,
+      "pattern": "[a-z][a-z0-9_]{2,30}"
+    },
+    "dbPassword": {
+      "type": "string",
+      "label": "\u6570\u636e\u5e93\u5bc6\u7801",
+      "required": true,
+      "secret": true,
+      "pattern": ".{12,128}"
+    },
+    "httpPort": {
+      "type": "integer",
+      "label": "\u4e1a\u52a1\u7aef\u53e3",
+      "default": 18080,
+      "min": 1024,
+      "max": 65535
+    }
+  },
+  "images": {
+    "database": {
+      "source": "postgres:17.2"
+    },
+    "application": {
+      "source": "local/java-business:1.0.0"
+    }
+  },
+  "volumes": {
+    "database-data": {
+      "description": "\u4e1a\u52a1\u6570\u636e\u5e93\u6301\u4e45\u5316"
+    }
+  },
+  "components": [
+    {
+      "id": "database",
+      "image": "database",
+      "environment": {
+        "POSTGRES_USER": "${dbUser}",
+        "POSTGRES_PASSWORD": "${dbPassword}",
+        "POSTGRES_DB": "business"
+      },
+      "mounts": [
+        {
+          "volume": "database-data",
+          "target": "/var/lib/postgresql/data"
+        }
+      ],
+      "health": {
+        "type": "tcp",
+        "port": 5432
+      },
+      "capabilities": [
+        "CHOWN",
+        "FOWNER",
+        "SETUID",
+        "SETGID"
+      ]
+    },
+    {
+      "id": "application",
+      "image": "application",
+      "dependsOn": [
+        "database"
+      ],
+      "command": [
+        "java",
+        "-jar",
+        "/app/service.jar"
+      ],
+      "environment": {
+        "SPRING_DATASOURCE_URL": "jdbc:postgresql://database:5432/business",
+        "SPRING_DATASOURCE_USERNAME": "${dbUser}",
+        "SPRING_DATASOURCE_PASSWORD": "${dbPassword}"
+      },
+      "ports": [
+        {
+          "container": 8080,
+          "host": "${httpPort}"
+        }
+      ],
+      "health": {
+        "type": "http",
+        "port": 8080,
+        "path": "/actuator/health"
+      },
+      "entrypoint": []
+    }
+  ],
+  "upgradeFrom": [],
+  "dataCompatibility": "initial-only"
+}

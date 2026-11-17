@@ -1,0 +1,17 @@
+deployment-ops-1.1.0.zip: OK
+runtime-os-1.0.3-protocol-20261117.ops.zip: OK
+INSTALL.md: OK
+acceptance.json: OK
+deployment-ops-1.1.0.zip: OK
+deployment-ops-1.1.0-offline-linux-x64.tar: OK
+ac889ac3e522630e34818daeb6704aa8a2ce3aae2d1bdc5950a5cb488da9c536  deployment-ops-1.1.0.zip
+bce95d9342d4fe9d6e5a32713e4572aa11ec6a1e5234782593428f21f1b746a6  deployment-ops-1.1.0-offline-linux-x64.tar
+deployment-ops-1.1.0-offline/
+deployment-ops-1.1.0-offline/deployment-ops-1.1.0.zip
+deployment-ops-1.1.0-offline/runtime-os-1.0.3-protocol-20261117.ops.zip
+deployment-ops-1.1.0-offline/INSTALL.md
+deployment-ops-1.1.0-offline/acceptance.json
+deployment-ops-1.1.0-offline/SHA256SUMS
+deployment-ops-1.1.0.zip 66408307
+deployment-ops-1.1.0-offline-linux-x64.tar 6705674240
+Installed deployment-ops-release-install-qa. Open http://SERVER:19320 and create the administrator using the first-install token in journalctl -u deployment-ops-release-install-qa. No business service was stopped.

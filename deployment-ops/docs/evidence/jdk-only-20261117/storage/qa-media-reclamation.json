@@ -1,0 +1,26 @@
+{
+  "passed": true,
+  "scope": "two completed QA publisher ZIP files and their verified staging links only",
+  "records": [
+    {
+      "name": "runtime-os-gateway-good-qa.ops.zip",
+      "sha256": "3f65d56e77606b9fbd542d1f6d6533c51dc720395a700f7a262dc701a9c9ade3",
+      "reclaimedBytes": 8529776906,
+      "verifiedUploads": [
+        "80b64294475e41dd80b298ce984f697a"
+      ],
+      "signedPersistentPayloadsRetained": true
+    },
+    {
+      "name": "runtime-os-gateway-bad-qa.ops.zip",
+      "sha256": "ac720683218db8d28ab13d14477a8013b423cb3c2dc1436d18af0b8ee08c086c",
+      "reclaimedBytes": 8529765995,
+      "verifiedUploads": [
+        "70149d323f544013a29810c8918debf3"
+      ],
+      "signedPersistentPayloadsRetained": true
+    }
+  ],
+  "businessIdsAndStartedAtUnchanged": true,
+  "businessDataAndVolumesRemoved": false
+}

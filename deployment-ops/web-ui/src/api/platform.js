@@ -1,0 +1,21 @@
+import { get, post, request } from './client';
+export const maintenanceJobs = (signal) => get('/platform/maintenance', signal);
+export async function maintenanceJob(id, signal) {
+  const jobs = await maintenanceJobs(signal);
+  const job = jobs.find((value) => value.id === id);
+  if (!job) throw Error('未找到此平台维护任务。');
+  return job;
+}
+export const platformApi = {
+  health: (signal) => get('/platform/health', signal),
+  services: (signal) => get('/services', signal),
+  saveService: (value) => post('/services', value),
+  alerts: (signal) => get('/alerts', signal),
+  configuration: (signal) => get('/configuration', signal),
+  saveConfiguration: (value) => post('/configuration', value),
+  backups: (signal) => get('/backups', signal),
+  backup: () => post('/backups'),
+  maintenance: (value) => post('/platform/maintenance', value),
+  uploadUpgrade: (file, digest) =>
+    request('/platform/upgrades', { method: 'POST', body: file, headers: { 'X-SHA256': digest } }),
+};

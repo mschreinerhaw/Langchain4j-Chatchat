@@ -1,0 +1,6 @@
+Migration verified: {users=2, nodes=1, entries=3, audit=113}. Sessions intentionally invalidated. Legacy database not modified.
+Existing administrator password preserved PASS
+Copied links, node records, audits, timestamps and identity sequence PASS
+Docker discovery with embedded database PASS
+File database persistence after container restart PASS
+Removed only isolated test container and volume

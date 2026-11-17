@@ -1,0 +1,28 @@
+Source record counts: {'users': 2, 'nodes': 1, 'entries': 3, 'auditMax': 113}
+Migration verified: {users=2, nodes=1, entries=3, audit=113}. Sessions intentionally invalidated. Legacy database not modified.
+time="2026-11-15T15:17:31+08:00" level=warning msg="volume \"deployment-ops_ops-data\" already exists but was not created by Docker Compose. Use `external: true` to use an existing volume"
+time="2026-11-15T15:17:31+08:00" level=warning msg="Found orphan containers ([deployment-ops-db-1]) for this project. If you removed or renamed this service in your compose file, you can run this command with the --remove-orphans flag to clean it up."
+ Container deployment-ops-web-1  Recreate
+ Container deployment-ops-web-1  Recreated
+ Container deployment-ops-web-1  Starting
+ Container deployment-ops-web-1  Started
+Migrated records, credentials, sequence and restart persistence PASS
+Management health and discovery with legacy PostgreSQL STOPPED PASS
+Container deployment-ops-web-1  Stopping
+ Container deployment-ops-web-1  Stopped
+ Container deployment-ops-executor-1  Stopping
+ Container deployment-ops-executor-1  Stopped
+ deployment-ops-web-1 copy deployment-ops-web-1:/data to backups/20261115151739/data Copying
+ deployment-ops-web-1 copy deployment-ops-web-1:/data to backups/20261115151739/data Copied
+ deployment-ops-executor-1 copy deployment-ops-executor-1:/state to backups/20261115151739/executor-state Copying
+ deployment-ops-executor-1 copy deployment-ops-executor-1:/state to backups/20261115151739/executor-state Copied
+ Container deployment-ops-executor-1  Starting
+ Container deployment-ops-executor-1  Started
+ Container deployment-ops-web-1  Starting
+ Container deployment-ops-web-1  Started
+Backup: backups/20261115151739; store a secured copy on another disk.
+Independent closed-file backup and restart PASS
+Verified independent H2 backup: {users=2, nodes=1, entries=3, audit=114}
+Unrelated containers unchanged: 33
+Filesystem           Size  Used Avail Use% Mounted on
+/dev/mapper/rl-root   45G   37G  7.9G  83% /

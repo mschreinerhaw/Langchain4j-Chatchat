@@ -1,0 +1,41 @@
+{
+  "job": "d511e6d4714840fbba14c4bc631adace",
+  "installer": "f43d4b36b83a20aa6690db9958fd82b4a1c5d9d71685f03075cd00f3a75832df",
+  "componentsBefore": [
+    [
+      "bc2ae099e15f46de333766f3afebddc1a55bc722dae54535d7d69130d85f6200",
+      "2026-11-16T18:19:35.413664821Z",
+      true
+    ],
+    [
+      "9738b235d56987a1be61ac272180a7a8893c19eb96f3fd03866bb7d19baed10f",
+      "2026-11-16T18:19:35.27103901Z",
+      true
+    ],
+    [
+      "9ab5ea3c85f8d297bcd040c775b706a83f100ef773cc468ce59789c789416b74",
+      "2026-11-16T18:19:35.353661974Z",
+      true
+    ],
+    [
+      "823b518257e28b306fdda90de6da4dd1f0233c7d9992ded80d9c02f4df0d4722",
+      "2026-11-16T18:19:35.410038885Z",
+      true
+    ],
+    [
+      "e4518f03628a1c59b500e3ff33c822d8fe2079ba407cba8a3353a67c915c0868",
+      "2026-11-16T18:19:35.057839225Z",
+      true
+    ],
+    [
+      "af26c8debf3c07fe3cdec85cba1781311ac26265b56c29978d907fbaa5743041",
+      "2026-11-16T18:19:35.177444463Z",
+      true
+    ]
+  ],
+  "passed": true,
+  "existingComponentsUnchanged": true,
+  "originalWorkloadsUnchanged": 20,
+  "sameInstallerRetained": true,
+  "recoveredTaskStatus": "interrupted"
+}

@@ -1,0 +1,11 @@
+{
+  "passed": true,
+  "checks": [
+    "native platform authenticated",
+    "reviewed signed offline package already verified on target with matching SHA256",
+    "observed retained task after explicit recovery",
+    "source-built native Temporal Runtime OS successfully installed and verified"
+  ],
+  "job": "acd787e6cb7d4a35b6cad3b20e8a240c",
+  "errors": []
+}

@@ -1,0 +1,76 @@
+{
+  "passed": true,
+  "archiveSha256": "53ff7670a2410b76e23cc6f45ffea3cc26e2542cd6eba79439ed6dfd5a78cf53",
+  "version": "1.0.0-rc.5",
+  "sourceCommit": "f9c4adbd691ab869852d938b5b224905e53e340d",
+  "allBusinessIdsAndStartTimesUnchanged": true,
+  "businessContainerCount": 44,
+  "maintenance": {
+    "id": "7f3ff68a116f4aa99249f5ee7b845e4f",
+    "action": "upgrade",
+    "archive": "/mnt/disk01/deployment-ops-v1-release/state/upgrades/upgrade-01417778-ff19-42c6-ac7c-84791268e925.zip",
+    "actor": "admin",
+    "service": "deployment-ops-v1-release",
+    "config": "/mnt/disk01/deployment-ops-v1-release/state/manager.env",
+    "state": "/mnt/disk01/deployment-ops-v1-release/state",
+    "status": "succeeded",
+    "createdAt": 1794856707.0712214,
+    "startedAt": 1794856707.2050853,
+    "steps": [
+      {
+        "id": "verify_archive",
+        "kind": "job",
+        "status": "succeeded",
+        "startedAt": 1794856707.2127805,
+        "completedAt": 1794856707.4472973
+      },
+      {
+        "id": "extract_release",
+        "kind": "job",
+        "status": "succeeded",
+        "startedAt": 1794856707.4473014,
+        "completedAt": 1794856708.1857016
+      },
+      {
+        "id": "stop_platform",
+        "kind": "job",
+        "status": "succeeded",
+        "startedAt": 1794856708.1857042,
+        "completedAt": 1794856708.7554193
+      },
+      {
+        "id": "snapshot_database",
+        "kind": "job",
+        "status": "succeeded",
+        "startedAt": 1794856708.755425,
+        "completedAt": 1794856708.7572193
+      },
+      {
+        "id": "install_release",
+        "kind": "job",
+        "status": "succeeded",
+        "startedAt": 1794856708.7572215,
+        "completedAt": 1794856708.8388476
+      },
+      {
+        "id": "health_check",
+        "kind": "job",
+        "status": "succeeded",
+        "startedAt": 1794856708.838851,
+        "completedAt": 1794856714.0491836
+      }
+    ],
+    "finishedAt": 1794856714.0491889
+  },
+  "health": {
+    "requiredMount": "/mnt/disk01",
+    "schemaVersion": 2,
+    "mounted": true,
+    "platform": "UP",
+    "database": "UP",
+    "databaseType": "H2 embedded",
+    "dataDirectory": "/mnt/disk01/deployment-ops-v1-release/state/data",
+    "version": "1.0.0-rc.5",
+    "sourceCommit": "f9c4adbd691ab869852d938b5b224905e53e340d"
+  }
+}

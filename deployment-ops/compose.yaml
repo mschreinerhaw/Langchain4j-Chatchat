@@ -1,0 +1,66 @@
+name: deployment-ops
+services:
+  registry:
+    image: registry:2.8.3
+    pull_policy: never
+    profiles: [registry]
+    volumes: ["ops-registry:/var/lib/registry"]
+    ports: ["127.0.0.1:19225:5000"]
+    networks: [ops]
+    restart: unless-stopped
+    environment:
+      REGISTRY_STORAGE_DELETE_ENABLED: "false"
+  executor:
+    labels:
+      deployment-ops.control-plane: "true"
+    image: deployment-ops-executor:1.0.0
+    pull_policy: never
+    build:
+      context: .
+      dockerfile: executor/Dockerfile
+      args:
+        PYTHON_IMAGE: ${OPS_PYTHON_IMAGE:-python:3.11-slim}
+    environment:
+      EXECUTOR_TOKEN: ${EXECUTOR_TOKEN:?set EXECUTOR_TOKEN}
+      OPS_NETWORK: deployment-ops_edge
+      OPS_READ_ONLY: ${OPS_READ_ONLY:-1}
+      OPS_ALLOWED_REGISTRIES: ${OPS_ALLOWED_REGISTRIES:-}
+    volumes: ["/var/run/docker.sock:/var/run/docker.sock", "ops-state:/state", "ops-packages:/packages", "./trust:/trust:ro", "/proc:/host/proc:ro", "/:/host/root:ro,rslave"]
+    networks: [ops, edge]
+    restart: unless-stopped
+    read_only: true
+    tmpfs: ["/tmp:size=3g"]
+    security_opt: ["no-new-privileges:true"]
+  web:
+    labels:
+      deployment-ops.control-plane: "true"
+    image: deployment-ops-web:1.0.0
+    pull_policy: never
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
+    environment:
+      DB_PASSWORD: ${DB_PASSWORD:?set local database password}
+      EXECUTOR_TOKEN: ${EXECUTOR_TOKEN}
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD:?set ADMIN_PASSWORD}
+      JAVA_TOOL_OPTIONS: ${JAVA_TOOL_OPTIONS:-}
+    volumes: ["ops-data:/data"]
+    ports: ["${OPS_BIND:-127.0.0.1}:${OPS_PORT:-19220}:8080"]
+    depends_on:
+      executor:
+        condition: service_started
+    networks: [ops, edge]
+    restart: unless-stopped
+    read_only: true
+    tmpfs: ["/tmp:size=64m"]
+    cap_drop: [ALL]
+    security_opt: ["no-new-privileges:true"]
+networks:
+  edge: {}
+  ops:
+    internal: true
+volumes:
+  ops-data:
+  ops-state:
+  ops-packages:
+  ops-registry:

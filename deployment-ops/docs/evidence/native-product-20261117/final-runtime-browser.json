@@ -1,0 +1,12 @@
+{
+  "passed": true,
+  "checks": [
+    "native platform authenticated",
+    "reviewed signed offline package already verified on target with matching SHA256",
+    "deployment submitted through real Vue wizard",
+    "explicit GUI recovery retained the installer after native platform restart",
+    "source-built native Temporal Runtime OS successfully installed and verified"
+  ],
+  "job": "d511e6d4714840fbba14c4bc631adace",
+  "errors": []
+}

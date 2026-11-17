@@ -1,0 +1,601 @@
+{
+  "version": "1.0.2-image-failure-qa",
+  "expected": "rolled_back",
+  "before": [
+    [
+      "14e640a9aef2529952bd5d5cb3409e358309bf5e4a735d0059b6523551a9c327",
+      "2026-11-14T11:54:04.526066989Z",
+      true
+    ],
+    [
+      "1ebc7801d911cbdfc8e54a985605fe78e66411d3b163f56ba7d4778a1af3e423",
+      "2026-11-16T02:19:18.416602777Z",
+      true
+    ],
+    [
+      "26c552bbbf829776d80000dcee9206418322a36bdfb3603e6734d765ea9a3a30",
+      "2026-11-11T03:54:27.075464927Z",
+      true
+    ],
+    [
+      "2de4b399205ffa3b3a7c5b90d0d11aead17c35d39d48ccdcced6984487aaf0a9",
+      "2026-11-15T13:15:28.507006477Z",
+      true
+    ],
+    [
+      "5497934e5336c4572cfe6d0263fa1b0e2b08b64e380afe60180f237296104b1d",
+      "2026-11-15T13:16:27.50883657Z",
+      true
+    ],
+    [
+      "6626b748c68ff0dd63d4f867952419c5610ae767e5181b3f4ad9de0b9d244a72",
+      "2026-11-15T15:17:46.909360685Z",
+      true
+    ],
+    [
+      "6ab61cbb10b7480da9ff76c0b7f65e82a7321ac24fd9780d192c47e030546a9b",
+      "2026-11-15T13:15:27.653465736Z",
+      true
+    ],
+    [
+      "6b15d3dfebecfd575310b3ea56a9c86edbdae94e482843721239cb36d647ee86",
+      "2026-11-16T02:26:58.59731615Z",
+      true
+    ],
+    [
+      "87899b59ad9b4cdf797bc1b2ebb1f1735ad97fe9bc782645444b4b1346631f51",
+      "2026-11-16T02:19:18.841169333Z",
+      true
+    ],
+    [
+      "88c4f7bc4abfcc31b8c7aa0c02fc760afb052f87cafad79eb7171192b6f785f1",
+      "2026-11-16T02:27:04.316130474Z",
+      true
+    ],
+    [
+      "92499ff8e023020b77badf4ed6700e79281142d7bdf1a3612841080e83b0a534",
+      "2026-11-15T13:15:28.488959835Z",
+      true
+    ],
+    [
+      "a2c436975a70932e30d02ee960b589a14bbf25d391ebae11377cff1fa0ddea7c",
+      "2026-11-15T13:15:27.651161662Z",
+      true
+    ],
+    [
+      "bc9c62daf53d6be62274f3fa121750a6b4fdb011e87e34cf59c05ced66a04360",
+      "2026-11-16T02:26:58.598938541Z",
+      true
+    ],
+    [
+      "c7e63c108742c063543639490b436927e2b329dcbdd96d1e64d233795b0aef8b",
+      "2026-11-16T02:27:04.304558274Z",
+      true
+    ],
+    [
+      "d1dfba6f85ea1a62947b1cd246512a072b90dd5ff5535a1588b280237dcb27b5",
+      "2026-11-16T02:26:58.579967496Z",
+      true
+    ],
+    [
+      "d80c05322f5b3a7461a84887471ec83c85af625afccab24338f6301812520c5c",
+      "2026-11-15T13:14:33.635252055Z",
+      true
+    ],
+    [
+      "e6cdedc0e10f9679be6a88d55d0e4d9c528eba5278fe2bdf64745534a9397119",
+      "2026-11-16T02:19:18.026995338Z",
+      true
+    ],
+    [
+      "f0ef24cb525bbd11097fb5310986f041059f877a4784228cda4be07a1a4fb234",
+      "2026-11-11T03:54:26.980953231Z",
+      true
+    ],
+    [
+      "f11fe1e32b466f3a37ad6ba111f5efa1d059d0e098ac274981117932c53cb05e",
+      "2026-11-16T02:19:18.029562266Z",
+      true
+    ],
+    [
+      "fc476532046f8cf048162be16961363849af59f559713ddb61fbc62d8b7f0a5b",
+      "2026-11-16T02:26:58.584324323Z",
+      true
+    ]
+  ],
+  "gatewayBefore": {
+    "id": "066289b8d36717e0db1b4a5aace491758c16fdca8cbc1daf4535cd96163cebd7",
+    "image": "sha256:0fc453892edf427a59ab96bcd2599793d98d95a83edb70bf5588bcf3cfcc4e56"
+  },
+  "preflight": {
+    "ok": true,
+    "checks": [
+      {
+        "name": "Host and capacity",
+        "status": "passed",
+        "detail": {
+          "availableMemoryBytes": 6933618688,
+          "requiredMemoryBytes": 536870912
+        }
+      },
+      {
+        "name": "Offline images, ports and ownership",
+        "status": "passed",
+        "detail": "14 immutable offline images; project ops-env-runtime-release-v1"
+      },
+      {
+        "name": "Approved privileged application adapter",
+        "status": "passed",
+        "detail": "Native Runtime OS installer uses Docker administration to create only project ops-env-runtime-release-v1 and its dedicated execution daemon. The Deployment Ops Java process remains native. Data: /mnt/disk01/ops/r/99f2-076e271c2551"
+      }
+    ],
+    "environment": "runtime-release-v1",
+    "package": "ac720683218db8d28ab13d14477a8013b423cb3c2dc1436d18af0b8ee08c086c",
+    "packageName": "runtime-os",
+    "version": "1.0.2-image-failure-qa",
+    "reviewToken": "eb16da0ce07b4eb29c1d6ba33357dd283e22b6d9ae1a4c22aaf61c55d1d09b9e",
+    "parameters": {
+      "serverAddress": "192.168.195.221",
+      "httpPort": 19402,
+      "mcpPort": 19403,
+      "directoryName": ""
+    },
+    "links": [
+      {
+        "name": "Runtime OS",
+        "url": "http://192.168.195.221:19402/"
+      },
+      {
+        "name": "MCP \u7ba1\u7406\u5165\u53e3",
+        "url": "http://192.168.195.221:19403/"
+      }
+    ],
+    "components": [
+      {
+        "id": "postgresql",
+        "kind": "service",
+        "dependsOn": []
+      },
+      {
+        "id": "temporal-db",
+        "kind": "service",
+        "dependsOn": []
+      },
+      {
+        "id": "temporal",
+        "kind": "service",
+        "dependsOn": []
+      },
+      {
+        "id": "redis",
+        "kind": "service",
+        "dependsOn": []
+      },
+      {
+        "id": "opensearch",
+        "kind": "service",
+        "dependsOn": []
+      },
+      {
+        "id": "silo",
+        "kind": "service",
+        "dependsOn": []
+      },
+      {
+        "id": "news",
+        "kind": "service",
+        "dependsOn": []
+      },
+      {
+        "id": "mcp",
+        "kind": "service",
+        "dependsOn": []
+      },
+      {
+        "id": "api",
+        "kind": "service",
+        "dependsOn": []
+      },
+      {
+        "id": "executor-daemon",
+        "kind": "service",
+        "dependsOn": []
+      },
+      {
+        "id": "executor1",
+        "kind": "service",
+        "dependsOn": []
+      },
+      {
+        "id": "executor2",
+        "kind": "service",
+        "dependsOn": []
+      },
+      {
+        "id": "studio-executor",
+        "kind": "service",
+        "dependsOn": []
+      },
+      {
+        "id": "recovery1",
+        "kind": "service",
+        "dependsOn": []
+      },
+      {
+        "id": "recovery2",
+        "kind": "service",
+        "dependsOn": []
+      },
+      {
+        "id": "node1",
+        "kind": "service",
+        "dependsOn": []
+      },
+      {
+        "id": "node2",
+        "kind": "service",
+        "dependsOn": []
+      },
+      {
+        "id": "studio",
+        "kind": "service",
+        "dependsOn": []
+      },
+      {
+        "id": "worker1",
+        "kind": "service",
+        "dependsOn": []
+      },
+      {
+        "id": "worker2",
+        "kind": "service",
+        "dependsOn": []
+      },
+      {
+        "id": "frontend-resource-hub",
+        "kind": "service",
+        "dependsOn": []
+      },
+      {
+        "id": "frontend-worker",
+        "kind": "service",
+        "dependsOn": []
+      },
+      {
+        "id": "gateway",
+        "kind": "service",
+        "dependsOn": []
+      },
+      {
+        "id": "manager",
+        "kind": "service",
+        "dependsOn": []
+      }
+    ],
+    "upgrade": true,
+    "deploymentDirectory": "/mnt/disk01/ops/r/99f2-076e271c2551",
+    "orchestration": "runtime-os-native/v1"
+  },
+  "id": "5dfe8746a102460db385558cc2ddefd6",
+  "task": {
+    "id": "5dfe8746a102460db385558cc2ddefd6",
+    "environment": "runtime-release-v1",
+    "package": "ac720683218db8d28ab13d14477a8013b423cb3c2dc1436d18af0b8ee08c086c",
+    "packageName": "runtime-os",
+    "version": "1.0.2-image-failure-qa",
+    "actor": "admin",
+    "createdAt": 1794854919.8204665,
+    "updatedAt": 1794855213.5400026,
+    "status": "rolled_back",
+    "message": "Previous Native Runtime OS version restored and verified; application data retained",
+    "links": [
+      {
+        "name": "Runtime OS",
+        "url": "http://192.168.195.221:19402/"
+      },
+      {
+        "name": "MCP \u7ba1\u7406\u5165\u53e3",
+        "url": "http://192.168.195.221:19403/"
+      }
+    ],
+    "previousRun": "3aa7bf7552cd4a109bcb035c85be0bd1",
+    "parameters": {
+      "serverAddress": "192.168.195.221",
+      "httpPort": 19402,
+      "mcpPort": 19403,
+      "directoryName": ""
+    },
+    "steps": [
+      {
+        "id": "postgresql",
+        "kind": "service",
+        "status": "rolled_back",
+        "container": "af26c8debf3c07fe3cdec85cba1781311ac26265b56c29978d907fbaa5743041",
+        "message": "Up 33 minutes (healthy)"
+      },
+      {
+        "id": "temporal-db",
+        "kind": "service",
+        "status": "rolled_back",
+        "container": "9ab5ea3c85f8d297bcd040c775b706a83f100ef773cc468ce59789c789416b74",
+        "message": "Up 33 minutes (healthy)"
+      },
+      {
+        "id": "temporal",
+        "kind": "service",
+        "status": "rolled_back",
+        "container": "c323cc9a679f8dcfe1fe898225b25749544e6bbcb8a4f0b2ad17fea4615a132f",
+        "message": "Up 32 minutes (healthy)"
+      },
+      {
+        "id": "redis",
+        "kind": "service",
+        "status": "rolled_back",
+        "container": "9738b235d56987a1be61ac272180a7a8893c19eb96f3fd03866bb7d19baed10f",
+        "message": "Up 33 minutes (healthy)"
+      },
+      {
+        "id": "opensearch",
+        "kind": "service",
+        "status": "rolled_back",
+        "container": "823b518257e28b306fdda90de6da4dd1f0233c7d9992ded80d9c02f4df0d4722",
+        "message": "Up 33 minutes (healthy)"
+      },
+      {
+        "id": "silo",
+        "kind": "service",
+        "status": "rolled_back",
+        "container": "bc2ae099e15f46de333766f3afebddc1a55bc722dae54535d7d69130d85f6200",
+        "message": "Up 33 minutes (healthy)"
+      },
+      {
+        "id": "news",
+        "kind": "service",
+        "status": "rolled_back",
+        "container": "a689b71958adec54e8b70f2ad8b49567956ce18f1ddecec3a6a1daa0b0c06d41",
+        "message": "Up 32 minutes (healthy)"
+      },
+      {
+        "id": "mcp",
+        "kind": "service",
+        "status": "rolled_back",
+        "container": "7abf0b89e1044edbd7e3d99c6dc3fe5e92ed67deba1ace34e96577576231176a",
+        "message": "Up 32 minutes (healthy)"
+      },
+      {
+        "id": "api",
+        "kind": "service",
+        "status": "rolled_back",
+        "container": "5a57a989128468c68d6ac4a1334661050570c73c782966d671375ac062bef146",
+        "message": "Up 32 minutes (healthy)"
+      },
+      {
+        "id": "executor-daemon",
+        "kind": "service",
+        "status": "rolled_back",
+        "container": "e4518f03628a1c59b500e3ff33c822d8fe2079ba407cba8a3353a67c915c0868",
+        "message": "Up 33 minutes"
+      },
+      {
+        "id": "executor1",
+        "kind": "service",
+        "status": "rolled_back",
+        "container": "209afc44d38ebc02f9fc217f27c966b771419ba1021d17c6ef8587716139d839",
+        "message": "Up 28 minutes"
+      },
+      {
+        "id": "executor2",
+        "kind": "service",
+        "status": "rolled_back",
+        "container": "7cf8899fa39a199104395ce52d32ef1f529f908dedbb79901de513f274fc908c",
+        "message": "Up 28 minutes"
+      },
+      {
+        "id": "studio-executor",
+        "kind": "service",
+        "status": "rolled_back",
+        "container": "f863cabca4cd76a118bf41e4d9374dc7597422ee4719adeb0880eb5d32fc34fc",
+        "message": "Up 28 minutes"
+      },
+      {
+        "id": "recovery1",
+        "kind": "service",
+        "status": "rolled_back",
+        "container": "0ea29e5e9b5e8c1048c04861f2ab6b5d0c005b2098a4c7f27250daab3863661d",
+        "message": "Up 28 minutes"
+      },
+      {
+        "id": "recovery2",
+        "kind": "service",
+        "status": "rolled_back",
+        "container": "6ba99d83309c28e8b0716668da54cab2ec84a9651a696709ab260dfc43b0ec1f",
+        "message": "Up 28 minutes"
+      },
+      {
+        "id": "node1",
+        "kind": "service",
+        "status": "rolled_back",
+        "container": "2ee83f9ffee6bdc9779bca0d0ad0dd30899a25137b2fa6a6404c51023085af09",
+        "message": "Up 28 minutes"
+      },
+      {
+        "id": "node2",
+        "kind": "service",
+        "status": "rolled_back",
+        "container": "2795dd81534f15074890dbf6572d01193284fcafd41ada85926dbb1938fadc08",
+        "message": "Up 28 minutes"
+      },
+      {
+        "id": "studio",
+        "kind": "service",
+        "status": "rolled_back",
+        "container": "29952c30729894df74a0cf0b55aaa580e5d6bf7d10e00f69eddf04d0aed505fb",
+        "message": "Up 28 minutes"
+      },
+      {
+        "id": "worker1",
+        "kind": "service",
+        "status": "rolled_back",
+        "container": "a67f3ae57cefd1eda73cf414ac3276d1844eefb363fd21f0d1ffe81734b7d5d7",
+        "message": "Up 28 minutes"
+      },
+      {
+        "id": "worker2",
+        "kind": "service",
+        "status": "rolled_back",
+        "container": "09e8b5ea07206a900ce3ea6ca9924bbddc37e7d734f99c6ea0452c62b34106e1",
+        "message": "Up 28 minutes"
+      },
+      {
+        "id": "frontend-resource-hub",
+        "kind": "service",
+        "status": "rolled_back",
+        "container": "b0540803514668327be2206b5efdd6aa40eb824e4b4be99e72248ba6a632b2ba",
+        "message": "Up 28 minutes (healthy)"
+      },
+      {
+        "id": "frontend-worker",
+        "kind": "service",
+        "status": "rolled_back",
+        "container": "8fedacb07a8db3a6a40c3e96ed0e1bb175063c5eb709c22d1ca3b5553c11ddc6",
+        "message": "Up 28 minutes (healthy)"
+      },
+      {
+        "id": "gateway",
+        "kind": "service",
+        "status": "rolled_back",
+        "container": "e85c60c794f52ce5adbd8e5e76ce2c4abaf03de2bf9be2eb9a735e63356e19e8",
+        "message": "Up 24 seconds (healthy)"
+      },
+      {
+        "id": "manager",
+        "kind": "service",
+        "status": "rolled_back",
+        "container": "9c5ee78cabd0d54cfefc335923536c52add7676bbc456ac42c189900a078afaa",
+        "message": "Up 19 minutes"
+      }
+    ],
+    "runtimeAdapter": "runtime-os-native/v1",
+    "active": false,
+    "cancelRequested": false,
+    "runtimeContainer": "f85cb4693b5e7d550bf56edbcfff56b243dcd1e54963841a679811b988dbc14d",
+    "runtimeOperation": {
+      "package": "3f65d56e77606b9fbd542d1f6d6533c51dc720395a700f7a262dc701a9c9ade3",
+      "command": "install",
+      "root": "/mnt/disk01/ops/r/99f2-076e271c2551",
+      "project": "ops-env-runtime-release-v1"
+    },
+    "installerLog": "2026-11-16T18:53:01.214100053Z Private CA, credentials and truststore are ready.\n2026-11-16T18:53:01.671249866Z  Container ops-env-runtime-release-v1-postgresql  Running\n2026-11-16T18:53:01.671315838Z  Container ops-env-runtime-release-v1-opensearch  Running\n2026-11-16T18:53:01.671326846Z  Container ops-env-runtime-release-v1-redis  Running\n2026-11-16T18:53:01.671335343Z  Container ops-env-runtime-release-v1-temporal-db  Running\n2026-11-16T18:53:01.671343307Z  Container ops-env-runtime-release-v1-executor-daemon  Running\n2026-11-16T18:53:01.671351071Z  Container ops-env-runtime-release-v1-silo  Running\n2026-11-16T18:53:02.394630405Z ALTER ROLE\n2026-11-16T18:53:02.402711804Z ALTER ROLE\n2026-11-16T18:53:02.410769617Z ALTER ROLE\n2026-11-16T18:53:02.411742655Z REVOKE\n2026-11-16T18:53:02.411978818Z REVOKE\n2026-11-16T18:53:02.412300770Z REVOKE\n2026-11-16T18:53:02.601802222Z Application schemas initialized transactionally.\n2026-11-16T18:53:03.754270568Z OpenSearch authenticated health check passed\n2026-11-16T18:53:04.541442542Z Silo bucket, immutable versions and object read/write verified.\n2026-11-16T18:53:05.099937743Z  Container ops-env-runtime-release-v1-temporal  Running\n2026-11-16T18:53:05.607793878Z  Container ops-env-runtime-release-v1-news  Running\n2026-11-16T18:53:06.104236122Z  Container ops-env-runtime-release-v1-mcp  Running\n2026-11-16T18:53:06.583656799Z  Container ops-env-runtime-release-v1-api  Running\n2026-11-16T18:53:08.661472900Z  Container ops-env-runtime-release-v1-worker1  Running\n2026-11-16T18:53:08.661507035Z  Container ops-env-runtime-release-v1-executor1  Running\n2026-11-16T18:53:08.661511520Z  Container ops-env-runtime-release-v1-node1  Running\n2026-11-16T18:53:08.661514879Z  Container ops-env-runtime-release-v1-frontend-worker  Running\n2026-11-16T18:53:08.661518317Z  Container ops-env-runtime-release-v1-frontend-resource-hub  Running\n2026-11-16T18:53:08.661521608Z  Container ops-env-runtime-release-v1-studio-executor  Running\n2026-11-16T18:53:08.661524745Z  Container ops-env-runtime-release-v1-recovery2  Running\n2026-11-16T18:53:08.661527927Z  Container ops-env-runtime-release-v1-gateway  Recreate\n2026-11-16T18:53:08.661636971Z  Container ops-env-runtime-release-v1-executor2  Running\n2026-11-16T18:53:08.661710709Z  Container ops-env-runtime-release-v1-studio  Running\n2026-11-16T18:53:08.662158224Z  Container ops-env-runtime-release-v1-node2  Running\n2026-11-16T18:53:08.662382617Z  Container ops-env-runtime-release-v1-worker2  Running\n2026-11-16T18:53:08.662398132Z  Container ops-env-runtime-release-v1-recovery1  Running\n2026-11-16T18:53:08.750898543Z  Container ops-env-runtime-release-v1-gateway  Recreated\n2026-11-16T18:53:08.767372324Z  Container ops-env-runtime-release-v1-gateway  Starting\n2026-11-16T18:53:09.307893134Z  Container ops-env-runtime-release-v1-gateway  Started\n2026-11-16T18:53:18.800968509Z {\"sourceCommit\":\"a459f1d04dea030833b558be645011ab739c463b\",\"verifiedFiles\":1850,\"descriptorSha256\":\"d28dace3b4daff727770c3625917b22a0c54a8f855c4222530de1923b493086f\",\"descriptorServices\":22,\"node\":\"v24.22.2\",\"nodeABI\":\"137\",\"sqlite\":\"3.50.4\",\"status\":\"PASS\"}\n2026-11-16T18:53:19.037260051Z {\"node\":\"v24.22.2\",\"abi\":\"137\",\"nativeModules\":1,\"sqliteExecuted\":true}\n2026-11-16T18:53:30.983868590Z No broken requirements found.\n2026-11-16T18:53:31.045669968Z {\"python\": \"3.11.18 (main, Nov  5 2026, 07:57:53) [GCC 14.2.0]\", \"sqlite\": \"3.46.1\", \"imports\": [\"pandas\", \"numpy\", \"pyarrow\", \"duckdb\", \"matplotlib\", \"openpyxl\", \"pytest\", \"psycopg\", \"pyodbc\", \"oracledb\", \"scipy\", \"sklearn\"], \"lockVerified\": true}\n2026-11-16T18:53:31.999491482Z  Container ops-env-runtime-release-v1-manager  Running\n2026-11-16T18:53:32.026852129Z \n2026-11-16T18:53:32.026889594Z Environment ready. HTTP port: 19402; MCP port: 19403\n2026-11-16T18:53:32.026899609Z Existing administrator credentials and persistent data retained.\n2026-11-16T18:53:32.026907865Z Persistent installation directory: /mnt/disk01/ops/r/99f2-076e271c2551\n",
+    "failure": "Native Runtime OS installer failed; inspect retained task logs and component state",
+    "rollbackRequested": false,
+    "failedInstallerLog": "2026-11-16T18:48:43.803470088Z Private CA, credentials and truststore are ready.\n2026-11-16T18:48:44.285263988Z  Container ops-env-runtime-release-v1-opensearch  Running\n2026-11-16T18:48:44.285324033Z  Container ops-env-runtime-release-v1-redis  Running\n2026-11-16T18:48:44.285334578Z  Container ops-env-runtime-release-v1-silo  Running\n2026-11-16T18:48:44.285342706Z  Container ops-env-runtime-release-v1-executor-daemon  Running\n2026-11-16T18:48:44.285350882Z  Container ops-env-runtime-release-v1-temporal-db  Running\n2026-11-16T18:48:44.285358657Z  Container ops-env-runtime-release-v1-postgresql  Running\n2026-11-16T18:48:45.240294579Z ALTER ROLE\n2026-11-16T18:48:45.247868506Z ALTER ROLE\n2026-11-16T18:48:45.256957638Z ALTER ROLE\n2026-11-16T18:48:45.258053780Z REVOKE\n2026-11-16T18:48:45.258277390Z REVOKE\n2026-11-16T18:48:45.258505534Z REVOKE\n2026-11-16T18:48:45.425717099Z Application schemas initialized transactionally.\n2026-11-16T18:48:46.123092938Z OpenSearch authenticated health check passed\n2026-11-16T18:48:46.854285845Z Silo bucket, immutable versions and object read/write verified.\n2026-11-16T18:48:47.519684303Z  Container ops-env-runtime-release-v1-temporal  Running\n2026-11-16T18:48:47.980615249Z  Container ops-env-runtime-release-v1-news  Running\n2026-11-16T18:48:48.432981702Z  Container ops-env-runtime-release-v1-mcp  Running\n2026-11-16T18:48:48.888243186Z  Container ops-env-runtime-release-v1-api  Running\n2026-11-16T18:48:52.281422555Z  Container ops-env-runtime-release-v1-recovery1  Running\n2026-11-16T18:48:52.281451967Z  Container ops-env-runtime-release-v1-frontend-resource-hub  Running\n2026-11-16T18:48:52.281456400Z  Container ops-env-runtime-release-v1-worker2  Running\n2026-11-16T18:48:52.281459983Z  Container ops-env-runtime-release-v1-node1  Running\n2026-11-16T18:48:52.281467613Z  Container ops-env-runtime-release-v1-studio-executor  Running\n2026-11-16T18:48:52.281471119Z  Container ops-env-runtime-release-v1-executor2  Running\n2026-11-16T18:48:52.281474313Z  Container ops-env-runtime-release-v1-frontend-worker  Running\n2026-11-16T18:48:52.281515701Z  Container ops-env-runtime-release-v1-executor1  Running\n2026-11-16T18:48:52.281530683Z  Container ops-env-runtime-release-v1-gateway  Recreate\n2026-11-16T18:48:52.281534757Z  Container ops-env-runtime-release-v1-worker1  Running\n2026-11-16T18:48:52.281574526Z  Container ops-env-runtime-release-v1-studio  Running\n2026-11-16T18:48:52.281624627Z  Container ops-env-runtime-release-v1-node2  Running\n2026-11-16T18:48:52.281713195Z  Container ops-env-runtime-release-v1-recovery2  Running\n2026-11-16T18:48:53.168514796Z  Container ops-env-runtime-release-v1-gateway  Recreated\n2026-11-16T18:48:53.182929272Z  Container ops-env-runtime-release-v1-gateway  Starting\n2026-11-16T18:48:53.734738508Z  Container ops-env-runtime-release-v1-gateway  Started\n2026-11-16T18:52:56.709072177Z Installation failed: gateway did not become healthy; use the installer logs command\n"
+  },
+  "after": [
+    [
+      "14e640a9aef2529952bd5d5cb3409e358309bf5e4a735d0059b6523551a9c327",
+      "2026-11-14T11:54:04.526066989Z",
+      true
+    ],
+    [
+      "1ebc7801d911cbdfc8e54a985605fe78e66411d3b163f56ba7d4778a1af3e423",
+      "2026-11-16T02:19:18.416602777Z",
+      true
+    ],
+    [
+      "26c552bbbf829776d80000dcee9206418322a36bdfb3603e6734d765ea9a3a30",
+      "2026-11-11T03:54:27.075464927Z",
+      true
+    ],
+    [
+      "2de4b399205ffa3b3a7c5b90d0d11aead17c35d39d48ccdcced6984487aaf0a9",
+      "2026-11-15T13:15:28.507006477Z",
+      true
+    ],
+    [
+      "5497934e5336c4572cfe6d0263fa1b0e2b08b64e380afe60180f237296104b1d",
+      "2026-11-15T13:16:27.50883657Z",
+      true
+    ],
+    [
+      "6626b748c68ff0dd63d4f867952419c5610ae767e5181b3f4ad9de0b9d244a72",
+      "2026-11-15T15:17:46.909360685Z",
+      true
+    ],
+    [
+      "6ab61cbb10b7480da9ff76c0b7f65e82a7321ac24fd9780d192c47e030546a9b",
+      "2026-11-15T13:15:27.653465736Z",
+      true
+    ],
+    [
+      "6b15d3dfebecfd575310b3ea56a9c86edbdae94e482843721239cb36d647ee86",
+      "2026-11-16T02:26:58.59731615Z",
+      true
+    ],
+    [
+      "87899b59ad9b4cdf797bc1b2ebb1f1735ad97fe9bc782645444b4b1346631f51",
+      "2026-11-16T02:19:18.841169333Z",
+      true
+    ],
+    [
+      "88c4f7bc4abfcc31b8c7aa0c02fc760afb052f87cafad79eb7171192b6f785f1",
+      "2026-11-16T02:27:04.316130474Z",
+      true
+    ],
+    [
+      "92499ff8e023020b77badf4ed6700e79281142d7bdf1a3612841080e83b0a534",
+      "2026-11-15T13:15:28.488959835Z",
+      true
+    ],
+    [
+      "a2c436975a70932e30d02ee960b589a14bbf25d391ebae11377cff1fa0ddea7c",
+      "2026-11-15T13:15:27.651161662Z",
+      true
+    ],
+    [
+      "bc9c62daf53d6be62274f3fa121750a6b4fdb011e87e34cf59c05ced66a04360",
+      "2026-11-16T02:26:58.598938541Z",
+      true
+    ],
+    [
+      "c7e63c108742c063543639490b436927e2b329dcbdd96d1e64d233795b0aef8b",
+      "2026-11-16T02:27:04.304558274Z",
+      true
+    ],
+    [
+      "d1dfba6f85ea1a62947b1cd246512a072b90dd5ff5535a1588b280237dcb27b5",
+      "2026-11-16T02:26:58.579967496Z",
+      true
+    ],
+    [
+      "d80c05322f5b3a7461a84887471ec83c85af625afccab24338f6301812520c5c",
+      "2026-11-15T13:14:33.635252055Z",
+      true
+    ],
+    [
+      "e6cdedc0e10f9679be6a88d55d0e4d9c528eba5278fe2bdf64745534a9397119",
+      "2026-11-16T02:19:18.026995338Z",
+      true
+    ],
+    [
+      "f0ef24cb525bbd11097fb5310986f041059f877a4784228cda4be07a1a4fb234",
+      "2026-11-11T03:54:26.980953231Z",
+      true
+    ],
+    [
+      "f11fe1e32b466f3a37ad6ba111f5efa1d059d0e098ac274981117932c53cb05e",
+      "2026-11-16T02:19:18.029562266Z",
+      true
+    ],
+    [
+      "fc476532046f8cf048162be16961363849af59f559713ddb61fbc62d8b7f0a5b",
+      "2026-11-16T02:26:58.584324323Z",
+      true
+    ]
+  ],
+  "businessUnchanged": true,
+  "gatewayAfter": {
+    "id": "e85c60c794f52ce5adbd8e5e76ce2c4abaf03de2bf9be2eb9a735e63356e19e8",
+    "image": "sha256:0fc453892edf427a59ab96bcd2599793d98d95a83edb70bf5588bcf3cfcc4e56"
+  },
+  "passed": true
+}

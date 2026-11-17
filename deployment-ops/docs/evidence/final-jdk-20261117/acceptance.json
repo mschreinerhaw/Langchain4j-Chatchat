@@ -1,0 +1,215 @@
+{
+  "format": "deployment-ops-acceptance/v1",
+  "version": "1.1.0",
+  "sourceCommit": "2f460f1a114855ca153d41b8a8a0fb4cead221cb",
+  "jarSha256": "ba2d3cc7a51536fbd97f3e6cd661d2f0f726bb0b7b6b2792e3dfe8df3a2b1bfa",
+  "server": "192.168.195.221",
+  "evidencePolicy": "Accumulated real server and browser acceptance. Each evidence retains its executed task/version. Exact final JAR has source build, new initialization, inaccessible-Docker/network independence, H2 persistence, missing-mount refusal, live service health, platform upgrade, restore and stop/restart isolation evidence. Earlier real image-changing Runtime upgrades/rollback and cold image reload are identified separately; these are not claimed to have been rerun against the final JAR. Complete Runtime cold deployment used identical Docker/protocol/deployment/Vue class bytes; only ServiceInstaller changed afterward to classify normal JVM exit 143 as success.",
+  "scenarios": {
+    "offline_install": {
+      "status": "passed",
+      "evidence": [
+        {
+          "path": "docs/evidence/final-jdk-20261117/exact-first-install/result.json",
+          "sha256": "af94e9c8e092f25359d3a9aeae2ba5cb4a0d2c8773a3bafb5a561fee57a7e508"
+        },
+        {
+          "path": "docs/evidence/final-jdk-20261117/server-build.json",
+          "sha256": "fa5bfecc6f6c1ed7e61d5da2b550986130a58945bb80d2a1e6dfff774d9038b2"
+        }
+      ]
+    },
+    "h2_persistence": {
+      "status": "passed",
+      "evidence": [
+        {
+          "path": "docs/evidence/final-jdk-20261117/exact-isolated-first.json",
+          "sha256": "052c2ad7389aba0df9efafa3778ad36d85c4620c5cbecc93a2834badaf18278b"
+        },
+        {
+          "path": "docs/evidence/final-jdk-20261117/exact-isolated-restart.json",
+          "sha256": "d235077d085d88909906300fcf825ba11863a938980e35c0ffc0f63ad4ecacbd"
+        },
+        {
+          "path": "docs/evidence/final-jdk-20261117/exact-restore/result.json",
+          "sha256": "ceb213e049988c0ab43b5c7f5c510f4c97879f91ffc6e3e44e98bd83a55937b4"
+        }
+      ]
+    },
+    "independent_startup": {
+      "status": "passed",
+      "evidence": [
+        {
+          "path": "docs/evidence/final-jdk-20261117/exact-isolated-first.json",
+          "sha256": "052c2ad7389aba0df9efafa3778ad36d85c4620c5cbecc93a2834badaf18278b"
+        },
+        {
+          "path": "docs/evidence/final-jdk-20261117/exact-isolated-restart.json",
+          "sha256": "d235077d085d88909906300fcf825ba11863a938980e35c0ffc0f63ad4ecacbd"
+        }
+      ]
+    },
+    "admin_login_api": {
+      "status": "passed",
+      "evidence": [
+        {
+          "path": "docs/evidence/final-jdk-20261117/exact-first-install/result.json",
+          "sha256": "af94e9c8e092f25359d3a9aeae2ba5cb4a0d2c8773a3bafb5a561fee57a7e508"
+        },
+        {
+          "path": "docs/evidence/final-jdk-20261117/gui-product/result.json",
+          "sha256": "3d4294400133b808741384a8d7e1cab7662852d60178b223f96059e2277fe84c"
+        },
+        {
+          "path": "docs/evidence/final-jdk-20261117/live-gui/result.json",
+          "sha256": "ac960c10c92b305916c1b9cf88b5ac8cc13420c0ff8204a66f91b8f920d8e7d0"
+        }
+      ]
+    },
+    "offline_image_import": {
+      "status": "passed",
+      "evidence": [
+        {
+          "path": "docs/evidence/jdk-only-20261117/package-proof.json",
+          "sha256": "3572451ce5da10bb28155665935cd5c392233094b2d429a8479f74b7a7c25837"
+        },
+        {
+          "path": "docs/evidence/jdk-only-20261117/gui/images.json",
+          "sha256": "04563a6c81d76533f7725c439b5fbdae661ab76cae995400f011aa75a041deb4"
+        },
+        {
+          "path": "docs/evidence/jdk-only-20261117/storage/jdk-staging-proof.json",
+          "sha256": "1988551088f3bc571a3c89cec95f0bcc94a41c8c0ae09bdf9716dcba9057ac24"
+        },
+        {
+          "path": "docs/evidence/final-jdk-20261117/cold-success/result.json",
+          "sha256": "9e868f4e3427213d92ae3ebac17cd8f7ed778ba69ad32b8e7803c0728e6a1f1b"
+        }
+      ]
+    },
+    "runtime_deployment_ui": {
+      "status": "passed",
+      "evidence": [
+        {
+          "path": "docs/evidence/final-jdk-20261117/cold-success/result.json",
+          "sha256": "9e868f4e3427213d92ae3ebac17cd8f7ed778ba69ad32b8e7803c0728e6a1f1b"
+        },
+        {
+          "path": "docs/evidence/final-jdk-20261117/cold-success/deployment-task.json",
+          "sha256": "4ce945ec0c89ec70e5ebb1f38574f91edf507a33a151c5cdc58cbf70319dba96"
+        },
+        {
+          "path": "docs/evidence/final-jdk-20261117/cold-failure/result.json",
+          "sha256": "6cc8d560bffa565ba0bc1407dc630d5d065ee89aa93b8d8527287f0d456881a3"
+        },
+        {
+          "path": "docs/evidence/final-jdk-20261117/network-recovery.json",
+          "sha256": "e921db1b60cd9638da72965074ce102540270d401b8a2a574a6a53be7f948202"
+        },
+        {
+          "path": "docs/evidence/final-jdk-20261117/server-build.json",
+          "sha256": "fa5bfecc6f6c1ed7e61d5da2b550986130a58945bb80d2a1e6dfff774d9038b2"
+        }
+      ]
+    },
+    "runtime_live_status": {
+      "status": "passed",
+      "evidence": [
+        {
+          "path": "docs/evidence/final-jdk-20261117/live-gui/result.json",
+          "sha256": "ac960c10c92b305916c1b9cf88b5ac8cc13420c0ff8204a66f91b8f920d8e7d0"
+        },
+        {
+          "path": "docs/evidence/final-jdk-20261117/cold-success/deployment-task.json",
+          "sha256": "4ce945ec0c89ec70e5ebb1f38574f91edf507a33a151c5cdc58cbf70319dba96"
+        }
+      ]
+    },
+    "platform_restart_isolation": {
+      "status": "passed",
+      "evidence": [
+        {
+          "path": "docs/evidence/final-jdk-20261117/cutover-isolation.json",
+          "sha256": "efe31d48ae8c92c7d9094672450a76ba1494b0fcd8a984cb4b3c789038a7eb96"
+        }
+      ]
+    },
+    "platform_upgrade_isolation": {
+      "status": "passed",
+      "evidence": [
+        {
+          "path": "docs/evidence/final-jdk-20261117/exact-upgrade/good-result.json",
+          "sha256": "c9d48b5de60a90311a5d95e391227442371e24d97a2942d5210985845b713c78"
+        },
+        {
+          "path": "docs/evidence/jdk-only-20261117/service-upgrade/bad-result.json",
+          "sha256": "1c5a462c948f13f900d7afa2a91a804b068797bc1a90305c0c6e742ef7cfd23b"
+        },
+        {
+          "path": "docs/evidence/jdk-only-20261117/maintenance/interruption-proof.json",
+          "sha256": "3d4ec9acee83bf24d742b2adc786211c96bb27e3dfe40d6e684e487bbed04014"
+        }
+      ]
+    },
+    "application_upgrade_rollback": {
+      "status": "passed",
+      "evidence": [
+        {
+          "path": "docs/evidence/jdk-only-20261117/native-upgrade/upgrade-result.json",
+          "sha256": "a0dc9afd1bb3ebe6fce42dedee1b74ec5d0e83cbd4b9d47f1f2cdb6569ea022a"
+        },
+        {
+          "path": "docs/evidence/jdk-only-20261117/native-upgrade/rollback-result.json",
+          "sha256": "1011231370b4e1a16a50bc275c1fa69c81bc2314abbc93f319a4a52e52030656"
+        },
+        {
+          "path": "docs/evidence/jdk-only-20261117/lifecycle/result.json",
+          "sha256": "ec5c61407b6a4f8ffb3abbefc5e0f4c14c55f019ac6317d3c1320ba70d69be78"
+        },
+        {
+          "path": "docs/evidence/jdk-only-20261117/contract/result.json",
+          "sha256": "e37a7e51942bcfe72a47e7a546cd1cda517046dfe9c7dbcb81be30e8d3c24d5a"
+        }
+      ]
+    },
+    "backup_restore": {
+      "status": "passed",
+      "evidence": [
+        {
+          "path": "docs/evidence/final-jdk-20261117/exact-restore/result.json",
+          "sha256": "ceb213e049988c0ab43b5c7f5c510f4c97879f91ffc6e3e44e98bd83a55937b4"
+        },
+        {
+          "path": "docs/evidence/final-jdk-20261117/maintenance-isolation.json",
+          "sha256": "839670bae95a85cd70d5cca8f7cccb452b2a1696cd66766dc5aad6cdf3c34ae3"
+        }
+      ]
+    },
+    "missing_mount_refusal": {
+      "status": "passed",
+      "evidence": [
+        {
+          "path": "docs/evidence/final-jdk-20261117/exact-missing-mount-proof.log",
+          "sha256": "6c4dcb6604ecaf1195a27d1374edf8c484d15e1009cd44bc5a5300d772aa8549"
+        },
+        {
+          "path": "docs/evidence/final-jdk-20261117/server-build.json",
+          "sha256": "fa5bfecc6f6c1ed7e61d5da2b550986130a58945bb80d2a1e6dfff774d9038b2"
+        }
+      ]
+    }
+  },
+  "externalConditions": [
+    {
+      "feature": "real DolphinScheduler cluster",
+      "status": "not_verified",
+      "reason": "No cluster addresses/credentials supplied; real multi-address HTTP/TCP probes and failures tested separately"
+    },
+    {
+      "feature": "licensed MCP catalog and external models",
+      "status": "requires_customer_configuration",
+      "reason": "License not installed; signed MCP authentication/tool discovery and administrator health passed"
+    }
+  ],
+  "protectedBaseline": "Original four retained customer containers plus test environments. Final control-plane stop/restart compared all 53 running containers by immutable ID, state and StartedAt. Historical 45-container claim is not reused."
+}

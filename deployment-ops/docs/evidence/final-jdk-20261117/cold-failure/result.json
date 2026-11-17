@@ -1,0 +1,11 @@
+{
+  "passed": false,
+  "checks": [
+    "native platform authenticated",
+    "reviewed signed offline package already verified on target with matching SHA256",
+    "deployment submitted through real Vue wizard"
+  ],
+  "job": "acd787e6cb7d4a35b6cad3b20e8a240c",
+  "error": "Error: Deployment failed: failed Native installer failed; inspect retained redacted installer logs\n    at D:\\IdeaProjects\\LangChain4j-AIChat\\Langchain4j-Chatchat\\deployment-ops\\tests\\native-runtime-browser.cjs:41:82",
+  "errors": []
+}

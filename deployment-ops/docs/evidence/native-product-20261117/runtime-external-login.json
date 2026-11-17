@@ -1,0 +1,12 @@
+{
+  "Runtime OS": {
+    "port": 19402,
+    "administratorLogin": true,
+    "authenticatedIdentity": true
+  },
+  "MCP": {
+    "port": 19403,
+    "administratorLogin": true,
+    "authenticatedIdentity": true
+  }
+}

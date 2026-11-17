@@ -1,0 +1,20 @@
+{
+  "name": "deployment-ops-ui",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "serve": "vue-cli-service serve",
+    "build": "vue-cli-service build",
+    "format": "prettier --write src",
+    "format:check": "prettier --check src"
+  },
+  "dependencies": {
+    "vue": "3.5.13",
+    "vue-router": "4.6.4"
+  },
+  "devDependencies": {
+    "@vue/cli-service": "5.0.8",
+    "@vue/compiler-sfc": "3.5.13",
+    "prettier": "2.8.8"
+  }
+}

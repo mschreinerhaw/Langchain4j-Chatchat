@@ -1,0 +1,15 @@
+{
+  "passed": true,
+  "checks": [
+    "complete backup downloaded with matching SHA256",
+    "management H2 reverted to backup records",
+    "execution H2 deployment records restored exactly",
+    "old sessions invalidated; restored administrator can log in"
+  ],
+  "backup": {
+    "name": "backup-01b7306b-b03a-4ccc-970f-36e53661ae2b.zip",
+    "status": "succeeded",
+    "size": 2307853,
+    "sha256": "6f8bdfacc1effe68db00e55fb96d55bdb58c1db82cb352048c85db96bfb5d984"
+  }
+}

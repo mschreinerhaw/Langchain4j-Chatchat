@@ -1,0 +1,12 @@
+{
+  "passed": true,
+  "checks": [
+    "administrator chosen during first install survives JAR restart",
+    "signed protocol and complete offline images imported through page",
+    "signed image IDs dependencies and startup argv visible before deployment",
+    "dependency initialization completes before real service health gate; user password absent from public task",
+    "all existing business identities and running states preserved"
+  ],
+  "job": "f302e8334059477ca2231d63a8a21554",
+  "errors": []
+}

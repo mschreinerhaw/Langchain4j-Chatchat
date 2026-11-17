@@ -1,0 +1,13 @@
+{
+  "passed": true,
+  "sha256": "92ef892e097d032cb1b0d2cde8a1b76bfd86ead6528ecb4873c2f629bac7f69c",
+  "bytesPerImmutableArchive": 13388938752,
+  "pathsPreserved": [
+    "/mnt/disk01/deployment-ops-v1-release/state/packages/666f59d853dfc042e1307b0351d395fedcaca07197d6ab65e09a44738e21467c/images/all.tar",
+    "/mnt/disk01/deployment-ops-v1-release/state/packages/blobs/92ef892e097d032cb1b0d2cde8a1b76bfd86ead6528ecb4873c2f629bac7f69c",
+    "/mnt/disk01/deployment-ops-v1-release/state/packages/3f65d56e77606b9fbd542d1f6d6533c51dc720395a700f7a262dc701a9c9ade3/images/archive-1.tar",
+    "/mnt/disk01/deployment-ops-v1-release/state/packages/ac720683218db8d28ab13d14477a8013b423cb3c2dc1436d18af0b8ee08c086c/images/archive-1.tar"
+  ],
+  "businessDataModified": false,
+  "sameDiskHardlinks": true
+}

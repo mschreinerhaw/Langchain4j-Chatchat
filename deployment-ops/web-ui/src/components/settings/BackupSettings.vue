@@ -1,0 +1,112 @@
+<template>
+  <PanelCard
+    title="H2 备份与恢复"
+    :description="
+      jdk
+        ? '备份管理 H2、部署执行 H2 和实例配置；业务数据卷及离线镜像介质需另行备份。'
+        : '在线一致性备份管理数据库；业务数据卷与外部执行器状态需另行备份。'
+    "
+  >
+    <template #actions>
+      <button class="primary" :disabled="busy" @click="backup">
+        {{ busy ? '执行中…' : '创建备份' }}
+      </button>
+    </template>
+    <ResourceState :error="error" @retry="refresh" />
+    <p v-if="!managed" class="notice">
+      请先停止本平台 JAR，再使用同一 JAR 的 --restore-backup 文件路径 SHA256 命令恢复。
+      恢复会检查备份及 H2 可用性，保留原文件，并使旧会话失效；业务容器保持运行。
+    </p>
+    <p v-if="message" class="notice success" role="status">{{ message }}</p>
+    <p v-if="operationError" class="notice danger" role="alert">{{ operationError }}</p>
+    <DataTable :rows="data || []" :columns="columns" row-key="name">
+      <template #createdAt="{ row }">{{ dateTime(row.createdAt) }}</template>
+      <template #size="{ row }">{{ bytes(row.size) }}</template>
+      <template #status="{ row }"><StateBadge :status="row.status" /></template>
+      <template #actions="{ row }">
+        <div class="table-actions">
+          <a class="button" :href="'/api/backups/' + row.name + '/download'">下载</a>
+          <button
+            :disabled="!managed"
+            @click="
+              selected = row;
+              confirmation = '';
+            "
+          >
+            恢复
+          </button>
+        </div>
+      </template>
+    </DataTable>
+    <form v-if="selected" @submit.prevent="restore" style="margin-top: 22px">
+      <h3>恢复备份 {{ selected.name }}</h3>
+      <div class="notice warning">
+        恢复期间平台暂时停止；现有业务容器保持运行。恢复后管理员会话和管理记录以此备份为准。系统将先验证备份，并保留恢复前数据库。
+      </div>
+      <label>
+        输入精确确认文本：
+        <code>RESTORE:{{ selected.name }}</code>
+        <input v-model="confirmation" required />
+      </label>
+      <button class="danger-button" :disabled="busy || confirmation !== 'RESTORE:' + selected.name">
+        确认恢复此备份
+      </button>
+      <button type="button" @click="selected = null">取消</button>
+    </form>
+  </PanelCard>
+</template>
+<script setup>
+  import { ref } from 'vue';
+  import { platformApi } from '../../api/platform';
+  import { useResource } from '../../composables/useResource';
+  import { bytes, dateTime } from '../../utils/format';
+  import PanelCard from '../ui/PanelCard.vue';
+  import DataTable from '../ui/DataTable.vue';
+  import StateBadge from '../ui/StateBadge.vue';
+  import ResourceState from '../ui/ResourceState.vue';
+  defineProps({ managed: Boolean, jdk: Boolean });
+  const { data, error, refresh } = useResource(platformApi.backups, { initial: [] }),
+    busy = ref(false),
+    message = ref(''),
+    operationError = ref(''),
+    selected = ref(null),
+    confirmation = ref('');
+  const columns = [
+    { key: 'createdAt', label: '备份时间' },
+    { key: 'name', label: '文件名' },
+    { key: 'size', label: '大小' },
+    { key: 'status', label: '状态' },
+    { key: 'actions', label: '操作' },
+  ];
+  async function backup() {
+    busy.value = true;
+    operationError.value = '';
+    try {
+      const result = await platformApi.backup();
+      message.value = '备份成功：' + result.name;
+      await refresh();
+    } catch (e) {
+      operationError.value = e.message;
+    } finally {
+      busy.value = false;
+    }
+  }
+  async function restore() {
+    busy.value = true;
+    operationError.value = '';
+    try {
+      const result = await platformApi.maintenance({
+        action: 'restore',
+        name: selected.value.name,
+        confirmation: confirmation.value,
+      });
+      message.value =
+        '恢复任务已提交：' + result.id + '。平台恢复后请重新登录，维护日志保存在服务器。';
+      selected.value = null;
+    } catch (e) {
+      operationError.value = e.message;
+    } finally {
+      busy.value = false;
+    }
+  }
+</script>

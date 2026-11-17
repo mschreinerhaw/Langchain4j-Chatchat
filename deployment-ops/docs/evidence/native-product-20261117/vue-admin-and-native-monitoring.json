@@ -1,0 +1,11 @@
+{
+  "passed": true,
+  "checks": [
+    "modular live Runtime OS service groups rendered",
+    "three real Unix-socket executor health responses with enforced resource policy",
+    "persisted HTTP probe sampled the actual native service",
+    "existing probe edit and disable persisted",
+    "real viewer login can observe health and cannot access backups or mutate configuration"
+  ],
+  "errors": []
+}

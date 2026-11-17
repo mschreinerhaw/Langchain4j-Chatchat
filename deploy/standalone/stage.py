@@ -36,7 +36,7 @@ def main():
  for name,profile in plan.get('generatedProfiles',{}).items():
   assert re.fullmatch(r'[a-z0-9-]+\.json',name);(ROOT/'profiles').mkdir(exist_ok=True);file=ROOT/'profiles'/name;snapshots[file]=file.read_bytes() if file.exists() else None;write('profiles/'+name,profile)
  for name,text in plan.get('generatedText',{}).items():
-  assert re.fullmatch(r'[a-z0-9-]+\.conf',name);(ROOT/'generated').mkdir(exist_ok=True);file=ROOT/'generated'/name;snapshots[file]=file.read_bytes() if file.exists() else None;file.write_text(text);file.chmod(0o600)
+  assert re.fullmatch(r'[a-z0-9-]+\.conf',name);(ROOT/'generated').mkdir(exist_ok=True);file=ROOT/'generated'/name;snapshots[file]=file.read_bytes() if file.exists() else None;file.write_text(text);file.chmod(0o644 if name=='public-gateway.conf' else 0o600)
  daemon=plan['executorDaemon'];docker=['docker','--host','unix://'+daemon['socket']]
  actual=json.loads(subprocess.check_output(docker+['info','--format','{{json .}}']))
  assert actual['ID']==daemon['expectedId'],'Dedicated executor daemon identity changed; reconcile it before deployment'
@@ -76,13 +76,16 @@ def main():
   deadline=time.monotonic()+240
   while True:
    try:
-    for base in plan['administratorUrls']:
-     request=urllib.request.Request(base+'/login',data=json.dumps({'username':'admin','password':os.environ['ADMIN_PASSWORD']}).encode(),headers={'Content-Type':'application/json'})
-     with opener.open(request,timeout=20) as response:token=json.load(response).get('data',{}).get('token')
+    for index,base in enumerate(plan['administratorUrls']):
+     request=urllib.request.Request(base+'/login',data=json.dumps({'username':'admin','password':os.environ['ADMIN_PASSWORD' if index==0 else 'MCP_ADMIN_PASSWORD']}).encode(),headers={'Content-Type':'application/json'})
+     with opener.open(request,timeout=20) as response:reply=json.load(response)
+     if reply.get('code') in (400,401,403):raise RuntimeError('Existing administrator credentials were rejected; no password was reset')
+     token=(reply.get('data') or {}).get('token')
      assert token,'Administrator authentication failed; existing passwords are not reset'
      with opener.open(urllib.request.Request(base+'/me',headers={'Authorization':'Bearer '+token}),timeout=20) as response:assert json.load(response)['data']['username']=='admin'
     break
    except Exception as error:
+    if isinstance(error,RuntimeError):raise
     if getattr(error,'code',0) in (400,401,403):raise RuntimeError('Existing administrator credentials were rejected; no password was reset') from None
     if time.monotonic()>deadline:raise RuntimeError('Existing administrator service readiness timed out') from None
     time.sleep(3)

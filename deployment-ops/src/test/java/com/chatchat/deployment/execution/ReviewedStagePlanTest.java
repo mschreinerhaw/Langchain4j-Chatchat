@@ -25,4 +25,9 @@ class ReviewedStagePlanTest {
         ObjectNode changed=plan();((ObjectNode)changed.path("compose").path("services").path("api")).put("container_name","unrelated-production");
         assertThrows(IllegalArgumentException.class,()->ReviewedStagePlan.validate(changed,manifest()));
     }
+    @Test void rejectsPublicMountSummaryThatHidesPrivateBindings()throws Exception{
+        ObjectNode manifest=manifest();((ObjectNode)manifest.path("runtimeInstaller")).putObject("stagePlan").put("sourceRoot","/opt/runtime-os-docker-stage").putArray("mounts");
+        ObjectNode plan=plan();((ObjectNode)plan.path("compose").path("services").path("api")).putArray("volumes").addObject().put("source","/opt/runtime-os-docker-stage/api/data").put("target","/srv/app/data");
+        assertThrows(IllegalArgumentException.class,()->ReviewedStagePlan.validate(plan,manifest));
+    }
 }

@@ -133,6 +133,17 @@ for name,service in compose['services'].items():
     if daemon is None:daemon=candidate
     assert daemon==candidate,'Executor profiles do not share the reviewed dedicated daemon'
 plan={'format':'runtime-os-stage-plan/v1','stageRoot':str(STAGE),'compose':compose,'stages':stages,'executionImage':images['node']['imageId'],'administratorUrls':['http://127.0.0.1:18180/api/v1/enterprise/auth','http://127.0.0.1:18190/api/v1/admin/auth'],'executorSockets':sockets,'executorDaemon':daemon,'generatedProfiles':generated,'generatedText':{'public-gateway.conf':gateway_text}}
+sources={}
+for f in [STAGE/'config/api.env',STAGE/'config/mcp.env',STAGE/'config/news.env',STAGE/'config/deployment.env',NATIVE/'compose.private.json',STAGE/'compose.yaml',STAGE/'config/public-gateway.conf']:
+ sources[str(f)]=hashlib.sha256(f.read_bytes()).hexdigest()
+for service in compose['services'].values():
+ for mount in service.get('volumes',[]):
+  parts=mount.split(':') if isinstance(mount,str) else None
+  source=mount.get('source') if isinstance(mount,dict) else parts[0]
+  readonly=mount.get('read_only',False) if isinstance(mount,dict) else len(parts)>2 and parts[2]=='ro'
+  f=pathlib.Path(source)
+  if readonly and f.is_file():sources[source]=hashlib.sha256(f.read_bytes()).hexdigest()
+plan['sourceHashes']=sources
 a.plan.parent.mkdir(parents=True,exist_ok=True);a.plan.write_text(json.dumps(plan,indent=2)+'\n');a.plan.chmod(0o600)
 a.recipe.mkdir(parents=True);assets=a.recipe/'assets';assets.mkdir()
 public_map={r:v for r,v in images.items() if r!='installer'}
@@ -143,7 +154,7 @@ for group in stages:
  for name in group:
   s=compose['services'][name];dep=list(previous)
   if s.get('network_mode','').startswith('service:'):dep.append(s['network_mode'].split(':',1)[1])
-  components.append({'id':name,'image':roles[name],'dependsOn':sorted(set(dep)),'entrypoint':[x.replace('${','$${') for x in s['entrypoint']],'command':[x.replace('${','$${') for x in s['command']]})
+  components.append({'id':name,'image':roles[name],'dependsOn':sorted(set(dep)),'entrypoint':[x.replace('${','$${') for x in s['entrypoint']],'command':[x.replace('${','$${') for x in s['command']],'health':{'type':'docker','source':'docker' if s.get('healthcheck') else 'native-installer'}})
  previous=group
 manifest={'schemaVersion':1,'name':'runtime-os','version':a.version,'platform':'linux/amd64','description':'Explicit existing-stage data/configuration reuse. No database initialization, password reset, data copying, volume removal or directory ownership change. Private plan is hash-pinned outside this archive.','requirements':{'memoryBytes':3*1024**3,'diskBytes':1024**3},'upgradeFrom':[],'dataCompatibility':'initial-only','parameters':{'serverAddress':{'type':'string','label':'Server address','default':'192.168.195.221'},'httpPort':{'type':'integer','label':'Existing HTTP port','default':18100,'min':18100,'max':18100},'mcpPort':{'type':'integer','label':'Existing MCP port','default':18101,'min':18101,'max':18101},'directoryName':{'type':'string','label':'Management journal directory','default':'stage-v13','pattern':'[a-z0-9-]{1,16}'},'osAdminPassword':{'type':'string','label':'Existing Runtime administrator password (not reset)','secret':True,'required':True,'pattern':'.{1,128}'}},'images':{r:{'source':e['reference']} for r,e in images.items()},'volumes':{},'components':components,'runtimeInstaller':{'protocol':'runtime-os-native/v1','contractVersion':1,'image':'installer','imageMap':'assets/runtime-images.json','services':list(compose['services']),'schemaHashes':{'existing-stage-no-schema-initialization':hashlib.sha256(b'validate-only-no-schema-initialization-v1').hexdigest()},'stagePlan':{'name':a.plan.name,'sha256':hashlib.sha256(a.plan.read_bytes()).hexdigest()}},'links':[{'name':'Runtime OS','url':'http://${serverAddress}:${httpPort}/'},{'name':'MCP','url':'http://${serverAddress}:${mcpPort}/'}]}
 (a.recipe/'manifest.json').write_text(json.dumps(manifest,indent=2)+'\n')

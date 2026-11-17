@@ -19,6 +19,8 @@ public final class ReviewedStagePlan {
         require(directory.startsWith("/mnt/disk01/")&&directory.toRealPath().equals(directory)&&Files.isRegularFile(file,LinkOption.NOFOLLOW_LINKS),"Stage plan must be a regular private file on the data disk");
         require(SignedPackageStore.sha(file).equals(entry.path("sha256").asText()),"Private stage plan changed after signing; review and republish it");
         JsonNode plan=StateFiles.JSON.readTree(Files.readAllBytes(file));validate(plan,manifest);
+        require(plan.path("sourceHashes").isObject()&&!plan.path("sourceHashes").isEmpty(),"Existing configuration fingerprints are required");
+        var sources=plan.path("sourceHashes").fields();while(sources.hasNext()){var source=sources.next();require(SignedPackageStore.sha(Path.of(source.getKey())).equals(source.getValue().asText()),"Existing stage configuration changed after review; republish the private plan");}
         require(plan.path("stageRoot").asText().equals(System.getenv("OPS_STAGE_ROOT")),"Stage root was not explicitly registered by the administrator");
         return file;
     }
@@ -31,6 +33,16 @@ public final class ReviewedStagePlan {
             require(service.path("image").asText().equals(manifest.path("images").path(component.path("image").asText()).path("id").asText()),"Private stage image differs from signed contract");
             require(service.path("entrypoint").equals(component.path("entrypoint"))&&service.path("command").equals(component.path("command")),"Private stage argv differs from signed contract");
             require(!service.has("container_name")&&!service.has("build")&&!service.has("env_file"),"Stage plan must resolve private configuration and scope names before review");
+        }
+        if(enabled(manifest)){
+            JsonNode summary=manifest.path("runtimeInstaller").path("stagePlan");require(summary.path("sourceRoot").equals(plan.path("stageRoot")),"Public stage root differs from private plan");
+            Set<String> actual=new HashSet<>(),displayed=new HashSet<>();var entries=plan.path("compose").path("services").fields();
+            while(entries.hasNext()){var entry=entries.next();for(JsonNode mount:entry.getValue().path("volumes")){
+                String source,target,mode;if(mount.isObject()){source=mount.path("source").asText();target=mount.path("target").asText();mode=mount.path("read_only").asBoolean()?"read-only":"read-write";}else{String[] parts=mount.asText().split(":");require(parts.length>=2,"Invalid private bind");source=parts[0];target=parts[1];mode=parts.length>2&&parts[2].equals("ro")?"read-only":"read-write";}
+                actual.add(entry.getKey()+"\0"+source+"\0"+target+"\0"+mode);
+            }}
+            for(JsonNode mount:summary.path("mounts"))displayed.add(mount.path("component").asText()+"\0"+mount.path("source").asText()+"\0"+mount.path("target").asText()+"\0"+mount.path("mode").asText());
+            require(!actual.isEmpty()&&actual.equals(displayed),"Displayed stage mounts differ from private execution plan");
         }
     }
     public static void checkMountUse(JsonNode manifest,DockerClient docker,String project)throws Exception{

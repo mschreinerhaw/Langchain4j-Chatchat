@@ -32,10 +32,11 @@ def main():
  host=next(m['Source'] for m in self['Mounts'] if m['Destination']=='/install')
  if not (ROOT/'installation.json').exists():write('installation.json',{'schemaVersion':1,'project':project,'status':'PREPARING','stageRoot':plan['stageRoot'],'planSha256':hashlib.sha256(PLAN.read_bytes()).hexdigest()})
  compose=installation_paths(copy.deepcopy(plan['compose']),host);compose.pop('name',None)
+ snapshots={}
  for name,profile in plan.get('generatedProfiles',{}).items():
-  assert re.fullmatch(r'[a-z0-9-]+\.json',name);(ROOT/'profiles').mkdir(exist_ok=True);write('profiles/'+name,profile)
+  assert re.fullmatch(r'[a-z0-9-]+\.json',name);(ROOT/'profiles').mkdir(exist_ok=True);file=ROOT/'profiles'/name;snapshots[file]=file.read_bytes() if file.exists() else None;write('profiles/'+name,profile)
  for name,text in plan.get('generatedText',{}).items():
-  assert re.fullmatch(r'[a-z0-9-]+\.conf',name);(ROOT/'generated').mkdir(exist_ok=True);file=ROOT/'generated'/name;file.write_text(text);file.chmod(0o600)
+  assert re.fullmatch(r'[a-z0-9-]+\.conf',name);(ROOT/'generated').mkdir(exist_ok=True);file=ROOT/'generated'/name;snapshots[file]=file.read_bytes() if file.exists() else None;file.write_text(text);file.chmod(0o600)
  daemon=plan['executorDaemon'];docker=['docker','--host','unix://'+daemon['socket']]
  actual=json.loads(subprocess.check_output(docker+['info','--format','{{json .}}']))
  assert actual['ID']==daemon['expectedId'],'Dedicated executor daemon identity changed; reconcile it before deployment'
@@ -50,7 +51,7 @@ def main():
   prior=subprocess.run(['docker','inspect',name],capture_output=True,text=True)
   if not prior.returncode:assert own(json.loads(prior.stdout)[0],project,owner),'Existing container is outside this reviewed environment'
   service['container_name']=name;service['pull_policy']='never'
-  labels=service.setdefault('labels',{});labels.update({'deployment-ops.owner':owner,'deployment-ops.environment':project.removeprefix('ops-env-'),'deployment-ops.component':role,'deployment-ops.application':'runtime-os'})
+  labels=service.setdefault('labels',{});labels.update({'deployment-ops.owner':owner,'deployment-ops.environment':project.removeprefix('ops-env-'),'deployment-ops.component':role,'deployment-ops.application':'runtime-os','deployment-ops.plan':os.environ['STAGE_PLAN_SHA256']})
   assert inspect(service['image'])['Id']==service['image'],'Image is missing or changed'
   for mount in service.get('volumes',[]):
    if isinstance(mount,dict) and mount.get('type')=='bind':mount['bind']={'create_host_path':False}
@@ -98,6 +99,8 @@ def main():
   print('Existing-stage Runtime ready; administrator identities verified, existing databases/configuration/mounts retained.',flush=True)
  except Exception:
   if previous is not None:
+   for file,content in snapshots.items():
+    if content is not None:file.write_bytes(content);file.chmod(0o600)
    path.write_bytes(previous);path.chmod(0o600)
    execute(cp+['up','-d','--no-build'])
    print('Previous scoped Compose configuration restored; customer data retained.',flush=True)

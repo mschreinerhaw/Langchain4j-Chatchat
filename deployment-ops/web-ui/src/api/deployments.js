@@ -35,7 +35,7 @@ export const deploymentsApi = {
       );
       onProgress({ offset: job.offset, size: file.size, status: job.status });
     }
-    if (!['verified', 'verifying'].includes(job.status))
+    if (job.status !== 'verifying')
       job = await post(nodePath(node, `/packages/uploads/${job.id}/commit`), {}, { signal });
     return job;
   },

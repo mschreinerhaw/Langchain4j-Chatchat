@@ -15,7 +15,7 @@ public final class StandaloneRuntime {
     public static void start() throws Exception {
         if(System.getenv("EXECUTOR_TOKEN")!=null||System.getenv("OPS_EXECUTOR_URL")!=null)return;
         Path root=Path.of(System.getenv().getOrDefault("OPS_DATA_DIR","/mnt/disk01/deployment-ops/data")).toAbsolutePath().getParent().resolve("standalone");
-        Files.createDirectories(root);Files.setPosixFilePermissions(root,PosixFilePermissions.fromString("rwx------"));
+        root=com.chatchat.deployment.storage.StorageGuard.managedDirectory(root);Files.setPosixFilePermissions(root,PosixFilePermissions.fromString("rwx------"));
         channel=FileChannel.open(root.resolve("process.lock"),StandardOpenOption.CREATE,StandardOpenOption.WRITE);lock=channel.tryLock();
         if(lock==null)throw new IllegalStateException("This standalone instance is already running");
         Properties config=new Properties();Path file=root.resolve("instance.properties");
@@ -30,25 +30,14 @@ public final class StandaloneRuntime {
         if(!port.matches("[0-9]{4,5}")||Integer.parseInt(port)>65535||Integer.parseInt(port)<1024)throw new IllegalArgumentException("Invalid local executor port");
         System.setProperty("OPS_EXECUTOR_URL","http://127.0.0.1:"+port);
         System.out.println("First-install authorization token: "+config.getProperty("OPS_SETUP_TOKEN"));
-        Map<String,byte[]> content=new LinkedHashMap<>();MessageDigest hash=MessageDigest.getInstance("SHA-256");
-        for(String name:new ClassPathResource("standalone/index.txt").getContentAsString(java.nio.charset.StandardCharsets.UTF_8).split("\\s+")){
-            if(name.isBlank())continue;
-            if(!name.matches("(executor|trust)/[a-zA-Z0-9_.-]+"))throw new IllegalArgumentException("Invalid bundled resource");
-            byte[] bytes=new ClassPathResource("standalone/"+name).getContentAsByteArray();content.put(name,bytes);hash.update(name.getBytes(java.nio.charset.StandardCharsets.UTF_8));hash.update(bytes);
-        }
-        Path home=root.resolve("payload-"+HexFormat.of().formatHex(hash.digest()));
-        for(var e:content.entrySet()){Path target=home.resolve(e.getKey());Files.createDirectories(target.getParent());Files.write(target,e.getValue());}
-        Map<String,String> env=new HashMap<>();config.forEach((k,v)->env.put(k.toString(),v.toString()));
-        for(String name:List.of("state","packages","apps"))Files.createDirectories(root.resolve(name));
         Path trust=root.resolve("trust");Files.createDirectories(trust);
-        for(var entry:content.entrySet())if(entry.getKey().startsWith("trust/")){
-            Path key=trust.resolve(Path.of(entry.getKey()).getFileName());if(!Files.exists(key))Files.write(key,entry.getValue(),StandardOpenOption.CREATE_NEW);
+        for(String name:new ClassPathResource("standalone/index.txt").getContentAsString(java.nio.charset.StandardCharsets.UTF_8).split("\\s+")){
+            if(!name.startsWith("trust/"))continue;
+            if(!name.matches("trust/[a-zA-Z0-9_.-]+"))throw new IllegalArgumentException("Invalid bundled trust resource");
+            Path key=trust.resolve(Path.of(name).getFileName());if(!Files.exists(key))Files.write(key,new ClassPathResource("standalone/"+name).getContentAsByteArray(),StandardOpenOption.CREATE_NEW);
         }
-        env.put("OPS_STATE",root.resolve("state").toString());env.put("OPS_PACKAGES",root.resolve("packages").toString());env.put("OPS_APP_DATA",root.resolve("apps").toString());env.put("OPS_TRUST",trust.toString());
-        env.put("OPS_NATIVE","1");env.put("OPS_EXECUTOR_BIND","127.0.0.1");env.put("OPS_EXECUTOR_PORT",port);env.put("OPS_RUNTIME_ROOT","/mnt/disk01/ops/r");env.put("OPS_READ_ONLY","0");Files.createDirectories(Path.of("/mnt/disk01/ops/r"));
-        ProcessBuilder builder=new ProcessBuilder(System.getenv().getOrDefault("OPS_PYTHON","python3"),home.resolve("executor/agent.py").toString());builder.environment().putAll(env);
-        builder.redirectErrorStream(true).redirectOutput(ProcessBuilder.Redirect.appendTo(root.resolve("executor.log").toFile()));
-        try{Process child=builder.start();Runtime.getRuntime().addShutdownHook(new Thread(()->{child.destroy();try{child.waitFor(10,java.util.concurrent.TimeUnit.SECONDS);}catch(InterruptedException ignored){Thread.currentThread().interrupt();}}));}
-        catch(java.io.IOException unavailable){System.err.println("Executor unavailable; install Python 3.11+ and restart. Platform remains available.");}
+        var executor=new com.chatchat.deployment.execution.JdkExecutor(root.resolve("jdk"),trust,config,Integer.parseInt(port));
+        System.setProperty("OPS_EXECUTOR_IMPLEMENTATION","JDK");
+        Runtime.getRuntime().addShutdownHook(new Thread(executor::close));
     }
 }

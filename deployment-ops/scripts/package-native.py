@@ -36,7 +36,7 @@ for name in ['src/main','backend/src','backend/lib','backend/schema.sql','execut
             content=path.read_bytes()
             if path.suffix in ('.sh','.py','.java','.vue','.js','.css','.md','.json','.yml','.service'):content=content.replace(b'\r\n',b'\n')
             files[path.relative_to(ROOT).as_posix()]=content
-for name in ['build-native-offline.py','package-native.py','build-package.py','import-offline-package.py','prepare-native-runtime.py','export-image-schema.py','ImageSchemaExporter.java']:
+for name in ['build-native-offline.py','BuildNativeOffline.java','package-native.py','build-package.py','import-offline-package.py','prepare-native-runtime.py','export-image-schema.py','ImageSchemaExporter.java']:
     files['scripts/'+name]=(ROOT/'scripts'/name).read_bytes().replace(b'\r\n',b'\n')
 if (ROOT/'docs/NATIVE-OPERATIONS.md').exists():files['README.md']=(ROOT/'docs/NATIVE-OPERATIONS.md').read_bytes()
 files['lib/deployment-ops.jar']=a.jar.read_bytes()

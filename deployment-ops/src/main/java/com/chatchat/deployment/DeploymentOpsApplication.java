@@ -9,6 +9,15 @@ import org.springframework.boot.autoconfigure.SpringBootApplication;
 public class DeploymentOpsApplication {
     public static void main(String[] args) throws Exception {
         com.chatchat.deployment.storage.StorageGuard.verify();
+        java.nio.file.Path data=java.nio.file.Path.of(System.getenv().getOrDefault("OPS_DATA_DIR","/mnt/disk01/deployment-ops/data"));
+        java.nio.file.Path temporary=com.chatchat.deployment.storage.StorageGuard.managedDirectory(java.nio.file.Path.of(System.getenv().getOrDefault("OPS_TMP_DIR",data.toAbsolutePath().getParent().resolve("tmp").toString())));
+        System.setProperty("java.io.tmpdir",temporary.toString());
+        System.setProperty("server.tomcat.basedir",com.chatchat.deployment.storage.StorageGuard.managedDirectory(temporary.resolve("tomcat")).toString());
+        System.setProperty("spring.servlet.multipart.location",com.chatchat.deployment.storage.StorageGuard.managedDirectory(temporary.resolve("uploads")).toString());
+        if(args.length>0 && args[0].equals("--import-package")) {
+            com.chatchat.deployment.protocol.LocalPackageImport.run(args);
+            return;
+        }
         if(args.length==2 && args[0].equals("--verify-backup")) {
             com.chatchat.deployment.backup.BackupVerifier.verify(java.nio.file.Path.of(args[1]));
             return;

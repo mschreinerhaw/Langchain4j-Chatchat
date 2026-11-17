@@ -16,13 +16,22 @@ public final class StorageGuard {
         try {
             validate(mount, data, Files.readAllLines(Path.of("/proc/self/mountinfo")));
             if(Files.getAttribute(mount,"unix:dev").equals(Files.getAttribute(Path.of("/"),"unix:dev")))throw new IOException("Data mount resolves to the system filesystem");
-            Files.createDirectories(data);
+            managedDirectory(data);
             validatedProcess=true;
         } catch(IOException error) {
             throw new IOException("Required real storage mount /mnt/disk01 is unavailable or invalid; refusing startup without system-disk fallback",error);
         }
     }
     public static void verifyRuntime()throws IOException{if(validatedProcess)verify();}
+    public static Path managedDirectory(Path path)throws IOException{
+        Path mount=Path.of("/mnt/disk01"),absolute=path.toAbsolutePath().normalize();
+        validate(mount,absolute,Files.readAllLines(Path.of("/proc/self/mountinfo")));
+        Object systemDevice=Files.getAttribute(Path.of("/"),"unix:dev");
+        if(Files.getAttribute(mount,"unix:dev").equals(systemDevice))throw new IOException("Data mount uses the system filesystem");
+        Path ancestor=absolute;while(!Files.exists(ancestor))ancestor=ancestor.getParent();
+        if(Files.getAttribute(ancestor.toRealPath(),"unix:dev").equals(systemDevice))throw new IOException("Data directory is backed by the system filesystem");
+        Files.createDirectories(absolute);return absolute.toRealPath();
+    }
     public static void validateDatasource(org.springframework.core.env.Environment environment){
         String directory=Path.of(System.getenv().getOrDefault("OPS_DATA_DIR","/mnt/disk01/deployment-ops/data")).toAbsolutePath().normalize().toString().replace('\\','/');
         String expected="jdbc:h2:file:"+directory+"/deployment-ops;MODE=PostgreSQL;DATABASE_TO_LOWER=TRUE;DB_CLOSE_ON_EXIT=FALSE;WRITE_DELAY=0";

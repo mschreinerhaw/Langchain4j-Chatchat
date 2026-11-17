@@ -11,3 +11,7 @@
 *.jar binary
 *.zip binary
 *.png binary
+
+# Acceptance receipts are hashed as exact bytes; never rewrite Windows line endings.
+docs/evidence/jdk-only-20261117/** -text whitespace=cr-at-eol
+docs/evidence/final-jdk-20261117/** -text whitespace=cr-at-eol

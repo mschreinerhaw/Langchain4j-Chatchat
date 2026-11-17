@@ -39,7 +39,7 @@ public final class ReviewedStagePlan {
             String source,target;boolean readOnly;
             if(mount.isObject()){source=mount.path("source").asText();target=mount.path("target").asText();readOnly=mount.path("read_only").asBoolean();}
             else{String[] parts=mount.asText().split(":");require(parts.length>=2,"Invalid stage bind");source=parts[0];target=parts[1];readOnly=parts.length>2&&parts[2].equals("ro");}
-            if(source.startsWith("${INSTALL_ROOT}/profiles/")){require(plan.path("generatedProfiles").has(source.substring("${INSTALL_ROOT}/profiles/".length())),"Generated stage profile missing");continue;}Path resolved=Path.of(source).toRealPath();require(resolved.isAbsolute(),"Existing stage source missing");
+            if(source.startsWith("${INSTALL_ROOT}/profiles/")){require(plan.path("generatedProfiles").has(source.substring("${INSTALL_ROOT}/profiles/".length())),"Generated stage profile missing");continue;}if(source.startsWith("${INSTALL_ROOT}/generated/")){require(plan.path("generatedText").has(source.substring("${INSTALL_ROOT}/generated/".length())),"Generated stage text missing");continue;}Path resolved=Path.of(source).toRealPath();require(resolved.isAbsolute(),"Existing stage source missing");
             if(!readOnly&&!target.equals("/var/run/docker.sock"))writers.add(resolved);
         }
         for(JsonNode container:docker.call("GET","/containers/json")){

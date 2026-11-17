@@ -30,9 +30,12 @@ def main():
  project=os.environ['PROJECT'];assert re.fullmatch(r'ops-env-[a-z0-9-]{1,32}',project)
  self=inspect(os.environ['HOSTNAME']);owner=self['Config']['Labels']['deployment-ops.owner']
  host=next(m['Source'] for m in self['Mounts'] if m['Destination']=='/install')
+ if not (ROOT/'installation.json').exists():write('installation.json',{'schemaVersion':1,'project':project,'status':'PREPARING','stageRoot':plan['stageRoot'],'planSha256':hashlib.sha256(PLAN.read_bytes()).hexdigest()})
  compose=installation_paths(copy.deepcopy(plan['compose']),host);compose.pop('name',None)
  for name,profile in plan.get('generatedProfiles',{}).items():
   assert re.fullmatch(r'[a-z0-9-]+\.json',name);(ROOT/'profiles').mkdir(exist_ok=True);write('profiles/'+name,profile)
+ for name,text in plan.get('generatedText',{}).items():
+  assert re.fullmatch(r'[a-z0-9-]+\.conf',name);(ROOT/'generated').mkdir(exist_ok=True);file=ROOT/'generated'/name;file.write_text(text);file.chmod(0o600)
  daemon=plan['executorDaemon'];docker=['docker','--host','unix://'+daemon['socket']]
  actual=json.loads(subprocess.check_output(docker+['info','--format','{{json .}}']))
  assert actual['ID']==daemon['expectedId'],'Dedicated executor daemon identity changed; reconcile it before deployment'

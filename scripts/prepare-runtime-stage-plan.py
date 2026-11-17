@@ -4,7 +4,7 @@
 The private plan stays on the target data disk. No database initialization,
 volume deletion, directory ownership change, or service start is performed.
 """
-import argparse,copy,hashlib,json,pathlib,subprocess
+import argparse,copy,hashlib,json,pathlib,subprocess,tempfile,zipfile,re
 
 p=argparse.ArgumentParser(description=__doc__)
 p.add_argument('--images',type=pathlib.Path,required=True)
@@ -12,6 +12,7 @@ p.add_argument('--installer-image',required=True)
 p.add_argument('--plan',type=pathlib.Path,required=True)
 p.add_argument('--recipe',type=pathlib.Path,required=True)
 p.add_argument('--version',required=True)
+p.add_argument('--source-commit',required=True)
 a=p.parse_args();assert not a.plan.exists() and not a.recipe.exists()
 STAGE=pathlib.Path('/opt/runtime-os-docker-stage');NATIVE=pathlib.Path('/opt/runtime-os/native-temporal/rc-20261112')
 def run(cmd):return subprocess.check_output([str(x) for x in cmd],text=True)
@@ -30,11 +31,37 @@ images=json.loads(a.images.read_text())
 images['temporal']=alias('temporal','temporalio/server:1.29.7')
 images['gateway']=alias('gateway','nginx:1.28-alpine')
 images['installer']={'reference':a.installer_image,'imageId':inspect(a.installer_image)['Id']}
+release=a.recipe.parent
+ui=release/'public-ui'
+if not ui.exists():
+ ui.mkdir()
+ created=run(['docker','create','--label','deployment-ops.release-inspection=true',images['api']['imageId']]).strip()
+ try:
+  with tempfile.TemporaryDirectory(prefix='api-static-',dir=release) as tmp:
+   jar=pathlib.Path(tmp)/'app.jar';subprocess.run(['docker','cp',created+':/srv/app/app.jar',jar],check=True)
+   with zipfile.ZipFile(jar) as archive:
+    for entry in archive.infolist():
+     prefix='BOOT-INF/classes/static/'
+     if not entry.is_dir() and entry.filename.startswith(prefix):
+      destination=ui/entry.filename[len(prefix):];assert destination.resolve().is_relative_to(ui.resolve());destination.parent.mkdir(parents=True,exist_ok=True);destination.write_bytes(archive.read(entry))
+   assert (ui/'index.html').is_file(),'Pinned API image has no complete frontend'
+ finally:subprocess.run(['docker','rm',created],check=True,stdout=subprocess.DEVNULL)
+monitor=release/'coding-monitor'
+if not monitor.exists():
+ created=run(['docker','create','--label','deployment-ops.release-inspection=true','runtime-os-gateway:1.3']).strip()
+ try:subprocess.run(['docker','cp',created+':/srv/coding-monitor',monitor],check=True)
+ finally:subprocess.run(['docker','rm',created],check=True,stdout=subprocess.DEVNULL)
 legacy=resolved(STAGE/'compose.yaml',STAGE/'config/deployment.env')
 native=json.loads((NATIVE/'compose.private.json').read_text())
 native['services']['studio-executor']=json.loads(pathlib.Path('/opt/runtime-os/cn2/compose.json').read_text())['services']['studio-executor']
 frontend=resolved('/opt/frontend-resource-hub/1.0.0/compose.yaml')
 gateway=json.loads((STAGE/'compose.gateway-ui.json').read_text())
+gateway_text=(STAGE/'config/public-gateway.conf').read_text()
+metadata=json.dumps({'release':a.version,'sourceCommit':a.source_commit,'nativeNodes':'1.3','existingStageDataReused':True},separators=(',',':'))
+gateway_text='\n'.join(('    location = /version.json { default_type application/json; add_header Cache-Control no-store; return 200 '+"'"+metadata+"'; }") if 'location = /version.json ' in line else line for line in gateway_text.splitlines())+'\n'
+for mount in gateway['services']['gateway']['volumes']:
+ if mount['target']=='/srv/task-lifecycle-ui':mount['source']=str(ui)
+ if mount['target']=='/srv/coding-monitor':mount['source']=str(monitor)
 compose={'services':{},'networks':{}}
 roles={};rename={'temporal-control-api':'api','studio-gateway':'studio','frontend-preview-worker':'frontend-worker','frontend-resource-hub':'frontend-resource-hub','gateway':'gateway'}
 def role_image(name):
@@ -51,7 +78,7 @@ for group,definition in [('legacy',legacy),('native',native),('frontend',fronten
  for old,original in definition.get('services',{}).items():
   name=rename.get(old,old);service=copy.deepcopy(original)
   assert name not in compose['services']
-  service.pop('container_name',None);service.pop('build',None);service.pop('env_file',None)
+  old_name=service.pop('container_name',None);service.pop('build',None);service.pop('env_file',None)
   if isinstance(service.get('environment'),list):service['environment']=dict(item.split('=',1) for item in service['environment'])
   if role_image(name)=='node':
    for key in ['PATH','JAVA_HOME','JAVA_VERSION','PYTHON_VERSION','PYTHON_SHA256','GPG_KEY']:service.get('environment',{}).pop(key,None)
@@ -69,6 +96,8 @@ for group,definition in [('legacy',legacy),('native',native),('frontend',fronten
    old_networks=service.get('networks',{'default':{}})
    if isinstance(old_networks,list):old_networks={n:{} for n in old_networks}
    service['networks']={('native-control' if group in ('legacy','gateway') else group+'-'+n):v or {} for n,v in old_networks.items()}
+   if old_name:
+    for network in service['networks'].values():network.setdefault('aliases',[]).append(old_name)
   if service.get('depends_on'):service['depends_on']={rename.get(n,n):v for n,v in service['depends_on'].items()}
   for option in service.get('security_opt',[]):
    if option.startswith('seccomp=') and option[8:].startswith('/'):
@@ -77,6 +106,7 @@ for group,definition in [('legacy',legacy),('native',native),('frontend',fronten
    source=mount.get('source') if isinstance(mount,dict) else mount.split(':')[0]
    if not source.startswith('/'):raise RuntimeError('Only explicit existing bind paths are allowed in this stage: '+name)
    assert pathlib.Path(source).exists(),'Missing existing mount for '+name+': '+source
+   if name=='gateway' and isinstance(mount,dict) and mount['target']=='/etc/nginx/nginx.conf':mount['source']='${INSTALL_ROOT}/generated/public-gateway.conf'
   if name in ('api','mcp','news'):
    port={'api':8080,'mcp':8090,'news':8091}[name]
    path={'api':'/api/v1/enterprise/auth/me','mcp':'/api/v1/admin/auth/me','news':'/actuator/health'}[name]
@@ -102,7 +132,7 @@ for name,service in compose['services'].items():
     candidate={'socket':original['dockerSocket'],'expectedId':original['expectedDaemonId']}
     if daemon is None:daemon=candidate
     assert daemon==candidate,'Executor profiles do not share the reviewed dedicated daemon'
-plan={'format':'runtime-os-stage-plan/v1','stageRoot':str(STAGE),'compose':compose,'stages':stages,'executionImage':images['node']['imageId'],'administratorUrls':['http://127.0.0.1:18180/api/v1/enterprise/auth','http://127.0.0.1:18190/api/v1/admin/auth'],'executorSockets':sockets,'executorDaemon':daemon,'generatedProfiles':generated}
+plan={'format':'runtime-os-stage-plan/v1','stageRoot':str(STAGE),'compose':compose,'stages':stages,'executionImage':images['node']['imageId'],'administratorUrls':['http://127.0.0.1:18180/api/v1/enterprise/auth','http://127.0.0.1:18190/api/v1/admin/auth'],'executorSockets':sockets,'executorDaemon':daemon,'generatedProfiles':generated,'generatedText':{'public-gateway.conf':gateway_text}}
 a.plan.parent.mkdir(parents=True,exist_ok=True);a.plan.write_text(json.dumps(plan,indent=2)+'\n');a.plan.chmod(0o600)
 a.recipe.mkdir(parents=True);assets=a.recipe/'assets';assets.mkdir()
 public_map={r:v for r,v in images.items() if r!='installer'}

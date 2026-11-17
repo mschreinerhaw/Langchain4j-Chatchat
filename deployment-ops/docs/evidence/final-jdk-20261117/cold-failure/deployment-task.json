@@ -1,0 +1,164 @@
+{
+  "id": "acd787e6cb7d4a35b6cad3b20e8a240c",
+  "environment": "runtime-v1",
+  "package": "296d3b1757755df1a3f1acb12488aa64be1a634649a4a25132511542f37138c9",
+  "packageName": "runtime-os",
+  "version": "1.0.3-protocol-20261117",
+  "actor": "admin",
+  "createdAt": 1794927381.176,
+  "updatedAt": 1794927390.344,
+  "status": "failed",
+  "message": "Native installer failed; inspect retained redacted installer logs",
+  "runtimeAdapter": "runtime-os-native/v1",
+  "previousRun": null,
+  "parameters": {
+    "serverAddress": "192.168.195.221",
+    "httpPort": 19410,
+    "mcpPort": 19411,
+    "directoryName": ""
+  },
+  "links": [
+    {
+      "name": "Runtime OS",
+      "url": "http://192.168.195.221:19410/"
+    },
+    {
+      "name": "MCP 管理入口",
+      "url": "http://192.168.195.221:19411/"
+    }
+  ],
+  "steps": [
+    {
+      "id": "postgresql",
+      "kind": "service",
+      "status": "pending"
+    },
+    {
+      "id": "temporal-db",
+      "kind": "service",
+      "status": "pending"
+    },
+    {
+      "id": "temporal",
+      "kind": "service",
+      "status": "pending"
+    },
+    {
+      "id": "redis",
+      "kind": "service",
+      "status": "pending"
+    },
+    {
+      "id": "opensearch",
+      "kind": "service",
+      "status": "pending"
+    },
+    {
+      "id": "silo",
+      "kind": "service",
+      "status": "pending"
+    },
+    {
+      "id": "news",
+      "kind": "service",
+      "status": "pending"
+    },
+    {
+      "id": "mcp",
+      "kind": "service",
+      "status": "pending"
+    },
+    {
+      "id": "api",
+      "kind": "service",
+      "status": "pending"
+    },
+    {
+      "id": "executor-daemon",
+      "kind": "service",
+      "status": "pending"
+    },
+    {
+      "id": "executor1",
+      "kind": "service",
+      "status": "pending"
+    },
+    {
+      "id": "executor2",
+      "kind": "service",
+      "status": "pending"
+    },
+    {
+      "id": "studio-executor",
+      "kind": "service",
+      "status": "pending"
+    },
+    {
+      "id": "recovery1",
+      "kind": "service",
+      "status": "pending"
+    },
+    {
+      "id": "recovery2",
+      "kind": "service",
+      "status": "pending"
+    },
+    {
+      "id": "node1",
+      "kind": "service",
+      "status": "pending"
+    },
+    {
+      "id": "node2",
+      "kind": "service",
+      "status": "pending"
+    },
+    {
+      "id": "studio",
+      "kind": "service",
+      "status": "pending"
+    },
+    {
+      "id": "worker1",
+      "kind": "service",
+      "status": "pending"
+    },
+    {
+      "id": "worker2",
+      "kind": "service",
+      "status": "pending"
+    },
+    {
+      "id": "frontend-resource-hub",
+      "kind": "service",
+      "status": "pending"
+    },
+    {
+      "id": "frontend-worker",
+      "kind": "service",
+      "status": "pending"
+    },
+    {
+      "id": "gateway",
+      "kind": "service",
+      "status": "pending"
+    },
+    {
+      "id": "manager",
+      "kind": "service",
+      "status": "pending"
+    }
+  ],
+  "cancelRequested": false,
+  "runtimeName": "ops-env-runtime-v1-installer-acd787e6cb-42ac3e",
+  "runtimeOperation": {
+    "package": "296d3b1757755df1a3f1acb12488aa64be1a634649a4a25132511542f37138c9",
+    "command": "install",
+    "root": "/mnt/disk01/ops/r/6462-ee1b43f41b32",
+    "project": "ops-env-runtime-v1"
+  },
+  "runtimeContainer": "1a5a8a487a332a7c0c609ea7db113a210412c0b335391c9ef2ef58ad04975412",
+  "installerLog": "2026-11-17T14:56:26.824578478Z Environment-specific internal credentials prepared. Values are not logged.\n2026-11-17T14:56:29.203427062Z Private CA, credentials and truststore are ready.\n2026-11-17T14:56:29.700784304Z  Network ops-env-runtime-v1_control  Creating\n2026-11-17T14:56:29.935202008Z  Network ops-env-runtime-v1_control  Created\n2026-11-17T14:56:29.937336107Z  Network ops-env-runtime-v1_egress  Creating\n2026-11-17T14:56:30.112050082Z  Network ops-env-runtime-v1_egress  Created\n2026-11-17T14:56:30.114244427Z  Network ops-env-runtime-v1_frontend  Creating\n2026-11-17T14:56:30.115387165Z  Network ops-env-runtime-v1_frontend  Error\n2026-11-17T14:56:30.115502124Z failed to create network ops-env-runtime-v1_frontend: Error response from daemon: could not find an available, non-overlapping IPv4 address pool among the defaults to assign to the network\n2026-11-17T14:56:30.124908457Z Installation failed: Docker command failed with exit code 1; see the output above\n",
+  "failure": "Native installer failed; inspect retained redacted installer logs",
+  "active": false
+}

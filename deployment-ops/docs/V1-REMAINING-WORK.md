@@ -1,4 +1,21 @@
-# Deployment Ops V1.0 交付台账
+# Deployment Ops V1.0 任务范围 / 纯 JDK 交付台账
+
+当前有效交付入口为 [RELEASE-1.1.0.md](RELEASE-1.1.0.md)，以满足新增的
+“仅依赖 JDK、java -jar 启动、网页初始化和安装协议”要求。旧外置 Python 版本的
+交付记录保留在下方，不能作为本次验收结论。
+
+当前代码：`2f460f1a114855ca153d41b8a8a0fb4cead221cb`，原分支及基线不变。
+P0/P1 功能与 12 个必需场景已通过真实服务器和浏览器验收，机器报告为
+`evidence/final-jdk-20261117/acceptance.json`；各记录保留实际执行任务及版本。
+最终包的安装与整包校验结果另列于同目录 `formal-*`，不能用旧包代替。
+
+当前服务 `deployment-ops-jdk`，入口19240，数据 `/mnt/disk01/deployment-ops-jdk/data`。
+Runtime 环境 `runtime-v1`，入口19410/MCP19411，24组件；旧Python控制面已停用。
+最终控制面停止、重启期间53个运行容器的ID、状态、StartedAt一致；其中原用户保留的
+基础容器为4个，不沿用已被用户清理的历史45容器基线。
+未提供真实DS集群和业务许可证的项目仍单列外部条件，不虚报接入或许可证通过。
+
+## 历史外置执行器版本记录
 
 基线 `8dbd6b915`，分支 `feature/deployment-ops-offline-20261115`。
 本台账替代早期候选版的阶段清单。详细执行记录见

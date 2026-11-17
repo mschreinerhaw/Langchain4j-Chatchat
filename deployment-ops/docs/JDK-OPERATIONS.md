@@ -2,8 +2,9 @@
 
 本入口仅依赖 Linux 基础系统和 JDK 17+，不需要预装 Python、Node 或业务数据库。
 平台本地运行 Spring Boot 与嵌入式 H2。Docker Engine 用于部署业务应用；Docker 不可用时，
-平台仍可启动、初始化、登录和显示主机监控。发行候选的验收状态见 `JDK-ONLY-REMAINING.md`，
-不能将候选包当成已经通过全部验收的正式发行版。
+平台仍可启动、初始化、登录和显示主机监控。正式包的机器可核对报告位于
+`docs/acceptance/report.json`；源码仓库交付入口为 `RELEASE-1.1.0.md`。
+带候选版本号的包不能作为正式发行版。
 
 ## 从离线源码编译
 

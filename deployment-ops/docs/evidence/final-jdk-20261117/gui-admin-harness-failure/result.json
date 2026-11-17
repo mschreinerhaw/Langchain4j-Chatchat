@@ -1,0 +1,12 @@
+{
+  "passed": false,
+  "checks": [
+    "modular live Runtime OS service groups rendered",
+    "three real Unix-socket executor health responses with enforced resource policy",
+    "persisted HTTP probe sampled the actual native service",
+    "existing probe edit and disable persisted",
+    "real unavailable endpoint raises unified dashboard alert and persistent transition history"
+  ],
+  "errors": [],
+  "error": "locator.fill: value: expected string, got undefined\n    at D:\\IdeaProjects\\LangChain4j-AIChat\\Langchain4j-Chatchat\\deployment-ops\\tests\\native-admin-browser.cjs:18:204"
+}

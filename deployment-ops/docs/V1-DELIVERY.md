@@ -1,3 +1,9 @@
+# Superseded 1.0.0 delivery record
+
+This historical external-Python release is superseded by the JDK-only delivery in
+[RELEASE-1.1.0.md](RELEASE-1.1.0.md). Current primary service: deployment-ops-jdk.
+The old credentials, service names and 19400/19401 links below are historical.
+
 # Deployment Ops V1.0 最终交付
 
 必需的 12 个验收场景、正式包安装、自升级隔离和完整离线介质校验均已实际执行通过。

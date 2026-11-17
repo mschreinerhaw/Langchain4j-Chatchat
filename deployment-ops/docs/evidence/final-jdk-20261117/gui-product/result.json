@@ -1,0 +1,23 @@
+{
+  "passed": true,
+  "checks": [
+    "native login and real inventory",
+    "applications loaded real API",
+    "hosts loaded real API",
+    "images loaded real API",
+    "tasks loaded real API",
+    "alerts loaded real API",
+    "system-management loaded real API",
+    "audit loaded real API",
+    "application component/configuration/monitoring/history routes",
+    "deployment workflow rendered",
+    "real persistent volume created on required data disk",
+    "real container created with approval",
+    "real container started",
+    "real container metrics and SSE logs",
+    "real container stopped",
+    "owned stopped container deleted without volume deletion",
+    "persistent volume retained on /mnt/disk01"
+  ],
+  "errors": []
+}

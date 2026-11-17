@@ -1,0 +1,20 @@
+{
+  "id": "23be0099bb8d444b9d91347b33010bdf",
+  "action": "upgrade",
+  "actor": "admin",
+  "target": "upgrade-b00c53fc-e292-4826-981d-f19d57ce2cf5.zip",
+  "service": "deployment-ops-jdk",
+  "archive": "/mnt/disk01/deployment-ops-jdk/upgrades/upgrade-b00c53fc-e292-4826-981d-f19d57ce2cf5.zip",
+  "sha256": "cb0b933ff90ab899be429f54fd9e7056fc8bf985ff5caabed7039a384d49d06c",
+  "status": "succeeded",
+  "createdAt": 1794929330.508,
+  "phase": "completed",
+  "updatedAt": 1794929335.221,
+  "snapshotHashes": {
+    "0": "8947bff86d3f0934a5ac3a81d0e753ed08856d2cc88388d3b64c550149ad6dde",
+    "1": "93fbc309f6fff71581b5d4a85376a3d28252e82316072f93604e2497bd1b822e",
+    "2": "44cb9db6814083b985d7cc9ae061ca8bce2675e173a2b1561ba927312d2bf22a",
+    "unit": "6f018811a9b8b194c2d5577f3511f8b2df2a2bddfff22be7f55e82132de2c657"
+  },
+  "finishedAt": 1794929342.73
+}

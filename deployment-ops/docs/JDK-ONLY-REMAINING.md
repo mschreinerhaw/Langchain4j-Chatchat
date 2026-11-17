@@ -1,3 +1,8 @@
+# Historical JDK migration ledger
+
+Current delivery: [RELEASE-1.1.0.md](RELEASE-1.1.0.md).
+The entries below are chronological checkpoints, not the current installation status.
+
 # 纯 JDK 续工入口
 
 用户明确要求：只依赖 JDK，不预装 Python；启动入口 `java -jar`，网页初始化及协议部署。

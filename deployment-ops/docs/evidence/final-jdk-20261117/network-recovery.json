@@ -1,0 +1,33 @@
+{
+  "passed": true,
+  "reason": "default IPv4 pools exhausted by empty historical acceptance networks",
+  "removedEmptyQaNetworks": [
+    {
+      "id": "711d97b1577ca8bd42edfb170d84bba44ef4f5b7bf9099fd65d50865e9aec42a",
+      "name": "ops-env-runtime-os-acceptance",
+      "containerReferences": 0
+    },
+    {
+      "id": "7b0bb781a780f932f703ce7f497254b44b540df1c22e4968a27c8651ad050df9",
+      "name": "ops-env-runtime-os-acceptance-v2",
+      "containerReferences": 0
+    },
+    {
+      "id": "6ee4dc5f37786c3a0ed50beeb62c9e800a59855e3758ae0c091b6cd77bffa29c",
+      "name": "ops-env-runtime-os-acceptance-v3",
+      "containerReferences": 0
+    },
+    {
+      "id": "9c42a62215618732aae416b301757069b0e2104bf9168f044c9e8f43e85015f6",
+      "name": "ops-env-runtime-os-acceptance-v4",
+      "containerReferences": 0
+    },
+    {
+      "id": "2a489d0f7e5df9f2f99bc31a6b32b7b5ff1b5ae5d7897fc478255558e6aa0532",
+      "name": "ops-env-runtime-os-acceptance-v5",
+      "containerReferences": 0
+    }
+  ],
+  "runningIdsAndStartedAtUnchanged": true,
+  "productionNetworksChanged": false
+}

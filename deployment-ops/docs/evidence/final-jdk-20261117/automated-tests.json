@@ -1,0 +1,54 @@
+{
+  "passed": true,
+  "java": {
+    "tests": 17,
+    "suites": [
+      {
+        "name": "com.chatchat.deployment.api.FirstInstallIntegrationTest",
+        "tests": "1",
+        "errors": "0",
+        "failures": "0"
+      },
+      {
+        "name": "com.chatchat.deployment.api.NativeApiIntegrationTest",
+        "tests": "1",
+        "errors": "0",
+        "failures": "0"
+      },
+      {
+        "name": "com.chatchat.deployment.api.PlatformServicesIntegrationTest",
+        "tests": "5",
+        "errors": "0",
+        "failures": "0"
+      },
+      {
+        "name": "com.chatchat.deployment.protocol.InstallationManifestTest",
+        "tests": "4",
+        "errors": "0",
+        "failures": "0"
+      },
+      {
+        "name": "com.chatchat.deployment.release.ApplicationReleaseTest",
+        "tests": "3",
+        "errors": "0",
+        "failures": "0"
+      },
+      {
+        "name": "com.chatchat.deployment.storage.StorageGuardTest",
+        "tests": "3",
+        "errors": "0",
+        "failures": "0"
+      }
+    ]
+  },
+  "pythonCompatibility": {
+    "tests": 51,
+    "passed": true,
+    "runtimePrerequisite": false
+  },
+  "vue": {
+    "formatCheck": "passed",
+    "productionBuild": "passed",
+    "hash": "712261fb736088a4"
+  }
+}

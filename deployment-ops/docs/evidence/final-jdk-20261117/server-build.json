@@ -1,0 +1,15 @@
+{
+  "passed": true,
+  "sourceCommit": "2f460f1a114855ca153d41b8a8a0fb4cead221cb",
+  "jarSha256": "ba2d3cc7a51536fbd97f3e6cd661d2f0f726bb0b7b6b2792e3dfe8df3a2b1bfa",
+  "serverSourceBuild": "PATH=/nonexistent /opt/jdk-17.0.5/bin/java scripts/BuildNativeOffline.java --runtime build/boot-runtime.zip --output lib/deployment-ops.jar --version 1.1.0 --source-commit 2f460f1a114855ca153d41b8a8a0fb4cead221cb",
+  "initialInstallToFinalDifferences": [
+    "META-INF/MANIFEST.MF",
+    "META-INF/maven/com.chatchat/deployment-ops/pom.properties",
+    "BOOT-INF/classes/com/chatchat/deployment/runtime/ServiceInstaller.class",
+    "BOOT-INF/classes/deployment-ops-build.properties"
+  ],
+  "identicalDockerProtocolDeploymentAndVueClasses": true,
+  "pythonRuntimeResources": false,
+  "embeddedDependencies": 45
+}

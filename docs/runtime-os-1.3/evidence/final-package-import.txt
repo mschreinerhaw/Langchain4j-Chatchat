@@ -1,0 +1,8 @@
+Started /opt/jdk-17.0.5/bin/java -jar /mnt/disk01/deployment-ops-resolution-source/lib/deployment-ops-1.1.3.jar --import-package /mnt/disk01/ops-publisher-20261116/runtime-os-1.3-stage-reviewed.ops.zip 9ea423d962359935ac5569f8dcdf91e3410993690ff05ee9d10b954272550075 --image-cache /mnt/disk01/ops-publisher-20261116/runtime-1.3-stage-installer-final.tar.
+Checking complete offline package SHA-256...
+Matching image archive cached without duplicating data; signature verification remains mandatory.
+Upload bdc1c9ec04814c14a028c0df680ae7e2 committed; verifying signature, payloads and actual Docker images.
+Import status: verifying
+Import status: verified
+Verified package: 9ea423d962359935ac5569f8dcdf91e3410993690ff05ee9d10b954272550075
+runtime-os-1-3-reviewed-final-import.service: Succeeded.

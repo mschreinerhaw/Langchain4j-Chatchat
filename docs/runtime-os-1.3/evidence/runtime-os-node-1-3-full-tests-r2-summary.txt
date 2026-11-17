@@ -1,0 +1,12 @@
+✔ parallel native metadata calls preserve sequential Java transactions (16.158334ms)
+✔ callback base with trailing slash preserves the exact signed route (40.277623ms)
+✔ later metadata pages require the actual first-page snapshot before dispatch (0.813415ms)
+ℹ tests 129
+ℹ suites 0
+ℹ pass 129
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 4383.682799
+runtime-os-node-1-3-full-tests-r2.service: Succeeded.

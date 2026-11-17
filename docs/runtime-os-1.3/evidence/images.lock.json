@@ -1,0 +1,82 @@
+{
+  "postgres": {
+    "reference": "runtime-os-postgres:1.3",
+    "imageId": "sha256:8bca9649e52d948114ccc8164b55b7ab26b64e729893e420114bb5c87bf7c7cc",
+    "sourceReference": "postgres:18.6",
+    "repoDigests": [
+      "postgres@sha256:e3d24f6906d0760bf4da0dae872415391ededefad23fd471c47dc53b0ddf3c42"
+    ]
+  },
+  "redis": {
+    "reference": "runtime-os-redis:1.3",
+    "imageId": "sha256:bb8953020f6597e47d5d699a9910a25d77a69608dbd58e0f722940598ed85fc0",
+    "sourceReference": "redis:7.4-alpine",
+    "repoDigests": [
+      "redis@sha256:7b1753b4c5ad8458906c272a8132b8c15f5557b000379eb115fb239706a384b7"
+    ]
+  },
+  "silo": {
+    "reference": "runtime-os-silo:1.3",
+    "imageId": "sha256:be37cae6c0545e6d3910e5b5578df376b9069c7f9cfe05d521cd91cabfa6cc38",
+    "sourceReference": "pgsty/silo:latest",
+    "repoDigests": [
+      "pgsty/silo@sha256:08ce1505b5eacefbad1ca07159b242b9ce045a11c2817e3bc257b25f77bbc02d"
+    ]
+  },
+  "temporal": {
+    "reference": "runtime-os-stage-temporal:1.3",
+    "imageId": "sha256:1552391639f89ef91dc335ea10b74be712b6d4e461cbe0f84eff9d5f11cbe8b3"
+  },
+  "frontend": {
+    "reference": "runtime-os-frontend:1.3",
+    "imageId": "sha256:66305b4f6c51d580b0901416674975ef82323da36194d2f8f63b865c43e1f7f2",
+    "sourceReference": "runtime-frontend-resource-hub:1.0.0",
+    "repoDigests": []
+  },
+  "search": {
+    "reference": "runtime-os-search:1.3",
+    "imageId": "sha256:4290e455bdc65666a46b85aeb20e0a50dd52cc9f7a44b9cc1055132dad478cbb",
+    "sourceReference": "runtime-os-search:20261115-docker-only",
+    "repoDigests": []
+  },
+  "api": {
+    "reference": "runtime-os-api:1.3",
+    "imageId": "sha256:9ef321c56f41de96c98e4d46522f3717f07bf087e3393a2ca71288370f5c4657",
+    "sourceReference": "runtime-os-api:20261115-docker-only",
+    "repoDigests": []
+  },
+  "mcp": {
+    "reference": "runtime-os-mcp:1.3",
+    "imageId": "sha256:995c9a83c48e28e9c533de1888ef6886d2c0984019410c01657f4943beaffb94",
+    "sourceReference": "runtime-os-mcp:20261115-docker-only",
+    "repoDigests": []
+  },
+  "node": {
+    "reference": "runtime-os-node:1.3",
+    "imageId": "sha256:59110e7ce5bda8f67427c5f7e854f10f734f938d3ec97954217f715f7a7a60d9",
+    "sourceReference": "runtime-os-node:20261115-docker-only",
+    "repoDigests": []
+  },
+  "studio": {
+    "reference": "runtime-os-studio:1.3",
+    "imageId": "sha256:59110e7ce5bda8f67427c5f7e854f10f734f938d3ec97954217f715f7a7a60d9",
+    "sourceReference": "runtime-os-node:20261115-docker-only",
+    "repoDigests": []
+  },
+  "news": {
+    "reference": "runtime-os-news:1.3",
+    "imageId": "sha256:e8a32c35d0474c53ea4ac3cba65450e721538c20c4ac8d93abc2e207fcde1764",
+    "sourceReference": "runtime-os-news:latest-main-20261115",
+    "repoDigests": []
+  },
+  "gateway": {
+    "reference": "runtime-os-stage-gateway:1.3",
+    "imageId": "sha256:dc73b49f5124cf2ee538dfbdfbd121f0b4ccdcb20fea30f3a81bd477c02e2bb5"
+  },
+  "daemon": {
+    "reference": "runtime-os-daemon:1.3",
+    "imageId": "sha256:a53a9470973ce8218562c3c1643b5353bbda8b8eb4365262e9d1f409369ad86b",
+    "sourceReference": "runtime-os-daemon:20261115-docker-only",
+    "repoDigests": []
+  }
+}

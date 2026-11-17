@@ -1,0 +1,10 @@
+{
+  "passed": true,
+  "removedOnlyAgentGeneratedQATar": "/mnt/disk01/ops-publisher-20261116/rollback-fixture.tar",
+  "bytesFreed": 2288315392,
+  "verifiedRecoverableArchive": "/mnt/disk01/ops-publisher-20261116/runtime-os-1.0.2-rollback-qa.ops.zip",
+  "recoverableMember": "images/archive-2.tar",
+  "memberSha256": "64292510780d21b42c24a8cad2e74b829b69a73a6155f0a6ae5e65843cd4f8f7",
+  "allRunningIdsAndStartedAtUnchanged": 29,
+  "businessDataAndImagesDeleted": false
+}

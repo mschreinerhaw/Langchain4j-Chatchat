@@ -1,0 +1,12 @@
+✔ Core identity rejects root-owned bind mount and succeeds after ownership repair (168.547965ms)
+✔ root-owned mounted workspace is repaired automatically and initialization is repeatable (377.26422ms)
+✔ unsafe entries cannot cause ownership changes outside workspace (1.380182ms)
+ℹ tests 10
+ℹ suites 0
+ℹ pass 10
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 528.840574
+runtime-os-node-1-3-root-tests.service: Succeeded.

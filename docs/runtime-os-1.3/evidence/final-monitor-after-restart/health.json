@@ -1,0 +1,33 @@
+{
+  "jobId": "2476e3cdc8f94b1bbe64712bb9ac5bd8",
+  "environment": "runtime-stage-v13",
+  "sampledAt": 1794941011.76,
+  "executors": [
+    {
+      "name": "Coding Executor 1",
+      "status": "HEALTHY",
+      "resourceEnforced": true,
+      "latencyMs": 6
+    },
+    {
+      "name": "Coding Executor 2",
+      "status": "HEALTHY",
+      "resourceEnforced": true,
+      "latencyMs": 3
+    },
+    {
+      "name": "Studio Executor",
+      "status": "HEALTHY",
+      "resourceEnforced": true,
+      "latencyMs": 2
+    }
+  ],
+  "verifiedAt": 1794940816.668,
+  "installationVerification": {
+    "status": "PASSED",
+    "nativeCoreVerified": true,
+    "pythonRuntimeVerified": true,
+    "privateExecutorDaemon": true,
+    "offlineImages": true
+  }
+}

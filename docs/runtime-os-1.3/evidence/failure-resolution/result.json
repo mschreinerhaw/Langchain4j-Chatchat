@@ -1,0 +1,9 @@
+{
+  "passed": true,
+  "checks": [
+    "ending an active healthy environment is rejected without any lifecycle action",
+    "explicit Vue confirmation ends only the failed initial task and retains its original error and installer log",
+    "all existing running and stopped containers retain their IDs and states"
+  ],
+  "task": "6bf926b6f66a4f2792d59322e73e73e5"
+}

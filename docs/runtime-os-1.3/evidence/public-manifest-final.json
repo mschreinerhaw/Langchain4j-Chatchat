@@ -1,0 +1,944 @@
+{
+  "schemaVersion": 1,
+  "name": "runtime-os",
+  "version": "1.3",
+  "platform": "linux/amd64",
+  "description": "Explicit existing-stage data/configuration reuse. No database initialization, password reset, data copying, volume removal or directory ownership change. Private plan is hash-pinned outside this archive.",
+  "requirements": {
+    "memoryBytes": 3221225472,
+    "diskBytes": 1073741824
+  },
+  "upgradeFrom": [],
+  "dataCompatibility": "initial-only",
+  "parameters": {
+    "mcpAdminPassword": {
+      "type": "string",
+      "label": "Existing MCP administrator password (not reset)",
+      "secret": true,
+      "required": true,
+      "pattern": ".{1,128}"
+    },
+    "serverAddress": {
+      "type": "string",
+      "label": "Server address",
+      "default": "192.168.195.221"
+    },
+    "httpPort": {
+      "type": "integer",
+      "label": "Existing HTTP port",
+      "default": 18100,
+      "min": 18100,
+      "max": 18100
+    },
+    "mcpPort": {
+      "type": "integer",
+      "label": "Existing MCP port",
+      "default": 18101,
+      "min": 18101,
+      "max": 18101
+    },
+    "directoryName": {
+      "type": "string",
+      "label": "Management journal directory",
+      "default": "stage-v13",
+      "pattern": "[a-z0-9-]{1,16}"
+    },
+    "osAdminPassword": {
+      "type": "string",
+      "label": "Existing Runtime administrator password (not reset)",
+      "secret": true,
+      "required": true,
+      "pattern": ".{1,128}"
+    }
+  },
+  "images": {
+    "postgres": {
+      "id": "sha256:8bca9649e52d948114ccc8164b55b7ab26b64e729893e420114bb5c87bf7c7cc",
+      "size": 456705264,
+      "archive": "images/all.tar"
+    },
+    "redis": {
+      "id": "sha256:bb8953020f6597e47d5d699a9910a25d77a69608dbd58e0f722940598ed85fc0",
+      "size": 39573319,
+      "archive": "images/all.tar"
+    },
+    "silo": {
+      "id": "sha256:be37cae6c0545e6d3910e5b5578df376b9069c7f9cfe05d521cd91cabfa6cc38",
+      "size": 175543703,
+      "archive": "images/all.tar"
+    },
+    "temporal": {
+      "id": "sha256:1552391639f89ef91dc335ea10b74be712b6d4e461cbe0f84eff9d5f11cbe8b3",
+      "size": 861524333,
+      "archive": "images/archive-2.tar"
+    },
+    "frontend": {
+      "id": "sha256:66305b4f6c51d580b0901416674975ef82323da36194d2f8f63b865c43e1f7f2",
+      "size": 4268829083,
+      "archive": "images/all.tar"
+    },
+    "search": {
+      "id": "sha256:4290e455bdc65666a46b85aeb20e0a50dd52cc9f7a44b9cc1055132dad478cbb",
+      "size": 1490984338,
+      "archive": "images/all.tar"
+    },
+    "api": {
+      "id": "sha256:9ef321c56f41de96c98e4d46522f3717f07bf087e3393a2ca71288370f5c4657",
+      "size": 2249544702,
+      "archive": "images/all.tar"
+    },
+    "mcp": {
+      "id": "sha256:995c9a83c48e28e9c533de1888ef6886d2c0984019410c01657f4943beaffb94",
+      "size": 770254762,
+      "archive": "images/all.tar"
+    },
+    "node": {
+      "id": "sha256:59110e7ce5bda8f67427c5f7e854f10f734f938d3ec97954217f715f7a7a60d9",
+      "size": 2625882475,
+      "archive": "images/archive-2.tar"
+    },
+    "studio": {
+      "id": "sha256:59110e7ce5bda8f67427c5f7e854f10f734f938d3ec97954217f715f7a7a60d9",
+      "size": 2625882475,
+      "archive": "images/archive-2.tar"
+    },
+    "news": {
+      "id": "sha256:e8a32c35d0474c53ea4ac3cba65450e721538c20c4ac8d93abc2e207fcde1764",
+      "size": 572559197,
+      "archive": "images/all.tar"
+    },
+    "gateway": {
+      "id": "sha256:dc73b49f5124cf2ee538dfbdfbd121f0b4ccdcb20fea30f3a81bd477c02e2bb5",
+      "size": 62095598,
+      "archive": "images/archive-2.tar"
+    },
+    "daemon": {
+      "id": "sha256:a53a9470973ce8218562c3c1643b5353bbda8b8eb4365262e9d1f409369ad86b",
+      "size": 387159602,
+      "archive": "images/all.tar"
+    },
+    "installer": {
+      "id": "sha256:5c01965be45af357918226003fba1eb0909db78123842b67ba797f52876879c6",
+      "size": 2279928346,
+      "archive": "images/archive-3.tar"
+    }
+  },
+  "volumes": {},
+  "components": [
+    {
+      "id": "news",
+      "image": "news",
+      "dependsOn": [],
+      "entrypoint": [
+        "java",
+        "-jar",
+        "/srv/app/app.jar"
+      ],
+      "command": [],
+      "health": {
+        "type": "docker",
+        "source": "docker"
+      }
+    },
+    {
+      "id": "mcp",
+      "image": "mcp",
+      "dependsOn": [
+        "news"
+      ],
+      "entrypoint": [
+        "java",
+        "-jar",
+        "/srv/app/app.jar"
+      ],
+      "command": [],
+      "health": {
+        "type": "docker",
+        "source": "docker"
+      }
+    },
+    {
+      "id": "api",
+      "image": "api",
+      "dependsOn": [
+        "mcp"
+      ],
+      "entrypoint": [
+        "java",
+        "-jar",
+        "/srv/app/app.jar"
+      ],
+      "command": [],
+      "health": {
+        "type": "docker",
+        "source": "docker"
+      }
+    },
+    {
+      "id": "temporal",
+      "image": "temporal",
+      "dependsOn": [
+        "api"
+      ],
+      "entrypoint": [
+        "bash",
+        "/opt/runtime/temporal-entrypoint.sh"
+      ],
+      "command": [],
+      "health": {
+        "type": "docker",
+        "source": "docker"
+      }
+    },
+    {
+      "id": "executor1",
+      "image": "node",
+      "dependsOn": [
+        "temporal"
+      ],
+      "entrypoint": [
+        "node",
+        "/opt/runtime-os/coding-node/service/src/worker-executor.mjs"
+      ],
+      "command": [],
+      "health": {
+        "type": "docker",
+        "source": "native-installer"
+      }
+    },
+    {
+      "id": "executor2",
+      "image": "node",
+      "dependsOn": [
+        "temporal"
+      ],
+      "entrypoint": [
+        "node",
+        "/opt/runtime-os/coding-node/service/src/worker-executor.mjs"
+      ],
+      "command": [],
+      "health": {
+        "type": "docker",
+        "source": "native-installer"
+      }
+    },
+    {
+      "id": "studio-executor",
+      "image": "node",
+      "dependsOn": [
+        "temporal"
+      ],
+      "entrypoint": [
+        "node",
+        "/opt/runtime-os/coding-node/service/src/worker-executor.mjs"
+      ],
+      "command": [],
+      "health": {
+        "type": "docker",
+        "source": "native-installer"
+      }
+    },
+    {
+      "id": "recovery1",
+      "image": "node",
+      "dependsOn": [
+        "api",
+        "executor1",
+        "executor2",
+        "studio-executor"
+      ],
+      "entrypoint": [
+        "node",
+        "/opt/runtime-os/coding-node/service/src/recovery-server.mjs"
+      ],
+      "command": [],
+      "health": {
+        "type": "docker",
+        "source": "native-installer"
+      }
+    },
+    {
+      "id": "recovery2",
+      "image": "node",
+      "dependsOn": [
+        "api",
+        "executor1",
+        "executor2",
+        "studio-executor"
+      ],
+      "entrypoint": [
+        "node",
+        "/opt/runtime-os/coding-node/service/src/recovery-server.mjs"
+      ],
+      "command": [],
+      "health": {
+        "type": "docker",
+        "source": "native-installer"
+      }
+    },
+    {
+      "id": "node1",
+      "image": "node",
+      "dependsOn": [
+        "api",
+        "recovery1",
+        "recovery2"
+      ],
+      "entrypoint": [
+        "node",
+        "/opt/runtime-os/coding-node/service/src/governance-server.mjs"
+      ],
+      "command": [],
+      "health": {
+        "type": "docker",
+        "source": "native-installer"
+      }
+    },
+    {
+      "id": "node2",
+      "image": "node",
+      "dependsOn": [
+        "api",
+        "recovery1",
+        "recovery2"
+      ],
+      "entrypoint": [
+        "node",
+        "/opt/runtime-os/coding-node/service/src/governance-server.mjs"
+      ],
+      "command": [],
+      "health": {
+        "type": "docker",
+        "source": "native-installer"
+      }
+    },
+    {
+      "id": "frontend-resource-hub",
+      "image": "frontend",
+      "dependsOn": [
+        "node1",
+        "node2"
+      ],
+      "entrypoint": [],
+      "command": [
+        "node",
+        "server.mjs"
+      ],
+      "health": {
+        "type": "docker",
+        "source": "docker"
+      }
+    },
+    {
+      "id": "frontend-worker",
+      "image": "frontend",
+      "dependsOn": [
+        "node1",
+        "node2"
+      ],
+      "entrypoint": [],
+      "command": [
+        "node",
+        "worker.mjs"
+      ],
+      "health": {
+        "type": "docker",
+        "source": "docker"
+      }
+    },
+    {
+      "id": "worker1",
+      "image": "api",
+      "dependsOn": [
+        "api",
+        "frontend-resource-hub",
+        "frontend-worker"
+      ],
+      "entrypoint": [
+        "java",
+        "-jar",
+        "/srv/app/app.jar"
+      ],
+      "command": [],
+      "health": {
+        "type": "docker",
+        "source": "native-installer"
+      }
+    },
+    {
+      "id": "worker2",
+      "image": "api",
+      "dependsOn": [
+        "api",
+        "frontend-resource-hub",
+        "frontend-worker"
+      ],
+      "entrypoint": [
+        "java",
+        "-jar",
+        "/srv/app/app.jar"
+      ],
+      "command": [],
+      "health": {
+        "type": "docker",
+        "source": "native-installer"
+      }
+    },
+    {
+      "id": "studio",
+      "image": "node",
+      "dependsOn": [
+        "api",
+        "worker1",
+        "worker2"
+      ],
+      "entrypoint": [
+        "node",
+        "/opt/runtime-os/coding-node/service/src/business-server.mjs"
+      ],
+      "command": [],
+      "health": {
+        "type": "docker",
+        "source": "native-installer"
+      }
+    },
+    {
+      "id": "gateway",
+      "image": "gateway",
+      "dependsOn": [
+        "studio"
+      ],
+      "entrypoint": [
+        "/docker-entrypoint.sh"
+      ],
+      "command": [
+        "nginx",
+        "-g",
+        "daemon off;"
+      ],
+      "health": {
+        "type": "docker",
+        "source": "docker"
+      }
+    }
+  ],
+  "runtimeInstaller": {
+    "protocol": "runtime-os-native/v1",
+    "contractVersion": 1,
+    "image": "installer",
+    "imageMap": "assets/runtime-images.json",
+    "services": [
+      "mcp",
+      "news",
+      "api",
+      "worker1",
+      "worker2",
+      "node1",
+      "recovery1",
+      "executor1",
+      "node2",
+      "recovery2",
+      "executor2",
+      "temporal",
+      "studio",
+      "studio-executor",
+      "frontend-worker",
+      "frontend-resource-hub",
+      "gateway"
+    ],
+    "schemaHashes": {
+      "existing-stage-no-schema-initialization": "00503fd1f5b7b523222b4b4512307039dd8ba4adb6261b23905b5ddc5fde711f"
+    },
+    "stagePlan": {
+      "name": "runtime-stage-1-3-reviewed-final.json",
+      "sha256": "fd439634e6a53524749764036a65f999c3c1ef821c6ecd37eec65f365549dfe0",
+      "sourceRoot": "/opt/runtime-os-docker-stage",
+      "mounts": [
+        {
+          "component": "mcp",
+          "source": "/var/run/docker.sock",
+          "target": "/var/run/docker.sock",
+          "mode": "read-write"
+        },
+        {
+          "component": "mcp",
+          "source": "/opt/runtime-os-docker-stage/mcp/data/python-assets",
+          "target": "/opt/runtime-os-docker-stage/mcp/data/python-assets",
+          "mode": "read-write"
+        },
+        {
+          "component": "mcp",
+          "source": "/opt/runtime-os-docker-stage/mcp/data/python-user-data",
+          "target": "/opt/runtime-os-docker-stage/mcp/data/python-user-data",
+          "mode": "read-write"
+        },
+        {
+          "component": "mcp",
+          "source": "/sys/class/net/ens192/address",
+          "target": "/run/license/host-mac",
+          "mode": "read-only"
+        },
+        {
+          "component": "mcp",
+          "source": "/opt/runtime-os-docker-stage/config/mcp/internal-credential.key",
+          "target": "/srv/app/config/internal-credential.key",
+          "mode": "read-only"
+        },
+        {
+          "component": "mcp",
+          "source": "/opt/chatchat-mcp-server-1.0.0-SNAPSHOT/data",
+          "target": "/srv/app/data",
+          "mode": "read-write"
+        },
+        {
+          "component": "mcp",
+          "source": "/opt/runtime-os-docker-stage/config/mcp/application.yml",
+          "target": "/srv/app/config/application.yml",
+          "mode": "read-only"
+        },
+        {
+          "component": "mcp",
+          "source": "/opt/runtime-os-docker-stage/mcp/logs",
+          "target": "/srv/app/logs",
+          "mode": "read-write"
+        },
+        {
+          "component": "mcp",
+          "source": "/opt/chatchat-mcp-server-1.0.0-SNAPSHOT/lib/drivers",
+          "target": "/srv/app/lib/drivers",
+          "mode": "read-only"
+        },
+        {
+          "component": "mcp",
+          "source": "/opt/runtime-os-docker-stage/config/native-search-tls",
+          "target": "/srv/app/config/native-search-tls",
+          "mode": "read-only"
+        },
+        {
+          "component": "news",
+          "source": "/opt/runtime-os-docker-stage/news/logs",
+          "target": "/srv/app/logs",
+          "mode": "read-write"
+        },
+        {
+          "component": "news",
+          "source": "/opt/chatchat-runtime-news-1.0.0-SNAPSHOT/data",
+          "target": "/srv/app/data",
+          "mode": "read-write"
+        },
+        {
+          "component": "news",
+          "source": "/opt/runtime-os-docker-stage/config/news",
+          "target": "/srv/app/config",
+          "mode": "read-only"
+        },
+        {
+          "component": "api",
+          "source": "/opt/runtime-os-docker-stage/mcp/data/python-user-data",
+          "target": "/srv/shared-coding-input",
+          "mode": "read-write"
+        },
+        {
+          "component": "api",
+          "source": "/opt/runtime-os-docker-stage/config/secrets/asset-access-key",
+          "target": "/run/secrets/asset-access-key",
+          "mode": "read-only"
+        },
+        {
+          "component": "api",
+          "source": "/opt/runtime-os-docker-stage/config/secrets/asset-secret-key",
+          "target": "/run/secrets/asset-secret-key",
+          "mode": "read-only"
+        },
+        {
+          "component": "api",
+          "source": "/opt/runtime-os-docker-stage/api/logs",
+          "target": "/srv/app/logs",
+          "mode": "read-write"
+        },
+        {
+          "component": "api",
+          "source": "/opt/runtime-os-docker-stage/config/api/application.yml",
+          "target": "/srv/app/config/application.yml",
+          "mode": "read-only"
+        },
+        {
+          "component": "api",
+          "source": "/opt/chatchat-1.0.0-SNAPSHOT/data",
+          "target": "/srv/app/data",
+          "mode": "read-write"
+        },
+        {
+          "component": "api",
+          "source": "/opt/runtime-os-docker-stage/config/api/internal-credential.key",
+          "target": "/srv/app/config/internal-credential.key",
+          "mode": "read-only"
+        },
+        {
+          "component": "api",
+          "source": "/opt/runtime-os-docker-stage/config/secrets/coding-agent-shared-secret",
+          "target": "/run/secrets/coding_agent_shared_secret",
+          "mode": "read-only"
+        },
+        {
+          "component": "api",
+          "source": "/opt/chatchat-mcp-server-1.0.0-SNAPSHOT/lib/drivers",
+          "target": "/srv/app/lib/drivers",
+          "mode": "read-only"
+        },
+        {
+          "component": "api",
+          "source": "/opt/runtime-os/native-temporal/rc-20261112/private/connection.json",
+          "target": "/run/secrets/native-coding-connection.json",
+          "mode": "read-only"
+        },
+        {
+          "component": "api",
+          "source": "/opt/runtime-os/native-temporal/rc-20261112/private/tls/ca.crt",
+          "target": "/run/temporal-tls/ca.crt",
+          "mode": "read-only"
+        },
+        {
+          "component": "api",
+          "source": "/opt/runtime-os/native-temporal/rc-20261112/private/tls/api.crt",
+          "target": "/run/temporal-tls/client.crt",
+          "mode": "read-only"
+        },
+        {
+          "component": "api",
+          "source": "/opt/runtime-os/native-temporal/rc-20261112/private/tls/api.key",
+          "target": "/run/temporal-tls/client.key",
+          "mode": "read-only"
+        },
+        {
+          "component": "worker1",
+          "source": "/opt/runtime-os-docker-stage/mcp/data/python-user-data",
+          "target": "/srv/shared-coding-input",
+          "mode": "read-write"
+        },
+        {
+          "component": "worker1",
+          "source": "/opt/runtime-os-docker-stage/config/secrets/asset-access-key",
+          "target": "/run/secrets/asset-access-key",
+          "mode": "read-only"
+        },
+        {
+          "component": "worker1",
+          "source": "/opt/runtime-os-docker-stage/config/secrets/asset-secret-key",
+          "target": "/run/secrets/asset-secret-key",
+          "mode": "read-only"
+        },
+        {
+          "component": "worker1",
+          "source": "/opt/runtime-os/native-temporal/rc-20261112/worker1/logs",
+          "target": "/srv/app/logs",
+          "mode": "read-write"
+        },
+        {
+          "component": "worker1",
+          "source": "/opt/runtime-os-docker-stage/config/api/application.yml",
+          "target": "/srv/app/config/application.yml",
+          "mode": "read-only"
+        },
+        {
+          "component": "worker1",
+          "source": "/opt/runtime-os/native-temporal/rc-20261112/worker1/data",
+          "target": "/srv/app/data",
+          "mode": "read-write"
+        },
+        {
+          "component": "worker1",
+          "source": "/opt/runtime-os-docker-stage/config/api/internal-credential.key",
+          "target": "/srv/app/config/internal-credential.key",
+          "mode": "read-only"
+        },
+        {
+          "component": "worker1",
+          "source": "/opt/runtime-os-docker-stage/config/secrets/coding-agent-shared-secret",
+          "target": "/run/secrets/coding_agent_shared_secret",
+          "mode": "read-only"
+        },
+        {
+          "component": "worker1",
+          "source": "/opt/chatchat-mcp-server-1.0.0-SNAPSHOT/lib/drivers",
+          "target": "/srv/app/lib/drivers",
+          "mode": "read-only"
+        },
+        {
+          "component": "worker1",
+          "source": "/opt/runtime-os/native-temporal/rc-20261112/private/connection.json",
+          "target": "/run/secrets/native-coding-connection.json",
+          "mode": "read-only"
+        },
+        {
+          "component": "worker1",
+          "source": "/opt/runtime-os/native-temporal/rc-20261112/private/tls/ca.crt",
+          "target": "/run/temporal-tls/ca.crt",
+          "mode": "read-only"
+        },
+        {
+          "component": "worker1",
+          "source": "/opt/runtime-os/native-temporal/rc-20261112/private/tls/worker1.crt",
+          "target": "/run/temporal-tls/client.crt",
+          "mode": "read-only"
+        },
+        {
+          "component": "worker1",
+          "source": "/opt/runtime-os/native-temporal/rc-20261112/private/tls/worker1.key",
+          "target": "/run/temporal-tls/client.key",
+          "mode": "read-only"
+        },
+        {
+          "component": "worker2",
+          "source": "/opt/runtime-os-docker-stage/mcp/data/python-user-data",
+          "target": "/srv/shared-coding-input",
+          "mode": "read-write"
+        },
+        {
+          "component": "worker2",
+          "source": "/opt/runtime-os-docker-stage/config/secrets/asset-access-key",
+          "target": "/run/secrets/asset-access-key",
+          "mode": "read-only"
+        },
+        {
+          "component": "worker2",
+          "source": "/opt/runtime-os-docker-stage/config/secrets/asset-secret-key",
+          "target": "/run/secrets/asset-secret-key",
+          "mode": "read-only"
+        },
+        {
+          "component": "worker2",
+          "source": "/opt/runtime-os/native-temporal/rc-20261112/worker2/logs",
+          "target": "/srv/app/logs",
+          "mode": "read-write"
+        },
+        {
+          "component": "worker2",
+          "source": "/opt/runtime-os-docker-stage/config/api/application.yml",
+          "target": "/srv/app/config/application.yml",
+          "mode": "read-only"
+        },
+        {
+          "component": "worker2",
+          "source": "/opt/runtime-os/native-temporal/rc-20261112/worker2/data",
+          "target": "/srv/app/data",
+          "mode": "read-write"
+        },
+        {
+          "component": "worker2",
+          "source": "/opt/runtime-os-docker-stage/config/api/internal-credential.key",
+          "target": "/srv/app/config/internal-credential.key",
+          "mode": "read-only"
+        },
+        {
+          "component": "worker2",
+          "source": "/opt/runtime-os-docker-stage/config/secrets/coding-agent-shared-secret",
+          "target": "/run/secrets/coding_agent_shared_secret",
+          "mode": "read-only"
+        },
+        {
+          "component": "worker2",
+          "source": "/opt/chatchat-mcp-server-1.0.0-SNAPSHOT/lib/drivers",
+          "target": "/srv/app/lib/drivers",
+          "mode": "read-only"
+        },
+        {
+          "component": "worker2",
+          "source": "/opt/runtime-os/native-temporal/rc-20261112/private/connection.json",
+          "target": "/run/secrets/native-coding-connection.json",
+          "mode": "read-only"
+        },
+        {
+          "component": "worker2",
+          "source": "/opt/runtime-os/native-temporal/rc-20261112/private/tls/ca.crt",
+          "target": "/run/temporal-tls/ca.crt",
+          "mode": "read-only"
+        },
+        {
+          "component": "worker2",
+          "source": "/opt/runtime-os/native-temporal/rc-20261112/private/tls/worker2.crt",
+          "target": "/run/temporal-tls/client.crt",
+          "mode": "read-only"
+        },
+        {
+          "component": "worker2",
+          "source": "/opt/runtime-os/native-temporal/rc-20261112/private/tls/worker2.key",
+          "target": "/run/temporal-tls/client.key",
+          "mode": "read-only"
+        },
+        {
+          "component": "node1",
+          "source": "/opt/runtime-os/native-temporal/rc-20261112",
+          "target": "/opt/runtime-os/native-temporal/rc-20261112",
+          "mode": "read-write"
+        },
+        {
+          "component": "node1",
+          "source": "${INSTALL_ROOT}/profiles/node1-profile.json",
+          "target": "/opt/runtime-os/native-temporal/rc-20261112/private/gateway1.json",
+          "mode": "read-only"
+        },
+        {
+          "component": "recovery1",
+          "source": "/opt/runtime-os/native-temporal/rc-20261112",
+          "target": "/opt/runtime-os/native-temporal/rc-20261112",
+          "mode": "read-write"
+        },
+        {
+          "component": "recovery1",
+          "source": "${INSTALL_ROOT}/profiles/recovery1-profile.json",
+          "target": "/opt/runtime-os/native-temporal/rc-20261112/private/gateway1.json",
+          "mode": "read-only"
+        },
+        {
+          "component": "executor1",
+          "source": "/opt/runtime-os/native-temporal/rc-20261112",
+          "target": "/opt/runtime-os/native-temporal/rc-20261112",
+          "mode": "read-write"
+        },
+        {
+          "component": "executor1",
+          "source": "/srv/runtime-os-coding-node-20261110/strict-daemon-3",
+          "target": "/srv/runtime-os-coding-node-20261110/strict-daemon-3",
+          "mode": "read-only"
+        },
+        {
+          "component": "executor1",
+          "source": "${INSTALL_ROOT}/profiles/executor1-profile.json",
+          "target": "/opt/runtime-os/native-temporal/rc-20261112/private/executor1.json",
+          "mode": "read-only"
+        },
+        {
+          "component": "node2",
+          "source": "/opt/runtime-os/native-temporal/rc-20261112",
+          "target": "/opt/runtime-os/native-temporal/rc-20261112",
+          "mode": "read-write"
+        },
+        {
+          "component": "node2",
+          "source": "${INSTALL_ROOT}/profiles/node2-profile.json",
+          "target": "/opt/runtime-os/native-temporal/rc-20261112/private/gateway2.json",
+          "mode": "read-only"
+        },
+        {
+          "component": "recovery2",
+          "source": "/opt/runtime-os/native-temporal/rc-20261112",
+          "target": "/opt/runtime-os/native-temporal/rc-20261112",
+          "mode": "read-write"
+        },
+        {
+          "component": "recovery2",
+          "source": "${INSTALL_ROOT}/profiles/recovery2-profile.json",
+          "target": "/opt/runtime-os/native-temporal/rc-20261112/private/gateway2.json",
+          "mode": "read-only"
+        },
+        {
+          "component": "executor2",
+          "source": "/opt/runtime-os/native-temporal/rc-20261112",
+          "target": "/opt/runtime-os/native-temporal/rc-20261112",
+          "mode": "read-write"
+        },
+        {
+          "component": "executor2",
+          "source": "/srv/runtime-os-coding-node-20261110/strict-daemon-3",
+          "target": "/srv/runtime-os-coding-node-20261110/strict-daemon-3",
+          "mode": "read-only"
+        },
+        {
+          "component": "executor2",
+          "source": "${INSTALL_ROOT}/profiles/executor2-profile.json",
+          "target": "/opt/runtime-os/native-temporal/rc-20261112/private/executor2.json",
+          "mode": "read-only"
+        },
+        {
+          "component": "temporal",
+          "source": "/opt/runtime-os/native-temporal/rc-20261112/private/tls/ca.crt",
+          "target": "/run/temporal-tls/ca.crt",
+          "mode": "read-only"
+        },
+        {
+          "component": "temporal",
+          "source": "/opt/runtime-os/native-temporal/rc-20261112/private/tls/server.crt",
+          "target": "/run/temporal-tls/client.crt",
+          "mode": "read-only"
+        },
+        {
+          "component": "temporal",
+          "source": "/opt/runtime-os/native-temporal/rc-20261112/private/tls/server.key",
+          "target": "/run/temporal-tls/client.key",
+          "mode": "read-only"
+        },
+        {
+          "component": "temporal",
+          "source": "/opt/runtime-os/native-temporal/rc-20261112/temporal-entrypoint.sh",
+          "target": "/opt/runtime/temporal-entrypoint.sh",
+          "mode": "read-only"
+        },
+        {
+          "component": "temporal",
+          "source": "/opt/runtime-os/native-temporal/rc-20261112/private/database-password",
+          "target": "/run/secrets/database-password",
+          "mode": "read-only"
+        },
+        {
+          "component": "studio",
+          "source": "/opt/runtime-os/cn2",
+          "target": "/opt/runtime-os/cn2",
+          "mode": "read-write"
+        },
+        {
+          "component": "studio",
+          "source": "${INSTALL_ROOT}/profiles/studio-profile.json",
+          "target": "/opt/runtime-os/cn2/private/studio-gateway.json",
+          "mode": "read-only"
+        },
+        {
+          "component": "studio-executor",
+          "source": "/opt/runtime-os/cn2",
+          "target": "/opt/runtime-os/cn2",
+          "mode": "read-write"
+        },
+        {
+          "component": "studio-executor",
+          "source": "/srv/runtime-os-coding-node-20261110/strict-daemon-3",
+          "target": "/srv/runtime-os-coding-node-20261110/strict-daemon-3",
+          "mode": "read-only"
+        },
+        {
+          "component": "studio-executor",
+          "source": "${INSTALL_ROOT}/profiles/studio-executor-profile.json",
+          "target": "/opt/runtime-os/cn2/private/studio-executor.json",
+          "mode": "read-only"
+        },
+        {
+          "component": "gateway",
+          "source": "/opt/runtime-os/releases/1.3/public-gateway-runtime-stage-1-3-reviewed-final.conf",
+          "target": "/etc/nginx/nginx.conf",
+          "mode": "read-only"
+        },
+        {
+          "component": "gateway",
+          "source": "/opt/runtime-os/releases/1.3/public-ui",
+          "target": "/srv/task-lifecycle-ui",
+          "mode": "read-only"
+        },
+        {
+          "component": "gateway",
+          "source": "/opt/runtime-os/releases/1.3/coding-monitor",
+          "target": "/srv/coding-monitor",
+          "mode": "read-only"
+        }
+      ]
+    }
+  },
+  "links": [
+    {
+      "name": "Runtime OS",
+      "url": "http://${serverAddress}:${httpPort}/"
+    },
+    {
+      "name": "MCP",
+      "url": "http://${serverAddress}:${mcpPort}/"
+    }
+  ]
+}

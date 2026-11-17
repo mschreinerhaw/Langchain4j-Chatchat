@@ -1,0 +1,176 @@
+{
+  "passed": true,
+  "version": {
+    "release": "1.3",
+    "sourceCommit": "58bb570d7",
+    "nativeNodes": "1.3",
+    "existingStageDataReused": true
+  },
+  "existingStageRoot": "/opt/runtime-os-docker-stage",
+  "originalContainersUnchanged": [
+    {
+      "name": "/postgresql18",
+      "id": "d80c05322f5b3a7461a84887471ec83c85af625afccab24338f6301812520c5c",
+      "startedAt": "2026-11-15T13:14:33.635252055Z"
+    },
+    {
+      "name": "/redis",
+      "id": "f0ef24cb525bbd11097fb5310986f041059f877a4784228cda4be07a1a4fb234",
+      "startedAt": "2026-11-11T03:54:26.980953231Z"
+    },
+    {
+      "name": "/silo",
+      "id": "26c552bbbf829776d80000dcee9206418322a36bdfb3603e6734d765ea9a3a30",
+      "startedAt": "2026-11-11T03:54:27.075464927Z"
+    },
+    {
+      "name": "/opensearch-node",
+      "id": "14e640a9aef2529952bd5d5cb3409e358309bf5e4a735d0059b6523551a9c327",
+      "startedAt": "2026-11-14T11:54:04.526066989Z"
+    }
+  ],
+  "databases": {
+    "runtime_os_acceptance_api": {
+      "tables": 125,
+      "stableTableCounts": {
+        "sys_user": 12,
+        "platform_model_config": 12,
+        "workspace_registry": 5,
+        "runtime_user_workspace": 33
+      }
+    },
+    "runtime_os_acceptance_mcp": {
+      "tables": 63,
+      "stableTableCounts": {
+        "mcp_admin_user": 1
+      }
+    }
+  },
+  "configurationHashesUnchanged": 29,
+  "signedPlanSha256": "fd439634e6a53524749764036a65f999c3c1ef821c6ecd37eec65f365549dfe0",
+  "managedComponents": [
+    {
+      "name": "/ops-env-runtime-stage-v13-gateway",
+      "imageId": "sha256:dc73b49f5124cf2ee538dfbdfbd121f0b4ccdcb20fea30f3a81bd477c02e2bb5",
+      "status": "running",
+      "health": "healthy"
+    },
+    {
+      "name": "/ops-env-runtime-stage-v13-studio",
+      "imageId": "sha256:59110e7ce5bda8f67427c5f7e854f10f734f938d3ec97954217f715f7a7a60d9",
+      "status": "running",
+      "health": null
+    },
+    {
+      "name": "/ops-env-runtime-stage-v13-worker1",
+      "imageId": "sha256:9ef321c56f41de96c98e4d46522f3717f07bf087e3393a2ca71288370f5c4657",
+      "status": "running",
+      "health": null
+    },
+    {
+      "name": "/ops-env-runtime-stage-v13-worker2",
+      "imageId": "sha256:9ef321c56f41de96c98e4d46522f3717f07bf087e3393a2ca71288370f5c4657",
+      "status": "running",
+      "health": null
+    },
+    {
+      "name": "/ops-env-runtime-stage-v13-frontend-worker",
+      "imageId": "sha256:66305b4f6c51d580b0901416674975ef82323da36194d2f8f63b865c43e1f7f2",
+      "status": "running",
+      "health": "healthy"
+    },
+    {
+      "name": "/ops-env-runtime-stage-v13-frontend-resource-hub",
+      "imageId": "sha256:66305b4f6c51d580b0901416674975ef82323da36194d2f8f63b865c43e1f7f2",
+      "status": "running",
+      "health": "healthy"
+    },
+    {
+      "name": "/ops-env-runtime-stage-v13-node1",
+      "imageId": "sha256:59110e7ce5bda8f67427c5f7e854f10f734f938d3ec97954217f715f7a7a60d9",
+      "status": "running",
+      "health": null
+    },
+    {
+      "name": "/ops-env-runtime-stage-v13-node2",
+      "imageId": "sha256:59110e7ce5bda8f67427c5f7e854f10f734f938d3ec97954217f715f7a7a60d9",
+      "status": "running",
+      "health": null
+    },
+    {
+      "name": "/ops-env-runtime-stage-v13-recovery1",
+      "imageId": "sha256:59110e7ce5bda8f67427c5f7e854f10f734f938d3ec97954217f715f7a7a60d9",
+      "status": "running",
+      "health": null
+    },
+    {
+      "name": "/ops-env-runtime-stage-v13-recovery2",
+      "imageId": "sha256:59110e7ce5bda8f67427c5f7e854f10f734f938d3ec97954217f715f7a7a60d9",
+      "status": "running",
+      "health": null
+    },
+    {
+      "name": "/ops-env-runtime-stage-v13-executor1",
+      "imageId": "sha256:59110e7ce5bda8f67427c5f7e854f10f734f938d3ec97954217f715f7a7a60d9",
+      "status": "running",
+      "health": null
+    },
+    {
+      "name": "/ops-env-runtime-stage-v13-executor2",
+      "imageId": "sha256:59110e7ce5bda8f67427c5f7e854f10f734f938d3ec97954217f715f7a7a60d9",
+      "status": "running",
+      "health": null
+    },
+    {
+      "name": "/ops-env-runtime-stage-v13-studio-executor",
+      "imageId": "sha256:59110e7ce5bda8f67427c5f7e854f10f734f938d3ec97954217f715f7a7a60d9",
+      "status": "running",
+      "health": null
+    },
+    {
+      "name": "/ops-env-runtime-stage-v13-temporal",
+      "imageId": "sha256:1552391639f89ef91dc335ea10b74be712b6d4e461cbe0f84eff9d5f11cbe8b3",
+      "status": "running",
+      "health": "healthy"
+    },
+    {
+      "name": "/ops-env-runtime-stage-v13-api",
+      "imageId": "sha256:9ef321c56f41de96c98e4d46522f3717f07bf087e3393a2ca71288370f5c4657",
+      "status": "running",
+      "health": "healthy"
+    },
+    {
+      "name": "/ops-env-runtime-stage-v13-mcp",
+      "imageId": "sha256:995c9a83c48e28e9c533de1888ef6886d2c0984019410c01657f4943beaffb94",
+      "status": "running",
+      "health": "healthy"
+    },
+    {
+      "name": "/ops-env-runtime-stage-v13-news",
+      "imageId": "sha256:e8a32c35d0474c53ea4ac3cba65450e721538c20c4ac8d93abc2e207fcde1764",
+      "status": "running",
+      "health": "healthy"
+    }
+  ],
+  "verifiedActualMounts": true,
+  "originalSeccompEnforced": true,
+  "candidateRepairNotRequired": true,
+  "runtimeVerification": {
+    "status": "PASSED",
+    "nativeCoreVerified": true,
+    "pythonRuntimeVerified": true,
+    "privateExecutorDaemon": true,
+    "offlineImages": true,
+    "productionDataImported": false,
+    "existingStageDataReused": true,
+    "administratorLogins": [
+      "api",
+      "mcp"
+    ],
+    "executorSockets": {
+      "1": "/opt/runtime-os/native-temporal/rc-20261112/node1/executor.sock",
+      "2": "/opt/runtime-os/native-temporal/rc-20261112/node2/executor.sock",
+      "s": "/opt/runtime-os/cn2/studio-executor.sock"
+    }
+  }
+}

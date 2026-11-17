@@ -1,0 +1,705 @@
+{
+  "passed": true,
+  "service": "deployment-ops-jdk",
+  "runningBusinessCount": 46,
+  "runtimeComponents": 17,
+  "allContainerIdsAndStartedAtUnchanged": true,
+  "runtime13ServedWhilePlatformStopped": true,
+  "platformNativeHealthAfterRestart": true,
+  "before": [
+    {
+      "name": "/ops-env-runtime-stage-v13-temporal",
+      "id": "043b53881a18622000c4ca9710c1e845534672d797327fbc7a02447460934ea5",
+      "startedAt": "2026-11-17T18:39:01.316120807Z"
+    },
+    {
+      "name": "/ops-env-runtime-v1-gateway",
+      "id": "071df966d5912ed4798d0258737312b6c63b30da4406bdc95c8f39106f984344",
+      "startedAt": "2026-11-17T15:06:34.885935503Z"
+    },
+    {
+      "name": "/ops-env-runtime-stage-v13-recovery2",
+      "id": "0c458c2cece2fa60dc723dab83fb91d8b1caf64c781a2b3489ef3e1eb26211f4",
+      "startedAt": "2026-11-17T18:39:10.10613615Z"
+    },
+    {
+      "name": "/ops-env-runtime-v1-studio",
+      "id": "1034ed13b767cd82d577cb2fc876078f8fa73f96f427256f1ca2ca588d8d8a8c",
+      "startedAt": "2026-11-17T15:06:34.490384486Z"
+    },
+    {
+      "name": "/opensearch-node",
+      "id": "14e640a9aef2529952bd5d5cb3409e358309bf5e4a735d0059b6523551a9c327",
+      "startedAt": "2026-11-14T11:54:04.526066989Z"
+    },
+    {
+      "name": "/ops-env-runtime-v1-news",
+      "id": "1ad72e6ebfd2c9dc8c3d56abb9327308f00774a343ce76cdf8c5400af4aec190",
+      "startedAt": "2026-11-17T15:02:36.477688883Z"
+    },
+    {
+      "name": "/ops-env-runtime-v1-postgresql",
+      "id": "1c6cf9ac37eed44805655b5715708974b4051e7e0fbb73e4a5f99da7cb74d5da",
+      "startedAt": "2026-11-17T15:01:39.998113785Z"
+    },
+    {
+      "name": "/silo",
+      "id": "26c552bbbf829776d80000dcee9206418322a36bdfb3603e6734d765ea9a3a30",
+      "startedAt": "2026-11-11T03:54:27.075464927Z"
+    },
+    {
+      "name": "/ops-env-runtime-stage-v13-node2",
+      "id": "2788456a10ba810d98de2ed04e036629a7fca0b01cc925b46dc4b7a2332143dd",
+      "startedAt": "2026-11-17T18:39:10.827869717Z"
+    },
+    {
+      "name": "/ops-env-runtime-v1-worker1",
+      "id": "28d232686dca36eb7c9e013283031d69c281614c5d2ef490e7854358a8ef2a75",
+      "startedAt": "2026-11-17T15:06:33.164610587Z"
+    },
+    {
+      "name": "/ops-env-runtime-v1-executor-daemon",
+      "id": "28d50692655c27a3e689b4f08440847921c28e8a81775fe5a60c201e03977159",
+      "startedAt": "2026-11-17T15:01:39.849028784Z"
+    },
+    {
+      "name": "/ops-env-runtime-v1-opensearch",
+      "id": "2f5747a395cbae4b36a0402847f93fc07af71d88f4f58ad6c7ca1754b7732b57",
+      "startedAt": "2026-11-17T15:01:39.994680782Z"
+    },
+    {
+      "name": "/ops-env-runtime-v1-api",
+      "id": "307a7c31091a8a552200c5749d26a19a397f4db43f49bb583eabb3846016a7dd",
+      "startedAt": "2026-11-17T15:03:17.949421201Z"
+    },
+    {
+      "name": "/ops-env-runtime-v1-temporal-db",
+      "id": "30b0432d7c2493266e2e4d7eab73accf12e7f236fa1f029e9202f79524c7e6cc",
+      "startedAt": "2026-11-17T15:01:40.038837094Z"
+    },
+    {
+      "name": "/ops-env-runtime-v1-recovery2",
+      "id": "3691dbe4066247ee519436e3d6ffd86f1d62e16d5b43d6685dbc4036e5f6541a",
+      "startedAt": "2026-11-17T15:06:34.496609827Z"
+    },
+    {
+      "name": "/ops-env-runtime-v1-mcp",
+      "id": "3a860e8dd13e1f91dc3f4863cf293dffbd3d5683c8c4a6a149feb4aa27e5f399",
+      "startedAt": "2026-11-17T15:02:49.542657584Z"
+    },
+    {
+      "name": "/ops-env-runtime-v1-executor1",
+      "id": "3e96f92a67f223147529cc97dd40fe52cbaee3d196630816f2f5c31e91a5a93c",
+      "startedAt": "2026-11-17T15:06:34.555624832Z"
+    },
+    {
+      "name": "/ops-env-runtime-v1-silo",
+      "id": "4bee80bccfa79f57dae1288d73a51e2b8b8983505052375e9990461c8ef78107",
+      "startedAt": "2026-11-17T15:01:39.877687425Z"
+    },
+    {
+      "name": "/ops-env-runtime-stage-v13-executor2",
+      "id": "4ef1f3c0f332117027b99d3ca9a4b7cdf0acb75bb33ba4058a7dc9f8580d24b2",
+      "startedAt": "2026-11-17T18:39:09.237125104Z"
+    },
+    {
+      "name": "/ops-env-runtime-stage-v13-recovery1",
+      "id": "57b13312f70afb90d52255560bf08ab9d7d5ddc168ffdd6a7d620eeccdbfdf20",
+      "startedAt": "2026-11-17T18:39:10.097271615Z"
+    },
+    {
+      "name": "/ops-env-runtime-stage-v13-studio-executor",
+      "id": "5bda4dcc08487ba481ed159130f6456b862678c2897b7d883f6a5436c7dcabfd",
+      "startedAt": "2026-11-17T18:39:09.238022386Z"
+    },
+    {
+      "name": "/ops-env-runtime-v1-worker2",
+      "id": "70e0d57f7fbb286451673b53465a98fc5d425579b4e20885e680a40a61748b99",
+      "startedAt": "2026-11-17T15:06:33.166989408Z"
+    },
+    {
+      "name": "/ops-env-runtime-stage-v13-worker2",
+      "id": "715f5b87ea2567c6d08e579034172fb2e4bcfdc7ee167406ea192a6023e2b0e0",
+      "startedAt": "2026-11-17T18:39:44.184027282Z"
+    },
+    {
+      "name": "/ops-env-runtime-v1-temporal",
+      "id": "719d499b9ffa7aa6906855f794481c4fa4391033d7877fd2ce6e470f5e2db8cf",
+      "startedAt": "2026-11-17T15:02:29.509151078Z"
+    },
+    {
+      "name": "/ops-env-runtime-stage-v13-api",
+      "id": "73d46afe12b92ac09f2cd095f0e4a552da3a00ca4e758a40248e4c68212a3cd1",
+      "startedAt": "2026-11-17T18:38:13.580120767Z"
+    },
+    {
+      "name": "/ops-env-runtime-stage-v13-gateway",
+      "id": "88589b352623ddafeededd459a93254ffed34bd0733bc7aea8ae7b55181a01f5",
+      "startedAt": "2026-11-17T18:39:45.930004386Z"
+    },
+    {
+      "name": "/ops-env-jar-jdk-protocol-v2-service",
+      "id": "8e5faeadcc5b5f9f72b061384b1291d35e21db82f28f2d8e1236a94852860e94",
+      "startedAt": "2026-11-17T11:54:59.323132448Z"
+    },
+    {
+      "name": "/ops-env-runtime-v1-manager",
+      "id": "8f17c86f3a8c54b6d625f1991184d761ebb128ad6e193cff3a162e7a2a9c5caf",
+      "startedAt": "2026-11-17T15:07:14.144264971Z"
+    },
+    {
+      "name": "/ops-env-runtime-v1-studio-executor",
+      "id": "95b651f4207401d54b24adfb4fa70e2b401afb8c6bbba1709b248a4595eacfc5",
+      "startedAt": "2026-11-17T15:06:34.5550749Z"
+    },
+    {
+      "name": "/ops-env-runtime-stage-v13-executor1",
+      "id": "9b20f0e07a6959fac7e57332e34c3de63aaf64d6ffbde2d6e2137d459ce05bde",
+      "startedAt": "2026-11-17T18:39:09.240553355Z"
+    },
+    {
+      "name": "/ops-env-runtime-stage-v13-node1",
+      "id": "ab22508d20eee88ff82d933895ddf1a91136ee514981e5f62deb218dda5458fa",
+      "startedAt": "2026-11-17T18:39:10.827358786Z"
+    },
+    {
+      "name": "/ops-env-runtime-v1-recovery1",
+      "id": "acd9d58b7f29ca8f6cc05975dc53342bce2a4f9c8c0786e866ff928e00881138",
+      "startedAt": "2026-11-17T15:06:34.495533103Z"
+    },
+    {
+      "name": "/ops-env-runtime-v1-redis",
+      "id": "af4426d005d22b7ce2dfb1f6f6a22466ac33e3045dc977f4c12d50fd34afd46a",
+      "startedAt": "2026-11-17T15:01:39.993850711Z"
+    },
+    {
+      "name": "/ops-env-runtime-stage-v13-mcp",
+      "id": "b2639f81eb0a2b537d4ea953d598b550d9ad62f7c437d89057e225358f6ccf6d",
+      "startedAt": "2026-11-17T18:37:07.763280299Z"
+    },
+    {
+      "name": "/ops-env-runtime-stage-v13-frontend-worker",
+      "id": "c84698c6c4a542b339a02b0afca3623c9b61eb0bc6934656978b9e8d62a9bf23",
+      "startedAt": "2026-11-17T18:39:11.827158493Z"
+    },
+    {
+      "name": "/ops-env-runtime-stage-v13-news",
+      "id": "d1ff092cc20a8de20b12317907e3bec4958b023cc0a5fef113dd3db48c0ffca7",
+      "startedAt": "2026-11-17T18:36:50.236035828Z"
+    },
+    {
+      "name": "/postgresql18",
+      "id": "d80c05322f5b3a7461a84887471ec83c85af625afccab24338f6301812520c5c",
+      "startedAt": "2026-11-15T13:14:33.635252055Z"
+    },
+    {
+      "name": "/ops-env-runtime-stage-v13-worker1",
+      "id": "dc596010e8390f58eab6d4d4fea14e0981a87bf1d9e9dccb253147e6d4d65b8d",
+      "startedAt": "2026-11-17T18:39:44.18635538Z"
+    },
+    {
+      "name": "/ops-env-runtime-v1-frontend-resource-hub",
+      "id": "e476611f7dd515107422ed4a9f341e549945cf23187251b00e977584d6f83e56",
+      "startedAt": "2026-11-17T15:06:34.775917771Z"
+    },
+    {
+      "name": "/ops-env-runtime-stage-v13-frontend-resource-hub",
+      "id": "efb4cc6dc658029290394ec49c3bb1560d300f52708982109ffce7f5fbb7f4d3",
+      "startedAt": "2026-11-17T18:39:11.867754056Z"
+    },
+    {
+      "name": "/ops-env-runtime-v1-frontend-worker",
+      "id": "efeaeb893a7100695b079c5ff7d5a680bd83d71e47085c79916c4e4cf1725499",
+      "startedAt": "2026-11-17T15:06:34.775274105Z"
+    },
+    {
+      "name": "/redis",
+      "id": "f0ef24cb525bbd11097fb5310986f041059f877a4784228cda4be07a1a4fb234",
+      "startedAt": "2026-11-11T03:54:26.980953231Z"
+    },
+    {
+      "name": "/ops-env-runtime-v1-node2",
+      "id": "f18ca6d01aa440daceb43ba91c9190ee114c53e9a6a95348ad72b2c601a13eba",
+      "startedAt": "2026-11-17T15:06:34.484225456Z"
+    },
+    {
+      "name": "/ops-env-runtime-v1-executor2",
+      "id": "f716fddc0dee5b332a466a63b309180b649e812bdae0ad7ab115432fabab5419",
+      "startedAt": "2026-11-17T15:06:34.554537137Z"
+    },
+    {
+      "name": "/ops-env-runtime-v1-node1",
+      "id": "febb05df45c0f8c5d3c83c012efa1c8ec5da270f16637f22dfade6274ca523d4",
+      "startedAt": "2026-11-17T15:06:34.465333179Z"
+    },
+    {
+      "name": "/ops-env-runtime-stage-v13-studio",
+      "id": "ff66527933d4977673bfc1cccdda7503b0026b75e11a38af72452307925f88f4",
+      "startedAt": "2026-11-17T18:39:44.928902485Z"
+    }
+  ],
+  "whileStopped": [
+    {
+      "name": "/ops-env-runtime-stage-v13-temporal",
+      "id": "043b53881a18622000c4ca9710c1e845534672d797327fbc7a02447460934ea5",
+      "startedAt": "2026-11-17T18:39:01.316120807Z"
+    },
+    {
+      "name": "/ops-env-runtime-v1-gateway",
+      "id": "071df966d5912ed4798d0258737312b6c63b30da4406bdc95c8f39106f984344",
+      "startedAt": "2026-11-17T15:06:34.885935503Z"
+    },
+    {
+      "name": "/ops-env-runtime-stage-v13-recovery2",
+      "id": "0c458c2cece2fa60dc723dab83fb91d8b1caf64c781a2b3489ef3e1eb26211f4",
+      "startedAt": "2026-11-17T18:39:10.10613615Z"
+    },
+    {
+      "name": "/ops-env-runtime-v1-studio",
+      "id": "1034ed13b767cd82d577cb2fc876078f8fa73f96f427256f1ca2ca588d8d8a8c",
+      "startedAt": "2026-11-17T15:06:34.490384486Z"
+    },
+    {
+      "name": "/opensearch-node",
+      "id": "14e640a9aef2529952bd5d5cb3409e358309bf5e4a735d0059b6523551a9c327",
+      "startedAt": "2026-11-14T11:54:04.526066989Z"
+    },
+    {
+      "name": "/ops-env-runtime-v1-news",
+      "id": "1ad72e6ebfd2c9dc8c3d56abb9327308f00774a343ce76cdf8c5400af4aec190",
+      "startedAt": "2026-11-17T15:02:36.477688883Z"
+    },
+    {
+      "name": "/ops-env-runtime-v1-postgresql",
+      "id": "1c6cf9ac37eed44805655b5715708974b4051e7e0fbb73e4a5f99da7cb74d5da",
+      "startedAt": "2026-11-17T15:01:39.998113785Z"
+    },
+    {
+      "name": "/silo",
+      "id": "26c552bbbf829776d80000dcee9206418322a36bdfb3603e6734d765ea9a3a30",
+      "startedAt": "2026-11-11T03:54:27.075464927Z"
+    },
+    {
+      "name": "/ops-env-runtime-stage-v13-node2",
+      "id": "2788456a10ba810d98de2ed04e036629a7fca0b01cc925b46dc4b7a2332143dd",
+      "startedAt": "2026-11-17T18:39:10.827869717Z"
+    },
+    {
+      "name": "/ops-env-runtime-v1-worker1",
+      "id": "28d232686dca36eb7c9e013283031d69c281614c5d2ef490e7854358a8ef2a75",
+      "startedAt": "2026-11-17T15:06:33.164610587Z"
+    },
+    {
+      "name": "/ops-env-runtime-v1-executor-daemon",
+      "id": "28d50692655c27a3e689b4f08440847921c28e8a81775fe5a60c201e03977159",
+      "startedAt": "2026-11-17T15:01:39.849028784Z"
+    },
+    {
+      "name": "/ops-env-runtime-v1-opensearch",
+      "id": "2f5747a395cbae4b36a0402847f93fc07af71d88f4f58ad6c7ca1754b7732b57",
+      "startedAt": "2026-11-17T15:01:39.994680782Z"
+    },
+    {
+      "name": "/ops-env-runtime-v1-api",
+      "id": "307a7c31091a8a552200c5749d26a19a397f4db43f49bb583eabb3846016a7dd",
+      "startedAt": "2026-11-17T15:03:17.949421201Z"
+    },
+    {
+      "name": "/ops-env-runtime-v1-temporal-db",
+      "id": "30b0432d7c2493266e2e4d7eab73accf12e7f236fa1f029e9202f79524c7e6cc",
+      "startedAt": "2026-11-17T15:01:40.038837094Z"
+    },
+    {
+      "name": "/ops-env-runtime-v1-recovery2",
+      "id": "3691dbe4066247ee519436e3d6ffd86f1d62e16d5b43d6685dbc4036e5f6541a",
+      "startedAt": "2026-11-17T15:06:34.496609827Z"
+    },
+    {
+      "name": "/ops-env-runtime-v1-mcp",
+      "id": "3a860e8dd13e1f91dc3f4863cf293dffbd3d5683c8c4a6a149feb4aa27e5f399",
+      "startedAt": "2026-11-17T15:02:49.542657584Z"
+    },
+    {
+      "name": "/ops-env-runtime-v1-executor1",
+      "id": "3e96f92a67f223147529cc97dd40fe52cbaee3d196630816f2f5c31e91a5a93c",
+      "startedAt": "2026-11-17T15:06:34.555624832Z"
+    },
+    {
+      "name": "/ops-env-runtime-v1-silo",
+      "id": "4bee80bccfa79f57dae1288d73a51e2b8b8983505052375e9990461c8ef78107",
+      "startedAt": "2026-11-17T15:01:39.877687425Z"
+    },
+    {
+      "name": "/ops-env-runtime-stage-v13-executor2",
+      "id": "4ef1f3c0f332117027b99d3ca9a4b7cdf0acb75bb33ba4058a7dc9f8580d24b2",
+      "startedAt": "2026-11-17T18:39:09.237125104Z"
+    },
+    {
+      "name": "/ops-env-runtime-stage-v13-recovery1",
+      "id": "57b13312f70afb90d52255560bf08ab9d7d5ddc168ffdd6a7d620eeccdbfdf20",
+      "startedAt": "2026-11-17T18:39:10.097271615Z"
+    },
+    {
+      "name": "/ops-env-runtime-stage-v13-studio-executor",
+      "id": "5bda4dcc08487ba481ed159130f6456b862678c2897b7d883f6a5436c7dcabfd",
+      "startedAt": "2026-11-17T18:39:09.238022386Z"
+    },
+    {
+      "name": "/ops-env-runtime-v1-worker2",
+      "id": "70e0d57f7fbb286451673b53465a98fc5d425579b4e20885e680a40a61748b99",
+      "startedAt": "2026-11-17T15:06:33.166989408Z"
+    },
+    {
+      "name": "/ops-env-runtime-stage-v13-worker2",
+      "id": "715f5b87ea2567c6d08e579034172fb2e4bcfdc7ee167406ea192a6023e2b0e0",
+      "startedAt": "2026-11-17T18:39:44.184027282Z"
+    },
+    {
+      "name": "/ops-env-runtime-v1-temporal",
+      "id": "719d499b9ffa7aa6906855f794481c4fa4391033d7877fd2ce6e470f5e2db8cf",
+      "startedAt": "2026-11-17T15:02:29.509151078Z"
+    },
+    {
+      "name": "/ops-env-runtime-stage-v13-api",
+      "id": "73d46afe12b92ac09f2cd095f0e4a552da3a00ca4e758a40248e4c68212a3cd1",
+      "startedAt": "2026-11-17T18:38:13.580120767Z"
+    },
+    {
+      "name": "/ops-env-runtime-stage-v13-gateway",
+      "id": "88589b352623ddafeededd459a93254ffed34bd0733bc7aea8ae7b55181a01f5",
+      "startedAt": "2026-11-17T18:39:45.930004386Z"
+    },
+    {
+      "name": "/ops-env-jar-jdk-protocol-v2-service",
+      "id": "8e5faeadcc5b5f9f72b061384b1291d35e21db82f28f2d8e1236a94852860e94",
+      "startedAt": "2026-11-17T11:54:59.323132448Z"
+    },
+    {
+      "name": "/ops-env-runtime-v1-manager",
+      "id": "8f17c86f3a8c54b6d625f1991184d761ebb128ad6e193cff3a162e7a2a9c5caf",
+      "startedAt": "2026-11-17T15:07:14.144264971Z"
+    },
+    {
+      "name": "/ops-env-runtime-v1-studio-executor",
+      "id": "95b651f4207401d54b24adfb4fa70e2b401afb8c6bbba1709b248a4595eacfc5",
+      "startedAt": "2026-11-17T15:06:34.5550749Z"
+    },
+    {
+      "name": "/ops-env-runtime-stage-v13-executor1",
+      "id": "9b20f0e07a6959fac7e57332e34c3de63aaf64d6ffbde2d6e2137d459ce05bde",
+      "startedAt": "2026-11-17T18:39:09.240553355Z"
+    },
+    {
+      "name": "/ops-env-runtime-stage-v13-node1",
+      "id": "ab22508d20eee88ff82d933895ddf1a91136ee514981e5f62deb218dda5458fa",
+      "startedAt": "2026-11-17T18:39:10.827358786Z"
+    },
+    {
+      "name": "/ops-env-runtime-v1-recovery1",
+      "id": "acd9d58b7f29ca8f6cc05975dc53342bce2a4f9c8c0786e866ff928e00881138",
+      "startedAt": "2026-11-17T15:06:34.495533103Z"
+    },
+    {
+      "name": "/ops-env-runtime-v1-redis",
+      "id": "af4426d005d22b7ce2dfb1f6f6a22466ac33e3045dc977f4c12d50fd34afd46a",
+      "startedAt": "2026-11-17T15:01:39.993850711Z"
+    },
+    {
+      "name": "/ops-env-runtime-stage-v13-mcp",
+      "id": "b2639f81eb0a2b537d4ea953d598b550d9ad62f7c437d89057e225358f6ccf6d",
+      "startedAt": "2026-11-17T18:37:07.763280299Z"
+    },
+    {
+      "name": "/ops-env-runtime-stage-v13-frontend-worker",
+      "id": "c84698c6c4a542b339a02b0afca3623c9b61eb0bc6934656978b9e8d62a9bf23",
+      "startedAt": "2026-11-17T18:39:11.827158493Z"
+    },
+    {
+      "name": "/ops-env-runtime-stage-v13-news",
+      "id": "d1ff092cc20a8de20b12317907e3bec4958b023cc0a5fef113dd3db48c0ffca7",
+      "startedAt": "2026-11-17T18:36:50.236035828Z"
+    },
+    {
+      "name": "/postgresql18",
+      "id": "d80c05322f5b3a7461a84887471ec83c85af625afccab24338f6301812520c5c",
+      "startedAt": "2026-11-15T13:14:33.635252055Z"
+    },
+    {
+      "name": "/ops-env-runtime-stage-v13-worker1",
+      "id": "dc596010e8390f58eab6d4d4fea14e0981a87bf1d9e9dccb253147e6d4d65b8d",
+      "startedAt": "2026-11-17T18:39:44.18635538Z"
+    },
+    {
+      "name": "/ops-env-runtime-v1-frontend-resource-hub",
+      "id": "e476611f7dd515107422ed4a9f341e549945cf23187251b00e977584d6f83e56",
+      "startedAt": "2026-11-17T15:06:34.775917771Z"
+    },
+    {
+      "name": "/ops-env-runtime-stage-v13-frontend-resource-hub",
+      "id": "efb4cc6dc658029290394ec49c3bb1560d300f52708982109ffce7f5fbb7f4d3",
+      "startedAt": "2026-11-17T18:39:11.867754056Z"
+    },
+    {
+      "name": "/ops-env-runtime-v1-frontend-worker",
+      "id": "efeaeb893a7100695b079c5ff7d5a680bd83d71e47085c79916c4e4cf1725499",
+      "startedAt": "2026-11-17T15:06:34.775274105Z"
+    },
+    {
+      "name": "/redis",
+      "id": "f0ef24cb525bbd11097fb5310986f041059f877a4784228cda4be07a1a4fb234",
+      "startedAt": "2026-11-11T03:54:26.980953231Z"
+    },
+    {
+      "name": "/ops-env-runtime-v1-node2",
+      "id": "f18ca6d01aa440daceb43ba91c9190ee114c53e9a6a95348ad72b2c601a13eba",
+      "startedAt": "2026-11-17T15:06:34.484225456Z"
+    },
+    {
+      "name": "/ops-env-runtime-v1-executor2",
+      "id": "f716fddc0dee5b332a466a63b309180b649e812bdae0ad7ab115432fabab5419",
+      "startedAt": "2026-11-17T15:06:34.554537137Z"
+    },
+    {
+      "name": "/ops-env-runtime-v1-node1",
+      "id": "febb05df45c0f8c5d3c83c012efa1c8ec5da270f16637f22dfade6274ca523d4",
+      "startedAt": "2026-11-17T15:06:34.465333179Z"
+    },
+    {
+      "name": "/ops-env-runtime-stage-v13-studio",
+      "id": "ff66527933d4977673bfc1cccdda7503b0026b75e11a38af72452307925f88f4",
+      "startedAt": "2026-11-17T18:39:44.928902485Z"
+    }
+  ],
+  "after": [
+    {
+      "name": "/ops-env-runtime-stage-v13-temporal",
+      "id": "043b53881a18622000c4ca9710c1e845534672d797327fbc7a02447460934ea5",
+      "startedAt": "2026-11-17T18:39:01.316120807Z"
+    },
+    {
+      "name": "/ops-env-runtime-v1-gateway",
+      "id": "071df966d5912ed4798d0258737312b6c63b30da4406bdc95c8f39106f984344",
+      "startedAt": "2026-11-17T15:06:34.885935503Z"
+    },
+    {
+      "name": "/ops-env-runtime-stage-v13-recovery2",
+      "id": "0c458c2cece2fa60dc723dab83fb91d8b1caf64c781a2b3489ef3e1eb26211f4",
+      "startedAt": "2026-11-17T18:39:10.10613615Z"
+    },
+    {
+      "name": "/ops-env-runtime-v1-studio",
+      "id": "1034ed13b767cd82d577cb2fc876078f8fa73f96f427256f1ca2ca588d8d8a8c",
+      "startedAt": "2026-11-17T15:06:34.490384486Z"
+    },
+    {
+      "name": "/opensearch-node",
+      "id": "14e640a9aef2529952bd5d5cb3409e358309bf5e4a735d0059b6523551a9c327",
+      "startedAt": "2026-11-14T11:54:04.526066989Z"
+    },
+    {
+      "name": "/ops-env-runtime-v1-news",
+      "id": "1ad72e6ebfd2c9dc8c3d56abb9327308f00774a343ce76cdf8c5400af4aec190",
+      "startedAt": "2026-11-17T15:02:36.477688883Z"
+    },
+    {
+      "name": "/ops-env-runtime-v1-postgresql",
+      "id": "1c6cf9ac37eed44805655b5715708974b4051e7e0fbb73e4a5f99da7cb74d5da",
+      "startedAt": "2026-11-17T15:01:39.998113785Z"
+    },
+    {
+      "name": "/silo",
+      "id": "26c552bbbf829776d80000dcee9206418322a36bdfb3603e6734d765ea9a3a30",
+      "startedAt": "2026-11-11T03:54:27.075464927Z"
+    },
+    {
+      "name": "/ops-env-runtime-stage-v13-node2",
+      "id": "2788456a10ba810d98de2ed04e036629a7fca0b01cc925b46dc4b7a2332143dd",
+      "startedAt": "2026-11-17T18:39:10.827869717Z"
+    },
+    {
+      "name": "/ops-env-runtime-v1-worker1",
+      "id": "28d232686dca36eb7c9e013283031d69c281614c5d2ef490e7854358a8ef2a75",
+      "startedAt": "2026-11-17T15:06:33.164610587Z"
+    },
+    {
+      "name": "/ops-env-runtime-v1-executor-daemon",
+      "id": "28d50692655c27a3e689b4f08440847921c28e8a81775fe5a60c201e03977159",
+      "startedAt": "2026-11-17T15:01:39.849028784Z"
+    },
+    {
+      "name": "/ops-env-runtime-v1-opensearch",
+      "id": "2f5747a395cbae4b36a0402847f93fc07af71d88f4f58ad6c7ca1754b7732b57",
+      "startedAt": "2026-11-17T15:01:39.994680782Z"
+    },
+    {
+      "name": "/ops-env-runtime-v1-api",
+      "id": "307a7c31091a8a552200c5749d26a19a397f4db43f49bb583eabb3846016a7dd",
+      "startedAt": "2026-11-17T15:03:17.949421201Z"
+    },
+    {
+      "name": "/ops-env-runtime-v1-temporal-db",
+      "id": "30b0432d7c2493266e2e4d7eab73accf12e7f236fa1f029e9202f79524c7e6cc",
+      "startedAt": "2026-11-17T15:01:40.038837094Z"
+    },
+    {
+      "name": "/ops-env-runtime-v1-recovery2",
+      "id": "3691dbe4066247ee519436e3d6ffd86f1d62e16d5b43d6685dbc4036e5f6541a",
+      "startedAt": "2026-11-17T15:06:34.496609827Z"
+    },
+    {
+      "name": "/ops-env-runtime-v1-mcp",
+      "id": "3a860e8dd13e1f91dc3f4863cf293dffbd3d5683c8c4a6a149feb4aa27e5f399",
+      "startedAt": "2026-11-17T15:02:49.542657584Z"
+    },
+    {
+      "name": "/ops-env-runtime-v1-executor1",
+      "id": "3e96f92a67f223147529cc97dd40fe52cbaee3d196630816f2f5c31e91a5a93c",
+      "startedAt": "2026-11-17T15:06:34.555624832Z"
+    },
+    {
+      "name": "/ops-env-runtime-v1-silo",
+      "id": "4bee80bccfa79f57dae1288d73a51e2b8b8983505052375e9990461c8ef78107",
+      "startedAt": "2026-11-17T15:01:39.877687425Z"
+    },
+    {
+      "name": "/ops-env-runtime-stage-v13-executor2",
+      "id": "4ef1f3c0f332117027b99d3ca9a4b7cdf0acb75bb33ba4058a7dc9f8580d24b2",
+      "startedAt": "2026-11-17T18:39:09.237125104Z"
+    },
+    {
+      "name": "/ops-env-runtime-stage-v13-recovery1",
+      "id": "57b13312f70afb90d52255560bf08ab9d7d5ddc168ffdd6a7d620eeccdbfdf20",
+      "startedAt": "2026-11-17T18:39:10.097271615Z"
+    },
+    {
+      "name": "/ops-env-runtime-stage-v13-studio-executor",
+      "id": "5bda4dcc08487ba481ed159130f6456b862678c2897b7d883f6a5436c7dcabfd",
+      "startedAt": "2026-11-17T18:39:09.238022386Z"
+    },
+    {
+      "name": "/ops-env-runtime-v1-worker2",
+      "id": "70e0d57f7fbb286451673b53465a98fc5d425579b4e20885e680a40a61748b99",
+      "startedAt": "2026-11-17T15:06:33.166989408Z"
+    },
+    {
+      "name": "/ops-env-runtime-stage-v13-worker2",
+      "id": "715f5b87ea2567c6d08e579034172fb2e4bcfdc7ee167406ea192a6023e2b0e0",
+      "startedAt": "2026-11-17T18:39:44.184027282Z"
+    },
+    {
+      "name": "/ops-env-runtime-v1-temporal",
+      "id": "719d499b9ffa7aa6906855f794481c4fa4391033d7877fd2ce6e470f5e2db8cf",
+      "startedAt": "2026-11-17T15:02:29.509151078Z"
+    },
+    {
+      "name": "/ops-env-runtime-stage-v13-api",
+      "id": "73d46afe12b92ac09f2cd095f0e4a552da3a00ca4e758a40248e4c68212a3cd1",
+      "startedAt": "2026-11-17T18:38:13.580120767Z"
+    },
+    {
+      "name": "/ops-env-runtime-stage-v13-gateway",
+      "id": "88589b352623ddafeededd459a93254ffed34bd0733bc7aea8ae7b55181a01f5",
+      "startedAt": "2026-11-17T18:39:45.930004386Z"
+    },
+    {
+      "name": "/ops-env-jar-jdk-protocol-v2-service",
+      "id": "8e5faeadcc5b5f9f72b061384b1291d35e21db82f28f2d8e1236a94852860e94",
+      "startedAt": "2026-11-17T11:54:59.323132448Z"
+    },
+    {
+      "name": "/ops-env-runtime-v1-manager",
+      "id": "8f17c86f3a8c54b6d625f1991184d761ebb128ad6e193cff3a162e7a2a9c5caf",
+      "startedAt": "2026-11-17T15:07:14.144264971Z"
+    },
+    {
+      "name": "/ops-env-runtime-v1-studio-executor",
+      "id": "95b651f4207401d54b24adfb4fa70e2b401afb8c6bbba1709b248a4595eacfc5",
+      "startedAt": "2026-11-17T15:06:34.5550749Z"
+    },
+    {
+      "name": "/ops-env-runtime-stage-v13-executor1",
+      "id": "9b20f0e07a6959fac7e57332e34c3de63aaf64d6ffbde2d6e2137d459ce05bde",
+      "startedAt": "2026-11-17T18:39:09.240553355Z"
+    },
+    {
+      "name": "/ops-env-runtime-stage-v13-node1",
+      "id": "ab22508d20eee88ff82d933895ddf1a91136ee514981e5f62deb218dda5458fa",
+      "startedAt": "2026-11-17T18:39:10.827358786Z"
+    },
+    {
+      "name": "/ops-env-runtime-v1-recovery1",
+      "id": "acd9d58b7f29ca8f6cc05975dc53342bce2a4f9c8c0786e866ff928e00881138",
+      "startedAt": "2026-11-17T15:06:34.495533103Z"
+    },
+    {
+      "name": "/ops-env-runtime-v1-redis",
+      "id": "af4426d005d22b7ce2dfb1f6f6a22466ac33e3045dc977f4c12d50fd34afd46a",
+      "startedAt": "2026-11-17T15:01:39.993850711Z"
+    },
+    {
+      "name": "/ops-env-runtime-stage-v13-mcp",
+      "id": "b2639f81eb0a2b537d4ea953d598b550d9ad62f7c437d89057e225358f6ccf6d",
+      "startedAt": "2026-11-17T18:37:07.763280299Z"
+    },
+    {
+      "name": "/ops-env-runtime-stage-v13-frontend-worker",
+      "id": "c84698c6c4a542b339a02b0afca3623c9b61eb0bc6934656978b9e8d62a9bf23",
+      "startedAt": "2026-11-17T18:39:11.827158493Z"
+    },
+    {
+      "name": "/ops-env-runtime-stage-v13-news",
+      "id": "d1ff092cc20a8de20b12317907e3bec4958b023cc0a5fef113dd3db48c0ffca7",
+      "startedAt": "2026-11-17T18:36:50.236035828Z"
+    },
+    {
+      "name": "/postgresql18",
+      "id": "d80c05322f5b3a7461a84887471ec83c85af625afccab24338f6301812520c5c",
+      "startedAt": "2026-11-15T13:14:33.635252055Z"
+    },
+    {
+      "name": "/ops-env-runtime-stage-v13-worker1",
+      "id": "dc596010e8390f58eab6d4d4fea14e0981a87bf1d9e9dccb253147e6d4d65b8d",
+      "startedAt": "2026-11-17T18:39:44.18635538Z"
+    },
+    {
+      "name": "/ops-env-runtime-v1-frontend-resource-hub",
+      "id": "e476611f7dd515107422ed4a9f341e549945cf23187251b00e977584d6f83e56",
+      "startedAt": "2026-11-17T15:06:34.775917771Z"
+    },
+    {
+      "name": "/ops-env-runtime-stage-v13-frontend-resource-hub",
+      "id": "efb4cc6dc658029290394ec49c3bb1560d300f52708982109ffce7f5fbb7f4d3",
+      "startedAt": "2026-11-17T18:39:11.867754056Z"
+    },
+    {
+      "name": "/ops-env-runtime-v1-frontend-worker",
+      "id": "efeaeb893a7100695b079c5ff7d5a680bd83d71e47085c79916c4e4cf1725499",
+      "startedAt": "2026-11-17T15:06:34.775274105Z"
+    },
+    {
+      "name": "/redis",
+      "id": "f0ef24cb525bbd11097fb5310986f041059f877a4784228cda4be07a1a4fb234",
+      "startedAt": "2026-11-11T03:54:26.980953231Z"
+    },
+    {
+      "name": "/ops-env-runtime-v1-node2",
+      "id": "f18ca6d01aa440daceb43ba91c9190ee114c53e9a6a95348ad72b2c601a13eba",
+      "startedAt": "2026-11-17T15:06:34.484225456Z"
+    },
+    {
+      "name": "/ops-env-runtime-v1-executor2",
+      "id": "f716fddc0dee5b332a466a63b309180b649e812bdae0ad7ab115432fabab5419",
+      "startedAt": "2026-11-17T15:06:34.554537137Z"
+    },
+    {
+      "name": "/ops-env-runtime-v1-node1",
+      "id": "febb05df45c0f8c5d3c83c012efa1c8ec5da270f16637f22dfade6274ca523d4",
+      "startedAt": "2026-11-17T15:06:34.465333179Z"
+    },
+    {
+      "name": "/ops-env-runtime-stage-v13-studio",
+      "id": "ff66527933d4977673bfc1cccdda7503b0026b75e11a38af72452307925f88f4",
+      "startedAt": "2026-11-17T18:39:44.928902485Z"
+    }
+  ]
+}

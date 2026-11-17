@@ -1,0 +1,1 @@
+{"passed": true, "job": "87853c03eb5b4b32bf720af25dad89e5", "actualWorkerKilled": true, "explicitJavaRecovery": true, "recovery": {"status": "succeeded", "message": "Operator restored the verified previous platform snapshot"}}

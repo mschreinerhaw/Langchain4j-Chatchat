@@ -77,7 +77,11 @@ const applications = computed(() => {
       });
     const app = groups.get(key);
     app.containers.push(container);
-    if (container.Labels?.['deployment-ops.installation'] === 'true') app.managed = true;
+    if (
+      container.Labels?.['deployment-ops.installation'] === 'true' &&
+      container.Labels?.['deployment-ops.owner'] === container.managerOwner
+    )
+      app.managed = true;
   }
   for (const job of jobs.value) {
     const key = `${job.nodeId}:${job.environment}`;
@@ -91,6 +95,7 @@ const applications = computed(() => {
         managed: true,
       });
     const app = groups.get(key);
+    app.managed = true;
     if (!app.latestJob || job.updatedAt > app.latestJob.updatedAt) app.latestJob = job;
     if (
       !app.job ||

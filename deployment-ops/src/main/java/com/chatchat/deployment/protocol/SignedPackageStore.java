@@ -66,8 +66,10 @@ public final class SignedPackageStore implements AutoCloseable {
         if(manifest.has("runtimeInstaller")){boolean found=false;for(JsonNode capability:key.path("capabilities"))found|=capability.asText().equals("runtime-os-native/v1");require(found,"Native installer requires a dedicated trusted capability");}
     }
     private void verify(String id)throws Exception{
-        ObjectNode meta=status(id);Path archive=uploadFile(id);String digest=meta.path("sha256").asText();require(sha(archive).equals(digest),"Offline package SHA-256 mismatch");String base="packages/"+digest+"/";
-        if(Files.isRegularFile(files.path(base+"receipt.json"))){ensureImages(digest,packageManifest(digest));verified(id);return;}
+        ObjectNode meta=status(id);Path archive=uploadFile(id);String digest=meta.path("sha256").asText();String base="packages/"+digest+"/";
+        if(Files.exists(archive))require(sha(archive).equals(digest),"Offline package SHA-256 mismatch");
+        if(Files.isRegularFile(files.path(base+"receipt.json"))){JsonNode manifest=verifyStored(digest);ensureImages(digest,manifest);verified(id);return;}
+        require(Files.isRegularFile(archive,LinkOption.NOFOLLOW_LINKS),"Upload staging unavailable; upload the offline media again");
         try(ZipFile zip=new ZipFile(archive.toFile())){
             List<? extends ZipEntry> entries=Collections.list(zip.entries());require(entries.size()<=4096,"Too many package members");Set<String> names=new HashSet<>();long expanded=0;
             for(ZipEntry entry:entries){String name=InstallationManifest.member(entry.getName());require(!entry.isDirectory()&&names.add(name)&&!Set.of("receipt.json","retired.json").contains(name),"Duplicate, directory or reserved archive member");require(entry.getSize()>=0&&entry.getSize()<=32L*1024*1024*1024,"Oversized payload");expanded=Math.addExact(expanded,entry.getSize());require(expanded<=32L*1024*1024*1024,"Inflated package too large");}
@@ -95,6 +97,18 @@ public final class SignedPackageStore implements AutoCloseable {
             ObjectNode receipt=StateFiles.JSON.createObjectNode().put("keyId",signature.path("keyId").asText()).put("verifiedAt",StateFiles.now());receipt.set("checksums",checks);files.write(base+"receipt.json",receipt);verified(id);
         }
     }
+    private JsonNode verifyStored(String digest)throws Exception {
+        Path directory=folder(digest);require(Files.isDirectory(directory,LinkOption.NOFOLLOW_LINKS),"Invalid stored package directory");
+        for(String name:List.of("checksums.json","signature.json","receipt.json","manifest.json")){Path path=directory.resolve(name);require(Files.isRegularFile(path,LinkOption.NOFOLLOW_LINKS)&&Files.size(path)<=2*1024*1024,"Missing or oversized stored package metadata");}
+        byte[] inventory=Files.readAllBytes(directory.resolve("checksums.json"));JsonNode checks=StateFiles.JSON.readTree(inventory),signature=StateFiles.JSON.readTree(Files.readAllBytes(directory.resolve("signature.json"))),receipt=StateFiles.JSON.readTree(Files.readAllBytes(directory.resolve("receipt.json")));JsonNode key=signingKey(signature,inventory);
+        require(checks.isObject()&&checks.size()>0&&checks.size()<=4094&&checks.equals(receipt.path("checksums"))&&signature.path("keyId").equals(receipt.path("keyId")),"Stored verification receipt differs from signed inventory");
+        Set<String> names=new HashSet<>();var entries=checks.fields();while(entries.hasNext()){
+            var entry=entries.next();String name=InstallationManifest.member(entry.getKey()),checksum=entry.getValue().asText();require(checksum.matches("[a-f0-9]{64}")&&names.add(name),"Invalid stored payload inventory");Path payload=directory.resolve(name);require(Files.isRegularFile(payload,LinkOption.NOFOLLOW_LINKS)&&payload.toRealPath().startsWith(directory.toRealPath()),"Stored payload unavailable; restore the offline package cache");
+            Path blob=name.startsWith("images/")?verifiedBlob(checksum,Files.size(payload)):null;
+            if(blob==null||!Files.isSameFile(blob,payload))require(sha(payload).equals(checksum),"Stored payload checksum mismatch; restore the verified offline package cache");
+        }
+        JsonNode manifest=StateFiles.JSON.readTree(Files.readAllBytes(directory.resolve("manifest.json")));InstallationManifest.validate(manifest,names);authorize(manifest,key);return manifest;
+    }
     private String blobVector(Path blob)throws IOException{BasicFileAttributes attributes=Files.readAttributes(blob,BasicFileAttributes.class,LinkOption.NOFOLLOW_LINKS);String change;try{change=String.valueOf(Files.getAttribute(blob,"unix:ctime",LinkOption.NOFOLLOW_LINKS));}catch(UnsupportedOperationException unsupported){change=attributes.creationTime().toString();}return attributes.fileKey()+":"+attributes.size()+":"+attributes.lastModifiedTime()+":"+change;}
     private Path verifiedBlob(String checksum,long size)throws IOException{
         require(checksum.matches("[a-f0-9]{64}"),"Invalid image archive identity");Path blob=files.path("blobs/"+checksum);if(!Files.exists(blob,LinkOption.NOFOLLOW_LINKS))return null;require(Files.isRegularFile(blob,LinkOption.NOFOLLOW_LINKS)&&Files.size(blob)==size,"Invalid cached image archive");String vector=blobVector(blob);if(!vector.equals(blobFingerprints.get(checksum)))require(sha(blob).equals(checksum),"Cached image archive is corrupt");blobFingerprints.put(checksum,vector);return blob;
@@ -105,7 +119,7 @@ public final class SignedPackageStore implements AutoCloseable {
             catch(IOException unavailable){String archive=image.path("archive").asText();Path path=folder(digest).resolve(InstallationManifest.member(archive));if(loaded.add(archive)){require(sha(path).equals(checks.path(archive).asText()),"Stored image archive changed");loadImageArchive(path);}require(docker.call("GET","/images/"+image.path("id").asText()+"/json").path("Id").asText().equals(image.path("id").asText()),"Signed image missing after recovery");}
         }
     }
-    private void verified(String id)throws IOException{ObjectNode meta=status(id);meta.put("status","verified");meta.remove("message");files.write("uploads/"+id+".json",meta);}
+    private void verified(String id)throws IOException{ObjectNode meta=status(id);meta.put("status","verified");meta.remove("message");files.write("uploads/"+id+".json",meta);Files.deleteIfExists(uploadFile(id));meta.put("stagingReclaimed",true).put("stagingReclaimedAt",StateFiles.now());files.write("uploads/"+id+".json",meta);}
     public Path folder(String digest){require(digest!=null&&digest.matches("[a-f0-9]{64}"),"Invalid package identity");return files.path("packages/"+digest);}
     public JsonNode packageManifest(String digest)throws IOException{
         Path folder=folder(digest);JsonNode receipt=StateFiles.JSON.readTree(Files.readAllBytes(folder.resolve("receipt.json")));Path manifest=folder.resolve("manifest.json");require(sha(manifest).equals(receipt.path("checksums").path("manifest.json").asText()),"Stored manifest changed");return StateFiles.JSON.readTree(Files.readAllBytes(manifest));

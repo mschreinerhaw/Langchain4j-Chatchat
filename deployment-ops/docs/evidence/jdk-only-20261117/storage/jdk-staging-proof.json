@@ -1,0 +1,10 @@
+{
+  "passed" : true,
+  "jdkOnly" : true,
+  "signatureAndStoredPayloadsReverified" : true,
+  "verifiedStagingReclaimed" : true,
+  "realQaImageDeletedWithApprovalAndAudit" : true,
+  "coldImageRepairedWithoutOriginalUpload" : true,
+  "runningBusinessIdsAndStartedAtUnchanged" : true,
+  "upload" : "f18e3db6a281460289b4445e733f19ea"
+}

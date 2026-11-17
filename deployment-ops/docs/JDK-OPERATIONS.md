@@ -62,6 +62,9 @@ java -jar lib/deployment-ops.jar --import-package /mnt/disk01/media/runtime.ops.
 
 同盘已有 Docker-save 归档时可追加一个或多个 `--image-cache /mnt/disk01/media/images.tar`。
 缓存必须与包内清单精确匹配，仍会进行完整签名及内容校验。平台不自动删除镜像腾空间。
+完整验证成功后自动回收本次上传的暂存 ZIP；签名、清单、配置资源及内容寻址镜像归档继续持久化。
+重新提交已验证上传时，平台重新验证持久化签名及负载，直接补齐缺失镜像，不要求暂存 ZIP 仍存在。
+失败或中断上传不参与此回收。用户原始介质、业务容器和数据卷均不受影响。
 中断后保留上传编号，执行 `java -jar ... --resume-import UPLOAD_ID`，无需重传完整介质。
 已有校验包中的镜像被清理后，可重新提交完整上传，平台验证归档后补齐缺失镜像。
 

@@ -55,5 +55,5 @@ with zipfile.ZipFile(a.output,'w',zipfile.ZIP_DEFLATED,compresslevel=6) as archi
 digest=hashlib.sha256()
 with a.output.open('rb') as source:
     for chunk in iter(lambda:source.read(1024**2),b''):digest.update(chunk)
-a.output.with_name(a.output.name+'.sha256').write_text(digest.hexdigest()+'  '+a.output.name+'\n')
+a.output.with_name(a.output.name+'.sha256').write_bytes((digest.hexdigest()+'  '+a.output.name+'\n').encode('ascii'))
 print(json.dumps({'file':str(a.output),'sha256':digest.hexdigest(),'files':len(files),'version':a.version,'sourceCommit':commit,'formalRelease':not manifest['candidate']}))

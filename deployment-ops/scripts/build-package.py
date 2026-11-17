@@ -89,5 +89,5 @@ with tempfile.TemporaryDirectory(prefix='ops-package-',dir=args.output.resolve()
   with zipfile.ZipFile(args.output,'w',compression=zipfile.ZIP_DEFLATED,compresslevel=1,allowZip64=True) as archive:
    for name,file in sorted(payload.items()):archive.write(file,name,compress_type=zipfile.ZIP_STORED if args.store_images and name.startswith('images/') else zipfile.ZIP_DEFLATED)
 with args.output.open('rb') as stream:digest=hashlib.file_digest(stream,'sha256').hexdigest()
-args.output.with_suffix(args.output.suffix+'.sha256').write_text(digest+'  '+args.output.name+'\n',encoding='ascii')
+args.output.with_suffix(args.output.suffix+'.sha256').write_bytes((digest+'  '+args.output.name+'\n').encode('ascii'))
 print(json.dumps({'file':str(args.output),'sha256':digest,'package':manifest['name'],'version':manifest['version']}))

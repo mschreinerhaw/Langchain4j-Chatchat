@@ -60,7 +60,10 @@ gateway=json.loads((STAGE/'compose.gateway-ui.json').read_text())
 gateway_text=(STAGE/'config/public-gateway.conf').read_text()
 metadata=json.dumps({'release':a.version,'sourceCommit':a.source_commit,'nativeNodes':'1.3','existingStageDataReused':True},separators=(',',':'))
 gateway_text='\n'.join(('    location = /version.json { default_type application/json; add_header Cache-Control no-store; return 200 '+"'"+metadata+"'; }") if 'location = /version.json ' in line else line for line in gateway_text.splitlines())+'\n'
-generated_text={'public-gateway.conf':gateway_text};security_sources={}
+gateway_file=release/('public-gateway-'+a.version+'.conf')
+assert not gateway_file.exists(),'Release gateway configuration already exists'
+gateway_file.write_text(gateway_text);gateway_file.chmod(0o644)
+generated_text={};security_sources={str(gateway_file):hashlib.sha256(gateway_file.read_bytes()).hexdigest()}
 for mount in gateway['services']['gateway']['volumes']:
  if mount['target']=='/srv/task-lifecycle-ui':mount['source']=str(ui)
  if mount['target']=='/srv/coding-monitor':mount['source']=str(monitor)
@@ -115,7 +118,7 @@ for group,definition in [('legacy',legacy),('native',native),('frontend',fronten
    source=mount.get('source') if isinstance(mount,dict) else mount.split(':')[0]
    if not source.startswith('/'):raise RuntimeError('Only explicit existing bind paths are allowed in this stage: '+name)
    assert pathlib.Path(source).exists(),'Missing existing mount for '+name+': '+source
-   if name=='gateway' and isinstance(mount,dict) and mount['target']=='/etc/nginx/nginx.conf':mount['source']='${INSTALL_ROOT}/generated/public-gateway.conf'
+   if name=='gateway' and isinstance(mount,dict) and mount['target']=='/etc/nginx/nginx.conf':mount['source']=str(gateway_file)
   if name in ('api','mcp','news'):
    port={'api':8080,'mcp':8090,'news':8091}[name]
    path={'api':'/api/v1/enterprise/auth/me','mcp':'/api/v1/admin/auth/me','news':'/internal/v1/news/health'}[name]

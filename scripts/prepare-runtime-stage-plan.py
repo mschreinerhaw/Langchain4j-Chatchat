@@ -148,6 +148,7 @@ a.plan.parent.mkdir(parents=True,exist_ok=True);a.plan.write_text(json.dumps(pla
 a.recipe.mkdir(parents=True);assets=a.recipe/'assets';assets.mkdir()
 public_map={r:v for r,v in images.items() if r!='installer'}
 (assets/'runtime-images.json').write_text(json.dumps(public_map,indent=2)+'\n')
+(assets/'runtime-source.json').write_text(json.dumps({'sourceCommit':a.source_commit,'installerImage':a.installer_image,'adapter':'existing-stage/v1','databaseInitialization':False,'customerDataIncluded':False},indent=2)+'\n')
 components=[]
 previous=[]
 for group in stages:

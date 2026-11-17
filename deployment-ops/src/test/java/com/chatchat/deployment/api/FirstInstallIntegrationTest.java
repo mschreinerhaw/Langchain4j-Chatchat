@@ -22,7 +22,11 @@ class FirstInstallIntegrationTest {
             assertEquals(200,client.postForEntity("/api/setup",valid,Map.class).getStatusCode().value());
             assertEquals(409,client.postForEntity("/api/setup",valid,Map.class).getStatusCode().value());
             assertEquals(false,client.getForObject("/api/setup",Map.class).get("required"));
-            assertEquals(200,client.postForEntity("/api/login",Map.of("username","admin","password","user-selected-password"),Map.class).getStatusCode().value());
+            var login=client.postForEntity("/api/login",Map.of("username","admin","password","user-selected-password"),Map.class);
+            assertEquals(200,login.getStatusCode().value());
+            String cookie=login.getHeaders().getFirst("Set-Cookie").split(";",2)[0];
+            var quoted=new HttpHeaders();quoted.set("Cookie","$Version=\"1\"; ops_session=\""+cookie.substring("ops_session=".length())+"\"");
+            assertEquals(200,client.exchange("/api/me",HttpMethod.GET,new HttpEntity<>(quoted),Map.class).getStatusCode().value());
         }finally{System.clearProperty("OPS_SETUP_TOKEN");}
     }
 }

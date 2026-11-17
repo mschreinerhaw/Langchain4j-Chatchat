@@ -36,5 +36,8 @@ public final class ExecutionJournal implements AutoCloseable {
         }catch(Exception error){connection.rollback();throw error;}finally{connection.setAutoCommit(true);}
     }
     public synchronized void expire(String namespace,double olderThan)throws Exception{StorageGuard.verifyRuntime();try(PreparedStatement query=connection.prepareStatement("DELETE FROM execution_records WHERE namespace=? AND updated<?")){query.setString(1,namespace);query.setDouble(2,olderThan);query.executeUpdate();}}
+    public synchronized void backup(Path destination)throws Exception {
+        StorageGuard.verifyRuntime();try(Statement statement=connection.createStatement()){statement.execute("BACKUP TO '"+destination.toString().replace("'","''")+"'");}
+    }
     public synchronized void close()throws SQLException{connection.close();}
 }

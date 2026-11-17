@@ -23,15 +23,15 @@ public final class JdkExecutor implements AutoCloseable {
     private final HttpServer server;private final ExecutorService requests;
     private final DockerClient docker;private final ExecutionJournal journal;
     private final SignedPackageStore packages;private final ResourceManager resources;private final DeploymentService deployments;
-    private final Path root;private final String token;
+    private final Path root;private final String token;private final ReentrantLock mutations=new ReentrantLock(true);
     private final boolean readOnly=System.getenv().getOrDefault("OPS_READ_ONLY","0").equals("1");
     public JdkExecutor(Path root,Path trust,Properties config,int port)throws Exception{
         this.root=root;token=config.getProperty("EXECUTOR_TOKEN");Files.createDirectories(root);
         docker=new DockerClient(Path.of(System.getenv().getOrDefault("DOCKER_SOCKET","/var/run/docker.sock")));
-        journal=new ExecutionJournal(root.resolve("journal"),config.getProperty("OPS_DB_PASSWORD"));ReentrantLock mutations=new ReentrantLock(true);
-        packages=new SignedPackageStore(root.resolve("packages"),trust,docker);
+        journal=new ExecutionJournal(root.resolve("journal"),config.getProperty("OPS_DB_PASSWORD"));
+        packages=new SignedPackageStore(root.resolve("packages"),trust,docker,mutations);
         resources=new ResourceManager(docker,journal,config.getProperty("OPS_INSTANCE_ID"),root.resolve("apps"),mutations,System.getenv().getOrDefault("OPS_READ_ONLY","0").equals("1"));
-        deployments=new DeploymentService(docker,packages,journal,config.getProperty("OPS_INSTANCE_ID"),root.resolve("apps"),mutations);resources.installationBusy(deployments::busy);
+        deployments=new DeploymentService(docker,packages,journal,config.getProperty("OPS_INSTANCE_ID"),root.resolve("apps"),mutations);resources.installationBusy(()->deployments.busy()||packages.busy());
         requests=Executors.newFixedThreadPool(12,r->{Thread t=new Thread(r,"jdk-node-http");t.setDaemon(true);return t;});
         server=HttpServer.create(new InetSocketAddress("127.0.0.1",port),64);server.setExecutor(requests);server.createContext("/",this::handle);server.start();
     }
@@ -42,7 +42,7 @@ public final class JdkExecutor implements AutoCloseable {
             require(method.equals("GET")||write,"Unsupported node method");if(write)require(!actor.isBlank()&&"admin".equals(exchange.getRequestHeaders().getFirst("X-Ops-Role")),"Authenticated administrator required");
             if(write&&readOnly&&!path.equals("/manager/plans"))require(false,"Node is read-only");
             if(path.matches("/manager/export/[a-f0-9]{64}")&&!write){String id="sha256:"+path.substring(path.lastIndexOf('/')+1);docker.call("GET","/images/"+id+"/json");try(DockerClient.Response response=docker.request("GET","/images/"+id+"/get",InputStream.nullInputStream(),0,"application/json",Duration.ofMinutes(10))){require(response.status==200,"Image export failed");exchange.getResponseHeaders().set("Content-Type","application/x-tar");exchange.sendResponseHeaders(200,0);response.body.transferTo(exchange.getResponseBody());}exchange.close();return;}
-            if(path.equals("/images/import")&&write){require(!deployments.busy()&&!packages.busy(),"Node busy");long length=length(exchange);require(length>0&&length<=2L*1024*1024*1024,"Invalid TAR size");String expected=exchange.getRequestHeaders().getFirst("X-SHA256");require(expected!=null&&expected.matches("[a-f0-9]{64}"),"SHA-256 required");Path temporary=Files.createTempFile(root,"image-import-",".tar");try{try(OutputStream out=Files.newOutputStream(temporary)){byte[] block=new byte[65536];long remaining=length;while(remaining>0){int n=exchange.getRequestBody().read(block,0,(int)Math.min(block.length,remaining));require(n>0,"Truncated TAR upload");out.write(block,0,n);remaining-=n;}}require(SignedPackageStore.sha(temporary).equals(expected),"TAR checksum mismatch");packages.loadImageArchive(temporary);send(exchange,200,object().put("sha256",expected).put("output","Offline images imported and verified"));}finally{Files.deleteIfExists(temporary);}return;}
+            if(path.equals("/images/import")&&write){require(!deployments.busy()&&!packages.busy(),"Node busy");long length=length(exchange);require(length>0&&length<=2L*1024*1024*1024,"Invalid TAR size");String expected=exchange.getRequestHeaders().getFirst("X-SHA256");require(expected!=null&&expected.matches("[a-f0-9]{64}"),"SHA-256 required");require(mutations.tryLock(),"Another node mutation is active; retry import later");Path temporary=null;try{temporary=Files.createTempFile(root,"image-import-",".tar");try(OutputStream out=Files.newOutputStream(temporary)){byte[] block=new byte[65536];long remaining=length;while(remaining>0){int n=exchange.getRequestBody().read(block,0,(int)Math.min(block.length,remaining));require(n>0,"Truncated TAR upload");out.write(block,0,n);remaining-=n;}}require(SignedPackageStore.sha(temporary).equals(expected),"TAR checksum mismatch");packages.loadImageArchive(temporary);send(exchange,200,object().put("sha256",expected).put("output","Offline images imported and verified"));}finally{try{if(temporary!=null)Files.deleteIfExists(temporary);}finally{mutations.unlock();}}return;}
             Object result;
             if(!write){
                 if(path.startsWith("/manager/"))result=resources.get(path);
@@ -61,7 +61,7 @@ public final class JdkExecutor implements AutoCloseable {
                 if(path.matches("/packages/uploads/[a-f0-9]{32}/[0-9]+")){String[] parts=path.split("/");result=packages.chunk(parts[3],Long.parseLong(parts[4]),bytes);}
                 else{JsonNode spec=bytes.length==0?object():StateFiles.JSON.readTree(bytes);
                     if(path.equals("/packages/uploads"))result=packages.create(spec);
-                    else if(path.matches("/packages/uploads/[a-f0-9]{32}/commit"))result=packages.commit(path.split("/")[3]);
+                    else if(path.matches("/packages/uploads/[a-f0-9]{32}/commit")){require(!deployments.busy(),"Application deployment active; retry package commit after completion");result=packages.commit(path.split("/")[3]);}
                     else if(path.matches("/packages/[a-f0-9]{64}/retire"))result=packages.retire(path.split("/")[2],actor);
                     else if(path.equals("/manager/plans"))result=resources.plan(spec,actor);
                     else if(path.equals("/manager/execute"))result=resources.execute(spec,actor);
@@ -75,8 +75,14 @@ public final class JdkExecutor implements AutoCloseable {
         }catch(Exception error){try{send(exchange,400,object().put("error",error.getMessage()==null?error.getClass().getSimpleName():error.getMessage()));}catch(IOException disconnected){exchange.close();}}
     }
     private static String last(String path){return path.substring(path.lastIndexOf('/')+1);}
+    public AutoCloseable backupLock() {
+        require(mutations.tryLock(),"Node mutation active; retry backup after completion");
+        if(deployments.busy()||packages.busy()){mutations.unlock();throw new IllegalStateException("Deployment or package verification active; retry backup later");}
+        return mutations::unlock;
+    }
+    public void backupJournal(Path destination)throws Exception{journal.backup(destination);}
     private static long length(HttpExchange exchange){String value=exchange.getRequestHeaders().getFirst("Content-Length");return value==null?-1:Long.parseLong(value);}
     private static byte[] body(HttpExchange exchange,int maximum)throws IOException{long size=length(exchange);require(size>=0&&size<=maximum,"Invalid request length");byte[] bytes=exchange.getRequestBody().readNBytes((int)size);require(bytes.length==size,"Truncated node request");return bytes;}
     private static void send(HttpExchange exchange,int status,Object value)throws IOException{byte[] bytes=StateFiles.JSON.writeValueAsBytes(value);exchange.getResponseHeaders().set("Content-Type","application/json; charset=utf-8");exchange.sendResponseHeaders(status,bytes.length);try(OutputStream out=exchange.getResponseBody()){out.write(bytes);}exchange.close();}
-    public void close(){server.stop(0);requests.shutdownNow();resources.close();deployments.close();try{journal.close();}catch(Exception ignored){}}
+    public void close(){server.stop(0);requests.shutdownNow();resources.close();deployments.close();packages.close();try{journal.close();}catch(Exception ignored){}}
 }

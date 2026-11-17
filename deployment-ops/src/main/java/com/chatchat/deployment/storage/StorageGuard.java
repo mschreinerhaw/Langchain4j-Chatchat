@@ -17,6 +17,7 @@ public final class StorageGuard {
             validate(mount, data, Files.readAllLines(Path.of("/proc/self/mountinfo")));
             if(Files.getAttribute(mount,"unix:dev").equals(Files.getAttribute(Path.of("/"),"unix:dev")))throw new IOException("Data mount resolves to the system filesystem");
             managedDirectory(data);
+            Files.setPosixFilePermissions(data,java.nio.file.attribute.PosixFilePermissions.fromString("rwx------"));
             validatedProcess=true;
         } catch(IOException error) {
             throw new IOException("Required real storage mount /mnt/disk01 is unavailable or invalid; refusing startup without system-disk fallback",error);

@@ -7,10 +7,12 @@ import java.util.*;
 import java.security.*;
 import org.springframework.core.io.ClassPathResource;
 
-/** Extract bundled agent; never invokes a business stop during JVM shutdown. */
+/** Starts the in-process JDK executor; never stops business workloads during JVM shutdown. */
 public final class StandaloneRuntime {
     private static FileChannel channel;
     private static FileLock lock;
+    private static com.chatchat.deployment.execution.JdkExecutor executor;
+    public static com.chatchat.deployment.execution.JdkExecutor executor(){return executor;}
     private StandaloneRuntime() {}
     public static void start() throws Exception {
         if(System.getenv("EXECUTOR_TOKEN")!=null||System.getenv("OPS_EXECUTOR_URL")!=null)return;
@@ -19,12 +21,14 @@ public final class StandaloneRuntime {
         channel=FileChannel.open(root.resolve("process.lock"),StandardOpenOption.CREATE,StandardOpenOption.WRITE);lock=channel.tryLock();
         if(lock==null)throw new IllegalStateException("This standalone instance is already running");
         Properties config=new Properties();Path file=root.resolve("instance.properties");
-        if(Files.exists(file)){try(var in=Files.newInputStream(file)){config.load(in);}}
+        if(Files.exists(file)){if(!Files.isRegularFile(file,LinkOption.NOFOLLOW_LINKS))throw new IllegalStateException("Invalid private instance configuration");try(var in=Files.newInputStream(file)){config.load(in);}}
         else{
             for(String key:List.of("EXECUTOR_TOKEN","OPS_DB_PASSWORD","OPS_INSTANCE_ID","OPS_SETUP_TOKEN"))config.setProperty(key,UUID.randomUUID().toString()+UUID.randomUUID());
-            Files.createFile(file,PosixFilePermissions.asFileAttribute(PosixFilePermissions.fromString("rw-------")));
-            try(var out=Files.newOutputStream(file)){config.store(out,"Private local configuration; never distribute");}
+            Path temporary=Files.createTempFile(root,"instance-",".tmp",PosixFilePermissions.asFileAttribute(PosixFilePermissions.fromString("rw-------")));
+            try{try(var out=Files.newOutputStream(temporary)){config.store(out,"Private local configuration; never distribute");}try(FileChannel saved=FileChannel.open(temporary,StandardOpenOption.WRITE)){saved.force(true);}Files.move(temporary,file,StandardCopyOption.ATOMIC_MOVE);}finally{Files.deleteIfExists(temporary);}
         }
+        for(String key:List.of("EXECUTOR_TOKEN","OPS_DB_PASSWORD","OPS_INSTANCE_ID","OPS_SETUP_TOKEN"))if(config.getProperty(key,"").length()<32)throw new IllegalStateException("Private instance configuration is incomplete; restore it from a verified backup: "+key);
+        Files.setPosixFilePermissions(file,PosixFilePermissions.fromString("rw-------"));
         config.forEach((k,v)->System.setProperty(k.toString(),v.toString()));
         String port=System.getenv().getOrDefault("OPS_EXECUTOR_PORT","19242");
         if(!port.matches("[0-9]{4,5}")||Integer.parseInt(port)>65535||Integer.parseInt(port)<1024)throw new IllegalArgumentException("Invalid local executor port");
@@ -36,7 +40,7 @@ public final class StandaloneRuntime {
             if(!name.matches("trust/[a-zA-Z0-9_.-]+"))throw new IllegalArgumentException("Invalid bundled trust resource");
             Path key=trust.resolve(Path.of(name).getFileName());if(!Files.exists(key))Files.write(key,new ClassPathResource("standalone/"+name).getContentAsByteArray(),StandardOpenOption.CREATE_NEW);
         }
-        var executor=new com.chatchat.deployment.execution.JdkExecutor(root.resolve("jdk"),trust,config,Integer.parseInt(port));
+        executor=new com.chatchat.deployment.execution.JdkExecutor(root.resolve("jdk"),trust,config,Integer.parseInt(port));
         System.setProperty("OPS_EXECUTOR_IMPLEMENTATION","JDK");
         Runtime.getRuntime().addShutdownHook(new Thread(executor::close));
     }

@@ -5,7 +5,7 @@ const {chromium}=require(process.env.PLAYWRIGHT_MODULE||'/app/node_modules/playw
  const base=process.env.OPS_QA_URL||'http://127.0.0.1:19240',out=process.env.OPS_TEST_ARTIFACTS||'/evidence';
  const env=process.env.OPS_RUNTIME_ENV||'runtime-native-v1',media=process.env.OPS_RUNTIME_MEDIA||'/media/runtime.ops.zip';
  fs.mkdirSync(out,{recursive:true});const checks=[],errors=[];
- const browser=await chromium.launch({headless:true,args:['--no-sandbox','--disable-dev-shm-usage','--no-proxy-server']});
+ const browser=await chromium.launch({executablePath:process.env.CHROME_PATH||undefined,headless:true,args:['--no-sandbox','--disable-dev-shm-usage','--no-proxy-server']});
  const page=await browser.newPage({viewport:{width:1600,height:1000},locale:'zh-CN',timezoneId:'Asia/Shanghai'});
  page.on('pageerror',e=>errors.push(e.message));page.setDefaultTimeout(30000);
  async function capture(name){await page.screenshot({path:out+'/'+name+'.png',fullPage:true});}

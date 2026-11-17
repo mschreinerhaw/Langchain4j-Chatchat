@@ -1,0 +1,14 @@
+{
+  "passed": true,
+  "checks": [
+    "compatible signed upgrade replaced service after dependency reconciliation",
+    "explicit rollback restored previous active release",
+    "deliberate real readiness failure automatically restored previous healthy release",
+    "rollback reused original healthy container identity and persistent volume",
+    "application stop/start completed through real lifecycle API",
+    "all containers outside QA application retained their states and identities"
+  ],
+  "good": "b7a080c41067415fb16c9e6f978ab4a8",
+  "bad": "3db2a1d13fbe4f35b8996c25d984a514",
+  "initial": "1a65618cc8a641759b5e85c635bee7ca"
+}

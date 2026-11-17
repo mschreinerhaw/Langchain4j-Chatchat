@@ -23,6 +23,9 @@ public class NativeManagementRoutes {
     private void send(HttpExchange x,int status,Object value)throws Exception{byte[] data=json.writeValueAsBytes(value);x.getResponseHeaders().set("Content-Type","application/json; charset=utf-8");x.sendResponseHeaders(status,data.length);x.getResponseBody().write(data);x.close();}
     private void audit(String actor,String action,String target,String outcome){db.update("INSERT INTO audit(actor,action,target,outcome) VALUES(?,?,?,?)",actor,action,target,outcome);}
     private Map<String,Object> buildIdentity(){
+        try(var in=NativeManagementRoutes.class.getResourceAsStream("/deployment-ops-build.properties")) {
+            if(in!=null){Properties properties=new Properties();properties.load(in);return Map.of("version",properties.getProperty("version","unknown"),"sourceCommit",properties.getProperty("sourceCommit","unknown"));}
+        }catch(Exception ignored){}
         try{
             Path file=Path.of(env.getProperty("OPS_HOME","."),"release.json");
             if(Files.isRegularFile(file)&&Files.size(file)<=1024*1024){

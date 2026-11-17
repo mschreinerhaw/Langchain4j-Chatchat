@@ -19,14 +19,19 @@ import java.util.zip.*;
 import static com.chatchat.deployment.protocol.InstallationManifest.require;
 
 /** Resumable signed offline media. Payloads are regular files under the data mount. */
-public final class SignedPackageStore {
+public final class SignedPackageStore implements AutoCloseable {
     private final StateFiles files;
     private final Path trust;
     private final DockerClient docker;
+    private final java.util.concurrent.locks.ReentrantLock mutations;
     private final Set<String> importing=ConcurrentHashMap.newKeySet();
     private final Map<String,String> blobFingerprints=new ConcurrentHashMap<>();
     private final ExecutorService workers=Executors.newSingleThreadExecutor(r->{Thread t=new Thread(r,"jdk-package-verifier");t.setDaemon(true);return t;});
     public SignedPackageStore(Path root,Path trust,DockerClient docker)throws IOException{
+        this(root,trust,docker,new java.util.concurrent.locks.ReentrantLock(true));
+    }
+    public SignedPackageStore(Path root,Path trust,DockerClient docker,java.util.concurrent.locks.ReentrantLock mutations)throws IOException{
+        this.mutations=mutations;
         files=new StateFiles(root);this.trust=trust;this.docker=docker;Files.createDirectories(files.path("uploads"));Files.createDirectories(files.path("blobs"));
         for(JsonNode value:files.list("uploads"))if(value.path("status").asText().equals("verifying")){ObjectNode meta=(ObjectNode)value;meta.put("status","uploading");meta.put("message","Verification interrupted; recommit this complete upload");files.write("uploads/"+meta.path("id").asText()+".json",meta);}
     }
@@ -46,9 +51,9 @@ public final class SignedPackageStore {
     public synchronized ObjectNode commit(String id)throws IOException{
         ObjectNode meta=status(id);
         require(meta.path("offset").asLong()==meta.path("size").asLong(),"Upload incomplete");require(importing.add(id),"Package already verifying");meta.put("status","verifying");files.write("uploads/"+id+".json",meta);
-        workers.submit(()->{try{verify(id);}catch(Exception error){try{ObjectNode failed=status(id);failed.put("status","failed").put("message",error.getMessage()==null?error.getClass().getSimpleName():error.getMessage());files.write("uploads/"+id+".json",failed);}catch(IOException ignored){}}finally{importing.remove(id);}});return meta;
+        workers.submit(()->{boolean locked=false;try{mutations.lockInterruptibly();locked=true;verify(id);}catch(Exception error){try{ObjectNode failed=status(id);failed.put("status","failed").put("message",error.getMessage()==null?error.getClass().getSimpleName():error.getMessage());files.write("uploads/"+id+".json",failed);}catch(IOException ignored){}}finally{if(locked)mutations.unlock();importing.remove(id);}});return meta;
     }
-    public static String sha(Path path)throws IOException{try(InputStream input=Files.newInputStream(path)){try{MessageDigest hash=MessageDigest.getInstance("SHA-256");byte[] block=new byte[1024*1024];for(int count;(count=input.read(block))!=-1;)hash.update(block,0,count);return HexFormat.of().formatHex(hash.digest());}catch(NoSuchAlgorithmException impossible){throw new IllegalStateException(impossible);}}}
+    public static String sha(Path path)throws IOException{try(InputStream input=Files.newInputStream(path)){try{MessageDigest hash=MessageDigest.getInstance("SHA-256");byte[] block=new byte[1024*1024];for(int count;(count=input.read(block))!=-1;){if(Thread.currentThread().isInterrupted())throw new java.io.InterruptedIOException("Offline verification interrupted; recommit to resume");hash.update(block,0,count);}return HexFormat.of().formatHex(hash.digest());}catch(NoSuchAlgorithmException impossible){throw new IllegalStateException(impossible);}}}
     private static String sha(byte[] bytes){try{return HexFormat.of().formatHex(MessageDigest.getInstance("SHA-256").digest(bytes));}catch(NoSuchAlgorithmException impossible){throw new IllegalStateException(impossible);}}
     private static byte[] metadata(ZipFile zip,String name)throws IOException{ZipEntry entry=zip.getEntry(name);require(entry!=null&&entry.getSize()>=0&&entry.getSize()<=2*1024*1024,"Missing or oversized "+name);try(InputStream in=zip.getInputStream(entry)){return in.readNBytes(2*1024*1024+1);}}
     private JsonNode signingKey(JsonNode signature,byte[] checksums)throws Exception{
@@ -117,4 +122,5 @@ public final class SignedPackageStore {
         for(JsonNode image:manifest){String config=InstallationManifest.member(image.path("Config").asText());String identity="sha256:"+sha(TarArchive.entry(path,config,16*1024*1024));for(JsonNode tag:image.path("RepoTags"))require(!tags.containsKey(tag.asText())||tags.get(tag.asText()).equals(identity),"Archive would overwrite an existing image tag");}
         try(InputStream input=Files.newInputStream(path);DockerClient.Response response=docker.request("POST","/images/load?quiet=1",input,Files.size(path),"application/x-tar",Duration.ofMinutes(30))){require(response.status<300,"Docker rejected image import");byte[] bytes=response.body.readNBytes(4*1024*1024+1);require(bytes.length<=4*1024*1024,"Oversized Docker load response");for(String line:new String(bytes,java.nio.charset.StandardCharsets.UTF_8).split("\n"))if(!line.isBlank()){JsonNode record=StateFiles.JSON.readTree(line);require(!record.has("error"),"Docker image import failed: "+record.path("error").asText());}}
     }
+    public void close(){workers.shutdownNow();try{workers.awaitTermination(5,TimeUnit.SECONDS);}catch(InterruptedException error){Thread.currentThread().interrupt();}}
 }

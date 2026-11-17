@@ -71,7 +71,7 @@ public class Main {
    if(users.isEmpty()||!MessageDigest.isEqual(hash(String.valueOf(b.get("password")),users.get(0).get("salt").toString()).getBytes(),users.get(0).get("password_hash").toString().getBytes())){audit(peer,"login-failed","login","denied");send(x,401,Map.of("error","invalid credentials"));return;}
    String token=random();sql("INSERT INTO sessions(token,username,expires) VALUES(?,?,?)",hash(token,"session"),b.get("username"),java.time.OffsetDateTime.now(java.time.ZoneOffset.UTC).plusHours(8));x.getResponseHeaders().add("Set-Cookie","ops_session="+token+"; Path=/; HttpOnly; SameSite=Strict; Max-Age=28800");audit(b.get("username").toString(),"login","session","success");send(x,200,Map.of("role",users.get(0).get("role")));return;
   }
-  String cookie=x.getRequestHeaders().getFirst("Cookie"),token="";if(cookie!=null)for(String c:cookie.split(";"))if(c.trim().startsWith("ops_session="))token=c.trim().substring(12);
+  String cookie=x.getRequestHeaders().getFirst("Cookie"),token="";if(cookie!=null)for(String c:cookie.split(";"))if(c.trim().startsWith("ops_session=")){token=c.trim().substring(12);if(token.length()>=2&&token.startsWith("\"")&&token.endsWith("\""))token=token.substring(1,token.length()-1);}
   var user=sql("SELECT u.username,u.role FROM sessions s JOIN users u USING(username) WHERE s.token=? AND expires>now()",hash(token,"session"));if(user.isEmpty()){send(x,401,Map.of("error","login required"));return;}
   if(path.equals("/api/me")&&method.equals("GET")){send(x,200,user.get(0));return;}
   String actor=user.get(0).get("username").toString();boolean write=!method.equals("GET");

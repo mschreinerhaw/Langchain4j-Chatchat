@@ -57,6 +57,10 @@ const jobs = computed(() =>
     }))
   )
 );
+// Retained rollback resources remain visible in container/history pages, but are not live replicas.
+const isRetained = (container) =>
+  container.Labels?.['deployment-ops.installation'] === 'true' &&
+  (container.Names || []).some((name) => /-(retained|failed)-[a-f0-9]{12}$/.test(name));
 const applications = computed(() => {
   const groups = new Map();
   for (const container of containers.value) {
@@ -97,7 +101,9 @@ const applications = computed(() => {
   }
   return [...groups.values()].map((app) => {
     const node = inventory.value.find((n) => n.id === app.nodeId);
-    const services = app.containers.filter((c) => c.Labels?.['deployment-ops.kind'] !== 'job');
+    const services = app.containers.filter(
+      (c) => c.Labels?.['deployment-ops.kind'] !== 'job' && !isRetained(c)
+    );
     return {
       ...app,
       services,
@@ -141,6 +147,7 @@ const alerts = computed(() => [
             job.environment === environmentName(c)
         ) &&
         c.Labels?.['deployment-ops.kind'] !== 'job' &&
+        !isRetained(c) &&
         (c.State !== 'running' || c.managerMetrics?.health === 'unhealthy')
     )
     .map((c) => ({

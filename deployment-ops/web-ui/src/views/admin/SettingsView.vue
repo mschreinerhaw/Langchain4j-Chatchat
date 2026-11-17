@@ -18,6 +18,7 @@
       <BackupSettings
         v-else-if="tab === 'backups'"
         :managed="data?.maintenanceMode === 'systemd'"
+        :jdk="data?.executorImplementation === 'JDK'"
       />
       <UpgradeSettings
         v-else-if="tab === 'upgrade'"

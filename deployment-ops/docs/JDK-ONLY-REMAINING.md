@@ -30,9 +30,28 @@ SHA-256 `c7dfd1a4f29c70fc17a6fcc83e4acf0d3a37c1eaf922f1b60911debca8063bb8`。
 执行完整签名、全量校验和及真实 Docker 导入。完整 Native 包正在实际验证，尚未判通过。
 Java 原有13项测试通过，新增3项协议安全/依赖/凭据测试通过，Vue生产构建通过。
 
-后续必须完成：通用协议恢复/升级/回滚联调；Native Runtime Java适配器
-（Java适配器已实现，真实Native安装与升级尚待验收，不可伪报）；纯Java维护/备份恢复；
-JDK源码构建入口替代目标机Python编译脚本；无Docker/缺挂载/重启隔离及全链路回归、离线包与最终推送。
+2026-11-17 后续实测进展（不等于正式交付）：
+
+- 完整6.2GB Native签名包由纯Java导入成功，恢复了用户清理的缺失镜像。
+- Vue新建环境 `runtime-jdk-v1`，任务 `54ea84d86a934ac79fc1b63b21fe7faf` 成功，
+  24组件运行；Native Core、容器内Python及OS/MCP身份验证通过。根目录
+  `/mnt/disk01/ops/r/7221-21630f35ed0c`，入口19400/MCP19401。
+- 通用协议1.0.2升级、更换真实服务容器、手动回滚、1.0.3真实健康失败自动回滚、
+  应用停止/启动六项通过；不操作Runtime和基础服务。
+- rc.4→rc.5 替换平台JAR，停止期间及重启后全部运行业务 ID/StartedAt 不变。
+- rc.5：`bc21a055f094f55943c875bfe225bdc142eb017a34eb75ecae61df7863f5d8d6`，
+  当前测试单元 `deployment-ops-jdk-only-qa-r5`。
+- v2备份包含管理H2、执行H2和实例配置，实际下载、校验、离线Java恢复通过。
+  运行中恢复明确拒绝；恢复后旧会话失效，配置及部署记录精确恢复，业务容器不变。
+- 隔离TemporaryFileSystem测试确认缺挂载退出1，宿主真实挂载不变。
+- 无Docker私有网络测试发现RFC2965带引号Cookie兼容问题，已修复且待新JAR重跑。
+- 可选systemd注册已改为Java `--install-service`，`deploy/jdk` 提供纯JDK脚本；
+  此新安装入口尚待服务器实际安装验证。
+
+后续必须完成：Native升级与失败回滚；纯Java平台自升级/故障恢复；新安装入口验收；
+无Docker场景重跑、完整回归、离线发行包安装及最终验收推送。
+正式发布标签仍禁止创建。`deploy/native` 属于旧外部Python执行器的兼容安装目录，
+新产品默认入口应采用 `deploy/jdk`，不能用旧安装器的验收替代新实现验收。
 
 当前Java源码在 src/main/java/com/chatchat/deployment/{docker,execution,protocol}。
 StandaloneRuntime 已选择 JdkExecutor，不再启动解释器。Maven及离线构建不向运行JAR复制Python执行器。

@@ -21,7 +21,7 @@ public final class LocalPackageImport {
         require(path.toRealPath().equals(path),"Offline media symlinks are forbidden");return path;
     }
     public static void run(String[] args)throws Exception {
-        require(args.length==3||args.length==5,"Usage: --import-package FILE SHA256 [--image-cache DOCKER_SAVE_TAR]");
+        require(args.length>=3&&args.length%2==1,"Usage: --import-package FILE SHA256 [--image-cache DOCKER_SAVE_TAR]");
         Path archive=regular(args[1]);String digest=args[2];require(digest.matches("[a-f0-9]{64}"),"Publisher SHA-256 required");
         System.out.println("Checking complete offline package SHA-256...");
         require(SignedPackageStore.sha(archive).equals(digest),"Package SHA-256 mismatch");
@@ -31,7 +31,7 @@ public final class LocalPackageImport {
         String token=config.getProperty("EXECUTOR_TOKEN");require(token!=null&&!token.isBlank(),"Initialize and start this JAR instance first");
         String port=System.getenv().getOrDefault("OPS_EXECUTOR_PORT","19242");require(port.matches("[0-9]{4,5}"),"Invalid local node port");
         HttpClient client=HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(5)).build();
-        if(args.length==5){require(args[3].equals("--image-cache"),"Unknown local import option");Path cached=regular(args[4]);String hash=SignedPackageStore.sha(cached);boolean declared=false;
+        for(int option=3;option<args.length;option+=2){require(args[option].equals("--image-cache"),"Unknown local import option");Path cached=regular(args[option+1]);String hash=SignedPackageStore.sha(cached);boolean declared=false;
             try(ZipFile zip=new ZipFile(archive.toFile())){var member=zip.getEntry("checksums.json");require(member!=null&&member.getSize()<=2*1024*1024,"Missing bounded checksums");try(var in=zip.getInputStream(member)){JsonNode checks=StateFiles.JSON.readTree(in.readNBytes(2*1024*1024+1));var fields=checks.fields();while(fields.hasNext()){var field=fields.next();var entry=zip.getEntry(field.getKey());if(field.getKey().startsWith("images/")&&field.getValue().asText().equals(hash)&&entry!=null&&entry.getSize()==Files.size(cached))declared=true;}}}
             require(declared,"Image cache does not match this package inventory");Path blobs=StorageGuard.managedDirectory(root.resolve("jdk/packages/blobs")),target=blobs.resolve(hash);
             if(Files.exists(target,LinkOption.NOFOLLOW_LINKS))require(Files.isRegularFile(target,LinkOption.NOFOLLOW_LINKS)&&SignedPackageStore.sha(target).equals(hash),"Existing cache is corrupt");else Files.createLink(target,cached);

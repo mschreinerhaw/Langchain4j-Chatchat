@@ -1,7 +1,11 @@
 <template>
   <PanelCard
     title="H2 备份与恢复"
-    description="在线一致性备份管理数据库；业务数据卷与执行器状态需使用发行包中的整机备份工具。"
+    :description="
+      jdk
+        ? '备份管理 H2、部署执行 H2 和实例配置；业务数据卷及离线镜像介质需另行备份。'
+        : '在线一致性备份管理数据库；业务数据卷与外部执行器状态需另行备份。'
+    "
   >
     <template #actions>
       <button class="primary" :disabled="busy" @click="backup">
@@ -10,8 +14,8 @@
     </template>
     <ResourceState :error="error" @retry="refresh" />
     <p v-if="!managed" class="notice">
-      当前直接启动模式可创建、下载一致性备份。自动停止及替换数据库的恢复流程需要原生服务模式；请勿在平台运行时覆盖
-      H2 文件。
+      请先停止本平台 JAR，再使用同一 JAR 的 --restore-backup 文件路径 SHA256 命令恢复。
+      恢复会检查备份及 H2 可用性，保留原文件，并使旧会话失效；业务容器保持运行。
     </p>
     <p v-if="message" class="notice success" role="status">{{ message }}</p>
     <p v-if="operationError" class="notice danger" role="alert">{{ operationError }}</p>
@@ -60,7 +64,7 @@
   import DataTable from '../ui/DataTable.vue';
   import StateBadge from '../ui/StateBadge.vue';
   import ResourceState from '../ui/ResourceState.vue';
-  defineProps({ managed: Boolean });
+  defineProps({ managed: Boolean, jdk: Boolean });
   const { data, error, refresh } = useResource(platformApi.backups, { initial: [] }),
     busy = ref(false),
     message = ref(''),

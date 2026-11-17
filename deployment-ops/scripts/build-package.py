@@ -33,7 +33,7 @@ with tempfile.TemporaryDirectory(prefix='ops-package-',dir=args.output.resolve()
   archives={};names={}
   for role,image in manifest['images'].items():
    target=Path(reuse[role]).resolve()
-   if target not in names:names[target]='images/archive-'+str(len(names)+1)+'.tar'
+   if target not in names:names[target]='images/all.tar' if not names else 'images/archive-'+str(len(names)+1)+'.tar'
    image['archive']=names[target];archives.setdefault(target,set()).add(image['id'])
  for target,identities in archives.items():
   with tarfile.open(target,'r:') as saved:
@@ -70,9 +70,11 @@ with tempfile.TemporaryDirectory(prefix='ops-package-',dir=args.output.resolve()
    old_checks=json.loads(base.read('checksums.json'));retained={}
    for name,file in payload.items():
     if name.startswith('images/'):
+     if name not in base.namelist():continue
      entry=base.getinfo(name)
      if old_checks.get(name)!=checksums[name] or entry.file_size!=file.stat().st_size:raise ValueError('Reflink base image differs from selected pinned archive')
      retained[name]=entry
+   if not retained:raise ValueError('Reflink publication must retain at least one verified image archive')
   try:
    run(['/bin/cp','--reflink=always','--',str(args.reflink_from),str(args.output)])
    with zipfile.ZipFile(args.output,'a',compression=zipfile.ZIP_DEFLATED,compresslevel=1,allowZip64=True) as archive:

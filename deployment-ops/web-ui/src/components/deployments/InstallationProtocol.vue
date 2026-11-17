@@ -2,7 +2,12 @@
   <details v-if="protocol" class="notice">
     <summary>查看安装协议 · {{ protocol.name }} / {{ protocol.version }}</summary>
     <p>以下为已签名的安装定义，密码将在参数页填写。命令按容器参数数组执行。</p>
-    <p v-if="protocol.runtimeInstaller?.contractVersion === 1" class="muted">
+    <p v-if="protocol.runtimeInstaller?.stagePlan" class="notice warning">
+      复用现有环境：{{ protocol.runtimeInstaller.stagePlan.sourceRoot }}。
+      沿用原数据库、账户、密钥和业务挂载；不会初始化数据库或重置管理员密码。
+      请填写现有管理员密码。配置摘要不一致或业务目录被其他容器占用时，部署会被拒绝。
+    </p>
+    <p v-else-if="protocol.runtimeInstaller?.contractVersion === 1" class="muted">
       Native Runtime 使用已签名的完整组件合同。安装器按声明的启动阶段执行初始化和健康门禁，
       平台核对实际容器的镜像 ID、ENTRYPOINT 和 CMD 后才确认成功。
     </p>
@@ -11,6 +16,12 @@
       使用专用产品安装器；下表未声明的依赖和启动命令由该受信适配器管理，不代表空依赖。
     </p>
     <DataTable :rows="rows" :columns="columns" :searchable="false" />
+    <DataTable
+      v-if="protocol.runtimeInstaller?.stagePlan?.mounts?.length"
+      :rows="protocol.runtimeInstaller.stagePlan.mounts"
+      :columns="mountColumns"
+      :searchable="false"
+    />
   </details>
 </template>
 <script setup>
@@ -23,6 +34,12 @@
     { key: 'dependencies', label: '启动依赖' },
     { key: 'command', label: '启动命令 / 参数' },
     { key: 'health', label: '就绪条件' },
+  ];
+  const mountColumns = [
+    { key: 'component', label: '组件' },
+    { key: 'source', label: '现有宿主机路径' },
+    { key: 'target', label: '容器内路径' },
+    { key: 'mode', label: '访问方式' },
   ];
   const rows = computed(() =>
     (props.protocol?.components || []).map((c) => ({

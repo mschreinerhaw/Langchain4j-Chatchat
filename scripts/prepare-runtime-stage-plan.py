@@ -109,8 +109,8 @@ for group,definition in [('legacy',legacy),('native',native),('frontend',fronten
    if name=='gateway' and isinstance(mount,dict) and mount['target']=='/etc/nginx/nginx.conf':mount['source']='${INSTALL_ROOT}/generated/public-gateway.conf'
   if name in ('api','mcp','news'):
    port={'api':8080,'mcp':8090,'news':8091}[name]
-   path={'api':'/api/v1/enterprise/auth/me','mcp':'/api/v1/admin/auth/me','news':'/actuator/health'}[name]
-   code=200 if name=='news' else 401
+   path={'api':'/api/v1/enterprise/auth/me','mcp':'/api/v1/admin/auth/me','news':'/internal/v1/news/health'}[name]
+   code=401
    script='exec 3<>/dev/tcp/127.0.0.1/'+str(port)+'; printf "GET '+path+' HTTP/1.0\\r\\nHost: localhost\\r\\n\\r\\n" >&3; head -n1 <&3 | grep -q " '+str(code)+'"'
    service['healthcheck']={'test':['CMD','bash','-ec',script],'interval':'5s','timeout':'3s','retries':48}
   if name=='gateway':service['healthcheck']={'test':['CMD-SHELL',"wget -S -O /dev/null http://127.0.0.1:8080/api/v1/enterprise/auth/me 2>&1 | grep -q '401'"],'interval':'5s','timeout':'3s','retries':48}

@@ -16,6 +16,8 @@ const fs=require('fs'),assert=require('assert/strict'),crypto=require('crypto'),
   await execute(one,'wrong-target',400);assert.deepEqual((await call('/nodes/1/manager/images/'+input.image)).defaults,{});checks.push('incorrect target confirmation cannot save defaults');
   const job=await execute(one);changed=true;await wait(job.id);await execute(two,two.target,400);assert.equal((await call('/nodes/1/manager/images/'+input.image)).defaults.cpus,0.3);checks.push('a stale approved plan cannot overwrite a later template revision');
   const restore=await call('/nodes/1/manager/plans',spec({}));await wait((await execute(restore)).id);changed=false;assert.deepEqual((await call('/nodes/1/manager/images/'+input.image)).defaults,{});checks.push('original empty defaults restored');
+  const inventory=await call('/inventory'),runtime=inventory.flatMap(n=>n.data?.containers||[]).find(c=>c.Labels?.['com.docker.compose.project']==='ops-env-runtime-stage-v13'&&c.Labels?.['deployment-ops.component']==='node1');assert(runtime);
+  const preview=await call('/nodes/1/manager/plans',{action:'container.stop',id:runtime.Id});assert.equal(preview.target,runtime.Names[0].replace(/^\//,''));assert(preview.preservesVolumes);await call('/nodes/1/manager/plans',{action:'container.delete',id:runtime.Id},400);checks.push('Runtime component lifecycle preview accepted for its exact target; component deletion rejected; no production action executed');
   fs.writeFileSync(out+'/result.json',JSON.stringify({passed:true,checks},null,2));console.log(JSON.stringify({passed:true,checks}));
  }finally{if(changed){const restore=await call('/nodes/1/manager/plans',spec({}));await wait((await execute(restore)).id);}await browser.close();}
 })().catch(e=>{console.error(e);process.exit(1);});

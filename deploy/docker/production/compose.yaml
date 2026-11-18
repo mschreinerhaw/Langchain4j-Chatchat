@@ -1,0 +1,519 @@
+name: chatchat-production
+services:
+  api:
+    init: true
+    restart: unless-stopped
+    stop_grace_period: 60s
+    security_opt: &id001
+    - no-new-privileges:true
+    cap_drop: &id002
+    - ALL
+    pids_limit: 512
+    logging: &id003
+      driver: json-file
+      options:
+        max-size: 20m
+        max-file: '3'
+    image: chatchat-api:${IMAGE_TAG:-production-local}
+    mem_limit: 4g
+    cpus: 2
+    ports:
+    - 127.0.0.1:${API_PORT:-8080}:8080
+    env_file: ${RUNTIME_CONFIG_DIR:?Set RUNTIME_CONFIG_DIR to an absolute private
+      config directory}/api.env
+    volumes:
+    - api-data:/srv/app/data
+    - ${RUNTIME_CONFIG_DIR}/api:/srv/app/config:ro
+    - ${RUNTIME_CONFIG_DIR}/search-truststore.p12:/run/search-truststore.p12:ro
+    environment:
+      SPRING_CONFIG_ADDITIONAL_LOCATION: optional:file:/srv/app/config/
+      SPRING_CONFIG_IMPORT: classpath:datasource-postgresql.yml,optional:configtree:/run/secrets/
+      CHATCHAT_API_POSTGRESQL_URL: jdbc:postgresql://postgresql:5432/live_runtime_api
+      CHATCHAT_API_POSTGRESQL_USERNAME: chatchat_api
+      CHATCHAT_MCP_GRPC_HOST: mcp
+      CHATCHAT_MCP_GRPC_PORT: '9091'
+      CHATCHAT_SEARCH_OPENSEARCH_URL: https://opensearch:9200
+      CHATCHAT_SEARCH_OPENSEARCH_USERNAME: admin
+      SPRING_DATA_REDIS_HOST: redis
+      SPRING_DATA_REDIS_USERNAME: chatchat
+      JAVA_TOOL_OPTIONS: -XX:MaxRAMPercentage=70 -XX:+ExitOnOutOfMemoryError -Dfile.encoding=UTF-8
+        -Djavax.net.ssl.trustStore=/run/search-truststore.p12 -Djavax.net.ssl.trustStorePassword=changeit
+      NO_PROXY: localhost,127.0.0.1,api,mcp,news,cline,postgresql,temporal-postgresql,temporal,redis,silo,opensearch,frontend-resource-hub,frontend-preview-worker
+      no_proxy: localhost,127.0.0.1,api,mcp,news,cline,postgresql,temporal-postgresql,temporal,redis,silo,opensearch,frontend-resource-hub,frontend-preview-worker
+    secrets:
+    - source: postgresql_api_password
+      target: CHATCHAT_API_POSTGRESQL_PASSWORD
+    - source: opensearch_admin_password
+      target: chatchat.search.opensearch.password
+    - source: redis_password
+      target: spring.data.redis.password
+    - source: api_bootstrap_admin_password
+      target: chatchat.enterprise.bootstrap.admin-password
+    depends_on:
+      postgresql:
+        condition: service_healthy
+      opensearch-security-init:
+        condition: service_completed_successfully
+      temporal-namespace:
+        condition: service_completed_successfully
+      redis:
+        condition: service_healthy
+      silo:
+        condition: service_healthy
+  mcp:
+    init: true
+    restart: unless-stopped
+    stop_grace_period: 60s
+    security_opt: *id001
+    cap_drop: *id002
+    pids_limit: 512
+    logging: *id003
+    image: chatchat-mcp-server:${IMAGE_TAG:-production-local}
+    mem_limit: 2g
+    cpus: 2
+    ports:
+    - 127.0.0.1:${MCP_PORT:-8090}:8090
+    env_file: ${RUNTIME_CONFIG_DIR:?Set RUNTIME_CONFIG_DIR to an absolute private
+      config directory}/mcp.env
+    volumes:
+    - mcp-data:/srv/app/data
+    - ${RUNTIME_CONFIG_DIR}/mcp:/srv/app/config:ro
+    - ${RUNTIME_CONFIG_DIR}/search-truststore.p12:/run/search-truststore.p12:ro
+    expose:
+    - '9091'
+    environment:
+      SPRING_CONFIG_ADDITIONAL_LOCATION: optional:file:/srv/app/config/
+      SPRING_CONFIG_IMPORT: classpath:datasource-postgresql.yml,optional:configtree:/run/secrets/
+      CHATCHAT_MCP_POSTGRESQL_URL: jdbc:postgresql://postgresql:5432/live_runtime_mcp
+      CHATCHAT_MCP_POSTGRESQL_USERNAME: chatchat_mcp
+      JAVA_TOOL_OPTIONS: -XX:MaxRAMPercentage=70 -XX:+ExitOnOutOfMemoryError -Dfile.encoding=UTF-8
+        -Djavax.net.ssl.trustStore=/run/search-truststore.p12 -Djavax.net.ssl.trustStorePassword=changeit
+      CHATCHAT_MCP_LUCENE_OPENSEARCH_ENDPOINT: https://opensearch:9200
+      CHATCHAT_MCP_LUCENE_OPENSEARCH_USERNAME: admin
+      NO_PROXY: localhost,127.0.0.1,api,mcp,news,cline,postgresql,temporal-postgresql,temporal,redis,silo,opensearch,frontend-resource-hub,frontend-preview-worker
+      no_proxy: localhost,127.0.0.1,api,mcp,news,cline,postgresql,temporal-postgresql,temporal,redis,silo,opensearch,frontend-resource-hub,frontend-preview-worker
+    secrets:
+    - source: postgresql_mcp_password
+      target: CHATCHAT_MCP_POSTGRESQL_PASSWORD
+    - source: opensearch_admin_password
+      target: chatchat.mcp.lucene.open-search.password
+    depends_on:
+      postgresql:
+        condition: service_healthy
+      opensearch-security-init:
+        condition: service_completed_successfully
+      temporal-namespace:
+        condition: service_completed_successfully
+  news:
+    init: true
+    restart: unless-stopped
+    stop_grace_period: 60s
+    security_opt: *id001
+    cap_drop: *id002
+    pids_limit: 512
+    logging: *id003
+    image: chatchat-runtime-news:${IMAGE_TAG:-production-local}
+    mem_limit: 2g
+    cpus: 2
+    ports:
+    - 127.0.0.1:${NEWS_PORT:-8091}:8091
+    env_file: ${RUNTIME_CONFIG_DIR:?Set RUNTIME_CONFIG_DIR to an absolute private
+      config directory}/news.env
+    volumes:
+    - news-data:/srv/app/data
+    - ${RUNTIME_CONFIG_DIR}/news:/srv/app/config:ro
+    - ${RUNTIME_CONFIG_DIR}/search-truststore.p12:/run/search-truststore.p12:ro
+    environment:
+      SPRING_CONFIG_ADDITIONAL_LOCATION: optional:file:/srv/app/config/
+      SPRING_CONFIG_IMPORT: optional:configtree:/run/secrets/
+      CHATCHAT_NEWS_POSTGRESQL_URL: jdbc:postgresql://postgresql:5432/chatchat_news
+      CHATCHAT_NEWS_POSTGRESQL_USERNAME: chatchat_news
+      CHATCHAT_RUNTIME_NEWS_TEMPORAL_TARGET: temporal:7233
+      CHATCHAT_RUNTIME_NEWS_MCP_SERVER_BASE_URL: http://mcp:8090
+      CHATCHAT_RUNTIME_NEWS_OPENSEARCH_ENDPOINT: https://opensearch:9200
+      CHATCHAT_RUNTIME_NEWS_OPENSEARCH_INSECURESSL: 'false'
+      JAVA_TOOL_OPTIONS: -XX:MaxRAMPercentage=70 -XX:+ExitOnOutOfMemoryError -Dfile.encoding=UTF-8
+        -Djavax.net.ssl.trustStore=/run/search-truststore.p12 -Djavax.net.ssl.trustStorePassword=changeit
+      NO_PROXY: localhost,127.0.0.1,api,mcp,news,cline,postgresql,temporal-postgresql,temporal,redis,silo,opensearch,frontend-resource-hub,frontend-preview-worker
+      no_proxy: localhost,127.0.0.1,api,mcp,news,cline,postgresql,temporal-postgresql,temporal,redis,silo,opensearch,frontend-resource-hub,frontend-preview-worker
+    secrets:
+    - source: postgresql_news_password
+      target: CHATCHAT_NEWS_POSTGRESQL_PASSWORD
+    - source: opensearch_admin_password
+      target: chatchat.runtime.news.open-search.password
+    depends_on:
+      postgresql:
+        condition: service_healthy
+      opensearch-security-init:
+        condition: service_completed_successfully
+      temporal-namespace:
+        condition: service_completed_successfully
+  cline:
+    init: true
+    restart: unless-stopped
+    stop_grace_period: 60s
+    security_opt: *id001
+    cap_drop: *id002
+    pids_limit: 512
+    logging: *id003
+    image: cline-agent-server:${IMAGE_TAG:-production-local}
+    mem_limit: 4g
+    cpus: 2
+    ports:
+    - 127.0.0.1:${CLINE_PORT:-18326}:18326
+    secrets:
+    - cline-server
+    volumes:
+    - cline-state:/srv/app/state
+    - cline-workspace:/workspace
+    environment:
+      NO_PROXY: localhost,127.0.0.1,api,mcp,news,cline,postgresql,temporal-postgresql,temporal,redis,silo,opensearch,frontend-resource-hub,frontend-preview-worker
+      no_proxy: localhost,127.0.0.1,api,mcp,news,cline,postgresql,temporal-postgresql,temporal,redis,silo,opensearch,frontend-resource-hub,frontend-preview-worker
+  postgresql:
+    image: postgres:18
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD_FILE: /run/secrets/postgresql_admin_password
+      POSTGRES_INITDB_ARGS: --auth-host=scram-sha-256
+      NO_PROXY: localhost,127.0.0.1,api,mcp,news,cline,postgresql,temporal-postgresql,temporal,redis,silo,opensearch,frontend-resource-hub,frontend-preview-worker
+      no_proxy: localhost,127.0.0.1,api,mcp,news,cline,postgresql,temporal-postgresql,temporal,redis,silo,opensearch,frontend-resource-hub,frontend-preview-worker
+    volumes:
+    - postgresql-data:/var/lib/postgresql
+    - ../application/postgresql-init.sh:/docker-entrypoint-initdb.d/10-runtime.sh:ro
+    - ../../../database/init/postgresql:/opt/runtime-schema:ro
+    secrets:
+    - postgresql_admin_password
+    - postgresql_api_password
+    - postgresql_mcp_password
+    - postgresql_news_password
+    healthcheck:
+      test:
+      - CMD-SHELL
+      - test -f "$${PGDATA}/.runtime-schema-initialized" && pg_isready -U postgres
+        -d postgres
+      interval: 5s
+      timeout: 5s
+      retries: 30
+    mem_limit: 2g
+  temporal-postgresql:
+    image: postgres:18
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: temporal
+      POSTGRES_DB: temporal
+      POSTGRES_PASSWORD_FILE: /run/secrets/temporal_database_password
+      NO_PROXY: localhost,127.0.0.1,api,mcp,news,cline,postgresql,temporal-postgresql,temporal,redis,silo,opensearch,frontend-resource-hub,frontend-preview-worker
+      no_proxy: localhost,127.0.0.1,api,mcp,news,cline,postgresql,temporal-postgresql,temporal,redis,silo,opensearch,frontend-resource-hub,frontend-preview-worker
+    secrets:
+    - temporal_database_password
+    volumes:
+    - temporal-postgresql-data:/var/lib/postgresql
+    healthcheck:
+      test:
+      - CMD
+      - pg_isready
+      - -U
+      - temporal
+      interval: 5s
+      timeout: 5s
+      retries: 30
+    mem_limit: 1g
+  temporal-schema:
+    image: temporalio/auto-setup:1.29.7
+    restart: 'no'
+    init: true
+    entrypoint:
+    - bash
+    - /opt/production/temporal-entrypoint.sh
+    - schema
+    environment:
+      DB: postgres12
+      DB_PORT: '5432'
+      POSTGRES_USER: temporal
+      POSTGRES_SEEDS: temporal-postgresql
+      DBNAME: temporal
+      VISIBILITY_DBNAME: temporal_visibility
+      ENABLE_ES: 'false'
+      TEMPORAL_ADDRESS: temporal:7233
+      SKIP_DEFAULT_NAMESPACE_CREATION: 'true'
+      SKIP_ADD_CUSTOM_SEARCH_ATTRIBUTES: 'true'
+      NO_PROXY: localhost,127.0.0.1,api,mcp,news,cline,postgresql,temporal-postgresql,temporal,redis,silo,opensearch,frontend-resource-hub,frontend-preview-worker
+      no_proxy: localhost,127.0.0.1,api,mcp,news,cline,postgresql,temporal-postgresql,temporal,redis,silo,opensearch,frontend-resource-hub,frontend-preview-worker
+    secrets:
+    - temporal_database_password
+    volumes:
+    - ./temporal-entrypoint.sh:/opt/production/temporal-entrypoint.sh:ro
+    depends_on:
+      temporal-postgresql:
+        condition: service_healthy
+    mem_limit: 512m
+  temporal:
+    image: temporalio/server:1.29.7
+    restart: unless-stopped
+    init: true
+    entrypoint:
+    - bash
+    - /opt/production/temporal-entrypoint.sh
+    - server
+    environment:
+      DB: postgres12
+      DB_PORT: '5432'
+      POSTGRES_USER: temporal
+      POSTGRES_SEEDS: temporal-postgresql
+      DBNAME: temporal
+      VISIBILITY_DBNAME: temporal_visibility
+      ENABLE_ES: 'false'
+      TEMPORAL_ADDRESS: 127.0.0.1:7233
+      SKIP_DEFAULT_NAMESPACE_CREATION: 'true'
+      SKIP_ADD_CUSTOM_SEARCH_ATTRIBUTES: 'true'
+      NO_PROXY: localhost,127.0.0.1,api,mcp,news,cline,postgresql,temporal-postgresql,temporal,redis,silo,opensearch,frontend-resource-hub,frontend-preview-worker
+      no_proxy: localhost,127.0.0.1,api,mcp,news,cline,postgresql,temporal-postgresql,temporal,redis,silo,opensearch,frontend-resource-hub,frontend-preview-worker
+      BIND_ON_IP: 0.0.0.0
+    secrets:
+    - temporal_database_password
+    volumes:
+    - ./temporal-entrypoint.sh:/opt/production/temporal-entrypoint.sh:ro
+    depends_on:
+      temporal-schema:
+        condition: service_completed_successfully
+    healthcheck:
+      test:
+      - CMD
+      - nc
+      - -z
+      - 127.0.0.1
+      - '7233'
+      interval: 5s
+      timeout: 3s
+      retries: 40
+      start_period: 30s
+    mem_limit: 2g
+    stop_grace_period: 60s
+  temporal-namespace:
+    image: temporalio/auto-setup:1.29.7
+    restart: 'no'
+    entrypoint:
+    - bash
+    - -ec
+    - for i in $$(seq 1 90); do if temporal operator cluster health | grep -q SERVING;
+      then temporal operator namespace describe --namespace default || temporal operator
+      namespace create --namespace default --retention 72h; exit $$?; fi; sleep 2;
+      done; exit 1
+    environment:
+      TEMPORAL_ADDRESS: 127.0.0.1:7233
+      NO_PROXY: localhost,127.0.0.1,api,mcp,news,cline,postgresql,temporal-postgresql,temporal,redis,silo,opensearch,frontend-resource-hub,frontend-preview-worker
+      no_proxy: localhost,127.0.0.1,api,mcp,news,cline,postgresql,temporal-postgresql,temporal,redis,silo,opensearch,frontend-resource-hub,frontend-preview-worker
+    depends_on:
+      temporal:
+        condition: service_healthy
+    mem_limit: 256m
+    network_mode: service:temporal
+  redis:
+    image: redis:7.4-alpine
+    restart: unless-stopped
+    entrypoint:
+    - sh
+    - /opt/production/redis-entrypoint.sh
+    volumes:
+    - redis-data:/data
+    - ../redis/redis.conf:/usr/local/etc/redis/redis.conf:ro
+    - ../redis/entrypoint.sh:/opt/production/redis-entrypoint.sh:ro
+    secrets:
+    - redis_password
+    healthcheck:
+      test:
+      - CMD-SHELL
+      - REDISCLI_AUTH=$$(cat /run/secrets/redis_password) redis-cli --user chatchat
+        --no-auth-warning ping | grep -q PONG
+      interval: 5s
+      timeout: 3s
+      retries: 30
+    mem_limit: 1g
+    environment:
+      NO_PROXY: localhost,127.0.0.1,api,mcp,news,cline,postgresql,temporal-postgresql,temporal,redis,silo,opensearch,frontend-resource-hub,frontend-preview-worker
+      no_proxy: localhost,127.0.0.1,api,mcp,news,cline,postgresql,temporal-postgresql,temporal,redis,silo,opensearch,frontend-resource-hub,frontend-preview-worker
+  silo:
+    image: pgsty/silo:latest
+    restart: unless-stopped
+    command:
+    - server
+    - /data
+    - --console-address
+    - :9001
+    environment:
+      MINIO_ROOT_USER_FILE: /run/secrets/silo_root_user
+      MINIO_ROOT_PASSWORD_FILE: /run/secrets/silo_root_password
+      NO_PROXY: localhost,127.0.0.1,api,mcp,news,cline,postgresql,temporal-postgresql,temporal,redis,silo,opensearch,frontend-resource-hub,frontend-preview-worker
+      no_proxy: localhost,127.0.0.1,api,mcp,news,cline,postgresql,temporal-postgresql,temporal,redis,silo,opensearch,frontend-resource-hub,frontend-preview-worker
+    secrets:
+    - silo_root_user
+    - silo_root_password
+    volumes:
+    - silo-data:/data
+    healthcheck:
+      test:
+      - CMD
+      - curl
+      - -fsS
+      - http://127.0.0.1:9000/minio/health/live
+      interval: 10s
+      timeout: 5s
+      retries: 30
+    mem_limit: 1g
+  opensearch:
+    image: opensearchproject/opensearch:2.19.1
+    restart: unless-stopped
+    environment:
+      OPENSEARCH_JAVA_OPTS: ${OPENSEARCH_JAVA_OPTS:--Xms512m -Xmx512m}
+      DISABLE_INSTALL_DEMO_CONFIG: 'true'
+      NO_PROXY: localhost,127.0.0.1,api,mcp,news,cline,postgresql,temporal-postgresql,temporal,redis,silo,opensearch,frontend-resource-hub,frontend-preview-worker
+      no_proxy: localhost,127.0.0.1,api,mcp,news,cline,postgresql,temporal-postgresql,temporal,redis,silo,opensearch,frontend-resource-hub,frontend-preview-worker
+    volumes:
+    - opensearch-data:/usr/share/opensearch/data
+    - ../opensearch/opensearch.yml:/usr/share/opensearch/config/opensearch.yml:ro
+    - ${RUNTIME_CONFIG_DIR}/opensearch-certs:/usr/share/opensearch/config/certs:ro
+    ulimits:
+      memlock:
+        soft: -1
+        hard: -1
+      nofile:
+        soft: 65536
+        hard: 65536
+    healthcheck:
+      test:
+      - CMD-SHELL
+      - code=$$(curl --silent --output /dev/null --write-out "%{http_code}" --cacert
+        config/certs/root-ca.pem https://localhost:9200); test "$$code" = 200 || test
+        "$$code" = 401 || test "$$code" = 503
+      interval: 10s
+      timeout: 5s
+      retries: 30
+      start_period: 30s
+    mem_limit: 2g
+  opensearch-security-init:
+    image: opensearchproject/opensearch:2.19.1
+    restart: 'no'
+    depends_on:
+      opensearch:
+        condition: service_healthy
+    entrypoint:
+    - bash
+    - /opt/runtime/init-security.sh
+    volumes:
+    - ../application/opensearch-init-security.sh:/opt/runtime/init-security.sh:ro
+    - ${RUNTIME_CONFIG_DIR}/opensearch-certs:/usr/share/opensearch/config/certs:ro
+    secrets:
+    - opensearch_admin_password
+    environment:
+      NO_PROXY: localhost,127.0.0.1,api,mcp,news,cline,postgresql,temporal-postgresql,temporal,redis,silo,opensearch,frontend-resource-hub,frontend-preview-worker
+      no_proxy: localhost,127.0.0.1,api,mcp,news,cline,postgresql,temporal-postgresql,temporal,redis,silo,opensearch,frontend-resource-hub,frontend-preview-worker
+  frontend-resource-hub:
+    init: true
+    restart: unless-stopped
+    stop_grace_period: 60s
+    security_opt:
+    - no-new-privileges:true
+    cap_drop:
+    - ALL
+    pids_limit: 512
+    logging:
+      driver: json-file
+      options:
+        max-size: 20m
+        max-file: '3'
+    image: frontend-resource-hub:${IMAGE_TAG:-production-local}
+    read_only: true
+    mem_limit: 512m
+    cpus: 0.5
+    environment:
+      HUB_TOKEN: ${HUB_TOKEN:?Set HUB_TOKEN}
+      PUBLIC_URL: ${FRONTEND_PUBLIC_URL:-http://frontend-resource-hub:8080}
+      WORKER_URL: http://frontend-preview-worker:8081
+      NO_PROXY: localhost,127.0.0.1,api,mcp,news,cline,postgresql,temporal-postgresql,temporal,redis,silo,opensearch,frontend-resource-hub,frontend-preview-worker
+      no_proxy: localhost,127.0.0.1,api,mcp,news,cline,postgresql,temporal-postgresql,temporal,redis,silo,opensearch,frontend-resource-hub,frontend-preview-worker
+    healthcheck:
+      test:
+      - CMD
+      - node
+      - -e
+      - fetch('http://127.0.0.1:8080/api/v1/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))
+      interval: 30s
+      timeout: 5s
+      retries: 5
+    ports:
+    - 127.0.0.1:${FRONTEND_HUB_PORT:-18220}:8080
+  frontend-preview-worker:
+    init: true
+    restart: unless-stopped
+    stop_grace_period: 60s
+    security_opt:
+    - no-new-privileges:true
+    - seccomp=../../../frontend-resource-hub/seccomp_profile.json
+    cap_drop:
+    - ALL
+    pids_limit: 512
+    logging:
+      driver: json-file
+      options:
+        max-size: 20m
+        max-file: '3'
+    image: frontend-resource-hub:${IMAGE_TAG:-production-local}
+    read_only: true
+    mem_limit: 2g
+    cpus: 2
+    environment:
+      HUB_TOKEN: ${HUB_TOKEN:?Set HUB_TOKEN}
+      HUB_ORIGIN: http://frontend-resource-hub:8080
+      NO_PROXY: localhost,127.0.0.1,api,mcp,news,cline,postgresql,temporal-postgresql,temporal,redis,silo,opensearch,frontend-resource-hub,frontend-preview-worker
+      no_proxy: localhost,127.0.0.1,api,mcp,news,cline,postgresql,temporal-postgresql,temporal,redis,silo,opensearch,frontend-resource-hub,frontend-preview-worker
+    healthcheck:
+      test:
+      - CMD
+      - node
+      - -e
+      - fetch('http://127.0.0.1:8081/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))
+      interval: 30s
+      timeout: 5s
+      retries: 5
+    command:
+    - node
+    - worker.mjs
+    shm_size: 256m
+    tmpfs:
+    - /tmp:size=256m
+    - /app/jobs:uid=10001,gid=10001,size=768m
+secrets:
+  cline-server:
+    file: ${RUNTIME_CONFIG_DIR}/cline-server.json
+  postgresql_admin_password:
+    file: ${RUNTIME_CONFIG_DIR}/secrets/postgresql_admin_password
+  postgresql_api_password:
+    file: ${RUNTIME_CONFIG_DIR}/secrets/postgresql_api_password
+  postgresql_mcp_password:
+    file: ${RUNTIME_CONFIG_DIR}/secrets/postgresql_mcp_password
+  postgresql_news_password:
+    file: ${RUNTIME_CONFIG_DIR}/secrets/postgresql_news_password
+  temporal_database_password:
+    file: ${RUNTIME_CONFIG_DIR}/secrets/temporal_database_password
+  opensearch_admin_password:
+    file: ${RUNTIME_CONFIG_DIR}/secrets/opensearch_admin_password
+  redis_password:
+    file: ${RUNTIME_CONFIG_DIR}/secrets/redis_password
+  silo_root_user:
+    file: ${RUNTIME_CONFIG_DIR}/secrets/silo_root_user
+  silo_root_password:
+    file: ${RUNTIME_CONFIG_DIR}/secrets/silo_root_password
+  api_bootstrap_admin_password:
+    file: ${RUNTIME_CONFIG_DIR}/secrets/api_bootstrap_admin_password
+volumes:
+  api-data: null
+  mcp-data: null
+  news-data: null
+  cline-state: null
+  cline-workspace: null
+  postgresql-data: null
+  temporal-postgresql-data: null
+  redis-data: null
+  silo-data: null
+  opensearch-data: null

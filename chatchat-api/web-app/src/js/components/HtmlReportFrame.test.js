@@ -2,6 +2,7 @@
 import {it,expect,vi} from 'vitest';
 import {createApp,h,nextTick} from 'vue';
 import HtmlReportFrame from '../../components/HtmlReportFrame.vue';
+import {loadHtmlReport} from '../utils/htmlReport';
 vi.mock('../utils/htmlReport',()=>({loadHtmlReport:vi.fn(async()=>'<html><body>Report</body></html>')}));
 it('sizes the report from its own sandbox and rejects foreign or invalid height messages',async()=>{
  const host=document.createElement('div');document.body.append(host);
@@ -18,4 +19,17 @@ it('sizes the report from its own sandbox and rejects foreign or invalid height 
   expect(host.querySelector('header').textContent).not.toContain('分析报告');
   expect(frame.getAttribute('sandbox')).toBe('allow-scripts');
  }finally{app.unmount();host.remove()}
+});
+it('shows the delivered fallback instead of a technical error when assembly fails',async()=>{
+ loadHtmlReport.mockRejectedValueOnce(new Error('missing.js'));
+ const host=document.createElement('div');document.body.append(host);
+ const app=createApp({render:()=>h(HtmlReportFrame,{report:{entryPath:'report.html'}},{
+  fallback:()=>h('p','Verified textual findings')
+ })});
+ try{
+  app.mount(host);await Promise.resolve();await nextTick();
+  expect(host.textContent).toContain('Verified textual findings');
+  expect(host.textContent).not.toContain('missing.js');
+  expect(host.querySelector('iframe')).toBeNull();
+ }finally{app.unmount();host.remove();}
 });

@@ -28,7 +28,18 @@ export async function assembleHtmlReport(bundle){
   }
   const entry=files.get(bundle.report.entryPath);if(!entry||entry.type!=='text/html')throw new Error('缺少 HTML 报告入口');
   const base='https://report.invalid/'+bundle.report.entryPath;
-  function resource(ref,from=base){const url=new URL(ref,from);if(url.origin!=='https://report.invalid'||url.search||url.hash)throw new Error('报告包含未交付的外部资源');const file=files.get(decodeURIComponent(url.pathname.slice(1)));if(!file)throw new Error('报告依赖文件缺失：'+ref);return file;}
+  function resource(ref,from=base,optional=false){
+    const url=new URL(ref,from);
+    if(url.origin!=='https://report.invalid'||url.search||url.hash)throw new Error('报告包含未交付的外部资源');
+    const path=decodeURIComponent(url.pathname.slice(1));
+    // Older Native reports use workspace-relative output/... references.
+    // Resolve those only against exact entries in the verified bundle.
+    const workspacePath=/^output\/(?:[^/%\\?#]+\/)*[^/%\\?#]+$/.test(ref)&&
+      ref.split('/').every(part=>part!=='.'&&part!=='..');
+    const file=files.get(path)||(workspacePath?files.get(ref):undefined);
+    if(!file&&!optional)throw new Error('报告依赖文件缺失');
+    return file;
+  }
   const data=file=>`data:${file.type};base64,${file.content}`;
   // These bytes are already covered by the delivered HTML's verified SHA-256.
   // Treat supported embedded images as local content, never as network URLs.
@@ -54,7 +65,19 @@ export async function assembleHtmlReport(bundle){
     if(el.type==='module')throw new Error('请将模块脚本打包为普通 JS 后交付');
     if(el.hasAttribute('src')){const file=resource(el.getAttribute('src'));if(file.type!=='text/javascript')throw new Error('脚本资源类型不匹配');el.setAttribute('src',data(file));el.removeAttribute('integrity');}
   }
-  for(const el of doc.querySelectorAll('[src]:not(script)')){const ref=el.getAttribute('src');el.setAttribute('src',(el.tagName==='IMG'&&embeddedImage(ref))||data(resource(ref)));el.removeAttribute('srcset');}
+  for(const el of doc.querySelectorAll('[src]:not(script)')){
+    const ref=el.getAttribute('src');
+    const isImage=el.tagName==='IMG';
+    const embedded=isImage&&embeddedImage(ref);
+    const file=embedded?null:resource(ref,base,isImage);
+    if(!embedded&&!file){
+      const note=doc.createElement('span');
+      note.textContent='此图表暂不可用，正文和数据仍可查看。';
+      el.replaceWith(note);
+      continue;
+    }
+    el.setAttribute('src',embedded||data(file));el.removeAttribute('srcset');
+  }
   doc.querySelectorAll('[srcset]').forEach(el=>el.removeAttribute('srcset'));
   doc.querySelectorAll('a[href],area[href]').forEach(el=>{if(!el.getAttribute('href').startsWith('#'))el.removeAttribute('href');el.removeAttribute('target');el.removeAttribute('ping');});
   const virtual=Object.fromEntries([...files].map(([path,file])=>[path,{content:file.content,type:file.type}]));

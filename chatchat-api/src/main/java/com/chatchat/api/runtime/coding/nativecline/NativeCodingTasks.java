@@ -61,6 +61,7 @@ public final class NativeCodingTasks {
     }
     private Map<String,Object> receipt(KernelDataScope scope,String task,CodingTaskOutcome outcome){
         var result=new LinkedHashMap<String,Object>();result.put("operation","RUN_CODING");result.put("taskId",task);result.put("runId",scope.runId());result.put("status",outcome.status().name());result.put("terminal",outcome.status().terminal());result.put("validationStatus",outcome.validationStatus().name());result.put("businessValidationPassed",false);
+        if(outcome.reasonCode()!=null)result.put("reasonCode",outcome.reasonCode().name());
         result.put("resultAvailable",outcome.resultDatasetRef()!=null);result.put("summary",outcome.summary());result.put("eventCursor",outcome.lastEventSequence());result.put("taskRevision",outcome.revision());result.put("cancellationRequested",outcome.cancellationRequested());result.put("reconciliationRequired",outcome.executionControl().reconciliationRequired());
         result.put("analysisStartedAt",outcome.startedAt()==null?outcome.createdAt().toString():outcome.startedAt().toString());if(outcome.endedAt()!=null)result.put("analysisFinishedAt",outcome.endedAt().toString());result.put("usage",outcome.usage());result.put("stageSnapshotChecked",outcome.status().terminal());
         try{result.put("analysisEvents",tasks.events(scope,task,Math.max(0,outcome.lastEventSequence()-256),256).stream().map(NativeCodingProgress::eventView).toList());result.put("progressHistoryStatus",outcome.lastEventSequence()>256?"RECENT_WINDOW":"AVAILABLE");}
@@ -71,7 +72,14 @@ public final class NativeCodingTasks {
         if(outcome.resultDatasetRef()!=null){var dataset=collector.registeredResult(scope,task,outcome.resultDatasetRef());result.put("datasetReference",dataset.reference());result.put("results",dataset.handle().readPage(0,100).rows());}
         if(outcome.status()==CodingTaskOutcome.Status.COMPLETED&&visualReports!=null){
             var rows=result.get("results") instanceof List<?> values?values:List.of();
-            visualReports.project(scope,task,tasks.contract(scope,task).runtimeContext(),rows,files).ifPresent(report->result.put("visualReport",report));
+            try{
+                visualReports.project(scope,task,tasks.contract(scope,task).runtimeContext(),rows,files)
+                    .ifPresent(report->result.put("visualReport",report));
+            }catch(RuntimeException unavailable){
+                org.slf4j.LoggerFactory.getLogger(NativeCodingTasks.class).warn(
+                    "Native report presentation unavailable taskId={} errorType={}",task,unavailable.getClass().getSimpleName());
+                result.put("presentationStatus","TEXT_FALLBACK");
+            }
         }
         return result;
     }
@@ -79,6 +87,7 @@ public final class NativeCodingTasks {
         return await(scope,task,cancelled,null);
     }
     public Map<String,Object> await(KernelDataScope scope,String task,BooleanSupplier cancelled,java.util.function.Consumer<Map<String,Object>> observer){
+        var deadline=tasks.contract(scope,task).budget().deadlineAt();
         long cursor=0;
         for(;;){
             var outcome=adapter.get(scope,task);
@@ -92,7 +101,13 @@ public final class NativeCodingTasks {
                 return receipt(scope,task,outcome);
             }
             if(cancelled.getAsBoolean()){adapter.cancel(scope,task,"Parent task cancelled");throw new java.util.concurrent.CancellationException("Parent task cancelled; Native stop reconciliation continues");}
-            try{Thread.sleep(500);}catch(InterruptedException stopped){Thread.currentThread().interrupt();throw new IllegalStateException("Native task remains durably owned; request was interrupted",stopped);}
+            long remaining=java.time.Duration.between(java.time.Instant.now(),deadline).toMillis();
+            if(remaining<=0){
+                var pending=receipt(scope,task,outcome);
+                pending.put("waitDeadlineReached",true);
+                return pending;
+            }
+            try{Thread.sleep(Math.min(500,remaining));}catch(InterruptedException stopped){Thread.currentThread().interrupt();throw new IllegalStateException("Native task remains durably owned; request was interrupted",stopped);}
         }
     }
 }

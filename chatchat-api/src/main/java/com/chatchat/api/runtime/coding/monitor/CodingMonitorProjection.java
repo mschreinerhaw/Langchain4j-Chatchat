@@ -130,7 +130,15 @@ public final class CodingMonitorProjection implements DurableCodingTaskService.P
     public Map<String,Object> list(String tenant,String user,String query,String status,long from,long to,int page,int size){
         size=Math.max(1,Math.min(size,100));page=Math.max(0,page);
         String where=" where tenant_id=? and user_id=? and lower(task_name) like ? and (?='' or status=?) and created_at>=? and created_at<=?";
-        Object[] args={tenant,user,"%"+Objects.toString(query,"").toLowerCase(Locale.ROOT)+"%",Objects.toString(status,""),Objects.toString(status,""),from,to};
+        String filter=Objects.toString(status,"");
+        if("ACTIVE".equals(filter)){
+            filter="RUNNING";
+            where+=" and summary_json not like '%\"stopPending\":true%'";
+        }else if("STOPPING".equals(filter)){
+            filter="";
+            where+=" and status in ('CREATED','RUNNING') and summary_json like '%\"stopPending\":true%'";
+        }
+        Object[] args={tenant,user,"%"+Objects.toString(query,"").toLowerCase(Locale.ROOT)+"%",filter,filter,from,to};
         var parameters=new ArrayList<>(Arrays.asList(args));parameters.add(size);parameters.add(Math.multiplyExact(page,size));
         var items=jdbc.queryForList("select summary_json from runtime_coding_task_view"+where+" order by created_at desc,id limit ? offset ?",parameters.toArray()).stream().map(r->decode(r.get("summary_json"))).toList();
         return Map.of("items",items,"total",jdbc.queryForObject("select count(*) from runtime_coding_task_view"+where,Long.class,args),"page",page,"size",size,"projectionLagging",lagging);

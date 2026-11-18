@@ -12,6 +12,31 @@ import static org.assertj.core.api.Assertions.*;
 
 class NativeS3NodeClientTest {
     final ObjectMapper json=new ObjectMapper();
+    @Test void aStalledResponseBodyCannotOutliveTheSignedTaskDeadline()throws Exception{
+        var server=HttpServer.create(new InetSocketAddress("127.0.0.1",0),0);
+        var started=new java.util.concurrent.CountDownLatch(1);
+        var release=new java.util.concurrent.CountDownLatch(1);
+        server.createContext("/",exchange->{
+            try{
+                exchange.sendResponseHeaders(200,100);
+                exchange.getResponseBody().write('{');
+                exchange.getResponseBody().flush();
+                started.countDown();
+                release.await(5,java.util.concurrent.TimeUnit.SECONDS);
+            }catch(InterruptedException interrupted){Thread.currentThread().interrupt();}
+            finally{exchange.close();}
+        });
+        server.start();
+        try{
+            var client=new NativeS3NodeClient(URI.create("http://127.0.0.1:"+server.getAddress().getPort()),json);
+            long start=System.nanoTime();
+            String grant=client.signGrant(Map.of("expiresAt",System.currentTimeMillis()+1200),"k".repeat(64));
+            assertThatThrownBy(()->client.message(grant,"session","Synthetic objective","objective-session"))
+                .isInstanceOf(NativeS3NodeClient.TransportException.class);
+            assertThat(started.getCount()).isZero();
+            assertThat(java.time.Duration.ofNanos(System.nanoTime()-start)).isLessThan(java.time.Duration.ofSeconds(4));
+        }finally{release.countDown();server.stop(0);}
+    }
     @Test void actualDeliveryProtocolRejectionIsAvailableForSameSessionFeedback()throws Exception{
         var server=HttpServer.create(new InetSocketAddress("127.0.0.1",0),0);
         server.createContext("/",exchange->{

@@ -28,4 +28,4 @@ http.createServer(async(req,res)=>{
   audit.append({type:'recovery.stopped',payload:{tenantId:c.tenantId,taskId:c.taskId,sessionId:c.sessionId,proof}});
   send(res,200,{sessionId:c.sessionId,stopProof:proof,source:'RESTRICTED_EXECUTOR_RECOVERY'});
  }catch(e){send(res,e.status??503,{message:e.status?e.message:'Recovery stop unconfirmed'});}
-}).listen(Number(process.env.CLINE_RECOVERY_PORT??18362),'127.0.0.1',()=>console.log('Restricted Native recovery control ready'));
+}).listen(Number(process.env.CLINE_RECOVERY_PORT??18362),process.env.CLINE_RECOVERY_HOST??'127.0.0.1',()=>console.log('Restricted Native recovery control ready'));

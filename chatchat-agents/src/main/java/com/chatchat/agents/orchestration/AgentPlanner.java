@@ -237,7 +237,6 @@ public class AgentPlanner implements AgentPlanningPort {
         String lastRaw = null;
         String logRunId = runId == null ? "" : runId;
         List<PlanCandidate> candidates = new ArrayList<>();
-        boolean experienceOptimizationRequested = false;
         for (int attempt = 1; attempt <= maxAttempts; attempt++) {
             long startedAt = System.currentTimeMillis();
             log.info("agentModelRequest phase=planner runId={} attempt={}/{} modelClass={} promptChars={} estimatedTokens={} toolCount={} observationCount={}",
@@ -249,7 +248,14 @@ public class AgentPlanner implements AgentPlanningPort {
                 TOKEN_ESTIMATOR.estimate(currentPrompt).tokens(),
                 availableTools == null ? 0 : availableTools.size(),
                 observations == null ? 0 : observations.size());
-            String raw = activeChatModel.chat(currentPrompt);
+            String raw;
+            try {
+                raw = activeChatModel.chat(currentPrompt);
+            } catch (RuntimeException failure) {
+                log.warn("agentModelFailure phase=planner runId={} attempt={} errorType={}",
+                    logRunId, attempt, failure.getClass().getSimpleName());
+                throw failure;
+            }
             lastRaw = raw;
             log.info("agentModelResponse phase=planner runId={} attempt={}/{} durationMs={} responseChars={}",
                 logRunId,
@@ -272,37 +278,7 @@ public class AgentPlanner implements AgentPlanningPort {
             candidates.add(candidateScorer.score(attempt, raw, lastDecision, validationContext));
             if (decision != null && !plannerPlanInvalid(decision)) {
                 PlanCandidate currentCandidate = candidates.get(candidates.size() - 1);
-                if (!experienceOptimizationRequested
-                    && attempt < maxAttempts
-                    && shouldOptimizeFromExperience(currentCandidate, validationContext)) {
-                    experienceOptimizationRequested = true;
-                    currentPrompt = buildExperienceOptimizationPrompt(
-                        prompt, raw, currentCandidate, attempt + 1, maxAttempts);
-                    continue;
-                }
                 PlanRewriteContext rewriteContext = candidateScorer.rewriteContext(candidates);
-                if (experienceOptimizationRequested) {
-                    PlanCandidate baseline = candidates.stream()
-                        .filter(candidate -> candidate != null
-                            && candidate.decision() != null
-                            && !plannerPlanInvalid(candidate.decision()))
-                        .findFirst()
-                        .orElse(currentCandidate);
-                    if (!sameExperienceWorkflowContract(baseline.decision(), currentCandidate.decision())) {
-                        return attributionPolicy.attribute(
-                            baseline.decision(),
-                            baseline,
-                            rewriteContext,
-                            "Rejected experience optimization candidate because it changed the user-bound workflow contract.",
-                            false,
-                            List.of("experience_workflow_mutation_rejected")
-                        );
-                    }
-                    AgentDecision optimized = attributeAndSelectBestPlan(rewriteContext, validationContext, logRunId);
-                    if (optimized != null) {
-                        return optimized;
-                    }
-                }
                 return attributionPolicy.attribute(
                     decision,
                     currentCandidate,
@@ -1304,6 +1280,14 @@ public class AgentPlanner implements AgentPlanningPort {
         }
     }
 
+    private static String plannerRepairExcerpt(String output) {
+        if (output == null) return "";
+        int limit = 8_000;
+        if (output.length() <= limit) return output;
+        return output.substring(0, limit / 2) + "\n[Planner output truncated]\n"
+            + output.substring(output.length() - limit / 2);
+    }
+
     private String buildPlannerRepairPrompt(String originalPrompt,
                                             String previousOutput,
                                             AgentDecision invalidDecision,
@@ -1336,7 +1320,7 @@ public class AgentPlanner implements AgentPlanningPort {
         if (!issueWritten) {
             prompt.append("- ").append(invalidDecision == null ? "Invalid planner output" : invalidDecision.reason()).append("\n");
         }
-        prompt.append("Rejected output:\n").append(previousOutput == null ? "" : previousOutput).append("\n\n");
+        prompt.append("Rejected output:\n").append(plannerRepairExcerpt(previousOutput)).append("\n\n");
         prompt.append("Regenerate the entire response as strict InterpretationPlan JSON only. ");
         prompt.append("Do not omit any mandatory MCP tool and do not return legacy action JSON. ");
         prompt.append("Keep tool_priority and accuracy_vs_speed values within 0.0 to 1.0.");
@@ -1363,59 +1347,6 @@ public class AgentPlanner implements AgentPlanningPort {
         }
         return ZoneId.systemDefault();
     }
-
-    private boolean shouldOptimizeFromExperience(PlanCandidate candidate,
-                                                 PlannerValidationContext validationContext) {
-        if (candidate == null || validationContext == null || validationContext.experiencePrior() == null) {
-            return false;
-        }
-        Map<String, Object> prior = validationContext.experiencePrior();
-        if (prior.isEmpty() || longValue(prior.get("failedCount")) <= 0) {
-            return false;
-        }
-        Object scoreValue = candidate.deterministicScoreDetails().get("experienceFit");
-        int score = scoreValue instanceof Number number ? number.intValue() : 0;
-        return score < 6;
-    }
-
-    private String buildExperienceOptimizationPrompt(String originalPrompt,
-                                                     String previousOutput,
-                                                     PlanCandidate candidate,
-                                                     int nextAttempt,
-                                                     int maxAttempts) {
-        StringBuilder prompt = new StringBuilder(originalPrompt).append("\n\n");
-        prompt.append("The previous plan is runtime-valid, but historical feedback shows a repeated execution weakness.\n");
-        prompt.append("Experience optimization attempt: ").append(nextAttempt).append('/').append(maxAttempts).append("\n");
-        prompt.append("Experience score details: ").append(candidate.deterministicScoreDetails().get("experience")).append("\n");
-        prompt.append("Previous valid plan:\n").append(previousOutput == null ? "" : previousOutput).append("\n\n");
-        prompt.append("Return a complete strict InterpretationPlan JSON that improves only explicit bindings, edge contracts, validation, bounded rewrite, timeout or fallback policy. ");
-        prompt.append("The MCP tool names, required flags, dependency order and user-bound workflow must remain exactly unchanged. ");
-        prompt.append("Do not add, replace, remove, skip or reorder any MCP tool. ");
-        prompt.append("If the previous plan already contains the safest applicable policy, return it unchanged.");
-        return prompt.toString();
-    }
-
-    private boolean sameExperienceWorkflowContract(AgentDecision baseline, AgentDecision candidate) {
-        InterpretationPlan baselinePlan = baseline == null ? null : baseline.interpretationPlan();
-        InterpretationPlan candidatePlan = candidate == null ? null : candidate.interpretationPlan();
-        if (baselinePlan == null || candidatePlan == null) {
-            return baselinePlan == candidatePlan;
-        }
-        List<String> baselineSteps = baselinePlan.steps().stream()
-            .filter(InterpretationPlan.Step::mcpToolAction)
-            .map(step -> canonicalToolName(step.toolName()) + "|" + normalizeIntegerList(step.dependsOn()))
-            .toList();
-        List<String> candidateSteps = candidatePlan.steps().stream()
-            .filter(InterpretationPlan.Step::mcpToolAction)
-            .map(step -> canonicalToolName(step.toolName()) + "|" + normalizeIntegerList(step.dependsOn()))
-            .toList();
-        return baselineSteps.equals(candidateSteps);
-    }
-
-    private List<Integer> normalizeIntegerList(List<Integer> values) {
-        return values == null ? List.of() : values.stream().filter(java.util.Objects::nonNull).toList();
-    }
-
 
     private AgentDecision attributeAndSelectBestPlan(PlanRewriteContext rewriteContext,
                                                      PlannerValidationContext validationContext,

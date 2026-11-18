@@ -103,7 +103,7 @@ it('persists adaptive layout preferences in the existing user/workspace scope an
   app.unmount();setWorkspaceContext({...scope,userId:'another-owner'});mount();host.querySelector('[role=switch]').click();await nextTick();
   expect(host.querySelector('[aria-label="报告排版策略"]').value).toBe('auto');
 });
-it("keeps reports selected across sends and conversation changes until manually disabled", async () => {
+it("uses the visual selection for only the next submission and clears it when switching conversations", async () => {
   host = document.createElement("div");
   document.body.append(host);
   const sends = [],
@@ -123,24 +123,18 @@ it("keeps reports selected across sends and conversation changes until manually 
     .dispatchEvent(new Event("submit", { bubbles: true, cancelable: true }));
   await nextTick();
   expect(sends[0].reportMode).toBe("visual");
-  expect(toggle.getAttribute("aria-checked")).toBe("true");
+  expect(toggle.getAttribute("aria-checked")).toBe("false");
   expect(sends[0].documentWorkflow).toBe(false);
   expect(sends[0]).not.toHaveProperty("webSearch");
   host
     .querySelector("form")
     .dispatchEvent(new Event("submit", { bubbles: true, cancelable: true }));
   await nextTick();
-  expect(sends[1].reportMode).toBe("visual");
-  props.conversationKey = "two";
-  await nextTick();
-  expect(toggle.getAttribute("aria-checked")).toBe("true");
-  expect(toggle.classList.contains("active")).toBe(true);
-  host
-    .querySelector("form")
-    .dispatchEvent(new Event("submit", { bubbles: true, cancelable: true }));
-  await nextTick();
-  expect(sends[2].reportMode).toBe("visual");
+  expect(sends[1].reportMode).toBe("off");
+  expect(sends[1]).not.toHaveProperty("reportPresentation");
   toggle.click();
+  await nextTick();
+  props.conversationKey = "two";
   await nextTick();
   expect(toggle.getAttribute("aria-checked")).toBe("false");
   expect(toggle.classList.contains("active")).toBe(false);
@@ -148,7 +142,16 @@ it("keeps reports selected across sends and conversation changes until manually 
     .querySelector("form")
     .dispatchEvent(new Event("submit", { bubbles: true, cancelable: true }));
   await nextTick();
-  expect(sends[3].reportMode).toBe("off");
+  expect(sends[2].reportMode).toBe("off");
+  toggle.click();
+  await nextTick();
+  expect(toggle.getAttribute("aria-checked")).toBe("true");
+  expect(toggle.classList.contains("active")).toBe(true);
+  host
+    .querySelector("form")
+    .dispatchEvent(new Event("submit", { bubbles: true, cancelable: true }));
+  await nextTick();
+  expect(sends[3].reportMode).toBe("visual");
 });
 
 it("preserves the selection during execution alongside the document workflow badge", async () => {
@@ -194,7 +197,7 @@ it("preserves the selection during execution alongside the document workflow bad
     .dispatchEvent(new Event("submit", { bubbles: true, cancelable: true }));
   await nextTick();
   expect(sends[0]).toMatchObject({ reportMode: "visual", documentWorkflow: true });
-  expect(toggle.getAttribute("aria-checked")).toBe("true");
+  expect(toggle.getAttribute("aria-checked")).toBe("false");
 });
 
 it('uses compact input with inherited-data disabling while preserving send behavior',async()=>{

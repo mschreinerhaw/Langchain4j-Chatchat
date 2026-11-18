@@ -1,0 +1,12 @@
+{
+  "sourceRoot": "/opt/cline/source",
+  "distDir": "/opt/cline/runtime",
+  "stateDir": "/srv/app/state",
+  "apiToken": "REPLACE_WITH_RANDOM_TOKEN",
+  "model": "REPLACE_WITH_MODEL_ID",
+  "baseUrl": "https://REPLACE_WITH_PROVIDER/v1",
+  "apiKey": "REPLACE_WITH_PROVIDER_KEY",
+  "workspaces": {"default": "/workspace"},
+  "host": "0.0.0.0",
+  "port": 18326
+}

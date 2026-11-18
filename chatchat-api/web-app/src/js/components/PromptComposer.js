@@ -134,7 +134,7 @@ export default {
   },
   watch: {
     selectedAgentId() { this.invalidateIdeas(); },
-    conversationKey() { this.invalidateIdeas(); },
+    conversationKey() { this.reportMode = "off"; this.invalidateIdeas(); },
     ideaContext() { this.invalidateIdeas(); },
     attachments: {deep:true,handler(){this.invalidateIdeas();}},
     loading(value) { if(value)this.invalidateIdeas(); },
@@ -207,14 +207,16 @@ export default {
       ) {
         return;
       }
+      const reportMode = this.reportMode;
+      this.reportMode = "off";
       this.$emit("send", {
         query: value,
         agentId: this.selectedAgentId,
         agentName: this.selectedAgent?.name || "",
         documentWorkflow: this.documentWorkflowActive,
-        reportMode: this.reportMode,
+        reportMode,
           resourceExplorationApproved: this.resourceExplorationApproved,
-        reportPresentation: reportPresentation(this.reportPresentation),
+        ...(reportMode === "visual" ? { reportPresentation: reportPresentation(this.reportPresentation) } : {}),
       });
         this.resourceExplorationApproved = false;
     },

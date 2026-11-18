@@ -60,7 +60,8 @@ public final class LightCodingMonitorController {
             @RequestParam(name="from",defaultValue="0")long from,@RequestParam(name="to",defaultValue="9223372036854775807")long to,
             @RequestParam(name="page",defaultValue="0")int page,@RequestParam(name="size",defaultValue="20")int size){
         if(name.length()>256||from<0||to<from||page<0||page>100000)throw new ResponseStatusException(HttpStatus.BAD_REQUEST);
-        if(!status.isEmpty())try{CodingTaskOutcome.Status.valueOf(status);}catch(IllegalArgumentException invalid){throw new ResponseStatusException(HttpStatus.BAD_REQUEST);}
+        if(!status.isEmpty()&&!Set.of("ACTIVE","STOPPING").contains(status))
+            try{CodingTaskOutcome.Status.valueOf(status);}catch(IllegalArgumentException invalid){throw new ResponseStatusException(HttpStatus.BAD_REQUEST);}
         return ApiResponse.success(projection.list(attribute(request,ApiAuthenticationFilter.CURRENT_TENANT_ID),attribute(request,ApiAuthenticationFilter.CURRENT_USER_ID),name,status,from,to,page,size));
     }
     @GetMapping("/scheduler/nodes") public ApiResponse<?> nodes(HttpServletRequest request){

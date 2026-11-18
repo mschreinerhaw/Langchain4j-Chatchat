@@ -68,10 +68,10 @@ public class SiloCodingWorkspaceService {
         String epoch=checkpoints.readExecutionCheckpoint(scope,epochKey).orElseThrow();
         // Authorization precedes object access. Preserve original physical bytes.
         for(int i=0;i<fileIds.size();i++){
-            var original=assets.get(owner,fileIds.get(i));byte[] bytes=assets.read(owner,original.id());
-            String digest=UserAssetService.hash(bytes);
+            var original=assets.get(owner,fileIds.get(i));
+            String digest=original.sha256();
             String objectKey=taskPrefix(scope.tenantId(),scope.userId(),task,scope.runId(),epoch)+"/input/"+i+"/"+digest;
-            var copy=assets.storeTaskInput(owner,task,scope.runId(),"coding-node-input:"+original.id()+":"+epoch,original.fileName(),original.contentType(),bytes,objectKey);
+            var copy=assets.storeTaskInput(owner,task,scope.runId(),"coding-node-input:"+original.id()+":"+epoch,original,objectKey);
             inputs.add(new Input(copy.id(),"input/data/"+i+"/"+copy.fileName(),copy.size(),copy.sha256(),assets.taskInputVersion(scope,task,copy.id())));
         }
         String snapshot=UserAssetService.hash(encode(inputs).getBytes(StandardCharsets.UTF_8));

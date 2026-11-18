@@ -1,7 +1,6 @@
 package com.chatchat.agents.orchestration;
 
 import com.chatchat.agents.orchestration.planning.model.AgentDecision;
-import com.chatchat.agents.orchestration.planning.model.PlanCandidate;
 import com.chatchat.agents.orchestration.planning.model.PlannerValidationContext;
 
 import com.chatchat.agents.orchestration.AgentPlanner;
@@ -499,18 +498,21 @@ class AgentPlannerTest {
               }
             }
             """;
+        var modelCalls = new java.util.concurrent.atomic.AtomicInteger();
         ChatModel model = new ChatModel() {
             @Override
             public String chat(String message) {
+                modelCalls.incrementAndGet();
                 return envelope;
             }
         };
 
         PlannerExecutionResult result = planner.decideNextAction(
             model, "设计通用表", "", List.of(), List.of(), List.of(), List.of(),
-            List.of(), false, false, null, null, Map.of("plannerMaxRepairAttempts", 1));
+            List.of(), false, false, null, null, Map.of("plannerMaxRepairAttempts", 3, "experiencePrior", Map.of("failedCount", 2)));
 
         assertThat(result.plan().valid()).isTrue();
+        assertThat(modelCalls).hasValue(1);
         assertThat(result.candidateAnswer().content()).contains("独立的业务成果");
         assertThat(result.candidateAnswer().type()).isEqualTo("design_advice");
         assertThat(result.decision().answer()).contains("独立的业务成果");
@@ -1617,27 +1619,7 @@ class AgentPlannerTest {
         assertThat(experience.get("matchedExperienceIds")).isEqualTo(List.of("exp-1"));
         assertThat(experience.get("workflowMutationAllowed")).isEqualTo(false);
         assertThat(experience.get("candidateToolChain")).isEqualTo("asset_query");
-        Method optimizeMethod = AgentPlanner.class.getDeclaredMethod(
-            "shouldOptimizeFromExperience", PlanCandidate.class, PlannerValidationContext.class);
-        optimizeMethod.setAccessible(true);
-        PlanCandidate bareCandidate = new PlanCandidate(
-            1, "A", "{}", bareDecision, "NONE", "fingerprint",
-            (Integer) bareScore.get("total"), bareScore);
-        assertThat((Boolean) optimizeMethod.invoke(planner, bareCandidate, context)).isTrue();
-        Method workflowMethod = AgentPlanner.class.getDeclaredMethod(
-            "sameExperienceWorkflowContract", AgentDecision.class, AgentDecision.class);
-        workflowMethod.setAccessible(true);
-        assertThat((Boolean) workflowMethod.invoke(planner, bareDecision, resilientDecision)).isTrue();
-        InterpretationPlan mutatedPlan = new InterpretationPlan(
-            "1.0", null, null,
-            new InterpretationPlan.Plan(List.of(
-                new InterpretationPlan.Step(1, "final_answer", "", Map.of("answer", "done"), List.of(), null, null)
-            )),
-            barePlan.executionPolicy(), null
-        );
-        AgentDecision mutatedDecision = new AgentDecision(
-            "plan", null, Map.of(), null, null, Map.of(), true, mutatedPlan);
-        assertThat((Boolean) workflowMethod.invoke(planner, bareDecision, mutatedDecision)).isFalse();
+
     }
 
     @Test

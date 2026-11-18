@@ -1,6 +1,6 @@
 import http from 'node:http';
 import {spawnSync} from 'node:child_process';
-import {readFileSync,writeFileSync,mkdirSync,existsSync,readdirSync,realpathSync,openSync,readSync,closeSync,chownSync,chmodSync,lstatSync} from 'node:fs';
+import {readFileSync,writeFileSync,mkdirSync,existsSync,readdirSync,realpathSync,openSync,readSync,closeSync,chownSync,chmodSync,lstatSync,renameSync,fsyncSync} from 'node:fs';
 import {join,resolve} from 'node:path';
 import {randomUUID,createHash,timingSafeEqual} from 'node:crypto';
 import {Journal} from './journal.mjs';
@@ -33,13 +33,21 @@ function coreTree(path,own=false){
  if(stat.isDirectory())for(const name of readdirSync(path))coreTree(join(path,name),own);
  if(own)chownSync(path,config.coreUid,config.coreGid);
 }
-function persist(s){writeFileSync(join(s.dir,'session.json'),JSON.stringify({id:s.id,workspaceRef:s.workspaceRef,editTool:s.editTool,status:s.status,taskId:s.taskId,nativeSessionId:s.nativeSessionId,epoch:s.epoch,revision:s.revision,commands:s.commands,delivery:s.delivery}),{mode:0o600});}
+function persist(s){
+ const next=join(s.dir,'session.json.'+randomUUID()+'.next');
+ writeFileSync(next,JSON.stringify({id:s.id,workspaceRef:s.workspaceRef,editTool:s.editTool,status:s.status,taskId:s.taskId,nativeSessionId:s.nativeSessionId,epoch:s.epoch,revision:s.revision,commands:s.commands,delivery:s.delivery}),{mode:0o600,flush:true});
+ renameSync(next,join(s.dir,'session.json'));
+ const dir=openSync(s.dir,'r');try{fsyncSync(dir);}finally{closeSync(dir);}
+}
 function emit(s,eventType,payload={}){
  const event=s.journal.append({sessionId:s.id,taskId:s.taskId??null,epoch:s.epoch,eventType,payload:redact(payload)});
  for(const response of s.subscribers){if(!response.write(`id: ${event.eventId}\nevent: ${eventType}\ndata: ${JSON.stringify(event)}\n\n`)){s.subscribers.delete(response);response.end();}}
  return event;
 }
-function status(s,state){s.status=state;s.revision++;persist(s);}
+function status(s,state){
+ s.status=state;s.revision++;
+ try{persist(s);}catch(error){s.persistenceFailed=true;throw error;}
+}
 function failure(s,error){if(['cancelled','cancelling','sealing','sealed'].includes(s.status))return;status(s,'failed');emit(s,'task.failed',{message:String(error.message??error)});}
 for(const name of readdirSync(config.stateDir)){
  const file=join(config.stateDir,name,'session.json');if(!existsSync(file))continue;
@@ -71,11 +79,11 @@ function nativeEvent(s,event){
  if(a?.contentType==='tool'&&a.type==='content_start')emit(s,'tool.started',a);
  if(a?.contentType==='tool'&&a.type==='content_end')emit(s,toolFailed(a)?'tool.failed':'tool.completed',a);
  if(a?.type==='notice'&&String(a.reason).includes('compaction'))emit(s,'context.notice',a);
- if(a?.type==='error'){
+ if(a?.type==='error'&&!['turn_completed','failed','cancelled','cancelling','sealing','sealed'].includes(s.status)){
   emit(s,'model.error',a);
   if(a.recoverable===false)failure(s,Error(a.error?.message??'Unrecoverable native model error'));
  }
- if(a?.type==='done'&&!['cancelling','cancelled','failed','sealing','sealed'].includes(s.status)){
+ if(a?.type==='done'&&['running','awaiting_permission','awaiting_input'].includes(s.status)){
   if(a.reason!=='completed'){failure(s,Error('Native Agent stopped: '+a.reason));return;}
   status(s,'turn_completed');emit(s,'turn.completed',{...a,deliveryValidated:false});
  }
@@ -192,7 +200,13 @@ const server=http.createServer(async(req,res)=>{
   }
   if(parts[0]!=='v1'||parts[1]!=='sessions')return send(res,404,{code:'NOT_FOUND'});
   const s=sessions.get(parts[2]);if(!s)return send(res,404,{code:'NOT_FOUND'});
-  if(method==='GET'&&(parts.length===3||parts[3]==='status'))return send(res,200,{sessionId:s.id,status:s.status,taskId:s.taskId,nativeSessionId:s.nativeSessionId,epoch:s.epoch,revision:s.revision,lastEventId:String(s.journal.events.length),pendingPermissions:[...permissions.values()].filter(p=>p.sessionId===s.id&&p.state==='pending').map(({timer,...p})=>redact(p))});
+  if(s.persistenceFailed&&parts[3]!=='cancel')return send(res,503,{code:'SESSION_PERSISTENCE_FAILED'});
+  if(method==='GET'&&(parts.length===3||parts[3]==='status'))return send(res,200,{sessionId:s.id,status:s.status,messageReceipts:true,taskId:s.taskId,nativeSessionId:s.nativeSessionId,epoch:s.epoch,revision:s.revision,lastEventId:String(s.journal.events.length),pendingPermissions:[...permissions.values()].filter(p=>p.sessionId===s.id&&p.state==='pending').map(({timer,...p})=>redact(p))});
+  if(method==='GET'&&parts[3]==='message-receipt'){
+   const key=req.headers['idempotency-key'];
+   if(typeof key!=='string'||!key||key.length>128)return send(res,400,{code:'IDEMPOTENCY_KEY_REQUIRED'});
+   return send(res,200,{messageId:key,receipt:Object.hasOwn(s.commands,key)?s.commands[key].response:null});
+  }
   if(parts[3]==='events'&&method==='GET'){
    const last=req.headers['last-event-id']??url.searchParams.get('after')??'0';const events=s.journal.after(last);
    if(req.headers.accept==='application/json')return send(res,200,{events});
@@ -255,14 +269,15 @@ const server=http.createServer(async(req,res)=>{
   }
   if(parts[3]==='messages'&&method==='POST'){
    const b=await body(req),key=req.headers['idempotency-key'];if(!key||typeof b.text!=='string'||!b.text.trim())return send(res,400,{code:'TEXT_AND_IDEMPOTENCY_KEY_REQUIRED'});
-   if(s.commands[key])return send(res,s.commands[key].hash===digest(b)?202:409,s.commands[key].hash===digest(b)?s.commands[key].response:{code:'IDEMPOTENCY_CONFLICT'});
+   if(key.length>128)return send(res,400,{code:'INVALID_IDEMPOTENCY_KEY'});
+   if(Object.hasOwn(s.commands,key))return send(res,s.commands[key].hash===digest(b)?202:409,s.commands[key].hash===digest(b)?s.commands[key].response:{code:'IDEMPOTENCY_CONFLICT'});
    if(s.status==='awaiting_input'){
     if(b.interactionId!==s.question?.questionId)return send(res,409,{code:'INTERACTION_MISMATCH'});
-    const response={taskId:s.taskId,status:'accepted'};s.commands[key]={hash:digest(b),response};s.worker.send({kind:'question.respond',epoch:s.epoch,questionId:s.question.questionId,text:b.text});s.question=null;status(s,'running');emit(s,'interaction.resolved',{});return send(res,202,response);
+    const response={taskId:s.taskId,status:'accepted'};Object.defineProperty(s.commands,key,{value:{hash:digest(b),response},enumerable:true});status(s,'running');s.worker.send({kind:'question.respond',epoch:s.epoch,questionId:s.question.questionId,text:b.text});s.question=null;emit(s,'interaction.resolved',{});return send(res,202,response);
    }
    if(!s.workerReady||!['idle','turn_completed'].includes(s.status))return send(res,409,{code:'SESSION_BUSY_OR_UNAVAILABLE',status:s.status});
    if(s.delivery){emit(s,'delivery.revision.started',{previousDeliveryVersion:s.delivery.deliveryVersion});s.delivery=null;}
-   s.taskId=randomUUID();const response={taskId:s.taskId,status:'accepted'};s.commands[key]={hash:digest(b),response};status(s,'running');emit(s,'task.accepted',{text:b.text});send(res,202,response);
+   s.taskId=randomUUID();const response={taskId:s.taskId,status:'accepted'};Object.defineProperty(s.commands,key,{value:{hash:digest(b),response},enumerable:true});status(s,'running');emit(s,'task.accepted',{messageId:key});send(res,202,response);
    const isNew=!s.nativeSessionId;
    const operation=isNew?rpc(s.taskClient,'newTask',{text:b.text,images:[],files:[]}):rpc(s.taskClient,'askResponse',{responseType:'messageResponse',text:b.text,images:[],files:[]});
    operation.then(result=>{if(isNew&&!result.value)throw Error('Native newTask returned empty ID');if(result.value)s.nativeSessionId=result.value;persist(s);emit(s,'task.started',{nativeSessionId:s.nativeSessionId});}).catch(e=>failure(s,e));return;

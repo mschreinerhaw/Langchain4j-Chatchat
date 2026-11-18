@@ -1,0 +1,63 @@
+services:
+  api:
+    build:
+      context: ../../..
+      dockerfile: chatchat-api/Dockerfile
+      args:
+        HTTP_PROXY: ${BUILD_PROXY:-https://192.168.36.128:8443}
+        HTTPS_PROXY: ${BUILD_PROXY:-https://192.168.36.128:8443}
+        http_proxy: ${BUILD_PROXY:-https://192.168.36.128:8443}
+        https_proxy: ${BUILD_PROXY:-https://192.168.36.128:8443}
+        NPM_HTTPS_PROXY: ${NPM_HTTPS_PROXY:-https://192.168.36.128:8443}
+      secrets:
+      - maven_settings
+      - proxy_ca
+  mcp:
+    build:
+      context: ../../..
+      dockerfile: chatchat-mcp-server/Dockerfile
+      args:
+        HTTP_PROXY: ${BUILD_PROXY:-https://192.168.36.128:8443}
+        HTTPS_PROXY: ${BUILD_PROXY:-https://192.168.36.128:8443}
+        http_proxy: ${BUILD_PROXY:-https://192.168.36.128:8443}
+        https_proxy: ${BUILD_PROXY:-https://192.168.36.128:8443}
+        NPM_HTTPS_PROXY: ${NPM_HTTPS_PROXY:-https://192.168.36.128:8443}
+      secrets:
+      - maven_settings
+      - proxy_ca
+  news:
+    build:
+      context: ../../..
+      dockerfile: chatchat-runtime-news/Dockerfile
+      args:
+        HTTP_PROXY: ${BUILD_PROXY:-https://192.168.36.128:8443}
+        HTTPS_PROXY: ${BUILD_PROXY:-https://192.168.36.128:8443}
+        http_proxy: ${BUILD_PROXY:-https://192.168.36.128:8443}
+        https_proxy: ${BUILD_PROXY:-https://192.168.36.128:8443}
+      secrets:
+      - maven_settings
+  cline:
+    build:
+      context: ../../..
+      dockerfile: cline-agent-server/Dockerfile
+      args:
+        HTTP_PROXY: ${BUILD_PROXY:-https://192.168.36.128:8443}
+        HTTPS_PROXY: ${BUILD_PROXY:-https://192.168.36.128:8443}
+        http_proxy: ${BUILD_PROXY:-https://192.168.36.128:8443}
+        https_proxy: ${BUILD_PROXY:-https://192.168.36.128:8443}
+  frontend-resource-hub:
+    build:
+      context: ../../..
+      dockerfile: frontend-resource-hub/Dockerfile.production
+      args:
+        HTTP_PROXY: ${BUILD_PROXY:-https://192.168.36.128:8443}
+        HTTPS_PROXY: ${BUILD_PROXY:-https://192.168.36.128:8443}
+        http_proxy: ${BUILD_PROXY:-https://192.168.36.128:8443}
+        https_proxy: ${BUILD_PROXY:-https://192.168.36.128:8443}
+      secrets:
+      - proxy_ca
+secrets:
+  maven_settings:
+    file: ${MAVEN_SETTINGS_FILE:?Set MAVEN_SETTINGS_FILE with the build proxy configuration}
+  proxy_ca:
+    file: ${PROXY_CA_FILE:?Set PROXY_CA_FILE to the verified HTTPS proxy certificate}

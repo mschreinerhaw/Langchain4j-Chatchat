@@ -1,0 +1,25 @@
+# syntax=docker/dockerfile:1
+# Build context: repository root. The original Dockerfile keeps its directory context.
+ARG PLAYWRIGHT_IMAGE=mcr.microsoft.com/playwright:v1.56.1-noble@sha256:f1e7e01021efd65dd1a2c56064be399f3e4de00fd021ac561325f2bfbb2b837a
+FROM ${PLAYWRIGHT_IMAGE} AS build
+WORKDIR /app
+COPY frontend-resource-hub/package*.json ./
+RUN --mount=type=cache,target=/root/.npm \
+    --mount=type=secret,id=proxy_ca,target=/run/secrets/proxy-ca.pem,required=true \
+    test -n "$HTTPS_PROXY" && NODE_EXTRA_CA_CERTS=/run/secrets/proxy-ca.pem npm ci --proxy="$HTTPS_PROXY" --https-proxy="$HTTPS_PROXY" --noproxy=localhost,127.0.0.1 --fetch-timeout=60000 --fetch-retries=2 --maxsockets=4 --loglevel=http --omit=dev --ignore-scripts --no-audit --no-fund
+COPY frontend-resource-hub/build.mjs frontend-resource-hub/catalog.mjs frontend-resource-hub/server.mjs frontend-resource-hub/worker.mjs ./
+COPY frontend-resource-hub/acceptance.mjs frontend-resource-hub/offline-check.mjs frontend-resource-hub/verify-delivered.mjs ./
+COPY frontend-resource-hub/licenses/ ./licenses/
+COPY frontend-resource-hub/report-assets/ ./report-assets/
+RUN node build.mjs
+FROM ${PLAYWRIGHT_IMAGE} AS runtime
+RUN groupadd --gid 10001 app && useradd --uid 10001 --gid app --create-home app \
+    && mkdir -p /app/jobs && chown -R app:app /app
+WORKDIR /app
+COPY --from=build /app/ /app/
+ENV NODE_ENV=production HOME=/home/app TZ=Asia/Shanghai
+USER 10001:10001
+EXPOSE 8080 8081
+HEALTHCHECK --interval=30s --timeout=5s --start-period=20s --retries=3 \
+    CMD ["node", "-e", "fetch('http://127.0.0.1:8080/api/v1/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+CMD ["node", "server.mjs"]

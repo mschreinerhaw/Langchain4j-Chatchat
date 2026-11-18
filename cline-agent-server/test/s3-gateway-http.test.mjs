@@ -34,6 +34,8 @@ for(const cancelUpload of [false,true])test('S3 gateway HTTP '+(cancelUpload?'fe
   if(req.url==='/health/ready')value={ready:true};
   else if(req.url==='/v1/sessions')value={sessionId:'native-session'};
   else if(req.url.endsWith('/status'))value={status:nativeState,pendingPermissions:[]};
+  else if(req.url.endsWith('/message-receipt'))value={messageId:req.headers['idempotency-key'],
+   receipt:nativeState==='idle'?null:{status:'accepted',taskId:'native-task'}};
   else if(req.url.endsWith('/messages')){
    nativeState='turn_completed';value={status:'accepted'};
    await writeFile(join(workers,workerId,'workspace','business.py'),'fixture');
@@ -85,7 +87,11 @@ for(const cancelUpload of [false,true])test('S3 gateway HTTP '+(cancelUpload?'fe
   assert.equal(await readFile(join(workers,workerId,'workspace/input/data.csv'),'utf8'),'a,b\n');
   const other=signContract({...contract,taskId:'other',deliveryBinding:{...contract.deliveryBinding,taskId:'other'}},cfg.signingKey);
   assert.equal((await request('/v1/sessions/session/status',undefined,other)).status,404);
+  assert.equal((await request('/v1/sessions/session/message-receipt',undefined,other)).status,404);
+  assert.deepEqual((await request('/v1/sessions/session/message-receipt')).body,{messageId:'fixed',receipt:null});
   assert.equal((await request('/v1/sessions/session/messages',{text:'protocol fixture'})).status,200);
+  assert.deepEqual((await request('/v1/sessions/session/message-receipt')).body,
+   {messageId:'fixed',receipt:{status:'accepted',taskId:'native-task'}});
   const delivered=await request('/v1/sessions/session/delivery',{deliveryVersion:'v1'});assert.equal(delivered.status,200,JSON.stringify(delivered));assert(stopped);
   assert.equal((await request('/v1/sessions/session/acceptance',{manifestSha256:jsonHash(manifest),status:'PASSED',validationRef:'unverified'})).status,409);
   const sse=await fetch(base+'/v1/sessions/session/events',{headers:{authorization:'Bearer '+token}});

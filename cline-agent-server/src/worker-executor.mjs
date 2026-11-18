@@ -67,6 +67,8 @@ async function create(c,b){
 }
 async function route(req,b){
  const url=new URL(req.url,'http://executor');if(url.search||url.pathname!==req.url)throw reject('Canonical capability routes only',404);
+ if(cfg.recoveryOnly===true&&(req.url!=='/internal/tasks/revoke'||req.method!=='POST'))
+  throw reject('Executor is restricted to stop reconciliation',403);
  if(req.url==='/internal/tasks/revoke'&&req.method==='POST'){
   exact(b,[]);const c=taskGrant(req.headers['x-cline-task'],cfg,true,true);
   return serial(async()=>{

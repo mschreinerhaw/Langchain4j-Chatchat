@@ -11,6 +11,9 @@ import java.net.http.HttpResponse;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.time.Duration;
+import java.nio.ByteBuffer;
+import java.util.concurrent.*;
+import java.util.concurrent.Flow;
 import java.util.*;
 import javax.crypto.Mac;
 import javax.crypto.spec.SecretKeySpec;
@@ -24,13 +27,17 @@ public final class NativeS3NodeClient {
     public record Input(String path,long size,String sha256,String objectVersion,String url) { }
     public static final class NodeException extends RuntimeException {
         private final int status;
-        private final String protocolCode,validationFeedback;
-        NodeException(int status){this(status,null,null);}
-        NodeException(int status,String protocolCode,String validationFeedback){super("Native S3 Node rejected request: HTTP "+status);this.status=status;this.protocolCode=protocolCode;this.validationFeedback=validationFeedback;}
+        private final String protocolCode,validationFeedback,candidateSha256;
+        NodeException(int status){this(status,null,null,null);}
+        NodeException(int status,String protocolCode,String validationFeedback,String candidateSha256){super("Native S3 Node rejected request: HTTP "+status);this.status=status;this.protocolCode=protocolCode;this.validationFeedback=validationFeedback;this.candidateSha256=candidateSha256;}
         public int status(){return status;}
         public String protocolCode(){return protocolCode;}
         /** Actual Host validation only; no generated analysis or repair policy. */
         public String validationFeedback(){return validationFeedback;}
+        public String candidateSha256(){return candidateSha256;}
+    }
+    public static final class TransportException extends IllegalStateException {
+        TransportException(Throwable cause){super("NATIVE_TRANSPORT_OUTCOME_UNKNOWN",cause);}
     }
     private final URI endpoint;
     private final HttpClient http;
@@ -72,17 +79,26 @@ public final class NativeS3NodeClient {
     public JsonNode health(){
         try{
             var request=HttpRequest.newBuilder(endpoint.resolve("/health/live")).timeout(Duration.ofSeconds(5)).GET().build();
-            var reply=http.send(request,HttpResponse.BodyHandlers.ofInputStream());
-            try(var body=reply.body()){
-                byte[] bytes=body.readNBytes(65537);if(bytes.length>65536)throw new IllegalStateException("Native identity response exceeds limit");
-                var value=json.readTree(bytes);
-                if(reply.statusCode()!=200||!"cline-standalone".equals(value.path("engine").asText())||!"4.1.26".equals(value.path("version").asText())||value.path("legacySdkWorker").asBoolean(true))throw new IllegalStateException("Native Core identity not verified; no legacy fallback");
+            var reply=boundedResponse(request,65536,65536);
+            {
+                var value=json.readTree(reply.body());
+                boolean compatible=value!=null&&(value.has("protocolVersion")?
+                    value.path("protocolVersion").isIntegralNumber()&&value.path("protocolVersion").intValue()==1
+                        &&java.util.stream.StreamSupport.stream(value.path("capabilities").spliterator(),false)
+                            .anyMatch(capability->"native-s3-v2".equals(capability.asText())):
+                    "4.1.26".equals(value.path("version").asText()));
+                if(reply.statusCode()!=200||!compatible||!"cline-standalone".equals(value.path("engine").asText())
+                        ||value.path("legacySdkWorker").asBoolean(true))
+                    throw new IllegalStateException("Native Core identity or protocol not verified");
                 return value;
             }
-        }catch(InterruptedException interrupted){Thread.currentThread().interrupt();throw new IllegalStateException("Native identity check interrupted",interrupted);}
+        }
         catch(IOException unavailable){throw new IllegalStateException("Native identity check unavailable",unavailable);}
     }
     public JsonNode status(String grant,String session){return request(path(session,"status"),grant,null,null);}
+    JsonNode stopStatus(String grant,String session,Duration remaining){
+        return request(path(session,"status"),grant,null,null,remaining.toMillis());
+    }
     public JsonNode recoveryStop(String grant,String session){return request(path(session,"recovery-stop"),grant,Map.of(),null);}
     public JsonNode observations(String grant,String session,long after,int limit){
         if(after<0||limit<1||limit>256)throw new IllegalArgumentException("Bounded Native event cursor required");
@@ -105,6 +121,7 @@ public final class NativeS3NodeClient {
         }
         byte[] data=output.toByteArray();if(data.length!=size||!hash(data).equals(sha256))throw new IllegalStateException("Execution evidence SHA-256 differs");return data;
     }
+    public JsonNode messageReceipt(String grant,String session,String key){return request(path(session,"message-receipt"),grant,null,key);}
     public JsonNode message(String grant,String session,String text,String idempotencyKey){return request(path(session,"messages"),grant,Map.of("text",text),idempotencyKey);}
     public JsonNode cancel(String grant,String session){return request(path(session,"cancel"),grant,Map.of(),null);}
     public JsonNode preview(String grant,String session,String version){return request(path(session,"delivery-preview"),grant,Map.of("deliveryVersion",version),null);}
@@ -139,36 +156,72 @@ public final class NativeS3NodeClient {
     }
     private HttpRequest.Builder builder(String path,String grant){
         if(grant==null||grant.length()>16384||!grant.matches("[A-Za-z0-9_-]+\\.[A-Za-z0-9_-]+"))throw new IllegalArgumentException("Signed task grant required");
-        return HttpRequest.newBuilder(endpoint.resolve(path)).header("Authorization","Bearer "+grant).timeout(Duration.ofSeconds(300));
+        return HttpRequest.newBuilder(endpoint.resolve(path)).header("Authorization","Bearer "+grant).timeout(Duration.ofSeconds(10));
     }
     private JsonNode request(String path,String grant,Object body,String idempotencyKey){
+        return request(path,grant,body,idempotencyKey,Long.MAX_VALUE);
+    }
+    private JsonNode request(String path,String grant,Object body,String idempotencyKey,long remainingMillis){
         var builder=builder(path,grant).header("Accept","application/json");
         if(idempotencyKey!=null){if(idempotencyKey.isBlank()||idempotencyKey.length()>128||idempotencyKey.chars().anyMatch(c->c<32||c>126))throw new IllegalArgumentException("Explicit idempotency key required");builder.header("Idempotency-Key",idempotencyKey);}
         if(body==null)builder.GET();else builder.header("Content-Type","application/json").POST(HttpRequest.BodyPublishers.ofByteArray(bytes(body)));
+        var action=path.substring(path.lastIndexOf('/')+1).split("[?]",2)[0];
+        long millis=Math.max(1,Math.min(remainingMillis,switch(action){
+            case "delivery","delivery-preview","upload" -> 95_000;
+            case "recovery-stop" -> 15_000;
+            default -> 10_000;
+        }));
+        if(Set.of("sessions","messages","message-receipt","delivery","delivery-preview","delivery-content","upload","acceptance").contains(action)){
+            try{
+                var claims=json.readTree(Base64.getUrlDecoder().decode(grant.substring(0,grant.indexOf('.'))));
+                if(claims.path("expiresAt").isIntegralNumber())
+                    millis=Math.min(millis,Math.max(1,claims.path("expiresAt").asLong()-System.currentTimeMillis()));
+            }catch(IOException|IllegalArgumentException ignored){/* Node validates the signed grant. */}
+        }
         try{
-            var response=http.send(builder.build(),HttpResponse.BodyHandlers.ofInputStream());
-            try(var input=response.body()){
-                if(response.statusCode()<200||response.statusCode()>=300){
-                    String code=null,feedback=null;byte[] rejected=input.readNBytes(32769);
-                    if(response.statusCode()==422&&rejected.length<=32768){
-                        try{
-                            var receipt=json.readTree(rejected);String actualCode=receipt.path("code").asText();
-                            if(Set.of("DELIVERY_SELECTION_INVALID","DELIVERY_CONTENT_INVALID").contains(actualCode)){
-                                code=actualCode;feedback=receipt.path("message").asText("")
-                                    .replaceAll("https?://[^\\s\\\"']+","[URL]")
-                                    .replaceAll("(?i)Bearer\\s+[^\\s\\\"']+","Bearer [REDACTED]");
-                                if(feedback.length()>4096)feedback=feedback.substring(0,4096);
-                            }
-                        }catch(IOException ignored){/* Status remains authoritative when no valid receipt is available. */}
+            var response=boundedResponse(builder.timeout(Duration.ofMillis(millis)).build(),12*1024*1024,32768);
+            if(response.statusCode()<200||response.statusCode()>=300){
+                String code=null,feedback=null,candidate=null;
+                if(response.statusCode()==422)try{
+                    var receipt=json.readTree(response.body());
+                    String actualCode=receipt==null?"":receipt.path("code").asText();
+                    if(Set.of("DELIVERY_SELECTION_INVALID","DELIVERY_CONTENT_INVALID").contains(actualCode)){
+                        code=actualCode;feedback=receipt.path("message").asText("")
+                            .replaceAll("https?://[^\\s]+","[URL]")
+                            .replaceAll("(?i)Bearer\\s+[^\\s]+","Bearer [REDACTED]");
+                        if(feedback.length()>4096)feedback=feedback.substring(0,4096);
+                        var hash=receipt.path("selectionSha256").asText();
+                        if(hash.matches("[a-f0-9]{64}"))candidate=hash;
                     }
-                    throw new NodeException(response.statusCode(),code,feedback);
-                }
-                byte[] data=input.readNBytes(12*1024*1024+1);
-                if(data.length>12*1024*1024)throw new IllegalStateException("Native response exceeds resource bound");
-                return json.readTree(data);
+                }catch(IOException ignored){/* Status remains authoritative. */}
+                throw new NodeException(response.statusCode(),code,feedback,candidate);
             }
-        }catch(InterruptedException e){Thread.currentThread().interrupt();throw new IllegalStateException("Native request interrupted; reconcile task before retry",e);}
-        catch(IOException e){throw new IllegalStateException("Native outcome unknown; reconcile task before retry",e);}
+            var result=json.readTree(response.body());
+            if(result==null||!result.isObject())throw new IOException("Expected a Native response object");
+            return result;
+        }catch(IOException e){throw new TransportException(e);}
+    }
+    private HttpResponse<byte[]> boundedResponse(HttpRequest request,int successLimit,int errorLimit){
+        var pending=http.sendAsync(request,info->new BoundedBody(
+            info.statusCode()>=200&&info.statusCode()<300?successLimit:errorLimit));
+        try{return pending.get(request.timeout().orElseThrow().toMillis(),TimeUnit.MILLISECONDS);}
+        catch(InterruptedException e){pending.cancel(true);Thread.currentThread().interrupt();throw new TransportException(e);}
+        catch(ExecutionException|TimeoutException e){pending.cancel(true);throw new TransportException(e);}
+    }
+    private static final class BoundedBody implements HttpResponse.BodySubscriber<byte[]> {
+        private final HttpResponse.BodySubscriber<byte[]> delegate=HttpResponse.BodySubscribers.ofByteArray();
+        private Flow.Subscription subscription;
+        private long remaining;
+        BoundedBody(int limit){remaining=limit;}
+        public CompletionStage<byte[]> getBody(){return delegate.getBody();}
+        public void onSubscribe(Flow.Subscription value){subscription=value;delegate.onSubscribe(value);}
+        public void onNext(List<ByteBuffer> data){
+            for(var buffer:data)remaining-=buffer.remaining();
+            if(remaining<0){subscription.cancel();delegate.onError(new IOException("Native response exceeds resource bound"));return;}
+            delegate.onNext(data);
+        }
+        public void onError(Throwable error){delegate.onError(error);}
+        public void onComplete(){delegate.onComplete();}
     }
     private byte[] bytes(Object value){try{return json.writeValueAsBytes(value);}catch(IOException e){throw new IllegalArgumentException("Invalid protocol document",e);}}
     private static String hash(byte[] bytes){try{return HexFormat.of().formatHex(MessageDigest.getInstance("SHA-256").digest(bytes));}catch(java.security.NoSuchAlgorithmException e){throw new IllegalStateException(e);}}

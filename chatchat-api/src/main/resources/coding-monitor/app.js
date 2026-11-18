@@ -15,6 +15,12 @@ const canStop=row=>!candidate&&!terminalStatuses.has(row.status);
 const stopPending=row=>row.stopPending===true||row.cancellationRequested===true||['CANCEL_REQUESTED','DEADLINE_EXCEEDED'].includes(row.lastError)||row.executionControl?.stopReason!=null;
 let visibleRows=[],stopBusy=false,listGeneration=0;const checkedTasks=new Map(),stopResults=new Map();
 if(candidate)$('stop-toolbar').hidden=true;
+else {
+ const filter=$('filters').elements.status;
+ const running=filter.querySelector('option[value="RUNNING"]');
+ running.value='ACTIVE';
+ running.after(new Option('\u505c\u6b62\u5f85\u786e\u8ba4','STOPPING'));
+}
 const labels={SEALED_PENDING_VALIDATION:"Native sealed; awaiting acceptance",CREATED:'已创建',RUNNING:'执行中',COMPLETED:'已完成',PARTIAL:'部分完成',FAILED:'失败',CANCELLED:'已取消',BUDGET_EXCEEDED:'超时 / 资源限制',TASK_STARTED:'任务开始',MODEL_REQUEST_STARTED:'模型请求',MODEL_REQUEST_COMPLETED:'模型回执',TOOL_STARTED:'工具开始',TOOL_COMPLETED:'工具完成',FILE_CHANGED:'文件修改',COMMAND_STARTED:'命令执行',COMMAND_COMPLETED:'执行回执',ERROR_OCCURRED:'执行失败',REPAIR_ATTEMPTED:'修复证据',ARTIFACT_UPLOADED:'成果上传',DELIVERY_VALIDATED:'Java 验收',TASK_COMPLETED:'任务完成',TASK_FAILED:'任务失败',TASK_CANCELLED:'任务取消',OBSERVATION:'执行记录'};
 let token=sessionStorage.getItem(storage)||'',page=0,total=0,selected=null,events=new Map(),cursor=0,stream=null,refreshTimer=null,objectUrl=null;
 const text=(tag,value,cls)=>{const n=document.createElement(tag);n.textContent=value??'—';if(cls)n.className=cls;return n;};

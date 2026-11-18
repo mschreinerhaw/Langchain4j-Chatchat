@@ -34,10 +34,15 @@ class NativeS3CodingAdapterTest {
     ThreadPoolTaskScheduler scheduler;HttpServer http;
     JsonNode grant,manifest;boolean created,messaged,sealed;final AtomicInteger messageCalls=new AtomicInteger();
     volatile boolean blockStatus;
+    boolean dropBeforeAccept,dropAfterAccept;
+    int previewRejections;
+    boolean repairSchema;
+    final AtomicInteger recoveryStops=new AtomicInteger();
+    final Map<String,Map<String,Object>> messageReceipts=new java.util.concurrent.ConcurrentHashMap<>();
     volatile boolean wrongReceiptSession;
     final java.util.concurrent.CountDownLatch blockedStatus=new java.util.concurrent.CountDownLatch(1),releaseStatus=new java.util.concurrent.CountDownLatch(1);
     volatile boolean asynchronousStop,missingStoppedTelemetry,rejectAllocation;volatile long stopReadyAt;
-    final byte[] output="{\"value\":42}".getBytes(java.nio.charset.StandardCharsets.UTF_8);
+    byte[] output="{\"value\":42}".getBytes(java.nio.charset.StandardCharsets.UTF_8);
     @BeforeEach void setup()throws Exception{
         fixture=new SiloCodingWorkspaceServiceTest();fixture.setup();
         var tx=new DataSourceTransactionManager(fixture.jdbc.getDataSource());var store=new JdbcRuntimeEvidenceStore(fixture.jdbc,json,tx);
@@ -64,9 +69,102 @@ class NativeS3CodingAdapterTest {
         assertThat(workspace.get(fixture.scope,"native-test").status()).isEqualTo("COMPLETED");
         assertThat(messageCalls).hasValue(1);authorized(()->adapter.submit(contract));assertThat(messageCalls).hasValue(1);
     }
+    @Test void missingDispatchAndLostAcceptanceResponseConvergeThroughTheSameKey()throws Exception{
+        dropBeforeAccept=true;
+        dropAfterAccept=true;
+        var result=runDelivery("native-receipt");
+        assertThat(result.status()).as(result.summary()).isEqualTo(CodingTaskOutcome.Status.COMPLETED);
+        assertThat(messageCalls).hasValue(2);
+        assertThat(messageReceipts).hasSize(1);
+    }
+    @Test void deliveryRepairAdvancesOnlyAfterAcknowledgement()throws Exception{
+        previewRejections=1;
+        dropAfterAccept=true;
+        var result=runDelivery("native-repair");
+        assertThat(result.status()).as(result.summary()).isEqualTo(CodingTaskOutcome.Status.COMPLETED);
+        assertThat(messageReceipts).containsKey("delivery-rejection-v1").hasSize(2);
+        assertThat(manifest.path("deliveryVersion").asText()).isEqualTo("v2");
+    }
+    @Test void schemaMismatchRepairsTheArtifactBeforeFinalization()throws Exception{
+        repairSchema=true;
+        output="{\"value\":\"not an integer\"}".getBytes(java.nio.charset.StandardCharsets.UTF_8);
+        var schema=Map.<String,Object>of("type","object","required",List.of("value"),
+            "properties",Map.of("value",Map.of("type","integer")));
+        var result=runDelivery("native-schema-repair",schema);
+        assertThat(result.status()).as(result.summary()).isEqualTo(CodingTaskOutcome.Status.COMPLETED);
+        assertThat(manifest.path("deliveryVersion").asText()).isEqualTo("v2");
+        assertThat(messageReceipts).containsKey("delivery-rejection-v1").hasSize(2);
+    }
+    @Test void unchangedDeliveryRejectionStopsAfterTwoRepairTurns()throws Exception{
+        previewRejections=10;
+        var result=runDelivery("native-no-progress");
+        assertThat(result.status()).as(result.summary()).isEqualTo(CodingTaskOutcome.Status.FAILED);
+        assertThat(result.reasonCode()).isEqualTo(CodingErrorCode.OUTPUT_CONTRACT_VIOLATION);
+        assertThat(result.executionControl().executorStopped()).isTrue();
+        assertThat(messageCalls).hasValue(3);
+    }
+    private CodingTaskOutcome runDelivery(String task)throws Exception{return runDelivery(task,Map.of());}
+    private CodingTaskOutcome runDelivery(String task,Map<String,Object> schema)throws Exception{
+        String file=fixture.assets.upload(fixture.owner,"input.csv","value\n42\n".getBytes()).id();
+        var budget=new CodingTaskContract.Budget("b",Instant.now().plusSeconds(90).truncatedTo(
+            java.time.temporal.ChronoUnit.MILLIS),-1,-1,-1,-1,"unlimited","USD",-1,1024*1024,1024*1024);
+        var contract=authorized(()->capture.capture(fixture.scope,task,List.of(file),"Analyze the supplied input",
+            "published-model",budget,Map.of("profile","artifact-integrity-v1"),List.of("RESULT"),schema));
+        authorized(()->adapter.submit(contract));
+        for(int i=0;i<100;i++){
+            var result=authorized(()->tasks.get(fixture.scope,task));
+            if(result.status().terminal())return result;
+            Thread.sleep(100);
+        }
+        return authorized(()->tasks.get(fixture.scope,task));
+    }
     @Test void unknownFrozenModelAndUnauthenticatedCaptureFailBeforeAllocatingAnyNode(){
         assertThatThrownBy(()->capture.capture(fixture.scope,"native-test",List.of(),"Analyze","published-model",null)).isInstanceOf(CodingContractException.class);
         assertThat(created).isFalse();
+    }
+    @Test void cancelledHistoricalTemporalTaskReconcilesThroughItsRetiredExecutorWithoutDispatch()throws Exception{
+        String task="temporal-native-retired-node";
+        var config=directory.resolve("connection.json");
+        var connection=(com.fasterxml.jackson.databind.node.ObjectNode)json.readTree(Files.readString(config));
+        connection.putObject("recoveryNodes").put("retired",connection.path("endpoint").asText());
+        Files.writeString(config,connection.toString());
+        adapter.close();
+        var license=new McpLicenseEntitlementPort(){public CodingDispatchEntitlement codingDispatchEntitlement(){return new CodingDispatchEntitlement(true,"VALID");}};
+        adapter=new NativeS3CodingAdapter(tasks,capture,workspace,new NativeS3Settings(config.toString(),json),nativeEvidence,
+            identity,json,fixture.jdbc,license,new DataSourceTransactionManager(fixture.jdbc.getDataSource()));
+        var projection=new com.chatchat.api.runtime.coding.monitor.CodingMonitorProjection(fixture.jdbc,json,tasks,
+            new JdbcRuntimeEvidenceStore(fixture.jdbc,json,new DataSourceTransactionManager(fixture.jdbc.getDataSource())));
+        org.springframework.test.util.ReflectionTestUtils.invokeMethod(projection,"schema");
+        String file=fixture.assets.upload(fixture.owner,"input.csv","value\n42\n".getBytes()).id();
+        var budget=new CodingTaskContract.Budget("retired",Instant.now().plusSeconds(90).truncatedTo(
+            java.time.temporal.ChronoUnit.MILLIS),-1,-1,-1,-1,"unlimited","USD",-1,1024*1024,1024*1024);
+        authorized(()->{
+            var contract=capture.capture(fixture.scope,task,List.of(file),"Analyze","published-model",budget,
+                Map.of("profile","artifact-integrity-v1"),List.of("RESULT"));
+            tasks.submit(contract);
+            var lease=tasks.claim(fixture.scope,task,"old-temporal-owner",Duration.ofMinutes(2),tasks.get(fixture.scope,task).revision());
+            var grant=new NativeS3NodeClient(URI.create(connection.path("endpoint").asText()),json)
+                .signGrant(Map.of("sessionId","session"),"k".repeat(64));
+            tasks.privateState(fixture.scope,task,lease,"native-s3:binding",null,
+                json.valueToTree(Map.of("nodeId","retired","sessionId","session","grant",grant)));
+            tasks.privateState(fixture.scope,task,lease,"native-s3:message-intent",null,json.valueToTree(Map.of("messageId","objective-session")));
+            nativeEvidence.register(contract,NativeS3ExecutionProofVerifier.STOP_TYPE,"stop-session",
+                Map.of("taskId",task,"sessionId","session","workerStopped",true,"containerId","a".repeat(64),
+                    "stopProof",Map.of("containerId","a".repeat(64),"running",false)),List.of(contract.inputSnapshotRef()));
+            tasks.cancel(fixture.scope,task,"original cancellation");
+            return null;
+        });
+        projection.flush();
+        adapter.recover();
+        for(int i=0;i<100&&!authorized(()->adapter.get(fixture.scope,task)).status().terminal();i++)Thread.sleep(50);
+        var result=authorized(()->adapter.get(fixture.scope,task));
+        assertThat(result.status()).isEqualTo(CodingTaskOutcome.Status.CANCELLED);
+        assertThat(result.executionControl().executorStopped()).isTrue();
+        verify(nativeEvidence).register(any(),eq(NativeS3ExecutionProofVerifier.STOP_TYPE),
+            eq("recovery-stop-session"),any(),any());
+        assertThat(recoveryStops).hasValue(1);
+        assertThat(created).isFalse();
+        assertThat(messageCalls).hasValue(0);
     }
     @Test void schedulerChangesCannotCreateAnotherTaskForTheSameRequest(){
         assertThat(authorized(()->capture.taskIdentity(fixture.scope,"native-request","temporal-native-request"))).isEqualTo("temporal-native-request");
@@ -141,6 +239,12 @@ class NativeS3CodingAdapterTest {
             String path=exchange.getRequestURI().getPath();byte[] body=exchange.getRequestBody().readAllBytes();JsonNode request=body.length==0?json.createObjectNode():json.readTree(body);
             if(path.equals("/health/live")){reply(exchange,200,Map.of("engine","cline-standalone","version","4.1.26","legacySdkWorker",false));return;}
             String token=exchange.getRequestHeaders().getFirst("Authorization").substring(7);var identity=json.readTree(Base64.getUrlDecoder().decode(token.split("\\.")[0]));
+            if(path.endsWith("/recovery-stop")){
+                recoveryStops.incrementAndGet();
+                reply(exchange,200,Map.of("sessionId",identity.path("sessionId").asText(),"stopProof",
+                    Map.of("containerId","a".repeat(64),"running",false,"allocationFenced",true)));
+                return;
+            }
             if(path.equals("/v1/sessions")){if(rejectAllocation){reply(exchange,429,Map.of("code","CAPACITY_EXHAUSTED"));return;}created=true;grant=identity;reply(exchange,201,state());return;}
             if(!created){reply(exchange,404,Map.of("code","NOT_FOUND"));return;}
             if(path.endsWith("/status")){if(blockStatus&&messaged){blockedStatus.countDown();releaseStatus.await(5,java.util.concurrent.TimeUnit.SECONDS);}reply(exchange,200,state());return;}
@@ -148,9 +252,32 @@ class NativeS3CodingAdapterTest {
                 if(sealed&&missingStoppedTelemetry){reply(exchange,410,Map.of("code","HISTORICAL_TELEMETRY_UNAVAILABLE"));return;}
                 reply(exchange,200,Map.of("events",List.of(),"nextEventId",0,"hasMore",false));return;
             }
-            if(path.endsWith("/messages")){messageCalls.incrementAndGet();messaged=true;reply(exchange,202,Map.of("accepted",true));return;}
+            if(path.endsWith("/message-receipt")){
+                String key=exchange.getRequestHeaders().getFirst("Idempotency-Key");
+                var payload=new LinkedHashMap<String,Object>();
+                payload.put("messageId",key);payload.put("receipt",messageReceipts.get(key));
+                reply(exchange,200,payload);return;
+            }
+            if(path.endsWith("/messages")){
+                messageCalls.incrementAndGet();
+                if(dropBeforeAccept){dropBeforeAccept=false;exchange.close();return;}
+                String key=exchange.getRequestHeaders().getFirst("Idempotency-Key");
+                var accepted=Map.<String,Object>of("taskId","native-task","status","accepted");
+                messageReceipts.putIfAbsent(key,accepted);
+                if(repairSchema&&key.equals("delivery-rejection-v1"))
+                    output="{\"value\":42}".getBytes(java.nio.charset.StandardCharsets.UTF_8);
+                messaged=true;
+                if(dropAfterAccept){dropAfterAccept=false;exchange.close();return;}
+                reply(exchange,202,accepted);return;
+            }
+            if(path.endsWith("/delivery-content")){
+                reply(exchange,200,Map.of("path","output/answer.json","data",Base64.getEncoder().encodeToString(output)));return;
+            }
             if(path.endsWith("/delivery-preview")||path.endsWith("/delivery")){
-                manifest=json.valueToTree(new SiloCodingWorkspaceService.Delivery("coding_node_delivery.v1",grant.path("taskId").asText(),grant.path("deliveryBinding").path("runId").asText(),grant.path("tenantId").asText(),grant.path("deliveryBinding").path("inputSnapshotVersion").asText(),"v1",wrongReceiptSession?"old-session":"native-session","native-epoch","NATIVE_TURN_COMPLETED","PENDING_RUNTIME_VALIDATION",List.of(new SiloCodingWorkspaceService.Artifact("output/answer.json","RESULT",output.length,UserAssetService.hash(output))),List.of(new SiloCodingWorkspaceService.Receipt("1","turn.completed","native-session","native-epoch"))));
+                if(path.endsWith("/delivery-preview")&&previewRejections-->0){
+                    reply(exchange,422,Map.of("code","DELIVERY_SELECTION_INVALID","message","Schema mismatch","selectionSha256","a".repeat(64)));return;
+                }
+                manifest=json.valueToTree(new SiloCodingWorkspaceService.Delivery("coding_node_delivery.v1",grant.path("taskId").asText(),grant.path("deliveryBinding").path("runId").asText(),grant.path("tenantId").asText(),grant.path("deliveryBinding").path("inputSnapshotVersion").asText(),request.path("deliveryVersion").asText(),wrongReceiptSession?"old-session":"native-session","native-epoch","NATIVE_TURN_COMPLETED","PENDING_RUNTIME_VALIDATION",List.of(new SiloCodingWorkspaceService.Artifact("output/answer.json","RESULT",output.length,UserAssetService.hash(output))),List.of(new SiloCodingWorkspaceService.Receipt("1","turn.completed","native-session","native-epoch"))));
                 if(path.endsWith("/delivery"))sealed=true;reply(exchange,200,manifest);return;
             }
             if(path.endsWith("/executions")){reply(exchange,200,Map.of("executions",List.of()));return;}
@@ -164,7 +291,7 @@ class NativeS3CodingAdapterTest {
             reply(exchange,404,Map.of("path",path));
         }catch(Exception failed){reply(exchange,500,Map.of("error",failed.toString()));}
     }
-    private Map<String,Object> state(){if(stopReadyAt>0&&System.nanoTime()>=stopReadyAt)sealed=true;var state=new LinkedHashMap<String,Object>();state.put("workerState",sealed?"STOPPED":messaged?asynchronousStop?"RUNNING":"COMPLETED":"READY");state.put("native",Map.of("sessionId","native-session","epoch","native-epoch","status",messaged?asynchronousStop?"running":"turn_completed":"idle"));if(sealed){if(manifest!=null)state.put("delivery",manifest);state.put("stopProof",Map.of("containerId","a".repeat(64),"running",false));}return state;}
+    private Map<String,Object> state(){if(stopReadyAt>0&&System.nanoTime()>=stopReadyAt)sealed=true;var state=new LinkedHashMap<String,Object>();state.put("workerState",sealed?"STOPPED":messaged?asynchronousStop?"RUNNING":"COMPLETED":"READY");state.put("native",Map.of("sessionId","native-session","epoch","native-epoch","messageReceipts",true,"status",messaged?asynchronousStop?"running":"turn_completed":"idle"));if(sealed){if(manifest!=null)state.put("delivery",manifest);state.put("stopProof",Map.of("containerId","a".repeat(64),"running",false));}else if(stopReadyAt>0){state.put("stopProof",Map.of("containerId","a".repeat(64),"running",true));}return state;}
     private Map<String,Object> put(String url,byte[] bytes){String key=url.substring("put:".length());var stored=fixture.blobs.put(key,bytes,"application/octet-stream",UserAssetService.hash(bytes));return Map.of("size",bytes.length,"sha256",UserAssetService.hash(bytes),"objectVersion",stored.versionId());}
     private void reply(HttpExchange e,int code,Object value)throws java.io.IOException{byte[] bytes=json.writeValueAsBytes(value);e.getResponseHeaders().set("Content-Type","application/json");e.sendResponseHeaders(code,bytes.length);try(var out=e.getResponseBody()){out.write(bytes);}}
 }

@@ -86,18 +86,72 @@ public class UserAssetService {
     }
     /** Trusted task snapshot publication with the same quota/STAGED transaction
      * and immutable version checks as ordinary asset upload. */
-    File storeTaskInput(Owner owner,String task,String run,String source,String name,String type,byte[] data,String objectKey){
+    File storeTaskInput(Owner owner,String task,String run,String source,File original,String objectKey){
         String prefix="tenants/"+hash(owner.tenant().getBytes(StandardCharsets.UTF_8))+"/users/"+owner.id()+"/tasks/coding-node/";
-        if(objectKey==null||!objectKey.startsWith(prefix)||!objectKey.contains("/input/")||!source.startsWith("coding-node-input:"))throw new SecurityException("Task input object scope required");
-        return store(owner,Kind.DATASET,task,run,source,name,type,data,objectKey);
+        if(objectKey==null||!objectKey.startsWith(prefix)||!objectKey.contains("/input/")||!source.startsWith("coding-node-input:"))
+            throw new SecurityException("Task input object scope required");
+        if(!Kind.DATASET.name().equals(original.kind()))
+            return store(owner,Kind.DATASET,task,run,source,original.fileName(),original.contentType(),read(owner,original.id()),objectKey);
+
+        var row=requireRow(owner,original.id());
+        if(!"AVAILABLE".equals(row.get("state")))throw new ResponseStatusException(HttpStatus.CONFLICT,"Asset is not available");
+        try{
+            var snapshot=java.nio.file.Files.createTempFile("native-task-input-", ".jsonl");
+            try{
+                try(var output=java.nio.file.Files.newOutputStream(snapshot)){
+                    blobs.copy((String)row.get("object_key"),(String)row.get("object_version"),original.size(),output);
+                }
+                return storeFile(owner,task,run,source,original.fileName(),original.contentType(),snapshot,
+                    original.size(),original.sha256(),objectKey);
+            }finally{java.nio.file.Files.deleteIfExists(snapshot);}
+        }catch(java.io.IOException failure){throw new java.io.UncheckedIOException(failure);}
     }
     private File store(Owner owner, Kind kind, String task, String run, String source, String name, String type, byte[] data,String taskInputKey) {
-        Objects.requireNonNull(data); Objects.requireNonNull(kind);
-        if (data.length>policy.getMaxFileBytes()) throw new ResponseStatusException(HttpStatus.PAYLOAD_TOO_LARGE,"Asset exceeds file limit");
+        Objects.requireNonNull(data);
+        String digest=hash(data);
+        return storeImmutable(owner,kind,task,run,source,name,type,data.length,digest,taskInputKey,
+            (key,contentType)->blobs.put(key,data,contentType,digest),
+            (key,version)->verify(blobs.get(key,version,data.length),digest,data.length));
+    }
+
+    /** Publish a private paged snapshot using the existing quota and immutable-version transaction. */
+    public File storeSnapshot(Owner owner,String task,String run,String source,String name,
+                              java.nio.file.Path snapshot,long size,String digest){
+        if(size<0||digest==null||!digest.matches("[a-f0-9]{64}"))
+            throw new IllegalArgumentException("Snapshot length and digest required");
+        return storeFile(owner,task,run,source,name,"application/json",snapshot,size,digest,null);
+    }
+
+    private File storeFile(Owner owner,String task,String run,String source,String name,String type,
+                           java.nio.file.Path snapshot,long size,String digest,String taskInputKey){
+        return storeImmutable(owner,Kind.DATASET,task,run,source,name,type,size,digest,taskInputKey,
+            (key,contentType)->{
+                try{return blobs.putFile(key,snapshot,size,contentType,digest);}
+                catch(java.io.IOException failure){throw new java.io.UncheckedIOException(failure);}
+            },(key,version)->{
+                var sha=sha256Digest();
+                try(var stream=new java.security.DigestOutputStream(java.io.OutputStream.nullOutputStream(),sha)){
+                    blobs.copy(key,version,size,stream);
+                }catch(java.io.IOException failure){throw new java.io.UncheckedIOException(failure);}
+                if(!digest.equals(java.util.HexFormat.of().formatHex(sha.digest())))
+                    throw new IllegalStateException("Asset snapshot digest differs");
+            });
+    }
+
+    private static java.security.MessageDigest sha256Digest(){
+        try{return java.security.MessageDigest.getInstance("SHA-256");}
+        catch(java.security.NoSuchAlgorithmException failure){throw new IllegalStateException(failure);}
+    }
+
+    private File storeImmutable(Owner owner, Kind kind, String task, String run, String source, String name, String type,
+        long size,String digest,String taskInputKey,
+        java.util.function.BiFunction<String,String,AssetBlobStore.Stored> publication,
+        java.util.function.BiConsumer<String,String> verifier){
+        Objects.requireNonNull(kind);
+        if (size>policy.getMaxFileBytes()) throw new ResponseStatusException(HttpStatus.PAYLOAD_TOO_LARGE,"Asset exceeds file limit");
         name=name(name); task=bounded(task,256); run=bounded(run,256); source=bounded(source,1024);
         if(type==null || !type.matches("[a-zA-Z0-9.+-]+/[a-zA-Z0-9.+-]+")) type="application/octet-stream";
         ensure(owner);
-        String digest=hash(data);
         String id=hash((owner.id()+"\0"+kind+"\0"+task+"\0"+run+"\0"+source+"\0"+name+"\0"+digest).getBytes(StandardCharsets.UTF_8));
         String key=taskInputKey!=null?taskInputKey:"tenants/"+hash(owner.tenant().getBytes(StandardCharsets.UTF_8))+"/users/"+owner.id()+"/"
             +switch(kind){case DOCUMENT->"documents";case DATASET->"datasets";case CONTEXT->"context";case ARTIFACT->"artifacts";default->"tasks";}
@@ -111,18 +165,18 @@ public class UserAssetService {
                 if("DELETED".equals(rows.get(0).get("state"))) throw new ResponseStatusException(HttpStatus.CONFLICT,"Deleted asset identity cannot be reused");
                 return;
             }
-            if(space.usedBytes()>space.quotaBytes()-data.length) throw new ResponseStatusException(HttpStatus.INSUFFICIENT_STORAGE,"User asset quota exceeded");
+            if(space.usedBytes()>space.quotaBytes()-size) throw new ResponseStatusException(HttpStatus.INSUFFICIENT_STORAGE,"User asset quota exceeded");
             jdbc.update("insert into runtime_workspace_file(id,workspace_id,kind,file_name,content_type,object_key,sha256,size_bytes,state,task_id,run_id,source_ref,created_at) values(?,?,?,?,?,?,?,?,?,?,?,?,?)",
-                id,owner.id(),kind.name(),fileName,contentType,key,digest,data.length,"STAGED",taskId,runId,sourceRef,System.currentTimeMillis());
-            jdbc.update("update runtime_user_workspace set used_bytes=used_bytes+? where id=?",data.length,owner.id());
+                id,owner.id(),kind.name(),fileName,contentType,key,digest,size,"STAGED",taskId,runId,sourceRef,System.currentTimeMillis());
+            jdbc.update("update runtime_user_workspace set used_bytes=used_bytes+? where id=?",size,owner.id());
         });
         return tx.execute(s->{
             lockSpace(owner); var row=requireRow(owner,id);
             if("AVAILABLE".equals(row.get("state"))) return get(owner,id);
             if(!"STAGED".equals(row.get("state"))) throw new ResponseStatusException(HttpStatus.CONFLICT,"Asset publication is not active");
-            var stored=blobs.put(key,data,contentType,digest);
+            var stored=publication.apply(key,contentType);
             // Verify a read of the exact immutable version before making it visible to tasks.
-            verify(blobs.get(key,stored.versionId(),data.length),digest,data.length);
+            verifier.accept(key,stored.versionId());
             jdbc.update("update runtime_workspace_file set object_version=?,state='AVAILABLE' where id=?",stored.versionId(),id);
             if(kind==Kind.DOCUMENT || kind==Kind.CONTEXT && "user-analysis-result".equals(sourceRef))
                 jdbc.update("insert into runtime_asset_knowledge_job(file_id,state,next_attempt_at,updated_at) values(?,'PENDING',0,?)",id,System.currentTimeMillis());

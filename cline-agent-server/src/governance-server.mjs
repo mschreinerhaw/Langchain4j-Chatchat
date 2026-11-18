@@ -208,7 +208,7 @@ const server=http.createServer(async(req,res)=>{
    for(const r of records.values())refreshRevocation(r);const active=[...records.values()].filter(holdsCapacity);
    let memoryBytes=0,cpuTimeNanos=0,available=!!executor;
    if(executor)for(const r of active)try{const m=await executor.metrics(grant(r),r.workerId);if(!Number.isSafeInteger(m.memoryBytes)||!Number.isSafeInteger(m.cpuTimeNanos)){available=false;continue;}memoryBytes+=m.memoryBytes;cpuTimeNanos+=m.cpuTimeNanos;}catch{available=false;}
-   return send(res,200,{live:true,engine:'cline-standalone',version:'4.1.26',legacySdkWorker:false,releaseVersion:'1.0.0',enterpriseAcceptance:false,capacity:{maxWorkers:cfg.maxWorkers,activeWorkers:active.length},gatewayMemoryBytes:process.memoryUsage().rss,workerMemoryBytes:available?memoryBytes:null,workerCpuTimeNanos:available?cpuTimeNanos:null});
+   return send(res,200,{live:true,engine:'cline-standalone',version:'4.1.26',legacySdkWorker:false,protocolVersion:1,capabilities:['native-s3-v2','message-receipts-v1'],releaseVersion:'1.0.0',enterpriseAcceptance:false,capacity:{maxWorkers:cfg.maxWorkers,activeWorkers:active.length},gatewayMemoryBytes:process.memoryUsage().rss,workerMemoryBytes:available?memoryBytes:null,workerCpuTimeNanos:available?cpuTimeNanos:null});
   }
   const c=granted(req),tenant=Object.hasOwn(cfg.tenants,c.tenantId)?cfg.tenants[c.tenantId]:undefined;if(!tenant||!(tenant.users.includes(c.userId)||c.version===2&&tenant.dynamicUsers===true)||!Object.hasOwn(tenant.workspaces,c.workspaceRef)||!(c.runtimeModel?typeof tenant.runtimeModelAuthority==='string':tenant.models.includes(c.modelProfile))||!c.dataPermissions.every(x=>tenant.datasets.includes(x))||!c.toolPermissions.every(x=>tenant.tools.includes(x)))throw error('Task policy not granted',403);
   if(path==='/v1/sessions'&&req.method==='POST'){
@@ -300,7 +300,7 @@ const server=http.createServer(async(req,res)=>{
   if(!r.nativeSessionId||['RECOVERABLE','START_FAILED','STOPPED','STOPPING'].includes(r.workerState))throw error('Native worker unavailable',409);
   if(cfg.operations&&!r.operationSession&&(parts[3]==='messages'||parts[1]==='permissions'))throw error('Durable operation session not ready',409);
   const route=parts[1]==='permissions'?path:'/v1/sessions/'+r.nativeSessionId+(parts[3]?'/'+parts[3]:'');
-  if(parts[1]==='sessions'&&!['status','messages','events','diff','artifacts',...(r.contract.s3?['delivery-preview','delivery-content']:[])].includes(parts[3]))throw error('Route not found',404);
+  if(parts[1]==='sessions'&&!['status','messages','events','diff','artifacts',...(r.contract.s3?['delivery-preview','delivery-content','message-receipt']:[])].includes(parts[3]))throw error('Route not found',404);
   const value=req.method==='POST'?await body(req):undefined;
   if(cfg.operations&&parts[1]==='permissions'&&req.method==='POST'&&value.decision==='approve'){
    const native=(await workerJSON(r,'/v1/sessions/'+r.nativeSessionId+'/status')).data;
@@ -310,10 +310,9 @@ const server=http.createServer(async(req,res)=>{
   if(!live(r))throw error('Task lease inactive',403);
   if(parts[3]==='messages'&&req.method==='POST'){
    if(typeof value.text==='string')value.text+=nativeSkillDiscoveryContext(r.nativeSkillIndex);
-   r.workerState='RUNNING';r.taskState='RUNNING';save(r);
   }
   const reply=await workerRequest(r,route,req.method,value,{'accept':req.headers.accept??'application/json',...(req.headers['last-event-id']?{'last-event-id':req.headers['last-event-id']}:{}),...(req.headers['idempotency-key']?{'idempotency-key':req.headers['idempotency-key']}:{} )});
-  if(parts[3]==='status'&&reply.statusCode===200){const chunks=[];for await(const b of reply)chunks.push(b);if(r.revoked)return send(res,200,publicState(r));const native=JSON.parse(Buffer.concat(chunks));if(r.workerState==='STARTING')return send(res,200,publicState(r,native));r.workerState=native.status==='awaiting_permission'?'WAITING_APPROVAL':native.status==='turn_completed'?'COMPLETED':native.status==='failed'?'RECOVERABLE':native.status==='idle'?'READY':'RUNNING';r.taskState=native.status==='turn_completed'?'AGENT_TURN_COMPLETED':native.status==='failed'?'UNKNOWN':r.taskState;save(r);if(r.contract.s3&&['failed','recoverable','cancelled'].includes(native.status))void stop(r,'native-core-unavailable');return send(res,200,publicState(r,native));}
+  if(parts[3]==='status'&&reply.statusCode===200){const chunks=[];for await(const b of reply)chunks.push(b);if(r.revoked)return send(res,200,publicState(r));const native=JSON.parse(Buffer.concat(chunks));if(r.workerState==='STARTING')return send(res,200,publicState(r,native));r.workerState=native.status==='awaiting_permission'?'WAITING_APPROVAL':native.status==='turn_completed'?'COMPLETED':native.status==='failed'?'RECOVERABLE':native.status==='idle'?'READY':'RUNNING';r.taskState=native.status==='turn_completed'?'AGENT_TURN_COMPLETED':native.status==='failed'?'UNKNOWN':['running','awaiting_permission','awaiting_input'].includes(native.status)?'RUNNING':r.taskState;save(r);if(r.contract.s3&&['failed','recoverable','cancelled'].includes(native.status))void stop(r,'native-core-unavailable');return send(res,200,publicState(r,native));}
   res.writeHead(reply.statusCode,{'content-type':reply.headers['content-type']??'application/json','cache-control':'no-store'});
   if(!streams.has(r.workerId))streams.set(r.workerId,new Set());streams.get(r.workerId).add(res);
   const expiry=setTimeout(()=>res.end(),Math.max(1,r.contract.expiresAt-Date.now()));expiry.unref();res.on('close',()=>{clearTimeout(expiry);streams.get(r.workerId).delete(res);reply.destroy();});reply.pipe(res);

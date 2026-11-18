@@ -25,4 +25,14 @@ class NativeHtmlReportTest {
         assertThat((List<?>)report.get("charts")).isEmpty();assertThat(report).containsEntry("title","Actual & Dynamic Title");
         assertThat(NativeVisualReport.instruction(Map.of("reportMode","visual"))).contains("exactly one","HTML","no CDN","Local fetch");
     }
+    @Test void textOrHtmlCanBeDeliveredWithoutAnyCharts(){
+        var json=new ObjectMapper();
+        var markdown=Map.of("type","REPORT","path","output/available-findings.md");
+        var html=Map.of("type","REPORT","path","output/report.html");
+        var result=Map.of("type","RESULT","path","output/result.json");
+        assertThat(NativeVisualReport.hasSupportedDelivery(json.valueToTree(List.of(markdown,result)))).isTrue();
+        assertThat(NativeVisualReport.hasSupportedDelivery(json.valueToTree(List.of(html,result)))).isTrue();
+        assertThat(NativeVisualReport.hasSupportedDelivery(json.valueToTree(List.of(result)))).isFalse();
+        assertThat(NativeVisualReport.hasSupportedDelivery(json.valueToTree(List.of(html,html,markdown)))).isFalse();
+    }
 }

@@ -16,6 +16,22 @@ it('rejects missing resources, external URLs, modules and corrupted bytes',async
  for(const html of ['<script src="missing.js"></script>','<img src="https://example.org/x.png">','<script type="module">import x from "x"</script>'])await expect(assembleHtmlReport(await bundle(html))).rejects.toThrow();
  const bad=await bundle('<h1>Report</h1>');bad.files[0].sha256='0'.repeat(64);await expect(assembleHtmlReport(bad)).rejects.toThrow();
 });
+it('renders an archived workspace-relative chart without confusing it with a sibling path',async()=>{
+ const value=await assembleHtmlReport(await bundle('<h1>Market analysis</h1><img src="output/charts/index_daily_change.png">',{
+  'output/charts/index_daily_change.png':'archived PNG fixture',
+ }));
+ const document=new DOMParser().parseFromString(value,'text/html');
+ expect(document.querySelector('img').getAttribute('src')).toMatch(/^data:image\/png;base64,/);
+ expect(document.body.textContent).toContain('Market analysis');
+});
+it('preserves text and tables when an optional chart was not delivered',async()=>{
+ const value=await assembleHtmlReport(await bundle('<h1>Available findings</h1><img src="charts/absent.png"><table><tr><td>42</td></tr></table>'));
+ const document=new DOMParser().parseFromString(value,'text/html');
+ expect(document.querySelector('img')).toBeNull();
+ expect(document.querySelector('table').textContent).toContain('42');
+ expect(document.body.textContent).toContain('Available findings');
+ expect(document.body.textContent).not.toContain('absent.png');
+});
 it('removes redirects, embedded browsing contexts and navigational links',async()=>{
  const html=await assembleHtmlReport(await bundle('<meta http-equiv="refresh" content="0;url=https://example.org"><iframe src="https://example.org"></iframe><a href="https://example.org" ping="https://example.org">Source</a>'));
  const doc=new DOMParser().parseFromString(html,'text/html');expect(doc.querySelector('iframe')).toBeNull();expect(doc.querySelector('a').hasAttribute('href')).toBe(false);expect(doc.querySelector('meta[http-equiv="refresh"]')).toBeNull();

@@ -1,0 +1,178 @@
+{
+  "date": "2026-11-18",
+  "sourceCommit": "d736e9fdfd2358565edec2c8390653c8b260196f",
+  "buildProxy": "https://192.168.36.128:8443",
+  "npm": {
+    "explicitProxy": true,
+    "tlsVerification": true,
+    "proxyCertificate": "verified via host TLS trust, mounted as BuildKit secret",
+    "networkDownloadsConfirmed": true
+  },
+  "images": [
+    {
+      "image": "chatchat-api:production-local",
+      "id": "sha256:21cbeeb83163b4190a33ba94ab9ef97a1e609ef8ce13bb229845a10c28c9d879",
+      "bytes": 510176652,
+      "user": "10001:10001"
+    },
+    {
+      "image": "chatchat-mcp-server:production-local",
+      "id": "sha256:22ce8682c5dd09a068cba8b5de9ff02712fa740c79c9605a25c5caa5066fe369",
+      "bytes": 352329533,
+      "user": "10001:10001"
+    },
+    {
+      "image": "chatchat-runtime-news:production-local",
+      "id": "sha256:20f39224c020742e90e17b941cdbbc9f0cb0ff5b6b21005230eda38cebc7fdf5",
+      "bytes": 235449674,
+      "user": "10001:10001"
+    },
+    {
+      "image": "cline-agent-server:production-local",
+      "id": "sha256:ce96b8a9bda59380f4d909bb92a282b36b82dbef8f30f0695da8c6e43c957a60",
+      "bytes": 154503533,
+      "user": "10001:10001"
+    },
+    {
+      "image": "frontend-resource-hub:production-local",
+      "id": "sha256:67fe6dc95dac9adb5817bd07cb45fdfed1383c35892a530a2be7eb7a69df0003",
+      "bytes": 1050133335,
+      "user": "10001:10001"
+    }
+  ],
+  "applicationStartup": [
+    {
+      "service": "news",
+      "scope": "isolated startup, not production integration",
+      "passed": true,
+      "http_status": 200,
+      "user": "10001:10001"
+    },
+    {
+      "service": "mcp",
+      "scope": "isolated startup, not production integration",
+      "passed": true,
+      "http_status": 200,
+      "user": "10001:10001"
+    },
+    {
+      "service": "api",
+      "scope": "isolated startup, not production integration",
+      "passed": true,
+      "administrator_login": "passed",
+      "http_status": 200,
+      "user": "10001:10001"
+    },
+    {
+      "service": "cline",
+      "scope": "isolated startup, not production integration",
+      "passed": true,
+      "http_status": 200,
+      "user": "10001:10001"
+    }
+  ],
+  "frontendAcceptance": {
+    "scope": "synthetic browser acceptance, no model or production data",
+    "passed": true,
+    "http_status": 200,
+    "user": "10001"
+  },
+  "frontendTemplates": [
+    {
+      "template": "management-list",
+      "status": "passed"
+    },
+    {
+      "template": "data-analysis",
+      "status": "passed"
+    },
+    {
+      "template": "business-report",
+      "status": "passed"
+    },
+    {
+      "template": "oa-form",
+      "status": "passed"
+    },
+    {
+      "template": "login-portal",
+      "status": "passed"
+    }
+  ],
+  "infrastructureStartup": [
+    {
+      "Service": "opensearch",
+      "Image": "opensearchproject/opensearch:2.19.1",
+      "State": "running",
+      "Health": "healthy",
+      "ExitCode": 0
+    },
+    {
+      "Service": "opensearch-security-init",
+      "Image": "opensearchproject/opensearch:2.19.1",
+      "State": "exited",
+      "Health": "",
+      "ExitCode": 0
+    },
+    {
+      "Service": "postgresql",
+      "Image": "postgres:18",
+      "State": "running",
+      "Health": "healthy",
+      "ExitCode": 0
+    },
+    {
+      "Service": "redis",
+      "Image": "redis:7.4-alpine",
+      "State": "running",
+      "Health": "healthy",
+      "ExitCode": 0
+    },
+    {
+      "Service": "silo",
+      "Image": "pgsty/silo:latest",
+      "State": "running",
+      "Health": "healthy",
+      "ExitCode": 0
+    },
+    {
+      "Service": "temporal",
+      "Image": "temporalio/server:1.29.7",
+      "State": "running",
+      "Health": "healthy",
+      "ExitCode": 0
+    },
+    {
+      "Service": "temporal-namespace",
+      "Image": "temporalio/auto-setup:1.29.7",
+      "State": "exited",
+      "Health": "",
+      "ExitCode": 0
+    },
+    {
+      "Service": "temporal-postgresql",
+      "Image": "postgres:18",
+      "State": "running",
+      "Health": "healthy",
+      "ExitCode": 0
+    },
+    {
+      "Service": "temporal-schema",
+      "Image": "temporalio/auto-setup:1.29.7",
+      "State": "exited",
+      "Health": "",
+      "ExitCode": 0
+    }
+  ],
+  "configurationChecks": [
+    "production compose",
+    "compose build overlay",
+    "legacy frontend compose",
+    "git diff --check"
+  ],
+  "limitations": [
+    "Application startup checks use H2, official policy seed and disabled external integrations/MCP gRPC.",
+    "No real model execution or complete production business acceptance."
+  ],
+  "testCleanup": "Transient smoke containers removed; isolated infrastructure containers stopped; volumes preserved."
+}

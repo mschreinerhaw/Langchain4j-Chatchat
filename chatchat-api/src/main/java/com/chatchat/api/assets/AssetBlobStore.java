@@ -6,6 +6,12 @@ public interface AssetBlobStore {
     record ObjectInfo(String versionId,long size) { }
     record ObjectPart(String key,String versionId) { }
     Stored put(String key, byte[] bytes, String contentType, String sha256);
+    default Stored putFile(String key, java.nio.file.Path file, long size, String contentType, String sha256)
+            throws java.io.IOException {
+        byte[] bytes = java.nio.file.Files.readAllBytes(file);
+        if (bytes.length != size) throw new java.io.IOException("Snapshot file length changed");
+        return put(key, bytes, contentType, sha256);
+    }
     byte[] get(String key, String versionId, long maxBytes);
     default void copy(String key,String versionId,long maxBytes,java.io.OutputStream output)throws java.io.IOException {
         output.write(get(key,versionId,maxBytes));

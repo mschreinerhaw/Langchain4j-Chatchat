@@ -2,7 +2,14 @@ name: frontend-resource-hub
 services:
   frontend-resource-hub:
     image: frontend-resource-hub:1.0.0
-    build: .
+    build:
+      context: .
+      secrets: [proxy_ca]
+      args:
+        HTTP_PROXY: ${BUILD_PROXY:-https://192.168.36.128:8443}
+        HTTPS_PROXY: ${BUILD_PROXY:-https://192.168.36.128:8443}
+        http_proxy: ${BUILD_PROXY:-https://192.168.36.128:8443}
+        https_proxy: ${BUILD_PROXY:-https://192.168.36.128:8443}
     restart: unless-stopped
     read_only: true
     cap_drop: [ALL]
@@ -46,3 +53,7 @@ networks:
   coding:
     external: true
     name: runtime-os-app-stage_coding
+
+secrets:
+  proxy_ca:
+    file: ${PROXY_CA_FILE:?Set PROXY_CA_FILE to the verified HTTPS proxy certificate}

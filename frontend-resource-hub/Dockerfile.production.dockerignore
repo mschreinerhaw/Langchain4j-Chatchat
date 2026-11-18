@@ -1,0 +1,9 @@
+**
+!frontend-resource-hub/**
+**/node_modules
+**/public
+**/jobs
+**/.env*
+**/*.log
+**/*-acceptance.json
+**/audit.json

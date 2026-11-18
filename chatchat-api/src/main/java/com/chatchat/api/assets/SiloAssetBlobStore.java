@@ -39,9 +39,15 @@ public final class SiloAssetBlobStore implements AssetBlobStore, AutoCloseable {
         } catch (IOException e) { throw new IllegalStateException("Asset credential file unavailable", e); }
     }
     @Override public Stored put(String key, byte[] bytes, String type, String hash) {
-        try (var input = new ByteArrayInputStream(bytes)) {
+        return putStream(key, new ByteArrayInputStream(bytes), bytes.length, type, hash);
+    }
+    @Override public Stored putFile(String key, Path file, long size, String type, String hash) throws IOException {
+        return putStream(key, Files.newInputStream(file), size, type, hash);
+    }
+    private Stored putStream(String key, InputStream source, long size, String type, String hash) {
+        try (var input = source) {
             var stored = client.putObject(PutObjectArgs.builder().bucket(bucket).object(key)
-                .stream(input, bytes.length, -1).contentType(type).userMetadata(Map.of("sha256", hash)).build());
+                .stream(input, size, -1).contentType(type).userMetadata(Map.of("sha256", hash)).build());
             if (stored.versionId() == null || stored.versionId().isBlank() || "null".equals(stored.versionId()))
                 throw new IllegalStateException("Asset bucket must have object versioning enabled");
             return new Stored(stored.versionId());

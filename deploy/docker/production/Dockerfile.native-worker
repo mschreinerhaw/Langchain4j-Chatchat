@@ -1,0 +1,34 @@
+# syntax=docker/dockerfile:1
+# Compile CLINE_SOURCE_IMAGE from source on the deployment host first.
+# RUNTIME_BASE_IMAGE supplies the existing scientific Python tools and fonts.
+ARG CLINE_SOURCE_IMAGE
+ARG RUNTIME_BASE_IMAGE
+FROM ${CLINE_SOURCE_IMAGE} AS native
+FROM ${RUNTIME_BASE_IMAGE}
+USER root
+# Dedicated daemons may use umask 077 when creating missing bind parents.
+RUN install -d -m 0755 /var/lib/runtime-os /var/lib/runtime-os/coding-node /run/runtime-os /run/runtime-os/coding-node
+RUN rm -rf /opt/runtime-os/cline/runtime /opt/runtime-os/coding-node/service/src \
+    /opt/runtime-os/coding-node/coding-agent-node/src /opt/runtime-os/coding-node/coding-agent-node/skills
+COPY --from=native /usr/local/bin/node /usr/local/bin/node
+COPY --from=native /opt/cline/runtime/ /opt/runtime-os/cline/runtime/
+COPY cline-agent-server/src/ /opt/runtime-os/coding-node/service/src/
+COPY cline-agent-server/scripts/ /opt/runtime-os/coding-node/service/scripts/
+COPY cline-agent-server/docker/verify-native-modules.mjs /opt/runtime-os/coding-node/service/docker/verify-native-modules.mjs
+COPY cline-agent-server/docker/verify-python-runtime.py /opt/runtime-os/coding-node/service/docker/verify-python-runtime.py
+COPY coding-agent-node/package.json /opt/runtime-os/coding-node/coding-agent-node/package.json
+COPY coding-agent-node/src/ /opt/runtime-os/coding-node/coding-agent-node/src/
+COPY coding-agent-node/skills/ /opt/runtime-os/coding-node/coding-agent-node/skills/
+COPY deploy/docker/python-runtime/requirements.lock /opt/chatchat/requirements.lock
+RUN node /opt/runtime-os/coding-node/service/scripts/verify-runtime.mjs /opt/runtime-os/cline/runtime \
+    && node /opt/runtime-os/coding-node/service/docker/verify-native-modules.mjs /opt/runtime-os/cline/runtime \
+    && python /opt/runtime-os/coding-node/service/docker/verify-python-runtime.py
+ENV CLINE_SERVER_CONFIG=/run/runtime-os/coding-node/config.json \
+    HOME=/home/runner SHELL=/bin/bash CLINE_PYTHON_RUNTIME=1 \
+    PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin \
+    PYTHONDONTWRITEBYTECODE=1 PYTHONUNBUFFERED=1 MPLCONFIGDIR=/tmp/matplotlib
+WORKDIR /opt/runtime-os/coding-node/service
+USER 10001:10001
+HEALTHCHECK NONE
+ENTRYPOINT []
+CMD ["node", "/opt/runtime-os/coding-node/service/src/server.mjs"]

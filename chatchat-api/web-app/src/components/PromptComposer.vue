@@ -85,7 +85,7 @@
           class="tool-button visual-report-toggle"
           :class="{ active: reportMode === 'visual' }"
           :disabled="loading"
-          :title="reportMode === 'visual' ? '图文报告已开启，点击关闭' : '开启图文报告'"
+          :title="reportMode === 'visual' ? '本次发送将使用图文报告，点击取消' : '为本次发送开启图文报告'"
           @click="reportMode = reportMode === 'visual' ? 'off' : 'visual'"
           ><FileText :size="14" stroke-width="2" />图文报告</button
         >

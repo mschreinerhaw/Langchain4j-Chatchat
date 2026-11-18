@@ -32,6 +32,19 @@ class SiloCodingWorkspaceServiceTest {
         assets=new UserAssetService(jdbc,tx,blobs,limits);
         service=new SiloCodingWorkspaceService(assets,blobs,limits,new JdbcRuntimeEvidenceStore(jdbc,new ObjectMapper(),tx),new ObjectMapper());
     }
+    @Test void pagedSnapshotKeepsExactBytesThroughTaskInputPublication(
+            @org.junit.jupiter.api.io.TempDir java.nio.file.Path directory)throws Exception{
+        var file=directory.resolve("snapshot.jsonl");
+        byte[] bytes="{\"value\":42}\n".getBytes(StandardCharsets.UTF_8);
+        java.nio.file.Files.write(file,bytes);
+        var digest=UserAssetService.hash(bytes);
+        var snapshot=assets.storeSnapshot(owner,"task-a",scope.runId(),"snapshot:"+digest,"snapshot.jsonl",file,bytes.length,digest);
+        var state=service.create(scope,"task-a",List.of(snapshot.id()));
+        var input=state.inputs().get(0);
+        assertThat(input.sha256()).isEqualTo(digest);
+        assertThat(assets.readTask(scope,"task-a",input.assetId())).isEqualTo(bytes);
+        assertThat(service.create(scope,"task-a",List.of(snapshot.id())).snapshotVersion()).isEqualTo(state.snapshotVersion());
+    }
     @Test void feedbackFenceSurvivesFileDatabaseReopen(@org.junit.jupiter.api.io.TempDir java.nio.file.Path directory){
         var db=new DriverManagerDataSource("jdbc:h2:file:"+directory.resolve("control").toAbsolutePath()+";DATABASE_TO_LOWER=TRUE","sa","");
         setup(db);

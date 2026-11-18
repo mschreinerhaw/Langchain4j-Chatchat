@@ -8,7 +8,12 @@ import com.chatchat.api.runtime.coding.nativecline.NativeCodingTasks;
 import com.chatchat.common.kernel.KernelDataScope;
 import com.chatchat.common.runtime.coding.VisualReportMode;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import java.io.ByteArrayOutputStream;
+import java.io.BufferedOutputStream;
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.security.DigestOutputStream;
+import java.security.MessageDigest;
 import java.util.*;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Service;
@@ -38,17 +43,41 @@ public final class NativeAnalysisBridge {
             var authorizedReferences=sources.values().stream().map(Dataset::reference).toList();long bytes=0,rows=0;int index=0;
             String snapshotTask=coding.taskIdentity(scope,request);
             for(var source:sources.values()){
-                var output=new ByteArrayOutputStream();long offset=0;
-                for(;;){
+                long offset=0, sourceBytes=0;
+                String name="source-"+(++index);
+                Path temporary=null;
+                UserAssetService.File file;
+                try{
+                    temporary=Files.createTempFile("native-snapshot-", ".jsonl");
+                    var digest=MessageDigest.getInstance("SHA-256");
+                    try(var output=new DigestOutputStream(new BufferedOutputStream(Files.newOutputStream(temporary)),digest)){
+                        for(;;){
+                            if(context.cancellationCheck().getAsBoolean())throw new java.util.concurrent.CancellationException();
+                            var page=source.handle().readPage(offset,1024);
+                            for(var row:page.rows()){
+                                byte[] data=json.writeValueAsBytes(row);
+                                long lineBytes=(long)data.length+1;
+                                if(lineBytes>policy.getMaxInputBytes()-bytes||rows>=policy.getMaxInputRows())
+                                    throw new IllegalArgumentException("Authorized Native snapshot exceeds configured input resources");
+                                output.write(data);output.write('\n');
+                                sourceBytes+=lineBytes;bytes+=lineBytes;rows++;
+                            }
+                            offset+=page.rows().size();
+                            if(!page.hasMore())break;
+                            if(page.rows().isEmpty())throw new IllegalStateException("Source paging made no progress");
+                        }
+                    }
                     if(context.cancellationCheck().getAsBoolean())throw new java.util.concurrent.CancellationException();
-                    var page=source.handle().readPage(offset,1024);
-                    for(var row:page.rows())try{byte[] data=json.writeValueAsBytes(row);output.write(data);output.write('\n');bytes+=data.length+1;rows++;
-                        if(bytes>policy.getMaxInputBytes()||rows>policy.getMaxInputRows())throw new IllegalArgumentException("Authorized Native snapshot exceeds configured input resources: rows="+rows+"/"+policy.getMaxInputRows()+", bytes="+bytes+"/"+policy.getMaxInputBytes()+", source="+source.reference());
-                    }catch(java.io.IOException invalid){throw new IllegalStateException("Authorized row snapshot encoding failed",invalid);}
-                    offset+=page.rows().size();if(!page.hasMore())break;if(page.rows().isEmpty())throw new IllegalStateException("Source paging made no progress");
+                    String sha256=HexFormat.of().formatHex(digest.digest());
+                    file=assets.storeSnapshot(UserAssetService.Owner.of(scope),snapshotTask,scope.runId(),
+                        "native-runtime-data:"+request+":"+source.reference()+":"+sha256,name+".jsonl",temporary,sourceBytes,sha256);
+                }catch(IOException|java.security.NoSuchAlgorithmException failure){
+                    throw new IllegalStateException("Authorized row snapshot publication failed",failure);
+                }finally{
+                    if(temporary!=null)try{Files.deleteIfExists(temporary);}
+                    catch(IOException cleanup){org.slf4j.LoggerFactory.getLogger(NativeAnalysisBridge.class).warn("Native snapshot temporary file cleanup failed",cleanup);}
                 }
-                index++;byte[] data=output.toByteArray();String name="source-"+index;
-                var file=assets.store(UserAssetService.Owner.of(scope),UserAssetService.Kind.DATASET,snapshotTask,scope.runId(),"native-runtime-data:"+request+":"+source.reference()+":"+UserAssetService.hash(data),name+".jsonl","application/json",data);files.add(file.id());
+                files.add(file.id());
                 var contextFields=new LinkedHashMap<String,Object>();
                 for(String key:List.of("fieldSchema","fieldDefinitions","columns","dataQuality","recordMeaning","sourceDescription","snapshotSemantics","templateParameterBinding","representation","sourceSha256","recordType","sourceVerifiedEmpty"))if(source.analysisContext().containsKey(key))contextFields.put(key,source.analysisContext().get(key));
                 var description=new LinkedHashMap<String,Object>();description.put("datasetReference",source.reference());description.put("rowCount",offset);description.put("inputStatus",offset==0?"VERIFIED_EMPTY_SNAPSHOT":"DELIVERED_SNAPSHOT");description.put("format","JSON_LINES");description.put("fileName",name+".jsonl");description.put("sha256",file.sha256());description.put("sourceContext",contextFields);

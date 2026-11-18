@@ -23,6 +23,7 @@ public final class NativeS3Settings {
     public NativeS3NodeClient client(String id){var selected=nodes.get(id);if(selected==null)throw new SecurityException("Unknown persisted Native node");return selected;}
     public NativeS3NodeClient recovery(String id){var selected=recovery.get(id);if(selected==null)throw new IllegalStateException("Independent Native stop control is not configured");return selected;}
     public Set<String> nodeIds(){return nodes.keySet();}
+    public boolean hasLiveNode(String id){return nodes.containsKey(id);}
     private com.chatchat.api.model.PlatformModelCatalogService catalog;
     @org.springframework.beans.factory.annotation.Autowired public void setCatalog(com.chatchat.api.model.PlatformModelCatalogService value){catalog=value;}
     public String defaultModel(){return dynamicModels?Objects.requireNonNull(catalog.defaultChatModel(),"No published default model"):defaultModel;}
@@ -60,7 +61,12 @@ public final class NativeS3Settings {
             if(!entry.getKey().matches("[A-Za-z0-9_-]{1,64}"))throw new IllegalArgumentException("Bounded Native node ID required");
             clients.put(entry.getKey(),new NativeS3NodeClient(URI.create(entry.getValue().path("endpoint").asText()),json));
             if(entry.getValue().hasNonNull("recoveryEndpoint"))controls.put(entry.getKey(),new NativeS3NodeClient(URI.create(entry.getValue().path("recoveryEndpoint").asText()),json));
-        });nodes=Map.copyOf(clients);recovery=Map.copyOf(controls);
+        });
+        config.path("recoveryNodes").fields().forEachRemaining(entry->{
+            if(!entry.getKey().matches("[A-Za-z0-9_-]{1,64}"))throw new IllegalArgumentException("Bounded Native recovery node ID required");
+            controls.put(entry.getKey(),new NativeS3NodeClient(URI.create(entry.getValue().asText()),json));
+        });
+        nodes=Map.copyOf(clients);recovery=Map.copyOf(controls);
     }
     public String profile(String model){if(dynamicModels){var descriptor=descriptor(model);try{return "runtime-"+HexFormat.of().formatHex(java.security.MessageDigest.getInstance("SHA-256").digest((descriptor.get("logicalName")+"\0"+descriptor.get("providerModel")).getBytes(java.nio.charset.StandardCharsets.UTF_8)));}catch(java.security.NoSuchAlgorithmException impossible){throw new IllegalStateException(impossible);}}var profile=profiles.get(model);if(profile==null)throw new IllegalArgumentException("Selected model is not published on this Native node");return profile;}
 }

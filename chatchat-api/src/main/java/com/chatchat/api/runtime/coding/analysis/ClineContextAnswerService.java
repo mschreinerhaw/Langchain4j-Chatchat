@@ -250,7 +250,8 @@ public final class ClineContextAnswerService implements CodingAnswerPort {
             phase(runId, "CLINE_SUBMITTING", "RUNNING", inputKind);
             var receipt = coding.executeObserved(invocation, Map.of("operation", "RUN_CODING",
                 "requestId", codingRequestId, "datasetReferences", List.copyOf(sources.keySet()), "instruction", instruction,
-                "outputSchema", CodingAnalysisService.authorizedReportSchema(CodingAnalysisService.primaryReportSchema(visual,!conditionalVisual&&!resourceReport),authorizedReferences), "reviewResult", true), sources,
+                "outputSchema", CodingAnalysisService.authorizedReportSchema(CodingAnalysisService.primaryReportSchema(
+                    visual,!conditionalVisual&&!resourceReport&&!coding.nativeExecutionEnabled()),authorizedReferences), "reviewResult", true), sources,
                 event -> {
                     if ("TASK_CREATED".equals(event.get("codingEventType"))) phase(runId, "CLINE_SUBMITTING", "COMPLETED", inputKind);
                     runs.recordObservation(runId, new AgentObservation("coding", "coding_agent", "Coding task progress", event));

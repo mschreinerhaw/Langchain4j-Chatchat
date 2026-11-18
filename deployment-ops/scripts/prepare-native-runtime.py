@@ -74,7 +74,7 @@ manifest={'schemaVersion':1,'name':'runtime-os','version':a.version,'platform':'
   'serverAddress':{'label':'服务器访问地址','type':'string','default':'127.0.0.1','pattern':'[A-Za-z0-9.-]+'},
   'httpPort':{'label':'Runtime OS 入口端口','type':'integer','default':19400,'min':1024,'max':65535},
   'mcpPort':{'label':'MCP 入口端口','type':'integer','default':19401,'min':1024,'max':65535},
-  'directoryName':{'label':'部署目录名（可选）','type':'string','default':'','pattern':'([a-z0-9][a-z0-9-]{0,15})?','description':'目录固定在 /mnt/disk01/ops/r 下；留空生成独立目录，已有环境不允许变更数据根目录。'},
+  'directoryName':{'label':'部署目录名（可选）','type':'string','default':'','pattern':'([a-z0-9][a-z0-9-]{0,15})?','description':'目录位于管理员选择的应用数据根目录下；留空生成独立目录，已有环境不允许变更数据根目录。'},
   'osAdminPassword':{'label':'Runtime OS 管理员初始密码','type':'string','secret':True,'required':True,'pattern':'[A-Za-z0-9_!@#%+.,:-]{12,128}','description':'首次部署设置 12–128 位密码，OS 和 MCP 共用初始管理员凭据。升级时留空保留原凭据。'}},
  'images':dict({role:{'source':item['reference']} for role,item in mapping.items()},installer={'source':a.installer_image}),
  'volumes':{},'components':components,

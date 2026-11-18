@@ -8,11 +8,11 @@
 
 ## 从离线源码编译
 
-将完整发行包解压到真实挂载的 `/mnt/disk01` 下。发行包携带构建所需的 Boot 依赖归档和
+将完整发行包解压到管理员选择的可写目录，例如 `/opt/deployment-ops-source`。单盘服务器可以安装，无需新增磁盘。发行包携带构建所需的 Boot 依赖归档和
 已构建的模块化 Vue 静态资源；Java 编译不连接在线仓库，也不运行 Python。
 
 ```sh
-cd /mnt/disk01/deployment-ops-source
+cd /opt/deployment-ops-source
 /opt/jdk-17/bin/java scripts/BuildNativeOffline.java \
   --runtime build/boot-runtime.zip --output lib/deployment-ops.jar \
   --version VERSION --source-commit SOURCE_COMMIT
@@ -24,8 +24,17 @@ cd /mnt/disk01/deployment-ops-source
 
 ## 直接启动并完成首次安装
 
+首次运行可以直接执行 `java -jar lib/deployment-ops.jar`，在页面选择平台数据目录与应用目录，
+检查容量和权限后保存，再设置管理员密码。首次安装令牌在本地控制台输出。
+所选目录保存在 JAR 旁的 `.storage.properties` 文件。换用另一个 JAR 执行维护命令时，
+传入 `--storage-config /原路径/应用.jar.storage.properties`。
+
+无交互安装可指定 `--data-dir /opt/deployment-ops/data --runtime-dir /opt/deployment-ops/r`。
+系统盘与独立数据盘均支持。只有显式设置 `--required-mount /mnt/disk01` 或
+`OPS_REQUIRED_MOUNT` 时，才要求该独立挂载存在。既有实例保持原目录，升级不迁移业务数据。
+
 ```sh
-export OPS_DATA_DIR=/mnt/disk01/deployment-ops/data
+export OPS_DATA_DIR=/opt/deployment-ops/data
 export OPS_BIND=0.0.0.0
 /opt/jdk-17/bin/java -jar lib/deployment-ops.jar
 ```
@@ -35,12 +44,13 @@ export OPS_BIND=0.0.0.0
 私有实例配置保存在数据目录上级的 `standalone/instance.properties`，不得公开或随发行包分发。
 
 `OPS_PORT` 默认为19240，内部节点 `OPS_EXECUTOR_PORT` 默认为19242，仅监听本机回环地址。
-数据盘必须为真实挂载；程序拒绝系统盘回退。临时上传、Tomcat、H2、包缓存均位于数据盘。
+临时上传、Tomcat、H2、包缓存均位于所选平台目录；应用数据可选择其他目录。
+记录的文件系统发生变化时，程序拒绝静默切换。独立挂载检查是可选策略。
 
 可选注册为系统服务（需 root 和 systemd，不覆盖已有同名服务）：
 
 ```sh
-export OPS_DATA_DIR=/mnt/disk01/deployment-ops/data
+export OPS_DATA_DIR=/opt/deployment-ops/data
 /opt/jdk-17/bin/java -jar lib/deployment-ops.jar --install-service deployment-ops
 ```
 
@@ -58,10 +68,10 @@ export OPS_DATA_DIR=/mnt/disk01/deployment-ops/data
 大包已在服务器数据盘时，可选使用同一运行实例的本地导入入口：
 
 ```sh
-java -jar lib/deployment-ops.jar --import-package /mnt/disk01/media/runtime.ops.zip PUBLISHER_SHA256
+java -jar lib/deployment-ops.jar --import-package /opt/media/runtime.ops.zip PUBLISHER_SHA256
 ```
 
-同盘已有 Docker-save 归档时可追加一个或多个 `--image-cache /mnt/disk01/media/images.tar`。
+同盘已有 Docker-save 归档时可追加一个或多个 `--image-cache /opt/media/images.tar`。
 缓存必须与包内清单精确匹配，仍会进行完整签名及内容校验。平台不自动删除镜像腾空间。
 完整验证成功后自动回收本次上传的暂存 ZIP；签名、清单、配置资源及内容寻址镜像归档继续持久化。
 重新提交已验证上传时，平台重新验证持久化签名及负载，直接补齐缺失镜像，不要求暂存 ZIP 仍存在。
@@ -78,8 +88,8 @@ java -jar lib/deployment-ops.jar --import-package /mnt/disk01/media/runtime.ops.
 直接运行模式先停止本平台进程，再运行：
 
 ```sh
-export OPS_DATA_DIR=/mnt/disk01/deployment-ops/data
-java -jar lib/deployment-ops.jar --restore-backup /mnt/disk01/backups/backup-UUID.zip BACKUP_SHA256
+export OPS_DATA_DIR=/opt/deployment-ops/data
+java -jar lib/deployment-ops.jar --restore-backup /opt/backups/backup-UUID.zip BACKUP_SHA256
 java -jar lib/deployment-ops.jar
 ```
 
@@ -99,7 +109,7 @@ Java 安装器注册的服务模式可在系统管理页面上传离线发行 ZI
 需要恢复上一版本时设置原实例环境变量后执行：
 
 ```sh
-export OPS_DATA_DIR=/mnt/disk01/deployment-ops/data
+export OPS_DATA_DIR=/opt/deployment-ops/data
 export OPS_PLATFORM_SERVICE=deployment-ops
 java -jar OLD_VERIFIED_JAR --recover-maintenance JOB_ID
 ```

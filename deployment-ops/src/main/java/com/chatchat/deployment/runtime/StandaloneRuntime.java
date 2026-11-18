@@ -26,12 +26,13 @@ public final class StandaloneRuntime {
         if(Files.exists(file)){if(!Files.isRegularFile(file,LinkOption.NOFOLLOW_LINKS))throw new IllegalStateException("Invalid private instance configuration");try(var in=Files.newInputStream(file)){config.load(in);}}
         else{
             for(String key:List.of("EXECUTOR_TOKEN","OPS_DB_PASSWORD","OPS_INSTANCE_ID","OPS_SETUP_TOKEN"))config.setProperty(key,key.equals("OPS_SETUP_TOKEN")?System.getProperty(key,UUID.randomUUID().toString()+UUID.randomUUID()):UUID.randomUUID().toString()+UUID.randomUUID());
+            config.setProperty("OPS_RUNTIME_DIR",com.chatchat.deployment.storage.StorageOptions.runtime().toString());
             Path temporary=Files.createTempFile(root,"instance-",".tmp",PosixFilePermissions.asFileAttribute(PosixFilePermissions.fromString("rw-------")));
             try{try(var out=Files.newOutputStream(temporary)){config.store(out,"Private local configuration; never distribute");}try(FileChannel saved=FileChannel.open(temporary,StandardOpenOption.WRITE)){saved.force(true);}Files.move(temporary,file,StandardCopyOption.ATOMIC_MOVE);}finally{Files.deleteIfExists(temporary);}
         }
         for(String key:List.of("EXECUTOR_TOKEN","OPS_DB_PASSWORD","OPS_INSTANCE_ID","OPS_SETUP_TOKEN"))if(config.getProperty(key,"").length()<32)throw new IllegalStateException("Private instance configuration is incomplete; restore it from a verified backup: "+key);
         Files.setPosixFilePermissions(file,PosixFilePermissions.fromString("rw-------"));
-        config.forEach((k,v)->System.setProperty(k.toString(),v.toString()));
+        config.forEach((k,v)->{if(!k.toString().equals("OPS_RUNTIME_DIR")||System.getProperty("OPS_RUNTIME_DIR")==null)System.setProperty(k.toString(),v.toString());});
         String port=System.getenv().getOrDefault("OPS_EXECUTOR_PORT","19242");
         if(!port.matches("[0-9]{4,5}")||Integer.parseInt(port)>65535||Integer.parseInt(port)<1024)throw new IllegalArgumentException("Invalid local executor port");
         System.setProperty("OPS_EXECUTOR_URL","http://127.0.0.1:"+port);

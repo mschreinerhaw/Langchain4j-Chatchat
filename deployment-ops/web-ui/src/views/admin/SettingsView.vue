@@ -38,8 +38,16 @@
         <dd><StateBadge :status="data.platform === 'UP' ? 'healthy' : 'UNKNOWN'" /></dd>
         <dt>H2 数据库</dt>
         <dd><StateBadge :status="data.database === 'UP' ? 'healthy' : 'UNKNOWN'" /></dd>
-        <dt>/mnt/disk01 挂载</dt>
+        <dt>存储状态</dt>
         <dd><StateBadge :status="data.mounted ? 'healthy' : 'failed'" /></dd>
+        <dt>文件系统挂载位置</dt>
+        <dd>{{ data.mountPoint }}</dd>
+        <dt>专用挂载要求</dt>
+        <dd>{{ data.requiredMount || '不要求（允许单盘目录）' }}</dd>
+        <dt>应用数据目录</dt>
+        <dd>
+          <code>{{ data.runtimeDirectory }}</code>
+        </dd>
         <dt>Docker 连接</dt>
         <dd><StateBadge :status="dockerConnected ? 'healthy' : 'UNKNOWN'" /></dd>
         <dt>数据版本</dt>

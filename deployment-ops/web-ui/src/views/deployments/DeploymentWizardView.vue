@@ -32,9 +32,14 @@
           </select>
         </label>
         <label>
-          持久化根目录
-          <input value="/mnt/disk01" readonly />
-          <small>执行器校验真实挂载状态，不允许回退到系统盘。</small>
+          目标主机的应用数据目录
+          <input
+            :value="
+              selectedStorage.runtimeDirectory || '\u7b49\u5f85\u4e3b\u673a\u5b58\u50a8\u4fe1\u606f'
+            "
+            readonly
+          />
+          <small>使用目标主机安装时选择的目录；预检会核对实际路径与可用容量。</small>
         </label>
         <footer class="form-actions">
           <button class="primary" :disabled="busy">检查主机并继续</button>
@@ -122,7 +127,7 @@
           <dt>版本</dt>
           <dd>{{ release?.version || '尚未选择' }}</dd>
           <dt>数据目录</dt>
-          <dd>/mnt/disk01</dd>
+          <dd>{{ review?.runtimeDirectory || selectedStorage.runtimeDirectory }}</dd>
           <dt>数据保留</dt>
           <dd>升级与回滚均保留持久化数据卷</dd>
         </dl>
@@ -153,7 +158,7 @@
   import PreflightReview from '../../components/deployments/PreflightReview.vue';
   import TaskSteps from '../../components/tasks/TaskSteps.vue';
   const route = useRoute(),
-    { nodes, jobs } = useCluster(),
+    { nodes, jobs, inventory } = useCluster(),
     node = ref(route.query.node || ''),
     environment = ref(route.query.environment || ''),
     step = ref(0),
@@ -186,6 +191,9 @@
   );
   const progressStep = computed(() =>
     step.value < 4 ? step.value : task.value?.status === 'succeeded' ? 4 : 3
+  );
+  const selectedStorage = computed(
+    () => inventory.value.find((n) => String(n.id) === String(node.value))?.data?.storage || {}
   );
   const release = computed(() => catalog.value.find((item) => item.digest === digest.value));
   async function loadCatalog() {

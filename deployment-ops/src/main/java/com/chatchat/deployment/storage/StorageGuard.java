@@ -42,6 +42,13 @@ public final class StorageGuard {
         Path real=existing.toRealPath();String best="/";
         for(String line:Files.readAllLines(Path.of("/proc/self/mountinfo"))){String[] f=line.split(" ");if(f.length>6){String m=decode(f[4]);if(real.startsWith(Path.of(m))&&m.length()>best.length())best=m;}}return best;
     }
+    private static boolean sameFilesystemAtAnchor(Path path,String configured)throws IOException{
+        Path anchor=Path.of(configured).toAbsolutePath().normalize();
+        boolean present=Files.readAllLines(Path.of("/proc/self/mountinfo")).stream().map(line->line.split(" ")).anyMatch(f->f.length>6&&decode(f[4]).equals(anchor.toString()));
+        if(!present||!Files.exists(anchor))return false;
+        Path existing=path;while(!Files.exists(existing))existing=existing.getParent();
+        return Files.getAttribute(existing.toRealPath(),"unix:dev").equals(Files.getAttribute(anchor,"unix:dev"));
+    }
     public static void checkPolicy(Path path)throws IOException{
         Path absolute=path.toAbsolutePath().normalize();noSymlinks(absolute);
         String required=StorageOptions.requiredMount();
@@ -50,9 +57,9 @@ public final class StorageGuard {
             if(Files.getAttribute(mount,"unix:dev").equals(Files.getAttribute(Path.of("/"),"unix:dev")))throw new IOException("Configured dedicated mount is backed by the system filesystem");
         }
         String expected=StorageOptions.value("OPS_STORAGE_MOUNT","");
-        if(!expected.isBlank()&&absolute.startsWith(StorageOptions.state())&&!mountPoint(absolute).equals(expected))throw new IOException("Selected data mount is missing or changed: "+expected);
+        if(!expected.isBlank()&&absolute.startsWith(StorageOptions.state())&&!sameFilesystemAtAnchor(absolute,expected))throw new IOException("Selected data mount is missing or changed: "+expected);
         String runtimeMount=StorageOptions.value("OPS_RUNTIME_MOUNT","");
-        if(!runtimeMount.isBlank()&&absolute.startsWith(StorageOptions.runtime())&&!mountPoint(absolute).equals(runtimeMount))throw new IOException("Selected application mount is missing or changed: "+runtimeMount);
+        if(!runtimeMount.isBlank()&&absolute.startsWith(StorageOptions.runtime())&&!sameFilesystemAtAnchor(absolute,runtimeMount))throw new IOException("Selected application mount is missing or changed: "+runtimeMount);
     }
     public static void validateDatasource(org.springframework.core.env.Environment environment){
         String directory=StorageOptions.data().toAbsolutePath().normalize().toString().replace('\\','/');

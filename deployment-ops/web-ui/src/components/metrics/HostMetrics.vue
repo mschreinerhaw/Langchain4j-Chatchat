@@ -19,7 +19,7 @@
       :value="data.host.diskPercent"
       :samples="data.history"
       field="diskPercent"
-      :description="'/mnt/disk01 · 可用 ' + bytes(data.host.diskAvailableBytes)"
+      :description="(data.host.diskMount || '') + ' · 可用 ' + bytes(data.host.diskAvailableBytes)"
     />
   </div>
 </template>

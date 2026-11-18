@@ -1,7 +1,7 @@
 <template>
   <PanelCard
     title="创建持久化数据卷"
-    description="数据目录固定在 /mnt/disk01 的平台专属应用目录中，不接管外部业务目录。"
+    description="保存到目标主机配置的平台专属存储目录，不接管外部业务目录。"
   >
     <form @submit.prevent="submit">
       <div class="form-grid">

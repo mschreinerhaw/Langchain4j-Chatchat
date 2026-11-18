@@ -3863,12 +3863,14 @@ class AgentOrchestrationEngine implements AgentRunExecutor, ResumableAgentRunExe
 
     private InterpretationPlanRuntime.StepReview selectPublishedTemplates(ChatModel model, String query,
             InterpretationPlanRuntime.StepReviewRequest request,Map<String,Object> runtimeAttributes,BooleanSupplier cancellationCheck) {
+        boolean fixedScope=com.chatchat.agents.runtime.plan.template.TemplateWorkflowMetadata
+            .fixedScope(toolMetadataOrNull(request.execution().toolName())).isPresent();
         List<Map<String,Object>> candidates=findCandidateMaps(request.execution().output(),"templates",0);
         Set<String> returned=candidates.stream().map(item->stringValue(firstObject(item,"templateId","id")))
             .filter(Objects::nonNull).collect(java.util.stream.Collectors.toSet());
         Map<String,Object> prior=request.execution().metadata();
         List<String> selected=stringList(firstObject(prior,"modelSelectedTemplateIds","selectedTemplateIds","runtimeSelectedTemplateIds"));
-        if(!selected.isEmpty()&&returned.containsAll(selected)&&prior.get("parameterProtocols") instanceof Iterable<?>) {
+        if(!fixedScope&&!selected.isEmpty()&&returned.containsAll(selected)&&prior.get("parameterProtocols") instanceof Iterable<?>) {
             Map<String,Object> reused=new LinkedHashMap<>(prior);
             reused.put("selectedTemplateIds",selected);reused.put("candidateSelectionStatus","REUSED_MODEL_SELECTION");
             reused.put("toolResultReviewUnavailable",false);reused.put("toolResultReviewSkipped",false);
@@ -3888,21 +3890,34 @@ class AgentOrchestrationEngine implements AgentRunExecutor, ResumableAgentRunExe
         });
         context.put(TemplateRecordsetBindings.OUTPUTS, completedOutputs);
         context.put("role",AgentRoleAnalysisContext.promptSectionFromRuntime(runtimeAttributes,"TEMPLATE_SELECTION"));
-        recordLifecyclePhase(runtimeAttributes,null,"model_inference","Model selects templates and binds parameters.",
-            metadataOf("eventKind","MODEL_INFERENCE","eventState","STARTED","modelPhase","template_selection_and_binding",
+        String modelPhase=fixedScope?"published_template_parameter_binding":"template_selection_and_binding";
+        recordLifecyclePhase(runtimeAttributes,null,"model_inference",fixedScope
+                ?"Model binds parameters for the published templates.":"Model selects templates and binds parameters.",
+            metadataOf("eventKind","MODEL_INFERENCE","eventState","STARTED","modelPhase",modelPhase,
                 "stepId",request.execution().stepId(),"toolName",request.execution().toolName()));
-        var result=new SchemaDrivenTemplateParameterBinder(objectMapper).selectAndBind(model,query,candidates,context,
-            ()->runtimeGuard.checkCancelled(cancellationCheck));
-        recordLifecyclePhase(runtimeAttributes,null,"model_inference","Template selection decision returned.",
-            metadataOf("eventKind","MODEL_INFERENCE","eventState","MODEL_UNAVAILABLE".equals(result.status())?"FAILED":"COMPLETED",
-                "modelPhase","template_selection_and_binding","stepId",request.execution().stepId(),
+        var binder=new SchemaDrivenTemplateParameterBinder(objectMapper);
+        Runnable checkCancelled=()->runtimeGuard.checkCancelled(cancellationCheck);
+        var result=fixedScope?binder.bindPublished(model,query,candidates,context,checkCancelled)
+            :binder.selectAndBind(model,query,candidates,context,checkCancelled);
+        recordLifecyclePhase(runtimeAttributes,null,"model_inference",fixedScope
+                ?"Published template parameter binding returned.":"Template selection decision returned.",
+            metadataOf("eventKind","MODEL_INFERENCE","eventState",result.error()!=null?"FAILED":"COMPLETED",
+                "modelPhase",modelPhase,"stepId",request.execution().stepId(),
                 "toolName",request.execution().toolName(),"selectionStatus",result.status(),"modelMetrics",result.metrics()));
         Map<String,Object> metadata=new LinkedHashMap<>();
-        metadata.put("candidateDecisionOwner","MODEL");metadata.put("candidateSelectionStatus",result.status());
-        metadata.put("modelSelectedTemplateIds",result.selectedIds());metadata.put("selectedTemplateIds",result.selectedIds());
-        metadata.put("parameterProtocols",result.protocols());metadata.put("modelCandidateDecision",result.decision());
-        metadata.put("parameterBindingMode","model_selection_and_binding");
-        metadata.put("toolResultReviewMode","MODEL_SELECTION_AND_BINDING");
+        metadata.put("candidateDecisionOwner",fixedScope?"PUBLISHER":"MODEL");
+        metadata.put("candidateSelectionStatus",result.status());
+        if(fixedScope){
+            metadata.put("publishedDataSupply",true);
+            metadata.put("modelParameterBindings",result.decision());
+        }else{
+            metadata.put("modelSelectedTemplateIds",result.selectedIds());
+            metadata.put("modelCandidateDecision",result.decision());
+        }
+        metadata.put("selectedTemplateIds",result.selectedIds());
+        metadata.put("parameterProtocols",result.protocols());
+        metadata.put("parameterBindingMode",fixedScope?"published_template_parameter_binding":"model_selection_and_binding");
+        metadata.put("toolResultReviewMode",fixedScope?"PUBLISHED_TEMPLATE_PARAMETER_BINDING":"MODEL_SELECTION_AND_BINDING");
         metadata.put("toolResultReviewModelCalls",result.metrics().getOrDefault("selectionModelCalls",0));
         metadata.putAll(result.metrics());
         metadata.put("mcpDiscoverySucceeded",true);
@@ -3910,7 +3925,8 @@ class AgentOrchestrationEngine implements AgentRunExecutor, ResumableAgentRunExe
             metadata.put("candidateSelectionErrorCode",result.status());metadata.put("candidateSelectionError",result.error());
             metadata.put("toolResultReviewUnavailable","MODEL_UNAVAILABLE".equals(result.status()));
         }
-        return InterpretationPlanRuntime.StepReview.accepted("Model selection status: "+result.status(),metadata);
+        return InterpretationPlanRuntime.StepReview.accepted(
+            (fixedScope?"Published template parameter binding status: ":"Model selection status: ")+result.status(),metadata);
     }
 
 

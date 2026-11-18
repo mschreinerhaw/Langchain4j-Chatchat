@@ -125,6 +125,49 @@ class ToolResultReviewBranchTest {
     }
 
     @Test
+    void fixedPublicationBindsEveryReturnedTemplateWithoutSemanticScreening() {
+        var scope=com.chatchat.common.mcp.capability.McpTemplateSelectionScope.fixedBinding("api");
+        metadata("template_query", Map.of(
+            ToolWorkflowContract.METADATA_KEY,
+            ToolWorkflowContract.declaration(ToolWorkflowRole.TEMPLATE_DISCOVERY, "fixture", "template_query.v1"),
+            com.chatchat.common.mcp.capability.McpTemplateSelectionScope.METADATA_KEY,scope.toMetadata()));
+        when(model.chat(any(ChatRequest.class))).thenReturn(ChatResponse.builder().aiMessage(AiMessage.from(
+            ToolExecutionRequest.builder().id("binding").name(SchemaDrivenTemplateParameterBinder.BINDING_FUNCTION)
+                .arguments("""
+                    {"bindings":[{"templateId":"assets","parameters":{}}]}
+                    """).build())).build());
+        var templates=List.of(
+            Map.of("templateId","assets","parameterSchema",Map.of("type","object")),
+            Map.of("templateId","trades","parameterSchema",Map.of("type","object")));
+        var output=Map.of("templates",templates);
+        var review=review("template_query",true,output);
+
+        assertThat(review.metadata()).containsEntry("toolResultReviewMode","PUBLISHED_TEMPLATE_PARAMETER_BINDING")
+            .containsEntry("candidateDecisionOwner","PUBLISHER")
+            .containsEntry("selectedTemplateIds",List.of("assets","trades"))
+            .doesNotContainKey("modelSelectedTemplateIds");
+        var projected=new com.chatchat.agents.runtime.plan.selection.EvidenceBasedTemplateCandidateEvaluator()
+            .evaluate(output,review.metadata());
+        assertThat(projected.selectedIds()).containsExactly("assets","trades");
+        var projection=(Map<?,?>)projected.output();
+        assertThat(projection.get("templates")).isEqualTo(templates);
+        var selection=(Map<?,?>)projection.get("runtimeTemplateSelection");
+        assertThat(selection.get("selectionAuthority")).isEqualTo("runtime_published_data_supply");
+        var invocations=(List<?>)selection.get("reviewedInvocations");
+        assertThat(invocations).hasSize(2);
+        var missingInvocation=(Map<?,?>)invocations.get(1);
+        var missingArguments=(Map<?,?>)missingInvocation.get("arguments");
+        var protocol=(Map<?,?>)missingArguments.get("parameterProtocol");
+        assertThat(protocol.get("binding_error")).isEqualTo(Map.of("code","PUBLISHED_TEMPLATE_BINDING_MISSING"));
+
+        var captured=org.mockito.ArgumentCaptor.forClass(ChatRequest.class);
+        verify(model).chat(captured.capture());
+        assertThat(captured.getValue().toolSpecifications().get(0).toJson())
+            .contains(SchemaDrivenTemplateParameterBinder.BINDING_FUNCTION).doesNotContain("NO_MATCH","selections");
+        verify(model,never()).chat(anyString());
+    }
+
+    @Test
     void downstreamCrawlerStillReceivesModelSelectedUrls() {
         when(model.chat(anyString())).thenReturn("""
             {"satisfied":false,"reason":"crawl selected page", "selected_urls":["https://example.test/b"]}

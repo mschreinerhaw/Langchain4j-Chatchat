@@ -29,6 +29,14 @@ class SchemaDrivenTemplateParameterBinderTest {
         assertThat(result.status()).isEqualTo("MODEL_UNAVAILABLE");assertThat(result.protocols()).isEmpty();
     }
 
+    @Test void fixedPublicationPreservesIdentitiesWhenTheModelIsUnavailable() {
+        var result=binder.bindPublished(null,"inspect",List.of(template("assets"),template("trades")),Map.of(),()->{});
+        assertThat(result.status()).isEqualTo("MODEL_UNAVAILABLE");
+        assertThat(result.selectedIds()).containsExactly("assets","trades");
+        assertThat(result.protocols()).hasSize(2).allSatisfy(binding->
+            assertThat(binding).containsEntry("binding_error",Map.of("code","MODEL_UNAVAILABLE")));
+    }
+
     @Test void unknownRequiredValuesAreUnresolvedWithoutForcingModelInvention() throws Exception {
         var model=model(List.of(selection("assets",Map.of())));
         var result=binder.selectAndBind(model,"inspect",List.of(template("assets")));

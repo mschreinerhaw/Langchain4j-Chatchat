@@ -51,7 +51,7 @@ public final class EvidenceBasedTemplateCandidateEvaluator {
             return notApplied(output,"INVALID_TEMPLATE_ID: selection contains an ID not returned by MCP");
         Set<String> parameterBlocked = unresolvedParameterTemplateIds(
             evaluations, metadata.get("parameterProtocols"));
-        // Keep model-selected identities. Parameter failures belong to individual
+        // Keep admitted identities. Parameter failures belong to individual
         // invocation preflight receipts, not to discovery or independent siblings.
         String supplyAuthority = Boolean.TRUE.equals(metadata.get("publishedDataSupply"))
             ? "runtime_published_data_supply" : null;
@@ -86,7 +86,7 @@ public final class EvidenceBasedTemplateCandidateEvaluator {
             evaluations,
             requirementMatch,
             true,
-            parameterBlocked.isEmpty()?"Runtime validated model selection identities and parameter contracts."
+            parameterBlocked.isEmpty()?"Runtime validated template identities and parameter contracts."
                 : "TEMPLATE_PARAMETERS_REQUIRED: "+parameterBlocked
         );
     }
@@ -118,7 +118,8 @@ public final class EvidenceBasedTemplateCandidateEvaluator {
         result.put("objectType",TemplateMatchAnalysis.OBJECT_TYPE);result.put("event",TemplateMatchAnalysis.EVENT_TYPE);
         result.put("globalAnalysisContext",metadata.getOrDefault("templateRequirementAnalysisContext",Map.of()));
         result.put("userQuestion",metadata.get("originalUserQuestion"));
-        result.put("selectionAuthority","MODEL");result.put("selectedTemplateIds",selectedIds);
+        result.put("selectionAuthority", Boolean.TRUE.equals(metadata.get("publishedDataSupply"))?"PUBLISHER":"MODEL");
+        result.put("selectedTemplateIds",selectedIds);
         result.put("excludedTemplateIds",rejectedIds);result.put("candidateEvaluations",evaluations);
         Map<String,Map<String,Object>> byId=new LinkedHashMap<>();
         for(var evaluation:evaluations) {
@@ -393,12 +394,15 @@ public final class EvidenceBasedTemplateCandidateEvaluator {
                     byId.putIfAbsent(normalize(id), template);
                 }
             }
-            SemanticCandidateAdmissionPolicy.Decision admission = selectedIds.isEmpty()
-                ? new SemanticCandidateAdmissionPolicy.Decision(true, List.of(), "runtime_evidence_model_review")
-                : ADMISSION_POLICY.decide(
-                byId.values().stream().map(this::templateId).toList(),
-                selectedIds.stream().filter(id->byId.containsKey(normalize(id))).toList(),
-                rejectedIds.stream().filter(id->byId.containsKey(normalize(id))).toList(), false);
+            List<String> presentIds = selectedIds.stream().filter(id->byId.containsKey(normalize(id))).toList();
+            SemanticCandidateAdmissionPolicy.Decision admission;
+            if (supplyAuthority != null || selectedIds.isEmpty()) {
+                admission = new SemanticCandidateAdmissionPolicy.Decision(true, presentIds,
+                    supplyAuthority == null ? "runtime_evidence_model_review" : supplyAuthority);
+            } else {
+                admission = ADMISSION_POLICY.decide(byId.values().stream().map(this::templateId).toList(),
+                    presentIds, rejectedIds.stream().filter(id->byId.containsKey(normalize(id))).toList(), false);
+            }
             if (!admission.decided()) {
                 return new Projection(output, templates.size(), 0, List.of(), false);
             }

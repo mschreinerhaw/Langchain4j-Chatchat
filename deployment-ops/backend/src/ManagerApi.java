@@ -42,7 +42,7 @@ public final class ManagerApi {
             }finally{x.close();}
             Main.audit(actor,"image-export",path,"success");return true;
         }
-        boolean read=method.equals("GET")&&op.matches("/manager/(policy|host|history|networks|volumes|events|jobs(?:/[a-f0-9]{32})?|containers/[a-f0-9]{64}/(?:metrics|history))");
+        boolean read=method.equals("GET")&&op.matches("/manager/(policy|host|history|networks|volumes|events|jobs(?:/[a-f0-9]{32})?|images/sha256:[a-f0-9]{64}|containers/[a-f0-9]{64}/(?:metrics|history|configuration))");
         boolean write=method.equals("POST")&&(List.of("/manager/plans","/manager/execute").contains(op)||op.matches("/manager/jobs/[a-f0-9]{32}/cancel"));
         if(!read&&!write){Main.send(x,404,Map.of("error","Unsupported manager operation"));return true;}
         byte[] data=write?Main.J.writeValueAsBytes(Main.body(x)):null;

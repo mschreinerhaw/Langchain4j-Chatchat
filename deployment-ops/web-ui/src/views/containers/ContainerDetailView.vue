@@ -9,7 +9,20 @@
         </h2>
         <p class="muted">{{ data.inspect.Config?.Image }} · {{ route.params.id.slice(0, 12) }}</p>
       </div>
-      <RouterLink to="/containers" class="button">返回容器列表</RouterLink>
+      <div>
+        <ContainerActions
+          :row="{
+            ...data.inspect,
+            Id: route.params.id,
+            State: data.inspect.State?.Status,
+            Labels: data.inspect.Config?.Labels,
+            nodeId: route.params.node,
+          }"
+        />
+        <RouterLink to="/containers" class="button">
+          {{ '\u8fd4\u56de\u5bb9\u5668\u5217\u8868' }}
+        </RouterLink>
+      </div>
     </div>
     <div class="summary-grid">
       <article class="summary-card">
@@ -40,28 +53,17 @@
     <PanelCard title="实时日志">
       <LogViewer :node="route.params.node" :id="route.params.id" />
     </PanelCard>
-    <PanelCard title="运行配置与数据卷">
-      <dl class="facts">
-        <dt>启动时间</dt>
-        <dd>{{ dateTime(data.inspect.State?.StartedAt) }}</dd>
-        <dt>重启次数</dt>
-        <dd>{{ data.inspect.RestartCount }}</dd>
-        <dt>环境变量</dt>
-        <dd>
-          <code>{{ data.inspect.Config?.Env || '当前账号无权查看 / 无变量' }}</code>
-        </dd>
-        <dt>数据卷映射</dt>
-        <dd>
-          <p v-for="mount in data.inspect.Mounts || []" :key="mount.Destination">
-            <code>{{ mount.Name || mount.Source }} → {{ mount.Destination }}</code>
-            · {{ mount.RW ? '读写' : '只读' }}
-          </p>
-        </dd>
-      </dl>
-    </PanelCard>
+    <ContainerConfiguration
+      :key="route.params.id"
+      :node="route.params.node"
+      :id="route.params.id"
+      :image="data.inspect.Image"
+    />
   </template>
 </template>
 <script setup>
+  import ContainerActions from '../../components/containers/ContainerActions.vue';
+  import ContainerConfiguration from '../../components/containers/ContainerConfiguration.vue';
   import { useRoute } from 'vue-router';
   import { infrastructureApi } from '../../api/infrastructure';
   import { useResource } from '../../composables/useResource';

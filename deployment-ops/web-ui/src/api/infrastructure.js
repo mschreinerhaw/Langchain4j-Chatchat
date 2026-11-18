@@ -5,6 +5,9 @@ export const infrastructureApi = {
   host: (node, signal) => get(nodePath(node, '/manager/host'), signal),
   history: (node, signal) => get(nodePath(node, '/manager/history'), signal),
   inspect: (node, id, signal) => get(nodePath(node, `/containers/${id}/inspect`), signal),
+  imageParameters: (node, id, signal) => get(nodePath(node, `/manager/images/${id}`), signal),
+  configuration: (node, id, signal) =>
+    get(nodePath(node, `/manager/containers/${id}/configuration`), signal),
   logs: (node, id, signal) => get(nodePath(node, `/containers/${id}/logs`), signal),
   metrics: (node, id, signal) => get(nodePath(node, `/manager/containers/${id}/metrics`), signal),
   jobs: (node, signal) => get(nodePath(node, '/manager/jobs'), signal),

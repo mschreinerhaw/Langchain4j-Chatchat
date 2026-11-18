@@ -34,6 +34,9 @@
       <template #Size="{ row }">{{ bytes(row.Size) }}</template>
       <template #Created="{ row }">{{ dateTime(row.Created) }}</template>
       <template #actions="{ row }">
+        <RouterLink class="button" :to="`/images/${node}/${row.Id}/parameters`">
+          {{ '\u9ed8\u8ba4\u542f\u52a8\u53c2\u6570' }}
+        </RouterLink>
         <button v-if="admin" @click="tagging = row">创建版本标签</button>
         <button v-if="admin" class="danger-button" @click="remove(row)">删除未引用镜像</button>
       </template>

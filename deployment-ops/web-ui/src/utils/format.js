@@ -17,9 +17,10 @@ export const dateTime = (value) =>
 export const containerName = (value) =>
   (value?.Names?.[0] || value?.Name || value?.Id || '').replace(/^\//, '');
 export const owned = (value) =>
-  ['deployment-ops.manager', 'deployment-ops.managed'].some(
-    (key) => value?.Labels?.[key] === 'true'
-  ) &&
+  (applicationComponent(value) ||
+    ['deployment-ops.manager', 'deployment-ops.managed'].some(
+      (key) => value?.Labels?.[key] === 'true'
+    )) &&
   (!value.managerOwner || value.Labels?.['deployment-ops.owner'] === value.managerOwner);
 export const installationOwned = (value) =>
   value?.Labels?.['deployment-ops.installation'] === 'true';
@@ -28,3 +29,8 @@ export const environmentName = (value) =>
   value?.Labels?.['com.docker.compose.project']?.replace(/^ops-env-/, '') ||
   value?.Labels?.['deployment-ops.application'] ||
   '独立容器';
+
+export const applicationComponent = (value) =>
+  /^ops-env-[a-z0-9-]{1,32}$/.test(value?.Labels?.['com.docker.compose.project'] || '') &&
+  Boolean(value?.Labels?.['deployment-ops.component']) &&
+  Boolean(value?.Labels?.['deployment-ops.owner']);

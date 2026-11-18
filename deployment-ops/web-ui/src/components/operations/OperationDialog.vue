@@ -21,6 +21,10 @@
         <div v-if="operation.plan.externalManagement" class="notice warning">
           此资源由其他编排系统创建，请使用所属应用的运维流程。
         </div>
+        <details>
+          <summary>{{ '\u67e5\u770b\u53d8\u66f4\u5185\u5bb9' }}</summary>
+          <pre>{{ JSON.stringify(operation.plan.snapshot, null, 2) }}</pre>
+        </details>
         <label>
           输入目标名称确认
           <input
@@ -55,6 +59,8 @@
     confirmation = ref(''),
     confirmationInput = ref(null);
   const labels = {
+    'image.defaults': '\u4fdd\u5b58\u955c\u50cf\u9ed8\u8ba4\u542f\u52a8\u6a21\u677f',
+    'container.update': '\u66f4\u65b0\u5bb9\u5668\u8d44\u6e90\u914d\u7f6e',
     'container.create': '创建容器',
     'container.start': '启动容器',
     'container.stop': '停止容器',

@@ -59,6 +59,11 @@ const router = createRouter({
           meta: { title: '容器详情' },
         },
         {
+          path: 'images/:node/:id/parameters',
+          component: () => import('../views/images/ImageParametersView.vue'),
+          meta: { title: 'Image launch parameters' },
+        },
+        {
           path: 'images',
           component: () => import('../views/images/ImagesView.vue'),
           meta: { title: '镜像与发行库' },

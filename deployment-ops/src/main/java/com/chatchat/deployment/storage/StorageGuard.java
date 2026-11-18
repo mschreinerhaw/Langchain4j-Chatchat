@@ -16,7 +16,8 @@ public final class StorageGuard {
     public static synchronized void verify() throws IOException {
         Path data=StorageOptions.data();checkPolicy(data);
         if(validatedProcess){if(!Files.isDirectory(data)||!Files.getAttribute(data,"unix:dev").equals(dataDevice))throw new IOException("Selected data filesystem disappeared or changed; refusing storage fallback");return;}
-        createManaged(data);if(Files.getFileStore(data).isReadOnly()||!Files.isWritable(data))throw new IOException("Selected data directory is not writable: "+data);
+        createManaged(data);if(!Files.isWritable(data))throw new IOException("Selected data directory is not writable: "+data);
+        probeWritable(data);
         if(Files.getFileStore(data).getUsableSpace()<64L*1024*1024)throw new IOException("Insufficient free space for platform initialization");
         Files.setPosixFilePermissions(data,java.nio.file.attribute.PosixFilePermissions.fromString("rwx------"));dataDevice=Files.getAttribute(data,"unix:dev");validatedProcess=true;
     }
@@ -28,6 +29,10 @@ public final class StorageGuard {
         Path absolute=path.toAbsolutePath().normalize();
         if(!absolute.startsWith(StorageOptions.state())&&!absolute.startsWith(StorageOptions.runtime()))throw new IOException("Directory is outside the selected platform/application storage roots: "+absolute);
         checkPolicy(absolute);Files.createDirectories(absolute);return absolute.toRealPath();
+    }
+    public static void probeWritable(Path directory)throws IOException{
+        Path probe=Files.createTempFile(directory,".ops-storage-probe-",".tmp");
+        try{Files.writeString(probe,"storage-check");}finally{Files.deleteIfExists(probe);}
     }
     public static void noSymlinks(Path path)throws IOException{
         Path absolute=path.toAbsolutePath().normalize(),part=absolute.getRoot();

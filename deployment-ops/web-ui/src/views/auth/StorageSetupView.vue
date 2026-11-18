@@ -15,7 +15,7 @@
         <span>离线镜像与应用编排</span>
       </div>
     </section>
-    <section class="login-form-card">
+    <section class="login-card">
       <h2>首次安装 · 存储配置</h2>
       <form @submit.prevent="check">
         <label>

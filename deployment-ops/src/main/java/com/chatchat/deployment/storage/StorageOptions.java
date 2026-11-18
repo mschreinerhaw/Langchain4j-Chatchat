@@ -11,7 +11,7 @@ public final class StorageOptions {
     public static Path runtime(){
         // Compatibility for existing installations; fresh installations use their selected state root.
         String fallback=data().startsWith(Path.of("/mnt/disk01"))?"/mnt/disk01/ops/r":state().resolve("r").toString();
-        return Path.of(value("OPS_RUNTIME_DIR",fallback)).toAbsolutePath().normalize();
+        String selected=value("OPS_RUNTIME_DIR",fallback);return Path.of(selected.isBlank()?fallback:selected).toAbsolutePath().normalize();
     }
     public static String requiredMount(){return value("OPS_REQUIRED_MOUNT","");}
 }

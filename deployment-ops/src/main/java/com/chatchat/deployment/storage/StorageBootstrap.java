@@ -42,6 +42,7 @@ public final class StorageBootstrap {
     }
     public static Map<String,Object> validateSelection(String dataText,String runtimeText,String required)throws Exception{
         Path data=safeLocation(dataText),runtime=safeLocation(runtimeText);if(data.getParent()==null||data.getParent().getNameCount()<2)throw new IllegalArgumentException("Choose a dedicated platform directory, e.g. /opt/deployment-ops/data");
+        if(runtime.resolve("0000-000000000000/n/1/w/"+"0".repeat(36)+"/bridge/broker.sock").toString().getBytes(StandardCharsets.UTF_8).length>107)throw new IllegalArgumentException("Application directory is too long for Unix sockets; select a shorter application path");
         for(Path path:List.of(data,runtime)){
             Path ancestor=path;while(!Files.exists(ancestor))ancestor=ancestor.getParent();
             if(!Files.isDirectory(ancestor)||!Files.isWritable(ancestor)||Files.getFileStore(ancestor).isReadOnly())throw new IllegalArgumentException("Directory is not writable: "+path);

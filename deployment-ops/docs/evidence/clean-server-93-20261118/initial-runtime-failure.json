@@ -1,0 +1,9 @@
+{
+  "id": "29f1f426b3374583b577abe6a833aa13",
+  "environment": "runtime-fresh93",
+  "status": "failed",
+  "version": "1.3.0-fresh-rc.2",
+  "message": "Native installer failed; inspect retained redacted installer logs",
+  "failure": "Native installer failed; inspect retained redacted installer logs",
+  "updatedAt": 1794975579.949
+}

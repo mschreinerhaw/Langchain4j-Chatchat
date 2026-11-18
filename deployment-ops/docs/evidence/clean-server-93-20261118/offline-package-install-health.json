@@ -1,0 +1,16 @@
+{
+  "dataDirectory": "/opt/ops93-offline/data",
+  "requiredMount": "",
+  "schemaVersion": 2,
+  "mounted": true,
+  "platform": "UP",
+  "database": "UP",
+  "databaseType": "H2 embedded",
+  "mountPoint": "/",
+  "runtimeDirectory": "/opt/rt93-offline",
+  "storageMode": "directory",
+  "executorImplementation": "JDK",
+  "maintenanceMode": "standalone",
+  "version": "1.2.0-rc.7",
+  "sourceCommit": "4d8796e2e0b443b1e71e31e76fcf5efa25c88079"
+}

@@ -1,7 +1,7 @@
 // Uses real, signed Native Runtime gateway variants; only touches the JDK QA environment.
 const fs=require('fs'),assert=require('assert/strict'),{chromium}=require(process.env.PLAYWRIGHT_MODULE);
 (async()=>{
- const input=JSON.parse(fs.readFileSync(0,'utf8')),base=process.env.OPS_QA_URL,out=process.env.OPS_TEST_ARTIFACTS||'target/jdk-native-upgrade',env='runtime-jdk-v1';fs.mkdirSync(out,{recursive:true});
+ const input=JSON.parse(fs.readFileSync(0,'utf8')),base=process.env.OPS_QA_URL,out=process.env.OPS_TEST_ARTIFACTS||'target/jdk-native-upgrade',env=input.environment||'runtime-jdk-v1';fs.mkdirSync(out,{recursive:true});
  const browser=await chromium.launch({executablePath:process.env.CHROME_PATH,headless:true,args:['--no-proxy-server']}),page=await browser.newPage(),checks=[];
  async function api(path,data){const r=await page.request.fetch(base+'/api'+path,{method:data===undefined?'GET':'POST',data,headers:{'X-Ops-Request':'1'},timeout:180000});assert.equal(r.status(),200,await r.text());return r.json();}
  async function inventory(){return (await api('/inventory')).flatMap(n=>n.data?.containers||[]);}

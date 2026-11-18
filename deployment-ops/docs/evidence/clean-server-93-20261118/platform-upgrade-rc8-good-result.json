@@ -1,0 +1,12 @@
+{
+  "passed": true,
+  "checks": [
+    "complete offline platform release uploaded and checksum verified through Vue",
+    "new pinned JAR and actual service PID passed stable health gate",
+    "administrator session and H2 configuration preserved",
+    "all existing business containers kept their identities and states"
+  ],
+  "task": "ce96d1f86cb04cc4b19512916ad67ef9",
+  "beforeVersion": "1.2.0-rc.7",
+  "afterVersion": "1.2.0-rc.8"
+}

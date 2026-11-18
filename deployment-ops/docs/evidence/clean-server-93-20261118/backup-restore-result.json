@@ -1,0 +1,11 @@
+{
+  "passed": true,
+  "checks": [
+    "consistent complete H2 backup created through Vue before a real configuration change",
+    "separate JDK worker stopped only the platform, verified and restored H2, and passed stable startup health",
+    "management records reverted exactly; old sessions invalidated and administrator relogin succeeded",
+    "every business container retained its identity and state during GUI restore"
+  ],
+  "job": "17e6d95c6eb6437484ab7546a5af3639",
+  "backup": "backup-145ee220-c1ed-4760-91e0-115107b316bc.zip"
+}

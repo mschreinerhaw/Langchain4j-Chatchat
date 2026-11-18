@@ -11,7 +11,11 @@
           {{ step.kind === 'job' ? '初始化 / 验证任务' : '业务服务组件' }}
           <span v-if="step.startedAt">· {{ dateTime(step.startedAt) }}</span>
         </p>
-        <p v-if="step.error || step.message" class="notice danger">
+        <p
+          v-if="step.error || step.message"
+          class="notice"
+          :class="step.error || ['failed', 'error'].includes(step.status) ? 'danger' : ''"
+        >
           {{ step.error || step.message }}
         </p>
         <details v-if="step.logs || step.output">

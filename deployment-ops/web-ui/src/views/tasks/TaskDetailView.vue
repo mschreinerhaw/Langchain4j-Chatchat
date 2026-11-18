@@ -32,7 +32,7 @@
       </PanelCard>
       <PanelCard title="任务信息">
         <details v-if="data.failedInstallerLog" style="margin-bottom: 18px">
-          <summary>升级失败时的日志</summary>
+          <summary>原始失败日志</summary>
           <p class="notice danger">{{ data.failure }}</p>
           <pre class="log-viewer">{{ data.failedInstallerLog }}</pre>
         </details>

@@ -1,0 +1,11 @@
+{
+  "passed": true,
+  "checks": [
+    "ending a failure with running components is rejected",
+    "confirmed application stop preserves original failure and installer log",
+    "only the failed project stopped; container IDs, mounts and unrelated containers retained",
+    "explicit GUI resolution permits a corrected release without deleting application data"
+  ],
+  "task": "29f1f426b3374583b577abe6a833aa13",
+  "retainedComponents": 23
+}

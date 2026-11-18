@@ -69,6 +69,3 @@ docs/testing/evidence/cline-native-phase2-20261106/** -text whitespace=cr-at-eol
 # Preserve actual Runtime OS 1.3 release evidence bytes.
 docs/runtime-os-1.3/** -text whitespace=cr-at-eol
 deploy/releases/1.3/** -text whitespace=cr-at-eol
-
-# Preserve actual container configuration acceptance bytes.
-deployment-ops/docs/evidence/container-configuration-20261118/** -text whitespace=cr-at-eol

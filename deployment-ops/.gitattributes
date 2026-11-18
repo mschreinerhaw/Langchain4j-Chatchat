@@ -15,3 +15,6 @@
 # Acceptance receipts are hashed as exact bytes; never rewrite Windows line endings.
 docs/evidence/jdk-only-20261117/** -text whitespace=cr-at-eol
 docs/evidence/final-jdk-20261117/** -text whitespace=cr-at-eol
+
+# Preserve actual container configuration acceptance byte hashes.
+docs/evidence/container-configuration-20261118/** -text whitespace=cr-at-eol

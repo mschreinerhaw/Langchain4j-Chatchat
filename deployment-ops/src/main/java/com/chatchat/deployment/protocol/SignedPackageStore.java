@@ -90,8 +90,9 @@ public final class SignedPackageStore implements AutoCloseable {
                 }finally{Files.deleteIfExists(temporary);}
             }
             Set<String> loaded=new HashSet<>();for(JsonNode image:manifest.path("images")){
-                try{require(docker.call("GET","/images/"+image.path("id").asText()+"/json").path("Id").asText().equals(image.path("id").asText()),"Image identity changed");}
-                catch(IOException unavailable){String name=image.path("archive").asText();if(loaded.add(name))loadImageArchive(files.path(base+name));require(docker.call("GET","/images/"+image.path("id").asText()+"/json").path("Id").asText().equals(image.path("id").asText()),"Signed image missing after load");}
+                Path imageArchive=files.path(base+image.path("archive").asText());
+                try{resolveFromArchive(imageArchive,image.path("id").asText());}
+                catch(IOException unavailable){if(loaded.add(imageArchive.toString()))loadImageArchive(imageArchive);resolveFromArchive(imageArchive,image.path("id").asText());}
             }
             for(JsonNode prior:catalog())require(!prior.path("name").asText().equals(manifest.path("name").asText())||!prior.path("version").asText().equals(manifest.path("version").asText())||prior.path("digest").asText().equals(digest),"Immutable version already exists; publish another version");
             ObjectNode receipt=StateFiles.JSON.createObjectNode().put("keyId",signature.path("keyId").asText()).put("verifiedAt",StateFiles.now());receipt.set("checksums",checks);files.write(base+"receipt.json",receipt);verified(id);
@@ -115,10 +116,30 @@ public final class SignedPackageStore implements AutoCloseable {
     }
     private void ensureImages(String digest,JsonNode manifest)throws IOException{
         Set<String> loaded=new HashSet<>();JsonNode checks=StateFiles.JSON.readTree(Files.readAllBytes(folder(digest).resolve("receipt.json"))).path("checksums");for(JsonNode image:manifest.path("images")){
-            try{require(docker.call("GET","/images/"+image.path("id").asText()+"/json").path("Id").asText().equals(image.path("id").asText()),"Image identity changed");}
-            catch(IOException unavailable){String archive=image.path("archive").asText();Path path=folder(digest).resolve(InstallationManifest.member(archive));if(loaded.add(archive)){require(sha(path).equals(checks.path(archive).asText()),"Stored image archive changed");loadImageArchive(path);}require(docker.call("GET","/images/"+image.path("id").asText()+"/json").path("Id").asText().equals(image.path("id").asText()),"Signed image missing after recovery");}
+            String archive=image.path("archive").asText();Path path=folder(digest).resolve(InstallationManifest.member(archive));
+            try{resolveFromArchive(path,image.path("id").asText());}
+            catch(IOException unavailable){if(loaded.add(archive)){require(sha(path).equals(checks.path(archive).asText()),"Stored image archive changed");loadImageArchive(path);}resolveFromArchive(path,image.path("id").asText());}
         }
     }
+    private final Map<String,Map<String,Set<String>>> archiveIdentities=new ConcurrentHashMap<>();
+    private String resolveFromArchive(Path archive,String signedId)throws IOException{
+        try{if(docker.call("GET","/images/"+signedId+"/json").path("Id").asText().equals(signedId))return signedId;}catch(IOException missing){}
+        String vector=archive.toString()+":"+blobVector(archive);Map<String,Set<String>> identities=archiveIdentities.get(vector);
+        if(identities==null){identities=ArchiveImageIdentities.read(archive);archiveIdentities.put(vector,identities);}
+        for(String candidate:identities.getOrDefault(signedId,Set.of()))try{if(docker.call("GET","/images/"+candidate+"/json").path("Id").asText().equals(candidate))return candidate;}catch(IOException missing){}
+        throw new IOException("Signed image unavailable in Docker: "+signedId);
+    }
+    public String resolvedImageId(String digest,String signedId)throws IOException{
+        JsonNode manifest=packageManifest(digest);
+        for(JsonNode image:manifest.path("images"))if(image.path("id").asText().equals(signedId)){
+            String archive=InstallationManifest.member(image.path("archive").asText());Path path=folder(digest).resolve(archive);
+            String checksum=StateFiles.JSON.readTree(Files.readAllBytes(folder(digest).resolve("receipt.json"))).path("checksums").path(archive).asText();
+            Path verified=verifiedBlob(checksum,Files.size(path));require(verified!=null&&Files.isSameFile(verified,path),"Image archive verification cache unavailable");
+            return resolveFromArchive(path,signedId);
+        }
+        throw new IOException("Unsigned image identity");
+    }
+
     private void verified(String id)throws IOException{ObjectNode meta=status(id);meta.put("status","verified");meta.remove("message");files.write("uploads/"+id+".json",meta);Files.deleteIfExists(uploadFile(id));meta.put("stagingReclaimed",true).put("stagingReclaimedAt",StateFiles.now());files.write("uploads/"+id+".json",meta);}
     public Path folder(String digest){require(digest!=null&&digest.matches("[a-f0-9]{64}"),"Invalid package identity");return files.path("packages/"+digest);}
     public JsonNode packageManifest(String digest)throws IOException{
@@ -132,8 +153,8 @@ public final class SignedPackageStore implements AutoCloseable {
         try(var directories=Files.list(root)){for(Path path:directories.sorted().toList()){String digest=path.getFileName().toString();if(!digest.matches("[a-f0-9]{64}")||!Files.exists(path.resolve("receipt.json"))||retired(digest))continue;JsonNode manifest=packageManifest(digest);ObjectNode entry=StateFiles.JSON.createObjectNode().put("digest",digest).put("components",manifest.path("components").size());for(String key:List.of("name","version","description","parameters","platform","requirements"))if(manifest.has(key))entry.set(key,manifest.get(key));entry.set("installationProtocol",manifest);entry.put("keyId",StateFiles.JSON.readTree(Files.readAllBytes(path.resolve("receipt.json"))).path("keyId").asText());result.add(entry);}}return result;
     }
     public void loadImageArchive(Path path)throws IOException{
-        JsonNode manifest=StateFiles.JSON.readTree(TarArchive.entry(path,"manifest.json",1024*1024));require(manifest.isArray()&&manifest.size()>0,"Docker-save archive required");Map<String,String> tags=new HashMap<>();for(JsonNode image:docker.call("GET","/images/json"))for(JsonNode tag:image.path("RepoTags"))tags.put(tag.asText(),image.path("Id").asText());
-        for(JsonNode image:manifest){String config=InstallationManifest.member(image.path("Config").asText());String identity="sha256:"+sha(TarArchive.entry(path,config,16*1024*1024));for(JsonNode tag:image.path("RepoTags"))require(!tags.containsKey(tag.asText())||tags.get(tag.asText()).equals(identity),"Archive would overwrite an existing image tag");}
+        JsonNode manifest=StateFiles.JSON.readTree(TarArchive.entry(path,"manifest.json",1024*1024));require(manifest.isArray()&&manifest.size()>0,"Docker-save archive required");Map<String,Set<String>> identities=ArchiveImageIdentities.read(path);Map<String,String> tags=new HashMap<>();for(JsonNode image:docker.call("GET","/images/json"))for(JsonNode tag:image.path("RepoTags"))tags.put(tag.asText(),image.path("Id").asText());
+        for(JsonNode image:manifest){String config=InstallationManifest.member(image.path("Config").asText());String identity="sha256:"+sha(TarArchive.entry(path,config,16*1024*1024));for(JsonNode tag:image.path("RepoTags"))require(!tags.containsKey(tag.asText())||(tags.get(tag.asText()).equals(identity)||identities.getOrDefault(identity,Set.of()).contains(tags.get(tag.asText()))),"Archive would overwrite an existing image tag");}
         try(InputStream input=Files.newInputStream(path);DockerClient.Response response=docker.request("POST","/images/load?quiet=1",input,Files.size(path),"application/x-tar",Duration.ofMinutes(30))){require(response.status<300,"Docker rejected image import");byte[] bytes=response.body.readNBytes(4*1024*1024+1);require(bytes.length<=4*1024*1024,"Oversized Docker load response");for(String line:new String(bytes,java.nio.charset.StandardCharsets.UTF_8).split("\n"))if(!line.isBlank()){JsonNode record=StateFiles.JSON.readTree(line);require(!record.has("error"),"Docker image import failed: "+record.path("error").asText());}}
     }
     public void close(){workers.shutdownNow();try{workers.awaitTermination(5,TimeUnit.SECONDS);}catch(InterruptedException error){Thread.currentThread().interrupt();}}

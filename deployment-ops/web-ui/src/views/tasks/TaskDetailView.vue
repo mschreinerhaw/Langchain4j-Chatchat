@@ -136,12 +136,13 @@
       !job.active &&
       !job.previousRun
     ) {
-      actions.push({
-        id: 'quiesce',
-        label: '停止残留组件',
-        description:
-          '仅停止此失败环境的业务组件，保留数据、原始错误和日志。停止后可结束失败任务，再选择修正版重新部署。',
-      });
+      if (job.supportsPartialStop)
+        actions.push({
+          id: 'quiesce',
+          label: '停止残留组件',
+          description:
+            '仅停止此失败环境的业务组件，保留数据、原始错误和日志。停止后可结束失败任务，再选择修正版重新部署。',
+        });
       actions.push({
         id: 'resolve',
         label: '结束失败任务',

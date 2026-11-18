@@ -1,0 +1,18 @@
+Exception in thread "main" java.lang.reflect.InvocationTargetException
+	at java.base/jdk.internal.reflect.NativeMethodAccessorImpl.invoke0(Native Method)
+	at java.base/jdk.internal.reflect.NativeMethodAccessorImpl.invoke(NativeMethodAccessorImpl.java:77)
+	at java.base/jdk.internal.reflect.DelegatingMethodAccessorImpl.invoke(DelegatingMethodAccessorImpl.java:43)
+	at java.base/java.lang.reflect.Method.invoke(Method.java:568)
+	at org.springframework.boot.loader.launch.Launcher.launch(Launcher.java:102)
+	at org.springframework.boot.loader.launch.Launcher.launch(Launcher.java:64)
+	at org.springframework.boot.loader.launch.JarLauncher.main(JarLauncher.java:40)
+Caused by: java.nio.file.NoSuchFileException: /mnt/ops93-missing-rc10
+	at java.base/sun.nio.fs.UnixException.translateToIOException(UnixException.java:92)
+	at java.base/sun.nio.fs.UnixException.rethrowAsIOException(UnixException.java:106)
+	at java.base/sun.nio.fs.UnixException.rethrowAsIOException(UnixException.java:111)
+	at java.base/sun.nio.fs.UnixPath.toRealPath(UnixPath.java:825)
+	at com.chatchat.deployment.storage.StorageGuard.validate(StorageGuard.java:76)
+	at com.chatchat.deployment.storage.StorageBootstrap.validateSelection(StorageBootstrap.java:52)
+	at com.chatchat.deployment.storage.StorageBootstrap.configure(StorageBootstrap.java:37)
+	at com.chatchat.deployment.DeploymentOpsApplication.main(DeploymentOpsApplication.java:15)
+	... 7 more

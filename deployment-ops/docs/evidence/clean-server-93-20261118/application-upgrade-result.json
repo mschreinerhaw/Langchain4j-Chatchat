@@ -1,0 +1,17 @@
+{
+  "passed": true,
+  "checks": [
+    "compatible native upgrade changed the actual gateway image",
+    "all three real native executor Unix health endpoints enforce resources",
+    "all unrelated containers retained their identities and states"
+  ],
+  "job": "f712373e4bb04025ba1657c2230d2e97",
+  "prior": {
+    "id": "6fdf0a6c186f94e41f2e1fd15410bc072837e4a6fa6cf29f60f1e1add35eb99a",
+    "image": "sha256:832c7ef2aacc478ddfba5d602c91e7e34b4bcb0eda239f872f0368b5d07ea646"
+  },
+  "after": {
+    "id": "3386baea605813e560cd7d29cd58c2b0690dc97f71c643ddb083e45ec482e6d7",
+    "image": "sha256:e57ae08431152b1229c54e8802e9bb4ed34df8cfccb4896d1078db0a3f6bb33e"
+  }
+}

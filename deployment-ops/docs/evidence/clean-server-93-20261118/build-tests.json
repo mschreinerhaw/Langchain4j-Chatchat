@@ -1,0 +1,12 @@
+{
+  "javaTests": 32,
+  "javaFailures": 0,
+  "legacyPythonTests": 51,
+  "legacyPythonFailures": 0,
+  "installerTests": 9,
+  "installerFailures": 0,
+  "installerLinuxBuildHost": "192.168.195.221",
+  "mavenOfflinePackageExit": 0,
+  "vueProductionBuildExit": 0,
+  "vueBuildHash": "8d78567e79c77044"
+}

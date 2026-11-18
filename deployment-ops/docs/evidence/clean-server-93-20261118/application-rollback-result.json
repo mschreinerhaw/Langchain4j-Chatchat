@@ -1,0 +1,18 @@
+{
+  "passed": true,
+  "checks": [
+    "native readiness failure automatically restored the previous gateway image",
+    "explicit rollback restored the original native release image",
+    "all three real native executor Unix health endpoints enforce resources",
+    "all unrelated containers retained their identities and states"
+  ],
+  "job": "80100d814fd145d68d317dae9139bfaf",
+  "prior": {
+    "id": "3386baea605813e560cd7d29cd58c2b0690dc97f71c643ddb083e45ec482e6d7",
+    "image": "sha256:e57ae08431152b1229c54e8802e9bb4ed34df8cfccb4896d1078db0a3f6bb33e"
+  },
+  "after": {
+    "id": "4769d7fe8c3569f872d07ac3fcf4db20e65092554c59eba3a683af9fddb9fd02",
+    "image": "sha256:e57ae08431152b1229c54e8802e9bb4ed34df8cfccb4896d1078db0a3f6bb33e"
+  }
+}

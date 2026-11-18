@@ -44,7 +44,7 @@
     </svg>
     <div class="resource-footnotes">
       <span>
-        数据盘
+        存储
         <b>{{ percent(data.host.diskPercent) }}</b>
       </span>
       <span>可用 {{ bytes(data.host.diskAvailableBytes) }}</span>

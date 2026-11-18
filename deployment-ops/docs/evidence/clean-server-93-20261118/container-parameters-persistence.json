@@ -1,0 +1,22 @@
+{
+  "passed": true,
+  "checks": [
+    "image defaults saved through reviewed GUI operation",
+    "credential values masked in parameter API",
+    "new container inherits saved launch defaults",
+    "real GUI start",
+    "resource update affects actual Docker limits without restarting",
+    "real GUI restart",
+    "real GUI stop",
+    "managed Runtime component exposes enabled controls and effective parameters without executing them",
+    "external discovered container remains protected in both GUI and API",
+    "H2 defaults and masked secrets survived real platform restart",
+    "final UI shows persisted defaults and accepts fractional CPU limits",
+    "original image defaults restored after isolated acceptance",
+    "owned stopped QA container removed without deleting volumes",
+    "all pre-existing business container identities and states retained"
+  ],
+  "fixture": "ops-configuration-qa-1794978335542",
+  "fixtureId": "4d7305cf79ac7a90601b09d24d4bd9caa34eadde46e93d9dd4cca4b5520987e5",
+  "errors": []
+}

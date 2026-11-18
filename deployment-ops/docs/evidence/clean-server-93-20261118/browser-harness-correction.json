@@ -1,0 +1,6 @@
+{
+  "originalPassed": false,
+  "cause": "Outdated browser label after the launch-parameter form was renamed; no product API was mocked or bypassed.",
+  "originalError": "locator.fill: Timeout 30000ms exceeded.\nCall log:\n\u001b[2m  - waiting for getByLabel('\u542f\u52a8\u53c2\u6570', { exact: true })\u001b[22m\n\n    at D:\\IdeaProjects\\LangChain4j-AIChat\\Langchain4j-Chatchat-main\\deployment-ops\\tests\\native-product-browser.cjs:33:267",
+  "successfulRerun": "container-live-logs-result.json"
+}

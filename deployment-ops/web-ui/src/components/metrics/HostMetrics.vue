@@ -15,7 +15,7 @@
       :description="bytes(data.host.memoryUsedBytes) + ' / ' + bytes(data.host.memoryTotalBytes)"
     />
     <MetricChart
-      label="数据盘使用率"
+      label="存储使用率"
       :value="data.host.diskPercent"
       :samples="data.history"
       field="diskPercent"

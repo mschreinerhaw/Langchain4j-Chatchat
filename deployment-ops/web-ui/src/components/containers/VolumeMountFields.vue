@@ -1,7 +1,7 @@
 <template>
   <section>
     <h3>持久化数据卷</h3>
-    <p class="muted">仅支持已有命名卷。平台创建的卷位于数据盘；外部卷只允许只读挂载。</p>
+    <p class="muted">仅支持已有命名卷。平台创建的卷使用所选平台存储目录；外部卷只允许只读挂载。</p>
     <p v-if="error" class="notice warning">{{ error }}</p>
     <div
       v-for="(mount, index) in modelValue"

@@ -30,11 +30,11 @@
     </label>
     <label>
       CPU 核数上限
-      <input v-model.number="values.cpus" type="number" min="0.1" max="64" step="0.1" required />
+      <input v-model.number="values.cpus" type="number" min="0.1" max="64" step="0.01" required />
     </label>
     <label>
       重启策略
-      <select v-model="values.restart">
+      <select v-model="values.restart" aria-label="重启策略">
         <option value="unless-stopped">除非手动停止</option>
         <option value="no">不自动重启</option>
         <option value="on-failure">失败时重启</option>
@@ -61,6 +61,7 @@
   watch(
     () => props.initial,
     (v) => {
+      for (const key of Object.keys(values)) delete values[key];
       Object.assign(
         values,
         {

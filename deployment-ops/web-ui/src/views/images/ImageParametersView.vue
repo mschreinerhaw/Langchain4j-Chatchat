@@ -35,7 +35,7 @@
     </PanelCard>
     <PanelCard
       title="平台创建默认模板"
-      description="保存到本机 H2，按不可变镜像 ID 区分；新建容器时加载，可逐次覆盖。密码不明文回显。"
+      description="保存到本机 H2，独立创建容器时按镜像 ID 加载，可逐次覆盖。Runtime OS 编排组件使用其签名安装协议，不受此模板影响。密码不明文回显。"
     >
       <form v-if="admin" @submit.prevent="save">
         <LaunchParameterFields ref="fields" :initial="data.defaults" />

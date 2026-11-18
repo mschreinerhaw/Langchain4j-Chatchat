@@ -50,6 +50,14 @@
         </div>
       </article>
     </div>
+    <PanelCard title="运行信息">
+      <dl class="facts">
+        <dt>启动时间</dt>
+        <dd>{{ dateTime(data.inspect.State?.StartedAt) }}</dd>
+        <dt>重启次数</dt>
+        <dd>{{ data.inspect.RestartCount }}</dd>
+      </dl>
+    </PanelCard>
     <PanelCard title="实时日志">
       <LogViewer :node="route.params.node" :id="route.params.id" />
     </PanelCard>

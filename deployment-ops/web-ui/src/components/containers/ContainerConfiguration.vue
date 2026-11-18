@@ -46,11 +46,11 @@
           </label>
           <label>
             CPU 核数上限
-            <input v-model.number="cpus" type="number" min="0.1" max="64" step="0.1" required />
+            <input v-model.number="cpus" type="number" min="0.1" max="64" step="0.01" required />
           </label>
           <label>
             重启策略
-            <select v-model="restart">
+            <select v-model="restart" aria-label="重启策略">
               <option value="no">不自动重启</option>
               <option value="unless-stopped">除非手动停止</option>
               <option value="always">始终重启</option>

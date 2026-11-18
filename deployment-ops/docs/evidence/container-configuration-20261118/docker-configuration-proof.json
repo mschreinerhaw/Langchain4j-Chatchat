@@ -1,0 +1,19 @@
+{
+  "passed": true,
+  "fixtureId": "50298824b14584d6a6b938c65ded07e9362b6e0a957e09b7473488734fe67fb3",
+  "fixtureName": "ops-configuration-qa-1794967167515",
+  "actualEnvironmentInherited": true,
+  "actualSecretMatchesHash": true,
+  "actualCommand": [
+    "sh",
+    "-c",
+    "echo configuration-template-live; sleep 3600"
+  ],
+  "memoryBytes": 100663296,
+  "nanoCpus": 500000000,
+  "restartPolicy": {
+    "Name": "unless-stopped",
+    "MaximumRetryCount": 0
+  },
+  "stopped": true
+}

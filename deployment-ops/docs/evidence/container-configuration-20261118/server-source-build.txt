@@ -1,0 +1,7 @@
+Started /bin/sh /opt/runtime-os/releases/1.3/build-platform-configuration-r2.sh.
+Note: Some input files use or override a deprecated API.
+Note: Recompile with -Xlint:deprecation for details.
+Note: /mnt/disk01/deployment-ops-resolution-source/backend/src/Main.java uses unchecked or unsafe operations.
+Note: Recompile with -Xlint:unchecked for details.
+c233acd3df0383bd3f592df9421729039d86be612821a465e600eb303e98492c  /mnt/disk01/deployment-ops-resolution-source/lib/deployment-ops-1.1.4-ui2.jar
+deployment-ops-configuration-source-build-r2.service: Succeeded.

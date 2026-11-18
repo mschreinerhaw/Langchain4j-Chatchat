@@ -1,0 +1,12 @@
+{
+  "passed": true,
+  "task": "2476e3cdc8f94b1bbe64712bb9ac5bd8",
+  "version": "1.3",
+  "checks": [
+    "real modular application detail",
+    "three real Unix-socket executor health responses",
+    "resourceEnforced=true for every executor",
+    "active persisted managed release 1.3"
+  ],
+  "errors": []
+}

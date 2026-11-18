@@ -1,0 +1,31 @@
+{
+  "format": "deployment-ops-container-configuration-acceptance/v1",
+  "passed": true,
+  "server": "192.168.195.221",
+  "platformVersion": "1.1.4",
+  "jarSourceCommit": "a9a1b855dffd158fb2a99a97586720d8cf4a4fbc",
+  "jarSha256": "c233acd3df0383bd3f592df9421729039d86be612821a465e600eb303e98492c",
+  "package": "deployment-ops-1.1.4-configuration-rc.2.zip",
+  "packageSha256": "a861116fc369a4fc4f47002610213f99c5f47c324a9373b2d08e4fc1f9688746",
+  "packagingStatus": "functional verification patch; no new formal platform release tag",
+  "frontendBuildHash": "f56e1d20a402a47e",
+  "runningBusinessContainersPreserved": 46,
+  "runtimeVersionUnchanged": "1.3",
+  "evidenceSha256": {
+    "docker-configuration-proof.json": "31de035304fe27df611fdb156bc9b544b82f0b32b87038f66b4350e1cfddb747",
+    "java-tests.json": "bf7e383e14314d0f63bf95ffe60b13fa4800a9de9afac143cc38a78164e11a77",
+    "platform-upgrade-isolation.json": "d8beb2d576484f9ea6db0665b58a062e714ac6804ab7cc3b6292f20aac7ea0ed",
+    "server-source-build.txt": "df3f9a595a83b4fed97cdb13b4978adaa8aef93e0854287b6dc55e9664a4d576",
+    "browser-r3/check-and-cleanup-result.json": "68b8f28376194e2a04a056fc5f143afff6949898e76d0d20846a14d5377dd2a6",
+    "browser-r3/exercise-result.json": "bb19c0019bd4c33bedff63b5e5227430d758e1ddbd2390691223e482b932808e",
+    "browser-r3/persisted-default-parameters.png": "da5e3a2888a3af7267c235256afa97b136debeb042af8cbd3927194e27ab8634",
+    "browser-r3/runtime-component-controls.png": "e8c7761d35a1e6e0ea55bf3c51cce8f9cfe253d59f42d4e75e59b20630dbe0f4",
+    "guards/result.json": "26ce5ff248568bcb172a820db8c10cb032fc44ee8252621b8e6a982183d14099",
+    "platform-upgrade-final/good-confirmation.png": "7a20ad3dcf799f61643c943bafe77ff09f4c60e7f8992e1d17ab449177c66eca",
+    "platform-upgrade-final/good-result.json": "39b10696bcd34e866edc4b09807c02cd93d894a627dc003667d33e256db97844",
+    "runtime-regression/application.png": "a1d710e8172ab13d3dfd41b6b1740ba5567502997e4664fc58966215fa1f3fc4",
+    "runtime-regression/executors.png": "357906efc13ac50bb463f81c4055d63e9592c5471f971fd92555c7b42253a372",
+    "runtime-regression/health.json": "7656ab316c69e5801e5684effeaff0c862f81719ea7e0ba70caccd2b3af0ec3a",
+    "runtime-regression/result.json": "a854e56e40b067b1cf34ae4a57fe1a07fcd038416f41db89fe3d05613c187789"
+  }
+}

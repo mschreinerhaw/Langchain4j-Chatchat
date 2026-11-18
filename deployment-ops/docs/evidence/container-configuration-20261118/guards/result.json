@@ -1,0 +1,9 @@
+{
+  "passed": true,
+  "checks": [
+    "invalid limits, non-argv entrypoint, host bind and unknown masked secret rejected",
+    "incorrect target confirmation cannot save defaults",
+    "a stale approved plan cannot overwrite a later template revision",
+    "original empty defaults restored"
+  ]
+}

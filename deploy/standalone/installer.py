@@ -165,9 +165,6 @@ class Installation:
         def svc(role,image=None,**kwargs):
             value={'image':self.image_ref(image or role),'pull_policy':'never','container_name':self.name(role),'restart':'unless-stopped','logging':{'driver':'json-file','options':{'max-size':'20m','max-file':'3'}},'networks':['control']}
             value.update(kwargs)
-            owner=getattr(self,'self',{}).get('Config',{}).get('Labels',{}).get('deployment-ops.owner')
-            if owner:
-                value.setdefault('labels',{}).update({'deployment-ops.owner':owner,'deployment-ops.environment':self.project.removeprefix('ops-env-'),'deployment-ops.component':role,'deployment-ops.application':'runtime-os'})
             s[role]=value;return value
         def health(test,seconds=5):return {'test':['CMD-SHELL',test],'interval':str(seconds)+'s','timeout':'5s','retries':60,'start_period':'15s'}
         svc('postgresql','postgres',environment={'POSTGRES_USER':'postgres','POSTGRES_PASSWORD':sec['postgresPassword']},volumes=[self.bind('data/postgresql','/var/lib/postgresql')],mem_limit='768m',healthcheck=health('pg_isready -U postgres'))
@@ -218,6 +215,10 @@ class Installation:
         studio_executor=copy.deepcopy(s['executor1']);studio_executor['container_name']=self.name('studio-executor');studio_executor['environment']={'CLINE_EXECUTOR_CONFIG':self.hp('n/studio-executor.json')};s['studio-executor']=studio_executor
         svc('gateway',user='101:101',read_only=True,tmpfs=['/tmp:size=64m'],cap_drop=['ALL'],security_opt=['no-new-privileges:true'],ports=[str(self.state['httpPort'])+':8080',str(self.state['mcpPort'])+':8090'],mem_limit='128m',networks=['control','egress'],healthcheck=health("curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:8080/api/v1/enterprise/auth/me | grep -qx 401"))
         manager=svc('manager','api',entrypoint=['python3','/opt/product/installer.py','supervise'],volumes=[self.bind('', '/install'),{'type':'bind','source':'/var/run/docker.sock','target':'/var/run/docker.sock'}],mem_limit='256m');manager['image']=self.image
+        owner=getattr(self,'self',{}).get('Config',{}).get('Labels',{}).get('deployment-ops.owner')
+        if owner:
+            for role,value in s.items():
+                value.setdefault('labels',{}).update({'deployment-ops.owner':owner,'deployment-ops.environment':self.project.removeprefix('ops-env-'),'deployment-ops.component':role,'deployment-ops.application':'runtime-os'})
         self.services=s
         write_json(self.compose,{'name':self.project,'services':s,'networks':{'control':{'internal':True},'frontend':{'internal':True},'egress':{}}})
 

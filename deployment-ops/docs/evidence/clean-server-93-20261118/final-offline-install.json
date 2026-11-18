@@ -1,0 +1,30 @@
+{
+  "passed": true,
+  "checks": [
+    "storage selection requires installation authorization",
+    "optional dedicated mount mode rejects a missing mount; system configuration directories rejected",
+    "real GUI reviews selected system-disk directories, filesystem, writability and capacity",
+    "selected storage initializes embedded H2 and administrator through the actual Vue wizard",
+    "native platform, login, H2 and host monitoring work with an unavailable Docker connection and no managed business",
+    "configuration and real H2 backup work without Docker",
+    "first-install endpoint cannot reset an initialized administrator"
+  ],
+  "health": {
+    "databaseType": "H2 embedded",
+    "dataDirectory": "/opt/ops93-delivery/data",
+    "requiredMount": "",
+    "schemaVersion": 2,
+    "mounted": true,
+    "platform": "UP",
+    "database": "UP",
+    "mountPoint": "/",
+    "runtimeDirectory": "/opt/rt93-del",
+    "storageMode": "directory",
+    "executorImplementation": "JDK",
+    "maintenanceMode": "standalone",
+    "sourceCommit": "bf1c161f6d7cd085de6f1e9df922587a6b043d6a",
+    "version": "1.2.0-rc.11"
+  },
+  "errors": [],
+  "resumedAfterHarnessExpectationCorrection": false
+}

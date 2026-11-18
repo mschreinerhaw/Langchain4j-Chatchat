@@ -1,0 +1,81 @@
+{
+  "passed": true,
+  "checks": [
+    "selected system-disk storage and embedded H2 remain active",
+    "24 real native components running",
+    "real Docker CPU, memory, network and block counters; memory limit matches inspect",
+    "three real Unix executor probes enforce resources; Core and Python installation verified"
+  ],
+  "platform": {
+    "schemaVersion": 2,
+    "mounted": true,
+    "platform": "UP",
+    "database": "UP",
+    "databaseType": "H2 embedded",
+    "dataDirectory": "/opt/ops93/data",
+    "requiredMount": "",
+    "mountPoint": "/",
+    "runtimeDirectory": "/opt/rt93",
+    "storageMode": "directory",
+    "executorImplementation": "JDK",
+    "maintenanceMode": "systemd",
+    "sourceCommit": "bf1c161f6d7cd085de6f1e9df922587a6b043d6a",
+    "version": "1.2.0-rc.11"
+  },
+  "container": "0fb1e9728000924cacb7b7383d4c1ea8278d83a72d16be69a36f789152cc10e8",
+  "samples": [
+    {
+      "scope": "container",
+      "cpuPercent": 2.552566223622047,
+      "memoryBytes": 1254731776,
+      "memoryLimitBytes": 1610612736,
+      "networkRxBytes": 46632580,
+      "networkTxBytes": 45578293,
+      "blockReadBytes": 646262784,
+      "blockWriteBytes": 308224
+    },
+    {
+      "scope": "container",
+      "cpuPercent": 4.678881421319797,
+      "memoryBytes": 1254916096,
+      "memoryLimitBytes": 1610612736,
+      "networkRxBytes": 46641336,
+      "networkTxBytes": 45593554,
+      "blockReadBytes": 646262784,
+      "blockWriteBytes": 308224
+    }
+  ],
+  "native": {
+    "jobId": "d47fcd9265384b18b37d8f19569186e0",
+    "environment": "runtime-fresh93",
+    "sampledAt": 1794981151.517,
+    "executors": [
+      {
+        "name": "Coding Executor 1",
+        "status": "HEALTHY",
+        "resourceEnforced": true,
+        "latencyMs": 7
+      },
+      {
+        "name": "Coding Executor 2",
+        "status": "HEALTHY",
+        "resourceEnforced": true,
+        "latencyMs": 2
+      },
+      {
+        "name": "Studio Executor",
+        "status": "HEALTHY",
+        "resourceEnforced": true,
+        "latencyMs": 1
+      }
+    ],
+    "verifiedAt": 1794979735.08,
+    "installationVerification": {
+      "status": "PASSED",
+      "nativeCoreVerified": true,
+      "pythonRuntimeVerified": true,
+      "privateExecutorDaemon": true,
+      "offlineImages": true
+    }
+  }
+}

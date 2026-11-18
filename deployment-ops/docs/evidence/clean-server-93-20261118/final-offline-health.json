@@ -1,0 +1,16 @@
+{
+  "databaseType": "H2 embedded",
+  "dataDirectory": "/opt/ops93-delivery/data",
+  "requiredMount": "",
+  "schemaVersion": 2,
+  "mounted": true,
+  "platform": "UP",
+  "database": "UP",
+  "mountPoint": "/",
+  "runtimeDirectory": "/opt/rt93-del",
+  "storageMode": "directory",
+  "executorImplementation": "JDK",
+  "maintenanceMode": "standalone",
+  "sourceCommit": "bf1c161f6d7cd085de6f1e9df922587a6b043d6a",
+  "version": "1.2.0-rc.11"
+}

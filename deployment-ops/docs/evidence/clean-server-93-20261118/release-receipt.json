@@ -1,0 +1,249 @@
+{
+  "format": "deployment-ops-clean-server/v1",
+  "candidateVerified": true,
+  "formalRelease": false,
+  "sourceCommit": "bf1c161f6d7cd085de6f1e9df922587a6b043d6a",
+  "sourceBranch": "feature/deployment-ops-clean-server-93-20261118",
+  "host": "192.168.195.93",
+  "platform": {
+    "passed": true,
+    "candidate": true,
+    "sourceCommit": "bf1c161f6d7cd085de6f1e9df922587a6b043d6a",
+    "version": "1.2.0-rc.11",
+    "package": "deployment-ops-native-1.2.0-rc.11.zip",
+    "sha256": "3dfbc0a9591dd1d95982b2fd1bc4d3dcb6f471abe1d33aafbee1a71efd6805da",
+    "jarSha256": "4fd2ce491cebc89cf755dc512246974eca01d687f94542acee100e7f9a5fdbe8",
+    "verifiedPayloads": 318
+  },
+  "storage": {
+    "singlePhysicalDisk": true,
+    "dataDirectory": "/opt/ops93/data",
+    "runtimeDirectory": "/opt/rt93",
+    "requiredMount": ""
+  },
+  "runtime": {
+    "package": "runtime-os-1.3.0-fresh-rc.3.ops.zip",
+    "sha256": "3e266eb5670ad27d47528a65296dc70bafbdb336ed356f90896e5dfd1ff8b5e6",
+    "environment": "runtime-fresh93",
+    "root": "/opt/rt93/72cc-4a00448cad40",
+    "task": "d47fcd9265384b18b37d8f19569186e0",
+    "runningComponents": 24,
+    "http": "http://192.168.195.93:18100",
+    "mcp": "http://192.168.195.93:18101"
+  },
+  "jdk": {
+    "file": "jdk17.tar.gz",
+    "version": "17.0.5",
+    "sha256": "93c7809a50dd9fa650206a82d1a87b7ff7934867420e8fc40d56e7afec14c785"
+  },
+  "tests": {
+    "java": 32,
+    "legacyPython": 51,
+    "installer": 9,
+    "failures": 0,
+    "vueBuild": "passed"
+  },
+  "externalUnverified": [
+    "No real DolphinScheduler cluster addresses/authentication supplied",
+    "No product license or external model configuration supplied; licensed/model-backed business requests were not exercised"
+  ],
+  "scopeLimits": [
+    "Docker Engine was preinstalled; offline Docker Engine installation was not exercised",
+    "No claim of full Ambari parity or multi-host HA"
+  ],
+  "bundleDirectory": "/opt/deployment-ops-offline-1.2.0-rc.11-linux-amd64",
+  "evidence": [
+    {
+      "path": "docs/evidence/clean-server-93-20261118/application-rollback-result.json",
+      "sha256": "9a496fc190a2e41189929e872038ef21204c398311f6a97470bb1726a674895d"
+    },
+    {
+      "path": "docs/evidence/clean-server-93-20261118/application-upgrade-result.json",
+      "sha256": "88c71bc31fe713e553da8fbce196f52b7b21605783d6514757cbfd4d83678445"
+    },
+    {
+      "path": "docs/evidence/clean-server-93-20261118/backup-restore-result.json",
+      "sha256": "d38f95b0f0966dffd10ae679d5145608844dadde70bb82eab79688972dfcf362"
+    },
+    {
+      "path": "docs/evidence/clean-server-93-20261118/browser-harness-correction.json",
+      "sha256": "1669311e9ebdca2885b27a2e4d8eb408a4c95cad19474a9555d4f1ca3cb1a3af"
+    },
+    {
+      "path": "docs/evidence/clean-server-93-20261118/build-tests.json",
+      "sha256": "8f3093565251b13f754fa774561d9d6d52377ccc45907f5c1d669906f8915381"
+    },
+    {
+      "path": "docs/evidence/clean-server-93-20261118/container-live-log.png",
+      "sha256": "ac5c730ac4d37d7f67a76e00b38454279d4f13e83fe9c659952e077187f5fe45"
+    },
+    {
+      "path": "docs/evidence/clean-server-93-20261118/container-live-logs-result.json",
+      "sha256": "19d7f2f68ae1fa7e3ef2c7a0350ac436648bdeb213cb01b669114fe9af1771df"
+    },
+    {
+      "path": "docs/evidence/clean-server-93-20261118/container-parameters-exercise.json",
+      "sha256": "84e625f6db312bb102a2bc4003b1392cfee64f6409658182016bceafc96edbff"
+    },
+    {
+      "path": "docs/evidence/clean-server-93-20261118/container-parameters-persistence.json",
+      "sha256": "3b0725eca53532b107d007c94dfb1b10ab7aaae0c043ef2dd943e95fab3dada1"
+    },
+    {
+      "path": "docs/evidence/clean-server-93-20261118/final-backup-restore.json",
+      "sha256": "6bc26a907e626ead0ecdb28666f9d36c40b4b98d5a20055b740f4713f1fa1aa4"
+    },
+    {
+      "path": "docs/evidence/clean-server-93-20261118/final-live-metrics.json",
+      "sha256": "360c49321f026f31cb04f02eadca268b954d32a53f13481f881613c13f5386dd"
+    },
+    {
+      "path": "docs/evidence/clean-server-93-20261118/final-offline-health.json",
+      "sha256": "b33bae361c7bc0386a2c5e231a9393fa41ebc14c67e656be95ca099b59c002a3"
+    },
+    {
+      "path": "docs/evidence/clean-server-93-20261118/final-offline-install.json",
+      "sha256": "d134beec72c9c2b09f1462fa7c464d63eb44b187c1dc1c6b947b4a6f9752ac97"
+    },
+    {
+      "path": "docs/evidence/clean-server-93-20261118/final-package-verified.json",
+      "sha256": "a16a15d4a49a8f5ba88ff7d374db0ffd4278d3212572a61e623b85e34a878aca"
+    },
+    {
+      "path": "docs/evidence/clean-server-93-20261118/final-platform-upgrade.json",
+      "sha256": "c08d8a79e63cdf3831d6141c0ce1f2818232d582134db03f6098e983cf8cf7ed"
+    },
+    {
+      "path": "docs/evidence/clean-server-93-20261118/first-install-health.json",
+      "sha256": "0f12a6bec89cd357613c480d062d2fc60c0cccbc2f69d0e827c8c0a9b80d05a5"
+    },
+    {
+      "path": "docs/evidence/clean-server-93-20261118/first-install-independent-platform-overview.png",
+      "sha256": "d3a6cd615463d1d09e87e574ee44c7e22cb948748e4ef8dee4b5cb975a18c6bc"
+    },
+    {
+      "path": "docs/evidence/clean-server-93-20261118/first-install-result.json",
+      "sha256": "c53d4fbda428bdeb41c9fe9028f30d421316e88bd12fea1124b340afe385449f"
+    },
+    {
+      "path": "docs/evidence/clean-server-93-20261118/first-install-single-disk-storage-review.png",
+      "sha256": "7f712cdf11e7b921766670be297a57dff4b687f97fe9806ab529f166d562cdeb"
+    },
+    {
+      "path": "docs/evidence/clean-server-93-20261118/full-runtime-platform-stopped.txt",
+      "sha256": "e0ce31c0803f6dc43485c14cf106078837460265cfc06b2a217da7b04ec5f790"
+    },
+    {
+      "path": "docs/evidence/clean-server-93-20261118/full-runtime-restart-after.txt",
+      "sha256": "e0ce31c0803f6dc43485c14cf106078837460265cfc06b2a217da7b04ec5f790"
+    },
+    {
+      "path": "docs/evidence/clean-server-93-20261118/full-runtime-restart-before.txt",
+      "sha256": "e0ce31c0803f6dc43485c14cf106078837460265cfc06b2a217da7b04ec5f790"
+    },
+    {
+      "path": "docs/evidence/clean-server-93-20261118/initial-failure-recovery-result.json",
+      "sha256": "820e59ced5c40fa0d5dfa50db3f9560e6e450eb71c0c7e29302251e2b9357e8a"
+    },
+    {
+      "path": "docs/evidence/clean-server-93-20261118/initial-runtime-failure.json",
+      "sha256": "b6c5b2183763501ac439d997179d8620e01d0cb452ae319ce0e64af7f14ad24b"
+    },
+    {
+      "path": "docs/evidence/clean-server-93-20261118/java-tests.json",
+      "sha256": "5762668b2399946c3a007f2a0beeb24ccc7a4d7e1359c6ba8a610a0d67851492"
+    },
+    {
+      "path": "docs/evidence/clean-server-93-20261118/live-metrics-result.json",
+      "sha256": "a601f12e56375836bea61fccab3cba61db39afe5ab77ed538583d65b4ec33698"
+    },
+    {
+      "path": "docs/evidence/clean-server-93-20261118/missing-optional-mount.txt",
+      "sha256": "f20abf2a0695293efa94e7f9dc4b012ce886f350276865ce8c8147d25aa8431f"
+    },
+    {
+      "path": "docs/evidence/clean-server-93-20261118/native-admin-result.json",
+      "sha256": "ac960c10c92b305916c1b9cf88b5ac8cc13420c0ff8204a66f91b8f920d8e7d0"
+    },
+    {
+      "path": "docs/evidence/clean-server-93-20261118/offline-package-install-health.json",
+      "sha256": "a46fb4d98202b06c1d7d89c272730db78e4b011a0fbc280943a05df9e55ce71e"
+    },
+    {
+      "path": "docs/evidence/clean-server-93-20261118/offline-package-install-result.json",
+      "sha256": "2e8aa6baa4226d0fd584388318a1c913e847960b1e6aa34f24014ef709b4072a"
+    },
+    {
+      "path": "docs/evidence/clean-server-93-20261118/offline-package-install-single-disk-storage-review.png",
+      "sha256": "e29b106250579fc1992e294f5b9cf4a9e5865c5f771f30a3010f0f544f524aa8"
+    },
+    {
+      "path": "docs/evidence/clean-server-93-20261118/platform-pages-result.json",
+      "sha256": "c0dec6c4827f217396fc3249e9d528e069adcba66c5a53a3a216192999bb7ece"
+    },
+    {
+      "path": "docs/evidence/clean-server-93-20261118/platform-upgrade-business-after.txt",
+      "sha256": "b06972e8107fbaca17d0c424853d97f700c636e06e4f5c28934e92ad551070ba"
+    },
+    {
+      "path": "docs/evidence/clean-server-93-20261118/platform-upgrade-business-before.txt",
+      "sha256": "b06972e8107fbaca17d0c424853d97f700c636e06e4f5c28934e92ad551070ba"
+    },
+    {
+      "path": "docs/evidence/clean-server-93-20261118/platform-upgrade-good-result.json",
+      "sha256": "85eec370509a83792efb97ec2f22d312c82b75d861fcd939ae5dad5b69bfcff2"
+    },
+    {
+      "path": "docs/evidence/clean-server-93-20261118/platform-upgrade-rc8-good-result.json",
+      "sha256": "3f6964d65a39878474336b0a2806dfd60c38025615f2a5c1ecf488e16c5d7202"
+    },
+    {
+      "path": "docs/evidence/clean-server-93-20261118/qa-cleanup.json",
+      "sha256": "ce9393e5559984ec2c5bb4c987da612b6d013edbbe1d339977ba38d7254b980f"
+    },
+    {
+      "path": "docs/evidence/clean-server-93-20261118/rc10-backup-restore-result.json",
+      "sha256": "aea70d9988fe5710c4cdcefa096fa910768c9eaf99e5b411a3850438a6919ad4"
+    },
+    {
+      "path": "docs/evidence/clean-server-93-20261118/rc10-missing-mount.txt",
+      "sha256": "2f439b96d2d6ab5a73b6c97ec1ef3ce5fd826a640c60b4c9083c2517720c9119"
+    },
+    {
+      "path": "docs/evidence/clean-server-93-20261118/rc10-offline-install-health.json",
+      "sha256": "788a59d7719bf43e4d9e877e788d10f5ecb0fa66f8ae84edafdcf7ac5ab289af"
+    },
+    {
+      "path": "docs/evidence/clean-server-93-20261118/rc10-offline-install-result.json",
+      "sha256": "8e525ebff5a79a3b9d77f230ec1931c83c09eb38c32cc71e62b2fd8f08e04c25"
+    },
+    {
+      "path": "docs/evidence/clean-server-93-20261118/rc10-platform-upgrade-result.json",
+      "sha256": "e4b204e3defd81505154d9025e83ea8e4052cd3e7e75910e8d0c863534f0ede2"
+    },
+    {
+      "path": "docs/evidence/clean-server-93-20261118/rc10-readonly.txt",
+      "sha256": "754b2c8eb91198cbe09c85ed14f90cc25c11e43dda9837b7f15afcedefcd226f"
+    },
+    {
+      "path": "docs/evidence/clean-server-93-20261118/rc10-storage-review.png",
+      "sha256": "beb4fa3b7edbbb9f4584594b975594955f6fbca7f60acc6331e0edac9a3d0eb0"
+    },
+    {
+      "path": "docs/evidence/clean-server-93-20261118/readonly-storage.txt",
+      "sha256": "bc227466fa90e1987886008f600338a8df3fa693c734fcd499365b599ed42ccb"
+    },
+    {
+      "path": "docs/evidence/clean-server-93-20261118/runtime-live-executors.png",
+      "sha256": "11bc4229e29f978e986a1c583abcc535e1bef93276286e78a5e31dedf0f1a090"
+    },
+    {
+      "path": "docs/evidence/clean-server-93-20261118/runtime-result.json",
+      "sha256": "fb6536b6185c1a543eef2d1f55a21ef85fc7431d6ae810677ec6e1f1bb2e5595"
+    },
+    {
+      "path": "docs/evidence/clean-server-93-20261118/single-disk-service.txt",
+      "sha256": "5d7f51eee93a9121e1b89c5a27a877bdd1b565b1c66c42d77ed06beb64cc88c2"
+    }
+  ]
+}

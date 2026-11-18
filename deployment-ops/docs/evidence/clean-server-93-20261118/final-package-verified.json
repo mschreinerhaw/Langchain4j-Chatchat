@@ -1,0 +1,10 @@
+{
+  "passed": true,
+  "candidate": true,
+  "sourceCommit": "bf1c161f6d7cd085de6f1e9df922587a6b043d6a",
+  "version": "1.2.0-rc.11",
+  "package": "deployment-ops-native-1.2.0-rc.11.zip",
+  "sha256": "3dfbc0a9591dd1d95982b2fd1bc4d3dcb6f471abe1d33aafbee1a71efd6805da",
+  "jarSha256": "4fd2ce491cebc89cf755dc512246974eca01d687f94542acee100e7f9a5fdbe8",
+  "verifiedPayloads": 318
+}

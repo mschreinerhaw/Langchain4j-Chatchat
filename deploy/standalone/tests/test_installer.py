@@ -9,6 +9,14 @@ spec=importlib.util.spec_from_file_location('installer',Path(__file__).resolve()
 m=importlib.util.module_from_spec(spec);spec.loader.exec_module(m)
 
 class InstallerTests(unittest.TestCase):
+    def test_private_worker_uses_configuration_id_with_a_manifest_host_store(self):
+        app=m.Installation.__new__(m.Installation)
+        app.images={'node':{'imageId':'sha256:'+'a'*64,'configId':'sha256:'+'b'*64}}
+        self.assertEqual(app.image_id('node'),'sha256:'+'a'*64)
+        self.assertEqual(app.worker_image_id(),'sha256:'+'b'*64)
+        del app.images['node']['configId']
+        self.assertEqual(app.worker_image_id(),'sha256:'+'a'*64)
+
     def render(self,directory,owner=None):
         app=m.Installation.__new__(m.Installation)
         if owner:app.self={'Config':{'Labels':{'deployment-ops.owner':owner}}}

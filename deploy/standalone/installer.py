@@ -105,6 +105,10 @@ class Installation:
     def name(self,role):return self.project+'-'+role
     def image_ref(self,role):return self.images[role]['reference']
     def image_id(self,role):return self.images[role]['imageId']
+    def worker_image_id(self):
+        # The host may use OCI manifest IDs while the private classic store uses
+        # configuration IDs. Both are supplied by the signed-archive resolver.
+        return self.images['node'].get('configId',self.image_id('node'))
 
     def check_images(self):
         for role,entry in self.images.items():
@@ -267,12 +271,14 @@ class Installation:
         if daemon['DockerRootDir']!=self.hp('d/strict/data'):raise RuntimeError('Unexpected private executor daemon root')
         if not all(daemon.get(k) for k in ['MemoryLimit','CpuCfsQuota','PidsLimit']):raise RuntimeError('Docker worker resource enforcement is unavailable')
         # Import the worker from the already loaded product image, without any registry access.
-        worker=self.image_id('node')
+        worker=self.worker_image_id()
         if subprocess.run(['docker','--host','unix://'+local_socket,'image','inspect',worker],stdout=subprocess.DEVNULL,stderr=subprocess.DEVNULL).returncode:
             save=subprocess.Popen(['docker','image','save',self.image_ref('node')],stdout=subprocess.PIPE)
             load=subprocess.run(['docker','--host','unix://'+local_socket,'image','load'],stdin=save.stdout,check=False)
             save.stdout.close()
             if save.wait() or load.returncode:raise RuntimeError('Offline worker image import failed')
+        loaded=json_command(['docker','--host','unix://'+local_socket,'image','inspect',worker])[0]
+        if loaded['Id']!=worker:raise RuntimeError('Private worker image identity differs from the verified configuration')
         top={'Processes':[line.strip().split(None,1) for line in output(['docker','top',self.name('executor-daemon'),'-eo','pid,args']).splitlines()[1:]]}
         bindings={}
         for role,program,flag,file in [('daemon','dockerd','--config-file','daemon.json'),('containerd','containerd','--config','containerd.toml')]:
@@ -361,7 +367,7 @@ class Installation:
         run(['docker','--host',host,'run','--rm','--pull=never','--network=none','--read-only',
             '--cap-drop=ALL','--security-opt','no-new-privileges','--memory','768m','--cpus','1','--pids-limit','128',
             '--tmpfs','/tmp:rw,nosuid,nodev,size=128m','-e','OPENBLAS_NUM_THREADS=1','-e','OMP_NUM_THREADS=1',
-            self.image_id('node'),'bash','-ec',
+            self.worker_image_id(),'bash','-ec',
             'node /opt/runtime-os/coding-node/service/scripts/verify-runtime.mjs /opt/runtime-os/cline/runtime && '
             'node /opt/runtime-os/coding-node/service/docker/verify-native-modules.mjs /opt/runtime-os/cline/runtime && '
             'python /opt/runtime-os/coding-node/service/docker/verify-python-runtime.py'])

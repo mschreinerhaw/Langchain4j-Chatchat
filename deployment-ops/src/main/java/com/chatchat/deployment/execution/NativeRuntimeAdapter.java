@@ -28,7 +28,7 @@ public final class NativeRuntimeAdapter {
         return new Scope(p,root,project,resolvedMapping(p.digest(),map));
     }
     private JsonNode resolvedMapping(String digest,JsonNode original)throws IOException{
-        JsonNode mapping=original.deepCopy();for(JsonNode item:mapping)((ObjectNode)item).put("imageId",base.store.resolvedImageId(digest,item.path("imageId").asText()));return mapping;
+        JsonNode mapping=original.deepCopy();for(JsonNode item:mapping){String signed=item.path("imageId").asText();((ObjectNode)item).put("configId",signed).put("imageId",base.store.resolvedImageId(digest,signed));}return mapping;
     }
     private void check(Scope scope)throws Exception{
         var p=scope.prepared;if(ReviewedStagePlan.enabled(p.manifest()))ReviewedStagePlan.checkMountUse(p.manifest(),base.docker,scope.project);JsonNode info=base.docker.call("GET","/info");require(info.path("OSType").asText().equals("linux")&&Set.of("x86_64","amd64").contains(info.path("Architecture").asText()),"Native Runtime requires Linux/amd64");long available=0;for(String line:Files.readAllLines(Path.of("/proc/meminfo")))if(line.startsWith("MemAvailable:"))available=Long.parseLong(line.split("\\s+")[1])*1024;long required=p.prior().hasNonNull("activeRun")?512L*1024*1024:p.manifest().path("requirements").path("memoryBytes").asLong(8L*1024*1024*1024);require(available>=required+512L*1024*1024,"Insufficient available memory; existing workloads will not be stopped");base.store.free(p.manifest().path("requirements").path("diskBytes").asLong(8L*1024*1024*1024));

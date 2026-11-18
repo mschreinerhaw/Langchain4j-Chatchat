@@ -6,7 +6,7 @@ const assets=new URL('../chatchat-api/src/main/resources/coding-monitor/',import
 const browser=await chromium.launch({executablePath:process.env.CHROME_PATH||'C:/Program Files (x86)/Microsoft/Edge/Application/msedge.exe',headless:true});
 try{
  const page=await browser.newPage(),errors=[],calls=[];page.on('pageerror',e=>errors.push(e.message));
- const rows=[{taskId:'active',status:'RUNNING'},{taskId:'unknown',status:'RUNNING',lastError:'CANCEL_REQUESTED'},{taskId:'done',status:'COMPLETED'},{taskId:'denied',status:'RUNNING'}].map(row=>({...row,runId:'run',name:row.taskId,createdAt:new Date().toISOString()}));
+ const rows=[{taskId:'active',status:'RUNNING',lastError:'EXECUTION_OUTCOME_UNKNOWN'},{taskId:'unknown',status:'RUNNING',lastError:'CANCEL_REQUESTED'},{taskId:'done',status:'COMPLETED'},{taskId:'denied',status:'RUNNING'}].map(row=>({...row,runId:'run',name:row.taskId,createdAt:new Date().toISOString()}));
  await page.addInitScript(()=>sessionStorage.setItem('runtime-coding-monitor-session','fixture-token'));
  await page.route('http://monitor.test/**',async route=>{
   const url=new URL(route.request().url());
@@ -23,6 +23,7 @@ try{
  });
  await page.goto('http://monitor.test/monitor/');await page.locator('#rows tr').nth(3).waitFor();
  assert.equal(await page.locator('#rows input:disabled').count(),1);
+ assert.match(await page.locator('#rows tr').nth(0).textContent(),/\u6267\u884c\u5f85\u5bf9\u8d26/);
  assert.match(await page.locator('#rows tr').nth(1).textContent(),/停止待确认/);
  page.once('dialog',dialog=>dialog.dismiss());await page.locator('.stop-task').first().click();assert.equal(calls.length,0);
  await page.locator('#select-all').check();await page.waitForFunction(()=>document.querySelector('#selection-count').textContent.includes('3'));

@@ -132,7 +132,34 @@ public final class NativeS3CodingAdapter implements CodingAgentSPI {
         if(c.taskId().startsWith("temporal-native-")){queueStop(s,task);return requested;}
         stopWakeups.add(key(s,task));schedule(c);return requested;
     }
-    private record Run(CodingTaskContract c,CodingJournal.Lease lease,NativeExecutionControl control){}
+    private static final Duration LEASE_DURATION=Duration.ofMinutes(3);
+    private static final Duration LEASE_RENEW_INTERVAL=Duration.ofSeconds(30);
+    private static final class Run {
+        final CodingTaskContract c;
+        final CodingJournal.Lease lease;
+        final NativeExecutionControl control;
+        Instant renewAt;
+
+        Run(CodingTaskContract c,CodingJournal.Lease lease,NativeExecutionControl control){
+            this.c=c;
+            this.lease=lease;
+            this.control=control;
+            this.renewAt=lease.leaseUntil().minus(LEASE_DURATION).plus(LEASE_RENEW_INTERVAL);
+        }
+    }
+
+    private void maintainLease(Run r){
+        if(Instant.now().isBefore(r.renewAt))return;
+        // Renewals preserve owner and fencing token. The journal checks the
+        // current expiry on every write, including after a takeover.
+        var renewed=tasks.renew(r.c.scope(),r.c.taskId(),r.lease,LEASE_DURATION,outcome(r).revision());
+        r.renewAt=renewed.leaseUntil().minus(LEASE_DURATION).plus(LEASE_RENEW_INTERVAL);
+        if(r.control!=null){
+            var binding=state(r,BINDING);
+            if(binding!=null)r.control.heartbeat("RUNNING",binding.path("nodeId").asText("default"),
+                binding.path("sessionId").asText(),binding.path("executionEpoch").asText());
+        }
+    }
     private CodingTaskOutcome outcome(Run r){return tasks.get(r.c.scope(),r.c.taskId());}
     private JsonNode state(Run r,String key){assertCurrent(r);var value=tasks.privateState(r.c.scope(),r.c.taskId(),key);return value==null||value.isNull()?null:value;}
     private void assertCurrent(Run r){var lease=tasks.ownership(r.c.scope(),r.c.taskId());if(lease.fencingToken()!=r.lease.fencingToken()||!Objects.equals(lease.owner(),r.lease.owner())||!lease.leaseUntil().isAfter(Instant.now()))throw new IllegalStateException("Stale Native execution fence");}
@@ -167,7 +194,7 @@ public final class NativeS3CodingAdapter implements CodingAgentSPI {
             String controller=control==null?owner:control.owner();
             while(control!=null&&!controller.equals(held.owner())&&held.leaseUntil().isAfter(Instant.now())){control.heartbeat("RECOVERING",settings.nodeId(),null,null);Thread.sleep(500);held=tasks.ownership(c.scope(),c.taskId());}
             existing=tasks.get(c.scope(),c.taskId());if(existing.status().terminal())return;
-            var lease=controller.equals(held.owner())&&held.leaseUntil().isAfter(Instant.now())?held:tasks.claim(c.scope(),c.taskId(),controller,Duration.ofMinutes(3),existing.revision());
+            var lease=controller.equals(held.owner())&&held.leaseUntil().isAfter(Instant.now())?held:tasks.claim(c.scope(),c.taskId(),controller,LEASE_DURATION,existing.revision());
             run=new Run(c,lease,control);
             tasks.enforceDeadline(c.scope(),c.taskId(),run.lease,outcome(run).revision());
             if(outcome(run).executionControl().stopReason()!=null){stop(run,false,"Cancellation requested or deadline reached");return;}
@@ -180,13 +207,12 @@ public final class NativeS3CodingAdapter implements CodingAgentSPI {
             // Stable grant/body/key make allocation retry safe. An unknown model
             // message is never blindly replayed after a Java process restart.
             try{client(run).status(grant,session);}catch(NativeS3NodeClient.NodeException absent){if(absent.status()!=404||state(run,"native-s3:message-intent")!=null)throw absent;client(run).create(grant,inputFiles,"create-"+session);}
-            Instant renewAt=Instant.now().plusSeconds(30);
             for(;;){
                 if(control!=null){var b=state(run,BINDING);control.heartbeat("RUNNING",b.path("nodeId").asText("default"),b.path("sessionId").asText(),b.path("executionEpoch").asText());}
                 var current=outcome(run);if(current.status().terminal())return;
                 tasks.enforceDeadline(c.scope(),c.taskId(),run.lease,current.revision());
                 if(outcome(run).executionControl().stopReason()!=null){stop(run,false,"Task stopped by Runtime");return;}
-                if(Instant.now().isAfter(renewAt)){run=new Run(c,tasks.renew(c.scope(),c.taskId(),run.lease,Duration.ofMinutes(3),outcome(run).revision()),control);renewAt=Instant.now().plusSeconds(30);}
+                maintainLease(run);
                 poll(run,"core");poll(run,"provider");
                 var remote=client(run).status(grant,session);
                 if(remote.path("native").hasNonNull("sessionId")&&remote.path("native").hasNonNull("epoch")){
@@ -329,11 +355,19 @@ public final class NativeS3CodingAdapter implements CodingAgentSPI {
     }
     private long cursor(Run r,String channel){var n=state(r,"native-s3:read:"+channel);return n==null?0:n.path("sequence").asLong();}
     private void poll(Run r,String channel){
+        maintainLease(r);
         var b=state(r,BINDING);long after=cursor(r,channel);for(int page=0;page<16;page++){
+            maintainLease(r);
             var response=channel.equals("core")?client(r).observations(b.path("grant").asText(),b.path("sessionId").asText(),after,128):client(r).receipts(b.path("grant").asText(),b.path("sessionId").asText(),after,128);
             var events=response.path("events");if(events.isEmpty())return;
             var raw=evidence.archive(r.c,channel+"-events","native-"+channel+"-events.json",evidence.bytes(response));
-            for(var event:events){String type=event.path("eventType").asText();if(Set.of("native.event","model.text.delta","model.usage").contains(type))continue;observe(r,channel,event,raw.id());}
+            for(var event:events){
+                String type=event.path("eventType").asText();
+                if(Set.of("native.event","model.text.delta","model.usage").contains(type))continue;
+                maintainLease(r);
+                observe(r,channel,event,raw.id());
+            }
+            maintainLease(r);
             after=response.path("nextEventId").asLong();if(outcome(r).executionControl().stopReason()==null)save(r,"native-s3:read:"+channel,Map.of("sequence",after));if(!response.path("hasMore").asBoolean())return;
         }
     }
@@ -374,6 +408,7 @@ public final class NativeS3CodingAdapter implements CodingAgentSPI {
         }
         if("FILE_CHANGED".equals(normalized)&&outcome(r).executionControl().stopReason()==null)save(r,"native-s3:edit:"+event.path("eventId").asText(),Map.of("nativeEventId",event.path("eventId").asText(),"detailAssetId",rawAsset));
         var usage=operation==null?null:new DurableCodingTaskService.NativeUsage(operation,kind,actual,complete,metered);
+        maintainLease(r);
         tasks.recordNativeObservation(r.c.scope(),r.c.taskId(),r.lease,outcome(r).revision(),new DurableCodingTaskService.NativeObservation(channel,event.path("eventId").asLong(),event.path("eventId").asText(),evidence.hash(event),ref,normalized,summary.substring(0,Math.min(2048,summary.length())),projected,usage,group,telemetryId,telemetry));
         if("execution".equals(group)&&complete&&outcome(r).executionControl().stopReason()==null)linkRepair(r,telemetry);
     }
@@ -383,6 +418,7 @@ public final class NativeS3CodingAdapter implements CodingAgentSPI {
         var b=state(r,BINDING);String id=record.path("recordId").asText();
         for(String stream:List.of("stdout","stderr")){
             var meta=record.path(stream);if(!meta.has("sha256"))continue;
+            maintainLease(r);
             byte[] bytes=client(r).executionContent(b.path("grant").asText(),b.path("sessionId").asText(),id,stream,null,meta.path("size").asLong(),meta.path("sha256").asText());
             var asset=evidence.archive(r.c,"execution-"+id+"-"+stream,"command-"+id+"-"+stream+".txt",bytes);record.put(stream+"AssetId",asset.id());
             String output=new String(bytes,StandardCharsets.UTF_8);
@@ -393,22 +429,25 @@ public final class NativeS3CodingAdapter implements CodingAgentSPI {
         }
         record.put("pythonExceptionWithZeroShellExit",record.hasNonNull("exceptionSummary")&&record.path("exitCode").asInt(-1)==0);
         for(var source:record.path("sourceSnapshots")){
+            maintainLease(r);
             byte[] bytes=client(r).executionContent(b.path("grant").asText(),b.path("sessionId").asText(),id,"source",source.path("path").asText(),source.path("size").asLong(),source.path("sha256").asText());
             var asset=evidence.archive(r.c,"source-"+id+"-"+source.path("sha256").asText(),source.path("path").asText().replace('/','_'),bytes);((ObjectNode)source).put("assetId",asset.id());
         }
     }
     private void linkRepair(Run r,JsonNode success){
-        if(success.path("exitCode").asInt(-1)!=0||success.hasNonNull("exceptionSummary"))return;
+        if(success.path("exitCode").asInt(-1)!=0||success.hasNonNull("exceptionSummary")
+                ||success.path("sourceSnapshots").isEmpty())return;
         long end=success.path("nativeEventId").asLong();
+        long edit=tasks.latestNativeEditBefore(r.c.scope(),r.c.taskId(),end);
+        if(edit==0)return;
         for(var failed:tasks.nativeTelemetry(r.c.scope(),r.c.taskId(),"execution")){
+            maintainLease(r);
             if(!failed.hasNonNull("exceptionSummary")&&failed.path("exitCode").asInt(0)==0)continue;
-            long start=failed.path("nativeEventId").asLong();if(start>=end||!failed.path("command").equals(success.path("command")))continue;
+            long start=failed.path("nativeEventId").asLong();if(start>=edit||!failed.path("command").equals(success.path("command")))continue;
             var changed=new ArrayList<Map<String,Object>>();
             for(var before:failed.path("sourceSnapshots"))for(var after:success.path("sourceSnapshots"))if(before.path("path").equals(after.path("path"))&&!before.path("sha256").equals(after.path("sha256")))changed.add(Map.of("path",before.path("path").asText(),"beforeSha256",before.path("sha256").asText(),"afterSha256",after.path("sha256").asText(),"beforeAssetId",before.path("assetId").asText(),"afterAssetId",after.path("assetId").asText()));
             if(changed.isEmpty())continue;
-            JsonNode edit=null;for(long seq=start+1;seq<end;seq++){var candidate=state(r,"native-s3:edit:"+seq);if(candidate!=null)edit=candidate;}
-            if(edit==null)continue;
-            var repair=new LinkedHashMap<String,Object>();repair.put("verified",true);repair.put("failureEventId",failed.path("nativeEventId").asText());repair.put("editEventId",edit.path("nativeEventId").asText());repair.put("executionEventId",success.path("nativeEventId").asText());repair.put("exceptionSummary",failed.path("exceptionSummary").asText());repair.put("changedSources",changed);repair.put("failureStdoutAssetId",failed.path("stdoutAssetId").asText());repair.put("failureStderrAssetId",failed.path("stderrAssetId").asText());repair.put("rerunStdoutAssetId",success.path("stdoutAssetId").asText());repair.put("verification","CHANGED_SOURCE_SNAPSHOT_AND_SAME_COMMAND_RERUN_WITHOUT_OBSERVED_EXCEPTION");
+            var repair=new LinkedHashMap<String,Object>();repair.put("verified",true);repair.put("failureEventId",failed.path("nativeEventId").asText());repair.put("editEventId",Long.toString(edit));repair.put("executionEventId",success.path("nativeEventId").asText());repair.put("exceptionSummary",failed.path("exceptionSummary").asText());repair.put("changedSources",changed);repair.put("failureStdoutAssetId",failed.path("stdoutAssetId").asText());repair.put("failureStderrAssetId",failed.path("stderrAssetId").asText());repair.put("rerunStdoutAssetId",success.path("stdoutAssetId").asText());repair.put("verification","CHANGED_SOURCE_SNAPSHOT_AND_SAME_COMMAND_RERUN_WITHOUT_OBSERVED_EXCEPTION");
             save(r,"native-s3:repair:"+failed.path("recordId").asText(),repair);
         }
     }
@@ -508,7 +547,8 @@ public final class NativeS3CodingAdapter implements CodingAgentSPI {
                 evidence.archive(r.c,"execution-"+id+"-"+stream,"command-"+id+"-"+stream+".txt",bytes);
             }
             for(var source:record.path("sourceSnapshots")){
-                byte[] bytes=client(r).executionContent(b.path("grant").asText(),b.path("sessionId").asText(),id,"source",source.path("path").asText(),source.path("size").asLong(),source.path("sha256").asText());
+                maintainLease(r);
+            byte[] bytes=client(r).executionContent(b.path("grant").asText(),b.path("sessionId").asText(),id,"source",source.path("path").asText(),source.path("size").asLong(),source.path("sha256").asText());
                 evidence.archive(r.c,"source-"+id+"-"+source.path("sha256").asText(),source.path("path").asText().replace('/','_'),bytes);
             }
         }

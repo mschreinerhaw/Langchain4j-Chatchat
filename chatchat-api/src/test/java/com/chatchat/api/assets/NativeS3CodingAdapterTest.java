@@ -69,6 +69,29 @@ class NativeS3CodingAdapterTest {
         assertThat(workspace.get(fixture.scope,"native-test").status()).isEqualTo("COMPLETED");
         assertThat(messageCalls).hasValue(1);authorized(()->adapter.submit(contract));assertThat(messageCalls).hasValue(1);
     }
+    @Test void repairEvidenceFindsLatestEditAcrossSparseEventSequences(){
+        String task="native-sparse-edit";
+        String file=fixture.assets.upload(fixture.owner,"input.csv","value\n42\n".getBytes()).id();
+        authorized(()->{
+            var budget=new CodingTaskContract.Budget("sparse",Instant.now().plusSeconds(90).truncatedTo(
+                java.time.temporal.ChronoUnit.MILLIS),-1,-1,-1,-1,"unlimited","USD",-1,1024*1024,1024*1024);
+            var contract=capture.capture(fixture.scope,task,List.of(file),"Analyze the supplied input",
+                "published-model",budget,Map.of("profile","artifact-integrity-v1"),List.of("RESULT"));
+            var submitted=tasks.submit(contract);
+            var lease=tasks.claim(fixture.scope,task,"sparse-test",Duration.ofMinutes(3),submitted.revision());
+            for(long sequence:List.of(7L,1_000_000L,2_000_000L)){
+                tasks.privateState(fixture.scope,task,lease,"native-s3:edit:"+sequence,null,
+                    json.valueToTree(Map.of("nativeEventId",Long.toString(sequence),"detailAssetId","asset")));
+            }
+            tasks.privateState(fixture.scope,task,lease,"native-s3:binding",null,
+                json.valueToTree(Map.of("nativeEventId",1_400_000)));
+            assertThat(tasks.latestNativeEditBefore(fixture.scope,task,1_500_000)).isEqualTo(1_000_000);
+            assertThat(tasks.latestNativeEditBefore(fixture.scope,task,1_000_000)).isEqualTo(7);
+            assertThat(tasks.latestNativeEditBefore(fixture.scope,task,7)).isZero();
+            return null;
+        });
+    }
+
     @Test void missingDispatchAndLostAcceptanceResponseConvergeThroughTheSameKey()throws Exception{
         dropBeforeAccept=true;
         dropAfterAccept=true;

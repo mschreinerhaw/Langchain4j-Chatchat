@@ -99,6 +99,18 @@ public final class DurableCodingTaskService implements CodingAgentSPI {
         return task(read(scope,READ),taskId).privateState.entrySet().stream().filter(e->e.getKey().startsWith(prefix))
             .<com.fasterxml.jackson.databind.JsonNode>map(e->e.getValue().deepCopy()).toList();
     }
+    /** Find the last observed file edit before the rerun using one journal snapshot. */
+    public long latestNativeEditBefore(KernelDataScope scope,String taskId,long endSequence){
+        var state=task(read(scope,WORKER),taskId).privateState;
+        long latest=0;
+        for(var entry:state.entrySet()){
+            if(!entry.getKey().startsWith("native-s3:edit:"))continue;
+            long sequence=entry.getValue().path("nativeEventId").asLong();
+            if(sequence>latest&&sequence<endSequence)latest=sequence;
+        }
+        return latest;
+    }
+
     public record NativeUsage(String operationId,CodingJournal.OperationKind kind,Counters actual,boolean stopped,boolean meteringComplete){}
     public record NativeObservation(String channel,long sourceSequence,String sourceEventId,String sourceSha256,
         String evidenceRef,String normalizedType,String summary,Map<String,Object> payload,NativeUsage usage,
@@ -429,7 +441,8 @@ public final class DurableCodingTaskService implements CodingAgentSPI {
             var candidate = copy(task, status, reasonAfterReconciliation(task,unknown),
                 control(task, task.outcome.status().terminal(), unknown), null);
             advance(task, task.outcome.status()==Status.CREATED ? TASK_STARTED : RECOVERY_RECONCILED,
-                unknown ? EXECUTION_OUTCOME_UNKNOWN : null, "Execution ownership acquired; no operation was started",
+                unknown ? EXECUTION_OUTCOME_UNKNOWN : null,
+                unknown ? "Execution ownership recovered; reconciling existing operations" : "Execution ownership acquired",
                 null, List.of(), candidate);
         }).lease;
     }

@@ -68,7 +68,7 @@ public final class JdkExecutor implements AutoCloseable {
                     else if(path.matches("/manager/jobs/[a-f0-9]{32}/cancel"))result=resources.cancel(path.split("/")[3]);
                     else if(path.equals("/installations/preflight"))result=deployments.preflight(spec,actor);
                     else if(path.equals("/installations"))result=deployments.submit(spec,actor);
-                    else if(path.matches("/installations/[a-f0-9]{32}/(resume|cancel|rollback|stop|start|resolve)"))result=deployments.control(path.split("/")[2],last(path),actor);
+                    else if(path.matches("/installations/[a-f0-9]{32}/(resume|cancel|rollback|stop|start|resolve|quiesce)"))result=deployments.control(path.split("/")[2],last(path),actor);
                     else{send(exchange,404,object().put("error","Unsupported node mutation"));return;}
                 }
             }send(exchange,200,result);

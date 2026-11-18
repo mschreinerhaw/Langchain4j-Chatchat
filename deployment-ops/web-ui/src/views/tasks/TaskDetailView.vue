@@ -135,13 +135,20 @@
       ['failed', 'cancelled'].includes(job.status) &&
       !job.active &&
       !job.previousRun
-    )
+    ) {
+      actions.push({
+        id: 'quiesce',
+        label: '停止残留组件',
+        description:
+          '仅停止此失败环境的业务组件，保留数据、原始错误和日志。停止后可结束失败任务，再选择修正版重新部署。',
+      });
       actions.push({
         id: 'resolve',
         label: '结束失败任务',
         description:
           '只允许在此环境安装器和业务组件均已停止后操作。保留原始失败和日志，允许重新预检并部署修正版本；不会删除数据。',
       });
+    }
     if (
       ['failed', 'interrupted', 'cancelled'].includes(job.status) ||
       (job.packageName === 'runtime-os' && job.status === 'recovery_required')

@@ -109,7 +109,7 @@ public class Main {
     try{item.put("jobs",packageProxy(node,"/installations","GET",x,actor,user.get(0).get("role").toString()));item.put("online",true);}catch(Exception error){var jobs=new ArrayList<Object>();for(var cache:sql("SELECT public_json FROM installation_cache WHERE node_id=? ORDER BY updated_at DESC",node.get("id")))jobs.add(J.readValue(cache.get("public_json").toString(),Object.class));item.put("jobs",jobs);item.put("online",false);item.put("message","Node unavailable; showing last known installation records");}result.add(item);
    }send(x,200,result);return;
   }
-  if(path.matches("/api/nodes/[0-9]+/(packages(?:/[a-f0-9]{64}/retire|/uploads(?:/[a-f0-9]{32}(?:/[0-9]+|/commit)?)?)?|installations(?:/preflight|/[a-f0-9]{32}(?:/(resume|cancel|rollback|stop|start|health|resolve))?)?)")){
+  if(path.matches("/api/nodes/[0-9]+/(packages(?:/[a-f0-9]{64}/retire|/uploads(?:/[a-f0-9]{32}(?:/[0-9]+|/commit)?)?)?|installations(?:/preflight|/[a-f0-9]{32}(?:/(resume|cancel|rollback|stop|start|health|resolve|quiesce))?)?)")){
    String[] parts=path.split("/",5);var found=sql("SELECT * FROM nodes WHERE id=?",Long.parseLong(parts[3]));if(found.isEmpty())throw new IllegalArgumentException("Node missing");
    if(!List.of("GET","POST").contains(method))throw new IllegalArgumentException("Method not supported");
    if(write)audit(actor,"requested:"+method,path,"pending");

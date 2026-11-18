@@ -16,7 +16,7 @@ public final class StandaloneRuntime {
     private StandaloneRuntime() {}
     public static void start() throws Exception {
         if(System.getenv("EXECUTOR_TOKEN")!=null||System.getenv("OPS_EXECUTOR_URL")!=null)return;
-        Path root=Path.of(System.getenv().getOrDefault("OPS_DATA_DIR","/mnt/disk01/deployment-ops/data")).toAbsolutePath().getParent().resolve("standalone");
+        Path root=Path.of(com.chatchat.deployment.storage.StorageOptions.data().toString()).toAbsolutePath().getParent().resolve("standalone");
         root=com.chatchat.deployment.storage.StorageGuard.managedDirectory(root);Files.setPosixFilePermissions(root,PosixFilePermissions.fromString("rwx------"));
         channel=FileChannel.open(root.resolve("process.lock"),StandardOpenOption.CREATE,StandardOpenOption.WRITE);lock=channel.tryLock();
         if(lock==null)throw new IllegalStateException("This standalone instance is already running");
@@ -25,7 +25,7 @@ public final class StandaloneRuntime {
         Properties config=new Properties();Path file=root.resolve("instance.properties");
         if(Files.exists(file)){if(!Files.isRegularFile(file,LinkOption.NOFOLLOW_LINKS))throw new IllegalStateException("Invalid private instance configuration");try(var in=Files.newInputStream(file)){config.load(in);}}
         else{
-            for(String key:List.of("EXECUTOR_TOKEN","OPS_DB_PASSWORD","OPS_INSTANCE_ID","OPS_SETUP_TOKEN"))config.setProperty(key,UUID.randomUUID().toString()+UUID.randomUUID());
+            for(String key:List.of("EXECUTOR_TOKEN","OPS_DB_PASSWORD","OPS_INSTANCE_ID","OPS_SETUP_TOKEN"))config.setProperty(key,key.equals("OPS_SETUP_TOKEN")?System.getProperty(key,UUID.randomUUID().toString()+UUID.randomUUID()):UUID.randomUUID().toString()+UUID.randomUUID());
             Path temporary=Files.createTempFile(root,"instance-",".tmp",PosixFilePermissions.asFileAttribute(PosixFilePermissions.fromString("rw-------")));
             try{try(var out=Files.newOutputStream(temporary)){config.store(out,"Private local configuration; never distribute");}try(FileChannel saved=FileChannel.open(temporary,StandardOpenOption.WRITE)){saved.force(true);}Files.move(temporary,file,StandardCopyOption.ATOMIC_MOVE);}finally{Files.deleteIfExists(temporary);}
         }

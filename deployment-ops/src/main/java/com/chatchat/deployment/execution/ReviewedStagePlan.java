@@ -16,7 +16,7 @@ public final class ReviewedStagePlan {
         require(configured!=null&&!configured.isBlank(),"Existing-stage deployment needs an administrator-registered OPS_STAGE_PLAN_DIR");
         String name=entry.path("name").asText();require(name.matches("[a-z0-9][a-z0-9-]{0,63}\\.json"),"Invalid private stage plan name");
         Path directory=Path.of(configured).toAbsolutePath().normalize(),file=directory.resolve(name);
-        require(directory.startsWith("/mnt/disk01/")&&directory.toRealPath().equals(directory)&&Files.isRegularFile(file,LinkOption.NOFOLLOW_LINKS),"Stage plan must be a regular private file on the data disk");
+        require(directory.toRealPath().equals(directory)&&Files.isRegularFile(file,LinkOption.NOFOLLOW_LINKS),"Stage plan must be a regular private file in the registered directory");
         require(SignedPackageStore.sha(file).equals(entry.path("sha256").asText()),"Private stage plan changed after signing; review and republish it");
         JsonNode plan=StateFiles.JSON.readTree(Files.readAllBytes(file));validate(plan,manifest);
         require(plan.path("sourceHashes").isObject()&&!plan.path("sourceHashes").isEmpty(),"Existing configuration fingerprints are required");

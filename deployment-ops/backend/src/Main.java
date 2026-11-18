@@ -62,6 +62,7 @@ public class Main {
  static void audit(String user,String action,String target,String outcome)throws Exception{sql("INSERT INTO audit(actor,action,target,outcome) VALUES(?,?,?,?)",user,action,target,outcome);}
  static void api(HttpExchange x)throws Exception{
   String path=x.getRequestURI().getPath(),method=x.getRequestMethod();
+  if(path.equals("/api/storage/status")&&method.equals("GET")){send(x,200,Map.of("requiresConfiguration",false));return;}
   if(path.equals("/api/health")){sql("SELECT 1");send(x,200,Map.of("status","UP","database","H2 embedded"));return;}
   if(path.equals("/api/setup")&&method.equals("GET")){send(x,200,Map.of("required",sql("SELECT username FROM users").isEmpty()));return;}
   if(path.equals("/api/setup")&&method.equals("POST")){initializeAdministrator(x);return;}

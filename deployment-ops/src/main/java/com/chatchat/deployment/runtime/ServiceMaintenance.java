@@ -20,7 +20,7 @@ import static com.chatchat.deployment.protocol.InstallationManifest.require;
 /** Detached JDK maintenance worker. Its scope is this platform's unit, JAR and H2 files only. */
 public final class ServiceMaintenance {
     private ServiceMaintenance(){}
-    private static Path data(){return Path.of(System.getenv().getOrDefault("OPS_DATA_DIR","/mnt/disk01/deployment-ops/data")).toAbsolutePath().normalize();}
+    private static Path data(){return Path.of(com.chatchat.deployment.storage.StorageOptions.data().toString()).toAbsolutePath().normalize();}
     private static Path state(){return data().getParent();}
     public static boolean active(){return Files.exists(state().resolve("maintenance/active-jdk.json"));}
     public static void checkStartup()throws Exception {
@@ -45,7 +45,7 @@ public final class ServiceMaintenance {
         try(AutoCloseable guard=StandaloneRuntime.executor().backupLock()){
             Path directory=StorageGuard.managedDirectory(state().resolve("maintenance"));Files.setPosixFilePermissions(directory,PosixFilePermissions.fromString("rwx------"));Path active=directory.resolve("active-jdk.json");require(!Files.exists(active),"Maintenance already active; inspect retained job before recovery");
             String id=StateFiles.id();ObjectNode job=StateFiles.JSON.createObjectNode().put("id",id).put("action",action).put("actor",actor).put("target",name).put("service",service).put("archive",archive.toString()).put("sha256",expected).put("status","queued").put("createdAt",StateFiles.now());jobs().write(id+".json",job);Files.writeString(active,id,StandardOpenOption.CREATE_NEW);
-            List<String> command=List.of("/usr/bin/systemd-run","--unit=deployment-ops-jdk-maintenance-"+id,"--property=WorkingDirectory="+state(),"--setenv=OPS_DATA_DIR="+data(),"--setenv=OPS_PORT="+System.getenv().getOrDefault("OPS_PORT","19240"),"--setenv=OPS_PLATFORM_SERVICE="+service,"--setenv=PATH=/nonexistent",Path.of(System.getProperty("java.home"),"bin/java").toString(),"-jar",current.toString(),"--service-maintenance",id);
+            List<String> command=new ArrayList<>(List.of("/usr/bin/systemd-run","--unit=deployment-ops-jdk-maintenance-"+id,"--property=WorkingDirectory="+state(),"--setenv=OPS_DATA_DIR="+data(),"--setenv=OPS_PORT="+System.getenv().getOrDefault("OPS_PORT","19240"),"--setenv=OPS_PLATFORM_SERVICE="+service,"--setenv=PATH=/nonexistent",Path.of(System.getProperty("java.home"),"bin/java").toString(),"-jar",current.toString(),"--service-maintenance",id));for(String key:List.of("OPS_RUNTIME_DIR","OPS_REQUIRED_MOUNT","OPS_STORAGE_MOUNT","OPS_RUNTIME_MOUNT"))command.add(4,"--setenv="+key+"="+com.chatchat.deployment.storage.StorageOptions.value(key,key.equals("OPS_RUNTIME_DIR")?com.chatchat.deployment.storage.StorageOptions.runtime().toString():""));
             Process worker=new ProcessBuilder(command).redirectErrorStream(true).start();String output=new String(worker.getInputStream().readNBytes(65536),java.nio.charset.StandardCharsets.UTF_8);if(worker.waitFor()!=0){Files.deleteIfExists(active);job.put("status","failed").put("error",output);jobs().write(id+".json",job);throw new IllegalStateException("Failed to start isolated maintenance worker");}return job;
         }
     }

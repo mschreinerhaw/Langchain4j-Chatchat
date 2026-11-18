@@ -14,7 +14,7 @@ import java.io.*;
 @Service
 public class BackupService {
     private final JdbcTemplate db;private final ObjectMapper json;private final Path root,data;
-    public BackupService(JdbcTemplate db,ObjectMapper json,Environment env){this.db=db;this.json=json;data=Path.of(env.getProperty("OPS_DATA_DIR","/mnt/disk01/deployment-ops/data")).toAbsolutePath().normalize();root=data.getParent().resolve("backups");}
+    public BackupService(JdbcTemplate db,ObjectMapper json,Environment env){this.db=db;this.json=json;data=Path.of(env.getProperty("OPS_DATA_DIR",com.chatchat.deployment.storage.StorageOptions.data().toString())).toAbsolutePath().normalize();root=data.getParent().resolve("backups");}
     public Path file(String name) throws IOException {
         if(!name.matches("backup-[a-f0-9-]{36}\\.zip"))throw new IllegalArgumentException("Invalid backup name");
         Path target=root.resolve(name);if(!Files.isRegularFile(target)||Files.isSymbolicLink(target))throw new IllegalArgumentException("Backup not found");return target;

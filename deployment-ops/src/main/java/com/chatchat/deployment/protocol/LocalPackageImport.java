@@ -16,8 +16,8 @@ public final class LocalPackageImport {
     private LocalPackageImport() {}
     private static Path regular(String name)throws Exception {
         Path path=Path.of(name).toAbsolutePath().normalize();
-        require(path.startsWith(Path.of("/mnt/disk01"))&&Files.isRegularFile(path,LinkOption.NOFOLLOW_LINKS),"Offline media must be a regular file on /mnt/disk01");
-        StorageGuard.managedDirectory(path.getParent());
+        require(Files.isRegularFile(path,LinkOption.NOFOLLOW_LINKS),"Offline media must be a regular file");
+        StorageGuard.inputFile(path);
         require(path.toRealPath().equals(path),"Offline media symlinks are forbidden");return path;
     }
     public static void run(String[] args)throws Exception {
@@ -25,7 +25,7 @@ public final class LocalPackageImport {
         Path archive=regular(args[1]);String digest=args[2];require(digest.matches("[a-f0-9]{64}"),"Publisher SHA-256 required");
         System.out.println("Checking complete offline package SHA-256...");
         require(SignedPackageStore.sha(archive).equals(digest),"Package SHA-256 mismatch");
-        Path data=Path.of(System.getenv().getOrDefault("OPS_DATA_DIR","/mnt/disk01/deployment-ops/data")).toAbsolutePath().normalize();
+        Path data=Path.of(com.chatchat.deployment.storage.StorageOptions.data().toString()).toAbsolutePath().normalize();
         Path root=StorageGuard.managedDirectory(data.getParent().resolve("standalone"));Properties config=new Properties();
         try(var in=Files.newInputStream(root.resolve("instance.properties"))){config.load(in);}
         String token=config.getProperty("EXECUTOR_TOKEN");require(token!=null&&!token.isBlank(),"Initialize and start this JAR instance first");
@@ -34,25 +34,31 @@ public final class LocalPackageImport {
         for(int option=3;option<args.length;option+=2){require(args[option].equals("--image-cache"),"Unknown local import option");Path cached=regular(args[option+1]);String hash=SignedPackageStore.sha(cached);boolean declared=false;
             try(ZipFile zip=new ZipFile(archive.toFile())){var member=zip.getEntry("checksums.json");require(member!=null&&member.getSize()<=2*1024*1024,"Missing bounded checksums");try(var in=zip.getInputStream(member)){JsonNode checks=StateFiles.JSON.readTree(in.readNBytes(2*1024*1024+1));var fields=checks.fields();while(fields.hasNext()){var field=fields.next();var entry=zip.getEntry(field.getKey());if(field.getKey().startsWith("images/")&&field.getValue().asText().equals(hash)&&entry!=null&&entry.getSize()==Files.size(cached))declared=true;}}}
             require(declared,"Image cache does not match this package inventory");Path blobs=StorageGuard.managedDirectory(root.resolve("jdk/packages/blobs")),target=blobs.resolve(hash);
-            if(Files.exists(target,LinkOption.NOFOLLOW_LINKS))require(Files.isRegularFile(target,LinkOption.NOFOLLOW_LINKS)&&SignedPackageStore.sha(target).equals(hash),"Existing cache is corrupt");else Files.createLink(target,cached);
+            if(Files.exists(target,LinkOption.NOFOLLOW_LINKS))require(Files.isRegularFile(target,LinkOption.NOFOLLOW_LINKS)&&SignedPackageStore.sha(target).equals(hash),"Existing cache is corrupt");else linkOrCopy(target,cached);
             System.out.println("Matching image archive cached without duplicating data; signature verification remains mandatory.");
         }
         JsonNode spec=StateFiles.JSON.createObjectNode().put("name",archive.getFileName().toString()).put("size",Files.size(archive)).put("sha256",digest);
         JsonNode upload=request(client,port,token,"POST","/packages/uploads",spec);String id=upload.path("id").asText();require(id.matches("[a-f0-9]{32}"),"Invalid upload response");
         Path directory=StorageGuard.managedDirectory(root.resolve("jdk/packages/uploads")),destination=directory.resolve(id);
         require(Files.isRegularFile(destination,LinkOption.NOFOLLOW_LINKS)&&Files.size(destination)==0,"Upload staging changed");Path staged=directory.resolve(id+".local");
-        try{Files.createLink(staged,archive);Files.move(staged,destination,StandardCopyOption.ATOMIC_MOVE,StandardCopyOption.REPLACE_EXISTING);}finally{Files.deleteIfExists(staged);}
+        try{linkOrCopy(staged,archive);Files.move(staged,destination,StandardCopyOption.ATOMIC_MOVE,StandardCopyOption.REPLACE_EXISTING);}finally{Files.deleteIfExists(staged);}
         request(client,port,token,"POST","/packages/uploads/"+id+"/commit",StateFiles.JSON.createObjectNode());
         System.out.println("Upload "+id+" committed; verifying signature, payloads and actual Docker images.");
         await(client,port,token,id,digest);
     }
     public static void resume(String id)throws Exception {
-        require(id.matches("[a-f0-9]{32}"),"Invalid upload ID");Path data=Path.of(System.getenv().getOrDefault("OPS_DATA_DIR","/mnt/disk01/deployment-ops/data")).toAbsolutePath().normalize();Path root=StorageGuard.managedDirectory(data.getParent().resolve("standalone"));Properties config=new Properties();try(var in=Files.newInputStream(root.resolve("instance.properties"))){config.load(in);}String token=config.getProperty("EXECUTOR_TOKEN"),port=System.getenv().getOrDefault("OPS_EXECUTOR_PORT","19242");require(token!=null&&port.matches("[0-9]{4,5}"),"Invalid local instance configuration");HttpClient client=HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(5)).build();JsonNode upload=request(client,port,token,"GET","/packages/uploads/"+id,null);require(upload.path("offset").asLong()==upload.path("size").asLong(),"Upload is incomplete; resume chunks from the page");if(!Set.of("verified","verifying").contains(upload.path("status").asText()))request(client,port,token,"POST","/packages/uploads/"+id+"/commit",StateFiles.JSON.createObjectNode());await(client,port,token,id,upload.path("sha256").asText());
+        require(id.matches("[a-f0-9]{32}"),"Invalid upload ID");Path data=Path.of(com.chatchat.deployment.storage.StorageOptions.data().toString()).toAbsolutePath().normalize();Path root=StorageGuard.managedDirectory(data.getParent().resolve("standalone"));Properties config=new Properties();try(var in=Files.newInputStream(root.resolve("instance.properties"))){config.load(in);}String token=config.getProperty("EXECUTOR_TOKEN"),port=System.getenv().getOrDefault("OPS_EXECUTOR_PORT","19242");require(token!=null&&port.matches("[0-9]{4,5}"),"Invalid local instance configuration");HttpClient client=HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(5)).build();JsonNode upload=request(client,port,token,"GET","/packages/uploads/"+id,null);require(upload.path("offset").asLong()==upload.path("size").asLong(),"Upload is incomplete; resume chunks from the page");if(!Set.of("verified","verifying").contains(upload.path("status").asText()))request(client,port,token,"POST","/packages/uploads/"+id+"/commit",StateFiles.JSON.createObjectNode());await(client,port,token,id,upload.path("sha256").asText());
     }
     private static void await(HttpClient client,String port,String token,String id,String digest)throws Exception {
         long end=System.nanoTime()+Duration.ofHours(1).toNanos();String previous="";int failures=0;
         while(System.nanoTime()<end){JsonNode status;try{status=request(client,port,token,"GET","/packages/uploads/"+id,null);failures=0;}catch(java.io.IOException unavailable){if(++failures>60)throw new java.io.IOException("Platform unavailable; restart it and use --resume-import "+id,unavailable);if(failures==1)System.out.println("Waiting for platform connection; retained upload "+id);Thread.sleep(1000);continue;}String state=status.path("status").asText();if(!state.equals(previous)){System.out.println("Import status: "+state);previous=state;}require(!state.equals("failed"),"Import failed: "+status.path("message").asText()+"; inspect and use --resume-import "+id);if(state.equals("verified")){System.out.println("Verified package: "+digest);return;}if(state.equals("uploading"))throw new IllegalStateException("Verification interrupted; use --resume-import "+id+" to explicitly recommit the retained complete upload");Thread.sleep(1000);}
         throw new IllegalStateException("Import is still pending; query upload "+id+" before retrying");
+    }
+    private static void linkOrCopy(Path destination,Path source)throws Exception{
+        try{Files.createLink(destination,source);}catch(FileSystemException separateFilesystem){
+            require(Files.getFileStore(destination.getParent()).getUsableSpace()>=Files.size(source)+1024L*1024*1024,"Insufficient space to copy offline media from another filesystem");
+            Files.copy(source,destination);Files.setPosixFilePermissions(destination,java.nio.file.attribute.PosixFilePermissions.fromString("rw-------"));
+        }
     }
     private static JsonNode request(HttpClient client,String port,String token,String method,String path,JsonNode body)throws Exception {
         var builder=HttpRequest.newBuilder(URI.create("http://127.0.0.1:"+port+path)).timeout(Duration.ofSeconds(30)).header("Authorization","Bearer "+token).header("X-Ops-Actor","local-operator").header("X-Ops-Role","admin");

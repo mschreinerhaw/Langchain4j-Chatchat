@@ -12,8 +12,9 @@ public class DeploymentOpsApplication {
         return factory->{String temporary=System.getProperty("OPS_VALIDATED_TMP");if(temporary!=null)try{factory.setDocumentRoot(com.chatchat.deployment.storage.StorageGuard.managedDirectory(java.nio.file.Path.of(temporary).resolve("tomcat-docbase")).toFile());}catch(java.io.IOException error){throw new IllegalStateException("Data-disk Tomcat document root unavailable",error);}};
     }
     public static void main(String[] args) throws Exception {
+        args=com.chatchat.deployment.storage.StorageBootstrap.configure(args);
         com.chatchat.deployment.storage.StorageGuard.verify();
-        java.nio.file.Path data=java.nio.file.Path.of(System.getenv().getOrDefault("OPS_DATA_DIR","/mnt/disk01/deployment-ops/data"));
+        java.nio.file.Path data=java.nio.file.Path.of(com.chatchat.deployment.storage.StorageOptions.data().toString());
         java.nio.file.Path temporary=com.chatchat.deployment.storage.StorageGuard.managedDirectory(java.nio.file.Path.of(System.getenv().getOrDefault("OPS_TMP_DIR",data.toAbsolutePath().getParent().resolve("tmp").toString())));
         System.setProperty("java.io.tmpdir",temporary.toString());
         System.setProperty("OPS_VALIDATED_TMP",temporary.toString());

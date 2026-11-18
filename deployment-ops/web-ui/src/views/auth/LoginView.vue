@@ -80,7 +80,7 @@
     route = useRoute(),
     session = useSession();
   const setup = ref(false),
-    token = ref(''),
+    token = ref(sessionStorage.getItem('ops-install-authorization') || ''),
     confirmation = ref('');
   onMounted(async () => {
     try {
@@ -96,6 +96,7 @@
       if (setup.value) {
         if (credentials.password !== confirmation.value) throw new Error('两次输入的密码不一致');
         await post('/setup', { token: token.value, password: credentials.password });
+        sessionStorage.removeItem('ops-install-authorization');
         setup.value = false;
         token.value = '';
         confirmation.value = '';

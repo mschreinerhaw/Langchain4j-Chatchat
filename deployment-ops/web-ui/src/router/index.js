@@ -4,6 +4,11 @@ const router = createRouter({
   history: createWebHashHistory(),
   routes: [
     {
+      path: '/storage-setup',
+      component: () => import('../views/auth/StorageSetupView.vue'),
+      meta: { title: 'Storage setup', public: true },
+    },
+    {
       path: '/login',
       component: () => import('../views/auth/LoginView.vue'),
       meta: { title: '登录', public: true },
@@ -88,7 +93,20 @@ const router = createRouter({
     { path: '/:pathMatch(.*)*', redirect: '/overview' },
   ],
 });
+let storageChecked = false;
 router.beforeEach(async (to) => {
+  if (!storageChecked) {
+    try {
+      const response = await fetch('/api/storage/status', { cache: 'no-store' });
+      if (response.ok) {
+        const status = await response.json();
+        if (status.requiresConfiguration)
+          return to.path === '/storage-setup' ? true : '/storage-setup';
+        storageChecked = true;
+      }
+    } catch {}
+  }
+  if (to.path === '/storage-setup') return true;
   document.title = `${to.meta.title} · Deployment Ops`;
   const session = useSession();
   try {
@@ -102,6 +120,7 @@ router.beforeEach(async (to) => {
   if (to.path === '/login' && session.user.value) return '/overview';
 });
 window.addEventListener('ops-session-expired', () => {
-  if (router.currentRoute.value.path !== '/login') router.replace('/login');
+  if (!['/login', '/storage-setup'].includes(router.currentRoute.value.path))
+    router.replace('/login');
 });
 export default router;

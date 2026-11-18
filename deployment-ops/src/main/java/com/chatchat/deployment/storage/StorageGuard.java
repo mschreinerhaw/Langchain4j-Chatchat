@@ -10,31 +10,52 @@ public final class StorageGuard {
     private static volatile boolean validatedProcess;
     private StorageGuard() {}
 
-    public static void verify() throws IOException {
-        Path mount = Path.of("/mnt/disk01");
-        Path data = Path.of(System.getenv().getOrDefault("OPS_DATA_DIR", "/mnt/disk01/deployment-ops/data"));
-        try {
-            validate(mount, data, Files.readAllLines(Path.of("/proc/self/mountinfo")));
-            if(Files.getAttribute(mount,"unix:dev").equals(Files.getAttribute(Path.of("/"),"unix:dev")))throw new IOException("Data mount resolves to the system filesystem");
-            managedDirectory(data);
-            Files.setPosixFilePermissions(data,java.nio.file.attribute.PosixFilePermissions.fromString("rwx------"));
-            validatedProcess=true;
-        } catch(IOException error) {
-            throw new IOException("Required real storage mount /mnt/disk01 is unavailable or invalid; refusing startup without system-disk fallback",error);
-        }
+    private static Object dataDevice;
+    public static Path dataDirectory(){return StorageOptions.data();}
+    public static Path runtimeDirectory(){return StorageOptions.runtime();}
+    public static synchronized void verify() throws IOException {
+        Path data=StorageOptions.data();checkPolicy(data);
+        if(validatedProcess){if(!Files.isDirectory(data)||!Files.getAttribute(data,"unix:dev").equals(dataDevice))throw new IOException("Selected data filesystem disappeared or changed; refusing storage fallback");return;}
+        createManaged(data);if(Files.getFileStore(data).isReadOnly()||!Files.isWritable(data))throw new IOException("Selected data directory is not writable: "+data);
+        if(Files.getFileStore(data).getUsableSpace()<64L*1024*1024)throw new IOException("Insufficient free space for platform initialization");
+        Files.setPosixFilePermissions(data,java.nio.file.attribute.PosixFilePermissions.fromString("rwx------"));dataDevice=Files.getAttribute(data,"unix:dev");validatedProcess=true;
     }
     public static void verifyRuntime()throws IOException{if(validatedProcess)verify();}
     public static Path managedDirectory(Path path)throws IOException{
-        Path mount=Path.of("/mnt/disk01"),absolute=path.toAbsolutePath().normalize();
-        validate(mount,absolute,Files.readAllLines(Path.of("/proc/self/mountinfo")));
-        Object systemDevice=Files.getAttribute(Path.of("/"),"unix:dev");
-        if(Files.getAttribute(mount,"unix:dev").equals(systemDevice))throw new IOException("Data mount uses the system filesystem");
-        Path ancestor=absolute;while(!Files.exists(ancestor))ancestor=ancestor.getParent();
-        if(Files.getAttribute(ancestor.toRealPath(),"unix:dev").equals(systemDevice))throw new IOException("Data directory is backed by the system filesystem");
-        Files.createDirectories(absolute);return absolute.toRealPath();
+        if(validatedProcess)verify();return createManaged(path);
+    }
+    private static Path createManaged(Path path)throws IOException{
+        Path absolute=path.toAbsolutePath().normalize();
+        if(!absolute.startsWith(StorageOptions.state())&&!absolute.startsWith(StorageOptions.runtime()))throw new IOException("Directory is outside the selected platform/application storage roots: "+absolute);
+        checkPolicy(absolute);Files.createDirectories(absolute);return absolute.toRealPath();
+    }
+    public static void noSymlinks(Path path)throws IOException{
+        Path absolute=path.toAbsolutePath().normalize(),part=absolute.getRoot();
+        for(Path item:absolute){part=part.resolve(item);if(Files.isSymbolicLink(part))throw new IOException("Storage symlink is not permitted: "+part);}
+    }
+    public static Path inputFile(Path path)throws IOException{
+        Path absolute=path.toAbsolutePath().normalize();noSymlinks(absolute);
+        if(!Files.isRegularFile(absolute,java.nio.file.LinkOption.NOFOLLOW_LINKS)||!Files.isReadable(absolute))throw new IOException("Readable regular offline file required: "+absolute);return absolute;
+    }
+    public static String mountPoint(Path path)throws IOException{
+        Path existing=path.toAbsolutePath().normalize();while(!Files.exists(existing))existing=existing.getParent();
+        Path real=existing.toRealPath();String best="/";
+        for(String line:Files.readAllLines(Path.of("/proc/self/mountinfo"))){String[] f=line.split(" ");if(f.length>6){String m=decode(f[4]);if(real.startsWith(Path.of(m))&&m.length()>best.length())best=m;}}return best;
+    }
+    public static void checkPolicy(Path path)throws IOException{
+        Path absolute=path.toAbsolutePath().normalize();noSymlinks(absolute);
+        String required=StorageOptions.requiredMount();
+        if(!required.isBlank()){
+            Path mount=Path.of(required).toAbsolutePath().normalize();validate(mount,absolute,Files.readAllLines(Path.of("/proc/self/mountinfo")));
+            if(Files.getAttribute(mount,"unix:dev").equals(Files.getAttribute(Path.of("/"),"unix:dev")))throw new IOException("Configured dedicated mount is backed by the system filesystem");
+        }
+        String expected=StorageOptions.value("OPS_STORAGE_MOUNT","");
+        if(!expected.isBlank()&&absolute.startsWith(StorageOptions.state())&&!mountPoint(absolute).equals(expected))throw new IOException("Selected data mount is missing or changed: "+expected);
+        String runtimeMount=StorageOptions.value("OPS_RUNTIME_MOUNT","");
+        if(!runtimeMount.isBlank()&&absolute.startsWith(StorageOptions.runtime())&&!mountPoint(absolute).equals(runtimeMount))throw new IOException("Selected application mount is missing or changed: "+runtimeMount);
     }
     public static void validateDatasource(org.springframework.core.env.Environment environment){
-        String directory=Path.of(System.getenv().getOrDefault("OPS_DATA_DIR","/mnt/disk01/deployment-ops/data")).toAbsolutePath().normalize().toString().replace('\\','/');
+        String directory=StorageOptions.data().toAbsolutePath().normalize().toString().replace('\\','/');
         String expected="jdbc:h2:file:"+directory+"/deployment-ops;MODE=PostgreSQL;DATABASE_TO_LOWER=TRUE;DB_CLOSE_ON_EXIT=FALSE;WRITE_DELAY=0";
         if(!expected.equals(environment.getProperty("spring.datasource.url"))||!"org.h2.Driver".equals(environment.getProperty("spring.datasource.driver-class-name")))throw new IllegalArgumentException("Only embedded H2 at the validated data directory is supported; external databases and path overrides are forbidden");
     }

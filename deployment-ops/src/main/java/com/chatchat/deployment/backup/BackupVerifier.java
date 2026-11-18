@@ -12,7 +12,7 @@ public final class BackupVerifier {
         }
     }
     public static void verify(Path directory) throws Exception {
-        Path real=directory.toRealPath();if(!real.startsWith(Path.of("/mnt/disk01")))throw new IllegalArgumentException("Restore verification must remain on required disk");
+        Path real=directory.toRealPath();if(!real.startsWith(com.chatchat.deployment.storage.StorageOptions.state()))throw new IllegalArgumentException("Restore verification must remain on required disk");
         String url="jdbc:h2:file:"+real.resolve("deployment-ops")+";IFEXISTS=TRUE;ACCESS_MODE_DATA=r;MODE=PostgreSQL;DATABASE_TO_LOWER=TRUE";
         try(var connection=DriverManager.getConnection(url,"deployment_ops",System.getProperty("OPS_DB_PASSWORD",System.getenv("OPS_DB_PASSWORD")));var statement=connection.createStatement()){
             var version=statement.executeQuery("SELECT MAX(version) FROM schema_version");version.next();if(version.getInt(1)>2)throw new IllegalArgumentException("Backup requires a newer application version");

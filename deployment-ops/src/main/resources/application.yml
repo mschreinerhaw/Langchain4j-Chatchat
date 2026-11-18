@@ -2,7 +2,7 @@ spring:
   application:
     name: deployment-ops
   datasource:
-    url: jdbc:h2:file:${OPS_DATA_DIR:/mnt/disk01/deployment-ops/data}/deployment-ops;MODE=PostgreSQL;DATABASE_TO_LOWER=TRUE;DB_CLOSE_ON_EXIT=FALSE;WRITE_DELAY=0
+    url: jdbc:h2:file:${OPS_DATA_DIR:/opt/deployment-ops/data}/deployment-ops;MODE=PostgreSQL;DATABASE_TO_LOWER=TRUE;DB_CLOSE_ON_EXIT=FALSE;WRITE_DELAY=0
     username: deployment_ops
     password: ${OPS_DB_PASSWORD:}
     driver-class-name: org.h2.Driver

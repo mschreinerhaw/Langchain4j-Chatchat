@@ -28,8 +28,8 @@ public final class LocalRecovery {
     }
     public static void run(String[] args)throws Exception {
         require(args.length==3,"Usage: --restore-backup BACKUP_FILE SHA256 (platform must be stopped)");Path archive=Path.of(args[1]).toAbsolutePath().normalize();
-        require(archive.startsWith(Path.of("/mnt/disk01"))&&Files.isRegularFile(archive,LinkOption.NOFOLLOW_LINKS)&&archive.toRealPath().equals(archive),"Backup must be a regular file on /mnt/disk01");require(args[2].matches("[a-f0-9]{64}")&&SignedPackageStore.sha(archive).equals(args[2]),"Backup SHA-256 mismatch");
-        Path data=StorageGuard.managedDirectory(Path.of(System.getenv().getOrDefault("OPS_DATA_DIR","/mnt/disk01/deployment-ops/data"))),root=StorageGuard.managedDirectory(data.getParent().resolve("standalone"));
+        require(Files.isRegularFile(archive,LinkOption.NOFOLLOW_LINKS)&&archive.toRealPath().equals(archive),"Backup must be a readable regular file");require(args[2].matches("[a-f0-9]{64}")&&SignedPackageStore.sha(archive).equals(args[2]),"Backup SHA-256 mismatch");
+        Path data=StorageGuard.managedDirectory(Path.of(com.chatchat.deployment.storage.StorageOptions.data().toString())),root=StorageGuard.managedDirectory(data.getParent().resolve("standalone"));
         try(FileChannel channel=FileChannel.open(root.resolve("process.lock"),StandardOpenOption.CREATE,StandardOpenOption.WRITE);FileLock lock=channel.tryLock()) {
             require(lock!=null,"Platform is running; stop this platform instance before restoring. Business containers must stay running.");
             Path work=StorageGuard.managedDirectory(data.getParent().resolve("maintenance/restore-"+StateFiles.id()));Files.setPosixFilePermissions(work,PosixFilePermissions.fromString("rwx------"));

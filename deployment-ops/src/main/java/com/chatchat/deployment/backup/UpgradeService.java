@@ -10,7 +10,7 @@ import java.util.*;
 @Service
 public class UpgradeService {
     private final Path root;
-    public UpgradeService(Environment env){root=Path.of(env.getProperty("OPS_DATA_DIR","/mnt/disk01/deployment-ops/data")).toAbsolutePath().getParent().resolve("upgrades");}
+    public UpgradeService(Environment env){root=Path.of(env.getProperty("OPS_DATA_DIR",com.chatchat.deployment.storage.StorageOptions.data().toString())).toAbsolutePath().getParent().resolve("upgrades");}
     public Map<String,Object> receive(InputStream input,long length,String expected)throws Exception{
         if(length<1||length>1024L*1024*1024||expected==null||!expected.matches("[a-f0-9]{64}"))throw new IllegalArgumentException("Valid SHA-256 and 1 GiB maximum archive required");
         Files.createDirectories(root);String name="upgrade-"+UUID.randomUUID()+".zip";Path partial=root.resolve(name+".partial"),target=root.resolve(name);MessageDigest digest=MessageDigest.getInstance("SHA-256");

@@ -27,7 +27,7 @@ public final class ResourceManager implements AutoCloseable {
     public ResourceManager(DockerClient docker,ExecutionJournal journal,String owner,Path data,ReentrantLock mutationLock,boolean readOnly)throws Exception{
         this.docker=docker;this.journal=journal;this.owner=owner;this.data=data;this.mutationLock=mutationLock;this.readOnly=readOnly;Files.createDirectories(data);
         for(JsonNode record:journal.list("resource-jobs",100000))if(Set.of("PENDING","RUNNING").contains(record.path("status").asText())){ObjectNode job=(ObjectNode)record;job.put("status","UNKNOWN").put("error","Executor restarted; inspect the actual Docker object before a fresh approved operation").put("updated",StateFiles.now());journal.write("resource-jobs",job.path("id").asText(),job);}
-        HostMetrics host=new HostMetrics(Path.of("/mnt/disk01"));
+        HostMetrics host=new HostMetrics(com.chatchat.deployment.storage.StorageGuard.dataDirectory());
         samples.scheduleWithFixedDelay(()->{try{sample("host",host.sample());}catch(Exception ignored){}},0,10,TimeUnit.SECONDS);
         samples.scheduleWithFixedDelay(()->{try{for(JsonNode container:docker.call("GET","/containers/json?all=1")){if(Thread.currentThread().isInterrupted())break;if(container.path("State").asText().equals("running"))try{metrics(container.path("Id").asText());}catch(Exception ignored){}}}catch(Exception ignored){}},1,30,TimeUnit.SECONDS);
     }

@@ -1,0 +1,17 @@
+Running as unit: deployment-ops-readonly-storage-probe.service
+Exception in thread "main" java.lang.reflect.InvocationTargetException
+	at java.base/jdk.internal.reflect.NativeMethodAccessorImpl.invoke0(Native Method)
+	at java.base/jdk.internal.reflect.NativeMethodAccessorImpl.invoke(NativeMethodAccessorImpl.java:77)
+	at java.base/jdk.internal.reflect.DelegatingMethodAccessorImpl.invoke(DelegatingMethodAccessorImpl.java:43)
+	at java.base/java.lang.reflect.Method.invoke(Method.java:568)
+	at org.springframework.boot.loader.launch.Launcher.launch(Launcher.java:102)
+	at org.springframework.boot.loader.launch.Launcher.launch(Launcher.java:64)
+	at org.springframework.boot.loader.launch.JarLauncher.main(JarLauncher.java:40)
+Caused by: java.lang.IllegalArgumentException: Directory is not writable: /opt/ops93-readonly/data
+	at com.chatchat.deployment.storage.StorageBootstrap.validateSelection(StorageBootstrap.java:48)
+	at com.chatchat.deployment.storage.StorageBootstrap.configure(StorageBootstrap.java:37)
+	at com.chatchat.deployment.DeploymentOpsApplication.main(DeploymentOpsApplication.java:15)
+	... 7 more
+Finished with result: exit-code
+Main processes terminated with: code=exited/status=1
+Service runtime: 735ms

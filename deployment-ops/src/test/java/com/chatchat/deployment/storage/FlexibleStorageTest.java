@@ -18,6 +18,18 @@ class FlexibleStorageTest {
     @Test void applicationDirectoryCanBeSelectedIndependently() throws Exception {
         Path apps=StorageGuard.managedDirectory(StorageOptions.runtime());assertTrue(Files.isDirectory(apps));assertEquals(temporary.resolve("applications").toRealPath(),apps);
     }
+    @Test void maintenanceCommandsRetainTheRegisteredApplicationDirectory() throws Exception {
+        System.setProperty("OPS_RUNTIME_DIR", "");
+        Path registration=StorageOptions.state().resolve("standalone/instance.properties");
+        Files.createDirectories(registration.getParent());
+        Properties properties=new Properties();properties.setProperty("OPS_RUNTIME_DIR",temporary.resolve("previous-applications").toString());
+        try(var out=Files.newOutputStream(registration)){properties.store(out,"selected storage");}
+        assertEquals(temporary.resolve("previous-applications"),StorageOptions.runtime());
+    }
+    @Test void aFreshDirectoryUsesItsOwnApplicationRoot(){
+        System.setProperty("OPS_RUNTIME_DIR", "");
+        assertEquals(StorageOptions.state().resolve("r"),StorageOptions.runtime());
+    }
     @Test void managedWritesCannotEscapeTheSelectedRoots(){assertThrows(java.io.IOException.class,()->StorageGuard.managedDirectory(temporary.resolve("unselected")));}
     @Test void normalFileImportsCanComeFromOutsideThePlatformDirectory() throws Exception {
         Path media=temporary.resolve("offline.zip");Files.writeString(media,"offline");assertEquals(media.toRealPath(),StorageGuard.inputFile(media));assertThrows(java.io.IOException.class,()->StorageGuard.inputFile(temporary));

@@ -1,0 +1,15 @@
+{
+  "passed": true,
+  "checks": [
+    "native login and real inventory",
+    "applications loaded real API",
+    "hosts loaded real API",
+    "images loaded real API",
+    "tasks loaded real API",
+    "alerts loaded real API",
+    "system-management loaded real API",
+    "audit loaded real API",
+    "deployment workflow rendered"
+  ],
+  "errors": []
+}

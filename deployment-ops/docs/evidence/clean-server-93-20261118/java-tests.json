@@ -1,0 +1,77 @@
+{
+  "suites": [
+    {
+      "name": "com.chatchat.deployment.api.FirstInstallIntegrationTest",
+      "tests": "1",
+      "errors": "0",
+      "failures": "0",
+      "skipped": "0"
+    },
+    {
+      "name": "com.chatchat.deployment.api.NativeApiIntegrationTest",
+      "tests": "1",
+      "errors": "0",
+      "failures": "0",
+      "skipped": "0"
+    },
+    {
+      "name": "com.chatchat.deployment.api.PlatformServicesIntegrationTest",
+      "tests": "5",
+      "errors": "0",
+      "failures": "0",
+      "skipped": "0"
+    },
+    {
+      "name": "com.chatchat.deployment.docker.ArchiveImageIdentitiesTest",
+      "tests": "3",
+      "errors": "0",
+      "failures": "0",
+      "skipped": "0"
+    },
+    {
+      "name": "com.chatchat.deployment.execution.ExecutionJsonSecurityTest",
+      "tests": "1",
+      "errors": "0",
+      "failures": "0",
+      "skipped": "0"
+    },
+    {
+      "name": "com.chatchat.deployment.execution.ReviewedStagePlanTest",
+      "tests": "4",
+      "errors": "0",
+      "failures": "0",
+      "skipped": "0"
+    },
+    {
+      "name": "com.chatchat.deployment.protocol.InstallationManifestTest",
+      "tests": "4",
+      "errors": "0",
+      "failures": "0",
+      "skipped": "0"
+    },
+    {
+      "name": "com.chatchat.deployment.release.ApplicationReleaseTest",
+      "tests": "3",
+      "errors": "0",
+      "failures": "0",
+      "skipped": "0"
+    },
+    {
+      "name": "com.chatchat.deployment.storage.FlexibleStorageTest",
+      "tests": "7",
+      "errors": "0",
+      "failures": "0",
+      "skipped": "0"
+    },
+    {
+      "name": "com.chatchat.deployment.storage.StorageGuardTest",
+      "tests": "3",
+      "errors": "0",
+      "failures": "0",
+      "skipped": "0"
+    }
+  ],
+  "tests": 32,
+  "errors": 0,
+  "failures": 0
+}

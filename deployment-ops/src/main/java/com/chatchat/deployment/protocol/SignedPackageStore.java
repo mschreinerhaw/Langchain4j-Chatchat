@@ -50,7 +50,7 @@ public final class SignedPackageStore implements AutoCloseable {
     }
     public synchronized ObjectNode commit(String id)throws IOException{
         ObjectNode meta=status(id);
-        require(meta.path("offset").asLong()==meta.path("size").asLong(),"Upload incomplete");require(importing.add(id),"Package already verifying");meta.put("status","verifying");files.write("uploads/"+id+".json",meta);
+        require(meta.path("offset").asLong()==meta.path("size").asLong(),"Upload incomplete");require(importing.add(id),"Package already verifying");meta.put("status","verifying");meta.remove("message");files.write("uploads/"+id+".json",meta);
         workers.submit(()->{boolean locked=false;try{mutations.lockInterruptibly();locked=true;verify(id);}catch(Exception error){try{ObjectNode failed=status(id);failed.put("status","failed").put("message",error.getMessage()==null?error.getClass().getSimpleName():error.getMessage());files.write("uploads/"+id+".json",failed);}catch(IOException ignored){}}finally{if(locked)mutations.unlock();importing.remove(id);}});return meta;
     }
     public static String sha(Path path)throws IOException{try(InputStream input=Files.newInputStream(path)){try{MessageDigest hash=MessageDigest.getInstance("SHA-256");byte[] block=new byte[1024*1024];for(int count;(count=input.read(block))!=-1;){if(Thread.currentThread().isInterrupted())throw new java.io.InterruptedIOException("Offline verification interrupted; recommit to resume");hash.update(block,0,count);}return HexFormat.of().formatHex(hash.digest());}catch(NoSuchAlgorithmException impossible){throw new IllegalStateException(impossible);}}}

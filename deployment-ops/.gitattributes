@@ -18,3 +18,4 @@ docs/evidence/final-jdk-20261117/** -text whitespace=cr-at-eol
 
 # Preserve actual container configuration acceptance byte hashes.
 docs/evidence/container-configuration-20261118/** -text whitespace=cr-at-eol
+docs/evidence/clean-server-93-20261118/** -text whitespace=cr-at-eol

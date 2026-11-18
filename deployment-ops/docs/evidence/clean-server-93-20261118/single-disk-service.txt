@@ -1,0 +1,23 @@
+2026-11-18T12:12:35+08:00
+NAME          SIZE TYPE MOUNTPOINT
+sda           200G disk 
+├─sda1        600M part /boot/efi
+├─sda2          1G part /boot
+└─sda3      198.4G part 
+  ├─rl-root 190.6G lvm  /
+  └─rl-swap   7.9G lvm  [SWAP]
+sr0          1024M rom  
+TARGET SOURCE              FSTYPE OPTIONS
+/      /dev/mapper/rl-root xfs    rw,relatime,attr2,inode64,logbufs=8,logbsize=32k,noquota
+TARGET SOURCE              FSTYPE OPTIONS
+/      /dev/mapper/rl-root xfs    rw,relatime,attr2,inode64,logbufs=8,logbsize=32k,noquota
+java version "17.0.5" 2022-10-18 LTS
+Java(TM) SE Runtime Environment (build 17.0.5+9-LTS-191)
+Java HotSpot(TM) 64-Bit Server VM (build 17.0.5+9-LTS-191, mixed mode, sharing)
+active
+{"status":"UP"}
+OPS_RUNTIME_DIR=/opt/rt93
+OPS_REQUIRED_MOUNT=
+OPS_STORAGE_MOUNT=/
+OPS_RUNTIME_MOUNT=/
+PATH=/nonexistent

@@ -1,0 +1,16 @@
+{
+  "databaseType": "H2 embedded",
+  "database": "UP",
+  "platform": "UP",
+  "mounted": true,
+  "schemaVersion": 2,
+  "requiredMount": "",
+  "dataDirectory": "/opt/ops93/data",
+  "mountPoint": "/",
+  "runtimeDirectory": "/opt/rt93",
+  "storageMode": "directory",
+  "executorImplementation": "JDK",
+  "maintenanceMode": "standalone",
+  "version": "1.2.0-rc.2",
+  "sourceCommit": "dea19c59b63abfa08e279ef4285b3ec059de66f0"
+}

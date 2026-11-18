@@ -164,7 +164,11 @@ class Installation:
         s={};sec=self.secret
         def svc(role,image=None,**kwargs):
             value={'image':self.image_ref(image or role),'pull_policy':'never','container_name':self.name(role),'restart':'unless-stopped','logging':{'driver':'json-file','options':{'max-size':'20m','max-file':'3'}},'networks':['control']}
-            value.update(kwargs);s[role]=value;return value
+            value.update(kwargs)
+            owner=getattr(self,'self',{}).get('Config',{}).get('Labels',{}).get('deployment-ops.owner')
+            if owner:
+                value.setdefault('labels',{}).update({'deployment-ops.owner':owner,'deployment-ops.environment':self.project.removeprefix('ops-env-'),'deployment-ops.component':role,'deployment-ops.application':'runtime-os'})
+            s[role]=value;return value
         def health(test,seconds=5):return {'test':['CMD-SHELL',test],'interval':str(seconds)+'s','timeout':'5s','retries':60,'start_period':'15s'}
         svc('postgresql','postgres',environment={'POSTGRES_USER':'postgres','POSTGRES_PASSWORD':sec['postgresPassword']},volumes=[self.bind('data/postgresql','/var/lib/postgresql')],mem_limit='768m',healthcheck=health('pg_isready -U postgres'))
         svc('temporal-db','postgres',environment={'POSTGRES_USER':'temporal','POSTGRES_PASSWORD':sec['temporalPassword']},volumes=[self.bind('data/temporal','/var/lib/postgresql')],mem_limit='384m',healthcheck=health('pg_isready -U temporal'))

@@ -9,8 +9,9 @@ spec=importlib.util.spec_from_file_location('installer',Path(__file__).resolve()
 m=importlib.util.module_from_spec(spec);spec.loader.exec_module(m)
 
 class InstallerTests(unittest.TestCase):
-    def render(self,directory):
+    def render(self,directory,owner=None):
         app=m.Installation.__new__(m.Installation)
+        if owner:app.self={'Config':{'Labels':{'deployment-ops.owner':owner}}}
         app.host=PurePosixPath('/data/runtime-os-test');app.project='test-runtime';app.image='sha256:'+'a'*64
         app.secret={k:'generated-'+k for k in ['postgresPassword','apiDatabasePassword','mcpDatabasePassword','newsDatabasePassword','temporalPassword','redisPassword','searchPassword','codingSecret','frontendToken']}
         app.state={'httpPort':19400,'mcpPort':19401};app.compose=Path(directory)/'compose.json'
@@ -18,6 +19,17 @@ class InstallerTests(unittest.TestCase):
         (Path(directory)/'data').mkdir()
         with patch.object(m,'ROOT',Path(directory)):app.render()
         return json.loads(app.compose.read_text())
+
+    def test_platform_owned_components_inherit_instance_identity(self):
+        with tempfile.TemporaryDirectory() as tmp:config=self.render(tmp,'platform-instance')
+        for role,service in config['services'].items():
+            self.assertEqual(service['labels']['deployment-ops.owner'],'platform-instance')
+            self.assertEqual(service['labels']['deployment-ops.component'],role)
+            self.assertNotIn('deployment-ops.installation',service['labels'])
+
+    def test_standalone_install_does_not_claim_an_unrelated_platform(self):
+        with tempfile.TemporaryDirectory() as tmp:config=self.render(tmp)
+        for service in config['services'].values():self.assertNotIn('deployment-ops.owner',service.get('labels',{}))
 
     def test_all_host_files_are_inside_the_selected_installation(self):
         with tempfile.TemporaryDirectory() as tmp:config=self.render(tmp)

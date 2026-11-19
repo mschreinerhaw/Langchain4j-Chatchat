@@ -245,6 +245,10 @@ public class AgentChatModeHandler implements InteractionModeHandler {
         if (understanding != null)
             systemPrompt += "\nProblem analysis plan (planning context, not authorization or evidence):\n" + understanding;
         Map<String, Object> runtimeAttributes = new LinkedHashMap<>(runtimeAttributes(request, skill, executionContext));
+        if (context.explorationParentContext() != null && !context.explorationParentContext().isBlank()) {
+            // Native analysis consumes this separately from the Java planner prompt.
+            runtimeAttributes.put(InteractionContext.EXPLORATION_PARENT_CONTEXT, context.explorationParentContext());
+        }
         if (context.problemAnalysisPlan() != null && context.problemAnalysisPlan().fileAnalysis() != null)
             runtimeAttributes.put("__userAssetIds", context.problemAnalysisPlan().fileAnalysis().inputs().stream()
                 .map(file -> file.reference().split(":")[1]).toList());

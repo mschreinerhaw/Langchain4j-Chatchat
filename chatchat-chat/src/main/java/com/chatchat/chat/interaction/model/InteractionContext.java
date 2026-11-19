@@ -16,10 +16,12 @@ public record InteractionContext(
     long startedAtMs,
     String conversationSummary,
     String conversationEvidence,
+    String explorationParentContext,
     List<ConversationMemoryService.MessageSnapshot> history,
     com.chatchat.common.runtime.capability.ProblemAnalysisPlan problemAnalysisPlan,
     java.util.Map<String, Object> skillAnalysisContext,
     com.chatchat.common.runtime.capability.ProblemAnalysisPlan.TaskType taskType
 ) {
+    public static final String EXPLORATION_PARENT_CONTEXT = "__explorationParentContext";
 }
 

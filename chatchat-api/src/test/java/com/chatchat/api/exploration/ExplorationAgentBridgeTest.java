@@ -145,9 +145,22 @@ class ExplorationAgentBridgeTest {
    when(tasks.submit(any())).thenReturn(task);
    var node=json.createObjectNode().put("id","supplemented-node").put("agentId","authorized").put("question","核对补充资料");
    node.putArray("fileIds").add("original").add("supplement");
-   var parent=json.createObjectNode().put("question","原资产分析");parent.putObject("receipt").put("answer","历史结论");
+   String parentQuestion="Historical requested business scope ".repeat(5);
+   var parent=json.createObjectNode().put("question",parentQuestion);parent.putObject("receipt").put("answer","Historical answer");
    bridge.submit(owner,node,parent);
-   verify(tasks).submit(argThat(request->request.getToolInput().get("__userAssetIds").equals(List.of("original","supplement"))&&request.getQuery().contains("优先根据本次明确提供的原始附件")&&request.getQuery().contains("不可信历史数据")));
+   var captured=org.mockito.ArgumentCaptor.forClass(AgentTaskSubmitRequest.class);
+   verify(tasks).submit(captured.capture());
+   var request=captured.getValue();
+   assertThat(request.getQuery()).isEqualTo(node.path("question").asText());
+   assertThat(request.getToolInput()).containsEntry("__userAssetIds",List.of("original","supplement"));
+   assertThat(request.getToolInput().get("__explorationParentContext").toString())
+       .contains(parentQuestion,"Historical answer");
+   var budget=new com.chatchat.common.retrieval.query.QueryOptimizationBudget();
+   assertThatThrownBy(()->com.chatchat.common.retrieval.query.ProtectedQueryKeywords.extract(
+       request.getQuery()+" "+parent.toString(),budget,120,List.of()))
+       .hasMessageContaining("PROTECTED_TERMS_EXCEED_BUDGET");
+   assertThat(com.chatchat.common.retrieval.query.ProtectedQueryKeywords.extract(
+       request.getQuery(),budget,120,List.of()).text()).isNotBlank();
  }
  SkillCatalogService catalog=mock(SkillCatalogService.class);EnterpriseAdminService permissions=mock(EnterpriseAdminService.class);
  AgentTaskService tasks=mock(AgentTaskService.class);UiArtifactService artifacts=mock(UiArtifactService.class);ObjectMapper json=new ObjectMapper();

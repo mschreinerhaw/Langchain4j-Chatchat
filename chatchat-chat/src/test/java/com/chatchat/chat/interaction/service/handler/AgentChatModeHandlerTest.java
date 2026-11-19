@@ -665,19 +665,23 @@ class AgentChatModeHandlerTest {
         handler.handle(InteractionRequest.builder().mode("agent_chat").skillId("ops")
                 .query("analyze current results").userId("u1").build(),
             plannedContext().requestId("req-role").conversationId("conv-role")
-                .mode(InteractionMode.AGENT_CHAT).history(List.of()).build());
+                .mode(InteractionMode.AGENT_CHAT).history(List.of())
+                .explorationParentContext("Parent result reserved for Cline").build());
 
         ArgumentCaptor<String> systemPrompt = ArgumentCaptor.forClass(String.class);
         ArgumentCaptor<Map<String, Object>> attributes = ArgumentCaptor.forClass(Map.class);
         verify(orchestrator).executeAgent(
-            anyString(), isNull(), anyList(), systemPrompt.capture(), isNull(), anyList(), anyList(),
+            eq("analyze current results"), isNull(), anyList(), systemPrompt.capture(), isNull(), anyList(), anyList(),
             anyString(), anyString(), anyString(), anyString(), anyInt(), anyList(), anyBoolean(),
             attributes.capture());
 
         assertThat(systemPrompt.getValue())
             .contains("Agent role analysis pipeline context", "Service analyst",
                 "Analyze service quality and capacity", "Daily service review", "quality")
-            .contains("orientation context, not returned data");
+            .contains("orientation context, not returned data")
+            .doesNotContain("Parent result reserved for Cline", "exploration_history");
+        assertThat(attributes.getValue()).containsEntry(InteractionContext.EXPLORATION_PARENT_CONTEXT,
+            "Parent result reserved for Cline");
         Map<String, Object> role = (Map<String, Object>) attributes.getValue()
             .get("agent_role_analysis_context");
         assertThat(role)

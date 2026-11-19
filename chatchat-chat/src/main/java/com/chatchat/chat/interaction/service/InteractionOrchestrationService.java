@@ -105,6 +105,11 @@ public class InteractionOrchestrationService {
                 conversationId,
                 contextProperties.getEvidenceLedgerMessageLimit(),
                 contextProperties.getEvidenceProjectionMaxEntries()))
+            .explorationParentContext(request.getConversationId() != null
+                && request.getConversationId().startsWith("exploration-")
+                && request.getToolInput() != null
+                && request.getToolInput().get(InteractionContext.EXPLORATION_PARENT_CONTEXT) instanceof String parentContext
+                    ? parentContext : null)
             .history(memoryService.recent(tenantId, conversationId, historyWindow))
             .build());
 

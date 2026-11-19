@@ -159,6 +159,9 @@ public final class ClineContextAnswerService implements CodingAnswerPort {
         if (context.conversationSummary() != null && !context.conversationSummary().isBlank())
             if(!sourceHistory&&!attrs.containsKey("knowledgeAgentId"))
                 materials.add(Map.of("kind", "conversationMemory", "text", context.conversationSummary(), "isCurrentBusinessEvidence", false));
+        if (context.explorationParentContext() != null && !context.explorationParentContext().isBlank())
+            materials.add(Map.of("kind", "explorationParentContext", "text", context.explorationParentContext(),
+                "isCurrentBusinessEvidence", false));
         input.put("materials", List.copyOf(materials));
         if (sqlSource != null) input.put("materialFormat", "SQL_SOURCE");
         if (sqlIntent != null) input.put("sqlIntent", sqlIntent.name());

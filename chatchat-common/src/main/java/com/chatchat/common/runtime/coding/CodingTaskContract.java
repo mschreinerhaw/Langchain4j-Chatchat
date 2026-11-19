@@ -86,6 +86,12 @@ public record CodingTaskContract(String schemaVersion, String taskId, KernelData
     public record Budget(String budgetId, Instant deadlineAt, long maxModelCalls, long maxModelTokens,
         long maxToolCalls,long maxCodeExecutions,String maxCostAmount,String costCurrency,
         long maxCpuMillis,long maxMemoryBytes,long maxOutputBytes) {
+        /** Wire marker for Native analysis governed by explicit user cancellation. */
+        public static final Instant USER_MANAGED_DEADLINE = Instant.parse("9999-12-31T23:59:59.999Z");
+
+        @com.fasterxml.jackson.annotation.JsonIgnore
+        public boolean hasDeadline() { return !USER_MANAGED_DEADLINE.equals(deadlineAt); }
+
         /** Keep finite canonical JSON unchanged; accept explicit unlimited at the wire boundary. */
         @com.fasterxml.jackson.annotation.JsonCreator
         public static Budget fromJson(

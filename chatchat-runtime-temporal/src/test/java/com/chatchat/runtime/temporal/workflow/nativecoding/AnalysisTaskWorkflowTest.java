@@ -1,4 +1,5 @@
 package com.chatchat.runtime.temporal.workflow.nativecoding;
+import com.chatchat.common.runtime.coding.CodingTaskContract;
 import com.chatchat.runtime.temporal.activity.nativecoding.*;
 import com.chatchat.runtime.temporal.contract.nativecoding.*;
 import io.temporal.activity.Activity;
@@ -36,9 +37,16 @@ class AnalysisTaskWorkflowTest {
             };worker.registerActivitiesImplementations(activities);
             env.newWorker("native-cancel.control").registerActivitiesImplementations(activities);env.start();
             var workflow=env.getWorkflowClient().newWorkflowStub(AnalysisTaskWorkflow.class,WorkflowOptions.newBuilder().setWorkflowId("cancel-analysis").setTaskQueue("native-cancel").build());
-            WorkflowClient.start(workflow::execute,reference());env.sleep(Duration.ofSeconds(1));WorkflowStub.fromTyped(workflow).cancel();
+            var ref=new NativeAnalysisReference("tenant","user","run","task","0".repeat(64),
+                CodingTaskContract.Budget.USER_MANAGED_DEADLINE.toEpochMilli());
+            WorkflowClient.start(workflow::execute,ref);env.sleep(Duration.ofSeconds(1));WorkflowStub.fromTyped(workflow).cancel();
             assertThatThrownBy(()->WorkflowStub.fromTyped(workflow).getResult(NativeAnalysisResult.class)).isInstanceOf(WorkflowFailedException.class).hasCauseInstanceOf(io.temporal.failure.CanceledFailure.class);
             assertThat(stopped).hasValue(1);
+            var scheduled=env.getWorkflowClient().fetchHistory("cancel-analysis").getHistory().getEventsList().stream()
+                .filter(event->event.hasActivityTaskScheduledEventAttributes()).findFirst().orElseThrow()
+                .getActivityTaskScheduledEventAttributes();
+            assertThat(scheduled.getScheduleToCloseTimeout().getSeconds()).isGreaterThan(Duration.ofDays(1).toSeconds());
+            assertThat(scheduled.getStartToCloseTimeout().getSeconds()).isEqualTo(Duration.ofDays(1).toSeconds());
         }
     }
     @Test void queuedCancellationHasControlCapacityWhileTheAnalysisSlotIsOccupied()throws Exception{

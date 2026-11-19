@@ -250,15 +250,21 @@ class NativeS3CodingAdapterTest {
     @Test void cancellationWaitsForExecutorProofAndCanSettleWhenHistoricalTelemetryIsMissing()throws Exception{
         asynchronousStop=true;missingStoppedTelemetry=true;
         String file=fixture.assets.upload(fixture.owner,"input.csv","value\n42\n".getBytes()).id();
-        var contract=authorized(()->capture.capture(fixture.scope,"native-cancel",List.of(file),"Long running task","published-model",new CodingTaskContract.Budget("cancel-budget",Instant.now().plusSeconds(90).truncatedTo(java.time.temporal.ChronoUnit.MILLIS),-1,-1,-1,-1,"unlimited","USD",-1,1024*1024,1024*1024),Map.of("profile","artifact-integrity-v1"),List.of("RESULT")));
-        authorized(()->adapter.submit(contract));for(int i=0;i<100&&messageCalls.get()==0;i++)Thread.sleep(50);
-        assertThat(messageCalls).hasValue(1);authorized(()->adapter.cancel(fixture.scope,"native-cancel","User requested cancel"));
-        CodingTaskOutcome result=null;for(int i=0;i<100;i++){result=authorized(()->tasks.get(fixture.scope,"native-cancel"));if(result.status().terminal())break;Thread.sleep(100);}
+        var facade=new NativeCodingTasks(capture,adapter,new NativeS3Settings(directory.resolve("connection.json").toString(),json),identity,fixture.assets,null,tasks);
+        var submitted=authorized(()->facade.submit(fixture.scope,"native-cancel",List.of(file),"Long running task","published-model",List.of("RESULT"),Map.of()));
+        String task=submitted.taskId();
+        var frozen=authorized(()->tasks.contract(fixture.scope,task));
+        assertThat(frozen.budget().hasDeadline()).isFalse();
+        for(int i=0;i<100&&messageCalls.get()==0;i++)Thread.sleep(50);
+        assertThat(messageCalls).hasValue(1);
+        assertThat(grant.path("userManagedDeadline").asBoolean()).isTrue();
+        assertThat(grant.path("expiresAt").asLong()).isEqualTo(frozen.budget().deadlineAt().toEpochMilli());
+        authorized(()->facade.cancel(fixture.scope,task));
+        CodingTaskOutcome result=null;for(int i=0;i<100;i++){result=authorized(()->tasks.get(fixture.scope,task));if(result.status().terminal())break;Thread.sleep(100);}
         assertThat(result.status()).isEqualTo(CodingTaskOutcome.Status.CANCELLED);assertThat(result.executionControl().executorStopped()).isTrue();
         assertThat(result.resultDatasetRef()).isNull();assertThat(System.nanoTime()).isGreaterThanOrEqualTo(stopReadyAt);
-        var facade=new NativeCodingTasks(capture,adapter,new NativeS3Settings(directory.resolve("connection.json").toString(),json),identity,fixture.assets,null,tasks);
-        var traces=new ArrayList<Map<String,Object>>();var receipt=authorized(()->facade.await(fixture.scope,"native-cancel",()->false,traces::add));
-        var committed=authorized(()->tasks.events(fixture.scope,"native-cancel",0,128));
+        var traces=new ArrayList<Map<String,Object>>();var receipt=authorized(()->facade.await(fixture.scope,task,()->false,traces::add));
+        var committed=authorized(()->tasks.events(fixture.scope,task,0,128));
         assertThat(traces).hasSize(committed.size());assertThat(traces.stream().map(t->t.get("eventId"))).containsExactlyElementsOf(committed.stream().map(CodingExecutionEvent::eventId).toList());
         assertThat(receipt.get("analysisEvents")).asList().isNotEmpty();assertThat(receipt.get("status")).isEqualTo("CANCELLED");
     }

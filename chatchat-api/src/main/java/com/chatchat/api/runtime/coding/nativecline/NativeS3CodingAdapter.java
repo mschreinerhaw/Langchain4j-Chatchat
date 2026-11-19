@@ -319,6 +319,7 @@ public final class NativeS3CodingAdapter implements CodingAgentSPI {
                 "modelTokens",remaining(c.budget().maxModelTokens(),used.modelTokens())));
         }
         grant.put("toolPermissions",c.authorization().allowedTools());grant.put("dataPermissions",List.of());grant.put("networkPolicy","broker-only");grant.put("expiresAt",c.budget().deadlineAt().toEpochMilli());grant.put("runtimeProfile","native-python-silo-v1");
+        if(!c.budget().hasDeadline())grant.put("userManagedDeadline",true);
         grant.put("deliveryBinding",Map.of("tenantId",c.scope().tenantId(),"taskId",c.taskId(),"runId",c.scope().runId(),"inputSnapshotVersion",ws.snapshotVersion()));
         grant.put("runtimeTools",c.authorization().allowedTools().stream().filter(t->Set.of("agent_skill_read","workspace_metadata","workspace_validate").contains(t)||com.chatchat.api.runtime.coding.knowledge.CodingInternetAccess.NATIVE_TOOLS.contains(t)||com.chatchat.api.runtime.coding.knowledge.CodingDocumentSearchAccess.NATIVE_TOOLS.contains(t)).toList());
         grant.put("s3",Map.of("origin",policy.get("origin"),"inputPrefix",policy.get("inputPrefix"),"outputPrefix",policy.get("outputPrefix"),"inputManifestSha256",client(r).inputManifestHash(files)));

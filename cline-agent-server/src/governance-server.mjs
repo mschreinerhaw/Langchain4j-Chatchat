@@ -5,7 +5,7 @@ import http from 'node:http';
 import {readFileSync,writeFileSync,mkdirSync,readdirSync,existsSync,renameSync,chownSync,chmodSync,cpSync,unlinkSync,lstatSync} from 'node:fs';
 import {join} from 'node:path';
 import {randomUUID,randomBytes,timingSafeEqual} from 'node:crypto';
-import {verifyContract,authorizeSession,contractHash,holdsCapacity,signContract,studioMcpPermission} from './task-contract.mjs';
+import {verifyContract,authorizeSession,contractHash,holdsCapacity,signContract,studioMcpPermission,hasTaskDeadline} from './task-contract.mjs';
 import {DockerEngine,workerContainerSpec} from './docker-engine.mjs';
 import {WorkerExecutorClient} from './worker-executor-client.mjs';
 import {Journal} from './journal.mjs';
@@ -52,7 +52,13 @@ function granted(req){
   ||/^\/v1\/sessions\/[A-Za-z0-9_-]+\/(?:cancel|revoke|execution-content)$/.test(path)&&req.method==='POST';
  return verifyIssuedContract((req.headers.authorization??'').replace(/^Bearer /,''),cfg,{allowExpired:allowedExpired});
 }
-function live(r){return !r.revoked&&!existsSync(join(cfg.stateRoot,'revocations',r.contract.sessionId+'.json'))&&r.contract.expiresAt>Date.now()&&!['STOPPED','RECOVERABLE','START_FAILED'].includes(r.workerState);}
+function expired(c){return hasTaskDeadline(c)&&c.expiresAt<=Date.now();}
+function live(r){return !r.revoked&&!existsSync(join(cfg.stateRoot,'revocations',r.contract.sessionId+'.json'))&&!expired(r.contract)&&!['STOPPED','RECOVERABLE','START_FAILED'].includes(r.workerState);}
+function taskSignal(contract,controller){
+ return hasTaskDeadline(contract)
+   ? AbortSignal.any([controller.signal,AbortSignal.timeout(Math.max(1,contract.expiresAt-Date.now()))])
+   : controller.signal;
+}
 function refreshRevocation(r){
  const marker=join(cfg.stateRoot,'revocations',r.contract.sessionId+'.json');if(!existsSync(marker))return;
  const revoked=JSON.parse(readFileSync(marker,'utf8'));
@@ -175,7 +181,7 @@ async function allocate(r){
    r.containerId=created.Id;r.resourceEnforced=created.resources.enforced;save(r);
    if(r.contract.s3){
     const controller=new AbortController();if(!calls.has(r.workerId))calls.set(r.workerId,new Set());calls.get(r.workerId).add(controller);
-    try{await prepareS3Inputs(join(cfg.workerRoot,r.workerId,'workspace'),r.contract,r.s3Inputs,cfg.s3,{signal:AbortSignal.any([controller.signal,AbortSignal.timeout(Math.max(1,r.contract.expiresAt-Date.now()))]),uid:workerRuntime(cfg).uid});}
+    try{await prepareS3Inputs(join(cfg.workerRoot,r.workerId,'workspace'),r.contract,r.s3Inputs,cfg.s3,{signal:taskSignal(r.contract,controller),uid:workerRuntime(cfg).uid});}
     finally{calls.get(r.workerId).delete(controller);}
     delete r.s3Inputs;save(r);event(r,'s3.inputs.verified',{snapshotVersion:r.contract.deliveryBinding.inputSnapshotVersion});
    }
@@ -224,7 +230,7 @@ const server=http.createServer(async(req,res)=>{
   if(path==='/v1/sessions'&&req.method==='POST'){
    const b=await body(req),key=req.headers['idempotency-key'];if(!key||Object.keys(b).some(k=>!['editTool',...(c.s3?['inputs']:[])].includes(k))||b.editTool&&!['editor','apply_patch'].includes(b.editTool))throw error('Invalid create request');
    if(c.s3)validateS3Inputs(c,b.inputs,cfg.s3);
-   if(c.expiresAt<=Date.now())throw error('Task identity expired',401);
+   if(expired(c))throw error('Task identity expired',401);
    let r=records.get(c.sessionId);if(r){authorizeSession(c,r);if(r.createKey!==key||r.editTool!==(b.editTool??'editor'))throw error('Create conflict',409);return send(res,200,publicState(r));}
    for(const r of records.values())refreshRevocation(r);
    const active=[...records.values()].filter(holdsCapacity);if(active.length>=cfg.maxWorkers||active.filter(x=>x.contract.tenantId===c.tenantId).length>=cfg.maxPerTenant)throw error('Worker capacity exhausted',429);
@@ -271,7 +277,7 @@ const server=http.createServer(async(req,res)=>{
   if(parts[3]==='status'&&req.method==='GET'&&r.revoked)return send(res,200,publicState(r));
   if(['cancel','revoke'].includes(parts[3])&&req.method==='POST'){if(r.acceptance)throw error('Runtime validation is already final',409);send(res,202,{workerState:'STOPPING',remoteStopConfirmed:false});void stop(r,parts[3]);return;}
   if(r.contract.s3&&['delivery','upload','acceptance'].includes(parts[3])&&req.method==='POST'){
-   if(!live(r)&&!(r.workerState==='STOPPED'&&!r.revoked&&r.contract.expiresAt>Date.now()))throw error('Task lease inactive',403);
+   if(!live(r)&&!(r.workerState==='STOPPED'&&!r.revoked&&!expired(r.contract)))throw error('Task lease inactive',403);
    if(r.s3Busy)throw error('Delivery operation in progress',409);
    const b=await body(req);r.s3Busy=true;
    try{
@@ -297,7 +303,7 @@ const server=http.createServer(async(req,res)=>{
      if(r.uploadReceipt)return send(res,200,r.uploadReceipt);
      const controller=new AbortController();if(!calls.has(r.workerId))calls.set(r.workerId,new Set());calls.get(r.workerId).add(controller);
      try{
-      r.uploadReceipt=await uploadS3Delivery(join(cfg.workerRoot,r.workerId,'workspace'),r.contract,r.delivery,b,cfg.s3,{signal:AbortSignal.any([controller.signal,AbortSignal.timeout(Math.max(1,r.contract.expiresAt-Date.now()))])});
+      r.uploadReceipt=await uploadS3Delivery(join(cfg.workerRoot,r.workerId,'workspace'),r.contract,r.delivery,b,cfg.s3,{signal:taskSignal(r.contract,controller)});
       if(r.revoked)throw error('Cancelled upload cannot deliver',409);
       r.taskState='DELIVERED_PENDING_RUNTIME_VALIDATION';save(r);event(r,'s3.delivery.uploaded',{manifestSha256:jsonHash(r.delivery)});return send(res,200,r.uploadReceipt);
      }finally{calls.get(r.workerId).delete(controller);}
@@ -325,10 +331,11 @@ const server=http.createServer(async(req,res)=>{
   if(parts[3]==='status'&&reply.statusCode===200){const chunks=[];for await(const b of reply)chunks.push(b);if(r.revoked)return send(res,200,publicState(r));const native=JSON.parse(Buffer.concat(chunks));if(r.workerState==='STARTING')return send(res,200,publicState(r,native));r.workerState=native.status==='awaiting_permission'?'WAITING_APPROVAL':native.status==='turn_completed'?'COMPLETED':native.status==='failed'?'RECOVERABLE':native.status==='idle'?'READY':'RUNNING';r.taskState=native.status==='turn_completed'?'AGENT_TURN_COMPLETED':native.status==='failed'?'UNKNOWN':['running','awaiting_permission','awaiting_input'].includes(native.status)?'RUNNING':r.taskState;save(r);if(r.contract.s3&&['failed','recoverable','cancelled'].includes(native.status))void stop(r,'native-core-unavailable');return send(res,200,publicState(r,native));}
   res.writeHead(reply.statusCode,{'content-type':reply.headers['content-type']??'application/json','cache-control':'no-store'});
   if(!streams.has(r.workerId))streams.set(r.workerId,new Set());streams.get(r.workerId).add(res);
-  const expiry=setTimeout(()=>res.end(),Math.max(1,r.contract.expiresAt-Date.now()));expiry.unref();res.on('close',()=>{clearTimeout(expiry);streams.get(r.workerId).delete(res);reply.destroy();});reply.pipe(res);
+  const expiry=hasTaskDeadline(r.contract)?setTimeout(()=>res.end(),Math.max(1,r.contract.expiresAt-Date.now())):undefined;
+  expiry?.unref();res.on('close',()=>{clearTimeout(expiry);streams.get(r.workerId).delete(res);reply.destroy();});reply.pipe(res);
  }catch(e){if(!res.headersSent)send(res,e.status??503,{code:e.status?'REQUEST_REJECTED':'CONTROL_UNAVAILABLE',message:e.status?e.message:'Worker control unavailable'});else res.destroy();}
 });
-const ticker=setInterval(()=>{for(const r of records.values())if(r.contract.expiresAt<=Date.now()&&(r.contract.s3?!r.revoked&&!r.acceptance&&r.workerState!=='STOPPING':!['STOPPED','START_FAILED','RECOVERABLE','STOPPING'].includes(r.workerState)))void stop(r,'lease-expired');},500);ticker.unref();
+const ticker=setInterval(()=>{for(const r of records.values())if(expired(r.contract)&&(r.contract.s3?!r.revoked&&!r.acceptance&&r.workerState!=='STOPPING':!['STOPPED','START_FAILED','RECOVERABLE','STOPPING'].includes(r.workerState)))void stop(r,'lease-expired');},500);ticker.unref();
 if(cfg.s3?.autoApproveAuthorizedTools){
  const approvalMonitor=setInterval(()=>{for(const r of records.values()){
   if(!r.contract.s3||!live(r)||!r.nativeSessionId||r.approvalBusy||r.s3Busy)continue;

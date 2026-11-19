@@ -75,7 +75,7 @@ public final class NativeSiloTaskService {
         identity.require(scope,CodingTaskAccess.Action.SUBMIT);
         identity.require(scope,CodingTaskAccess.Action.READ);
         boolean workspaceReview=!studio.isEmpty();
-        if(workspaceReview&&(budget==null||budget.maxCodeExecutions()!=0||!artifactTypes.equals(List.of("RESULT"))))
+        if(workspaceReview&&(budget==null||!budget.hasDeadline()||budget.maxCodeExecutions()!=0||!artifactTypes.equals(List.of("RESULT"))))
             throw new IllegalArgumentException("Studio only permits bounded source proposals");
         String profile=Objects.toString(verification.get("profile"),"");
         if(!verification.equals(Map.of("profile","artifact-integrity-v1")))throw new IllegalArgumentException("Only generic artifact integrity verification is supported");

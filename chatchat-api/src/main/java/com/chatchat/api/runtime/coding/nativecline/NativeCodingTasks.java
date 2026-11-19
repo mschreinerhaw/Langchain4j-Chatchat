@@ -7,7 +7,6 @@ import com.chatchat.common.kernel.KernelDataScope;
 import com.chatchat.common.runtime.coding.*;
 import java.nio.charset.StandardCharsets;
 import java.time.*;
-import java.time.temporal.ChronoUnit;
 import java.util.*;
 import java.util.function.BooleanSupplier;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
@@ -46,7 +45,8 @@ public final class NativeCodingTasks {
             var metadata=assets.store(UserAssetService.Owner.of(scope),UserAssetService.Kind.DATASET,task,scope.runId(),"native-empty-input:"+task,"authorized-input-scope.json","application/json","{\"inputStatus\":\"NO_FILES_SUPPLIED\",\"sources\":[]}".getBytes(StandardCharsets.UTF_8));
             original=List.of(metadata.id());
         }
-        var budget=new CodingTaskContract.Budget("native-budget:"+task,Instant.now().plusSeconds(1200).truncatedTo(ChronoUnit.MILLIS),-1,-1,-1,-1,"unlimited","USD",-1,3L*1024*1024*1024,64L*1024*1024);
+        var budget=new CodingTaskContract.Budget("native-budget:"+task,CodingTaskContract.Budget.USER_MANAGED_DEADLINE,
+            -1,-1,-1,-1,"unlimited","USD",-1,3L*1024*1024*1024,64L*1024*1024);
         var contract=capture.capture(scope,task,original,instruction,selected,budget,Map.of("profile","artifact-integrity-v1"),artifactTypes==null||artifactTypes.isEmpty()?List.of("RESULT"):List.copyOf(artifactTypes),schema,capabilities);
         return new Submitted(task,scope.runId(),adapter.submit(contract));
     }
@@ -109,7 +109,7 @@ public final class NativeCodingTasks {
         return await(scope,task,cancelled,null);
     }
     public Map<String,Object> await(KernelDataScope scope,String task,BooleanSupplier cancelled,java.util.function.Consumer<Map<String,Object>> observer){
-        var deadline=tasks.contract(scope,task).budget().deadlineAt();
+        var budget=tasks.contract(scope,task).budget();
         long cursor=0;
         for(;;){
             var outcome=adapter.get(scope,task);
@@ -123,7 +123,7 @@ public final class NativeCodingTasks {
                 return receipt(scope,task,outcome);
             }
             if(cancelled.getAsBoolean()){adapter.cancel(scope,task,"Parent task cancelled");throw new java.util.concurrent.CancellationException("Parent task cancelled; Native stop reconciliation continues");}
-            long remaining=java.time.Duration.between(java.time.Instant.now(),deadline).toMillis();
+            long remaining=budget.hasDeadline()?Duration.between(Instant.now(),budget.deadlineAt()).toMillis():500;
             if(remaining<=0){
                 var pending=receipt(scope,task,outcome);
                 pending.put("waitDeadlineReached",true);

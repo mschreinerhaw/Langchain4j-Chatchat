@@ -64,7 +64,7 @@ public final class DurableCodingTaskService implements CodingAgentSPI {
                 return;
             }
             require(journal.tasks.size() < MAX_TASKS, ADAPTER_UNAVAILABLE, "Coding owner journal is at task capacity");
-            require(now().isBefore(contract.budget().deadlineAt()), DEADLINE_EXCEEDED, "Task deadline has passed");
+            require(!contract.budget().hasDeadline()||now().isBefore(contract.budget().deadlineAt()), DEADLINE_EXCEEDED, "Task deadline has passed");
             var priorBudget = journal.budgets.putIfAbsent(contract.budget().budgetId(), contract.budget());
             require(priorBudget == null || priorBudget.equals(contract.budget()), TASK_ID_CONFLICT, "Shared budget limits are immutable");
             CodingJournal.Task task = new CodingJournal.Task(); task.contract = contract;
@@ -988,7 +988,10 @@ public final class DurableCodingTaskService implements CodingAgentSPI {
         return CodingLimit.unlimited(budget.maxModelCalls())||CodingLimit.unlimited(budget.maxToolCalls())||CodingLimit.unlimited(budget.maxCodeExecutions());
     }
     private static Status stopStatus(CodingErrorCode reason){return reason==CANCEL_REQUESTED?Status.CANCELLED:reason==EXECUTION_FAILED?Status.FAILED:Status.BUDGET_EXCEEDED;}
-    private void deadline(CodingJournal.Task task) { if(!now().isBefore(task.contract.budget().deadlineAt()))requestStop(task,DEADLINE_EXCEEDED,"Task deadline reached"); }
+    private void deadline(CodingJournal.Task task) {
+        var budget=task.contract.budget();
+        if(budget.hasDeadline()&&!now().isBefore(budget.deadlineAt()))requestStop(task,DEADLINE_EXCEEDED,"Task deadline reached");
+    }
     private void requestStop(CodingJournal.Task task,CodingErrorCode reason,String summary) {
         if(task.outcome.status().terminal() || task.outcome.executionControl().stopReason()!=null)return;
         var control=new ExecutionControl(reason,at(task),false,unresolved(task));

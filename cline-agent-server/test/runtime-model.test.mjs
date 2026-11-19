@@ -1,11 +1,22 @@
 ﻿import test from 'node:test';
 import assert from 'node:assert/strict';
 import {resolveRuntimeModel,applyPublishedModelLimit,applyPublishedReasoning} from '../src/runtime-model.mjs';
-import {signContract,verifyContract,runtimeModelProfile} from '../src/task-contract.mjs';
+import {signContract,verifyContract,runtimeModelProfile,hasTaskDeadline,USER_MANAGED_DEADLINE} from '../src/task-contract.mjs';
 import {taskGrant} from '../src/worker-executor-policy.mjs';
 const model={logicalName:'selected-new',providerModel:'actual-provider-id'};
 const contract=()=>({version:2,tenantId:'tenant',userId:'user',taskId:'task',sessionId:'session',workspaceRef:'project',modelProfile:runtimeModelProfile(model),runtimeModel:model,budgetPolicy:{status:'DEFERRED_STAGE_2_REVIEW'},toolPermissions:[],dataPermissions:[],networkPolicy:'broker-only',expiresAt:Date.now()+60000,runtimeProfile:'native-python-silo-v1',deliveryBinding:{tenantId:'tenant',taskId:'task',runId:'run',inputSnapshotVersion:'v1'}});
 const key='k'.repeat(64);
+test('only a signed Native S3 analysis grant can opt out of the task deadline',()=>{
+ const finite=contract();
+ const c={...finite,userManagedDeadline:true,expiresAt:USER_MANAGED_DEADLINE,s3:{origin:'https://example.invalid'}};
+ const now=finite.expiresAt+86400000;
+ assert.equal(hasTaskDeadline(verifyContract(signContract(c,key),key,now)),false);
+ assert.equal(hasTaskDeadline(verifyContract(signContract(finite,key),key)),true);
+ assert.throws(()=>verifyContract(signContract(finite,key),key,now),/Invalid or expired task identity/);
+ for(const invalid of [{userManagedDeadline:undefined},{expiresAt:finite.expiresAt},{s3:undefined},{studioBudget:{modelCalls:2,modelTokens:1024}}]){
+   assert.throws(()=>verifyContract(signContract({...c,...invalid},key),key),/Invalid or expired task identity/);
+ }
+});
 test('dynamic models require exact signed descriptor and explicit Executor tenant opt-in',()=>{
  const c=contract(),cfg={signingKey:key,workerRuntime:'cline-python311',enableNativeSilo:true,dynamicModels:true,tenants:{tenant:{users:['user'],workspaces:{project:'/template'},models:[],tools:[],datasets:[],dynamicModels:true}}};
  assert.equal(taskGrant(signContract(c,key),cfg).runtimeModel.providerModel,'actual-provider-id');

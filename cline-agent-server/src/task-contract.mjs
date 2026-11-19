@@ -1,5 +1,7 @@
 import {createHmac,timingSafeEqual,createHash} from 'node:crypto';
 const identifier=/^[a-zA-Z0-9][a-zA-Z0-9_-]{0,95}$/;
+export const USER_MANAGED_DEADLINE=Date.parse('9999-12-31T23:59:59.999Z');
+export const hasTaskDeadline=contract=>contract.userManagedDeadline!==true;
 export const contractHash=c=>createHash('sha256').update(JSON.stringify(c)).digest('hex');
 export function signContract(contract,key){const body=Buffer.from(JSON.stringify(contract)).toString('base64url');return body+'.'+createHmac('sha256',key).update(body).digest('base64url');}
 export const runtimeModelProfile=m=>'runtime-'+createHash('sha256').update(m.logicalName+'\0'+m.providerModel).digest('hex');
@@ -30,7 +32,9 @@ export function verifyContract(token,key,now=Date.now(),{allowExpired=false}={})
       ||!Array.isArray(c.toolPermissions)||c.toolPermissions.includes('run_commands')))return fail();
   if(c.runtimeTools?.some(t=>t==='workspace_metadata'||t==='workspace_validate')&&!c.studioBudget)return fail();
  }else if(c.runtimeProfile!==undefined||c.deliveryBinding!==undefined||c.runtimeModel!==undefined||c.studioBudget!==undefined)return fail();
- if(!Number.isSafeInteger(c.expiresAt)||!allowExpired&&c.expiresAt<=now||c.expiresAt>now+86400000)return fail();
+ if(c.userManagedDeadline!==undefined&&(c.userManagedDeadline!==true||c.version!==2||!c.s3
+     ||c.studioBudget!==undefined||c.expiresAt!==USER_MANAGED_DEADLINE))return fail();
+ if(!Number.isSafeInteger(c.expiresAt)||hasTaskDeadline(c)&&(!allowExpired&&c.expiresAt<=now||c.expiresAt>now+86400000))return fail();
  if(!Array.isArray(c.toolPermissions)||!c.toolPermissions.every(x=>typeof x==='string'&&x.length<128)||!Array.isArray(c.dataPermissions)||!c.dataPermissions.every(x=>typeof x==='string'&&identifier.test(x)))return fail();
  if(c.networkPolicy!=='broker-only'||!c.budgetPolicy||c.budgetPolicy.status!=='DEFERRED_STAGE_2_REVIEW')return fail();
  return c;

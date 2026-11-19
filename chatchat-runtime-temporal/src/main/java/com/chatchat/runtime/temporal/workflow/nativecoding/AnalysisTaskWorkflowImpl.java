@@ -1,6 +1,7 @@
 package com.chatchat.runtime.temporal.workflow.nativecoding;
 import com.chatchat.runtime.temporal.activity.nativecoding.NativeAnalysisActivity;
 import com.chatchat.runtime.temporal.contract.nativecoding.*;
+import com.chatchat.common.runtime.coding.CodingTaskContract;
 import io.temporal.activity.*;
 import io.temporal.common.RetryOptions;
 import io.temporal.failure.*;
@@ -13,11 +14,18 @@ public final class AnalysisTaskWorkflowImpl implements AnalysisTaskWorkflow {
     private boolean acceptingProgress=true;
     @Override public NativeAnalysisResult execute(NativeAnalysisReference ref){
         long remaining=Math.max(1,ref.deadlineEpochMillis()-Workflow.currentTimeMillis());
-        var activity=Workflow.newActivityStub(NativeAnalysisActivity.class,ActivityOptions.newBuilder()
-            .setStartToCloseTimeout(Duration.ofMillis(remaining)).setScheduleToCloseTimeout(Duration.ofMillis(remaining))
+        boolean userManaged=ref.deadlineEpochMillis()==CodingTaskContract.Budget.USER_MANAGED_DEADLINE.toEpochMilli();
+        var options=ActivityOptions.newBuilder()
             .setHeartbeatTimeout(Duration.ofSeconds(30))
             .setCancellationType(ActivityCancellationType.WAIT_CANCELLATION_COMPLETED)
-            .setRetryOptions(RetryOptions.newBuilder().setInitialInterval(Duration.ofSeconds(2)).setMaximumInterval(Duration.ofSeconds(20)).build()).build());
+            .setRetryOptions(RetryOptions.newBuilder().setInitialInterval(Duration.ofSeconds(2)).setMaximumInterval(Duration.ofSeconds(20)).build());
+        if(userManaged){
+            // Rotate the controller attempt through normal recovery. The task and Worker remain owned.
+            options.setStartToCloseTimeout(Duration.ofDays(1));
+        }else{
+            options.setStartToCloseTimeout(Duration.ofMillis(remaining)).setScheduleToCloseTimeout(Duration.ofMillis(remaining));
+        }
+        var activity=Workflow.newActivityStub(NativeAnalysisActivity.class,options.build());
         try{
             var result=activity.run(ref);progress=new NativeAnalysisProgress(result.status(),result.nodeId(),result.sessionId(),result.executionEpoch(),progress.attempt());
             if("CANCELLED".equals(result.status()))throw new CanceledFailure("Native task cancellation reconciled");

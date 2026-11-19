@@ -59,12 +59,12 @@ public final class RuntimeStreamingChatModel implements ChatModel {
             if(arrived-started>firstBudget)throw new TimeoutException();
         } catch(TimeoutException expired) {
             if(firstTokenTimeout.compareTo(timeout)<0)throw new FirstTokenTimeoutException(expired);
-            throw expired;
+            throw new NoResponseTimeoutException(expired);
         }
         long remaining=timeout.toNanos()-(System.nanoTime()-started);
         if(remaining<=0)throw new TimeoutException();
         return result.get(Math.max(1,remaining), TimeUnit.NANOSECONDS);
-        } catch(FirstTokenTimeoutException expired) {
+        } catch(FirstTokenTimeoutException | NoResponseTimeoutException expired) {
             result.cancel(false);
             throw expired;
         } catch(TimeoutException expired) {
@@ -79,6 +79,9 @@ public final class RuntimeStreamingChatModel implements ChatModel {
         } finally {
             var current=subscription.get();if(current!=null)current.cancel();
         }
+    }
+    public static final class NoResponseTimeoutException extends IllegalStateException {
+        NoResponseTimeoutException(TimeoutException cause) { super("Model request deadline elapsed without an observed response event",cause); }
     }
     public static final class FirstTokenTimeoutException extends IllegalStateException {
         FirstTokenTimeoutException(TimeoutException cause) { super("Model first token deadline exceeded",cause); }

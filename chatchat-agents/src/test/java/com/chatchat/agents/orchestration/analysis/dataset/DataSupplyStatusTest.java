@@ -34,6 +34,17 @@ class DataSupplyStatusTest {
         assertThat(status.get("failures").toString()).contains("mcpDiscoverySucceeded=true","stage=SELECTION");
     }
 
+    @Test void bindingTimeoutRetainsItsCauseAndDoesNotAssertEmptyBusinessData() {
+        var step = new InterpretationPlanRuntime.StepExecution(1,"mcp_tool","discovery",false,null,
+            "selection timed out",null,null,1L,Map.of("candidateSelectionErrorCode","MODEL_UNAVAILABLE",
+                "mcpDiscoverySucceeded",true,"selectionModelFailureCategory","MODEL_FIRST_TOKEN_TIMEOUT"));
+        var execution = new InterpretationPlanRuntime.ExecutionResult("run",false,false,null,"failed",List.of(step),Map.of(),1);
+        var result = DataSupplyStatus.describe(execution,List.of(),List.of());
+        assertThat(result).containsEntry("status","SELECTION_FAILED");
+        assertThat(result.get("failures").toString()).contains("modelFailureCategory=MODEL_FIRST_TOKEN_TIMEOUT");
+        assertThat(result.get("dataObservation").toString()).contains("status=UNKNOWN","returnedRowCount=null");
+    }
+
     @Test void invalidParametersRemainSeparateFromSelectionAndExecutionFailures() {
         assertThat(DataSupplyStatus.describe(failed("PARAMETERS_REQUIRED"),List.of(),List.of()))
             .containsEntry("status","PARAMETER_INVALID");

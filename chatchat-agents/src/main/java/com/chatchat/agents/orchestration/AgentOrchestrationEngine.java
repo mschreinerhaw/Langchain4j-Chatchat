@@ -878,7 +878,8 @@ class AgentOrchestrationEngine implements AgentRunExecutor, ResumableAgentRunExe
             chatModelResolver.checkpointModelConfiguration(modelName, activeChatModel));
         activeChatModel = new DeadlineAwareChatModel(
             activeChatModel,
-            () -> runtimeGuard.remainingTimeMs(requestRuntimeAttributes)
+            () -> runtimeGuard.remainingTimeMs(requestRuntimeAttributes),
+            cancellationCheck, 0
         );
         Map<String, Object> modelUsage = Collections.synchronizedMap(new LinkedHashMap<>());
         modelUsage.put("runId", stringValue(requestRuntimeAttributes.get(AGENT_RUN_ID_ATTRIBUTE)));

@@ -42,7 +42,9 @@ class RuntimeStreamingChatModelTest {
         };
         var model=new RuntimeStreamingChatModel(provider,java.time.Duration.ofMillis(80),java.time.Duration.ofMillis(20));
         assertThatThrownBy(()->model.chat(ChatRequest.builder().messages(UserMessage.from("test")).build()))
-            .isInstanceOf(RuntimeStreamingChatModel.RequestTimeoutException.class);
+            .isInstanceOf(RuntimeStreamingChatModel.RequestTimeoutException.class)
+            .satisfies(failure -> assertThat(ModelFailureCategory.classify(failure))
+                .isEqualTo(ModelFailureCategory.MODEL_RESPONSE_TIMEOUT));
         assertThat(cancelled).isTrue();
     }
     @Test void firstTokenDeadlineIsDistinctAndCancelsWithoutProviderReplay() {
@@ -59,6 +61,23 @@ class RuntimeStreamingChatModelTest {
         assertThatThrownBy(()->model.chat(ChatRequest.builder().messages(UserMessage.from("test")).build()))
             .isInstanceOf(RuntimeStreamingChatModel.FirstTokenTimeoutException.class).hasCauseInstanceOf(TimeoutException.class);
         assertThat(cancelled).isTrue();assertThat(calls.get()).isEqualTo(1);
+    }
+    @Test void requestDeadlineWithoutAnyResponseActivityHasItsOwnCategory() {
+        var cancelled = new AtomicBoolean();
+        StreamingChatModel provider = new StreamingChatModel() {
+            @Override public Flow.Publisher<ChatModelStreamingEvent> doChat(ChatRequest request) {
+                return subscriber -> subscriber.onSubscribe(new Flow.Subscription() {
+                    public void request(long count) { }
+                    public void cancel() { cancelled.set(true); }
+                });
+            }
+        };
+        var model = new RuntimeStreamingChatModel(provider,java.time.Duration.ofMillis(40));
+        assertThatThrownBy(() -> model.chat(ChatRequest.builder().messages(UserMessage.from("test")).build()))
+            .isInstanceOf(RuntimeStreamingChatModel.NoResponseTimeoutException.class)
+            .satisfies(failure -> assertThat(ModelFailureCategory.classify(failure))
+                .isEqualTo(ModelFailureCategory.MODEL_NO_RESPONSE));
+        assertThat(cancelled).isTrue();
     }
     @Test void realSseProviderRecordsFirstTokenAndGenerationWithoutPublishingPartialResults() throws Exception {
         var calls=new AtomicInteger();

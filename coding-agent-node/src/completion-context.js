@@ -24,13 +24,13 @@ export function budgetGuidance(view) {
   if (view.remainingMillis <= 0 || (!isUnlimited(view.remainingModelCalls)&&view.remainingModelCalls <= 0) || (!isUnlimited(view.remainingTokens)&&view.remainingTokens <= 0))
     throw new Error('Runtime Coding budget exhausted');
   const { remainingTokens, remainingModelCalls, remainingMillis, contextTokensEstimate,
-    status, verifiedDeliverables, pendingOperations, unknownUsageOperations, unresolvedReason } = view;
+    status, verifiedDeliverables, unknownUsageOperations, unresolvedReason } = view;
   const { phase, reservedTokens, reservedCalls, reservedMillis } = view.completionReservation ?? {};
   return '\nAuthoritative Runtime task resources (context is estimated): ' + JSON.stringify({
     remainingTokens, remainingModelCalls, remainingMillis, contextTokensEstimate, status,
-    verifiedDeliverables, pendingOperations, unknownUsageOperations, unresolvedReason,
+    verifiedDeliverables, unknownUsageOperations, unresolvedReason,
     completionReservation:{phase,reservedTokens,reservedCalls,reservedMillis} })
-    + '\nCompletion allotment is within this budget. Prioritize verified delivery in COMPLETION; keep autonomous tools and necessary repairs. Reuse archived results; disclose evidence gaps. Never fabricate evidence or replace this task. Unknown usage stays reserved.';
+    + '\nPrioritize verified delivery in COMPLETION within this budget. Read archived evidence by reference; repair only when needed. Disclose evidence gaps. Never invent evidence or replace the task. Unknown usage stays reserved.';
 }
 
 export function contextEstimate(request) {

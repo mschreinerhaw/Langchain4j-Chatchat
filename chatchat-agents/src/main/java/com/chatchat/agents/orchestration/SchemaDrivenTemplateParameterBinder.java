@@ -1,6 +1,8 @@
 package com.chatchat.agents.orchestration;
 
+import com.chatchat.agents.model.ModelFailureCategory;
 import com.chatchat.agents.orchestration.model.AgentBudgetExceededException;
+import com.chatchat.agents.orchestration.model.ModelPhaseBudgetExceededException;
 import com.chatchat.agents.protocol.AgentProtocolCatalog;
 import com.chatchat.agents.runtime.batch.ToolCallBatchSchema;
 import com.fasterxml.jackson.core.type.TypeReference;
@@ -42,6 +44,7 @@ final class SchemaDrivenTemplateParameterBinder {
     static final String SELECTION_FUNCTION = "select_templates_and_bind_parameters";
 
     static final String BINDING_FUNCTION = "bind_published_template_parameters";
+    static final String REPAIR_FUNCTION = "repair_template_parameter_fields";
     private final ObjectMapper objectMapper;
 
     SchemaDrivenTemplateParameterBinder(ObjectMapper objectMapper) {
@@ -92,7 +95,7 @@ final class SchemaDrivenTemplateParameterBinder {
         long started=System.nanoTime();
         var result=selectionDecision(model,query,templates,selectionContext,metrics,cancellationGuard,bindingOnly);
         cancellationGuard.run();
-        if(model!=null && Set.of("INVALID_MODEL_RESPONSE","INVALID_TEMPLATE_ID","INVALID_ASSET_BINDING","INVALID_PARAMETERS").contains(result.status())) {
+        if(model!=null && Set.of("INVALID_MODEL_RESPONSE","INVALID_TEMPLATE_ID","INVALID_ASSET_BINDING").contains(result.status())) {
             var previous=result;
             var correction=new LinkedHashMap<String,Object>(selectionContext);
             correction.put("protocolCorrection",Map.of("errorCode",result.status(),"previousDecision",result.decision(),
@@ -112,8 +115,8 @@ final class SchemaDrivenTemplateParameterBinder {
 
     private SelectionResult selectionDecision(ChatModel model,String query,List<Map<String,Object>> templates,
             Map<String,Object> selectionContext,Map<String,Object> metrics,Runnable cancellationGuard,boolean bindingOnly) {
-        List<String> ids=templates.stream().map(this::templateId).filter(Objects::nonNull).toList();
-        Map<String,Map<String,Object>> candidates=selectedTemplates(templates,ids);
+        List<String> candidateIds=templates.stream().map(this::templateId).filter(Objects::nonNull).toList();
+        Map<String,Map<String,Object>> candidates=selectedTemplates(templates,candidateIds);
         if(candidates.isEmpty()) return new SelectionResult("NO_CANDIDATES",List.of(),List.of(),Map.of(),null);
         if(bindingOnly && candidates.size()>ToolCallBatchSchema.DEFAULT_MAX_CALLS)
             return new SelectionResult("BATCH_LIMIT_EXCEEDED",List.of(),List.of(),Map.of(),"Published scope exceeds the execution batch limit");
@@ -121,21 +124,27 @@ final class SchemaDrivenTemplateParameterBinder {
         try {
             String functionName=bindingOnly?BINDING_FUNCTION:SELECTION_FUNCTION;
             String itemsName=bindingOnly?"bindings":"selections";
+            var modelContext = TemplateRecordsetBindings.modelContext(selectionContext);
+            boolean recordsetReferences = modelContext.get("completedRecordsets") instanceof List<?> records && !records.isEmpty();
             List<Map<String,Object>> variants=new ArrayList<>(),catalog=new ArrayList<>();
             for(var template:candidates.values()) {
                 Map<String,Object> fields=new LinkedHashMap<>();
                 fields.put("templateId",Map.of("type","string","enum",List.of(templateId(template))));
-                fields.put("parameters",bindingParameterSchema(template));
-                Map<String,Object> references = new LinkedHashMap<>();
-                map(parameterSchema(template).get("properties")).forEach((name, ignored) -> references.put(name,
-                    Map.of("type","object","properties",Map.of("stepId",Map.of("type","integer"),
-                        "outputPath",Map.of("type","string")),"required",List.of("stepId","outputPath"),
-                        "additionalProperties",false)));
-                fields.put("parameterBindings",Map.of("type","object","properties",references,"additionalProperties",false));
-                fields.put("parameterEvidence", Map.of("type", "object", "properties",
-                    map(parameterSchema(template).get("properties")).keySet().stream().collect(
-                        java.util.stream.Collectors.toMap(name -> name, name -> Map.of("type", "string"))),
-                    "additionalProperties", false));
+                Map<String,Object> parameters = bindingParameterSchema(template);
+                fields.put("parameters",parameters);
+                var parameterNames = map(parameters.get("properties")).keySet();
+                if (!parameterNames.isEmpty()) {
+                    Map<String,Object> evidence = new LinkedHashMap<>();
+                    parameterNames.forEach(name -> evidence.put(name, Map.of("type","string")));
+                    fields.put("parameterEvidence", Map.of("type","object","properties",evidence,"additionalProperties",false));
+                    if (recordsetReferences) {
+                        Map<String,Object> references = new LinkedHashMap<>();
+                        parameterNames.forEach(name -> references.put(name, Map.of("type","object","properties",
+                            Map.of("stepId",Map.of("type","integer"),"outputPath",Map.of("type","string")),
+                            "required",List.of("stepId","outputPath"),"additionalProperties",false)));
+                        fields.put("parameterBindings", Map.of("type","object","properties",references,"additionalProperties",false));
+                    }
+                }
                 fields.put("bindingId",Map.of("type","string"));
                 fields.put("unmappedConstraints",Map.of("type","array","items",Map.of("type","string")));
                 String assetId=publishedAssetId(template);
@@ -144,23 +153,34 @@ final class SchemaDrivenTemplateParameterBinder {
                     "required",List.of("templateId","parameters"),"additionalProperties",false));
                 Map<String,Object> summary=new LinkedHashMap<>();
                 summary.put("templateId",templateId(template));
+                if (bindingOnly && assetId != null) summary.put("assetId",assetId);
                 var summaryFields=bindingOnly?List.of("title")
                     :List.of("title","description","assetType","businessGroup","asset","dependencySpec","outputSchema");
                 for(String key:summaryFields) {
                     Object value=template.get(key);
-                    if(value!=null) summary.put(key,value instanceof String text&&text.length()>800?text.substring(0,800):value);
+                    if(value!=null && !("description".equals(key) && value.equals(template.get("title")))) summary.put(key,value instanceof String text&&text.length()>800?text.substring(0,800):value);
                 }
                 catalog.add(summary);
             }
-            // Merge only exactly equal contracts. Each template retains its catalog entry;
-            // replacing singleton ID enums with their union preserves the accepted calls.
+            // The parameter contract can be sent once even when assets differ.
+            // Runtime permits sharing values only within the same asset.
             int ungroupedVariantCount=variants.size();
             metrics.put("selectionUngroupedVariantChars",objectMapper.writeValueAsString(variants).length());
             variants=groupEquivalentVariants(variants);
+            Map<String, Set<String>> sharedGroups = new LinkedHashMap<>();
+            for (var variant : variants) {
+                var fields = map(variant.get("properties"));
+                var ids = map(map(fields.get("templateIds")).get("items")).get("enum");
+                if (ids instanceof List<?> group) {
+                    var members = new LinkedHashSet<String>();
+                    group.forEach(id -> members.add(String.valueOf(id)));
+                    members.forEach(id -> sharedGroups.put(id, members));
+                }
+            }
             metrics.put("selectionGroupedVariantChars",objectMapper.writeValueAsString(variants).length());
             String catalogJson=objectMapper.writeValueAsString(catalog);
             metrics.put("selectionCatalogChars",catalogJson.length());
-            String contextJson=objectMapper.writeValueAsString(TemplateRecordsetBindings.modelContext(selectionContext));
+            String contextJson=objectMapper.writeValueAsString(modelContext);
             metrics.put("selectionContextChars",contextJson.length());
             var properties=new LinkedHashMap<String,Object>();
             properties.put(itemsName,Map.of("type","array","maxItems",ToolCallBatchSchema.DEFAULT_MAX_CALLS,
@@ -182,53 +202,34 @@ final class SchemaDrivenTemplateParameterBinder {
             metrics.put("selectionUngroupedVariantCount",ungroupedVariantCount);
             metrics.put("selectionSchemaVariantCount",variants.size());
             metrics.put("selectionFunctionSchemaChars",spec.toJson().length());
-            metrics.put("selectionModelCalls",((Number)metrics.get("selectionModelCalls")).intValue()+1);
-            long modelStarted=System.nanoTime();
-            ChatResponse response;
-            cancellationGuard.run();
-            try { response=nativeCall(model,List.of(SystemMessage.from(
-                (bindingOnly
-                    ? "Runtime fixed the template list. Return one designated function call with bindings for every listed template ID. "
-                        +"For each ID supply parameters using its schema. Use an empty parameters object when no value can be extracted. "
-                    : "You own business interpretation, template relevance and coverage. Select all and only the returned templates needed "
-                        +"for the complete user request, including complementary sources and multiple assets when needed. "
-                        +"Treat IDs as opaque. Return exactly one designated function call with selections containing templateId and parameters. "
-                        +"Use assetId only when published in that template's contract; fixed binding assets are resolved by the supplier. ")
-                +"Infer parameter values from the user request, including schema-valid arrays and normalized dates. "
-                +"For arrays supplied by completedRecordsets, use parameterBindings: {parameterName: {stepId, outputPath}}. "
-                +"Choose an offered reference whose columns match the published parameter's purpose; Runtime binds the COMPLETE actual rows. "
-                +"Do not copy previews into parameters, invent rows, or cite unavailable steps. Omit reference-bound fields from parameters. "
-                +"For values not literally present, provide parameterEvidence mapping each parameter to an exact supporting quote from the user request. "
-                +"Omit unknown values. Java applies published defaults and omits optional fields. Only required fields without valid defaults need input. "
-                +"If a requested entity or time constraint cannot be mapped reliably, include its exact user quote in unmappedConstraints. "
-                +"Defaults do not verify business scope. Do not invent values. "
-                +(bindingOnly?"":"Use NO_MATCH with an empty selection when no candidate is suitable. ")
-                +"Java validates identities, permissions and schemas."),
-                UserMessage.from("User request: "+Objects.toString(query,"")+(bindingOnly?"\nPublished templates: ":"\nCandidates: ")+catalogJson
-                    +"\nPublished scope and prior observations: "+contextJson)),spec,ToolChoice.AUTO);
-            } finally {metrics.put("selectionModelDurationMs",((Number)metrics.getOrDefault("selectionModelDurationMs",0L)).longValue()
-                    +(System.nanoTime()-modelStarted)/1_000_000);}
-            var usage=com.chatchat.agents.orchestration.model.ModelUsageMetrics.observed(response==null?null:response.tokenUsage());
-            if(usage.containsKey("inputTokens") && usage.containsKey("outputTokens"))
-                metrics.put("selectionUsageKnownCalls",((Number)metrics.getOrDefault("selectionUsageKnownCalls",0)).intValue()+1);
-            metrics.put("selectionUsageAvailable",metrics.getOrDefault("selectionUsageKnownCalls",0).equals(metrics.get("selectionModelCalls")));
-            for(String token:List.of("inputTokens","outputTokens"))if(usage.containsKey(token)) {
-                String field="inputTokens".equals(token)?"selectionInputTokens":"selectionOutputTokens";
-                metrics.put(field,((Number)metrics.getOrDefault(field,0L)).longValue()+usage.get(token));
-            }
+            String system = (bindingOnly
+                ? "Bind every published template ID with one function call. Use parameters={} for unknown values. "
+                : "Use one function call to select all and only the relevant templates for the full request, including complementary sources and assets. "
+                    + "IDs are opaque. Supply assetId only for its published template. If none match, return NO_MATCH with []. ")
+                + (sharedGroups.isEmpty() ? "" : "Use templateIds to bind one value set to selected IDs with the same contract and asset. "
+                    + "Use separate entries for different values or scopes. Include only applicable IDs. ")
+                + "Bind user values in schema types (including arrays and dates). Quote exact user evidence for inferred values only. "
+                + "Omit unknowns and nulls. Runtime applies published defaults and checks required fields; defaults do not verify scope. "
+                + "Put exact quotes for unmapped entities or dates in unmappedConstraints. Never invent values. "
+                + (recordsetReferences ? "Bind matching completedRecordsets by stepId/outputPath only; omit those fields from parameters. Never copy previews. " : "")
+                + "Omit optional output fields unless needed.";
+            String user = "User request: " + Objects.toString(query, "") + "\nTemplates: " + catalogJson
+                + "\nScope and observations: " + contextJson;
+            metrics.put("selectionSystemChars",system.length());
+            metrics.put("selectionUserChars",user.length());
+            ChatResponse response = callModel(model,system,user,spec,metrics,cancellationGuard);
             AiMessage message=response==null?null:response.aiMessage();
             metrics.put("selectionResponseTextChars",message==null||message.text()==null?0:message.text().length());
             metrics.put("selectionResponseArgumentChars",message==null||!message.hasToolExecutionRequests()?0:
                 message.toolExecutionRequests().stream().mapToInt(call->call.arguments()==null?0:call.arguments().length()).sum());
-            if (message == null || !message.hasToolExecutionRequests())
-                return new SelectionResult("INVALID_MODEL_RESPONSE",List.of(),List.of(),Map.of(),"Expected one selection function call");
+            if (message == null || !message.hasToolExecutionRequests()
+                    || response.finishReason() == FinishReason.LENGTH || response.finishReason() == FinishReason.CONTENT_FILTER)
+                return new SelectionResult("INVALID_MODEL_RESPONSE",List.of(),List.of(),Map.of(),"Expected one complete selection function call");
             var calls = message.toolExecutionRequests();
             var first = calls.get(0);
             // These calls propose a binding; they do not execute the tool. Identical
             // proposals from the same response can share one validation and one execution batch.
-            if (!functionName.equals(first.name()) || calls.size() > 1 && (!bindingOnly
-                    || response.finishReason() == FinishReason.LENGTH
-                    || response.finishReason() == FinishReason.CONTENT_FILTER ||
+            if (!functionName.equals(first.name()) || calls.size() > 1 && (!bindingOnly ||
                     calls.stream().anyMatch(call -> !first.name().equals(call.name())
                         || !Objects.equals(first.arguments(), call.arguments()))))
                 return new SelectionResult("INVALID_MODEL_RESPONSE",List.of(),List.of(),Map.of(),"Expected one selection function call");
@@ -240,20 +241,49 @@ final class SchemaDrivenTemplateParameterBinder {
                 return new SelectionResult("INVALID_MODEL_RESPONSE",List.of(),List.of(),decision,"Missing required template decision fields");
             if(selections.size()>ToolCallBatchSchema.DEFAULT_MAX_CALLS)
                 return new SelectionResult("INVALID_MODEL_RESPONSE",List.of(),List.of(),decision,"Selection execution limit exceeded");
+            List<Map<String,Object>> expanded = new ArrayList<>();
+            for (Object value : selections) {
+                var entry = map(value);
+                if (!entry.containsKey("templateIds")) {
+                    expanded.add(entry);
+                    continue;
+                }
+                if (entry.containsKey("templateId") || !(entry.get("templateIds") instanceof List<?> ids)
+                        || ids.isEmpty() || ids.size() > ToolCallBatchSchema.DEFAULT_MAX_CALLS
+                        || !sharedGroups.getOrDefault(String.valueOf(ids.get(0)), Set.of()).containsAll(ids)
+                        || new LinkedHashSet<>(ids).size() != ids.size())
+                    return new SelectionResult("INVALID_MODEL_RESPONSE",List.of(),List.of(),decision,"Invalid shared parameter group");
+                String firstAsset = publishedAssetId(candidates.get(String.valueOf(ids.get(0)).toLowerCase(Locale.ROOT)));
+                if (ids.stream().anyMatch(id -> !Objects.equals(firstAsset,
+                        publishedAssetId(candidates.get(String.valueOf(id).toLowerCase(Locale.ROOT))))))
+                    return new SelectionResult("INVALID_ASSET_BINDING",List.of(),List.of(),decision,"Shared parameters cross published asset scopes");
+                for (Object id : ids) {
+                    var item = new LinkedHashMap<>(entry);
+                    item.remove("templateIds");
+                    item.remove("bindingId"); // Each expanded invocation gets its own Runtime identity.
+                    item.put("templateId",id);
+                    expanded.add(item);
+                }
+                if (expanded.size() > ToolCallBatchSchema.DEFAULT_MAX_CALLS)
+                    return new SelectionResult("INVALID_MODEL_RESPONSE",List.of(),List.of(),decision,"Expanded binding limit exceeded");
+            }
+            if (expanded.size() > ToolCallBatchSchema.DEFAULT_MAX_CALLS)
+                return new SelectionResult("INVALID_MODEL_RESPONSE",List.of(),List.of(),decision,"Expanded binding limit exceeded");
             List<Map<String,Object>> bindings=new ArrayList<>();List<String> selected=new ArrayList<>();
-            for(Object value:selections) {
+            for(Object value:expanded) {
                 Map<String,Object> selection=map(value);String id=text(selection.get("templateId"));
                 Map<String,Object> template=id==null?null:candidates.get(id.toLowerCase(Locale.ROOT));
                 if(template==null) return new SelectionResult("INVALID_TEMPLATE_ID",List.of(),List.of(),decision,"Selected ID was not returned");
                 String asset=text(selection.get("assetId"));
                 if(asset!=null&&(bindingOnly||!asset.equals(publishedAssetId(template))))
                     return new SelectionResult("INVALID_ASSET_BINDING",List.of(),List.of(),decision,"Asset does not match published template binding");
-                if((bindingOnly||selection.get("parameters")!=null) && !(selection.get("parameters") instanceof Map<?,?>))
-                    return new SelectionResult("INVALID_MODEL_RESPONSE",List.of(),List.of(),decision,"parameters must be an object");
+                boolean invalidParameters = (bindingOnly || selection.get("parameters") != null)
+                    && !(selection.get("parameters") instanceof Map<?,?>);
                 Map<String,Object> parameters=map(selection.get("parameters"));
                 selected.add(templateId(template));
                 Map<String,Object> binding=new LinkedHashMap<>();binding.put("template_id",templateId(template));
                 binding.put("arguments",parameters);if(selection.get("bindingId")!=null)binding.put("binding_id",selection.get("bindingId"));
+                if (invalidParameters) binding.put("invalid_parameter_shape",true);
                 binding.put("parameter_evidence", map(selection.get("parameterEvidence")));
                 binding.put("parameter_bindings", map(selection.get("parameterBindings")));
                 binding.put("unmapped_constraints", selection.getOrDefault("unmappedConstraints",List.of()));
@@ -262,6 +292,12 @@ final class SchemaDrivenTemplateParameterBinder {
             if(!bindingOnly&&("NO_MATCH".equals(status)&&!selected.isEmpty()||"SELECTED".equals(status)&&selected.isEmpty()))
                 return new SelectionResult("INVALID_MODEL_RESPONSE",List.of(),List.of(),decision,"status and selections disagree");
             List<Map<String,Object>> bound=protocols(bindings,query,candidates,selectionContext);
+            metrics.put("selectionSharedBindingsReused",expanded.size() - selections.size());
+            if (bound.stream().anyMatch(protocol -> protocol.containsKey("binding_error"))
+                    && !metrics.containsKey("selectionFieldRepairCalls")) {
+                var repaired = repairBindings(model,query,candidates,selectionContext,bindings,metrics,cancellationGuard);
+                if (repaired != bindings) bound = protocols(repaired,query,candidates,selectionContext);
+            }
             if(bindingOnly) {
                 Set<String> covered=new LinkedHashSet<>(selected);
                 List<String> missing=candidates.values().stream().map(this::templateId)
@@ -283,25 +319,48 @@ final class SchemaDrivenTemplateParameterBinder {
             return new SelectionResult("INVALID_MODEL_RESPONSE",List.of(),List.of(),Map.of(),"Selection response is not valid JSON");
         }
         catch(Exception failure) {
-            log.info("Template selection model call unavailable: {}",failure.getClass().getSimpleName());
-            return new SelectionResult("MODEL_UNAVAILABLE",List.of(),List.of(),Map.of(),failure.getClass().getSimpleName());
+            String category = failure instanceof ModelPhaseBudgetExceededException ? "MODEL_PHASE_BUDGET_EXHAUSTED"
+                : ModelFailureCategory.classify(failure).name();
+            metrics.put("selectionModelFailureCategory",category);
+            log.info("Template selection model call unavailable category={} exception={}",category,failure.getClass().getSimpleName());
+            return new SelectionResult("MODEL_UNAVAILABLE",List.of(),List.of(),Map.of(),
+                category + " (" + failure.getClass().getSimpleName() + ")");
         }
     }
 
     private List<Map<String,Object>> groupEquivalentVariants(List<Map<String,Object>> variants) {
         Map<Map<String,Object>,List<String>> groups=new LinkedHashMap<>();
+        Map<String,Object> assetsByTemplate = new LinkedHashMap<>();
         for(var variant:variants) {
             var fields=map(variant.get("properties"));
             var id=map(fields.remove("templateId"));
+            Object asset = fields.remove("assetId");
             var identity=new LinkedHashMap<>(variant);
             identity.put("properties",fields);
             var ids=groups.computeIfAbsent(identity,ignored->new ArrayList<>());
-            if(id.get("enum") instanceof Collection<?> values)values.forEach(value->ids.add(String.valueOf(value)));
+            if (id.get("enum") instanceof Collection<?> values) for (Object value : values) {
+                String key = String.valueOf(value);
+                ids.add(key);
+                if (asset != null) assetsByTemplate.put(key,asset);
+            }
         }
         return groups.entrySet().stream().map(group->{
             var variant=new LinkedHashMap<>(group.getKey());
             var fields=new LinkedHashMap<String,Object>();
-            fields.put("templateId",Map.of("type","string","enum",List.copyOf(group.getValue())));
+            List<String> ids = group.getValue();
+            if (ids.size() > 1 && !map(map(map(variant.get("properties")).get("parameters")).get("properties")).isEmpty()) {
+                fields.put("templateIds",Map.of("type","array","minItems",1,"maxItems",ids.size(),
+                    "uniqueItems",true,"items",Map.of("type","string","enum",List.copyOf(ids))));
+                variant.put("required",List.of("templateIds","parameters"));
+            } else {
+                fields.put("templateId",Map.of("type","string","enum",List.copyOf(ids)));
+            }
+            var assets = new LinkedHashSet<String>();
+            for (String id : ids) {
+                if (map(assetsByTemplate.get(id)).get("enum") instanceof Collection<?> values)
+                    values.forEach(value -> assets.add(String.valueOf(value)));
+            }
+            if (!assets.isEmpty()) fields.put("assetId",Map.of("type","string","enum",List.copyOf(assets)));
             fields.putAll(map(variant.get("properties")));
             variant.put("properties",fields);
             return (Map<String,Object>)variant;
@@ -311,17 +370,35 @@ final class SchemaDrivenTemplateParameterBinder {
     private boolean preservesValidSelections(Map<String,Object> previous,Map<String,Object> corrected,List<Map<String,Object>> templates,String itemsName) {
         if(!(previous.get(itemsName) instanceof Collection<?> selections))return true;
         var byId=selectedTemplates(templates,templates.stream().map(this::templateId).filter(Objects::nonNull).toList());
-        Collection<?> next=corrected.get(itemsName) instanceof Collection<?> values?values:List.of();
-        for(Object value:selections) {
+        List<Map<String,Object>> next = decisionItems(corrected.get(itemsName));
+        for(Object value:decisionItems(selections)) {
             var prior=map(value);String id=text(prior.get("templateId"));
             var candidate=id==null?null:byId.get(id.toLowerCase(Locale.ROOT));
             if(candidate==null || !(prior.get("parameters") instanceof Map<?,?>)
                     || !map(parameterSchema(candidate).get("properties")).keySet().containsAll(map(prior.get("parameters")).keySet())
                     || prior.get("assetId")!=null&&!Objects.equals(prior.get("assetId"),publishedAssetId(candidate)))continue;
-            if(next.stream().map(this::map).noneMatch(item->Objects.equals(id,item.get("templateId"))
+            if(next.stream().noneMatch(item->Objects.equals(id,item.get("templateId"))
                     && Objects.equals(prior.get("parameters"),item.get("parameters"))))return false;
         }
         return true;
+    }
+
+    private List<Map<String,Object>> decisionItems(Object value) {
+        if (!(value instanceof Collection<?> list)) return List.of();
+        List<Map<String,Object>> items = new ArrayList<>();
+        for (Object raw : list) {
+            var entry = map(raw);
+            if (entry.get("templateIds") instanceof List<?> ids) {
+                for (Object id : ids) {
+                    var item = new LinkedHashMap<>(entry);
+                    item.put("templateId",id);
+                    items.add(item);
+                }
+            } else {
+                items.add(entry);
+            }
+        }
+        return items;
     }
 
     private String publishedAssetId(Map<String,Object> template) {
@@ -348,15 +425,132 @@ final class SchemaDrivenTemplateParameterBinder {
             .collect(java.util.stream.Collectors.toCollection(LinkedHashSet::new));
     }
 
-    private ChatResponse nativeCall(ChatModel model,
-                                    List<dev.langchain4j.data.message.ChatMessage> messages,
-                                    ToolSpecification specification,
-                                    ToolChoice choice) {
-        return model.chat(ChatRequest.builder()
-            .messages(messages)
-            .toolSpecifications(List.of(specification))
-            .toolChoice(choice)
-            .build());
+    private ChatResponse callModel(ChatModel model,String system,String user,ToolSpecification spec,
+                                   Map<String,Object> metrics,Runnable cancellationGuard) {
+        cancellationGuard.run();
+        metrics.put("selectionModelCalls",((Number)metrics.get("selectionModelCalls")).intValue()+1);
+        metrics.put("selectionUsageAvailable",false);
+        long started = System.nanoTime();
+        ChatResponse response;
+        try {
+            response = model.chat(ChatRequest.builder()
+                .messages(SystemMessage.from(system),UserMessage.from(user))
+                .toolSpecifications(List.of(spec)).toolChoice(ToolChoice.AUTO).build());
+        } finally {
+            metrics.put("selectionModelDurationMs",((Number)metrics.getOrDefault("selectionModelDurationMs",0L)).longValue()
+                +(System.nanoTime()-started)/1_000_000);
+        }
+        var usage = com.chatchat.agents.orchestration.model.ModelUsageMetrics.observed(response==null?null:response.tokenUsage());
+        if (usage.containsKey("inputTokens") && usage.containsKey("outputTokens"))
+            metrics.put("selectionUsageKnownCalls",((Number)metrics.getOrDefault("selectionUsageKnownCalls",0)).intValue()+1);
+        metrics.put("selectionUsageAvailable",metrics.getOrDefault("selectionUsageKnownCalls",0).equals(metrics.get("selectionModelCalls")));
+        for (String token : List.of("inputTokens","outputTokens")) if (usage.containsKey(token)) {
+            String field = "inputTokens".equals(token)?"selectionInputTokens":"selectionOutputTokens";
+            metrics.put(field,((Number)metrics.getOrDefault(field,0L)).longValue()+usage.get(token));
+        }
+        return response;
+    }
+
+    private List<Map<String,Object>> repairBindings(ChatModel model,String query,Map<String,Map<String,Object>> candidates,
+            Map<String,Object> context,List<Map<String,Object>> bindings,Map<String,Object> metrics,Runnable cancellationGuard) {
+        var groups = new LinkedHashMap<Map<String,Object>, List<Integer>>();
+        for (int i = 0; i < bindings.size(); i++) {
+            var original = bindings.get(i);
+            var protocol = protocols(List.of(original),query,candidates,context).get(0);
+            var error = map(protocol.get("binding_error"));
+            if (!(error.get("errors") instanceof List<?> errors)) continue;
+            var supplied = map(original.get("arguments"));
+            String id = String.valueOf(original.get("template_id"));
+            var template = candidates.get(id.toLowerCase(Locale.ROOT));
+            // Local schema references cannot be moved out of their root schema safely.
+            if (containsSchemaReference(parameterSchema(template))) continue;
+            var contract = map(parameterSchema(template).get("properties"));
+            var fields = new LinkedHashMap<String,Object>();
+            var reasons = new LinkedHashMap<String,String>();
+            for (Object raw : errors) {
+                if (raw instanceof com.chatchat.agents.runtime.toolcall.ToolArgumentCompiler.ValidationError field
+                        && Set.of("INVALID_REQUIRED_PARAMETER","REQUIRED_PARAMETER_MISSING").contains(field.errorCode())
+                        && supplied.containsKey(field.field()) && contract.containsKey(field.field())) {
+                    fields.put(field.field(),contract.get(field.field()));
+                    reasons.put(field.field(),field.errorCode());
+                }
+            }
+            if (fields.isEmpty()) continue;
+            // Share a repair only for the same original proposal and the same failed field contract.
+            var key = Map.<String,Object>of("fields",fields,"errors",reasons,"proposal",supplied,
+                "asset",Objects.toString(publishedAssetId(template),""));
+            groups.computeIfAbsent(key,ignored -> new ArrayList<>()).add(i);
+        }
+        if (groups.isEmpty()) return bindings;
+        var patchSchemas = new LinkedHashMap<String,Object>();
+        var diagnostics = new LinkedHashMap<String,Object>();
+        var targets = new LinkedHashMap<String,List<Integer>>();
+        groups.forEach((group,positions) -> {
+            String key = "patch"+(targets.size()+1);
+            var fields = map(group.get("fields"));
+            var evidence = new LinkedHashMap<String,Object>();
+            fields.keySet().forEach(field -> evidence.put(field,Map.of("type","string")));
+            patchSchemas.put(key,Map.of("type","object","additionalProperties",false,"properties",Map.of(
+                "parameters",Map.of("type","object","additionalProperties",false,"properties",fields),
+                "parameterEvidence",Map.of("type","object","additionalProperties",false,"properties",evidence)),
+                "required",List.of("parameters")));
+            diagnostics.put(key,group.get("errors"));
+            targets.put(key,positions);
+        });
+        try {
+            var spec = ToolSpecification.fromJson(objectMapper.writeValueAsString(Map.of(
+                "name",REPAIR_FUNCTION,"description","Correct only listed fields using evidence from the original request.",
+                "parameters",Map.of("type","object","additionalProperties",false,"properties",patchSchemas))));
+            String system = "Return one correction function call. Fill only evidenced failed fields, using exact quotes for inferred values. "
+                + "Omit any patch you cannot support. Preserve every other value and do not select templates.";
+            String user = "Original request: "+Objects.toString(query,"")+"\nFailed fields: "+objectMapper.writeValueAsString(diagnostics);
+            metrics.put("selectionFieldRepairCalls",1);
+            metrics.put("selectionFieldRepairSchemaChars",spec.toJson().length());
+            var response = callModel(model,system,user,spec,metrics,cancellationGuard);
+            if (response == null || response.aiMessage() == null || !response.aiMessage().hasToolExecutionRequests()
+                    || response.finishReason() == FinishReason.LENGTH || response.finishReason() == FinishReason.CONTENT_FILTER)
+                return bindings;
+            var calls = response.aiMessage().toolExecutionRequests();
+            if (calls.size()!=1 || !REPAIR_FUNCTION.equals(calls.get(0).name())) return bindings;
+            Map<String,Object> patches = objectMapper.readValue(calls.get(0).arguments(),new TypeReference<>(){});
+            if (patches == null || !targets.keySet().containsAll(patches.keySet())) return bindings;
+            var result = new ArrayList<>(bindings);
+            patches.forEach((key,raw) -> {
+                var patch = map(raw);
+                if (!Set.of("parameters","parameterEvidence").containsAll(patch.keySet())) return;
+                var values = map(patch.get("parameters"));
+                var evidence = map(patch.get("parameterEvidence"));
+                var fields = map(diagnostics.get(key)).keySet();
+                if (values.isEmpty() || !fields.containsAll(values.keySet()) || !values.keySet().containsAll(evidence.keySet())) return;
+                for (int position : targets.get(key)) {
+                    var original = bindings.get(position);
+                    var revised = new LinkedHashMap<>(original);
+                    var args = map(original.get("arguments"));
+                    args.putAll(values);
+                    var quotes = map(original.get("parameter_evidence"));
+                    values.keySet().forEach(quotes::remove);
+                    quotes.putAll(evidence);
+                    revised.put("arguments",args);
+                    revised.put("parameter_evidence",quotes);
+                    var checked = protocols(List.of(revised),query,candidates,context).get(0);
+                    // A default or dropped override is not a successful correction of a proposed field.
+                    if (!checked.containsKey("binding_error") && map(checked.get("arguments")).keySet().containsAll(values.keySet()))
+                        result.set(position,revised);
+                }
+            });
+            return result;
+        } catch (AgentBudgetExceededException | CancellationException failure) {
+            throw failure;
+        } catch (Exception failure) {
+            metrics.put("selectionFieldRepairFailure",ModelFailureCategory.classify(failure).name());
+            return bindings;
+        }
+    }
+
+    private boolean containsSchemaReference(Object value) {
+        if (value instanceof Map<?,?> map) return map.containsKey("$ref") || map.containsKey("$dynamicRef")
+            || map.values().stream().anyMatch(this::containsSchemaReference);
+        return value instanceof Collection<?> list && list.stream().anyMatch(this::containsSchemaReference);
     }
 
     @SuppressWarnings("unchecked")
@@ -378,6 +572,10 @@ final class SchemaDrivenTemplateParameterBinder {
                 ? null : selected.get(requestedId.toLowerCase(Locale.ROOT));
             if (template == null) continue;
             String authoritativeId = templateId(template);
+            if (Boolean.TRUE.equals(binding.get("invalid_parameter_shape"))) {
+                result.add(blockedPublishedBinding(authoritativeId,"INVALID_PARAMETER_SHAPE"));
+                continue;
+            }
             Map<String, Object> schemaProperties = map(parameterSchema(template).get("properties"));
             Map<String, Object> proposed = map(binding.get("arguments"));
             Map<String, Object> supportingQuotes = map(binding.get("parameter_evidence"));

@@ -73,7 +73,7 @@ class SchemaDrivenTemplateParameterBinderTest {
         assertThat(spec.at("/parameters/properties/selections/maxItems").asInt()).isEqualTo(32);
         var variants=spec.at("/parameters/properties/selections/items/oneOf");
         assertThat(variants).hasSize(1);
-        assertThat(variants.get(0).at("/properties/templateId/enum")).containsExactly(
+        assertThat(variants.get(0).at("/properties/templateIds/items/enum")).containsExactly(
             json.getNodeFactory().textNode("assets"),json.getNodeFactory().textNode("trades"));
         assertThat(result.selectedIds()).containsExactly("assets","trades");
     }
@@ -90,9 +90,9 @@ class SchemaDrivenTemplateParameterBinderTest {
         var captured=org.mockito.ArgumentCaptor.forClass(ChatRequest.class);verify(model).chat(captured.capture());
         var variants=json.readTree(captured.getValue().toolSpecifications().get(0).toJson())
             .at("/parameters/properties/selections/items/oneOf");
-        assertThat(variants).hasSize(3);
+        assertThat(variants).hasSize(2);
         assertThat(result.selectedIds()).containsExactly("assets");
-        assertThat(result.metrics()).containsEntry("selectionSchemaVariantCount",3);
+        assertThat(result.metrics()).containsEntry("selectionSchemaVariantCount",2);
     }
 
     @Test void inventedValuesCannotBecomeExecutionEvidence() throws Exception {
@@ -296,6 +296,244 @@ class SchemaDrivenTemplateParameterBinderTest {
     private ChatResponse fixedResponse(ToolExecutionRequest... calls) {
         return ChatResponse.builder().aiMessage(AiMessage.from(calls))
             .tokenUsage(new dev.langchain4j.model.output.TokenUsage(120, 20)).build();
+    }
+
+    @Test void accountRiskSelectionRetainsComplementaryTemplatesAndCompactContract() throws Exception {
+        String query = "Analyze concentration, cash adequacy and recent trades for account 000123456789 on 2026-11-18.";
+        var templates = List.of(
+            riskTemplate("positions", "Security positions and holdings by asset and sector", "accountId"),
+            riskTemplate("trades", "Trades and transaction amounts by instrument", "customerId"),
+            riskTemplate("funds", "Cash balance and funds available for trading", "clientId"),
+            riskTemplate("alerts", "Application notification delivery", "subscriberId"),
+            riskTemplate("fees", "Brokerage fee tariff disclosure", "brokerId"));
+        var model = model(List.of(
+            selection("positions", Map.of("accountId","000123456789", "asOf","2026-11-18")),
+            selection("trades", Map.of("customerId","000123456789", "asOf","2026-11-18")),
+            selection("funds", Map.of("clientId","000123456789"))));
+        var result = binder.selectAndBind(model, query, templates);
+        assertThat(result.status()).isEqualTo("SELECTED");
+        assertThat(result.selectedIds()).containsExactly("positions","trades","funds");
+        assertThat(result.protocols()).hasSize(3).allSatisfy(binding ->
+            assertThat(binding).containsEntry("binding_status","READY"));
+        var captured = org.mockito.ArgumentCaptor.forClass(ChatRequest.class);
+        verify(model).chat(captured.capture());
+        var request = captured.getValue();
+        var system = (dev.langchain4j.data.message.SystemMessage)request.messages().get(0);
+        var user = (dev.langchain4j.data.message.UserMessage)request.messages().get(1);
+        var schema = request.toolSpecifications().get(0).toJson();
+        assertThat(schema).contains("accountId","customerId","clientId","parameterEvidence","asOf","default");
+        assertThat(user.singleText()).contains("funds","trades","positions","alerts","fees");
+        if (!Boolean.getBoolean("templateRisk.baseline")) assertThat(schema).doesNotContain("parameterBindings");
+        System.out.printf("Account risk fixture: system=%d user=%d tools=%d calls=%s%n",system.text().length(),
+            user.singleText().length(),schema.length(),result.metrics().get("selectionModelCalls"));
+        writeRiskProbe(request, "");
+    }
+
+    @Test void fixedAccountRiskUsesAllPublishedTemplatesForTheSameRequest() throws Exception {
+        String query = "Analyze concentration, cash adequacy and recent trades for account 000123456789 on 2026-11-18.";
+        var templates = List.of(
+            riskTemplate("positions", "Security positions and holdings by asset and sector", "accountId"),
+            riskTemplate("trades", "Trades and transaction amounts by instrument", "customerId"),
+            riskTemplate("funds", "Cash balance and funds available for trading", "clientId"));
+        var model = mock(ChatModel.class);
+        var bindingCall = ToolExecutionRequest.builder().id("risk").name(SchemaDrivenTemplateParameterBinder.BINDING_FUNCTION)
+            .arguments(json.writeValueAsString(Map.of("bindings",List.of(
+                selection("positions",Map.of("accountId","000123456789", "asOf","2026-11-18")),
+                selection("trades",Map.of("customerId","000123456789", "asOf","2026-11-18")),
+                selection("funds",Map.of("clientId","000123456789")))))).build();
+        when(model.chat(any(ChatRequest.class))).thenReturn(fixedResponse(bindingCall));
+        var result = binder.bindPublished(model,query,templates,Map.of(),()->{});
+        assertThat(result.status()).isEqualTo("SELECTED");
+        assertThat(result.selectedIds()).containsExactly("positions","trades","funds");
+        assertThat(result.protocols()).hasSize(3).allSatisfy(protocol ->
+            assertThat(protocol).containsEntry("binding_status","READY"));
+        var capture = org.mockito.ArgumentCaptor.forClass(ChatRequest.class);
+        verify(model).chat(capture.capture());
+        writeRiskProbe(capture.getValue(), ".fixed");
+    }
+
+    private void writeRiskProbe(ChatRequest request, String suffix) throws Exception {
+        String probePath = System.getProperty("templateRisk.probePath");
+        if (probePath != null) {
+            var system = (dev.langchain4j.data.message.SystemMessage)request.messages().get(0);
+            var user = (dev.langchain4j.data.message.UserMessage)request.messages().get(1);
+            var body = Map.of("messages",List.of(Map.of("role","system","content",system.text()),
+                Map.of("role","user","content",user.singleText())),
+                "tools",List.of(Map.of("type","function","function",json.readTree(request.toolSpecifications().get(0).toJson()))),
+                "tool_choice","auto");
+            java.nio.file.Files.writeString(java.nio.file.Path.of(probePath+suffix), json.writeValueAsString(body));
+        }
+    }
+
+    private Map<String,Object> riskTemplate(String id, String purpose, String accountField) {
+        return Map.of("templateId",id,"title",purpose,"description",purpose,
+            "parameterSchema",Map.of("type","object","required",List.of(accountField,"asOf"),
+                "properties",Map.of(accountField,Map.of("type","string","description","Exact account identifier with leading zeros"),
+                    "asOf",Map.of("type","string","format","date","default","2026-11-18"))));
+    }
+
+    @Test void transportTimeoutIsClassifiedAndDoesNotReplayTheRequest() {
+        var model = mock(ChatModel.class);
+        when(model.chat(any(ChatRequest.class))).thenThrow(new IllegalStateException(
+            new java.util.concurrent.TimeoutException()));
+        var result = binder.selectAndBind(model,"Inspect C1",List.of(template("assets")));
+        assertThat(result.status()).isEqualTo("MODEL_UNAVAILABLE");
+        assertThat(result.error()).contains("MODEL_REQUEST_TIMEOUT");
+        assertThat(result.metrics()).containsEntry("selectionModelFailureCategory","MODEL_REQUEST_TIMEOUT");
+        assertThat(result.protocols()).isEmpty();
+        verify(model).chat(any(ChatRequest.class));
+    }
+
+    @Test void sharedProposalUsesOneEvidenceValueAndPreservesSemanticSelection() throws Exception {
+        var model = mock(ChatModel.class);
+        boolean baseline = Boolean.getBoolean("templateCommon.baseline");
+        var ids = List.of("positions","trades","funds");
+        var values = Map.of("accountId","000123","asOf","2026-11-18");
+        String dateQuote = "November 18, 2026";
+        var arguments = Map.of("parameters",values,"parameterEvidence",Map.of("asOf",dateQuote));
+        List<Map<String,Object>> proposals = new java.util.ArrayList<>();
+        if (baseline) {
+            for (String id : ids) {
+                var item = new java.util.LinkedHashMap<String,Object>(arguments);
+                item.put("templateId",id);
+                proposals.add(item);
+            }
+        } else {
+            var item = new java.util.LinkedHashMap<String,Object>(arguments);
+            item.put("templateIds",ids);
+            proposals.add(item);
+        }
+        var decision = Map.of("status","SELECTED","selections",proposals);
+        when(model.chat(any(ChatRequest.class))).thenReturn(responseFor(SchemaDrivenTemplateParameterBinder.SELECTION_FUNCTION,decision));
+        String query = "For account 000123 on November 18, 2026, analyze holdings, recent trades and available cash.";
+        var candidates = List.of(
+            riskAsset("positions","Holdings by instrument and industry","portfolio"),
+            riskAsset("trades","Trade amounts and instruments","portfolio"),
+            riskAsset("funds","Available cash and frozen funds","portfolio"),
+            riskAsset("alerts","Delivery of app notifications","notifications"),
+            riskAsset("fees","Broker commission tariff","pricing"));
+        var result = binder.selectAndBind(model,query,candidates);
+        assertThat(result.selectedIds()).containsExactly("positions","trades","funds");
+        assertThat(result.protocols()).hasSize(3).allSatisfy(protocol -> {
+            assertThat(protocol).containsEntry("binding_status","READY");
+            assertThat(json.valueToTree(protocol).at("/arguments/asOf/evidence/quote").asText()).isEqualTo(dateQuote);
+        });
+        assertThat(result.protocols().stream().map(p -> p.get("binding_id")).distinct().count()).isEqualTo(3L);
+        assertThat(result.metrics()).containsEntry("selectionModelCalls",1)
+            .containsEntry("selectionSchemaVariantCount",baseline ? 3 : 1);
+        if (!baseline) assertThat(result.metrics()).containsEntry("selectionSharedBindingsReused",2);
+        var capture = org.mockito.ArgumentCaptor.forClass(ChatRequest.class);
+        verify(model).chat(capture.capture());
+        writeRiskProbe(capture.getValue(),".shared");
+
+        var calls = result.protocols().stream().map(protocol ->
+            new com.chatchat.agents.runtime.batch.ToolCallRequest(String.valueOf(protocol.get("binding_id")),
+                "template_executor",Map.of("protocol",protocol))).toList();
+        var invoked = new java.util.ArrayList<String>();
+        var attempts = new com.chatchat.agents.runtime.batch.TemplateExecutionLayer().execute(calls,(call,index) -> {
+            String id = String.valueOf(((Map<?,?>)call.arguments().get("protocol")).get("template_id"));
+            invoked.add(id);
+            if ("trades".equals(id)) throw new IllegalStateException("Provider connection failed");
+            return com.chatchat.agents.runtime.batch.TemplateExecutionLayer.Invocation.completed(
+                new com.chatchat.agents.runtime.tool.ToolRuntimeExecution(null,null,null,id,Map.of()));
+        });
+        assertThat(invoked).containsExactly("positions","trades","funds");
+        assertThat(attempts.stream().map(com.chatchat.agents.runtime.batch.TemplateExecutionLayer.Attempt::completed))
+            .containsExactly(true,false,true);
+        verifyNoMoreInteractions(model);
+        System.out.printf("Common parameters: schemaChars=%s modelCalls=%s API attempts=%s retained=%d%n",
+            result.metrics().get("selectionFunctionSchemaChars"),result.metrics().get("selectionModelCalls"),invoked.size(),
+            attempts.stream().filter(com.chatchat.agents.runtime.batch.TemplateExecutionLayer.Attempt::completed).count());
+    }
+
+    private Map<String,Object> riskAsset(String id,String title,String assetId) {
+        var candidate = new java.util.LinkedHashMap<>(riskTemplate(id,title,"accountId"));
+        candidate.put("asset",Map.of("id",assetId));
+        return candidate;
+    }
+
+    @Test void sharedParametersCannotCrossAssetOrIncompatibleContract() throws Exception {
+        var candidates = List.of(
+            Map.<String,Object>of("templateId","assets","asset",Map.of("id","A"),"parameterSchema",template("assets").get("parameterSchema")),
+            Map.<String,Object>of("templateId","trades","asset",Map.of("id","B"),"parameterSchema",template("trades").get("parameterSchema")),
+            Map.<String,Object>of("templateId","history","asset",Map.of("id","A"),"parameterSchema",Map.of(
+                "type","object","properties",Map.of("subject",Map.of("type","integer")))));
+        for (String second : List.of("trades","history")) {
+            var model = mock(ChatModel.class);
+            when(model.chat(any(ChatRequest.class))).thenReturn(responseFor(SchemaDrivenTemplateParameterBinder.SELECTION_FUNCTION,
+                Map.of("status","SELECTED","selections",List.of(Map.of(
+                    "templateIds",List.of("assets",second),"parameters",Map.of("subject","C1"))))));
+            var result = binder.selectAndBind(model,"Analyze C1",candidates);
+            assertThat(result.status()).isIn("INVALID_ASSET_BINDING","INVALID_MODEL_RESPONSE");
+            assertThat(result.protocols()).isEmpty();
+        }
+    }
+
+    @Test void fieldRepairUsesOnlyFailedSchemaAndKeepsIndependentValidBindings() throws Exception {
+        var model = mock(ChatModel.class);
+        var valid = riskTemplate("ready","Cash balances","clientId");
+        var broken = riskTemplate("other","Holdings","accountId");
+        when(model.chat(any(ChatRequest.class))).thenReturn(
+            responseFor(SchemaDrivenTemplateParameterBinder.SELECTION_FUNCTION,Map.of("status","SELECTED","selections",List.of(
+                selection("ready",Map.of("clientId","A1")),selection("other",Map.of("accountId","bogus","asOf","2026-11-18"))))),
+            responseFor(SchemaDrivenTemplateParameterBinder.REPAIR_FUNCTION,Map.of("patch1",Map.of("parameters",Map.of("accountId","A1")))));
+        var result = binder.selectAndBind(model,"Account A1 on 2026-11-18",List.of(valid,broken));
+        assertThat(result.selectedIds()).containsExactly("ready","other");
+        assertThat(result.protocols()).allSatisfy(protocol -> assertThat(protocol).containsEntry("binding_status","READY").doesNotContainKey("binding_error"));
+        assertThat(json.valueToTree(result.protocols().get(1)).at("/arguments/asOf/value").asText()).isEqualTo("2026-11-18");
+        var capture = org.mockito.ArgumentCaptor.forClass(ChatRequest.class);
+        verify(model,times(2)).chat(capture.capture());
+        String repairSchema = capture.getAllValues().get(1).toolSpecifications().get(0).toJson();
+        assertThat(repairSchema).contains("accountId","patch1").doesNotContain("clientId","asOf","templateId");
+        assertThat(capture.getAllValues().get(1).messages().toString()).doesNotContain("Cash balances","Holdings","Templates:");
+    }
+
+    @Test void equivalentExtractionSchemaKeepsIndependentRequiredValidation() throws Exception {
+        var optional = Map.<String,Object>of("templateId","optional","parameterSchema",Map.of(
+            "type","object","properties",Map.of("subject",Map.of("type","string"))));
+        var required = template("required");
+        var model = mock(ChatModel.class);
+        when(model.chat(any(ChatRequest.class))).thenReturn(responseFor(SchemaDrivenTemplateParameterBinder.SELECTION_FUNCTION,
+            Map.of("status","SELECTED","selections",List.of(Map.of(
+                "templateIds",List.of("optional","required"),"parameters",Map.of())))));
+        var result = binder.selectAndBind(model,"Analyze available records",List.of(optional,required));
+        assertThat(result.metrics()).containsEntry("selectionSchemaVariantCount",1);
+        assertThat(result.protocols().get(0)).containsEntry("binding_status","READY");
+        assertThat(result.protocols().get(1)).containsEntry("binding_status","INVALID_TOOL_ARGUMENTS");
+        verify(model).chat(any(ChatRequest.class));
+    }
+
+    @Test void invalidParameterShapeDoesNotResendCatalogOrDropOtherBinding() throws Exception {
+        var model = mock(ChatModel.class);
+        when(model.chat(any(ChatRequest.class))).thenReturn(responseFor(SchemaDrivenTemplateParameterBinder.SELECTION_FUNCTION,
+            Map.of("status","SELECTED","selections",List.of(selection("valid",Map.of("subject","C1")),
+                Map.of("templateId","invalid","parameters",List.of("C1"))))));
+        var result = binder.selectAndBind(model,"Inspect C1",List.of(template("valid"),template("invalid")));
+        assertThat(result.status()).isEqualTo("SELECTED");
+        assertThat(result.protocols().get(0)).containsEntry("binding_status","READY");
+        assertThat(result.protocols().get(1)).containsEntry("binding_error",Map.of("code","INVALID_PARAMETER_SHAPE"));
+        verify(model).chat(any(ChatRequest.class));
+    }
+
+    @Test void repairCannotOverrideAValidFieldOrDiscardAReadySibling() throws Exception {
+        var model = mock(ChatModel.class);
+        when(model.chat(any(ChatRequest.class))).thenReturn(
+            responseFor(SchemaDrivenTemplateParameterBinder.SELECTION_FUNCTION,Map.of("status","SELECTED","selections",List.of(
+                selection("ready",Map.of("clientId","A1")),selection("other",Map.of("accountId","bogus","asOf","2026-11-18"))))),
+            responseFor(SchemaDrivenTemplateParameterBinder.REPAIR_FUNCTION,Map.of("patch1",Map.of(
+                "parameters",Map.of("accountId","A1","asOf","2026-12-18")))));
+        var result = binder.selectAndBind(model,"Account A1 on 2026-11-18",List.of(
+            riskTemplate("ready","Cash balances","clientId"),riskTemplate("other","Holdings","accountId")));
+        assertThat(result.protocols().get(0)).containsEntry("binding_status","READY");
+        assertThat(result.protocols().get(1)).containsKey("binding_error");
+        assertThat(json.valueToTree(result.protocols().get(1)).at("/arguments/asOf/value").asText()).isEqualTo("2026-11-18");
+        verify(model,times(2)).chat(any(ChatRequest.class));
+    }
+
+    private ChatResponse responseFor(String name,Map<String,Object> decision) throws Exception {
+        var call = ToolExecutionRequest.builder().id("fixture").name(name)
+            .arguments(json.writeValueAsString(decision)).build();
+        return fixedResponse(call);
     }
 
     private Map<String,Object> template(String id) {

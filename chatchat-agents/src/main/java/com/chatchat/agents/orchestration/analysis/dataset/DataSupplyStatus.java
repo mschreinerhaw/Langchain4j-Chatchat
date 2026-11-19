@@ -43,6 +43,8 @@ public enum DataSupplyStatus {
             item.put("stage", failure == SELECTION_FAILED ? "SELECTION"
                 : failure == PARAMETER_INVALID ? "PARAMETERS" : "EXECUTION");
             if (code != null) item.put("code", code);
+            String modelFailure = text(metadata.get("selectionModelFailureCategory"));
+            if (failure == SELECTION_FAILED && modelFailure != null) item.put("modelFailureCategory", modelFailure);
             item.put("mcpDiscoverySucceeded", retrieved);
             failures.add(java.util.Collections.unmodifiableMap(item));
         }

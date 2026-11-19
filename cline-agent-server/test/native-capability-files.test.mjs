@@ -19,6 +19,16 @@ test('native task directories preserve image Skills, namespace Agent collisions,
  const text=await readFile(join(p,'.agents/skills',name,'SKILL.md'),'utf8');assert(text.includes('disable-model-invocation: true'));assert(text.includes('name: '+name));assert(text.includes('Read references/check.txt'));
  assert.equal(await readFile(join(p,'.agents/skills',name,'references/check.txt'),'utf8'),'data quality checklist');assert(events.some(e=>e.skillId===card.id&&e.version==='v1'));
 });
+test('HTML image guidance is staged as an on-demand native Skill',async t=>{
+ const workspace=await root(t),index=await stageNativeSkills(workspace);
+ const skill=index.find(entry=>entry.id==='builtin:html-image-assets');
+ assert.equal(skill?.source,'image');
+ const contents=await readFile(join(workspace,skill.path),'utf8');
+ assert.equal(contents.split('\n')[1],'name: '+skill.name);
+ const discovery=nativeSkillDiscoveryContext(index);
+ assert(discovery.includes(skill.path));
+ assert(!discovery.includes('./assets/images/monthly-balance.png'));
+});
 test('package traversal, changed source hash and symlink ancestry are rejected',async t=>{
  for(const files of [[{path:'../escape',content:'bad'}],[{path:'SKILL.md',content:'changed',sha256:'0'.repeat(64)}]]){
   const p=await root(t);await assert.rejects(stageNativeSkills(p,[{...card,files}]));

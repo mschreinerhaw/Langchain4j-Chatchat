@@ -522,6 +522,20 @@
     "enabled": true
   },
   {
+    "id": "builtin:html-image-assets",
+    "name": "html-image-assets",
+    "description": "Author or repair HTML pages and reports with separate image files, JavaScript image references and offline chart rendering without inline raster payloads.",
+    "version": "1.0.0",
+    "origin": "SYSTEM_BUILTIN",
+    "category": "Frontend",
+    "displayName": "HTML 图片资源",
+    "descriptionZh": "使用相对路径和 JavaScript 加载图片，支持离线打包及图表校验。",
+    "source": "Runtime OS",
+    "sourceVersion": "1.0.0",
+    "builtin": true,
+    "enabled": true
+  },
+  {
     "id": "builtin:frontend-design",
     "name": "frontend-design",
     "description": "Generate HTML business pages and charts using internal resources, browser validation, Cline repair and Runtime Silo delivery.",

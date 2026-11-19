@@ -1,8 +1,10 @@
-import { ChevronDown, SlidersHorizontal } from '@lucide/vue';
+import { SlidersHorizontal } from '@lucide/vue';
+import ToolbarOptionPicker from '../../components/ToolbarOptionPicker.vue';
 import { reasoningOptions } from '../utils/codingReasoning';
 
 export default {
-  components: { ChevronDown, SlidersHorizontal },
+  inheritAttrs: false,
+  components: { SlidersHorizontal, ToolbarOptionPicker },
   props: {
     efforts: { type: Array, default: () => [] },
     value: String,
@@ -12,11 +14,6 @@ export default {
   },
   emits: ['change'],
   computed: {
-    options() {
-      return reasoningOptions(this.efforts);
-    },
-    selectedLabel() {
-      return this.options.find(option => option.value === this.value)?.label ?? this.options[0]?.label ?? '不可用';
-    },
+    options() { return reasoningOptions(this.efforts); },
   },
 };

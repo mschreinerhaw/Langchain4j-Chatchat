@@ -103,6 +103,29 @@ it('persists adaptive layout preferences in the existing user/workspace scope an
   app.unmount();setWorkspaceContext({...scope,userId:'another-owner'});mount();host.querySelector('[role=switch]').click();await nextTick();
   expect(host.querySelector('[aria-label="报告排版策略"]').value).toBe('auto');
 });
+it('opens chart scenes outside the compact composer and sends only the selected style override',async()=>{
+  const scope={tenantId:'tenant',userId:'owner',workspaceId:'data-exploration'};
+  const sends=[];
+  host=document.createElement('div');document.body.append(host);
+  const mount=()=>{app=createApp({render:()=>h(PromptComposer,{
+    compact:true,modelValue:'Analyze data',workspaceContext:scope,inheritedStyleProfile:'financial-international',
+    onSend:value=>sends.push(value),
+  })});app.mount(host);};
+  const picker=()=>host.querySelector('button[aria-label^="图形场景"]');
+  const submit=()=>host.querySelector('form').dispatchEvent(new Event('submit',{bubbles:true,cancelable:true}));
+  mount();await nextTick();
+  expect(picker().textContent).toContain('绿涨红跌');
+  submit();expect(sends.at(-1)).not.toHaveProperty('reportPresentation');
+  picker().click();await nextTick();
+  const list=document.getElementById(picker().getAttribute('aria-controls'));
+  expect(host.contains(list)).toBe(false);
+  expect(list.querySelector('[aria-selected=true]').textContent).toBe('金融分析 · 绿涨红跌');
+  [...list.querySelectorAll('[role=option]')].find(option=>option.textContent==='金融分析 · 红涨绿跌').click();
+  await nextTick();submit();
+  expect(sends.at(-1).reportPresentation).toEqual({styleProfile:'financial-cn'});
+  app.unmount();mount();await nextTick();
+  expect(picker().textContent).toContain('红涨绿跌');
+});
 it("uses the visual selection for only the next submission and clears it when switching conversations", async () => {
   host = document.createElement("div");
   document.body.append(host);
@@ -235,29 +258,36 @@ it('defaults to medium, remembers the choice, and emits only model-supported rea
  host=document.createElement('div');
  const mount=()=>{app=createApp({render:()=>h(PromptComposer,{...props,onSend:payload=>sent.push(payload)})});app.mount(host);};
  const label='\u601d\u8003\u5f3a\u5ea6';
- const picker=()=>host.querySelector(`select[aria-label="${label}"]`);
+ const picker=()=>host.querySelector('button[role="combobox"]');
+ const menu=()=>document.getElementById(picker().getAttribute('aria-controls'));
  const send=()=>host.querySelector('form').dispatchEvent(new Event('submit',{cancelable:true}));
  mount();await nextTick();
  const toolbar=host.querySelector('.composer-toolbar');
  expect(toolbar.contains(picker())).toBe(true);
- expect([...toolbar.querySelectorAll('select, button[role="switch"]')].map(el=>el.getAttribute('aria-label')))
-   .toEqual(['\u9009\u62e9 Agent',label,'\u56fe\u6587\u62a5\u544a']);
+ expect([...toolbar.querySelectorAll('select, button[role]')].map(el=>el.getAttribute('aria-label')))
+   .toEqual(['\u9009\u62e9 Agent',label+'，中','\u56fe\u6587\u62a5\u544a']);
  expect(host.querySelector('.composer-idea-control')).toBeNull();
- expect([...picker().options].map(option=>option.value)).toEqual(['minimal','low','medium','high','xhigh']);
- expect(picker().value).toBe('medium');
- const visibleEffort=()=>host.querySelector('.reasoning-toolbar-value').textContent;
+ picker().click();await nextTick();
+ expect([...menu().querySelectorAll('[role="option"]')].map(option=>option.textContent)).toEqual(['极简','低','中','高','极高']);
+ expect(menu().querySelector('[aria-selected="true"]').textContent).toBe('中');
+ const visibleEffort=()=>picker().querySelector('.toolbar-option-value').textContent;
  expect(visibleEffort()).toBe('中');
  send();
- picker().value='high';picker().dispatchEvent(new Event('change'));await nextTick();
+ picker().dispatchEvent(new KeyboardEvent('keydown',{key:'ArrowDown',bubbles:true}));
+ picker().dispatchEvent(new KeyboardEvent('keydown',{key:'Enter',bubbles:true}));await nextTick();
  expect(visibleEffort()).toBe('高');
  send();expect(sent.map(x=>x.codingReasoningEffort)).toEqual(['medium','high']);
- app.unmount();mount();await nextTick();expect(picker().value).toBe('high');
+ app.unmount();mount();await nextTick();expect(visibleEffort()).toBe('高');
+ picker().dispatchEvent(new KeyboardEvent('keydown',{key:'Home',bubbles:true}));await nextTick();
+ menu().querySelector('[aria-selected="true"]').dispatchEvent(new Event('pointerenter'));
+ picker().dispatchEvent(new KeyboardEvent('keydown',{key:'Enter',bubbles:true}));await nextTick();
+ expect(visibleEffort()).toBe('极简');
  props.reasoningEfforts=['low'];await nextTick();send();
  expect(sent.at(-1).codingReasoningEffort).toBe('low');
  props.compact=true;await nextTick();
  expect(host.querySelector('.composer-idea-control').contains(picker())).toBe(true);
  expect(visibleEffort()).toBe('低');
- props.reasoningEfforts=[];await nextTick();expect(picker().disabled).toBe(true);expect(picker().value).toBe('');send();
+ props.reasoningEfforts=[];await nextTick();expect(picker().disabled).toBe(true);send();
  expect(visibleEffort()).toBe('不可用');
  expect(sent.at(-1)).not.toHaveProperty('codingReasoningEffort');
 });

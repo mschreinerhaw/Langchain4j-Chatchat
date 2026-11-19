@@ -180,10 +180,10 @@
   text-overflow: ellipsis;
 }
 .python-studio .python-reasoning-control {
-  --reasoning-control-height: 27px;
-  --reasoning-control-radius: 5px;
-  --reasoning-control-border: #e0e7f6;
-  --reasoning-control-background: #f2f6ff;
+  --toolbar-option-height: 27px;
+  --toolbar-option-radius: 5px;
+  --toolbar-option-border: #e0e7f6;
+  --toolbar-option-background: #f2f6ff;
   flex: 0 0 auto;
   gap: 4px;
   padding-inline: 6px;

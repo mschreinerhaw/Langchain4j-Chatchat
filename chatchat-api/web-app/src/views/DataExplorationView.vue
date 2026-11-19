@@ -42,6 +42,7 @@
             <span v-else>补充问题或资料后开始新的分析，原节点保留。</span>
           </div>
           <PromptComposer v-model="question" compact :show-agent-picker="!canContinueLegacy" :agent-required="!canContinueLegacy" show-idea
+            :inherited-style-profile="selectedState.code === 'COMPLETED' && active?.receipt?.resultAvailable ? active.reportPresentation?.styleProfile : undefined"
             allow-file-picker :attachments="attachments" @files="addFiles" @retry-file="retryFile" @remove-file="removeFile" :idea-provider="suggestIdeas"
             :idea-context="ideaContext" :reasoning-efforts="codingReasoningEfforts" :reasoning-unavailable-label="canContinueLegacy ? '\u5386\u53f2\u5206\u6790\u4e0d\u9002\u7528' : !selectedAgentId ? '\u8bf7\u5148\u9009\u62e9 Agent' : undefined" :agents="agents" :agents-loading="agentsLoading || busy"
             :selected-agent-id="selectedAgentId" @update:selected-agent-id="selectAgent"

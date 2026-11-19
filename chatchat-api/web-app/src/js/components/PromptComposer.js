@@ -1,16 +1,30 @@
-import { Bot, FileText, Send, XCircle, Lightbulb, LoaderCircle, ChevronDown, X, Paperclip } from "@lucide/vue";
+import { Bot, ChartColumn, FileText, Send, XCircle, Lightbulb, LoaderCircle, ChevronDown, X, Paperclip } from "@lucide/vue";
 import { exceedsChatTextLimit, pastedFiles } from "../utils/chatUserAssets";
-import { reportPresentation } from '../utils/reportLayout';
+import { defaultReportPresentation, reportPresentation } from '../utils/reportLayout';
 import { readWorkspaceDraft, saveWorkspaceDraft } from '../utils/workspaceDrafts';
 import { getWorkspaceContext, workspaceStorageKey } from '../utils/workspaceContext';
 
 import CodingReasoningSelect from '../../components/CodingReasoningSelect.vue';
+import ToolbarOptionPicker from '../../components/ToolbarOptionPicker.vue';
 import {availableReasoning, reasoningOptions} from '../utils/codingReasoning';
+
+const chartScenarios = [
+  {value:'financial-auto', label:'金融分析 · 按市场适配', shortLabel:'按市场适配'},
+  {value:'financial-cn', label:'金融分析 · 红涨绿跌', shortLabel:'红涨绿跌'},
+  {value:'financial-international', label:'金融分析 · 绿涨红跌', shortLabel:'绿涨红跌'},
+  {value:'auto', label:'通用分析', shortLabel:'通用分析'},
+];
+const knownChartScenario = value => chartScenarios.some(option => option.value === value);
+function savedChartScenario(scope) {
+  const saved = readWorkspaceDraft('exploration-chart-style', scope)
+    || readWorkspaceDraft('report-presentation', scope)?.styleProfile;
+  return knownChartScenario(saved) ? saved : '';
+}
 
 export default {
   name: "PromptComposer",
   components: {
-    Bot, CodingReasoningSelect,
+    Bot, ChartColumn, CodingReasoningSelect, ToolbarOptionPicker,
     FileText,
     Send,
     XCircle,
@@ -18,6 +32,7 @@ export default {
   },
   props: {
     compact: {type:Boolean,default:false},
+    inheritedStyleProfile: String,
     reasoningEfforts: {type:Array,default:()=>[]},
     reasoningUnavailableLabel: String,
     showIdea: {type:Boolean,default:false},
@@ -86,12 +101,18 @@ export default {
       resourceExplorationApproved: false,
       rememberedReasoning: readWorkspaceDraft('coding-reasoning',this.workspaceContext || getWorkspaceContext()),
       reportPresentation: reportPresentation(readWorkspaceDraft('report-presentation',this.workspaceContext || getWorkspaceContext()) || {}),
+      chartScenarios,
+      chartScenario: this.compact ? savedChartScenario(this.workspaceContext || getWorkspaceContext()) : '',
       draft: this.modelValue,
       ideasOpen: false, ideaError: '', ideas: [], ideasLoading: false, ideaSerial: 0, ideaController: null,
     };
   },
   computed: {
     reportPreferenceKey(){return workspaceStorageKey('report-presentation',this.workspaceContext || getWorkspaceContext());},
+    activeChartScenario() {
+      return this.chartScenario || (knownChartScenario(this.inheritedStyleProfile)
+        ? this.inheritedStyleProfile : defaultReportPresentation.styleProfile);
+    },
     agentOptions() {
       return [
         {
@@ -151,7 +172,12 @@ export default {
     attachments: {deep:true,handler(){this.invalidateIdeas();}},
     loading(value) { if(value)this.invalidateIdeas(); },
     reportPresentation: {deep:true,handler(value){saveWorkspaceDraft('report-presentation',this.workspaceContext || getWorkspaceContext(),reportPresentation(value));}},
-    reportPreferenceKey(){this.rememberedReasoning=readWorkspaceDraft('coding-reasoning',this.workspaceContext || getWorkspaceContext());this.reportPresentation=reportPresentation(readWorkspaceDraft('report-presentation',this.workspaceContext || getWorkspaceContext()) || {});},
+    reportPreferenceKey() {
+      const scope = this.workspaceContext || getWorkspaceContext();
+      this.rememberedReasoning = readWorkspaceDraft('coding-reasoning', scope);
+      this.reportPresentation = reportPresentation(readWorkspaceDraft('report-presentation', scope) || {});
+      if (this.compact) this.chartScenario = savedChartScenario(scope);
+    },
     modelValue(value) {
       this.draft = value;
       this.$nextTick(this.adjustTextareaHeight);
@@ -213,6 +239,11 @@ export default {
       this.rememberedReasoning=value;
       saveWorkspaceDraft('coding-reasoning',this.workspaceContext || getWorkspaceContext(),value);
     },
+    changeChartScenario(value) {
+      if (!knownChartScenario(value)) return;
+      this.chartScenario = value;
+      saveWorkspaceDraft('exploration-chart-style', this.workspaceContext || getWorkspaceContext(), value);
+    },
     send() {
       if(this.agentRequired&&!this.agentSelectionValid)return;
       const value = this.draft;
@@ -226,6 +257,9 @@ export default {
       }
       const reportMode = this.reportMode;
       this.reportMode = "off";
+      const presentation = this.compact
+        ? (this.chartScenario ? {styleProfile:this.chartScenario} : undefined)
+        : (reportMode === "visual" ? reportPresentation(this.reportPresentation) : undefined);
       this.$emit("send", {
         query: value,
         agentId: this.selectedAgentId,
@@ -234,7 +268,7 @@ export default {
         ...(this.reasoningOptions?.length ? {codingReasoningEffort:this.selectedReasoning} : {}),
         reportMode,
           resourceExplorationApproved: this.resourceExplorationApproved,
-        ...(reportMode === "visual" ? { reportPresentation: reportPresentation(this.reportPresentation) } : {}),
+        ...(presentation ? {reportPresentation:presentation} : {}),
       });
         this.resourceExplorationApproved = false;
     },

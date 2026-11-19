@@ -1,0 +1,79 @@
+.toolbar-option-trigger {
+  position: relative;
+  box-sizing: border-box;
+  display: inline-flex;
+  align-items: center;
+  min-width: 0;
+  max-width: 100%;
+  min-height: var(--toolbar-option-height, 30px);
+  gap: 6px;
+  padding: 0 9px;
+  border: 1px solid var(--toolbar-option-border, transparent);
+  border-radius: var(--toolbar-option-radius, 7px);
+  background: var(--toolbar-option-background, #f4f7fb);
+  color: var(--toolbar-option-color, #415775);
+  font-family: inherit;
+  font-size: 12px;
+  font-weight: 600;
+  white-space: nowrap;
+  line-height: 1;
+  cursor: pointer;
+}
+.toolbar-option-trigger > svg { flex-shrink: 0; }
+.toolbar-option-value { overflow: hidden; text-overflow: ellipsis; font-weight: 500; }
+.toolbar-option-trigger:not(:disabled):hover,
+.toolbar-option-trigger[aria-expanded="true"] {
+  background: #edf4ff;
+  color: #235fae;
+}
+.toolbar-option-trigger[aria-expanded="true"] .toolbar-option-chevron { transform: rotate(180deg); }
+.toolbar-option-trigger:focus-visible {
+  outline: 2px solid var(--primary, #246dd4);
+  outline-offset: 2px;
+}
+.toolbar-option-trigger:disabled { color: #6c7d93; cursor: default; }
+.toolbar-option-menu {
+  position: fixed;
+  z-index: 3100;
+  box-sizing: border-box;
+  padding: 4px;
+  overflow: auto;
+  overscroll-behavior: contain;
+  border: 1px solid #dce5f2;
+  border-radius: 9px;
+  background: #fff;
+  box-shadow: 0 8px 24px #22385924;
+}
+.toolbar-option-menu [role="option"] {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  width: 100%;
+  min-height: 29px;
+  padding: 4px 8px;
+  border: 0;
+  border-radius: 5px;
+  background: transparent;
+  color: #344b69;
+  text-align: start;
+  font: inherit;
+  font-size: 12px;
+  cursor: pointer;
+}
+.toolbar-option-menu [role="option"][aria-selected="true"] { color: #235fae; font-weight: 650; }
+.toolbar-option-menu [role="option"]:not(.is-active):hover { background: #f4f7fb; }
+.toolbar-option-menu [role="option"].is-active { background: #edf4ff; color: #235fae; }
+.toolbar-option-hint {
+  margin: 4px 4px 0;
+  padding: 7px 4px 4px;
+  border-top: 1px solid #e6edf7;
+  color: #526780;
+  font-size: 11px;
+  line-height: 1.5;
+}
+@media (forced-colors: active) {
+  .toolbar-option-trigger { border-color: ButtonText; }
+  .toolbar-option-trigger:disabled { border-color: GrayText; color: GrayText; }
+  .toolbar-option-menu [role="option"].is-active { outline: 1px solid Highlight; outline-offset: -1px; }
+}

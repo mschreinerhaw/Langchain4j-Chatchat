@@ -99,11 +99,6 @@
   font-size: 11px;
   line-height: 1.5;
 }
-.prompt-compact .report-layout-settings label:has(select) {
-  flex-flow: row wrap;
-  align-items: center;
-  gap: 7px 10px;
-}
 @media (forced-colors: active) {
   .report-layout-settings select { appearance: auto; background: Field; padding-inline-end: 8px; }
 }
@@ -153,12 +148,12 @@
 .prompt-compact .agent-picker span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0}.prompt-compact .agent-picker select{position:absolute;inset:0;opacity:0;width:100%;cursor:pointer}.prompt-compact .agent-picker:focus-within{outline:2px solid #aacbff;outline-offset:2px}.prompt-compact .agent-picker>svg{flex-shrink:0}
 .composer-keyboard-hint{font-size:11px;color:#96a2b5;white-space:nowrap}
 .composer-idea-control{grid-row:2;grid-column:1;align-self:center;display:flex;align-items:center;gap:8px;flex-wrap:wrap}
-.prompt-compact .composer-reasoning-control {
-  --reasoning-control-height: 33px;
-  --reasoning-control-radius: 9px;
-  --reasoning-control-border: #dce5f2;
-  --reasoning-control-background: #f7faff;
-  --reasoning-control-color: #526a8a;
+.prompt-compact :deep(.composer-option-control) {
+  --toolbar-option-height: 33px;
+  --toolbar-option-radius: 9px;
+  --toolbar-option-border: #dce5f2;
+  --toolbar-option-background: #f7faff;
+  --toolbar-option-color: #526a8a;
 }
 .composer-file-input{display:none}.composer-attach-button,.composer-idea-refresh{display:inline-flex;align-items:center;gap:5px;border:1px solid #dce5f2;border-radius:9px;padding:7px 9px;background:#f7faff;color:#526a8a;font:inherit;font-size:12px;cursor:pointer}.composer-attach-button:disabled{opacity:.45;cursor:default}.composer-idea-refresh{margin:6px 0}.composer-idea-status{font-size:13px;color:#64748b}
 .prompt-compact .composer-attachments,.prompt-compact .composer-file-notice{grid-column:1 / -1;grid-row:auto}.prompt-compact .composer-attachments{grid-row:2;margin:0 0 4px;padding:0;max-height:96px}.prompt-compact .composer-box:has(.composer-attachments) .composer-idea-control,.prompt-compact .composer-box:has(.composer-attachments) .send-button{grid-row:3}

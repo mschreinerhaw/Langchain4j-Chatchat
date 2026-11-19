@@ -210,8 +210,23 @@ it('restores and navigates without analysis or file enumeration, hides configura
 it('changes presentation in place and rejects incompatible pie without execution',async()=>{
  const vm=await mount(),element=host.querySelector('[data-chart-type]');vm.chartReady({id:'chart',fileId:'artifact-root',figure:{data:[{type:'bar',x:['A'],y:[2]},{type:'bar',x:['A'],y:[3]}],layout:{}},compatibleTypes:['bar','line','scatter']});api.saveExplorationNode.mockResolvedValue({...space,nodes:[{...node('root'),chartTypes:{chart:'line'}},...space.nodes.slice(1)]});await vm.chartType(vm.currentChart,{target:{value:'line'}});await settle();expect(host.querySelector('[data-chart-type]')).toBe(element);expect(element.dataset.chartType).toBe('line');await vm.chartType(vm.currentChart,{target:{value:'pie'}});expect(vm.error).toContain('非负');expect(api.saveExplorationNode).toHaveBeenCalledTimes(1);expect(api.executeExploration).not.toHaveBeenCalled();
 });
-it('creates a child from history and does not steal selection when execution finishes',async()=>{
- const vm=await mount(),prepared={...space,version:4,nodes:[...space.nodes,{...node('new','root'),receipt:null,saved:false}]};api.prepareExploration.mockResolvedValue(prepared);let finish;api.executeExploration.mockImplementation(()=>new Promise(r=>finish=r));vm.question='继续分析变化';const running=vm.ask();await settle();expect(api.prepareExploration.mock.calls[0][1]).toMatchObject({parentId:'root',fileIds:['file']});vm.selectNode(space.nodes[1]);finish({...prepared,nodes:[...space.nodes,node('new','root')]});await running;expect(vm.active.id).toBe('child');
+it('retains the parent layout when a child changes chart style and keeps the later selection',async()=>{
+ const history=structuredClone(space);
+ history.nodes[0].reportPresentation={strategy:'concise',autoCharts:false,styleProfile:'financial-international'};
+ const vm=await mount(history);
+ const prepared={...history,version:4,nodes:[...history.nodes,{...node('new','root'),receipt:null,saved:false}]};
+ api.prepareExploration.mockResolvedValue(prepared);
+ let finish;
+ api.executeExploration.mockImplementation(()=>new Promise(r=>finish=r));
+ vm.question='继续分析变化';
+ const running=vm.ask({reportPresentation:{styleProfile:'financial-cn'}});
+ await settle();
+ expect(api.prepareExploration.mock.calls[0][1]).toMatchObject({parentId:'root',fileIds:['file'],
+   reportPresentation:{strategy:'concise',autoCharts:false,styleProfile:'financial-cn'}});
+ vm.selectNode(history.nodes[1]);
+ finish({...prepared,nodes:[...history.nodes,node('new','root')]});
+ await running;
+ expect(vm.active.id).toBe('child');
 });
 it('creates with existing authorized references without listing files',async()=>{
  const vm=await mount();api.createExploration.mockResolvedValue({id:'fresh',fileIds:['file'],nodes:[],version:0});await vm.create();expect(api.createExploration).toHaveBeenCalledWith('客户资产分析',{sourceWorkspaceId:'space',sourceNodeId:'root'});expect(vm.selected).toEqual(['file']);expect(api.explorationDatasets).not.toHaveBeenCalled();

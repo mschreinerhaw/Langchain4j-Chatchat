@@ -39,6 +39,14 @@ public class ExplorationAgentBridge {
             ||!permissions.canAccessAgent(owner.user(),id))throw new ResponseStatusException(HttpStatus.FORBIDDEN,"该 Agent 未发布或当前账户未获授权");
         return skill;
     }
+    void validateReasoning(String requested, String model){
+        if(requested==null || codingReasoning==null)return;
+        try {
+            codingReasoning.validate(requested,model);
+        } catch(IllegalArgumentException invalid) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,"当前模型的思考强度档位已变更，请刷新后选择可用档位");
+        }
+    }
     public ObjectNode submit(Owner owner,ObjectNode node,ObjectNode parent){
         var skill=authorize(owner,node.path("agentId").asText());
         var request=new AgentTaskSubmitRequest();request.setTenantId(owner.tenant());request.setUserId(owner.user());
@@ -46,7 +54,11 @@ public class ExplorationAgentBridge {
         request.setIdempotencyKey("exploration:"+owner.user()+":"+node.path("id").asText());
         request.setSessionId(sessionId(node));request.setRequestSource("PLATFORM_UI");
         var input=new LinkedHashMap<String,Object>();input.put("reportMode","visual");input.put("reportPresentation",com.chatchat.common.runtime.coding.ReportPresentation.read(node.path("reportPresentation").isObject()?Map.of("reportPresentation",json.convertValue(node.path("reportPresentation"),Map.class)):Map.of()));input.put("visualizationSupportedTypes",List.of("bar","line","scatter","pie"));
-        if (node.hasNonNull("codingReasoningEffort")) input.put("codingReasoningEffort",node.path("codingReasoningEffort").asText());
+        String selected=node.path("modelName").asText("");
+        String model=selected.isBlank()?skill.modelName():selected;
+        String requested=node.path("codingReasoningEffort").asText(null);
+        validateReasoning(requested,model);
+        if(requested!=null)input.put("codingReasoningEffort",requested);
         if(parent!=null){
             // Server-loaded branch context, never client-supplied artifacts or sibling conversation history.
             var context=new LinkedHashMap<String,Object>();context.put("question",parent.path("question").asText());
@@ -63,8 +75,7 @@ public class ExplorationAgentBridge {
         }
         var files=new ArrayList<String>();node.path("fileIds").forEach(id->files.add(id.asText()));
         if(!files.isEmpty())input.put("__userAssetIds",List.copyOf(files));
-        String selected=node.path("modelName").asText("");
-        request.setModelName(selected.isBlank()?skill.modelName():selected);
+        request.setModelName(model);
         request.setQuery(node.path("question").asText());request.setToolInput(input);
         var submitted=tasks.submit(request);return snapshot(owner,submitted.taskId());
     }

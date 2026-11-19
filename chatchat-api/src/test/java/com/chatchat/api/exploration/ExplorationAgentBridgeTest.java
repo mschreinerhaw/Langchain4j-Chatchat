@@ -14,6 +14,18 @@ import static org.mockito.Mockito.*;
 import static org.mockito.ArgumentMatchers.*;
 /** Execution boundaries are mocked; these tests are not live Agent evidence. */
 class ExplorationAgentBridgeTest {
+ @Test void rejectsAnOutdatedReasoningLevelBeforeSubmittingTheAgentRun(){
+   var policy=mock(com.chatchat.api.runtime.coding.analysis.CodingReasoningPolicy.class);
+   org.springframework.test.util.ReflectionTestUtils.setField(bridge,"codingReasoning",policy);
+   when(agent.modelName()).thenReturn("deepseek-v4-flash");
+   doThrow(new IllegalArgumentException()).when(policy).validate("high","deepseek-v4-flash");
+   var node=json.createObjectNode().put("id","node").put("agentId","authorized")
+       .put("question","Analyze").put("codingReasoningEffort","high");
+   assertThatThrownBy(()->bridge.submit(owner,node,null))
+       .isInstanceOf(org.springframework.web.server.ResponseStatusException.class)
+       .hasMessageContaining("可用档位");
+   verify(tasks,never()).submit(any());
+ }
  @Test void forwardsExplicitModelAndFallsBackToPublishedAgentModel(){
    when(tasks.submit(any())).thenReturn(task);when(agent.modelName()).thenReturn("agent-model");
    var node=json.createObjectNode().put("id","node").put("agentId","authorized").put("question","Analyze");

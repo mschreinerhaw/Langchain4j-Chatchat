@@ -72,7 +72,7 @@ public class ExplorationWorkspaceController {
         if(state.withArray("nodes").size()>=100)throw new IllegalArgumentException("每个分析项目最多 100 个节点");
         var files=body.fileIds()==null||body.fileIds().isEmpty()?strings(state,"fileIds"):body.fileIds();var contexts=new ArrayList<String>();String parentId=Objects.toString(body.parentId(),"");
         String model=body.modelName(),agentId=Objects.toString(body.agentId(),"").strip();
-        if(!agentId.isBlank())agents.authorize(owner,agentId);
+        var agent=agentId.isBlank()?null:agents.authorize(owner,agentId);
         if(!parentId.isBlank()){
             var parent=node(state,parentId);
             if(!parent.path("saved").asBoolean()||!parent.path("receipt").path("resultAvailable").asBoolean()||parent.path("receipt").has("terminal")&&!parent.path("receipt").path("terminal").asBoolean())throw new IllegalArgumentException("请先保存已完成且有真实结果的父节点");
@@ -80,7 +80,8 @@ public class ExplorationWorkspaceController {
             String inheritedAgent=parent.path("agentId").asText();
             if(!inheritedAgent.isBlank()){
                 if(!agentId.isBlank()&&!agentId.equals(inheritedAgent))throw new IllegalArgumentException("切换 Agent 请开始新的分析");
-                agentId=inheritedAgent;agents.authorize(owner,agentId);
+                if(agentId.isBlank())agent=agents.authorize(owner,inheritedAgent);
+                agentId=inheritedAgent;
             }else if(!agentId.isBlank())throw new IllegalArgumentException("历史文件分析未绑定 Agent，请开始新的分析");
             if(agentId.isBlank()){
             parent.path("contextIds").forEach(value->contexts.add(value.asText()));
@@ -96,13 +97,15 @@ public class ExplorationWorkspaceController {
         if(files==null||files.isEmpty()||files.size()>8||new HashSet<>(files).size()!=files.size())throw new IllegalArgumentException("请选择 1–8 个数据文件");
         for(String file:files){var asset=assets.get(owner,file);if(!Set.of("DOCUMENT","DATASET","ARTIFACT").contains(asset.kind())||!"AVAILABLE".equals(asset.state()))throw new IllegalArgumentException("数据文件不可用");}
         }
+        String requested=body.codingReasoningEffort()==null?null:
+            com.chatchat.common.runtime.coding.CodingReasoning.requested(Map.of("codingReasoningEffort",body.codingReasoningEffort()));
+        if(agent!=null&&requested!=null)agents.validateReasoning(requested,model==null||model.isBlank()?agent.modelName():model);
         var combined=new LinkedHashSet<String>(files==null?List.of():files);
         if(body.fileIds()!=null)combined.addAll(body.fileIds());
         files=List.copyOf(combined);
         validateFiles(owner,files);
         var node=state.withArray("nodes").addObject();node.put("id",UUID.randomUUID().toString());node.put("parentId",parentId);
-        if (body.codingReasoningEffort()!=null) node.put("codingReasoningEffort",
-            com.chatchat.common.runtime.coding.CodingReasoning.requested(Map.of("codingReasoningEffort",body.codingReasoningEffort())));
+        if(requested!=null)node.put("codingReasoningEffort",requested);
         node.set("reportPresentation",json.valueToTree(com.chatchat.common.runtime.coding.ReportPresentation.read(body.reportPresentation()==null?Map.of():Map.of("reportPresentation",body.reportPresentation()))));
         node.put("question",body.question().strip());node.put("modelName",Objects.toString(model,""));node.put("status","PREPARED");
         long now=System.currentTimeMillis();node.put("createdAt",now);node.put("updatedAt",now);

@@ -161,6 +161,20 @@ class ExplorationWorkspaceTest {
         controller.prepare(http,space.path("id").asText(),new ExplorationWorkspaceController.Question(0,null,List.of("file"),"分析资产结构",null));
         return store.get(alice,space.path("id").asText());
     }
+    @Test void validatesThePublishedReasoningLevelBeforePersistingTheNode(){
+        String id=store.create(alice,"Reasoning test").path("id").asText();
+        var agent=mock(com.chatchat.chat.skills.model.SkillDefinition.class);
+        when(bridge.authorize(alice,"authorized")).thenReturn(agent);
+        when(agent.modelName()).thenReturn("deepseek-v4-flash");
+        doThrow(new org.springframework.web.server.ResponseStatusException(org.springframework.http.HttpStatus.BAD_REQUEST))
+            .when(bridge).validateReasoning("high","deepseek-v4-flash");
+        var stale=new ExplorationWorkspaceController.Question(0,null,List.of(),"Analyze",null,"authorized",null,"high");
+        assertThatThrownBy(()->controller.prepare(http,id,stale)).isInstanceOf(org.springframework.web.server.ResponseStatusException.class);
+        assertThat(store.get(alice,id).path("nodes").isEmpty()).isTrue();
+        var supported=new ExplorationWorkspaceController.Question(0,null,List.of(),"Analyze",null,"authorized",null,"medium");
+        controller.prepare(http,id,supported);
+        assertThat(store.get(alice,id).path("nodes").get(0).path("codingReasoningEffort").asText()).isEqualTo("medium");
+    }
     @Test void stageResultsRemainPollableAndCannotBeDeletedOrBranchedUntilCompletion(){
         var state=store.create(alice,"Incremental analysis");String id=state.path("id").asText();
         controller.prepare(http,id,new ExplorationWorkspaceController.Question(0,null,List.of(),"Analyze",null,"authorized"));

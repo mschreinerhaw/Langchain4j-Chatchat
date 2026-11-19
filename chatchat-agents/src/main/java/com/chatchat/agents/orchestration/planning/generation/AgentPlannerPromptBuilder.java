@@ -75,7 +75,15 @@ public final class AgentPlannerPromptBuilder {
                                       String documentSearchTool,
                                       String verificationWebSearchTool,
                                       Map<String, Object> runtimeAttributes) {
-        String callerSystemPrompt=systemPrompt;
+        String roleContext = AgentRoleAnalysisContext.promptSectionFromRuntime(
+            runtimeAttributes, "DAG_BUILD_AND_TEMPLATE_DISCOVERY_PLANNING");
+        List<Map<String, Object>> authoritativeDag = objectMapList(runtimeAttributes == null
+            ? null : runtimeAttributes.get("authoritativeWorkflowDag"));
+        if (!authoritativeDag.isEmpty()) {
+            return buildAuthoritativeWorkflowPrompt(query,
+                systemPrompt, availableTools, observations,
+                mandatoryTools, requireToolBeforeFinal, runtimeAttributes, roleContext, authoritativeDag);
+        }
         if (runtimeAttributes != null && Boolean.TRUE.equals(runtimeAttributes.get("analysisCodingAvailable"))) {
             systemPrompt = """
                 Runtime analysis capability: DATA_ANALYSIS is handed to Cline after authorized data
@@ -99,15 +107,6 @@ public final class AgentPlannerPromptBuilder {
         StringBuilder prompt = new StringBuilder();
         if (systemPrompt != null && !systemPrompt.isBlank()) {
             prompt.append("System instruction: ").append(systemPrompt).append("\n\n");
-        }
-        String roleContext = AgentRoleAnalysisContext.promptSectionFromRuntime(
-            runtimeAttributes, "DAG_BUILD_AND_TEMPLATE_DISCOVERY_PLANNING");
-        List<Map<String, Object>> authoritativeDag = objectMapList(runtimeAttributes == null
-            ? null : runtimeAttributes.get("authoritativeWorkflowDag"));
-        if (!authoritativeDag.isEmpty()) {
-            return buildAuthoritativeWorkflowPrompt(query,
-                Boolean.TRUE.equals(runtimeAttributes.get("analysisCodingAvailable"))?callerSystemPrompt:systemPrompt, availableTools, observations,
-                mandatoryTools, requireToolBeforeFinal, runtimeAttributes, roleContext, authoritativeDag);
         }
         if (!roleContext.isEmpty()) prompt.append(roleContext).append('\n');
         appendActivatedKnowledgeContext(prompt, runtimeAttributes);
@@ -535,7 +534,7 @@ public final class AgentPlannerPromptBuilder {
                 description = tool == null ? "No description available" : tool.getDescription();
             }
             result.append("- ").append(toolName)
-                .append(" [role=").append(workflowRole(toolName)).append("): ")
+                .append(" [role=").append(workflowRole(toolName)).append("]: ")
                 .append(boundedText(description, COMPACT_TOOL_DESCRIPTION_CHARS, "tool description"))
                 .append('\n');
             // A compact description/schema does not carry the publisher's fixed
@@ -544,7 +543,7 @@ public final class AgentPlannerPromptBuilder {
                 var published=asMap(asMap(metadata.getMetadata()).get("mcpToolMeta"));
                 McpTemplateSelectionScope.fromToolMetadata(published).filter(McpTemplateSelectionScope::fixedBindingAuthority)
                     .ifPresent(scope->result.append("  Authoritative template scope: FIXED_BINDING for assetType=").append(scope.assetType())
-                        .append("; only template-candidate source in this plan. Semantically review only the bounded, paged candidates; never expand its bound set.\n"));
+                        .append("; sole template source in this plan. Bind parameters to the publisher-fixed IDs without changing its bounded, paged scope.\n"));
                 var filters=stringList(asMap(published.get("routingProtocol")).get("allowedFilterFields"));
                 if(!filters.isEmpty())result.append("  Publisher-declared filter fields: ").append(filters).append(". Do not invent filters.\n");
                 var applicability=asMap(published.get("applicability"));
@@ -871,7 +870,7 @@ public final class AgentPlannerPromptBuilder {
             .filter(McpTemplateSelectionScope::fixedBindingAuthority)
             .ifPresent(scope -> prompt.append("  Authoritative template scope: FIXED_BINDING for assetType=")
                 .append(scope.assetType())
-                .append(". If this child capability is selected, it is the only template-candidate source for that asset family in the current plan. Do not add a generic template-discovery step or expand its bound set. Semantically review only the bounded, paged candidates it returns and execute only the candidates matching the user request. Additional discovery is permitted only in a later Runtime-authorized evidence-recovery iteration and remains separate evidence.\n"));
+                .append(". If selected, use this as the sole template source for the asset family. Bind parameters to the publisher-fixed IDs within its bounded, paged scope. Further discovery requires a later Runtime-authorized evidence-recovery iteration and produces separate evidence.\n"));
         List<String> allowedFilterFields = stringList(routingProtocol.get("allowedFilterFields"));
         if (!allowedFilterFields.isEmpty()) {
             prompt.append("  MCP-declared allowed logical filter fields: ")

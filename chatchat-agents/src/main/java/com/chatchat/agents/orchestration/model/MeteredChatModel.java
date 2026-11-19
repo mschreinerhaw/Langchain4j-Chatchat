@@ -118,30 +118,32 @@ public final class MeteredChatModel implements ChatModel {
                 && governed.textUsesNativeRequest()) {
             ChatRequest request = ChatRequest.builder()
                 .messages(dev.langchain4j.data.message.UserMessage.from(message)).build();
-            ChatResponse response = invoke(estimator.estimate(message).tokens(),
+            ChatResponse response = invoke(estimator.estimate(message).tokens(), ModelRequestContext.flattened(message),
                 () -> delegate.chat(request),
                 value -> estimator.estimate(value == null || value.aiMessage() == null
                     ? "" : value.aiMessage().toString()).tokens(),
                 value -> value == null ? null : value.tokenUsage());
             return response.aiMessage().text();
         }
-        return invoke(estimator.estimate(message).tokens(), () -> delegate.chat(message),
+        return invoke(estimator.estimate(message).tokens(), ModelRequestContext.flattened(message), () -> delegate.chat(message),
             value -> estimator.estimate(value).tokens(), value -> null);
     }
 
     @Override
     public ChatResponse doChat(ChatRequest request) {
         return invoke(estimator.estimate(request == null ? "" : request.toString()).tokens(),
+            ModelRequestContext.structured(request),
             () -> delegate.chat(request),
             response -> estimator.estimate(response == null || response.aiMessage() == null
                 ? "" : response.aiMessage().toString()).tokens(),
             response -> response == null ? null : response.tokenUsage());
     }
 
-    private <T> T invoke(long promptTokens, Supplier<T> operation,
+    private <T> T invoke(long promptTokens, Map<String, Object> requestContext, Supplier<T> operation,
                          java.util.function.ToLongFunction<T> estimateOutput,
                          java.util.function.Function<T, TokenUsage> actualUsage) {
         Map<String, Object> call = new LinkedHashMap<>();
+        call.put("requestContext", requestContext);
         synchronized (this) {
             enforce(inputTokens + outputTokens + promptTokens,
                 estimatedCost + promptTokens * inputCostPerThousandTokens / 1_000D);
@@ -159,8 +161,8 @@ public final class MeteredChatModel implements ChatModel {
             call.put("status", "RUNNING");
             calls.add(call);
             publish();
-            log.info("Runtime model call runId={} node={} callId={} status=STARTED inputEstimated={}",
-                usage.get("runId"), call.get("nodeName"), call.get("callId"), promptTokens);
+            log.info("Runtime model call runId={} node={} callId={} status=STARTED inputEstimated={} requestContext={}",
+                usage.get("runId"), call.get("nodeName"), call.get("callId"), promptTokens, call.get("requestContext"));
         }
         CallTiming timing = new CallTiming();
         CallTiming previous = CURRENT_TIMING.get();
@@ -200,6 +202,7 @@ public final class MeteredChatModel implements ChatModel {
                 call.put("outputTokensEstimated", success ? responseTokens : null);
                 call.put("inputTokens", actual == null ? null : actual.inputTokenCount());
                 call.put("outputTokens", actual == null ? null : actual.outputTokenCount());
+                call.put("totalTokens", actual == null ? null : actual.totalTokenCount());
                 var details=ModelUsageMetrics.observed(actual);
                 for(String key:List.of("cacheReadTokens","cacheWriteTokens","reasoningTokens"))
                     if(details.containsKey(key))call.put(key,details.get(key));
@@ -209,9 +212,10 @@ public final class MeteredChatModel implements ChatModel {
                     actualOutputTokens += actual.outputTokenCount();
                 }
                 publish();
-                log.info("Runtime model call runId={} node={} callId={} status={} elapsedMs={} queueMs={} inputEstimated={} outputEstimated={} errorType={}",
+                log.info("Runtime model call runId={} node={} callId={} status={} elapsedMs={} queueMs={} inputEstimated={} outputEstimated={} providerInput={} providerOutput={} providerTotal={} errorType={}",
                     usage.get("runId"), call.get("nodeName"), call.get("callId"), call.get("status"),
-                    elapsed, queue, promptTokens, call.get("outputTokensEstimated"), call.get("errorType"));
+                    elapsed, queue, promptTokens, call.get("outputTokensEstimated"), call.get("inputTokens"), call.get("outputTokens"),
+                    call.get("totalTokens"), call.get("errorType"));
                 // Preserve the original transport failure when accounting for failed attempts.
                 if (success) enforce(inputTokens + outputTokens, estimatedCost);
             }

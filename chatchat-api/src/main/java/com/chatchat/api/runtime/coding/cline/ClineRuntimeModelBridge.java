@@ -187,13 +187,14 @@ public final class ClineRuntimeModelBridge {
                 return state.status().terminal()||state.cancellationRequested()||state.executionControl().stopReason()!=null;
             });
         if(remaining.getAsLong()==0)throw new com.chatchat.agents.orchestration.model.AgentDeadlineExceededException("Coding model budget expired");
+        var dispatchRequest = ChatRequest.builder().messages(messages).toolSpecifications(tools).parameters(requestParameters).build();
+        var requestContext = com.chatchat.agents.orchestration.model.ModelRequestContext.structured(dispatchRequest);
         ChatResponse answer;
         Long queueTime, firstToken, generationTime, retryTime;
         String responseMode;
         try(var timing=com.chatchat.agents.orchestration.model.MeteredChatModel.observeTiming()) {
             var selected=parent==null?models.create(modelName,Duration.ofMillis(remaining.getAsLong()),outputLimit):parent;
             var dispatchModel=com.chatchat.agents.orchestration.model.ToolExecutionModels.independent(selected,remaining,cancelled,0);
-            var dispatchRequest=ChatRequest.builder().messages(messages).toolSpecifications(tools).parameters(requestParameters).build();
             providerDispatched = true;
             answer=dispatchModel.chat(dispatchRequest);
             queueTime=timing.queueTimeMs(); firstToken=timing.firstTokenMs(); generationTime=timing.generationTimeMs();
@@ -243,6 +244,7 @@ public final class ClineRuntimeModelBridge {
         if (answer.tokenUsage() != null) {
             usage.put("inputTokens", answer.tokenUsage().inputTokenCount());
             usage.put("outputTokens", answer.tokenUsage().outputTokenCount());
+            usage.put("totalTokens", answer.tokenUsage().totalTokenCount());
             var details=com.chatchat.agents.orchestration.model.ModelUsageMetrics.observed(answer.tokenUsage());
             for(String key:List.of("cacheReadTokens","cacheWriteTokens","reasoningTokens"))
                 if(details.containsKey(key))usage.put(key,details.get(key));
@@ -270,6 +272,7 @@ public final class ClineRuntimeModelBridge {
         modelInfo.put("queueTimeScope","LOCAL_EXECUTOR");
         modelInfo.put("providerTimingAvailability", "STREAMING".equals(responseMode) ? "OBSERVED_STREAM" : "NON_STREAMING_UNAVAILABLE");
         modelInfo.put("messageCount",turns.size());
+        modelInfo.put("requestContext", requestContext);
         modelInfo.put("requestBytes",request.toString().getBytes(java.nio.charset.StandardCharsets.UTF_8).length);
         modelInfo.put("firstTokenMs",firstToken);
         modelInfo.put("generationTimeMs",generationTime);

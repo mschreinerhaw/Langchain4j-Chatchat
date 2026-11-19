@@ -14,9 +14,45 @@ export function providerUsage(raw){
   totalSource:declared!==null?'PROVIDER':input!==null&&output!==null?'SUM_OF_PROVIDER_COUNTS':'NOT_PROVIDED',
   cacheAccounting:anthropic?'NORMALIZED_INPUT_INCLUDES_CACHE':'CACHE_IS_INPUT_SUBSET',raw};
 }
-export function modelReceipt({model,request,emit,now=Date.now}){
+function textChars(content) {
+ if (typeof content === 'string') return content.length;
+ if (!Array.isArray(content)) return 0;
+ return content.reduce((sum, part) => sum + (typeof part?.text === 'string' ? part.text.length : 0), 0);
+}
+
+function contextShape(body, request) {
+ if (!body) return null;
+ const messages = Array.isArray(body.messages) ? body.messages : Array.isArray(body.input) ? body.input : [];
+ const lastUser = messages.findLastIndex(message => message?.role === 'user');
+ let systemChars = textChars(body.instructions), userChars = textChars(body.input), historyChars = 0, toolResultChars = 0;
+ for (const [index, message] of messages.entries()) {
+  if (!message || typeof message !== 'object') continue;
+  const content = textChars(message.content);
+  if (message.role === 'system' || message.role === 'developer') systemChars += content;
+  else if (index === lastUser) userChars += content;
+  else if (message.role === 'tool' || message.type === 'function_call_output') {
+   toolResultChars += content + textChars(message.output);
+  } else {
+   historyChars += content + textChars(message.name) + textChars(message.arguments);
+   for (const call of Array.isArray(message.tool_calls) ? message.tool_calls : []) {
+    historyChars += textChars(call?.function?.name) + textChars(call?.function?.arguments);
+   }
+  }
+ }
+ return {
+  format: Array.isArray(body.messages) ? 'CHAT_COMPLETIONS' : 'RESPONSES',
+  systemChars, userChars, historyChars, toolResultChars,
+  toolsChars: Array.isArray(body.tools) ? JSON.stringify(body.tools).length : 0,
+  skillsChars: null, evidenceChars: null,
+  requestBytes: Buffer.byteLength(request)
+ };
+}
+
+export function modelReceipt({model,request,body,emit,now=Date.now}){
  const requestId=randomUUID(),started=now(),responseHash=createHash('sha256'),decoder=new TextDecoder();
  const requestSha256=createHash('sha256').update(request).digest('hex');
+ let requestContext = null;
+ try { requestContext = contextShape(body, request); } catch { /* Usage observation still proceeds. */ }
  let pending='',jsonBody='',usage=null,providerModel=model,responseBytes=0,finished=false,observationTruncated=false;
  const MAX=4*1024*1024;
  function value(document){
@@ -30,7 +66,7 @@ export function modelReceipt({model,request,emit,now=Date.now}){
   const data=text.slice(5).trim();if(!data||data==='[DONE]')return;
   try{value(JSON.parse(data));}catch{}
  }
- emit('model.request.started',{requestId,model,startedAt:new Date(started).toISOString(),requestSha256,source:'PROVIDER_HTTP_OBSERVATION'});
+ emit('model.request.started',{requestId,model,startedAt:new Date(started).toISOString(),requestSha256,requestContext,source:'PROVIDER_HTTP_OBSERVATION'});
  return {requestId,observe(chunk){
   responseHash.update(chunk);responseBytes+=chunk.length;
   const text=decoder.decode(chunk,{stream:true});
@@ -46,6 +82,6 @@ export function modelReceipt({model,request,emit,now=Date.now}){
    startedAt:new Date(started).toISOString(),finishedAt:new Date(ended).toISOString(),durationMs:Math.max(0,ended-started),
    httpStatus,status:errorType||httpStatus===null||httpStatus>=400?'FAILED':'SUCCEEDED',errorType,
    providerDispatched:httpStatus!==null?true:null,usage:providerUsage(usage),responseBytes,
-   responseSha256:responseHash.digest('hex'),requestSha256,observationTruncated,source:'PROVIDER_HTTP_OBSERVATION'});
+   responseSha256:responseHash.digest('hex'),requestSha256,requestContext,observationTruncated,source:'PROVIDER_HTTP_OBSERVATION'});
  }};
 }

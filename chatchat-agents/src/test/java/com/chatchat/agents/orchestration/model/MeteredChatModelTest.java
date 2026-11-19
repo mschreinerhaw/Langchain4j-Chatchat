@@ -79,6 +79,9 @@ class MeteredChatModelTest {
         assertThat(call.get("outputTokensEstimated")).isNull();
         assertThat(call.get("inputTokens")).isNull();
         assertThat(call.toString()).doesNotContain("private prompt", "transport failure");
+        Map<?, ?> context = (Map<?, ?>) call.get("requestContext");
+        assertThat(context.get("unattributedChars")).isEqualTo(14);
+        assertThat(context.get("userChars")).isNull();
     }
 
     @Test
@@ -95,6 +98,11 @@ class MeteredChatModelTest {
         model.chat(ChatRequest.builder().messages(UserMessage.from("hello")).build());
         Map<?, ?> call = (Map<?, ?>) ((List<?>) usage.get("calls")).get(0);
         assertThat(call.get("inputTokens")).isEqualTo(123);
+        assertThat(call.get("totalTokens")).isEqualTo(140);
+        Map<?, ?> context = (Map<?, ?>) call.get("requestContext");
+        assertThat(context.get("userChars")).isEqualTo(5L);
+        assertThat(context.get("historyChars")).isEqualTo(0L);
+        assertThat(context.get("evidenceChars")).isNull();
         assertThat(call.get("outputTokens")).isEqualTo(17);
         assertThat(((Number) call.get("queueTimeMs")).longValue()).isNotNegative();
         assertThat(((Number) call.get("executionTimeMs")).longValue()

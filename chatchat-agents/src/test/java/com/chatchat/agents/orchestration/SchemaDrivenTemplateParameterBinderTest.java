@@ -235,6 +235,69 @@ class SchemaDrivenTemplateParameterBinderTest {
         assertThat(result.status()).isEqualTo("PARAMETERS_REQUIRED");
     }
 
+    @Test void identicalFixedBindingProposalsProduceTheSameBatchWithFewerCalls() throws Exception {
+        var model = mock(ChatModel.class);
+        var valid = fixedProposal("one", "C1");
+        when(model.chat(any(ChatRequest.class))).thenReturn(
+            fixedResponse(valid, fixedProposal("two", "C1")), fixedResponse(valid));
+        long started = System.nanoTime();
+        var result = binder.bindPublished(model, "Inspect subject C1", List.of(template("assets")), Map.of(), () -> {});
+        long elapsedMs = (System.nanoTime() - started) / 1_000_000;
+        assertThat(result.status()).isEqualTo("SELECTED");
+        assertThat(result.selectedIds()).containsExactly("assets");
+        assertThat(result.protocols()).singleElement().satisfies(binding ->
+            assertThat(binding).containsEntry("binding_status", "READY").containsEntry("template_id", "assets")
+                .containsEntry("arguments", Map.of("subject", Map.of("source", "user_query", "value", "C1",
+                    "evidence", Map.of("quote", "Inspect subject C1", "generated_by", "native_function_calling")))));
+        int calls = Boolean.getBoolean("fixedBinding.baseline") ? 2 : 1;
+        var requests = org.mockito.ArgumentCaptor.forClass(ChatRequest.class);
+        verify(model, times(calls)).chat(requests.capture());
+        var initial = requests.getAllValues().get(0);
+        int systemChars = ((dev.langchain4j.data.message.SystemMessage) initial.messages().get(0)).text().length();
+        int userChars = ((dev.langchain4j.data.message.UserMessage) initial.messages().get(1)).singleText().length();
+        System.out.printf("Fixed binding fixture: calls=%d firstSystemChars=%d firstUserChars=%d toolsChars=%d "
+                + "fixtureInputTokens=%s fixtureOutputTokens=%s stageElapsedMs=%d%n",
+            calls, systemChars, userChars, initial.toolSpecifications().get(0).toJson().length(),
+            result.metrics().get("selectionInputTokens"), result.metrics().get("selectionOutputTokens"), elapsedMs);
+    }
+
+    @Test void conflictingFixedBindingProposalsStillRequireProtocolCorrection() throws Exception {
+        var model = mock(ChatModel.class);
+        var valid = fixedProposal("one", "C1");
+        when(model.chat(any(ChatRequest.class))).thenReturn(
+            fixedResponse(valid, fixedProposal("two", "C2")), fixedResponse(valid));
+        var result = binder.bindPublished(model, "Inspect subject C1", List.of(template("assets")), Map.of(), () -> {});
+        assertThat(result.status()).isEqualTo("SELECTED");
+        assertThat(result.protocols()).singleElement().satisfies(binding ->
+            assertThat(binding).containsEntry("binding_status", "READY").containsEntry("template_id", "assets")
+                .containsEntry("arguments", Map.of("subject", Map.of("source", "user_query", "value", "C1",
+                    "evidence", Map.of("quote", "Inspect subject C1", "generated_by", "native_function_calling")))));
+        verify(model, times(2)).chat(any(ChatRequest.class));
+    }
+
+    @Test void truncatedFixedBindingResponseStillRequiresProtocolCorrection() throws Exception {
+        var model = mock(ChatModel.class);
+        var valid = fixedProposal("one", "C1");
+        when(model.chat(any(ChatRequest.class))).thenReturn(ChatResponse.builder()
+            .aiMessage(AiMessage.from(valid, fixedProposal("two", "C1")))
+            .finishReason(dev.langchain4j.model.output.FinishReason.LENGTH).build(), fixedResponse(valid));
+        var result = binder.bindPublished(model, "Inspect subject C1", List.of(template("assets")), Map.of(), () -> {});
+        assertThat(result.status()).isEqualTo("SELECTED");
+        assertThat(result.metrics()).doesNotContainKey("duplicateBindingProposals");
+        verify(model, times(2)).chat(any(ChatRequest.class));
+    }
+
+    private ToolExecutionRequest fixedProposal(String id, String subject) throws Exception {
+        return ToolExecutionRequest.builder().id(id).name(SchemaDrivenTemplateParameterBinder.BINDING_FUNCTION)
+            .arguments(json.writeValueAsString(Map.of("bindings", List.of(selection("assets", Map.of("subject", subject))))))
+            .build();
+    }
+
+    private ChatResponse fixedResponse(ToolExecutionRequest... calls) {
+        return ChatResponse.builder().aiMessage(AiMessage.from(calls))
+            .tokenUsage(new dev.langchain4j.model.output.TokenUsage(120, 20)).build();
+    }
+
     private Map<String,Object> template(String id) {
         return Map.of("templateId",id,"parameterSchema",Map.of("type","object","required",List.of("subject"),
             "properties",Map.of("subject",Map.of("type","string"))));

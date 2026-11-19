@@ -21,3 +21,29 @@ test('missing/invalid usage remains unknown, including failed requests',()=>{
  const events=[];const receipt=modelReceipt({model:'real',request:'{}',emit:(_t,p)=>events.push(p)});receipt.observe(Buffer.from('{"choices":[{"message":{"content":"not a token count"}}]}'));receipt.finish({httpStatus:200});
  assert.equal(events.at(-1).usage,null);assert.equal(events.at(-1).status,'SUCCEEDED');
 });
+
+test('request context measures both supported provider formats without retaining content',()=>{
+ const messages=[{role:'developer',content:'policy'},{role:'user',content:'old question'},
+  {role:'assistant',content:'earlier answer'},{role:'tool',content:'result'},
+  {role:'user',content:[{type:'text',text:'now'}]}];
+ for (const body of [
+  {messages,tools:[{type:'function',function:{name:'search'}}]},
+  {instructions:'policy',input:messages.slice(1).map(item=>item.role==='tool'
+   ?{type:'function_call_output',output:item.content}:item),tools:[{type:'function',name:'search'}]}
+ ]) {
+  const events=[],request=JSON.stringify(body);
+  const receipt=modelReceipt({model:'test',request,body,emit:(_type,payload)=>events.push(payload)});
+  receipt.finish({httpStatus:502});
+  const shape=events.at(-1).requestContext;
+  assert.deepEqual(shape,events[0].requestContext);
+  assert.equal(shape.systemChars,6);
+  assert.equal(shape.userChars,3);
+  assert.equal(shape.historyChars,26);
+  assert.equal(shape.toolResultChars,6);
+  assert.equal(shape.toolsChars,JSON.stringify(body.tools).length);
+  assert.equal(shape.skillsChars,null);
+  assert.equal(shape.evidenceChars,null);
+  assert.equal(shape.requestBytes,Buffer.byteLength(request));
+  assert.doesNotMatch(JSON.stringify(events),/old question|earlier answer|policy/);
+ }
+});

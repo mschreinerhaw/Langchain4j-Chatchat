@@ -380,7 +380,7 @@ public final class NativeS3CodingAdapter implements CodingAgentSPI {
             operation="model-"+p.path("requestId").asText();kind=CodingJournal.OperationKind.MODEL;complete=type.equals("model.request.completed");long tokens=p.path("usage").path("totalTokens").asLong();
             actual=new Counters(1,tokens,0,0,0,0,0,"0");metered=complete&&p.path("usage").path("totalTokens").isNumber();
             normalized=complete?"MODEL_REQUEST_COMPLETED":"MODEL_REQUEST_STARTED";summary=p.path("providerModel").asText(p.path("model").asText());group="model";telemetryId=p.path("requestId").asText();
-            for(String field:List.of("requestId","model","providerModel","usage","durationMs"))if(p.hasNonNull(field))projected.put(field,json.convertValue(p.get(field),Object.class));
+            for(String field:List.of("requestId","model","providerModel","usage","durationMs","requestContext"))if(p.hasNonNull(field))projected.put(field,json.convertValue(p.get(field),Object.class));
         }else if(channel.equals("provider")){
             summary=type+": "+p.path("tool").asText(p.path("name").asText(p.path("url").asText()));
             for(String field:List.of("tool","requestId","isError","skillId","name","version","source","bytes","url","sha256","size","path","assetId","retrieved_at","files"))if(p.hasNonNull(field))projected.put(field,json.convertValue(p.get(field),Object.class));

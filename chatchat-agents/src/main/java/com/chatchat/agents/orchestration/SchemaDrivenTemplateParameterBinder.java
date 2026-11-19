@@ -14,6 +14,7 @@ import dev.langchain4j.model.chat.ChatModel;
 import dev.langchain4j.model.chat.request.ChatRequest;
 import dev.langchain4j.model.chat.request.ToolChoice;
 import dev.langchain4j.model.chat.response.ChatResponse;
+import dev.langchain4j.model.output.FinishReason;
 import lombok.extern.slf4j.Slf4j;
 
 import java.util.ArrayList;
@@ -157,8 +158,10 @@ final class SchemaDrivenTemplateParameterBinder {
             metrics.put("selectionUngroupedVariantChars",objectMapper.writeValueAsString(variants).length());
             variants=groupEquivalentVariants(variants);
             metrics.put("selectionGroupedVariantChars",objectMapper.writeValueAsString(variants).length());
-            metrics.put("selectionCatalogChars",objectMapper.writeValueAsString(catalog).length());
-            metrics.put("selectionContextChars",objectMapper.writeValueAsString(TemplateRecordsetBindings.modelContext(selectionContext)).length());
+            String catalogJson=objectMapper.writeValueAsString(catalog);
+            metrics.put("selectionCatalogChars",catalogJson.length());
+            String contextJson=objectMapper.writeValueAsString(TemplateRecordsetBindings.modelContext(selectionContext));
+            metrics.put("selectionContextChars",contextJson.length());
             var properties=new LinkedHashMap<String,Object>();
             properties.put(itemsName,Map.of("type","array","maxItems",ToolCallBatchSchema.DEFAULT_MAX_CALLS,
                 "items",Map.of("oneOf",variants)));
@@ -196,14 +199,13 @@ final class SchemaDrivenTemplateParameterBinder {
                 +"Choose an offered reference whose columns match the published parameter's purpose; Runtime binds the COMPLETE actual rows. "
                 +"Do not copy previews into parameters, invent rows, or cite unavailable steps. Omit reference-bound fields from parameters. "
                 +"For values not literally present, provide parameterEvidence mapping each parameter to an exact supporting quote from the user request. "
-                +"Omit unknown values. Java applies published defaults and omits optional fields; parameters may be {}. "
-                +"Do not request another extraction to fill defaults. Only required fields without valid defaults need input. "
+                +"Omit unknown values. Java applies published defaults and omits optional fields. Only required fields without valid defaults need input. "
                 +"If a requested entity or time constraint cannot be mapped reliably, include its exact user quote in unmappedConstraints. "
-                +"Technical executability with defaults does not establish that results match the requested business scope. Do not invent values. "
+                +"Defaults do not verify business scope. Do not invent values. "
                 +(bindingOnly?"":"Use NO_MATCH with an empty selection when no candidate is suitable. ")
                 +"Java validates identities, permissions and schemas."),
-                UserMessage.from("User request: "+Objects.toString(query,"")+(bindingOnly?"\nPublished templates: ":"\nCandidates: ")+objectMapper.writeValueAsString(catalog)
-                    +"\nPublished scope and prior observations: "+objectMapper.writeValueAsString(TemplateRecordsetBindings.modelContext(selectionContext)))),spec,ToolChoice.AUTO);
+                UserMessage.from("User request: "+Objects.toString(query,"")+(bindingOnly?"\nPublished templates: ":"\nCandidates: ")+catalogJson
+                    +"\nPublished scope and prior observations: "+contextJson)),spec,ToolChoice.AUTO);
             } finally {metrics.put("selectionModelDurationMs",((Number)metrics.getOrDefault("selectionModelDurationMs",0L)).longValue()
                     +(System.nanoTime()-modelStarted)/1_000_000);}
             var usage=com.chatchat.agents.orchestration.model.ModelUsageMetrics.observed(response==null?null:response.tokenUsage());
@@ -218,10 +220,20 @@ final class SchemaDrivenTemplateParameterBinder {
             metrics.put("selectionResponseTextChars",message==null||message.text()==null?0:message.text().length());
             metrics.put("selectionResponseArgumentChars",message==null||!message.hasToolExecutionRequests()?0:
                 message.toolExecutionRequests().stream().mapToInt(call->call.arguments()==null?0:call.arguments().length()).sum());
-            if(message==null||!message.hasToolExecutionRequests()||message.toolExecutionRequests().size()!=1
-                    ||!functionName.equals(message.toolExecutionRequests().get(0).name()))
+            if (message == null || !message.hasToolExecutionRequests())
                 return new SelectionResult("INVALID_MODEL_RESPONSE",List.of(),List.of(),Map.of(),"Expected one selection function call");
-            Map<String,Object> decision=objectMapper.readValue(message.toolExecutionRequests().get(0).arguments(),new TypeReference<>(){});
+            var calls = message.toolExecutionRequests();
+            var first = calls.get(0);
+            // These calls propose a binding; they do not execute the tool. Identical
+            // proposals from the same response can share one validation and one execution batch.
+            if (!functionName.equals(first.name()) || calls.size() > 1 && (!bindingOnly
+                    || response.finishReason() == FinishReason.LENGTH
+                    || response.finishReason() == FinishReason.CONTENT_FILTER ||
+                    calls.stream().anyMatch(call -> !first.name().equals(call.name())
+                        || !Objects.equals(first.arguments(), call.arguments()))))
+                return new SelectionResult("INVALID_MODEL_RESPONSE",List.of(),List.of(),Map.of(),"Expected one selection function call");
+            if (calls.size() > 1) metrics.put("duplicateBindingProposals", calls.size() - 1);
+            Map<String,Object> decision=objectMapper.readValue(first.arguments(),new TypeReference<>(){});
             String status=bindingOnly?"SELECTED":text(decision.get("status"));
             if((!bindingOnly&&!Set.of("SELECTED","NO_MATCH","NEEDS_INPUT").contains(Objects.toString(status,"")))
                     ||!(decision.get(itemsName) instanceof Collection<?> selections))

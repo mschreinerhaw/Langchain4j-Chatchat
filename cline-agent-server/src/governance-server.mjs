@@ -125,7 +125,7 @@ async function broker(r,path){
    const controller=new AbortController();if(!calls.has(r.workerId))calls.set(r.workerId,new Set());calls.get(r.workerId).add(controller);
    try{
     const request=JSON.stringify(requestBody);
-    if(modelProfile)observation=modelReceipt({model:modelProfile.model,request,emit:(type,payload)=>event(r,type,payload)});
+    if(modelProfile)observation=modelReceipt({model:modelProfile.model,request,body:requestBody,emit:(type,payload)=>event(r,type,payload)});
     const upstream=await fetch(url,{method:'POST',headers,body:request,signal:controller.signal,redirect:'error'});
     if(req.url==='/mcp'&&tenant.mcp.authMode==='native-runtime'){
      const chunks=[];let size=0;for await(const chunk of upstream.body??[]){size+=chunk.length;if(size>2*1024*1024){controller.abort();throw Error('Runtime MCP response byte budget exceeded');}chunks.push(chunk);}const bytes=Buffer.concat(chunks);if(!bytes.length){res.writeHead(upstream.status);return res.end();}if(!live(r))throw error('Task lease inactive',403);

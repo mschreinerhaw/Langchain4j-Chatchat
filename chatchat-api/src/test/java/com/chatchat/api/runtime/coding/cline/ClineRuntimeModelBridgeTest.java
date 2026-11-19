@@ -247,7 +247,7 @@ class ClineRuntimeModelBridgeTest {
             var request = json.readTree("{\"systemPrompt\":\"calculate\",\"messages\":[],\"tools\":[]}");
             var error = catchThrowableOfType(() -> bridge.complete(contract, request),
                 ClineRuntimeModelBridge.InvalidModelResponseException.class);
-            assertThat(error.receipt()).containsEntry("usage", Map.of("inputTokens", 13, "outputTokens", 7));
+            assertThat(error.receipt()).containsEntry("usage", Map.of("inputTokens", 13, "outputTokens", 7, "totalTokens", 20));
             assertThat((List<?>) error.receipt().get("toolCalls")).isEmpty();
             assertThat(json.valueToTree(error.receipt()).path("nativeToolCalls").get(0).path("arguments").asText()).isEqualTo(arguments);
             assertThat(error.receipt()).containsKey("modelInfo").containsKey("error");
@@ -398,6 +398,12 @@ class ClineRuntimeModelBridgeTest {
         assertThat(result.get("requestId")).isEqualTo("provider-request");
         assertThat((List<?>) result.get("toolCalls")).hasSize(1);
         assertThat(((Map<?, ?>) result.get("usage")).get("inputTokens")).isEqualTo(9);
+        assertThat(((Map<?, ?>) result.get("usage")).get("totalTokens")).isEqualTo(13);
+        var context = json.valueToTree(result).path("modelInfo").path("requestContext");
+        assertThat(context.path("systemChars").asInt()).isEqualTo(19);
+        assertThat(context.path("userChars").asInt()).isEqualTo(9);
+        assertThat(context.path("toolsChars").asInt()).isPositive();
+        assertThat(context.path("skillsChars").isNull()).isTrue();
         verify(factory).create(eq("registered-model"), any(Duration.class), eq(2048));
         var captured=org.mockito.ArgumentCaptor.forClass(ChatRequest.class);
         verify(model).chat(captured.capture());

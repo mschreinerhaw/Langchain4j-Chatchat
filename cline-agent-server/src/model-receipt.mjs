@@ -48,6 +48,16 @@ function contextShape(body, request) {
  };
 }
 
+export function modelTransportErrorCode(error){
+ if(error.name==='AbortError')return 'UPSTREAM_ABORTED';
+ const causes=[error.code,error.cause?.code,...(error.cause?.errors??[]).map(item=>item.code)];
+ if(error.name==='TimeoutError'||causes.some(code=>['UND_ERR_CONNECT_TIMEOUT','UND_ERR_HEADERS_TIMEOUT','UND_ERR_BODY_TIMEOUT','ETIMEDOUT'].includes(code)))return 'UPSTREAM_TIMEOUT';
+ if(causes.some(code=>['ENOTFOUND','EAI_AGAIN'].includes(code)))return 'UPSTREAM_DNS_FAILURE';
+ if(causes.some(code=>['ECONNREFUSED','ECONNRESET','UND_ERR_SOCKET','EHOSTUNREACH','ENETUNREACH'].includes(code)))return 'UPSTREAM_CONNECTION_FAILURE';
+ if(causes.some(code=>['CERT_HAS_EXPIRED','ERR_TLS_CERT_ALTNAME_INVALID','UNABLE_TO_VERIFY_LEAF_SIGNATURE','SELF_SIGNED_CERT_IN_CHAIN'].includes(code)))return 'UPSTREAM_TLS_FAILURE';
+ return 'UPSTREAM_TRANSPORT_FAILURE';
+}
+
 export function modelReceipt({model,request,body,reasoning={},emit,now=Date.now}){
  const requestId=randomUUID(),started=now(),responseHash=createHash('sha256'),decoder=new TextDecoder();
  const requestSha256=createHash('sha256').update(request).digest('hex');
@@ -74,13 +84,14 @@ export function modelReceipt({model,request,body,reasoning={},emit,now=Date.now}
   pending+=text;
   for(let newline;(newline=pending.indexOf('\n'))!==-1;){line(pending.slice(0,newline).trimEnd());pending=pending.slice(newline+1);}
   if(pending.length>MAX){pending='';observationTruncated=true;}
- },finish({httpStatus=null,providerRequestId=null,errorType=null}={}){
+ },finish({httpStatus=null,providerRequestId=null,errorType=null,errorCode=null}={}){
   if(finished)return;finished=true;
   pending+=decoder.decode();line(pending);
   if(!usage)try{value(JSON.parse(jsonBody));}catch{}
   const ended=now();emit('model.request.completed',{...reasoning,requestId,model,providerModel,providerRequestId,
    startedAt:new Date(started).toISOString(),finishedAt:new Date(ended).toISOString(),durationMs:Math.max(0,ended-started),
    httpStatus,status:errorType||httpStatus===null||httpStatus>=400?'FAILED':'SUCCEEDED',errorType,
+   ...(errorCode?{errorCode}:{}),
    providerDispatched:httpStatus!==null?true:null,usage:providerUsage(usage),responseBytes,
    responseSha256:responseHash.digest('hex'),requestSha256,requestContext,observationTruncated,source:'PROVIDER_HTTP_OBSERVATION'});
  }};

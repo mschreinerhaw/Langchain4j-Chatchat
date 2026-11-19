@@ -393,7 +393,7 @@ public final class NativeS3CodingAdapter implements CodingAgentSPI {
             operation="model-"+p.path("requestId").asText();kind=CodingJournal.OperationKind.MODEL;complete=type.equals("model.request.completed");long tokens=p.path("usage").path("totalTokens").asLong();
             actual=new Counters(1,tokens,0,0,0,0,0,"0");metered=complete&&p.path("usage").path("totalTokens").isNumber();
             normalized=complete?"MODEL_REQUEST_COMPLETED":"MODEL_REQUEST_STARTED";summary=p.path("providerModel").asText(p.path("model").asText());group="model";telemetryId=p.path("requestId").asText();
-            for(String field:List.of("requestId","model","providerModel","usage","durationMs","requestContext","requestedReasoningEffort","reasoningEffort"))if(p.hasNonNull(field))projected.put(field,json.convertValue(p.get(field),Object.class));
+            for(String field:List.of("requestId","model","providerModel","usage","durationMs","requestContext","requestedReasoningEffort","reasoningEffort","httpStatus","errorCode","errorType"))if(p.hasNonNull(field))projected.put(field,json.convertValue(p.get(field),Object.class));
         }else if(channel.equals("provider")){
             summary=type+": "+p.path("tool").asText(p.path("name").asText(p.path("url").asText()));
             for(String field:List.of("tool","requestId","isError","skillId","name","version","source","bytes","url","sha256","size","path","assetId","retrieved_at","files"))if(p.hasNonNull(field))projected.put(field,json.convertValue(p.get(field),Object.class));
@@ -717,10 +717,31 @@ public final class NativeS3CodingAdapter implements CodingAgentSPI {
         }
         var prior=outcome(r);if(prior.status().terminal())return;
         if(prior.executionControl().stopReason()!=null){tasks.finishStoppedAfterReconciliation(r.c.scope(),r.c.taskId(),r.lease,prior.revision());return;}
+        String failureSummary=reason;
+        if("Native Worker stopped without a committed delivery".equals(reason)){
+            failureSummary=tasks.nativeTelemetry(r.c.scope(),r.c.taskId(),"model").stream()
+                .filter(receipt->receipt.hasNonNull("finishedAt"))
+                .max(Comparator.comparing(receipt->receipt.path("finishedAt").asText()))
+                .filter(receipt->"FAILED".equals(receipt.path("status").asText()))
+                .map(NativeS3CodingAdapter::modelFailureSummary).orElse(reason);
+        }
         var at=Instant.now().truncatedTo(java.time.temporal.ChronoUnit.MILLIS);var proposal=new CodingTaskOutcome(prior.schemaVersion(),prior.taskId(),prior.scope(),prior.contractSha256(),Status.FAILED,prior.revision()+1,prior.lastEventSequence()+1,prior.createdAt(),at,prior.startedAt(),at,false,
             reason.startsWith("OUTPUT_CONTRACT_VIOLATION")?CodingErrorCode.OUTPUT_CONTRACT_VIOLATION:CodingErrorCode.EXECUTION_FAILED,
-            reason.substring(0,Math.min(2048,reason.length())),List.of("Native execution failed; original receipts and partial artifacts are retained"),prior.inputSnapshotRef(),null,proof,null,null,null,ValidationStatus.NOT_RUN,prior.reproducibility(),prior.usage(),new ExecutionControl(null,null,true,false),null,null,Map.of());
+            failureSummary.substring(0,Math.min(2048,failureSummary.length())),List.of("Native execution failed; original receipts and partial artifacts are retained"),prior.inputSnapshotRef(),null,proof,null,null,null,ValidationStatus.NOT_RUN,prior.reproducibility(),prior.usage(),new ExecutionControl(null,null,true,false),null,null,Map.of());
         tasks.commitOutcome(r.c.scope(),r.c.taskId(),r.lease,prior.revision(),proposal);
+    }
+    private static String modelFailureSummary(JsonNode receipt) {
+        return switch(receipt.path("errorCode").asText("")){
+            case "UPSTREAM_TIMEOUT" -> "模型上游连接或响应超时，分析未交付";
+            case "UPSTREAM_DNS_FAILURE" -> "模型上游地址解析失败，分析未交付";
+            case "UPSTREAM_TLS_FAILURE" -> "模型上游 TLS 握手失败，分析未交付";
+            default -> {
+                int status=receipt.path("httpStatus").asInt(0);
+                yield status>=400 ? "模型上游返回 HTTP "+status+"，分析未交付"
+                    : status==0 ? "模型请求未收到上游 HTTP 响应，分析未交付"
+                    : "模型上游响应未完整接收，分析未交付";
+            }
+        };
     }
     private JsonNode recoveryStop(Run r,JsonNode binding,String nodeId){
         assertCurrent(r);

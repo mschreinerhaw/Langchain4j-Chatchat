@@ -11,7 +11,7 @@ import {WorkerExecutorClient} from './worker-executor-client.mjs';
 import {Journal} from './journal.mjs';
 import {workerRuntime} from './worker-executor-policy.mjs';
 import {validateS3Inputs,prepareS3Inputs,verifyStoppedDelivery,uploadS3Delivery,jsonHash} from './s3-task-transport.mjs';
-import {modelReceipt} from './model-receipt.mjs';
+import {modelReceipt,modelTransportErrorCode} from './model-receipt.mjs';
 import {admitStudioModel,settleStudioModel} from './studio-budget.mjs';
 import {verifyIssuedContract,issuerKey} from './task-issuer.mjs';
 import {executionRecords,executionContent} from './command-evidence.mjs';
@@ -157,10 +157,10 @@ async function broker(r,path){
     try{
      for await(const chunk of upstream.body??[]){observation?.observe(chunk);if(!res.write(chunk))await new Promise(resolve=>res.once('drain',resolve));}
      observation?.finish({httpStatus:upstream.status,providerRequestId:upstream.headers.get('x-request-id')??upstream.headers.get('request-id')});res.end();
-    }catch(e){observation?.finish({httpStatus:upstream.status,errorType:e.name??'UpstreamError'});throw e;}
+    }catch(e){observation?.finish({httpStatus:upstream.status,errorType:e.name??'UpstreamError',errorCode:modelTransportErrorCode(e)});throw e;}
    }finally{calls.get(r.workerId).delete(controller);}
   }catch(e){
-   observation?.finish({errorType:e.name??'UpstreamError'});
+   observation?.finish({errorType:e.name??'UpstreamError',errorCode:modelTransportErrorCode(e)});
    if(!res.headersSent&&req.url==='/mcp'&&requestBody?.method==='tools/call'){
     const code=[401,403,409].includes(e.status)?'RUNTIME_AUTHORIZATION_REJECTED':/integrity|hash/i.test(e.message)?'DOWNLOAD_INTEGRITY_MISMATCH':/symlink|path changed/i.test(e.message)?'DOWNLOAD_PATH_REJECTED':/byte budget/i.test(e.message)?'DOWNLOAD_RESOURCE_LIMIT':'RUNTIME_TOOL_UNAVAILABLE';
     event(r,'runtime.tool.failed',{tool:requestBody.params?.name,requestId:requestBody.id,code});

@@ -1,6 +1,18 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {modelReceipt,providerUsage} from '../src/model-receipt.mjs';
+import {modelReceipt,modelTransportErrorCode,providerUsage} from '../src/model-receipt.mjs';
+test('records a safe transport failure without claiming a provider HTTP response',()=>{
+ const error=new TypeError('fetch failed',{cause:Object.assign(new Error('private endpoint'),{code:'UND_ERR_CONNECT_TIMEOUT'})});
+ const events=[];
+ modelReceipt({model:'deepseek-v4-flash',request:'{}',emit:(_type,payload)=>events.push(payload)})
+  .finish({errorType:error.name,errorCode:modelTransportErrorCode(error)});
+ assert.equal(events[1].errorCode,'UPSTREAM_TIMEOUT');
+ assert.equal(events[1].httpStatus,null);
+ assert.equal(events[1].providerDispatched,null);
+ assert.equal(events[1].usage,null);
+ assert.ok(!JSON.stringify(events).includes('private endpoint'));
+ assert.equal(modelTransportErrorCode({cause:{code:'ENOTFOUND'}}),'UPSTREAM_DNS_FAILURE');
+});
 test('provider input/cache/reasoning totals retain their inclusive semantics',()=>{
  const usage=providerUsage({prompt_tokens:100,completion_tokens:40,total_tokens:140,prompt_tokens_details:{cached_tokens:80},completion_tokens_details:{reasoning_tokens:12}});
  assert.equal(usage.inputTokens,100);assert.equal(usage.outputTokens,40);assert.equal(usage.totalTokens,140);assert.equal(usage.cacheReadTokens,80);assert.equal(usage.reasoningTokens,12);

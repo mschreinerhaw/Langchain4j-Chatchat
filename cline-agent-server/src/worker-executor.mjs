@@ -44,7 +44,7 @@ function prepare(c,b){
   privateConfig.deliveryBinding=c.deliveryBinding;
   privateConfig.allowDeliveryPreview=true;
   privateConfig.requireDeliverySelection=true;
-  privateConfig.modelOptions=cfg.modelOptions??{};
+  privateConfig.modelOptions={...cfg.modelOptions,...b.modelLimits};
  }
  if(runtime.python){privateConfig.coreUid=runtime.uid;privateConfig.coreGid=runtime.uid;privateConfig.observeCommands=true;}
  const p=join(root,'config.json'),mode=runtime.python?0o400:0o440;writeFileSync(p,JSON.stringify(privateConfig),{mode});chmodSync(p,mode);chownSync(p,0,runtime.python?0:runtime.uid);assertAnchors(cfg.workersRoot,b.workerId);

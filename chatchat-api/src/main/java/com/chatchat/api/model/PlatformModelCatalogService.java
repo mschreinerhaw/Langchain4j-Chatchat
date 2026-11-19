@@ -43,13 +43,20 @@ public class PlatformModelCatalogService implements ModelCatalogOverride, Applic
                             boolean hasApiKey, String source, long updatedAt,
                             boolean published, boolean pendingChanges,
                             boolean activeEnabled, boolean activeDefault, Integer requestTimeoutSeconds,
-                            boolean internetSearchEnabled,String searchProviderId,List<String> searchProviderIds,ModelReasoningConfig codingReasoning) { }
+                            boolean internetSearchEnabled,String searchProviderId,List<String> searchProviderIds,ModelReasoningConfig codingReasoning,Integer contextWindowTokens) { }
     public record ModelDraft(String name, String alias, String description, String type, String providerModel, String baseUrl,
                              String protocol, Integer dimension, Integer timeout, Integer maxTokens,
                              Integer maxRetries, String apiKey, Boolean enabled,
                              Boolean defaultModel,
                              @com.fasterxml.jackson.databind.annotation.JsonDeserialize(using = RequestTimeoutDeserializer.class)
-                             Integer requestTimeoutSeconds,Boolean internetSearchEnabled,String searchProviderId,List<String> searchProviderIds,ModelReasoningConfig codingReasoning) {
+                             Integer requestTimeoutSeconds,Boolean internetSearchEnabled,String searchProviderId,List<String> searchProviderIds,ModelReasoningConfig codingReasoning,Integer contextWindowTokens) {
+        public ModelDraft(String name,String alias,String description,String type,String providerModel,String baseUrl,
+                String protocol,Integer dimension,Integer timeout,Integer maxTokens,Integer maxRetries,String apiKey,
+                Boolean enabled,Boolean defaultModel,Integer requestTimeoutSeconds,Boolean internetSearchEnabled,
+                String searchProviderId,List<String> searchProviderIds,ModelReasoningConfig codingReasoning){
+            this(name,alias,description,type,providerModel,baseUrl,protocol,dimension,timeout,maxTokens,maxRetries,apiKey,
+                enabled,defaultModel,requestTimeoutSeconds,internetSearchEnabled,searchProviderId,searchProviderIds,codingReasoning,null);
+        }
         public ModelDraft(String name,String alias,String description,String type,String providerModel,String baseUrl,
                 String protocol,Integer dimension,Integer timeout,Integer maxTokens,Integer maxRetries,String apiKey,
                 Boolean enabled,Boolean defaultModel,Integer requestTimeoutSeconds,Boolean internetSearchEnabled,String searchProviderId,List<String> searchProviderIds){
@@ -62,6 +69,8 @@ public class PlatformModelCatalogService implements ModelCatalogOverride, Applic
         }
         public ModelDraft {
             requestTimeoutSeconds = ModelsConfig.ModelConnectionConfig.effectiveRequestTimeoutSeconds(requestTimeoutSeconds);
+            if(contextWindowTokens!=null&&(contextWindowTokens<=0||maxTokens!=null&&maxTokens>=contextWindowTokens))
+                throw new IllegalArgumentException("Model context window must be positive and exceed the maximum output");
         }
         public ModelDraft(String name,String alias,String description,String type,String providerModel,String baseUrl,
                 String protocol,Integer dimension,Integer timeout,Integer maxTokens,Integer maxRetries,String apiKey,
@@ -89,7 +98,7 @@ public class PlatformModelCatalogService implements ModelCatalogOverride, Applic
     public synchronized List<ModelView> list() {
         initialize();
         return jdbc.query("SELECT name,alias,description,model_type,provider_model,base_url,protocol,dimension,timeout,request_timeout_seconds,"
-                + "max_tokens,max_retries,coding_reasoning,"
+                + "max_tokens,max_retries,coding_reasoning,context_window_tokens,"
                 + "enabled,is_default,api_key_cipher,source,updated_at,"
                 + "(SELECT COUNT(*) FROM platform_model_publication p WHERE p.model_type=platform_model_config.model_type"
                 + " AND p.name=platform_model_config.name) AS publication_count,"
@@ -113,7 +122,7 @@ public class PlatformModelCatalogService implements ModelCatalogOverride, Applic
                 rs.getBoolean("active_enabled"), rs.getBoolean("active_default"),
                 rs.getInt("request_timeout_seconds"),internetPolicy!=null&&"chat".equals(rs.getString("model_type"))&&internetPolicy.read(rs.getString("name")).enabled(),
                 internetPolicy==null||!"chat".equals(rs.getString("model_type"))?null:internetPolicy.read(rs.getString("name")).providerId(),
-                internetPolicy==null||!"chat".equals(rs.getString("model_type"))?List.of():internetPolicy.read(rs.getString("name")).providerIds(),decodeReasoning(rs.getString("coding_reasoning"))));
+                internetPolicy==null||!"chat".equals(rs.getString("model_type"))?List.of():internetPolicy.read(rs.getString("name")).providerIds(),decodeReasoning(rs.getString("coding_reasoning")),(Integer)rs.getObject("context_window_tokens")));
     }
 
     @Transactional
@@ -169,6 +178,7 @@ public class PlatformModelCatalogService implements ModelCatalogOverride, Applic
                 !Boolean.FALSE.equals(draft.enabled()), makeDefault,
                 "user", now);
         }
+        if("chat".equals(type))jdbc.update("UPDATE platform_model_config SET context_window_tokens=? WHERE model_type=? AND name=?",draft.contextWindowTokens(),type,name);
         if (reasoning != null)
             jdbc.update("UPDATE platform_model_config SET coding_reasoning=? WHERE model_type=? AND name=?",
                 encodeReasoning(reasoning),type,name);
@@ -210,9 +220,9 @@ public class PlatformModelCatalogService implements ModelCatalogOverride, Applic
         jdbc.update("DELETE FROM platform_model_publication WHERE model_type=? AND name=?", type, name);
         jdbc.update("INSERT INTO platform_model_publication "
                 + "(model_type,name,provider_model,base_url,protocol,dimension,timeout,request_timeout_seconds,max_tokens,max_retries,"
-                + "api_key_cipher,enabled,is_default,source,published_at,coding_reasoning) "
+                + "api_key_cipher,enabled,is_default,source,published_at,coding_reasoning,context_window_tokens) "
                 + "SELECT model_type,name,provider_model,base_url,protocol,dimension,timeout,request_timeout_seconds,max_tokens,max_retries,"
-                + "api_key_cipher,enabled,is_default,source,?,coding_reasoning FROM platform_model_config WHERE model_type=? AND name=?",
+                + "api_key_cipher,enabled,is_default,source,?,coding_reasoning,context_window_tokens FROM platform_model_config WHERE model_type=? AND name=?",
             System.currentTimeMillis(), type, name);
         ensureDefault(type);
         applyEmbedding();
@@ -289,7 +299,7 @@ public class PlatformModelCatalogService implements ModelCatalogOverride, Applic
     @Override public synchronized ModelsConfig.ResolvedModelConnection resolveChatModel(String name) {
         initialize();
         List<ModelsConfig.ResolvedModelConnection> matches = jdbc.query(
-            "SELECT name,provider_model,base_url,protocol,timeout,request_timeout_seconds,max_tokens,max_retries,api_key_cipher "
+            "SELECT name,provider_model,base_url,protocol,timeout,request_timeout_seconds,max_tokens,max_retries,api_key_cipher,context_window_tokens "
                 + "FROM platform_model_publication "
                 + "WHERE model_type='chat' AND enabled=TRUE AND (LOWER(name)=LOWER(?) "
                 + "OR LOWER(provider_model)=LOWER(?)) ORDER BY CASE WHEN LOWER(name)=LOWER(?) THEN 0 ELSE 1 END, published_at DESC",
@@ -302,13 +312,14 @@ public class PlatformModelCatalogService implements ModelCatalogOverride, Applic
                 if (rs.getObject("max_tokens") != null) config.setMaxTokens(rs.getInt("max_tokens"));
                 if (rs.getObject("max_retries") != null) config.setMaxRetries(rs.getInt("max_retries"));
                 config.setApiKey(decrypt(rs.getString("api_key_cipher")));
+                config.setContextWindowTokens((Integer)rs.getObject("context_window_tokens"));
                 ModelsConfig.ResolvedModelConnection fileMatch =
                     fileConfig.resolveChatModelConnection(rs.getString("name"));
                 if (fileMatch != null && fileMatch.config() != null) {
                     config.setProxy(fileMatch.config().getProxy());
                     // Deployment-side transport/window metadata is not a business plan.
                     // Published credentials, model identity and total deadline stay authoritative.
-                    config.setContextWindowTokens(fileMatch.config().getContextWindowTokens());
+                    if(config.getContextWindowTokens()==null)config.setContextWindowTokens(fileMatch.config().getContextWindowTokens());
                     config.setFirstTokenTimeoutSeconds(fileMatch.config().getFirstTokenTimeoutSeconds());
                 }
                 return new ModelsConfig.ResolvedModelConnection(name, rs.getString("name"), config,
@@ -337,6 +348,7 @@ public class PlatformModelCatalogService implements ModelCatalogOverride, Applic
         for (String table : List.of("platform_model_config", "platform_model_publication")) {
             addColumnIfMissing(table, "request_timeout_seconds", "INTEGER DEFAULT 300");
             addColumnIfMissing(table, "coding_reasoning", "TEXT");
+            addColumnIfMissing(table, "context_window_tokens", "INTEGER");
             jdbc.update("UPDATE " + table + " SET request_timeout_seconds=300 WHERE request_timeout_seconds IS NULL");
         }
         Integer count = jdbc.queryForObject("SELECT COUNT(*) FROM platform_model_config", Integer.class);

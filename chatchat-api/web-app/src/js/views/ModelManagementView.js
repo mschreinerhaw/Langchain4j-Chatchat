@@ -46,6 +46,7 @@ const emptyForm = () => ({
   dimension: 1024,
   requestTimeoutSeconds: 300,
   maxTokens: -1,
+  contextWindowTokens: null,
   maxRetries: 3,
   apiKey: "",
   enabled: true,
@@ -239,7 +240,7 @@ export default {
       }
       this.saving = true;
       try {
-        await savePlatformModel({...this.form,codingReasoning,searchProviderId:this.form.searchProviderIds[0]||""});
+        await savePlatformModel({...this.form,contextWindowTokens:this.form.contextWindowTokens || null,codingReasoning,searchProviderId:this.form.searchProviderIds[0]||""});
         this.form.apiKey = "";
         this.editing = false;
         this.message = "模型草稿已保存，请点击发布后使用";

@@ -78,7 +78,7 @@ function nativeEvent(s,event){
  if(a?.type==='usage')emit(s,'model.usage',{...a,cost:null,totalCost:null,costStatus:'unverified-native-pricing'});
  if(a?.contentType==='tool'&&a.type==='content_start')emit(s,'tool.started',a);
  if(a?.contentType==='tool'&&a.type==='content_end')emit(s,toolFailed(a)?'tool.failed':'tool.completed',a);
- if(a?.type==='notice'&&String(a.reason).includes('compaction'))emit(s,'context.notice',a);
+ if(a?.type==='notice'&&/compact|context.window|context.limit/i.test(String(a.reason)))emit(s,'context.notice',a);
  if(a?.type==='error'&&!['turn_completed','failed','cancelled','cancelling','sealing','sealed'].includes(s.status)){
   emit(s,'model.error',a);
   if(a.recoverable===false)failure(s,Error(a.error?.message??'Unrecoverable native model error'));
@@ -101,6 +101,7 @@ async function startWorker(s){
  writeFileSync(join(data,'globalState.json'),JSON.stringify(global),{mode:0o600});
  writeFileSync(join(data,'secrets.json'),JSON.stringify({openAiApiKey:config.apiKey}),{mode:0o600});
  if(modelSettings.providers){const settings=join(data,'settings');mkdirSync(settings,{recursive:true,mode:0o700});writeFileSync(join(settings,'providers.json'),JSON.stringify(modelSettings.providers),{mode:0o600});}
+ if(modelSettings.models){const settings=join(data,'settings');mkdirSync(settings,{recursive:true,mode:0o700});writeFileSync(join(settings,'models.json'),JSON.stringify(modelSettings.models),{mode:0o600});}
  if(config.mcpServers){const settings=join(data,'settings');mkdirSync(settings,{recursive:true,mode:0o700});writeFileSync(join(settings,'cline_mcp_settings.json'),JSON.stringify({mcpServers:config.mcpServers}),{mode:0o600});}
  const port=await freePort();
  const pythonEnvironment=Object.fromEntries(['PYTHONDONTWRITEBYTECODE','PYTHONUNBUFFERED','MPLCONFIGDIR','MATPLOTLIBRC','TZ','LC_ALL','SHELL'].filter(k=>process.env[k]).map(k=>[k,process.env[k]]));
@@ -144,6 +145,7 @@ async function startWorker(s){
  await ready;
  s.taskClient=new native.proto.cline.TaskService(`127.0.0.1:${port}`,native.grpc.credentials.createInsecure());
  status(s,'idle');emit(s,'worker.ready',{native:'v4.1.26',sourceCommit:'a459f1d04dea030833b558be645011ab739c463b',hostCapabilities:{workspace:true,editorUI:false,diagnostics:false,backgroundShell:true}});
+ emit(s,'context.configured',{model:config.model,contextWindow:config.modelOptions?.contextWindow??null,maxOutputTokens:config.modelOptions?.maxOutputTokens??null});
 }
 async function respond(s,p,decision,reason){
  if(p.state!=='pending'){if(p.decision===decision)return {id:p.id,state:p.state,decision};throw Object.assign(Error('Conflicting or stale permission response'),{status:409});}

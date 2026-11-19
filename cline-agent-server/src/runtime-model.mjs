@@ -9,8 +9,9 @@ export async function resolveRuntimeModel(contract,authority,grant,{fetchImpl=fe
  const chunks=[];let size=0;
  for await(const chunk of response.body){size+=chunk.length;if(size>32768)throw Error('Model connection byte budget exceeded');chunks.push(Buffer.from(chunk));}
  let value;try{value=JSON.parse(Buffer.concat(chunks).toString());}catch{throw Error('Invalid model authority response');}
- if(!value||Object.keys(value).some(k=>!['apiKey','baseUrl','model','maxTokens','requestedReasoningEffort','reasoningEffort','reasoningParameter'].includes(k))||!['model','baseUrl','apiKey'].every(k=>typeof value[k]==='string'&&value[k].length>0)||value.model!==contract.runtimeModel.providerModel)throw Error('Runtime model binding differs');
+ if(!value||Object.keys(value).some(k=>!['apiKey','baseUrl','model','maxTokens','contextWindow','requestedReasoningEffort','reasoningEffort','reasoningParameter'].includes(k))||!['model','baseUrl','apiKey'].every(k=>typeof value[k]==='string'&&value[k].length>0)||value.model!==contract.runtimeModel.providerModel)throw Error('Runtime model binding differs');
  if(value.maxTokens!==undefined&&(!Number.isSafeInteger(value.maxTokens)||value.maxTokens!==-1&&value.maxTokens<1))throw Error('Invalid published model token limit');
+ if(value.contextWindow!==undefined&&(!Number.isSafeInteger(value.contextWindow)||value.contextWindow<=Math.max(0,value.maxTokens??0)))throw Error('Invalid published model context window');
  const requested=value.requestedReasoningEffort,effective=value.reasoningEffort;
  const format=value.reasoningParameter;
  if(requested!==undefined&&!['auto','minimal','low','medium','high','xhigh'].includes(requested)

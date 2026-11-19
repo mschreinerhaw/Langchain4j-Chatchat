@@ -1,0 +1,7 @@
+# Start the verified production release with its existing service names and volumes.
+# docker compose -f compose.release.yaml up -d --no-build --pull never
+name: runtime-os-source-production
+include:
+  - path: ${RUNTIME_OS_RELEASE_DIR:?Set RUNTIME_OS_RELEASE_DIR to the verified absolute production release directory}/compose.production.json
+    project_directory: ${RUNTIME_OS_RELEASE_DIR}
+    env_file: ${RUNTIME_OS_RELEASE_DIR}/private/release.env

@@ -12,6 +12,7 @@ import {Journal} from './journal.mjs';
 import {workerRuntime} from './worker-executor-policy.mjs';
 import {validateS3Inputs,prepareS3Inputs,verifyStoppedDelivery,uploadS3Delivery,jsonHash} from './s3-task-transport.mjs';
 import {modelReceipt,modelTransportErrorCode} from './model-receipt.mjs';
+import {readJsonBody as body,NATIVE_MODEL_BODY_LIMIT} from './request-body.mjs';
 import {admitStudioModel,settleStudioModel} from './studio-budget.mjs';
 import {verifyIssuedContract,issuerKey} from './task-issuer.mjs';
 import {executionRecords,executionContent} from './command-evidence.mjs';
@@ -44,7 +45,6 @@ function event(r,type,detail={}){
 for(const id of readdirSync(join(cfg.stateRoot,'workers'))){const p=join(cfg.stateRoot,'workers',id,'registry.json');if(existsSync(p)){const r=JSON.parse(readFileSync(p));if(!['STOPPED','START_FAILED'].includes(r.workerState)){r.workerState='RECOVERABLE';r.taskState='UNKNOWN';r.revoked=true;save(r);event(r,'recovery.required',{reason:'No side-effect replay or operation reconciliation in stage 1'});}records.set(r.contract.sessionId,r);}}
 for(const r of records.values())if(r.workerState==='RECOVERABLE'&&(r.containerId||executor&&r.provisioningAttempted)){try{const info=await inspectWorker(r);if(info.Config.Labels['cline.workerId']!==r.workerId)throw Error('Container ownership mismatch');r.stopProof=await stopWorker(r);save(r);}catch{event(r,'recovery.stop_unconfirmed');}}
 function templateFiles(path,visit){const stat=lstatSync(path);if(stat.isSymbolicLink())throw Error('Workspace templates must not contain symlinks');visit?.(path);if(stat.isDirectory())for(const name of readdirSync(path))templateFiles(join(path,name),visit);}
-async function body(req){const chunks=[];let count=0;for await(const b of req){count+=b.length;if(count>1048576)throw error('Request too large',413);chunks.push(b);}try{return JSON.parse(Buffer.concat(chunks).toString()||'{}');}catch{throw error('Invalid JSON');}}
 function send(res,status,value){res.writeHead(status,{'content-type':'application/json','cache-control':'no-store'});res.end(JSON.stringify(value));}
 function granted(req){
  const path=new URL(req.url,'http://control').pathname;
@@ -124,7 +124,16 @@ async function broker(r,path){
     url=tenant.mcp.url;headers={'Authorization':'Bearer '+(['task-grant','native-runtime'].includes(tenant.mcp.authMode)?signContract(r.contract,issuerKey(cfg,r.contract.tenantId)):tenant.mcp.token),'Accept':'application/json, text/event-stream','content-type':'application/json'};
     if(req.headers['mcp-protocol-version'])headers['mcp-protocol-version']=req.headers['mcp-protocol-version'];
    }else if(['/model/v1/chat/completions','/model/v1/responses'].includes(req.url)&&req.method==='POST'){
-    requestBody=await body(req);const profile=(r.modelConnection??cfg.modelProfiles[r.contract.modelProfile]);modelProfile=profile;
+    const profile=(r.modelConnection??cfg.modelProfiles[r.contract.modelProfile]);modelProfile=profile;
+    try{
+     requestBody=await body(req,r.contract.s3&&!r.contract.studioBudget?NATIVE_MODEL_BODY_LIMIT:undefined);
+    }catch(e){
+     if(e.status!==413)throw e;
+     const code='BROKER_MODEL_PAYLOAD_TOO_LARGE';
+     event(r,'model.request.rejected',{model:profile.model,code,receivedBytes:e.bytes,limitBytes:e.limit,providerDispatched:false});
+     res.setHeader('Connection','close');
+     return send(res,413,{error:{code,message:'Model request exceeds the broker byte limit. Use bounded file excerpts or computed summaries.'}});
+    }
     if(requestBody.model!==profile.model)throw error('Model outside task profile',403);
     url=profile.baseUrl.replace('{sessionId}',r.contract.sessionId).replace(/\/$/,'')+req.url.slice('/model/v1'.length);headers={'Authorization':'Bearer '+profile.apiKey,'content-type':'application/json'};
     applyPublishedModelLimit(requestBody,profile,req.url.endsWith('/responses'));
@@ -175,9 +184,13 @@ async function allocate(r){
  try{
   r.workerState='STARTING';save(r);event(r,'worker.starting');
   if(r.contract.runtimeModel){r.modelConnection=await resolveRuntimeModel(r.contract,tenant.runtimeModelAuthority,signContract(r.contract,issuerKey(cfg,r.contract.tenantId)));if(r.revoked)throw Error('Allocation revoked');save(r);event(r,'model.bound',{model:r.contract.runtimeModel.logicalName,providerModel:r.modelConnection.model});}
+  const profile=r.modelConnection??cfg.modelProfiles[r.contract.modelProfile];
+  const modelLimits={...(profile.contextWindow?{contextWindow:profile.contextWindow}:{}),
+   ...(profile.maxTokens>0?{maxOutputTokens:profile.maxTokens}:{})};
+  const modelOptions=Object.keys(modelLimits).length?{modelLimits}:{};
   if(executor){
    if(r.revoked)throw Error('Allocation revoked');r.provisioningAttempted=true;save(r);
-   const created=await executor.create(grant(r),{workerId:r.workerId,resourceProfile:'standard',apiToken:r.apiToken,brokerToken:r.brokerToken,editTool:r.editTool});
+   const created=await executor.create(grant(r),{workerId:r.workerId,resourceProfile:'standard',apiToken:r.apiToken,brokerToken:r.brokerToken,editTool:r.editTool,...modelOptions});
    r.containerId=created.Id;r.resourceEnforced=created.resources.enforced;save(r);
    if(r.contract.s3){
     const controller=new AbortController();if(!calls.has(r.workerId))calls.set(r.workerId,new Set());calls.get(r.workerId).add(controller);
@@ -201,8 +214,8 @@ async function allocate(r){
   for(const name of ['workspace','state','bridge']){mkdirSync(join(dir,name),{recursive:true,mode:0o700});chownSync(join(dir,name),1000,1000);}
   templateFiles(tenant.workspaces[r.contract.workspaceRef]);cpSync(tenant.workspaces[r.contract.workspaceRef],join(dir,'workspace'),{recursive:true,dereference:false});templateFiles(join(dir,'workspace'),p=>chownSync(p,1000,1000));
   // Template ownership is prepared by the deployment owner; no host path comes from a client.
-  const profile=(r.modelConnection??cfg.modelProfiles[r.contract.modelProfile]);
   const privateConfig={operationContext:!!cfg.operations,sourceRoot:'/opt/runtime-os/cline/runtime',distDir:'/opt/runtime-os/cline/runtime',stateDir:'/var/lib/runtime-os/coding-node',socketPath:'/run/runtime-os/coding-node/bridge/worker.sock',apiToken:r.apiToken,apiKey:r.brokerToken,model:profile.model,baseUrl:'http://127.0.0.1:18329/model/v1',workspaces:{project:'/workspace'},toolPermissions:r.contract.toolPermissions,
+   ...(modelOptions.modelLimits?{modelOptions:modelLimits}:{}),
    ...(tenant.mcp?{mcpServers:{tenant_data:{type:'streamableHttp',url:'http://127.0.0.1:18329/mcp',headers:{Authorization:'Bearer '+r.brokerToken},disabled:false,autoApprove:[]}}}:{})};
   const configFile=join(dir,'config.json');writeFileSync(configFile,JSON.stringify(privateConfig),{mode:0o600});chownSync(configFile,1000,1000);
   await broker(r,join(dir,'bridge/broker.sock'));

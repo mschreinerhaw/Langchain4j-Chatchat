@@ -245,6 +245,10 @@
               ><input v-model.number="form.maxTokens" type="number" min="-1"
             /></label>
             <label v-if="form.type === 'chat'" class="feature-form-field"
+              ><span>模型上下文窗口（Token）</span
+              ><input v-model.number="form.contextWindowTokens" type="number" min="1" step="1" placeholder="未配置"
+            /></label>
+            <label v-if="form.type === 'chat'" class="feature-form-field"
               ><span>最大重试次数</span
               ><input v-model.number="form.maxRetries" type="number" min="0"
             /></label>

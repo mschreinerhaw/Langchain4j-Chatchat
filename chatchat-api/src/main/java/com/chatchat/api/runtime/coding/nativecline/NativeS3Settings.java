@@ -45,7 +45,10 @@ public final class NativeS3Settings {
         if(!Set.of("http","https").contains(uri.getScheme())||uri.getHost()==null||uri.getUserInfo()!=null||uri.getQuery()!=null||uri.getFragment()!=null||config.getApiKey()==null||config.getApiKey().isBlank())throw new IllegalArgumentException("Invalid published model connection");
         String path=uri.getPath().replaceAll("/+$", "");
         if(path.endsWith("/chat/completions"))path=path.substring(0,path.length()-"/chat/completions".length());
-        return Map.of("model",config.getModelName(),"baseUrl",uri.getScheme()+"://"+uri.getRawAuthority()+path,"apiKey",config.getApiKey(),"maxTokens",config.getMaxTokens());
+        var connection=new LinkedHashMap<String,Object>(Map.of("model",config.getModelName(),
+            "baseUrl",uri.getScheme()+"://"+uri.getRawAuthority()+path,"apiKey",config.getApiKey(),"maxTokens",config.getMaxTokens()));
+        if(config.getContextWindowTokens()!=null) connection.put("contextWindow",config.getContextWindowTokens());
+        return Map.copyOf(connection);
     }
     public NativeS3Settings(@Value("${chatchat.runtime.coding.unified.config-file}")String file,ObjectMapper json)throws Exception{
         Path path=Path.of(file);

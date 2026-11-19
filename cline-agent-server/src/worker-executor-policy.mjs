@@ -24,8 +24,13 @@ export function taskGrant(token,cfg,allowExpired=false,reconciliationOnly=false)
 }
 export function identity(c,cfg){const owner=createHash('sha256').update(JSON.stringify([c.tenantId,c.userId,c.taskId,c.sessionId])).digest('hex');return {name:'cline-p331-'+owner.slice(0,40),owner,contractHash:contractHash(c)};}
 export function validateCreate(body){
- exact(body,['workerId','resourceProfile','apiToken','brokerToken','editTool']);
+ exact(body,['workerId','resourceProfile','apiToken','brokerToken','editTool','modelLimits']);
  if(!uuid.test(body.workerId)||body.resourceProfile!=='standard'||!['editor','apply_patch'].includes(body.editTool)||![body.apiToken,body.brokerToken].every(x=>typeof x==='string'&&/^[a-f0-9]{64}$/.test(x)))throw reject('Invalid fixed Worker capability request');
+ if(body.modelLimits!==undefined){
+  exact(body.modelLimits,['contextWindow','maxOutputTokens']);
+  if(!Object.values(body.modelLimits).every(x=>Number.isSafeInteger(x)&&x>0)||
+     (body.modelLimits.contextWindow??Infinity)<=(body.modelLimits.maxOutputTokens??0))throw reject('Invalid Worker model limits');
+ }
 }
 export function safeTree(path){const stat=lstatSync(path);if(stat.isSymbolicLink())throw reject('Symbolic links forbidden in mount anchors/templates');return stat;}
 export function mountAnchor(root,id){if(!uuid.test(id))throw reject('Invalid Worker ID');safeTree(root);const resolved=realpathSync(root);if(resolved!==resolve(root))throw reject('Untrusted anchor root');return join(resolved,id);}
@@ -46,7 +51,8 @@ export function buildSpec(c,body,cfg){
   spec.HostConfig.Binds.push(posix.join(cfg.hostWorkersRoot,body.workerId,'workspace/input')+':/workspace/input:ro');
  }
  spec.HostConfig.NanoCpus=cfg.resources.nanoCpus;spec.HostConfig.PidsLimit=cfg.resources.pidsLimit;
- const normalized={workerId:body.workerId,resourceProfile:body.resourceProfile,apiToken:body.apiToken,brokerToken:body.brokerToken,editTool:body.editTool};
+ const normalized={workerId:body.workerId,resourceProfile:body.resourceProfile,apiToken:body.apiToken,brokerToken:body.brokerToken,editTool:body.editTool,
+  ...(body.modelLimits?{modelLimits:{contextWindow:body.modelLimits.contextWindow,maxOutputTokens:body.modelLimits.maxOutputTokens}}:{})};
  spec.Labels={...spec.Labels,'cline.executor':cfg.instanceId,'cline.owner':i.owner,'cline.contract':i.contractHash,'cline.ownership':ownership,'cline.request':createHash('sha256').update(JSON.stringify(normalized)).digest('hex')};
  return {spec,...i};
 }

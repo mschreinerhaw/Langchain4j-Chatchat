@@ -357,7 +357,7 @@ public final class NativeS3CodingAdapter implements CodingAgentSPI {
             +"Finish using the native completion action.";
         var frozen=inputs.requireAuthorized(r.c);var ws=workspace.get(r.c.scope(),r.c.taskId());
         return r.c.objective().instruction()+"\n\nRuntime delivery contract (not analysis instructions): Read the authorized original files at these real workspace paths: "+ws.inputs().stream().map(SiloCodingWorkspaceService.Input::path).toList()
-            +". Runtime Internet admission: "+r.c.runtimeContext().getOrDefault("internetAvailability",Map.of("status","NOT_ADMITTED"))+"; authorized optional Runtime MCP tools: "+r.c.authorization().allowedTools().stream().filter(t->t.equals("agent_skill_read")||com.chatchat.api.runtime.coding.knowledge.CodingInternetAccess.NATIVE_TOOLS.contains(t)||com.chatchat.api.runtime.coding.knowledge.CodingDocumentSearchAccess.NATIVE_TOOLS.contains(t)).map(t->"runtime__"+t).toList()+". An unavailable capability is an evidence gap, not an empty public dataset; direct worker networking is not granted. input/ is read-only. Choose meaningful source names and any project structure. Use native tools and local Python when computation is needed; no remote Sandbox. Inspect real execution errors and repair your own code. Do not invent data or evidence. "
+            +". Runtime Internet admission: "+r.c.runtimeContext().getOrDefault("internetAvailability",Map.of("status","NOT_ADMITTED"))+"; authorized optional Runtime MCP tools: "+r.c.authorization().allowedTools().stream().filter(t->t.equals("agent_skill_read")||com.chatchat.api.runtime.coding.knowledge.CodingInternetAccess.NATIVE_TOOLS.contains(t)||com.chatchat.api.runtime.coding.knowledge.CodingDocumentSearchAccess.NATIVE_TOOLS.contains(t)).map(t->"runtime__"+t).toList()+". An unavailable capability is an evidence gap, not an empty public dataset; direct worker networking is not granted. input/ is read-only. Choose meaningful source names and any project structure. Use native tools and local Python when computation is needed; no remote Sandbox. Process the full authorized files locally. Keep large input and intermediate tables on disk and use bounded excerpts and computed summaries when inspecting them. Inspect real execution errors and repair your own code. Do not invent data or evidence. "
             +NativeVisualReport.instruction(r.c.runtimeContext())
             +(!com.chatchat.common.runtime.coding.VisualReportMode.active(r.c.runtimeContext())
                 &&frozen.get("artifactTypes") instanceof List<?> requested&&requested.contains("REPORT")
@@ -389,7 +389,12 @@ public final class NativeS3CodingAdapter implements CodingAgentSPI {
         String operation=null,group=null,telemetryId=null;CodingJournal.OperationKind kind=null;Counters actual=null;boolean complete=false,metered=false;
         var projected=new LinkedHashMap<String,Object>();projected.put("nativeEventType",type);projected.put("sessionId",state(r,BINDING).path("sessionId").asText());projected.put("detailAssetId",rawAsset);var execution=state(r,BINDING);for(String field:List.of("nodeId","executionEpoch","workflowId","fencingToken"))if(execution.has(field))projected.put(field,json.convertValue(execution.get(field),Object.class));
         String normalized="OBSERVATION",summary=type;
-        if(channel.equals("provider")&&type.startsWith("model.request.")){
+        if(channel.equals("provider")&&type.equals("model.request.rejected")){
+            group="model-admission";telemetryId=event.path("eventId").asText();
+            normalized="ERROR_OCCURRED";summary=p.path("code").asText();
+            for(String field:List.of("code","model","receivedBytes","limitBytes","providerDispatched"))
+                if(p.hasNonNull(field))projected.put(field,json.convertValue(p.get(field),Object.class));
+        }else if(channel.equals("provider")&&type.startsWith("model.request.")){
             operation="model-"+p.path("requestId").asText();kind=CodingJournal.OperationKind.MODEL;complete=type.equals("model.request.completed");long tokens=p.path("usage").path("totalTokens").asLong();
             actual=new Counters(1,tokens,0,0,0,0,0,"0");metered=complete&&p.path("usage").path("totalTokens").isNumber();
             normalized=complete?"MODEL_REQUEST_COMPLETED":"MODEL_REQUEST_STARTED";summary=p.path("providerModel").asText(p.path("model").asText());group="model";telemetryId=p.path("requestId").asText();
@@ -411,7 +416,7 @@ public final class NativeS3CodingAdapter implements CodingAgentSPI {
             normalized=complete&&p.path("exitCode").asInt(-1)!=0?"ERROR_OCCURRED":complete?"COMMAND_COMPLETED":"COMMAND_STARTED";summary=command;projected.put("command",command);if(p.hasNonNull("exitCode"))projected.put("exitCode",p.path("exitCode").asInt());
             group="execution";telemetryId=p.path("recordId").asText();
         }
-        var proof=new LinkedHashMap<String,Object>();proof.put("taskId",r.c.taskId());proof.put("sessionId",state(r,BINDING).path("sessionId").asText());proof.put("operationId",operation==null?"observation":operation);proof.put("stopped",complete);proof.put("source",channel.equals("provider")?(type.startsWith("model.request.")?"PROVIDER_HTTP_OBSERVATION":"RUNTIME_CAPABILITY_OBSERVATION"):"NATIVE_ROOT_HOST_OBSERVATION");proof.put("nativeEventId",event.path("eventId").asText());proof.put("rawAssetId",rawAsset);proof.put("sha256",evidence.hash(event));
+        var proof=new LinkedHashMap<String,Object>();proof.put("taskId",r.c.taskId());proof.put("sessionId",state(r,BINDING).path("sessionId").asText());proof.put("operationId",operation==null?"observation":operation);proof.put("stopped",complete);proof.put("source",channel.equals("provider")?(type.startsWith("model.request.")&&operation!=null?"PROVIDER_HTTP_OBSERVATION":"RUNTIME_CAPABILITY_OBSERVATION"):"NATIVE_ROOT_HOST_OBSERVATION");proof.put("nativeEventId",event.path("eventId").asText());proof.put("rawAssetId",rawAsset);proof.put("sha256",evidence.hash(event));
         String ref=evidence.register(r.c,NativeS3ExecutionProofVerifier.TYPE,state(r,BINDING).path("sessionId").asText()+":"+channel+":"+event.path("eventId").asText(),proof,List.of(r.c.inputSnapshotRef()));
         if(operation!=null)projected.put("operationId",operation);
         if(p.hasNonNull("toolName"))projected.put("tool",p.path("toolName").asText());
@@ -724,6 +729,17 @@ public final class NativeS3CodingAdapter implements CodingAgentSPI {
                 .max(Comparator.comparing(receipt->receipt.path("finishedAt").asText()))
                 .filter(receipt->"FAILED".equals(receipt.path("status").asText()))
                 .map(NativeS3CodingAdapter::modelFailureSummary).orElse(reason);
+            var rejection=tasks.nativeTelemetry(r.c.scope(),r.c.taskId(),"model-admission").stream()
+                .filter(receipt->"BROKER_MODEL_PAYLOAD_TOO_LARGE".equals(receipt.path("code").asText()))
+                .max(Comparator.comparing(receipt->receipt.path("timestamp").asText()));
+            if(rejection.isPresent()){
+                var latestModel=tasks.nativeTelemetry(r.c.scope(),r.c.taskId(),"model").stream()
+                    .map(receipt->receipt.path("finishedAt").asText()).max(String::compareTo).orElse("");
+                var rejected=rejection.get();
+                if(rejected.path("timestamp").asText().compareTo(latestModel)>=0)
+                    failureSummary="模型请求超过网关大小限制（已接收 "+rejected.path("receivedBytes").asLong()
+                        +" 字节，上限 "+rejected.path("limitBytes").asLong()+" 字节），请求未发送给模型";
+            }
         }
         var at=Instant.now().truncatedTo(java.time.temporal.ChronoUnit.MILLIS);var proposal=new CodingTaskOutcome(prior.schemaVersion(),prior.taskId(),prior.scope(),prior.contractSha256(),Status.FAILED,prior.revision()+1,prior.lastEventSequence()+1,prior.createdAt(),at,prior.startedAt(),at,false,
             reason.startsWith("OUTPUT_CONTRACT_VIOLATION")?CodingErrorCode.OUTPUT_CONTRACT_VIOLATION:CodingErrorCode.EXECUTION_FAILED,

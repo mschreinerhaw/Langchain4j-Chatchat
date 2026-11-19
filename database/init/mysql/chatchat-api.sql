@@ -2060,7 +2060,7 @@ CREATE TABLE IF NOT EXISTS workspace_registry (
 );
 CREATE TABLE IF NOT EXISTS workspace_user_preference (
  id VARCHAR(64) PRIMARY KEY, tenant_id VARCHAR(64) NOT NULL, user_id VARCHAR(64) NOT NULL,
- default_workspace_id VARCHAR(64), last_workspace_id VARCHAR(64), version BIGINT DEFAULT 0,
+ default_workspace_id VARCHAR(64), default_workspace_explicit BOOLEAN, last_workspace_id VARCHAR(64), version BIGINT DEFAULT 0,
  created_at DATETIME(6) NOT NULL, updated_at DATETIME(6) NOT NULL,
  CONSTRAINT uk_workspace_preference_user UNIQUE (tenant_id, user_id)
 );

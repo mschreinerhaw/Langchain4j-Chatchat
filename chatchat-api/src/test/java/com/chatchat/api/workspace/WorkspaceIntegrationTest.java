@@ -209,7 +209,7 @@ class WorkspaceIntegrationTest {
         mvc.perform(put("/api/v1/workspaces/preferences").header("Authorization", "Bearer "+token).contentType("application/json")
             .content("{\"lastWorkspaceId\":\"data-science\"}")).andExpect(status().isOk());
         var stored = preferences.findByTenantIdAndUserId(tenant, owner).orElseThrow();
-        assertThat(stored.getDefaultWorkspaceId()).isEqualTo("zhice");
+        assertThat(stored.getDefaultWorkspaceId()).isNull();
         assertThat(stored.getLastWorkspaceId()).isEqualTo("data-science");
         mvc.perform(put("/api/v1/workspaces/preferences").header("Authorization", "Bearer "+token).contentType("application/json")
             .content("{\"defaultWorkspaceId\":\"data-science\"}")).andExpect(status().isOk());
@@ -221,6 +221,38 @@ class WorkspaceIntegrationTest {
         mvc.perform(get("/api/v1/workspaces/preferences").header("Authorization", "Bearer "+userToken(true)))
             .andExpect(status().isOk()).andExpect(jsonPath("$.data.defaultWorkspaceId").value("zhice"));
     }
+    @Test void platformDefaultChangesForInheritedAndLegacyPreferencesOnly() throws Exception {
+        String inherited = userToken(true);
+        String personal = userToken(true);
+        String inheritedOwner = data(mvc.perform(get("/api/v1/enterprise/auth/me").header("Authorization", "Bearer "+inherited))
+            .andExpect(status().isOk()).andReturn()).path("id").asText();
+        var legacy = new com.chatchat.enterprise.entity.workspace.WorkspacePreference();
+        legacy.setId(UUID.randomUUID().toString());
+        legacy.setTenantId(tenant);
+        legacy.setUserId(inheritedOwner);
+        legacy.setDefaultWorkspaceId("zhice");
+        legacy.setLastWorkspaceId("zhice");
+        preferences.saveAndFlush(legacy);
+        mvc.perform(put("/api/v1/workspaces/preferences").header("Authorization", "Bearer "+personal)
+            .contentType("application/json").content("{\"defaultWorkspaceId\":\"zhice\"}"))
+            .andExpect(status().isOk());
+        String defaultEndpoint = "/api/v1/enterprise/workspaces/default";
+        try {
+            mvc.perform(put(defaultEndpoint).header("Authorization", "Bearer "+adminToken)
+                .contentType("application/json").content("{\"workspaceId\":\"data-science\"}"))
+                .andExpect(status().isOk());
+            mvc.perform(get("/api/v1/workspaces/preferences").header("Authorization", "Bearer "+inherited))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.data.defaultWorkspaceId").value("data-science"))
+                .andExpect(jsonPath("$.data.lastWorkspaceId").value("zhice"));
+            mvc.perform(get("/api/v1/workspaces/preferences").header("Authorization", "Bearer "+personal))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.data.defaultWorkspaceId").value("zhice"));
+        } finally {
+            mvc.perform(put(defaultEndpoint).header("Authorization", "Bearer "+adminToken)
+                .contentType("application/json").content("{\"workspaceId\":\"zhice\"}"))
+                .andExpect(status().isOk());
+        }
+    }
+
     @Test void registryUpdatesAreVersionedAndDisablingNeverDeletesHistory() throws Exception {
         var manifest = mapper.readValue(getClass().getResourceAsStream("/workspace/zhice.json"), WorkspaceManifest.class);
         var custom = new WorkspaceManifest(manifest.schemaVersion(), 1, "review-space", manifest.appVersion(), "Review",

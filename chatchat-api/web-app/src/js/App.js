@@ -660,7 +660,7 @@ export default {
       this.tenantId = resolveSessionTenantId(session, this.userId);
       this.tenantName = sessionUser.tenantName || sessionUser.tenant_name || "";
       this.loadTrendSemanticConfig();
-      const requestedView = this.consumeRedirectView() || viewFromHash() || DEFAULT_VIEW;
+      const requestedView = this.consumeRedirectView() || viewFromHash();
       await this.loadWorkspaces(
         selectedWorkspaceId ? { selectedWorkspaceId, requestedView } : { requestedView }
       );
@@ -675,12 +675,12 @@ export default {
       this.startTodoRefresh();
     },
     handleLogout() {
-      this.handleUnauthenticated();
+      this.handleUnauthenticated({ rememberView: false });
     },
     handleAuthRequired() {
       this.handleUnauthenticated();
     },
-    handleUnauthenticated() {
+    handleUnauthenticated({ rememberView = true } = {}) {
       ++this.workspaceNavigationSerial;
       this.workspaceBootstrapSerial = (this.workspaceBootstrapSerial || 0) + 1;
       setWorkspaceContext(null);
@@ -710,7 +710,7 @@ export default {
       this.todoActionLoadingIds = {};
       this.selectedConversation = null;
       this.activeHistoryId = "";
-      this.redirectToLogin();
+      this.redirectToLogin(rememberView);
     },
     handleHashChange() {
       if (!isAuthenticatedSession(this.authSession)) {
@@ -796,8 +796,9 @@ export default {
         this.navigateToView(this.consumeRedirectView() || this.activeView || DEFAULT_VIEW);
       }
     },
-    redirectToLogin() {
-      const targetView = viewFromHash();
+    redirectToLogin(rememberView = true) {
+      const targetView = rememberView ? viewFromHash() : "";
+      if (!rememberView) sessionStorage.removeItem(REDIRECT_VIEW_KEY);
       if (targetView) {
         sessionStorage.setItem(REDIRECT_VIEW_KEY, targetView);
       }

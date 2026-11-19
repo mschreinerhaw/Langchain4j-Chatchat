@@ -11,6 +11,7 @@ public class WorkspacePreference extends EnterpriseAuditable {
     @Column(name = "tenant_id", nullable = false, length = 64) private String tenantId;
     @Column(name = "user_id", nullable = false, length = 64) private String userId;
     @Column(length = 64) private String defaultWorkspaceId;
+    private Boolean defaultWorkspaceExplicit;
     @Column(length = 64) private String lastWorkspaceId;
     @Version private Long version;
 }

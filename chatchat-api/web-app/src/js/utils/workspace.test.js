@@ -83,6 +83,30 @@ describe("Workspace Shell", () => {
     expect(state.openWorkspaceSelection).not.toHaveBeenCalled();
     expect(state.showWorkspaceSelection).toBe(false);
   });
+  it.each([
+    ["data-exploration", "dataExploration", false],
+    ["research", "search", true]
+  ])("opens the configured entry of platform default %s after logout", async (id, page, hasChat) => {
+    const state = { ...shell(), workspaceBootstrapSerial: 0,
+      switchWorkspace: App.methods.switchWorkspace,
+      loadWorkspaces: App.methods.loadWorkspaces, consumeRedirectView: App.methods.consumeRedirectView,
+      loadTrendSemanticConfig: vi.fn(), startIdleLogoutWatcher: vi.fn(), loadConversationHistory: vi.fn(),
+      loadFavoriteConversationIds: vi.fn(), loadRuntimeTodos: vi.fn(), startTodoRefresh: vi.fn() };
+    window.location.hash = "#/w/zhice/chat";
+    App.methods.redirectToLogin.call({ setHashRoute: vi.fn() });
+    App.methods.redirectToLogin.call({ setHashRoute: App.methods.setHashRoute }, false);
+    vi.spyOn(api, "fetchWorkspaces").mockResolvedValue([
+      { workspaceId: "zhice" }, { workspaceId: id, defaultWorkspace: true }
+    ]);
+    vi.spyOn(api, "fetchWorkspacePreferences").mockResolvedValue({ lastWorkspaceId: "zhice" });
+    const workspace = loaded(id, page);
+    if (hasChat) workspace.manifest.pages.unshift(...loaded(id).manifest.pages);
+    vi.spyOn(api, "fetchWorkspaceManifest").mockResolvedValue(workspace);
+    vi.spyOn(api, "saveWorkspacePreferences").mockResolvedValue({});
+    await App.methods.handleLoginSuccess.call(state, state.authSession);
+    expect(state.workspaceReady).toBe(true);
+    expect(state.setHashRoute).toHaveBeenCalledWith(`w/${id}/${page}`);
+  });
   it("saves the personal default without leaving the management page and reports failures", async () => {
     const state = { authSession: { user: { id: "u1" } }, workspacePreference: { defaultWorkspaceId: "zhice" },
       switchWorkspace: vi.fn() };

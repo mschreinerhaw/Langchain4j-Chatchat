@@ -62,11 +62,21 @@ public class SqlStudioService {
                        boolean editable, String sourceTaskId) { }
     public record FileWrite(String path, String kind, String content, Integer expectedVersion) { }
     public record Version(int version, String content, String sourceTaskId) { }
+    @org.springframework.beans.factory.annotation.Autowired
+    private com.chatchat.api.runtime.coding.analysis.CodingReasoningPolicy reasoningPolicy;
+
     public record Generate(String prompt, String dialect, List<String> mappingIds, List<String> referenceIds,
                            String agentId, String modelName, List<String> mappingDocumentIds, String action, Boolean planRequested,
                            SqlStudioMetadataService.CodingSelection codingMetadataSelection,
                            List<SqlStudioUserDocuments.Selection> userDocuments,
-                           String metadataDiscoveryId,String metadataBindingContextId) {
+                           String metadataDiscoveryId,String metadataBindingContextId,String codingReasoningEffort) {
+        public Generate(String prompt,String dialect,List<String> mappingIds,List<String> referenceIds,String agentId,
+                        String modelName,List<String> mappingDocumentIds,String action,Boolean planRequested,
+                        SqlStudioMetadataService.CodingSelection codingMetadataSelection,List<SqlStudioUserDocuments.Selection> userDocuments,
+                        String metadataDiscoveryId,String metadataBindingContextId){
+            this(prompt,dialect,mappingIds,referenceIds,agentId,modelName,mappingDocumentIds,action,planRequested,
+                codingMetadataSelection,userDocuments,metadataDiscoveryId,metadataBindingContextId,null);
+        }
         public Generate(String prompt,String dialect,List<String> mappingIds,List<String> referenceIds,String agentId,
                         String modelName,List<String> mappingDocumentIds,String action,Boolean planRequested,
                         SqlStudioMetadataService.CodingSelection codingMetadataSelection,List<SqlStudioUserDocuments.Selection> userDocuments){
@@ -83,14 +93,14 @@ public class SqlStudioService {
         }
     }
     public record Prepared(String generationId, AgentTaskSubmitRequest taskRequest) { }
-    public record AgentOption(String id,String name,String marketStatus) { }
+    public record AgentOption(String id,String name,String marketStatus,List<String> reasoningEfforts) { }
     public List<AgentOption> agentOptions(HttpServletRequest request){
         String user=access.user(request);
         var catalog=agentCatalog==null?null:agentCatalog.getIfAvailable();
         if(catalog==null)return List.of();
         return catalog.list().stream().filter(agent->"published".equalsIgnoreCase(agent.marketStatus()))
             .filter(agent->identities.canAccessAgent(user,agent.id()))
-            .map(agent->new AgentOption(agent.id(),agent.label(),agent.marketStatus())).toList();
+            .map(agent->new AgentOption(agent.id(),agent.label(),agent.marketStatus(),reasoningPolicy==null?List.of():reasoningPolicy.options(agent.modelName()))).toList();
     }
     private com.chatchat.chat.skills.model.SkillDefinition requireUsableAgent(String user,String id){
         var catalog=agentCatalog==null?null:agentCatalog.getIfAvailable();
@@ -497,6 +507,11 @@ public class SqlStudioService {
         // Every request at this endpoint invokes a model. Local deterministic editor actions never enter it.
         // Keep planRequested as an input compatibility field; false cannot bypass the existing plan contract.
         // This initial analysis plan is not tool authority or a replacement for Runtime executable-plan governance.
+        if(body.codingReasoningEffort()!=null){
+            String reasoning=com.chatchat.common.runtime.coding.CodingReasoning.requested(Map.of(com.chatchat.common.runtime.coding.CodingReasoning.REQUEST_KEY,body.codingReasoningEffort()));
+            reasoningPolicy.validate(reasoning,invokingModel);
+            applicationContext.put(com.chatchat.common.runtime.coding.CodingReasoning.REQUEST_KEY,reasoning);
+        }
         var codePlan = codePlans.create(project.tenantId(), project.ownerId(), "sql", operation, query, invokingModel);
         query += codePlans.context(codePlan);
         require(query.length()<=250000,"Project, documents and plan exceed the Coding context limit; select smaller inputs");
@@ -524,6 +539,7 @@ public class SqlStudioService {
         return new Prepared(id, taskRequest);
     }
     private Prepared prepareExploration(HttpServletRequest request,Project project,Generate body,String id){
+        require(body.codingReasoningEffort()==null,"Database discovery does not use the Cline reasoning setting");
         require(body.agentId()==null||body.agentId().isBlank()||body.modelName()==null||body.modelName().isBlank(),"Choose either Agent or model");
         String selected=body.agentId()==null||body.agentId().isBlank()?body.modelName():requireUsableAgent(project.ownerId(),body.agentId()).modelName();
         var context=metadataAssistant.getObject().prepare(request,project.id(),body.metadataDiscoveryId(),body.metadataBindingContextId(),dialect(body.dialect()));
@@ -688,9 +704,13 @@ public class SqlStudioService {
             generation.prepared().taskRequest().getSessionId(),"sql",
             Objects.toString(generation.prepared().taskRequest().getToolInput().get("studioUserRequest"),"SQL Studio"),
             generation.prepared().taskRequest().getModelName(),Map.of()));
-        var outcome=coding.submit(codingScope(project,id),task,generation.prepared().taskRequest().getQuery(),
-            Objects.toString(generation.prepared().taskRequest().getToolInput().get("sqlStudioDialect"),project.dialect()),
-            generation.prepared().taskRequest().getModelName(),codingSchema(generation));
+        var saved=generation.prepared().taskRequest();
+        String dialect=Objects.toString(saved.getToolInput().get("sqlStudioDialect"),project.dialect());
+        String reasoning=com.chatchat.common.runtime.coding.CodingReasoning.requested(saved.getToolInput());
+        var schema=codingSchema(generation);
+        var outcome=reasoning==null
+            ? coding.submit(codingScope(project,id),task,saved.getQuery(),dialect,saved.getModelName(),schema)
+            : coding.submit(codingScope(project,id),task,saved.getQuery(),dialect,saved.getModelName(),schema,reasoning);
         if(jdbc.update("update ds_sql_generation set task_id=? where id=? and project_id=? and (task_id is null or task_id=?)",
                 task,id,projectId,task)!=1)conflict();
         return codingTask(project,generation,outcome,"");
@@ -774,7 +794,7 @@ public class SqlStudioService {
             case CREATED->"PENDING";case RUNNING->"RUNNING";case COMPLETED->"SUCCESS";case PARTIAL->"PARTIAL";
             case FAILED->"FAILED";case CANCELLED->"CANCELLED";case BUDGET_EXCEEDED->"MODEL_BUDGET_EXHAUSTED";
         };
-        return new AgentTaskResponse(outcome.taskId(),null,null,null,null,1,outcome.status().name(),project.tenantId(),project.ownerId(),
+        return new AgentTaskResponse("sql-coding-"+generation.id(),null,null,null,null,1,outcome.status().name(),project.tenantId(),project.ownerId(),
             null,generation.prepared().taskRequest().getSessionId(),status,generation.prepared().taskRequest().getQuery(),answer,
             outcome.reasonCode()==null?null:outcome.summary(),null,null,null,null,null,null,outcome.createdAt(),outcome.updatedAt(),
             outcome.endedAt(),outcome.lastEventSequence(),List.of());

@@ -128,9 +128,10 @@ describe('user-space chat attachments',()=>{
     context.refreshSelectedAgentForSend=async()=>true;
     context.prepareComposerSubmission=async()=>({query:'analyze',files:[file],documentIds:['file-id'],imageAnalyses:[]});
     context.createAnalysisNode=()=>({id:'node'});context.scrollMessages=vi.fn();context.emitActiveConversationSnapshot=vi.fn();
-    context.requestAssistantAnswer=async()=>({});
+    context.requestAssistantAnswer=vi.fn(async()=>({}));
     context.saveHistory=async(_query,status)=>{if(status==='completed')context.conversationStatus='running';};
-    await context.handleSend({query:'analyze'});
+    await context.handleSend({query:'analyze',codingReasoningEffort:'high'});
+    expect(context.requestAssistantAnswer.mock.calls[0][1].toolInput.codingReasoningEffort).toBe('high');
     expect(context.conversationStatus).toBe('completed');expect(context.loading).toBe(false);expect(context.composerAttachments).toEqual([]);
   });
   it('keeps image interpretations scoped to the owned original and passes the derived file to analysis',async()=>{

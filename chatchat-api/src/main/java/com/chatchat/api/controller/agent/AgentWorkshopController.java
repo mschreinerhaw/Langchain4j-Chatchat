@@ -88,6 +88,8 @@ public class AgentWorkshopController {
     private final ToolRegistry toolRegistry;
     private final McpToolCatalogQueryPort mcpCatalog;
     private final ModelResourceRegistry modelResources;
+    @org.springframework.beans.factory.annotation.Autowired
+    private com.chatchat.api.runtime.coding.analysis.CodingReasoningPolicy codingReasoning;
     private final DocumentLibraryReadPort documentLibrary;
     private final EnterpriseAdminService enterpriseAdminService;
     private final AgentPublicationLicenseService agentPublicationLicenseService;
@@ -906,7 +908,7 @@ public class AgentWorkshopController {
         return candidates.stream()
             .filter(name -> name != null && !name.isBlank())
             .distinct()
-            .map(name -> new ModelOption(name, name))
+            .map(name -> new ModelOption(name, name, codingReasoning == null ? List.of() : codingReasoning.options(name)))
             .toList();
     }
 
@@ -993,7 +995,7 @@ public class AgentWorkshopController {
     ) {
     }
 
-    public record ModelOption(String value, String label) {
+    public record ModelOption(String value, String label, List<String> reasoningEfforts) {
     }
 
     public record DomainSkillOption(String id, String name, String category, String description) {

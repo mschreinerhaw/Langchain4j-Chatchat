@@ -1,3 +1,4 @@
+import CodingReasoningSelect from '../../../components/CodingReasoningSelect.vue';
 import AppNotice from '../../../components/AppNotice.vue';
 import SqlSearchSelect from '../../../components/sql-studio/SqlSearchSelect.vue';
 import SqlMetadataEvidence from '../../../components/sql-studio/SqlMetadataEvidence.vue';
@@ -17,14 +18,15 @@ import { Sparkles, FileCode2, CircleHelp, LoaderCircle, CircleCheck, Clock3, Plu
   Database, ArrowUp, Settings2, RefreshCw, Search, Wrench, ChevronRight, Square } from '@lucide/vue';
 
 export default {
-  components: { StudioConversationHistory, SqlSearchSelect, SqlAssistantMessage, SqlMetadataEvidence, StudioCodePlan, AppNotice, Sparkles, FileCode2, CircleHelp, LoaderCircle, CircleCheck, Clock3, Plus,
+  components: { CodingReasoningSelect, StudioConversationHistory, SqlSearchSelect, SqlAssistantMessage, SqlMetadataEvidence, StudioCodePlan, AppNotice, Sparkles, FileCode2, CircleHelp, LoaderCircle, CircleCheck, Clock3, Plus,
     History, X, Database, ArrowUp, Settings2, RefreshCw, Search, Wrench, ChevronRight, Square },
   props: { userDocuments: { type:Array, default:()=>[] }, mappingDocuments: { type:Array, default:() => [] }, mappingCount: Number, projectFiles: Array, references: Array, referenceIds: Array, models: Array, agents: Array,
+    reasoningEfforts: Array, reasoning: String, metadataAssistant: Boolean,
     agentId: String, modelName: String, executionMode: String, prompt: String, messages: Array, busy: Boolean, generations: Array,
     removeHistory: Function, generationId: String, result: Object, selectedCode: Object, currentFile: Object, dialectLabel: String, taskRunning: Boolean,
     pendingPhase: String, pendingStartedAt: Number, pollError: String, aiAction: String, projectId: String,
     includeCurrentFile: Boolean, editorEditable: Boolean, editorSelectionAvailable: Boolean, contextReady: {type:Boolean,default:true} },
-  emits: ['reference-metadata','diagnostics','view-file','insert-sql','replace-sql','include-file','retry','action', 'new-conversation', 'reference-file', 'open-resource', 'remove-mapping-document', 'choose-library', 'agent', 'model', 'execution-mode', 'prompt', 'send', 'generation', 'resume', 'cancel', 'preview', 'apply', 'clear-selection'],
+  emits: ['reasoning','reference-metadata','diagnostics','view-file','insert-sql','replace-sql','include-file','retry','action', 'new-conversation', 'reference-file', 'open-resource', 'remove-mapping-document', 'choose-library', 'agent', 'model', 'execution-mode', 'prompt', 'send', 'generation', 'resume', 'cancel', 'preview', 'apply', 'clear-selection'],
   setup(props, { emit }) {
     const availableAgents=computed(()=>(props.agents||[]).filter(agent=>agent.marketStatus?.toLowerCase()==='published'));
     const terminal = computed(() => terminalSqlTask(sqlTaskStatus(props.result?.task)));

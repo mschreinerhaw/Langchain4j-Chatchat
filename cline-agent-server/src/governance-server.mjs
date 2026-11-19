@@ -1,17 +1,18 @@
-import {resolveRuntimeModel,applyPublishedModelLimit} from './runtime-model.mjs';
+import {resolveRuntimeModel,applyPublishedModelLimit,applyPublishedReasoning} from './runtime-model.mjs';
 import {proxyFrontend,stageFrontendTransport} from './frontend-proxy.mjs';
 import {stageNativeSkills,stageNativeDownload,runtimeMcpReply,nativeSkillDiscoveryContext} from './native-capability-files.mjs';
 import http from 'node:http';
 import {readFileSync,writeFileSync,mkdirSync,readdirSync,existsSync,renameSync,chownSync,chmodSync,cpSync,unlinkSync,lstatSync} from 'node:fs';
 import {join} from 'node:path';
 import {randomUUID,randomBytes,timingSafeEqual} from 'node:crypto';
-import {verifyContract,authorizeSession,contractHash,holdsCapacity,signContract} from './task-contract.mjs';
+import {verifyContract,authorizeSession,contractHash,holdsCapacity,signContract,studioMcpPermission} from './task-contract.mjs';
 import {DockerEngine,workerContainerSpec} from './docker-engine.mjs';
 import {WorkerExecutorClient} from './worker-executor-client.mjs';
 import {Journal} from './journal.mjs';
 import {workerRuntime} from './worker-executor-policy.mjs';
 import {validateS3Inputs,prepareS3Inputs,verifyStoppedDelivery,uploadS3Delivery,jsonHash} from './s3-task-transport.mjs';
 import {modelReceipt} from './model-receipt.mjs';
+import {admitStudioModel,settleStudioModel} from './studio-budget.mjs';
 import {verifyIssuedContract,issuerKey} from './task-issuer.mjs';
 import {executionRecords,executionContent} from './command-evidence.mjs';
 
@@ -102,9 +103,11 @@ async function broker(r,path){
     if(req.method!=='POST')return send(res,405,{code:'STATELESS_MCP_POST_ONLY'});
     requestBody=await body(req);
     if(requestBody.method==='tools/call'){
-     if(!tenant.mcp.tools.includes(requestBody.params?.name)||(tenant.mcp.authMode==='native-runtime'?!r.contract.runtimeTools?.includes(requestBody.params?.name):!r.contract.dataPermissions.includes(requestBody.params?.arguments?.datasetId)))throw error('Dataset or tool not granted',403);
-     event(r,'mcp.authorized',{tool:requestBody.params.name,datasetId:requestBody.params.arguments.datasetId});
-     if(cfg.operations){
+     const name=requestBody.params?.name;
+     const studioTool=r.contract.studioBudget&&tenant.mcp.authMode==='native-runtime'&&['workspace_metadata','workspace_validate'].includes(name);
+    if((!studioTool&&!tenant.mcp.tools.includes(name))||(tenant.mcp.authMode==='native-runtime'?!r.contract.runtimeTools?.includes(name):!r.contract.dataPermissions.includes(requestBody.params?.arguments?.datasetId)))throw error('Dataset or tool not granted',403);
+     event(r,'mcp.authorized',{tool:name,datasetId:requestBody.params?.arguments?.datasetId});
+     if(cfg.operations&&!studioTool){
       const context=requestBody.params?._meta?.runtimeNative;
       if(!context||context.epoch!==r.nativeEpoch)throw error('Native operation context required',409);
       const binding=await operation(r,'/resolve',{...context,toolName:requestBody.params.name,arguments:requestBody.params.arguments});
@@ -119,13 +122,20 @@ async function broker(r,path){
     if(requestBody.model!==profile.model)throw error('Model outside task profile',403);
     url=profile.baseUrl.replace('{sessionId}',r.contract.sessionId).replace(/\/$/,'')+req.url.slice('/model/v1'.length);headers={'Authorization':'Bearer '+profile.apiKey,'content-type':'application/json'};
     applyPublishedModelLimit(requestBody,profile,req.url.endsWith('/responses'));
+    applyPublishedReasoning(requestBody,profile,req.url.endsWith('/responses'));
+    admitStudioModel(r,requestBody,req.url.endsWith('/responses'));
     event(r,'model.forwarded',{model:profile.model,maxTokens:profile.maxTokens??null});
    }else throw error('Broker route not found',404);
    if(!live(r))throw error('Task lease inactive',403);
    const controller=new AbortController();if(!calls.has(r.workerId))calls.set(r.workerId,new Set());calls.get(r.workerId).add(controller);
    try{
     const request=JSON.stringify(requestBody);
-    if(modelProfile)observation=modelReceipt({model:modelProfile.model,request,body:requestBody,emit:(type,payload)=>event(r,type,payload)});
+    if(modelProfile)observation=modelReceipt({model:modelProfile.model,request,body:requestBody,
+      reasoning:{requestedReasoningEffort:modelProfile.requestedReasoningEffort,reasoningEffort:modelProfile.reasoningEffort},
+      emit:(type,payload)=>{
+       if(type==='model.request.completed')settleStudioModel(r,payload);
+       event(r,type,payload);
+      }});
     const upstream=await fetch(url,{method:'POST',headers,body:request,signal:controller.signal,redirect:'error'});
     if(req.url==='/mcp'&&tenant.mcp.authMode==='native-runtime'){
      const chunks=[];let size=0;for await(const chunk of upstream.body??[]){size+=chunk.length;if(size>2*1024*1024){controller.abort();throw Error('Runtime MCP response byte budget exceeded');}chunks.push(chunk);}const bytes=Buffer.concat(chunks);if(!bytes.length){res.writeHead(upstream.status);return res.end();}if(!live(r))throw error('Task lease inactive',403);
@@ -210,7 +220,7 @@ const server=http.createServer(async(req,res)=>{
    if(executor)for(const r of active)try{const m=await executor.metrics(grant(r),r.workerId);if(!Number.isSafeInteger(m.memoryBytes)||!Number.isSafeInteger(m.cpuTimeNanos)){available=false;continue;}memoryBytes+=m.memoryBytes;cpuTimeNanos+=m.cpuTimeNanos;}catch{available=false;}
    return send(res,200,{live:true,engine:'cline-standalone',version:'4.1.26',legacySdkWorker:false,protocolVersion:1,capabilities:['native-s3-v2','message-receipts-v1'],releaseVersion:'1.0.0',enterpriseAcceptance:false,capacity:{maxWorkers:cfg.maxWorkers,activeWorkers:active.length},gatewayMemoryBytes:process.memoryUsage().rss,workerMemoryBytes:available?memoryBytes:null,workerCpuTimeNanos:available?cpuTimeNanos:null});
   }
-  const c=granted(req),tenant=Object.hasOwn(cfg.tenants,c.tenantId)?cfg.tenants[c.tenantId]:undefined;if(!tenant||!(tenant.users.includes(c.userId)||c.version===2&&tenant.dynamicUsers===true)||!Object.hasOwn(tenant.workspaces,c.workspaceRef)||!(c.runtimeModel?typeof tenant.runtimeModelAuthority==='string':tenant.models.includes(c.modelProfile))||!c.dataPermissions.every(x=>tenant.datasets.includes(x))||!c.toolPermissions.every(x=>tenant.tools.includes(x)))throw error('Task policy not granted',403);
+  const c=granted(req),tenant=Object.hasOwn(cfg.tenants,c.tenantId)?cfg.tenants[c.tenantId]:undefined;if(!tenant||!(tenant.users.includes(c.userId)||c.version===2&&tenant.dynamicUsers===true)||!Object.hasOwn(tenant.workspaces,c.workspaceRef)||!(c.runtimeModel?typeof tenant.runtimeModelAuthority==='string':tenant.models.includes(c.modelProfile))||!c.dataPermissions.every(x=>tenant.datasets.includes(x))||!c.toolPermissions.every(x=>tenant.tools.includes(x)||studioMcpPermission(c,tenant,x)))throw error('Task policy not granted',403);
   if(path==='/v1/sessions'&&req.method==='POST'){
    const b=await body(req),key=req.headers['idempotency-key'];if(!key||Object.keys(b).some(k=>!['editTool',...(c.s3?['inputs']:[])].includes(k))||b.editTool&&!['editor','apply_patch'].includes(b.editTool))throw error('Invalid create request');
    if(c.s3)validateS3Inputs(c,b.inputs,cfg.s3);
@@ -305,7 +315,7 @@ const server=http.createServer(async(req,res)=>{
   if(cfg.operations&&parts[1]==='permissions'&&req.method==='POST'&&value.decision==='approve'){
    const native=(await workerJSON(r,'/v1/sessions/'+r.nativeSessionId+'/status')).data;
    const pending=native.pendingPermissions.find(p=>p.id===parts[2]);
-   if(pending&&pending.toolName.startsWith('tenant_data__'))await operation(r,'/bind',{epoch:pending.epoch,nativeSessionId:native.nativeSessionId,nativeToolCallId:pending.toolCallId,toolName:pending.toolName.slice('tenant_data__'.length),arguments:pending.input});
+   if(pending&&pending.toolName.startsWith('tenant_data__')&&!studioMcpPermission(r.contract,cfg.tenants[r.contract.tenantId],pending.toolName))await operation(r,'/bind',{epoch:pending.epoch,nativeSessionId:native.nativeSessionId,nativeToolCallId:pending.toolCallId,toolName:pending.toolName.slice('tenant_data__'.length),arguments:pending.input});
   }
   if(!live(r))throw error('Task lease inactive',403);
   if(parts[3]==='messages'&&req.method==='POST'){

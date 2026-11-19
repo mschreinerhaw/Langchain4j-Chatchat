@@ -118,6 +118,38 @@ class ClineRuntimeModelBridgeTest {
             verifyNoMoreInteractions(parent);
         }
     }
+    @Test void providerReceivesTheFrozenWireFormatFromTheJavaBridge() throws Exception {
+        var server=com.sun.net.httpserver.HttpServer.create(new java.net.InetSocketAddress("127.0.0.1",0),0);
+        var bodies=new java.util.concurrent.CopyOnWriteArrayList<com.fasterxml.jackson.databind.JsonNode>();
+        server.createContext("/v1/chat/completions",exchange->{
+            bodies.add(json.readTree(exchange.getRequestBody()));
+            byte[] response=("""
+                {"id":"test","model":"p","choices":[{"index":0,"message":{"role":"assistant","content":"done"},"finish_reason":"stop"}]}
+                """).getBytes(java.nio.charset.StandardCharsets.UTF_8);
+            exchange.getResponseHeaders().set("Content-Type","application/json");
+            exchange.sendResponseHeaders(200,response.length);
+            exchange.getResponseBody().write(response);
+            exchange.close();
+        });
+        server.start();
+        try {
+            var model=dev.langchain4j.model.openai.OpenAiChatModel.builder().apiKey("test").modelName("p")
+                .baseUrl("http://127.0.0.1:"+server.getAddress().getPort()+"/v1").maxRetries(0).build();
+            for(var format:java.util.List.of("hunyuan-template","deepseek-thinking","qwen-thinking","standard")){
+                String effort="deepseek-thinking".equals(format)?"max":"high";
+                model.chat(dev.langchain4j.model.chat.request.ChatRequest.builder()
+                    .messages(dev.langchain4j.data.message.UserMessage.from("test"))
+                    .parameters(ClineRuntimeModelBridge.modelParameters(32,effort,format)).build());
+            }
+            assertThat(bodies.get(0).path("chat_template_kwargs").path("reasoning_effort").asText()).isEqualTo("high");
+            assertThat(bodies.get(0).has("reasoning_effort")).isFalse();
+            assertThat(bodies.get(1).path("thinking").path("type").asText()).isEqualTo("enabled");
+            assertThat(bodies.get(1).path("reasoning_effort").asText()).isEqualTo("max");
+            assertThat(bodies.get(2).path("enable_thinking").asBoolean()).isTrue();
+            assertThat(bodies.get(3).path("reasoning_effort").asText()).isEqualTo("high");
+        } finally { server.stop(0); }
+    }
+
     @Test void actualClineProviderClientReceivesSelectedModelTimeoutOnEveryRound() throws Exception {
         var server=com.sun.net.httpserver.HttpServer.create(new java.net.InetSocketAddress("127.0.0.1",0),0);
         var calls=new java.util.concurrent.atomic.AtomicInteger();
@@ -409,6 +441,53 @@ class ClineRuntimeModelBridgeTest {
         verify(model).chat(captured.capture());
         assertThat(captured.getValue().parameters().maxOutputTokens()).isEqualTo(2048);
         assertThat(captured.getValue().toolSpecifications()).hasSize(1);
+    }
+
+    @Test void frozenLowAndHighReachActualProviderWireAndAreMetered() throws Exception {
+        var bodies = new java.util.concurrent.CopyOnWriteArrayList<com.fasterxml.jackson.databind.JsonNode>();
+        var server = com.sun.net.httpserver.HttpServer.create(new java.net.InetSocketAddress("127.0.0.1",0),0);
+        server.createContext("/v1/chat/completions",exchange -> {
+            bodies.add(json.readTree(exchange.getRequestBody()));
+            byte[] response = """
+                {"id":"receipt","object":"chat.completion","model":"wire-model",
+                 "choices":[{"index":0,"message":{"role":"assistant","content":"done"},"finish_reason":"stop"}],
+                 "usage":{"prompt_tokens":9,"completion_tokens":4,"total_tokens":13}}
+                """.getBytes(java.nio.charset.StandardCharsets.UTF_8);
+            exchange.getResponseHeaders().set("Content-Type","application/json");
+            exchange.sendResponseHeaders(200,response.length);
+            try (var out=exchange.getResponseBody()) {out.write(response);}
+        });
+        server.start();
+        try {
+            var resources = mock(ModelResourceRegistry.class);
+            var factory = mock(ConfigurableChatModelFactory.class);
+            when(resources.defaultChatModel()).thenReturn("registered-model");
+            var provider = dev.langchain4j.model.openai.OpenAiChatModel.builder().apiKey("fixture")
+                .baseUrl("http://127.0.0.1:"+server.getAddress().getPort()+"/v1").modelName("wire-model")
+                .maxRetries(0).build();
+            when(factory.create(eq("registered-model"), any(Duration.class), eq(2048))).thenReturn(provider);
+            var bridge = new ClineRuntimeModelBridge(resources,factory,json);
+            var policy = mock(com.chatchat.api.runtime.coding.analysis.CodingReasoningPolicy.class);
+            org.springframework.test.util.ReflectionTestUtils.setField(bridge,"reasoningPolicy",policy);
+            json.findAndRegisterModules();
+            var request = json.readTree("{\"systemPrompt\":\"calculate\",\"messages\":[],\"tools\":[]}");
+            for (String level : List.of("low","high","auto")) {
+                var tree = (com.fasterxml.jackson.databind.node.ObjectNode)json.valueToTree(contract());
+                var runtime=tree.putObject("runtimeContext");
+                runtime.put("schemaVersion","runtime_os.coding.context.v1").put("consistency","TASK_SNAPSHOT");
+                var reasoning=runtime.putObject("reasoning").put("requested",level);
+                if (!"auto".equals(level)) reasoning.put("effective",level);
+                var restored = json.readValue(json.writeValueAsBytes(tree),CodingTaskContract.class);
+                var result=json.valueToTree(bridge.complete(restored,request));
+                assertThat(result.path("modelInfo").path("requestedReasoningEffort").asText()).isEqualTo(level);
+                assertThat(result.path("usage").path("totalTokens").asInt()).isEqualTo(13);
+                assertThat(result.path("modelInfo").path("durationMs").isNumber()).isTrue();
+            }
+            assertThat(bodies).hasSize(3);
+            assertThat(bodies.get(0).path("reasoning_effort").asText()).isEqualTo("low");
+            assertThat(bodies.get(1).path("reasoning_effort").asText()).isEqualTo("high");
+            assertThat(bodies.get(2).has("reasoning_effort")).isFalse();
+        } finally {server.stop(0);}
     }
 
     @Test void boundAuthorizedModelReceivesCodingCallsAndFactoryCannotReplaceIt() throws Exception {

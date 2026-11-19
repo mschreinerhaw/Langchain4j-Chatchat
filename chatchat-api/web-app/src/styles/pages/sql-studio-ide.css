@@ -1041,6 +1041,16 @@
 .sql-composer-box:focus-within{border-color:#8eb3ee;box-shadow:0 0 0 2px #397aff12}
 .sql-ide-assistant .sql-chat-composer textarea{min-height:68px;max-height:160px;padding:10px;resize:none;font-size:12px;line-height:1.6;overflow-y:auto}
 .sql-ide-assistant .sql-chat-composer>.sql-composer-actions{display:flex;align-items:center;justify-content:flex-start;gap:5px;padding:0}
+.sql-composer-actions>.sql-composer-reasoning{flex:0 0 auto;gap:5px;font-size:11px}
+.sql-composer-actions>.sql-composer-reasoning select{
+  height:28px;
+  min-height:28px;
+  max-width:72px;
+  padding:3px 22px 3px 8px;
+  border-radius:16px;
+  background-position:right 10px center,right 5px center;
+  text-overflow:ellipsis;
+}
 .sql-studio .sql-composer-settings{display:grid;place-items:center;flex:0 0 23px;width:23px;height:26px;min-height:0;padding:0;border:0;background:transparent;color:#71819a}
 .sql-studio .sql-attach-current-file{display:flex;align-items:center;justify-content:center;gap:4px;flex:0 1 auto;min-width:22px;height:27px;min-height:0;padding:3px 4px;border:0;background:transparent;color:#71819a;font-size:10px;white-space:nowrap}
 .sql-attach-current-file>svg{flex-shrink:0}
@@ -1070,5 +1080,13 @@
 .sql-assistant-history>button[aria-current=true]{border-color:#abc8f4;background:#f4f8ff}
 .sql-assistant-history strong{font-size:12px;font-weight:500}
 .sql-assistant-history small{font-size:10px;color:#8391a5}
-@container sql-assistant (max-width:300px){.sql-attach-current-file>span{display:none}.sql-ide-assistant .sql-assistant-action{flex-basis:110px}.sql-composer-spacer{display:none}.sql-studio .sql-composer-settings{flex-basis:20px;width:20px}.sql-studio .sql-composer-actions>.sql-send-question,.sql-studio .sql-composer-actions>.sql-stop-question{padding:4px 7px}}
-@container sql-assistant (max-width:240px){.sql-ide-assistant .sql-assistant-heading{padding:10px 8px}.sql-assistant-header-actions button{width:21px!important}.sql-assistant-input{padding:8px}.sql-ide-assistant .sql-assistant-scroll{padding:10px 8px}.sql-ide-assistant .sql-chat-composer{padding:7px}.sql-send-question>span,.sql-stop-question>span{display:none}}
+@container sql-assistant (max-width:420px){.sql-attach-current-file>span{display:none}}
+@container sql-assistant (max-width:375px){.sql-composer-reasoning>span{display:none}}
+@container sql-assistant (max-width:330px){
+  .sql-ide-assistant .sql-chat-composer>.sql-composer-actions{flex-wrap:wrap}
+  .sql-ide-assistant .sql-assistant-action{flex-basis:72px}
+  .sql-composer-spacer,.sql-send-question>span,.sql-stop-question>span{display:none}
+  .sql-studio .sql-composer-settings{flex-basis:20px;width:20px}
+  .sql-studio .sql-composer-actions>.sql-send-question,.sql-studio .sql-composer-actions>.sql-stop-question{margin-inline-start:auto;padding:4px 7px}
+}
+@container sql-assistant (max-width:240px){.sql-ide-assistant .sql-assistant-heading{padding:10px 8px}.sql-assistant-header-actions button{width:21px!important}.sql-assistant-input{padding:8px}.sql-ide-assistant .sql-assistant-scroll{padding:10px 8px}.sql-ide-assistant .sql-chat-composer{padding:7px}}

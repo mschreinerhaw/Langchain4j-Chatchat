@@ -30,6 +30,7 @@ public class PlatformModelCatalogService implements ModelCatalogOverride, Applic
     private final Environment environment;
     private final McpModelSyncClient mcpSync;
     private volatile boolean initialized;
+    private static final com.fasterxml.jackson.databind.ObjectMapper JSON = new com.fasterxml.jackson.databind.ObjectMapper();
     private PlatformInternetPolicy internetPolicy;
     @org.springframework.beans.factory.annotation.Autowired
     public void setInternetPolicy(PlatformInternetPolicy value){internetPolicy=value;}
@@ -42,13 +43,18 @@ public class PlatformModelCatalogService implements ModelCatalogOverride, Applic
                             boolean hasApiKey, String source, long updatedAt,
                             boolean published, boolean pendingChanges,
                             boolean activeEnabled, boolean activeDefault, Integer requestTimeoutSeconds,
-                            boolean internetSearchEnabled,String searchProviderId,List<String> searchProviderIds) { }
+                            boolean internetSearchEnabled,String searchProviderId,List<String> searchProviderIds,ModelReasoningConfig codingReasoning) { }
     public record ModelDraft(String name, String alias, String description, String type, String providerModel, String baseUrl,
                              String protocol, Integer dimension, Integer timeout, Integer maxTokens,
                              Integer maxRetries, String apiKey, Boolean enabled,
                              Boolean defaultModel,
                              @com.fasterxml.jackson.databind.annotation.JsonDeserialize(using = RequestTimeoutDeserializer.class)
-                             Integer requestTimeoutSeconds,Boolean internetSearchEnabled,String searchProviderId,List<String> searchProviderIds) {
+                             Integer requestTimeoutSeconds,Boolean internetSearchEnabled,String searchProviderId,List<String> searchProviderIds,ModelReasoningConfig codingReasoning) {
+        public ModelDraft(String name,String alias,String description,String type,String providerModel,String baseUrl,
+                String protocol,Integer dimension,Integer timeout,Integer maxTokens,Integer maxRetries,String apiKey,
+                Boolean enabled,Boolean defaultModel,Integer requestTimeoutSeconds,Boolean internetSearchEnabled,String searchProviderId,List<String> searchProviderIds){
+            this(name,alias,description,type,providerModel,baseUrl,protocol,dimension,timeout,maxTokens,maxRetries,apiKey,enabled,defaultModel,requestTimeoutSeconds,internetSearchEnabled,searchProviderId,searchProviderIds,null);
+        }
         public ModelDraft(String name,String alias,String description,String type,String providerModel,String baseUrl,
                 String protocol,Integer dimension,Integer timeout,Integer maxTokens,Integer maxRetries,String apiKey,
                 Boolean enabled,Boolean defaultModel,Integer requestTimeoutSeconds,Boolean internetSearchEnabled,String searchProviderId){
@@ -83,7 +89,7 @@ public class PlatformModelCatalogService implements ModelCatalogOverride, Applic
     public synchronized List<ModelView> list() {
         initialize();
         return jdbc.query("SELECT name,alias,description,model_type,provider_model,base_url,protocol,dimension,timeout,request_timeout_seconds,"
-                + "max_tokens,max_retries,"
+                + "max_tokens,max_retries,coding_reasoning,"
                 + "enabled,is_default,api_key_cipher,source,updated_at,"
                 + "(SELECT COUNT(*) FROM platform_model_publication p WHERE p.model_type=platform_model_config.model_type"
                 + " AND p.name=platform_model_config.name) AS publication_count,"
@@ -107,7 +113,7 @@ public class PlatformModelCatalogService implements ModelCatalogOverride, Applic
                 rs.getBoolean("active_enabled"), rs.getBoolean("active_default"),
                 rs.getInt("request_timeout_seconds"),internetPolicy!=null&&"chat".equals(rs.getString("model_type"))&&internetPolicy.read(rs.getString("name")).enabled(),
                 internetPolicy==null||!"chat".equals(rs.getString("model_type"))?null:internetPolicy.read(rs.getString("name")).providerId(),
-                internetPolicy==null||!"chat".equals(rs.getString("model_type"))?List.of():internetPolicy.read(rs.getString("name")).providerIds()));
+                internetPolicy==null||!"chat".equals(rs.getString("model_type"))?List.of():internetPolicy.read(rs.getString("name")).providerIds(),decodeReasoning(rs.getString("coding_reasoning"))));
     }
 
     @Transactional
@@ -122,6 +128,11 @@ public class PlatformModelCatalogService implements ModelCatalogOverride, Applic
         int requestTimeoutSeconds = ModelsConfig.ModelConnectionConfig.effectiveRequestTimeoutSeconds(draft.requestTimeoutSeconds());
         String url = required(draft.baseUrl(), "baseUrl");
         validateUrl(url);
+        var reasoning = draft.codingReasoning();
+        if (reasoning != null && reasoning.enabled() && (!"chat".equals(type)
+                || com.chatchat.agents.model.ModelEndpoint.resolve(url, text(draft.protocol(),"auto")).protocol()
+                    != com.chatchat.agents.model.ModelEndpoint.Protocol.OPENAI))
+            throw new IllegalArgumentException("Coding reasoning requires an OpenAI-compatible chat model");
         if ("embedding".equals(type) && (draft.dimension() == null || draft.dimension() <= 0)) {
             throw new IllegalArgumentException("Embedding dimension must be positive");
         }
@@ -158,6 +169,9 @@ public class PlatformModelCatalogService implements ModelCatalogOverride, Applic
                 !Boolean.FALSE.equals(draft.enabled()), makeDefault,
                 "user", now);
         }
+        if (reasoning != null)
+            jdbc.update("UPDATE platform_model_config SET coding_reasoning=? WHERE model_type=? AND name=?",
+                encodeReasoning(reasoning),type,name);
         return list().stream().filter(row -> type.equals(row.type()) && name.equals(row.name()))
             .findFirst().orElseThrow();
     }
@@ -196,9 +210,9 @@ public class PlatformModelCatalogService implements ModelCatalogOverride, Applic
         jdbc.update("DELETE FROM platform_model_publication WHERE model_type=? AND name=?", type, name);
         jdbc.update("INSERT INTO platform_model_publication "
                 + "(model_type,name,provider_model,base_url,protocol,dimension,timeout,request_timeout_seconds,max_tokens,max_retries,"
-                + "api_key_cipher,enabled,is_default,source,published_at) "
+                + "api_key_cipher,enabled,is_default,source,published_at,coding_reasoning) "
                 + "SELECT model_type,name,provider_model,base_url,protocol,dimension,timeout,request_timeout_seconds,max_tokens,max_retries,"
-                + "api_key_cipher,enabled,is_default,source,? FROM platform_model_config WHERE model_type=? AND name=?",
+                + "api_key_cipher,enabled,is_default,source,?,coding_reasoning FROM platform_model_config WHERE model_type=? AND name=?",
             System.currentTimeMillis(), type, name);
         ensureDefault(type);
         applyEmbedding();
@@ -322,6 +336,7 @@ public class PlatformModelCatalogService implements ModelCatalogOverride, Applic
             + "published_at BIGINT NOT NULL,PRIMARY KEY(model_type,name))");
         for (String table : List.of("platform_model_config", "platform_model_publication")) {
             addColumnIfMissing(table, "request_timeout_seconds", "INTEGER DEFAULT 300");
+            addColumnIfMissing(table, "coding_reasoning", "TEXT");
             jdbc.update("UPDATE " + table + " SET request_timeout_seconds=300 WHERE request_timeout_seconds IS NULL");
         }
         Integer count = jdbc.queryForObject("SELECT COUNT(*) FROM platform_model_config", Integer.class);
@@ -430,6 +445,27 @@ public class PlatformModelCatalogService implements ModelCatalogOverride, Applic
     private static String optionalText(String value) {
         return value == null || value.isBlank() ? null : value.trim();
     }
+    public ModelReasoningConfig publishedReasoning(String name) {
+        if (!initialized || name == null) return null;
+        return jdbc.query("SELECT coding_reasoning FROM platform_model_publication WHERE model_type='chat' AND enabled=TRUE AND name=?",
+            rs -> rs.next() ? decodeReasoning(rs.getString(1)) : null, name);
+    }
+
+    private static ModelReasoningConfig decodeReasoning(String encoded) {
+        if (encoded == null) return null;
+        try { return JSON.readValue(encoded,ModelReasoningConfig.class); }
+        catch (com.fasterxml.jackson.core.JsonProcessingException failure) {
+            throw new IllegalStateException("Invalid stored model reasoning",failure);
+        }
+    }
+
+    private static String encodeReasoning(ModelReasoningConfig value) {
+        try { return JSON.writeValueAsString(value); }
+        catch (com.fasterxml.jackson.core.JsonProcessingException failure) {
+            throw new IllegalStateException("Unable to store model reasoning",failure);
+        }
+    }
+
     private void addColumnIfMissing(String column, String type) {
         addColumnIfMissing("platform_model_config", column, type);
     }

@@ -50,6 +50,28 @@ public final class NativeCodingTasks {
         var contract=capture.capture(scope,task,original,instruction,selected,budget,Map.of("profile","artifact-integrity-v1"),artifactTypes==null||artifactTypes.isEmpty()?List.of("RESULT"):List.copyOf(artifactTypes),schema,capabilities);
         return new Submitted(task,scope.runId(),adapter.submit(contract));
     }
+    /** Studio supplies only server-validated snapshots and its existing budget, never execution authority. */
+    public CodingTaskOutcome submitStudio(KernelDataScope scope,String task,String context,String model,
+            CodingTaskContract.Budget budget,Map<String,Object> studio,Map<String,Object> capabilities) {
+        identity.require(scope,com.chatchat.agents.runtime.coding.CodingTaskAccess.Action.SUBMIT);
+        identity.require(scope,com.chatchat.agents.runtime.coding.CodingTaskAccess.Action.READ);
+        String selected=model==null||model.isBlank()?settings.defaultModel():model;
+        settings.profile(selected);
+        var input=assets.store(UserAssetService.Owner.of(scope),UserAssetService.Kind.CONTEXT,task,scope.runId(),
+            "studio-source-context:"+task,"studio-context.txt","text/plain",context.getBytes(StandardCharsets.UTF_8));
+        String dialect=studio.get("dialect").toString();
+        String profile="python".equals(dialect)?"python":"sql";
+        String objective="Use the authorized Studio context in input/data/0/studio-context.txt to propose complete "
+            +dialect+" source files. Preserve code outside the requested changes. "
+            +"Deliver exactly one RESULT, output/studio-proposal.json, using "+profile
+            +"-studio.output.v1 with files [{path,content}] and notes. Never execute the proposed code or access a database directly."
+            +(studio.get("schema") instanceof Map<?,?> schema&&schema.containsKey("discoveryId")
+                ?" Use Runtime workspace_metadata and workspace_validate to verify authorized physical fields and business definitions; do not invent evidence.":"");
+        var contract=capture.capture(scope,task,List.of(input.id()),objective,selected,budget,
+            Map.of("profile","artifact-integrity-v1"),List.of("RESULT"),Map.of(),capabilities,studio);
+        return adapter.submit(contract);
+    }
+
     public CodingTaskOutcome get(KernelDataScope scope,String task){return adapter.get(scope,task);}
     public Map<String,Object> delivery(KernelDataScope scope,String task){return receipt(scope,task,adapter.get(scope,task));}
     public CodingTaskOutcome cancel(KernelDataScope scope,String task){return adapter.cancel(scope,task,"Authenticated caller cancelled Native task");}

@@ -1,0 +1,69 @@
+.coding-reasoning-select {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  max-width: 100%;
+  color: #344b69;
+  font-size: 12px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+.coding-reasoning-select select {
+  appearance: none;
+  box-sizing: border-box;
+  min-width: 0;
+  max-width: 100%;
+  min-height: 36px;
+  padding: 6px 32px 6px 10px;
+  border: 1px solid #c7d6e9;
+  border-radius: 8px;
+  background: linear-gradient(45deg, transparent 50%, #47678d 50%) right 15px center / 5px 5px no-repeat,
+    linear-gradient(135deg, #47678d 50%, transparent 50%) right 10px center / 5px 5px no-repeat #fff;
+  color: #233c59;
+  font: inherit;
+  font-weight: 500;
+  cursor: pointer;
+}
+.coding-reasoning-select select:hover:not(:disabled) { border-color: #799bc8; }
+
+.coding-reasoning-select select:disabled { color: #526780; background-color: #f6f9fd; cursor: default; }
+.coding-reasoning-select select:focus-visible { outline: 2px solid #246dd4; outline-offset: 2px; }
+
+.reasoning-toolbar-picker {
+  position: relative;
+  box-sizing: border-box;
+  min-height: var(--reasoning-control-height, 30px);
+  gap: 6px;
+  padding: 0 9px;
+  border: 1px solid var(--reasoning-control-border, transparent);
+  border-radius: var(--reasoning-control-radius, 7px);
+  background: var(--reasoning-control-background, #f4f7fb);
+  color: var(--reasoning-control-color, #415775);
+  line-height: 1;
+}
+.reasoning-toolbar-picker > svg { flex-shrink: 0; }
+.reasoning-toolbar-value { color: inherit; font-weight: 500; }
+.reasoning-toolbar-picker select {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+  margin: 0;
+  padding: 0;
+  opacity: 0;
+}
+.reasoning-toolbar-picker:has(select:not(:disabled)):hover {
+  background: #edf4ff;
+  color: #235fae;
+}
+.reasoning-toolbar-picker:has(select:focus-visible) {
+  outline: 2px solid var(--primary, #246dd4);
+  outline-offset: 2px;
+}
+.reasoning-toolbar-picker:has(select:disabled) { color: #6c7d93; }
+@media (forced-colors: active) {
+  .reasoning-toolbar-picker { border-color: ButtonText; }
+  .reasoning-toolbar-picker:has(select:disabled) { border-color: GrayText; color: GrayText; }
+}

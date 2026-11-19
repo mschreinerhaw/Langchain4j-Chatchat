@@ -233,6 +233,8 @@
         :agents="agents"
         :agent-id="agentId"
         :model-name="modelName"
+        :reasoning-efforts="reasoningEfforts" :reasoning="reasoning" :metadata-assistant="metadataAssistant"
+        @reasoning="changeReasoning"
         :execution-mode="executionMode"
         :prompt="prompt"
         :messages="chatTurns"

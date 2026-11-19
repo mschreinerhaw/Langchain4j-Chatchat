@@ -165,9 +165,31 @@
 .python-studio .studio-ai-send button:disabled,.python-studio .studio-ai-send button:disabled:hover { background:#dbe5f7; color:#667eab; }
 .python-studio .ai-result footer .apply:hover:not(:disabled){background:#1d4ed8;border-color:#1d4ed8;color:#fff}
 .python-studio .studio-ai-modes{flex-wrap:wrap;gap:2px}.python-studio .studio-ai-modes button{flex:0 1 auto;font-size:11px}
-.python-studio .ai-composer-options { display: flex; gap: 7px; margin-top: 8px; padding: 0; }
-.python-studio .ai-composer-options select { min-width: 0; height: 27px; padding: 0 5px; border: 1px solid #e0e7f6; border-radius: 5px; background: #f2f6ff; color: #7489ae; font-size: 10px; }
-.python-studio .ai-composer-options .ai-model-select { flex: 1; }
+.python-studio .ai-composer-options { display: flex; flex-wrap: wrap; align-items: center; gap: 7px; margin-top: 8px; padding: 0; }
+.python-studio .ai-composer-options > .ai-model-select {
+  flex: 1;
+  min-width: 0;
+  box-sizing: border-box;
+  height: 27px;
+  padding: 0 5px;
+  border: 1px solid #e0e7f6;
+  border-radius: 5px;
+  background: #f2f6ff;
+  color: #7489ae;
+  font-size: 10px;
+  text-overflow: ellipsis;
+}
+.python-studio .python-reasoning-control {
+  --reasoning-control-height: 27px;
+  --reasoning-control-radius: 5px;
+  --reasoning-control-border: #e0e7f6;
+  --reasoning-control-background: #f2f6ff;
+  flex: 0 0 auto;
+  gap: 4px;
+  padding-inline: 6px;
+  font-size: 10px;
+}
+.python-studio .python-reasoning-control > svg { width: 12px; height: 12px; }
 .python-studio .ai-composer .ai-skill-text-button { width: 100%; min-height: 25px; margin: 5px 0 0; padding: 3px 0; border-top: 0; color: #879bbd; font-size: 10px; }
 .python-studio .ai-skill-text-button small { font-size: 9px; }
 .python-studio.fullscreen { inset: 0; height: 100dvh; width: 100vw; border: 0; border-radius: 0; }

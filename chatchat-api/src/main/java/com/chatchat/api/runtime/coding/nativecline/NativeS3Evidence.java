@@ -25,8 +25,14 @@ public final class NativeS3Evidence {
     public UserAssetService.File archive(CodingTaskContract c,String purpose,String name,byte[] data){
         return assets.store(UserAssetService.Owner.of(c.scope()),UserAssetService.Kind.LOG,c.taskId(),c.scope().runId(),"native-s3:"+purpose+":"+UserAssetService.hash(data),name,"application/octet-stream",data);
     }
+    public String reference(CodingTaskContract c,String type,String key){
+        return "runtime-evidence:coding:native:"+UserAssetService.hash((c.scope().tenantId()+"\0"+c.scope().userId()+"\0"+c.scope().runId()+"\0"+c.taskId()+"\0"+type+"\0"+key).getBytes(StandardCharsets.UTF_8));
+    }
+    public boolean exists(CodingTaskContract c,String ref){
+        return store.find(c.scope(),id(ref)).isPresent();
+    }
     public String register(CodingTaskContract c,String type,String key,Map<String,Object> payload,List<String> parents){
-        String id="coding:native:"+UserAssetService.hash((c.scope().tenantId()+"\0"+c.scope().userId()+"\0"+c.scope().runId()+"\0"+c.taskId()+"\0"+type+"\0"+key).getBytes(StandardCharsets.UTF_8));
+        String id=id(reference(c,type,key));
         String sha=store.contentHash(payload);var existing=store.find(c.scope(),id);
         if(existing.isPresent()){if(!sha.equals(existing.get().contentSha256()))throw new IllegalStateException("Immutable Native evidence conflict");return "runtime-evidence:"+id;}
         store.register(new EvidenceRecord(null,id,c.scope(),type,"NativeS3CodingAdapter",sha,payload,null,System.currentTimeMillis(),Map.of()),

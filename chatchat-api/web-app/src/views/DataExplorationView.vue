@@ -43,7 +43,7 @@
           </div>
           <PromptComposer v-model="question" compact :show-agent-picker="!canContinueLegacy" :agent-required="!canContinueLegacy" show-idea
             allow-file-picker :attachments="attachments" @files="addFiles" @retry-file="retryFile" @remove-file="removeFile" :idea-provider="suggestIdeas"
-            :idea-context="ideaContext" :agents="agents" :agents-loading="agentsLoading || busy"
+            :idea-context="ideaContext" :reasoning-efforts="codingReasoningEfforts" :reasoning-unavailable-label="canContinueLegacy ? '\u5386\u53f2\u5206\u6790\u4e0d\u9002\u7528' : !selectedAgentId ? '\u8bf7\u5148\u9009\u62e9 Agent' : undefined" :agents="agents" :agents-loading="agentsLoading || busy"
             :selected-agent-id="selectedAgentId" @update:selected-agent-id="selectAgent"
             :show-suggestions="false" :loading="analyzing"
             :input-disabled="busy || ['RUNNING','STOPPING'].includes(selectedState.code)"

@@ -29,7 +29,10 @@ public class ExplorationWorkspaceController {
     public record Create(String title,String sourceWorkspaceId,String sourceNodeId){
         public Create(String title){this(title,null,null);}
     }
-    public record Question(long version,String parentId,List<String> fileIds,String question,String modelName,String agentId,Map<String,Object> reportPresentation){
+    public record Question(long version,String parentId,List<String> fileIds,String question,String modelName,String agentId,Map<String,Object> reportPresentation,String codingReasoningEffort){
+        public Question(long version,String parentId,List<String> fileIds,String question,String modelName,String agentId,Map<String,Object> reportPresentation){
+            this(version,parentId,fileIds,question,modelName,agentId,reportPresentation,null);
+        }
         public Question(long version,String parentId,List<String> fileIds,String question,String modelName,String agentId){this(version,parentId,fileIds,question,modelName,agentId,null);}
         public Question(long version,String parentId,List<String> fileIds,String question,String modelName){this(version,parentId,fileIds,question,modelName,null);}
     }
@@ -98,6 +101,8 @@ public class ExplorationWorkspaceController {
         files=List.copyOf(combined);
         validateFiles(owner,files);
         var node=state.withArray("nodes").addObject();node.put("id",UUID.randomUUID().toString());node.put("parentId",parentId);
+        if (body.codingReasoningEffort()!=null) node.put("codingReasoningEffort",
+            com.chatchat.common.runtime.coding.CodingReasoning.requested(Map.of("codingReasoningEffort",body.codingReasoningEffort())));
         node.set("reportPresentation",json.valueToTree(com.chatchat.common.runtime.coding.ReportPresentation.read(body.reportPresentation()==null?Map.of():Map.of("reportPresentation",body.reportPresentation()))));
         node.put("question",body.question().strip());node.put("modelName",Objects.toString(model,""));node.put("status","PREPARED");
         long now=System.currentTimeMillis();node.put("createdAt",now);node.put("updatedAt",now);

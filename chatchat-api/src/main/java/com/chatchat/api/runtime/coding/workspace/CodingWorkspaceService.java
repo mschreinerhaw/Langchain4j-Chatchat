@@ -117,17 +117,77 @@ public final class CodingWorkspaceService {
         return CodingProtocol.WORKSPACE_VERSION.equals(contract.schemaVersion())
             && contract.outputContract().resultFormat()==CodingTaskContract.ResultFormat.WORKSPACE_FILES;
     }
+    @org.springframework.beans.factory.annotation.Autowired
+    private com.chatchat.api.runtime.coding.analysis.CodingReasoningPolicy reasoningPolicy;
+    @org.springframework.beans.factory.annotation.Autowired(required=false)
+    private com.chatchat.api.runtime.coding.nativecline.NativeCodingTasks nativeTasks;
+    @org.springframework.beans.factory.annotation.Autowired(required=false)
+    private com.chatchat.api.runtime.coding.nativecline.NativeSiloTaskService nativeInputs;
+    @Value("${chatchat.coding.cline.backend:sdk}")
+    private String codingBackend="sdk";
+
+    private static String nativeAlias(String task){return "coding:studio-native-alias:"+task;}
+    private String dispatchedTask(KernelDataScope scope,String task){
+        return evidence.readExecutionCheckpoint(scope,nativeAlias(task)).orElse(task);
+    }
+
+    private boolean legacyAdmitted(KernelDataScope scope,String task){
+        try { tasks.get(scope,task); return true; }
+        catch(CodingContractException absent){
+            if(absent.error().code()==CodingErrorCode.NOT_FOUND)return false;
+            throw absent;
+        }
+    }
+
+    private CodingTaskOutcome submitNative(KernelDataScope scope,String logicalTask,String context,String dialect,
+            String model,Map<String,Object> schema,String requested) {
+        String key=nativeAlias(logicalTask);
+        var prior=evidence.readExecutionCheckpoint(scope,key);
+        if(prior.isEmpty())evidence.compareAndSetExecutionCheckpoint(scope,key,null,nativeTasks.taskIdentity(scope,logicalTask));
+        String task=dispatchedTask(scope,logicalTask);
+        boolean python="python".equals(dialect);
+        boolean unlimited=python?!pythonCumulativeLimitsEnabled:!sqlCumulativeLimitsEnabled;
+        boolean autonomous=!python && schema.get("discoveryId") instanceof String && schema.get("projectId") instanceof String;
+        var budget=workspaceBudget(task,autonomous,unlimited);
+        var studio=Map.<String,Object>of("dialect",dialect,"schema",schema,
+            "sqlRepairPolicy",Map.of("maxRepairAttempts",unlimited||unlimitedExecutionCounts?-1:maxSqlRepairAttempts));
+        var frozen=reasoningPolicy==null?Map.of():reasoningPolicy.freeze(requested,model,1,0);
+        var capabilities=frozen.isEmpty()?Map.<String,Object>of():Map.<String,Object>of(CodingReasoning.CONTEXT_KEY,frozen);
+        var outcome=nativeTasks.submitStudio(scope,task,context,model,budget,studio,capabilities);
+        projectHistory(scope,logicalTask,outcome);
+        return outcome;
+    }
+
+    private CodingTaskContract.Budget workspaceBudget(String task,boolean autonomous,boolean unlimited){
+        return new CodingTaskContract.Budget("workspace-budget:"+task,
+            Instant.now().plusSeconds(autonomous?sqlMetadataTimeoutSeconds:timeoutSeconds).truncatedTo(ChronoUnit.MILLIS),
+            unlimited||unlimitedExecutionCounts?-1:autonomous?sqlMetadataMaxModelCalls:8,
+            unlimited?-1:autonomous?sqlMetadataMaxModelTokens:maxModelTokens,
+            unlimited||unlimitedExecutionCounts?-1:autonomous?sqlMetadataMaxToolCalls:16,0,
+            unlimited?"unlimited":maxCostAmount,"USD",0,0,unlimited?-1:1024*1024);
+    }
+
     /** Called only after the Studio has checked project ownership and persisted its plan/context. */
     public CodingTaskOutcome submit(KernelDataScope scope,String task,String context,String dialect,String modelName){
         return submit(scope,task,context,dialect,modelName,Map.of());
     }
     public CodingTaskOutcome submit(KernelDataScope scope,String task,String context,String dialect,String modelName,Map<String,Object> schema){
+        return submit(scope,task,context,dialect,modelName,schema,null);
+    }
+    public CodingTaskOutcome submit(KernelDataScope scope,String task,String context,String dialect,String modelName,Map<String,Object> schema,String requestedReasoning){
         boolean python="python".equals(dialect);
         String language=python?"Python":"SQL", profile=python?"python-studio":"sql-studio";
         if(!parser.available())throw new IllegalStateException("SQLGlot must be configured before enabling SQL Coding");
         return identity.as(scope,EnumSet.allOf(CodingTaskAccess.Action.class),()->{
             if(context==null || context.length()>250000 || !python&&!SqlStudioService.DIALECTS.contains(dialect))
                 throw new IllegalArgumentException("Invalid SQL workspace context");
+            if(nativeTasks!=null || "native".equals(codingBackend)){
+                boolean alreadyDispatched=!dispatchedTask(scope,task).equals(task);
+                if(alreadyDispatched||!legacyAdmitted(scope,task)){
+                    if(nativeTasks==null)throw new IllegalStateException("Unified Native Coding is unavailable for new Studio tasks");
+                    return submitNative(scope,task,context,dialect,modelName,schema,requestedReasoning);
+                }
+            }
             String key="coding:workspace-contract:"+task;
             var saved=evidence.readExecutionCheckpoint(scope,key);
             CodingTaskContract contract;
@@ -135,9 +195,14 @@ public final class CodingWorkspaceService {
                 contract=decode(saved.get(),CodingTaskContract.class);
                 var snapshot=requireAuthorized(contract);
                 if(!context.equals(snapshot.get("context")) || !dialect.equals(snapshot.get("dialect"))
-                        || !Objects.toString(modelName,"").equals(snapshot.get("modelName")) || !schema.equals(snapshot.get("schema")))
+                        || !Objects.toString(modelName,"").equals(snapshot.get("modelName")) || !schema.equals(snapshot.get("schema"))
+                        || !Objects.equals(requestedReasoning,com.chatchat.common.runtime.coding.CodingReasoning.submittedFromContext(contract.runtimeContext())))
                     throw new IllegalArgumentException("SQL Coding request identity conflict");
             }else{
+                var frozen=reasoningPolicy==null ? Map.of() : reasoningPolicy.freeze(requestedReasoning,modelName,1,0);
+                Map<String,Object> runtimeContext=frozen.isEmpty() ? Map.of()
+                    : Map.of("schemaVersion","runtime_os.coding.context.v1","consistency","TASK_SNAPSHOT",
+                        com.chatchat.common.runtime.coding.CodingReasoning.CONTEXT_KEY,frozen);
                 String inputId="coding:workspace-input:"+task;
                 String decision="studio-workspace:"+task, workspace="studio-workspace:"+task;
                 boolean unlimitedStudio=python?!pythonCumulativeLimitsEnabled:!sqlCumulativeLimitsEnabled;
@@ -147,9 +212,7 @@ public final class CodingWorkspaceService {
                 boolean autonomous=!python && schema.get("discoveryId") instanceof String && schema.get("projectId") instanceof String;
                 boolean fast=fastPathEnabled && !autonomous && encode(payload).getBytes(StandardCharsets.UTF_8).length<=fastPathMaxContextBytes;
                 register(scope,inputId,INPUT_TYPE,payload,List.of(),task,null);
-                var budget=new CodingTaskContract.Budget("workspace-budget:"+task,
-                    Instant.now().plusSeconds(autonomous?sqlMetadataTimeoutSeconds:timeoutSeconds).truncatedTo(ChronoUnit.MILLIS),unlimitedStudio||unlimitedExecutionCounts?-1:autonomous?sqlMetadataMaxModelCalls:8,unlimitedStudio?-1:autonomous?sqlMetadataMaxModelTokens:maxModelTokens,unlimitedStudio||unlimitedExecutionCounts?-1:autonomous?sqlMetadataMaxToolCalls:16,0,
-                    unlimitedStudio?"unlimited":maxCostAmount,"USD",0,0,unlimitedStudio?-1:1024*1024);
+                var budget=workspaceBudget(task,autonomous,unlimitedStudio);
                 var metadataRefs=new ArrayList<String>(autonomous?List.of(SqlWorkspaceMetadataTools.PROFILE):fast?List.of(FAST_PATH_REF):List.of());
                 var grantedTools=new ArrayList<>(SqlWorkspaceMetadataTools.tools(autonomous));
                 if(deferredToolsEnabled) { metadataRefs.add(CodingProtocol.DEFERRED_TOOLS_PROFILE);grantedTools.add(CodingProtocol.TOOL_DESCRIBE); }
@@ -166,11 +229,13 @@ public final class CodingWorkspaceService {
                     profile+":parse-and-review.v1",new CodingTaskContract.OutputContract(
                         CodingTaskContract.ResultFormat.WORKSPACE_FILES,profile+".output.v1",profile+".validation.v1",
                         List.of("proposal.jsonl"),List.of("application/x-ndjson"),32,512*1024,
-                        List.of(CodingTaskContract.RequiredEvidence.values())));
+                        List.of(CodingTaskContract.RequiredEvidence.values())),runtimeContext);
                 String encoded=encode(contract);
                 if(!evidence.compareAndSetExecutionCheckpoint(scope,key,null,encoded))
                     contract=decode(evidence.readExecutionCheckpoint(scope,key).orElseThrow(),CodingTaskContract.class);
             }
+            if(!Objects.equals(requestedReasoning,com.chatchat.common.runtime.coding.CodingReasoning.submittedFromContext(contract.runtimeContext())))
+                throw new IllegalArgumentException("Coding request reasoning preference conflict");
             var admitted=agents.getObject().submit(contract);
             projectHistory(scope,task,admitted);
             return admitted;
@@ -178,10 +243,11 @@ public final class CodingWorkspaceService {
     }
     public CodingTaskOutcome get(KernelDataScope scope,String task){
         return identity.as(scope,EnumSet.allOf(CodingTaskAccess.Action.class),()->{
-            var agent=agents.getObject();var current=agent.get(scope,task);
+            String dispatch=dispatchedTask(scope,task);
+            var agent=agents.getObject();var current=agent.get(scope,dispatch);
             if(!current.status().terminal() && (current.executionControl().stopReason()!=null
-                    || !Instant.now().isBefore(tasks.contract(scope,task).budget().deadlineAt())))
-                current=agent.resume(scope,task);
+                    || !Instant.now().isBefore(tasks.contract(scope,dispatch).budget().deadlineAt())))
+                current=agent.resume(scope,dispatch);
             projectHistory(scope,task,current);
             return current;
         });
@@ -189,21 +255,22 @@ public final class CodingWorkspaceService {
     /** Completed conversation evidence only; reading history never resumes an old task. */
     public Map<String,Object> completedContext(KernelDataScope scope,String task){
         return identity.as(scope,EnumSet.of(CodingTaskAccess.Action.READ),()->{
-            var outcome=agents.getObject().get(scope,task);
+            var outcome=agents.getObject().get(scope,dispatchedTask(scope,task));
             return outcome.status()==CodingTaskOutcome.Status.COMPLETED?output(scope,task,outcome):Map.of();
         });
     }
     public CodingTaskOutcome cancel(KernelDataScope scope,String task){
         return identity.as(scope,EnumSet.allOf(CodingTaskAccess.Action.class),()->{
-            var result=agents.getObject().cancel(scope,task,"Studio user cancelled");projectHistory(scope,task,result);return result;});
+            var result=agents.getObject().cancel(scope,dispatchedTask(scope,task),"Studio user cancelled");projectHistory(scope,task,result);return result;});
     }
     public CodingTaskOutcome resume(KernelDataScope scope,String task){
-        return identity.as(scope,EnumSet.allOf(CodingTaskAccess.Action.class),()->agents.getObject().resume(scope,task));
+        return identity.as(scope,EnumSet.allOf(CodingTaskAccess.Action.class),()->agents.getObject().resume(scope,dispatchedTask(scope,task)));
     }
     public List<CodingExecutionEvent> events(KernelDataScope scope,String task){
         return identity.as(scope,EnumSet.of(CodingTaskAccess.Action.READ),()->{
-            var current=tasks.get(scope,task);
-            return tasks.events(scope,task,Math.max(0,current.lastEventSequence()-128),128).stream().map(event->{
+            String dispatch=dispatchedTask(scope,task);
+            var current=tasks.get(scope,dispatch);
+            return tasks.events(scope,dispatch,Math.max(0,current.lastEventSequence()-128),128).stream().map(event->{
                 if(event.operationId()==null)return event;
                 var progress=evidence.readExecutionCheckpoint(scope,"coding:workspace-progress:"+event.operationId());
                 return progress.isEmpty()?event:event.withPayload(decode(progress.get(),Map.class));
@@ -212,6 +279,10 @@ public final class CodingWorkspaceService {
     }
     public Map<String,Object> requireAuthorized(CodingTaskContract contract){
         identity.require(contract.scope(),CodingTaskAccess.Action.READ);
+        if(com.chatchat.api.runtime.coding.nativecline.NativeSiloTaskService.studio(contract)){
+            if(nativeInputs==null)throw new SecurityException("Native Studio unavailable");
+            return json.convertValue(nativeInputs.requireAuthorized(contract).get("studio"),new TypeReference<Map<String,Object>>(){});
+        }
         boolean python="python-studio.output.v1".equals(contract.outputContract().resultSchemaRef());
         String profile=python?"python-studio":"sql-studio";
         var expectedTools=new HashSet<>(SqlWorkspaceMetadataTools.tools(SqlWorkspaceMetadataTools.enabled(contract)));
@@ -327,7 +398,8 @@ public final class CodingWorkspaceService {
     }
     public Map<String,Object> diagnostics(KernelDataScope scope,String task){
         return identity.as(scope,EnumSet.of(CodingTaskAccess.Action.READ),()->{
-            tasks.get(scope,task);var saved=evidence.readExecutionCheckpoint(scope,"coding:workspace-audit:"+task);
+            String dispatch=dispatchedTask(scope,task);
+            tasks.get(scope,dispatch);var saved=evidence.readExecutionCheckpoint(scope,"coding:workspace-audit:"+dispatch);
             if(saved.isEmpty())return Map.of();
             var audit=decode(saved.get(),Map.class);var operations=json.convertValue(audit.values(),new TypeReference<List<Map<String,Object>>>(){});
             long attempts=operations.stream().filter(row->"workspace_propose".equals(row.get("tool"))).count();
@@ -422,26 +494,8 @@ public final class CodingWorkspaceService {
                     if(!CodingLimit.permits(sqlRepairLimit(input),failures))throw new IllegalStateException("SQL_REPAIR_LIMIT_REACHED: SQL proposal repair budget exhausted");
                 }
             }
-            boolean evidenceOnly=SqlWorkspaceMetadataTools.enabled(contract)&&proposal.get("files") instanceof List<?> list&&list.isEmpty();
-            files="python".equals(input.get("dialect"))?SqlOutputBundle.parsePython(encode(proposal),json):SqlOutputBundle.parse(encode(proposal),json,evidenceOnly);
-            if(encode(files).getBytes(StandardCharsets.UTF_8).length>contract.outputContract().maxResultBytes())
-                throw new IllegalArgumentException("SQL proposal exceeds task output limit");
-            Map<String,Object> schema=json.convertValue(input.get("schema"),new TypeReference<Map<String,Object>>(){});
-            if(evidenceOnly){
-                exploration.context(contract,schema); // Recheck current ownership and datasource grants even for notes-only delivery.
-                validation=Map.of("valid",true,"status","EVIDENCE_ONLY","fieldValidation","NOT_APPLICABLE","sqlExecuted",false,
-                    "diagnostics",List.of(),"references",List.of());
-            }else if(SqlWorkspaceMetadataTools.enabled(contract)){
-                validation=exploration.validate(contract,schema,files,(String)input.get("dialect"));
-            }else{
-            if(!"python".equals(input.get("dialect")) && schema.get("discoveryId") instanceof String discovery && references!=null){
-                var context=metadata.getObject().getScoped(contract.scope(),schema.get("projectId").toString(),discovery);
-                var cached=json.convertValue(schema.getOrDefault("tables",List.of()),new TypeReference<List<Map<String,Object>>>(){});
-                var resolved=references.resolve(contract.scope(),context,(String)input.get("dialect"),files,cached);
-                schema=new LinkedHashMap<>(schema);schema.put("tables",resolved);
-            }
-            validation=parser.validate((String)input.get("dialect"),files,schema);
-            }
+            var reviewed=reviewCandidate(contract,input,proposal);
+            files=reviewed.files();validation=reviewed.validation();
         }catch(SqlGlotToolchain.UnconfirmedStopException unknown){throw unknown;}
         catch(Exception invalid){
             validation=SqlWorkspaceMetadataTools.enabled(contract)?SqlWorkspaceMetadataTools.failure(invalid):Map.of("valid",false,"sqlExecuted",false,"fieldValidation","NOT_EVALUATED",
@@ -499,6 +553,48 @@ public final class CodingWorkspaceService {
         tasks.settle(contract.scope(),contract.taskId(),lease,current.revision(),operation,
             count(1,Boolean.TRUE.equals(result.get("valid"))?encode(files).getBytes(StandardCharsets.UTF_8).length:0),true);
     }
+    private record ReviewedProposal(List<SqlOutputBundle.Candidate> files,Map<String,Object> validation) {}
+
+    private ReviewedProposal reviewCandidate(CodingTaskContract contract,Map<String,Object> input,Map<String,Object> proposal){
+        Map<String,Object> validation;
+            boolean evidenceOnly=SqlWorkspaceMetadataTools.enabled(contract)&&proposal.get("files") instanceof List<?> list&&list.isEmpty();
+            var files="python".equals(input.get("dialect"))?SqlOutputBundle.parsePython(encode(proposal),json):SqlOutputBundle.parse(encode(proposal),json,evidenceOnly);
+            if(encode(files).getBytes(StandardCharsets.UTF_8).length>contract.outputContract().maxResultBytes())
+                throw new IllegalArgumentException("SQL proposal exceeds task output limit");
+            Map<String,Object> schema=json.convertValue(input.get("schema"),new TypeReference<Map<String,Object>>(){});
+            if(evidenceOnly){
+                exploration.context(contract,schema); // Recheck current ownership and datasource grants even for notes-only delivery.
+                validation=Map.of("valid",true,"status","EVIDENCE_ONLY","fieldValidation","NOT_APPLICABLE","sqlExecuted",false,
+                    "diagnostics",List.of(),"references",List.of());
+            }else if(SqlWorkspaceMetadataTools.enabled(contract)){
+                validation=exploration.validate(contract,schema,files,(String)input.get("dialect"));
+            }else{
+            if(!"python".equals(input.get("dialect")) && schema.get("discoveryId") instanceof String discovery && references!=null){
+                var context=metadata.getObject().getScoped(contract.scope(),schema.get("projectId").toString(),discovery);
+                var cached=json.convertValue(schema.getOrDefault("tables",List.of()),new TypeReference<List<Map<String,Object>>>(){});
+                var resolved=references.resolve(contract.scope(),context,(String)input.get("dialect"),files,cached);
+                schema=new LinkedHashMap<>(schema);schema.put("tables",resolved);
+            }
+            validation=parser.validate((String)input.get("dialect"),files,schema);
+            }
+        return new ReviewedProposal(files,validation);
+    }
+
+    /** The signed Native candidate is still a Studio proposal, with the existing syntax and field checks. */
+    public Map<String,Object> reviewNativeResult(CodingTaskContract contract,Map<String,Object> proposal){
+        if(!com.chatchat.api.runtime.coding.nativecline.NativeSiloTaskService.studio(contract))
+            throw new SecurityException("Native Studio profile required");
+        var input=requireAuthorized(contract);
+        var reviewed=reviewCandidate(contract,input,proposal);
+        var validation=reviewed.validation();
+        var index=new LinkedHashMap<String,Object>(Map.of("files",reviewed.files(),
+            "notes",Objects.toString(proposal.get("notes"),""),"validation",validation));
+        if(Boolean.TRUE.equals(validation.get("valid"))&&SqlWorkspaceMetadataTools.enabled(contract)&&!reviewed.files().isEmpty()){
+            index.put("delivery",SqlStudioDelivery.manifest(input.get("dialect").toString(),reviewed.files(),validation,exploration.deliveryEvidence(contract)));
+        }
+        return index;
+    }
+
     @SuppressWarnings("unchecked")
     private void publish(CodingTaskContract contract,String operation,String payloadHash,List<SqlOutputBundle.Candidate> files,
             Map<String,Object> result,String notes,Object normalization){
@@ -605,10 +701,11 @@ public final class CodingWorkspaceService {
     }
     public Map<String,Object> output(KernelDataScope scope,String task,CodingTaskOutcome outcome){
         return identity.as(scope,EnumSet.of(CodingTaskAccess.Action.READ),()->{
-            tasks.get(scope,task);
+            String dispatch=dispatchedTask(scope,task);
+            tasks.get(scope,dispatch);
             var record=evidence.find(scope,id(outcome.resultDatasetRef())).orElseThrow();
             if(!"CODING_WORKSPACE_FILE_INDEX".equals(record.evidenceType())
-                    || !evidence.lineage(scope,record.evidenceId()).orElseThrow().producingTaskId().equals(task))
+                    || !evidence.lineage(scope,record.evidenceId()).orElseThrow().producingTaskId().equals(dispatch))
                 throw new SecurityException("Workspace result does not belong to task");
             return record.payload();
         });

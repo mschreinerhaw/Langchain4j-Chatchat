@@ -246,6 +246,9 @@
         <label class="sql-assistant-action"><select :value="aiAction" :disabled="busy || taskRunning" aria-label="SQL 助手方式" @change="$emit('action',$event.target.value)">
           <option value="explore">数据库探索</option><option value="generate">工程代码生成</option><option value="explain">解释 SQL</option><option value="fix">修复 SQL</option><option value="optimize">优化 SQL</option>
         </select></label>
+        <CodingReasoningSelect class="sql-composer-reasoning" title="思考强度" :efforts="reasoningEfforts" :value="reasoning"
+          :disabled="busy || taskRunning || !!pendingPhase"
+          :unavailable-label="metadataAssistant ? '\u6570\u636e\u5e93\u68c0\u7d22\u4e0d\u9002\u7528' : undefined" @change="$emit('reasoning',$event)" />
         <button type="button" class="sql-attach-current-file" :disabled="!editorEditable || busy || taskRunning" :aria-pressed="includeCurrentFile" aria-label="附加当前 SQL" :title="includeCurrentFile ? '取消附加当前 SQL' : '附加当前 SQL（最多 900 字符）'" @click="$emit('include-file',!includeCurrentFile)"><FileCode2 :size="14" /><span>当前文件</span></button>
         <button type="button" class="sql-composer-settings" aria-label="高级设置" title="高级设置" @click="showDialog(settingsDialog)"><Settings2 :size="15" /></button>
         <span class="sql-composer-spacer"></span>

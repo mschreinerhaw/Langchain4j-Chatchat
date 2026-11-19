@@ -130,8 +130,11 @@ public final class DurableCodingTaskService implements CodingAgentSPI {
                 require(Objects.equals(nativeBinding.path("sessionId").asText(),observation.payload().get("sessionId"))
                     &&Objects.equals(nativeBinding.path("executionEpoch").asText(),observation.payload().get("executionEpoch")),
                     AUTHORIZATION_DENIED,"Native observation belongs to a superseded execution");
+            boolean studio=task.contract.metadataRefs().contains("runtime-coding:native-studio:v1");
             require(task.contract.metadataRefs().contains("runtime-coding:native-python-silo:v1")
-                &&CodingLimit.unlimited(task.contract.budget().maxModelCalls())&&CodingLimit.unlimited(task.contract.budget().maxToolCalls())&&CodingLimit.unlimited(task.contract.budget().maxCodeExecutions()),AUTHORIZATION_DENIED,"Frozen Native execution profile required");
+                &&(studio?task.contract.budget().maxCodeExecutions()==0:
+                    CodingLimit.unlimited(task.contract.budget().maxModelCalls())&&CodingLimit.unlimited(task.contract.budget().maxToolCalls())&&CodingLimit.unlimited(task.contract.budget().maxCodeExecutions())),
+                AUTHORIZATION_DENIED,"Frozen Native execution profile required");
             String cursorKey="native-s3:cursor:"+observation.channel();var old=task.privateState.get(cursorKey);
             if(old!=null&&observation.sourceSequence()<=old.path("sequence").asLong()){
                 if(observation.sourceSequence()==old.path("sequence").asLong())require(observation.sourceSha256().equals(old.path("sha256").asText()),TASK_ID_CONFLICT,"Native event identity changed");return;
@@ -160,6 +163,8 @@ public final class DurableCodingTaskService implements CodingAgentSPI {
             payload.put("normalizedType",observation.normalizedType());payload.put("nativeEventId",observation.sourceEventId());payload.put("nativeEvidenceRef",observation.evidenceRef());
             payload.put("summary",observation.summary());payload.put("attemptId",taskId+":fence-"+lease.fencingToken());
             task.events.set(last,task.events.get(last).withPayload(payload));
+            if(studio && !CodingBudgetMath.within(usage(task).consumed(),task.contract.budget()))
+                requestStop(task,BUDGET_EXCEEDED,"Studio cumulative budget exceeded by observed usage");
         }).outcome;
     }
 

@@ -217,6 +217,7 @@
         :agents="agents"
         :agents-loading="agentsLoading"
         :default-model-name="defaultModelName"
+        :reasoning-efforts="codingModelOptions.find(model => model.value === (selectedAgent?.modelName || defaultModelName))?.reasoningEfforts || []"
         :suggestions="activeSuggestions"
         :loading="composerBusy"
         :attachments="composerAttachments"

@@ -22,6 +22,19 @@ import {
 import "../../styles/pages/model-management.css";
 import { apiRequest } from "../../services/api";
 
+const defaultReasoningLevels = {low:'low',medium:'medium',xhigh:'xhigh'};
+const standardWireLevels = ['none','minimal','low','medium','high','xhigh','max','no_think'];
+const reasoningFormats = [
+  {id:'standard',label:'OpenAI / 兼容接口',levels:defaultReasoningLevels,values:standardWireLevels},
+  {id:'deepseek-thinking',label:'DeepSeek V4',levels:{low:'low',medium:'high',xhigh:'max'},values:['low','high','max']},
+  {id:'qwen-thinking',label:'Qwen',levels:defaultReasoningLevels,values:standardWireLevels.filter(level=>level!=='no_think')},
+  {id:'hunyuan-template',label:'腾讯混元 Hy3',levels:{low:'low',medium:'high'},values:['no_think','low','high']},
+];
+const reasoningLevels = [
+  {value:'low',label:'低 (low)'},{value:'medium',label:'中 (medium)'},{value:'xhigh',label:'极高 (xhigh)'},
+  {value:'minimal',label:'极简 (minimal)'},{value:'high',label:'高 (high)'},
+];
+const defaultReasoning = () => ({enabled:true,parameter:'standard',levels:{...defaultReasoningLevels}});
 const emptyForm = () => ({
   name: "",
   alias: "",
@@ -40,6 +53,7 @@ const emptyForm = () => ({
   internetSearchEnabled: false,
   searchProviderId: "",
   searchProviderIds: [],
+  codingReasoning: defaultReasoning(),
 });
 const emptyProvider = () => ({id:"",name:"",kind:"TAVILY",endpoint:"",apiKey:"",secretId:"",enabled:true,
   timeoutMillis:10000,requestsPerMinute:30,maxTaskCalls:12,maxDailyCalls:1000});
@@ -76,6 +90,8 @@ export default {
     editing: false,
     isNew: true,
     form: emptyForm(),
+    reasoningFormats,
+    reasoningLevels,
     message: "",
     error: false,
     publishingKey: "",
@@ -86,6 +102,22 @@ export default {
     pageSize: 9,
   }),
   computed: {
+    reasoningSupported() {
+      if (this.form.type !== 'chat') return false;
+      const protocol = (this.form.protocol || 'auto').trim().toLowerCase().replaceAll('_', '-');
+      if (protocol === 'openai' || protocol === 'openai-compatible') return true;
+      if (protocol !== 'auto') return false;
+      if (!this.form.baseUrl) return true;
+      try {
+        const path = new URL(this.form.baseUrl).pathname.toLowerCase().replace(/\/+$/, '');
+        return !/\/(?:multimodal|text)-generation\/generation$/.test(path);
+      } catch {
+        return false;
+      }
+    },
+    reasoningWireValues(){
+      return reasoningFormats.find(format=>format.id===this.form.codingReasoning?.parameter)?.values || [];
+    },
     providerPageCount() {
       return Math.max(1, Math.ceil(this.searchProviders.length / this.providerPageSize));
     },
@@ -169,8 +201,19 @@ export default {
       this.isNew = true;
       this.editing = true;
     },
+    setReasoningEnabled(enabled) {
+      if(!enabled) { this.form.codingReasoning={enabled:false}; return; }
+      this.applyReasoningFormat('standard');
+    },
+    applyReasoningFormat(id) {
+      const format=reasoningFormats.find(option=>option.id===id);
+      this.form.codingReasoning={enabled:true,parameter:id,levels:{...format.levels}};
+    },
     openEdit(model) {
       this.form = { ...emptyForm(), ...model, requestTimeoutSeconds: model.requestTimeoutSeconds ?? 300, apiKey: "" };
+      this.form.codingReasoning = model.codingReasoning
+        ? {...model.codingReasoning, levels:{...model.codingReasoning.levels}}
+        : defaultReasoning();
       this.form.searchProviderIds = [...(model.searchProviderIds ?? (model.searchProviderId ? [model.searchProviderId] : []))];
       this.isNew = false;
       this.editing = true;
@@ -184,9 +227,19 @@ export default {
         this.error = true;
         return;
       }
+      let codingReasoning = this.reasoningSupported ? this.form.codingReasoning : null;
+      if(codingReasoning?.enabled){
+        const levels=Object.fromEntries(Object.entries(codingReasoning.levels).filter(([,value])=>value));
+        if(!Object.keys(levels).length){
+          this.message="请至少配置一个可用的思考强度档位";
+          this.error=true;
+          return;
+        }
+        codingReasoning={...codingReasoning,levels};
+      }
       this.saving = true;
       try {
-        await savePlatformModel({...this.form,searchProviderId:this.form.searchProviderIds[0]||""});
+        await savePlatformModel({...this.form,codingReasoning,searchProviderId:this.form.searchProviderIds[0]||""});
         this.form.apiKey = "";
         this.editing = false;
         this.message = "模型草稿已保存，请点击发布后使用";

@@ -92,7 +92,8 @@ public final class ClineModelReceiptStore implements CodingExecutionProofVerifie
                 Boolean.FALSE.equals(response.get("providerDispatched"))?"REJECTED_LOCALLY":response.get("error")!=null?"FAILED":"SUCCEEDED",
                 label(info.get("selectedModel")),label(info.get("providerModel")),label(info.get("protocol")),
                 label(info.get("startedAt")),label(info.get("finishedAt")),number(info.get("durationMs")),usage,"JAVA_MODEL_RECEIPT",
-                label(response.get("error")),!Boolean.FALSE.equals(response.get("providerDispatched")));
+                label(response.get("error")),!Boolean.FALSE.equals(response.get("providerDispatched")),
+                label(info.get("requestedReasoningEffort")),label(info.get("reasoningEffort")));
         });
     }
     private static String label(Object value) {

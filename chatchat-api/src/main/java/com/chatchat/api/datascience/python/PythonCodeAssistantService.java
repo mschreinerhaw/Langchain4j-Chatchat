@@ -34,6 +34,9 @@ public class PythonCodeAssistantService {
     @org.springframework.beans.factory.annotation.Autowired
     public void setAnswers(com.chatchat.chat.interaction.service.CodingAnswerPort value){answers=value;}
 
+    @org.springframework.beans.factory.annotation.Autowired
+    private com.chatchat.api.runtime.coding.analysis.CodingReasoningPolicy reasoningPolicy;
+
     public Map<String,Object> codingCapabilities(){return Map.of("enabled",codingWorkspace!=null,"profile","python-studio.output.v1");}
     public record CodingAssistRequest(AssistRequest request,String requestId,String entryPath,List<Map<String,String>> files) { }
     public Map<String,Object> startCoding(String tenant,String user,CodingAssistRequest body) {
@@ -55,7 +58,9 @@ public class PythonCodeAssistantService {
             +"\nEntry path: "+entry+". Propose COMPLETE files, including unchanged code outside the requested edit. Syntax diagnostics are not execution validation.";
         codingWorkspace.captureHistory(codingScope(tenant,user,task),task,new com.chatchat.api.datascience.StudioTaskHistory.Request(
             null,"python",body.request().historyPrompt(),prepared.modelName(),Map.of()));
-        var outcome=codingWorkspace.submit(codingScope(tenant,user,task),task,context,"python",prepared.modelName());
+        var outcome=prepared.reasoning()==null
+            ? codingWorkspace.submit(codingScope(tenant,user,task),task,context,"python",prepared.modelName())
+            : codingWorkspace.submit(codingScope(tenant,user,task),task,context,"python",prepared.modelName(),Map.of(),prepared.reasoning());
         return Map.of("taskId",task,"status",outcome.status().name(),"plan",plan);
     }
     public Map<String,Object> codingResult(String tenant,String user,String task,boolean cancel) {
@@ -86,7 +91,7 @@ public class PythonCodeAssistantService {
         String defaultModel = text(modelResources.defaultChatModel()).trim();
         LinkedHashSet<String> names = new LinkedHashSet<>(modelResources.selectableChatModels());
         return names.stream().filter(name -> name != null && !name.isBlank()).map(String::trim).distinct()
-                .map(name -> new ModelOption(name, name, name.equalsIgnoreCase(defaultModel))).toList();
+                .map(name -> new ModelOption(name, name, name.equalsIgnoreCase(defaultModel),reasoningPolicy==null?List.of():reasoningPolicy.options(name))).toList();
     }
 
     public AssistResponse assist(AssistRequest request) {
@@ -108,7 +113,8 @@ public class PythonCodeAssistantService {
         if(answers==null)throw new IllegalStateException("Cline context answer service is unavailable");
         String id="python-context-"+java.util.UUID.randomUUID();
         var input=com.chatchat.chat.interaction.model.InteractionRequest.builder().tenantId(tenantId).userId(userId)
-            .query(request.prompt()).modelName(prepared.modelName()).mode("llm_chat").build();
+            .query(request.prompt()).modelName(prepared.modelName()).mode("llm_chat")
+            .toolInput(prepared.reasoning()==null?Map.of():Map.of(com.chatchat.common.runtime.coding.CodingReasoning.REQUEST_KEY,prepared.reasoning())).build();
         var context=com.chatchat.chat.interaction.model.InteractionContext.builder().requestId(id).conversationId(id)
             .mode(com.chatchat.chat.interaction.model.InteractionMode.LLM_CHAT).startedAtMs(System.currentTimeMillis()).build();
         var response=answers.answer(input,context,null,prepared.prompt());
@@ -131,6 +137,9 @@ public class PythonCodeAssistantService {
         String selection = limited(text(request.selectedCode()), MAX_SELECTION_LENGTH, "选中代码");
         String action = normalizeAction(request.action());
         String modelName = resolveModelName(request.modelName());
+        String reasoning = request.codingReasoningEffort()==null?null:com.chatchat.common.runtime.coding.CodingReasoning.requested(Map.of(
+            "codingReasoningEffort",request.codingReasoningEffort()));
+        if(reasoning!=null)reasoningPolicy.validate(reasoning,modelName);
         List<DomainSkillRuntimePort.DomainSkillContent> appliedSkills = resolveSkills(
             tenantId, userId, prompt, request.skillIds());
         String skillContext = skillContext(appliedSkills);
@@ -171,11 +180,11 @@ public class PythonCodeAssistantService {
                 %s
                 ---
                 """.formatted(skillContext, instruction, prompt, source, selection);
-        return new Prepared(action, modelName, modelPrompt, selection, appliedSkills);
+        return new Prepared(action, modelName, modelPrompt, selection, appliedSkills, reasoning);
     }
 
     private record Prepared(String action, String modelName, String prompt, String selection,
-                            List<DomainSkillRuntimePort.DomainSkillContent> skills) { }
+                            List<DomainSkillRuntimePort.DomainSkillContent> skills,String reasoning) { }
 
     public List<DomainSkillRuntimePort.DomainSkillContent> codeReuseSkills(String tenantId,String userId,String query,List<String> ids) {
         if(ids!=null&&(ids.size()>MAX_APPLIED_SKILLS||new java.util.HashSet<>(ids).size()!=ids.size()))throw new IllegalArgumentException("Select at most eight distinct authorized Skills");
@@ -249,14 +258,17 @@ public class PythonCodeAssistantService {
         return value == null ? "" : value;
     }
 
-    public record ModelOption(String value, String label, boolean defaultModel) {
+    public record ModelOption(String value, String label, boolean defaultModel,List<String> reasoningEfforts) {
     }
 
     public record AssistRequest(String action, String prompt, String sourceCode, String selectedCode,
-                                String modelName, List<String> skillIds, String planId, String historyQuestion) {
+                                String modelName, List<String> skillIds, String planId, String historyQuestion,String codingReasoningEffort) {
         public AssistRequest {
             skillIds = skillIds == null ? List.of() : List.copyOf(skillIds);
             if(historyQuestion!=null && historyQuestion.length()>4000)throw new IllegalArgumentException("历史问题超过长度限制");
+        }
+        public AssistRequest(String action,String prompt,String sourceCode,String selectedCode,String modelName,List<String> skillIds,String planId,String historyQuestion){
+            this(action,prompt,sourceCode,selectedCode,modelName,skillIds,planId,historyQuestion,null);
         }
         public AssistRequest(String action,String prompt,String sourceCode,String selectedCode,String modelName,List<String> skillIds,String planId){this(action,prompt,sourceCode,selectedCode,modelName,skillIds,planId,null);}
         public String historyPrompt(){return historyQuestion==null||historyQuestion.isBlank()?prompt:historyQuestion;}

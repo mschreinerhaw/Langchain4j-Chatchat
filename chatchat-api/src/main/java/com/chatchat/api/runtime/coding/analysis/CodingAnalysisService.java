@@ -32,6 +32,8 @@ import org.springframework.stereotype.Service;
 @ConditionalOnProperty(prefix="chatchat.coding.analysis",name="enabled",havingValue="true")
 public final class CodingAnalysisService implements AnalysisCodingPort {
     private NativeAnalysisBridge nativeS3Bridge;
+    @org.springframework.beans.factory.annotation.Autowired
+    private CodingReasoningPolicy reasoningPolicy;
     @org.springframework.beans.factory.annotation.Autowired(required=false)
     public void setNativeS3Bridge(NativeAnalysisBridge bridge){this.nativeS3Bridge=bridge;}
     public boolean nativeExecutionEnabled(){return nativeS3Bridge!=null;}
@@ -415,6 +417,8 @@ public final class CodingAnalysisService implements AnalysisCodingPort {
         if(codeProject!=null)fingerprintInput.put("codeProject",codeProject);
         var requiredArtifacts=CodingRequiredArtifacts.read(context.runtimeAttributes().get("requiredArtifacts"));
         if(!requiredArtifacts.isEmpty())fingerprintInput.put("requiredArtifacts",requiredArtifacts);
+        String requestedReasoning=com.chatchat.common.runtime.coding.CodingReasoning.requested(context.runtimeAttributes());
+        if (requestedReasoning!=null) fingerprintInput.put(com.chatchat.common.runtime.coding.CodingReasoning.REQUEST_KEY,requestedReasoning);
         String fingerprint=hash(fingerprintInput);
         if (!capacity.tryAcquire()) return Map.of("operation","RUN_CODING","requestId",requestId,"taskId",taskId,
             "status","CAPACITY_UNAVAILABLE","resultAvailable",false);
@@ -689,6 +693,14 @@ public final class CodingAnalysisService implements AnalysisCodingPort {
                 configuration.put("reportPresentation",com.chatchat.common.runtime.coding.ReportPresentation.read(context.runtimeAttributes()));
             }
             if(dynamic)configuration.put("executionProfile",freezeExecutionProfile(sourceCount,input.rowCount()));
+            String reasoning=com.chatchat.common.runtime.coding.CodingReasoning.requested(context.runtimeAttributes());
+            if(reasoningPolicy!=null) {
+                var modelSettings=(Map<?,?>)configuration.get("model");
+                var profile=configuration.get("executionProfile") instanceof Map<?,?> map ? map : Map.of();
+                String selected=Objects.toString(profile.get("selectedModel"),Objects.toString(modelSettings.get("selectedModel"),null));
+                var frozen=reasoningPolicy.freeze(reasoning,selected,sourceCount,input.rowCount());
+                if(!frozen.isEmpty()) configuration.put(com.chatchat.common.runtime.coding.CodingReasoning.CONTEXT_KEY,frozen);
+            }
             // These blocks are also delivered in the existing immutable input/context.
             // Source provenance/representation cannot be replaced by descriptor pointers:
             // keep them inline, or retain the full appendix in the task configuration.

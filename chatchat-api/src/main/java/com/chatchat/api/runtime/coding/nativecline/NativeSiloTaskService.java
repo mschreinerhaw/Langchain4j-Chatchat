@@ -25,6 +25,8 @@ import org.springframework.stereotype.Service;
 @ConditionalOnProperty(prefix="chatchat.coding",name="enabled",havingValue="true")
 public final class NativeSiloTaskService {
     public static final String PROFILE="runtime-coding:native-python-silo:v1";
+    public static final String STUDIO_PROFILE="runtime-coding:native-studio:v1";
+    public static boolean studio(CodingTaskContract contract){return contract.metadataRefs().contains(STUDIO_PROFILE);}
     private static final String INPUT_TYPE="CODING_NATIVE_SILO_INPUT";
     private static final List<String> TOOLS=List.of("read_files","search_codebase","editor","apply_patch","skills","run_commands");
     private final CodingInvocationContext identity;
@@ -64,17 +66,26 @@ public final class NativeSiloTaskService {
         return capture(scope,task,originalFileIds,instruction,selectedModel,budget,verification,artifactTypes,resultSchema,Map.of());
     }
     public CodingTaskContract capture(KernelDataScope scope,String task,List<String> originalFileIds,String instruction,String selectedModel,CodingTaskContract.Budget budget,Map<String,Object> verification,List<String> artifactTypes,Map<String,Object> resultSchema,Map<String,Object> capabilities){
+        return capture(scope,task,originalFileIds,instruction,selectedModel,budget,verification,artifactTypes,resultSchema,capabilities,Map.of());
+    }
+
+    CodingTaskContract capture(KernelDataScope scope,String task,List<String> originalFileIds,String instruction,String selectedModel,
+            CodingTaskContract.Budget budget,Map<String,Object> verification,List<String> artifactTypes,
+            Map<String,Object> resultSchema,Map<String,Object> capabilities,Map<String,Object> studio){
         identity.require(scope,CodingTaskAccess.Action.SUBMIT);
         identity.require(scope,CodingTaskAccess.Action.READ);
+        boolean workspaceReview=!studio.isEmpty();
+        if(workspaceReview&&(budget==null||budget.maxCodeExecutions()!=0||!artifactTypes.equals(List.of("RESULT"))))
+            throw new IllegalArgumentException("Studio only permits bounded source proposals");
         String profile=Objects.toString(verification.get("profile"),"");
         if(!verification.equals(Map.of("profile","artifact-integrity-v1")))throw new IllegalArgumentException("Only generic artifact integrity verification is supported");
         if(artifactTypes==null||artifactTypes.isEmpty()||!Set.of("SOURCE","REPORT","RESULT","CHART","TEST","AUXILIARY").containsAll(artifactTypes))throw new IllegalArgumentException("Known delivery types required");
         if(task==null||!task.matches("[A-Za-z0-9_-]{1,96}")||instruction==null||instruction.isBlank()
                 ||instruction.length()>32768||selectedModel==null||!selectedModel.matches("[A-Za-z0-9][A-Za-z0-9_.-]{0,127}"))
             throw new IllegalArgumentException("Explicit task, original objective and frozen model required");
-        if(budget==null||budget.maxModelCalls()!=-1||budget.maxToolCalls()!=-1||budget.maxCodeExecutions()!=-1)
+        if(budget==null||!workspaceReview&&(budget.maxModelCalls()!=-1||budget.maxToolCalls()!=-1||budget.maxCodeExecutions()!=-1))
             throw new IllegalArgumentException("Native profile requires unlimited model/tool/code execution counts");
-        if(budget.maxMemoryBytes()<1||budget.maxOutputBytes()<1)
+        if(!workspaceReview&&(budget.maxMemoryBytes()<1||budget.maxOutputBytes()<1))
             throw new IllegalArgumentException("Native profile requires explicit memory and output resource protection");
         List<String> files=List.copyOf(originalFileIds);
         var saved=evidence.readExecutionCheckpoint(scope,contractKey(task));
@@ -83,6 +94,9 @@ public final class NativeSiloTaskService {
             if(!files.equals(input.get("originalFileIds"))||!instruction.equals(contract.objective().instruction())
                     ||!selectedModel.equals(input.get("selectedModel"))
                     ||input.containsKey("verification")&&!verification.equals(input.get("verification"))
+                    ||!Objects.equals(com.chatchat.common.runtime.coding.CodingReasoning.submittedFromContext(contract.runtimeContext()),
+                        com.chatchat.common.runtime.coding.CodingReasoning.submittedFromContext(capabilities))
+                    ||!studio.equals(input.getOrDefault("studio",Map.of()))
                     ||!artifactTypes.equals(input.get("artifactTypes"))||!resultSchema.equals(input.getOrDefault("resultSchema",Map.of())))
                 throw new IllegalArgumentException("Immutable Native task request conflict");
             return contract; // Never extend its deadline or replace a failed task.
@@ -98,6 +112,7 @@ public final class NativeSiloTaskService {
         input.put("snapshotVersion",state.snapshotVersion());input.put("transportEpoch",state.epoch());
         input.put("selectedModel",selectedModel);input.put("verification",Map.copyOf(verification));input.put("artifactTypes",List.copyOf(artifactTypes));
         input.put("resultSchema",Map.copyOf(resultSchema));
+        if(workspaceReview)input.put("studio",Map.copyOf(studio));
         input.put("decisionRef",decision);input.put("workspaceRef",work);
         input.put("objectiveSha256",com.chatchat.api.assets.UserAssetService.hash(instruction.getBytes(StandardCharsets.UTF_8)));
         Map<String,Object> payload=json.convertValue(input,new TypeReference<>(){});
@@ -106,6 +121,16 @@ public final class NativeSiloTaskService {
             new EvidenceLineage(null,inputId(task),scope,List.of(),task,"NativeSiloTaskService",null,Map.of()));
         var runtime=new LinkedHashMap<String,Object>(capabilities);runtime.put("schemaVersion","runtime_os.coding.context.v1");runtime.put("consistency","TASK_SNAPSHOT");var effectiveModel=new LinkedHashMap<String,Object>();if(runtime.get("model") instanceof Map<?,?> captured)captured.forEach((k,v)->effectiveModel.put(k.toString(),v));effectiveModel.put("selectedModel",selectedModel);runtime.put("model",effectiveModel);CodingRuntimeContext.validate(runtime);
         var tools=new ArrayList<String>(TOOLS);
+        var profiles=new ArrayList<>(List.of(PROFILE));
+        if(workspaceReview){
+            profiles.add(STUDIO_PROFILE);
+            tools.remove("run_commands");
+            if(studio.get("schema") instanceof Map<?,?> schema && schema.containsKey("discoveryId")){
+                profiles.add(com.chatchat.api.datascience.sql.SqlWorkspaceMetadataTools.PROFILE);
+                tools.addAll(List.of("workspace_metadata","workspace_validate","runtime__workspace_metadata","runtime__workspace_validate",
+                    "tenant_data__workspace_metadata","tenant_data__workspace_validate"));
+            }
+        }
         if(runtime.get("skills") instanceof Map<?,?> catalog && catalog.get("skills") instanceof List<?> cards
                 && cards.stream().anyMatch(card->card instanceof Map<?,?> m&&"ON_DEMAND".equals(m.get("version")))) {
             tools.add("agent_skill_read");tools.add("runtime__agent_skill_read");
@@ -114,14 +139,14 @@ public final class NativeSiloTaskService {
         if(runtime.containsKey("documentSearch")){tools.add("document_search");tools.add("runtime__document_search");}
         var contract=new CodingTaskContract(CodingProtocol.WORKSPACE_VERSION,task,scope,
             new CodingTaskContract.Objective(instruction,artifactTypes,List.of(profile)),
-            "runtime-evidence:"+inputId(task),List.of(PROFILE),work,
+            "runtime-evidence:"+inputId(task),List.copyOf(profiles),work,
             new CodingTaskContract.Authorization(decision,tools,state.inputs().stream().map(SiloCodingWorkspaceService.Input::assetId).toList(),
                 List.of("native-task-input"),List.of("native-task-workspace"),CodingTaskContract.NetworkPolicy.NONE,List.of(),
-                List.of(CodingTaskContract.SideEffect.WORKSPACE_WRITE,CodingTaskContract.SideEffect.CODE_EXECUTION)),
+                workspaceReview?List.of(CodingTaskContract.SideEffect.WORKSPACE_WRITE):List.of(CodingTaskContract.SideEffect.WORKSPACE_WRITE,CodingTaskContract.SideEffect.CODE_EXECUTION)),
             budget,"native-runtime:cline4.1.26-python3.11",profile,
             new CodingTaskContract.OutputContract(CodingTaskContract.ResultFormat.WORKSPACE_FILES,"native-delivery-result.v1","native-delivery-validation.v1",
                 List.of("delivery_manifest.json"),List.of("application/json","text/markdown","image/png","text/x-python"),
-                CodingProtocol.MAX_SAFE_INTEGER,budget.maxOutputBytes(),
+                workspaceReview?1:CodingProtocol.MAX_SAFE_INTEGER,workspaceReview?512*1024:budget.maxOutputBytes(),
                 List.of(CodingTaskContract.RequiredEvidence.values())),
             runtime);
         if(!evidence.compareAndSetExecutionCheckpoint(scope,contractKey(task),null,encode(contract)))
@@ -148,6 +173,10 @@ public final class NativeSiloTaskService {
         var state=workspace.get(contract.scope(),contract.taskId());var input=record.payload();
         if(!Map.of("profile","artifact-integrity-v1").equals(input.get("verification")))
             throw new SecurityException("Stored task requires an unsupported verification contract");
+        if(studio(contract)!=input.containsKey("studio")||studio(contract)&&(contract.budget().maxCodeExecutions()!=0
+                ||contract.authorization().allowedTools().contains("run_commands")
+                ||!contract.authorization().allowedSideEffects().equals(List.of(CodingTaskContract.SideEffect.WORKSPACE_WRITE))))
+            throw new SecurityException("Studio source-only capability differs");
         if(!state.snapshotVersion().equals(input.get("snapshotVersion"))||!state.epoch().equals(input.get("transportEpoch"))
                 ||!contract.authorization().allowedDataRefs().equals(state.inputs().stream().map(SiloCodingWorkspaceService.Input::assetId).sorted().toList()))
             throw new SecurityException("Native input versions or scope changed");

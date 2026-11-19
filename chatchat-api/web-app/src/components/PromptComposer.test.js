@@ -227,3 +227,37 @@ it('keeps sending disabled for a stale Agent id while allowing question drafting
 });
 
 it('offers only published agents in compact mode and requires a selection before sending',async()=>{const props=reactive({compact:true,showAgentPicker:true,agentRequired:true,modelValue:'分析资产',selectedAgentId:'',agents:[{id:'a',name:'业务分析',marketStatus:'published'},{id:'b',name:'未发布',marketStatus:'draft'}]}),sends=[],changes=[];host=document.createElement('div');app=createApp({render:()=>h(PromptComposer,{...props,onSend:v=>sends.push(v),'onUpdate:selectedAgentId':v=>changes.push(v)})});app.mount(host);await nextTick();const picker=host.querySelector('[aria-label="选择 Agent"]');expect([...picker.options].map(o=>o.value)).toEqual(['','a']);expect(host.querySelector('[type=submit]').disabled).toBe(true);picker.value='a';picker.dispatchEvent(new Event('change'));expect(changes).toEqual(['a']);props.selectedAgentId='a';await nextTick();host.querySelector('form').dispatchEvent(new Event('submit',{cancelable:true}));expect(sends[0].agentId).toBe('a');expect(host.querySelector('[role=switch]')).toBeNull();});
+
+it('defaults to medium, remembers the choice, and emits only model-supported reasoning',async()=>{
+ const props=reactive({modelValue:'Analyze results',reasoningEfforts:['minimal','low','medium','high','xhigh'],
+  workspaceContext:{tenantId:'reasoning-fixture',userId:'owner',workspaceId:'chat'}});
+ const sent=[];
+ host=document.createElement('div');
+ const mount=()=>{app=createApp({render:()=>h(PromptComposer,{...props,onSend:payload=>sent.push(payload)})});app.mount(host);};
+ const label='\u601d\u8003\u5f3a\u5ea6';
+ const picker=()=>host.querySelector(`select[aria-label="${label}"]`);
+ const send=()=>host.querySelector('form').dispatchEvent(new Event('submit',{cancelable:true}));
+ mount();await nextTick();
+ const toolbar=host.querySelector('.composer-toolbar');
+ expect(toolbar.contains(picker())).toBe(true);
+ expect([...toolbar.querySelectorAll('select, button[role="switch"]')].map(el=>el.getAttribute('aria-label')))
+   .toEqual(['\u9009\u62e9 Agent',label,'\u56fe\u6587\u62a5\u544a']);
+ expect(host.querySelector('.composer-idea-control')).toBeNull();
+ expect([...picker().options].map(option=>option.value)).toEqual(['minimal','low','medium','high','xhigh']);
+ expect(picker().value).toBe('medium');
+ const visibleEffort=()=>host.querySelector('.reasoning-toolbar-value').textContent;
+ expect(visibleEffort()).toBe('中');
+ send();
+ picker().value='high';picker().dispatchEvent(new Event('change'));await nextTick();
+ expect(visibleEffort()).toBe('高');
+ send();expect(sent.map(x=>x.codingReasoningEffort)).toEqual(['medium','high']);
+ app.unmount();mount();await nextTick();expect(picker().value).toBe('high');
+ props.reasoningEfforts=['low'];await nextTick();send();
+ expect(sent.at(-1).codingReasoningEffort).toBe('low');
+ props.compact=true;await nextTick();
+ expect(host.querySelector('.composer-idea-control').contains(picker())).toBe(true);
+ expect(visibleEffort()).toBe('低');
+ props.reasoningEfforts=[];await nextTick();expect(picker().disabled).toBe(true);expect(picker().value).toBe('');send();
+ expect(visibleEffort()).toBe('不可用');
+ expect(sent.at(-1)).not.toHaveProperty('codingReasoningEffort');
+});

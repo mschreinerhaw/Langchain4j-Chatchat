@@ -732,9 +732,10 @@
                 ><option v-if="!aiModels.length" value="">暂无可用模型</option
                 ><option v-for="model in aiModels" :key="model.value" :value="model.value"
                   >{{ model.label }}{{ model.defaultModel ? "（默认）" : "" }}</option
-                ></select
-              ></div
-            >
+                ></select>
+                <CodingReasoningSelect toolbar class="python-reasoning-control"
+                  :efforts="codingReasoningEfforts" :value="codingReasoning" :disabled="aiBusy" @change="changeReasoning" />
+              </div>
             <button
               type="button"
               class="ai-skill-text-button"

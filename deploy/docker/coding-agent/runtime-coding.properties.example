@@ -48,3 +48,8 @@ chatchat.coding.analysis.data-supply.max-rounds=4
 # chatchat.coding.analysis.data-supply.grants[0].parameter-values[tradeDate][0]=2026-10-13
 # chatchat.coding.analysis.data-supply.grants[0].required-fields[0]=tradeDate
 # chatchat.coding.analysis.data-supply.grants[0].required-fields[1]=amount
+
+# Optional PromptComposer reasoning controls. Configure only verified effort levels for a published OpenAI-compatible model.
+# For Native direct dispatch, enable dynamic model authority and update the broker together with the API.
+# chatchat.coding.analysis.reasoning-efforts-by-model[published-model-name]=minimal,low,medium,high,xhigh
+# Auto uses the existing simple/complex reasoning effort policy when its level is allowed.

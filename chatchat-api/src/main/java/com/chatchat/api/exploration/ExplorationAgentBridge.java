@@ -25,11 +25,13 @@ public class ExplorationAgentBridge {
     private com.chatchat.api.runtime.coding.evidence.CodingEvidenceCollector collector;
     @org.springframework.beans.factory.annotation.Autowired(required=false)
     public void setCollector(com.chatchat.api.runtime.coding.evidence.CodingEvidenceCollector value){collector=value;}
-    public record Option(String id,String name,String marketStatus){}
+    @org.springframework.beans.factory.annotation.Autowired
+    private com.chatchat.api.runtime.coding.analysis.CodingReasoningPolicy codingReasoning;
+    public record Option(String id,String name,String marketStatus,String modelName,List<String> reasoningEfforts){}
     public List<Option> options(Owner owner){
         return catalog.list().stream().filter(s->"published".equalsIgnoreCase(s.marketStatus()))
             .filter(s->permissions.canAccessAgent(owner.user(),s.id()))
-            .map(s->new Option(s.id(),s.label(),"published")).toList();
+            .map(s->new Option(s.id(),s.label(),"published",s.modelName(),codingReasoning==null?List.of():codingReasoning.options(s.modelName()))).toList();
     }
     public SkillDefinition authorize(Owner owner,String id){
         var skill=catalog.resolve(id);
@@ -44,6 +46,7 @@ public class ExplorationAgentBridge {
         request.setIdempotencyKey("exploration:"+owner.user()+":"+node.path("id").asText());
         request.setSessionId(sessionId(node));request.setRequestSource("PLATFORM_UI");
         var input=new LinkedHashMap<String,Object>();input.put("reportMode","visual");input.put("reportPresentation",com.chatchat.common.runtime.coding.ReportPresentation.read(node.path("reportPresentation").isObject()?Map.of("reportPresentation",json.convertValue(node.path("reportPresentation"),Map.class)):Map.of()));input.put("visualizationSupportedTypes",List.of("bar","line","scatter","pie"));
+        if (node.hasNonNull("codingReasoningEffort")) input.put("codingReasoningEffort",node.path("codingReasoningEffort").asText());
         if(parent!=null){
             // Server-loaded branch context, never client-supplied artifacts or sibling conversation history.
             var context=new LinkedHashMap<String,Object>();context.put("question",parent.path("question").asText());

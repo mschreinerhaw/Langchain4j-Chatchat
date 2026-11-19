@@ -18,6 +18,8 @@ public class CodingAnalysisProperties {
     /** Sent only when explicitly configured for the selected provider. */
     private String simpleReasoningEffort;
     private String complexReasoningEffort;
+    /** Deployment-verified OpenAI-compatible wire levels keyed by published model name. */
+    private java.util.Map<String,java.util.List<String>> reasoningEffortsByModel = java.util.Map.of();
     private int simpleMaxSources = 2;
     private long simpleMaxInputRows = 2000;
     private String environmentId;

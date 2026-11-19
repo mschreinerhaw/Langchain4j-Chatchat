@@ -58,6 +58,7 @@ public class ToolDirectModeHandler implements InteractionModeHandler {
             parameters.putAll(request.getToolInput());
             parameters.remove("reportMode"); // Presentation preferences are never business-tool parameters.
             parameters.remove("reportPresentation");
+            parameters.remove(com.chatchat.common.runtime.coding.CodingReasoning.REQUEST_KEY);
             Object confirmation = parameters.remove("mcpConfirmation");
             if (confirmation instanceof Map<?, ?>) {
                 attributes.put("mcpConfirmation", confirmation);

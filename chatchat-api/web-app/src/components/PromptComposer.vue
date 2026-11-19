@@ -76,6 +76,8 @@
             </select>
           </label>
         </div>
+        <CodingReasoningSelect toolbar class="composer-reasoning-control" :efforts="reasoningEfforts" :value="selectedReasoning"
+          :disabled="loading || inputDisabled" :unavailable-label="reasoningUnavailableLabel" @change="changeReasoning" />
         <button
           v-if="!compact"
           type="button"
@@ -155,7 +157,9 @@
         </div>
       </div>
 
-      <div v-if="(compact && showIdea) || allowFilePicker" class="composer-idea-control">
+      <div v-if="compact || allowFilePicker" class="composer-idea-control">
+        <CodingReasoningSelect v-if="compact" toolbar class="composer-reasoning-control" :efforts="reasoningEfforts" :value="selectedReasoning"
+          :disabled="loading || inputDisabled" :unavailable-label="reasoningUnavailableLabel" @change="changeReasoning" />
         <details v-if="compact" class="report-layout-settings"><summary>图形场景</summary><div>
           <label>场景与配色<select v-model="reportPresentation.styleProfile" :disabled="loading" aria-label="图形场景与配色">
             <option value="financial-auto">金融分析 · 按市场适配</option><option value="financial-cn">金融分析 · 红涨绿跌</option>

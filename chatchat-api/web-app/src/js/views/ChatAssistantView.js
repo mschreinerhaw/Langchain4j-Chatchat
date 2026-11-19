@@ -1692,6 +1692,7 @@ export default {
       suggestions: [],
       agents: [],
       defaultModelName: "",
+      codingModelOptions: [],
       appliedDraftId: "",
       agentsLoading: false,
       selectedAgentId: "",
@@ -2148,6 +2149,7 @@ export default {
           documentWorkflow: !!payload?.documentWorkflow,
           webSearch: false,
           resourceExplorationApproved: payload?.resourceExplorationApproved === true,
+          ...(payload?.codingReasoningEffort ? {codingReasoningEffort:payload.codingReasoningEffort} : {}),
           reportMode: payload?.reportMode === 'visual' ? 'visual' : 'off',
           ...(payload?.reportMode === 'visual' ? {reportPresentation:reportPresentation(payload?.reportPresentation)} : {}),
           imageAnalysisIds,
@@ -3115,6 +3117,7 @@ export default {
       try {
         const payload = await fetchAuthorizedAgents();
         const models = Array.isArray(payload?.models) ? payload.models : [];
+        this.codingModelOptions = models;
         this.defaultModelName = this.defaultModelFromOptions(models);
         const agents = Array.isArray(payload?.agents) ? payload.agents : [];
         this.agents = agents

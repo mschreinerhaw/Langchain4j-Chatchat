@@ -84,6 +84,22 @@ public final class ClineRuntimeModelBridge {
         this.resources = resources; this.models = models; this.json = json;
     }
 
+    @org.springframework.beans.factory.annotation.Autowired
+    private com.chatchat.api.runtime.coding.analysis.CodingReasoningPolicy reasoningPolicy;
+
+    static dev.langchain4j.model.chat.request.ChatRequestParameters modelParameters(int limit,String effort,String parameter) {
+        if(effort==null) return dev.langchain4j.model.chat.request.DefaultChatRequestParameters.builder().maxOutputTokens(limit).build();
+        var builder=dev.langchain4j.model.openai.OpenAiChatRequestParameters.builder().maxOutputTokens(limit);
+        if("hunyuan-template".equals(parameter))
+            return builder.customParameters(Map.of("chat_template_kwargs",Map.of("reasoning_effort",effort))).build();
+        builder.reasoningEffort(effort);
+        if("qwen-thinking".equals(parameter))
+            builder.customParameters(Map.of("enable_thinking",!"none".equals(effort)));
+        if("deepseek-thinking".equals(parameter))
+            builder.customParameters(Map.of("thinking",Map.of("type","enabled")));
+        return builder.build();
+    }
+
     private String selectedModel(CodingTaskContract contract) {
         String modelName = resources.defaultChatModel();
         Map<?,?> effectiveModel = contract.runtimeContext().get("model") instanceof Map<?,?> snapshot ? snapshot : Map.of();
@@ -173,12 +189,14 @@ public final class ClineRuntimeModelBridge {
             throw new IllegalStateException("Authorized tool model binding is unavailable; reconcile before dispatch");
         if (parent == null) resources.require(modelName);
         int outputLimit = maxOutputTokens(contract);
-        dev.langchain4j.model.chat.request.ChatRequestParameters requestParameters =
-            executionProfile.get("reasoningEffort") instanceof String effort
-                ? dev.langchain4j.model.openai.OpenAiChatRequestParameters.builder()
-                    .reasoningEffort(effort).maxOutputTokens(outputLimit).build()
-                : dev.langchain4j.model.chat.request.DefaultChatRequestParameters.builder()
-                    .maxOutputTokens(outputLimit).build();
+        String requestedEffort=com.chatchat.common.runtime.coding.CodingReasoning.requestedFromContext(contract.runtimeContext());
+        String appliedEffort=requestedEffort==null
+            ? (executionProfile.containsKey("reasoningEffort")
+                ? reasoningPolicy.supportedLegacyEffort(modelName,executionProfile.get("reasoningEffort")) : null)
+            : com.chatchat.common.runtime.coding.CodingReasoning.effective(contract.runtimeContext());
+        String reasoningParameter=com.chatchat.common.runtime.coding.CodingReasoning.parameter(contract.runtimeContext());
+        if(requestedEffort!=null) reasoningPolicy.requireCompatible(modelName,appliedEffort,reasoningParameter);
+        var requestParameters=modelParameters(outputLimit,appliedEffort,reasoningParameter);
         Instant started = Instant.now();
         java.util.function.LongSupplier remaining=()->Math.max(0,Duration.between(Instant.now(),contract.budget().deadlineAt()).toMillis());
         java.util.function.BooleanSupplier cancelled=()->runtimeTasks!=null && runtimeIdentity.as(contract.scope(),
@@ -280,7 +298,8 @@ public final class ClineRuntimeModelBridge {
         modelInfo.put("retryTimeMs",retryTime);
         modelInfo.put("deadlineAt",contract.budget().deadlineAt().toString());
         if(executionProfile.get("complexity") instanceof String complexity)modelInfo.put("complexity",complexity);
-        if(executionProfile.get("reasoningEffort") instanceof String effort)modelInfo.put("reasoningEffort",effort);
+        if(requestedEffort!=null)modelInfo.put("requestedReasoningEffort",requestedEffort);
+        if(appliedEffort!=null)modelInfo.put("reasoningEffort",appliedEffort);
         result.put("modelInfo", modelInfo);
         if (answer.finishReason() != null) result.put("finishReason", answer.finishReason().name());
         if (answer.id() != null) result.put("requestId", answer.id());

@@ -4,10 +4,13 @@ import { reportPresentation } from '../utils/reportLayout';
 import { readWorkspaceDraft, saveWorkspaceDraft } from '../utils/workspaceDrafts';
 import { getWorkspaceContext, workspaceStorageKey } from '../utils/workspaceContext';
 
+import CodingReasoningSelect from '../../components/CodingReasoningSelect.vue';
+import {availableReasoning, reasoningOptions} from '../utils/codingReasoning';
+
 export default {
   name: "PromptComposer",
   components: {
-    Bot,
+    Bot, CodingReasoningSelect,
     FileText,
     Send,
     XCircle,
@@ -15,6 +18,8 @@ export default {
   },
   props: {
     compact: {type:Boolean,default:false},
+    reasoningEfforts: {type:Array,default:()=>[]},
+    reasoningUnavailableLabel: String,
     showIdea: {type:Boolean,default:false},
     ideaContext: {type:Object,default:()=>({})},
     ideaProvider: {type:Function,default:null},
@@ -79,6 +84,7 @@ export default {
     return {
       reportMode: "off",
       resourceExplorationApproved: false,
+      rememberedReasoning: readWorkspaceDraft('coding-reasoning',this.workspaceContext || getWorkspaceContext()),
       reportPresentation: reportPresentation(readWorkspaceDraft('report-presentation',this.workspaceContext || getWorkspaceContext()) || {}),
       draft: this.modelValue,
       ideasOpen: false, ideaError: '', ideas: [], ideasLoading: false, ideaSerial: 0, ideaController: null,
@@ -101,6 +107,12 @@ export default {
             documentWorkflow: this.isDocumentWorkflowAgent(agent),
           })),
       ];
+    },
+    reasoningOptions() {
+      return reasoningOptions(this.reasoningEfforts);
+    },
+    selectedReasoning() {
+      return availableReasoning(this.reasoningEfforts, this.rememberedReasoning);
     },
     selectedAgent() {
       return (
@@ -139,7 +151,7 @@ export default {
     attachments: {deep:true,handler(){this.invalidateIdeas();}},
     loading(value) { if(value)this.invalidateIdeas(); },
     reportPresentation: {deep:true,handler(value){saveWorkspaceDraft('report-presentation',this.workspaceContext || getWorkspaceContext(),reportPresentation(value));}},
-    reportPreferenceKey(){this.reportPresentation=reportPresentation(readWorkspaceDraft('report-presentation',this.workspaceContext || getWorkspaceContext()) || {});},
+    reportPreferenceKey(){this.rememberedReasoning=readWorkspaceDraft('coding-reasoning',this.workspaceContext || getWorkspaceContext());this.reportPresentation=reportPresentation(readWorkspaceDraft('report-presentation',this.workspaceContext || getWorkspaceContext()) || {});},
     modelValue(value) {
       this.draft = value;
       this.$nextTick(this.adjustTextareaHeight);
@@ -196,6 +208,11 @@ export default {
       }
       this.send();
     },
+    changeReasoning(value) {
+      if (!this.reasoningOptions.some(option => option.value === value)) return;
+      this.rememberedReasoning=value;
+      saveWorkspaceDraft('coding-reasoning',this.workspaceContext || getWorkspaceContext(),value);
+    },
     send() {
       if(this.agentRequired&&!this.agentSelectionValid)return;
       const value = this.draft;
@@ -214,6 +231,7 @@ export default {
         agentId: this.selectedAgentId,
         agentName: this.selectedAgent?.name || "",
         documentWorkflow: this.documentWorkflowActive,
+        ...(this.reasoningOptions?.length ? {codingReasoningEffort:this.selectedReasoning} : {}),
         reportMode,
           resourceExplorationApproved: this.resourceExplorationApproved,
         ...(reportMode === "visual" ? { reportPresentation: reportPresentation(this.reportPresentation) } : {}),

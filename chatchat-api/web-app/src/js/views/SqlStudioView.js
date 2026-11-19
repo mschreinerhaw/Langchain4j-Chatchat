@@ -13,6 +13,7 @@ import { studioAiLabels, sqlGenerationAction } from '../utils/studioAi';
 import { FolderTree, PanelBottom, Sparkles, Plus, Save, WandSparkles, FileCode2, CircleCheck } from '@lucide/vue';
 import * as sql from '../../services/sqlStudioApi';
 import { fetchPythonCodeModels, cancelAgentTask } from '../../services/api';
+import {availableReasoning} from '../utils/codingReasoning';
 import { saveWorkspaceDraft, readWorkspaceDraft } from '../utils/workspaceDrafts';
 import { dirtySqlFile, mergeSqlFiles, restoreSqlDrafts, assertSqlApplySafe, mergeAppliedSqlFile, terminalSqlTask } from '../utils/sqlStudioState';
 import { mappingSchemaColumns } from '../editor/codeIntelligence';
@@ -39,6 +40,20 @@ const dialect = ref('spark'), agentId = ref(''), modelName = ref(''), prompt = r
 const executionMode = ref('model');
 const assistantDiscoveryId=ref(null), assistantBindingContext=ref(null);
 const aiAction = ref('explore'), reviewOpen = ref(false), reviewPath = ref('');
+const rememberedReasoning = ref(readWorkspaceDraft('coding-reasoning',props.workspaceContext));
+const metadataAssistant = computed(() => studioReadOnlyAction(aiAction.value,prompt.value.trim())==='explore');
+const reasoningEfforts = computed(() => {
+  if(metadataAssistant.value)return [];
+  if(executionMode.value==='agent')return agents.value.find(agent => agent.id===agentId.value)?.reasoningEfforts || [];
+  const model = modelName.value ? models.value.find(option => option.value===modelName.value) : models.value.find(option => option.defaultModel);
+  return model?.reasoningEfforts || [];
+});
+const reasoning = computed(() => availableReasoning(reasoningEfforts.value,rememberedReasoning.value));
+function changeReasoning(value) {
+  if(!value || value!==availableReasoning(reasoningEfforts.value,value))return;
+  rememberedReasoning.value=value;
+  saveWorkspaceDraft('coding-reasoning',props.workspaceContext,value);
+}
 const reviewTitle = computed(() => studioAiLabels[sqlGenerationAction(result.value)] || '代码变更');
 const reviewFiles = computed(() => (result.value?.files || []).map(candidate => {
   const existing=files.value.find(file=>file.path.toLowerCase()===candidate.path.toLowerCase());
@@ -276,6 +291,7 @@ async function generate() { if(documentsUploading.value)return; await action(asy
   if(executionMode.value==='agent'&&!agents.value.some(agent=>agent.id===agentId.value))throw new Error('\u8bf7\u9009\u62e9\u5df2\u53d1\u5e03\u4e14\u6709\u6743\u4f7f\u7528\u7684 Agent');
   if (taskRunning.value) throw new Error('当前任务仍在运行，请等待结果或取消后再发送。');
   if (files.value.some(dirtySqlFile)) throw new Error('请先保存工程中的编辑内容，让生成任务读取一致的文件版本。');
+  const selectedReasoning=reasoning.value;
   const id = projectId.value, text = prompt.value.trim();
   if (!text) return;
   const codeContext=selectedCode.value || ((includeCurrentFile.value || requestAction==='explain') && activeFile.value?.kind==='SQL'
@@ -291,6 +307,7 @@ async function generate() { if(documentsUploading.value)return; await action(asy
   pendingPhase.value = 'PREPARING'; pendingStartedAt.value = Date.now(); pollError.value = ''; result.value = null;
   try {
     const prepared = await sql.prepareSqlGeneration(id, { action:requestAction, prompt:request, dialect:dialect.value, mappingDocumentIds:mappingDocumentIds.value, mappingIds:mappingIds.value, referenceIds:[...new Set([...referenceIds.value,...(requestAction==='explain' && activeFile.value?.kind==='SQL'?[activeFile.value.id]:[])])], userDocuments:userDocuments.value.map(({fileId,purpose})=>({fileId,purpose})), agentId:executionMode.value === 'agent' ? agentId.value || null : null, modelName:executionMode.value === 'model' ? modelName.value || null : null,
+      ...(selectedReasoning ? {codingReasoningEffort:selectedReasoning} : {}),
       codingMetadataSelection:aiAction.value==='explore'?null:schemaExplorer.value?.codingSelection?.() || null,
       metadataDiscoveryId:assistantBindingContext.value && assistantBindingContext.value!==schemaExplorer.value?.assistantContext?.()?null:assistantDiscoveryId.value,
       metadataBindingContextId:schemaExplorer.value?.assistantContext?.() || null });
@@ -420,7 +437,7 @@ onMounted(async () => {
 onActivated(() => { active = true; if (initialized) refreshGeneration(); });
 onDeactivated(() => { active = false; clearTimeout(pollTimer); persist(); });
 onBeforeUnmount(() => { resolveConfirm(false); active = false; resizeCleanup?.(); clearTimeout(pollTimer); clearTimeout(draftTimer); persist(); window.removeEventListener('beforeunload', beforeUnload); });
-  return { deleteGeneration, exploreDatabase, referenceMetadata, attachCurrentFile, includeCurrentFile, insertAssistantSql, retryQuestion, publicationOpen, metadataTableCount, folderOriginal, editFolder, deleteFolder, userDocuments, documentsUploading, schemaExplorer, databaseContextTarget, completeSchema, useSourceDialect, reviewTitle, reviewBlockedReason, reviewOpen, reviewPath, reviewFiles, reviewGeneration, chooseAiAction, aiAction, newConversation, taskStatusLabel, pendingPhase, pendingStartedAt, pollError, confirmation, resolveConfirm, folders, folderOpen, folderPath, newFileFolder, createFolder, openNewFolder, mappingDocuments, removeMappingDocument, dialects, projects, projectId, files, references, models, agents, dialect, agentId, modelName, executionMode, chooseExecutionMode, prompt, mappingIds, schemaColumns, selectedMappings, referenceIds, openIds, activeId, preview, generations, generationId, result, busy, error, message, newProjectOpen, projectName, versions, versionFile, activeFile, action, toggle, openFile, openReference, closeFile, editFile, selectProject, refreshFiles, createProject, deleteProject, createFile, deleteFile, saveActive, upload, generate, resume, selectGeneration, refreshGeneration, apply, cancel, showVersions, download, chatTurns, selectedCode, problemCount, cursor, layout, ideStyle, togglePanel, resetSize, startResize, useSelection, useMappingReference, addFileMention, renameFile, libraryOpen, libraryKind, libraryItems, librarySelected, chooseLibrary, importLibrary, editorPane, newFileOpen, newFilePath, openNewFile, formatActive, taskRunning, dirtyCount };
+  return { reasoningEfforts, reasoning, changeReasoning, metadataAssistant, deleteGeneration, exploreDatabase, referenceMetadata, attachCurrentFile, includeCurrentFile, insertAssistantSql, retryQuestion, publicationOpen, metadataTableCount, folderOriginal, editFolder, deleteFolder, userDocuments, documentsUploading, schemaExplorer, databaseContextTarget, completeSchema, useSourceDialect, reviewTitle, reviewBlockedReason, reviewOpen, reviewPath, reviewFiles, reviewGeneration, chooseAiAction, aiAction, newConversation, taskStatusLabel, pendingPhase, pendingStartedAt, pollError, confirmation, resolveConfirm, folders, folderOpen, folderPath, newFileFolder, createFolder, openNewFolder, mappingDocuments, removeMappingDocument, dialects, projects, projectId, files, references, models, agents, dialect, agentId, modelName, executionMode, chooseExecutionMode, prompt, mappingIds, schemaColumns, selectedMappings, referenceIds, openIds, activeId, preview, generations, generationId, result, busy, error, message, newProjectOpen, projectName, versions, versionFile, activeFile, action, toggle, openFile, openReference, closeFile, editFile, selectProject, refreshFiles, createProject, deleteProject, createFile, deleteFile, saveActive, upload, generate, resume, selectGeneration, refreshGeneration, apply, cancel, showVersions, download, chatTurns, selectedCode, problemCount, cursor, layout, ideStyle, togglePanel, resetSize, startResize, useSelection, useMappingReference, addFileMention, renameFile, libraryOpen, libraryKind, libraryItems, librarySelected, chooseLibrary, importLibrary, editorPane, newFileOpen, newFilePath, openNewFile, formatActive, taskRunning, dirtyCount };
 
   }
 };

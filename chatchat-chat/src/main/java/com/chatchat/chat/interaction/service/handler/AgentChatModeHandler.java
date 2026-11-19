@@ -785,6 +785,8 @@ public class AgentChatModeHandler implements InteractionModeHandler {
             copyInternalExecutionAttribute(request, attributes, "__executionAttemptId");
             copyInternalExecutionAttribute(request, attributes, "__parentAttemptId");
             copyInternalExecutionAttribute(request, attributes, "__executionAttemptNumber");
+            String reasoning = com.chatchat.common.runtime.coding.CodingReasoning.requested(request.getToolInput());
+            if (reasoning != null) attributes.put(com.chatchat.common.runtime.coding.CodingReasoning.REQUEST_KEY,reasoning);
             Object responseContract = request.getToolInput().get("responseContract");
             if(com.chatchat.common.runtime.coding.VisualReportMode.active(request.getToolInput())){
                 attributes.put("reportMode","visual");

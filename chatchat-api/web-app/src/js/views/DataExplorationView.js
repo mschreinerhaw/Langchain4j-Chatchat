@@ -42,6 +42,13 @@ export default {
       if(attachments.value.some(f=>f.state!=='ready'))throw new Error('请先完成附件上传，或移除失败的附件。');
       return generateExplorationIdeas({draft,agentId,workspaceId:space.value?.id,nodeId:activeId.value||undefined,fileIds:attachments.value.map(f=>f.asset.id)},{signal,workspaceContext:props.workspaceContext});
     }
+    const codingReasoningEfforts=computed(()=>{
+      const agent=agents.value.find(option=>option.id===selectedAgentId.value);
+      if(!agent)return [];
+      const inheritedModel=active.value?.modelName;
+      if(!inheritedModel || inheritedModel===agent.modelName)return agent.reasoningEfforts||[];
+      return agents.value.find(option=>option.modelName===inheritedModel)?.reasoningEfforts||[];
+    });
     const agentAvailable=computed(()=>agents.value.some(a=>a.id===selectedAgentId.value));
     const loading=ref(false),mutationBusy=ref(false),refreshing=ref(false),analyzing=ref(false),saving=ref(false);
     const runningId=ref(''),runningSpaceId=ref(''),error=ref(''),notice=ref('');
@@ -212,7 +219,7 @@ export default {
       const serial=++analysisSerial;
       try{
         if(parent&&!parent.saved)await save(parent.chartTypes||{},true,parent.id);
-        const prepared=await prepareExploration(id,{version:space.value.version,parentId:parent?.id||null,agentId:selectedAgentId.value,fileIds,question:text,modelName:parent?.modelName||null,reportPresentation:reportPresentation(payload?.reportPresentation||parent?.reportPresentation||{})});
+        const prepared=await prepareExploration(id,{version:space.value.version,parentId:parent?.id||null,agentId:selectedAgentId.value,fileIds,question:text,modelName:parent?.modelName||null,...(payload?.codingReasoningEffort?{codingReasoningEffort:payload.codingReasoningEffort}:{}),reportPresentation:reportPresentation(payload?.reportPresentation||parent?.reportPresentation||{})});
         const node=prepared.nodes.at(-1);runningId.value=node.id;
         if(space.value?.id===id){applySpace(prepared);if(activeId.value===selectionAtSend){activeId.value=node.id;tableOpen.value=false;remember();}}
         question.value='';attachments.value=[];mutationBusy.value=false;await execute(id,node);
@@ -262,7 +269,7 @@ export default {
     onBeforeUnmount(()=>{disposed=true;stopResize();clearTimeout(noticeTimer);clearTimeout(pollTimer);window.removeEventListener('resize',syncViewport);});
     return {canvasNode,canvasState,selectedState,showingPrevious,metrics,explorationNodeState,explorationMetricDisplay,chartSelection,canContinueLegacy,
       continueFromCanvas:()=>{if(canvasNode.value){selectNode(canvasNode.value);question.value='';workspaceElement.value?.querySelector('textarea')?.focus();}},
-      stopTarget,stopping,stopAnalysis,projectMenu,projectAction,projectName,projectActionBusy,projectActionError,manageProject,cancelProjectAction,submitProjectAction,attachments,addFiles,retryFile,removeFile,suggestIdeas,agents,agentsLoading,selectedAgentId,agentAvailable,selectAgent,taskRunning,spaces,space,selected,activeId,title,question,active,report,authoredReport,charts,currentChart,chartKey,chartData,chartTypes,compatibleTypes,effectiveChartType,heading,summary,
+      stopTarget,stopping,stopAnalysis,projectMenu,projectAction,projectName,projectActionBusy,projectActionError,manageProject,cancelProjectAction,submitProjectAction,attachments,addFiles,retryFile,removeFile,suggestIdeas,agents,agentsLoading,selectedAgentId,agentAvailable,codingReasoningEfforts,selectAgent,taskRunning,spaces,space,selected,activeId,title,question,active,report,authoredReport,charts,currentChart,chartKey,chartData,chartTypes,compatibleTypes,effectiveChartType,heading,summary,
       loading,busy,refreshing,analyzing,saving,runningId,runningSpaceId,error,notice,hasData,sidebarWidth,sidebarCollapsed,collapsedBranches,resizing,contentStyle,
       workspaceElement,workspaceDialog,chartDialog,tableDialog,detailsDialog,tableOpen,expandedChart,workspaceBusinessName,businessNodeTitle,
       open,run,create,ask,recover,reload,saveNode,save,selectNode,chartType,chartReady,selectChart,startRoot,toggleBranch,startResize,

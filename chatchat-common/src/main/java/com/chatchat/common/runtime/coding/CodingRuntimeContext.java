@@ -8,7 +8,7 @@ public final class CodingRuntimeContext {
     public static Map<String, Object> validate(Map<String, Object> value) {
         if (value == null || value.isEmpty()) return Map.of();
         CodingProtocol.require(value.keySet().stream().allMatch(Set.of("schemaVersion", "capturedAt",
-            "consistency", "model", "skills", "builtinSkillPolicy", "configuredSkillIds", "inputFiles", "executionProfile", "reportMode", "reportPresentation", "pythonEnvironment", "scriptPurpose", "codingLifecycle", "analysisResultMode", "analysisInstructions", "codeProject", "knowledgeExploration", "internetSearch", "internetAvailability", "documentSearch")::contains), "Unknown Coding context field");
+            "consistency", "model", "skills", "builtinSkillPolicy", "configuredSkillIds", "inputFiles", "executionProfile", "reasoning", "reportMode", "reportPresentation", "pythonEnvironment", "scriptPurpose", "codingLifecycle", "analysisResultMode", "analysisInstructions", "codeProject", "knowledgeExploration", "internetSearch", "internetAvailability", "documentSearch")::contains), "Unknown Coding context field");
         if(value.containsKey("documentSearch")){
             CodingProtocol.require(value.get("documentSearch") instanceof Map<?,?>,"Document capability required");
             var p=(Map<?,?>)value.get("documentSearch");
@@ -93,6 +93,7 @@ public final class CodingRuntimeContext {
                 && "runtime_os.code_lifecycle.v1".equals(policy.get("schemaVersion"))
                 && Boolean.TRUE.equals(policy.get("patchOnlyAfterFirst")),"Unsupported code lifecycle policy");
         }
+        if (value.containsKey(CodingReasoning.CONTEXT_KEY)) CodingReasoning.validate(value.get(CodingReasoning.CONTEXT_KEY));
         VisualReportMode.read(value);
         ReportPresentation.read(value);
         if(value.containsKey("executionProfile")) {

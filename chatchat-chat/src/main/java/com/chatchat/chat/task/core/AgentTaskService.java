@@ -146,6 +146,7 @@ public class AgentTaskService {
                                      AgentExecutionIdentity retryIdentity) {
         validate(request);
         com.chatchat.common.runtime.coding.VisualReportMode.read(request.getToolInput());
+        com.chatchat.common.runtime.coding.CodingReasoning.requested(request.getToolInput());
         AgentTaskSubmitRequest normalized = normalize(request);
         if (normalized.getResumeTaskId() != null && !normalized.getResumeTaskId().isBlank()) {
             return confirm(normalized.getTenantId(), normalized.getResumeTaskId(), normalized);

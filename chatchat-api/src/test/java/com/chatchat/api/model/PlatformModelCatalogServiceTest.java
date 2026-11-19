@@ -21,6 +21,31 @@ import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 
 class PlatformModelCatalogServiceTest {
+    @Test void reasoningDraftAndPublishedMappingHaveSeparateLifecycles() throws Exception {
+        var jdbc=new JdbcTemplate(new DriverManagerDataSource("jdbc:h2:mem:reasoning-catalog;DB_CLOSE_DELAY=-1","sa",""));
+        var registry=new ModelsConfig();
+        var service=new PlatformModelCatalogService(jdbc,registry,new SearchProperties(),new MockEnvironment(),mock(McpModelSyncClient.class));
+        var json=new com.fasterxml.jackson.databind.ObjectMapper();
+        String fields="{\"name\":\"test-model\",\"type\":\"chat\",\"baseUrl\":\"https://model.example/v1\",\"protocol\":\"openai\"";
+        var draftType=PlatformModelCatalogService.ModelDraft.class;
+        var settings=new ModelReasoningConfig(true,"deepseek-thinking",Map.of("low","low","medium","high","xhigh","max"));
+        String draft=fields+",\"codingReasoning\":"+json.writeValueAsString(settings)+"}";
+        assertThat(service.save(json.readValue(draft,draftType)).codingReasoning()).isEqualTo(settings);
+        assertThat(service.publishedReasoning("test-model")).isNull();
+        service.publish("chat","test-model");
+        assertThat(service.publishedReasoning("test-model")).isEqualTo(settings);
+        service.save(json.readValue(fields+"}",draftType));
+        assertThat(service.list().get(0).codingReasoning()).isEqualTo(settings);
+        service.save(json.readValue(fields+",\"codingReasoning\":{\"enabled\":false}}",draftType));
+        assertThat(service.publishedReasoning("test-model")).isEqualTo(settings);
+        service.publish("chat","test-model");
+        assertThat(service.publishedReasoning("test-model").enabled()).isFalse();
+        assertThat(new ModelReasoningConfig(true,null,null).levels()).containsExactlyInAnyOrderEntriesOf(
+            Map.of("low","low","medium","medium","xhigh","xhigh"));
+        assertThatThrownBy(()->new ModelReasoningConfig(true,"hunyuan-template",Map.of("medium","xhigh")))
+            .isInstanceOf(IllegalArgumentException.class);
+    }
+
     @Test void persistsPerInstanceSecondsDefaultsAndPublicationWithoutProviderAliasCollision() throws Exception {
         var jdbc=new JdbcTemplate(new DriverManagerDataSource("jdbc:h2:mem:request-timeout-catalog;DB_CLOSE_DELAY=-1","sa",""));
         var files=new ModelsConfig();var transport=new ModelsConfig.ModelConnectionConfig();

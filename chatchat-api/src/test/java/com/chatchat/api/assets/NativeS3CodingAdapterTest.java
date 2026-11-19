@@ -31,6 +31,9 @@ class NativeS3CodingAdapterTest {
     SiloCodingWorkspaceServiceTest fixture;SiloCodingWorkspaceService workspace;
     DurableCodingTaskService tasks;NativeSiloTaskService capture;NativeS3CodingAdapter adapter;
     NativeS3Evidence nativeEvidence;
+    JdbcRuntimeEvidenceStore store;
+    NativeS3Settings settings;
+    String outputPath="output/answer.json";
     ThreadPoolTaskScheduler scheduler;HttpServer http;
     JsonNode grant,manifest;boolean created,messaged,sealed;final AtomicInteger messageCalls=new AtomicInteger();
     volatile boolean blockStatus;
@@ -45,7 +48,7 @@ class NativeS3CodingAdapterTest {
     byte[] output="{\"value\":42}".getBytes(java.nio.charset.StandardCharsets.UTF_8);
     @BeforeEach void setup()throws Exception{
         fixture=new SiloCodingWorkspaceServiceTest();fixture.setup();
-        var tx=new DataSourceTransactionManager(fixture.jdbc.getDataSource());var store=new JdbcRuntimeEvidenceStore(fixture.jdbc,json,tx);
+        var tx=new DataSourceTransactionManager(fixture.jdbc.getDataSource());store=new JdbcRuntimeEvidenceStore(fixture.jdbc,json,tx);
         var policy=new AssetStorageProperties();policy.setEndpoint("http://silo.invalid:9000");workspace=new SiloCodingWorkspaceService(fixture.assets,fixture.blobs,policy,store,json);
         scheduler=new ThreadPoolTaskScheduler();scheduler.initialize();
         tasks=new DurableCodingTaskService(store,json,Clock.systemUTC(),identity,(scope,ref)->store.find(scope,NativeS3Evidence.id(ref)).isPresent()||store.snapshot(scope,NativeS3Evidence.id(ref)).isPresent(),new NativeS3ExecutionProofVerifier(store),Runnable::run,scheduler);
@@ -54,10 +57,52 @@ class NativeS3CodingAdapterTest {
         Path config=directory.resolve("connection.json");Files.writeString(config,json.writeValueAsString(Map.of("endpoint","http://127.0.0.1:"+http.getAddress().getPort(),"issuerKey","k".repeat(64),"defaultModel","published-model","modelProfiles",Map.of("published-model","fixed"))));
         McpLicenseEntitlementPort license=new McpLicenseEntitlementPort(){public CodingDispatchEntitlement codingDispatchEntitlement(){return new CodingDispatchEntitlement(true,"VALID");}};
         nativeEvidence=spy(new NativeS3Evidence(fixture.assets,store,json));
-        adapter=new NativeS3CodingAdapter(tasks,capture,workspace,new NativeS3Settings(config.toString(),json),nativeEvidence,identity,json,fixture.jdbc,license,tx);
+        settings=new NativeS3Settings(config.toString(),json);
+        adapter=new NativeS3CodingAdapter(tasks,capture,workspace,settings,nativeEvidence,identity,json,fixture.jdbc,license,tx);
     }
     @AfterEach void stop(){if(adapter!=null)adapter.close();if(http!=null)http.stop(0);if(scheduler!=null)scheduler.shutdown();}
     <T>T authorized(java.util.function.Supplier<T> action){return identity.as(fixture.scope,Set.of(READ,SUBMIT,WORKER,EVIDENCE,STOP,RECOVER),action);}
+    @org.junit.jupiter.params.ParameterizedTest
+    @org.junit.jupiter.params.provider.ValueSource(strings={"postgresql","python"})
+    @org.junit.jupiter.api.condition.EnabledIfSystemProperty(named="coding.sqlglotPython",matches=".+")
+    void studioUsesTheSameNativeBrokerAndReturnsReviewedSourceViaItsOriginalId(String dialect) throws Exception {
+        boolean python="python".equals(dialect);
+        outputPath="output/studio-proposal.json";
+        String filename=python?"total.py":"total.sql";
+        output=json.writeValueAsBytes(Map.of("schemaVersion",(python?"python":"sql")+"-studio.output.v1",
+            "files",List.of(Map.of("path",filename,"content",python?"def total():\n    return 44\n":"SELECT 44 AS total;")),"notes","For review"));
+        var beans=new org.springframework.beans.factory.support.DefaultListableBeanFactory();
+        var workspace=new com.chatchat.api.runtime.coding.workspace.CodingWorkspaceService(tasks,identity,store,
+            beans.getBeanProvider(com.chatchat.common.runtime.coding.CodingAgentSPI.class),
+            new com.chatchat.api.datascience.sql.SqlGlotToolchain(System.getProperty("coding.sqlglotPython"),json),json,120);
+        beans.registerSingleton("adapter",new NativeAwareCodingAdapter(mock(CodingAgentSPI.class),adapter,tasks));
+        beans.registerSingleton("studio",workspace);
+        org.springframework.test.util.ReflectionTestUtils.setField(workspace,"nativeTasks",
+            new NativeCodingTasks(capture,adapter,settings,identity,fixture.assets,null,tasks));
+        org.springframework.test.util.ReflectionTestUtils.setField(workspace,"nativeInputs",capture);
+        org.springframework.test.util.ReflectionTestUtils.setField(adapter,"studioWorkspace",
+            beans.getBeanProvider(com.chatchat.api.runtime.coding.workspace.CodingWorkspaceService.class));
+        workspace.setSqlCumulativeLimitsEnabled(true);
+        workspace.setPythonCumulativeLimitsEnabled(true);
+        String logical="studio-test-"+dialect;
+        var accepted=workspace.submit(fixture.scope,logical,"Propose "+filename,dialect,"published-model");
+        assertThat(accepted.taskId()).startsWith("native-");
+        CodingTaskOutcome result=accepted;
+        for(int i=0;i<100&&!result.status().terminal();i++){Thread.sleep(100);result=workspace.get(fixture.scope,logical);}
+        assertThat(result.status()).as(result.summary()).isEqualTo(CodingTaskOutcome.Status.COMPLETED);
+        assertThat(workspace.output(fixture.scope,logical,result).get("files").toString()).contains(filename,"44");
+        var stored=authorized(()->tasks.contract(fixture.scope,accepted.taskId()));
+        assertThat(stored.authorization().allowedTools()).doesNotContain("run_commands");
+        assertThat(stored.budget().maxCodeExecutions()).isZero();
+        assertThat(grant.path("studioBudget").path("modelCalls").asLong()).isEqualTo(stored.budget().maxModelCalls());
+        assertThat(result.usage().consumed().modelCalls()).isEqualTo(1);
+        var receipts=authorized(()->tasks.nativeTelemetry(fixture.scope,accepted.taskId(),"model"));
+        assertThat(receipts).hasSize(1);
+        assertThat(receipts.get(0).path("reasoningEffort").asText()).isEqualTo("medium");
+        assertThat(workspace.submit(fixture.scope,logical,"Propose "+filename,dialect,"published-model").taskId()).isEqualTo(accepted.taskId());
+        assertThat(messageCalls).hasValue(1);
+    }
+
     @Test void actualProtocolDeliveryRegistersAllSixReferencesAndCannotSilentlyBecomeBusinessValidation()throws Exception{
         String file=fixture.assets.upload(fixture.owner,"input.csv","value\n42\n".getBytes()).id();
         var contract=authorized(()->capture.capture(fixture.scope,"native-test",List.of(file),"Analyze the supplied input","published-model",new CodingTaskContract.Budget("b",Instant.now().plusSeconds(90).truncatedTo(java.time.temporal.ChronoUnit.MILLIS),-1,-1,-1,-1,"unlimited","USD",-1,1024*1024,1024*1024),Map.of("profile","artifact-integrity-v1"),List.of("RESULT")));
@@ -273,6 +318,13 @@ class NativeS3CodingAdapterTest {
             if(path.endsWith("/status")){if(blockStatus&&messaged){blockedStatus.countDown();releaseStatus.await(5,java.util.concurrent.TimeUnit.SECONDS);}reply(exchange,200,state());return;}
             if(path.endsWith("/observations")||path.endsWith("/receipts")){
                 if(sealed&&missingStoppedTelemetry){reply(exchange,410,Map.of("code","HISTORICAL_TELEMETRY_UNAVAILABLE"));return;}
+                if(path.endsWith("/receipts")&&grant.has("studioBudget")&&messaged
+                        &&exchange.getRequestURI().getRawQuery().contains("afterEventId=0")){
+                    var metering=Map.of("totalTokens",64);
+                    var row=Map.of("eventId",1,"eventType","model.request.completed","requestId","studio-request",
+                        "providerModel","published-model","reasoningEffort","medium","usage",metering,"durationMs",120);
+                    reply(exchange,200,Map.of("events",List.of(row),"nextEventId",1,"hasMore",false));return;
+                }
                 reply(exchange,200,Map.of("events",List.of(),"nextEventId",0,"hasMore",false));return;
             }
             if(path.endsWith("/message-receipt")){
@@ -294,20 +346,20 @@ class NativeS3CodingAdapterTest {
                 reply(exchange,202,accepted);return;
             }
             if(path.endsWith("/delivery-content")){
-                reply(exchange,200,Map.of("path","output/answer.json","data",Base64.getEncoder().encodeToString(output)));return;
+                reply(exchange,200,Map.of("path",outputPath,"data",Base64.getEncoder().encodeToString(output)));return;
             }
             if(path.endsWith("/delivery-preview")||path.endsWith("/delivery")){
                 if(path.endsWith("/delivery-preview")&&previewRejections-->0){
                     reply(exchange,422,Map.of("code","DELIVERY_SELECTION_INVALID","message","Schema mismatch","selectionSha256","a".repeat(64)));return;
                 }
-                manifest=json.valueToTree(new SiloCodingWorkspaceService.Delivery("coding_node_delivery.v1",grant.path("taskId").asText(),grant.path("deliveryBinding").path("runId").asText(),grant.path("tenantId").asText(),grant.path("deliveryBinding").path("inputSnapshotVersion").asText(),request.path("deliveryVersion").asText(),wrongReceiptSession?"old-session":"native-session","native-epoch","NATIVE_TURN_COMPLETED","PENDING_RUNTIME_VALIDATION",List.of(new SiloCodingWorkspaceService.Artifact("output/answer.json","RESULT",output.length,UserAssetService.hash(output))),List.of(new SiloCodingWorkspaceService.Receipt("1","turn.completed","native-session","native-epoch"))));
+                manifest=json.valueToTree(new SiloCodingWorkspaceService.Delivery("coding_node_delivery.v1",grant.path("taskId").asText(),grant.path("deliveryBinding").path("runId").asText(),grant.path("tenantId").asText(),grant.path("deliveryBinding").path("inputSnapshotVersion").asText(),request.path("deliveryVersion").asText(),wrongReceiptSession?"old-session":"native-session","native-epoch","NATIVE_TURN_COMPLETED","PENDING_RUNTIME_VALIDATION",List.of(new SiloCodingWorkspaceService.Artifact(outputPath,"RESULT",output.length,UserAssetService.hash(output))),List.of(new SiloCodingWorkspaceService.Receipt("1","turn.completed","native-session","native-epoch"))));
                 if(path.endsWith("/delivery"))sealed=true;reply(exchange,200,manifest);return;
             }
             if(path.endsWith("/executions")){reply(exchange,200,Map.of("executions",List.of()));return;}
             if(path.endsWith("/upload")){
                 byte[] journal=json.writeValueAsBytes(Map.of("events",List.of(Map.of("eventId","1","eventType","turn.completed","sessionId","native-session","epoch","native-epoch"),Map.of("eventId","2","eventType","delivery.sealed","sessionId","native-session","epoch","native-epoch","payload",Map.of("localStopConfirmed",true)))));
                 var artifact=request.path("artifacts").path(0);var part=put(artifact.path("parts").path(0).path("url").asText(),output);
-                reply(exchange,200,Map.of("artifacts",List.of(Map.of("path","output/answer.json","parts",List.of(Map.of("index",0,"size",output.length,"sha256",UserAssetService.hash(output),"objectVersion",part.get("objectVersion"))),"size",output.length,"sha256",UserAssetService.hash(output))),"manifest",put(request.path("manifestUrl").asText(),json.writeValueAsBytes(manifest)),"evidence",put(request.path("evidenceUrl").asText(),journal)));return;
+                reply(exchange,200,Map.of("artifacts",List.of(Map.of("path",outputPath,"parts",List.of(Map.of("index",0,"size",output.length,"sha256",UserAssetService.hash(output),"objectVersion",part.get("objectVersion"))),"size",output.length,"sha256",UserAssetService.hash(output))),"manifest",put(request.path("manifestUrl").asText(),json.writeValueAsBytes(manifest)),"evidence",put(request.path("evidenceUrl").asText(),journal)));return;
             }
             if(path.endsWith("/acceptance")){reply(exchange,200,Map.of("accepted",true));return;}
             if(path.endsWith("/cancel")){if(asynchronousStop){if(stopReadyAt==0)stopReadyAt=System.nanoTime()+500_000_000;reply(exchange,202,Map.of("workerState","STOPPING"));}else{sealed=true;reply(exchange,200,state());}return;}

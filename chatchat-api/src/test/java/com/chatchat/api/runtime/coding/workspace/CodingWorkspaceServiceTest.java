@@ -28,6 +28,20 @@ import static org.mockito.Mockito.*;
 /** Real H2/A2/Evidence and SQLGlot; no SDK/provider or database SQL execution. */
 @EnabledIfSystemProperty(named="coding.sqlglotPython",matches=".+")
 class CodingWorkspaceServiceTest {
+    @Test void workspacePersistsTheTaskScopedReasoningPreferenceAndRejectsConflictingReplay(){
+        var policy=mock(com.chatchat.api.runtime.coding.analysis.CodingReasoningPolicy.class);
+        when(policy.freeze("low","supported",1,0)).thenReturn(Map.of("requested","low","effective","low"));
+        org.springframework.test.util.ReflectionTestUtils.setField(service,"reasoningPolicy",policy);
+        service.submit(scope,"reasoning-task","Generate SQL source","mysql","supported",Map.of(),"low");
+        var contract=actor(()->tasks.contract(scope,"reasoning-task"));
+        assertThat(CodingReasoning.requestedFromContext(contract.runtimeContext())).isEqualTo("low");
+        assertThat(CodingReasoning.effective(contract.runtimeContext())).isEqualTo("low");
+        service.submit(scope,"reasoning-task","Generate SQL source","mysql","supported",Map.of(),"low");
+        verify(policy,times(1)).freeze("low","supported",1,0);
+        assertThatThrownBy(()->service.submit(scope,"reasoning-task","Generate SQL source","mysql","supported",Map.of(),"high"))
+            .isInstanceOf(IllegalArgumentException.class);
+    }
+
     @Test void essentialEvidenceCanBeReportedWithoutInventingSqlFiles(){
         configureAutonomousMetadata();
         service.submit(scope,"evidence-only","Explain missing essential source evidence","mysql","",Map.of("discoveryId","discovery","projectId","project"));

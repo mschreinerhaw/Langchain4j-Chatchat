@@ -523,7 +523,7 @@
         },
         "runtimeContext": {
           "type": "object",
-          "maxProperties": 14,
+          "maxProperties": 15,
           "properties": {
             "schemaVersion": {
               "const": "runtime_os.coding.context.v1"
@@ -588,6 +588,18 @@
             },
             "executionProfile": {
               "type": "object"
+            },
+            "reasoning": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["requested"],
+              "properties": {
+                "requested": {"enum": ["auto","minimal","low","medium","high","xhigh"]},
+                "effective": {"enum": ["none","minimal","low","medium","high","xhigh","max","no_think"]},
+                "parameter": {"enum": ["standard","deepseek-thinking","qwen-thinking","hunyuan-template"]},
+                "source": {"const": "model-default"}
+              },
+              "dependentRequired": {"parameter": ["effective"]}
             },
             "pythonEnvironment": {
               "type": "object"

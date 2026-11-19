@@ -122,3 +122,20 @@ it('discards deleted project results before waiting for the next project to load
   expect(view.result).toBeNull();expect(view.generationId).toBe('');expect(view.chatTurns).toEqual([]);
   resolveFiles([]);await deletion;expect(view.projectId).toBe('p2');expect(view.result).toBeNull();
 });
+
+it('uses the selected Coding effort for SQL engineering and omits it for unsupported models',async()=>{
+  await mount([{id:'p1',name:'Project'}]);
+  view.models=[{value:'model',defaultModel:true,reasoningEfforts:['low','high']},{value:'unsupported'}];
+  view.chooseAiAction('generate');
+  expect(view.reasoning).toBe('low');
+  view.changeReasoning('high');
+  expect(readWorkspaceDraft('coding-reasoning',context)).toBe('high');
+  sql.prepareSqlGeneration.mockRejectedValue(new Error('stop after prepare'));
+  view.prompt='Generate SQL';
+  await view.generate();
+  expect(sql.prepareSqlGeneration.mock.calls.at(-1)[1]).toMatchObject({codingReasoningEffort:'high'});
+  view.modelName='unsupported';
+  view.prompt='Generate a second SQL query';
+  await view.generate();
+  expect(sql.prepareSqlGeneration.mock.calls.at(-1)[1]).not.toHaveProperty('codingReasoningEffort');
+});

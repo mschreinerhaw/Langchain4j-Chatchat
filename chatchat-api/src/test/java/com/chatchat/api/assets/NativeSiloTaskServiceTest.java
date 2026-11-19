@@ -72,6 +72,20 @@ class NativeSiloTaskServiceTest {
             return null;
         });
     }
+    @Test void resumedNativeTaskKeepsItsOriginalEffectiveReasoning() {
+        authorized(()->{
+            java.util.function.Function<Map<String,String>,CodingTaskContract> captureReasoning = reasoning ->
+                service.capture(fixture.scope,"native-reasoning",List.of(original),objective,"fixed-model",budget(-1),
+                    Map.of("profile","artifact-integrity-v1"),List.of("RESULT"),Map.of(),Map.of("reasoning",reasoning));
+            var first = captureReasoning.apply(Map.of("requested","auto","effective","low"));
+            var recovered = captureReasoning.apply(Map.of("requested","auto","effective","high"));
+            assertThat(recovered).isEqualTo(first);
+            assertThat(recovered.runtimeContext().get("reasoning")).isEqualTo(Map.of("requested","auto","effective","low"));
+            assertThatThrownBy(() -> captureReasoning.apply(Map.of("requested","high","effective","high")))
+                .hasMessageContaining("conflict");
+            return null;
+        });
+    }
     @Test void finiteExecutionCountsAreRejectedInsteadOfSilentlyRestoringOldBudgets(){
         authorized(()->{
             assertThatThrownBy(()->service.capture(fixture.scope,"native-task",List.of(original),objective,"fixed-model",budget(8)))

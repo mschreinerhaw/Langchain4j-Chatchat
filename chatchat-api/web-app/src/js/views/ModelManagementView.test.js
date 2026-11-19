@@ -97,3 +97,43 @@ describe('model request timeout form',()=>{
     } finally {app.unmount();}
   });
 });
+
+it('presets three reasoning levels, saves manual mappings, and can disable a published preference',async()=>{
+  const host=document.createElement('div'),app=createApp({render:()=>h(View)});
+  try{
+    const root=app.mount(host);
+    const view=root.$.subTree.component.proxy;
+    view.openCreate();
+    await nextTick();
+    const checkbox=[...host.querySelectorAll('label.model-checkbox')].find(label=>label.textContent.includes('\u542f\u7528\u601d\u8003\u5f3a\u5ea6')).querySelector('input');
+    expect(checkbox.checked).toBe(true);
+    expect(checkbox.closest('.model-form-section').querySelector('h3').textContent).toBe('思考强度');
+    expect(view.form.codingReasoning.levels).toEqual({low:'low',medium:'medium',xhigh:'xhigh'});
+    const format=host.querySelector('.model-reasoning-grid select');
+    expect([...format.options].map(option=>option.textContent)).toEqual(['OpenAI / 兼容接口','DeepSeek V4','Qwen','腾讯混元 Hy3']);
+    expect([...host.querySelectorAll('.model-reasoning-grid label:not(.model-field-wide) span')].map(label=>label.textContent))
+      .toEqual(['低 (low)','中 (medium)','极高 (xhigh)','极简 (minimal)','高 (high)']);
+    format.value='hunyuan-template';
+    format.dispatchEvent(new Event('change'));
+    await nextTick();
+    expect(view.form.codingReasoning.levels).toEqual({low:'low',medium:'high'});
+    view.form.codingReasoning.levels.low=undefined;
+    await view.save();
+    expect(savePlatformModel.mock.calls.at(-1)[0].codingReasoning).toEqual({enabled:true,parameter:'hunyuan-template',levels:{medium:'high'}});
+    view.openEdit({name:'hy',type:'chat',codingReasoning:{enabled:true,parameter:'hunyuan-template',levels:{medium:'high'}}});
+    view.setReasoningEnabled(false);
+    await view.save();
+    expect(savePlatformModel.mock.calls.at(-1)[0].codingReasoning).toEqual({enabled:false});
+    view.openEdit({name:'hy',type:'chat',codingReasoning:{enabled:false}});
+    await nextTick();
+    expect(host.querySelector('.model-reasoning-grid')).toBeNull();
+    expect(view.form.codingReasoning.enabled).toBe(false);
+    view.openEdit({name:'legacy',type:'chat',codingReasoning:null});
+    expect(view.form.codingReasoning.levels).toEqual({low:'low',medium:'medium',xhigh:'xhigh'});
+    view.form.baseUrl='https://dashscope.example/api/v1/services/aigc/text-generation/generation';
+    await nextTick();
+    expect(host.querySelector('.model-reasoning-grid')).toBeNull();
+    await view.save();
+    expect(savePlatformModel.mock.calls.at(-1)[0].codingReasoning).toBeNull();
+  }finally{app.unmount();savePlatformModel.mockClear();}
+});

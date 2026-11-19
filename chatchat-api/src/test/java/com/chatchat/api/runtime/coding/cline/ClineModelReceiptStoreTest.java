@@ -99,7 +99,8 @@ class ClineModelReceiptStoreTest {
         Map<String, Object> response = Map.of("text", "private response sentinel", "toolCalls", List.of(),
             "usage", Map.of("inputTokens", 4, "outputTokens", 2), "requestId", "provider-request",
             "modelInfo",Map.of("selectedModel","configured-alias","providerModel","actual-fallback-model","protocol","openai",
-                "startedAt","2026-10-19T01:00:00Z","finishedAt","2026-10-19T01:00:01Z","durationMs",1000,"apiKey","private key sentinel"));
+                "startedAt","2026-10-19T01:00:00Z","finishedAt","2026-10-19T01:00:01Z","durationMs",1000,"apiKey","private key sentinel",
+                "requestedReasoningEffort","auto","reasoningEffort","high"));
         String ref = receipts.commit(contract, "model-1", "runtime-model:model-1", response);
         assertThat(receipts.response(scope, "task", "model-1")).contains(response);
         var telemetry=new ClineModelReceiptStore(new JdbcRuntimeEvidenceStore(new JdbcTemplate(data),new ObjectMapper(),
@@ -108,6 +109,8 @@ class ClineModelReceiptStoreTest {
         assertThat(telemetry.attemptId()).isEqualTo("task:fence-3");
         assertThat(telemetry.usage()).containsEntry("inputTokens",4L).containsEntry("outputTokens",2L);
         assertThat(telemetry.durationMs()).isEqualTo(1000);
+        assertThat(telemetry.requestedReasoningEffort()).isEqualTo("auto");
+        assertThat(telemetry.reasoningEffort()).isEqualTo("high");
         assertThat(new ObjectMapper().valueToTree(telemetry).toString()).doesNotContain("private response sentinel","private key sentinel","toolCalls","requestId","apiKey");
         assertThat(receipts.telemetry(contract,"model-2",3)).isEmpty();
         receipts.commit(contract,"model-1000001","runtime-model:model-1000001",Map.of(

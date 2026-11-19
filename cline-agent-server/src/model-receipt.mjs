@@ -48,7 +48,7 @@ function contextShape(body, request) {
  };
 }
 
-export function modelReceipt({model,request,body,emit,now=Date.now}){
+export function modelReceipt({model,request,body,reasoning={},emit,now=Date.now}){
  const requestId=randomUUID(),started=now(),responseHash=createHash('sha256'),decoder=new TextDecoder();
  const requestSha256=createHash('sha256').update(request).digest('hex');
  let requestContext = null;
@@ -66,7 +66,7 @@ export function modelReceipt({model,request,body,emit,now=Date.now}){
   const data=text.slice(5).trim();if(!data||data==='[DONE]')return;
   try{value(JSON.parse(data));}catch{}
  }
- emit('model.request.started',{requestId,model,startedAt:new Date(started).toISOString(),requestSha256,requestContext,source:'PROVIDER_HTTP_OBSERVATION'});
+ emit('model.request.started',{...reasoning,requestId,model,startedAt:new Date(started).toISOString(),requestSha256,requestContext,source:'PROVIDER_HTTP_OBSERVATION'});
  return {requestId,observe(chunk){
   responseHash.update(chunk);responseBytes+=chunk.length;
   const text=decoder.decode(chunk,{stream:true});
@@ -78,7 +78,7 @@ export function modelReceipt({model,request,body,emit,now=Date.now}){
   if(finished)return;finished=true;
   pending+=decoder.decode();line(pending);
   if(!usage)try{value(JSON.parse(jsonBody));}catch{}
-  const ended=now();emit('model.request.completed',{requestId,model,providerModel,providerRequestId,
+  const ended=now();emit('model.request.completed',{...reasoning,requestId,model,providerModel,providerRequestId,
    startedAt:new Date(started).toISOString(),finishedAt:new Date(ended).toISOString(),durationMs:Math.max(0,ended-started),
    httpStatus,status:errorType||httpStatus===null||httpStatus>=400?'FAILED':'SUCCEEDED',errorType,
    providerDispatched:httpStatus!==null?true:null,usage:providerUsage(usage),responseBytes,

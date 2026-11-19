@@ -12,6 +12,7 @@ import org.springframework.stereotype.Service;
 @org.springframework.boot.autoconfigure.condition.ConditionalOnProperty(prefix="chatchat.runtime.coding.unified",name="enabled",havingValue="true")
 public class NativeTaskCapabilities {
     private final CodingInternetAccess internet;
+    @org.springframework.beans.factory.annotation.Autowired private com.chatchat.api.runtime.coding.analysis.CodingReasoningPolicy reasoningPolicy;
     @org.springframework.beans.factory.annotation.Autowired private com.chatchat.api.runtime.coding.knowledge.CodingDocumentSearchAccess documents;
     private final NativeS3Settings settings;
     private final com.chatchat.chat.skills.release.AgentReleaseService releases;
@@ -29,11 +30,20 @@ public class NativeTaskCapabilities {
         return capture(scope,model,Map.of("authorizationAgentId",agentId,"resourceExplorationApproved",requested,com.chatchat.agents.runtime.context.SkillAnalysisContext.ATTRIBUTE,catalogs.prepare(request,agent,effective.roles())),Map.of());
     }
     public Map<String,Object> capture(KernelDataScope scope,String model,Map<String,Object> attributes,Map<String,Object> metadata){
+        return capture(scope,model,attributes,metadata,1,0);
+    }
+    public Map<String,Object> capture(KernelDataScope scope,String model,Map<String,Object> attributes,
+                                     Map<String,Object> metadata,int sourceCount,long rows){
         if(model==null||model.isBlank())model=settings.defaultModel();
         var value=new LinkedHashMap<String,Object>(CodingConfigurationSnapshot.capture(attributes,metadata));
         var modelSnapshot=new LinkedHashMap<String,Object>((Map<String,Object>)value.get("model"));
         modelSnapshot.put("selectedModel",model);
         value.put("model",modelSnapshot);
+        String reasoning=com.chatchat.common.runtime.coding.CodingReasoning.requested(attributes);
+        if(reasoningPolicy!=null){
+            var frozen=reasoningPolicy.freeze(reasoning,model,sourceCount,rows);
+            if(!frozen.isEmpty()) value.put(com.chatchat.common.runtime.coding.CodingReasoning.CONTEXT_KEY,frozen);
+        }
         if(com.chatchat.common.runtime.coding.VisualReportMode.active(attributes)){
             value.put("reportMode","visual");value.put("reportPresentation",com.chatchat.common.runtime.coding.ReportPresentation.read(attributes));
         }

@@ -84,12 +84,14 @@ const defaultInputSchema = `{
 
 const workspaceLayoutDefaults = { explorer: 238, ai: 330, bottom: 250 };
 import { workspaceStorageKey } from "../utils/workspaceContext";
+import CodingReasoningSelect from '../../components/CodingReasoningSelect.vue';
+import {availableReasoning} from '../utils/codingReasoning';
 import { saveWorkspaceDraft, readWorkspaceDraft, ownedPythonDraftTabs } from "../utils/workspaceDrafts";
 const workspaceLayoutStorageKey = "chatchat.python-studio.layout.v1";
 
 export default {
   name: "DataScienceView",
-  components: { ReportMarkdown, StudioConversationHistory, History, AppConfirmDialog, UserSpaceBrowser, StudioCodePlan, CodeChangeReview, PythonCodeDiff, EditorPreferences, Search, ChevronRight, ChevronDown, Folder, FileCode2, Plus, X,
+  components: { CodingReasoningSelect, ReportMarkdown, StudioConversationHistory, History, AppConfirmDialog, UserSpaceBrowser, StudioCodePlan, CodeChangeReview, PythonCodeDiff, EditorPreferences, Search, ChevronRight, ChevronDown, Folder, FileCode2, Plus, X,
     Play, Save, Settings2, PanelLeft, PanelRight, PanelBottom, Maximize2, Minimize2, Sparkles, Send,
     RefreshCw, ListTree, Box, Terminal, CircleCheck, CircleAlert, LoaderCircle, Trash2, Code2, BookOpen, FlaskConical, WandSparkles },
   props: {
@@ -100,7 +102,7 @@ export default {
     }
   },
   emits: ["navigate"],
-  data: () => ({
+  data: (vm) => ({
     tab: "environment",
     loading: true,
     busy: false,
@@ -217,6 +219,7 @@ export default {
     aiProgressTimer: null,
     aiDecoration: null,
     aiModels: [],
+    rememberedReasoning: readWorkspaceDraft("coding-reasoning",vm?.workspaceContext),
     aiModel: "",
     aiSkills: [],
     aiSkillIds: [],
@@ -252,6 +255,12 @@ export default {
     }
   }),
   computed: {
+    codingReasoningEfforts() {
+      return this.aiModels.find(model => model.value===this.aiModel)?.reasoningEfforts || [];
+    },
+    codingReasoning() {
+      return availableReasoning(this.codingReasoningEfforts,this.rememberedReasoning);
+    },
     aiConversationMessages() {
       if (this.aiCurrentTurn && (this.aiBusy || this.aiSuggestion) && !this.aiMessages.some(turn=>turn.id===this.aiCurrentTurn.id)) return [...this.aiMessages,this.aiCurrentTurn];
       return this.aiMessages;
@@ -541,6 +550,11 @@ export default {
     this.finishIdeDialog(false);
   },
   methods: {
+    changeReasoning(value) {
+      if(!value || value!==availableReasoning(this.codingReasoningEfforts,value))return;
+      this.rememberedReasoning=value;
+      saveWorkspaceDraft("coding-reasoning",this.workspaceContext,value);
+    },
     renderAssistantNarrative: renderReportNarrative,
     openStudioSearch(mode = 'all') {
       this.studioSearchMode = mode; this.studioSearchQuery = mode === 'commands' ? '> ' : '';
@@ -1460,6 +1474,7 @@ export default {
           sourceCode: sourceContext.source,
           selectedCode,
           modelName: this.aiModel,
+          ...(this.codingReasoning ? {codingReasoningEffort:this.codingReasoning} : {}),
           skillIds: [...this.aiSkillIds]
         };
         const suggestion = await requestPlannedPythonAssist(assistRequest, async plan => {

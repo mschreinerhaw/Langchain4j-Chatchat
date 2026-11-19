@@ -255,6 +255,32 @@
           >
         </div>
         <div v-if="form.type === 'chat'" class="model-form-section">
+          <h3>思考强度</h3>
+          <label v-if="reasoningSupported" class="model-checkbox">
+            <input type="checkbox" :checked="form.codingReasoning?.enabled" @change="setReasoningEnabled($event.target.checked)" />
+            启用思考强度
+          </label>
+          <template v-if="reasoningSupported && form.codingReasoning?.enabled">
+            <div class="model-form-grid model-reasoning-grid">
+              <label class="feature-form-field model-field-wide">
+                <span>上游参数格式</span>
+                <select :value="form.codingReasoning.parameter" @change="applyReasoningFormat($event.target.value)">
+                  <option v-for="format in reasoningFormats" :key="format.id" :value="format.id">{{ format.label }}</option>
+                </select>
+              </label>
+              <label v-for="level in reasoningLevels" :key="level.value" class="feature-form-field">
+                <span>{{ level.label }}</span>
+                <select v-model="form.codingReasoning.levels[level.value]">
+                  <option :value="undefined">不提供</option>
+                  <option v-for="value in reasoningWireValues" :key="value" :value="value">{{ value }}</option>
+                </select>
+              </label>
+            </div>
+          </template>
+          <p v-if="reasoningSupported" class="model-form-hint">发布后生效。默认选中档（medium），中档不可用时选择第一个可用档位。</p>
+          <p v-else class="model-form-hint">思考强度适用于 OpenAI 兼容协议的聊天模型。</p>
+        </div>
+        <div v-if="form.type === 'chat'" class="model-form-section">
           <div class="search-engine-heading search-engine-section-heading">
             <h3>联网搜索</h3>
             <button type="button" class="feature-button" @click="openProviderManager">维护检索引擎</button>

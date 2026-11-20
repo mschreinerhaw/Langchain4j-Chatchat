@@ -72,6 +72,8 @@ public final class LightCodingMonitorController {
         var scope=scope(request,runId);return read(scope,taskId,()->{
             var result=new LinkedHashMap<String,Object>();var contract=tasks.contract(scope,taskId);var outcome=tasks.get(scope,taskId);
             result.put("taskId",taskId);result.put("runId",runId);result.put("name",contract.objective().instruction().split("\n",2)[0]);result.put("outcome",outcome);
+            String requested=com.chatchat.common.runtime.coding.CodingReasoning.requestedFromContext(contract.runtimeContext());
+            if(requested!=null)result.put("requestedReasoningEffort",requested);
             var binding=tasks.privateState(scope,taskId,"native-s3:binding");result.put("sessionId",binding==null?null:binding.path("sessionId").asText(null));
             if(binding!=null)for(String field:List.of("workflowId","nodeId","executionEpoch","fencingToken"))
                 result.put(field,binding.hasNonNull(field)?binding.path(field).asText():null);

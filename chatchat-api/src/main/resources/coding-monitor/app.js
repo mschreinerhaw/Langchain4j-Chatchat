@@ -82,7 +82,7 @@ async function loadDetail(){
  if(result.workflow)$('overview').append(facts([['Workflow ID',result.workflowId||result.workflow.workflowId],['Temporal',result.workflow.workflowStatus||result.workflow.availability],['Node',result.nodeId||'QUEUED'],['Execution Epoch',result.executionEpoch||'--']]));
  if(!candidate&&!terminalStatuses.has(out.status)){const stop=text('button',stopPending(out)?'\u91cd\u8bd5\u505c\u6b62':'\u505c\u6b62\u4efb\u52a1','danger');stop.disabled=stopBusy;stop.onclick=()=>stopTasks([result]);$('overview').append(stop);}
  if(candidate&&typeof out.fixtureValidationPassed==='boolean')$('overview').append(facts([['Independent fixture verification',out.fixtureValidationPassed?'PASSED':'FAILED']]));
- renderModels(result.modelReceipts);renderExecutions(result.executions);renderRepairs();
+ renderModels(result.modelReceipts,result.requestedReasoningEffort);renderExecutions(result.executions);renderRepairs();
 }
 async function loadEvents(after=0){const data=await request(route('/events')+'?afterSequence='+after+'&limit=128');mergeEvents(data.events);}
 function mergeEvents(rows){for(const row of rows||[]){if(!Number.isSafeInteger(row.sequence))continue;events.set(row.sequence,row);cursor=Math.max(cursor,row.sequence);}if(events.size>2000){const keys=[...events.keys()].sort((a,b)=>a-b);for(const key of keys.slice(0,events.size-2000))events.delete(key);}renderTimeline();renderRepairs();}
@@ -116,14 +116,16 @@ function startStream(){
 }
 function scheduleDetail(){if(refreshTimer)return;refreshTimer=setTimeout(async()=>{refreshTimer=null;try{await loadDetail();}catch(error){notice(error.message);}},1000);}
 function receiptRows(value){if(Array.isArray(value))return value;return value&&typeof value==='object'?Object.values(value).filter(row=>row&&typeof row==='object'):[];}
-const reasoningLabels={auto:'\u81ea\u52a8',none:'\u5173\u95ed',minimal:'\u6781\u7b80',low:'\u4f4e',medium:'\u4e2d',high:'\u9ad8',xhigh:'\u6781\u9ad8',max:'max',no_think:'no_think'};
+const reasoningLabels={off:'\u5173\u95ed',auto:'\u81ea\u52a8',none:'\u5173\u95ed',minimal:'\u6781\u7b80',low:'\u4f4e',medium:'\u4e2d',high:'\u9ad8',xhigh:'\u6781\u9ad8',max:'max',no_think:'no_think'};
 const modelTransportErrors={UPSTREAM_TIMEOUT:'上游连接或响应超时',UPSTREAM_DNS_FAILURE:'上游地址解析失败',
  UPSTREAM_TLS_FAILURE:'上游 TLS 握手失败',UPSTREAM_CONNECTION_FAILURE:'上游连接失败',
  UPSTREAM_TRANSPORT_FAILURE:'上游传输失败',UPSTREAM_ABORTED:'请求已中止'};
-function renderModels(value){
+const reasoningUnknown='\u672a\u8bb0\u5f55';
+function renderModels(value,taskReasoning){
  const unique=new Map();for(const row of receiptRows(value)){const id=row.requestId||[row.attemptId,row.operationId].join(':');unique.set(id,row);}const rows=[...unique.values()];$('model-rows').replaceChildren();
  function aggregate(field){let sum=0,unknown=0;for(const row of rows){const value=row.usage?.[field];if(typeof value==='number'&&Number.isFinite(value))sum+=value;else unknown++;}return unknown?`${sum.toLocaleString()} 已确认 · ${unknown} 次未提供`:number(sum);}
  $('usage').replaceChildren(facts([['实际模型请求',number(rows.length)],['输入 Token',rows.length?aggregate('inputTokens'):'未提供'],['输出 Token',rows.length?aggregate('outputTokens'):'未提供'],['累计请求耗时',rows.length&&rows.every(row=>typeof (row.durationMs??row.durationMillis)==='number')?duration(rows.reduce((sum,row)=>sum+(row.durationMs??row.durationMillis),0)):'未提供']]));
+ $('usage').append(facts([['\u4efb\u52a1\u601d\u8003\u5f3a\u5ea6',reasoningLabels[taskReasoning]||reasoningUnknown]]));
  for(const row of rows){const usage=row.usage||{},tr=document.createElement('tr'),model=document.createElement('td');model.append(text('span',row.providerModel||row.model||row.selectedModel||'未提供'),text('small',row.requestId||row.operationId));
   const total=usage.totalTokens??(typeof usage.inputTokens==='number'&&typeof usage.outputTokens==='number'?usage.inputTokens+usage.outputTokens:null);
   const state=row.status||row.state||'STARTED',status=text('td',state);
@@ -131,7 +133,9 @@ function renderModels(value){
    const detail=modelTransportErrors[row.errorCode]||(typeof row.httpStatus==='number'?`HTTP ${row.httpStatus}`:row.httpStatus===null?'未收到上游 HTTP 响应':'');
    if(detail)status.append(text('small',detail));
   }
-  tr.append(model,status,text('td',`${reasoningLabels[row.requestedReasoningEffort]||'-'} / ${reasoningLabels[row.reasoningEffort]||'-'}`),text('td',number(usage.inputTokens)),text('td',number(usage.outputTokens)),text('td',number(total)),text('td',`读 ${number(usage.cacheReadTokens)} / 写 ${number(usage.cacheWriteTokens)}`),text('td',duration(row.durationMs??row.durationMillis)));$('model-rows').append(tr);}
+  const effective=row.reasoningEffort==='off' && row.requestedReasoningEffort && row.requestedReasoningEffort!=='off'
+   ? '\u81ea\u52a8\u5173\u95ed' : reasoningLabels[row.reasoningEffort]||reasoningUnknown;
+  tr.append(model,status,text('td',`${reasoningLabels[row.requestedReasoningEffort]||reasoningUnknown} / ${effective}`),text('td',number(usage.inputTokens)),text('td',number(usage.outputTokens)),text('td',number(total)),text('td',`读 ${number(usage.cacheReadTokens)} / 写 ${number(usage.cacheWriteTokens)}`),text('td',duration(row.durationMs??row.durationMillis)));$('model-rows').append(tr);}
 }
 function renderExecutions(value){$('executions').replaceChildren();for(const row of receiptRows(value)){const box=document.createElement('details');box.append(text('summary',row.command||row.executionId||row.toolCallId||'执行回执'),text('pre',JSON.stringify(row,null,2)));for(const output of Array.isArray(row.output)?row.output:row.output?[row.output]:[]){if(output.query)box.append(text('h4','Command'),text('pre',output.query));if(output.result)box.append(text('h4','Native command output'),text('pre',output.result));}if(row.detailAssetId)box.append(detailButton(row.detailAssetId,'查看原始命令回执'));for(const stream of ['stdout','stderr'])if(row[stream+'AssetId'])box.append(detailButton(row[stream+'AssetId'],stream));for(const source of row.sourceSnapshots||[])if(source.assetId)box.append(detailButton(source.assetId,source.path));if(row.exceptionSummary)box.append(text('p',row.exceptionSummary,'error'));$('executions').append(box);}if(!$('executions').children.length)$('executions').append(text('p','尚无已记录的执行回执；源码按产物清单按需读取。'));}
 function renderRepairs(){

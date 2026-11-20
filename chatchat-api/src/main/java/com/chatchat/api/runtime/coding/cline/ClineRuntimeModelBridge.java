@@ -195,7 +195,7 @@ public final class ClineRuntimeModelBridge {
                 ? reasoningPolicy.supportedLegacyEffort(modelName,executionProfile.get("reasoningEffort")) : null)
             : com.chatchat.common.runtime.coding.CodingReasoning.effective(contract.runtimeContext());
         String reasoningParameter=com.chatchat.common.runtime.coding.CodingReasoning.parameter(contract.runtimeContext());
-        if(requestedEffort!=null) reasoningPolicy.requireCompatible(modelName,appliedEffort,reasoningParameter);
+        if(requestedEffort!=null) appliedEffort=reasoningPolicy.compatibleEffort(modelName,appliedEffort,reasoningParameter);
         var requestParameters=modelParameters(outputLimit,appliedEffort,reasoningParameter);
         Instant started = Instant.now();
         java.util.function.LongSupplier remaining=()->Math.max(0,Duration.between(Instant.now(),contract.budget().deadlineAt()).toMillis());
@@ -299,7 +299,8 @@ public final class ClineRuntimeModelBridge {
         modelInfo.put("deadlineAt",contract.budget().deadlineAt().toString());
         if(executionProfile.get("complexity") instanceof String complexity)modelInfo.put("complexity",complexity);
         if(requestedEffort!=null)modelInfo.put("requestedReasoningEffort",requestedEffort);
-        if(appliedEffort!=null)modelInfo.put("reasoningEffort",appliedEffort);
+        if(requestedEffort!=null || appliedEffort!=null)
+            modelInfo.put("reasoningEffort",appliedEffort==null?com.chatchat.common.runtime.coding.CodingReasoning.OFF:appliedEffort);
         result.put("modelInfo", modelInfo);
         if (answer.finishReason() != null) result.put("finishReason", answer.finishReason().name());
         if (answer.id() != null) result.put("requestId", answer.id());

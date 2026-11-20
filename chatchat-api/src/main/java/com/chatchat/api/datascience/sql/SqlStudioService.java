@@ -509,7 +509,6 @@ public class SqlStudioService {
         // This initial analysis plan is not tool authority or a replacement for Runtime executable-plan governance.
         if(body.codingReasoningEffort()!=null){
             String reasoning=com.chatchat.common.runtime.coding.CodingReasoning.requested(Map.of(com.chatchat.common.runtime.coding.CodingReasoning.REQUEST_KEY,body.codingReasoningEffort()));
-            reasoningPolicy.validate(reasoning,invokingModel);
             applicationContext.put(com.chatchat.common.runtime.coding.CodingReasoning.REQUEST_KEY,reasoning);
         }
         var codePlan = codePlans.create(project.tenantId(), project.ownerId(), "sql", operation, query, invokingModel);

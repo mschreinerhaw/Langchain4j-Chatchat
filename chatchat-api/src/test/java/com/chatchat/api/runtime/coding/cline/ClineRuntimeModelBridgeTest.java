@@ -16,6 +16,7 @@ import java.time.Duration;
 import java.time.Instant;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import org.junit.jupiter.api.Test;
 
 import static org.assertj.core.api.Assertions.*;
@@ -468,25 +469,31 @@ class ClineRuntimeModelBridgeTest {
             when(factory.create(eq("registered-model"), any(Duration.class), eq(2048))).thenReturn(provider);
             var bridge = new ClineRuntimeModelBridge(resources,factory,json);
             var policy = mock(com.chatchat.api.runtime.coding.analysis.CodingReasoningPolicy.class);
+            when(policy.compatibleEffort("registered-model","low",null)).thenReturn("low");
+            when(policy.compatibleEffort("registered-model","high",null)).thenReturn("high");
             org.springframework.test.util.ReflectionTestUtils.setField(bridge,"reasoningPolicy",policy);
             json.findAndRegisterModules();
             var request = json.readTree("{\"systemPrompt\":\"calculate\",\"messages\":[],\"tools\":[]}");
-            for (String level : List.of("low","high","auto")) {
+            for (String level : List.of("low","high","auto","off","xhigh")) {
                 var tree = (com.fasterxml.jackson.databind.node.ObjectNode)json.valueToTree(contract());
                 var runtime=tree.putObject("runtimeContext");
                 runtime.put("schemaVersion","runtime_os.coding.context.v1").put("consistency","TASK_SNAPSHOT");
                 var reasoning=runtime.putObject("reasoning").put("requested",level);
-                if (!"auto".equals(level)) reasoning.put("effective",level);
+                if (!Set.of("auto","off").contains(level)) reasoning.put("effective",level);
                 var restored = json.readValue(json.writeValueAsBytes(tree),CodingTaskContract.class);
                 var result=json.valueToTree(bridge.complete(restored,request));
                 assertThat(result.path("modelInfo").path("requestedReasoningEffort").asText()).isEqualTo(level);
+                assertThat(result.path("modelInfo").path("reasoningEffort").asText())
+                    .isEqualTo(Set.of("low","high").contains(level)?level:"off");
                 assertThat(result.path("usage").path("totalTokens").asInt()).isEqualTo(13);
                 assertThat(result.path("modelInfo").path("durationMs").isNumber()).isTrue();
             }
-            assertThat(bodies).hasSize(3);
+            assertThat(bodies).hasSize(5);
             assertThat(bodies.get(0).path("reasoning_effort").asText()).isEqualTo("low");
             assertThat(bodies.get(1).path("reasoning_effort").asText()).isEqualTo("high");
             assertThat(bodies.get(2).has("reasoning_effort")).isFalse();
+            assertThat(bodies.get(3).has("reasoning_effort")).isFalse();
+            assertThat(bodies.get(4).has("reasoning_effort")).isFalse();
         } finally {server.stop(0);}
     }
 

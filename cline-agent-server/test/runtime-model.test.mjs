@@ -42,6 +42,11 @@ test('model credentials use only fixed authority; response is task-bound and nev
  const connection={model:model.providerModel,baseUrl:'https://provider/v1',apiKey:'private'};
  const frozen=await resolve({...connection,requestedReasoningEffort:'auto',reasoningEffort:'high'});
  assert.equal(frozen.reasoningEffort,'high');
+ for(const requestedReasoningEffort of ['off','xhigh']){
+  const profile=await resolve({...connection,requestedReasoningEffort});
+  assert.equal(profile.requestedReasoningEffort,requestedReasoningEffort);
+  assert.equal(profile.reasoningEffort,undefined);
+ }
  await assert.rejects(resolve({...connection,requestedReasoningEffort:'low',reasoningEffort:'high'}),/Invalid frozen model reasoning/);
  await assert.rejects(resolve({model:'other',baseUrl:'https://provider/v1',apiKey:'private'}),/binding differs/);
  await assert.rejects(resolve({},403),/authority rejected/);
@@ -62,6 +67,9 @@ test('frozen efforts override worker hints in both supported wire formats',()=>{
   {model:'selected',reasoning_effort:'low'});
  assert.deepEqual(applyPublishedReasoning({reasoning_effort:'xhigh',reasoning:{effort:'minimal'}},high,true),{reasoning:{effort:'high'}});
  assert.deepEqual(applyPublishedReasoning({reasoning_effort:'high'},{requestedReasoningEffort:'auto'}),{});
+ assert.deepEqual(applyPublishedReasoning({model:'selected',reasoning:{effort:'high'},reasoning_effort:'high',
+  enable_thinking:true,thinking:{type:'enabled'},thinking_budget:256,chat_template_kwargs:{reasoning_effort:'high',other:true}},
+  {requestedReasoningEffort:'off'}),{model:'selected',chat_template_kwargs:{other:true}});
 });
 
 test('mapped provider efforts use only their published request fields',()=>{

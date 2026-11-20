@@ -65,17 +65,13 @@ public class CodingReasoningPolicy {
         }
     }
 
-    public void validate(String requested, String model) {
-        if (requested != null && !"auto".equals(requested) && !options(model).contains(requested))
-            throw new IllegalArgumentException("Selected model does not support the requested Coding reasoning effort");
-    }
-
     public Map<String,String> freeze(String requested, String model, int sources, long rows) {
         var profile = profile(model);
         var levels = profile.levels();
         var frozen = new LinkedHashMap<String,String>();
         if (requested == null) {
-            if (profile.parameter() == null || levels.isEmpty()) return Map.of();
+            if (levels.isEmpty()) return Map.of("requested",CodingReasoning.OFF,"source","model-default");
+            if (profile.parameter() == null) return Map.of();
             requested = levels.containsKey("medium") ? "medium"
                 : CodingReasoning.LEVELS.stream().filter(levels::containsKey).findFirst().orElseThrow();
             frozen.put("source","model-default");
@@ -84,8 +80,6 @@ public class CodingReasoningPolicy {
         String level = "auto".equals(requested)
             ? (String) CodingExecutionProfile.select(settings,sources,rows).get("reasoningEffort") : requested;
         String effective = level == null ? null : levels.get(level);
-        if (effective == null && !"auto".equals(requested))
-            throw new IllegalArgumentException("Selected model does not support the requested Coding reasoning effort");
         if (effective != null) {
             frozen.put("effective",effective);
             if (profile.parameter() != null) frozen.put("parameter",profile.parameter());
@@ -99,11 +93,12 @@ public class CodingReasoningPolicy {
         return profile.parameter() == null ? profile.levels().get(level) : null;
     }
 
-    public void requireCompatible(String model, String frozenEffort, String parameter) {
-        if (frozenEffort == null) return;
-        boolean supported = compatible(resolve(model))
-            && CodingReasoning.permits(parameter == null ? "standard" : parameter,frozenEffort);
-        if (!supported)
-            throw new IllegalStateException("Frozen Coding reasoning effort is no longer supported by the authorized model");
+    public String compatibleEffort(String model, String frozenEffort, String parameter) {
+        if (frozenEffort == null) return null;
+        var current = profile(model);
+        return java.util.Objects.equals(current.parameter(),parameter)
+            && current.levels().containsValue(frozenEffort)
+            && CodingReasoning.permits(parameter == null ? "standard" : parameter,frozenEffort)
+            ? frozenEffort : null;
     }
 }

@@ -678,35 +678,30 @@ public final class NativeS3CodingAdapter implements CodingAgentSPI {
             }
         }
         catch(NativeS3NodeClient.NodeException absent){
-            // Host persists the Session before allocating a Worker; objective dispatch is
-            // preceded by our durable message intent. A missing Session alone is NOT proof.
             if(absent.status()!=404)throw absent;
-            if(state(r,"native-s3:message-intent")==null&&!tasks.hasStartedOperations(r.c.scope(),r.c.taskId())
-                    &&outcome(r).executionControl().stopReason()!=null){
-                tasks.finishStoppedWithoutExecution(r.c.scope(),r.c.taskId(),outcome(r).revision());return;
-            }
             remote=recoveryStop(r,b,nodeId);
         }
         catch(NativeS3NodeClient.TransportException unavailable){
             if(!settings.hasLiveNode(nodeId)||Thread.currentThread().isInterrupted())throw unavailable;
             remote=recoveryStop(r,b,nodeId);
         }
-        if(remote.path("stopProof").path("neverAllocated").asBoolean()
-                &&state(r,"native-s3:message-intent")==null&&!tasks.hasStartedOperations(r.c.scope(),r.c.taskId())){
-            tasks.finishStoppedWithoutExecution(r.c.scope(),r.c.taskId(),outcome(r).revision());return;
-        }
         long stopDeadline=System.nanoTime()+java.util.concurrent.TimeUnit.SECONDS.toNanos(30);
-        while(!workerStopped(remote)&&System.nanoTime()<stopDeadline){
+        while(!workerStopped(remote)&&!Set.of("RECOVERABLE","START_FAILED","STOPPED").contains(remote.path("workerState").asText())
+                &&System.nanoTime()<stopDeadline){
             try{Thread.sleep(200);}catch(InterruptedException interrupted){Thread.currentThread().interrupt();throw new IllegalStateException("Stop reconciliation interrupted",interrupted);}
             long remaining=stopDeadline-System.nanoTime();
             if(remaining<=0)break;
             try{remote=client(r).stopStatus(b.path("grant").asText(),b.path("sessionId").asText(),Duration.ofNanos(remaining));}
-            catch(NativeS3NodeClient.TransportException unknown){
-                if(System.nanoTime()>=stopDeadline)break;
-                throw unknown;
-            }
+            catch(NativeS3NodeClient.TransportException unknown){if(Thread.currentThread().isInterrupted())throw unknown;break;}
+            catch(NativeS3NodeClient.NodeException absent){if(absent.status()!=404)throw absent;break;}
         }
-        if(!workerStopped(remote))throw new IllegalStateException("STOP_RECONCILIATION_TIMEOUT");
+        if(!workerStopped(remote)||remote.path("stopProof").path("neverAllocated").asBoolean()
+                &&!remote.path("stopProof").path("allocationFenced").asBoolean())
+            remote=recoveryStop(r,b,nodeId);
+        if(remote.path("stopProof").path("neverAllocated").asBoolean()
+                &&state(r,"native-s3:message-intent")==null&&!tasks.hasStartedOperations(r.c.scope(),r.c.taskId())){
+            tasks.finishStoppedWithoutExecution(r.c.scope(),r.c.taskId(),outcome(r).revision());return;
+        }
         String proof=stopReference(r,remote);reconcile(r,proof);
         var stopped=outcome(r);
         if(stopped.status().terminal())return;

@@ -31,8 +31,11 @@ class CodingReasoningPolicyTest {
         var policy = new CodingReasoningPolicy(settings,registry,nativeSettings);
         assertThat(policy.options("registered")).containsExactly("low","high");
         assertThat(policy.options("hidden")).isEmpty();
-        assertThatThrownBy(() -> policy.freeze("high","hidden",1,1)).isInstanceOf(IllegalArgumentException.class);
-        assertThatThrownBy(() -> policy.freeze("xhigh","registered",1,1)).isInstanceOf(IllegalArgumentException.class);
+        assertThat(policy.freeze("high","hidden",1,1)).containsExactlyEntriesOf(Map.of("requested","high"));
+        assertThat(policy.freeze("xhigh","registered",1,1)).containsExactlyEntriesOf(Map.of("requested","xhigh"));
+        var off=policy.freeze("off","registered",1,1);
+        assertThat(off).containsExactlyEntriesOf(Map.of("requested","off"));
+        CodingRuntimeContext.validate(Map.of("schemaVersion","runtime_os.coding.context.v1","consistency","TASK_SNAPSHOT","reasoning",off));
         assertThat(policy.freeze(null,"registered",1,1)).isEmpty();
         assertThat(policy.freeze("auto","registered",1,1)).containsEntry("effective","low");
         var frozen = policy.freeze("auto","registered",3,1);
@@ -43,11 +46,11 @@ class CodingReasoningPolicyTest {
         settings.setComplexReasoningEffort("low");
         assertThat(CodingReasoning.requestedFromContext(restored)).isEqualTo("auto");
         assertThat(CodingReasoning.effective(restored)).isEqualTo("high");
-        policy.requireCompatible("registered",CodingReasoning.effective(restored),null);
+        assertThat(policy.compatibleEffort("registered",CodingReasoning.effective(restored),null)).isEqualTo("high");
         connection.setProtocol("dashscope-native");
         assertThat(policy.options("registered")).isEmpty();
         assertThat(policy.freeze("auto","registered",1,1)).containsOnlyKeys("requested");
-        assertThatThrownBy(() -> policy.requireCompatible("registered","high",null)).isInstanceOf(IllegalStateException.class);
+        assertThat(policy.compatibleEffort("registered","high",null)).isNull();
     }
 
     @Test void publishedMappingsDefaultToMediumAndFreezeAcrossPublicationEdits() {
@@ -74,9 +77,9 @@ class CodingReasoningPolicyTest {
         assertThat(CodingReasoning.effective(context)).isEqualTo("high");
         when(catalog.publishedReasoning("model")).thenReturn(new com.chatchat.api.model.ModelReasoningConfig(false,null,null));
         assertThat(policy.options("model")).isEmpty();
-        assertThat(policy.freeze(null,"model",1,0)).isEmpty();
-        policy.requireCompatible("model",CodingReasoning.effective(context),CodingReasoning.parameter(context));
-        assertThatThrownBy(()->policy.freeze("medium","model",1,0)).isInstanceOf(IllegalArgumentException.class);
+        assertThat(policy.freeze(null,"model",1,0)).isEqualTo(Map.of("requested","off","source","model-default"));
+        assertThat(policy.compatibleEffort("model",CodingReasoning.effective(context),CodingReasoning.parameter(context))).isNull();
+        assertThat(policy.freeze("medium","model",1,0)).containsExactlyEntriesOf(Map.of("requested","medium"));
     }
 
     @Test void invalidPreferenceAndForgedExplicitSnapshotFailClosed() {

@@ -139,7 +139,6 @@ public class PythonCodeAssistantService {
         String modelName = resolveModelName(request.modelName());
         String reasoning = request.codingReasoningEffort()==null?null:com.chatchat.common.runtime.coding.CodingReasoning.requested(Map.of(
             "codingReasoningEffort",request.codingReasoningEffort()));
-        if(reasoning!=null)reasoningPolicy.validate(reasoning,modelName);
         List<DomainSkillRuntimePort.DomainSkillContent> appliedSkills = resolveSkills(
             tenantId, userId, prompt, request.skillIds());
         String skillContext = skillContext(appliedSkills);

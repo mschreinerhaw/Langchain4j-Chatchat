@@ -72,7 +72,7 @@ public class ExplorationWorkspaceController {
         if(state.withArray("nodes").size()>=100)throw new IllegalArgumentException("每个分析项目最多 100 个节点");
         var files=body.fileIds()==null||body.fileIds().isEmpty()?strings(state,"fileIds"):body.fileIds();var contexts=new ArrayList<String>();String parentId=Objects.toString(body.parentId(),"");
         String model=body.modelName(),agentId=Objects.toString(body.agentId(),"").strip();
-        var agent=agentId.isBlank()?null:agents.authorize(owner,agentId);
+        if(!agentId.isBlank())agents.authorize(owner,agentId);
         if(!parentId.isBlank()){
             var parent=node(state,parentId);
             if(!parent.path("saved").asBoolean()||!parent.path("receipt").path("resultAvailable").asBoolean()||parent.path("receipt").has("terminal")&&!parent.path("receipt").path("terminal").asBoolean())throw new IllegalArgumentException("请先保存已完成且有真实结果的父节点");
@@ -80,7 +80,7 @@ public class ExplorationWorkspaceController {
             String inheritedAgent=parent.path("agentId").asText();
             if(!inheritedAgent.isBlank()){
                 if(!agentId.isBlank()&&!agentId.equals(inheritedAgent))throw new IllegalArgumentException("切换 Agent 请开始新的分析");
-                if(agentId.isBlank())agent=agents.authorize(owner,inheritedAgent);
+                if(agentId.isBlank())agents.authorize(owner,inheritedAgent);
                 agentId=inheritedAgent;
             }else if(!agentId.isBlank())throw new IllegalArgumentException("历史文件分析未绑定 Agent，请开始新的分析");
             if(agentId.isBlank()){
@@ -99,7 +99,6 @@ public class ExplorationWorkspaceController {
         }
         String requested=body.codingReasoningEffort()==null?null:
             com.chatchat.common.runtime.coding.CodingReasoning.requested(Map.of("codingReasoningEffort",body.codingReasoningEffort()));
-        if(agent!=null&&requested!=null)agents.validateReasoning(requested,model==null||model.isBlank()?agent.modelName():model);
         var combined=new LinkedHashSet<String>(files==null?List.of():files);
         if(body.fileIds()!=null)combined.addAll(body.fileIds());
         files=List.copyOf(combined);

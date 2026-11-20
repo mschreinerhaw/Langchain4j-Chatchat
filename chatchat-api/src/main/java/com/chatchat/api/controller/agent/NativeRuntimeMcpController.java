@@ -156,11 +156,11 @@ public class NativeRuntimeMcpController {
             if(requested==null) return ResponseEntity.ok().cacheControl(CacheControl.noStore()).body(connection);
             String effective=com.chatchat.common.runtime.coding.CodingReasoning.effective(c.runtimeContext());
             String parameter=com.chatchat.common.runtime.coding.CodingReasoning.parameter(c.runtimeContext());
-            reasoningPolicy.requireCompatible(selected,effective,parameter);
+            effective=reasoningPolicy.compatibleEffort(selected,effective,parameter);
             var response=new LinkedHashMap<String,Object>(connection);
             response.put("requestedReasoningEffort",requested);
             if(effective!=null) response.put("reasoningEffort",effective);
-            if(parameter!=null) response.put("reasoningParameter",parameter);
+            if(effective!=null && parameter!=null) response.put("reasoningParameter",parameter);
             return ResponseEntity.ok().cacheControl(CacheControl.noStore()).body(response);
         });
     }

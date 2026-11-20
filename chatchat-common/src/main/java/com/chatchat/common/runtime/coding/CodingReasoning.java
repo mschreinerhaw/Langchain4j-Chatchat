@@ -7,6 +7,7 @@ import java.util.Set;
 /** Frozen request preference and provider parameter. Neither field grants model access. */
 public final class CodingReasoning {
     public static final String REQUEST_KEY = "codingReasoningEffort";
+    public static final String OFF = "off";
     public static final String CONTEXT_KEY = "reasoning";
     public static final List<String> LEVELS = List.of("minimal", "low", "medium", "high", "xhigh");
     public static final Set<String> WIRE_LEVELS = Set.of("none", "minimal", "low", "medium", "high", "xhigh", "max", "no_think");
@@ -27,7 +28,7 @@ public final class CodingReasoning {
     public static String requested(Map<String, ?> input) {
         Object value = input == null ? null : input.get(REQUEST_KEY);
         if (value == null) return null;
-        if (value instanceof String level && ("auto".equals(level) || LEVELS.contains(level))) return level;
+        if (value instanceof String level && ("auto".equals(level) || OFF.equals(level) || LEVELS.contains(level))) return level;
         throw new IllegalArgumentException("Invalid Coding reasoning effort");
     }
 
@@ -57,12 +58,13 @@ public final class CodingReasoning {
         var setting = (Map<?, ?>) value;
         CodingProtocol.require(Set.of("requested","effective","parameter","source").containsAll(setting.keySet())
             && setting.get("requested") instanceof String requested
-            && ("auto".equals(requested) || LEVELS.contains(requested))
-            && (!setting.containsKey("source") || "model-default".equals(setting.get("source")) && LEVELS.contains(requested))
+            && ("auto".equals(requested) || OFF.equals(requested) || LEVELS.contains(requested))
+            && (!setting.containsKey("source") || "model-default".equals(setting.get("source")) && (OFF.equals(requested) || LEVELS.contains(requested)))
             && (!setting.containsKey("parameter") || setting.get("parameter") instanceof String parameter && PARAMETERS.contains(parameter))
             && (!setting.containsKey("effective") || setting.get("effective") instanceof String effort
                 && (setting.get("parameter") instanceof String format ? permits(format,effort)
                     : WIRE_LEVELS.contains(effort) && ("auto".equals(requested) || requested.equals(effort))))
-            && ("auto".equals(requested) || setting.containsKey("effective")), "Invalid frozen Coding reasoning");
+            && (!OFF.equals(requested) || !setting.containsKey("effective"))
+            && (!setting.containsKey("parameter") || setting.containsKey("effective")), "Invalid frozen Coding reasoning");
     }
 }

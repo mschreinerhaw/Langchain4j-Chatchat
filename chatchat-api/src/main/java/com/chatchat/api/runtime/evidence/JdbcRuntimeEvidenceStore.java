@@ -27,6 +27,8 @@ import org.springframework.transaction.support.TransactionTemplate;
 @Component
 public class JdbcRuntimeEvidenceStore implements EvidenceStorePort, AnalysisProgressPort, RuntimeExecutionCheckpointPort {
     private static final int MAX_BYTES = 2 * 1024 * 1024;
+    private static final int PAYLOAD_CLEANUP_PAGE_SIZE = 32;
+    private record PayloadCleanupPage(String lastId, int removed, boolean hasMore) {}
     private final JdbcTemplate jdbc;
     private final ObjectMapper mapper;
     private final TransactionTemplate tx;
@@ -144,29 +146,44 @@ public class JdbcRuntimeEvidenceStore implements EvidenceStorePort, AnalysisProg
         for (var owner : partitions) {
             var scope = new KernelDataScope((String)owner.get("tenant_id"), (String)owner.get("user_id"), null, null,
                 (String)owner.get("run_id"), null, Map.of());
-            removed += locked(scope, () -> {
-                var referenced = new HashSet<String>();
-                for (var row : jdbc.queryForList("select * from runtime_evidence_entry where partition_id=? and entry_kind='EXEC_CHECKPOINT'", partition(scope))) {
-                    verify(row);
-                    var manifest = decode(row.get("record_json"), Map.class);
-                    if ("runtime_execution_checkpoint.v2".equals(manifest.get("schemaVersion"))) referenced.add((String)manifest.get("contentSha256"));
-                    else if (!"runtime_execution_checkpoint.v1".equals(manifest.get("schemaVersion")))
-                        throw new IllegalStateException("Cannot clean payloads referenced by an unknown checkpoint protocol");
-                }
-                int changed = 0;
-                for (var row : jdbc.queryForList("select * from runtime_evidence_entry where partition_id=? and entry_kind='EXEC_PAYLOAD'", partition(scope))) {
-                    verify(row);
-                    var chunk = decode(row.get("record_json"), Map.class);
-                    if (!referenced.contains((String)chunk.get("contentSha256")))
-                        changed += jdbc.update("delete from runtime_evidence_entry where id=?", row.get("id"));
-                }
-                if (changed > 0) advance(partition(scope));
-                return changed;
-            });
+            var page = new PayloadCleanupPage("", 0, true);
+            while (page.hasMore()) {
+                String after = page.lastId();
+                page = locked(scope, () -> cleanupPayloadPage(scope, after));
+                removed += page.removed();
+            }
             payloadCleanupCursor = (String)owner.get("id");
         }
         if (partitions.size() < 128) payloadCleanupCursor = "";
         return removed;
+    }
+
+    private PayloadCleanupPage cleanupPayloadPage(KernelDataScope scope, String after) {
+        String owner = partition(scope);
+        // A checkpoint may change between pages. Recheck its references under the
+        // same owner lock used by reads and writes before deleting this page.
+        var referenced = new HashSet<String>();
+        for (var row : jdbc.queryForList("select * from runtime_evidence_entry where partition_id=? and entry_kind='EXEC_CHECKPOINT'", owner)) {
+            verify(row);
+            var manifest = decode(row.get("record_json"), Map.class);
+            if ("runtime_execution_checkpoint.v2".equals(manifest.get("schemaVersion"))) referenced.add((String)manifest.get("contentSha256"));
+            else if (!"runtime_execution_checkpoint.v1".equals(manifest.get("schemaVersion")))
+                throw new IllegalStateException("Cannot clean payloads referenced by an unknown checkpoint protocol");
+        }
+        var rows = jdbc.queryForList(
+            "select * from runtime_evidence_entry where partition_id=? and entry_kind='EXEC_PAYLOAD' and id>? order by id limit ?",
+            owner, after, PAYLOAD_CLEANUP_PAGE_SIZE);
+        int removed = 0;
+        String lastId = after;
+        for (var row : rows) {
+            verify(row);
+            lastId = (String)row.get("id");
+            var chunk = decode(row.get("record_json"), Map.class);
+            if (!referenced.contains((String)chunk.get("contentSha256")))
+                removed += jdbc.update("delete from runtime_evidence_entry where id=?", lastId);
+        }
+        if (removed > 0) advance(owner);
+        return new PayloadCleanupPage(lastId, removed, rows.size() == PAYLOAD_CLEANUP_PAGE_SIZE);
     }
 
     /** A source digest does not publish its body as an evidence row. Callers retain

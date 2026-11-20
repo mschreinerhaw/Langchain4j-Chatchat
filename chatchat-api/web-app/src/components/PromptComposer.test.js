@@ -268,7 +268,7 @@ it('defaults to medium, remembers the choice, and emits only model-supported rea
    .toEqual(['\u9009\u62e9 Agent',label+'，中','\u56fe\u6587\u62a5\u544a']);
  expect(host.querySelector('.composer-idea-control')).toBeNull();
  picker().click();await nextTick();
- expect([...menu().querySelectorAll('[role="option"]')].map(option=>option.textContent)).toEqual(['极简','低','中','高','极高']);
+ expect([...menu().querySelectorAll('[role="option"]')].map(option=>option.textContent)).toEqual(['极简','低','中','高','极高','关闭']);
  expect(menu().querySelector('[aria-selected="true"]').textContent).toBe('中');
  const visibleEffort=()=>picker().querySelector('.toolbar-option-value').textContent;
  expect(visibleEffort()).toBe('中');
@@ -283,10 +283,10 @@ it('defaults to medium, remembers the choice, and emits only model-supported rea
  picker().dispatchEvent(new KeyboardEvent('keydown',{key:'Enter',bubbles:true}));await nextTick();
  expect(visibleEffort()).toBe('极简');
  props.reasoningEfforts=['low'];await nextTick();send();
- expect(sent.at(-1).codingReasoningEffort).toBe('low');
+ expect(sent.at(-1).codingReasoningEffort).toBe('off');
  props.compact=true;await nextTick();
  expect(host.querySelector('.composer-idea-control').contains(picker())).toBe(true);
- expect(visibleEffort()).toBe('低');
+ expect(visibleEffort()).toBe('关闭');
  props.reasoningEfforts=[];await nextTick();expect(picker().disabled).toBe(true);send();
  expect(visibleEffort()).toBe('不可用');
  expect(sent.at(-1)).not.toHaveProperty('codingReasoningEffort');

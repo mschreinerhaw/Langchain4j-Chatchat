@@ -70,7 +70,7 @@ class JdbcRuntimeEvidenceStoreTest {
     }
 
     @Test void cleanupOnlyRemovesUnreferencedPayloadsAndPreservesClaimsAndLiveReceipts() {
-        String content = "x".repeat(3 * 1024 * 1024);
+        String content = "x".repeat(5 * 1024 * 1024);
         store.compareAndSetExecutionCheckpoint(scope, "receipt", null, content);
         store.compareAndSetExecutionCheckpoint(scope, "shared", null, content);
         store.compareAndSetExecutionCheckpoint(scope, "claim", null, "STARTED");
@@ -79,7 +79,7 @@ class JdbcRuntimeEvidenceStoreTest {
         assertThat(store.cleanupUnreferencedExecutionPayloads()).isZero();
         assertThat(store.readExecutionCheckpoint(scope, "shared")).contains(content);
         store.compareAndSetExecutionCheckpoint(scope, "shared", content, "small");
-        assertThat(store.cleanupUnreferencedExecutionPayloads()).isGreaterThan(1);
+        assertThat(store.cleanupUnreferencedExecutionPayloads()).isEqualTo(40);
         assertThat(store.readExecutionCheckpoint(scope, "claim")).contains("STARTED");
         assertThat(store.readExecutionCheckpoint(scope, "receipt")).contains("small");
         assertThat(store.cleanupUnreferencedExecutionPayloads()).isZero();

@@ -14,10 +14,11 @@ export async function resolveRuntimeModel(contract,authority,grant,{fetchImpl=fe
  if(value.contextWindow!==undefined&&(!Number.isSafeInteger(value.contextWindow)||value.contextWindow<=Math.max(0,value.maxTokens??0)))throw Error('Invalid published model context window');
  const requested=value.requestedReasoningEffort,effective=value.reasoningEffort;
  const format=value.reasoningParameter;
- if(requested!==undefined&&!['auto','minimal','low','medium','high','xhigh'].includes(requested)
+ if(requested!==undefined&&!['auto','off','minimal','low','medium','high','xhigh'].includes(requested)
   ||format!==undefined&&(effective===undefined||!validEffort(format,effective))
   ||effective!==undefined&&(!requested||!validEffort(format??'standard',effective))
-  ||requested!==undefined&&requested!=='auto'&&(effective===undefined||format===undefined&&requested!==effective))
+  ||requested==='off'&&effective!==undefined
+  ||effective!==undefined&&requested!=='auto'&&format===undefined&&requested!==effective)
    throw Error('Invalid frozen model reasoning');
  const upstream=new URL(value.baseUrl);
  if(!['http:','https:'].includes(upstream.protocol)||upstream.username||upstream.password||upstream.search||upstream.hash)throw Error('Invalid published model endpoint');
@@ -47,6 +48,9 @@ export function applyPublishedReasoning(body,profile,responses=false){
  const effort=profile.reasoningEffort,format=profile.reasoningParameter;
  if(body.chat_template_kwargs&&typeof body.chat_template_kwargs==='object')
   delete body.chat_template_kwargs.reasoning_effort;
+ delete body.thinking;
+ delete body.enable_thinking;
+ delete body.thinking_budget;
  if(effort===undefined)return body;
  if(!validEffort(format??'standard',effort))throw Error('Invalid provider reasoning configuration');
  if(format==='hunyuan-template'){
@@ -58,7 +62,6 @@ export function applyPublishedReasoning(body,profile,responses=false){
   body.reasoning_effort=effort;
   if(format==='deepseek-thinking')body.thinking={type:'enabled'};
   if(format==='qwen-thinking'){
-   delete body.thinking_budget;
    body.enable_thinking=effort!=='none';
   }
  }

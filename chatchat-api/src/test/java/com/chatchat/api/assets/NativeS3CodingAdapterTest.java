@@ -45,6 +45,8 @@ class NativeS3CodingAdapterTest {
     volatile boolean wrongReceiptSession;
     final java.util.concurrent.CountDownLatch blockedStatus=new java.util.concurrent.CountDownLatch(1),releaseStatus=new java.util.concurrent.CountDownLatch(1);
     volatile boolean asynchronousStop,missingStoppedTelemetry,rejectAllocation;volatile long stopReadyAt;
+    volatile boolean loseLiveStopProof, liveStopLost;
+    boolean failFirstRecovery;
     byte[] output="{\"value\":42}".getBytes(java.nio.charset.StandardCharsets.UTF_8);
     @BeforeEach void setup()throws Exception{
         fixture=new SiloCodingWorkspaceServiceTest();fixture.setup();
@@ -55,6 +57,9 @@ class NativeS3CodingAdapterTest {
         capture=new NativeSiloTaskService(identity,workspace,store,json);
         http=HttpServer.create(new InetSocketAddress("127.0.0.1",0),0);http.createContext("/",this::node);http.start();
         Path config=directory.resolve("connection.json");Files.writeString(config,json.writeValueAsString(Map.of("endpoint","http://127.0.0.1:"+http.getAddress().getPort(),"issuerKey","k".repeat(64),"defaultModel","published-model","modelProfiles",Map.of("published-model","fixed"))));
+        var connection=(com.fasterxml.jackson.databind.node.ObjectNode)json.readTree(Files.readString(config));
+        connection.putObject("recoveryNodes").put("default",connection.path("endpoint").asText());
+        Files.writeString(config,json.writeValueAsString(connection));
         McpLicenseEntitlementPort license=new McpLicenseEntitlementPort(){public CodingDispatchEntitlement codingDispatchEntitlement(){return new CodingDispatchEntitlement(true,"VALID");}};
         nativeEvidence=spy(new NativeS3Evidence(fixture.assets,store,json));
         settings=new NativeS3Settings(config.toString(),json);
@@ -268,6 +273,28 @@ class NativeS3CodingAdapterTest {
         assertThat(traces).hasSize(committed.size());assertThat(traces.stream().map(t->t.get("eventId"))).containsExactlyElementsOf(committed.stream().map(CodingExecutionEvent::eventId).toList());
         assertThat(receipt.get("analysisEvents")).asList().isNotEmpty();assertThat(receipt.get("status")).isEqualTo("CANCELLED");
     }
+    @Test void liveNodeWithoutStopProofFallsBackToIndependentExecutor()throws Exception{
+        asynchronousStop=true;
+        loseLiveStopProof=true;
+        String file=fixture.assets.upload(fixture.owner,"input.csv","value\n42\n".getBytes()).id();
+        var facade=new NativeCodingTasks(capture,adapter,settings,identity,fixture.assets,null,tasks);
+        var submitted=authorized(()->facade.submit(fixture.scope,"native-lost-stop",List.of(file),"Long running task","published-model",List.of("RESULT"),Map.of()));
+        String task=submitted.taskId();
+        for(int i=0;i<100&&messageCalls.get()==0;i++)Thread.sleep(50);
+        assertThat(messageCalls).hasValue(1);
+        authorized(()->facade.cancel(fixture.scope,task));
+        CodingTaskOutcome result;
+        long deadline=System.nanoTime()+java.util.concurrent.TimeUnit.SECONDS.toNanos(10);
+        do{
+            result=authorized(()->tasks.get(fixture.scope,task));
+            if(result.status().terminal())break;
+            Thread.sleep(100);
+        }while(System.nanoTime()<deadline);
+        assertThat(result.status()).isEqualTo(CodingTaskOutcome.Status.CANCELLED);
+        assertThat(result.executionControl().executorStopped()).isTrue();
+        assertThat(recoveryStops).hasValue(1);
+        assertThat(messageCalls).hasValue(1);
+    }
     @Test void shutdownDuringARealHttpWaitDoesNotInvalidateTheRecoverableWorkspace()throws Exception{
         asynchronousStop=true;
         String file=fixture.assets.upload(fixture.owner,"input.csv","value\n42\n".getBytes()).id();
@@ -296,6 +323,7 @@ class NativeS3CodingAdapterTest {
     }
     @Test void cancellationDuringControllerExitRetainsItsWakeup()throws Exception{
         rejectAllocation=true;
+        failFirstRecovery=true;
         var atExit=new java.util.concurrent.CountDownLatch(1);var release=new java.util.concurrent.CountDownLatch(1);
         doAnswer(call->{atExit.countDown();if(!release.await(5,java.util.concurrent.TimeUnit.SECONDS))throw new AssertionError("Controller exit not released");return call.callRealMethod();})
             .when(nativeEvidence).archive(any(),eq("control-error"),anyString(),any());
@@ -314,14 +342,15 @@ class NativeS3CodingAdapterTest {
             if(path.equals("/health/live")){reply(exchange,200,Map.of("engine","cline-standalone","version","4.1.26","legacySdkWorker",false));return;}
             String token=exchange.getRequestHeaders().getFirst("Authorization").substring(7);var identity=json.readTree(Base64.getUrlDecoder().decode(token.split("\\.")[0]));
             if(path.endsWith("/recovery-stop")){
-                recoveryStops.incrementAndGet();
+                if(recoveryStops.incrementAndGet()==1&&failFirstRecovery){reply(exchange,503,Map.of("code","RECOVERY_UNAVAILABLE"));return;}
                 reply(exchange,200,Map.of("sessionId",identity.path("sessionId").asText(),"stopProof",
-                    Map.of("containerId","a".repeat(64),"running",false,"allocationFenced",true)));
+                    rejectAllocation?Map.of("neverAllocated",true,"running",false,"allocationFenced",true):
+                        Map.of("containerId","a".repeat(64),"running",false,"allocationFenced",true)));
                 return;
             }
             if(path.equals("/v1/sessions")){if(rejectAllocation){reply(exchange,429,Map.of("code","CAPACITY_EXHAUSTED"));return;}created=true;grant=identity;reply(exchange,201,state());return;}
             if(!created){reply(exchange,404,Map.of("code","NOT_FOUND"));return;}
-            if(path.endsWith("/status")){if(blockStatus&&messaged){blockedStatus.countDown();releaseStatus.await(5,java.util.concurrent.TimeUnit.SECONDS);}reply(exchange,200,state());return;}
+            if(path.endsWith("/status")){if(blockStatus&&messaged){blockedStatus.countDown();releaseStatus.await(5,java.util.concurrent.TimeUnit.SECONDS);}reply(exchange,200,liveStopLost?Map.of("workerState","RECOVERABLE"):state());return;}
             if(path.endsWith("/observations")||path.endsWith("/receipts")){
                 if(sealed&&missingStoppedTelemetry){reply(exchange,410,Map.of("code","HISTORICAL_TELEMETRY_UNAVAILABLE"));return;}
                 if(path.endsWith("/receipts")&&grant.has("studioBudget")&&messaged
@@ -368,7 +397,7 @@ class NativeS3CodingAdapterTest {
                 reply(exchange,200,Map.of("artifacts",List.of(Map.of("path",outputPath,"parts",List.of(Map.of("index",0,"size",output.length,"sha256",UserAssetService.hash(output),"objectVersion",part.get("objectVersion"))),"size",output.length,"sha256",UserAssetService.hash(output))),"manifest",put(request.path("manifestUrl").asText(),json.writeValueAsBytes(manifest)),"evidence",put(request.path("evidenceUrl").asText(),journal)));return;
             }
             if(path.endsWith("/acceptance")){reply(exchange,200,Map.of("accepted",true));return;}
-            if(path.endsWith("/cancel")){if(asynchronousStop){if(stopReadyAt==0)stopReadyAt=System.nanoTime()+500_000_000;reply(exchange,202,Map.of("workerState","STOPPING"));}else{sealed=true;reply(exchange,200,state());}return;}
+            if(path.endsWith("/cancel")){if(loseLiveStopProof){liveStopLost=true;reply(exchange,202,Map.of("workerState","STOPPING"));}else if(asynchronousStop){if(stopReadyAt==0)stopReadyAt=System.nanoTime()+500_000_000;reply(exchange,202,Map.of("workerState","STOPPING"));}else{sealed=true;reply(exchange,200,state());}return;}
             reply(exchange,404,Map.of("path",path));
         }catch(Exception failed){reply(exchange,500,Map.of("error",failed.toString()));}
     }

@@ -146,7 +146,7 @@ async function broker(r,path){
    try{
     const request=JSON.stringify(requestBody);
     if(modelProfile)observation=modelReceipt({model:modelProfile.model,request,body:requestBody,
-      reasoning:{requestedReasoningEffort:modelProfile.requestedReasoningEffort,reasoningEffort:modelProfile.reasoningEffort},
+      reasoning:{requestedReasoningEffort:modelProfile.requestedReasoningEffort,reasoningEffort:modelProfile.requestedReasoningEffort===undefined?modelProfile.reasoningEffort:modelProfile.reasoningEffort??'off'},
       emit:(type,payload)=>{
        if(type==='model.request.completed')settleStudioModel(r,payload);
        event(r,type,payload);

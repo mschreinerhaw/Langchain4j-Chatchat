@@ -39,14 +39,6 @@ public class ExplorationAgentBridge {
             ||!permissions.canAccessAgent(owner.user(),id))throw new ResponseStatusException(HttpStatus.FORBIDDEN,"该 Agent 未发布或当前账户未获授权");
         return skill;
     }
-    void validateReasoning(String requested, String model){
-        if(requested==null || codingReasoning==null)return;
-        try {
-            codingReasoning.validate(requested,model);
-        } catch(IllegalArgumentException invalid) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,"当前模型的思考强度档位已变更，请刷新后选择可用档位");
-        }
-    }
     public ObjectNode submit(Owner owner,ObjectNode node,ObjectNode parent){
         var skill=authorize(owner,node.path("agentId").asText());
         var request=new AgentTaskSubmitRequest();request.setTenantId(owner.tenant());request.setUserId(owner.user());
@@ -57,7 +49,6 @@ public class ExplorationAgentBridge {
         String selected=node.path("modelName").asText("");
         String model=selected.isBlank()?skill.modelName():selected;
         String requested=node.path("codingReasoningEffort").asText(null);
-        validateReasoning(requested,model);
         if(requested!=null)input.put("codingReasoningEffort",requested);
         if(parent!=null){
             // Server-loaded branch context, never client-supplied artifacts or sibling conversation history.

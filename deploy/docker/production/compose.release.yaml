@@ -1,7 +1,11 @@
-# Start the verified production release with its existing service names and volumes.
-# docker compose -f compose.release.yaml up -d --no-build --pull never
+# Install at /opt/runtime-os/compose.yaml on the production host.
+# production-current points to the active release directory.
+# Start: docker compose -f /opt/runtime-os/compose.yaml up -d --no-recreate --no-build --pull never
+# Stop:  docker compose -f /opt/runtime-os/compose.yaml stop -t 90
+# Status: docker compose -f /opt/runtime-os/compose.yaml ps -a
+# Shared PostgreSQL, Silo and OpenSearch are managed outside this Compose project.
 name: runtime-os-source-production
 include:
-  - path: ${RUNTIME_OS_RELEASE_DIR:?Set RUNTIME_OS_RELEASE_DIR to the verified absolute production release directory}/compose.production.json
-    project_directory: ${RUNTIME_OS_RELEASE_DIR}
-    env_file: ${RUNTIME_OS_RELEASE_DIR}/private/release.env
+  - path: ${RUNTIME_OS_RELEASE_DIR:-/opt/runtime-os/production-current}/compose.production.json
+    project_directory: ${RUNTIME_OS_RELEASE_DIR:-/opt/runtime-os/production-current}
+    env_file: ${RUNTIME_OS_RELEASE_DIR:-/opt/runtime-os/production-current}/private/release.env

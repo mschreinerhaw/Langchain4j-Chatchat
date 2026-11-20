@@ -117,7 +117,7 @@ services:
       CHATCHAT_SEARCH_OPENSEARCH_USERNAME: admin
       CHATCHAT_SEARCH_OPENSEARCH_INSECURE_SSL: 'false'
       SPRING_CONFIG_IMPORT: classpath:datasource-postgresql.yml,optional:configtree:/run/secrets/
-      JAVA_TOOL_OPTIONS: -Xms256m -Xmx1536m -Dfile.encoding=UTF-8 -Djavax.net.ssl.trustStore=/srv/app/config/opensearch-truststore.p12 -Djavax.net.ssl.trustStorePassword=changeit
+      JAVA_TOOL_OPTIONS: -Xms256m -Xmx1536m -XX:+ExitOnOutOfMemoryError -Dfile.encoding=UTF-8 -Djavax.net.ssl.trustStore=/srv/app/config/opensearch-truststore.p12 -Djavax.net.ssl.trustStorePassword=changeit
       CHATCHAT_MCP_GRPC_HOST: mcp
       CHATCHAT_MCP_GRPC_PORT: "9091"
       CHATCHAT_CODING_ENABLED: "true"

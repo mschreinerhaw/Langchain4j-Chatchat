@@ -27,7 +27,8 @@ RUN --mount=type=cache,id=chatchat-production-maven,target=/root/.m2,sharing=loc
 
 FROM ${JAVA_RUNTIME_IMAGE} AS runtime
 COPY deploy/docker/application/sql-toolchain-requirements.txt /tmp/requirements.txt
-RUN apt-get update && apt-get install -y --no-install-recommends python3 python3-pip \
+RUN apt-get -o Acquire::Retries=5 update \
+    && apt-get -o Acquire::Retries=5 install -y --no-install-recommends python3 python3-pip \
     && python3 -m pip install --no-cache-dir --require-hashes -r /tmp/requirements.txt \
     && python3 -c "import sqlglot; assert sqlglot.__version__ == '30.23.0'" \
     && rm -rf /var/lib/apt/lists/* /tmp/requirements.txt

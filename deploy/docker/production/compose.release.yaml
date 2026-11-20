@@ -1,11 +1,13 @@
 # Install at /opt/runtime-os/compose.yaml on the production host.
 # production-current points to the active release directory.
-# Start: docker compose -f /opt/runtime-os/compose.yaml up -d --no-recreate --no-build --pull never
+# Start: /opt/runtime-os/start-production.sh
 # Stop:  docker compose -f /opt/runtime-os/compose.yaml stop -t 90
 # Status: docker compose -f /opt/runtime-os/compose.yaml ps -a
-# Shared PostgreSQL, Silo and OpenSearch are managed outside this Compose project.
+# The startup script starts the existing shared containers before Compose.
 name: runtime-os-source-production
 include:
-  - path: ${RUNTIME_OS_RELEASE_DIR:-/opt/runtime-os/production-current}/compose.production.json
+  - path:
+      - ${RUNTIME_OS_RELEASE_DIR:-/opt/runtime-os/production-current}/compose.production.json
+      - ${RUNTIME_OS_HOST_DEPENDENCIES_FILE:-/opt/runtime-os/compose.host-dependencies.yaml}
     project_directory: ${RUNTIME_OS_RELEASE_DIR:-/opt/runtime-os/production-current}
     env_file: ${RUNTIME_OS_RELEASE_DIR:-/opt/runtime-os/production-current}/private/release.env

@@ -28,8 +28,9 @@ elif [[ "$status" != 200 ]]; then
   exit 1
 fi
 unset password hash
-curl --silent --show-error --fail --retry 10 --retry-delay 1 --retry-max-time 30 \
+# Security settings are applied asynchronously after securityadmin reports success.
+curl --silent --show-error --fail --retry 30 --retry-delay 2 --retry-max-time 90 --max-time 20 \
   --config "$work/curl.conf" --cacert config/certs/root-ca.pem \
-  'https://opensearch:9200/_cluster/health?wait_for_status=yellow&timeout=30s' >"$work/health.json"
+  'https://opensearch:9200/_cluster/health?wait_for_status=yellow&timeout=15s' >"$work/health.json"
 grep -Eq '"timed_out"[[:space:]]*:[[:space:]]*false' "$work/health.json"
 echo 'OpenSearch authenticated health check passed'

@@ -15,7 +15,7 @@ services:
         max-size: 20m
         max-file: '3'
     image: chatchat-api:${IMAGE_TAG:-production-local}
-    mem_limit: 4g
+    mem_limit: 6g
     cpus: 2
     ports:
     - 127.0.0.1:${API_PORT:-8080}:8080
@@ -32,11 +32,12 @@ services:
       CHATCHAT_API_POSTGRESQL_USERNAME: chatchat_api
       CHATCHAT_MCP_GRPC_HOST: mcp
       CHATCHAT_MCP_GRPC_PORT: '9091'
+      CHATCHAT_MCP_CENTER_BASE_URL: http://mcp:8090
       CHATCHAT_SEARCH_OPENSEARCH_URL: https://opensearch:9200
       CHATCHAT_SEARCH_OPENSEARCH_USERNAME: admin
       SPRING_DATA_REDIS_HOST: redis
       SPRING_DATA_REDIS_USERNAME: chatchat
-      JAVA_TOOL_OPTIONS: -XX:MaxRAMPercentage=70 -XX:+ExitOnOutOfMemoryError -Dfile.encoding=UTF-8
+      JAVA_TOOL_OPTIONS: -Xms256m -Xmx4g -XX:+ExitOnOutOfMemoryError -Dfile.encoding=UTF-8
         -Djavax.net.ssl.trustStore=/run/search-truststore.p12 -Djavax.net.ssl.trustStorePassword=changeit
       NO_PROXY: localhost,127.0.0.1,api,mcp,news,cline,postgresql,temporal-postgresql,temporal,redis,silo,opensearch,frontend-resource-hub,frontend-preview-worker
       no_proxy: localhost,127.0.0.1,api,mcp,news,cline,postgresql,temporal-postgresql,temporal,redis,silo,opensearch,frontend-resource-hub,frontend-preview-worker
@@ -86,6 +87,8 @@ services:
       SPRING_CONFIG_IMPORT: classpath:datasource-postgresql.yml,optional:configtree:/run/secrets/
       CHATCHAT_MCP_POSTGRESQL_URL: jdbc:postgresql://postgresql:5432/live_runtime_mcp
       CHATCHAT_MCP_POSTGRESQL_USERNAME: chatchat_mcp
+      CHATCHAT_MCP_AUTHORIZATION_API_BASE_URL: http://api:8080
+      CHATCHAT_MCP_NEWS_RUNTIME_BASE_URL: http://news:8091
       JAVA_TOOL_OPTIONS: -XX:MaxRAMPercentage=70 -XX:+ExitOnOutOfMemoryError -Dfile.encoding=UTF-8
         -Djavax.net.ssl.trustStore=/run/search-truststore.p12 -Djavax.net.ssl.trustStorePassword=changeit
       CHATCHAT_MCP_LUCENE_OPENSEARCH_ENDPOINT: https://opensearch:9200
@@ -126,8 +129,10 @@ services:
     environment:
       SPRING_CONFIG_ADDITIONAL_LOCATION: optional:file:/srv/app/config/
       SPRING_CONFIG_IMPORT: optional:configtree:/run/secrets/
+      SPRING_PROFILES_ACTIVE: postgresql
       CHATCHAT_NEWS_POSTGRESQL_URL: jdbc:postgresql://postgresql:5432/chatchat_news
       CHATCHAT_NEWS_POSTGRESQL_USERNAME: chatchat_news
+      CHATCHAT_RUNTIME_NEWS_TEMPORAL_SERVER_MODE: external
       CHATCHAT_RUNTIME_NEWS_TEMPORAL_TARGET: temporal:7233
       CHATCHAT_RUNTIME_NEWS_MCP_SERVER_BASE_URL: http://mcp:8090
       CHATCHAT_RUNTIME_NEWS_OPENSEARCH_ENDPOINT: https://opensearch:9200
@@ -162,7 +167,8 @@ services:
     ports:
     - 127.0.0.1:${CLINE_PORT:-18326}:18326
     secrets:
-    - cline-server
+    - source: cline-server
+      target: cline-server.json
     volumes:
     - cline-state:/srv/app/state
     - cline-workspace:/workspace
@@ -270,6 +276,13 @@ services:
       NO_PROXY: localhost,127.0.0.1,api,mcp,news,cline,postgresql,temporal-postgresql,temporal,redis,silo,opensearch,frontend-resource-hub,frontend-preview-worker
       no_proxy: localhost,127.0.0.1,api,mcp,news,cline,postgresql,temporal-postgresql,temporal,redis,silo,opensearch,frontend-resource-hub,frontend-preview-worker
       BIND_ON_IP: 0.0.0.0
+      # Docker client proxy defaults must not intercept Temporal's internal gRPC.
+      HTTP_PROXY: ""
+      HTTPS_PROXY: ""
+      ALL_PROXY: ""
+      http_proxy: ""
+      https_proxy: ""
+      all_proxy: ""
     secrets:
     - temporal_database_password
     volumes:
@@ -356,7 +369,7 @@ services:
       - CMD
       - curl
       - -fsS
-      - http://127.0.0.1:9000/minio/health/live
+      - http://127.0.0.1:9000/minio/health/ready
       interval: 10s
       timeout: 5s
       retries: 30

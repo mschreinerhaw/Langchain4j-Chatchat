@@ -1991,3 +1991,77 @@ CREATE TABLE IF NOT EXISTS workspace_resource_origin (
  created_at TIMESTAMP WITH TIME ZONE NOT NULL, updated_at TIMESTAMP WITH TIME ZONE NOT NULL,
  CONSTRAINT uk_workspace_origin_resource UNIQUE (tenant_id, resource_type, resource_id)
 );
+
+-- Tables and columns required by the 1.3.2 API entity mappings.
+
+create table agent_regression_semantic_profile (
+    profile_key varchar(128) not null,
+    connector_terms_json text not null,
+    relation_rules_json text not null,
+    primary key (profile_key)
+);
+
+create table agent_tool_intent_binding (
+    input_key varchar(128) not null,
+    enabled boolean not null,
+    local_tool_name_suffix varchar(128) not null,
+    remote_tool_name varchar(128) not null,
+    requested_tool_name varchar(128) not null,
+    primary key (input_key)
+);
+
+create table capability_registry (
+    capability_id varchar(80) not null,
+    current_version varchar(64) not null,
+    lock_version bigint not null,
+    service_id varchar(64) not null,
+    status varchar(16) not null,
+    tool_name varchar(256) not null,
+    updated_at timestamp(6) with time zone not null,
+    primary key (capability_id)
+);
+
+create table capability_version (
+    id varchar(160) not null,
+    capability_id varchar(80) not null,
+    content_hash varchar(64) not null,
+    created_at timestamp(6) with time zone not null,
+    manifest_json text not null,
+    primary key (id)
+);
+
+alter table ds_domain_skill add column compilation_error varchar(2000);
+
+alter table ds_domain_skill add column compilation_status varchar(24);
+
+alter table ds_domain_skill add column native_metadata_json text;
+
+alter table ds_domain_skill add column native_source_id varchar(64);
+
+alter table ds_domain_skill add column runtime_compilation_enabled boolean;
+
+create table ds_python_environment_preference (
+    id varchar(64) not null,
+    asset_id varchar(64) not null,
+    owner_id varchar(64) not null,
+    revision bigint not null,
+    tenant_id varchar(64) not null,
+    primary key (id)
+);
+
+alter table ds_python_script add column last_test_evidence_json TEXT;
+
+create table mcp_tool_runtime_capability (
+    remote_tool_name varchar(128) not null,
+    batch_execution boolean not null,
+    template_execution boolean not null,
+    primary key (remote_tool_name)
+);
+
+alter table capability_version add constraint uk_capability_content_version unique (capability_id, content_hash);
+
+alter table domain_analysis_profile add constraint UK4g734cjtdylxbkib3emrdlb8e unique (tenant_id, analysis_type);
+
+alter table ds_python_environment_preference add constraint uk_python_environment_preference_owner unique (tenant_id, owner_id);
+
+alter table ds_skill_data_binding add constraint UKc2sn0q29ndakt2pl32o3kqern unique (tenant_id, domain_skill_id, contract_id);

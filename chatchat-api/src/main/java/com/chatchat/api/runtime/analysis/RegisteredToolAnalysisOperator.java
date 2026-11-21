@@ -118,7 +118,17 @@ public class RegisteredToolAnalysisOperator implements AnalysisCapabilityOperato
         return executeSingle(context, scope, plan);
     }
 
+    /** Caller has checked the current immutable publication is a tested read-only SQL revision. */
+    public WorkflowExecutionResult executePublishedReadOnlySql(AnalysisContext context, AnalysisScope scope) {
+        return executeSingle(context, scope, null, true);
+    }
+
     private WorkflowExecutionResult executeSingle(AnalysisContext context, AnalysisScope scope, WorkflowPlan plan) {
+        return executeSingle(context, scope, plan, false);
+    }
+
+    private WorkflowExecutionResult executeSingle(AnalysisContext context, AnalysisScope scope, WorkflowPlan plan,
+                                                   boolean publishedReadOnlySql) {
         if (scope == null || scope.tenantId() == null || scope.userId() == null)
             return denied("Authenticated tenant and user scope are required");
         String name = String.valueOf(context.attributes().get(TOOL_NAME));
@@ -127,10 +137,14 @@ public class RegisteredToolAnalysisOperator implements AnalysisCapabilityOperato
         if (skill == null || !registry.hasTool(name) || !AnalysisToolBindingPolicy.bound(skill, name, catalog))
             return denied("Tool is not explicitly bound to the selected Skill");
         ToolMetadata metadata = registry.getToolMetadata(name);
+        boolean admittedPublishedSql = publishedReadOnlySql
+            && com.chatchat.common.tool.TemplateToolNames.remote(name) != null
+            && metadata != null && "execute".equalsIgnoreCase(metadata.getOperationType())
+            && "controlled".equalsIgnoreCase(metadata.getRuntimeLevel()) && "low".equalsIgnoreCase(metadata.getRiskLevel());
         if (metadata == null || !metadata.isAgentCompatible() || !metadata.isUserVisible()
-            || !"read".equalsIgnoreCase(metadata.getOperationType())
+            || !admittedPublishedSql && (!"read".equalsIgnoreCase(metadata.getOperationType())
             || (metadata.getRuntimeLevel() != null && !Set.of("readonly", "read_only", "read", "discovery")
-                .contains(metadata.getRuntimeLevel().toLowerCase(java.util.Locale.ROOT)))
+                .contains(metadata.getRuntimeLevel().toLowerCase(java.util.Locale.ROOT))))
             || Set.of("high", "forbidden").contains(String.valueOf(metadata.getRiskLevel()).toLowerCase()))
             return denied("Tool is not published as a read-only analysis capability");
         long invocationRevision = registry.getToolRevision(name);
@@ -157,6 +171,7 @@ public class RegisteredToolAnalysisOperator implements AnalysisCapabilityOperato
         ToolRuntimeExecution execution;
         Map<String,Object> runtimeAttributes=new LinkedHashMap<>(Map.of("analysisSkillId",skill.id(),
             "toolRegistryRevisions",Map.of(name,invocationRevision)));
+        if (admittedPublishedSql) runtimeAttributes.put("authorizationAgentId", skill.id());
         if(context.attributes().get(CODING_DATA_OPERATION) instanceof String operation
                 && operation.matches("data-[0-9a-f]{64}"))runtimeAttributes.put("toolRetryAttempts",0);
         try {

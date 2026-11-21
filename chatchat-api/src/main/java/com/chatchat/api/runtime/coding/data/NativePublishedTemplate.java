@@ -4,7 +4,7 @@ import com.chatchat.agents.runtime.coding.DurableCodingTaskService;
 import com.chatchat.agents.runtime.coding.CodingJournal;
 import com.chatchat.agents.runtime.toolcall.TemplateInvocationBridge;
 import com.chatchat.api.assets.UserAssetService;
-import com.chatchat.api.runtime.analysis.PreauthorizedStructuredDataOperator;
+import com.chatchat.api.controller.mcp.McpControlPlaneClient;
 import com.chatchat.api.runtime.analysis.RegisteredToolAnalysisOperator;
 import com.chatchat.api.runtime.coding.nativecline.NativeS3Evidence;
 import com.chatchat.common.kernel.KernelDataScope;
@@ -37,7 +37,7 @@ public final class NativePublishedTemplate {
     private final CodingDataSupplyService supply;
     private final DurableCodingTaskService tasks;
     private final RegisteredToolAnalysisOperator tools;
-    private final PreauthorizedStructuredDataOperator executor;
+    private final McpControlPlaneClient publications;
     private final SkillExecutionScopePort scopes;
     private final NativeS3Evidence evidence;
     private final ObjectMapper json;
@@ -45,13 +45,13 @@ public final class NativePublishedTemplate {
 
     public NativePublishedTemplate(CodingDataSupplyProperties policy, CodingDataSupplyService supply,
             DurableCodingTaskService tasks, RegisteredToolAnalysisOperator tools,
-            PreauthorizedStructuredDataOperator executor, SkillExecutionScopePort scopes,
+            McpControlPlaneClient publications, SkillExecutionScopePort scopes,
             NativeS3Evidence evidence, ObjectMapper json) {
         this.policy = policy;
         this.supply = supply;
         this.tasks = tasks;
         this.tools = tools;
-        this.executor = executor;
+        this.publications = publications;
         this.scopes = scopes;
         this.evidence = evidence;
         this.json = json.copy().enable(DeserializationFeature.USE_BIG_DECIMAL_FOR_FLOATS);
@@ -59,26 +59,23 @@ public final class NativePublishedTemplate {
 
     public Map<String, Object> capture(KernelDataScope scope, String skill, String id) {
         var grant = grant(scope, skill, id);
-        var route = tools.resolveBoundPublishedTool(skill, PreauthorizedStructuredDataOperator.TOOL_NAME)
+        var published = publications.request("GET", "/api/v1/template-capabilities/publications?tenantId="
+            + encode(scope.tenantId()) + "&actorId=" + encode(scope.userId()), null);
+        var rows = java.util.stream.StreamSupport.stream(published.spliterator(), false)
+            .filter(row -> "RUNNING".equals(row.path("state").asText()) && row.path("verifiedReadOnlySql").asBoolean()
+                && ("sql_datasource:" + id).equals(row.path("templateKey").asText())
+                && grant.assetName().equals(row.path("assetName").asText())).toList();
+        if (rows.size() != 1) throw new SecurityException("Expected one authorized running SQL publication");
+        var row = rows.get(0);
+        var route = tools.resolveBoundPublishedTool(skill, row.path("toolName").asText())
             .orElseThrow(() -> new SecurityException("No matching Skill-bound published SQL template route"));
-        var context = context(scope, grant, "Describe published template", Map.of(), "describe")
-            .withAttribute(RegisteredToolAnalysisOperator.TOOL_NAME, route)
-            .withAttribute(RegisteredToolAnalysisOperator.TOOL_ARGUMENTS, Map.of(
-                "templateId", id, "domain", grant.assetName(), "assetDomain", grant.assetName(),
-                "executionContext", Map.of("assetName", grant.assetName(), "env", grant.environment()),
-                "describeOnly", true));
-        var result = tools.execute(context, analysisScope(context), null);
-        if (result.evidence().size() != 1) throw new SecurityException("Published template description unavailable");
-        try {
-            var descriptor = json.readTree(result.evidence().get(0).content()).path("data");
-            if (!id.equals(descriptor.path("templateId").asText())
-                    || !descriptor.path("parameterSchema").isObject() || descriptor.toString().length() > 8000)
-                throw new IllegalStateException("Invalid published template descriptor");
-            return Map.of("skillId", skill, "grantHash", supply.hash(grant), "route", route, "template",
-                json.convertValue(descriptor, new TypeReference<Map<String, Object>>() {}));
-        } catch (IOException invalid) {
-            throw new IllegalStateException("Invalid published template descriptor", invalid);
-        }
+        var schema = row.path("parameterSchema");
+        if (!schema.isObject() || schema.toString().length() > 7000)
+            throw new IllegalStateException("Invalid published template descriptor");
+        return Map.of("skillId", skill, "grantHash", supply.hash(grant), "route", route,
+            "releaseId", row.path("id").asText(), "revision", row.path("revision").asText(), "template",
+            Map.of("templateId", id, "description", row.path("title").asText(), "parameterSchema",
+                json.convertValue(schema, new TypeReference<Map<String, Object>>() {})));
     }
 
     public Map<String, Object> specification(CodingTaskContract task) {
@@ -124,7 +121,7 @@ public final class NativePublishedTemplate {
         TemplateInvocationBridge.BridgeResult compiled;
         try {
             compiled = bridge.prepare(new TemplateInvocationBridge.BridgeRequest(
-                PreauthorizedStructuredDataOperator.TOOL_NAME, null, id, template, Map.of(), protocol, true, false,
+                binding.path("route").asText(), null, id, template, Map.of(), protocol, true, false,
                 new TemplateInvocationBridge.EvidenceContext(task.objective().instruction(), Map.of())));
         } catch (TemplateInvocationBridge.TemplateBridgeException invalid) {
             return Map.of("status", "PARAMETER_INVALID", "errorCode", invalid.code(),
@@ -167,10 +164,9 @@ public final class NativePublishedTemplate {
             OPERATION, "runtime-data:" + OPERATION);
         if (!begin.dispatchIntentCreated()) return status("QUERY_OUTCOME_UNKNOWN");
         long clock = System.nanoTime();
-        var context = context(task.scope(), grant, task.objective().instruction(), parameters, "query")
-            .withAttribute(PreauthorizedStructuredDataOperator.PUBLISHED_ROUTE, binding.path("route").asText())
+        var context = context(task.scope(), grant, task.objective().instruction(), parameters, binding.path("route").asText())
             .withAttribute(RegisteredToolAnalysisOperator.CODING_DATA_OPERATION, "data-" + supply.hash(task.taskId()));
-        var result = executor.execute(context, analysisScope(context), null);
+        var result = tools.executePublishedReadOnlySql(context, analysisScope(context));
         var receipt = new LinkedHashMap<String, Object>();
         receipt.put("templateId", id);
         receipt.put("queryMs", (System.nanoTime() - clock) / 1_000_000);
@@ -181,7 +177,12 @@ public final class NativePublishedTemplate {
         else if (result.evidence().size() == 1) {
             try {
                 var fact = result.evidence().get(0);
-                var data = json.readTree(fact.content()).path("data");
+                var resultBody = json.readTree(fact.content());
+                var data = resultBody.path("data");
+                if (!data.path("rows").isArray()) data = data.path("data");
+                if (!data.path("rows").isArray() || data.path("rows").size() > 100
+                    || data.path("rowCount").asInt(-1) != data.path("rows").size())
+                    throw new IllegalArgumentException("Published query returned no bounded SQL rows");
                 receipt.putAll(publish(task, grant, data, digest));
                 receipt.put("sourceEvidenceId", fact.evidenceId());
             } catch (IOException | IllegalArgumentException failed) {
@@ -279,17 +280,15 @@ public final class NativePublishedTemplate {
     }
 
     private AnalysisContext context(KernelDataScope scope, CodingDataSupplyProperties.Grant grant,
-            String query, Map<String, Object> parameters, String phase) {
+            String query, Map<String, Object> parameters, String route) {
         var roles = scopes.resolve(scope.tenantId(), scope.userId(), grant.skillId(), List.of(), List.of());
         if (!roles.skillAllowed()) throw new SecurityException("Data Skill permission revoked");
         var traceScope = new KernelDataScope(scope.tenantId(), scope.userId(),
-            STATE + "-" + phase + "-" + supply.hash(List.of(scope.runId(),grant.templateId())),
+            STATE + "-" + supply.hash(List.of(scope.runId(),grant.templateId())),
             scope.conversationId(), scope.runId(), scope.environment(), scope.attributes());
         return new AnalysisContext(query, traceScope, grant.skillId(), List.of(), List.of(), roles.roles(), null, Map.of(
-            PreauthorizedStructuredDataOperator.TEMPLATE_ID, grant.templateId(),
-            PreauthorizedStructuredDataOperator.ASSET_NAME, grant.assetName(),
-            PreauthorizedStructuredDataOperator.ENVIRONMENT, grant.environment(),
-            PreauthorizedStructuredDataOperator.PARAMETERS, parameters));
+            RegisteredToolAnalysisOperator.TOOL_NAME, route,
+            RegisteredToolAnalysisOperator.TOOL_ARGUMENTS, parameters));
     }
 
     private AnalysisScope analysisScope(AnalysisContext context) {
@@ -299,5 +298,9 @@ public final class NativePublishedTemplate {
 
     private static Map<String, Object> status(String status) {
         return Map.of("status", status);
+    }
+
+    private static String encode(String value) {
+        return java.net.URLEncoder.encode(value, java.nio.charset.StandardCharsets.UTF_8);
     }
 }

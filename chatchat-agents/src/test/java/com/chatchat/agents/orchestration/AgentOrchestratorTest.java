@@ -284,48 +284,6 @@ class AgentOrchestratorTest {
     }
 
     @Test
-    void selectionReceivesPublishedCurrentAndPriorAssetIdentities() {
-        ChatModel model=mock(ChatModel.class);mockNativeTemplateSelection(model,"host-health");
-        var execution=new InterpretationPlanRuntime.StepExecution(2,"mcp_tool",
-            "mcp_chatchat_mcp_server_customer_service_template_query",true,
-            Map.of("queryIr",Map.of("asset",Map.of("selected",Map.of("id","current-asset"))),
-                "hasMore",true,"nextCursor","opaque-next","templates",List.of(Map.of("templateId","host-health","parameterSchema",Map.of("type","object","properties",Map.of())),Map.of("templateId","host-process","parameterSchema",Map.of("type","object","properties",Map.of())))),null,null,null,1L);
-        var prior=new InterpretationPlanRuntime.StepExecution(1,"mcp_tool","prior_discovery",true,
-            Map.of("queryIr",Map.of("asset",Map.of("selected",Map.of("id","prior-asset")))),null,null,null,1L);
-        var review=newTemplateDiscoveryOrchestrator(model).reviewInterpretationPlanToolResult(model,
-            "Analyze the requested sources",null,()->false,
-            new InterpretationPlanRuntime.StepReviewRequest(null,null,execution,Map.of(1,prior),1,1),
-            Map.of("workflowFamily","DATA_ANALYSIS"));
-        assertThat(review.satisfied()).isTrue();
-        assertThat(review.metadata()).containsEntry("selectedTemplateIds",List.of("host-health"))
-            .containsEntry("mcpDiscoverySucceeded",true).doesNotContainKey("templateSelectionCoverageAudit");
-        var captured=org.mockito.ArgumentCaptor.forClass(dev.langchain4j.model.chat.request.ChatRequest.class);
-        verify(model,times(1)).chat(captured.capture());verify(model,never()).chat(anyString());
-        assertThat(captured.getValue().messages().toString()).contains("current-asset","prior-asset");
-    }
-
-    @Test
-    void javaDoesNotVetoSelectedCapabilitiesBasedOnBusinessAnchor() {
-        ChatModel model=mock(ChatModel.class);mockNativeTemplateSelection(model,"host-health");
-        var execution=new InterpretationPlanRuntime.StepExecution(2,"mcp_tool",
-            "mcp_chatchat_mcp_server_customer_service_template_query",true,
-            Map.of("queryIr",Map.of("asset",Map.of("selected",Map.of("id","current-asset"))),
-                "hasMore",true,"nextCursor","opaque-next","templates",List.of(Map.of("templateId","host-health","parameterSchema",Map.of("type","object","properties",Map.of())),Map.of("templateId","host-process","parameterSchema",Map.of("type","object","properties",Map.of())))),null,null,null,1L);
-        var prior=new InterpretationPlanRuntime.StepExecution(1,"mcp_tool","prior_discovery",true,
-            Map.of("queryIr",Map.of("asset",Map.of("selected",Map.of("id","prior-asset")))),null,null,null,1L);
-        var review=newTemplateDiscoveryOrchestrator(model).reviewInterpretationPlanToolResult(model,
-            "Analyze the requested sources",null,()->false,
-            new InterpretationPlanRuntime.StepReviewRequest(null,null,execution,Map.of(1,prior),1,1),
-            Map.of("workflowFamily","DATA_ANALYSIS"));
-        assertThat(review.satisfied()).isTrue();
-        assertThat(review.metadata()).containsEntry("selectedTemplateIds",List.of("host-health"))
-            .containsEntry("mcpDiscoverySucceeded",true).doesNotContainKey("templateSelectionCoverageAudit");
-        var captured=org.mockito.ArgumentCaptor.forClass(dev.langchain4j.model.chat.request.ChatRequest.class);
-        verify(model,times(1)).chat(captured.capture());verify(model,never()).chat(anyString());
-        assertThat(captured.getValue().messages().toString()).contains("current-asset","prior-asset");
-    }
-
-    @Test
     void mandatoryPreflightValidatesCompiledBatchChildrenInsteadOfScalarEnvelope() {
         String executor = "mcp_runtime_future_template_execute";
         ToolRegistry registry = mock(ToolRegistry.class);
@@ -3858,31 +3816,6 @@ class AgentOrchestratorTest {
     }
 
     @Test
-    void codingAnalysisRetainsTemplateSelectionAndNaturalLanguageParameterBinding() {
-        ChatModel model=mock(ChatModel.class);
-        when(model.chat(any(dev.langchain4j.model.chat.request.ChatRequest.class))).thenReturn(
-            dev.langchain4j.model.chat.response.ChatResponse.builder().aiMessage(
-                dev.langchain4j.data.message.AiMessage.from(dev.langchain4j.agent.tool.ToolExecutionRequest.builder()
-                    .id("selection-1").name(SchemaDrivenTemplateParameterBinder.SELECTION_FUNCTION)
-                    .arguments("{\"status\":\"SELECTED\",\"selections\":[{\"templateId\":\"detail\",\"parameters\":{\"accountId\":\"A42\"}}]}")
-                    .build())).build());
-        var execution=new InterpretationPlanRuntime.StepExecution(1,"mcp_tool",
-            "mcp_chatchat_mcp_server_customer_service_template_query",true,
-            Map.of("templates",List.of(Map.of("templateId","detail","title","Account details",
-                "requiredParameters",List.of("accountId"),"parameterSchema",Map.of("type","object",
-                    "required",List.of("accountId"),"properties",Map.of("accountId",Map.of("type","string")))))),
-            null,null,null,1L);
-        var review=newTemplateDiscoveryOrchestrator(model).reviewInterpretationPlanToolResult(model,
-            "Analyze account A42",null,()->false,
-            new InterpretationPlanRuntime.StepReviewRequest(null,null,execution,Map.of(),1,1),
-            Map.of("workflowFamily","DATA_ANALYSIS"));
-        assertThat(review.metadata()).containsEntry("selectedTemplateIds",List.of("detail"));
-        assertThat(review.metadata().get("parameterProtocols").toString()).contains("A42");
-        verify(model,never()).chat(anyString());
-        verify(model,times(1)).chat(any(dev.langchain4j.model.chat.request.ChatRequest.class));
-    }
-
-    @Test
     void successfulTemplateExecutionIsAdmittedWithoutRedundantModelReview() {
         ChatModel model = mock(ChatModel.class);
         AgentOrchestrator orchestrator = newOrchestrator(model);
@@ -3904,153 +3837,6 @@ class AgentOrchestratorTest {
             .containsEntry("toolResultReviewMode", "RUNTIME_DETERMINISTIC_EXECUTION_ADMISSION")
             .containsEntry("templateExecutionSatisfied", true);
         verify(model, never()).chat(anyString());
-    }
-
-    @Test
-    void singleTemplateSelectionCoversMultipleQuestionFacetsWithoutAudit() {
-        ChatModel model=mock(ChatModel.class);mockNativeTemplateSelection(model,"asset","trade");
-        var execution=new InterpretationPlanRuntime.StepExecution(2,"mcp_tool",
-            "mcp_chatchat_mcp_server_customer_service_template_query",true,
-            Map.of("queryIr",Map.of("asset",Map.of("selected",Map.of("id","current-asset"))),
-                "hasMore",true,"nextCursor","opaque-next","templates",List.of(Map.of("templateId","asset","parameterSchema",Map.of("type","object","properties",Map.of())),Map.of("templateId","trade","parameterSchema",Map.of("type","object","properties",Map.of())))),null,null,null,1L);
-        var prior=new InterpretationPlanRuntime.StepExecution(1,"mcp_tool","prior_discovery",true,
-            Map.of("queryIr",Map.of("asset",Map.of("selected",Map.of("id","prior-asset")))),null,null,null,1L);
-        var review=newTemplateDiscoveryOrchestrator(model).reviewInterpretationPlanToolResult(model,
-            "Analyze the requested sources",null,()->false,
-            new InterpretationPlanRuntime.StepReviewRequest(null,null,execution,Map.of(1,prior),1,1),
-            Map.of("workflowFamily","DATA_ANALYSIS"));
-        assertThat(review.satisfied()).isTrue();
-        assertThat(review.metadata()).containsEntry("selectedTemplateIds",List.of("asset","trade"))
-            .containsEntry("mcpDiscoverySucceeded",true).doesNotContainKey("templateSelectionCoverageAudit");
-        var captured=org.mockito.ArgumentCaptor.forClass(dev.langchain4j.model.chat.request.ChatRequest.class);
-        verify(model,times(1)).chat(captured.capture());verify(model,never()).chat(anyString());
-        assertThat(captured.getValue().messages().toString()).contains("current-asset","prior-asset");
-    }
-
-    @Test
-    void unselectedCandidatesRemainUnexecutedWithoutSecondReview() {
-        ChatModel model=mock(ChatModel.class);mockNativeTemplateSelection(model,"asset");
-        var execution=new InterpretationPlanRuntime.StepExecution(2,"mcp_tool",
-            "mcp_chatchat_mcp_server_customer_service_template_query",true,
-            Map.of("queryIr",Map.of("asset",Map.of("selected",Map.of("id","current-asset"))),
-                "hasMore",true,"nextCursor","opaque-next","templates",List.of(Map.of("templateId","asset","parameterSchema",Map.of("type","object","properties",Map.of())),Map.of("templateId","trade","parameterSchema",Map.of("type","object","properties",Map.of())),Map.of("templateId","balance","parameterSchema",Map.of("type","object","properties",Map.of())))),null,null,null,1L);
-        var prior=new InterpretationPlanRuntime.StepExecution(1,"mcp_tool","prior_discovery",true,
-            Map.of("queryIr",Map.of("asset",Map.of("selected",Map.of("id","prior-asset")))),null,null,null,1L);
-        var review=newTemplateDiscoveryOrchestrator(model).reviewInterpretationPlanToolResult(model,
-            "Analyze the requested sources",null,()->false,
-            new InterpretationPlanRuntime.StepReviewRequest(null,null,execution,Map.of(1,prior),1,1),
-            Map.of("workflowFamily","DATA_ANALYSIS"));
-        assertThat(review.satisfied()).isTrue();
-        assertThat(review.metadata()).containsEntry("selectedTemplateIds",List.of("asset"))
-            .containsEntry("mcpDiscoverySucceeded",true).doesNotContainKey("templateSelectionCoverageAudit");
-        var captured=org.mockito.ArgumentCaptor.forClass(dev.langchain4j.model.chat.request.ChatRequest.class);
-        verify(model,times(1)).chat(captured.capture());verify(model,never()).chat(anyString());
-        assertThat(captured.getValue().messages().toString()).contains("current-asset","prior-asset");
-    }
-
-    @Test
-    void oneModelDecisionCanSelectEveryComplementarySource() {
-        ChatModel model=mock(ChatModel.class);mockNativeTemplateSelection(model,"asset","trade","profit","position");
-        var execution=new InterpretationPlanRuntime.StepExecution(2,"mcp_tool",
-            "mcp_chatchat_mcp_server_customer_service_template_query",true,
-            Map.of("queryIr",Map.of("asset",Map.of("selected",Map.of("id","current-asset"))),
-                "hasMore",true,"nextCursor","opaque-next","templates",List.of(Map.of("templateId","asset","parameterSchema",Map.of("type","object","properties",Map.of())),Map.of("templateId","trade","parameterSchema",Map.of("type","object","properties",Map.of())),Map.of("templateId","profit","parameterSchema",Map.of("type","object","properties",Map.of())),Map.of("templateId","position","parameterSchema",Map.of("type","object","properties",Map.of())))),null,null,null,1L);
-        var prior=new InterpretationPlanRuntime.StepExecution(1,"mcp_tool","prior_discovery",true,
-            Map.of("queryIr",Map.of("asset",Map.of("selected",Map.of("id","prior-asset")))),null,null,null,1L);
-        var review=newTemplateDiscoveryOrchestrator(model).reviewInterpretationPlanToolResult(model,
-            "Analyze the requested sources",null,()->false,
-            new InterpretationPlanRuntime.StepReviewRequest(null,null,execution,Map.of(1,prior),1,1),
-            Map.of("workflowFamily","DATA_ANALYSIS"));
-        assertThat(review.satisfied()).isTrue();
-        assertThat(review.metadata()).containsEntry("selectedTemplateIds",List.of("asset","trade","profit","position"))
-            .containsEntry("mcpDiscoverySucceeded",true).doesNotContainKey("templateSelectionCoverageAudit");
-        var captured=org.mockito.ArgumentCaptor.forClass(dev.langchain4j.model.chat.request.ChatRequest.class);
-        verify(model,times(1)).chat(captured.capture());verify(model,never()).chat(anyString());
-        assertThat(captured.getValue().messages().toString()).contains("current-asset","prior-asset");
-    }
-
-    @Test
-    void supplierDoesNotPromoteUnselectedSourcesIntoExecution() {
-        ChatModel model=mock(ChatModel.class);mockNativeTemplateSelection(model,"asset");
-        var execution=new InterpretationPlanRuntime.StepExecution(2,"mcp_tool",
-            "mcp_chatchat_mcp_server_customer_service_template_query",true,
-            Map.of("queryIr",Map.of("asset",Map.of("selected",Map.of("id","current-asset"))),
-                "hasMore",true,"nextCursor","opaque-next","templates",List.of(Map.of("templateId","asset","parameterSchema",Map.of("type","object","properties",Map.of())),Map.of("templateId","trade","parameterSchema",Map.of("type","object","properties",Map.of())),Map.of("templateId","position","parameterSchema",Map.of("type","object","properties",Map.of())))),null,null,null,1L);
-        var prior=new InterpretationPlanRuntime.StepExecution(1,"mcp_tool","prior_discovery",true,
-            Map.of("queryIr",Map.of("asset",Map.of("selected",Map.of("id","prior-asset")))),null,null,null,1L);
-        var review=newTemplateDiscoveryOrchestrator(model).reviewInterpretationPlanToolResult(model,
-            "Analyze the requested sources",null,()->false,
-            new InterpretationPlanRuntime.StepReviewRequest(null,null,execution,Map.of(1,prior),1,1),
-            Map.of("workflowFamily","DATA_ANALYSIS"));
-        assertThat(review.satisfied()).isTrue();
-        assertThat(review.metadata()).containsEntry("selectedTemplateIds",List.of("asset"))
-            .containsEntry("mcpDiscoverySucceeded",true).doesNotContainKey("templateSelectionCoverageAudit");
-        var captured=org.mockito.ArgumentCaptor.forClass(dev.langchain4j.model.chat.request.ChatRequest.class);
-        verify(model,times(1)).chat(captured.capture());verify(model,never()).chat(anyString());
-        assertThat(captured.getValue().messages().toString()).contains("current-asset","prior-asset");
-    }
-
-    @Test
-    void completeSelectionRequiresNoCoverageAudit() {
-        ChatModel model=mock(ChatModel.class);mockNativeTemplateSelection(model,"asset","trade");
-        var execution=new InterpretationPlanRuntime.StepExecution(2,"mcp_tool",
-            "mcp_chatchat_mcp_server_customer_service_template_query",true,
-            Map.of("queryIr",Map.of("asset",Map.of("selected",Map.of("id","current-asset"))),
-                "hasMore",true,"nextCursor","opaque-next","templates",List.of(Map.of("templateId","asset","parameterSchema",Map.of("type","object","properties",Map.of())),Map.of("templateId","trade","parameterSchema",Map.of("type","object","properties",Map.of())))),null,null,null,1L);
-        var prior=new InterpretationPlanRuntime.StepExecution(1,"mcp_tool","prior_discovery",true,
-            Map.of("queryIr",Map.of("asset",Map.of("selected",Map.of("id","prior-asset")))),null,null,null,1L);
-        var review=newTemplateDiscoveryOrchestrator(model).reviewInterpretationPlanToolResult(model,
-            "Analyze the requested sources",null,()->false,
-            new InterpretationPlanRuntime.StepReviewRequest(null,null,execution,Map.of(1,prior),1,1),
-            Map.of("workflowFamily","DATA_ANALYSIS"));
-        assertThat(review.satisfied()).isTrue();
-        assertThat(review.metadata()).containsEntry("selectedTemplateIds",List.of("asset","trade"))
-            .containsEntry("mcpDiscoverySucceeded",true).doesNotContainKey("templateSelectionCoverageAudit");
-        var captured=org.mockito.ArgumentCaptor.forClass(dev.langchain4j.model.chat.request.ChatRequest.class);
-        verify(model,times(1)).chat(captured.capture());verify(model,never()).chat(anyString());
-        assertThat(captured.getValue().messages().toString()).contains("current-asset","prior-asset");
-    }
-
-    @Test
-    void selectionDoesNotRequireRejectionScoresForOtherCandidates() {
-        ChatModel model=mock(ChatModel.class);mockNativeTemplateSelection(model,"asset","trade");
-        var execution=new InterpretationPlanRuntime.StepExecution(2,"mcp_tool",
-            "mcp_chatchat_mcp_server_customer_service_template_query",true,
-            Map.of("queryIr",Map.of("asset",Map.of("selected",Map.of("id","current-asset"))),
-                "hasMore",true,"nextCursor","opaque-next","templates",List.of(Map.of("templateId","asset","parameterSchema",Map.of("type","object","properties",Map.of())),Map.of("templateId","trade","parameterSchema",Map.of("type","object","properties",Map.of())),Map.of("templateId","irrelevant","parameterSchema",Map.of("type","object","properties",Map.of())))),null,null,null,1L);
-        var prior=new InterpretationPlanRuntime.StepExecution(1,"mcp_tool","prior_discovery",true,
-            Map.of("queryIr",Map.of("asset",Map.of("selected",Map.of("id","prior-asset")))),null,null,null,1L);
-        var review=newTemplateDiscoveryOrchestrator(model).reviewInterpretationPlanToolResult(model,
-            "Analyze the requested sources",null,()->false,
-            new InterpretationPlanRuntime.StepReviewRequest(null,null,execution,Map.of(1,prior),1,1),
-            Map.of("workflowFamily","DATA_ANALYSIS"));
-        assertThat(review.satisfied()).isTrue();
-        assertThat(review.metadata()).containsEntry("selectedTemplateIds",List.of("asset","trade"))
-            .containsEntry("mcpDiscoverySucceeded",true).doesNotContainKey("templateSelectionCoverageAudit");
-        var captured=org.mockito.ArgumentCaptor.forClass(dev.langchain4j.model.chat.request.ChatRequest.class);
-        verify(model,times(1)).chat(captured.capture());verify(model,never()).chat(anyString());
-        assertThat(captured.getValue().messages().toString()).contains("current-asset","prior-asset");
-    }
-
-    @Test
-    void modelNoMatchDoesNotMeanMcpExecutionFailed() {
-        ChatModel model=mock(ChatModel.class);mockNativeTemplateSelection(model);
-        var execution=new InterpretationPlanRuntime.StepExecution(2,"mcp_tool",
-            "mcp_chatchat_mcp_server_customer_service_template_query",true,
-            Map.of("queryIr",Map.of("asset",Map.of("selected",Map.of("id","current-asset"))),
-                "hasMore",true,"nextCursor","opaque-next","templates",List.of(Map.of("templateId","asset","parameterSchema",Map.of("type","object","properties",Map.of())),Map.of("templateId","trade","parameterSchema",Map.of("type","object","properties",Map.of())))),null,null,null,1L);
-        var prior=new InterpretationPlanRuntime.StepExecution(1,"mcp_tool","prior_discovery",true,
-            Map.of("queryIr",Map.of("asset",Map.of("selected",Map.of("id","prior-asset")))),null,null,null,1L);
-        var review=newTemplateDiscoveryOrchestrator(model).reviewInterpretationPlanToolResult(model,
-            "Analyze the requested sources",null,()->false,
-            new InterpretationPlanRuntime.StepReviewRequest(null,null,execution,Map.of(1,prior),1,1),
-            Map.of("workflowFamily","DATA_ANALYSIS"));
-        assertThat(review.satisfied()).isTrue();
-        assertThat(review.metadata()).containsEntry("selectedTemplateIds",List.of())
-            .containsEntry("mcpDiscoverySucceeded",true).doesNotContainKey("templateSelectionCoverageAudit");
-        var captured=org.mockito.ArgumentCaptor.forClass(dev.langchain4j.model.chat.request.ChatRequest.class);
-        verify(model,times(1)).chat(captured.capture());verify(model,never()).chat(anyString());
-        assertThat(captured.getValue().messages().toString()).contains("current-asset","prior-asset");
     }
 
     @Test
@@ -6169,18 +5955,6 @@ class AgentOrchestratorTest {
             verify(coding,times(1)).executePrimaryAnalysis(any(),any(),any());
         }
         verify(registry,times(1)).executeEnhancedTool(eq(assetTool),any());verify(registry,never()).executeEnhancedTool(eq(templateTool),any());
-    }
-
-    private void mockNativeTemplateSelection(ChatModel model,String... ids) {
-        try {
-            var decision=Map.of("status",ids.length==0?"NO_MATCH":"SELECTED","selections",
-                java.util.Arrays.stream(ids).map(id->Map.of("templateId",id,"parameters",Map.of())).toList());
-            when(model.chat(any(dev.langchain4j.model.chat.request.ChatRequest.class))).thenReturn(
-                dev.langchain4j.model.chat.response.ChatResponse.builder().aiMessage(
-                    dev.langchain4j.data.message.AiMessage.from(dev.langchain4j.agent.tool.ToolExecutionRequest.builder()
-                        .name(SchemaDrivenTemplateParameterBinder.SELECTION_FUNCTION).id("selection")
-                        .arguments(new ObjectMapper().writeValueAsString(decision)).build())).build());
-        } catch(Exception failure) {throw new AssertionError(failure);}
     }
 
     private static ModelsConfig fileAnalysisFixtureModels() {

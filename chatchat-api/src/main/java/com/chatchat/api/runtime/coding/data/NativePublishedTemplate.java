@@ -31,8 +31,8 @@ public final class NativePublishedTemplate {
     private static final String ATTEMPTS = STATE + ":attempts";
     private static final String PROTOCOL = "template_parameter_protocol_v2";
     public static final String OPERATION = "native-template-query";
-    private static final CodingTaskOutcome.Counters NO_ADDITIONAL_USAGE =
-        new CodingTaskOutcome.Counters(0,0,0,0,0,0,0,"0");
+    private static final CodingTaskOutcome.Counters QUERY_USAGE =
+        new CodingTaskOutcome.Counters(0,0,1,0,0,0,0,"0");
     private final CodingDataSupplyProperties policy;
     private final CodingDataSupplyService supply;
     private final DurableCodingTaskService tasks;
@@ -158,7 +158,7 @@ public final class NativePublishedTemplate {
         tasks.privateState(task.scope(), task.taskId(), lease, STATE, null, started);
         var state = tasks.get(task.scope(), task.taskId());
         var reservation = tasks.reserve(task.scope(), task.taskId(), lease, state.revision(), OPERATION,
-            digest, CodingJournal.OperationKind.TOOL, NO_ADDITIONAL_USAGE);
+            digest, CodingJournal.OperationKind.TOOL, QUERY_USAGE);
         if (!reservation.admitted()) return status("QUOTA_DENIED");
         var begin = tasks.startIntent(task.scope(), task.taskId(), lease, reservation.outcome().revision(),
             OPERATION, "runtime-data:" + OPERATION);
@@ -212,7 +212,7 @@ public final class NativePublishedTemplate {
         var state = tasks.get(task.scope(), task.taskId());
         if (tasks.verifiedOperation(task.scope(), task.taskId(), OPERATION).isEmpty())
             state = tasks.reconcileStopped(task.scope(), task.taskId(), lease, state.revision(), OPERATION, reference);
-        tasks.settle(task.scope(), task.taskId(), lease, state.revision(), OPERATION, NO_ADDITIONAL_USAGE, true);
+        tasks.settle(task.scope(), task.taskId(), lease, state.revision(), OPERATION, QUERY_USAGE, true);
     }
 
     private boolean admitAttempt(CodingTaskContract task, JsonNode input) {

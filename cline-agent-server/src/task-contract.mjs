@@ -10,6 +10,11 @@ export function studioMcpPermission(contract,tenant,tool){
  const name=tool.replace(/^(runtime|tenant_data)__/, '');
  return ['workspace_metadata','workspace_validate'].includes(name)&&contract.runtimeTools?.includes(name);
 }
+export function publishedTemplatePermission(contract,tenant,tool){
+ return tenant.mcp?.authMode==='native-runtime'
+  && ['execute_published_template','tenant_data__execute_published_template','runtime__execute_published_template'].includes(tool)
+  && contract.runtimeTools?.includes('execute_published_template');
+}
 export function verifyContract(token,key,now=Date.now(),{allowExpired=false}={}){
  const fail=()=>{throw Object.assign(Error('Invalid or expired task identity'),{status:401});};
  if(typeof token!=='string'||token.length>16384)return fail();
@@ -20,7 +25,7 @@ export function verifyContract(token,key,now=Date.now(),{allowExpired=false}={})
  if(![1,2].includes(c.version)||!['tenantId','userId','taskId','sessionId','workspaceRef','modelProfile'].every(k=>typeof c[k]==='string'&&identifier.test(c[k])))return fail();
  if(c.version===2){
   if(c.runtimeModel!==undefined){const m=c.runtimeModel;if(!m||Array.isArray(m)||Object.keys(m).sort().join(',')!=='logicalName,providerModel'||!['logicalName','providerModel'].every(k=>typeof m[k]==='string'&&m[k].length>0&&m[k].length<=256&&!/[\x00-\x1f]/.test(m[k]))||c.modelProfile!==runtimeModelProfile(m))return fail();}
-  if(c.runtimeTools!==undefined&&(!Array.isArray(c.runtimeTools)||!c.runtimeTools.every(t=>['web_search','web_fetch','web_download','document_search','agent_skill_read','workspace_metadata','workspace_validate'].includes(t))))return fail();
+  if(c.runtimeTools!==undefined&&(!Array.isArray(c.runtimeTools)||!c.runtimeTools.every(t=>['web_search','web_fetch','web_download','document_search','agent_skill_read','workspace_metadata','workspace_validate','execute_published_template'].includes(t))))return fail();
   const b=c.deliveryBinding;
   if(c.runtimeProfile!=='native-python-silo-v1'||!b||Array.isArray(b)||typeof b!=='object'
      ||Object.keys(b).sort().join(',')!=='inputSnapshotVersion,runId,taskId,tenantId'

@@ -20,14 +20,16 @@ import java.util.Map;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
 class PreauthorizedSqlTemplateAnalysisPublisherTest {
     private final SqlDatasourceConfigService datasources = mock(SqlDatasourceConfigService.class);
     private final SqlTemplateService templates = mock(SqlTemplateService.class);
+    private final SqlQueryExecutionWorkflow workflow = mock(SqlQueryExecutionWorkflow.class);
     private final PreauthorizedSqlTemplateAnalysisPublisher publisher =
         new PreauthorizedSqlTemplateAnalysisPublisher(mock(McpSyncServer.class), datasources, templates,
-            mock(DatabaseQueryConfigService.class), mock(SqlQueryExecutionWorkflow.class), new SqlSafetyService(),
+            mock(DatabaseQueryConfigService.class), workflow, new SqlSafetyService(),
             new AgentRuntimeGovernanceFactory(new ObjectMapper()), mock(McpToolConcurrencyManager.class),
             new ObjectMapper());
 
@@ -53,6 +55,21 @@ class PreauthorizedSqlTemplateAnalysisPublisherTest {
         assertThat(approved).containsEntry("template", "SALES_TOTAL")
             .containsEntry("maxRows", 100).containsEntry("timeoutSeconds", 30);
         assertThat(approved).doesNotContainKeys("sql", "script", "datasourceId");
+    }
+
+    @Test void describesAuthorizedTemplateSchemaWithoutExecutingSql() throws Exception {
+        allowlisted("SELECT amount FROM sales WHERE year = {{year}}", "LOW");
+        templates.listEnabled().get(0).setParameterSchemaJson(
+            "{\"type\":\"object\",\"properties\":{\"year\":{\"type\":\"integer\"}},\"required\":[\"year\"]}");
+        var result = publisher.execute(Map.of("templateId", "SALES_TOTAL", "describeOnly", true,
+            "assetDomain", "sales", "domain", "sales",
+            "executionContext", Map.of("assetName", "sales", "env", "PROD")));
+        var content = (io.modelcontextprotocol.spec.McpSchema.TextContent) result.content().get(0);
+        var descriptor = new ObjectMapper().readTree(content.text()).path("data");
+        assertThat(descriptor.path("templateId").asText()).isEqualTo("SALES_TOTAL");
+        assertThat(descriptor.path("parameterSchema").path("required").get(0).asText()).isEqualTo("year");
+        assertThat(descriptor.has("sqlTemplate")).isFalse();
+        verifyNoInteractions(workflow);
     }
 
     @Test void refusesRawSqlUnlistedTemplateAndUnsafeBody() {

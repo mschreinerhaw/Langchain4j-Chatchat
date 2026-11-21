@@ -31,6 +31,9 @@ public final class NativeS3Evidence {
     public boolean exists(CodingTaskContract c,String ref){
         return store.find(c.scope(),id(ref)).isPresent();
     }
+    public Optional<Map<String,Object>> payload(CodingTaskContract c,String ref){
+        return store.find(c.scope(),id(ref)).map(EvidenceRecord::payload);
+    }
     public String register(CodingTaskContract c,String type,String key,Map<String,Object> payload,List<String> parents){
         String id=id(reference(c,type,key));
         String sha=store.contentHash(payload);var existing=store.find(c.scope(),id);

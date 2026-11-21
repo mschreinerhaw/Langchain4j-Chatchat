@@ -97,6 +97,7 @@ public final class NativeSiloTaskService {
                     ||!Objects.equals(com.chatchat.common.runtime.coding.CodingReasoning.submittedFromContext(contract.runtimeContext()),
                         com.chatchat.common.runtime.coding.CodingReasoning.submittedFromContext(capabilities))
                     ||!studio.equals(input.getOrDefault("studio",Map.of()))
+                    ||!Objects.equals(capabilities.get("publishedTemplate"),contract.runtimeContext().get("publishedTemplate"))
                     ||!artifactTypes.equals(input.get("artifactTypes"))||!resultSchema.equals(input.getOrDefault("resultSchema",Map.of())))
                 throw new IllegalArgumentException("Immutable Native task request conflict");
             return contract; // Never extend its deadline or replace a failed task.
@@ -137,6 +138,11 @@ public final class NativeSiloTaskService {
         }
         if(runtime.containsKey("internetSearch")){tools.addAll(com.chatchat.api.runtime.coding.knowledge.CodingInternetAccess.NATIVE_TOOLS);tools.add("runtime__*");}
         if(runtime.containsKey("documentSearch")){tools.add("document_search");tools.add("runtime__document_search");}
+        if(!workspaceReview&&runtime.containsKey("publishedTemplate")){
+            tools.add("execute_published_template");
+            tools.add("tenant_data__execute_published_template");
+            tools.add("runtime__execute_published_template");
+        }
         var contract=new CodingTaskContract(CodingProtocol.WORKSPACE_VERSION,task,scope,
             new CodingTaskContract.Objective(instruction,artifactTypes,List.of(profile)),
             "runtime-evidence:"+inputId(task),List.copyOf(profiles),work,

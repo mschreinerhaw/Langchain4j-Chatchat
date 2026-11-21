@@ -5,7 +5,7 @@ import http from 'node:http';
 import {readFileSync,writeFileSync,mkdirSync,readdirSync,existsSync,renameSync,chownSync,chmodSync,cpSync,unlinkSync,lstatSync} from 'node:fs';
 import {join} from 'node:path';
 import {randomUUID,randomBytes,timingSafeEqual} from 'node:crypto';
-import {verifyContract,authorizeSession,contractHash,holdsCapacity,signContract,studioMcpPermission,hasTaskDeadline} from './task-contract.mjs';
+import {verifyContract,authorizeSession,contractHash,holdsCapacity,signContract,studioMcpPermission,publishedTemplatePermission,hasTaskDeadline} from './task-contract.mjs';
 import {DockerEngine,workerContainerSpec} from './docker-engine.mjs';
 import {WorkerExecutorClient} from './worker-executor-client.mjs';
 import {Journal} from './journal.mjs';
@@ -111,9 +111,10 @@ async function broker(r,path){
     if(requestBody.method==='tools/call'){
      const name=requestBody.params?.name;
      const studioTool=r.contract.studioBudget&&tenant.mcp.authMode==='native-runtime'&&['workspace_metadata','workspace_validate'].includes(name);
-    if((!studioTool&&!tenant.mcp.tools.includes(name))||(tenant.mcp.authMode==='native-runtime'?!r.contract.runtimeTools?.includes(name):!r.contract.dataPermissions.includes(requestBody.params?.arguments?.datasetId)))throw error('Dataset or tool not granted',403);
+     const templateTool=publishedTemplatePermission(r.contract,tenant,name);
+    if((!studioTool&&!templateTool&&!tenant.mcp.tools.includes(name))||(tenant.mcp.authMode==='native-runtime'?!r.contract.runtimeTools?.includes(name):!r.contract.dataPermissions.includes(requestBody.params?.arguments?.datasetId)))throw error('Dataset or tool not granted',403);
      event(r,'mcp.authorized',{tool:name,datasetId:requestBody.params?.arguments?.datasetId});
-     if(cfg.operations&&!studioTool){
+     if(cfg.operations&&!studioTool&&!templateTool){
       const context=requestBody.params?._meta?.runtimeNative;
       if(!context||context.epoch!==r.nativeEpoch)throw error('Native operation context required',409);
       const binding=await operation(r,'/resolve',{...context,toolName:requestBody.params.name,arguments:requestBody.params.arguments});
@@ -157,6 +158,12 @@ async function broker(r,path){
      const value=runtimeMcpReply(bytes,upstream.status);
      if(requestBody.method==='tools/call'&&requestBody.params.name==='web_download'&&upstream.ok&&value.result&&!value.result.isError){
       const result=JSON.parse(value.result.content[0].text);value.result.content[0].text=JSON.stringify(await stageNativeDownload(join(cfg.workerRoot,r.workerId,'workspace'),result,{uid:workerRuntime(cfg).uid}));event(r,'internet.download.completed',JSON.parse(value.result.content[0].text));
+     }
+     if(requestBody.method==='tools/call'&&requestBody.params.name==='execute_published_template'&&upstream.ok&&value.result&&!value.result.isError){
+      const result=JSON.parse(value.result.content[0].text);
+      const staged=await stageNativeDownload(join(cfg.workerRoot,r.workerId,'workspace'),result,{uid:workerRuntime(cfg).uid,parquet:true});
+      value.result.content[0].text=JSON.stringify(staged);
+      event(r,'template.query.delivered',staged);
      }
      if(requestBody.method==='tools/call')event(r,'runtime.tool.completed',{tool:requestBody.params.name,requestId:requestBody.id,isError:value.result?.isError??upstream.status>=400});
      return send(res,upstream.status,value);
@@ -239,7 +246,7 @@ const server=http.createServer(async(req,res)=>{
    if(executor)for(const r of active)try{const m=await executor.metrics(grant(r),r.workerId);if(!Number.isSafeInteger(m.memoryBytes)||!Number.isSafeInteger(m.cpuTimeNanos)){available=false;continue;}memoryBytes+=m.memoryBytes;cpuTimeNanos+=m.cpuTimeNanos;}catch{available=false;}
    return send(res,200,{live:true,engine:'cline-standalone',version:'4.1.26',legacySdkWorker:false,protocolVersion:1,capabilities:['native-s3-v2','message-receipts-v1'],releaseVersion:'1.0.0',enterpriseAcceptance:false,capacity:{maxWorkers:cfg.maxWorkers,activeWorkers:active.length},gatewayMemoryBytes:process.memoryUsage().rss,workerMemoryBytes:available?memoryBytes:null,workerCpuTimeNanos:available?cpuTimeNanos:null});
   }
-  const c=granted(req),tenant=Object.hasOwn(cfg.tenants,c.tenantId)?cfg.tenants[c.tenantId]:undefined;if(!tenant||!(tenant.users.includes(c.userId)||c.version===2&&tenant.dynamicUsers===true)||!Object.hasOwn(tenant.workspaces,c.workspaceRef)||!(c.runtimeModel?typeof tenant.runtimeModelAuthority==='string':tenant.models.includes(c.modelProfile))||!c.dataPermissions.every(x=>tenant.datasets.includes(x))||!c.toolPermissions.every(x=>tenant.tools.includes(x)||studioMcpPermission(c,tenant,x)))throw error('Task policy not granted',403);
+  const c=granted(req),tenant=Object.hasOwn(cfg.tenants,c.tenantId)?cfg.tenants[c.tenantId]:undefined;if(!tenant||!(tenant.users.includes(c.userId)||c.version===2&&tenant.dynamicUsers===true)||!Object.hasOwn(tenant.workspaces,c.workspaceRef)||!(c.runtimeModel?typeof tenant.runtimeModelAuthority==='string':tenant.models.includes(c.modelProfile))||!c.dataPermissions.every(x=>tenant.datasets.includes(x))||!c.toolPermissions.every(x=>tenant.tools.includes(x)||studioMcpPermission(c,tenant,x)||publishedTemplatePermission(c,tenant,x)))throw error('Task policy not granted',403);
   if(path==='/v1/sessions'&&req.method==='POST'){
    const b=await body(req),key=req.headers['idempotency-key'];if(!key||Object.keys(b).some(k=>!['editTool',...(c.s3?['inputs']:[])].includes(k))||b.editTool&&!['editor','apply_patch'].includes(b.editTool))throw error('Invalid create request');
    if(c.s3)validateS3Inputs(c,b.inputs,cfg.s3);
@@ -334,7 +341,7 @@ const server=http.createServer(async(req,res)=>{
   if(cfg.operations&&parts[1]==='permissions'&&req.method==='POST'&&value.decision==='approve'){
    const native=(await workerJSON(r,'/v1/sessions/'+r.nativeSessionId+'/status')).data;
    const pending=native.pendingPermissions.find(p=>p.id===parts[2]);
-   if(pending&&pending.toolName.startsWith('tenant_data__')&&!studioMcpPermission(r.contract,cfg.tenants[r.contract.tenantId],pending.toolName))await operation(r,'/bind',{epoch:pending.epoch,nativeSessionId:native.nativeSessionId,nativeToolCallId:pending.toolCallId,toolName:pending.toolName.slice('tenant_data__'.length),arguments:pending.input});
+   if(pending&&pending.toolName.startsWith('tenant_data__')&&!studioMcpPermission(r.contract,cfg.tenants[r.contract.tenantId],pending.toolName)&&!publishedTemplatePermission(r.contract,cfg.tenants[r.contract.tenantId],pending.toolName))await operation(r,'/bind',{epoch:pending.epoch,nativeSessionId:native.nativeSessionId,nativeToolCallId:pending.toolCallId,toolName:pending.toolName.slice('tenant_data__'.length),arguments:pending.input});
   }
   if(!live(r))throw error('Task lease inactive',403);
   if(parts[3]==='messages'&&req.method==='POST'){

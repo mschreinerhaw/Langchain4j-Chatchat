@@ -74,3 +74,11 @@ Java 最终专项 16 项通过，覆盖发布路由、回执持久化、结果�
 Runtime 对每次模板工具请求使用可信任务身份，重新核对当前的 Agent 工具授权、发布修订和部署 grant。成功回执重放另从调用者的实时目录复查模板和数据源读取权限，再由 Runtime 读取当前任务的 Silo 资产。参数和回执仅供 Cline 使用，授权变更由 Runtime 管理。
 
 权限复查版 API `aadfe4822` 已在服务器从源码构建部署。任务 `native-350cd791dabd5b7ec637f78e897637d8f13665cf5163f073a00cd34868971abc` 到达 `COMPLETED`，无待核对操作。两次授权交付使用同一 Silo 资产 `fe1d8efcdcf433a4b58a091bdad6fed3f163af246586edb02847e50d8b003694`，MCP 只记录一次查询。脚本重新下载 4 行 Parquet，核对了 Cline 归档结果的行数和哈希。授权范围外的已发布模板仍由 Runtime 返回 HTTP 403。Java 专项 18 项通过，覆盖部署 grant 和在线发布无法覆盖 Runtime 的 Agent 工具拒绝决定。
+
+## 旧绑定器移除后复验
+
+API `39d24c13e` 已在 `192.168.195.221` 从源码编译并通过健康检查。模板发现阶段已移除独立的模型参数绑定器。固定发布模板由 Runtime 按发布契约接纳，通用模板发现只复用返回候选范围内已记录的结构化选择。通用调用缺少有效选择时返回 `TEMPLATE_SELECTION_REQUIRED`。
+
+任务 `native-983af332e9b261060d16d122b7aa6a50211fa755445484279b1b5aeb100db56f` 通过 Native Cline 提交 `min_area=1000` 并到达 `COMPLETED`。Runtime 返回 `governed_template_without_runtime_binding` 执行回执，查询耗时 4.160 秒。Silo 资产 `672cd6fe373a817c00bf1e977017b51b122fdc7c2604510d4ff907efe83f3100` 包含 4 行、831 字节的 Parquet，下载文件的 SHA-256 及行数均与 Cline 的 Python 归档结果一致。用同一 Agent 请求授权范围外的已发布模板 `STUDIO_18042D964C823181832DB6E79E771FFB` 时，Runtime 返回 HTTP 403。
+
+Java 专项 111 项通过，另有 1 项需要本地 SQLGlot 配置的测试跳过。完整 `AgentOrchestratorTest` 与修改前的 `ccede0fb6` 各有相同的 73 个失败或异常。联机复验覆盖固定 Studio SQL 模板。

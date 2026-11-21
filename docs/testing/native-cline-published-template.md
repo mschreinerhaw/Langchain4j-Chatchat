@@ -62,3 +62,5 @@ python scripts/verify-native-published-template-live.py BASE_URL AGENT_ID TEMPLA
 Java 最终专项 16 项通过，覆盖发布路由、回执持久化、结果封装读取和 Parquet 编解码。Node 契约与执行治理测试 41 项通过、1 项跳过。
 
 该次回执记录的执行入口为 `governed_template_without_runtime_binding`，查询分支直接调用现有受控工具执行器。Runtime 参数绑定的独立计量、完整的联机故障矩阵及新旧链路 A/B 性能对比仍待验证。上述耗时来自单次成功任务。
+
+首个调试任务 `native-2584fc39ea3b4aadbcdabc050eebcd57eb796d3ac51fa853357ead293f5c28ab` 在 Executor 部署修复前启动失败。其取消请求已登记，任务记录仍待转入终态。最终验收后检查专用 Executor Docker daemon，已无运行中的 worker。

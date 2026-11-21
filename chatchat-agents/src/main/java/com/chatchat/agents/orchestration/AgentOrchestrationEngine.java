@@ -92,7 +92,9 @@ import com.chatchat.agents.runtime.plan.InterpretationExecutionProtocol;
 import com.chatchat.agents.runtime.plan.diagnostic.DiagnosticRunStateMachine;
 import com.chatchat.agents.runtime.plan.DagGovernanceContractProvider;
 import com.chatchat.agents.runtime.plan.InterpretationPlanRewriter;
+import com.chatchat.agents.runtime.batch.ToolCallBatchSchema;
 import com.chatchat.agents.runtime.plan.InterpretationPlanRuntime;
+import com.chatchat.agents.runtime.plan.template.TemplateWorkflowMetadata;
 import com.chatchat.agents.runtime.plan.execution.LocalPlanToolExecutionPort;
 import com.chatchat.agents.runtime.plan.execution.PlanToolExecutionPort;
 import com.chatchat.agents.runtime.plan.execution.LocalPlanDagControlPort;
@@ -3499,12 +3501,9 @@ class AgentOrchestrationEngine implements AgentRunExecutor, ResumableAgentRunExe
         }
         if (request != null && request.execution() != null && request.execution().success()
                 && workflowRole == ToolWorkflowRole.TEMPLATE_DISCOVERY) {
-            return selectPublishedTemplates(activeChatModel, query, request, runtimeAttributes,cancellationCheck);
+            return admitTemplateDiscovery(request.execution());
         }
-        // Candidate admission precedes data analysis: LLM semantics select returned IDs and
-        // extract parameters. Cline owns interpretation only after governed data acquisition.
-        boolean candidateDiscovery = workflowRole == ToolWorkflowRole.ASSET_DISCOVERY
-            || workflowRole == ToolWorkflowRole.TEMPLATE_DISCOVERY;
+        boolean candidateDiscovery = workflowRole == ToolWorkflowRole.ASSET_DISCOVERY;
         if (com.chatchat.agents.orchestration.analysis.contract.RuntimeAnalysisOwnership
                 .codingOwnsToolAdmission(runtimeAttributes) && request != null && request.execution() != null
                 && !candidateDiscovery) {
@@ -3862,76 +3861,64 @@ class AgentOrchestrationEngine implements AgentRunExecutor, ResumableAgentRunExe
         }
     }
 
-    private InterpretationPlanRuntime.StepReview selectPublishedTemplates(ChatModel model, String query,
-            InterpretationPlanRuntime.StepReviewRequest request,Map<String,Object> runtimeAttributes,BooleanSupplier cancellationCheck) {
-        boolean fixedScope=com.chatchat.agents.runtime.plan.template.TemplateWorkflowMetadata
-            .fixedScope(toolMetadataOrNull(request.execution().toolName())).isPresent();
-        List<Map<String,Object>> candidates=findCandidateMaps(request.execution().output(),"templates",0);
-        Set<String> returned=candidates.stream().map(item->stringValue(firstObject(item,"templateId","id")))
-            .filter(Objects::nonNull).collect(java.util.stream.Collectors.toSet());
-        Map<String,Object> prior=request.execution().metadata();
-        List<String> selected=stringList(firstObject(prior,"modelSelectedTemplateIds","selectedTemplateIds","runtimeSelectedTemplateIds"));
-        if(!fixedScope&&!selected.isEmpty()&&returned.containsAll(selected)&&prior.get("parameterProtocols") instanceof Iterable<?>) {
-            Map<String,Object> reused=new LinkedHashMap<>(prior);
-            reused.put("selectedTemplateIds",selected);reused.put("candidateSelectionStatus","REUSED_MODEL_SELECTION");
-            reused.put("toolResultReviewUnavailable",false);reused.put("toolResultReviewSkipped",false);
-            reused.remove("candidateSelectionErrorCode");reused.remove("candidateSelectionError");
-            reused.put("candidateDecisionOwner","MODEL");reused.put("toolResultReviewModelCalls",0);
-            return InterpretationPlanRuntime.StepReview.accepted("Reuse validated model selection; no semantic review.",reused);
+    private InterpretationPlanRuntime.StepReview admitTemplateDiscovery(
+        InterpretationPlanRuntime.StepExecution execution
+    ) {
+        boolean fixedScope = TemplateWorkflowMetadata.fixedScope(toolMetadataOrNull(execution.toolName())).isPresent();
+        List<Map<String, Object>> candidates = findCandidateMaps(execution.output(), "templates", 0);
+        if (candidates.isEmpty()) {
+            candidates = findCandidateMaps(execution.output(), "candidates", 0);
         }
-        Map<String,Object> context=new LinkedHashMap<>();
-        context.put("currentAsset",findSelectedAssetContext(request.execution().output(),0));
-        context.put("priorAssets",request.completed()==null?List.of():request.completed().values().stream()
-            .filter(step->step!=null&&step.success())
-            .map(step->findSelectedAssetContext(step.output(),0)).filter(asset->!asset.isEmpty()).toList());
-        Map<String,Object> completedOutputs = new LinkedHashMap<>();
-        if (request.completed() != null) request.completed().forEach((id, execution) -> {
-            if (id != null && execution != null && execution.success() && execution.output() != null)
-                completedOutputs.put(String.valueOf(id), execution.output());
-        });
-        context.put(TemplateRecordsetBindings.OUTPUTS, completedOutputs);
-        context.put("role",AgentRoleAnalysisContext.promptSectionFromRuntime(runtimeAttributes,"TEMPLATE_SELECTION"));
-        String modelPhase=fixedScope?"published_template_parameter_binding":"template_selection_and_binding";
-        recordLifecyclePhase(runtimeAttributes,null,"model_inference",fixedScope
-                ?"Model binds parameters for the published templates.":"Model selects templates and binds parameters.",
-            metadataOf("eventKind","MODEL_INFERENCE","eventState","STARTED","modelPhase",modelPhase,
-                "stepId",request.execution().stepId(),"toolName",request.execution().toolName()));
-        var binder=new SchemaDrivenTemplateParameterBinder(objectMapper);
-        Runnable checkCancelled=()->runtimeGuard.checkCancelled(cancellationCheck);
-        var result=fixedScope?binder.bindPublished(model,query,candidates,context,checkCancelled)
-            :binder.selectAndBind(model,query,candidates,context,checkCancelled);
-        recordLifecyclePhase(runtimeAttributes,null,"model_inference",fixedScope
-                ?"Published template parameter binding returned.":"Template selection decision returned.",
-            metadataOf("eventKind","MODEL_INFERENCE","eventState",result.error()!=null?"FAILED":"COMPLETED",
-                "modelPhase",modelPhase,"stepId",request.execution().stepId(),
-                "toolName",request.execution().toolName(),"selectionStatus",result.status(),"modelMetrics",result.metrics()));
-        Map<String,Object> metadata=new LinkedHashMap<>();
-        metadata.put("candidateDecisionOwner",fixedScope?"PUBLISHER":"MODEL");
-        metadata.put("candidateSelectionStatus",result.status());
-        if(fixedScope){
-            metadata.put("publishedDataSupply",true);
-            metadata.put("modelParameterBindings",result.decision());
-        }else{
-            metadata.put("modelSelectedTemplateIds",result.selectedIds());
-            metadata.put("modelCandidateDecision",result.decision());
+        List<String> returned = candidates.stream()
+            .map(item -> stringValue(firstObject(item, "templateId", "template_id", "id")))
+            .filter(Objects::nonNull).distinct().toList();
+        Map<String, Object> prior = execution.metadata();
+        List<String> selected = stringList(firstObject(prior,
+            "modelSelectedTemplateIds", "selectedTemplateIds", "runtimeSelectedTemplateIds"));
+        if (!fixedScope && !selected.isEmpty() && returned.containsAll(selected)
+            && prior.get("parameterProtocols") instanceof Iterable<?>) {
+            Map<String, Object> reused = new LinkedHashMap<>(prior);
+            reused.put("selectedTemplateIds", selected);
+            reused.put("candidateSelectionStatus", "REUSED_MODEL_SELECTION");
+            reused.put("toolResultReviewUnavailable", false);
+            reused.put("toolResultReviewSkipped", false);
+            reused.remove("candidateSelectionErrorCode");
+            reused.remove("candidateSelectionError");
+            reused.put("candidateDecisionOwner", "MODEL");
+            reused.put("toolResultReviewModelCalls", 0);
+            return InterpretationPlanRuntime.StepReview.accepted("Reuse recorded template selection.", reused);
         }
-        metadata.put("selectedTemplateIds",result.selectedIds());
-        metadata.put("parameterProtocols",result.protocols());
-        metadata.put("parameterBindingMode",fixedScope?"published_template_parameter_binding":"model_selection_and_binding");
-        metadata.put("toolResultReviewMode",fixedScope?"PUBLISHED_TEMPLATE_PARAMETER_BINDING":"MODEL_SELECTION_AND_BINDING");
-        metadata.put("toolResultReviewModelCalls",result.metrics().getOrDefault("selectionModelCalls",0));
-        metadata.putAll(result.metrics());
-        metadata.put("mcpDiscoverySucceeded",true);
-        if(result.error()!=null) {
-            metadata.put("candidateSelectionErrorCode",result.status());metadata.put("candidateSelectionError",result.error());
-            metadata.put("toolResultReviewUnavailable","MODEL_UNAVAILABLE".equals(result.status()));
+        if (fixedScope && !returned.isEmpty() && returned.size() <= ToolCallBatchSchema.DEFAULT_MAX_CALLS) {
+            return InterpretationPlanRuntime.StepReview.accepted("Admit Runtime's published templates.", Map.of(
+                "candidateDecisionOwner", "PUBLISHER",
+                "candidateSelectionStatus", "SELECTED",
+                "publishedDataSupply", true,
+                "selectedTemplateIds", returned,
+                "toolResultReviewMode", "RUNTIME_PUBLISHED_TEMPLATE_ADMISSION",
+                "toolResultReviewModelCalls", 0,
+                "mcpDiscoverySucceeded", true));
         }
-        return InterpretationPlanRuntime.StepReview.accepted(
-            (fixedScope?"Published template parameter binding status: ":"Model selection status: ")+result.status(),metadata);
+        String code = returned.isEmpty() ? "NO_MATCH"
+            : fixedScope ? "TEMPLATE_BATCH_LIMIT_EXCEEDED" : "TEMPLATE_SELECTION_REQUIRED";
+        String reason = switch (code) {
+            case "NO_MATCH" -> "Runtime discovery returned no templates.";
+            case "TEMPLATE_BATCH_LIMIT_EXCEEDED" -> "The published templates exceed the Runtime execution batch limit.";
+            default -> "Provide an explicit template selection and structured parameters through the governed invocation.";
+        };
+        Map<String, Object> metadata = new LinkedHashMap<>(Map.of(
+            "candidateSelectionStatus", code,
+            "selectedTemplateIds", List.of(),
+            "toolResultReviewMode", "RUNTIME_TEMPLATE_ADMISSION",
+            "toolResultReviewModelCalls", 0,
+            "mcpDiscoverySucceeded", true));
+        if (!returned.isEmpty()) {
+            metadata.put("candidateSelectionErrorCode", code);
+            metadata.put("candidateSelectionError", reason);
+        }
+        return InterpretationPlanRuntime.StepReview.accepted(reason, metadata);
     }
 
-
-        protected String buildToolResultReviewPrompt(String query,
+    protected String buildToolResultReviewPrompt(String query,
                                                String systemPrompt,
                                                InterpretationPlanRuntime.StepReviewRequest request) {
         return buildToolResultReviewPrompt(query, systemPrompt, request, Map.of());

@@ -17,7 +17,8 @@ public enum DataSupplyStatus {
         "TEMPLATE_REQUIRED_PARAMETERS_MISSING", "TEMPLATE_PARAMETER_BINDING_FAILED");
     private static final Set<String> SELECTION_ERRORS = Set.of(
         "NO_MATCH", "NO_CANDIDATES", "NEEDS_INPUT", "MODEL_UNAVAILABLE", "INVALID_MODEL_RESPONSE",
-        "INVALID_TEMPLATE_ID", "INVALID_ASSET_BINDING", "MODEL_SELECTION_INCOMPLETE");
+        "INVALID_TEMPLATE_ID", "INVALID_ASSET_BINDING", "MODEL_SELECTION_INCOMPLETE",
+        "TEMPLATE_SELECTION_REQUIRED", "TEMPLATE_BATCH_LIMIT_EXCEEDED");
 
     public static Map<String,Object> describe(InterpretationPlanRuntime.ExecutionResult execution,
             List<AnalysisEvidenceCoordinator.Dataset> datasets, List<Map<String,Object>> exclusions) {

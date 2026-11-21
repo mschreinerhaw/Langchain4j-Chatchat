@@ -5,6 +5,7 @@ import {tmpdir} from 'node:os';
 import {join} from 'node:path';
 import {createHash} from 'node:crypto';
 import {stageNativeSkills,stageNativeDownload,runtimeMcpReply,nativeSkillDiscoveryContext} from '../src/native-capability-files.mjs';
+import {publishedTemplatePermission} from '../src/task-contract.mjs';
 const sha=b=>createHash('sha256').update(b).digest('hex');
 async function root(t){const p=await mkdtemp(join(tmpdir(),'capability-'));t.after(()=>rm(p,{recursive:true,force:true}));return p;}
 const card={id:'agent-skill',name:'python-data-analysis',description:'Custom authorized methodology',version:'v1',files:[{path:'SKILL.md',content:'---\nname: original-name\ndescription: Custom methodology\ndisable-model-invocation: true\n---\nRead references/check.txt',encoding:'utf8'},{path:'references/check.txt',content:'data quality checklist',encoding:'utf8'}]};
@@ -46,6 +47,22 @@ test('failed downloads remain explicit and cannot create a file',async t=>{
  const p=await root(t),failure={status:'ERROR',errorCode:'HTTP_TIMEOUT'};assert.equal(await stageNativeDownload(p,failure),failure);assert.deepEqual(await readdir(p),[]);
  if(process.platform==='win32')return;
  const outside=await root(t);await symlink(outside,join(p,'downloads'));await assert.rejects(stageNativeDownload(p,receipt),/symlink/);assert.deepEqual(await readdir(outside),[]);
+});
+
+test('published template files require a scoped Runtime tool grant and verified Parquet transfer',async t=>{
+ const tenant={mcp:{authMode:'native-runtime'}};
+ const grant={runtimeTools:['execute_published_template']};
+ assert(publishedTemplatePermission(grant,tenant,'runtime__execute_published_template'));
+ assert(publishedTemplatePermission(grant,tenant,'tenant_data__execute_published_template'));
+ assert(!publishedTemplatePermission({runtimeTools:[]},tenant,'execute_published_template'));
+ assert(!publishedTemplatePermission(grant,{mcp:{authMode:'task-grant'}},'execute_published_template'));
+ const workspace=await root(t), file={...receipt,content_type:'application/vnd.apache.parquet'};
+ await assert.rejects(stageNativeDownload(workspace,file),/not authorized/);
+ const staged=await stageNativeDownload(workspace,file,{parquet:true});
+ assert.equal(staged.source,'AUTHORIZED_PUBLISHED_TEMPLATE');
+ assert.equal(staged.path,'/workspace/downloads/'+sha(bytes)+'.parquet');
+ assert(!Object.hasOwn(staged,'content'));
+ assert.deepEqual(await readFile(join(workspace,staged.path.slice('/workspace/'.length))),bytes);
 });
 
 test('HTTP success without an actual MCP result cannot be reported as tool success',()=>{

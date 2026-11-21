@@ -282,7 +282,7 @@ public final class CodingInputFilePublisher {
         try{return HexFormat.of().formatHex(java.security.MessageDigest.getInstance("SHA-256").digest(text.getBytes(StandardCharsets.UTF_8)));}
         catch(java.security.NoSuchAlgorithmException impossible){throw new IllegalStateException(impossible);}
     }
-    private static final class Field {
+    static final class Field {
         long present,nulls;Type type;int integerDigits,scale;
         void observe(Object value) {
             present++;if(value==null){nulls++;return;}

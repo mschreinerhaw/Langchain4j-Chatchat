@@ -9,6 +9,7 @@ import org.springframework.stereotype.Component;
 @Data @Component @ConfigurationProperties(prefix="chatchat.coding.analysis.data-supply")
 public class CodingDataSupplyProperties {
     private boolean enabled;
+    private boolean clineTemplateInvocationEnabled;
     private int maxRounds = 4;
     /** Byte budget for authorized resource files; separate from interactive response windows. */
     private long maxResourceInputBytes = 64L * 1024 * 1024;

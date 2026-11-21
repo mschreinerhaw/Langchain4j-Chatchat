@@ -30,7 +30,7 @@ import java.util.Set;
 public class PreauthorizedSqlTemplateAnalysisPublisher implements com.chatchat.mcpserver.tool.McpToolContributor {
     public static final String TOOL_NAME = "sql_template_analysis_execute";
     private static final Set<String> ALLOWED_KEYS = Set.of("templateId", "parameters", "executionContext",
-        "maxRows", "timeoutSeconds", "purpose", "sourceTaskId", "assetDomain", "domain");
+        "maxRows", "timeoutSeconds", "purpose", "sourceTaskId", "assetDomain", "domain", "describeOnly");
 
     private final McpSyncServer server;
     private final SqlDatasourceConfigService datasources;
@@ -84,7 +84,8 @@ public class PreauthorizedSqlTemplateAnalysisPublisher implements com.chatchat.m
             "executionContext", Map.of("type", "object"),
             "maxRows", Map.of("type", "integer", "minimum", 1, "maximum", 100),
             "timeoutSeconds", Map.of("type", "integer", "minimum", 1, "maximum", 30),
-            "purpose", Map.of("type", "string")
+            "purpose", Map.of("type", "string"),
+            "describeOnly", Map.of("type", "boolean")
         ), List.of("templateId", "assetDomain", "domain", "executionContext"), false, null, null);
         McpSchema.Tool tool = McpSchema.Tool.builder().name(TOOL_NAME)
             .title("Preauthorized read-only SQL template analysis")
@@ -97,11 +98,30 @@ public class PreauthorizedSqlTemplateAnalysisPublisher implements com.chatchat.m
     }
 
     McpSchema.CallToolResult execute(Map<String, Object> input) {
-        Map<String, Object> approved = validate(input);
-        return workflow.execute(approved);
+        var approved = new LinkedHashMap<String, Object>();
+        var template = validate(input, approved);
+        if (!Boolean.TRUE.equals(input.get("describeOnly"))) return workflow.execute(approved);
+        try {
+            var schema = template.getParameterSchemaJson() == null || template.getParameterSchemaJson().isBlank()
+                ? mapper.createObjectNode().put("type", "object")
+                : mapper.readTree(template.getParameterSchemaJson());
+            var descriptor = Map.of("templateId", template.getCode(), "description",
+                java.util.Objects.toString(template.getDescription(), ""), "parameterSchema", schema);
+            return McpSchema.CallToolResult.builder()
+                .addTextContent(mapper.writeValueAsString(Map.of("success", true, "data", descriptor)))
+                .isError(false).build();
+        } catch (com.fasterxml.jackson.core.JsonProcessingException invalid) {
+            throw new IllegalStateException("Published template has an invalid parameter schema", invalid);
+        }
     }
 
     Map<String, Object> validate(Map<String, Object> input) {
+        var approved = new LinkedHashMap<String, Object>();
+        validate(input, approved);
+        return Map.copyOf(approved);
+    }
+
+    private SqlTemplateConfig validate(Map<String, Object> input, Map<String, Object> approved) {
         if (input == null || !ALLOWED_KEYS.containsAll(input.keySet()))
             throw new IllegalArgumentException("Only template execution arguments are accepted");
         String code = requiredText(input.get("templateId"), "templateId");
@@ -149,7 +169,6 @@ public class PreauthorizedSqlTemplateAnalysisPublisher implements com.chatchat.m
         }
         int maxRows = boundedNumber(input.get("maxRows"), 100, 1, 100);
         int timeout = boundedNumber(input.get("timeoutSeconds"), 30, 1, 30);
-        Map<String, Object> approved = new LinkedHashMap<>();
         approved.put("template", template.getCode());
         approved.put("parameters", parameters);
         approved.put("executionContext", Map.of("assetName", asset.getName(), "env", asset.getEnvironment()));
@@ -157,7 +176,7 @@ public class PreauthorizedSqlTemplateAnalysisPublisher implements com.chatchat.m
         approved.put("timeoutSeconds", timeout);
         approved.put("purpose", input.get("purpose") instanceof String purpose && !purpose.isBlank()
             ? purpose.substring(0, Math.min(200, purpose.length())) : "Agent Runtime OS analysis");
-        return Map.copyOf(approved);
+        return template;
     }
 
     private boolean explicitlyAllowed(SqlDatasourceConfig asset, String code) {

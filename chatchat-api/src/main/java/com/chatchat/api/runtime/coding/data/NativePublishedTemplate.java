@@ -8,6 +8,7 @@ import com.chatchat.api.controller.mcp.McpControlPlaneClient;
 import com.chatchat.api.runtime.analysis.RegisteredToolAnalysisOperator;
 import com.chatchat.api.runtime.coding.nativecline.NativeS3Evidence;
 import com.chatchat.common.kernel.KernelDataScope;
+import com.chatchat.common.mcp.runtime.McpAnalysisPayload;
 import com.chatchat.common.retrieval.SkillExecutionScopePort;
 import com.chatchat.common.runtime.analysis.model.AnalysisContext;
 import com.chatchat.common.runtime.analysis.model.AnalysisScope;
@@ -25,6 +26,7 @@ import org.springframework.stereotype.Service;
 @Service
 @ConditionalOnProperty(prefix="chatchat.runtime.coding.unified", name="enabled", havingValue="true")
 public final class NativePublishedTemplate {
+    private static final org.slf4j.Logger log = org.slf4j.LoggerFactory.getLogger(NativePublishedTemplate.class);
     public static final String TOOL = "execute_published_template";
     public static final String CONTEXT = "publishedTemplate";
     private static final String STATE = "native-published-template";
@@ -177,15 +179,13 @@ public final class NativePublishedTemplate {
         else if (result.evidence().size() == 1) {
             try {
                 var fact = result.evidence().get(0);
-                var resultBody = json.readTree(fact.content());
-                var data = resultBody.path("data");
-                if (!data.path("rows").isArray()) data = data.path("data");
-                if (!data.path("rows").isArray() || data.path("rows").size() > 100
-                    || data.path("rowCount").asInt(-1) != data.path("rows").size())
-                    throw new IllegalArgumentException("Published query returned no bounded SQL rows");
+                var data = sqlData(json, fact.content());
                 receipt.putAll(publish(task, grant, data, digest));
                 receipt.put("sourceEvidenceId", fact.evidenceId());
             } catch (IOException | IllegalArgumentException failed) {
+                log.warn("Published template could not deliver governed SQL rows task={} errorType={} error={}",
+                    task.taskId(), failed.getClass().getSimpleName(),
+                    failed instanceof IllegalArgumentException ? failed.getMessage() : "SQL result or Parquet I/O failed");
                 receipt.put("status", "DATA_DELIVERY_FAILED");
             }
         }
@@ -203,6 +203,20 @@ public final class NativePublishedTemplate {
         tasks.privateState(task.scope(), task.taskId(), lease, STATE, started,
             json.valueToTree(Map.of("requestHash", digest, "receipt", receipt)));
         return deliver(task, receipt);
+    }
+
+    static JsonNode sqlData(ObjectMapper json, String content) throws IOException {
+        var data = json.<JsonNode>valueToTree(McpAnalysisPayload.canonicalData(json.readValue(content, Object.class)));
+        // A published template keeps the ToolOutput envelope around the SQL result.
+        for (int depth = 0; depth < 4 && !data.path("rows").isArray(); depth++) {
+            if (data.has("data")) data = data.path("data");
+            else if (data.has("structuredContent")) data = data.path("structuredContent");
+            else break;
+        }
+        if (!data.path("rows").isArray() || data.path("rows").size() > 100
+                || data.path("rowCount").asInt(-1) != data.path("rows").size())
+            throw new IllegalArgumentException("Published query returned no bounded SQL rows");
+        return data;
     }
 
     public void reconcile(CodingTaskContract task) {

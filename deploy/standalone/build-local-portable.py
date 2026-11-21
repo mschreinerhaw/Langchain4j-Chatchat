@@ -175,6 +175,7 @@ compose=config/'docker-config/cli-plugins'
 compose.mkdir(parents=True, exist_ok=True)
 shutil.copy2(standalone/'portable-package/install.sh',config/'install.sh')
 shutil.copy2(standalone/'portable-package/README.md',config/'README.md')
+shutil.copy2(standalone/'portable-package/OPERATIONS.md',config/'OPERATIONS.md')
 (config/'install.sh').chmod(0o755)
 container=run('docker','create','--pull=never','docker:27.5.1-cli',capture=True).strip()
 try:

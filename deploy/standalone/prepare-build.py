@@ -89,7 +89,7 @@ http {
   set $api api:8080;
   location ^~ /internal/ { return 404; }
   location ^~ /actuator/ { return 404; }
-  location = /monitor { return 302 /monitor/; }
+  location = /monitor { absolute_redirect off; return 302 /monitor/; }
   location = /monitor/ { rewrite ^ /monitor/index.html last; }
   location = /monitor/index.html { alias /srv/coding-monitor/index.html; default_type text/html; }
   location = /monitor/app.js { alias /srv/coding-monitor/app.js; }

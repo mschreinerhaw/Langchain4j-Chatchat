@@ -2,6 +2,8 @@
 
 本包使用 `192.168.195.93` 验证过的 API、Native Coding 和安装器镜像。新环境按目标主机生成配置、证书和密码。
 
+单服务启停、整套恢复、离线升级与回滚、常见问题见 [生产运维手册](OPERATIONS.md)。
+
 | 目录 | 内容 |
 | --- | --- |
 | `offline-images/` | Linux amd64 镜像归档、SHA-256 校验文件和逐镜像摘要 |
@@ -38,13 +40,25 @@ bash install-config/install.sh password
 
 ## Coding 监控
 
-在应用端口打开 `http://目标机IP:HTTP_PORT/monitor/`。例如 `.93` 使用 `http://192.168.195.93:18100/monitor/`。页面使用 Runtime OS 登录获取任务数据。`deploy` 会验证首页、JavaScript 和 CSS，然后生成安装验收报告。
+在应用端口打开 `http://目标机IP:HTTP_PORT/monitor/`。默认宿主机端口是 `18100`，容器内监听 `8080`。页面使用 Runtime OS 登录获取任务数据。`deploy` 会验证跳转、首页、JavaScript 和 CSS，然后生成安装验收报告。
 
-已有环境遇到监控首页 HTTP 500 时，确认 `manual-install.env` 指向当前部署，再使用新版配置包执行下列命令，修复路由并重建网关。
+从浏览器所在机器验证发布端口。以下是 `.93` 的示例，其他环境请替换 IP 和 `HTTP_PORT`。
+
+```bash
+curl -fsS -D - -o /dev/null http://192.168.195.93:18100/monitor
+curl -fsSL --max-redirs 1 -o /dev/null -w '%{http_code} %{url_effective}\n' \
+  http://192.168.195.93:18100/monitor
+```
+
+第一条应返回 `302` 和 `Location: /monitor/`，第二条应输出 `200 http://192.168.195.93:18100/monitor/`。
+
+已有环境遇到监控首页 HTTP 500，或 `/monitor` 跳转到容器内部端口 `8080` 时，确认 `manual-install.env` 指向当前部署，再使用新版配置包执行下列命令。脚本会重建网关，并检查 `/monitor` 返回相对重定向 `Location: /monitor/`，浏览器会沿用访问时的宿主机端口。
 
 ```bash
 sudo bash install-config/install.sh monitor-repair
 ```
+
+修复会短暂重启网关。完成后再次从浏览器所在机器验证上述跳转。
 
 如果 `sudo` 环境找不到 `docker`，脚本会检查常见安装路径。自定义安装位置可先在平时运行 Docker 的会话执行 `command -v docker`，再把返回的绝对路径写入 `install-config/manual-install.env`，例如 `DOCKER_BIN=/opt/docker/bin/docker`。如果命令无输出，请先在目标主机安装 Docker Engine 和 CLI。随后重试 `monitor-repair`。
 

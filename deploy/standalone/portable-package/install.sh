@@ -51,7 +51,7 @@ if [[ -z ${DOCKER_BIN:-} ]]; then
     fi
 fi
 [[ -n $DOCKER_BIN ]] || die '找不到 Docker CLI。请在普通用户会话执行 command -v docker，将结果作为绝对路径写入 manual-install.env 的 DOCKER_BIN。若没有结果，请先安装 Docker CLI 和 Engine。'
-[[ $DOCKER_BIN == /* && -f $DOCKER_BIN && -x $DOCKER_BIN ]] || die "DOCKER_BIN ????????????$DOCKER_BIN"
+[[ $DOCKER_BIN == /* && -f $DOCKER_BIN && -x $DOCKER_BIN ]] || die "DOCKER_BIN 必须是可执行文件的绝对路径：$DOCKER_BIN"
 
 docker_cli() { "$DOCKER_BIN" "$@"; }
 
@@ -150,9 +150,11 @@ app.render()'
 patch_monitor_route() {
     local conf="$ROOT/bootstrap/public-gateway.conf" tmp
     local legacy='location = /monitor/ { alias /srv/coding-monitor/index.html; default_type text/html; }'
-    if grep -Fq "$legacy" "$conf"; then
+    local legacy_redirect='location = /monitor { return 302 /monitor/; }'
+    if grep -Fq -e "$legacy" -e "$legacy_redirect" "$conf"; then
         tmp=$(mktemp "$conf.XXXXXX")
-        sed -e 's@location = /monitor/ { alias /srv/coding-monitor/index.html; default_type text/html; }@location = /monitor/ { rewrite ^ /monitor/index.html last; }\n    location = /monitor/index.html { alias /srv/coding-monitor/index.html; default_type text/html; }@' "$conf" > "$tmp"
+        sed -e 's@location = /monitor/ { alias /srv/coding-monitor/index.html; default_type text/html; }@location = /monitor/ { rewrite ^ /monitor/index.html last; }\n    location = /monitor/index.html { alias /srv/coding-monitor/index.html; default_type text/html; }@' \
+            -e 's@location = /monitor { return 302 /monitor/; }@location = /monitor { absolute_redirect off; return 302 /monitor/; }@' "$conf" > "$tmp"
         chmod --reference="$conf" "$tmp"
         mv -f -- "$tmp" "$conf"
     fi
@@ -162,10 +164,13 @@ patch_monitor_route() {
 verify_monitor() {
     compose exec -T gateway sh -ec '
         base=http://127.0.0.1:8080/monitor
-        test "$(curl -fsSL "$base" | grep -c "<title>Coding")" -ge 1
+        headers=$(curl -fsS -H "Host: runtime-monitor.invalid:18100" -D - -o /dev/null "$base")
+        location=$(printf "%s\n" "$headers" | tr -d "\r" | sed -n "s/^[Ll]ocation: //p")
+        test "$location" = /monitor/
+        test "$(curl -fsSL --max-redirs 1 "$base" | grep -c "<title>Coding")" -ge 1
         case "$(curl -fsS -o /dev/null -w "%{content_type}" "$base/app.js")" in *javascript*) ;; *) exit 1;; esac
         case "$(curl -fsS -o /dev/null -w "%{content_type}" "$base/style.css")" in text/css*) ;; *) exit 1;; esac
-    ' || die '监控首页、JavaScript 或 CSS 验证失败。'
+    ' || die '监控重定向、首页、JavaScript 或 CSS 验证失败。'
     printf '%s\n' '监控首页及静态资源验证通过。'
 }
 

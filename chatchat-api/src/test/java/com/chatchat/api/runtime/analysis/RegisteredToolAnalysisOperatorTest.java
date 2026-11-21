@@ -56,6 +56,16 @@ class RegisteredToolAnalysisOperatorTest {
     private final RegisteredToolAnalysisOperator operator = new RegisteredToolAnalysisOperator(
         skills, catalog, registry, runtime, new ObjectMapper());
 
+    @Test void resolvesOnlyExplicitlyBoundNamespacedPublishedRoute() {
+        boundSkill();
+        when(catalog.registeredTools()).thenReturn(List.of(
+            new McpToolCatalogQueryPort.RegisteredTool("read_tool", "service", "service", "published", ""),
+            new McpToolCatalogQueryPort.RegisteredTool("different_route", "other", "other", "published", "")));
+        when(registry.hasTool("different_route")).thenReturn(true);
+        assertThat(operator.resolveBoundPublishedTool("finance", "published")).contains("read_tool");
+        assertThat(operator.resolveBoundPublishedTool("unbound", "published")).isEmpty();
+    }
+
     @Test void rejectsUnboundToolWithoutCallingRuntime() {
         SkillDefinition skill = mock(SkillDefinition.class);
         when(skill.id()).thenReturn("finance");

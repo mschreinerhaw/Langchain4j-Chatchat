@@ -59,8 +59,10 @@ public final class NativePublishedTemplate {
 
     public Map<String, Object> capture(KernelDataScope scope, String skill, String id) {
         var grant = grant(scope, skill, id);
+        var route = tools.resolveBoundPublishedTool(skill, PreauthorizedStructuredDataOperator.TOOL_NAME)
+            .orElseThrow(() -> new SecurityException("No matching Skill-bound published SQL template route"));
         var context = context(scope, grant, "Describe published template", Map.of(), "describe")
-            .withAttribute(RegisteredToolAnalysisOperator.TOOL_NAME, PreauthorizedStructuredDataOperator.TOOL_NAME)
+            .withAttribute(RegisteredToolAnalysisOperator.TOOL_NAME, route)
             .withAttribute(RegisteredToolAnalysisOperator.TOOL_ARGUMENTS, Map.of(
                 "templateId", id, "domain", grant.assetName(), "assetDomain", grant.assetName(),
                 "executionContext", Map.of("assetName", grant.assetName(), "env", grant.environment()),
@@ -72,7 +74,7 @@ public final class NativePublishedTemplate {
             if (!id.equals(descriptor.path("templateId").asText())
                     || !descriptor.path("parameterSchema").isObject() || descriptor.toString().length() > 8000)
                 throw new IllegalStateException("Invalid published template descriptor");
-            return Map.of("skillId", skill, "grantHash", supply.hash(grant), "template",
+            return Map.of("skillId", skill, "grantHash", supply.hash(grant), "route", route, "template",
                 json.convertValue(descriptor, new TypeReference<Map<String, Object>>() {}));
         } catch (IOException invalid) {
             throw new IllegalStateException("Invalid published template descriptor", invalid);
@@ -166,6 +168,7 @@ public final class NativePublishedTemplate {
         if (!begin.dispatchIntentCreated()) return status("QUERY_OUTCOME_UNKNOWN");
         long clock = System.nanoTime();
         var context = context(task.scope(), grant, task.objective().instruction(), parameters, "query")
+            .withAttribute(PreauthorizedStructuredDataOperator.PUBLISHED_ROUTE, binding.path("route").asText())
             .withAttribute(RegisteredToolAnalysisOperator.CODING_DATA_OPERATION, "data-" + supply.hash(task.taskId()));
         var result = executor.execute(context, analysisScope(context), null);
         var receipt = new LinkedHashMap<String, Object>();

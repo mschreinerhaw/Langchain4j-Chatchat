@@ -37,4 +37,28 @@ python scripts/verify-native-published-template-live.py BASE_URL AGENT_ID TEMPLA
 
 脚本使用真实 Native 任务入口，等待终态，从任务进度取得 broker 回执，下载 Silo Parquet，校验哈希和 Parquet footer，并核对 Cline 提交的结果行数。验收端需要 PyArrow。部署凭据通过交互输入或环境变量传入。
 
-目标服务器的真实查询、取消、恢复及 Runtime 模型计量尚待联机验证。端到端性能对比在联机查询验收后进行。
+## 2026-11-21 服务器验收结果
+
+在 `192.168.195.221` 从已核对 SHA-256 的 Git 源码构建并部署。API 使用 `925e632db`，MCP 使用 `c508e64f1`，Native broker 使用 `ed44b6266`，Executor 使用 `292edfd67`。应用、MCP 和 broker 通过健康检查，Executor 已启动并用于本次真实运行。验收后 `/opt` 约有 24 GB 可用，未清理镜像。
+
+验收 Agent 为 `native_template_pilot_20261121`。它绑定已发布的 TPCDS 仓库面积明细模板 `STUDIO_271B4D6FA9283DBE9AA526D49F0BFFF7`。Native Cline 使用 `qwen3.6-plus`，通过 `runtime__execute_published_template` 提交 `min_area=1000`。Runtime 校验后执行实际查询，并交付授权的仓库主键和面积字段。用同一 Agent 请求授权范围外的另一个已发布模板，任务入口返回 HTTP 403。调试过程中发出的任务取消请求已观察到 `CANCELLED` 终态。
+
+| 验收项 | 实测 |
+| --- | --- |
+| 最终任务 | `native-b8cb282a986bd02244334eb91f1e98f9240c47e9375bfeedef9d632817b75af4` |
+| Run | `coding-5a541f0cf93e8115e5cee07679b363f5e370affa354847ee7b05f6ffd511d530` |
+| 终态 | `COMPLETED`，无待核对操作 |
+| 交付回执 | `template.query.delivered`，`OK`，4 行，完整 |
+| Silo Parquet | `650d7eaf812d131c68d4c2b2e41f1b45db3b3514f8f6a74e9b996830d1c88d06`，831 字节 |
+| SHA-256 | `2849c50a14b1d1bd7d48766691ba54c96da6e3e0f1cb79f87aebe1972645291b` |
+| Native 结果文件 | `ef3c2b7236dc41d62351355216b55dc1617c3e8e4016e5f0546f247cf238ada2` |
+| Runtime 查询阶段 | 3.590 秒 |
+| 任务开始至数据交付 | 36.639 秒 |
+| 任务开始至最终完成 | 75.413 秒 |
+| Native 模型使用量 | 6 次完成的模型调用，账本记录 42,921 Token，完整计量标志为 false |
+
+验收脚本读取标准任务进度，确认 broker 交付事件及 Python 命令退出码 0。它使用任务账号重新下载 Silo 文件，验证 SHA-256 和 Parquet footer，再读取归档的 `output/result.json`，确认 Cline 在 worker 内取得的行数和哈希与 Silo 文件一致。
+
+Java 最终专项 16 项通过，覆盖发布路由、回执持久化、结果封装读取和 Parquet 编解码。Node 契约与执行治理测试 41 项通过、1 项跳过。
+
+该次回执记录的执行入口为 `governed_template_without_runtime_binding`，查询分支直接调用现有受控工具执行器。Runtime 参数绑定的独立计量、完整的联机故障矩阵及新旧链路 A/B 性能对比仍待验证。上述耗时来自单次成功任务。

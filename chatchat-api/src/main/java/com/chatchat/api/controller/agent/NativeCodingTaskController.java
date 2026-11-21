@@ -20,10 +20,12 @@ import static com.chatchat.agents.runtime.coding.CodingTaskAccess.Action.*;
 @RequestMapping("/api/v1/coding/tasks")
 @ConditionalOnProperty(prefix="chatchat.runtime.coding.unified",name="enabled",havingValue="true")
 public final class NativeCodingTaskController {
+    @org.springframework.beans.factory.annotation.Autowired
+    private com.chatchat.api.runtime.coding.data.NativePublishedTemplate templates;
     private final com.chatchat.api.runtime.coding.nativecline.NativeTaskCapabilities capabilities;
     private final NativeCodingTasks coding;private final CodingInvocationContext identity;
     public NativeCodingTaskController(NativeCodingTasks coding,CodingInvocationContext identity,com.chatchat.api.runtime.coding.nativecline.NativeTaskCapabilities capabilities){this.coding=coding;this.identity=identity;this.capabilities=capabilities;}
-    public record Request(String requestId,List<String> fileIds,String instruction,String modelName,List<String> artifactTypes,Map<String,Object> resultSchema,String agentId,Boolean resourceExplorationApproved,String reportMode,Map<String,Object> reportPresentation){}
+    public record Request(String requestId,List<String> fileIds,String instruction,String modelName,List<String> artifactTypes,Map<String,Object> resultSchema,String agentId,Boolean resourceExplorationApproved,String reportMode,Map<String,Object> reportPresentation,String publishedTemplateId){}
     private String actor(HttpServletRequest request,String key){var value=request.getAttribute(key);if(value==null)throw new ResponseStatusException(HttpStatus.UNAUTHORIZED);return value.toString();}
     private KernelDataScope scope(HttpServletRequest request,String run){
         if(run==null||!run.matches("[A-Za-z0-9_-]{1,128}"))throw new ResponseStatusException(HttpStatus.BAD_REQUEST);
@@ -35,6 +37,14 @@ public final class NativeCodingTaskController {
         var scope=scope(http,run);
         return identity.as(scope,Set.of(READ,SUBMIT),()->{
             var snapshot=new LinkedHashMap<String,Object>(capabilities.forAgent(scope,request.agentId(),request.modelName(),Boolean.TRUE.equals(request.resourceExplorationApproved()),request.instruction()));
+            if(request.publishedTemplateId()!=null) {
+                try {
+                    snapshot.put(com.chatchat.api.runtime.coding.data.NativePublishedTemplate.CONTEXT,
+                        templates.capture(scope,request.agentId(),request.publishedTemplateId()));
+                } catch (SecurityException denied) {
+                    throw new ResponseStatusException(HttpStatus.FORBIDDEN,"Published template outside the task grant");
+                }
+            }
             if(request.reportMode()!=null){snapshot.put("reportMode",com.chatchat.common.runtime.coding.VisualReportMode.read(Map.of("reportMode",request.reportMode())));snapshot.put("reportPresentation",com.chatchat.common.runtime.coding.ReportPresentation.read(request.reportPresentation()==null?Map.of():Map.of("reportPresentation",request.reportPresentation())));}
             var result=coding.submit(scope,request.requestId(),request.fileIds(),request.instruction(),request.modelName(),request.artifactTypes(),request.resultSchema(),snapshot);
             return ResponseEntity.accepted().body(ApiResponse.success(result));

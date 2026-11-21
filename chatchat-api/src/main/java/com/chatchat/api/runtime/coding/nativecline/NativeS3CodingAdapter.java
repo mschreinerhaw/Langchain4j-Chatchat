@@ -321,7 +321,7 @@ public final class NativeS3CodingAdapter implements CodingAgentSPI {
         grant.put("toolPermissions",c.authorization().allowedTools());grant.put("dataPermissions",List.of());grant.put("networkPolicy","broker-only");grant.put("expiresAt",c.budget().deadlineAt().toEpochMilli());grant.put("runtimeProfile","native-python-silo-v1");
         if(!c.budget().hasDeadline())grant.put("userManagedDeadline",true);
         grant.put("deliveryBinding",Map.of("tenantId",c.scope().tenantId(),"taskId",c.taskId(),"runId",c.scope().runId(),"inputSnapshotVersion",ws.snapshotVersion()));
-        grant.put("runtimeTools",c.authorization().allowedTools().stream().filter(t->Set.of("agent_skill_read","workspace_metadata","workspace_validate").contains(t)||com.chatchat.api.runtime.coding.knowledge.CodingInternetAccess.NATIVE_TOOLS.contains(t)||com.chatchat.api.runtime.coding.knowledge.CodingDocumentSearchAccess.NATIVE_TOOLS.contains(t)).toList());
+        grant.put("runtimeTools",c.authorization().allowedTools().stream().filter(t->Set.of("agent_skill_read","workspace_metadata","workspace_validate","execute_published_template").contains(t)||com.chatchat.api.runtime.coding.knowledge.CodingInternetAccess.NATIVE_TOOLS.contains(t)||com.chatchat.api.runtime.coding.knowledge.CodingDocumentSearchAccess.NATIVE_TOOLS.contains(t)).toList());
         grant.put("s3",Map.of("origin",policy.get("origin"),"inputPrefix",policy.get("inputPrefix"),"outputPrefix",policy.get("outputPrefix"),"inputManifestSha256",client(r).inputManifestHash(files)));
         return json.valueToTree(Map.of("sessionId",session,"grant",client(r).signGrant(grant,settings.issuerKey),"inputs",files,"transportEpoch",ws.epoch(),"nodeId",settings.nodeId(),"executionEpoch",UUID.randomUUID().toString(),"workflowId",r.control==null?"":r.control.workflowId(),"fencingToken",r.lease.fencingToken()));
     }
@@ -402,6 +402,12 @@ public final class NativeS3CodingAdapter implements CodingAgentSPI {
         }else if(channel.equals("provider")){
             summary=type+": "+p.path("tool").asText(p.path("name").asText(p.path("url").asText()));
             for(String field:List.of("tool","requestId","isError","skillId","name","version","source","bytes","url","sha256","size","path","assetId","retrieved_at","files"))if(p.hasNonNull(field))projected.put(field,json.convertValue(p.get(field),Object.class));
+            if(type.equals("template.query.delivered")){
+                normalized="TOOL_COMPLETED";
+                summary="execute_published_template";
+                for(String field:List.of("templateId","rowCount","complete","queryMs","sourceEvidenceId","evidenceRef","executionPath"))
+                    if(p.hasNonNull(field))projected.put(field,json.convertValue(p.get(field),Object.class));
+            }
         }else if(type.startsWith("tool.")){
             String tool=p.path("toolName").asText();operation="tool-"+evidence.hash(p.path("toolCallId")).substring(0,32);kind=CodingJournal.OperationKind.TOOL;
             complete=!type.equals("tool.started");actual=new Counters(0,0,1,0,0,0,0,"0");projected.put("toolCallId",p.path("toolCallId").asText());
@@ -593,7 +599,17 @@ public final class NativeS3CodingAdapter implements CodingAgentSPI {
         String key=(proof.path("allocationFenced").asBoolean()?"recovery-stop-":"stop-")+session;
         return evidence.register(r.c,NativeS3ExecutionProofVerifier.STOP_TYPE,key,Map.of("taskId",r.c.taskId(),"sessionId",session,"workerStopped",true,"containerId",proof.path("containerId").asText(),"stopProof",json.convertValue(proof,Map.class)),List.of(r.c.inputSnapshotRef()));
     }
-    private void reconcile(Run r,String proof){for(String operation:tasks.unresolvedOperations(r.c.scope(),r.c.taskId()))tasks.reconcileStopped(r.c.scope(),r.c.taskId(),r.lease,outcome(r).revision(),operation,proof);}
+    @org.springframework.beans.factory.annotation.Autowired
+    private com.chatchat.api.runtime.coding.data.NativePublishedTemplate publishedTemplates;
+    private void reconcile(Run r,String proof){
+        for(String operation:tasks.unresolvedOperations(r.c.scope(),r.c.taskId())){
+            if(com.chatchat.api.runtime.coding.data.NativePublishedTemplate.OPERATION.equals(operation)){
+                publishedTemplates.reconcile(r.c);
+                continue;
+            }
+            tasks.reconcileStopped(r.c.scope(),r.c.taskId(),r.lease,outcome(r).revision(),operation,proof);
+        }
+    }
     private void archiveExecutions(Run r){
         var b=state(r,BINDING);var list=client(r).executions(b.path("grant").asText(),b.path("sessionId").asText());
         for(var record:list.path("executions")){

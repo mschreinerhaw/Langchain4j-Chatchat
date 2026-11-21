@@ -6,6 +6,7 @@ import {tmpdir} from 'node:os';
 import {join} from 'node:path';
 import {signContract} from '../src/task-contract.mjs';
 import {validateCreate,taskGrant,buildSpec,verifyOwned,assertAnchors} from '../src/worker-executor-policy.mjs';
+import {WorkerExecutorClient} from '../src/worker-executor-client.mjs';
 const key='k'.repeat(64),cfg={signingKey:key,ownershipKey:'o'.repeat(64),instanceId:'executor-review',workerImage:'sha256:'+'a'.repeat(64),hostWorkersRoot:'/isolated/workers',resources:{memoryBytes:2147483648,nanoCpus:2000000000,pidsLimit:256,cpuSet:'8,9'},tenants:{alpha:{users:['alice'],workspaces:{project:'/trusted/template'},models:['model'],tools:['read_files'],datasets:['dataset']}}};
 const contract={version:1,tenantId:'alpha',userId:'alice',sessionId:'session',taskId:'task',workspaceRef:'project',modelProfile:'model',toolPermissions:['read_files'],dataPermissions:['dataset'],networkPolicy:'broker-only',budgetPolicy:{status:'DEFERRED_STAGE_2_REVIEW'},expiresAt:Date.now()+3600000};
 const request=()=>({workerId:randomUUID(),resourceProfile:'standard',apiToken:'a'.repeat(64),brokerToken:'b'.repeat(64),editTool:'editor'});
@@ -46,6 +47,16 @@ test('native Silo grant requires an explicitly enabled Python Executor',()=>{
  assert.throws(()=>taskGrant(token,{...cfg,workerRuntime:'cline-python311'}),{status:403});
  assert.deepEqual(taskGrant(token,{...cfg,workerRuntime:'cline-python311',enableNativeSilo:true}),bound);
 });
+test('Executor admits a published template tool only on a signed Native Runtime grant',()=>{
+ const tenant={...cfg.tenants.alpha,mcp:{authMode:'native-runtime'}};
+ const policy={...cfg,workerRuntime:'cline-python311',enableNativeSilo:true,tenants:{alpha:tenant}};
+ const bound={...contract,version:2,runtimeProfile:'native-python-silo-v1',
+  deliveryBinding:{tenantId:'alpha',taskId:contract.taskId,runId:'run',inputSnapshotVersion:'snapshot'},
+  runtimeTools:['execute_published_template'],toolPermissions:['read_files','runtime__execute_published_template']};
+ assert.deepEqual(taskGrant(signContract(bound,key),policy),bound);
+ assert.throws(()=>taskGrant(signContract({...bound,runtimeTools:[]},key),policy),{status:403});
+ assert.throws(()=>taskGrant(signContract(bound,key),{...policy,tenants:{alpha:{...tenant,mcp:{authMode:'task-grant'}}}}),{status:403});
+});
 test('Runtime-issued Native users are opt-in, tenant bound, and never grant SDK worker access',()=>{
  const policy={...cfg,workerRuntime:'cline-python311',enableNativeSilo:true,tenants:{...cfg.tenants,alpha:{...cfg.tenants.alpha,dynamicUsers:true}}};
  const bound={...contract,userId:'bob',version:2,runtimeProfile:'native-python-silo-v1',deliveryBinding:{tenantId:'alpha',taskId:contract.taskId,runId:'run',inputSnapshotVersion:'snapshot'}};
@@ -59,6 +70,23 @@ test('revocation can stop a retired signed grant without granting another create
  assert.throws(()=>taskGrant(token,cfg,true),{status:403});
  assert.deepEqual(taskGrant(token,cfg,true,true),retired);
  assert.throws(()=>taskGrant(signContract(retired,'wrong-key'),cfg,true,true),{status:401});
+});
+test('an absent worker requires a durable task allocation fence before cancellation is confirmed',async()=>{
+ const client=new WorkerExecutorClient({socketPath:'/test',token:'executor-token'});
+ const requests=[];
+ const proof={running:false,neverAllocated:true,allocationFenced:true};
+ client.request=async(method,path,grant,body)=>{
+  requests.push({method,path,grant,body});
+  if(path.endsWith('/stop'))throw Object.assign(Error('Worker not found'),{status:404});
+  return proof;
+ };
+ assert.deepEqual(await client.stopOrRevoke('signed-grant','worker-id'),proof);
+ assert.deepEqual(requests,[
+  {method:'POST',path:'/internal/workers/worker-id/stop',grant:'signed-grant',body:{}},
+  {method:'POST',path:'/internal/tasks/revoke',grant:'signed-grant',body:{}}
+ ]);
+ client.request=async()=>{throw Object.assign(Error('Executor outcome unavailable'),{status:503});};
+ await assert.rejects(client.stopOrRevoke('signed-grant','worker-id'),{status:503});
 });
 test('symbolic-link mount anchors are rejected, even inside an otherwise permitted root',()=>{
  const root=mkdtempSync(join(tmpdir(),'cline-executor-')),id=randomUUID();

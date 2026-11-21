@@ -10,11 +10,8 @@ import com.chatchat.common.tool.ToolMetadata;
 import com.chatchat.common.tool.ToolWorkflowContract;
 import com.chatchat.common.tool.ToolWorkflowRole;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import dev.langchain4j.data.message.AiMessage;
-import dev.langchain4j.agent.tool.ToolExecutionRequest;
 import dev.langchain4j.model.chat.ChatModel;
 import dev.langchain4j.model.chat.request.ChatRequest;
-import dev.langchain4j.model.chat.response.ChatResponse;
 import java.util.List;
 import java.util.Map;
 import org.junit.jupiter.api.Test;
@@ -107,64 +104,47 @@ class ToolResultReviewBranchTest {
     }
 
     @Test
-    void publicationFlagNeverBypassesTemplateSelection() {
+    void templatePublicationFlagAloneDoesNotAuthorizeSelection() {
         metadata("template_query", Map.of("templateCapability", true, "schemaVersion", "template-capability.v1",
             ToolWorkflowContract.METADATA_KEY,
             ToolWorkflowContract.declaration(ToolWorkflowRole.TEMPLATE_DISCOVERY, "fixture", "template_query.v1")));
-        when(model.chat(any(ChatRequest.class))).thenReturn(ChatResponse.builder().aiMessage(AiMessage.from(
-            ToolExecutionRequest.builder().id("selection").name(SchemaDrivenTemplateParameterBinder.SELECTION_FUNCTION)
-                .arguments("{\"status\":\"NO_MATCH\",\"selections\":[]}").build())).build());
 
-        var review = review("template_query", true, Map.of("templates",
-            List.of(Map.of("templateId", "candidate", "parameterSchema", Map.of("type", "object")))));
+        var review = review("template_query", true, Map.of("templates", List.of(Map.of("templateId", "candidate"))));
 
-        assertThat(review.metadata()).containsEntry("candidateSelectionStatus", "NO_MATCH")
-            .containsEntry("toolResultReviewMode", "MODEL_SELECTION_AND_BINDING");
-        verify(model, times(1)).chat(any(ChatRequest.class));
-        verify(model, never()).chat(anyString());
+        assertThat(review.metadata()).containsEntry("candidateSelectionErrorCode", "TEMPLATE_SELECTION_REQUIRED")
+            .containsEntry("mcpDiscoverySucceeded", true)
+            .containsEntry("selectedTemplateIds", List.of())
+            .containsEntry("toolResultReviewModelCalls", 0);
+        verifyNoInteractions(model);
     }
 
     @Test
-    void fixedPublicationBindsEveryReturnedTemplateWithoutSemanticScreening() {
-        var scope=com.chatchat.common.mcp.capability.McpTemplateSelectionScope.fixedBinding("api");
+    void fixedPublicationAdmitsOnlyGovernedTemplatesWithoutBindingParameters() {
+        var scope = com.chatchat.common.mcp.capability.McpTemplateSelectionScope.fixedBinding("api");
         metadata("template_query", Map.of(
             ToolWorkflowContract.METADATA_KEY,
             ToolWorkflowContract.declaration(ToolWorkflowRole.TEMPLATE_DISCOVERY, "fixture", "template_query.v1"),
-            com.chatchat.common.mcp.capability.McpTemplateSelectionScope.METADATA_KEY,scope.toMetadata()));
-        when(model.chat(any(ChatRequest.class))).thenReturn(ChatResponse.builder().aiMessage(AiMessage.from(
-            ToolExecutionRequest.builder().id("binding").name(SchemaDrivenTemplateParameterBinder.BINDING_FUNCTION)
-                .arguments("""
-                    {"bindings":[{"templateId":"assets","parameters":{}}]}
-                    """).build())).build());
-        var templates=List.of(
-            Map.of("templateId","assets","parameterSchema",Map.of("type","object")),
-            Map.of("templateId","trades","parameterSchema",Map.of("type","object")));
-        var output=Map.of("templates",templates);
-        var review=review("template_query",true,output);
+            com.chatchat.common.mcp.capability.McpTemplateSelectionScope.METADATA_KEY, scope.toMetadata()));
+        var templates = List.of(
+            Map.of("templateId", "assets", "parameterSchema", Map.of("type", "object")),
+            Map.of("templateId", "trades", "parameterSchema", Map.of("type", "object")));
+        var governed = Map.of("templates", templates);
+        var review = review("template_query", true, Map.of(
+            "schemaVersion", com.chatchat.common.mcp.runtime.McpAnalysisPayload.SCHEMA_VERSION,
+            "data", governed, "rawData", Map.of("templates", List.of(Map.of("templateId", "transport-only")))));
 
-        assertThat(review.metadata()).containsEntry("toolResultReviewMode","PUBLISHED_TEMPLATE_PARAMETER_BINDING")
-            .containsEntry("candidateDecisionOwner","PUBLISHER")
-            .containsEntry("selectedTemplateIds",List.of("assets","trades"))
-            .doesNotContainKey("modelSelectedTemplateIds");
-        var projected=new com.chatchat.agents.runtime.plan.selection.EvidenceBasedTemplateCandidateEvaluator()
-            .evaluate(output,review.metadata());
-        assertThat(projected.selectedIds()).containsExactly("assets","trades");
-        var projection=(Map<?,?>)projected.output();
+        assertThat(review.metadata()).containsEntry("toolResultReviewMode", "RUNTIME_PUBLISHED_TEMPLATE_ADMISSION")
+            .containsEntry("candidateDecisionOwner", "PUBLISHER")
+            .containsEntry("selectedTemplateIds", List.of("assets", "trades"))
+            .doesNotContainKeys("modelSelectedTemplateIds", "parameterProtocols");
+        var projected = new com.chatchat.agents.runtime.plan.selection.EvidenceBasedTemplateCandidateEvaluator()
+            .evaluate(governed, review.metadata());
+        assertThat(projected.selectedIds()).containsExactly("assets", "trades");
+        var projection = (Map<?, ?>) projected.output();
         assertThat(projection.get("templates")).isEqualTo(templates);
-        var selection=(Map<?,?>)projection.get("runtimeTemplateSelection");
+        var selection = (Map<?, ?>) projection.get("runtimeTemplateSelection");
         assertThat(selection.get("selectionAuthority")).isEqualTo("runtime_published_data_supply");
-        var invocations=(List<?>)selection.get("reviewedInvocations");
-        assertThat(invocations).hasSize(2);
-        var missingInvocation=(Map<?,?>)invocations.get(1);
-        var missingArguments=(Map<?,?>)missingInvocation.get("arguments");
-        var protocol=(Map<?,?>)missingArguments.get("parameterProtocol");
-        assertThat(protocol.get("binding_error")).isEqualTo(Map.of("code","PUBLISHED_TEMPLATE_BINDING_MISSING"));
-
-        var captured=org.mockito.ArgumentCaptor.forClass(ChatRequest.class);
-        verify(model).chat(captured.capture());
-        assertThat(captured.getValue().toolSpecifications().get(0).toJson())
-            .contains(SchemaDrivenTemplateParameterBinder.BINDING_FUNCTION).doesNotContain("NO_MATCH","selections");
-        verify(model,never()).chat(anyString());
+        verifyNoInteractions(model);
     }
 
     @Test

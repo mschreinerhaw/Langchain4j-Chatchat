@@ -33,7 +33,7 @@ public final class CodingDataSupplyService {
         this.json=json.copy().enable(SerializationFeature.ORDER_MAP_ENTRIES_BY_KEYS);
         this.scopes=Objects.requireNonNull(scopes);
     }
-    private List<CodingDataSupplyProperties.Grant> grants(KernelDataScope scope) {
+    List<CodingDataSupplyProperties.Grant> grants(KernelDataScope scope) {
         if(!policy.isEnabled())return List.of();
         if(policy.getMaxRounds()<1||policy.getMaxRounds()>16)throw new IllegalStateException("Invalid data supply round ceiling");
         return policy.getGrants().stream().filter(g->scope.tenantId().equals(g.tenantId())&&scope.userId().equals(g.userId()))

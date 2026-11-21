@@ -13,4 +13,12 @@ export class WorkerExecutorClient {
  metrics(grant,id){return this.request('GET','/internal/workers/'+encodeURIComponent(id)+'/metrics',grant);}
  start(grant,id){return this.request('POST','/internal/workers/'+encodeURIComponent(id)+'/start',grant,{});}
  stop(grant,id){return this.request('POST','/internal/workers/'+encodeURIComponent(id)+'/stop',grant,{});}
+ revoke(grant){return this.request('POST','/internal/tasks/revoke',grant,{});}
+ async stopOrRevoke(grant,id){
+  try{return await this.stop(grant,id);}
+  catch(failure){
+   if(failure.status!==404)throw failure;
+   return this.revoke(grant);
+  }
+ }
 }

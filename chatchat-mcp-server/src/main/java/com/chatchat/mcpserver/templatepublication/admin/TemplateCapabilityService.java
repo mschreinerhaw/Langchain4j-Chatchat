@@ -210,6 +210,10 @@ public class TemplateCapabilityService {
             Map.entry("title", row.getTitle()), Map.entry("state", row.getState()), Map.entry("version", row.getReleaseNumber()),
             Map.entry("templateKey", definition.path("templateKey").asText()), Map.entry("revision", definition.path("revision").asText()),
             Map.entry("assetName", definition.path("assetName").asText()),
+            Map.entry("parameterSchema", definition.path("inputSchema")),
+            Map.entry("verifiedReadOnlySql", "sql_query_execute".equals(definition.path("executor").asText())
+                && definition.path("binding").path("sqlRevisionId").isTextual()
+                && definition.path("sqlTest").path("success").asBoolean(false)),
             Map.entry("category", definition.path("category").asText()),
             Map.entry("description", Objects.toString(row.getDescription(), "")),
             Map.entry("publishedAt", row.getPublishedAt().toString()));

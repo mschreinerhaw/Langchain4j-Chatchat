@@ -35,6 +35,7 @@ public final class NativePublishedTemplate {
     public static final String OPERATION = "native-template-query";
     private static final CodingTaskOutcome.Counters QUERY_USAGE =
         new CodingTaskOutcome.Counters(0,0,1,0,0,0,0,"0");
+    private enum Admission { STARTED, EXISTING, QUOTA_DENIED, STOPPING }
     private final CodingDataSupplyProperties policy;
     private final CodingDataSupplyService supply;
     private final DurableCodingTaskService tasks;
@@ -142,9 +143,13 @@ public final class NativePublishedTemplate {
             return status("AUTHORIZATION_DENIED");
 
         String digest = supply.hash(parameters);
+        var context = context(task.scope(), grant, task.objective().instruction(), parameters, binding.path("route").asText())
+            .withAttribute(RegisteredToolAnalysisOperator.CODING_DATA_OPERATION, "data-" + supply.hash(task.taskId()));
         var lease = tasks.ownership(task.scope(), task.taskId());
-        var previous = tasks.privateState(task.scope(), task.taskId(), STATE);
-        if (previous != null) {
+        var started = json.valueToTree(Map.of("requestHash", digest));
+        var admission = evidence.atomic(task, () -> admitQuery(task, lease, digest, started));
+        if (admission == Admission.EXISTING) {
+            var previous = tasks.privateState(task.scope(), task.taskId(), STATE);
             if (!digest.equals(previous.path("requestHash").asText())) return status("QUOTA_DENIED");
             if (previous.has("receipt")) return deliver(task, json.convertValue(previous.path("receipt"),
                 new TypeReference<Map<String,Object>>() {}));
@@ -156,18 +161,8 @@ public final class NativePublishedTemplate {
             receipt.put("evidenceRef", reference);
             return deliver(task, receipt);
         }
-        var started = json.valueToTree(Map.of("requestHash", digest));
-        tasks.privateState(task.scope(), task.taskId(), lease, STATE, null, started);
-        var state = tasks.get(task.scope(), task.taskId());
-        var reservation = tasks.reserve(task.scope(), task.taskId(), lease, state.revision(), OPERATION,
-            digest, CodingJournal.OperationKind.TOOL, QUERY_USAGE);
-        if (!reservation.admitted()) return status("QUOTA_DENIED");
-        var begin = tasks.startIntent(task.scope(), task.taskId(), lease, reservation.outcome().revision(),
-            OPERATION, "runtime-data:" + OPERATION);
-        if (!begin.dispatchIntentCreated()) return status("QUERY_OUTCOME_UNKNOWN");
+        if (admission != Admission.STARTED) return status(admission.name());
         long clock = System.nanoTime();
-        var context = context(task.scope(), grant, task.objective().instruction(), parameters, binding.path("route").asText())
-            .withAttribute(RegisteredToolAnalysisOperator.CODING_DATA_OPERATION, "data-" + supply.hash(task.taskId()));
         var result = tools.executePublishedReadOnlySql(context, analysisScope(context));
         var receipt = new LinkedHashMap<String, Object>();
         receipt.put("templateId", id);
@@ -205,6 +200,22 @@ public final class NativePublishedTemplate {
         return deliver(task, receipt);
     }
 
+    private Admission admitQuery(CodingTaskContract task, CodingJournal.Lease lease, String digest, JsonNode started) {
+        var scope = task.scope();
+        String id = task.taskId();
+        if (tasks.privateState(scope, id, STATE) != null) return Admission.EXISTING;
+        var state = tasks.get(scope, id);
+        if (state.status().terminal() || state.executionControl().stopReason() != null) return Admission.STOPPING;
+        var reservation = tasks.reserve(scope, id, lease, state.revision(), OPERATION,
+            digest, CodingJournal.OperationKind.TOOL, QUERY_USAGE);
+        if (!reservation.admitted()) return Admission.QUOTA_DENIED;
+        var begin = tasks.startIntent(scope, id, lease, reservation.outcome().revision(),
+            OPERATION, "runtime-data:" + OPERATION);
+        if (!begin.dispatchIntentCreated()) return Admission.STOPPING;
+        tasks.privateState(scope, id, lease, STATE, null, started);
+        return Admission.STARTED;
+    }
+
     static JsonNode sqlData(ObjectMapper json, String content) throws IOException {
         var data = json.<JsonNode>valueToTree(McpAnalysisPayload.canonicalData(json.readValue(content, Object.class)));
         // A published template keeps the ToolOutput envelope around the SQL result.
@@ -222,17 +233,22 @@ public final class NativePublishedTemplate {
     public void reconcile(CodingTaskContract task) {
         var reference = evidence.reference(task,"CODING_DATA_RECEIPT",OPERATION);
         if (!evidence.exists(task, reference)) return;
-        var lease = tasks.ownership(task.scope(), task.taskId());
-        var state = tasks.get(task.scope(), task.taskId());
-        if (tasks.verifiedOperation(task.scope(), task.taskId(), OPERATION).isEmpty())
-            state = tasks.reconcileStopped(task.scope(), task.taskId(), lease, state.revision(), OPERATION, reference);
-        tasks.settle(task.scope(), task.taskId(), lease, state.revision(), OPERATION, QUERY_USAGE, true);
+        evidence.atomic(task, () -> {
+            var lease = tasks.ownership(task.scope(), task.taskId());
+            var state = tasks.get(task.scope(), task.taskId());
+            if (tasks.verifiedOperation(task.scope(), task.taskId(), OPERATION).isEmpty())
+                state = tasks.reconcileStopped(task.scope(), task.taskId(), lease, state.revision(), OPERATION, reference);
+            return tasks.settle(task.scope(), task.taskId(), lease, state.revision(), OPERATION, QUERY_USAGE, true);
+        });
     }
 
     private boolean admitAttempt(CodingTaskContract task, JsonNode input) {
+        return evidence.atomic(task, () -> recordAttempt(task, supply.hash(input)));
+    }
+
+    private boolean recordAttempt(CodingTaskContract task, String hash) {
         var previous = tasks.privateState(task.scope(), task.taskId(), ATTEMPTS);
         List<String> attempts = previous == null ? List.of() : json.convertValue(previous, new TypeReference<>() {});
-        var hash = supply.hash(input);
         if (attempts.contains(hash)) return true;
         if (attempts.size() >= 2) return false;
         var next = new ArrayList<>(attempts);

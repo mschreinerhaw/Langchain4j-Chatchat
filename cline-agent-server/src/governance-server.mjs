@@ -27,6 +27,7 @@ const bridgeRoot=r=>executor?join(cfg.workerRoot,r.workerId,'bridge'):join(cfg.s
 const grant=r=>signContract(r.contract,cfg.signingKey);
 const inspectWorker=r=>executor?executor.inspect(grant(r),r.workerId):docker.inspect(r.containerId);
 const stopWorker=r=>executor?executor.stop(grant(r),r.workerId):docker.stop(r.containerId);
+const cancelWorker=r=>r.contract.s3&&executor?executor.stopOrRevoke(grant(r),r.workerId):stopWorker(r);
 mkdirSync(join(cfg.stateRoot,'workers'),{recursive:true,mode:0o700});
 const audit=new Journal(join(cfg.stateRoot,'audit.jsonl'));
 const providerJournals=new Map();
@@ -84,13 +85,14 @@ async function reconcileRemote(r,cancel=false){
  operations=await operation(r,'/list');r.remoteStopConfirmed=operations.every(o=>['COMPLETED','FAILED','CANCELLED'].includes(o.state)&&o.receipt?.stopConfirmed&&o.stopProofRef);r.operations=operations.map(o=>({operationId:o.operationId,state:o.state,stopProofRef:o.stopProofRef??null}));if(cancel&&r.remoteStopConfirmed&&r.stopProof)r.operationOutcome=await operation(r,'/finish',{localStopProof:r.stopProof});save(r);return r.remoteStopConfirmed;
 }
 async function stop(r,reason){
- if(r.workerState==='STOPPED'&&r.contract.s3){
+ if(r.workerState==='STOPPED'&&r.contract.s3&&r.stopProof?.running===false
+    &&(!r.stopProof.neverAllocated||r.stopProof.allocationFenced===true)){
   r.revoked=true;r.taskState='CANCELLED';for(const controller of calls.get(r.workerId)??[])controller.abort();save(r);event(r,'task.revoked',{reason});return;
  }
- if(['STOPPED','STOPPING'].includes(r.workerState))return;r.revoked=true;r.workerState='STOPPING';r.taskState='STOPPING';save(r);event(r,'worker.stopping',{reason});
+ if(r.workerState==='STOPPING'||r.workerState==='STOPPED'&&!r.contract.s3)return;r.revoked=true;r.workerState='STOPPING';r.taskState='STOPPING';save(r);event(r,'worker.stopping',{reason});
  for(const response of streams.get(r.workerId)??[])response.end();for(const controller of calls.get(r.workerId)??[])controller.abort();
  try{if(r.nativeSessionId)await workerJSON(r,'/v1/sessions/'+r.nativeSessionId+'/cancel','POST',{});}catch{}
- try{if(r.containerId||executor&&r.provisioningAttempted)r.stopProof=await stopWorker(r);r.workerState='STOPPED';r.taskState='CANCELLED_LOCAL_ONLY';}
+ try{if(r.containerId||executor&&(r.provisioningAttempted||r.contract.s3))r.stopProof=await cancelWorker(r);r.workerState='STOPPED';r.taskState='CANCELLED_LOCAL_ONLY';}
  catch{r.workerState='RECOVERABLE';r.taskState='UNKNOWN';}
  if(cfg.operations){try{await reconcileRemote(r,true);r.taskState=r.remoteStopConfirmed?'CANCELLED_REMOTE_CONFIRMED':'UNKNOWN';}catch{r.remoteStopConfirmed=false;r.taskState='UNKNOWN';}if(!r.remoteStopConfirmed)r.workerState='RECOVERABLE';}
  brokers.get(r.workerId)?.close();save(r);event(r,'worker.stopped',{workerState:r.workerState,stopProof:r.stopProof??null,remoteStopConfirmed:r.remoteStopConfirmed===true});
@@ -235,7 +237,7 @@ async function allocate(r){
   for(let n=0;n<200;n++){if(r.revoked)throw Error('Allocation revoked');const state=(await workerJSON(r,'/v1/sessions/'+r.nativeSessionId+'/status')).data;if(state.status==='idle')break;if(state.status==='failed'||n===199)throw Error('Native startup failed');await delay(500);}
   if(cfg.operations){const native=(await workerJSON(r,'/v1/sessions/'+r.nativeSessionId+'/status')).data;r.nativeEpoch=native.epoch;await operation(r,'/session',{epoch:native.epoch});r.operationSession=true;}
   if(r.revoked)throw Error('Allocation revoked');r.workerState='READY';r.taskState='READY';save(r);event(r,'worker.ready',{containerId:r.containerId});
- }catch(e){r.revoked=true;r.workerState='START_FAILED';r.taskState='FAILED';event(r,'worker.start_failed',{reason:'Worker provisioning or native startup failed'});if(r.containerId||executor&&r.provisioningAttempted)try{r.stopProof=await stopWorker(r);}catch{r.workerState='RECOVERABLE';r.taskState='UNKNOWN';}save(r);brokers.get(r.workerId)?.close();}
+ }catch(e){r.revoked=true;r.workerState='START_FAILED';r.taskState='FAILED';event(r,'worker.start_failed',{reason:'Worker provisioning or native startup failed'});if(r.containerId||executor&&(r.provisioningAttempted||r.contract.s3))try{r.stopProof=await cancelWorker(r);}catch{r.workerState='RECOVERABLE';r.taskState='UNKNOWN';}save(r);brokers.get(r.workerId)?.close();}
 }
 const server=http.createServer(async(req,res)=>{
  try{

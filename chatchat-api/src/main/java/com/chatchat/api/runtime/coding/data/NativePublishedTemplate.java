@@ -5,6 +5,7 @@ import com.chatchat.agents.runtime.coding.CodingJournal;
 import com.chatchat.agents.runtime.toolcall.TemplateInvocationBridge;
 import com.chatchat.api.assets.UserAssetService;
 import com.chatchat.api.controller.mcp.McpControlPlaneClient;
+import com.chatchat.api.service.AgentTemplateToolPolicy;
 import com.chatchat.api.runtime.analysis.RegisteredToolAnalysisOperator;
 import com.chatchat.api.runtime.coding.nativecline.NativeS3Evidence;
 import com.chatchat.common.kernel.KernelDataScope;
@@ -41,6 +42,7 @@ public final class NativePublishedTemplate {
     private final DurableCodingTaskService tasks;
     private final RegisteredToolAnalysisOperator tools;
     private final McpControlPlaneClient publications;
+    private final AgentTemplateToolPolicy templateTools;
     private final SkillExecutionScopePort scopes;
     private final NativeS3Evidence evidence;
     private final ObjectMapper json;
@@ -48,13 +50,14 @@ public final class NativePublishedTemplate {
 
     public NativePublishedTemplate(CodingDataSupplyProperties policy, CodingDataSupplyService supply,
             DurableCodingTaskService tasks, RegisteredToolAnalysisOperator tools,
-            McpControlPlaneClient publications, SkillExecutionScopePort scopes,
+            McpControlPlaneClient publications, AgentTemplateToolPolicy templateTools, SkillExecutionScopePort scopes,
             NativeS3Evidence evidence, ObjectMapper json) {
         this.policy = policy;
         this.supply = supply;
         this.tasks = tasks;
         this.tools = tools;
         this.publications = publications;
+        this.templateTools = templateTools;
         this.scopes = scopes;
         this.evidence = evidence;
         this.json = json.copy().enable(DeserializationFeature.USE_BIG_DECIMAL_FOR_FLOATS);
@@ -62,15 +65,17 @@ public final class NativePublishedTemplate {
 
     public Map<String, Object> capture(KernelDataScope scope, String skill, String id) {
         var grant = grant(scope, skill, id);
-        var published = publications.request("GET", "/api/v1/template-capabilities/publications?tenantId="
-            + encode(scope.tenantId()) + "&actorId=" + encode(scope.userId()), null);
+        var published = callerCatalog("publications", scope);
         var rows = java.util.stream.StreamSupport.stream(published.spliterator(), false)
             .filter(row -> "RUNNING".equals(row.path("state").asText()) && row.path("verifiedReadOnlySql").asBoolean()
                 && ("sql_datasource:" + id).equals(row.path("templateKey").asText())
                 && grant.assetName().equals(row.path("assetName").asText())).toList();
         if (rows.size() != 1) throw new SecurityException("Expected one authorized running SQL publication");
         var row = rows.get(0);
-        var route = tools.resolveBoundPublishedTool(skill, row.path("toolName").asText())
+        String tool = row.path("toolName").asText();
+        if (!templateTools.allowed(scope.tenantId(), scope.userId(), skill, Set.of(tool)).contains(tool))
+            throw new SecurityException("Published tool denied by the current Agent resource policy");
+        var route = tools.resolveBoundPublishedTool(skill, tool)
             .orElseThrow(() -> new SecurityException("No matching Skill-bound published SQL template route"));
         var schema = row.path("parameterSchema");
         if (!schema.isObject() || schema.toString().length() > 7000)
@@ -151,7 +156,7 @@ public final class NativePublishedTemplate {
         if (admission == Admission.EXISTING) {
             var previous = tasks.privateState(task.scope(), task.taskId(), STATE);
             if (!digest.equals(previous.path("requestHash").asText())) return status("QUOTA_DENIED");
-            if (previous.has("receipt")) return deliver(task, json.convertValue(previous.path("receipt"),
+            if (previous.has("receipt")) return replay(task, grant, binding, json.convertValue(previous.path("receipt"),
                 new TypeReference<Map<String,Object>>() {}));
             var reference = evidence.reference(task, "CODING_DATA_RECEIPT", OPERATION);
             var recovered = evidence.payload(task, reference);
@@ -159,7 +164,7 @@ public final class NativePublishedTemplate {
             reconcile(task);
             var receipt = new LinkedHashMap<>(recovered.get());
             receipt.put("evidenceRef", reference);
-            return deliver(task, receipt);
+            return replay(task, grant, binding, receipt);
         }
         if (admission != Admission.STARTED) return status(admission.name());
         long clock = System.nanoTime();
@@ -292,6 +297,28 @@ public final class NativePublishedTemplate {
             Files.deleteIfExists(path);
             Files.deleteIfExists(directory);
         }
+    }
+
+    private Map<String, Object> replay(CodingTaskContract task, CodingDataSupplyProperties.Grant grant,
+            JsonNode binding, Map<String, Object> receipt) {
+        if ("OK".equals(receipt.get("status"))) {
+            // A cached receipt cannot rely on the authorization applied by the
+            // original SQL execution. The caller's live catalog applies the
+            // same template and datasource ACL used by the MCP executor.
+            var current = callerCatalog("templates", task.scope());
+            boolean allowed = java.util.stream.StreamSupport.stream(current.spliterator(), false)
+                .anyMatch(row -> ("sql_datasource:" + grant.templateId()).equals(row.path("templateKey").asText())
+                    && grant.assetName().equals(row.path("assetName").asText())
+                    && binding.path("revision").equals(row.path("revision"))
+                    && "read".equals(row.path("operationLevel").asText()));
+            if (!allowed) return status("AUTHORIZATION_DENIED");
+        }
+        return deliver(task, receipt);
+    }
+
+    private JsonNode callerCatalog(String catalog, KernelDataScope scope) {
+        return publications.request("GET", "/api/v1/template-capabilities/" + catalog + "?tenantId="
+            + encode(scope.tenantId()) + "&actorId=" + encode(scope.userId()), null);
     }
 
     private Map<String, Object> deliver(CodingTaskContract task, Map<String, Object> receipt) {

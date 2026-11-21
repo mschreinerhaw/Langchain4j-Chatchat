@@ -64,3 +64,11 @@ Java 最终专项 16 项通过，覆盖发布路由、回执持久化、结果�
 该次回执记录的执行入口为 `governed_template_without_runtime_binding`，查询分支直接调用现有受控工具执行器。Runtime 参数绑定的独立计量、完整的联机故障矩阵及新旧链路 A/B 性能对比仍待验证。上述耗时来自单次成功任务。
 
 首个调试任务 `native-2584fc39ea3b4aadbcdabc050eebcd57eb796d3ac51fa853357ead293f5c28ab` 在 Executor 部署修复前启动失败。其取消请求已登记，任务记录仍待转入终态。最终验收后检查专用 Executor Docker daemon，已无运行中的 worker。
+
+## 加固复验
+
+服务器部署 `b34963fcd` 后，首个启动失败的任务经 Executor 取得未分配证明和分配栅栏，已收敛为 `CANCELLED`，无待核对操作。查询预留、启动意图和请求快照在同一 Runtime 事务提交。
+
+真实复验任务 `native-ee1dad5ecec78206ba7a4d967b6ba9757f2f6443f1dbdf376a73df56c0885d70` 交付 4 行并到达 `COMPLETED`。第二个任务 `native-c8980802853c5bd81aeb05b2af584b52c2d251bc5950d37434878deec5ace72c` 先提交错误参数证据，再修正并原样重试。broker 记录一次工具错误和两次成功交付，两次资产 ID 相同。MCP 日志确认该任务只发起了一次真实查询。第二个任务也成功归档了 Python 读取结果。
+
+Runtime 对每次模板工具请求使用可信任务身份，重新核对当前的 Agent 工具授权、发布修订和部署 grant。成功回执重放另从调用者的实时目录复查模板和数据源读取权限，再由 Runtime 读取当前任务的 Silo 资产。参数和回执仅供 Cline 使用，授权变更由 Runtime 管理。

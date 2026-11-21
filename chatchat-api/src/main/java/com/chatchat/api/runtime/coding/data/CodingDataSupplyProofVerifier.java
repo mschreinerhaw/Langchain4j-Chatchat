@@ -14,6 +14,8 @@ public final class CodingDataSupplyProofVerifier implements CodingExecutionProof
         if(ref==null||!ref.startsWith("runtime-evidence:")||!handle.equals("runtime-data:"+operation))return false;
         return evidence.find(scope,ref.substring(17)).filter(r->"CODING_DATA_RECEIPT".equals(r.evidenceType())
             &&task.equals(r.payload().get("taskId"))&&operation.equals(r.payload().get("operationId"))&&Boolean.TRUE.equals(r.payload().get("executorStopped"))
-            &&evidence.contentHash(r.payload()).equals(r.contentSha256())).isPresent();
+            && (evidence.contentHash(r.payload()).equals(r.contentSha256())
+                || NativePublishedTemplate.OPERATION.equals(operation) && "NativeS3CodingAdapter".equals(r.sourceNode())
+                    && evidence.contentHashInPersistedOrder(r.payload()).equals(r.contentSha256()))).isPresent();
     }
 }

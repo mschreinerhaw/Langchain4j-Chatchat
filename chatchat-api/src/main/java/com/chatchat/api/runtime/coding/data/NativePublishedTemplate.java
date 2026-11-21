@@ -268,8 +268,9 @@ public final class NativePublishedTemplate {
             var asset = evidence.assets.store(UserAssetService.Owner.of(task.scope()), UserAssetService.Kind.DATASET,
                 task.taskId(), task.scope().runId(), STATE + ":" + digest, "result.parquet",
                 "application/vnd.apache.parquet", Files.readAllBytes(path));
+            var columnDefinitions = json.convertValue(columns, new TypeReference<List<Map<String,Object>>>() {});
             return Map.of("status", "OK", "assetId", asset.id(), "sha256", asset.sha256(),
-                "rowCount", rows.size(), "size", Files.size(path), "columns", columns,
+                "rowCount", rows.size(), "size", Files.size(path), "columns", columnDefinitions,
                 "complete", data.path("complete").asBoolean(), "content_type", "application/vnd.apache.parquet");
         } finally {
             Files.deleteIfExists(path);

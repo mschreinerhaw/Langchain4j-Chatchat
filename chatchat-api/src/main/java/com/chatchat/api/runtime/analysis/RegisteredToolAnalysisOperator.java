@@ -53,6 +53,21 @@ public class RegisteredToolAnalysisOperator implements AnalysisCapabilityOperato
 
     @Override public AnalysisCapability capability() { return AnalysisCapability.TOOL_CALL; }
 
+    /** Resolve the published name only among routes explicitly bound to this Skill. */
+    public java.util.Optional<String> resolveBoundPublishedTool(String skillId, String remoteName) {
+        var skill = skills.list().stream().filter(item -> item.id().equals(skillId)).findFirst().orElse(null);
+        if (skill == null) return java.util.Optional.empty();
+        var names = new java.util.LinkedHashSet<String>();
+        if (registry.hasTool(remoteName) && AnalysisToolBindingPolicy.bound(skill, remoteName, catalog))
+            names.add(remoteName);
+        catalog.registeredTools().stream().filter(item -> remoteName.equals(item.remoteToolName()))
+            .map(McpToolCatalogQueryPort.RegisteredTool::localToolName)
+            .filter(name -> registry.hasTool(name) && AnalysisToolBindingPolicy.bound(skill, name, catalog))
+            .forEach(names::add);
+        return names.size() == 1 ? java.util.Optional.of(names.iterator().next()) : java.util.Optional.empty();
+    }
+
+
     @Override public boolean available(AnalysisContext context) {
         return context != null && ((context.attributes().get(TOOL_NAME) instanceof String name && !name.isBlank())
             || context.attributes().get(TOOL_CALLS) instanceof List<?> calls && !calls.isEmpty());

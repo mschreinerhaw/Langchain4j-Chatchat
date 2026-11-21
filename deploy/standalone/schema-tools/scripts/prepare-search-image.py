@@ -16,6 +16,9 @@ for name in ['analysis-icu','analysis-ik','analysis-pinyin']:
 # Provision a fresh dictionary configuration; never copy a running environment's XML/settings.
 ik=args.output/'config/analysis-ik';ik.mkdir(parents=True)
 for file in (args.output/'plugins/analysis-ik').glob('*.dic'):shutil.copy2(file,ik/file.name)
+for file in (args.plugins/'analysis-ik/config').glob('*.dic'):
+ if not file.is_file() or file.is_symlink():raise ValueError('Invalid IK dictionary artifact')
+ target=ik/file.name;shutil.copy2(file,target);checksums[str(target.relative_to(args.output))]=hashlib.sha256(target.read_bytes()).hexdigest()
 (ik/'IKAnalyzer.cfg.xml').write_text('<?xml version="1.0" encoding="UTF-8"?>\n<!DOCTYPE properties SYSTEM "http://java.sun.com/dtd/properties.dtd">\n<properties><comment>Offline vendor dictionaries</comment><entry key="ext_dict">extra_main.dic;extra_single_word.dic</entry><entry key="ext_stopwords">extra_stopword.dic</entry></properties>\n',encoding='ascii')
 (args.output/'Dockerfile').write_text('FROM '+args.base_image+'\nCOPY --chown=1000:1000 plugins/ /usr/share/opensearch/plugins/\nCOPY --chown=1000:1000 config/analysis-ik/ /usr/share/opensearch/config/analysis-ik/\n',encoding='ascii')
 (args.output/'artifact-checksums.json').write_text(json.dumps(checksums,indent=2),encoding='ascii')

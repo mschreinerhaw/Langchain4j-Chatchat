@@ -129,12 +129,12 @@ public class SkillCatalogService {
     @Transactional(readOnly = true)
     public synchronized SkillDefinition resolve(String skillId) {
         if (skillId == null || skillId.isBlank()) {
-            return findDefaultAgentOrGeneralOrDefault();
+            return resolveDefaultAgent();
         }
         String id = skillId.trim().toLowerCase(Locale.ROOT);
         return repository.findById(id)
             .map(entity -> releasedOrMutable(id, entity))
-            .orElseGet(this::findDefaultAgentOrGeneralOrDefault);
+            .orElseGet(this::resolveDefaultAgent);
     }
 
     private SkillDefinition releasedOrMutable(String id, SkillConfigEntity entity) {
@@ -810,27 +810,21 @@ public class SkillCatalogService {
         return repository.findByDefaultAgentTrue().isEmpty();
     }
 
-    /**
-     * Finds the general or default.
-     *
-     * @return the matching general or default
-     */
-    private SkillDefinition findDefaultAgentOrGeneralOrDefault() {
-        List<SkillConfigEntity> defaultAgents = repository.findByDefaultAgentTrue();
-        if (!defaultAgents.isEmpty()) {
-            return defaultAgents.stream()
-                .map(this::toDefinition)
-                .sorted(Comparator.comparing(SkillDefinition::label, String.CASE_INSENSITIVE_ORDER))
-                .findFirst()
-                .orElseThrow(() -> new IllegalStateException("No skill is registered"));
-        }
-        return repository.findById(DEFAULT_SKILL_ID)
-            .map(this::toDefinition)
-            .orElseGet(() -> repository.findAll().stream()
-                .map(this::toDefinition)
-                .sorted(Comparator.comparing(SkillDefinition::label, String.CASE_INSENSITIVE_ORDER))
-                .findFirst()
-                .orElseThrow(() -> new IllegalStateException("No skill is registered")));
+    private SkillDefinition resolveDefaultAgent() {
+        Comparator<SkillDefinition> byLabel = Comparator.comparing(SkillDefinition::label, String.CASE_INSENSITIVE_ORDER);
+        return repository.findByDefaultAgentTrue().stream().map(this::toDefinition).min(byLabel)
+            .or(() -> repository.findById(DEFAULT_SKILL_ID).map(this::toDefinition))
+            .or(() -> repository.findAll().stream().map(this::toDefinition).min(byLabel))
+            .orElseGet(this::generalFallback);
+    }
+
+    /** Keeps ordinary conversations available before any business Agent is configured. */
+    private SkillDefinition generalFallback() {
+        SkillConfigEntity fallback = new SkillConfigEntity();
+        fallback.setId(DEFAULT_SKILL_ID);
+        fallback.setLabel("通用助手");
+        fallback.setDefaultAgent(true);
+        return toDefinition(fallback);
     }
 
     /**

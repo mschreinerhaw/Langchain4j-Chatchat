@@ -31,6 +31,25 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 class SkillCatalogServiceTest {
+    @Test
+    void resolvesGeneralConversationWithoutRegisteredAgentsOrToolBindings() {
+        SkillConfigRepository repository = mock(SkillConfigRepository.class);
+        SkillCatalogService service = new SkillCatalogService(repository, mock(SkillConfigVersionRepository.class),
+            new ObjectMapper(), mock(JdbcTemplate.class), summaryContractService());
+
+        SkillDefinition fallback = service.resolve(null);
+
+        assertThat(fallback.id()).isEqualTo("general");
+        assertThat(fallback.defaultMode()).isEqualTo("agent_chat");
+        assertThat(fallback.boundMcpToolNames()).isEmpty();
+        assertThat(fallback.boundMcpServiceIds()).isEmpty();
+        assertThat(fallback.toolConfigs()).isEmpty();
+        assertThat(service.resolve("general")).isEqualTo(fallback);
+        assertThat(service.isPublished("general")).isFalse();
+        assertThat(service.list()).isEmpty();
+        verify(repository, never()).save(any(SkillConfigEntity.class));
+    }
+
     @Test void resourcePolicySurvivesRealCatalogNormalizationSaveReloadAndRevocationForBothModes() {
         for(String resourceId:List.of("financial_news","internet_search"))for(String mode:List.of("role_chat","agent_chat")) {
             var stored=new java.util.concurrent.atomic.AtomicReference<SkillConfigEntity>();var repository=mock(SkillConfigRepository.class);

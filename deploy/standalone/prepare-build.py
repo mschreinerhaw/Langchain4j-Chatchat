@@ -14,6 +14,10 @@ if r!=here:
  shutil.copytree(here/'assets',r/'assets',dirs_exist_ok=True);shutil.copytree(here/'schema-tools',r/'schema-tools',dirs_exist_ok=True)
  for file in ['installer.py','Dockerfile.installer','Dockerfile.daemon','Dockerfile.gateway','daemon-entrypoint.sh','.dockerignore']:shutil.copy2(here/file,r/file)
 shutil.copytree(source/'chatchat-api/src/main/resources/coding-monitor',r/'assets/coding-monitor',dirs_exist_ok=True)
+runtime_assets=r/'assets/runtime-assets'
+runtime_assets.mkdir(exist_ok=True)
+for migration in ['V20261021_01__runtime_user_assets.sql','V20261021_02__runtime_asset_knowledge_jobs.sql','V20261021_03__runtime_user_asset_folders.sql']:
+ shutil.copy2(source/'database/migration/postgresql'/migration,runtime_assets/migration)
 shutil.copy2(a.frontend_source/'seccomp_profile.json',r/'assets/frontend-seccomp.json')
 def run(cmd,**kwargs):return subprocess.run([str(x) for x in cmd],check=True,**kwargs)
 def inspect(ref):return json.loads(subprocess.check_output(['docker','image','inspect',ref]))[0]
@@ -86,7 +90,8 @@ http {
   location ^~ /internal/ { return 404; }
   location ^~ /actuator/ { return 404; }
   location = /monitor { return 302 /monitor/; }
-  location = /monitor/ { alias /srv/coding-monitor/index.html; default_type text/html; }
+  location = /monitor/ { rewrite ^ /monitor/index.html last; }
+  location = /monitor/index.html { alias /srv/coding-monitor/index.html; default_type text/html; }
   location = /monitor/app.js { alias /srv/coding-monitor/app.js; }
   location = /monitor/style.css { alias /srv/coding-monitor/style.css; }
   location / { proxy_pass http://$api; }

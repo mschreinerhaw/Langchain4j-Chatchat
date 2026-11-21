@@ -9,12 +9,15 @@ spec=importlib.util.spec_from_file_location('installer',Path(__file__).resolve()
 m=importlib.util.module_from_spec(spec);spec.loader.exec_module(m)
 
 class InstallerTests(unittest.TestCase):
-    def render(self,directory):
+    def render(self,directory,portable=False,status='PREPARING'):
         app=m.Installation.__new__(m.Installation)
         app.host=PurePosixPath('/data/runtime-os-test');app.project='test-runtime';app.image='sha256:'+'a'*64
         app.secret={k:'generated-'+k for k in ['postgresPassword','apiDatabasePassword','mcpDatabasePassword','newsDatabasePassword','temporalPassword','redisPassword','searchPassword','codingSecret','frontendToken']}
-        app.state={'httpPort':19400,'mcpPort':19401};app.compose=Path(directory)/'compose.json'
+        app.state={'httpPort':19400,'mcpPort':19401,'status':status};app.compose=Path(directory)/'compose.json'
         app.images={k:{'reference':'test-'+k+':1','imageId':'sha256:'+'b'*64} for k in ['postgres','redis','search','silo','temporal','api','mcp','news','node','studio','gateway','frontend','daemon']}
+        if portable:
+            for role in ['executor','recovery','task']:
+                app.images[role]={'reference':'test-'+role+':1','imageId':'sha256:'+'c'*64}
         (Path(directory)/'data').mkdir()
         with patch.object(m,'ROOT',Path(directory)):app.render()
         return json.loads(app.compose.read_text())
@@ -67,5 +70,33 @@ class InstallerTests(unittest.TestCase):
             self.assertEqual(json.loads(path.read_text())['secret'],'generated-at-install-time')
             # Mode checks are meaningful on the Linux build/acceptance host.
             if m.os.name!='nt':self.assertEqual(path.stat().st_mode & 0o777,0o600)
+
+    def test_portable_compose_pins_each_role_and_uses_published_process_bindings(self):
+        with tempfile.TemporaryDirectory() as tmp:config=self.render(tmp,portable=True)
+        services=config['services']
+        self.assertEqual(services['node1']['image'],'test-node:1')
+        self.assertEqual(services['recovery1']['image'],'test-recovery:1')
+        self.assertEqual(services['executor-daemon']['network_mode'],'none')
+        self.assertEqual(services['executor-daemon']['environment']['RUNTIME_OS_NATIVE_DAEMON_ROOT'],
+                         '/data/runtime-os-test/d/strict')
+        for role in ['api','worker1','worker2']:
+            self.assertEqual(services[role]['environment']['CHATCHAT_CODING_ANALYSIS_ENABLED'],'true')
+            self.assertEqual(services[role]['environment']['CHATCHAT_CODING_CLINE_BACKEND'],'native')
+        for role in ['executor1','executor2','studio-executor']:
+            self.assertEqual(services[role]['image'],'test-executor:1')
+            self.assertEqual(services[role]['environment']['CLINE_EXECUTOR_PUBLISHED_DAEMON_BINDINGS'],'1')
+            self.assertEqual(services[role]['depends_on']['executor-daemon']['condition'],'service_healthy')
+        self.assertIn('seccomp=bootstrap/frontend-seccomp.json',services['frontend-worker']['security_opt'])
+
+    def test_portable_application_requires_bootstrap_and_all_services_have_readiness_probes(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            pending=self.render(tmp,portable=True)['services']
+        self.assertEqual(pending['gateway']['profiles'],['application'])
+        self.assertEqual(pending['executor1']['profiles'],['application'])
+        self.assertNotIn('profiles',pending['postgresql'])
+        with tempfile.TemporaryDirectory() as tmp:
+            staged=self.render(tmp,portable=True,status='BOOTSTRAPPED')['services']
+        self.assertTrue(all('profiles' not in service and 'healthcheck' in service for service in staged.values()))
+        self.assertEqual(staged['gateway']['depends_on']['api']['condition'],'service_healthy')
 
 if __name__=='__main__':unittest.main()

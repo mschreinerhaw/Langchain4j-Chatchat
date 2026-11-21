@@ -1,5 +1,16 @@
 # 开发者构建交付镜像
 
+本机已有编译好的 API、MCP 和 News Spring Boot JAR 时，可用 `build-local-portable.py` 组装可移植交付目录。JAR 使用当前源码编译，并将 API 和 MCP 前端构建产物打入对应的 JAR。准备好 Docker Desktop 的 Linux amd64 模式、本机 Runtime OS 1.3.2 基础镜像和解压后的 OpenSearch 2.19.1 ICU、IK、拼音插件。构建中间文件放在新的工作目录。
+
+```bash
+python deploy/standalone/build-local-portable.py \
+  --work-dir ../runtime-os-local-build \
+  --plugins /path/to/opensearch-plugins \
+  --output ../runtime-os-1.3.2
+```
+
+生成的 `offline-images/` 和 `install-config/` 可以一起复制到目标 Linux 主机。部署前校验 `SHA256SUMS`，再按包内说明安装。
+
 此文档供构建人员使用；客户部署仅使用交付的镜像包与 Docker。
 
 1. 在构建机由当前源码编译 API、MCP、News、Native 镜像，完成各自验证。

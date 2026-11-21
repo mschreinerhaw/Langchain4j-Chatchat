@@ -105,6 +105,8 @@ class Installation:
     def name(self,role):return self.project+'-'+role
     def image_ref(self,role):return self.images[role]['reference']
     def image_id(self,role):return self.images[role]['imageId']
+    def execution_image(self,role):return role if role in self.images else 'node'
+    def portable_daemon(self):return 'executor' in self.images and 'task' in self.images
 
     def check_images(self):
         for role,entry in self.images.items():
@@ -114,11 +116,13 @@ class Installation:
         if output(['docker','compose','version','--short'])=='':raise RuntimeError('Installer Compose tool is unavailable')
 
     def prepare(self):
-        for name in ['bootstrap','config','certs','data/postgresql','data/temporal','data/opensearch','data/redis','data/silo','data/api','data/mcp','data/news','data/frontend','n','d/strict']:
+        for name in ['bootstrap','config','certs','data/postgresql','data/temporal','data/opensearch','data/redis','data/silo','data/api','data/mcp','data/news','data/worker1','data/worker2','data/frontend','n','d/strict']:
             (ROOT/name).mkdir(parents=True,exist_ok=True)
         for source in ASSETS.rglob('*'):
             if source.is_file():
                 target=ROOT/'bootstrap'/source.relative_to(ASSETS);target.parent.mkdir(parents=True,exist_ok=True);shutil.copy2(source,target)
+                # These are release templates, distinct from the generated secrets under config and certs.
+                target.chmod(0o644)
         env={'CRYPTO_KEY':self.secret['cryptoKey'],'INTERNAL_SECRET':self.secret['internalSecret'],'CODING_SECRET':self.secret['codingSecret'],
              'MONITOR_SECRET':self.secret['monitorSecret'],'HOST_MAC':self.state['hostMac'],'OS_ADMIN_PASSWORD':self.state['adminPassword']}
         args=['docker','run','--rm','--pull=never','--network=none']
@@ -147,6 +151,21 @@ class Installation:
         write_json(self.state_path,self.state)
         self.connection()
         self.daemon_config()
+        self.java_permissions()
+
+    def java_permissions(self):
+        # These exact images run as 10001:10001. Give them access to the
+        # mounted files they share, without exposing install credentials to other users.
+        for role in ('api','mcp','news','worker1','worker2'):
+            directory=ROOT/'data'/role
+            os.chown(directory,10001,10001);directory.chmod(0o750)
+        for name in ('config','config/api','config/mcp','config/news'):
+            directory=ROOT/name
+            os.chown(directory,0,10001);directory.chmod(0o750)
+        for name in ('crypto-key','native-connection.json','silo-user','silo-password',
+                     'api/application.properties','mcp/application.properties','news/application.properties'):
+            path=ROOT/'config'/name
+            os.chown(path,0,10001);path.chmod(0o640)
 
     def connection(self):
         nodes={f'cline-worker-{i}':{'endpoint':f'http://127.0.0.1:{18451+i*10}','recoveryEndpoint':f'http://127.0.0.1:{18452+i*10}'} for i in [1,2]}
@@ -166,6 +185,8 @@ class Installation:
             value={'image':self.image_ref(image or role),'pull_policy':'never','container_name':self.name(role),'restart':'unless-stopped','logging':{'driver':'json-file','options':{'max-size':'20m','max-file':'3'}},'networks':['control']}
             value.update(kwargs);s[role]=value;return value
         def health(test,seconds=5):return {'test':['CMD-SHELL',test],'interval':str(seconds)+'s','timeout':'5s','retries':60,'start_period':'15s'}
+        def node_health(script):
+            return {'test':['CMD','node','-e',script],'interval':'5s','timeout':'4s','retries':20,'start_period':'10s'}
         svc('postgresql','postgres',environment={'POSTGRES_USER':'postgres','POSTGRES_PASSWORD':sec['postgresPassword']},volumes=[self.bind('data/postgresql','/var/lib/postgresql')],mem_limit='768m',healthcheck=health('pg_isready -U postgres'))
         svc('temporal-db','postgres',environment={'POSTGRES_USER':'temporal','POSTGRES_PASSWORD':sec['temporalPassword']},volumes=[self.bind('data/temporal','/var/lib/postgresql')],mem_limit='384m',healthcheck=health('pg_isready -U temporal'))
         svc('temporal',environment={'DB':'postgres12','DB_PORT':'5432','POSTGRES_USER':'temporal','POSTGRES_PWD':sec['temporalPassword'],'POSTGRES_SEEDS':'temporal-db','BIND_ON_IP':'0.0.0.0','DEFAULT_NAMESPACE':'runtime-native','NUM_HISTORY_SHARDS':'16','SKIP_DB_CREATE':'false','SKIP_SCHEMA_SETUP':'false'},depends_on={'temporal-db':{'condition':'service_healthy'}},mem_limit='1g',healthcheck=health('nc -z 127.0.0.1 7233'))
@@ -188,6 +209,8 @@ class Installation:
         news['SPRING_APPLICATION_JSON']=json.dumps({'chatchat.runtime.news.temporal.enabled':True,'chatchat.runtime.news.temporal.server-mode':'external','chatchat.runtime.news.temporal.target':'temporal:7233','chatchat.runtime.news.temporal.namespace':'runtime-native'})
         mcp=java('mcp',8090);mcp.update({'CHATCHAT_MCP_LUCENE_OPENSEARCH_URL':'https://opensearch:9200','CHATCHAT_MCP_LUCENE_OPENSEARCH_USERNAME':'admin','CHATCHAT_MCP_LUCENE_OPENSEARCH_PASSWORD':sec['searchPassword'],'CHATCHAT_MCP_LUCENE_OPENSEARCH_INSECURESSL':'false','CHATCHAT_MCP_AUTHORIZATION_API_BASE_URL':'http://api:8080','CHATCHAT_MCP_GRPC_PORT':'9091','CHATCHAT_MCP_NEWS_RUNTIME_BASE_URL':'http://news:8091','CHATCHAT_TOOLS_DATABASEQUERY_DRIVERLIBPATH':'/srv/app/lib/drivers'})
         api=java('api',8080);api.update(search);api.update({'CHATCHAT_MCP_CENTER_BASE_URL':'http://mcp:8090','CHATCHAT_MCP_GRPC_HOST':'mcp','CHATCHAT_MCP_GRPC_PORT':'9091','CHATCHAT_CODING_ENABLED':'true','CHATCHAT_CODING_CLINE_ENABLED':'true','CHATCHAT_CODING_CLINE_NODE_URL':'http://127.0.0.1:8791','CHATCHAT_CODING_CLINE_SHARED_SECRET_FILE':'/opt/runtime-config/coding-secret','CHATCHAT_RUNTIME_CODING_UNIFIED_ENABLED':'true','CHATCHAT_RUNTIME_CODING_UNIFIED_CONFIG_FILE':'/opt/runtime-config/native-connection.json','CHATCHAT_RUNTIME_CONTROL_PLANE_JAVA_SKILLS_ENABLED':'false','CHATCHAT_CHAT_DETAIL_STORE_PATH':'/srv/app/data/chat-rocksdb','CHATCHAT_UI_ARTIFACT_STORAGE_PATH':'/srv/app/data/ui-artifacts','CHATCHAT_ASSETS_ENABLED':'true','CHATCHAT_ASSETS_ENDPOINT':'http://silo:9000','CHATCHAT_ASSETS_ACCESSKEYFILE':'/opt/runtime-config/silo-user','CHATCHAT_ASSETS_SECRETKEYFILE':'/opt/runtime-config/silo-password','CHATCHAT_ASSETS_BUCKET':'runtime-assets','CHATCHAT_TOOLS_DATABASEQUERY_DRIVERLIBPATH':'/srv/app/lib/drivers'})
+        if self.portable_daemon():
+            api.update(CHATCHAT_CODING_ANALYSIS_ENABLED='true', CHATCHAT_CODING_CLINE_BACKEND='native')
         api['SPRING_APPLICATION_JSON']=json.dumps({'chatchat.runtime.coding.scheduler':'temporal','chatchat.runtime.coding.temporal.target':'temporal:7233','chatchat.runtime.coding.temporal.namespace':'runtime-native','chatchat.runtime.coding.temporal.task-queue':'runtime-native-analysis-v1','chatchat.runtime.coding.temporal.worker-enabled':False,'chatchat.runtime.coding.temporal.tls-enabled':False,
             'chatchat.assets.enabled':True,'chatchat.assets.endpoint':'http://silo:9000','chatchat.assets.bucket':'runtime-assets','chatchat.assets.access-key-file':'/opt/runtime-config/silo-user','chatchat.assets.secret-key-file':'/opt/runtime-config/silo-password'})
         for role,env in [('news',news),('mcp',mcp),('api',api)]:
@@ -195,25 +218,55 @@ class Installation:
             s[role]['volumes'].append(self.bind('bootstrap/service-healthcheck.sh','/opt/runtime-health.sh',True))
         svc('frontend-resource-hub','frontend',command=['node','server.mjs'],environment={'HUB_TOKEN':sec['frontendToken'],'PUBLIC_URL':'http://frontend-resource-hub:8080'},networks=['frontend','control'],mem_limit='256m',healthcheck={'test':['CMD','node','-e',"fetch('http://localhost:8080/api/v1/health').then(r=>process.exit(r.ok?0:1))"],'interval':'10s','timeout':'5s','retries':30})
         svc('frontend-worker','frontend',command=['node','worker.mjs'],environment={'HUB_TOKEN':sec['frontendToken'],'HUB_ORIGIN':'http://frontend-resource-hub:8080'},networks=['frontend'],shm_size='256m',tmpfs=['/tmp:size=256m','/app/jobs:uid=1001,gid=1001,size=768m'],mem_limit='1536m',security_opt=['no-new-privileges:true','seccomp='+str(ROOT/'bootstrap/frontend-seccomp.json')],pids_limit=256,healthcheck={'test':['CMD','node','-e',"fetch('http://localhost:8081/health').then(r=>process.exit(r.ok?0:1))"],'interval':'10s','timeout':'5s','retries':30})
+        if self.portable_daemon():
+            s['frontend-worker']['security_opt'][-1]='seccomp=bootstrap/frontend-seccomp.json'
         daemon=svc('executor-daemon','daemon',environment={'RUNTIME_DAEMON_ROOT':self.hp('d/strict')},network_mode='none',privileged=True,volumes=[self.bind('d/strict',self.hp('d/strict')),self.bind('n',self.hp('n'))],mem_limit='4g',pids_limit=2048)
         daemon.pop('networks')
+        if self.portable_daemon():
+            daemon['environment']={'RUNTIME_OS_NATIVE_DAEMON_ROOT':self.hp('d/strict')}
+            daemon.update(init=True,cgroup='host',stop_grace_period='65s')
+            daemon['volumes'].append({'type':'bind','source':'/proc','target':'/host/proc','read_only':True,'bind':{'create_host_path':False}})
+            daemon['healthcheck']={'test':['CMD','python3','/usr/local/lib/runtime-os/supervise.py','health'],'interval':'5s','timeout':'4s','retries':18,'start_period':'10s'}
         node_script='/opt/runtime-os/coding-node/service/src/'
         for i in [1,2]:
             for role,script in [('node','governance-server'),('recovery','recovery-server'),('executor','worker-executor')]:
                 name=role+str(i);env={'CLINE_GOVERNANCE_CONFIG':self.hp(f'n/{i}/gateway.json'),'CLINE_RECOVERY_PORT':str(18452+i*10)} if role!='executor' else {'CLINE_EXECUTOR_CONFIG':self.hp(f'n/{i}/executor.json')}
-                value=svc(name,'node',user='0:0',entrypoint=['node',node_script+script+'.mjs'],environment=env,network_mode='service:api',volumes=[self.bind('n',self.hp('n'))],mem_limit='384m',security_opt=['no-new-privileges:true'])
+                value=svc(name,self.execution_image(role),user='0:0',entrypoint=['node',node_script+script+'.mjs'],environment=env,network_mode='service:api',volumes=[self.bind('n',self.hp('n'))],mem_limit='384m',security_opt=['no-new-privileges:true'])
                 value.pop('networks')
                 if role=='executor':value.update(pid='host',cap_add=['SYS_PTRACE']);value['volumes'].append(self.bind('d/strict',self.hp('d/strict'),True))
+                if role=='executor' and self.portable_daemon():
+                    env['CLINE_EXECUTOR_PUBLISHED_DAEMON_BINDINGS']='1'
+                    value['depends_on']={'executor-daemon':{'condition':'service_healthy'}}
+                if self.portable_daemon():
+                    if role=='executor':
+                        value['healthcheck']=node_health("let c=require(process.env.CLINE_EXECUTOR_CONFIG);require('http').get({socketPath:c.socketPath,path:'/health/live'},r=>process.exit(r.statusCode===200?0:1)).on('error',()=>process.exit(1))")
+                    elif role=='recovery':
+                        value['healthcheck']=node_health("require('net').connect(Number(process.env.CLINE_RECOVERY_PORT),'127.0.0.1').on('connect',()=>process.exit(0)).on('error',()=>process.exit(1))")
+                    else:
+                        value['healthcheck']=node_health(f"fetch('http://127.0.0.1:{18451+i*10}/health/live').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))")
             worker=dict(s['api']);worker['environment']=dict(api);worker['volumes']=[self.bind('config','/opt/runtime-config',True),self.bind(f'data/worker{i}','/srv/app/data'),self.bind('bootstrap/service-healthcheck.sh','/opt/runtime-health.sh',True)]
             (ROOT/f'data/worker{i}').mkdir(exist_ok=True)
             worker['container_name']=self.name('worker'+str(i));worker['network_mode']='service:api';worker.pop('networks');worker.pop('healthcheck',None)
             worker['environment']['SERVER_PORT']=str(18080+i)
+            if self.portable_daemon():
+                worker['healthcheck']=health(f'bash /opt/runtime-health.sh {18080+i} "" /api/v1/enterprise/auth/me')
             properties=json.loads(api['SPRING_APPLICATION_JSON']);properties.update({'chatchat.runtime.coding.temporal.worker-enabled':True,'chatchat.runtime.coding.temporal.node-id':f'cline-worker-{i}','chatchat.runtime.coding.temporal.max-concurrent-tasks':1});worker['environment']['SPRING_APPLICATION_JSON']=json.dumps(properties)
             s['worker'+str(i)]=worker
         studio=svc('studio','studio',user='0:0',entrypoint=['node',node_script+'business-server.mjs'],environment={'CLINE_BUSINESS_CONFIG':self.hp('n/studio.json')},network_mode='service:api',volumes=[self.bind('n',self.hp('n'))],mem_limit='512m');studio.pop('networks')
+        if self.portable_daemon():
+            studio['healthcheck']=node_health("let c=require(process.env.CLINE_BUSINESS_CONFIG);fetch('http://127.0.0.1:'+c.port+'/healthz',{headers:{Authorization:'Bearer '+c.secret}}).then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))")
         studio_executor=copy.deepcopy(s['executor1']);studio_executor['container_name']=self.name('studio-executor');studio_executor['environment']={'CLINE_EXECUTOR_CONFIG':self.hp('n/studio-executor.json')};s['studio-executor']=studio_executor
+        if self.portable_daemon():studio_executor['environment']['CLINE_EXECUTOR_PUBLISHED_DAEMON_BINDINGS']='1'
         svc('gateway',user='101:101',read_only=True,tmpfs=['/tmp:size=64m'],cap_drop=['ALL'],security_opt=['no-new-privileges:true'],ports=[str(self.state['httpPort'])+':8080',str(self.state['mcpPort'])+':8090'],mem_limit='128m',networks=['control','egress'],healthcheck=health("curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:8080/api/v1/enterprise/auth/me | grep -qx 401"))
         manager=svc('manager','api',entrypoint=['python3','/opt/product/installer.py','supervise'],volumes=[self.bind('', '/install'),{'type':'bind','source':'/var/run/docker.sock','target':'/var/run/docker.sock'}],mem_limit='256m');manager['image']=self.image
+        if self.portable_daemon():
+            s['gateway']['volumes']=[self.bind('bootstrap/public-gateway.conf','/etc/nginx/nginx.conf',True),self.bind('bootstrap/coding-monitor','/srv/coding-monitor',True)]
+            s['gateway']['depends_on']={role:{'condition':'service_healthy'} for role in ('api','mcp')}
+            manager['healthcheck']=health('test -s /install/daemon-binding.json')
+            if self.state.get('status') not in ('BOOTSTRAPPED','READY'):
+                foundation={'postgresql','temporal-db','redis','opensearch','silo','executor-daemon'}
+                for role,service in s.items():
+                    if role not in foundation:service['profiles']=['application']
         self.services=s
         write_json(self.compose,{'name':self.project,'services':s,'networks':{'control':{'internal':True},'frontend':{'internal':True},'egress':{}}})
 
@@ -221,14 +274,17 @@ class Installation:
 
     def wait(self,role,timeout=240):
         deadline=time.monotonic()+timeout
+        last='not found'
         while time.monotonic()<deadline:
             try:
                 c=inspect(self.name(role));state=c['State']
-                if state['Running'] and state.get('Health',{}).get('Status','healthy')=='healthy':return
-                if not state['Running'] and c.get('RestartCount',0)>=3:raise RuntimeError(role+' repeatedly exited; inspect its logs')
+                if state['Running'] and not state.get('Restarting') and state.get('Health',{}).get('Status','healthy')=='healthy':return
+                restarts=c.get('RestartCount',0)
+                last=f"{state['Status']}, health={state.get('Health',{}).get('Status','unavailable')}, exit={state.get('ExitCode','?')}, restarts={restarts}"
+                if state.get('Restarting') and restarts>=3:break
             except subprocess.CalledProcessError:pass
             time.sleep(3)
-        raise RuntimeError(role+' did not become healthy; use the installer logs command')
+        raise RuntimeError(f"{role} did not become healthy ({last}); inspect docker logs {self.name(role)}")
 
     def schema(self):
         args=['docker','run','--rm','--pull=never','--network',self.project+'_control','--entrypoint','bash',
@@ -262,9 +318,10 @@ class Installation:
         if daemon['DockerRootDir']!=self.hp('d/strict/data'):raise RuntimeError('Unexpected private executor daemon root')
         if not all(daemon.get(k) for k in ['MemoryLimit','CpuCfsQuota','PidsLimit']):raise RuntimeError('Docker worker resource enforcement is unavailable')
         # Import the worker from the already loaded product image, without any registry access.
-        worker=self.image_id('node')
+        task_role=self.execution_image('task')
+        worker=self.image_id(task_role)
         if subprocess.run(['docker','--host','unix://'+local_socket,'image','inspect',worker],stdout=subprocess.DEVNULL,stderr=subprocess.DEVNULL).returncode:
-            save=subprocess.Popen(['docker','image','save',self.image_ref('node')],stdout=subprocess.PIPE)
+            save=subprocess.Popen(['docker','image','save',self.image_ref(task_role)],stdout=subprocess.PIPE)
             load=subprocess.run(['docker','--host','unix://'+local_socket,'image','load'],stdin=save.stdout,check=False)
             save.stdout.close()
             if save.wait() or load.returncode:raise RuntimeError('Offline worker image import failed')
@@ -314,6 +371,7 @@ class Installation:
         self.up('mcp');self.wait('mcp')
         self.up('api');self.wait('api')
         self.configure_native()
+        self.mark_bootstrapped()
         self.up('frontend-resource-hub','frontend-worker','executor1','executor2','studio-executor','recovery1','recovery2','node1','node2','studio','worker1','worker2','gateway')
         self.wait('frontend-resource-hub');self.wait('frontend-worker')
         self.wait('gateway')
@@ -324,6 +382,35 @@ class Installation:
         if initial:print('Administrator: admin\nInitial password: '+self.state['adminPassword'])
         else:print('Existing administrator credentials and persistent data retained.')
         print('Persistent installation directory: '+str(self.host))
+
+    def prepare_compose(self):
+        self.check_images();self.prepare();self.render()
+        print('Generated fresh Compose configuration at '+str(self.host/'compose.json'))
+
+    def bootstrap_compose(self):
+        self.prepare()
+        for role in ['postgresql','redis','opensearch','silo','executor-daemon']:self.wait(role)
+        self.schema();self.search_security();self.silo()
+        self.up('temporal');self.wait('temporal')
+        self.up('news');self.wait('news')
+        self.up('mcp');self.wait('mcp')
+        self.up('api');self.wait('api')
+        self.configure_native()
+        self.mark_bootstrapped()
+
+    def mark_bootstrapped(self):
+        if self.portable_daemon() and self.state.get('status')!='READY':
+            self.state['status']='BOOTSTRAPPED'
+            write_json(self.state_path,self.state)
+            self.render()
+
+    def finalize_compose(self):
+        if self.portable_daemon() and self.state.get('status') not in ('BOOTSTRAPPED','READY'):
+            raise RuntimeError('Complete bootstrap-compose before starting and verifying the application')
+        self.wait('frontend-resource-hub');self.wait('frontend-worker');self.wait('gateway')
+        self.verify()
+        self.state['status']='READY';write_json(self.state_path,self.state)
+        print('Compose installation verified; initial credentials are in the private installation.json.')
 
     def verify(self):
         started=inspect(self.name('news'))['State']['StartedAt']
@@ -356,7 +443,7 @@ class Installation:
         run(['docker','--host',host,'run','--rm','--pull=never','--network=none','--read-only',
             '--cap-drop=ALL','--security-opt','no-new-privileges','--memory','768m','--cpus','1','--pids-limit','128',
             '--tmpfs','/tmp:rw,nosuid,nodev,size=128m','-e','OPENBLAS_NUM_THREADS=1','-e','OMP_NUM_THREADS=1',
-            self.image_id('node'),'bash','-ec',
+            self.image_id(self.execution_image('task')),'bash','-ec',
             'node /opt/runtime-os/coding-node/service/scripts/verify-runtime.mjs /opt/runtime-os/cline/runtime && '
             'node /opt/runtime-os/coding-node/service/docker/verify-native-modules.mjs /opt/runtime-os/cline/runtime && '
             'python /opt/runtime-os/coding-node/service/docker/verify-python-runtime.py'])
@@ -365,6 +452,10 @@ class Installation:
     def supervise(self):
         while True:
             try:
+                if self.portable_daemon():
+                    self.wait('executor-daemon',30)
+                    time.sleep(10)
+                    continue
                 top={'Processes':[line.strip().split(None,1) for line in output(['docker','top',self.name('executor-daemon'),'-eo','pid,args']).splitlines()[1:]]}
                 pids={int(p[0]) for p in top['Processes']}
                 old=read_json(ROOT/'daemon-binding.json')
@@ -404,14 +495,18 @@ def main():
         pid=int(sys.argv[2]);value=Path('/proc')/str(pid)
         print(json.dumps({'pid':pid,'startTicks':(value/'stat').read_text().rsplit(')',1)[1].split()[19]}));return
     if command=='silo-init':silo_init();return
-    app=Installation(allow_new=command in ['install','start'])
+    os.chdir(ROOT)
+    app=Installation(allow_new=command in ['install','start','prepare-compose'])
     if command in ['install','start']:app.install()
+    elif command=='prepare-compose':app.prepare_compose()
+    elif command=='bootstrap-compose':app.bootstrap_compose()
+    elif command=='finalize-compose':app.finalize_compose()
     elif command=='supervise':app.supervise()
     elif command=='stop':run(app.cp('stop'))
     elif command=='status':run(app.cp('ps','-a'))
     elif command=='logs':run(app.cp('logs','--tail','100',*sys.argv[2:]))
     elif command=='verify':app.verify()
-    else:raise RuntimeError('Use install, start, stop, status, logs or verify')
+    else:raise RuntimeError('Use install, start, stop, status, logs, verify, prepare-compose, bootstrap-compose or finalize-compose')
 
 if __name__=='__main__':
     try:main()

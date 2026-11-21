@@ -1,4 +1,5 @@
 ARG NGINX_IMAGE=nginx:1.28-alpine
 FROM ${NGINX_IMAGE}
-COPY assets/public-gateway.conf /etc/nginx/nginx.conf
+COPY --chmod=0644 assets/public-gateway.conf /etc/nginx/nginx.conf
 COPY assets/coding-monitor/ /srv/coding-monitor/
+RUN chmod 0755 /srv/coding-monitor && find /srv/coding-monitor -type f -exec chmod 0644 {} +

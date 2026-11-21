@@ -27,4 +27,10 @@ for item in 'api:live_runtime_api:chatchat-api.sql' 'mcp:live_runtime_mcp:chatch
  psql --single-transaction -v ON_ERROR_STOP=1 -h postgresql -U postgres -d "$database" -f "/opt/ops-config/$filename" "${args[@]}" -c "CREATE TABLE ops_installation_schema(initialized_at timestamptz NOT NULL DEFAULT now()); INSERT INTO ops_installation_schema DEFAULT VALUES;"
  unset PGOPTIONS
 done
+# These additive migrations also apply to databases already initialized above.
+PGOPTIONS='-c role=chatchat_api' psql -X --single-transaction -v ON_ERROR_STOP=1 \
+  -h postgresql -U postgres -d live_runtime_api \
+  -f /opt/ops-config/runtime-assets/V20261021_01__runtime_user_assets.sql \
+  -f /opt/ops-config/runtime-assets/V20261021_02__runtime_asset_knowledge_jobs.sql \
+  -f /opt/ops-config/runtime-assets/V20261021_03__runtime_user_asset_folders.sql
 printf 'Application schemas initialized transactionally.\n'

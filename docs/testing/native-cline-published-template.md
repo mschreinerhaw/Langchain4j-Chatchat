@@ -72,3 +72,5 @@ Java 最终专项 16 项通过，覆盖发布路由、回执持久化、结果�
 真实复验任务 `native-ee1dad5ecec78206ba7a4d967b6ba9757f2f6443f1dbdf376a73df56c0885d70` 交付 4 行并到达 `COMPLETED`。第二个任务 `native-c8980802853c5bd81aeb05b2af584b52c2d251bc5950d37434878deec5ace72c` 先提交错误参数证据，再修正并原样重试。broker 记录一次工具错误和两次成功交付，两次资产 ID 相同。MCP 日志确认该任务只发起了一次真实查询。第二个任务也成功归档了 Python 读取结果。
 
 Runtime 对每次模板工具请求使用可信任务身份，重新核对当前的 Agent 工具授权、发布修订和部署 grant。成功回执重放另从调用者的实时目录复查模板和数据源读取权限，再由 Runtime 读取当前任务的 Silo 资产。参数和回执仅供 Cline 使用，授权变更由 Runtime 管理。
+
+权限复查版 API `aadfe4822` 已在服务器从源码构建部署。任务 `native-350cd791dabd5b7ec637f78e897637d8f13665cf5163f073a00cd34868971abc` 到达 `COMPLETED`，无待核对操作。两次授权交付使用同一 Silo 资产 `fe1d8efcdcf433a4b58a091bdad6fed3f163af246586edb02847e50d8b003694`，MCP 只记录一次查询。脚本重新下载 4 行 Parquet，核对了 Cline 归档结果的行数和哈希。授权范围外的已发布模板仍由 Runtime 返回 HTTP 403。Java 专项 18 项通过，覆盖部署 grant 和在线发布无法覆盖 Runtime 的 Agent 工具拒绝决定。

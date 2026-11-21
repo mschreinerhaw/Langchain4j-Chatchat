@@ -2,7 +2,7 @@
 
 使用 `POST /api/v1/coding/tasks` 启动 Native 任务。调用方提供原始问题、已授权的 `agentId`、`publishedTemplateId` 和稳定的 `requestId`。Runtime 从登录会话取得租户和用户，并从当前部署的 `chatchat.coding.analysis.data-supply.grants` 匹配唯一的模板授权。服务端需要启用该组配置的 `enabled` 和 `cline-template-invocation-enabled`。省略 `publishedTemplateId` 的 Native 请求仍走现有路径。
 
-部署授权绑定租户、用户、Skill、模板、逻辑数据源、环境、允许的参数值和结果列。Skill 必须能通过现有 Runtime 工具授权执行 `sql_template_analysis_execute`。数据源必须显式允许该模板。启动时 Runtime 通过同一受控能力取得参数 Schema。
+部署授权绑定租户、用户、Skill、模板、逻辑数据源、允许的参数值和结果列。Skill 必须已绑定对应的 Studio SQL 发布项。Runtime 在启动和查询时核对发布项及修订，使用发布项的精简输入 Schema 与现有固定 SQL 执行路由。数据源和执行限制由发布项的服务端绑定决定。
 
 ## 工具调用
 

@@ -23,7 +23,6 @@ public class PreauthorizedStructuredDataOperator implements AnalysisCapabilityOp
     public static final String PARAMETERS = "runtime.analysis.dataParameters";
     public static final String SKILL_ID = "runtime.analysis.dataSkillId";
     public static final String TOOL_NAME = "sql_template_analysis_execute";
-    public static final String PUBLISHED_ROUTE = "runtime.analysis.preauthorizedPublishedRoute";
 
     private final RegisteredToolAnalysisOperator tools;
     private final ObjectMapper mapper;
@@ -46,13 +45,8 @@ public class PreauthorizedStructuredDataOperator implements AnalysisCapabilityOp
         Object parameters = context.attributes().getOrDefault(PARAMETERS, Map.of());
         if (template == null || asset == null || env == null || !(parameters instanceof Map<?, ?>))
             return failed("A published template, logical asset and environment are required");
-        String route = TOOL_NAME;
-        if (context.attributes().get(PUBLISHED_ROUTE) instanceof String requested) {
-            route = tools.resolveBoundPublishedTool(context.skillId(), TOOL_NAME).filter(requested::equals).orElse(null);
-            if (route == null) return failed("No matching Skill-bound published SQL template route");
-        }
         AnalysisContext toolContext = context.withAttribute(RegisteredToolAnalysisOperator.TOOL_CALLS, null)
-            .withAttribute(RegisteredToolAnalysisOperator.TOOL_NAME, route)
+            .withAttribute(RegisteredToolAnalysisOperator.TOOL_NAME, TOOL_NAME)
             .withAttribute(RegisteredToolAnalysisOperator.TOOL_ARGUMENTS, Map.of(
                 "templateId", template, "parameters", parameters,
                 "executionContext", Map.of("assetName", asset, "env", env),

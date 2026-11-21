@@ -46,6 +46,16 @@ test('native Silo grant requires an explicitly enabled Python Executor',()=>{
  assert.throws(()=>taskGrant(token,{...cfg,workerRuntime:'cline-python311'}),{status:403});
  assert.deepEqual(taskGrant(token,{...cfg,workerRuntime:'cline-python311',enableNativeSilo:true}),bound);
 });
+test('Executor admits a published template tool only on a signed Native Runtime grant',()=>{
+ const tenant={...cfg.tenants.alpha,mcp:{authMode:'native-runtime'}};
+ const policy={...cfg,workerRuntime:'cline-python311',enableNativeSilo:true,tenants:{alpha:tenant}};
+ const bound={...contract,version:2,runtimeProfile:'native-python-silo-v1',
+  deliveryBinding:{tenantId:'alpha',taskId:contract.taskId,runId:'run',inputSnapshotVersion:'snapshot'},
+  runtimeTools:['execute_published_template'],toolPermissions:['read_files','runtime__execute_published_template']};
+ assert.deepEqual(taskGrant(signContract(bound,key),policy),bound);
+ assert.throws(()=>taskGrant(signContract({...bound,runtimeTools:[]},key),policy),{status:403});
+ assert.throws(()=>taskGrant(signContract(bound,key),{...policy,tenants:{alpha:{...tenant,mcp:{authMode:'task-grant'}}}}),{status:403});
+});
 test('Runtime-issued Native users are opt-in, tenant bound, and never grant SDK worker access',()=>{
  const policy={...cfg,workerRuntime:'cline-python311',enableNativeSilo:true,tenants:{...cfg.tenants,alpha:{...cfg.tenants.alpha,dynamicUsers:true}}};
  const bound={...contract,userId:'bob',version:2,runtimeProfile:'native-python-silo-v1',deliveryBinding:{tenantId:'alpha',taskId:contract.taskId,runId:'run',inputSnapshotVersion:'snapshot'}};

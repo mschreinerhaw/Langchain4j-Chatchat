@@ -1,4 +1,7 @@
 <template>
+  <div v-if="admin" class="toolbar">
+    <RouterLink to="/deploy" class="button primary">部署应用</RouterLink>
+  </div>
   <div class="summary-grid">
     <article
       v-for="item in summary"
@@ -58,9 +61,6 @@
     </PanelCard>
   </div>
   <PanelCard title="关键应用" description="按应用环境组织服务、配置、资源监控和部署历史">
-    <template #actions>
-      <RouterLink v-if="admin" to="/deploy" class="button primary">部署应用</RouterLink>
-    </template>
     <DataTable :rows="applications" :columns="columns" row-key="key" :page-size="8">
       <template #environment="{ row }">
         <RouterLink :to="detail(row)">{{ row.environment }}</RouterLink>

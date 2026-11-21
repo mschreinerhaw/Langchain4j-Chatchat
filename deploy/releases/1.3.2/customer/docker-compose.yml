@@ -1,0 +1,27 @@
+name: runtime-os-source-production
+include:
+  - path:
+      - ../../../docker/production/compose.yaml
+      - ./production-images-and-storage.yml
+    project_directory: ../../../docker/production
+services:
+  gateway:
+    image: nginx:1.28-alpine
+    pull_policy: never
+    restart: unless-stopped
+    ports:
+      - "${GATEWAY_BIND_ADDRESS:-127.0.0.1}:18100:8080"
+      - "${GATEWAY_BIND_ADDRESS:-127.0.0.1}:18101:8090"
+    volumes:
+      - ../nginx.conf:/etc/nginx/nginx.conf:ro
+      - ../../../../chatchat-api/src/main/resources/coding-monitor:/srv/coding-monitor:ro
+    depends_on:
+      api:
+        condition: service_healthy
+      mcp:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "-Y", "off", "-q", "-O", "/dev/null", "http://127.0.0.1:8080/version.json"]
+      interval: 10s
+      timeout: 4s
+      retries: 12

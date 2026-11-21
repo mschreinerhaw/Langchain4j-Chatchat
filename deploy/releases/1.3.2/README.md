@@ -1,8 +1,12 @@
 # Runtime OS 1.3.2
 
+如收到 `20261121-r3` 可移植镜像或 Deployment Ops 签名包，请使用[可移植安装与授权指南](../../standalone/PORTABLE-INSTALL.md)。
+
 发行版复用生产 Compose 的 PostgreSQL 18、Redis、Silo、OpenSearch 2.19.1 和 Temporal 1.29.7。API、MCP 和 News 等待数据库、OpenSearch 安全初始化和 Temporal namespace。API 容器内存上限 6 GiB，Java 最大堆 4 GiB。网关提供智策、MCP 管理和 Coding 任务监控入口。
 
 ## 在新主机启动
+
+此目录下的 `docker-compose.yml` 用于新装环境。它运行独立 Cline 服务，由 Docker 管理新建命名卷。现网使用下方的生产入口以及专用 Native Executor。
 
 Linux amd64 可从本地镜像包加载镜像。GitHub Release 提供源码和 Compose 配置包，镜像包由本地交付。
 
@@ -55,5 +59,9 @@ docker compose -p runtime-os-release --env-file /opt/runtime-os/releases/1.3.2/p
 /opt/runtime-os/start-production.sh
 docker compose -f /opt/runtime-os/compose.yaml stop -t 90
 ```
+
+[生产存储覆盖配置](../../docker/production/compose.production-storage.yaml) 固定 API、MCP、News、Python 共享数据和 Native 工作目录。Temporal PostgreSQL 和 Redis 使用现有外部卷。业务 PostgreSQL 继续使用 `/data/postgresql/18/docker`，Silo 使用 `/opt/runtime-os-docker-stage/silo/data`，OpenSearch 使用 `/data/opensearch/data`。Native 状态和任务目录分别位于 `/opt/runtime-os/p18-d736e9f/state` 和 `/opt/runtime-os/p18-d736e9f/workers`。存储位置独立于 `production-current` 的版本切换。
+
+生产 Compose 同时管理应用和 Native Coding 运行时。`native-daemon` 容器运行专用 Docker 和 containerd，并发布进程身份供执行器校验。执行器通过私有 Unix socket 创建隔离的任务容器。
 
 在准备新的生产版本时，继续用 `scripts/prepare-production-stage.py` 生成主机专属配置，并按[服务器部署说明](../../docker/production/SERVER-DEPLOYMENT.md)验收。该模式需要部署阶段提供已授权、已匹配宿主机身份的 Native Executor 配置。新主机 Compose 自带 Cline 服务，其模型适配和现网 Native 作业恢复分别验收。

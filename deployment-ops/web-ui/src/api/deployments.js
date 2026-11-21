@@ -19,6 +19,7 @@ export const deploymentsApi = {
         localStorage.removeItem(key);
       }
     }
+    if (job?.status === 'failed') job = null;
     if (!job) {
       job = await post(
         nodePath(node, '/packages/uploads'),
@@ -35,7 +36,7 @@ export const deploymentsApi = {
       );
       onProgress({ offset: job.offset, size: file.size, status: job.status });
     }
-    if (job.status !== 'verifying')
+    if (job.status === 'uploading')
       job = await post(nodePath(node, `/packages/uploads/${job.id}/commit`), {}, { signal });
     return job;
   },

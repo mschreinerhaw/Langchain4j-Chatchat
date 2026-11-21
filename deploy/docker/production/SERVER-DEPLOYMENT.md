@@ -1,5 +1,13 @@
 # 192.168.195.221 源码部署
 
+## Native 执行器启动
+
+生产 Compose 加载 `compose.native-daemon.yaml`。`native-daemon` 容器同时管理私有 Docker 和 containerd，发布进程身份至现有数据目录。执行器镜像应包含进程身份读取逻辑，服务配置设置 `CLINE_EXECUTOR_PUBLISHED_DAEMON_BINDINGS=1`。运行时容器使用特权模式执行嵌套容器所需的挂载和 cgroup 操作，禁用容器网络，仅通过私有 Unix socket 提供接口。每个任务容器另行执行网络隔离、只读根文件系统和 CPU、内存、PID 限额。
+
+在服务器上执行 `TMPDIR=/mnt/disk01 bash deploy/docker/production/native-daemon/build.sh`。脚本用已安装的标准 Docker 发行包中的二进制构建镜像，并打印源文件校验和与镜像 ID。部署后的容器使用镜像内的二进制。生产默认镜像标签为 `runtime-os-native-daemon:26.1.3-el8`。
+
+迁移前备份启动配置和原 systemd 单元，并确认运行中任务已结束。停止旧专用 Docker 和 containerd，再用新 Compose 启动 `native-daemon`。启动成功后核对原 daemon ID、Worker 镜像、已有任务记录和执行器健康，再停用并移出专用 systemd 单元。两个运行时必须依次交接同一数据目录。
+
 本次发布目录为 `/opt/runtime-os/releases/source-20261118-d736e9fdf`。五个应用在服务器从源码构建，构建代理为 `http://192.168.195.249:18118`。源码快照及逐文件 SHA-256 位于发布目录的 `source/`、`source-manifest.json`；构建日志、镜像 ID 位于 `logs/`、`build-summary.json`。
 
 应用入口：平台 `http://192.168.195.221:18100`，MCP 管理端 `http://192.168.195.221:18101`。平台使用提供的管理员账号；MCP 沿用原来独立的管理员凭据。凭据不写入本文档。

@@ -1,9 +1,18 @@
 # Deployment Ops
 
-Native Spring Boot + embedded H2 + modular Vue 3. The platform runs as two local
-systemd processes, independent of Docker, Runtime OS and application databases.
-The required real data mount is `/mnt/disk01`; missing storage prevents startup.
-Stopping or upgrading the platform never stops business workloads.
+Native Spring Boot, embedded H2 and Vue 3 run in a single local JAR. The
+required data mount is `/mnt/disk01`. The console starts independently of
+Docker and business workloads. Business deployments use the local Docker Engine.
+
+```sh
+java -jar deployment-ops.jar
+```
+
+With Java 17, open `http://127.0.0.1:19240` on the target Linux host. Use the
+installation token printed at startup to create the administrator on first use.
+Select **部署应用** to import a signed application ZIP and its publisher
+SHA-256 file, configure the release, review preflight and follow the deployment
+result. The single JAR contains the Web assets and Java executor.
 
 Status and remaining acceptance: [V1 acceptance ledger](docs/V1-REMAINING-WORK.md).
 A candidate build is not a formal V1.0 release.

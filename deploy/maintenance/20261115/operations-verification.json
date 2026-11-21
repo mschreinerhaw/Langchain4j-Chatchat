@@ -1,9 +1,0 @@
-{
-  "unitTestsPassed": true,
-  "serviceStartPlansChecked": 12,
-  "buildAndDeployDryRunPassed": true,
-  "composeFilesUnchanged": true,
-  "existingContainerIdentitiesAndStartTimesUnchanged": true,
-  "containerCount": 20,
-  "newImagePublished": false
-}

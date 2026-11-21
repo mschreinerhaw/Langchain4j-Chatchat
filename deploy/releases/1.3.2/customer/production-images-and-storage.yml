@@ -1,0 +1,104 @@
+services:
+  api:
+    image: chatchat-api:1.3.2
+    pull_policy: never
+    extra_hosts: ["host.docker.internal:host-gateway"]
+    environment:
+      CHATCHAT_CODING_ENABLED: "true"
+      CHATCHAT_CODING_ANALYSIS_ENABLED: ${CUSTOMER_NATIVE_ENABLED:-false}
+      CHATCHAT_CODING_INPUT_FILES_ENABLED: ${CUSTOMER_NATIVE_ENABLED:-false}
+      CHATCHAT_RUNTIME_CODING_UNIFIED_ENABLED: ${CUSTOMER_NATIVE_ENABLED:-false}
+      CHATCHAT_RUNTIME_CODING_UNIFIED_CONFIG_FILE: /srv/app/config/native-coding-connection.json
+      CHATCHAT_ASSETS_ENABLED: ${CUSTOMER_NATIVE_ENABLED:-false}
+      CHATCHAT_ASSETS_KNOWLEDGE_ENABLED: ${CUSTOMER_NATIVE_ENABLED:-false}
+      CHATCHAT_ASSETS_ENDPOINT: http://silo:9000
+      CHATCHAT_ASSETS_BUCKET: runtime-assets
+      CHATCHAT_ASSETS_ACCESS_KEY_FILE: /run/secrets/asset-access-key
+      CHATCHAT_ASSETS_SECRET_KEY_FILE: /run/secrets/asset-secret-key
+    ports: !override
+      - 127.0.0.1:18180:8080
+    volumes:
+      - type: bind
+        source: ${CUSTOMER_API_DATA:-/opt/chatchat-1.0.0-SNAPSHOT/data}
+        target: /srv/app/data
+        bind: &existing
+          create_host_path: false
+      - type: bind
+        source: ${RUNTIME_CONFIG_DIR}/secrets/asset-access-key
+        target: /run/secrets/asset-access-key
+        read_only: true
+        bind: *existing
+      - type: bind
+        source: ${RUNTIME_CONFIG_DIR}/secrets/asset-secret-key
+        target: /run/secrets/asset-secret-key
+        read_only: true
+        bind: *existing
+      - /opt/runtime-os-docker-stage/api/logs:/srv/app/logs
+      - /opt/runtime-os-docker-stage/mcp/data/python-user-data:/srv/shared-coding-input
+  mcp:
+    image: chatchat-mcp-server:1.3.2
+    pull_policy: never
+    ports: !override
+      - 127.0.0.1:18190:8090
+    volumes:
+      - type: bind
+        source: ${CUSTOMER_MCP_DATA:-/opt/chatchat-mcp-server-1.0.0-SNAPSHOT/data}
+        target: /srv/app/data
+        bind: *existing
+      - /opt/runtime-os-docker-stage/mcp/logs:/srv/app/logs
+      - /opt/runtime-os-docker-stage/mcp/data/python-user-data:/opt/runtime-os-docker-stage/mcp/data/python-user-data
+      - /opt/runtime-os-docker-stage/mcp/data/python-assets:/opt/runtime-os-docker-stage/mcp/data/python-assets
+  news:
+    image: chatchat-runtime-news:1.3.2
+    pull_policy: never
+    volumes:
+      - type: bind
+        source: ${CUSTOMER_NEWS_DATA:-/opt/chatchat-runtime-news-1.0.0-SNAPSHOT/data}
+        target: /srv/app/data
+        bind: *existing
+      - /opt/runtime-os-docker-stage/news/logs:/srv/app/logs
+  frontend-resource-hub:
+    image: frontend-resource-hub:1.3.2
+    pull_policy: never
+  frontend-preview-worker:
+    image: frontend-resource-hub:1.3.2
+    pull_policy: never
+    security_opt: !override
+      - no-new-privileges:true
+      - seccomp=${CUSTOMER_FRONTEND_SECCOMP:-../../../../frontend-resource-hub/seccomp_profile.json}
+  cline:
+    image: cline-agent-server:1.3.2
+    pull_policy: never
+    profiles: [standalone-cline]
+  postgresql:
+    environment:
+      PGDATA: /var/lib/postgresql/18/docker
+    volumes:
+      - type: bind
+        source: ${CUSTOMER_POSTGRES_DATA:-/data/postgresql/18/docker}
+        target: /var/lib/postgresql/18/docker
+        bind: *existing
+  silo:
+    ports:
+      - 127.0.0.1:9000:9000
+    volumes:
+      - type: bind
+        source: ${CUSTOMER_SILO_DATA:-/opt/runtime-os-docker-stage/silo/data}
+        target: /data
+        bind: *existing
+  opensearch:
+    volumes:
+      - type: bind
+        source: ${CUSTOMER_OPENSEARCH_DATA:-/data/opensearch/data}
+        target: /usr/share/opensearch/data
+        bind: *existing
+      - type: bind
+        source: ${CUSTOMER_OPENSEARCH_LOGS:-/data/opensearch/logs}
+        target: /usr/share/opensearch/logs
+        bind: *existing
+
+volumes:
+  temporal-postgresql-data:
+    name: runtime-os-source-production_temporal-postgresql-data
+  redis-data:
+    name: runtime-os-source-production_redis-data

@@ -113,6 +113,7 @@ def main():
         service.pop('depends_on', None)
         service['extra_hosts'] = ['silo:127.0.0.1', 'host.docker.internal:172.17.0.1']
         if original != 'node':
+            service['environment']['CLINE_EXECUTOR_PUBLISHED_DAEMON_BINDINGS'] = '1'
             service['volumes'].append('/srv/runtime-os-coding-node-20261110/strict-daemon-3:/srv/runtime-os-coding-node-20261110/strict-daemon-3:ro')
         else:
             service['depends_on'] = {'native-executor': {'condition': 'service_started'}}

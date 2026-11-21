@@ -55,6 +55,9 @@ for group in metadata['stages']:
     previous=group
 for service in services:
     role='postgres' if service in ('postgresql','temporal-db') else 'search' if service=='opensearch' else 'api' if service.startswith('worker') else 'frontend' if service.startswith('frontend-') else 'installer' if service=='manager' else 'node' if service.startswith(('executor1','executor2','studio','recovery','node')) else 'daemon' if service=='executor-daemon' else service
+    if service in ('executor1','executor2','studio-executor') and 'executor' in mapping:role='executor'
+    if service in ('recovery1','recovery2') and 'recovery' in mapping:role='recovery'
+    if service=='studio' and 'studio' in mapping:role='studio'
     actual=metadata['startup'][service];config=image_configs[role]
     entrypoint=actual.get('entrypoint',config.get('Entrypoint') or [])
     command=actual.get('command',[] if 'entrypoint' in actual else config.get('Cmd') or [])

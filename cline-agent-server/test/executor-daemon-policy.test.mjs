@@ -41,3 +41,18 @@ test('default rootless policy preserves strict resource and daemon identity chec
   assert.equal(verifyExecutorDaemon({expectedDaemonId:daemon.ID},rootless).rootless,true);
   assert.throws(()=>verifyExecutorDaemon({expectedDaemonId:daemon.ID},{...rootless,PidsLimit:false}),/enforcement/);
 });
+
+test('published bindings follow a daemon restart and reject stale process identities',()=>{
+  const config={...cfg,usePublishedDaemonBindings:true};
+  let bindings=cfg.dedicatedProcesses;
+  const afterRestart=pid=>pid===30?{...process(20),startTicks:'125'}:process(pid);
+  const check=inspectProcess=>verifyExecutorDaemon(config,daemon,inspect,inspectProcess,path=>{
+    assert.equal(path,anchor+'/run/executor-processes.json');
+    return bindings;
+  });
+  assert.equal(check(process).resourceSupport,true);
+  bindings={...bindings,daemon:{pid:30,startTicks:'125'}};
+  assert.equal(check(afterRestart).resourceSupport,true);
+  bindings={...bindings,daemon:{pid:30,startTicks:'123'}};
+  assert.throws(()=>check(afterRestart),/isolation/);
+});

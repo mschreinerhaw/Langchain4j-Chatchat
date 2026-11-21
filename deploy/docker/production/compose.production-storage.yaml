@@ -1,0 +1,63 @@
+# Mount the existing production data. Missing paths must make startup fail.
+services:
+  api:
+    volumes:
+      - type: bind
+        source: /opt/chatchat-1.0.0-SNAPSHOT/data
+        target: /srv/app/data
+        bind: &existing_directory
+          create_host_path: false
+      - type: bind
+        source: /opt/runtime-os-docker-stage/api/logs
+        target: /srv/app/logs
+        bind: *existing_directory
+      - type: bind
+        source: /opt/runtime-os-docker-stage/mcp/data/python-user-data
+        target: /srv/shared-coding-input
+        bind: *existing_directory
+  mcp:
+    volumes:
+      - type: bind
+        source: /opt/chatchat-mcp-server-1.0.0-SNAPSHOT/data
+        target: /srv/app/data
+        bind: *existing_directory
+      - type: bind
+        source: /opt/runtime-os-docker-stage/mcp/logs
+        target: /srv/app/logs
+        bind: *existing_directory
+      - type: bind
+        source: /opt/runtime-os-docker-stage/mcp/data/python-user-data
+        target: /opt/runtime-os-docker-stage/mcp/data/python-user-data
+        bind: *existing_directory
+      - type: bind
+        source: /opt/runtime-os-docker-stage/mcp/data/python-assets
+        target: /opt/runtime-os-docker-stage/mcp/data/python-assets
+        bind: *existing_directory
+  news:
+    volumes:
+      - type: bind
+        source: /opt/chatchat-runtime-news-1.0.0-SNAPSHOT/data
+        target: /srv/app/data
+        bind: *existing_directory
+      - type: bind
+        source: /opt/runtime-os-docker-stage/news/logs
+        target: /srv/app/logs
+        bind: *existing_directory
+  native-node:
+    volumes:
+      - &native_data
+        type: bind
+        source: /opt/runtime-os/p18-d736e9f
+        target: /opt/runtime-os/p18-d736e9f
+        bind: *existing_directory
+  native-executor:
+    volumes:
+      - *native_data
+
+volumes:
+  temporal-postgresql-data:
+    external: true
+    name: runtime-os-source-production_temporal-postgresql-data
+  redis-data:
+    external: true
+    name: runtime-os-source-production_redis-data

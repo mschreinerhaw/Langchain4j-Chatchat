@@ -1,146 +1,157 @@
 <template>
-  <div class="wizard-stepper">
+  <div class="wizard-stepper" aria-label="部署进度">
     <div
       v-for="(title, index) in steps"
       :key="title"
-      :class="{ active: progressStep === index, complete: progressStep > index }"
+      :class="{ active: step === index, complete: step > index }"
+      :aria-current="step === index ? 'step' : undefined"
     >
-      <b>{{ step > index ? '✓' : index + 1 }}</b>
+      <b>{{ index + 1 }}</b>
       {{ title }}
     </div>
   </div>
   <p v-if="error" class="notice danger" role="alert">{{ error }}</p>
   <p v-if="notice" class="notice success" role="status">{{ notice }}</p>
   <div class="grid-two">
-    <PanelCard
-      :title="step === 4 ? '部署执行与健康检查' : steps[step]"
-      :description="descriptions[step]"
-    >
-      <form v-if="step === 0" @submit.prevent="selectHost">
-        <label>
-          应用环境名称
-          <input v-model="environment" pattern="[a-z][a-z0-9-]{0,39}" required />
-          <small>新环境使用独立网络、容器和数据目录；已有同名环境进入升级或配置变更流程。</small>
-        </label>
-        <label>
-          目标服务器
-          <select v-model="node" required>
-            <option value="" disabled>选择已注册执行器</option>
-            <option v-for="host in nodes" :key="host.id" :value="host.id">
-              {{ host.name }} · {{ host.url }}
-            </option>
-          </select>
-        </label>
-        <label>
-          持久化根目录
-          <input value="/mnt/disk01" readonly />
-          <small>执行器校验真实挂载状态，不允许回退到系统盘。</small>
-        </label>
-        <footer class="form-actions">
-          <button class="primary" :disabled="busy">检查主机并继续</button>
-        </footer>
-      </form>
-      <template v-else-if="step === 1">
-        <InstallationProtocol :protocol="release?.installationProtocol" />
-        <label>
-          选择可信离线发行包
-          <select v-model="digest" @change="initializeParameters">
-            <option value="" disabled>请选择已验证发行包</option>
-            <option v-for="release in catalog" :key="release.digest" :value="release.digest">
-              {{ release.name }} · {{ release.version }} · {{ release.platform }}
-            </option>
-          </select>
-        </label>
-        <details>
-          <summary>导入新的离线发行包</summary>
-          <div style="padding-top: 18px">
-            <PackageUpload :node="node" @verified="loadCatalog" />
+    <div v-if="step === 0">
+      <PanelCard title="部署配置">
+        <form @submit.prevent="preflight">
+          <div class="form-grid">
+            <label>
+              目标服务器
+              <select
+                :value="node"
+                :disabled="busy"
+                aria-label="目标服务器"
+                required
+                @change="selectNode($event.target.value)"
+              >
+                <option value="" disabled>选择已注册的服务器</option>
+                <option v-for="host in nodes" :key="host.id" :value="String(host.id)">
+                  {{ host.name === 'local' ? '本机' : host.name }}
+                </option>
+              </select>
+              <small v-if="loadingHost" role="status">正在检查主机和发行库…</small>
+              <small v-else-if="hostReady">主机已连接，持久化数据位于 /mnt/disk01</small>
+              <button v-else-if="node" type="button" @click="selectNode(node)">重新检查</button>
+            </label>
+            <label>
+              环境名称
+              <input
+                v-model.trim="environment"
+                pattern="[a-z][a-z0-9-]{0,39}"
+                required
+                placeholder="例如 team-test"
+                aria-label="环境名称"
+                :disabled="busy"
+              />
+              <small>
+                {{
+                  existingDeployment
+                    ? '将预检已有环境的兼容升级。'
+                    : '使用小写字母、数字或连字符，首字符为字母。'
+                }}
+              </small>
+            </label>
           </div>
+          <label v-if="catalog.length">
+            发行版本
+            <select
+              v-model="digest"
+              aria-label="发行版本"
+              :disabled="busy"
+              required
+              @change="initializeParameters"
+            >
+              <option value="" disabled>选择已验证的应用版本</option>
+              <option v-for="item in catalog" :key="item.digest" :value="item.digest">
+                {{ item.name }} · {{ item.version }}
+              </option>
+            </select>
+          </label>
+          <template v-if="release">
+            <ParameterFields
+              v-model="parameters"
+              :fields="release.parameters || {}"
+              :retain-secrets="!!existingDeployment"
+            />
+            <details>
+              <summary>查看安装协议</summary>
+              <InstallationProtocol :protocol="release.installationProtocol" />
+            </details>
+          </template>
+          <footer class="form-actions">
+            <button v-if="release" type="button" :disabled="busy" @click="saveDraft">
+              保存草稿
+            </button>
+            <button class="primary" :disabled="busy || !hostReady || !release">
+              {{ busy ? '正在预检…' : '运行部署预检' }}
+            </button>
+          </footer>
+        </form>
+      </PanelCard>
+      <PanelCard v-if="hostReady" title="发行包">
+        <details :open="!catalog.length">
+          <summary>{{ catalog.length ? '导入另一个签名发行包' : '导入第一个签名发行包' }}</summary>
+          <PackageUpload :key="node" :node="node" @verified="packageVerified" />
         </details>
-        <footer class="form-actions">
-          <button @click="step--">上一步</button>
-          <button class="primary" :disabled="!release" @click="step++">配置应用参数</button>
-        </footer>
-      </template>
-      <form v-else-if="step === 2" @submit.prevent="preflight">
-        <InstallationProtocol :protocol="release?.installationProtocol" />
-        <ParameterFields
-          v-model="parameters"
-          :fields="release?.parameters || {}"
-          :retain-secrets="!!existingDeployment"
-        />
-        <footer class="form-actions">
-          <button type="button" @click="step--">上一步</button>
-          <button type="button" @click="saveDraft">保存草稿</button>
-          <button class="primary" :disabled="busy">
-            {{ busy ? '正在预检…' : '运行部署预检' }}
-          </button>
-        </footer>
-      </form>
-      <form v-else-if="step === 3" @submit.prevent="deploy">
+      </PanelCard>
+    </div>
+    <PanelCard v-else-if="step === 1" title="预检与确认">
+      <form @submit.prevent="deploy">
         <PreflightReview :review="review" />
-        <label v-if="review?.ok" style="margin-top: 24px">
-          输入环境名称确认执行
-          <input v-model="confirmation" :placeholder="environment" required />
+        <label v-if="review.ok && review.upgrade">
+          输入环境名称确认升级
+          <input v-model.trim="confirmation" :placeholder="environment" required />
         </label>
         <footer class="form-actions">
+          <button type="button" :disabled="busy" @click="step = 0">返回修改</button>
           <button
-            type="button"
-            @click="
-              step = 2;
-              review = null;
-            "
+            class="primary"
+            :disabled="!review.ok || busy || (review.upgrade && confirmation !== environment)"
           >
-            返回参数配置
-          </button>
-          <button class="primary" :disabled="!review?.ok || busy || confirmation !== environment">
-            {{ busy ? '正在提交…' : '确认部署 / 升级' }}
+            {{ busy ? '正在提交…' : review.upgrade ? '开始升级' : '开始部署' }}
           </button>
         </footer>
       </form>
-      <template v-else-if="task">
-        <StateBadge :status="task.status" />
-        <p style="margin-top: 15px">{{ task.message }}</p>
-        <TaskSteps :steps="task.steps" />
-        <RouterLink :to="`/tasks/deployment/${node}/${task.id}`" class="button primary">
-          打开任务中心
-        </RouterLink>
-      </template>
+    </PanelCard>
+    <PanelCard v-else title="部署结果">
+      <StateBadge :status="task.status" />
+      <p role="status">{{ task.message }}</p>
+      <TaskSteps :steps="task.steps" />
+      <RouterLink :to="`/tasks/deployment/${node}/${task.id}`" class="button primary">
+        查看任务详情
+      </RouterLink>
     </PanelCard>
     <div>
-      <PanelCard v-if="task" title="部署日志">
-        <pre class="log-viewer">{{ task.installerLog || '等待首条执行日志…' }}</pre>
-      </PanelCard>
       <PanelCard title="部署范围">
         <dl class="facts">
           <dt>环境</dt>
-          <dd>{{ environment || '尚未配置' }}</dd>
-          <dt>主机</dt>
-          <dd>{{ nodes.find((n) => String(n.id) === String(node))?.name || '尚未选择' }}</dd>
-          <dt>应用</dt>
-          <dd>{{ release?.name || '尚未选择' }}</dd>
+          <dd>{{ environment || '待填写' }}</dd>
+          <dt>服务器</dt>
+          <dd>{{ hostName || '待选择' }}</dd>
           <dt>版本</dt>
-          <dd>{{ release?.version || '尚未选择' }}</dd>
-          <dt>数据目录</dt>
-          <dd>/mnt/disk01</dd>
-          <dt>数据保留</dt>
-          <dd>升级与回滚均保留持久化数据卷</dd>
+          <dd>{{ release ? `${release.name} · ${release.version}` : '待选择' }}</dd>
         </dl>
+        <button
+          v-if="step === 0"
+          type="button"
+          :disabled="busy || loadingHost"
+          @click="restoreDraft"
+        >
+          恢复已保存草稿
+        </button>
+        <RouterLink v-if="!node && !nodes.length" to="/hosts">管理服务器</RouterLink>
       </PanelCard>
-      <PanelCard title="执行说明">
-        <p class="muted">
-          镜像须来自已验证的离线发行包。配置经预检生成有时效的执行计划，确认后按组件依赖顺序部署。
-        </p>
-        <p class="muted">
-          部署任务与实时健康状态分别记录。失败或中断后，可在任务中心查看具体步骤及允许的恢复操作。
-        </p>
-        <button v-if="step < 4" @click="restoreDraft">恢复已保存草稿</button>
+      <PanelCard v-if="task?.installerLog" title="部署日志">
+        <pre class="log-viewer">{{ task.installerLog }}</pre>
       </PanelCard>
     </div>
   </div>
 </template>
+
 <script setup>
-  import { ref, computed, onUnmounted } from 'vue';
+  import { computed, onUnmounted, ref, watch } from 'vue';
   import { useRoute } from 'vue-router';
   import { useCluster } from '../../stores/cluster';
   import { infrastructureApi } from '../../api/infrastructure';
@@ -152,58 +163,109 @@
   import InstallationProtocol from '../../components/deployments/InstallationProtocol.vue';
   import PreflightReview from '../../components/deployments/PreflightReview.vue';
   import TaskSteps from '../../components/tasks/TaskSteps.vue';
-  const route = useRoute(),
-    { nodes, jobs } = useCluster(),
-    node = ref(route.query.node || ''),
-    environment = ref(route.query.environment || ''),
-    step = ref(0),
-    catalog = ref([]),
-    digest = ref(''),
-    parameters = ref({}),
-    review = ref(null),
-    confirmation = ref(''),
-    task = ref(null),
-    busy = ref(false),
-    error = ref(''),
-    notice = ref('');
-  let timer,
-    disposed = false;
-  const steps = ['环境检查', '离线镜像 / 发行包', '参数配置', '预检与执行', '健康检查'],
-    descriptions = [
-      '选择管理对象与持久化范围',
-      '导入或选择已验证的离线应用发行包',
-      '根据发行包定义生成组件参数',
-      '确认作用范围、资源预算和依赖顺序',
-      '跟踪真实执行步骤与组件健康检查',
-    ];
+
+  const route = useRoute();
+  const { nodes, jobs } = useCluster();
+  const steps = ['配置部署', '预检确认', '执行结果'];
+  const node = ref('');
+  const environment = ref(String(route.query.environment || ''));
+  const step = ref(0);
+  const catalog = ref([]);
+  const digest = ref('');
+  const parameters = ref({});
+  const review = ref(null);
+  let reviewedSpec;
+  const confirmation = ref('');
+  const task = ref(null);
+  const busy = ref(false);
+  const loadingHost = ref(false);
+  const hostReady = ref(false);
+  const error = ref('');
+  const notice = ref('');
+  let nodeRequest;
+  let timer;
+  let disposed = false;
+
+  const hostName = computed(() => {
+    const name = nodes.value.find((host) => String(host.id) === node.value)?.name;
+    return name === 'local' ? '本机' : name;
+  });
   const existingDeployment = computed(() =>
     jobs.value.find(
       (job) =>
-        job.active &&
-        job.environment === environment.value &&
-        String(job.nodeId) === String(node.value)
+        job.active && job.environment === environment.value && String(job.nodeId) === node.value
     )
   );
-  const progressStep = computed(() =>
-    step.value < 4 ? step.value : task.value?.status === 'succeeded' ? 4 : 3
-  );
   const release = computed(() => catalog.value.find((item) => item.digest === digest.value));
-  async function loadCatalog() {
-    catalog.value = await deploymentsApi.catalog(node.value);
-  }
-  async function selectHost() {
-    busy.value = true;
+  watch(existingDeployment, (current, previous) => {
+    if (current?.id !== previous?.id && step.value === 0) initializeParameters();
+  });
+
+  watch(
+    nodes,
+    (available) => {
+      if (node.value || !available.length) return;
+      const requested = available.find((host) => String(host.id) === route.query.node);
+      const local = available.find((host) => host.name === 'local');
+      const host = requested || local || (available.length === 1 ? available[0] : null);
+      if (host) selectNode(String(host.id));
+    },
+    { immediate: true }
+  );
+
+  async function selectNode(selected, preferredDigest) {
+    nodeRequest?.abort();
+    const controller = new AbortController();
+    nodeRequest = controller;
+    const { signal } = controller;
+    node.value = selected;
+    hostReady.value = false;
+    loadingHost.value = true;
     error.value = '';
+    notice.value = '';
+    catalog.value = [];
+    digest.value = '';
+    parameters.value = {};
     try {
-      await infrastructureApi.host(node.value);
-      await loadCatalog();
-      step.value = 1;
+      await infrastructureApi.host(selected, signal);
+      const releases = await deploymentsApi.catalog(selected, signal);
+      if (signal.aborted) return false;
+      hostReady.value = true;
+      useCatalog(releases, preferredDigest);
+      return true;
     } catch (e) {
-      error.value = e.message;
+      if (!signal.aborted) error.value = e.message;
+      return false;
     } finally {
-      busy.value = false;
+      if (!signal.aborted) loadingHost.value = false;
     }
   }
+
+  function useCatalog(releases, preferred) {
+    catalog.value = releases;
+    digest.value =
+      releases.find((item) => item.digest === preferred)?.digest ||
+      (releases.length === 1 ? releases[0].digest : '');
+    initializeParameters();
+  }
+
+  async function packageVerified(upload) {
+    const selected = node.value;
+    const { signal } = nodeRequest;
+    try {
+      const releases = await deploymentsApi.catalog(selected, signal);
+      if (signal.aborted) return;
+      if (busy.value || step.value !== 0) {
+        catalog.value = releases;
+        return;
+      }
+      useCatalog(releases, upload.sha256);
+      notice.value = '发行包已验证，可以配置参数并运行预检。';
+    } catch (e) {
+      if (!signal.aborted) error.value = e.message;
+    }
+  }
+
   function initializeParameters() {
     parameters.value = Object.fromEntries(
       Object.entries(release.value?.parameters || {}).map(([key, field]) => [
@@ -214,9 +276,11 @@
       ])
     );
   }
+
   async function preflight() {
     busy.value = true;
     error.value = '';
+    notice.value = '';
     try {
       const values = {};
       for (const [key, field] of Object.entries(release.value.parameters || {})) {
@@ -224,29 +288,29 @@
         if (value !== '' && value != null)
           values[key] = field.type === 'integer' ? Number(value) : value;
       }
+      reviewedSpec = { package: digest.value, environment: environment.value };
       review.value = await deploymentsApi.preflight(node.value, {
-        package: digest.value,
-        environment: environment.value,
+        ...reviewedSpec,
         parameters: values,
       });
       confirmation.value = '';
-      step.value = 3;
+      step.value = 1;
     } catch (e) {
       error.value = e.message;
     } finally {
       busy.value = false;
     }
   }
+
   async function deploy() {
     busy.value = true;
     error.value = '';
     try {
       task.value = await deploymentsApi.deploy(node.value, {
-        package: digest.value,
-        environment: environment.value,
+        ...reviewedSpec,
         reviewToken: review.value.reviewToken,
       });
-      step.value = 4;
+      step.value = 2;
       poll();
     } catch (e) {
       error.value = e.message;
@@ -254,20 +318,24 @@
       busy.value = false;
     }
   }
+
   async function poll() {
     if (disposed) return;
     try {
       task.value = await deploymentsApi.job(node.value, task.value.id);
+      error.value = '';
     } catch (e) {
       error.value = e.message;
     }
     if (!disposed && ['queued', 'running', 'starting', 'rolling_back'].includes(task.value.status))
       timer = setTimeout(poll, 2000);
   }
+
   function saveDraft() {
     const values = {};
-    for (const [key, field] of Object.entries(release.value?.parameters || {}))
+    for (const [key, field] of Object.entries(release.value?.parameters || {})) {
       if (!field.secret) values[key] = parameters.value[key];
+    }
     localStorage.setItem(
       'ops-deploy-draft',
       JSON.stringify({
@@ -277,28 +345,31 @@
         parameters: values,
       })
     );
-    notice.value = '已保存非敏感配置；密码和密钥不会写入草稿。';
+    notice.value = '已保存非敏感配置。';
   }
+
   async function restoreDraft() {
     error.value = '';
     try {
       const draft = JSON.parse(localStorage.getItem('ops-deploy-draft') || 'null');
       if (!draft) throw Error('尚未保存部署草稿。');
-      node.value = draft.node;
       environment.value = draft.environment;
-      await loadCatalog();
-      if (!catalog.value.some((item) => item.digest === draft.digest))
-        throw Error('草稿对应的发行包不在当前主机可信发行库中。');
-      digest.value = draft.digest;
-      initializeParameters();
-      parameters.value = { ...parameters.value, ...draft.parameters };
-      step.value = 2;
+      if (!(await selectNode(String(draft.node), draft.digest))) return;
+      if (digest.value !== draft.digest)
+        throw Error('草稿对应的发行包已不在这台服务器的发行库中。');
+      for (const [key, field] of Object.entries(release.value?.parameters || {})) {
+        if (!field.secret && Object.hasOwn(draft.parameters, key))
+          parameters.value[key] = draft.parameters[key];
+      }
+      notice.value = '已恢复草稿。';
     } catch (e) {
       error.value = e.message;
     }
   }
+
   onUnmounted(() => {
     disposed = true;
+    nodeRequest?.abort();
     clearTimeout(timer);
   });
 </script>

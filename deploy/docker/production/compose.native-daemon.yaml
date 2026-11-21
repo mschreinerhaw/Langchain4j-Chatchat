@@ -1,0 +1,41 @@
+services:
+  native-daemon:
+    image: ${RUNTIME_OS_NATIVE_DAEMON_IMAGE:-runtime-os-native-daemon:26.1.3-el8}
+    pull_policy: never
+    restart: unless-stopped
+    init: true
+    # The trusted daemon needs mount and cgroup operations for nested workers.
+    # Only the daemon gets this privilege. Worker specs enforce their own sandbox.
+    privileged: true
+    network_mode: none
+    cgroup: host
+    stop_grace_period: 65s
+    environment:
+      RUNTIME_OS_NATIVE_DAEMON_ROOT: ${RUNTIME_OS_NATIVE_DAEMON_ROOT:-/srv/runtime-os-coding-node-20261110/strict-daemon-3}
+    volumes:
+      - type: bind
+        source: ${RUNTIME_OS_NATIVE_DAEMON_ROOT:-/srv/runtime-os-coding-node-20261110/strict-daemon-3}
+        target: ${RUNTIME_OS_NATIVE_DAEMON_ROOT:-/srv/runtime-os-coding-node-20261110/strict-daemon-3}
+        bind:
+          create_host_path: false
+      - type: bind
+        source: ${RUNTIME_OS_NATIVE_STATE_ROOT:-/opt/runtime-os/p18-d736e9f}
+        target: ${RUNTIME_OS_NATIVE_STATE_ROOT:-/opt/runtime-os/p18-d736e9f}
+        bind:
+          create_host_path: false
+      - type: bind
+        source: /proc
+        target: /host/proc
+        read_only: true
+        bind:
+          create_host_path: false
+    healthcheck:
+      test: ["CMD", "python3", "/usr/local/lib/runtime-os/supervise.py", "health"]
+      interval: 5s
+      timeout: 4s
+      retries: 12
+      start_period: 15s
+  native-executor:
+    depends_on:
+      native-daemon:
+        condition: service_healthy

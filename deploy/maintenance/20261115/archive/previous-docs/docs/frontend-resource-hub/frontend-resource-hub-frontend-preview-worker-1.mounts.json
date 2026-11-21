@@ -1,6 +1,0 @@
-{
-  "name": "/frontend-resource-hub-frontend-preview-worker-1",
-  "mounts": [],
-  "networkMode": "frontend-resource-hub_hub",
-  "ports": {}
-}

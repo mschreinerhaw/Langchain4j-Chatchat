@@ -1,0 +1,49 @@
+services:
+  native-executor:
+    image: runtime-os-native-worker:1.3.2
+    pull_policy: never
+    restart: unless-stopped
+    init: true
+    user: "0:0"
+    pid: host
+    network_mode: host
+    cap_add: [SYS_PTRACE]
+    security_opt: ["label=disable"]
+    entrypoint: ["node", "/opt/runtime-os/coding-node/service/src/worker-executor.mjs"]
+    environment:
+      CLINE_EXECUTOR_CONFIG: /opt/runtime-os/p18-d736e9f/cn2-executor.json
+      CLINE_EXECUTOR_PUBLISHED_DAEMON_BINDINGS: "1"
+    volumes:
+      - /opt/runtime-os/p18-d736e9f:/opt/runtime-os/p18-d736e9f
+      - /opt/runtime-os/cn2/template:/opt/runtime-os/cn2/template:ro
+      - /srv/runtime-os-coding-node-20261110/strict-daemon-3:/srv/runtime-os-coding-node-20261110/strict-daemon-3:ro
+  native-node:
+    image: runtime-os-native-worker:1.3.2
+    pull_policy: never
+    restart: unless-stopped
+    init: true
+    user: "0:0"
+    network_mode: host
+    entrypoint: ["node", "/opt/runtime-os/coding-node/service/src/governance-server.mjs"]
+    environment:
+      CLINE_GOVERNANCE_CONFIG: /opt/runtime-os/p18-d736e9f/gateway.json
+    extra_hosts: ["silo:127.0.0.1"]
+    volumes:
+      - /opt/runtime-os/p18-d736e9f:/opt/runtime-os/p18-d736e9f
+      - /opt/runtime-os/cn2/template:/opt/runtime-os/cn2/template:ro
+    depends_on:
+      native-executor:
+        condition: service_started
+  native-recovery:
+    image: runtime-os-native-worker:1.3.2
+    pull_policy: never
+    restart: unless-stopped
+    init: true
+    user: "0:0"
+    entrypoint: ["node", "/opt/runtime-os/coding-node/service/src/recovery-server.mjs"]
+    environment:
+      CLINE_GOVERNANCE_CONFIG: /opt/runtime-os/p18-d736e9f/gateway.json
+      CLINE_RECOVERY_HOST: 0.0.0.0
+    volumes:
+      - /opt/runtime-os/p18-d736e9f:/opt/runtime-os/p18-d736e9f:ro
+      - /opt/runtime-os/p18-d736e9f/state:/opt/runtime-os/p18-d736e9f/state

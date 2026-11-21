@@ -1,7 +1,19 @@
-import {lstatSync, realpathSync, readFileSync, statSync} from 'node:fs';
+import {closeSync, constants, fstatSync, lstatSync, openSync, realpathSync, readFileSync, statSync} from 'node:fs';
 import {posix} from 'node:path';
 
 const {isAbsolute, join, resolve, sep} = posix; // Docker Executor runs on Linux.
+
+function readPublishedBindings(path) {
+  const fd = openSync(path, constants.O_RDONLY | constants.O_NOFOLLOW | constants.O_NONBLOCK);
+  try {
+    const stat = fstatSync(fd);
+    if (!stat.isFile() || stat.uid !== 0 || (stat.mode & 0o077) !== 0 || stat.size > 4096)
+      throw Error('Dedicated daemon process bindings must be a private root-owned file');
+    return JSON.parse(readFileSync(fd, 'utf8'));
+  } finally {
+    closeSync(fd);
+  }
+}
 
 /** Pin the control daemon independently of any task supplied identity. */
 export function verifyExecutorDaemon(cfg, daemon, inspectPath = path => ({
@@ -10,7 +22,7 @@ export function verifyExecutorDaemon(cfg, daemon, inspectPath = path => ({
   networkNamespace:statSync('/proc/'+pid+'/ns/net').ino,
   startTicks:readFileSync('/proc/'+pid+'/stat','utf8').slice(readFileSync('/proc/'+pid+'/stat','utf8').lastIndexOf(')')+2).split(' ')[19],
   command:readFileSync('/proc/'+pid+'/cmdline','utf8').split('\0').filter(Boolean),
-})) {
+}), readBindings = readPublishedBindings) {
   if (!cfg.expectedDaemonId || daemon.ID !== cfg.expectedDaemonId)
     throw Error('Wrong Docker daemon: refusing Executor startup');
   const rootless = daemon.SecurityOptions?.includes('name=rootless') === true;
@@ -34,19 +46,6 @@ export function verifyExecutorDaemon(cfg, daemon, inspectPath = path => ({
     if (cfg.dockerSocket !== join(anchor, 'run', 'docker.sock')
         || daemon.DockerRootDir !== join(anchor, 'data'))
       throw Error('Daemon socket/data root is outside the pinned private anchor');
-    // Pin real processes, not a caller supplied namespace claim. Docker may
-    // remove docker0 even with bridge=none; isolate daemon AND containerd first.
-    const host=inspectProcess(1);
-    for(const [role,program,configName] of [['daemon','dockerd','daemon.json'],['containerd','containerd','containerd.toml']]) {
-      const binding=cfg.dedicatedProcesses?.[role];
-      if(!binding||!Number.isSafeInteger(binding.pid)||binding.pid<=1||typeof binding.startTicks!=='string')
-        throw Error('Pinned isolated daemon/containerd processes required');
-      const observed=inspectProcess(binding.pid),flag=program==='dockerd'?'--config-file':'--config';
-      if(observed.startTicks!==binding.startTicks||observed.networkNamespace===host.networkNamespace
-          ||!observed.command[0]?.endsWith(program)
-          ||observed.command[observed.command.indexOf(flag)+1]!==join(anchor,configName))
-        throw Error('Daemon process or network namespace isolation differs from pinned policy');
-    }
     for (const path of [anchor, join(anchor, 'run'), join(anchor, 'data'), cfg.dockerSocket]) {
       const {stat, realpath} = inspectPath(path);
       if (realpath !== path || stat.isSymbolicLink() || stat.uid !== 0
@@ -54,6 +53,22 @@ export function verifyExecutorDaemon(cfg, daemon, inspectPath = path => ({
         throw Error('Daemon anchors must be canonical, root owned and private');
       if (path === cfg.dockerSocket ? !stat.isSocket() : !stat.isDirectory())
         throw Error('Unexpected daemon anchor type');
+    }
+    const bindings = cfg.usePublishedDaemonBindings
+      ? readBindings(join(anchor, 'run', 'executor-processes.json'))
+      : cfg.dedicatedProcesses;
+    // Pin real processes, not a caller supplied namespace claim. Docker may
+    // remove docker0 even with bridge=none; isolate daemon AND containerd first.
+    const host=inspectProcess(1);
+    for(const [role,program,configName] of [['daemon','dockerd','daemon.json'],['containerd','containerd','containerd.toml']]) {
+      const binding=bindings?.[role];
+      if(!binding||!Number.isSafeInteger(binding.pid)||binding.pid<=1||typeof binding.startTicks!=='string')
+        throw Error('Pinned isolated daemon/containerd processes required');
+      const observed=inspectProcess(binding.pid),flag=program==='dockerd'?'--config-file':'--config';
+      if(observed.startTicks!==binding.startTicks||observed.networkNamespace===host.networkNamespace
+          ||observed.command[0]?.split('/').at(-1)!==program||!observed.command.includes(flag)
+          ||observed.command[observed.command.indexOf(flag)+1]!==join(anchor,configName))
+        throw Error('Daemon process or network namespace isolation differs from pinned policy');
     }
   } else throw Error('Unknown Executor daemon mode');
   return {mode, rootless, resourceSupport: resources};

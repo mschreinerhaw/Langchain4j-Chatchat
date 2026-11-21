@@ -12,16 +12,25 @@
         />
         <small>包含组件清单、离线镜像、校验和与签名。</small>
       </label>
-      <label>
-        发行方 SHA-256
+      <div>
+        <label for="package-upload-sha256">发行方 SHA-256</label>
         <input
-          v-model="digest"
-          pattern="[a-f0-9]{64}"
+          id="package-upload-sha256"
+          v-model.trim="digest"
+          pattern="[a-fA-F0-9]{64}"
           :disabled="busy"
           required
           placeholder="64 位校验和"
         />
-      </label>
+        <small>也可选择发行方提供的校验和文件。</small>
+        <input
+          type="file"
+          accept=".sha256,.txt"
+          aria-label="读取 SHA-256 文件"
+          :disabled="busy"
+          @change="readChecksum"
+        />
+      </div>
     </div>
     <p v-if="error" class="notice danger" role="alert">{{ error }}</p>
     <div v-if="busy || status">
@@ -54,6 +63,22 @@
     new Promise((resolve) => {
       timer = setTimeout(resolve, 1500);
     });
+  async function readChecksum(event) {
+    const checksum = event.target.files[0];
+    if (!checksum) return;
+    error.value = '';
+    try {
+      if (checksum.size > 8192) throw Error('请选择发行包对应的 SHA-256 文件。');
+      const text = (await checksum.text()).trim();
+      const match = text.match(/^([a-f0-9]{64})(?:[ \t]+[^\r\n]+)?$/i);
+      if (!match) throw Error('校验和文件应只包含该发行包的一条 SHA-256 记录。');
+      digest.value = match[1].toLowerCase();
+    } catch (e) {
+      error.value = e.message;
+    } finally {
+      event.target.value = '';
+    }
+  }
   async function upload() {
     if (!props.node) {
       error.value = '请选择目标主机。';
@@ -66,7 +91,7 @@
       let job = await deploymentsApi.upload(
         props.node,
         file.value,
-        digest.value,
+        digest.value.toLowerCase(),
         (p) => {
           progress.value = Math.floor((p.offset / p.size) * 100);
           status.value = '正在上传';

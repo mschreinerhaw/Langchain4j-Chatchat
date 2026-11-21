@@ -7,6 +7,7 @@ import {verifyExecutorDaemon} from './executor-daemon-policy.mjs';
 import {reject,exact,taskGrant,identity,validateCreate,safeTree,mountAnchor,assertAnchors,buildSpec,verifyOwned,uuid,workerRuntime} from './worker-executor-policy.mjs';
 
 const cfg=JSON.parse(readFileSync(process.env.CLINE_EXECUTOR_CONFIG));
+if(process.env.CLINE_EXECUTOR_PUBLISHED_DAEMON_BINDINGS==='1')cfg.usePublishedDaemonBindings=true;
 if(cfg.mcpServerName&&!['runtime','tenant_data'].includes(cfg.mcpServerName))throw Error('Unknown fixed MCP transport profile');
 if(cfg.mcpServerName==='runtime'&&Object.values(cfg.tenants??{}).some(t=>!t.tools?.includes('submit_and_exit')))
  throw Error('Native Runtime Executor policy must permit the official submit_and_exit tool');
@@ -116,9 +117,13 @@ async function route(req,b){
  throw reject('Method not granted',405);
 }
 const server=http.createServer(async(req,res)=>{let code=200,value;try{
- if(req.method==='GET'&&req.url==='/health/live'){value={live:true,daemon:daemonPolicy.mode,resourceEnforced:!!resourceSupport,productionReady:false};}
+ if(req.method==='GET'&&req.url==='/health/live'){
+  if(cfg.usePublishedDaemonBindings)verifyExecutorDaemon(cfg,await docker.call('GET','/info'));
+  value={live:true,daemon:daemonPolicy.mode,resourceEnforced:!!resourceSupport,productionReady:false};
+ }
  else{
   const a=Buffer.from(req.headers.authorization??''),e=Buffer.from('Bearer '+cfg.apiToken);if(a.length!==e.length||!timingSafeEqual(a,e))throw reject('Executor service credential rejected',401);
+  if(cfg.usePublishedDaemonBindings)verifyExecutorDaemon(cfg,await docker.call('GET','/info'));
   let size=0;const chunks=[];for await(const b of req){size+=b.length;if(size>32768)throw reject('Request too large',413);chunks.push(b);}let b;try{b=JSON.parse(Buffer.concat(chunks).toString()||'{}');}catch{throw reject('Invalid JSON',400);}value=await route(req,b);
  }
 }catch(e){code=e.status??503;value={message:e.status?e.message:'Executor operation unknown; query before retry'};audit('request.rejected',{method:req.method,path:req.url,code,reason:value.message,nativeErrorCode:e.code??null,nativeFailure:String(e.dockerMessage??e.message).slice(0,512)});}

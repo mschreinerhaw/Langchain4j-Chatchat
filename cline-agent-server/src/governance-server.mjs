@@ -39,7 +39,7 @@ const delay=ms=>new Promise(r=>setTimeout(r,ms));
 function save(r){const dir=join(cfg.stateRoot,'workers',r.workerId);const {s3Busy,approvalBusy,...durable}=r;writeFileSync(join(dir,'registry.tmp'),JSON.stringify(durable),{mode:0o600});renameSync(join(dir,'registry.tmp'),join(dir,'registry.json'));}
 function event(r,type,detail={}){
  const recorded=audit.append({type,sessionId:r?.contract.sessionId,tenantId:r?.contract.tenantId,workerId:r?.workerId,...detail});
- if(r&&(type.startsWith('model.request.')||type.startsWith('skills.')||type.startsWith('internet.')||type.startsWith('runtime.tool.')))providerJournal(r).append({eventType:type,taskId:r.contract.taskId,
+ if(r&&(type.startsWith('model.request.')||type.startsWith('skills.')||type.startsWith('internet.')||type.startsWith('runtime.tool.')||type==='template.query.delivered'))providerJournal(r).append({eventType:type,taskId:r.contract.taskId,
   sessionId:r.contract.sessionId,tenantId:r.contract.tenantId,sourceEventId:recorded.eventId,...detail});
 }
 for(const id of readdirSync(join(cfg.stateRoot,'workers'))){const p=join(cfg.stateRoot,'workers',id,'registry.json');if(existsSync(p)){const r=JSON.parse(readFileSync(p));if(!['STOPPED','START_FAILED'].includes(r.workerState)){r.workerState='RECOVERABLE';r.taskState='UNKNOWN';r.revoked=true;save(r);event(r,'recovery.required',{reason:'No side-effect replay or operation reconciliation in stage 1'});}records.set(r.contract.sessionId,r);}}

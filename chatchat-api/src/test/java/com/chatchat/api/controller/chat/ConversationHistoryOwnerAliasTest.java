@@ -18,7 +18,7 @@ class ConversationHistoryOwnerAliasTest {
     @Test void studioHistoryUsesAuthenticatedTenantAndOwnerAliases() {
         var conversations=mock(ConversationService.class);
         var controller=new ConversationController(conversations,mock(WorkspaceOriginService.class),
-            new ObjectAccessService(mock(JdbcTemplate.class),mock(EnterpriseAdminService.class)));
+            new ObjectAccessService(mock(JdbcTemplate.class),mock(EnterpriseAdminService.class)), mock(ArchivedConversationReports.class));
         controller.studioHistory("stable-id","PYTHON_STUDIO","code",2,10,request());
         verify(conversations).listStudioConversationSummaryPage("tenant",Set.of("stable-id","legacy-name"),"PYTHON_STUDIO","code",2,10);
         assertThrows(com.chatchat.api.exception.RuntimeScopeAccessDeniedException.class,
@@ -37,7 +37,7 @@ class ConversationHistoryOwnerAliasTest {
         var conversations = mock(ConversationService.class);
         var access = new ObjectAccessService(mock(JdbcTemplate.class), mock(EnterpriseAdminService.class));
         var origins=mock(WorkspaceOriginService.class);when(origins.historyWorkspace(any())).thenReturn("zhice");
-        var controller = new ConversationController(conversations, origins, access);
+        var controller = new ConversationController(conversations, origins, access, mock(ArchivedConversationReports.class));
         var owners = Set.of("stable-id", "legacy-name");
         when(conversations.listOwnerWorkspaceConversationSummaryPage("tenant", owners,"zhice", "", 1, 30))
             .thenReturn(new ConversationService.ConversationPage(List.of(), 0, 1, 30, 0));
@@ -56,7 +56,7 @@ class ConversationHistoryOwnerAliasTest {
         when(jdbc.queryForList("select id from sys_user where id = ?", "legacy-name"))
             .thenReturn(List.of(Map.of("id", "legacy-name")));
         var controller = new ConversationController(conversations, mock(WorkspaceOriginService.class),
-            new ObjectAccessService(jdbc, mock(EnterpriseAdminService.class)));
+            new ObjectAccessService(jdbc, mock(EnterpriseAdminService.class)), mock(ArchivedConversationReports.class));
         assertThrows(com.chatchat.api.exception.RuntimeScopeAccessDeniedException.class,
             () -> controller.listUserConversationSummaries("legacy-name", null, 0, 30, request()));
         assertThrows(com.chatchat.api.exception.RuntimeScopeAccessDeniedException.class,

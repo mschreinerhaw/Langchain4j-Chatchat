@@ -366,7 +366,10 @@ public class AssetDiscoveryService {
                         candidate.hit().score()
                     ))
                     .toList();
-                AssetRelevanceRanker.rank(semanticQuery, qualityCandidates).forEach(ranked -> {
+                // Scores are comparable within a query unit. Keep each unit's best candidates
+                // so a broad phrase cannot discard a separate, explicit target.
+                highestScored(AssetRelevanceRanker.rank(semanticQuery, qualityCandidates),
+                    AssetRelevanceRanker.Ranked::score).forEach(ranked -> {
                     String id = ranked.value().hit().id();
                     RankedAssetHit candidate = new RankedAssetHit(ranked, semanticQuery);
                     bestByAssetId.merge(id, candidate,
@@ -374,11 +377,9 @@ public class AssetDiscoveryService {
                             ? replacement : current);
                 });
             }
-            List<RankedAssetHit> rankedAll = bestByAssetId.values().stream()
+            List<RankedAssetHit> ranked = bestByAssetId.values().stream()
                 .sorted(Comparator.comparingDouble((RankedAssetHit item) -> item.ranked().score()).reversed())
                 .toList();
-            List<RankedAssetHit> ranked = highestScored(rankedAll,
-                item -> item.ranked().score());
             List<Map<String, Object>> luceneMatchedAll = ranked.stream()
                 .map(item -> {
                     Map<String,Object> result = new LinkedHashMap<>(annotateSearchHit(item.ranked().value().metadata(), item.ranked().value().hit(),
@@ -471,7 +472,7 @@ public class AssetDiscoveryService {
         List<String> queries = variants.isEmpty() ? java.util.Collections.singletonList(null) : variants;
         Map<String, RankedRegistryAsset> bestByAssetId = new LinkedHashMap<>();
         for (String query : queries) {
-            AssetRelevanceRanker.rank(query, candidates).forEach(ranked -> {
+            highestScored(AssetRelevanceRanker.rank(query, candidates), AssetRelevanceRanker.Ranked::score).forEach(ranked -> {
                 String id = assetId(ranked.value());
                 if (id == null) return;
                 RankedRegistryAsset candidate = new RankedRegistryAsset(ranked, query);
@@ -483,7 +484,7 @@ public class AssetDiscoveryService {
         List<RankedRegistryAsset> ranked = bestByAssetId.values().stream()
             .sorted(Comparator.comparingDouble((RankedRegistryAsset item) -> item.ranked().score()).reversed())
             .toList();
-        return applyLimit(highestScored(ranked, item -> item.ranked().score()).stream()
+        return applyLimit(ranked.stream()
             .map(item -> annotateRegistryQuality(item.ranked().value(), item.ranked(), item.retrievalVariant()))
             .toList(), limit);
     }

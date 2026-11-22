@@ -29,7 +29,11 @@ public class WorkspaceService {
     public record Available(String workspaceId, String name, String icon, String description,
         String entryPage, String layoutType, boolean defaultWorkspace, int configVersion) {}
     public record Loaded(WorkspaceManifest manifest, List<EnterpriseAdminService.MenuNode> menus) {}
-    public record Preference(String defaultWorkspaceId, String lastWorkspaceId) {}
+    public record Preference(String defaultWorkspaceId, String lastWorkspaceId, boolean defaultWorkspaceExplicit) {
+        public Preference(String defaultWorkspaceId, String lastWorkspaceId) {
+            this(defaultWorkspaceId, lastWorkspaceId, false);
+        }
+    }
     public record Registration(WorkspaceManifest manifest, String status, String accessPermissionCode,
                                boolean defaultWorkspace, Long version) {}
     public record Update(WorkspaceManifest manifest, String status, String accessPermissionCode, Long expectedVersion) {}
@@ -68,9 +72,13 @@ public class WorkspaceService {
     public Loaded load(HttpServletRequest request, String id) {
         var row = requireAvailable(request, id);
         var declared = read(row);
-        var authorized = identities.listAuthorizedMenus(access.user(request));
+        var identity = identities.getUserView(access.user(request));
+        var authorized = identities.listAuthorizedMenus(identity.id());
         Set<String> codes = new HashSet<>(); collect(authorized, codes);
-        var pages = declared.pages().stream().filter(page -> codes.contains(page.menuCode())).toList();
+        var pages = declared.pages().stream().filter(page -> codes.contains(page.menuCode()))
+            .map(page -> "business".equals(id) && "businessHome".equals(page.componentKey())
+                ? BusinessWorkspaceProfiles.project(page, identity.tenantId(), identity.orgId()) : page)
+            .toList();
         Set<String> pageMenus = new HashSet<>(); pages.forEach(page -> pageMenus.add(page.menuCode()));
         var menus = project(authorized, pageMenus);
         var permittedSkills = declared.defaultSkillIds().isEmpty() ? List.<String>of() :
@@ -90,7 +98,7 @@ public class WorkspaceService {
             throw new SecurityException("Workspace access denied");
         return row;
     }
-    private Set<String> permissions(HttpServletRequest request) {
+    Set<String> permissions(HttpServletRequest request) {
         if (access.user(request) == null) throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Authenticated identity required");
         var user = identities.getUserView(access.user(request));
         if (!"enabled".equals(user.status()) || !Objects.equals(user.tenantId(), access.tenant(request)))
@@ -109,9 +117,10 @@ public class WorkspaceService {
         Set<String> available = new HashSet<>(); workspaces.forEach(w -> available.add(w.workspaceId()));
         String defaultId = workspaces.stream().filter(Available::defaultWorkspace).map(Available::workspaceId).findFirst().orElse(null);
         // Legacy rows could contain an inherited platform default saved by a last-visit update.
-        return new Preference(row.filter(value -> Boolean.TRUE.equals(value.getDefaultWorkspaceExplicit()))
-            .map(WorkspacePreference::getDefaultWorkspaceId).filter(available::contains).orElse(defaultId),
-            row.map(WorkspacePreference::getLastWorkspaceId).filter(available::contains).orElse(null));
+        var explicit = row.filter(value -> Boolean.TRUE.equals(value.getDefaultWorkspaceExplicit()))
+            .map(WorkspacePreference::getDefaultWorkspaceId).filter(available::contains);
+        return new Preference(explicit.orElse(defaultId),
+            row.map(WorkspacePreference::getLastWorkspaceId).filter(available::contains).orElse(null), explicit.isPresent());
     }
     @Transactional
     public Preference savePreference(HttpServletRequest request, Preference update) {
@@ -131,7 +140,7 @@ public class WorkspaceService {
         preferences.saveAndFlush(row);
         return preference(request);
     }
-    private void requireManagement(HttpServletRequest request) {
+    void requireManagement(HttpServletRequest request) {
         if (!permissions(request).contains("system:workspaces:manage")) throw new SecurityException("Workspace management denied");
     }
     @Transactional(readOnly = true)
@@ -165,7 +174,7 @@ public class WorkspaceService {
         registry.saveAllAndFlush(rows);
         audit(request, "default", id);
     }
-    private void audit(HttpServletRequest request, String action, String id) {
+    void audit(HttpServletRequest request, String action, String id) {
         var log = new com.chatchat.enterprise.entity.audit.SysAuditLog();
         log.setTenantId(access.tenant(request)); log.setActorId(access.user(request));
         log.setModuleName("workspace"); log.setActionName(action); log.setResourceType("workspace");
@@ -192,14 +201,20 @@ public class WorkspaceService {
         for (var page : manifest.pages()) {
             if (page.id() == null || !page.id().matches("[a-zA-Z][a-zA-Z0-9-]{0,63}") || !ids.add(page.id())
                 || page.componentKey() == null || !page.componentKey().matches("[a-zA-Z][a-zA-Z0-9-]{0,63}")
-                || page.menuCode() == null || page.props() == null || !Set.of("initialTab").containsAll(page.props().keySet())
-                || page.props().values().stream().anyMatch(value -> !Set.of("environment", "develop", "data", "scripts").contains(value)))
+                || page.menuCode() == null || page.props() == null || !validPageProps(id, page))
                 throw new IllegalArgumentException("Invalid Workspace page");
         }
         if (!ids.contains(manifest.entryPage())) throw new IllegalArgumentException("Entry page is not registered");
         if (manifest.optionalCapabilities().stream().anyMatch(c -> !Set.of("reserved", "available").contains(c.state())))
             throw new IllegalArgumentException("Invalid capability state");
     }
+    private static boolean validPageProps(String workspace, WorkspaceManifest.Page page) {
+        if ("business".equals(workspace) && "businessHome".equals(page.componentKey()))
+            return BusinessWorkspaceProfiles.valid(page.props());
+        return Set.of("initialTab").containsAll(page.props().keySet()) && page.props().values().stream()
+            .allMatch(value -> Set.of("environment", "develop", "data", "scripts").contains(value));
+    }
+
     private static void collect(List<EnterpriseAdminService.MenuNode> nodes, Set<String> ids) {
         for (var node : nodes) { ids.add(node.id()); collect(node.children(), ids); }
     }

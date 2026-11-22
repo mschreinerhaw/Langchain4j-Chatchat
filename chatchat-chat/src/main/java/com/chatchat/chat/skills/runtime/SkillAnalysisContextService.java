@@ -35,19 +35,21 @@ public final class SkillAnalysisContextService {
     public Map<String,Object> prepare(InteractionRequest request, SkillDefinition agent, List<String> roles,
                                      com.chatchat.chat.interaction.model.InteractionContext conversation) {
         InteractionExecution.checkCancellation(request);
+        Object configured = agent.workflowConfig() == null ? null : agent.workflowConfig().get("boundDomainSkillIds");
+        List<String> ids = BuiltinCodingSkills.businessIds(configured instanceof List<?> list
+            ? list.stream().filter(String.class::isInstance).map(String.class::cast).toList() : List.of());
+        if (request.getToolInput() != null
+            && request.getToolInput().get("businessReferences") instanceof Map<?, ?> references
+            && references.get("skills") instanceof List<?> selected && !selected.isEmpty()) {
+            ids = ids.stream().filter(selected::contains).toList();
+        }
         if (!javaSkillsEnabled) {
-            Object configured=agent.workflowConfig()==null?null:agent.workflowConfig().get("boundDomainSkillIds");
-            var ids=BuiltinCodingSkills.businessIds(configured instanceof List<?> values
-                ?values.stream().filter(String.class::isInstance).map(String.class::cast).toList():List.of());
             var references=ids.stream().map(id->Map.<String,Object>of("id",id,"version","ON_DEMAND",
                 "name",id,"description","Optional authorized Agent Skill; load only when needed.",
                 "category","AUTHORIZED_REFERENCE","agentId",agent.id(),"selectionOwner","CLINE","contentDelivery","ON_DEMAND")).toList();
             return completed(request,SkillAnalysisContext.create("DEFERRED_TO_CLINE",references,Map.of()),agent);
         }
         var identity = new SkillRoleContext(request.getTenantId(),request.getUserId(),roles,List.of(),Map.of("agentId",agent.id(),"skillPurpose","AGENT_NATIVE"));
-        Object bound = agent.workflowConfig() == null ? null : agent.workflowConfig().get("boundDomainSkillIds");
-        List<String> ids = BuiltinCodingSkills.businessIds(bound instanceof List<?> list
-            ? list.stream().filter(String.class::isInstance).map(String.class::cast).toList() : List.of());
         publish(request,"RUNNING",Map.of());
         if (ids.isEmpty()) return completed(request,SkillAnalysisContext.create("NO_CANDIDATES",List.of(),Map.of()),agent);
         try {

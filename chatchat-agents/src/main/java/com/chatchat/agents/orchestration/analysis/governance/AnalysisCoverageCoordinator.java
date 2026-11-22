@@ -311,6 +311,12 @@ public final class AnalysisCoverageCoordinator {
             request.metadata().put("codingOwnedAnalysisStatus",status);
         String report = String.valueOf(row.getOrDefault("reportMarkdown", "")).trim();
         if (report.isBlank()) throw new IllegalStateException("Primary Coding report is empty");
+        if (com.chatchat.agents.orchestration.analysis.dataset.DataSupplyStatus.terminalAcquisitionFailure(request.metadata())) {
+            String title = "分析失败：未取得可验证的业务数据";
+            report = "# " + title + "\n\n" + report;
+            // A data-supply diagnostic has one textual presentation.
+            request.metadata().remove("visualReport");
+        }
         List<String> cited = stringList(row.get("evidenceReferences"));
         List<String> limitations = stringList(row.get("limitations"));
         boolean evidenceAuthorizationDeclared = receipt.containsKey("authorizedEvidenceReferences");

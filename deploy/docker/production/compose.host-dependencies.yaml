@@ -1,6 +1,8 @@
 services:
   opensearch-ready:
     image: nginx:1.28-alpine
+    init: true
+    pids_limit: 256
     entrypoint: ["sleep", "infinity"]
     networks: [control]
     extra_hosts: ["host.docker.internal:host-gateway"]
@@ -13,9 +15,11 @@ services:
       # HTTP 401 confirms that the authenticated HTTPS listener is reachable.
       # The API still verifies its own credentials and index during initialization.
       test: ["CMD-SHELL", "wget -Y off --no-check-certificate -S -T 3 -O /dev/null https://host.docker.internal:9200/ 2>&1 | grep -Eq 'HTTP/[0-9.]+ (200|401) '"]
-      interval: 5s
+      interval: 30s
       timeout: 4s
-      retries: 30
+      retries: 5
+      start_period: 30s
+      start_interval: 5s
   api:
     depends_on:
       opensearch-ready:

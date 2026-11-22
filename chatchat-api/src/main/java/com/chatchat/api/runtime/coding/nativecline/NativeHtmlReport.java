@@ -14,7 +14,7 @@ public final class NativeHtmlReport {
     }
     public static List<UserAssetService.File> resources(String task,String run,List<UserAssetService.File> files){
         var result=files.stream().filter(f->task.equals(f.taskId())&&run.equals(f.runId())&&Set.of("ARTIFACT","CODE").contains(f.kind())&&f.sourceRef()!=null&&f.sourceRef().startsWith("coding-node:")
-            &&f.fileName().toLowerCase(Locale.ROOT).matches(".*\\.(html|js|css|json|csv|txt|png|jpg|jpeg|svg|webp|woff|woff2)$")).toList();
+            &&f.fileName().toLowerCase(Locale.ROOT).matches(".*\\.(html|js|css|json|csv|txt|png|jpg|jpeg|svg|webp|gif|avif|woff|woff2)$")).toList();
         if(result.size()>64||result.stream().anyMatch(f->f.size()<0||f.size()>8L*1024*1024)||result.stream().mapToLong(UserAssetService.File::size).sum()>24L*1024*1024)throw new IllegalArgumentException("HTML report resource budget exceeded");
         var paths=new HashSet<String>();for(var f:result)if(!paths.add(path(f)))throw new IllegalArgumentException("Duplicate report resource path");
         return result;

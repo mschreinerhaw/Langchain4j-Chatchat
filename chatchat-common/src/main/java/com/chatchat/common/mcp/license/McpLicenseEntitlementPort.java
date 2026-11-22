@@ -42,9 +42,10 @@ public interface McpLicenseEntitlementPort extends RuntimeProtocolPort {
 
     record WorkspaceEntitlement(boolean licenseValid, Set<String> workspaceIds, String licenseStatus) {
         public boolean allows(String id) {
-            // Exploration is an extracted part of the already licensed data-science application.
+            // These workspaces expose workflows already licensed under their parent applications.
             return licenseValid && workspaceIds != null && (workspaceIds.contains(id)
-                || "data-exploration".equals(id) && workspaceIds.contains("data-science"));
+                || "data-exploration".equals(id) && workspaceIds.contains("data-science")
+                || "business".equals(id) && workspaceIds.contains("zhice"));
         }
     }
 

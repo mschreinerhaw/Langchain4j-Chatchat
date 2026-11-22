@@ -33,3 +33,16 @@ it('shows the delivered fallback instead of a technical error when assembly fail
   expect(host.querySelector('iframe')).toBeNull();
  }finally{app.unmount();host.remove();}
 });
+it('uses the system palette in an embedded sandbox without removing delivered scripts', async () => {
+ loadHtmlReport.mockResolvedValueOnce('<html><body><h1>Report</h1><script>document.title="Chart";</script></body></html>');
+ const host=document.createElement('div');document.body.append(host);
+ const app=createApp({render:()=>h(HtmlReportFrame,{report:{entryPath:'report.html'},embedded:true})});
+ try {
+  app.mount(host); await Promise.resolve(); await nextTick();
+  const frame=host.querySelector('iframe');
+  expect(frame.getAttribute('sandbox')).toBe('allow-scripts');
+  expect(frame.getAttribute('srcdoc')).toContain('color-scheme: light');
+  expect(frame.getAttribute('srcdoc')).toContain('<h1>Report</h1>');
+  expect(frame.getAttribute('srcdoc')).toContain('document.title="Chart";');
+ } finally { app.unmount();host.remove(); }
+});

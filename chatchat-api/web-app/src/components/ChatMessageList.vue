@@ -21,7 +21,7 @@
         :aria-label="message.role === 'user' ? displayUserId : assistantName(message)"
         >{{ message.role === "user" ? userAvatarLabel : runtimeAvatarLabel(message) }}</div
       >
-      <div class="message-bubble">
+      <div class="message-bubble" :class="{ 'business-result-canvas': businessCanvas && message.role === 'assistant' }">
         <div class="message-meta">
           <strong>{{ message.role === "user" ? displayUserId : assistantName(message) }}</strong>
           <div class="message-actions">
@@ -50,13 +50,14 @@
             </button>
           </div>
         </div>
-        <template v-if="shouldShowSteps(message) || (message.role === 'assistant' && message.streaming)">
+        <div class="message-delivery">
+        <template v-if="shouldShowSteps(message) || (!businessCanvas && message.role === 'assistant' && message.streaming)">
           <section v-for="workbench in [executionWorkbench(message)]" :key="`workbench-${message.id}`"
             class="runtime-execution-panel task-workbench" :class="[workbench.status, {collapsed: !executionStepsExpanded(message)}]"
             aria-label="任务执行工作台">
             <header class="workbench-header">
               <span class="workbench-emblem" aria-hidden="true">↗</span>
-              <div class="workbench-heading"><h3>{{ workbenchTitle(message) }}</h3><small>{{ runtimeRunId(message) }}</small></div>
+              <div class="workbench-heading"><h3>{{ businessCanvas ? '执行进度' : workbenchTitle(message) }}</h3><small>{{ runtimeRunId(message) }}</small></div>
               <span class="workbench-status" role="status" aria-live="polite"><span v-if="workbenchIsRunning(workbench)" class="workbench-spinner" aria-hidden="true"></span>{{ workbench.statusLabel }}</span>
               <button v-if="executionStepsCollapsible(message)" type="button" class="runtime-collapse-button"
                 :aria-expanded="executionStepsExpanded(message).toString()" aria-label="展开或收起执行工作台"
@@ -108,8 +109,9 @@
             </div>
           </section>
         </template>
+        <div v-if="hasDeliveryContent(message)" class="message-delivery-content">
         <EnterpriseUiArtifactRenderer
-          v-if="message.role === 'assistant' && !message.streaming && messageUiArtifact(message)"
+          v-if="message.role === 'assistant' && !message.streaming && messageUiArtifact(message) && !messageVisualReport(message)?.htmlReport"
           :artifact="messageUiArtifact(message)"
           @click="handleMarkdownClick($event, message)"
           @drill-down="handleVisualizationDrillDown(message, $event)"
@@ -137,6 +139,8 @@
           @preference-change="handleVisualizationPreference(message, $event)"
           @click="handleMarkdownClick($event, message)"
         />
+        </div>
+        </div>
         <section
           v-if="
             message.role === 'assistant' &&

@@ -76,6 +76,12 @@ public final class CapabilityWorkflowRuntime {
         WorkflowOutcome outcome = metadata.get(WorkflowOutcome.METADATA_KEY) instanceof WorkflowOutcome supplied
             ? supplied : evaluateExistingRuntime(family, response, metadata);
         Map<?, ?> agent = metadata.get("agent") instanceof Map<?, ?> values ? values : Map.of();
+        if (com.chatchat.agents.orchestration.analysis.dataset.DataSupplyStatus.terminalAcquisitionFailure(agent)
+            && !Set.of(WorkflowOutcome.Type.CANCELLED, WorkflowOutcome.Type.CONFIRMATION_REQUIRED,
+                WorkflowOutcome.Type.TIME_BUDGET_EXHAUSTED, WorkflowOutcome.Type.MODEL_BUDGET_EXHAUSTED).contains(outcome.type())) {
+            return new WorkflowOutcome(WorkflowOutcome.Type.FAILED, "BUSINESS_DATA_UNAVAILABLE",
+                List.of("analysis_evidence"), outcome.missingOptionalCapabilities(), false);
+        }
         boolean auditFailed = "FAIL".equalsIgnoreCase(String.valueOf(agent.get("claimCoverageStatus")))
             || Boolean.FALSE.equals(agent.get("answerClaimAuditPassed"));
         // Execution completion and evidence acceptance are separate obligations.

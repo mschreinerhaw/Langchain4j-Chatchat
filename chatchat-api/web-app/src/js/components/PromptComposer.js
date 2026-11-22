@@ -6,6 +6,7 @@ import { getWorkspaceContext, workspaceStorageKey } from '../utils/workspaceCont
 
 import CodingReasoningSelect from '../../components/CodingReasoningSelect.vue';
 import ToolbarOptionPicker from '../../components/ToolbarOptionPicker.vue';
+import BusinessReferencePicker from '../../components/BusinessReferencePicker.vue';
 import {availableReasoning, reasoningOptions} from '../utils/codingReasoning';
 
 const chartScenarios = [
@@ -24,6 +25,7 @@ function savedChartScenario(scope) {
 export default {
   name: "PromptComposer",
   components: {
+    BusinessReferencePicker,
     Bot, ChartColumn, CodingReasoningSelect, ToolbarOptionPicker,
     FileText,
     Send,
@@ -31,7 +33,9 @@ export default {
     Lightbulb, LoaderCircle, ChevronDown, X, Paperclip,
   },
   props: {
+    businessReferencesEnabled: Boolean,
     compact: {type:Boolean,default:false},
+    simpleTools: { type: Boolean, default: false },
     inheritedStyleProfile: String,
     reasoningEfforts: {type:Array,default:()=>[]},
     reasoningUnavailableLabel: String,
@@ -101,13 +105,15 @@ export default {
   ],
   data() {
     return {
-      reportMode: "off",
+      reportMode: this.businessReferencesEnabled && !this.compact ? "visual" : "off",
+      toolsOpen: false,
       resourceExplorationApproved: false,
       rememberedReasoning: readWorkspaceDraft('coding-reasoning',this.workspaceContext || getWorkspaceContext()),
       reportPresentation: reportPresentation(readWorkspaceDraft('report-presentation',this.workspaceContext || getWorkspaceContext()) || {}),
       chartScenarios,
       chartScenario: this.compact ? savedChartScenario(this.workspaceContext || getWorkspaceContext()) : '',
       draft: this.modelValue,
+      mention: null, selectedReferences: [], referenceError: "",
       ideasOpen: false, ideaError: '', ideas: [], ideasLoading: false, ideaSerial: 0, ideaController: null,
     };
   },
@@ -181,7 +187,13 @@ export default {
   },
   watch: {
     selectedAgentId() { this.invalidateIdeas(); },
-    conversationKey() { this.reportMode = "off"; this.invalidateIdeas(); },
+    conversationKey() {
+      this.reportMode = this.businessReferencesEnabled && !this.compact ? "visual" : "off";
+      this.mention = null;
+      this.selectedReferences = [];
+      this.referenceError = "";
+      this.invalidateIdeas();
+    },
     ideaContext() { this.invalidateIdeas(); },
     attachments: {deep:true,handler(){this.invalidateIdeas();}},
     loading(value) { if(value)this.invalidateIdeas(); },
@@ -207,6 +219,50 @@ export default {
   },
   beforeUnmount(){this.invalidateIdeas();},
   methods: {
+    handleDraftInput(event) {
+      this.adjustTextareaHeight();
+      if (!this.businessReferencesEnabled || event.isComposing) return;
+      const end = event.target.selectionStart;
+      const match = /(?:^|\s)@([^\s@]{0,48})$/.exec(event.target.value.slice(0, end));
+      this.mention = match ? { start: end - match[1].length - 1, end, keyword: match[1] } : null;
+    },
+    openReferences() {
+      if (this.mention) { this.mention = null; return; }
+      this.referenceError = "";
+      this.mention = { keyword: "" };
+      this.focusComposer();
+    },
+    addReference(item) {
+      const exists = this.selectedReferences.some((selected) => selected.type === item.type && selected.id === item.id);
+      if (!exists && this.selectedReferences.length >= 8) {
+        this.referenceError = "最多添加 8 项资料。";
+        return;
+      }
+      const range = this.mention;
+      if (range?.start !== undefined) {
+        this.draft = this.draft.slice(0, range.start) + this.draft.slice(range.end);
+        this.$nextTick(() => this.$refs.composerTextarea?.setSelectionRange(range.start, range.start));
+      }
+      if (!exists) this.selectedReferences.push(item);
+      if (item.type === "skills" && !this.selectedAgent?.boundDomainSkillIds?.includes(item.id)) {
+        const selectedSkills = this.selectedReferences.filter((entry) => entry.type === "skills");
+        const compatible = this.agents.filter((agent) => agent.marketStatus === "published"
+          && selectedSkills.every((entry) => agent.boundDomainSkillIds?.includes(entry.id)));
+        if (compatible.length === 1) this.$emit("update:selectedAgentId", compatible[0].id);
+      }
+      this.mention = null;
+      this.referenceError = "";
+      this.focusComposer();
+    },
+    removeReference(item) {
+      this.selectedReferences = this.selectedReferences.filter((selected) => selected !== item);
+      this.referenceError = "";
+    },
+    moveReference(event, delta) {
+      if (!this.mention || event.isComposing) return;
+      event.preventDefault();
+      this.$refs.referencePicker?.move(delta);
+    },
     invalidateIdeas(){this.ideaSerial++;this.ideaController?.abort();this.ideaController=null;this.ideasOpen=false;this.ideasLoading=false;this.ideas=[];this.ideaError='';},
     toggleIdeas(){if(this.ideasOpen){this.invalidateIdeas();return;}return this.generateIdeas();},
     async generateIdeas(){
@@ -259,6 +315,10 @@ export default {
       saveWorkspaceDraft('exploration-chart-style', this.workspaceContext || getWorkspaceContext(), value);
     },
     send() {
+      if (this.businessReferencesEnabled && this.selectedReferences.length && !this.selectedAgentId) {
+        this.referenceError = "请先选择已授权的助手。";
+        return;
+      }
       if(this.agentRequired&&!this.agentSelectionValid)return;
       const value = this.draft;
       if (
@@ -270,12 +330,16 @@ export default {
         return;
       }
       const reportMode = this.reportMode;
-      this.reportMode = "off";
+      this.reportMode = this.businessReferencesEnabled && !this.compact ? "visual" : "off";
       const presentation = this.compact
         ? (this.chartScenario ? {styleProfile:this.chartScenario} : undefined)
         : (reportMode === "visual" ? reportPresentation(this.reportPresentation) : undefined);
       this.$emit("send", {
         query: value,
+        ...(this.businessReferencesEnabled && this.selectedReferences.length ? { businessReferences: {
+          skills: this.selectedReferences.filter((item) => item.type === "skills").map((item) => item.id),
+          documents: this.selectedReferences.filter((item) => item.type === "documents").map((item) => item.id),
+        } } : {}),
         agentId: this.selectedAgentId,
         agentName: this.selectedAgent?.name || "",
         documentWorkflow: this.documentWorkflowActive,
@@ -295,6 +359,7 @@ export default {
     handleEnter(event) {
       if (event.isComposing || event.keyCode === 229) return;
       event.preventDefault();
+      if (this.mention) { this.$refs.referencePicker?.choose(); return; }
       this.send();
     },
     handleDragOver(event) {

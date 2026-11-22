@@ -1,0 +1,48 @@
+{
+  "context": "desktop-linux",
+  "checks": {
+    "native_false": {
+      "init": false,
+      "dockerHealthRuns": 4,
+      "nativeHealth": "healthy",
+      "childZombies": 4,
+      "zombieCommands": [
+        "ssl_client"
+      ],
+      "before": {
+        "bpfJitMappings": 0,
+        "bpfJitBytes": 0,
+        "hostZombies": 0,
+        "hostProcesses": 20
+      },
+      "after": {
+        "bpfJitMappings": 0,
+        "bpfJitBytes": 0,
+        "hostZombies": 4,
+        "hostProcesses": 24
+      }
+    },
+    "native_true": {
+      "init": true,
+      "dockerHealthRuns": 4,
+      "nativeHealth": "healthy",
+      "childZombies": 0,
+      "zombieCommands": [],
+      "before": {
+        "bpfJitMappings": 0,
+        "bpfJitBytes": 0,
+        "hostZombies": 0,
+        "hostProcesses": 21
+      },
+      "after": {
+        "bpfJitMappings": 0,
+        "bpfJitBytes": 0,
+        "hostZombies": 0,
+        "hostProcesses": 21
+      }
+    }
+  },
+  "pressure": {},
+  "engine": "29.6.2 kernel=6.18.33.2-microsoft-standard-WSL2 cgroup=2",
+  "compose": "5.3.1"
+}

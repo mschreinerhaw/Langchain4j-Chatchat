@@ -34,6 +34,7 @@ export function chooseWorkspace(items, route, preference = {}) {
   if (route.legacyView?.startsWith("system") || route.legacyView === "permissionTools") return valid("permissions") || null;
   if (["toolPublications", "toolCategories"].includes(route.legacyView)) return valid("mcp-publication") || null;
   if (route.legacyView) return items.find((item) => item.defaultWorkspace) || items[0] || null;
-  return valid(preference.defaultWorkspaceId)
+  return (!preference.defaultWorkspaceExplicit && preference.lastWorkspaceId === 'business' ? valid('business') : null)
+    || valid(preference.defaultWorkspaceId)
     || items.find((item) => item.defaultWorkspace) || items[0] || null;
 }

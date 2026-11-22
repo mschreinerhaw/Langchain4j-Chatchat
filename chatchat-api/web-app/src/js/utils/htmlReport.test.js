@@ -52,3 +52,16 @@ it('rejects non-image data URLs and malformed embedded images',async()=>{
  for(const ref of ['data:text/html;base64,PHNjcmlwdD4=','data:image/png;base64,@@@@','data:image/png;base64,'])await expect(assembleHtmlReport(await bundle(`<img src="${ref}">`))).rejects.toThrow();
  await expect(assembleHtmlReport(await bundle('<script src="data:text/javascript;base64,YWxlcnQoMSk="></script>'))).rejects.toThrow();
 });
+
+it('assembles responsive and lazy images from delivered files',async()=>{
+ const html='<picture><source srcset="plots/large.webp 2x"><img data-src="plots/chart.png"></picture><img srcset="plots/small.gif 1x">';
+ const result=await assembleHtmlReport(await bundle(html,{
+  'output/site/plots/large.webp':'webp',
+  'output/site/plots/chart.png':'png',
+  'output/site/plots/small.gif':'gif',
+ }));
+ const document=new DOMParser().parseFromString(result,'text/html');
+ expect(document.querySelector('source').getAttribute('srcset')).toMatch(/^data:image\/webp;base64,.* 2x$/);
+ expect(document.querySelector('picture img').getAttribute('src')).toMatch(/^data:image\/png;base64,/);
+ expect(document.querySelector('body > img').getAttribute('src')).toMatch(/^data:image\/gif;base64,/);
+});

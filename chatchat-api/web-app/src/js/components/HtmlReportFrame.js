@@ -1,13 +1,23 @@
-import {ref,watch,onBeforeUnmount} from 'vue';
+import {computed,inject,ref,watch,onBeforeUnmount} from 'vue';
 import {loadHtmlReport} from '../utils/htmlReport';
-export default {props:{report:{type:Object,required:true}},setup(props){
+import canvasTheme from '../../styles/components/embedded-report.css.txt?raw';
+export default {props:{report:{type:Object,required:true},embedded:Boolean},setup(props){
   const frame=ref(null),viewer=ref(null),frameHeight=ref(480);const document=ref(''),loading=ref(false),error=ref('');let controller;
+  const businessCanvasReport = inject('businessCanvasReport', null);
   watch(()=>props.report,async report=>{controller?.abort();const current=new AbortController();controller=current;document.value='';error.value='';loading.value=true;
     frameHeight.value=480;
     try{const html=await loadHtmlReport(report,current.signal);if(!current.signal.aborted)document.value=html;}
     catch(e){if(!current.signal.aborted)error.value=e.message||'报告暂时无法展示';}
     finally{if(!current.signal.aborted)loading.value=false;}
   },{immediate:true});
+  const frameDocument = computed(() => {
+    if ((!props.embedded && !businessCanvasReport?.value) || !document.value) return document.value;
+    const html = new DOMParser().parseFromString(document.value, 'text/html');
+    const style = html.createElement('style');
+    style.textContent = canvasTheme;
+    html.head.append(style);
+    return '<!doctype html>\n' + html.documentElement.outerHTML;
+  });
   const onMessage=event=>{
     if(!frame.value||event.source!==frame.value.contentWindow)return;
     if(event.data?.type==='runtime-html-report-error')error.value='报告暂时无法正常展示，请重新加载或查看已归档文件。';
@@ -15,5 +25,5 @@ export default {props:{report:{type:Object,required:true}},setup(props){
   };
   async function fullscreen(){try{await viewer.value?.requestFullscreen?.();}catch{/* The report remains available when fullscreen is declined. */}}
   function download(){const url=URL.createObjectURL(new Blob([document.value],{type:'text/html;charset=utf-8'}));const link=window.document.createElement('a');link.href=url;link.download=(props.report.entryPath?.split('/').pop()||'report.html');link.click();setTimeout(()=>URL.revokeObjectURL(url),1000);}
-  window.addEventListener('message',onMessage);onBeforeUnmount(()=>{controller?.abort();window.removeEventListener('message',onMessage);});return {document,loading,error,frame,viewer,frameHeight,fullscreen,download};
+  window.addEventListener('message',onMessage);onBeforeUnmount(()=>{controller?.abort();window.removeEventListener('message',onMessage);});return {document,frameDocument,loading,error,frame,viewer,frameHeight,fullscreen,download};
 }};

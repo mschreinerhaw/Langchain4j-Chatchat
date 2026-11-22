@@ -36,6 +36,9 @@ public final class AgentOutcomeProjection {
             return new Outcome("COMPLETED", hasAnswer ? "PARTIAL" : "EMPTY", "BUDGET_EXHAUSTED",
                 "TIME_BUDGET_EXHAUSTED", CONTRACT_VERSION);
         }
+        if (com.chatchat.agents.orchestration.analysis.dataset.DataSupplyStatus.terminalAcquisitionFailure(values)) {
+            return new Outcome("FAILED", "FAILED", "FAILED_REQUIRED_EVIDENCE", "FAILED", CONTRACT_VERSION);
+        }
         if (booleanValue(values.get("rawAnalysisOutputWithheld"))
             || booleanValue(values.get("analysisSynthesisBlocked"))) {
             // Retrieval may have completed, but an analysis request is not successful unless a

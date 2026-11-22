@@ -3,7 +3,7 @@ import { linkKnowledgeCitations, knowledgeCitationId } from "../utils/knowledgeC
 import { Check, ChevronDown, ChevronRight, CircleCheck, CircleX, Copy, FileDown, Trash2 } from "@lucide/vue";
 import ResponseReferences from "../../components/ResponseReferences.vue";
 import ReportMarkdown from "../../components/ReportMarkdown.vue";
-import { defineAsyncComponent } from "vue";
+import { computed, defineAsyncComponent } from "vue";
 import chartAnalysisMixin from "./ChatMessageListChartAnalysis.js";
 import {
   extractDocumentSearchPagesFromTraces,
@@ -106,6 +106,9 @@ markdown.renderer.rules.fence = (tokens, idx) => {
 
 export default {
   name: "ChatMessageList",
+  provide() {
+    return { businessCanvasReport: computed(() => this.businessCanvas) };
+  },
   mixins: [chartAnalysisMixin],
   directives: {
     followActivity: {
@@ -142,6 +145,7 @@ export default {
   },
   emits: ["delete-message", "feedback", "visualization-drill-down", "visualization-preference"],
   props: {
+    businessCanvas: Boolean,
     messages: {
       type: Array,
       default: () => []
@@ -321,6 +325,11 @@ export default {
       }
     },
     shouldShowSteps(message = {}) {
+      if (this.businessCanvas) {
+        return message.role === "assistant"
+          && (message.streaming || !!message.taskId || Boolean(message.steps?.length))
+          && !message.executionTerminal && !this.businessProgress(message).terminal;
+      }
       return message.role === "assistant"
         && !["completed", "success", "succeeded", "partial", "partial_success"].includes(String(message.status || "").toLowerCase())
         && (!!message.taskId || (Array.isArray(message.steps) && message.steps.length > 0));
@@ -371,6 +380,9 @@ export default {
     },
     messageHasRenderableContent(message = {}) {
       return !!String(message.content || "").trim() || !!this.extractUiResponse(message)?.answer;
+    },
+    hasDeliveryContent(message) {
+      return this.messageHasRenderableContent(message) || this.messageUiArtifact(message) || this.messageVisualReport(message);
     },
     messageUiArtifact(message = {}) {
       const uiResponse = this.extractUiResponse(message) || {};

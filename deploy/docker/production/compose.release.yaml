@@ -8,7 +8,7 @@ name: runtime-os-source-production
 include:
   - path:
       - ${RUNTIME_OS_RELEASE_DIR:-/opt/runtime-os/production-current}/compose.production.json
-      - ${RUNTIME_OS_HOST_DEPENDENCIES_FILE:-/opt/runtime-os/compose.host-dependencies.yaml}
+      - ${RUNTIME_OS_HOST_DEPENDENCIES_FILE:-${RUNTIME_OS_RELEASE_DIR:-/opt/runtime-os/production-current}/compose.host-dependencies.yaml}
       - ${RUNTIME_OS_PRODUCTION_STORAGE_FILE:-/opt/runtime-os/compose.production-storage.yaml}
       - ${RUNTIME_OS_NATIVE_DAEMON_FILE:-/opt/runtime-os/compose.native-daemon.yaml}
     project_directory: ${RUNTIME_OS_RELEASE_DIR:-/opt/runtime-os/production-current}

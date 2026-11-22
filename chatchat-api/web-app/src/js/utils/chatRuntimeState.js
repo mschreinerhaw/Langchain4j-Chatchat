@@ -57,7 +57,7 @@ export function isRuntimeStateTerminalStatus(status = "") {
 
 export function readChatRuntimeState(context = getWorkspaceContext()) {
   const storageKey = workspaceStorageKey(CHAT_RUNTIME_STATE_KEY, context);
-  if (!canUseLocalStorage() || !storageKey) {
+  if (context?.workspaceId === 'business' || !canUseLocalStorage() || !storageKey) {
     return { version: CHAT_RUNTIME_STATE_VERSION, updatedAt: now(), entries: {} };
   }
   try {
@@ -82,7 +82,7 @@ export function readChatRuntimeState(context = getWorkspaceContext()) {
 
 function writeChatRuntimeState(state, context = getWorkspaceContext()) {
   const storageKey = workspaceStorageKey(CHAT_RUNTIME_STATE_KEY, context);
-  if (!canUseLocalStorage() || !storageKey) {
+  if (context?.workspaceId === 'business' || !canUseLocalStorage() || !storageKey) {
     return;
   }
   try {

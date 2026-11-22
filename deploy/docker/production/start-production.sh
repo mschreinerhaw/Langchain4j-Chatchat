@@ -37,7 +37,8 @@ require_bind() {
   fi
 }
 
-"${compose[@]}" config --quiet
+release_dir=${RUNTIME_OS_RELEASE_DIR:-/opt/runtime-os/production-current}
+python3 "$release_dir/source/scripts/production_compose.py" "$compose_file"
 require_bind postgresql18 /data/postgresql/18/docker /var/lib/postgresql/18/docker
 require_bind silo /opt/runtime-os-docker-stage/silo/data /data
 require_bind opensearch-node /data/opensearch/data /usr/share/opensearch/data

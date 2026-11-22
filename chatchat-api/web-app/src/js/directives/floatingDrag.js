@@ -61,7 +61,6 @@ const floatingDrag = {
         return;
       }
       const rect = element.getBoundingClientRect();
-      applyPosition(element, { left: rect.left, top: rect.top });
       state.drag = {
         pointerId: event.pointerId,
         startX: event.clientX,
@@ -129,6 +128,7 @@ const floatingDrag = {
     };
 
     state.onResize = () => {
+      if (!element.style.left) return;
       const rect = element.getBoundingClientRect();
       const position = boundedPosition(rect.left, rect.top, rect.width, rect.height, state.margin);
       applyPosition(element, position);

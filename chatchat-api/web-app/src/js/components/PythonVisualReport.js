@@ -46,7 +46,12 @@ export default defineComponent({
     exposeComponent();
     const props = componentProps;
     const reviewedReport = ref(null);
-    const report = computed(() => reviewedReport.value || props.report);
+    const report = computed(() => {
+      const value = reviewedReport.value || props.report;
+      const narrative = value?.markdown || (value?.htmlReport ? props.fallbackMarkdown : "");
+      if (!value || value.sections?.length || !narrative?.trim()) return value;
+      return { ...value, sections: [{ id: "fallback-body", title: "报告正文", narrative }] };
+    });
     const layout = computed(() => reportLayout(report.value || {}));
     const reportId = `report-${useId()}`;
     const contents = computed(() => layout.value.blocks.filter(block=>block.type==='section'&&block.value?.title));

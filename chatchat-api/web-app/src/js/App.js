@@ -2,6 +2,7 @@ import AssistantLayout from "../components/AssistantLayout.vue";
 import RightPanel from "../components/RightPanel.vue";
 import LoginView from "../views/LoginView.vue";
 import WorkspacesView from "../views/WorkspacesView.vue";
+import BusinessWorkspaceNavigation from "../components/BusinessWorkspaceNavigation.vue";
 import AsyncViewState from "../components/AsyncViewState.vue";
 import { defineAsyncComponent } from "vue";
 import { Check, Layers3, Plus } from "@lucide/vue";
@@ -169,6 +170,7 @@ export default {
   name: "App",
   components: {
     AssistantLayout,
+    BusinessWorkspaceNavigation,
     Check,
     Layers3,
     LoginView,
@@ -239,6 +241,7 @@ export default {
       workspacePreference: {},
       workspaceNotice: "",
       workspaceSaving: false,
+      businessPanel: "chat",
     };
   },
   computed: {
@@ -300,7 +303,8 @@ export default {
       return ["chat", "businessHome"].includes(this.activeView)
         ? {
             ...pageProps,
-            ...(this.activeView === "businessHome" ? { outcomeHistory: this.recentConversations } : {}),
+            ...(this.activeView === "businessHome"
+              ? { outcomeHistory: this.recentConversations, panel: this.businessPanel } : {}),
             userId: this.userId,
             tenantId: this.tenantId,
             selectedConversation: this.selectedConversation,
@@ -491,6 +495,7 @@ export default {
           })
           .filter((group) => group.items.length);
         if (from !== id) {
+          this.businessPanel = "chat";
           this.historyRequestSerial = (this.historyRequestSerial || 0) + 1;
           this.historyManagerRequestSerial = (this.historyManagerRequestSerial || 0) + 1;
           this.conversationHistory = [];

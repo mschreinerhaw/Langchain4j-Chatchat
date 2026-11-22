@@ -1,33 +1,23 @@
 <template>
   <section class="business-workspace">
-    <header class="business-header">
-      <strong>{{ title || '业务智能助手' }}</strong>
-      <nav aria-label="业务工作空间">
-        <button v-for="section in sections" :key="section.id" type="button"
-          :aria-current="panel === section.id ? 'page' : undefined" @click="openPanel(section.id)">
-          {{ section.label }}
-        </button>
-      </nav>
-    </header>
-
     <ChatAssistantView v-show="panel === 'chat'" ref="chat"
       :user-id="userId" :tenant-id="tenantId" :workspace-context="workspaceContext"
       :selected-conversation="selectedConversation" :pending-draft="draft || pendingDraft"
-      :preferred-agent-id="defaultAgentId" slash-skill-picker
+      :preferred-agent-id="defaultAgentId" slash-skill-picker business-mode
       @pick-skill="openPanel('skills')" @conversation-active="$emit('conversation-active', $event)"
       @history-saved="$emit('history-saved', $event)">
       <template #welcome>
         <div class="business-welcome">
-          <span class="business-mark"><BriefcaseBusiness :size="27" aria-hidden="true" /></span>
+          <div class="business-robot-scene" aria-hidden="true">
+            <img src="../assets/business-robot-at-work.webp" alt="" decoding="async" />
+            <span class="business-robot-monitor"></span>
+          </div>
           <h1>{{ title || '业务智能助手' }}</h1>
-          <p>{{ welcome || '提出业务问题，或选择已授权的技能开始工作。' }}</p>
-          <div class="business-actions">
-            <button type="button" @click="openPanel('skills')">选择 Skills</button>
+          <p>{{ welcome || '随时提问、分析资料，或从左侧选择业务技能。' }}</p>
+          <div v-if="questionList.length || recommendations.length" class="business-actions">
             <button v-for="question in questionList" :key="question" type="button" @click="prepareChat(question)">
               {{ question }}
             </button>
-          </div>
-          <div v-if="recommendations.length" class="business-actions">
             <button v-for="skill in recommendations" :key="skill.id" type="button" @click="openSkill(skill)">
               {{ skill.name }}
             </button>

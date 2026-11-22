@@ -36,6 +36,12 @@
     @select-conversation="selectConversation"
     @logout="handleLogout"
   >
+    <template v-if="workspaceReady && chatView === 'businessHome' && canAccessView(chatView)" #workspace-navigation="{ collapsed }">
+      <BusinessWorkspaceNavigation
+        :panel="businessPanel" :collapsed="collapsed"
+        @select="businessPanel = $event" @new-conversation="handleNewConversation"
+      />
+    </template>
     <template #workspace-switcher>
       <div class="workspace-switcher" :class="{ 'is-switching': workspaceLoading }">
         <div class="workspace-switcher-heading">
@@ -95,6 +101,7 @@
         @history-saved="handleHistorySaved"
         @ask-ai="handleAskAiFromSearch"
         @open-conversation="selectConversation"
+        @update:panel="businessPanel = $event"
         @navigate="handleNavigate"
         @select-agent="handleSelectAgentShortcut"
         @open-favorite="handleOpenFavoriteShortcut"
@@ -104,7 +111,7 @@
     <button
       v-if="
         !['workspaces', 'toolPublications', 'toolCategories'].includes(activeView) &&
-        canAccessView(chatView)
+        chatView !== 'businessHome' && canAccessView(chatView)
       "
       class="floating-new-conversation"
       v-floating-drag
@@ -119,7 +126,7 @@
 
     <template #right-panel="{ collapsed, toggleCollapsed }">
       <RightPanel
-        v-if="workspaceReady && currentWorkspace?.layoutType === 'assistant'"
+        v-if="workspaceReady && currentWorkspace?.layoutType === 'assistant' && chatView !== 'businessHome'"
         :collapsed="collapsed"
         :tenant-id="tenantId"
         :user-id="userId"

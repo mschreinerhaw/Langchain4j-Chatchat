@@ -15,6 +15,7 @@
     </div>
 
     <div class="sidebar-scroll">
+      <slot name="workspace-navigation" :collapsed="collapsed">
       <nav class="sidebar-nav" aria-label="主导航">
         <section v-for="group in navGroups" :key="group.id" class="nav-group">
           <button
@@ -98,6 +99,7 @@
           </div>
         </section>
       </nav>
+      </slot>
 
       <section v-if="showConversationHistory" class="recent-block">
         <div class="recent-head">

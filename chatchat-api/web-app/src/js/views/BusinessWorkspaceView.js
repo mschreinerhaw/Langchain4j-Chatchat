@@ -1,21 +1,13 @@
-import { BriefcaseBusiness } from "@lucide/vue";
 import ChatAssistantView from "../../views/ChatAssistantView.vue";
 import { apiRequest } from "../../services/api";
-
-const sections = [
-  { id: "chat", label: "智能对话" },
-  { id: "skills", label: "Skills 技能" },
-  { id: "guides", label: "岗位工作" },
-  { id: "knowledge", label: "知识中心" },
-  { id: "outcomes", label: "工作成果" },
-];
 
 const lines = (value) => [...new Set(value.split("\n").map((item) => item.trim()).filter(Boolean))];
 
 export default {
   name: "BusinessWorkspaceView",
-  components: { BriefcaseBusiness, ChatAssistantView },
+  components: { ChatAssistantView },
   props: {
+    panel: { type: String, default: "chat" },
     title: { type: String, default: "" },
     welcome: { type: String, default: "" },
     defaultAgentId: { type: String, default: "" },
@@ -30,9 +22,9 @@ export default {
     pendingDraft: Object,
     outcomeHistory: { type: Array, default: () => [] },
   },
-  emits: ["conversation-active", "history-saved", "open-conversation"],
+  emits: ["conversation-active", "history-saved", "open-conversation", "update:panel"],
   data: () => ({
-    sections, panel: "chat", draft: null, draftSerial: 0,
+    draft: null, draftSerial: 0,
     skills: [], skillKeyword: "", skillsBusy: false, skillError: "", skillPage: 0, skillPages: 0,
     recommendationCards: [], agents: [],
     knowledge: [], knowledgeQuery: "", knowledgeCategory: "", knowledgeBusy: false,
@@ -48,11 +40,18 @@ export default {
     },
   },
   watch: {
-    selectedConversation(value) { if (value) this.panel = "chat"; },
+    panel: {
+      immediate: true,
+      handler(panel) {
+        if (panel === "skills") this.loadSkills(0);
+        if (panel === "knowledge") this.loadKnowledge(1);
+      },
+    },
+    selectedConversation(value) { if (value) this.openPanel("chat"); },
     pendingDraft(value) {
       if (!value) return;
       this.draft = null;
-      this.panel = "chat";
+      this.openPanel("chat");
     },
   },
   mounted() {
@@ -60,9 +59,7 @@ export default {
   },
   methods: {
     openPanel(panel) {
-      this.panel = panel;
-      if (panel === "skills") this.loadSkills(0);
-      if (panel === "knowledge") this.loadKnowledge(1);
+      this.$emit("update:panel", panel);
     },
     async loadRecommendations() {
       const params = new URLSearchParams({ ids: lines(this.recommendedSkillIds).slice(0, 24).join(","), pageSize: 24, summary: true });
@@ -120,13 +117,14 @@ export default {
     },
     openSkill(skill) {
       this.skillKeyword = skill.name;
-      this.openPanel("skills");
+      if (this.panel === "skills") this.loadSkills(0);
+      else this.openPanel("skills");
     },
     prepareSkill(skill, agent, example = "") {
       this.prepareChat("请使用「" + skill.name + "」分析：" + example, agent);
     },
     prepareChat(prompt, agent) {
-      this.panel = "chat";
+      this.openPanel("chat");
       this.draft = {
         id: "business-" + ++this.draftSerial,
         agentId: agent?.id,
@@ -136,12 +134,12 @@ export default {
       };
     },
     clearChat() {
-      this.panel = "chat";
+      this.openPanel("chat");
       this.draft = null;
       this.$refs.chat?.clearChat();
     },
     openOutcome(item) {
-      this.panel = "chat";
+      this.openPanel("chat");
       this.$emit("open-conversation", item);
     },
     outcomeStatus(status) {

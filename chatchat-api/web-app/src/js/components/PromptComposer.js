@@ -32,6 +32,7 @@ export default {
   },
   props: {
     compact: {type:Boolean,default:false},
+    simpleTools: { type: Boolean, default: false },
     inheritedStyleProfile: String,
     reasoningEfforts: {type:Array,default:()=>[]},
     reasoningUnavailableLabel: String,
@@ -102,6 +103,7 @@ export default {
   data() {
     return {
       reportMode: "off",
+      toolsOpen: false,
       resourceExplorationApproved: false,
       rememberedReasoning: readWorkspaceDraft('coding-reasoning',this.workspaceContext || getWorkspaceContext()),
       reportPresentation: reportPresentation(readWorkspaceDraft('report-presentation',this.workspaceContext || getWorkspaceContext()) || {}),

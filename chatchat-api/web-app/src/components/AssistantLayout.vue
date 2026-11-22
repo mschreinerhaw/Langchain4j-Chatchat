@@ -39,8 +39,12 @@
       @select-conversation="$emit('select-conversation', $event)"
       @toggle-sidebar="sidebarCollapsed = !sidebarCollapsed"
       @logout="$emit('logout')"
-      ><template #workspace-switcher><slot name="workspace-switcher" /></template
-    ></AssistantSidebar>
+    >
+      <template #workspace-switcher><slot name="workspace-switcher" /></template>
+      <template v-if="$slots['workspace-navigation']" #workspace-navigation="scope">
+        <slot name="workspace-navigation" v-bind="scope" />
+      </template>
+    </AssistantSidebar>
 
     <main class="assistant-main">
       <section class="assistant-content">

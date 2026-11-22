@@ -1657,6 +1657,7 @@ export default {
     workspaceContext: { type: Object, default: null },
     preferredAgentId: { type: String, default: '' },
     slashSkillPicker: { type: Boolean, default: false },
+    businessMode: { type: Boolean, default: false },
     selectedConversation: {
       type: Object,
       default: null

@@ -3,7 +3,7 @@ import retriedStockTask from './fixtures/retried-stock-task.json';
 
 import {
   runtimeObservationIdentity,
-  runtimeObservationPresentation, businessEventPresentation, businessTaskProgress, executionWorkbench, userEventTimeline
+  runtimeObservationPresentation, businessEventPresentation, businessTaskProgress, executionWorkbench, userEventTimeline, taskTimelineRows
 } from "./runtimeObservationPresentation.js";
 
 it('retains terminal event time when no operation is attached',()=>{
@@ -356,4 +356,28 @@ describe("runtime observation presentation", () => {
     });
     expect(runtimeObservationIdentity(payload)).toBe("lifecycle:final_synthesis:initial");
   });
+});
+
+
+it("shows one business analysis row and counts each operation once across updates", () => {
+  const trace = (eventId, normalizedType, receipt) => ({
+    eventId, toolName: "coding_agent", type: "RUNTIME_OBSERVATION",
+    payload: JSON.stringify({ payload: { metadata: {
+      eventKind: "CODING_TRACE", taskId: "analysis-task", payload: { normalizedType, ...receipt }
+    } } })
+  });
+  const question = { eventId: "question", type: "QUESTION" };
+  const start = { eventId: "analysis-start", toolName: "coding_agent", type: "RUNTIME_OBSERVATION" };
+  const modelStart = trace("model-start", "MODEL_REQUEST_STARTED", { requestId: "request" });
+  const modelDone = trace("model-done", "MODEL_REQUEST_COMPLETED", { requestId: "request" });
+  const tool = trace("tool", "TOOL_STARTED", { toolCallId: "read", tool: "read_files" });
+  const heartbeat = trace("heartbeat", "OBSERVATION", {});
+  const result = { eventId: "result", type: "RESULT" };
+  const initial = taskTimelineRows([question, start, modelStart, modelDone, heartbeat]);
+  expect(initial).toEqual([question, {
+    eventId: "business-analysis", type: "BUSINESS_ANALYSIS", analysisStepCount: 1
+  }]);
+  expect(taskTimelineRows([question, start, modelStart, modelDone, heartbeat, tool, result])).toEqual([
+    question, { ...initial[1], analysisStepCount: 2 }, result
+  ]);
 });

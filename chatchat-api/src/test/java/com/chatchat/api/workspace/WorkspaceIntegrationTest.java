@@ -276,6 +276,65 @@ class WorkspaceIntegrationTest {
         mvc.perform(get(api + "outcomes").header("Authorization", "Bearer " + reader))
             .andExpect(status().isOk()).andExpect(jsonPath("$.data.notes[0].title").value("Outcome for reader"));
     }
+    @Test void businessUsersCanSaveAndPublishTheirOwnNotes() throws Exception {
+        String author = userToken(false), reader = userToken(false), outsider = userToken(false);
+        String authorId = identities.resolveSessionByToken(author).orElseThrow().id();
+        String role = userRoles.findByUserId(authorId).get(0).getRoleId();
+        for (String token : List.of(author, reader, outsider)) {
+            String userId = identities.resolveSessionByToken(token).orElseThrow().id();
+            String userRole = userRoles.findByUserId(userId).get(0).getRoleId();
+            for (String code : List.of("workspace:business:access", "workspace:chat:interact")) {
+                var grant = new SysRolePermission();
+                grant.setTenantId(tenant);
+                grant.setRoleId(userRole);
+                grant.setPermissionId(permissions.findByPermissionCode(code).orElseThrow().getId());
+                rolePermissions.saveAndFlush(grant);
+            }
+        }
+        var shared = new SysUserRole();
+        shared.setTenantId(tenant);
+        shared.setRoleId(role);
+        shared.setUserId(identities.resolveSessionByToken(reader).orElseThrow().id());
+        userRoles.saveAndFlush(shared);
+
+        for (String panel : List.of("guides", "outcomes")) {
+            String api = "/api/v1/workspaces/business/notes/" + panel;
+            String draft = mapper.writeValueAsString(Map.of("title", "Weekly note", "body", "**Initial**"));
+            String id = data(mvc.perform(post(api).header("Authorization", "Bearer " + author)
+                .contentType("application/json").content(draft)).andExpect(status().isOk()).andReturn()).asText();
+            mvc.perform(get(api).header("Authorization", "Bearer " + reader))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.data.notes").isEmpty());
+            String otherPanel = "guides".equals(panel) ? "outcomes" : "guides";
+            mvc.perform(get("/api/v1/workspaces/business/notes/" + otherPanel).header("Authorization", "Bearer " + author))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.data.notes").isEmpty());
+            String tooLong = mapper.writeValueAsString(Map.of("title", "Weekly note", "body", "a".repeat(20001)));
+            mvc.perform(post(api).header("Authorization", "Bearer " + author)
+                .contentType("application/json").content(tooLong)).andExpect(status().isBadRequest());
+            String publication = mapper.writeValueAsString(Map.of("title", "Weekly note", "body", "**Published**",
+                "publishTo", role, "revision", 0));
+            mvc.perform(put(api + "/" + id).header("Authorization", "Bearer " + author)
+                .contentType("application/json").content(publication)).andExpect(status().isOk());
+            mvc.perform(post(api).header("Authorization", "Bearer " + outsider)
+                .contentType("application/json").content(publication)).andExpect(status().isForbidden());
+            String nextDraft = mapper.writeValueAsString(Map.of("title", "Next draft", "body", "Private edits", "revision", 1));
+            mvc.perform(put(api + "/" + id).header("Authorization", "Bearer " + author)
+                .contentType("application/json").content(nextDraft)).andExpect(status().isOk());
+            mvc.perform(put(api + "/" + id).header("Authorization", "Bearer " + author)
+                .contentType("application/json").content(publication)).andExpect(status().isConflict());
+            mvc.perform(get(api).header("Authorization", "Bearer " + author)).andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.notes[0].title").value("Next draft"));
+            mvc.perform(get(api).header("Authorization", "Bearer " + reader)).andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.notes[0].body").value("**Published**"))
+                .andExpect(jsonPath("$.data.notes[0].owned").value(false));
+            mvc.perform(get(api).header("Authorization", "Bearer " + outsider))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.data.notes").isEmpty());
+            String deletion = api + "/" + id + "?revision=2";
+            mvc.perform(delete(deletion).header("Authorization", "Bearer " + reader)).andExpect(status().isConflict());
+            mvc.perform(delete(deletion).header("Authorization", "Bearer " + author)).andExpect(status().isOk());
+            mvc.perform(get(api).header("Authorization", "Bearer " + reader))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.data.notes").isEmpty());
+        }
+    }
     @Test void authorizedUserSwitchesAndRestoresPreferencesUsingOneToken() throws Exception {
         String token = userToken(true);
         for (String id : List.of("zhice", "data-science", "zhice")) {

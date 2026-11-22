@@ -13,6 +13,17 @@
     </div>
 
     <form class="composer-box" @submit.prevent="handlePrimaryAction">
+      <div v-if="businessReferencesEnabled" class="business-reference-bar">
+        <button type="button" :disabled="loading || inputDisabled" aria-label="添加技能或知识库"
+          :aria-expanded="mention !== null" @click="openReferences">@ 添加资料</button>
+        <button v-for="item in selectedReferences" :key="item.type + ':' + item.id" type="button"
+          :aria-label="'移除 ' + item.name" :disabled="loading" @click="removeReference(item)">
+          {{ item.type === 'skills' ? '技能' : '知识库' }} · {{ item.name }} ×
+        </button>
+        <BusinessReferencePicker v-if="mention" ref="referencePicker" :keyword="mention.keyword"
+          :workspace-context="workspaceContext" @select="addReference" />
+        <small v-if="referenceError" role="status">{{ referenceError }}</small>
+      </div>
       <textarea
         ref="composerTextarea"
         v-model="draft"
@@ -21,9 +32,12 @@
         :placeholder="placeholder"
         :maxlength="compact ? maxLength : undefined"
         :aria-label="compact || simpleTools ? placeholder : undefined"
-        @input="adjustTextareaHeight"
+        @input="handleDraftInput"
         @paste="handlePaste"
         @keydown.enter.exact="handleEnter"
+        @keydown.down="moveReference($event, 1)"
+        @keydown.up="moveReference($event, -1)"
+        @keydown.esc="mention = null"
       ></textarea>
       <p v-if="longText" class="composer-file-notice"
         >超过 8,000 字，发送时将完整内容保存为 Markdown 文件并分析。</p

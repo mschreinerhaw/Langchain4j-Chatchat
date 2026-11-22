@@ -213,6 +213,7 @@
       <PromptComposer
         show-idea :idea-provider="suggestChatIdeas" :idea-context="chatIdeaContext" :max-length="200000"
         :simple-tools="businessMode" :allow-file-picker="businessMode"
+        :business-references-enabled="businessMode"
         :placeholder="businessMode ? '输入问题，或上传资料' : undefined"
         :workspace-context="workspaceContext"
         ref="promptComposer"

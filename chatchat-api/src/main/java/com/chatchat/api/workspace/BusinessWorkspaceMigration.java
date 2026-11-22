@@ -22,6 +22,21 @@ public class BusinessWorkspaceMigration {
     @Transactional
     public void seed() throws java.io.IOException {
         jdbc.execute("""
+            create table if not exists business_workspace_user_note (
+                id varchar(64) primary key,
+                tenant_id varchar(64) not null,
+                owner_id varchar(64) not null,
+                panel varchar(16) not null,
+                title varchar(120) not null,
+                body text not null,
+                published_title varchar(120),
+                published_body text,
+                role_id varchar(64),
+                revision bigint not null,
+                updated_at timestamp not null
+            )
+            """);
+        jdbc.execute("""
             create table if not exists business_workspace_role_note (
                 tenant_id varchar(64) not null,
                 role_id varchar(64) not null,

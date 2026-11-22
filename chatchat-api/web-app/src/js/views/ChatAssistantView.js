@@ -2155,6 +2155,7 @@ export default {
         availableTools: [],
         toolInput: {
           agentName: payload?.agentName || "",
+          ...(this.businessMode && payload?.businessReferences ? { businessReferences: payload.businessReferences } : {}),
           documentWorkflow: !!payload?.documentWorkflow,
           webSearch: false,
           resourceExplorationApproved: payload?.resourceExplorationApproved === true,

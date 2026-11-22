@@ -1,12 +1,14 @@
 import ChatAssistantView from "../../views/ChatAssistantView.vue";
 import BusinessRoleNotes from "../../components/BusinessRoleNotes.vue";
+import BusinessUserNotes from "../../components/BusinessUserNotes.vue";
 import { apiRequest } from "../../services/api";
+import { BookOpen, FileText, Sparkles } from "@lucide/vue";
 
 const lines = (value) => [...new Set(value.split("\n").map((item) => item.trim()).filter(Boolean))];
 
 export default {
   name: "BusinessWorkspaceView",
-  components: { BusinessRoleNotes, ChatAssistantView },
+  components: { BusinessRoleNotes, BusinessUserNotes, ChatAssistantView, BookOpen, FileText, Sparkles },
   props: {
     panel: { type: String, default: "chat" },
     title: { type: String, default: "" },
@@ -30,6 +32,7 @@ export default {
     recommendationCards: [], agents: [],
     knowledge: [], knowledgeQuery: "", knowledgeCategory: "", knowledgeBusy: false,
     knowledgeError: "", knowledgePage: 1, knowledgeHasMore: false,
+    knowledgeTab: "bases", bases: [], baseKeyword: "", basesBusy: false, baseError: "", basePage: 0, basePages: 0,
   }),
   computed: {
     questionList() { return lines(this.recommendedQuestions); },
@@ -45,7 +48,7 @@ export default {
       immediate: true,
       handler(panel) {
         if (panel === "skills") this.loadSkills(0);
-        if (panel === "knowledge") this.loadKnowledge(1);
+        if (panel === "knowledge") this.openKnowledge(this.knowledgeTab);
       },
     },
     selectedConversation(value) { if (value) this.openPanel("chat"); },
@@ -76,7 +79,7 @@ export default {
       this.skillsBusy = true;
       this.skillError = "";
       this.skills = [];
-      const params = new URLSearchParams({ keyword: this.skillKeyword.trim(), page, pageSize: 18, summary: true });
+      const params = new URLSearchParams({ keyword: this.skillKeyword.trim(), page, pageSize: 12, summary: true });
       const options = { workspaceContext: this.workspaceContext };
       try {
         const [payload, catalog] = await Promise.all([
@@ -92,6 +95,33 @@ export default {
       } finally {
         this.skillsBusy = false;
       }
+    },
+    openKnowledge(tab) {
+      this.knowledgeTab = tab;
+      if (tab === "bases") this.loadBases(0);
+      else this.loadKnowledge(1);
+    },
+    async loadBases(page) {
+      if (this.basesBusy) return;
+      this.basesBusy = true;
+      this.baseError = "";
+      this.bases = [];
+      try {
+        const params = new URLSearchParams({ keyword: this.baseKeyword.trim(), page, pageSize: 12 });
+        const payload = await apiRequest("/workspaces/business/knowledge-bases?" + params, { workspaceContext: this.workspaceContext });
+        this.bases = payload.items || [];
+        this.basePage = payload.page || 0;
+        this.basePages = payload.totalPages || 0;
+      } catch (error) {
+        this.baseError = error.message;
+      } finally {
+        this.basesBusy = false;
+      }
+    },
+    browseBase(base) {
+      this.knowledgeQuery = "";
+      this.knowledgeCategory = base.name;
+      this.openKnowledge("documents");
     },
     async loadKnowledge(page) {
       if (this.knowledgeBusy) return;

@@ -96,7 +96,7 @@ public class BusinessRoleNotes {
         return ApiResponse.success(null);
     }
 
-    private void requirePanel(HttpServletRequest request, String panel) {
+    void requirePanel(HttpServletRequest request, String panel) {
         if (!Set.of("guides", "outcomes").contains(panel)) {
             throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Business workspace panel not found");
         }

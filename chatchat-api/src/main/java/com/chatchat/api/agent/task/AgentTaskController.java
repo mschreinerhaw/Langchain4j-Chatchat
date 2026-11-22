@@ -74,6 +74,8 @@ public class AgentTaskController {
     private final AgentTaskFeedbackQueueService feedbackQueueService;
     private final AgentTaskEventStreamService taskEventStreamService;
     private final com.chatchat.api.security.ObjectAccessService objectAccess;
+    @org.springframework.beans.factory.annotation.Autowired
+    private com.chatchat.api.workspace.BusinessChatResources businessResources;
 
     /**
      * Performs the submit operation.
@@ -108,6 +110,9 @@ public class AgentTaskController {
             }
             if ((request.getUserId() == null || request.getUserId().isBlank()) && currentUsername(servletRequest) != null) {
                 request.setUserId(currentUsername(servletRequest));
+            }
+            if (request.getToolInput() != null && request.getToolInput().containsKey("businessReferences")) {
+                businessResources.apply(servletRequest, request, requestedAgentId);
             }
             return ApiResponse.success(taskService.submit(request), "Agent task submitted");
         } catch (IllegalArgumentException e) {

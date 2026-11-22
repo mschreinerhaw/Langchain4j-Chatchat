@@ -222,6 +222,97 @@
   background: #fff;
 }
 .business-grid .business-card { margin: 0; }
+.business-catalog-banner {
+  padding: clamp(18px, 3vw, 38px);
+  border: 1px solid #dfe8fb;
+  border-radius: 18px;
+  background: url("../../assets/business-robot-at-work.webp") right 4% center / auto 125% no-repeat,
+    linear-gradient(115deg, #edf1ff, #f3f7ff 64%, #e5eeff);
+}
+.business-catalog-banner p { color: #536783; margin: 0 0 18px; }
+.business-catalog-banner .business-actions { max-width: min(570px, 72%); }
+.business-catalog-banner input { flex: 1; min-width: min(180px, 100%); }
+.business-catalog-tabs { margin: 18px 0 0; }
+.business-catalog-tabs button[aria-pressed="true"] { background: #e7efff; border-color: #c9dbf7; }
+.business-catalog .business-grid { grid-template-columns: repeat(auto-fit, minmax(min(100%, 270px), 1fr)); }
+.business-catalog-card {
+  text-align: center;
+  padding: 22px 18px;
+  box-shadow: 0 4px 12px #203c7210;
+}
+.business-catalog-card p { color: #566982; margin: 9px 0; line-height: 1.55; }
+.business-catalog-card details { color: #425b7b; }
+.business-catalog-icon {
+  display: grid;
+  place-items: center;
+  margin: 0 auto 12px;
+  width: 46px;
+  height: 46px;
+  border-radius: 13px;
+  background: #eee9ff;
+  color: #6846bc;
+}
+.business-catalog-icon.blue { background: #e7f1ff; color: #2f62aa; }
+
+.business-reference-bar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  position: relative;
+  padding: 9px 12px 0;
+}
+.business-workspace .chat-input-dock:has(.business-reference-picker) {
+  position: relative;
+  z-index: 20;
+}
+.business-workspace .composer-box:has(.business-reference-bar) {
+  grid-template-rows: auto minmax(var(--composer-textarea-min-height), auto) auto;
+  overflow: visible;
+}
+.business-reference-bar button {
+  max-width: 100%;
+  padding: 5px 9px;
+  border: 1px solid #dae5f9;
+  border-radius: 8px;
+  background: #f1f6ff;
+  color: #254779;
+  font: inherit;
+  font-size: 12px;
+  overflow-wrap: anywhere;
+  cursor: pointer;
+}
+.business-reference-bar > small { align-self: center; color: #975228; }
+.business-reference-picker {
+  position: absolute;
+  left: 12px;
+  bottom: calc(100% + 6px);
+  z-index: 12;
+  width: min(340px, calc(100% - 24px));
+  max-height: min(42dvh, 365px);
+  overflow-y: auto;
+  box-sizing: border-box;
+  padding: 9px;
+  border: 1px solid #dce6f6;
+  border-radius: 12px;
+  color: #29446a;
+  background: #fff;
+  box-shadow: 0 12px 32px #16325e22;
+}
+.business-reference-tabs { display: flex; align-items: center; gap: 6px; }
+.business-reference-picker ul { list-style: none; padding: 0; margin: 6px 0; }
+.business-reference-picker li button {
+  width: 100%;
+  text-align: left;
+  background: #fff;
+  border-color: transparent;
+}
+.business-reference-picker li button.active { background: #ecf3ff; }
+.business-reference-picker li small { display: block; margin-top: 2px; color: #587196; }
+.business-reference-picker p { margin: 9px 4px; font-size: 13px; }
+@media (max-width: 640px) {
+  .business-catalog-banner { background: linear-gradient(115deg, #edf1ff, #f6faff); }
+  .business-catalog-banner .business-actions { max-width: 100%; }
+}
 .business-card h2 { margin: 4px 0 8px; font-size: 16px; }
 .business-card small { color: #536d8b; }
 .business-card details { margin: 9px 0; }
@@ -247,6 +338,62 @@
 }
 .business-note-form textarea { resize: vertical; }
 .business-note-body { white-space: pre-wrap; line-height: 1.65; }
+
+.business-note-heading { display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px; }
+.business-panel button.business-note-primary {
+  background: var(--business-blue);
+  border-color: var(--business-blue);
+  color: #fff;
+}
+.business-panel button.business-note-primary:hover:enabled { background: #1b3d83; }
+.business-note-heading > button { margin-inline-start: auto; }
+.business-note-workspace {
+  display: grid;
+  grid-template-columns: minmax(180px, 25%) minmax(0, 1fr);
+  align-items: start;
+  gap: 14px;
+}
+.business-note-list,
+.business-note-placeholder {
+  padding: 12px;
+  border: 1px solid var(--business-line);
+  border-radius: 12px;
+  background: #fff;
+  color: #526984;
+}
+.business-note-list > button {
+  display: grid;
+  gap: 5px;
+  width: 100%;
+  margin-bottom: 7px;
+  text-align: left;
+  overflow-wrap: anywhere;
+}
+.business-note-list > button[aria-current="true"] { border-color: #9dbbf0; background: #ecf3ff; }
+.business-user-note-editor { margin-top: 0; display: grid; gap: 12px; }
+.business-user-note-editor :is(input, textarea, select) {
+  width: 100%;
+  min-width: 0;
+  border: 1px solid var(--business-line);
+  border-radius: 8px;
+  padding: 9px 11px;
+  background: #fff;
+  color: var(--business-ink);
+  font: inherit;
+}
+.business-user-note-editor textarea { resize: vertical; line-height: 1.65; }
+.business-note-field { display: grid; gap: 6px; font-size: 13px; }
+.business-note-publication,
+.business-note-toolbar { display: flex; align-items: end; flex-wrap: wrap; gap: 8px; }
+.business-note-publication .business-note-field { min-width: min(180px, 100%); }
+.business-note-preview { min-width: 0; overflow-wrap: anywhere; }
+.business-note-preview :is(pre, table) { display: block; max-width: 100%; overflow: auto; }
+.business-note-help { margin: 0; color: #526984; font-size: 13px; }
+.business-note-secondary { margin-top: 20px; padding: 12px 0; border-top: 1px solid var(--business-line); }
+.business-note-secondary summary { cursor: pointer; color: #405b82; margin-bottom: 12px; }
+@media (max-width: 720px) {
+  .business-note-workspace { grid-template-columns: minmax(0, 1fr); }
+}
 
 .workspace-business .business-workspace .chat-view > .message-panel,
 .workspace-business .business-workspace .prompt-card.prompt-simple-tools {

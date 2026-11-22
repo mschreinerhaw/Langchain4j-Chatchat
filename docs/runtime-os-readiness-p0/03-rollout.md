@@ -28,6 +28,29 @@ python3 scripts/monitor-opensearch-readiness.py --samples 40 --interval 30
 
 脚本复用 Compose 运维锁，备份原 wrapper 和 overlay，检查语法及非目标服务差异，原子替换 overlay，只重建 `opensearch-ready`，再检查 Docker init、healthy 状态和两项业务探测。重建期间探针短暂不可用，避免并发启动依赖图。验收时核对 API、MCP 实例 ID、启动时间及业务端点，并观察连续采样中 PID 1 子僵尸和 JIT 映射趋势。
 
+## 48 小时生产灰度观察
+
+审批时记录目标提交、维护窗口、值班负责人、两项业务探测和监控接收渠道。维护窗口开始时采集宿主机基线，记录 API/MCP 的容器 ID、启动时间和业务探测结果。运行 `check` 对比当前与候选合并配置，核对候选 `init: true`。由 `apply` 安装已校验的 overlay 后再执行定向重建。现网 wrapper 在安装前仍会读取旧 overlay。
+
+变更成功后核对 `Init=true`、PID 1 为 Docker init 且 `.State.Health.Status` 为 `healthy`。确认 API/MCP 实例 ID、启动时间与基线一致，两项业务探测通过。把该时点记为 48 小时窗口起点并保存 UTC 时间。
+
+沿用宿主机现有采集器，每 60 秒调用一次采样命令，将 JSON 记录写入现有监控或受限日志。单次调用成功后还需采集 API/MCP 健康状态，业务探测按既定频率执行。采样缺失应标记为缺口，排查并补足观察时间。以下命令读取宿主机级数据，适用于灰度和后续持续监控。
+
+~~~sh
+python3 scripts/monitor-opensearch-readiness.py
+~~~
+
+| 监控项 | 初始告警条件 |
+| --- | --- |
+| `hostZombies` | 持续超过 50，连续 6 个一分钟样本 |
+| `bpfJitBytes` | 持续超过 104,857,600 字节（100 MiB），连续 6 个一分钟样本 |
+| `bpfJitMappings` | 持续超过 2,000，连续 6 个一分钟样本 |
+| seccomp 524 | 首次出现立即告警 |
+
+这些是事故后的初始参考值，由运维按生产基线调整。即使绝对量未达阈值，也要调查持续增长以及 `pid1ChildZombies` 反复非零。seccomp 524 监控同步读取 Docker daemon 日志和 Worker/部署调用方的 OCI 启动错误。`docker events` 可补充容器健康、启动和退出事件，采集创建失败须以日志及调用方错误为准。记录窗口内真实 Worker 启动次数和失败数，若没有启动样本，将该项标记为未观察。
+
+48 小时内探针健康、API/MCP 业务探测通过、僵尸和 JIT 指标无持续增长，且采集范围内未观察到 seccomp 524，经值班复核后可记为“生产初步验收通过”。保留宿主级监控，继续观察长期趋势。与生产同版本的 EL8 隔离压力回归仍单独记录。
+
 ## 回滚条件与操作
 
 候选差异越界、配置失效、重建失败、探针未健康、PID 1 异常、API 或 MCP 冒烟异常，以及监控显示增长趋势，均应中止。脚本在应用阶段异常时尝试恢复原 overlay。已尝试重建时，保持探针停止，避免重新引入旧缺陷。

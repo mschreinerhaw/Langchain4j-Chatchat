@@ -306,8 +306,8 @@
 .business-workspace .prompt-simple-tools .send-button.stopping { background: #c33548; }
 
 @media (max-width: 1200px) {
-  .workspace-business .business-floating-new-chat { bottom: 120px; }
-  .workspace-business .business-panel { padding-bottom: 170px; }
+  .workspace-business .business-floating-new-chat { bottom: 155px; }
+  .workspace-business .business-panel { padding-bottom: 205px; }
 }
 
 @media (max-width: 820px) {
@@ -340,6 +340,15 @@
     transition: none;
   }
   .workspace-business .assistant-content { overflow: hidden; }
+  .workspace-business .business-floating-new-chat {
+    top: 12px;
+    bottom: auto;
+    width: 36px;
+    padding: 0;
+  }
+  .workspace-business .business-floating-new-chat span { display: none; }
+  .workspace-business .business-panel { padding-bottom: 24px; }
+  .workspace-business .business-workspace > .chat-view { padding-top: 48px; }
   .business-side-nav button { justify-content: center; padding: 0; }
   .business-side-nav button span { display: none; }
   .workspace-business .business-workspace .prompt-card.prompt-simple-tools { width: calc(100% - 20px); }

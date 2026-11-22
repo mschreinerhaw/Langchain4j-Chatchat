@@ -1,5 +1,16 @@
 # 部署、验证与回滚
 
+## 发布审批记录
+
+当前状态为 **`READY_FOR_APPROVAL`**。根因复现、init 修复验证、1,000 次探测、Git 差异与留存证据复核已完成。独立复核签字和生产灰度审批待完成，生产 48 小时观察未开始。
+
+| 提交 | 作用 |
+| --- | --- |
+| `07abfa04157424d95bcd01ad7b1e12d51d019a35` | P0 功能修复、发布校验、测试及证据 |
+| `41d55e851` | 48 小时生产观察、告警与初步验收规则的文档更新 |
+
+同版本 EL8 隔离压力测试仍为 **BLOCKED**。生产内核的 BPF JIT 长时资源释放尚未验证，审批须保留此项已知风险。
+
 ## 上游配置和发布流程
 
 现网 `/opt/runtime-os/compose.yaml` 的 `include` 合并候选发布 JSON、宿主依赖、存储及 Native 配置。实际就绪探针来自 `/opt/runtime-os/compose.host-dependencies.yaml`。仓库对应的权威源码为 `deploy/docker/production/compose.host-dependencies.yaml`。它配置探针的只读根文件系统、capabilities 清空、禁止提权、宿主网关和 control 网络，并让 API 和 MCP 等待探针健康。
@@ -27,6 +38,10 @@ python3 scripts/monitor-opensearch-readiness.py --samples 40 --interval 30
 ~~~
 
 脚本复用 Compose 运维锁，备份原 wrapper 和 overlay，检查语法及非目标服务差异，原子替换 overlay，只重建 `opensearch-ready`，再检查 Docker init、healthy 状态和两项业务探测。重建期间探针短暂不可用，避免并发启动依赖图。验收时核对 API、MCP 实例 ID、启动时间及业务端点，并观察连续采样中 PID 1 子僵尸和 JIT 映射趋势。
+
+生产灰度只能通过 `apply` 脚本执行。脚本持锁检查候选的最终合并配置要求 `init: true`，并逐项比较其他服务与项目设置，覆盖 API、MCP、Cline Worker 和数据库在 Compose 中的配置。候选未通过时立即退出，原 overlay 和容器保持原状态。安装后再次解析，结果必须与已验证候选一致。若不一致，恢复旧 overlay，容器保持原状态。通过两道检查后，脚本才对 `opensearch-ready` 发出 `up --no-deps --force-recreate`。
+
+审批前已使用隔离 Compose 模型和替身执行器复核四种路径。缺少有效 init、非目标服务配置变化及安装后合并结果漂移均在调用 Docker 重建前中止。有效候选只发出一次定向重建调用。
 
 ## 48 小时生产灰度观察
 

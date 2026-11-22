@@ -305,7 +305,7 @@
 
 .business-workspace .prompt-simple-tools .send-button.stopping { background: #c33548; }
 
-.business-workspace .chat-message.assistant .business-result-canvas {
+.business-workspace .chat-message.assistant .message-bubble.business-result-canvas {
   container-type: inline-size;
   min-width: 0;
   padding: clamp(12px, 2vw, 22px);

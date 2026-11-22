@@ -373,6 +373,9 @@ export default {
     messageHasRenderableContent(message = {}) {
       return !!String(message.content || "").trim() || !!this.extractUiResponse(message)?.answer;
     },
+    hasDeliveryContent(message) {
+      return this.messageHasRenderableContent(message) || this.messageUiArtifact(message) || this.messageVisualReport(message);
+    },
     messageUiArtifact(message = {}) {
       const uiResponse = this.extractUiResponse(message) || {};
       const artifact = uiResponse.uiArtifact || message.uiArtifact || message.metadata?.uiArtifact;

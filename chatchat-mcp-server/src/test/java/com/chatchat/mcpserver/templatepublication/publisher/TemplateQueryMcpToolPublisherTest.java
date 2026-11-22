@@ -235,7 +235,9 @@ class TemplateQueryMcpToolPublisherTest {
         var allowed = asset(TemplateAssetCatalogService.SSH, "CHECK_DOCKER_IMAGES", Map.of());
         var denied = asset(TemplateAssetCatalogService.SSH, "CHECK_DOCKER_STATS", Map.of());
         when(bindings.resolvePolicy(context, query))
-            .thenReturn(policy(Map.of(TemplateAssetCatalogService.SSH, Set.of(allowed.templateId(), denied.templateId()))));
+            .thenReturn(new TemplateQueryBindingService.PolicyResolution(
+                Map.of(TemplateAssetCatalogService.SSH, Set.of(allowed.templateId(), denied.templateId())),
+                Set.of(parent), "test", false, 2, Instant.EPOCH));
         when(bindings.requireRoute(query)).thenReturn(route(query, parent, TemplateAssetCatalogService.SSH));
         when(catalog.listEnabled()).thenReturn(List.of(allowed, denied));
         String goal = "分析 Docker 数据库模拟服务器管理的镜像和容器";

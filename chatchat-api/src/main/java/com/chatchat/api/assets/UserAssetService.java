@@ -57,6 +57,14 @@ public class UserAssetService {
     public List<File> list(Owner owner, Kind kind, String task, int limit) {
         return listPage(owner,kind,task,limit,0);
     }
+    public List<File> findNativeHtmlEntries(Owner owner, String runId) {
+        return jdbc.query("""
+            select * from runtime_workspace_file
+            where workspace_id=? and run_id=? and state='AVAILABLE' and kind='ARTIFACT'
+              and source_ref like 'coding-node:%' and lower(file_name) like '%.html'
+            order by id limit 2
+            """, UserAssetService::file, owner.id(), runId);
+    }
     static String userManagedSql(String prefix){
         return prefix+"kind='DOCUMENT' and "+prefix+"task_id='' and "+prefix+"run_id='' and ("+prefix+"source_ref='upload' or "+prefix+"source_ref like 'upload:%')";
     }

@@ -104,7 +104,10 @@ public class ApiPermissionAuthorizationFilter extends OncePerRequestFilter {
         ResourcePermission required = matches.get(0);
         List<String> permissionCodes = adminService.getUserView(String.valueOf(userId)).permissionCodes();
         if (permissionCodes.contains(required.permission().getPermissionCode())
-            || callerCatalogPermissions(method, path).stream().anyMatch(permissionCodes::contains)) {
+            || callerCatalogPermissions(method, path).stream().anyMatch(permissionCodes::contains)
+            || ("business".equals(request.getHeader(com.chatchat.api.workspace.WorkspaceOriginService.HEADER))
+                && businessHistoryRoute(method, path)
+                && permissionCodes.containsAll(List.of("workspace:business:access", "workspace:chat:conversation")))) {
             filterChain.doFilter(request, response);
             return;
         }
@@ -112,6 +115,16 @@ public class ApiPermissionAuthorizationFilter extends OncePerRequestFilter {
         response.setContentType(MediaType.APPLICATION_JSON_VALUE);
         response.setCharacterEncoding("UTF-8");
         objectMapper.writeValue(response.getWriter(), ApiResponse.error(403, "无权访问该资源"));
+    }
+
+    // The shared chat client persists history here. Leave every other data capability under its existing policy.
+    static boolean businessHistoryRoute(String method, String path) {
+        String root = "/api/v1/data/history";
+        return switch (method) {
+            case "POST" -> root.equals(path);
+            case "PATCH" -> path.matches(root + "/[^/]+/[^/]+/status");
+            default -> false;
+        };
     }
 
     // Exact read routes only. Resource ACLs still filter every returned item in the controller.

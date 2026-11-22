@@ -145,13 +145,13 @@ class WorkspaceIntegrationTest {
     @Test void loginAndDefaultLegacyMenusRemainAvailable() throws Exception {
         mvc.perform(get("/api/v1/workspaces/catalog")).andExpect(status().isOk())
             .andExpect(jsonPath("$.data[*].workspaceId").value(org.hamcrest.Matchers.containsInAnyOrder(
-                "zhice", "data-science", "data-exploration")));
+                "zhice", "data-science", "data-exploration", "business")));
         mvc.perform(post("/api/v1/enterprise/auth/login").contentType("application/json")
             .content("{\"username\":\"admin\",\"password\":\"workspace-admin-test-password\"}"))
             .andExpect(status().isOk()).andExpect(jsonPath("$.data.token").exists());
         var items = data(mvc.perform(get("/api/v1/workspaces").header("Authorization", "Bearer "+adminToken))
             .andExpect(status().isOk()).andReturn());
-        assertThat(items.size()).isEqualTo(3);
+        assertThat(items.size()).isEqualTo(4);
         assertThat(registry.findById("zhice").orElseThrow().isDefaultWorkspace()).isTrue();
         mvc.perform(get("/api/v1/workspaces/zhice/manifest").header("Authorization", "Bearer "+adminToken))
             .andExpect(status().isOk()).andExpect(jsonPath("$.data.manifest.entryPage").value("chat"))
@@ -183,11 +183,40 @@ class WorkspaceIntegrationTest {
         when(workspaceLicense.workspaceEntitlement()).thenReturn(new com.chatchat.common.mcp.license.McpLicenseEntitlementPort.WorkspaceEntitlement(
             true, Set.of("zhice"), "VALID"));
         mvc.perform(get("/api/v1/workspaces/catalog")).andExpect(status().isOk())
-            .andExpect(jsonPath("$.data.length()").value(1));
+            .andExpect(jsonPath("$.data[*].workspaceId").value(org.hamcrest.Matchers.containsInAnyOrder("zhice", "business")));
         mvc.perform(get("/api/v1/workspaces").header("Authorization", "Bearer "+adminToken))
-            .andExpect(status().isOk()).andExpect(jsonPath("$.data.length()").value(1));
+            .andExpect(status().isOk()).andExpect(jsonPath("$.data.length()").value(2));
         mvc.perform(get("/api/v1/workspaces/data-science/manifest").header("Authorization", "Bearer "+adminToken))
             .andExpect(status().isForbidden());
+    }
+    @Test void businessHistoryUsesAnExplicitGrantAndRevocationSurvivesRemovingTheHeader() throws Exception {
+        String token = userToken(false);
+        String user = identities.resolveSessionByToken(token).orElseThrow().id();
+        String role = userRoles.findByUserId(user).get(0).getRoleId();
+        for (String code : List.of("workspace:business:access", "workspace:chat:interact")) {
+            var binding = new SysRolePermission();
+            binding.setRoleId(role);
+            binding.setTenantId(tenant);
+            binding.setPermissionId(permissions.findByPermissionCode(code).orElseThrow().getId());
+            rolePermissions.saveAndFlush(binding);
+        }
+        String authorization = "Bearer " + token;
+        mvc.perform(get("/api/v1/workspaces/business/manifest").header("Authorization", authorization))
+            .andExpect(status().isOk()).andExpect(jsonPath("$.data.manifest.entryPage").value("businessHome"));
+        String id = "business-test-" + UUID.randomUUID();
+        mvc.perform(post("/api/v1/data/history").header("Authorization", authorization).header("X-Workspace-Id", "business")
+            .contentType("application/json").content(mapper.writeValueAsString(Map.of("userId", user, "historyId", id,
+                "question", "Business question", "status", "running"))))
+            .andExpect(status().isOk()).andExpect(jsonPath("$.code").value(200));
+        mvc.perform(get("/api/v1/conversations/" + id).header("Authorization", authorization))
+            .andExpect(status().isOk());
+        String permission = permissions.findByPermissionCode("workspace:business:access").orElseThrow().getId();
+        rolePermissions.deleteAll(rolePermissions.findByRoleId(role).stream()
+            .filter(binding -> permission.equals(binding.getPermissionId())).toList());
+        mvc.perform(get("/api/v1/conversations/" + id).header("Authorization", authorization))
+            .andExpect(status().isForbidden());
+        mvc.perform(get("/api/v1/interactions/resources/skills").header("Authorization", authorization)
+            .header("X-Workspace-Id", "business")).andExpect(status().isForbidden());
     }
     @Test void authorizedUserSwitchesAndRestoresPreferencesUsingOneToken() throws Exception {
         String token = userToken(true);

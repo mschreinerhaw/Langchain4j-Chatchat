@@ -230,11 +230,13 @@ class WorkspaceIntegrationTest {
             var user = identities.resolveSessionByToken(token).orElseThrow();
             String role = userRoles.findByUserId(user.id()).get(0).getRoleId();
             if (token.equals(reader)) readerRole = role;
-            var grant = new SysRolePermission();
-            grant.setTenantId(tenant);
-            grant.setRoleId(role);
-            grant.setPermissionId(permissions.findByPermissionCode("workspace:business:access").orElseThrow().getId());
-            rolePermissions.saveAndFlush(grant);
+            for (String code : List.of("workspace:business:access", "workspace:chat:interact")) {
+                var grant = new SysRolePermission();
+                grant.setTenantId(tenant);
+                grant.setRoleId(role);
+                grant.setPermissionId(permissions.findByPermissionCode(code).orElseThrow().getId());
+                rolePermissions.saveAndFlush(grant);
+            }
         }
         var foreignRole = new SysRole();
         foreignRole.setTenantId("unrelated-workspace-tenant");

@@ -68,6 +68,7 @@ public class BusinessRoleNotes {
         String tenant = access.tenant(request);
         if (jdbc.queryForList("""
             select role_id from business_workspace_role_note where tenant_id = ? and role_id = ? and panel = ?
+            for update
             """, String.class, tenant, roleId, panel).isEmpty()) {
             jdbc.update("""
                 insert into business_workspace_role_note (tenant_id, role_id, panel, title, body)

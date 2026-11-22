@@ -6,6 +6,8 @@ from pathlib import Path
 import subprocess
 import time
 
+from production_compose import release_compose
+
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
@@ -43,13 +45,13 @@ def main():
     mounts = config['services']['native-node']['volumes']
     if any('/var/run/docker.sock' in str(m) or 'strict-daemon' in str(m) for m in mounts):
         raise RuntimeError('Business gateway must not receive the executor Docker socket')
+    compose, env = release_compose(root)
     (root / 'activation-intent.json').write_text(json.dumps({'startedAt': time.time(),
         'sourceCommit': manifest['commit'], 'verifiedSourceFiles': len(manifest['files']),
         'workerImage': expected_worker, 'existingConfiguration': '/opt/runtime-os-docker-stage/config'}, indent=2))
-    command = ['docker', 'compose', '--env-file', str(root / 'private/release.env'),
-               '-f', str(root / 'compose.production.json'), 'up', '-d', '--pull', 'never']
+    command = [*compose, 'up', '-d', '--pull', 'never']
     with (root / 'logs/activation.log').open('w') as output:
-        result = subprocess.run(command, stdout=output, stderr=subprocess.STDOUT)
+        result = subprocess.run(command, env=env, stdout=output, stderr=subprocess.STDOUT)
     (root / 'activation.exit').write_text(str(result.returncode))
     print('Activation command exit code:', result.returncode)
     return result.returncode

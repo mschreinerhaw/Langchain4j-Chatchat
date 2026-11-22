@@ -6,6 +6,8 @@ from pathlib import Path
 import subprocess
 from datetime import datetime, timezone
 
+from production_compose import PROBE, release_compose, validate_container
+
 
 def docker(*args):
     return subprocess.check_output(['docker', *args], text=True)
@@ -22,7 +24,9 @@ def main():
         path = (source / name).resolve()
         assert path.is_relative_to(source)
         assert hashlib.sha256(path.read_bytes()).hexdigest() == expected, name
+    release_compose(root)
     config = json.loads((root / 'compose.production.json').read_text())
+    config['services'][PROBE] = {}
     containers = json.loads(docker('inspect', *docker('ps', '-aq').split()))
     by_name = {c['Name'].lstrip('/'): c for c in containers}
     infra = []
@@ -39,6 +43,8 @@ def main():
         name = spec.get('container_name', config['name'] + '-' + service + '-1')
         c = by_name[name]
         state = c['State']
+        if service == PROBE:
+            validate_container(c)
         if service in ['temporal-schema', 'temporal-namespace']:
             assert state['Status'] == 'exited' and state['ExitCode'] == 0, service
         else:

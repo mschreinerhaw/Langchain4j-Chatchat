@@ -31,6 +31,7 @@
       v-else-if="!hasConversation && !selectedConversation?.missingMessageCount"
       class="hero-panel"
     >
+      <slot name="welcome">
       <div
         class="hero-demo"
         role="img"
@@ -103,9 +104,11 @@
           item
         }}</strong>
       </div>
+      </slot>
     </section>
 
     <ChatMessageList
+      :business-canvas="businessMode"
       v-if="!historyDetailsLoading && !historyDetailError && hasConversation"
       ref="messageList"
       :messages="messages"
@@ -209,6 +212,9 @@
     <div class="chat-input-dock">
       <PromptComposer
         show-idea :idea-provider="suggestChatIdeas" :idea-context="chatIdeaContext" :max-length="200000"
+        :simple-tools="businessMode" :allow-file-picker="businessMode"
+        :business-references-enabled="businessMode"
+        :placeholder="businessMode ? '输入问题，或上传资料' : undefined"
         :workspace-context="workspaceContext"
         ref="promptComposer"
         :conversation-key="[composerGeneration, tenantId, userId].join(':')"
@@ -223,7 +229,7 @@
         :running-visual-report="activeRunContext?.reportMode === 'visual'"
         :attachments="composerAttachments"
         :stop-available="canKillActiveRun"
-        :show-suggestions="!hasConversation && activeSuggestions.length > 0"
+        :show-suggestions="!businessMode && !hasConversation && activeSuggestions.length > 0"
         @pick="question = $event"
         @send="handleSend"
         @stop="killActiveRun"

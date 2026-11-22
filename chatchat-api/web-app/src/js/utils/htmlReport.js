@@ -2,7 +2,7 @@ import {getStoredAuthSession} from '../../services/api';
 import {workspaceHeaders} from './workspaceContext';
 import {sha256} from '@noble/hashes/sha256';
 
-const mime=path=>({'js':'text/javascript','css':'text/css','json':'application/json','csv':'text/csv','txt':'text/plain','png':'image/png','jpg':'image/jpeg','jpeg':'image/jpeg','svg':'image/svg+xml','webp':'image/webp','woff':'font/woff','woff2':'font/woff2','html':'text/html'}[path.split('.').pop().toLowerCase()]||'application/octet-stream');
+const mime=path=>({'js':'text/javascript','css':'text/css','json':'application/json','csv':'text/csv','txt':'text/plain','png':'image/png','jpg':'image/jpeg','jpeg':'image/jpeg','svg':'image/svg+xml','webp':'image/webp','gif':'image/gif','avif':'image/avif','woff':'font/woff','woff2':'font/woff2','html':'text/html'}[path.split('.').pop().toLowerCase()]||'application/octet-stream');
 const policy="default-src 'none'; script-src 'unsafe-inline' data:; style-src 'unsafe-inline'; img-src data:; font-src data:; connect-src 'none'; frame-src 'none'; object-src 'none'; base-uri 'none'; form-action 'none'";
 export async function loadHtmlReport(descriptor,signal){
   if(!/^[A-Za-z0-9_-]{1,100}$/.test(descriptor?.entryFileId||''))throw new Error('报告入口无效');
@@ -45,7 +45,7 @@ export async function assembleHtmlReport(bundle){
   // Treat supported embedded images as local content, never as network URLs.
   function embeddedImage(ref){
     if(!/^data:/i.test(ref))return null;
-    const match=/^data:(image\/(?:png|jpeg|webp|svg\+xml));base64,([A-Za-z0-9+/]*={0,2})$/i.exec(ref);
+    const match=/^data:(image\/(?:png|jpeg|webp|gif|avif|svg\+xml));base64,([A-Za-z0-9+/]*={0,2})$/i.exec(ref);
     if(!match)throw new Error('报告内嵌图片格式无效');
     let bytes;try{bytes=atob(match[2]);}catch{throw new Error('报告内嵌图片编码无效');}
     if(!bytes.length||bytes.length>8*1024*1024)throw new Error('报告内嵌图片大小校验失败');
@@ -65,24 +65,46 @@ export async function assembleHtmlReport(bundle){
     if(el.type==='module')throw new Error('请将模块脚本打包为普通 JS 后交付');
     if(el.hasAttribute('src')){const file=resource(el.getAttribute('src'));if(file.type!=='text/javascript')throw new Error('脚本资源类型不匹配');el.setAttribute('src',data(file));el.removeAttribute('integrity');}
   }
-  for(const el of doc.querySelectorAll('[src]:not(script)')){
-    const ref=el.getAttribute('src');
-    const isImage=el.tagName==='IMG';
-    const embedded=isImage&&embeddedImage(ref);
-    const file=embedded?null:resource(ref,base,isImage);
-    if(!embedded&&!file){
+  function imageSource(ref){
+    const embedded=embeddedImage(ref);
+    if(embedded)return embedded;
+    const file=resource(ref,base,true);
+    return file?.type.startsWith('image/') ? data(file) : null;
+  }
+  function imageCandidates(value){
+    if(!value || /^data:/i.test(value.trim()))return [];
+    return value.split(',').flatMap(candidate=>{
+      const match=/^(\S+)(?:\s+((?:[1-9]\d*w)|(?:\d+(?:\.\d+)?x)))?$/.exec(candidate.trim());
+      if(!match)return [];
+      const source=imageSource(match[1]);
+      return source ? [{source,descriptor:match[2]||''}] : [];
+    });
+  }
+  for(const el of doc.querySelectorAll('picture source, img')){
+    const candidates=imageCandidates(el.getAttribute('srcset'));
+    el.removeAttribute('srcset');
+    if(candidates.length){
+      el.setAttribute('srcset',candidates.map(({source,descriptor})=>[source,descriptor].filter(Boolean).join(' ')).join(', '));
+    }
+    if(el.tagName!=='IMG')continue;
+    const ref=el.getAttribute('src') || el.getAttribute('data-src');
+    const source=(ref && imageSource(ref)) || candidates[0]?.source;
+    if(source)el.setAttribute('src',source);
+    else if(el.closest('picture')?.querySelector('source[srcset]'))el.removeAttribute('src');
+    else{
       const note=doc.createElement('span');
       note.textContent='此图表暂不可用，正文和数据仍可查看。';
       el.replaceWith(note);
-      continue;
     }
-    el.setAttribute('src',embedded||data(file));el.removeAttribute('srcset');
   }
-  doc.querySelectorAll('[srcset]').forEach(el=>el.removeAttribute('srcset'));
+  for(const el of doc.querySelectorAll('[src]:not(script, img), [srcset]:not(img, picture source)')){
+    el.removeAttribute('srcset');
+    if(el.hasAttribute('src'))el.setAttribute('src',data(resource(el.getAttribute('src'))));
+  }
   doc.querySelectorAll('a[href],area[href]').forEach(el=>{if(!el.getAttribute('href').startsWith('#'))el.removeAttribute('href');el.removeAttribute('target');el.removeAttribute('ping');});
   const virtual=Object.fromEntries([...files].map(([path,file])=>[path,{content:file.content,type:file.type}]));
   const encoded=JSON.stringify(virtual).replace(/</g,'\\u003c');
-  const bootstrap=`(()=>{const files=${encoded},base=${JSON.stringify(base)};window.fetch=async(input,options={})=>{const url=new URL(typeof input==='string'?input:input.url,base);const file=files[decodeURIComponent(url.pathname.slice(1))];if(url.origin!=='https://report.invalid'||url.search||!file||(options.method&&options.method!=='GET'))throw Error('Resource is not part of this report');return new Response(Uint8Array.from(atob(file.content),c=>c.charCodeAt(0)),{headers:{'Content-Type':file.type}});};window.addEventListener('error',()=>{document.documentElement.dataset.reportError='true';parent.postMessage({type:'runtime-html-report-error'},'*');});window.addEventListener('unhandledrejection',()=>{document.documentElement.dataset.reportError='true';parent.postMessage({type:'runtime-html-report-error'},'*');});})();`;
+  const bootstrap=`(()=>{const files=${encoded},base=${JSON.stringify(base)};window.fetch=async(input,options={})=>{const url=new URL(typeof input==='string'?input:input.url,base);const file=files[decodeURIComponent(url.pathname.slice(1))];if(url.origin!=='https://report.invalid'||url.search||!file||(options.method&&options.method!=='GET'))throw Error('Resource is not part of this report');return new Response(Uint8Array.from(atob(file.content),c=>c.charCodeAt(0)),{headers:{'Content-Type':file.type}});};window.addEventListener('error',event=>{if(event.target instanceof HTMLImageElement){const note=document.createElement('span');note.textContent='此图表暂不可用，正文和数据仍可查看。';(event.target.closest('picture')||event.target).replaceWith(note);return;}if(event instanceof ErrorEvent||event.target instanceof HTMLScriptElement){document.documentElement.dataset.reportError='true';parent.postMessage({type:'runtime-html-report-error'},'*');}},true);window.addEventListener('unhandledrejection',()=>{document.documentElement.dataset.reportError='true';parent.postMessage({type:'runtime-html-report-error'},'*');});})();`;
   const meta=doc.createElement('meta');meta.httpEquiv='Content-Security-Policy';meta.content=policy;
   const script=doc.createElement('script');script.textContent=bootstrap;
   doc.head.prepend(meta,script);

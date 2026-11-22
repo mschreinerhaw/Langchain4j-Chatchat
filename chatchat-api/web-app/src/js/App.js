@@ -2,6 +2,7 @@ import AssistantLayout from "../components/AssistantLayout.vue";
 import RightPanel from "../components/RightPanel.vue";
 import LoginView from "../views/LoginView.vue";
 import WorkspacesView from "../views/WorkspacesView.vue";
+import BusinessWorkspaceNavigation from "../components/BusinessWorkspaceNavigation.vue";
 import AsyncViewState from "../components/AsyncViewState.vue";
 import { defineAsyncComponent } from "vue";
 import { Check, Layers3, Plus } from "@lucide/vue";
@@ -72,6 +73,7 @@ const asyncView = (loader) =>
     timeout: 30000,
     suspensible: false,
   });
+const BusinessWorkspaceView = asyncView(() => import("../views/BusinessWorkspaceView.vue"));
 const ChatAssistantView = asyncView(() => import("../views/ChatAssistantView.vue"));
 const CapabilityMarketView = asyncView(() => import("../views/CapabilityMarketView.vue"));
 const AiSearchView = asyncView(() => import("../views/AiSearchView.vue"));
@@ -105,6 +107,7 @@ const DATA_SCIENCE_TABS = {
 const views = {
   workspaces: WorkspaceSettingsView,
   chat: ChatAssistantView,
+  businessHome: BusinessWorkspaceView,
   search: AiSearchView,
 
   market: CapabilityMarketView,
@@ -167,6 +170,7 @@ export default {
   name: "App",
   components: {
     AssistantLayout,
+    BusinessWorkspaceNavigation,
     Check,
     Layers3,
     LoginView,
@@ -237,9 +241,13 @@ export default {
       workspacePreference: {},
       workspaceNotice: "",
       workspaceSaving: false,
+      businessPanel: "chat",
     };
   },
   computed: {
+    chatView() {
+      return this.currentWorkspace?.workspaceId === 'business' ? 'businessHome' : 'chat';
+    },
     workspaceContext() {
       return this.currentWorkspace
         ? {
@@ -292,9 +300,11 @@ export default {
         this.workspacePages?.find((page) => page.id === this.activeView)?.props || {};
       if (this.activeView === "workspaces")
         return {};
-      return this.activeView === "chat"
+      return ["chat", "businessHome"].includes(this.activeView)
         ? {
             ...pageProps,
+            ...(this.activeView === "businessHome"
+              ? { panel: this.businessPanel } : {}),
             userId: this.userId,
             tenantId: this.tenantId,
             selectedConversation: this.selectedConversation,
@@ -485,6 +495,7 @@ export default {
           })
           .filter((group) => group.items.length);
         if (from !== id) {
+          this.businessPanel = "chat";
           this.historyRequestSerial = (this.historyRequestSerial || 0) + 1;
           this.historyManagerRequestSerial = (this.historyManagerRequestSerial || 0) + 1;
           this.conversationHistory = [];
@@ -810,7 +821,7 @@ export default {
       return views[value] ? value : "";
     },
     navigateToView(view) {
-      const requested = view === "system" ? "systemUsers" : views[view] ? view : DEFAULT_VIEW;
+      const requested = view === "system" ? "systemUsers" : view === "chat" ? this.chatView : views[view] ? view : DEFAULT_VIEW;
       const nextView = this.canAccessView(requested) ? requested : this.firstAccessibleView();
       if (!nextView) {
         this.activeView = "";
@@ -930,7 +941,9 @@ export default {
     },
     async loadConversationHistory(filters = {}) {
       const codes = this.authSession?.user?.permissionCodes;
-      if (Array.isArray(codes) && !codes.includes("capability:data-science:data") && !codes.includes("system:api:all")) {
+      const historyPermission = this.currentWorkspace?.workspaceId === "business"
+        ? "workspace:chat:conversation" : "capability:data-science:data";
+      if (Array.isArray(codes) && !codes.includes(historyPermission) && !codes.includes("system:api:all")) {
         this.historyRequestSerial = (this.historyRequestSerial || 0) + 1;
         this.conversationHistory = [];
         this.historyLoading = false;
@@ -1130,6 +1143,7 @@ export default {
     },
 
     handleNewConversation() {
+      this.businessPanel = "chat";
       this.selectedConversation = null;
       this.activeHistoryId = "";
       this.pendingChatDraft = null;

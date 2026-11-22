@@ -1,5 +1,5 @@
 <template>
-  <section class="prompt-card" :class="{'prompt-compact':compact}" @dragover="handleDragOver" @drop="handleDrop" @keydown.esc="invalidateIdeas">
+  <section class="prompt-card" :class="{'prompt-compact':compact, 'prompt-simple-tools': simpleTools}" @dragover="handleDragOver" @drop="handleDrop" @keydown.esc="invalidateIdeas">
     <div v-if="showSuggestions" class="prompt-suggestions">
       <span class="prompt-suggestions-label">快捷问题</span>
       <button
@@ -13,6 +13,17 @@
     </div>
 
     <form class="composer-box" @submit.prevent="handlePrimaryAction">
+      <div v-if="businessReferencesEnabled" class="business-reference-bar">
+        <button type="button" :disabled="loading || inputDisabled" aria-label="添加技能或文档"
+          :aria-expanded="mention !== null" @click="openReferences">@ 添加资料</button>
+        <button v-for="item in selectedReferences" :key="item.type + ':' + item.id" type="button"
+          :aria-label="'移除 ' + item.name" :disabled="loading" @click="removeReference(item)">
+          {{ item.type === 'skills' ? '技能' : '知识库' }} · {{ item.name }} ×
+        </button>
+        <BusinessReferencePicker v-if="mention" ref="referencePicker" :keyword="mention.keyword"
+          :workspace-context="workspaceContext" @select="addReference" />
+        <small v-if="referenceError" role="status">{{ referenceError }}</small>
+      </div>
       <textarea
         ref="composerTextarea"
         v-model="draft"
@@ -20,10 +31,13 @@
         :disabled="loading || inputDisabled"
         :placeholder="placeholder"
         :maxlength="compact ? maxLength : undefined"
-        :aria-label="compact ? placeholder : undefined"
-        @input="adjustTextareaHeight"
+        :aria-label="compact || simpleTools ? placeholder : undefined"
+        @input="handleDraftInput"
         @paste="handlePaste"
         @keydown.enter.exact="handleEnter"
+        @keydown.down="moveReference($event, 1)"
+        @keydown.up="moveReference($event, -1)"
+        @keydown.esc="mention = null"
       ></textarea>
       <p v-if="longText" class="composer-file-notice"
         >超过 8,000 字，发送时将完整内容保存为 Markdown 文件并分析。</p
@@ -60,7 +74,7 @@
 
       <div v-if="!compact" class="composer-toolbar">
         <div class="composer-toolbar-group mode-group">
-          <span v-if="!compact" class="toolbar-group-label">当前模式</span>
+          <span v-if="!simpleTools" class="toolbar-group-label">当前模式</span>
           <label class="agent-picker" :class="{ active: selectedAgentId, loading: agentsLoading }">
             <Bot class="tool-icon" :size="16" stroke-width="1.9" />
             <span>{{ agentSelectLabel }}</span>
@@ -76,6 +90,11 @@
             </select>
           </label>
         </div>
+        <button v-if="simpleTools" type="button" class="tool-button" :aria-expanded="toolsOpen"
+          @click="toolsOpen = !toolsOpen">
+          更多选项 <ChevronDown :size="13" aria-hidden="true" />
+        </button>
+        <div v-show="!simpleTools || toolsOpen" class="composer-extra-tools">
         <CodingReasoningSelect toolbar class="composer-option-control" :efforts="reasoningEfforts" :value="selectedReasoning"
           :disabled="loading || inputDisabled" :unavailable-label="reasoningUnavailableLabel" @change="changeReasoning" />
         <button
@@ -151,6 +170,7 @@
             <FileText :size="14" stroke-width="2" />
             文档工作流
           </span>
+        </div>
         </div>
       </div>
 

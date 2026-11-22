@@ -580,6 +580,7 @@ public class ConversationService {
                               String conversationId,
                               String userId,
                               List<Conversation.Message> messages) {
+        sessionRepository.findLockedBySessionIdAndTenantId(conversationId, normalizeTenantId(tenantId));
         List<Conversation.Message> existing = getConversation(tenantId, conversationId)
             .map(Conversation::getMessages)
             .orElse(List.of());
@@ -769,13 +770,16 @@ public class ConversationService {
             || !"assistant".equalsIgnoreCase(second.getRole())) {
             return false;
         }
+        if (sameTaskId(first, second)) return true;
+        if (hasTaskId(first) && hasTaskId(second)) return false;
+        if (isEmptyAssistantPlaceholder(first) && hasTaskId(second)
+            || isEmptyAssistantPlaceholder(second) && hasTaskId(first)) return true;
         String firstAnswer = normalizedAnswer(first);
         String secondAnswer = normalizedAnswer(second);
         if (firstAnswer.isBlank() || secondAnswer.isBlank()) {
             return false;
         }
         if (firstAnswer.equals(secondAnswer)
-            || sameTaskId(first, second)
             || sameRawContent(first, second)) {
             return true;
         }
@@ -785,6 +789,13 @@ public class ConversationService {
         // while the memory copy has no task id and can differ slightly after response
         // normalization. Consecutive copies still represent one assistant turn.
         return hasTaskId(first) != hasTaskId(second);
+    }
+
+    private static boolean isEmptyAssistantPlaceholder(Conversation.Message message) {
+        return !hasTaskId(message) && "empty".equalsIgnoreCase(message.getStatus())
+            && !Boolean.TRUE.equals(message.getStreaming()) && normalizedAnswer(message).isBlank()
+            && (message.getUiResponse() == null || message.getUiResponse().isEmpty())
+            && size(message.getTraces()) == 0 && size(message.getSources()) == 0;
     }
 
     private static boolean hasTaskId(Conversation.Message message) {
@@ -814,6 +825,10 @@ public class ConversationService {
                                                  Conversation.Message current) {
         if (hasTaskId(candidate) != hasTaskId(current)) {
             return hasTaskId(candidate);
+        }
+        if (sameTaskId(candidate, current)
+            && Boolean.TRUE.equals(candidate.getStreaming()) != Boolean.TRUE.equals(current.getStreaming())) {
+            return !Boolean.TRUE.equals(candidate.getStreaming());
         }
         return presentationScore(candidate) > presentationScore(current);
     }
@@ -891,8 +906,29 @@ public class ConversationService {
         if (content == null || content.isBlank()) {
             throw new IllegalArgumentException("Message content cannot be empty");
         }
-        ChatSessionEntity session = sessionRepository.findById(conversationId)
+        boolean taskAssistant = "assistant".equalsIgnoreCase(role) && blankToNull(taskId) != null;
+        ChatSessionEntity session = (taskAssistant ? sessionRepository.findLockedBySessionId(conversationId)
+            : sessionRepository.findById(conversationId))
             .orElseThrow(() -> new IllegalArgumentException("Conversation not found: " + conversationId));
+        if (taskAssistant) {
+            var existing = messageIndexRepository.findByTenantIdAndSessionIdOrderByCreatedAtAsc(
+                    session.getTenantId(), session.getSessionId()).stream()
+                .filter(index -> "assistant".equalsIgnoreCase(index.getRole()))
+                .map(index -> detailStore.get(index.getRocksKey()).orElse(null))
+                .filter(detail -> detail != null && taskId.trim().equals(detail.getTaskId()))
+                .findFirst();
+            if (existing.isPresent()) {
+                ChatMessageDetail detail = existing.get();
+                if (Boolean.TRUE.equals(detail.getStreaming()) || blankToNull(detail.getContent()) == null) {
+                    detail.setContent(content);
+                    detail.setSources(copyMaps(sources));
+                    detail.setTraces(copyMaps(traces));
+                    detail.setMemoryContext(copyMap(memoryContext));
+                    detailStore.put(detail);
+                }
+                return toMessage(detail);
+            }
+        }
         Instant createdAt = Instant.now();
         String messageId = UUID.randomUUID().toString();
         ChatMessageDetail detail = ChatMessageDetail.builder()

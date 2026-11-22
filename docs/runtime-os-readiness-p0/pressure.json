@@ -1,0 +1,259 @@
+{
+  "context": "desktop-linux",
+  "checks": {
+    "200": {
+      "usable": true,
+      "seconds": 0.109
+    },
+    "401": {
+      "usable": true,
+      "seconds": 0.12
+    },
+    "503": {
+      "usable": false,
+      "seconds": 0.106
+    },
+    "slow": {
+      "usable": false,
+      "seconds": 6.097
+    },
+    "recovered": {
+      "usable": true,
+      "seconds": 0.1
+    },
+    "connection_refused": true,
+    "tls_error": true,
+    "adoption_without_init": 1,
+    "adoption_with_init": 0,
+    "tampered_release_rejected": true,
+    "isolated_dependency_gate": true,
+    "native_health_timeout": true,
+    "interruption_restart_recreate": true,
+    "default_seccomp_creates": 20
+  },
+  "pressure": {
+    "original": {
+      "checks": 10,
+      "successes": 10,
+      "seconds": 0.313,
+      "pid1": "sleep",
+      "before": {
+        "bpfJitMappings": 0,
+        "bpfJitBytes": 0,
+        "hostZombies": 0,
+        "hostProcesses": 20
+      },
+      "after": {
+        "bpfJitMappings": 0,
+        "bpfJitBytes": 0,
+        "hostZombies": 10,
+        "hostProcesses": 30
+      },
+      "zombiePeak": 10,
+      "thresholdStopped": true,
+      "samples": [
+        {
+          "zombies": 5,
+          "zombieCommands": [
+            "ssl_client"
+          ],
+          "processes": 7,
+          "bpfJitMappings": 0,
+          "bpfJitBytes": 0,
+          "hostZombies": 5,
+          "hostProcesses": 25
+        },
+        {
+          "zombies": 10,
+          "zombieCommands": [
+            "ssl_client"
+          ],
+          "processes": 12,
+          "bpfJitMappings": 0,
+          "bpfJitBytes": 0,
+          "hostZombies": 10,
+          "hostProcesses": 30
+        }
+      ],
+      "afterRemoval": {
+        "bpfJitMappings": 0,
+        "bpfJitBytes": 0,
+        "hostZombies": 0,
+        "hostProcesses": 18
+      }
+    },
+    "init": {
+      "checks": 1000,
+      "successes": 1000,
+      "seconds": 29.437,
+      "pid1": "docker-init",
+      "before": {
+        "bpfJitMappings": 0,
+        "bpfJitBytes": 0,
+        "hostZombies": 0,
+        "hostProcesses": 21
+      },
+      "after": {
+        "bpfJitMappings": 0,
+        "bpfJitBytes": 0,
+        "hostZombies": 0,
+        "hostProcesses": 21
+      },
+      "zombiePeak": 0,
+      "samples": [
+        {
+          "zombies": 0,
+          "zombieCommands": [],
+          "processes": 3,
+          "bpfJitMappings": 0,
+          "bpfJitBytes": 0,
+          "hostZombies": 0,
+          "hostProcesses": 21
+        },
+        {
+          "zombies": 0,
+          "zombieCommands": [],
+          "processes": 3,
+          "bpfJitMappings": 0,
+          "bpfJitBytes": 0,
+          "hostZombies": 0,
+          "hostProcesses": 21
+        },
+        {
+          "zombies": 0,
+          "zombieCommands": [],
+          "processes": 3,
+          "bpfJitMappings": 0,
+          "bpfJitBytes": 0,
+          "hostZombies": 0,
+          "hostProcesses": 21
+        },
+        {
+          "zombies": 0,
+          "zombieCommands": [],
+          "processes": 3,
+          "bpfJitMappings": 0,
+          "bpfJitBytes": 0,
+          "hostZombies": 0,
+          "hostProcesses": 21
+        }
+      ]
+    },
+    "init_interval": {
+      "checks": 1000,
+      "successes": 1000,
+      "seconds": 29.858,
+      "pid1": "docker-init",
+      "before": {
+        "bpfJitMappings": 0,
+        "bpfJitBytes": 0,
+        "hostZombies": 0,
+        "hostProcesses": 21
+      },
+      "after": {
+        "bpfJitMappings": 0,
+        "bpfJitBytes": 0,
+        "hostZombies": 0,
+        "hostProcesses": 21
+      },
+      "zombiePeak": 0,
+      "samples": [
+        {
+          "zombies": 0,
+          "zombieCommands": [],
+          "processes": 3,
+          "bpfJitMappings": 0,
+          "bpfJitBytes": 0,
+          "hostZombies": 0,
+          "hostProcesses": 21
+        },
+        {
+          "zombies": 0,
+          "zombieCommands": [],
+          "processes": 3,
+          "bpfJitMappings": 0,
+          "bpfJitBytes": 0,
+          "hostZombies": 0,
+          "hostProcesses": 21
+        },
+        {
+          "zombies": 0,
+          "zombieCommands": [],
+          "processes": 3,
+          "bpfJitMappings": 0,
+          "bpfJitBytes": 0,
+          "hostZombies": 0,
+          "hostProcesses": 21
+        },
+        {
+          "zombies": 0,
+          "zombieCommands": [],
+          "processes": 3,
+          "bpfJitMappings": 0,
+          "bpfJitBytes": 0,
+          "hostZombies": 0,
+          "hostProcesses": 21
+        }
+      ]
+    },
+    "full": {
+      "checks": 1000,
+      "successes": 1000,
+      "seconds": 29.027,
+      "pid1": "docker-init",
+      "before": {
+        "bpfJitMappings": 0,
+        "bpfJitBytes": 0,
+        "hostZombies": 0,
+        "hostProcesses": 21
+      },
+      "after": {
+        "bpfJitMappings": 0,
+        "bpfJitBytes": 0,
+        "hostZombies": 0,
+        "hostProcesses": 21
+      },
+      "zombiePeak": 0,
+      "samples": [
+        {
+          "zombies": 0,
+          "zombieCommands": [],
+          "processes": 3,
+          "bpfJitMappings": 0,
+          "bpfJitBytes": 0,
+          "hostZombies": 0,
+          "hostProcesses": 21
+        },
+        {
+          "zombies": 0,
+          "zombieCommands": [],
+          "processes": 3,
+          "bpfJitMappings": 0,
+          "bpfJitBytes": 0,
+          "hostZombies": 0,
+          "hostProcesses": 21
+        },
+        {
+          "zombies": 0,
+          "zombieCommands": [],
+          "processes": 3,
+          "bpfJitMappings": 0,
+          "bpfJitBytes": 0,
+          "hostZombies": 0,
+          "hostProcesses": 21
+        },
+        {
+          "zombies": 0,
+          "zombieCommands": [],
+          "processes": 3,
+          "bpfJitMappings": 0,
+          "bpfJitBytes": 0,
+          "hostZombies": 0,
+          "hostProcesses": 21
+        }
+      ]
+    }
+  },
+  "engine": "29.6.2 kernel=6.18.33.2-microsoft-standard-WSL2 cgroup=2",
+  "compose": "5.3.1"
+}

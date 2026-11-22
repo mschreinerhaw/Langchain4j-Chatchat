@@ -8,6 +8,8 @@ import re
 import secrets
 import subprocess
 
+from production_compose import prepare_release_readiness
+
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
@@ -191,8 +193,7 @@ def main():
         (private / 'secrets' / filename).chmod(0o444)
     (private / 'release.env').write_text('HUB_TOKEN=' + hub_token + '\nRUNTIME_CONFIG_DIR=' + str(private) + '\n')
     (release / 'acl-targets.json').write_text(json.dumps({'writable': sorted(writable), 'readable': sorted(readable)}, indent=2))
-    subprocess.run(['docker', 'compose', '--env-file', str(private / 'release.env'),
-                    '-f', str(release / 'compose.production.json'), 'config', '--quiet'], check=True)
+    prepare_release_readiness(release)
     print('Release composition prepared; original configuration and databases preserved.')
 
 

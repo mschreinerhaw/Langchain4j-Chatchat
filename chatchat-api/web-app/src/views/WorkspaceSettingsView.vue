@@ -109,6 +109,11 @@
           ><p v-if="formError" class="permission-notice error" role="alert">{{ formError }}</p
           ><label>名称<input v-model.trim="draft.manifest.name" required /></label
           ><label>说明<textarea v-model.trim="draft.manifest.description" rows="3" /></label
+          ><label v-if="businessProfilePage">
+            部门配置 JSON
+            <textarea v-model="businessProfilePage.props.profiles"
+              rows="8" spellcheck="false" placeholder='{"tenantId/orgId":{"title":"业务智能助手"}}' />
+          </label
           ><div class="permission-form-grid"
             ><label
               >启用状态<select v-model="draft.status"

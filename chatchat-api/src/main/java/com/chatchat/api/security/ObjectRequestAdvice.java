@@ -34,6 +34,7 @@ public class ObjectRequestAdvice extends RequestBodyAdviceAdapter {
         if (access.user(request) == null) return body;
         if (body instanceof DataQueryController.HistoryStatusRequest status) {
             access.requireConversation(request, status.getConversationId(), false);
+            origins.requireBusinessOrigin(request, "CONVERSATION", status.getConversationId());
             status.setTenantId(access.tenant(request)); return body;
         }
         if (body instanceof DataQueryController.HistoryRequest history) {
@@ -59,6 +60,7 @@ public class ObjectRequestAdvice extends RequestBodyAdviceAdapter {
             interaction.setTenantId(access.tenant(request)); interaction.setUserId(access.user(request));
         } else {
             var task = (AgentTaskSubmitRequest) body;
+            origins.requireBusinessOrigin(request, "TASK", task.getResumeTaskId());
             var acceptedSession=access.requireTaskSubmission(request, task.getResumeTaskId(), task.getIdempotencyKey());
             if (session==null || session.isBlank()) {
                 session=acceptedSession.orElse(null);

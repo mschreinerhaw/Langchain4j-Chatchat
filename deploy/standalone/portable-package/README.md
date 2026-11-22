@@ -38,6 +38,10 @@ bash install-config/install.sh password
 
 `password` 可以在新 SSH 会话中独立执行。使用初始用户名 `admin` 和输出的密码登录 `http://目标机IP:HTTP_PORT`，MCP 管理入口是 `http://目标机IP:MCP_PORT`。生产模型和数据源按实际业务环境配置。切换外部访问地址时使用目标机的实际 IP 或域名。
 
+## OpenSearch 健康检查更新
+
+安装器 `runtime-os-local-installer:1.3.2-readiness-p0` 为新生成的内置 OpenSearch 启用 Docker init，健康检查直接执行单个 `curl`。探针在安全初始化前确认 HTTPS 监听器可达，安装脚本随后完成安全初始化和认证后的集群健康验证。使用此包执行全新安装时，请将 `manual-install.env` 的 `INSTALLER_IMAGE` 指向该修订标签。已有目录的 `compose.json` 会被沿用，更新介质本身不会重建现场容器。
+
 ## Coding 监控
 
 在应用端口打开 `http://目标机IP:HTTP_PORT/monitor/`。默认宿主机端口是 `18100`，容器内监听 `8080`。页面使用 Runtime OS 登录获取任务数据。`deploy` 会验证跳转、首页、JavaScript 和 CSS，然后生成安装验收报告。

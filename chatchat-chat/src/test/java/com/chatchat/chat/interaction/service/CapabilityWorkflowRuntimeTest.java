@@ -9,6 +9,20 @@ import java.util.concurrent.atomic.AtomicInteger;
 import static org.assertj.core.api.Assertions.*;
 
 class CapabilityWorkflowRuntimeTest {
+    @Test
+    void statusOnlyDiagnosticReportDoesNotCountAsSuccessfulAnalysis() {
+        var response = InteractionResponse.builder().answer("Data unavailable")
+            .metadata(Map.of("agent", Map.of("limitedReportAfterUnavailableSupply", true,
+                "dataSupply", Map.of("status", "EXECUTION_FAILED", "businessDataAvailable", false)),
+                WorkflowOutcome.METADATA_KEY,
+                new WorkflowOutcome(WorkflowOutcome.Type.PARTIAL_RESULT, "REPORT_PRODUCED", List.of(), List.of(), true)))
+            .build();
+        CapabilityWorkflowRuntime.normalizeOutcome(response);
+        assertThat(((WorkflowOutcome) response.getMetadata().get(WorkflowOutcome.METADATA_KEY)).publicStatus())
+            .isEqualTo("FAILED");
+        assertThat(response.getAnswer()).isEqualTo("Data unavailable");
+    }
+
     @Test void capabilityGapPreservesAnswerAndDoesNotClaimCompletedAnalysis() {
         var response=InteractionResponse.builder().answer("No matching authorized capability")
             .metadata(Map.of("agent",Map.of("publicStatus","SUCCESS","analysisNoAcquisitionAnswer",true),

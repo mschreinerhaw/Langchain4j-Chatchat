@@ -12,6 +12,7 @@ import com.chatchat.mcpserver.external.ExternalMcpToolPublisher;
 import com.chatchat.mcpserver.ops.command.CommandTemplateService;
 import com.chatchat.mcpserver.ops.http.HttpEndpointConfigService;
 import com.chatchat.mcpserver.ops.ssh.SshHostConfigService;
+import com.chatchat.mcpserver.ops.ssh.SshHostConfig;
 import com.chatchat.mcpserver.python.PythonMcpToolPublisher;
 import com.chatchat.mcpserver.python.PythonTemplateCatalog;
 import com.chatchat.mcpserver.sql.datasource.SqlDatasourceConfigService;
@@ -157,6 +158,29 @@ public class TemplateAssetCatalogService {
             }
         }
         return List.copyOf(result);
+    }
+
+    public Set<String> namedSshTarget(String assetName, String environment, String goal) {
+        if ((assetName == null || assetName.isBlank()) && (goal == null || goal.isBlank())) return Set.of();
+        String explicitName = normalizeHostIdentity(assetName);
+        String request = normalizeHostIdentity(goal);
+        var hosts = sshHostConfigService.listEnabled().stream()
+            .filter(host -> environment == null || environment.isBlank()
+                || environment.trim().equalsIgnoreCase(host.getEnvironment()))
+            .filter(host -> java.util.stream.Stream.of(host.getName(), host.getTitle(), host.getToolName())
+                .map(TemplateAssetCatalogService::normalizeHostIdentity)
+                .filter(alias -> !alias.isEmpty())
+                .anyMatch(alias -> explicitName.isEmpty()
+                    ? alias.length() >= 4 && request.contains(alias)
+                    : explicitName.equals(alias)))
+            .map(SshHostConfig::getId)
+            .distinct()
+            .toList();
+        return hosts.size() == 1 ? Set.of(hosts.get(0)) : Set.of();
+    }
+
+    private static String normalizeHostIdentity(String value) {
+        return value == null ? "" : value.toLowerCase(Locale.ROOT).replaceAll("[^\\p{L}\\p{N}_-]+", "");
     }
 
     /** Resolves only the confirmed identities against the published template's registry entry. */

@@ -4696,6 +4696,9 @@ public class InterpretationPlanRuntime extends AbstractRuntimeWorkflow<Interpret
             }
             Map<String, Object> childInput = new LinkedHashMap<>(bridged.executorInput());
             childInput.remove(TemplateInvocationBridge.APPLIED_MARKER);
+            if ("ssh_host".equals(templateMetadata.get("assetType"))) {
+                applyTemplateExecutionContext(childInput, templateMetadata);
+            }
             putRuntimeTemplateBinding(
                 childInput,
                 templateId,
@@ -6390,6 +6393,12 @@ public class InterpretationPlanRuntime extends AbstractRuntimeWorkflow<Interpret
         }
         arguments.put("templateId", templateId);
         arguments.put("template", templateId);
+        applyTemplateExecutionContext(arguments, template);
+        return arguments;
+    }
+
+    @SuppressWarnings("unchecked")
+    private void applyTemplateExecutionContext(Map<String, Object> arguments, Map<String, Object> template) {
         Object existingContext = firstMapValue(arguments, "executionContext", "mcpExecutionContext");
         Map<String, Object> executionContext = existingContext instanceof Map<?, ?> map
             ? new LinkedHashMap<>((Map<String, Object>) map)
@@ -6413,7 +6422,6 @@ public class InterpretationPlanRuntime extends AbstractRuntimeWorkflow<Interpret
         if (!executionContext.isEmpty()) {
             arguments.put("executionContext", executionContext);
         }
-        return arguments;
     }
 
     private boolean requiredTemplateParametersSatisfied(

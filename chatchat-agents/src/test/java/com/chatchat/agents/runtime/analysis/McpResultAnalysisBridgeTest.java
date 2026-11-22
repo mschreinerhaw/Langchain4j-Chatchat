@@ -15,6 +15,32 @@ class McpResultAnalysisBridgeTest {
 
     private final McpResultAnalysisBridge bridge = new McpResultAnalysisBridge();
 
+    @Test
+    void projectsSingletonMetricsFromTheGovernedHttpBody() {
+        Map<String, Object> receipt = Map.of("dataSchema", "http_response.v1", "success", true,
+            "data", Map.of("statusCode", 200, "headers", Map.of("content-type", List.of("application/json")),
+                "body", Map.of("clusterMetrics", Map.of("totalMB", 8192, "allocatedMB", 4096)),
+                "rawBody", Map.of("clusterMetrics", Map.of("totalMB", 1))));
+        var result = bridge.analysisResult("http", Map.of("schemaVersion", McpAnalysisPayload.SCHEMA_VERSION,
+            "resultKind", "UNDECLARED", "status", "SUCCESS", "data", receipt, "rawData", receipt), 1000, false);
+
+        assertThat(result.datasets()).singleElement().satisfies(dataset -> {
+            assertThat(dataset.analysisContext())
+                .containsEntry("canonicalPath", "$.data.data.body.clusterMetrics")
+                .containsEntry("projectionSource", "governed_data");
+            assertThat(dataset.records()).containsExactly(Map.of("totalMB", 8192, "allocatedMB", 4096));
+        });
+    }
+
+    @Test
+    void excludesSingletonBodyFromFailedHttpReceipt() {
+        var result = bridge.analysisResult("http", Map.of("schemaVersion", McpAnalysisPayload.SCHEMA_VERSION,
+            "resultKind", "UNDECLARED", "status", "SUCCESS", "data",
+            Map.of("dataSchema", "http_response.v1", "success", false,
+                "data", Map.of("statusCode", 403, "body", Map.of("message", "Forbidden")))), 1000, false);
+        assertThat(result.datasets()).isEmpty();
+    }
+
     @Test void registeredAdaptersRouteLegacyCommandEnvelopeToObservedStreams() {
         var result=bridge.analysisResult("opaque",Map.of("schemaVersion",McpAnalysisPayload.SCHEMA_VERSION,
             "resultKind","UNDECLARED","data",Map.of("dataSchema","ssh_steps.v1",

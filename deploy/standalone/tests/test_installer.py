@@ -99,4 +99,16 @@ class InstallerTests(unittest.TestCase):
         self.assertTrue(all('profiles' not in service and 'healthcheck' in service for service in staged.values()))
         self.assertEqual(staged['gateway']['depends_on']['api']['condition'],'service_healthy')
 
+    def test_portable_search_reaps_children_and_checks_https_before_security_bootstrap(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            services = self.render(tmp, portable=True)['services']
+        self.assertNotIn('opensearch-ready', services)
+        search = services['opensearch']
+        self.assertIs(search['init'], True)
+        self.assertNotIn('profiles', search)
+        self.assertEqual(search['healthcheck']['test'],
+                         ['CMD', 'curl', '--silent', '--insecure', '--max-time', '4',
+                          '--output', '/dev/null', 'https://127.0.0.1:9200'])
+        self.assertEqual(search['healthcheck']['interval'], '5s')
+
 if __name__=='__main__':unittest.main()

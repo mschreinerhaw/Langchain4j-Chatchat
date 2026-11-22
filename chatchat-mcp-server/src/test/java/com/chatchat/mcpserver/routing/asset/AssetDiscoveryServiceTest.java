@@ -222,6 +222,33 @@ class AssetDiscoveryServiceTest {
     }
 
     @Test
+    void preservesTheTopCandidateFromEachIndependentHttpQuery() {
+        SshHostConfigService hosts = mock(SshHostConfigService.class);
+        SqlDatasourceConfigService databases = mock(SqlDatasourceConfigService.class);
+        HttpEndpointConfigService endpoints = mock(HttpEndpointConfigService.class);
+        LuceneMcpSearchService search = mock(LuceneMcpSearchService.class);
+        when(endpoints.listEnabled()).thenReturn(List.of(
+            endpoint("cdh-metrics", "CDH YARN cluster metrics", "PROD", null),
+            endpoint("tdh-jobs", "TDH YARN running jobs", "PROD", null)));
+        when(search.enabled()).thenReturn(true);
+        when(search.searchAssets(org.mockito.ArgumentMatchers.any())).thenAnswer(invocation -> {
+            LuceneMcpSearchService.AssetSearchRequest request = invocation.getArgument(0);
+            return "cdh".equals(request.queryText())
+                ? List.of(searchHit("cdh-metrics", "CDH YARN cluster metrics", 2.0F, ""))
+                : List.of(searchHit("tdh-jobs", "TDH YARN running jobs", 10.0F, ""));
+        });
+        AssetDiscoveryService service = new AssetDiscoveryService(hosts, databases, endpoints,
+            new AssetMetadataFactory(new ObjectMapper()), search, new TargetKindRegistry());
+
+        var result = service.query(Map.of("assetType", "http_endpoint", "finalDecision", "http",
+            "confidence", 1.0, "filters", Map.of("env", "PROD", "queryTerms", List.of("CDH", "YARN")),
+            "trace", trace(), "limit", 10));
+
+        assertThat(result).containsEntry("returnedCount", 2);
+        assertThat(((List<?>) result.get("assets")).toString()).contains("cdh-metrics", "tdh-jobs");
+    }
+
+    @Test
     void treatsLooseContextStringAsServiceFilter() {
         SshHostConfigService hostService = mock(SshHostConfigService.class);
         SqlDatasourceConfigService datasourceService = mock(SqlDatasourceConfigService.class);

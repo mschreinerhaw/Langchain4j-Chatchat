@@ -20,6 +20,8 @@ export default {
       failed = ref(false),
       draft = ref(null),
       formError = ref("");
+    const businessProfilePage = computed(() => draft.value?.manifest.workspaceId === "business"
+      ? draft.value.manifest.pages.find(page => page.componentKey === "businessHome") : null);
     const searchQuery = ref(""),
       statusFilter = ref("all"),
       page = ref(1),
@@ -59,6 +61,7 @@ export default {
       chat: "智能对话",
       search: "文档检索",
       agents: "查询服务管理",
+      businessHome: "智能对话",
       workspaces: "数据空间",
       toolPublications: "工具发布",
       sqlStudio: "数据开发",
@@ -92,6 +95,8 @@ export default {
       try {
         const value = draft.value;
         const manifest = { ...value.manifest, configVersion: value.manifest.configVersion + 1 };
+        const props = businessProfilePage.value?.props;
+        if (props && !props.profiles?.trim()) delete props.profiles;
         await apiRequest("/enterprise/workspaces/" + encodeURIComponent(manifest.workspaceId), {
           method: "PUT",
           body: JSON.stringify({
@@ -147,6 +152,7 @@ export default {
       notice,
       failed,
       draft,
+      businessProfilePage,
       formError,
       pageLabels,
       load,

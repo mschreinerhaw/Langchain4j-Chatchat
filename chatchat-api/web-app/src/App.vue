@@ -2,7 +2,7 @@
   <LoginView v-if="!authSession" @login-success="handleLoginSuccess" />
   <AssistantLayout
     v-else
-    :class="{ 'workspace-changing': workspaceLoading && workspaceReady }"
+    :class="{ 'workspace-changing': workspaceLoading && workspaceReady, 'workspace-business': chatView === 'businessHome' }"
     :active-view="activeView"
     :active-conversation-id="activeHistoryId"
     :history-error="historyError"
@@ -36,6 +36,12 @@
     @select-conversation="selectConversation"
     @logout="handleLogout"
   >
+    <template v-if="workspaceReady && chatView === 'businessHome' && canAccessView(chatView)" #workspace-navigation="{ collapsed }">
+      <BusinessWorkspaceNavigation
+        :panel="businessPanel" :collapsed="collapsed"
+        @select="businessPanel = $event"
+      />
+    </template>
     <template #workspace-switcher>
       <div class="workspace-switcher" :class="{ 'is-switching': workspaceLoading }">
         <div class="workspace-switcher-heading">
@@ -94,6 +100,7 @@
         @conversation-active="handleConversationActive"
         @history-saved="handleHistorySaved"
         @ask-ai="handleAskAiFromSearch"
+        @update:panel="businessPanel = $event"
         @navigate="handleNavigate"
         @select-agent="handleSelectAgentShortcut"
         @open-favorite="handleOpenFavoriteShortcut"
@@ -103,10 +110,12 @@
     <button
       v-if="
         !['workspaces', 'toolPublications', 'toolCategories'].includes(activeView) &&
-        canAccessView('chat')
+        canAccessView(chatView)
       "
+      :key="chatView"
       class="floating-new-conversation"
-      v-floating-drag
+      :class="{ 'business-floating-new-chat': chatView === 'businessHome' }"
+      v-floating-drag="chatView === 'businessHome' ? { storageKey: 'chatchat.business.floatingNewChat' } : undefined"
       type="button"
       title="新建对话"
       aria-label="新建对话"
@@ -118,7 +127,7 @@
 
     <template #right-panel="{ collapsed, toggleCollapsed }">
       <RightPanel
-        v-if="workspaceReady && currentWorkspace?.layoutType === 'assistant'"
+        v-if="workspaceReady && currentWorkspace?.layoutType === 'assistant' && chatView !== 'businessHome'"
         :collapsed="collapsed"
         :tenant-id="tenantId"
         :user-id="userId"

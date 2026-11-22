@@ -1655,6 +1655,9 @@ export default {
   },
   props: {
     workspaceContext: { type: Object, default: null },
+    preferredAgentId: { type: String, default: '' },
+    slashSkillPicker: { type: Boolean, default: false },
+    businessMode: { type: Boolean, default: false },
     selectedConversation: {
       type: Object,
       default: null
@@ -1672,7 +1675,7 @@ export default {
       default: null
     }
   },
-  emits: ["conversation-active", "history-saved"],
+  emits: ["conversation-active", "history-saved", "pick-skill"],
   data() {
     return {
       question: "",
@@ -1879,7 +1882,7 @@ export default {
     }
   },
   mounted() {
-    const draft = readWorkspaceDraft("chatchat.composerDraft.v1", this.workspaceContext);
+    const draft = this.slashSkillPicker ? null : readWorkspaceDraft("chatchat.composerDraft.v1", this.workspaceContext);
     if (!this.question && typeof draft?.question === "string") this.question = draft.question.slice(0, 200000);
     this.loadAgents();
     this.stopAgentTaskCancelledListener = onAgentTaskCancelled(this.handleAgentTaskCancelled);
@@ -1896,7 +1899,12 @@ export default {
   },
   watch: {
     question(value) {
-      saveWorkspaceDraft("chatchat.composerDraft.v1", this.workspaceContext, { question: String(value || "").slice(0, 200000) });
+      if (this.slashSkillPicker && value === "/") {
+        this.question = "";
+        this.$emit("pick-skill");
+        return;
+      }
+      if (!this.slashSkillPicker) saveWorkspaceDraft("chatchat.composerDraft.v1", this.workspaceContext, { question: String(value || "").slice(0, 200000) });
     },
     selectedConversation: {
       immediate: true,
@@ -2147,6 +2155,7 @@ export default {
         availableTools: [],
         toolInput: {
           agentName: payload?.agentName || "",
+          ...(this.businessMode && payload?.businessReferences ? { businessReferences: payload.businessReferences } : {}),
           documentWorkflow: !!payload?.documentWorkflow,
           webSearch: false,
           resourceExplorationApproved: payload?.resourceExplorationApproved === true,
@@ -3147,7 +3156,8 @@ export default {
       if (this.selectedAgentId || this.historyId || this.hasConversation) {
         return;
       }
-      const defaultAgent = this.agents.find((agent) => agent?.defaultAgent);
+      const defaultAgent = this.agents.find((agent) => agent.id === this.preferredAgentId)
+        || this.agents.find((agent) => agent?.defaultAgent);
       if (defaultAgent?.id) {
         this.selectedAgentId = defaultAgent.id;
       }

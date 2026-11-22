@@ -30,6 +30,19 @@ class NativeVisualReportTest {
         assertThat(report).containsEntry("schemaVersion","python_visual_report.v1").containsEntry("status","SUCCESS").containsEntry("businessValidationPassed",false);
         var charts=(List<Map<String,Object>>)report.get("charts");assertThat((Map<String,Object>)charts.get(0).get("artifact")).containsKey("fileId");assertThat(report.get("markdown")).isEqualTo(rows.get(0).get("reportMarkdown"));
     }
+    @Test void htmlDeliveryKeepsArchivedChartAndMarkdownForFallback() throws Exception {
+        var html = new UserAssetService.File("html-id", "ARTIFACT", "report.html", "text/html", "hash",
+            34, "AVAILABLE", "task", "run", "coding-node:v1:output/report.html", 1);
+        when(assets.readTask(scope, "task", "html-id")).thenReturn("<title>Report</title>".getBytes(java.nio.charset.StandardCharsets.UTF_8));
+        var output = new ByteArrayOutputStream();
+        ImageIO.write(new BufferedImage(20, 20, BufferedImage.TYPE_INT_RGB), "png", output);
+        when(assets.readTask(scope, "task", "chart-id")).thenReturn(output.toByteArray());
+        var report = reports.project(scope, "task", Map.of("reportMode", "visual"), rows,
+            List.of(html, file("run"))).orElseThrow();
+        assertThat(report).containsKey("htmlReport").containsEntry("markdown", rows.get(0).get("reportMarkdown"));
+        assertThat((List<?>) report.get("charts")).hasSize(1);
+    }
+
     @Test void offOrForeignRunCannotReadOrExposeArtifacts(){
         assertThat(reports.project(scope,"task",Map.of(),rows,List.of(file("run")))).isEmpty();
         assertThat(reports.project(scope,"task",Map.of("reportMode","visual"),rows,List.of(file("foreign")))).isEmpty();verifyNoInteractions(assets);

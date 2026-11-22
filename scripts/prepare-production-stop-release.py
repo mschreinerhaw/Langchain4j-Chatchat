@@ -6,6 +6,8 @@ from pathlib import Path
 import re
 import subprocess
 
+from production_compose import prepare_release_readiness
+
 
 def main():
     os.umask(0o077)
@@ -106,8 +108,7 @@ def main():
     # Keep Compose relative paths, environment and existing data volume names stable.
     (private / 'release.env').write_bytes((old / 'private/release.env').read_bytes())
     (release / 'compose.production.json').write_text(json.dumps(compose, indent=2))
-    subprocess.run(['docker', 'compose', '--env-file', str(private / 'release.env'),
-                    '-f', str(release / 'compose.production.json'), 'config', '--quiet'], check=True)
+    prepare_release_readiness(release)
     print('Candidate Compose validated with unchanged project, data mounts and routes.')
 
 

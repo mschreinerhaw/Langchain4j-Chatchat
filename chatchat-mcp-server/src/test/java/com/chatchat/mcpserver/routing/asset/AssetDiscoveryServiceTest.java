@@ -774,15 +774,21 @@ class AssetDiscoveryServiceTest {
             "assetType", "http_endpoint", "finalDecision", "http", "confidence", 1.0,
             "technicalType", "MICROSERVICE", "filters", Map.of(), "trace", trace()));
 
+        Map<String, Object> untypedResult = service.query(Map.of(
+            "assetType", "http_endpoint", "finalDecision", "http", "confidence", 1.0,
+            "filters", Map.of(), "trace", trace()));
+        assertThat(untypedResult).containsEntry("returnedCount", 2);
         assertThat(httpResult).containsEntry("technicalType", "HTTP").containsEntry("returnedCount", 1);
         assertThat(microserviceResult).containsEntry("technicalType", "MICROSERVICE").containsEntry("returnedCount", 1);
         assertThat(httpResult.toString()).contains("yarn-rest").doesNotContain("customer-service");
         assertThat(microserviceResult.toString()).contains("customer-service").doesNotContain("yarn-rest");
         org.mockito.ArgumentCaptor<LuceneMcpSearchService.AssetSearchRequest> requestCaptor =
             org.mockito.ArgumentCaptor.forClass(LuceneMcpSearchService.AssetSearchRequest.class);
-        org.mockito.Mockito.verify(searchService, org.mockito.Mockito.times(2)).searchAssets(requestCaptor.capture());
+        org.mockito.Mockito.verify(searchService, org.mockito.Mockito.times(4)).searchAssets(requestCaptor.capture());
         assertThat(requestCaptor.getAllValues()).extracting(LuceneMcpSearchService.AssetSearchRequest::assetType)
             .containsExactly(
+                com.chatchat.mcpserver.search.index.McpAssetLuceneIndexService.HTTP_ASSET_INDEX_TYPE,
+                com.chatchat.mcpserver.search.index.McpAssetLuceneIndexService.MICROSERVICE_ASSET_INDEX_TYPE,
                 com.chatchat.mcpserver.search.index.McpAssetLuceneIndexService.HTTP_ASSET_INDEX_TYPE,
                 com.chatchat.mcpserver.search.index.McpAssetLuceneIndexService.MICROSERVICE_ASSET_INDEX_TYPE);
     }

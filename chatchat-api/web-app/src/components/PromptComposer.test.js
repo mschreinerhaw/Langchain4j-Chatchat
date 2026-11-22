@@ -220,6 +220,16 @@ it("preserves the selection during execution alongside the document workflow bad
     .dispatchEvent(new Event("submit", { bubbles: true, cancelable: true }));
   await nextTick();
   expect(sends[0]).toMatchObject({ reportMode: "visual", documentWorkflow: true });
+  props.loading = true;
+  props.runningVisualReport = sends[0].reportMode === "visual";
+  await nextTick();
+  expect(toggle.disabled).toBe(true);
+  expect(toggle.getAttribute("aria-checked")).toBe("true");
+  expect(toggle.classList.contains("active")).toBe(true);
+  expect(toggle.textContent).toContain("已启用");
+  props.loading = false;
+  props.runningVisualReport = false;
+  await nextTick();
   expect(toggle.getAttribute("aria-checked")).toBe("false");
 });
 

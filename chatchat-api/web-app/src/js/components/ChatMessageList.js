@@ -224,7 +224,7 @@ export default {
   },
   methods: {
     workbenchIsRunning(workbench) {
-      return !workbench.terminal && ['active', 'waiting', 'retrying', 'long_running', 'attention', 'unconfirmed'].includes(workbench.status);
+      return !workbench.terminal && ['active', 'waiting', 'retrying', 'long_running', 'unconfirmed'].includes(workbench.status);
     },
     chronologicalActivities(workbench) {
       return workbench.visibleActivities.slice(-100);

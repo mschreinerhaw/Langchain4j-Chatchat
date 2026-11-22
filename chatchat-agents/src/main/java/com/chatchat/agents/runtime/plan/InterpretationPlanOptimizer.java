@@ -1203,7 +1203,8 @@ public class InterpretationPlanOptimizer implements BuiltInPlanPassOperations {
     ) {
         Map<Integer, Integer> redirects = new LinkedHashMap<>();
         for (InterpretationPlan.Step parent : steps) {
-            if (parent == null || parent.id() == null || !parent.mcpToolAction()) continue;
+            if (parent == null || parent.id() == null || !parent.mcpToolAction()
+                || feedsPublishedAssetSelection(parent, steps)) continue;
             List<InterpretationPlan.Step> implementations = steps.stream()
                 .filter(Objects::nonNull)
                 .filter(InterpretationPlan.Step::mcpToolAction)
@@ -1228,7 +1229,8 @@ public class InterpretationPlanOptimizer implements BuiltInPlanPassOperations {
             if (candidate == null || candidate.id() == null
                 || !(isTemplateDiscoveryStep(candidate)
                     || isAssetDiscoveryStep(candidate))) continue;
-            if (fixedTemplateSelectionScope(candidate.toolName()).isPresent()) continue;
+            if (fixedTemplateSelectionScope(candidate.toolName()).isPresent()
+                || feedsPublishedAssetSelection(candidate, steps)) continue;
             String assetType = templateDiscoveryAssetType(candidate.toolName());
             List<InterpretationPlan.Step> authorities = assetType == null
                 ? List.of() : fixedAuthorities.getOrDefault(assetType, List.of());
@@ -1277,6 +1279,13 @@ public class InterpretationPlanOptimizer implements BuiltInPlanPassOperations {
             .toList();
         return new CapabilityScopeRewrite(
             rewritten, rewrittenEdges, rewrittenDependencies, rewrittenBindings, true);
+    }
+
+    private boolean feedsPublishedAssetSelection(InterpretationPlan.Step asset,
+                                                List<InterpretationPlan.Step> steps) {
+        if (!isAssetDiscoveryStep(asset)) return false;
+        return steps.stream().anyMatch(template -> template != null && template.dependsOn() != null
+            && template.dependsOn().contains(asset.id()) && publishedSupplyDependency(asset, template));
     }
 
     private java.util.Optional<McpTemplateSelectionScope> fixedTemplateSelectionScope(String toolName) {

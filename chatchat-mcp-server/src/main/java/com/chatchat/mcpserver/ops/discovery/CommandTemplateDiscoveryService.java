@@ -429,7 +429,7 @@ public class CommandTemplateDiscoveryService {
             assetType, compactFilters(filters), intent.type(), templates.size(), candidates.size(), luceneHits.size(),
             Math.min(matched.size(), limit), fallbackUsed);
         Map<String, Object> result = result(assetType, resultFilters, intent, sshAssetMetadata(hosts, filters, assetScoped), limit,
-            sshTemplateMetadata(matched, assetType, limit), matched.size() > limit, fallbackUsed, templateSignal(luceneHits));
+            sshTemplateMetadata(matched, assetType, limit, assetScoped ? hosts : List.of()), matched.size() > limit, fallbackUsed, templateSignal(luceneHits));
         Map<String, Object> registryDiagnostics = sshTemplateRegistryDiagnostics(templates, allowedByAsset, assetScoped);
         if (!registryDiagnostics.isEmpty()) {
             result.put("templateRegistryDiagnostics", registryDiagnostics);
@@ -483,7 +483,7 @@ public class CommandTemplateDiscoveryService {
             assetType, dbType, compactFilters(filters), intent.type(), datasources.size(), templates.size(), candidates.size(),
             luceneHits.size(), Math.min(matched.size(), limit), fallbackUsed, luceneHits.keySet().stream().limit(limit).toList());
         Map<String, Object> result = result(assetType, resultFilters, intent, sqlAssetMetadata(datasources, filters, assetScoped), limit,
-            sqlTemplateMetadata(matched, assetType, limit), matched.size() > limit, fallbackUsed, templateSignal(luceneHits));
+            sqlTemplateMetadata(matched, assetType, limit, assetScoped ? datasources : List.of()), matched.size() > limit, fallbackUsed, templateSignal(luceneHits));
         Map<String, Object> registryDiagnostics = sqlTemplateRegistryDiagnostics(templates, datasources, assetScoped);
         if (!registryDiagnostics.isEmpty()) {
             result.put("templateRegistryDiagnostics", registryDiagnostics);
@@ -1175,22 +1175,45 @@ public class CommandTemplateDiscoveryService {
 
     private List<Map<String, Object>> sshTemplateMetadata(List<ScoredTemplate<CommandTemplateConfig>> scored,
                                                           String assetType,
-                                                          int limit) {
+                                                          int limit,
+                                                          List<SshHostConfig> hosts) {
         List<Map<String, Object>> metadata = new ArrayList<>();
         for (int index = 0; index < Math.min(limit, scored.size()); index++) {
             ScoredTemplate<CommandTemplateConfig> item = scored.get(index);
-            metadata.add(templateMetadata(item.template(), assetType, item.relevance(), index + 1));
+            Map<String, Object> entry = templateMetadata(item.template(), assetType, item.relevance(), index + 1);
+            if (hosts.size() == 1) {
+                SshHostConfig host = hosts.get(0);
+                entry.put("executionContext", mapOf(
+                    "assetId", host.getId(),
+                    "assetName", firstText(host.getName(), host.getToolName()),
+                    "env", host.getEnvironment()));
+            }
+            metadata.add(entry);
         }
         return metadata;
     }
 
     private List<Map<String, Object>> sqlTemplateMetadata(List<ScoredTemplate<SqlTemplateConfig>> scored,
                                                           String assetType,
-                                                          int limit) {
+                                                          int limit,
+                                                          List<SqlDatasourceConfig> datasources) {
         List<Map<String, Object>> metadata = new ArrayList<>();
         for (int index = 0; index < Math.min(limit, scored.size()); index++) {
             ScoredTemplate<SqlTemplateConfig> item = scored.get(index);
-            metadata.add(templateMetadata(item.template(), assetType, item.relevance(), index + 1));
+            SqlTemplateConfig template = item.template();
+            Map<String, Object> entry = templateMetadata(template, assetType, item.relevance(), index + 1);
+            String boundId = text(template.getDatasourceId());
+            List<SqlDatasourceConfig> targets = boundId == null ? datasources : datasources.stream()
+                .filter(source -> boundId.equals(source.getId()))
+                .toList();
+            if (targets.size() == 1) {
+                SqlDatasourceConfig source = targets.get(0);
+                entry.put("executionContext", mapOf(
+                    "assetId", source.getId(),
+                    "assetName", firstText(source.getName(), source.getToolName()),
+                    "env", source.getEnvironment()));
+            }
+            metadata.add(entry);
         }
         return metadata;
     }
@@ -3497,13 +3520,12 @@ public class CommandTemplateDiscoveryService {
         }
         String templateCode = normalize(template.getCode());
         String datasourceId = text(template.getDatasourceId());
-        return datasources.stream().anyMatch(datasource -> {
-            Set<String> allowedTemplates = allowedSqlTemplates(datasource);
-            if (!allowedTemplates.isEmpty() && templateCode != null) {
-                return allowedTemplates.contains(templateCode);
-            }
-            return datasourceId == null || datasourceId.equals(datasource.getId());
-        });
+        return datasources.stream()
+            .filter(datasource -> datasourceId == null || datasourceId.equals(datasource.getId()))
+            .anyMatch(datasource -> {
+                Set<String> allowedTemplates = allowedSqlTemplates(datasource);
+                return allowedTemplates.isEmpty() || allowedTemplates.contains(templateCode);
+            });
     }
 
     private Set<String> allowedSqlTemplates(SqlDatasourceConfig datasource) {

@@ -7,7 +7,6 @@ import com.chatchat.agents.assessment.EvidenceAugmentationPolicy;
 import com.chatchat.agents.orchestration.analysis.graph.InterpretationAnalysisGraph.Phase;
 import com.chatchat.agents.orchestration.evidence.RecoveredBatchEvidenceBridge;
 import com.chatchat.agents.orchestration.planning.validation.AgentPlanBudgetPolicy;
-import com.chatchat.agents.orchestration.retrieval.ModelAssistedRetrievalBridge;
 import com.chatchat.agents.orchestration.tool.ToolCallFingerprint;
 import com.chatchat.agents.runtime.context.AgentRoleAnalysisContext;
 import com.chatchat.agents.runtime.plan.InterpretationPlan;
@@ -211,7 +210,9 @@ final class InterpretationAnalysisSession {
                                         systemPrompt,
                                         cancellationCheck,
                                         request,
-                                        pipelineRuntimeAttributes),
+                                        pipelineRuntimeAttributes,
+                                        host.planKernelScope(tenantId, userId, requestId, conversationId, pipelineRuntimeAttributes),
+                                        stringValue(metadata.get("modelName"))),
                         request ->
                                 host.decideInterpretationPlanDagStep(
                                         activeChatModel,
@@ -220,30 +221,9 @@ final class InterpretationAnalysisSession {
                                         cancellationCheck,
                                         request,
                                         pipelineRuntimeAttributes),
-                        request -> {
-                            // Asset identity comes from the original user request. A template-
-                            // keyword rewrite can erase that identity and return unrelated or
-                            // empty sources. Candidate selection/review remains governed below.
-                            if (Boolean.TRUE.equals(pipelineRuntimeAttributes.get("compiledPublishedDataAcquisition"))
-                                    && "asset".equals(request.input().get("stage"))) {
-                                return new java.util.LinkedHashMap<>(request.input());
-                            }
-                            String stepTool =
-                                    request.step() == null ? null : request.step().toolName();
-                            ModelAssistedRetrievalBridge.RetrievalEvidenceContext evidenceContext =
-                                    host.templateRetrievalEvidenceContext(
-                                            query, request.completed());
-                            Map<String, Object> contextual =
-                                    host.modelAssistedContextParameterBridge.propose(
-                                            activeChatModel,
-                                            stepTool,
-                                            request.input(),
-                                            evidenceContext);
-                            return host.modelAssistedRetrievalBridge
-                                    .enrichWithGate(
-                                            activeChatModel, stepTool, contextual, evidenceContext)
-                                    .argumentsWithGateMarker();
-                        },
+                        request -> host.enrichPlanSearchInput(activeChatModel, query, request,
+                                host.planKernelScope(tenantId, userId, requestId, conversationId, pipelineRuntimeAttributes),
+                                stringValue(metadata.get("modelName")), cancellationCheck),
                         host.planToolExecutionPort,
                         host.planDagControlPort);
         runtime.setNodeAttemptStore(host.nodeAttemptStore);

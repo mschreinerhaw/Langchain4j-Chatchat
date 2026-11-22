@@ -3,10 +3,8 @@ package com.chatchat.agents.orchestration.workflow;
 import com.chatchat.agents.orchestration.AgentOrchestrator;
 import com.chatchat.agents.orchestration.answer.AgentToolBudgetPort;
 import com.chatchat.agents.orchestration.retrieval.McpParamBindingResolver;
-import com.chatchat.agents.orchestration.retrieval.ModelAssistedRetrievalBridge;
 import com.chatchat.agents.orchestration.tool.AgentToolArgumentResolver;
 import com.chatchat.agents.orchestration.tool.AgentToolNameResolver;
-import com.chatchat.agents.runtime.plan.selection.RetrievalQualityGate;
 import com.chatchat.agents.runtime.store.AgentRunStore;
 import com.chatchat.common.interaction.InteractionToolTrace;
 import com.chatchat.common.tool.ToolOutput;
@@ -42,7 +40,7 @@ public final class MandatoryWorkflowRecoveryCoordinator {
     private final MandatoryWorkflowTopology topology;
     private final MandatoryWorkflowRecoveryPolicy policy;
     private final MandatoryWorkflowResultReviewer resultReviewer;
-    private final ModelAssistedRetrievalBridge retrievalBridge;
+    private final SearchInputs searchInputs;
     private final AgentToolBudgetPort toolBudget;
     private final AgentRunStore runStore;
     private final ObjectMapper objectMapper;
@@ -54,7 +52,7 @@ public final class MandatoryWorkflowRecoveryCoordinator {
                                                 MandatoryWorkflowTopology topology,
                                                 MandatoryWorkflowRecoveryPolicy policy,
                                                 MandatoryWorkflowResultReviewer resultReviewer,
-                                                ModelAssistedRetrievalBridge retrievalBridge,
+                                                SearchInputs searchInputs,
                                                 AgentToolBudgetPort toolBudget,
                                                 AgentRunStore runStore,
                                                 ObjectMapper objectMapper) {
@@ -65,7 +63,7 @@ public final class MandatoryWorkflowRecoveryCoordinator {
         this.topology = topology;
         this.policy = policy;
         this.resultReviewer = resultReviewer;
-        this.retrievalBridge = retrievalBridge;
+        this.searchInputs = searchInputs;
         this.toolBudget = toolBudget;
         this.runStore = runStore;
         this.objectMapper = objectMapper;
@@ -154,35 +152,16 @@ public final class MandatoryWorkflowRecoveryCoordinator {
                     + String.join(", ", missing) + ".");
                 continue;
             }
-            Map<String, Object> originalArguments = new LinkedHashMap<>(arguments);
-            ModelAssistedRetrievalBridge.EnrichmentResult enrichment = retrievalBridge.enrichWithGate(
-                request.activeChatModel(), fallbackTool, arguments,
-                new ModelAssistedRetrievalBridge.RetrievalEvidenceContext(request.query(), Map.of()));
-            arguments = enrichment.arguments();
+            try {
+                arguments = searchInputs.resolve(request, fallbackTool, arguments);
+            } catch (java.util.concurrent.CancellationException cancelled) {
+                throw cancelled;
+            } catch (RuntimeException unavailable) {
+                defer(request, fallbackTool, "Cline search proposal unavailable.");
+                continue;
+            }
             AgentOrchestrator.ToolCallExecution execution = invoke(request, toolInvoker, fallbackTool,
                 arguments, reviewedDiscoveryTraces, completedTools, runtimeAttributes);
-            RetrievalQualityGate.Evaluation enhanced = enrichment.qualityGate().isEmpty() ? null
-                : RetrievalQualityGate.evaluate(execution.output(), enrichment.qualityGate());
-            if (enhanced != null && !enhanced.sufficient()) {
-                AgentOrchestrator.ToolCallExecution original = invoke(request, toolInvoker, fallbackTool,
-                    originalArguments, reviewedDiscoveryTraces, completedTools, runtimeAttributes);
-                RetrievalQualityGate.Evaluation originalQuality = RetrievalQualityGate.evaluate(
-                    original.output(), enrichment.qualityGate());
-                boolean originalSelected = RetrievalQualityGate.preferFallback(enhanced, originalQuality);
-                AgentOrchestrator.ToolCallExecution nonSelected = originalSelected ? execution : original;
-                if (nonSelected.trace() != null) {
-                    request.traces().add(nonSelected.trace());
-                }
-                request.observations().add("Retrieval quality gate candidate " + nonSelected.observation());
-                if (originalSelected) {
-                    execution = original;
-                }
-                request.metadata().put("mandatoryRetrievalQualityGate:" + fallbackTool,
-                    RetrievalQualityGate.report(enhanced, originalQuality, originalSelected));
-            } else if (enhanced != null) {
-                request.metadata().put("mandatoryRetrievalQualityGate:" + fallbackTool,
-                    RetrievalQualityGate.report(enhanced, null, false));
-            }
             request.traces().add(execution.trace());
             request.observations().add("Mandatory workflow execution " + execution.observation());
             if (workflowState.isConfirmationRequired(execution)) {
@@ -422,6 +401,11 @@ public final class MandatoryWorkflowRecoveryCoordinator {
         public SemanticReview {
             auditMetadata = auditMetadata == null ? Map.of() : Map.copyOf(auditMetadata);
         }
+    }
+
+    @FunctionalInterface
+    public interface SearchInputs {
+        Map<String, Object> resolve(Request request, String tool, Map<String, Object> input);
     }
 
     @FunctionalInterface

@@ -83,13 +83,13 @@
           type="button"
           role="switch"
           aria-label="图文报告"
-          :aria-checked="reportMode === 'visual'"
+          :aria-checked="visualReportSelected"
           class="tool-button visual-report-toggle"
-          :class="{ active: reportMode === 'visual' }"
+          :class="{ active: visualReportSelected }"
           :disabled="loading"
-          :title="reportMode === 'visual' ? '本次发送将使用图文报告，点击取消' : '为本次发送开启图文报告'"
+          :title="visualReportTitle"
           @click="reportMode = reportMode === 'visual' ? 'off' : 'visual'"
-          ><FileText :size="14" stroke-width="2" />图文报告</button
+          ><FileText :size="14" stroke-width="2" />{{ showRunningVisualReport ? '图文报告 · 已启用' : '图文报告' }}</button
         >
         <label v-if="!compact && agentRequired" class="knowledge-source-note" title="仅对本次提交启用 Agent 已获授权的数据资源，不增加权限">
           <input v-model="resourceExplorationApproved" type="checkbox" /> 本次明确使用已授权资料

@@ -192,6 +192,14 @@ public final class TemplateInvocationBridge {
         protocolTrace.put("reviewedParameterCount", parameterAudit.evidence().size());
         protocolTrace.put("runtimeParameterEvidenceRecovered", runtimeEvidenceRecovered);
         protocolTrace.put("droppedUnverifiedParameterOverrides", parameterAudit.unresolved());
+        if (protocolApplied) {
+            Map<String, Object> submitted = objectMap(firstPresent(request.parameterProtocol(), "arguments", "parameters"));
+            Set<String> submittedFields = new LinkedHashSet<>(submitted.keySet());
+            submitted.keySet().stream().map(name -> argumentCompiler.declaredTemplateParameter(name, schema))
+                .filter(Objects::nonNull).forEach(submittedFields::add);
+            protocolTrace.put("unverifiedSubmittedFields",
+                parameterAudit.unresolved().stream().filter(submittedFields::contains).toList());
+        }
         protocolTrace.put("templateDefaultParameterCount",
             (int)compiledEvidence.values().stream().filter(item->TEMPLATE_DEFAULT_SOURCE.equals(item.source())).count());
         protocolTrace.put("parameterEvidenceSources", compiledEvidence.values().stream()

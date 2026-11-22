@@ -220,6 +220,7 @@
         :reasoning-efforts="codingModelOptions.find(model => model.value === (selectedAgent?.modelName || defaultModelName))?.reasoningEfforts || []"
         :suggestions="activeSuggestions"
         :loading="composerBusy"
+        :running-visual-report="activeRunContext?.reportMode === 'visual'"
         :attachments="composerAttachments"
         :stop-available="canKillActiveRun"
         :show-suggestions="!hasConversation && activeSuggestions.length > 0"

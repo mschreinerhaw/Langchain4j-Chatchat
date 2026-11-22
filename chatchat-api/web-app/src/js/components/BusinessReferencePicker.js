@@ -2,7 +2,7 @@ import { apiRequest } from "../../services/api";
 
 const types = [
   { id: "skills", label: "技能", endpoint: "/interactions/resources/skills" },
-  { id: "knowledgeBases", label: "知识库", endpoint: "/workspaces/business/knowledge-bases" },
+  { id: "documents", label: "文档", endpoint: "/search" },
 ];
 
 export default {
@@ -25,18 +25,23 @@ export default {
       this.request = request;
       this.busy = true;
       this.items = [];
+      this.pages = 0;
       this.cursor = 0;
       this.error = "";
       const { endpoint } = types.find((item) => item.id === this.type);
-      const query = new URLSearchParams({ keyword: this.keyword || "", page, pageSize: 6, summary: true });
+      const documents = this.type === "documents";
+      const query = new URLSearchParams({ keyword: this.keyword || "", page: documents ? page + 1 : page, pageSize: 6 });
+      if (!documents) query.set("summary", "true");
       try {
         const data = await apiRequest(endpoint + "?" + query, { signal: request.signal, workspaceContext: this.workspaceContext });
         if (request.signal.aborted) return;
-        this.items = data.skills || data.items || [];
-        this.page = data.page || 0;
+        this.items = documents
+          ? (data.results || []).map(document => ({ id: document.docId, name: document.title, category: document.source }))
+          : data.skills || [];
+        this.page = documents ? Math.max(0, (data.page || 1) - 1) : data.page || 0;
         this.pages = data.totalPages || 0;
       } catch (error) {
-        if (!request.signal.aborted) this.error = error.message;
+        if (!request.signal.aborted) this.error = documents && error.status === 403 ? "当前账号没有可选文档。" : error.message;
       } finally {
         if (!request.signal.aborted) this.busy = false;
       }

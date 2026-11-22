@@ -14,7 +14,7 @@
 
     <form class="composer-box" @submit.prevent="handlePrimaryAction">
       <div v-if="businessReferencesEnabled" class="business-reference-bar">
-        <button type="button" :disabled="loading || inputDisabled" aria-label="添加技能或知识库"
+        <button type="button" :disabled="loading || inputDisabled" aria-label="添加技能或文档"
           :aria-expanded="mention !== null" @click="openReferences">@ 添加资料</button>
         <button v-for="item in selectedReferences" :key="item.type + ':' + item.id" type="button"
           :aria-label="'移除 ' + item.name" :disabled="loading" @click="removeReference(item)">

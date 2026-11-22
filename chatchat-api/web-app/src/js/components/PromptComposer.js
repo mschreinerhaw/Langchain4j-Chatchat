@@ -338,7 +338,7 @@ export default {
         query: value,
         ...(this.businessReferencesEnabled && this.selectedReferences.length ? { businessReferences: {
           skills: this.selectedReferences.filter((item) => item.type === "skills").map((item) => item.id),
-          knowledgeBases: this.selectedReferences.filter((item) => item.type === "knowledgeBases").map((item) => item.id),
+          documents: this.selectedReferences.filter((item) => item.type === "documents").map((item) => item.id),
         } } : {}),
         agentId: this.selectedAgentId,
         agentName: this.selectedAgent?.name || "",

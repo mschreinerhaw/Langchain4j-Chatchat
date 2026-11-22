@@ -71,7 +71,8 @@ public class BusinessChatResources {
         }
         Set<String> skillIds = ids(references.get("skills"));
         Set<String> baseIds = ids(references.get("knowledgeBases"));
-        if (skillIds.isEmpty() && baseIds.isEmpty()) return;
+        Set<String> documentIds = ids(references.get("documents"));
+        if (skillIds.isEmpty() && baseIds.isEmpty() && documentIds.isEmpty()) return;
         if (agentId == null || !agents.isPublished(agentId) || request.getQuery() == null || request.getQuery().isBlank()) {
             throw new IllegalArgumentException("请选择已发布的助手并输入问题");
         }
@@ -101,7 +102,28 @@ public class BusinessChatResources {
             context.add("优先通过授权知识检索参考：" + baseIds.stream().map(BusinessChatResources::printable).collect(Collectors.joining("、")));
             addKnowledgeMatches(context, baseIds, tenant, user, agentId, request.getQuery());
         }
+        if (!documentIds.isEmpty()) addSelectedDocuments(context, documentIds, tenant, user, agentId);
         request.setQuery(request.getQuery() + context);
+    }
+
+    private void addSelectedDocuments(StringJoiner context, Set<String> documentIds, String tenant, String user, String agent) {
+        var effective = executionScope.resolve(tenant, user, agent, List.of(), List.of());
+        if (!effective.skillAllowed() || effective.documentScopeDenied()
+            || (!effective.documentIds().isEmpty() && !effective.documentIds().containsAll(documentIds))) {
+            throw new IllegalArgumentException("所选文档不在当前助手可用范围内。");
+        }
+        var permissions = SearchPermissionContext.of(tenant, user, effective.roles()).withAgentId(agent);
+        var results = search.search("", null, null, null, String.join(",", documentIds), 1, documentIds.size(), permissions)
+            .results().stream().filter(document -> documentIds.contains(document.docId())).toList();
+        if (!results.stream().map(document -> document.docId()).collect(Collectors.toSet()).containsAll(documentIds)) {
+            throw new IllegalArgumentException("所选文档已不可用或访问权限已变更。");
+        }
+        for (var document : results) {
+            String title = printable(Objects.toString(document.title(), document.docId()));
+            String summary = printable(Objects.toString(document.summary(), ""));
+            context.add("用户选定文档《" + title + "》（" + printable(document.docId()) + "）："
+                + summary.substring(0, Math.min(summary.length(), 700)));
+        }
     }
 
     private void addKnowledgeMatches(StringJoiner context, Set<String> bases, String tenant, String user,

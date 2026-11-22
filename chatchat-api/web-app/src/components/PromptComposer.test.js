@@ -26,9 +26,36 @@ it("turns an @ lookup into a structured business selection without sending the m
    expect(host.querySelector('[aria-label="移除 核对技能"]')).not.toBeNull();
    host.querySelector("form").dispatchEvent(new Event("submit", { bubbles: true, cancelable: true }));
    expect(send).toHaveBeenCalledWith(expect.objectContaining({
-     query: "核对订单 ", businessReferences: { skills: ["reconcile"], knowledgeBases: [] },
+     query: "核对订单 ", businessReferences: { skills: ["reconcile"], documents: [] },
    }));
  } finally { fetch.mockRestore(); }
+});
+it("picks an authorized document using the document search endpoint", async () => {
+  const fetch = vi.spyOn(globalThis, "fetch").mockImplementation(async url => new Response(JSON.stringify({
+    code: 200, data: url.includes("/search?")
+      ? { results: [{ docId: "doc-1", title: "运营手册" }], page: 1, totalPages: 1 }
+      : { skills: [], page: 0, totalPages: 0 },
+  })));
+  const send = vi.fn();
+  host = document.createElement("div");
+  app = createApp({ render: () => h(PromptComposer, { businessReferencesEnabled: true, selectedAgentId: "a", onSend: send }) });
+  try {
+    app.mount(host);
+    const editor = host.querySelector("textarea");
+    editor.value = "核对订单 @";
+    editor.setSelectionRange(editor.value.length, editor.value.length);
+    editor.dispatchEvent(new Event("input", { bubbles: true }));
+    await nextTick();
+    [...host.querySelectorAll(".business-reference-tabs button")].find(button => button.textContent === "文档").click();
+    await vi.waitFor(() => expect(host.querySelector(".business-reference-picker strong")?.textContent).toBe("运营手册"));
+    expect(fetch.mock.calls.some(([url]) => url.startsWith("/api/v1/search?") && new URLSearchParams(url.split("?")[1]).get("page") === "1")).toBe(true);
+    host.querySelector(".business-reference-picker li button").click();
+    await nextTick();
+    host.querySelector("form").dispatchEvent(new Event("submit", { bubbles: true, cancelable: true }));
+    expect(send).toHaveBeenCalledWith(expect.objectContaining({
+      query: "核对订单 ", businessReferences: { skills: [], documents: ["doc-1"] },
+    }));
+  } finally { fetch.mockRestore(); }
 });
 it('passes explicit resource use only for this submission and resets the choice',async()=>{
  const send=vi.fn();host=document.createElement('div');

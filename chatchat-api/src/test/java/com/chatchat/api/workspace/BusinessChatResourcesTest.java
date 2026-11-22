@@ -69,5 +69,15 @@ class BusinessChatResourcesTest {
             .thenReturn(List.of(allowed, forbidden));
         resources.apply(servlet, request, "agent");
         assertThat(request.getQuery()).contains("operations", "订单口径").doesNotContain("unbound-doc");
+
+        request.setQuery("核对订单");
+        request.setToolInput(Map.of("businessReferences", Map.of("documents", List.of("unbound-doc"))));
+        assertThatThrownBy(() -> resources.apply(servlet, request, "agent")).isInstanceOf(IllegalArgumentException.class);
+        assertThat(request.getQuery()).isEqualTo("核对订单");
+
+        request.setToolInput(Map.of("businessReferences", Map.of("documents", List.of("allowed-doc"))));
+        when(search.search("", null, null, null, "allowed-doc", 1, 1, policy).results()).thenReturn(List.of(allowed));
+        resources.apply(servlet, request, "agent");
+        assertThat(request.getQuery()).contains("allowed-doc", "订单口径").doesNotContain("unbound-doc");
     }
 }

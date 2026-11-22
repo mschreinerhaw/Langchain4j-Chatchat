@@ -212,6 +212,16 @@ class ConversationServiceResultDeduplicationTest {
     }
 
     @Test
+    void removesEmptyLegacyPlaceholderButRetainsDistinctTaskReports() {
+        var placeholder = Conversation.Message.builder().id("legacy").role("assistant").status("empty").content("")
+            .steps(List.of(Map.of("title", "Submit task"))).build();
+        var first = Conversation.Message.builder().id("first").role("assistant").taskId("task-one").content("Same report").build();
+        var second = Conversation.Message.builder().id("second").role("assistant").taskId("task-two").content("Same report").build();
+        assertThat(ConversationService.collapseDuplicateAssistantResults(List.of(placeholder, first, second)))
+            .containsExactly(first, second);
+    }
+
+    @Test
     void conversationDetailCollapsesAlreadyPersistedRuntimeAndMemoryCopies() {
         ChatSessionRepository sessions = mock(ChatSessionRepository.class);
         ChatMessageIndexRepository indexes = mock(ChatMessageIndexRepository.class);

@@ -20,6 +20,15 @@ public enum DataSupplyStatus {
         "INVALID_TEMPLATE_ID", "INVALID_ASSET_BINDING", "MODEL_SELECTION_INCOMPLETE",
         "TEMPLATE_SELECTION_REQUIRED", "TEMPLATE_BATCH_LIMIT_EXCEEDED");
 
+    public static boolean terminalAcquisitionFailure(Map<?, ?> metadata) {
+        return Boolean.TRUE.equals(metadata.get("limitedReportAfterUnavailableSupply"))
+            && metadata.get("dataSupply") instanceof Map<?, ?> supply
+            && Boolean.FALSE.equals(supply.get("businessDataAvailable"))
+            && (SELECTION_FAILED.name().equals(supply.get("status"))
+                || PARAMETER_INVALID.name().equals(supply.get("status"))
+                || EXECUTION_FAILED.name().equals(supply.get("status")));
+    }
+
     public static Map<String,Object> describe(InterpretationPlanRuntime.ExecutionResult execution,
             List<AnalysisEvidenceCoordinator.Dataset> datasets, List<Map<String,Object>> exclusions) {
         var failures = new ArrayList<Map<String,Object>>();

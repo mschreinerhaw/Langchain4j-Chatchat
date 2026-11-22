@@ -1,5 +1,5 @@
 <template>
-  <div class="business-reference-picker" role="region" aria-label="添加技能或知识库">
+  <div class="business-reference-picker" role="region" aria-label="添加技能或文档">
     <div class="business-reference-tabs" role="group" aria-label="资源类型">
       <button v-for="item in types" :key="item.id" type="button"
         :aria-pressed="type === item.id" @click="selectType(item.id)">{{ item.label }}</button>

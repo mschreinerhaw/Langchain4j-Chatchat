@@ -47,6 +47,27 @@ it('follows new log events until the reader scrolls up, and resumes at the botto
   expect(el.scrollTop).toBe(600);
   directive.beforeUnmount(el);
 });
+it('removes the business execution rail on completion and keeps the result', async () => {
+  const message = reactive({ id: 'business-delivery', role: 'assistant', taskId: 'task', status: 'running' });
+  const host = document.createElement('div');
+  const app = createApp({ render: () => h(ChatMessageListVue, { messages: [message], businessCanvas: true }) });
+  try {
+    app.mount(host);
+    expect(host.querySelector('.task-workbench')).not.toBeNull();
+    message.status = 'completed';
+    message.streaming = true;
+    message.content = '诊断结果';
+    await nextTick();
+    expect(host.querySelector('.task-workbench')).toBeNull();
+    expect(host.querySelector('.message-delivery-content').textContent).toContain('诊断结果');
+    message.status = 'failed';
+    message.streaming = false;
+    await nextTick();
+    expect(host.querySelector('.task-workbench')).toBeNull();
+  } finally {
+    app.unmount();
+  }
+});
 it('renders five numbered business steps and keeps technical recovery receipts out of the DOM', async () => {
   const event = (type, sequence, state = 'RUNNING') => ({eventId:`event-${sequence}`, sequence,
     type:'RUNTIME_OBSERVATION',status:'RUNNING',payload:{payload:{metadata:{eventKind:'CODING_TRACE',

@@ -325,8 +325,13 @@ export default {
       }
     },
     shouldShowSteps(message = {}) {
+      if (this.businessCanvas) {
+        return message.role === "assistant"
+          && (message.streaming || !!message.taskId || Boolean(message.steps?.length))
+          && !message.executionTerminal && !this.businessProgress(message).terminal;
+      }
       return message.role === "assistant"
-        && (this.businessCanvas || !["completed", "success", "succeeded", "partial", "partial_success"].includes(String(message.status || "").toLowerCase()))
+        && !["completed", "success", "succeeded", "partial", "partial_success"].includes(String(message.status || "").toLowerCase())
         && (!!message.taskId || (Array.isArray(message.steps) && message.steps.length > 0));
     },
     executionMessageKey(message = {}) {

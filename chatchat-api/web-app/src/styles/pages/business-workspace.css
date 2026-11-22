@@ -75,6 +75,8 @@
 }
 
 .business-workspace > .chat-view {
+  --business-chat-gutter: clamp(10px, 1.5vw, 24px);
+  --business-chat-width: calc(100% - 2 * var(--business-chat-gutter));
   flex: 1;
   min-height: 0;
   padding: 0 0 12px;
@@ -246,9 +248,18 @@
 .business-note-form textarea { resize: vertical; }
 .business-note-body { white-space: pre-wrap; line-height: 1.65; }
 
+.workspace-business .business-workspace .chat-view > .message-panel,
+.workspace-business .business-workspace .prompt-card.prompt-simple-tools {
+  width: var(--business-chat-width);
+  max-width: none;
+}
+
+.workspace-business .business-workspace .chat-view > .message-panel {
+  padding: clamp(10px, 1.2vw, 18px);
+}
+
 .workspace-business .business-workspace .prompt-card.prompt-simple-tools {
   --composer-textarea-min-height: 56px;
-  width: min(790px, calc(100% - 38px));
   min-height: 0;
   margin: 0 auto;
   padding: 0;
@@ -341,26 +352,26 @@
 .business-result-canvas .workbench-event-scroll { max-height: min(35vh, 300px); }
 
 @container (min-width: 780px) {
-  .business-result-canvas .message-delivery.with-activity {
+  .business-result-canvas .message-delivery:has(> .task-workbench + .message-delivery-content) {
     grid-template-columns: minmax(0, 1fr) minmax(240px, 29%);
     align-items: start;
     gap: 18px;
   }
-  .business-result-canvas .with-activity .message-delivery-content { grid-column: 1; grid-row: 1; }
-  .business-result-canvas .with-activity .runtime-execution-panel.task-workbench {
+  .business-result-canvas .message-delivery:has(> .task-workbench) > .message-delivery-content { grid-column: 1; grid-row: 1; }
+  .business-result-canvas .message-delivery:has(> .message-delivery-content) > .task-workbench {
     grid-column: 2;
     grid-row: 1;
     border-bottom: 0;
     border-left: 1px solid var(--business-line);
     padding: 8px 0 8px 14px;
   }
-  .business-result-canvas .with-activity .workbench-activity-list li { grid-template-columns: 42px 8px minmax(0, 1fr); }
-  .business-result-canvas .with-activity .workbench-activity-list li > em { grid-column: 3; }
+  .business-result-canvas .message-delivery:has(> .message-delivery-content) .workbench-activity-list li { grid-template-columns: 42px 8px minmax(0, 1fr); }
+  .business-result-canvas .message-delivery:has(> .message-delivery-content) .workbench-activity-list li > em { grid-column: 3; }
 }
 
-@media (max-width: 1200px) {
-  .workspace-business .business-floating-new-chat { bottom: 155px; }
-  .workspace-business .business-panel { padding-bottom: 205px; }
+.workspace-business .business-floating-new-chat {
+  bottom: 5px;
+  min-height: 34px;
 }
 
 @media (max-width: 820px) {
@@ -404,7 +415,6 @@
   .workspace-business .business-workspace > .chat-view { padding-top: 48px; }
   .business-side-nav button { justify-content: center; padding: 0; }
   .business-side-nav button span { display: none; }
-  .workspace-business .business-workspace .prompt-card.prompt-simple-tools { width: calc(100% - 20px); }
 }
 
 @media (max-width: 480px) {

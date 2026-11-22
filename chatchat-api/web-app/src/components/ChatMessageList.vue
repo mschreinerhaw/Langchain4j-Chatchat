@@ -50,9 +50,8 @@
             </button>
           </div>
         </div>
-        <div class="message-delivery"
-          :class="{ 'with-activity': businessCanvas && shouldShowSteps(message) && hasDeliveryContent(message) }">
-        <template v-if="shouldShowSteps(message) || (message.role === 'assistant' && message.streaming)">
+        <div class="message-delivery">
+        <template v-if="shouldShowSteps(message) || (!businessCanvas && message.role === 'assistant' && message.streaming)">
           <section v-for="workbench in [executionWorkbench(message)]" :key="`workbench-${message.id}`"
             class="runtime-execution-panel task-workbench" :class="[workbench.status, {collapsed: !executionStepsExpanded(message)}]"
             aria-label="任务执行工作台">

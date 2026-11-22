@@ -84,7 +84,9 @@ public class ExecutionTargetRouter {
         }
         rejectConcreteTarget(request, "hostId", "host", "hostname", "ip", "ipAddress", "address");
         Map<String, Object> context = executionContext(request);
-        requireExecutionContext(context, "linux_command_execute");
+        if (assetId(context) == null) {
+            requireExecutionContext(context, "linux_command_execute");
+        }
         SshHostConfig host = resolveSshHost(request);
         requireResolvedResource("linux_command_execute","ssh_host",host.getId());
         log.info("MCP execution routing selected SSH host: tool=linux_command_execute, context={}, hostId={}, assetName={}, hostTool={}, env={}",
@@ -114,6 +116,10 @@ public class ExecutionTargetRouter {
     }
 
     public Map<String, Object> routeSqlQuery(Map<String, Object> arguments) {
+        return routeSqlQuery(arguments, null);
+    }
+
+    public Map<String, Object> routeSqlQuery(Map<String, Object> arguments, String boundDatasourceId) {
         Map<String, Object> request = copyArguments(arguments);
         if (request.get(TemplateExecutionTarget.KEY) instanceof TemplateExecutionTarget fixed && "sql_datasource".equals(fixed.assetType())) {
             var datasource = datasourceConfigService.listEnabled().stream().filter(item -> fixed.resourceId().equals(item.getId()))
@@ -124,8 +130,16 @@ public class ExecutionTargetRouter {
         rejectConcreteTarget(request, "datasourceId", "jdbcUrl", "url", "connectionString");
         enforceBoundSqlAsset(request);
         Map<String, Object> context = executionContext(request, true);
-        requireExecutionContext(context, "sql_query_execute");
-        SqlDatasourceConfig datasource = resolveSqlDatasource(request, context);
+        String selectedAssetId = assetId(context);
+        if (boundDatasourceId != null && !boundDatasourceId.isBlank()) {
+            if (selectedAssetId != null && !boundDatasourceId.equals(selectedAssetId)) {
+                throw new IllegalArgumentException("Selected SQL datasource does not match the template binding");
+            }
+            context.put("assetId", boundDatasourceId);
+        } else if (selectedAssetId == null) {
+            requireExecutionContext(context, "sql_query_execute");
+        }
+        SqlDatasourceConfig datasource = resolveSqlDatasourceContext(context);
         requireResolvedResource("sql_query_execute","sql_datasource",datasource.getId());
         log.info("MCP execution routing selected SQL datasource: tool=sql_query_execute, context={}, datasourceId={}, assetName={}, datasourceTool={}, env={}",
             compactContext(context), datasource.getId(), firstText(datasource.getName(), datasource.getToolName()),
@@ -176,6 +190,8 @@ public class ExecutionTargetRouter {
         context.remove("asset_name");
         context.remove("name");
         context.put("assetName", assetName);
+        context.remove("assetId");
+        context.remove("asset_id");
         String environment = firstText(text(bound.get("env")), text(bound.get("environment")));
         if (environment != null) {
             context.remove("environment");
@@ -200,11 +216,17 @@ public class ExecutionTargetRouter {
         Map<String, Object> context = executionContext(request);
         String template = firstText(text(request.get("template")), text(request.get("templateId")));
         template = firstText(template, text(request.get("template_id")));
-        if (template != null) {
-            context.putIfAbsent("assetName", template);
+        if (assetId(context) == null) {
+            if (template != null && !hasAssetNameContext(context)) {
+                context.put("assetName", template);
+            }
+            requireExecutionContext(context, "http_request_execute");
         }
-        requireExecutionContext(context, "http_request_execute");
-        HttpEndpointConfig endpoint = resolveHttpEndpoint(request);
+        HttpEndpointConfig endpoint = resolveHttpEndpointContext(context);
+        if (template != null && filterByAssetName(
+            List.of(endpoint), Map.of("assetName", template), this::httpLabels).isEmpty()) {
+            throw new IllegalArgumentException("Selected HTTP asset does not match the template");
+        }
         requireResolvedResource("http_request_execute","http_endpoint",endpoint.getId());
         Map<String, Object> routingDecisionLog = routingTrace(
             "http_endpoint",
@@ -260,6 +282,10 @@ public class ExecutionTargetRouter {
     public SshHostConfig resolveSshHost(Map<String, Object> arguments) {
         Map<String, Object> context = executionContext(arguments);
         List<SshHostConfig> candidates = hostConfigService.listEnabled();
+        if (assetId(context) != null) {
+            return resolveDiscoveredAsset(candidates, context, "SSH host",
+                SshHostConfig::getId, SshHostConfig::getEnvironment, this::sshLabels);
+        }
         ExecutionTargetConfig target = resolveConfiguredTarget(context, ExecutionTargetService.ASSET_TYPE_SSH_HOST);
         if (target != null) {
             candidates = filterByConfiguredTarget(candidates, target, this::sshLabels, SshHostConfig::getEnvironment);
@@ -281,11 +307,15 @@ public class ExecutionTargetRouter {
 
     public SqlDatasourceConfig resolveSqlDatasource(Map<String, Object> arguments) {
         Map<String, Object> context = executionContext(arguments);
-        return resolveSqlDatasource(arguments, context);
+        return resolveSqlDatasourceContext(context);
     }
 
-    private SqlDatasourceConfig resolveSqlDatasource(Map<String, Object> arguments, Map<String, Object> context) {
+    private SqlDatasourceConfig resolveSqlDatasourceContext(Map<String, Object> context) {
         List<SqlDatasourceConfig> candidates = datasourceConfigService.listEnabled();
+        if (assetId(context) != null) {
+            return resolveDiscoveredAsset(candidates, context, "SQL datasource",
+                SqlDatasourceConfig::getId, SqlDatasourceConfig::getEnvironment, this::sqlLabels);
+        }
         ExecutionTargetConfig target = resolveConfiguredTarget(context, ExecutionTargetService.ASSET_TYPE_SQL_DATASOURCE);
         if (target != null) {
             candidates = filterByConfiguredTarget(candidates, target, this::sqlLabels, SqlDatasourceConfig::getEnvironment);
@@ -306,8 +336,15 @@ public class ExecutionTargetRouter {
     }
 
     public HttpEndpointConfig resolveHttpEndpoint(Map<String, Object> arguments) {
-        Map<String, Object> context = executionContext(arguments);
+        return resolveHttpEndpointContext(executionContext(arguments));
+    }
+
+    private HttpEndpointConfig resolveHttpEndpointContext(Map<String, Object> context) {
         List<HttpEndpointConfig> candidates = httpEndpointConfigService.listEnabled();
+        if (assetId(context) != null) {
+            return resolveDiscoveredAsset(candidates, context, "HTTP endpoint",
+                HttpEndpointConfig::getId, HttpEndpointConfig::getEnvironment, this::httpLabels);
+        }
         ExecutionTargetConfig target = resolveConfiguredTarget(context, ExecutionTargetService.ASSET_TYPE_HTTP_ENDPOINT);
         if (target != null) {
             candidates = filterByConfiguredTarget(candidates, target, this::httpLabels, HttpEndpointConfig::getEnvironment);
@@ -333,6 +370,19 @@ public class ExecutionTargetRouter {
             "cluster", "namespace", "target", "targetType", "target_type", "database", "databaseRole",
             "database_role", "businessGroup", "business_group", "group", "groupName", "group_name", "service");
         return singleTarget(candidates, "database query", context);
+    }
+
+    private String assetId(Map<String, Object> context) {
+        return firstContextText(context, "assetId", "asset_id");
+    }
+
+    private <T> T resolveDiscoveredAsset(List<T> candidates, Map<String, Object> context, String targetType,
+                                         ValueExtractor<T> id, ValueExtractor<T> environment,
+                                         LabelsExtractor<T> labels) {
+        String selected = assetId(context);
+        List<T> matchingId = candidates.stream().filter(candidate -> selected.equals(id.value(candidate))).toList();
+        List<T> matchingEnvironment = filterByEnvironment(matchingId, context, environment);
+        return singleTarget(filterByAssetName(matchingEnvironment, context, labels), targetType, context);
     }
 
     private ExecutionTargetConfig resolveConfiguredTarget(Map<String, Object> context, String assetType) {

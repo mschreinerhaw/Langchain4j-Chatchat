@@ -812,27 +812,26 @@
         </div>
       </details>
 
-      <CodingTaskMonitor
-        v-if="selectedTask?.attemptId"
-        :key="selectedTask.attemptId"
-        :run-id="selectedTask.attemptId"
-        :metadata-only="Boolean(selectedTask.contentRestricted || (selectedTask.userId && selectedTask.userId !== userId))"
-      />
       <div class="event-timeline">
-        <button
-          v-for="event in pagedRows(filteredEvents, 'events')"
-          :key="event.eventId"
-          type="button"
-          class="event-thumbnail"
-          :aria-label="`查看${formatEventType(event.type)}事件详情`"
-          @click="openEventDetail(event)"
-        >
-          <span :class="statusClass(event.status)">{{ formatEventType(event.type) }}</span>
-          <strong>{{ eventDetailHint(event) }}</strong>
-          <small>{{ formatTaskStatus(event.status) }}</small>
-          <time>{{ formatEventTime(event.createTime) }}</time>
-          <b aria-hidden="true">›</b>
-        </button>
+        <template v-for="event in pagedRows(filteredEvents, 'events')" :key="event.eventId">
+          <div v-if="event.type === 'BUSINESS_ANALYSIS'" class="event-thumbnail business-analysis-event">
+            <strong>{{ formatEventType(event.type) }}</strong>
+            <small>已记录 {{ event.analysisStepCount }} 个步骤</small>
+          </div>
+          <button
+            v-else
+            type="button"
+            class="event-thumbnail"
+            :aria-label="`查看${formatEventType(event.type)}事件详情`"
+            @click="openEventDetail(event)"
+          >
+            <span :class="statusClass(event.status)">{{ formatEventType(event.type) }}</span>
+            <strong>{{ eventDetailHint(event) }}</strong>
+            <small>{{ formatTaskStatus(event.status) }}</small>
+            <time>{{ formatEventTime(event.createTime) }}</time>
+            <b aria-hidden="true">›</b>
+          </button>
+        </template>
         <p v-if="!selectedTask" class="runtime-empty">请先在任务页或任务选择器中选择任务。</p>
         <p v-else-if="!eventsLoading && filteredEvents.length === 0" class="runtime-empty"
           >没有匹配的事件记录。</p
@@ -1079,12 +1078,18 @@
           v-if="graphMode === 'exploration' && selectedExplorationNode"
           class="exploration-detail"
         >
-          <strong
-            >{{ selectedExplorationNode.actionText }} · {{ selectedExplorationNode.label }}</strong
-          >
-          <p v-if="selectedExplorationNode.count > 1">已合并 {{ selectedExplorationNode.count }} 个同类型节点，以下保留全部记录。</p>
-          <p>仅展示实际记录或模型显式声明；模型假设与发现不代表 Runtime 审核结论。</p>
-          <pre>{{ JSON.stringify(selectedExplorationNode.detail, null, 2) }}</pre>
+          <template v-if="selectedExplorationNode.kind === 'business-analysis'">
+            <strong>{{ selectedExplorationNode.fullLabelText }}</strong>
+            <p>已记录 {{ selectedExplorationNode.analysisStepCount }} 个步骤</p>
+          </template>
+          <template v-else>
+            <strong
+              >{{ selectedExplorationNode.actionText }} · {{ selectedExplorationNode.label }}</strong
+            >
+            <p v-if="selectedExplorationNode.count > 1">已合并 {{ selectedExplorationNode.count }} 个同类型节点，以下保留全部记录。</p>
+            <p>仅展示实际记录或模型显式声明；模型假设与发现不代表 Runtime 审核结论。</p>
+            <pre>{{ JSON.stringify(selectedExplorationNode.detail, null, 2) }}</pre>
+          </template>
         </aside>
         <div ref="planNodeList" class="plan-dag-node-list">
           <article
@@ -1093,7 +1098,7 @@
             :data-plan-node-id="node.id"
             :class="[
               String(node.statusText || '').toLowerCase(),
-              { selected: selectedPlanNodeId === node.id },
+              { selected: selectedPlanNodeId === node.id, 'business-analysis-node': node.kind === 'business-analysis' },
             ]"
             role="button"
             tabindex="0"
@@ -1103,10 +1108,11 @@
             @keydown.enter.prevent="focusPlanNode(node.id)"
             @keydown.space.prevent="focusPlanNode(node.id)"
           >
-            <span>{{ node.statusLabel }}</span>
+            <span v-if="node.kind !== 'business-analysis'">{{ node.statusLabel }}</span>
             <div>
-              <strong>{{ node.fullLabelText }}<span v-if="graphMode === 'exploration'"> · {{ node.count }} 个节点</span></strong>
+              <strong>{{ node.fullLabelText }}<span v-if="node.kind === 'business-analysis'"> · {{ node.analysisStepCount }} 个步骤</span><span v-else-if="graphMode === 'exploration'"> · {{ node.count }} 个节点</span></strong>
               <small
+                v-if="node.kind !== 'business-analysis'"
                 >{{ node.toolName || node.actionText }} ·
                 {{ formatDuration(node.durationMs) }}</small
               >

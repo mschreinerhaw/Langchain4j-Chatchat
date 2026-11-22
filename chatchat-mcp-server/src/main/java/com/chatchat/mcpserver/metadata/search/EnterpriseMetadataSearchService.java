@@ -61,6 +61,13 @@ public class EnterpriseMetadataSearchService {
         this.policyService = policyService;
     }
 
+    /** A required type may issue an index check, a lexical query and an optional vector query. */
+    public int maximumDiscoveryTerms() {
+        int requestsPerType = properties.getKnn().isEnabled() ? 3 : 2;
+        int requestsPerRequirement = Math.max(1, requiredTypes().size()) * requestsPerType;
+        return Math.max(1, queryOptimizer.budget().getMaxBatches() / requestsPerRequirement);
+    }
+
     public Map<String, Object> search(SearchRequest request) {
         return queryOptimizer.withAudit(() -> search(request, false));
     }

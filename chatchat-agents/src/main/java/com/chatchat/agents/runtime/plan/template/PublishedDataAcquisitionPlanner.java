@@ -33,12 +33,31 @@ public final class PublishedDataAcquisitionPlanner {
         TemplateWorkflowTool provider=descriptor(discovery),executor=descriptor(execution);
         var plugin=TemplateWorkflowPluginRegistry.load().resolve(executor).orElse(null);
         if(plugin==null || !plugin.accepts(provider,executor)) return unavailable("INCOMPATIBLE_EXECUTION_PROTOCOL");
-        int templateStep=1, executionStep=2, answerStep=3;
+        List<String> assetProviders = authorized.stream().distinct()
+            .filter(name -> TemplateWorkflowMetadata.suppliesBoundDiscovery(metadata, registry.getToolMetadata(name)))
+            .filter(name -> TemplateWorkflowMetadata.assetStages(registry.getToolMetadata(name))
+                || role(name) == ToolWorkflowRole.ASSET_DISCOVERY)
+            .toList();
+        if (assetProviders.size() > 1) return unavailable("AMBIGUOUS_ASSET_DISCOVERY_CAPABILITIES");
+        String assetProvider = assetProviders.isEmpty() ? null : assetProviders.get(0);
+        int templateStep = assetProvider == null ? 1 : 2;
+        int executionStep = templateStep + 1;
+        int answerStep = executionStep + 1;
         List<InterpretationPlan.Step> steps=new ArrayList<>();
         List<InterpretationPlan.DependencyContract> dependencies=new ArrayList<>();
         List<String> allowed=new ArrayList<>();
+        if (assetProvider != null) {
+            Map<String, Object> assetInput = new LinkedHashMap<>(Map.of("query", query, "limit", 10));
+            if (TemplateWorkflowMetadata.assetStages(registry.getToolMetadata(assetProvider))) {
+                assetInput.put("stage", "asset");
+            }
+            steps.add(new InterpretationPlan.Step(1, "mcp_tool", assetProvider, assetInput, List.of(), null, null));
+            dependencies.add(new InterpretationPlan.DependencyContract(1, templateStep, true, null,
+                "Confirmed assets must precede published template discovery.", "stop"));
+            allowed.add(assetProvider);
+        }
         steps.add(new InterpretationPlan.Step(templateStep,"mcp_tool",discovery,Map.of("query",query,"limit",10),
-            List.of(),null,null));
+            assetProvider == null ? List.of() : List.of(1),null,null));
         steps.add(new InterpretationPlan.Step(executionStep,"mcp_tool",execution,Map.of(),List.of(templateStep),null,null));
         steps.add(new InterpretationPlan.Step(answerStep,"final_answer","",Map.of("answer","Use the admitted tool evidence to answer the current question."),List.of(executionStep),null,null));
         dependencies.add(new InterpretationPlan.DependencyContract(templateStep,executionStep,true,null,

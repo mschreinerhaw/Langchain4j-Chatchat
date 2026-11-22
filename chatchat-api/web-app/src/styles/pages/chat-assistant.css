@@ -6600,7 +6600,7 @@
 .workbench-heading h3 { margin:0; font-size:15px; font-weight:650; line-height:1.5; overflow-wrap:anywhere; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden; }
 .workbench-heading small { display:block; margin-top:3px; color:#74829a; font-size:11px; }
 .workbench-status { display:inline-flex; align-items:center; gap:6px; white-space:nowrap; padding:4px 9px; border-radius:20px; color:#2563eb; background:#edf4ff; font-size:11px; }
-.task-workbench.error .workbench-status,.task-workbench.timeout .workbench-status,.task-workbench.attention .workbench-status { color:#b54736; background:#fff0eb; }
+.task-workbench.error .workbench-status,.task-workbench.timeout .workbench-status { color:#b54736; background:#fff0eb; }
 .task-workbench.done .workbench-status { color:#087f63; background:#e9f8f1; }
 .task-workbench.unconfirmed .workbench-status,.task-workbench.long_running .workbench-status { color:#91620a; background:#fff5db; }
 .workbench-metrics { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:14px; margin:26px 0 25px; }

@@ -80,7 +80,7 @@ class ToolReviewerOptimizationTest {
         var needsReview=engine.reviewInterpretationPlanToolResult(model,"inspect another target",null,()->false,
             new InterpretationPlanRuntime.StepReviewRequest(null,null,ambiguous,Map.of(),1,1));
         assertThat(needsReview.metadata()).containsEntry("toolResultReviewUnavailable",true);
-        verify(model,times(1)).chat(anyString());
+        verifyNoInteractions(model);
     }
     static final String TOOL="publisher_declared_discovery";
     final ObjectMapper mapper=new ObjectMapper();

@@ -9,7 +9,7 @@ function objectValue(value) {
 function workerReceipt(metadata){return {...objectValue(metadata.payload),...objectValue(metadata.workerActivity)};}
 function eventMetadata(event){let p=event.payload||{};try{if(typeof p==='string')p=JSON.parse(p);}catch{return {}; }return objectValue(objectValue(p.payload||p).metadata);}
 
-const BUSINESS_STEPS = ['需求理解', '计划生成', '数据探索', '编码分析', '结果交付'];
+const BUSINESS_STEPS = ['需求理解', '计划生成', '数据探索', '分析中', '结果交付'];
 const STOPPED = new Set(['error', 'cancelled', 'timeout', 'empty']);
 function businessState(state) {
   const value = upper(state);
@@ -44,8 +44,8 @@ function moment(value) {
 }
 const OPERATION_LABELS = {
   MODEL: ['等待分析响应', '本轮分析响应已返回'], DATA: ['正在获取授权数据', '数据操作已完成'],
-  PROGRAM: ['正在准备分析程序', '分析程序已准备'], EXECUTION: ['分析计算正在执行', '分析计算已结束'],
-  CODE_CHECK: ['正在检查分析程序', '分析程序检查已结束'],
+  PROGRAM: ['正在准备分析', '分析准备完成'], EXECUTION: ['分析计算正在执行', '分析计算已结束'],
+  CODE_CHECK: ['正在检查分析设置', '分析设置检查完成'],
   VALIDATION: ['正在校验结果产物', '结果校验操作已结束'], PLAN: ['正在生成执行计划', '执行计划已生成'],
   KNOWLEDGE: ['正在检索与阅读授权文档', '文档探索已完成'],
   NEWS: ['正在查询与阅读财经新闻', '新闻探索已完成'],
@@ -201,6 +201,30 @@ export function businessEventPresentation(event = {}) {
   return stopped ? result(null) : null;
 }
 
+export function isBusinessAnalysisEvent(event) {
+  return event.toolName === 'coding_agent' || upper(eventMetadata(event).eventKind).startsWith('CODING_');
+}
+
+export function taskTimelineRows(events = []) {
+  const rows = [];
+  const steps = new Set();
+  let analysis = null;
+  for (const event of events) {
+    if (!isBusinessAnalysisEvent(event)) {
+      rows.push(event);
+      continue;
+    }
+    if (!analysis) {
+      analysis = { eventId: 'business-analysis', type: 'BUSINESS_ANALYSIS', analysisStepCount: 0 };
+      rows.push(analysis);
+    }
+    const stepId = businessEventPresentation(event)?.activity?.id;
+    if (stepId) steps.add(stepId);
+  }
+  if (analysis) analysis.analysisStepCount = steps.size;
+  return rows;
+}
+
 export function executionDuration(milliseconds) {
   if (milliseconds == null || !Number.isFinite(milliseconds)) return '未记录';
   const seconds = Math.floor(Math.max(0,milliseconds)/1000);
@@ -209,7 +233,7 @@ export function executionDuration(milliseconds) {
 export function executionStatusLabel(status) {
   return {active:'进行中',waiting:'等待中',retrying:'重试中',done:'已完成',error:'执行失败',timeout:'已超时',
     cancelled:'已取消',partial:'部分完成',empty:'需要补充输入',pending:'未开始',unrecorded:'未单独记录',
-    integrated:'并入分析',stopped:'已终止',unconfirmed:'状态待确认',long_running:'执行时间较长',attention:'操作异常'}[status] || '等待状态';
+    integrated:'并入分析',stopped:'已终止',unconfirmed:'状态待确认',long_running:'执行时间较长',incomplete:'本步未完成'}[status] || '等待状态';
 }
 
 /** Consecutive display aggregation only; retain every original event and operation identity. */
@@ -234,7 +258,7 @@ export function userEventTimeline(events = []) {
     const labels=OPERATION_LABELS[activity?.kind];
     const row={id:`display-${event.eventId||rows.length}-${event.sequence||0}`,count:1,sourceEvents:[event],
       groupKey:key,observedAt:activity?.observedAt||moment(event.createTime||event.timestamp),
-      sequence:Number(event.sequence||0),state,critical,
+      sequence:Number(event.sequence||0),state,critical,permissionDenied:denied,
       title:denied?'权限请求被拒绝':confirmation?'需要用户确认':labels?(state==='done'?labels[1]:labels[0]):'任务状态更新',
       detail:activity?.summary || (critical?businessReason(metadata.publicReason||runtime.errorMessage||payload.errorMessage,state)||
         (confirmation?'请核对请求并确认后继续。':denied?'该操作未获授权，未扩大访问范围。':'执行已停止，请展开技术日志核对。'):
@@ -316,6 +340,9 @@ export function executionWorkbench(events = [], task = {}, now = Date.now(), pol
   }
   const phases=progress.steps.map(step=>({...step}));
   for(const [index,step]of phases.entries()) {
+    if (!progress.terminal && STOPPED.has(step.status)) {
+      step.status='incomplete';step.detail='';
+    }
     if(step.status==='done'&&!scoped.some(value=>value.index===index&&value.status==='done')) {
       step.status='unrecorded';step.detail='本阶段未收到独立完成事件，不计为已完成。';
     }
@@ -336,7 +363,6 @@ export function executionWorkbench(events = [], task = {}, now = Date.now(), pol
   const receivedAt=Math.max(Number(heartbeat.receivedAt||0),Number(task.statusReceivedAt||0));
   const transportStale=!progress.terminal&&interval>0&&receivedAt>0&&localNow-receivedAt>interval*3;
   const currentOperation=active.sort((a,b)=>b.sequence-a.sequence)[0];
-  const failedOperation=[...values].reverse().find(operation=>STOPPED.has(operation.state));
   const warningMs=Number(policy.longOperationWarningMs||60000);
   const longOperation=currentOperation?.startedAt>0&&now-currentOperation.startedAt>warningMs;
   const executionUnconfirmed=currentOperation?.timeBasis==='OBSERVED_STATE'&&currentOperation.lastSeenAt>0&&now-currentOperation.lastSeenAt>warningMs;
@@ -345,17 +371,16 @@ export function executionWorkbench(events = [], task = {}, now = Date.now(), pol
   const repeatedResponses=modelRounds>=Number(policy.responseRoundWarningCount||5)&&noExecutionResult;
   let status=progress.terminal ? progress.status : 'active';
   if (!progress.terminal) status=transportStale||executionUnconfirmed?'unconfirmed'
-    :currentOperation?.retryAttempt>0 || ['RETRY_WAIT','REPAIRING'].includes(upper(phaseTask.canonicalState || task.status))?'retrying':failedOperation?'attention'
-      :longOperation||repeatedResponses?'long_running':currentOperation?.state||(['RUNNING','EXECUTING','STREAMING','FINALIZING','DELIVERING','EVALUATING','PLANNING','AUTHORIZING','PLAN_VALIDATING'].includes(upper(phaseTask.canonicalState||task.status))?'active':'waiting');
+    :currentOperation?.retryAttempt>0 || progress.status==='retrying'?'retrying'
+      :longOperation||repeatedResponses?'long_running':currentOperation?.state||progress.status;
   const alerts=[];
-  if(nativeHistoryMissing)alerts.push('原生执行回执尚未同步，操作数量未提供；可在 Coding 任务监控查看已保存的原始记录。');
+  if(nativeHistoryMissing)alerts.push('原生执行回执尚未同步，操作数量未提供；可在 任务监控查看已保存的原始记录。');
   if(task.progressHydrating)alerts.push('正在同步完整运行记录，当前显示上次收到的执行依据。');
   if(task.historyIncomplete)alerts.push('历史执行记录尚未完整同步，统计仅覆盖当前已收到的操作。');
   if(transportStale)alerts.push('状态同步已中断；当前执行状态无法确认。以下保留最后收到的执行记录。');
   if(executionUnconfirmed&&!transportStale)alerts.push('超过页面运行状态确认提醒间隔，尚未收到新的执行节点确认，无法确认该操作当前仍在执行。');
-  if(longOperation&&!transportStale)alerts.push(`当前操作已持续 ${executionDuration(now-currentOperation.startedAt)}，超过页面提醒阈值 ${executionDuration(warningMs)}，尚未收到完成事件；不据此判定执行失败。`);
+  if(longOperation&&!transportStale)alerts.push(`当前操作已持续 ${executionDuration(now-currentOperation.startedAt)}，正在等待完成回执。`);
   if(repeatedResponses)alerts.push(`已收到 ${modelRounds} 轮分析响应，尚未收到计算完成结果。`);
-  if(failedOperation&&!progress.terminal)alerts.push(failedOperation.reason||'已收到操作失败事件，尚未收到最终处理结果。');
   const latest=[...values].sort((a,b)=>(b.changedAt-a.changedAt)||(b.sequence-a.sequence));
   const latestAt=latest[0]?.changedAt||0;
   const rows=latest.map(operation=>{
@@ -378,7 +403,7 @@ export function executionWorkbench(events = [], task = {}, now = Date.now(), pol
       .sort((a,b)=>a[0]-b[0]);
     let sum=0,end=0;
     for(const [start,finish]of intervals){if(finish>Math.max(start,end))sum+=finish-Math.max(start,end);end=Math.max(end,finish);}
-    return {kind,label:{MODEL:'分析响应',PLAN:'需求识别',DATA:'数据操作',PROGRAM:'程序准备',CODE_CHECK:'程序检查',EXECUTION:'计算执行',VALIDATION:'结果校验',TOOL:'原生工具'}[kind],
+    return {kind,label:{MODEL:'分析响应',PLAN:'需求识别',DATA:'数据操作',PROGRAM:'分析准备',CODE_CHECK:'设置检查',EXECUTION:'计算执行',VALIDATION:'结果校验',TOOL:'原生工具'}[kind],
       durationLabel:intervals.length?executionDuration(sum):'未单独记录'};
   });
   const phase=progress.current;
@@ -387,8 +412,17 @@ export function executionWorkbench(events = [], task = {}, now = Date.now(), pol
     lastPhase=observation.index;phaseStartedAt=observation.occurredAt||observation.activity?.observedAt||0;
   }
   return {...progress,steps:phases,status,statusLabel:executionStatusLabel(status),
-    visibleActivities:userEventTimeline(events).map(row=>progress.terminal&&['active','waiting'].includes(row.state)
-      ?{...row,state:'unrecorded',statusLabel:executionStatusLabel('unrecorded'),detail:'本次任务已结束，该操作未收到独立结束事件。'}:row),
+    visibleActivities:userEventTimeline(events).map(row=>{
+      if (progress.terminal && ['active','waiting'].includes(row.state)) {
+        return {...row,state:'unrecorded',statusLabel:executionStatusLabel('unrecorded'),detail:'本次任务已结束，该操作未收到独立结束事件。'};
+      }
+      if (!progress.terminal && STOPPED.has(row.state)) {
+        return {...row,state:'incomplete',statusLabel:executionStatusLabel('incomplete'),
+          critical:row.permissionDenied,title:row.permissionDenied ? row.title : '已收到步骤回执',
+          detail:row.permissionDenied ? '该步骤未获授权。' : ''};
+      }
+      return row;
+    }),
     phaseElapsedLabel:phaseStartedAt?executionDuration((progress.terminal?finishedAt||phaseStartedAt:now)-phaseStartedAt):'未单独记录',
     completed:phases.filter(step=>step.status==='done').length,
     phaseTitle:phases[phase-1].title,completedLabel:`${String(phases.filter(step=>step.status==='done').length).padStart(2,'0')} / ${String(progress.total).padStart(2,'0')}`,
@@ -457,12 +491,13 @@ export function businessTaskProgress(events = [], task = {}) {
     if (step.status === 'pending' && !blocked) step.status = 'unrecorded';
   });
   const parentCompleted=Boolean(task.canonicalState) && ['done','partial'].includes(businessState(parentState)) && terminal;
-  const status = activeParent ? (['RETRY_WAIT','REPAIRING'].includes(parentState) ? 'retrying' : blocked ? 'attention' : 'active')
+  const status = activeParent ? (['RETRY_WAIT','REPAIRING'].includes(parentState) ? 'retrying'
+    : ['WAITING_APPROVAL','WAIT_CONFIRMATION','WAITING_CONFIRM','WAITING'].includes(parentState) ? 'waiting' : 'active')
     : parentCompleted ? businessState(parentState) : blocked?.status || (terminal ? steps[4].status : steps.some(step => step.status === 'waiting') ? 'waiting' : 'active');
   const number = parentCompleted ? 5 : activeParent ? current+1 : blocked?.number || current + 1;
   return { steps, current: number, total: steps.length, label: `${number}/${steps.length}`, status,
     completed: steps.filter(step => step.status === 'done').length, terminal,
-    reason: parentCompleted ? '' : blocked?.detail || '' };
+    reason: terminal && !parentCompleted ? blocked?.detail || '' : '' };
 }
 
 /**

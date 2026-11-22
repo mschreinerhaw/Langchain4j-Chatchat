@@ -29,7 +29,21 @@ class CodingMonitorProjectionReplayTest {
         Fixture f=new Fixture();f.publish(f.event("original"));f.publish(f.event("conflicting"));
         assertThat(f.insertAttempts()).isEqualTo(1);
         assertThat(f.projection.events("tenant","owner","run","task",0,10).get(0)).containsEntry("summary","original");
-        assertThat(f.projection.list("tenant","owner","","",0,Long.MAX_VALUE,0,10)).containsEntry("projectionLagging",true);
+        assertThat(f.projection.list("tenant","owner","","","",0,Long.MAX_VALUE,0,10)).containsEntry("projectionLagging",true);
+    }
+
+    @Test void listsTheStoredSubmitterForAnExistingTaskWithinTheAuthenticatedOwnerScope() {
+        Fixture f = new Fixture();
+        f.publish(f.event("original"));
+        var items = (List<?>) f.projection.list("tenant", "owner", "alice", "", "", 0, Long.MAX_VALUE, 0, 10).get("items");
+        assertThat(items).hasSize(1);
+        var task = (Map<?, ?>) items.get(0);
+        assertThat(task.get("submitterUsername")).isEqualTo("alice");
+        assertThat(task.get("submitterUserId")).isEqualTo("owner");
+        var fallback = (List<?>) f.projection.list("tenant", "owner", "", "", "", 0, Long.MAX_VALUE, 0, 10).get("items");
+        assertThat(((Map<?, ?>) fallback.get(0)).get("submitterUserId")).isEqualTo("owner");
+        assertThat((List<?>) f.projection.list("tenant", "other", "bob", "", "", 0, Long.MAX_VALUE, 0, 10).get("items")).isEmpty();
+        assertThat((List<?>) f.projection.list("other", "owner", "alice", "", "", 0, Long.MAX_VALUE, 0, 10).get("items")).isEmpty();
     }
 
     static class Fixture {

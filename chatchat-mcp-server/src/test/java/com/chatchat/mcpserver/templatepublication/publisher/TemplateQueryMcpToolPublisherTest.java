@@ -210,6 +210,18 @@ class TemplateQueryMcpToolPublisherTest {
             .containsEntry("globalSearchPerformed", false)
             .containsEntry("boundScopeRecallPerformed", true)
             .containsEntry("bindingComplete", true);
+
+        var target = Map.<String, Object>of("assetId", "confirmed-service", "assetName", "customer_query");
+        when(catalog.confirmedTemplateTargets(
+            asset(TemplateAssetCatalogService.API, "customer_query", Map.of("required", List.of("customer_id"))),
+            Set.of("confirmed-service"))).thenReturn(List.of(target));
+        try (McpInvocationContext.Scope ignored = McpInvocationContext.open(context)) {
+            var scoped = publisher.queryFromParent("customer_template_query", "api_template_query",
+                Map.of("filters", Map.of("assetIds", List.of("confirmed-service"))));
+            assertThat(scoped).containsEntry("returnedCount", 1).containsEntry("bindingComplete", true);
+            assertThat(scoped.get("templates").toString()).contains("customer_query", "confirmed-service")
+                .doesNotContain("excluded_query");
+        }
     }
 
     @Test

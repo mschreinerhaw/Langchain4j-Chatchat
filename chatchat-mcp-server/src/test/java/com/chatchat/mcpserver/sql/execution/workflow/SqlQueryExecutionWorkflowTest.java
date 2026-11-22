@@ -34,6 +34,7 @@ class SqlQueryExecutionWorkflowTest {
         SqlTemplateService templates = mock(SqlTemplateService.class);
         SqlTemplateConfig template = new SqlTemplateConfig();
         template.setCode("ACCOUNT_QUERY");
+        template.setDatasourceId("registered-source");
         template.setSqlTemplate("select * from account where id = {{accountId}}");
         template.setParameterSchemaJson("""
             {"type":"object","properties":{"accountId":{"type":"integer"}},"required":["accountId"]}
@@ -43,7 +44,7 @@ class SqlQueryExecutionWorkflowTest {
         DatabaseQueryConfigService businessQueries = mock(DatabaseQueryConfigService.class);
         when(businessQueries.listEnabled()).thenReturn(List.of());
         ExecutionTargetRouter router = mock(ExecutionTargetRouter.class);
-        when(router.routeSqlQuery(anyMap())).thenAnswer(invocation -> {
+        when(router.routeSqlQuery(anyMap(), org.mockito.ArgumentMatchers.eq("registered-source"))).thenAnswer(invocation -> {
             Map<String, Object> routed = new LinkedHashMap<>(invocation.getArgument(0));
             routed.put("sql", "select 1");
             return routed;
@@ -68,7 +69,7 @@ class SqlQueryExecutionWorkflowTest {
             "executionContext", Map.of("assetName", "accounts", "env", "DEV")));
 
         ArgumentCaptor<Map<String, Object>> routedInput = ArgumentCaptor.forClass(Map.class);
-        verify(router).routeSqlQuery(routedInput.capture());
+        verify(router).routeSqlQuery(routedInput.capture(), org.mockito.ArgumentMatchers.eq("registered-source"));
         assertThat((Map<String, Object>) routedInput.getValue().get("parameters"))
             .containsEntry("accountId", 42);
         assertThat(result.structuredContent().toString())

@@ -342,16 +342,12 @@ public class AssetDiscoveryService {
             Map<String, RankedAssetHit> bestByAssetId = new LinkedHashMap<>();
             Map<String, List<Map<String,Object>>> batchEvidence = new LinkedHashMap<>();
             int hitCount = 0;
-            List<List<LuceneMcpSearchService.SearchHit>> batches = searchQueries.size() > 1 && luceneSearchService.supportsIndependentBatches()
-                ? luceneSearchService.searchAssetBatches(searchQueries.stream()
-                    .map(query -> assetSearchRequest(assetType, technicalType, filters, query, limit)).toList(), byId.keySet()) : null;
-            int batchIndex = 0;
-            for (String semanticQuery : searchQueries) {
-                LuceneMcpSearchService.AssetSearchRequest request = assetSearchRequest(
-                    assetType, technicalType, filters, semanticQuery, limit);
-                List<LuceneMcpSearchService.SearchHit> variantHits = batches == null
-                    ? luceneSearchService.searchAssets(request) : batches.get(batchIndex++);
-                String queryUnit = "q" + (searchQueries.indexOf(semanticQuery) + 1);
+            List<List<LuceneMcpSearchService.SearchHit>> batches =
+                assetSearchHits(assetType, technicalType, filters, searchQueries, limit, byId);
+            for (int batchIndex = 0; batchIndex < searchQueries.size(); batchIndex++) {
+                String semanticQuery = searchQueries.get(batchIndex);
+                List<LuceneMcpSearchService.SearchHit> variantHits = batches.get(batchIndex);
+                String queryUnit = "q" + (batchIndex + 1);
                 for (var hit : variantHits) if (hit != null && hit.id() != null && byId.containsKey(hit.id()))
                     batchEvidence.computeIfAbsent(hit.id(), ignored -> new ArrayList<>()).add(Map.of(
                         "queryUnitId", queryUnit, "providerScore", hit.score(), "reasons", hit.reasons()));
@@ -689,6 +685,40 @@ public class AssetDiscoveryService {
             contextTokens(filters),
             limit
         );
+    }
+
+    private List<List<LuceneMcpSearchService.SearchHit>> assetSearchHits(
+        String assetType, String technicalType, Map<String, Object> filters, List<String> queries, int limit,
+        Map<String, Map<String, Object>> candidates) {
+        if (!equalsNormalized(assetType, "http_endpoint") || technicalType != null) {
+            return assetSearchHitsForType(assetType, technicalType, filters, queries, limit, candidates.keySet());
+        }
+        // The registry stores ordinary HTTP and microservice endpoints in separate physical indexes.
+        Map<String, Set<String>> idsByType = new LinkedHashMap<>();
+        candidates.forEach((id, metadata) -> {
+            Map<?, ?> capabilities = metadata.get("capabilities") instanceof Map<?, ?> map ? map : Map.of();
+            var type = HttpEndpointTechnicalType.from(text(capabilities.get("technicalType")));
+            idsByType.computeIfAbsent(type.name(), key -> new LinkedHashSet<>()).add(id);
+        });
+        List<List<LuceneMcpSearchService.SearchHit>> merged = new ArrayList<>();
+        for (int i = 0; i < queries.size(); i++) merged.add(new ArrayList<>());
+        idsByType.forEach((type, ids) -> {
+            var typedHits = assetSearchHitsForType(assetType, type, filters, queries, limit, ids);
+            for (int i = 0; i < queries.size(); i++) merged.get(i).addAll(typedHits.get(i));
+        });
+        return merged;
+    }
+
+    private List<List<LuceneMcpSearchService.SearchHit>> assetSearchHitsForType(
+        String assetType, String technicalType, Map<String, Object> filters, List<String> queries, int limit,
+        Set<String> candidateIds) {
+        var requests = queries.stream().map(query -> assetSearchRequest(assetType, technicalType, filters, query, limit)).toList();
+        if (candidateIds.isEmpty()) return requests.stream().map(request -> List.<LuceneMcpSearchService.SearchHit>of()).toList();
+        if (queries.size() > 1 && luceneSearchService.supportsIndependentBatches()) {
+            return luceneSearchService.searchAssetBatches(requests, candidateIds);
+        }
+        return requests.stream().map(request -> luceneSearchService.searchAssets(request).stream()
+            .filter(hit -> hit != null && candidateIds.contains(hit.id())).toList()).toList();
     }
 
     private String assetIndexType(String assetType, String technicalType) {

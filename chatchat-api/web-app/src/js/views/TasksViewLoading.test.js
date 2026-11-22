@@ -5,7 +5,7 @@ import * as api from "../../services/api";
 vi.mock("../../services/api", async (original) => ({
   ...await original(),
   fetchAgentRuntimeSummary: vi.fn(), fetchAgentTaskPage: vi.fn(),
-  fetchAgentRuntimeToolAudits: vi.fn(), fetchAgentEffectAnalytics: vi.fn(),
+  fetchAgentRuntimeToolAudits: vi.fn(), fetchAgentTaskEvents: vi.fn(), fetchAgentEffectAnalytics: vi.fn(),
   fetchAgentExperiences: vi.fn(), fetchToolGovernance: vi.fn()
 }));
 
@@ -92,4 +92,24 @@ describe("TasksView independent monitoring loads", () => {
     expect(view.runtimeLoadErrors).toEqual({});
     expect(view.loadRuntime).toHaveBeenCalledWith({ silent: true });
   });
+});
+
+
+it("loads later event pages and polls from the latest sequence for analysis progress", async () => {
+  const view = context();
+  view.selectedTask = { taskId: "task-a", tenantId: "tenant" };
+  view.filteredEvents = [];
+  view.clampedRuntimePage = vi.fn(() => 1);
+  const first = Array.from({ length: 120 }, (_, i) => ({ eventId: String(i + 1), sequence: i + 1 }));
+  api.fetchAgentTaskEvents.mockResolvedValueOnce(first)
+    .mockResolvedValueOnce([{ eventId: "121", sequence: 121 }])
+    .mockResolvedValueOnce([{ eventId: "122", sequence: 122 }]);
+  await TasksView.methods.reloadEvents.call(view);
+  await TasksView.methods.reloadEvents.call(view, { silent: true });
+  expect(api.fetchAgentTaskEvents.mock.calls).toEqual([
+    ["task-a", 120, "tenant", 0],
+    ["task-a", 120, "tenant", 120],
+    ["task-a", 120, "tenant", 121]
+  ]);
+  expect(view.selectedEvents).toHaveLength(122);
 });

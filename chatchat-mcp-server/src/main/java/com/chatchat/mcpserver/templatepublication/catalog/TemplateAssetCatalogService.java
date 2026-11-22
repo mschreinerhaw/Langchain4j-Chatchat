@@ -159,6 +159,64 @@ public class TemplateAssetCatalogService {
         return List.copyOf(result);
     }
 
+    /** Resolves only the confirmed identities against the published template's registry entry. */
+    public List<Map<String, Object>> confirmedTemplateTargets(TemplateAsset asset, Set<String> confirmedIds) {
+        return switch (asset.assetType()) {
+            case SSH -> {
+                var template = commandTemplateService.listEnabled().stream()
+                    .filter(item -> asset.templateId().equals(item.getCode())).findFirst().orElse(null);
+                if (template == null) yield List.of();
+                String level = "HIGH".equalsIgnoreCase(template.getRiskLevel()) ? "manage"
+                    : "MEDIUM".equalsIgnoreCase(template.getRiskLevel()) ? "write" : "read";
+                yield sshHostConfigService.listEnabled().stream()
+                    .filter(host -> confirmedIds.contains(host.getId()))
+                    .filter(host -> readIds(host.getAllowedCommandsJson()).contains(asset.templateId()))
+                    .filter(host -> authorizationService.callerAllowsOperation("linux_command_execute", SSH, host.getId(), level))
+                    .map(host -> targetContext(host.getId(), host.getName(), host.getEnvironment()))
+                    .toList();
+            }
+            case SQL, DATABASE_QUERY -> {
+                var sqlTemplate = SQL.equals(asset.assetType()) ? sqlTemplateService.listEnabled().stream()
+                    .filter(template -> asset.templateId().equals(template.getCode())).findFirst().orElse(null) : null;
+                var query = DATABASE_QUERY.equals(asset.assetType()) ? databaseQueryConfigService.listEnabled().stream()
+                    .filter(template -> asset.templateId().equals(template.getToolName())).findFirst().orElse(null) : null;
+                yield sqlDatasourceConfigService.listEnabled().stream()
+                    .filter(source -> confirmedIds.contains(source.getId()))
+                    .filter(source -> {
+                        if (query != null) return source.getId().equals(query.getDatasourceId());
+                        if (sqlTemplate == null || !sqlTemplateService.isCompatible(sqlTemplate, source)) return false;
+                        var allowlist = readIds(source.getAllowedTemplatesJson());
+                        return allowlist.isEmpty() || allowlist.contains(asset.templateId());
+                    })
+                    .filter(source -> authorizationService.callerAllowsOperation("sql_query_execute", SQL, source.getId(), "read"))
+                    .map(source -> targetContext(source.getId(), source.getName(), source.getEnvironment()))
+                    .toList();
+            }
+            case HTTP -> httpEndpointConfigService.listEnabled().stream()
+                .filter(endpoint -> asset.templateId().equals(endpoint.getToolName()))
+                .filter(endpoint -> confirmedIds.contains(endpoint.getId()))
+                .filter(endpoint -> authorizationService.callerAllowsOperation(
+                    "http_request_execute", HTTP, endpoint.getId(), httpLevel(endpoint.getMethod())))
+                .map(endpoint -> targetContext(endpoint.getId(), endpoint.getName(), endpoint.getEnvironment()))
+                .toList();
+            case API -> apiServiceConfigService.findByToolName(asset.templateId()).stream()
+                .filter(service -> service.isEnabled() && confirmedIds.contains(service.getId()))
+                .filter(service -> authorizationService.callerAllowsOperation(
+                    "api_template_execute", API, service.getId(), httpLevel(service.getMethod())))
+                .map(service -> targetContext(service.getId(), service.getToolName(), null))
+                .toList();
+            default -> List.of();
+        };
+    }
+
+    private Map<String, Object> targetContext(String id, String name, String environment) {
+        Map<String, Object> context = new LinkedHashMap<>();
+        context.put("assetId", id);
+        if (name != null && !name.isBlank()) context.put("assetName", name);
+        if (environment != null && !environment.isBlank()) context.put("env", environment);
+        return Map.copyOf(context);
+    }
+
     private BoundTemplate bound(TemplateAsset template, String assetId, String assetName, String executor,
                                 Map<String, Object> binding, Object... definitions) {
         try {

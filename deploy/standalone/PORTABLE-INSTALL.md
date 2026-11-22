@@ -2,6 +2,8 @@
 
 手工安装使用 `20261121-r3` 基础介质和 `20261121-skill-r3` 镜像更新。以下以验收主机 `192.168.195.93` 为例。
 
+单服务启停、升级和回滚见交付目录内的 `install-config/OPERATIONS.md`。源码版见 [生产运维手册](portable-package/OPERATIONS.md)。
+
 | 路径 | 安装入口 | 应用数据位置 |
 | --- | --- | --- |
 | 手工 Compose | `/opt/ros21/compose.json` | `/opt/ros21/data` |
@@ -160,7 +162,15 @@ sysctl -w vm.max_map_count=262144
 )
 ```
 
-使用默认应用端口时，Coding 监控入口为 `http://192.168.195.93:18100/monitor/`。出现 HTTP 500 或运行旧安装器的 `bootstrap-compose` 后，可独立执行 `bash /opt/runtime-os-portable-20261121/install-config/install.sh monitor-repair`，重建网关并验证首页和静态资源。
+使用默认应用端口时，Coding 监控入口为 `http://192.168.195.93:18100/monitor/`。出现 HTTP 500、`/monitor` 跳转到内部端口 `8080`，或运行旧安装器的 `bootstrap-compose` 后，可独立执行 `bash /opt/runtime-os-portable-20261121/install-config/install.sh monitor-repair`，重建网关并验证相对重定向、首页和静态资源。
+
+在浏览器所在机器复测不带末尾斜杠的地址。第一条应返回 `302` 和 `Location: /monitor/`，第二条应输出 `200 http://192.168.195.93:18100/monitor/`。使用自定义端口时按 `manual-install.env` 的 `HTTP_PORT` 替换。
+
+```bash
+curl -fsS -D - -o /dev/null http://192.168.195.93:18100/monitor
+curl -fsSL --max-redirs 1 -o /dev/null -w '%{http_code} %{url_effective}\n' \
+  http://192.168.195.93:18100/monitor
+```
 
 若 `monitor-repair` 在 `sudo` 下找不到 Docker，请在 `install-config/manual-install.env` 配置 `DOCKER_BIN` 为 Docker CLI 的绝对路径。可先用平时运行 Docker 的会话执行 `command -v docker` 获取路径。
 

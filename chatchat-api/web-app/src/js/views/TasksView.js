@@ -32,11 +32,12 @@ import {
 import { notifyAgentTaskCancelled } from "../utils/agentTaskEvents";
 import { fetchGenericAgentRunTimeline } from "../../services/api";
 import { buildExplorationGraph, groupExplorationGraph } from "../utils/explorationGraph.js";
+import { taskTimelineRows } from "../utils/runtimeObservationPresentation.js";
 const PlanDagGraph = defineAsyncComponent(() => import("../../components/PlanDagGraph.vue"));
-const CodingTaskMonitor = defineAsyncComponent(() => import("../../components/CodingTaskMonitor.vue"));
 
 const DEFAULT_RUNTIME_PAGE_SIZE = 10;
 const RUNTIME_REFRESH_INTERVAL_MS = 5000;
+const EVENT_BATCH_SIZE = 120;
 const PLAN_NODE_WIDTH = 310;
 const PLAN_NODE_HEIGHT = 118;
 const PLAN_NODE_HORIZONTAL_PADDING = 40;
@@ -57,8 +58,7 @@ export default {
     ShieldX,
     TimerReset,
     XCircle,
-    PlanDagGraph,
-    CodingTaskMonitor
+    PlanDagGraph
   },
   props: {
     userId: {
@@ -124,6 +124,7 @@ export default {
       recentToolAudits: [],
       selectedTask: null,
       selectedEvents: [],
+      eventLoadGeneration: 0,
       selectedEventId: "",
       selectedPlanDag: null,
       graphMode: "exploration",
@@ -216,8 +217,11 @@ export default {
       const fromTasks = this.tasks.map((task) => task.status).filter(Boolean);
       return [...new Set([...fromSummary, ...fromTasks].map((status) => String(status).toUpperCase()))];
     },
+    eventTimelineRows() {
+      return taskTimelineRows(this.selectedEvents);
+    },
     eventTypeOptions() {
-      return [...new Set(this.selectedEvents.map((event) => String(event.type || "").toUpperCase()).filter(Boolean))];
+      return [...new Set(this.eventTimelineRows.map((event) => String(event.type || "").toUpperCase()).filter(Boolean))];
     },
     auditOutcomeOptions() {
       return [
@@ -277,10 +281,10 @@ export default {
       });
     },
     filteredEvents() {
-      return this.selectedEvents.filter((event) => {
+      return this.eventTimelineRows.filter((event) => {
         const matchesType = !this.eventTypeFilter || String(event.type || "").toUpperCase() === this.eventTypeFilter;
         const matchesQuery = this.matchesQuery(
-          [event.eventId, event.type, event.status, event.toolName, event.payload, event.errorCode],
+          [event.eventId, event.type, this.formatEventType(event.type), event.status, event.toolName, event.payload, event.errorCode],
           this.eventSearchQuery
         );
         return matchesType && matchesQuery;
@@ -366,7 +370,10 @@ export default {
         || "未命名任务";
       return this.compactPlanText(content, 120);
     },
-    explorationGraph() { return groupExplorationGraph(buildExplorationGraph(this.selectedTask, this.explorationTimeline)); },
+    explorationGraph() {
+      const analysis = this.eventTimelineRows.find(event => event.type === "BUSINESS_ANALYSIS");
+      return groupExplorationGraph(buildExplorationGraph(this.selectedTask, this.explorationTimeline, [], analysis));
+    },
     activeGraphNodes() { return this.graphMode === "exploration" ? this.explorationGraph.nodes : this.planNodeViews; },
     activeGraphEdges() { return this.graphMode === "exploration" ? this.explorationGraph.edges : this.planEdges; },
     selectedExplorationNode() { return this.explorationGraph.nodes.find(node => node.id === this.selectedPlanNodeId) || null; },
@@ -707,6 +714,7 @@ export default {
     },
     async selectTask(task) {
       this.selectedTask = task;
+      this.selectedEvents = [];
       this.selectedEventId = "";
       this.syncFeedbackDraft(task);
       this.resetRuntimePage("events");
@@ -739,16 +747,29 @@ export default {
         return;
       }
       const silent = !!options.silent;
-      if (!silent) {
-        this.eventsLoading = true;
-      }
+      if (silent && this.eventsLoading) return;
+      const { taskId, tenantId } = this.selectedTask;
+      const generation = ++this.eventLoadGeneration;
+      const isCurrent = () => generation === this.eventLoadGeneration
+        && this.selectedTask?.taskId === taskId && this.selectedTask?.tenantId === tenantId
+        && !this.selectedTask.contentRestricted;
+      if (!silent) this.eventsLoading = true;
+
+      const retained = silent ? this.selectedEvents : [];
+      const pending = [];
+      let cursor = Number(retained.at(-1)?.sequence) || 0;
       try {
-        const events = await fetchAgentTaskEvents(
-          this.selectedTask.taskId,
-          120,
-          this.selectedTask.tenantId || this.runtimeTenantId
-        );
-        this.selectedEvents = Array.isArray(events) ? events : [];
+        while (isCurrent()) {
+          const events = await fetchAgentTaskEvents(taskId, EVENT_BATCH_SIZE, tenantId || this.runtimeTenantId, cursor);
+          if (!isCurrent()) return;
+          if (!Array.isArray(events) || !events.length) break;
+          pending.push(...events);
+          const lastSequence = Number(events.at(-1)?.sequence);
+          if (events.length < EVENT_BATCH_SIZE || !(lastSequence > cursor)) break;
+          cursor = lastSequence;
+        }
+        if (!isCurrent()) return;
+        this.selectedEvents = [...retained, ...pending];
         if (this.selectedEventId && !this.selectedEvents.some((event) => event.eventId === this.selectedEventId)) {
           this.selectedEventId = "";
         }
@@ -757,12 +778,14 @@ export default {
           events: this.clampedRuntimePage("events", this.filteredEvents.length)
         };
       } catch (error) {
-        if (!silent) {
-          this.error = error.message || "加载事件链路失败。";
+        if (!isCurrent()) return;
+        if (!silent) this.error = error.message || "加载事件链路失败。";
+        if (!silent || error.status === 401 || error.status === 403) {
           this.selectedEvents = [];
+          this.selectedEventId = "";
         }
       } finally {
-        if (!silent) {
+        if (!silent && generation === this.eventLoadGeneration) {
           this.eventsLoading = false;
         }
       }
@@ -1303,6 +1326,7 @@ export default {
           CREATED: "已创建",
           STARTED: "已启动",
           PLANNED: "已计划",
+          BUSINESS_ANALYSIS: "业务分析",
           TOOL_CALL: "工具调用",
           TOOL_RESULT: "工具结果",
           MODEL_CALL: "模型调用",

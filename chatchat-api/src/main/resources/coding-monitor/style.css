@@ -6,18 +6,19 @@
 
 #list .table-wrap > table {
   table-layout: fixed;
-  min-width: 1120px;
+  min-width: 1240px;
 }
 
 #list th { white-space: nowrap; }
 #list th:nth-child(1) { width: 48px; }
-#list th:nth-child(3) { width: 124px; }
-#list th:nth-child(4) { width: 160px; }
-#list th:nth-child(5) { width: 150px; }
-#list th:nth-child(6) { width: 88px; }
-#list th:nth-child(7) { width: 116px; }
-#list th:nth-child(8) { width: 96px; }
-#list th:nth-child(9) { width: 100px; }
+#list th.submitter { width: 120px; }
+#list th:nth-child(4) { width: 124px; }
+#list th:nth-child(5) { width: 160px; }
+#list th:nth-child(6) { width: 150px; }
+#list th:nth-child(7) { width: 88px; }
+#list th:nth-child(8) { width: 116px; }
+#list th:nth-child(9) { width: 96px; }
+#list th:nth-child(10) { width: 100px; }
 #list td { overflow-wrap: anywhere; }
 #list td .badge { white-space: nowrap; }
 #list td button.link { max-width: 100%; overflow-wrap: anywhere; }

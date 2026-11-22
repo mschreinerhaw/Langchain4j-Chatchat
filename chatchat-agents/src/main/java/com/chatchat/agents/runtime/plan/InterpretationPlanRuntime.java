@@ -4922,7 +4922,11 @@ public class InterpretationPlanRuntime extends AbstractRuntimeWorkflow<Interpret
             StepExecution reviewed = reviewedTemplateSelectionExecution(step, request.plan(), completed);
             if (reviewedSelectedTemplateIds(reviewed).contains(templateId)) {
                 Map<String, Object> verifiedProtocol = ReviewedTemplateParameterProtocol.bind(reviewed, templateId, step.id());
-                if (!verifiedProtocol.isEmpty()) input.put("parameterProtocol", verifiedProtocol);
+                if (!verifiedProtocol.isEmpty()) {
+                    input.put("parameterProtocol", verifiedProtocol);
+                } else if ("CLINE_TEMPLATE_PARAMETERS".equals(reviewed.metadata().get("toolResultReviewMode"))) {
+                    throw new IllegalStateException("TEMPLATE_PARAMETER_PROTOCOL_REQUIRED: Cline proposal is missing for the selected template");
+                }
             }
         }
         Object rawProtocol = firstMapValue(input, "parameterProtocol", "parameter_protocol");

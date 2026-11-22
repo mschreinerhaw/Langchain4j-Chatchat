@@ -12,6 +12,7 @@ import com.chatchat.common.tool.ToolWorkflowRole;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import dev.langchain4j.model.chat.ChatModel;
 import dev.langchain4j.model.chat.request.ChatRequest;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import org.junit.jupiter.api.Test;
@@ -93,14 +94,45 @@ class ToolResultReviewBranchTest {
         metadata("asset_query", Map.of("templateCapability", true, "schemaVersion", "template-capability.v1",
             ToolWorkflowContract.METADATA_KEY,
             ToolWorkflowContract.declaration(ToolWorkflowRole.ASSET_DISCOVERY, "fixture", "asset_query.v1")));
-        when(model.chat(anyString())).thenReturn("{\"satisfied\":true,\"selected_asset_ids\":[\"asset-b\"]}");
-
         var review = review("asset_query", true, Map.of("assets",
             List.of(Map.of("assetId", "asset-a"), Map.of("assetId", "asset-b"))));
 
-        assertModelReview(review, "ASSET_SELECTION");
-        assertThat(review.metadata()).containsEntry("selectedAssetIds", List.of("asset-b"));
-        verify(model, times(1)).chat(anyString());
+        assertThat(review.metadata()).containsEntry("candidateSelectionErrorCode", "CLINE_ASSET_CONFIRMATION_UNAVAILABLE");
+        verifyNoInteractions(model);
+    }
+
+    @ParameterizedTest
+    @ValueSource(booleans = {true, false})
+    void clineSearchTermsAndConfirmedAssetsStayInsideRuntimeBindings(boolean authorized) {
+        var declaration = ToolWorkflowContract.declaration(ToolWorkflowRole.ASSET_DISCOVERY, "fixture", "asset_query.v1");
+        metadata("asset_query", Map.of(ToolWorkflowContract.METADATA_KEY, declaration));
+        var port = mock(com.chatchat.agents.orchestration.retrieval.ClineDiscoveryPort.class);
+        var scope = new com.chatchat.common.kernel.KernelDataScope("tenant", "user", "request", "conversation", "run", null, Map.of());
+        when(port.propose(eq(scope), eq("model"), eq(1), eq(com.chatchat.agents.orchestration.retrieval.ClineDiscoveryPort.Stage.SEARCH_TERMS), any(), any()))
+            .thenReturn(Map.of("queryTerms", List.of("customer warehouse")));
+        when(port.propose(eq(scope), eq("model"), eq(1), eq(com.chatchat.agents.orchestration.retrieval.ClineDiscoveryPort.Stage.CONFIRM_ASSETS), any(), any()))
+            .thenReturn(Map.of("selectedAssetIds", List.of(authorized ? "warehouse" : "outside-scope")));
+        var engine = engine();
+        engine.setClineDiscoveryPort(port);
+        var input = Map.<String,Object>of("filters", Map.of("assetType", "database", "keywords", List.of("old")));
+        var step = new InterpretationPlan.Step(1, "mcp_tool", "asset_query", input, List.of(), null, null);
+        var enriched = engine.enrichPlanSearchInput(model, "Find the customer warehouse",
+            new InterpretationPlanRuntime.StepInputEnrichmentRequest(step, input, Map.of(), null), scope, "model", () -> false);
+        assertThat(enriched).containsEntry("filters", Map.of("assetType", "database", "queryTerms", List.of("customer warehouse")));
+        var output = Map.of("assets", List.of(Map.of("assetId", "warehouse", "name", "warehouse",
+            "displayName", "Warehouse display", "type", "database", "environment", "TEST",
+            "endpoint", "internal endpoint"), Map.of("assetId", "archive")));
+        var review = engine.reviewInterpretationPlanToolResult(model, "Find the customer warehouse", null, () -> false,
+            new InterpretationPlanRuntime.StepReviewRequest(null, step, execution("asset_query", true, output), Map.of(), 1, 1),
+            Map.of(), scope, "model");
+        verify(port).propose(eq(scope), eq("model"), eq(1),
+            eq(com.chatchat.agents.orchestration.retrieval.ClineDiscoveryPort.Stage.CONFIRM_ASSETS),
+            argThat(payload -> ((List<?>) payload.get("candidates")).get(0).equals(Map.of(
+                "assetId", "warehouse", "name", "warehouse", "displayName", "Warehouse display",
+                "type", "database", "environment", "TEST", "description", ""))), any());
+        if (authorized) assertThat(review.metadata()).containsEntry("selectedAssetIds", List.of("warehouse"));
+        else assertThat(review.metadata()).containsEntry("candidateSelectionErrorCode", "CLINE_ASSET_CONFIRMATION_REQUIRED");
+        verifyNoInteractions(model);
     }
 
     @Test
@@ -144,6 +176,76 @@ class ToolResultReviewBranchTest {
         assertThat(projection.get("templates")).isEqualTo(templates);
         var selection = (Map<?, ?>) projection.get("runtimeTemplateSelection");
         assertThat(selection.get("selectionAuthority")).isEqualTo("runtime_published_data_supply");
+        verifyNoInteractions(model);
+    }
+
+    @ParameterizedTest
+    @ValueSource(booleans = {true, false})
+    void optedInAgentUsesClineProposalsBeforeAuthorizingTemplateInvocations(boolean complete) {
+        metadata("template_query", Map.of(
+            ToolWorkflowContract.METADATA_KEY,
+            ToolWorkflowContract.declaration(ToolWorkflowRole.TEMPLATE_DISCOVERY, "fixture", "template_query.v1"),
+            com.chatchat.common.mcp.capability.McpTemplateSelectionScope.METADATA_KEY,
+            com.chatchat.common.mcp.capability.McpTemplateSelectionScope.fixedBinding("api").toMetadata()));
+        var parameters = mock(com.chatchat.agents.orchestration.tool.ClineTemplateParameterPort.class);
+        when(parameters.enabledFor("agent")).thenReturn(true);
+        var scope = new com.chatchat.common.kernel.KernelDataScope("tenant", "user", "request", "conversation", "run", null, Map.of());
+        var schema = Map.of("type", "object", "properties", Map.of("limit", Map.of("type", "integer", "default", 10)));
+        var protocol = Map.<String,Object>of("protocol_version", "template_parameter_protocol_v2",
+            "template_id", "orders", "arguments", Map.of("limit", Map.of("value", 3, "source", "user_query",
+                "evidence", Map.of("quote", "three", "interpretation", "model"))), "unresolved_parameters", List.of());
+        when(parameters.propose(eq(scope), eq("model"), eq(1), eq("Show three orders"),
+            eq(List.of(Map.of("templateId", "orders", "title", "", "description", "", "parameterSchema", schema))),
+            eq(com.chatchat.agents.orchestration.tool.ClineTemplateParameterPort.Selection.ALL_PUBLISHED), any()))
+            .thenReturn(complete ? List.of(protocol) : List.of());
+        var engine = engine();
+        engine.setClineTemplateParameterPort(parameters);
+        var output = Map.of("templates", List.of(Map.of("templateId", "orders", "parameterSchema", schema,
+            "executionContext", Map.of("assetId", "runtime-only"))));
+        var review = engine.reviewInterpretationPlanToolResult(model, "Show three orders", null, () -> false,
+            new InterpretationPlanRuntime.StepReviewRequest(null, null, execution("template_query", true, output),
+                Map.of(), 1, 1), Map.of("authorizationAgentId", "agent"), scope, "model");
+        if (complete) {
+            var reviewed = new LinkedHashMap<>(protocol);
+            reviewed.put("binding_status", "READY");
+            assertThat(review.metadata()).containsEntry("parameterProtocols", List.of(reviewed));
+            var projected = new com.chatchat.agents.runtime.plan.selection.EvidenceBasedTemplateCandidateEvaluator()
+                .evaluate(output, review.metadata());
+            assertThat(projected.selectedIds()).containsExactly("orders");
+            assertThat(projected.output().toString()).contains("reviewedInvocations", "value=3");
+        } else {
+            assertThat(review.metadata()).containsEntry("candidateSelectionErrorCode", "CLINE_TEMPLATE_PARAMETERS_UNAVAILABLE")
+                .containsEntry("selectedTemplateIds", List.of());
+        }
+        verifyNoInteractions(model);
+    }
+
+    @ParameterizedTest
+    @ValueSource(booleans = {true, false})
+    void clineSelectsOnlyReturnedTemplatesAfterDiscovery(boolean authorized) {
+        metadata("template_query", Map.of(ToolWorkflowContract.METADATA_KEY,
+            ToolWorkflowContract.declaration(ToolWorkflowRole.TEMPLATE_DISCOVERY, "fixture", "template_query.v1")));
+        var parameters = mock(com.chatchat.agents.orchestration.tool.ClineTemplateParameterPort.class);
+        var scope = new com.chatchat.common.kernel.KernelDataScope("tenant", "user", "request", "conversation", "run", null, Map.of());
+        var protocol = Map.<String, Object>of("protocol_version", "template_parameter_protocol_v2",
+            "template_id", authorized ? "orders" : "outside-scope", "arguments", Map.of(), "unresolved_parameters", List.of());
+        when(parameters.propose(eq(scope), eq("model"), eq(1), eq("Show orders"), any(),
+            eq(com.chatchat.agents.orchestration.tool.ClineTemplateParameterPort.Selection.MATCHING_CANDIDATES),
+            any())).thenReturn(List.of(protocol));
+        var engine = engine();
+        engine.setClineTemplateParameterPort(parameters);
+        var output = Map.of("templates", List.of(Map.of("templateId", "orders"), Map.of("templateId", "shipment")));
+        var review = engine.reviewInterpretationPlanToolResult(model, "Show orders", null, () -> false,
+            new InterpretationPlanRuntime.StepReviewRequest(null, null, execution("template_query", true, output),
+                Map.of(), 1, 1), Map.of(), scope, "model");
+        if (authorized) {
+            var reviewed = new LinkedHashMap<>(protocol);
+            reviewed.put("binding_status", "READY");
+            assertThat(review.metadata()).containsEntry("selectedTemplateIds", List.of("orders"))
+                .containsEntry("parameterProtocols", List.of(reviewed));
+        } else {
+            assertThat(review.metadata()).containsEntry("candidateSelectionErrorCode", "CLINE_TEMPLATE_PARAMETERS_UNAVAILABLE");
+        }
         verifyNoInteractions(model);
     }
 

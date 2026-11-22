@@ -3,7 +3,7 @@ import retriedStockTask from './fixtures/retried-stock-task.json';
 
 import {
   runtimeObservationIdentity,
-  runtimeObservationPresentation, businessEventPresentation, businessTaskProgress, executionWorkbench, userEventTimeline
+  runtimeObservationPresentation, businessEventPresentation, businessTaskProgress, executionWorkbench, userEventTimeline, taskTimelineRows
 } from "./runtimeObservationPresentation.js";
 
 it('retains terminal event time when no operation is attached',()=>{
@@ -15,7 +15,7 @@ it('projects committed Native receipts using their real operation identity and c
   const native=(sequence,normalizedType,receipt)=>({sequence,eventId:`parent-${sequence}`,type:'RUNTIME_OBSERVATION',createTime:1000+sequence*1000,payload:{metadata:{eventKind:'CODING_TRACE',codingEventType:'RECOVERY_RECONCILED',payload:{normalizedType,...receipt}}}});
   const events=[native(1,'MODEL_REQUEST_STARTED',{requestId:'provider-a',startedAt:2000}),native(2,'MODEL_REQUEST_COMPLETED',{requestId:'provider-a',startedAt:2000,finishedAt:4000,durationMs:2000}),native(3,'TOOL_STARTED',{tool:'read_files',toolCallId:'read-a'}),native(4,'TOOL_COMPLETED',{tool:'read_files',toolCallId:'read-a'}),native(5,'COMMAND_STARTED',{operationId:'cmd-native-a',startedAt:6000})];
   const view=executionWorkbench([...events,events[1]],{canonicalState:'RUNNING',executionSnapshot:{createTime:1000}},9000);
-  expect(view.status).toBe('active');expect(view.completedOperations).toBe(2);expect(view.phaseTitle).toBe('编码分析');expect(view.elapsedLabel).toBe('00:08');expect(view.phaseElapsedLabel).toBe('00:03');
+  expect(view.status).toBe('active');expect(view.completedOperations).toBe(2);expect(view.phaseTitle).toBe('分析中');expect(view.elapsedLabel).toBe('00:08');expect(view.phaseElapsedLabel).toBe('00:03');
   expect(view.currentActivity).toBe('分析计算正在执行');expect(view.timings.find(t=>t.kind==='MODEL').durationLabel).toBe('00:02');
 });
 
@@ -356,4 +356,28 @@ describe("runtime observation presentation", () => {
     });
     expect(runtimeObservationIdentity(payload)).toBe("lifecycle:final_synthesis:initial");
   });
+});
+
+
+it("shows one business analysis row and counts each operation once across updates", () => {
+  const trace = (eventId, normalizedType, receipt) => ({
+    eventId, toolName: "coding_agent", type: "RUNTIME_OBSERVATION",
+    payload: JSON.stringify({ payload: { metadata: {
+      eventKind: "CODING_TRACE", taskId: "analysis-task", payload: { normalizedType, ...receipt }
+    } } })
+  });
+  const question = { eventId: "question", type: "QUESTION" };
+  const start = { eventId: "analysis-start", toolName: "coding_agent", type: "RUNTIME_OBSERVATION" };
+  const modelStart = trace("model-start", "MODEL_REQUEST_STARTED", { requestId: "request" });
+  const modelDone = trace("model-done", "MODEL_REQUEST_COMPLETED", { requestId: "request" });
+  const tool = trace("tool", "TOOL_STARTED", { toolCallId: "read", tool: "read_files" });
+  const heartbeat = trace("heartbeat", "OBSERVATION", {});
+  const result = { eventId: "result", type: "RESULT" };
+  const initial = taskTimelineRows([question, start, modelStart, modelDone, heartbeat]);
+  expect(initial).toEqual([question, {
+    eventId: "business-analysis", type: "BUSINESS_ANALYSIS", analysisStepCount: 1
+  }]);
+  expect(taskTimelineRows([question, start, modelStart, modelDone, heartbeat, tool, result])).toEqual([
+    question, { ...initial[1], analysisStepCount: 2 }, result
+  ]);
 });

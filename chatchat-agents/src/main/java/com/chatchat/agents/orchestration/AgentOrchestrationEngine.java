@@ -44,7 +44,10 @@ import com.chatchat.agents.orchestration.lifecycle.AgentRunLifecycleCoordinator;
 import com.chatchat.agents.orchestration.lifecycle.AgentRuntimeAttributeCompiler;
 import com.chatchat.agents.orchestration.lifecycle.AgentRunScopeBinder;
 import com.chatchat.agents.orchestration.retrieval.ModelAssistedContextParameterBridge;
-import com.chatchat.agents.orchestration.retrieval.ModelAssistedRetrievalBridge;
+import com.chatchat.agents.orchestration.retrieval.ClineDiscoveryPort;
+import com.chatchat.agents.orchestration.tool.ClineTemplateParameterPort;
+import com.chatchat.agents.orchestration.retrieval.ClineSearchInput;
+import com.chatchat.agents.orchestration.retrieval.RetrievalEvidenceContext;
 import com.chatchat.agents.tool.RegistryMcpCapabilityHierarchy;
 import com.chatchat.agents.orchestration.tool.AgentToolArgumentResolver;
 import com.chatchat.agents.orchestration.tool.AgentToolExecutor;
@@ -231,7 +234,11 @@ class AgentOrchestrationEngine implements AgentRunExecutor, ResumableAgentRunExe
     private final MandatoryWorkflowTopology mandatoryWorkflowTopology;
     private final MandatoryWorkflowRecoveryPolicy mandatoryWorkflowRecoveryPolicy;
     private final MandatoryWorkflowRecoveryCoordinator mandatoryWorkflowRecoveryCoordinator;
-    final ModelAssistedRetrievalBridge modelAssistedRetrievalBridge;
+    private ClineDiscoveryPort clineDiscovery;
+    @Autowired(required = false)
+    public void setClineDiscoveryPort(ClineDiscoveryPort port) {
+        this.clineDiscovery = port;
+    }
     final ModelAssistedContextParameterBridge modelAssistedContextParameterBridge;
     private final AnswerCandidateCollector answerCandidateCollector = new AnswerCandidateCollector();
     final AgentWorkflowStatePort workflowStateTracker;
@@ -271,6 +278,11 @@ class AgentOrchestrationEngine implements AgentRunExecutor, ResumableAgentRunExe
     }
     private AnalysisEvidenceSpillStore analysisEvidenceSpillStore = AnalysisEvidenceSpillStore.disabled();
     private com.chatchat.agents.orchestration.analysis.graph.AnalysisCodingPort analysisCodingPort;
+    private ClineTemplateParameterPort clineTemplateParameters;
+    @Autowired(required = false)
+    public void setClineTemplateParameterPort(ClineTemplateParameterPort port) {
+        this.clineTemplateParameters = port;
+    }
     @Autowired(required = false)
     public void setAnalysisCodingPort(com.chatchat.agents.orchestration.analysis.graph.AnalysisCodingPort port) {
         this.analysisCodingPort = port;
@@ -420,7 +432,6 @@ class AgentOrchestrationEngine implements AgentRunExecutor, ResumableAgentRunExe
         this.workflowTools = new AgentWorkflowToolResolver(this.toolNames);
         this.mandatoryWorkflowTopology = new MandatoryWorkflowTopology(this.toolNames, this.workflowTools);
         this.mandatoryWorkflowRecoveryPolicy = new MandatoryWorkflowRecoveryPolicy(toolRegistry, this.toolNames);
-        this.modelAssistedRetrievalBridge = new ModelAssistedRetrievalBridge(this.toolRegistry, objectMapper);
         this.modelAssistedContextParameterBridge =
             new ModelAssistedContextParameterBridge(this.toolRegistry, objectMapper);
         this.planPhaseActivities = new AgentPlanPhaseActivityCoordinator(
@@ -437,7 +448,10 @@ class AgentOrchestrationEngine implements AgentRunExecutor, ResumableAgentRunExe
         this.mandatoryWorkflowRecoveryCoordinator = new MandatoryWorkflowRecoveryCoordinator(
             this.toolNames, this.toolArguments, this.workflowTools, this.workflowStateTracker,
             this.mandatoryWorkflowTopology, this.mandatoryWorkflowRecoveryPolicy,
-            this.mandatoryWorkflowResultReviewer, this.modelAssistedRetrievalBridge,
+            this.mandatoryWorkflowResultReviewer, (recovery, tool, arguments) -> searchInput(tool, arguments,
+                recovery.query(), planKernelScope(recovery.tenantId(), recovery.userId(), recovery.requestId(),
+                    recovery.conversationId(), recovery.runtimeAttributes()),
+                stringValue(recovery.metadata().get("modelName")), 0, recovery.cancellationCheck()),
             this.answerFinalizer, this.runStore, this.objectMapper);
         ModelsConfig resolvedModelsConfig = modelsConfig == null ? new ModelsConfig() : modelsConfig;
         this.contextBudget = new AgentContextBudget(
@@ -636,17 +650,19 @@ class AgentOrchestrationEngine implements AgentRunExecutor, ResumableAgentRunExe
                 return reviewInterpretationPlanToolResult(model, query, prompt, () -> false, request);
             }
             public InterpretationPlanRuntime.StepReview review(ChatModel model, String query,
-                String prompt, InterpretationPlanRuntime.StepReviewRequest request, Map<String,Object> attributes) {
-                return reviewInterpretationPlanToolResult(model, query, prompt, () -> false, request, attributes);
+                String prompt, InterpretationPlanRuntime.StepReviewRequest request, Map<String,Object> attributes,
+                KernelDataScope scope, String modelName) {
+                return reviewInterpretationPlanToolResult(model, query, prompt, () -> false, request, attributes,
+                    planKernelScope(scope.tenantId(), scope.userId(), scope.requestId(), scope.conversationId(), attributes),
+                    modelName);
             }
             public Map<String, Object> enrich(ChatModel model, String query,
                 InterpretationPlanRuntime.StepInputEnrichmentRequest request) {
                 String tool = request.step() == null ? null : request.step().toolName();
-                var evidence = templateRetrievalEvidenceContext(query, request.completed());
-                Map<String, Object> input = modelAssistedContextParameterBridge.propose(
-                    model, tool, request.input(), evidence);
-                return modelAssistedRetrievalBridge.enrichWithGate(
-                    model, tool, input, evidence).argumentsWithGateMarker();
+                var call = request.executionRequest();
+                return enrichPlanSearchInput(model, query, request,
+                    planKernelScope(call.tenantId(), call.userId(), call.requestId(), call.conversationId(), call.attributes()),
+                    stringValue(call.attributes().get("modelName")), () -> false);
             }
             public PlanToolExecutionPort toolPort() { return planToolExecutionPort; }
         };
@@ -1580,7 +1596,7 @@ class AgentOrchestrationEngine implements AgentRunExecutor, ResumableAgentRunExe
         return answerFinalizer.finishExecution(deterministicFailure, traces, metadata, observations);
     }
 
-    ModelAssistedRetrievalBridge.RetrievalEvidenceContext templateRetrievalEvidenceContext(
+    RetrievalEvidenceContext templateRetrievalEvidenceContext(
         String userQuery,
         Map<Integer, InterpretationPlanRuntime.StepExecution> completed
     ) {
@@ -1592,7 +1608,45 @@ class AgentOrchestrationEngine implements AgentRunExecutor, ResumableAgentRunExe
                 }
             });
         }
-        return new ModelAssistedRetrievalBridge.RetrievalEvidenceContext(userQuery, outputs);
+        return new RetrievalEvidenceContext(userQuery, outputs);
+    }
+
+    Map<String, Object> enrichPlanSearchInput(ChatModel model, String query,
+            InterpretationPlanRuntime.StepInputEnrichmentRequest request, KernelDataScope scope,
+            String modelName, BooleanSupplier cancelled) {
+        String tool = request.step() == null ? null : request.step().toolName();
+        if (ClineSearchInput.applies(tool, toolMetadataOrNull(tool), request.input())) {
+            return searchInput(tool, request.input(), query, scope, modelName,
+                request.step() == null ? 0 : request.step().id(), cancelled);
+        }
+        return modelAssistedContextParameterBridge.propose(model, tool, request.input(),
+            templateRetrievalEvidenceContext(query, request.completed()));
+    }
+
+    private Map<String, Object> searchInput(String tool, Map<String, Object> input, String query,
+            KernelDataScope scope, String modelName, int stepId, BooleanSupplier cancelled) {
+        var toolMetadata = toolMetadataOrNull(tool);
+        if (!ClineSearchInput.applies(tool, toolMetadata, input)
+            || input.get("cursor") instanceof String cursor && !cursor.isBlank()) return new LinkedHashMap<>(input);
+        if (clineDiscovery == null)
+            throw new IllegalStateException("CLINE_SEARCH_TERMS_UNAVAILABLE: Cline discovery is not available.");
+        var filters = asMap(input.get("filters"));
+        var constraints = new LinkedHashMap<String, Object>();
+        for (String name : List.of("assetId", "assetName", "assetType", "database", "schema",
+            "tableName", "fieldName", "environment")) {
+            Object value = firstObject(filters, name);
+            if (value == null) value = input.get(name);
+            if (value instanceof String text && text.length() <= 256) constraints.put(name, text);
+        }
+        var proposal = clineDiscovery.propose(scope, modelName, stepId, ClineDiscoveryPort.Stage.SEARCH_TERMS,
+            Map.of("question", query, "tool", tool, "maximumTerms", ClineSearchInput.maximumTerms(toolMetadata),
+                "discoveryStage", Objects.toString(input.get("stage"), ""),
+                "requestConstraints", constraints), cancelled);
+        var resolved = ClineSearchInput.apply(tool, toolMetadata, input, proposal);
+        recordLifecyclePhase(scope.attributes(), null, "discovery_search_terms",
+            "Cline supplied search terms for Runtime discovery.",
+            Map.of("eventKind", "CLINE_DISCOVERY_SEARCH_TERMS", "eventState", "COMPLETED", "stepId", stepId));
+        return resolved;
     }
 
     KernelDataScope planKernelScope(String tenantId, String userId, String requestId,
@@ -3474,6 +3528,15 @@ class AgentOrchestrationEngine implements AgentRunExecutor, ResumableAgentRunExe
         InterpretationPlanRuntime.StepReviewRequest request,
         Map<String, Object> runtimeAttributes
     ) {
+        return reviewInterpretationPlanToolResult(activeChatModel, query, systemPrompt, cancellationCheck, request,
+            runtimeAttributes, null, null);
+    }
+
+    InterpretationPlanRuntime.StepReview reviewInterpretationPlanToolResult(
+        ChatModel activeChatModel, String query, String systemPrompt, BooleanSupplier cancellationCheck,
+        InterpretationPlanRuntime.StepReviewRequest request, Map<String, Object> runtimeAttributes,
+        KernelDataScope scope, String modelName
+    ) {
         runtimeGuard.checkCancelled(cancellationCheck);
         ToolWorkflowRole workflowRole = request == null || request.execution() == null ? null
             : new com.chatchat.agents.runtime.plan.protocol.ToolProtocolPayloadNavigator().discoveryRole(
@@ -3481,6 +3544,9 @@ class AgentOrchestrationEngine implements AgentRunExecutor, ResumableAgentRunExe
                     toolMetadataOrNull(request.execution().toolName())));
         if (request != null && request.execution() != null && request.execution().success()
             && workflowRole == ToolWorkflowRole.ASSET_DISCOVERY) {
+            if (clineDiscovery != null && scope != null) {
+                return reviewClineAssetDiscovery(query, request.execution(), scope, modelName, cancellationCheck);
+            }
             var declared = new com.chatchat.agents.runtime.plan.selection.EvidenceBasedAssetCandidateEvaluator()
                 .evaluate(com.chatchat.common.mcp.runtime.McpAnalysisPayload.canonicalData(request.execution().output()),
                     Map.of("toolResultReviewSkipped", true));
@@ -3493,6 +3559,10 @@ class AgentOrchestrationEngine implements AgentRunExecutor, ResumableAgentRunExe
             var literal = com.chatchat.agents.runtime.plan.review.CanonicalAssetReferenceReviewer.review(
                 query, com.chatchat.common.mcp.runtime.McpAnalysisPayload.canonicalData(request.execution().output()));
             if (literal.isPresent()) return literal.get();
+            return InterpretationPlanRuntime.StepReview.accepted("Asset confirmation is unavailable.", Map.of(
+                "toolResultReviewUnavailable", true,
+                "candidateSelectionErrorCode", "CLINE_ASSET_CONFIRMATION_UNAVAILABLE",
+                "candidateSelectionError", "A Cline asset confirmation is required for these candidates."));
         }
         if (request != null && request.execution() != null && !request.execution().success()
                 && (workflowRole == ToolWorkflowRole.TEMPLATE_DISCOVERY || workflowRole == ToolWorkflowRole.ASSET_DISCOVERY)) {
@@ -3501,12 +3571,10 @@ class AgentOrchestrationEngine implements AgentRunExecutor, ResumableAgentRunExe
         }
         if (request != null && request.execution() != null && request.execution().success()
                 && workflowRole == ToolWorkflowRole.TEMPLATE_DISCOVERY) {
-            return admitTemplateDiscovery(request.execution());
+            return admitTemplateDiscovery(request.execution(), query, runtimeAttributes, scope, modelName, cancellationCheck);
         }
-        boolean candidateDiscovery = workflowRole == ToolWorkflowRole.ASSET_DISCOVERY;
         if (com.chatchat.agents.orchestration.analysis.contract.RuntimeAnalysisOwnership
-                .codingOwnsToolAdmission(runtimeAttributes) && request != null && request.execution() != null
-                && !candidateDiscovery) {
+                .codingOwnsToolAdmission(runtimeAttributes) && request != null && request.execution() != null) {
             Map<String,Object> admission = Map.of("toolResultReviewSkipped", true,
                 "toolResultReviewMode", "CODING_DETERMINISTIC_ADMISSION",
                 "analysisDecisionOwner", "CLINE", "toolResultReviewModelCalls", 0);
@@ -3861,8 +3929,55 @@ class AgentOrchestrationEngine implements AgentRunExecutor, ResumableAgentRunExe
         }
     }
 
+    private InterpretationPlanRuntime.StepReview reviewClineAssetDiscovery(String query,
+            InterpretationPlanRuntime.StepExecution execution, KernelDataScope scope,
+            String modelName, BooleanSupplier cancelled) {
+        List<Map<String, Object>> candidates = findCandidateMaps(execution.output(), "assets", 0);
+        try {
+            Map<String, Map<String, Object>> descriptors = new LinkedHashMap<>();
+            for (var candidate : candidates) {
+                var asset = candidate.get("asset") instanceof Map<?, ?> nested ? asMap(nested) : candidate;
+                String id = stringValue(firstObject(asset, "id", "assetId", "name", "assetName", "toolName"));
+                if (id == null) continue;
+                var card = Map.<String, Object>of("assetId", id,
+                    "name", Objects.toString(firstObject(asset, "name", "assetName"), ""),
+                    "displayName", Objects.toString(asset.get("displayName"), ""),
+                    "type", Objects.toString(firstObject(asset, "assetType", "type"), ""),
+                    "environment", Objects.toString(asset.get("environment"), ""),
+                    "description", Objects.toString(firstObject(asset, "description", "summary"), ""));
+                if (descriptors.putIfAbsent(id, card) != null)
+                    throw new IllegalArgumentException("Ambiguous asset identity");
+            }
+            if (!descriptors.isEmpty()) {
+                var proposal = clineDiscovery.propose(scope, modelName, execution.stepId(),
+                    ClineDiscoveryPort.Stage.CONFIRM_ASSETS, Map.of("question", query,
+                        "tool", execution.toolName(), "candidates", List.copyOf(descriptors.values())), cancelled);
+                if (proposal.size() == 1 && proposal.get("selectedAssetIds") instanceof List<?> selected
+                    && !selected.isEmpty() && selected.stream().allMatch(id -> id instanceof String && descriptors.containsKey(id))
+                    && new LinkedHashSet<>(selected).size() == selected.size()) {
+                    recordLifecyclePhase(scope.attributes(), null, "asset_confirmation",
+                        "Cline confirmed assets from the authorized discovery results.",
+                        Map.of("eventKind", "CLINE_ASSET_CONFIRMATION", "eventState", "COMPLETED",
+                            "stepId", execution.stepId(), "selectedCount", selected.size()));
+                    return InterpretationPlanRuntime.StepReview.accepted("Cline confirmed authorized asset candidates.",
+                        Map.of("selectedAssetIds", List.copyOf(selected),
+                            "toolResultReviewMode", "CLINE_ASSET_CONFIRMATION", "toolResultReviewModelCalls", 0));
+                }
+            }
+        } catch (java.util.concurrent.CancellationException cancelledTask) {
+            throw cancelledTask;
+        } catch (RuntimeException unavailable) {
+            log.warn("Cline asset confirmation failed: stepId={}, errorType={}",
+                execution.stepId(), unavailable.getClass().getSimpleName());
+        }
+        return InterpretationPlanRuntime.StepReview.accepted("Cline did not confirm an authorized asset.", Map.of(
+            "selectedAssetIds", List.of(), "candidateSelectionErrorCode", "CLINE_ASSET_CONFIRMATION_REQUIRED",
+            "candidateSelectionError", "The returned candidates did not yield a valid Cline asset confirmation."));
+    }
+
     private InterpretationPlanRuntime.StepReview admitTemplateDiscovery(
-        InterpretationPlanRuntime.StepExecution execution
+        InterpretationPlanRuntime.StepExecution execution, String query, Map<String, Object> attributes,
+        KernelDataScope scope, String modelName, BooleanSupplier cancelled
     ) {
         boolean fixedScope = TemplateWorkflowMetadata.fixedScope(toolMetadataOrNull(execution.toolName())).isPresent();
         List<Map<String, Object>> candidates = findCandidateMaps(execution.output(), "templates", 0);
@@ -3872,6 +3987,12 @@ class AgentOrchestrationEngine implements AgentRunExecutor, ResumableAgentRunExe
         List<String> returned = candidates.stream()
             .map(item -> stringValue(firstObject(item, "templateId", "template_id", "id")))
             .filter(Objects::nonNull).distinct().toList();
+        String agentId = attributes == null ? null : stringValue(attributes.get("authorizationAgentId"));
+        if (scope != null && clineTemplateParameters != null && !returned.isEmpty()
+            && (!fixedScope || returned.size() <= ToolCallBatchSchema.DEFAULT_MAX_CALLS
+                && clineTemplateParameters.enabledFor(agentId))) {
+            return reviewClineTemplates(execution, query, attributes, scope, modelName, cancelled, fixedScope, candidates);
+        }
         Map<String, Object> prior = execution.metadata();
         List<String> selected = stringList(firstObject(prior,
             "modelSelectedTemplateIds", "selectedTemplateIds", "runtimeSelectedTemplateIds"));
@@ -3889,7 +4010,7 @@ class AgentOrchestrationEngine implements AgentRunExecutor, ResumableAgentRunExe
             return InterpretationPlanRuntime.StepReview.accepted("Reuse recorded template selection.", reused);
         }
         if (fixedScope && !returned.isEmpty() && returned.size() <= ToolCallBatchSchema.DEFAULT_MAX_CALLS) {
-            return InterpretationPlanRuntime.StepReview.accepted("Admit Runtime's published templates.", Map.of(
+            var admission = new LinkedHashMap<String, Object>(Map.of(
                 "candidateDecisionOwner", "PUBLISHER",
                 "candidateSelectionStatus", "SELECTED",
                 "publishedDataSupply", true,
@@ -3897,6 +4018,7 @@ class AgentOrchestrationEngine implements AgentRunExecutor, ResumableAgentRunExe
                 "toolResultReviewMode", "RUNTIME_PUBLISHED_TEMPLATE_ADMISSION",
                 "toolResultReviewModelCalls", 0,
                 "mcpDiscoverySucceeded", true));
+            return InterpretationPlanRuntime.StepReview.accepted("Admit Runtime's published templates.", admission);
         }
         String code = returned.isEmpty() ? "NO_MATCH"
             : fixedScope ? "TEMPLATE_BATCH_LIMIT_EXCEEDED" : "TEMPLATE_SELECTION_REQUIRED";
@@ -3916,6 +4038,64 @@ class AgentOrchestrationEngine implements AgentRunExecutor, ResumableAgentRunExe
             metadata.put("candidateSelectionError", reason);
         }
         return InterpretationPlanRuntime.StepReview.accepted(reason, metadata);
+    }
+
+    private InterpretationPlanRuntime.StepReview reviewClineTemplates(
+            InterpretationPlanRuntime.StepExecution execution, String query, Map<String, Object> attributes,
+            KernelDataScope scope, String modelName, BooleanSupplier cancelled, boolean fixedScope,
+            List<Map<String, Object>> candidates) {
+        var selection = fixedScope ? ClineTemplateParameterPort.Selection.ALL_PUBLISHED
+            : ClineTemplateParameterPort.Selection.MATCHING_CANDIDATES;
+        try {
+            Map<String, Map<String, Object>> descriptors = new LinkedHashMap<>();
+            for (var candidate : candidates) {
+                String id = stringValue(firstObject(candidate, "templateId", "template_id", "id"));
+                if (id == null) continue;
+                var descriptor = Map.<String, Object>of("templateId", id,
+                    "title", Objects.toString(firstObject(candidate, "title", "name"), ""),
+                    "description", Objects.toString(firstObject(candidate, "description", "summary"), ""),
+                    "parameterSchema", asMap(firstObject(candidate, "parameterSchema", "inputSchema", "schema")));
+                var previous = descriptors.putIfAbsent(id, descriptor);
+                if (previous != null && !previous.equals(descriptor))
+                    throw new IllegalArgumentException("Ambiguous template descriptor");
+            }
+            var proposals = clineTemplateParameters.propose(scope, modelName, execution.stepId(),
+                query, List.copyOf(descriptors.values()), selection, cancelled);
+            List<String> selected = proposals.stream()
+                .map(protocol -> Objects.toString(protocol.get("template_id"), "")).toList();
+            var distinct = new LinkedHashSet<>(selected);
+            if (selected.isEmpty() || selected.size() > ToolCallBatchSchema.DEFAULT_MAX_CALLS
+                || distinct.size() != selected.size() || !descriptors.keySet().containsAll(distinct)
+                || fixedScope && !descriptors.keySet().equals(distinct))
+                throw new IllegalArgumentException("Cline proposals do not match authorized template candidates");
+            List<Map<String, Object>> protocols = proposals.stream().map(proposal -> {
+                var reviewed = new LinkedHashMap<>(proposal);
+                reviewed.put("binding_status", "READY");
+                return Map.copyOf(reviewed);
+            }).toList();
+            recordLifecyclePhase(attributes, null, "template_parameters",
+                "Native Cline returned template parameter proposals before data execution.",
+                Map.of("eventKind", "CLINE_TEMPLATE_PARAMETERS", "eventState", "COMPLETED",
+                    "stepId", execution.stepId(), "templateCount", selected.size()));
+            return InterpretationPlanRuntime.StepReview.accepted("Cline selected authorized templates and supplied parameters.",
+                Map.of("candidateDecisionOwner", fixedScope ? "PUBLISHER" : "CLINE",
+                    "candidateSelectionStatus", "SELECTED",
+                    "publishedDataSupply", fixedScope,
+                    "selectedTemplateIds", selected,
+                    "parameterProtocols", protocols,
+                    "toolResultReviewMode", "CLINE_TEMPLATE_PARAMETERS",
+                    "toolResultReviewModelCalls", 0,
+                    "mcpDiscoverySucceeded", true));
+        } catch (java.util.concurrent.CancellationException cancelledTask) {
+            throw cancelledTask;
+        } catch (RuntimeException unavailable) {
+            log.warn("Cline template parameter task failed: stepId={}, errorType={}",
+                execution.stepId(), unavailable.getClass().getSimpleName());
+            return InterpretationPlanRuntime.StepReview.accepted("Cline parameter proposals unavailable.", Map.of(
+                "candidateSelectionErrorCode", "CLINE_TEMPLATE_PARAMETERS_UNAVAILABLE",
+                "candidateSelectionError", "Cline did not return a complete parameter proposal.",
+                "selectedTemplateIds", List.of(), "mcpDiscoverySucceeded", true));
+        }
     }
 
     protected String buildToolResultReviewPrompt(String query,
@@ -5140,7 +5320,9 @@ class AgentOrchestrationEngine implements AgentRunExecutor, ResumableAgentRunExe
             (toolName, input, output) -> {
                 MandatoryCandidateReview review = reviewMandatoryDiscoveryCandidates(
                     activeChatModel, query, systemPrompt, cancellationCheck,
-                    toolName, input, output, runtimeAttributes);
+                    toolName, input, output, runtimeAttributes,
+                    planKernelScope(tenantId, userId, requestId, conversationId, runtimeAttributes),
+                    stringValue(metadata.get("modelName")));
                 return new MandatoryWorkflowRecoveryCoordinator.SemanticReview(
                     review.required(), review.satisfied(), review.reason(),
                     review.projectedOutput(), review.auditMetadata());
@@ -5179,6 +5361,15 @@ class AgentOrchestrationEngine implements AgentRunExecutor, ResumableAgentRunExe
         ToolOutput output,
         Map<String, Object> runtimeAttributes
     ) {
+        return reviewMandatoryDiscoveryCandidates(activeChatModel, query, systemPrompt, cancellationCheck,
+            toolName, input, output, runtimeAttributes, null, null);
+    }
+
+    private MandatoryCandidateReview reviewMandatoryDiscoveryCandidates(
+        ChatModel activeChatModel, String query, String systemPrompt, BooleanSupplier cancellationCheck,
+        String toolName, Map<String, Object> input, ToolOutput output, Map<String, Object> runtimeAttributes,
+        KernelDataScope scope, String modelName
+    ) {
         boolean assetDiscovery = discoveryResultRole(toolName, output) == ToolWorkflowRole.ASSET_DISCOVERY;
         boolean templateDiscovery = discoveryResultRole(toolName, output) == ToolWorkflowRole.TEMPLATE_DISCOVERY;
         if (!assetDiscovery && !templateDiscovery) {
@@ -5213,7 +5404,7 @@ class AgentOrchestrationEngine implements AgentRunExecutor, ResumableAgentRunExe
                 null, step, stepExecution, Map.of(), 1, 1,
                 runtimeAttributes == null ? null : stringValue(runtimeAttributes.get(AGENT_RUN_ID_ATTRIBUTE))
             ),
-            runtimeAttributes
+            runtimeAttributes, scope, modelName
         );
         if (review == null) {
             return MandatoryCandidateReview.rejected(

@@ -326,6 +326,7 @@ public class EnterpriseMetadataMcpToolPublisher implements com.chatchat.mcpserve
             "modelInputBridgeContract", mapOf(
                 "contractVersion", "model_assisted_retrieval.v1",
                 "mode", "ENTERPRISE_METADATA_PROFILE",
+                "maximumQueryTerms", workflow.maximumDiscoveryTerms(),
                 "allowedArgumentPaths", List.of(
                     "query", "queryTerms", "fields", "purpose", "schemaEvidence", "modelSearchProfile"
                 ),

@@ -50,7 +50,8 @@ it('follows new log events until the reader scrolls up, and resumes at the botto
 it('renders five numbered business steps and keeps technical recovery receipts out of the DOM', async () => {
   const event = (type, sequence, state = 'RUNNING') => ({eventId:`event-${sequence}`, sequence,
     type:'RUNTIME_OBSERVATION',status:'RUNNING',payload:{payload:{metadata:{eventKind:'CODING_TRACE',
-      codingEventType:type,eventState:state,errorMessage:state==='FAILED'?'输入文件不可读':''}}}});
+      codingEventType:type,eventState:state,errorMessage:state==='FAILED'?'输入文件不可读':'',
+      ...(type==='EXECUTION_FINISHED' ? {operationId:'calculate'} : {})}}}});
   const message = reactive({id:'business-progress-test',role:'assistant',taskId:'task',status:'running',content:'',
     steps:mergeExecutionSteps([], [event('TASK_CREATED',1),event('TASK_STARTED',2)])});
   const host=document.createElement('div');document.body.append(host);
@@ -64,6 +65,13 @@ it('renders five numbered business steps and keeps technical recovery receipts o
     expect(message.steps).toHaveLength(22);
     expect(host.textContent).not.toMatch(/Cline|Python|RECOVERY_RECONCILED|BUDGET_UPDATED/);
     message.steps=mergeExecutionSteps(message.steps,[event('EXECUTION_FINISHED',23,'FAILED'),event('BUDGET_UPDATED',24)]);
+    await nextTick();
+    expect(host.querySelector('.workbench-status').textContent).toBe('进行中');
+    expect(host.querySelector('.workbench-alerts')).toBeNull();
+    const timeline=host.querySelector('[aria-label="实时执行动态"]');
+    expect(timeline.textContent).toContain('本步未完成');
+    expect(timeline.textContent).not.toMatch(/执行失败|输入文件不可读/);
+    expect(timeline.querySelector('li[role="alert"]')).toBeNull();
     message.status='failed';await nextTick();
     expect(host.textContent).toContain('执行失败');expect(host.textContent).toContain('输入文件不可读');
     expect(host.querySelector('.thinking-message')).toBeNull();

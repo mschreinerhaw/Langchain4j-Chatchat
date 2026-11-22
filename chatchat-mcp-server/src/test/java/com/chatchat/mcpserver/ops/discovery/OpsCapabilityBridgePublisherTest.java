@@ -162,98 +162,25 @@ class OpsCapabilityBridgePublisherTest {
     }
 
     @Test
-    void templateStagePreResolvesDecisiveAssetBeforeLookingUpTemplates() {
+    void assetCandidatesRequireConfirmationRegardlessOfSearchRanking() {
         AssetDiscoveryService assets = mock(AssetDiscoveryService.class);
         CommandTemplateDiscoveryService templates = mock(CommandTemplateDiscoveryService.class);
-        when(assets.query(org.mockito.ArgumentMatchers.anyMap())).thenReturn(Map.of("assets", java.util.List.of(
-            asset("oracle-host", "Oracle database server", "ssh_oracle", 0.82),
-            asset("wind-app", "Wind application server", "ssh_wind", 0.41)
-        )));
-        when(templates.query(org.mockito.ArgumentMatchers.anyMap())).thenReturn(Map.of("templates", java.util.List.of()));
-        OpsCapabilityBridgePublisher publisher = new OpsCapabilityBridgePublisher(
-            mock(McpSyncServer.class), assets, templates);
-
-        Map<String, Object> result = publisher.query(OpsCapabilityBridgePublisher.SERVER_QUERY_TOOL,
-            Map.of("query", "inspect the DEV Oracle host", "filters", Map.of("env", "DEV")));
-
-        verify(assets).query(argThat(input -> {
-            Object value = ((Map<?, ?>) input.get("filters")).get("queryTerms");
-            if (!(value instanceof java.util.List<?> terms)) return false;
-            java.util.List<String> normalizedTerms = terms.stream()
-                .map(String::valueOf).map(term -> term.toLowerCase(java.util.Locale.ROOT)).toList();
-            String identityIntent = String.valueOf(((Map<?, ?>) input.get("filters")).get("intent"))
-                .toLowerCase(java.util.Locale.ROOT);
-            return identityIntent.contains("oracle") && !identityIntent.equals("inspect the dev oracle host")
-                && normalizedTerms.stream().anyMatch(term -> term.contains("oracle"))
-                && normalizedTerms.stream().noneMatch("inspect the dev oracle host"::equals)
-                && normalizedTerms.stream().noneMatch("dev"::equals);
-        }));
-        verify(templates).query(argThat(input -> "Oracle database server".equals(
-            ((Map<?, ?>) input.get("filters")).get("assetName"))));
-        assertThat(result.get("assetResolution").toString())
-            .contains("RESOLVED", "Oracle database server", "oracle-host");
-    }
-
-    @Test
-    void highestProviderScoreSelectsAssetWithoutAnAdditionalMarginGate() {
-        AssetDiscoveryService assets = mock(AssetDiscoveryService.class);
-        CommandTemplateDiscoveryService templates = mock(CommandTemplateDiscoveryService.class);
-        when(assets.query(org.mockito.ArgumentMatchers.anyMap())).thenReturn(Map.of("assets", java.util.List.of(
-            asset("host-a", "Candidate A", "ssh_a", 0.70),
-            asset("host-b", "Candidate B", "ssh_b", 0.64)
-        )));
-        OpsCapabilityBridgePublisher publisher = new OpsCapabilityBridgePublisher(
-            mock(McpSyncServer.class), assets, templates);
-
-        Map<String, Object> result = publisher.query(OpsCapabilityBridgePublisher.SERVER_QUERY_TOOL,
-            Map.of("query", "inspect DEV host", "filters", Map.of("env", "DEV")));
-
-        verify(templates).query(argThat(input -> "Candidate A".equals(
-            ((Map<?, ?>) input.get("filters")).get("assetName"))));
-        assertThat(result.get("assetResolution").toString())
-            .contains("RESOLVED", "Candidate A", "host-a");
-    }
-
-    @Test
-    void equalTopProviderScoresRemainAmbiguous() {
-        AssetDiscoveryService assets = mock(AssetDiscoveryService.class);
-        CommandTemplateDiscoveryService templates = mock(CommandTemplateDiscoveryService.class);
-        when(assets.query(org.mockito.ArgumentMatchers.anyMap())).thenReturn(Map.of("assets", java.util.List.of(
-            asset("host-a", "Candidate A", "ssh_a", 0.70),
-            asset("host-b", "Candidate B", "ssh_b", 0.70)
-        )));
-        OpsCapabilityBridgePublisher publisher = new OpsCapabilityBridgePublisher(
-            mock(McpSyncServer.class), assets, templates);
-
-        Map<String, Object> result = publisher.query(OpsCapabilityBridgePublisher.SERVER_QUERY_TOOL,
-            Map.of("query", "inspect DEV host", "filters", Map.of("env", "DEV")));
-
-        verify(templates, never()).query(org.mockito.ArgumentMatchers.anyMap());
-        assertThat(result).containsEntry("stage", "asset_selection")
-            .containsEntry("assetSelectionRequired", true)
-            .containsEntry("assetReturnedCount", 2);
-        assertThat(result.get("assetResolution").toString()).contains("AMBIGUOUS").doesNotContain("selected=");
-    }
-
-    @Test
-    void uniqueCanonicalIdentityMatchResolvesEvenWhenSemanticScoresAreClose() {
-        AssetDiscoveryService assets = mock(AssetDiscoveryService.class);
-        CommandTemplateDiscoveryService templates = mock(CommandTemplateDiscoveryService.class);
-        when(assets.query(org.mockito.ArgumentMatchers.anyMap())).thenReturn(Map.of("assets", java.util.List.of(
-            asset("oracle-db", "Wind Oracle datasource", "db_query_oracle_wind_dev", 0.82),
-            asset("mysql-db", "Test database", "db_query_mysql_test", 0.757)
-        )));
-        when(templates.query(org.mockito.ArgumentMatchers.anyMap())).thenReturn(Map.of("templates", java.util.List.of()));
+        var candidates = java.util.List.of(asset("asset-a", "Candidate A", "tool_a", 0.82),
+            asset("asset-b", "Candidate B", "tool_b", 0.41));
+        when(assets.query(org.mockito.ArgumentMatchers.anyMap())).thenReturn(Map.of("assets", candidates));
         OpsCapabilityBridgePublisher publisher = new OpsCapabilityBridgePublisher(
             mock(McpSyncServer.class), assets, templates);
 
         Map<String, Object> result = publisher.query(OpsCapabilityBridgePublisher.DATABASE_QUERY_TOOL,
-            Map.of("query", "inspect DEV Oracle database", "filters", Map.of("env", "DEV")));
+            Map.of("filters", Map.of("queryTerms", java.util.List.of("Candidate A"), "env", "DEV")));
 
-        verify(templates).query(argThat(input -> "Wind Oracle datasource".equals(
-            ((Map<?, ?>) input.get("filters")).get("assetName"))));
-        assertThat(result.get("assetResolution").toString())
-            .contains("RESOLVED", "Wind Oracle datasource", "oracle-db");
+        verify(assets).query(argThat(input -> Map.of("queryTerms", java.util.List.of("Candidate A"), "env", "DEV")
+            .equals(input.get("filters"))));
+        verify(templates, never()).query(org.mockito.ArgumentMatchers.anyMap());
+        assertThat(result).containsEntry("stage", "asset_selection")
+            .containsEntry("assetSelectionRequired", true)
+            .containsEntry("assetReturnedCount", 2)
+            .containsEntry("assets", candidates);
     }
 
     @Test
@@ -272,7 +199,6 @@ class OpsCapabilityBridgePublisherTest {
             .containsEntry("assetNotFound", true)
             .containsEntry("assetReturnedCount", 0);
         assertThat(result).doesNotContainKeys("assetSelectionRequired", "nextStage");
-        assertThat(result.get("assetResolution").toString()).contains("NOT_FOUND");
     }
 
     @Test

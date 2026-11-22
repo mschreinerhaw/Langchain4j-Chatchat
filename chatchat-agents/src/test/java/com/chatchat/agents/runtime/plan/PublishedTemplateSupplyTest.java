@@ -76,7 +76,7 @@ public class PublishedTemplateSupplyTest {
         when(registry.getToolMetadata(EXECUTE)).thenReturn(ToolMetadata.builder().metadata(Map.of("workflowContract",ToolWorkflowContract.declaration(ToolWorkflowRole.TEMPLATE_EXECUTION,"mcp.ssh-template.v1","executionContext"))).build());
         assertThat(new com.chatchat.agents.runtime.plan.template.PublishedDataAcquisitionPlanner(registry).compile("Inspect",List.of(CHILD,EXECUTE),List.of(CHILD,EXECUTE))).isNull();
     }
-    @Test void fixedBindingDoesNotRediscoverAssetsEvenWhenBridgeHasAssetStage() {
+    @Test void fixedBindingPreservesExplicitAssetStageWithoutRestoringGenericTemplateSearch() {
         for (boolean nested : List.of(false, true)) {
             var registry=registry(nested);
             registry.getToolMetadata(BRIDGE).setParameters(List.of(ToolParameter.builder()
@@ -84,8 +84,11 @@ public class PublishedTemplateSupplyTest {
             var compiled=new com.chatchat.agents.runtime.plan.template.PublishedDataAcquisitionPlanner(registry)
                 .compile("Inspect authorized target",List.of(BRIDGE,CHILD,EXECUTE),List.of(BRIDGE,CHILD,EXECUTE));
             assertThat(compiled).isNotNull();
-            assertThat(compiled.steps()).extracting(InterpretationPlan.Step::toolName).containsExactly(CHILD,EXECUTE,"");
+            assertThat(compiled.steps()).extracting(InterpretationPlan.Step::toolName).containsExactly(BRIDGE,CHILD,EXECUTE,"");
+            assertThat(compiled.steps().get(0).input()).containsEntry("stage","asset");
             var optimizer=new InterpretationPlanOptimizer(registry);
+            assertThat(optimizer.optimize(compiled).plan().steps())
+                .extracting(InterpretationPlan.Step::toolName).containsExactly(BRIDGE,CHILD,EXECUTE,"");
             var optimized=optimizer.optimize(plan(),List.of(
                 Map.of("tool",BRIDGE,"required",true),
                 Map.of("tool",CHILD,"dependsOnTools",List.of(BRIDGE)),
@@ -136,7 +139,7 @@ public class PublishedTemplateSupplyTest {
             com.chatchat.common.mcp.capability.McpCapabilityHierarchy.empty(),registry);
         assertThat(resolver.satisfiesCapability(CHILD,BRIDGE)).isFalse();
     }
-    @Test void separateAssetDiscoveryIsReplacedByFixedBindingWithoutChangingItsIdentity() {
+    @Test void publishedTemplatePlanKeepsSeparateAssetDiscovery() {
         var registry=registry(false);
         var child=new LinkedHashMap<>(registry.getToolMetadata(CHILD).getMetadata());
         child.remove("parentRemoteToolName");
@@ -146,8 +149,11 @@ public class PublishedTemplateSupplyTest {
         var compiled=new com.chatchat.agents.runtime.plan.template.PublishedDataAcquisitionPlanner(registry)
             .compile("Analyze customer C42",List.of(BRIDGE,CHILD,EXECUTE),List.of(BRIDGE,CHILD,EXECUTE));
         assertThat(compiled).isNotNull();
-        assertThat(compiled.steps()).extracting(InterpretationPlan.Step::toolName).containsExactly(CHILD,EXECUTE,"");
-        var optimized=new InterpretationPlanOptimizer(registry).optimize(plan()).plan();
+        assertThat(compiled.steps()).extracting(InterpretationPlan.Step::toolName).containsExactly(BRIDGE,CHILD,EXECUTE,"");
+        var optimizer=new InterpretationPlanOptimizer(registry);
+        assertThat(optimizer.optimize(compiled).plan().steps())
+            .extracting(InterpretationPlan.Step::toolName).containsExactly(BRIDGE,CHILD,EXECUTE,"");
+        var optimized=optimizer.optimize(plan()).plan();
         assertThat(optimized.steps()).extracting(InterpretationPlan.Step::toolName).doesNotContain(BRIDGE);
         assertThat(new InterpretationPlanValidator().validate(optimized,registry,Set.of(CHILD,EXECUTE),List.of(
             Map.of("tool",BRIDGE),Map.of("tool",CHILD,"dependsOnTools",List.of(BRIDGE)),

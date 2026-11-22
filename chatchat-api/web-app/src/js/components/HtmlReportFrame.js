@@ -1,8 +1,9 @@
-import {computed,ref,watch,onBeforeUnmount} from 'vue';
+import {computed,inject,ref,watch,onBeforeUnmount} from 'vue';
 import {loadHtmlReport} from '../utils/htmlReport';
 import canvasTheme from '../../styles/components/embedded-report.css.txt?raw';
 export default {props:{report:{type:Object,required:true},embedded:Boolean},setup(props){
   const frame=ref(null),viewer=ref(null),frameHeight=ref(480);const document=ref(''),loading=ref(false),error=ref('');let controller;
+  const businessCanvasReport = inject('businessCanvasReport', null);
   watch(()=>props.report,async report=>{controller?.abort();const current=new AbortController();controller=current;document.value='';error.value='';loading.value=true;
     frameHeight.value=480;
     try{const html=await loadHtmlReport(report,current.signal);if(!current.signal.aborted)document.value=html;}
@@ -10,7 +11,7 @@ export default {props:{report:{type:Object,required:true},embedded:Boolean},setu
     finally{if(!current.signal.aborted)loading.value=false;}
   },{immediate:true});
   const frameDocument = computed(() => {
-    if (!props.embedded || !document.value) return document.value;
+    if ((!props.embedded && !businessCanvasReport?.value) || !document.value) return document.value;
     const html = new DOMParser().parseFromString(document.value, 'text/html');
     const style = html.createElement('style');
     style.textContent = canvasTheme;

@@ -1,5 +1,5 @@
 <template>
-  <HtmlReportFrame v-if="report?.htmlReport" :report="report.htmlReport" :embedded="embedded">
+  <HtmlReportFrame v-if="report?.htmlReport" :report="report.htmlReport">
     <template #fallback>
       <ReportRenderer :report="report" :fallback-markdown="fallbackMarkdown" />
     </template>

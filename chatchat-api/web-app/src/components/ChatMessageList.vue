@@ -126,7 +126,6 @@
           "
           :report="messageVisualReport(message)"
           :fallback-markdown="message.content || ''"
-          :embedded="businessCanvas"
         />
         <ReportMarkdown
           v-else-if="messageHasRenderableContent(message)"

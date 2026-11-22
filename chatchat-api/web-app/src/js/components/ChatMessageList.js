@@ -3,7 +3,7 @@ import { linkKnowledgeCitations, knowledgeCitationId } from "../utils/knowledgeC
 import { Check, ChevronDown, ChevronRight, CircleCheck, CircleX, Copy, FileDown, Trash2 } from "@lucide/vue";
 import ResponseReferences from "../../components/ResponseReferences.vue";
 import ReportMarkdown from "../../components/ReportMarkdown.vue";
-import { defineAsyncComponent } from "vue";
+import { computed, defineAsyncComponent } from "vue";
 import chartAnalysisMixin from "./ChatMessageListChartAnalysis.js";
 import {
   extractDocumentSearchPagesFromTraces,
@@ -106,6 +106,9 @@ markdown.renderer.rules.fence = (tokens, idx) => {
 
 export default {
   name: "ChatMessageList",
+  provide() {
+    return { businessCanvasReport: computed(() => this.businessCanvas) };
+  },
   mixins: [chartAnalysisMixin],
   directives: {
     followActivity: {

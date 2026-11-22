@@ -30,7 +30,8 @@
       <h2>{{ note.title }}</h2>
       <p class="business-note-body">{{ note.body }}</p>
     </article>
-    <AppConfirmDialog :request="confirmation" @resolve="settleConfirmation" />
+    <AppConfirmDialog v-if="confirmation" v-bind="confirmation"
+      @confirm="settleConfirmation(true)" @cancel="settleConfirmation(false)" />
   </div>
 </template>
 

@@ -125,6 +125,7 @@ public class ApiPermissionAuthorizationFilter extends OncePerRequestFilter {
         return switch (method) {
             case "POST" -> root.equals(path);
             case "PATCH" -> path.matches(root + "/[^/]+/[^/]+/status");
+            case "DELETE" -> path.matches(root + "/[^/]+/[^/]+");
             default -> false;
         };
     }

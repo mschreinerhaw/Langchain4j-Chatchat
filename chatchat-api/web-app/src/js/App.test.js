@@ -90,6 +90,23 @@ it("does not request chat history, shortcuts or task monitoring for an explorati
   } finally { history.mockRestore(); shortcuts.mockRestore(); todos.mockRestore(); }
 });
 
+it("loads business history with the conversation permission alone", async () => {
+  const history = vi.spyOn(api, "fetchConversationHistory").mockResolvedValue([{ id: "business-session" }]);
+  const workspaceContext = { workspaceId: "business", tenantId: "tenant", userId: "owner" };
+  const context = {
+    authSession: { user: { permissionCodes: ["workspace:business:access", "workspace:chat:conversation"] } },
+    currentWorkspace: workspaceContext, workspaceContext, tenantId: "tenant", userId: "owner",
+    conversationHistory: [], resetActiveConversationWhenRemoved: vi.fn(),
+  };
+  try {
+    await App.methods.loadConversationHistory.call(context);
+    expect(history).toHaveBeenCalledWith("owner", expect.objectContaining({ workspaceContext }));
+    expect(context.conversationHistory.map(row => row.id)).toEqual(["business-session"]);
+  } finally {
+    history.mockRestore();
+  }
+});
+
 it('keeps exploration workspace and node selection when the shell canonicalizes the same route',()=>{
   vi.stubGlobal('window',{location:{hash:'#/w/data-science/dataExploration?exploration=space&node=parent'}});
   try{

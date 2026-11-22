@@ -936,7 +936,9 @@ export default {
     },
     async loadConversationHistory(filters = {}) {
       const codes = this.authSession?.user?.permissionCodes;
-      if (Array.isArray(codes) && !codes.includes("capability:data-science:data") && !codes.includes("system:api:all")) {
+      const historyPermission = this.currentWorkspace?.workspaceId === "business"
+        ? "workspace:chat:conversation" : "capability:data-science:data";
+      if (Array.isArray(codes) && !codes.includes(historyPermission) && !codes.includes("system:api:all")) {
         this.historyRequestSerial = (this.historyRequestSerial || 0) + 1;
         this.conversationHistory = [];
         this.historyLoading = false;

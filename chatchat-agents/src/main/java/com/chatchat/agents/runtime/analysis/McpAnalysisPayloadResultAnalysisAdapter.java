@@ -1,5 +1,6 @@
 package com.chatchat.agents.runtime.analysis;
 
+import com.chatchat.agents.orchestration.analysis.dataset.StructuredDataProjector;
 import com.chatchat.agents.protocol.ModelProtocolJson;
 import com.chatchat.agents.runtime.protocol.RuntimeResultAnalysisAdapter;
 import com.chatchat.common.mcp.runtime.McpAnalysisPayload;
@@ -34,6 +35,7 @@ final class McpAnalysisPayloadResultAnalysisAdapter implements RuntimeResultAnal
         "runtimemetadata", "preflightaudit", "postflightaudit", "audit", "auditevidence",
         "provenance", "schema", "diagnostics", "trace", "routingtrace");
     private final Gson gson = new Gson();
+    private final StructuredDataProjector structuredDataProjector = new StructuredDataProjector();
     private static final com.fasterxml.jackson.databind.ObjectMapper JSON=new com.fasterxml.jackson.databind.ObjectMapper()
         .enable(com.fasterxml.jackson.databind.DeserializationFeature.USE_BIG_DECIMAL_FOR_FLOATS)
         .enable(com.fasterxml.jackson.databind.DeserializationFeature.USE_BIG_INTEGER_FOR_INTS)
@@ -139,6 +141,9 @@ final class McpAnalysisPayloadResultAnalysisAdapter implements RuntimeResultAnal
                 return new AnalysisResult(McpAnalysisPayload.SCHEMA_VERSION, "EMPTY",
                     List.of(new AnalysisDataset(request.datasetReference(), context, List.of())));
             }
+        }
+        if (candidates.isEmpty() && "SUCCESS".equals(string(envelope.get("status")))) {
+            candidates = httpObjectCandidates(governedData);
         }
         String source = "governed_data";
         if (candidates.isEmpty() && !governedBodyPresent) {
@@ -257,6 +262,21 @@ final class McpAnalysisPayloadResultAnalysisAdapter implements RuntimeResultAnal
             if (!nested.isEmpty()) return nested;
         }
         return Map.of();
+    }
+
+    private List<Candidate> httpObjectCandidates(Object governedData) {
+        Map<String, Object> receipt = map(governedData);
+        if (!"http_response.v1".equals(receipt.get("dataSchema")) || !Boolean.TRUE.equals(receipt.get("success"))) {
+            return List.of();
+        }
+        Map<String, Object> response = map(receipt.get("data"));
+        if (!(response.get("statusCode") instanceof Number status) || status.intValue() / 100 != 2
+            || !(normalizeJson(response.get("body")) instanceof Map<?, ?> body)) {
+            return List.of();
+        }
+        return structuredDataProjector.projectForAnalysis(Map.of("body", body)).stream()
+            .map(dataset -> new Candidate("$.data.data" + dataset.path().substring(1), dataset.rows(), List.of()))
+            .toList();
     }
 
     private List<Candidate> canonicalCandidates(Object value, String path) {

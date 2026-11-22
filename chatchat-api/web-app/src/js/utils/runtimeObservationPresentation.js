@@ -362,13 +362,13 @@ export function executionWorkbench(events = [], task = {}, now = Date.now(), pol
   const interval=Number(heartbeat.heartbeatIntervalMs);
   const receivedAt=Math.max(Number(heartbeat.receivedAt||0),Number(task.statusReceivedAt||0));
   const transportStale=!progress.terminal&&interval>0&&receivedAt>0&&localNow-receivedAt>interval*3;
-  const currentOperation=active.sort((a,b)=>b.sequence-a.sequence)[0];
+  const currentOperation=progress.terminal ? null : active.sort((a,b)=>b.sequence-a.sequence)[0];
   const warningMs=Number(policy.longOperationWarningMs||60000);
   const longOperation=currentOperation?.startedAt>0&&now-currentOperation.startedAt>warningMs;
   const executionUnconfirmed=currentOperation?.timeBasis==='OBSERVED_STATE'&&currentOperation.lastSeenAt>0&&now-currentOperation.lastSeenAt>warningMs;
   const modelRounds=values.filter(operation=>operation.kind==='MODEL'&&operation.state==='done').length;
   const noExecutionResult=!values.some(operation=>operation.kind==='EXECUTION'&&operation.state==='done');
-  const repeatedResponses=modelRounds>=Number(policy.responseRoundWarningCount||5)&&noExecutionResult;
+  const repeatedResponses=!progress.terminal&&modelRounds>=Number(policy.responseRoundWarningCount||5)&&noExecutionResult;
   let status=progress.terminal ? progress.status : 'active';
   if (!progress.terminal) status=transportStale||executionUnconfirmed?'unconfirmed'
     :currentOperation?.retryAttempt>0 || progress.status==='retrying'?'retrying'

@@ -15,11 +15,15 @@ body > :is(main, .container, .wrapper, .report, .report-container) {
   background: transparent !important;
 }
 
-body :is(header, .hero, .report-header, .card, .kpi-card, .stat-card, .panel) {
+body :is(header, .header, .hero, .report-header, .section, .card, .kpi-card, .stat-card, .panel) {
   background: #f4f7fc !important;
   border-color: #dee7f3 !important;
   color: #223859 !important;
   box-shadow: none !important;
+}
+
+body :is(header, .header, .hero, .report-header) {
+  background: linear-gradient(120deg, #edf4ff, #f7faff) !important;
 }
 
 body :is(h1, h2, h3, h4) { color: #183454 !important; overflow-wrap: anywhere; }
@@ -32,6 +36,6 @@ body table { color: #223859 !important; }
 body :is(th, td) { border-color: #dae4f1 !important; overflow-wrap: anywhere; }
 body th { background: #ebf1fa !important; color: #254363 !important; }
 
-@media (max-width: 540px) {
-  body :is(.kpi-grid, .cards, .stats-grid) { grid-template-columns: repeat(auto-fit, minmax(min(100%, 160px), 1fr)) !important; }
+body :is(.kpi-grid, .cards, .card-grid, .cards-grid, .stats-grid) {
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 170px), 1fr)) !important;
 }

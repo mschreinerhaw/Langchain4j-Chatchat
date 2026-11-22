@@ -27,7 +27,8 @@ public class BusinessUserNotes {
     private final BusinessRoleNotes panels;
 
     public record Role(String id, String name) {}
-    public record Note(String id, String title, String body, String roleId, long revision, boolean owned, boolean published) {}
+    public record Note(String id, String title, String body, String roleId, long revision, boolean owned, boolean published,
+                       String publishedTitle, String publishedBody) {}
     public record Page(List<Note> notes, List<Role> roles, int page, boolean hasMore) {}
     public record Edit(String title, String body, String publishTo, Long revision) {}
 
@@ -41,7 +42,7 @@ public class BusinessUserNotes {
         var notes = jdbc.query("""
             select n.id, case when n.owner_id = ? then n.title else n.published_title end,
                 case when n.owner_id = ? then n.body else n.published_body end,
-                n.role_id, n.revision, n.owner_id, n.published_title
+                n.role_id, n.revision, n.owner_id, n.published_title, n.published_body
             from business_workspace_user_note n where n.tenant_id = ? and n.panel = ?
               and (n.owner_id = ? or (n.published_title is not null and n.role_id in (
                 select active.id from (
@@ -50,7 +51,9 @@ public class BusinessUserNotes {
             order by n.updated_at desc, n.id
             limit 21 offset ?
             """, (row, i) -> new Note(row.getString(1), row.getString(2), row.getString(3), row.getString(4),
-            row.getLong(5), owner.equals(row.getString(6)), row.getString(7) != null),
+            row.getLong(5), owner.equals(row.getString(6)), row.getString(7) != null,
+            owner.equals(row.getString(6)) ? row.getString(7) : null,
+            owner.equals(row.getString(6)) ? row.getString(8) : null),
             owner, owner, tenant, panel, owner, tenant, owner, (long) index * 20);
         return ApiResponse.success(new Page(notes.stream().limit(20).toList(), roles(tenant, owner), index, notes.size() > 20));
     }

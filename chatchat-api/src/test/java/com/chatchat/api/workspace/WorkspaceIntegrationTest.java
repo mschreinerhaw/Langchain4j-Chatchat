@@ -322,7 +322,9 @@ class WorkspaceIntegrationTest {
             mvc.perform(put(api + "/" + id).header("Authorization", "Bearer " + author)
                 .contentType("application/json").content(publication)).andExpect(status().isConflict());
             mvc.perform(get(api).header("Authorization", "Bearer " + author)).andExpect(status().isOk())
-                .andExpect(jsonPath("$.data.notes[0].title").value("Next draft"));
+                .andExpect(jsonPath("$.data.notes[0].title").value("Next draft"))
+                .andExpect(jsonPath("$.data.notes[0].publishedTitle").value("Weekly note"))
+                .andExpect(jsonPath("$.data.notes[0].publishedBody").value("**Published**"));
             mvc.perform(get(api).header("Authorization", "Bearer " + reader)).andExpect(status().isOk())
                 .andExpect(jsonPath("$.data.notes[0].body").value("**Published**"))
                 .andExpect(jsonPath("$.data.notes[0].owned").value(false));

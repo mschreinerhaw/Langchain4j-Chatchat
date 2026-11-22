@@ -18,12 +18,14 @@ export default {
   props: { panel: { type: String, required: true }, workspaceContext: Object },
   setup: useAppConfirmation,
   data: () => ({
-    formats, notes: [], roles: [], active: null, selectedRole: "", preview: false, savedText: "",
+    formats, notes: [], roles: [], active: null, selectedRole: "", preview: false, editing: false, savedText: "",
     page: 0, hasMore: false, busy: false, saving: false, error: "", notice: "",
   }),
   computed: {
     path() { return "/workspaces/business/notes/" + this.panel; },
     renderedBody() { return markdown.render(this.active?.body || ""); },
+    articleTitle() { return this.active?.publishedTitle ?? this.active?.title; },
+    articleBody() { return markdown.render(this.active?.publishedBody ?? this.active?.body ?? ""); },
     draftText() { return JSON.stringify([this.active?.title, this.active?.body]); },
   },
   mounted() { this.load(0); },
@@ -37,6 +39,10 @@ export default {
         this.roles = result.roles;
         this.page = result.page;
         this.hasMore = result.hasMore;
+        if (!this.active) {
+          const article = this.notes.find(note => note.published);
+          if (article) this.setActive(article);
+        }
       } catch (error) {
         this.error = error.message;
       } finally {
@@ -54,9 +60,19 @@ export default {
       this.savedText = this.draftText;
       this.selectedRole = this.roles.find(role => role.id === note?.roleId)?.id
         || (this.roles.length === 1 ? this.roles[0].id : "");
-      this.preview = !this.active.owned;
+      this.preview = false;
+      this.editing = this.active.owned && !this.active.published;
       this.error = "";
       this.notice = "";
+    },
+    startEditing() {
+      this.editing = true;
+      this.notice = "";
+      this.$nextTick(() => this.$refs.titleInput?.focus());
+    },
+    async readArticle() {
+      const [title, body] = JSON.parse(this.savedText);
+      await this.open({ ...this.active, title, body });
     },
     applyFormat(format) {
       const editor = this.$refs.bodyInput;
@@ -85,7 +101,10 @@ export default {
         });
         const roleId = publish ? this.selectedRole : this.active.roleId;
         this.setActive({ ...this.active, id: noteId, title: title.trim(), revision: id ? revision + 1 : 0,
-          roleId, published: publish || this.active.published });
+          roleId, published: publish || this.active.published,
+          publishedTitle: publish ? title.trim() : this.active.publishedTitle,
+          publishedBody: publish ? body : this.active.publishedBody });
+        if (!publish) this.editing = true;
         this.notice = publish ? "笔记已发布。" : "草稿已保存。";
         await this.load(0);
       } catch (error) {
@@ -105,6 +124,7 @@ export default {
           method: "DELETE", workspaceContext: this.workspaceContext,
         });
         this.active = null;
+        this.notice = "";
         this.error = "";
         await this.load(0);
       } catch (error) {

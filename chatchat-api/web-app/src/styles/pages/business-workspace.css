@@ -366,6 +366,35 @@
   overflow-wrap: anywhere;
 }
 .business-note-list > button[aria-current="true"] { border-color: #9dbbf0; background: #ecf3ff; }
+.business-note-article {
+  margin-top: 0;
+  padding: clamp(20px, 4vw, 56px);
+  min-width: 0;
+}
+.business-note-article > header,
+.business-note-article > .business-note-preview {
+  max-width: 76ch;
+  margin-inline: auto;
+}
+.business-note-article > header {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  align-items: start;
+  gap: 10px 18px;
+  padding-bottom: 18px;
+  border-bottom: 1px solid var(--business-line);
+}
+.business-note-article > header h2 {
+  margin: 0;
+  font-size: clamp(1.45rem, 3vw, 2.25rem);
+  line-height: 1.25;
+  overflow-wrap: anywhere;
+}
+.business-note-article > .business-note-preview {
+  margin-top: 24px;
+  line-height: 1.8;
+}
 .business-user-note-editor { margin-top: 0; display: grid; gap: 12px; }
 .business-user-note-editor :is(input, textarea, select) {
   width: 100%;

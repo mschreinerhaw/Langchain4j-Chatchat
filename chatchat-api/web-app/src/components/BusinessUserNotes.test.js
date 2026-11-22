@@ -1,4 +1,4 @@
-﻿// @vitest-environment jsdom
+// @vitest-environment jsdom
 import { createApp, h, nextTick } from "vue";
 import { afterEach, expect, it, vi } from "vitest";
 import BusinessUserNotes from "./BusinessUserNotes.vue";
@@ -13,7 +13,7 @@ afterEach(() => {
 
 it("lets a role member format, preview, save, publish and delete a note", async () => {
   const list = {
-    notes: [{ id: "shared", title: "Shared note", body: "**Role update**", owned: false }],
+    notes: [{ id: "shared", title: "Shared note", body: "**Role update**", owned: false, published: true }],
     roles: [{ id: "analysts", name: "Analysts" }],
     page: 0,
     hasMore: false,
@@ -23,9 +23,14 @@ it("lets a role member format, preview, save, publish and delete a note", async 
       case "POST":
         list.notes.unshift({ ...JSON.parse(request.body), id: "mine", revision: 0, owned: true });
         break;
-      case "PUT":
-        list.notes[0] = { ...list.notes[0], published: true, roleId: "analysts", revision: 1 };
+      case "PUT": {
+        const { title, body, publishTo } = JSON.parse(request.body);
+        const current = list.notes[0];
+        list.notes[0] = { ...current, title, body, revision: current.revision + 1,
+          ...(publishTo ? { published: true, roleId: publishTo, publishedTitle: title, publishedBody: body } : {}),
+        };
         break;
+      }
       case "DELETE":
         list.notes.shift();
         break;
@@ -44,8 +49,6 @@ it("lets a role member format, preview, save, publish and delete a note", async 
     return input;
   };
   await vi.waitFor(() => expect(host.textContent).toContain("Shared note"));
-  click("Shared note");
-  await nextTick();
   expect(host.querySelector(".business-note-preview strong").textContent).toBe("Role update");
   expect(host.querySelector("textarea")).toBeNull();
 
@@ -71,10 +74,31 @@ it("lets a role member format, preview, save, publish and delete a note", async 
       title: "Weekly review", body: "**Checked**", revision: 0, publishTo: "analysts",
     }) }));
 
+  const article = host.querySelector("article");
+  expect(article.querySelector("h2").textContent).toBe("Weekly review");
+  expect(article.querySelector(".business-note-preview strong").textContent).toBe("Checked");
+  expect(host.querySelector("textarea")).toBeNull();
+
+  click("编辑文章");
+  await nextTick();
+  enter("input", "Private update");
+  enter("textarea", "Only the author can see these edits");
+  click("保存草稿");
+  await vi.waitFor(() => expect(host.textContent).toContain("草稿已保存"));
+  click("查看已发布版本");
+  await nextTick();
+  expect(host.querySelector("article h2").textContent).toBe("Weekly review");
+  expect(host.querySelector("article").textContent).not.toContain("Only the author");
+  click("编辑文章");
+  await nextTick();
+  expect(host.querySelector("input").value).toBe("Private update");
+  click("查看已发布版本");
+  await nextTick();
+
   click("删除笔记");
   await nextTick();
   click("删除笔记", document.querySelector("dialog"));
   await vi.waitFor(() => expect(host.textContent).not.toContain("Weekly review"));
-  expect(fetch).toHaveBeenCalledWith("/api/v1/workspaces/business/notes/guides/mine?revision=1",
+  expect(fetch).toHaveBeenCalledWith("/api/v1/workspaces/business/notes/guides/mine?revision=2",
     expect.objectContaining({ method: "DELETE" }));
 });

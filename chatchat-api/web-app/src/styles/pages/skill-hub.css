@@ -853,10 +853,14 @@
   transition: border-color 0.16s ease, box-shadow 0.16s ease, transform 0.16s ease;
 }
 
-.event-timeline .event-thumbnail:hover {
+.event-timeline button.event-thumbnail:hover {
   border-color: rgba(47, 124, 246, 0.34);
   box-shadow: 0 5px 16px rgba(30, 64, 175, 0.08);
   transform: translateY(-1px);
+}
+
+.event-timeline .business-analysis-event {
+  grid-template-columns: 1fr auto;
 }
 
 .event-timeline .event-thumbnail strong {
@@ -1222,6 +1226,10 @@
   cursor: pointer;
   scroll-margin: 16px;
   transition: border-color 0.16s ease, box-shadow 0.16s ease, transform 0.16s ease;
+}
+
+.plan-dag-node-list article.business-analysis-node {
+  grid-template-columns: minmax(0, 1fr);
 }
 
 .plan-dag-node-list article:hover {

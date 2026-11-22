@@ -201,6 +201,30 @@ export function businessEventPresentation(event = {}) {
   return stopped ? result(null) : null;
 }
 
+export function isBusinessAnalysisEvent(event) {
+  return event.toolName === 'coding_agent' || upper(eventMetadata(event).eventKind).startsWith('CODING_');
+}
+
+export function taskTimelineRows(events = []) {
+  const rows = [];
+  const steps = new Set();
+  let analysis = null;
+  for (const event of events) {
+    if (!isBusinessAnalysisEvent(event)) {
+      rows.push(event);
+      continue;
+    }
+    if (!analysis) {
+      analysis = { eventId: 'business-analysis', type: 'BUSINESS_ANALYSIS', analysisStepCount: 0 };
+      rows.push(analysis);
+    }
+    const stepId = businessEventPresentation(event)?.activity?.id;
+    if (stepId) steps.add(stepId);
+  }
+  if (analysis) analysis.analysisStepCount = steps.size;
+  return rows;
+}
+
 export function executionDuration(milliseconds) {
   if (milliseconds == null || !Number.isFinite(milliseconds)) return '未记录';
   const seconds = Math.floor(Math.max(0,milliseconds)/1000);

@@ -34,22 +34,28 @@
           :style="exploration ? kindStyle(data.kind) : {}"
         >
           <Handle type="target" :position="Position.Left" />
-          <header>
-            <span class="plan-flow-status-dot"></span>
-            <small>{{ statusLabel(data) }}</small>
-            <span v-if="exploration" class="plan-flow-node-count" :title="`包含 ${data.count || 1} 个节点`" :aria-label="`${data.count || 1} 个节点`">{{ data.count || 1 }}</span>
-            <code>{{ exploration ? data.actionText : `#${data.stepId || data.id}` }}</code>
-          </header>
-          <strong :title="data.fullLabelText || data.labelText || data.label">{{
-            data.fullLabelText || data.labelText || data.label || data.id
-          }}</strong>
-          <p :title="data.toolName || data.actionText">{{
-            data.toolName || data.actionText || "运行节点"
-          }}</p>
-          <footer v-if="data.durationMs || data.kind">
-            <span>{{ data.kind || "plan" }}</span>
-            <span v-if="data.durationMs">{{ formatDuration(data.durationMs) }}</span>
-          </footer>
+          <template v-if="data.kind === 'business-analysis'">
+            <strong>{{ data.fullLabelText }}</strong>
+            <p>已记录 {{ data.analysisStepCount }} 个步骤</p>
+          </template>
+          <template v-else>
+            <header>
+              <span class="plan-flow-status-dot"></span>
+              <small>{{ statusLabel(data) }}</small>
+              <span v-if="exploration" class="plan-flow-node-count" :title="`包含 ${data.count || 1} 个节点`" :aria-label="`${data.count || 1} 个节点`">{{ data.count || 1 }}</span>
+              <code>{{ exploration ? data.actionText : `#${data.stepId || data.id}` }}</code>
+            </header>
+            <strong :title="data.fullLabelText || data.labelText || data.label">{{
+              data.fullLabelText || data.labelText || data.label || data.id
+            }}</strong>
+            <p :title="data.toolName || data.actionText">{{
+              data.toolName || data.actionText || "运行节点"
+            }}</p>
+            <footer v-if="data.durationMs || data.kind">
+              <span>{{ data.kind || "plan" }}</span>
+              <span v-if="data.durationMs">{{ formatDuration(data.durationMs) }}</span>
+            </footer>
+          </template>
           <Handle type="source" :position="Position.Right" />
         </article>
       </template>

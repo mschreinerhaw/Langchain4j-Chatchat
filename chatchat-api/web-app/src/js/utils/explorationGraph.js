@@ -1,6 +1,8 @@
+import { isBusinessAnalysisEvent, taskTimelineRows } from "./runtimeObservationPresentation.js";
+
 // Independent projection of Runtime facts. ARTEX inspired typed exploration links;
 // no ARTEX implementation is copied and no analytical completion is inferred here.
-const kinds = { goal: "分析目标", intent: "模型探索", tool: "工具调用", evidence: "数据证据", observation: "结果观察", hypothesis: "模型假设", finding: "模型发现", decision: "模型决定", output: "模型内容声明", event: "运行事件" };
+const kinds = { "business-analysis": "业务分析", goal: "分析目标", intent: "模型探索", tool: "工具调用", evidence: "数据证据", observation: "结果观察", hypothesis: "模型假设", finding: "模型发现", decision: "模型决定", output: "模型内容声明", event: "运行事件" };
 const decisions = { CONTINUE: "继续探索", WAIT: "请求等待", COMPLETE: "模型声明完成", PARTIAL_COMPLETE: "模型声明有限范围完成", PUBLISH: "请求发布" };
 const object = value => {
   if (value && typeof value === "object") return value;
@@ -14,7 +16,7 @@ export function groupExplorationGraph(graph) {
     const eventType = node.detail?.eventKind || (node.kind === "event" ? node.label : node.kind);
     const key = JSON.stringify([node.kind, eventType]);
     if (!groups.has(key)) groups.set(key, {
-      id: node.kind === "goal" ? node.id : `group:${key}`,
+      id: ["goal", "business-analysis"].includes(node.kind) ? node.id : `group:${key}`,
       eventType, members: [],
     });
     const group = groups.get(key);
@@ -23,6 +25,7 @@ export function groupExplorationGraph(graph) {
   }
   const nodes = [...groups.values()].map(group => {
     const latest = group.members.at(-1);
+    if (latest.kind === "business-analysis") return latest;
     const count = group.members.length;
     const statusCounts = {};
     for (const member of group.members) statusCounts[member.status || "OBSERVED"] = (statusCounts[member.status || "OBSERVED"] || 0) + 1;
@@ -52,7 +55,7 @@ export function groupExplorationGraph(graph) {
   return { ...graph, nodes, edges: [...edges.values()], originalNodeCount: graph.nodes?.length || 0 };
 }
 
-export function buildExplorationGraph(task, timeline = {}, events = []) {
+export function buildExplorationGraph(task, timeline = {}, events = [], analysisSummary = null) {
   if (!task?.taskId) return { nodes: [], edges: [] };
   const nodes = new Map(), edges = new Map();
   const root = `goal:${task.taskId}`;
@@ -75,9 +78,14 @@ export function buildExplorationGraph(task, timeline = {}, events = []) {
       step.status || (step.success === true ? "SUCCESS" : step.success === false ? "FAILED" : "PLANNED"));
     link(previous, id, "observed_after", "执行顺序"); previous = id;
   }
-  const turns = new Map();
+  const turns = new Map(), analysisEvents = [];
   for (const [index, observation] of (timeline.observations || []).entries()) {
     const meta = observation.metadata || {};
+    const event = { toolName: observation.source, type: "RUNTIME_OBSERVATION", payload: { metadata: meta } };
+    if (isBusinessAnalysisEvent(event)) {
+      analysisEvents.push(event);
+      continue;
+    }
     if (meta.eventKind !== "HARNESS_TURN") {
       if (observation.type === "evidence" && meta.evidenceId && meta.evidenceObject) {
         const fact = meta.evidenceObject;
@@ -140,9 +148,20 @@ export function buildExplorationGraph(task, timeline = {}, events = []) {
   }
   // Task lifecycle events remain separately identified; adjacency is never claimed to be causation.
   for (const event of [...events].sort((a,b) => Number(a.sequence || 0) - Number(b.sequence || 0))) {
+    if (isBusinessAnalysisEvent(event)) {
+      analysisEvents.push(event);
+      continue;
+    }
     if (!event.eventId) continue;
     const payload = object(event.payload);
     const id = add(`event:${event.eventId}`, "event", event.type || "运行事件", { ...payload, eventId: event.eventId, sequence: event.sequence }, event.status || "OBSERVED");
+    link(root, id, "records", "运行记录");
+  }
+  const analysis = analysisSummary || taskTimelineRows(analysisEvents).find(row => row.type === "BUSINESS_ANALYSIS");
+  if (analysis) {
+    const analysisStepCount = analysis.analysisStepCount;
+    const id = add(`business-analysis:${task.taskId}`, "business-analysis", kinds["business-analysis"], { analysisStepCount });
+    nodes.get(id).analysisStepCount = analysisStepCount;
     link(root, id, "records", "运行记录");
   }
   return { schemaVersion: "runtime_exploration_view.v1", taskId: task.taskId, attemptId: task.attemptId,

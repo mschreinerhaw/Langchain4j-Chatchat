@@ -62,7 +62,10 @@ public final class LightCodingMonitorController {
         if(name.length()>256||from<0||to<from||page<0||page>100000)throw new ResponseStatusException(HttpStatus.BAD_REQUEST);
         if(!status.isEmpty()&&!Set.of("ACTIVE","STOPPING").contains(status))
             try{CodingTaskOutcome.Status.valueOf(status);}catch(IllegalArgumentException invalid){throw new ResponseStatusException(HttpStatus.BAD_REQUEST);}
-        return ApiResponse.success(projection.list(attribute(request,ApiAuthenticationFilter.CURRENT_TENANT_ID),attribute(request,ApiAuthenticationFilter.CURRENT_USER_ID),name,status,from,to,page,size));
+        String tenantId = attribute(request, ApiAuthenticationFilter.CURRENT_TENANT_ID);
+        String userId = attribute(request, ApiAuthenticationFilter.CURRENT_USER_ID);
+        String username = Objects.toString(request.getAttribute(ApiAuthenticationFilter.CURRENT_USERNAME), "");
+        return ApiResponse.success(projection.list(tenantId, userId, username, name, status, from, to, page, size));
     }
     @GetMapping("/scheduler/nodes") public ApiResponse<?> nodes(HttpServletRequest request){
         attribute(request,ApiAuthenticationFilter.CURRENT_TENANT_ID);attribute(request,ApiAuthenticationFilter.CURRENT_USER_ID);

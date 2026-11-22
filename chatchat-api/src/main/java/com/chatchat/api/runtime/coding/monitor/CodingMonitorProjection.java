@@ -127,7 +127,7 @@ public final class CodingMonitorProjection implements DurableCodingTaskService.P
                 id,scope.tenantId(),scope.userId(),scope.runId(),contract.taskId(),name,outcome.status().name(),outcome.createdAt().toEpochMilli(),outcome.updatedAt().toEpochMilli(),outcome.revision(),encode(summary));}
             catch(org.springframework.dao.DuplicateKeyException concurrent){/* A newer journal projection won. */}
     }
-    public Map<String,Object> list(String tenant,String user,String query,String status,long from,long to,int page,int size){
+    public Map<String,Object> list(String tenant,String user,String username,String query,String status,long from,long to,int page,int size){
         size=Math.max(1,Math.min(size,100));page=Math.max(0,page);
         String where=" where tenant_id=? and user_id=? and lower(task_name) like ? and (?='' or status=?) and created_at>=? and created_at<=?";
         String filter=Objects.toString(status,"");
@@ -140,7 +140,14 @@ public final class CodingMonitorProjection implements DurableCodingTaskService.P
         }
         Object[] args={tenant,user,"%"+Objects.toString(query,"").toLowerCase(Locale.ROOT)+"%",filter,filter,from,to};
         var parameters=new ArrayList<>(Arrays.asList(args));parameters.add(size);parameters.add(Math.multiplyExact(page,size));
-        var items=jdbc.queryForList("select summary_json from runtime_coding_task_view"+where+" order by created_at desc,id limit ? offset ?",parameters.toArray()).stream().map(r->decode(r.get("summary_json"))).toList();
+        // The query is owner-scoped, so the authenticated username identifies the stored submitter.
+        var items = jdbc.queryForList("select summary_json,user_id from runtime_coding_task_view"+where+
+            " order by created_at desc,id limit ? offset ?",parameters.toArray()).stream().map(row -> {
+                var item = new LinkedHashMap<>(decode(row.get("summary_json")));
+                item.put("submitterUserId", row.get("user_id"));
+                if (username != null && !username.isBlank()) item.put("submitterUsername", username);
+                return item;
+            }).toList();
         return Map.of("items",items,"total",jdbc.queryForObject("select count(*) from runtime_coding_task_view"+where,Long.class,args),"page",page,"size",size,"projectionLagging",lagging);
     }
     public List<Map<String,Object>> events(String tenant,String user,String run,String task,long after,int limit){

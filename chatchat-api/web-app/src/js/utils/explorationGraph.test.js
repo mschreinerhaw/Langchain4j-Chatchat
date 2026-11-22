@@ -76,8 +76,8 @@ describe("Runtime exploration fact projection", () => {
 
 describe("exploration event grouping", () => {
   const timeline = { observations: [
-    { id: "one", type: "tool", source: "coding_agent", content: "first", metadata: { status: "FAILED" } },
-    { id: "two", type: "tool", source: "coding_agent", content: "second", metadata: { status: "SUCCESS" } },
+    { id: "one", type: "tool", source: "first_source", content: "first", metadata: { status: "FAILED" } },
+    { id: "two", type: "tool", source: "first_source", content: "second", metadata: { status: "SUCCESS" } },
     { id: "three", type: "tool", source: "another_source", metadata: { status: "SUCCESS" } },
   ] };
   it("renders one node per type, counts original nodes, and retains every detail without mutating facts", () => {
@@ -131,4 +131,26 @@ describe("exploration event grouping", () => {
     expect(graph.edges.every(edge => edge.source !== edge.target)).toBe(true);
     expect(groupExplorationGraph({ nodes: [], edges: [] })).toMatchObject({ nodes: [], edges: [], originalNodeCount: 0 });
   });
+});
+
+it("combines analysis progress into one stable node using the event list's operation count", () => {
+  const observation = (eventKind, receipt = {}) => ({
+    source: "coding_agent", type: "tool", metadata: { eventKind, taskId: "child", payload: receipt }
+  });
+  const timeline = { observations: [
+    observation("CODING_TASK_SUBMITTED"),
+    observation("CODING_TRACE", { normalizedType: "MODEL_REQUEST_STARTED", requestId: "model" }),
+    observation("CODING_TRACE", { normalizedType: "MODEL_REQUEST_COMPLETED", requestId: "model" })
+  ] };
+  const build = (analysis) => groupExplorationGraph(buildExplorationGraph(task, timeline, [], analysis));
+  const fromObservations = build();
+  const updated = build({ analysisStepCount: 2 });
+  const id = "business-analysis:task";
+  expect(fromObservations.nodes.map(node => node.id)).toEqual(["goal:task", id]);
+  expect(fromObservations.nodes[1]).toMatchObject({ label: "业务分析", analysisStepCount: 1 });
+  expect(updated.nodes[1]).toMatchObject({ id, label: "业务分析", analysisStepCount: 2 });
+  expect(updated.edges).toEqual(fromObservations.edges);
+  expect(updated.edges).toHaveLength(1);
+  expect(updated.edges[0]).toMatchObject({ source: "goal:task", target: id });
+  expect(JSON.stringify(updated)).not.toMatch(/CODING_TRACE|CODING_TASK_SUBMITTED|coding_agent/);
 });

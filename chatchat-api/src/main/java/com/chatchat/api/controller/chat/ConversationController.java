@@ -26,6 +26,7 @@ public class ConversationController {
     private final ConversationService conversationService;
     private final com.chatchat.api.workspace.WorkspaceOriginService workspaceOrigins;
     private final com.chatchat.api.security.ObjectAccessService objectAccess;
+    private final ArchivedConversationReports archivedReports;
 
     /**
      * Create a new conversation
@@ -51,7 +52,7 @@ public class ConversationController {
                                                      @RequestParam(value = "tenantId", required = false) String tenantId,
                                                      HttpServletRequest servletRequest) {
         return conversationService.getConversation(resolveTenantId(servletRequest, tenantId), conversationId)
-            .map(ApiResponse::success)
+            .map(conversation -> ApiResponse.success(archivedReports.restore(servletRequest, conversation)))
             .orElseGet(() -> ApiResponse.notFound("Conversation not found: " + conversationId));
     }
 

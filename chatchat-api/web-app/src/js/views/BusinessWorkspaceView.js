@@ -28,7 +28,7 @@ export default {
     skills: [], skillKeyword: "", skillsBusy: false, skillError: "", skillPage: 0, skillPages: 0,
     recommendationCards: [], agents: [],
     knowledge: [], knowledgeQuery: "", knowledgeCategory: "", knowledgeBusy: false,
-    knowledgeError: "", knowledgePage: 1, knowledgeHasMore: false,
+    knowledgeError: "", knowledgePage: 1, knowledgePages: 0,
   }),
   computed: {
     questionList() { return lines(this.recommendedQuestions); },
@@ -103,7 +103,7 @@ export default {
         const payload = await apiRequest("/search?" + params, { workspaceContext: this.workspaceContext });
         this.knowledge = payload?.results || [];
         this.knowledgePage = payload?.page || page;
-        this.knowledgeHasMore = Boolean(payload?.hasMore);
+        this.knowledgePages = payload?.totalPages || 0;
       } catch (error) {
         this.knowledgeError = error.message;
       } finally {

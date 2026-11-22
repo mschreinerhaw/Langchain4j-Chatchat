@@ -233,6 +233,16 @@
 .business-catalog-banner .business-actions { max-width: min(570px, 72%); }
 .business-catalog-banner input { flex: 1; min-width: min(180px, 100%); }
 .business-catalog .business-grid { grid-template-columns: repeat(auto-fit, minmax(min(100%, 270px), 1fr)); }
+.business-catalog-pagination {
+  justify-content: flex-end;
+  margin-top: 16px;
+}
+.business-catalog-pagination > span {
+  color: #445a77;
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
 .business-catalog-card {
   text-align: center;
   padding: 22px 18px;

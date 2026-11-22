@@ -57,11 +57,11 @@
             @click="prepareSkill(skill, agent)">通过 {{ agent.name }} 发起对话</button>
         </article>
       </div>
-      <div v-if="skillPages > 1" class="business-actions">
+      <nav v-if="skillPages > 0 && !skillError" class="business-actions business-catalog-pagination" aria-label="技能分页">
         <button type="button" :disabled="skillsBusy || skillPage === 0" @click="loadSkills(skillPage - 1)">上一页</button>
-        <span>{{ skillPage + 1 }} / {{ skillPages }}</span>
+        <span aria-live="polite">第 {{ skillPage + 1 }} / {{ skillPages }} 页</span>
         <button type="button" :disabled="skillsBusy || skillPage + 1 >= skillPages" @click="loadSkills(skillPage + 1)">下一页</button>
-      </div>
+      </nav>
     </section>
 
     <section v-if="panel === 'guides'" class="business-panel">
@@ -94,10 +94,11 @@
           <p>{{ document.summary }}</p>
         </article>
       </div>
-      <div v-if="knowledgePage > 1 || knowledgeHasMore" class="business-actions">
-        <button type="button" :disabled="knowledgeBusy || knowledgePage === 1" @click="loadKnowledge(knowledgePage - 1)">上一页</button>
-        <button type="button" :disabled="knowledgeBusy || !knowledgeHasMore" @click="loadKnowledge(knowledgePage + 1)">下一页</button>
-      </div>
+      <nav v-if="knowledgePages > 0 && !knowledgeError" class="business-actions business-catalog-pagination" aria-label="文档分页">
+        <button type="button" :disabled="knowledgeBusy || knowledgePage <= 1" @click="loadKnowledge(knowledgePage - 1)">上一页</button>
+        <span aria-live="polite">第 {{ knowledgePage }} / {{ knowledgePages }} 页</span>
+        <button type="button" :disabled="knowledgeBusy || knowledgePage >= knowledgePages" @click="loadKnowledge(knowledgePage + 1)">下一页</button>
+      </nav>
     </section>
 
     <section v-if="panel === 'outcomes'" class="business-panel">

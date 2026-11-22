@@ -60,7 +60,7 @@ class ArchivedConversationReportsTest {
         when(task.getSessionId()).thenReturn("session");
         service.restore(request, conversation);
         assertThat(message.getUiResponse().get("visualReport")).isEqualTo(Map.of(
-            "schemaVersion", "python_visual_report.v1", "title", "分析报告", "markdown", "Report fallback",
+            "schemaVersion", "python_visual_report.v1", "title", "分析报告", "markdown", "Report fallback", "status", "SUCCESS",
             "htmlReport", Map.of("schemaVersion", "runtime_html_report.v1", "entryFileId", "html-asset",
                 "entryPath", "output/report.html", "taskId", "native-task", "runId", "attempt")));
     }

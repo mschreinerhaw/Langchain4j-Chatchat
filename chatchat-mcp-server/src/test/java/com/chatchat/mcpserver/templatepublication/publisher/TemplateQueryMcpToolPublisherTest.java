@@ -225,6 +225,32 @@ class TemplateQueryMcpToolPublisherTest {
     }
 
     @Test
+    void bindsTheRegisteredHostFromTheGoalAndExcludesTemplatesWithoutHostPermission() {
+        var bindings = mock(TemplateQueryBindingService.class);
+        var catalog = mock(TemplateAssetCatalogService.class);
+        var publisher = publisher(bindings, catalog);
+        var context = context("service-1", "role-1");
+        String query = "container_runtime_supply_template_query";
+        String parent = "ssh_template_query";
+        var allowed = asset(TemplateAssetCatalogService.SSH, "CHECK_DOCKER_IMAGES", Map.of());
+        var denied = asset(TemplateAssetCatalogService.SSH, "CHECK_DOCKER_STATS", Map.of());
+        when(bindings.resolvePolicy(context, query))
+            .thenReturn(policy(Map.of(TemplateAssetCatalogService.SSH, Set.of(allowed.templateId(), denied.templateId()))));
+        when(bindings.requireRoute(query)).thenReturn(route(query, parent, TemplateAssetCatalogService.SSH));
+        when(catalog.listEnabled()).thenReturn(List.of(allowed, denied));
+        String goal = "分析 Docker 数据库模拟服务器管理的镜像和容器";
+        when(catalog.namedSshTarget(null, "DEV", goal)).thenReturn(Set.of("docker-host"));
+        when(catalog.confirmedTemplateTargets(allowed, Set.of("docker-host")))
+            .thenReturn(List.of(Map.of("assetId", "docker-host", "assetName", "Docker 数据库模拟服务器", "env", "DEV")));
+        try (var ignored = McpInvocationContext.open(context)) {
+            var result = publisher.queryFromParent(query, parent, Map.of("filters", Map.of("goal", goal, "env", "DEV")));
+            assertThat(result).containsEntry("returnedCount", 1);
+            assertThat(result.get("templates").toString()).contains("executionContext", "docker-host", allowed.templateId())
+                .doesNotContain(denied.templateId());
+        }
+    }
+
+    @Test
     void pagingDoesNotMarkTheCompleteBindingAsUnavailable() {
         TemplateQueryBindingService bindings = mock(TemplateQueryBindingService.class);
         TemplateAssetCatalogService catalog = mock(TemplateAssetCatalogService.class);

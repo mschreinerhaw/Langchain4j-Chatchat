@@ -186,6 +186,11 @@ public class TemplateQueryMcpToolPublisher implements com.chatchat.mcpserver.too
             scopedAssets = assetCatalogService.listEnabled();
         }
         Set<String> confirmedIds = confirmedAssetIds(arguments);
+        if (confirmedIds.isEmpty() && TemplateAssetCatalogService.SSH.equals(route.assetType())
+            && arguments != null && arguments.get("filters") instanceof Map<?, ?> filters) {
+            confirmedIds = assetCatalogService.namedSshTarget(filterText(filters, "assetName", "asset_name", "name"),
+                filterText(filters, "env", "environment"), filterText(filters, "goal", "intent"));
+        }
         Set<String> enabledPublishedIds = new LinkedHashSet<>();
         Map<String, List<Map<String, Object>>> confirmedTargets = new LinkedHashMap<>();
         for (var asset : scopedAssets) {
@@ -284,6 +289,13 @@ public class TemplateQueryMcpToolPublisher implements com.chatchat.mcpserver.too
         );
         if (enforceReleaseSchema && releaseContracts != null) releaseContracts.validateOutput(reviewedName, result);
         return result;
+    }
+
+    private String filterText(Map<?, ?> filters, String... keys) {
+        for (String key : keys) {
+            if (filters.get(key) instanceof String value && !value.isBlank()) return value;
+        }
+        return null;
     }
 
     private Set<String> confirmedAssetIds(Map<String, Object> arguments) {

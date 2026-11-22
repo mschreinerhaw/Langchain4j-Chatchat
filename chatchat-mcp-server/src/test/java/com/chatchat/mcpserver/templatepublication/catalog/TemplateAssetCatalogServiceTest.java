@@ -29,6 +29,23 @@ import static org.mockito.Mockito.when;
 
 class TemplateAssetCatalogServiceTest {
     @Test
+    void resolvesOnlyOneRegisteredHostInTheRequestedEnvironment() {
+        var hosts = mock(SshHostConfigService.class);
+        var docker = new com.chatchat.mcpserver.ops.ssh.SshHostConfig();
+        docker.setId("docker"); docker.setName("Docker 数据库模拟服务器"); docker.setEnvironment("DEV");
+        var other = new com.chatchat.mcpserver.ops.ssh.SshHostConfig();
+        other.setId("other"); other.setName("另一台测试服务器"); other.setEnvironment("DEV");
+        when(hosts.listEnabled()).thenReturn(List.of(docker, other));
+        var service = new TemplateAssetCatalogService(mock(CommandTemplateService.class), mock(SqlTemplateService.class),
+            mock(HttpEndpointConfigService.class), mock(DatabaseQueryConfigService.class), mock(ApiServiceConfigService.class),
+            mock(PythonTemplateCatalog.class), mock(BusinessCategoryService.class), hosts,
+            mock(SqlDatasourceConfigService.class), mock(McpAuthorizationService.class), new ObjectMapper());
+        assertThat(service.namedSshTarget(null, "dev", "分析 Docker 数据库模拟服务器管理的镜像")).containsExactly("docker");
+        assertThat(service.namedSshTarget(null, "DEV", "分析 Docker 数据库模拟服务器和另一台测试服务器")).isEmpty();
+        assertThat(service.namedSshTarget("另一台测试服务器", "PROD", null)).isEmpty();
+    }
+
+    @Test
     void studioQueryFamilyPreservesIdentityAndRequiresPublishedCompatibleEnabledSource() {
         var sql = mock(SqlTemplateService.class);
         var sources = mock(SqlDatasourceConfigService.class);

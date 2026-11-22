@@ -305,6 +305,59 @@
 
 .business-workspace .prompt-simple-tools .send-button.stopping { background: #c33548; }
 
+.business-workspace .chat-message.assistant .business-result-canvas {
+  container-type: inline-size;
+  min-width: 0;
+  padding: clamp(12px, 2vw, 22px);
+  border: 1px solid var(--business-line);
+  border-radius: 16px;
+  background: #fff;
+  box-shadow: 0 5px 18px #203e710b;
+}
+
+.business-result-canvas .message-delivery-content { min-width: 0; }
+.business-result-canvas .message-delivery {
+  display: grid;
+  gap: 12px;
+}
+
+.business-result-canvas .runtime-execution-panel.task-workbench {
+  min-width: 0;
+  margin: 0;
+  padding: 12px 0;
+  border: 0;
+  border-bottom: 1px solid var(--business-line);
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+}
+
+.business-result-canvas .task-workbench.collapsed .workbench-metrics,
+.business-result-canvas .task-workbench.collapsed .workbench-phase-heading,
+.business-result-canvas .task-workbench.collapsed .workbench-phase-strip { display: none; }
+
+.business-result-canvas .workbench-metrics { gap: 8px; margin: 16px 0; }
+.business-result-canvas .workbench-metrics dd { font-size: 17px; }
+.business-result-canvas .workbench-event-scroll { max-height: min(35vh, 300px); }
+
+@container (min-width: 780px) {
+  .business-result-canvas .message-delivery.with-activity {
+    grid-template-columns: minmax(0, 1fr) minmax(240px, 29%);
+    align-items: start;
+    gap: 18px;
+  }
+  .business-result-canvas .with-activity .message-delivery-content { grid-column: 1; grid-row: 1; }
+  .business-result-canvas .with-activity .runtime-execution-panel.task-workbench {
+    grid-column: 2;
+    grid-row: 1;
+    border-bottom: 0;
+    border-left: 1px solid var(--business-line);
+    padding: 8px 0 8px 14px;
+  }
+  .business-result-canvas .with-activity .workbench-activity-list li { grid-template-columns: 42px 8px minmax(0, 1fr); }
+  .business-result-canvas .with-activity .workbench-activity-list li > em { grid-column: 3; }
+}
+
 @media (max-width: 1200px) {
   .workspace-business .business-floating-new-chat { bottom: 155px; }
   .workspace-business .business-panel { padding-bottom: 205px; }

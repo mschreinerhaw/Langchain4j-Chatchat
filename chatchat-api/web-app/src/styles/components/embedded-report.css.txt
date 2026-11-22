@@ -1,0 +1,37 @@
+html, body {
+  color-scheme: light !important;
+  background: transparent !important;
+  color: #223859 !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  min-height: 0 !important;
+  font-family: system-ui, "Microsoft YaHei", sans-serif !important;
+}
+
+body > :is(main, .container, .wrapper, .report, .report-container) {
+  margin: 0 !important;
+  padding: 0 !important;
+  max-width: none !important;
+  background: transparent !important;
+}
+
+body :is(header, .hero, .report-header, .card, .kpi-card, .stat-card, .panel) {
+  background: #f4f7fc !important;
+  border-color: #dee7f3 !important;
+  color: #223859 !important;
+  box-shadow: none !important;
+}
+
+body :is(h1, h2, h3, h4) { color: #183454 !important; overflow-wrap: anywhere; }
+body h1 { font-size: clamp(20px, 3.6vw, 30px) !important; }
+body :is(p, small, .muted, .subtitle, .meta, .label) { color: #4b617e !important; overflow-wrap: anywhere; }
+body :is(.danger, .error, .negative, .failed) { color: #a12636 !important; }
+body :is(.warning, .warn) { color: #87540c !important; }
+body :is(.success, .positive) { color: #087051 !important; }
+body table { color: #223859 !important; }
+body :is(th, td) { border-color: #dae4f1 !important; overflow-wrap: anywhere; }
+body th { background: #ebf1fa !important; color: #254363 !important; }
+
+@media (max-width: 540px) {
+  body :is(.kpi-grid, .cards, .stats-grid) { grid-template-columns: repeat(auto-fit, minmax(min(100%, 160px), 1fr)) !important; }
+}

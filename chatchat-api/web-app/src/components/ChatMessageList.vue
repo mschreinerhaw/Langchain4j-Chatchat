@@ -21,7 +21,7 @@
         :aria-label="message.role === 'user' ? displayUserId : assistantName(message)"
         >{{ message.role === "user" ? userAvatarLabel : runtimeAvatarLabel(message) }}</div
       >
-      <div class="message-bubble">
+      <div class="message-bubble" :class="{ 'business-result-canvas': businessCanvas && message.role === 'assistant' }">
         <div class="message-meta">
           <strong>{{ message.role === "user" ? displayUserId : assistantName(message) }}</strong>
           <div class="message-actions">
@@ -50,6 +50,8 @@
             </button>
           </div>
         </div>
+        <div class="message-delivery"
+          :class="{ 'with-activity': businessCanvas && shouldShowSteps(message) && messageHasRenderableContent(message) }">
         <template v-if="shouldShowSteps(message) || (message.role === 'assistant' && message.streaming)">
           <section v-for="workbench in [executionWorkbench(message)]" :key="`workbench-${message.id}`"
             class="runtime-execution-panel task-workbench" :class="[workbench.status, {collapsed: !executionStepsExpanded(message)}]"
@@ -108,6 +110,7 @@
             </div>
           </section>
         </template>
+        <div v-if="messageUiArtifact(message) || messageVisualReport(message) || messageHasRenderableContent(message)" class="message-delivery-content">
         <EnterpriseUiArtifactRenderer
           v-if="message.role === 'assistant' && !message.streaming && messageUiArtifact(message)"
           :artifact="messageUiArtifact(message)"
@@ -123,6 +126,7 @@
           "
           :report="messageVisualReport(message)"
           :fallback-markdown="message.content || ''"
+          :embedded="businessCanvas"
         />
         <ReportMarkdown
           v-else-if="messageHasRenderableContent(message)"
@@ -137,6 +141,8 @@
           @preference-change="handleVisualizationPreference(message, $event)"
           @click="handleMarkdownClick($event, message)"
         />
+        </div>
+        </div>
         <section
           v-if="
             message.role === 'assistant' &&

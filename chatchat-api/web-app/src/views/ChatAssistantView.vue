@@ -108,6 +108,7 @@
     </section>
 
     <ChatMessageList
+      :business-canvas="businessMode"
       v-if="!historyDetailsLoading && !historyDetailError && hasConversation"
       ref="messageList"
       :messages="messages"

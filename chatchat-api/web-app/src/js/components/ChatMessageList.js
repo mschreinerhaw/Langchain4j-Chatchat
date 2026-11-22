@@ -142,6 +142,7 @@ export default {
   },
   emits: ["delete-message", "feedback", "visualization-drill-down", "visualization-preference"],
   props: {
+    businessCanvas: Boolean,
     messages: {
       type: Array,
       default: () => []
@@ -322,7 +323,7 @@ export default {
     },
     shouldShowSteps(message = {}) {
       return message.role === "assistant"
-        && !["completed", "success", "succeeded", "partial", "partial_success"].includes(String(message.status || "").toLowerCase())
+        && (this.businessCanvas || !["completed", "success", "succeeded", "partial", "partial_success"].includes(String(message.status || "").toLowerCase()))
         && (!!message.taskId || (Array.isArray(message.steps) && message.steps.length > 0));
     },
     executionMessageKey(message = {}) {

@@ -6,7 +6,7 @@
       <p role="status">交互报告暂不可用，可查看已交付的文字和数据。</p>
       <slot name="fallback" />
     </template>
-    <iframe v-else ref="frame" :srcdoc="document" :style="{height: frameHeight + 'px'}" title="交互式分析报告" sandbox="allow-scripts" referrerpolicy="no-referrer" credentialless allow="camera 'none'; microphone 'none'; geolocation 'none'; clipboard-read 'none'; clipboard-write 'none'" />
+    <iframe v-else ref="frame" :srcdoc="frameDocument" :style="{height: frameHeight + 'px'}" title="交互式分析报告" sandbox="allow-scripts" referrerpolicy="no-referrer" credentialless allow="camera 'none'; microphone 'none'; geolocation 'none'; clipboard-read 'none'; clipboard-write 'none'" />
   </section>
 </template>
 <script src="../js/components/HtmlReportFrame.js"></script>

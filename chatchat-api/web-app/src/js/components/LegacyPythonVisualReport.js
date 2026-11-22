@@ -5,5 +5,5 @@ import HtmlReportFrame from '../../components/HtmlReportFrame.vue';
 export default {
   name: 'PythonVisualReport',
   components: {ReportRenderer,HtmlReportFrame},
-  props: {report:{type:Object,default:null},fallbackMarkdown:{type:String,default:''}}
+  props: {report:{type:Object,default:null},fallbackMarkdown:{type:String,default:''},embedded:Boolean}
 };

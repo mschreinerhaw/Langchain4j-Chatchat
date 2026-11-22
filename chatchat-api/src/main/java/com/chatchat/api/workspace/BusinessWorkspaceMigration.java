@@ -33,6 +33,11 @@ public class BusinessWorkspaceMigration {
             where not exists(select 1 from sys_permission where permission_code='workspace:business:access')
             """);
         jdbc.update("""
+            insert into sys_permission(id,permission_code,permission_name,permission_type,status,sort_order,created_at,updated_at)
+            select 'ws-business-knowledge','workspace:business:knowledge','业务知识检索','api','enabled',26,CURRENT_TIMESTAMP,CURRENT_TIMESTAMP
+            where not exists(select 1 from sys_permission where permission_code='workspace:business:knowledge')
+            """);
+        jdbc.update("""
             insert into sys_menu(id,parent_id,menu_code,menu_name,menu_type,route_path,icon,sort_order,status,created_at,updated_at)
             select 'ws-business-home',null,'businessHome','智能对话','menu','/index.html#/w/business/businessHome',
                 'message-circle',25,'enabled',CURRENT_TIMESTAMP,CURRENT_TIMESTAMP

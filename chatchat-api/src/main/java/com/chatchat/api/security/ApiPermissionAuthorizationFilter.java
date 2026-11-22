@@ -106,8 +106,10 @@ public class ApiPermissionAuthorizationFilter extends OncePerRequestFilter {
         if (permissionCodes.contains(required.permission().getPermissionCode())
             || callerCatalogPermissions(method, path).stream().anyMatch(permissionCodes::contains)
             || ("business".equals(request.getHeader(com.chatchat.api.workspace.WorkspaceOriginService.HEADER))
-                && businessHistoryRoute(method, path)
-                && permissionCodes.containsAll(List.of("workspace:business:access", "workspace:chat:conversation")))) {
+                && permissionCodes.contains("workspace:business:access")
+                && (businessHistoryRoute(method, path) && permissionCodes.contains("workspace:chat:conversation")
+                    || "GET".equals(method) && "/api/v1/search".equals(path)
+                        && permissionCodes.contains("workspace:business:knowledge")))) {
             filterChain.doFilter(request, response);
             return;
         }

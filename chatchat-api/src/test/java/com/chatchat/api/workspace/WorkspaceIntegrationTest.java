@@ -193,7 +193,7 @@ class WorkspaceIntegrationTest {
         String token = userToken(false);
         String user = identities.resolveSessionByToken(token).orElseThrow().id();
         String role = userRoles.findByUserId(user).get(0).getRoleId();
-        for (String code : List.of("workspace:business:access", "workspace:chat:interact")) {
+        for (String code : List.of("workspace:business:access", "workspace:chat:interact", "workspace:business:knowledge")) {
             var binding = new SysRolePermission();
             binding.setRoleId(role);
             binding.setTenantId(tenant);
@@ -203,6 +203,10 @@ class WorkspaceIntegrationTest {
         String authorization = "Bearer " + token;
         mvc.perform(get("/api/v1/workspaces/business/manifest").header("Authorization", authorization))
             .andExpect(status().isOk()).andExpect(jsonPath("$.data.manifest.entryPage").value("businessHome"));
+        mvc.perform(get("/api/v1/search").header("Authorization", authorization).header("X-Workspace-Id", "business"))
+            .andExpect(status().isOk());
+        mvc.perform(post("/api/v1/search/documents").header("Authorization", authorization).header("X-Workspace-Id", "business")
+            .contentType("application/json").content("{}")).andExpect(status().isForbidden());
         String id = "business-test-" + UUID.randomUUID();
         mvc.perform(post("/api/v1/data/history").header("Authorization", authorization).header("X-Workspace-Id", "business")
             .contentType("application/json").content(mapper.writeValueAsString(Map.of("userId", user, "historyId", id,

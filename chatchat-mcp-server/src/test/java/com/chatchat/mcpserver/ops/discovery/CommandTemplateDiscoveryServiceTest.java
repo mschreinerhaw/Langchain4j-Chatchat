@@ -684,6 +684,8 @@ class CommandTemplateDiscoveryServiceTest {
         Map<?, ?> selectedAsset = (Map<?, ?>) irAsset.get("selected");
         assertThat(result).containsEntry("returnedCount", 2);
         assertThat(selectedTemplate.get("templateId")).isEqualTo("MYSQL_SHOW_STATUS");
+        assertThat(selectedTemplate.get("executionContext")).isEqualTo(Map.of(
+            "assetId", datasource.getId(), "assetName", datasource.getName(), "env", "DEV"));
         assertThat(selectedTemplate.get("matchReasons").toString()).contains("status");
         assertThat(selectedTemplate.get("mcpDecision").toString())
             .contains("mcp_template_hybrid_ranking_v3", "0.40*intentMatch");

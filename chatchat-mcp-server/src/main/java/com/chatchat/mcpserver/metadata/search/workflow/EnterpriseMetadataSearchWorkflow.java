@@ -41,6 +41,10 @@ public class EnterpriseMetadataSearchWorkflow extends AbstractStagedExecutionWor
         this.requestAdapter = requestAdapter;
     }
 
+    public int maximumDiscoveryTerms() {
+        return searchService.maximumDiscoveryTerms();
+    }
+
     @Override public String workflowId() { return WORKFLOW_ID; }
 
     @Override

@@ -5,7 +5,6 @@ import com.chatchat.common.tool.ToolWorkflowContract;
 import com.chatchat.common.tool.ToolWorkflowRole;
 import com.chatchat.mcpserver.routing.asset.AssetDiscoveryMcpToolPublisher;
 import com.chatchat.mcpserver.routing.asset.AssetDiscoveryService;
-import com.chatchat.mcpserver.search.query.SearchQueryTokenizer;
 import com.chatchat.mcpserver.templatepublication.publisher.TemplateQueryMcpToolPublisher;
 import io.modelcontextprotocol.server.McpServerFeatures;
 import io.modelcontextprotocol.server.McpSyncServer;
@@ -164,37 +163,24 @@ public class OpsCapabilityBridgePublisher implements com.chatchat.mcpserver.tool
         if (!assetStage && !normalized.containsKey("templateIds")) {
             normalized.put("limit", CommandTemplateDiscoveryService.MAX_LIMIT);
         }
-        Map<String, Object> assetResolution = Map.of();
-        if (!assetStage && domain.assetDiscoverySupported() && !hasExplicitAssetIdentity(filters)
-            && hasAssetDiscoveryIntent(filters, query)) {
-            AssetPreResolution preResolution = preResolveAsset(domain, normalized, filters, query);
-            assetResolution = preResolution.audit();
-            if (preResolution.selectedAssetName() != null) {
-                filters.put("assetName", preResolution.selectedAssetName());
-                normalized.put("filters", filters);
+        boolean requiresAssetConfirmation = !assetStage && childToolName.isBlank()
+            && domain.assetDiscoverySupported() && !normalized.containsKey("templateIds")
+            && !hasExplicitAssetIdentity(filters) && hasAssetDiscoveryIntent(filters, query);
+        if (requiresAssetConfirmation) {
+            normalized.put("limit", 10);
+            Map<String, Object> result = bridgeResult(domain, assetDiscovery.query(normalized), "asset_selection");
+            int count = result.get("assets") instanceof List<?> assets ? assets.size() : 0;
+            result.put("assetReturnedCount", count);
+            result.put("templates", List.of());
+            result.put("returnedCount", 0);
+            if (count > 0) {
+                result.put("nextStage", "template");
+                result.put("assetSelectionRequired", true);
             } else {
-                Map<String, Object> result = new LinkedHashMap<>(preResolution.assetResult());
-                result.put("bridgeManaged", true);
-                result.put("bridgeTool", domain.toolName());
-                result.put("businessDomain", domain.targetKind());
-                result.put("assetType", domain.assetType());
-                result.put("stage", "asset_selection");
-                if (preResolution.candidateCount() > 0) {
-                    result.put("nextStage", "template");
-                    result.put("assetSelectionRequired", true);
-                } else {
-                    result.put("assetNotFound", true);
-                }
-                result.put("assetResolution", assetResolution);
-                result.put("executionTool", domain.executionTool());
-                result.put("assetReturnedCount", preResolution.candidateCount());
-                result.put("templates", List.of());
-                result.put("returnedCount", 0);
-                return result;
+                result.put("assetNotFound", true);
             }
+            return result;
         }
-        // Preserve the model's capability phrase after identity-only asset pre-resolution.
-        // Existing independent search units remain authoritative.
         if (query != null) filters.putIfAbsent("queryTerms", List.of(query));
         Map<String, Object> discovered;
         if (!childToolName.isBlank()) {
@@ -203,16 +189,7 @@ public class OpsCapabilityBridgePublisher implements com.chatchat.mcpserver.tool
         } else {
             discovered = assetStage ? assetDiscovery.query(normalized) : templateDiscovery.query(normalized);
         }
-        Map<String, Object> result = new LinkedHashMap<>(discovered == null ? Map.of() : discovered);
-        result.put("bridgeManaged", true);
-        result.put("bridgeTool", domain.toolName());
-        result.put("businessDomain", domain.targetKind());
-        result.put("assetType", domain.assetType());
-        result.put("stage", assetStage ? "asset" : "template");
-        result.put("executionTool", domain.executionTool());
-        if (!assetResolution.isEmpty()) {
-            result.put("assetResolution", assetResolution);
-        }
+        Map<String, Object> result = bridgeResult(domain, discovered, assetStage ? "asset" : "template");
         if (!assetStage && !normalized.containsKey("templateIds")) {
             result.put("candidateWindowPolicy", Map.of(
                 "mode", "FULL_BOUNDED_REVIEW_WINDOW",
@@ -223,84 +200,15 @@ public class OpsCapabilityBridgePublisher implements com.chatchat.mcpserver.tool
         return result;
     }
 
-    private AssetPreResolution preResolveAsset(Domain domain,
-                                                Map<String, Object> normalized,
-                                                Map<String, Object> filters,
-                                                String query) {
-        Map<String, Object> assetArguments = new LinkedHashMap<>(normalized);
-        Map<String, Object> assetFilters = new LinkedHashMap<>(filters == null ? Map.of() : filters);
-        List<String> retrievalTerms = assetRetrievalTerms(assetFilters, query);
-        if (!retrievalTerms.isEmpty()) {
-            assetFilters.put("queryTerms", retrievalTerms);
-            // Asset identity and requested diagnostics are separate semantic channels. Passing the
-            // complete task as asset intent makes the asset service tokenize metric/action nouns
-            // again and rank unrelated hosts. Template discovery still receives the original intent.
-            assetFilters.put("intent", String.join(" ", retrievalTerms));
-        }
-        assetArguments.put("filters", assetFilters);
-        assetArguments.put("assetType", domain.assetType());
-        assetArguments.put("finalDecision", domain.targetKind());
-        assetArguments.put("limit", 10);
-        Map<String, Object> discoveredAssets = assetDiscovery.query(assetArguments);
-        Map<String, Object> assetResult = discoveredAssets == null ? Map.of() : discoveredAssets;
-        List<Map<String, Object>> candidates = mapList(assetResult.get("assets"));
-        Map<String, Object> selected = decisiveAsset(candidates, retrievalTerms);
-        String selectedName = assetName(selected);
-        String status = selectedName != null ? "RESOLVED"
-            : candidates.isEmpty() ? "NOT_FOUND" : "AMBIGUOUS";
-        Map<String, Object> audit = new LinkedHashMap<>();
-        audit.put("schemaVersion", "capability_asset_resolution.v1");
-        audit.put("status", status);
-        audit.put("strategy", "typed_asset_discovery_then_decisive_margin");
-        audit.put("candidateCount", candidates.size());
-        if (selectedName != null) {
-            audit.put("selected", assetSummary(selected));
-        }
-        audit.put("candidates", candidates.stream().limit(10).map(this::assetSummary).toList());
-        audit.put("selectionBasis", "highest provider relevance score; exact ties remain ambiguous");
-        return new AssetPreResolution(assetResult, selectedName, candidates.size(), Map.copyOf(audit));
-    }
-
-    private List<String> assetRetrievalTerms(Map<String, Object> filters, String query) {
-        LinkedHashSet<String> terms = new LinkedHashSet<>();
-        LinkedHashSet<String> exactFilterValues = new LinkedHashSet<>();
-        addNormalizedValue(exactFilterValues, filters == null ? null : filters.get("env"));
-        addNormalizedValue(exactFilterValues, filters == null ? null : filters.get("environment"));
-        addTerms(terms, filters == null ? null : filters.get("queryTerms"));
-        addTerms(terms, filters == null ? null : filters.get("retrievalSignals"));
-        addTerms(terms, filters == null ? null : filters.get("keywords"));
-        if (query != null && !query.isBlank()) {
-            SearchQueryTokenizer.terms(query).stream()
-                .filter(term -> term != null && term.length() >= 2 && term.length() <= 64)
-                .filter(term -> !term.trim().equalsIgnoreCase(query.trim()))
-                // Exact context (for example DEV/PROD) is already a hard filter. Reusing it as an
-                // independent semantic retrieval unit gives every asset in that environment the
-                // same perfect score and destroys the identity margin.
-                .filter(term -> !exactFilterValues.contains(term.trim().toLowerCase(java.util.Locale.ROOT)))
-                .sorted(java.util.Comparator
-                    .comparing((String term) -> !term.matches(".*[a-zA-Z0-9_].*") )
-                    .thenComparingInt(String::length))
-                .limit(24)
-                .forEach(terms::add);
-            // The complete task remains in filters.intent. Do not also publish it as an
-            // independent asset query term: operational nouns such as status/session/wait then
-            // match many hosts and can flatten a precise identity token into an environment-wide tie.
-        }
-        return terms.stream().limit(32).toList();
-    }
-
-    private void addNormalizedValue(Set<String> target, Object value) {
-        String normalized = text(value);
-        if (normalized != null) target.add(normalized.toLowerCase(java.util.Locale.ROOT));
-    }
-
-    private void addTerms(Set<String> target, Object value) {
-        if (value instanceof Iterable<?> iterable) {
-            for (Object item : iterable) addTerms(target, item);
-            return;
-        }
-        String term = text(value);
-        if (term != null) target.add(term);
+    private Map<String, Object> bridgeResult(Domain domain, Map<String, Object> discovered, String stage) {
+        Map<String, Object> result = new LinkedHashMap<>(discovered == null ? Map.of() : discovered);
+        result.put("bridgeManaged", true);
+        result.put("bridgeTool", domain.toolName());
+        result.put("businessDomain", domain.targetKind());
+        result.put("assetType", domain.assetType());
+        result.put("stage", stage);
+        result.put("executionTool", domain.executionTool());
+        return result;
     }
 
     private boolean hasExplicitAssetIdentity(Map<String, Object> filters) {
@@ -314,97 +222,10 @@ public class OpsCapabilityBridgePublisher implements com.chatchat.mcpserver.tool
         return filters != null && first(filters, "queryTerms", "retrievalSignals", "keywords", "intent") != null;
     }
 
-    private Map<String, Object> decisiveAsset(List<Map<String, Object>> candidates,
-                                               List<String> retrievalTerms) {
-        if (candidates == null || candidates.isEmpty()) return Map.of();
-        if (candidates.size() == 1) return candidates.get(0);
-        Map<String, Object> identityMatch = uniqueCanonicalIdentityMatch(candidates, retrievalTerms);
-        if (!identityMatch.isEmpty()) return identityMatch;
-        double first = assetScore(candidates.get(0));
-        double second = assetScore(candidates.get(1));
-        if (first > second) {
-            return candidates.get(0);
-        }
-        return Map.of();
-    }
-
-    private Map<String, Object> uniqueCanonicalIdentityMatch(List<Map<String, Object>> candidates,
-                                                              List<String> retrievalTerms) {
-        LinkedHashSet<String> signals = new LinkedHashSet<>();
-        java.util.regex.Pattern technicalToken = java.util.regex.Pattern.compile("[\\p{L}\\p{N}_-]{3,}");
-        for (String term : retrievalTerms == null ? List.<String>of() : retrievalTerms) {
-            if (term == null) continue;
-            java.util.regex.Matcher matcher = technicalToken.matcher(term.toLowerCase(java.util.Locale.ROOT));
-            while (matcher.find()) signals.add(matcher.group());
-        }
-        return signals.stream()
-            .sorted(java.util.Comparator.comparingInt(String::length).reversed())
-            .map(signal -> candidates.stream()
-                .filter(candidate -> canonicalIdentity(candidate).contains(signal))
-                .toList())
-            // Lexical identity may confirm the semantic leader, but it must never use a generic
-            // domain word to reorder candidates (for example selecting a lower-ranked asset only
-            // because its display name literally contains "database").
-            .filter(matches -> matches.size() == 1 && matches.get(0) == candidates.get(0))
-            .map(matches -> matches.get(0))
-            .findFirst()
-            .orElse(Map.of());
-    }
-
-    private String canonicalIdentity(Map<String, Object> candidate) {
-        Map<String, Object> asset = map(candidate == null ? null : candidate.get("asset"));
-        return (String.valueOf(asset.getOrDefault("name", "")) + " "
-            + String.valueOf(asset.getOrDefault("toolName", "")) + " "
-            + String.valueOf(asset.getOrDefault("logicalName", "")))
-            .toLowerCase(java.util.Locale.ROOT);
-    }
-
-    @SuppressWarnings("unchecked")
-    private List<Map<String, Object>> mapList(Object value) {
-        if (!(value instanceof Iterable<?> iterable)) return List.of();
-        java.util.ArrayList<Map<String, Object>> values = new java.util.ArrayList<>();
-        for (Object item : iterable) {
-            if (item instanceof Map<?, ?> map) values.add(new LinkedHashMap<>((Map<String, Object>) map));
-        }
-        return List.copyOf(values);
-    }
-
-    private Map<String, Object> assetSummary(Map<String, Object> candidate) {
-        Map<String, Object> asset = map(candidate == null ? null : candidate.get("asset"));
-        return compactMap(
-            "id", asset.get("id"),
-            "name", asset.get("name"),
-            "toolName", asset.get("toolName"),
-            "environment", asset.get("environment"),
-            "score", assetScore(candidate)
-        );
-    }
-
-    private String assetName(Map<String, Object> candidate) {
-        return text(map(candidate == null ? null : candidate.get("asset")).get("name"));
-    }
-
-    private double assetScore(Map<String, Object> candidate) {
-        Map<String, Object> routing = map(candidate == null ? null : candidate.get("routingHints"));
-        Map<String, Object> selection = map(routing.get("assetSelection"));
-        Object value = first(selection, "finalScore", "score", "normalizedScore");
-        if (value instanceof Number number) return number.doubleValue();
-        try { return value == null ? 0.0D : Double.parseDouble(String.valueOf(value)); }
-        catch (NumberFormatException ignored) { return 0.0D; }
-    }
-
     private Object first(Map<String, Object> values, String... keys) {
         if (values == null) return null;
         for (String key : keys) if (values.containsKey(key)) return values.get(key);
         return null;
-    }
-
-    private Map<String, Object> compactMap(Object... values) {
-        Map<String, Object> result = new LinkedHashMap<>();
-        for (int i = 0; i + 1 < values.length; i += 2) {
-            if (values[i + 1] != null) result.put(String.valueOf(values[i]), values[i + 1]);
-        }
-        return Map.copyOf(result);
     }
 
     private TemplateQueryMcpToolPublisher requireDynamicTemplateQueries() {
@@ -478,11 +299,5 @@ public class OpsCapabilityBridgePublisher implements com.chatchat.mcpserver.tool
     private record Domain(String toolName, String title, String targetKind, String assetType,
                           String executionTool, boolean assetDiscoverySupported, String protocolId,
                           String workflowFamily) {
-    }
-
-    private record AssetPreResolution(Map<String, Object> assetResult,
-                                      String selectedAssetName,
-                                      int candidateCount,
-                                      Map<String, Object> audit) {
     }
 }

@@ -20,6 +20,10 @@ import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.*;
 import java.io.IOException;
 import java.nio.file.Files;
+import java.time.Instant;
+import java.time.LocalDate;
+import java.time.ZoneId;
+import java.time.format.DateTimeParseException;
 import java.util.*;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Service;
@@ -88,9 +92,17 @@ public final class NativePublishedTemplate {
 
     public Map<String, Object> specification(CodingTaskContract task) {
         var template = json.valueToTree(task.runtimeContext().get(CONTEXT)).path("template");
+        ZoneId zone = ZoneId.systemDefault();
+        LocalDate referenceDate = referenceDate(task, zone);
+        String temporalContext = referenceDate == null ? "" : " The task reference date is " + referenceDate
+            + " in " + zone + ".";
         return Map.of("name", TOOL, "description", "Query the task's published read-only template. "
-            + "Use the original user request as evidence. Omit defaulted fields. Correct only invalid fields once. "
-            + "Stop on authorization, quota or query errors. After success open the returned local Parquet path. "
+            + "Extract and normalize the requested values using the template parameter schema. Cite the exact "
+            + "source phrase from the original user request in evidence.quote. Set evidence.interpretation=model "
+            + "when the submitted value had to be interpreted or normalized. Omit missing values and list their "
+            + "fields in unresolved_parameters."
+            + temporalContext + " Correct invalid fields once. Stop on authorization, quota or query errors. "
+            + "After success inspect defaultedFields and disclose any default scope in the report. "
             + template, "inputSchema", Map.of("type", "object", "additionalProperties", false,
                 "required", List.of("protocol_version", "template_id", "arguments", "unresolved_parameters"),
                 "properties", Map.of(
@@ -100,7 +112,8 @@ public final class NativePublishedTemplate {
                         "type", "object", "additionalProperties", false,
                         "required", List.of("value", "source", "evidence"), "properties", Map.of(
                             "value", Map.of(), "source", Map.of("type", "string", "enum", List.of("user_query")),
-                            "evidence", Map.of("type", "object", "properties", Map.of("quote", Map.of("type", "string")),
+                            "evidence", Map.of("type", "object", "properties", Map.of("quote", Map.of("type", "string"),
+                                "interpretation", Map.of("type", "string", "enum", List.of("model"))),
                                 "required", List.of("quote"), "additionalProperties", false)))),
                     "unresolved_parameters", Map.of("type", "array", "items", Map.of("type", "string")))));
     }
@@ -135,12 +148,9 @@ public final class NativePublishedTemplate {
             return Map.of("status", "PARAMETER_INVALID", "errorCode", invalid.code(),
                 "message", invalid.getMessage(), "errors", invalid.validationErrors());
         }
-        var rejected = compiled.protocolTrace().get("droppedUnverifiedParameterOverrides");
+        var rejected = compiled.protocolTrace().get("unverifiedSubmittedFields");
         if (rejected instanceof Collection<?> fields && !fields.isEmpty())
             return Map.of("status", "PARAMETER_INVALID", "errorCode", "UNVERIFIED_PARAMETERS", "fields", fields);
-        var invalidRepairs = compiled.repairs().stream().filter(repair -> repair.repairCode().startsWith("INVALID"))
-            .map(repair -> Map.of("field", repair.field(), "code", repair.repairCode())).toList();
-        if (!invalidRepairs.isEmpty()) return Map.of("status", "PARAMETER_INVALID", "errors", invalidRepairs);
         var parameters = compiled.parameters();
         if (!grant.parameterValues().keySet().equals(parameters.keySet())
                 || parameters.entrySet().stream().anyMatch(entry ->
@@ -173,6 +183,9 @@ public final class NativePublishedTemplate {
         receipt.put("templateId", id);
         receipt.put("queryMs", (System.nanoTime() - clock) / 1_000_000);
         receipt.put("executionPath", "governed_template_without_runtime_binding");
+        receipt.put("defaultedFields", compiled.parameterEvidence().entrySet().stream()
+            .filter(entry -> TemplateInvocationBridge.TEMPLATE_DEFAULT_SOURCE.equals(entry.getValue().source()))
+            .map(Map.Entry::getKey).sorted().toList());
         receipt.put("status", "QUERY_FAILED");
         if (tasks.get(task.scope(), task.taskId()).executionControl().stopReason() != null)
             receipt.put("status", "STOPPING");
@@ -203,6 +216,15 @@ public final class NativePublishedTemplate {
         tasks.privateState(task.scope(), task.taskId(), lease, STATE, started,
             json.valueToTree(Map.of("requestHash", digest, "receipt", receipt)));
         return deliver(task, receipt);
+    }
+
+    private static LocalDate referenceDate(CodingTaskContract task, ZoneId zone) {
+        if (!(task.runtimeContext().get("capturedAt") instanceof String capturedAt)) return null;
+        try {
+            return Instant.parse(capturedAt).atZone(zone).toLocalDate();
+        } catch (DateTimeParseException invalid) {
+            return null;
+        }
     }
 
     private Admission admitQuery(CodingTaskContract task, CodingJournal.Lease lease, String digest, JsonNode started) {

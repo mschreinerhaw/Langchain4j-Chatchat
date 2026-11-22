@@ -2121,6 +2121,7 @@ export default {
         });
       }
       const runContext = this.createRunContext(query, analysisNode);
+      runContext.reportMode = payload?.reportMode === 'visual' ? 'visual' : 'off';
       runContext.assetFileIds=prepared.documentIds;
       runContext.submissionQuery=displayedQuery;
       this.runningContexts[runContext.historyId] = runContext;
@@ -2150,8 +2151,8 @@ export default {
           webSearch: false,
           resourceExplorationApproved: payload?.resourceExplorationApproved === true,
           ...(payload?.codingReasoningEffort ? {codingReasoningEffort:payload.codingReasoningEffort} : {}),
-          reportMode: payload?.reportMode === 'visual' ? 'visual' : 'off',
-          ...(payload?.reportMode === 'visual' ? {reportPresentation:reportPresentation(payload?.reportPresentation)} : {}),
+          reportMode: runContext.reportMode,
+          ...(runContext.reportMode === 'visual' ? {reportPresentation:reportPresentation(payload?.reportPresentation)} : {}),
           imageAnalysisIds,
           responseContract: RESPONSE_RENDER_CONTRACT,
           visualizationSupportedTypes: visualizationCapabilities.map(capability => capability.type),

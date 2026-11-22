@@ -31,7 +31,7 @@ public class ModelAssistedContextParameterBridge {
     public Map<String, Object> propose(ChatModel model,
                                 String toolName,
                                 Map<String, Object> arguments,
-                                ModelAssistedRetrievalBridge.RetrievalEvidenceContext evidence) {
+                                RetrievalEvidenceContext evidence) {
         Map<String, Object> result = new LinkedHashMap<>(arguments == null ? Map.of() : arguments);
         ToolWorkflowRole workflowRole = toolRegistry == null || toolName == null
             ? ToolWorkflowRole.DIRECT : toolRegistry.getWorkflowRole(toolName);
@@ -44,8 +44,8 @@ public class ModelAssistedContextParameterBridge {
             .filter(field -> !meaningful(result.get(field)))
             .toList();
         if (missing.isEmpty()) return result;
-        ModelAssistedRetrievalBridge.RetrievalEvidenceContext trusted = evidence == null
-            ? new ModelAssistedRetrievalBridge.RetrievalEvidenceContext(null, Map.of()) : evidence;
+        RetrievalEvidenceContext trusted = evidence == null
+            ? new RetrievalEvidenceContext(null, Map.of()) : evidence;
         if ((trusted.userQuery() == null || trusted.userQuery().isBlank())
             && trusted.completedStepOutputs().isEmpty()) return result;
         try {

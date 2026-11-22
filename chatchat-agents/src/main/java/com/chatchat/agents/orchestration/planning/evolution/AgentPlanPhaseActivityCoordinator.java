@@ -107,7 +107,10 @@ public final class AgentPlanPhaseActivityCoordinator {
         InterpretationPlanRuntime runtime = new InterpretationPlanRuntime(
             toolRuntimeService, new InterpretationPlanValidator(),
             new InterpretationPlanOptimizer(toolRegistry), runStore,
-            review -> operations.review(model, query, prompt, review, map(context.get("attributes"))),
+            review -> operations.review(model, query, prompt, review, request.attributes(),
+                new com.chatchat.common.kernel.KernelDataScope(request.tenantId(), request.userId(),
+                    request.requestId(), request.conversationId(), null,
+                    null, Map.of()), text(context.get("modelName"))),
             decision -> operations.decide(model, query, prompt, decision),
             enrichment -> operations.enrich(model, query, enrichment),
             replayPort, new LocalPlanDagControlPort());
@@ -248,6 +251,11 @@ public final class AgentPlanPhaseActivityCoordinator {
         default InterpretationPlanRuntime.StepReview review(ChatModel model, String query, String prompt,
                 InterpretationPlanRuntime.StepReviewRequest request, Map<String,Object> attributes) {
             return review(model, query, prompt, request);
+        }
+        default InterpretationPlanRuntime.StepReview review(ChatModel model, String query, String prompt,
+                InterpretationPlanRuntime.StepReviewRequest request, Map<String,Object> attributes,
+                com.chatchat.common.kernel.KernelDataScope scope, String modelName) {
+            return review(model, query, prompt, request, attributes);
         }
         Map<String, Object> enrich(ChatModel model, String query,
                                    InterpretationPlanRuntime.StepInputEnrichmentRequest request);

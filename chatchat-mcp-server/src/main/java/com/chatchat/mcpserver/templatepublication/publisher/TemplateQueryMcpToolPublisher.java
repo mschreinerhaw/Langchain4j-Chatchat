@@ -185,10 +185,20 @@ public class TemplateQueryMcpToolPublisher implements com.chatchat.mcpserver.too
         if (scopedAssets == null) {
             scopedAssets = assetCatalogService.listEnabled();
         }
-        scopedAssets.stream()
-            .filter(parent::accepts)
-            .filter(asset -> policy.allowedTemplates().getOrDefault(asset.assetType(), Set.of()).contains(asset.templateId()))
-            .forEach(asset -> enabledAssets.put(asset.key(), asset));
+        Set<String> confirmedIds = confirmedAssetIds(arguments);
+        Set<String> enabledPublishedIds = new LinkedHashSet<>();
+        Map<String, List<Map<String, Object>>> confirmedTargets = new LinkedHashMap<>();
+        for (var asset : scopedAssets) {
+            if (!parent.accepts(asset)
+                || !policy.allowedTemplates().getOrDefault(asset.assetType(), Set.of()).contains(asset.templateId())) continue;
+            enabledPublishedIds.add(asset.templateId());
+            if (!confirmedIds.isEmpty()) {
+                List<Map<String, Object>> targets = assetCatalogService.confirmedTemplateTargets(asset, confirmedIds);
+                if (targets.isEmpty()) continue;
+                confirmedTargets.put(asset.key(), targets);
+            }
+            enabledAssets.put(asset.key(), asset);
+        }
         int limit = recallLimit(arguments);
         BoundTemplateCandidateRetriever.Recall recall = candidateRetriever.recall(
             List.copyOf(enabledAssets.values()), templateIds, arguments, limit, policy.policyVersion());
@@ -205,15 +215,17 @@ public class TemplateQueryMcpToolPublisher implements com.chatchat.mcpserver.too
             item.put("parameterSchema", asset.parameterSchema());
             item.put("exists", true);
             item.put("selectionSource", "template_query_binding");
+            List<Map<String, Object>> targets = confirmedTargets.getOrDefault(asset.key(), List.of());
+            if (targets.size() == 1) item.put("executionContext", targets.get(0));
             if (asset.businessCategoryCode().equals("external_mcp")) {
                 item.put("executionToolName", asset.templateId());
                 item.put("executionRoute", "published_mcp_tool");
             }
             templates.add(Map.copyOf(item));
         }
-        // Completeness belongs to the entire persisted binding, never to the current page.
-        // Using templates.size() here makes every legitimate paged response look incomplete.
-        int unavailableCount = Math.max(0, templateIds.size() - recall.candidateUniverseCount());
+        // Asset scoping and pagination intentionally return a subset of the published binding.
+        // Only a missing registry template makes the persisted publication incomplete.
+        int unavailableCount = (int) templateIds.stream().filter(id -> !enabledPublishedIds.contains(id)).count();
         McpInvocationContext.Context context = McpInvocationContext.current();
         Map<String,Object> result = Map.ofEntries(
             Map.entry("schemaVersion", CommandTemplateDiscoveryService.RESULT_SCHEMA_VERSION),
@@ -272,6 +284,18 @@ public class TemplateQueryMcpToolPublisher implements com.chatchat.mcpserver.too
         );
         if (enforceReleaseSchema && releaseContracts != null) releaseContracts.validateOutput(reviewedName, result);
         return result;
+    }
+
+    private Set<String> confirmedAssetIds(Map<String, Object> arguments) {
+        if (arguments == null || !(arguments.get("filters") instanceof Map<?, ?> filters)
+            || !filters.containsKey("assetIds")) return Set.of();
+        if (!(filters.get("assetIds") instanceof List<?> ids) || ids.isEmpty()
+            || ids.stream().anyMatch(value -> !(value instanceof String id) || id.isBlank())) {
+            throw new IllegalArgumentException("filters.assetIds must contain confirmed asset identifiers");
+        }
+        Set<String> result = new LinkedHashSet<>();
+        ids.forEach(value -> result.add((String) value));
+        return Set.copyOf(result);
     }
 
     private int recallLimit(Map<String, Object> arguments) {

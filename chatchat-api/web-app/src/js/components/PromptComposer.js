@@ -59,6 +59,10 @@ export default {
       type: Boolean,
       default: false,
     },
+    runningVisualReport: {
+      type: Boolean,
+      default: false,
+    },
     agents: {
       type: Array,
       default: () => [],
@@ -108,6 +112,16 @@ export default {
     };
   },
   computed: {
+    showRunningVisualReport() {
+      return this.loading && this.runningVisualReport;
+    },
+    visualReportSelected() {
+      return this.reportMode === "visual" || this.showRunningVisualReport;
+    },
+    visualReportTitle() {
+      if (this.showRunningVisualReport) return "当前任务已启用图文报告";
+      return this.reportMode === "visual" ? "本次发送将使用图文报告，点击取消" : "为本次发送开启图文报告";
+    },
     reportPreferenceKey(){return workspaceStorageKey('report-presentation',this.workspaceContext || getWorkspaceContext());},
     activeChartScenario() {
       return this.chartScenario || (knownChartScenario(this.inheritedStyleProfile)

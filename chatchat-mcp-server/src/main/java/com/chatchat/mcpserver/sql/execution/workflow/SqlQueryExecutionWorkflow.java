@@ -121,7 +121,10 @@ public class SqlQueryExecutionWorkflow extends AbstractStagedExecutionWorkflow<
             executableArguments = new LinkedHashMap<>(analysis.arguments());
             executableArguments.put("parameters", parameterResolution.parameters());
         }
-        Map<String, Object> routed = executionTargetRouter.routeSqlQuery(executableArguments);
+        String boundDatasourceId = analysis.sqlTemplate() == null ? null : analysis.sqlTemplate().getDatasourceId();
+        Map<String, Object> routed = boundDatasourceId == null || boundDatasourceId.isBlank()
+            ? executionTargetRouter.routeSqlQuery(executableArguments)
+            : executionTargetRouter.routeSqlQuery(executableArguments, boundDatasourceId);
         if (shouldExecuteAsScript(routed)) {
             SqlScriptResult result = scriptExecuteService.execute(toScriptArguments(routed));
             return new Execution("SQL_SCRIPT", result.success(),

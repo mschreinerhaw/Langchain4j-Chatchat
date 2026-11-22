@@ -336,6 +336,39 @@ class ExecutionTargetRouterTest {
     }
 
     @Test
+    void routesConfirmedSqlAssetAmongNineSourcesAndChecksItsPermission() {
+        var sources = mock(SqlDatasourceConfigService.class);
+        var router = router(mock(SshHostConfigService.class), sources, mock(ExecutionTargetService.class));
+        var assets = java.util.stream.IntStream.rangeClosed(1, 9)
+            .mapToObj(index -> datasource("ds-" + index, "source-" + index, "query_" + index, "DEV", null))
+            .toList();
+        when(sources.listEnabled()).thenReturn(assets);
+        var authority = mock(com.chatchat.mcpserver.authorization.McpAuthorizationService.class);
+        org.springframework.test.util.ReflectionTestUtils.setField(router, "authorization", authority);
+        when(authority.authorizeResolvedResource("sql_query_execute", "sql_datasource", "ds-3"))
+            .thenReturn(com.chatchat.mcpserver.authorization.McpAuthorizationService.AuthorizationDecision.allowDecision());
+        when(authority.authorizeResolvedResource("sql_query_execute", "sql_datasource", "ds-4"))
+            .thenReturn(com.chatchat.mcpserver.authorization.McpAuthorizationService.AuthorizationDecision.denyDecision("Denied"));
+
+        assertThat(router.routeSqlQuery(Map.of(
+            "executionContext", Map.of("env", "DEV", "assetId", "ds-3"))))
+            .containsEntry("datasourceId", "ds-3");
+        assertThatThrownBy(() -> router.routeSqlQuery(Map.of(
+            "executionContext", Map.of("env", "DEV", "assetId", "ds-4"))))
+            .isInstanceOf(SecurityException.class).hasMessage("Denied");
+        assertThatThrownBy(() -> router.routeSqlQuery(Map.of(
+            "executionContext", Map.of("env", "DEV", "assetId", "ds-3", "assetName", "source-4"))))
+            .hasMessageContaining("No SQL datasource matched");
+        var environmentOnly = Map.<String, Object>of("executionContext", Map.of("env", "DEV"));
+        assertThat(router.routeSqlQuery(environmentOnly, "ds-3")).containsEntry("datasourceId", "ds-3");
+        assertThatThrownBy(() -> router.routeSqlQuery(Map.of(
+            "executionContext", Map.of("env", "DEV", "assetId", "ds-3")), "ds-4"))
+            .hasMessageContaining("does not match the template binding");
+        assertThatThrownBy(() -> router.routeSqlQuery(environmentOnly))
+            .hasMessageContaining("Ambiguous SQL datasource").hasMessageContaining("matched=9");
+    }
+
+    @Test
     void routesSqlQueryByUniqueAssetNameAndEnvBeforeOptionalDatabaseRoleLabel() {
         SshHostConfigService hostService = mock(SshHostConfigService.class);
         SqlDatasourceConfigService datasourceService = mock(SqlDatasourceConfigService.class);
@@ -460,6 +493,30 @@ class ExecutionTargetRouterTest {
 
         assertThat(routed.endpoint().getId()).isEqualTo("http-1");
         assertThat(routed.arguments()).doesNotContainKey("executionContext");
+    }
+
+    @Test
+    void preservesDiscoveredSshAndHttpIdentitiesWhenAssetsShareAnEnvironment() {
+        var hosts = mock(SshHostConfigService.class);
+        var endpoints = mock(HttpEndpointConfigService.class);
+        var router = router(hosts, mock(SqlDatasourceConfigService.class), endpoints,
+            mock(DatabaseQueryConfigService.class), mock(ExecutionTargetService.class));
+        when(hosts.listEnabled()).thenReturn(List.of(
+            host("host-1", "ssh-one", "ssh_one", "DEV", "linux"),
+            host("host-2", "ssh-two", "ssh_two", "DEV", "linux")));
+        when(endpoints.listEnabled()).thenReturn(List.of(
+            httpEndpoint("http-1", "api-one", "http_one", "PROD"),
+            httpEndpoint("http-2", "api-two", "http_two", "PROD")));
+        assertThat(router.routeLinuxCommand(Map.of("executionContext", Map.of("assetId", "host-2", "env", "DEV"))))
+            .containsEntry("hostId", "host-2");
+        assertThat(router.routeHttpRequest(Map.of("templateId", "http_two", "executionContext", Map.of("env", "PROD")))
+            .endpoint().getId()).isEqualTo("http-2");
+        assertThat(router.routeHttpRequest(Map.of("executionContext", Map.of("assetId", "http-1", "env", "PROD")))
+            .endpoint().getId()).isEqualTo("http-1");
+        assertThatThrownBy(() -> router.routeHttpRequest(Map.of("templateId", "http_two", "executionContext",
+            Map.of("assetId", "http-1", "env", "PROD")))).hasMessageContaining("does not match the template");
+        assertThatThrownBy(() -> router.routeLinuxCommand(Map.of("executionContext", Map.of("env", "DEV"))))
+            .hasMessageContaining("Ambiguous SSH host");
     }
 
     @Test

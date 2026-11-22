@@ -1,7 +1,6 @@
 package com.chatchat.agents.orchestration.retrieval;
 
 import com.chatchat.agents.orchestration.retrieval.ModelAssistedContextParameterBridge;
-import com.chatchat.agents.orchestration.retrieval.ModelAssistedRetrievalBridge;
 
 import com.chatchat.agents.runtime.toolcall.ContextualToolArgumentResolver;
 import com.chatchat.agents.tool.ToolRegistry;
@@ -41,7 +40,7 @@ class ModelAssistedContextParameterBridgeTest {
             new ModelAssistedContextParameterBridge(registry, new ObjectMapper());
 
         Map<String, Object> result = bridge.propose(
-            model, tool, Map.of(), new ModelAssistedRetrievalBridge.RetrievalEvidenceContext(
+            model, tool, Map.of(), new RetrievalEvidenceContext(
                 "analyze holding", Map.of(2, Map.of(
                     "positions", List.of(Map.of("symbol", "600839"))))));
 

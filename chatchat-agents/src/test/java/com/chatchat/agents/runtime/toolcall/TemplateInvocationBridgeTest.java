@@ -13,6 +13,31 @@ class TemplateInvocationBridgeTest {
 
     private final TemplateInvocationBridge bridge = new TemplateInvocationBridge();
 
+    @Test void acceptsClineNormalizedValuesAndRecordsDefaultsForOmittedFields() {
+        var descriptor = template("ORDER_QUERY",
+            Map.of("limit", Map.of("type", "integer", "default", 20),
+                "sort", Map.of("type", "string", "default", "latest")),
+            new String[]{"limit"});
+        var protocol = Map.<String, Object>of("protocol_version", TemplateInvocationBridge.PROTOCOL_VERSION,
+            "template_id", "ORDER_QUERY", "arguments", Map.of("limit", Map.of("value", 3, "source", "user_query",
+                "evidence", Map.of("quote", "three", "interpretation", "model"))),
+            "unresolved_parameters", List.of("sort"));
+        var request = new TemplateInvocationBridge.BridgeRequest("api_template_execute", null, "ORDER_QUERY",
+            descriptor, Map.of(), protocol, true, false,
+            new TemplateInvocationBridge.EvidenceContext("Show three orders", Map.of()));
+        var result = bridge.prepare(request);
+
+        assertThat(result.parameters()).containsEntry("limit", 3).containsEntry("sort", "latest");
+        assertThat(result.parameterEvidence().get("limit").source()).isEqualTo("user_query");
+        assertThat(result.parameterEvidence().get("sort").source()).isEqualTo("template_default");
+        assertThat(result.protocolTrace()).containsEntry("unverifiedSubmittedFields", List.of());
+
+        var unverifiable = new TemplateInvocationBridge.BridgeRequest("api_template_execute", null, "ORDER_QUERY",
+            descriptor, Map.of(), protocol, true, false,
+            new TemplateInvocationBridge.EvidenceContext("Show orders", Map.of()));
+        assertThat(bridge.prepare(unverifiable).protocolTrace()).containsEntry("unverifiedSubmittedFields", List.of("limit"));
+    }
+
     @Test void rejectedNativeBindingCannotExecuteThroughCatalogDefaults() {
         var protocol = Map.<String, Object>of("protocol_version", TemplateInvocationBridge.PROTOCOL_VERSION,
             "template_id", "ORDER_QUERY", "arguments", Map.of(), "binding_error", "NATIVE_SCHEMA_BINDING_UNAVAILABLE");

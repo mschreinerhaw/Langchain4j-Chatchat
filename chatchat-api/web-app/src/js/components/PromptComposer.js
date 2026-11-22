@@ -105,7 +105,7 @@ export default {
   ],
   data() {
     return {
-      reportMode: "off",
+      reportMode: this.businessReferencesEnabled && !this.compact ? "visual" : "off",
       toolsOpen: false,
       resourceExplorationApproved: false,
       rememberedReasoning: readWorkspaceDraft('coding-reasoning',this.workspaceContext || getWorkspaceContext()),
@@ -188,7 +188,7 @@ export default {
   watch: {
     selectedAgentId() { this.invalidateIdeas(); },
     conversationKey() {
-      this.reportMode = "off";
+      this.reportMode = this.businessReferencesEnabled && !this.compact ? "visual" : "off";
       this.mention = null;
       this.selectedReferences = [];
       this.referenceError = "";
@@ -330,7 +330,7 @@ export default {
         return;
       }
       const reportMode = this.reportMode;
-      this.reportMode = "off";
+      this.reportMode = this.businessReferencesEnabled && !this.compact ? "visual" : "off";
       const presentation = this.compact
         ? (this.chartScenario ? {styleProfile:this.chartScenario} : undefined)
         : (reportMode === "visual" ? reportPresentation(this.reportPresentation) : undefined);

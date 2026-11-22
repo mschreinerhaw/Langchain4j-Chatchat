@@ -111,7 +111,7 @@
         </template>
         <div v-if="hasDeliveryContent(message)" class="message-delivery-content">
         <EnterpriseUiArtifactRenderer
-          v-if="message.role === 'assistant' && !message.streaming && messageUiArtifact(message)"
+          v-if="message.role === 'assistant' && !message.streaming && messageUiArtifact(message) && !messageVisualReport(message)?.htmlReport"
           :artifact="messageUiArtifact(message)"
           @click="handleMarkdownClick($event, message)"
           @drill-down="handleVisualizationDrillDown(message, $event)"

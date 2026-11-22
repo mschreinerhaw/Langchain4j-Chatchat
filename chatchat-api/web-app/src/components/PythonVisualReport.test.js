@@ -232,3 +232,15 @@ it("keeps internal execution metadata out of the report while retaining business
   expect(host.textContent).toContain("样本仅覆盖本季度");
   expect(host.querySelector(".report-code")).toBeNull();
 });
+
+it("renders archived Markdown once when structured sections are unavailable", async () => {
+  host = document.createElement("div");
+  document.body.append(host);
+  app = createApp({ render: () => h(PythonVisualReport, { report: {
+    status: "SUCCESS", markdown: "Report fallback narrative", sections: [],
+  } }) });
+  app.mount(host);
+  await nextTick();
+  expect([...host.querySelectorAll(".report-narrative")].map(node => node.textContent.trim()))
+    .toEqual(["Report fallback narrative"]);
+});

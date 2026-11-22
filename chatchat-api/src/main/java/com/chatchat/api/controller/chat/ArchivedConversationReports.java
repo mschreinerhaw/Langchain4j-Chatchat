@@ -47,13 +47,19 @@ class ArchivedConversationReports {
             try {
                 var task = tasks.findById(message.getTaskId()).orElse(null);
                 if (task == null || !tenant.equals(task.getTenantId()) || !owners.contains(task.getUserId())
-                    || !conversation.getId().equals(task.getSessionId()) || task.getExecutionAttemptId() == null
-                    || !AgentExecutionState.fromWire(task.getCanonicalState()).terminal()) continue;
+                    || !conversation.getId().equals(task.getSessionId()) || task.getExecutionAttemptId() == null) continue;
+                AgentExecutionState state = AgentExecutionState.fromWire(task.getCanonicalState());
+                if (!state.terminal()) continue;
                 var entries = service.findNativeHtmlEntries(owner, task.getExecutionAttemptId());
                 if (entries.size() != 1 || entries.get(0).size() > 8L * 1024 * 1024) continue;
                 visual.put("htmlReport", NativeHtmlReport.descriptor(entries.get(0)));
                 visual.putIfAbsent("schemaVersion", VisualReportMode.SCHEMA);
                 visual.putIfAbsent("title", "分析报告");
+                visual.putIfAbsent("status", switch (state) {
+                    case SUCCEEDED -> "SUCCESS";
+                    case PARTIAL -> "PARTIAL";
+                    default -> "FAILED";
+                });
                 ui.put("visualReport", visual);
                 message.setUiResponse(ui);
             } catch (DataAccessException | IllegalArgumentException | SecurityException unavailable) {

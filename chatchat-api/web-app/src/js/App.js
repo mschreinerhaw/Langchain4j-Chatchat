@@ -304,7 +304,7 @@ export default {
         ? {
             ...pageProps,
             ...(this.activeView === "businessHome"
-              ? { outcomeHistory: this.recentConversations, panel: this.businessPanel } : {}),
+              ? { panel: this.businessPanel } : {}),
             userId: this.userId,
             tenantId: this.tenantId,
             selectedConversation: this.selectedConversation,

@@ -232,8 +232,6 @@
 .business-catalog-banner p { color: #536783; margin: 0 0 18px; }
 .business-catalog-banner .business-actions { max-width: min(570px, 72%); }
 .business-catalog-banner input { flex: 1; min-width: min(180px, 100%); }
-.business-catalog-tabs { margin: 18px 0 0; }
-.business-catalog-tabs button[aria-pressed="true"] { background: #e7efff; border-color: #c9dbf7; }
 .business-catalog .business-grid { grid-template-columns: repeat(auto-fit, minmax(min(100%, 270px), 1fr)); }
 .business-catalog-card {
   text-align: center;
@@ -317,7 +315,6 @@
 .business-card small { color: #536d8b; }
 .business-card details { margin: 9px 0; }
 .business-card button { margin: 5px 5px 0 0; }
-.business-outcome { display: flex; justify-content: space-between; align-items: center; gap: 10px; }
 
 .business-role-notes:has(> :is(button, form, p, article)) { margin-bottom: 18px; }
 .business-note-form {
@@ -349,12 +346,11 @@
 .business-note-heading > button { margin-inline-start: auto; }
 .business-note-workspace {
   display: grid;
-  grid-template-columns: minmax(180px, 25%) minmax(0, 1fr);
+  grid-template-columns: minmax(0, 1fr);
   align-items: start;
   gap: 14px;
 }
-.business-note-list,
-.business-note-placeholder {
+.business-note-list {
   padding: 12px;
   border: 1px solid var(--business-line);
   border-radius: 12px;
@@ -389,10 +385,8 @@
 .business-note-preview { min-width: 0; overflow-wrap: anywhere; }
 .business-note-preview :is(pre, table) { display: block; max-width: 100%; overflow: auto; }
 .business-note-help { margin: 0; color: #526984; font-size: 13px; }
-.business-note-secondary { margin-top: 20px; padding: 12px 0; border-top: 1px solid var(--business-line); }
-.business-note-secondary summary { cursor: pointer; color: #405b82; margin-bottom: 12px; }
-@media (max-width: 720px) {
-  .business-note-workspace { grid-template-columns: minmax(0, 1fr); }
+@media (min-width: 721px) {
+  .business-note-workspace:has(.business-note-list) { grid-template-columns: minmax(180px, 25%) minmax(0, 1fr); }
 }
 
 .workspace-business .business-workspace .chat-view > .message-panel,
@@ -565,7 +559,6 @@
 }
 
 @media (max-width: 480px) {
-  .business-outcome { flex-wrap: wrap; }
   .business-robot-scene { margin-top: 0; }
   .business-workspace .prompt-simple-tools .mode-group { max-width: 100%; }
   .business-workspace .prompt-simple-tools .agent-picker > span {

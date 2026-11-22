@@ -100,7 +100,6 @@
         @conversation-active="handleConversationActive"
         @history-saved="handleHistorySaved"
         @ask-ai="handleAskAiFromSearch"
-        @open-conversation="selectConversation"
         @update:panel="businessPanel = $event"
         @navigate="handleNavigate"
         @select-agent="handleSelectAgentShortcut"

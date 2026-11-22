@@ -1,14 +1,13 @@
 import ChatAssistantView from "../../views/ChatAssistantView.vue";
-import BusinessRoleNotes from "../../components/BusinessRoleNotes.vue";
 import BusinessUserNotes from "../../components/BusinessUserNotes.vue";
 import { apiRequest } from "../../services/api";
-import { BookOpen, FileText, Sparkles } from "@lucide/vue";
+import { FileText, Sparkles } from "@lucide/vue";
 
 const lines = (value) => [...new Set(value.split("\n").map((item) => item.trim()).filter(Boolean))];
 
 export default {
   name: "BusinessWorkspaceView",
-  components: { BusinessRoleNotes, BusinessUserNotes, ChatAssistantView, BookOpen, FileText, Sparkles },
+  components: { BusinessUserNotes, ChatAssistantView, FileText, Sparkles },
   props: {
     panel: { type: String, default: "chat" },
     title: { type: String, default: "" },
@@ -16,27 +15,23 @@ export default {
     defaultAgentId: { type: String, default: "" },
     recommendedQuestions: { type: String, default: "" },
     recommendedSkillIds: { type: String, default: "" },
-    workGuides: { type: String, default: "" },
     knowledgeCategories: { type: String, default: "" },
     userId: String,
     tenantId: String,
     workspaceContext: Object,
     selectedConversation: Object,
     pendingDraft: Object,
-    outcomeHistory: { type: Array, default: () => [] },
   },
-  emits: ["conversation-active", "history-saved", "open-conversation", "update:panel"],
+  emits: ["conversation-active", "history-saved", "update:panel"],
   data: () => ({
     draft: null, draftSerial: 0,
     skills: [], skillKeyword: "", skillsBusy: false, skillError: "", skillPage: 0, skillPages: 0,
     recommendationCards: [], agents: [],
     knowledge: [], knowledgeQuery: "", knowledgeCategory: "", knowledgeBusy: false,
     knowledgeError: "", knowledgePage: 1, knowledgeHasMore: false,
-    knowledgeTab: "bases", bases: [], baseKeyword: "", basesBusy: false, baseError: "", basePage: 0, basePages: 0,
   }),
   computed: {
     questionList() { return lines(this.recommendedQuestions); },
-    guideList() { return lines(this.workGuides); },
     categoryList() { return lines(this.knowledgeCategories); },
     recommendations() {
       const ids = lines(this.recommendedSkillIds);
@@ -48,7 +43,7 @@ export default {
       immediate: true,
       handler(panel) {
         if (panel === "skills") this.loadSkills(0);
-        if (panel === "knowledge") this.openKnowledge(this.knowledgeTab);
+        if (panel === "knowledge") this.loadKnowledge(1);
       },
     },
     selectedConversation(value) { if (value) this.openPanel("chat"); },
@@ -96,33 +91,6 @@ export default {
         this.skillsBusy = false;
       }
     },
-    openKnowledge(tab) {
-      this.knowledgeTab = tab;
-      if (tab === "bases") this.loadBases(0);
-      else this.loadKnowledge(1);
-    },
-    async loadBases(page) {
-      if (this.basesBusy) return;
-      this.basesBusy = true;
-      this.baseError = "";
-      this.bases = [];
-      try {
-        const params = new URLSearchParams({ keyword: this.baseKeyword.trim(), page, pageSize: 12 });
-        const payload = await apiRequest("/workspaces/business/knowledge-bases?" + params, { workspaceContext: this.workspaceContext });
-        this.bases = payload.items || [];
-        this.basePage = payload.page || 0;
-        this.basePages = payload.totalPages || 0;
-      } catch (error) {
-        this.baseError = error.message;
-      } finally {
-        this.basesBusy = false;
-      }
-    },
-    browseBase(base) {
-      this.knowledgeQuery = "";
-      this.knowledgeCategory = base.name;
-      this.openKnowledge("documents");
-    },
     async loadKnowledge(page) {
       if (this.knowledgeBusy) return;
       this.knowledgeBusy = true;
@@ -168,14 +136,6 @@ export default {
       this.openPanel("chat");
       this.draft = null;
       this.$refs.chat?.clearChat();
-    },
-    openOutcome(item) {
-      this.openPanel("chat");
-      this.$emit("open-conversation", item);
-    },
-    outcomeStatus(status) {
-      return { completed: "已完成", success: "已完成", running: "执行中", pending: "等待处理",
-        failed: "失败", cancelled: "已取消", partial: "部分完成", empty: "无结果" }[status] || status || "状态待确认";
     },
   },
 };

@@ -5,9 +5,8 @@
       <button type="button" class="business-note-primary" :disabled="busy || saving" @click="open(null)">＋ 新建笔记</button>
     </div>
     <p v-if="error" role="alert">{{ error }}</p>
-    <div class="business-note-workspace">
-      <div class="business-note-list" aria-label="笔记列表">
-        <p v-if="!busy && !notes.length">暂无笔记。</p>
+    <div v-if="notes.length || page > 0 || active" class="business-note-workspace">
+      <div v-if="notes.length || page > 0" class="business-note-list" aria-label="笔记列表">
         <button v-for="note in notes" :key="note.id" type="button"
           :aria-current="active?.id === note.id ? 'true' : undefined" :disabled="saving" @click="open(note)">
           <strong>{{ note.title }}</strong>
@@ -56,7 +55,6 @@
         </template>
         <p v-if="notice" role="status">{{ notice }}</p>
       </form>
-      <div v-else class="business-note-placeholder">选择一条笔记，或新建笔记开始写作。</div>
     </div>
     <AppConfirmDialog v-if="confirmation" v-bind="confirmation"
       @confirm="settleConfirmation(true)" @cancel="settleConfirmation(false)" />

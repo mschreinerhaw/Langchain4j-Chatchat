@@ -31,6 +31,7 @@
       v-else-if="!hasConversation && !selectedConversation?.missingMessageCount"
       class="hero-panel"
     >
+      <slot name="welcome">
       <div
         class="hero-demo"
         role="img"
@@ -103,6 +104,7 @@
           item
         }}</strong>
       </div>
+      </slot>
     </section>
 
     <ChatMessageList

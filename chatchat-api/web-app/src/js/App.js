@@ -72,6 +72,7 @@ const asyncView = (loader) =>
     timeout: 30000,
     suspensible: false,
   });
+const BusinessWorkspaceView = asyncView(() => import("../views/BusinessWorkspaceView.vue"));
 const ChatAssistantView = asyncView(() => import("../views/ChatAssistantView.vue"));
 const CapabilityMarketView = asyncView(() => import("../views/CapabilityMarketView.vue"));
 const AiSearchView = asyncView(() => import("../views/AiSearchView.vue"));
@@ -105,6 +106,7 @@ const DATA_SCIENCE_TABS = {
 const views = {
   workspaces: WorkspaceSettingsView,
   chat: ChatAssistantView,
+  businessHome: BusinessWorkspaceView,
   search: AiSearchView,
 
   market: CapabilityMarketView,
@@ -240,6 +242,9 @@ export default {
     };
   },
   computed: {
+    chatView() {
+      return this.currentWorkspace?.workspaceId === 'business' ? 'businessHome' : 'chat';
+    },
     workspaceContext() {
       return this.currentWorkspace
         ? {
@@ -292,9 +297,10 @@ export default {
         this.workspacePages?.find((page) => page.id === this.activeView)?.props || {};
       if (this.activeView === "workspaces")
         return {};
-      return this.activeView === "chat"
+      return ["chat", "businessHome"].includes(this.activeView)
         ? {
             ...pageProps,
+            ...(this.activeView === "businessHome" ? { outcomeHistory: this.recentConversations } : {}),
             userId: this.userId,
             tenantId: this.tenantId,
             selectedConversation: this.selectedConversation,
@@ -810,7 +816,7 @@ export default {
       return views[value] ? value : "";
     },
     navigateToView(view) {
-      const requested = view === "system" ? "systemUsers" : views[view] ? view : DEFAULT_VIEW;
+      const requested = view === "system" ? "systemUsers" : view === "chat" ? this.chatView : views[view] ? view : DEFAULT_VIEW;
       const nextView = this.canAccessView(requested) ? requested : this.firstAccessibleView();
       if (!nextView) {
         this.activeView = "";

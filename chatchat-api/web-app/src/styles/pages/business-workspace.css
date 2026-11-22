@@ -1,0 +1,106 @@
+.workspace-business {
+  --business-blue: #315f9e;
+  --business-ink: #23344d;
+  --business-line: #dce7f4;
+  --business-paper: #fcfdff;
+}
+.workspace-business .assistant-content { background: var(--business-paper); }
+.workspace-business .assistant-sidebar { background: #f3f7fd; }
+.business-workspace {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
+  height: 100%;
+  color: var(--business-ink);
+  background: var(--business-paper);
+}
+.business-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px 24px;
+  flex-wrap: wrap;
+  padding: 16px clamp(16px, 3vw, 30px);
+  border-bottom: 1px solid var(--business-line);
+  background: #fff;
+}
+.business-header nav, .business-actions {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.business-workspace button, .business-actions input, .business-actions select {
+  font: inherit;
+}
+.business-header button, .business-panel button, .business-welcome button {
+  border: 1px solid var(--business-line);
+  border-radius: 9px;
+  padding: 7px 11px;
+  color: var(--business-blue);
+  background: #fff;
+  cursor: pointer;
+}
+.business-header button { border-color: transparent; }
+.business-header button[aria-current], .business-header button:hover,
+.business-panel button:hover:enabled, .business-welcome button:hover { background: #eaf3ff; }
+.business-panel button:disabled { opacity: .55; cursor: default; }
+.business-panel {
+  flex: 1;
+  overflow: auto;
+  padding: clamp(16px, 3vw, 32px);
+}
+.business-panel h1 { margin: 0 0 16px; font-size: 24px; }
+.business-actions input, .business-actions select {
+  min-width: 0;
+  max-width: 100%;
+  border: 1px solid var(--business-line);
+  border-radius: 9px;
+  padding: 7px 10px;
+  background: #fff;
+  color: var(--business-ink);
+}
+.business-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 230px), 1fr));
+  gap: 12px;
+  margin: 16px 0;
+}
+.business-card {
+  margin-top: 10px;
+  padding: 15px;
+  min-width: 0;
+  overflow-wrap: anywhere;
+  border: 1px solid var(--business-line);
+  border-radius: 13px;
+  background: #fff;
+}
+.business-grid .business-card { margin: 0; }
+.business-card h2 { margin: 4px 0 8px; font-size: 16px; }
+.business-card small { color: #536d8b; }
+.business-card details { margin: 9px 0; }
+.business-card button { margin: 5px 5px 0 0; }
+.business-outcome { display: flex; justify-content: space-between; align-items: center; gap: 10px; }
+.business-workspace > .chat-view { flex: 1; min-height: 0; }
+.business-welcome {
+  padding: clamp(18px, 4vw, 40px);
+  border: 1px solid var(--business-line);
+  border-radius: 18px;
+  background: linear-gradient(140deg, #fff, #edf5ff);
+  text-align: left;
+}
+.business-mark {
+  width: 48px;
+  height: 48px;
+  display: grid;
+  place-items: center;
+  border-radius: 13px;
+  background: var(--business-blue);
+  color: #fff;
+}
+.business-welcome .business-actions { margin-top: 10px; }
+@media (max-width: 560px) {
+  .business-outcome { flex-wrap: wrap; }
+  .business-header button { padding: 5px 7px; }
+}

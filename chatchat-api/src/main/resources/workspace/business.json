@@ -1,0 +1,25 @@
+{
+  "schemaVersion": "workspace-manifest.v1",
+  "configVersion": 1,
+  "workspaceId": "business",
+  "appVersion": "1.0.0",
+  "name": "业务工作空间",
+  "icon": "briefcase-business",
+  "description": "业务问答、授权技能与日常工作辅助",
+  "entryPage": "businessHome",
+  "layoutType": "assistant",
+  "pages": [
+    {
+      "id": "businessHome",
+      "menuCode": "businessHome",
+      "componentKey": "businessHome",
+      "props": {}
+    }
+  ],
+  "requiredCapabilities": [
+    "workspace:chat:interact",
+    "workspace:chat:conversation"
+  ],
+  "optionalCapabilities": [],
+  "defaultSkillIds": []
+}

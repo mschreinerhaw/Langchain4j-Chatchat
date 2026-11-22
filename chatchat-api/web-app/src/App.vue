@@ -2,7 +2,7 @@
   <LoginView v-if="!authSession" @login-success="handleLoginSuccess" />
   <AssistantLayout
     v-else
-    :class="{ 'workspace-changing': workspaceLoading && workspaceReady }"
+    :class="{ 'workspace-changing': workspaceLoading && workspaceReady, 'workspace-business': chatView === 'businessHome' }"
     :active-view="activeView"
     :active-conversation-id="activeHistoryId"
     :history-error="historyError"
@@ -94,6 +94,7 @@
         @conversation-active="handleConversationActive"
         @history-saved="handleHistorySaved"
         @ask-ai="handleAskAiFromSearch"
+        @open-conversation="selectConversation"
         @navigate="handleNavigate"
         @select-agent="handleSelectAgentShortcut"
         @open-favorite="handleOpenFavoriteShortcut"
@@ -103,7 +104,7 @@
     <button
       v-if="
         !['workspaces', 'toolPublications', 'toolCategories'].includes(activeView) &&
-        canAccessView('chat')
+        canAccessView(chatView)
       "
       class="floating-new-conversation"
       v-floating-drag

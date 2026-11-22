@@ -23,14 +23,17 @@ class AuthorizedResourceCatalogControllerTest {
         var request = new MockHttpServletRequest();
         request.setAttribute(ApiAuthenticationFilter.CURRENT_TENANT_ID, "tenant");
         request.setAttribute(ApiAuthenticationFilter.CURRENT_USER_ID, "caller");
-        var data = (Map<?, ?>) controller.skills(request, "", "", "", 1, 1).getData();
+        var data = (Map<?, ?>) controller.skills(request, "", "", "", "", false, 1, 1).getData();
         assertThat((List<?>)data.get("skills")).hasSize(1);
         assertThat(((DomainSkillEntity)((List<?>)data.get("skills")).get(0)).getId()).isEqualTo("second");
         assertThat(data.get("total")).isEqualTo(2);
         assertThat(data.get("skillCount")).isEqualTo(2);
         assertThat(data.get("categories").toString()).contains("finance").doesNotContain("secret");
-        var drafts = (Map<?, ?>) controller.skills(request, "", "", "DRAFT", 0, 10).getData();
+        var drafts = (Map<?, ?>) controller.skills(request, "", "", "DRAFT", "", false, 0, 10).getData();
         assertThat((List<?>)drafts.get("skills")).isEmpty();
+        var cards = (Map<?, ?>) controller.skills(request, "", "", "", "hidden,allowed", true, 0, 10).getData();
+        assertThat(cards.get("skills")).isEqualTo(List.of(
+            new AuthorizedResourceCatalogController.SkillSummary("allowed", "allowed", "description", "finance")));
     }
     private DomainSkillEntity skill(String id, String category) {
         var skill = new DomainSkillEntity(); skill.setId(id); skill.setName(id); skill.setCategory(category);

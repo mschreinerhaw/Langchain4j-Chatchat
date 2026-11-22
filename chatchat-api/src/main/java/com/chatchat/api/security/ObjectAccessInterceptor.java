@@ -14,6 +14,7 @@ import java.util.Map;
 public class ObjectAccessInterceptor implements HandlerInterceptor {
     private final ObjectAccessService access;
     private final AgentRuntime runtime;
+    private final com.chatchat.api.workspace.WorkspaceOriginService origins;
     @Override
     @SuppressWarnings("unchecked")
     public boolean preHandle(HttpServletRequest request, HttpServletResponse response, Object handler) {
@@ -21,23 +22,27 @@ public class ObjectAccessInterceptor implements HandlerInterceptor {
         var variables = (Map<String, String>) request.getAttribute(HandlerMapping.URI_TEMPLATE_VARIABLES_ATTRIBUTE);
         if (variables == null) variables = Map.of();
         String path = request.getRequestURI().substring(request.getContextPath().length());
+        if (path.startsWith("/api/v1/interactions") || path.startsWith("/api/v1/conversations")
+            || path.startsWith("/api/v1/data/history") || path.startsWith("/api/v1/agent/tasks")
+            || path.startsWith("/api/v1/ui-artifacts") || path.startsWith("/api/v1/search"))
+            origins.requireBusinessHeader(request);
         if ((path.equals("/api/v1/agent/runtime/snapshot") || path.equals("/api/v1/agent/runtime/quality"))
             && !access.canManageTasks(request))
             throw new SecurityException("Tenant-wide runtime data requires the existing task management permission");
         if (path.startsWith("/api/v1/conversations")) {
             access.requireUser(request, variables.get("userId"));
-            access.requireConversation(request, variables.get("conversationId"), false);
+            origins.requireBusinessOrigin(request, "CONVERSATION", variables.get("conversationId"));
         }
         if (path.startsWith("/api/v1/data/history")) {
             access.requireUser(request, variables.get("userId"));
-            access.requireConversation(request, variables.get("historyId"), false);
+            origins.requireBusinessOrigin(request, "CONVERSATION", variables.get("historyId"));
         }
         if (path.startsWith("/api/v1/ui-artifacts") && variables.containsKey("artifactId"))
-            access.requireArtifact(request, variables.get("artifactId"));
+            origins.requireBusinessOrigin(request, "UI_ARTIFACT", variables.get("artifactId"));
         if (path.startsWith("/api/v1/agent/tasks")) {
-            if (variables.containsKey("taskId")) access.requireTask(request, variables.get("taskId"));
+            origins.requireBusinessOrigin(request, "TASK", variables.get("taskId"));
             if (variables.containsKey("todoId")) access.requireTodo(request, variables.get("todoId"));
-            access.requireConversation(request, request.getParameter("sessionId"), false);
+            origins.requireBusinessOrigin(request, "CONVERSATION", request.getParameter("sessionId"));
             if (SetHolder.ADMIN_SUMMARIES.contains(path) && !access.canManageTasks(request))
                 throw new SecurityException("Tenant-wide task data requires the existing task management permission");
         }

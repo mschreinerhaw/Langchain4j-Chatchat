@@ -1,10 +1,13 @@
 package com.chatchat.api.security;
 
+import com.chatchat.api.workspace.WorkspaceOriginService;
+import com.chatchat.api.workspace.WorkspaceService;
+import com.chatchat.enterprise.repository.workspace.WorkspaceResourceOriginRepository;
+
 import com.chatchat.agents.runtime.AgentRuntime;
 import com.chatchat.api.exception.GlobalExceptionHandler;
 import com.chatchat.api.controller.chat.ConversationController;
 import com.chatchat.api.controller.datascience.DataQueryController;
-import com.chatchat.api.workspace.WorkspaceOriginService;
 import com.chatchat.chat.interaction.model.InteractionRequest;
 import com.chatchat.enterprise.service.EnterpriseAdminService;
 import org.junit.jupiter.api.*;
@@ -40,7 +43,8 @@ class ObjectAccessPolicyTest {
         origins=mock(WorkspaceOriginService.class);
         when(origins.prepare(any(),anyString())).thenAnswer(call->call.getArgument(1));
         mvc = MockMvcBuilders.standaloneSetup(new Surface())
-            .addInterceptors(new ObjectAccessInterceptor(access, mock(AgentRuntime.class)))
+            .addInterceptors(new ObjectAccessInterceptor(access, mock(AgentRuntime.class), new WorkspaceOriginService(mock(WorkspaceService.class),
+                mock(WorkspaceResourceOriginRepository.class), null, access, jdbc, null)))
             .setControllerAdvice(new GlobalExceptionHandler(), new ObjectRequestAdvice(access, origins))
             .build();
     }

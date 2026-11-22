@@ -75,6 +75,7 @@ public class WorkspaceOriginService {
         access.requireConversation(request, sessionId, true);
         // Existing objects are authorized by their persisted owner, independent of a stale/forged UI source.
         String source = existing ? null : source(request);
+        if (existing) requireBusinessOrigin(request, "CONVERSATION", sessionId);
         String session = conversations.ensureConversationId(access.tenant(request), sessionId, access.user(request));
         entityManager.flush(); // Make the persisted owner visible to the central JDBC policy in this transaction.
         access.requireConversation(request, session, false);
@@ -96,6 +97,17 @@ public class WorkspaceOriginService {
         row.setTenantId(access.tenant(request)); row.setResourceType("CONVERSATION"); row.setResourceId(session);
         row.setWorkspaceId(source); row.setCreatorUserId(access.user(request)); origins.saveAndFlush(row);
     }
+    public void requireBusinessOrigin(HttpServletRequest request, String type, String id) {
+        if (id == null || id.isBlank()) return;
+        if (context(request, type, id).filter(origin -> BusinessWorkspaceMigration.ID.equals(origin.getWorkspaceId())).isPresent())
+            workspaces.requireAvailable(request, BusinessWorkspaceMigration.ID);
+    }
+
+    public void requireBusinessHeader(HttpServletRequest request) {
+        if (BusinessWorkspaceMigration.ID.equals(request.getHeader(HEADER)))
+            workspaces.requireAvailable(request, BusinessWorkspaceMigration.ID);
+    }
+
     @Transactional(readOnly = true)
     public Optional<WorkspaceResourceOrigin> context(HttpServletRequest request, String type, String id) {
         String session;

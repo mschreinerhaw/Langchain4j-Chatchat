@@ -62,6 +62,7 @@
 
     <section v-if="panel === 'guides'" class="business-panel">
       <h1>岗位工作</h1>
+      <BusinessRoleNotes :key="'guides:' + userId + ':' + tenantId" panel="guides" :workspace-context="workspaceContext" />
       <p v-if="!guideList.length">当前部门暂无岗位指引。</p>
       <article v-for="guide in guideList" :key="guide" class="business-card">
         <h2>{{ guide }}</h2>
@@ -98,6 +99,7 @@
 
     <section v-if="panel === 'outcomes'" class="business-panel">
       <h1>工作成果</h1>
+      <BusinessRoleNotes :key="'outcomes:' + userId + ':' + tenantId" panel="outcomes" :workspace-context="workspaceContext" />
       <p v-if="!outcomeHistory.length">暂无业务会话记录。</p>
       <article v-for="item in outcomeHistory" :key="item.id" class="business-card business-outcome">
         <div><h2>{{ item.title || '业务会话' }}</h2><small>{{ outcomeStatus(item.status) }}</small></div>

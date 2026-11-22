@@ -1143,6 +1143,7 @@ export default {
     },
 
     handleNewConversation() {
+      this.businessPanel = "chat";
       this.selectedConversation = null;
       this.activeHistoryId = "";
       this.pendingChatDraft = null;

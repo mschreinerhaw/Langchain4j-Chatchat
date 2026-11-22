@@ -1,11 +1,12 @@
 import ChatAssistantView from "../../views/ChatAssistantView.vue";
+import BusinessRoleNotes from "../../components/BusinessRoleNotes.vue";
 import { apiRequest } from "../../services/api";
 
 const lines = (value) => [...new Set(value.split("\n").map((item) => item.trim()).filter(Boolean))];
 
 export default {
   name: "BusinessWorkspaceView",
-  components: { ChatAssistantView },
+  components: { BusinessRoleNotes, ChatAssistantView },
   props: {
     panel: { type: String, default: "chat" },
     title: { type: String, default: "" },

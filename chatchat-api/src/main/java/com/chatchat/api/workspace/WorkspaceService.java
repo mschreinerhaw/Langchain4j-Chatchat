@@ -98,7 +98,7 @@ public class WorkspaceService {
             throw new SecurityException("Workspace access denied");
         return row;
     }
-    private Set<String> permissions(HttpServletRequest request) {
+    Set<String> permissions(HttpServletRequest request) {
         if (access.user(request) == null) throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Authenticated identity required");
         var user = identities.getUserView(access.user(request));
         if (!"enabled".equals(user.status()) || !Objects.equals(user.tenantId(), access.tenant(request)))
@@ -140,7 +140,7 @@ public class WorkspaceService {
         preferences.saveAndFlush(row);
         return preference(request);
     }
-    private void requireManagement(HttpServletRequest request) {
+    void requireManagement(HttpServletRequest request) {
         if (!permissions(request).contains("system:workspaces:manage")) throw new SecurityException("Workspace management denied");
     }
     @Transactional(readOnly = true)
@@ -174,7 +174,7 @@ public class WorkspaceService {
         registry.saveAllAndFlush(rows);
         audit(request, "default", id);
     }
-    private void audit(HttpServletRequest request, String action, String id) {
+    void audit(HttpServletRequest request, String action, String id) {
         var log = new com.chatchat.enterprise.entity.audit.SysAuditLog();
         log.setTenantId(access.tenant(request)); log.setActorId(access.user(request));
         log.setModuleName("workspace"); log.setActionName(action); log.setResourceType("workspace");

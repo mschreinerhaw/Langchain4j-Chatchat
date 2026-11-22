@@ -222,6 +222,58 @@ class WorkspaceIntegrationTest {
         mvc.perform(get("/api/v1/interactions/resources/skills").header("Authorization", authorization)
             .header("X-Workspace-Id", "business")).andExpect(status().isForbidden());
     }
+    @Test void businessRoleNotesArePublishedPerPanelAndRestrictedToTenantRoleMembers() throws Exception {
+        String reader = userToken(false);
+        String other = userToken(false);
+        String readerRole = null;
+        for (String token : List.of(reader, other)) {
+            var user = identities.resolveSessionByToken(token).orElseThrow();
+            String role = userRoles.findByUserId(user.id()).get(0).getRoleId();
+            if (token.equals(reader)) readerRole = role;
+            var grant = new SysRolePermission();
+            grant.setTenantId(tenant);
+            grant.setRoleId(role);
+            grant.setPermissionId(permissions.findByPermissionCode("workspace:business:access").orElseThrow().getId());
+            rolePermissions.saveAndFlush(grant);
+        }
+        var foreignRole = new SysRole();
+        foreignRole.setTenantId("unrelated-workspace-tenant");
+        foreignRole.setRoleCode("WS_" + UUID.randomUUID());
+        foreignRole.setRoleName("Foreign role");
+        roles.saveAndFlush(foreignRole);
+        String api = "/api/v1/workspaces/business/role-notes/";
+        String admin = "/api/v1/enterprise/workspaces/business/role-notes/";
+        String guide = "{\"title\":\"Guide for reader\",\"body\":\"Validate source documents\"}";
+        String outcome = "{\"title\":\"Outcome for reader\",\"body\":\"Attach evidence\"}";
+        mvc.perform(put(admin + "guides/" + readerRole).header("Authorization", "Bearer " + reader)
+            .contentType("application/json").content(guide)).andExpect(status().isForbidden());
+        mvc.perform(put(admin + "guides/" + foreignRole.getId()).header("Authorization", "Bearer " + adminToken)
+            .contentType("application/json").content(guide)).andExpect(status().isNotFound());
+        mvc.perform(put(admin + "skills/" + readerRole).header("Authorization", "Bearer " + adminToken)
+            .contentType("application/json").content(guide)).andExpect(status().isNotFound());
+        for (String panel : List.of("guides", "outcomes")) {
+            String payload = "guides".equals(panel) ? guide : outcome;
+            mvc.perform(put(admin + panel + "/" + readerRole).header("Authorization", "Bearer " + adminToken)
+                .contentType("application/json").content(payload)).andExpect(status().isOk());
+            mvc.perform(get(api + panel).header("Authorization", "Bearer " + other))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.data.notes").isEmpty())
+                .andExpect(jsonPath("$.data.roles").isEmpty()).andExpect(jsonPath("$.data.canPublish").value(false));
+        }
+        mvc.perform(get(api + "guides").header("Authorization", "Bearer " + adminToken))
+            .andExpect(status().isOk()).andExpect(jsonPath("$.data.canPublish").value(true))
+            .andExpect(jsonPath("$.data.roles[?(@.name == 'Foreign role')]").isEmpty());
+        mvc.perform(put(admin + "guides/" + readerRole).header("Authorization", "Bearer " + adminToken)
+            .contentType("application/json").content(guide.replace("Validate", "Verify"))).andExpect(status().isOk());
+        mvc.perform(get(api + "guides").header("Authorization", "Bearer " + reader))
+            .andExpect(status().isOk()).andExpect(jsonPath("$.data.notes.length()").value(1))
+            .andExpect(jsonPath("$.data.notes[0].body").value("Verify source documents"));
+        mvc.perform(delete(admin + "guides/" + readerRole).header("Authorization", "Bearer " + adminToken))
+            .andExpect(status().isOk());
+        mvc.perform(get(api + "guides").header("Authorization", "Bearer " + reader))
+            .andExpect(status().isOk()).andExpect(jsonPath("$.data.notes").isEmpty());
+        mvc.perform(get(api + "outcomes").header("Authorization", "Bearer " + reader))
+            .andExpect(status().isOk()).andExpect(jsonPath("$.data.notes[0].title").value("Outcome for reader"));
+    }
     @Test void authorizedUserSwitchesAndRestoresPreferencesUsingOneToken() throws Exception {
         String token = userToken(true);
         for (String id : List.of("zhice", "data-science", "zhice")) {

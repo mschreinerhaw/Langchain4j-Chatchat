@@ -1,4 +1,4 @@
-import { BookOpen, BriefcaseBusiness, FolderOpen, MessageSquare, Plus, Sparkles } from "@lucide/vue";
+import { BookOpen, BriefcaseBusiness, FolderOpen, MessageSquare, Sparkles } from "@lucide/vue";
 
 
 const entries = [
@@ -11,8 +11,7 @@ const entries = [
 
 export default {
   name: "BusinessWorkspaceNavigation",
-  components: { Plus },
   props: { panel: String, collapsed: Boolean },
-  emits: ["select", "new-conversation"],
+  emits: ["select"],
   setup: () => ({ entries }),
 };

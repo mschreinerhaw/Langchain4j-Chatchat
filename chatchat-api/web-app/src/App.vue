@@ -39,7 +39,7 @@
     <template v-if="workspaceReady && chatView === 'businessHome' && canAccessView(chatView)" #workspace-navigation="{ collapsed }">
       <BusinessWorkspaceNavigation
         :panel="businessPanel" :collapsed="collapsed"
-        @select="businessPanel = $event" @new-conversation="handleNewConversation"
+        @select="businessPanel = $event"
       />
     </template>
     <template #workspace-switcher>
@@ -111,9 +111,10 @@
     <button
       v-if="
         !['workspaces', 'toolPublications', 'toolCategories'].includes(activeView) &&
-        chatView !== 'businessHome' && canAccessView(chatView)
+        canAccessView(chatView)
       "
       class="floating-new-conversation"
+      :class="{ 'business-floating-new-chat': chatView === 'businessHome' }"
       v-floating-drag
       type="button"
       title="新建对话"

@@ -44,16 +44,7 @@
 }
 
 .business-side-nav button svg { flex: none; }
-.business-side-nav .business-new-chat {
-  justify-content: center;
-  margin-bottom: 9px;
-  border-color: #d3e0f7;
-  background: #fff;
-  color: #23458f;
-}
-
-.business-side-nav .business-nav-item:hover,
-.business-side-nav .business-new-chat:hover { background: #e5edfc; }
+.business-side-nav .business-nav-item:hover { background: #e5edfc; }
 .business-side-nav .business-nav-item[aria-current="page"] {
   border-color: #d9e4fa;
   background: #dfe9fd;
@@ -201,6 +192,7 @@
   flex: 1;
   overflow: auto;
   padding: clamp(20px, 5vw, 58px);
+  padding-bottom: 85px;
 }
 .business-panel h1 { margin: 0 0 18px; font-size: clamp(24px, 3vw, 32px); }
 .business-actions input, .business-actions select {
@@ -233,6 +225,26 @@
 .business-card details { margin: 9px 0; }
 .business-card button { margin: 5px 5px 0 0; }
 .business-outcome { display: flex; justify-content: space-between; align-items: center; gap: 10px; }
+
+.business-role-notes:has(> :is(button, form, p, article)) { margin-bottom: 18px; }
+.business-note-form {
+  display: grid;
+  gap: 12px;
+  max-width: 620px;
+}
+.business-note-form label { display: grid; gap: 6px; font-size: 13px; }
+.business-note-form :is(input, select, textarea) {
+  width: 100%;
+  min-width: 0;
+  padding: 8px 10px;
+  border: 1px solid var(--business-line);
+  border-radius: 8px;
+  font: inherit;
+  background: #fff;
+  color: var(--business-ink);
+}
+.business-note-form textarea { resize: vertical; }
+.business-note-body { white-space: pre-wrap; line-height: 1.65; }
 
 .workspace-business .business-workspace .prompt-card.prompt-simple-tools {
   --composer-textarea-min-height: 56px;
@@ -292,6 +304,11 @@
 }
 
 .business-workspace .prompt-simple-tools .send-button.stopping { background: #c33548; }
+
+@media (max-width: 1200px) {
+  .workspace-business .business-floating-new-chat { bottom: 120px; }
+  .workspace-business .business-panel { padding-bottom: 170px; }
+}
 
 @media (max-width: 820px) {
   .workspace-business, .workspace-business.sidebar-collapsed {

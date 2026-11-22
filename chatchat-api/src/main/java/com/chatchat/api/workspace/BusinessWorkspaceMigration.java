@@ -21,6 +21,17 @@ public class BusinessWorkspaceMigration {
     @Order(175)
     @Transactional
     public void seed() throws java.io.IOException {
+        jdbc.execute("""
+            create table if not exists business_workspace_role_note (
+                tenant_id varchar(64) not null,
+                role_id varchar(64) not null,
+                panel varchar(16) not null,
+                title varchar(120) not null,
+                body varchar(4000) not null,
+                primary key (tenant_id, role_id, panel),
+                foreign key (role_id) references sys_role(id) on delete cascade
+            )
+            """);
         String manifest = new ClassPathResource("workspace/business.json").getContentAsString(StandardCharsets.UTF_8);
         jdbc.update("""
             insert into workspace_registry(id,status,access_permission_code,manifest_json,default_workspace,version,created_at,updated_at)

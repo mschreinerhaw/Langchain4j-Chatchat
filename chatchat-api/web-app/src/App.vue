@@ -113,9 +113,10 @@
         !['workspaces', 'toolPublications', 'toolCategories'].includes(activeView) &&
         canAccessView(chatView)
       "
+      :key="chatView"
       class="floating-new-conversation"
       :class="{ 'business-floating-new-chat': chatView === 'businessHome' }"
-      v-floating-drag
+      v-floating-drag="chatView === 'businessHome' ? { storageKey: 'chatchat.business.floatingNewChat' } : undefined"
       type="button"
       title="新建对话"
       aria-label="新建对话"

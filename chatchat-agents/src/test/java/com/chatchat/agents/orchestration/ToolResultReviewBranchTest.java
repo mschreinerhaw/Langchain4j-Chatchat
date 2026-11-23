@@ -119,9 +119,10 @@ class ToolResultReviewBranchTest {
         var enriched = engine.enrichPlanSearchInput(model, "Find the customer warehouse",
             new InterpretationPlanRuntime.StepInputEnrichmentRequest(step, input, Map.of(), null), scope, "model", () -> false);
         assertThat(enriched).containsEntry("filters", Map.of("assetType", "database", "queryTerms", List.of("customer warehouse")));
-        var output = Map.of("assets", List.of(Map.of("assetId", "warehouse", "name", "warehouse",
-            "displayName", "Warehouse display", "type", "database", "environment", "TEST",
-            "endpoint", "internal endpoint"), Map.of("assetId", "archive")));
+        var output = Map.of("assets", List.of(Map.of("asset", Map.of("assetId", "warehouse", "name", "warehouse",
+            "displayName", "Warehouse display", "environment", "TEST", "endpoint", "internal endpoint"),
+            "assetType", "database", "analysisIdentity", Map.of("toolDescription", "Current warehouse",
+                "endpoint", "internal endpoint")), Map.of("assetId", "archive")));
         var review = engine.reviewInterpretationPlanToolResult(model, "Find the customer warehouse", null, () -> false,
             new InterpretationPlanRuntime.StepReviewRequest(null, step, execution("asset_query", true, output), Map.of(), 1, 1),
             Map.of(), scope, "model");
@@ -129,7 +130,7 @@ class ToolResultReviewBranchTest {
             eq(com.chatchat.agents.orchestration.retrieval.ClineDiscoveryPort.Stage.CONFIRM_ASSETS),
             argThat(payload -> ((List<?>) payload.get("candidates")).get(0).equals(Map.of(
                 "assetId", "warehouse", "name", "warehouse", "displayName", "Warehouse display",
-                "type", "database", "environment", "TEST", "description", ""))), any());
+                "type", "database", "environment", "TEST", "description", "Current warehouse"))), any());
         if (authorized) assertThat(review.metadata()).containsEntry("selectedAssetIds", List.of("warehouse"));
         else assertThat(review.metadata()).containsEntry("candidateSelectionErrorCode", "CLINE_ASSET_CONFIRMATION_REQUIRED");
         verifyNoInteractions(model);

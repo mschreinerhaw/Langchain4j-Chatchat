@@ -3939,12 +3939,16 @@ class AgentOrchestrationEngine implements AgentRunExecutor, ResumableAgentRunExe
                 var asset = candidate.get("asset") instanceof Map<?, ?> nested ? asMap(nested) : candidate;
                 String id = stringValue(firstObject(asset, "id", "assetId", "name", "assetName", "toolName"));
                 if (id == null) continue;
+                var identity = asMap(candidate.get("analysisIdentity"));
+                String type = stringValue(firstObject(asset, "assetType", "type"));
+                String description = stringValue(firstObject(asset, "description", "summary"));
                 var card = Map.<String, Object>of("assetId", id,
                     "name", Objects.toString(firstObject(asset, "name", "assetName"), ""),
                     "displayName", Objects.toString(asset.get("displayName"), ""),
-                    "type", Objects.toString(firstObject(asset, "assetType", "type"), ""),
+                    "type", Objects.toString(type != null ? type : firstObject(candidate, "assetType", "type"), ""),
                     "environment", Objects.toString(asset.get("environment"), ""),
-                    "description", Objects.toString(firstObject(asset, "description", "summary"), ""));
+                    "description", Objects.toString(description != null ? description
+                        : firstObject(identity, "toolDescription", "description"), ""));
                 if (descriptors.putIfAbsent(id, card) != null)
                     throw new IllegalArgumentException("Ambiguous asset identity");
             }

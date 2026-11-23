@@ -13,6 +13,22 @@ class TemplateInvocationBridgeTest {
 
     private final TemplateInvocationBridge bridge = new TemplateInvocationBridge();
 
+    @Test void usesDeclaredDateDefaultWhenTheQuestionHasNoTimeEvidence() {
+        var descriptor = template("ORDER_QUERY",
+            Map.of("asOf", Map.of("type", "string", "format", "date", "default", "2025-01-01")),
+            new String[]{"asOf"});
+        String question = "Show current assets for account 12345678";
+        var protocol = Map.<String, Object>of("protocol_version", TemplateInvocationBridge.PROTOCOL_VERSION,
+            "template_id", "ORDER_QUERY", "arguments", Map.of("asOf", Map.of("value", "2026-11-23",
+                "source", "user_query", "evidence", Map.of("quote", "current assets for account 12345678",
+                    "interpretation", "model"))), "unresolved_parameters", List.of());
+        var result = bridge.prepare(new TemplateInvocationBridge.BridgeRequest("api_template_execute", null,
+            "ORDER_QUERY", descriptor, Map.of(), protocol, true, false,
+            new TemplateInvocationBridge.EvidenceContext(question, Map.of())));
+        assertThat(result.parameters()).containsEntry("asOf", "2025-01-01");
+        assertThat(result.parameterEvidence().get("asOf").source()).isEqualTo("template_default");
+    }
+
     @Test void acceptsClineNormalizedValuesAndRecordsDefaultsForOmittedFields() {
         var descriptor = template("ORDER_QUERY",
             Map.of("limit", Map.of("type", "integer", "default", 20),

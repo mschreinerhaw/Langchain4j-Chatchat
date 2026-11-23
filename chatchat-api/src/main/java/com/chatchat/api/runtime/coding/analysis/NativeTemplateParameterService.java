@@ -3,6 +3,7 @@ package com.chatchat.api.runtime.coding.analysis;
 import com.chatchat.agents.orchestration.tool.ClineTemplateParameterPort;
 import com.chatchat.agents.orchestration.retrieval.ClineDiscoveryPort;
 import com.chatchat.agents.runtime.toolcall.TemplateInvocationBridge;
+import com.chatchat.agents.runtime.toolcall.RequiredTemporalArgumentGrounding;
 import com.chatchat.api.assets.UserAssetService;
 import com.chatchat.api.runtime.coding.CodingInvocationContext;
 import com.chatchat.api.runtime.coding.nativecline.NativeCodingTasks;
@@ -96,9 +97,9 @@ public final class NativeTemplateParameterService implements ClineTemplateParame
                         requestId + ":input", inputName, "application/json", descriptors);
                     var guide = assets.store(owner, UserAssetService.Kind.CONTEXT, task, scope.runId(),
                         requestId + ":skill", "SKILL.md", "text/markdown", skill);
-                    ZoneId zone = ZoneId.systemDefault();
-                    String instruction = "Read the supplied SKILL.md and " + inputName + ". Task reference date: " + LocalDate.now(zone) + " in " + zone
-                        + ". Follow the skill and deliver only its RESULT.";
+                    String instruction = "Read the supplied SKILL.md and " + inputName + "."
+                        + temporalReference(skillName, inputData.get("question"))
+                        + " Follow the skill and deliver only its RESULT.";
                     task = coding.submit(ownerScope, requestId, List.of(input.id(), guide.id()), instruction,
                         modelName, List.of("RESULT"), Map.of()).taskId();
                 }
@@ -118,6 +119,14 @@ public final class NativeTemplateParameterService implements ClineTemplateParame
                 throw new IllegalStateException("Cline parameter task exceeded its wait budget", stopped);
             }
         });
+    }
+
+    static String temporalReference(String skillName, Object question) {
+        if (!"template-parameter-extraction".equals(skillName) || !(question instanceof String query)
+            || !RequiredTemporalArgumentGrounding.hasRelativeTimeExpression(query)) return "";
+        ZoneId zone = ZoneId.systemDefault();
+        return " Interpret only the explicit relative time in the question using " + LocalDate.now(zone)
+            + " in " + zone + ".";
     }
 
     List<Map<String, Object>> protocols(JsonNode result, List<Map<String, Object>> templates, Selection selection) {

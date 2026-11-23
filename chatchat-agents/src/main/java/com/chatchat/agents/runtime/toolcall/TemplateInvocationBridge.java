@@ -461,7 +461,9 @@ public final class TemplateInvocationBridge {
                 unresolved.add(declaredName);continue;
             }
             try {
-                ParameterEvidence verifiedEvidence = verifyEvidence(name, value, source, evidence, evidenceContext);
+                Map<String, Object> property = objectMap(objectMap(schema.get("properties")).get(declaredName));
+                ParameterEvidence verifiedEvidence = verifyEvidence(name, value, source, evidence, evidenceContext,
+                    "date".equals(property.get("format")) || "date-time".equals(property.get("format")));
                 parameters.put(name, value);
                 evidenceByParameter.put(declaredName, verifiedEvidence);
             } catch(TemplateBridgeException unverified) {
@@ -476,7 +478,8 @@ public final class TemplateInvocationBridge {
                                              Object proposedValue,
                                              String source,
                                              Object rawEvidence,
-                                             EvidenceContext context) {
+                                             EvidenceContext context,
+                                             boolean temporal) {
         EvidenceContext evidenceContext = context == null ? EvidenceContext.empty() : context;
         if (USER_QUERY_SOURCE.equals(source)) {
             String quote = rawEvidence instanceof Map<?, ?> map
@@ -499,6 +502,11 @@ public final class TemplateInvocationBridge {
             // enforced separately. Tool-result values below still require exact equality.
             boolean modelInterpretation = rawEvidence instanceof Map<?, ?> evidence
                 && "model".equals(evidence.get("interpretation"));
+            if (temporal && modelInterpretation
+                && !RequiredTemporalArgumentGrounding.hasTemporalEvidence(quote, proposedValue)) {
+                throw failure("TEMPLATE_PARAMETER_EVIDENCE_MISMATCH",
+                    "argument " + parameter + " requires a user-query date or time expression");
+            }
             if (!modelInterpretation && !compact(quote).contains(compact(String.valueOf(proposedValue)))) {
                 throw failure("TEMPLATE_PARAMETER_EVIDENCE_MISMATCH",
                     "argument " + parameter + " value is not present in its user-query evidence quote");

@@ -93,14 +93,16 @@ public final class NativePublishedTemplate {
     public Map<String, Object> specification(CodingTaskContract task) {
         var template = json.valueToTree(task.runtimeContext().get(CONTEXT)).path("template");
         ZoneId zone = ZoneId.systemDefault();
-        LocalDate referenceDate = referenceDate(task, zone);
-        String temporalContext = referenceDate == null ? "" : " The task reference date is " + referenceDate
+        LocalDate referenceDate = com.chatchat.agents.runtime.toolcall.RequiredTemporalArgumentGrounding
+            .hasRelativeTimeExpression(task.objective().instruction()) ? referenceDate(task, zone) : null;
+        String temporalContext = referenceDate == null ? "" : " Interpret only the explicit relative time using " + referenceDate
             + " in " + zone + ".";
         return Map.of("name", TOOL, "description", "Query the task's published read-only template. "
             + "Extract and normalize the requested values using the template parameter schema. Cite the exact "
             + "source phrase from the original user request in evidence.quote. Set evidence.interpretation=model "
             + "when the submitted value had to be interpreted or normalized. Omit missing values and list their "
-            + "fields in unresolved_parameters."
+            + "fields in unresolved_parameters. Leave dates unresolved when the user provides no time expression. "
+            + "Runtime applies the published template defaults."
             + temporalContext + " Correct invalid fields once. Stop on authorization, quota or query errors. "
             + "After success inspect defaultedFields and disclose any default scope in the report. "
             + template, "inputSchema", Map.of("type", "object", "additionalProperties", false,

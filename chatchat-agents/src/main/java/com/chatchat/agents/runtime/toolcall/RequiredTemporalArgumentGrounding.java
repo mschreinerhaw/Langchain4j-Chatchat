@@ -11,10 +11,29 @@ import java.util.regex.Pattern;
 
 /** Preflight for schema-declared required dates; model arguments are not evidence. */
 public final class RequiredTemporalArgumentGrounding {
+    private static final Pattern RELATIVE_TIME = Pattern.compile(
+        "今天|昨天|前天|明天|本周|这周|上周|下周|本月|这个月|上月|下月|本季度|上季度|下季度|今年|去年|明年|(?:最近|过去|近)[0-9一二三四五六七八九十两]+(?:天|周|个月|月|年)"
+            + "|(?i:\\b(?:today|yesterday|tomorrow|(?:this|last|next)\\s+(?:week|month|quarter|year)|(?:past|last|next)\\s+\\d+\\s+(?:days?|weeks?|months?|quarters?|years?))\\b)");
+    private static final Pattern EXPLICIT_DATE = Pattern.compile(
+        "(?<![0-9])(?:[0-9]{4}[-/.][0-9]{1,2}(?:[-/.][0-9]{1,2})?|(?:[0-9]{4}年)?[0-9]{1,2}月(?:[0-9]{1,2}[日号])?|[0-9]{4}年)(?![0-9])");
     private final Clock clock;
 
     public RequiredTemporalArgumentGrounding() { this(Clock.systemDefaultZone()); }
     public RequiredTemporalArgumentGrounding(Clock clock) { this.clock = clock; }
+
+    public static boolean hasRelativeTimeExpression(String text) {
+        return text != null && RELATIVE_TIME.matcher(text).find();
+    }
+
+    static boolean hasTemporalEvidence(String text, Object value) {
+        if (text == null) return false;
+        if (hasRelativeTimeExpression(text) || EXPLICIT_DATE.matcher(text).find()) return true;
+        String date = String.valueOf(value);
+        if (!date.matches("[0-9]{4}-[0-9]{2}-[0-9]{2}(?:T.*)?")) return false;
+        if (new RequiredTemporalArgumentGrounding().groundedInQuery(date, text)) return true;
+        String compactDate = date.substring(0, 10).replace("-", "");
+        return Pattern.compile("(?<![0-9])" + compactDate + "(?![0-9])").matcher(text).find();
+    }
 
     public void validate(Map<String, Object> arguments, Map<String, Object> schema,
                          String originalQuery, Map<Integer, Object> completedOutputs) {

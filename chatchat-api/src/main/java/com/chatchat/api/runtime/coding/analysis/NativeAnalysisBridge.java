@@ -75,8 +75,8 @@ public final class NativeAnalysisBridge {
                             if(!page.hasMore())break;
                         }
                     }
-                    if (expectedRows >= 0 && expectedRows != source.recordCount())
-                        throw new IllegalStateException("Source row count changed during snapshot publication");
+                    if (expectedRows >= 0 && (offset != expectedRows || source.recordCount() != expectedRows))
+                        throw new IllegalStateException("Snapshot delivered row count differs from the source declared total");
                     if(context.cancellationCheck().getAsBoolean())throw new java.util.concurrent.CancellationException();
                     String sha256=HexFormat.of().formatHex(digest.digest());
                     file=assets.storeSnapshot(UserAssetService.Owner.of(scope),snapshotTask,scope.runId(),

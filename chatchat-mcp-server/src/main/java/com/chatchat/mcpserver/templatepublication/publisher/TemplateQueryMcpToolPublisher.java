@@ -222,6 +222,7 @@ public class TemplateQueryMcpToolPublisher implements com.chatchat.mcpserver.too
             item.put("selectionSource", "template_query_binding");
             List<Map<String, Object>> targets = confirmedTargets.getOrDefault(asset.key(), List.of());
             if (targets.size() == 1) item.put("executionContext", targets.get(0));
+            if (targets.size() > 1) item.put("executionContexts", targets);
             if (asset.businessCategoryCode().equals("external_mcp")) {
                 item.put("executionToolName", asset.templateId());
                 item.put("executionRoute", "published_mcp_tool");

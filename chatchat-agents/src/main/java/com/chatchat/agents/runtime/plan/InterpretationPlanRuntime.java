@@ -7538,10 +7538,30 @@ public class InterpretationPlanRuntime extends AbstractRuntimeWorkflow<Interpret
             }
         }
         List<Map<String, Object>> result = new ArrayList<>();
-        for (Map<String, Object> asset : assets) {
-            if (!admitted.contains(String.valueOf(asset.get("assetId")))) throw new IllegalStateException(
-                "ASSET_TEMPLATE_SCOPE_MISMATCH: selected asset is absent from the authorized template result");
-            for (Map<String, Object> binding : bindings) {
+        Set<String> selectedIds = assets.stream().map(asset -> String.valueOf(asset.get("assetId")))
+            .collect(java.util.stream.Collectors.toSet());
+        for (Map<String, Object> binding : bindings) {
+            String templateId = canonicalTemplateId(firstMapValue(binding, "templateId", "template_id", "template"));
+            Map<String, Object> template = templateId == null || discovery == null
+                ? Map.of() : templateMetadataById(discovery.output(), templateId);
+            Set<String> publishedTargets = new LinkedHashSet<>();
+            Object target = firstValueAtAnyPath(template, "$.executionBinding.executionContext.assetId",
+                "$.sqlExecutionBinding.executionContext.assetId", "$.execution.executionContext.assetId",
+                "$.executionContext.assetId");
+            if (target instanceof String id && !id.isBlank()) publishedTargets.add(id);
+            if (template.get("executionContexts") instanceof Iterable<?> contexts) {
+                for (Object context : contexts) {
+                    String id = stringValue(firstValueAtAnyPath(context, "$.assetId"));
+                    if (id != null) publishedTargets.add(id);
+                }
+            }
+            if (!selectedIds.containsAll(publishedTargets)
+                || (publishedTargets.isEmpty() && !admitted.containsAll(selectedIds))) {
+                throw new IllegalStateException(
+                    "ASSET_TEMPLATE_SCOPE_MISMATCH: selected asset is absent from the authorized template result");
+            }
+            for (Map<String, Object> asset : assets) {
+                if (!publishedTargets.isEmpty() && !publishedTargets.contains(String.valueOf(asset.get("assetId")))) continue;
                 Map<String, Object> bound = new LinkedHashMap<>(binding);
                 bound.put("runtimeSelectedAssetContext", asset);
                 bound.put("bindingId", String.valueOf(asset.get("assetId")) + ":" + binding.get("templateId"));

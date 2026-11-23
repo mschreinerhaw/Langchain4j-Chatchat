@@ -206,6 +206,29 @@ class InterpretationPlanRuntimeTest {
         assertThat(calls).allSatisfy(call -> assertThat(((Map<?, ?>) call.get("arguments")).get("templateId")).isEqualTo("T"));
     }
 
+    @Test
+    void fixedTemplatesBindOnlyTheirOwnPublishedAssets() throws Exception {
+        var runtime = new InterpretationPlanRuntime(mock(ToolRuntimeService.class),
+            new InterpretationPlanValidator(), (InterpretationPlanRuntime.DagExecutionController) null);
+        var bind = InterpretationPlanRuntime.class.getDeclaredMethod("bindReviewedTemplatesToSelectedAssets",
+            List.class, List.class, InterpretationPlanRuntime.StepExecution.class);
+        bind.setAccessible(true);
+        var templates = List.of(
+            Map.of("templateId", "balance", "executionContext", Map.of("assetId", "A")),
+            Map.of("templateId", "liability", "executionContext", Map.of("assetId", "B")));
+        var discovery = new InterpretationPlanRuntime.StepExecution(2, "mcp_tool", "bound_query", true,
+            Map.of("templates", templates), null, null, null, 1L);
+        var bindings = List.of(Map.of("templateId", "balance"), Map.of("templateId", "liability"));
+        var selected = List.of(Map.of("assetId", "A"), Map.of("assetId", "B"), Map.of("assetId", "unused"));
+
+        assertThat(bind.invoke(runtime, bindings, selected, discovery))
+            .isEqualTo(List.of(
+                Map.of("templateId", "balance", "runtimeSelectedAssetContext", selected.get(0), "bindingId", "A:balance"),
+                Map.of("templateId", "liability", "runtimeSelectedAssetContext", selected.get(1), "bindingId", "B:liability")));
+        assertThatThrownBy(() -> bind.invoke(runtime, bindings, List.of(selected.get(0), selected.get(2)), discovery))
+            .hasRootCauseMessage("ASSET_TEMPLATE_SCOPE_MISMATCH: selected asset is absent from the authorized template result");
+    }
+
     private static ToolMetadata batchCapableTemplateMetadata(String toolName) {
         return ToolMetadata.builder().id(toolName).riskLevel("low")
             .metadata(Map.of("batchCapable", true, "templateExecution", true)).build();

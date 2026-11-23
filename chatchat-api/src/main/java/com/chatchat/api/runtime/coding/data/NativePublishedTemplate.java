@@ -256,7 +256,7 @@ public final class NativePublishedTemplate {
             Map<String, Object> parameters, String question, String operation, String digest) {
         String stateKey = optional ? STATE + ":" + operation : STATE;
         String id = grant.templateId();
-        var context = context(task.scope(), grant, question, parameters, binding.path("route").asText())
+        var context = context(task.scope(), grant, question, parameters, binding.path("route").asText(), operation)
             .withAttribute(RegisteredToolAnalysisOperator.CODING_DATA_OPERATION, "data-" + supply.hash(
                 optional ? List.of(task.taskId(), operation) : task.taskId()));
         context = context.withAttribute(RegisteredToolAnalysisOperator.CODING_DATA_PUBLICATION,
@@ -300,7 +300,7 @@ public final class NativePublishedTemplate {
             .filter(entry -> TemplateInvocationBridge.TEMPLATE_DEFAULT_SOURCE.equals(entry.getValue().source()))
             .map(Map.Entry::getKey).sorted().toList());
         receipt.put("status", "DATA_LIMIT_EXCEEDED".equals(result.outputs().get("status"))
-            ? "DATA_LIMIT_EXCEEDED" : "QUERY_FAILED");
+            ? "DATA_LIMIT_EXCEEDED" : result.evidence().size() == 1 ? "QUERY_FAILED" : "QUERY_OUTCOME_UNKNOWN");
         if (tasks.get(task.scope(), task.taskId()).executionControl().stopReason() != null)
             receipt.put("status", "STOPPING");
         else if (result.evidence().size() == 1) {
@@ -682,11 +682,11 @@ public final class NativePublishedTemplate {
     }
 
     private AnalysisContext context(KernelDataScope scope, CodingDataSupplyProperties.Grant grant,
-            String query, Map<String, Object> parameters, String route) {
+            String query, Map<String, Object> parameters, String route, String operation) {
         var roles = scopes.resolve(scope.tenantId(), scope.userId(), grant.skillId(), List.of(), List.of());
         if (!roles.skillAllowed()) throw new SecurityException("Data Skill permission revoked");
         var traceScope = new KernelDataScope(scope.tenantId(), scope.userId(),
-            STATE + "-" + supply.hash(List.of(scope.runId(),grant.templateId())),
+            STATE + "-" + supply.hash(List.of(scope.runId(), grant.templateId(), operation)),
             scope.conversationId(), scope.runId(), scope.environment(), scope.attributes());
         return new AnalysisContext(query, traceScope, grant.skillId(), List.of(), List.of(), roles.roles(), null, Map.of(
             RegisteredToolAnalysisOperator.TOOL_NAME, route,

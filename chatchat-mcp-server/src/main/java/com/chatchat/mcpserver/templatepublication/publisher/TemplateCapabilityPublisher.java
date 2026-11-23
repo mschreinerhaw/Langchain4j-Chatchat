@@ -26,11 +26,7 @@ public class TemplateCapabilityPublisher implements McpToolContributor {
             Map<String, Object> properties = json.convertValue(schema.path("properties"), new com.fasterxml.jackson.core.type.TypeReference<>(){});
             List<String> required = new ArrayList<>(); schema.path("required").forEach(value -> required.add(value.asText()));
             boolean studioSql=snapshot.path("binding").path("sqlRevisionId").isTextual();
-            // Only Studio snapshots admitted by the real read-only execution gate
-            // have this evidence. Keep controlled execution and fresh authorization;
-            // other template families retain their existing high-risk classification.
-            boolean verifiedReadOnly=studioSql && "sql_query_execute".equals(snapshot.path("executor").asText())
-                && snapshot.path("sqlTest").path("success").asBoolean(false);
+            boolean verifiedReadOnly = TemplateCapabilityService.verifiedReadOnly(snapshot);
             String description=row.getDescription() == null || row.getDescription().isBlank() ? row.getTitle() : row.getDescription();
             if(studioSql)description+="\nReturns the existing ToolOutput envelope: SQL rows are at $.data.data.rows and rowCount at $.data.data.rowCount. SQL column names are NOT top-level result fields. Preserve this actual envelope in downstream contracts.";
             List<String> resultColumns = new ArrayList<>();

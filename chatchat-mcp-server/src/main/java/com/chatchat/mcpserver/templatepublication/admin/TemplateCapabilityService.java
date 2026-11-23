@@ -40,6 +40,10 @@ public class TemplateCapabilityService {
     private com.chatchat.mcpserver.audit.InvocationAuditService audit;
     @org.springframework.beans.factory.annotation.Autowired(required = false)
     private com.chatchat.mcpserver.license.McpLicenseService license;
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    private com.chatchat.mcpserver.ops.jmx.JmxMonitorService jmx;
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    private com.chatchat.mcpserver.tool.StandardToolExecutionResultFactory results;
     @org.springframework.beans.factory.annotation.Autowired(required=false)
     private ObjectProvider<com.chatchat.mcpserver.sql.template.SqlTemplateAuthoringService> sqlAuthors;
 
@@ -143,6 +147,12 @@ public class TemplateCapabilityService {
         var invocation=com.chatchat.mcpserver.mcp.McpInvocationContext.current();
         try (var ignored = callers.open(text(proof, "tenantId"), text(proof, "userId"))) {
             var snapshot = definition(row);
+            var guard = map(meta.get("publishedTemplateGuard"));
+            if (guard.isEmpty()) guard = map(map(meta.get("mcpExecutionContext")).get("publishedTemplateGuard"));
+            if (!guard.isEmpty() && (!row.getId().equals(text(guard, "releaseId"))
+                    || !snapshot.path("revision").asText().equals(text(guard, "revision"))
+                    || !verifiedReadOnly(snapshot)))
+                throw new SecurityException("Frozen read-only publication differs from the live release");
             var schema = json.readTree(row.getInputSchemaJson());
             Map<String, Object> parameters = new LinkedHashMap<>();
             for (var entry : (input == null ? Map.<String,Object>of() : input).entrySet()) {
@@ -181,8 +191,17 @@ public class TemplateCapabilityService {
             trustedContext.put("roles", caller == null ? "" : Objects.toString(caller.roles(), ""));
             trustedContext.put("permissionLevel", Objects.toString(arguments.get("permissionLevel"), "read"));
             arguments.put("roles", trustedContext.get("roles"));
-            ToolOutput output = tools.executeEnhancedTool(snapshot.path("executor").asText(), ToolInput.builder()
-                .parameters(arguments).userId(text(proof, "userId")).context(trustedContext).build());
+            ToolOutput output;
+            if ("jmx_monitor_execute".equals(executor)) {
+                if (!verifiedReadOnly(snapshot) || jmx == null || results == null)
+                    throw new SecurityException("Published JMX monitoring is unavailable");
+                var report = jmx.execute(snapshot.path("binding").path("template").asText());
+                output = ToolOutput.builder().success(report.success()).data(results.fromJmx(report))
+                    .errorMessage(report.success() ? null : "JMX monitoring failed").build();
+            } else {
+                output = tools.executeEnhancedTool(executor, ToolInput.builder()
+                    .parameters(arguments).userId(text(proof, "userId")).context(trustedContext).build());
+            }
             if (output == null) throw new IllegalStateException("Template executor produced no result");
             output.setMetadata(new LinkedHashMap<>(output.getMetadata() == null ? Map.of() : output.getMetadata()));
             output.getMetadata().put("templatePublication", Map.of("releaseId", row.getId(), "toolName", name,
@@ -208,9 +227,11 @@ public class TemplateCapabilityService {
         var definition = definition(row);
         return Map.ofEntries(Map.entry("id", row.getId()), Map.entry("logicalId", row.getLogicalId()), Map.entry("toolName", toolName(row)),
             Map.entry("title", row.getTitle()), Map.entry("state", row.getState()), Map.entry("version", row.getReleaseNumber()),
+            Map.entry("boundKey", definition.path("key").asText()),
             Map.entry("templateKey", definition.path("templateKey").asText()), Map.entry("revision", definition.path("revision").asText()),
             Map.entry("assetName", definition.path("assetName").asText()),
             Map.entry("parameterSchema", definition.path("inputSchema")),
+            Map.entry("verifiedReadOnly", verifiedReadOnly(definition)),
             Map.entry("verifiedReadOnlySql", "sql_query_execute".equals(definition.path("executor").asText())
                 && definition.path("binding").path("sqlRevisionId").isTextual()
                 && definition.path("sqlTest").path("success").asBoolean(false)),
@@ -218,6 +239,29 @@ public class TemplateCapabilityService {
             Map.entry("description", Objects.toString(row.getDescription(), "")),
             Map.entry("publishedAt", row.getPublishedAt().toString()));
     }
+    /** Only fixed-target, governed executor families can be exposed to the data supply callback. */
+    public static boolean verifiedReadOnly(com.fasterxml.jackson.databind.JsonNode definition) {
+        var binding = definition.path("binding");
+        if (!"read".equals(binding.path("permissionLevel").asText())) return false;
+        String key = definition.path("templateKey").asText();
+        return switch (definition.path("executor").asText()) {
+            case "sql_query_execute" -> key.startsWith("sql_datasource:")
+                && binding.path("sqlRevisionId").isTextual()
+                && definition.path("sqlTest").path("success").asBoolean(false);
+            case "api_template_execute" -> key.startsWith("api_service:") && nonblank(binding.path("templateId"));
+            case "http_request_execute" -> key.startsWith("http_endpoint:") && nonblank(binding.path("endpointId"))
+                && nonblank(binding.path("template"));
+            case "linux_command_execute" -> key.startsWith("ssh_host:") && nonblank(binding.path("hostId"))
+                && nonblank(binding.path("template"));
+            case "jmx_monitor_execute" -> key.startsWith("jmx_endpoint:") && nonblank(binding.path("template"));
+            default -> false;
+        };
+    }
+
+    private static boolean nonblank(com.fasterxml.jackson.databind.JsonNode value) {
+        return value.isTextual() && !value.asText().isBlank();
+    }
+
     public com.fasterxml.jackson.databind.JsonNode definition(ToolRelease row) {
         try { return json.readTree(row.getDefinitionJson()); } catch (Exception ex) { throw new IllegalStateException("Invalid stored template publication", ex); }
     }

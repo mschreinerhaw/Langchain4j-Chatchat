@@ -33,6 +33,9 @@ public class RegisteredToolAnalysisOperator implements AnalysisCapabilityOperato
     public static final String TOOL_NAME = "runtime.analysis.toolName";
     public static final String TOOL_ARGUMENTS = "runtime.analysis.toolArguments";
     public static final String TOOL_CALLS = "runtime.analysis.toolCalls";
+    public static final String CODING_DATA_PUBLICATION = "runtime.analysis.codingDataPublication";
+    public static final String CODING_DATA_DEADLINE = "runtime.analysis.codingDataDeadline";
+    public static final String CODING_DATA_EVIDENCE_LIMIT = "runtime.analysis.codingDataEvidenceLimit";
     public static final String CODING_DATA_OPERATION = "runtime.analysis.codingDataOperation";
     private static final int MAX_EVIDENCE_CHARS = 65_536;
 
@@ -118,8 +121,8 @@ public class RegisteredToolAnalysisOperator implements AnalysisCapabilityOperato
         return executeSingle(context, scope, plan);
     }
 
-    /** Caller has checked the current immutable publication is a tested read-only SQL revision. */
-    public WorkflowExecutionResult executePublishedReadOnlySql(AnalysisContext context, AnalysisScope scope) {
+    /** Caller has checked the current immutable publication is an eligible read-only revision. */
+    public WorkflowExecutionResult executePublishedReadOnlyTemplate(AnalysisContext context, AnalysisScope scope) {
         return executeSingle(context, scope, null, true);
     }
 
@@ -128,7 +131,7 @@ public class RegisteredToolAnalysisOperator implements AnalysisCapabilityOperato
     }
 
     private WorkflowExecutionResult executeSingle(AnalysisContext context, AnalysisScope scope, WorkflowPlan plan,
-                                                   boolean publishedReadOnlySql) {
+                                                   boolean publishedReadOnlyTemplate) {
         if (scope == null || scope.tenantId() == null || scope.userId() == null)
             return denied("Authenticated tenant and user scope are required");
         String name = String.valueOf(context.attributes().get(TOOL_NAME));
@@ -137,12 +140,12 @@ public class RegisteredToolAnalysisOperator implements AnalysisCapabilityOperato
         if (skill == null || !registry.hasTool(name) || !AnalysisToolBindingPolicy.bound(skill, name, catalog))
             return denied("Tool is not explicitly bound to the selected Skill");
         ToolMetadata metadata = registry.getToolMetadata(name);
-        boolean admittedPublishedSql = publishedReadOnlySql
+        boolean admittedPublishedTemplate = publishedReadOnlyTemplate
             && com.chatchat.common.tool.TemplateToolNames.remote(name) != null
             && metadata != null && "execute".equalsIgnoreCase(metadata.getOperationType())
             && "controlled".equalsIgnoreCase(metadata.getRuntimeLevel()) && "low".equalsIgnoreCase(metadata.getRiskLevel());
         if (metadata == null || !metadata.isAgentCompatible() || !metadata.isUserVisible()
-            || !admittedPublishedSql && (!"read".equalsIgnoreCase(metadata.getOperationType())
+            || !admittedPublishedTemplate && (!"read".equalsIgnoreCase(metadata.getOperationType())
             || (metadata.getRuntimeLevel() != null && !Set.of("readonly", "read_only", "read", "discovery")
                 .contains(metadata.getRuntimeLevel().toLowerCase(java.util.Locale.ROOT))))
             || Set.of("high", "forbidden").contains(String.valueOf(metadata.getRiskLevel()).toLowerCase()))
@@ -166,14 +169,18 @@ public class RegisteredToolAnalysisOperator implements AnalysisCapabilityOperato
             return denied("Tool arguments are not valid JSON");
         }
         String requestId = context.kernelScope().requestId();
-        ToolInput input = ToolInput.builder().requestId(requestId).userId(scope.userId())
-            .parameters(arguments).build();
+        var inputBuilder = ToolInput.builder().requestId(requestId).userId(scope.userId()).parameters(arguments);
+        if (admittedPublishedTemplate && context.attributes().get(CODING_DATA_PUBLICATION) instanceof Map<?, ?> guard)
+            inputBuilder.context(Map.of("mcpExecutionContext", Map.of("publishedTemplateGuard", guard)));
+        ToolInput input = inputBuilder.build();
         ToolRuntimeExecution execution;
         Map<String,Object> runtimeAttributes=new LinkedHashMap<>(Map.of("analysisSkillId",skill.id(),
             "toolRegistryRevisions",Map.of(name,invocationRevision)));
-        if (admittedPublishedSql) runtimeAttributes.put("authorizationAgentId", skill.id());
+        if (admittedPublishedTemplate) runtimeAttributes.put("authorizationAgentId", skill.id());
         if(context.attributes().get(CODING_DATA_OPERATION) instanceof String operation
                 && operation.matches("data-[0-9a-f]{64}"))runtimeAttributes.put("toolRetryAttempts",0);
+        if (admittedPublishedTemplate && context.attributes().get(CODING_DATA_DEADLINE) instanceof Long deadline)
+            runtimeAttributes.put("deadlineAt", deadline);
         try {
             execution = runtime.execute(ToolRuntimeRequest.builder()
                 .toolName(name).runtimeMode("analysis").requestId(requestId)
@@ -198,8 +205,12 @@ public class RegisteredToolAnalysisOperator implements AnalysisCapabilityOperato
         String content;
         try { content = mapper.writeValueAsString(execution.output().getData()); }
         catch (JsonProcessingException invalid) { return denied("Tool output cannot be represented as evidence"); }
-        if (content == null || content.isBlank() || content.length() > MAX_EVIDENCE_CHARS)
-            return denied("Tool output is empty or exceeds the evidence limit");
+        long evidenceLimit = admittedPublishedTemplate && context.attributes().get(CODING_DATA_EVIDENCE_LIMIT) instanceof Long limit
+            ? Math.min(8L * 1024 * 1024, limit) : MAX_EVIDENCE_CHARS;
+        if (content == null || content.isBlank()) return denied("Tool output is empty");
+        if (content.length() > evidenceLimit) return new WorkflowExecutionResult(List.of(),
+            Map.of("status", "DATA_LIMIT_EXCEEDED", "executorStopped", true),
+            List.of("Completed tool output exceeded the bounded evidence window"));
         var evidence = new ToolAnalysisEvidence(UUID.randomUUID().toString(), name, requestId, content,
             Map.of("skillId", skill.id(), "tenantId", scope.tenantId(),
                 "toolRevision", invocationRevision, "toolContractHash", contractHash,

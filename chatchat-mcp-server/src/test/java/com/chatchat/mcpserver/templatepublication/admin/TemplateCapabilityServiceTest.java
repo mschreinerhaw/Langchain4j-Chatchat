@@ -135,6 +135,25 @@ class TemplateCapabilityServiceTest {
         assertEquals("user", arguments.getValue().getUserId());
         assertThrows(IllegalArgumentException.class, () -> service.invoke(name, Map.of("customerId", "1", "datasourceId", "forged"), Map.of(McpCallerSignature.KEY, proof("agent"))));
     }
+    @Test void frozenReadOnlyDispatchRequiresTheSameLiveReleaseAndRevision() {
+        var api = new TemplateAssetCatalogService.BoundTemplate("api_service:query@asset", "api_service:query",
+            template.title(), template.description(), template.assetName(), template.category(),
+            template.inputSchema(), "rev-api", "api_template_execute", Map.of("templateId", "query", "permissionLevel", "read"));
+        when(catalog.businessTemplates(false)).thenReturn(List.of(api));
+        var publication = service.publish("tenant", "user", api.key(), api.revision());
+        String name = publication.get("toolName").toString();
+        allowAgent(name);
+        var input = Map.<String, Object>of("customerId", "1");
+        assertThrows(SecurityException.class, () -> service.invoke(name, input, Map.of(
+            McpCallerSignature.KEY, proof("agent"), "publishedTemplateGuard",
+            Map.of("releaseId", publication.get("id"), "revision", "obsolete"))));
+        verifyNoInteractions(registry);
+        when(registry.executeEnhancedTool(eq("api_template_execute"), any()))
+            .thenReturn(ToolOutput.success(Map.of("rows", List.of())));
+        assertTrue(service.invoke(name, input, Map.of(McpCallerSignature.KEY, proof("agent"),
+            "publishedTemplateGuard", Map.of("releaseId", publication.get("id"), "revision", api.revision()))).isSuccess());
+    }
+
     @Test void offlineImmediatelyDeniesExistingToolAndCannotCrossOwners() {
         var publication = publish("user"); var row = rows.get(0); allowAgent(publication.get("toolName").toString());
         when(repository.findById(row.getId())).thenReturn(Optional.of(row));

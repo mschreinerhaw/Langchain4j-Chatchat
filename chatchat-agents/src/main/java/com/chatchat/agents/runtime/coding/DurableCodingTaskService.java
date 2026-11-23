@@ -407,8 +407,14 @@ public final class DurableCodingTaskService implements CodingAgentSPI {
         return task(read(scope, READ), taskId).operations.values().stream().anyMatch(op -> op.startIntent);
     }
     public long startedDataRounds(KernelDataScope scope, String taskId) {
-        return task(read(scope, READ), taskId).operations.values().stream().filter(op -> op.startIntent
-            && op.executionHandle != null && op.executionHandle.startsWith("runtime-data:")).count();
+        return startedDataOperations(scope, taskId).size();
+    }
+
+    public List<String> startedDataOperations(KernelDataScope scope, String taskId) {
+        return task(read(scope, READ), taskId).operations.entrySet().stream()
+            .filter(entry -> entry.getValue().startIntent && entry.getValue().executionHandle != null
+                && entry.getValue().executionHandle.startsWith("runtime-data:"))
+            .map(Map.Entry::getKey).toList();
     }
 
     @Override public CodingTaskOutcome cancel(KernelDataScope scope, String taskId, String reason) {

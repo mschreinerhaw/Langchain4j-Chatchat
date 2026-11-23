@@ -69,7 +69,7 @@ class NativePublishedTemplateTest {
             .thenReturn(json.readTree("""
                 [{"state":"RUNNING","verifiedReadOnlySql":true,"templateKey":"sql_datasource:A",
                   "assetName":"Warehouse","toolName":"tool_a","parameterSchema":{"type":"object"}},
-                 {"state":"RUNNING","verifiedReadOnlySql":true,"templateKey":"sql_datasource:B",
+                 {"state":"RUNNING","verifiedReadOnly":true,"templateKey":"jmx_endpoint:B",
                   "assetName":"Warehouse","toolName":"tool_b","parameterSchema":{"type":"object"}}]
                 """));
         for (String tool : List.of("tool_a", "tool_b")) {
@@ -104,6 +104,30 @@ class NativePublishedTemplateTest {
             assertThat(data.path("complete").asBoolean()).isFalse();
             assertThat(data.path("rows").size()).isEqualTo(1);
         }
+    }
+
+    @Test void normalizesCursorRecordsAndNeverUsesTheRawEnvelope() throws Exception {
+        var result = NativePublishedTemplate.structuredData(json, """
+            {"schemaVersion":"mcp_analysis_payload.v1","data":{"records":[{"measure":1}],"complete":true},
+             "rawData":{"rows":[{"measure":99}]}}
+            """, List.of("measure"));
+        assertThat(result.path("rows").get(0).path("measure").asInt()).isEqualTo(1);
+        assertThat(result.path("complete").asBoolean()).isTrue();
+    }
+
+    @Test void preservesPartialAndUnknownCompletenessOnStructuredData() throws Exception {
+        for (String payload : List.of(
+                "{\"status\":\"PARTIAL\",\"data\":{\"complete\":true,\"metrics\":[{\"value\":3}]}}",
+                "{\"metrics\":[{\"value\":3}],\"metricCount\":2,\"complete\":true}",
+                "{\"metrics\":[{\"value\":3}],\"complete\":true,\"errorCount\":1}",
+                "{\"data\":[{\"value\":3}]}")) {
+            var result = NativePublishedTemplate.structuredData(json, payload, List.of("value"));
+            assertThat(result.path("rows").size()).isEqualTo(1);
+            assertThat(result.path("complete").asBoolean()).isFalse();
+        }
+        assertThatIllegalArgumentException().isThrownBy(() -> NativePublishedTemplate.structuredData(json, """
+            {"schemaVersion":"mcp_analysis_payload.v1","rawData":{"rows":[{"value":3}]},"data":{}}
+            """, List.of("value")));
     }
 
     @Test void doesNotReadRawOrMismatchedSqlRows() {

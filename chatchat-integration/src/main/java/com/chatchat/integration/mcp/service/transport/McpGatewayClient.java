@@ -262,6 +262,11 @@ public class McpGatewayClient {
             }
             return result;
         } catch (Exception ex) {
+            if (publishedTemplateGuard(arguments) instanceof Map<?, ?>) {
+                if (isRecoverableMcpSessionFailure(ex)) invalidateSdkClient(config, kind, requestTimeoutMs, toolName, ex);
+                return withExecutionState(McpToolInvokeResult.failure("Published template response requires reconciliation",
+                    "MCP_OUTCOME_UNKNOWN", false, ACTION_STOP), config, toolName, requestTimeoutMs, 0, arguments);
+            }
             if (isRecoverableMcpSessionFailure(ex)) {
                 invalidateSdkClient(config, kind, requestTimeoutMs, toolName, ex);
                 try {
@@ -866,11 +871,17 @@ public class McpGatewayClient {
         String callerUser = stringValue(arguments == null ? null : arguments.get("userId"));
         String callerTenant = arguments == null ? null : tenantIdFrom(arguments);
         if (isStandaloneCenterEndpoint(config) && callerUser != null && callerTenant != null && internalCredentialProperties.isEnabled()) {
+            if (publishedTemplateGuard(arguments) instanceof Map<?, ?> guard)
+                meta.put("publishedTemplateGuard", guard);
             meta.put(com.chatchat.common.security.McpCallerSignature.KEY,
                 com.chatchat.common.security.McpCallerSignature.issue(internalCredentialProperties.resolvedSecret(),
                     callerTenant, callerUser, stringValue(arguments.get("agentId"))));
         }
         return meta;
+    }
+
+    private Object publishedTemplateGuard(Map<String, Object> arguments) {
+        return arguments == null ? null : asMap(arguments.get("mcpExecutionContext")).get("publishedTemplateGuard");
     }
 
     private void putText(Map<String, Object> target, String key, String value) {

@@ -25,6 +25,7 @@ target
 */target
 **/.git
 **/*.log
+!chatchat-api/src/main/resources/python-examples/data/sample_application.log
 **/.env*
 **/*.private.json
 **/*.key

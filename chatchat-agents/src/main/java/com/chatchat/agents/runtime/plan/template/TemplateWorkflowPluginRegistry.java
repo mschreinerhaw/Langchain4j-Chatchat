@@ -42,7 +42,7 @@ public final class TemplateWorkflowPluginRegistry {
     public static List<TemplateWorkflowPlugin> builtIns() {
         return List.of(new ApiTemplateWorkflowPlugin(), new SqlTemplateWorkflowPlugin(),
             new PythonTemplateWorkflowPlugin(), new SshTemplateWorkflowPlugin(),
-            new HttpTemplateWorkflowPlugin(), new LegacyRoleOnlyTemplateWorkflowPlugin());
+            new HttpTemplateWorkflowPlugin(), new JmxTemplateWorkflowPlugin(), new LegacyRoleOnlyTemplateWorkflowPlugin());
     }
 
     public Optional<TemplateWorkflowPlugin> resolve(TemplateWorkflowTool executionTool) {

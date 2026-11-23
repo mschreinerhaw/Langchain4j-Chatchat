@@ -125,6 +125,7 @@ public class OpsMcpToolPublisher implements com.chatchat.mcpserver.tool.McpToolC
         meta.put("runtime_action", "readonly");
         meta.put("runtimeAction", "readonly");
         meta.put("readOnly", true);
+        meta.put("assetType", "jmx_endpoint");
         meta.put("authorizationScope", Map.of("assetType", "jmx_endpoint", "capability", "execute",
             "action", "monitor", "domainArgument", "template"));
         meta.put("templateRegistryRequired", true);

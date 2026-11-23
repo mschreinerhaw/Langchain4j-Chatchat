@@ -46,6 +46,45 @@ class ApiAssetDiscoveryMcpToolPublisherTest {
     }
 
     @Test
+    void apiCatalogPaginatesAuthorizedServicesAndOmitsDisabledGateway() {
+        var configs = mock(ApiServiceConfigService.class);
+        var publisher = new ApiAssetDiscoveryMcpToolPublisher(mock(McpSyncServer.class), configs);
+        var authorization = mock(com.chatchat.mcpserver.authorization.McpAuthorizationService.class);
+        var gateways = mock(com.chatchat.mcpserver.ops.http.HttpEndpointConfigService.class);
+        org.springframework.test.util.ReflectionTestUtils.setField(publisher, "catalogAuthorization", authorization);
+        org.springframework.test.util.ReflectionTestUtils.setField(publisher, "gateways", gateways);
+        var disabled = new com.chatchat.mcpserver.ops.http.HttpEndpointConfig();
+        disabled.setId("disabled-gateway");
+        disabled.setEnabled(false);
+        when(gateways.findAllById(List.of(disabled.getId()))).thenReturn(List.of(disabled));
+        var registered = java.util.stream.IntStream.range(0, 69).mapToObj(index -> {
+            var config = new ApiServiceConfig();
+            config.setId("api-%03d".formatted(index));
+            config.setToolName("service-" + index);
+            config.setTitle("Service " + index);
+            config.setEnabled(true);
+            config.setMethod("GET");
+            config.setUrlTemplate("http://hidden-endpoint/data");
+            if (index == 0) config.setGatewayId(disabled.getId());
+            return config;
+        }).toList();
+        when(configs.listEnabled()).thenReturn(registered);
+        when(authorization.requireAssetCatalogOperations("api_template_execute", "api_service"))
+            .thenReturn((id, level) -> !"api-001".equals(id));
+        var caller = new com.chatchat.mcpserver.mcp.McpInvocationContext.Context("u", null, null, "req",
+            "client", "u", "user", "tenant", "reader", null, null, null, null, null, null, null);
+        try (var ignored = com.chatchat.mcpserver.mcp.McpInvocationContext.open(caller)) {
+            var first = publisher.query(Map.of("catalogMode", "AUTHORIZED_CATALOG", "limit", 1, "query", "nothing"));
+            var next = ((Map<?, ?>) first.get("pagination")).get("nextPageToken");
+            var last = publisher.query(Map.of("catalogMode", "AUTHORIZED_CATALOG", "pageToken", next));
+            assertThat(first).containsEntry("authorizedAssetCount", 67).containsEntry("returnedCount", 64);
+            assertThat(first.toString()).doesNotContain("api-000", "api-001", "hidden-endpoint");
+            assertThat(last).containsEntry("catalogVersion", first.get("catalogVersion")).containsEntry("returnedCount", 3);
+            assertThat(last.toString()).contains("api-068");
+        }
+    }
+
+    @Test
     void refreshKeepsApiAssetQueryInternalToTheApiBridge() {
         McpSyncServer server = mock(McpSyncServer.class);
         when(server.listTools()).thenReturn(List.of(McpSchema.Tool.builder()

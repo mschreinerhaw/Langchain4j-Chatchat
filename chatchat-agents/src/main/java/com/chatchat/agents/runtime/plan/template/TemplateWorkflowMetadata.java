@@ -23,7 +23,7 @@ public final class TemplateWorkflowMetadata {
     }
 
     public static boolean templateOwnsTarget(Object type) {
-        return "api_service".equals(type) || "http_endpoint".equals(type);
+        return "api_service".equals(type) || "http_endpoint".equals(type) || "jmx_endpoint".equals(type);
     }
 
     public static String assetType(ToolMetadata tool) {

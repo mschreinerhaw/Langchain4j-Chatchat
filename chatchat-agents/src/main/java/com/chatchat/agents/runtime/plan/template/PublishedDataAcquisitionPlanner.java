@@ -35,7 +35,9 @@ public final class PublishedDataAcquisitionPlanner {
         if(plugin==null || !plugin.accepts(provider,executor)) return unavailable("INCOMPATIBLE_EXECUTION_PROTOCOL");
         boolean publicationOwnsTargets = TemplateWorkflowMetadata.fixedScope(metadata)
             .filter(scope -> TemplateWorkflowMetadata.templateOwnsTarget(scope.assetType())).isPresent();
-        List<String> assetProviders = publicationOwnsTargets ? List.of() : authorized.stream().distinct()
+        List<String> assetProviders = authorized.stream().distinct()
+            .filter(name -> !publicationOwnsTargets || Boolean.TRUE.equals(
+                TemplateWorkflowMetadata.publisher(registry.getToolMetadata(name)).get("catalogBeforePublishedSupply")))
             .filter(name -> TemplateWorkflowMetadata.suppliesBoundDiscovery(metadata, registry.getToolMetadata(name)))
             .filter(name -> TemplateWorkflowMetadata.assetStages(registry.getToolMetadata(name))
                 || role(name) == ToolWorkflowRole.ASSET_DISCOVERY)

@@ -286,6 +286,7 @@ public class OpsCapabilityBridgePublisher implements com.chatchat.mcpserver.tool
         meta.put("readOnly", true);
         meta.put("bridgeManaged", true);
         if (domain.assetDiscoverySupported()) meta.put("authorizedAssetCatalog", true);
+        if (JMX.equals(domain)) meta.put("catalogBeforePublishedSupply", true);
         meta.put("executionTool", domain.executionTool());
         meta.put("modelInputBridgeContract", Map.of(
             "contractVersion", "model_assisted_retrieval.v1", "mode", "DISCOVERY_QUERY_PROFILE",

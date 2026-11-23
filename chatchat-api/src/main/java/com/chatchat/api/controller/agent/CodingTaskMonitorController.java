@@ -3,6 +3,7 @@ package com.chatchat.api.controller.agent;
 import com.chatchat.agents.runtime.AgentRuntime;
 import com.chatchat.agents.runtime.coding.*;
 import com.chatchat.api.runtime.coding.CodingInvocationContext;
+import com.chatchat.api.runtime.coding.nativecline.NativeSiloTaskService;
 import com.chatchat.api.security.ApiAuthenticationFilter;
 import com.chatchat.common.kernel.KernelDataScope;
 import com.chatchat.common.runtime.coding.*;
@@ -34,6 +35,8 @@ public class CodingTaskMonitorController {
     private com.chatchat.api.runtime.coding.data.CodingInputSnapshotService inputs;
     @org.springframework.beans.factory.annotation.Autowired(required=false)
     private com.chatchat.api.runtime.coding.data.CodingDataSupplyService dataSupply;
+    @org.springframework.beans.factory.annotation.Autowired(required=false)
+    private NativeSiloTaskService nativeSilo;
     @org.springframework.beans.factory.annotation.Autowired(required=false)
     private com.chatchat.api.runtime.coding.cline.ClineModelReceiptStore modelReceipts;
     @org.springframework.beans.factory.annotation.Autowired(required=false)
@@ -86,8 +89,12 @@ public class CodingTaskMonitorController {
             @RequestParam(name="operationId",required=false) String operation,HttpServletRequest request) {
         return authorizedTask(runId,taskId,request,scope->{
             var contract=tasks.contract(scope,taskId);
-            if(inputs==null)throw new ResponseStatusException(HttpStatus.SERVICE_UNAVAILABLE);
             if(operation!=null && !operation.matches("cline-[0-9a-f]{64}"))throw new ResponseStatusException(HttpStatus.BAD_REQUEST);
+            if (NativeSiloTaskService.supports(contract)) {
+                if (nativeSilo == null) throw new ResponseStatusException(HttpStatus.SERVICE_UNAVAILABLE);
+                return ApiResponse.success(nativeSilo.describeInputs(contract));
+            }
+            if(inputs==null)throw new ResponseStatusException(HttpStatus.SERVICE_UNAVAILABLE);
             boolean frozen=operation!=null && tasks.privateState(scope,taskId,"inputs:"+operation)!=null;
             var snapshots=dataSupply!=null?dataSupply.snapshots(contract,frozen?operation:null):List.of(inputs.requireAuthorized(contract));
             return ApiResponse.success(Map.of("binding",frozen?"OPERATION_FROZEN":"TASK_LATEST","snapshots",

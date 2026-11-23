@@ -10,6 +10,15 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 class ClineSearchInputTest {
     @Test
+    void distinguishesUnboundNumericInputsFromAssetIdentityAndCapabilityTerms() {
+        var numeric = Map.<String, Object>of("queryTerms", List.of("123456"));
+        assertThat(ClineSearchInput.hasOnlyUnboundNumericTerms(numeric, Map.of())).isTrue();
+        assertThat(ClineSearchInput.hasOnlyUnboundNumericTerms(numeric, Map.of("assetName", "123456"))).isFalse();
+        assertThat(ClineSearchInput.hasOnlyUnboundNumericTerms(
+            Map.of("queryTerms", List.of("cluster 123456 metrics")), Map.of())).isFalse();
+    }
+
+    @Test
     void appliesThePublishedBudgetBeforeCallingTheTool() {
         var tool = ToolMetadata.builder().metadata(Map.of("mcpToolMeta", Map.of(
             "modelInputBridgeContract", Map.of("maximumQueryTerms", 1)))).build();

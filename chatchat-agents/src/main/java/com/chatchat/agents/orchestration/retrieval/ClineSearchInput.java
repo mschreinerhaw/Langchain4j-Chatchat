@@ -31,6 +31,14 @@ public final class ClineSearchInput {
             ? Math.min(MAX_TERMS, limit.intValue()) : MAX_TERMS;
     }
 
+    public static boolean hasOnlyUnboundNumericTerms(Map<String, Object> proposal, Map<String, Object> constraints) {
+        if (!(proposal.get("queryTerms") instanceof List<?> terms) || terms.isEmpty()) return false;
+        return terms.stream().allMatch(term -> term instanceof String text
+            && text.strip().matches("\\p{Nd}+")
+            && !text.strip().equals(constraints.get("assetId"))
+            && !text.strip().equals(constraints.get("assetName")));
+    }
+
     public static Map<String, Object> apply(String tool, ToolMetadata metadata, Map<String, Object> input,
             Map<String, Object> proposal) {
         if (proposal.size() != 1 || !(proposal.get("queryTerms") instanceof List<?> terms)

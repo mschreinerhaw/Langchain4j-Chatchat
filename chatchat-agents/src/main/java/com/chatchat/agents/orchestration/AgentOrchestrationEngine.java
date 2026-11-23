@@ -1638,10 +1638,23 @@ class AgentOrchestrationEngine implements AgentRunExecutor, ResumableAgentRunExe
             if (value == null) value = input.get(name);
             if (value instanceof String text && text.length() <= 256) constraints.put(name, text);
         }
+        var discovery = Map.<String, Object>of("question", query, "tool", tool,
+            "maximumTerms", ClineSearchInput.maximumTerms(toolMetadata),
+            "discoveryStage", Objects.toString(input.get("stage"), ""), "requestConstraints", constraints);
         var proposal = clineDiscovery.propose(scope, modelName, stepId, ClineDiscoveryPort.Stage.SEARCH_TERMS,
-            Map.of("question", query, "tool", tool, "maximumTerms", ClineSearchInput.maximumTerms(toolMetadata),
-                "discoveryStage", Objects.toString(input.get("stage"), ""),
-                "requestConstraints", constraints), cancelled);
+            discovery, cancelled);
+        if (ClineSearchInput.assetSearch(tool, toolMetadata, input)
+            && ClineSearchInput.hasOnlyUnboundNumericTerms(proposal, constraints)) {
+            var correction = new LinkedHashMap<>(discovery);
+            correction.put("proposalFeedback", "The previous search terms were only numeric values without a bound "
+                + "asset identity. Propose the registered asset or capability to discover, leaving record values "
+                + "for the parameter stage. Represent each independently requested capability.");
+            proposal = clineDiscovery.propose(scope, modelName, stepId, ClineDiscoveryPort.Stage.SEARCH_TERMS,
+                correction, cancelled);
+            if (ClineSearchInput.hasOnlyUnboundNumericTerms(proposal, constraints)) {
+                throw new IllegalStateException("CLINE_SEARCH_TERMS_UNAVAILABLE: No catalog capability identified.");
+            }
+        }
         var resolved = ClineSearchInput.apply(tool, toolMetadata, input, proposal);
         recordLifecyclePhase(scope.attributes(), null, "discovery_search_terms",
             "Cline supplied search terms for Runtime discovery.",

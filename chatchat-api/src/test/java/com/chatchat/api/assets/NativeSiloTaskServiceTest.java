@@ -56,6 +56,22 @@ class NativeSiloTaskServiceTest {
             return null;
         });
     }
+    @Test void ownerMonitorReceivesOnlyTheImmutableSnapshotMetadata() {
+        var contract = authorized(this::capture);
+        assertThatThrownBy(() -> service.describeInputs(contract)).isInstanceOf(CodingContractException.class);
+        authorized(() -> {
+            var details = service.describeInputs(contract);
+            var state = fixture.service.get(fixture.scope, contract.taskId());
+            var input = state.inputs().get(0);
+            assertThat(details).containsOnlyKeys("binding", "snapshotVersion", "snapshots")
+                .containsEntry("snapshotVersion", state.snapshotVersion())
+                .containsEntry("snapshots", List.of(Map.of("format", "NATIVE_SILO_FILE",
+                    "reference", input.assetId(), "fileName", "original-columns.csv",
+                    "sizeBytes", input.size(), "sha256", input.sha256())));
+            return null;
+        });
+    }
+
     @Test void domainReportProfilesAreNotBuiltIntoTheGenericRuntime(){
         authorized(()->{
             assertThatThrownBy(()->service.capture(fixture.scope,"native-task",List.of(original),objective,"fixed-model",budget(-1),

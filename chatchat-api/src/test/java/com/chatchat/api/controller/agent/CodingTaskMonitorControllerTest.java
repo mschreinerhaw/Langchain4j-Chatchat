@@ -14,6 +14,40 @@ import static org.assertj.core.api.Assertions.*;
 import static org.mockito.Mockito.*;
 
 class CodingTaskMonitorControllerTest {
+    @Test void nativeSnapshotDetailsUseTheSiloContractOnlyForTheTaskOwner() {
+        var runtime = mock(AgentRuntime.class);
+        var tasks = mock(DurableCodingTaskService.class);
+        var controller = new CodingTaskMonitorController(runtime, tasks, mock(CodingAgentSPI.class), new CodingInvocationContext());
+        var nativeSilo = mock(com.chatchat.api.runtime.coding.nativecline.NativeSiloTaskService.class);
+        var legacy = mock(com.chatchat.api.runtime.coding.data.CodingDataSupplyService.class);
+        org.springframework.test.util.ReflectionTestUtils.setField(controller, "nativeSilo", nativeSilo);
+        org.springframework.test.util.ReflectionTestUtils.setField(controller, "dataSupply", legacy);
+        when(runtime.find("run")).thenReturn(Optional.of(AgentRun.builder().runId("run")
+            .request(AgentRunRequest.builder().tenantId("tenant").userId("owner").build()).build()));
+        var contract = mock(com.chatchat.common.runtime.coding.CodingTaskContract.class, RETURNS_DEEP_STUBS);
+        when(contract.schemaVersion()).thenReturn(com.chatchat.common.runtime.coding.CodingProtocol.WORKSPACE_VERSION);
+        when(contract.outputContract().resultFormat())
+            .thenReturn(com.chatchat.common.runtime.coding.CodingTaskContract.ResultFormat.WORKSPACE_FILES);
+        when(contract.metadataRefs()).thenReturn(List.of(com.chatchat.api.runtime.coding.nativecline.NativeSiloTaskService.PROFILE));
+        when(tasks.contract(any(), eq("task"))).thenReturn(contract);
+        when(nativeSilo.describeInputs(contract)).thenReturn(Map.of("binding", "TASK_IMMUTABLE", "snapshots", List.of()));
+        var request = new MockHttpServletRequest();
+        request.setAttribute(ApiAuthenticationFilter.CURRENT_TENANT_ID, "tenant");
+        request.setAttribute(ApiAuthenticationFilter.CURRENT_USER_ID, "owner");
+
+        assertThat(controller.inputFiles("run", "task", null, request).getData())
+            .isEqualTo(Map.of("binding", "TASK_IMMUTABLE", "snapshots", List.of()));
+        for (var actor : List.of(List.of("tenant", "other"), List.of("other", "owner"))) {
+            request.setAttribute(ApiAuthenticationFilter.CURRENT_TENANT_ID, actor.get(0));
+            request.setAttribute(ApiAuthenticationFilter.CURRENT_USER_ID, actor.get(1));
+            assertThatThrownBy(() -> controller.inputFiles("run", "task", null, request))
+                .isInstanceOfSatisfying(ResponseStatusException.class,
+                    ex -> assertThat(ex.getStatusCode().value()).isEqualTo(403));
+        }
+        verify(nativeSilo).describeInputs(contract);
+        verifyNoInteractions(legacy);
+    }
+
     @Test void directAssetTaskReadsItsExistingDurableContractWithoutInventingAnAgentParent(){
         var runtime=mock(AgentRuntime.class);var tasks=mock(DurableCodingTaskService.class);var coding=mock(CodingAgentSPI.class);
         var scope=new com.chatchat.common.kernel.KernelDataScope("tenant","owner",null,null,"asset-run",null,Map.of());

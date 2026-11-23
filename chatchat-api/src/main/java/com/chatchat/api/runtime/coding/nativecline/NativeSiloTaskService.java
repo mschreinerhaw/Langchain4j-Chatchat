@@ -188,6 +188,21 @@ public final class NativeSiloTaskService {
             throw new SecurityException("Native input versions or scope changed");
         return input;
     }
+    /** Owner-scoped metadata for the task monitor. No object keys, URLs or credentials. */
+    public Map<String,Object> describeInputs(CodingTaskContract contract) {
+        requireAuthorized(contract);
+        var state = workspace.get(contract.scope(), contract.taskId());
+        var files = state.inputs().stream().map(input -> Map.of(
+            "format", "NATIVE_SILO_FILE",
+            "reference", input.assetId(),
+            "fileName", input.path().substring(input.path().lastIndexOf('/') + 1),
+            "sizeBytes", input.size(),
+            "sha256", input.sha256()
+        )).toList();
+        return Map.of("binding", "TASK_IMMUTABLE", "snapshotVersion", state.snapshotVersion(),
+            "snapshots", files);
+    }
+
     /** Trusted Node callback only; signed capabilities must never become a
      * public user response, model context or a file inside the Agent workspace.
      */

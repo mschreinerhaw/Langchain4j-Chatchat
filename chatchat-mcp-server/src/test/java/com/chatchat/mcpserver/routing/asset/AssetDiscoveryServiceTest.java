@@ -23,6 +23,42 @@ import static org.mockito.Mockito.when;
 class AssetDiscoveryServiceTest {
 
     @Test
+    void catalogPagesEveryAuthorizedRegistryAssetWithoutRetrievalAndRejectsScopeChanges() {
+        var hosts = mock(SshHostConfigService.class);
+        var datasources = mock(SqlDatasourceConfigService.class);
+        var http = mock(HttpEndpointConfigService.class);
+        var registry = java.util.stream.IntStream.range(0, 151)
+            .mapToObj(n -> datasource("db-%03d".formatted(n), "database-" + n, "DEV", null)).toList();
+        when(datasources.listEnabled()).thenReturn(registry);
+        var service = service(hosts, datasources, http);
+        var caller = new com.chatchat.mcpserver.mcp.McpInvocationContext.Context("u", null, null, "req",
+            "client", "u", "user", "tenant", "reader", null, null, null, null, null, null, null);
+        java.util.function.Predicate<String> allowed = id -> !"db-000".equals(id);
+        try (var ignored = com.chatchat.mcpserver.mcp.McpInvocationContext.open(caller)) {
+            var first = service.catalog("sql_datasource", "sql_query_execute",
+                Map.of("limit", 1, "filters", Map.of("assetName", "unrelated")), allowed);
+            var firstPage = (Map<?, ?>) first.get("pagination");
+            assertThat(first).containsEntry("authorizedAssetCount", 150).containsEntry("returnedCount", 64);
+            assertThat(first.get("assets").toString()).doesNotContain("db-000", "jdbc:");
+            var second = service.catalog("sql_datasource", "sql_query_execute",
+                Map.of("pageToken", firstPage.get("nextPageToken")), allowed);
+            var third = service.catalog("sql_datasource", "sql_query_execute",
+                Map.of("pageToken", ((Map<?, ?>) second.get("pagination")).get("nextPageToken")), allowed);
+            assertThat(third).containsEntry("returnedCount", 22).containsEntry("catalogVersion", first.get("catalogVersion"));
+            assertThat(third.get("assets").toString()).contains("db-150");
+            assertThat(((Map<?, ?>) third.get("pagination")).get("hasMore")).isEqualTo(false);
+            service.requireCatalogSelection("sql_datasource", Map.of(), List.of("db-150"), allowed);
+            assertThatThrownBy(() -> service.requireCatalogSelection("sql_datasource", Map.of(), List.of("db-150"),
+                id -> allowed.test(id) && !"db-150".equals(id))).isInstanceOf(SecurityException.class);
+            assertThatThrownBy(() -> service.catalog("sql_datasource", "sql_query_execute",
+                Map.of("pageToken", firstPage.get("nextPageToken")), id -> allowed.test(id) && !"db-150".equals(id)))
+                .hasMessage("ASSET_CATALOG_CHANGED_OR_INVALID_CURSOR");
+        }
+        assertThatThrownBy(() -> service.catalog("sql_datasource", "sql_query_execute", Map.of(), allowed))
+            .isInstanceOf(SecurityException.class);
+    }
+
+    @Test
     void retrievesRegistryAssetFromNestedIntentCandidateQueryWithoutNoiseDilution() {
         SshHostConfigService hostService = mock(SshHostConfigService.class);
         SqlDatasourceConfigService datasourceService = mock(SqlDatasourceConfigService.class);

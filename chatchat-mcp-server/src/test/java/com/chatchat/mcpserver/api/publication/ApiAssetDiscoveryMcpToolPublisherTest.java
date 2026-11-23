@@ -24,6 +24,28 @@ import static org.mockito.Mockito.when;
 class ApiAssetDiscoveryMcpToolPublisherTest {
 
     @Test
+    void authorizedApiCatalogIgnoresRankingAndChecksEachOperationLevel() {
+        var configService = mock(ApiServiceConfigService.class);
+        var publisher = new ApiAssetDiscoveryMcpToolPublisher(mock(McpSyncServer.class), configService);
+        var authorization = mock(com.chatchat.mcpserver.authorization.McpAuthorizationService.class);
+        org.springframework.test.util.ReflectionTestUtils.setField(publisher, "catalogAuthorization", authorization);
+        var read = new ApiServiceConfig();
+        read.setId("a-read"); read.setToolName("available-api"); read.setMethod("GET"); read.setEnabled(true);
+        var write = new ApiServiceConfig();
+        write.setId("b-write"); write.setToolName("denied-api"); write.setMethod("POST"); write.setEnabled(true);
+        when(configService.listEnabled()).thenReturn(List.of(read, write));
+        when(authorization.requireAssetCatalogOperations("api_template_execute", "api_service"))
+            .thenReturn((id, level) -> "read".equals(level));
+        var caller = new com.chatchat.mcpserver.mcp.McpInvocationContext.Context("u", null, null, "req",
+            "client", "u", "user", "tenant", "reader", null, null, null, null, null, null, null);
+        try (var ignored = com.chatchat.mcpserver.mcp.McpInvocationContext.open(caller)) {
+            var result = publisher.query(Map.of("catalogMode", "AUTHORIZED_CATALOG", "query", "denied-api", "limit", 1));
+            assertThat(result).containsEntry("authorizedAssetCount", 1);
+            assertThat(result.get("assets").toString()).contains("available-api").doesNotContain("denied-api");
+        }
+    }
+
+    @Test
     void refreshKeepsApiAssetQueryInternalToTheApiBridge() {
         McpSyncServer server = mock(McpSyncServer.class);
         when(server.listTools()).thenReturn(List.of(McpSchema.Tool.builder()

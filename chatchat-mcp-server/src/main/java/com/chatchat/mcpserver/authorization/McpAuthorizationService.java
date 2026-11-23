@@ -224,6 +224,32 @@ public class McpAuthorizationService {
             McpScopeExpression.of(declared.assetType(), declared.capability(), declared.action(), caller.tenantId(), domain, "read")).allowed();
     }
 
+    /** Pin one authorization snapshot per catalog page and evaluate every concrete resource against it. */
+    public java.util.function.Predicate<String> requireAssetCatalogAuthorization(String toolName, String assetType) {
+        var allowed = requireAssetCatalogOperations(toolName, assetType);
+        return id -> allowed.test(id, "read");
+    }
+
+    public java.util.function.BiPredicate<String, String> requireAssetCatalogOperations(String toolName, String assetType) {
+        if (McpInvocationContext.current() == null || !properties.isEnabled())
+            throw new SecurityException("Asset catalog authorization unavailable");
+        final Snapshot snapshot;
+        try {
+            snapshot = Snapshot.from(fetchExecutionSnapshot());
+        } catch (Exception unavailable) {
+            if (unavailable instanceof InterruptedException) Thread.currentThread().interrupt();
+            throw new SecurityException("Asset catalog authorization unavailable", unavailable);
+        }
+        Principal caller = principal(Map.of(), snapshot);
+        if (!snapshot.usable() || snapshot.isStale(properties.getStaleTtlSeconds())
+                || caller.tenantId() == null || caller.userId() == null || caller.tenantMismatch()
+                || !snapshot.usersById().containsKey(normalize(caller.userId())))
+            throw new SecurityException("Asset catalog authorization unavailable");
+        ToolScope declared = toolScope(toolName);
+        return (id, level) -> id != null && evaluateAuthorization("chatchat-mcp-server", toolName, Map.of(), snapshot,
+            McpScopeExpression.of(assetType, declared.capability(), declared.action(), caller.tenantId(), id, level)).allowed();
+    }
+
     private AuthorizationDecision evaluateAuthorization(String serviceId, String toolName,
                                                          Map<String, Object> arguments, Snapshot snapshot,
                                                          McpScopeExpression discoveryScope) {

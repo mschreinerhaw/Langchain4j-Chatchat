@@ -2884,6 +2884,38 @@ class ToolRuntimeServiceTest {
     }
 
     @Test
+    void requiredPublicationExecutesAllWindowsAndRetainsBlockedChild() {
+        String tool = "sql_query_execute";
+        ToolRegistry registry = mock(ToolRegistry.class);
+        when(registry.getToolMetadata(tool)).thenReturn(ToolMetadata.builder().id(tool)
+            .metadata(Map.of("capabilities", List.of("template_execution", "batch_execution"))).build());
+        when(registry.executeEnhancedTool(eq(tool), any()))
+            .thenReturn(ToolOutput.success(Map.of("records", List.of(Map.of("amount", 1)))));
+        var policy = properties();
+        policy.setMaxBatchCalls(10);
+        var service = new ToolRuntimeService(registry, new ObjectMapper(), policy, new McpPolicyProperties(),
+            new McpWorkflowProperties(), List.of(), List.of());
+        var calls = java.util.stream.IntStream.range(0, 20)
+            .mapToObj(i -> batchCall("call-" + i, tool, "CHECK_" + i))
+            .collect(java.util.stream.Collectors.toCollection(ArrayList::new));
+        var blocked = new LinkedHashMap<>(calls.get(3));
+        blocked.put("preflightErrorCode", "TEMPLATE_PARAMETER_PROTOCOL_INVALID");
+        calls.set(3, blocked);
+        var request = batchRequest(calls, false, Map.of("runtimeRequiredPublicationBatch", true,
+            "runtimeOwnedTemplatePreflight", true, "runtimeParallelReadOnlyBatchAuthorized", true));
+        var input = new LinkedHashMap<>(request.getToolInput().getParameters());
+        input.put("executionMode", "PARALLEL_READ_ONLY");
+        request.getToolInput().setParameters(input);
+        var result = (ToolCallBatchResult) service.execute(request).output().getData();
+
+        assertThat(result.results()).extracting(child -> child.callId())
+            .containsExactlyElementsOf(java.util.stream.IntStream.range(0, 20).mapToObj(i -> "call-" + i).toList());
+        assertThat(result.results().get(3).status()).isEqualTo("BLOCKED");
+        assertThat(result.results().get(3).error()).containsEntry("code", "TEMPLATE_PARAMETER_PROTOCOL_INVALID");
+        verify(registry, times(19)).executeEnhancedTool(eq(tool), any());
+    }
+
+    @Test
     void rejectsCallLimitAndNestedBatchBeforeAnyRemoteInvocation() {
         ToolRegistry toolRegistry = mock(ToolRegistry.class);
         when(toolRegistry.getToolMetadata(any())).thenReturn(ToolMetadata.builder()

@@ -102,7 +102,23 @@ public class ApiAssetDiscoveryMcpToolPublisher implements com.chatchat.mcpserver
             .build();
     }
 
+    @Autowired
+    private com.chatchat.mcpserver.authorization.McpAuthorizationService catalogAuthorization;
+
+    private Map<String, Object> catalog(Map<String, Object> arguments) {
+        var allowed = catalogAuthorization.requireAssetCatalogOperations("api_template_execute", "api_service");
+        var assets = configService.listEnabled().stream()
+            .filter(config -> allowed.test(config.getId(), config.getMethod() != null
+                && Set.of("GET", "HEAD", "OPTIONS").contains(config.getMethod().toUpperCase(Locale.ROOT))
+                    ? "read" : "write"))
+            .sorted(java.util.Comparator.comparing(ApiServiceConfig::getId))
+            .map(config -> assetMetadata(config, 0))
+            .toList();
+        return AssetDiscoveryService.catalogPage("api_service", "api_template_execute", arguments, assets);
+    }
+
     Map<String, Object> query(Map<String, Object> arguments) {
+        if (arguments != null && "AUTHORIZED_CATALOG".equals(arguments.get("catalogMode"))) return catalog(arguments);
         return queryOptimizer.withAudit(() -> queryWithinQueryBudget(arguments));
     }
 

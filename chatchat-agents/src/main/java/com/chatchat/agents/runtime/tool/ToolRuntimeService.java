@@ -622,7 +622,7 @@ public class ToolRuntimeService {
             };
         List<TemplateExecutionLayer.Attempt> attempts =
             batch.executionMode() == BatchExecutionMode.PARALLEL_READ_ONLY
-                ? templateExecutionLayer.executeParallelReadOnly(calls, batchInvoker)
+                ? executeReadOnlyBatchWindows(calls, batchInvoker)
                 : templateExecutionLayer.execute(calls, batchInvoker);
 
         for (TemplateExecutionLayer.Attempt attempt : attempts) {
@@ -789,6 +789,23 @@ public class ToolRuntimeService {
                 declaredCheckCount, success, failed, blocked, skipped, remoteToolInvocations),
             List.copyOf(results)
         );
+    }
+
+    private List<TemplateExecutionLayer.Attempt> executeReadOnlyBatchWindows(
+            List<ToolCallRequest> calls, TemplateExecutionLayer.TemplateInvoker invoker) {
+        var attempts = new ArrayList<TemplateExecutionLayer.Attempt>(calls.size());
+        int window = properties.safeMaxBatchCalls();
+        for (int start = 0; start < calls.size(); start += window) {
+            int offset = start;
+            var current = templateExecutionLayer.executeParallelReadOnly(
+                calls.subList(start, Math.min(start + window, calls.size())),
+                (call, index) -> invoker.invoke(call, offset + index));
+            for (var attempt : current) {
+                attempts.add(new TemplateExecutionLayer.Attempt(offset + attempt.index(), attempt.call(),
+                    attempt.execution(), attempt.status(), attempt.errorCode(), attempt.message()));
+            }
+        }
+        return List.copyOf(attempts);
     }
 
     private ToolRuntimeExecution executeBatchRequest(ToolCallBatch batch, ToolRuntimeRequest request) {
@@ -2252,7 +2269,8 @@ public class ToolRuntimeService {
             return BatchValidation.invalid("BATCH_CALLS_REQUIRED",
                 "Tool call batch calls must be a non-empty array");
         }
-        if (calls.size() > properties.safeMaxBatchCalls()) {
+        if (!batchAttributeBoolean(request, "runtimeRequiredPublicationBatch")
+                && calls.size() > properties.safeMaxBatchCalls()) {
             return BatchValidation.invalid("BATCH_CALL_LIMIT_EXCEEDED",
                 "Tool call batch exceeds the maximum of " + properties.safeMaxBatchCalls() + " calls");
         }
@@ -2381,7 +2399,8 @@ public class ToolRuntimeService {
             return BatchValidation.invalid("BATCH_MODE_NOT_ALLOWED",
                 "PARALLEL_READ_ONLY requires Runtime-owned read-only batch authorization");
         }
-        if (batch.calls().size() > properties.safeMaxBatchCalls()) {
+        if (!batchAttributeBoolean(context, "runtimeRequiredPublicationBatch")
+                && batch.calls().size() > properties.safeMaxBatchCalls()) {
             return BatchValidation.invalid("BATCH_CALL_LIMIT_EXCEEDED",
                 "Tool call batch exceeds the maximum of " + properties.safeMaxBatchCalls() + " calls");
         }
@@ -2511,7 +2530,12 @@ public class ToolRuntimeService {
             canonicalInvocation.arguments().values(), canonicalInvocation.context(), deadlineAt);
         McpServiceResult result = kernel.execute(call);
         var publication = com.chatchat.agents.runtime.plan.template.TemplateWorkflowMetadata.publisher(metadata);
-        if (metadata != null && "read".equalsIgnoreCase(metadata.getOperationType())
+        if (Boolean.TRUE.equals(publication.get("authorizedAssetCatalog"))
+                && "AUTHORIZED_CATALOG".equals(call.arguments().get("catalogMode"))
+                && result.data() instanceof Map<?, ?> directory
+                && "AUTHORIZED_CATALOG".equals(directory.get("catalogMode"))) {
+            result = McpStableRecordCursor.drain(call, result, objectMapper, kernel::execute, "assets");
+        } else if (metadata != null && "read".equalsIgnoreCase(metadata.getOperationType())
                 && McpStableRecordCursor.CONTRACT.equals(publication.get(McpStableRecordCursor.METADATA_KEY))) {
             result = McpStableRecordCursor.drain(call, result, objectMapper, kernel::execute);
         }

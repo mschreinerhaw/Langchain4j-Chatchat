@@ -25,8 +25,8 @@ public final class PlanStepInputCompiler {
         operations.normalizeModelInvocationEnvelope(step, input);
         operations.normalizeWebSearchInput(step, request, input);
         operations.applyPublishedInputAdapterContract(step, request, completed, input);
-        Map<String, Object> retrievalGate = operations.applyStepInputEnricher(step, request, completed, input);
         operations.normalizeDiscoveryRoutingInput(step, request, completed, input);
+        Map<String, Object> retrievalGate = operations.applyStepInputEnricher(step, request, completed, input);
         operations.compileDirectToolArguments(step, request, completed, input);
         operations.hydrateExecutionContextFromCompletedAssets(step, completed, input);
         operations.normalizeSqlExecutionContext(step, input);
@@ -34,12 +34,15 @@ public final class PlanStepInputCompiler {
         Map<Integer, InterpretationPlanRuntime.StepExecution> contractContext = runtimeOwnsBatch
             ? completed : operations.resolveTemplateContractFromMcp(step, request, completed, input);
         if (!runtimeOwnsBatch) {
+            // Scope is a routing constraint. The parameter binder may discard fields
+            // undeclared by the initially selected template.
+            operations.repairTableScopedSqlTemplate(step, contractContext, input);
             operations.bridgeTemplateInvocation(step, request, contractContext, input);
             operations.validateTemplateExecutionArgumentContract(step, input);
         }
         operations.hydrateExecutionContextFromTemplateMetadata(step, contractContext, input);
         operations.hydrateSqlMetadataParametersFromMetadataSearch(step, contractContext, input);
-        operations.repairTableScopedSqlTemplate(step, contractContext, input);
+        if (runtimeOwnsBatch) operations.repairTableScopedSqlTemplate(step, contractContext, input);
         operations.enforceAgentRuntimeEnvironment(step, request, input);
         if (!runtimeOwnsBatch) operations.validateRequiredExecutionTemplate(step, input, completed);
         operations.enforceCanonicalAssetContinuity(step, completed, input);

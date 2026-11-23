@@ -35,7 +35,6 @@ public final class NativePublishedTemplate {
     public static final String TOOL = "execute_published_template";
     public static final String CONTEXT = "publishedTemplate";
     private static final String STATE = "native-published-template";
-    private static final String ATTEMPTS = STATE + ":attempts";
     private static final String PROTOCOL = "template_parameter_protocol_v2";
     public static final String OPERATION = "native-template-query";
     private static final CodingTaskOutcome.Counters QUERY_USAGE =
@@ -67,26 +66,27 @@ public final class NativePublishedTemplate {
         this.json = json.copy().enable(DeserializationFeature.USE_BIG_DECIMAL_FOR_FLOATS);
     }
 
-    /**
-     * Binds an explicitly granted, optional SQL publication to the ongoing Native task.
-     * The existing delivery ledger supports one publication per task.
-     */
-    public java.util.Optional<Map<String, Object>> captureOptional(KernelDataScope scope, String skill,
-                                                                  Set<String> optionalIds) {
+    /** Freeze the intersection of this run's Optional publications and current task grants. */
+    public Optional<Map<String, Object>> captureOptional(KernelDataScope scope, String skill,
+                                                         Set<String> optionalIds, String originalQuestion) {
         if (!policy.isClineTemplateInvocationEnabled() || skill == null || skill.isBlank() || optionalIds.isEmpty())
-            return java.util.Optional.empty();
-        try {
-            var matches = supply.grants(scope).stream()
-                .filter(grant -> skill.equals(grant.skillId()) && optionalIds.contains(grant.templateId())).toList();
-            if (matches.size() != 1) return java.util.Optional.empty();
-            return java.util.Optional.of(capture(scope, skill, matches.get(0).templateId()));
-        } catch (java.util.concurrent.CancellationException cancelled) {
-            throw cancelled;
-        } catch (RuntimeException unavailable) {
-            if (Thread.currentThread().isInterrupted()) throw new java.util.concurrent.CancellationException();
-            log.info("Optional Native publication not available for task binding: {}", unavailable.getClass().getSimpleName());
-            return java.util.Optional.empty();
+            return Optional.empty();
+        var ids = supply.grants(scope).stream()
+            .filter(grant -> skill.equals(grant.skillId()) && optionalIds.contains(grant.templateId()))
+            .map(CodingDataSupplyProperties.Grant::templateId).distinct().sorted().toList();
+        var bindings = new LinkedHashMap<String, Object>();
+        for (String id : ids) {
+            try {
+                bindings.put(id, capture(scope, skill, id));
+            } catch (java.util.concurrent.CancellationException cancelled) {
+                throw cancelled;
+            } catch (RuntimeException unavailable) {
+                if (Thread.currentThread().isInterrupted()) throw new java.util.concurrent.CancellationException();
+                log.info("Optional Native publication unavailable: {}", unavailable.getClass().getSimpleName());
+            }
         }
+        return bindings.isEmpty() ? Optional.empty() : Optional.of(Map.of(
+            "optionalBindings", Map.copyOf(bindings), "originalQuestion", originalQuestion));
     }
 
     public Map<String, Object> capture(KernelDataScope scope, String skill, String id) {
@@ -113,13 +113,34 @@ public final class NativePublishedTemplate {
     }
 
     public Map<String, Object> specification(CodingTaskContract task) {
-        var template = json.valueToTree(task.runtimeContext().get(CONTEXT)).path("template");
+        var context = json.valueToTree(task.runtimeContext().get(CONTEXT));
+        boolean optional = context.path("optionalBindings").isObject();
+        var templates = new ArrayList<JsonNode>();
+        if (optional) context.path("optionalBindings").forEach(binding -> templates.add(binding.path("template")));
+        else templates.add(context.path("template"));
+        var templateIds = templates.stream().map(value -> value.path("templateId").asText()).toList();
+        String question = context.path("originalQuestion").asText(task.objective().instruction());
         ZoneId zone = ZoneId.systemDefault();
         LocalDate referenceDate = com.chatchat.agents.runtime.toolcall.RequiredTemporalArgumentGrounding
-            .hasRelativeTimeExpression(task.objective().instruction()) ? referenceDate(task, zone) : null;
+            .hasRelativeTimeExpression(question) ? referenceDate(task, zone) : null;
         String temporalContext = referenceDate == null ? "" : " Interpret only the explicit relative time using " + referenceDate
             + " in " + zone + ".";
-        return Map.of("name", TOOL, "description", "Query the task's published read-only template. "
+        var fields = new LinkedHashMap<String, Object>();
+        if (optional) {
+            fields.put("data_gap", Map.of("type", "string", "minLength", 1, "maxLength", 1000));
+            fields.put("reason", Map.of("type", "string", "minLength", 1, "maxLength", 1000));
+        }
+        fields.put("protocol_version", Map.of("type", "string", "enum", List.of(PROTOCOL)));
+        fields.put("template_id", Map.of("type", "string", "enum", templateIds));
+        fields.put("arguments", Map.of("type", "object", "additionalProperties", Map.of(
+            "type", "object", "additionalProperties", false,
+            "required", List.of("value", "source", "evidence"), "properties", Map.of(
+                "value", Map.of(), "source", Map.of("type", "string", "enum", List.of("user_query")),
+                "evidence", Map.of("type", "object", "properties", Map.of("quote", Map.of("type", "string"),
+                    "interpretation", Map.of("type", "string", "enum", List.of("model"))),
+                    "required", List.of("quote"), "additionalProperties", false)))));
+        fields.put("unresolved_parameters", Map.of("type", "array", "items", Map.of("type", "string")));
+        return Map.of("name", TOOL, "description", "Query a task-authorized published read-only template. "
             + "Extract and normalize the requested values using the template parameter schema. Cite the exact "
             + "source phrase from the original user request in evidence.quote. Set evidence.interpretation=model "
             + "when the submitted value had to be interpreted or normalized. Omit missing values and list their "
@@ -128,24 +149,20 @@ public final class NativePublishedTemplate {
             + temporalContext + " Correct invalid fields once. Stop on authorization, quota or query errors. "
             + "After success inspect defaultedFields and disclose any default scope in the report. "
             + "When complete is false, the delivered rows cover only part of the source. "
-            + template, "inputSchema", Map.of("type", "object", "additionalProperties", false,
-                "required", List.of("protocol_version", "template_id", "arguments", "unresolved_parameters"),
-                "properties", Map.of(
-                    "protocol_version", Map.of("type", "string", "enum", List.of(PROTOCOL)),
-                    "template_id", Map.of("type", "string", "enum", List.of(template.path("templateId").asText())),
-                    "arguments", Map.of("type", "object", "additionalProperties", Map.of(
-                        "type", "object", "additionalProperties", false,
-                        "required", List.of("value", "source", "evidence"), "properties", Map.of(
-                            "value", Map.of(), "source", Map.of("type", "string", "enum", List.of("user_query")),
-                            "evidence", Map.of("type", "object", "properties", Map.of("quote", Map.of("type", "string"),
-                                "interpretation", Map.of("type", "string", "enum", List.of("model"))),
-                                "required", List.of("quote"), "additionalProperties", false)))),
-                    "unresolved_parameters", Map.of("type", "array", "items", Map.of("type", "string")))));
+            + templates, "inputSchema", Map.of("type", "object", "additionalProperties", false,
+                "required", List.copyOf(fields.keySet()), "properties", fields));
     }
 
     public Map<String, Object> execute(CodingTaskContract task, JsonNode input) {
-        var binding = json.valueToTree(task.runtimeContext().get(CONTEXT));
+        var taskContext = json.valueToTree(task.runtimeContext().get(CONTEXT));
+        boolean optional = taskContext.path("optionalBindings").isObject();
+        String requestedId = input.path("template_id").asText();
+        var binding = optional ? taskContext.path("optionalBindings").path(requestedId) : taskContext;
         var schema = binding.path("template");
+        if (!schema.isObject()) return status("AUTHORIZATION_DENIED");
+        String operation = optional ? optionalOperation(requestedId) : OPERATION;
+        String stateKey = optional ? STATE + ":" + operation : STATE;
+        String question = taskContext.path("originalQuestion").asText(task.objective().instruction());
         String id = schema.path("templateId").asText();
         if (!task.authorization().allowedTools().contains(TOOL) || !id.equals(input.path("template_id").asText()))
             return status("AUTHORIZATION_DENIED");
@@ -158,8 +175,9 @@ public final class NativePublishedTemplate {
             return status("AUTHORIZATION_DENIED");
         }
         if (!json.valueToTree(current).equals(binding)) return status("AUTHORIZATION_DENIED");
-        if (!admitAttempt(task, input)) return status("QUOTA_DENIED");
-        if (!input.isObject() || input.size() != 4 || !PROTOCOL.equals(input.path("protocol_version").asText())
+        if (!admitAttempt(task, stateKey + ":attempts", input)) return status("QUOTA_DENIED");
+        if (!input.isObject() || input.size() != (optional ? 6 : 4)
+                || optional && (!boundedText(input.path("data_gap")) || !boundedText(input.path("reason"))) || !PROTOCOL.equals(input.path("protocol_version").asText())
                 || !input.path("arguments").isObject() || !input.path("unresolved_parameters").isArray())
             return status("PARAMETER_INVALID");
         var protocol = json.convertValue(input, new TypeReference<Map<String, Object>>() {});
@@ -168,7 +186,7 @@ public final class NativePublishedTemplate {
         try {
             compiled = bridge.prepare(new TemplateInvocationBridge.BridgeRequest(
                 binding.path("route").asText(), null, id, template, Map.of(), protocol, true, false,
-                new TemplateInvocationBridge.EvidenceContext(task.objective().instruction(), Map.of())));
+                new TemplateInvocationBridge.EvidenceContext(question, Map.of())));
         } catch (TemplateInvocationBridge.TemplateBridgeException invalid) {
             return Map.of("status", "PARAMETER_INVALID", "errorCode", invalid.code(),
                 "message", invalid.getMessage(), "errors", invalid.validationErrors());
@@ -182,21 +200,22 @@ public final class NativePublishedTemplate {
                     !grant.parameterValues().get(entry.getKey()).contains(String.valueOf(entry.getValue()))))
             return status("AUTHORIZATION_DENIED");
 
-        String digest = supply.hash(parameters);
-        var context = context(task.scope(), grant, task.objective().instruction(), parameters, binding.path("route").asText())
-            .withAttribute(RegisteredToolAnalysisOperator.CODING_DATA_OPERATION, "data-" + supply.hash(task.taskId()));
+        String digest = supply.hash(optional ? input : parameters);
+        var context = context(task.scope(), grant, question, parameters, binding.path("route").asText())
+            .withAttribute(RegisteredToolAnalysisOperator.CODING_DATA_OPERATION, "data-" + supply.hash(
+                optional ? List.of(task.taskId(), operation) : task.taskId()));
         var lease = tasks.ownership(task.scope(), task.taskId());
         var started = json.valueToTree(Map.of("requestHash", digest));
-        var admission = evidence.atomic(task, () -> admitQuery(task, lease, digest, started));
+        var admission = evidence.atomic(task, () -> admitQuery(task, lease, digest, started, operation, stateKey, optional));
         if (admission == Admission.EXISTING) {
-            var previous = tasks.privateState(task.scope(), task.taskId(), STATE);
+            var previous = tasks.privateState(task.scope(), task.taskId(), stateKey);
             if (!digest.equals(previous.path("requestHash").asText())) return status("QUOTA_DENIED");
             if (previous.has("receipt")) return replay(task, grant, binding, json.convertValue(previous.path("receipt"),
                 new TypeReference<Map<String,Object>>() {}));
-            var reference = evidence.reference(task, "CODING_DATA_RECEIPT", OPERATION);
+            var reference = evidence.reference(task, "CODING_DATA_RECEIPT", operation);
             var recovered = evidence.payload(task, reference);
             if (recovered.isEmpty()) return status("QUERY_OUTCOME_UNKNOWN");
-            reconcile(task);
+            reconcile(task, operation);
             var receipt = new LinkedHashMap<>(recovered.get());
             receipt.put("evidenceRef", reference);
             return replay(task, grant, binding, receipt);
@@ -208,6 +227,10 @@ public final class NativePublishedTemplate {
         receipt.put("templateId", id);
         receipt.put("queryMs", (System.nanoTime() - clock) / 1_000_000);
         receipt.put("parameterBindings", parameters);
+        if (optional) {
+            receipt.put("dataGap", input.path("data_gap").asText());
+            receipt.put("reason", input.path("reason").asText());
+        }
         receipt.put("executionPath", "governed_template_without_runtime_binding");
         receipt.put("defaultedFields", compiled.parameterEvidence().entrySet().stream()
             .filter(entry -> TemplateInvocationBridge.TEMPLATE_DEFAULT_SOURCE.equals(entry.getValue().source()))
@@ -229,17 +252,17 @@ public final class NativePublishedTemplate {
             }
         }
         receipt.put("taskId", task.taskId());
-        receipt.put("operationId", OPERATION);
+        receipt.put("operationId", operation);
         // A successful response proves the remote call returned. Transport failure cannot prove it stopped.
         receipt.put("executorStopped", result.evidence().size() == 1);
         boolean stopped = Boolean.TRUE.equals(receipt.get("executorStopped"));
         var ref = evidence.register(task, stopped ? "CODING_DATA_RECEIPT" : "NATIVE_TEMPLATE_QUERY_UNCONFIRMED",
-            OPERATION, receipt,
+            operation, receipt,
             List.of(task.inputSnapshotRef()));
         receipt.put("evidenceRef", ref);
-        if (stopped) reconcile(task);
+        if (stopped) reconcile(task, operation);
         if (tasks.get(task.scope(), task.taskId()).executionControl().stopReason() != null) return status("STOPPING");
-        tasks.privateState(task.scope(), task.taskId(), lease, STATE, started,
+        tasks.privateState(task.scope(), task.taskId(), lease, stateKey, started,
             json.valueToTree(Map.of("requestHash", digest, "receipt", receipt)));
         return deliver(task, receipt);
     }
@@ -253,26 +276,54 @@ public final class NativePublishedTemplate {
         }
     }
 
-    private Admission admitQuery(CodingTaskContract task, CodingJournal.Lease lease, String digest, JsonNode started) {
+    private Admission admitQuery(CodingTaskContract task, CodingJournal.Lease lease, String digest, JsonNode started,
+                                 String operation, String stateKey, boolean optional) {
         var scope = task.scope();
         String id = task.taskId();
-        if (tasks.privateState(scope, id, STATE) != null) return Admission.EXISTING;
+        if (tasks.privateState(scope, id, stateKey) != null) return Admission.EXISTING;
         var state = tasks.get(scope, id);
         if (state.status().terminal() || state.executionControl().stopReason() != null) return Admission.STOPPING;
-        var reservation = tasks.reserve(scope, id, lease, state.revision(), OPERATION,
+        if (optional && tasks.startedDataRounds(scope, id) >= policy.getMaxRounds()) return Admission.QUOTA_DENIED;
+        var reservation = tasks.reserve(scope, id, lease, state.revision(), operation,
             digest, CodingJournal.OperationKind.TOOL, QUERY_USAGE);
         if (!reservation.admitted()) return Admission.QUOTA_DENIED;
         var begin = tasks.startIntent(scope, id, lease, reservation.outcome().revision(),
-            OPERATION, "runtime-data:" + OPERATION);
+            operation, "runtime-data:" + operation);
         if (!begin.dispatchIntentCreated()) return Admission.STOPPING;
-        tasks.privateState(scope, id, lease, STATE, null, started);
+        tasks.privateState(scope, id, lease, stateKey, null, started);
         return Admission.STARTED;
     }
 
+    public Map<String, Object> supplementMetrics(CodingTaskContract task) {
+        var binding = json.valueToTree(task.runtimeContext().get(CONTEXT)).path("optionalBindings");
+        if (!binding.isObject()) return Map.of();
+        long successes = 0, producedRows = 0, snapshotBytes = 0;
+        var ids = binding.fieldNames();
+        while (ids.hasNext()) {
+            String operation = optionalOperation(ids.next());
+            var receipt = evidence.payload(task, evidence.reference(task, "CODING_DATA_RECEIPT", operation));
+            if (receipt.isEmpty() || !"OK".equals(receipt.get().get("status"))) continue;
+            successes++;
+            if (receipt.get().get("rowCount") instanceof Number rows) producedRows += rows.longValue();
+            if (receipt.get().get("size") instanceof Number bytes) snapshotBytes += bytes.longValue();
+        }
+        long requests = tasks.startedDataRounds(task.scope(), task.taskId());
+        return Map.of("supplementRequestCount", requests, "optionalToolInvocationCount", requests,
+            "supplementSuccessCount", successes, "supplementSnapshotRows", producedRows,
+            "supplementSnapshotBytes", snapshotBytes);
+    }
+
+    private String optionalOperation(String templateId) {
+        return OPERATION + "-" + supply.hash(templateId);
+    }
+
     static JsonNode sqlData(ObjectMapper json, String content) throws IOException {
-        var data = json.<JsonNode>valueToTree(McpAnalysisPayload.canonicalData(json.readValue(content, Object.class)));
+        var envelope = json.readTree(content);
+        boolean incomplete = incomplete(envelope);
+        var data = json.<JsonNode>valueToTree(McpAnalysisPayload.canonicalData(json.convertValue(envelope, Object.class)));
         // A published template keeps the ToolOutput envelope around the SQL result.
         for (int depth = 0; depth < 4 && !data.path("rows").isArray(); depth++) {
+            incomplete |= incomplete(data);
             if (data.has("data")) data = data.path("data");
             else if (data.has("structuredContent")) data = data.path("structuredContent");
             else break;
@@ -280,34 +331,57 @@ public final class NativePublishedTemplate {
         if (!data.path("rows").isArray() || data.path("rows").size() > 100
                 || data.path("rowCount").asInt(-1) != data.path("rows").size())
             throw new IllegalArgumentException("Published query returned no bounded SQL rows");
+        if (incomplete || incomplete(data)) {
+            var limited = ((com.fasterxml.jackson.databind.node.ObjectNode) data).deepCopy();
+            limited.put("complete", false);
+            return limited;
+        }
         return data;
     }
 
-    public void reconcile(CodingTaskContract task) {
-        var reference = evidence.reference(task,"CODING_DATA_RECEIPT",OPERATION);
+    private static boolean incomplete(JsonNode data) {
+        var declared = data.path("complete");
+        var completeness = data.path("completeness").path("complete");
+        return Set.of("PARTIAL", "PREVIEW").contains(data.path("status").asText())
+            || data.path("preview").asBoolean() || data.path("possiblyTruncated").asBoolean()
+            || data.path("hasMore").asBoolean() || data.path("pagination").path("hasMore").asBoolean()
+            || declared.isBoolean() && !declared.asBoolean()
+            || completeness.isBoolean() && !completeness.asBoolean();
+    }
+
+    public static boolean isOperation(String operation) {
+        return OPERATION.equals(operation) || operation.matches(OPERATION + "-[0-9a-f]{64}");
+    }
+
+    private static boolean boundedText(JsonNode field) {
+        return field.isTextual() && !field.asText().isBlank() && field.asText().length() <= 1000;
+    }
+
+    public void reconcile(CodingTaskContract task, String operation) {
+        var reference = evidence.reference(task,"CODING_DATA_RECEIPT",operation);
         if (!evidence.exists(task, reference)) return;
         evidence.atomic(task, () -> {
             var lease = tasks.ownership(task.scope(), task.taskId());
             var state = tasks.get(task.scope(), task.taskId());
-            if (tasks.verifiedOperation(task.scope(), task.taskId(), OPERATION).isEmpty())
-                state = tasks.reconcileStopped(task.scope(), task.taskId(), lease, state.revision(), OPERATION, reference);
-            return tasks.settle(task.scope(), task.taskId(), lease, state.revision(), OPERATION, QUERY_USAGE, true);
+            if (tasks.verifiedOperation(task.scope(), task.taskId(), operation).isEmpty())
+                state = tasks.reconcileStopped(task.scope(), task.taskId(), lease, state.revision(), operation, reference);
+            return tasks.settle(task.scope(), task.taskId(), lease, state.revision(), operation, QUERY_USAGE, true);
         });
     }
 
-    private boolean admitAttempt(CodingTaskContract task, JsonNode input) {
-        return evidence.atomic(task, () -> recordAttempt(task, supply.hash(input)));
+    private boolean admitAttempt(CodingTaskContract task, String key, JsonNode input) {
+        return evidence.atomic(task, () -> recordAttempt(task, key, supply.hash(input)));
     }
 
-    private boolean recordAttempt(CodingTaskContract task, String hash) {
-        var previous = tasks.privateState(task.scope(), task.taskId(), ATTEMPTS);
+    private boolean recordAttempt(CodingTaskContract task, String key, String hash) {
+        var previous = tasks.privateState(task.scope(), task.taskId(), key);
         List<String> attempts = previous == null ? List.of() : json.convertValue(previous, new TypeReference<>() {});
         if (attempts.contains(hash)) return true;
         if (attempts.size() >= 2) return false;
         var next = new ArrayList<>(attempts);
         next.add(hash);
         tasks.privateState(task.scope(), task.taskId(), tasks.ownership(task.scope(), task.taskId()),
-            ATTEMPTS, previous, json.valueToTree(next));
+            key, previous, json.valueToTree(next));
         return true;
     }
 

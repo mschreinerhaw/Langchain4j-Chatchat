@@ -20,7 +20,7 @@ public final class NativeCodingProgress {
             if(value instanceof Number||value instanceof Boolean||value instanceof String text&&text.length()<=512)payload.put(key,value);
         }
         if("template.query.delivered".equals(payload.get("nativeEventType")))
-            for(String key:List.of("assetId","sha256","templateId","rowCount","complete","queryMs","evidenceRef","executionPath")){
+            for(String key:List.of("assetId","sha256","templateId","operationId","rowCount","complete","queryMs","evidenceRef","executionPath")){
                 Object value=event.payload().get(key);
                 if(value instanceof Number||value instanceof Boolean||value instanceof String text&&text.length()<=512)payload.put(key,value);
             }

@@ -45,7 +45,7 @@ class NativeAnalysisBridgeTest {
             return new DatasetHandle.Page(offset, rows, end < 10_000);
         }, null, null, Map.of());
         var sources = new LinkedHashMap<String, Dataset>();
-        sources.put("range", new Dataset("range", Map.of(), pageable));
+        sources.put("range", new Dataset("range", Map.of("sourceComplete", true), pageable));
         for (int i = 1; i < 20; i++) {
             String id = "source-" + i;
             sources.put(id, new Dataset(id, Map.of(), List.of(Map.of("n", i))));
@@ -73,15 +73,20 @@ class NativeAnalysisBridgeTest {
         when(coding.submit(eq(scope), eq("request"), anyList(), anyString(), eq("test-model"),
             anyList(), anyMap(), anyMap())).thenAnswer(call -> {
                 assertThat(call.<List<String>>getArgument(2)).hasSize(41);
+                assertThat(json.valueToTree(call.<Map<String, Object>>getArgument(6))
+                    .path("properties").path("analysisStatus").path("enum").toString())
+                    .isEqualTo("[\"PARTIAL\",\"INPUT_REQUIRED\"]");
                 return new NativeCodingTasks.Submitted("task", "run", null);
             });
         when(coding.await(eq(scope), eq("task"), any(), any())).thenReturn(new LinkedHashMap<>());
 
-        var result = bridge.execute(context, scope, "request", "Analyze", Map.of(), sources, ignored -> {}, false);
+        var result = bridge.execute(context, scope, "request", "Analyze", CodingAnalysisService.primaryReportSchema(), sources, ignored -> {}, false);
 
         assertThat(offsets).containsExactlyElementsOf(LongStream.range(0, 10).map(i -> i * 1000).boxed().toList());
         var manifest = json.readTree(transferred.get("data-supply-manifest.json"));
         assertThat(manifest.path("datasets").size()).isEqualTo(20);
+        assertThat(manifest.path("datasets").get(0).path("inputStatus").asText()).isEqualTo("DELIVERED_SNAPSHOT");
+        assertThat(manifest.path("datasets").get(1).path("inputStatus").asText()).isEqualTo("SOURCE_UNKNOWN");
         assertThat(manifest.path("datasets").get(0).path("rowCount").asLong()).isEqualTo(10_000);
         assertThat(manifest.path("datasets").get(0).path("countAssurance").asText()).isEqualTo("VERIFIED_TOTAL");
         assertThat(new String(transferred.get("source-1.jsonl"), java.nio.charset.StandardCharsets.UTF_8).lines().count())

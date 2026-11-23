@@ -3372,7 +3372,14 @@ class InterpretationPlanRuntimeTest {
                 null,
                 null,
                 10
-            )
+            ),
+            2, new InterpretationPlanRuntime.StepExecution(2, "mcp_tool",
+                "mcp_chatchat_mcp_server_sql_datasource_template_query", true,
+                Map.of("templates", List.of(Map.of("templateId", "MYSQL_TABLE_METADATA",
+                    "parameterSchema", Map.of("type", "object", "properties", Map.of(
+                        "tableName", Map.of("type", "string"), "schemaName", Map.of("type", "string"),
+                        "databaseName", Map.of("type", "string")), "required", List.of("tableName"))))),
+                null, null, null, 10)
         );
         Method method = InterpretationPlanRuntime.class.getDeclaredMethod(
             "resolvedStepInput",
@@ -3403,8 +3410,7 @@ class InterpretationPlanRuntimeTest {
             .containsEntry("tableName", "lbappdeploydetail")
             .containsEntry("schemaName", "rdsm_ad")
             .containsEntry("databaseName", "rdsm_ad")
-            .containsEntry("schema", "rdsm_ad")
-            .containsEntry("database", "rdsm_ad");
+            .doesNotContainKeys("schema", "database");
         assertThat(resolved.get("runtimeTableResolution").toString())
             .contains("sql_metadata_search.results", "rdsm_ad", "lbappdeploydetail");
     }
@@ -4715,7 +4721,8 @@ class InterpretationPlanRuntimeTest {
                         "templateId", "PG_CUSTOM_TABLE_METADATA",
                         "databaseType", "postgresql",
                         "category", "maintenance_metadata",
-                        "parameterSchema", Map.of("required", List.of("tableName")),
+                        "parameterSchema", Map.of("properties", Map.of("tableName", Map.of("type", "string")),
+                                "required", List.of("tableName")),
                         "semantic", Map.of(
                             "operation", "TABLE_METADATA_QUERY",
                             "targetLevel", "TABLE",

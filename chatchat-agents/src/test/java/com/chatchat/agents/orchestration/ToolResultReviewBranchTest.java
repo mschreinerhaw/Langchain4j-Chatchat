@@ -136,6 +136,39 @@ class ToolResultReviewBranchTest {
         verifyNoInteractions(model);
     }
 
+    @ParameterizedTest
+    @ValueSource(booleans = {true, false})
+    void catalogCompletenessIsRequiredBeforeClineCanMatchTheFinalAsset(boolean complete) {
+        metadata("asset_query", Map.of(ToolWorkflowContract.METADATA_KEY,
+            ToolWorkflowContract.declaration(ToolWorkflowRole.ASSET_DISCOVERY, "fixture", "asset_query.v1")));
+        var port = mock(com.chatchat.agents.orchestration.retrieval.ClineDiscoveryPort.class);
+        var scope = new com.chatchat.common.kernel.KernelDataScope("tenant", "user", "request", "conversation", "run", null, Map.of());
+        var stage = com.chatchat.agents.orchestration.retrieval.ClineDiscoveryPort.Stage.CONFIRM_ASSETS;
+        when(port.propose(eq(scope), eq("model"), eq(1), eq(stage), any(), any()))
+            .thenReturn(Map.of("selectedAssetIds", List.of("db-149"), "selectionStatus", "MATCHED"));
+        String targetName = "LiveData\u6d4b\u8bd5\u5e93_223";
+        var candidates = java.util.stream.IntStream.range(0, 150)
+            .mapToObj(i -> Map.of("assetId", "db-" + i, "name", i == 149 ? targetName : "Example " + i, "assetType", "sql_datasource")).toList();
+        var output = Map.of("catalogMode", "AUTHORIZED_CATALOG", "catalogVersion", "v1",
+            "catalogComplete", complete, "authorizedAssetCount", 150, "assets", candidates);
+        var engine = engine();
+        engine.setClineDiscoveryPort(port);
+        var review = engine.reviewInterpretationPlanToolResult(model, "Analyze InnoDB on " + targetName, null, () -> false,
+            new InterpretationPlanRuntime.StepReviewRequest(null, null, execution("asset_query", true, output), Map.of(), 1, 1),
+            Map.of(), scope, "model");
+        if (complete) {
+            verify(port).propose(eq(scope), eq("model"), eq(1), eq(stage),
+                argThat(input -> input.get("candidates") instanceof List<?> delivered && delivered.size() == 150
+                    && delivered.get(149) instanceof Map<?, ?> card && targetName.equals(card.get("name"))), any());
+            assertThat(review.metadata()).containsEntry("selectionStatus", "MATCHED")
+                .containsEntry("deliveredAssetCount", 150).containsEntry("selectedAssetIds", List.of("db-149"));
+        } else {
+            verifyNoInteractions(port);
+            assertThat(review.metadata()).containsEntry("selectionStatus", "CATALOG_INCOMPLETE")
+                .containsEntry("deliveredAssetCount", 0);
+        }
+    }
+
     @Test
     void templatePublicationFlagAloneDoesNotAuthorizeSelection() {
         metadata("template_query", Map.of("templateCapability", true, "schemaVersion", "template-capability.v1",
@@ -250,10 +283,35 @@ class ToolResultReviewBranchTest {
             assertThat(projected.selectedIds()).containsExactly("orders");
             assertThat(projected.output().toString()).contains("reviewedInvocations", "value=3");
         } else {
-            assertThat(review.metadata()).containsEntry("candidateSelectionErrorCode", "CLINE_TEMPLATE_PARAMETERS_UNAVAILABLE")
-                .containsEntry("selectedTemplateIds", List.of());
+            assertThat(review.metadata()).containsEntry("candidateDecisionOwner", "PUBLISHER")
+                .containsEntry("selectedTemplateIds", List.of("orders"));
         }
         verifyNoInteractions(model);
+    }
+
+    @Test void fixedPublicationRetainsTwentyRequiredTemplatesWhenParameterProposalFails() {
+        metadata("template_query", Map.of(ToolWorkflowContract.METADATA_KEY,
+            ToolWorkflowContract.declaration(ToolWorkflowRole.TEMPLATE_DISCOVERY, "fixture", "template_query.v1"),
+            com.chatchat.common.mcp.capability.McpTemplateSelectionScope.METADATA_KEY,
+            com.chatchat.common.mcp.capability.McpTemplateSelectionScope.fixedBinding("api_service").toMetadata()));
+        var parameters = mock(com.chatchat.agents.orchestration.tool.ClineTemplateParameterPort.class);
+        when(parameters.enabledFor("agent")).thenReturn(true);
+        when(parameters.propose(any(), any(), anyInt(), any(), anyList(), any(), any()))
+            .thenThrow(new IllegalStateException("Proposal unavailable"));
+        var scope = new com.chatchat.common.kernel.KernelDataScope("tenant", "user", "request", "conversation", "run", null, Map.of());
+        var engine = engine();
+        engine.setClineTemplateParameterPort(parameters);
+        var templates = java.util.stream.IntStream.range(0, 30)
+            .mapToObj(i -> Map.of("templateId", "template-" + i, "supplyMode", i < 20 ? "REQUIRED" : "OPTIONAL")).toList();
+        var output = Map.of("templates", templates, "publicationScope", Map.of("completeSupply", true));
+        var review = engine.reviewInterpretationPlanToolResult(model, "Show orders", null, () -> false,
+            new InterpretationPlanRuntime.StepReviewRequest(null, null, execution("template_query", true, output),
+                Map.of(), 1, 1), Map.of("authorizationAgentId", "agent"), scope, "model");
+
+        assertThat(review.metadata()).containsEntry("selectedTemplateIds",
+            templates.subList(0, 20).stream().map(value -> value.get("templateId")).toList());
+        assertThat(review.metadata()).containsEntry("publishedOptionalTemplateIds",
+            templates.subList(20, 30).stream().map(value -> value.get("templateId")).toList());
     }
 
     @ParameterizedTest

@@ -361,9 +361,15 @@ public final class AnalysisEvidenceCoordinator {
         var context = sqlExecutionParameterContext(analysisContextProtocol.adapt(reference, metadata, output), envelope);
         var transport = output instanceof com.chatchat.common.mcp.runtime.McpAnalysisPayload payload
             ? payload.toMap() : map(output);
-        if (!sourceIncomplete(transport) && !sourceIncomplete(envelope)) return context;
+        var cursor = map(map(transport.get("runtimeMetadata")).get("dataSupplyCursor"));
+        boolean incomplete = sourceIncomplete(transport) || sourceIncomplete(envelope);
+        boolean declaredComplete = Boolean.TRUE.equals(map(envelope.get("data")).get("complete"))
+            || Boolean.TRUE.equals(envelope.get("complete")) || Boolean.TRUE.equals(transport.get("complete"))
+            || Boolean.TRUE.equals(map(transport.get("completeness")).get("complete"));
+        if (cursor.isEmpty() && !incomplete && !declaredComplete) return context;
         var result = new LinkedHashMap<>(context);
-        result.put("sourceComplete", false);
+        if (!cursor.isEmpty()) result.put("dataSupplyCursor", cursor);
+        if (incomplete || declaredComplete) result.put("sourceComplete", !incomplete);
         return result;
     }
 
@@ -381,7 +387,11 @@ public final class AnalysisEvidenceCoordinator {
     }
 
     private boolean hasIncompleteReceipt(Map<String, Object> receipt) {
-        return Boolean.FALSE.equals(receipt.get("complete"))
+        return "PARTIAL".equalsIgnoreCase(String.valueOf(receipt.get("status")))
+            || "PREVIEW".equalsIgnoreCase(String.valueOf(receipt.get("status")))
+            || Boolean.TRUE.equals(receipt.get("preview"))
+            || Boolean.FALSE.equals(receipt.get("sourceComplete"))
+            || Boolean.FALSE.equals(receipt.get("complete"))
             || Boolean.TRUE.equals(receipt.get("possiblyTruncated"))
             || Boolean.TRUE.equals(receipt.get("hasMore"))
             || Boolean.FALSE.equals(map(receipt.get("completeness")).get("complete"))
@@ -746,6 +756,7 @@ public final class AnalysisEvidenceCoordinator {
         if (addition == null || addition.isEmpty()) return root;
         Map<String, Object> merged = new LinkedHashMap<>(root == null ? Map.of() : root);
         merged.putAll(addition);
+        if (root != null && Boolean.FALSE.equals(root.get("sourceComplete"))) merged.put("sourceComplete", false);
         return Map.copyOf(merged);
     }
 

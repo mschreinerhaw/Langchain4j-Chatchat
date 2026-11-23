@@ -79,6 +79,9 @@ public class OpsCapabilityBridgePublisher implements com.chatchat.mcpserver.tool
             DOMAINS.stream().map(Domain::toolName).toList());
     }
 
+    @org.springframework.beans.factory.annotation.Autowired
+    private com.chatchat.mcpserver.authorization.McpAuthorizationService catalogAuthorization;
+
     @Override public String contributorId() { return "operations_discovery"; }
     @Override public McpSyncServer publicationServer() { return server; }
     @Override public List<com.chatchat.mcpserver.tool.ToolPublication> contribute() {
@@ -104,6 +107,10 @@ public class OpsCapabilityBridgePublisher implements com.chatchat.mcpserver.tool
             .filterInputSchema(domain.targetKind(), "template_query"));
         properties.put("templateIds", Map.of("type", "array", "items", Map.of("type", "string")));
         properties.put("limit", Map.of("type", "integer", "minimum", 1, "maximum", 20));
+        if (domain.assetDiscoverySupported()) {
+            properties.put("catalogMode", Map.of("type", "string", "enum", List.of("AUTHORIZED_CATALOG")));
+            properties.put("pageToken", Map.of("type", "string"));
+        }
         properties.put("cursor", Map.of("type", "string", "description",
             "Opaque nextCursor from the immediately preceding template page of the identical query; preserve its filters and scope."));
         McpSchema.Tool tool = McpSchema.Tool.builder()
@@ -117,6 +124,10 @@ public class OpsCapabilityBridgePublisher implements com.chatchat.mcpserver.tool
                 Map<String, Object> result = query(domain.toolName(), request.arguments());
                 return McpSchema.CallToolResult.builder().addTextContent(domain.title() + " completed")
                     .structuredContent(result).isError(false).build();
+            } catch (SecurityException denied) {
+                return McpSchema.CallToolResult.builder().addTextContent("Asset catalog authorization denied")
+                    .structuredContent(Map.of("success", false, "status", "AUTHORIZATION_DENIED",
+                        "errorCode", "AUTHORIZATION_DENIED")).isError(true).build();
             } catch (Exception ex) {
                 return McpSchema.CallToolResult.builder().addTextContent(ex.getMessage())
                     .structuredContent(Map.of("success", false, "status", "INVALID_REQUEST", "error", ex.getMessage()))
@@ -163,9 +174,23 @@ public class OpsCapabilityBridgePublisher implements com.chatchat.mcpserver.tool
         if (!assetStage && !normalized.containsKey("templateIds")) {
             normalized.put("limit", CommandTemplateDiscoveryService.MAX_LIMIT);
         }
+        boolean catalog = "AUTHORIZED_CATALOG".equals(arguments.get("catalogMode"));
+        boolean selectedIds = filters.get("assetIds") instanceof java.util.Collection<?> ids && !ids.isEmpty();
         boolean requiresAssetConfirmation = !assetStage && childToolName.isBlank()
             && domain.assetDiscoverySupported() && !normalized.containsKey("templateIds")
-            && !hasExplicitAssetIdentity(filters) && hasAssetDiscoveryIntent(filters, query);
+            && (catalog ? !selectedIds : !hasExplicitAssetIdentity(filters) && hasAssetDiscoveryIntent(filters, query));
+        if (catalog && (assetStage || requiresAssetConfirmation)) {
+            var allowed = catalogAuthorization.requireAssetCatalogAuthorization(domain.executionTool(), domain.assetType());
+            var result = bridgeResult(domain,
+                assetDiscovery.catalog(domain.assetType(), domain.executionTool(), normalized, allowed),
+                assetStage ? "asset" : "asset_selection");
+            if (requiresAssetConfirmation) {
+                result.put("templates", List.of());
+                result.put("nextStage", "template");
+                result.put("assetSelectionRequired", true);
+            }
+            return result;
+        }
         if (requiresAssetConfirmation) {
             normalized.put("limit", 10);
             Map<String, Object> result = bridgeResult(domain, assetDiscovery.query(normalized), "asset_selection");
@@ -180,6 +205,11 @@ public class OpsCapabilityBridgePublisher implements com.chatchat.mcpserver.tool
                 result.put("assetNotFound", true);
             }
             return result;
+        }
+        if (!assetStage && childToolName.isBlank() && "AUTHORIZED_CATALOG".equals(arguments.get("catalogMode"))
+                && filters.get("assetIds") instanceof java.util.Collection<?> selected && !selected.isEmpty()) {
+            var allowed = catalogAuthorization.requireAssetCatalogAuthorization(domain.executionTool(), domain.assetType());
+            assetDiscovery.requireCatalogSelection(domain.assetType(), normalized, selected, allowed);
         }
         if (query != null) filters.putIfAbsent("queryTerms", List.of(query));
         Map<String, Object> discovered;
@@ -255,6 +285,7 @@ public class OpsCapabilityBridgePublisher implements com.chatchat.mcpserver.tool
         meta.put("runtimeAction", "read_only");
         meta.put("readOnly", true);
         meta.put("bridgeManaged", true);
+        if (domain.assetDiscoverySupported()) meta.put("authorizedAssetCatalog", true);
         meta.put("executionTool", domain.executionTool());
         meta.put("modelInputBridgeContract", Map.of(
             "contractVersion", "model_assisted_retrieval.v1", "mode", "DISCOVERY_QUERY_PROFILE",

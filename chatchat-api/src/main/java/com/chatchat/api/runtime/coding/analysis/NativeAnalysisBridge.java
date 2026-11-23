@@ -36,6 +36,25 @@ public final class NativeAnalysisBridge {
         boolean visual=VisualReportMode.analysisRequested(context.runtimeAttributes());
         return execute(context,scope,visual?"primary-data-analysis-visual-v1":"primary-data-analysis-v1",context.query(),CodingAnalysisService.authorizedReportSchema(CodingAnalysisService.primaryReportSchema(false),sources.keySet()),sources,observer,visual);
     }
+    private static Map<String, Object> constrainReportCoverage(Map<String, Object> schema,
+            List<Map<String, Object>> inventory, Map<String, Object> taskMetadata) {
+        boolean limited = inventory.stream().anyMatch(item ->
+            Set.of("SOURCE_INCOMPLETE", "SOURCE_UNKNOWN").contains(item.get("inputStatus")))
+            || taskMetadata.get("dataSupply") instanceof Map<?, ?> supply
+                && Boolean.FALSE.equals(supply.get("deliveryComplete"));
+        if (!limited || schema == null || !(schema.get("properties") instanceof Map<?, ?> declared)
+                || !(declared.get("analysisStatus") instanceof Map<?, ?> status)) return schema;
+        var constraint = new LinkedHashMap<String, Object>();
+        status.forEach((key, value) -> constraint.put(String.valueOf(key), value));
+        constraint.put("enum", List.of("PARTIAL", "INPUT_REQUIRED"));
+        var resultProperties = new LinkedHashMap<String, Object>();
+        declared.forEach((key, value) -> resultProperties.put(String.valueOf(key), value));
+        resultProperties.put("analysisStatus", constraint);
+        var result = new LinkedHashMap<>(schema);
+        result.put("properties", resultProperties);
+        return result;
+    }
+
     public Map<String,Object> execute(AnalysisCoverageCoordinator.Request context,KernelDataScope scope,String request,String objective,Map<String,Object> schema,Map<String,Dataset> sources,java.util.function.Consumer<Map<String,Object>> observer,boolean visual){
         if(sources==null||sources.isEmpty())throw new IllegalArgumentException("Authorized data or an explicit supply-status receipt required");
         int suppliedFiles = context.runtimeAttributes().get("nativeOriginalAssetIds") instanceof List<?> original
@@ -90,8 +109,19 @@ public final class NativeAnalysisBridge {
                 int fileIndex = files.size();
                 files.add(file.id());
                 var contextFields=new LinkedHashMap<String,Object>();
-                for(String key:List.of("fieldSchema","fieldDefinitions","columns","dataQuality","recordMeaning","sourceDescription","snapshotSemantics","sourceComplete","sourceTemplateId","templateParameterBinding","representation","sourceSha256","recordType","sourceVerifiedEmpty"))if(source.analysisContext().containsKey(key))contextFields.put(key,source.analysisContext().get(key));
-                var description=new LinkedHashMap<String,Object>();description.put("datasetReference",source.reference());description.put("rowCount",offset);description.put("inputStatus",Boolean.FALSE.equals(contextFields.get("sourceComplete"))?"SOURCE_INCOMPLETE":offset==0?"VERIFIED_EMPTY_SNAPSHOT":"DELIVERED_SNAPSHOT");description.put("format","JSON_LINES");description.put("fileName",name+".jsonl");description.put("sha256",file.sha256());description.put("sourceContext",contextFields);
+                for(String key:List.of("fieldSchema","fieldDefinitions","columns","dataQuality","recordMeaning","sourceDescription","snapshotSemantics","sourceComplete","sourceTemplateId","templateParameterBinding","representation","sourceSha256","recordType","sourceVerifiedEmpty","dataSupplyCursor"))if(source.analysisContext().containsKey(key))contextFields.put(key,source.analysisContext().get(key));
+                var description=new LinkedHashMap<String,Object>();
+                description.put("datasetReference",source.reference());
+                description.put("rowCount",offset);
+                boolean complete = Boolean.TRUE.equals(contextFields.get("sourceComplete"));
+                boolean verifiedEmpty = offset == 0 && Boolean.TRUE.equals(contextFields.get("sourceVerifiedEmpty"));
+                String status = Boolean.FALSE.equals(contextFields.get("sourceComplete")) ? "SOURCE_INCOMPLETE"
+                    : verifiedEmpty ? "VERIFIED_EMPTY_SNAPSHOT" : complete ? "DELIVERED_SNAPSHOT" : "SOURCE_UNKNOWN";
+                description.put("inputStatus",status);
+                description.put("format","JSON_LINES");
+                description.put("fileName",name+".jsonl");
+                description.put("sha256",file.sha256());
+                description.put("sourceContext",contextFields);
                 description.put("countAssurance", expectedRows >= 0 ? "VERIFIED_TOTAL" : "OBSERVED_PAGINATION_END");
                 try {
                     var meta = assets.store(UserAssetService.Owner.of(scope), UserAssetService.Kind.DATASET, snapshotTask,
@@ -128,7 +158,7 @@ public final class NativeAnalysisBridge {
                     +"Verify current facts using the supplied authorized inputs.";
             }
             if(instruction.length()>16000){byte[] data=instruction.getBytes(java.nio.charset.StandardCharsets.UTF_8);var file=assets.store(UserAssetService.Owner.of(scope),UserAssetService.Kind.DATASET,snapshotTask,scope.runId(),"native-original-objective:"+UserAssetService.hash(data),"original-task-objective.txt","text/plain",data);files.add(file.id());instruction="Read original-task-objective.txt from the supplied files for the full original user objective.";}
-            instruction+="\nRead data-supply-manifest.json for the inventory of immutable source files. Use the frozen source contexts to interpret the supplied JSONL rows and distinguish missing data from verified empty results. Treat SOURCE_INCOMPLETE snapshots as partial and disclose the missing coverage. Preserve source references and field names. Choose your own source structure and computation. Provide a complete Markdown report and the requested structured result; never treat transport/status observations as business data.";
+            instruction+="\nRead data-supply-manifest.json for the inventory of immutable source files. Use the frozen source contexts to interpret the supplied JSONL rows and distinguish missing data from verified empty results. Treat SOURCE_INCOMPLETE and SOURCE_UNKNOWN snapshots as limited and disclose the missing coverage. Preserve source references and field names. Choose your own source structure and computation. Provide a complete Markdown report and the requested structured result; never treat transport/status observations as business data.";
             var types=List.of("REPORT","RESULT"); // Charts are optional: missing evidence must never force invented figures.
             String model=Objects.toString(context.metadata().get("modelName"),null);
             var capabilitySnapshot = new LinkedHashMap<>(capabilities.capture(scope, model, context.runtimeAttributes(),
@@ -140,18 +170,28 @@ public final class NativeAnalysisBridge {
                         ids.stream().filter(String.class::isInstance).map(String.class::cast).forEach(optionalIds::add);
                 }
                 var optional = publishedTemplates.captureOptional(scope,
-                    Objects.toString(context.runtimeAttributes().get("authorizationAgentId"), null), optionalIds);
+                    Objects.toString(context.runtimeAttributes().get("authorizationAgentId"), null), optionalIds, context.query());
                 if (optional.isPresent()) {
                     capabilitySnapshot.put(NativePublishedTemplate.CONTEXT, optional.get());
-                    instruction += "\nIf the supplied files leave a material data gap, the task's published read-only template is available through Runtime MCP. Continue the analysis in this workspace after inspecting its result.";
+                    instruction += "\nIf the supplied files leave a material data gap, the task's authorized optional read-only templates are available through Runtime MCP. Continue the analysis in this workspace after inspecting its result.";
                 }
             }
-            var submitted=coding.submit(scope,request,files,instruction,model,types,schema,capabilitySnapshot);
+            var submitted=coding.submit(scope,request,files,instruction,model,types,
+                constrainReportCoverage(schema, inventory, context.metadata()),capabilitySnapshot);
             observer.accept(Map.of("eventKind","CODING_TASK_SUBMITTED","taskId",submitted.taskId(),"source","JAVA_NATIVE_S3"));
             var result=coding.await(scope,submitted.taskId(),context.cancellationCheck(),observer);
             result.put("authorizedDatasetReferences",authorizedReferences);
             result.put("deliveredSnapshotBytes", bytes);
             result.put("deliveredRows", rows);
+            long complete = inventory.stream().filter(item -> Set.of("DELIVERED_SNAPSHOT", "VERIFIED_EMPTY_SNAPSHOT")
+                .contains(item.get("inputStatus"))).count();
+            result.put("sourceRows", complete == inventory.size()
+                    && sources.values().stream().allMatch(source -> source.handle().recordCountExact())
+                ? sources.values().stream().mapToLong(Dataset::recordCount).sum() : "UNKNOWN");
+            result.put("datasetCompleteCount", complete);
+            long partial = inventory.stream().filter(item -> "SOURCE_INCOMPLETE".equals(item.get("inputStatus"))).count();
+            result.put("datasetPartialCount", partial);
+            result.put("datasetUnknownCount", inventory.size() - complete - partial);
             if(result.get("datasetReference") instanceof String ref&&result.get("results") instanceof List<?> raw){
                 @SuppressWarnings("unchecked") var values=(List<Map<String,Object>>)raw;
                 sources.put(ref,new Dataset(ref,Map.of("taskId",submitted.taskId(),"validationScope","STRUCTURAL_AND_OBJECT_INTEGRITY","businessEvaluated",false),values));

@@ -76,6 +76,8 @@ public class ApiMcpToolPublisher implements com.chatchat.mcpserver.tool.McpToolC
             "description", "Optional logical filters for API service assets; raw URL and HTTP definitions are forbidden"));
         properties.put("executionContext", Map.of("type", "object", "additionalProperties", true));
         properties.put("limit", Map.of("type", "integer", "minimum", 1, "maximum", 20));
+        properties.put("catalogMode", Map.of("type", "string", "enum", List.of("AUTHORIZED_CATALOG")));
+        properties.put("pageToken", Map.of("type", "string"));
         McpSchema.Tool tool = McpSchema.Tool.builder()
             .name(BRIDGE_TOOL_NAME)
             .title("API 服务资产查询")
@@ -112,6 +114,7 @@ public class ApiMcpToolPublisher implements com.chatchat.mcpserver.tool.McpToolC
         meta.put("runtimeLevel", "discovery");
         meta.put("templateGoverned", false);
         meta.put("bridgeManaged", true);
+        meta.put("authorizedAssetCatalog", true);
         meta.put("mcp_tool_limit", concurrencyManager.limitMeta(BRIDGE_TOOL_NAME, "discovery"));
         meta.put(ToolWorkflowContract.METADATA_KEY, ToolWorkflowContract.declaration(
             ToolWorkflowRole.ASSET_DISCOVERY, "mcp.api-service-asset.v1", "filters", "service_asset"));

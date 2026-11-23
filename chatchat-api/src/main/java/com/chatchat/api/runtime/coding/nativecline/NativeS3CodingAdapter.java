@@ -405,7 +405,7 @@ public final class NativeS3CodingAdapter implements CodingAgentSPI {
             if(type.equals("template.query.delivered")){
                 normalized="TOOL_COMPLETED";
                 summary="execute_published_template";
-                for(String field:List.of("templateId","rowCount","complete","queryMs","sourceEvidenceId","evidenceRef","executionPath"))
+                for(String field:List.of("templateId","operationId","rowCount","complete","queryMs","sourceEvidenceId","evidenceRef","executionPath"))
                     if(p.hasNonNull(field))projected.put(field,json.convertValue(p.get(field),Object.class));
             }
         }else if(type.startsWith("tool.")){
@@ -603,8 +603,8 @@ public final class NativeS3CodingAdapter implements CodingAgentSPI {
     private com.chatchat.api.runtime.coding.data.NativePublishedTemplate publishedTemplates;
     private void reconcile(Run r,String proof){
         for(String operation:tasks.unresolvedOperations(r.c.scope(),r.c.taskId())){
-            if(com.chatchat.api.runtime.coding.data.NativePublishedTemplate.OPERATION.equals(operation)){
-                publishedTemplates.reconcile(r.c);
+            if(com.chatchat.api.runtime.coding.data.NativePublishedTemplate.isOperation(operation)){
+                publishedTemplates.reconcile(r.c, operation);
                 continue;
             }
             tasks.reconcileStopped(r.c.scope(),r.c.taskId(),r.lease,outcome(r).revision(),operation,proof);

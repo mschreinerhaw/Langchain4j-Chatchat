@@ -45,10 +45,44 @@ class NativePublishedTemplateTest {
 
         assertThatThrownBy(() -> service.capture(scope, "agent", "SQL"))
             .isInstanceOf(SecurityException.class).hasMessageContaining("resource policy");
-        assertThat(service.captureOptional(scope, "agent", Set.of("SQL"))).isEmpty();
-        assertThat(service.captureOptional(scope, "agent", Set.of("unpublished"))).isEmpty();
-        assertThat(service.captureOptional(scope, "another-agent", Set.of("SQL"))).isEmpty();
+        assertThat(service.captureOptional(scope, "agent", Set.of("SQL"), "Original question")).isEmpty();
+        assertThat(service.captureOptional(scope, "agent", Set.of("unpublished"), "Original question")).isEmpty();
+        assertThat(service.captureOptional(scope, "another-agent", Set.of("SQL"), "Original question")).isEmpty();
         verifyNoInteractions(tools);
+    }
+
+    @Test void freezesEveryLiveOptionalGrantForTheOriginalQuestion() throws Exception {
+        var scope = new KernelDataScope("tenant", "user", null, null, "run", null, Map.of());
+        var policy = new CodingDataSupplyProperties();
+        policy.setClineTemplateInvocationEnabled(true);
+        var supply = mock(CodingDataSupplyService.class);
+        when(supply.hash(org.mockito.ArgumentMatchers.any())).thenReturn("grant-digest");
+        var tools = mock(RegisteredToolAnalysisOperator.class);
+        var publications = mock(McpControlPlaneClient.class);
+        var permissions = mock(AgentTemplateToolPolicy.class);
+        var service = new NativePublishedTemplate(policy, supply, mock(DurableCodingTaskService.class), tools,
+            publications, permissions, mock(SkillExecutionScopePort.class), mock(NativeS3Evidence.class), json);
+        when(supply.grants(scope)).thenReturn(List.of("A", "B", "NOT_OPTIONAL").stream()
+            .map(id -> new CodingDataSupplyProperties.Grant("tenant", "user", "agent", id, "Warehouse",
+                "DEV", Map.of(), List.of("warehouse"))).toList());
+        when(publications.request("GET", "/api/v1/template-capabilities/publications?tenantId=tenant&actorId=user", null))
+            .thenReturn(json.readTree("""
+                [{"state":"RUNNING","verifiedReadOnlySql":true,"templateKey":"sql_datasource:A",
+                  "assetName":"Warehouse","toolName":"tool_a","parameterSchema":{"type":"object"}},
+                 {"state":"RUNNING","verifiedReadOnlySql":true,"templateKey":"sql_datasource:B",
+                  "assetName":"Warehouse","toolName":"tool_b","parameterSchema":{"type":"object"}}]
+                """));
+        for (String tool : List.of("tool_a", "tool_b")) {
+            when(permissions.allowed("tenant", "user", "agent", Set.of(tool))).thenReturn(Set.of(tool));
+            when(tools.resolveBoundPublishedTool("agent", tool)).thenReturn(java.util.Optional.of(tool));
+        }
+
+        var binding = service.captureOptional(scope, "agent", Set.of("A", "B", "FOREIGN"), "Original question");
+        assertThat(binding).isPresent();
+        assertThat(binding.get()).containsEntry("originalQuestion", "Original question");
+        var ids = new java.util.ArrayList<String>();
+        json.valueToTree(binding.get()).path("optionalBindings").fieldNames().forEachRemaining(ids::add);
+        assertThat(ids).containsExactlyInAnyOrder("A", "B");
     }
 
     @Test void extractsSqlRowsFromTheGovernedPublishedToolEnvelope() throws Exception {
@@ -59,6 +93,17 @@ class NativePublishedTemplateTest {
             """);
         assertThat(data.path("rows").get(0).path("warehouse").asInt()).isEqualTo(3);
         assertThat(data.path("complete").asBoolean()).isTrue();
+    }
+
+    @Test void outerPartialAndPreviewReceiptsOverrideNestedCompleteness() throws Exception {
+        for (String status : List.of("PARTIAL", "PREVIEW")) {
+            var data = NativePublishedTemplate.sqlData(json, """
+                {"schemaVersion":"mcp_analysis_payload.v1","status":"%s",
+                 "data":{"data":{"rowCount":1,"rows":[{"warehouse":3}],"complete":true}}}
+                """.formatted(status));
+            assertThat(data.path("complete").asBoolean()).isFalse();
+            assertThat(data.path("rows").size()).isEqualTo(1);
+        }
     }
 
     @Test void doesNotReadRawOrMismatchedSqlRows() {

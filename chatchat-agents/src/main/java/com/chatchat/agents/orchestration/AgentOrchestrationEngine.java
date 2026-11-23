@@ -1615,6 +1615,14 @@ class AgentOrchestrationEngine implements AgentRunExecutor, ResumableAgentRunExe
             InterpretationPlanRuntime.StepInputEnrichmentRequest request, KernelDataScope scope,
             String modelName, BooleanSupplier cancelled) {
         String tool = request.step() == null ? null : request.step().toolName();
+        if ("AUTHORIZED_CATALOG".equals(request.input().get("catalogMode"))) {
+            var filters = asMap(request.input().get("filters"));
+            boolean identityBound = !stringList(filters.get("assetIds")).isEmpty();
+            if ("asset".equals(request.input().get("stage"))
+                    || !identityBound && !request.input().containsKey("templateIds")) {
+                return new LinkedHashMap<>(request.input());
+            }
+        }
         if (ClineSearchInput.applies(tool, toolMetadataOrNull(tool), request.input())) {
             return searchInput(tool, request.input(), query, scope, modelName,
                 request.step() == null ? 0 : request.step().id(), cancelled);
@@ -3558,7 +3566,15 @@ class AgentOrchestrationEngine implements AgentRunExecutor, ResumableAgentRunExe
         if (request != null && request.execution() != null && request.execution().success()
             && workflowRole == ToolWorkflowRole.ASSET_DISCOVERY) {
             if (clineDiscovery != null && scope != null) {
-                return reviewClineAssetDiscovery(query, request.execution(), scope, modelName, cancellationCheck);
+                var review = reviewClineAssetDiscovery(query, request.execution(), scope, modelName, cancellationCheck);
+                if ("ASSET_DISCOVERY".equals(review.metadata().get("phase"))) {
+                    var event = new LinkedHashMap<>(review.metadata());
+                    event.put("eventKind", "ASSET_CATALOG_CONFIRMATION");
+                    event.put("eventState", "MATCHED".equals(event.get("selectionStatus")) ? "COMPLETED" : "FAILED");
+                    event.put("stepId", request.execution().stepId());
+                    recordLifecyclePhase(runtimeAttributes, null, "asset_confirmation", "Authorized asset catalog reviewed.", event);
+                }
+                return review;
             }
             var declared = new com.chatchat.agents.runtime.plan.selection.EvidenceBasedAssetCandidateEvaluator()
                 .evaluate(com.chatchat.common.mcp.runtime.McpAnalysisPayload.canonicalData(request.execution().output()),
@@ -3948,11 +3964,31 @@ class AgentOrchestrationEngine implements AgentRunExecutor, ResumableAgentRunExe
             InterpretationPlanRuntime.StepExecution execution, KernelDataScope scope,
             String modelName, BooleanSupplier cancelled) {
         List<Map<String, Object>> candidates = findCandidateMaps(execution.output(), "assets", 0);
+        Map<String, Object> catalog = asMap(com.chatchat.common.mcp.runtime.McpAnalysisPayload.canonicalData(execution.output()));
+        if (!catalog.containsKey("catalogMode")) catalog = asMap(catalog.get("data"));
+        boolean catalogMode = "AUTHORIZED_CATALOG".equals(catalog.get("catalogMode"));
+        var audit = new LinkedHashMap<String, Object>();
+        if (catalogMode) {
+            String version = Objects.toString(catalog.get("catalogVersion"), "");
+            int total = catalog.get("authorizedAssetCount") instanceof Number count ? count.intValue() : -1;
+            boolean complete = Boolean.TRUE.equals(catalog.get("catalogComplete")) && total == candidates.size()
+                && !version.isBlank();
+            audit.put("phase", "ASSET_DISCOVERY");
+            audit.put("catalogVersion", version);
+            audit.put("catalogComplete", complete);
+            audit.put("authorizedAssetCount", total);
+            audit.put("deliveredAssetCount", 0);
+            audit.put("catalogDeliveryComplete", false);
+            audit.put("selectedAssetCount", 0);
+            if (!complete) return assetSelectionFailure(audit, "CATALOG_INCOMPLETE");
+            if (candidates.isEmpty()) return assetSelectionFailure(audit, "TARGET_NOT_FOUND");
+        }
         try {
             Map<String, Map<String, Object>> descriptors = new LinkedHashMap<>();
             for (var candidate : candidates) {
                 var asset = candidate.get("asset") instanceof Map<?, ?> nested ? asMap(nested) : candidate;
-                String id = stringValue(firstObject(asset, "id", "assetId", "name", "assetName", "toolName"));
+                String id = stringValue(catalogMode ? firstObject(asset, "id", "assetId")
+                    : firstObject(asset, "id", "assetId", "name", "assetName", "toolName"));
                 if (id == null) continue;
                 var identity = asMap(candidate.get("analysisIdentity"));
                 String type = stringValue(firstObject(asset, "assetType", "type"));
@@ -3964,34 +4000,74 @@ class AgentOrchestrationEngine implements AgentRunExecutor, ResumableAgentRunExe
                     "environment", Objects.toString(asset.get("environment"), ""),
                     "description", Objects.toString(description != null ? description
                         : firstObject(identity, "toolDescription", "description"), ""));
-                if (descriptors.putIfAbsent(id, card) != null)
+                if (descriptors.putIfAbsent(id, card) != null) {
+                    if (catalogMode) {
+                        audit.put("catalogComplete", false);
+                        return assetSelectionFailure(audit, "CATALOG_INCOMPLETE");
+                    }
                     throw new IllegalArgumentException("Ambiguous asset identity");
+                }
+            }
+            if (catalogMode && descriptors.size() != candidates.size()) {
+                audit.put("catalogComplete", false);
+                return assetSelectionFailure(audit, "CATALOG_INCOMPLETE");
             }
             if (!descriptors.isEmpty()) {
+                var input = new LinkedHashMap<String, Object>(Map.of("question", query,
+                    "tool", execution.toolName(), "candidates", List.copyOf(descriptors.values())));
+                if (catalogMode) input.put("catalogVersion", audit.get("catalogVersion"));
                 var proposal = clineDiscovery.propose(scope, modelName, execution.stepId(),
-                    ClineDiscoveryPort.Stage.CONFIRM_ASSETS, Map.of("question", query,
-                        "tool", execution.toolName(), "candidates", List.copyOf(descriptors.values())), cancelled);
-                if (proposal.size() == 1 && proposal.get("selectedAssetIds") instanceof List<?> selected
+                    ClineDiscoveryPort.Stage.CONFIRM_ASSETS, input, cancelled);
+                if (catalogMode) {
+                    audit.put("deliveredAssetCount", descriptors.size());
+                    audit.put("catalogDeliveryComplete", true);
+                }
+                boolean validFields = proposal.size() == 1 || catalogMode && proposal.size() == 2
+                    && proposal.containsKey("selectionStatus");
+                if (validFields && proposal.get("selectedAssetIds") instanceof List<?> selected
+                    && (!proposal.containsKey("selectionStatus") || "MATCHED".equals(proposal.get("selectionStatus")))
                     && !selected.isEmpty() && selected.stream().allMatch(id -> id instanceof String && descriptors.containsKey(id))
                     && new LinkedHashSet<>(selected).size() == selected.size()) {
-                    recordLifecyclePhase(scope.attributes(), null, "asset_confirmation",
+                    if (!catalogMode) recordLifecyclePhase(scope.attributes(), null, "asset_confirmation",
                         "Cline confirmed assets from the authorized discovery results.",
                         Map.of("eventKind", "CLINE_ASSET_CONFIRMATION", "eventState", "COMPLETED",
                             "stepId", execution.stepId(), "selectedCount", selected.size()));
-                    return InterpretationPlanRuntime.StepReview.accepted("Cline confirmed authorized asset candidates.",
-                        Map.of("selectedAssetIds", List.copyOf(selected),
-                            "toolResultReviewMode", "CLINE_ASSET_CONFIRMATION", "toolResultReviewModelCalls", 0));
+                    audit.put("selectedAssetIds", List.copyOf(selected));
+                    audit.put("toolResultReviewMode", "CLINE_ASSET_CONFIRMATION");
+                    audit.put("toolResultReviewModelCalls", 0);
+                    if (catalogMode) {
+                        audit.put("selectedAssetCount", selected.size());
+                        audit.put("selectionStatus", "MATCHED");
+                    }
+                    return InterpretationPlanRuntime.StepReview.accepted("Cline confirmed authorized asset candidates.", audit);
+                }
+                if (catalogMode && validFields && proposal.get("selectedAssetIds") instanceof List<?> selected
+                    && selected.isEmpty() && Set.of("TARGET_NOT_FOUND", "AMBIGUOUS_TARGET")
+                        .contains(Objects.toString(proposal.get("selectionStatus"), ""))) {
+                    return assetSelectionFailure(audit, proposal.get("selectionStatus").toString());
                 }
             }
+        } catch (ClineDiscoveryPort.CatalogLimitException limited) {
+            if (catalogMode) return assetSelectionFailure(audit, "CATALOG_INCOMPLETE");
+            throw limited;
         } catch (java.util.concurrent.CancellationException cancelledTask) {
             throw cancelledTask;
         } catch (RuntimeException unavailable) {
             log.warn("Cline asset confirmation failed: stepId={}, errorType={}",
                 execution.stepId(), unavailable.getClass().getSimpleName());
         }
+        if (catalogMode) return assetSelectionFailure(audit, "CLINE_CONFIRMATION_FAILED");
         return InterpretationPlanRuntime.StepReview.accepted("Cline did not confirm an authorized asset.", Map.of(
             "selectedAssetIds", List.of(), "candidateSelectionErrorCode", "CLINE_ASSET_CONFIRMATION_REQUIRED",
             "candidateSelectionError", "The returned candidates did not yield a valid Cline asset confirmation."));
+    }
+
+    private InterpretationPlanRuntime.StepReview assetSelectionFailure(Map<String, Object> audit, String status) {
+        audit.put("selectionStatus", status);
+        audit.put("selectedAssetIds", List.of());
+        audit.put("candidateSelectionErrorCode", status);
+        audit.put("candidateSelectionError", "Authorized asset confirmation ended with " + status);
+        return InterpretationPlanRuntime.StepReview.accepted("Authorized asset confirmation ended with " + status, audit);
     }
 
     private InterpretationPlanRuntime.StepReview attachPublishedSupplyScope(
@@ -4055,22 +4131,12 @@ class AgentOrchestrationEngine implements AgentRunExecutor, ResumableAgentRunExe
             reused.put("toolResultReviewModelCalls", 0);
             return InterpretationPlanRuntime.StepReview.accepted("Reuse recorded template selection.", reused);
         }
-        if (fixedScope && !returned.isEmpty() && returned.size() <= ToolCallBatchSchema.DEFAULT_MAX_CALLS) {
-            var admission = new LinkedHashMap<String, Object>(Map.of(
-                "candidateDecisionOwner", "PUBLISHER",
-                "candidateSelectionStatus", "SELECTED",
-                "publishedDataSupply", true,
-                "selectedTemplateIds", returned,
-                "toolResultReviewMode", "RUNTIME_PUBLISHED_TEMPLATE_ADMISSION",
-                "toolResultReviewModelCalls", 0,
-                "mcpDiscoverySucceeded", true));
-            return InterpretationPlanRuntime.StepReview.accepted("Admit Runtime's published templates.", admission);
+        if (fixedScope && !returned.isEmpty()) {
+            return publishedTemplateAdmission(returned);
         }
-        String code = returned.isEmpty() ? "NO_MATCH"
-            : fixedScope ? "TEMPLATE_BATCH_LIMIT_EXCEEDED" : "TEMPLATE_SELECTION_REQUIRED";
+        String code = returned.isEmpty() ? "NO_MATCH" : "TEMPLATE_SELECTION_REQUIRED";
         String reason = switch (code) {
             case "NO_MATCH" -> "Runtime discovery returned no templates.";
-            case "TEMPLATE_BATCH_LIMIT_EXCEEDED" -> "The published templates exceed the Runtime execution batch limit.";
             default -> "Provide an explicit template selection and structured parameters through the governed invocation.";
         };
         Map<String, Object> metadata = new LinkedHashMap<>(Map.of(
@@ -4084,6 +4150,18 @@ class AgentOrchestrationEngine implements AgentRunExecutor, ResumableAgentRunExe
             metadata.put("candidateSelectionError", reason);
         }
         return InterpretationPlanRuntime.StepReview.accepted(reason, metadata);
+    }
+
+    private InterpretationPlanRuntime.StepReview publishedTemplateAdmission(List<String> required) {
+        var admission = new LinkedHashMap<String, Object>(Map.of(
+            "candidateDecisionOwner", "PUBLISHER",
+            "candidateSelectionStatus", "SELECTED",
+            "publishedDataSupply", true,
+            "selectedTemplateIds", required,
+            "toolResultReviewMode", "RUNTIME_PUBLISHED_TEMPLATE_ADMISSION",
+            "toolResultReviewModelCalls", 0,
+            "mcpDiscoverySucceeded", true));
+        return InterpretationPlanRuntime.StepReview.accepted("Admit Runtime's published templates.", admission);
     }
 
     private InterpretationPlanRuntime.StepReview reviewClineTemplates(
@@ -4121,8 +4199,9 @@ class AgentOrchestrationEngine implements AgentRunExecutor, ResumableAgentRunExe
             });
             if (fixedScope) {
                 descriptors.keySet().stream().filter(id -> !distinct.contains(id)).forEach(id ->
-                    protocols.add(Map.of("template_id", id, "binding_status", "BLOCKED",
-                        "binding_error", "CLINE_TEMPLATE_PARAMETER_PROPOSAL_MISSING")));
+                    protocols.add(Map.of("template_id", id, "binding_status", "READY",
+                        "protocol_version", "template_parameter_protocol_v2", "arguments", Map.of(),
+                        "unresolved_parameters", List.of())));
                 selected = List.copyOf(descriptors.keySet());
             }
             recordLifecyclePhase(attributes, null, "template_parameters",
@@ -4143,6 +4222,12 @@ class AgentOrchestrationEngine implements AgentRunExecutor, ResumableAgentRunExe
         } catch (RuntimeException unavailable) {
             log.warn("Cline template parameter task failed: stepId={}, errorType={}",
                 execution.stepId(), unavailable.getClass().getSimpleName());
+            if (fixedScope) {
+                List<String> required = candidates.stream()
+                    .map(candidate -> stringValue(firstObject(candidate, "templateId", "template_id", "id")))
+                    .filter(Objects::nonNull).distinct().toList();
+                return publishedTemplateAdmission(required);
+            }
             return InterpretationPlanRuntime.StepReview.accepted("Cline parameter proposals unavailable.", Map.of(
                 "candidateSelectionErrorCode", "CLINE_TEMPLATE_PARAMETERS_UNAVAILABLE",
                 "candidateSelectionError", "Cline did not return a complete parameter proposal.",

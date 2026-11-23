@@ -36,6 +36,7 @@ public enum DataSupplyStatus {
         var requiredIds = new java.util.LinkedHashSet<String>();
         var invokedIds = new java.util.LinkedHashSet<String>();
         var completedIds = new java.util.LinkedHashSet<String>();
+        var incompleteIds = new java.util.LinkedHashSet<String>();
         if (execution != null) for (var step : execution.steps()) {
             if (!"mcp_tool".equals(step.actionType())) continue;
             var metadata = step.metadata();
@@ -51,6 +52,7 @@ public enum DataSupplyStatus {
                     if (call.templateId() == null) continue;
                     if (call.invoked()) invokedIds.add(call.templateId());
                     if ("SUCCESS".equals(call.status()) && call.evidenceUsable()) completedIds.add(call.templateId());
+                    else incompleteIds.add(call.templateId());
                 }
             String code = text(metadata.get("candidateSelectionErrorCode"));
             if (code == null) code = text(metadata.get("candidateSelectionStatus"));
@@ -79,7 +81,11 @@ public enum DataSupplyStatus {
             !"DATA_SUPPLY_STATUS".equals(dataset.analysisContext().get("recordType"))).toList();
         var incompleteSources = sources.stream().filter(DataSupplyStatus::sourceIncomplete)
             .map(AnalysisEvidenceCoordinator.Dataset::reference).toList();
-        boolean incomplete = unavailable > 0 || !incompleteSources.isEmpty() || !failures.isEmpty() || !exclusions.isEmpty();
+        invokedIds.retainAll(requiredIds);
+        completedIds.retainAll(requiredIds);
+        completedIds.removeAll(incompleteIds);
+        boolean incomplete = unavailable > 0 || completedIds.size() < required
+            || !incompleteSources.isEmpty() || !failures.isEmpty() || !exclusions.isEmpty();
         long rows = sources.stream().mapToLong(AnalysisEvidenceCoordinator.Dataset::recordCount).sum();
         DataSupplyStatus status = rows > 0 ? DATASET_READY
             : !sources.isEmpty() && sources.stream().allMatch(dataset -> dataset.handle().recordCountExact()
@@ -94,8 +100,6 @@ public enum DataSupplyStatus {
         result.put("deliveryComplete", (status == DATASET_READY || status == EMPTY_RESULT)
             && !incomplete);
         result.put("incompleteDatasetReferences", incompleteSources);
-        invokedIds.retainAll(requiredIds);
-        completedIds.retainAll(requiredIds);
         result.put("supplyMetrics", Map.of(
             "publishedTemplateCount", published, "requiredTemplateCount", required,
             "unavailableRequiredTemplateCount", unavailable,

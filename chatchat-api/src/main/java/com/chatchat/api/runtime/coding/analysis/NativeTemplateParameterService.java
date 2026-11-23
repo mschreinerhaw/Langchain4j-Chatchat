@@ -83,7 +83,10 @@ public final class NativeTemplateParameterService implements ClineTemplateParame
         return identity.as(ownerScope, Set.of(READ, SUBMIT, STOP), () -> {
             try {
                 byte[] descriptors = json.writeValueAsBytes(inputData);
-                if (descriptors.length > MAX_BYTES) throw new IllegalArgumentException("Parameter task input too large");
+                boolean catalog = "CONFIRM_ASSETS".equals(inputData.get("stage"))
+                    && inputData.get("catalogVersion") instanceof String;
+                if (catalog && descriptors.length > 4 * 1024 * 1024) throw new ClineDiscoveryPort.CatalogLimitException();
+                if (!catalog && descriptors.length > MAX_BYTES) throw new IllegalArgumentException("Parameter task input too large");
                 String requestId = skillName + "-" + stepId + "-" + UserAssetService.hash(descriptors);
                 var existing = coding.snapshot(ownerScope, requestId);
                 String task = coding.taskIdentity(ownerScope, requestId);
@@ -93,6 +96,10 @@ public final class NativeTemplateParameterService implements ClineTemplateParame
                     try (var stream = new ClassPathResource("skills/" + skillName + "/SKILL.md").getInputStream()) {
                         skill = stream.readAllBytes();
                     }
+                    var files = new ArrayList<String>();
+                    if (catalog) {
+                        descriptors = publishCatalog(ownerScope, task, requestId, inputData, files);
+                    }
                     var input = assets.store(owner, UserAssetService.Kind.CONTEXT, task, scope.runId(),
                         requestId + ":input", inputName, "application/json", descriptors);
                     var guide = assets.store(owner, UserAssetService.Kind.CONTEXT, task, scope.runId(),
@@ -100,7 +107,9 @@ public final class NativeTemplateParameterService implements ClineTemplateParame
                     String instruction = "Read the supplied SKILL.md and " + inputName + "."
                         + temporalReference(skillName, inputData.get("question"))
                         + " Follow the skill and deliver only its RESULT.";
-                    task = coding.submit(ownerScope, requestId, List.of(input.id(), guide.id()), instruction,
+                    files.add(input.id());
+                    files.add(guide.id());
+                    task = coding.submit(ownerScope, requestId, files, instruction,
                         modelName, List.of("RESULT"), Map.of()).taskId();
                 }
                 long deadline = System.nanoTime() + TimeUnit.MINUTES.toNanos(3);
@@ -119,6 +128,43 @@ public final class NativeTemplateParameterService implements ClineTemplateParame
                 throw new IllegalStateException("Cline parameter task exceeded its wait budget", stopped);
             }
         });
+    }
+
+    private byte[] publishCatalog(KernelDataScope scope, String task, String requestId,
+                                  Map<String, Object> input, List<String> files) throws IOException {
+        var candidates = (List<?>) input.get("candidates");
+        var byType = new java.util.TreeMap<String, List<Map<?, ?>>>();
+        for (var candidate : candidates) {
+            if (!(candidate instanceof Map<?, ?> card) || !(card.get("type") instanceof String type) || type.isBlank())
+                throw new IllegalArgumentException("Invalid authorized asset descriptor");
+            byType.computeIfAbsent(type, ignored -> new ArrayList<>()).add(card);
+        }
+        var chunks = new ArrayList<byte[]>();
+        var index = new ArrayList<Map<String, Object>>();
+        for (var entry : byType.entrySet()) {
+            var values = entry.getValue();
+            for (int start = 0; start < values.size(); start += 40) {
+                var part = values.subList(start, Math.min(start + 40, values.size()));
+                byte[] bytes = json.writeValueAsBytes(part);
+                if (bytes.length > MAX_BYTES || chunks.size() >= com.chatchat.api.assets.SiloCodingWorkspaceService.MAX_INPUT_FILES - 2)
+                    throw new ClineDiscoveryPort.CatalogLimitException();
+                String name = "asset-catalog-" + (chunks.size() + 1) + ".json";
+                index.add(Map.of("assetType", entry.getKey(), "fileName", name,
+                    "path", "input/data/" + chunks.size() + "/" + name,
+                    "count", part.size(), "sha256", UserAssetService.hash(bytes)));
+                chunks.add(bytes);
+            }
+        }
+        for (int i = 0; i < chunks.size(); i++) {
+            var file = assets.store(UserAssetService.Owner.of(scope), UserAssetService.Kind.CONTEXT, task, scope.runId(),
+                requestId + ":catalog:" + i, index.get(i).get("fileName").toString(), "application/json", chunks.get(i));
+            files.add(file.id());
+        }
+        var manifest = new java.util.LinkedHashMap<>(input);
+        manifest.remove("candidates");
+        manifest.put("catalogFiles", index);
+        manifest.put("authorizedAssetCount", candidates.size());
+        return json.writeValueAsBytes(manifest);
     }
 
     static String temporalReference(String skillName, Object question) {

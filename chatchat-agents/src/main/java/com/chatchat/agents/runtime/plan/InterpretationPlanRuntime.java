@@ -2048,9 +2048,16 @@ public class InterpretationPlanRuntime extends AbstractRuntimeWorkflow<Interpret
                 Map<String, Object> stepAttributes = new LinkedHashMap<>(
                     attributesForStep(request, step, completed, resolvedInput, routingDecision));
                 stepAttributes.put("dagDependencyIsolation", true);
+                stepAttributes.remove("runtimeRequiredPublicationBatch");
                 if (batchToolInput(resolvedInput)
                     && runtimeOwnedTemplateBatch(step, request.plan(), completed)) {
                     stepAttributes.put("runtimeOwnedTemplateBatch", true);
+                    StepExecution publication = reviewedTemplateSelectionExecution(step, request.plan(), completed);
+                    if (templateInvocation != null && publishedSupply(publication)
+                            && Boolean.TRUE.equals(firstValueAtAnyPath(publication.output(),
+                                "$.publicationScope.completeSupply", "$.data.publicationScope.completeSupply"))) {
+                        stepAttributes.put("runtimeRequiredPublicationBatch", true);
+                    }
                     if ("PARALLEL_READ_ONLY".equals(String.valueOf(
                         resolvedInput.get("executionMode")))) {
                         stepAttributes.put("runtimeParallelReadOnlyBatchAuthorized", true);
@@ -4527,6 +4534,10 @@ public class InterpretationPlanRuntime extends AbstractRuntimeWorkflow<Interpret
             || runtimeOwnedReviewedTemplateBatch(step, plan, completed);
     }
 
+    private boolean publishedSupply(StepExecution selection) {
+        return selection != null && Boolean.TRUE.equals(selection.metadata().get("publishedDataSupply"));
+    }
+
     private boolean runtimeOwnedReviewedTemplateBatch(InterpretationPlan.Step step,
                                                        InterpretationPlan plan,
                                                        Map<Integer, StepExecution> completed) {
@@ -4534,7 +4545,8 @@ public class InterpretationPlanRuntime extends AbstractRuntimeWorkflow<Interpret
             return false;
         }
         StepExecution selection = reviewedTemplateSelectionExecution(step, plan, completed);
-        return reviewedSelectedTemplateIds(selection).size() >= 2
+        return publishedSupply(selection) && !reviewedSelectedTemplateIds(selection).isEmpty()
+            || reviewedSelectedTemplateIds(selection).size() >= 2
             || (!reviewedSelectedTemplateIds(selection).isEmpty()
                 && runtimeSelectedAssetContexts(workflowAncestorExecutions(step, plan, completed)).size() > 1)
             || reviewedInvocationCount(selection == null ? null : selection.output(), 0) >= 2;
@@ -4689,9 +4701,9 @@ public class InterpretationPlanRuntime extends AbstractRuntimeWorkflow<Interpret
                 if (!runtimeOwnedTemplateBatch(step, request == null ? null : request.plan(), completed)) {
                     throw ex;
                 }
-                log.warn("InterpretationPlan skipped Runtime-owned batch child after parameter audit: "
-                        + "stepId={}, callIndex={}, tool={}, templateId={}, error={}",
-                    step == null ? null : step.id(), index, childTool, templateId, ex.getMessage());
+                call.put("preflightErrorCode", ex.code());
+                call.put("preflightMessage", ex.getMessage());
+                bridgedCalls.add(call);
                 continue;
             }
             Map<String, Object> childInput = new LinkedHashMap<>(bridged.executorInput());
@@ -5849,12 +5861,15 @@ public class InterpretationPlanRuntime extends AbstractRuntimeWorkflow<Interpret
             }
             calls.add(call);
         }
-        if (calls.size() < 2) {
+        if (calls.size() < (publishedSupply(reviewedSelection) ? 1 : 2)) {
             throw new IllegalStateException(
                 "REVIEWED_TEMPLATE_BATCH_COMPILATION_FAILED: no complete admitted template set "
                     + "was available; admitted=" + selectedIds);
         }
-        outerTool = firstText(outerTool, resolveExecutionToolName(step.toolName(), allowedTools));
+        String configuredExecutor = resolveExecutionToolName(step.toolName(), allowedTools);
+        if (publishedSupply(reviewedSelection) && configuredExecutor != null
+                && batchCapable(configuredExecutor, toolRegistry)) outerTool = configuredExecutor;
+        else outerTool = firstText(outerTool, configuredExecutor);
         if (outerTool == null || !batchCapable(outerTool, toolRegistry)) {
             throw new IllegalStateException(
                 "REVIEWED_TEMPLATE_BATCH_EXECUTOR_UNAVAILABLE: no authorized batch transport exists");
@@ -6607,7 +6622,11 @@ public class InterpretationPlanRuntime extends AbstractRuntimeWorkflow<Interpret
             "$.table_name",
             "$.tableName",
             "$.executionContext.table_name",
-            "$.executionContext.tableName");
+            "$.executionContext.tableName",
+            "$.parameterProtocol.arguments.tableName.value",
+            "$.parameterProtocol.arguments.table_name.value",
+            "$.parameter_protocol.arguments.tableName.value",
+            "$.parameter_protocol.arguments.table_name.value");
         if (tableName == null || String.valueOf(tableName).isBlank()) {
             return;
         }
@@ -6620,15 +6639,11 @@ public class InterpretationPlanRuntime extends AbstractRuntimeWorkflow<Interpret
                 + " is not table-scoped but tableName=" + tableName
                 + " was provided; planner must select a dialect-specific *_TABLE_METADATA template.");
         }
-        Object existing = input.get("parameters");
-        Map<String, Object> parameters = existing instanceof Map<?, ?> map
-            ? new LinkedHashMap<>((Map<String, Object>) map)
-            : new LinkedHashMap<>();
-        parameters.putIfAbsent("table_name", tableName);
-        parameters.putIfAbsent("tableName", tableName);
-        input.put("parameters", parameters);
+        // The replacement comes from the completed discovery receipt. The bridge
+        // validates parameters against that replacement's schema and original evidence.
         input.put("templateId", repairedTemplateId);
         input.put("template", repairedTemplateId);
+        putRuntimeTemplateBinding(input, repairedTemplateId, step.toolName(), "sql_table_scope_repair");
         input.put("runtimeTemplateRepair", Map.of(
             "schemaVersion", "sql_template_repair.v1",
             "fromTemplateId", templateId,
@@ -6979,10 +6994,11 @@ public class InterpretationPlanRuntime extends AbstractRuntimeWorkflow<Interpret
             return;
         }
         Object templateIdValue = firstValueAtAnyPath(input, "$.templateId", "$.template", "$.template_id");
-        if (!isTableScopedSqlTemplate(templateIdValue == null ? null : String.valueOf(templateIdValue),
-            completedTemplateMetadata(completed, templateIdValue == null ? null : String.valueOf(templateIdValue)))) {
-            return;
-        }
+        String templateId = templateIdValue == null ? null : String.valueOf(templateIdValue);
+        var template = completedTemplateMetadata(completed, templateId);
+        if (!isTableScopedSqlTemplate(templateId, template)) return;
+        var schema = asStringMap(firstMapValue(template, "parameterSchema", "parameter_schema", "inputSchema", "schema"));
+        if (schema.isEmpty()) return;
         Object existing = input.get("parameters");
         Map<String, Object> parameters = existing instanceof Map<?, ?> map
             ? new LinkedHashMap<>((Map<String, Object>) map)
@@ -6995,7 +7011,8 @@ public class InterpretationPlanRuntime extends AbstractRuntimeWorkflow<Interpret
         if (tableName == null || String.valueOf(tableName).isBlank()) {
             return;
         }
-        Map<String, Object> resolved = resolvedTableFromMetadataSearch(completed, String.valueOf(tableName));
+        Map<String, Object> resolved = resolvedTableFromMetadataSearch(completed, String.valueOf(tableName),
+            asStringMap(input.get("executionContext")));
         if (resolved.isEmpty()) {
             return;
         }
@@ -7004,31 +7021,33 @@ public class InterpretationPlanRuntime extends AbstractRuntimeWorkflow<Interpret
         if (database == null || String.valueOf(database).isBlank()) {
             return;
         }
-        parameters.put("schemaName", String.valueOf(database));
-        parameters.put("databaseName", String.valueOf(database));
-        parameters.put("schema", String.valueOf(database));
-        parameters.put("database", String.valueOf(database));
-        parameters.put("tableName", String.valueOf(table));
-        parameters.putIfAbsent("table_name", String.valueOf(table));
-        input.put("parameters", parameters);
+        Object schemaName = firstNonBlankObject(resolved.get("schema"), database);
+        for (var field : Map.of("schemaName", schemaName, "schema", schemaName,
+                "databaseName", database, "database", database).entrySet()) {
+            String declared = TOOL_ARGUMENT_COMPILER.declaredTemplateParameter(field.getKey(), schema);
+            if (declared != null) parameters.putIfAbsent(declared, field.getValue());
+        }
+        var compiled = TOOL_ARGUMENT_COMPILER.compileTemplate(parameters, schema);
+        if (!compiled.valid()) throw new IllegalStateException("SQL_METADATA_BINDING_INVALID: "
+            + compiled.structuredError(step.toolName(), templateId));
+        input.put("parameters", new LinkedHashMap<>(compiled.parameters()));
         input.put("runtimeTableResolution", Map.of(
             "schemaVersion", "runtime_table_resolution.v1",
             "source", "sql_metadata_search.results",
             "database", String.valueOf(database),
             "schema", String.valueOf(firstNonBlankObject(resolved.get("schema"), database)),
             "table", String.valueOf(table),
-            "score", resolved.get("score")
+            "score", doubleValue(resolved.get("score"), 0.0)
         ));
     }
 
     @SuppressWarnings("unchecked")
-    private Map<String, Object> resolvedTableFromMetadataSearch(Map<Integer, StepExecution> completed, String requestedTable) {
+    private Map<String, Object> resolvedTableFromMetadataSearch(Map<Integer, StepExecution> completed,
+                                                               String requestedTable, Map<String, Object> scope) {
         if (completed == null || completed.isEmpty() || requestedTable == null || requestedTable.isBlank()) {
             return Map.of();
         }
-        String requested = canonicalParameterKey(requestedTable);
-        Map<String, Object> best = Map.of();
-        double bestScore = -1.0;
+        Map<String, Object> resolved = Map.of();
         for (StepExecution execution : completed.values()) {
             if (execution == null || !execution.success() || !isSqlMetadataSearchTool(execution.toolName())) {
                 continue;
@@ -7049,17 +7068,20 @@ public class InterpretationPlanRuntime extends AbstractRuntimeWorkflow<Interpret
                 }
                 Map<String, Object> candidate = metadataSearchCandidate((Map<String, Object>) map);
                 Object table = candidate.get("table");
-                if (table == null || !requested.equals(canonicalParameterKey(String.valueOf(table)))) {
-                    continue;
+                if (table == null || !requestedTable.equalsIgnoreCase(String.valueOf(table))) continue;
+                var binding = asStringMap(firstValueAtAnyPath(item, "$.sqlExecutionBinding.executionContext", "$.routingContext"));
+                if (List.of("assetName", "env", "databaseType").stream().anyMatch(key ->
+                    scope.get(key) != null && binding.get(key) != null
+                        && !scope.get(key).toString().equalsIgnoreCase(binding.get(key).toString()))) continue;
+                if (!resolved.isEmpty() && !(Objects.equals(candidate.get("database"), resolved.get("database"))
+                        && Objects.equals(candidate.get("schema"), resolved.get("schema"))
+                        && Objects.equals(candidate.get("table"), resolved.get("table")))) {
+                    throw new IllegalStateException("SQL_METADATA_BINDING_AMBIGUOUS: more than one location for the requested table");
                 }
-                double score = doubleValue(candidate.get("score"), 0.0);
-                if (score > bestScore) {
-                    best = candidate;
-                    bestScore = score;
-                }
+                resolved = candidate;
             }
         }
-        return best;
+        return resolved;
     }
 
     @SuppressWarnings("unchecked")
@@ -7527,9 +7549,9 @@ public class InterpretationPlanRuntime extends AbstractRuntimeWorkflow<Interpret
 
     private List<Map<String, Object>> bindReviewedTemplatesToSelectedAssets(
         List<Map<String, Object>> bindings, List<Map<String, Object>> assets, StepExecution discovery) {
-        boolean publishedSupply = discovery != null && discovery.metadata() != null
-            && Boolean.TRUE.equals(discovery.metadata().get("publishedDataSupply"))
-            && Boolean.TRUE.equals(firstValueAtAnyPath(discovery.output(), "$.publicationScope.completeSupply"));
+        boolean publishedSupply = publishedSupply(discovery)
+            && Boolean.TRUE.equals(firstValueAtAnyPath(discovery.output(),
+                "$.publicationScope.completeSupply", "$.data.publicationScope.completeSupply"));
         if (assets.size() < 2 && !publishedSupply) return bindings;
         Object rawCandidates = firstValueAtAnyPath(discovery == null ? null : discovery.output(),
             "$.queryIr.asset.candidates");
@@ -7547,15 +7569,21 @@ public class InterpretationPlanRuntime extends AbstractRuntimeWorkflow<Interpret
             String templateId = canonicalTemplateId(firstMapValue(binding, "templateId", "template_id", "template"));
             Map<String, Object> template = templateId == null || discovery == null
                 ? Map.of() : templateMetadataById(discovery.output(), templateId);
-            Map<String, Object> publishedContext = asStringMap(template.get("executionContext"));
             if (publishedSupply && com.chatchat.agents.runtime.plan.template.TemplateWorkflowMetadata
-                    .templateOwnsTarget(template.get("assetType"))
-                && stringValue(publishedContext.get("assetId")) != null) {
-                Map<String, Object> bound = new LinkedHashMap<>(binding);
-                bound.put("runtimeSelectedAssetContext", publishedContext);
-                bound.put("bindingId", publishedContext.get("assetId") + ":" + templateId);
-                result.add(bound);
-                continue;
+                    .templateOwnsTarget(template.get("assetType"))) {
+                var publishedContexts = new LinkedHashMap<String, Map<String, Object>>();
+                addPublishedTarget(publishedContexts, template.get("executionContext"));
+                if (template.get("executionContexts") instanceof Iterable<?> contexts)
+                    contexts.forEach(context -> addPublishedTarget(publishedContexts, context));
+                if (!publishedContexts.isEmpty()) {
+                    for (var target : publishedContexts.entrySet()) {
+                        Map<String, Object> bound = new LinkedHashMap<>(binding);
+                        bound.put("runtimeSelectedAssetContext", target.getValue());
+                        bound.put("bindingId", target.getKey() + ":" + templateId);
+                        result.add(bound);
+                    }
+                    continue;
+                }
             }
             if (assets.size() < 2) {
                 result.add(binding);
@@ -7585,9 +7613,15 @@ public class InterpretationPlanRuntime extends AbstractRuntimeWorkflow<Interpret
                 result.add(bound);
             }
         }
-        if (result.size() > ToolCallBatchSchema.DEFAULT_MAX_CALLS) throw new IllegalStateException(
+        if (!publishedSupply && result.size() > ToolCallBatchSchema.DEFAULT_MAX_CALLS) throw new IllegalStateException(
             "ASSET_TEMPLATE_BATCH_LIMIT: authorized bindings exceed the published batch limit");
         return List.copyOf(result);
+    }
+
+    private void addPublishedTarget(Map<String, Map<String, Object>> targets, Object value) {
+        var context = asStringMap(value);
+        String assetId = stringValue(context.get("assetId"));
+        if (assetId != null) targets.putIfAbsent(assetId, context);
     }
 
     private Map<String, Object> reviewSelectedAssetExecutionContext(
@@ -7778,11 +7812,22 @@ public class InterpretationPlanRuntime extends AbstractRuntimeWorkflow<Interpret
         }
         promoteLooseDiscoveryFilters(input);
         ToolMetadata publisher = request.toolRegistry() == null ? null : request.toolRegistry().getToolMetadata(step.toolName());
-        boolean publisherOwnsTarget = com.chatchat.agents.runtime.plan.template.TemplateWorkflowMetadata.fixedScope(publisher)
+        Map<Integer, StepExecution> ancestors = workflowAncestorExecutions(step, request.plan(), completed);
+        if (Boolean.TRUE.equals(com.chatchat.agents.runtime.plan.template.TemplateWorkflowMetadata.publisher(publisher)
+                .get("authorizedAssetCatalog"))) {
+            input.put("catalogMode", "AUTHORIZED_CATALOG");
+            input.remove("pageToken");
+            if (!input.containsKey("templateIds") && runtimeSelectedAssetContexts(ancestors).isEmpty()) {
+                var unboundFilters = new LinkedHashMap<>(asStringMap(input.get("filters")));
+                List.of("assetIds", "asset_ids", "assetId", "asset_id").forEach(unboundFilters::remove);
+                input.put("filters", unboundFilters);
+            }
+        }
+        var fixedPublication = com.chatchat.agents.runtime.plan.template.TemplateWorkflowMetadata.fixedScope(publisher);
+        boolean publisherOwnsTarget = fixedPublication
             .filter(scope -> com.chatchat.agents.runtime.plan.template.TemplateWorkflowMetadata
                 .templateOwnsTarget(scope.assetType())).isPresent();
-        if (!publisherOwnsTarget) applyReviewedAssetSelectionToTemplateDiscovery(step,
-            workflowAncestorExecutions(step, request.plan(), completed), input);
+        if (!publisherOwnsTarget) applyReviewedAssetSelectionToTemplateDiscovery(step, ancestors, input);
         sanitizeDiscoveryFilters(step, request, input);
         sanitizeDiscoveryEnvironment(step, request, completed, input);
         filters = firstMapValue(input, "filters", "executionContext", "mcpExecutionContext");
@@ -7799,7 +7844,9 @@ public class InterpretationPlanRuntime extends AbstractRuntimeWorkflow<Interpret
             }
         }
         sanitizeDiscoveryFilters(step, request, input);
-        if (isTemplateDiscoveryTool(step.toolName(), request)) {
+        if (fixedPublication.isPresent()) {
+            List.of("limit", "pageSize", "pageToken", "cursor").forEach(input::remove);
+        } else if (isTemplateDiscoveryTool(step.toolName(), request)) {
             normalizeTemplateDiscoveryCandidateLimit(input);
         }
         input.putIfAbsent("filtersSchemaVersion", AgentProtocolCatalog.TARGET_FILTERS);

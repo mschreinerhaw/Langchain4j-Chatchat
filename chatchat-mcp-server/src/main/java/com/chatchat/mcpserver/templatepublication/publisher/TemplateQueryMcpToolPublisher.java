@@ -198,12 +198,12 @@ public class TemplateQueryMcpToolPublisher implements com.chatchat.mcpserver.too
             confirmedIds = assetCatalogService.namedSshTarget(filterText(filters, "assetName", "asset_name", "name"),
                 filterText(filters, "env", "environment"), filterText(filters, "goal", "intent"));
         }
-        Set<String> enabledPublishedIds = new LinkedHashSet<>();
+        Set<String> enabledPublishedKeys = new LinkedHashSet<>();
         Map<String, List<Map<String, Object>>> confirmedTargets = new LinkedHashMap<>();
         for (var asset : scopedAssets) {
             if (!parent.accepts(asset)
                 || !policy.allowedTemplates().getOrDefault(asset.assetType(), Set.of()).contains(asset.templateId())) continue;
-            enabledPublishedIds.add(asset.templateId());
+            enabledPublishedKeys.add(asset.key());
             boolean externalTool = "external_mcp".equals(asset.businessCategoryCode());
             boolean publishedApi = supplyPublishedSet && !externalTool
                 && TemplateAssetCatalogService.API.equals(asset.assetType());
@@ -247,7 +247,11 @@ public class TemplateQueryMcpToolPublisher implements com.chatchat.mcpserver.too
             templates.add(Map.copyOf(item));
         }
         // Live asset authorization can narrow the available set independently of publication completeness.
-        int unavailableCount = (int) templateIds.stream().filter(id -> !enabledPublishedIds.contains(id)).count();
+        long unavailableCount = policy.allowedTemplates().entrySet().stream()
+            .filter(entry -> parent.assetTypes().contains(entry.getKey()))
+            .flatMap(entry -> entry.getValue().stream().map(id -> entry.getKey() + ":" + id))
+            .filter(key -> !(supplyPublishedSet ? enabledAssets.keySet() : enabledPublishedKeys).contains(key))
+            .count();
         long authorizedRequired = enabledAssets.keySet().stream().filter(policy.requiredTemplateKeys()::contains).count();
         Map<String, Object> supplyCounts = Map.of(
             "publishedTemplateCount", policy.configuredTemplateCount(),

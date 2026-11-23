@@ -17,6 +17,7 @@ import org.springframework.stereotype.Service;
 @ConditionalOnProperty(prefix="chatchat.runtime.coding.unified",name="enabled",havingValue="true")
 public final class NativeCodingTasks {
     @org.springframework.beans.factory.annotation.Autowired private NativeVisualReport visualReports;
+    @org.springframework.beans.factory.annotation.Autowired private com.chatchat.api.runtime.coding.data.NativePublishedTemplate publishedTemplates;
     private final NativeSiloTaskService capture;
     private final NativeS3CodingAdapter adapter;
     private final NativeS3Settings settings;
@@ -91,6 +92,10 @@ public final class NativeCodingTasks {
         var files=new ArrayList<UserAssetService.File>();
         for(var kind:List.of(UserAssetService.Kind.CODE,UserAssetService.Kind.ARTIFACT))files.addAll(assets.list(UserAssetService.Owner.of(scope),kind,task,100).stream().filter(f->scope.runId().equals(f.runId())).toList());
         result.put("artifacts",files);
+        if (publishedTemplates != null) {
+            var metrics = publishedTemplates.supplementMetrics(tasks.contract(scope, task));
+            if (!metrics.isEmpty()) result.put("supplementMetrics", metrics);
+        }
         if(outcome.resultDatasetRef()!=null){var dataset=collector.registeredResult(scope,task,outcome.resultDatasetRef());result.put("datasetReference",dataset.reference());result.put("results",dataset.handle().readPage(0,100).rows());}
         if(outcome.status()==CodingTaskOutcome.Status.COMPLETED&&visualReports!=null){
             var rows=result.get("results") instanceof List<?> values?values:List.of();

@@ -140,6 +140,74 @@ public class AssetDiscoveryService {
         this.businessTermNormalizer = businessTermNormalizer;
     }
 
+    public Map<String, Object> catalog(String assetType, String executionTool, Map<String, Object> arguments,
+                                       java.util.function.Predicate<String> allowed) {
+        return catalogPage(assetType, executionTool, arguments, scopedCatalog(assetType, arguments, allowed));
+    }
+
+    public static Map<String, Object> catalogPage(String assetType, String executionTool,
+            Map<String, Object> arguments, List<Map<String, Object>> scoped) {
+        var scope = com.chatchat.mcpserver.mcp.McpInvocationContext.current();
+        if (scope == null) throw new SecurityException("Asset catalog requires caller identity");
+        String version = catalogVersion(scope, executionTool, scoped);
+        final int pageSize = 64;
+        int offset = 0;
+        String token = arguments.get("pageToken") instanceof String value && !value.isBlank() ? value : null;
+        if (token != null) {
+            var parts = token.split(":", -1);
+            if (parts.length != 2 || !version.equals(parts[0]) || !parts[1].matches("[0-9]{1,9}"))
+                throw new IllegalArgumentException("ASSET_CATALOG_CHANGED_OR_INVALID_CURSOR");
+            offset = Integer.parseInt(parts[1]);
+            if (offset <= 0 || offset >= scoped.size() || offset % pageSize != 0)
+                throw new IllegalArgumentException("ASSET_CATALOG_INVALID_CURSOR");
+        }
+        int end = Math.min(scoped.size(), offset + pageSize);
+        var rows = scoped.subList(offset, end);
+        boolean more = end < scoped.size();
+        var pagination = new LinkedHashMap<String, Object>();
+        pagination.put("hasMore", more);
+        pagination.put("pageSize", pageSize);
+        pagination.put("returnedCount", rows.size());
+        if (more) pagination.put("nextPageToken", version + ":" + end);
+        return Map.ofEntries(Map.entry("schemaVersion", RESULT_SCHEMA_VERSION), Map.entry("success", true),
+            Map.entry("assetType", assetType), Map.entry("resultKind", "RAW_RECORDS"), Map.entry("resultEntityKind", "asset"),
+            Map.entry("resultSchemaRef", RESULT_SCHEMA_VERSION), Map.entry("catalogVersion", version),
+            Map.entry("catalogMode", "AUTHORIZED_CATALOG"), Map.entry("authorizedAssetCount", scoped.size()),
+            Map.entry("returnedCount", rows.size()), Map.entry("assets", rows), Map.entry("pagination", pagination),
+            Map.entry("provenance", Map.of("sourceRef", "mcp:asset-catalog:" + executionTool, "dataVersion", version,
+                "rowRange", Map.of("offset", offset, "count", rows.size(), "totalRows", scoped.size()))));
+    }
+
+    public void requireCatalogSelection(String assetType, Map<String, Object> arguments,
+                                        java.util.Collection<?> selectedIds, java.util.function.Predicate<String> allowed) {
+        var available = scopedCatalog(assetType, arguments, allowed).stream().map(this::assetId)
+            .collect(java.util.stream.Collectors.toSet());
+        if (selectedIds.stream().anyMatch(id -> !(id instanceof String value) || !available.contains(value)))
+            throw new SecurityException("Selected asset is outside the current authorized catalog");
+    }
+
+    private List<Map<String, Object>> scopedCatalog(String assetType, Map<String, Object> arguments,
+                                                   java.util.function.Predicate<String> allowed) {
+        var available = allAssets(assetType, null).stream()
+            .filter(asset -> assetId(asset) != null && allowed.test(assetId(asset)))
+            .sorted(java.util.Comparator.comparing(this::assetId))
+            .toList();
+        return applyBoundAssetSelection(arguments, available, available, assetType).assets();
+    }
+
+    private static String catalogVersion(com.chatchat.mcpserver.mcp.McpInvocationContext.Context scope,
+                                  String executionTool, List<Map<String, Object>> assets) {
+        try {
+            var json = new com.fasterxml.jackson.databind.ObjectMapper()
+                .enable(com.fasterxml.jackson.databind.SerializationFeature.ORDER_MAP_ENTRIES_BY_KEYS);
+            byte[] data = json.writeValueAsBytes(java.util.Arrays.asList(
+                scope.tenantId(), scope.userId(), scope.roles(), scope.workspaceId(), executionTool, assets));
+            return java.util.HexFormat.of().formatHex(java.security.MessageDigest.getInstance("SHA-256").digest(data));
+        } catch (java.io.IOException | java.security.NoSuchAlgorithmException invalid) {
+            throw new IllegalStateException("Cannot fingerprint authorized asset catalog", invalid);
+        }
+    }
+
     public Map<String, Object> query(Map<String, Object> arguments) {
         return queryOptimizer.withAudit(() -> queryWithinQueryBudget(arguments));
     }

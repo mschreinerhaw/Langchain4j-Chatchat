@@ -52,6 +52,51 @@ class McpStableRecordCursorTest {
         }
     }
 
+    @Test void validatesTheFirstPageEvenWhenTheProducerClaimsItIsTerminal() {
+        var result = McpStableRecordCursor.drain(request, page(0, 3, 4, "v1", null), json,
+            ignored -> { throw new AssertionError("Terminal page must not dispatch"); });
+        assertThat(result.status()).isEqualTo(McpServiceResultStatus.PARTIAL);
+        assertThat(result.metadata().get("dataSupplyCursor")).isEqualTo(
+            Map.of("status", "CURSOR_RANGE_INVALID", "acceptedRows", 0));
+    }
+
+    @Test void rejectsRepeatedRowsEvenWhenTheProducerAdvancesTheOffsetAndToken() {
+        var first = page(0, 2, null, "v1", "next");
+        var repeated = page(2, 2, null, "v1", "different-token");
+        var duplicate = new McpServiceResult(repeated.schemaVersion(), repeated.requestId(), repeated.serviceId(),
+            repeated.toolName(), repeated.status(), first.data(), null, null, null, false, null, Map.of(),
+            repeated.resultKind(), repeated.resultSchemaRef(), repeated.provenance(), repeated.pagination(), 0);
+        var result = McpStableRecordCursor.drain(request, first, json, ignored -> duplicate);
+        assertThat(result.status()).isEqualTo(McpServiceResultStatus.PARTIAL);
+        assertThat(result.metadata().get("dataSupplyCursor")).isEqualTo(
+            Map.of("status", "CURSOR_PAGE_REPEATED", "acceptedRows", 2));
+    }
+
+    @Test void drainsAllAssetPagesBeforeDeclaringTheCatalogComplete() {
+        var result = McpStableRecordCursor.drain(request, assetPage(0, 64, "64", "v1"), json, continuation -> {
+            assertThat(continuation.context()).isEqualTo(request.context());
+            int offset = Integer.parseInt(continuation.pagination().pageToken());
+            return offset == 64 ? assetPage(64, 64, "128", "v1") : assetPage(128, 22, null, "v1");
+        }, "assets");
+        var data = (Map<?, ?>) result.data();
+        assertThat(data.get("catalogComplete")).isEqualTo(true);
+        assertThat((List<?>) data.get("assets")).hasSize(150);
+        assertThat(data.get("returnedCount")).isEqualTo(150);
+
+        var changed = McpStableRecordCursor.drain(request, assetPage(0, 64, "64", "v1"), json,
+            ignored -> assetPage(64, 64, "128", "v2"), "assets");
+        assertThat(((Map<?, ?>) changed.data()).get("catalogComplete")).isEqualTo(false);
+    }
+
+    private McpServiceResult assetPage(int offset, int size, String next, String version) {
+        var base = page(offset, size, 150, version, next);
+        return new McpServiceResult(null, base.requestId(), base.serviceId(), base.toolName(), base.status(),
+            Map.of("assets", ((Map<?, ?>) base.data()).get("records"), "catalogMode", "AUTHORIZED_CATALOG",
+                "catalogVersion", version, "authorizedAssetCount", 150),
+            null, null, null, false, null, Map.of(), base.resultKind(), base.resultSchemaRef(),
+            base.provenance(), base.pagination(), 0);
+    }
+
     private McpServiceResult page(int offset, int size, Integer total, String version, String next) {
         var records = IntStream.range(offset, offset + size).mapToObj(n -> Map.of("id", n)).toList();
         var range = new java.util.LinkedHashMap<String, Object>(Map.of("offset", offset, "count", size));

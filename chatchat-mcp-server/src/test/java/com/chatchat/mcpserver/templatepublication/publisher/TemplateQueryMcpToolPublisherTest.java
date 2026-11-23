@@ -215,7 +215,7 @@ class TemplateQueryMcpToolPublisherTest {
             .containsEntry("semanticReviewRequired", true)
             .containsEntry("globalSearchPerformed", false)
             .containsEntry("boundScopeRecallPerformed", true)
-            .containsEntry("bindingComplete", true);
+            .containsEntry("bindingComplete", false);
 
         try (McpInvocationContext.Scope ignored = McpInvocationContext.open(context)) {
             var scoped = publisher.queryFromParent("customer_template_query", "api_template_query",

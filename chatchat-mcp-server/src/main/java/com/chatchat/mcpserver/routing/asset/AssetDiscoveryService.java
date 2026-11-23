@@ -368,8 +368,7 @@ public class AssetDiscoveryService {
                     .toList();
                 // Scores are comparable within a query unit. Keep each unit's best candidates
                 // so a broad phrase cannot discard a separate, explicit target.
-                highestScored(AssetRelevanceRanker.rank(semanticQuery, qualityCandidates),
-                    AssetRelevanceRanker.Ranked::score).forEach(ranked -> {
+                AssetRelevanceRanker.rankTop(semanticQuery, qualityCandidates).forEach(ranked -> {
                     String id = ranked.value().hit().id();
                     RankedAssetHit candidate = new RankedAssetHit(ranked, semanticQuery);
                     bestByAssetId.merge(id, candidate,
@@ -472,7 +471,7 @@ public class AssetDiscoveryService {
         List<String> queries = variants.isEmpty() ? java.util.Collections.singletonList(null) : variants;
         Map<String, RankedRegistryAsset> bestByAssetId = new LinkedHashMap<>();
         for (String query : queries) {
-            highestScored(AssetRelevanceRanker.rank(query, candidates), AssetRelevanceRanker.Ranked::score).forEach(ranked -> {
+            AssetRelevanceRanker.rankTop(query, candidates).forEach(ranked -> {
                 String id = assetId(ranked.value());
                 if (id == null) return;
                 RankedRegistryAsset candidate = new RankedRegistryAsset(ranked, query);
@@ -487,15 +486,6 @@ public class AssetDiscoveryService {
         return applyLimit(ranked.stream()
             .map(item -> annotateRegistryQuality(item.ranked().value(), item.ranked(), item.retrievalVariant()))
             .toList(), limit);
-    }
-
-    private <T> List<T> highestScored(List<T> ranked,
-                                      java.util.function.ToDoubleFunction<T> score) {
-        if (ranked == null || ranked.isEmpty()) return List.of();
-        double highest = score.applyAsDouble(ranked.get(0));
-        return ranked.stream()
-            .takeWhile(item -> Math.abs(score.applyAsDouble(item) - highest) < 0.000001D)
-            .toList();
     }
 
     private DiscoveryQueryPlan retrievalPlan(Map<String, Object> filters) {

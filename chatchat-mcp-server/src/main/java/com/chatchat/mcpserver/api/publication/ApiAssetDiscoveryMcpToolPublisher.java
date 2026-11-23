@@ -278,7 +278,7 @@ public class ApiAssetDiscoveryMcpToolPublisher implements com.chatchat.mcpserver
                     })
                     .filter(item -> item != null)
                     .toList();
-                AssetRelevanceRanker.rank(variant, candidates).forEach(item -> mergeBest(
+                AssetRelevanceRanker.rankTop(variant, candidates).forEach(item -> mergeBest(
                     merged, item.value().config(), item.score()));
             }
             return sortedAssets(merged);
@@ -296,7 +296,7 @@ public class ApiAssetDiscoveryMcpToolPublisher implements com.chatchat.mcpserver
         Map<String, ScoredApiAsset> merged = new LinkedHashMap<>();
         queryOptimizer.checkIndependentCount(variants.size());
             for (String variant : variants) {
-            AssetRelevanceRanker.rank(variant, candidates).forEach(item -> mergeBest(
+            AssetRelevanceRanker.rankTop(variant, candidates).forEach(item -> mergeBest(
                 merged, item.value(), variant.isBlank() ? 1.0D : item.score()));
         }
         return sortedAssets(merged);
@@ -310,14 +310,9 @@ public class ApiAssetDiscoveryMcpToolPublisher implements com.chatchat.mcpserver
     }
 
     private List<ScoredApiAsset> sortedAssets(Map<String, ScoredApiAsset> merged) {
-        List<ScoredApiAsset> ranked = merged.values().stream()
+        return merged.values().stream()
             .sorted(java.util.Comparator.comparingDouble(ScoredApiAsset::score).reversed()
                 .thenComparing(item -> text(item.config().getToolName())))
-            .toList();
-        if (ranked.isEmpty()) return ranked;
-        double highest = ranked.get(0).score();
-        return ranked.stream()
-            .takeWhile(item -> Math.abs(item.score() - highest) < 0.000001D)
             .toList();
     }
 

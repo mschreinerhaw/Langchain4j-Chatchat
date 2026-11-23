@@ -79,6 +79,14 @@ public final class AssetRelevanceRanker {
         return ranked;
     }
 
+    /** Selects the leaders for one query. Independent queries are combined after this step. */
+    public static <T> List<Ranked<T>> rankTop(String queryText, List<Candidate<T>> candidates) {
+        List<Ranked<T>> ranked = rank(queryText, candidates);
+        if (ranked.isEmpty()) return ranked;
+        double highest = ranked.get(0).score();
+        return ranked.stream().takeWhile(item -> Math.abs(item.score() - highest) < 0.000001D).toList();
+    }
+
     private static <T> Map<String, Double> inverseDocumentFrequency(List<String> queryTerms,
                                                                      List<Candidate<T>> candidates) {
         Map<String, Double> weights = new LinkedHashMap<>();

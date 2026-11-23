@@ -184,6 +184,26 @@ class ApiAssetDiscoveryMcpToolPublisherTest {
     }
 
     @Test
+    void retainsTheBestAssetForEachIndependentQuery() {
+        var configs = mock(ApiServiceConfigService.class);
+        var search = mock(LuceneMcpSearchService.class);
+        var cash = apiConfig("cash", "cash_api", "Cash balance", "Cash account balance");
+        var holdings = apiConfig("holdings", "holdings_api", "Securities holdings", "Current securities");
+        when(configs.listEnabled()).thenReturn(List.of(cash, holdings));
+        when(search.enabled()).thenReturn(true);
+        when(search.searchAssets(org.mockito.ArgumentMatchers.anyList(), org.mockito.ArgumentMatchers.any()))
+            .thenReturn(List.of(new LuceneMcpSearchService.SearchHit("cash", "asset", 4.0F, List.of("bm25"))),
+                List.of(new LuceneMcpSearchService.SearchHit("holdings", "asset", 12.0F, List.of("bm25"))));
+        var publisher = new ApiAssetDiscoveryMcpToolPublisher(mock(McpSyncServer.class), configs, search);
+
+        var result = publisher.query(Map.of("filters",
+            Map.of("queryTerms", List.of("Cash balance", "Securities holdings"))));
+
+        assertThat(result).containsEntry("returnedCount", 2);
+        assertThat(result.get("assets").toString()).contains("cash_api", "holdings_api");
+    }
+
+    @Test
     void retrievesByStructuredIntentVariantsAndConfiguredAnalysisIdentity() {
         ApiServiceConfig customerApi = apiConfig(
             "api-customer", "livedata_customer_center", "客户综合数据", "受控客户数据查询入口");

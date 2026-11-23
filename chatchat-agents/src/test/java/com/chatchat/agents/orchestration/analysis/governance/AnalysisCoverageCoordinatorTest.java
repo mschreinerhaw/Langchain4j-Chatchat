@@ -24,6 +24,23 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 class AnalysisCoverageCoordinatorTest {
+    @Test void outcomeReceiptsKeepAnUnknownDatasetSeparateFromRequiredCompletion() {
+        var metadata = Map.<String,Object>of("dataSupply", Map.of("status", "DATASET_READY", "supplyMetrics",
+            Map.of("requiredTemplateCount", 9, "requiredTemplateExecutedCount", 9, "requiredTemplateCompletedCount", 9)));
+        var receipt = Map.<String,Object>of("status", "COMPLETED", "datasetCompleteCount", 8,
+            "datasetUnknownCount", 1, "datasetPartialCount", 0, "validationDimensions",
+            Map.of("objectIntegrityStatus", "PASSED", "businessValidationStatus", "INCONCLUSIVE",
+                "unverifiedBusinessScope", List.of("BUSINESS_CONCLUSIONS")));
+
+        assertThat(AnalysisCoverageCoordinator.outcomeDimensions(metadata, receipt))
+            .containsEntry("requiredExecutionStatus", "COMPLETED")
+            .containsEntry("datasetCompleteness", "UNKNOWN")
+            .containsEntry("codingExecutionStatus", "COMPLETED")
+            .containsEntry("objectIntegrityStatus", "PASSED")
+            .containsEntry("businessValidationStatus", "INCONCLUSIVE")
+            .containsEntry("unverifiedBusinessScope", List.of("BUSINESS_CONCLUSIONS"));
+    }
+
     @Test
     @org.junit.jupiter.api.condition.EnabledIfEnvironmentVariable(named="CODING_REPORT_CITATION_REPLAY",matches=".+")
     void publishesTheUnmodifiedArchivedReportWithItsLiveVerifiedCitationReceipt() throws Exception {

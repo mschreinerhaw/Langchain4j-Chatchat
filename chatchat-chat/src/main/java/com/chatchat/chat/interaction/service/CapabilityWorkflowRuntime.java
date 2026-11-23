@@ -58,6 +58,15 @@ public final class CapabilityWorkflowRuntime {
         agent.put("publicStatus", outcome.publicStatus());
         agent.put("workflowOutcomeType", outcome.type().name());
         agent.put("missingRequiredCapabilities", outcome.missingRequiredCapabilities());
+        if (agent.get("runtimeOutcomeDimensions") instanceof Map<?,?> dimensions) {
+            var finalDimensions = new LinkedHashMap<String,Object>();
+            dimensions.forEach((key, value) -> {
+                if (key instanceof String name) finalDimensions.put(name, value);
+            });
+            finalDimensions.put("parentTaskStatus", outcome.publicStatus());
+            finalDimensions.put("parentTaskReasonCode", outcome.reason());
+            metadata.put("runtimeOutcomeDimensions", Map.copyOf(finalDimensions));
+        }
         metadata.put("agent", agent);
         response.setMetadata(metadata);
     }

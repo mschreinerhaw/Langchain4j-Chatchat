@@ -66,6 +66,22 @@ class CapabilityWorkflowRuntimeTest {
         assertThat(response.getAnswer()).isEqualTo("Report requiring evidence review");
     }
 
+    @Test void completeSupplyAndCodingCanCoexistWithPartialAnalysisAndInconclusiveBusinessValidation() {
+        var response = InteractionResponse.builder().answer("Usable analysis with acknowledged limits")
+            .metadata(Map.of("agent", Map.of("publicStatus", "SUCCESS", "codingOwnedAnalysisStatus", "PARTIAL",
+                "runtimeOutcomeDimensions", Map.of("dataSupplyStatus", "DATASET_READY",
+                    "requiredExecutionStatus", "COMPLETED", "datasetCompleteness", "COMPLETE",
+                    "codingExecutionStatus", "COMPLETED", "objectIntegrityStatus", "PASSED",
+                    "businessValidationStatus", "INCONCLUSIVE")))).build();
+        CapabilityWorkflowRuntime.normalizeOutcome(response);
+
+        assertThat(response.getMetadata().get("runtimeOutcomeDimensions")).isEqualTo(Map.of(
+            "dataSupplyStatus", "DATASET_READY", "requiredExecutionStatus", "COMPLETED",
+            "datasetCompleteness", "COMPLETE", "codingExecutionStatus", "COMPLETED",
+            "objectIntegrityStatus", "PASSED", "businessValidationStatus", "INCONCLUSIVE",
+            "parentTaskStatus", "PARTIAL_SUCCESS", "parentTaskReasonCode", "CODING_ANALYSIS_PARTIAL"));
+    }
+
     @Test void failedAuditCannotOverwriteCancellation() {
         var response = InteractionResponse.builder().answer("Late report").metadata(Map.of("agent",
             Map.of("publicStatus", "CANCELLED", "answerClaimAuditPassed", false))).build();

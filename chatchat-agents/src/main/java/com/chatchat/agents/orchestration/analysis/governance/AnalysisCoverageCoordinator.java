@@ -244,6 +244,46 @@ public final class AnalysisCoverageCoordinator {
     public record Configuration(int harnessMaxModelTurns) {
         public Configuration { harnessMaxModelTurns = Math.max(1, Math.min(64, harnessMaxModelTurns)); }
     }
+    static Map<String,Object> outcomeDimensions(Map<String,Object> metadata, Map<String,Object> receipt) {
+        Map<?, ?> supply = metadata.get("dataSupply") instanceof Map<?, ?> value ? value : Map.of();
+        var result = new LinkedHashMap<String,Object>();
+        result.put("dataSupplyStatus", Objects.toString(supply.get("status"), "NOT_RECORDED"));
+        Map<?, ?> metrics = supply.get("supplyMetrics") instanceof Map<?, ?> counts ? counts : Map.of();
+        String required = "NOT_RECORDED";
+        if (metrics.get("requiredTemplateCount") instanceof Number count
+                && metrics.get("requiredTemplateExecutedCount") instanceof Number executed
+                && metrics.get("requiredTemplateCompletedCount") instanceof Number completed) {
+            required = count.longValue() == 0 ? "NOT_REQUIRED"
+                : completed.longValue() >= count.longValue() && executed.longValue() >= count.longValue() ? "COMPLETED"
+                : executed.longValue() == 0 ? "NOT_EXECUTED" : "INCOMPLETE";
+            for (String key : List.of("requiredTemplateCount", "requiredTemplateExecutedCount", "requiredTemplateCompletedCount"))
+                result.put(key, metrics.get(key));
+        }
+        result.put("requiredExecutionStatus", required);
+        String completeness = "NOT_RECORDED";
+        if (receipt.get("datasetCompleteCount") instanceof Number complete
+                && receipt.get("datasetPartialCount") instanceof Number partial
+                && receipt.get("datasetUnknownCount") instanceof Number unknown) {
+            completeness = partial.longValue() > 0 ? "PARTIAL"
+                : unknown.longValue() > 0 ? "UNKNOWN" : complete.longValue() > 0 ? "COMPLETE" : "EMPTY";
+            for (String key : List.of("datasetCompleteCount", "datasetPartialCount", "datasetUnknownCount"))
+                result.put(key, receipt.get(key));
+        }
+        result.put("datasetCompleteness", completeness);
+        result.put("codingExecutionStatus", Objects.toString(receipt.get("status"), "NOT_RECORDED"));
+        result.put("objectIntegrityStatus", "NOT_RECORDED");
+        result.put("businessValidationStatus", "NOT_RECORDED");
+        if (receipt.get("validationDimensions") instanceof Map<?, ?> checks) {
+            for (String key : List.of("objectIntegrityStatus", "schemaValidationStatus", "sourceFieldValidationStatus",
+                    "calculationValidationStatus", "businessValidationStatus", "businessValidationReasonCode")) {
+                if (checks.get(key) instanceof String value) result.put(key, value);
+            }
+            if (checks.get("unverifiedBusinessScope") instanceof List<?> limitations)
+                result.put("unverifiedBusinessScope", List.copyOf(limitations));
+        }
+        return Map.copyOf(result);
+    }
+
     private CoverageBundle analyzeWithCoding(Request request, List<AnalysisEvidenceCoordinator.Dataset> datasets) {
         if (coding == null)
             throw new IllegalStateException("PYTHON_ANALYSIS_UNAVAILABLE: data analysis requires an enabled Coding Agent and Python Sandbox");
@@ -292,6 +332,7 @@ public final class AnalysisCoverageCoordinator {
             "resultAvailable", receipt.getOrDefault("resultAvailable", false),
             "usage", receipt.getOrDefault("usage", Map.of())));
         request.metadata().put("primaryCodingReceipt", Map.copyOf(receipt));
+        request.metadata().put("runtimeOutcomeDimensions", outcomeDimensions(request.metadata(), receipt));
         if (receipt.get("deliveredRows") instanceof Number rows)
             request.metadata().put("analysisDeliveredRows", rows);
         if (receipt.get("deliveredSnapshotBytes") instanceof Number bytes)

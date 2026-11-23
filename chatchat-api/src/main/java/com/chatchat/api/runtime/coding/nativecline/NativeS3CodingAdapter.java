@@ -655,6 +655,29 @@ public final class NativeS3CodingAdapter implements CodingAgentSPI {
             new Reproducibility(ReproducibilityLevel.CONDITIONAL,List.of("Model generation is not deterministic"),List.of(r.c.environmentRef())),prior.usage(),new ExecutionControl(null,null,true,false),prior.parentTaskId(),prior.supersedesTaskId(),Map.of());
         tasks.commitOutcome(r.c.scope(),r.c.taskId(),r.lease,prior.revision(),proposed);
     }
+    Map<String,Object> validationDimensions(CodingTaskContract contract, CodingTaskOutcome outcome) {
+        var record = outcome.validationRecordRef() == null ? Map.<String,Object>of()
+            : evidence.payload(contract, outcome.validationRecordRef()).orElse(Map.of());
+        boolean accepted = outcome.status() == Status.COMPLETED && contract.taskId().equals(record.get("taskId"))
+            && Boolean.TRUE.equals(record.get("structuralChecksPassed"));
+        var checks = new LinkedHashMap<String,Object>();
+        checks.put("objectIntegrityStatus", accepted ? "PASSED" : "NOT_PROVEN");
+        String schemaStatus = "NOT_RECORDED";
+        if (accepted && "artifact-integrity-v1".equals(record.get("profile"))
+                && inputs.requireAuthorized(contract).get("resultSchema") instanceof Map<?,?> schema) {
+            schemaStatus = schema.isEmpty() ? "NOT_REQUIRED" : "PASSED";
+        }
+        checks.put("schemaValidationStatus", schemaStatus);
+        checks.put("sourceFieldValidationStatus", "NOT_RUN");
+        checks.put("calculationValidationStatus", "NOT_RUN");
+        checks.put("businessValidationStatus", outcome.validationStatus().name());
+        if (outcome.validationStatus() == ValidationStatus.INCONCLUSIVE) {
+            checks.put("businessValidationReasonCode", "NO_INDEPENDENT_BUSINESS_VALIDATOR");
+            checks.put("unverifiedBusinessScope", List.of("SOURCE_FIELD_VALUES", "NUMERICAL_CALCULATIONS", "BUSINESS_CONCLUSIONS"));
+        }
+        return Map.copyOf(checks);
+    }
+
     private void commitStudio(Run r,SiloCodingWorkspaceService.State ws,List<Map<String,Object>> assets,String stopRef){
         if(assets.size()!=1||!STUDIO_PROPOSAL.equals(assets.get(0).get("path"))||!"RESULT".equals(assets.get(0).get("type")))
             throw new SecurityException("Native Studio result differs from the reviewed proposal");

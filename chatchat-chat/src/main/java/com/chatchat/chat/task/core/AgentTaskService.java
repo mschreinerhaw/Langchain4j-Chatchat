@@ -3910,6 +3910,7 @@ public class AgentTaskService {
             copyMetadataValue(safe, metadata, "historyUsed");
             copyMetadataValue(safe, metadata, "summaryUsed");
             copyMetadataValue(safe, metadata, "workflowOutcome");
+            copyMetadataValue(safe, metadata, "runtimeOutcomeDimensions");
             copyMetadataValue(safe, metadata, "sqlIntent");
             copyMetadataValue(safe, metadata, "codingRequestId");
             copyMetadataValue(safe, metadata, "experienceHintsUsed");

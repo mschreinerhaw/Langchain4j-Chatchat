@@ -90,7 +90,7 @@ class McpAuthorizationServiceTest {
     @Test void jmxTemplateDomainOverridesClaimsInTheTransportAndArguments() throws Exception {
         var authority = service(snapshot("""
             [{"tenantId":"tenant-1","targetType":"role","targetId":"role-1","localToolName":"jmx_monitor_execute",
-            "scopeExpression":"mcp:jmx_endpoint:execute:monitor@tenant=tenant-1;domain=jvm_allowed;level=read",
+            "scopeExpression":"mcp:jmx_endpoint:execute:monitor@tenant=tenant-1;domain=JVM_ALLOWED;level=read",
             "effect":"allow","enabled":true}]
             """));
         var registry = mock(com.chatchat.agents.tool.ToolRegistry.class);
@@ -100,7 +100,7 @@ class McpAuthorizationServiceTest {
         authority.setToolRegistry(registry);
         var call = new com.chatchat.common.mcp.service.McpServiceCall(null, "jmx-profile", "client",
             "jmx_monitor_execute", Map.of(), Map.of("tenantId", "tenant-1", "userId", "user-1",
-                "scopeExpression", "mcp:jmx_endpoint:execute:monitor@tenant=tenant-1;domain=jvm_allowed;level=read"), 0);
+                "scopeExpression", "mcp:jmx_endpoint:execute:monitor@tenant=tenant-1;domain=JVM_ALLOWED;level=read"), 0);
         try (var ignored = McpInvocationContext.openCall(call)) {
             assertThat(authority.authorize("jmx_monitor_execute", Map.of("template", "JVM_ALLOWED")).allowed()).isTrue();
             assertThat(authority.authorize("jmx_monitor_execute",

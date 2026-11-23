@@ -157,6 +157,30 @@ public class PublishedTemplateSupplyTest {
         assertThat(plan.steps()).extracting(InterpretationPlan.Step::toolName).containsExactly(CHILD, EXECUTE, "");
     }
 
+    @Test void fixedJmxPublicationCompilesCatalogFirstAndBindsRegistryCode() {
+        var registry = registry(false);
+        var published = new LinkedHashMap<>(registry.getToolMetadata(CHILD).getMetadata());
+        published.put("assetType", "jmx_endpoint");
+        published.put("templateSelectionScope", McpTemplateSelectionScope.fixedBinding("jmx_endpoint").toMetadata());
+        registry.getToolMetadata(CHILD).setMetadata(published);
+        registry.getToolMetadata(BRIDGE).setMetadata(Map.of("assetType", "jmx_endpoint",
+            "authorizedAssetCatalog", true, "catalogBeforePublishedSupply", true,
+            "workflowContract", ToolWorkflowContract.declaration(ToolWorkflowRole.TEMPLATE_DISCOVERY,
+                "mcp.jmx-template.v1", "filters"),
+            "inputSchema", Map.of("properties", Map.of("stage", Map.of("enum", List.of("asset", "template"))))));
+        registry.getToolMetadata(EXECUTE).setMetadata(Map.of("assetType", "jmx_endpoint",
+            "workflowContract", ToolWorkflowContract.declaration(ToolWorkflowRole.TEMPLATE_EXECUTION,
+                "mcp.jmx-template.v1", "template")));
+        var plan = new com.chatchat.agents.runtime.plan.template.PublishedDataAcquisitionPlanner(registry)
+            .compile("Inspect JVM metrics", List.of(BRIDGE, CHILD, EXECUTE), List.of(BRIDGE, CHILD, EXECUTE));
+
+        assertThat(plan).isNotNull();
+        assertThat(plan.steps()).extracting(InterpretationPlan.Step::toolName).containsExactly(BRIDGE, CHILD, EXECUTE, "");
+        assertThat(plan.steps().get(0).input()).containsEntry("stage", "asset");
+        assertThat(plan.plan().bindings()).singleElement().satisfies(binding ->
+            assertThat(binding.inputField()).isEqualTo("$.template"));
+    }
+
     @Test void publishedTemplatePlanKeepsSeparateAssetDiscovery() {
         var registry=registry(false);
         var child=new LinkedHashMap<>(registry.getToolMetadata(CHILD).getMetadata());

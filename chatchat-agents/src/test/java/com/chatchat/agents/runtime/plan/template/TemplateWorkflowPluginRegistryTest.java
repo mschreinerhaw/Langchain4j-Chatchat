@@ -27,6 +27,7 @@ class TemplateWorkflowPluginRegistryTest {
         "mcp.python-template.v1,python_analysis,python-template-workflow.v1,$.templateId",
         "mcp.ssh-template.v1,host,ssh-template-workflow.v1,$.template",
         "mcp.http-template.v1,http_endpoint,http-template-workflow.v1,$.template",
+        "mcp.jmx-template.v1,jmx_endpoint,jmx-template-workflow.v1,$.template",
         "extension.template.v1,extension,publisher-contract-template-workflow.v1,$.templateId"
     })
     void allFamiliesCompileTheControlledDiscoveryBinding(String family, String assetType,

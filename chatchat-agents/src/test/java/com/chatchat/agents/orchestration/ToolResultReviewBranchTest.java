@@ -148,7 +148,10 @@ class ToolResultReviewBranchTest {
             .thenReturn(Map.of("selectedAssetIds", List.of("db-149"), "selectionStatus", "MATCHED"));
         String targetName = "LiveData\u6d4b\u8bd5\u5e93_223";
         var candidates = java.util.stream.IntStream.range(0, 150)
-            .mapToObj(i -> Map.of("assetId", "db-" + i, "name", i == 149 ? targetName : "Example " + i, "assetType", "sql_datasource")).toList();
+            .mapToObj(i -> Map.of("assetId", "db-" + i, "name", i == 149 ? targetName : "Example " + i,
+                "assetType", "sql_datasource", "capabilities", Map.of("readOnly", true,
+                    "operations", List.of("sql.query", "service:jmx:rmi://untrusted"),
+                    "credentials", "must-not-be-delivered"))).toList();
         var output = Map.of("catalogMode", "AUTHORIZED_CATALOG", "catalogVersion", "v1",
             "catalogComplete", complete, "authorizedAssetCount", 150, "assets", candidates);
         var engine = engine();
@@ -159,7 +162,9 @@ class ToolResultReviewBranchTest {
         if (complete) {
             verify(port).propose(eq(scope), eq("model"), eq(1), eq(stage),
                 argThat(input -> input.get("candidates") instanceof List<?> delivered && delivered.size() == 150
-                    && delivered.get(149) instanceof Map<?, ?> card && targetName.equals(card.get("name"))), any());
+                    && delivered.get(149) instanceof Map<?, ?> card && targetName.equals(card.get("name"))
+                    && Boolean.TRUE.equals(card.get("readOnly")) && List.of("sql.query").equals(card.get("operations"))
+                    && !card.containsKey("credentials")), any());
             assertThat(review.metadata()).containsEntry("selectionStatus", "MATCHED")
                 .containsEntry("deliveredAssetCount", 150).containsEntry("selectedAssetIds", List.of("db-149"));
         } else {

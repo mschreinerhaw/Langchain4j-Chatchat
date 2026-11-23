@@ -44,6 +44,7 @@ public class TemplateAssetCatalogService {
     public static final String HTTP = "http_endpoint";
     public static final String DATABASE_QUERY = "database_query";
     public static final String API = "api_service";
+    public static final String JMX = "jmx_endpoint";
     public static final String PYTHON = "python_runtime";
 
     private final CommandTemplateService commandTemplateService;
@@ -59,6 +60,8 @@ public class TemplateAssetCatalogService {
     private final ObjectMapper objectMapper;
     @Autowired(required = false)
     private ExternalMcpRegistryService externalMcpRegistry;
+    @Autowired
+    private com.chatchat.mcpserver.ops.jmx.JmxTemplateService jmxTemplates;
     @Autowired(required = false)
     private com.chatchat.common.retrieval.ResourceAuthorizationPort templateAuthorization;
 
@@ -145,6 +148,12 @@ public class TemplateAssetCatalogService {
                             Map.of("templateId", template.getToolName(), "permissionLevel", httpLevel(template.getMethod())), template, gateway.orElse(null)));
                     }
                 }
+                case JMX -> enabledJmxTemplates().stream()
+                    .filter(t -> asset.templateId().equals(t.getCode()))
+                    .filter(t -> management || authorizationService.callerAllowsOperation(
+                        "jmx_monitor_execute", JMX, t.getCode(), "read"))
+                    .forEach(t -> result.add(bound(asset, t.getCode(), t.getTitle(), "jmx_monitor_execute",
+                        Map.of("template", t.getCode(), "permissionLevel", "read"), t)));
                 case PYTHON -> {
                     for (var template : pythonTemplateCatalog.listPublished()) {
                         if (!caller.tenantId().equals(template.getTenantId()) || !asset.templateId().equals(template.getId())) continue;
@@ -224,10 +233,26 @@ public class TemplateAssetCatalogService {
                     "http_request_execute", HTTP, endpoint.getId(), httpLevel(endpoint.getMethod())))
                 .map(endpoint -> targetContext(endpoint.getId(), endpoint.getName(), endpoint.getEnvironment()))
                 .toList();
+            case JMX -> publishedJmxTargets(asset).stream()
+                .filter(target -> confirmedIds.contains(target.get("assetId"))).toList();
             case API -> publishedApiTarget(asset).stream()
                 .filter(target -> confirmedIds.contains(target.get("assetId"))).toList();
             default -> List.of();
         };
+    }
+
+    public List<Map<String, Object>> publishedJmxTargets(TemplateAsset asset) {
+        if (!JMX.equals(asset.assetType())) return List.of();
+        return enabledJmxTemplates().stream()
+            .filter(template -> asset.templateId().equals(template.getCode()))
+            .filter(template -> authorizationService.callerAllowsOperation(
+                "jmx_monitor_execute", JMX, template.getCode(), "read"))
+            .map(template -> targetContext(template.getCode(), template.getTitle(), template.getEnvironment()))
+            .toList();
+    }
+
+    private List<com.chatchat.mcpserver.ops.jmx.JmxTemplateConfig> enabledJmxTemplates() {
+        return jmxTemplates == null ? List.of() : jmxTemplates.listEnabled();
     }
 
     public List<Map<String, Object>> publishedHttpTargets(TemplateAsset asset) {
@@ -246,6 +271,9 @@ public class TemplateAssetCatalogService {
         return apiServiceConfigService.findByToolName(asset.templateId())
             .filter(service -> service.isEnabled() && authorizationService.callerAllowsOperation(
                 "api_template_execute", API, service.getId(), httpLevel(service.getMethod())))
+            .filter(service -> service.getGatewayId() == null || service.getGatewayId().isBlank()
+                || httpEndpointConfigService.findAllById(List.of(service.getGatewayId())).stream().anyMatch(
+                    com.chatchat.mcpserver.ops.http.HttpEndpointConfig::isEnabled))
             .map(service -> targetContext(service.getId(), service.getToolName(), null));
     }
 
@@ -276,7 +304,7 @@ public class TemplateAssetCatalogService {
             // Query family is discovery metadata, not an execution-contract revision.
             // Existing Studio releases were hashed with this field unset.
             var snapshot = objectMapper.valueToTree(List.of(studioSql ? template.withQueryFamily(null) : template, binding, dependencies));
-            if(studioSql)snapshot=orderedSnapshot(snapshot);
+            if(studioSql || JMX.equals(template.assetType()))snapshot=orderedSnapshot(snapshot);
             String revision = java.util.HexFormat.of().formatHex(java.security.MessageDigest.getInstance("SHA-256")
                 .digest(objectMapper.writeValueAsBytes(snapshot)));
             String stableKey=template.key();
@@ -430,6 +458,11 @@ public class TemplateAssetCatalogService {
             }
             result.add(entry(template, refsForSqlTemplate(item.getCode(), datasources), item.getAuthorTenantId()));
         });
+        enabledJmxTemplates().forEach(item -> result.add(entry(asset(
+            JMX, item.getCode(), item.getTitle(), item.getDescription(), item.getCategory(),
+            category(categoriesById, categoriesByCode, null, item.getCategory(), item.getCategory()),
+            "{\"type\":\"object\",\"properties\":{},\"additionalProperties\":false}"),
+            List.of(new AuthorizationRef("jmx_monitor_execute", JMX, "execute", "monitor", item.getCode())))));
         httpEndpointConfigService.listEnabled().forEach(item -> {
             String templateId = firstText(item.getToolName(), firstText(item.getName(), item.getId()));
             result.add(entry(asset(HTTP, templateId, firstText(item.getTitle(), item.getName()),

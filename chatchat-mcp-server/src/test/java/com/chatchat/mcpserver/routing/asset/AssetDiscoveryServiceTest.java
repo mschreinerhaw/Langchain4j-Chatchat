@@ -23,6 +23,43 @@ import static org.mockito.Mockito.when;
 class AssetDiscoveryServiceTest {
 
     @Test
+    void jmxCatalogPaginatesAuthorizedRegistryAndRejectsRevokedSelection() {
+        var service = service(mock(SshHostConfigService.class), mock(SqlDatasourceConfigService.class),
+            mock(HttpEndpointConfigService.class));
+        var jmx = mock(com.chatchat.mcpserver.ops.jmx.JmxTemplateService.class);
+        var registry = java.util.stream.IntStream.range(0, 68).mapToObj(index -> {
+            var template = new com.chatchat.mcpserver.ops.jmx.JmxTemplateConfig();
+            template.setCode("JMX_%03d".formatted(index));
+            template.setTitle("JVM " + index);
+            template.setEnvironment("DEV");
+            template.setServiceUrl("service:jmx:rmi:///secret-target");
+            template.setUsername("secret-user");
+            template.setPassword("secret-password");
+            template.setEnabled(true);
+            return template;
+        }).toList();
+        when(jmx.listEnabled()).thenReturn(registry);
+        org.springframework.test.util.ReflectionTestUtils.setField(service, "jmxTemplates", jmx);
+        var caller = new com.chatchat.mcpserver.mcp.McpInvocationContext.Context("u", null, null, "req",
+            "client", "u", "user", "tenant", "reader", null, null, null, null, null, null, null);
+        java.util.function.Predicate<String> allowed = id -> !"JMX_000".equals(id);
+        try (var ignored = com.chatchat.mcpserver.mcp.McpInvocationContext.open(caller)) {
+            var first = service.catalog("jmx_endpoint", "jmx_monitor_execute",
+                Map.of("limit", 1, "filters", Map.of("assetName", "unrelated")), allowed);
+            var second = service.catalog("jmx_endpoint", "jmx_monitor_execute",
+                Map.of("pageToken", ((Map<?, ?>) first.get("pagination")).get("nextPageToken")), allowed);
+            assertThat(first).containsEntry("authorizedAssetCount", 67).containsEntry("returnedCount", 64);
+            assertThat(first.toString()).contains("DEV", "jmx.read_metrics")
+                .doesNotContain("JMX_000", "secret-target", "secret-user", "secret-password");
+            assertThat(second).containsEntry("returnedCount", 3).containsEntry("catalogVersion", first.get("catalogVersion"));
+            assertThat(second.toString()).contains("JMX_067");
+            service.requireCatalogSelection("jmx_endpoint", Map.of(), List.of("JMX_067"), allowed);
+            assertThatThrownBy(() -> service.requireCatalogSelection(
+                "jmx_endpoint", Map.of(), List.of("JMX_000"), allowed)).isInstanceOf(SecurityException.class);
+        }
+    }
+
+    @Test
     void catalogPagesEveryAuthorizedRegistryAssetWithoutRetrievalAndRejectsScopeChanges() {
         var hosts = mock(SshHostConfigService.class);
         var datasources = mock(SqlDatasourceConfigService.class);

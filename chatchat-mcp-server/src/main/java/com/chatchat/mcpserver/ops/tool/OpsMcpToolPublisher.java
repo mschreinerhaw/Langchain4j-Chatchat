@@ -9,7 +9,6 @@ import com.chatchat.mcpserver.ops.http.HttpRequestToolResult;
 import com.chatchat.mcpserver.ops.http.HttpRequestToolService;
 import com.chatchat.mcpserver.ops.jmx.JmxMonitorResult;
 import com.chatchat.mcpserver.ops.jmx.JmxMonitorService;
-import com.chatchat.mcpserver.ops.jmx.JmxTemplateService;
 import com.chatchat.mcpserver.ops.ssh.LinuxCommandResult;
 import com.chatchat.mcpserver.ops.ssh.LinuxCommandService;
 import com.chatchat.mcpserver.ops.ssh.SshHostConfig;
@@ -49,7 +48,6 @@ public class OpsMcpToolPublisher implements com.chatchat.mcpserver.tool.McpToolC
     private final HttpRequestToolService httpRequestToolService;
     private final LinuxCommandService linuxCommandService;
     private final CommandTemplateService commandTemplateService;
-    private final JmxTemplateService jmxTemplateService;
     private final JmxMonitorService jmxMonitorService;
     private final ExecutionTargetRouter executionTargetRouter;
     private final AssetMetadataFactory assetMetadataFactory;
@@ -127,20 +125,21 @@ public class OpsMcpToolPublisher implements com.chatchat.mcpserver.tool.McpToolC
         meta.put("runtime_action", "readonly");
         meta.put("runtimeAction", "readonly");
         meta.put("readOnly", true);
+        meta.put("authorizationScope", Map.of("assetType", "jmx_endpoint", "capability", "execute",
+            "action", "monitor", "domainArgument", "template"));
         meta.put("templateRegistryRequired", true);
         meta.put("templateSelectionPolicy", mutableMap(
-            "source", "jmx_template_query.templates[].templateId",
+            "source", "jmx_capability_query.templates[].templateId",
             "mustUseDiscoveredTemplate", true,
             "doNotInventTemplateNames", true,
-            "onNoMatch", "call jmx_template_query; if no enabled template is returned, explain that no governed JMX template can satisfy the request"
+            "onNoMatch", "call jmx_capability_query; if no enabled template is returned, explain that no governed JMX template can satisfy the request"
         ));
-        meta.put("templates", jmxTemplateService.listEnabled().stream().map(template -> mutableMap(
-            "templateId", template.getCode(),
-            "name", template.getTitle(),
-            "description", template.getDescription(),
-            "category", template.getCategory(),
-            "intentSignals", readStringList(template.getIntentSignalsJson())
-        )).toList());
+        meta.put(ToolWorkflowContract.METADATA_KEY, ToolWorkflowContract.declaration(
+            ToolWorkflowRole.TEMPLATE_EXECUTION, "mcp.jmx-template.v1", "template"));
+        meta.put(ToolProtocolDriverContract.METADATA_KEY, ToolProtocolDriverContract.of(
+            "mcp.jmx-template.v1",
+            List.of("Copy the authorized template ID into template and let the MCP server resolve the configured target."),
+            List.of("Never pass connection coordinates, credentials, or an ad hoc MBean operation.")));
         meta.put("forbiddenTargetFields", List.of("serviceUrl", "url", "host", "hostname", "ip", "address", "username", "password"));
         meta.put("rawConnectionSpecReturned", false);
         meta.put("mcp_tool_limit", concurrencyManager.limitMeta("jmx_monitor_execute", "jmx"));

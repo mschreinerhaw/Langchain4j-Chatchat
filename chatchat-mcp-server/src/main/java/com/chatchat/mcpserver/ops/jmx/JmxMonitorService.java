@@ -24,6 +24,8 @@ import java.util.Set;
 @RequiredArgsConstructor
 public class JmxMonitorService {
 
+    private static final int MAX_METRIC_ROWS = 10_000;
+
     private final JmxTemplateService templateService;
     private final ObjectMapper objectMapper;
 
@@ -48,13 +50,17 @@ public class JmxMonitorService {
         try (JMXConnector connector = JMXConnectorFactory.connect(new JMXServiceURL(template.getServiceUrl()), environment)) {
             MBeanServerConnection connection = connector.getMBeanServerConnection();
             for (JmxQuery query : queries(template.getQueriesJson())) {
+                if (metrics.size() >= MAX_METRIC_ROWS) {
+                    errors.add(error(query.name(), query.objectName(), "Metric row budget reached"));
+                    break;
+                }
                 collect(connection, query, metrics, errors);
             }
             return new JmxMonitorResult(true, template.getCode(), redact(template.getServiceUrl()), metrics, errors,
                 System.currentTimeMillis() - started, null);
         } catch (Exception ex) {
             return new JmxMonitorResult(false, template.getCode(), redact(template.getServiceUrl()), metrics, errors,
-                System.currentTimeMillis() - started, ex.getClass().getSimpleName() + ": " + ex.getMessage());
+                System.currentTimeMillis() - started, "JMX connection or query failed: " + ex.getClass().getSimpleName());
         }
     }
 
@@ -68,10 +74,17 @@ public class JmxMonitorService {
                 return;
             }
             for (ObjectName name : names) {
+                if (metrics.size() >= MAX_METRIC_ROWS) {
+                    errors.add(error(query.name(), query.objectName(), "Metric row budget reached"));
+                    return;
+                }
                 AttributeList values = connection.getAttributes(name, query.attributes().toArray(String[]::new));
                 Map<String, Object> attributes = new LinkedHashMap<>();
                 for (Attribute attribute : values.asList()) {
                     attributes.put(attribute.getName(), normalizeValue(attribute.getValue()));
+                }
+                if (!attributes.keySet().containsAll(query.attributes())) {
+                    errors.add(error(query.name(), name.getCanonicalName(), "One or more configured attributes were unavailable"));
                 }
                 metrics.add(Map.of(
                     "name", query.name(),
@@ -80,7 +93,7 @@ public class JmxMonitorService {
                 ));
             }
         } catch (Exception ex) {
-            errors.add(error(query.name(), query.objectName(), ex.getClass().getSimpleName() + ": " + ex.getMessage()));
+            errors.add(error(query.name(), query.objectName(), "Configured metric query failed: " + ex.getClass().getSimpleName()));
         }
     }
 

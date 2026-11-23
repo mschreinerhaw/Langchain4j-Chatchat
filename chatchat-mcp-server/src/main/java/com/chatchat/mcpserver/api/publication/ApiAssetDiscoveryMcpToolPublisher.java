@@ -105,9 +105,21 @@ public class ApiAssetDiscoveryMcpToolPublisher implements com.chatchat.mcpserver
     @Autowired
     private com.chatchat.mcpserver.authorization.McpAuthorizationService catalogAuthorization;
 
+    @Autowired
+    private com.chatchat.mcpserver.ops.http.HttpEndpointConfigService gateways;
+
     private Map<String, Object> catalog(Map<String, Object> arguments) {
         var allowed = catalogAuthorization.requireAssetCatalogOperations("api_template_execute", "api_service");
-        var assets = configService.listEnabled().stream()
+        var configs = configService.listEnabled();
+        var gatewayIds = configs.stream().map(ApiServiceConfig::getGatewayId)
+            .filter(id -> id != null && !id.isBlank()).distinct().toList();
+        Set<String> activeGateways = gatewayIds.isEmpty() ? Set.of() : gateways.findAllById(gatewayIds).stream()
+            .filter(com.chatchat.mcpserver.ops.http.HttpEndpointConfig::isEnabled)
+            .map(com.chatchat.mcpserver.ops.http.HttpEndpointConfig::getId)
+            .collect(java.util.stream.Collectors.toUnmodifiableSet());
+        var assets = configs.stream()
+            .filter(config -> config.getGatewayId() == null || config.getGatewayId().isBlank()
+                || activeGateways.contains(config.getGatewayId()))
             .filter(config -> allowed.test(config.getId(), config.getMethod() != null
                 && Set.of("GET", "HEAD", "OPTIONS").contains(config.getMethod().toUpperCase(Locale.ROOT))
                     ? "read" : "write"))

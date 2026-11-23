@@ -800,12 +800,15 @@ public class McpAuthorizationService {
             throw new IllegalArgumentException("Scope tenant differs from caller tenant");
         var metadata=toolRegistry==null?null:toolRegistry.getToolMetadata(toolName);
         var resource=map(metadata==null?null:metadata.getMetadata(),"authorizationResource");
+        var scopeDeclaration=map(metadata==null?null:metadata.getMetadata(),"authorizationScope");
+        String domainArgument=text(scopeDeclaration,"domainArgument");
+        String boundDomain=domainArgument==null ? null : text(arguments, domainArgument);
         return McpScopeExpression.of(
             firstText(text(resource,"assetType"),toolScope.assetType(),parsed==null?null:parsed.assetType(),context == null ? null : context.assetType(), text(arguments, "assetType")),
             firstText(toolScope.capability(),parsed==null?null:parsed.capability(), text(arguments, "capability")),
             firstText(toolScope.action(),parsed==null?null:parsed.action(), text(arguments, "action")),
             principal == null ? null : principal.tenantId(),
-            firstText(text(resource,"domain"),text(arguments,"datasourceId"),text(arguments,"hostId"),text(arguments,"endpointId"),
+            firstText(text(resource,"domain"),boundDomain,text(arguments,"datasourceId"),text(arguments,"hostId"),text(arguments,"endpointId"),
                 parsed==null?null:parsed.domain(),context == null ? null : context.domain(), text(arguments, "domain"), assetDomain(arguments)),
             firstText(parsed==null?null:parsed.level(),context == null ? null : context.permissionLevel(), text(arguments, "permissionLevel"), "read")
         );

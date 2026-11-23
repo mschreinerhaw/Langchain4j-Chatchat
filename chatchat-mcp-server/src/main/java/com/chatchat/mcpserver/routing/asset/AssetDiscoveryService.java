@@ -105,6 +105,9 @@ public class AssetDiscoveryService {
     private final TargetKindRegistry targetKindRegistry;
     private final BusinessTermNormalizer businessTermNormalizer;
 
+    @Autowired
+    private com.chatchat.mcpserver.ops.jmx.JmxTemplateService jmxTemplates;
+
     public AssetDiscoveryService(SshHostConfigService hostConfigService,
                                  SqlDatasourceConfigService datasourceConfigService,
                                  HttpEndpointConfigService httpEndpointConfigService,
@@ -832,6 +835,9 @@ public class AssetDiscoveryService {
                 .filter(endpoint -> matchesTechnicalType(endpoint, technicalType))
                 .map(assetMetadataFactory::httpEndpoint)
                 .toList());
+        }
+        if (equalsNormalized(assetType, "jmx_endpoint") && jmxTemplates != null) {
+            assets.addAll(jmxTemplates.listEnabled().stream().map(assetMetadataFactory::jmxEndpoint).toList());
         }
         return assets;
     }

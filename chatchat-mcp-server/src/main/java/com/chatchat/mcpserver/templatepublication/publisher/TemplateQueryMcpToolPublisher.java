@@ -209,11 +209,13 @@ public class TemplateQueryMcpToolPublisher implements com.chatchat.mcpserver.too
                 && TemplateAssetCatalogService.API.equals(asset.assetType());
             boolean publishedHttp = supplyPublishedSet && !externalTool
                 && TemplateAssetCatalogService.HTTP.equals(asset.assetType());
+            boolean publishedJmx = supplyPublishedSet && TemplateAssetCatalogService.JMX.equals(asset.assetType());
             boolean requiresConfirmedTarget = !confirmedIds.isEmpty() && !(supplyPublishedSet && externalTool);
-            if (publishedApi || publishedHttp || requiresConfirmedTarget) {
+            if (publishedApi || publishedHttp || publishedJmx || requiresConfirmedTarget) {
                 List<Map<String, Object>> targets;
                 if (publishedApi) targets = assetCatalogService.publishedApiTarget(asset).stream().toList();
                 else if (publishedHttp) targets = assetCatalogService.publishedHttpTargets(asset);
+                else if (publishedJmx) targets = assetCatalogService.publishedJmxTargets(asset);
                 else targets = assetCatalogService.confirmedTemplateTargets(asset, confirmedIds);
                 if (targets.isEmpty()) continue;
                 confirmedTargets.put(asset.key(), targets);
@@ -364,7 +366,7 @@ public class TemplateQueryMcpToolPublisher implements com.chatchat.mcpserver.too
                 "type", "string",
                 "enum", List.of(TemplateAssetCatalogService.SSH, TemplateAssetCatalogService.SQL,
                     TemplateAssetCatalogService.HTTP, TemplateAssetCatalogService.DATABASE_QUERY,
-                    TemplateAssetCatalogService.API, TemplateAssetCatalogService.PYTHON),
+                    TemplateAssetCatalogService.API, TemplateAssetCatalogService.JMX, TemplateAssetCatalogService.PYTHON),
                 "description", "Compatibility hint only; the persisted child-parent binding determines the asset family."
             ),
             "filters", Map.of(

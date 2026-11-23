@@ -87,6 +87,30 @@ class McpAuthorizationServiceTest {
             assertThat(authority.authorize("gateway",Map.of()).allowed()).isFalse();
         }
     }
+    @Test void jmxTemplateDomainOverridesClaimsInTheTransportAndArguments() throws Exception {
+        var authority = service(snapshot("""
+            [{"tenantId":"tenant-1","targetType":"role","targetId":"role-1","localToolName":"jmx_monitor_execute",
+            "scopeExpression":"mcp:jmx_endpoint:execute:monitor@tenant=tenant-1;domain=jvm_allowed;level=read",
+            "effect":"allow","enabled":true}]
+            """));
+        var registry = mock(com.chatchat.agents.tool.ToolRegistry.class);
+        when(registry.getToolMetadata("jmx_monitor_execute")).thenReturn(com.chatchat.common.tool.ToolMetadata.builder()
+            .metadata(Map.of("authorizationScope", Map.of("assetType", "jmx_endpoint", "capability", "execute",
+                "action", "monitor", "domainArgument", "template"))).build());
+        authority.setToolRegistry(registry);
+        var call = new com.chatchat.common.mcp.service.McpServiceCall(null, "jmx-profile", "client",
+            "jmx_monitor_execute", Map.of(), Map.of("tenantId", "tenant-1", "userId", "user-1",
+                "scopeExpression", "mcp:jmx_endpoint:execute:monitor@tenant=tenant-1;domain=jvm_allowed;level=read"), 0);
+        try (var ignored = McpInvocationContext.openCall(call)) {
+            assertThat(authority.authorize("jmx_monitor_execute", Map.of("template", "JVM_ALLOWED")).allowed()).isTrue();
+            assertThat(authority.authorize("jmx_monitor_execute",
+                Map.of("template", "JVM_FOREIGN", "assetId", "JVM_ALLOWED")).allowed()).isFalse();
+            var catalog = authority.requireAssetCatalogAuthorization("jmx_monitor_execute", "jmx_endpoint");
+            assertThat(catalog.test("JVM_ALLOWED")).isTrue();
+            assertThat(catalog.test("JVM_FOREIGN")).isFalse();
+        }
+    }
+
     @Test void oldPermissionSurfaceCannotWriteEvenWithServiceIdentity() {
         assertThatThrownBy(() -> new McpAuthorizationAdminController().retired())
             .isInstanceOf(org.springframework.web.server.ResponseStatusException.class)

@@ -205,6 +205,20 @@ class StandardToolExecutionResultFactoryTest {
     }
 
     @Test
+    void jmxIncompleteCollectionDoesNotAttestTheExpectedSourceCount() {
+        var result = new JmxMonitorResult(true, "CONFIGURED_METRICS", null, List.of(Map.of("value", 12)),
+            List.of(Map.of("message", "Metric row budget reached")), 10L, null);
+        var envelope = factory.fromJmx(result);
+
+        assertThat(((Map<?, ?>) envelope.get("data")).get("complete")).isEqualTo(false);
+        var delivery = (Map<?, ?>) envelope.get("dataCompleteness");
+        assertThat(delivery.get("complete")).isEqualTo(false);
+        assertThat(delivery.get("gatewayTruncated")).isEqualTo(true);
+        assertThat(delivery.get("deliveredRows")).isEqualTo(1);
+        assertThat(delivery.get("sourceRows")).isNull();
+    }
+
+    @Test
     void jmxResultPreservesCompleteMetricSetOnlyInCanonicalData() {
         List<Map<String, Object>> metrics = IntStream.range(0, 250)
             .mapToObj(index -> Map.<String, Object>of(

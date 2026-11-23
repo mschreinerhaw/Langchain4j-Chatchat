@@ -41,7 +41,7 @@ public class OpsCapabilityBridgePublisher implements com.chatchat.mcpserver.tool
         "http", "http_endpoint", "http_request_execute", true,
         "mcp.http-capability-query.v1", "mcp.http-template.v1");
     private static final Domain JMX = new Domain(JMX_QUERY_TOOL, "Java/JMX monitoring capability query",
-        "java", "jmx_endpoint", "jmx_monitor_execute", false,
+        "java", "jmx_endpoint", "jmx_monitor_execute", true,
         "mcp.jmx-capability-query.v1", "mcp.jmx-template.v1");
     private static final Domain DATABASE = new Domain(DATABASE_QUERY_TOOL, "Database operations capability query",
         "database", "sql_datasource", "sql_query_execute", true,

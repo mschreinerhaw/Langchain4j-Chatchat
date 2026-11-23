@@ -45,6 +45,19 @@ public class AssetMetadataFactory {
 
     private final ObjectMapper objectMapper;
 
+    public Map<String, Object> jmxEndpoint(com.chatchat.mcpserver.ops.jmx.JmxTemplateConfig template) {
+        return assetEnvelope(
+            "jmx_endpoint", template.getCode(), template.getCode(), template.getTitle(),
+            "jmx_monitor_execute", template.getEnvironment(), template.getCategory(), template.isEnabled(),
+            labels(template.getIntentSignalsJson(), null, null, null, template.getCode(), template.getTitle()),
+            mapOf("protocols", List.of("jmx"), "operations", List.of("jmx.read_metrics"),
+                "allowedTemplateIds", List.of(template.getCode()), "readOnly", true,
+                "registryRevision", template.getUpdatedAt() == null ? null : template.getUpdatedAt().toString()),
+            mapOf("runtimeAction", "readonly", "requiresTemplateAllowlist", true,
+                "templateSelectionPolicy", templateSelectionPolicy())
+        );
+    }
+
     public Map<String, Object> sshAsset(SshHostConfig host) {
         List<String> allowedCommandTemplateIds = readArray(host.getAllowedCommandsJson());
         return assetEnvelope(

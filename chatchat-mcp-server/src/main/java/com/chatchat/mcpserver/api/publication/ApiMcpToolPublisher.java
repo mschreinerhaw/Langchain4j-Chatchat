@@ -115,6 +115,7 @@ public class ApiMcpToolPublisher implements com.chatchat.mcpserver.tool.McpToolC
         meta.put("templateGoverned", false);
         meta.put("bridgeManaged", true);
         meta.put("authorizedAssetCatalog", true);
+        meta.put("executionTool", EXECUTE_TOOL_NAME);
         meta.put("mcp_tool_limit", concurrencyManager.limitMeta(BRIDGE_TOOL_NAME, "discovery"));
         meta.put(ToolWorkflowContract.METADATA_KEY, ToolWorkflowContract.declaration(
             ToolWorkflowRole.ASSET_DISCOVERY, "mcp.api-service-asset.v1", "filters", "service_asset"));

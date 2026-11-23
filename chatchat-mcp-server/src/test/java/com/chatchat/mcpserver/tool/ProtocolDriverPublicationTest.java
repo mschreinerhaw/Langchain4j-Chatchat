@@ -13,7 +13,6 @@ import com.chatchat.mcpserver.ops.command.CommandTemplateService;
 import com.chatchat.mcpserver.ops.http.HttpEndpointConfigService;
 import com.chatchat.mcpserver.ops.http.HttpRequestToolService;
 import com.chatchat.mcpserver.ops.jmx.JmxMonitorService;
-import com.chatchat.mcpserver.ops.jmx.JmxTemplateService;
 import com.chatchat.mcpserver.ops.ssh.LinuxCommandService;
 import com.chatchat.mcpserver.ops.tool.OpsMcpToolPublisher;
 import com.chatchat.mcpserver.ops.ssh.SshHostConfigService;
@@ -57,7 +56,7 @@ class ProtocolDriverPublicationTest {
         OpsMcpToolPublisher ops = new OpsMcpToolPublisher(
             mock(McpSyncServer.class), mock(SshHostConfigService.class), mock(HttpEndpointConfigService.class),
             mock(HttpRequestToolService.class), mock(LinuxCommandService.class), mock(CommandTemplateService.class),
-            mock(JmxTemplateService.class), mock(JmxMonitorService.class), mock(ExecutionTargetRouter.class),
+            mock(JmxMonitorService.class), mock(ExecutionTargetRouter.class),
             mock(AssetMetadataFactory.class), governance, mock(McpToolConcurrencyManager.class),
             mock(StandardToolExecutionResultFactory.class), new ObjectMapper());
         ApiToolSpecFactory api = new ApiToolSpecFactory(
@@ -67,6 +66,9 @@ class ProtocolDriverPublicationTest {
         assertExecutionContract(meta(sql, "gatewayMeta"), "mcp.sql-template.v1");
         assertExecutionContract(meta(ops, "linuxCommandGatewayMeta"), "mcp.ssh-template.v1");
         assertExecutionContract(meta(ops, "httpRequestGatewayMeta"), "mcp.http-template.v1");
+        var jmx = meta(ops, "jmxMonitorMeta");
+        assertExecutionContract(jmx, "mcp.jmx-template.v1");
+        assertThat(jmx).doesNotContainKey("templates");
         assertExecutionContract(meta(api, "apiTemplateGatewayMeta"), "mcp.api-template.v1");
     }
 

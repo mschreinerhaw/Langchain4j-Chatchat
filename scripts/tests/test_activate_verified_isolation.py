@@ -4,6 +4,7 @@ import json
 from pathlib import Path
 import tempfile
 import unittest
+from unittest.mock import patch
 
 
 spec = importlib.util.spec_from_file_location(
@@ -88,6 +89,20 @@ class ActivateVerifiedIsolationTest(unittest.TestCase):
         self.assertEqual("ACTIVATED", self.state()["status"])
         self.assertEqual({"api": NEW}, self.state()["runningImages"])
         self.assertEqual(OLD, stack.state["mcp"])
+
+    def test_receipt_write_failure_after_activation_restores_previous_image(self):
+        stack = FixtureStack()
+        replace = Path.replace
+
+        def fail_activation_once(pending, evidence):
+            if json.loads(pending.read_text())["status"] == "ACTIVATED":
+                raise OSError("Fixture receipt write failed")
+            return replace(pending, evidence)
+
+        with patch.object(Path, "replace", fail_activation_once):
+            with self.assertRaisesRegex(RuntimeError, "Previous healthy images restored"):
+                release.activate(stack, {"api": NEW}, self.output)
+        self.assertEqual({"api": OLD}, self.state()["runningImages"])
 
     def test_rejects_unrelated_compose_changes_before_start(self):
         stack = FixtureStack(alter_environment=True)

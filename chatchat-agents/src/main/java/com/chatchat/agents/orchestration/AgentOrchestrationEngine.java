@@ -3993,14 +3993,25 @@ class AgentOrchestrationEngine implements AgentRunExecutor, ResumableAgentRunExe
                 var identity = asMap(candidate.get("analysisIdentity"));
                 String type = stringValue(firstObject(asset, "assetType", "type"));
                 String description = stringValue(firstObject(asset, "description", "summary"));
-                var card = Map.<String, Object>of("assetId", id,
+                var card = new LinkedHashMap<String, Object>(Map.of("assetId", id,
                     "name", Objects.toString(firstObject(asset, "name", "assetName"), ""),
                     "displayName", Objects.toString(asset.get("displayName"), ""),
                     "type", Objects.toString(type != null ? type : firstObject(candidate, "assetType", "type"), ""),
                     "environment", Objects.toString(asset.get("environment"), ""),
                     "description", Objects.toString(description != null ? description
-                        : firstObject(identity, "toolDescription", "description"), ""));
-                if (descriptors.putIfAbsent(id, card) != null) {
+                        : firstObject(identity, "toolDescription", "description"), "")));
+                if (catalogMode) {
+                    var capabilities = asMap(candidate.get("capabilities"));
+                    if (capabilities.get("readOnly") instanceof Boolean readOnly) card.put("readOnly", readOnly);
+                    if (capabilities.get("operations") instanceof List<?> operations) {
+                        var safeOperations = operations.stream()
+                            .filter(String.class::isInstance).map(String.class::cast)
+                            .filter(operation -> operation.matches("[a-z][a-z0-9_.-]{0,63}"))
+                            .distinct().limit(16).toList();
+                        if (!safeOperations.isEmpty()) card.put("operations", safeOperations);
+                    }
+                }
+                if (descriptors.putIfAbsent(id, Map.copyOf(card)) != null) {
                     if (catalogMode) {
                         audit.put("catalogComplete", false);
                         return assetSelectionFailure(audit, "CATALOG_INCOMPLETE");

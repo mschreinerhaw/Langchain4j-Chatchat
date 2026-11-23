@@ -38,6 +38,12 @@ class NewsTemporalScheduleCoordinatorTest {
         assertThat(schedule.getValue().getSpec().getCronExpressions()).containsExactly("*/5 * * * *");
         assertThat(schedule.getValue().getSpec().getTimeZoneName()).isEqualTo("Asia/Shanghai");
         assertThat(schedule.getValue().getState().isPaused()).isFalse();
+        var options = ((io.temporal.client.schedules.ScheduleActionStartWorkflow)
+            schedule.getValue().getAction()).getOptions();
+        assertThat(options.getWorkflowIdReusePolicy()).isNull();
+        assertThat(options.getWorkflowIdConflictPolicy()).isNull();
+        assertThat(schedule.getValue().getPolicy().getOverlap())
+            .isEqualTo(io.temporal.api.enums.v1.ScheduleOverlapPolicy.SCHEDULE_OVERLAP_POLICY_SKIP);
         assertThat(schedule.getValue().getAction().getClass().getSimpleName())
             .isEqualTo("ScheduleActionStartWorkflow");
     }

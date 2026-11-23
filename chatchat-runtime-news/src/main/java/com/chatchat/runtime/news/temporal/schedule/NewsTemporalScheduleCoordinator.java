@@ -7,8 +7,6 @@ import com.chatchat.runtime.news.temporal.config.NewsTemporalProperties;
 import com.chatchat.runtime.news.temporal.contract.NewsCollectionWorkflowCommand;
 import com.chatchat.runtime.news.temporal.workflow.NewsCollectionWorkflow;
 import io.temporal.api.enums.v1.ScheduleOverlapPolicy;
-import io.temporal.api.enums.v1.WorkflowIdConflictPolicy;
-import io.temporal.api.enums.v1.WorkflowIdReusePolicy;
 import io.temporal.client.WorkflowOptions;
 import io.temporal.client.schedules.Schedule;
 import io.temporal.client.schedules.ScheduleActionStartWorkflow;
@@ -109,8 +107,6 @@ public class NewsTemporalScheduleCoordinator {
             .setArguments(command)
             .setOptions(WorkflowOptions.newBuilder()
                 .setWorkflowId(WORKFLOW_PREFIX + source.getId())
-                .setWorkflowIdReusePolicy(WorkflowIdReusePolicy.WORKFLOW_ID_REUSE_POLICY_ALLOW_DUPLICATE)
-                .setWorkflowIdConflictPolicy(WorkflowIdConflictPolicy.WORKFLOW_ID_CONFLICT_POLICY_FAIL)
                 .setTaskQueue(properties.taskQueue())
                 .setRetryOptions(RetryOptions.newBuilder().setMaximumAttempts(1).build())
                 .setMemo(Map.of("newsSourceId", source.getId(),

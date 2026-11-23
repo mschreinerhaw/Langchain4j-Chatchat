@@ -21,4 +21,16 @@ python3 build-source-stack.py \
 
 构建日志与 `evidence/build-result.json` 一同保留。构建将前端生成后执行 Maven `clean package`，从同一个构建镜像复制出应用 JAR 执行检查。检查通过后，回执记录镜像 ID、JAR SHA-256 和每个资源的哈希。资源缺失、与源码字节不一致或前端入口为空均使构建退出失败。结果中的资源清单涵盖各服务的自有主资源及生成的前端入口。
 
-隔离验收使用回执中的镜像 ID 和现有 Compose 配置、健康检查以及回滚步骤。验收前记录上一版的镜像 ID，指定 Compose 禁止构建或拉取，健康检查失败即按原流程恢复上一版。部署后核对运行容器的镜像 ID 和回执一致，并验证网关和应用端到端任务。
+对已有健康基线的隔离项目，使用同一回执部署。项目名称须明确包含独立的 `isolated` 字段，以区分生产项目。Compose 文件和可选的环境文件从指定隔离目录读取。
+
+```bash
+python3 scripts/activate-verified-isolation.py \
+  --stack-root /path/to/isolated-stack \
+  --project runtime-os-isolated-acceptance \
+  --compose compose.yaml \
+  --receipt /path/to/new-build/evidence/build-result.json \
+  --services mcp api \
+  --evidence-dir /path/to/new-build/activation
+```
+
+脚本记录上一版镜像 ID，核对 Compose 配置差异只涉及本次镜像，启动时禁止构建或拉取。镜像身份或健康检查失败时，脚本恢复上一版并核对其健康状态。保留 `activation-result.json`、上线覆盖文件和回滚覆盖文件。后续针对同一孤立环境执行 Compose 管理命令时带上当前生效的覆盖文件，并继续验证网关和应用端到端任务。

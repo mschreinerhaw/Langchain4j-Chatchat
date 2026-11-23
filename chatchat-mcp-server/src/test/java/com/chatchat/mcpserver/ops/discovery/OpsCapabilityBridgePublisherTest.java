@@ -9,7 +9,6 @@ import org.junit.jupiter.api.Test;
 import java.util.Map;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
@@ -109,7 +108,7 @@ class OpsCapabilityBridgePublisherTest {
             var properties = (Map<?, ?>) publication.specification().tool().inputSchema().get("properties");
             var filters = (Map<?, ?>) properties.get("filters");
             assertThat(((Map<?, ?>) filters.get("properties")).containsKey("assetIds"))
-                .isEqualTo(!OpsCapabilityBridgePublisher.JMX_QUERY_TOOL.equals(publication.specification().tool().name()));
+                .isTrue();
         }
         publisher.query(OpsCapabilityBridgePublisher.SERVER_QUERY_TOOL, Map.of("stage", "template",
             "cursor", "opaque-next", "filters", Map.of("assetName", "authorized-host", "env", "SCOPE_A")));
@@ -138,13 +137,24 @@ class OpsCapabilityBridgePublisherTest {
     }
 
     @Test
-    void jmxDoesNotPretendToSupportAssetDiscovery() {
-        OpsCapabilityBridgePublisher publisher = publisher(mock(CommandTemplateDiscoveryService.class));
+    void jmxCatalogUsesTheSameIdentityAndAuthorizationPathAsOtherDomains() {
+        var assets = mock(AssetDiscoveryService.class);
+        var templates = mock(CommandTemplateDiscoveryService.class);
+        var publisher = new OpsCapabilityBridgePublisher(mock(McpSyncServer.class), assets, templates);
+        var authorization = mock(com.chatchat.mcpserver.authorization.McpAuthorizationService.class);
+        org.springframework.test.util.ReflectionTestUtils.setField(publisher, "catalogAuthorization", authorization);
+        java.util.function.Predicate<String> allowed = "JVM_RUNTIME"::equals;
+        when(authorization.requireAssetCatalogAuthorization("jmx_monitor_execute", "jmx_endpoint")).thenReturn(allowed);
+        when(assets.catalog(org.mockito.ArgumentMatchers.eq("jmx_endpoint"),
+            org.mockito.ArgumentMatchers.eq("jmx_monitor_execute"), org.mockito.ArgumentMatchers.anyMap(),
+            org.mockito.ArgumentMatchers.same(allowed))).thenReturn(Map.of("authorizedAssetCount", 1));
 
-        assertThatThrownBy(() -> publisher.query(OpsCapabilityBridgePublisher.JMX_QUERY_TOOL,
-            Map.of("stage", "asset")))
-            .isInstanceOf(IllegalArgumentException.class)
-            .hasMessageContaining("template discovery only");
+        assertThat(publisher.query(OpsCapabilityBridgePublisher.JMX_QUERY_TOOL,
+            Map.of("stage", "template", "catalogMode", "AUTHORIZED_CATALOG", "query", "jvm memory")))
+            .containsEntry("stage", "asset_selection")
+            .containsEntry("assetSelectionRequired", true)
+            .containsEntry("authorizedAssetCount", 1);
+        verifyNoInteractions(templates);
     }
 
     @Test

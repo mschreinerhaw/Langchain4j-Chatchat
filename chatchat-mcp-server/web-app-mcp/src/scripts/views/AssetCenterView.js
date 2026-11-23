@@ -187,6 +187,7 @@ export default {
       },
       jmxTemplateDefaults: {
         enabled: false,
+        environment: '',
         serviceUrl: 'service:jmx:rmi:///jndi/rmi://127.0.0.1:9999/jmxrmi',
         username: '',
         password: '',
@@ -526,6 +527,7 @@ export default {
       return [
         { key: 'code', label: '模板编号', required: true, placeholder: '如 JMX_KAFKA_BROKER_OVERVIEW' },
         { key: 'title', label: '模板名称', required: true },
+        { key: 'environment', label: '环境' },
         { key: 'enabled', label: '状态', type: 'select', options: boolOptions() },
         { key: 'category', label: '分类', type: 'select', options: jmxTemplateCategoryOptions() },
         { key: 'riskLevel', label: '风险等级', type: 'select', options: riskLevelOptions(), disabled: true },

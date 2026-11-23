@@ -35,6 +35,9 @@ public class JmxTemplateConfig {
     @Column(nullable = false, length = 1000)
     private String serviceUrl;
 
+    @Column(length = 100)
+    private String environment;
+
     @Column(length = 200)
     private String username;
 

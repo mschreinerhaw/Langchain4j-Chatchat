@@ -77,6 +77,7 @@ public class JmxTemplateService {
         value.setDescription(request.getDescription());
         value.setServiceUrl(text(request.getServiceUrl(), value.getServiceUrl()));
         value.setUsername(request.getUsername());
+        if (request.getEnvironment() != null) value.setEnvironment(request.getEnvironment());
         if (request.getPassword() != null) value.setPassword(request.getPassword());
         value.setQueriesJson(text(request.getQueriesJson(), value.getQueriesJson()));
         value.setIntentSignalsJson(request.getIntentSignalsJson());
@@ -132,6 +133,7 @@ public class JmxTemplateService {
         value.setQueriesJson(normalizeQueries(value.getQueriesJson()));
         value.setIntentSignalsJson(normalizeArray(value.getIntentSignalsJson()));
         value.setCategory(text(value.getCategory(), "java_monitoring").toLowerCase(Locale.ROOT));
+        value.setEnvironment(text(value.getEnvironment(), null));
         value.setRiskLevel("LOW");
         value.setRuntimeAction("readonly");
         value.setTimeoutMs(Math.max(1000, Math.min(value.getTimeoutMs(), 60000)));
@@ -194,6 +196,7 @@ public class JmxTemplateService {
         value.setDescription(definition.description());
         value.setServiceUrl(legacy == null ? DEFAULT_SERVICE_URL : legacy.getServiceUrl());
         value.setUsername(legacy == null ? null : legacy.getUsername());
+        value.setEnvironment(legacy == null ? null : legacy.getEnvironment());
         value.setPassword(legacy == null ? null : legacy.getPassword());
         value.setQueriesJson(ModelProtocolJson.compact(definition.queries()));
         value.setIntentSignalsJson(ModelProtocolJson.compact(definition.intentSignals()));

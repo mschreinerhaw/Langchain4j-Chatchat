@@ -546,8 +546,8 @@ public class TargetKindRegistry {
             "searchterms", "retrievalsignals", "intentcandidates", "intent_candidates",
             "queries", "expandedqueries", "expanded_queries", "view", "language", "querylanguage", "locale"
         ));
-        add(definitions, "java", "jmx_endpoint", Set.of("template_query"), Set.of(
-            "assetname", "asset_name", "name", "env", "environment", "cluster", "namespace",
+        add(definitions, "java", "jmx_endpoint", Set.of("template_query", "asset_query"), Set.of(
+            "assetname", "asset_name", "name", "assetids", "env", "environment", "cluster", "namespace",
             "service", "target", "labels", "intent", "goal", "category", "template",
             "templateid", "template_id", "bilingualintent", "bilingualquery", "bilingualsearch",
             "intentzh", "intenten", "intentaliases", "keywords", "keyword", "queryterms",

@@ -371,6 +371,9 @@ public class CommandTemplateDiscoveryService {
                                                    int limit,
                                                    Set<String> allowedTemplateIds) {
         List<JmxTemplateConfig> templates = jmxTemplateService == null ? List.of() : jmxTemplateService.listEnabled();
+        if (filters.get("assetIds") instanceof java.util.Collection<?> ids && !ids.isEmpty()) {
+            templates = templates.stream().filter(template -> ids.contains(template.getCode())).toList();
+        }
         Map<String, LuceneMcpSearchService.SearchHit> luceneHits = luceneTemplateHits(
             templates.stream().map(this::templateDoc).toList(), assetType, "java", retrievalFilters,
             intent, Math.max(limit, MAX_LIMIT));

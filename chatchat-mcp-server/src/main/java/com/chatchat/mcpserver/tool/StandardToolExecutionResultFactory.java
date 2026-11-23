@@ -75,12 +75,20 @@ public class StandardToolExecutionResultFactory {
                 "SINGLE", List.of(commandDescriptor("jmx_monitor", 1, result.template(),
                     "Collect the metrics declared by this JMX template", null, "$.data")), List.of()),
             "metrics", metrics,
-            "metricCount", result.metrics() == null ? 0 : result.metrics().size(),
+            "metricCount", metrics.size(),
             "errors", errors,
-            "errorCount", result.errors() == null ? 0 : result.errors().size(),
-            "possiblyTruncated", false
+            "errorCount", errors.size(),
+            "complete", result.success() && errors.isEmpty(),
+            "possiblyTruncated", errors.stream().anyMatch(error -> "Metric row budget reached".equals(error.get("message")))
         );
         payload.put("data", data);
+        payload.put("dataCompleteness", mapOf(
+            "contractVersion", "mcp_complete_result.v1",
+            "complete", data.get("complete"),
+            "gatewayTruncated", data.get("possiblyTruncated"),
+            "deliveredRows", metrics.size(),
+            "sourceRows", Boolean.TRUE.equals(data.get("complete")) ? metrics.size() : null
+        ));
         payload.put("execution", execution(
             "jmx_monitor_execute", result.durationMs(),
             List.of(step(1, "jmx", mapOf("template", result.template()), mapOf(
@@ -536,6 +544,9 @@ public class StandardToolExecutionResultFactory {
             "bodyCompleteness", httpBodyCompleteness(result.body(), result.rawBody())
         );
         payload.put("data", apiData);
+        Map<String, Object> completeness = new LinkedHashMap<>(httpBodyCompleteness(result.body(), result.rawBody()));
+        completeness.put("contractVersion", "mcp_complete_result.v1");
+        payload.put("dataCompleteness", completeness);
         payload.put("execution", execution(
             config == null ? "api_template_execute" : firstText(config.getToolName(), "api_template_execute"),
             0L,

@@ -290,6 +290,40 @@ class TemplateQueryMcpToolPublisherTest {
     }
 
     @Test
+    void jmxRequiredSupplyIncludesAllAuthorizedPublishedTemplatesAndAccountsForRevocation() {
+        var bindings = mock(TemplateQueryBindingService.class);
+        var catalog = mock(TemplateAssetCatalogService.class);
+        var publisher = publisher(bindings, catalog);
+        var context = context("service-1", "role-1");
+        String child = "jvm_monitoring_template_query";
+        String parent = "jmx_capability_query";
+        String family = TemplateAssetCatalogService.JMX;
+        var assets = java.util.stream.IntStream.range(0, 23)
+            .mapToObj(i -> asset(family, "JVM_%02d".formatted(i), Map.of())).toList();
+        var ids = assets.stream().map(TemplateAssetCatalogService.TemplateAsset::templateId)
+            .collect(java.util.stream.Collectors.toSet());
+        var required = assets.subList(0, 22).stream().map(TemplateAssetCatalogService.TemplateAsset::key)
+            .collect(java.util.stream.Collectors.toSet());
+        when(bindings.requireRoute(child)).thenReturn(route(child, parent, family));
+        when(bindings.resolvePolicy(context, child)).thenReturn(new TemplateQueryBindingService.PolicyResolution(
+            Map.of(family, ids), Set.of(parent), "policy-v1", false, 23, Instant.now(), required, Set.of(family + ":JVM_22")));
+        when(catalog.listEnabled()).thenReturn(assets);
+        when(catalog.publishedJmxTargets(org.mockito.ArgumentMatchers.any())).thenAnswer(invocation -> {
+            TemplateAssetCatalogService.TemplateAsset candidate = invocation.getArgument(0);
+            return "JVM_21".equals(candidate.templateId()) ? List.of() : List.of(Map.of("assetId", candidate.templateId()));
+        });
+        try (var ignored = McpInvocationContext.open(context)) {
+            var result = publisher.queryFromParent(child, parent,
+                Map.of("limit", 1, "filters", Map.of("assetName", "unrelated")));
+            assertThat(result).containsEntry("returnedCount", 22).containsEntry("hasMore", false);
+            assertThat(result.get("dataSupply")).isEqualTo(Map.of("publishedTemplateCount", 23,
+                "requiredTemplateCount", 22, "authorizedRequiredTemplateCount", 21L,
+                "unavailableRequiredTemplateCount", 1L, "optionalTemplateCount", 1));
+            assertThat(result.get("templates").toString()).contains("JVM_20", "JVM_22", "OPTIONAL").doesNotContain("JVM_21");
+        }
+    }
+
+    @Test
     void pagingDoesNotMarkTheCompleteBindingAsUnavailable() {
         TemplateQueryBindingService bindings = mock(TemplateQueryBindingService.class);
         TemplateAssetCatalogService catalog = mock(TemplateAssetCatalogService.class);

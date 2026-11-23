@@ -309,6 +309,8 @@ public final class NativePublishedTemplate {
                 String key = binding.path("templateKey").asText("sql_datasource:" + id);
                 var data = key.startsWith("sql_datasource:")
                     ? sqlData(json, fact.content(), !optional) : structuredData(json, fact.content(), grant.requiredFields());
+                receipt.put("completenessStatus", data.path("completenessStatus").asText(
+                    data.path("complete").asBoolean() ? "COMPLETE" : incomplete(data) ? "PARTIAL" : "UNKNOWN"));
                 receipt.putAll(publish(task, grant, data, optional ? operation : digest,
                     optional, key.startsWith("sql_datasource:")));
                 receipt.put("sourceEvidenceId", fact.evidenceId());
@@ -418,9 +420,19 @@ public final class NativePublishedTemplate {
     static JsonNode structuredData(ObjectMapper json, String content, List<String> grantedFields) throws IOException {
         var value = json.readTree(content);
         boolean knownPartial = false;
+        boolean responseBody = false;
         // Traverse declared result envelopes only. Unknown business shapes and raw transport data stay outside.
         for (int depth = 0; depth < 8; depth++) {
-            knownPartial |= incomplete(value) || value.path("errorCount").asInt() > 0;
+            knownPartial |= incomplete(value) || value.path("errorCount").asInt() > 0
+                || value.path("outputLimits").has("fullAggregateAvailable")
+                    && !value.path("outputLimits").path("fullAggregateAvailable").asBoolean()
+                || value.path("commandSuccess").isBoolean() && !value.path("commandSuccess").asBoolean();
+            responseBody |= Set.of("api_response.v1", "http_response.v1").contains(value.path("dataSchema").asText());
+            if (responseBody && value.has("body") && value.has("bodyCompleteness")) {
+                knownPartial |= value.path("bodyCompleteness").path("gatewayTruncated").asBoolean();
+                value = value.path("body");
+                continue;
+            }
             if (value.has("rows") || value.has("records") || value.has("metrics") || value.isArray()
                     || value.isObject() && !value.has("data") && !value.has("structuredContent")
                         && grantedFields.stream().anyMatch(value::has)) {
@@ -432,8 +444,11 @@ public final class NativePublishedTemplate {
                     throw new IllegalArgumentException("Published result is not a list of records");
                 var declared = value.has("metricCount") ? value.path("metricCount") : value.path("rowCount");
                 boolean countMismatch = !declared.isMissingNode() && declared.asInt(-1) != rows.size();
-                return json.createObjectNode().put("rowCount", rows.size()).put(
-                    "complete", !knownPartial && !countMismatch && value.path("complete").asBoolean(false))
+                boolean complete = !knownPartial && !countMismatch && (value.path("complete").asBoolean(false)
+                    || value.path("outputLimits").path("fullAggregateAvailable").asBoolean(false)
+                        && value.path("commandSuccess").asBoolean(false));
+                return json.createObjectNode().put("rowCount", rows.size()).put("complete", complete)
+                    .put("completenessStatus", complete ? "COMPLETE" : knownPartial || countMismatch ? "PARTIAL" : "UNKNOWN")
                     .set("rows", rows);
             }
             if (value.has("data")) value = value.path("data");

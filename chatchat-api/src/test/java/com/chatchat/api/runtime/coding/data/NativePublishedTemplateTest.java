@@ -130,6 +130,20 @@ class NativePublishedTemplateTest {
             """, List.of("value")));
     }
 
+    @Test void unwrapsGovernedHttpBodyAndKeepsTransportCompletenessSeparate() throws Exception {
+        var result = NativePublishedTemplate.structuredData(json, """
+            {"schemaVersion":"mcp_analysis_payload.v1","data":{"dataSchema":"api_response.v1","data":{
+              "headers":{"Authorization":"secret"},"rawBody":"discard",
+              "bodyCompleteness":{"gatewayTruncated":false,"upstreamCompleteness":"UNKNOWN"},
+              "body":{"records":[{"metric":19}]}
+            }}}
+            """, List.of("metric"));
+        assertThat(result.path("rowCount").asInt()).isEqualTo(1);
+        assertThat(result.path("rows").get(0).path("metric").asInt()).isEqualTo(19);
+        assertThat(result.path("completenessStatus").asText()).isEqualTo("UNKNOWN");
+        assertThat(result.toString()).doesNotContain("Authorization", "secret", "discard");
+    }
+
     @Test void doesNotReadRawOrMismatchedSqlRows() {
         assertThatIllegalArgumentException().isThrownBy(() -> NativePublishedTemplate.sqlData(json, """
             {"schemaVersion":"mcp_analysis_payload.v1","data":{},"rawData":{"rowCount":1,"rows":[{}]}}

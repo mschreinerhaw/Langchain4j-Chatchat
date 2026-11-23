@@ -29,7 +29,7 @@ a.output.parent.mkdir(parents=True,exist_ok=True)
 with zipfile.ZipFile(a.output,'w',compression=zipfile.ZIP_DEFLATED,compresslevel=6) as archive:
     for name in sorted(set(paths)):
         path=Path(name)
-        if not name or path.parts[0] in blocked_roots or set(path.parts)&blocked or name.endswith('.private.json'):continue
+        if not name or name=='source-manifest.json' or path.parts[0] in blocked_roots or set(path.parts)&blocked or name.endswith('.private.json'):continue
         if path.suffix.lower() in suffixes and name not in packaged_examples:continue
         # Java source packages can legitimately be named "target". Only Maven
         # output directories at the repository/module roots are excluded.

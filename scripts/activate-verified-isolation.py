@@ -81,7 +81,9 @@ def activate(stack, images, output):
 
     def save(status):
         record["status"] = status
-        evidence.write_text(json.dumps(record, indent=2) + "\n", encoding="utf-8")
+        pending = evidence.with_suffix(".tmp")
+        pending.write_text(json.dumps(record, indent=2) + "\n", encoding="utf-8")
+        pending.replace(evidence)
 
     previous = {service: stack.running_healthy_image(service) for service in images}
     record["previousImages"] = previous
@@ -107,8 +109,9 @@ def activate(stack, images, output):
     try:
         stack.up(candidate, images)
         record["runningImages"] = require_images(candidate, images)
+        save("ACTIVATED")
     except (Exception, KeyboardInterrupt) as error:
-        save("ROLLING_BACK")
+        # Restore service health even if the evidence directory cannot be written.
         try:
             stack.up(rollback, previous)
             record["runningImages"] = require_images(rollback, previous)
@@ -117,7 +120,6 @@ def activate(stack, images, output):
             save("ROLLBACK_FAILED")
             raise RuntimeError("Activation failed and previous health could not be restored") from rollback_error
         raise RuntimeError("Activation failed. Previous healthy images restored.") from error
-    save("ACTIVATED")
 
 
 def main():

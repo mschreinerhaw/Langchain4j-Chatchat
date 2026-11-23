@@ -173,6 +173,7 @@ public class TemplateQueryBindingService implements TemplateQueryRouteResolver {
         Map<String, Set<String>> authorizedKeysByRole = new LinkedHashMap<>();
         Set<String> parentToolNames = new TreeSet<>();
         Set<String> configuredKeys = new LinkedHashSet<>();
+        Set<String> configuredRequiredKeys = new LinkedHashSet<>();
         for (TemplateQueryBinding binding : bindings) {
             if (!tenantId.equals(normalize(binding.getTenantId()))) {
                 continue;
@@ -205,11 +206,13 @@ public class TemplateQueryBindingService implements TemplateQueryRouteResolver {
                     .filter(parent::accepts)
                     .map(TemplateAssetCatalogService.TemplateAsset::key)
                     .collect(java.util.stream.Collectors.toUnmodifiableSet()));
+            Set<String> optional = new LinkedHashSet<>(readKeys(binding.getOptionalTemplateKeysJson()));
             for (String key : readKeys(binding.getTemplateKeysJson())) {
                 if (parent.assetTypes().stream().noneMatch(type -> key.startsWith(type + ":"))) {
                     continue;
                 }
                 configuredKeys.add(key);
+                if (!optional.contains(key)) configuredRequiredKeys.add(key);
                 if (!authorizedKeys.contains(key)) {
                     continue;
                 }
@@ -226,8 +229,10 @@ public class TemplateQueryBindingService implements TemplateQueryRouteResolver {
             java.util.Collections.unmodifiableSet(new LinkedHashSet<>(value))));
         Map<String, Set<String>> result = java.util.Collections.unmodifiableMap(immutable);
         PolicyResolution resolution = new PolicyResolution(result, Set.copyOf(parentToolNames),
-            policyVersion(result, parentToolNames, cacheKey), false,
-            configuredKeys.size(), Instant.now());
+            policyVersion(result, parentToolNames, configuredRequiredKeys, cacheKey), false,
+            configuredKeys.size(), Instant.now(), Set.copyOf(configuredRequiredKeys),
+            configuredKeys.stream().filter(key -> !configuredRequiredKeys.contains(key)).collect(
+                java.util.stream.Collectors.toUnmodifiableSet()));
         policyCache.put(cacheKey, new CachedPolicy(resolution, now + POLICY_CACHE_TTL_MILLIS));
         return resolution;
     }
@@ -314,6 +319,10 @@ public class TemplateQueryBindingService implements TemplateQueryRouteResolver {
         binding.setSubjectType(subject.type());
         binding.setSubjectId(subject.id());
         binding.setTemplateKeysJson(ModelProtocolJson.compact(keys));
+        List<String> optional = request.optionalTemplateKeys() == null
+            ? readKeys(binding.getOptionalTemplateKeysJson()).stream().filter(keys::contains).toList()
+            : optionalKeys(request.optionalTemplateKeys(), keys);
+        binding.setOptionalTemplateKeysJson(ModelProtocolJson.compact(optional));
         binding.setEnabled(request.enabled() == null || request.enabled());
         binding.setRevision(binding.getId() == null ? 1L : Math.max(1L, binding.getRevision() + 1L));
         return toView(repository.save(binding), parent, role, subject.user());
@@ -337,6 +346,13 @@ public class TemplateQueryBindingService implements TemplateQueryRouteResolver {
             throw new IllegalArgumentException(
                 "The service, role, and template query domain already have a binding");
         }
+    }
+
+    private List<String> optionalKeys(List<String> optional, List<String> keys) {
+        if (optional == null) return List.of();
+        if (optional.stream().anyMatch(key -> key == null || !keys.contains(key)))
+            throw new IllegalArgumentException("Optional templates must be part of the selected publication binding");
+        return optional.stream().distinct().toList();
     }
 
     private List<String> normalizeKeys(List<String> keys, String roleId, TemplateQueryParentCatalog.ParentTool parent) {
@@ -432,7 +448,9 @@ public class TemplateQueryBindingService implements TemplateQueryRouteResolver {
         var role = role(required(request.roleId(), "roleId"));
         TemplateQueryToolNamePolicy.requireDomainCode(request.domainCode());
         subject(role, request.subjectType(), request.userId());
-        if (normalizeKeys(request.templateKeys(), role.getId(), parent).isEmpty())
+        List<String> keys = normalizeKeys(request.templateKeys(), role.getId(), parent);
+        optionalKeys(request.optionalTemplateKeys(), keys);
+        if (keys.isEmpty())
             throw new IllegalArgumentException("At least one authorized template is required");
     }
 
@@ -454,11 +472,12 @@ public class TemplateQueryBindingService implements TemplateQueryRouteResolver {
     }
 
     private String policyVersion(Map<String, Set<String>> allowed, Set<String> parentToolNames,
-                                 PolicyCacheKey key) {
+                                 Set<String> requiredKeys, PolicyCacheKey key) {
         StringBuilder canonical = new StringBuilder()
             .append(key.serviceId()).append('|').append(key.toolName()).append('|')
             .append(key.tenantId()).append('|').append(key.userId()).append('|')
             .append(key.username()).append('|').append(key.roles());
+        new TreeSet<>(requiredKeys).forEach(required -> canonical.append("|required=").append(required));
         new TreeSet<>(parentToolNames).forEach(parent -> canonical.append("|parent=").append(parent));
         allowed.entrySet().stream().sorted(Map.Entry.comparingByKey()).forEach(entry -> {
             canonical.append('|').append(entry.getKey()).append('=');
@@ -496,7 +515,8 @@ public class TemplateQueryBindingService implements TemplateQueryRouteResolver {
                 ? binding.getSubjectId() : null, user == null ? "" : user.username(),
             binding.getDomainCode(), toolName(binding.getDomainCode()),
             binding.getChineseAlias(),
-            readKeys(binding.getTemplateKeysJson()), binding.isEnabled(), binding.getRevision(),
+            readKeys(binding.getTemplateKeysJson()), readKeys(binding.getOptionalTemplateKeysJson()),
+            binding.isEnabled(), binding.getRevision(),
             binding.getCreatedAt(), binding.getUpdatedAt());
     }
 
@@ -516,7 +536,12 @@ public class TemplateQueryBindingService implements TemplateQueryRouteResolver {
     }
 
     public record UpsertRequest(String parentToolName, String roleId, String subjectType, String userId, String domainCode,
-                                List<String> templateKeys, Boolean enabled, Long expectedRevision, String chineseAlias) {
+                                List<String> templateKeys, Boolean enabled, Long expectedRevision, String chineseAlias,
+                                List<String> optionalTemplateKeys) {
+        public UpsertRequest(String parentToolName, String roleId, String subjectType, String userId, String domainCode,
+                             List<String> templateKeys, Boolean enabled, Long expectedRevision, String chineseAlias) {
+            this(parentToolName, roleId, subjectType, userId, domainCode, templateKeys, enabled, expectedRevision, chineseAlias, null);
+        }
         public UpsertRequest(String parentToolName, String roleId, String subjectType, String userId, String domainCode,
                              List<String> templateKeys, Boolean enabled, Long expectedRevision) {
             this(parentToolName, roleId, subjectType, userId, domainCode, templateKeys, enabled, expectedRevision, null);
@@ -526,20 +551,27 @@ public class TemplateQueryBindingService implements TemplateQueryRouteResolver {
                               String parentToolName, String parentToolTitle, String parentAssetType,
                               String roleId, String roleCode, String roleName, String subjectType,
                               String userId, String username, String domainCode,
-                              String toolName, String chineseAlias, List<String> templateKeys,
+                              String toolName, String chineseAlias, List<String> templateKeys, List<String> optionalTemplateKeys,
                               boolean enabled, long revision,
                               java.time.Instant createdAt, java.time.Instant updatedAt) { }
 
     public record PolicyResolution(Map<String, Set<String>> allowedTemplates, Set<String> parentToolNames,
                                    String policyVersion,
-                                   boolean cacheHit, int configuredTemplateCount, Instant resolvedAt) {
+                                   boolean cacheHit, int configuredTemplateCount, Instant resolvedAt,
+                                   Set<String> requiredTemplateKeys, Set<String> optionalTemplateKeys) {
+        public PolicyResolution(Map<String, Set<String>> allowedTemplates, Set<String> parentToolNames,
+                                String policyVersion, boolean cacheHit, int configuredTemplateCount, Instant resolvedAt) {
+            this(allowedTemplates, parentToolNames, policyVersion, cacheHit, configuredTemplateCount, resolvedAt,
+                allowedTemplates.entrySet().stream().flatMap(entry -> entry.getValue().stream()
+                    .map(id -> entry.getKey() + ":" + id)).collect(java.util.stream.Collectors.toUnmodifiableSet()), Set.of());
+        }
         static PolicyResolution empty() {
             return new PolicyResolution(Map.of(), Set.of(), "deny-all", false, 0, Instant.now());
         }
 
         PolicyResolution withCacheHit(boolean value) {
             return new PolicyResolution(allowedTemplates, parentToolNames, policyVersion, value,
-                configuredTemplateCount, resolvedAt);
+                configuredTemplateCount, resolvedAt, requiredTemplateKeys, optionalTemplateKeys);
         }
     }
 

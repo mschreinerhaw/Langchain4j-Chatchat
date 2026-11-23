@@ -3584,7 +3584,9 @@ class AgentOrchestrationEngine implements AgentRunExecutor, ResumableAgentRunExe
         }
         if (request != null && request.execution() != null && request.execution().success()
                 && workflowRole == ToolWorkflowRole.TEMPLATE_DISCOVERY) {
-            return admitTemplateDiscovery(request.execution(), query, runtimeAttributes, scope, modelName, cancellationCheck);
+            var execution = request.execution();
+            var review = admitTemplateDiscovery(execution, query, runtimeAttributes, scope, modelName, cancellationCheck);
+            return attachPublishedSupplyScope(execution, review);
         }
         if (com.chatchat.agents.orchestration.analysis.contract.RuntimeAnalysisOwnership
                 .codingOwnsToolAdmission(runtimeAttributes) && request != null && request.execution() != null) {
@@ -3992,14 +3994,41 @@ class AgentOrchestrationEngine implements AgentRunExecutor, ResumableAgentRunExe
             "candidateSelectionError", "The returned candidates did not yield a valid Cline asset confirmation."));
     }
 
+    private InterpretationPlanRuntime.StepReview attachPublishedSupplyScope(
+            InterpretationPlanRuntime.StepExecution execution, InterpretationPlanRuntime.StepReview review) {
+        if (TemplateWorkflowMetadata.fixedScope(toolMetadataOrNull(execution.toolName())).isEmpty()) return review;
+        Map<String, Object> publication = asMap(execution.output());
+        if (!publication.containsKey("publicationScope")) publication = asMap(publication.get("data"));
+        if (!Boolean.TRUE.equals(asMap(publication.get("publicationScope")).get("completeSupply"))) return review;
+        var metadata = new LinkedHashMap<>(review.metadata());
+        metadata.put("publishedSupplyCounts", asMap(publication.get("dataSupply")));
+        var optional = findCandidateMaps(publication, "templates", 0).stream()
+            .filter(template -> "OPTIONAL".equals(template.get("supplyMode")))
+            .map(template -> stringValue(template.get("templateId"))).filter(Objects::nonNull).distinct().toList();
+        metadata.put("publishedOptionalTemplateIds", optional);
+        return new InterpretationPlanRuntime.StepReview(review.satisfied(), review.reason(), metadata);
+    }
+
     private InterpretationPlanRuntime.StepReview admitTemplateDiscovery(
         InterpretationPlanRuntime.StepExecution execution, String query, Map<String, Object> attributes,
         KernelDataScope scope, String modelName, BooleanSupplier cancelled
     ) {
         boolean fixedScope = TemplateWorkflowMetadata.fixedScope(toolMetadataOrNull(execution.toolName())).isPresent();
+        Map<String, Object> output = asMap(execution.output());
+        if (fixedScope && (Boolean.TRUE.equals(output.get("hasMore"))
+            || Boolean.TRUE.equals(asMap(output.get("data")).get("hasMore")))) {
+            String reason = "The fixed publication returned an incomplete page of templates.";
+            return InterpretationPlanRuntime.StepReview.accepted(reason, Map.of(
+                "candidateSelectionErrorCode", "INCOMPLETE_TEMPLATE_PUBLICATION",
+                "candidateSelectionError", reason,
+                "selectedTemplateIds", List.of(), "mcpDiscoverySucceeded", true));
+        }
         List<Map<String, Object>> candidates = findCandidateMaps(execution.output(), "templates", 0);
         if (candidates.isEmpty()) {
             candidates = findCandidateMaps(execution.output(), "candidates", 0);
+        }
+        if (fixedScope) {
+            candidates = candidates.stream().filter(candidate -> !"OPTIONAL".equals(candidate.get("supplyMode"))).toList();
         }
         List<String> returned = candidates.stream()
             .map(item -> stringValue(firstObject(item, "templateId", "template_id", "id")))
@@ -4082,14 +4111,20 @@ class AgentOrchestrationEngine implements AgentRunExecutor, ResumableAgentRunExe
                 .map(protocol -> Objects.toString(protocol.get("template_id"), "")).toList();
             var distinct = new LinkedHashSet<>(selected);
             if (selected.isEmpty() || selected.size() > ToolCallBatchSchema.DEFAULT_MAX_CALLS
-                || distinct.size() != selected.size() || !descriptors.keySet().containsAll(distinct)
-                || fixedScope && !descriptors.keySet().equals(distinct))
+                || distinct.size() != selected.size() || !descriptors.keySet().containsAll(distinct))
                 throw new IllegalArgumentException("Cline proposals do not match authorized template candidates");
-            List<Map<String, Object>> protocols = proposals.stream().map(proposal -> {
+            var protocols = new ArrayList<Map<String, Object>>();
+            proposals.forEach(proposal -> {
                 var reviewed = new LinkedHashMap<>(proposal);
                 reviewed.put("binding_status", "READY");
-                return Map.copyOf(reviewed);
-            }).toList();
+                protocols.add(Map.copyOf(reviewed));
+            });
+            if (fixedScope) {
+                descriptors.keySet().stream().filter(id -> !distinct.contains(id)).forEach(id ->
+                    protocols.add(Map.of("template_id", id, "binding_status", "BLOCKED",
+                        "binding_error", "CLINE_TEMPLATE_PARAMETER_PROPOSAL_MISSING")));
+                selected = List.copyOf(descriptors.keySet());
+            }
             recordLifecyclePhase(attributes, null, "template_parameters",
                 "Native Cline returned template parameter proposals before data execution.",
                 Map.of("eventKind", "CLINE_TEMPLATE_PARAMETERS", "eventState", "COMPLETED",
@@ -4099,7 +4134,7 @@ class AgentOrchestrationEngine implements AgentRunExecutor, ResumableAgentRunExe
                     "candidateSelectionStatus", "SELECTED",
                     "publishedDataSupply", fixedScope,
                     "selectedTemplateIds", selected,
-                    "parameterProtocols", protocols,
+                    "parameterProtocols", List.copyOf(protocols),
                     "toolResultReviewMode", "CLINE_TEMPLATE_PARAMETERS",
                     "toolResultReviewModelCalls", 0,
                     "mcpDiscoverySucceeded", true));

@@ -5,8 +5,6 @@ import com.chatchat.agents.protocol.ModelProtocolJson;
 import com.chatchat.agents.runtime.protocol.RuntimeResultAnalysisAdapter;
 import com.chatchat.common.mcp.runtime.McpAnalysisPayload;
 import com.chatchat.common.mcp.service.McpResultKind;
-import com.google.gson.Gson;
-import com.google.gson.JsonParseException;
 
 import java.util.ArrayList;
 import java.util.Collection;
@@ -34,7 +32,6 @@ final class McpAnalysisPayloadResultAnalysisAdapter implements RuntimeResultAnal
         "analysiscontext", "commandcontext", "execution", "executiongraph", "rawdata",
         "runtimemetadata", "preflightaudit", "postflightaudit", "audit", "auditevidence",
         "provenance", "schema", "diagnostics", "trace", "routingtrace");
-    private final Gson gson = new Gson();
     private final StructuredDataProjector structuredDataProjector = new StructuredDataProjector();
     private static final com.fasterxml.jackson.databind.ObjectMapper JSON=new com.fasterxml.jackson.databind.ObjectMapper()
         .enable(com.fasterxml.jackson.databind.DeserializationFeature.USE_BIG_DECIMAL_FOR_FLOATS)
@@ -352,8 +349,9 @@ final class McpAnalysisPayloadResultAnalysisAdapter implements RuntimeResultAnal
                                             List<Candidate> records) {
         if (value == null || depth > MAX_DEPTH) return;
         Object normalized = normalizeJson(value);
-        if (objectRows(normalized) != null) {
-            records.add(new Candidate(path, normalized, List.of()));
+        List<Map<String, Object>> rows = bodyRows(normalized);
+        if (rows != null) {
+            records.add(new Candidate(path, rows, List.of()));
             return;
         }
         Map<String, Object> current = map(normalized);
@@ -362,12 +360,17 @@ final class McpAnalysisPayloadResultAnalysisAdapter implements RuntimeResultAnal
             if (NON_BUSINESS_COLLECTION_KEYS.contains(normalizeKey(entry.getKey()))) continue;
             Object child = normalizeJson(entry.getValue());
             String childPath = path + "." + entry.getKey();
-            if (objectRows(child) != null) {
-                records.add(new Candidate(childPath, child, List.of()));
-            } else if (child instanceof Map<?, ?> || child instanceof Collection<?>) {
+            if (child instanceof Map<?, ?> || child instanceof Collection<?>) {
                 collectBusinessCollections(child, childPath, depth + 1, records);
             }
         }
+    }
+
+    private List<Map<String, Object>> bodyRows(Object value) {
+        if (!(value instanceof Collection<?> collection) || collection.isEmpty()) return null;
+        List<Map<String, Object>> rows = objectRows(collection);
+        if (rows != null) return rows;
+        return collection.stream().map(item -> Collections.<String, Object>singletonMap("value", item)).toList();
     }
 
     private String normalizeKey(String value) {
@@ -470,8 +473,10 @@ final class McpAnalysisPayloadResultAnalysisAdapter implements RuntimeResultAnal
         if (!((trimmed.startsWith("{") && trimmed.endsWith("}"))
             || (trimmed.startsWith("[") && trimmed.endsWith("]")))) return value;
         try {
-            return gson.fromJson(trimmed, Object.class);
-        } catch (JsonParseException ignored) {
+            return JSON.readerFor(Object.class)
+                .without(com.fasterxml.jackson.databind.DeserializationFeature.USE_BIG_INTEGER_FOR_INTS)
+                .readValue(trimmed);
+        } catch (java.io.IOException ignored) {
             return value;
         }
     }

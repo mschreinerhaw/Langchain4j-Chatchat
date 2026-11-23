@@ -17,6 +17,7 @@ import org.springframework.stereotype.Service;
 @Service
 @ConditionalOnProperty(prefix="chatchat.runtime.coding.unified",name="enabled",havingValue="true")
 public class SiloCodingWorkspaceService {
+    public static final int MAX_INPUT_FILES = 64;
     public static final int CHUNK=8*1024*1024;
     public record Input(String assetId,String path,long size,String sha256,String objectVersion) { }
     public record InputCapability(Input input,String url) { }
@@ -49,7 +50,7 @@ public class SiloCodingWorkspaceService {
     private State running(KernelDataScope scope,String task,String epoch){var state=get(scope,task);if(!Objects.equals(epoch,state.epoch())||!"RUNNING".equals(state.status()))throw new IllegalStateException("Task fence is closed or stale: status="+state.status()+", epochMatches="+Objects.equals(epoch,state.epoch()));return state;}
     public State create(KernelDataScope scope,String task,List<String> fileIds){
         owner(scope);key(task);
-        if(fileIds==null||fileIds.isEmpty()||fileIds.size()>64||new HashSet<>(fileIds).size()!=fileIds.size())throw new IllegalArgumentException("Explicit unique authorized inputs required");
+        if(fileIds==null||fileIds.isEmpty()||fileIds.size()>MAX_INPUT_FILES||new HashSet<>(fileIds).size()!=fileIds.size())throw new IllegalArgumentException("Explicit unique authorized inputs required");
         var owner=UserAssetService.Owner.of(scope);var inputs=new ArrayList<Input>();
         // Reserve an immutable allocation before object I/O so concurrent retries
         // cannot bind a task to different input/output object spaces.

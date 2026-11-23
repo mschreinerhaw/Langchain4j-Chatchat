@@ -11,6 +11,28 @@ import java.util.Map;
 import static org.assertj.core.api.Assertions.assertThat;
 
 class McpAnalysisPayloadResultAnalysisAdapterTest {
+    @Test void httpJsonTextKeepsLargeIntegersAndDecimalPrecision() {
+        String body = "{\"records\":[{\"id\":9007199254740993,\"amount\":0.1234567890123456789}]}";
+        var result = new McpAnalysisPayloadResultAnalysisAdapter().adapt(new AnalysisRequest("http",
+            Map.of("schemaVersion", McpAnalysisPayload.SCHEMA_VERSION, "status", "SUCCESS",
+                "resultKind", "RAW_RECORDS", "data", Map.of("body", body)), 1000));
+        assertThat(result.datasets()).singleElement().satisfies(dataset ->
+            assertThat(dataset.records()).containsExactly(Map.of("id", 9007199254740993L,
+                "amount", new java.math.BigDecimal("0.1234567890123456789"))));
+    }
+
+    @Test void httpBodyRetainsMixedCollectionsAlongsideOrdinaryRows() {
+        var items = java.util.Arrays.asList(Map.of("id", 1), "tail", null, List.of(2, 3));
+        var result = new McpAnalysisPayloadResultAnalysisAdapter().adapt(new AnalysisRequest("http",
+            Map.of("schemaVersion", McpAnalysisPayload.SCHEMA_VERSION, "status", "SUCCESS",
+                "resultKind", "RAW_RECORDS", "data", Map.of("body",
+                    Map.of("records", List.of(Map.of("amount", 7)), "mixed", items))), 1000));
+        assertThat(result.datasets()).hasSize(2);
+        assertThat(result.datasets()).filteredOn(dataset -> "$.data.body.mixed".equals(
+            dataset.analysisContext().get("canonicalPath"))).singleElement().satisfies(dataset ->
+                assertThat(dataset.records()).extracting(row -> row.get("value")).containsExactlyElementsOf(items));
+    }
+
     @Test void successfulSchemaBearingEmptyApiRowsRemainAZeroRowDatasetWithoutRawRecovery() {
         var context=Map.<String,Object>of("schema",Map.of("definition",Map.of("type","object",
             "properties",Map.of("amount",Map.of("type","number")))));

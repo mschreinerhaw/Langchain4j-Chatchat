@@ -183,27 +183,33 @@ class TemplateQueryMcpToolPublisherTest {
         TemplateAssetCatalogService catalog = mock(TemplateAssetCatalogService.class);
         TemplateQueryMcpToolPublisher publisher = publisher(bindings, catalog);
         McpInvocationContext.Context context = context("service-1", "role-1");
-        Set<String> allowed = Set.of("customer_query", "excluded_query");
+        Set<String> allowed = Set.of("customer_query", "other_bound_query", "acl_denied_query", "external_read");
         when(bindings.resolvePolicy(context, "customer_template_query"))
             .thenReturn(policy(Map.of("api_service", allowed)));
         when(bindings.requireRoute("customer_template_query")).thenReturn(
             route("customer_template_query", "api_template_query", TemplateAssetCatalogService.API));
-        when(catalog.listEnabledForType(TemplateAssetCatalogService.API)).thenReturn(List.of(
-            asset(TemplateAssetCatalogService.API, "customer_query", Map.of("required", List.of("customer_id"))),
-            asset(TemplateAssetCatalogService.API, "excluded_query", Map.of("type", "object")),
+        var customer = asset(TemplateAssetCatalogService.API, "customer_query", Map.of("required", List.of("customer_id")));
+        var other = asset(TemplateAssetCatalogService.API, "other_bound_query", Map.of("type", "object"));
+        var external = new TemplateAssetCatalogService.TemplateAsset("api_service:external_read", "api_service",
+            "external_read", "External read", "", "external", "external_mcp", "External MCP", Map.of());
+        when(catalog.listEnabledForType(TemplateAssetCatalogService.API)).thenReturn(List.of(customer, other, external,
+            asset(TemplateAssetCatalogService.API, "acl_denied_query", Map.of()),
             asset(TemplateAssetCatalogService.API, "unbound_template", Map.of())));
+        when(catalog.publishedApiTarget(customer)).thenReturn(java.util.Optional.of(Map.of("assetId", "confirmed-service")));
+        when(catalog.publishedApiTarget(other)).thenReturn(java.util.Optional.of(Map.of("assetId", "another-bound-service")));
 
         Map<String, Object> result;
         try (McpInvocationContext.Scope ignored = McpInvocationContext.open(context)) {
             result = publisher.queryFromParent("customer_template_query", "api_template_query", Map.of(
                 "assetType", "api_service",
-                "limit", 20
+                "limit", 1
             ));
         }
 
         assertThat(result.get("templates").toString())
-            .contains("customer_query", "excluded_query", "parameterSchema", "customer_id")
-            .doesNotContain("unbound_template");
+            .contains("customer_query", "other_bound_query", "parameterSchema", "customer_id",
+                "executionToolName=external_read")
+            .doesNotContain("unbound_template", "acl_denied_query");
         assertThat(result).containsEntry("scopeMode", "FIXED_BINDING")
             .containsEntry("selectionMode", "BOUND_SCOPE_RECALL")
             .containsEntry("semanticReviewRequired", true)
@@ -211,16 +217,12 @@ class TemplateQueryMcpToolPublisherTest {
             .containsEntry("boundScopeRecallPerformed", true)
             .containsEntry("bindingComplete", true);
 
-        var target = Map.<String, Object>of("assetId", "confirmed-service", "assetName", "customer_query");
-        when(catalog.confirmedTemplateTargets(
-            asset(TemplateAssetCatalogService.API, "customer_query", Map.of("required", List.of("customer_id"))),
-            Set.of("confirmed-service"))).thenReturn(List.of(target));
         try (McpInvocationContext.Scope ignored = McpInvocationContext.open(context)) {
             var scoped = publisher.queryFromParent("customer_template_query", "api_template_query",
                 Map.of("filters", Map.of("assetIds", List.of("confirmed-service"))));
-            assertThat(scoped).containsEntry("returnedCount", 1).containsEntry("bindingComplete", true);
-            assertThat(scoped.get("templates").toString()).contains("customer_query", "confirmed-service")
-                .doesNotContain("excluded_query");
+            assertThat(scoped).containsEntry("returnedCount", 3).containsEntry("hasMore", false);
+            assertThat(scoped.get("templates").toString()).contains("customer_query", "confirmed-service",
+                "other_bound_query", "another-bound-service").doesNotContain("acl_denied_query");
         }
     }
 
@@ -253,6 +255,41 @@ class TemplateQueryMcpToolPublisherTest {
     }
 
     @Test
+    void fixedPublicationEnumeratesTwentyRequiredAndTenOptionalDespiteSmallHint() {
+        var bindings = mock(TemplateQueryBindingService.class);
+        var catalog = mock(TemplateAssetCatalogService.class);
+        var publisher = publisher(bindings, catalog);
+        var context = context("service-1", "role-1");
+        String child = "inventory_template_query";
+        String parent = "api_template_query";
+        var assets = java.util.stream.IntStream.range(0, 30)
+            .mapToObj(i -> asset(TemplateAssetCatalogService.API, "endpoint-" + i, Map.of())).toList();
+        var ids = assets.stream().map(TemplateAssetCatalogService.TemplateAsset::templateId)
+            .collect(java.util.stream.Collectors.toSet());
+        var required = assets.subList(0, 20).stream().map(TemplateAssetCatalogService.TemplateAsset::key)
+            .collect(java.util.stream.Collectors.toSet());
+        var optional = assets.subList(20, 30).stream().map(TemplateAssetCatalogService.TemplateAsset::key)
+            .collect(java.util.stream.Collectors.toSet());
+        when(bindings.requireRoute(child)).thenReturn(route(child, parent, TemplateAssetCatalogService.API));
+        when(bindings.resolvePolicy(context, child)).thenReturn(new TemplateQueryBindingService.PolicyResolution(
+            Map.of(TemplateAssetCatalogService.API, ids), Set.of(parent), "policy-v1", false, 30, Instant.now(),
+            required, optional));
+        when(catalog.listEnabledForType(TemplateAssetCatalogService.API)).thenReturn(assets);
+        when(catalog.publishedApiTarget(org.mockito.ArgumentMatchers.any())).thenAnswer(invocation -> {
+            TemplateAssetCatalogService.TemplateAsset asset = invocation.getArgument(0);
+            return java.util.Optional.of(Map.of("assetId", asset.templateId()));
+        });
+        try (var ignored = McpInvocationContext.open(context)) {
+            var result = publisher.queryFromParent(child, parent, Map.of("limit", 1,
+                "filters", Map.of("assetIds", List.of("endpoint-0"))));
+            assertThat(result).containsEntry("returnedCount", 30).containsEntry("hasMore", false);
+            assertThat(result.get("dataSupply")).isEqualTo(Map.of("publishedTemplateCount", 30,
+                "requiredTemplateCount", 20, "authorizedRequiredTemplateCount", 20L,
+                "unavailableRequiredTemplateCount", 0L, "optionalTemplateCount", 10));
+        }
+    }
+
+    @Test
     void pagingDoesNotMarkTheCompleteBindingAsUnavailable() {
         TemplateQueryBindingService bindings = mock(TemplateQueryBindingService.class);
         TemplateAssetCatalogService catalog = mock(TemplateAssetCatalogService.class);
@@ -271,7 +308,7 @@ class TemplateQueryMcpToolPublisherTest {
         Map<String, Object> result;
         try (McpInvocationContext.Scope ignored = McpInvocationContext.open(context)) {
             result = publisher.queryFromParent("customer_template_query", "api_template_query",
-                Map.of("limit", 1));
+                Map.of("pageSize", 1));
         }
 
         assertThat(result).containsEntry("returnedCount", 1)

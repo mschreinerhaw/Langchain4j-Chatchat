@@ -180,6 +180,41 @@ class ToolResultReviewBranchTest {
         verifyNoInteractions(model);
     }
 
+    @Test
+    void fixedPublicationAdmitsEveryRequiredIdentityAndKeepsOptionalOutOfInitialBatch() {
+        metadata("template_query", Map.of(ToolWorkflowContract.METADATA_KEY,
+            ToolWorkflowContract.declaration(ToolWorkflowRole.TEMPLATE_DISCOVERY, "fixture", "template_query.v1"),
+            com.chatchat.common.mcp.capability.McpTemplateSelectionScope.METADATA_KEY,
+            com.chatchat.common.mcp.capability.McpTemplateSelectionScope.fixedBinding("api_service").toMetadata()));
+        var templates = java.util.stream.IntStream.range(0, 30).mapToObj(i ->
+            Map.of("templateId", "template-" + i, "supplyMode", i < 20 ? "REQUIRED" : "OPTIONAL")).toList();
+        var output = Map.of("templates", templates, "publicationScope", Map.of("completeSupply", true),
+            "dataSupply", Map.of("requiredTemplateCount", 20));
+        var review = engine().reviewInterpretationPlanToolResult(model, "Analyze", null, () -> false,
+            new InterpretationPlanRuntime.StepReviewRequest(null, null, execution("template_query", true, output),
+                Map.of(), 1, 1), Map.of(), null, null);
+        assertThat(review.metadata().get("selectedTemplateIds")).isEqualTo(
+            java.util.stream.IntStream.range(0, 20).mapToObj(i -> "template-" + i).toList());
+        assertThat(review.metadata().get("publishedOptionalTemplateIds")).isEqualTo(
+            java.util.stream.IntStream.range(20, 30).mapToObj(i -> "template-" + i).toList());
+    }
+
+    @Test
+    void fixedPublicationDoesNotExecuteAnIncompletePage() {
+        metadata("template_query", Map.of(ToolWorkflowContract.METADATA_KEY,
+            ToolWorkflowContract.declaration(ToolWorkflowRole.TEMPLATE_DISCOVERY, "fixture", "template_query.v1"),
+            com.chatchat.common.mcp.capability.McpTemplateSelectionScope.METADATA_KEY,
+            com.chatchat.common.mcp.capability.McpTemplateSelectionScope.fixedBinding("api_service").toMetadata()));
+        var output = Map.of("data", Map.of("hasMore", true,
+            "templates", List.of(Map.of("templateId", "orders"))));
+        var review = engine().reviewInterpretationPlanToolResult(model, "Show orders", null, () -> false,
+            new InterpretationPlanRuntime.StepReviewRequest(null, null, execution("template_query", true, output),
+                Map.of(), 1, 1), Map.of(), null, null);
+        assertThat(review.metadata()).containsEntry("candidateSelectionErrorCode", "INCOMPLETE_TEMPLATE_PUBLICATION")
+            .containsEntry("selectedTemplateIds", List.of());
+        verifyNoInteractions(model);
+    }
+
     @ParameterizedTest
     @ValueSource(booleans = {true, false})
     void optedInAgentUsesClineProposalsBeforeAuthorizingTemplateInvocations(boolean complete) {

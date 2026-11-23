@@ -139,6 +139,24 @@ public class PublishedTemplateSupplyTest {
             com.chatchat.common.mcp.capability.McpCapabilityHierarchy.empty(),registry);
         assertThat(resolver.satisfiesCapability(CHILD,BRIDGE)).isFalse();
     }
+    @Test void fixedApiPublicationOwnsTargetsWithoutDependingOnAssetSearch() {
+        var registry = registry(false);
+        var published = new LinkedHashMap<>(registry.getToolMetadata(CHILD).getMetadata());
+        published.put("assetType", "api_service");
+        published.put("templateSelectionScope", McpTemplateSelectionScope.fixedBinding("api_service").toMetadata());
+        registry.getToolMetadata(CHILD).setMetadata(published);
+        registry.getToolMetadata(BRIDGE).setMetadata(Map.of("assetType", "api_service",
+            "workflowContract", ToolWorkflowContract.declaration(ToolWorkflowRole.ASSET_DISCOVERY,
+                "mcp.api-service-asset.v1", "filters")));
+        registry.getToolMetadata(EXECUTE).setMetadata(Map.of("assetType", "api_service",
+            "workflowContract", ToolWorkflowContract.declaration(ToolWorkflowRole.TEMPLATE_EXECUTION,
+                "mcp.api-template.v1", "executionContext")));
+        var plan = new com.chatchat.agents.runtime.plan.template.PublishedDataAcquisitionPlanner(registry)
+            .compile("Analyze available data", List.of(BRIDGE, CHILD, EXECUTE), List.of(BRIDGE, CHILD, EXECUTE));
+        assertThat(plan).isNotNull();
+        assertThat(plan.steps()).extracting(InterpretationPlan.Step::toolName).containsExactly(CHILD, EXECUTE, "");
+    }
+
     @Test void publishedTemplatePlanKeepsSeparateAssetDiscovery() {
         var registry=registry(false);
         var child=new LinkedHashMap<>(registry.getToolMetadata(CHILD).getMetadata());

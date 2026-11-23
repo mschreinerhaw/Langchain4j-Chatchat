@@ -26,7 +26,7 @@ public class ControlledTemplateReleaseExecutor implements ToolReleaseExecutor {
     }
     @Override public String activate(JsonNode value,String reference) {
         var r=request(value);var enabled=new TemplateQueryBindingService.UpsertRequest(r.parentToolName(),r.roleId(),
-            r.subjectType(),r.userId(),r.domainCode(),r.templateKeys(),true,null,r.chineseAlias());
+            r.subjectType(),r.userId(),r.domainCode(),r.templateKeys(),true,null,r.chineseAlias(),r.optionalTemplateKeys());
         return reference==null?bindings.create(enabled).id():bindings.update(reference,enabled).id();
     }
     @Override public void offline(String reference) { bindings.setEnabled(reference,false); }

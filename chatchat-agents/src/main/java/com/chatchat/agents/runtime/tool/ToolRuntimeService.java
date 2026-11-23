@@ -2507,9 +2507,14 @@ public class ToolRuntimeService {
         } else {
             canonicalInvocation = canonicalInvocation.withContext(context);
         }
-        McpServiceResult result = kernel.execute(new McpServiceCall(null,
-            canonicalInvocation.requestId(), serviceId, canonicalInvocation.toolName(),
-            canonicalInvocation.arguments().values(), canonicalInvocation.context(), deadlineAt));
+        var call = new McpServiceCall(null, canonicalInvocation.requestId(), serviceId, canonicalInvocation.toolName(),
+            canonicalInvocation.arguments().values(), canonicalInvocation.context(), deadlineAt);
+        McpServiceResult result = kernel.execute(call);
+        var publication = com.chatchat.agents.runtime.plan.template.TemplateWorkflowMetadata.publisher(metadata);
+        if (metadata != null && "read".equalsIgnoreCase(metadata.getOperationType())
+                && McpStableRecordCursor.CONTRACT.equals(publication.get(McpStableRecordCursor.METADATA_KEY))) {
+            result = McpStableRecordCursor.drain(call, result, objectMapper, kernel::execute);
+        }
         result = bindInvocationFingerprint(result, canonicalInvocation.arguments().values());
         Map<String, Object> outputMetadata = new LinkedHashMap<>(result.metadata());
         outputMetadata.put("mcpServiceResult", result);

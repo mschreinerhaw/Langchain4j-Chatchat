@@ -746,6 +746,7 @@
         parent_tool_name varchar(128) not null,
         subject_id varchar(128) not null,
         template_keys_json clob not null,
+        optional_template_keys_json clob,
         primary key (id),
         constraint uk_template_query_service_role_domain_subject unique (service_id, role_id, domain_code, subject_type, subject_id)
     );

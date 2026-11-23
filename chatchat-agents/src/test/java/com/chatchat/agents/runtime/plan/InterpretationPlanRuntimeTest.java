@@ -229,6 +229,26 @@ class InterpretationPlanRuntimeTest {
             .hasRootCauseMessage("ASSET_TEMPLATE_SCOPE_MISMATCH: selected asset is absent from the authorized template result");
     }
 
+    @Test
+    void completeApiPublicationUsesEachAuthorizedServiceEvenWhenDiscoveryFoundOnlyOne() throws Exception {
+        var runtime = new InterpretationPlanRuntime(mock(ToolRuntimeService.class),
+            new InterpretationPlanValidator(), (InterpretationPlanRuntime.DagExecutionController) null);
+        var bind = InterpretationPlanRuntime.class.getDeclaredMethod("bindReviewedTemplatesToSelectedAssets",
+            List.class, List.class, InterpretationPlanRuntime.StepExecution.class);
+        bind.setAccessible(true);
+        var balance = Map.of("assetId", "A");
+        var liability = Map.of("assetId", "B");
+        var discovery = new InterpretationPlanRuntime.StepExecution(2, "mcp_tool", "bound_query", true,
+            Map.of("publicationScope", Map.of("completeSupply", true), "templates", List.of(
+                Map.of("templateId", "balance", "assetType", "api_service", "executionContext", balance),
+                Map.of("templateId", "liability", "assetType", "api_service", "executionContext", liability))),
+            null, null, null, 1L, Map.of("publishedDataSupply", true));
+        var bindings = List.of(Map.of("templateId", "balance"), Map.of("templateId", "liability"));
+        assertThat(bind.invoke(runtime, bindings, List.of(balance), discovery)).isEqualTo(List.of(
+            Map.of("templateId", "balance", "runtimeSelectedAssetContext", balance, "bindingId", "A:balance"),
+            Map.of("templateId", "liability", "runtimeSelectedAssetContext", liability, "bindingId", "B:liability")));
+    }
+
     private static ToolMetadata batchCapableTemplateMetadata(String toolName) {
         return ToolMetadata.builder().id(toolName).riskLevel("low")
             .metadata(Map.of("batchCapable", true, "templateExecution", true)).build();
@@ -9895,13 +9915,16 @@ class InterpretationPlanRuntimeTest {
         });
     }
 
-    @Test
+    @org.junit.jupiter.params.ParameterizedTest
+    @org.junit.jupiter.params.provider.ValueSource(ints = {3, 20})
     @SuppressWarnings("unchecked")
-    void givesEveryReviewedTemplateATerminalBatchEntryWhenOneCannotCompile() {
+    void givesEveryReviewedTemplateATerminalBatchEntryWhenOneCannotCompile(int requiredCount) {
         String discoveryTool = "mcp_chatchat_mcp_server_api_template_query";
         String analysisTool = "mcp_chatchat_mcp_server_api_requirement_analyze";
         String executorTool = "mcp_chatchat_mcp_server_api_template_execute";
-        List<String> templateIds = List.of("orders-template", "trades-template", "transit-template");
+        List<String> templateIds = java.util.stream.Stream.concat(
+            java.util.stream.Stream.of("orders-template", "trades-template", "transit-template"),
+            java.util.stream.IntStream.range(3, requiredCount).mapToObj(i -> "required-template-" + i)).toList();
         List<Map<String, Object>> templates = templateIds.stream()
             .map(id -> {
                 Map<String, Object> template = new LinkedHashMap<>(apiDiagnosticTemplate(id, id, executorTool));
@@ -9958,9 +9981,9 @@ class InterpretationPlanRuntimeTest {
                 .toList();
             return new ToolRuntimeExecution(ToolOutput.success(new ToolCallBatchResult(
                 "reviewed-template-step-3", "SEQUENTIAL", "start", "end", "SUCCESS",
-                new ToolCallBatchResult.Summary(3, 3, 0, 0, 0, 3), results)),
+                new ToolCallBatchResult.Summary(requiredCount, requiredCount, 0, 0, 0, requiredCount), results)),
                 ToolMetadata.builder().id(executorTool).build(), null, "success",
-                Map.of("batchExecution", true, "remoteToolInvocationCount", 3));
+                Map.of("batchExecution", true, "remoteToolInvocationCount", requiredCount));
         });
         InterpretationPlan plan = new InterpretationPlan(
             "1.0",
@@ -9998,7 +10021,7 @@ class InterpretationPlanRuntimeTest {
             new InterpretationPlanValidator(),
             null,
             request -> discoveryTool.equals(request.execution().toolName())
-                ? InterpretationPlanRuntime.StepReview.accepted("three templates accepted", Map.of(
+                ? InterpretationPlanRuntime.StepReview.accepted("required templates accepted", Map.of(
                     "selectedTemplateIds", templateIds,
                     "nextActions", List.of(Map.of(
                         "tool", "api_template_execute",
@@ -10022,7 +10045,7 @@ class InterpretationPlanRuntimeTest {
         assertThat(result.metadata()).containsEntry("continuedFailureStepIds", List.of(2));
         assertThat(batchInput.get()).containsEntry("stopOnFailure", false);
         List<Map<String, Object>> calls = (List<Map<String, Object>>) batchInput.get().get("calls");
-        assertThat(calls).hasSize(3);
+        assertThat(calls).hasSize(requiredCount);
         assertThat(calls).extracting(call -> call.get("callId")).containsExactlyElementsOf(templateIds);
         assertThat(calls).allSatisfy(call -> {
             Map<String, Object> arguments = (Map<String, Object>) call.get("arguments");

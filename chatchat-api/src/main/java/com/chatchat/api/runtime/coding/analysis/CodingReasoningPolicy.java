@@ -78,7 +78,8 @@ public class CodingReasoningPolicy {
         }
         frozen.put("requested",requested);
         String level = "auto".equals(requested)
-            ? (String) CodingExecutionProfile.select(settings,sources,rows).get("reasoningEffort") : requested;
+            ? (String) CodingExecutionProfile.select(settings, Math.min(sources,
+                com.chatchat.common.runtime.coding.CodingProtocol.MAX_ANALYSIS_SOURCES), rows).get("reasoningEffort") : requested;
         String effective = level == null ? null : levels.get(level);
         if (effective != null) {
             frozen.put("effective",effective);

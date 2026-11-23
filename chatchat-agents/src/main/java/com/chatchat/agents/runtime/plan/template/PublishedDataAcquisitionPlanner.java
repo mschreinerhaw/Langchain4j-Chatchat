@@ -33,7 +33,9 @@ public final class PublishedDataAcquisitionPlanner {
         TemplateWorkflowTool provider=descriptor(discovery),executor=descriptor(execution);
         var plugin=TemplateWorkflowPluginRegistry.load().resolve(executor).orElse(null);
         if(plugin==null || !plugin.accepts(provider,executor)) return unavailable("INCOMPATIBLE_EXECUTION_PROTOCOL");
-        List<String> assetProviders = authorized.stream().distinct()
+        boolean publicationOwnsTargets = TemplateWorkflowMetadata.fixedScope(metadata)
+            .filter(scope -> TemplateWorkflowMetadata.templateOwnsTarget(scope.assetType())).isPresent();
+        List<String> assetProviders = publicationOwnsTargets ? List.of() : authorized.stream().distinct()
             .filter(name -> TemplateWorkflowMetadata.suppliesBoundDiscovery(metadata, registry.getToolMetadata(name)))
             .filter(name -> TemplateWorkflowMetadata.assetStages(registry.getToolMetadata(name))
                 || role(name) == ToolWorkflowRole.ASSET_DISCOVERY)
@@ -56,7 +58,9 @@ public final class PublishedDataAcquisitionPlanner {
                 "Confirmed assets must precede published template discovery.", "stop"));
             allowed.add(assetProvider);
         }
-        steps.add(new InterpretationPlan.Step(templateStep,"mcp_tool",discovery,Map.of("query",query,"limit",10),
+        Map<String, Object> discoveryInput = TemplateWorkflowMetadata.fixedScope(metadata).isPresent()
+            ? Map.of("query", query) : Map.of("query", query, "limit", 10);
+        steps.add(new InterpretationPlan.Step(templateStep,"mcp_tool",discovery,discoveryInput,
             assetProvider == null ? List.of() : List.of(1),null,null));
         steps.add(new InterpretationPlan.Step(executionStep,"mcp_tool",execution,Map.of(),List.of(templateStep),null,null));
         steps.add(new InterpretationPlan.Step(answerStep,"final_answer","",Map.of("answer","Use the admitted tool evidence to answer the current question."),List.of(executionStep),null,null));
@@ -66,7 +70,7 @@ public final class PublishedDataAcquisitionPlanner {
             "Data execution must precede the answer.","stop"));
         allowed.add(discovery);allowed.add(execution);
         return new InterpretationPlan("1.0",new InterpretationPlan.Intent("mixed",query,"low"),
-            new InterpretationPlan.Context(List.of("The publisher resolves bound assets; the model selects returned templates and extracts parameters."),
+            new InterpretationPlan.Context(List.of("The publisher resolves bound assets and defines the fixed template set; the model extracts parameters."),
                 List.of(),List.of(),List.of("Use only canonical asset context and returned template identities.")),
             new InterpretationPlan.Plan(steps,
                 List.of(new InterpretationPlan.EdgeContract(templateStep,executionStep,plugin.templateIdOutputPath(),"string",true)),

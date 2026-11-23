@@ -407,7 +407,10 @@ public class HttpRequestToolService {
             return body;
         }
         try {
-            return objectMapper.readValue(trimmed, new TypeReference<>() {});
+            return objectMapper.readerFor(Object.class)
+                .with(com.fasterxml.jackson.databind.DeserializationFeature.USE_BIG_DECIMAL_FOR_FLOATS)
+                .with(com.fasterxml.jackson.databind.DeserializationFeature.FAIL_ON_TRAILING_TOKENS)
+                .readValue(trimmed);
         } catch (Exception ignored) {
             return body;
         }

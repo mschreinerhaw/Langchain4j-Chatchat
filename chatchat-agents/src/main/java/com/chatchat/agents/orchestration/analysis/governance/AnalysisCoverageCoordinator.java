@@ -125,6 +125,12 @@ public final class AnalysisCoverageCoordinator {
 
         return codingOwned ? analyzeWithCoding(request, datasets) : analyzeWithHarness(request, datasets);
     }
+    private boolean hasUnavailableRequiredTemplates(Map<String, Object> metadata) {
+        return metadata.get("dataSupply") instanceof Map<?, ?> status
+            && status.get("supplyMetrics") instanceof Map<?, ?> metrics
+            && metrics.get("unavailableRequiredTemplateCount") instanceof Number blocked && blocked.longValue() > 0;
+    }
+
     private boolean supplyStatus(AnalysisEvidenceCoordinator.Dataset dataset) {
         return "DATA_SUPPLY_STATUS".equals(dataset.analysisContext().get("recordType"));
     }
@@ -286,6 +292,10 @@ public final class AnalysisCoverageCoordinator {
             "resultAvailable", receipt.getOrDefault("resultAvailable", false),
             "usage", receipt.getOrDefault("usage", Map.of())));
         request.metadata().put("primaryCodingReceipt", Map.copyOf(receipt));
+        if (receipt.get("deliveredRows") instanceof Number rows)
+            request.metadata().put("analysisDeliveredRows", rows);
+        if (receipt.get("deliveredSnapshotBytes") instanceof Number bytes)
+            request.metadata().put("analysisDeliveredSnapshotBytes", bytes);
         request.metadata().remove("visualReport");
         if(com.chatchat.common.runtime.coding.VisualReportMode.active(request.runtimeAttributes())
             && receipt.get("visualReport") instanceof Map<?,?> report)request.metadata().put("visualReport",report);
@@ -342,13 +352,16 @@ public final class AnalysisCoverageCoordinator {
             .mapToLong(AnalysisEvidenceCoordinator.Dataset::recordCount).sum();
         int count = Math.toIntExact(rows);
         var failures = sourceFailureDatasets(request.metadata());
-        boolean[] sourceCompleteness = {true};
+        boolean[] sourceCompleteness = {datasets.stream().noneMatch(
+            com.chatchat.agents.orchestration.analysis.dataset.DataSupplyStatus::sourceIncomplete)};
         datasets.forEach(dataset -> dataset.handle().scan(1000, sourcePage -> {
             request.cancellationGuard().run();
             sourceCompleteness[0] &= sourcePage.rows().stream()
                 .noneMatch(record -> Boolean.FALSE.equals(record.get("sourceComplete")));
         }));
-        boolean availableComplete = failures.isEmpty() && datasets.stream().noneMatch(this::supplyStatus);
+        boolean availableComplete = failures.isEmpty() && sourceCompleteness[0]
+            && !hasUnavailableRequiredTemplates(request.metadata())
+            && datasets.stream().noneMatch(this::supplyStatus);
         request.metadata().put("recordAnalysisDatasetCount", Math.toIntExact(datasets.stream().filter(dataset -> !supplyStatus(dataset)).count()));
         request.metadata().put("recordAnalysisSuccessfulDatasetCount", Math.toIntExact(datasets.stream().filter(dataset -> !supplyStatus(dataset)).count()));
         request.metadata().put("recordAnalysisFailedDatasetCount", failures.size());
@@ -451,13 +464,16 @@ public final class AnalysisCoverageCoordinator {
         request.metadata().put("recordAnalysisDatasetCount", result.datasetReferences().size());
         request.metadata().put("recordAnalysisSuccessfulDatasetCount", result.datasetReferences().size());
         var failures = sourceFailureDatasets(request.metadata());
-        boolean[] sourceCompleteness = {true};
+        boolean[] sourceCompleteness = {datasets.stream().noneMatch(
+            com.chatchat.agents.orchestration.analysis.dataset.DataSupplyStatus::sourceIncomplete)};
         datasets.forEach(dataset -> dataset.handle().scan(1000, page -> {
             request.cancellationGuard().run();
             sourceCompleteness[0] &= page.rows().stream().noneMatch(record -> Boolean.FALSE.equals(record.get("sourceComplete")));
         }));
         boolean sourceComplete = sourceCompleteness[0];
-        boolean availableComplete = failures.isEmpty() && datasets.stream().noneMatch(this::supplyStatus);
+        boolean availableComplete = failures.isEmpty() && sourceCompleteness[0]
+            && !hasUnavailableRequiredTemplates(request.metadata())
+            && datasets.stream().noneMatch(this::supplyStatus);
         request.metadata().put("recordAnalysisFailedDatasetCount", failures.size());
         request.metadata().put("recordAnalysisReturnedRecordCount", count);
         request.metadata().put("recordAnalysisProcessedRecordCount", count);

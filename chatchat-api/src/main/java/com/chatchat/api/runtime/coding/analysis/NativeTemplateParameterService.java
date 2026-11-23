@@ -155,8 +155,6 @@ public final class NativeTemplateParameterService implements ClineTemplateParame
                     throw new IllegalArgumentException("Invalid unresolved parameter");
             proposals.add(json.convertValue(proposal, new TypeReference<Map<String, Object>>() {}));
         }
-        if (selection == Selection.ALL_PUBLISHED && !remaining.isEmpty())
-            throw new IllegalArgumentException("Missing proposals for published templates");
         return List.copyOf(proposals);
     }
 }

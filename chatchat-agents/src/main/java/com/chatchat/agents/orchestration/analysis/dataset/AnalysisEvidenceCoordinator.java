@@ -150,7 +150,7 @@ public final class AnalysisEvidenceCoordinator {
                         child.output(), reference, toolMetadata(child.toolName()));
                     if (childDatasets.isEmpty()) {
                         excluded.add(metadataOf("datasetReference", reference,
-                            "toolName", child.toolName(), "reason", "NO_PROJECTED_CONTENT",
+                            "toolName", child.toolName(), "reason", unavailableDataReason(child.output()),
                             "accountingStatus", "EXCLUDED", "executionStatus", child.status()));
                     } else {
                         datasets.addAll(withParameterBinding(withTemplateRequirementMatch(childDatasets,
@@ -166,7 +166,7 @@ public final class AnalysisEvidenceCoordinator {
                 null, templateMatches),step,null);
             if (stepDatasets.isEmpty()) {
                 excluded.add(metadataOf("datasetReference", stepReference,
-                    "toolName", step.toolName(), "reason", "NO_PROJECTED_CONTENT",
+                    "toolName", step.toolName(), "reason", unavailableDataReason(resolved),
                     "accountingStatus", "EXCLUDED", "executionStatus", "SUCCESS"));
             } else {
                 datasets.addAll(stepDatasets);
@@ -316,10 +316,22 @@ public final class AnalysisEvidenceCoordinator {
         return recordChunkPlanner.valueGroup(record, question);
     }
 
+    private String unavailableDataReason(Object output) {
+        return unresolvedExternalizedOutput(output) ? "FULL_SOURCE_OUTPUT_UNAVAILABLE" : "NO_PROJECTED_CONTENT";
+    }
+
+    private boolean unresolvedExternalizedOutput(Object output) {
+        Map<String, Object> data = map(output);
+        return (Boolean.TRUE.equals(data.get("outputExternal"))
+                || Boolean.TRUE.equals(data.get("runtimeReviewAvailable")))
+            && (Boolean.TRUE.equals(data.get("outputTruncated"))
+                || Boolean.TRUE.equals(data.get("summaryTruncated")));
+    }
+
     private List<Dataset> outputDatasets(Object output, String reference, ToolMetadata metadata) {
+        if (unresolvedExternalizedOutput(output)) return List.of();
         Map<String,Object> envelope=sqlEnvelope(output);
-        Map<String, Object> rootContext = sqlExecutionParameterContext(
-            analysisContextProtocol.adapt(reference, metadata, output),envelope);
+        Map<String, Object> rootContext = sourceContext(reference, metadata, output, envelope);
         if ("sql_result.v1".equals(envelope.get("dataSchema"))
                 && map(envelope.get("data")).get("rows") instanceof List<?> empty && empty.isEmpty()) {
             // An incomplete/failed empty SQL result is unavailable evidence. Its
@@ -337,13 +349,48 @@ public final class AnalysisEvidenceCoordinator {
         if (!sets.isEmpty()) return sets;
         List<Map<String, Object>> records = protocolRecords(output);
         if (!records.isEmpty()) return List.of(new Dataset(reference, rootContext, records));
-        sets = externalizedPreview(output, reference, metadata, rootContext);
-        if (!sets.isEmpty()) return sets;
         sets = structuredDataProjector.project(output).stream()
             .map(dataset -> new Dataset(reference + dataset.path(), rootContext, dataset.rows())).toList();
         if (!sets.isEmpty()) return deduplicate(sets);
         typed = governedHandleProjection(output, reference, rootContext, true);
         return !typed.isEmpty() ? typed : governedProjection(output, reference, rootContext, true);
+    }
+
+    private Map<String, Object> sourceContext(String reference, ToolMetadata metadata, Object output,
+                                              Map<String, Object> envelope) {
+        var context = sqlExecutionParameterContext(analysisContextProtocol.adapt(reference, metadata, output), envelope);
+        var transport = output instanceof com.chatchat.common.mcp.runtime.McpAnalysisPayload payload
+            ? payload.toMap() : map(output);
+        if (!sourceIncomplete(transport) && !sourceIncomplete(envelope)) return context;
+        var result = new LinkedHashMap<>(context);
+        result.put("sourceComplete", false);
+        return result;
+    }
+
+    private boolean sourceIncomplete(Map<String, Object> envelope) {
+        Map<String, Object> data = map(envelope.get("data"));
+        Map<String, Object> limits = map(data.get("outputLimits"));
+        return hasIncompleteReceipt(envelope) || hasIncompleteReceipt(data)
+            || Boolean.FALSE.equals(limits.get("fullAggregateAvailable"))
+            || Boolean.TRUE.equals(limits.get("stdoutTruncated"))
+            || Boolean.TRUE.equals(limits.get("stderrTruncated"))
+            || Boolean.TRUE.equals(map(data.get("bodyCompleteness")).get("gatewayTruncated"))
+            || hasMorePages(map(data.get("body")).get("pagination"))
+            || maps(firstNonNull(data.get("results"), data.get("resultSets"))).stream()
+                .anyMatch(result -> Boolean.TRUE.equals(result.get("possiblyTruncated")));
+    }
+
+    private boolean hasIncompleteReceipt(Map<String, Object> receipt) {
+        return Boolean.FALSE.equals(receipt.get("complete"))
+            || Boolean.TRUE.equals(receipt.get("possiblyTruncated"))
+            || Boolean.TRUE.equals(receipt.get("hasMore"))
+            || Boolean.FALSE.equals(map(receipt.get("completeness")).get("complete"))
+            || hasMorePages(receipt.get("pagination"));
+    }
+
+    private boolean hasMorePages(Object pagination) {
+        return pagination instanceof com.chatchat.common.mcp.service.McpPaginationResult page
+            ? page.hasMore() : Boolean.TRUE.equals(map(pagination).get("hasMore"));
     }
 
     private Map<String,Object> sqlExecutionParameterContext(Map<String,Object> context,Map<String,Object> envelope) {
@@ -503,22 +550,6 @@ public final class AnalysisEvidenceCoordinator {
             if (!sets.isEmpty()) return List.copyOf(sets);
         }
         return List.of();
-    }
-
-    private List<Dataset> externalizedPreview(Object output, String reference, ToolMetadata metadata,
-                                              Map<String, Object> rootContext) {
-        Map<String, Object> root = map(output);
-        if (!booleanValue(root.get("outputTruncated"))) return List.of();
-        Object preview = root.get("preview");
-        if (preview == null || String.valueOf(preview).isBlank()) return List.of();
-        Map<String, Object> structured = map(preview);
-        if (!structured.isEmpty() && structured != root) {
-            List<Dataset> nested = outputDatasets(structured, reference + "#externalized-preview", metadata);
-            if (!nested.isEmpty()) return nested;
-        }
-        return List.of(new Dataset(reference + "#externalized-preview", rootContext,
-            List.of(Map.of("stream", "externalized-preview", "sourceComplete", false,
-                "content", String.valueOf(preview)))));
     }
 
     private List<Dataset> sqlDatasets(Object output, String reference, Map<String, Object> rootContext) {

@@ -743,6 +743,7 @@
         parent_tool_name varchar(128) not null,
         subject_id varchar(128) not null,
         template_keys_json longtext not null,
+        optional_template_keys_json longtext,
         primary key (id)
     ) engine=InnoDB;
 

@@ -23,6 +23,43 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 class AnalysisEvidenceCoordinatorTest {
+    @Test void upstreamLimitsStayVisibleWithoutRemovingRetrievedRecords() {
+        var coordinator = coordinator(mock(ToolRegistry.class),
+            new com.chatchat.agents.runtime.analysis.McpResultAnalysisBridge());
+        String mcp = com.chatchat.common.mcp.runtime.McpAnalysisPayload.SCHEMA_VERSION;
+        var sql = Map.of("dataSchema", "sql_result.v1", "success", true, "data",
+            Map.of("rows", List.of(Map.of("value", 7)), "rowCount", 1, "possiblyTruncated", true));
+        var ssh = Map.of("dataSchema", "ssh_steps.v1", "data",
+            Map.of("stdout", "output", "outputLimits", Map.of("stdoutTruncated", true)));
+        var http = Map.of("schemaVersion", mcp, "status", "SUCCESS", "resultKind", "RAW_RECORDS", "data",
+            Map.of("dataSchema", "http_response.v1", "data",
+                Map.of("body", Map.of("records", List.of(Map.of("value", 7)), "pagination", Map.of("hasMore", true)))));
+        var external = new com.chatchat.common.mcp.runtime.McpAnalysisPayload(null, "req", "external", "read",
+            "SUCCESS", com.chatchat.common.mcp.service.McpResultKind.RAW_RECORDS, null, null,
+            new com.chatchat.common.mcp.service.McpPaginationResult("cursor", true, 1, 1L),
+            Map.of("complete", true), Map.of("records", List.of(Map.of("value", 7))), null, null, null,
+            false, null, Map.of());
+        for (var payload : List.of(sql, ssh, http, external)) {
+            var execution = result(step("source", payload));
+            var projection = coordinator.project(execution);
+            assertThat(projection.datasets()).singleElement().satisfies(dataset -> {
+                assertThat(dataset.recordCount()).isEqualTo(1);
+                assertThat(dataset.analysisContext()).containsEntry("sourceComplete", false);
+            });
+            assertThat(DataSupplyStatus.describe(execution, projection.datasets(), projection.excludedDatasets()))
+                .containsEntry("businessDataAvailable", true).containsEntry("deliveryComplete", false);
+        }
+    }
+
+    @Test void excludesUnresolvedExternalizedOutputEvenWhenItsPreviewContainsRows() {
+        var reference = Map.of("outputExternal", true, "outputTruncated", true,
+            "documentId", "tool-output:missing", "preview", Map.of("records", List.of(Map.of("value", 7))));
+        var projection = coordinator().project(result(step("opaque_source", reference)));
+        assertThat(projection.datasets()).isEmpty();
+        assertThat(projection.excludedDatasets()).singleElement().satisfies(exclusion ->
+            assertThat(exclusion).containsEntry("reason", "FULL_SOURCE_OUTPUT_UNAVAILABLE"));
+    }
+
     @Test void retainsDifferentOutputsFromRepeatedToolCallsWithUniqueDeliveryReferences() {
         var first=step("opaque_source",Map.of("records",List.of(Map.of("value",1))));
         var second=new InterpretationPlanRuntime.StepExecution(2,"mcp_tool","opaque_source",true,

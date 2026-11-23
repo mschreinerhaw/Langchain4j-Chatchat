@@ -51,6 +51,9 @@ public class TemplateQueryBinding {
     @Column(name = "template_keys_json", nullable = false, length = org.hibernate.Length.LONG32)
     private String templateKeysJson;
 
+    @Column(name = "optional_template_keys_json", length = org.hibernate.Length.LONG32)
+    private String optionalTemplateKeysJson;
+
     @Column(nullable = false)
     private boolean enabled = true;
 

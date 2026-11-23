@@ -200,7 +200,7 @@ class LinuxCommandServiceTest {
         ));
 
         assertThat(result.success()).isFalse();
-        assertThat(result.errorMessage()).contains("serviceName", "does not match required pattern");
+        assertThat(result.errorMessage()).contains("INVALID_TOOL_ARGUMENTS", "serviceName", "INVALID_REQUIRED_PARAMETER");
     }
 
     @Test

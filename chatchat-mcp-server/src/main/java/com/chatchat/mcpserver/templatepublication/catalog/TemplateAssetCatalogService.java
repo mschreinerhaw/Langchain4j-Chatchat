@@ -29,6 +29,7 @@ import java.util.List;
 import java.util.LinkedHashMap;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 import java.util.TreeSet;
 import java.util.function.Function;
@@ -223,14 +224,29 @@ public class TemplateAssetCatalogService {
                     "http_request_execute", HTTP, endpoint.getId(), httpLevel(endpoint.getMethod())))
                 .map(endpoint -> targetContext(endpoint.getId(), endpoint.getName(), endpoint.getEnvironment()))
                 .toList();
-            case API -> apiServiceConfigService.findByToolName(asset.templateId()).stream()
-                .filter(service -> service.isEnabled() && confirmedIds.contains(service.getId()))
-                .filter(service -> authorizationService.callerAllowsOperation(
-                    "api_template_execute", API, service.getId(), httpLevel(service.getMethod())))
-                .map(service -> targetContext(service.getId(), service.getToolName(), null))
-                .toList();
+            case API -> publishedApiTarget(asset).stream()
+                .filter(target -> confirmedIds.contains(target.get("assetId"))).toList();
             default -> List.of();
         };
+    }
+
+    public List<Map<String, Object>> publishedHttpTargets(TemplateAsset asset) {
+        if (!HTTP.equals(asset.assetType())) return List.of();
+        return httpEndpointConfigService.listEnabled().stream()
+            .filter(endpoint -> asset.templateId().equals(firstText(endpoint.getToolName(),
+                firstText(endpoint.getName(), endpoint.getId()))))
+            .filter(endpoint -> authorizationService.callerAllowsOperation(
+                "http_request_execute", HTTP, endpoint.getId(), httpLevel(endpoint.getMethod())))
+            .map(endpoint -> targetContext(endpoint.getId(), endpoint.getName(), endpoint.getEnvironment())).toList();
+    }
+
+    /** API templates already identify one registered service; enforce its live ACL. */
+    public Optional<Map<String, Object>> publishedApiTarget(TemplateAsset asset) {
+        if (!API.equals(asset.assetType())) return Optional.empty();
+        return apiServiceConfigService.findByToolName(asset.templateId())
+            .filter(service -> service.isEnabled() && authorizationService.callerAllowsOperation(
+                "api_template_execute", API, service.getId(), httpLevel(service.getMethod())))
+            .map(service -> targetContext(service.getId(), service.getToolName(), null));
     }
 
     private Map<String, Object> targetContext(String id, String name, String environment) {

@@ -22,6 +22,10 @@ public final class TemplateWorkflowMetadata {
             .filter(McpTemplateSelectionScope::fixedBindingAuthority);
     }
 
+    public static boolean templateOwnsTarget(Object type) {
+        return "api_service".equals(type) || "http_endpoint".equals(type);
+    }
+
     public static String assetType(ToolMetadata tool) {
         Map<String,Object> meta=publisher(tool);
         for(String key:List.of("assetType","asset_type")) {

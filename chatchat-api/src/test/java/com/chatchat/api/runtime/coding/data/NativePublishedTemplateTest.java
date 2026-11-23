@@ -45,6 +45,9 @@ class NativePublishedTemplateTest {
 
         assertThatThrownBy(() -> service.capture(scope, "agent", "SQL"))
             .isInstanceOf(SecurityException.class).hasMessageContaining("resource policy");
+        assertThat(service.captureOptional(scope, "agent", Set.of("SQL"))).isEmpty();
+        assertThat(service.captureOptional(scope, "agent", Set.of("unpublished"))).isEmpty();
+        assertThat(service.captureOptional(scope, "another-agent", Set.of("SQL"))).isEmpty();
         verifyNoInteractions(tools);
     }
 

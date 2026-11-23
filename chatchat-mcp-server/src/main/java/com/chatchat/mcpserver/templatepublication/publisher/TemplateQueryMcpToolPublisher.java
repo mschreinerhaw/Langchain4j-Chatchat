@@ -153,7 +153,10 @@ public class TemplateQueryMcpToolPublisher implements com.chatchat.mcpserver.too
             throw new IllegalArgumentException("Dynamic template query is not authorized for current caller: "
                 + reviewedName);
         }
-        return queryBound(reviewedName, route, policy, arguments, true);
+        return queryBound(reviewedName, route, policy, arguments, true,
+            invokedParentToolName != null && invocationContext != null
+                && (arguments == null || !arguments.containsKey("cursor") && !arguments.containsKey("pageToken")
+                    && !arguments.containsKey("pageSize")));
     }
 
     /** Test a draft through the same fixed-scope recall implementation without registering it. */
@@ -163,14 +166,18 @@ public class TemplateQueryMcpToolPublisher implements com.chatchat.mcpserver.too
         Map<String, Set<String>> ids = draft.templateKeys().stream().collect(java.util.stream.Collectors.groupingBy(
             key -> key.substring(0, key.indexOf(':')), java.util.stream.Collectors.mapping(
                 key -> key.substring(key.indexOf(':') + 1), java.util.stream.Collectors.toSet())));
+        Set<String> optional = draft.optionalTemplateKeys() == null ? Set.of() : Set.copyOf(draft.optionalTemplateKeys());
         var policy = new TemplateQueryBindingService.PolicyResolution(ids,
-            Set.of(parent.toolName()),"draft-contract-test",false,draft.templateKeys().size(),java.time.Instant.now());
+            Set.of(parent.toolName()),"draft-contract-test",false,draft.templateKeys().size(),java.time.Instant.now(),
+            draft.templateKeys().stream().filter(key -> !optional.contains(key)).collect(java.util.stream.Collectors.toUnmodifiableSet()),
+            optional);
         String name=TemplateQueryToolNamePolicy.toolName(draft.domainCode());
-        return queryBound(name,new TemplateQueryRouteResolver.Route(name,parent.toolName(),parent.assetType()),policy,arguments,false);
+        return queryBound(name,new TemplateQueryRouteResolver.Route(name,parent.toolName(),parent.assetType()),policy,arguments,false,false);
     }
 
     private Map<String,Object> queryBound(String reviewedName, TemplateQueryRouteResolver.Route route,
-        TemplateQueryBindingService.PolicyResolution policy,Map<String,Object> arguments,boolean enforceReleaseSchema) {
+        TemplateQueryBindingService.PolicyResolution policy,Map<String,Object> arguments,boolean enforceReleaseSchema,
+        boolean supplyPublishedSet) {
         var parent = new TemplateQueryParentCatalog().require(route.parentToolName());
         Set<String> templateIds = parent.assetTypes().stream()
             .flatMap(type -> policy.allowedTemplates().getOrDefault(type, Set.of()).stream())
@@ -197,16 +204,25 @@ public class TemplateQueryMcpToolPublisher implements com.chatchat.mcpserver.too
             if (!parent.accepts(asset)
                 || !policy.allowedTemplates().getOrDefault(asset.assetType(), Set.of()).contains(asset.templateId())) continue;
             enabledPublishedIds.add(asset.templateId());
-            if (!confirmedIds.isEmpty()) {
-                List<Map<String, Object>> targets = assetCatalogService.confirmedTemplateTargets(asset, confirmedIds);
+            boolean externalTool = "external_mcp".equals(asset.businessCategoryCode());
+            boolean publishedApi = supplyPublishedSet && !externalTool
+                && TemplateAssetCatalogService.API.equals(asset.assetType());
+            boolean publishedHttp = supplyPublishedSet && !externalTool
+                && TemplateAssetCatalogService.HTTP.equals(asset.assetType());
+            boolean requiresConfirmedTarget = !confirmedIds.isEmpty() && !(supplyPublishedSet && externalTool);
+            if (publishedApi || publishedHttp || requiresConfirmedTarget) {
+                List<Map<String, Object>> targets;
+                if (publishedApi) targets = assetCatalogService.publishedApiTarget(asset).stream().toList();
+                else if (publishedHttp) targets = assetCatalogService.publishedHttpTargets(asset);
+                else targets = assetCatalogService.confirmedTemplateTargets(asset, confirmedIds);
                 if (targets.isEmpty()) continue;
                 confirmedTargets.put(asset.key(), targets);
             }
             enabledAssets.put(asset.key(), asset);
         }
-        int limit = recallLimit(arguments);
+        int limit = supplyPublishedSet ? Math.max(1, enabledAssets.size()) : recallLimit(arguments);
         BoundTemplateCandidateRetriever.Recall recall = candidateRetriever.recall(
-            List.copyOf(enabledAssets.values()), templateIds, arguments, limit, policy.policyVersion());
+            List.copyOf(enabledAssets.values()), templateIds, supplyPublishedSet ? Map.of() : arguments, limit, policy.policyVersion());
         List<Map<String, Object>> templates = new ArrayList<>();
         for (TemplateAssetCatalogService.TemplateAsset asset : recall.templates()) {
             Map<String, Object> item = new LinkedHashMap<>();
@@ -220,6 +236,7 @@ public class TemplateQueryMcpToolPublisher implements com.chatchat.mcpserver.too
             item.put("parameterSchema", asset.parameterSchema());
             item.put("exists", true);
             item.put("selectionSource", "template_query_binding");
+            item.put("supplyMode", policy.optionalTemplateKeys().contains(asset.key()) ? "OPTIONAL" : "REQUIRED");
             List<Map<String, Object>> targets = confirmedTargets.getOrDefault(asset.key(), List.of());
             if (targets.size() == 1) item.put("executionContext", targets.get(0));
             if (targets.size() > 1) item.put("executionContexts", targets);
@@ -229,9 +246,15 @@ public class TemplateQueryMcpToolPublisher implements com.chatchat.mcpserver.too
             }
             templates.add(Map.copyOf(item));
         }
-        // Asset scoping and pagination intentionally return a subset of the published binding.
-        // Only a missing registry template makes the persisted publication incomplete.
+        // Live asset authorization can narrow the available set independently of publication completeness.
         int unavailableCount = (int) templateIds.stream().filter(id -> !enabledPublishedIds.contains(id)).count();
+        long authorizedRequired = enabledAssets.keySet().stream().filter(policy.requiredTemplateKeys()::contains).count();
+        Map<String, Object> supplyCounts = Map.of(
+            "publishedTemplateCount", policy.configuredTemplateCount(),
+            "requiredTemplateCount", policy.requiredTemplateKeys().size(),
+            "authorizedRequiredTemplateCount", authorizedRequired,
+            "unavailableRequiredTemplateCount", policy.requiredTemplateKeys().size() - authorizedRequired,
+            "optionalTemplateCount", policy.optionalTemplateKeys().size());
         McpInvocationContext.Context context = McpInvocationContext.current();
         Map<String,Object> result = Map.ofEntries(
             Map.entry("schemaVersion", CommandTemplateDiscoveryService.RESULT_SCHEMA_VERSION),
@@ -241,6 +264,7 @@ public class TemplateQueryMcpToolPublisher implements com.chatchat.mcpserver.too
             Map.entry("success", true),
             Map.entry("toolName", reviewedName),
             Map.entry("returnedCount", templates.size()),
+            Map.entry("dataSupply", supplyCounts),
             Map.entry("templates", List.copyOf(templates)),
             Map.entry("scopeMode", McpTemplateSelectionScope.FIXED_BINDING),
             Map.entry("selectionMode", McpTemplateSelectionScope.BOUND_SCOPE_RECALL),
@@ -266,7 +290,9 @@ public class TemplateQueryMcpToolPublisher implements com.chatchat.mcpserver.too
                 "configuredAssetTypes", policy.allowedTemplates().keySet(),
                 "configuredTemplateCount", policy.configuredTemplateCount(),
                 "parentToolNames", policy.parentToolNames(),
-                "policyVersion", policy.policyVersion()
+                "policyVersion", policy.policyVersion(),
+                "completeSupply", supplyPublishedSet,
+                "authorizedTemplateCount", enabledAssets.size()
             )),
             Map.entry("provenance", Map.of(
                 "sourceRef", "mcp://" + (context == null || context.clientId() == null

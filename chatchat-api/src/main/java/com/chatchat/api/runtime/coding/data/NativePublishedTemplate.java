@@ -67,6 +67,28 @@ public final class NativePublishedTemplate {
         this.json = json.copy().enable(DeserializationFeature.USE_BIG_DECIMAL_FOR_FLOATS);
     }
 
+    /**
+     * Binds an explicitly granted, optional SQL publication to the ongoing Native task.
+     * The existing delivery ledger supports one publication per task.
+     */
+    public java.util.Optional<Map<String, Object>> captureOptional(KernelDataScope scope, String skill,
+                                                                  Set<String> optionalIds) {
+        if (!policy.isClineTemplateInvocationEnabled() || skill == null || skill.isBlank() || optionalIds.isEmpty())
+            return java.util.Optional.empty();
+        try {
+            var matches = supply.grants(scope).stream()
+                .filter(grant -> skill.equals(grant.skillId()) && optionalIds.contains(grant.templateId())).toList();
+            if (matches.size() != 1) return java.util.Optional.empty();
+            return java.util.Optional.of(capture(scope, skill, matches.get(0).templateId()));
+        } catch (java.util.concurrent.CancellationException cancelled) {
+            throw cancelled;
+        } catch (RuntimeException unavailable) {
+            if (Thread.currentThread().isInterrupted()) throw new java.util.concurrent.CancellationException();
+            log.info("Optional Native publication not available for task binding: {}", unavailable.getClass().getSimpleName());
+            return java.util.Optional.empty();
+        }
+    }
+
     public Map<String, Object> capture(KernelDataScope scope, String skill, String id) {
         var grant = grant(scope, skill, id);
         var published = callerCatalog("publications", scope);
@@ -105,6 +127,7 @@ public final class NativePublishedTemplate {
             + "Runtime applies the published template defaults."
             + temporalContext + " Correct invalid fields once. Stop on authorization, quota or query errors. "
             + "After success inspect defaultedFields and disclose any default scope in the report. "
+            + "When complete is false, the delivered rows cover only part of the source. "
             + template, "inputSchema", Map.of("type", "object", "additionalProperties", false,
                 "required", List.of("protocol_version", "template_id", "arguments", "unresolved_parameters"),
                 "properties", Map.of(
@@ -184,6 +207,7 @@ public final class NativePublishedTemplate {
         var receipt = new LinkedHashMap<String, Object>();
         receipt.put("templateId", id);
         receipt.put("queryMs", (System.nanoTime() - clock) / 1_000_000);
+        receipt.put("parameterBindings", parameters);
         receipt.put("executionPath", "governed_template_without_runtime_binding");
         receipt.put("defaultedFields", compiled.parameterEvidence().entrySet().stream()
             .filter(entry -> TemplateInvocationBridge.TEMPLATE_DEFAULT_SOURCE.equals(entry.getValue().source()))
@@ -348,6 +372,7 @@ public final class NativePublishedTemplate {
     private Map<String, Object> deliver(CodingTaskContract task, Map<String, Object> receipt) {
         if (!"OK".equals(receipt.get("status"))) return receipt;
         var result = new LinkedHashMap<>(receipt);
+        result.remove("parameterBindings");
         result.put("content", Base64.getEncoder().encodeToString(
             evidence.assets.readTask(task.scope(), task.taskId(), receipt.get("assetId").toString())));
         return result;

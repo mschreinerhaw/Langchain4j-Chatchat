@@ -56,6 +56,11 @@ public class TemplateQueryBindingSchemaMigrator implements ApplicationRunner {
         if (!columnExists(connection, "chinese_alias")) {
             execute(connection, "ALTER TABLE " + TABLE_NAME + " ADD COLUMN chinese_alias VARCHAR(128)");
         }
+        if (!columnExists(connection, "optional_template_keys_json")) {
+            String product = connection.getMetaData().getDatabaseProductName().toLowerCase(Locale.ROOT);
+            String type = product.contains("mysql") || product.contains("mariadb") ? "LONGTEXT" : "TEXT";
+            execute(connection, "ALTER TABLE " + TABLE_NAME + " ADD COLUMN optional_template_keys_json " + type);
+        }
         Map<String, List<String>> uniqueIndexes = uniqueIndexes(connection);
         for (Map.Entry<String, List<String>> index : uniqueIndexes.entrySet()) {
             if (LEGACY_COLUMNS.equals(index.getValue())) {

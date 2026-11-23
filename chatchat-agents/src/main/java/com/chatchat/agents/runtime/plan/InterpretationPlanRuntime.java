@@ -7527,7 +7527,10 @@ public class InterpretationPlanRuntime extends AbstractRuntimeWorkflow<Interpret
 
     private List<Map<String, Object>> bindReviewedTemplatesToSelectedAssets(
         List<Map<String, Object>> bindings, List<Map<String, Object>> assets, StepExecution discovery) {
-        if (assets.size() < 2) return bindings;
+        boolean publishedSupply = discovery != null && discovery.metadata() != null
+            && Boolean.TRUE.equals(discovery.metadata().get("publishedDataSupply"))
+            && Boolean.TRUE.equals(firstValueAtAnyPath(discovery.output(), "$.publicationScope.completeSupply"));
+        if (assets.size() < 2 && !publishedSupply) return bindings;
         Object rawCandidates = firstValueAtAnyPath(discovery == null ? null : discovery.output(),
             "$.queryIr.asset.candidates");
         Set<String> admitted = new LinkedHashSet<>();
@@ -7544,6 +7547,20 @@ public class InterpretationPlanRuntime extends AbstractRuntimeWorkflow<Interpret
             String templateId = canonicalTemplateId(firstMapValue(binding, "templateId", "template_id", "template"));
             Map<String, Object> template = templateId == null || discovery == null
                 ? Map.of() : templateMetadataById(discovery.output(), templateId);
+            Map<String, Object> publishedContext = asStringMap(template.get("executionContext"));
+            if (publishedSupply && com.chatchat.agents.runtime.plan.template.TemplateWorkflowMetadata
+                    .templateOwnsTarget(template.get("assetType"))
+                && stringValue(publishedContext.get("assetId")) != null) {
+                Map<String, Object> bound = new LinkedHashMap<>(binding);
+                bound.put("runtimeSelectedAssetContext", publishedContext);
+                bound.put("bindingId", publishedContext.get("assetId") + ":" + templateId);
+                result.add(bound);
+                continue;
+            }
+            if (assets.size() < 2) {
+                result.add(binding);
+                continue;
+            }
             Set<String> publishedTargets = new LinkedHashSet<>();
             Object target = firstValueAtAnyPath(template, "$.executionBinding.executionContext.assetId",
                 "$.sqlExecutionBinding.executionContext.assetId", "$.execution.executionContext.assetId",
@@ -7760,7 +7777,11 @@ public class InterpretationPlanRuntime extends AbstractRuntimeWorkflow<Interpret
             filters = input.get("filters");
         }
         promoteLooseDiscoveryFilters(input);
-        applyReviewedAssetSelectionToTemplateDiscovery(step,
+        ToolMetadata publisher = request.toolRegistry() == null ? null : request.toolRegistry().getToolMetadata(step.toolName());
+        boolean publisherOwnsTarget = com.chatchat.agents.runtime.plan.template.TemplateWorkflowMetadata.fixedScope(publisher)
+            .filter(scope -> com.chatchat.agents.runtime.plan.template.TemplateWorkflowMetadata
+                .templateOwnsTarget(scope.assetType())).isPresent();
+        if (!publisherOwnsTarget) applyReviewedAssetSelectionToTemplateDiscovery(step,
             workflowAncestorExecutions(step, request.plan(), completed), input);
         sanitizeDiscoveryFilters(step, request, input);
         sanitizeDiscoveryEnvironment(step, request, completed, input);

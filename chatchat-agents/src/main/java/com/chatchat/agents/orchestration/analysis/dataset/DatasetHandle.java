@@ -28,6 +28,19 @@ public interface DatasetHandle extends AutoCloseable {
     /** Reads a bounded page without materializing the complete dataset. */
     Page readPage(long offset, int limit);
 
+    /** Validates cursor progress and, when known, the source's declared row total. */
+    default Page readVerifiedPage(long offset, int limit, long expectedRows) {
+        if (offset < 0 || limit < 1 || expectedRows < -1) throw new IllegalArgumentException("Invalid dataset page bounds");
+        Page page = readPage(offset, limit);
+        if (page == null || page.offset() != offset || page.rows().size() > limit
+            || page.hasMore() && page.rows().isEmpty())
+            throw new IllegalStateException("Dataset provider returned an invalid or non-progressing page");
+        long next = Math.addExact(offset, page.rows().size());
+        if (expectedRows >= 0 && (next > expectedRows || page.hasMore() != (next < expectedRows)))
+            throw new IllegalStateException("Dataset pagination differs from its declared row count");
+        return page;
+    }
+
     /**
      * Executes a model-selected, provider-supported operation close to the data. The handle must
      * reject operations it cannot execute; Runtime never invents an aggregation or formula.

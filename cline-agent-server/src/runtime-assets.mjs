@@ -6,7 +6,7 @@ import {createRequire} from 'node:module';
 // Standalone utils.ts reads this relative to its runtime working directory.
 export function validateRuntime(dist){
  const root=resolve(dist),manifest=JSON.parse(readFileSync(join(root,'runtime-manifest.json'),'utf8'));
- if(manifest.sourceCommit!=='a459f1d04dea030833b558be645011ab739c463b')throw Error('Unexpected official runtime source commit');
+ if(manifest.sourceCommit!=='8075d2e35cf5cad67c24f180c80a05d311b74a3e')throw Error('Unexpected official runtime source commit');
  const required=['cline-core.js','package.json','proto/descriptor_set.pb','proto/host/workspace.proto','proto/cline/task.proto'];
  const entries=new Map(manifest.files.map(e=>[e.path,e]));
  for(const name of required)if(!entries.has(name))throw Error('Runtime manifest missing required asset: '+name);

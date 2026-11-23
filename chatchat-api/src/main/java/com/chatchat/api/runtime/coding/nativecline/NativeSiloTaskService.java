@@ -149,7 +149,7 @@ public final class NativeSiloTaskService {
             new CodingTaskContract.Authorization(decision,tools,state.inputs().stream().map(SiloCodingWorkspaceService.Input::assetId).toList(),
                 List.of("native-task-input"),List.of("native-task-workspace"),CodingTaskContract.NetworkPolicy.NONE,List.of(),
                 workspaceReview?List.of(CodingTaskContract.SideEffect.WORKSPACE_WRITE):List.of(CodingTaskContract.SideEffect.WORKSPACE_WRITE,CodingTaskContract.SideEffect.CODE_EXECUTION)),
-            budget,"native-runtime:cline4.1.26-python3.11",profile,
+            budget,"native-runtime:cline4.1.27-python3.11",profile,
             new CodingTaskContract.OutputContract(CodingTaskContract.ResultFormat.WORKSPACE_FILES,"native-delivery-result.v1","native-delivery-validation.v1",
                 List.of("delivery_manifest.json"),List.of("application/json","text/markdown","image/png","text/x-python"),
                 workspaceReview?1:CodingProtocol.MAX_SAFE_INTEGER,workspaceReview?512*1024:budget.maxOutputBytes(),

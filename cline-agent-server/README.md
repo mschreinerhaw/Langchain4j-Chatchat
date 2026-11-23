@@ -1,4 +1,4 @@
-# Cline Agent Server v4.1.26 POC
+# Cline Agent Server v4.1.27 POC
 
 P3 第一阶段新增独立治理入口，见 [隔离设计](../docs/design/cline-server-p3-stage1-isolation.md)、[根因矩阵](../docs/audits/cline-server-p3-root-causes-20261108.md)、[测试报告](../docs/testing/cline-server-p3-stage1-20261108.md) 和 [部署说明](docker/README.governance.md)。原 POC 方式保留；第一阶段基础测试不代表故障恢复、MCP/Sandbox 远端停止或完整 P3 验收通过。
 
@@ -8,7 +8,7 @@ P3 第一阶段新增独立治理入口，见 [隔离设计](../docs/design/clin
 
 ## 构建
 
-固定源码：`https://github.com/cline/cline`，提交 `a459f1d04dea030833b558be645011ab739c463b`（v4.1.26）。正式 VSIX SHA256：`d8ea4c3505052c48e7c7a5558e7213a53827b6ba1da7e56513c87d896df51c4d`。
+固定源码：`https://github.com/cline/cline`，提交 `8075d2e35cf5cad67c24f180c80a05d311b74a3e`（v4.1.27）。正式 VSIX SHA256：`62437813fc43e09b3c532e0bd50d924ad8625153db05b74d71a73ce87fe3754d`。
 
 在独立完整 Linux checkout 准备 Bun **1.4.2**（包括 bunx）、Node >=22、编译工具链及对应 native sqlite ABI；不使用已有 SDK 包代替源码。运行：
 

@@ -86,7 +86,7 @@ public final class NativeS3NodeClient {
                     value.path("protocolVersion").isIntegralNumber()&&value.path("protocolVersion").intValue()==1
                         &&java.util.stream.StreamSupport.stream(value.path("capabilities").spliterator(),false)
                             .anyMatch(capability->"native-s3-v2".equals(capability.asText())):
-                    "4.1.26".equals(value.path("version").asText()));
+                    "4.1.27".equals(value.path("version").asText()));
                 if(reply.statusCode()!=200||!compatible||!"cline-standalone".equals(value.path("engine").asText())
                         ||value.path("legacySdkWorker").asBoolean(true))
                     throw new IllegalStateException("Native Core identity or protocol not verified");

@@ -6,9 +6,9 @@ already been restored are external dependencies and must not be recreated.
 
 `Dockerfile` builds API, MCP and News from uploaded Java and frontend sources.
 Application JARs and `target/` directories are excluded from the build context.
-The Coding Node target uses the verified, fixed Cline 4.1.26 / Python 3.11 base,
-checks its runtime integrity and Python imports, and copies the current Native
-Server source. No legacy SDK Worker entrypoint is started.
+The source build compiles the pinned Cline 4.1.27 Standalone before assembling
+the Coding Node with the Python 3.11 base. The Coding Node checks runtime
+integrity and Python imports and packages the current Native Server.
 
 ## Build
 

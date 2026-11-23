@@ -13,13 +13,13 @@ LABEL org.opencontainers.image.title="Runtime OS Coding Node Agent" \
       org.opencontainers.image.version="${VERSION}" \
       org.opencontainers.image.revision="${GIT_COMMIT}" \
       org.opencontainers.image.created="${BUILD_TIME}" \
-      runtime-os.cline.version="4.1.26" \
-      runtime-os.cline.source="a459f1d04dea030833b558be645011ab739c463b" \
+      runtime-os.cline.version="4.1.27" \
+      runtime-os.cline.source="8075d2e35cf5cad67c24f180c80a05d311b74a3e" \
       runtime-os.python.version="3.11"
 USER root
 # Import verified upstream artifacts only. No old Server/SDK/Worker filesystem
 # or layers enter the final image; Python is an independent immutable base.
-COPY --from=official-runtime /poc/runtime/ /opt/runtime-os/cline/runtime/
+COPY --from=official-runtime /opt/cline/runtime/ /opt/runtime-os/cline/runtime/
 COPY --from=node /usr/local/bin/node /usr/local/bin/node
 COPY cline-agent-server/ /opt/runtime-os/coding-node/service/
 COPY coding-agent-node/package.json /opt/runtime-os/coding-node/coding-agent-node/package.json

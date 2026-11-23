@@ -3,7 +3,7 @@ set -euo pipefail
 : "${CLINE_SOURCE_ROOT:?Set fixed upstream checkout directory}"
 SERVICE_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$CLINE_SOURCE_ROOT"
-test "$(node -p "require('./apps/vscode/package.json').version")" = 4.1.26
+test "$(node -p "require('./apps/vscode/package.json').version")" = 4.1.27
 test "$(bun --version)" = 1.4.2
 bun install --frozen-lockfile
 bun run build:sdk

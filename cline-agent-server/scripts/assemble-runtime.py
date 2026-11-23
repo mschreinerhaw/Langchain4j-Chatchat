@@ -20,6 +20,6 @@ for name in required:
 files=[]
 for p in sorted(dest.rglob('*')):
  if p.is_file():files.append({'path':str(p.relative_to(dest)),'bytes':p.stat().st_size,'sha256':hashlib.sha256(p.read_bytes()).hexdigest()})
-manifest={'upstream':'v4.1.26','sourceCommit':'a459f1d04dea030833b558be645011ab739c463b','required':required,'descriptorSource':'apps/vscode/proto/descriptor_set.pb','hostAssetAdaptation':'copy generated proto directory for ProtoBus and Server HostBridge','files':files}
+manifest={'upstream':'v4.1.27','sourceCommit':'8075d2e35cf5cad67c24f180c80a05d311b74a3e','required':required,'descriptorSource':'apps/vscode/proto/descriptor_set.pb','hostAssetAdaptation':'copy generated proto directory for ProtoBus and Server HostBridge','files':files}
 (dest/'runtime-manifest.json').write_text(json.dumps(manifest,indent=2)+'\n')
 print(json.dumps({'runtimeFiles':len(files),'manifest':str(dest/'runtime-manifest.json')}))

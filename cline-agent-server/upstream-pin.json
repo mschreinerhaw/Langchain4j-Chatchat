@@ -1,15 +1,15 @@
 {
-  "tag": "v4.1.26",
-  "commit": "a459f1d04dea030833b558be645011ab739c463b",
-  "officialVsixSha256": "d8ea4c3505052c48e7c7a5558e7213a53827b6ba1da7e56513c87d896df51c4d",
+  "tag": "v4.1.27",
+  "commit": "8075d2e35cf5cad67c24f180c80a05d311b74a3e",
+  "officialVsixSha256": "62437813fc43e09b3c532e0bd50d924ad8625153db05b74d71a73ce87fe3754d",
   "files": [
     {
       "path": "bun.lock",
-      "sha256": "de3288309a0af8c609843322e097dfaf95d85ce479748f494e41077775be7776"
+      "sha256": "4ba1c3082a34f117a43389c21bba775799ddab33f432a07c8d0d8fccf995e1c9"
     },
     {
       "path": "apps/vscode/package.json",
-      "sha256": "18884442c2c71ba6a07c69903ac9c3be4a3be2a8599a0095b1ef7056755cc8b4"
+      "sha256": "e4ab15097e9196b24df2cd813f65682b9f6042e0068ecc51f2f51a00607e8c16"
     },
     {
       "path": "apps/vscode/src/standalone/cline-core.ts",
@@ -17,7 +17,7 @@
     },
     {
       "path": "apps/vscode/src/sdk/vscode-session-host.ts",
-      "sha256": "5217c30f14cf87a13c9ee0b4ee289229dac362d8690efef4e82bfe8e9d912978"
+      "sha256": "7c70d6acbabfd3346d6e973f3f7b6ae57d5b86fd2613f2493e33b962ff817abd"
     },
     {
       "path": "apps/vscode/src/sdk/sdk-interaction-coordinator.ts",
@@ -33,11 +33,11 @@
     },
     {
       "path": "sdk/packages/core/src/runtime/orchestration/runtime-builder.ts",
-      "sha256": "c072fcd16b8452b7a2326c70f0e7a0e6af4a30a2aa75f3e47ff75e34f3c64add"
+      "sha256": "4bb563f046948f19769a46c7de842134c8b4f30fb48a4f04d7580c483b1ce165"
     },
     {
       "path": "sdk/packages/agents/src/agent-runtime.ts",
-      "sha256": "6bfbebdc58d1b8fffd6778fad847bf19316e0363b820fadf10aa692a1a1a57a3"
+      "sha256": "6d0cbb7ddd25b4570ee72d2725c9299ff129a9f1736e46ef052e6551089b0744"
     }
   ]
 }

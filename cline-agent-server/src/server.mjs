@@ -144,7 +144,7 @@ async function startWorker(s){
  });
  await ready;
  s.taskClient=new native.proto.cline.TaskService(`127.0.0.1:${port}`,native.grpc.credentials.createInsecure());
- status(s,'idle');emit(s,'worker.ready',{native:'v4.1.26',sourceCommit:'a459f1d04dea030833b558be645011ab739c463b',hostCapabilities:{workspace:true,editorUI:false,diagnostics:false,backgroundShell:true}});
+ status(s,'idle');emit(s,'worker.ready',{native:'v4.1.27',sourceCommit:'8075d2e35cf5cad67c24f180c80a05d311b74a3e',hostCapabilities:{workspace:true,editorUI:false,diagnostics:false,backgroundShell:true}});
  emit(s,'context.configured',{model:config.model,contextWindow:config.modelOptions?.contextWindow??null,maxOutputTokens:config.modelOptions?.maxOutputTokens??null});
 }
 async function respond(s,p,decision,reason){
@@ -184,7 +184,7 @@ function authorize(req){const value=Buffer.from(req.headers.authorization??''),e
 const server=http.createServer(async(req,res)=>{
  try{
   const url=new URL(req.url,'http://localhost'),parts=url.pathname.split('/').filter(Boolean),method=req.method;
-  if(url.pathname==='/health/live')return send(res,200,{live:true,version:'4.1.26-poc.1'});
+  if(url.pathname==='/health/live')return send(res,200,{live:true,version:'4.1.27-poc.1'});
   authorize(req);
   if(url.pathname==='/health/ready')return send(res,200,{ready:true,runtimeAssets,scope:'Runtime assets verified; native worker readiness is per session',productionReady:false});
   if(url.pathname==='/v1/sessions'&&method==='POST'){
@@ -292,6 +292,6 @@ const server=http.createServer(async(req,res)=>{
   send(res,404,{code:'NOT_FOUND'});
  }catch(error){if(!res.headersSent)send(res,error.status??500,{code:'REQUEST_FAILED',message:redact(error.message)});else res.end();}
 });
-server.listen(config.socketPath?{path:config.socketPath}:{port:config.port??18326,host:config.host??'127.0.0.1'},()=>console.log(JSON.stringify({event:'listening',transport:config.socketPath?'private-unix-socket':'http',port:config.port??18326,upstream:'v4.1.26',mode:'single-worker'})));
+server.listen(config.socketPath?{path:config.socketPath}:{port:config.port??18326,host:config.host??'127.0.0.1'},()=>console.log(JSON.stringify({event:'listening',transport:config.socketPath?'private-unix-socket':'http',port:config.port??18326,upstream:'v4.1.27',mode:'single-worker'})));
 async function shutdown(){server.close();for(const s of sessions.values())if(s.worker?.exitCode===null&&!['cancelled','sealed'].includes(s.status))await cancel(s);process.exit(0);}
 process.on('SIGTERM',shutdown);process.on('SIGINT',shutdown);

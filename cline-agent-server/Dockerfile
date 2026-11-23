@@ -12,7 +12,7 @@ WORKDIR /build
 # Immutable source is shared with upstream-pin.json; do not build a moving branch.
 RUN git init cline && cd cline \
     && git remote add origin https://github.com/cline/cline.git \
-    && git fetch --depth=1 origin a459f1d04dea030833b558be645011ab739c463b \
+    && git fetch --depth=1 origin 8075d2e35cf5cad67c24f180c80a05d311b74a3e \
     && git checkout --detach FETCH_HEAD
 COPY cline-agent-server/scripts/ /service/scripts/
 COPY cline-agent-server/upstream-pin.json /service/upstream-pin.json

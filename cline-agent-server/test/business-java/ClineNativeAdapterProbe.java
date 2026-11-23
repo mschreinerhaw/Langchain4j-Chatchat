@@ -35,9 +35,9 @@ public final class ClineNativeAdapterProbe {
             rejected(()->adapter.submit(null));check(delegate.submissions==0);
             body.set("{\"engine\":\"cline-standalone\",\"version\":\"4.1.25\",\"legacySdkWorker\":false}");
             rejected(()->adapter.resume(null,"task"));check(delegate.resumes==0);
-            body.set("{\"engine\":\"cline-standalone\",\"version\":\"4.1.26\"}");
+            body.set("{\"engine\":\"cline-standalone\",\"version\":\"4.1.27\"}");
             rejected(()->adapter.submit(null));check(delegate.submissions==0);
-            body.set("{\"engine\":\"cline-standalone\",\"version\":\"4.1.26\",\"legacySdkWorker\":false}");status.set(503);
+            body.set("{\"engine\":\"cline-standalone\",\"version\":\"4.1.27\",\"legacySdkWorker\":false}");status.set(503);
             rejected(()->adapter.submit(null));check(delegate.submissions==0);
             status.set(200);adapter.submit(null);adapter.resume(null,"task");check(delegate.submissions==1&&delegate.resumes==1&&signed.get()==6);
         }finally{server.stop(0);}

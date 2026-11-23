@@ -17,7 +17,7 @@ const textParts=value=>typeof value==='string'?[{type:'text',text:value}]:value=
 function nativeTool(tool) {
  const {name,description='',parameters}=tool.function;
  if(name!=='editor'||!parameters?.properties?.new_text)return {name,description,inputSchema:parameters};
- // The pinned official v4.1.26 editor already enforces this boundary. Advertise
+ // The pinned official v4.1.27 editor already enforces this boundary. Advertise
  // its existing limit; do not change its executor or add another editing policy.
  const inputSchema=structuredClone(parameters);
  for(const field of ['old_text','new_text'])if(inputSchema.properties[field])

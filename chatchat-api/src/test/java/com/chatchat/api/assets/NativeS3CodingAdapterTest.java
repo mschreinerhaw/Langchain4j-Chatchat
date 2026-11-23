@@ -339,7 +339,7 @@ class NativeS3CodingAdapterTest {
     private void node(HttpExchange exchange)throws java.io.IOException{
         try{
             String path=exchange.getRequestURI().getPath();byte[] body=exchange.getRequestBody().readAllBytes();JsonNode request=body.length==0?json.createObjectNode():json.readTree(body);
-            if(path.equals("/health/live")){reply(exchange,200,Map.of("engine","cline-standalone","version","4.1.26","legacySdkWorker",false));return;}
+            if(path.equals("/health/live")){reply(exchange,200,Map.of("engine","cline-standalone","version","4.1.27","legacySdkWorker",false));return;}
             String token=exchange.getRequestHeaders().getFirst("Authorization").substring(7);var identity=json.readTree(Base64.getUrlDecoder().decode(token.split("\\.")[0]));
             if(path.endsWith("/recovery-stop")){
                 if(recoveryStops.incrementAndGet()==1&&failFirstRecovery){reply(exchange,503,Map.of("code","RECOVERY_UNAVAILABLE"));return;}

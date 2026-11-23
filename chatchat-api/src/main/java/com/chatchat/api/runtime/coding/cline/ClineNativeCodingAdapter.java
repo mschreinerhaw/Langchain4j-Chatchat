@@ -23,7 +23,7 @@ public final class ClineNativeCodingAdapter implements CodingAgentSPI {
             var response=HttpClient.newHttpClient().send(request,HttpResponse.BodyHandlers.ofString());
             var body=json.readTree(response.body());
             if(response.statusCode()!=200||!"cline-standalone".equals(body.path("engine").asText())
-                    ||!"4.1.26".equals(body.path("version").asText())||body.path("legacySdkWorker").asBoolean(true))
+                    ||!"4.1.27".equals(body.path("version").asText())||body.path("legacySdkWorker").asBoolean(true))
                 throw new IllegalStateException("Native backend identity not verified; no legacy fallback");
         }catch(InterruptedException interrupted){Thread.currentThread().interrupt();throw new IllegalStateException("Native backend check interrupted",interrupted);}
         catch(java.io.IOException invalid){throw new IllegalStateException("Native backend unavailable; no legacy fallback",invalid);}

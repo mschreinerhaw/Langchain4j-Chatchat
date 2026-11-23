@@ -11,11 +11,11 @@ import {validateRuntime} from '../src/runtime-assets.mjs';
 
 test('missing ProtoBus descriptor fails explicitly before native or provider initialization',()=>{
  const dir=mkdtempSync(join(tmpdir(),'cline-runtime-'));try{
-  writeFileSync(join(dir,'runtime-manifest.json'),JSON.stringify({sourceCommit:'a459f1d04dea030833b558be645011ab739c463b',files:[]}));
+  writeFileSync(join(dir,'runtime-manifest.json'),JSON.stringify({sourceCommit:'8075d2e35cf5cad67c24f180c80a05d311b74a3e',files:[]}));
   assert.throws(()=>validateRuntime(dir),/missing required asset: cline-core.js/);
   const names=['cline-core.js','package.json','proto/descriptor_set.pb','proto/host/workspace.proto','proto/cline/task.proto'];
   const files=names.map(path=>({path,bytes:1,sha256:createHash('sha256').update('x').digest('hex')}));
-  writeFileSync(join(dir,'runtime-manifest.json'),JSON.stringify({sourceCommit:'a459f1d04dea030833b558be645011ab739c463b',files}));
+  writeFileSync(join(dir,'runtime-manifest.json'),JSON.stringify({sourceCommit:'8075d2e35cf5cad67c24f180c80a05d311b74a3e',files}));
   writeFileSync(join(dir,'cline-core.js'),'x');writeFileSync(join(dir,'package.json'),'x');
   assert.throws(()=>validateRuntime(dir),/Runtime resource missing: proto\/descriptor_set.pb/);
   writeFileSync(join(dir,'cline-core.js'),'corrupt');

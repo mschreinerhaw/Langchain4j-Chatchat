@@ -6,7 +6,7 @@ const root=resolve(process.argv[2]??'');
 const hash=b=>createHash('sha256').update(b).digest('hex');
 const pin=JSON.parse(readFileSync(new URL('../upstream-pin.json',import.meta.url),'utf8'));
 for(const file of pin.files)if(hash(readFileSync(join(root,file.path)))!==file.sha256)throw Error('Fixed upstream fingerprint mismatch: '+file.path);
-if(JSON.parse(readFileSync(join(root,'apps/vscode/package.json'),'utf8')).version!=='4.1.26')throw Error('Expected v4.1.26 source');
+if(JSON.parse(readFileSync(join(root,'apps/vscode/package.json'),'utf8')).version!=='4.1.27')throw Error('Expected v4.1.27 source');
 const changes=[];
 function patch(path,transform){
  const file=join(root,'apps/vscode',path),before=readFileSync(file,'utf8');

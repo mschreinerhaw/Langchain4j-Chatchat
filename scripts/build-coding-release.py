@@ -8,7 +8,7 @@ from pathlib import Path
 
 p=argparse.ArgumentParser();p.add_argument('--archive',type=Path,required=True)
 p.add_argument('--root',type=Path,required=True);p.add_argument('--tag',required=True)
-p.add_argument('--runtime-image',default='sha256:cb6e8b7fbfbc26088dfdfcbdfd2b2f3f53b7099480dd60228f58dff81b946fb3')
+p.add_argument('--runtime-image',required=True,help='Verified standalone v4.1.27 image built with cline-agent-server/Dockerfile')
 p.add_argument('--python-image',default='sha256:5ed38dd693dd8d2a74094595e6a12607cb26218b02094d324e3f3ec8a5f7a19e')
 p.add_argument('--node-image',default='node:24-bookworm-slim@sha256:01d566e8d94d8c619591d78652babfccd3c6992a3dffa9ed5ab39e11cf6c70e9')
 a=p.parse_args()
@@ -27,7 +27,7 @@ record={'schemaVersion':'coding_node_build.v1','tag':a.tag,'baseCommit':manifest
     'sourceManifestSha256':hashlib.sha256((source/'source-manifest.json').read_bytes()).hexdigest(),
     'sourceArchiveSha256':hashlib.sha256(a.archive.read_bytes()).hexdigest(),
     'requirementsLockSha256':hashlib.sha256((source/'deploy/docker/python-runtime/requirements.lock').read_bytes()).hexdigest(),
-    'officialClineSource':'a459f1d04dea030833b558be645011ab739c463b','bases':{},'formalRelease':False}
+    'officialClineSource':'8075d2e35cf5cad67c24f180c80a05d311b74a3e','bases':{},'formalRelease':False}
 args=[]
 for role,ref in base_refs.items():
     info=json.loads(subprocess.check_output(['docker','image','inspect',ref]))[0]

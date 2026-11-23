@@ -16,7 +16,7 @@ p.add_argument('--node',type=Path,required=True)
 p.add_argument('--port',type=int,default=18338)
 p.add_argument('--model-proxy-port',type=int,default=18539)
 p.add_argument('--s3-origin',required=True)
-p.add_argument('--tag',default='runtime-os-coding-node:cline-4.1.26-python3.11')
+p.add_argument('--tag',default='runtime-os-coding-node:cline-4.1.27-python3.11')
 p.add_argument('--python-base',help='Immutable Python environment image; may be a previously verified unified image')
 p.add_argument('--node-base',help='Immutable image containing /usr/local/bin/node')
 p.add_argument('--docker-host',help='Explicit existing build daemon socket; never creates a daemon')
@@ -40,7 +40,7 @@ record['buildExitCode']=result.returncode;save()
 if result.returncode:raise RuntimeError('Image build failed; inspect retained build evidence')
 image=json.loads(subprocess.check_output(['docker','image','inspect',a.tag]))[0]
 record['imageId']=image['Id'];record['repoDigests']=image.get('RepoDigests',[])
-record['officialSourceCommit']='a459f1d04dea030833b558be645011ab739c463b';save()
+record['officialSourceCommit']='8075d2e35cf5cad67c24f180c80a05d311b74a3e';save()
 base=json.loads(a.executor_template.read_text());settings=json.loads(a.model_settings.read_text())
 import secrets
 base.update(instanceId='generic-s3-'+secrets.token_hex(8),workerImage=image['Id'],

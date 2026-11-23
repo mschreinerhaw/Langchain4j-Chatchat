@@ -15,7 +15,7 @@ parser = argparse.ArgumentParser()
 parser.add_argument('--context', type=pathlib.Path, required=True)
 parser.add_argument('--python-base', default='sha256:3434f7630ff7c54a053c7385710e089d249e65d668699ab96f9603b6e1b27eef')
 parser.add_argument('--node-base', default='sha256:ee3100eabd0862d0f60f0777d9884b5d06e50cfeb80e1fb166a22db70ffd793d')
-parser.add_argument('--tag', default='runtime-os-coding-node:cline-4.1.26-python3.11')
+parser.add_argument('--tag', default='runtime-os-coding-node:cline-4.1.27-python3.11')
 args = parser.parse_args()
 for ref in (args.python_base, args.node_base):
     if not (ref.startswith('sha256:') or '@sha256:' in ref):
@@ -23,7 +23,7 @@ for ref in (args.python_base, args.node_base):
 context = args.context.resolve()
 manifest_path = context/'runtime/runtime-manifest.json'
 manifest = json.loads(manifest_path.read_text())
-assert manifest['sourceCommit'] == 'a459f1d04dea030833b558be645011ab739c463b'
+assert manifest['sourceCommit'] == '8075d2e35cf5cad67c24f180c80a05d311b74a3e'
 for item in manifest['files']:
     path = (context/'runtime'/item['path']).resolve()
     if not path.is_relative_to(context/'runtime'):

@@ -25,7 +25,7 @@ export async function startHostBridge(native,workspace,emit){
   getOpenTabs:(_c,cb)=>cb(null,{tabs:[]}),getVisibleTabs:(_c,cb)=>cb(null,{tabs:[]}),
  });
  bind(proto.host.EnvService,{
-  getHostVersion:(_c,cb)=>cb(null,{platform:'Linux Server',version:process.version,clineType:'Runtime Server POC',clineVersion:'4.1.26'}),
+  getHostVersion:(_c,cb)=>cb(null,{platform:'Linux Server',version:process.version,clineType:'Runtime Server POC',clineVersion:'4.1.27'}),
   getIdeRedirectUri:(_c,cb)=>cb(null,{value:''}),
   getTelemetrySettings:(_c,cb)=>cb(null,{isEnabled:2,errorLevel:'off'}),
   subscribeToTelemetrySettings:(call)=>{call.write({isEnabled:2,errorLevel:'off'});call.on('cancelled',()=>call.end());},

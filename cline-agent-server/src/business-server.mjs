@@ -196,7 +196,7 @@ async function execute(r){
 const server=http.createServer(async(req,res)=>{
  try{
   if(!equal(req.headers.authorization,'Bearer '+cfg.secret))return send(res,401,{message:'Unauthorized'});
-  if(req.method==='GET'&&req.url==='/healthz')return send(res,200,{status:'UP',engine:'cline-standalone',version:'4.1.26',legacySdkWorker:false,workerImage:cfg.workerImage,productionReady:false});
+  if(req.method==='GET'&&req.url==='/healthz')return send(res,200,{status:'UP',engine:'cline-standalone',version:'4.1.27',legacySdkWorker:false,workerImage:cfg.workerImage,productionReady:false});
   const b=await body(req);
   if(req.url==='/v1/input-capabilities')return send(res,200,{schemaVersion:'runtime_os.coding.input.v1',formats:['CSV','PARQUET'],codeLifecycleVersions:['runtime_os.code_lifecycle.v1'],deferredToolsProfile:'runtime-coding:deferred-tools:v1',analysisProfiles:['runtime-coding:analysis-fast-path:v1'],analysisTools:['input_read','report_submit','code_read','knowledge_search','knowledge_get_document','knowledge_read','knowledge_list_sections','knowledge_related','news_search','news_get_article','news_related_events','market_search','market_get_history','market_get_indicators','market_get_snapshot','market_resolve_security','market_get_day_snapshot','web_search','web_fetch'],workspaceProfiles:['runtime-coding:workspace-fast-path:v1','runtime-coding:sql-metadata-tools:v1']});
   if(!['/v1/runs','/v1/runs/get','/v1/runs/cancel'].includes(req.url)||req.method!=='POST')throw failure('Route unavailable',404);

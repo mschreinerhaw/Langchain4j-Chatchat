@@ -2,22 +2,35 @@ import { describe, expect, it } from 'vitest';
 import { applyRules, ruleSchema } from '../protocol/rules.js';
 import { eventText, readEvents } from '../protocol/sse.js';
 import { Store } from '../server/config.js';
+import { normalizeUpstreamUrl, upstreamEndpoint } from '../protocol/origin.js';
 
-it('only allows a new exact upstream origin with approval on a successful publish', () => {
+it('records a new origin together with the administrator configuration and retains its base path', () => {
   const original = 'https://existing.example';
   const next = 'http://10.2.25.111:32004';
   const store = new Store(':memory:', Buffer.alloc(32), new Set([original]));
-  const candidate = { services: [{ id: 'new', name: '内网模型', origin: next + '/' }], models: [] };
-  expect(() => store.publish(1, candidate)).toThrow(/白名单/);
-  expect(() => store.publish(1, candidate, { approveOrigin: original })).toThrow(/白名单/);
-  expect(() => store.publish(2, candidate, { approveOrigin: next })).toThrow(/重新加载/);
+  const base = next + '/compatible-mode/v1';
+  const candidate = { services: [{ id: 'new', name: '内网模型', origin: base + '/' }], models: [] };
+  expect(() => store.publish(1, candidate)).toThrow(/尚未保存/);
+  expect(() => store.publish(2, candidate, { allowNewOrigins: true })).toThrow(/重新加载/);
   expect(() => store.publish(1, { ...candidate, services: [...candidate.services, ...candidate.services] },
-    { approveOrigin: next })).toThrow(/重复/);
+    { allowNewOrigins: true })).toThrow(/重复/);
   expect(store.allowedOrigins.has(next)).toBe(false);
-  expect(store.publish(1, candidate, { approveOrigin: next }).config.services[0].origin).toBe(next);
+  expect(store.publish(1, candidate, { allowNewOrigins: true }).config.services[0].origin).toBe(base);
   expect(store.allowedOrigins.has(next)).toBe(true);
   expect(store.history()[0].action).toContain(next);
   expect(store.publish(2, candidate).version).toBe(3);
+});
+
+it('resolves upstream endpoint prefixes without repeating API version segments', () => {
+  const base = 'https://model.example.com';
+  expect(normalizeUpstreamUrl(base + '/compatible-mode/')).toBe(base + '/compatible-mode');
+  expect(normalizeUpstreamUrl('ftp://model.example.com')).toBeUndefined();
+  expect(normalizeUpstreamUrl('https://key@model.example.com')).toBeUndefined();
+  expect(upstreamEndpoint(base, '/v1/models').href).toBe(base + '/v1/models');
+  expect(upstreamEndpoint(base + '/compatible-mode', '/v1/chat/completions').href).toBe(base + '/compatible-mode/v1/chat/completions');
+  expect(upstreamEndpoint(base + '/compatible-mode/v1', '/v1/models').href).toBe(base + '/compatible-mode/v1/models');
+  expect(upstreamEndpoint(base + '/compatible-mode/v1', '/compatible-mode/v1/models').href).toBe(base + '/compatible-mode/v1/models');
+  expect(() => upstreamEndpoint(base, '//different.example.com/models')).toThrow();
 });
 
 describe('declarative rules', () => {

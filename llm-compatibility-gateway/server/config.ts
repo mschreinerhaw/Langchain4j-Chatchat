@@ -4,7 +4,7 @@ import { ruleSchema, headerName } from '../protocol/rules.js';
 import { profileNames, type Profile } from '../protocol/profiles.js';
 import { seal, unseal } from './credentials.js';
 import { validateUpstreamTrust } from './tls.js';
-import { normalizeOrigin } from '../protocol/origin.js';
+import { normalizeUpstreamUrl } from '../protocol/origin.js';
 
 export class GatewayError extends Error {
   constructor(public status: number, public code: string, message: string) {
@@ -128,17 +128,17 @@ export class Store {
     } };
   }
 
-  validate(input: unknown, checkCaValidity = true, pendingOrigin?: string): Config {
+  validate(input: unknown, checkCaValidity = true, allowNewOrigins = false): Config {
     const config = configSchema.parse(input);
     const services = new Set<string>();
     const allowed = this.allowedOrigins;
-    if (pendingOrigin) allowed.add(pendingOrigin);
     for (const service of config.services) {
-      const origin = normalizeOrigin(service.origin);
-      if (!origin || !allowed.has(origin)) {
-        throw new GatewayError(400, 'upstream_not_allowed', '服务地址必须是白名单中的 HTTP(S) Origin，接口路径单独配置');
+      const base = normalizeUpstreamUrl(service.origin);
+      if (!base) throw new GatewayError(400, 'invalid_upstream_url', '请输入有效的 HTTP(S) 上游地址');
+      if (!allowNewOrigins && !allowed.has(new URL(base).origin)) {
+        throw new GatewayError(400, 'upstream_not_allowed', '该上游地址尚未保存');
       }
-      service.origin = origin;
+      service.origin = base;
       if (services.has(service.id)) throw new GatewayError(409, 'duplicate_service', '服务 ID 重复');
       services.add(service.id);
       if (service.ca) service.ca = validateUpstreamTrust(service.ca, checkCaValidity);
@@ -152,20 +152,16 @@ export class Store {
     return config;
   }
 
-  publish(expected: number, input: unknown, options: { action?: string; retainSecrets?: boolean; approveOrigin?: string } = {}) {
-    const { action = 'publish', retainSecrets = true, approveOrigin } = options;
-    const pendingOrigin = approveOrigin === undefined ? undefined : normalizeOrigin(approveOrigin);
-    if (approveOrigin !== undefined && !pendingOrigin) throw new GatewayError(400, 'invalid_upstream_origin', '请填写 HTTP(S) 地址，接口路径单独配置');
-    const config = this.validate(input, true, pendingOrigin);
-    if (pendingOrigin && !config.services.some(service => service.origin === pendingOrigin)) {
-      throw new GatewayError(400, 'unused_upstream_origin', '获准地址必须与本次保存的上游服务一致');
-    }
-    const newOrigin = pendingOrigin && !this.allowedOrigins.has(pendingOrigin) ? pendingOrigin : undefined;
+  publish(expected: number, input: unknown, options: { action?: string; retainSecrets?: boolean; allowNewOrigins?: boolean } = {}) {
+    const { action = 'publish', retainSecrets = true, allowNewOrigins = false } = options;
+    const config = this.validate(input, true, allowNewOrigins);
+    const allowed = this.allowedOrigins;
+    const newOrigins = new Set(config.services.map(service => new URL(service.origin).origin).filter(origin => !allowed.has(origin)));
     const previous = new Map(this.current.config.services.map(service => [service.id, service]));
     if (retainSecrets) for (const service of config.services) {
       if (service.apiKey === undefined) {
         const existing = previous.get(service.id);
-        if (existing && new URL(existing.origin).origin === new URL(service.origin).origin) service.apiKey = existing.apiKey;
+        if (existing && normalizeUpstreamUrl(existing.origin) === service.origin) service.apiKey = existing.apiKey;
       }
     }
     this.db.exec('BEGIN IMMEDIATE');
@@ -175,11 +171,12 @@ export class Store {
       const encoded = { ...config, services: config.services.map(service => ({
         ...service, apiKey: service.apiKey ? seal(service.apiKey, this.key) : undefined,
       })) };
-      if (newOrigin) this.db.prepare('INSERT OR IGNORE INTO upstream_origins VALUES (?)').run(newOrigin);
+      const saveOrigin = this.db.prepare('INSERT OR IGNORE INTO upstream_origins VALUES (?)');
+      for (const origin of newOrigins) saveOrigin.run(origin);
       this.db.prepare('INSERT INTO revisions VALUES (?,?,?,?)').run(version + 1, JSON.stringify(encoded), new Date().toISOString(),
-        newOrigin ? action + ' · 批准上游地址 ' + newOrigin : action);
+        newOrigins.size ? action + ' · 新增上游地址 ' + [...newOrigins].join(', ') : action);
       this.db.exec('COMMIT');
-      if (newOrigin) this.approvedOrigins.add(newOrigin);
+      for (const origin of newOrigins) this.approvedOrigins.add(origin);
       this.current = { version: version + 1, config };
       return this.publicVersion();
     } catch (error) {

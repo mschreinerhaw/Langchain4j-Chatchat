@@ -259,17 +259,17 @@ admin.get('/admin/history/:version', async req => store.publicVersion(store.getR
 admin.get('/admin/backup', async (_req, reply) => reply.header('content-disposition', 'attachment; filename=gateway-config.json').send(store.publicVersion()));
 const change = z.object({ version: z.number().int().positive(), config: z.unknown() });
 admin.put('/admin/config', async req => {
-  const body = change.extend({ approveOrigin: z.string().max(2048).optional() }).parse(req.body);
-  store.publish(body.version, body.config, { approveOrigin: body.approveOrigin });
+  const body = change.parse(req.body);
+  store.publish(body.version, body.config, { allowNewOrigins: true });
   return publishedConfig();
 });
 admin.post('/admin/validate', async req => {
   const body = change.parse(req.body);
-  return store.publicVersion({ version: body.version, config: store.validate(body.config) });
+  return store.publicVersion({ version: body.version, config: store.validate(body.config, true, true) });
 });
 admin.post('/admin/restore', async req => {
   const body = change.parse(req.body);
-  return store.publish(body.version, body.config, { action: 'restore' });
+  return store.publish(body.version, body.config, { action: 'restore', allowNewOrigins: true });
 });
 admin.post('/admin/rollback', async req => {
   const body = z.object({ version: z.number().int().positive(), target: z.number().int().positive() }).parse(req.body);

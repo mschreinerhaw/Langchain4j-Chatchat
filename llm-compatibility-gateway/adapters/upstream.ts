@@ -1,16 +1,13 @@
 import { Agent, request } from 'undici';
 import { GatewayError, type Service } from '../server/config.js';
+import { upstreamEndpoint } from '../protocol/origin.js';
 
 export interface Adapter {
   endpoint(service: Service, operation: 'chat' | 'models'): URL;
 }
 
 const compatible: Adapter = {
-  endpoint: (service, operation) => {
-    const target = new URL(operation === 'chat' ? service.chatPath : service.modelsPath, service.origin);
-    if (target.origin !== new URL(service.origin).origin) throw new GatewayError(400, 'upstream_not_allowed', '上游路径无效');
-    return target;
-  },
+  endpoint: (service, operation) => upstreamEndpoint(service.origin, operation === 'chat' ? service.chatPath : service.modelsPath),
 };
 
 // Each profile currently uses its OpenAI-compatible interface.

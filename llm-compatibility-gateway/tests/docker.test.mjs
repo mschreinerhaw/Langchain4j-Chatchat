@@ -75,9 +75,16 @@ test('Docker gateway contract', async t => {
     assert.equal((await chat(chatBody('hello', { model: 'missing' }))).status, 404);
     assert.equal((await fetch(api + '/v1/responses', { method: 'POST', headers: auth, body: '{}' })).status, 501);
     await publish({ ...config, models: [...config.models, config.models[0]] }, version, 409);
-    await publish({ ...config, services: [{ ...service, origin: 'http://example.invalid' }] }, version, 400);
+    await publish({ ...config, services: [{ ...service, origin: 'ftp://example.invalid' }] }, version, 400);
     await publish(config, version - 1, 409);
     assert.equal((await read(await manage('upstream/models', 'POST', { id: service.id }), 200)).status, 404);
+  });
+  await t.test('upstream base URL keeps its prefix for both configured endpoints', async () => {
+    await publish({ ...config, services: [{ ...service, origin: service.origin + '/compatible-mode/v1' }] });
+    const result = await read(await chat(chatBody('hello')), 200);
+    assert.equal(result.model, alias);
+    assert.equal((await read(await manage('upstream/models', 'POST', { id: service.id }), 200)).status, 200);
+    await publish(config);
   });
   await t.test('JSON parameters, native tools, usage and tool result round trip', async () => {
     const tools = [{ type: 'function', function: { name: 'gateway_echo', parameters: { type: 'object', properties: {} } } }];

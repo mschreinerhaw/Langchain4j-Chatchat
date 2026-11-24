@@ -1,20 +1,21 @@
 import { expect, test } from '@playwright/test';
 
-test('admin can type and explicitly approve a new upstream address', async ({ page }) => {
+test('admin can save a new upstream address with a path prefix', async ({ page }) => {
   await page.goto('/');
   await page.getByLabel('管理员密码').fill('fixture-admin-password');
   await page.getByRole('button', { name: '登录', exact: true }).click();
   await page.getByRole('menuitem', { name: '上游模型服务' }).click();
   await page.getByRole('button', { name: '新增服务' }).click();
   const suffix = Date.now();
-  const address = 'https://upstream-' + suffix + '.example.invalid';
+  const address = 'https://upstream-' + suffix + '.example.invalid/compatible-mode';
   await page.getByLabel('服务 ID', { exact: true }).fill('browser-' + suffix);
   await page.getByLabel('服务名称', { exact: true }).fill('Browser upstream ' + suffix);
-  await page.getByRole('textbox', { name: '上游 Origin' }).fill(address);
+  const input = page.getByRole('textbox', { name: '上游地址' });
+  await input.fill('ftp://invalid.example');
   const publish = page.getByRole('button', { name: '验证并发布' });
   await publish.click();
-  await expect(page.getByText('请确认将该地址加入白名单', { exact: true })).toBeVisible();
-  await page.getByRole('checkbox', { name: '将 ' + address + ' 加入上游白名单' }).check();
+  await expect(page.getByText('请输入有效的 HTTP(S) 地址', { exact: true })).toBeVisible();
+  await input.fill(address);
   await publish.click();
   const cell = page.getByRole('cell', { name: address + ' openai', exact: true });
   await expect(cell).toBeVisible();

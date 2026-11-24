@@ -7,7 +7,7 @@ import './style.css';
 import type { Config, Model, Service } from '../server/config.js';
 import type { Rule } from '../protocol/rules.js';
 import { profileNames, type Profile } from '../protocol/profiles.js';
-import { normalizeOrigin } from '../protocol/origin.js';
+import { normalizeUpstreamUrl, upstreamEndpoint } from '../protocol/origin.js';
 import { Certificates, type TlsStatus } from './tls.js';
 import clineCatalog from './cline-models.json' with { type: 'json' };
 
@@ -155,8 +155,8 @@ function App() {
   if (!revision) return <Login onLogin={load} />;
   const { config, version } = revision;
   const trustFile = tls?.certificate?.hasCa ? tls.certificate.selfSigned ? 'gateway-server.crt' : 'gateway-ca.crt' : undefined;
-  const publish = async (next: Config, approveOrigin?: string) => {
-    const saved = await api<Revision>('config', 'PUT', { version, config: next, approveOrigin });
+  const publish = async (next: Config) => {
+    const saved = await api<Revision>('config', 'PUT', { version, config: next });
     setRevision(saved); setEditor(undefined);
     void refresh().catch(() => {});
     void toast.success('已发布配置 v' + saved.version);
@@ -249,23 +249,20 @@ function App() {
         {content}
       </Layout.Content>
     </Layout>
-    {editor && <Edit key={editor.kind + (editor.key ?? '')} editor={editor} config={config} allowedOrigins={revision.allowedOrigins ?? []}
-      close={() => setEditor(undefined)} save={(value, approveOrigin) => publish(editor.kind === 'service'
+    {editor && <Edit key={editor.kind + (editor.key ?? '')} editor={editor} config={config}
+      close={() => setEditor(undefined)} save={value => publish(editor.kind === 'service'
         ? { ...config, services: editor.key ? config.services.map(row => row.id === editor.key ? value : row) : [...config.services, value] }
-        : { ...config, models: editor.key ? config.models.map(row => row.alias === editor.key ? value : row) : [...config.models, value] }, approveOrigin)} />}
+        : { ...config, models: editor.key ? config.models.map(row => row.alias === editor.key ? value : row) : [...config.models, value] })} />}
   </Layout>;
 }
 
-function Edit({ editor, config, allowedOrigins, close, save }: {
-  editor: { kind: 'model' | 'service'; key?: string; value: any }; config: Config; allowedOrigins: string[];
-  close: () => void; save: (value: any, approveOrigin?: string) => Promise<void>;
+function Edit({ editor, config, close, save }: {
+  editor: { kind: 'model' | 'service'; key?: string; value: any }; config: Config;
+  close: () => void; save: (value: any) => Promise<void>;
 }) {
   const [form] = Form.useForm();
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
-  const [confirmedOrigin, setConfirmedOrigin] = useState<string>();
-  const origin = normalizeOrigin(Form.useWatch('origin', form) ?? '');
-  const pendingOrigin = origin && !allowedOrigins.includes(origin) ? origin : undefined;
   const service = editor.kind === 'service';
   const initial = { ...editor.value, apiKey: undefined };
   const used = new Set(config.models.filter(model => model.alias !== editor.key).map(model => model.alias));
@@ -282,11 +279,7 @@ function Edit({ editor, config, allowedOrigins, close, save }: {
       setBusy(true); setError('');
       try {
         const key = values.clearKey ? '' : values.apiKey || undefined;
-        const requested = service ? normalizeOrigin(values.origin) : undefined;
-        const needsApproval = requested && !allowedOrigins.includes(requested);
-        if (needsApproval && confirmedOrigin !== requested) throw new Error('请确认将该地址加入白名单');
-        await save(service ? { ...initial, ...values, origin: requested, apiKey: key } : { ...initial, ...values },
-          needsApproval ? requested : undefined);
+        await save(service ? { ...initial, ...values, origin: normalizeUpstreamUrl(values.origin), apiKey: key } : { ...initial, ...values });
       } catch (error) { setError((error as Error).message); }
       finally { setBusy(false); }
     }}>
@@ -296,13 +289,11 @@ function Edit({ editor, config, allowedOrigins, close, save }: {
         </Form.Item>}</Col>
         <Col span={12}>{field(service ? 'name' : 'upstream', service ? '服务名称' : '上游真实模型 ID')}</Col></Row>
       {service ? <>
-        <Form.Item name="origin" label="上游 Origin" extra="填写协议、主机与端口，接口路径在下方填写。"
-          rules={[{ required: true }, { validator: (_, value) => !value || normalizeOrigin(value)
-            ? Promise.resolve() : Promise.reject(new Error('请输入 HTTP(S) 地址，例如 http://10.2.25.111:32004')) }]}>
-          <Input placeholder="http://10.2.25.111:32004" maxLength={2048} onChange={() => setConfirmedOrigin(undefined)} />
+        <Form.Item name="origin" label="上游地址" extra="可带基础路径，例如 /compatible-mode。"
+          rules={[{ required: true }, { validator: (_, value) => !value || normalizeUpstreamUrl(value)
+            ? Promise.resolve() : Promise.reject(new Error('请输入有效的 HTTP(S) 地址')) }]}>
+          <Input placeholder="https://model.example.com/compatible-mode" maxLength={2048} />
         </Form.Item>
-        {pendingOrigin && <Form.Item><Checkbox checked={confirmedOrigin === pendingOrigin}
-          onChange={event => setConfirmedOrigin(event.target.checked ? pendingOrigin : undefined)}>将 {pendingOrigin} 加入上游白名单</Checkbox></Form.Item>}
         <Form.Item name="framework" label="推理框架"><Select options={['openai', 'vllm', 'sglang', 'ollama', 'xinference', 'lm-studio', 'llama.cpp', 'localai', 'custom'].map(value => ({ value }))} /></Form.Item>
         <Row gutter={16}><Col span={12}>{field('chatPath', '对话路径')}</Col><Col span={12}>{field('modelsPath', '模型列表路径')}</Col>
           <Col span={12}>{field('authHeader', '认证请求头')}</Col><Col span={12}>{field('authPrefix', '认证前缀', false)}</Col></Row>
@@ -441,7 +432,7 @@ function Lab({ config, apiBaseUrl, trustFile }: { config: Config; apiBaseUrl: st
   };
   const curl = () => {
     try {
-      const origin = direct ? selected?.origin : apiBaseUrl.replace(/\/v1$/, '');
+      const endpoint = direct && selected ? upstreamEndpoint(selected.origin, path).href : apiBaseUrl.replace(/\/v1$/, '') + path;
       const auth = direct ? selected?.authHeader ?? 'authorization' : 'Authorization';
       const prefix = direct ? selected?.authPrefix ?? '' : 'Bearer ';
       const quote = (str: string) => "'" + str.replace(/'/g, "'\"'\"'") + "'";
@@ -450,7 +441,7 @@ function Lab({ config, apiBaseUrl, trustFile }: { config: Config; apiBaseUrl: st
       }).join('');
       Modal.info({ title: 'curl 命令', width: 850, content: <Code value={
         'curl -N ' + (direct && selected?.ca ? '--cacert upstream-trust.crt ' : !direct && trustFile ? '--cacert ' + trustFile + ' ' : '')
-        + quote((origin ?? '') + path) + ' -H "Content-Type: application/json" -H "'
+        + quote(endpoint) + ' -H "Content-Type: application/json" -H "'
         + auth + ': ' + prefix.replace(/[^a-z0-9 _-]/gi, '') + (direct ? '$UPSTREAM_API_KEY' : '$GATEWAY_API_KEY')
         + '"' + custom + ' --data-binary @request.json\n\n# request.json\n' + json(JSON.parse(raw))} /> });
     } catch (error) { setError((error as Error).message); }

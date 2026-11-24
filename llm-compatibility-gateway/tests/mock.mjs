@@ -15,7 +15,13 @@ const handler = async (req, res) => {
     res.writeHead(302, { location: 'http://example.invalid' });
     return res.end();
   }
-  if (req.url !== '/v1/chat/completions') { res.writeHead(404); return res.end('No model list'); }
+  if (req.url === '/compatible-mode/v1/models') {
+    res.setHeader('content-type', 'application/json');
+    return res.end(JSON.stringify({ data: [{ id: '/models/Qwen中文' }] }));
+  }
+  if (!['/v1/chat/completions', '/compatible-mode/v1/chat/completions'].includes(req.url)) {
+    res.writeHead(404); return res.end('No model list');
+  }
   const parts = [];
   for await (const chunk of req) parts.push(chunk);
   const input = JSON.parse(Buffer.concat(parts));

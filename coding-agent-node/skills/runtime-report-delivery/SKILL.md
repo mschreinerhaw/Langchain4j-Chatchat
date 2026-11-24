@@ -2,7 +2,7 @@
 name: runtime-report-delivery
 description: Deliver autonomous evidence-based text and visual reports through Runtime OS; synthesize relevant sources rather than dumping retrieved records, preserve uncertainty, use actual Python chart artifacts and the existing report contract.
 metadata:
-  version: 1.0.1
+  version: 1.0.2
 ---
 
 Execution and delivery depend on the task's advertised transport profile. For Native Cline + Python + Silo tasks, execute local Python through native Shell, choose meaningful project and output paths, and declare the chosen files in the supplied delivery_manifest.json selection protocol. Java verifies and archives their bytes. The Sandbox, python_execute, report_submit, rows.jsonl and visualReport examples below apply only to tasks that explicitly advertise those managed protocols. They do not replace the Native task's delivery contract or add tools.
@@ -25,5 +25,9 @@ For text-only output without Python, use report_submit when advertised, includin
 For chart delivery, write files directly under `/workspace/output/results/` with safe basenames and register each actual file in the supplied `visualReport.charts` contract when enabled. A path such as `charts/trend.png` in Markdown does not register or deliver a file. Do not write outside the declared output channel or claim an unregistered image is delivered.
 
 Plotly text must use plain labels and titles; do not embed `<span style=...>`, HTML attributes, external resources or executable content. Express typography through Plotly properties, for example `fig.update_layout(template=None, title=dict(text="Computed trend", font=dict(size=18)))`, then `fig.write_json("/workspace/output/results/trend.json")`. Use ordinary JSON arrays from the same computed objects as the reported values. This is a safe output example, not a prescribed chart type or analysis method.
+
+Review charts where readers will see them. For an uneven composition, prefer bars or move colliding slice labels and percentages into a visible legend or data table with exact values and units. For HTML delivery, use the report-designer and chart-designer guidance when advertised. Open chart tabs and verify the final page at desktop and narrow widths. Keep plots and captions inside the report width and limit horizontal scrolling to intentionally wide components such as tables. Inspect saved static images too, since a responsive card cannot fix overlaps drawn into an image. Correct visible defects before submitting and state when the available tools could not validate rendering.
+
+For financial charts, load the advertised `financial-visualization` Skill. When delivering interactive HTML, use `echarts-resource-delivery` for the catalog-pinned renderer, system viewer and runnable offline download. Preserve the one-entry REPORT contract and use the existing artifact selection for companions. The managed `visualReport` contract still governs supported static and Plotly artifacts.
 
 Review `visualReportValidation.availableChartCount`, `chartValidationStatus` and `presentationDiagnostics`. Unavailable placeholders do not count as delivered charts. Repair named technical failures through the existing Python lifecycle when possible; preserve honest PARTIAL delivery and its numerical results when repairs cannot finish within the existing budget. A business UNRESOLVED check alone does not require regenerating a valid chart.

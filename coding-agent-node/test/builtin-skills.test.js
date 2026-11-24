@@ -20,9 +20,21 @@ test('image delivery rejects traversal and undeclared resource paths',()=>{
 
 test('financial scene resources are image-owned and delivered through the existing manifest',()=>{
  const pkg=taskSkillPackages().find(p=>p.card.id==='builtin:financial-visualization');
- assert(pkg);assert.equal(pkg.card.version,'1.0.0');
+ assert(pkg);assert.equal(pkg.card.version,'1.0.1');
  assert.match(imageSkillBytes(pkg).toString(),/financial-auto/);
  assert.match(imageSkillBytes(pkg,'references/style-guide.md').toString(),/#C62828/);
  assert.match(imageSkillBytes(pkg,'references/financial_style.py').toString(),/def change_color/);
  assert.throws(()=>imageSkillBytes(pkg,'references/private.py'),/outside the delivery manifest/);
+});
+
+test('ECharts resource delivery is discoverable with or without professional reports',()=>{
+  for (const enabled of [false, true]) {
+    const pkg = taskSkillPackages({professionalReports:{enabled}})
+      .find(p => p.card.id === 'builtin:echarts-resource-delivery');
+    assert(pkg);
+    const instructions = imageSkillBytes(pkg).toString('utf8');
+    assert.match(instructions, /Frontend Resource Hub/);
+    assert.match(instructions, /standalone\.html/);
+    assert.match(instructions, /delivery_manifest\.json/);
+  }
 });

@@ -2,7 +2,7 @@
 name: financial-visualization
 description: Render financial analysis and exploratory reports with semantic colors, market-specific rise/fall conventions, stable comparison palettes, clear units and legible Chinese labels. Use for financial-auto, financial-cn and financial-international visualization style profiles, market movements, portfolio comparisons, allocation and financial report charts.
 metadata:
-  version: 1.0.0
+  version: 1.0.1
 ---
 
 # Financial visualization
@@ -15,4 +15,12 @@ The profiles are Runtime OS presentation conventions, not a claim that one palet
 
 Absolute positive balances, asset values, revenue and category totals are not rises. Use stable blue/teal/purple/ochre series colors for comparisons and allocation; reserve directional red/green for actual change/return with a known reference. Do not apply financial colors to unrelated nonfinancial analysis merely because the UI offered a financial style.
 
+Present figures in the order a reader checks them: identify the security or portfolio and reporting period, compare against a clearly labeled benchmark or prior period, then explain the drivers with drill-down charts or tables. Keep the same units and scales in comparable panels. Label currency and magnitudes (such as CNY millions or 人民币亿元), and distinguish return (%), change in a percentage rate (percentage points), and basis points. Use signed values and a visible zero line for contribution, return bars and P&L; keep zero-based axes for amount bars. Pair color with signs, direct labels or line styles.
+
+- For price, NAV or returns, use chronological lines with aligned dates. For relative performance, use a common stated base date and basis when rebasing to 100, and distinguish adjusted price from total return. Missing observations appear as gaps. Plot drawdown separately with its zero baseline and disclose the measurement period. Use candlesticks only when actual OHLC fields and trading-period context are available.
+- For holdings and allocation, use sorted horizontal bars for label readability and a 100% stacked bar only when categories share a valid whole. For signed attribution, use diverging bars or a waterfall with traceable start, changes and end. Avoid 100% stacks for signed data. Put small categories and full names in an adjacent table when labels would collide.
+- Separate unrelated units in aligned panels, such as price and trading volume or return and drawdown. Label periods, benchmark/adjustment basis, provider or source reference and coverage near the chart. A tooltip may show exact currency or basis, but the downloadable and print versions need visible units and a readable legend.
+
 Export actual PNG/SVG or offline Plotly artifacts supported by the task. Keep axes, units, dates, source coverage and legends readable; preserve the same series colors across charts. Never edit an archived PNG's pixels to simulate a correct semantic plot. Generate the intended styling in the original plotting code and submit it through the normal delivery manifest. Use `plotting` and `runtime-report-delivery` as useful, without a fixed execution sequence.
+
+For interactive HTML, use the advertised `echarts-resource-delivery` Skill. Apply the same resolved financial profile and underlying series to the viewer report and the offline package.

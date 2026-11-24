@@ -2,7 +2,7 @@
 name: python-data-analysis
 description: Analyze delivered Python datasets, inspect quality, join sources, compute statistics and business metrics, and deliver reproducible static charts and Runtime OS reports.
 metadata:
-  version: 1.3.6
+  version: 1.3.7
 ---
 
 # Python data analysis in Runtime OS
@@ -30,6 +30,10 @@ Define numerator, denominator, units, population and time window before calculat
 ## Charts and delivery
 
 Use Matplotlib with a noninteractive backend for static charts. Choose line charts for trends, bars for category comparisons, histograms/box plots for distributions, and pie charts only for a small, nonnegative part-to-whole distribution. Label titles, axes, units, legends and dates. Use the environment's configured Chinese fonts; do not download fonts at runtime. Close figures after saving and avoid huge images.
+
+For an uneven composition such as InnoDB Buffer Pool usage, prefer horizontal bars for comparing the smaller categories or a 100% stacked bar for showing the whole. If a pie or donut is useful, omit all on-slice text when adjacent labels or percentages collide. Use a legend or adjacent table with each category, count or size, and share calculated from the same denominator. Place the legend or table below the chart when the display slot is narrow. Keep small and zero categories visible in the table. Never merge or drop categories solely to fit labels.
+
+Choose figure dimensions for the report's display slot. Wrap long titles, use horizontal bars for long category labels, and reserve room for legends and axis labels. For Matplotlib, start with `layout="constrained"`; when using `bbox_inches="tight"`, inspect the exported dimensions and margins because it changes the canvas size. Render the saved PNG or SVG and inspect it at the report's actual display width. Fix overlaps and clipping in the plotting code and regenerate the image before reviewing the report page.
 
 Use declared currency/scale and comparable valuation, trade or settlement periods; separate monetary values, percentages, percentage points and basis points. Use a restrained research-report style, signed zero baselines and an explicit market color convention. Distinguish orders from fills, cash flows from returns, and observed activity from inferred long-term preferences. Derive every reconciliation label from actual calculations and retain unresolved evidence limits. Consult [references/financial-reporting.md](references/financial-reporting.md) when the objective needs accounting reconciliation, ambiguous flow ordering or portfolio hypotheses. A price trend or other financial topic alone does not require loading that reference.
 

@@ -3,7 +3,7 @@
     "id": "builtin:python-data-analysis",
     "name": "python-data-analysis",
     "description": "Analyze delivered Python datasets, inspect quality, join sources, compute statistics and business metrics, and deliver reproducible static charts and Runtime OS reports.",
-    "version": "1.3.4",
+    "version": "1.3.7",
     "origin": "SYSTEM_BUILTIN",
     "category": "Python",
     "references": [
@@ -13,7 +13,7 @@
     "displayName": "Python 数据分析",
     "descriptionZh": "支持数据清洗、质量检查、统计分析、指标计算与可视化报告生成。",
     "source": "Runtime OS",
-    "sourceVersion": "1.3.4",
+    "sourceVersion": "1.3.7",
     "builtin": true,
     "enabled": true
   },
@@ -430,7 +430,7 @@
     "id": "builtin:runtime-report-delivery",
     "name": "runtime-report-delivery",
     "description": "Deliver autonomous evidence-based text and visual reports through Runtime OS; synthesize relevant sources rather than dumping retrieved records, preserve uncertainty, use actual Python chart artifacts and the existing report contract.",
-    "version": "1.0.1",
+    "version": "1.0.2",
     "origin": "SYSTEM_BUILTIN",
     "category": "Report",
     "publisher": "Runtime OS",
@@ -440,7 +440,7 @@
     "displayName": "报告交付",
     "descriptionZh": "将有来源依据的文字或图文报告交付到现有 Runtime OS 报告链路。",
     "source": "Runtime OS",
-    "sourceVersion": "1.0.1"
+    "sourceVersion": "1.0.2"
   },
   {
     "id": "builtin:runtime-internet-research",
@@ -507,7 +507,7 @@
     "id": "builtin:financial-visualization",
     "name": "financial-visualization",
     "description": "Render financial analysis and exploratory reports with semantic colors, market-specific rise/fall conventions, stable comparison palettes, clear units and legible Chinese labels. Use for financial-auto, financial-cn and financial-international visualization style profiles, market movements, portfolio comparisons, allocation and financial report charts.",
-    "version": "1.0.0",
+    "version": "1.0.1",
     "origin": "SYSTEM_BUILTIN",
     "category": "Visualization",
     "references": [
@@ -517,7 +517,7 @@
     "displayName": "金融图形规范",
     "descriptionZh": "按市场涨跌惯例和真实指标语义绘制金融分析图表。",
     "source": "Runtime OS",
-    "sourceVersion": "1.0.0",
+    "sourceVersion": "1.0.1",
     "builtin": true,
     "enabled": true
   },
@@ -553,10 +553,24 @@
     "enabled": true
   },
   {
+    "id": "builtin:echarts-resource-delivery",
+    "name": "echarts-resource-delivery",
+    "description": "Build interactive ECharts reports with the Runtime OS Frontend Resource Hub, render them in the system HTML viewer, and package runnable HTML, CSS, JavaScript and authorized chart data for offline download.",
+    "version": "1.0.0",
+    "origin": "SYSTEM_BUILTIN",
+    "category": "Frontend",
+    "displayName": "ECharts report delivery",
+    "descriptionZh": "使用前端资源库生成可在线展示和下载后离线查看的 ECharts 报告。",
+    "source": "Runtime OS",
+    "sourceVersion": "1.0.0",
+    "builtin": true,
+    "enabled": true
+  },
+  {
     "id": "builtin:report-designer",
     "name": "report-designer",
     "description": "Design platform professional HTML reports with reusable themes, accessible layouts and offline deliverables when professional reporting is enabled.",
-    "version": "1.0.2",
+    "version": "1.0.3",
     "origin": "SYSTEM_BUILTIN",
     "category": "Reports",
     "source": "Runtime OS",
@@ -600,7 +614,7 @@
     "id": "builtin:chart-designer",
     "name": "chart-designer",
     "description": "Choose useful ECharts charts with consistent styling, comparable financial series, visible source metadata and offline print fallbacks.",
-    "version": "1.0.2",
+    "version": "1.0.3",
     "origin": "SYSTEM_BUILTIN",
     "category": "Reports",
     "source": "Runtime OS",

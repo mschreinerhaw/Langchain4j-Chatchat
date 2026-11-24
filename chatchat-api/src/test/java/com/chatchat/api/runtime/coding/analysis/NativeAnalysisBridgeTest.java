@@ -80,6 +80,8 @@ class NativeAnalysisBridgeTest {
         when(coding.submit(eq(scope), eq("request"), anyList(), anyString(), eq("test-model"),
             anyList(), anyMap(), anyMap())).thenAnswer(call -> {
                 assertThat(call.<List<String>>getArgument(2)).hasSize(41);
+                assertThat(call.<Map<String, Object>>getArgument(7))
+                    .containsEntry("analysisMetadataPath", "input/data/40/data-supply-manifest.json");
                 assertThat(json.valueToTree(call.<Map<String, Object>>getArgument(6))
                     .path("properties").path("analysisStatus").path("enum").toString())
                     .isEqualTo("[\"PARTIAL\",\"INPUT_REQUIRED\"]");

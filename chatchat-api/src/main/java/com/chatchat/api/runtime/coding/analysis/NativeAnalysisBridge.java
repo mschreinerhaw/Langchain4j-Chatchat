@@ -153,6 +153,7 @@ public final class NativeAnalysisBridge {
                     throw new IllegalArgumentException("Source context cannot be frozen", invalid);
                 }
             }
+            String metadataPath = "input/data/" + files.size() + "/data-supply-manifest.json";
             try {
                 byte[] contents = json.writeValueAsBytes(Map.of("schemaVersion", "native-data-supply-inventory.v1",
                     "datasets", inventory, "deliveredRows", rows, "deliveredSnapshotBytes", bytes));
@@ -174,11 +175,12 @@ public final class NativeAnalysisBridge {
                     +"Verify current facts using the supplied authorized inputs.";
             }
             if(instruction.length()>16000){byte[] data=instruction.getBytes(java.nio.charset.StandardCharsets.UTF_8);var file=assets.store(UserAssetService.Owner.of(scope),UserAssetService.Kind.DATASET,snapshotTask,scope.runId(),"native-original-objective:"+UserAssetService.hash(data),"original-task-objective.txt","text/plain",data);files.add(file.id());instruction="Read original-task-objective.txt from the supplied files for the full original user objective.";}
-            instruction+="\nStart with data-supply-manifest.json for paths, observed field names, row counts and source assurance. Read the source context when you need declared field meanings or types. Use Python to inspect and compute over the complete immutable JSONL files. Save full results as artifacts and read only compact metrics and diagnostics for interpretation. If fieldInventoryComplete is false, discover additional fields programmatically. Treat SOURCE_INCOMPLETE and SOURCE_UNKNOWN snapshots as limited and disclose the missing coverage. Preserve source references and field names. Choose your own source structure and computation. Provide a complete Markdown report and the requested structured result; never treat transport/status observations as business data.";
+            instruction+="\nStart with "+metadataPath+" for paths, observed field names, row counts and source assurance. Use Python to inspect source contexts and compute over the complete immutable JSONL files and long text records. Save full results as artifacts and use output/analysis_summary.json for compact metrics and diagnostic locations (up to 4096 bytes). If fieldInventoryComplete is false, discover additional fields programmatically. Treat SOURCE_INCOMPLETE and SOURCE_UNKNOWN snapshots as limited and disclose the missing coverage. Preserve source references and field names. Choose your own source structure and computation. Provide a complete Markdown report and the requested structured result; never treat transport/status observations as business data.";
             var types=List.of("REPORT","RESULT"); // Charts are optional: missing evidence must never force invented figures.
             String model=Objects.toString(context.metadata().get("modelName"),null);
             var capabilitySnapshot = new LinkedHashMap<>(capabilities.capture(scope, model, context.runtimeAttributes(),
                 context.metadata(), sources.size(), rows));
+            capabilitySnapshot.put("analysisMetadataPath", metadataPath);
             if (publishedTemplates != null && context.result() != null) {
                 Set<String> optionalIds = new LinkedHashSet<>();
                 for (var step : context.result().steps()) {

@@ -2,6 +2,7 @@ import {resolveRuntimeModel,applyPublishedModelLimit,applyPublishedReasoning} fr
 import {proxyFrontend,stageFrontendTransport} from './frontend-proxy.mjs';
 import {stageNativeSkills,stageNativeDownload,runtimeMcpReply,nativeSkillDiscoveryContext} from './native-capability-files.mjs';
 import http from 'node:http';
+import {once} from 'node:events';
 import {readFileSync,writeFileSync,mkdirSync,readdirSync,existsSync,renameSync,chownSync,chmodSync,cpSync,unlinkSync,lstatSync} from 'node:fs';
 import {join} from 'node:path';
 import {randomUUID,randomBytes,timingSafeEqual} from 'node:crypto';
@@ -146,6 +147,9 @@ async function broker(r,path){
    }else throw error('Broker route not found',404);
    if(!live(r))throw error('Task lease inactive',403);
    const controller=new AbortController();if(!calls.has(r.workerId))calls.set(r.workerId,new Set());calls.get(r.workerId).add(controller);
+   const close=()=>controller.abort();
+   res.once('close',close);
+   if(res.destroyed)close();
    try{
     const request=JSON.stringify(requestBody);
     if(modelProfile)observation=modelReceipt({model:modelProfile.model,request,body:requestBody,
@@ -155,6 +159,7 @@ async function broker(r,path){
        event(r,type,payload);
       }});
     const upstream=await fetch(url,{method:'POST',headers,body:request,signal:controller.signal,redirect:'error'});
+    observation?.headers();
     if(req.url==='/mcp'&&tenant.mcp.authMode==='native-runtime'){
      const chunks=[];let size=0;for await(const chunk of upstream.body??[]){size+=chunk.length;if(size>2*1024*1024){controller.abort();throw Error('Runtime MCP response byte budget exceeded');}chunks.push(chunk);}const bytes=Buffer.concat(chunks);if(!bytes.length){res.writeHead(upstream.status);return res.end();}if(!live(r))throw error('Task lease inactive',403);
      const value=runtimeMcpReply(bytes,upstream.status);
@@ -171,12 +176,11 @@ async function broker(r,path){
      return send(res,upstream.status,value);
     }
     res.writeHead(upstream.status,{'content-type':upstream.headers.get('content-type')??'application/json'});
-    res.on('close',()=>controller.abort());
     try{
-     for await(const chunk of upstream.body??[]){observation?.observe(chunk);if(!res.write(chunk))await new Promise(resolve=>res.once('drain',resolve));}
+     for await(const chunk of upstream.body??[]){observation?.observe(chunk);if(!res.write(chunk))await once(res,'drain',{signal:controller.signal});}
      observation?.finish({httpStatus:upstream.status,providerRequestId:upstream.headers.get('x-request-id')??upstream.headers.get('request-id')});res.end();
     }catch(e){observation?.finish({httpStatus:upstream.status,errorType:e.name??'UpstreamError',errorCode:modelTransportErrorCode(e)});throw e;}
-   }finally{calls.get(r.workerId).delete(controller);}
+   }finally{res.off('close',close);calls.get(r.workerId).delete(controller);}
   }catch(e){
    observation?.finish({errorType:e.name??'UpstreamError',errorCode:modelTransportErrorCode(e)});
    if(!res.headersSent&&req.url==='/mcp'&&requestBody?.method==='tools/call'){
@@ -251,6 +255,7 @@ const server=http.createServer(async(req,res)=>{
   const c=granted(req),tenant=Object.hasOwn(cfg.tenants,c.tenantId)?cfg.tenants[c.tenantId]:undefined;if(!tenant||!(tenant.users.includes(c.userId)||c.version===2&&tenant.dynamicUsers===true)||!Object.hasOwn(tenant.workspaces,c.workspaceRef)||!(c.runtimeModel?typeof tenant.runtimeModelAuthority==='string':tenant.models.includes(c.modelProfile))||!c.dataPermissions.every(x=>tenant.datasets.includes(x))||!c.toolPermissions.every(x=>tenant.tools.includes(x)||studioMcpPermission(c,tenant,x)||publishedTemplatePermission(c,tenant,x)))throw error('Task policy not granted',403);
   if(path==='/v1/sessions'&&req.method==='POST'){
    const b=await body(req),key=req.headers['idempotency-key'];if(!key||Object.keys(b).some(k=>!['editTool',...(c.s3?['inputs']:[])].includes(k))||b.editTool&&!['editor','apply_patch'].includes(b.editTool))throw error('Invalid create request');
+   if(c.analysisMetadataPath&&!executor)throw error('Analysis requires a restricted Native Executor',409);
    if(c.s3)validateS3Inputs(c,b.inputs,cfg.s3);
    if(expired(c))throw error('Task identity expired',401);
    let r=records.get(c.sessionId);if(r){authorizeSession(c,r);if(r.createKey!==key||r.editTool!==(b.editTool??'editor'))throw error('Create conflict',409);return send(res,200,publicState(r));}

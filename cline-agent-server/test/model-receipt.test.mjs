@@ -19,6 +19,22 @@ test('provider input/cache/reasoning totals retain their inclusive semantics',()
  const anthropic=providerUsage({input_tokens:10,cache_read_input_tokens:80,cache_creation_input_tokens:5,output_tokens:20});
  assert.equal(anthropic.inputTokens,95);assert.equal(anthropic.totalTokens,115);
 });
+test('classifies a reset after HTTP 200 and reports SSE timing independently of missing usage',()=>{
+ let time=100;const events=[];
+ const receipt=modelReceipt({model:'model',request:'{}',emit:(_t,p)=>events.push(p),now:()=>time});
+ time=125;receipt.headers();
+ time=148;receipt.observe(Buffer.from(': keepalive\n'));
+ time=160;receipt.observe(Buffer.from('data: {"choices":[]}\n\n'));
+ time=166;receipt.observe(Buffer.from('data: {"choices":[{"delta":{"content":"x"}}]}\n\n'));
+ time=431;receipt.finish({httpStatus:200,errorType:'TypeError',errorCode:'UPSTREAM_CONNECTION_FAILURE'});
+ const end=events.at(-1);
+ assert.equal(end.status,'FAILED');
+ assert.equal(end.errorCode,'UPSTREAM_RESPONSE_STREAM_INTERRUPTED');
+ assert.equal(end.failurePhase,'RESPONSE_BODY');
+ assert.equal(end.usage,null);
+ assert.deepEqual(end.responseTiming,{headersMs:25,firstBodyMs:48,lastBodyMs:66,
+  firstSseDataMs:60,lastSseDataMs:66,firstModelDeltaMs:66,idleAfterLastBodyMs:265});
+});
 test('split UTF-8/SSE frames record each actual attempt without counting text as tokens',()=>{
  const events=[],raw=Buffer.from('data: {"model":"real","choices":[{"delta":{"content":"真实内容"}}]}\n\ndata: {"usage":{"prompt_tokens":23,"completion_tokens":7,"total_tokens":30}}\n\ndata: [DONE]\n\n');
  const receipt=modelReceipt({model:'configured',request:'{}',emit:(type,payload)=>events.push({type,payload})});

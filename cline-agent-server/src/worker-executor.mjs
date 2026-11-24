@@ -43,6 +43,7 @@ function prepare(c,b){
  if(c.version===2){
   privateConfig.requireSubmitAndExit=false;
   privateConfig.deliveryBinding=c.deliveryBinding;
+  if(c.analysisMetadataPath)privateConfig.analysisMetadataPath=c.analysisMetadataPath;
   privateConfig.allowDeliveryPreview=true;
   privateConfig.requireDeliverySelection=true;
   privateConfig.modelOptions={...cfg.modelOptions,...b.modelLimits};

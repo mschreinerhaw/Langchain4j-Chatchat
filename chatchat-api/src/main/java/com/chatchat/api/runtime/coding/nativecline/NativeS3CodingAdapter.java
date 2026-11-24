@@ -321,6 +321,11 @@ public final class NativeS3CodingAdapter implements CodingAgentSPI {
         grant.put("toolPermissions",c.authorization().allowedTools());grant.put("dataPermissions",List.of());grant.put("networkPolicy","broker-only");grant.put("expiresAt",c.budget().deadlineAt().toEpochMilli());grant.put("runtimeProfile","native-python-silo-v1");
         if(!c.budget().hasDeadline())grant.put("userManagedDeadline",true);
         grant.put("deliveryBinding",Map.of("tenantId",c.scope().tenantId(),"taskId",c.taskId(),"runId",c.scope().runId(),"inputSnapshotVersion",ws.snapshotVersion()));
+        if(c.runtimeContext().get("analysisMetadataPath") instanceof String path){
+            if(files.stream().noneMatch(file->file.path().equals(path)))
+                throw new IllegalStateException("Analysis metadata is absent from the frozen input inventory");
+            grant.put("analysisMetadataPath",path);
+        }
         grant.put("runtimeTools",c.authorization().allowedTools().stream().filter(t->Set.of("agent_skill_read","workspace_metadata","workspace_validate","execute_published_template").contains(t)||com.chatchat.api.runtime.coding.knowledge.CodingInternetAccess.NATIVE_TOOLS.contains(t)||com.chatchat.api.runtime.coding.knowledge.CodingDocumentSearchAccess.NATIVE_TOOLS.contains(t)).toList());
         grant.put("s3",Map.of("origin",policy.get("origin"),"inputPrefix",policy.get("inputPrefix"),"outputPrefix",policy.get("outputPrefix"),"inputManifestSha256",client(r).inputManifestHash(files)));
         return json.valueToTree(Map.of("sessionId",session,"grant",client(r).signGrant(grant,settings.issuerKey),"inputs",files,"transportEpoch",ws.epoch(),"nodeId",settings.nodeId(),"executionEpoch",UUID.randomUUID().toString(),"workflowId",r.control==null?"":r.control.workflowId(),"fencingToken",r.lease.fencingToken()));
@@ -398,7 +403,7 @@ public final class NativeS3CodingAdapter implements CodingAgentSPI {
             operation="model-"+p.path("requestId").asText();kind=CodingJournal.OperationKind.MODEL;complete=type.equals("model.request.completed");long tokens=p.path("usage").path("totalTokens").asLong();
             actual=new Counters(1,tokens,0,0,0,0,0,"0");metered=complete&&p.path("usage").path("totalTokens").isNumber();
             normalized=complete?"MODEL_REQUEST_COMPLETED":"MODEL_REQUEST_STARTED";summary=p.path("providerModel").asText(p.path("model").asText());group="model";telemetryId=p.path("requestId").asText();
-            for(String field:List.of("requestId","model","providerModel","usage","durationMs","requestContext","requestedReasoningEffort","reasoningEffort","httpStatus","errorCode","errorType"))if(p.hasNonNull(field))projected.put(field,json.convertValue(p.get(field),Object.class));
+            for(String field:List.of("requestId","model","providerModel","usage","durationMs","requestContext","requestedReasoningEffort","reasoningEffort","httpStatus","errorCode","errorType","responseTiming","failurePhase","transportErrorCode"))if(p.hasNonNull(field))projected.put(field,json.convertValue(p.get(field),Object.class));
         }else if(channel.equals("provider")){
             summary=type+": "+p.path("tool").asText(p.path("name").asText(p.path("url").asText()));
             for(String field:List.of("tool","requestId","isError","skillId","name","version","source","bytes","url","sha256","size","path","assetId","retrieved_at","files"))if(p.hasNonNull(field))projected.put(field,json.convertValue(p.get(field),Object.class));

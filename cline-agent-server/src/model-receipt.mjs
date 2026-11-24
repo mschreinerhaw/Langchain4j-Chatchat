@@ -64,6 +64,7 @@ export function modelReceipt({model,request,body,reasoning={},emit,now=Date.now}
  let requestContext = null;
  try { requestContext = contextShape(body, request); } catch { /* Usage observation still proceeds. */ }
  let pending='',jsonBody='',usage=null,providerModel=model,responseBytes=0,finished=false,observationTruncated=false;
+ let headersAt=null,firstBodyAt=null,lastBodyAt=null,firstDataAt=null,lastDataAt=null,firstModelDeltaAt=null;
  const MAX=4*1024*1024;
  function value(document){
   if(!document||typeof document!=='object')return;
@@ -74,10 +75,19 @@ export function modelReceipt({model,request,body,reasoning={},emit,now=Date.now}
  function line(text){
   if(!text.startsWith('data:'))return;
   const data=text.slice(5).trim();if(!data||data==='[DONE]')return;
-  try{value(JSON.parse(data));}catch{}
+  try{
+   const frame=JSON.parse(data);
+   firstDataAt??=now();lastDataAt=now();
+   if (frame && ((Array.isArray(frame.choices)&&frame.choices.some(choice=>
+     choice?.delta?.content||choice?.delta?.reasoning_content||choice?.delta?.tool_calls?.length))
+     ||(typeof frame.type==='string'&&frame.type.startsWith('response.')&&frame.type.endsWith('.delta')&&frame.delta)
+     ||(frame.type==='content_block_delta'&&frame.delta))) firstModelDeltaAt??=lastDataAt;
+   value(frame);
+  }catch{}
  }
  emit('model.request.started',{...reasoning,requestId,model,startedAt:new Date(started).toISOString(),requestSha256,requestContext,source:'PROVIDER_HTTP_OBSERVATION'});
- return {requestId,observe(chunk){
+ return {requestId,headers(){headersAt??=now();},observe(chunk){
+  if(chunk.length){firstBodyAt??=now();lastBodyAt=now();}
   responseHash.update(chunk);responseBytes+=chunk.length;
   const text=decoder.decode(chunk,{stream:true});
   if(jsonBody.length<MAX)jsonBody+=text.slice(0,MAX-jsonBody.length);else observationTruncated=true;
@@ -88,10 +98,18 @@ export function modelReceipt({model,request,body,reasoning={},emit,now=Date.now}
   if(finished)return;finished=true;
   pending+=decoder.decode();line(pending);
   if(!usage)try{value(JSON.parse(jsonBody));}catch{}
-  const ended=now();emit('model.request.completed',{...reasoning,requestId,model,providerModel,providerRequestId,
+  const ended=now();
+  const phase=headersAt===null?'BEFORE_HEADERS':firstBodyAt===null?'WAITING_FOR_BODY':'RESPONSE_BODY';
+  const relative=at=>at===null?null:Math.max(0,at-started);
+  const code=errorCode==='UPSTREAM_CONNECTION_FAILURE'&&headersAt!==null
+   ?'UPSTREAM_RESPONSE_STREAM_INTERRUPTED':errorCode;
+  emit('model.request.completed',{...reasoning,requestId,model,providerModel,providerRequestId,
    startedAt:new Date(started).toISOString(),finishedAt:new Date(ended).toISOString(),durationMs:Math.max(0,ended-started),
    httpStatus,status:errorType||httpStatus===null||httpStatus>=400?'FAILED':'SUCCEEDED',errorType,
-   ...(errorCode?{errorCode}:{}),
+   ...(code?{errorCode:code,failurePhase:phase,transportErrorCode:errorCode}:{}),
+   responseTiming:{headersMs:relative(headersAt),firstBodyMs:relative(firstBodyAt),lastBodyMs:relative(lastBodyAt),
+    firstSseDataMs:relative(firstDataAt),lastSseDataMs:relative(lastDataAt),firstModelDeltaMs:relative(firstModelDeltaAt),
+    idleAfterLastBodyMs:lastBodyAt===null?null:Math.max(0,ended-lastBodyAt)},
    providerDispatched:httpStatus!==null?true:null,usage:providerUsage(usage),responseBytes,
    responseSha256:responseHash.digest('hex'),requestSha256,requestContext,observationTruncated,source:'PROVIDER_HTTP_OBSERVATION'});
  }};

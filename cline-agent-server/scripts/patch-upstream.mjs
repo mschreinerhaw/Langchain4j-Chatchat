@@ -59,7 +59,22 @@ patch('src/sdk/sdk-interaction-coordinator.ts',s=>{
         }
 `);
 });
-patch('src/sdk/vscode-session-host.ts',s=>s.replace('const toolExecutors: Partial<ToolExecutors> = {}',`const toolExecutors: Partial<ToolExecutors> = {}
+const sdk=join(root,'apps/vscode/src/sdk');
+writeFileSync(join(sdk,'analysis-tool-results.mjs'),readFileSync(new URL('./analysis-tool-results.mjs',import.meta.url)));
+writeFileSync(join(sdk,'analysis-tool-results.d.mts'),`import type { AgentHooks } from "@cline/shared";
+export declare function createAnalysisToolHooks(workspace: string, metadataPath: string, prior?: AgentHooks): AgentHooks;
+`);
+patch('src/sdk/vscode-session-host.ts',s=>{
+ const anchor='telemetry: inputWithRemoteConfig.config.telemetry ?? options.telemetry,';
+ if(!s.includes(anchor))throw Error('Runtime hooks anchor missing');
+ s=s.replace('import { StateManager }','import { createAnalysisToolHooks } from "./analysis-tool-results.mjs"\nimport { StateManager }');
+ s=s.replace(anchor,anchor+`
+                ...(process.env.CLINE_ANALYSIS_METADATA_PATH && process.env.CLINE_ANALYSIS_WORKSPACE
+                    ? { hooks: createAnalysisToolHooks(process.env.CLINE_ANALYSIS_WORKSPACE,
+                        process.env.CLINE_ANALYSIS_METADATA_PATH, inputWithRemoteConfig.config.hooks) }
+                    : {}),
+`);
+ return s.replace('const toolExecutors: Partial<ToolExecutors> = {}',`const toolExecutors: Partial<ToolExecutors> = {}
         // CLINE_SERVER_POC: the official completion tool verifies real Runtime receipts.
         if (process.env.CLINE_SERVER_REQUIRE_SUBMIT === "1") {
             toolExecutors.submit = async (summary, verified, context) => {
@@ -78,7 +93,8 @@ patch('src/sdk/vscode-session-host.ts',s=>s.replace('const toolExecutors: Partia
                     ...(inputWithRemoteConfig.config.toolRoutingRules ?? []),
                     ...(process.env.CLINE_SERVER_EDIT_TOOL === "apply_patch" ? [{ mode: "act" as const, enableTools: ["apply_patch" as const], disableTools: ["editor" as const] }] : []),
                     ...(process.env.CLINE_SERVER_REQUIRE_SUBMIT === "1" ? [{ mode: "act" as const, enableTools: ["submit_and_exit" as const] }] : []),
-                ],`));
+                ],`);
+});
 // ask_question uses the existing product response path; no new agent or tool executor.
 mkdirSync(join(root,'server-poc-evidence'),{recursive:true});
 writeFileSync(join(root,'server-poc-evidence/host-patches.json'),JSON.stringify(changes,null,2)+'\n');

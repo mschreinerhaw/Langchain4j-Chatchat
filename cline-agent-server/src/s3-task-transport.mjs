@@ -59,6 +59,8 @@ export function validateS3Inputs(contract,inputs,config){
   if(u.searchParams.get('versionId')!==input.objectVersion)throw fail('Immutable input version differs',403);
  }
  if(inputManifestHash(inputs)!==policy.inputManifestSha256)throw fail('Input inventory differs from signed snapshot',403);
+ if(contract.analysisMetadataPath&&!seen.has(contract.analysisMetadataPath))
+  throw fail('Analysis metadata is absent from the immutable input inventory',403);
  return policy;
 }
 export async function prepareS3Inputs(workspace,contract,inputs,config,{signal,uid=10001,fetcher}={}){

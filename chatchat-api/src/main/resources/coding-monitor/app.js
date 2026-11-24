@@ -122,6 +122,7 @@ function receiptRows(value){if(Array.isArray(value))return value;return value&&t
 const reasoningLabels={off:'\u5173\u95ed',auto:'\u81ea\u52a8',none:'\u5173\u95ed',minimal:'\u6781\u7b80',low:'\u4f4e',medium:'\u4e2d',high:'\u9ad8',xhigh:'\u6781\u9ad8',max:'max',no_think:'no_think'};
 const modelTransportErrors={UPSTREAM_TIMEOUT:'上游连接或响应超时',UPSTREAM_DNS_FAILURE:'上游地址解析失败',
  UPSTREAM_TLS_FAILURE:'上游 TLS 握手失败',UPSTREAM_CONNECTION_FAILURE:'上游连接失败',
+ UPSTREAM_RESPONSE_STREAM_INTERRUPTED:'上游响应流中断',
  UPSTREAM_TRANSPORT_FAILURE:'上游传输失败',UPSTREAM_ABORTED:'请求已中止'};
 const reasoningUnknown='\u672a\u8bb0\u5f55';
 function renderModels(value,taskReasoning){
@@ -135,6 +136,12 @@ function renderModels(value,taskReasoning){
   if(state==='FAILED'){
    const detail=modelTransportErrors[row.errorCode]||(typeof row.httpStatus==='number'?`HTTP ${row.httpStatus}`:row.httpStatus===null?'未收到上游 HTTP 响应':'');
    if(detail)status.append(text('small',detail));
+   const timing=row.responseTiming;
+   if(timing && typeof timing.headersMs==='number'){
+    status.append(text('small',`响应头 ${duration(timing.headersMs)}`));
+    if(typeof timing.firstSseDataMs==='number')status.append(text('small',`首个 SSE 数据 ${duration(timing.firstSseDataMs)}`));
+    if(typeof timing.idleAfterLastBodyMs==='number')status.append(text('small',`末次数据后 ${duration(timing.idleAfterLastBodyMs)}`));
+   }
   }
   const effective=row.reasoningEffort==='off' && row.requestedReasoningEffort && row.requestedReasoningEffort!=='off'
    ? '\u81ea\u52a8\u5173\u95ed' : reasoningLabels[row.reasoningEffort]||reasoningUnknown;

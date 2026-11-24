@@ -108,7 +108,9 @@ async function startWorker(s){
  const env={...pythonEnvironment,PATH:process.env.PATH,LANG:'C.UTF-8',HOME:join(s.dir,'home'),CLINE_DIR:join(s.dir,'cline'),CLINE_DATA_DIR:data,
   WORKSPACE_STORAGE_DIR:join(s.dir,'workspace-storage'),INSTALL_DIR:resolve(config.distDir),
   HOST_BRIDGE_ADDRESS:`127.0.0.1:${s.bridge.port}`,PROTOBUS_ADDRESS:`127.0.0.1:${port}`,
-  CLINE_SERVER_EPOCH:s.epoch,CLINE_SERVER_OPERATION_CONTEXT:config.operationContext?'1':'0',CLINE_SERVER_EDIT_TOOL:s.editTool??'editor',CLINE_SERVER_REQUIRE_SUBMIT:config.requireSubmitAndExit?'1':'0',...(config.requireSubmitAndExit?{CLINE_SERVER_BROKER_TOKEN:config.apiKey}:{}),CLINE_SESSION_BACKEND_MODE:'local',DO_NOT_TRACK:'1'};
+  CLINE_SERVER_EPOCH:s.epoch,CLINE_SERVER_OPERATION_CONTEXT:config.operationContext?'1':'0',CLINE_SERVER_EDIT_TOOL:s.editTool??'editor',CLINE_SERVER_REQUIRE_SUBMIT:config.requireSubmitAndExit?'1':'0',...(config.requireSubmitAndExit?{CLINE_SERVER_BROKER_TOKEN:config.apiKey}:{}),
+  ...(config.analysisMetadataPath?{CLINE_ANALYSIS_METADATA_PATH:config.analysisMetadataPath,CLINE_ANALYSIS_WORKSPACE:s.workspace}:{}),
+  CLINE_SESSION_BACKEND_MODE:'local',DO_NOT_TRACK:'1'};
  mkdirSync(env.HOME,{recursive:true,mode:0o700});
  mkdirSync(env.WORKSPACE_STORAGE_DIR,{recursive:true,mode:0o700});
  if(config.coreUid!==undefined){coreTree(join(s.dir,'cline'),true);coreTree(env.HOME,true);coreTree(env.WORKSPACE_STORAGE_DIR,true);}

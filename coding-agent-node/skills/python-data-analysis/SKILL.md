@@ -2,7 +2,7 @@
 name: python-data-analysis
 description: Analyze delivered Python datasets, inspect quality, join sources, compute statistics and business metrics, and deliver reproducible static charts and Runtime OS reports.
 metadata:
-  version: 1.3.5
+  version: 1.3.6
 ---
 
 # Python data analysis in Runtime OS
@@ -14,6 +14,8 @@ Use this capability when the objective requires dataset exploration, calculation
 Read the task's input manifest and schema before interpreting storage columns. Runtime OS supplies immutable authorized files; Skills provide methodology only. Use the delivered paths, mappings, presence markers, exact decimal scales and dataset reference IDs. Do not query another database, install packages or infer authorization from examples. Use the execution capability actually advertised by the task: Native Cline tasks run Python through native Shell in their local workspace; managed tasks may advertise `python_execute` for the existing Sandbox. Public supplementary files may be obtained through an authorized `web_download` tool and its verified local path. This Skill itself grants no tool or network authority.
 
 For native JSONL snapshots start with `data-supply-manifest.json` and the source context. The inventory lists observed field names when available. If the field inventory is incomplete or missing, discover fields in Python. Use the snapshot file as program input. Write a compact quality or execution summary that contains counts and references, then inspect that summary to plan or repair the program. Keep full results and long diagnostic logs in files. See the JSONL example in [data methods](references/data-methods.md).
+
+When analyzing an InnoDB diagnostic, scheduler incident or Java stack trace, use [log-analysis guidance](references/log-analysis.md). Choose parsers and diagnostic sections to fit the available evidence. Keep the complete record available to Python and attach source positions to summaries.
 
 Inspect row counts, field types, units, date coverage, missing versus null values, duplicate keys and outliers. Preserve identifiers such as customer numbers as strings, including leading zeroes. Report absent fields and incomplete coverage; never invent observations, business definitions, joins, profit, loss or dates.
 

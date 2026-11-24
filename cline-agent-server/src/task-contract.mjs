@@ -37,6 +37,8 @@ export function verifyContract(token,key,now=Date.now(),{allowExpired=false}={})
       ||!Array.isArray(c.toolPermissions)||c.toolPermissions.includes('run_commands')))return fail();
   if(c.runtimeTools?.some(t=>t==='workspace_metadata'||t==='workspace_validate')&&!c.studioBudget)return fail();
  }else if(c.runtimeProfile!==undefined||c.deliveryBinding!==undefined||c.runtimeModel!==undefined||c.studioBudget!==undefined)return fail();
+ if(c.analysisMetadataPath!==undefined&&(c.version!==2||!c.s3||c.studioBudget!==undefined
+   ||typeof c.analysisMetadataPath!=='string'||!/^input\/data\/[0-9]{1,2}\/data-supply-manifest\.json$/.test(c.analysisMetadataPath)))return fail();
  if(c.userManagedDeadline!==undefined&&(c.userManagedDeadline!==true||c.version!==2||!c.s3
      ||c.studioBudget!==undefined||c.expiresAt!==USER_MANAGED_DEADLINE))return fail();
  if(!Number.isSafeInteger(c.expiresAt)||hasTaskDeadline(c)&&(!allowExpired&&c.expiresAt<=now||c.expiresAt>now+86400000))return fail();

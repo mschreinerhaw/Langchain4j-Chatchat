@@ -8,7 +8,11 @@ public final class CodingRuntimeContext {
     public static Map<String, Object> validate(Map<String, Object> value) {
         if (value == null || value.isEmpty()) return Map.of();
         CodingProtocol.require(value.keySet().stream().allMatch(Set.of("schemaVersion", "capturedAt",
-            "consistency", "model", "skills", "builtinSkillPolicy", "configuredSkillIds", "inputFiles", "executionProfile", "reasoning", "reportMode", "reportPresentation", "pythonEnvironment", "scriptPurpose", "codingLifecycle", "analysisResultMode", "analysisInstructions", "codeProject", "knowledgeExploration", "internetSearch", "internetAvailability", "documentSearch", "publishedTemplate")::contains), "Unknown Coding context field");
+            "consistency", "model", "skills", "builtinSkillPolicy", "configuredSkillIds", "inputFiles", "executionProfile", "reasoning", "reportMode", "reportPresentation", "pythonEnvironment", "scriptPurpose", "codingLifecycle", "analysisResultMode", "analysisInstructions", "codeProject", "knowledgeExploration", "internetSearch", "internetAvailability", "documentSearch", "publishedTemplate", "analysisMetadataPath")::contains), "Unknown Coding context field");
+        if(value.containsKey("analysisMetadataPath")){
+            CodingProtocol.require(value.get("analysisMetadataPath") instanceof String path
+                &&path.matches("input/data/[0-9]{1,2}/data-supply-manifest\\.json"),"Invalid analysis metadata path");
+        }
         if(value.containsKey("documentSearch")){
             CodingProtocol.require(value.get("documentSearch") instanceof Map<?,?>,"Document capability required");
             var p=(Map<?,?>)value.get("documentSearch");

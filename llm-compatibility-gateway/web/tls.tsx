@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { Alert, Button, Card, Descriptions, Form, Input, InputNumber, Modal, Radio, Space, Tag, Typography } from 'antd';
 
 export type TlsStatus = {
-  enabled: boolean; listener: number; publicPort: number; adminPort: number; apiBaseUrl?: string;
+  enabled: boolean; listener: number; publicPort: number; adminPort: number; apiBaseUrl?: string; httpPublicPort?: number;
   certificate?: { names: string[]; fingerprint: string; validFrom: string; validTo: string;
     daysLeft: number; warning: boolean; expired: boolean; hasCa: boolean; selfSigned?: boolean };
   clients: { id: string; profile: string; models: string[] }[];

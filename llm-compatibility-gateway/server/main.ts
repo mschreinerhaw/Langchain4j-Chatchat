@@ -27,6 +27,8 @@ const certificates = process.env.GATEWAY_HTTP_ONLY === 'true' ? undefined
   : new CertificateStore(process.env.TLS_DATA_DIR ?? '/app/certs', settingsValue.key);
 const readPort = (key: string, fallback: number) => z.coerce.number().int().min(1).max(65535).parse(process.env[key] || fallback);
 const httpPort = readPort('HTTP_TEST_PORT', 18080);
+const httpEnabled = !certificates || process.env.ENABLE_HTTP_TEST === 'true';
+const httpPublicPort = httpEnabled ? readPort('HTTP_PUBLIC_PORT', httpPort) : undefined;
 const apiPort = certificates ? readPort('HTTPS_PORT', 8443) : httpPort;
 const adminPort = readPort('ADMIN_PORT', 18081);
 const apiPublicPort = readPort(certificates ? 'HTTPS_PUBLIC_PORT' : 'HTTP_PUBLIC_PORT', apiPort);
@@ -81,12 +83,15 @@ api.addHook('onRequest', async (req, reply) => {
   reply.header('www-authenticate', 'Bearer');
   throw new GatewayError(401, 'invalid_api_key', '网关 API Key 无效');
 });
-const identities = new WeakMap<FastifyRequest, (typeof settingsValue.clients)[number]>();
-function visible(config: Config, req: FastifyRequest) {
-  const client = identities.get(req)!;
+type Client = (typeof settingsValue.clients)[number];
+const identities = new WeakMap<FastifyRequest, Client>();
+function availableModels(config: Config, client: Client) {
   const services = new Set(config.services.filter(service => service.enabled).map(service => service.id));
   return config.models.filter(model => model.enabled && services.has(model.service)
     && (client.models.includes('*') || client.models.includes(model.alias)));
+}
+function visible(config: Config, req: FastifyRequest) {
+  return availableModels(config, identities.get(req)!);
 }
 const modelInfo = (id: string) => ({ id, object: 'model', created: 0, owned_by: 'internal' });
 api.get('/health', async () => ({ status: 'ok', version }));
@@ -217,8 +222,21 @@ const tlsStore = () => {
   return certificates;
 };
 admin.get('/admin/tls', async () => ({ enabled: Boolean(certificates), listener: apiPort,
-  publicPort: certificates?.publicPort ?? apiPublicPort, adminPort, apiBaseUrl: gatewayUrl(), certificate: certificates?.status(),
+  publicPort: certificates?.publicPort ?? apiPublicPort, adminPort, apiBaseUrl: gatewayUrl(), httpPublicPort, certificate: certificates?.status(),
   clients: settingsValue.clients.map(({ id, profile, models }) => ({ id, profile, models })), profiles: profileNames }));
+admin.post('/admin/integration/key', async req => {
+  if (!(req.raw.socket instanceof TLSSocket)) {
+    throw new GatewayError(403, 'https_required', '请通过 HTTPS 管理台查看网关 API Key');
+  }
+  const { clientId, alias } = z.object({
+    clientId: z.string().max(240), alias: z.string().max(240),
+  }).parse(req.body);
+  const client = settingsValue.clients.find(item => item.id === clientId);
+  if (!client || !availableModels(store.snapshot.config, client).some(model => model.alias === alias)) {
+    throw new GatewayError(404, 'client_model_not_found', '客户端或已授权的模型不存在');
+  }
+  return { apiKey: client.key };
+});
 admin.get('/admin/tls/ca', async (_req, reply) => {
   const ca = tlsStore().ca;
   if (!ca) throw new GatewayError(404, 'ca_not_configured', '未配置私有 CA');
@@ -374,7 +392,7 @@ admin.post('/admin/check', async (req, reply) => {
 await admin.register(staticFiles, { root: fileURLToPath(new URL('../web/', import.meta.url)), index: 'index.html', cacheControl: false });
 await api.listen({ host: '0.0.0.0', port: apiPort });
 await admin.listen({ host: '0.0.0.0', port: adminPort });
-if (certificates && process.env.ENABLE_HTTP_TEST === 'true') {
+if (certificates && httpEnabled) {
   const testServer = createHttp((request, response) => api.routing(request, response));
   testServer.requestTimeout = options.requestTimeout;
   await new Promise<void>((resolve, reject) => {

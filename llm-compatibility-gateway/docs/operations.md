@@ -26,6 +26,7 @@ SQLite 的 `user_version` 驱动初始化和迁移。每次发布在事务中写
 | POST `/admin/logout` | 清除会话 |
 | GET / PUT `/admin/config` | 获取当前 `{version,config,allowedOrigins}`；提交 `{version,config}` |
 | POST `/admin/validate` | `{version,config}`，验证草稿 |
+| POST `/admin/integration/key` | 管理员通过 HTTPS 提交 `{clientId,alias}` 查看绑定的网关 API Key |
 | GET `/admin/history` | 最近审计版本 |
 | GET `/admin/history/{version}` | 指定版本的脱敏配置 |
 | GET `/admin/backup` | 下载无密钥配置 JSON |

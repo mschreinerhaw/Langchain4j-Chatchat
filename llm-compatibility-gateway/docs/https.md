@@ -66,4 +66,6 @@ Profile 标识为 `generic`、`cline`、`langchain4j`、`python` 和 `node`。�
 - **OpenAI Node.js SDK** 在启动进程前设置 `NODE_EXTRA_CA_CERTS`，用 `baseURL`、`apiKey` 连接网关。
 - **curl** 使用 `--cacert gateway-ca.crt` 和 `Authorization: Bearer $GATEWAY_API_KEY`。
 
-标准 JSON 和 SSE 接口路径为 `/v1/chat/completions`。可用 `/v1/models` 验证当前 Key 可见的已发布模型。人机入口和接入配置导出的 Key 都使用占位符。
+标准 JSON 和 SSE 接口路径为 `/v1/chat/completions`。可用 `/v1/models` 验证当前 Key 可见的已发布模型。
+
+在「接入配置」页面可选择已启用的 HTTP 或 HTTPS 入口并复制对应 Base URL、模型 ID 和示例。通过 HTTPS 登录管理台后，点击「查看 Key」可显示并复制所选模型和客户端关联的网关 Key。SDK 和 curl 示例通过 `GATEWAY_API_KEY` 环境变量引用凭据。

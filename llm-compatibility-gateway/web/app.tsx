@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { createRoot } from 'react-dom/client';
 import { Alert, Button, Card, Checkbox, Col, ConfigProvider, Descriptions, Form, Input, InputNumber, Layout,
-  Menu, Modal, Row, Select, Space, Statistic, Table, Tabs, Tag, Typography, message, theme } from 'antd';
+  Menu, Modal, Radio, Row, Select, Space, Statistic, Table, Tabs, Tag, Typography, message, theme } from 'antd';
 import 'antd/dist/reset.css';
 import './style.css';
 import type { Config, Model, Service } from '../server/config.js';
@@ -224,7 +224,7 @@ function App() {
   } else if (page === 'tls') {
     content = <Certificates status={tls} refresh={refreshTls} api={api} />;
   } else if (page === 'integration') {
-    content = <Integration key={tls?.apiBaseUrl} config={config} apiBaseUrl={tls?.apiBaseUrl ?? baseUrl()} trustFile={trustFile} />;
+    content = <Integration key={json([tls?.apiBaseUrl, tls?.httpPublicPort])} config={config} tls={tls} trustFile={trustFile} />;
   } else {
     content = <History key={version} revision={revision} attempt={attempt} restored={async () => { await load(); void toast.success('配置已恢复'); }} />;
   }
@@ -570,28 +570,95 @@ function Metrics({ rows }: { rows?: Record<string, unknown>[] }) {
   ]} expandable={{ expandedRowRender: row => <Code value={json(row)} /> }} />;
 }
 function baseUrl() { return window.location.protocol + '//' + window.location.hostname + ':18080/v1'; }
-function Integration({ config, apiBaseUrl, trustFile }: { config: Config; apiBaseUrl: string; trustFile?: string }) {
-  const [alias, setAlias] = useState(config.models[0]?.alias ?? '');
-  const [url, setUrl] = useState(apiBaseUrl);
-  return <Card><Space wrap><ModelSelect config={config} value={alias} change={setAlias} />
-    <Input aria-label="客户端 Base URL" value={url} onChange={event => setUrl(event.target.value)} style={{ width: 300 }} />
-    {trustFile && <Button href="/admin/tls/ca">下载客户端信任证书</Button>}
-  </Space><Tabs className="after" items={[
-    { key: 'config', label: 'OpenAI Compatible / Cline / Runtime OS',
+function Integration({ config, tls, trustFile }: { config: Config; tls?: TlsStatus; trustFile?: string }) {
+  const services = new Set(config.services.filter(service => service.enabled).map(service => service.id));
+  const models = config.models.filter(model => model.enabled && services.has(model.service));
+  const [chosenModel, setChosenModel] = useState(models[0]?.alias ?? '');
+  const [chosenClient, setChosenClient] = useState('');
+  const [protocol, setProtocol] = useState<'http' | 'https'>(tls?.apiBaseUrl ? 'https' : 'http');
+  const [draftUrls, setDraftUrls] = useState<Partial<Record<'http' | 'https', string>>>({});
+  const [key, setKey] = useState<string>();
+  const [loading, setLoading] = useState(false);
+  const [keyError, setKeyError] = useState('');
+  const generation = useRef(0);
+  const alias = models.some(model => model.alias === chosenModel) ? chosenModel : models[0]?.alias ?? '';
+  const clients = alias ? tls?.clients.filter(client => client.models.includes('*') || client.models.includes(alias)) ?? [] : [];
+  const clientId = clients.find(client => client.id === chosenClient)?.id ?? clients[0]?.id;
+  const httpHost = tls?.apiBaseUrl ? new URL(tls.apiBaseUrl).hostname : window.location.hostname;
+  const httpUrl = tls?.httpPublicPort ? 'http://' + httpHost + (tls.httpPublicPort === 80 ? '' : ':' + tls.httpPublicPort) + '/v1' : '';
+  const url = draftUrls[protocol] ?? (protocol === 'https' ? tls?.apiBaseUrl ?? '' : httpUrl);
+  const currentTrustFile = protocol === 'https' ? trustFile : undefined;
+  const canReveal = window.location.protocol === 'https:';
+  const hideKey = () => {
+    generation.current++;
+    setKey(undefined);
+    setKeyError('');
+    setLoading(false);
+  };
+  const showKey = async () => {
+    if (!clientId || !canReveal) return;
+    const request = ++generation.current;
+    setLoading(true);
+    setKeyError('');
+    try {
+      const result = await api<{ apiKey: string }>('integration/key', 'POST', { clientId, alias });
+      if (generation.current === request) setKey(result.apiKey);
+    } catch (error) {
+      if (generation.current === request) setKeyError((error as Error).message);
+    } finally {
+      if (generation.current === request) setLoading(false);
+    }
+  };
+  const copyExample = (value: string) => <div className="integration-example">
+    <Typography.Text copyable={{ text: value, tooltips: ['复制示例', '已复制'] }}>复制示例</Typography.Text>
+    <Code value={value} />
+  </div>;
+  return <Card><Form layout="vertical">
+    <Row gutter={[16, 0]}>
+      <Col xs={24} lg={6}><Form.Item label="接入协议">
+        <Radio.Group aria-label="接入协议" value={protocol} onChange={event => { hideKey(); setProtocol(event.target.value); }}>
+          <Radio.Button value="http" disabled={!httpUrl}>HTTP</Radio.Button>
+          <Radio.Button value="https" disabled={!tls?.apiBaseUrl}>HTTPS</Radio.Button>
+        </Radio.Group>
+      </Form.Item></Col>
+      <Col xs={24} lg={7}><Form.Item label="模型">
+        <ModelSelect config={{ ...config, models }} value={alias} change={value => { hideKey(); setChosenModel(value); }} />
+      </Form.Item></Col>
+      <Col xs={24} lg={11}><Form.Item label="Base URL">
+        <Input aria-label="客户端 Base URL" value={url} onChange={event => {
+          hideKey(); setDraftUrls({ ...draftUrls, [protocol]: event.target.value });
+        }} />
+      </Form.Item></Col>
+    </Row>
+    {currentTrustFile && <Button href="/admin/tls/ca">下载客户端信任证书</Button>}
+  </Form><Tabs className="after" onChange={hideKey} items={[
+    { key: 'config', label: 'OpenAI Compatible / Runtime OS',
       children: <Descriptions column={1} bordered items={[
-        { key: 'p', label: 'Provider', children: 'OpenAI Compatible' }, { key: 'b', label: 'Base URL', children: url },
-        { key: 'm', label: 'Model ID', children: alias }, { key: 'k', label: 'API Key', children: '<GATEWAY_API_KEY>' },
+        { key: 'p', label: 'Provider', children: 'OpenAI Compatible' },
+        { key: 'b', label: 'Base URL', children: url && <Typography.Text className="integration-value" copyable={{ text: url }}>{url}</Typography.Text> },
+        { key: 'm', label: 'Model ID', children: alias && <Typography.Text copyable={{ text: alias }}>{alias}</Typography.Text> },
+        ...(clients.length > 1 ? [{ key: 'client', label: '客户端', children: <Select aria-label="网关客户端"
+          value={clientId} options={clients.map(client => ({ value: client.id }))} onChange={value => { hideKey(); setChosenClient(value); }} /> }] : []),
+        { key: 'k', label: 'GATEWAY_API_KEY', children: <Space wrap>
+          <Typography.Text className="integration-value" code={Boolean(key)}
+            copyable={key ? { text: key, tooltips: ['复制 Key', '已复制'] } : false}>{key ?? '••••••••••••••••'}</Typography.Text>
+          {key ? <Button size="small" onClick={hideKey}>隐藏 Key</Button>
+            : <Button size="small" loading={loading} disabled={!clientId || !canReveal} onClick={() => void showKey()}>查看 Key</Button>}
+          {!canReveal && <Typography.Text type="secondary">请通过 HTTPS 管理台查看</Typography.Text>}
+          {canReveal && !clientId && <Typography.Text type="secondary">所选模型暂无授权客户端</Typography.Text>}
+          {keyError && <Typography.Text type="danger" role="alert">{keyError}</Typography.Text>}
+        </Space> },
       ]} /> },
-    { key: 'java', label: 'LangChain4j / JVM', children: <Code value={'// dev.langchain4j:langchain4j-open-ai:1.20.0\nvar model = OpenAiChatModel.builder()\n  .baseUrl('
+    { key: 'java', label: 'LangChain4j / JVM', children: copyExample('// dev.langchain4j:langchain4j-open-ai:1.20.0\nvar model = OpenAiChatModel.builder()\n  .baseUrl('
       + json(url) + ')\n  .modelName(' + json(alias) + ')\n  .apiKey(System.getenv("GATEWAY_API_KEY"))\n  .build();'
-      + (trustFile ? '\n\n# 导入信任证书\nsh import-java-ca.sh ' + trustFile + ' gateway-trust.p12\njava -Djavax.net.ssl.trustStore=gateway-trust.p12 -Djavax.net.ssl.trustStoreType=PKCS12 ...' : '')} /> },
-    { key: 'py', label: 'Python SDK', children: <Code value={(trustFile ? '# export SSL_CERT_FILE=/path/to/' + trustFile + '\n' : '') + 'import os\nfrom openai import OpenAI\n\nclient = OpenAI(base_url=' + json(url) +
-      ', api_key=os.environ["GATEWAY_API_KEY"])\nprint(client.chat.completions.create(model=' + json(alias) + ', messages=[{"role":"user","content":"Hello"}]))'} /> },
-    { key: 'node', label: 'Node.js SDK', children: <Code value={(trustFile ? '// 启动前设置 NODE_EXTRA_CA_CERTS=/path/to/' + trustFile + '\n' : '') + 'import OpenAI from "openai";\n\nconst client = new OpenAI({ baseURL: ' + json(url) +
-      ', apiKey: process.env.GATEWAY_API_KEY });\nconsole.log(await client.chat.completions.create(' + json(sample(alias)) + '));'} /> },
-    { key: 'curl', label: 'curl', children: <Code value={'curl -N ' + (trustFile ? '--cacert ' + trustFile + ' ' : '') + "'" + (url.replace(/\/$/, '') + '/chat/completions').replace(/'/g, "'\"'\"'") + "'"
+      + (currentTrustFile ? '\n\n# 导入信任证书\nsh import-java-ca.sh ' + currentTrustFile + ' gateway-trust.p12\njava -Djavax.net.ssl.trustStore=gateway-trust.p12 -Djavax.net.ssl.trustStoreType=PKCS12 ...' : '')) },
+    { key: 'py', label: 'Python SDK', children: copyExample((currentTrustFile ? '# export SSL_CERT_FILE=/path/to/' + currentTrustFile + '\n' : '') + 'import os\nfrom openai import OpenAI\n\nclient = OpenAI(base_url=' + json(url) +
+      ', api_key=os.environ["GATEWAY_API_KEY"])\nprint(client.chat.completions.create(model=' + json(alias) + ', messages=[{"role":"user","content":"Hello"}]))') },
+    { key: 'node', label: 'Node.js SDK', children: copyExample((currentTrustFile ? '// 启动前设置 NODE_EXTRA_CA_CERTS=/path/to/' + currentTrustFile + '\n' : '') + 'import OpenAI from "openai";\n\nconst client = new OpenAI({ baseURL: ' + json(url) +
+      ', apiKey: process.env.GATEWAY_API_KEY });\nconsole.log(await client.chat.completions.create(' + json(sample(alias)) + '));') },
+    { key: 'curl', label: 'curl', children: copyExample('curl -N ' + (currentTrustFile ? '--cacert ' + currentTrustFile + ' ' : '') + "'" + (url.replace(/\/$/, '') + '/chat/completions').replace(/'/g, "'\"'\"'") + "'"
       + ' -H "Authorization: Bearer $GATEWAY_API_KEY" -H "Content-Type: application/json" --data-binary @request.json\n\n# request.json\n'
-      + json(sample(alias))} /> },
+      + json(sample(alias))) },
   ]} /></Card>;
 }
 function History({ revision, attempt, restored }: { revision: Revision; attempt: (fn: () => Promise<void>) => Promise<void>; restored: () => Promise<void> }) {

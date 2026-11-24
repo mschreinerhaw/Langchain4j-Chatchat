@@ -82,6 +82,8 @@ test('HTTPS gateway contract', async t => {
     assert.equal(status.enabled, true);
     assert.equal(status.listener, 8445);
     assert.equal(status.apiBaseUrl, 'https://localhost:8443/v1');
+    assert.equal(status.httpPublicPort, process.env.TEST_HTTP_PORT ? Number(process.env.TEST_HTTP_PORT) : undefined);
+    assert.ok(status.clients.every(client => !Object.hasOwn(client, 'key')));
     assert.equal((await manage('tls/ca')).raw, ca.toString());
   });
   await t.test('HTTPS to HTTP and HTTPS, verified upstream CA, models and scoped client profiles', async () => {
@@ -89,6 +91,14 @@ test('HTTPS gateway contract', async t => {
     const publish = await manage('config', 'PUT', { version, config });
     assert.equal(publish.status, 200, publish.raw);
     version = publish.json().version;
+    const keyRequest = { clientId: 'java', alias: 'sdk-model' };
+    const unauthenticated = await call(admin, '/admin/integration/key', { method: 'POST', body: keyRequest });
+    assert.equal(unauthenticated.status, 401);
+    const key = await manage('integration/key', 'POST', keyRequest);
+    assert.equal(key.status, 200);
+    assert.equal(key.headers['cache-control'], 'no-store');
+    assert.ok(key.json().apiKey === 'fixture-java-model-credential');
+    assert.equal((await manage('integration/key', 'POST', { ...keyRequest, alias: 'secure-model' })).status, 404);
     const list = await call(api, '/v1/models', { headers: credentials });
     assert.ok(list.json().data.some(model => model.id === 'sdk-model'));
     const normal = await chat('sdk-model', { max_completion_tokens: 17 });

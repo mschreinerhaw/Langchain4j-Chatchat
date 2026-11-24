@@ -63,5 +63,28 @@ test('native tool hook preserves correlation and compact diagnostics and archive
  }
  assert.equal(await hooks.afterTool(call('runtime__web_search',{}, {output:'small receipt'})),undefined);
  assert.equal(await hooks.afterTool(call('skills',{}, {output:'on demand guidance'})),undefined);
- assert.equal(await hooks.afterTool(call('read_files',{}, {output:'source code'})),undefined);
+ assert.equal(await hooks.afterTool(call('read_files','analyze.py', {output:'source code'})),undefined);
+});
+
+test('hook failures and results from other large tools never forward the raw payload',async t=>{
+ const {root,hooks}=await fixture(t);
+ const raw='RAW_DATA_SENTINEL'.repeat(400);
+ const broken=createAnalysisToolHooks(root,manifest,{
+  beforeTool(){throw new Error('private before detail');},
+  afterTool(){throw new Error('private after detail');},
+ });
+ assert.match((await broken.beforeTool(call('read_file',manifest))).reason,/ANALYSIS_TOOL_POLICY_CHECK_FAILED/);
+ const result=(await broken.afterTool(call('python_execute',{}, {output:raw}))).result;
+ assert.equal(result.output.code,'ANALYSIS_TOOL_POLICY_FAILED');
+ assert.equal(result.output.omitted,true);
+ assert.doesNotMatch(JSON.stringify(result),/RAW_DATA_SENTINEL|private after detail/);
+ assert.equal(JSON.parse(await readFile(join(root,result.output.evidence.path),'utf8')),raw);
+ const recovered=createAnalysisToolHooks(root,manifest);
+ const stored=(await recovered.afterTool(call('some_other_tool',{}, {output:raw}))).result.output.evidence;
+ assert.deepEqual(stored,result.output.evidence);
+ await rm(join(root,'.runtime-tool-results'),{recursive:true,force:true});
+ await writeFile(join(root,'.runtime-tool-results'),'not a directory');
+ const failed=(await hooks.afterTool(call('run_commands',{}, {output:raw}))).result;
+ assert.equal(failed.output.code,'ANALYSIS_TOOL_EVIDENCE_WRITE_FAILED');
+ assert.doesNotMatch(JSON.stringify(failed),/RAW_DATA_SENTINEL/);
 });

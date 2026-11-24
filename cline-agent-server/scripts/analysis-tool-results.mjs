@@ -9,6 +9,9 @@ const SUMMARY_BYTES = 4096;
 const MAX_ARCHIVE_BYTES = 32 * 1024 * 1024;
 const MAX_ARCHIVE_FILES = 512;
 const METADATA_PATH = /^input\/data\/[0-9]+\/data-supply-manifest\.json$/;
+const READ_TOOLS = new Set(['read_file','read_files']);
+const NATIVE_CODE_TOOLS = new Set(['editor','apply_patch','skills']);
+const COMMAND_TOOLS = new Set(['run_commands','execute_command','python_execute','execute_python']);
 const isWithin = (root, path) => {
  const rel = relative(root,path);
  return rel === '' || (rel !== '..' && !rel.startsWith('..'+sep) && !isAbsolute(rel));
@@ -106,29 +109,51 @@ export function createAnalysisToolHooks(workspace, metadataPath, prior = {}) {
  return {
   ...prior,
   async beforeTool(context) {
-   const previous = await prior.beforeTool?.(context);
-   if (previous?.skip || previous?.stop || context.toolCall.toolName!=='read_files') return previous;
-   const paths=readPaths(previous?.input??context.input);
-   if (paths.length && (await Promise.all(paths.map(permits))).every(Boolean)) return previous;
-   return {...previous,skip:true,reason:'Read approved inventory or compact output summaries separately. Use Python over complete input files or evidence references; report counts, source identifiers, and record or line positions.'};
+   try {
+    const previous = await prior.beforeTool?.(context);
+    if (previous?.skip || previous?.stop || !READ_TOOLS.has(context.toolCall.toolName)) return previous;
+    const paths=readPaths(previous?.input??context.input);
+    if (paths.length && (await Promise.all(paths.map(permits))).every(Boolean)) return previous;
+    return {...previous,skip:true,reason:'Read approved inventory or compact output summaries separately. Use Python over complete input files or evidence references; report counts, source identifiers, and record or line positions.'};
+   } catch {
+    return {skip:true,reason:'ANALYSIS_TOOL_POLICY_CHECK_FAILED: inspect the workspace or retry with a verified source path.'};
+   }
   },
   async afterTool(context) {
-   const previous=await prior.afterTool?.(context);
-   const result=previous?.result??context.result;
    const name=context.toolCall.toolName;
-   const command=name==='run_commands', search=name==='search_codebase';
-   if (!command && !search && !/^(runtime|tenant_data)__/.test(name)) return previous;
-   const bytes=Buffer.from(JSON.stringify(result.output??null));
-   if (!command && !search && bytes.length<=SUMMARY_BYTES) return previous;
+   const command=COMMAND_TOOLS.has(name), search=name==='search_codebase';
+   let previous, result=context.result, bytes, policyError=null;
+   try {
+    previous=await prior.afterTool?.(context);
+    result=previous?.result??context.result;
+    if (NATIVE_CODE_TOOLS.has(name)) return previous;
+    if (READ_TOOLS.has(name)) {
+     const paths=readPaths(context.input);
+     if (paths.length && (await Promise.all(paths.map(permits))).every(Boolean)) return previous;
+     policyError='ANALYSIS_TOOL_READ_NOT_ADMITTED';
+    }
+    const visible=Buffer.from(JSON.stringify(result.output??null));
+    bytes=result===context.result?visible:Buffer.from(JSON.stringify(context.result.output??null));
+    if (!policyError && !command && !search && Math.max(bytes.length,visible.length)<=SUMMARY_BYTES) return previous;
+   } catch {
+    policyError='ANALYSIS_TOOL_POLICY_FAILED';
+    try { bytes=Buffer.from(JSON.stringify(context.result.output??null)); }
+    catch { return {result:{isError:true,output:{schemaVersion:'runtime.analysis.tool-receipt.v1',
+     outcome:'ERROR',modelView:'REFERENCE_ONLY',omitted:true,code:'ANALYSIS_TOOL_RESULT_NOT_SERIALIZABLE',
+     evidence:{status:'UNAVAILABLE'},guidance:'Use the original input and Runtime execution evidence to recover.'}}}; }
+   }
    const sha256=createHash('sha256').update(bytes).digest('hex');
    let path, status;
    try { path=await archive(bytes,sha256); status=path?'AVAILABLE':'RESOURCE_LIMIT'; }
    catch { status='WRITE_FAILED'; }
-   return {...previous,result:{...result,output:{
+   const code=policyError??(status!=='AVAILABLE'?'ANALYSIS_TOOL_EVIDENCE_'+status:null);
+   return {...previous,result:{...result,...(code?{isError:true}:{}),output:{
     schemaVersion:'runtime.analysis.tool-receipt.v1', tool:name,
-    outcome:result.isError?'ERROR':'RETURNED', modelView:'REFERENCE_ONLY',
-    evidence:{status,path:path??null,sha256,bytes:bytes.length,scope:'NATIVE_TOOL_RESULT'},
-    ...(command?{diagnostics:diagnostics(result.output),processStreams:'See separately recorded Runtime command evidence; native output may already be bounded.'}:{}),
+    outcome:code||result.isError?'ERROR':'RETURNED', modelView:'REFERENCE_ONLY', omitted:true,
+    ...(code?{code}:{}),
+    evidence:{status,path:path??null,sha256,bytes:bytes.length,scope:'NATIVE_TOOL_RESULT',
+     originalSourceCompleteness:'NOT_ASSERTED'},
+    ...(command?{diagnostics:diagnostics(context.result.output),processStreams:'See separately recorded Runtime command evidence; native output may already be bounded.'}:{}),
     guidance:'Use Python to inspect evidence and complete inputs. Write selected metrics or diagnostic locations to output/analysis_summary.json (up to 4096 bytes); keep details in artifacts.',
    }}};
   },

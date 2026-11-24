@@ -1,10 +1,25 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {createHash} from 'node:crypto';
-import {signContract} from '../src/task-contract.mjs';
+import {authorizeSession,contractHash,signContract} from '../src/task-contract.mjs';
 import {verifyIssuedContract} from '../src/task-issuer.mjs';
 import {storageGrant} from '../src/s3-task-transport.mjs';
 const grant={version:1,tenantId:'alpha',userId:'alice',sessionId:'session',taskId:'task',workspaceRef:'project',modelProfile:'model',toolPermissions:['read_files'],dataPermissions:[],networkPolicy:'broker-only',budgetPolicy:{status:'DEFERRED_STAGE_2_REVIEW'},expiresAt:Date.now()+3600000};
+test('analysis admission survives persisted binding and rejects session or profile substitution',()=>{
+ const key='a'.repeat(64),config={signingKey:'r'.repeat(64),issuerKeys:{alpha:key}};
+ const schema={...grant,version:2,runtimeProfile:'native-python-silo-v1',
+  deliveryBinding:{tenantId:'alpha',taskId:'task',runId:'run',inputSnapshotVersion:'v1'},s3:{}};
+ const analysisMetadataPath='input/data/1/data-supply-manifest.json';
+ const admitted=verifyIssuedContract(signContract({...schema,analysisMetadataPath},key),config);
+ const binding=JSON.parse(JSON.stringify({contract:admitted,contractHash:contractHash(admitted)}));
+ assert.equal(authorizeSession(admitted,binding).contract.analysisMetadataPath,analysisMetadataPath);
+ assert.throws(()=>authorizeSession({...admitted,sessionId:'another'},binding),{status:404});
+ assert.throws(()=>authorizeSession(schema,binding),{status:409});
+ assert.throws(()=>authorizeSession({...admitted,analysisMetadataPath:'input/data/2/data-supply-manifest.json'},binding),{status:409});
+ assert.throws(()=>authorizeSession(admitted,{...binding,revoked:true}),{status:403});
+ assert.equal(verifyIssuedContract(signContract(schema,key),config).analysisMetadataPath,undefined);
+ assert.throws(()=>verifyIssuedContract(signContract({...grant,analysisMetadataPath},key),config),{status:401});
+});
 test('Native task document search is explicit and does not grant arbitrary MCP tools',()=>{
  const config={signingKey:'r'.repeat(64),issuerKeys:{alpha:'a'.repeat(64)}};
  const c={...grant,version:2,runtimeProfile:'native-python-silo-v1',deliveryBinding:{tenantId:'alpha',taskId:'task',runId:'run',inputSnapshotVersion:'v1'},runtimeTools:['document_search']};

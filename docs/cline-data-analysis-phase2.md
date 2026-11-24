@@ -34,3 +34,26 @@ Broker 回执分别记录响应头、首末响应体、首末 SSE JSON 数据、
 - Python 示例执行了 1 万、10 万、100 万和 1,000 万行的 JSONL 逐行扫描，识别末行字段。独立用例覆盖空文件、错误 JSONL、行数不符及超过 10 万字符的首中尾日志证据。
 - 固定 Cline 上游归档通过补丁锚点及源文件指纹校验，修改后的 Host 与 Hook 通过局部 esbuild 打包。原生整包构建、实际隔离节点运行和真实业务冷／热缓存复测仍待完成。当前 851,021 输入、723,072 缓存读和 20,702 输出是改造前数据。改造后供应商 Token、费用及完成率还需实测，再判断 70% 目标。
 - Parquet、Excel、CSV 和多表业务继续使用已有格式约定，真人业务交付、跨模型及失败恢复验收仍需在隔离节点验证。现有生产版本保持原部署。发布需把 Java、Broker、Executor 和 Worker 按同一版本验收。若需回滚，按版本整体切回基线镜像，保留 Silo 数据和未终结任务的原契约。
+
+## 原生模型请求、异常路径与格式回归
+
+追加回归固定上游 `agent-runtime.ts` 的 SHA-256，并实际运行该版本的 AgentRuntime 和原生消息格式化器。测试提供脚本化模型适配器，通过 HTTP 将序列化消息送至本机回环端点。该端点用于观察实际请求体，工具结果使用合成 fixture。分析任务与普通编码任务并发运行。分析任务在首次工具结果请求中保留调用 ID、代码修复回执与证据引用，普通任务保留同一批工具原始回执。恢复原生内存状态后，后续 HTTP 请求继续携带已保存的引用；调用原生 abort 后，已经落盘的证据通过校验。
+
+| 合成 fixture 请求 | HTTP 请求体字节 |
+|---|---:|
+| 分析策略 | 5,166 |
+| 普通编码策略 | 384,209 |
+
+两者用于验证传输边界，区别于 LiveData 供应商 Token、实际账单或生产部署验收。测试脚本依赖固定的上游源码和测试用 esbuild、jsonrepair、zod、nanoid，可在仓库根目录复现。
+
+```powershell
+npm.cmd install --prefix target/cline-phase2-upstream --no-save --no-package-lock --ignore-scripts esbuild@0.25.9 jsonrepair@3.13.1 zod@3.25.76 nanoid@5.1.6
+$env:CLINE_TEST_UPSTREAM = (Get-ChildItem target/cline-phase2-upstream -Directory | Where-Object Name -eq 'cline-8075d2e35cf5cad67c24f180c80a05d311b74a3e')[0].FullName
+node --test cline-agent-server/test/analysis-native-model-request.test.mjs cline-agent-server/test/analysis-tool-results.test.mjs cline-agent-server/test/task-issuer.test.mjs
+$env:CLINE_TEST_ANALYSIS_ROWS = '10000,100000,1000000,10000000'
+python cline-agent-server/test/test_analysis_skill_examples.py -v
+```
+
+签名授权测试覆盖冻结策略重载、撤销、跨 Session 和替换治理策略。工具异常测试验证原有 Hook 抛错时输出结构化错误并保存可序列化原结果；存储不可用时回执明确证据失败，既有原始输入和命令证据继续可用于恢复。工作区随容器退出的长期证据交付和完整服务重启验收仍交给隔离节点回归。
+
+Python 确定性计算覆盖 CSV、JSONL、Parquet、Excel 两个规模的数据，核对谓词过滤、合计、最大值与末行关键记录。JSONL 另跑到 1,000 万行，长文本检查覆盖首中尾。正式发布仍需等待完整普通编码执行器回归、生产等价重启恢复和使用原 LiveData 快照与同模型的冷热缓存实测。当前工作站 Docker daemon 不可用，模型回环测试和 Python 库测试在工作站完成。

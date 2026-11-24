@@ -1,3 +1,6 @@
+import csv
+import importlib.util
+import json
 import os
 from pathlib import Path
 import re
@@ -55,6 +58,68 @@ class AnalysisSkillExamplesTest(unittest.TestCase):
         self.assertEqual([text[event["characterStart"]:event["characterEnd"]] for event in locations],
                          ["ERROR start", "ERROR middle", "ERROR end"])
         self.assertEqual({event["source"] for event in locations}, {"snapshot:demo"})
+
+    @unittest.skipUnless(importlib.util.find_spec("pyarrow") and importlib.util.find_spec("openpyxl"),
+                         "Optional Sandbox format libraries are required")
+    def test_full_calculation_across_sandbox_formats(self):
+        from openpyxl import Workbook, load_workbook
+        import pyarrow as pa
+        import pyarrow.parquet as pq
+
+        sizes = (100, 10_000)
+        for size in sizes:
+            with self.subTest(size=size), TemporaryDirectory() as directory:
+                root = Path(directory)
+                last = 1_000_000
+                expected = (size, size * (size - 1) // 2 + last, last)
+
+                def values():
+                    yield from range(size)
+                    yield last
+
+                def calculate(records):
+                    count = total = largest = 0
+                    for value in records:
+                        if value > 0:
+                            count += 1
+                            total += value
+                            largest = max(largest, value)
+                    return count, total, largest
+
+                with (root / "source.csv").open("w", newline="", encoding="utf-8") as stream:
+                    writer = csv.writer(stream)
+                    writer.writerow(["amount"])
+                    writer.writerows((value,) for value in values())
+                with (root / "source.csv").open(newline="", encoding="utf-8") as stream:
+                    self.assertEqual(calculate(int(row["amount"]) for row in csv.DictReader(stream)), expected)
+
+                with (root / "source.jsonl").open("w", encoding="utf-8") as stream:
+                    for value in values():
+                        stream.write(json.dumps({"amount": value}) + "\n")
+                with (root / "source.jsonl").open(encoding="utf-8") as stream:
+                    self.assertEqual(calculate(json.loads(row)["amount"] for row in stream), expected)
+
+                pq.write_table(pa.table({"amount": list(values())}), root / "source.parquet", row_group_size=128)
+                parquet = pq.ParquetFile(root / "source.parquet")
+                try:
+                    self.assertEqual(calculate(value for batch in parquet.iter_batches(batch_size=128, columns=["amount"])
+                                               for value in batch.column(0).to_pylist()), expected)
+                finally:
+                    parquet.close()
+
+                workbook = Workbook(write_only=True)
+                sheet = workbook.create_sheet()
+                sheet.append(["amount"])
+                for value in values():
+                    sheet.append([value])
+                workbook.save(root / "source.xlsx")
+                workbook = load_workbook(root / "source.xlsx", read_only=True, data_only=True)
+                try:
+                    rows = workbook.active.iter_rows(values_only=True)
+                    next(rows)
+                    self.assertEqual(calculate(row[0] for row in rows), expected)
+                finally:
+                    workbook.close()
 
 
 if __name__ == "__main__":

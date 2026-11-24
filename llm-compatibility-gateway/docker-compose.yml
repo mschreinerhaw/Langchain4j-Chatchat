@@ -1,6 +1,6 @@
 services:
   llm-gateway:
-    image: ${GATEWAY_IMAGE:-llm-compatibility-gateway:1.0.0}
+    image: ${GATEWAY_IMAGE:-llm-compatibility-gateway:1.1.0}
     pull_policy: never
     build:
       context: .
@@ -8,11 +8,13 @@ services:
     init: true
     env_file: .env
     ports:
-      - "${API_BIND:-127.0.0.1}:${API_PUBLIC_PORT:-18080}:18080"
-      - "${ADMIN_BIND:-127.0.0.1}:${ADMIN_PUBLIC_PORT:-18081}:18081"
+      - "${API_BIND:-127.0.0.1}:${HTTPS_PUBLIC_PORT:-8443}:${HTTPS_PORT:-8443}"
+      - "${ADMIN_BIND:-127.0.0.1}:${ADMIN_PUBLIC_PORT:-18081}:${ADMIN_PORT:-18081}"
     volumes:
       - gateway-data:/app/data
       - gateway-logs:/app/logs
+      - gateway-certs:/app/certs
+      - "${TLS_BOOTSTRAP_HOST_DIR:-./tls-bootstrap}:/run/gateway-tls:ro"
     read_only: true
     tmpfs:
       - /tmp:size=32m
@@ -32,3 +34,4 @@ services:
 volumes:
   gateway-data:
   gateway-logs:
+  gateway-certs:

@@ -1,0 +1,7 @@
+services:
+  llm-gateway:
+    ports: !reset []
+
+networks:
+  default:
+    internal: true

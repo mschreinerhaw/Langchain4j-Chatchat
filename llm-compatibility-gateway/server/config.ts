@@ -1,7 +1,9 @@
-import { createCipheriv, createDecipheriv, randomBytes, X509Certificate } from 'node:crypto';
 import { DatabaseSync } from 'node:sqlite';
 import { z } from 'zod';
 import { ruleSchema, headerName } from '../protocol/rules.js';
+import { profileNames, type Profile } from '../protocol/profiles.js';
+import { seal, unseal } from './credentials.js';
+import { validateCa } from './tls.js';
 
 export class GatewayError extends Error {
   constructor(public status: number, public code: string, message: string) {
@@ -12,6 +14,7 @@ export class GatewayError extends Error {
 const identifier = z.string().min(1).max(240).refine(value => !/[\u0000-\u001f\u007f]/.test(value));
 const path = z.string().regex(/^\/(?!\/)[^\\?#\s]*$/);
 const timeout = z.number().int().min(100).max(600_000);
+export const profileSchema = z.enum(Object.keys(profileNames) as Profile[]);
 const secret = z.string().max(8192).regex(/^[\x20-\x7e]*$/);
 export const serviceSchema = z.object({
   id: identifier, name: identifier, origin: z.url(), chatPath: path.default('/v1/chat/completions'),
@@ -33,6 +36,7 @@ export const modelSchema = z.object({
     tools: 'unverified', reasoning: 'unverified', vision: 'unverified', streaming: 'unverified',
   }),
   rules: z.array(ruleSchema).max(100).default([]),
+  profileRules: z.partialRecord(profileSchema, z.array(ruleSchema).max(100)).default({}),
 });
 export const configSchema = z.object({
   services: z.array(serviceSchema).max(200), models: z.array(modelSchema).max(1000),
@@ -42,8 +46,13 @@ export type Model = z.infer<typeof modelSchema>;
 export type Config = z.infer<typeof configSchema>;
 export type Snapshot = { version: number; config: Config };
 type Row = { version: number; payload: string };
-type Client = { id: string; key: string; models: string[] };
-const clientsSchema = z.array(z.object({ id: identifier, key: z.string().min(16), models: z.array(z.string()).min(1) })).min(1);
+type Client = { id: string; key: string; models: string[]; profile: Profile };
+const clientsSchema = z.array(z.object({ id: identifier, key: z.string().min(16), models: z.array(z.string()).min(1),
+  profile: profileSchema.default('generic') })).min(1);
+
+export function withProfile(model: Model, profile: Profile): Model {
+  return { ...model, rules: [...model.rules, ...(model.profileRules[profile] ?? [])] };
+}
 
 function required(name: string, min: number) {
   const value = process.env[name];
@@ -64,7 +73,7 @@ export function settings() {
   const password = required('ADMIN_PASSWORD', 16);
   const clients: Client[] = process.env.GATEWAY_CLIENTS
     ? clientsSchema.parse(JSON.parse(process.env.GATEWAY_CLIENTS))
-    : [{ id: 'default', key: required('GATEWAY_API_KEY', 16), models: ['*'] }];
+    : [{ id: 'default', key: required('GATEWAY_API_KEY', 16), models: ['*'], profile: 'generic' }];
   if (new Set(clients.map(client => client.id)).size !== clients.length
     || new Set(clients.map(client => client.key)).size !== clients.length
     || clients.some(client => client.key === password)) throw new Error('Admin and client credentials must be distinct');
@@ -90,21 +99,7 @@ export class Store {
       COMMIT;
     `);
     this.current = this.getRevision();
-    this.validate(this.current.config);
-  }
-
-  private seal(value: string) {
-    const iv = randomBytes(12);
-    const cipher = createCipheriv('aes-256-gcm', this.key, iv);
-    const encoded = Buffer.concat([cipher.update(value, 'utf8'), cipher.final()]);
-    return Buffer.concat([iv, cipher.getAuthTag(), encoded]).toString('base64');
-  }
-
-  private open(value: string) {
-    const bytes = Buffer.from(value, 'base64');
-    const cipher = createDecipheriv('aes-256-gcm', this.key, bytes.subarray(0, 12));
-    cipher.setAuthTag(bytes.subarray(12, 28));
-    return Buffer.concat([cipher.update(bytes.subarray(28)), cipher.final()]).toString('utf8');
+    this.validate(this.current.config, false);
   }
 
   getRevision(version?: number): Snapshot {
@@ -113,7 +108,7 @@ export class Store {
       : this.db.prepare('SELECT version,payload FROM revisions WHERE version=?').get(version)) as Row | undefined;
     if (!row) throw new GatewayError(404, 'revision_not_found', '配置版本不存在');
     const payload = JSON.parse(row.payload) as Config;
-    for (const service of payload.services) if (service.apiKey) service.apiKey = this.open(service.apiKey);
+    for (const service of payload.services) if (service.apiKey) service.apiKey = unseal(service.apiKey, this.key);
     const config = configSchema.parse(payload);
     return { version: row.version, config };
   }
@@ -127,7 +122,7 @@ export class Store {
     } };
   }
 
-  validate(input: unknown): Config {
+  validate(input: unknown, checkCaValidity = true): Config {
     const config = configSchema.parse(input);
     const services = new Set<string>();
     for (const service of config.services) {
@@ -137,10 +132,7 @@ export class Store {
       }
       if (services.has(service.id)) throw new GatewayError(409, 'duplicate_service', '服务 ID 重复');
       services.add(service.id);
-      if (service.ca) {
-        try { new X509Certificate(service.ca); }
-        catch { throw new GatewayError(400, 'invalid_ca', 'CA 必须包含有效的 PEM 证书'); }
-      }
+      if (service.ca) service.ca = validateCa(service.ca, checkCaValidity);
     }
     const aliases = new Set<string>();
     for (const model of config.models) {
@@ -165,7 +157,7 @@ export class Store {
       const { version } = this.db.prepare('SELECT max(version) AS version FROM revisions').get() as { version: number };
       if (version !== expected) throw new GatewayError(409, 'stale_revision', '配置已更新，请重新加载再发布');
       const encoded = { ...config, services: config.services.map(service => ({
-        ...service, apiKey: service.apiKey ? this.seal(service.apiKey) : undefined,
+        ...service, apiKey: service.apiKey ? seal(service.apiKey, this.key) : undefined,
       })) };
       this.db.prepare('INSERT INTO revisions VALUES (?,?,?,?)').run(version + 1, JSON.stringify(encoded), new Date().toISOString(), action);
       this.db.exec('COMMIT');

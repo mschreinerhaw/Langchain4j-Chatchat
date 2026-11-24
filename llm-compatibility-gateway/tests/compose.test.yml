@@ -1,7 +1,10 @@
 services:
   llm-gateway:
     environment:
+      GATEWAY_HTTP_ONLY: 'true'
       UPSTREAM_ALLOWED_ORIGINS: http://mock:19090
+    ports:
+      - "127.0.0.1:18080:18080"
     depends_on:
       - mock
   mock:

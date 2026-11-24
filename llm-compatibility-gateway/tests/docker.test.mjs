@@ -155,7 +155,7 @@ test('Docker gateway contract', async t => {
   await t.test('lab trace, diagnostic evidence, history and restart persistence', async () => {
     const lab = await manage('lab', 'POST', { alias, body: chatBody() });
     const trace = (await lab.text()).trim().split('\n').map(JSON.parse);
-    assert.deepEqual(trace.map(row => row.stage), ['client', 'upstream_request', 'upstream_response', 'gateway', 'result']);
+    assert.deepEqual(trace.map(row => row.stage), ['client', 'transport', 'upstream_request', 'upstream_response', 'gateway', 'compatibility', 'result']);
     assert.doesNotMatch(JSON.stringify(trace), /fixture-upstream-credential/);
     const direct = await manage('lab', 'POST', { alias, service: service.id, direct: true, body: chatBody('你好', { model: '/models/Qwen中文' }) });
     const directTrace = (await direct.text()).trim().split('\n').map(JSON.parse);

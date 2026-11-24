@@ -2,7 +2,7 @@
 
 ## 架构
 
-两个 Fastify 监听器在同一 Node.js 进程内运行。推理认证使用独立 Bearer Key，可通过 `GATEWAY_CLIENTS` 为每个客户端限定可见的模型 ID。管理监听器使用密码登录和 HttpOnly 会话。端口默认只映射到宿主回环地址。跨主机访问时部署方可用现有 TLS 入口转发至管理端口，并启用 `ADMIN_SECURE_COOKIE=true`。
+两个 Fastify HTTPS 监听器在同一 Node.js 进程内运行。推理认证使用独立 Bearer Key，可通过 `GATEWAY_CLIENTS` 为每个客户端限定可见的模型 ID 和指定兼容 Profile。管理监听器使用密码登录和带 Secure、HttpOnly 属性的会话。端口默认映射到宿主回环地址，证书和现场网络配置见 [HTTPS 部署](https.md)。
 
 SQLite 的 `user_version` 驱动初始化和迁移。每次发布在事务中写入不可变配置版本，乐观版本校验防止覆盖同时保存的配置。推理请求在开始时持有当时的服务和模型配置。回滚发布一个新版本。加密上游凭据使用 AES-256-GCM。管理 API、备份 JSON 和历史对比展示密钥是否已设置。保留数据库及独立保管的加密密钥即可恢复加密凭据。
 
@@ -34,7 +34,7 @@ SQLite 的 `user_version` 驱动初始化和迁移。每次发布在事务中写
 | GET `/admin/overview` | 当前指标、请求元数据和检查摘要 |
 | POST `/admin/upstream/models` | `{id}`，返回上游 HTTP 状态和脱敏结果 |
 | POST `/admin/preview` | `{alias,body,stage,config?}`，预览规则 |
-| POST `/admin/lab` | `{alias?,service?,direct?,path?,body,headers?}`，返回 NDJSON 四阶段轨迹 |
+| POST `/admin/lab` | `{alias?,service?,direct?,path?,profile?,body,headers?}`，返回 NDJSON 轨迹、真实入口连接和协议检查结果 |
 | POST `/admin/check` | `{alias}`，流式输出 NDJSON 检查结论及脱敏证据 |
 
 ## 规则契约
@@ -56,7 +56,7 @@ SQLite 的 `user_version` 驱动初始化和迁移。每次发布在事务中写
 
 ## 离线部署与升级回滚
 
-在已准备好基础镜像和 npm 源的构建环境执行 `powershell -ExecutionPolicy Bypass -File scripts/export-image.ps1`。已有实测镜像时加 `-SkipBuild` 导出原镜像。将整个 `release` 目录复制到内网主机，再生成该主机自己的 `.env`。Linux 执行 `sh install-offline.sh`，Windows 执行 `powershell -ExecutionPolicy Bypass -File install-offline.ps1`。安装脚本先校验镜像包，再加载镜像并使用 Compose 的 `--no-build --pull never` 启动。
+在已准备好基础镜像、Debian 包源和 npm 源的构建环境执行 `powershell -ExecutionPolicy Bypass -File scripts/export-image.ps1`。已有实测镜像时加 `-SkipBuild` 导出原镜像。将整个 `release/https-1.1.0` 目录复制到内网主机，再生成该主机自己的 `.env` 和启动证书。Linux 执行 `sh install-offline.sh`，Windows 执行 `powershell -ExecutionPolicy Bypass -File install-offline.ps1`。安装脚本先校验镜像包，再加载镜像并使用 Compose 的 `--no-build --pull never` 启动。
 
 上线前记录镜像 ID、实际端口和项目名，保留旧镜像与配置数据库备份。需完整备份时用 `docker compose stop llm-gateway` 停止写入，再备份数据卷中的 `gateway.sqlite` 及同目录 WAL 文件。升级保持原项目名、数据卷和配置加密密钥，设置 `GATEWAY_IMAGE` 指向新标签，再按离线方式部署。若启动检查失败，设置旧标签并重启。跨数据库迁移回滚时使用与旧镜像匹配的备份。配置问题可直接通过「配置与审计」回滚为新的已发布版本。
 

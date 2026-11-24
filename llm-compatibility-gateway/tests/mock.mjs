@@ -1,9 +1,11 @@
 import { createServer } from 'node:http';
+import { createServer as createSecureServer } from 'node:https';
+import { readFileSync } from 'node:fs';
 import { setTimeout as delay } from 'node:timers/promises';
 
 let cancellations = 0;
 const lines = value => 'data: ' + JSON.stringify(value) + '\r\n\r\n';
-const server = createServer(async (req, res) => {
+const handler = async (req, res) => {
   if (req.url === '/fixture/metrics') return res.end(JSON.stringify({ cancellations }));
   if (req.headers.authorization !== 'Bearer fixture-upstream-credential') {
     res.writeHead(401, { 'content-type': 'application/json' });
@@ -17,7 +19,8 @@ const server = createServer(async (req, res) => {
   const parts = [];
   for await (const chunk of req) parts.push(chunk);
   const input = JSON.parse(Buffer.concat(parts));
-  const cline = input.model === '/models/ClineFixture';
+  const clineTask = input.model === '/models/ClineTask';
+  const cline = clineTask || input.model === '/models/ClineFixture';
   const mode = cline ? 'cline' : input.messages?.[0]?.content;
   if (typeof mode !== 'string' || !input.model.startsWith('/models/')) {
     res.writeHead(400);
@@ -25,11 +28,17 @@ const server = createServer(async (req, res) => {
   }
   if (mode === 'never') { await delay(1800); if (res.destroyed) return; }
   const basic = { id: 'fixture-id', model: input.model, object: 'chat.completion', created: 1 };
-  const tool = cline ? input.tools?.find(item => item.function?.name === 'attempt_completion')?.function.name : input.tools?.[0]?.function?.name;
-  const args = cline ? '{"result":"Gateway fixture completed"}' : '{"value":"gateway-check"}';
+  const hasWritten = clineTask && input.messages.some(message => message.role === 'assistant' &&
+    /write_to_file|gateway-result\.txt/.test(JSON.stringify(message)));
+  const tool = cline ? input.tools?.find(item => item.function?.name === (clineTask && !hasWritten
+    ? 'editor' : 'attempt_completion'))?.function.name : input.tools?.[0]?.function?.name;
+  const args = tool === 'editor' ? JSON.stringify({ path: '/tmp/gateway-cline/workspace/gateway-result.txt', new_text: 'HTTPS gateway verified\n' })
+    : cline ? '{"result":"Gateway fixture completed"}' : '{"value":"gateway-check"}';
   const toolResult = input.messages.find(message => message.role === 'tool' && message.tool_call_id === 'call_fixture')?.content;
-  const calls = tool && !toolResult ? [{ id: 'call_fixture', type: 'function', function: { name: tool, arguments: args } }] : [];
-  const finalText = toolResult ?? (cline ? '<attempt_completion><result>Gateway fixture completed</result></attempt_completion>' :
+  const calls = tool && (cline || !toolResult) ? [{ id: clineTask ? 'call_file_' + Number(hasWritten) : 'call_fixture',
+    type: 'function', function: { name: tool, arguments: args } }] : [];
+  const clineText = clineTask ? 'Gateway fixture completed' : '<attempt_completion><result>Gateway fixture completed</result></attempt_completion>';
+  const finalText = toolResult ?? (cline ? clineText :
     mode.includes('中文') ? '网关正常' : mode.includes('"result"') ? '{"result":"OK"}' : '网关正常');
   const usage = { prompt_tokens: 3, completion_tokens: 4, total_tokens: 7 };
   if (!input.stream) {
@@ -65,5 +74,8 @@ const server = createServer(async (req, res) => {
   }
   res.write(lines(chunk({}, calls.length ? 'tool_calls' : 'stop')) + lines({ ...basic, choices: [], usage }));
   res.end(mode === 'no done' ? '' : 'data: [DONE]\r\n\r\n');
-});
-server.listen(19090, '0.0.0.0');
+};
+const server = process.env.FIXTURE_TLS_CERT
+  ? createSecureServer({ cert: readFileSync(process.env.FIXTURE_TLS_CERT), key: readFileSync(process.env.FIXTURE_TLS_KEY) }, handler)
+  : createServer(handler);
+server.listen(Number(process.env.FIXTURE_PORT ?? 19090), '0.0.0.0');

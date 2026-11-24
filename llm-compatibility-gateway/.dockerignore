@@ -1,0 +1,12 @@
+node_modules
+dist
+.env
+local
+release
+test-results
+playwright-report
+.git
+docs
+scripts
+tests
+README.md

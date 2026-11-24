@@ -1,0 +1,17 @@
+services:
+  llm-gateway:
+    environment:
+      UPSTREAM_ALLOWED_ORIGINS: http://mock:19090
+    depends_on:
+      - mock
+  mock:
+    image: node:24-bookworm-slim
+    pull_policy: never
+    user: node
+    read_only: true
+    init: true
+    volumes:
+      - ./tests/mock.mjs:/fixture.mjs:ro
+    command: ["node", "/fixture.mjs"]
+    security_opt: ["no-new-privileges:true"]
+    ports: ["127.0.0.1:19090:19090"]

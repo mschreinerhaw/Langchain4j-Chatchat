@@ -1,0 +1,133 @@
+openapi: 3.1.0
+info:
+  title: LLM Compatibility Gateway
+  version: 1.0.0
+servers:
+  - url: http://127.0.0.1:18080
+security:
+  - GatewayKey: []
+paths:
+  /health:
+    get:
+      security: []
+      responses:
+        '200': {description: Gateway version and liveness}
+  /ready:
+    get:
+      security: []
+      responses:
+        '200': {description: Local configuration loaded and API ready}
+  /v1/models:
+    get:
+      responses:
+        '200':
+          description: Authorized published models
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [object, data]
+                properties:
+                  object: {const: list}
+                  data:
+                    type: array
+                    items: {$ref: '#/components/schemas/Model'}
+        '401': {$ref: '#/components/responses/Error'}
+  /v1/models/{model}:
+    get:
+      parameters:
+        - name: model
+          in: path
+          required: true
+          schema: {type: string}
+          description: URL-encoded exact model alias
+      responses:
+        '200':
+          description: Model
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/Model'}
+        '404': {$ref: '#/components/responses/Error'}
+        '401': {$ref: '#/components/responses/Error'}
+  /v1/chat/completions:
+    post:
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [model, messages]
+              properties:
+                model: {type: string}
+                messages:
+                  type: array
+                  minItems: 1
+                  items: {type: object}
+                stream: {type: boolean, default: false}
+                tools:
+                  type: array
+                  items: {type: object}
+                tool_choice: {}
+                parallel_tool_calls: {type: boolean}
+              additionalProperties: true
+      responses:
+        '200':
+          description: Chat completion or SSE stream. SSE errors after headers are sent are delivered as an error event.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [choices]
+                properties:
+                  choices: {type: array}
+                  model: {type: string}
+                  usage: {type: [object, 'null']}
+            text/event-stream:
+              schema: {type: string}
+        default: {$ref: '#/components/responses/Error'}
+  /v1/responses:
+    post:
+      responses:
+        '501': {$ref: '#/components/responses/Error'}
+  /v1/embeddings:
+    post:
+      responses:
+        '501': {$ref: '#/components/responses/Error'}
+  /v1/messages:
+    post:
+      responses:
+        '501': {$ref: '#/components/responses/Error'}
+  /v1/messages/count_tokens:
+    post:
+      responses:
+        '501': {$ref: '#/components/responses/Error'}
+components:
+  securitySchemes:
+    GatewayKey: {type: http, scheme: bearer}
+  responses:
+    Error:
+      description: OpenAI-compatible error
+      content:
+        application/json:
+          schema:
+            type: object
+            required: [error]
+            properties:
+              error:
+                type: object
+                required: [message, code, type]
+                properties:
+                  message: {type: string}
+                  code: {type: string}
+                  type: {type: string}
+                  param: {type: 'null'}
+  schemas:
+    Model:
+      type: object
+      required: [id, object, created, owned_by]
+      properties:
+        id: {type: string}
+        object: {const: model}
+        created: {type: integer}
+        owned_by: {type: string}

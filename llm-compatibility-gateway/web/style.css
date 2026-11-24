@@ -1,0 +1,25 @@
+:root{color-scheme:light}
+body{margin:0;background:#f3f6fa}
+.shell{min-height:100vh}
+.sidebar,.sidebar .ant-menu{background:#111f32!important}
+.brand{height:72px;padding:0 14px;display:flex;align-items:center;gap:10px;color:#f5f9ff;white-space:nowrap;overflow:hidden}
+.brand-mark{background:#0c8c7f;color:#fff;width:35px;height:35px;border-radius:9px;display:grid;place-items:center;font-weight:750;flex:none}
+.ant-layout-sider-collapsed .brand strong{display:none}
+.top{background:#fff!important;border-bottom:1px solid #e7edf4;display:flex;align-items:center;justify-content:space-between;gap:12px;padding:0 24px!important;line-height:normal!important}
+.main{padding:26px;min-width:0}
+.main h2.ant-typography{margin:0 0 20px}
+.stat-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:14px}
+.after{margin-top:16px;margin-bottom:8px}
+.muted{color:#50647d}
+.full{width:100%}
+.mono,.code,.diff{font-family:ui-monospace,Consolas,monospace}
+.code{white-space:pre-wrap;overflow-wrap:anywhere;overflow:auto;max-height:350px;margin:0;padding:13px;background:#f3f6fa;border:1px solid #e6edf5;border-radius:7px;color:#253e59}
+.login{display:grid;place-items:center;min-height:100vh;background:#edf4f9;padding:24px}
+.login-card{width:min(420px,100%)}
+.login-card h2{margin:12px 0 4px}
+.login-card .ant-alert{margin-bottom:12px}
+.rule-row{display:grid;grid-template-columns:120px 110px minmax(120px,1fr) minmax(120px,1fr) auto auto;gap:8px;margin-bottom:10px}
+.diff{overflow:auto;max-height:380px}.diff>div{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;padding:6px;border-bottom:1px solid #edf1f6;overflow-wrap:anywhere}
+.removed{color:#821e2d;background:#ffecef}.added{color:#116048;background:#e0f8ef}
+.file{position:relative;display:inline-flex;align-items:center;border:1px solid #d9d9d9;border-radius:7px;padding:5px 13px;cursor:pointer}.file input{position:absolute;inset:0;width:100%;opacity:0;cursor:pointer}.file:focus-within{outline:2px solid #087c71}
+@media(max-width:750px){.main{padding:14px}.top{padding:0 12px!important}.rule-row{grid-template-columns:1fr 1fr}.diff>div{grid-template-columns:1fr}.main h2.ant-typography{font-size:24px}}

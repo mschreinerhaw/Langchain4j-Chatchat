@@ -1,7 +1,7 @@
 import {createHash} from 'node:crypto';
 import {lstat, mkdir, open, readdir, realpath} from 'node:fs/promises';
 import {constants} from 'node:fs';
-import {basename, dirname, isAbsolute, join, relative, resolve, sep} from 'node:path';
+import {basename, isAbsolute, join, relative, resolve, sep} from 'node:path';
 
 const EVIDENCE = '.runtime-tool-results';
 const SUMMARIES = new Set(['analysis_summary.json','data_quality.json','execution_manifest.json']);
@@ -71,6 +71,7 @@ export function createAnalysisToolHooks(workspace, metadataPath, prior = {}) {
  }
 
  function archive(bytes, sha256) {
+  if(bytes.length>MAX_ARCHIVE_BYTES) return Promise.resolve(null);
   const run = archiveQueue.then(async()=>{
    try { await mkdir(evidence,{mode:0o700}); }
    catch(error) { if(error.code!=='EEXIST') throw error; }

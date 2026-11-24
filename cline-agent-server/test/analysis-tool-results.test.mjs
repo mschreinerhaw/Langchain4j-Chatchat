@@ -88,3 +88,30 @@ test('hook failures and results from other large tools never forward the raw pay
  assert.equal(failed.output.code,'ANALYSIS_TOOL_EVIDENCE_WRITE_FAILED');
  assert.doesNotMatch(JSON.stringify(failed),/RAW_DATA_SENTINEL/);
 });
+
+test('analysis evidence fails closed on capacity and integrity errors', async t => {
+ const {root,hooks}=await fixture(t);
+ const output='PRIVATE_EVIDENCE_SENTINEL'.repeat(300);
+ const invoke=async value=>(await hooks.afterTool(call('run_commands',{}, {output:value}))).result.output;
+ const stored=await invoke(output);
+ const path=join(root,stored.evidence.path);
+ await writeFile(path, 'corrupt');
+ const mismatch=await invoke(output);
+ assert.equal(mismatch.evidence.status,'WRITE_FAILED');
+ assert.equal(mismatch.evidence.path,null);
+ assert.doesNotMatch(JSON.stringify(mismatch),/PRIVATE_EVIDENCE_SENTINEL/);
+
+ const directory=dirname(path);
+ await rm(path);
+ await Promise.all(Array.from({length:512},(_,i)=>writeFile(join(directory,i.toString(16).padStart(64,'0')+'.json'),'')));
+ const fileLimit=await invoke(output);
+ assert.equal(fileLimit.evidence.status,'RESOURCE_LIMIT');
+ assert.equal(fileLimit.evidence.path,null);
+ assert.doesNotMatch(JSON.stringify(fileLimit),/PRIVATE_EVIDENCE_SENTINEL/);
+
+ await rm(directory,{recursive:true});
+ const byteLimit=await invoke(output.padEnd(32*1024*1024,'x'));
+ assert.equal(byteLimit.evidence.status,'RESOURCE_LIMIT');
+ assert.equal(byteLimit.evidence.path,null);
+ assert.doesNotMatch(JSON.stringify(byteLimit),/PRIVATE_EVIDENCE_SENTINEL/);
+});

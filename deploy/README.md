@@ -3,6 +3,9 @@
 - **新环境部署：[加载镜像，启动系统](standalone/README.md)。部署机只需 Docker 和交付镜像包，两条命令完成初始化与启动。无需源码、宿主机 Java/Python/Node 或另装 Compose。**
 - [镜像构建和发布](standalone/BUILD.md)供开发人员使用；下列文档保留给已有环境维护，不再作为新部署的操作入口。
 
+- [单容器启停与镜像升级](SINGLE-CONTAINER-OPERATIONS.zh-CN.md)覆盖已安装实例的 Coding 监控恢复、单容器重建、镜像升级及回滚。
+- [Runtime OS 1.3.3](releases/1.3.3/README.md)记录发行配置、Cline 版本和验收范围。
+
 - [当前服务器逐容器维护命令](CONTAINER-OPERATIONS.zh-CN.md)：以 `/opt/runtime-os-docker-stage` 为标准目录，列出 Nginx、API、MCP、Redis、Coding Agent 及存储依赖的独立启动、停止、重启、验证和代理重建命令。
 
 - [完整应用 Compose](docker/application/compose.yaml)：当前 PostgreSQL 架构；包含 PostgreSQL、Redis、启用 TLS/认证的 OpenSearch、安全初始化任务，以及 API、MCP、News、Coding Agent 和代理。必需依赖默认启动，无需另外寻找外部容器。

@@ -1,0 +1,21 @@
+services:
+  api:
+    image: chatchat-api:${IMAGE_TAG:-1.3.3}
+    pull_policy: never
+    environment:
+      CHATCHAT_CODING_ENABLED: "true"
+  mcp:
+    image: chatchat-mcp-server:${IMAGE_TAG:-1.3.3}
+    pull_policy: never
+  news:
+    image: chatchat-runtime-news:${IMAGE_TAG:-1.3.3}
+    pull_policy: never
+  cline:
+    image: cline-agent-server:${IMAGE_TAG:-1.3.3}
+    pull_policy: never
+  frontend-resource-hub:
+    image: frontend-resource-hub:${IMAGE_TAG:-1.3.3}
+    pull_policy: never
+  frontend-preview-worker:
+    image: frontend-resource-hub:${IMAGE_TAG:-1.3.3}
+    pull_policy: never

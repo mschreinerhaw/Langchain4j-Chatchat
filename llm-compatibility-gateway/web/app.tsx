@@ -551,7 +551,7 @@ function Checks({ config, previous, refresh }: { config: Config; previous: Check
       { title: '检测项', dataIndex: 'test' }, { title: '结果', dataIndex: 'status', render: status =>
         <Tag color={{ PASS: 'green', FAIL: 'red', WARNING: 'orange', UNSUPPORTED: 'gold' }[String(status)]}>{status}</Tag> },
       { title: 'HTTP', dataIndex: 'httpStatus' }, { title: '原因', dataIndex: 'reason' },
-      { title: '建议', dataIndex: 'suggestion' }, { title: 'Cline 影响', dataIndex: 'clineImpact' },
+      { title: '建议', dataIndex: 'suggestion' }, { title: '本地影响', dataIndex: 'clineImpact' },
     ]} /></Card>
     {previous.length > 0 && <Card title="模型检测对比"><Table rowKey="model" dataSource={previous} columns={[
       { title: '模型', dataIndex: 'model' }, { title: '配置版本', dataIndex: 'version' },

@@ -4,7 +4,7 @@ import { mkdirSync } from 'node:fs';
 import { createServer as createHttp, type Server as HttpServer } from 'node:http';
 import { createServer as createHttps, type Server as HttpsServer } from 'node:https';
 import { isIP } from 'node:net';
-import { TLSSocket } from 'node:tls';
+import { TLSSocket, type TlsOptions } from 'node:tls';
 import { resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import Fastify, { type FastifyReply, type FastifyRequest } from 'fastify';
@@ -19,7 +19,7 @@ import { CertificateStore, importSchema, namesSchema } from './tls.js';
 import { requestGateway } from './transport.js';
 
 const settingsValue = settings();
-const version = '1.1.0';
+const version = '1.1.1';
 const dataDir = process.env.DATA_DIR ?? '/app/data';
 mkdirSync(dataDir, { recursive: true, mode: 0o700 });
 const store = new Store(resolve(dataDir, 'gateway.sqlite'), settingsValue.key, settingsValue.origins);
@@ -221,13 +221,17 @@ admin.get('/admin/tls', async () => ({ enabled: Boolean(certificates), listener:
 admin.get('/admin/tls/ca', async (_req, reply) => {
   const ca = tlsStore().ca;
   if (!ca) throw new GatewayError(404, 'ca_not_configured', '未配置私有 CA');
-  return reply.type('application/x-pem-file').header('content-disposition', 'attachment; filename=gateway-ca.crt').send(ca);
+  const filename = tlsStore().status().selfSigned ? 'gateway-server.crt' : 'gateway-ca.crt';
+  return reply.type('application/x-pem-file').header('content-disposition', 'attachment; filename=' + filename).send(ca);
 });
 admin.post('/admin/tls/csr', async req => tlsStore().csr(z.object({ names: namesSchema }).parse(req.body).names));
-admin.put('/admin/tls', async req => tlsStore().update(importSchema.parse(req.body), options => {
+function applyTls(options: TlsOptions) {
   (api.server as unknown as HttpsServer).setSecureContext(options);
   (admin.server as unknown as HttpsServer).setSecureContext(options);
-}));
+}
+admin.put('/admin/tls', async req => tlsStore().update(importSchema.parse(req.body), applyTls));
+admin.post('/admin/tls/self-signed', async req => tlsStore().renewSelfSigned(
+  z.object({ names: namesSchema }).parse(req.body).names, applyTls));
 admin.patch('/admin/tls/endpoint', async req => tlsStore().setPublicPort(z.object({
   apiPublicPort: z.number().int().min(1).max(65535),
 }).parse(req.body).apiPublicPort));

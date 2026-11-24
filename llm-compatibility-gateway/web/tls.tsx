@@ -1,10 +1,10 @@
 import { useState } from 'react';
-import { Alert, Button, Card, Descriptions, Form, Input, InputNumber, Radio, Space, Tag, Typography } from 'antd';
+import { Alert, Button, Card, Descriptions, Form, Input, InputNumber, Modal, Radio, Space, Tag, Typography } from 'antd';
 
 export type TlsStatus = {
   enabled: boolean; listener: number; publicPort: number; adminPort: number; apiBaseUrl?: string;
   certificate?: { names: string[]; fingerprint: string; validFrom: string; validTo: string;
-    daysLeft: number; warning: boolean; expired: boolean; hasCa: boolean };
+    daysLeft: number; warning: boolean; expired: boolean; hasCa: boolean; selfSigned?: boolean };
   clients: { id: string; profile: string; models: string[] }[];
   profiles: Record<string, string>;
 };
@@ -20,6 +20,12 @@ const fileContent = async (file?: File) => {
   return btoa(binary);
 };
 const names = (text: string) => text.split(/[\s,，]+/).filter(Boolean);
+function download(name: string, content: string, type: string) {
+  const url = URL.createObjectURL(new Blob([content], { type }));
+  const link = document.createElement('a');
+  link.href = url; link.download = name; link.click();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
 type Call = <T>(path: string, method?: string, body?: unknown) => Promise<T>;
 
 export function Certificates({ status, refresh, api }: { status?: TlsStatus; refresh: () => Promise<void>; api: Call }) {
@@ -30,6 +36,7 @@ export function Certificates({ status, refresh, api }: { status?: TlsStatus; ref
   const [csrId, setCsrId] = useState('');
   const [files, setFiles] = useState<Record<string, File | undefined>>({});
   const [clearCa, setClearCa] = useState(false);
+  const [selfSigned, setSelfSigned] = useState(status?.certificate?.selfSigned ?? false);
   const [notice, setNotice] = useState<{ type: 'error' | 'success'; text: string }>();
   const [busy, setBusy] = useState(false);
   const [uploadVersion, setUploadVersion] = useState(0);
@@ -55,7 +62,9 @@ export function Certificates({ status, refresh, api }: { status?: TlsStatus; ref
         { key: 'port', label: '容器监听端口', children: status.listener + ' / 管理 ' + status.adminPort },
         { key: 'expiry', label: '证书或链最早到期日', children: new Date(cert.validTo).toLocaleString() },
         { key: 'fingerprint', label: 'SHA-256 指纹', children: <Typography.Text copyable>{cert.fingerprint}</Typography.Text> },
-        { key: 'ca', label: '客户端信任 CA', children: cert.hasCa ? <Button href="/admin/tls/ca">下载 CA</Button> : '系统信任链' },
+        { key: 'ca', label: '客户端信任', children: cert.hasCa ? <Button href="/admin/tls/ca">
+          {cert.selfSigned ? '下载自签服务器证书' : '下载 CA'}
+        </Button> : '系统信任链' },
       ]} />
     </Card>
     {notice && <Alert type={notice.type} message={notice.text} showIcon />}
@@ -78,29 +87,39 @@ export function Certificates({ status, refresh, api }: { status?: TlsStatus; ref
         {mode === 'pem' && choose('privateKey', '服务器私钥', '.key,.pem')}
         {mode === 'csr' ? <Form.Item label="CSR 标识"><Input aria-label="CSR 标识" value={csrId} onChange={e => setCsrId(e.target.value)} /></Form.Item>
           : <Form.Item label="私钥或 P12 密码"><Input.Password autoComplete="new-password" aria-label="私钥或 P12 密码" value={passphrase} onChange={e => setPassphrase(e.target.value)} /></Form.Item>}
-        {choose('ca', '信任 CA 文件', '.pem,.crt,.cer')}
-        <Form.Item><label><input type="checkbox" checked={clearCa} onChange={e => setClearCa(e.target.checked)} /> 改用系统信任链</label></Form.Item>
+        <Form.Item><label><input type="checkbox" checked={selfSigned} onChange={e => setSelfSigned(e.target.checked)} /> 使用自签服务器证书</label></Form.Item>
+        {!selfSigned && choose('ca', '信任 CA 文件', '.pem,.crt,.cer')}
+        {!selfSigned && <Form.Item><label><input type="checkbox" checked={clearCa} onChange={e => setClearCa(e.target.checked)} /> 改用系统信任链</label></Form.Item>}
         <Button type="primary" loading={busy} onClick={() => run(async () => {
-          const body = { names: names(domains), apiPublicPort: port,
+          const body = { names: names(domains), apiPublicPort: port, selfSigned,
             certificate: mode !== 'p12' ? await fileContent(files.certificate) : undefined,
             privateKey: mode === 'pem' ? await fileContent(files.privateKey) : undefined,
             p12: mode === 'p12' ? await fileContent(files.p12) : undefined,
             csrId: mode === 'csr' ? csrId : undefined, passphrase: passphrase || undefined,
-            ca: clearCa ? '' : await fileContent(files.ca) };
+            ca: selfSigned ? undefined : clearCa ? '' : await fileContent(files.ca) };
           await api('tls', 'PUT', body);
           setFiles({}); setUploadVersion(value => value + 1); setPassphrase(''); setClearCa(false);
-          await refresh();
+          if (!selfSigned) await refresh();
         }, '证书链验证通过，新的 TLS 握手已使用更新后的证书')}>验证并热更新</Button>
       </Form>
+    </Card>
+    <Card title="无 CA 环境">
+      <Button disabled={busy || !names(domains).length} onClick={() => Modal.confirm({
+        title: '生成并启用新的自签服务器证书',
+        content: '更新后，所有客户端需要信任新的公开证书。确认后将下载该证书。',
+        onOk: () => run(async () => {
+          const result = await api<{ certificate: string }>('tls/self-signed', 'POST', { names: names(domains) });
+          setSelfSigned(true);
+          download('gateway-server.crt', result.certificate, 'application/x-pem-file');
+        }, '新证书已启用。请在客户端导入下载的证书后重新连接。'),
+      })}>生成并启用自签证书</Button>
     </Card>
     <Card title="生成 CSR">
       <Space wrap>
         <Button disabled={busy || !names(domains).length} onClick={() => run(async () => {
           const result = await api<{ id: string; request: string }>('tls/csr', 'POST', { names: names(domains) });
           setCsrId(result.id); setMode('csr'); setFiles({}); setUploadVersion(value => value + 1);
-          const url = URL.createObjectURL(new Blob([result.request], { type: 'application/pkcs10' }));
-          const link = document.createElement('a'); link.href = url; link.download = 'gateway.csr'; link.click();
-          setTimeout(() => URL.revokeObjectURL(url), 1000);
+          download('gateway.csr', result.request, 'application/pkcs10');
         }, 'CSR 已下载。请将签发的证书与中间链上传。')}>生成并下载 CSR</Button>
         {csrId && <Typography.Text copyable>{csrId}</Typography.Text>}
       </Space>

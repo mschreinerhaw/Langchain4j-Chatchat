@@ -3,7 +3,7 @@ import { z } from 'zod';
 import { ruleSchema, headerName } from '../protocol/rules.js';
 import { profileNames, type Profile } from '../protocol/profiles.js';
 import { seal, unseal } from './credentials.js';
-import { validateCa } from './tls.js';
+import { validateUpstreamTrust } from './tls.js';
 
 export class GatewayError extends Error {
   constructor(public status: number, public code: string, message: string) {
@@ -132,7 +132,7 @@ export class Store {
       }
       if (services.has(service.id)) throw new GatewayError(409, 'duplicate_service', '服务 ID 重复');
       services.add(service.id);
-      if (service.ca) service.ca = validateCa(service.ca, checkCaValidity);
+      if (service.ca) service.ca = validateUpstreamTrust(service.ca, checkCaValidity);
     }
     const aliases = new Set<string>();
     for (const model of config.models) {

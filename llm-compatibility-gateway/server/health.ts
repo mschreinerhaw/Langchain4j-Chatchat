@@ -6,7 +6,7 @@ import { CertificateStore } from './tls.js';
 
 const key = process.env.CONFIG_ENCRYPTION_KEY ?? '';
 const tls = process.env.GATEWAY_HTTP_ONLY === 'true' ? undefined
-  : new CertificateStore(process.env.TLS_DATA_DIR ?? '/app/certs', Buffer.from(key, 'hex'));
+  : new CertificateStore(process.env.TLS_DATA_DIR ?? '/app/certs', Buffer.from(key, 'hex'), false);
 const port = Number(tls ? process.env.HTTPS_PORT || 8443 : process.env.HTTP_TEST_PORT || 18080);
 function check(port: number, path: string) {
   const name = tls?.primaryName;

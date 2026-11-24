@@ -1,6 +1,6 @@
 services:
   llm-gateway:
-    image: ${GATEWAY_IMAGE:-llm-compatibility-gateway:1.1.0}
+    image: ${GATEWAY_IMAGE:-llm-compatibility-gateway:1.1.1}
     pull_policy: never
     build:
       context: .

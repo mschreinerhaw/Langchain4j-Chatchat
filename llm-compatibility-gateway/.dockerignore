@@ -13,3 +13,4 @@
 !web/**/*.tsx
 !web/**/*.css
 !web/index.html
+!web/cline-models.json

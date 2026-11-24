@@ -8,6 +8,7 @@ import type { Config, Model, Service } from '../server/config.js';
 import type { Rule } from '../protocol/rules.js';
 import { profileNames, type Profile } from '../protocol/profiles.js';
 import { Certificates, type TlsStatus } from './tls.js';
+import clineCatalog from './cline-models.json' with { type: 'json' };
 
 type Revision = { version: number; config: Config; allowedOrigins?: string[]; apiBaseUrl?: string };
 type Overview = { overview: Record<string, string | number | null>; metrics: Record<string, unknown>[]; checks: Check[] };
@@ -152,6 +153,7 @@ function App() {
   if (!ready) return null;
   if (!revision) return <Login onLogin={load} />;
   const { config, version } = revision;
+  const trustFile = tls?.certificate?.hasCa ? tls.certificate.selfSigned ? 'gateway-server.crt' : 'gateway-ca.crt' : undefined;
   const publish = async (next: Config, endpoint = 'config') => {
     const saved = await api<Revision>(endpoint, endpoint === 'config' ? 'PUT' : 'POST', { version, config: next });
     setRevision({ ...saved, allowedOrigins: revision.allowedOrigins, apiBaseUrl: revision.apiBaseUrl }); setEditor(undefined);
@@ -213,7 +215,7 @@ function App() {
   } else if (page === 'rules') {
     content = <Rules key={version} revision={revision} publish={next => attempt(() => publish(next))} attempt={attempt} />;
   } else if (page === 'lab') {
-    content = <Lab config={config} apiBaseUrl={tls?.apiBaseUrl ?? baseUrl()} />;
+    content = <Lab config={config} apiBaseUrl={tls?.apiBaseUrl ?? baseUrl()} trustFile={trustFile} />;
   } else if (page === 'checks') {
     content = <Checks config={config} previous={status?.checks ?? []} refresh={refresh} />;
   } else if (page === 'logs') {
@@ -221,7 +223,7 @@ function App() {
   } else if (page === 'tls') {
     content = <Certificates status={tls} refresh={refreshTls} api={api} />;
   } else if (page === 'integration') {
-    content = <Integration key={tls?.apiBaseUrl} config={config} apiBaseUrl={tls?.apiBaseUrl ?? baseUrl()} hasCa={tls?.certificate?.hasCa} />;
+    content = <Integration key={tls?.apiBaseUrl} config={config} apiBaseUrl={tls?.apiBaseUrl ?? baseUrl()} trustFile={trustFile} />;
   } else {
     content = <History key={version} revision={revision} attempt={attempt} restored={async () => { await load(); void toast.success('配置已恢复'); }} />;
   }
@@ -234,7 +236,7 @@ function App() {
     </Layout.Sider>
     <Layout>
       <Layout.Header className="top"><span>管理控制台</span><Space wrap>
-        <Tag color="green">运行正常</Tag><span className="muted">v1.1.0 · 配置 v{version}</span>
+        <Tag color="green">运行正常</Tag><span className="muted">v1.1.1 · 配置 v{version}</span>
         <Button size="small" onClick={() => attempt(async () => { await api('logout', 'POST'); window.dispatchEvent(new Event('gateway-logout')); })}>退出</Button>
       </Space></Layout.Header>
       <Layout.Content className="main">
@@ -262,6 +264,11 @@ function Edit({ editor, config, allowedOrigins, close, save }: {
   const [busy, setBusy] = useState(false);
   const service = editor.kind === 'service';
   const initial = { ...editor.value, apiKey: undefined };
+  const used = new Set(config.models.filter(model => model.alias !== editor.key).map(model => model.alias));
+  const modelOptions = clineCatalog.modelIds.filter(id => !used.has(id)).map(id => ({ value: id, label: id }));
+  if (!service && editor.key && !clineCatalog.modelIds.includes(editor.key)) {
+    modelOptions.unshift({ value: editor.key, label: editor.key + '（现有映射）' });
+  }
   const field = (name: string, label: string, required = true) => <Form.Item name={name} label={label} rules={[{ required }]}><Input /></Form.Item>;
   const count = (name: string, label: string) => <Form.Item name={name} label={label}><InputNumber min={1} style={{ width: '100%' }} /></Form.Item>;
   return <Modal open title={(editor.key ? '编辑' : '新增') + (service ? '上游服务' : '模型映射')} width={700} onCancel={close}
@@ -275,7 +282,10 @@ function Edit({ editor, config, allowedOrigins, close, save }: {
       } catch (error) { setError((error as Error).message); }
       finally { setBusy(false); }
     }}>
-      <Row gutter={16}><Col span={12}>{field(service ? 'id' : 'alias', service ? '服务 ID' : '对外模型 ID')}</Col>
+      <Row gutter={16}><Col span={12}>{service ? field('id', '服务 ID') :
+        <Form.Item name="alias" label="Cline 对外模型" rules={[{ required: true }]} extra={'Cline ' + clineCatalog.version + ' 离线模型目录'}>
+          <Select aria-label="Cline 对外模型" showSearch options={modelOptions} placeholder="搜索并选择模型" />
+        </Form.Item>}</Col>
         <Col span={12}>{field(service ? 'name' : 'upstream', service ? '服务名称' : '上游真实模型 ID')}</Col></Row>
       {service ? <>
         <Form.Item name="origin" label="上游 Origin" rules={[{ required: true }]}><Select options={allowedOrigins.map(value => ({ value }))} /></Form.Item>
@@ -284,7 +294,7 @@ function Edit({ editor, config, allowedOrigins, close, save }: {
           <Col span={12}>{field('authHeader', '认证请求头')}</Col><Col span={12}>{field('authPrefix', '认证前缀', false)}</Col></Row>
         <Form.Item name="apiKey" label="上游 API Key"><Input.Password autoComplete="new-password" placeholder="留空保留同一服务地址的已有密钥" /></Form.Item>
         <Form.Item name="clearKey" valuePropName="checked"><Checkbox>清除已保存的密钥</Checkbox></Form.Item>
-        <Form.Item name="ca" label="内部 CA（PEM）"><Input.TextArea rows={2} /></Form.Item>
+        <Form.Item name="ca" label="上游 CA 或自签服务器证书（PEM）"><Input.TextArea rows={2} /></Form.Item>
         <Row gutter={12}>{Object.entries({ connectMs: '连接超时 ms', firstMs: '首包超时 ms', idleMs: '流空闲超时 ms', concurrency: '并发上限' })
           .map(([name, label]) => <Col span={6} key={name}>{count(name, label)}</Col>)}</Row>
       </> : <>
@@ -371,7 +381,7 @@ function Rules({ revision, publish, attempt }: { revision: Revision; publish: (n
   </Space>;
 }
 
-function Lab({ config, apiBaseUrl }: { config: Config; apiBaseUrl: string }) {
+function Lab({ config, apiBaseUrl, trustFile }: { config: Config; apiBaseUrl: string; trustFile?: string }) {
   const [mode, setMode] = useState('gateway');
   const [profile, setProfile] = useState<Profile>('generic');
   const [alias, setAlias] = useState(config.models[0]?.alias ?? '');
@@ -425,7 +435,8 @@ function Lab({ config, apiBaseUrl }: { config: Config; apiBaseUrl: string }) {
         return ' -H ' + quote(key + ': ' + (/auth|key|cookie|secret|token/i.test(key) ? '<HEADER_VALUE>' : value));
       }).join('');
       Modal.info({ title: 'curl 命令', width: 850, content: <Code value={
-        'curl -N ' + quote((origin ?? '') + path) + ' -H "Content-Type: application/json" -H "'
+        'curl -N ' + (direct && selected?.ca ? '--cacert upstream-trust.crt ' : !direct && trustFile ? '--cacert ' + trustFile + ' ' : '')
+        + quote((origin ?? '') + path) + ' -H "Content-Type: application/json" -H "'
         + auth + ': ' + prefix.replace(/[^a-z0-9 _-]/gi, '') + (direct ? '$UPSTREAM_API_KEY' : '$GATEWAY_API_KEY')
         + '"' + custom + ' --data-binary @request.json\n\n# request.json\n' + json(JSON.parse(raw))} /> });
     } catch (error) { setError((error as Error).message); }
@@ -545,12 +556,12 @@ function Metrics({ rows }: { rows?: Record<string, unknown>[] }) {
   ]} expandable={{ expandedRowRender: row => <Code value={json(row)} /> }} />;
 }
 function baseUrl() { return window.location.protocol + '//' + window.location.hostname + ':18080/v1'; }
-function Integration({ config, apiBaseUrl, hasCa }: { config: Config; apiBaseUrl: string; hasCa?: boolean }) {
+function Integration({ config, apiBaseUrl, trustFile }: { config: Config; apiBaseUrl: string; trustFile?: string }) {
   const [alias, setAlias] = useState(config.models[0]?.alias ?? '');
   const [url, setUrl] = useState(apiBaseUrl);
   return <Card><Space wrap><ModelSelect config={config} value={alias} change={setAlias} />
     <Input aria-label="客户端 Base URL" value={url} onChange={event => setUrl(event.target.value)} style={{ width: 300 }} />
-    {hasCa && <Button href="/admin/tls/ca">下载客户端 CA</Button>}
+    {trustFile && <Button href="/admin/tls/ca">下载客户端信任证书</Button>}
   </Space><Tabs className="after" items={[
     { key: 'config', label: 'OpenAI Compatible / Cline / Runtime OS',
       children: <Descriptions column={1} bordered items={[
@@ -559,12 +570,12 @@ function Integration({ config, apiBaseUrl, hasCa }: { config: Config; apiBaseUrl
       ]} /> },
     { key: 'java', label: 'LangChain4j / JVM', children: <Code value={'// dev.langchain4j:langchain4j-open-ai:1.20.0\nvar model = OpenAiChatModel.builder()\n  .baseUrl('
       + json(url) + ')\n  .modelName(' + json(alias) + ')\n  .apiKey(System.getenv("GATEWAY_API_KEY"))\n  .build();'
-      + (hasCa ? '\n\n# 私有 CA\nsh import-java-ca.sh gateway-ca.crt gateway-trust.p12\njava -Djavax.net.ssl.trustStore=gateway-trust.p12 -Djavax.net.ssl.trustStoreType=PKCS12 ...' : '')} /> },
-    { key: 'py', label: 'Python SDK', children: <Code value={(hasCa ? '# export SSL_CERT_FILE=/path/to/gateway-ca.crt\n' : '') + 'import os\nfrom openai import OpenAI\n\nclient = OpenAI(base_url=' + json(url) +
+      + (trustFile ? '\n\n# 导入信任证书\nsh import-java-ca.sh ' + trustFile + ' gateway-trust.p12\njava -Djavax.net.ssl.trustStore=gateway-trust.p12 -Djavax.net.ssl.trustStoreType=PKCS12 ...' : '')} /> },
+    { key: 'py', label: 'Python SDK', children: <Code value={(trustFile ? '# export SSL_CERT_FILE=/path/to/' + trustFile + '\n' : '') + 'import os\nfrom openai import OpenAI\n\nclient = OpenAI(base_url=' + json(url) +
       ', api_key=os.environ["GATEWAY_API_KEY"])\nprint(client.chat.completions.create(model=' + json(alias) + ', messages=[{"role":"user","content":"Hello"}]))'} /> },
-    { key: 'node', label: 'Node.js SDK', children: <Code value={(hasCa ? '// 启动前设置 NODE_EXTRA_CA_CERTS=/path/to/gateway-ca.crt\n' : '') + 'import OpenAI from "openai";\n\nconst client = new OpenAI({ baseURL: ' + json(url) +
+    { key: 'node', label: 'Node.js SDK', children: <Code value={(trustFile ? '// 启动前设置 NODE_EXTRA_CA_CERTS=/path/to/' + trustFile + '\n' : '') + 'import OpenAI from "openai";\n\nconst client = new OpenAI({ baseURL: ' + json(url) +
       ', apiKey: process.env.GATEWAY_API_KEY });\nconsole.log(await client.chat.completions.create(' + json(sample(alias)) + '));'} /> },
-    { key: 'curl', label: 'curl', children: <Code value={'curl -N ' + (hasCa ? '--cacert gateway-ca.crt ' : '') + "'" + (url.replace(/\/$/, '') + '/chat/completions').replace(/'/g, "'\"'\"'") + "'"
+    { key: 'curl', label: 'curl', children: <Code value={'curl -N ' + (trustFile ? '--cacert ' + trustFile + ' ' : '') + "'" + (url.replace(/\/$/, '') + '/chat/completions').replace(/'/g, "'\"'\"'") + "'"
       + ' -H "Authorization: Bearer $GATEWAY_API_KEY" -H "Content-Type: application/json" --data-binary @request.json\n\n# request.json\n'
       + json(sample(alias))} /> },
   ]} /></Card>;

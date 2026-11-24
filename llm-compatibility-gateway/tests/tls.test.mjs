@@ -154,7 +154,7 @@ test('HTTPS gateway contract', async t => {
     if (process.env.TEST_SIGN_CSR === '1') {
       const signed = execFileSync('docker', ['run', '--rm', '-i', '--network', 'none',
         '--mount', 'type=bind,source=' + resolve(dir) + ',target=/fixture,readonly',
-        '--entrypoint', 'openssl', 'llm-compatibility-gateway:1.1.0', 'x509', '-req', '-in', '/dev/stdin',
+        '--entrypoint', 'openssl', process.env.GATEWAY_IMAGE ?? 'llm-compatibility-gateway:1.1.1', 'x509', '-req', '-in', '/dev/stdin',
         '-CA', '/fixture/intermediate.crt', '-CAkey', '/fixture/intermediate.key', '-set_serial', '555',
         '-days', '45', '-extfile', '/fixture/initial.ext'], { input: csr.json().request, encoding: 'utf8' });
       const deployed = await manage('tls', 'PUT', { names, csrId: csr.json().id,

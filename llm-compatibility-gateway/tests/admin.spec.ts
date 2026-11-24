@@ -9,8 +9,9 @@ test('admin can publish a mapping, compare four stages, inspect logs and log out
   await expect(page.getByRole('heading', { name: '服务概览' })).toBeVisible();
   await page.getByRole('menuitem', { name: '模型映射' }).click();
   await page.getByRole('button', { name: '新增映射' }).click();
-  const alias = 'ui-' + Date.now();
-  await page.getByLabel('对外模型 ID').fill(alias);
+  const alias = 'qwen3.6-35b-a3b';
+  await page.getByRole('combobox', { name: 'Cline 对外模型' }).fill(alias);
+  await page.locator('.ant-select-item-option-content').filter({ hasText: /^qwen3\.6-35b-a3b$/ }).click();
   await page.getByLabel('上游真实模型 ID').fill('/models/Browser');
   await page.getByRole('button', { name: '验证并发布' }).click();
   await expect(page.getByText(alias, { exact: true })).toBeVisible();

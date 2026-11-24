@@ -56,7 +56,7 @@ SQLite 的 `user_version` 驱动初始化和迁移。每次发布在事务中写
 
 ## 离线部署与升级回滚
 
-在已准备好基础镜像、Debian 包源和 npm 源的构建环境执行 `powershell -ExecutionPolicy Bypass -File scripts/export-image.ps1`。已有实测镜像时加 `-SkipBuild` 导出原镜像。将整个 `release/https-1.1.0` 目录复制到内网主机，再生成该主机自己的 `.env` 和启动证书。Linux 执行 `sh install-offline.sh`，Windows 执行 `powershell -ExecutionPolicy Bypass -File install-offline.ps1`。安装脚本先校验镜像包，再加载镜像并使用 Compose 的 `--no-build --pull never` 启动。
+在已准备好基础镜像、Debian 包源和 npm 源的构建环境执行 `powershell -ExecutionPolicy Bypass -File scripts/export-image.ps1`。已有实测镜像时加 `-SkipBuild` 导出原镜像。将整个 `release/https-1.1.1` 目录复制到内网主机，再生成该主机自己的 `.env` 和证书配置。Linux 执行 `sh install-offline.sh`，Windows 执行 `powershell -ExecutionPolicy Bypass -File install-offline.ps1`。安装脚本先校验镜像包，再加载镜像并使用 Compose 的 `--no-build --pull never` 启动。
 
 上线前记录镜像 ID、实际端口和项目名，保留旧镜像与配置数据库备份。需完整备份时用 `docker compose stop llm-gateway` 停止写入，再备份数据卷中的 `gateway.sqlite` 及同目录 WAL 文件。升级保持原项目名、数据卷和配置加密密钥，设置 `GATEWAY_IMAGE` 指向新标签，再按离线方式部署。若启动检查失败，设置旧标签并重启。跨数据库迁移回滚时使用与旧镜像匹配的备份。配置问题可直接通过「配置与审计」回滚为新的已发布版本。
 

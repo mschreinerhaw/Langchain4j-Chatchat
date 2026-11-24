@@ -19,9 +19,10 @@ export const importSchema = z.object({
   names: namesSchema, ca: material.optional(), certificate: material.optional(), privateKey: material.optional(),
   p12: material.optional(), passphrase: z.string().max(1024).optional(), csrId: z.uuid().optional(),
   apiPublicPort: z.number().int().min(1).max(65535).optional(),
+  selfSigned: z.boolean().optional(),
 });
 type Input = z.infer<typeof importSchema>;
-type Bundle = { names: string[]; certificate: string; privateKey: string; ca?: string; apiPublicPort?: number };
+type Bundle = { names: string[]; certificate: string; privateKey: string; ca?: string; apiPublicPort?: number; selfSigned?: boolean };
 type Pending = { id: string; privateKey: string; names: string[] };
 const tlsError = (message: string) => new GatewayError(400, 'invalid_tls_configuration', message);
 const runOpenSsl = promisify(execFile);
@@ -59,6 +60,19 @@ export function validateCa(value: string, checkValidity = true) {
   return chain.map(cert => cert.toString()).join('');
 }
 
+export function validateUpstreamTrust(value: string, checkValidity = true) {
+  const chain = certificates(value);
+  const [leaf] = chain;
+  if (chain.length === 1 && !leaf.ca && leaf.subject === leaf.issuer && leaf.verify(leaf.publicKey)) {
+    const now = Date.now();
+    if (checkValidity && (leaf.validFromDate.getTime() > now || leaf.validToDate.getTime() <= now)) {
+      throw tlsError('上游自签证书不在有效期内');
+    }
+    return leaf.toString();
+  }
+  return validateCa(value, checkValidity);
+}
+
 function expiry(bundle: Bundle) {
   return Math.min(...certificates(bundle.certificate).concat(bundle.ca ? certificates(bundle.ca) : [])
     .map(cert => cert.validToDate.getTime()));
@@ -67,6 +81,12 @@ function expiry(bundle: Bundle) {
 function verify(bundle: Bundle) {
   const [leaf, ...chain] = certificates(bundle.certificate);
   if (leaf.ca) throw tlsError('服务器证书必须为终端实体证书');
+  const now = Date.now();
+  if (leaf.validFromDate.getTime() > now || leaf.validToDate.getTime() <= now) throw tlsError('服务器证书不在有效期内');
+  const selfSigned = leaf.subject === leaf.issuer && leaf.verify(leaf.publicKey);
+  if (Boolean(bundle.selfSigned) !== selfSigned || selfSigned && (chain.length || bundle.ca)) {
+    throw tlsError('自签名模式仅接受显式信任的单张自签服务器证书');
+  }
   for (const name of bundle.names) {
     if (!(isIP(name) ? leaf.checkIP(name) : leaf.checkHost(name, { subject: 'never' }))) {
       throw tlsError('证书 SAN 未覆盖配置的全部域名或 IP');
@@ -83,7 +103,9 @@ function verify(bundle: Bundle) {
     writeFileSync(leafPath, leaf.toString(), { mode: 0o600 });
     if (chain.length) writeFileSync(chainPath, chain.map(cert => cert.toString()).join(''), { mode: 0o600 });
     if (bundle.ca) writeFileSync(caPath, bundle.ca, { mode: 0o600 });
-    openSsl(['verify', '-purpose', 'sslserver', ...(bundle.ca ? ['-CAfile', caPath, '-no-CApath', '-no-CAstore'] : []),
+    const anchors = bundle.selfSigned ? leafPath : bundle.ca ? caPath : undefined;
+    openSsl(['verify', '-purpose', 'sslserver', ...(bundle.selfSigned ? ['-check_ss_sig'] : []),
+      ...(anchors ? ['-CAfile', anchors, '-no-CApath', '-no-CAstore'] : []),
       ...(chain.length ? ['-untrusted', chainPath] : []), leafPath], '证书链验证失败，请检查签发链、有效期与信任 CA');
   });
 }
@@ -131,7 +153,7 @@ function normalize(input: Input, pending?: Pending): Bundle {
     chain.push(next);
   }
   const bundle = { names: input.names, certificate: chain.map(cert => cert.toString()).join(''), privateKey,
-    ca: input.ca ? validateCa(input.ca) : undefined, apiPublicPort: input.apiPublicPort };
+    ca: input.ca ? validateCa(input.ca) : undefined, apiPublicPort: input.apiPublicPort, selfSigned: input.selfSigned };
   verify(bundle);
   return bundle;
 }
@@ -141,37 +163,56 @@ const readOptional = (path: string) => {
   catch (error) { if ((error as NodeJS.ErrnoException).code === 'ENOENT') return undefined; throw error; }
 };
 
+function generateSelfSigned(names: string[]) {
+  return temporary(dir => {
+    const key = join(dir, 'server.key');
+    const san = names.map(name => (isIP(name) ? 'IP:' : 'DNS:') + name).join(',');
+    const certificate = openSsl(['req', '-x509', '-newkey', 'rsa:3072', '-noenc', '-days', '365',
+      '-subj', '/CN=' + (names[0].length <= 64 ? names[0] : 'LLM Compatibility Gateway'),
+      '-addext', 'subjectAltName=' + san, '-addext', 'basicConstraints=critical,CA:FALSE',
+      '-addext', 'keyUsage=critical,digitalSignature,keyEncipherment', '-addext', 'extendedKeyUsage=serverAuth',
+      '-keyout', key], '无法生成自签名证书');
+    return { certificate, privateKey: readFileSync(key, 'utf8'), selfSigned: true };
+  });
+}
+
 export class CertificateStore {
   private bundle: Bundle;
   private pending?: Pending;
   private readonly file: string;
   private readonly csrFile: string;
 
-  constructor(dir: string, private readonly key: Buffer) {
+  constructor(dir: string, private readonly key: Buffer, allowBootstrap = true) {
     mkdirSync(dir, { recursive: true, mode: 0o700 });
     this.file = join(dir, 'active.enc');
     this.csrFile = join(dir, 'pending-csr.enc');
     const saved = readOptional(this.file);
     const pending = readOptional(this.csrFile);
     if (pending) this.pending = JSON.parse(unseal(pending, key)) as Pending;
-    if (saved && process.env.TLS_FORCE_BOOTSTRAP !== 'true') {
+    if (saved && (!allowBootstrap || process.env.TLS_FORCE_BOOTSTRAP !== 'true')) {
       this.bundle = JSON.parse(unseal(saved, key)) as Bundle;
       // An expired deployed certificate still starts the listeners so operators can recover via the mount.
       createSecureContext(optionsFor(this.bundle));
     } else {
+      if (!allowBootstrap) throw new Error('TLS material has not been initialized');
       const bootstrap = process.env.TLS_BOOTSTRAP_DIR ?? '/run/gateway-tls';
       const domain = process.env.TLS_SERVER_NAMES?.split(',').map(name => name.trim()) ?? [];
       const cert = readOptional(join(bootstrap, 'server.crt'));
       const privateKey = readOptional(join(bootstrap, 'server.key'));
       const ca = readOptional(join(bootstrap, 'ca.crt'));
-      if (!cert || !privateKey) throw new Error('Mount TLS_BOOTSTRAP_DIR with server.crt and server.key, or explicitly enable HTTP-only test mode');
-      this.bundle = normalize(importSchema.parse({ names: domain, certificate: cert, privateKey, ca }));
+      const selfSigned = process.env.TLS_SELF_SIGNED === 'true';
+      if ((!cert || !privateKey) && (cert || privateKey || !selfSigned)) {
+        throw new Error('Mount server.crt and server.key, or explicitly enable TLS_SELF_SIGNED');
+      }
+      const material = selfSigned && !cert && !privateKey ? generateSelfSigned(namesSchema.parse(domain))
+        : { certificate: cert, privateKey, ca, selfSigned };
+      this.bundle = normalize(importSchema.parse({ names: domain, ...material }));
       this.writeEncrypted(this.file, this.bundle);
     }
   }
 
   get options() { return optionsFor(this.bundle); }
-  get ca() { return this.bundle.ca; }
+  get ca() { return this.bundle.selfSigned ? this.bundle.certificate : this.bundle.ca; }
   get primaryName() { return this.bundle.names[0]; }
   get publicPort() { return this.bundle.apiPublicPort; }
 
@@ -188,7 +229,7 @@ export class CertificateStore {
     const daysLeft = Math.ceil((expires - Date.now()) / 86_400_000);
     return { names: this.bundle.names, fingerprint: leaf.fingerprint256, validFrom: leaf.validFromDate.toISOString(),
       validTo: new Date(expires).toISOString(), daysLeft, warning: daysLeft <= 30, expired: expires <= Date.now(),
-      hasCa: Boolean(this.bundle.ca), apiPublicPort: this.bundle.apiPublicPort };
+      hasCa: Boolean(this.ca), selfSigned: Boolean(this.bundle.selfSigned), apiPublicPort: this.bundle.apiPublicPort };
   }
 
   async csr(names: string[]) {
@@ -208,7 +249,9 @@ export class CertificateStore {
   }
 
   update(input: Input, apply: (options: TlsOptions) => void) {
-    const next = normalize({ ...input, apiPublicPort: input.apiPublicPort ?? this.bundle.apiPublicPort, ca: input.ca ?? this.bundle.ca }, this.pending);
+    const selfSigned = input.selfSigned ?? Boolean(this.bundle.selfSigned);
+    const next = normalize({ ...input, selfSigned, apiPublicPort: input.apiPublicPort ?? this.bundle.apiPublicPort,
+      ca: input.ca ?? (selfSigned ? undefined : this.bundle.ca) }, this.pending);
     const old = this.options;
     try {
       apply(optionsFor(next));
@@ -224,6 +267,11 @@ export class CertificateStore {
       try { rmSync(this.csrFile, { force: true }); } catch { process.stderr.write('Failed to remove consumed encrypted CSR\n'); }
     }
     return this.status();
+  }
+
+  renewSelfSigned(names: string[], apply: (options: TlsOptions) => void) {
+    const status = this.update({ names, ...generateSelfSigned(names) }, apply);
+    return { ...status, certificate: this.ca };
   }
 
   private writeEncrypted(file: string, value: object) {

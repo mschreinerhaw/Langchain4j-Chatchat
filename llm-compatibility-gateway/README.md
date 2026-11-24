@@ -4,14 +4,14 @@
 
 ## 本地 Docker 开发
 
-在本目录复制 `.env.example` 为 `.env`，填写独立的管理员密码、网关 Key、32 字节十六进制配置加密密钥和允许的上游 Origin。可用 `node -p "require('node:crypto').randomBytes(32).toString('hex')"` 生成各个值。将服务证书、私钥和必要的私有 CA 放在启动证书目录，填写证书 SAN 对应的 `TLS_SERVER_NAMES`。
+在本目录复制 `.env.example` 为 `.env`，填写独立的管理员密码、网关 Key、32 字节十六进制配置加密密钥和允许的上游 Origin。可用 `node -p "require('node:crypto').randomBytes(32).toString('hex')"` 生成各个值。填写客户端实际访问的 `TLS_SERVER_NAMES`。没有 CA 的现场启用 `TLS_SELF_SIGNED=true`，网关可在首次启动时离线生成自签服务器证书。
 
 ```sh
 docker compose up --build -d --wait
 docker compose ps
 ```
 
-推理 API 默认为 `https://<证书域名>:8443/v1`，管理台为 `https://<证书域名>:18081`。登录后新增上游服务与模型映射。配置发布立即生效。
+推理 API 默认为 `https://<证书域名>:8443/v1`，管理台为 `https://<证书域名>:18081`。登录后新增上游服务，在 Cline 离线模型目录下拉选择对外模型，再填写真实上游 ID。配置发布立即生效。
 
 ## 首个客户案例
 

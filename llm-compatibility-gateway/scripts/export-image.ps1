@@ -1,6 +1,6 @@
 param(
-    [string]$Image = 'llm-compatibility-gateway:1.1.0',
-    [string]$OutputDirectory = 'release/https-1.1.0',
+    [string]$Image = 'llm-compatibility-gateway:1.1.1',
+    [string]$OutputDirectory = 'release/https-1.1.1',
     [switch]$SkipBuild
 )
 $ErrorActionPreference = 'Stop'

@@ -1,5 +1,13 @@
 # HTTPS 与 SDK 验收报告
 
+## 1.1.1 自签证书与模型选择
+
+本地 Docker 从空证书目录启动，离线生成自签服务器证书，经宿主导出公开证书。网关经过白名单连接自签 HTTPS Mock 上游。原生客户端成功调用，未信任证书或名称不匹配时被拒绝。轮换后旧信任文件失效，新公开证书可以连接。传统 CA 链回归测试在 Docker 内部网络通过。
+
+Cline 4.1.27 通过受信任的自签 HTTPS 完成两轮流式推理并调用原生 `editor`，独立检查了工作区文件。LangChain4j 1.20.0 导入自签服务器证书至 PKCS12 TrustStore 后，普通对话、中文 SSE 和原生工具回传通过。Playwright 从离线 Cline 目录搜索并发布 `qwen3.6-35b-a3b`，随后通过 `/v1/models` 及 Chat Completions 验证该对外 ID。Mock 观测到其独立的真实上游 ID。
+
+## 1.1.0 HTTPS 验收
+
 验收环境为本地 Docker Desktop Linux/amd64。镜像 `llm-compatibility-gateway:1.1.0` 以 `node` 用户运行。用独立 Docker 网络、离线签发的根 CA 和中间 CA 验证。以下 SDK 均实际连接容器中的网关标准 API，模型侧使用可重复的 Mock Upstream。
 
 | 验收项 | 实测结果 |

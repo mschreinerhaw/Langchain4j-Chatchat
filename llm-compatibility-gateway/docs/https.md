@@ -2,7 +2,23 @@
 
 ## 初始部署
 
-`llm-compatibility-gateway:1.1.0` 由 Node.js 在容器内提供 TLS 1.2 和 TLS 1.3。推理、管理分别监听 8443、18081，使用同一张含全部服务域名或 IP SAN 的证书。HTTPS 监听端口由 `HTTPS_PORT` 设置，宿主映射由 `HTTPS_PUBLIC_PORT` 设置。对外使用 443 时设置 `HTTPS_PUBLIC_PORT=443` 和所需监听地址，容器仍以非 root 用户监听 8443。管理端口默认只对本机发布。
+`llm-compatibility-gateway:1.1.1` 由 Node.js 在容器内提供 TLS 1.2 和 TLS 1.3。推理、管理分别监听 8443、18081，使用同一张含全部服务域名或 IP SAN 的证书。HTTPS 监听端口由 `HTTPS_PORT` 设置，宿主映射由 `HTTPS_PUBLIC_PORT` 设置。对外使用 443 时设置 `HTTPS_PUBLIC_PORT=443` 和所需监听地址，容器仍以非 root 用户监听 8443。管理端口默认只对本机发布。
+
+### 无 CA 的内网
+
+将 `TLS_SELF_SIGNED=true` 写入 `.env`，把客户端实际使用的域名或 IP 填入 `TLS_SERVER_NAMES`，启动证书目录保持为空。首次启动网关在容器内离线生成一张 365 天有效的自签服务器证书，私钥加密保存在 `gateway-certs` 卷。也可在启动目录放入已有的自签 `server.crt` 与 `server.key`。这两种方式均使用证书 SAN 和有效期校验。
+
+在 Docker 宿主机导出公开证书，核对指纹后分发给客户端。首次登录管理台也需要浏览器信任该证书。
+
+```sh
+docker compose exec -T llm-gateway node dist/server/export-trust.js > gateway-server.crt
+```
+
+Windows PowerShell 使用 `docker compose exec -T llm-gateway node dist/server/export-trust.js | Out-File -Encoding ascii gateway-server.crt`。Cline/Node 可使用 `gateway-server.crt` 作为补充信任，LangChain4j 使用页面提供的同一证书导入 Java PKCS12 TrustStore，curl 传入 `--cacert gateway-server.crt`。网关面向自签上游时可在对应服务的证书信任字段填入上游的自签公开证书。
+
+证书管理可上传自签证书或生成并启用新的自签证书。自签叶证书轮换后，客户端须信任新证书。保存实际使用的信任文件与 HTTPS Base URL，应用随后只提交网关 Key 和选中的对外模型 ID。
+
+### 已有 CA 签发证书
 
 1. 使用企业 CA 为推理地址和管理地址签发服务器证书。证书至少含一个 DNS SAN 或 IP SAN。将叶证书和各中间证书合并为 PEM 格式的 `server.crt`，将对应的私钥保存为 `server.key`。企业或私有 CA 根证书放在可选的 `ca.crt`。
 2. 将目录设为 `TLS_BOOTSTRAP_HOST_DIR`，默认 `./tls-bootstrap`。容器 UID 1000 需要读取权。在 Linux 可通过所属组或 ACL 授权，限制私钥仅供管理员和容器用户读取。配置 `TLS_SERVER_NAMES`，以英文逗号分隔，首项用作接入示例的主名称。存在私钥的目录保存在源码树之外，或使用默认忽略的启动目录。
@@ -33,6 +49,12 @@ GATEWAY_CLIENTS='[{"id":"java-runtime","key":"<独立网关密钥>","models":["q
 ```
 
 Profile 标识为 `generic`、`cline`、`langchain4j`、`python` 和 `node`。五个预设默认遵循同一标准协议。只有根据实测差异在「兼容规则」发布特定模型和 Profile 的规则后才生效。规则按「所有客户端共用」在前、当前 Profile 专属规则在后的顺序运行。请求头或 User-Agent 不改变已授权的 Profile。
+
+## Cline 模型别名
+
+新增模型映射时，从 Cline 4.1.27 随包离线目录搜索并选择对外模型，例如 `qwen3.6-35b-a3b`。后台保存客户真实模型 ID（例如 `/models/Qwen3.6-35B-A3B`）和对应上游。应用和 Cline 通过 `/v1/models` 只发现已发布且有权访问的映射。在 SDK 中继续使用选定的对外 ID。同一个对外 ID 只绑定一个映射，现有目录之外的历史别名可以继续编辑。目录仅提供标识，模型能力仍由实际上游决定。
+
+目录从项目实际使用的 `cline-agent-server:4.1.27-local` 镜像内置模型目录提取，来源版本和提交保存在 `web/cline-models.json`。升级 Cline 时，可将 `scripts/extract-cline-models.cjs` 挂载进目标 Cline 镜像并运行 Node 导出，复核差异后随新版镜像发布。
 
 实验室使用真实推理监听器和已授权的服务端测试身份完成 TLS 与 Bearer 认证，显示标准请求、TLS/认证、上游请求、上游响应、标准响应以及协议检查。可以选择 Profile 做对照，或导入脱敏的 JSON body、`{body,headers,profile}` 样本；界面移除认证类请求头。通过页面发起的诊断是同一条请求，服务端不会为采集轨迹重复生成。通过「直连上游」模式可对照客户真实响应。协议 PASS 表示收到可解析的标准响应，工具和业务产物以实测运行结果为准。
 

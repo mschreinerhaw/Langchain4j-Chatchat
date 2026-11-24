@@ -59,5 +59,8 @@ openssl req -x509 -newkey rsa:2048 -noenc -days 90 -subj '/CN=Untrusted Fixture 
   -addext 'basicConstraints=critical,CA:TRUE' -keyout wrong-root.key -out wrong-root.crt 2>/dev/null
 openssl pkcs12 -export -in rotation.leaf -inkey rotation.key -certfile intermediate.crt -passout pass:fixture-password -out rotation.p12
 openssl x509 -in initial.leaf -outform DER -out initial.der
+openssl req -x509 -newkey rsa:2048 -noenc -days 90 -subj '/CN=mock-tls' \
+  -addext 'subjectAltName=DNS:mock-tls' -addext 'basicConstraints=critical,CA:FALSE' \
+  -addext 'extendedKeyUsage=serverAuth' -keyout self-upstream.key -out self-upstream.crt 2>/dev/null
 chmod 755 bootstrap
 chmod 644 bootstrap/ca.crt bootstrap/server.crt

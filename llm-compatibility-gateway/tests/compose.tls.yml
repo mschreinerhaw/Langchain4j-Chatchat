@@ -15,7 +15,7 @@ services:
       - ./tests/mock.mjs:/fixture.mjs:ro
     command: ["node", "/fixture.mjs"]
   mock-tls:
-    image: llm-compatibility-gateway:1.1.0
+    image: ${GATEWAY_IMAGE:-llm-compatibility-gateway:1.1.1}
     pull_policy: never
     user: node
     read_only: true

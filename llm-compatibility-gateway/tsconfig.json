@@ -8,6 +8,7 @@
     "strict": true,
     "skipLibCheck": true,
     "jsx": "react-jsx",
+    "resolveJsonModule": true,
     "types": ["node"]
   },
   "include": ["server/**/*.ts", "adapters/**/*.ts", "protocol/**/*.ts", "web/**/*.tsx"]

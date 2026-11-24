@@ -1,6 +1,24 @@
 import { describe, expect, it } from 'vitest';
 import { applyRules, ruleSchema } from '../protocol/rules.js';
 import { eventText, readEvents } from '../protocol/sse.js';
+import { Store } from '../server/config.js';
+
+it('only allows a new exact upstream origin with approval on a successful publish', () => {
+  const original = 'https://existing.example';
+  const next = 'http://10.2.25.111:32004';
+  const store = new Store(':memory:', Buffer.alloc(32), new Set([original]));
+  const candidate = { services: [{ id: 'new', name: '内网模型', origin: next + '/' }], models: [] };
+  expect(() => store.publish(1, candidate)).toThrow(/白名单/);
+  expect(() => store.publish(1, candidate, { approveOrigin: original })).toThrow(/白名单/);
+  expect(() => store.publish(2, candidate, { approveOrigin: next })).toThrow(/重新加载/);
+  expect(() => store.publish(1, { ...candidate, services: [...candidate.services, ...candidate.services] },
+    { approveOrigin: next })).toThrow(/重复/);
+  expect(store.allowedOrigins.has(next)).toBe(false);
+  expect(store.publish(1, candidate, { approveOrigin: next }).config.services[0].origin).toBe(next);
+  expect(store.allowedOrigins.has(next)).toBe(true);
+  expect(store.history()[0].action).toContain(next);
+  expect(store.publish(2, candidate).version).toBe(3);
+});
 
 describe('declarative rules', () => {
   it('preserves unconfigured data and nested empty containers', () => {

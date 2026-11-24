@@ -4,6 +4,7 @@ import { ruleSchema, headerName } from '../protocol/rules.js';
 import { profileNames, type Profile } from '../protocol/profiles.js';
 import { seal, unseal } from './credentials.js';
 import { validateUpstreamTrust } from './tls.js';
+import { normalizeOrigin } from '../protocol/origin.js';
 
 export class GatewayError extends Error {
   constructor(public status: number, public code: string, message: string) {
@@ -82,6 +83,7 @@ export function settings() {
 
 export class Store {
   private readonly db: DatabaseSync;
+  private readonly approvedOrigins: Set<string>;
   private current: Snapshot;
 
   constructor(file: string, private readonly key: Buffer, private readonly origins: Set<string>) {
@@ -98,6 +100,9 @@ export class Store {
       PRAGMA user_version=1;
       COMMIT;
     `);
+    // Keep the base schema version compatible with builds that only read environment-approved origins.
+    this.db.exec('CREATE TABLE IF NOT EXISTS upstream_origins (origin TEXT PRIMARY KEY)');
+    this.approvedOrigins = new Set(this.db.prepare('SELECT origin FROM upstream_origins').all().map(row => String(row.origin)));
     this.current = this.getRevision();
     this.validate(this.current.config, false);
   }
@@ -114,6 +119,7 @@ export class Store {
   }
 
   get snapshot() { return this.current; }
+  get allowedOrigins() { return new Set([...this.origins, ...this.approvedOrigins]); }
 
   publicVersion(snapshot = this.current) {
     return { version: snapshot.version, config: {
@@ -122,14 +128,17 @@ export class Store {
     } };
   }
 
-  validate(input: unknown, checkCaValidity = true): Config {
+  validate(input: unknown, checkCaValidity = true, pendingOrigin?: string): Config {
     const config = configSchema.parse(input);
     const services = new Set<string>();
+    const allowed = this.allowedOrigins;
+    if (pendingOrigin) allowed.add(pendingOrigin);
     for (const service of config.services) {
-      const url = new URL(service.origin);
-      if (url.href !== url.origin + '/' || !this.origins.has(url.origin)) {
+      const origin = normalizeOrigin(service.origin);
+      if (!origin || !allowed.has(origin)) {
         throw new GatewayError(400, 'upstream_not_allowed', '服务地址必须是白名单中的 HTTP(S) Origin，接口路径单独配置');
       }
+      service.origin = origin;
       if (services.has(service.id)) throw new GatewayError(409, 'duplicate_service', '服务 ID 重复');
       services.add(service.id);
       if (service.ca) service.ca = validateUpstreamTrust(service.ca, checkCaValidity);
@@ -143,8 +152,15 @@ export class Store {
     return config;
   }
 
-  publish(expected: number, input: unknown, action = 'publish', retainSecrets = true) {
-    const config = this.validate(input);
+  publish(expected: number, input: unknown, options: { action?: string; retainSecrets?: boolean; approveOrigin?: string } = {}) {
+    const { action = 'publish', retainSecrets = true, approveOrigin } = options;
+    const pendingOrigin = approveOrigin === undefined ? undefined : normalizeOrigin(approveOrigin);
+    if (approveOrigin !== undefined && !pendingOrigin) throw new GatewayError(400, 'invalid_upstream_origin', '请填写 HTTP(S) 地址，接口路径单独配置');
+    const config = this.validate(input, true, pendingOrigin);
+    if (pendingOrigin && !config.services.some(service => service.origin === pendingOrigin)) {
+      throw new GatewayError(400, 'unused_upstream_origin', '获准地址必须与本次保存的上游服务一致');
+    }
+    const newOrigin = pendingOrigin && !this.allowedOrigins.has(pendingOrigin) ? pendingOrigin : undefined;
     const previous = new Map(this.current.config.services.map(service => [service.id, service]));
     if (retainSecrets) for (const service of config.services) {
       if (service.apiKey === undefined) {
@@ -159,8 +175,11 @@ export class Store {
       const encoded = { ...config, services: config.services.map(service => ({
         ...service, apiKey: service.apiKey ? seal(service.apiKey, this.key) : undefined,
       })) };
-      this.db.prepare('INSERT INTO revisions VALUES (?,?,?,?)').run(version + 1, JSON.stringify(encoded), new Date().toISOString(), action);
+      if (newOrigin) this.db.prepare('INSERT OR IGNORE INTO upstream_origins VALUES (?)').run(newOrigin);
+      this.db.prepare('INSERT INTO revisions VALUES (?,?,?,?)').run(version + 1, JSON.stringify(encoded), new Date().toISOString(),
+        newOrigin ? action + ' · 批准上游地址 ' + newOrigin : action);
       this.db.exec('COMMIT');
+      if (newOrigin) this.approvedOrigins.add(newOrigin);
       this.current = { version: version + 1, config };
       return this.publicVersion();
     } catch (error) {

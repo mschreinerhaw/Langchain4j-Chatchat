@@ -210,7 +210,8 @@ admin.post('/admin/logout', async (req, reply) => {
   sessions.delete(session(req));
   return reply.header('set-cookie', sessionCookie('', 0)).send({ authenticated: false });
 });
-admin.get('/admin/config', async () => ({ ...store.publicVersion(), allowedOrigins: [...settingsValue.origins], apiBaseUrl: gatewayUrl() }));
+const publishedConfig = () => ({ ...store.publicVersion(), allowedOrigins: [...store.allowedOrigins], apiBaseUrl: gatewayUrl() });
+admin.get('/admin/config', async () => publishedConfig());
 const tlsStore = () => {
   if (!certificates) throw new GatewayError(409, 'tls_disabled', '当前只启用了 HTTP 测试模式');
   return certificates;
@@ -240,8 +241,9 @@ admin.get('/admin/history/:version', async req => store.publicVersion(store.getR
 admin.get('/admin/backup', async (_req, reply) => reply.header('content-disposition', 'attachment; filename=gateway-config.json').send(store.publicVersion()));
 const change = z.object({ version: z.number().int().positive(), config: z.unknown() });
 admin.put('/admin/config', async req => {
-  const body = change.parse(req.body);
-  return store.publish(body.version, body.config);
+  const body = change.extend({ approveOrigin: z.string().max(2048).optional() }).parse(req.body);
+  store.publish(body.version, body.config, { approveOrigin: body.approveOrigin });
+  return publishedConfig();
 });
 admin.post('/admin/validate', async req => {
   const body = change.parse(req.body);
@@ -249,11 +251,11 @@ admin.post('/admin/validate', async req => {
 });
 admin.post('/admin/restore', async req => {
   const body = change.parse(req.body);
-  return store.publish(body.version, body.config, 'restore');
+  return store.publish(body.version, body.config, { action: 'restore' });
 });
 admin.post('/admin/rollback', async req => {
   const body = z.object({ version: z.number().int().positive(), target: z.number().int().positive() }).parse(req.body);
-  return store.publish(body.version, store.getRevision(body.target).config, `rollback:${body.target}`, false);
+  return store.publish(body.version, store.getRevision(body.target).config, { action: `rollback:${body.target}`, retainSecrets: false });
 });
 admin.get('/admin/overview', async () => {
   const metrics = store.metrics();

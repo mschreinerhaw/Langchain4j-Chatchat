@@ -26,6 +26,8 @@ import static com.chatchat.agents.runtime.coding.CodingTaskAccess.Action.*;
 @Service
 @ConditionalOnProperty(prefix="chatchat.runtime.coding.unified",name="enabled",havingValue="true")
 public final class NativeAnalysisBridge {
+    private static final int MAX_INVENTORY_FIELDS = 16;
+    private static final int MAX_INVENTORY_FIELD_CHARS = 128;
     @org.springframework.beans.factory.annotation.Autowired private com.chatchat.api.runtime.coding.nativecline.NativeTaskCapabilities capabilities;
     @org.springframework.beans.factory.annotation.Autowired(required=false) private NativePublishedTemplate publishedTemplates;
     private final NativeCodingTasks coding;private final UserAssetService assets;private final CodingInvocationContext identity;private final ObjectMapper json;private final CodingAnalysisProperties policy;
@@ -71,6 +73,8 @@ public final class NativeAnalysisBridge {
             var inventory = new ArrayList<Map<String, Object>>();
             for(var source:sources.values()){
                 long offset=0, sourceBytes=0;
+                var observedFields = new LinkedHashSet<String>();
+                boolean fieldInventoryLimited = false;
                 long expectedRows = source.handle().recordCountExact() ? source.recordCount() : -1;
                 String name="source-"+(++index);
                 Path temporary=null;
@@ -89,6 +93,15 @@ public final class NativeAnalysisBridge {
                                     throw new IllegalArgumentException("DATA_SUPPLY_LIMIT: snapshot exceeds the configured row or byte budget");
                                 output.write(data);output.write('\n');
                                 sourceBytes+=lineBytes;bytes+=lineBytes;rows++;
+                                for (String field : row.keySet()) {
+                                    if (observedFields.contains(field)) continue;
+                                    if (field == null || field.length() > MAX_INVENTORY_FIELD_CHARS
+                                            || observedFields.size() >= MAX_INVENTORY_FIELDS) {
+                                        fieldInventoryLimited = true;
+                                    } else {
+                                        observedFields.add(field);
+                                    }
+                                }
                             }
                             offset+=page.rows().size();
                             if(!page.hasMore())break;
@@ -128,11 +141,14 @@ public final class NativeAnalysisBridge {
                         scope.runId(), "native-runtime-context:" + file.id(), name + "-context.json", "application/json",
                         json.writeValueAsBytes(description));
                     files.add(meta.id());
-                    inventory.add(Map.of("datasetReference", source.reference(), "rowCount", offset, "sha256", file.sha256(),
-                        "bytes", sourceBytes, "inputStatus", description.get("inputStatus"),
-                        "countAssurance", description.get("countAssurance"),
-                        "path", "input/data/" + fileIndex + "/" + file.fileName(),
-                        "contextPath", "input/data/" + (fileIndex + 1) + "/" + meta.fileName()));
+                    inventory.add(Map.ofEntries(
+                        Map.entry("datasetReference", source.reference()), Map.entry("rowCount", offset),
+                        Map.entry("sha256", file.sha256()), Map.entry("bytes", sourceBytes),
+                        Map.entry("inputStatus", status), Map.entry("countAssurance", description.get("countAssurance")),
+                        Map.entry("format", "JSON_LINES"), Map.entry("observedFields", observedFields.stream().sorted().toList()),
+                        Map.entry("fieldInventoryComplete", !fieldInventoryLimited),
+                        Map.entry("path", "input/data/" + fileIndex + "/" + file.fileName()),
+                        Map.entry("contextPath", "input/data/" + (fileIndex + 1) + "/" + meta.fileName())));
                 } catch (IOException invalid) {
                     throw new IllegalArgumentException("Source context cannot be frozen", invalid);
                 }
@@ -158,7 +174,7 @@ public final class NativeAnalysisBridge {
                     +"Verify current facts using the supplied authorized inputs.";
             }
             if(instruction.length()>16000){byte[] data=instruction.getBytes(java.nio.charset.StandardCharsets.UTF_8);var file=assets.store(UserAssetService.Owner.of(scope),UserAssetService.Kind.DATASET,snapshotTask,scope.runId(),"native-original-objective:"+UserAssetService.hash(data),"original-task-objective.txt","text/plain",data);files.add(file.id());instruction="Read original-task-objective.txt from the supplied files for the full original user objective.";}
-            instruction+="\nRead data-supply-manifest.json for the inventory of immutable source files. Use the frozen source contexts to interpret the supplied JSONL rows and distinguish missing data from verified empty results. Treat SOURCE_INCOMPLETE and SOURCE_UNKNOWN snapshots as limited and disclose the missing coverage. Preserve source references and field names. Choose your own source structure and computation. Provide a complete Markdown report and the requested structured result; never treat transport/status observations as business data.";
+            instruction+="\nStart with data-supply-manifest.json for paths, observed field names, row counts and source assurance. Read the source context when you need declared field meanings or types. Use Python to inspect and compute over the complete immutable JSONL files. Save full results as artifacts and read only compact metrics and diagnostics for interpretation. If fieldInventoryComplete is false, discover additional fields programmatically. Treat SOURCE_INCOMPLETE and SOURCE_UNKNOWN snapshots as limited and disclose the missing coverage. Preserve source references and field names. Choose your own source structure and computation. Provide a complete Markdown report and the requested structured result; never treat transport/status observations as business data.";
             var types=List.of("REPORT","RESULT"); // Charts are optional: missing evidence must never force invented figures.
             String model=Objects.toString(context.metadata().get("modelName"),null);
             var capabilitySnapshot = new LinkedHashMap<>(capabilities.capture(scope, model, context.runtimeAttributes(),

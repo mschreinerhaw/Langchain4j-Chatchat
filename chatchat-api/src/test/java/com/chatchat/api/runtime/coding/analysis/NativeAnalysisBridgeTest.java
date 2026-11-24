@@ -41,14 +41,21 @@ class NativeAnalysisBridgeTest {
         var pageable = new PagedDatasetHandle(10_000, true, (offset, limit) -> {
             offsets.add(offset);
             long end = Math.min(10_000, offset + Math.min(limit, 1_000));
-            var rows = LongStream.range(offset, end).mapToObj(i -> Map.<String, Object>of("n", i)).toList();
+            var rows = LongStream.range(offset, end).mapToObj(i -> i == 9_999
+                ? Map.<String, Object>of("n", i, "lateField", "row value stays in snapshot")
+                : Map.<String, Object>of("n", i)).toList();
             return new DatasetHandle.Page(offset, rows, end < 10_000);
         }, null, null, Map.of());
         var sources = new LinkedHashMap<String, Dataset>();
         sources.put("range", new Dataset("range", Map.of("sourceComplete", true), pageable));
         for (int i = 1; i < 20; i++) {
             String id = "source-" + i;
-            sources.put(id, new Dataset(id, Map.of(), List.of(Map.of("n", i))));
+            var row = new LinkedHashMap<String, Object>();
+            row.put("n", i);
+            if (i == 1) {
+                for (int field = 0; field < 20; field++) row.put("field" + field, field);
+            }
+            sources.put(id, new Dataset(id, Map.of(), List.of(row)));
         }
         var transferred = new LinkedHashMap<String, byte[]>();
         when(assets.storeSnapshot(any(), anyString(), anyString(), anyString(), anyString(),
@@ -89,6 +96,11 @@ class NativeAnalysisBridgeTest {
         assertThat(manifest.path("datasets").get(1).path("inputStatus").asText()).isEqualTo("SOURCE_UNKNOWN");
         assertThat(manifest.path("datasets").get(0).path("rowCount").asLong()).isEqualTo(10_000);
         assertThat(manifest.path("datasets").get(0).path("countAssurance").asText()).isEqualTo("VERIFIED_TOTAL");
+        assertThat(manifest.path("datasets").get(0).path("observedFields").toString()).isEqualTo("[\"lateField\",\"n\"]");
+        assertThat(manifest.path("datasets").get(0).path("fieldInventoryComplete").asBoolean()).isTrue();
+        assertThat(manifest.path("datasets").get(1).path("fieldInventoryComplete").asBoolean()).isFalse();
+        assertThat(manifest.path("datasets").get(1).path("observedFields").size()).isEqualTo(16);
+        assertThat(manifest.toString()).doesNotContain("row value stays in snapshot");
         assertThat(new String(transferred.get("source-1.jsonl"), java.nio.charset.StandardCharsets.UTF_8).lines().count())
             .isEqualTo(10_000);
         assertThat(result).containsEntry("deliveredRows", 10_019L);

@@ -10,6 +10,10 @@ LABEL runtime-os.cline.version="4.1.27" \
 USER root
 # Dedicated daemons may use umask 077 when creating missing bind parents.
 RUN install -d -m 0755 /var/lib/runtime-os /var/lib/runtime-os/coding-node /run/runtime-os /run/runtime-os/coding-node
+# Cline's command executor resolves the runner account's default shell.
+RUN /usr/sbin/usermod --shell /bin/bash runner \
+    && test "$(getent passwd runner | cut -d: -f7)" = /bin/bash \
+    && su --command 'test "$(id -u)" -eq 10001 && exec /usr/local/bin/python --version' runner
 RUN rm -rf /opt/runtime-os/cline/runtime /opt/runtime-os/coding-node/service/src \
     /opt/runtime-os/coding-node/coding-agent-node/src /opt/runtime-os/coding-node/coding-agent-node/skills
 COPY --from=native /usr/local/bin/node /usr/local/bin/node

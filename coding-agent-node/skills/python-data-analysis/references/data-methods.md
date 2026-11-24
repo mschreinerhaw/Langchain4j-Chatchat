@@ -21,6 +21,37 @@ def logical_rows(manifest_path, expected_manifest_sha256, native_file_id=None):
 - JSON/JSONL: distinguish records, nested arrays and objects; use `json.loads(..., parse_float=Decimal)` where precision matters. Stream JSONL line by line and flatten only documented relationships.
 - Multiple files: compare schemas, units, coverage and key domains first. For partitions check duplicate/overlapping ranges before concatenation. Validate merges with `validate='many_to_one'` or the known cardinality and use an indicator to measure unmatched rows. Never guess a business join from similar column names alone.
 
+For an authorized native JSONL snapshot, this programmatic probe checks the delivered row count and measures missing versus null fields without copying row values into the model. Supply `snapshot`, `expected_rows`, and `fields` from the inventory and source context. Use only the fields needed for the next calculation.
+
+```python
+from decimal import Decimal
+import json
+
+def inspect_jsonl(snapshot, expected_rows, fields):
+    counts = {name: {"present": 0, "null": 0} for name in fields}
+    rows = 0
+    with snapshot.open(encoding="utf-8") as source:
+        for line_no, line in enumerate(source, 1):
+            try:
+                record = json.loads(line, parse_float=Decimal)
+            except ValueError:
+                raise ValueError(f"Invalid JSONL at line {line_no}") from None
+            if not isinstance(record, dict):
+                raise ValueError(f"Expected a JSON object at line {line_no}")
+            for name, counter in counts.items():
+                if name in record:
+                    counter["present"] += 1
+                    counter["null"] += record[name] is None
+            rows += 1
+    if rows != expected_rows:
+        raise ValueError(f"Snapshot row count differs: expected {expected_rows}, read {rows}")
+    for counter in counts.values():
+        counter["missing"] = rows - counter["present"]
+    return {"snapshotRows": rows, "fields": counts}
+```
+
+This probe validates coverage of the delivered snapshot. Business calculations must still process all rows matching the requested filters and reflect the source's completeness status. Preserve exact source references and save detailed results outside the summary.
+
 Compute a compact quality summary: row/column counts, dtype inventory, per-field missing/null counts, duplicate business keys, numeric quantiles, invalid dates and categorical counts. Investigate outliers; retain or exclude them with a stated rule, never silently delete inconvenient observations. Avoid printing complete sensitive datasets.
 
 For trend and growth analysis, establish calendar, timezone, comparable windows and aggregation grain. Align periods before shifts; report undefined growth when the comparison base is zero. Weighted averages require an explicit weight and denominator. For investment returns, distinguish cash flow, realized P&L, unrealized P&L, valuation and fees; do not substitute one for another when the required fields are missing.

@@ -11,6 +11,7 @@
 !server/**/*.ts
 !tests/
 !tests/protocol.test.ts
+!tests/runtime-managed.test.ts
 !web/
 !web/**/*.tsx
 !web/**/*.css

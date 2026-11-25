@@ -271,7 +271,7 @@ function App() {
     </Layout.Sider>
     <Layout>
       <Layout.Header className="top"><span>管理控制台</span><Space wrap>
-        <Tag color="green">运行正常</Tag><span className="muted">v1.1.1 · 配置 v{version}</span>
+        <Tag color="green">运行正常</Tag><span className="muted">v1.2.0-rc.1 · 配置 v{version}</span>
         <Button size="small" onClick={() => attempt(async () => { await api('logout', 'POST'); window.dispatchEvent(new Event('gateway-logout')); })}>退出</Button>
       </Space></Layout.Header>
       <Layout.Content className="main">
@@ -355,8 +355,6 @@ function Edit({ editor, config, close, save }: {
         <Form.Item name="displayName" label="模型显示名称"><Input maxLength={240} placeholder="留空时显示对外模型 ID" /></Form.Item>
         <Form.Item name="service" label="关联服务" rules={[{ required: true }]}><Select options={config.services.map(item => ({ value: item.id, label: item.name }))} /></Form.Item>
         <Row gutter={16}><Col span={12}>{count('contextWindow', '上下文窗口')}</Col><Col span={12}>{count('maxOutput', '最大输出 Token')}</Col></Row>
-        <Form.Item name="sseEnd" label="SSE 结束条件"><Select options={[{ value: 'require_done', label: '要求上游 [DONE]' },
-          { value: 'done_on_finished_eof', label: '所有 choice 已结束且正常 EOF 时补齐 [DONE]' }]} /></Form.Item>
         <Row gutter={12}>{Object.entries(capNames).map(([name, label]) => <Col span={6} key={name}>
           <Form.Item name={['capabilities', name]} label={label}><Select options={Object.entries(capLabels).map(([value, label]) => ({ value, label }))} /></Form.Item>
         </Col>)}</Row>
@@ -606,7 +604,7 @@ function Checks({ config, previous, refresh }: { config: Config; previous: Check
 function Metrics({ rows, emptyText = '暂无请求日志' }: { rows?: Record<string, unknown>[]; emptyText?: string }) {
   return <Table dataSource={rows ?? []} rowKey={row => String(row.id)} size="small" locale={{ emptyText }} scroll={{ x: 860 }} columns={[
     { title: '时间', dataIndex: 'time', render: value => new Date(value).toLocaleString() },
-    { title: '客户端', dataIndex: 'client' }, { title: '模型', dataIndex: 'model' },
+    { title: '客户端', dataIndex: 'client' }, { title: '模式', dataIndex: 'mode' }, { title: '模型', dataIndex: 'model' },
     { title: 'HTTP', dataIndex: 'status' }, { title: '耗时 ms', dataIndex: 'elapsedMs' },
     { title: '首 Token ms', dataIndex: 'firstTokenMs' }, { title: '错误', dataIndex: 'error' }, { title: '配置', dataIndex: 'revision' },
   ]} expandable={{ expandedRowRender: row => <Code value={json(row)} /> }} />;

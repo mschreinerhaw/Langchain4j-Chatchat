@@ -13,6 +13,7 @@ import {Journal} from './journal.mjs';
 import {workerRuntime} from './worker-executor-policy.mjs';
 import {validateS3Inputs,prepareS3Inputs,verifyStoppedDelivery,uploadS3Delivery,jsonHash} from './s3-task-transport.mjs';
 import {modelReceipt,modelTransportErrorCode} from './model-receipt.mjs';
+import {requestModelGateway} from './model-gateway-transport.mjs';
 import {readJsonBody as body,NATIVE_MODEL_BODY_LIMIT} from './request-body.mjs';
 import {admitStudioModel,settleStudioModel} from './studio-budget.mjs';
 import {verifyIssuedContract,issuerKey} from './task-issuer.mjs';
@@ -67,6 +68,12 @@ function taskSignal(contract,controller){
    ? AbortSignal.any([controller.signal,AbortSignal.timeout(Math.max(1,contract.expiresAt-Date.now()))])
    : controller.signal;
 }
+const modelGatewayOrigins=new Set((process.env.RUNTIME_MODEL_GATEWAY_ORIGINS??'').split(',').map(value=>value.trim()).filter(Boolean).map(value=>{
+ const url=new URL(value);
+ if(!['http:','https:'].includes(url.protocol)||url.href!==url.origin+'/')throw Error('Runtime model Gateway requires an exact HTTP(S) origin');
+ return url.origin;
+}));
+const modelAbort=(code)=>Object.assign(Error(code),{code});
 function refreshRevocation(r){
  const marker=join(cfg.stateRoot,'revocations',r.contract.sessionId+'.json');if(!existsSync(marker))return;
  const revoked=JSON.parse(readFileSync(marker,'utf8'));
@@ -97,7 +104,8 @@ async function stop(r,reason){
   r.revoked=true;r.taskState='CANCELLED';for(const controller of calls.get(r.workerId)??[])controller.abort();save(r);event(r,'task.revoked',{reason});return;
  }
  if(r.workerState==='STOPPING'||r.workerState==='STOPPED'&&!r.contract.s3)return;r.revoked=true;r.workerState='STOPPING';r.taskState='STOPPING';save(r);event(r,'worker.stopping',{reason});
- for(const response of streams.get(r.workerId)??[])response.end();for(const controller of calls.get(r.workerId)??[])controller.abort();
+ for(const response of streams.get(r.workerId)??[])response.end();for(const controller of calls.get(r.workerId)??[])
+  controller.abort(modelAbort(reason==='lease-expired'?'RUNTIME_DEADLINE_EXCEEDED':'RUNTIME_TASK_STOPPED'));
  try{if(r.nativeSessionId)await workerJSON(r,'/v1/sessions/'+r.nativeSessionId+'/cancel','POST',{});}catch{}
  try{if(r.containerId||executor&&(r.provisioningAttempted||r.contract.s3))r.stopProof=await cancelWorker(r);r.workerState='STOPPED';r.taskState='CANCELLED_LOCAL_ONLY';}
  catch{r.workerState='RECOVERABLE';r.taskState='UNKNOWN';}
@@ -106,7 +114,10 @@ async function stop(r,reason){
 }
 async function broker(r,path){
  const server=http.createServer(async(req,res)=>{
-  let observation,requestBody;
+  let observation,requestBody,upstreamSignal;
+  const modelFailure=e=>upstreamSignal?.aborted
+    ?upstreamSignal.reason?.name==='TimeoutError'?'RUNTIME_DEADLINE_EXCEEDED':modelTransportErrorCode(upstreamSignal.reason)
+    :modelTransportErrorCode(e);
   try{
    const provided=Buffer.from(req.headers.authorization??''),expected=Buffer.from('Bearer '+r.brokerToken);
    if(provided.length!==expected.length||!timingSafeEqual(provided,expected))throw error('Broker authorization rejected',401);
@@ -155,19 +166,31 @@ async function broker(r,path){
    }else throw error('Broker route not found',404);
    if(!live(r))throw error('Task lease inactive',403);
    const controller=new AbortController();if(!calls.has(r.workerId))calls.set(r.workerId,new Set());calls.get(r.workerId).add(controller);
-   const close=()=>controller.abort();
+   const close=()=>controller.abort(modelAbort('CORE_DISCONNECTED'));
    res.once('close',close);
    if(res.destroyed)close();
    try{
     const request=JSON.stringify(requestBody);
     if(modelProfile)observation=modelReceipt({model:modelProfile.model,request,body:requestBody,
-      reasoning:{requestedReasoningEffort:modelProfile.requestedReasoningEffort,reasoningEffort:modelProfile.requestedReasoningEffort===undefined?modelProfile.reasoningEffort:modelProfile.reasoningEffort??'off'},
+      reasoning:{requestedReasoningEffort:modelProfile.requestedReasoningEffort,reasoningEffort:modelProfile.requestedReasoningEffort===undefined?modelProfile.reasoningEffort:modelProfile.reasoningEffort??'off',
+       modelAttemptId:r.contract.modelAttemptId},
       emit:(type,payload)=>{
        if(type==='model.request.completed')settleStudioModel(r,payload);
        event(r,type,payload);
       }});
-    const upstream=await fetch(url,{method:'POST',headers,body:request,signal:controller.signal,redirect:'error'});
-    observation?.headers();
+    const managed=modelProfile&&modelGatewayOrigins.has(new URL(url).origin);
+    if(managed){
+     headers['x-runtime-task-id']=r.contract.taskId;
+     headers['x-runtime-session-id']=r.contract.sessionId;
+     headers['x-runtime-request-id']=observation.requestId;
+     if(r.contract.modelAttemptId)headers['x-runtime-attempt-id']=r.contract.modelAttemptId;
+     if(hasTaskDeadline(r.contract))headers['x-runtime-deadline-ms']=String(r.contract.expiresAt);
+    }
+    upstreamSignal=modelProfile?taskSignal(r.contract,controller):controller.signal;
+    const upstream=managed?await requestModelGateway(url,{headers,body:request,signal:upstreamSignal})
+     :await fetch(url,{method:'POST',headers,body:request,signal:upstreamSignal,redirect:'error'});
+    observation?.headers(managed?upstream.headers.get('x-request-id'):undefined,
+     managed?upstream.headers.get('x-gateway-error-code'):undefined);
     if(req.url==='/mcp'&&tenant.mcp.authMode==='native-runtime'){
      const chunks=[];let size=0;for await(const chunk of upstream.body??[]){size+=chunk.length;if(size>2*1024*1024){controller.abort();throw Error('Runtime MCP response byte budget exceeded');}chunks.push(chunk);}const bytes=Buffer.concat(chunks);if(!bytes.length){res.writeHead(upstream.status);return res.end();}if(!live(r))throw error('Task lease inactive',403);
      const value=runtimeMcpReply(bytes,upstream.status);
@@ -185,12 +208,12 @@ async function broker(r,path){
     }
     res.writeHead(upstream.status,{'content-type':upstream.headers.get('content-type')??'application/json'});
     try{
-     for await(const chunk of upstream.body??[]){observation?.observe(chunk);if(!res.write(chunk))await once(res,'drain',{signal:controller.signal});}
+     for await(const chunk of upstream.body??[]){observation?.observe(chunk);if(!res.write(chunk))await once(res,'drain',{signal:upstreamSignal});}
      observation?.finish({httpStatus:upstream.status,providerRequestId:upstream.headers.get('x-request-id')??upstream.headers.get('request-id')});res.end();
-    }catch(e){observation?.finish({httpStatus:upstream.status,errorType:e.name??'UpstreamError',errorCode:modelTransportErrorCode(e)});throw e;}
+    }catch(e){observation?.finish({httpStatus:upstream.status,errorType:e.name??'UpstreamError',errorCode:modelFailure(e)});throw e;}
    }finally{res.off('close',close);calls.get(r.workerId).delete(controller);}
   }catch(e){
-   observation?.finish({errorType:e.name??'UpstreamError',errorCode:modelTransportErrorCode(e)});
+   observation?.finish({errorType:e.name??'UpstreamError',errorCode:modelFailure(e)});
    if(!res.headersSent&&req.url==='/mcp'&&requestBody?.method==='tools/call'){
     const code=[401,403,409].includes(e.status)?'RUNTIME_AUTHORIZATION_REJECTED':/integrity|hash/i.test(e.message)?'DOWNLOAD_INTEGRITY_MISMATCH':/symlink|path changed/i.test(e.message)?'DOWNLOAD_PATH_REJECTED':/byte budget/i.test(e.message)?'DOWNLOAD_RESOURCE_LIMIT':'RUNTIME_TOOL_UNAVAILABLE';
     event(r,'runtime.tool.failed',{tool:requestBody.params?.name,requestId:requestBody.id,code});

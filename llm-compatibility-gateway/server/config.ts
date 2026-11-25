@@ -48,9 +48,23 @@ export type Model = z.infer<typeof modelSchema>;
 export type Config = z.infer<typeof configSchema>;
 export type Snapshot = { version: number; config: Config };
 type Row = { version: number; payload: string };
-type Client = { id: string; key: string; models: string[]; profile: Profile };
 const clientsSchema = z.array(z.object({ id: identifier, key: z.string().min(16), models: z.array(z.string()).min(1),
-  profile: profileSchema.default('generic') })).min(1);
+  profile: profileSchema.default('generic'), mode: z.enum(['ordinary', 'runtime_managed']).default('ordinary') })).min(1);
+type Client = z.infer<typeof clientsSchema>[number];
+const envInt = (name: string, fallback: number, min: number, max: number) =>
+  z.coerce.number().int().min(min).max(max).parse(process.env[name] ?? fallback);
+export const limits = () => ({
+  concurrency: envInt('GATEWAY_MAX_CONCURRENCY', 32, 1, 4096),
+  requestBytes: envInt('GATEWAY_MAX_REQUEST_BYTES', 8_388_608, 1024, 134_217_728),
+  responseBytes: envInt('GATEWAY_MAX_RESPONSE_BYTES', 8_000_000, 1024, 134_217_728),
+  streamBytes: envInt('GATEWAY_MAX_STREAM_BYTES', 134_217_728, 1024, 1_073_741_824),
+  eventBytes: envInt('GATEWAY_MAX_SSE_EVENT_BYTES', 2_000_000, 256, 16_777_216),
+  drainMs: envInt('GATEWAY_SHUTDOWN_DRAIN_MS', 25_000, 100, 600_000),
+});
+export const diagnosticTimeouts = () => ({
+  firstMs: envInt('GATEWAY_DIAGNOSTIC_FIRST_MS', 15_000, 100, 600_000),
+  idleMs: envInt('GATEWAY_DIAGNOSTIC_IDLE_MS', 15_000, 100, 600_000),
+});
 
 export function withProfile(model: Model, profile: Profile): Model {
   return { ...model, rules: [...model.rules, ...(model.profileRules[profile] ?? [])] };
@@ -75,7 +89,7 @@ export function settings() {
   const password = required('ADMIN_PASSWORD', 16);
   const clients: Client[] = process.env.GATEWAY_CLIENTS
     ? clientsSchema.parse(JSON.parse(process.env.GATEWAY_CLIENTS))
-    : [{ id: 'default', key: required('GATEWAY_API_KEY', 16), models: ['*'], profile: 'generic' }];
+    : [{ id: 'default', key: required('GATEWAY_API_KEY', 16), models: ['*'], profile: 'generic', mode: 'ordinary' }];
   if (new Set(clients.map(client => client.id)).size !== clients.length
     || new Set(clients.map(client => client.key)).size !== clients.length
     || clients.some(client => client.key === password)) throw new Error('Admin and client credentials must be distinct');

@@ -2,7 +2,7 @@ import { performance } from 'node:perf_hooks';
 import { openUpstream } from '../adapters/upstream.js';
 import { applyRules, isObject, headerName, type JsonObject } from '../protocol/rules.js';
 import { eventText, readEvents, protocolError } from '../protocol/sse.js';
-import { GatewayError, type Model, type Service } from './config.js';
+import { GatewayError, limits, diagnosticTimeouts, type Model, type Service } from './config.js';
 
 export const active = new Map<string, number>();
 let totalActive = 0;
@@ -34,7 +34,8 @@ export function outgoingHeaders(service: Service, model: Model, stream: boolean,
   catch { throw new GatewayError(400, 'header_rule_error', '请求头规则执行失败'); }
   for (const [key, value] of Object.entries(configured)) {
     const parsed = headerName.safeParse(key);
-    if (!parsed.success || ['authorization', 'accept', 'content-type', service.authHeader, 'x-api-key'].includes(parsed.data)
+    if (!parsed.success || parsed.data.startsWith('x-runtime-')
+      || ['authorization', 'accept', 'content-type', service.authHeader, 'x-api-key'].includes(parsed.data)
       || typeof value !== 'string' || !/^[\x20-\x7e]*$/.test(value)) {
       throw new GatewayError(400, 'invalid_header', '请求头配置包含无效、保留或认证字段');
     }
@@ -81,7 +82,7 @@ function parseObject(text: string): JsonObject {
 }
 
 function adapt(raw: JsonObject, model: Model, stage: 'response' | 'sse', direct: boolean) {
-  if (raw.error != null) throw protocolError('上游返回了错误对象');
+  if (raw.error != null) throw new GatewayError(502, 'upstream_error_event', '上游返回了错误对象');
   let data = raw;
   if (!direct) {
     try { data = applyRules(raw, model.rules, stage); }
@@ -106,12 +107,13 @@ export function translate(error: unknown) {
 export async function proxy(options: {
   body: JsonObject; model: Model; service: Service; signal: AbortSignal;
   writer: StreamWriter; trace?: Trace; direct?: boolean; headers?: JsonObject; secrets?: string[];
-  metrics: JsonObject;
+  metrics: JsonObject; mode?: 'ordinary' | 'runtime_managed' | 'diagnostic';
 }) {
   const { body, model, service, signal, writer, trace, direct = false, headers, metrics } = options;
   const start = performance.now();
   const used = active.get(service.id) ?? 0;
-  if (used >= service.concurrency || totalActive >= 32) throw new GatewayError(429, 'concurrency_limit', '达到并发限制');
+  const bounds = limits();
+  if (used >= service.concurrency || totalActive >= bounds.concurrency) throw new GatewayError(429, 'concurrency_limit', '达到并发限制');
   active.set(service.id, used + 1);
   totalActive++;
   let upstream: ReturnType<typeof openUpstream> | undefined;
@@ -122,7 +124,9 @@ export async function proxy(options: {
     const payload = prepare(body, model, direct);
     const stream = payload.stream === true;
     const requestHeaders = outgoingHeaders(service, model, stream, direct, headers);
-    upstream = openUpstream(service, 'chat', signal, requestHeaders, payload);
+    const timeout = options.mode === 'runtime_managed' ? { firstMs: 0, idleMs: 0 }
+      : options.mode === 'diagnostic' ? diagnosticTimeouts() : undefined;
+    upstream = openUpstream(service, 'chat', signal, requestHeaders, payload, timeout);
     await report('upstream_request', { url: upstream.url.href, headers: { ...requestHeaders,
       ...(service.apiKey ? { [service.authHeader]: '[REDACTED]' } : {}) }, body: payload });
     const result = await upstream.response;
@@ -139,7 +143,7 @@ export async function proxy(options: {
       throw new GatewayError(status >= 400 && status <= 599 ? status : 502, 'upstream_http_error', `上游返回 HTTP ${status}`);
     }
     if (!stream) {
-      const rawText = await readText(result.body, 8_000_000, upstream.stopFirstTimer);
+      const rawText = await readText(result.body, bounds.responseBytes, upstream.stopFirstTimer);
       if (trace) await report('upstream_response', { status, body: rawText });
       const raw = parseObject(rawText);
       const data = adapt(raw, model, 'response', direct);
@@ -153,17 +157,17 @@ export async function proxy(options: {
     }
     let started = false;
     let done = false;
-    const seenIndices = new Set<number>();
-    const finishedIndices = new Set<number>();
+    const unfinished = new Set<number>();
     const send = async (event: string) => {
       if (!started) { writer.start(status); started = true; }
       await writer.write(event);
     };
-    for await (const event of readEvents(result.body)) {
+    for await (const event of readEvents(result.body, bounds.eventBytes, bounds.streamBytes)) {
       upstream.stopFirstTimer();
       if (event.data === undefined) { await send(eventText(event)); continue; }
       await report('upstream_response', { status, event: event.data, fields: event.other });
       if (event.data.trim() === '[DONE]') {
+        if (unfinished.size) throw protocolError('上游在 choice 完成前发送了 SSE 结束标记');
         await report('gateway', { status, event: '[DONE]' });
         await send(eventText({ ...event, data: '[DONE]' }));
         done = true;
@@ -174,27 +178,24 @@ export async function proxy(options: {
       const choices = data.choices as JsonObject[];
       for (const choice of choices) {
         const delta = choice.delta as JsonObject;
-        if (metrics.firstTokenMs === undefined && [delta.content, delta.reasoning_content, delta.tool_calls]
+        if (typeof choice.index === 'number') {
+          if (typeof choice.finish_reason === 'string' && choice.finish_reason.length) unfinished.delete(choice.index);
+          else unfinished.add(choice.index);
+        }
+        if (metrics.firstTokenMs === undefined && [delta.content, delta.reasoning, delta.reasoning_content, delta.tool_calls]
           .some(value => (typeof value === 'string' || Array.isArray(value)) && value.length)) {
           metrics.firstTokenMs = Math.round(performance.now() - start);
-        }
-        if (typeof choice.index === 'number') {
-          seenIndices.add(choice.index);
-          if (typeof choice.finish_reason === 'string' && choice.finish_reason) finishedIndices.add(choice.index);
         }
       }
       recordUsage(metrics, data.usage);
       await report('gateway', { status, event: data, fields: event.other });
       await send(eventText({ ...event, data: JSON.stringify(data) }));
     }
-    if (!done) {
-      if (direct || model.sseEnd !== 'done_on_finished_eof' || !seenIndices.size || seenIndices.size !== finishedIndices.size) {
-        throw protocolError('上游在 SSE 结束标记前断开');
-      }
-      await report('gateway', { status, event: '[DONE]', adapted: true });
-      await send(eventText({ data: '[DONE]', other: [] }));
-    }
+    if (!done) throw protocolError('上游在 SSE 结束标记前断开');
     return { status, data: undefined };
+  } catch (error) {
+    if (signal.aborted) throw signal.reason;
+    throw error;
   } finally {
     try { await upstream?.close(); }
     finally {
@@ -215,7 +216,7 @@ function recordUsage(metrics: JsonObject, usage: unknown) {
 }
 
 export async function upstreamModels(service: Service, signal: AbortSignal) {
-  const connection = openUpstream(service, 'models', signal, { accept: 'application/json' });
+  const connection = openUpstream(service, 'models', signal, { accept: 'application/json' }, undefined, diagnosticTimeouts());
   try {
     const result = await connection.response;
     connection.stopFirstTimer();

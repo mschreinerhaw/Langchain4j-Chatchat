@@ -17,20 +17,19 @@ export const adapters: Record<Service['framework'], Adapter> = {
 };
 
 export function openUpstream(service: Service, operation: 'chat' | 'models', signal: AbortSignal,
-  headers: Record<string, string>, payload?: unknown) {
+  headers: Record<string, string>, payload?: unknown, timeout = { firstMs: service.firstMs, idleMs: service.idleMs }) {
   const url = adapters[service.framework].endpoint(service, operation);
   const dispatcher = new Agent({ connect: { timeout: service.connectMs, ca: service.ca, rejectUnauthorized: true } });
   const authorized = { ...headers };
   if (service.apiKey) authorized[service.authHeader] = service.authPrefix + service.apiKey;
-  const first = AbortSignal.timeout(service.firstMs);
   const firstController = new AbortController();
   const expire = () => firstController.abort(new GatewayError(504, 'first_packet_timeout', '上游首包超时'));
-  first.addEventListener('abort', expire);
-  const stopFirstTimer = () => first.removeEventListener('abort', expire);
+  const timer = timeout.firstMs > 0 ? setTimeout(expire, timeout.firstMs).unref() : undefined;
+  const stopFirstTimer = () => clearTimeout(timer);
   const response = request(url, {
     method: operation === 'chat' ? 'POST' : 'GET', body: payload === undefined ? undefined : JSON.stringify(payload),
-    headers: authorized, dispatcher, signal: AbortSignal.any([signal, firstController.signal]),
-    headersTimeout: service.firstMs, bodyTimeout: service.idleMs,
+    headers: authorized, dispatcher, signal: timer ? AbortSignal.any([signal, firstController.signal]) : signal,
+    headersTimeout: timeout.firstMs, bodyTimeout: timeout.idleMs,
   });
   // The trace writer can wait for downstream backpressure before awaiting this promise.
   void response.catch(() => {});

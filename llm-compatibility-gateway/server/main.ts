@@ -1,7 +1,7 @@
 import { timingSafeEqual, createHash, randomBytes, randomUUID } from 'node:crypto';
 import { once } from 'node:events';
 import { mkdirSync } from 'node:fs';
-import { createServer as createHttp, type Server as HttpServer } from 'node:http';
+import { createServer as createHttp, type Server as HttpServer, type ServerResponse } from 'node:http';
 import { createServer as createHttps, type Server as HttpsServer } from 'node:https';
 import { isIP } from 'node:net';
 import { TLSSocket, type TlsOptions } from 'node:tls';
@@ -10,7 +10,7 @@ import { fileURLToPath } from 'node:url';
 import Fastify, { type FastifyReply, type FastifyRequest } from 'fastify';
 import staticFiles from '@fastify/static';
 import { z } from 'zod';
-import { settings, Store, GatewayError, withProfile, profileSchema, type Config } from './config.js';
+import { settings, limits, Store, GatewayError, withProfile, profileSchema, type Config } from './config.js';
 import { proxy, translate, prepare, redact, outgoingHeaders, inFlight, upstreamModels } from './proxy.js';
 import { diagnose } from './diagnostics.js';
 import { isObject, applyRules, type JsonObject } from '../protocol/rules.js';
@@ -19,9 +19,10 @@ import { CertificateStore, importSchema, namesSchema } from './tls.js';
 import { probeGateway, requestGateway } from './transport.js';
 import { checkIntegrationResponse, integrationBody } from './integration.js';
 import { trafficRanges, type TrafficRange } from './traffic.js';
+import { runtimeRequest } from '../protocol/runtime.js';
 
 const settingsValue = settings();
-const version = '1.1.1';
+const version = '1.2.0-rc.1';
 const dataDir = process.env.DATA_DIR ?? '/app/data';
 mkdirSync(dataDir, { recursive: true, mode: 0o700 });
 const store = new Store(resolve(dataDir, 'gateway.sqlite'), settingsValue.key, settingsValue.origins);
@@ -40,7 +41,7 @@ const gatewayUrl = () => {
   const port = certificates?.publicPort ?? apiPublicPort;
   return host ? 'https://' + host + (port === 443 ? '' : ':' + port) + '/v1' : undefined;
 };
-const options = { bodyLimit: 8_388_608, logger: false, genReqId: () => randomUUID(), requestTimeout: 30_000 };
+const options = { bodyLimit: limits().requestBytes, logger: false, genReqId: () => randomUUID(), requestTimeout: 30_000 };
 const serverFactory: typeof options & { serverFactory?: import('fastify').FastifyServerFactory<HttpServer> } = certificates
   ? { ...options, serverFactory: handler => createHttps(certificates.options, handler) as unknown as HttpServer } : options;
 const api = Fastify(serverFactory);
@@ -88,6 +89,8 @@ api.addHook('onRequest', async (req, reply) => {
 });
 type Client = (typeof settingsValue.clients)[number];
 const identities = new WeakMap<FastifyRequest, Client>();
+let draining = false;
+const downstreamRequests = new Map<AbortController, ServerResponse>();
 function availableModels(config: Config, client: Client) {
   const services = new Set(config.services.filter(service => service.enabled).map(service => service.id));
   return config.models.filter(model => model.enabled && services.has(model.service)
@@ -98,7 +101,8 @@ function visible(config: Config, req: FastifyRequest) {
 }
 const modelInfo = (id: string) => ({ id, object: 'model', created: 0, owned_by: 'internal' });
 api.get('/health', async () => ({ status: 'ok', version }));
-api.get('/ready', async () => ({ status: 'ready', configuration: store.snapshot.version }));
+api.get('/ready', async (_req, reply) => draining ? reply.code(503).send({ status: 'draining' })
+  : { status: 'ready', configuration: store.snapshot.version });
 api.get('/v1/models', async req => ({ object: 'list', data: visible(store.snapshot.config, req).map(model => modelInfo(model.alias)) }));
 api.get('/v1/models/*', async req => {
   const alias = (req.params as { '*': string })['*'];
@@ -114,8 +118,14 @@ api.setNotFoundHandler((_req, reply) => reply.code(404).send(errorBody(new Gatew
 function downstream(reply: FastifyReply) {
   const abort = new AbortController();
   const raw = reply.raw;
-  raw.once('close', () => { if (!raw.writableFinished) abort.abort(); });
-  if (raw.destroyed) abort.abort();
+  const disconnected = new GatewayError(499, 'client_disconnected', 'Client connection closed');
+  const closed = () => {
+    downstreamRequests.delete(abort);
+    if (!raw.writableFinished) abort.abort(disconnected);
+  };
+  raw.once('close', closed);
+  if (raw.destroyed) closed();
+  else downstreamRequests.set(abort, raw);
   let started = false;
   const start = (contentType: string, status = 200) => {
     if (started) return;
@@ -126,14 +136,15 @@ function downstream(reply: FastifyReply) {
       'x-content-type-options': 'nosniff' });
     started = true;
   };
-  const write = async (value: string) => {
-    abort.signal.throwIfAborted();
-    if (!raw.write(value)) await once(raw, 'drain', { signal: abort.signal });
+  const write = async (value: string, signal = abort.signal) => {
+    signal.throwIfAborted();
+    if (!raw.write(value)) await once(raw, 'drain', { signal });
   };
   return { abort, start, write, get started() { return started; }, end: () => raw.end() };
 }
 
 api.post('/v1/chat/completions', async (req, reply) => {
+  if (draining) throw new GatewayError(503, 'gateway_draining', 'Gateway is draining');
   if (!isObject(req.body) || typeof req.body.model !== 'string') throw invalid('model 必须是字符串');
   const snapshot = store.snapshot;
   const identity = identities.get(req)!;
@@ -149,7 +160,15 @@ api.post('/v1/chat/completions', async (req, reply) => {
   const service = snapshot.config.services.find(item => item.id === model?.service);
   const metrics: JsonObject = { client: identity.id, profile, model: model?.alias, upstreamModel: model?.upstream,
     upstreamOrigin: service?.origin, stream: body.stream === true, revision: snapshot.version };
+  const mode = lab ? 'diagnostic' : identity.mode;
+  metrics.mode = mode;
+  let runtime: ReturnType<typeof runtimeRequest> | undefined;
   try {
+    if (mode === 'runtime_managed') {
+      runtime = runtimeRequest(req.headers, client.abort.signal);
+      Object.assign(metrics, runtime.trace);
+      runtime.signal.throwIfAborted();
+    }
     if (!model || !service) throw new GatewayError(404, 'model_not_found', '模型不存在或未授权');
     if (lab) {
       const socket = req.raw.socket;
@@ -157,10 +176,12 @@ api.post('/v1/chat/completions', async (req, reply) => {
       await lab.trace('transport', { protocol: socket instanceof TLSSocket ? socket.getProtocol() : 'HTTP',
         verified: socket instanceof TLSSocket, authenticated: true, profile });
     }
-    const result = await proxy({ body, model: withProfile(model, profile), service, signal: client.abort.signal, metrics,
+    const result = await proxy({ body, model: withProfile(model, profile), service,
+      signal: runtime?.signal ?? client.abort.signal, mode, metrics,
       trace: lab ? async (stage, value) => { if (stage !== 'client') await lab.trace(stage, value); } : undefined,
       headers: lab?.headers, secrets: suppliedSecrets,
-      writer: { start: status => client.start('text/event-stream; charset=utf-8', status), write: client.write } });
+      writer: { start: status => client.start('text/event-stream; charset=utf-8', status),
+        write: value => client.write(value, runtime?.signal) } });
     metrics.status = result.status;
     await lab?.trace('compatibility', { status: 'PASS', profile, format: body.stream ? 'SSE' : 'JSON',
       nativeToolRequest: Array.isArray(body.tools) && body.tools.length > 0 });
@@ -168,18 +189,24 @@ api.post('/v1/chat/completions', async (req, reply) => {
     else if (!client.abort.signal.aborted) return reply.code(result.status).send(result.data);
   } catch (error) {
     const failure = translate(error);
-    metrics.status = client.abort.signal.aborted ? 499 : failure.status;
+    metrics.status = failure.status;
     metrics.error = failure.code;
     if (!client.abort.signal.aborted) {
       try { await lab?.trace('compatibility', { status: 'FAIL', profile, httpStatus: failure.status, ...errorBody(failure) }); }
       catch { /* The admin client disconnected while receiving the trace. */ }
-      if (!client.started) return reply.code(failure.status).send(errorBody(failure));
+      if (!client.started) {
+        if (failure.code === 'concurrency_limit') reply.header('retry-after', '1');
+        reply.header('x-gateway-error-code', failure.code);
+        return reply.code(failure.status).send(errorBody(failure));
+      }
       try { await client.write('data: ' + JSON.stringify(errorBody(failure)) + '\n\n'); }
       catch { /* Client disconnected while reporting the stream error. */ }
       client.end();
     }
   } finally {
-    try { store.record(req.id, { ...metrics, elapsedMs: Math.round(performance.now() - start), cancelled: client.abort.signal.aborted }); }
+    runtime?.close();
+    try { store.record(req.id, { ...metrics, elapsedMs: Math.round(performance.now() - start),
+      clientDisconnected: client.abort.signal.reason?.code === 'client_disconnected' }); }
     catch { process.stderr.write('Failed to record request metadata\n'); }
   }
 });
@@ -408,7 +435,7 @@ admin.post('/admin/lab', async (req, reply) => {
   const trace = async (stage: string, value: unknown) => client.write(JSON.stringify({ stage, ms: Math.round(performance.now() - startedAt), value }) + '\n');
   try {
     if (input.direct) {
-      const result = await proxy({ body: input.body, model: { ...target, upstream: target.upstream }, service, direct: true,
+      const result = await proxy({ body: input.body, model: { ...target, upstream: target.upstream }, service, direct: true, mode: 'diagnostic',
         headers: input.headers, signal: client.abort.signal, secrets: suppliedSecrets, metrics: {}, trace,
         writer: { start() {}, async write() {} } });
       await trace('result', { status: result.status });
@@ -454,14 +481,35 @@ admin.post('/admin/check', async (req, reply) => {
 });
 
 await admin.register(staticFiles, { root: fileURLToPath(new URL('../web/', import.meta.url)), index: 'index.html', cacheControl: false });
+let testServer: HttpServer | undefined;
+async function shutdown() {
+  if (draining) return;
+  draining = true;
+  const stop = new GatewayError(503, 'gateway_shutdown', 'Gateway shutdown drain deadline elapsed');
+  const timer = setTimeout(() => {
+    for (const [abort, response] of downstreamRequests) {
+      abort.abort(stop);
+      response.destroy();
+    }
+    for (const server of [api.server, admin.server, testServer]) server?.closeAllConnections();
+  }, limits().drainMs);
+  try {
+    await Promise.all([api.close(), admin.close(), testServer && new Promise<void>((resolve, reject) =>
+      testServer!.close(error => error ? reject(error) : resolve()))]);
+  } finally { clearTimeout(timer); }
+}
+for (const signal of ['SIGTERM', 'SIGINT'] as const) process.on(signal, () => {
+  void shutdown().catch(() => { process.stderr.write('Gateway shutdown failed\n'); process.exitCode = 1; });
+});
 await api.listen({ host: '0.0.0.0', port: apiPort });
 await admin.listen({ host: '0.0.0.0', port: adminPort });
 if (certificates && httpEnabled) {
-  const testServer = createHttp((request, response) => api.routing(request, response));
-  testServer.requestTimeout = options.requestTimeout;
+  const listener = createHttp((request, response) => api.routing(request, response));
+  testServer = listener;
+  listener.requestTimeout = options.requestTimeout;
   await new Promise<void>((resolve, reject) => {
-    testServer.once('error', reject);
-    testServer.listen(httpPort, '0.0.0.0', resolve);
+    listener.once('error', reject);
+    listener.listen(httpPort, '0.0.0.0', resolve);
   });
 }
 process.stdout.write(`LLM Compatibility Gateway ${version} ready\n`);

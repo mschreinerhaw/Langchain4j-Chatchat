@@ -53,11 +53,11 @@ SQLite 的 `user_version` 驱动初始化和迁移。每次发布在事务中写
 ]
 ```
 
-还支持 `cast` 的 `type`（string / boolean / number）和 `map` 的 `values` 对象。冲突重命名、无效类型转换和不兼容结构会返回诊断错误。核心请求结构与上游 usage 受保护。SSE 默认要求真实 `[DONE]`。仅当管理员选用补齐策略、上游正常结束且观察到所有 choice 的结束原因时，网关补齐标记。流开始后的错误通过 SSE 错误对象传达，HTTP 状态已经发出。
+还支持 `cast` 的 `type`（string / boolean / number）和 `map` 的 `values` 对象。冲突重命名、无效类型转换和不兼容结构会返回诊断错误。核心请求结构、上游 usage 和 choice 的 finish_reason 受保护。SSE 要求上游发送真实的 `[DONE]`。流开始后的异常通过 SSE 错误对象传达，关联请求和真实上游状态可在请求记录中查询。旧配置字段 `sseEnd` 仍可读入，运行时统一要求真实结束标记。
 
 ## 离线部署与升级回滚
 
-在已准备好基础镜像、Debian 包源和 npm 源的构建环境执行 `powershell -ExecutionPolicy Bypass -File scripts/export-image.ps1`。已有实测镜像时加 `-SkipBuild` 导出原镜像。将整个 `release/https-1.1.1` 目录复制到内网主机，再生成该主机自己的 `.env` 和证书配置。Linux 执行 `sh install-offline.sh`，Windows 执行 `powershell -ExecutionPolicy Bypass -File install-offline.ps1`。安装脚本先校验镜像包，再加载镜像并使用 Compose 的 `--no-build --pull never` 启动。
+在已准备好基础镜像、Debian 包源和 npm 源的构建环境执行 `powershell -ExecutionPolicy Bypass -File scripts/export-image.ps1`。已有实测镜像时加 `-SkipBuild` 导出该镜像。将整个 `release/1.2.0-rc.1` 目录复制到隔离验收主机，再生成该主机自己的 `.env` 和证书配置。Linux 执行 `sh install-offline.sh`，Windows 执行 `powershell -ExecutionPolicy Bypass -File install-offline.ps1`。安装脚本先校验镜像包，再加载镜像并使用 Compose 的 `--no-build --pull never` 启动。Runtime OS 接入和生产发布门槛见 [集成与验收说明](runtime-os-integration.md)。
 
 上线前记录镜像 ID、实际端口和项目名，保留旧镜像与配置数据库备份。需完整备份时用 `docker compose stop llm-gateway` 停止写入，再备份数据卷中的 `gateway.sqlite` 及同目录 WAL 文件。升级保持原项目名、数据卷和配置加密密钥，设置 `GATEWAY_IMAGE` 指向新标签，再按离线方式部署。若启动检查失败，设置旧标签并重启。跨数据库迁移回滚时使用与旧镜像匹配的备份。配置问题可直接通过「配置与审计」回滚为新的已发布版本。
 

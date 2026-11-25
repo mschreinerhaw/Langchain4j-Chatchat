@@ -1,11 +1,14 @@
 services:
   llm-gateway:
-    image: ${GATEWAY_IMAGE:-llm-compatibility-gateway:1.1.1}
+    image: ${GATEWAY_IMAGE:-llm-compatibility-gateway:1.2.0-rc.1}
     pull_policy: never
     build:
       context: .
+      args:
+        GATEWAY_SOURCE_SHA: ${GATEWAY_SOURCE_SHA:-unknown}
     restart: unless-stopped
     init: true
+    stop_grace_period: ${GATEWAY_STOP_GRACE_PERIOD:-35s}
     env_file: .env
     ports:
       - "${API_BIND:-127.0.0.1}:${HTTPS_PUBLIC_PORT:-8443}:${HTTPS_PORT:-8443}"

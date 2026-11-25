@@ -23,6 +23,7 @@ public final class DurableCodingTaskService implements CodingAgentSPI {
     public static final String ENFORCEMENT_LIMITATION = "A2 enforces cumulative admission reservations only; "
         + "model/process hard limits, instantaneous memory and disk enforcement require execution-node adapters.";
     private static final int MAX_TASKS = 64, MAX_OPERATIONS = 256, EVENT_HISTORY = 8192;
+    private static final Set<String> NATIVE_TELEMETRY_GROUPS=Set.of("model","model-admission","execution","repair");
     private final RuntimeExecutionCheckpointPort store;
     private final ObjectMapper json;
     private final Clock clock;
@@ -94,7 +95,7 @@ public final class DurableCodingTaskService implements CodingAgentSPI {
     /** Read only the explicitly published Native telemetry groups; never the
      * private grant, control token or continuation binding. */
     public List<com.fasterxml.jackson.databind.JsonNode> nativeTelemetry(KernelDataScope scope,String taskId,String group){
-        require(Set.of("model","execution","repair").contains(group),CONTRACT_INVALID,"Unknown Native telemetry group");
+        require(NATIVE_TELEMETRY_GROUPS.contains(group),CONTRACT_INVALID,"Unknown Native telemetry group");
         String prefix="native-s3:"+group+":";
         return task(read(scope,READ),taskId).privateState.entrySet().stream().filter(e->e.getKey().startsWith(prefix))
             .<com.fasterxml.jackson.databind.JsonNode>map(e->e.getValue().deepCopy()).toList();
@@ -155,7 +156,7 @@ public final class DurableCodingTaskService implements CodingAgentSPI {
             }
             task.privateState.put(cursorKey,json.valueToTree(Map.of("sequence",observation.sourceSequence(),"sha256",observation.sourceSha256())));
             if(observation.telemetry()!=null){
-                require(Set.of("model","execution","repair").contains(observation.telemetryGroup())&&observation.telemetryId()!=null&&observation.telemetryId().matches("[A-Za-z0-9_-]{1,96}"),CONTRACT_INVALID,"Invalid Native read telemetry");
+                require(NATIVE_TELEMETRY_GROUPS.contains(observation.telemetryGroup())&&observation.telemetryId()!=null&&observation.telemetryId().matches("[A-Za-z0-9_-]{1,96}"),CONTRACT_INVALID,"Invalid Native read telemetry");
                 task.privateState.put("native-s3:"+observation.telemetryGroup()+":"+observation.telemetryId(),observation.telemetry().deepCopy());
             }
             advance(task,RECOVERY_RECONCILED,null,observation.summary(),null,List.of(observation.evidenceRef()),copy(task,task.outcome.status(),task.outcome.reasonCode(),task.outcome.executionControl(),null));

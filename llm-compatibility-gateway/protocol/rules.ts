@@ -28,8 +28,10 @@ export const ruleSchema = z.discriminatedUnion('op', [
   if (['response', 'sse'].includes(rule.stage) && paths.some(path => /^(model|usage|error)(\.|$)/.test(path))) {
     invalid('Model, usage and error fields are protected');
   }
+  if (['response', 'sse'].includes(rule.stage) && paths.some(path =>
+    /^choices(?:\.\d+)?$|(?:^|\.)finish_reason(?:\.|$)/.test(path))) invalid('Choice completion fields are protected');
   if (rule.stage === 'headers' && paths.some(path => !headerName.safeParse(path).success || path !== path.toLowerCase()
-    || ['authorization', 'content-type', 'accept', 'x-api-key'].includes(path))) invalid('Unsafe or reserved header');
+    || path.startsWith('x-runtime-') || ['authorization', 'content-type', 'accept', 'x-api-key'].includes(path))) invalid('Unsafe or reserved header');
 });
 export type Rule = z.infer<typeof ruleSchema>;
 export type JsonObject = Record<string, unknown>;

@@ -49,6 +49,7 @@ function contextShape(body, request) {
 }
 
 export function modelTransportErrorCode(error){
+ if(error.code==='RUNTIME_DEADLINE_EXCEEDED'||error.code==='RUNTIME_TASK_STOPPED'||error.code==='CORE_DISCONNECTED')return error.code;
  if(error.name==='AbortError')return 'UPSTREAM_ABORTED';
  const causes=[error.code,error.cause?.code,...(error.cause?.errors??[]).map(item=>item.code)];
  if(error.name==='TimeoutError'||causes.some(code=>['UND_ERR_CONNECT_TIMEOUT','UND_ERR_HEADERS_TIMEOUT','UND_ERR_BODY_TIMEOUT','ETIMEDOUT'].includes(code)))return 'UPSTREAM_TIMEOUT';
@@ -63,7 +64,7 @@ export function modelReceipt({model,request,body,reasoning={},emit,now=Date.now}
  const requestSha256=createHash('sha256').update(request).digest('hex');
  let requestContext = null;
  try { requestContext = contextShape(body, request); } catch { /* Usage observation still proceeds. */ }
- let pending='',jsonBody='',usage=null,providerModel=model,responseBytes=0,finished=false,observationTruncated=false;
+ let pending='',jsonBody='',usage=null,providerModel=model,responseBytes=0,finished=false,observationTruncated=false,streamError;
  let headersAt=null,firstBodyAt=null,lastBodyAt=null,firstDataAt=null,lastDataAt=null,firstModelDeltaAt=null;
  const MAX=4*1024*1024;
  function value(document){
@@ -77,6 +78,8 @@ export function modelReceipt({model,request,body,reasoning={},emit,now=Date.now}
   const data=text.slice(5).trim();if(!data||data==='[DONE]')return;
   try{
    const frame=JSON.parse(data);
+   if(frame?.error&&typeof frame.error==='object')streamError=gatewayRequestId
+    ?gatewayError(frame.error.code)??'UPSTREAM_STREAM_ERROR':'UPSTREAM_STREAM_ERROR';
    firstDataAt??=now();lastDataAt=now();
    if (frame && ((Array.isArray(frame.choices)&&frame.choices.some(choice=>
      choice?.delta?.content||choice?.delta?.reasoning_content||choice?.delta?.tool_calls?.length))
@@ -86,7 +89,16 @@ export function modelReceipt({model,request,body,reasoning={},emit,now=Date.now}
   }catch{}
  }
  emit('model.request.started',{...reasoning,requestId,model,startedAt:new Date(started).toISOString(),requestSha256,requestContext,source:'PROVIDER_HTTP_OBSERVATION'});
- return {requestId,headers(){headersAt??=now();},observe(chunk){
+ let gatewayRequestId,gatewayHttpError;
+ function gatewayError(code){
+  return ['runtime_deadline_exceeded','gateway_draining','gateway_shutdown','upstream_protocol_error','upstream_error_event',
+   'upstream_timeout','first_packet_timeout','upstream_failure','upstream_http_error','concurrency_limit']
+   .includes(code)?'GATEWAY_'+code.toUpperCase():undefined;
+ }
+ return {requestId,headers(gatewayId,errorCode){
+  headersAt??=now();
+  if(/^[A-Za-z0-9_-]{1,128}$/.test(gatewayId??'')){gatewayRequestId=gatewayId;gatewayHttpError=gatewayError(errorCode);}
+ },observe(chunk){
   if(chunk.length){firstBodyAt??=now();lastBodyAt=now();}
   responseHash.update(chunk);responseBytes+=chunk.length;
   const text=decoder.decode(chunk,{stream:true});
@@ -98,6 +110,8 @@ export function modelReceipt({model,request,body,reasoning={},emit,now=Date.now}
   if(finished)return;finished=true;
   pending+=decoder.decode();line(pending);
   if(!usage)try{value(JSON.parse(jsonBody));}catch{}
+  if(streamError&&!errorType){errorType='UpstreamStreamError';errorCode=streamError;}
+  errorCode??=gatewayHttpError;
   const ended=now();
   const phase=headersAt===null?'BEFORE_HEADERS':firstBodyAt===null?'WAITING_FOR_BODY':'RESPONSE_BODY';
   const relative=at=>at===null?null:Math.max(0,at-started);
@@ -106,6 +120,7 @@ export function modelReceipt({model,request,body,reasoning={},emit,now=Date.now}
   emit('model.request.completed',{...reasoning,requestId,model,providerModel,providerRequestId,
    startedAt:new Date(started).toISOString(),finishedAt:new Date(ended).toISOString(),durationMs:Math.max(0,ended-started),
    httpStatus,status:errorType||httpStatus===null||httpStatus>=400?'FAILED':'SUCCEEDED',errorType,
+   ...(gatewayRequestId?{gatewayRequestId}:{}),
    ...(code?{errorCode:code,failurePhase:phase,transportErrorCode:errorCode}:{}),
    responseTiming:{headersMs:relative(headersAt),firstBodyMs:relative(firstBodyAt),lastBodyMs:relative(lastBodyAt),
     firstSseDataMs:relative(firstDataAt),lastSseDataMs:relative(lastDataAt),firstModelDeltaMs:relative(firstModelDeltaAt),

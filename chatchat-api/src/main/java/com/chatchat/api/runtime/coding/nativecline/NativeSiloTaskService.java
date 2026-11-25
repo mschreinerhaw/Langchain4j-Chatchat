@@ -80,9 +80,15 @@ public final class NativeSiloTaskService {
         String profile=Objects.toString(verification.get("profile"),"");
         if(!verification.equals(Map.of("profile","artifact-integrity-v1")))throw new IllegalArgumentException("Only generic artifact integrity verification is supported");
         if(artifactTypes==null||artifactTypes.isEmpty()||!Set.of("SOURCE","REPORT","RESULT","CHART","TEST","AUXILIARY").containsAll(artifactTypes))throw new IllegalArgumentException("Known delivery types required");
-        if(task==null||!task.matches("[A-Za-z0-9_-]{1,96}")||instruction==null||instruction.isBlank()
-                ||instruction.length()>32768||selectedModel==null||!selectedModel.matches("[A-Za-z0-9][A-Za-z0-9_.-]{0,127}"))
-            throw new IllegalArgumentException("Explicit task, original objective and frozen model required");
+        if(task==null||!task.matches("[A-Za-z0-9_-]{1,96}"))
+            throw new IllegalArgumentException("Native task ID must contain 1–96 ASCII letters, digits, underscores or hyphens");
+        if(instruction==null||instruction.isBlank())
+            throw new IllegalArgumentException("Native task objective is required");
+        if(instruction.length()>32768)
+            throw new IllegalArgumentException("Native task objective exceeds 32768 UTF-16 code units");
+        if(selectedModel==null||selectedModel.isBlank()||selectedModel.length()>256
+                ||selectedModel.chars().anyMatch(Character::isISOControl))
+            throw new IllegalArgumentException("Native model logical name must contain 1–256 UTF-16 code units and no control characters");
         if(budget==null||!workspaceReview&&(budget.maxModelCalls()!=-1||budget.maxToolCalls()!=-1||budget.maxCodeExecutions()!=-1))
             throw new IllegalArgumentException("Native profile requires unlimited model/tool/code execution counts");
         if(!workspaceReview&&(budget.maxMemoryBytes()<1||budget.maxOutputBytes()<1))

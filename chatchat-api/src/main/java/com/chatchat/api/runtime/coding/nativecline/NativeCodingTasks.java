@@ -37,7 +37,9 @@ public final class NativeCodingTasks {
     public Submitted submit(KernelDataScope scope,String requestId,List<String> files,String instruction,String model,List<String> artifactTypes,Map<String,Object> schema,Map<String,Object> capabilities){
         identity.require(scope,com.chatchat.agents.runtime.coding.CodingTaskAccess.Action.SUBMIT);
         identity.require(scope,com.chatchat.agents.runtime.coding.CodingTaskAccess.Action.READ);
-        if(requestId==null||!requestId.matches("[A-Za-z0-9_-]{1,128}")||instruction==null||instruction.isBlank()||instruction.length()>24000)throw new IllegalArgumentException("Explicit request identity and objective required");
+        if(requestId==null||!requestId.matches("[A-Za-z0-9_-]{1,128}"))throw new IllegalArgumentException("Invalid Native request ID");
+        if(instruction==null||instruction.isBlank())throw new IllegalArgumentException("Native task objective is required");
+        if(instruction.length()>24000)throw new IllegalArgumentException("Native task objective exceeds 24000 UTF-16 code units");
         String selected=model==null||model.isBlank()?settings.defaultModel():model;settings.profile(selected);
         if(schema==null)schema=Map.of();if(!schema.isEmpty())new CodingSchemaResultVerifier().validateRules(Map.of("rowSchema",schema));
         String task=taskIdentity(scope,requestId);

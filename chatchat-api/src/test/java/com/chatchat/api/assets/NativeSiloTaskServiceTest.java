@@ -64,6 +64,20 @@ class NativeSiloTaskServiceTest {
             return null;
         });
     }
+    @Test void freezesExactPublishedLogicalNameAndReportsInvalidFieldsSeparately(){
+        authorized(()->{
+            String model="Vendor/Model:版本 2";
+            var contract=service.capture(fixture.scope,"native-model-name",List.of(original),objective,model,budget(-1));
+            assertThat(service.requireAuthorized(contract)).containsEntry("selectedModel",model);
+            assertThatThrownBy(()->service.capture(fixture.scope,"invalid/task",List.of(original),objective,model,budget(-1)))
+                .hasMessageContaining("task ID");
+            assertThatThrownBy(()->service.capture(fixture.scope,"long-objective",List.of(original),"x".repeat(32769),model,budget(-1)))
+                .hasMessageContaining("objective exceeds");
+            assertThatThrownBy(()->service.capture(fixture.scope,"invalid-model",List.of(original),objective,"bad\nmodel",budget(-1)))
+                .hasMessageContaining("model logical name");
+            return null;
+        });
+    }
     @Test void repeatingARequestRetainsItsOriginalContractDeadlineAndInputVersions(){
         authorized(()->{
             var first=capture();var repeated=capture();assertThat(repeated).isEqualTo(first);

@@ -133,6 +133,48 @@ class NativeS3CodingAdapterTest {
         assertThat(messageCalls).hasValue(1);
     }
     @org.junit.jupiter.params.ParameterizedTest
+    @org.junit.jupiter.params.provider.ValueSource(strings={"STOPPED_DIRECT","STOPPED","404","UNFENCED","MODEL_REJECTED"})
+    void dispatchedTaskWithoutReplayClosesAfterVerifiedStop(String failure){
+        dispatchedAnalysisFailure=failure;
+        var attempt=new AtomicInteger(1);
+        String task="native-stopped-without-replay";
+        String file=fixture.assets.upload(fixture.owner,"input.csv","value\n42\n".getBytes()).id();
+        authorized(()->{
+            capture.capture(fixture.scope,task,List.of(file),"Analyze input","published-model",
+                new CodingTaskContract.Budget("stopped",CodingTaskContract.Budget.USER_MANAGED_DEADLINE,
+                    -1,-1,-1,-1,"unlimited","USD",-1,1024*1024,1024*1024),
+                Map.of("profile","artifact-integrity-v1"),List.of("RESULT"));
+            var control=new NativeExecutionControl(){
+                public String owner(){return "managed-stop-test";}
+                public int attempt(){return attempt.get();}
+                public String workflowId(){return "stop-test-workflow";}
+                public void heartbeat(String phase,String node,String session,String epoch){}
+            };
+            if(!"STOPPED_DIRECT".equals(failure)){
+                assertThatThrownBy(()->adapter.runManaged(fixture.scope,task,control))
+                    .isInstanceOf(NativeS3NodeClient.NodeException.class);
+                attempt.incrementAndGet();
+            }
+            if("UNFENCED".equals(failure)){
+                assertThatThrownBy(()->adapter.runManaged(fixture.scope,task,control))
+                    .hasMessageContaining("NATIVE_RECOVERY_STOP_UNVERIFIED");
+                assertThat(tasks.get(fixture.scope,task).status().terminal()).isFalse();
+            }else{
+                var result=adapter.runManaged(fixture.scope,task,control);
+                assertThat(result.status()).isEqualTo(CodingTaskOutcome.Status.FAILED);
+                assertThat(result.summary()).contains("MODEL_REJECTED".equals(failure)
+                    ?"模型请求超过网关大小限制":"模型上游连接或响应超时");
+                assertThat(result.usage().consumed().modelCalls()).isEqualTo(2);
+                assertThat(tasks.unresolvedOperations(fixture.scope,task)).isEmpty();
+            }
+            assertThat(allocations).hasValue(1);
+            assertThat(messageCalls).hasValue(1);
+            assertThat(recoveryStops).hasValue(1);
+            return null;
+        });
+    }
+
+    @org.junit.jupiter.params.ParameterizedTest
     @org.junit.jupiter.params.provider.ValueSource(strings={"STOPPED","404","RECOVERABLE","UNFENCED","PERSISTENT"})
     void interruptedAnalysisRecoversOnlyAfterVerifiedStop(String failure){
         dispatchedAnalysisFailure=failure;
@@ -467,7 +509,7 @@ class NativeS3CodingAdapterTest {
                     if(Set.of("RECOVERABLE","PERSISTENT").contains(dispatchedAnalysisFailure)){
                         reply(exchange,200,Map.of("workerState","RECOVERABLE"));return;
                     }
-                    if(!reportedInitialTransportFailure){
+                    if(!reportedInitialTransportFailure&&!"STOPPED_DIRECT".equals(dispatchedAnalysisFailure)){
                         reportedInitialTransportFailure=true;
                         reply(exchange,503,Map.of("code","TEMPORARY_FAILURE"));return;
                     }
@@ -486,6 +528,20 @@ class NativeS3CodingAdapterTest {
             }
             if(path.endsWith("/observations")||path.endsWith("/receipts")){
                 if(sealed&&missingStoppedTelemetry){reply(exchange,410,Map.of("code","HISTORICAL_TELEMETRY_UNAVAILABLE"));return;}
+                if(path.endsWith("/receipts")&&grant.path("taskId").asText().equals("native-stopped-without-replay")&&recoveryStops.get()>0
+                        &&exchange.getRequestURI().getRawQuery().contains("afterEventId=0")){
+                    String at="2026-11-25T09:12:15Z";
+                    var row=Map.of("eventId",1,"eventType","model.request.completed","requestId","timeout-request",
+                        "model","published-model","status","FAILED","startedAt",at,"finishedAt",at,"errorCode","UPSTREAM_TIMEOUT");
+                    var lateStart=Map.of("eventId",2,"eventType","model.request.started","requestId","late-start",
+                        "model","published-model","startedAt",at);
+                    if("MODEL_REJECTED".equals(dispatchedAnalysisFailure)){
+                        var rejection=Map.of("eventId",3,"eventType","model.request.rejected","code","BROKER_MODEL_PAYLOAD_TOO_LARGE",
+                            "timestamp","2026-11-25T09:12:16Z","receivedBytes",1000,"limitBytes",999,"providerDispatched",false);
+                        reply(exchange,200,Map.of("events",List.of(row,lateStart,rejection),"nextEventId",3,"hasMore",false));return;
+                    }
+                    reply(exchange,200,Map.of("events",List.of(row,lateStart),"nextEventId",2,"hasMore",false));return;
+                }
                 if(path.endsWith("/receipts")&&grant.has("studioBudget")&&messaged
                         &&exchange.getRequestURI().getRawQuery().contains("afterEventId=0")){
                     var metering=Map.of("totalTokens",64);

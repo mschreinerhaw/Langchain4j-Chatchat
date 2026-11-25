@@ -1,6 +1,6 @@
 param(
-    [string]$Image = 'llm-compatibility-gateway:1.1.1',
-    [string]$OutputDirectory = 'release/https-1.1.1',
+    [string]$Image = 'llm-compatibility-gateway:1.2.0-rc.1',
+    [string]$OutputDirectory = 'release/1.2.0-rc.1',
     [switch]$SkipBuild
 )
 $ErrorActionPreference = 'Stop'
@@ -8,7 +8,11 @@ $base = Split-Path -Parent $PSScriptRoot
 $destination = if ([IO.Path]::IsPathRooted($OutputDirectory)) { $OutputDirectory } else { Join-Path $base $OutputDirectory }
 New-Item -ItemType Directory -Force -Path $destination | Out-Null
 if (-not $SkipBuild) {
-    docker build --tag $Image $base
+    $trackedChanges = git -C $base status --porcelain --untracked-files=normal
+    if ($LASTEXITCODE -ne 0 -or $trackedChanges) { throw 'Export requires a clean source checkout' }
+    $sourceSha = git -C $base rev-parse HEAD
+    if ($LASTEXITCODE -ne 0) { throw 'Cannot determine the source commit' }
+    docker build --build-arg "GATEWAY_SOURCE_SHA=$sourceSha" --tag $Image $base
     if ($LASTEXITCODE -ne 0) { throw 'Docker build failed' }
 }
 $archive = Join-Path $destination 'llm-compatibility-gateway.tar'

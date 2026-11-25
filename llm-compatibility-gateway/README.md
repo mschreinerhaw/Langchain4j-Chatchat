@@ -31,6 +31,7 @@ docker compose ps
 - [架构、后台操作与规则配置](docs/operations.md)
 - [HTTPS 证书、Profile 与 SDK 接入](docs/https.md)
 - [OpenAPI 3.1](docs/openapi.yaml)
+- [Runtime OS 集成、验收与离线部署](docs/runtime-os-integration.md)
 - [HTTPS 与实际 SDK 验收](docs/https-verification.md)
 - [1.0 版协议与性能基线](docs/verification.md)
 

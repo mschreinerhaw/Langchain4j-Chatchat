@@ -52,7 +52,7 @@ export async function diagnose(model: Model, service: Service, signal: AbortSign
     const metrics: JsonObject = {};
     try {
       const result = await proxy({ body: { model: model.alias, messages: prompt('Reply with OK.'), ...request },
-        model, service, signal, metrics, secrets,
+        model, service, signal, metrics, secrets, mode: 'diagnostic',
         trace: async (stage, value) => {
           if (evidence.length < 30) evidence.push({ stage, value: JSON.stringify(value)?.slice(0, 8_000) });
         },
@@ -148,7 +148,7 @@ export async function diagnose(model: Model, service: Service, signal: AbortSign
     let completed = false;
     try {
       await proxy({ model, service, body: { model: model.alias, messages: prompt('List twenty different animals.'), stream: true },
-        signal: AbortSignal.any([signal, cancel.signal]), metrics: {}, writer: { start() {}, async write(value) {
+        signal: AbortSignal.any([signal, cancel.signal]), metrics: {}, mode: 'diagnostic', writer: { start() {}, async write(value) {
           if (value.includes('[DONE]')) completed = true;
           if (value.startsWith('data: ') && !completed) {
             requested = true;

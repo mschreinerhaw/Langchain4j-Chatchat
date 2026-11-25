@@ -2,12 +2,13 @@ import { GatewayError } from '../server/config.js';
 
 export type Event = { data?: string; other: string[] };
 
-export async function* readEvents(body: AsyncIterable<Uint8Array>): AsyncGenerator<Event> {
+export async function* readEvents(body: AsyncIterable<Uint8Array>, maxEventBytes = 2_000_000,
+  maxStreamBytes = Number.POSITIVE_INFINITY): AsyncGenerator<Event> {
   const decoder = new TextDecoder('utf-8', { fatal: true });
   let pending = '';
   let data: string[] = [];
   let other: string[] = [];
-  let size = 0;
+  let size = 0, total = 0;
   function* consume(atEof: boolean) {
     let offset = 0;
     const newline = /\r\n|\r|\n/g;
@@ -16,8 +17,8 @@ export async function* readEvents(body: AsyncIterable<Uint8Array>): AsyncGenerat
       if (!atEof && match[0] === '\r' && newline.lastIndex === pending.length) break;
       const line = pending.slice(offset, match.index);
       offset = newline.lastIndex;
-      size += line.length + 1;
-      if (size > 2_000_000) throw protocolError('SSE Event 超过大小限制');
+      size += Buffer.byteLength(line) + match[0].length;
+      if (size > maxEventBytes) throw protocolError('SSE Event 超过大小限制');
       if (line === '') {
         if (data.length || other.length) yield { data: data.length ? data.join('\n') : undefined, other };
         data = [];
@@ -30,9 +31,11 @@ export async function* readEvents(body: AsyncIterable<Uint8Array>): AsyncGenerat
       }
     }
     pending = pending.slice(offset);
-    if (pending.length + size > 2_000_000) throw protocolError('SSE Event 超过大小限制');
+    if (Buffer.byteLength(pending) + size > maxEventBytes) throw protocolError('SSE Event 超过大小限制');
   }
   for await (const chunk of body) {
+    total += chunk.byteLength;
+    if (total > maxStreamBytes) throw protocolError('SSE 响应超过大小限制');
     pending += decoder.decode(chunk, { stream: true });
     yield* consume(false);
   }

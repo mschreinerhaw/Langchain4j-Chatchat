@@ -159,7 +159,7 @@ test('Docker gateway contract', async t => {
     const stalled = await chat(chatBody('stall', { stream: true }));
     assert.equal(eventData(await stalled.text()).at(-1).error.code, 'upstream_timeout');
     await publish({ ...config, models: [{ ...config.models[0], sseEnd: 'done_on_finished_eof' }, config.models[1]] });
-    assert.equal(eventData(await (await chat(chatBody('no done', { stream: true }))).text()).at(-1), '[DONE]');
+    assert.equal(eventData(await (await chat(chatBody('no done', { stream: true }))).text()).at(-1).error.code, 'upstream_protocol_error');
     await publish({ ...config, services: [{ ...service, chatPath: '/redirect' }] });
     const redirect = await read(await chat(), 502);
     assert.equal(redirect.error.code, 'upstream_protocol_error');
@@ -175,7 +175,7 @@ test('Docker gateway contract', async t => {
     controller.abort();
     await waitFor(async () => (await (await fetch(fixture + '/fixture/metrics')).json()).cancellations > original,
       'upstream did not observe cancellation');
-    await waitFor(async () => (await read(await manage('overview'), 200)).metrics.some(row => row.cancelled), 'cancel metadata missing');
+    await waitFor(async () => (await read(await manage('overview'), 200)).metrics.some(row => row.clientDisconnected), 'disconnect metadata missing');
     assert.equal((await chat()).status, 200);
   });
   await t.test('ongoing requests keep their config snapshot while published rules apply to new requests', async () => {

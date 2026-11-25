@@ -140,6 +140,7 @@ public final class NativeS3CodingAdapter implements CodingAgentSPI {
     }
     private static final Duration LEASE_DURATION=Duration.ofMinutes(3);
     private static final Duration LEASE_RENEW_INTERVAL=Duration.ofSeconds(30);
+    private static final String WORKER_STOPPED_WITHOUT_DELIVERY="Native Worker stopped without a committed delivery";
     private static final class Run {
         final CodingTaskContract c;
         final CodingJournal.Lease lease;
@@ -207,7 +208,7 @@ public final class NativeS3CodingAdapter implements CodingAgentSPI {
             if(!license.codingDispatchEntitlement().licenseValid())throw new SecurityException("Coding dispatch entitlement required");
             var binding=state(run,BINDING);
             if(binding==null){binding=binding(run);save(run,BINDING,binding);}
-            else if(control!=null&&control.attempt()>1)recoverBinding(run);
+            else if(control!=null&&control.attempt()>1&&!recoverBinding(run))return;
             ensureSession(run);
             for(;;){
                 var activeBinding=state(run,BINDING);
@@ -224,6 +225,15 @@ public final class NativeS3CodingAdapter implements CodingAgentSPI {
                     ensureSession(run);
                     continue;
                 }
+                String workerState=remote.path("workerState").asText();
+                if(!remote.hasNonNull("delivery")&&("STOPPED".equals(workerState)
+                        ||"RECOVERABLE".equals(workerState)&&!remote.hasNonNull("startFailure"))){
+                    if(state(run,"native-s3:message-intent")!=null){
+                        stop(run,WORKER_STOPPED_WITHOUT_DELIVERY,remote);
+                        return;
+                    }
+                    if("STOPPED".equals(workerState))throw new IllegalStateException(WORKER_STOPPED_WITHOUT_DELIVERY);
+                }
                 if(workerNeedsRecovery(remote)&&!remote.hasNonNull("delivery")){
                     if(recoverStartup(run,activeBinding,remote))continue;
                     return;
@@ -235,8 +245,6 @@ public final class NativeS3CodingAdapter implements CodingAgentSPI {
                     if(!currentBinding.hasNonNull("receiptSessionId")){var bound=(ObjectNode)currentBinding.deepCopy();bound.set("receiptSessionId",nativeState.get("sessionId"));bound.set("receiptEpoch",nativeState.get("epoch"));save(run,BINDING,bound);}
                 }
                 String nativeStatus=remote.path("native").path("status").asText();
-                if("STOPPED".equals(remote.path("workerState").asText())&&!remote.hasNonNull("delivery"))
-                    throw new IllegalStateException("Native Worker stopped without a committed delivery");
                 if(!dispatchObjective(run,remote,grant,session)
                         || !dispatchRepair(run,remote,grant,session)){
                     Thread.sleep(500);
@@ -375,6 +383,7 @@ public final class NativeS3CodingAdapter implements CodingAgentSPI {
         var files=inputs.inputCapabilities(c).stream().map(i->new NativeS3NodeClient.Input(i.input().path(),i.input().size(),i.input().sha256(),i.input().objectVersion(),i.url())).toList();
         String session="native-"+UUID.randomUUID();var grant=new LinkedHashMap<String,Object>();
         grant.put("version",2);grant.put("tenantId",c.scope().tenantId());grant.put("userId",c.scope().userId());grant.put("taskId",c.taskId());grant.put("sessionId",session);grant.put("workspaceRef","project");
+        grant.put("modelAttemptId",c.taskId()+"-fence-"+r.lease.fencingToken());
         grant.put("modelProfile",settings.profile(frozen.get("selectedModel").toString()));if(settings.dynamicModels)grant.put("runtimeModel",settings.descriptor(frozen.get("selectedModel").toString()));grant.put("budgetPolicy",Map.of("status","DEFERRED_STAGE_2_REVIEW"));
         if(NativeSiloTaskService.studio(c)){
             var used=outcome(r).usage().consumed();
@@ -393,14 +402,19 @@ public final class NativeS3CodingAdapter implements CodingAgentSPI {
         grant.put("s3",Map.of("origin",policy.get("origin"),"inputPrefix",policy.get("inputPrefix"),"outputPrefix",policy.get("outputPrefix"),"inputManifestSha256",client(r).inputManifestHash(files)));
         return json.valueToTree(Map.of("sessionId",session,"grant",client(r).signGrant(grant,settings.issuerKey),"inputs",files,"transportEpoch",ws.epoch(),"nodeId",settings.nodeId(),"executionEpoch",UUID.randomUUID().toString(),"workflowId",r.control==null?"":r.control.workflowId(),"fencingToken",r.lease.fencingToken()));
     }
-    private void recoverBinding(Run r){
+    private boolean recoverBinding(Run r){
         var prior=state(r,BINDING);boolean restart;
         try{var remote=client(r).status(prior.path("grant").asText(),prior.path("sessionId").asText());restart="STOPPED".equals(remote.path("workerState").asText())&&!remote.hasNonNull("delivery");}
         catch(NativeS3NodeClient.NodeException error){if(error.status()!=404&&error.status()<500)throw error;restart=true;}
         catch(IllegalStateException unavailable){if(unavailable.getCause()==null)throw unavailable;restart=true;}
-        if(!restart)return; // Observe the original live Session.
-        if(state(r,STARTUP_RETRY)!=null&&state(r,"native-s3:message-intent")==null)return;
+        if(!restart)return true; // Observe the original live Session.
+        if(state(r,STARTUP_RETRY)!=null&&state(r,"native-s3:message-intent")==null)return true;
+        if(state(r,"native-s3:message-intent")!=null&&!canReplayAnalysis(r)){
+            stop(r,WORKER_STOPPED_WITHOUT_DELIVERY,recoveryStop(r,prior,prior.path("nodeId").asText("default")));
+            return false;
+        }
         replaceStoppedBinding(r,prior,false);
+        return true;
     }
     private boolean canReplayAnalysis(Run r){
         // Native analysis reuses immutable inputs. Tasks with an external business
@@ -490,7 +504,7 @@ public final class NativeS3CodingAdapter implements CodingAgentSPI {
             operation="model-"+p.path("requestId").asText();kind=CodingJournal.OperationKind.MODEL;complete=type.equals("model.request.completed");long tokens=p.path("usage").path("totalTokens").asLong();
             actual=new Counters(1,tokens,0,0,0,0,0,"0");metered=complete&&p.path("usage").path("totalTokens").isNumber();
             normalized=complete?"MODEL_REQUEST_COMPLETED":"MODEL_REQUEST_STARTED";summary=p.path("providerModel").asText(p.path("model").asText());group="model";telemetryId=p.path("requestId").asText();
-            for(String field:List.of("requestId","model","providerModel","usage","durationMs","requestContext","requestedReasoningEffort","reasoningEffort","httpStatus","errorCode","errorType","responseTiming","failurePhase","transportErrorCode"))if(p.hasNonNull(field))projected.put(field,json.convertValue(p.get(field),Object.class));
+            for(String field:List.of("requestId","gatewayRequestId","modelAttemptId","model","providerModel","usage","durationMs","requestContext","requestedReasoningEffort","reasoningEffort","httpStatus","errorCode","errorType","responseTiming","failurePhase","transportErrorCode"))if(p.hasNonNull(field))projected.put(field,json.convertValue(p.get(field),Object.class));
         }else if(channel.equals("provider")){
             summary=type+": "+p.path("tool").asText(p.path("name").asText(p.path("url").asText()));
             for(String field:List.of("tool","requestId","isError","skillId","name","version","source","bytes","url","sha256","size","path","assetId","retrieved_at","files"))if(p.hasNonNull(field))projected.put(field,json.convertValue(p.get(field),Object.class));
@@ -771,13 +785,16 @@ public final class NativeS3CodingAdapter implements CodingAgentSPI {
             prior.parentTaskId(),prior.supersedesTaskId(),Map.of()));
     }
     private void stop(Run r,boolean failed,String reason){
+        stop(r,reason,null);
+    }
+    private void stop(Run r,String reason,JsonNode observedStop){
         var ownership=tasks.ownership(r.c.scope(),r.c.taskId());
         if(ownership.fencingToken()!=r.lease.fencingToken()||!Objects.equals(ownership.owner(),r.lease.owner())||!ownership.leaseUntil().isAfter(Instant.now()))throw new IllegalStateException("Stale Java controller cannot cancel a Native session");
         var b=state(r,BINDING);if(b==null){var prior=outcome(r);if(prior.executionControl().stopReason()!=null)tasks.finishStoppedWithoutExecution(r.c.scope(),r.c.taskId(),prior.revision());return;}
         var ws=workspace.get(r.c.scope(),r.c.taskId());if(!Set.of("COMPLETED","CANCELLED","FAILED").contains(ws.status()))workspace.cancel(r.c.scope(),r.c.taskId(),ws.epoch());
         String nodeId=b.path("nodeId").asText("default");
-        JsonNode remote;
-        try{
+        JsonNode remote=observedStop;
+        if(remote==null)try{
             if(!settings.hasLiveNode(nodeId))remote=recoveryStop(r,b,nodeId);
             else {
                 remote=client(r).status(b.path("grant").asText(),b.path("sessionId").asText());
@@ -820,15 +837,18 @@ public final class NativeS3CodingAdapter implements CodingAgentSPI {
         if(stopped.executionControl().stopReason()!=null){
             tasks.finishStoppedAfterReconciliation(r.c.scope(),r.c.taskId(),r.lease,stopped.revision(),startupFailure(r));return;
         }
-        try{poll(r,"core");poll(r,"provider");}catch(RuntimeException unavailable){
+        try{poll(r,"provider");poll(r,"core");}catch(RuntimeException unavailable){
             try{evidence.archive(r.c,"stop-telemetry-unavailable","stop-telemetry-unavailable.json",
                 evidence.bytes(Map.of("workerStopVerified",true,"telemetryAvailable",false)));}
             catch(RuntimeException archiveUnavailable){/* The verified stop proof is already durable. */}
         }
         var prior=outcome(r);if(prior.status().terminal())return;
+        // Late observations can add starts whose completion was lost with the Worker.
+        reconcile(r,proof);
+        prior=outcome(r);if(prior.status().terminal())return;
         if(prior.executionControl().stopReason()!=null){tasks.finishStoppedAfterReconciliation(r.c.scope(),r.c.taskId(),r.lease,prior.revision());return;}
         String failureSummary=reason;
-        if("Native Worker stopped without a committed delivery".equals(reason)){
+        if(WORKER_STOPPED_WITHOUT_DELIVERY.equals(reason)){
             failureSummary=tasks.nativeTelemetry(r.c.scope(),r.c.taskId(),"model").stream()
                 .filter(receipt->receipt.hasNonNull("finishedAt"))
                 .max(Comparator.comparing(receipt->receipt.path("finishedAt").asText()))
@@ -857,7 +877,9 @@ public final class NativeS3CodingAdapter implements CodingAgentSPI {
     }
     private static String modelFailureSummary(JsonNode receipt) {
         return switch(receipt.path("errorCode").asText("")){
-            case "UPSTREAM_TIMEOUT" -> "模型上游连接或响应超时，分析未交付";
+            case "UPSTREAM_TIMEOUT", "GATEWAY_UPSTREAM_TIMEOUT", "GATEWAY_FIRST_PACKET_TIMEOUT" -> "模型上游连接或响应超时，分析未交付";
+            case "RUNTIME_DEADLINE_EXCEEDED", "GATEWAY_RUNTIME_DEADLINE_EXCEEDED" -> "已到达 Runtime 请求截止时间，分析未交付";
+            case "UPSTREAM_STREAM_ERROR", "GATEWAY_UPSTREAM_PROTOCOL_ERROR", "GATEWAY_UPSTREAM_ERROR_EVENT" -> "模型上游响应流异常，分析未交付";
             case "UPSTREAM_DNS_FAILURE" -> "模型上游地址解析失败，分析未交付";
             case "UPSTREAM_TLS_FAILURE" -> "模型上游 TLS 握手失败，分析未交付";
             default -> {

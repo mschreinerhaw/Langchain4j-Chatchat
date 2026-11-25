@@ -1,6 +1,6 @@
 {
   "name": "llm-compatibility-gateway",
-  "version": "1.1.1",
+  "version": "1.2.0-rc.1",
   "private": true,
   "type": "module",
   "engines": {
@@ -9,7 +9,8 @@
   "scripts": {
     "build": "tsc -p tsconfig.json && vite build",
     "start": "node dist/server/main.js",
-    "test": "vitest run --root . tests/protocol.test.ts",
+    "test": "vitest run --root . tests/protocol.test.ts tests/runtime-managed.test.ts",
+    "test:runtime-http": "node --test tests/runtime-http.test.mjs",
     "test:docker": "node --test tests/docker.test.mjs",
     "test:tls": "node --test tests/tls.test.mjs",
     "test:ui": "playwright test"

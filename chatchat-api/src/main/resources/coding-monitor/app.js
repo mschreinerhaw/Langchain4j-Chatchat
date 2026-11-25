@@ -123,7 +123,11 @@ const reasoningLabels={off:'\u5173\u95ed',auto:'\u81ea\u52a8',none:'\u5173\u95ed
 const modelTransportErrors={UPSTREAM_TIMEOUT:'上游连接或响应超时',UPSTREAM_DNS_FAILURE:'上游地址解析失败',
  UPSTREAM_TLS_FAILURE:'上游 TLS 握手失败',UPSTREAM_CONNECTION_FAILURE:'上游连接失败',
  UPSTREAM_RESPONSE_STREAM_INTERRUPTED:'上游响应流中断',
- UPSTREAM_TRANSPORT_FAILURE:'上游传输失败',UPSTREAM_ABORTED:'请求已中止'};
+ UPSTREAM_TRANSPORT_FAILURE:'上游传输失败',UPSTREAM_ABORTED:'请求已中止',UPSTREAM_STREAM_ERROR:'上游返回流式错误',
+ RUNTIME_DEADLINE_EXCEEDED:'Runtime 截止时间已到',RUNTIME_TASK_STOPPED:'Runtime 已停止本次执行',
+ CORE_DISCONNECTED:'Cline 连接已关闭',GATEWAY_RUNTIME_DEADLINE_EXCEEDED:'Runtime 截止时间已到',
+ GATEWAY_UPSTREAM_PROTOCOL_ERROR:'Gateway 检测到上游流协议错误',GATEWAY_UPSTREAM_ERROR_EVENT:'Gateway 收到上游错误事件',
+ GATEWAY_CONCURRENCY_LIMIT:'Gateway 并发额度已用完'};
 const reasoningUnknown='\u672a\u8bb0\u5f55';
 function renderModels(value,taskReasoning){
  const unique=new Map();for(const row of receiptRows(value)){const id=row.requestId||[row.attemptId,row.operationId].join(':');unique.set(id,row);}const rows=[...unique.values()];$('model-rows').replaceChildren();
@@ -131,6 +135,8 @@ function renderModels(value,taskReasoning){
  $('usage').replaceChildren(facts([['实际模型请求',number(rows.length)],['输入 Token',rows.length?aggregate('inputTokens'):'未提供'],['输出 Token',rows.length?aggregate('outputTokens'):'未提供'],['累计请求耗时',rows.length&&rows.every(row=>typeof (row.durationMs??row.durationMillis)==='number')?duration(rows.reduce((sum,row)=>sum+(row.durationMs??row.durationMillis),0)):'未提供']]));
  $('usage').append(facts([['\u4efb\u52a1\u601d\u8003\u5f3a\u5ea6',reasoningLabels[taskReasoning]||reasoningUnknown]]));
  for(const row of rows){const usage=row.usage||{},tr=document.createElement('tr'),model=document.createElement('td');model.append(text('span',row.providerModel||row.model||row.selectedModel||'未提供'),text('small',row.requestId||row.operationId));
+  if(row.gatewayRequestId)model.append(text('small','Gateway '+row.gatewayRequestId));
+  if(row.modelAttemptId)model.append(text('small',row.modelAttemptId));
   const total=usage.totalTokens??(typeof usage.inputTokens==='number'&&typeof usage.outputTokens==='number'?usage.inputTokens+usage.outputTokens:null);
   const state=row.status||row.state||'STARTED',status=text('td',state);
   if(state==='FAILED'){

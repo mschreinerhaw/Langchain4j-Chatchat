@@ -6,6 +6,8 @@ COPY . .
 RUN npm test && npm run build && npm prune --omit=dev --no-audit --no-fund
 
 FROM node:24-bookworm-slim AS runtime
+ARG GATEWAY_SOURCE_SHA=unknown
+LABEL org.opencontainers.image.version="1.2.0-rc.1" org.opencontainers.image.revision="${GATEWAY_SOURCE_SHA}"
 ENV NODE_ENV=production
 WORKDIR /app
 RUN apt-get update && apt-get install -y --no-install-recommends openssl ca-certificates \

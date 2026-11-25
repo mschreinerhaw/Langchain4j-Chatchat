@@ -1,0 +1,45 @@
+:root{color-scheme:light}
+body{margin:0;background:#f3f6fa}
+.shell{min-height:100vh}
+.sidebar,.sidebar .ant-menu{background:#111f32!important}
+.brand{height:72px;padding:0 14px;display:flex;align-items:center;gap:10px;color:#f5f9ff;white-space:nowrap;overflow:hidden}
+.brand-mark{background:#0c8c7f;color:#fff;width:35px;height:35px;border-radius:9px;display:grid;place-items:center;font-weight:750;flex:none}
+.ant-layout-sider-collapsed .brand strong{display:none}
+.top{background:#fff!important;border-bottom:1px solid #e7edf4;display:flex;align-items:center;justify-content:space-between;gap:12px;padding:0 24px!important;line-height:normal!important}
+.main{padding:26px;min-width:0}
+.main h2.ant-typography{margin:0 0 20px}
+.stat-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:14px}
+.overview-toolbar{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;margin-bottom:14px}
+.traffic-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px}
+.traffic-chart{display:grid;grid-template-columns:auto minmax(0,1fr);gap:8px;align-items:stretch}
+.chart-legend{display:flex;gap:8px 18px;align-items:center;flex-wrap:wrap;padding:0;margin:0 0 14px;list-style:none;color:#50647d}
+.chart-legend li{display:flex;align-items:center;gap:6px}
+.chart-legend li span{width:9px;height:9px;border-radius:2px;flex:none}
+.chart-scale{display:flex;flex-direction:column;justify-content:space-between;text-align:right;padding-right:4px;color:#50647d;font-size:12px;line-height:1;font-variant-numeric:tabular-nums}
+.chart-plot{height:158px;display:grid;grid-template-columns:repeat(12,minmax(0,1fr));border-block:1px solid #e6edf4;background:linear-gradient(to bottom,transparent calc(50% - .5px),#e6edf4 calc(50% - .5px),#e6edf4 calc(50% + .5px),transparent calc(50% + .5px))}
+.chart-column{height:100%;width:100%;display:flex;justify-content:center;align-items:flex-end;gap:2px;padding:0 3px;border:0;background:none;cursor:default}
+.chart-column:hover,.chart-column:focus-visible{background:#edf3f9}
+.chart-column:focus-visible{outline:2px solid #087f72;outline-offset:-2px}
+.chart-column span{display:block;flex:1;max-width:12px;border-radius:2px 2px 0 0}
+.chart-stacked{flex-direction:column-reverse;align-items:center;justify-content:flex-start;gap:0}
+.chart-stacked span{width:100%;max-width:22px;flex:none;border-radius:0}
+.chart-time{grid-column:2;display:flex;justify-content:space-between;color:#50647d;font-size:12px;font-variant-numeric:tabular-nums}
+.chart-empty{height:178px;margin:0;display:grid;align-content:center;justify-items:center}
+.after{margin-top:16px;margin-bottom:8px}
+.muted{color:#50647d}
+.full{width:100%}
+.mono,.code,.diff{font-family:ui-monospace,Consolas,monospace}
+.code{white-space:pre-wrap;overflow-wrap:anywhere;overflow:auto;max-height:350px;margin:0;padding:13px;background:#f3f6fa;border:1px solid #e6edf5;border-radius:7px;color:#253e59}
+.login{display:grid;place-items:center;min-height:100vh;background:#edf4f9;padding:24px}
+.login-card{width:min(420px,100%)}
+.login-card h2{margin:12px 0 4px}
+.login-card .ant-alert{margin-bottom:12px}
+.rule-row{display:grid;grid-template-columns:120px 110px minmax(120px,1fr) minmax(120px,1fr) auto auto;gap:8px;margin-bottom:10px}
+.diff{overflow:auto;max-height:380px}.diff>div{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;padding:6px;border-bottom:1px solid #edf1f6;overflow-wrap:anywhere}
+.removed{color:#821e2d;background:#ffecef}.added{color:#116048;background:#e0f8ef}
+.file{position:relative;display:inline-flex;align-items:center;border:1px solid #d9d9d9;border-radius:7px;padding:5px 13px;cursor:pointer}.file input{position:absolute;inset:0;width:100%;opacity:0;cursor:pointer}.file:focus-within{outline:2px solid #087c71}
+.integration-value{overflow-wrap:anywhere}
+.integration-example{display:grid;gap:8px}
+.integration-example>.ant-typography{justify-self:end}
+@media(max-width:980px){.traffic-grid{grid-template-columns:minmax(0,1fr)}}
+@media(max-width:750px){.main{padding:14px}.top{padding:0 12px!important}.rule-row{grid-template-columns:1fr 1fr}.diff>div{grid-template-columns:1fr}.main h2.ant-typography{font-size:24px}}

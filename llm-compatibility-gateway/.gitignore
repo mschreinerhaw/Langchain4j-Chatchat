@@ -1,0 +1,11 @@
+node_modules/
+dist/
+.env
+local/
+tls-bootstrap/
+*.key
+*.p12
+*.pfx
+release/
+test-results/
+playwright-report/

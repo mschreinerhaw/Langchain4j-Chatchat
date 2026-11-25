@@ -1,0 +1,10 @@
+services:
+  llm-gateway:
+    environment:
+      TLS_SELF_SIGNED: 'true'
+    volumes:
+      - ./local/self-signed-bootstrap:/run/gateway-tls:ro
+  mock-tls:
+    environment:
+      FIXTURE_TLS_CERT: /fixture-tls/self-upstream.crt
+      FIXTURE_TLS_KEY: /fixture-tls/self-upstream.key

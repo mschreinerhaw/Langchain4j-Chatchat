@@ -1,0 +1,9 @@
+# Build context: repository root. BASE_IMAGE is the installed Native Worker, not its Python base.
+ARG BASE_IMAGE
+FROM ${BASE_IMAGE}
+COPY cline-agent-server/scripts/configure-worker-shell.sh /opt/runtime-os/coding-node/service/scripts/
+USER root
+RUN test -x /usr/local/bin/node \
+    && test -f /opt/runtime-os/coding-node/service/src/server.mjs \
+    && /bin/sh /opt/runtime-os/coding-node/service/scripts/configure-worker-shell.sh
+USER 10001:10001

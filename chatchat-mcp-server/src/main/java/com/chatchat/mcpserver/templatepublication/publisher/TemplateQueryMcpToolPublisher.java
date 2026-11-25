@@ -199,6 +199,7 @@ public class TemplateQueryMcpToolPublisher implements com.chatchat.mcpserver.too
                 filterText(filters, "env", "environment"), filterText(filters, "goal", "intent"));
         }
         Set<String> enabledPublishedKeys = new LinkedHashSet<>();
+        Set<String> outOfTargetScope = new LinkedHashSet<>();
         Map<String, List<Map<String, Object>>> confirmedTargets = new LinkedHashMap<>();
         for (var asset : scopedAssets) {
             if (!parent.accepts(asset)
@@ -215,7 +216,14 @@ public class TemplateQueryMcpToolPublisher implements com.chatchat.mcpserver.too
                 if (publishedApi) targets = assetCatalogService.publishedApiTarget(asset).stream().toList();
                 else if (publishedHttp) targets = assetCatalogService.publishedHttpTargets(asset);
                 else targets = assetCatalogService.confirmedTemplateTargets(asset, confirmedIds);
-                if (targets.isEmpty()) continue;
+                if (targets.isEmpty()) {
+                    // A technical SQL publication can cover multiple datasource allowlists.
+                    // Keep filters for the confirmed target independent of publication integrity.
+                    if (requiresConfirmedTarget && TemplateAssetCatalogService.SQL.equals(route.assetType())) {
+                        outOfTargetScope.add(asset.key());
+                    }
+                    continue;
+                }
                 confirmedTargets.put(asset.key(), targets);
             }
             enabledAssets.put(asset.key(), asset);
@@ -246,18 +254,21 @@ public class TemplateQueryMcpToolPublisher implements com.chatchat.mcpserver.too
             }
             templates.add(Map.copyOf(item));
         }
-        // Live asset authorization can narrow the available set independently of publication completeness.
+        // Check completeness within the requested datasource scope.
         long unavailableCount = policy.allowedTemplates().entrySet().stream()
             .filter(entry -> parent.assetTypes().contains(entry.getKey()))
             .flatMap(entry -> entry.getValue().stream().map(id -> entry.getKey() + ":" + id))
+            .filter(key -> !outOfTargetScope.contains(key))
             .filter(key -> !(supplyPublishedSet ? enabledAssets.keySet() : enabledPublishedKeys).contains(key))
             .count();
+        long requiredInScope = policy.requiredTemplateKeys().stream()
+            .filter(key -> !outOfTargetScope.contains(key)).count();
         long authorizedRequired = enabledAssets.keySet().stream().filter(policy.requiredTemplateKeys()::contains).count();
         Map<String, Object> supplyCounts = Map.of(
             "publishedTemplateCount", policy.configuredTemplateCount(),
-            "requiredTemplateCount", policy.requiredTemplateKeys().size(),
+            "requiredTemplateCount", Math.toIntExact(requiredInScope),
             "authorizedRequiredTemplateCount", authorizedRequired,
-            "unavailableRequiredTemplateCount", policy.requiredTemplateKeys().size() - authorizedRequired,
+            "unavailableRequiredTemplateCount", requiredInScope - authorizedRequired,
             "optionalTemplateCount", policy.optionalTemplateKeys().size());
         McpInvocationContext.Context context = McpInvocationContext.current();
         Map<String,Object> result = Map.ofEntries(
@@ -312,7 +323,7 @@ public class TemplateQueryMcpToolPublisher implements com.chatchat.mcpserver.too
                 "candidateCount", policy.configuredTemplateCount(),
                 "returnedCount", templates.size(),
                 "retrievalSignalCount", recall.retrievalSignalCount(),
-                "unavailableOrUnauthorizedCount", unavailableCount,
+                "unavailableOrUnauthorizedCount", unavailableCount + outOfTargetScope.size(),
                 "policyCacheHit", policy.cacheHit(),
                 "policyResolvedAt", policy.resolvedAt().toString()
             )),

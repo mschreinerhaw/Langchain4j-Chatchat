@@ -290,6 +290,41 @@ class TemplateQueryMcpToolPublisherTest {
     }
 
     @Test
+    void fixedTechnicalSqlPublicationKeepsTheConfirmedDatasourcesAuthorizedTemplates() {
+        var bindings = mock(TemplateQueryBindingService.class);
+        var catalog = mock(TemplateAssetCatalogService.class);
+        var publisher = publisher(bindings, catalog);
+        var context = context("service-1", "role-1");
+        String child = "mysql_db_status_template_query";
+        String parent = "database_ops_template_search";
+        String type = TemplateAssetCatalogService.SQL;
+        var allowed = asset(type, "MYSQL_INNODB_STATUS", Map.of());
+        var excluded = asset(type, "MYSQL_CONNECTION_STATUS", Map.of());
+        var arguments = Map.<String, Object>of("filters", Map.of("assetIds", List.of("db-248")));
+        when(bindings.requireRoute(child)).thenReturn(route(child, parent, type));
+        when(bindings.resolvePolicy(context, child)).thenReturn(new TemplateQueryBindingService.PolicyResolution(
+            Map.of(type, Set.of(allowed.templateId(), excluded.templateId())),
+            Set.of(parent), "v1", false, 2, Instant.EPOCH));
+        when(catalog.listEnabled()).thenReturn(List.of(allowed, excluded));
+        when(catalog.confirmedTemplateTargets(allowed, Set.of("db-248")))
+            .thenReturn(List.of(Map.of("assetId", "db-248")));
+
+        try (var ignored = McpInvocationContext.open(context)) {
+            var scoped = publisher.queryFromParent(child, parent, arguments);
+            assertThat(scoped).containsEntry("bindingComplete", true).containsEntry("returnedCount", 1);
+            assertThat(scoped.get("dataSupply")).isEqualTo(Map.of("publishedTemplateCount", 2,
+                "requiredTemplateCount", 1, "authorizedRequiredTemplateCount", 1L,
+                "unavailableRequiredTemplateCount", 0L, "optionalTemplateCount", 0));
+            assertThat(scoped.get("templates").toString())
+                .contains(allowed.templateId(), "db-248").doesNotContain(excluded.templateId());
+
+            when(catalog.listEnabled()).thenReturn(List.of(allowed));
+            assertThat(publisher.queryFromParent(child, parent, arguments))
+                .containsEntry("bindingComplete", false);
+        }
+    }
+
+    @Test
     void pagingDoesNotMarkTheCompleteBindingAsUnavailable() {
         TemplateQueryBindingService bindings = mock(TemplateQueryBindingService.class);
         TemplateAssetCatalogService catalog = mock(TemplateAssetCatalogService.class);

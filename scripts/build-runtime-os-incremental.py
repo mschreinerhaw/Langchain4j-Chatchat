@@ -69,6 +69,9 @@ COPY cline-src/ /opt/runtime-os/coding-node/service/src/
 COPY cline-scripts/ /opt/runtime-os/coding-node/service/scripts/
 COPY coding-src/ /opt/runtime-os/coding-node/coding-agent-node/src/
 COPY skills/ /opt/runtime-os/coding-node/coding-agent-node/skills/
+USER root
+RUN /bin/sh /opt/runtime-os/coding-node/service/scripts/configure-worker-shell.sh
+USER 10001:10001
 RUN find /opt/runtime-os/coding-node/service/src -name '*.mjs' -print0 | xargs -0 -r -n 1 node --check \\
     && node /opt/runtime-os/coding-node/service/scripts/verify-runtime.mjs /opt/runtime-os/cline/runtime \\
     && node /opt/runtime-os/coding-node/service/docker/verify-native-modules.mjs /opt/runtime-os/cline/runtime

@@ -53,6 +53,9 @@ COPY cline-src/ /opt/runtime-os/coding-node/service/src/
 COPY cline-scripts/ /opt/runtime-os/coding-node/service/scripts/
 COPY coding-src/ /opt/runtime-os/coding-node/coding-agent-node/src/
 COPY skills/ /opt/runtime-os/coding-node/coding-agent-node/skills/
+USER root
+RUN /bin/sh /opt/runtime-os/coding-node/service/scripts/configure-worker-shell.sh
+USER 10001:10001
 RUN node --check /opt/runtime-os/coding-node/service/src/governance-server.mjs && node --check /opt/runtime-os/coding-node/service/src/worker-executor.mjs
 ''')
 for source,dst in [('cline-agent-server/src','cline-src'),('cline-agent-server/scripts','cline-scripts'),('coding-agent-node/src','coding-src'),('coding-agent-node/skills','skills')]:

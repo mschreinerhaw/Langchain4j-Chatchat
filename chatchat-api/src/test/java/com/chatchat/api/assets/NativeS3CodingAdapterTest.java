@@ -44,6 +44,8 @@ class NativeS3CodingAdapterTest {
     final AtomicInteger allocations=new AtomicInteger();
     int startupFailures,startupHttp=503;
     boolean failAfterDispatch,unfencedStartup;
+    String dispatchedAnalysisFailure;
+    boolean reportedInitialTransportFailure;
     final Map<String,Map<String,Object>> messageReceipts=new java.util.concurrent.ConcurrentHashMap<>();
     volatile boolean wrongReceiptSession;
     final java.util.concurrent.CountDownLatch blockedStatus=new java.util.concurrent.CountDownLatch(1),releaseStatus=new java.util.concurrent.CountDownLatch(1);
@@ -130,6 +132,49 @@ class NativeS3CodingAdapterTest {
         assertThat(allocations).hasValue(1);
         assertThat(messageCalls).hasValue(1);
     }
+    @org.junit.jupiter.params.ParameterizedTest
+    @org.junit.jupiter.params.provider.ValueSource(strings={"STOPPED","404","RECOVERABLE","UNFENCED","PERSISTENT"})
+    void interruptedAnalysisRecoversOnlyAfterVerifiedStop(String failure){
+        dispatchedAnalysisFailure=failure;
+        String task="native-analysis-replay";
+        String file=fixture.assets.upload(fixture.owner,"data-supply-manifest.json","{}".getBytes()).id();
+        var attempt=new AtomicInteger(1);
+        authorized(()->{
+            capture.capture(fixture.scope,task,List.of(file),"Analyze the frozen input","published-model",
+                new CodingTaskContract.Budget("analysis-replay",Instant.now().plusSeconds(90)
+                    .truncatedTo(java.time.temporal.ChronoUnit.MILLIS),-1,-1,-1,-1,"unlimited","USD",-1,1024*1024,1024*1024),
+                Map.of("profile","artifact-integrity-v1"),List.of("RESULT"),Map.of(),
+                Map.of("analysisMetadataPath","input/data/0/data-supply-manifest.json"));
+            var control=new NativeExecutionControl(){
+                public String owner(){return "managed-analysis-replay-test";}
+                public int attempt(){return attempt.get();}
+                public String workflowId(){return "analysis-replay-test-workflow";}
+                public void heartbeat(String phase,String node,String session,String epoch){}
+            };
+            if(!Set.of("RECOVERABLE","PERSISTENT").contains(failure)){
+                assertThatThrownBy(()->adapter.runManaged(fixture.scope,task,control))
+                    .isInstanceOf(NativeS3NodeClient.NodeException.class);
+                attempt.incrementAndGet();
+            }
+            if("UNFENCED".equals(failure)){
+                assertThatThrownBy(()->adapter.runManaged(fixture.scope,task,control))
+                    .hasMessageContaining("NATIVE_RECOVERY_STOP_UNVERIFIED");
+                assertThat(allocations).hasValue(1);
+                assertThat(messageCalls).hasValue(1);
+            }else{
+                var result=adapter.runManaged(fixture.scope,task,control);
+                assertThat(result.status()).as(result.summary()).isEqualTo("PERSISTENT".equals(failure)
+                    ?CodingTaskOutcome.Status.FAILED:CodingTaskOutcome.Status.COMPLETED);
+                assertThat(allocations).hasValue(2);
+                assertThat(messageCalls).hasValue(2);
+                assertThat(tasks.privateState(fixture.scope,task,"native-s3:analysis-replay").asText())
+                    .isNotEqualTo(grant.path("sessionId").asText());
+            }
+            assertThat(recoveryStops).hasValue("PERSISTENT".equals(failure)?2:1);
+            return null;
+        });
+    }
+
     @org.junit.jupiter.params.ParameterizedTest
     @org.junit.jupiter.params.provider.ValueSource(strings={"postgresql","python"})
     @org.junit.jupiter.api.condition.EnabledIfSystemProperty(named="coding.sqlglotPython",matches=".+")
@@ -408,12 +453,29 @@ class NativeS3CodingAdapterTest {
                 if(recoveryStops.incrementAndGet()==1&&failFirstRecovery){reply(exchange,503,Map.of("code","RECOVERY_UNAVAILABLE"));return;}
                 reply(exchange,200,Map.of("sessionId",identity.path("sessionId").asText(),"stopProof",
                     rejectAllocation||startupFailures>0&&allocations.get()<=startupFailures?Map.of("neverAllocated",true,"running",false,"allocationFenced",!unfencedStartup):
-                        Map.of("containerId","a".repeat(64),"running",false,"allocationFenced",true)));
+                        Map.of("containerId","a".repeat(64),"running",false,"allocationFenced",!"UNFENCED".equals(dispatchedAnalysisFailure))));
                 return;
             }
-            if(path.equals("/v1/sessions")){if(rejectAllocation){reply(exchange,429,Map.of("code","CAPACITY_EXHAUSTED"));return;}allocations.incrementAndGet();created=true;grant=identity;reply(exchange,201,state());return;}
+            if(path.equals("/v1/sessions")){if(rejectAllocation){reply(exchange,429,Map.of("code","CAPACITY_EXHAUSTED"));return;}if(allocations.incrementAndGet()>1&&dispatchedAnalysisFailure!=null)messaged=false;created=true;grant=identity;reply(exchange,201,state());return;}
             if(!created){reply(exchange,404,Map.of("code","NOT_FOUND"));return;}
             if(path.endsWith("/status")){
+                if(dispatchedAnalysisFailure!=null&&!identity.path("sessionId").equals(grant.path("sessionId"))){
+                    reply(exchange,404,Map.of("code","NOT_FOUND"));return;
+                }
+                if(messaged&&("PERSISTENT".equals(dispatchedAnalysisFailure)
+                        ||dispatchedAnalysisFailure!=null&&allocations.get()==1)){
+                    if(Set.of("RECOVERABLE","PERSISTENT").contains(dispatchedAnalysisFailure)){
+                        reply(exchange,200,Map.of("workerState","RECOVERABLE"));return;
+                    }
+                    if(!reportedInitialTransportFailure){
+                        reportedInitialTransportFailure=true;
+                        reply(exchange,503,Map.of("code","TEMPORARY_FAILURE"));return;
+                    }
+                    if("404".equals(dispatchedAnalysisFailure)){
+                        reply(exchange,404,Map.of("code","NOT_FOUND"));return;
+                    }
+                    reply(exchange,200,Map.of("workerState","STOPPED"));return;
+                }
                 if(startupFailures>0&&!identity.path("sessionId").equals(grant.path("sessionId"))){reply(exchange,404,Map.of("code","NOT_FOUND"));return;}
                 if(startupFailures>0&&allocations.get()<=startupFailures){
                     reply(exchange,200,Map.of("workerState","START_FAILED","startFailure",

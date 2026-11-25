@@ -37,6 +37,7 @@ public final class NativeS3CodingAdapter implements CodingAgentSPI {
     public boolean temporalScheduling(){return dispatch!=null;}
     @org.springframework.beans.factory.annotation.Autowired(required=false) public void setDispatch(NativeTaskDispatch value){dispatch=value;}
     private static final String BINDING="native-s3:binding";
+    private static final String ANALYSIS_REPLAY="native-s3:analysis-replay";
     private static final String STARTUP_RETRY="native-s3:startup-retry";
     private static final String STARTUP_FAILURE="native-s3:startup-failure";
     private final DurableCodingTaskService tasks;
@@ -217,6 +218,12 @@ public final class NativeS3CodingAdapter implements CodingAgentSPI {
                 if(outcome(run).executionControl().stopReason()!=null){stop(run,false,"Task stopped by Runtime");return;}
                 maintainLease(run);
                 var remote=client(run).status(grant,session);
+                if(!remote.hasNonNull("delivery")&&(workerNeedsRecovery(remote)||"STOPPED".equals(remote.path("workerState").asText()))
+                        &&canReplayAnalysis(run)){
+                    replaceStoppedBinding(run,activeBinding,false);
+                    ensureSession(run);
+                    continue;
+                }
                 if(workerNeedsRecovery(remote)&&!remote.hasNonNull("delivery")){
                     if(recoverStartup(run,activeBinding,remote))continue;
                     return;
@@ -346,11 +353,13 @@ public final class NativeS3CodingAdapter implements CodingAgentSPI {
             save(r,"native-s3:repair-intent",null);
             return true;
         }
-        var attempts=state(r,"native-s3:repair-send:"+version);
+        String attemptsKey="native-s3:repair-send:"+version;
+        if(state(r,ANALYSIS_REPLAY)!=null)attemptsKey+=":"+session;
+        var attempts=state(r,attemptsKey);
         if(attempts!=null&&!remote.path("native").path("messageReceipts").asBoolean())
             throw new IllegalStateException("NATIVE_REPAIR_RECEIPT_UNAVAILABLE");
         var receipt=sendWithReceipt(r,remote,grant,session,"delivery-rejection-"+version,pending.path("text").asText(),
-            "turn_completed".equals(remote.path("native").path("status").asText()),"native-s3:repair-send:"+version);
+            "turn_completed".equals(remote.path("native").path("status").asText()),attemptsKey);
         if(receipt==null)return false;
         int next=Integer.parseInt(version.substring(1))+1;
         var acknowledged=(ObjectNode)pending.deepCopy();
@@ -393,26 +402,45 @@ public final class NativeS3CodingAdapter implements CodingAgentSPI {
         if(state(r,STARTUP_RETRY)!=null&&state(r,"native-s3:message-intent")==null)return;
         replaceStoppedBinding(r,prior,false);
     }
+    private boolean canReplayAnalysis(Run r){
+        // Native analysis reuses immutable inputs. Tasks with an external business
+        // callback must reconcile that callback through its own execution contract.
+        return state(r,"native-s3:message-intent")!=null
+            && state(r,ANALYSIS_REPLAY)==null
+            && r.c.runtimeContext().containsKey("analysisMetadataPath")
+            && !r.c.runtimeContext().containsKey("publishedTemplate")
+            && !NativeSiloTaskService.studio(r.c)
+            && r.c.authorization().networkPolicy()==CodingTaskContract.NetworkPolicy.NONE
+            && "RUNNING".equals(workspace.get(r.c.scope(),r.c.taskId()).status());
+    }
     private void replaceStoppedBinding(Run r,JsonNode prior,boolean startupRetry){
-        if(state(r,"native-s3:message-intent")!=null)
+        boolean dispatched=state(r,"native-s3:message-intent")!=null;
+        if(dispatched&&!canReplayAnalysis(r))
             throw new IllegalStateException("NATIVE_DISPATCH_REQUIRES_STOP_RECONCILIATION");
         String node=prior.path("nodeId").asText("default");
         if(r.control!=null)r.control.heartbeat("RECOVERING",node,prior.path("sessionId").asText(),prior.path("executionEpoch").asText());
         var stopped=recoveryStop(r,prior,node);
         var proof=stopped.path("stopProof");
         if(proof.hasNonNull("containerId"))reconcile(r,stopReference(r,stopped));
-        else if(!proof.path("neverAllocated").asBoolean()||tasks.hasStartedOperations(r.c.scope(),r.c.taskId()))throw new IllegalStateException("Unallocated stop cannot reconcile actual starts");
+        else if(dispatched||!proof.path("neverAllocated").asBoolean()||tasks.hasStartedOperations(r.c.scope(),r.c.taskId()))throw new IllegalStateException("Unallocated stop cannot reconcile actual starts");
+        tasks.enforceDeadline(r.c.scope(),r.c.taskId(),r.lease,outcome(r).revision());
         guarded(r,()->{
+            if(outcome(r).status().terminal()||outcome(r).executionControl().stopReason()!=null)
+                throw new IllegalStateException("Native task stopped during execution recovery");
             save(r,"native-s3:retired:"+prior.path("sessionId").asText(),prior);
             workspace.restartStoppedExecution(r.c.scope(),r.c.taskId(),prior.path("transportEpoch").asText());
             for(String channel:List.of("core","provider")){
                 save(r,"native-s3:read:"+channel,Map.of("sequence",0));
                 save(r,"native-s3:cursor:"+channel,Map.of("sequence",0,"sha256",""));
             }
-            for(String key:List.of("native-s3:message-intent","native-s3:message-ack","native-s3:delivery-version"))save(r,key,null);
+            for(String key:List.of("native-s3:message-intent","native-s3:message-ack","native-s3:objective-send-attempts",
+                    "native-s3:delivery-version","native-s3:repair-intent"))save(r,key,null);
+            if(dispatched)save(r,ANALYSIS_REPLAY,prior.path("sessionId").asText());
             if(startupRetry)save(r,STARTUP_RETRY,true);
             save(r,BINDING,binding(r));return null;
         });
+        if(dispatched)log.info("Native analysis replay scheduled taskId={} retiredSessionId={}",
+            r.c.taskId(),prior.path("sessionId").asText());
     }
     private String instruction(Run r){
         if(NativeSiloTaskService.studio(r.c))return r.c.objective().instruction()
@@ -486,6 +514,8 @@ public final class NativeS3CodingAdapter implements CodingAgentSPI {
             normalized=complete&&p.path("exitCode").asInt(-1)!=0?"ERROR_OCCURRED":complete?"COMMAND_COMPLETED":"COMMAND_STARTED";summary=command;projected.put("command",command);if(p.hasNonNull("exitCode"))projected.put("exitCode",p.path("exitCode").asInt());
             group="execution";telemetryId=p.path("recordId").asText();
         }
+        if(operation!=null&&state(r,ANALYSIS_REPLAY)!=null)
+            operation="replay-"+evidence.hash(List.of(execution.path("sessionId").asText(),operation));
         var proof=new LinkedHashMap<String,Object>();proof.put("taskId",r.c.taskId());proof.put("sessionId",state(r,BINDING).path("sessionId").asText());proof.put("operationId",operation==null?"observation":operation);proof.put("stopped",complete);proof.put("source",channel.equals("provider")?(type.startsWith("model.request.")&&operation!=null?"PROVIDER_HTTP_OBSERVATION":"RUNTIME_CAPABILITY_OBSERVATION"):"NATIVE_ROOT_HOST_OBSERVATION");proof.put("nativeEventId",event.path("eventId").asText());proof.put("rawAssetId",rawAsset);proof.put("sha256",evidence.hash(event));
         String ref=evidence.register(r.c,NativeS3ExecutionProofVerifier.TYPE,state(r,BINDING).path("sessionId").asText()+":"+channel+":"+event.path("eventId").asText(),proof,List.of(r.c.inputSnapshotRef()));
         if(operation!=null)projected.put("operationId",operation);

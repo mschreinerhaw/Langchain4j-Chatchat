@@ -70,9 +70,14 @@ def assemble(output, work):
     native_sources = ("governance-server.mjs", "runtime-model.mjs")
     for name in native_sources:
         shutil.copyfile(ROOT / "cline-agent-server/src" / name, native / name)
+    shutil.copyfile(ROOT / "cline-agent-server/scripts/configure-worker-shell.sh", native / "configure-worker-shell.sh")
     native_ref = "runtime-os-reinstall-native:" + tag
     write(native / "Dockerfile", f"""FROM {release['images']['native']['reference']}
 COPY governance-server.mjs runtime-model.mjs /opt/runtime-os/coding-node/service/src/
+COPY configure-worker-shell.sh /opt/runtime-os/coding-node/service/scripts/
+USER root
+RUN /bin/sh /opt/runtime-os/coding-node/service/scripts/configure-worker-shell.sh
+USER 10001:10001
 RUN node --check /opt/runtime-os/coding-node/service/src/governance-server.mjs \\
     && node --check /opt/runtime-os/coding-node/service/src/runtime-model.mjs
 """)

@@ -333,6 +333,14 @@ class Installation:
             if subprocess.run(['docker','--host','unix://'+local_socket,'image','inspect',worker],
                               stdout=subprocess.DEVNULL,stderr=subprocess.DEVNULL).returncode:
                 raise RuntimeError('Dedicated daemon does not contain the pinned Native Worker image after import')
+        # Check the actual pinned task image under the account Cline uses for commands.
+        try:
+            run(['docker','--host','unix://'+local_socket,'run','--rm','--pull=never','--network=none',
+                 '--user','0:0','--entrypoint','/usr/bin/su',worker,'--command',
+                 'test "$(id -u):$(id -g)" = 10001:10001 && exec /usr/local/bin/python -c "import openpyxl"',
+                 'runner'],timeout=60)
+        except (subprocess.CalledProcessError, subprocess.TimeoutExpired) as error:
+            raise RuntimeError('Pinned Native Worker cannot run Python through the runner account shell: '+worker) from error
         top={'Processes':[line.strip().split(None,1) for line in output(['docker','top',self.name('executor-daemon'),'-eo','pid,args']).splitlines()[1:]]}
         bindings={}
         for role,program,flag,file in [('daemon','dockerd','--config-file','daemon.json'),('containerd','containerd','--config','containerd.toml')]:

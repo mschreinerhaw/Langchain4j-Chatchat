@@ -1,8 +1,55 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { applyRules, ruleSchema } from '../protocol/rules.js';
 import { eventText, readEvents } from '../protocol/sse.js';
 import { Store } from '../server/config.js';
 import { normalizeUpstreamUrl, upstreamEndpoint } from '../protocol/origin.js';
+import { integrationBase, integrationCurl } from '../protocol/integration.js';
+
+it('normalizes SDK endpoints and renders file-free shell commands with exact model IDs', () => {
+  const base = 'https://model.example.com/v1';
+  expect(integrationBase(base + '/v1/', 'https')).toBe(base);
+  expect(integrationBase('https://model.example.com/compatible-mode', 'https'))
+    .toBe('https://model.example.com/compatible-mode/v1');
+  expect(integrationBase('https://user:secret@model.example.com/v1', 'https')).toBe('');
+  const bash = integrationCurl(base, { model: "Vendor/Model's", stream: false }, false, 'bash');
+  expect(bash).toContain('curl -i ');
+  expect(bash).toContain('Vendor/Model\'"\'"\'s');
+  expect(bash).not.toContain('request.json');
+  const ps = integrationCurl(base, { model: 'Qwen/Qwen3.8-27B', stream: true }, true, 'powershell', 'gateway.crt');
+  expect(ps).toContain('curl.exe -i -N');
+  expect(ps).toContain('$env:GATEWAY_API_KEY');
+  expect(ps).toContain('Qwen/Qwen3.8-27B');
+  expect(ps).toContain("--data-binary '@-'");
+});
+
+it('aggregates retained request logs by completion time and averages only observed successful timings', () => {
+  const store = new Store(':memory:', Buffer.alloc(32), new Set());
+  const now = Date.parse('2026-11-24T12:00:00Z');
+  vi.useFakeTimers({ toFake: ['Date'] });
+  try {
+    vi.setSystemTime(now - 61 * 60_000);
+    store.record('older', { status: 200, elapsedMs: 60 });
+    vi.setSystemTime(now - 60 * 60_000);
+    store.record('start', { status: 200, elapsedMs: 100, firstTokenMs: 20 });
+    vi.setSystemTime(now - 1000);
+    store.record('failed', { status: 502, elapsedMs: 1000, firstTokenMs: 90 });
+    store.record('cancelled', { status: 499, elapsedMs: 80 });
+    vi.setSystemTime(now);
+    store.record('end', { status: 200, elapsedMs: 300 });
+    vi.setSystemTime(now + 1000);
+    store.record('future', { status: 200, elapsedMs: 500 });
+
+    const trend = store.traffic('1h', now);
+    expect(trend.buckets).toHaveLength(12);
+    expect(trend.totals).toEqual({ requests: 4, success: 2, failed: 2, averageMs: 200, averageFirstTokenMs: 20 });
+    expect(trend.buckets[0].requests).toBe(1);
+    expect(trend.buckets[1].averageMs).toBeNull();
+    expect(trend.buckets.at(-1)).toMatchObject({ requests: 3, averageMs: 300, averageFirstTokenMs: null });
+    expect(store.traffic('6h', now).totals.requests).toBe(5);
+  } finally {
+    vi.useRealTimers();
+  }
+});
 
 it('records a new origin together with the administrator configuration and retains its base path', () => {
   const original = 'https://existing.example';
@@ -30,6 +77,10 @@ it('resolves upstream endpoint prefixes without repeating API version segments',
   expect(upstreamEndpoint(base + '/compatible-mode', '/v1/chat/completions').href).toBe(base + '/compatible-mode/v1/chat/completions');
   expect(upstreamEndpoint(base + '/compatible-mode/v1', '/v1/models').href).toBe(base + '/compatible-mode/v1/models');
   expect(upstreamEndpoint(base + '/compatible-mode/v1', '/compatible-mode/v1/models').href).toBe(base + '/compatible-mode/v1/models');
+  expect(upstreamEndpoint(base + '/compatible-mode/v1/chat/completions', '/v1/chat/completions').href)
+    .toBe(base + '/compatible-mode/v1/chat/completions');
+  expect(upstreamEndpoint(base + '/compatible-mode/v1/chat/completions', '/v1/models').href)
+    .toBe(base + '/compatible-mode/v1/models');
   expect(() => upstreamEndpoint(base, '//different.example.com/models')).toThrow();
 });
 

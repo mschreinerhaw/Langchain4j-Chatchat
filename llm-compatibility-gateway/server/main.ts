@@ -16,7 +16,9 @@ import { diagnose } from './diagnostics.js';
 import { isObject, applyRules, type JsonObject } from '../protocol/rules.js';
 import { profileNames, type Profile } from '../protocol/profiles.js';
 import { CertificateStore, importSchema, namesSchema } from './tls.js';
-import { requestGateway } from './transport.js';
+import { probeGateway, requestGateway } from './transport.js';
+import { checkIntegrationResponse, integrationBody } from './integration.js';
+import { trafficRanges, type TrafficRange } from './traffic.js';
 
 const settingsValue = settings();
 const version = '1.1.1';
@@ -49,6 +51,7 @@ const labRequests = new Map<string, { identity: string; profile: Profile; header
 let loginFailures = 0;
 let loginWindow = 0;
 let checking = false;
+let integrationChecks = 0;
 const suppliedSecrets = [settingsValue.password, ...settingsValue.clients.map(client => client.key), settingsValue.key.toString('hex')];
 const digest = (value: string) => createHash('sha256').update(value).digest();
 const equal = (a: string, b: string) => timingSafeEqual(digest(a), digest(b));
@@ -237,6 +240,65 @@ admin.post('/admin/integration/key', async req => {
   }
   return { apiKey: client.key };
 });
+admin.post('/admin/integration/test', async (req, reply) => {
+  const { protocol, clientId, alias, mode } = z.object({
+    protocol: z.enum(['http', 'https']), clientId: z.string().max(240), alias: z.string().max(240),
+    mode: z.enum(['models', 'chat', 'sse', 'tool']),
+  }).parse(req.body);
+  if (protocol === 'http' && !httpEnabled || protocol === 'https' && !certificates?.primaryName) {
+    throw invalid('所选协议未启用');
+  }
+  const client = settingsValue.clients.find(item => item.id === clientId);
+  const snapshot = store.snapshot;
+  const model = client && availableModels(snapshot.config, client).find(item => item.alias === alias);
+  if (!client || !model) throw new GatewayError(404, 'client_model_not_found', '客户端或已授权的模型不存在');
+  if (integrationChecks >= 4) throw new GatewayError(429, 'integration_busy', '在线测试并发请求过多');
+  const service = snapshot.config.services.find(item => item.id === model.service)!;
+  const secrets = [...suppliedSecrets, service.apiKey ?? ''];
+  const tcp = { port: protocol === 'https' ? apiPort : httpPort, host: protocol === 'https' ? certificates?.primaryName : undefined,
+    ca: certificates?.ca, signal: AbortSignal.any([downstream(reply).abort.signal, AbortSignal.timeout(90_000)]) };
+  const checks: Array<{ name: string; passed: boolean; request: object; response?: object }> = [];
+  async function run(name: string, path: string, verify: (value: Awaited<ReturnType<typeof probeGateway>>) => boolean | Promise<boolean>,
+    bearer?: string, body?: object, ticket?: string) {
+    const request = { method: body ? 'POST' : 'GET', path, body };
+    try {
+      const response = await probeGateway({ ...tcp, path, bearer, ticket, body });
+      const passed = await verify(response);
+      checks.push({ name, passed, request, response });
+      return response;
+    } catch {
+      checks.push({ name, passed: false, request, response: { error: tcp.signal.aborted ? '测试已取消或超时'
+        : protocol === 'https' ? 'HTTPS 证书、主机名验证或连接失败' : 'HTTP 连接失败' } });
+      return undefined;
+    }
+  }
+  integrationChecks++;
+  try {
+    const ready = await run(protocol === 'https' ? '连接与 TLS' : '连接', '/ready', result => result.status === 200);
+    if (ready?.status === 200) {
+      const listed = await run('API Key 与模型列表', '/v1/models', result => {
+        if (result.status !== 200 || result.truncated) return false;
+        const data = JSON.parse(result.body).data;
+        return Array.isArray(data) && data.some(item => item?.id === alias);
+      }, client.key);
+      if (mode !== 'models' && listed && checks.at(-1)?.passed) {
+        const ticket = randomUUID();
+        let upstreamRequest: unknown;
+        labRequests.set(ticket, { identity: client.id, profile: client.profile, trace: async (stage, value) => {
+          if (stage === 'upstream_request') upstreamRequest = value;
+        } });
+        try {
+          await run({ chat: '普通对话', sse: '流式对话', tool: '工具调用协议' }[mode],
+            '/v1/chat/completions', result => checkIntegrationResponse(mode, alias, result), client.key, integrationBody(alias, mode), ticket);
+        } finally { labRequests.delete(ticket); }
+        const actual = isObject(upstreamRequest) && isObject(upstreamRequest.body) ? upstreamRequest.body.model : undefined;
+        checks.push({ name: '实际模型映射', passed: actual === model.upstream,
+          request: { publicModelId: model.alias, configuredUpstreamId: model.upstream }, response: { upstreamRequest } });
+      }
+    }
+    return redact({ protocol, revision: snapshot.version, checks }, secrets);
+  } finally { integrationChecks--; }
+});
 admin.get('/admin/tls/ca', async (_req, reply) => {
   const ca = tlsStore().ca;
   if (!ca) throw new GatewayError(404, 'ca_not_configured', '未配置私有 CA');
@@ -275,7 +337,9 @@ admin.post('/admin/rollback', async req => {
   const body = z.object({ version: z.number().int().positive(), target: z.number().int().positive() }).parse(req.body);
   return store.publish(body.version, store.getRevision(body.target).config, { action: `rollback:${body.target}`, retainSecrets: false });
 });
-admin.get('/admin/overview', async () => {
+const overviewQuery = z.object({ range: z.enum(Object.keys(trafficRanges) as TrafficRange[]).default('1h') });
+admin.get('/admin/overview', async req => {
+  const { range } = overviewQuery.parse(req.query);
   const metrics = store.metrics();
   const checks = store.checks();
   const config = store.snapshot.config;
@@ -284,7 +348,7 @@ admin.get('/admin/overview', async () => {
   const latest = new Map<string, number>();
   for (const row of metrics) if (row.revision === store.snapshot.version && row.upstreamOrigin && !latest.has(row.upstreamOrigin)
     && !row.cancelled && row.error !== 'concurrency_limit') latest.set(row.upstreamOrigin, row.upstreamStatus ?? 502);
-  return { metrics, checks, overview: {
+  return { metrics, checks, traffic: store.traffic(range), overview: {
     configured: config.services.length, published: config.models.filter(model => model.enabled && enabled.some(service => service.id === model.service)).length,
     online: enabled.filter(service => (latest.get(service.origin) ?? 0) >= 200 && (latest.get(service.origin) ?? 0) < 300).length,
     unhealthy: enabled.filter(service => (latest.get(service.origin) ?? 0) >= 400).length,

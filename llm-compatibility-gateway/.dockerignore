@@ -9,6 +9,8 @@
 !protocol/**/*.ts
 !server/
 !server/**/*.ts
+!tests/
+!tests/protocol.test.ts
 !web/
 !web/**/*.tsx
 !web/**/*.css

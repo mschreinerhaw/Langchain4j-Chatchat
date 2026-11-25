@@ -13,6 +13,10 @@ export function upstreamEndpoint(base: string, path: string): URL {
   const endpoint = new URL(path, url.origin);
   const prefix = url.pathname.replace(/\/+$/, '').split('/').slice(1);
   const segments = endpoint.pathname.split('/').slice(1);
+  // A pasted Chat Completions URL can also supply the base for model discovery.
+  if (prefix.slice(-3).join('/') === 'v1/chat/completions' && segments.slice(-2).join('/') === 'v1/models') {
+    prefix.splice(-2);
+  }
   // A provider may put the API version in both its Base URL and the default endpoint path.
   let overlap = Math.min(prefix.length, segments.length);
   while (overlap && !prefix.slice(-overlap).every((segment, index) => segment === segments[index])) overlap--;

@@ -3,4 +3,4 @@ services:
     environment:
       ENABLE_HTTP_TEST: 'true'
     ports:
-      - "127.0.0.1:${HTTP_PUBLIC_PORT:-18080}:18080"
+      - "${HTTP_BIND:-127.0.0.1}:${HTTP_PUBLIC_PORT:-18080}:18080"

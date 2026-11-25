@@ -91,6 +91,10 @@ test('HTTPS gateway contract', async t => {
     const publish = await manage('config', 'PUT', { version, config });
     assert.equal(publish.status, 200, publish.raw);
     version = publish.json().version;
+    const online = await manage('integration/test', 'POST', { protocol: 'https', clientId: 'fixture', alias: 'sdk-model', mode: 'sse' });
+    assert.equal(online.status, 200, online.raw);
+    assert.ok(online.json().checks.every(check => check.passed), online.raw);
+    assert.equal(online.json().checks[0].response.tls.verified, true);
     const keyRequest = { clientId: 'java', alias: 'sdk-model' };
     const unauthenticated = await call(admin, '/admin/integration/key', { method: 'POST', body: keyRequest });
     assert.equal(unauthenticated.status, 401);

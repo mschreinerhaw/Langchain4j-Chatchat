@@ -32,7 +32,7 @@ SQLite 的 `user_version` 驱动初始化和迁移。每次发布在事务中写
 | GET `/admin/backup` | 下载无密钥配置 JSON |
 | POST `/admin/restore` | `{version,config}`，发布导入的配置 |
 | POST `/admin/rollback` | `{version,target}`，依据旧版本发布 |
-| GET `/admin/overview` | 当前指标、请求元数据和检查摘要 |
+| GET `/admin/overview?range=1h` | 当前指标、请求元数据和检查摘要，以及按完成时间统计的请求量与耗时趋势。时段支持 `1h`（默认）、`6h`、`24h` |
 | POST `/admin/upstream/models` | `{id}`，返回上游 HTTP 状态和脱敏结果 |
 | POST `/admin/preview` | `{alias,body,stage,config?}`，预览规则 |
 | POST `/admin/lab` | `{alias?,service?,direct?,path?,profile?,body,headers?}`，返回 NDJSON 轨迹、真实入口连接和协议检查结果 |

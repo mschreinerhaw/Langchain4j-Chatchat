@@ -2,10 +2,11 @@ import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { setTimeout as delay } from 'node:timers/promises';
 import { execFileSync } from 'node:child_process';
+import { request } from 'node:http';
 
 const api = process.env.TEST_API ?? 'http://127.0.0.1:18080';
 const admin = process.env.TEST_ADMIN ?? 'http://127.0.0.1:18081';
-const fixture = 'http://127.0.0.1:19090';
+const fixture = process.env.TEST_FIXTURE ?? 'http://127.0.0.1:19090';
 const auth = { authorization: 'Bearer fixture-gateway-credential', 'content-type': 'application/json' };
 const restricted = { ...auth, authorization: 'Bearer fixture-restricted-credential' };
 const alias = 'example/模型+#?';
@@ -86,6 +87,22 @@ test('Docker gateway contract', async t => {
     assert.equal((await read(await manage('upstream/models', 'POST', { id: service.id }), 200)).status, 200);
     await publish(config);
   });
+  await t.test('online access tests use the published IDs, real listener and authorized client', async () => {
+    const options = { protocol: 'http', clientId: 'fixture', alias };
+    assert.equal((await fetch(admin + '/admin/integration/test', { method: 'POST', headers: auth,
+      body: JSON.stringify({ ...options, mode: 'models' }) })).status, 401);
+    for (const mode of ['models', 'chat', 'sse', 'tool']) {
+      const result = await read(await manage('integration/test', 'POST', { ...options, mode }), 200);
+      assert.equal(result.checks.length, mode === 'models' ? 2 : 4);
+      assert.ok(result.checks.every(check => check.passed), JSON.stringify(result));
+      if (mode !== 'models') {
+        assert.equal(result.checks[2].request.body.model, alias);
+        assert.equal(result.checks[3].response.upstreamRequest.body.model, config.models[0].upstream);
+      }
+      assert.doesNotMatch(JSON.stringify(result), /fixture-(?:gateway|upstream)-credential/);
+    }
+    assert.equal((await manage('integration/test', 'POST', { ...options, clientId: 'restricted', mode: 'models' })).status, 404);
+  });
   await t.test('JSON parameters, native tools, usage and tool result round trip', async () => {
     const tools = [{ type: 'function', function: { name: 'gateway_echo', parameters: { type: 'object', properties: {} } } }];
     const input = chatBody('你好', { max_completion_tokens: 12, extra: { list: [], object: {} },
@@ -108,7 +125,18 @@ test('Docker gateway contract', async t => {
     const followup = await read(await chat({ ...input, messages: [...input.messages, choice.message, toolResult] }), 200);
     assert.equal(followup.choices[0].message.content, '工具结果');
     assert.equal((await read(await chat(chatBody('no usage')), 200)).usage, undefined);
-    assert.equal((await chat(chatBody('a'.repeat(8_500_000)))).status, 413);
+    // The gateway can reject the declared size before curl or fetch finishes uploading.
+    const oversized = await new Promise((resolve, reject) => {
+      const req = request(api + '/v1/chat/completions', { method: 'POST',
+        headers: { ...auth, 'content-length': 8_500_000 }, signal: AbortSignal.timeout(5_000) }, response => {
+        response.resume();
+        response.once('end', () => { resolve(response.statusCode); req.destroy(); });
+        response.once('error', reject);
+      });
+      req.once('error', reject);
+      req.flushHeaders();
+    });
+    assert.equal(oversized, 413);
   });
   await t.test('SSE incrementality, fragments, usage, explicit termination and errors', async () => {
     const tools = [{ type: 'function', function: { name: 'gateway_echo' } }];

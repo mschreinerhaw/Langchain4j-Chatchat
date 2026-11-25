@@ -5,6 +5,7 @@ import { profileNames, type Profile } from '../protocol/profiles.js';
 import { seal, unseal } from './credentials.js';
 import { validateUpstreamTrust } from './tls.js';
 import { normalizeUpstreamUrl } from '../protocol/origin.js';
+import { summarizeTraffic, trafficStart, type TrafficRange } from './traffic.js';
 
 export class GatewayError extends Error {
   constructor(public status: number, public code: string, message: string) {
@@ -29,7 +30,7 @@ export const serviceSchema = z.object({
 });
 const capability = z.enum(['configured', 'supported', 'unsupported', 'unverified']);
 export const modelSchema = z.object({
-  alias: identifier, upstream: identifier, service: identifier, enabled: z.boolean().default(true),
+  alias: identifier, displayName: identifier.optional(), upstream: identifier, service: identifier, enabled: z.boolean().default(true),
   contextWindow: z.number().int().positive().optional(), maxOutput: z.number().int().positive().optional(),
   sseEnd: z.enum(['require_done', 'done_on_finished_eof']).default('require_done'),
   capabilities: z.object({ tools: capability.default('unverified'), reasoning: capability.default('unverified'),
@@ -193,6 +194,19 @@ export class Store {
   metrics() {
     return this.db.prepare('SELECT id,time,metadata FROM metrics ORDER BY rowid DESC LIMIT 1000').all()
       .map(row => ({ id: row.id, time: row.time, ...JSON.parse(String(row.metadata)) }));
+  }
+  traffic(range: TrafficRange, now = Date.now()) {
+    const samples = this.db.prepare(`
+      SELECT time, json_extract(metadata, '$.status') AS status,
+        json_extract(metadata, '$.elapsedMs') AS elapsedMs,
+        json_extract(metadata, '$.firstTokenMs') AS firstTokenMs
+      FROM metrics WHERE time BETWEEN ? AND ?
+    `).all(new Date(trafficStart(range, now)).toISOString(), new Date(now).toISOString());
+    return summarizeTraffic(samples.map(row => ({
+      time: String(row.time), status: Number(row.status),
+      elapsedMs: typeof row.elapsedMs === 'number' ? row.elapsedMs : null,
+      firstTokenMs: typeof row.firstTokenMs === 'number' ? row.firstTokenMs : null,
+    })), range, now);
   }
   saveCheck(model: string, version: number, findings: object) {
     this.db.prepare('INSERT OR REPLACE INTO checks VALUES (?,?,?,?)').run(model, version, new Date().toISOString(), JSON.stringify(findings));

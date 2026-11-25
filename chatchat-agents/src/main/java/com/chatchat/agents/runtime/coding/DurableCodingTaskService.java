@@ -649,13 +649,19 @@ public final class DurableCodingTaskService implements CodingAgentSPI {
 
     /** Durable absence of a start intent is proof of no dispatch, not fabricated Sandbox confirmation. */
     public CodingTaskOutcome finishStoppedWithoutExecution(KernelDataScope scope,String taskId,long expectedRevision) {
+        return finishStoppedWithoutExecution(scope,taskId,expectedRevision,null);
+    }
+
+    public CodingTaskOutcome finishStoppedWithoutExecution(KernelDataScope scope,String taskId,long expectedRevision,String failureSummary) {
+        if(failureSummary!=null)bounded(failureSummary,"failure summary");
         return mutateTask(scope,taskId,STOP,task -> {
             if (task.outcome.status().terminal()) return;
             revision(task,expectedRevision);
             require(task.outcome.executionControl().stopReason()!=null,INVALID_STATE_TRANSITION,"Stop request is required");
             require(task.operations.values().stream().noneMatch(op->op.startIntent),EXECUTION_OUTCOME_UNKNOWN,"A start intent requires execution-node reconciliation");
             Status target=stopStatus(task.outcome.executionControl().stopReason());
-            advance(task,TASK_FINISHED,task.outcome.executionControl().stopReason(),"Stopped before any external dispatch",null,List.of(),
+            String summary=target==Status.FAILED&&failureSummary!=null?failureSummary:"Stopped before any external dispatch";
+            advance(task,TASK_FINISHED,task.outcome.executionControl().stopReason(),summary,null,List.of(),
                 copy(task,target,task.outcome.executionControl().stopReason(),control(task,true,false),null));
         }).outcome;
     }
@@ -663,6 +669,12 @@ public final class DurableCodingTaskService implements CodingAgentSPI {
     /** A signed worker completion may close a stop only after every started operation has a verified stop proof. */
     public CodingTaskOutcome finishStoppedAfterReconciliation(KernelDataScope scope,String taskId,
         CodingJournal.Lease lease,long expectedRevision) {
+        return finishStoppedAfterReconciliation(scope,taskId,lease,expectedRevision,null);
+    }
+
+    public CodingTaskOutcome finishStoppedAfterReconciliation(KernelDataScope scope,String taskId,
+        CodingJournal.Lease lease,long expectedRevision,String failureSummary) {
+        if(failureSummary!=null)bounded(failureSummary,"failure summary");
         return mutateTask(scope,taskId,WORKER,task -> {
             if (task.outcome.status().terminal()) return;
             revision(task,expectedRevision); fence(task,lease);
@@ -670,7 +682,8 @@ public final class DurableCodingTaskService implements CodingAgentSPI {
             require(stop!=null,INVALID_STATE_TRANSITION,"Stop request is required");
             require(!unresolved(task),EXECUTION_OUTCOME_UNKNOWN,"Started operation still needs stop proof");
             Status target=stopStatus(stop);
-            advance(task,TASK_FINISHED,stop,"Worker stopped; all started operations reconciled",null,List.of(),
+            String summary=target==Status.FAILED&&failureSummary!=null?failureSummary:"Worker stopped; all started operations reconciled";
+            advance(task,TASK_FINISHED,stop,summary,null,List.of(),
                 copy(task,target,stop,control(task,true,false),null));
         }).outcome;
     }

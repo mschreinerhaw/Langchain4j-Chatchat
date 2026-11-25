@@ -7,17 +7,19 @@ import {mkdtemp,mkdir,writeFile,readFile,rm} from 'node:fs/promises';
 import {join,dirname} from 'node:path';
 import {tmpdir} from 'node:os';
 import {fileURLToPath} from 'node:url';
-import {createHash} from 'node:crypto';
-import {signContract} from '../src/task-contract.mjs';
+import {createHash,createHmac} from 'node:crypto';
+import {runtimeModelProfile,signContract} from '../src/task-contract.mjs';
 import {inputManifestHash,jsonHash} from '../src/s3-task-transport.mjs';
 
 const pause=ms=>new Promise(r=>setTimeout(r,ms));
 const listen=(server,address)=>new Promise(r=>server.listen(address,r));
 const close=server=>new Promise(r=>{server.close(r);server.closeAllConnections?.();});
-for(const scenario of ['delivery','cancel-upload','cancel-model'])test('S3 gateway HTTP '+scenario+' preserves SSE and rejects cross-task access',{
+for(const scenario of ['delivery','cancel-upload','cancel-model','published-model'])test('S3 gateway HTTP '+scenario+' preserves SSE and rejects cross-task access',{
  skip:process.platform==='win32'||process.getuid?.()!==0?'Linux/root Unix-socket integration fixture':false,
 },async()=>{
  const cancelUpload=scenario==='cancel-upload';
+ const published=scenario==='published-model';
+ const gatewayEntry=published?process.env.TEST_LOCAL_GATEWAY_ENTRY:undefined;
  const root=await mkdtemp(join(tmpdir(),'s3gw-')),workers=join(root,'w'),states=join(root,'s');
  await mkdir(workers);await mkdir(states);
  const hash=x=>createHash('sha256').update(x).digest('hex');
@@ -30,10 +32,23 @@ for(const scenario of ['delivery','cancel-upload','cancel-model'])test('S3 gatew
   res.writeHead(200,{'x-amz-version-id':'immutable-'+uploads.length});res.end();
  });await listen(s3,{host:'127.0.0.1',port:0});
  const origin='http://127.0.0.1:'+s3.address().port;
- let activeProviderRequest;
+ let activeProviderRequest,observedUpstream,gateway,gatewayBase;
  const provider=http.createServer(async(req,res)=>{
   const chunks=[];for await(const data of req)chunks.push(data);
-  const mode=JSON.parse(Buffer.concat(chunks)).messages[0].content;
+  const body=JSON.parse(Buffer.concat(chunks)),mode=body.messages[0].content;
+  observedUpstream={path:req.url,authorization:req.headers.authorization,model:body.model};
+  if(gatewayEntry&&!body.stream){
+   res.writeHead(200,{'content-type':'application/json'});
+   return res.end(JSON.stringify({id:'offline',object:'chat.completion',model:body.model,created:1,
+    choices:[{index:0,message:{role:'assistant',content:'fixture reply'},finish_reason:'stop'}]}));
+  }
+  if(gatewayEntry){
+   res.writeHead(200,{'content-type':'text/event-stream'});
+   for(const choice of [{index:0,delta:{role:'assistant',content:'fixture delta'}},{index:0,delta:{},finish_reason:'stop'}]){
+    res.write('data: '+JSON.stringify({id:'offline',object:'chat.completion.chunk',created:1,model:body.model,choices:[choice]})+'\n\n');
+   }
+   return res.end('data: [DONE]\n\n');
+  }
   res.on('close',()=>{if(activeProviderRequest?.mode===mode)activeProviderRequest.closed=true;});
   if(mode.startsWith('hold-'))activeProviderRequest={mode,closed:false};
   if(mode==='hold-headers')return;
@@ -44,6 +59,15 @@ for(const scenario of ['delivery','cancel-upload','cancel-model'])test('S3 gatew
   if(mode==='reset')activeProviderRequest={mode,interrupt:()=>res.destroy()};
   else res.end('data: [DONE]\n\n');
  });await listen(provider,{host:'127.0.0.1',port:0});
+ let token;
+ const authorityPaths=[];
+ const authority=http.createServer((req,res)=>{
+  if(req.headers.authorization!=='Bearer '+token){res.writeHead(403);res.end();return;}
+  authorityPaths.push(req.url);
+  res.setHeader('content-type','application/json');
+  res.end(JSON.stringify(req.url.endsWith('/model')?{model:'qwen-3.6-plus',
+   baseUrl:gatewayBase??('http://127.0.0.1:'+provider.address().port+'/v1'),apiKey:'gateway-fixture-key-long'}:{packages:[]}));
+ });await listen(authority,{host:'127.0.0.1',port:0});
  const native=http.createServer(async(req,res)=>{
   const chunks=[];for await(const b of req)chunks.push(b);const b=JSON.parse(Buffer.concat(chunks).toString()||'{}');let value;
   if(req.url==='/health/ready')value={ready:true};
@@ -80,6 +104,13 @@ for(const scenario of ['delivery','cancel-upload','cancel-model'])test('S3 gatew
   modelProfiles:{model:{model:'fixture-model',baseUrl:'http://127.0.0.1:'+provider.address().port,apiKey:'never-used'}},
   s3:{allowedOrigins:[origin],maxInputBytes:1024,maxOutputBytes:1024}};
  const portServer=http.createServer();await listen(portServer,{host:'127.0.0.1',port:0});cfg.port=portServer.address().port;await close(portServer);
+ const issuer='i'.repeat(64);
+ if(published){
+  const authorityBase='http://127.0.0.1:'+authority.address().port+'/internal/runtime/native-coding';
+  cfg.issuerKeys={tenant:issuer};
+  Object.assign(cfg.tenants.tenant,{runtimeModelAuthority:authorityBase+'/model',
+   mcp:{authMode:'native-runtime',url:authorityBase+'/mcp'}});
+ }
  const configFile=join(root,'config.json');await writeFile(configFile,JSON.stringify(cfg));
  const child=spawn(process.execPath,[fileURLToPath(new URL('../src/governance-server.mjs',import.meta.url))],{env:{...process.env,CLINE_GOVERNANCE_CONFIG:configFile},stdio:['ignore','pipe','pipe']});
  let logs='';child.stdout.on('data',b=>logs+=b);child.stderr.on('data',b=>logs+=b);
@@ -89,20 +120,27 @@ for(const scenario of ['delivery','cancel-upload','cancel-model'])test('S3 gatew
   budgetPolicy:{status:'DEFERRED_STAGE_2_REVIEW'},toolPermissions:['run_commands'],dataPermissions:[],networkPolicy:'broker-only',expiresAt:Date.now()+60000,
   runtimeProfile:'native-python-silo-v1',deliveryBinding:{tenantId:'tenant',taskId:'task',runId:'run',inputSnapshotVersion:'fixed'},
   s3:{origin,inputPrefix:'/bucket/tenant/task/run/input/',outputPrefix:'/bucket/tenant/task/run/output/',inputManifestSha256:inputManifestHash(inputs)}};
- const token=signContract(contract,cfg.signingKey);
+ if(published){
+  contract.runtimeModel={logicalName:'Site gateway',providerModel:'qwen-3.6-plus'};
+  contract.modelProfile=runtimeModelProfile(contract.runtimeModel);
+  // Runtime checks the issued token byte-for-byte. JSON formatting must not affect the binding.
+  const encoded=Buffer.from(JSON.stringify(contract,null,1)).toString('base64url');
+  token=encoded+'.'+createHmac('sha256',issuer).update(encoded).digest('base64url');
+ }else token=signContract(contract,cfg.signingKey);
  async function request(path,body,authorization=token){
   const response=await fetch(base+path,{method:body===undefined?'GET':'POST',headers:{authorization:'Bearer '+authorization,'content-type':'application/json','idempotency-key':'fixed'},body:body===undefined?undefined:JSON.stringify(body)});
   return {status:response.status,body:await response.json()};
  }
  function modelRequest(mode){
-  const payload=JSON.stringify({model:'fixture-model',stream:true,messages:[{role:'user',content:mode}]});
+  const payload=JSON.stringify({model:published?'qwen-3.6-plus':'fixture-model',stream:true,messages:[{role:'user',content:mode}]});
   let client;
-  const state={receivedResponse:false};
+  const state={receivedResponse:false,text:''};
   const result=new Promise(resolve=>{
    client=http.request({socketPath:join(workers,workerId,'bridge/broker.sock'),path:'/model/v1/chat/completions',method:'POST',
     headers:{authorization:'Bearer '+brokerToken,'content-type':'application/json','content-length':Buffer.byteLength(payload)}},response=>{
      state.receivedResponse=true;
-     response.on('error',()=>resolve(response.statusCode));response.on('end',()=>resolve(response.statusCode));response.resume();
+     response.on('error',()=>resolve(response.statusCode));response.on('end',()=>resolve(response.statusCode));
+     response.on('data',chunk=>state.text+=chunk);
     });
    client.on('error',()=>resolve(null));client.setTimeout(3000,()=>client.destroy());client.end(payload);
   });
@@ -115,11 +153,55 @@ for(const scenario of ['delivery','cancel-upload','cancel-model'])test('S3 gatew
  };
  async function until(check){for(let i=0;i<150;i++){const value=await check();if(value)return value;await pause(20);}throw new Error('Timed out waiting for the Broker fixture');}
  try{
+  if(gatewayEntry){
+   const listeners=[http.createServer(),http.createServer()];
+   await Promise.all(listeners.map(server=>listen(server,{host:'127.0.0.1',port:0})));
+   const [apiPort,adminPort]=listeners.map(server=>server.address().port);
+   await Promise.all(listeners.map(close));
+   gatewayBase='http://127.0.0.1:'+apiPort+'/v1';
+   const admin='http://127.0.0.1:'+adminPort+'/admin/';
+   const providerOrigin='http://127.0.0.1:'+provider.address().port;
+   gateway=spawn(process.execPath,[gatewayEntry],{env:{...process.env,GATEWAY_HTTP_ONLY:'true',
+    HTTP_TEST_PORT:String(apiPort),ADMIN_PORT:String(adminPort),DATA_DIR:join(root,'gateway-data'),
+    CONFIG_ENCRYPTION_KEY:'c'.repeat(64),ADMIN_PASSWORD:'fixture-only-admin-password',
+    GATEWAY_API_KEY:'gateway-fixture-key-long',UPSTREAM_ALLOWED_ORIGINS:providerOrigin},
+    stdio:['ignore','ignore','inherit']});
+   await until(async()=>fetch(gatewayBase.replace(/\/v1$/,'/ready')).then(r=>r.ok,()=>false));
+   const json={'content-type':'application/json'};
+   const login=await fetch(admin+'login',{method:'POST',headers:json,body:JSON.stringify({password:'fixture-only-admin-password'})});
+   assert.equal(login.status,200);
+   const headers={...json,cookie:login.headers.get('set-cookie').split(';')[0]};
+   const current=await (await fetch(admin+'config',{headers})).json();
+   const saved=await fetch(admin+'config',{method:'PUT',headers,body:JSON.stringify({version:current.version,config:{
+    services:[{id:'offline',name:'Offline upstream',origin:providerOrigin,apiKey:'fixture-upstream-auth'}],
+    models:[{alias:'qwen-3.6-plus',service:'offline',upstream:'/models/Qwen3.6-35B-A3B'}]
+   }})});
+   assert.equal(saved.status,200,await saved.text());
+   const direct=await fetch(gatewayBase+'/chat/completions',{method:'POST',headers:{...json,
+    authorization:'Bearer gateway-fixture-key-long'},body:JSON.stringify({model:'qwen-3.6-plus',stream:false,
+     messages:[{role:'user',content:'Direct path'}]})});
+   assert.equal(direct.status,200);
+   assert.equal((await direct.json()).choices[0].message.content,'fixture reply');
+  }
   for(let i=0;i<100;i++){try{if((await fetch(base+'/health/live')).ok)break;}catch{}if(child.exitCode!==null)throw Error(logs);await pause(20);}
   assert.equal((await request('/v1/sessions',{inputs})).status,201);
-  for(let i=0;i<100;i++){const r=await request('/v1/sessions/session/status');if(r.body.workerState==='READY')break;await pause(20);}
-  assert.equal((await request('/v1/sessions/session/status')).body.workerState,'READY',logs);
+  for(let i=0;i<100;i++){const r=await request('/v1/sessions/session/status');if(['READY','START_FAILED','RECOVERABLE'].includes(r.body.workerState))break;await pause(20);}
+  const status=(await request('/v1/sessions/session/status')).body;
+  assert.equal(status.workerState,'READY',JSON.stringify(status)+' '+logs);
   assert.equal(await readFile(join(workers,workerId,'workspace/input/data.csv'),'utf8'),'a,b\n');
+  if(published){
+   assert.deepEqual(authorityPaths,['/internal/runtime/native-coding/model','/internal/runtime/native-coding/skills']);
+   const chat=modelRequest('published HTTP model');
+   assert.equal(await chat.result,200);
+   assert.match(chat.state.text,/fixture delta/);
+   assert.match(chat.state.text,/\[DONE\]/);
+   assert.deepEqual(observedUpstream,{path:'/v1/chat/completions',
+    authorization:gatewayEntry?'Bearer fixture-upstream-auth':'Bearer gateway-fixture-key-long',
+    model:gatewayEntry?'/models/Qwen3.6-35B-A3B':'qwen-3.6-plus'});
+   assert.equal((await until(async()=>(await receipts())[0])).status,'SUCCEEDED');
+   assert.ok(!JSON.stringify(status).includes(token)&&!JSON.stringify(status).includes('gateway-fixture-key'));
+   return;
+  }
   if(scenario==='cancel-model'){
    const idle=modelRequest('hold-idle');
    await until(()=>idle.state.receivedResponse);
@@ -189,6 +271,7 @@ for(const scenario of ['delivery','cancel-upload','cancel-model'])test('S3 gatew
   assert.equal((await request('/v1/sessions/session/acceptance',{manifestSha256:jsonHash(manifest),status:'PASSED',validationRef:'late'})).status,403);
  }finally{
   child.kill('SIGTERM');await new Promise(r=>child.once('exit',r));
-  releaseUpload?.();await Promise.all([close(native),close(executor),close(s3),close(provider)]);await rm(root,{recursive:true,force:true});
+  if(gateway&&gateway.exitCode===null){gateway.kill('SIGTERM');await new Promise(r=>gateway.once('exit',r));}
+  releaseUpload?.();await Promise.all([close(native),close(executor),close(s3),close(provider),close(authority)]);await rm(root,{recursive:true,force:true});
  }
 });

@@ -112,7 +112,7 @@ class Installation:
         for role,entry in self.images.items():
             try:actual=inspect(entry['reference'])['Id']
             except subprocess.CalledProcessError:raise RuntimeError('Missing offline image: '+entry['reference'])
-            if actual!=entry['imageId']:raise RuntimeError('Wrong image identity for '+role)
+            if actual not in [entry['imageId'], *entry.get('acceptedImageIds',[])]:raise RuntimeError('Wrong image identity for '+role)
         if output(['docker','compose','version','--short'])=='':raise RuntimeError('Installer Compose tool is unavailable')
 
     def prepare(self):
@@ -330,6 +330,9 @@ class Installation:
             load=subprocess.run(['docker','--host','unix://'+local_socket,'image','load'],stdin=save.stdout,check=False)
             save.stdout.close()
             if save.wait() or load.returncode:raise RuntimeError('Offline worker image import failed')
+            if subprocess.run(['docker','--host','unix://'+local_socket,'image','inspect',worker],
+                              stdout=subprocess.DEVNULL,stderr=subprocess.DEVNULL).returncode:
+                raise RuntimeError('Dedicated daemon does not contain the pinned Native Worker image after import')
         top={'Processes':[line.strip().split(None,1) for line in output(['docker','top',self.name('executor-daemon'),'-eo','pid,args']).splitlines()[1:]]}
         bindings={}
         for role,program,flag,file in [('daemon','dockerd','--config-file','daemon.json'),('containerd','containerd','--config','containerd.toml')]:

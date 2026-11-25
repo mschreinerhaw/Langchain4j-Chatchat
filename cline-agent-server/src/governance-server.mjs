@@ -26,6 +26,12 @@ if(cfg.s3&&(!executor||cfg.workerRuntime!=='cline-python311'))throw Error('S3 tr
 const docker=executor?null:new DockerEngine(cfg.dockerSocket),records=new Map(),brokers=new Map(),streams=new Map(),calls=new Map();
 const bridgeRoot=r=>executor?join(cfg.workerRoot,r.workerId,'bridge'):join(cfg.stateRoot,'workers',r.workerId,'bridge');
 const grant=r=>signContract(r.contract,cfg.signingKey);
+function runtimeGrant(r){
+ // Runtime compares the bearer token to its persisted allocation binding.
+ // Parsing and re-signing the JSON can change the original token bytes.
+ if(!r.issuerGrant)throw error('Original Runtime task grant unavailable',409);
+ return r.issuerGrant;
+}
 const inspectWorker=r=>executor?executor.inspect(grant(r),r.workerId):docker.inspect(r.containerId);
 const stopWorker=r=>executor?executor.stop(grant(r),r.workerId):docker.stop(r.containerId);
 const cancelWorker=r=>r.contract.s3&&executor?executor.stopOrRevoke(grant(r),r.workerId):stopWorker(r);
@@ -48,11 +54,11 @@ for(const id of readdirSync(join(cfg.stateRoot,'workers'))){const p=join(cfg.sta
 for(const r of records.values())if(r.workerState==='RECOVERABLE'&&(r.containerId||executor&&r.provisioningAttempted)){try{const info=await inspectWorker(r);if(info.Config.Labels['cline.workerId']!==r.workerId)throw Error('Container ownership mismatch');r.stopProof=await stopWorker(r);save(r);}catch{event(r,'recovery.stop_unconfirmed');}}
 function templateFiles(path,visit){const stat=lstatSync(path);if(stat.isSymbolicLink())throw Error('Workspace templates must not contain symlinks');visit?.(path);if(stat.isDirectory())for(const name of readdirSync(path))templateFiles(join(path,name),visit);}
 function send(res,status,value){res.writeHead(status,{'content-type':'application/json','cache-control':'no-store'});res.end(JSON.stringify(value));}
-function granted(req){
+function granted(req,token){
  const path=new URL(req.url,'http://control').pathname;
  const allowedExpired=/^\/v1\/sessions\/[A-Za-z0-9_-]+\/(?:status|events|observations|receipts|executions)$/.test(path)&&req.method==='GET'
   ||/^\/v1\/sessions\/[A-Za-z0-9_-]+\/(?:cancel|revoke|execution-content)$/.test(path)&&req.method==='POST';
- return verifyIssuedContract((req.headers.authorization??'').replace(/^Bearer /,''),cfg,{allowExpired:allowedExpired});
+ return verifyIssuedContract(token,cfg,{allowExpired:allowedExpired});
 }
 function expired(c){return hasTaskDeadline(c)&&c.expiresAt<=Date.now();}
 function live(r){return !r.revoked&&!existsSync(join(cfg.stateRoot,'revocations',r.contract.sessionId+'.json'))&&!expired(r.contract)&&!['STOPPED','RECOVERABLE','START_FAILED'].includes(r.workerState);}
@@ -72,7 +78,7 @@ function workerRequest(r,path,method='GET',value,headers={}){return new Promise(
  req.setTimeout(95000,()=>req.destroy(error('Native control timeout',504)));req.on('error',reject);req.end(value===undefined?undefined:JSON.stringify(value));
 });}
 async function workerJSON(r,path,method,value){const response=await workerRequest(r,path,method,value);const chunks=[];for await(const b of response)chunks.push(b);const data=JSON.parse(Buffer.concat(chunks));if(response.statusCode>=400)throw error(data.code??'Native request rejected',response.statusCode);return {code:response.statusCode,data};}
-function publicState(r,native){return {sessionId:r.contract.sessionId,runtimeTaskId:r.contract.taskId,workerId:r.workerId,workerState:r.workerState,taskState:r.taskState,revoked:r.revoked,stopProof:r.stopProof??null,remoteStopConfirmed:r.remoteStopConfirmed===true,native:native??null,...(r.contract.s3?{delivery:r.delivery??null,uploadReceipt:r.uploadReceipt??null,acceptance:r.acceptance??null}:{}),...(executor?{resourceEnforced:r.resourceEnforced??false,productionReady:false}:{})};}
+function publicState(r,native){return {sessionId:r.contract.sessionId,runtimeTaskId:r.contract.taskId,workerId:r.workerId,workerState:r.workerState,taskState:r.taskState,revoked:r.revoked,stopProof:r.stopProof??null,remoteStopConfirmed:r.remoteStopConfirmed===true,native:native??null,...(r.startFailure?{startFailure:r.startFailure}:{}),...(r.contract.s3?{delivery:r.delivery??null,uploadReceipt:r.uploadReceipt??null,acceptance:r.acceptance??null}:{}),...(executor?{resourceEnforced:r.resourceEnforced??false,productionReady:false}:{})};}
 async function operation(r,path,value={}){
  if(!cfg.operations)throw error('Operation authority unavailable',503);
  const response=await fetch(cfg.operations.url+path,{method:'POST',headers:{authorization:'Bearer '+cfg.operations.secret,'content-type':'application/json'},body:JSON.stringify({identity:r.contract,...value})});
@@ -125,7 +131,9 @@ async function broker(r,path){
       const actual={...result.mcpResponse,id:requestBody.id};return send(res,200,actual);
      }
     }else if(!['initialize','notifications/initialized','tools/list','ping'].includes(requestBody.method))throw error('MCP method not granted',403);
-    url=tenant.mcp.url;headers={'Authorization':'Bearer '+(['task-grant','native-runtime'].includes(tenant.mcp.authMode)?signContract(r.contract,issuerKey(cfg,r.contract.tenantId)):tenant.mcp.token),'Accept':'application/json, text/event-stream','content-type':'application/json'};
+    const token=tenant.mcp.authMode==='native-runtime'?runtimeGrant(r):
+     tenant.mcp.authMode==='task-grant'?signContract(r.contract,issuerKey(cfg,r.contract.tenantId)):tenant.mcp.token;
+    url=tenant.mcp.url;headers={'Authorization':'Bearer '+token,'Accept':'application/json, text/event-stream','content-type':'application/json'};
     if(req.headers['mcp-protocol-version'])headers['mcp-protocol-version']=req.headers['mcp-protocol-version'];
    }else if(['/model/v1/chat/completions','/model/v1/responses'].includes(req.url)&&req.method==='POST'){
     const profile=(r.modelConnection??cfg.modelProfiles[r.contract.modelProfile]);modelProfile=profile;
@@ -194,34 +202,39 @@ async function broker(r,path){
 }
 async function allocate(r){
  const dir=join(cfg.stateRoot,'workers',r.workerId),tenant=cfg.tenants[r.contract.tenantId];
+ let stage='start';
  try{
   r.workerState='STARTING';save(r);event(r,'worker.starting');
-  if(r.contract.runtimeModel){r.modelConnection=await resolveRuntimeModel(r.contract,tenant.runtimeModelAuthority,signContract(r.contract,issuerKey(cfg,r.contract.tenantId)));if(r.revoked)throw Error('Allocation revoked');save(r);event(r,'model.bound',{model:r.contract.runtimeModel.logicalName,providerModel:r.modelConnection.model});}
+  stage='model_binding';
+  if(r.contract.runtimeModel){r.modelConnection=await resolveRuntimeModel(r.contract,tenant.runtimeModelAuthority,runtimeGrant(r));if(r.revoked)throw Error('Allocation revoked');save(r);event(r,'model.bound',{model:r.contract.runtimeModel.logicalName,providerModel:r.modelConnection.model});}
   const profile=r.modelConnection??cfg.modelProfiles[r.contract.modelProfile];
   const modelLimits={...(profile.contextWindow?{contextWindow:profile.contextWindow}:{}),
    ...(profile.maxTokens>0?{maxOutputTokens:profile.maxTokens}:{})};
   const modelOptions=Object.keys(modelLimits).length?{modelLimits}:{};
+  stage='worker_allocation';
   if(executor){
    if(r.revoked)throw Error('Allocation revoked');r.provisioningAttempted=true;save(r);
    const created=await executor.create(grant(r),{workerId:r.workerId,resourceProfile:'standard',apiToken:r.apiToken,brokerToken:r.brokerToken,editTool:r.editTool,...modelOptions});
    r.containerId=created.Id;r.resourceEnforced=created.resources.enforced;save(r);
    if(r.contract.s3){
+    stage='workspace_inputs';
     const controller=new AbortController();if(!calls.has(r.workerId))calls.set(r.workerId,new Set());calls.get(r.workerId).add(controller);
     try{await prepareS3Inputs(join(cfg.workerRoot,r.workerId,'workspace'),r.contract,r.s3Inputs,cfg.s3,{signal:taskSignal(r.contract,controller),uid:workerRuntime(cfg).uid});}
     finally{calls.get(r.workerId).delete(controller);}
     delete r.s3Inputs;save(r);event(r,'s3.inputs.verified',{snapshotVersion:r.contract.deliveryBinding.inputSnapshotVersion});
    }
    if(workerRuntime(cfg).python){
+    stage='skills_and_assets';
     let packages=[];
     if(tenant.mcp?.authMode==='native-runtime'){
-     const response=await fetch(tenant.mcp.url.replace(/\/mcp$/,'/skills'),{method:'POST',headers:{Authorization:'Bearer '+signContract(r.contract,issuerKey(cfg,r.contract.tenantId))},signal:AbortSignal.timeout(60000),redirect:'error'});
+     const response=await fetch(tenant.mcp.url.replace(/\/mcp$/,'/skills'),{method:'POST',headers:{Authorization:'Bearer '+runtimeGrant(r)},signal:AbortSignal.timeout(60000),redirect:'error'});
      if(!response.ok)throw Error('Authorized Skill package delivery failed');packages=(await response.json()).packages;
     }
     r.nativeSkillIndex=await stageNativeSkills(join(cfg.workerRoot,r.workerId,'workspace'),packages,(type,payload)=>event(r,type,payload));
     if(cfg.frontendHub)await stageFrontendTransport(join(cfg.workerRoot,r.workerId,'workspace'),r.brokerToken,workerRuntime(cfg).uid);
     save(r);
    }
-   await broker(r,join(bridgeRoot(r),'broker.sock'));
+   stage='worker_launch';await broker(r,join(bridgeRoot(r),'broker.sock'));
    if(r.revoked)throw Error('Allocation revoked');await executor.start(grant(r),r.workerId);
   }else{
   for(const name of ['workspace','state','bridge']){mkdirSync(join(dir,name),{recursive:true,mode:0o700});chownSync(join(dir,name),1000,1000);}
@@ -236,12 +249,23 @@ async function allocate(r){
   const spec=workerContainerSpec({image:cfg.workerImage,root:join(cfg.hostStateRoot,'workers',r.workerId),workerId:r.workerId,sessionId:r.contract.sessionId,tenantId:r.contract.tenantId,memoryBytes:cfg.memoryBytes??3221225472,cpuSet:cfg.cpuSets[index%cfg.cpuSets.length]});
   if(r.revoked)throw Error('Allocation revoked');r.provisioningAttempted=true;save(r);r.containerId=await docker.create('cline-p3-'+r.workerId,spec);save(r);if(r.revoked)throw Error('Allocation revoked');await docker.call('POST','/containers/'+r.containerId+'/start');
   }
-  for(let n=0;n<180;n++){if(r.revoked)throw Error('Allocation revoked');try{await workerJSON(r,'/health/ready');break;}catch{if(n===179)throw Error('Worker API startup deadline');await delay(500);}}
+  stage='worker_api_ready';for(let n=0;n<180;n++){if(r.revoked)throw Error('Allocation revoked');try{await workerJSON(r,'/health/ready');break;}catch{if(n===179)throw Error('Worker API startup deadline');await delay(500);}}
+  stage='native_session';
   const created=await workerJSON(r,'/v1/sessions','POST',{workspaceRef:'project',editTool:r.editTool});r.nativeSessionId=created.data.sessionId;save(r);
   for(let n=0;n<200;n++){if(r.revoked)throw Error('Allocation revoked');const state=(await workerJSON(r,'/v1/sessions/'+r.nativeSessionId+'/status')).data;if(state.status==='idle')break;if(state.status==='failed'||n===199)throw Error('Native startup failed');await delay(500);}
   if(cfg.operations){const native=(await workerJSON(r,'/v1/sessions/'+r.nativeSessionId+'/status')).data;r.nativeEpoch=native.epoch;await operation(r,'/session',{epoch:native.epoch});r.operationSession=true;}
   if(r.revoked)throw Error('Allocation revoked');r.workerState='READY';r.taskState='READY';save(r);event(r,'worker.ready',{containerId:r.containerId});
- }catch(e){r.revoked=true;r.workerState='START_FAILED';r.taskState='FAILED';event(r,'worker.start_failed',{reason:'Worker provisioning or native startup failed'});if(r.containerId||executor&&(r.provisioningAttempted||r.contract.s3))try{r.stopProof=await cancelWorker(r);}catch{r.workerState='RECOVERABLE';r.taskState='UNKNOWN';}save(r);brokers.get(r.workerId)?.close();}
+ }catch(e){
+  const status=e?.status;
+  r.startFailure={stage,...(Number.isInteger(status)&&status>=400&&status<=599?{httpStatus:status}:{}),
+   ...(e?.executorCode==='WORKER_IMAGE_MISSING'?{code:e.executorCode}:{})};
+  r.revoked=true;r.workerState='START_FAILED';r.taskState='FAILED';
+  event(r,'worker.start_failed',{reason:'Worker provisioning or native startup failed',...r.startFailure});
+  // Expose the terminal startup state even if the process exits during cleanup.
+  save(r);
+  if(r.containerId||executor&&(r.provisioningAttempted||r.contract.s3))try{r.stopProof=await cancelWorker(r);}catch{r.workerState='RECOVERABLE';r.taskState='UNKNOWN';}
+  save(r);brokers.get(r.workerId)?.close();
+ }
 }
 const server=http.createServer(async(req,res)=>{
  try{
@@ -252,7 +276,8 @@ const server=http.createServer(async(req,res)=>{
    if(executor)for(const r of active)try{const m=await executor.metrics(grant(r),r.workerId);if(!Number.isSafeInteger(m.memoryBytes)||!Number.isSafeInteger(m.cpuTimeNanos)){available=false;continue;}memoryBytes+=m.memoryBytes;cpuTimeNanos+=m.cpuTimeNanos;}catch{available=false;}
    return send(res,200,{live:true,engine:'cline-standalone',version:'4.1.27',legacySdkWorker:false,protocolVersion:1,capabilities:['native-s3-v2','message-receipts-v1'],releaseVersion:'1.0.0',enterpriseAcceptance:false,capacity:{maxWorkers:cfg.maxWorkers,activeWorkers:active.length},gatewayMemoryBytes:process.memoryUsage().rss,workerMemoryBytes:available?memoryBytes:null,workerCpuTimeNanos:available?cpuTimeNanos:null});
   }
-  const c=granted(req),tenant=Object.hasOwn(cfg.tenants,c.tenantId)?cfg.tenants[c.tenantId]:undefined;if(!tenant||!(tenant.users.includes(c.userId)||c.version===2&&tenant.dynamicUsers===true)||!Object.hasOwn(tenant.workspaces,c.workspaceRef)||!(c.runtimeModel?typeof tenant.runtimeModelAuthority==='string':tenant.models.includes(c.modelProfile))||!c.dataPermissions.every(x=>tenant.datasets.includes(x))||!c.toolPermissions.every(x=>tenant.tools.includes(x)||studioMcpPermission(c,tenant,x)||publishedTemplatePermission(c,tenant,x)))throw error('Task policy not granted',403);
+  const issuerGrant=(req.headers.authorization??'').replace(/^Bearer /,'');
+  const c=granted(req,issuerGrant),tenant=Object.hasOwn(cfg.tenants,c.tenantId)?cfg.tenants[c.tenantId]:undefined;if(!tenant||!(tenant.users.includes(c.userId)||c.version===2&&tenant.dynamicUsers===true)||!Object.hasOwn(tenant.workspaces,c.workspaceRef)||!(c.runtimeModel?typeof tenant.runtimeModelAuthority==='string':tenant.models.includes(c.modelProfile))||!c.dataPermissions.every(x=>tenant.datasets.includes(x))||!c.toolPermissions.every(x=>tenant.tools.includes(x)||studioMcpPermission(c,tenant,x)||publishedTemplatePermission(c,tenant,x)))throw error('Task policy not granted',403);
   if(path==='/v1/sessions'&&req.method==='POST'){
    const b=await body(req),key=req.headers['idempotency-key'];if(!key||Object.keys(b).some(k=>!['editTool',...(c.s3?['inputs']:[])].includes(k))||b.editTool&&!['editor','apply_patch'].includes(b.editTool))throw error('Invalid create request');
    if(c.analysisMetadataPath&&!executor)throw error('Analysis requires a restricted Native Executor',409);
@@ -262,7 +287,7 @@ const server=http.createServer(async(req,res)=>{
    for(const r of records.values())refreshRevocation(r);
    const active=[...records.values()].filter(holdsCapacity);if(active.length>=cfg.maxWorkers||active.filter(x=>x.contract.tenantId===c.tenantId).length>=cfg.maxPerTenant)throw error('Worker capacity exhausted',429);
    const slot=Array.from({length:cfg.maxWorkers},(_,i)=>i).find(i=>!active.some(x=>x.slot===i));
-   r={contract:c,contractHash:contractHash(c),workerId:randomUUID(),slot,workerState:'CREATED',taskState:'CREATED',revoked:false,createKey:key,editTool:b.editTool??'editor',apiToken:randomBytes(32).toString('hex'),brokerToken:randomBytes(32).toString('hex'),...(c.s3?{s3Inputs:b.inputs}: {})};
+   r={contract:c,contractHash:contractHash(c),workerId:randomUUID(),slot,workerState:'CREATED',taskState:'CREATED',revoked:false,createKey:key,editTool:b.editTool??'editor',apiToken:randomBytes(32).toString('hex'),brokerToken:randomBytes(32).toString('hex'),...(c.runtimeModel||tenant.mcp?.authMode==='native-runtime'?{issuerGrant}:{}),...(c.s3?{s3Inputs:b.inputs}: {})};
    mkdirSync(join(cfg.stateRoot,'workers',r.workerId),{recursive:true,mode:0o700});records.set(c.sessionId,r);save(r);event(r,'worker.created');send(res,201,publicState(r));void allocate(r);return;
   }
   const parts=path.split('/').filter(Boolean);let r;

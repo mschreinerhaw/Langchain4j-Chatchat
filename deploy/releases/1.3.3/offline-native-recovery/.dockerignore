@@ -1,0 +1,6 @@
+*
+!Dockerfile
+!governance-server.mjs
+!runtime-model.mjs
+!worker-executor.mjs
+!worker-executor-client.mjs

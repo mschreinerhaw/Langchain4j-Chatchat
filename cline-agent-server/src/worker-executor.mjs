@@ -61,11 +61,31 @@ async function create(c,b){
  // run later. Running/restarting/paused containers always retain their reservation.
  const active=listed.filter(x=>!(x.State==='created'&&uuid.test(x.Labels['cline.workerId'])&&existsSync(closed(x.Labels['cline.workerId']))));
  if(active.length>=cfg.maxWorkers||active.filter(x=>x.Labels['cline.tenantId']===c.tenantId).length>=cfg.maxPerTenant)throw reject('Executor independent capacity limit',429);
+ // Verify the image before preparing a durable workspace. The outer Docker
+ // image store and the private Executor image store are independent.
+ built.spec.Image=await resolvePinnedWorkerImage();
  prepare(c,b);
  // Explicit review-only mode, never silently advertise unsupported cgroup limits.
  if(!resourceSupport){built.spec.HostConfig.Memory=0;built.spec.HostConfig.NanoCpus=0;built.spec.HostConfig.CpusetCpus='';built.spec.HostConfig.PidsLimit=0;built.spec.HostConfig.Ulimits=[{Name:'nofile',Soft:1024,Hard:1024},{Name:'nproc',Soft:256,Hard:256}];}
  audit('worker.create.intent',{workerId:b.workerId,owner:built.owner,resourceEnforced:!!resourceSupport});
  const id=await docker.create(built.name,built.spec);audit('worker.created',{workerId:b.workerId,containerId:id});return view(await docker.inspect(id),c,b.workerId);
+}
+function missingWorkerImage(){
+ return Object.assign(reject('Pinned Native Worker image is missing from the dedicated Docker daemon',503),
+  {executorCode:'WORKER_IMAGE_MISSING'});
+}
+async function resolvePinnedWorkerImage(){
+ // The original 1.3.2 image has these two verified identities in its OCI release archive.
+ const identities=[cfg.workerImage];
+ if(cfg.workerImage==='sha256:5d6e19b5d1b70a328f95fc65769176b30eb45283f7842b6fce43ee0a7e4e7ef3')
+  identities.push('sha256:14fd1c48edaf477985ac63aaddc292c28efe99469c2bf97fd71f14b19c4c718b');
+ for(const id of identities){
+  try{
+   const image=await docker.call('GET','/images/'+id+'/json');
+   if(identities.includes(image.Id))return image.Id;
+  }catch(e){if(e.dockerStatus!==404)throw e;}
+ }
+ throw missingWorkerImage();
 }
 async function route(req,b){
  const url=new URL(req.url,'http://executor');if(url.search||url.pathname!==req.url)throw reject('Canonical capability routes only',404);
@@ -127,7 +147,7 @@ const server=http.createServer(async(req,res)=>{let code=200,value;try{
   if(cfg.usePublishedDaemonBindings)verifyExecutorDaemon(cfg,await docker.call('GET','/info'));
   let size=0;const chunks=[];for await(const b of req){size+=b.length;if(size>32768)throw reject('Request too large',413);chunks.push(b);}let b;try{b=JSON.parse(Buffer.concat(chunks).toString()||'{}');}catch{throw reject('Invalid JSON',400);}value=await route(req,b);
  }
-}catch(e){code=e.status??503;value={message:e.status?e.message:'Executor operation unknown; query before retry'};audit('request.rejected',{method:req.method,path:req.url,code,reason:value.message,nativeErrorCode:e.code??null,nativeFailure:String(e.dockerMessage??e.message).slice(0,512)});}
+}catch(e){code=e.status??503;value={message:e.status?e.message:'Executor operation unknown; query before retry',...(e.executorCode?{code:e.executorCode}:{})};audit('request.rejected',{method:req.method,path:req.url,code,reason:value.message,executorCode:e.executorCode??null,nativeErrorCode:e.code??null,nativeFailure:String(e.dockerMessage??e.message).slice(0,512)});}
 res.writeHead(code,{'content-type':'application/json','cache-control':'no-store'});res.end(JSON.stringify(value));});
 server.requestTimeout=10000;server.headersTimeout=10000;
 if(existsSync(cfg.socketPath))unlinkSync(cfg.socketPath);

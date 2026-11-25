@@ -41,6 +41,9 @@ class NativeS3CodingAdapterTest {
     int previewRejections;
     boolean repairSchema;
     final AtomicInteger recoveryStops=new AtomicInteger();
+    final AtomicInteger allocations=new AtomicInteger();
+    int startupFailures,startupHttp=503;
+    boolean failAfterDispatch,unfencedStartup;
     final Map<String,Map<String,Object>> messageReceipts=new java.util.concurrent.ConcurrentHashMap<>();
     volatile boolean wrongReceiptSession;
     final java.util.concurrent.CountDownLatch blockedStatus=new java.util.concurrent.CountDownLatch(1),releaseStatus=new java.util.concurrent.CountDownLatch(1);
@@ -67,6 +70,66 @@ class NativeS3CodingAdapterTest {
     }
     @AfterEach void stop(){if(adapter!=null)adapter.close();if(http!=null)http.stop(0);if(scheduler!=null)scheduler.shutdown();}
     <T>T authorized(java.util.function.Supplier<T> action){return identity.as(fixture.scope,Set.of(READ,SUBMIT,WORKER,EVIDENCE,STOP,RECOVER),action);}
+    private CodingTaskOutcome runManagedStartup(String task){
+        String file=fixture.assets.upload(fixture.owner,"input.csv","value\n42\n".getBytes()).id();
+        return authorized(()->{
+            capture.capture(fixture.scope,task,List.of(file),"Analyze input","published-model",
+                new CodingTaskContract.Budget("startup",Instant.now().plusSeconds(90)
+                    .truncatedTo(java.time.temporal.ChronoUnit.MILLIS),-1,-1,-1,-1,"unlimited","USD",-1,1024*1024,1024*1024),
+                Map.of("profile","artifact-integrity-v1"),List.of("RESULT"));
+            return adapter.runManaged(fixture.scope,task,new NativeExecutionControl(){
+                public String owner(){return "managed-startup-test";}
+                public int attempt(){return 1;}
+                public String workflowId(){return "startup-test-workflow";}
+                public void heartbeat(String phase,String node,String session,String epoch){}
+            });
+        });
+    }
+
+    @Test void transientStartupFailureIsFencedAndRecoveredInTheSameActivity(){
+        startupFailures=1;
+        var result=runManagedStartup("native-startup-retry");
+        assertThat(result.status()).as(result.summary()).isEqualTo(CodingTaskOutcome.Status.COMPLETED);
+        assertThat(allocations).hasValue(2);
+        assertThat(recoveryStops).hasValue(1);
+        assertThat(messageCalls).hasValue(1);
+    }
+
+    @Test void persistentStartupFailureFinishesAfterOneReplacementWithoutDispatch(){
+        startupFailures=10;
+        var result=runManagedStartup("native-startup-persistent");
+        assertThat(result.status()).isEqualTo(CodingTaskOutcome.Status.FAILED);
+        assertThat(result.summary()).contains("执行容器分配失败","HTTP 503","任务未下发");
+        assertThat(allocations).hasValue(2);
+        assertThat(recoveryStops).hasValue(2);
+        assertThat(messageCalls).hasValue(0);
+    }
+
+    @Test void modelAuthorityRejectionDoesNotCreateAReplacement(){
+        startupFailures=10;
+        startupHttp=403;
+        var result=runManagedStartup("native-startup-binding");
+        assertThat(result.status()).isEqualTo(CodingTaskOutcome.Status.FAILED);
+        assertThat(result.summary()).contains("模型绑定失败","HTTP 403");
+        assertThat(allocations).hasValue(1);
+        assertThat(messageCalls).hasValue(0);
+    }
+
+    @Test void uncertainStopNeverPermitsAnotherWorker(){
+        startupFailures=1;
+        unfencedStartup=true;
+        assertThatThrownBy(()->runManagedStartup("native-startup-unfenced")).hasMessageContaining("NATIVE_RECOVERY_STOP_UNVERIFIED");
+        assertThat(allocations).hasValue(1);
+        assertThat(messageCalls).hasValue(0);
+    }
+
+    @Test void recoveryAfterAnAcceptedMessageDoesNotReplayTheTask(){
+        failAfterDispatch=true;
+        var result=runManagedStartup("native-startup-dispatched");
+        assertThat(result.status()).isEqualTo(CodingTaskOutcome.Status.FAILED);
+        assertThat(allocations).hasValue(1);
+        assertThat(messageCalls).hasValue(1);
+    }
     @org.junit.jupiter.params.ParameterizedTest
     @org.junit.jupiter.params.provider.ValueSource(strings={"postgresql","python"})
     @org.junit.jupiter.api.condition.EnabledIfSystemProperty(named="coding.sqlglotPython",matches=".+")
@@ -344,13 +407,21 @@ class NativeS3CodingAdapterTest {
             if(path.endsWith("/recovery-stop")){
                 if(recoveryStops.incrementAndGet()==1&&failFirstRecovery){reply(exchange,503,Map.of("code","RECOVERY_UNAVAILABLE"));return;}
                 reply(exchange,200,Map.of("sessionId",identity.path("sessionId").asText(),"stopProof",
-                    rejectAllocation?Map.of("neverAllocated",true,"running",false,"allocationFenced",true):
+                    rejectAllocation||startupFailures>0&&allocations.get()<=startupFailures?Map.of("neverAllocated",true,"running",false,"allocationFenced",!unfencedStartup):
                         Map.of("containerId","a".repeat(64),"running",false,"allocationFenced",true)));
                 return;
             }
-            if(path.equals("/v1/sessions")){if(rejectAllocation){reply(exchange,429,Map.of("code","CAPACITY_EXHAUSTED"));return;}created=true;grant=identity;reply(exchange,201,state());return;}
+            if(path.equals("/v1/sessions")){if(rejectAllocation){reply(exchange,429,Map.of("code","CAPACITY_EXHAUSTED"));return;}allocations.incrementAndGet();created=true;grant=identity;reply(exchange,201,state());return;}
             if(!created){reply(exchange,404,Map.of("code","NOT_FOUND"));return;}
-            if(path.endsWith("/status")){if(blockStatus&&messaged){blockedStatus.countDown();releaseStatus.await(5,java.util.concurrent.TimeUnit.SECONDS);}reply(exchange,200,liveStopLost?Map.of("workerState","RECOVERABLE"):state());return;}
+            if(path.endsWith("/status")){
+                if(startupFailures>0&&!identity.path("sessionId").equals(grant.path("sessionId"))){reply(exchange,404,Map.of("code","NOT_FOUND"));return;}
+                if(startupFailures>0&&allocations.get()<=startupFailures){
+                    reply(exchange,200,Map.of("workerState","START_FAILED","startFailure",
+                        Map.of("stage",startupHttp==403?"model_binding":"worker_allocation","httpStatus",startupHttp)));return;
+                }
+                if(blockStatus&&messaged){blockedStatus.countDown();releaseStatus.await(5,java.util.concurrent.TimeUnit.SECONDS);}
+                reply(exchange,200,liveStopLost||failAfterDispatch&&messaged?Map.of("workerState","RECOVERABLE"):state());return;
+            }
             if(path.endsWith("/observations")||path.endsWith("/receipts")){
                 if(sealed&&missingStoppedTelemetry){reply(exchange,410,Map.of("code","HISTORICAL_TELEMETRY_UNAVAILABLE"));return;}
                 if(path.endsWith("/receipts")&&grant.has("studioBudget")&&messaged

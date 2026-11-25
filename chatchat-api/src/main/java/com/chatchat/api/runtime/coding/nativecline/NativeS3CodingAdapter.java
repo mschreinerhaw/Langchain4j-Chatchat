@@ -37,6 +37,8 @@ public final class NativeS3CodingAdapter implements CodingAgentSPI {
     public boolean temporalScheduling(){return dispatch!=null;}
     @org.springframework.beans.factory.annotation.Autowired(required=false) public void setDispatch(NativeTaskDispatch value){dispatch=value;}
     private static final String BINDING="native-s3:binding";
+    private static final String STARTUP_RETRY="native-s3:startup-retry";
+    private static final String STARTUP_FAILURE="native-s3:startup-failure";
     private final DurableCodingTaskService tasks;
     private final NativeSiloTaskService inputs;
     private final SiloCodingWorkspaceService workspace;
@@ -204,27 +206,28 @@ public final class NativeS3CodingAdapter implements CodingAgentSPI {
             if(!license.codingDispatchEntitlement().licenseValid())throw new SecurityException("Coding dispatch entitlement required");
             var binding=state(run,BINDING);
             if(binding==null){binding=binding(run);save(run,BINDING,binding);}
-            else if(control!=null&&control.attempt()>1){recoverBinding(run);binding=state(run,BINDING);}
-            String grant=binding.path("grant").asText(),session=binding.path("sessionId").asText();
-            var inputFiles=json.convertValue(binding.path("inputs"),new com.fasterxml.jackson.core.type.TypeReference<List<NativeS3NodeClient.Input>>(){});
-            // Stable grant/body/key make allocation retry safe. An unknown model
-            // message is never blindly replayed after a Java process restart.
-            try{client(run).status(grant,session);}catch(NativeS3NodeClient.NodeException absent){if(absent.status()!=404||state(run,"native-s3:message-intent")!=null)throw absent;client(run).create(grant,inputFiles,"create-"+session);}
+            else if(control!=null&&control.attempt()>1)recoverBinding(run);
+            ensureSession(run);
             for(;;){
-                if(control!=null){var b=state(run,BINDING);control.heartbeat("RUNNING",b.path("nodeId").asText("default"),b.path("sessionId").asText(),b.path("executionEpoch").asText());}
+                var activeBinding=state(run,BINDING);
+                String grant=activeBinding.path("grant").asText(),session=activeBinding.path("sessionId").asText();
+                if(control!=null)control.heartbeat("RUNNING",activeBinding.path("nodeId").asText("default"),session,activeBinding.path("executionEpoch").asText());
                 var current=outcome(run);if(current.status().terminal())return;
                 tasks.enforceDeadline(c.scope(),c.taskId(),run.lease,current.revision());
                 if(outcome(run).executionControl().stopReason()!=null){stop(run,false,"Task stopped by Runtime");return;}
                 maintainLease(run);
-                poll(run,"core");poll(run,"provider");
                 var remote=client(run).status(grant,session);
+                if(workerNeedsRecovery(remote)&&!remote.hasNonNull("delivery")){
+                    if(recoverStartup(run,activeBinding,remote))continue;
+                    return;
+                }
+                poll(run,"core");poll(run,"provider");
                 if(remote.path("native").hasNonNull("sessionId")&&remote.path("native").hasNonNull("epoch")){
                     var currentBinding=state(run,BINDING);var nativeState=remote.path("native");
                     if(currentBinding.hasNonNull("receiptSessionId")&&(!currentBinding.path("receiptSessionId").equals(nativeState.path("sessionId"))||!currentBinding.path("receiptEpoch").equals(nativeState.path("epoch"))))throw new IllegalStateException("Native receipt Session changed without execution recovery");
                     if(!currentBinding.hasNonNull("receiptSessionId")){var bound=(ObjectNode)currentBinding.deepCopy();bound.set("receiptSessionId",nativeState.get("sessionId"));bound.set("receiptEpoch",nativeState.get("epoch"));save(run,BINDING,bound);}
                 }
                 String nativeStatus=remote.path("native").path("status").asText();
-                if(Set.of("START_FAILED","RECOVERABLE").contains(remote.path("workerState").asText()))throw new IllegalStateException("Native Worker requires recovery; no replacement model loop was started");
                 if("STOPPED".equals(remote.path("workerState").asText())&&!remote.hasNonNull("delivery"))
                     throw new IllegalStateException("Native Worker stopped without a committed delivery");
                 if(!dispatchObjective(run,remote,grant,session)
@@ -241,6 +244,57 @@ public final class NativeS3CodingAdapter implements CodingAgentSPI {
         }catch(CodingContractException lost){if(control!=null)throw lost;if(shuttingDown||Thread.currentThread().isInterrupted())return;log.warn("Native task {} control rejected: {}",c.taskId(),lost.getMessage());if(run!=null)try{if(!outcome(run).status().terminal())stop(run,true,"Native control fence or contract rejected");}catch(RuntimeException unknown){recordControlFailure(run,unknown);}}
         catch(InterruptedException closing){Thread.currentThread().interrupt();if(control!=null)throw new IllegalStateException("Temporal controller interrupted",closing);/* Java restart leaves a durable binding, never a second Agent. */}
         catch(Exception failed){if(control!=null&&!(failed instanceof DeliveryRejected))throw failed instanceof RuntimeException re?re:new IllegalStateException(failed);if(shuttingDown||Thread.currentThread().isInterrupted())return;log.warn("Native task {} failed",c.taskId(),failed);if(run!=null)try{stop(run,true,failed.getMessage()==null?failed.getClass().getSimpleName():failed.getMessage());}catch(RuntimeException unknown){recordControlFailure(run,unknown);}}
+    }
+    private void ensureSession(Run r){
+        var binding=state(r,BINDING);
+        String grant=binding.path("grant").asText(),session=binding.path("sessionId").asText();
+        try{client(r).status(grant,session);}
+        catch(NativeS3NodeClient.NodeException absent){
+            if(absent.status()!=404||state(r,"native-s3:message-intent")!=null)throw absent;
+            var inputs=json.convertValue(binding.path("inputs"),new com.fasterxml.jackson.core.type.TypeReference<List<NativeS3NodeClient.Input>>(){});
+            // Retrying the same allocation keeps its grant, body and idempotency key.
+            client(r).create(grant,inputs,"create-"+session);
+        }
+    }
+    private static boolean workerNeedsRecovery(JsonNode remote){
+        return Set.of("START_FAILED","RECOVERABLE").contains(remote.path("workerState").asText());
+    }
+    private boolean recoverStartup(Run r,JsonNode binding,JsonNode remote){
+        boolean beforeDispatch=state(r,"native-s3:message-intent")==null&&!tasks.hasStartedOperations(r.c.scope(),r.c.taskId());
+        var failure=remote.path("startFailure");
+        int status=failure.path("httpStatus").asInt();
+        boolean rejected=status>=400&&status<500&&status!=408&&status!=429;
+        if(beforeDispatch&&!rejected&&state(r,STARTUP_RETRY)==null){
+            replaceStoppedBinding(r,binding,true);
+            ensureSession(r);
+            return true;
+        }
+        String reason=workerFailureSummary(failure,beforeDispatch);
+        guarded(r,()->{
+            if(outcome(r).executionControl().stopReason()==null){
+                save(r,STARTUP_FAILURE,reason);
+                tasks.requestFailureStop(r.c.scope(),r.c.taskId(),r.lease,outcome(r).revision(),reason);
+                var ws=workspace.get(r.c.scope(),r.c.taskId());
+                if("RUNNING".equals(ws.status()))workspace.failActive(r.c.scope(),r.c.taskId(),ws.epoch(),reason);
+            }
+            return null;
+        });
+        stop(r,false,reason);
+        return false;
+    }
+    private static String workerFailureSummary(JsonNode failure,boolean beforeDispatch){
+        String stage=switch(failure.path("stage").asText()){
+            case "model_binding" -> "模型绑定";
+            case "worker_allocation" -> "执行容器分配";
+            case "workspace_inputs" -> "工作区准备";
+            case "skills_and_assets" -> "技能与资源准备";
+            case "worker_launch","worker_api_ready" -> "执行容器启动";
+            case "native_session" -> "会话初始化";
+            default -> "执行会话";
+        };
+        int status=failure.path("httpStatus").asInt();
+        return stage+"失败"+(status>=400&&status<=599?"（HTTP "+status+"）":"")
+            +(beforeDispatch?"，任务未下发给 Native Worker":"，执行已停止并保留记录");
     }
     private boolean dispatchObjective(Run r,JsonNode remote,String grant,String session){
         if(state(r,"native-s3:message-ack")!=null||remote.hasNonNull("delivery"))return true;
@@ -332,16 +386,20 @@ public final class NativeS3CodingAdapter implements CodingAgentSPI {
     }
     private void recoverBinding(Run r){
         var prior=state(r,BINDING);boolean restart;
-        try{var remote=client(r).status(prior.path("grant").asText(),prior.path("sessionId").asText());restart=Set.of("RECOVERABLE","START_FAILED","STOPPED").contains(remote.path("workerState").asText())&&!remote.hasNonNull("delivery");}
+        try{var remote=client(r).status(prior.path("grant").asText(),prior.path("sessionId").asText());restart="STOPPED".equals(remote.path("workerState").asText())&&!remote.hasNonNull("delivery");}
         catch(NativeS3NodeClient.NodeException error){if(error.status()!=404&&error.status()<500)throw error;restart=true;}
         catch(IllegalStateException unavailable){if(unavailable.getCause()==null)throw unavailable;restart=true;}
         if(!restart)return; // Observe the original live Session.
+        if(state(r,STARTUP_RETRY)!=null&&state(r,"native-s3:message-intent")==null)return;
+        replaceStoppedBinding(r,prior,false);
+    }
+    private void replaceStoppedBinding(Run r,JsonNode prior,boolean startupRetry){
         if(state(r,"native-s3:message-intent")!=null)
             throw new IllegalStateException("NATIVE_DISPATCH_REQUIRES_STOP_RECONCILIATION");
-        r.control.heartbeat("RECOVERING",prior.path("nodeId").asText("default"),prior.path("sessionId").asText(),prior.path("executionEpoch").asText());
-        var stopped=settings.recovery(prior.path("nodeId").asText("default")).recoveryStop(prior.path("grant").asText(),prior.path("sessionId").asText());
+        String node=prior.path("nodeId").asText("default");
+        if(r.control!=null)r.control.heartbeat("RECOVERING",node,prior.path("sessionId").asText(),prior.path("executionEpoch").asText());
+        var stopped=recoveryStop(r,prior,node);
         var proof=stopped.path("stopProof");
-        if(!prior.path("sessionId").equals(stopped.path("sessionId"))||!workerStopped(stopped)||!proof.path("allocationFenced").asBoolean())throw new IllegalStateException("Old Native allocation has not been fenced and stopped");
         if(proof.hasNonNull("containerId"))reconcile(r,stopReference(r,stopped));
         else if(!proof.path("neverAllocated").asBoolean()||tasks.hasStartedOperations(r.c.scope(),r.c.taskId()))throw new IllegalStateException("Unallocated stop cannot reconcile actual starts");
         guarded(r,()->{
@@ -352,6 +410,7 @@ public final class NativeS3CodingAdapter implements CodingAgentSPI {
                 save(r,"native-s3:cursor:"+channel,Map.of("sequence",0,"sha256",""));
             }
             for(String key:List.of("native-s3:message-intent","native-s3:message-ack","native-s3:delivery-version"))save(r,key,null);
+            if(startupRetry)save(r,STARTUP_RETRY,true);
             save(r,BINDING,binding(r));return null;
         });
     }
@@ -721,7 +780,7 @@ public final class NativeS3CodingAdapter implements CodingAgentSPI {
             remote=recoveryStop(r,b,nodeId);
         if(remote.path("stopProof").path("neverAllocated").asBoolean()
                 &&state(r,"native-s3:message-intent")==null&&!tasks.hasStartedOperations(r.c.scope(),r.c.taskId())){
-            tasks.finishStoppedWithoutExecution(r.c.scope(),r.c.taskId(),outcome(r).revision());return;
+            tasks.finishStoppedWithoutExecution(r.c.scope(),r.c.taskId(),outcome(r).revision(),startupFailure(r));return;
         }
         String proof=stopReference(r,remote);reconcile(r,proof);
         var stopped=outcome(r);
@@ -729,7 +788,7 @@ public final class NativeS3CodingAdapter implements CodingAgentSPI {
         // Finalize a durable stop while the verified proof and lease are current.
         // Optional historical telemetry can take longer than the control lease.
         if(stopped.executionControl().stopReason()!=null){
-            tasks.finishStoppedAfterReconciliation(r.c.scope(),r.c.taskId(),r.lease,stopped.revision());return;
+            tasks.finishStoppedAfterReconciliation(r.c.scope(),r.c.taskId(),r.lease,stopped.revision(),startupFailure(r));return;
         }
         try{poll(r,"core");poll(r,"provider");}catch(RuntimeException unavailable){
             try{evidence.archive(r.c,"stop-telemetry-unavailable","stop-telemetry-unavailable.json",
@@ -761,6 +820,10 @@ public final class NativeS3CodingAdapter implements CodingAgentSPI {
             reason.startsWith("OUTPUT_CONTRACT_VIOLATION")?CodingErrorCode.OUTPUT_CONTRACT_VIOLATION:CodingErrorCode.EXECUTION_FAILED,
             failureSummary.substring(0,Math.min(2048,failureSummary.length())),List.of("Native execution failed; original receipts and partial artifacts are retained"),prior.inputSnapshotRef(),null,proof,null,null,null,ValidationStatus.NOT_RUN,prior.reproducibility(),prior.usage(),new ExecutionControl(null,null,true,false),null,null,Map.of());
         tasks.commitOutcome(r.c.scope(),r.c.taskId(),r.lease,prior.revision(),proposal);
+    }
+    private String startupFailure(Run r){
+        var failure=state(r,STARTUP_FAILURE);
+        return failure==null?null:failure.asText();
     }
     private static String modelFailureSummary(JsonNode receipt) {
         return switch(receipt.path("errorCode").asText("")){

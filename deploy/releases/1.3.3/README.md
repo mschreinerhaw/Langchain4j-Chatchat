@@ -1,5 +1,7 @@
 # Runtime OS 1.3.3
 
+既有 1.3.2 PostgreSQL 部署可按[离线增量更新说明](incremental/README.md)更新应用镜像。
+
 本版将原生 Cline 从 **4.1.26 升级为 4.1.27**，固定上游提交 `8075d2e35cf5cad67c24f180c80a05d311b74a3e`。[源码锁定清单](../../../cline-agent-server/upstream-pin.json)
 
 - 数据分析任务使用 Java 签发的任务策略与 Cline 原生工具 Hook。Hook 在工具结果进入模型请求前生成带证据引用的回执，Python 仍可读取完整数据并执行分析。普通编码任务沿用原生工具行为。

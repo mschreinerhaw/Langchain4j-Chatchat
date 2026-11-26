@@ -23,6 +23,11 @@
     </properties>
 
     <dependencies>
+        <dependency>
+            <groupId>org.apache.pdfbox</groupId>
+            <artifactId>pdfbox</artifactId>
+            <version>3.0.7</version>
+        </dependency>
         <!-- Keep the runtime Schema engine aligned with MCP SDK 2.0.1, including test dependency mediation. -->
         <dependency>
             <groupId>com.networknt</groupId>

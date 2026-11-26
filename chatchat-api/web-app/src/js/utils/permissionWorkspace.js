@@ -5,6 +5,7 @@ export const permissionSections = [
   { id: "systemRoles", label: "角色权限", icon: "shield" },
   { id: "systemResources", label: "资源授权", icon: "key" },
   { id: "systemLogins", label: "安全审计", icon: "tasks" },
+  { id: "systemReportWatermark", label: "报告水印", icon: "shield" },
 ];
 export const resourceGroups = [
   { id: "workspace", label: "工作空间", description: "进入工作空间的权限" },

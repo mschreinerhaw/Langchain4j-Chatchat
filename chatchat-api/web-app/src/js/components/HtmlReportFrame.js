@@ -24,6 +24,5 @@ export default {props:{report:{type:Object,required:true},embedded:Boolean},setu
     if(event.data?.type==='runtime-html-report-size'&&Number.isSafeInteger(event.data.height)&&event.data.height>0&&event.data.height<=200000)frameHeight.value=Math.max(240,event.data.height);
   };
   async function fullscreen(){try{await viewer.value?.requestFullscreen?.();}catch{/* The report remains available when fullscreen is declined. */}}
-  function download(){const url=URL.createObjectURL(new Blob([document.value],{type:'text/html;charset=utf-8'}));const link=window.document.createElement('a');link.href=url;link.download=(props.report.entryPath?.split('/').pop()||'report.html');link.click();setTimeout(()=>URL.revokeObjectURL(url),1000);}
-  window.addEventListener('message',onMessage);onBeforeUnmount(()=>{controller?.abort();window.removeEventListener('message',onMessage);});return {document,frameDocument,loading,error,frame,viewer,frameHeight,fullscreen,download};
+  window.addEventListener('message',onMessage);onBeforeUnmount(()=>{controller?.abort();window.removeEventListener('message',onMessage);});return {document,frameDocument,loading,error,frame,viewer,frameHeight,fullscreen};
 }};

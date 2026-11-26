@@ -224,6 +224,7 @@
                       ><Eye :size="15" /></button
                     ><button
                       class="icon-button"
+                      v-if="downloadable(file)"
                       :aria-label="'下载 ' + file.name"
                       title="下载"
                       :disabled="busy || !readable(file)"
@@ -259,6 +260,7 @@
               ><button
                 class="space-text-action"
                 :disabled="busy || !readable(file)"
+                v-if="downloadable(file)"
                 @click="download(file)"
                 >下载</button
               ><button
@@ -385,6 +387,7 @@
               ><button
                 class="primary-button"
                 :disabled="busy || !readable(preview.file)"
+                v-if="downloadable(preview.file)"
                 @click="download(preview.file)"
                 ><Download :size="16" />下载文件</button
               ></footer

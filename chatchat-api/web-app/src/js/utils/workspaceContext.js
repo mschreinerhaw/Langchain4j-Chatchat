@@ -19,7 +19,7 @@ export function parseWorkspaceRoute(hash = "") {
     const parts = route.split("/");
     if (parts.length !== 3 || !/^[a-z][a-z0-9-]{0,63}$/.test(parts[1])
         || !/^[a-zA-Z][a-zA-Z0-9-]{0,63}$/.test(parts[2])) return { invalid: true };
-    if (['zhice','permissions'].includes(parts[1]) && ["system","systemUsers","systemOrganizations","systemRoles","systemResources","systemSkillRoles","systemLogins","permissionTools"].includes(parts[2])) return { workspaceId: "permissions", pageId: permissionRouteAliases[parts[2]] || parts[2] };
+    if (['zhice','permissions'].includes(parts[1]) && ["system","systemUsers","systemOrganizations","systemRoles","systemResources","systemSkillRoles","systemLogins","systemReportWatermark","permissionTools"].includes(parts[2])) return { workspaceId: "permissions", pageId: permissionRouteAliases[parts[2]] || parts[2] };
     if (parts[1] === 'data-science' && parts[2] === 'dataExploration') return { workspaceId:'data-exploration', pageId:'dataExploration' };
     return { workspaceId: parts[1], pageId: parts[1]==='data-science' && parts[2]==='dataScienceScripts' ? 'dataScienceData' : parts[2] };
   }

@@ -93,6 +93,7 @@ const SystemUsersView = asyncView(() => import("../views/SystemUsersView.vue"));
 const SystemOrganizationsView = asyncView(() => import("../views/SystemOrganizationsView.vue"));
 const PermissionConsoleView = asyncView(() => import("../views/PermissionConsoleView.vue"));
 const SystemLoginAuditView = asyncView(() => import("../views/PermissionAuditView.vue"));
+const ReportWatermarkView = asyncView(() => import("../views/ReportWatermarkView.vue"));
 const WorkspaceSettingsView = asyncView(() => import("../views/WorkspaceSettingsView.vue"));
 const ModelManagementView = asyncView(() => import("../views/ModelManagementView.vue"));
 const TasksView = asyncView(() => import("../views/TasksView.vue"));
@@ -132,6 +133,7 @@ const views = {
   systemOrganizations: SystemOrganizationsView,
   systemRoles: PermissionConsoleView,
   systemLogins: SystemLoginAuditView,
+  systemReportWatermark: ReportWatermarkView,
   systemResources: PermissionConsoleView,
   toolPublications: asyncView(() => import("../views/ToolPublicationsView.vue")),
   toolCategories: asyncView(() => import("../views/ToolCategoriesView.vue")),

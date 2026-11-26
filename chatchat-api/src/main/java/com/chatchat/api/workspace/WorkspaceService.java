@@ -75,12 +75,18 @@ public class WorkspaceService {
         var identity = identities.getUserView(access.user(request));
         var authorized = identities.listAuthorizedMenus(identity.id());
         Set<String> codes = new HashSet<>(); collect(authorized, codes);
-        var pages = declared.pages().stream().filter(page -> codes.contains(page.menuCode()))
+        var pages = new ArrayList<>(declared.pages().stream().filter(page -> codes.contains(page.menuCode()))
             .map(page -> "business".equals(id) && "businessHome".equals(page.componentKey())
                 ? BusinessWorkspaceProfiles.project(page, identity.tenantId(), identity.orgId()) : page)
-            .toList();
+            .toList());
+        boolean reportManager = "permissions".equals(id) && identity.permissionCodes().contains("system:permission-center:manage");
+        if (reportManager && pages.stream().noneMatch(page -> "systemReportWatermark".equals(page.id())))
+            pages.add(new WorkspaceManifest.Page("systemReportWatermark", "systemReportWatermark", "systemReportWatermark", Map.of()));
         Set<String> pageMenus = new HashSet<>(); pages.forEach(page -> pageMenus.add(page.menuCode()));
-        var menus = project(authorized, pageMenus);
+        var menus = new ArrayList<>(project(authorized, pageMenus));
+        if (reportManager)
+            menus.add(new EnterpriseAdminService.MenuNode("systemReportWatermark", "报告水印",
+                "/index.html#/w/permissions/systemReportWatermark", "shield", "menu", List.of()));
         var permittedSkills = declared.defaultSkillIds().isEmpty() ? List.<String>of() :
             skills.retrievePublished(access.tenant(request), access.user(request), List.of(), "",
                 declared.defaultSkillIds()).stream().map(DomainSkillRuntimePort.DomainSkillContent::id).toList();

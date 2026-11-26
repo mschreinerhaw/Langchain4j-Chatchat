@@ -488,7 +488,11 @@ export default defineComponent({
       if (!response.ok) throw new Error("文件读取失败，请刷新后重试");
       return response.blob();
     }
+    function downloadable(file) {
+      return !/\.(?:html?|xhtml)$/i.test(file.name || "");
+    }
     async function download(file) {
+      if (!downloadable(file)) return;
       if (file.source === "python-data") {
         emit("download-data", file.original);
         return;
@@ -697,6 +701,7 @@ export default defineComponent({
       remove,
       content,
       download,
+      downloadable,
       openFile,
       closeDialog,
       openAnalysis,

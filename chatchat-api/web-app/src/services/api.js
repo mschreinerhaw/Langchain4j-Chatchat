@@ -46,6 +46,13 @@ export async function apiRequest(path, options = {}) {
     }
   });
 
+  if (options.responseType === "pdf" && response.ok
+      && response.headers.get("content-type")?.split(";")[0] === "application/pdf") {
+    return response.blob();
+  }
+  if (options.responseType === "pdf" && response.ok) {
+    throw new Error("服务器未返回 PDF 文件");
+  }
   let payload = null;
   try {
     payload = await response.json();

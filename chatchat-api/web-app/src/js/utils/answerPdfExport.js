@@ -1,3 +1,5 @@
+import { apiRequest } from "../../services/api.js";
+
 const A4_WIDTH_MM = 210;
 const A4_HEIGHT_MM = 297;
 const PAGE_MARGIN_MM = 10;
@@ -116,69 +118,109 @@ function contentBreakpoints(host, canvas) {
     .filter((value) => value > 0);
 }
 
-export async function exportRenderedAnswerToPdf({ sourceElement, message = {}, fileName = "" }) {
-  if (!sourceElement) {
-    throw new Error("未找到可导出的回答内容");
+function snapshotReport(source) {
+  const requestId = Array.from(crypto.getRandomValues(new Uint32Array(4))).join("-");
+  return new Promise(resolve => {
+    const finish = html => {
+      clearTimeout(timeout);
+      window.removeEventListener("message", listen);
+      resolve(html);
+    };
+    const listen = event => {
+      const data = event.data;
+      if (event.source !== source.contentWindow || data?.type !== "runtime-html-report-pdf-ready"
+          || data.requestId !== requestId || typeof data.html !== "string") return;
+      finish(data.html.length <= 32 * 1024 * 1024 ? data.html : source.srcdoc);
+    };
+    const timeout = setTimeout(() => finish(source.srcdoc), 1250);
+    window.addEventListener("message", listen);
+    source.contentWindow.postMessage({ type: "runtime-html-report-pdf-snapshot", requestId }, "*");
+  });
+}
+
+async function staticReportFrame(source) {
+  const frame = document.createElement("iframe");
+  frame.setAttribute("sandbox", "allow-same-origin");
+  frame.setAttribute("aria-hidden", "true");
+  frame.style.cssText = "position:fixed;left:-10000px;top:0;width:794px;height:1000px;border:0";
+  const parsed = new DOMParser().parseFromString(await snapshotReport(source), "text/html");
+  parsed.querySelectorAll("script, iframe, object, embed, form, link, meta, base").forEach(node => node.remove());
+  const policy = parsed.createElement("meta");
+  policy.httpEquiv = "Content-Security-Policy";
+  policy.content = "default-src 'none'; style-src 'unsafe-inline'; img-src data:; font-src data:; base-uri 'none'";
+  parsed.head.prepend(policy);
+  try {
+    await new Promise((resolve, reject) => {
+      const timeout = setTimeout(() => reject(new Error("报告加载超时")), 8000);
+      frame.onload = () => { clearTimeout(timeout); resolve(); };
+      frame.srcdoc = "<!doctype html>" + parsed.documentElement.outerHTML;
+      document.body.append(frame);
+    });
+    return frame;
+  } catch (error) {
+    frame.remove();
+    throw error;
   }
+}
+
+export async function exportRenderedAnswerToPdf({ sourceElement, message = {}, fileName = "", reference = "" }) {
+  if (!sourceElement) throw new Error("未找到可导出的回答内容");
   const tasks = [];
-  sourceElement.querySelectorAll('.python-report-chart').forEach((chart) => {
-    chart.dispatchEvent(new CustomEvent('report:prepare-export', { detail: { tasks } }));
+  sourceElement.querySelectorAll(".python-report-chart").forEach(chart => {
+    chart.dispatchEvent(new CustomEvent("report:prepare-export", { detail: { tasks } }));
   });
   await Promise.all(tasks);
-  const [{ default: html2canvas }, { jsPDF }] = await Promise.all([
-    import("html2canvas"),
-    import("jspdf")
-  ]);
-  const title = sourceElement.querySelector("h1, h2, h3")?.textContent?.trim()
-    || message.agentName
-    || "AI 回答";
+  const { default: html2canvas } = await import("html2canvas");
+  const title = sourceElement.querySelector("h1, h2, h3")?.textContent?.trim() || message.agentName || "AI 回答";
   const subtitle = `${message.agentName || "AI 助手"} · ${new Date(message.timestamp || Date.now()).toLocaleString("zh-CN")}`;
-  const host = createExportHost(sourceElement, title, subtitle);
+  const reportFrame = sourceElement.matches(".html-report-viewer") ? sourceElement.querySelector("iframe") : null;
+  if (sourceElement.matches(".html-report-viewer") && !reportFrame?.srcdoc) throw new Error("报告尚未加载完成");
+  const frame = reportFrame ? await staticReportFrame(reportFrame) : null;
+  const host = frame ? frame.contentDocument.body : createExportHost(sourceElement, title, subtitle);
   try {
-    if (document.fonts?.ready) {
-      await document.fonts.ready;
-    }
-    await Promise.all([...host.querySelectorAll('img')].map(async (picture) => {
-      picture.loading = 'eager';
-      await picture.decode();
+    await host.ownerDocument.fonts?.ready;
+    await Promise.all([...host.querySelectorAll("img")].map(async picture => {
+      picture.loading = "eager";
+      await picture.decode().catch(() => picture.remove());
     }));
+    if (host.scrollHeight > 30000) throw new Error("报告超出 PDF 导出页数限制");
     const canvas = await html2canvas(host, {
       backgroundColor: "#ffffff",
       logging: false,
       scale: host.scrollHeight > 14000 ? 1 : 2,
-      useCORS: true,
-      windowWidth: Math.max(document.documentElement.clientWidth, 900)
+      useCORS: !frame,
+      windowWidth: Math.max(host.ownerDocument.documentElement.clientWidth, 794)
     });
-    const layout = calculatePdfSlices(canvas.width, canvas.height, contentBreakpoints(host, canvas));
-    const pdf = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4", compress: true });
-    layout.slices.forEach((slice, index) => {
-      if (index > 0) {
-        pdf.addPage("a4", "portrait");
-      }
-      const pageCanvas = document.createElement("canvas");
-      pageCanvas.width = canvas.width;
-      pageCanvas.height = slice.height;
-      const context = pageCanvas.getContext("2d", { alpha: false });
+    const { slices } = calculatePdfSlices(canvas.width, canvas.height, contentBreakpoints(host, canvas));
+    if (slices.length === 0 || slices.length > 32) throw new Error("报告超出 PDF 导出页数限制");
+    const form = new FormData();
+    form.append("reference", String(reference || message.taskId || message.id || "report"));
+    let totalBytes = 0;
+    for (const [index, slice] of slices.entries()) {
+      const page = document.createElement("canvas");
+      page.width = canvas.width;
+      page.height = slice.height;
+      const context = page.getContext("2d", { alpha: false });
       context.fillStyle = "#ffffff";
-      context.fillRect(0, 0, pageCanvas.width, pageCanvas.height);
-      context.drawImage(canvas, 0, slice.offset, canvas.width, slice.height, 0, 0, pageCanvas.width, pageCanvas.height);
-      pdf.addImage(
-        pageCanvas.toDataURL("image/jpeg", 0.94),
-        "JPEG",
-        PAGE_MARGIN_MM,
-        PAGE_MARGIN_MM,
-        layout.contentWidthMm,
-        slice.height / layout.pixelsPerMm,
-        undefined,
-        "FAST"
-      );
-      pdf.setFontSize(9);
-      pdf.setTextColor(120, 130, 145);
-      pdf.text(`${index + 1} / ${layout.slices.length}`, A4_WIDTH_MM / 2, A4_HEIGHT_MM - 5, { align: "center" });
-    });
-    pdf.setProperties({ title, subject: "AI answer export", creator: "ChatChat" });
-    pdf.save(fileName || answerPdfFileName(message, sourceElement));
+      context.fillRect(0, 0, page.width, page.height);
+      context.drawImage(canvas, 0, slice.offset, canvas.width, slice.height, 0, 0, page.width, page.height);
+      const image = await new Promise(resolve => page.toBlob(resolve, "image/jpeg", 0.9));
+      if (!image || (totalBytes += image.size) > 10 * 1024 * 1024) throw new Error("报告超出 PDF 导出大小限制");
+      form.append("pages", image, `page-${index + 1}.jpg`);
+    }
+    const pdf = await apiRequest("/report-exports/pdf", { method: "POST", body: form, responseType: "pdf" });
+    const url = URL.createObjectURL(pdf);
+    try {
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = fileName || answerPdfFileName(message, sourceElement);
+      document.body.append(link);
+      link.click();
+      link.remove();
+    } finally {
+      setTimeout(() => URL.revokeObjectURL(url), 1000);
+    }
   } finally {
-    host.remove();
+    if (frame) frame.remove(); else host.remove();
   }
 }

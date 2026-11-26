@@ -14,6 +14,7 @@ import {
 } from "../utils/webReferences.js";
 import { selectCompleteMessageContent } from "../utils/messageContentSelection.js";
 import { answerPdfFileName, exportRenderedAnswerToPdf } from "../utils/answerPdfExport.js";
+import { apiRequest } from "../../services/api.js";
 import { enhanceResultTables as enhanceSharedResultTables } from "../utils/resultTableEnhancer.js";
 import { stripInternalDocumentRefs as stripInternalDisplayMetadata } from "../utils/internalDocumentRefs.js";
 import { normalizeMarkdownTables } from "../utils/markdownTableNormalizer.js";
@@ -173,6 +174,7 @@ export default {
       rawLogLimits: {},
       copiedResetTimer: null,
       exportingPdfMessageId: "",
+      pdfExportAllowed: false,
       pdfExportErrorMessageId: "",
       codeCopyResetTimers: new Set(),
       collapsedToolCallMessageIds: new Set(),
@@ -210,6 +212,9 @@ export default {
     }
   },
   mounted() {
+    apiRequest("/report-exports/capability").then(policy => {
+      this.pdfExportAllowed = policy.allowed === true;
+    }).catch(() => { this.pdfExportAllowed = false; });
     this.runtimeClockTimer = window.setInterval(() => {
         if (this.messages.some(message => message.streaming || this.isExecutionRunning(message))) {
           this.runtimeClock = Date.now();
@@ -510,7 +515,7 @@ export default {
     },
     canExportMessagePdf(message = {}) {
       const status = String(message.status || "").toLowerCase();
-      return message.role === "assistant"
+      return this.pdfExportAllowed === true && message.role === "assistant"
         && (this.messageHasRenderableContent(message) || this.messageVisualReport(message) || this.messageUiArtifact(message))
         && !message.streaming
         && !["waiting", "streaming", "running"].includes(status);
@@ -2757,17 +2762,19 @@ export default {
       }
       const sourceElement = event?.currentTarget
         ?.closest(".chat-message")
-        ?.querySelector(".python-visual-report, .enterprise-ui-artifact, .message-markdown");
+        ?.querySelector(".html-report-viewer, .python-visual-report, .enterprise-ui-artifact, .message-markdown");
       this.exportingPdfMessageId = message.id;
       this.pdfExportErrorMessageId = "";
       try {
         await exportRenderedAnswerToPdf({
           sourceElement,
           message,
+          reference: this.messageVisualReport(message)?.htmlReport?.entryFileId,
           fileName: answerPdfFileName(message, sourceElement)
         });
       } catch (error) {
         this.pdfExportErrorMessageId = message.id;
+        if (error.status === 403) this.pdfExportAllowed = false;
         console.warn("Export answer PDF failed", error);
       } finally {
         this.exportingPdfMessageId = "";

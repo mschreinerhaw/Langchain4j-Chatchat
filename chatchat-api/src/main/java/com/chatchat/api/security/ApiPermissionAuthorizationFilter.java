@@ -55,6 +55,15 @@ public class ApiPermissionAuthorizationFilter extends OncePerRequestFilter {
         }
         String path = applicationPath(request);
         String method = request.getMethod();
+        if (("GET".equals(method) && ("/api/v1/report-exports/capability".equals(path)
+                || "/api/v1/permission-center/report-exports".equals(path)
+                || "/api/v1/permission-center/report-exports/audits".equals(path)))
+            || ("POST".equals(method) && "/api/v1/report-exports/pdf".equals(path))
+            || ("PUT".equals(method) && "/api/v1/permission-center/report-exports".equals(path))) {
+            // Report export has tenant-specific policy and audits denials in the controller.
+            filterChain.doFilter(request, response);
+            return;
+        }
         if (callerTaskRoute(method, path)
             && adminService.getUserView(String.valueOf(userId)).permissionCodes().contains("workspace:chat:interact")
             && adminService.listPermissions().stream().anyMatch(permission -> "workspace:chat:interact".equals(permission.getPermissionCode())

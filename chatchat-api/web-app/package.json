@@ -42,7 +42,6 @@
     "dt-sql-parser": "^4.5.1",
     "echarts": "^6.1.0",
     "html2canvas": "^1.4.1",
-    "jspdf": "^4.2.1",
     "markdown-it": "^15.0.1",
     "monaco-editor": "^0.52.2",
     "pdfjs-dist": "^6.2.108",

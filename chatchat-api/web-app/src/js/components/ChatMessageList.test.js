@@ -112,11 +112,13 @@ it('removes the progress card when analysis finishes and keeps the report visibl
   }finally{app.unmount();}
 });
 it('allows exporting a completed report even when the text fallback is empty',()=>{
-  const context={messageHasRenderableContent:()=>false,messageVisualReport:()=>({schemaVersion:'python_visual_report.v1'}),messageUiArtifact:()=>null};
+  const context={pdfExportAllowed:true,messageHasRenderableContent:()=>false,messageVisualReport:()=>({schemaVersion:'python_visual_report.v1'}),messageUiArtifact:()=>null};
   expect(methods.canExportMessagePdf.call(context,{role:'assistant',status:'completed'})).toBeTruthy();
   expect(methods.canExportMessagePdf.call(context,{role:'assistant',streaming:true})).toBeFalsy();
   context.messageVisualReport=()=>null;context.messageUiArtifact=()=>({artifactId:'archived-report'});
   expect(methods.canExportMessagePdf.call(context,{role:'assistant',status:'completed'})).toBeTruthy();
+  context.pdfExportAllowed=false;
+  expect(methods.canExportMessagePdf.call(context,{role:'assistant',status:'completed'})).toBeFalsy();
 });
 it('renders archived workspace code verbatim without report cleanup and keeps HTML inert',()=>{
   const source="def total(values):\n    label = 'keep : literal [evidence:literal]'\n    return sum(values)\n";

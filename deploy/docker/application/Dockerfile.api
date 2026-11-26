@@ -5,7 +5,7 @@ FROM ${JAVA_RUNTIME_IMAGE} AS api-runtime
 # never in a chain based on the previous application release.
 COPY sql-toolchain-requirements.txt /opt/chatchat/sql-toolchain-requirements.txt
 RUN apt-get update \
-    && apt-get install -y --no-install-recommends python3 python3-pip \
+    && apt-get install -y --no-install-recommends python3 python3-pip fonts-noto-cjk \
     && python3 -m pip install --no-cache-dir --require-hashes -r /opt/chatchat/sql-toolchain-requirements.txt \
     && python3 -c "import sqlglot; assert sqlglot.__version__ == '30.23.0'" \
     && rm -rf /var/lib/apt/lists/* /root/.cache

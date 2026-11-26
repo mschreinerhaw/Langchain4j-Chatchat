@@ -101,7 +101,7 @@ export async function assembleHtmlReport(bundle){
     el.removeAttribute('srcset');
     if(el.hasAttribute('src'))el.setAttribute('src',data(resource(el.getAttribute('src'))));
   }
-  doc.querySelectorAll('a[href],area[href]').forEach(el=>{if(!el.getAttribute('href').startsWith('#'))el.removeAttribute('href');el.removeAttribute('target');el.removeAttribute('ping');});
+  doc.querySelectorAll('a,area').forEach(el=>{if(!el.getAttribute('href')?.startsWith('#'))el.removeAttribute('href');el.removeAttribute('download');el.removeAttribute('target');el.removeAttribute('ping');});
   const virtual=Object.fromEntries([...files].map(([path,file])=>[path,{content:file.content,type:file.type}]));
   const encoded=JSON.stringify(virtual).replace(/</g,'\\u003c');
   const bootstrap=`(()=>{const files=${encoded},base=${JSON.stringify(base)};window.fetch=async(input,options={})=>{const url=new URL(typeof input==='string'?input:input.url,base);const file=files[decodeURIComponent(url.pathname.slice(1))];if(url.origin!=='https://report.invalid'||url.search||!file||(options.method&&options.method!=='GET'))throw Error('Resource is not part of this report');return new Response(Uint8Array.from(atob(file.content),c=>c.charCodeAt(0)),{headers:{'Content-Type':file.type}});};window.addEventListener('error',event=>{if(event.target instanceof HTMLImageElement){const note=document.createElement('span');note.textContent='此图表暂不可用，正文和数据仍可查看。';(event.target.closest('picture')||event.target).replaceWith(note);return;}if(event instanceof ErrorEvent||event.target instanceof HTMLScriptElement){document.documentElement.dataset.reportError='true';parent.postMessage({type:'runtime-html-report-error'},'*');}},true);window.addEventListener('unhandledrejection',()=>{document.documentElement.dataset.reportError='true';parent.postMessage({type:'runtime-html-report-error'},'*');});})();`;
@@ -111,5 +111,24 @@ export async function assembleHtmlReport(bundle){
   const sizing=doc.createElement('script');
   sizing.textContent=`(()=>{let last=0,pending=false;const measure=()=>{pending=false;const body=document.body;if(!body)return;const style=getComputedStyle(body);const height=Math.ceil(Math.max(body.scrollHeight,body.getBoundingClientRect().height)+(parseFloat(style.marginTop)||0)+(parseFloat(style.marginBottom)||0));if(height>0&&height!==last){last=height;parent.postMessage({type:'runtime-html-report-size',height},'*');}};const queue=()=>{if(!pending){pending=true;requestAnimationFrame(measure);}};const start=()=>{if(typeof ResizeObserver!=='undefined')new ResizeObserver(queue).observe(document.body);queue();document.fonts?.ready.then(queue);};if(document.readyState==='loading')addEventListener('DOMContentLoaded',start,{once:true});else start();addEventListener('load',queue);addEventListener('resize',queue);})();`;
   doc.body.append(sizing);
+  const snapshot=doc.createElement('script');
+  snapshot.textContent=`window.addEventListener('message',event=>{
+    if(event.source!==parent || event.data?.type!=='runtime-html-report-pdf-snapshot')return;
+    const clone=document.documentElement.cloneNode(true);
+    const canvases=[...clone.querySelectorAll('canvas')];
+    document.querySelectorAll('canvas').forEach((canvas,index)=>{
+      if(!canvas.width||!canvas.height||canvas.width*canvas.height>10000000)return;
+      try {
+        const image=document.createElement('img');
+        image.src=canvas.toDataURL('image/png');
+        image.width=canvas.clientWidth||canvas.width;
+        image.height=canvas.clientHeight||canvas.height;
+        canvases[index].replaceWith(image);
+      } catch {}
+    });
+    clone.querySelectorAll('script').forEach(node=>node.remove());
+    parent.postMessage({type:'runtime-html-report-pdf-ready',requestId:event.data.requestId,html:clone.outerHTML},'*');
+  });`;
+  doc.body.append(snapshot);
   return '<!doctype html>\n'+doc.documentElement.outerHTML;
 }

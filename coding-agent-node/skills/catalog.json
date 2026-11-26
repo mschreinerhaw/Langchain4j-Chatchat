@@ -524,14 +524,18 @@
   {
     "id": "builtin:html-image-assets",
     "name": "html-image-assets",
-    "description": "Author or repair HTML pages and reports with separate image files, JavaScript image references and offline chart rendering without inline raster payloads.",
-    "version": "1.0.0",
+    "description": "Author HTML with separate image files, local JavaScript and chart layouts that respond to the report container width.",
+    "version": "1.1.0",
     "origin": "SYSTEM_BUILTIN",
     "category": "Frontend",
+    "references": [
+      "assets/responsive-charts.css",
+      "assets/responsive-charts.js"
+    ],
     "displayName": "HTML 图片资源",
-    "descriptionZh": "使用相对路径和 JavaScript 加载图片，支持离线打包及图表校验。",
+    "descriptionZh": "使用相对路径和本地 JavaScript 加载图片，让图表随报告容器宽度等比缩放和换行。",
     "source": "Runtime OS",
-    "sourceVersion": "1.0.0",
+    "sourceVersion": "1.1.0",
     "builtin": true,
     "enabled": true
   },

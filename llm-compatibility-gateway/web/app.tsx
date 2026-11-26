@@ -236,6 +236,7 @@ function App() {
       <Table rowKey="alias" dataSource={config.models} scroll={{ x: 960 }} columns={[
         { title: '上游模型 ID → 支持模型', render: (_, row) => <>{row.upstream} → <strong>{row.alias}</strong></> },
         { title: '服务', dataIndex: 'service' },
+        { title: '协议处理', render: (_, row) => row.processingMode ?? '沿用现有规则' },
         { title: '上下文 / 输出', render: (_, row) => (row.contextWindow ?? '—') + ' / ' + (row.maxOutput ?? '—') },
         { title: '能力配置', render: (_, row) => <Space wrap>{Object.entries(capNames).map(([key, label]) =>
           <Tag key={key}>{label} · {capLabels[row.capabilities[key as keyof Model['capabilities']] ?? 'unverified']}</Tag>)}</Space> },
@@ -337,7 +338,7 @@ function Edit({ editor, config, close, save }: {
             ? Promise.resolve() : Promise.reject(new Error('请输入有效的 HTTP(S) 地址')) }]}>
           <Input placeholder="https://model.example.com/compatible-mode" maxLength={2048} />
         </Form.Item>
-        <Form.Item name="framework" label="推理框架"><Select options={['openai', 'vllm', 'sglang', 'ollama', 'xinference', 'lm-studio', 'llama.cpp', 'localai', 'custom'].map(value => ({ value }))} /></Form.Item>
+        <Form.Item name="framework" label="推理框架"><Select options={['openai', 'litellm', 'vllm', 'sglang', 'ollama', 'xinference', 'lm-studio', 'llama.cpp', 'localai', 'custom'].map(value => ({ value }))} /></Form.Item>
         <Row gutter={16}><Col span={12}>{field('chatPath', '对话路径')}</Col><Col span={12}>{field('modelsPath', '模型列表路径')}</Col>
           <Col span={12}>{field('authHeader', '认证请求头')}</Col><Col span={12}>{field('authPrefix', '认证前缀', false)}</Col></Row>
         <Form.Item noStyle dependencies={['origin', 'chatPath', 'modelsPath']}>
@@ -362,6 +363,13 @@ function Edit({ editor, config, close, save }: {
       </> : <>
         <Form.Item name="displayName" label="模型显示名称"><Input maxLength={240} placeholder="留空时显示对外模型 ID" /></Form.Item>
         <Form.Item name="service" label="关联服务" rules={[{ required: true }]}><Select options={config.services.map(item => ({ value: item.id, label: item.name }))} /></Form.Item>
+        <Form.Item name="processingMode" label="协议处理模式" extra="留空时沿用既有规则。可为单个模型切换处理模式。">
+          <Select allowClear placeholder="沿用现有规则" options={[
+            { value:'DIRECT', label:'DIRECT · 标准透传' },
+            { value:'FRAMEWORK', label:'FRAMEWORK · LiteLLM 供应商适配' },
+            { value:'CUSTOM', label:'CUSTOM · 既有协议兼容规则' },
+          ]} />
+        </Form.Item>
         <Row gutter={16}><Col span={12}>{count('contextWindow', '上下文窗口')}</Col><Col span={12}>{count('maxOutput', '最大输出 Token')}</Col></Row>
         <Row gutter={12}>{Object.entries(capNames).map(([name, label]) => <Col span={6} key={name}>
           <Form.Item name={['capabilities', name]} label={label}><Select options={Object.entries(capLabels).map(([value, label]) => ({ value, label }))} /></Form.Item>
@@ -702,7 +710,8 @@ function RequestCapturePanel({ config, clients }: { config: Config; clients: Tls
 function Metrics({ rows, emptyText = '暂无请求日志' }: { rows?: Record<string, unknown>[]; emptyText?: string }) {
   return <Table dataSource={rows ?? []} rowKey={row => String(row.id)} size="small" locale={{ emptyText }} scroll={{ x: 860 }} columns={[
     { title: '时间', dataIndex: 'time', render: value => new Date(value).toLocaleString() },
-    { title: '客户端', dataIndex: 'client' }, { title: '模式', dataIndex: 'mode' }, { title: '模型', dataIndex: 'model' },
+    { title: '客户端', dataIndex: 'client' }, { title: '模式', dataIndex: 'mode' }, { title: '协议处理', dataIndex: 'processingMode' },
+    { title: '模型', dataIndex: 'model' },
     { title: 'HTTP', dataIndex: 'status' }, { title: '耗时 ms', dataIndex: 'elapsedMs' },
     { title: '首 Token ms', dataIndex: 'firstTokenMs' }, { title: '错误', dataIndex: 'error' }, { title: '配置', dataIndex: 'revision' },
   ]} expandable={{ expandedRowRender: row => <Code value={json(row)} /> }} />;

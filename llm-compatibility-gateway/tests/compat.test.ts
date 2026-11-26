@@ -92,6 +92,44 @@ test('rejects impossible parallel and orphaned tool results before forwarding', 
   expect(() => prepare({ ...request, messages:[{role:'tool',tool_call_id:'unknown',content:'3'}] }, model)).toThrow(/匹配/);
 });
 
+test('LiteLLM receives one native chat request and its usage remains unverified', async () => {
+  const received: JsonObject[] = [];
+  const usage = { prompt_tokens:28, completion_tokens:8, total_tokens:36 };
+  const server = createServer(async (req, res) => {
+    const bytes: Buffer[] = [];
+    for await (const block of req) bytes.push(block);
+    const body = JSON.parse(Buffer.concat(bytes).toString());
+    received.push({ body, path:req.url, retries:req.headers['x-litellm-num-retries'] });
+    res.setHeader('content-type', 'text/event-stream');
+    res.end(chunk({ role:'assistant', reasoning_content:'reason' })
+      + chunk({ tool_calls:[{ index:0, id:'call_count', type:'function', function:{ name:'count', arguments:'{"amount":3,"label":"ok"}' } }] }, 'tool_calls')
+      + data({ choices:[], usage }) + 'data: [DONE]\n\n');
+  });
+  servers.push(server);
+  await new Promise<void>(resolve => server.listen(0, '127.0.0.1', resolve));
+  const origin = 'http://127.0.0.1:' + (server.address() as AddressInfo).port;
+  const service = serviceSchema.parse({ id:'lite', name:'LiteLLM', framework:'litellm', origin });
+  const route = modelSchema.parse({ alias:'agent', upstream:'provider-route', service:service.id, processingMode:'FRAMEWORK' });
+  const output: string[] = [];
+  const metrics: JsonObject = {};
+  const native = { ...request, stream_options:{ include_usage:true } };
+  const run = (body: JsonObject) => proxy({
+    model:route, service, body, signal:AbortSignal.timeout(5000), metrics,
+    writer:{ start:status => expect(status).toBe(200), async write(frame) { output.push(frame); } },
+  });
+  for (const field of ['api_base', 'api_key', 'fallbacks', 'num_retries', 'extra_body']) {
+    await expect(run({ ...native, [field]:'injected' })).rejects.toMatchObject({ code:'framework_parameter_unsupported' });
+  }
+  expect(received).toHaveLength(0);
+  await run(native);
+  expect(received).toEqual([{ body:{ ...native, model:route.upstream }, path:'/v1/chat/completions', retries:'0' }]);
+  expect(output.join('')).toContain('reasoning_content');
+  expect(output.join('')).toContain('call_count');
+  expect(output.join('')).not.toContain('"usage"');
+  expect(output.at(-1)).toBe('data: [DONE]\n\n');
+  expect(metrics).toMatchObject({ processingMode:'FRAMEWORK', usageStatus:'UNKNOWN' });
+});
+
 test('image URL conversion is opted in and preserves bytes and unsupported controls are rejected', () => {
   const image = 'data:image/png;base64,YQ==';
   const messages = [{ role:'user', content:[{ type:'image_url', image_url:{ url:image } }] }];

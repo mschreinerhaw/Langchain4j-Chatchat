@@ -12,7 +12,7 @@ const compatible: Adapter = {
 
 // Each profile currently uses its OpenAI-compatible interface.
 export const adapters: Record<Service['framework'], Adapter> = {
-  openai: compatible, vllm: compatible, sglang: compatible, ollama: compatible,
+  openai: compatible, litellm: compatible, vllm: compatible, sglang: compatible, ollama: compatible,
   xinference: compatible, 'lm-studio': compatible, 'llama.cpp': compatible, localai: compatible, custom: compatible,
 };
 

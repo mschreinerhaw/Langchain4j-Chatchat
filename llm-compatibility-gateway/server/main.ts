@@ -11,7 +11,7 @@ import Fastify, { type FastifyReply, type FastifyRequest } from 'fastify';
 import staticFiles from '@fastify/static';
 import { z } from 'zod';
 import { settings, limits, Store, GatewayError, withProfile, profileSchema, type Config } from './config.js';
-import { proxy, translate, prepare, redact, outgoingHeaders, inFlight, upstreamModels } from './proxy.js';
+import { proxy, translate, prepare, redact, outgoingHeaders, inFlight, upstreamModels, processingMode } from './proxy.js';
 import { diagnose } from './diagnostics.js';
 import { isObject, applyRules, type JsonObject } from '../protocol/rules.js';
 import { profileNames, type Profile } from '../protocol/profiles.js';
@@ -20,6 +20,7 @@ import { probeGateway, requestGateway } from './transport.js';
 import { checkIntegrationResponse, integrationBody } from './integration.js';
 import { trafficRanges, type TrafficRange } from './traffic.js';
 import { runtimeRequest } from '../protocol/runtime.js';
+import { litellmRequest } from '../protocol/litellm.js';
 import { RequestCapture } from './request-capture.js';
 
 const settingsValue = settings();
@@ -432,9 +433,15 @@ admin.post('/admin/preview', async req => {
   if (!model || !service) throw invalid('模型映射不存在');
   let result: unknown;
   try {
-    if (input.stage === 'request') result = prepare(input.body, model, false, { ...service.protocol, ...model.protocol });
-    else if (input.stage === 'headers') result = outgoingHeaders(service, model, false, false, input.body);
-    else result = applyRules(input.body, model.rules, input.stage);
+    const protocol = { ...service.protocol, ...model.protocol };
+    const selected = processingMode(model, protocol) === 'DIRECT' ? { ...model, rules: [] } : model;
+    if (input.stage === 'request') {
+      const prepared = prepare(input.body, selected, false, protocol);
+      if (service.framework === 'litellm') litellmRequest(prepared);
+      result = prepared;
+    }
+    else if (input.stage === 'headers') result = outgoingHeaders(service, selected, false, false, input.body);
+    else result = applyRules(input.body, selected.rules, input.stage);
   } catch (error) {
     throw error instanceof GatewayError ? error : invalid('预览样本无法应用当前规则');
   }

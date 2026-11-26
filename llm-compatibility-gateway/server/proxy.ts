@@ -2,6 +2,7 @@ import { performance } from 'node:perf_hooks';
 import { openUpstream } from '../adapters/upstream.js';
 import { applyRules, isObject, headerName, type JsonObject } from '../protocol/rules.js';
 import { eventText, readEvents, protocolError } from '../protocol/sse.js';
+import { litellmRequest, litellmUsageBoundary } from '../protocol/litellm.js';
 import { protocolRequest, ResponseProtocol } from '../protocol/compat.js';
 import type { Protocol } from '../protocol/compat-schema.js';
 import { GatewayError, limits, diagnosticTimeouts, type Model, type Service } from './config.js';
@@ -11,6 +12,10 @@ let totalActive = 0;
 export const inFlight = () => totalActive;
 export type Trace = (stage: 'client' | 'upstream_request' | 'upstream_response' | 'gateway', value: unknown) => Promise<void>;
 type StreamWriter = { start: (status: number) => void; write: (value: string) => Promise<void> };
+
+export function processingMode(model: Model, protocol: Protocol) {
+  return model.processingMode ?? (model.rules.length || Object.keys(protocol).length ? 'CUSTOM' : 'DIRECT');
+}
 
 export function prepare(body: JsonObject, model: Model, direct = false, protocol: Protocol = model.protocol ?? {}): JsonObject {
   if (!Array.isArray(body.messages) || !body.messages.length || (body.stream !== undefined && typeof body.stream !== 'boolean')
@@ -28,8 +33,9 @@ export function prepare(body: JsonObject, model: Model, direct = false, protocol
     Array.isArray(message?.content) && message.content.some((part: JsonObject) => part?.type === 'image_url')))
     throw new GatewayError(422, 'vision_unsupported', '此模型映射标记为不支持图片输入');
   try {
-    const mapped = { ...(direct ? body : applyRules(body, model.rules, 'request')), model: model.upstream };
-    return direct ? mapped : protocolRequest(mapped, protocol);
+    const transparent = direct || processingMode(model, protocol) === 'DIRECT';
+    const mapped = { ...(transparent || !model.rules.length ? body : applyRules(body, model.rules, 'request')), model: model.upstream };
+    return transparent ? mapped : protocolRequest(mapped, protocol);
   } catch (error) {
     if (error instanceof GatewayError) throw error;
     throw new GatewayError(400, 'request_rule_error', '请求字段无法应用当前兼容规则');
@@ -45,13 +51,14 @@ export function outgoingHeaders(service: Service, model: Model, stream: boolean,
   catch { throw new GatewayError(400, 'header_rule_error', '请求头规则执行失败'); }
   for (const [key, value] of Object.entries(configured)) {
     const parsed = headerName.safeParse(key);
-    if (!parsed.success || parsed.data.startsWith('x-runtime-')
+    if (!parsed.success || parsed.data.startsWith('x-runtime-') || (service.framework === 'litellm' && parsed.data.startsWith('x-litellm-'))
       || ['authorization', 'accept', 'content-type', service.authHeader, 'x-api-key'].includes(parsed.data)
       || typeof value !== 'string' || !/^[\x20-\x7e]*$/.test(value)) {
       throw new GatewayError(400, 'invalid_header', '请求头配置包含无效、保留或认证字段');
     }
     headers[parsed.data] = value;
   }
+  if (service.framework === 'litellm') headers['x-litellm-num-retries'] = '0';
   return headers;
 }
 
@@ -135,12 +142,18 @@ export async function proxy(options: {
   const report: Trace = async (stage, value) => { if (trace) await trace(stage, redact(value, secrets)); };
   try {
     await report('client', body);
-    const protocol = direct ? {} : { ...service.protocol, ...model.protocol };
+    const configured = { ...service.protocol, ...model.protocol };
+    const viaFramework = service.framework === 'litellm';
+    const engine = viaFramework ? 'FRAMEWORK' : direct ? 'DIRECT' : processingMode(model, configured);
+    metrics.processingMode = engine;
+    const protocol = engine === 'DIRECT' ? {} : configured;
+    const activeModel = engine === 'DIRECT' ? { ...model, rules: [] } : model;
     const payload = prepare(body, model, direct, protocol);
+    if (viaFramework) litellmRequest(payload);
     const response = new ResponseProtocol(protocol, payload);
     metrics.usageStatus = 'UNKNOWN';
     const stream = payload.stream === true;
-    const requestHeaders = outgoingHeaders(service, model, stream, direct, headers);
+    const requestHeaders = outgoingHeaders(service, activeModel, stream, direct, headers);
     const timeout = options.mode === 'runtime_managed' ? { firstMs: 0, idleMs: 0 }
       : options.mode === 'diagnostic' ? diagnosticTimeouts() : undefined;
     upstream = openUpstream(service, 'chat', signal, requestHeaders, payload, timeout);
@@ -164,7 +177,8 @@ export async function proxy(options: {
       const rawText = await readText(result.body, bounds.responseBytes, upstream.stopFirstTimer);
       if (trace) await report('upstream_response', { status, body: rawText });
       const raw = parseObject(rawText);
-      const data = adapt(raw, model, 'response', direct, response);
+      const data = adapt(viaFramework ? litellmUsageBoundary(raw) : raw, activeModel, 'response', direct, response);
+      if (viaFramework) litellmUsageBoundary(data);
       response.assertFinished();
       recordUsage(metrics, data.usage);
       await report('gateway', { status, body: data });
@@ -198,7 +212,7 @@ export async function proxy(options: {
           if (marker.error != null || (Array.isArray(marker.choices) && marker.choices.length))
             throw protocolError('上游结束事件包含错误或尚未处理的输出');
           const usage = response.normalize(marker, true, eventName);
-          if (isObject(usage.usage)) {
+          if (!viaFramework && isObject(usage.usage)) {
             recordUsage(metrics, usage.usage);
             await send(eventText({ other:[], data:JSON.stringify({ choices:[], usage:usage.usage }) }));
           }
@@ -209,7 +223,11 @@ export async function proxy(options: {
         break;
       }
       const raw = parseObject(event.data!);
-      const data = adapt(raw, model, 'sse', direct, response, eventName);
+      const data = adapt(viaFramework ? litellmUsageBoundary(raw) : raw, activeModel, 'sse', direct, response, eventName);
+      if (viaFramework) {
+        litellmUsageBoundary(data);
+        if (!(data.choices as JsonObject[]).length) continue;
+      }
       const choices = data.choices as JsonObject[];
       for (const choice of choices) {
         const delta = choice.delta as JsonObject;

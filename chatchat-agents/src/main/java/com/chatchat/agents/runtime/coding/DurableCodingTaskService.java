@@ -469,7 +469,12 @@ public final class DurableCodingTaskService implements CodingAgentSPI {
      * become terminal until actual execution stop proofs are reconciled. */
     public CodingTaskOutcome requestFailureStop(KernelDataScope scope,String taskId,CodingJournal.Lease lease,long expectedRevision,String reason){
         bounded(reason,"failure reason");
-        return mutateTask(scope,taskId,WORKER,task->{revision(task,expectedRevision);fence(task,lease);requestStop(task,EXECUTION_FAILED,"Workflow execution failed: "+reason);}).outcome;
+        return mutateTask(scope,taskId,WORKER,task->{
+            revision(task,expectedRevision);
+            fence(task,lease);
+            deadline(task);
+            requestStop(task,EXECUTION_FAILED,"Workflow execution failed: "+reason);
+        }).outcome;
     }
 
     /** Same-task recovery after all starts are proven stopped; fence out the ended SDK instance. */

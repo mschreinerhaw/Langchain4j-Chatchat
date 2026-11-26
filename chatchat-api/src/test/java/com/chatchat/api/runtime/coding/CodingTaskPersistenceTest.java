@@ -567,6 +567,27 @@ class CodingTaskPersistenceTest {
         assertThat(state.executionControl().executorStopped()).isFalse();
     }
 
+    @Test void workflowFailureStopUsesTheExpiredBudgetAndPreservesAnEarlierCancellation() {
+        service.submit(contract("expired",10));
+        service.submit(contract("cancelled",10));
+        service.submit(contract("failed",10));
+        var failure=service.requestFailureStop(scope,"failed",claim("failed","worker"),rev("failed"),"Workflow Activity failed");
+        assertThat(failure.executionControl().stopReason()).isEqualTo(EXECUTION_FAILED);
+        service.cancel(scope,"cancelled","Caller cancelled task");
+
+        clock.advance(Duration.ofSeconds(3595));
+        var expiredLease=claim("expired","cleanup");
+        var cancelledLease=claim("cancelled","cleanup");
+        clock.advance(Duration.ofSeconds(5));
+
+        var expired=service.requestFailureStop(scope,"expired",expiredLease,rev("expired"),"Workflow Activity timed out");
+        assertThat(expired.executionControl().stopReason()).isEqualTo(DEADLINE_EXCEEDED);
+        assertThat(expired.status()).isEqualTo(Status.RUNNING);
+        assertThat(expired.executionControl().executorStopped()).isFalse();
+        var cancelled=service.requestFailureStop(scope,"cancelled",cancelledLease,rev("cancelled"),"Workflow Activity timed out");
+        assertThat(cancelled.executionControl().stopReason()).isEqualTo(CANCEL_REQUESTED);
+    }
+
     @Test void repeatedReservationAndStartIntentNeverGrantASecondDispatch() {
         service.submit(contract("task",10));var lease=claim("task","worker");
         var reserved=service.reserve(scope,"task",lease,rev("task"),"op",intent,counters(1,"1"));

@@ -186,7 +186,9 @@ async function broker(r,path){
      if(r.contract.modelAttemptId)headers['x-runtime-attempt-id']=r.contract.modelAttemptId;
      if(hasTaskDeadline(r.contract))headers['x-runtime-deadline-ms']=String(r.contract.expiresAt);
     }
-    upstreamSignal=modelProfile?taskSignal(r.contract,controller):controller.signal;
+    // The managed Gateway enforces the forwarded deadline. A second timer here can
+    // close the socket first and make the Gateway record an ordinary disconnect.
+    upstreamSignal=modelProfile&&!managed?taskSignal(r.contract,controller):controller.signal;
     const upstream=managed?await requestModelGateway(url,{headers,body:request,signal:upstreamSignal})
      :await fetch(url,{method:'POST',headers,body:request,signal:upstreamSignal,redirect:'error'});
     observation?.headers(managed?upstream.headers.get('x-request-id'):undefined,

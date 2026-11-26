@@ -29,7 +29,12 @@ public class UserAssetService {
         public static Owner of(KernelDataScope scope) { return new Owner(scope.tenantId(),scope.userId()); }
     }
     public record File(String id, String kind, String fileName, String contentType, String sha256, long size,
-                       String state, String taskId, String runId, String sourceRef, long createdAt) { }
+                       String state, String taskId, String runId, String sourceRef, long createdAt) {
+        public boolean hasHtmlContent() {
+            return fileName.matches("(?is).*\\.(html?|xhtml)$") || contentType != null
+                && contentType.split(";", 2)[0].strip().matches("(?i)text/html|application/xhtml\\+xml");
+        }
+    }
     public record Space(long quotaBytes, long usedBytes) { }
     private final JdbcTemplate jdbc;
     private final TransactionTemplate tx;

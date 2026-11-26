@@ -1,6 +1,7 @@
 package com.chatchat.api.controller.agent;
 
 import com.chatchat.agents.runtime.coding.*;
+import com.chatchat.api.assets.UserAssetService;
 import com.chatchat.api.runtime.coding.CodingInvocationContext;
 import com.chatchat.api.security.ApiAuthenticationFilter;
 import com.chatchat.common.kernel.KernelDataScope;
@@ -8,6 +9,7 @@ import com.chatchat.common.runtime.coding.*;
 import java.util.*;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.ObjectProvider;
+import org.springframework.http.HttpStatus;
 import org.springframework.mock.web.MockHttpServletRequest;
 import org.springframework.web.server.ResponseStatusException;
 import static org.assertj.core.api.Assertions.*;
@@ -48,5 +50,24 @@ class LightCodingMonitorControlTest {
             assertThatThrownBy(()->controller.cancel(request(pair.get(0),pair.get(1)),pair.get(2),"task")).isInstanceOf(ResponseStatusException.class);
         assertThatThrownBy(()->controller.cancel(request(null,null),"run","task")).isInstanceOf(ResponseStatusException.class);
         verifyNoInteractions(coding);verify(tasks,never()).get(any(),anyString());
+    }
+
+    @Test
+    void htmlArtifactCanBePreviewedButCannotBeDownloadedFromMonitor() {
+        contract();
+        @SuppressWarnings("unchecked") ObjectProvider<UserAssetService> provider = mock(ObjectProvider.class);
+        var assets = mock(UserAssetService.class);
+        when(provider.getIfAvailable()).thenReturn(assets);
+        when(assets.get(UserAssetService.Owner.of(owner), "html")).thenReturn(new UserAssetService.File(
+            "html", "ARTIFACT", "analysis.bin", "text/html ; charset=UTF-8", "", 100,
+            "AVAILABLE", "task", "run", null, 0));
+        var monitor = new LightCodingMonitorController(tasks, identity, null, null, mock(ObjectProvider.class),
+            mock(ObjectProvider.class), provider, coding);
+        var request = request("tenant", "owner");
+
+        assertThatThrownBy(() -> monitor.content(request, "run", "task", "html", true))
+            .isInstanceOfSatisfying(ResponseStatusException.class,
+                error -> assertThat(error.getStatusCode()).isEqualTo(HttpStatus.FORBIDDEN));
+        assertThat(monitor.content(request, "run", "task", "html", false).getStatusCode()).isEqualTo(HttpStatus.OK);
     }
 }

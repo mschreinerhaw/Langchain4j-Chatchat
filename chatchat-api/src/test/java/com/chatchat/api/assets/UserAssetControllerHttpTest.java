@@ -81,6 +81,7 @@ class UserAssetControllerHttpTest {
         mvc.perform(get(route+"/"+entry.id()+"/report-bundle").header("X-Test-Principal","alice"))
             .andExpect(status().isOk()).andExpect(jsonPath("$.data.report.taskId").value("task")).andExpect(jsonPath("$.data.files.length()").value(2));
         mvc.perform(get(route+"/"+entry.id()+"/report-bundle").header("X-Test-Principal","bob")).andExpect(status().isNotFound());
+        mvc.perform(get(route+"/"+entry.id()+"/content").header("X-Test-Principal","alice")).andExpect(status().isForbidden());
         mvc.perform(get(route+"/"+entry.id()+"/report-bundle")).andExpect(status().isUnauthorized());
         var uploaded=assets.store(alice,UserAssetService.Kind.DOCUMENT,"","","upload","unregistered.html","text/html","<h1>Not a delivery</h1>".getBytes());
         mvc.perform(get(route+"/"+uploaded.id()+"/report-bundle").header("X-Test-Principal","alice")).andExpect(status().isForbidden());

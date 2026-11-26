@@ -36,6 +36,8 @@ public class UserAssetController {
     @GetMapping("/{id}") public ApiResponse<?> info(HttpServletRequest request,@PathVariable("id") String id){return ApiResponse.success(assets.get(owner(request),id));}
     @GetMapping("/{id}/content") public ResponseEntity<byte[]> download(HttpServletRequest request,@PathVariable("id") String id){
         var owner=owner(request);var file=assets.get(owner,id);
+        if(file.hasHtmlContent())
+            throw new org.springframework.web.server.ResponseStatusException(HttpStatus.FORBIDDEN,"HTML reports are available for viewing and PDF export");
         return ResponseEntity.ok().contentType(MediaType.APPLICATION_OCTET_STREAM).cacheControl(CacheControl.noStore())
             .header("X-Content-Type-Options","nosniff").header(HttpHeaders.CONTENT_DISPOSITION,
                 ContentDisposition.attachment().filename(file.fileName(),java.nio.charset.StandardCharsets.UTF_8).build().toString())

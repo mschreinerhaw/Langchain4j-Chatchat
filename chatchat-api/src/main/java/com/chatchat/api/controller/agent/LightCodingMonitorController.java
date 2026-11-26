@@ -165,6 +165,7 @@ public final class LightCodingMonitorController {
             var service=assets.getIfAvailable();if(service==null)throw new ResponseStatusException(HttpStatus.SERVICE_UNAVAILABLE);
             var file=service.get(UserAssetService.Owner.of(scope),assetId);
             if(!taskId.equals(file.taskId())||!runId.equals(file.runId()))throw new ResponseStatusException(HttpStatus.FORBIDDEN);
+            if(download&&file.hasHtmlContent())throw new ResponseStatusException(HttpStatus.FORBIDDEN,"HTML reports are available for viewing and PDF export");
             if(!download&&file.size()>2L*1024*1024)throw new ResponseStatusException(HttpStatus.PAYLOAD_TOO_LARGE,"Preview is bounded; download the full artifact");
             String lower=file.fileName().toLowerCase(Locale.ROOT);MediaType type=lower.endsWith(".png")?MediaType.IMAGE_PNG:lower.endsWith(".json")?MediaType.APPLICATION_JSON:MediaType.TEXT_PLAIN;
             var disposition=(download?ContentDisposition.attachment():ContentDisposition.inline()).filename(file.fileName(),java.nio.charset.StandardCharsets.UTF_8).build();

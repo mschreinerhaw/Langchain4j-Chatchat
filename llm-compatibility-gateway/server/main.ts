@@ -20,6 +20,7 @@ import { probeGateway, requestGateway } from './transport.js';
 import { checkIntegrationResponse, integrationBody } from './integration.js';
 import { trafficRanges, type TrafficRange } from './traffic.js';
 import { runtimeRequest } from '../protocol/runtime.js';
+import { RequestCapture } from './request-capture.js';
 
 const settingsValue = settings();
 const version = '1.2.0-rc.1';
@@ -47,6 +48,7 @@ const serverFactory: typeof options & { serverFactory?: import('fastify').Fastif
 const api = Fastify(serverFactory);
 const admin = Fastify(serverFactory);
 const sessions = new Map<string, number>();
+const requestCapture = new RequestCapture();
 type LabTrace = (stage: string, value: unknown) => Promise<void>;
 const labRequests = new Map<string, { identity: string; profile: Profile; headers?: JsonObject; trace: LabTrace }>();
 let loginFailures = 0;
@@ -175,6 +177,7 @@ api.post('/v1/chat/completions', async (req, reply) => {
   const mode = lab ? 'diagnostic' : identity.mode;
   metrics.mode = mode;
   let runtime: ReturnType<typeof runtimeRequest> | undefined;
+  let capture: ReturnType<RequestCapture['claim']>;
   try {
     if (mode === 'runtime_managed') {
       runtime = runtimeRequest(req.headers, client.abort.signal);
@@ -182,6 +185,10 @@ api.post('/v1/chat/completions', async (req, reply) => {
       runtime.signal.throwIfAborted();
     }
     if (!model || !service) throw new GatewayError(404, 'model_not_found', '模型不存在或未授权');
+    if (!lab) capture = requestCapture.claim(model.alias, identity.id, {
+      gatewayRequestId: req.id, endpoint: '/v1/chat/completions', clientId: identity.id,
+      profile, mode, revision: snapshot.version, ...runtime?.trace,
+    }, body, [...suppliedSecrets, service.apiKey ?? '']);
     if (lab) {
       const socket = req.raw.socket;
       await lab.trace('client', redact(body, [...suppliedSecrets, service.apiKey ?? '']));
@@ -190,6 +197,7 @@ api.post('/v1/chat/completions', async (req, reply) => {
     }
     const result = await proxy({ body, model: withProfile(model, profile), service,
       signal: runtime?.signal ?? client.abort.signal, mode, metrics,
+      onForward: capture?.forwarded,
       trace: lab ? async (stage, value) => { if (stage !== 'client') await lab.trace(stage, value); } : undefined,
       headers: lab?.headers, secrets: suppliedSecrets,
       writer: { start: status => client.start('text/event-stream; charset=utf-8', status),
@@ -217,6 +225,8 @@ api.post('/v1/chat/completions', async (req, reply) => {
     }
   } finally {
     runtime?.close();
+    capture?.finished({ status: metrics.status, upstreamStatus: metrics.upstreamStatus, error: metrics.error,
+      elapsedMs: Math.round(performance.now() - start) });
     try { store.record(req.id, { ...metrics, phase: 'gateway_forwarding', elapsedMs: Math.round(performance.now() - start),
       clientDisconnected: client.abort.signal.reason?.code === 'client_disconnected' }); }
     catch { process.stderr.write('Failed to record request metadata\n'); }
@@ -254,11 +264,26 @@ admin.post('/admin/login', async (req, reply) => {
   return reply.header('set-cookie', sessionCookie(token, 28_800)).send({ authenticated: true });
 });
 admin.post('/admin/logout', async (req, reply) => {
+  requestCapture.clear(session(req));
   sessions.delete(session(req));
   return reply.header('set-cookie', sessionCookie('', 0)).send({ authenticated: false });
 });
 const publishedConfig = () => ({ ...store.publicVersion(), allowedOrigins: [...store.allowedOrigins], apiBaseUrl: gatewayUrl() });
 admin.get('/admin/config', async () => publishedConfig());
+admin.get('/admin/request-capture', async req => requestCapture.status(session(req)));
+admin.post('/admin/request-capture', async req => {
+  const { alias, clientId } = z.object({ alias: z.string().min(1).max(240), clientId: z.string().min(1).max(240).optional() }).parse(req.body);
+  const clients = clientId === undefined ? settingsValue.clients : settingsValue.clients.filter(client => client.id === clientId);
+  if (!clients.some(client => availableModels(store.snapshot.config, client).some(model => model.alias === alias)))
+    throw new GatewayError(404, 'client_model_not_found', '该客户端没有可捕获的已授权模型');
+  if (!requestCapture.arm(session(req), alias, clientId))
+    throw new GatewayError(409, 'capture_busy', '其他管理员正在捕获请求');
+  return requestCapture.status(session(req));
+});
+admin.delete('/admin/request-capture', async req => {
+  requestCapture.clear(session(req));
+  return requestCapture.status(session(req));
+});
 const tlsStore = () => {
   if (!certificates) throw new GatewayError(409, 'tls_disabled', '当前只启用了 HTTP 测试模式');
   return certificates;

@@ -107,6 +107,7 @@ export function translate(error: unknown) {
 export async function proxy(options: {
   body: JsonObject; model: Model; service: Service; signal: AbortSignal;
   writer: StreamWriter; trace?: Trace; direct?: boolean; headers?: JsonObject; secrets?: string[];
+  onForward?: (body: JsonObject, upstreamModel: string, origin: string, path: string) => void;
   metrics: JsonObject; mode?: 'ordinary' | 'runtime_managed' | 'diagnostic';
 }) {
   const { body, model, service, signal, writer, trace, direct = false, headers, metrics } = options;
@@ -127,6 +128,7 @@ export async function proxy(options: {
     const timeout = options.mode === 'runtime_managed' ? { firstMs: 0, idleMs: 0 }
       : options.mode === 'diagnostic' ? diagnosticTimeouts() : undefined;
     upstream = openUpstream(service, 'chat', signal, requestHeaders, payload, timeout);
+    options.onForward?.(payload, model.upstream, upstream.url.origin, upstream.url.pathname);
     await report('upstream_request', { url: upstream.url.href, headers: { ...requestHeaders,
       ...(service.apiKey ? { [service.authHeader]: '[REDACTED]' } : {}) }, body: payload });
     const result = await upstream.response;

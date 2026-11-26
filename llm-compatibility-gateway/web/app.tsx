@@ -256,7 +256,10 @@ function App() {
   } else if (page === 'checks') {
     content = <Checks config={config} previous={status?.checks ?? []} refresh={refresh} />;
   } else if (page === 'logs') {
-    content = <Card extra={<Button onClick={() => attempt(refresh)}>刷新</Button>}><Metrics rows={status?.metrics} /></Card>;
+    content = <Space direction="vertical" size={16} className="full">
+      <RequestCapturePanel config={config} clients={tls?.clients ?? []} />
+      <Card extra={<Button onClick={() => attempt(refresh)}>刷新</Button>}><Metrics rows={status?.metrics} /></Card>
+    </Space>;
   } else if (page === 'tls') {
     content = <Certificates status={tls} refresh={refreshTls} api={api} />;
   } else if (page === 'integration') {
@@ -605,6 +608,90 @@ function Checks({ config, previous, refresh }: { config: Config; previous: Check
     ]} /></Card>}
   </Space>;
 }
+type CaptureStatus = {
+  state: 'idle' | 'armed' | 'captured';
+  alias?: string;
+  clientId?: string;
+  expiresAt?: number;
+  evidence?: {
+    gatewayRequestId: string; requestId?: string; taskId?: string; sessionId?: string; attemptId?: string; capturedAt: string;
+    inbound: { body: unknown; truncated: boolean };
+    forwarded?: { origin: string; path: string; body: unknown; truncated: boolean };
+    result?: { status?: number; upstreamStatus?: number; error?: string; elapsedMs: number };
+  };
+};
+
+function RequestCapturePanel({ config, clients }: { config: Config; clients: TlsStatus['clients'] }) {
+  const [alias, setAlias] = useState('');
+  const [clientId, setClientId] = useState<string>();
+  const [status, setStatus] = useState<CaptureStatus>({ state: 'idle' });
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState('');
+  const operation = useRef(0);
+  const pending = useRef(false);
+  useEffect(() => {
+    let visible = true;
+    const load = async () => {
+      if (pending.current) return;
+      const sequence = operation.current;
+      try {
+        const value = await api<CaptureStatus>('request-capture');
+        if (visible && sequence === operation.current) setStatus(value);
+      } catch (error) {
+        if (visible && sequence === operation.current) setError((error as Error).message);
+      }
+    };
+    void load();
+    const timer = setInterval(load, 2000);
+    return () => { visible = false; clearInterval(timer); };
+  }, []);
+  async function change(method: 'POST' | 'DELETE') {
+    operation.current++;
+    pending.current = true;
+    setError('');
+    setBusy(true);
+    try {
+      setStatus(await api<CaptureStatus>('request-capture', method, method === 'POST' ? { alias, clientId } : undefined));
+    } catch (error) { setError((error as Error).message); }
+    finally { pending.current = false; setBusy(false); }
+  }
+  const evidence = status.evidence;
+  return <Card title="捕获 Cline 请求">
+    <Space direction="vertical" className="full">
+      <Typography.Text type="secondary">捕获两分钟内下一条匹配的真实模型请求。正文、图片、工具实参和密钥已遮蔽，结果仅在本会话保留五分钟。</Typography.Text>
+      <Space wrap>
+        <ModelSelect config={config} value={alias} change={value => { setAlias(value); setClientId(undefined); }} disabled={busy} />
+        <Select aria-label="客户端" value={clientId} allowClear placeholder="全部客户端" onChange={setClientId} disabled={busy}
+          style={{ minWidth: 170 }} options={clients.filter(client => client.models.includes('*') || client.models.includes(alias))
+            .map(client => ({ value: client.id, label: client.id }))} />
+        <Button type="primary" disabled={!alias || busy} onClick={() => void change('POST')}>捕获下一条</Button>
+        <Button disabled={status.state === 'idle' || busy} onClick={() => void change('DELETE')}>清除</Button>
+      </Space>
+      {error && <Alert type="warning" message={error} showIcon />}
+      {status.state === 'armed' && <Alert type="info" showIcon message={`等待 ${status.alias}${status.clientId ? ' · ' + status.clientId : ''} 的请求`} />}
+      {evidence && <>
+        <Descriptions size="small" items={[
+          { key: 'gateway', label: 'Gateway 请求 ID', children: evidence.gatewayRequestId },
+          { key: 'runtime', label: 'Runtime 请求 ID', children: evidence.requestId ?? '未提供' },
+          { key: 'task', label: '任务 ID', children: evidence.taskId ?? '未提供' },
+          { key: 'session', label: '会话 ID', children: evidence.sessionId ?? '未提供' },
+          { key: 'attempt', label: '执行尝试 ID', children: evidence.attemptId ?? '未提供' },
+          { key: 'result', label: '结果', children: evidence.result ? [evidence.result.status, evidence.result.error].filter(Boolean).join(' · ') : '处理中' },
+        ]} />
+        <Tabs items={[
+          { key: 'inbound', label: '收到的 Cline 请求', children: <Code value={json(evidence.inbound.body)} /> },
+          { key: 'forwarded', label: '转发给模型', children: evidence.forwarded
+            ? <><Typography.Text type="secondary">{evidence.forwarded.origin + evidence.forwarded.path}</Typography.Text>
+              <Code value={json(evidence.forwarded.body)} /></> : <Typography.Text type="secondary">等待转发或已在网关校验阶段结束。</Typography.Text> },
+          ...(evidence.forwarded ? [{ key: 'diff', label: '参数差异',
+            children: <Diff before={evidence.inbound.body} after={evidence.forwarded.body} /> }] : []),
+        ]} />
+        {(evidence.inbound.truncated || evidence.forwarded?.truncated) && <Typography.Text type="secondary">请求结构过长，部分字段已截断。</Typography.Text>}
+      </>}
+    </Space>
+  </Card>;
+}
+
 function Metrics({ rows, emptyText = '暂无请求日志' }: { rows?: Record<string, unknown>[]; emptyText?: string }) {
   return <Table dataSource={rows ?? []} rowKey={row => String(row.id)} size="small" locale={{ emptyText }} scroll={{ x: 860 }} columns={[
     { title: '时间', dataIndex: 'time', render: value => new Date(value).toLocaleString() },

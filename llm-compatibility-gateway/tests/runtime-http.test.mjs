@@ -143,6 +143,49 @@ test('real Gateway HTTP routes pin configuration and correlate Runtime requests'
   body:JSON.stringify({ version:revision + 1,target:revision }) });
  assert.equal(rollback.status,200);
  assert.ok(!(await rollback.json()).config.models.some(model => model.alias === 'adapted-fixture'));
+ const capturePath = admin + '/admin/request-capture';
+ assert.equal((await fetch(capturePath)).status,401);
+ const captureStatus = async (method = 'GET', body, headers = adminHeaders) => {
+  const response = await fetch(capturePath, { method,headers:body ? headers : { cookie:headers.cookie },
+   body:body && JSON.stringify(body) });
+  return { status:response.status, value:await response.json() };
+ };
+ assert.equal((await captureStatus('POST',{ alias,clientId:'runtime' })).value.state,'armed');
+ const otherLogin = await fetch(admin + '/admin/login', { method:'POST', headers:json,
+  body:JSON.stringify({ password:'fixture-admin-password' }) });
+ const other = { ...json, cookie:otherLogin.headers.get('set-cookie').split(';')[0] };
+ assert.equal((await captureStatus('GET',undefined,other)).value.state,'idle');
+ assert.equal((await captureStatus('POST',{ alias },other)).status,409);
+ await (await chat('outside requested client','fixture-ordinary-key','ordinary-trace')).text();
+ assert.equal((await captureStatus()).value.state,'armed');
+ const received = { model:alias,stream:true,stream_options:{ include_usage:true },max_tokens:80,
+  messages:[{role:'user',content:'customer private text'},
+   { role:'assistant',tool_calls:[{ index:0, function:{ name:'known_tool',arguments:'{"account":"000123"}' } }] }],
+  tools:[{type:'function',function:{name:'known_tool',description:'private description',parameters:{type:'object'}}}],
+  client_api_key:'private key',metadata:{account:12345} };
+ const actual = await fetch(api + '/v1/chat/completions', { method:'POST', headers:{ ...json,
+  authorization:'Bearer fixture-runtime-key', 'x-runtime-task-id':'capture-task', 'x-runtime-request-id':'capture-runtime' },
+  body:JSON.stringify(received) });
+ assert.equal(actual.status,400);
+ await actual.text();
+ const { value: captured } = await captureStatus();
+ assert.equal(captured.state,'captured');
+ const evidence = captured.evidence;
+ assert.equal(evidence.gatewayRequestId,actual.headers.get('x-request-id'));
+ assert.equal(evidence.requestId,'capture-runtime');
+ assert.equal(evidence.taskId,'capture-task');
+ assert.equal(evidence.inbound.body.model,alias);
+ assert.equal(evidence.forwarded.body.model,'vendor/new:v2');
+ assert.equal(evidence.inbound.body.stream_options.include_usage,true);
+ assert.equal(evidence.inbound.body.max_tokens,80);
+ assert.equal(evidence.inbound.body.tools[0].function.name,'known_tool');
+ assert.equal(evidence.result.upstreamStatus,400);
+ assert.doesNotMatch(JSON.stringify(evidence),/customer private text|000123|private description|private key|12345|fixture-runtime-key/);
+ await (await chat('armed capture is single use','fixture-runtime-key','second-runtime')).text();
+ assert.equal((await captureStatus()).value.evidence.requestId,'capture-runtime');
+ const persisted = (await (await fetch(admin + '/admin/overview',{ headers:adminHeaders })).json()).metrics;
+ assert.ok(!persisted.some(row => row.inbound || row.forwarded));
+ assert.equal((await captureStatus('DELETE')).value.state,'idle');
  t.diagnostic(JSON.stringify({ taskId:'native-task', sessionId:'native-session', attemptId:'native-task-fence-1',
   requestId:'runtime-42', gatewayRequestId, oldRevision:initial.version + 1, status:old.status }));
 });

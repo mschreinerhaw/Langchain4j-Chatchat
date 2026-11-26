@@ -67,3 +67,23 @@ node tests/gateway-protocol-acceptance.mjs qwen/qwen3-32b qwen32-check.json clin
 ## 迁移与回滚
 
 适配字段为可选字段，旧 SQLite 配置无需迁移。发布前保存配置 revision、证书、配置数据库及原镜像标识。先在独立 Gateway 使用配置副本和受控测试凭据校验。回滚规则使用「配置与审计」中的历史版本。回滚镜像时同时恢复曾通过旧版读写验证的配置 revision，避免旧版再次发布时遗漏新增字段。
+
+## 候选验收记录
+
+候选源码 `3bcd86dabf78663e4245d46429bd88ef1e2067f6`。真实 Cline 首次测试揭示了工具 Schema 声明的是 2020-12，默认 Draft-07 校验器返回 422。Gateway 现依据 Schema 声明选择 Draft-07、2019-09 或 2020-12 校验器。修复过程中使用同一固定 Cline SDK 和测试模型服务。
+
+| 验证 | 结果 |
+| --- | --- |
+| Gateway 协议与 Runtime Managed | 27 项通过，覆盖旧版工具分片、多轮回传、真实用量映射、UTF-8、图片 URL 转换、异常截断与流取消 |
+| 真实 Gateway HTTP 进程 | 1 项通过，覆盖真实路由、诊断 CLI、请求捕获、配置快照和规则回滚 |
+| 候选 Gateway Docker 契约 | 9 项通过，覆盖认证、请求过大拒绝、响应超时、隔离配置、取消、日志和回滚。这次运行未执行可选的容器重启子用例 |
+| 浏览器 | 自定义 alias、模型协议配置发布和请求捕获操作通过 |
+| 真实 Cline v4.1.27 + 候选 HTTPS Gateway + 标准模拟上游 | 会话 `788e6a7a-46b3-4a62-818e-1240914ae51e` 到达 `turn_completed`。请求 `afff6e17-b6ea-4ec2-ba9e-b432264c5e2f`、`0f0869be-0c3e-447b-8cd0-8b9cbc39f834`，执行了 `editor` |
+| 真实 Cline v4.1.27 + 候选 HTTPS Gateway + 旧版模拟上游 | 会话 `d400ce6f-f77f-4153-af50-b7887e3ec2a0` 到达 `turn_completed`。请求 `a7058914-df78-4afd-a98e-de11a14d97b3`、`08ab169f-064d-49f4-9479-171943f65c36`，执行了 `editor`。第二轮经 Gateway 回传旧版 `function` 结果，上游返回的真实 Usage 完整保留 |
+| 工作区产物 | 两种协议均从各自隔离 Cline 容器读取出 `gateway-result.txt`，实际字节 SHA-256 为 `d0a8cb03641a2ab63c3f240b573b298d112e96b1b7543375968cfb0115d87c3b` |
+
+候选镜像在 `192.168.195.221` 离线编译并构建为 `llm-compatibility-gateway:1.2.0-rc.1-protocol-compat-3bcd86dab`，平台 `linux/amd64`。归档 `gateway-protocol-compat-3bcd86dab-image.tar.gz` 的 SHA-256 为 `6b8be824e7b817a4987e3a9b2e9a9b54cc1ab10001747afeb67b492e5a261e76`。服务器目录为 `/mnt/disk01/gateway-lifecycle-rc1/native-multimodel-candidate/protocol-compat-3bcd86dab/dist/`。
+
+客户五个模型仍待现场验收。Qwen3-32B 现场 400 的拒绝字段、DeepSeek 历史推理回传、视觉识别和并行能力均需要真实端点证据。当前 Gateway 只为已实现的 Chat Completions 协议提供这些适配。生产模型服务、Cline 源码与 Runtime OS 实现保持独立。
+
+协议参考：[OpenAI Chat Completions](https://developers.openai.com/api/reference/resources/chat)、[SSE 事件格式](https://html.spec.whatwg.org/multipage/server-sent-events.html#event-stream-interpretation)、[DeepSeek 思考模式](https://api-docs.deepseek.com/guides/thinking_mode/)。

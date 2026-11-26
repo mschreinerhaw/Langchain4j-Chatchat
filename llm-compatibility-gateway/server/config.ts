@@ -5,6 +5,7 @@ import { profileNames, type Profile } from '../protocol/profiles.js';
 import { seal, unseal } from './credentials.js';
 import { validateUpstreamTrust } from './tls.js';
 import { normalizeUpstreamUrl } from '../protocol/origin.js';
+import { protocolSchema } from '../protocol/compat-schema.js';
 import { summarizeTraffic, trafficStart, type TrafficRange } from './traffic.js';
 
 export class GatewayError extends Error {
@@ -27,12 +28,14 @@ export const serviceSchema = z.object({
   ca: z.string().max(65_536).optional(), connectMs: timeout.default(5_000),
   firstMs: timeout.default(60_000), idleMs: timeout.default(60_000),
   concurrency: z.number().int().min(1).max(512).default(16),
+  protocol: protocolSchema.optional(),
 });
 const capability = z.enum(['configured', 'supported', 'unsupported', 'unverified']);
 export const modelSchema = z.object({
   alias: identifier, displayName: identifier.optional(), upstream: identifier, service: identifier, enabled: z.boolean().default(true),
   contextWindow: z.number().int().positive().optional(), maxOutput: z.number().int().positive().optional(),
   sseEnd: z.enum(['require_done', 'done_on_finished_eof']).default('require_done'),
+  protocol: protocolSchema.optional(),
   capabilities: z.object({ tools: capability.default('unverified'), reasoning: capability.default('unverified'),
     vision: capability.default('unverified'), streaming: capability.default('unverified'),
     parallelTools: capability.optional(), streamUsage: capability.optional() }).default({
@@ -146,7 +149,7 @@ export class Store {
 
   validate(input: unknown, checkCaValidity = true, allowNewOrigins = false): Config {
     const config = configSchema.parse(input);
-    const services = new Set<string>();
+    const services = new Map<string, Service>();
     const allowed = this.allowedOrigins;
     for (const service of config.services) {
       const base = normalizeUpstreamUrl(service.origin);
@@ -156,14 +159,18 @@ export class Store {
       }
       service.origin = base;
       if (services.has(service.id)) throw new GatewayError(409, 'duplicate_service', '服务 ID 重复');
-      services.add(service.id);
+      services.set(service.id, service);
       if (service.ca) service.ca = validateUpstreamTrust(service.ca, checkCaValidity);
     }
     const aliases = new Set<string>();
     for (const model of config.models) {
       if (aliases.has(model.alias)) throw new GatewayError(409, 'duplicate_model', '模型 ID 重复');
       aliases.add(model.alias);
-      if (!services.has(model.service)) throw new GatewayError(400, 'unknown_service', '模型引用的服务不存在');
+      const service = services.get(model.service);
+      if (!service) throw new GatewayError(400, 'unknown_service', '模型引用的服务不存在');
+      const protocol = { ...service.protocol, ...model.protocol };
+      if (protocol.doneEvent && protocol.doneEvent === protocol.usageEvent)
+        throw new GatewayError(400, 'conflicting_sse_events', 'SSE 用量事件与结束事件不能相同');
     }
     return config;
   }

@@ -27,6 +27,7 @@ const handler = async (req, res) => {
   for await (const chunk of req) parts.push(chunk);
   const input = JSON.parse(Buffer.concat(parts));
   if (input.model === '/models/ClineRuntimeAnalysis') return runtimeAnalysis(input, res);
+  if (input.model === '/models/ClineLegacy') return clineLegacy(input, res);
   const clineCancel = input.model === '/models/ClineCancel';
   const clineTask = input.model === '/models/ClineTask' || clineCancel;
   const cline = clineTask || input.model === '/models/ClineFixture';
@@ -89,6 +90,30 @@ const handler = async (req, res) => {
   res.write(lines(chunk({}, calls.length ? 'tool_calls' : 'stop')) + lines({ ...basic, choices: [], usage }));
   res.end(mode === 'no done' ? '' : 'data: [DONE]\r\n\r\n');
 };
+
+async function clineLegacy(input, res) {
+  const definitions = input.functions?.map(tool => tool.name) ?? [];
+  const alreadyWrote = input.messages.some(message => message.role === 'assistant' && message.function_call?.name === 'editor');
+  const result = input.messages.find(message => message.role === 'function' && message.name === 'editor');
+  if (!input.stream || input.tools || !definitions.includes('editor') || (alreadyWrote && !result)) {
+    res.writeHead(400, { 'content-type': 'application/json' });
+    return res.end(JSON.stringify({ error:{ message:'Legacy function definitions or result are missing' } }));
+  }
+  const base = { id:'legacy-test', object:'chat.completion.chunk', created:1, model:input.model };
+  const frame = (delta, finish_reason = null) => lines({ ...base, choices:[{ index:0, delta, finish_reason }] });
+  res.writeHead(200, { 'content-type': 'text/event-stream' });
+  res.write(frame({ role:'assistant', content:'<th' }));
+  await delay(10);
+  res.write(frame({ content:'ink>验证工具</think>' }));
+  if (!alreadyWrote) {
+    const args = JSON.stringify({ path:'/tmp/gateway-cline/workspace/gateway-result.txt', new_text:'HTTPS gateway verified\n' });
+    const splitAt = 21;
+    res.write(frame({ function_call:{ name:'editor', arguments:args.slice(0, splitAt) } }));
+    await delay(10);
+    res.write(frame({ function_call:{ arguments:args.slice(splitAt) } }) + frame({}, 'function_call'));
+  } else res.write(frame({ content:'Gateway fixture completed' }) + frame({}, 'stop'));
+  res.end('event: metering\n' + lines({ meter:{ input:3, output:4, total:7 } }) + 'event: finished\n\n');
+}
 
 async function runtimeAnalysis(input, res) {
   const offered = input.tools?.map(tool => tool.function?.name).filter(Boolean) ?? [];

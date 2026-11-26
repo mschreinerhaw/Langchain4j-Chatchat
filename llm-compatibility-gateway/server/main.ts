@@ -432,7 +432,7 @@ admin.post('/admin/preview', async req => {
   if (!model || !service) throw invalid('模型映射不存在');
   let result: unknown;
   try {
-    if (input.stage === 'request') result = prepare(input.body, model);
+    if (input.stage === 'request') result = prepare(input.body, model, false, { ...service.protocol, ...model.protocol });
     else if (input.stage === 'headers') result = outgoingHeaders(service, model, false, false, input.body);
     else result = applyRules(input.body, model.rules, input.stage);
   } catch (error) {

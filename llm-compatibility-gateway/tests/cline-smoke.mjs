@@ -6,6 +6,7 @@ const admin = process.env.TEST_ADMIN ?? 'http://127.0.0.1:18081';
 const cline = 'http://127.0.0.1:18329';
 const alias = 'gateway-cline-fixture';
 const business = admin.startsWith('https:');
+const legacy = process.env.TEST_LEGACY === 'true';
 const json = { 'content-type': 'application/json' };
 async function call(origin, path, options = {}) {
   const response = await fetch(origin + path, {
@@ -24,7 +25,9 @@ const prior = new Set(initial.metrics.map(row => row.id));
 const { body: snapshot } = await call(admin, '/admin/config', { headers: auth });
 await call(admin, '/admin/config', { method: 'PUT', headers: auth, body: { version: snapshot.version, config: { ...snapshot.config, models: [
   ...snapshot.config.models.filter(model => model.alias !== alias),
-  { alias, upstream: business ? '/models/ClineTask' : '/models/ClineFixture', service: business ? 'http' : 'fixture' },
+  { alias, upstream: legacy ? '/models/ClineLegacy' : business ? '/models/ClineTask' : '/models/ClineFixture',
+    service: business ? 'http' : 'fixture', ...(legacy ? { protocol:{ tools:'legacy-functions', reasoning:'think-tags',
+      usageEvent:'metering', doneEvent:'finished', usage:{ prompt_tokens:'meter.input', completion_tokens:'meter.output', total_tokens:'meter.total' } } } : {}) },
 ] } } });
 const clineAuth = { authorization: 'Bearer fixture-cline-operator-token' };
 const agent = (path, options = {}) => call(cline, path, { ...options, headers: { ...clineAuth, ...options.headers } });
@@ -68,6 +71,7 @@ assert.equal(result.status, 'turn_completed');
 if (business) {
   assert.ok(proxied.length >= 2 && proxied.every(row => row.profile === 'cline'));
   assert.ok(events.some(event => event.eventType === 'tool.completed' && event.payload.toolName === 'editor'));
+  if (legacy) assert.ok(proxied.every(row => row.upstreamModel === '/models/ClineLegacy' && row.usageStatus === 'COMPLETE'));
   const artifact = execFileSync('docker', ['exec', process.env.CLINE_FIXTURE_CONTAINER ?? 'llm-gateway-cline-https',
     'cat', '/tmp/gateway-cline/workspace/gateway-result.txt'], { encoding: 'utf8' });
   assert.equal(artifact.trim(), 'HTTPS gateway verified');

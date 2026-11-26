@@ -85,7 +85,9 @@ export async function diagnose(model: Model, service: Service, signal: AbortSign
       const failure = translate(error);
       const rejected = expectInvalidRequest && [400, 422].includes(Number(metrics.upstreamStatus))
         && failure.code === 'upstream_http_error';
-      await add({ test, status: rejected ? 'PASS' : failure.code === 'tools_unsupported' ? 'UNSUPPORTED' : 'FAIL',
+      const unsupported = ['tools_unsupported', 'streaming_unsupported', 'parallel_tools_unsupported', 'vision_unsupported',
+        'unsupported_tool_protocol', 'unsupported_image_protocol'].includes(failure.code);
+      await add({ test, status: rejected ? 'PASS' : unsupported ? 'UNSUPPORTED' : 'FAIL',
         reason: rejected ? '上游返回预期 4xx，网关生成标准错误对象' : failure.message,
         httpStatus: typeof metrics.upstreamStatus === 'number' ? metrics.upstreamStatus : null,
         suggestion, clineImpact, evidence });

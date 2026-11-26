@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { createRoot } from 'react-dom/client';
-import { Alert, Button, Card, Checkbox, Col, ConfigProvider, Descriptions, Form, Input, InputNumber, Layout,
+import { Alert, AutoComplete, Button, Card, Checkbox, Col, ConfigProvider, Descriptions, Form, Input, InputNumber, Layout,
   Menu, Modal, Radio, Row, Select, Space, Statistic, Table, Tabs, Tag, Typography, message, theme } from 'antd';
 import 'antd/dist/reset.css';
 import './style.css';
@@ -13,6 +13,7 @@ import { Certificates, type TlsStatus } from './tls.js';
 import { TrafficCharts } from './traffic.js';
 import type { TrafficRange, TrafficTrend } from '../server/traffic.js';
 import clineCatalog from './cline-models.json' with { type: 'json' };
+import { protocolSchema } from '../protocol/compat-schema.js';
 
 type Revision = { version: number; config: Config; allowedOrigins?: string[]; apiBaseUrl?: string };
 type Overview = { overview: Record<string, string | number | null>; metrics: Record<string, unknown>[]; checks: Check[]; traffic: TrafficTrend };
@@ -304,6 +305,7 @@ function Edit({ editor, config, close, save }: {
   const [busy, setBusy] = useState(false);
   const service = editor.kind === 'service';
   const initial = { ...editor.value, apiKey: undefined };
+  const initialForm = { ...initial, protocolText: initial.protocol ? json(initial.protocol) : '' };
   const used = new Set(config.models.filter(model => model.alias !== editor.key).map(model => model.alias));
   const modelOptions = clineCatalog.modelIds.filter(id => !used.has(id)).map(id => ({ value: id, label: id }));
   if (!service && editor.key && !clineCatalog.modelIds.includes(editor.key)) {
@@ -314,19 +316,21 @@ function Edit({ editor, config, close, save }: {
   return <Modal open title={(editor.key ? '编辑' : '新增') + (service ? '上游服务' : '模型映射')} width={700} onCancel={close}
     onOk={() => form.submit()} okText="验证并发布" cancelText="取消" confirmLoading={busy}>
     {error && <Alert type="error" message={error} showIcon />}
-    <Form form={form} layout="vertical" initialValues={initial} onFinish={async values => {
+    <Form form={form} layout="vertical" initialValues={initialForm} onFinish={async ({ protocolText, ...values }) => {
       setBusy(true); setError('');
       try {
         const key = values.clearKey ? '' : values.apiKey || undefined;
-        await save(service ? { ...initial, ...values, origin: normalizeUpstreamUrl(values.origin), apiKey: key }
-          : { ...initial, ...values, displayName: values.displayName?.trim() || undefined });
+        const protocol = protocolText?.trim() ? protocolSchema.parse(JSON.parse(protocolText)) : undefined;
+        await save(service ? { ...initial, ...values, protocol, origin: normalizeUpstreamUrl(values.origin), apiKey: key }
+          : { ...initial, ...values, protocol, displayName: values.displayName?.trim() || undefined });
       } catch (error) { setError((error as Error).message); }
       finally { setBusy(false); }
     }}>
       <Row gutter={16}><Col span={12}>{service ? field('id', '服务 ID') : field('upstream', '上游模型 ID')}</Col>
         <Col span={12}>{service ? field('name', '服务名称') :
-          <Form.Item name="alias" label="支持模型" rules={[{ required: true }]} extra="此处选择网关对外模型 ID。">
-            <Select aria-label="支持模型" showSearch options={modelOptions} placeholder="搜索并选择支持模型" />
+          <Form.Item name="alias" label="支持模型" rules={[{ required: true }]} extra="支持输入自定义的网关对外模型 ID。">
+            <AutoComplete aria-label="支持模型" options={modelOptions} placeholder="输入或选择网关模型 ID"
+              filterOption={(input, option) => String(option?.value).toLowerCase().includes(input.toLowerCase())} />
           </Form.Item>}</Col></Row>
       {service ? <>
         <Form.Item name="origin" label="上游地址" extra="可填服务基础地址或包含前缀的完整对话接口地址。"
@@ -364,6 +368,10 @@ function Edit({ editor, config, close, save }: {
           <Form.Item name={['capabilities', name]} label={label}><Select options={Object.entries(capLabels).map(([value, label]) => ({ value, label }))} /></Form.Item>
         </Col>)}</Row>
       </>}
+      <Form.Item name="protocolText" label="协议适配配置"
+        extra={service ? '服务默认值，模型可覆盖。支持 tools、reasoning、images、usage、usageEvent 和 doneEvent。' : '模型覆盖值。留空继承上游服务配置。'}>
+        <Input.TextArea rows={3} placeholder={'{"tools":"legacy-functions","reasoning":"reasoning-field"}'} />
+      </Form.Item>
       <Form.Item name="enabled" valuePropName="checked"><Checkbox>启用</Checkbox></Form.Item>
     </Form>
   </Modal>;

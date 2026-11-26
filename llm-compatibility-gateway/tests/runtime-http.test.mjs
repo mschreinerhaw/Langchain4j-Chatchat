@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { spawn } from 'node:child_process';
 import { once } from 'node:events';
-import { mkdtemp, rm } from 'node:fs/promises';
+import { mkdtemp, readFile, rm } from 'node:fs/promises';
 import { createServer } from 'node:http';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -186,6 +186,20 @@ test('real Gateway HTTP routes pin configuration and correlate Runtime requests'
  const persisted = (await (await fetch(admin + '/admin/overview',{ headers:adminHeaders })).json()).metrics;
  assert.ok(!persisted.some(row => row.inbound || row.forwarded));
  assert.equal((await captureStatus('DELETE')).value.state,'idle');
+ const filename = join(root,'field-report.json');
+ const fixtureCli = spawn(process.execPath,['tests/gateway-protocol-acceptance.mjs',alias,filename,'cline'],{
+  env:{...process.env, TEST_GATEWAY_ADMIN:admin, TEST_GATEWAY_ADMIN_PASSWORD:'fixture-admin-password'},
+  stdio:['ignore','pipe','pipe'],
+ });
+ let cliOutput = '';
+ for (const stream of [fixtureCli.stdout, fixtureCli.stderr]) stream.on('data', chunk => { cliOutput += chunk; });
+ const [code] = await once(fixtureCli,'exit');
+ assert.equal(code,2,cliOutput);
+ const fieldReport = JSON.parse(await readFile(filename,'utf8'));
+ assert.equal(fieldReport.profile,'cline');
+ assert.ok(Number.isInteger(fieldReport.revision));
+ assert.equal(fieldReport.findings.find(row => row.test === '流式 Usage').httpStatus,400);
+ assert.ok(fieldReport.findings.every(row => row.evidence === undefined));
  t.diagnostic(JSON.stringify({ taskId:'native-task', sessionId:'native-session', attemptId:'native-task-fence-1',
   requestId:'runtime-42', gatewayRequestId, oldRevision:initial.version + 1, status:old.status }));
 });

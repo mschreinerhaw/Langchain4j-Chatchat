@@ -1373,6 +1373,7 @@
     );
 
     create table sys_user (
+        token_billing_role_id varchar(64),
         created_at timestamp(6) with time zone not null,
         last_login_at timestamp(6) with time zone,
         updated_at timestamp(6) with time zone not null,

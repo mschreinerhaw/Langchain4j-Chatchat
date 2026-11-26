@@ -429,6 +429,22 @@ public class EnterpriseAdminService implements ApplicationRunner {
             userRepository.findById(input.getId()).orElseGet(SysUser::new);
         String tenantId = requireText(input.getTenantId(), "tenantId");
         List<SysRole> assignedRoles = validateRolesForTenant(tenantId, roleIds);
+        String previousBillingRole = entity.getTokenBillingRoleId();
+        String requestedBillingRole = input.getTokenBillingRoleId();
+        if (requestedBillingRole != null) {
+            String selected = trimToNull(requestedBillingRole);
+            if (selected != null) {
+                List<SysRole> membership = roleIds != null ? assignedRoles :
+                    validateRolesForTenant(tenantId, entity.getId() == null ? List.of() : userRoleRepository.findByUserId(entity.getId()).stream()
+                        .filter(link -> tenantId.equals(link.getTenantId())).map(SysUserRole::getRoleId).toList());
+                if (membership.stream().noneMatch(role -> selected.equals(role.getId()) && "enabled".equalsIgnoreCase(role.getStatus())))
+                    throw new IllegalArgumentException("Token 消费角色必须是该用户当前租户内已分配的启用角色");
+            }
+            entity.setTokenBillingRoleId(selected);
+        } else if (!tenantId.equals(entity.getTenantId()) || roleIds != null
+            && assignedRoles.stream().noneMatch(role -> Objects.equals(previousBillingRole, role.getId()))) {
+            entity.setTokenBillingRoleId(null);
+        }
         String orgId = trimToNull(input.getOrgId());
         if (orgId != null) {
             SysOrg assignedOrg = orgRepository.findById(orgId)
@@ -467,6 +483,9 @@ public class EnterpriseAdminService implements ApplicationRunner {
         }
         audit(saved.getTenantId(), null, "system", "user", input.getId() == null ? "create" : "update",
             "sys_user", saved.getId(), saved.getUsername());
+        if (!Objects.equals(previousBillingRole, saved.getTokenBillingRoleId()))
+            audit(saved.getTenantId(), null, "system", "user", "token-billing-role-update", "sys_user", saved.getId(),
+                "from=" + previousBillingRole + ", to=" + saved.getTokenBillingRoleId());
         return toUserView(saved);
     }
 
@@ -1273,7 +1292,8 @@ public class EnterpriseAdminService implements ApplicationRunner {
                 permissionCodes,
                 user.getCreatedAt(),
                 user.getUpdatedAt(),
-                isProtectedUser(user)
+                isProtectedUser(user),
+                user.getTokenBillingRoleId()
             );
         }).toList();
     }
@@ -1306,7 +1326,8 @@ public class EnterpriseAdminService implements ApplicationRunner {
             permissionCodes,
             user.getCreatedAt(),
             user.getUpdatedAt(),
-            isProtectedUser(user)
+            isProtectedUser(user),
+            user.getTokenBillingRoleId()
         );
     }
 
@@ -2550,8 +2571,17 @@ public class EnterpriseAdminService implements ApplicationRunner {
         List<String> permissionCodes,
         Instant createdAt,
         Instant updatedAt,
-        boolean protectedAccount
+        boolean protectedAccount,
+        String tokenBillingRoleId
     ) {
+        public UserView(String id, String tenantId, Long tenantNo, String tenantName, String orgId, String username,
+                        String displayName, String email, String phone, String status, Instant lastLoginAt,
+                        List<String> roleIds, List<String> permissionCodes, Instant createdAt, Instant updatedAt,
+                        boolean protectedAccount) {
+            this(id, tenantId, tenantNo, tenantName, orgId, username, displayName, email, phone, status, lastLoginAt,
+                roleIds, permissionCodes, createdAt, updatedAt, protectedAccount, null);
+        }
+
         public UserView(String id,
                         String tenantId,
                         Long tenantNo,

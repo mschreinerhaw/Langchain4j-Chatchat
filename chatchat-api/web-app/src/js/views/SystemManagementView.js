@@ -56,6 +56,7 @@ const blankUserForm = () => ({
   phone: "",
   status: "enabled",
   roleIds: [],
+  tokenBillingRoleId: "",
 });
 
 const blankAdminPasswordForm = () => ({
@@ -561,10 +562,12 @@ export default {
         phone: user.phone || "",
         status: user.status || "enabled",
         roleIds: Array.isArray(user.roleIds) ? [...user.roleIds] : [],
+        tokenBillingRoleId: user.roleIds?.includes(user.tokenBillingRoleId) ? user.tokenBillingRoleId : "",
       };
     },
     setUserRole(roleId) {
       this.userForm.roleIds = roleId ? [roleId] : [];
+      if (this.userForm.tokenBillingRoleId !== roleId) this.userForm.tokenBillingRoleId = "";
     },
     async saveUserForm() {
       if (!this.userForm.username || !this.userForm.displayName) {
@@ -581,6 +584,7 @@ export default {
           email: this.userForm.email,
           phone: this.userForm.phone,
           status: this.userForm.status,
+          tokenBillingRoleId: this.userForm.tokenBillingRoleId,
         };
         if (this.userForm.password) {
           user.passwordHash = this.userForm.password;

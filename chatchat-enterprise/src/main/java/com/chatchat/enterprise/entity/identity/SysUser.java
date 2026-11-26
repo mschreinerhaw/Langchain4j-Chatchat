@@ -22,6 +22,9 @@ public class SysUser extends EnterpriseAuditable {
     @Column(length = 64)
     private String orgId;
 
+    @Column(name = "token_billing_role_id", length = 64)
+    private String tokenBillingRoleId;
+
     @Column(length = 64, nullable = false, unique = true)
     private String username;
 

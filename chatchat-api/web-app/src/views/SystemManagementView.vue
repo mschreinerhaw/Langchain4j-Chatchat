@@ -469,6 +469,14 @@
                 </option>
               </select>
             </label>
+            <label class="full-span">
+              <span>Token 消费角色</span>
+              <select v-model="userForm.tokenBillingRoleId">
+                <option value="">未指定</option>
+                <option v-for="role in roles.filter(item => item.status === 'enabled' && userForm.roleIds.includes(item.id))"
+                        :key="role.id" :value="role.id">{{ role.roleName }}</option>
+              </select>
+            </label>
           </div>
 
           <div class="modal-actions">

@@ -1350,6 +1350,7 @@
     ) engine=InnoDB;
 
     create table sys_user (
+        token_billing_role_id varchar(64),
         created_at datetime(6) not null,
         last_login_at datetime(6),
         updated_at datetime(6) not null,

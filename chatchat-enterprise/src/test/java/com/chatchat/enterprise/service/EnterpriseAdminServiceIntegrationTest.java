@@ -357,6 +357,23 @@ class EnterpriseAdminServiceIntegrationTest {
     }
 
     @Test
+    void billingRoleRequiresExplicitActiveTenantMembershipAndIsClearedOnRemoval() {
+        var tenant = service.saveTenant(tenant("billing-role-tenant"));
+        var first = service.saveRole(role(tenant.getId(), "BILLING-FIRST"));
+        var second = service.saveRole(role(tenant.getId(), "BILLING-SECOND"));
+        var draft = user(tenant.getId(), null, "billing-role-user");
+        draft.setTokenBillingRoleId(second.getId());
+        assertThatThrownBy(() -> service.saveUser(draft, List.of(first.getId())))
+            .isInstanceOf(IllegalArgumentException.class).hasMessageContaining("Token");
+        var saved = service.saveUser(draft, List.of(first.getId(), second.getId()));
+        assertThat(saved.tokenBillingRoleId()).isEqualTo(second.getId());
+        draft.setId(saved.id());
+        draft.setTokenBillingRoleId(null);
+        assertThat(service.saveUser(draft, null).tokenBillingRoleId()).isEqualTo(second.getId());
+        assertThat(service.saveUser(draft, List.of(first.getId())).tokenBillingRoleId()).isNull();
+    }
+
+    @Test
     void roleResourceGrantsAndExistingSessionsFollowCurrentAuthorization() {
         SysTenant tenant = service.saveTenant(tenant("role-live"));
         SysRole role = service.saveRole(role(tenant.getId(), "RESOURCE_READER"));

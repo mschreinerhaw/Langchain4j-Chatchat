@@ -12,7 +12,7 @@ afterEach(async () => {
     await new Promise<void>(resolve => server.close(() => resolve()));
   }
 });
-const tool = { type:'function', function:{ name:'count', parameters:{ type:'object',
+const tool = { type:'function', function:{ name:'count', parameters:{ $schema:'https://json-schema.org/draft/2020-12/schema', type:'object',
   properties:{ amount:{ type:'integer' }, label:{ type:'string' } }, required:['amount','label'], additionalProperties:false } } };
 const model = modelSchema.parse({ alias:'local/legacy', upstream:'/models/Legacy:1', service:'fixture',
   protocol:{ tools:'legacy-functions', reasoning:'think-tags', doneEvent:'finished', usageEvent:'metering',

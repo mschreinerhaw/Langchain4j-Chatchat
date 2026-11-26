@@ -13,7 +13,6 @@ import { Certificates, type TlsStatus } from './tls.js';
 import { TrafficCharts } from './traffic.js';
 import type { TrafficRange, TrafficTrend } from '../server/traffic.js';
 import clineCatalog from './cline-models.json' with { type: 'json' };
-import { protocolSchema } from '../protocol/compat-schema.js';
 
 type Revision = { version: number; config: Config; allowedOrigins?: string[]; apiBaseUrl?: string };
 type Overview = { overview: Record<string, string | number | null>; metrics: Record<string, unknown>[]; checks: Check[]; traffic: TrafficTrend };
@@ -320,7 +319,7 @@ function Edit({ editor, config, close, save }: {
       setBusy(true); setError('');
       try {
         const key = values.clearKey ? '' : values.apiKey || undefined;
-        const protocol = protocolText?.trim() ? protocolSchema.parse(JSON.parse(protocolText)) : undefined;
+        const protocol = protocolText?.trim() ? JSON.parse(protocolText) : undefined;
         await save(service ? { ...initial, ...values, protocol, origin: normalizeUpstreamUrl(values.origin), apiKey: key }
           : { ...initial, ...values, protocol, displayName: values.displayName?.trim() || undefined });
       } catch (error) { setError((error as Error).message); }

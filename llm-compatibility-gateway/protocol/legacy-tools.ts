@@ -1,4 +1,6 @@
 import { Ajv, type ValidateFunction } from 'ajv';
+import { Ajv2019 } from 'ajv/dist/2019.js';
+import { Ajv2020 } from 'ajv/dist/2020.js';
 import { randomUUID } from 'node:crypto';
 import { GatewayError } from '../server/config.js';
 import { isObject, type JsonObject } from './rules.js';
@@ -7,7 +9,10 @@ import { protocolError } from './sse.js';
 const toolName = /^[A-Za-z0-9_-]{1,64}$/;
 const legacyLimit = 65_536;
 const requestError = (message: string) => new GatewayError(422, 'unsupported_tool_protocol', message);
-const schemaEngine = new Ajv({ strict: false, addUsedSchema: false, validateFormats: false });
+const schemaOptions = { strict:false, addUsedSchema:false, validateFormats:false };
+const schemaEngine = new Ajv(schemaOptions);
+const schema2019 = new Ajv2019(schemaOptions);
+const schema2020 = new Ajv2020(schemaOptions);
 
 export function legacyRequest(body: JsonObject): JsonObject {
   const requested = Array.isArray(body.tools) ? body.tools : [];
@@ -77,13 +82,16 @@ export class LegacyToolResponse {
     const selected = isObject(request.function_call) ? request.function_call.name : undefined;
     for (const entry of request.functions as JsonObject[]) {
       if (selected !== undefined && entry.name !== selected) continue;
-      const schema = (entry.parameters ?? { type:'object' }) as object;
+      const schema = (entry.parameters ?? { type:'object' }) as JsonObject;
+      const dialect = typeof schema.$schema === 'string' ? schema.$schema.replace(/#$/, '') : undefined;
+      const engine = dialect === 'https://json-schema.org/draft/2020-12/schema' ? schema2020
+        : dialect === 'https://json-schema.org/draft/2019-09/schema' ? schema2019 : schemaEngine;
       try {
         if (Buffer.byteLength(JSON.stringify(schema)) > legacyLimit) throw requestError('工具 JSON Schema 超过适配上限');
-        this.validators.set(String(entry.name), schemaEngine.compile(schema));
+        this.validators.set(String(entry.name), engine.compile(schema));
       } catch {
         throw requestError('无法校验工具 JSON Schema');
-      } finally { schemaEngine.removeSchema(schema); }
+      } finally { engine.removeSchema(schema); }
     }
   }
 

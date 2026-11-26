@@ -22,3 +22,20 @@
 #list td { overflow-wrap: anywhere; }
 #list td .badge { white-space: nowrap; }
 #list td button.link { max-width: 100%; overflow-wrap: anywhere; }
+
+#nodes-panel {
+  width: fit-content;
+  max-width: 100%;
+  padding: 8px 12px;
+  margin-bottom: 12px;
+}
+
+#nodes-panel[open] { width: min(100%, 42rem); }
+#nodes-panel > summary { font-size: 14px; }
+#nodes-panel[open] > summary { margin-bottom: 8px; }
+#nodes-panel .facts {
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 100px), 1fr));
+  gap: 8px 12px;
+  margin: 8px 0;
+}
+#nodes-panel .facts dt { margin-bottom: 2px; }

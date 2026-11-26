@@ -893,6 +893,7 @@
         enabled bit not null,
         created_at datetime(6) not null,
         effect varchar(8) not null,
+        effective_at datetime(6),
         expires_at datetime(6),
         updated_at datetime(6) not null,
         principal_type varchar(16) not null,

@@ -5,10 +5,21 @@ import {
   resourceRules,
   roleResourceState,
   activeGrant,
+  grantStatus,
   mergePermissionSelection,
 } from "./permissionWorkspace.js";
 import { parseWorkspaceRoute } from "./workspaceContext.js";
 describe("unified permission workspace projections", () => {
+  it("projects the half-open authorization window", () => {
+    const effectiveAt = "2026-11-26T12:00:00Z";
+    const expiresAt = "2026-12-26T12:00:00Z";
+    const grant = { effectiveAt, expiresAt };
+    expect(grantStatus(grant, Date.parse(effectiveAt) - 1)).toBe("未生效");
+    expect(grantStatus(grant, Date.parse(effectiveAt))).toBe("使用中");
+    expect(grantStatus(grant, Date.parse(expiresAt) - 1)).toBe("即将到期");
+    expect(activeGrant(grant, Date.parse(expiresAt))).toBe(false);
+    expect(grantStatus({ ...grant, enabled: false }, Date.parse(effectiveAt))).toBe("已禁用");
+  });
   it('lists registered applications as workspace grants, including the legacy data-science permission',()=>{
     const rows=resourceCatalog({workspaces:[{workspaceId:'data-science',name:'数据车间',accessPermissionCode:'capability:data-science'},
       {workspaceId:'data-exploration',name:'数据探索',accessPermissionCode:'workspace:data-exploration:access'}],permissions:[

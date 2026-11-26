@@ -42,7 +42,7 @@
               ><span
                 :class="['permission-badge', { deny: rule.effect.toLowerCase() === 'deny' }]"
                 >{{ rule.effect.toLowerCase() === "deny" ? "拒绝" : resource.action }}</span
-              ><small>{{ activeGrant(rule) ? "规则启用" : "已停用或过期" }}</small></td
+              ><small>{{ grantStatus(rule) }}</small></td
             ><td
               >{{
                 rule.targetType === "TENANT"
@@ -118,6 +118,19 @@
           ></label
         ></div
       >
+      <div v-if="resource.backend === 'resource'" class="permission-form-grid">
+        <label>授权期限
+          <select v-model="form.grantWindow">
+            <option value="keep">沿用现有期限</option>
+            <option value="permanent">永久有效</option>
+            <option value="scheduled">指定期限</option>
+          </select>
+        </label>
+        <template v-if="form.grantWindow === 'scheduled'">
+          <label>生效时间<input v-model="form.effectiveAt" type="datetime-local" /></label>
+          <label>到期时间<input v-model="form.expiresAt" type="datetime-local" required /></label>
+        </template>
+      </div>
       <details v-if="resource.backend === 'tool'" class="permission-advanced"
         ><summary>高级范围设置</summary
         ><label

@@ -4,7 +4,7 @@ import { saveResourceAuthorization } from "../utils/permissionWrites.js";
 import { useTransientNotice } from "../utils/useTransientNotice.js";
 import { computed, ref, watch } from "vue";
 import { apiRequest, fetchRoleAuthorization, saveRoleAuthorization } from "../../services/api.js";
-import { activeGrant, resourceRules, resourceGroups } from "../utils/permissionWorkspace.js";
+import { activeGrant, grantStatus, resourceRules, resourceGroups } from "../utils/permissionWorkspace.js";
 export default {
   name: "PermissionResourceEditor",
   components: { AppConfirmDialog,},
@@ -28,6 +28,7 @@ export default {
       targetId: props.roleId,
       effect: "allow",
       scopeExpression: "",
+      grantWindow: "keep",
     });
     watch(
       () => props.resource.key,
@@ -38,6 +39,7 @@ export default {
           targetId: props.roleId,
           effect: "allow",
           scopeExpression: "",
+          grantWindow: "keep",
         };
         notice.value = "";
         source.value = "";
@@ -140,7 +142,7 @@ export default {
     }
     return {
       confirmation, settleConfirmation,
-      activeGrant,
+      grantStatus,
       busy,
       notice,
       failed,

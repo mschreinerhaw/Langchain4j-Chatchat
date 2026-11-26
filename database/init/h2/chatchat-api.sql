@@ -908,6 +908,7 @@
         enabled boolean not null,
         created_at timestamp(6) with time zone not null,
         effect varchar(8) not null,
+        effective_at timestamp(6) with time zone,
         expires_at timestamp(6) with time zone,
         updated_at timestamp(6) with time zone not null,
         principal_type varchar(16) not null,

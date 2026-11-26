@@ -35,6 +35,16 @@ export async function saveResourceAuthorization(resource, catalog, form) {
       r.effect.toLowerCase() === form.effect &&
       r.resourceId === resource.id
   );
+  let effectiveAt = existing?.effectiveAt ?? null;
+  let expiresAt = existing?.expiresAt ?? null;
+  if (form.grantWindow === "permanent") {
+    effectiveAt = null;
+    expiresAt = null;
+  } else if (form.grantWindow === "scheduled") {
+    effectiveAt = form.effectiveAt ? new Date(form.effectiveAt).toISOString() : null;
+    expiresAt = new Date(form.expiresAt).toISOString();
+    if (effectiveAt && effectiveAt >= expiresAt) throw new Error("授权生效时间必须早于到期时间");
+  }
   return apiRequest(
     "/enterprise/resource-grants" + (existing ? "/" + encodeURIComponent(existing.id) : ""),
     {
@@ -47,6 +57,8 @@ export async function saveResourceAuthorization(resource, catalog, form) {
         principalId: targetId,
         effect: form.effect.toUpperCase(),
         enabled: true,
+        effectiveAt,
+        expiresAt,
       }),
     }
   );

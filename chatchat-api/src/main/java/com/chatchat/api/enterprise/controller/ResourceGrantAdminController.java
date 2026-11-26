@@ -95,6 +95,7 @@ public class ResourceGrantAdminController {
         stored.setPrincipalId(input.getPrincipalId());
         stored.setEffect(input.getEffect());
         stored.setEnabled(input.isEnabled());
+        stored.setEffectiveAt(input.getEffectiveAt());
         stored.setExpiresAt(input.getExpiresAt());
         var saved=repository.save(stored);audit(request,"update-grant",saved);
         return ApiResponse.success(saved);
@@ -116,6 +117,9 @@ public class ResourceGrantAdminController {
         require(grant.getTenantId(), "tenantId");
         require(grant.getResourceId(), "resourceId");
         require(grant.getPrincipalId(), "principalId");
+        if (grant.getEffectiveAt() != null && grant.getExpiresAt() != null
+            && !grant.getEffectiveAt().isBefore(grant.getExpiresAt()))
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "授权生效时间必须早于到期时间");
         grant.setResourceType(normalized(grant.getResourceType(), RESOURCE_TYPES, "resourceType"));
         if(ResourceAuthorizationPort.DATA_RESOURCE.equals(grant.getResourceType())
             &&!com.chatchat.common.retrieval.AgentResourcePolicy.IDS.contains(grant.getResourceId())&&!"*".equals(grant.getResourceId()))
@@ -159,7 +163,8 @@ public class ResourceGrantAdminController {
         var log=new com.chatchat.enterprise.entity.audit.SysAuditLog();
         log.setTenantId(grant.getTenantId());log.setActorId(String.valueOf(request.getAttribute(ApiAuthenticationFilter.CURRENT_USER_ID)));
         log.setModuleName("permission-center");log.setActionName(action);log.setResourceType(grant.getResourceType());log.setResourceId(grant.getResourceId().substring(0,Math.min(64,grant.getResourceId().length())));
-        log.setDetail("resourceId="+grant.getResourceId()+", principalType="+grant.getPrincipalType()+", principalId="+grant.getPrincipalId()+", effect="+grant.getEffect());
+        log.setDetail("resourceId="+grant.getResourceId()+", principalType="+grant.getPrincipalType()+", principalId="+grant.getPrincipalId()+", effect="+grant.getEffect()
+            +", enabled="+grant.isEnabled()+", effectiveAt="+grant.getEffectiveAt()+", expiresAt="+grant.getExpiresAt());
         audits.save(log);
     }
 

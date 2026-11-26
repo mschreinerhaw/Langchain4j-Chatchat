@@ -23,8 +23,18 @@ export const permissionRouteAliases = {
 };
 export const actionLabel = (value) =>
   ({ GET: "读取", POST: "创建 / 执行", PUT: "修改", DELETE: "删除", "*": "管理" })[value] || "访问";
+export function grantStatus(grant, now = Date.now()) {
+  if (grant.enabled === false) return "已禁用";
+  if (grant.effectiveAt && !(new Date(grant.effectiveAt).getTime() <= now)) return "未生效";
+  if (grant.expiresAt) {
+    const remaining = new Date(grant.expiresAt).getTime() - now;
+    if (!(remaining > 0)) return "已过期";
+    if (remaining <= 7 * 86400000) return "即将到期";
+  }
+  return "使用中";
+}
 export function activeGrant(grant, now = Date.now()) {
-  return grant.enabled !== false && (!grant.expiresAt || new Date(grant.expiresAt).getTime() > now);
+  return ["使用中", "即将到期"].includes(grantStatus(grant, now));
 }
 export function resourceCatalog(catalog, extras = {}) {
   const workspacePermissions = new Map((catalog.workspaces || []).map(w => [w.accessPermissionCode, w]));

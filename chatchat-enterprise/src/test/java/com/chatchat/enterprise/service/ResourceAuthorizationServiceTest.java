@@ -168,6 +168,14 @@ class ResourceAuthorizationServiceTest {
         Set<String> candidates = Set.of("skill-a", "skill-b");
         assertThat(service.allowedIdsForAgent("SKILL", "tenant-1", "user-1", Set.of("other-role"), candidates, "agent-a"))
             .containsExactly("skill-a");
+        own.setEffectiveAt(java.time.Instant.now().plusSeconds(600));
+        assertThat(service.allowedIdsForAgent("SKILL", "tenant-1", "user-1", Set.of(), candidates, "agent-a")).isEmpty();
+        own.setEffectiveAt(java.time.Instant.now().minusSeconds(600));
+        own.setExpiresAt(java.time.Instant.now().minusSeconds(60));
+        assertThat(service.allowedIdsForAgent("SKILL", "tenant-1", "user-1", Set.of(), candidates, "agent-a")).isEmpty();
+        own.setExpiresAt(java.time.Instant.now().plusSeconds(600));
+        assertThat(service.allowedIdsForAgent("SKILL", "tenant-1", "user-1", Set.of(), candidates, "agent-a"))
+            .containsExactly("skill-a");
         assertThat(service.allowedIdsForAgent("SKILL", "tenant-1", "user-1", Set.of(), candidates, "agent-b")).isEmpty();
         assertThat(service.allowedIds("SKILL", "tenant-1", "user-1", Set.of(), candidates)).isEmpty();
         ResourceGrant shared = grant("skill-a", "ROLE", "analyst", "ALLOW");

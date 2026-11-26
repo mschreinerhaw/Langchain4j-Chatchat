@@ -146,22 +146,18 @@ public class ResourceAuthorizationService implements ResourceAuthorizationPort {
             boolean deny = false;
             boolean allow = catalogDefault&&validUser;
             for (ResourceGrant rule : directRules) {
-                if (!active(rule, now) || !principalMatches(rule, tenantId, userId, validUser, activeRoleIds)) continue;
+                if (!rule.activeAt(now) || !principalMatches(rule, tenantId, userId, validUser, activeRoleIds)) continue;
                 deny |= "DENY".equalsIgnoreCase(rule.getEffect());
                 allow |= "ALLOW".equalsIgnoreCase(rule.getEffect());
             }
             for (ResourceGrant rule : wildcardRules) {
-                if (!active(rule, now) || !principalMatches(rule, tenantId, userId, validUser, activeRoleIds)) continue;
+                if (!rule.activeAt(now) || !principalMatches(rule, tenantId, userId, validUser, activeRoleIds)) continue;
                 deny |= "DENY".equalsIgnoreCase(rule.getEffect());
                 allow |= "ALLOW".equalsIgnoreCase(rule.getEffect());
             }
             if (!deny && allow) allowed.add(id);
         }
         return allowed;
-    }
-
-    private boolean active(ResourceGrant rule, Instant now) {
-        return rule.isEnabled() && (rule.getExpiresAt() == null || rule.getExpiresAt().isAfter(now));
     }
 
     private ResourceGrant agentAllow(String tenantId, String roleId, String agentId) {

@@ -36,6 +36,13 @@ public class ResourceGrant extends EnterpriseAuditable {
     private String effect;
     @Column(nullable = false)
     private boolean enabled = true;
+    @Column(name = "effective_at")
+    private Instant effectiveAt;
     @Column(name = "expires_at")
     private Instant expiresAt;
+
+    public boolean activeAt(Instant now) {
+        return enabled && (effectiveAt == null || !effectiveAt.isAfter(now))
+            && (expiresAt == null || expiresAt.isAfter(now));
+    }
 }

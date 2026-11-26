@@ -1572,7 +1572,7 @@ public class EnterpriseAdminService implements ApplicationRunner {
         for (String id : candidates) {
             boolean allow = legacy.contains(id), deny = false;
             for (ResourceGrant rule : rules) {
-                if (!rule.isEnabled() || rule.getExpiresAt() != null && !rule.getExpiresAt().isAfter(now)
+                if (!rule.activeAt(now)
                     || rule.getAgentId() != null && !rule.getAgentId().isBlank()
                     || !(id.equals(rule.getResourceId()) || "*".equals(rule.getResourceId()))) continue;
                 boolean matches = switch (rule.getPrincipalType()) {

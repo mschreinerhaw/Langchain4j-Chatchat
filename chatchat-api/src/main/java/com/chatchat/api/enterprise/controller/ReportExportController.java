@@ -144,7 +144,7 @@ public class ReportExportController {
             } catch (IOException e) {
                 throw new IllegalStateException("Invalid report export policy", e);
             }
-        }, tenant).stream().findFirst().orElseGet(() -> new Policy(true, "Internal", Set.of(), 0));
+        }, tenant).stream().findFirst().orElseGet(() -> new Policy(true, "企业内部资料 · 严禁外传", Set.of(), 0));
     }
 
     private static UserView identity(HttpServletRequest request) {
@@ -162,7 +162,7 @@ public class ReportExportController {
     }
 
     private boolean allowed(UserView user, Policy policy) {
-        if (policy.version() == 0) return user.permissionCodes().contains(MANAGE_PERMISSION);
+        if (policy.roleIds().isEmpty()) return false;
         return roles.findByTenantIdOrderByRoleNameAsc(user.tenantId()).stream()
             .anyMatch(role -> "enabled".equals(role.getStatus()) && policy.roleIds().contains(role.getId())
                 && user.roleIds().contains(role.getId()));

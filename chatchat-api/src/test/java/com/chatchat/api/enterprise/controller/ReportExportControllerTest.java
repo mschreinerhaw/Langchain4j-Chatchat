@@ -22,6 +22,7 @@ import javax.imageio.ImageIO;
 import java.awt.Color;
 import java.awt.image.BufferedImage;
 import java.io.ByteArrayOutputStream;
+import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.security.MessageDigest;
@@ -60,6 +61,8 @@ class ReportExportControllerTest {
         var options = new ReportExportController.Policy(true, "内部报告", Set.of("reader"), 0);
         var page = page(650, 800);
 
+        assertThat(controller.capability(manager).getData()).isEqualTo(java.util.Map.of("allowed", false));
+        assertThat(controller.settings(manager).getData().toString()).contains("企业内部资料 · 严禁外传");
         assertThatThrownBy(() -> controller.pdf(user, "report-123", List.of(page))).isInstanceOf(ResponseStatusException.class);
         verify(audits).saveAndFlush(argThat(event -> "denied".equals(event.getResult())));
         controller.save(manager, options);
@@ -102,9 +105,10 @@ class ReportExportControllerTest {
     }
 
     @Test
-    void invalidRasterDoesNotProducePdf() {
+    void invalidRasterDoesNotProducePdf() throws IOException {
         var file = new MockMultipartFile("pages", "fake.jpg", "image/jpeg", new byte[]{1, 2, 3});
-        assertThatThrownBy(() -> controller.pdf(request("tenant-a", true), "bad-image", List.of(file)))
+        controller.save(request("tenant-a", true), new ReportExportController.Policy(false, "", Set.of("reader"), 0));
+        assertThatThrownBy(() -> controller.pdf(request("tenant-a", false, "reader"), "bad-image", List.of(file)))
             .isInstanceOf(ResponseStatusException.class);
         verify(audits).saveAndFlush(argThat(event -> "failure".equals(event.getResult())));
     }

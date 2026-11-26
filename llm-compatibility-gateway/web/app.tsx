@@ -16,7 +16,7 @@ import clineCatalog from './cline-models.json' with { type: 'json' };
 
 type Revision = { version: number; config: Config; allowedOrigins?: string[]; apiBaseUrl?: string };
 type Overview = { overview: Record<string, string | number | null>; metrics: Record<string, unknown>[]; checks: Check[]; traffic: TrafficTrend };
-type Check = { model: string; time: string; version: number; findings: Finding[] };
+type Check = { model: string; time: string; version: number; profile?: Profile; findings: Finding[] };
 type Finding = { test: string; status: string; reason: string; httpStatus?: number; suggestion?: string; clineImpact?: string; evidence?: unknown[] };
 type Trace = { stage: string; ms: number; value: any };
 const json = (data: unknown) => JSON.stringify(data, null, 2);
@@ -42,7 +42,8 @@ const emptyService = { id: '', name: '', origin: '', chatPath: '/v1/chat/complet
 const emptyModel = { alias: '', upstream: '', service: '', enabled: true, sseEnd: 'require_done', rules: [],
   capabilities: { tools: 'unverified', reasoning: 'unverified', vision: 'unverified', streaming: 'unverified' } };
 const capLabels = { configured: '已配置', supported: '已实测支持', unsupported: '已实测不支持', unverified: '未验证' };
-const capNames = { tools: '工具调用', reasoning: '推理内容', vision: '视觉输入', streaming: '流式' };
+const capNames = { tools: '工具调用', reasoning: '推理内容', vision: '视觉输入', streaming: '流式',
+  parallelTools: '并行工具调用', streamUsage: '流式用量回执' };
 
 async function api<T>(path: string, method = 'GET', body?: unknown): Promise<T> {
   const response = await fetch('/admin/' + path, { method, headers: body === undefined ? undefined : headers,
@@ -236,10 +237,11 @@ function App() {
         { title: '上游模型 ID → 支持模型', render: (_, row) => <>{row.upstream} → <strong>{row.alias}</strong></> },
         { title: '服务', dataIndex: 'service' },
         { title: '上下文 / 输出', render: (_, row) => (row.contextWindow ?? '—') + ' / ' + (row.maxOutput ?? '—') },
-        { title: '能力配置', render: (_, row) => <Space wrap>{Object.entries(row.capabilities).map(([key, value]) =>
-          <Tag key={key}>{capNames[key as keyof typeof capNames]} · {capLabels[value]}</Tag>)}</Space> },
+        { title: '能力配置', render: (_, row) => <Space wrap>{Object.entries(capNames).map(([key, label]) =>
+          <Tag key={key}>{label} · {capLabels[row.capabilities[key as keyof Model['capabilities']] ?? 'unverified']}</Tag>)}</Space> },
         { title: '规则 / 检测', render: (_, row) => <>{row.rules.length} 条<div className="muted">
-          {latest(row.alias) ? new Date(latest(row.alias)!.time).toLocaleString() + ' · v' + latest(row.alias)!.version : '未检测'}</div></> },
+          {latest(row.alias) ? new Date(latest(row.alias)!.time).toLocaleString() + ' · v' + latest(row.alias)!.version
+            + (latest(row.alias)!.version !== version ? ' · 配置已更新' : '') : '未检测'}</div></> },
         { title: '状态', render: (_, row) => <Tag color={row.enabled ? 'green' : 'default'}>{row.enabled ? '启用' : '停用'}</Tag> },
         { title: '操作', render: (_, row) => <Space>
           <Button size="small" onClick={() => setEditor({ kind: 'model', key: row.alias, value: row })}>编辑</Button>
@@ -566,23 +568,25 @@ function payload(value: any) {
 
 function Checks({ config, previous, refresh }: { config: Config; previous: Check[]; refresh: () => Promise<void> }) {
   const [alias, setAlias] = useState(config.models[0]?.alias ?? '');
+  const [profile, setProfile] = useState<Profile>('generic');
   const [results, setResults] = useState<Finding[]>();
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const controller = useRef<AbortController | null>(null);
   useEffect(() => () => controller.current?.abort(), []);
-  const report = results ?? previous.find(check => check.model === alias)?.findings ?? [];
+  const report = results ?? previous.find(check => check.model === alias && (check.profile ?? 'generic') === profile)?.findings ?? [];
   return <Space direction="vertical" size={16} className="full">
     <Card><Space wrap><ModelSelect config={config} value={alias} change={value => { controller.current?.abort(); setAlias(value); setResults(undefined); }} />
+      <Select aria-label="兼容配置" value={profile} disabled={busy} options={profileOptions} onChange={value => { setProfile(value); setResults(undefined); }} />
       <Button type="primary" disabled={!alias || busy} onClick={async () => {
         setBusy(true); setError(''); setResults([]);
         controller.current = new AbortController();
-        try { await stream('check', { alias }, controller.current.signal, row => setResults(items => [...(items ?? []), row.value])); await refresh(); }
+        try { await stream('check', { alias, profile }, controller.current.signal, row => setResults(items => [...(items ?? []), row.value])); await refresh(); }
         catch (error) { setError(controller.current.signal.aborted ? '检测已取消' : (error as Error).message); }
         finally { setBusy(false); }
       }}>{busy ? '检测中' : '运行体检'}</Button>
       <Button disabled={!busy} onClick={() => controller.current?.abort()}>取消</Button>
-      <Button disabled={!report.length} onClick={() => download('gateway-check.json', { alias, results: report.map(({ evidence: _evidence, ...item }) => item) })}>导出报告</Button>
+      <Button disabled={!report.length} onClick={() => download('gateway-check.json', { alias, profile, results: report.map(({ evidence: _evidence, ...item }) => item) })}>导出报告</Button>
     </Space></Card>
     {error && <Alert message={error} type="warning" showIcon />}
     <Card title="检测明细"><Table rowKey="test" dataSource={report} pagination={false} expandable={{
@@ -594,7 +598,7 @@ function Checks({ config, previous, refresh }: { config: Config; previous: Check
       { title: '建议', dataIndex: 'suggestion' }, { title: '本地影响', dataIndex: 'clineImpact' },
     ]} /></Card>
     {previous.length > 0 && <Card title="模型检测对比"><Table rowKey="model" dataSource={previous} columns={[
-      { title: '模型', dataIndex: 'model' }, { title: '配置版本', dataIndex: 'version' },
+      { title: '模型', dataIndex: 'model' }, { title: '配置版本', dataIndex: 'version' }, { title: '兼容配置', dataIndex: 'profile' },
       ...['PASS', 'FAIL', 'WARNING', 'UNSUPPORTED', 'UNVERIFIED'].map(status => ({
         title: status, render: (_: unknown, row: Check) => row.findings.filter(item => item.status === status).length,
       })),

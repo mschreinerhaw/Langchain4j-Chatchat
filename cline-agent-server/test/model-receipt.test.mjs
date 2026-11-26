@@ -50,6 +50,25 @@ test('missing/invalid usage remains unknown, including failed requests',()=>{
  assert.equal(events.at(-1).usage,null);assert.equal(events.at(-1).status,'SUCCEEDED');
 });
 
+test('multiline SSE counts complete provider frames once and ignores a truncated usage frame',()=>{
+ const events=[];
+ const receipt=modelReceipt({model:'test',request:'{}',emit:(_type,payload)=>events.push(payload)});
+ const frame='data: {"usage": {\r\ndata: "prompt_tokens": 12, "completion_tokens": 7}}\r\n\r\n';
+ for(const char of frame+frame+'data: {"usage":{"total_tokens":999}}')receipt.observe(Buffer.from(char));
+ receipt.finish({httpStatus:200,errorType:'TypeError',errorCode:'UPSTREAM_CONNECTION_FAILURE'});
+ receipt.finish({httpStatus:200});
+ assert.equal(events.length,2);
+ assert.equal(events[1].status,'FAILED');
+ assert.equal(events[1].usageStatus,'COMPLETE');
+ assert.equal(events[1].usage.totalTokens,19);
+ const partial=modelReceipt({model:'test',request:'{}',emit:(_type,payload)=>events.push(payload)});
+ partial.observe(Buffer.from('{"usage":{"prompt_tokens":0}}'));
+ partial.finish({httpStatus:200});
+ assert.equal(events.at(-1).usageStatus,'PARTIAL');
+ assert.equal(events.at(-1).usage.inputTokens,0);
+ assert.equal(events.at(-1).usage.totalTokens,null);
+});
+
 test('request context measures both supported provider formats without retaining content',()=>{
  const messages=[{role:'developer',content:'policy'},{role:'user',content:'old question'},
   {role:'assistant',content:'earlier answer'},{role:'tool',content:'result'},

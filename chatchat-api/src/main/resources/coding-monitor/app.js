@@ -127,12 +127,12 @@ const modelTransportErrors={UPSTREAM_TIMEOUT:'上游连接或响应超时',UPSTR
  RUNTIME_DEADLINE_EXCEEDED:'Runtime 截止时间已到',RUNTIME_TASK_STOPPED:'Runtime 已停止本次执行',
  CORE_DISCONNECTED:'Cline 连接已关闭',GATEWAY_RUNTIME_DEADLINE_EXCEEDED:'Runtime 截止时间已到',
  GATEWAY_UPSTREAM_PROTOCOL_ERROR:'Gateway 检测到上游流协议错误',GATEWAY_UPSTREAM_ERROR_EVENT:'Gateway 收到上游错误事件',
- GATEWAY_CONCURRENCY_LIMIT:'Gateway 并发额度已用完'};
+ GATEWAY_CONCURRENCY_LIMIT:'Gateway 并发额度已用完',GATEWAY_REDIRECT:'Gateway 入口返回重定向'};
 const reasoningUnknown='\u672a\u8bb0\u5f55';
 function renderModels(value,taskReasoning){
  const unique=new Map();for(const row of receiptRows(value)){const id=row.requestId||[row.attemptId,row.operationId].join(':');unique.set(id,row);}const rows=[...unique.values()];$('model-rows').replaceChildren();
- function aggregate(field){let sum=0,unknown=0;for(const row of rows){const value=row.usage?.[field];if(typeof value==='number'&&Number.isFinite(value))sum+=value;else unknown++;}return unknown?`${sum.toLocaleString()} 已确认 · ${unknown} 次未提供`:number(sum);}
- $('usage').replaceChildren(facts([['实际模型请求',number(rows.length)],['输入 Token',rows.length?aggregate('inputTokens'):'未提供'],['输出 Token',rows.length?aggregate('outputTokens'):'未提供'],['累计请求耗时',rows.length&&rows.every(row=>typeof (row.durationMs??row.durationMillis)==='number')?duration(rows.reduce((sum,row)=>sum+(row.durationMs??row.durationMillis),0)):'未提供']]));
+ function aggregate(field){let sum=0,known=0;for(const row of rows){const value=row.usage?.[field];if(Number.isSafeInteger(value)&&value>=0){sum+=value;known++;}}return !known?'未提供':known<rows.length?`${sum.toLocaleString()} 已确认 · ${rows.length-known} 次未提供`:number(sum);}
+ $('usage').replaceChildren(facts([['实际模型请求',number(rows.length)],['输入 Token',aggregate('inputTokens')],['输出 Token',aggregate('outputTokens')],['总 Token',aggregate('totalTokens')],['累计请求耗时',rows.length&&rows.every(row=>typeof (row.durationMs??row.durationMillis)==='number')?duration(rows.reduce((sum,row)=>sum+(row.durationMs??row.durationMillis),0)):'未提供']]));
  $('usage').append(facts([['\u4efb\u52a1\u601d\u8003\u5f3a\u5ea6',reasoningLabels[taskReasoning]||reasoningUnknown]]));
  for(const row of rows){const usage=row.usage||{},tr=document.createElement('tr'),model=document.createElement('td');model.append(text('span',row.providerModel||row.model||row.selectedModel||'未提供'),text('small',row.requestId||row.operationId));
   if(row.gatewayRequestId)model.append(text('small','Gateway '+row.gatewayRequestId));

@@ -50,12 +50,13 @@ function contextShape(body, request) {
 
 export function modelTransportErrorCode(error){
  if(error.code==='RUNTIME_DEADLINE_EXCEEDED'||error.code==='RUNTIME_TASK_STOPPED'||error.code==='CORE_DISCONNECTED')return error.code;
+ if(error.code==='GATEWAY_REDIRECT')return 'GATEWAY_REDIRECT';
  if(error.name==='AbortError')return 'UPSTREAM_ABORTED';
  const causes=[error.code,error.cause?.code,...(error.cause?.errors??[]).map(item=>item.code)];
  if(error.name==='TimeoutError'||causes.some(code=>['UND_ERR_CONNECT_TIMEOUT','UND_ERR_HEADERS_TIMEOUT','UND_ERR_BODY_TIMEOUT','ETIMEDOUT'].includes(code)))return 'UPSTREAM_TIMEOUT';
  if(causes.some(code=>['ENOTFOUND','EAI_AGAIN'].includes(code)))return 'UPSTREAM_DNS_FAILURE';
  if(causes.some(code=>['ECONNREFUSED','ECONNRESET','UND_ERR_SOCKET','EHOSTUNREACH','ENETUNREACH'].includes(code)))return 'UPSTREAM_CONNECTION_FAILURE';
- if(causes.some(code=>['CERT_HAS_EXPIRED','ERR_TLS_CERT_ALTNAME_INVALID','UNABLE_TO_VERIFY_LEAF_SIGNATURE','SELF_SIGNED_CERT_IN_CHAIN'].includes(code)))return 'UPSTREAM_TLS_FAILURE';
+ if(causes.some(code=>['CERT_HAS_EXPIRED','ERR_TLS_CERT_ALTNAME_INVALID','UNABLE_TO_VERIFY_LEAF_SIGNATURE','SELF_SIGNED_CERT_IN_CHAIN','DEPTH_ZERO_SELF_SIGNED_CERT','UNABLE_TO_GET_ISSUER_CERT_LOCALLY','ERR_SSL_WRONG_VERSION_NUMBER'].includes(code)))return 'UPSTREAM_TLS_FAILURE';
  return 'UPSTREAM_TRANSPORT_FAILURE';
 }
 
@@ -65,6 +66,7 @@ export function modelReceipt({model,request,body,reasoning={},emit,now=Date.now}
  let requestContext = null;
  try { requestContext = contextShape(body, request); } catch { /* Usage observation still proceeds. */ }
  let pending='',jsonBody='',usage=null,providerModel=model,responseBytes=0,finished=false,observationTruncated=false,streamError;
+ let frameLines=[],frameSize=0,discardFrame=false;
  let headersAt=null,firstBodyAt=null,lastBodyAt=null,firstDataAt=null,lastDataAt=null,firstModelDeltaAt=null;
  const MAX=4*1024*1024;
  function value(document){
@@ -74,8 +76,17 @@ export function modelReceipt({model,request,body,reasoning={},emit,now=Date.now}
   if(observed){usage={...(usage??{}),...observed};}
  }
  function line(text){
-  if(!text.startsWith('data:'))return;
-  const data=text.slice(5).trim();if(!data||data==='[DONE]')return;
+  if(text.startsWith('data:')){
+   const data=text.slice(5).replace(/^ /,'');
+   frameSize+=data.length+1;
+   if(frameSize>MAX){discardFrame=true;observationTruncated=true;frameLines=[];}
+   if(!discardFrame)frameLines.push(data);
+   return;
+  }
+  if(text!=='')return;
+  const data=discardFrame?'':frameLines.join('\n').trim();
+  frameLines=[];frameSize=0;discardFrame=false;
+  if(!data||data==='[DONE]')return;
   try{
    const frame=JSON.parse(data);
    if(frame?.error&&typeof frame.error==='object')streamError=gatewayRequestId
@@ -104,11 +115,11 @@ export function modelReceipt({model,request,body,reasoning={},emit,now=Date.now}
   const text=decoder.decode(chunk,{stream:true});
   if(jsonBody.length<MAX)jsonBody+=text.slice(0,MAX-jsonBody.length);else observationTruncated=true;
   pending+=text;
-  for(let newline;(newline=pending.indexOf('\n'))!==-1;){line(pending.slice(0,newline).trimEnd());pending=pending.slice(newline+1);}
-  if(pending.length>MAX){pending='';observationTruncated=true;}
+  for(let newline;(newline=pending.indexOf('\n'))!==-1;){line(pending.slice(0,newline).replace(/\r$/,''));pending=pending.slice(newline+1);}
+  if(pending.length>MAX){pending='';discardFrame=true;observationTruncated=true;}
  },finish({httpStatus=null,providerRequestId=null,errorType=null,errorCode=null}={}){
   if(finished)return;finished=true;
-  pending+=decoder.decode();line(pending);
+  decoder.decode();
   if(!usage)try{value(JSON.parse(jsonBody));}catch{}
   if(streamError&&!errorType){errorType='UpstreamStreamError';errorCode=streamError;}
   errorCode??=gatewayHttpError;
@@ -117,7 +128,10 @@ export function modelReceipt({model,request,body,reasoning={},emit,now=Date.now}
   const relative=at=>at===null?null:Math.max(0,at-started);
   const code=errorCode==='UPSTREAM_CONNECTION_FAILURE'&&headersAt!==null
    ?'UPSTREAM_RESPONSE_STREAM_INTERRUPTED':errorCode;
-  emit('model.request.completed',{...reasoning,requestId,model,providerModel,providerRequestId,
+  const measured=providerUsage(usage);
+  const usageStatus=measured?.totalTokens!=null?'COMPLETE'
+   :[measured?.inputTokens,measured?.outputTokens,measured?.cacheReadTokens,measured?.cacheWriteTokens,measured?.reasoningTokens].some(count=>count!=null)?'PARTIAL':'UNKNOWN';
+  emit('model.request.completed',{...reasoning,requestId,model,providerModel,providerRequestId,usageStatus,
    startedAt:new Date(started).toISOString(),finishedAt:new Date(ended).toISOString(),durationMs:Math.max(0,ended-started),
    httpStatus,status:errorType||httpStatus===null||httpStatus>=400?'FAILED':'SUCCEEDED',errorType,
    ...(gatewayRequestId?{gatewayRequestId}:{}),
@@ -125,7 +139,7 @@ export function modelReceipt({model,request,body,reasoning={},emit,now=Date.now}
    responseTiming:{headersMs:relative(headersAt),firstBodyMs:relative(firstBodyAt),lastBodyMs:relative(lastBodyAt),
     firstSseDataMs:relative(firstDataAt),lastSseDataMs:relative(lastDataAt),firstModelDeltaMs:relative(firstModelDeltaAt),
     idleAfterLastBodyMs:lastBodyAt===null?null:Math.max(0,ended-lastBodyAt)},
-   providerDispatched:httpStatus!==null?true:null,usage:providerUsage(usage),responseBytes,
+   providerDispatched:httpStatus!==null?true:null,usage:measured,responseBytes,
    responseSha256:responseHash.digest('hex'),requestSha256,requestContext,observationTruncated,source:'PROVIDER_HTTP_OBSERVATION'});
  }};
 }

@@ -89,6 +89,17 @@ api.addHook('onRequest', async (req, reply) => {
 });
 type Client = (typeof settingsValue.clients)[number];
 const identities = new WeakMap<FastifyRequest, Client>();
+const forwardingRequests = new WeakSet<FastifyRequest>();
+api.addHook('onResponse', async (req, reply) => {
+  if (req.method !== 'POST' || reply.statusCode < 400 || forwardingRequests.has(req)) return;
+  const route = req.routeOptions.url;
+  const endpoint = route && ['/v1/chat/completions', '/v1/responses', '/v1/embeddings', '/v1/messages', '/v1/messages/count_tokens'].includes(route)
+    ? route : 'unmatched';
+  try {
+    store.record(req.id, { endpoint, status: reply.statusCode, phase: 'gateway_ingress',
+      client: identities.get(req)?.id, revision: store.snapshot.version });
+  } catch { process.stderr.write('Failed to record request metadata\n'); }
+});
 let draining = false;
 const downstreamRequests = new Map<AbortController, ServerResponse>();
 function availableModels(config: Config, client: Client) {
@@ -158,6 +169,7 @@ api.post('/v1/chat/completions', async (req, reply) => {
   const start = performance.now();
   const model = visible(snapshot.config, req).find(item => item.alias === body.model);
   const service = snapshot.config.services.find(item => item.id === model?.service);
+  forwardingRequests.add(req);
   const metrics: JsonObject = { client: identity.id, profile, model: model?.alias, upstreamModel: model?.upstream,
     upstreamOrigin: service?.origin, stream: body.stream === true, revision: snapshot.version };
   const mode = lab ? 'diagnostic' : identity.mode;
@@ -205,7 +217,7 @@ api.post('/v1/chat/completions', async (req, reply) => {
     }
   } finally {
     runtime?.close();
-    try { store.record(req.id, { ...metrics, elapsedMs: Math.round(performance.now() - start),
+    try { store.record(req.id, { ...metrics, phase: 'gateway_forwarding', elapsedMs: Math.round(performance.now() - start),
       clientDisconnected: client.abort.signal.reason?.code === 'client_disconnected' }); }
     catch { process.stderr.write('Failed to record request metadata\n'); }
   }
@@ -463,7 +475,7 @@ admin.post('/admin/lab', async (req, reply) => {
 });
 admin.post('/admin/check', async (req, reply) => {
   if (checking) throw new GatewayError(429, 'check_in_progress', '已有体检任务正在运行');
-  const { alias } = z.object({ alias: z.string() }).parse(req.body);
+  const { alias, profile } = z.object({ alias: z.string(), profile: profileSchema.default('generic') }).parse(req.body);
   const snapshot = store.snapshot;
   const model = snapshot.config.models.find(item => item.alias === alias);
   const service = snapshot.config.services.find(item => item.id === model?.service);
@@ -472,9 +484,9 @@ admin.post('/admin/check', async (req, reply) => {
   const client = downstream(reply);
   try {
     client.start('application/x-ndjson; charset=utf-8');
-    const results = await diagnose(model, service, client.abort.signal, suppliedSecrets,
+    const results = await diagnose(withProfile(model, profile), service, client.abort.signal, suppliedSecrets,
       async finding => client.write(JSON.stringify({ value: finding }) + '\n'));
-    store.saveCheck(alias, snapshot.version, results);
+    store.saveCheck(alias, snapshot.version, results, profile);
   } catch (error) {
     if (!client.abort.signal.aborted) await client.write(JSON.stringify({ value: { test: '诊断', status: 'FAIL', reason: translate(error).message } }) + '\n');
   } finally { checking = false; if (client.started) client.end(); }

@@ -34,7 +34,8 @@ export const modelSchema = z.object({
   contextWindow: z.number().int().positive().optional(), maxOutput: z.number().int().positive().optional(),
   sseEnd: z.enum(['require_done', 'done_on_finished_eof']).default('require_done'),
   capabilities: z.object({ tools: capability.default('unverified'), reasoning: capability.default('unverified'),
-    vision: capability.default('unverified'), streaming: capability.default('unverified') }).default({
+    vision: capability.default('unverified'), streaming: capability.default('unverified'),
+    parallelTools: capability.optional(), streamUsage: capability.optional() }).default({
     tools: 'unverified', reasoning: 'unverified', vision: 'unverified', streaming: 'unverified',
   }),
   rules: z.array(ruleSchema).max(100).default([]),
@@ -222,11 +223,16 @@ export class Store {
       firstTokenMs: typeof row.firstTokenMs === 'number' ? row.firstTokenMs : null,
     })), range, now);
   }
-  saveCheck(model: string, version: number, findings: object) {
-    this.db.prepare('INSERT OR REPLACE INTO checks VALUES (?,?,?,?)').run(model, version, new Date().toISOString(), JSON.stringify(findings));
+  saveCheck(model: string, version: number, findings: object[], profile: Profile) {
+    // Old releases continue to read the findings array after an image rollback.
+    const recorded = findings.map((item, index) => index === 0 ? { ...item, profile } : item);
+    this.db.prepare('INSERT OR REPLACE INTO checks VALUES (?,?,?,?)').run(model, version, new Date().toISOString(), JSON.stringify(recorded));
   }
   checks() {
     return this.db.prepare('SELECT model,version,time,findings FROM checks').all()
-      .map(row => ({ ...row, findings: JSON.parse(String(row.findings)) }));
+      .map(row => {
+        const findings = JSON.parse(String(row.findings)) as Array<{ profile?: Profile }>;
+        return { ...row, profile: findings[0]?.profile ?? 'generic', findings };
+      });
   }
 }

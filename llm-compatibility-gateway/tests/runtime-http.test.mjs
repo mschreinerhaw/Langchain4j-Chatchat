@@ -19,11 +19,27 @@ test('real Gateway HTTP routes pin configuration and correlate Runtime requests'
  let release;
  const gate = new Promise(resolve => { release = resolve; });
  const mock = createServer(async (request, response) => {
+  if (request.method === 'GET') {
+   response.writeHead(200, { 'content-type': 'application/json' });
+   response.end(JSON.stringify({ data: [{ id: 'vendor/new:v2' }] }));
+   return;
+  }
   const chunks = [];
   for await (const chunk of request) chunks.push(chunk);
   const body = JSON.parse(Buffer.concat(chunks).toString());
   calls.push({ model: body.model, leakedRuntimeHeaders: Object.keys(request.headers).some(name => name.startsWith('x-runtime-')) });
   if (body.messages[0].content === 'hold') await gate;
+  if (body.stream && body.stream_options?.include_usage) {
+   response.writeHead(400, { 'content-type': 'application/json' });
+   response.end(JSON.stringify({ error: { message: 'Fixture rejects stream_options' } }));
+   return;
+  }
+  if (body.stream) {
+   response.writeHead(200, { 'content-type': 'text/event-stream' });
+   response.end('data: {"choices":[{"index":0,"delta":{"content":"OK"},"finish_reason":"stop"}]}\n\n'
+    + 'data: {"choices":[],"usage":{"prompt_tokens":2,"completion_tokens":1,"total_tokens":3}}\n\ndata: [DONE]\n\n');
+   return;
+  }
   response.writeHead(200, { 'content-type': 'application/json' });
   response.end(JSON.stringify({ model:body.model, choices:[{ index:0, finish_reason:'stop', message:{ content:'ok' } }] }));
  });
@@ -89,6 +105,44 @@ test('real Gateway HTTP routes pin configuration and correlate Runtime requests'
  assert.ok(metrics.some(row => row.id === gatewayRequestId && row.requestId === 'runtime-42' &&
   row.taskId === 'native-task' && row.sessionId === 'native-session' && row.attemptId === 'native-task-fence-1' && row.mode === 'runtime_managed'));
  assert.ok(metrics.some(row => row.mode === 'ordinary' && row.requestId === undefined));
+ const unauthorized = await chat('ingress rejection','fixture-never-store-this-token','ignored');
+ assert.equal(unauthorized.status,401);
+ const ingress = (await (await fetch(admin + '/admin/overview',{ headers:adminHeaders })).json()).metrics
+  .filter(row => row.id === unauthorized.headers.get('x-request-id'));
+ assert.equal(ingress.length,1);
+ assert.equal(ingress[0].phase,'gateway_ingress');
+ assert.ok(!JSON.stringify(ingress).includes('fixture-never-store-this-token'));
+ const check = await fetch(admin + '/admin/check', { method:'POST', headers:adminHeaders, body:JSON.stringify({ alias, profile:'cline' }) });
+ assert.equal(check.status,200);
+ const findings = (await check.text()).trim().split('\n').map(line => JSON.parse(line).value);
+ assert.equal(findings.find(row => row.test === 'SSE 流式协议').status,'PASS');
+ const usage = findings.find(row => row.test === '流式 Usage');
+ assert.equal(usage.httpStatus,400);
+ assert.match(JSON.stringify(usage.evidence),/Fixture rejects stream_options/);
+ assert.equal(findings.find(row => row.test === '流式计量完整性').reason,'UNKNOWN');
+ const saved = (await (await fetch(admin + '/admin/overview',{ headers:adminHeaders })).json()).checks.find(row => row.model === alias);
+ assert.equal(saved.profile,'cline');
+ assert.ok(saved.findings.every(finding => finding.evidence === undefined));
+ const config = configuration('vendor/new:v2');
+ config.models.push({ alias:'adapted-fixture', upstream:'vendor/new:v2', service:'fixture',
+  rules:[{ stage:'request', op:'delete', path:'stream_options' }] });
+ const revision = initial.version + 2;
+ const change = await fetch(admin + '/admin/config',{ method:'PUT', headers:adminHeaders,
+  body:JSON.stringify({ version:revision,config }) });
+ assert.equal(change.status,200,await change.text());
+ const stream = model => fetch(api + '/v1/chat/completions', { method:'POST',
+  headers:{ ...json, authorization:'Bearer fixture-runtime-key' },
+  body:JSON.stringify({ model, stream:true, stream_options:{ include_usage:true }, messages:[{role:'user',content:'check'}] }) });
+ const unaffected = await stream(alias);
+ assert.equal(unaffected.status,400);
+ await unaffected.text();
+ const adapted = await stream('adapted-fixture');
+ assert.equal(adapted.status,200);
+ assert.match(await adapted.text(),/"prompt_tokens":2,"completion_tokens":1,"total_tokens":3/);
+ const rollback = await fetch(admin + '/admin/rollback',{ method:'POST', headers:adminHeaders,
+  body:JSON.stringify({ version:revision + 1,target:revision }) });
+ assert.equal(rollback.status,200);
+ assert.ok(!(await rollback.json()).config.models.some(model => model.alias === 'adapted-fixture'));
  t.diagnostic(JSON.stringify({ taskId:'native-task', sessionId:'native-session', attemptId:'native-task-fence-1',
   requestId:'runtime-42', gatewayRequestId, oldRevision:initial.version + 1, status:old.status }));
 });

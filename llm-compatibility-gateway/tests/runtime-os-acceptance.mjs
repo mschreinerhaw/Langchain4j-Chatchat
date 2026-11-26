@@ -54,9 +54,15 @@ try {
  } while (Date.now() < timeout);
  const delivery = await json(task + '/delivery');
  const trace = await json(monitor);
+ const receipts = (trace.modelReceipts ?? []).map(row => {
+  const usage = row.usage && Object.fromEntries(['inputTokens','outputTokens','totalTokens','reasoningTokens','cacheReadTokens','cacheWriteTokens','totalSource']
+   .filter(key => Object.hasOwn(row.usage,key)).map(key => [key,row.usage[key]]));
+  return { requestId:row.requestId,gatewayRequestId:row.gatewayRequestId,model:row.model,providerModel:row.providerModel,
+   status:row.status,httpStatus:row.httpStatus,errorCode:row.errorCode,failurePhase:row.failurePhase,finishedAt:row.finishedAt,
+   durationMs:row.durationMs,responseTiming:row.responseTiming,usageStatus:row.usageStatus,usage };
+ });
  await write('outcome', result);
- await write('delivery', delivery);
- await write('monitor', trace);
+ await write('monitor', { taskId, runId, modelReceipts:receipts, executionCount:trace.executions?.length ?? 0 });
  assert.equal(result.status,scenario.expectedStatus);
  if (scenario.expectedStatus === 'CANCELLED') {
   assert.ok(cancelled && !result.executionControl.reconciliationRequired);
@@ -64,6 +70,21 @@ try {
  } else {
   assert.ok(trace.modelReceipts.some(receipt => receipt.gatewayRequestId && receipt.requestId),
    'No model receipt paired with a Gateway request ID');
+ }
+ if (scenario.expectedMinToolCalls !== undefined) {
+  assert.ok(Number.isSafeInteger(scenario.expectedMinToolCalls) && scenario.expectedMinToolCalls >= 0);
+  assert.ok(result.usage?.consumed?.toolCalls >= scenario.expectedMinToolCalls,'Missing expected Native tool calls');
+ }
+ if (scenario.requireCompleteUsage) {
+  const completed = receipts.filter(row => row.finishedAt);
+  assert.ok(completed.length > 0 && completed.length === receipts.length,'Model receipts are missing or still open');
+  assert.equal(new Set(completed.map(row => row.requestId)).size,completed.length,'Duplicate model request ID');
+  assert.ok(completed.every(row => row.requestId && Number.isSafeInteger(row.usage?.totalTokens)
+   && row.usage.totalTokens >= 0 && ['PROVIDER','SUM_OF_PROVIDER_COUNTS'].includes(row.usage.totalSource)),
+  'Model requests require provider-verified token totals');
+  assert.equal(result.usage?.meteringComplete,true,'Runtime metering is incomplete');
+  assert.equal(result.usage?.consumed?.modelTokens,completed.reduce((sum,row) => sum + row.usage.totalTokens,0),
+   'Runtime total differs from provider receipts');
  }
  const hashes = [];
  let verifiedResult = false;

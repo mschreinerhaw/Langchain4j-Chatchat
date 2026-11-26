@@ -1,0 +1,52 @@
+[data-report-chart-grid] {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 1rem;
+  align-items: start;
+}
+
+[data-report-chart-grid][data-report-chart-columns="2"] {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+[data-report-chart-grid] > [data-report-chart] {
+  min-width: 0;
+  margin: 0;
+}
+
+[data-report-chart-grid] > [data-report-chart-wide] {
+  grid-column: 1 / -1;
+}
+
+[data-report-chart] picture {
+  display: block;
+}
+
+[data-report-chart] img {
+  display: block;
+  width: var(--report-chart-image-width, 100%);
+  max-width: 100%;
+  height: auto;
+  margin-inline: auto;
+}
+
+[data-report-chart] figcaption {
+  margin-block-start: .5rem;
+  overflow-wrap: anywhere;
+}
+
+@media print {
+  [data-report-chart-grid][data-report-chart-columns="2"] {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  [data-report-chart-grid] > [data-report-chart] {
+    break-inside: avoid;
+  }
+
+  [data-report-chart] img {
+    width: auto;
+    max-height: 105mm;
+    object-fit: contain;
+  }
+}

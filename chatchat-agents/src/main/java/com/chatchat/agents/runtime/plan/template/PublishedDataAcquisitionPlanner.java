@@ -21,6 +21,17 @@ public final class PublishedDataAcquisitionPlanner {
         // a second provider for the same configured supply chain.
         selected.removeIf(n->!fixed.contains(n) && fixed.stream().anyMatch(f->
             TemplateWorkflowMetadata.suppliesBoundDiscovery(registry.getToolMetadata(f),registry.getToolMetadata(n))));
+        var plugins = TemplateWorkflowPluginRegistry.load();
+        if (configured && selected.size() == 1 && fixed.equals(selected)) {
+            TemplateWorkflowTool provider = descriptor(fixed.get(0));
+            List<String> compatibleExecutors = authorized.stream().distinct().filter(name -> {
+                if (role(name) != ToolWorkflowRole.TEMPLATE_EXECUTION) return false;
+                TemplateWorkflowTool executor = descriptor(name);
+                return plugins.resolve(executor).filter(plugin -> plugin.accepts(provider, executor)).isPresent();
+            }).toList();
+            if (compatibleExecutors.size() != 1) return unavailable("MISSING_OR_AMBIGUOUS_AUTHORIZED_TEMPLATE_EXECUTOR");
+            selected.add(compatibleExecutors.get(0));
+        }
         List<String> discoveries=selected.stream().filter(n->role(n)==ToolWorkflowRole.TEMPLATE_DISCOVERY).toList();
         List<String> executions=selected.stream().filter(n->role(n)==ToolWorkflowRole.TEMPLATE_EXECUTION).toList();
         // Multiple authorities or required operations need semantic planning. Optional unrelated
@@ -31,7 +42,7 @@ public final class PublishedDataAcquisitionPlanner {
         if((configured || authorized.size()>2) && TemplateWorkflowMetadata.fixedScope(metadata).isEmpty()) return unavailable("NO_FIXED_PUBLICATION_AUTHORITY");
         if(metadata!=null && metadata.getParameters()!=null && metadata.getParameters().stream().anyMatch(p->p!=null && "stage".equals(p.getName()) && p.getEnumValues()!=null && Arrays.asList(p.getEnumValues()).contains("asset"))) return unavailable("UNBOUND_STAGED_DISCOVERY");
         TemplateWorkflowTool provider=descriptor(discovery),executor=descriptor(execution);
-        var plugin=TemplateWorkflowPluginRegistry.load().resolve(executor).orElse(null);
+        var plugin=plugins.resolve(executor).orElse(null);
         if(plugin==null || !plugin.accepts(provider,executor)) return unavailable("INCOMPATIBLE_EXECUTION_PROTOCOL");
         boolean publicationOwnsTargets = TemplateWorkflowMetadata.fixedScope(metadata)
             .filter(scope -> TemplateWorkflowMetadata.templateOwnsTarget(scope.assetType())).isPresent();

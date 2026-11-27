@@ -76,6 +76,19 @@ public class PublishedTemplateSupplyTest {
         when(registry.getToolMetadata(EXECUTE)).thenReturn(ToolMetadata.builder().metadata(Map.of("workflowContract",ToolWorkflowContract.declaration(ToolWorkflowRole.TEMPLATE_EXECUTION,"mcp.ssh-template.v1","executionContext"))).build());
         assertThat(new com.chatchat.agents.runtime.plan.template.PublishedDataAcquisitionPlanner(registry).compile("Inspect",List.of(CHILD,EXECUTE),List.of(CHILD,EXECUTE))).isNull();
     }
+
+    @Test void configuredFixedPublicationIncludesItsUniqueAuthorizedExecutor() {
+        var registry = registry(true);
+        var planner = new com.chatchat.agents.runtime.plan.template.PublishedDataAcquisitionPlanner(registry);
+        var plan = planner.compile("Inspect InnoDB", List.of(CHILD, BRIDGE, EXECUTE, "unrelated_tool"), List.of(CHILD));
+        assertThat(plan).isNotNull();
+        assertThat(plan.steps()).extracting(InterpretationPlan.Step::toolName).containsExactly(CHILD, EXECUTE, "");
+        assertThat(plan.steps().get(2).dependsOn()).containsExactly(plan.steps().get(1).id());
+        assertThat(planner.compile("Inspect InnoDB", List.of(CHILD, BRIDGE), List.of(CHILD))).isNull();
+        var executorMetadata = registry.getToolMetadata(EXECUTE);
+        when(registry.getToolMetadata("other_executor")).thenReturn(executorMetadata);
+        assertThat(planner.compile("Inspect InnoDB", List.of(CHILD, EXECUTE, "other_executor"), List.of(CHILD))).isNull();
+    }
     @Test void fixedBindingPreservesExplicitAssetStageWithoutRestoringGenericTemplateSearch() {
         for (boolean nested : List.of(false, true)) {
             var registry=registry(nested);

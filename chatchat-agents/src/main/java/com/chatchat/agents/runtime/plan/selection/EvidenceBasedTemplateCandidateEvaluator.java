@@ -62,7 +62,7 @@ public final class EvidenceBasedTemplateCandidateEvaluator {
         }
         Object parameterProtocols = metadata.get("parameterProtocols");
         List<Map<String, Object>> reviewedInvocations = parameterProtocolInvocations(
-            parameterProtocols, projection.selectedIds());
+            parameterProtocols, projection.selectedIds(), Boolean.TRUE.equals(metadata.get("publishedDataSupply")));
         if (!(parameterProtocols instanceof Iterable<?>)) {
             reviewedInvocations = reviewedInvocations(
                 metadata.get("nextActions"), projection.selectedIds());
@@ -309,7 +309,8 @@ public final class EvidenceBasedTemplateCandidateEvaluator {
     /** Converts reviewed parameter protocols into executor-neutral invocation intents.
      * The execution bridge re-verifies every evidence pointer and applies all omitted defaults. */
     private List<Map<String, Object>> parameterProtocolInvocations(Object value,
-                                                                    List<String> selectedIds) {
+                                                                    List<String> selectedIds,
+                                                                    boolean publisherOwned) {
         Set<String> admitted = selectedIds == null ? Set.of() : selectedIds.stream()
             .map(this::normalize)
             .collect(java.util.stream.Collectors.toUnmodifiableSet());
@@ -340,9 +341,8 @@ public final class EvidenceBasedTemplateCandidateEvaluator {
             invocations.add(Map.copyOf(invocation));
             coveredTemplates.add(normalizedId);
         }
-        // A partial protocol set must never discard selected siblings whose defaults may be
-        // sufficient. Fall back to the normal deterministic batch compiler in that case.
-        return coveredTemplates.equals(admitted) ? List.copyOf(invocations) : List.of();
+        // The published batch compiler retains all admitted templates, including those without a proposal.
+        return publisherOwned || coveredTemplates.equals(admitted) ? List.copyOf(invocations) : List.of();
     }
 
     @SuppressWarnings("unchecked")

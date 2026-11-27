@@ -250,54 +250,56 @@ class ToolResultReviewBranchTest {
 
     @ParameterizedTest
     @ValueSource(booleans = {true, false})
-    void optedInAgentUsesClineProposalsBeforeAuthorizingTemplateInvocations(boolean complete) {
-        metadata("template_query", Map.of(
-            ToolWorkflowContract.METADATA_KEY,
+    void fixedPublicationAdmitsTemplatesWithoutModelSelection(boolean hasRequiredParameter) {
+        metadata("template_query", Map.of(ToolWorkflowContract.METADATA_KEY,
             ToolWorkflowContract.declaration(ToolWorkflowRole.TEMPLATE_DISCOVERY, "fixture", "template_query.v1"),
             com.chatchat.common.mcp.capability.McpTemplateSelectionScope.METADATA_KEY,
-            com.chatchat.common.mcp.capability.McpTemplateSelectionScope.fixedBinding("api").toMetadata()));
+            com.chatchat.common.mcp.capability.McpTemplateSelectionScope.fixedBinding("sql_datasource").toMetadata()));
         var parameters = mock(com.chatchat.agents.orchestration.tool.ClineTemplateParameterPort.class);
         when(parameters.enabledFor("agent")).thenReturn(true);
-        var scope = new com.chatchat.common.kernel.KernelDataScope("tenant", "user", "request", "conversation", "run", null, Map.of());
-        var schema = Map.of("type", "object", "properties", Map.of("limit", Map.of("type", "integer", "default", 10)));
-        var protocol = Map.<String,Object>of("protocol_version", "template_parameter_protocol_v2",
-            "template_id", "orders", "arguments", Map.of("limit", Map.of("value", 3, "source", "user_query",
-                "evidence", Map.of("quote", "three", "interpretation", "model"))), "unresolved_parameters", List.of());
-        when(parameters.propose(eq(scope), eq("model"), eq(1), eq("Show three orders"),
-            eq(List.of(Map.of("templateId", "orders", "title", "", "description", "", "parameterSchema", schema))),
-            eq(com.chatchat.agents.orchestration.tool.ClineTemplateParameterPort.Selection.ALL_PUBLISHED), any()))
-            .thenReturn(complete ? List.of(protocol) : List.of());
         var engine = engine();
         engine.setClineTemplateParameterPort(parameters);
-        var output = Map.of("templates", List.of(Map.of("templateId", "orders", "parameterSchema", schema,
-            "executionContext", Map.of("assetId", "runtime-only"))));
-        var review = engine.reviewInterpretationPlanToolResult(model, "Show three orders", null, () -> false,
+        var scope = new com.chatchat.common.kernel.KernelDataScope("tenant", "user", "request", "conversation", "run", null, Map.of());
+        var schema = hasRequiredParameter
+            ? Map.of("type", "object", "properties", Map.of("period", Map.of("type", "string")), "required", List.of("period"))
+            : Map.of("type", "object", "properties", Map.of());
+        var protocol = Map.<String, Object>of("template_id", "innodb", "protocol_version", "template_parameter_protocol_v2",
+            "arguments", Map.of("period", Map.of("value", "2026-11", "source", "user_query",
+                "evidence", Map.of("quote", "2026-11"))), "unresolved_parameters", List.of());
+        if (hasRequiredParameter) {
+            when(parameters.propose(eq(scope), eq("model"), eq(1), eq("Inspect InnoDB in 2026-11"), anyList(),
+                eq(com.chatchat.agents.orchestration.tool.ClineTemplateParameterPort.Selection.ALL_PUBLISHED), any()))
+                .thenReturn(List.of(protocol));
+        }
+        var output = Map.of("publicationScope", Map.of("completeSupply", true),
+            "templates", List.of(Map.of("templateId", "innodb", "supplyMode", "REQUIRED",
+                "parameterSchema", schema), Map.of("templateId", "buffer_pool", "supplyMode", "REQUIRED")));
+        var review = engine.reviewInterpretationPlanToolResult(model, "Inspect InnoDB in 2026-11", null, () -> false,
             new InterpretationPlanRuntime.StepReviewRequest(null, null, execution("template_query", true, output),
                 Map.of(), 1, 1), Map.of("authorizationAgentId", "agent"), scope, "model");
-        if (complete) {
+        assertThat(review.metadata()).containsEntry("candidateDecisionOwner", "PUBLISHER")
+            .containsEntry("selectedTemplateIds", List.of("innodb", "buffer_pool"));
+        if (hasRequiredParameter) {
             var reviewed = new LinkedHashMap<>(protocol);
             reviewed.put("binding_status", "READY");
             assertThat(review.metadata()).containsEntry("parameterProtocols", List.of(reviewed));
-            var projected = new com.chatchat.agents.runtime.plan.selection.EvidenceBasedTemplateCandidateEvaluator()
-                .evaluate(output, review.metadata());
-            assertThat(projected.selectedIds()).containsExactly("orders");
-            assertThat(projected.output().toString()).contains("reviewedInvocations", "value=3");
+            verify(parameters).propose(eq(scope), eq("model"), eq(1), eq("Inspect InnoDB in 2026-11"),
+                eq(List.of(Map.of("templateId", "innodb", "title", "", "description", "", "parameterSchema", schema))),
+                eq(com.chatchat.agents.orchestration.tool.ClineTemplateParameterPort.Selection.ALL_PUBLISHED), any());
         } else {
-            assertThat(review.metadata()).containsEntry("candidateDecisionOwner", "PUBLISHER")
-                .containsEntry("selectedTemplateIds", List.of("orders"));
+            assertThat(review.metadata()).doesNotContainKey("parameterProtocols");
+            verifyNoInteractions(parameters);
         }
         verifyNoInteractions(model);
     }
 
-    @Test void fixedPublicationRetainsTwentyRequiredTemplatesWhenParameterProposalFails() {
+    @Test void fixedPublicationRetainsEveryRequiredTemplateWithoutInvokingCline() {
         metadata("template_query", Map.of(ToolWorkflowContract.METADATA_KEY,
             ToolWorkflowContract.declaration(ToolWorkflowRole.TEMPLATE_DISCOVERY, "fixture", "template_query.v1"),
             com.chatchat.common.mcp.capability.McpTemplateSelectionScope.METADATA_KEY,
             com.chatchat.common.mcp.capability.McpTemplateSelectionScope.fixedBinding("api_service").toMetadata()));
         var parameters = mock(com.chatchat.agents.orchestration.tool.ClineTemplateParameterPort.class);
         when(parameters.enabledFor("agent")).thenReturn(true);
-        when(parameters.propose(any(), any(), anyInt(), any(), anyList(), any(), any()))
-            .thenThrow(new IllegalStateException("Proposal unavailable"));
         var scope = new com.chatchat.common.kernel.KernelDataScope("tenant", "user", "request", "conversation", "run", null, Map.of());
         var engine = engine();
         engine.setClineTemplateParameterPort(parameters);
@@ -312,6 +314,7 @@ class ToolResultReviewBranchTest {
             templates.subList(0, 20).stream().map(value -> value.get("templateId")).toList());
         assertThat(review.metadata()).containsEntry("publishedOptionalTemplateIds",
             templates.subList(20, 30).stream().map(value -> value.get("templateId")).toList());
+        verifyNoInteractions(parameters, model);
     }
 
     @ParameterizedTest

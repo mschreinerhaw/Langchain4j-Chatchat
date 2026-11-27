@@ -5739,6 +5739,14 @@ public class InterpretationPlanRuntime extends AbstractRuntimeWorkflow<Interpret
             ? reviewedBindings
             : selectedIds.stream().map(templateId -> Map.<String, Object>of(
                 "templateId", templateId)).toList();
+        if (publishedSupply(reviewedSelection)) {
+            compilationBindings = selectedIds.stream().flatMap(templateId -> {
+                var bindings = reviewedBindings.stream().filter(binding -> templateId.equals(canonicalTemplateId(
+                    firstMapValue(binding, "templateId", "template_id", "template")))).toList();
+                return bindings.isEmpty() ? java.util.stream.Stream.of(Map.<String, Object>of("templateId", templateId))
+                    : bindings.stream();
+            }).toList();
+        }
         compilationBindings = bindReviewedTemplatesToSelectedAssets(compilationBindings,
             runtimeSelectedAssetContexts(workflowAncestorExecutions(step, plan, completed)), reviewedSelection);
         List<InterpretationPlan.DiagnosticCheck> checks = requiredChecksForStep(step, plan);

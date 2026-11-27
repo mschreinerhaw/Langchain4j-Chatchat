@@ -4123,11 +4123,21 @@ class AgentOrchestrationEngine implements AgentRunExecutor, ResumableAgentRunExe
         List<String> returned = candidates.stream()
             .map(item -> stringValue(firstObject(item, "templateId", "template_id", "id")))
             .filter(Objects::nonNull).distinct().toList();
-        String agentId = attributes == null ? null : stringValue(attributes.get("authorizationAgentId"));
-        if (scope != null && clineTemplateParameters != null && !returned.isEmpty()
-            && (!fixedScope || returned.size() <= ToolCallBatchSchema.DEFAULT_MAX_CALLS
-                && clineTemplateParameters.enabledFor(agentId))) {
-            return reviewClineTemplates(execution, query, attributes, scope, modelName, cancelled, fixedScope, candidates);
+        if (fixedScope && !returned.isEmpty()) {
+            var admission = publishedTemplateAdmission(returned);
+            var parameterized = candidates.stream().filter(candidate -> {
+                var schema = asMap(firstObject(candidate, "parameterSchema", "inputSchema", "schema"));
+                return !asMap(schema.get("properties")).isEmpty() || !stringList(schema.get("required")).isEmpty();
+            }).toList();
+            String agentId = attributes == null ? null : stringValue(attributes.get("authorizationAgentId"));
+            if (scope != null && clineTemplateParameters != null && !parameterized.isEmpty()
+                && parameterized.size() <= ToolCallBatchSchema.DEFAULT_MAX_CALLS && clineTemplateParameters.enabledFor(agentId)) {
+                return reviewClineTemplateParameters(execution, query, attributes, scope, modelName, cancelled, parameterized, admission);
+            }
+            return admission;
+        }
+        if (!fixedScope && scope != null && clineTemplateParameters != null && !returned.isEmpty()) {
+            return reviewClineTemplateParameters(execution, query, attributes, scope, modelName, cancelled, candidates, null);
         }
         Map<String, Object> prior = execution.metadata();
         List<String> selected = stringList(firstObject(prior,
@@ -4144,9 +4154,6 @@ class AgentOrchestrationEngine implements AgentRunExecutor, ResumableAgentRunExe
             reused.put("candidateDecisionOwner", "MODEL");
             reused.put("toolResultReviewModelCalls", 0);
             return InterpretationPlanRuntime.StepReview.accepted("Reuse recorded template selection.", reused);
-        }
-        if (fixedScope && !returned.isEmpty()) {
-            return publishedTemplateAdmission(returned);
         }
         String code = returned.isEmpty() ? "NO_MATCH" : "TEMPLATE_SELECTION_REQUIRED";
         String reason = switch (code) {
@@ -4178,12 +4185,10 @@ class AgentOrchestrationEngine implements AgentRunExecutor, ResumableAgentRunExe
         return InterpretationPlanRuntime.StepReview.accepted("Admit Runtime's published templates.", admission);
     }
 
-    private InterpretationPlanRuntime.StepReview reviewClineTemplates(
+    private InterpretationPlanRuntime.StepReview reviewClineTemplateParameters(
             InterpretationPlanRuntime.StepExecution execution, String query, Map<String, Object> attributes,
-            KernelDataScope scope, String modelName, BooleanSupplier cancelled, boolean fixedScope,
-            List<Map<String, Object>> candidates) {
-        var selection = fixedScope ? ClineTemplateParameterPort.Selection.ALL_PUBLISHED
-            : ClineTemplateParameterPort.Selection.MATCHING_CANDIDATES;
+            KernelDataScope scope, String modelName, BooleanSupplier cancelled,
+            List<Map<String, Object>> candidates, InterpretationPlanRuntime.StepReview publishedAdmission) {
         try {
             Map<String, Map<String, Object>> descriptors = new LinkedHashMap<>();
             for (var candidate : candidates) {
@@ -4197,6 +4202,8 @@ class AgentOrchestrationEngine implements AgentRunExecutor, ResumableAgentRunExe
                 if (previous != null && !previous.equals(descriptor))
                     throw new IllegalArgumentException("Ambiguous template descriptor");
             }
+            var selection = publishedAdmission == null ? ClineTemplateParameterPort.Selection.MATCHING_CANDIDATES
+                : ClineTemplateParameterPort.Selection.ALL_PUBLISHED;
             var proposals = clineTemplateParameters.propose(scope, modelName, execution.stepId(),
                 query, List.copyOf(descriptors.values()), selection, cancelled);
             List<String> selected = proposals.stream()
@@ -4211,21 +4218,19 @@ class AgentOrchestrationEngine implements AgentRunExecutor, ResumableAgentRunExe
                 reviewed.put("binding_status", "READY");
                 protocols.add(Map.copyOf(reviewed));
             });
-            if (fixedScope) {
-                descriptors.keySet().stream().filter(id -> !distinct.contains(id)).forEach(id ->
-                    protocols.add(Map.of("template_id", id, "binding_status", "READY",
-                        "protocol_version", "template_parameter_protocol_v2", "arguments", Map.of(),
-                        "unresolved_parameters", List.of())));
-                selected = List.copyOf(descriptors.keySet());
-            }
             recordLifecyclePhase(attributes, null, "template_parameters",
                 "Native Cline returned template parameter proposals before data execution.",
                 Map.of("eventKind", "CLINE_TEMPLATE_PARAMETERS", "eventState", "COMPLETED",
                     "stepId", execution.stepId(), "templateCount", selected.size()));
+            if (publishedAdmission != null) {
+                var metadata = new LinkedHashMap<>(publishedAdmission.metadata());
+                metadata.put("parameterProtocols", List.copyOf(protocols));
+                return InterpretationPlanRuntime.StepReview.accepted("Admit published templates with Cline's parameter proposals.", metadata);
+            }
             return InterpretationPlanRuntime.StepReview.accepted("Cline selected authorized templates and supplied parameters.",
-                Map.of("candidateDecisionOwner", fixedScope ? "PUBLISHER" : "CLINE",
+                Map.of("candidateDecisionOwner", "CLINE",
                     "candidateSelectionStatus", "SELECTED",
-                    "publishedDataSupply", fixedScope,
+                    "publishedDataSupply", false,
                     "selectedTemplateIds", selected,
                     "parameterProtocols", List.copyOf(protocols),
                     "toolResultReviewMode", "CLINE_TEMPLATE_PARAMETERS",
@@ -4236,12 +4241,7 @@ class AgentOrchestrationEngine implements AgentRunExecutor, ResumableAgentRunExe
         } catch (RuntimeException unavailable) {
             log.warn("Cline template parameter task failed: stepId={}, errorType={}",
                 execution.stepId(), unavailable.getClass().getSimpleName());
-            if (fixedScope) {
-                List<String> required = candidates.stream()
-                    .map(candidate -> stringValue(firstObject(candidate, "templateId", "template_id", "id")))
-                    .filter(Objects::nonNull).distinct().toList();
-                return publishedTemplateAdmission(required);
-            }
+            if (publishedAdmission != null) return publishedAdmission;
             return InterpretationPlanRuntime.StepReview.accepted("Cline parameter proposals unavailable.", Map.of(
                 "candidateSelectionErrorCode", "CLINE_TEMPLATE_PARAMETERS_UNAVAILABLE",
                 "candidateSelectionError", "Cline did not return a complete parameter proposal.",

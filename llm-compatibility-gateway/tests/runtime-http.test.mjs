@@ -30,8 +30,9 @@ test('real Gateway HTTP routes pin configuration and correlate Runtime requests'
   calls.push({ model: body.model, leakedRuntimeHeaders: Object.keys(request.headers).some(name => name.startsWith('x-runtime-')) });
   if (body.messages[0].content === 'hold') await gate;
   if (body.stream && body.stream_options?.include_usage) {
-   response.writeHead(400, { 'content-type': 'application/json' });
-   response.end(JSON.stringify({ error: { message: 'Fixture rejects stream_options' } }));
+   response.writeHead(400, { 'content-type': 'application/json', 'x-request-id':'upstream-fixture-400' });
+   response.end(JSON.stringify({ error: { message: 'Fixture rejects stream_options\nAuthorization: Bearer sk-fixture-secret',
+    code:'unsupported_parameter', param:'stream_options' }, request:{ message:'private fixture payload' } }));
    return;
   }
   if (body.stream) {
@@ -136,6 +137,13 @@ test('real Gateway HTTP routes pin configuration and correlate Runtime requests'
  const unaffected = await stream(alias);
  assert.equal(unaffected.status,400);
  await unaffected.text();
+ const logged = await readFile(join(root, 'model-errors.ndjson'), 'utf8');
+ const error = logged.trim().split('\n').map(line=>JSON.parse(line))
+  .find(row=>row.gatewayRequestId===unaffected.headers.get('x-request-id'));
+ assert.equal(error.upstreamRequestId,'upstream-fixture-400');
+ assert.equal(error.upstreamError.code,'unsupported_parameter');
+ assert.equal(error.upstreamError.message,'Fixture rejects stream_options');
+ assert.doesNotMatch(logged,/sk-fixture-secret|private fixture payload/);
  const adapted = await stream('adapted-fixture');
  assert.equal(adapted.status,200);
  assert.match(await adapted.text(),/"prompt_tokens":2,"completion_tokens":1,"total_tokens":3/);

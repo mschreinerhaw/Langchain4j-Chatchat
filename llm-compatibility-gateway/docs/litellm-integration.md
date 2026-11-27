@@ -74,3 +74,9 @@ docker compose --env-file deploy/litellm/images.env -f deploy/litellm/compose.ym
 - 在生产 Runtime 和 Cline 联合验收中，对 `litellm-live-4wp8fj8_` 的首次流请求注入 HTTP 503（Gateway 请求 `b853863d-95bd-457d-aa21-f44676251182`）。后续请求成功，任务为 `COMPLETED`，归档结果仍为 3 行、合计 42。临时模型已移除。
 
 生产网关和默认模型继续使用原配置。503 恢复覆盖单次模型请求故障，Worker 重启后的任务恢复和发布镜像签名及系统依赖复核仍待验收。
+
+## 模型错误文件和参考用量
+
+直连、CUSTOM 和 FRAMEWORK 的模型响应错误均写入 Gateway 数据卷的 `model-errors.ndjson`（默认 `/app/data/model-errors.ndjson`）。使用 `gatewayRequestId`、上游请求 ID、模型别名、Runtime 任务标识和 HTTP/SSE 错误码关联排查。日志只取结构化错误码、字段名和脱敏后的首行消息。文件权限为 0600，约 8 MiB 轮转，保留一个旧文件。读不到原始错误体时仍记录响应状态。
+
+FRAMEWORK 返回的 Usage 在 Gateway 指标中标记 `FRAMEWORK_UNVERIFIED`，供排查使用。普通调用可收到该值，Runtime Managed 链路保留现有记账边界，由 Cline 决定是否展示自身估算。缺少 Usage 不影响模型调用。

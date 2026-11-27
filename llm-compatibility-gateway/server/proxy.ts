@@ -3,6 +3,7 @@ import { openUpstream } from '../adapters/upstream.js';
 import { applyRules, isObject, headerName, type JsonObject } from '../protocol/rules.js';
 import { eventText, readEvents, protocolError } from '../protocol/sse.js';
 import { litellmRequest, litellmUsageBoundary } from '../protocol/litellm.js';
+import { modelErrorFields } from './upstream-error-log.js';
 import { protocolRequest, ResponseProtocol } from '../protocol/compat.js';
 import type { Protocol } from '../protocol/compat-schema.js';
 import { GatewayError, limits, diagnosticTimeouts, type Model, type Service } from './config.js';
@@ -128,6 +129,7 @@ export async function proxy(options: {
   body: JsonObject; model: Model; service: Service; signal: AbortSignal;
   writer: StreamWriter; trace?: Trace; direct?: boolean; headers?: JsonObject; secrets?: string[];
   onForward?: (body: JsonObject, upstreamModel: string, origin: string, path: string) => void;
+  onUpstreamError?: (record: JsonObject) => Promise<void>;
   metrics: JsonObject; mode?: 'ordinary' | 'runtime_managed' | 'diagnostic';
 }) {
   const { body, model, service, signal, writer, trace, direct = false, headers, metrics } = options;
@@ -140,10 +142,12 @@ export async function proxy(options: {
   let upstream: ReturnType<typeof openUpstream> | undefined;
   const secrets = [...(options.secrets ?? []), service.apiKey ?? ''];
   const report: Trace = async (stage, value) => { if (trace) await trace(stage, redact(value, secrets)); };
+  let failureBody: unknown;
   try {
     await report('client', body);
     const configured = { ...service.protocol, ...model.protocol };
     const viaFramework = service.framework === 'litellm';
+    const hideUsage = viaFramework && options.mode === 'runtime_managed';
     const engine = viaFramework ? 'FRAMEWORK' : direct ? 'DIRECT' : processingMode(model, configured);
     metrics.processingMode = engine;
     const protocol = engine === 'DIRECT' ? {} : configured;
@@ -163,12 +167,18 @@ export async function proxy(options: {
     const result = await upstream.response;
     const status = result.statusCode;
     metrics.upstreamStatus = status;
+    if (typeof result.headers['x-request-id'] === 'string'
+      && /^[A-Za-z0-9_.:-]{1,128}$/.test(result.headers['x-request-id']))
+      metrics.upstreamRequestId = result.headers['x-request-id'];
     if (status < 200 || status >= 300) {
-      if (trace) {
-        const raw = await readText(result.body, 256_000);
-        let parsed: unknown = raw;
-        try { parsed = JSON.parse(raw); } catch { /* Retain text in the ephemeral trace. */ }
-        await report('upstream_response', { status, body: parsed });
+      if (trace || options.onUpstreamError) {
+        const timer = AbortSignal.timeout(1000);
+        const raw = await Promise.race([
+          readText(result.body, 24_000, upstream.stopFirstTimer).catch(() => ''),
+          new Promise<string>(resolve => timer.addEventListener('abort', () => resolve(''), { once:true })),
+        ]);
+        try { failureBody = JSON.parse(raw); } catch { /* Only structured fields go to disk. */ }
+        await report('upstream_response', { status, body: failureBody ?? raw });
       }
       if (status >= 300 && status < 400) throw protocolError('上游重定向已拒绝');
       throw new GatewayError(status >= 400 && status <= 599 ? status : 502, 'upstream_http_error', `上游返回 HTTP ${status}`);
@@ -177,10 +187,11 @@ export async function proxy(options: {
       const rawText = await readText(result.body, bounds.responseBytes, upstream.stopFirstTimer);
       if (trace) await report('upstream_response', { status, body: rawText });
       const raw = parseObject(rawText);
-      const data = adapt(viaFramework ? litellmUsageBoundary(raw) : raw, activeModel, 'response', direct, response);
-      if (viaFramework) litellmUsageBoundary(data);
+      if (raw.error != null) failureBody = raw;
+      const data = adapt(raw, activeModel, 'response', direct, response);
       response.assertFinished();
-      recordUsage(metrics, data.usage);
+      recordUsage(metrics, data.usage, viaFramework);
+      if (hideUsage) litellmUsageBoundary(data);
       await report('gateway', { status, body: data });
       return { status, data };
     }
@@ -201,7 +212,10 @@ export async function proxy(options: {
       upstream.stopFirstTimer();
       const eventName = event.other.filter(line => line.startsWith('event:')).at(-1)?.slice(6).trim();
       const terminal = Boolean(eventName && eventName === protocol.doneEvent);
-      if (eventName === 'error') throw new GatewayError(502, 'upstream_error_event', '上游发送了 SSE 错误事件');
+      if (eventName === 'error') {
+        try { failureBody = JSON.parse(event.data ?? ''); } catch { /* Skip unstructured text. */ }
+        throw new GatewayError(502, 'upstream_error_event', '上游发送了 SSE 错误事件');
+      }
       if (event.data === undefined && !terminal) { await send(eventText(event)); continue; }
       await report('upstream_response', { status, event: event.data, fields: event.other });
       if (terminal || event.data?.trim() === '[DONE]') {
@@ -209,6 +223,7 @@ export async function proxy(options: {
         response.assertFinished();
         if (terminal && event.data && event.data.trim() !== '[DONE]') {
           const marker = parseObject(event.data);
+          if (marker.error != null) failureBody = marker;
           if (marker.error != null || (Array.isArray(marker.choices) && marker.choices.length))
             throw protocolError('上游结束事件包含错误或尚未处理的输出');
           const usage = response.normalize(marker, true, eventName);
@@ -223,8 +238,10 @@ export async function proxy(options: {
         break;
       }
       const raw = parseObject(event.data!);
-      const data = adapt(viaFramework ? litellmUsageBoundary(raw) : raw, activeModel, 'sse', direct, response, eventName);
-      if (viaFramework) {
+      if (raw.error != null) failureBody = raw;
+      const data = adapt(raw, activeModel, 'sse', direct, response, eventName);
+      recordUsage(metrics, data.usage, viaFramework);
+      if (hideUsage) {
         litellmUsageBoundary(data);
         if (!(data.choices as JsonObject[]).length) continue;
       }
@@ -242,7 +259,6 @@ export async function proxy(options: {
           metrics.firstTokenMs = Math.round(performance.now() - start);
         }
       }
-      recordUsage(metrics, data.usage);
       if ((protocol.usage || protocol.usageEvent) && !choices.length && isObject(data.usage)) {
         const fingerprint = JSON.stringify(data.usage);
         if (fingerprint === lastUsageFrame) continue;
@@ -256,6 +272,16 @@ export async function proxy(options: {
     return { status, data: undefined };
   } catch (error) {
     if (signal.aborted) throw signal.reason;
+    if (upstream && options.onUpstreamError) {
+      const failure = translate(error);
+      await options.onUpstreamError({
+        ...Object.fromEntries(['taskId', 'sessionId', 'attemptId', 'runtimeRequestId', 'requestId', 'upstreamRequestId',
+          'upstreamStatus', 'processingMode', 'mode'].filter(key => metrics[key] !== undefined).map(key => [key, metrics[key]])),
+        model: model.alias, upstreamModel: model.upstream, upstreamOrigin: upstream.url.origin,
+        code: failure.code, status: failure.status,
+        upstreamError: modelErrorFields(redact(failureBody, secrets)),
+      });
+    }
     throw error;
   } finally {
     try { await upstream?.close(); }
@@ -268,14 +294,16 @@ export async function proxy(options: {
   }
 }
 
-function recordUsage(metrics: JsonObject, usage: unknown) {
+function recordUsage(metrics: JsonObject, usage: unknown, viaFramework = false) {
   if (isObject(usage)) {
     const numeric = Object.fromEntries(Object.entries(usage).filter(([key, value]) =>
       ['prompt_tokens', 'completion_tokens', 'total_tokens'].includes(key) && typeof value === 'number' && Number.isSafeInteger(value) && value >= 0));
     if (Object.keys(numeric).length) {
       const merged = { ...(isObject(metrics.usage) ? metrics.usage : {}), ...numeric };
       metrics.usage = merged;
-      metrics.usageStatus = merged.total_tokens != null || (merged.prompt_tokens != null && merged.completion_tokens != null) ? 'COMPLETE' : 'PARTIAL';
+      metrics.usageSource = viaFramework ? 'FRAMEWORK_UNVERIFIED' : 'UPSTREAM';
+      metrics.usageStatus = viaFramework ? 'UNVERIFIED'
+        : merged.total_tokens != null || (merged.prompt_tokens != null && merged.completion_tokens != null) ? 'COMPLETE' : 'PARTIAL';
     }
   }
 }

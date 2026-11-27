@@ -22,6 +22,7 @@ import { trafficRanges, type TrafficRange } from './traffic.js';
 import { runtimeRequest } from '../protocol/runtime.js';
 import { litellmRequest } from '../protocol/litellm.js';
 import { RequestCapture } from './request-capture.js';
+import { UpstreamErrorLog } from './upstream-error-log.js';
 
 const settingsValue = settings();
 const version = '1.2.0-rc.1';
@@ -50,6 +51,7 @@ const api = Fastify(serverFactory);
 const admin = Fastify(serverFactory);
 const sessions = new Map<string, number>();
 const requestCapture = new RequestCapture();
+const upstreamErrorLog = new UpstreamErrorLog(resolve(dataDir, 'model-errors.ndjson'));
 type LabTrace = (stage: string, value: unknown) => Promise<void>;
 const labRequests = new Map<string, { identity: string; profile: Profile; headers?: JsonObject; trace: LabTrace }>();
 let loginFailures = 0;
@@ -199,6 +201,7 @@ api.post('/v1/chat/completions', async (req, reply) => {
     const result = await proxy({ body, model: withProfile(model, profile), service,
       signal: runtime?.signal ?? client.abort.signal, mode, metrics,
       onForward: capture?.forwarded,
+      onUpstreamError: details => upstreamErrorLog.write({ gatewayRequestId: req.id, ...details }),
       trace: lab ? async (stage, value) => { if (stage !== 'client') await lab.trace(stage, value); } : undefined,
       headers: lab?.headers, secrets: suppliedSecrets,
       writer: { start: status => client.start('text/event-stream; charset=utf-8', status),
@@ -481,6 +484,7 @@ admin.post('/admin/lab', async (req, reply) => {
     if (input.direct) {
       const result = await proxy({ body: input.body, model: { ...target, upstream: target.upstream }, service, direct: true, mode: 'diagnostic',
         headers: input.headers, signal: client.abort.signal, secrets: suppliedSecrets, metrics: {}, trace,
+        onUpstreamError: details => upstreamErrorLog.write({ gatewayRequestId: req.id, ...details }),
         writer: { start() {}, async write() {} } });
       await trace('result', { status: result.status });
     } else {

@@ -147,10 +147,12 @@ class Update:
         self.targets = {name: self.images[role] for role, names in ROLES.items() for name in names}
         self.model_targets = {"llm-gateway": self.images["llm-gateway"]}
         self.model_services = compose_services(self.model)
-        if "litellm" in self.model_services:
+        if "litellm" in self.model_services and "litellm" in self.images:
             self.model_targets["litellm"] = self.images["litellm"]
-        else:
-            print("LiteLLM image included. Existing Gateway routes stay active; see optional FRAMEWORK setup.")
+        elif "litellm" in self.model_services:
+            print("Keeping the installed LiteLLM service and image.", flush=True)
+        elif "litellm" in self.images:
+            print("LiteLLM image included for optional FRAMEWORK setup.", flush=True)
 
     def verify_payload(self):
         require(platform.system() == "Linux" and platform.machine() in ("x86_64", "amd64"),

@@ -166,7 +166,7 @@ class Update:
             payload = (PACKAGE / name).resolve()
             require(PACKAGE in payload.parents and payload.is_file(), "Invalid package inventory: " + name)
             require(digest(payload) == sha, "SHA-256 mismatch: " + name)
-            checked.add(name)
+            checked.add(payload.relative_to(PACKAGE).as_posix())
         require(required <= checked, "Incomplete package inventory")
 
     def db(self, name, *args, **kwargs):

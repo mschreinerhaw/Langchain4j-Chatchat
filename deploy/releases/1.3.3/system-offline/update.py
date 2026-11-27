@@ -38,6 +38,19 @@ def require(condition, message):
         raise RuntimeError(message)
 
 
+def image_ids(item):
+    return {item["id"], *item.get("acceptedImageIds", [])}
+
+
+def inspect_image(item, host=None):
+    prefix = ("--host", host) if host else ()
+    identity, architecture = output(*prefix, "image", "inspect", "--format",
+                                    "{{.Id}} {{.Os}}/{{.Architecture}}", item["reference"]).split()
+    require(identity in image_ids(item) and architecture == "linux/amd64",
+            "Unexpected image identity: " + item["reference"])
+    return identity
+
+
 def installed_image(service):
     return output("inspect", "--format", "{{.Image}} {{.State.Running}}", service).split()
 
@@ -226,28 +239,29 @@ class Update:
 
     def import_images(self, daemons):
         for item in self.images.values():
-            require(image_id(item["reference"]) in (None, item["id"]), "Image tag collision: " + item["reference"])
+            require(image_id(item["reference"]) in image_ids(item) | {None},
+                    "Image tag collision: " + item["reference"])
         for name in ARCHIVES:
             docker("image", "load", "--input", self.archives / name)
-        for item in self.images.values():
-            require(output("image", "inspect", "--format", "{{.Id}} {{.Os}}/{{.Architecture}}",
-                           item["reference"]) == item["id"] + " linux/amd64",
-                    "Unexpected image identity: " + item["reference"])
+        loaded_ids = {item["reference"]: inspect_image(item) for item in self.images.values()}
         task = self.images["task"]
+        task_ids = set()
         for host in daemons:
             with subprocess.Popen([os.environ.get("DOCKER_BIN") or "docker", "image", "save",
                                    task["reference"]], stdout=subprocess.PIPE) as save:
                 loaded = docker("--host", host, "image", "load", stdin=save.stdout, check=False)
                 save.stdout.close()
                 require(save.wait() == 0 and loaded.returncode == 0, "Dedicated daemon import failed")
-            require(output("--host", host, "image", "inspect", "--format", "{{.Id}}",
-                           task["reference"]) == task["id"], "Dedicated daemon image mismatch")
+            task_id = inspect_image(task, host)
+            task_ids.add(task_id)
             docker("--host", host, "run", "--rm", "--pull=never", "--network=none", "--user", "0:0",
-                   "--entrypoint", "/usr/bin/su", task["id"], "-c",
+                   "--entrypoint", "/usr/bin/su", task_id, "-c",
                    'test "$(id -u):$(id -g)" = 10001:10001 && /usr/local/bin/python -c "import openpyxl"',
                    "runner", timeout=60)
+        require(len(task_ids) == 1, "Private daemons must agree on the pinned task image identity")
+        return loaded_ids, task_ids.pop()
 
-    def edits(self, configs):
+    def edits(self, configs, task_id):
         candidate = json.loads(self.old)
         services = candidate["services"]
         for name, item in self.targets.items():
@@ -258,7 +272,7 @@ class Update:
             env = services[name]["environment"]
             env.setdefault("CHATCHAT_REPORT_EXPORT_RENDERER_URL", "http://frontend-resource-hub:8080/api/v1/report-pdf")
             env.setdefault("CHATCHAT_REPORT_EXPORT_RENDERER_TOKEN", hub["HUB_TOKEN"])
-        configs = {path: json_bytes(dict(json.loads(data), workerImage=self.images["task"]["id"]))
+        configs = {path: json_bytes(dict(json.loads(data), workerImage=task_id))
                    for path, data in configs.items()}
         files = {self.file: json_bytes(candidate), **configs}
         files[self.overlay] = json_bytes({"services": {name: {"image": item["reference"]}
@@ -339,13 +353,13 @@ class Update:
     def apply(self):
         states, configs, daemons = self.plan()
         all_targets = {**self.targets, **self.model_targets}
-        if all(states[name]["id"] == item["id"] for name, item in all_targets.items()) and all(
-                json.loads(value)["workerImage"] == self.images["task"]["id"] for value in configs.values()):
+        if all(states[name]["id"] in image_ids(item) for name, item in all_targets.items()) and all(
+                json.loads(value)["workerImage"] in image_ids(self.images["task"]) for value in configs.values()):
             print("Release already active")
             return
         self.check_space(daemons)
-        self.import_images(daemons)
-        changes = self.edits(configs)
+        loaded_ids, task_id = self.import_images(daemons)
+        changes = self.edits(configs, task_id)
         require(set(changes) <= self.monitor_assets(configs), "Unexpected configuration target")
         stamp = datetime.datetime.now(datetime.timezone.utc).strftime("%Y%m%dT%H%M%S%fZ").lower()
         backup = self.backups / stamp
@@ -388,8 +402,8 @@ class Update:
                     require(path == self.overlay, "Missing configuration: " + str(path))
                     path.touch(mode=0o600, exist_ok=False)
                 atomic_write(path, update, path.stat())
-            self.restart({name: item["id"] for name, item in self.targets.items()},
-                         {name: item["id"] for name, item in self.model_targets.items()},
+            self.restart({name: loaded_ids[item["reference"]] for name, item in self.targets.items()},
+                         {name: loaded_ids[item["reference"]] for name, item in self.model_targets.items()},
                          self.model_base + [self.overlay])
         except (Exception, KeyboardInterrupt):
             self.rollback(backup, automatic=True)

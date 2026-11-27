@@ -6,7 +6,7 @@ import tempfile
 import unittest
 from unittest.mock import Mock, patch
 
-from update import Update, json_bytes
+from update import Update, inspect_image, json_bytes
 
 
 class UpgradeTest(unittest.TestCase):
@@ -48,9 +48,17 @@ class UpgradeTest(unittest.TestCase):
         self.app.edits = Mock(return_value=self.data)
         self.app.monitor_assets = Mock(return_value=set(self.data))
         self.app.check_space = Mock()
-        self.app.import_images = Mock()
+        self.app.import_images = Mock(return_value=({"new-api-tag": "new-api", "new-gateway-tag": "new-gateway"}, "new-task"))
         self.app.restart = Mock()
         self.app.db = Mock()
+
+    def test_import_checks_engine_specific_id_and_architecture(self):
+        image = {"reference": "fixture", "id": "oci-id", "acceptedImageIds": ["legacy-config-id"]}
+        with patch("update.output", return_value="legacy-config-id linux/amd64"):
+            self.assertEqual(inspect_image(image), "legacy-config-id")
+        with patch("update.output", return_value="legacy-config-id linux/arm64"):
+            with self.assertRaisesRegex(RuntimeError, "Unexpected image identity"):
+                inspect_image(image)
 
     def test_apply_and_manual_rollback(self):
         self.app.apply()

@@ -9,6 +9,8 @@ services:
     environment:
       LITELLM_LOCAL_MODEL_COST_MAP: "True"
       LITELLM_LOG: ERROR
+      NO_PROXY: ${LITELLM_NO_PROXY:-localhost,127.0.0.1,litellm}
+      no_proxy: ${LITELLM_NO_PROXY:-localhost,127.0.0.1,litellm}
     volumes:
       - "${LITELLM_CONFIG_FILE:-./config.example.yaml}:/etc/litellm/config.yaml:ro"
     networks:

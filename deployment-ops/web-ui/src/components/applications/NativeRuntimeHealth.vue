@@ -21,6 +21,21 @@
           </dl>
         </article>
       </div>
+      <div v-if="data.scriptInventory" class="table-wrap">
+        <table>
+          <caption>脚本监控 {{ data.scriptInventory.project }}</caption>
+          <thead><tr><th>服务</th><th>状态</th><th>镜像 ID</th></tr></thead>
+          <tbody>
+            <tr v-for="container in data.scriptInventory.containers" :key="container.id">
+              <td>{{ container.service }}</td>
+              <td>{{ container.health || container.state }}</td>
+              <td><code :title="container.image">{{ container.image.slice(0, 19) }}</code></td>
+            </tr>
+          </tbody>
+        </table>
+        <p v-if="!data.scriptInventory.containers.length" class="muted">没有已创建的服务容器</p>
+      </div>
+      <p v-else-if="data.scriptInventoryUnavailable" class="notice warning">暂时无法读取脚本监控</p>
       <dl class="facts" style="margin-top: 20px">
         <dt>最近安装验收</dt>
         <dd>{{ dateTime(data.verifiedAt) }}</dd>

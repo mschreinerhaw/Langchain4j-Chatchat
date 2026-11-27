@@ -11,3 +11,5 @@
 !drivers/**
 !node-src/
 !node-src/**
+!scripts/
+!scripts/**

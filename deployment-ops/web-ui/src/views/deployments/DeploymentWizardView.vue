@@ -70,6 +70,12 @@
             </select>
           </label>
           <template v-if="release">
+            <label v-if="publishedCheckCommand">
+              更新检查命令
+              <input v-model.trim="checkCommand" autocomplete="off" required :disabled="busy"
+                     aria-label="更新检查命令" />
+              <small>镜像声明的命令 <code>{{ publishedCheckCommand }}</code></small>
+            </label>
             <ParameterFields
               v-model="parameters"
               :fields="release.parameters || {}"
@@ -84,7 +90,7 @@
             <button v-if="release" type="button" :disabled="busy" @click="saveDraft">
               保存草稿
             </button>
-            <button class="primary" :disabled="busy || !hostReady || !release">
+            <button class="primary" :disabled="busy || !hostReady || !release || (publishedCheckCommand && checkCommand !== publishedCheckCommand)">
               {{ busy ? '正在预检…' : '运行部署预检' }}
             </button>
           </footer>
@@ -173,6 +179,7 @@
   const catalog = ref([]);
   const digest = ref('');
   const parameters = ref({});
+  const checkCommand = ref('');
   const review = ref(null);
   let reviewedSpec;
   const confirmation = ref('');
@@ -197,6 +204,11 @@
     )
   );
   const release = computed(() => catalog.value.find((item) => item.digest === digest.value));
+  const publishedCheckCommand = computed(() => {
+    const script = release.value?.installationProtocol?.runtimeInstaller?.script;
+    return script ? `sh ${script} check` : '';
+  });
+  watch(digest, () => { checkCommand.value = ''; });
   watch(existingDeployment, (current, previous) => {
     if (current?.id !== previous?.id && step.value === 0) initializeParameters();
   });
@@ -289,6 +301,7 @@
           values[key] = field.type === 'integer' ? Number(value) : value;
       }
       reviewedSpec = { package: digest.value, environment: environment.value };
+      if (publishedCheckCommand.value) reviewedSpec.updateCheckCommand = checkCommand.value;
       review.value = await deploymentsApi.preflight(node.value, {
         ...reviewedSpec,
         parameters: values,

@@ -6,5 +6,7 @@ COPY --chmod=0755 tools/docker-compose /usr/local/lib/docker/cli-plugins/docker-
 COPY assets/ /opt/ops-config/
 COPY installer.py /opt/product/installer.py
 COPY images.json /opt/product/images.json
+COPY scripts/ /opt/product/scripts/
+LABEL deployment-ops.runtime-script="scripts/runtime-os.sh"
 ENTRYPOINT ["python3", "/opt/product/installer.py"]
 CMD ["install"]

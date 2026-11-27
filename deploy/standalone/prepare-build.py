@@ -13,6 +13,8 @@ here=pathlib.Path(__file__).resolve().parent
 if r!=here:
  shutil.copytree(here/'assets',r/'assets',dirs_exist_ok=True);shutil.copytree(here/'schema-tools',r/'schema-tools',dirs_exist_ok=True)
  for file in ['installer.py','Dockerfile.installer','Dockerfile.daemon','Dockerfile.gateway','daemon-entrypoint.sh','.dockerignore']:shutil.copy2(here/file,r/file)
+for script in ('runtime-os.sh','runtime-os-scope.py'):
+ target=r/'scripts'/script;target.parent.mkdir(exist_ok=True);target.write_bytes((here.parents[1]/'deployment-ops/scripts'/script).read_text(encoding='utf-8').encode())
 shutil.copytree(source/'chatchat-api/src/main/resources/coding-monitor',r/'assets/coding-monitor',dirs_exist_ok=True)
 runtime_assets=r/'assets/runtime-assets'
 runtime_assets.mkdir(exist_ok=True)

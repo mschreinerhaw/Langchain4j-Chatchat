@@ -4,7 +4,7 @@ The installer and all product images must already be locally source-built and
 verified. This extracts public build metadata only; no running configuration,
 credentials, license or application database is read.
 """
-import argparse,hashlib,json,subprocess
+import argparse,hashlib,json,re,subprocess
 from pathlib import Path
 p=argparse.ArgumentParser();p.add_argument('--installer-image',required=True);p.add_argument('--version',required=True);p.add_argument('--output',type=Path,required=True);p.add_argument('--upgrade-from',action='append',default=[]);a=p.parse_args()
 if a.output.exists():raise SystemExit('Use a new immutable recipe directory')
@@ -83,5 +83,12 @@ manifest={'schemaVersion':1,'name':'runtime-os','version':a.version,'platform':'
  'volumes':{},'components':components,
  'runtimeInstaller':{'protocol':'runtime-os-native/v1','contractVersion':1,'image':'installer','imageMap':'assets/runtime-images.json','services':services,'schemaHashes':metadata['schemaHashes']},
  'links':[{'name':'Runtime OS','url':'http://${serverAddress}:${httpPort}/'},{'name':'MCP 管理入口','url':'http://${serverAddress}:${mcpPort}/'}]}
+script=(image_configs['installer'].get('Labels') or {}).get('deployment-ops.runtime-script')
+if script is not None:
+    if not re.fullmatch(r'scripts/[a-z0-9][a-z0-9-]{0,63}\.sh',script):
+        raise SystemExit('Invalid installer script declaration')
+    subprocess.run(['docker','run','--rm','--pull=never','--network','none','--entrypoint','/bin/sh',
+                    a.installer_image,'-n','/opt/product/'+script],check=True)
+    manifest['runtimeInstaller']['script']=script
 (a.output/'manifest.json').write_text(json.dumps(manifest,indent=2),encoding='utf-8')
 print(json.dumps({'manifest':str(a.output/'manifest.json'),'images':len(manifest['images']),'services':len(services),'protocol':'runtime-os-native/v1'}))

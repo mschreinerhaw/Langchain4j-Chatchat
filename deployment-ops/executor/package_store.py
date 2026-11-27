@@ -223,8 +223,12 @@ def validate_manifest(m,files):
     params=m.get('parameters',{});require(isinstance(params,dict) and len(params)<=100,'Invalid parameter schema')
     if 'runtimeInstaller' in m:
         adapter=m['runtimeInstaller'];require(m['name']=='runtime-os' and isinstance(adapter,dict),'Native Runtime OS adapter requires a Runtime OS release')
-        require(set(adapter)<= {'protocol','image','imageMap','services','schemaHashes','sourceCommit','contractVersion','stagePlan'},'Unknown Runtime OS adapter field')
+        require(set(adapter)<= {'protocol','image','imageMap','services','schemaHashes','sourceCommit','contractVersion','stagePlan','script'},'Unknown Runtime OS adapter field')
         require(adapter.get('protocol')=='runtime-os-native/v1' and adapter.get('image') in m['images'],'Pinned native Runtime OS installer required')
+        if 'script' in adapter:
+            require('stagePlan' not in adapter and isinstance(adapter['script'], str)
+                    and re.fullmatch(r'scripts/[a-z0-9][a-z0-9-]{0,63}\.sh',adapter['script']),
+                    'Invalid standalone installer script')
         require(member_name(adapter.get('imageMap')) in files,'Signed Runtime OS image map required')
         require(isinstance(adapter.get('services'),list) and 0<len(adapter['services'])<=64,'Runtime OS service inventory required')
         for name in adapter['services']:safe_name(name)

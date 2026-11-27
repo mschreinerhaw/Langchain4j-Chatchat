@@ -53,6 +53,7 @@ class RuntimeOsAdapter:
         return mapping
     def resolved(self,spec):
         folder,m=self.base.store.package(spec.get('package'));require(m.get('runtimeInstaller',{}).get('protocol')=='runtime-os-native/v1','Unsupported Runtime OS protocol')
+        require('script' not in m['runtimeInstaller'],'Scripted installer releases require the native JDK executor')
         require(not (folder/'retired.json').exists(),'Package is retired; choose a current verified release')
         safe_name(spec.get('environment'));prior=self.base.previous(spec['environment']);old={}
         if prior:old=read(self.base.path(prior.get('activeRun') or prior['lastRun'])/'private.json')['parameters']

@@ -127,6 +127,9 @@ for role in ('api','mcp','news'):
         run(sys.executable,standalone/'schema-tools/scripts/export-image-schema.py','--role',role,'--image',roles[role],'--output',schema)
 
 write(installer/'installer.py',(standalone/'installer.py').read_text(encoding='utf-8'))
+(installer/'scripts').mkdir(exist_ok=True)
+for script in ('runtime-os.sh','runtime-os-scope.py'):
+    write(installer/'scripts'/script,(repo/'deployment-ops/scripts'/script).read_text(encoding='utf-8'))
 write(installer/'Dockerfile','''FROM docker:27.5.1-cli AS cli
 FROM eclipse-temurin:17-jdk-jammy AS jdk
 FROM runtime-os-local-api:1.3.2
@@ -136,6 +139,8 @@ COPY --from=cli /usr/local/bin/docker /usr/local/bin/docker
 COPY --from=cli /usr/local/libexec/docker/cli-plugins/docker-compose /usr/local/lib/docker/cli-plugins/docker-compose
 COPY assets/ /opt/ops-config/
 COPY installer.py images.json /opt/product/
+COPY scripts/ /opt/product/scripts/
+LABEL deployment-ops.runtime-script="scripts/runtime-os.sh"
 RUN command -v openssl && javac -version && python3 --version && docker compose version
 ENTRYPOINT ["python3","/opt/product/installer.py"]
 CMD ["install"]

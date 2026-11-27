@@ -2,6 +2,7 @@ package com.chatchat.deployment.execution;
 
 import com.chatchat.deployment.docker.*;
 import com.chatchat.deployment.protocol.InstallationManifest;
+import com.chatchat.deployment.protocol.SignedPackageStore;
 import com.fasterxml.jackson.databind.*;
 import com.fasterxml.jackson.databind.node.*;
 import java.io.*;
@@ -21,6 +22,7 @@ public final class ResourceManager implements AutoCloseable {
     private final DockerClient docker;private final ExecutionJournal journal;private final String owner;private final Path data;
     private final ReentrantLock mutationLock;private final boolean readOnly;
     private BooleanSupplier installationBusy=()->false;
+    private volatile SignedPackageStore packageStore;
     private final ScheduledExecutorService samples=Executors.newScheduledThreadPool(2,r->{Thread t=new Thread(r,"jdk-resource-sampler");t.setDaemon(true);return t;});
     private final ExecutorService operations=Executors.newSingleThreadExecutor(r->{Thread t=new Thread(r,"jdk-resource-worker");t.setDaemon(true);return t;});
     private final Map<String,JsonNode> previousCounters=new ConcurrentHashMap<>();
@@ -29,29 +31,79 @@ public final class ResourceManager implements AutoCloseable {
         for(JsonNode record:journal.list("resource-jobs",100000))if(Set.of("PENDING","RUNNING").contains(record.path("status").asText())){ObjectNode job=(ObjectNode)record;job.put("status","UNKNOWN").put("error","Executor restarted; inspect the actual Docker object before a fresh approved operation").put("updated",StateFiles.now());journal.write("resource-jobs",job.path("id").asText(),job);}
         HostMetrics host=new HostMetrics(Path.of("/mnt/disk01"));
         samples.scheduleWithFixedDelay(()->{try{sample("host",host.sample());}catch(Exception ignored){}},0,10,TimeUnit.SECONDS);
-        samples.scheduleWithFixedDelay(()->{try{for(JsonNode container:docker.call("GET","/containers/json?all=1")){if(Thread.currentThread().isInterrupted())break;if(container.path("State").asText().equals("running"))try{metrics(container.path("Id").asText());}catch(Exception ignored){}}}catch(Exception ignored){}},1,30,TimeUnit.SECONDS);
+        samples.scheduleWithFixedDelay(()->{try{for(JsonNode container:containers()){if(Thread.currentThread().isInterrupted())break;if(container.path("State").asText().equals("running"))try{metrics(container.path("Id").asText());}catch(Exception ignored){}}}catch(Exception ignored){}},1,30,TimeUnit.SECONDS);
     }
     public void installationBusy(BooleanSupplier value){installationBusy=value;}
     public String owner(){return owner;}
+    void packageStore(SignedPackageStore value){packageStore=value;}
+
+    private Set<String> nativeProjects() throws Exception {
+        Set<String> projects=new HashSet<>();
+        for(JsonNode item:journal.list("deployment-private",100000)){
+            String project=item.path("project").asText();
+            if(project.matches("ops-env-[a-z][a-z0-9-]{0,31}")&&item.path("runtimeRoot").isTextual())projects.add(project);
+        }
+        return projects;
+    }
+
+    static boolean owns(JsonNode labels,String owner,Set<String> projects){
+        return owner.equals(labels.path("deployment-ops.owner").asText())&&!owner.isBlank()
+            || projects.contains(labels.path("com.docker.compose.project").asText())
+               && !labels.path("com.docker.compose.service").asText().isBlank();
+    }
+
+    public ArrayNode containers() throws Exception{
+        ArrayNode result=array();Set<String> projects=nativeProjects();
+        for(JsonNode c:docker.call("GET","/containers/json?all=1"))
+            if(owns(c.path("Labels"),owner,projects))result.add(c);
+        return result;
+    }
+
+    private Set<String> imageIds() throws Exception {
+        Set<String> ids=new HashSet<>();
+        for(JsonNode c:containers())ids.add(c.path("ImageID").asText());
+        for(JsonNode i:journal.list("managed-images",100000))ids.add(i.path("id").asText());
+        SignedPackageStore store=packageStore;
+        if(store!=null) for(JsonNode release:store.catalog())
+            for(JsonNode image:release.path("installationProtocol").path("images"))ids.add(image.path("id").asText());
+        ids.remove("");
+        return ids;
+    }
+
+    public ArrayNode images() throws Exception {
+        Set<String> ids=imageIds();ArrayNode result=array();
+        for(JsonNode image:docker.call("GET","/images/json"))
+            if(ids.contains(image.path("Id").asText()))result.add(image);
+        return result;
+    }
+
+    void recordImportedImages(Set<String> ids)throws Exception{
+        for(String id:ids)journal.write("managed-images",id.substring(7),object().put("id",id));
+    }
+
     public ObjectNode policy(){ObjectNode policy=object().put("readOnly",readOnly).put("approvalRequired",true).put("terminalSupported",false).put("hostBindMountsSupported",false);policy.set("allowedRegistries",array());return policy;}
     public static String id(String value){require(value!=null&&value.matches("[a-f0-9]{64}"),"Full container ID required");return value;}
     private static String reference(String value){require(value!=null&&value.matches("[A-Za-z0-9][A-Za-z0-9._/:@-]{0,250}"),"Invalid local image reference");return value;}
-    public JsonNode inspect(String ident)throws IOException{return docker.call("GET","/containers/"+id(ident)+"/json");}
+    public JsonNode inspect(String ident)throws Exception{
+        JsonNode item=docker.call("GET","/containers/"+id(ident)+"/json");
+        require(owns(item.path("Config").path("Labels"),owner,nativeProjects()),"Container is outside this deployment's inventory");
+        return item;
+    }
     private boolean stageComponent(JsonNode labels){return labels.path("deployment-ops.owner").asText().equals(owner)&&labels.path("com.docker.compose.project").asText().matches("ops-env-[a-z0-9-]{1,32}")&&!labels.path("deployment-ops.component").asText().isBlank();}
-    private JsonNode mutable(String ident)throws IOException{
+    private JsonNode mutable(String ident)throws Exception{
         JsonNode item=inspect(ident),labels=item.path("Config").path("Labels");
         require(!labels.path("com.docker.compose.project").asText().startsWith("deployment-ops")&&!labels.path("deployment-ops.control-plane").asText().equals("true"),"Control plane is protected");
         require(!labels.path("deployment-ops.installation").asText().equals("true"),"Use the owning application lifecycle workflow");
         require((labels.path("deployment-ops.manager").asText().equals("true")||labels.path("deployment-ops.managed").asText().equals("true")||stageComponent(labels))&&labels.path("deployment-ops.owner").asText().equals(owner),"External containers are discovery-only");return item;
     }
-    private JsonNode image(String ident)throws IOException{require(ident.matches("sha256:[a-f0-9]{64}"),"Immutable image ID required");return docker.call("GET","/images/"+url(ident)+"/json");}
+    public JsonNode image(String ident)throws Exception{require(ident.matches("sha256:[a-f0-9]{64}"),"Immutable image ID required");require(imageIds().contains(ident),"Image is outside this deployment's inventory");return docker.call("GET","/images/"+url(ident)+"/json");}
     private ArrayNode references(String image)throws IOException{ArrayNode result=array();for(JsonNode c:docker.call("GET","/containers/json?all=1"))if(c.path("ImageID").asText().equals(image))result.add(object().put("id",c.path("Id").asText()).set("names",c.path("Names")));return result;}
     private static void fields(JsonNode spec,String allowed){Set<String> keys=Set.of(allowed.split(","));spec.fieldNames().forEachRemaining(k->require(keys.contains(k),"Unsupported configuration: "+k));}
     public ObjectNode createConfig(JsonNode input)throws Exception{
         ObjectNode spec=object();JsonNode defaults=journal.read("image-defaults",input.path("image").asText().replace("sha256:",""));if(defaults!=null)spec.setAll((ObjectNode)defaults);spec.setAll((ObjectNode)input);
         fields(spec,"action,name,image,command,environment,ports,volumes,network,memoryMiB,cpus,restart,healthcheck,application,user,entrypoint,workingDir");
         require(spec.path("name").asText().matches("[a-z][a-z0-9_.-]{2,63}"),"Container name must have 3..64 lowercase characters");
-        JsonNode image=docker.call("GET","/images/"+url(reference(spec.path("image").asText()))+"/json");
+        JsonNode image=docker.call("GET","/images/"+url(reference(spec.path("image").asText()))+"/json");require(imageIds().contains(image.path("Id").asText()),"Image is outside this deployment's inventory");
         for(JsonNode c:docker.call("GET","/containers/json?all=1"))for(JsonNode name:c.path("Names"))require(!name.asText().equals("/"+spec.path("name").asText()),"Container name exists");
         JsonNode environment=spec.path("environment");require(environment.isMissingNode()||environment.isObject()&&environment.size()<=100,"Invalid environment map");ArrayNode env=array();environment.fields().forEachRemaining(e->{require(e.getKey().matches("[A-Za-z_][A-Za-z0-9_]*")&&e.getValue().isTextual()&&e.getValue().asText().length()<=16384,"Invalid environment value");String value=e.getValue().asText();if(value.equals("[REDACTED]")){require(defaults!=null&&defaults.path("environment").has(e.getKey()),"Re-enter masked environment value");value=defaults.path("environment").path(e.getKey()).asText();}env.add(e.getKey()+"="+value);});
         JsonNode command=spec.path("command");require(command.isMissingNode()||command.isArray()&&command.size()<=100,"Command argv required");for(JsonNode arg:command)require(arg.isTextual()&&arg.asText().length()<=4096,"Invalid command argument");
@@ -135,9 +187,12 @@ public final class ResourceManager implements AutoCloseable {
     public synchronized JsonNode cancel(String id)throws Exception{ObjectNode job=(ObjectNode)job(id);require(job.path("status").asText().equals("PENDING"),"Only pending operations can be cancelled");job.put("status","CANCELLED").put("updated",StateFiles.now());journal.write("resource-jobs",id,job);return job;}
     private synchronized void sample(String resource,ObjectNode value)throws Exception{JsonNode old=journal.read("metrics",resource);ArrayNode history=old!=null&&old.isArray()?(ArrayNode)old:array();ObjectNode entry=value.deepCopy();entry.put("at",StateFiles.now());history.add(entry);while(history.size()>120)history.remove(0);journal.write("metrics",resource,history);}
     public JsonNode latest(String resource)throws Exception{JsonNode history=journal.read("metrics",resource);return history==null||history.isEmpty()?NullNode.instance:history.get(history.size()-1);}
-    public ObjectNode metrics(String ident)throws Exception{JsonNode raw=docker.call("GET","/containers/"+id(ident)+"/stats?stream=false&one-shot=true"),previous=previousCounters.put(ident,raw);ObjectNode current=raw.deepCopy();if(previous!=null)current.set("precpu_stats",previous.path("cpu_stats"));ObjectNode metrics=HostMetrics.container(current);if(previous==null&&raw.path("precpu_stats").path("cpu_usage").path("total_usage").asLong()==0)metrics.putNull("cpuPercent");sample(ident,metrics);return metrics;}
+    public ObjectNode metrics(String ident)throws Exception{inspect(ident);JsonNode raw=docker.call("GET","/containers/"+id(ident)+"/stats?stream=false&one-shot=true"),previous=previousCounters.put(ident,raw);ObjectNode current=raw.deepCopy();if(previous!=null)current.set("precpu_stats",previous.path("cpu_stats"));ObjectNode metrics=HostMetrics.container(current);if(previous==null&&raw.path("precpu_stats").path("cpu_usage").path("total_usage").asLong()==0)metrics.putNull("cpuPercent");sample(ident,metrics);return metrics;}
     public static String logs(DockerClient docker,String ident)throws IOException{
-        try(DockerClient.Response response=docker.request("GET","/containers/"+id(ident)+"/logs?stdout=1&stderr=1&timestamps=1&tail=200",InputStream.nullInputStream(),0,"application/json",Duration.ofSeconds(20))){require(response.status<300,"Docker logs unavailable");byte[] bytes=response.body.readNBytes(2*1024*1024);ByteArrayOutputStream out=new ByteArrayOutputStream();int offset=0;
+        return logs(docker, ident, true);
+    }
+    static String logs(DockerClient docker,String ident,boolean timestamps)throws IOException {
+        try(DockerClient.Response response=docker.request("GET","/containers/"+id(ident)+"/logs?stdout=1&stderr=1&timestamps="+(timestamps?"1":"0")+"&tail=200",InputStream.nullInputStream(),0,"application/json",Duration.ofSeconds(20))){require(response.status<300,"Docker logs unavailable");byte[] bytes=response.body.readNBytes(2*1024*1024);ByteArrayOutputStream out=new ByteArrayOutputStream();int offset=0;
             while(offset+8<=bytes.length&&bytes[offset]>=0&&bytes[offset]<=2&&bytes[offset+1]==0&&bytes[offset+2]==0&&bytes[offset+3]==0){int length=ByteBuffer.wrap(bytes,offset+4,4).getInt();if(length<0||offset+8L+length>bytes.length)break;out.write(bytes,offset+8,length);offset+=8+length;}
             String text=new String(offset==0?bytes:out.toByteArray(),StandardCharsets.UTF_8);return text.substring(Math.max(0,text.length()-131072));
         }
@@ -161,9 +216,15 @@ public final class ResourceManager implements AutoCloseable {
         if(path.equals("/manager/networks"))return docker.call("GET","/networks");if(path.equals("/manager/volumes"))return docker.call("GET","/volumes");
         if(path.equals("/manager/host")){JsonNode value=latest("host");return value.isNull()?object().put("available",false).put("reason","Waiting for host metrics"):value;}
         if(path.equals("/manager/history")){JsonNode value=journal.read("metrics","host");return value==null?array():value;}
-        if(path.equals("/manager/events")){long now=System.currentTimeMillis()/1000;ArrayNode events=array();try(DockerClient.Response response=docker.request("GET","/events?since="+(now-300)+"&until="+now,InputStream.nullInputStream(),0,"application/json",Duration.ofSeconds(10))){require(response.status<300,"Docker events unavailable");byte[] bytes=response.body.readNBytes(4*1024*1024+1);require(bytes.length<=4*1024*1024,"Event response too large");for(String line:new String(bytes,StandardCharsets.UTF_8).split("\n"))if(!line.isBlank())events.add(redact(StateFiles.JSON.readTree(line)));}return events;}
-        if(path.matches("/manager/logs/[a-f0-9]{64}")){String ident=path.substring(path.lastIndexOf('/')+1),text=logs(docker,ident);for(JsonNode item:inspect(ident).path("Config").path("Env")){String[] e=item.asText().split("=",2);if(e.length==2&&!e[1].isEmpty()&&e[0].matches("(?i).*(password|token|secret|credential|key).*"))text=text.replace(e[1],"[REDACTED]");}return object().put("text",text).put("collectedAt",StateFiles.now()).put("tail",200);}
-        if(path.matches("/manager/containers/[a-f0-9]{64}/(metrics|history)")){String[] fields=path.split("/");if(fields[4].equals("metrics"))return metrics(fields[3]);JsonNode value=journal.read("metrics",fields[3]);return value==null?array():value;}
+        if(path.equals("/manager/events")){long now=System.currentTimeMillis()/1000;ArrayNode events=array();try(DockerClient.Response response=docker.request("GET","/events?since="+(now-300)+"&until="+now,InputStream.nullInputStream(),0,"application/json",Duration.ofSeconds(10))){require(response.status<300,"Docker events unavailable");byte[] bytes=response.body.readNBytes(4*1024*1024+1);require(bytes.length<=4*1024*1024,"Event response too large");for(String line:new String(bytes,StandardCharsets.UTF_8).split("\n"))if(!line.isBlank())events.add(redact(StateFiles.JSON.readTree(line)));}ArrayNode visible=array();Set<String> projects=nativeProjects(),ids=imageIds();
+            for(JsonNode event:events){
+                JsonNode actor=event.path("Actor");String type=event.path("Type").asText();
+                if(type.equals("container")&&owns(actor.path("Attributes"),owner,projects)
+                    || type.equals("image")&&ids.contains(actor.path("ID").asText()))visible.add(event);
+            }
+            return visible;}
+        if(path.matches("/manager/logs/[a-f0-9]{64}")){String ident=path.substring(path.lastIndexOf('/')+1);JsonNode owned=inspect(ident);String text=logs(docker,ident);for(JsonNode item:owned.path("Config").path("Env")){String[] e=item.asText().split("=",2);if(e.length==2&&!e[1].isEmpty()&&e[0].matches("(?i).*(password|token|secret|credential|key).*"))text=text.replace(e[1],"[REDACTED]");}return object().put("text",text).put("collectedAt",StateFiles.now()).put("tail",200);}
+        if(path.matches("/manager/containers/[a-f0-9]{64}/(metrics|history)")){String[] fields=path.split("/");if(fields[4].equals("metrics"))return metrics(fields[3]);inspect(fields[3]);JsonNode value=journal.read("metrics",fields[3]);return value==null?array():value;}
         throw new IllegalArgumentException("Unsupported resource read");
     }
     public void close(){operations.shutdownNow();samples.shutdownNow();}

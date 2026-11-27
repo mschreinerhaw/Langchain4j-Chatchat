@@ -17,6 +17,18 @@ for(const [name,items] of Object.entries({themes,templates,components})){
  app.get(`/api/v1/${name}/:id`,(req,res)=>{const x=items.find(x=>x.id===req.params.id);x?res.json(x):res.sendStatus(404)});
 }
 // Worker is private; caller authentication is enforced at this boundary.
+app.post('/api/v1/report-pdf',(req,res,next)=>{
+ if(!process.env.HUB_TOKEN||req.get('authorization')!==`Bearer ${process.env.HUB_TOKEN}`)return res.sendStatus(401);
+ next();
+}, express.raw({type:'application/json',limit:'34mb'}), async(req,res)=>{
+ try{
+  const response=await fetch((process.env.WORKER_URL||'http://frontend-preview-worker:8081')+'/api/v1/report-pdf',{
+   method:'POST',headers:{'content-type':'application/json','authorization':`Bearer ${process.env.HUB_TOKEN}`},
+   body:req.body,signal:AbortSignal.timeout(45000),redirect:'error'});
+  if(!response.ok){await response.body?.cancel();return res.sendStatus(response.status)}
+  res.type('application/pdf').set('Cache-Control','no-store').send(Buffer.from(await response.arrayBuffer()));
+ }catch{res.sendStatus(502)}
+});
 app.use('/api/v1/preview',express.json({limit:'2mb'}),(req,res,next)=>{if(!process.env.HUB_TOKEN||req.get('authorization')!==`Bearer ${process.env.HUB_TOKEN}`)return res.sendStatus(401);next()});
 app.use('/api/v1/preview',async(req,res)=>{try{const response=await fetch((process.env.WORKER_URL||'http://frontend-preview-worker:8081')+'/api/v1/preview'+req.url,{method:req.method,headers:{'content-type':'application/json','authorization':`Bearer ${process.env.HUB_TOKEN}`},body:req.method==='POST'?JSON.stringify(req.body):undefined,signal:AbortSignal.timeout(65000)});res.status(response.status).type(response.headers.get('content-type')||'application/json').send(Buffer.from(await response.arrayBuffer()))}catch(e){res.status(502).json({status:'unavailable',error:e.message})}});
 app.listen(8080,'0.0.0.0');

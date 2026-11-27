@@ -225,6 +225,19 @@ class AgentOrchestrationEngine implements AgentRunExecutor, ResumableAgentRunExe
     final InterpretationPlanSnapshotService planSnapshotService;
     private ToolObservationBuilder toolObservationBuilder;
     private AgentChatModelResolver chatModelResolver;
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    private com.chatchat.agents.orchestration.model.DirectModelInvocation directModels;
+
+    private MeteredChatModel.EnterpriseScope modelQuotaScope(String tenant, String user, String request, String conversation,
+            Map<String, Object> runtime, Map<String, Object> configuration) {
+        if (directModels == null) return null;
+        String run = stringValue(runtime.get(AGENT_RUN_ID_ATTRIBUTE));
+        if (run == null || run.isBlank()) run = request;
+        if (run == null || run.isBlank()) run = java.util.UUID.randomUUID().toString();
+        var scope = new KernelDataScope(tenant, user, request, conversation, run, null, Map.of());
+        Integer output = configuration != null && configuration.get("maxTokens") instanceof Integer cap && cap > 0 ? cap : null;
+        return new MeteredChatModel.EnterpriseScope(directModels, scope, output);
+    }
     private final AgentToolNameResolver toolNames;
     private final AgentToolArgumentResolver toolArguments;
     private final AgentToolExecutor toolExecutor;
@@ -892,8 +905,8 @@ class AgentOrchestrationEngine implements AgentRunExecutor, ResumableAgentRunExe
         requestRuntimeAttributes.put("mandatoryTools", List.copyOf(mandatoryTools));
         requestRuntimeAttributes.put("requiredToolExecutions", List.copyOf(requiredToolExecutionContracts));
         ChatModel activeChatModel = chatModelResolver.resolveChatModel(modelName);
-        requestRuntimeAttributes.putIfAbsent("checkpointModelConfig",
-            chatModelResolver.checkpointModelConfiguration(modelName, activeChatModel));
+        var modelConfiguration = chatModelResolver.checkpointModelConfiguration(modelName, activeChatModel);
+        requestRuntimeAttributes.putIfAbsent("checkpointModelConfig", modelConfiguration);
         activeChatModel = new DeadlineAwareChatModel(
             activeChatModel,
             () -> runtimeGuard.remainingTimeMs(requestRuntimeAttributes),
@@ -910,7 +923,8 @@ class AgentOrchestrationEngine implements AgentRunExecutor, ResumableAgentRunExe
                 agentRuntimeProperties.modelCostBudget()),
             agentRuntimeProperties.modelInputCostPerThousandTokens(),
             agentRuntimeProperties.modelOutputCostPerThousandTokens(),
-            agentRuntimeProperties.budgetAlertRatio()
+            agentRuntimeProperties.budgetAlertRatio(),
+            modelQuotaScope(tenantId, userId, requestId, conversationId, requestRuntimeAttributes, modelConfiguration)
         );
         List<InteractionToolTrace> traces = new ArrayList<>();
         List<String> observations = runResultAdapter.runtimeObservationList(stringValue(requestRuntimeAttributes.get(AGENT_RUN_ID_ATTRIBUTE)));

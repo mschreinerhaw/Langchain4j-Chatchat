@@ -64,6 +64,13 @@ public class ApiPermissionAuthorizationFilter extends OncePerRequestFilter {
             filterChain.doFilter(request, response);
             return;
         }
+        String tokenPoolPath = "/api/v1/permission-center/token-pools/(USER|ROLE)/[^/]+";
+        if (("GET".equals(method) || "PUT".equals(method)) && path.matches(tokenPoolPath)
+                || "GET".equals(method) && path.matches(tokenPoolPath + "/changes")) {
+            // The pool controller verifies tenant ownership and audits each balance change.
+            filterChain.doFilter(request, response);
+            return;
+        }
         if (callerTaskRoute(method, path)
             && adminService.getUserView(String.valueOf(userId)).permissionCodes().contains("workspace:chat:interact")
             && adminService.listPermissions().stream().anyMatch(permission -> "workspace:chat:interact".equals(permission.getPermissionCode())

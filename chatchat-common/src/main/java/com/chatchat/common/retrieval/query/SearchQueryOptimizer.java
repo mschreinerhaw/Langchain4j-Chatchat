@@ -214,7 +214,8 @@ public final class SearchQueryOptimizer implements AutoCloseable {
             int timeout = scope.remainingMillis(); // Retrieval lifecycle budget, not a separate model request timeout.
             try {
                 var protectedPhrases = extracted.protectedPhrases();
-                refined = await(() -> refiner.refine(original, protectedPhrases,
+                var scopedRefiner = refiner.forCaller();
+                refined = await(() -> scopedRefiner.refine(original, protectedPhrases,
                     budget.getMaxKeywords(), timeout), scope, timeout);
                 log.info("query_refinement status=SUCCEEDED queryHash={} keywords={}", hash(original), refined == null ? 0 : refined.size());
             } catch (QueryOptimizationException failure) {

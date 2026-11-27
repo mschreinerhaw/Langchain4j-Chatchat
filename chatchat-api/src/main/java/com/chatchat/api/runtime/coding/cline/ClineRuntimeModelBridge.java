@@ -3,6 +3,7 @@ package com.chatchat.api.runtime.coding.cline;
 import com.chatchat.agents.model.ConfigurableChatModelFactory;
 import com.chatchat.api.runtime.coding.CodingParentModels;
 import com.chatchat.api.runtime.coding.workspace.CodingWorkspaceService;
+import com.chatchat.api.enterprise.service.TokenQuotaLedger;
 import com.chatchat.common.config.ModelResourceRegistry;
 import com.chatchat.common.runtime.coding.CodingTaskContract;
 import com.chatchat.common.runtime.coding.CodingLimit;
@@ -21,6 +22,7 @@ import org.springframework.stereotype.Service;
 
 /** Converts the portable Cline model turn to the already configured server-side model. */
 @Service
+@lombok.extern.slf4j.Slf4j
 @ConditionalOnProperty(prefix = "chatchat.coding.cline", name = "enabled", havingValue = "true")
 public final class ClineRuntimeModelBridge {
     private static final int MAX_TEXT = 256_000;
@@ -30,6 +32,8 @@ public final class ClineRuntimeModelBridge {
     private final ModelResourceRegistry resources;
     private final ConfigurableChatModelFactory models;
     private final ObjectMapper json;
+    @org.springframework.beans.factory.annotation.Autowired
+    private TokenQuotaLedger quota;
     private CodingParentModels parentModels;
     private CodingWorkspaceService workspace;
     private com.chatchat.agents.runtime.coding.DurableCodingTaskService runtimeTasks;
@@ -213,8 +217,15 @@ public final class ClineRuntimeModelBridge {
         try(var timing=com.chatchat.agents.orchestration.model.MeteredChatModel.observeTiming()) {
             var selected=parent==null?models.create(modelName,Duration.ofMillis(remaining.getAsLong()),outputLimit):parent;
             var dispatchModel=com.chatchat.agents.orchestration.model.ToolExecutionModels.independent(selected,remaining,cancelled,0);
+            String billingId = quota == null ? null : admitEnterpriseQuota(contract, request, outputLimit);
             providerDispatched = true;
-            answer=dispatchModel.chat(dispatchRequest);
+            ChatResponse observed = null;
+            try {
+                observed=dispatchModel.chat(dispatchRequest);
+            } finally {
+                if (billingId != null) settleEnterpriseQuota(contract, billingId, observed);
+            }
+            answer=observed;
             queueTime=timing.queueTimeMs(); firstToken=timing.firstTokenMs(); generationTime=timing.generationTimeMs();
             retryTime=timing.retryTimeMs();
             responseMode=timing.responseMode();
@@ -327,6 +338,26 @@ public final class ClineRuntimeModelBridge {
                 "modelInfo", Map.of("source", "RUNTIME_PREFLIGHT", "providerDispatched", false, "durationMs", 0)));
             rejected.initCause(failure);
             throw rejected;
+        }
+    }
+
+    private String admitEnterpriseQuota(CodingTaskContract contract, JsonNode request, int outputLimit) {
+        String turn = request.path("operationId").asText();
+        if (turn.isBlank()) throw new IllegalArgumentException("Model operation ID is required for billing");
+        String billingId = "java-" + com.chatchat.api.assets.UserAssetService.hash(
+            (contract.taskId() + "\0" + turn).getBytes(java.nio.charset.StandardCharsets.UTF_8));
+        long input = request.toString().getBytes(java.nio.charset.StandardCharsets.UTF_8).length + 256L;
+        var decision = quota.reserve(contract.scope(), contract.taskId(), billingId, input, (long) outputLimit);
+        if (decision != TokenQuotaLedger.Decision.ADMITTED) throw new SecurityException("Enterprise model admission: " + decision);
+        return billingId;
+    }
+
+    private void settleEnterpriseQuota(CodingTaskContract contract, String id, ChatResponse response) {
+        Integer total = response == null || response.tokenUsage() == null ? null : response.tokenUsage().totalTokenCount();
+        try {
+            quota.settle(contract.scope(), contract.taskId(), id, total != null && total > 0 ? total.longValue() : null, false);
+        } catch (RuntimeException unavailable) {
+            log.warn("Enterprise token settlement pending taskId={} requestId={}", contract.taskId(), id);
         }
     }
 

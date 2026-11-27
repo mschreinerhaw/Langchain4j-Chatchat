@@ -6,6 +6,8 @@ import com.chatchat.api.runtime.coding.nativecline.*;
 import com.chatchat.api.runtime.coding.knowledge.CodingInternetAccess;
 import com.chatchat.common.kernel.KernelDataScope;
 import com.chatchat.common.runtime.coding.*;
+import com.chatchat.enterprise.service.EnterpriseAdminService;
+import com.chatchat.api.enterprise.service.TokenQuotaLedger;
 import com.fasterxml.jackson.databind.*;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.http.*;
@@ -27,33 +29,79 @@ public class NativeRuntimeMcpController {
     private final NativeS3Settings settings;private final ObjectMapper json;private final CodingInvocationContext identity;
     private final DurableCodingTaskService tasks;private final CodingInternetAccess internet;private final CodingSkillReader skills;
     private final NativeS3Evidence evidence;
+    private final EnterpriseAdminService enterprise;
+    private final TokenQuotaLedger quota;
     @org.springframework.beans.factory.annotation.Autowired
     private com.chatchat.api.runtime.coding.data.NativePublishedTemplate templates;
     @org.springframework.beans.factory.annotation.Autowired
     private org.springframework.beans.factory.ObjectProvider<com.chatchat.api.runtime.coding.workspace.CodingWorkspaceService> studioWorkspace;
     @org.springframework.beans.factory.annotation.Autowired private com.chatchat.api.runtime.coding.knowledge.CodingDocumentSearchAccess documents;
-    public NativeRuntimeMcpController(NativeS3Settings settings,ObjectMapper json,CodingInvocationContext identity,DurableCodingTaskService tasks,CodingInternetAccess internet,CodingSkillReader skills,NativeS3Evidence evidence){this.settings=settings;this.json=json;this.identity=identity;this.tasks=tasks;this.internet=internet;this.skills=skills;this.evidence=evidence;}
-    private JsonNode verify(String header){
+    public NativeRuntimeMcpController(NativeS3Settings settings,ObjectMapper json,CodingInvocationContext identity,DurableCodingTaskService tasks,CodingInternetAccess internet,CodingSkillReader skills,NativeS3Evidence evidence,EnterpriseAdminService enterprise,TokenQuotaLedger quota){this.settings=settings;this.json=json;this.identity=identity;this.tasks=tasks;this.internet=internet;this.skills=skills;this.evidence=evidence;this.enterprise=enterprise;this.quota=quota;}
+    private JsonNode verify(String header){return verify(header,false);}
+    private JsonNode verify(String header,boolean allowExpired){
         try{
             if(header==null||!header.startsWith("Bearer ")||header.length()>32768)throw new SecurityException();
             var parts=header.substring(7).split("\\.",-1);if(parts.length!=2)throw new SecurityException();
             var mac=Mac.getInstance("HmacSHA256");mac.init(new SecretKeySpec(settings.issuerKey.getBytes(StandardCharsets.UTF_8),"HmacSHA256"));
             if(!MessageDigest.isEqual(mac.doFinal(parts[0].getBytes(StandardCharsets.UTF_8)),Base64.getUrlDecoder().decode(parts[1])))throw new SecurityException();
-            var grant=json.readTree(Base64.getUrlDecoder().decode(parts[0]));if(grant.path("version").asInt()!=2||grant.path("expiresAt").asLong()<=System.currentTimeMillis())throw new SecurityException();return grant;
+            var grant=json.readTree(Base64.getUrlDecoder().decode(parts[0]));if(grant.path("version").asInt()!=2
+                ||(!allowExpired&&grant.path("expiresAt").asLong()<=System.currentTimeMillis()))throw new SecurityException();return grant;
         }catch(Exception invalid){throw new ResponseStatusException(HttpStatus.UNAUTHORIZED,"Invalid Native task capability");}
     }
     private <T>T authorized(String header,java.util.function.Function<CodingTaskContract,T> action){
-        var grant=verify(header);var scope=new KernelDataScope(grant.path("tenantId").asText(),grant.path("userId").asText(),null,null,grant.path("deliveryBinding").path("runId").asText(),null,Map.of());String task=grant.path("taskId").asText();
+        return withBoundCapability(header,false,c->{requireActive(c);var result=action.apply(c);requireActive(c);return result;});
+    }
+    private <T>T withBoundCapability(String header,boolean allowExpired,java.util.function.Function<CodingTaskContract,T> action){
+        var grant=verify(header,allowExpired);var scope=new KernelDataScope(grant.path("tenantId").asText(),grant.path("userId").asText(),null,null,grant.path("deliveryBinding").path("runId").asText(),null,Map.of());String task=grant.path("taskId").asText();
         try{return identity.as(scope,Set.of(READ,WORKER,EVIDENCE),()->{
             var contract=tasks.contract(scope,task);var binding=tasks.privateState(scope,task,"native-s3:binding");
             if(!NativeSiloTaskService.supports(contract)||binding==null||!binding.path("grant").asText().equals(header.substring(7)))throw new ResponseStatusException(HttpStatus.FORBIDDEN,"Task capability binding differs");
-            requireActive(contract);var value=action.apply(contract);requireActive(contract);return value;
+            return action.apply(contract);
         });}catch(CodingContractException denied){
             if(Set.of(CodingErrorCode.NOT_FOUND,CodingErrorCode.AUTHORIZATION_DENIED).contains(denied.error().code()))throw new ResponseStatusException(HttpStatus.FORBIDDEN,"Task outside this capability scope");
             throw denied;
         }
     }
-    private void requireActive(CodingTaskContract c){var outcome=tasks.get(c.scope(),c.taskId());if(outcome.status().terminal()||outcome.executionControl().stopReason()!=null||!c.budget().deadlineAt().isAfter(java.time.Instant.now()))throw new ResponseStatusException(HttpStatus.CONFLICT,"Task is closed");}
+    private void requireActive(CodingTaskContract c){
+        if(!enterprise.isActiveIdentity(c.scope().tenantId(),c.scope().userId()))
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN,"Runtime identity is unavailable or expired");
+        var outcome=tasks.get(c.scope(),c.taskId());
+        if(outcome.status().terminal()||outcome.executionControl().stopReason()!=null||!c.budget().deadlineAt().isAfter(java.time.Instant.now()))
+            throw new ResponseStatusException(HttpStatus.CONFLICT,"Task is closed");
+    }
+
+    @PostMapping("/model-admission")
+    public ResponseEntity<Void> modelAdmission(@RequestHeader(HttpHeaders.AUTHORIZATION)String auth,
+                                               @RequestBody ModelAdmission admission){
+        return withBoundCapability(auth,false,c->{
+            requireActive(c);
+            if(admission.requestId()==null||!admission.requestId().matches("[A-Za-z0-9_-]{1,128}")
+                    ||admission.inputUpperBound()==null||admission.inputUpperBound()<1||admission.inputUpperBound()>Integer.MAX_VALUE
+                    ||admission.outputUpperBound()!=null&&(admission.outputUpperBound()<1||admission.outputUpperBound()>Integer.MAX_VALUE))
+                throw new ResponseStatusException(HttpStatus.BAD_REQUEST,"Model input bound required");
+            var decision=quota.reserve(c.scope(),c.taskId(),admission.requestId(),admission.inputUpperBound(),admission.outputUpperBound());
+            return switch(decision){
+                case ADMITTED -> ResponseEntity.noContent().build();
+                case DUPLICATE -> throw new ResponseStatusException(HttpStatus.CONFLICT,"Model request already admitted");
+                case QUOTA_EXHAUSTED -> throw new ResponseStatusException(HttpStatus.TOO_MANY_REQUESTS,"Token quota exhausted");
+                case BILLING_ROLE_REQUIRED,OUTPUT_BOUND_REQUIRED -> throw new ResponseStatusException(HttpStatus.FORBIDDEN,"Token quota configuration unavailable");
+            };
+        });
+    }
+    public record ModelAdmission(String requestId, Long inputUpperBound, Long outputUpperBound){}
+    @PostMapping("/model-settlement")
+    public ResponseEntity<Void> modelSettlement(@RequestHeader(HttpHeaders.AUTHORIZATION)String auth,
+                                                 @RequestBody ModelSettlement settlement){
+        return withBoundCapability(auth,true,c->{
+            if(settlement.requestId()==null||!settlement.requestId().matches("[A-Za-z0-9_-]{1,128}")
+                    ||settlement.providerTokens()!=null&&settlement.providerTokens()<0)
+                throw new ResponseStatusException(HttpStatus.BAD_REQUEST,"Invalid model settlement");
+            Long used=settlement.providerTokens();
+            quota.settle(c.scope(),c.taskId(),settlement.requestId(),used!=null&&used>0?used:null,settlement.neverDispatched());
+            return ResponseEntity.noContent().build();
+        });
+    }
+    public record ModelSettlement(String requestId, Long providerTokens, boolean neverDispatched){}
     @PostMapping("/mcp") public ResponseEntity<?> mcp(@RequestHeader(HttpHeaders.AUTHORIZATION)String auth,@RequestBody JsonNode rpc){
         return authorized(auth,c->{
             if(!rpc.isObject()||rpc.toString().length()>(NativeSiloTaskService.studio(c)?250000:16000)||!rpc.path("jsonrpc").asText().equals("2.0"))throw new ResponseStatusException(HttpStatus.BAD_REQUEST,"Bounded JSON-RPC 2.0 request required");

@@ -1302,6 +1302,8 @@
     ) engine=InnoDB;
 
     create table sys_role (
+        effective_at datetime(6),
+        expires_at datetime(6),
         created_at datetime(6) not null,
         updated_at datetime(6) not null,
         role_type varchar(32) not null,
@@ -1336,6 +1338,8 @@
     ) engine=InnoDB;
 
     create table sys_tenant (
+        effective_at datetime(6),
+        expires_at datetime(6),
         created_at datetime(6) not null,
         tenant_no bigint,
         updated_at datetime(6) not null,
@@ -1350,6 +1354,8 @@
     ) engine=InnoDB;
 
     create table sys_user (
+        effective_at datetime(6),
+        expires_at datetime(6),
         token_billing_role_id varchar(64),
         created_at datetime(6) not null,
         last_login_at datetime(6),

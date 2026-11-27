@@ -5,6 +5,7 @@ import { profileNames, type Profile } from '../protocol/profiles.js';
 import { seal, unseal } from './credentials.js';
 import { validateUpstreamTrust } from './tls.js';
 import { normalizeUpstreamUrl } from '../protocol/origin.js';
+import { protocolSchema } from '../protocol/compat-schema.js';
 import { summarizeTraffic, trafficStart, type TrafficRange } from './traffic.js';
 
 export class GatewayError extends Error {
@@ -21,20 +22,25 @@ const secret = z.string().max(8192).regex(/^[\x20-\x7e]*$/);
 export const serviceSchema = z.object({
   id: identifier, name: identifier, origin: z.url(), chatPath: path.default('/v1/chat/completions'),
   modelsPath: path.default('/v1/models'),
-  framework: z.enum(['openai', 'vllm', 'sglang', 'ollama', 'xinference', 'lm-studio', 'llama.cpp', 'localai', 'custom']).default('openai'),
+  framework: z.enum(['openai', 'litellm', 'vllm', 'sglang', 'ollama', 'xinference', 'lm-studio', 'llama.cpp', 'localai', 'custom']).default('openai'),
   enabled: z.boolean().default(true), authHeader: headerName.default('authorization'),
   authPrefix: secret.default('Bearer '), apiKey: secret.optional(),
   ca: z.string().max(65_536).optional(), connectMs: timeout.default(5_000),
   firstMs: timeout.default(60_000), idleMs: timeout.default(60_000),
   concurrency: z.number().int().min(1).max(512).default(16),
+  protocol: protocolSchema.optional(),
 });
 const capability = z.enum(['configured', 'supported', 'unsupported', 'unverified']);
+export const processingModeSchema = z.enum(['DIRECT', 'FRAMEWORK', 'CUSTOM']);
 export const modelSchema = z.object({
   alias: identifier, displayName: identifier.optional(), upstream: identifier, service: identifier, enabled: z.boolean().default(true),
   contextWindow: z.number().int().positive().optional(), maxOutput: z.number().int().positive().optional(),
   sseEnd: z.enum(['require_done', 'done_on_finished_eof']).default('require_done'),
+  protocol: protocolSchema.optional(),
+  processingMode: processingModeSchema.optional(),
   capabilities: z.object({ tools: capability.default('unverified'), reasoning: capability.default('unverified'),
-    vision: capability.default('unverified'), streaming: capability.default('unverified') }).default({
+    vision: capability.default('unverified'), streaming: capability.default('unverified'),
+    parallelTools: capability.optional(), streamUsage: capability.optional() }).default({
     tools: 'unverified', reasoning: 'unverified', vision: 'unverified', streaming: 'unverified',
   }),
   rules: z.array(ruleSchema).max(100).default([]),
@@ -145,7 +151,7 @@ export class Store {
 
   validate(input: unknown, checkCaValidity = true, allowNewOrigins = false): Config {
     const config = configSchema.parse(input);
-    const services = new Set<string>();
+    const services = new Map<string, Service>();
     const allowed = this.allowedOrigins;
     for (const service of config.services) {
       const base = normalizeUpstreamUrl(service.origin);
@@ -153,16 +159,30 @@ export class Store {
       if (!allowNewOrigins && !allowed.has(new URL(base).origin)) {
         throw new GatewayError(400, 'upstream_not_allowed', '该上游地址尚未保存');
       }
+      if (service.framework === 'litellm' && (service.chatPath !== '/v1/chat/completions' || service.modelsPath !== '/v1/models'
+        || service.authHeader !== 'authorization' || service.authPrefix !== 'Bearer '))
+        throw new GatewayError(422, 'framework_service_contract', 'LiteLLM 只允许 Chat Completions、模型列表和 Bearer 接入');
       service.origin = base;
       if (services.has(service.id)) throw new GatewayError(409, 'duplicate_service', '服务 ID 重复');
-      services.add(service.id);
+      services.set(service.id, service);
       if (service.ca) service.ca = validateUpstreamTrust(service.ca, checkCaValidity);
     }
     const aliases = new Set<string>();
     for (const model of config.models) {
       if (aliases.has(model.alias)) throw new GatewayError(409, 'duplicate_model', '模型 ID 重复');
       aliases.add(model.alias);
-      if (!services.has(model.service)) throw new GatewayError(400, 'unknown_service', '模型引用的服务不存在');
+      const service = services.get(model.service);
+      if (!service) throw new GatewayError(400, 'unknown_service', '模型引用的服务不存在');
+      if ((model.processingMode === 'FRAMEWORK') !== (service.framework === 'litellm'))
+        throw new GatewayError(422, 'framework_service_required', 'FRAMEWORK 模型与 LiteLLM 服务必须配对配置');
+      const protocol = { ...service.protocol, ...model.protocol };
+      const rules = [...model.rules, ...Object.values(model.profileRules).flat()];
+      if (service.framework === 'litellm' && (Object.keys(protocol).length
+        || model.sseEnd !== 'require_done'
+        || rules.some(rule => rule.stage === 'response' || rule.stage === 'sse')))
+        throw new GatewayError(422, 'framework_protocol_conflict', 'LiteLLM 负责协议转换，此模式仅支持追加请求和请求头规则');
+      if (protocol.doneEvent && protocol.doneEvent === protocol.usageEvent)
+        throw new GatewayError(400, 'conflicting_sse_events', 'SSE 用量事件与结束事件不能相同');
     }
     return config;
   }
@@ -222,11 +242,16 @@ export class Store {
       firstTokenMs: typeof row.firstTokenMs === 'number' ? row.firstTokenMs : null,
     })), range, now);
   }
-  saveCheck(model: string, version: number, findings: object) {
-    this.db.prepare('INSERT OR REPLACE INTO checks VALUES (?,?,?,?)').run(model, version, new Date().toISOString(), JSON.stringify(findings));
+  saveCheck(model: string, version: number, findings: object[], profile: Profile) {
+    // Old releases continue to read the findings array after an image rollback.
+    const recorded = findings.map((item, index) => index === 0 ? { ...item, profile } : item);
+    this.db.prepare('INSERT OR REPLACE INTO checks VALUES (?,?,?,?)').run(model, version, new Date().toISOString(), JSON.stringify(recorded));
   }
   checks() {
     return this.db.prepare('SELECT model,version,time,findings FROM checks').all()
-      .map(row => ({ ...row, findings: JSON.parse(String(row.findings)) }));
+      .map(row => {
+        const findings = JSON.parse(String(row.findings)) as Array<{ profile?: Profile }>;
+        return { ...row, profile: findings[0]?.profile ?? 'generic', findings };
+      });
   }
 }

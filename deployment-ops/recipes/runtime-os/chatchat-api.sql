@@ -1325,6 +1325,8 @@
     );
 
     create table sys_role (
+        effective_at timestamp(6) with time zone,
+        expires_at timestamp(6) with time zone,
         created_at timestamp(6) with time zone not null,
         updated_at timestamp(6) with time zone not null,
         role_type varchar(32) not null,
@@ -1359,6 +1361,8 @@
     );
 
     create table sys_tenant (
+        effective_at timestamp(6) with time zone,
+        expires_at timestamp(6) with time zone,
         created_at timestamp(6) with time zone not null,
         tenant_no bigint unique,
         updated_at timestamp(6) with time zone not null,
@@ -1373,6 +1377,8 @@
     );
 
     create table sys_user (
+        effective_at timestamp(6) with time zone,
+        expires_at timestamp(6) with time zone,
         token_billing_role_id varchar(64),
         created_at timestamp(6) with time zone not null,
         last_login_at timestamp(6) with time zone,

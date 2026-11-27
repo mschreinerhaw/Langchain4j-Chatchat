@@ -28,13 +28,17 @@ public final class ModelDrivenExternalSkillCompiler implements ExternalSkillComp
     private final ModelResourceRegistry modelResources;
     private final ConfigurableChatModelFactory chatModelFactory;
     private final DomainSkillCompilerProperties properties;
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    private com.chatchat.agents.orchestration.model.DirectModelInvocation directModels;
 
     @Override
     public RuntimeSkillIr compile(AdaptedExternalSkill skill) {
         validate(skill);
         String selectedModel = compilerModel();
         try {
-            String response = resolveModel(selectedModel).chat(prompt(skill));
+            String input = prompt(skill);
+            String response = directModels == null ? resolveModel(selectedModel).chat(input)
+                : directModels.text(null, "external-skill-compile", selectedModel, input, 8192);
             RuntimeSkillIr compiled = parseModelResponse(response, skill);
             log.info("externalSkillCompiled format={} name={} model={} mode=MODEL capabilities={} risks={}",
                 skill.sourceFormat(), bounded(skill.name(), 200), selectedModel,

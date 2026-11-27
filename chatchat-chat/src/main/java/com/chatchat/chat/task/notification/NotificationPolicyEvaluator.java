@@ -1,6 +1,8 @@
 package com.chatchat.chat.task.notification;
 
 import com.chatchat.agents.protocol.ModelProtocolJson;
+import com.chatchat.agents.orchestration.model.DirectModelInvocation;
+import com.chatchat.common.kernel.KernelDataScope;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import dev.langchain4j.model.chat.ChatModel;
@@ -33,8 +35,14 @@ public class NotificationPolicyEvaluator {
 
     private final ObjectProvider<ChatModel> chatModelProvider;
     private final ObjectMapper objectMapper;
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    private DirectModelInvocation directModels;
 
     public Decision evaluate(String condition, String report, List<Map<String, Object>> references) {
+        return evaluate(null, condition, report, references);
+    }
+
+    public Decision evaluate(KernelDataScope scope, String condition, String report, List<Map<String, Object>> references) {
         String normalizedCondition = text(condition);
         if (normalizedCondition.isBlank()) {
             return Decision.skip("未配置发送条件", List.of(), List.of(), false);
@@ -43,8 +51,8 @@ public class NotificationPolicyEvaluator {
         if (evidence.isEmpty()) {
             return Decision.skip("本次运行没有可验证的证据，禁止条件通知", List.of(), List.of(), false);
         }
-        ChatModel model = chatModelProvider.getIfAvailable();
-        if (model == null) {
+        ChatModel model = directModels == null ? chatModelProvider.getIfAvailable() : null;
+        if (model == null && (directModels == null || scope == null)) {
             return Decision.skip("通知条件判断模型不可用，按严格策略不发送", List.of(), List.of(), false);
         }
 
@@ -71,7 +79,8 @@ public class NotificationPolicyEvaluator {
                 ModelProtocolJson.compact(evidence.stream().map(EvidenceItem::promptView).toList())
             );
         try {
-            String raw = model.chat(prompt);
+            String raw = directModels == null ? model.chat(prompt)
+                : directModels.text(scope, "notification-policy", prompt, 2048);
             Map<String, Object> response = objectMapper.readValue(jsonObject(raw), new TypeReference<>() {});
             return validate(response, evidence);
         } catch (Exception ex) {

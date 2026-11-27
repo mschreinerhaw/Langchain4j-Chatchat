@@ -2,6 +2,7 @@ package com.chatchat.api.runtime.coding.cline;
 
 import com.chatchat.agents.model.ConfigurableChatModelFactory;
 import com.chatchat.api.runtime.coding.CodingParentModels;
+import com.chatchat.api.enterprise.service.TokenQuotaLedger;
 import com.chatchat.common.config.ModelResourceRegistry;
 import com.chatchat.common.kernel.KernelDataScope;
 import com.chatchat.common.runtime.coding.*;
@@ -24,6 +25,32 @@ import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.*;
 
 class ClineRuntimeModelBridgeTest {
+    @Test void enterpriseQuotaAdmitsBeforeTheJavaModelCallAndUsesProviderUsage() throws Exception {
+        var resources=mock(ModelResourceRegistry.class);
+        when(resources.defaultChatModel()).thenReturn("registered-model");
+        var registry=new CodingParentModels();
+        var bridge=new ClineRuntimeModelBridge(resources,mock(ConfigurableChatModelFactory.class),json);
+        bridge.setParentModels(registry);
+        var quota=mock(TokenQuotaLedger.class);
+        org.springframework.test.util.ReflectionTestUtils.setField(bridge,"quota",quota);
+        var parent=mock(ChatModel.class);
+        var task=contract();
+        var request=json.readTree("""
+            {"operationId":"turn-1","messages":[{"role":"user","content":[{"type":"text","text":"hello"}]}],"tools":[]}
+            """);
+        when(quota.reserve(eq(task.scope()),eq(task.taskId()),startsWith("java-"),anyLong(),anyLong()))
+            .thenReturn(TokenQuotaLedger.Decision.QUOTA_EXHAUSTED,TokenQuotaLedger.Decision.ADMITTED);
+        try(var ignored=registry.bind(task.scope(),task.taskId(),parent)) {
+            assertThatThrownBy(()->bridge.complete(task,request))
+                .isInstanceOf(ClineRuntimeModelBridge.InvalidModelResponseException.class);
+            verifyNoInteractions(parent);
+            when(parent.chat(any(ChatRequest.class))).thenReturn(ChatResponse.builder().aiMessage(AiMessage.from("done"))
+                .tokenUsage(new TokenUsage(2,1,3)).build());
+            assertThat(bridge.complete(task,request)).containsEntry("text","done");
+            verify(quota).settle(eq(task.scope()),eq(task.taskId()),startsWith("java-"),eq(3L),eq(false));
+        }
+    }
+
     @Test void nativeStudioMcpUsesWorkspaceProfileAndRetainsFrozenToolGrants() throws Exception {
         var resources=mock(ModelResourceRegistry.class);var factory=mock(ConfigurableChatModelFactory.class);
         when(resources.defaultChatModel()).thenReturn("registered-model");

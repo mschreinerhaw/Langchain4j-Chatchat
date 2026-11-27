@@ -31,6 +31,8 @@ public class DomainSkillPlanningRouter {
     private final ModelResourceRegistry modelResources;
     private final ConfigurableChatModelFactory chatModelFactory;
     private final DomainSkillCompilerProperties properties;
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    private com.chatchat.agents.orchestration.model.DirectModelInvocation directModels;
 
     public RoutingResult route(String query, String agentModel,
                                List<DomainSkillRuntimePort.DomainSkillContent> candidates) {
@@ -40,7 +42,10 @@ public class DomainSkillPlanningRouter {
         if (selected.isEmpty()) return RoutingResult.empty();
         String model = modelName(agentModel);
         try {
-            JsonNode root = objectMapper.readTree(stripFence(resolveModel(model).chat(prompt(query, selected))));
+            String input = prompt(query, selected);
+            String response = directModels == null ? resolveModel(model).chat(input)
+                : directModels.text(null, "domain-skill-routing", model, input, 4096);
+            JsonNode root = objectMapper.readTree(stripFence(response));
             if (root == null || !root.isObject()) throw new IllegalArgumentException("router output must be JSON");
             Set<String> authorized = selected.stream().map(DomainSkillRuntimePort.DomainSkillContent::id)
                 .collect(java.util.stream.Collectors.toCollection(LinkedHashSet::new));

@@ -62,6 +62,8 @@ public final class ClineModelCallbackController {
     private final CodingValidationPlanService plans;
     private final CodingEvidenceCollector collector;
     private final ObjectMapper mapper;
+    @org.springframework.beans.factory.annotation.Autowired
+    private com.chatchat.enterprise.service.EnterpriseAdminService enterpriseIdentity;
     private final Map<String, Instant> freshDispatches = new ConcurrentHashMap<>();
     @org.springframework.beans.factory.annotation.Value("${chatchat.coding.completion-reserve.minimum-ratio:0.15}")
     private double completionMinimumRatio = 0.15;
@@ -409,6 +411,7 @@ public final class ClineModelCallbackController {
     @PostMapping("/reserve-model")
     public Map<String, Object> reserve(@RequestBody JsonNode body) {
         return bound(body, call -> {
+            requireActiveIdentity(call.scope());
             CodingTaskContract contract = contract(body, call);
             if (skillReader!=null) skillReader.freezeCatalog(contract,call.lease());
             JsonNode request = body.path("model");
@@ -443,6 +446,7 @@ public final class ClineModelCallbackController {
     @PostMapping("/model")
     public Map<String, Object> model(@RequestBody JsonNode body) {
         return bound(body, call -> {
+            requireActiveIdentity(call.scope());
             JsonNode request = body.path("request");
             boolean managedAttempt = request.path("managedAttempt").asBoolean(false);
             // Managed admission validates sources in reserve below; legacy dispatch validates here.
@@ -829,6 +833,11 @@ public final class ClineModelCallbackController {
         } catch (Exception invalid) {
             throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Callback contract is not authorized", invalid);
         }
+    }
+
+    private void requireActiveIdentity(KernelDataScope scope) {
+        if (enterpriseIdentity != null && !enterpriseIdentity.isActiveIdentity(scope.tenantId(), scope.userId()))
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "用户或租户授权未生效、已过期或已停用");
     }
 
     private void assertStillOwned(Call call) {

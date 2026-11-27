@@ -11,7 +11,7 @@ import Fastify, { type FastifyReply, type FastifyRequest } from 'fastify';
 import staticFiles from '@fastify/static';
 import { z } from 'zod';
 import { settings, limits, Store, GatewayError, withProfile, profileSchema, type Config } from './config.js';
-import { proxy, translate, prepare, redact, outgoingHeaders, inFlight, upstreamModels } from './proxy.js';
+import { proxy, translate, prepare, redact, outgoingHeaders, inFlight, upstreamModels, processingMode } from './proxy.js';
 import { diagnose } from './diagnostics.js';
 import { isObject, applyRules, type JsonObject } from '../protocol/rules.js';
 import { profileNames, type Profile } from '../protocol/profiles.js';
@@ -20,6 +20,9 @@ import { probeGateway, requestGateway } from './transport.js';
 import { checkIntegrationResponse, integrationBody } from './integration.js';
 import { trafficRanges, type TrafficRange } from './traffic.js';
 import { runtimeRequest } from '../protocol/runtime.js';
+import { litellmRequest } from '../protocol/litellm.js';
+import { RequestCapture } from './request-capture.js';
+import { UpstreamErrorLog } from './upstream-error-log.js';
 
 const settingsValue = settings();
 const version = '1.2.0-rc.1';
@@ -47,6 +50,8 @@ const serverFactory: typeof options & { serverFactory?: import('fastify').Fastif
 const api = Fastify(serverFactory);
 const admin = Fastify(serverFactory);
 const sessions = new Map<string, number>();
+const requestCapture = new RequestCapture();
+const upstreamErrorLog = new UpstreamErrorLog(resolve(dataDir, 'model-errors.ndjson'));
 type LabTrace = (stage: string, value: unknown) => Promise<void>;
 const labRequests = new Map<string, { identity: string; profile: Profile; headers?: JsonObject; trace: LabTrace }>();
 let loginFailures = 0;
@@ -89,6 +94,17 @@ api.addHook('onRequest', async (req, reply) => {
 });
 type Client = (typeof settingsValue.clients)[number];
 const identities = new WeakMap<FastifyRequest, Client>();
+const forwardingRequests = new WeakSet<FastifyRequest>();
+api.addHook('onResponse', async (req, reply) => {
+  if (req.method !== 'POST' || reply.statusCode < 400 || forwardingRequests.has(req)) return;
+  const route = req.routeOptions.url;
+  const endpoint = route && ['/v1/chat/completions', '/v1/responses', '/v1/embeddings', '/v1/messages', '/v1/messages/count_tokens'].includes(route)
+    ? route : 'unmatched';
+  try {
+    store.record(req.id, { endpoint, status: reply.statusCode, phase: 'gateway_ingress',
+      client: identities.get(req)?.id, revision: store.snapshot.version });
+  } catch { process.stderr.write('Failed to record request metadata\n'); }
+});
 let draining = false;
 const downstreamRequests = new Map<AbortController, ServerResponse>();
 function availableModels(config: Config, client: Client) {
@@ -158,11 +174,13 @@ api.post('/v1/chat/completions', async (req, reply) => {
   const start = performance.now();
   const model = visible(snapshot.config, req).find(item => item.alias === body.model);
   const service = snapshot.config.services.find(item => item.id === model?.service);
+  forwardingRequests.add(req);
   const metrics: JsonObject = { client: identity.id, profile, model: model?.alias, upstreamModel: model?.upstream,
     upstreamOrigin: service?.origin, stream: body.stream === true, revision: snapshot.version };
   const mode = lab ? 'diagnostic' : identity.mode;
   metrics.mode = mode;
   let runtime: ReturnType<typeof runtimeRequest> | undefined;
+  let capture: ReturnType<RequestCapture['claim']>;
   try {
     if (mode === 'runtime_managed') {
       runtime = runtimeRequest(req.headers, client.abort.signal);
@@ -170,6 +188,10 @@ api.post('/v1/chat/completions', async (req, reply) => {
       runtime.signal.throwIfAborted();
     }
     if (!model || !service) throw new GatewayError(404, 'model_not_found', '模型不存在或未授权');
+    if (!lab) capture = requestCapture.claim(model.alias, identity.id, {
+      gatewayRequestId: req.id, endpoint: '/v1/chat/completions', clientId: identity.id,
+      profile, mode, revision: snapshot.version, ...runtime?.trace,
+    }, body, [...suppliedSecrets, service.apiKey ?? '']);
     if (lab) {
       const socket = req.raw.socket;
       await lab.trace('client', redact(body, [...suppliedSecrets, service.apiKey ?? '']));
@@ -178,6 +200,8 @@ api.post('/v1/chat/completions', async (req, reply) => {
     }
     const result = await proxy({ body, model: withProfile(model, profile), service,
       signal: runtime?.signal ?? client.abort.signal, mode, metrics,
+      onForward: capture?.forwarded,
+      onUpstreamError: details => upstreamErrorLog.write({ gatewayRequestId: req.id, ...details }),
       trace: lab ? async (stage, value) => { if (stage !== 'client') await lab.trace(stage, value); } : undefined,
       headers: lab?.headers, secrets: suppliedSecrets,
       writer: { start: status => client.start('text/event-stream; charset=utf-8', status),
@@ -205,7 +229,9 @@ api.post('/v1/chat/completions', async (req, reply) => {
     }
   } finally {
     runtime?.close();
-    try { store.record(req.id, { ...metrics, elapsedMs: Math.round(performance.now() - start),
+    capture?.finished({ status: metrics.status, upstreamStatus: metrics.upstreamStatus, error: metrics.error,
+      elapsedMs: Math.round(performance.now() - start) });
+    try { store.record(req.id, { ...metrics, phase: 'gateway_forwarding', elapsedMs: Math.round(performance.now() - start),
       clientDisconnected: client.abort.signal.reason?.code === 'client_disconnected' }); }
     catch { process.stderr.write('Failed to record request metadata\n'); }
   }
@@ -242,11 +268,26 @@ admin.post('/admin/login', async (req, reply) => {
   return reply.header('set-cookie', sessionCookie(token, 28_800)).send({ authenticated: true });
 });
 admin.post('/admin/logout', async (req, reply) => {
+  requestCapture.clear(session(req));
   sessions.delete(session(req));
   return reply.header('set-cookie', sessionCookie('', 0)).send({ authenticated: false });
 });
 const publishedConfig = () => ({ ...store.publicVersion(), allowedOrigins: [...store.allowedOrigins], apiBaseUrl: gatewayUrl() });
 admin.get('/admin/config', async () => publishedConfig());
+admin.get('/admin/request-capture', async req => requestCapture.status(session(req)));
+admin.post('/admin/request-capture', async req => {
+  const { alias, clientId } = z.object({ alias: z.string().min(1).max(240), clientId: z.string().min(1).max(240).optional() }).parse(req.body);
+  const clients = clientId === undefined ? settingsValue.clients : settingsValue.clients.filter(client => client.id === clientId);
+  if (!clients.some(client => availableModels(store.snapshot.config, client).some(model => model.alias === alias)))
+    throw new GatewayError(404, 'client_model_not_found', '该客户端没有可捕获的已授权模型');
+  if (!requestCapture.arm(session(req), alias, clientId))
+    throw new GatewayError(409, 'capture_busy', '其他管理员正在捕获请求');
+  return requestCapture.status(session(req));
+});
+admin.delete('/admin/request-capture', async req => {
+  requestCapture.clear(session(req));
+  return requestCapture.status(session(req));
+});
 const tlsStore = () => {
   if (!certificates) throw new GatewayError(409, 'tls_disabled', '当前只启用了 HTTP 测试模式');
   return certificates;
@@ -395,9 +436,15 @@ admin.post('/admin/preview', async req => {
   if (!model || !service) throw invalid('模型映射不存在');
   let result: unknown;
   try {
-    if (input.stage === 'request') result = prepare(input.body, model);
-    else if (input.stage === 'headers') result = outgoingHeaders(service, model, false, false, input.body);
-    else result = applyRules(input.body, model.rules, input.stage);
+    const protocol = { ...service.protocol, ...model.protocol };
+    const selected = processingMode(model, protocol) === 'DIRECT' ? { ...model, rules: [] } : model;
+    if (input.stage === 'request') {
+      const prepared = prepare(input.body, selected, false, protocol);
+      if (service.framework === 'litellm') litellmRequest(prepared);
+      result = prepared;
+    }
+    else if (input.stage === 'headers') result = outgoingHeaders(service, selected, false, false, input.body);
+    else result = applyRules(input.body, selected.rules, input.stage);
   } catch (error) {
     throw error instanceof GatewayError ? error : invalid('预览样本无法应用当前规则');
   }
@@ -437,6 +484,7 @@ admin.post('/admin/lab', async (req, reply) => {
     if (input.direct) {
       const result = await proxy({ body: input.body, model: { ...target, upstream: target.upstream }, service, direct: true, mode: 'diagnostic',
         headers: input.headers, signal: client.abort.signal, secrets: suppliedSecrets, metrics: {}, trace,
+        onUpstreamError: details => upstreamErrorLog.write({ gatewayRequestId: req.id, ...details }),
         writer: { start() {}, async write() {} } });
       await trace('result', { status: result.status });
     } else {
@@ -463,7 +511,7 @@ admin.post('/admin/lab', async (req, reply) => {
 });
 admin.post('/admin/check', async (req, reply) => {
   if (checking) throw new GatewayError(429, 'check_in_progress', '已有体检任务正在运行');
-  const { alias } = z.object({ alias: z.string() }).parse(req.body);
+  const { alias, profile } = z.object({ alias: z.string(), profile: profileSchema.default('generic') }).parse(req.body);
   const snapshot = store.snapshot;
   const model = snapshot.config.models.find(item => item.alias === alias);
   const service = snapshot.config.services.find(item => item.id === model?.service);
@@ -472,9 +520,9 @@ admin.post('/admin/check', async (req, reply) => {
   const client = downstream(reply);
   try {
     client.start('application/x-ndjson; charset=utf-8');
-    const results = await diagnose(model, service, client.abort.signal, suppliedSecrets,
+    const results = await diagnose(withProfile(model, profile), service, client.abort.signal, suppliedSecrets,
       async finding => client.write(JSON.stringify({ value: finding }) + '\n'));
-    store.saveCheck(alias, snapshot.version, results);
+    store.saveCheck(alias, snapshot.version, results, profile);
   } catch (error) {
     if (!client.abort.signal.aborted) await client.write(JSON.stringify({ value: { test: '诊断', status: 'FAIL', reason: translate(error).message } }) + '\n');
   } finally { checking = false; if (client.started) client.end(); }

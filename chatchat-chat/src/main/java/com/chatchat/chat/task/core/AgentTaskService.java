@@ -69,6 +69,8 @@ import java.util.regex.Pattern;
 @Service
 @RequiredArgsConstructor
 public class AgentTaskService {
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    private com.chatchat.agents.orchestration.model.DirectModelInvocation directModels;
 
     private static final int LATEST_STATE_OPTIMISTIC_RETRIES = 5;
 
@@ -185,6 +187,10 @@ public class AgentTaskService {
         latest.setAttemptCount(0);
         latest.setMaxAttempts(Math.max(1, properties.getTaskMaxAttempts()));
         applyWorkerRequirements(latest, normalized);
+        if (directModels != null) {
+            directModels.freezeBillingRole(new com.chatchat.common.kernel.KernelDataScope(latest.getTenantId(),
+                latest.getUserId(), null, latest.getSessionId(), identity.attemptId(), null, Map.of()));
+        }
         try {
             latest = saveTask(latest);
         } catch (DataIntegrityViolationException duplicate) {

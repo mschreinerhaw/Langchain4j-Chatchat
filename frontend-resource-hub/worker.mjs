@@ -6,10 +6,18 @@ import {dirname} from 'node:path';
 import {execFile} from 'node:child_process';
 import {promisify} from 'node:util';
 import {themes,binder} from './catalog.mjs';
+import {printReport} from './report-print.mjs';
 const app=express(),jobs=new Map();let active=0;
-app.use(express.json({limit:'2mb'}));
 app.get('/health',(_,res)=>res.json({status:'ok',active}));
 app.use((req,res,next)=>{if(!process.env.HUB_TOKEN||req.get('authorization')!==`Bearer ${process.env.HUB_TOKEN}`)return res.sendStatus(401);next()});
+app.post('/api/v1/report-pdf', express.json({limit:'34mb'}), async (req,res)=>{
+ if(active>=2)return res.sendStatus(429);
+ active++;
+ try{res.type('application/pdf').set('Cache-Control','no-store').send(await printReport(req.body))}
+ catch{res.sendStatus(422)}
+ finally{active--}
+});
+app.use(express.json({limit:'2mb'}));
 const origin=process.env.HUB_ORIGIN||'http://frontend-resource-hub:8080';
 const localPath=value=>{const u=new URL(value,origin);if(u.origin!==new URL(origin).origin||!/^\/(assets|themes)\/[a-zA-Z0-9_./@-]+$/.test(u.pathname)||u.pathname.includes('..')||u.search)throw Error('Unregistered dependency '+value);return u.pathname};
 async function asset(path){

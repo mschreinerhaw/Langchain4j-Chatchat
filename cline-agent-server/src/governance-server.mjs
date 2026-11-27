@@ -171,13 +171,52 @@ async function broker(r,path){
    if(res.destroyed)close();
    try{
     const request=JSON.stringify(requestBody);
-    if(modelProfile)observation=modelReceipt({model:modelProfile.model,request,body:requestBody,
+    const requestId=modelProfile?randomUUID():undefined;
+    let settlement, runtimeAuthorization;
+    if(modelProfile&&tenant.runtimeModelAuthority){
+     const admission=new URL(tenant.runtimeModelAuthority);
+     if(!admission.pathname.endsWith('/model'))throw error('Runtime model admission endpoint unavailable',503);
+     settlement=new URL(admission);
+     settlement.pathname+='-settlement';
+     admission.pathname+='-admission';
+     runtimeAuthorization='Bearer '+runtimeGrant(r);
+     const media=/"type"\s*:\s*"(input_image|image_url|input_audio|image|audio|file|input_file)"/.test(request);
+     const output=modelProfile.maxTokens>0?modelProfile.maxTokens:modelProfile.contextWindow;
+     const input=media?(modelProfile.contextWindow??Buffer.byteLength(request)):Buffer.byteLength(request)+256;
+     const decision=await fetch(admission,{method:'POST',
+      headers:{authorization:runtimeAuthorization,'content-type':'application/json'},
+      body:JSON.stringify({requestId,inputUpperBound:input,outputUpperBound:output??null}),
+      redirect:'error',signal:AbortSignal.any([controller.signal,AbortSignal.timeout(5000)])});
+     await decision.body?.cancel();
+     if(decision.status!==204){
+      const known=[400,401,403,409,429].includes(decision.status);
+      event(r,'model.request.rejected',{model:modelProfile.model,requestId,
+       code:decision.status===429?'RUNTIME_TOKEN_QUOTA_EXHAUSTED':
+        known?'RUNTIME_MODEL_AUTHORIZATION_REJECTED':'RUNTIME_MODEL_AUTHORITY_UNAVAILABLE',providerDispatched:false});
+      throw error('Runtime model admission rejected',known?decision.status:503);
+     }
+    }
+    if(modelProfile)observation=modelReceipt({model:modelProfile.model,request,body:requestBody,requestId,
       reasoning:{requestedReasoningEffort:modelProfile.requestedReasoningEffort,reasoningEffort:modelProfile.requestedReasoningEffort===undefined?modelProfile.reasoningEffort:modelProfile.reasoningEffort??'off',
        modelAttemptId:r.contract.modelAttemptId},
       emit:(type,payload)=>{
        if(type==='model.request.completed')settleStudioModel(r,payload);
        event(r,type,payload);
+       if(type==='model.request.completed'&&settlement){
+        const providerTokens=payload.usage?.totalTokens??null;
+        void fetch(settlement,{method:'POST',redirect:'error',signal:AbortSignal.timeout(5000),
+         headers:{authorization:runtimeAuthorization,'content-type':'application/json'},
+         body:JSON.stringify({requestId,providerTokens,neverDispatched:payload.providerDispatched===false})})
+         .then(async response=>{
+          await response.body?.cancel();
+          if(response.status!==204)throw Error('Settlement rejected');
+         }).catch(()=>event(r,'model.settlement.pending',{requestId}));
+       }
       }});
+    if(controller.signal.aborted||!live(r)){
+     observation?.finish({errorType:'LocalModelAbort',errorCode:'RUNTIME_TASK_STOPPED',providerDispatched:false});
+     throw error('Task lease inactive',403);
+    }
     const managed=modelProfile&&modelGatewayOrigins.has(new URL(url).origin);
     if(managed){
      headers['x-runtime-task-id']=r.contract.taskId;
@@ -404,7 +443,19 @@ const server=http.createServer(async(req,res)=>{
   if(parts[3]==='messages'&&req.method==='POST'){
    if(typeof value.text==='string')value.text+=nativeSkillDiscoveryContext(r.nativeSkillIndex);
   }
-  const reply=await workerRequest(r,route,req.method,value,{'accept':req.headers.accept??'application/json',...(req.headers['last-event-id']?{'last-event-id':req.headers['last-event-id']}:{}),...(req.headers['idempotency-key']?{'idempotency-key':req.headers['idempotency-key']}:{} )});
+  let reply;
+  try{
+   reply=await workerRequest(r,route,req.method,value,{'accept':req.headers.accept??'application/json',...(req.headers['last-event-id']?{'last-event-id':req.headers['last-event-id']}:{}),...(req.headers['idempotency-key']?{'idempotency-key':req.headers['idempotency-key']}:{} )});
+  }catch(failure){
+   if(r.contract.s3&&parts[3]==='status'&&req.method==='GET'){
+    const state=(await inspectWorker(r).catch(()=>null))?.State;
+    if(state?.Running===false&&['exited','dead'].includes(state.Status)){
+     await stop(r,'worker-lost');
+     return send(res,200,publicState(r));
+    }
+   }
+   throw failure;
+  }
   if(parts[3]==='status'&&reply.statusCode===200){const chunks=[];for await(const b of reply)chunks.push(b);if(r.revoked)return send(res,200,publicState(r));const native=JSON.parse(Buffer.concat(chunks));if(r.workerState==='STARTING')return send(res,200,publicState(r,native));r.workerState=native.status==='awaiting_permission'?'WAITING_APPROVAL':native.status==='turn_completed'?'COMPLETED':native.status==='failed'?'RECOVERABLE':native.status==='idle'?'READY':'RUNNING';r.taskState=native.status==='turn_completed'?'AGENT_TURN_COMPLETED':native.status==='failed'?'UNKNOWN':['running','awaiting_permission','awaiting_input'].includes(native.status)?'RUNNING':r.taskState;save(r);if(r.contract.s3&&['failed','recoverable','cancelled'].includes(native.status))void stop(r,'native-core-unavailable');return send(res,200,publicState(r,native));}
   res.writeHead(reply.statusCode,{'content-type':reply.headers['content-type']??'application/json','cache-control':'no-store'});
   if(!streams.has(r.workerId))streams.set(r.workerId,new Set());streams.get(r.workerId).add(res);

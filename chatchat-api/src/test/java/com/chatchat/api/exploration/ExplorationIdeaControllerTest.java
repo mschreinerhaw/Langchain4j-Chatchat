@@ -1,6 +1,7 @@
 package com.chatchat.api.exploration;
 
 import com.chatchat.agents.orchestration.model.AgentChatModelResolver;
+import com.chatchat.agents.orchestration.model.DirectModelInvocation;
 import com.chatchat.api.assets.UserAssetService;
 import com.chatchat.api.security.ObjectAccessService;
 import com.chatchat.api.workspace.WorkspaceService;
@@ -23,9 +24,16 @@ class ExplorationIdeaControllerTest {
     UserAssetService assets=mock(UserAssetService.class);AgentChatModelResolver models=mock(AgentChatModelResolver.class);
     ChatModel model=mock(ChatModel.class);ObjectMapper json=new ObjectMapper();MockHttpServletRequest http=new MockHttpServletRequest();
     UserAssetService.Owner owner=new UserAssetService.Owner("tenant","alice");
-    ExplorationIdeaController controller=new ExplorationIdeaController(workspaces,access,store,agents,json,new com.chatchat.api.assistance.QuestionIdeaService(assets,models,json));
+    DirectModelInvocation invocation=mock(DirectModelInvocation.class);
+    ExplorationIdeaController controller=new ExplorationIdeaController(workspaces,access,store,agents,json,
+        new com.chatchat.api.assistance.QuestionIdeaService(assets,models,json,invocation));
     @BeforeEach void setup(){when(access.tenant(http)).thenReturn("tenant");when(access.user(http)).thenReturn("alice");when(models.resolveChatModel(null)).thenReturn(model);}
+    private void invokeUnderlyingModel() {
+        when(invocation.chat(any(),eq("question-ideas"),any(),any(),eq(1600)))
+            .thenAnswer(call -> call.<ChatModel>getArgument(2).chat(call.<ChatRequest>getArgument(3)));
+    }
     @Test void loadsOwnedCurrentNodeAndSupplementalTextBeforeOneModelCall() throws Exception {
+        invokeUnderlyingModel();
         var project=json.createObjectNode().put("title","七月客户分析");var node=project.putArray("nodes").addObject().put("id","node").put("question","核对资产盈亏");
         node.putArray("fileIds");node.putObject("receipt").put("resultAvailable",true).putObject("visualReport").put("summary","期末资产120元，净流入20元，盈亏口径待确认");
         when(store.get(owner,"project")).thenReturn(project);
@@ -50,11 +58,13 @@ class ExplorationIdeaControllerTest {
         verifyNoInteractions(models,model);
     }
     @Test void invalidModelOutputIsAnErrorWithoutTemplateFallback(){
+        invokeUnderlyingModel();
         when(model.chat(any(ChatRequest.class))).thenReturn(ChatResponse.builder().aiMessage(AiMessage.from("{\"ideas\":[]}")).build());
         assertThatThrownBy(()->controller.ideas(http,new ExplorationIdeaController.Request(null,null,"核对资金",null,List.of()))).hasMessageContaining("有效提问建议");
         verify(model,times(1)).chat(any(ChatRequest.class));
     }
     @Test void timedOutModelReturnsActionableErrorAndReleasesTheSlotForRetry() throws Exception {
+        invokeUnderlyingModel();
         when(model.chat(any(ChatRequest.class)))
             .thenThrow(new com.chatchat.agents.orchestration.model.AgentDeadlineExceededException("deadline"))
             .thenReturn(ChatResponse.builder().aiMessage(AiMessage.from("{\"ideas\":[{\"title\":\"核对范围\",\"prompt\":\"核对本期客户资产范围\"}]} ")).build());

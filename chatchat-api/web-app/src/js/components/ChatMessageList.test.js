@@ -111,12 +111,14 @@ it('removes the progress card when analysis finishes and keeps the report visibl
     expect(host.querySelector('.task-workbench')).toBeNull();expect(host.textContent).toContain('分析报告正文');
   }finally{app.unmount();}
 });
-it('allows exporting a completed report even when the text fallback is empty',()=>{
-  const context={pdfExportAllowed:true,messageHasRenderableContent:()=>false,messageVisualReport:()=>({schemaVersion:'python_visual_report.v1'}),messageUiArtifact:()=>null};
+it('requires a persisted reference and allows exporting an archived HTML report with no text',()=>{
+  const context={pdfExportAllowed:true,messageHasRenderableContent:()=>false,messageVisualReport:()=>({htmlReport:{entryFileId:'asset'}}),messageUiArtifact:()=>null};
   expect(methods.canExportMessagePdf.call(context,{role:'assistant',status:'completed'})).toBeTruthy();
   expect(methods.canExportMessagePdf.call(context,{role:'assistant',streaming:true})).toBeFalsy();
   context.messageVisualReport=()=>null;context.messageUiArtifact=()=>({artifactId:'archived-report'});
-  expect(methods.canExportMessagePdf.call(context,{role:'assistant',status:'completed'})).toBeTruthy();
+  expect(methods.canExportMessagePdf.call(context,{role:'assistant',status:'completed'})).toBeFalsy();
+  context.conversationId='conversation-1';context.messageHasRenderableContent=()=>true;
+  expect(methods.canExportMessagePdf.call(context,{id:'answer-1',taskId:'task-1',role:'assistant',status:'completed'})).toBeTruthy();
   context.pdfExportAllowed=false;
   expect(methods.canExportMessagePdf.call(context,{role:'assistant',status:'completed'})).toBeFalsy();
 });

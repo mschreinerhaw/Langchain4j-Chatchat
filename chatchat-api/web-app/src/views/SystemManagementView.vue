@@ -460,6 +460,14 @@
                 <option value="locked">锁定</option>
               </select>
             </label>
+            <label v-if="!userForm.protectedAccount">
+              <span>生效时间</span>
+              <input v-model="userForm.effectiveAt" type="datetime-local" />
+            </label>
+            <label v-if="!userForm.protectedAccount">
+              <span>到期时间</span>
+              <input v-model="userForm.expiresAt" type="datetime-local" />
+            </label>
             <label class="full-span">
               <span>角色</span>
               <select :value="userForm.roleIds[0] || ''" @change="setUserRole($event.target.value)">
@@ -486,6 +494,7 @@
               <span>{{ userForm.id ? "保存账户" : "新增账户" }}</span>
             </button>
           </div>
+          <TokenQuotaEditor v-if="userForm.id && canManageTokenQuotas" :key="userForm.id" type="USER" :principal="userForm.id" />
         </form>
       </div>
 

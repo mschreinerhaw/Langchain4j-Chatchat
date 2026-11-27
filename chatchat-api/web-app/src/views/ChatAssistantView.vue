@@ -112,6 +112,7 @@
       v-if="!historyDetailsLoading && !historyDetailError && hasConversation"
       ref="messageList"
       :messages="messages"
+      :conversation-id="conversationId"
       :loading="loading"
       :allow-message-delete="!!conversationId && !loading"
       :user-id="userId"

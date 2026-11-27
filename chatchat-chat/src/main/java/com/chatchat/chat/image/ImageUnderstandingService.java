@@ -41,6 +41,8 @@ public class ImageUnderstandingService {
     private final ObjectMapper objectMapper;
     private final DocumentTextExtractor documentTextExtractor;
     private final AgentChatModelResolver chatModelResolver;
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    private com.chatchat.agents.orchestration.model.DirectModelInvocation directModels;
 
     @Autowired
     public ImageUnderstandingService(ImageAssetRepository assetRepository,
@@ -174,7 +176,7 @@ public class ImageUnderstandingService {
 
     private ImageAnalysisResultEntity analyzeContent(ImageAssetEntity asset,String question,String mode,String userId,String modelName,byte[] bytes) {
         String normalizedMode = normalizeMode(mode);
-        VisionAttempt visionAttempt = analyzeWithVisionModel(asset, question, normalizedMode, modelName,bytes);
+        VisionAttempt visionAttempt = analyzeWithVisionModel(asset, question, normalizedMode, userId, modelName,bytes);
         VisionAnalysis vision = visionAttempt.analysis();
         String imageType;
         String extractedText;
@@ -383,7 +385,7 @@ public class ImageUnderstandingService {
     private VisionAttempt analyzeWithVisionModel(ImageAssetEntity asset,
                                                  String question,
                                                  String mode,
-                                                 String modelName,byte[] bytes) {
+                                                 String userId, String modelName,byte[] bytes) {
         if (chatModelResolver == null) {
             return new VisionAttempt(null, "multimodal model resolver is unavailable");
         }
@@ -398,7 +400,23 @@ public class ImageUnderstandingService {
                 bytes==null?ImageContent.from(imagePath, normalize(asset.getContentType(), "image/png"))
                     :ImageContent.from(java.util.Base64.getEncoder().encodeToString(bytes),asset.getContentType())
             );
-            ChatResponse response = chatModel.chat(message);
+            ChatResponse response;
+            if (directModels == null) {
+                response = chatModel.chat(message);
+            } else {
+                String runId = java.util.UUID.randomUUID().toString();
+                var scope = new com.chatchat.common.kernel.KernelDataScope(asset.getTenantId(),
+                    normalize(userId, asset.getUserId()), runId, null, runId, null, Map.of());
+                var configuration = chatModelResolver.checkpointModelConfiguration(modelName, chatModel);
+                int maximum = configuration != null && configuration.get("maxTokens") instanceof Integer limit && limit > 0
+                    ? Math.min(limit, 8192) : 8192;
+                var request = dev.langchain4j.model.chat.request.ChatRequest.builder().messages(message)
+                    .parameters(dev.langchain4j.model.chat.request.DefaultChatRequestParameters.builder()
+                        .maxOutputTokens(maximum).build()).build();
+                var model = com.chatchat.agents.orchestration.model.ToolExecutionModels.independent(chatModel, () -> -1);
+                response = directModels.multimodal(scope, "image-analysis", model, request,
+                    chatModelResolver.contextWindowTokens(modelName), maximum);
+            }
             String responseText = response == null || response.aiMessage() == null
                 ? null
                 : trimToNull(response.aiMessage().text());

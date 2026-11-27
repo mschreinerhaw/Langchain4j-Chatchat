@@ -23,7 +23,7 @@
         <button type="submit" class="permission-primary" :disabled="busy">保存设置</button>
       </div>
       <h2>允许导出的角色</h2>
-      <p v-if="policy.version === 0">初次保存前仅权限管理员可导出。保存后按以下角色授权。</p>
+      <p v-if="policy.version === 0">请明确授权可导出报告的角色。保存授权后，对应角色可导出。</p>
       <div class="permission-table-wrap">
         <table class="permission-table">
           <thead><tr><th>角色</th><th>允许导出 PDF</th></tr></thead>

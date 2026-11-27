@@ -1,6 +1,8 @@
 package com.chatchat.chat.interaction.service;
 
 import com.chatchat.agents.evidence.answer.EvidenceAnswer;
+import com.chatchat.agents.orchestration.model.DirectModelInvocation;
+import com.chatchat.common.kernel.KernelDataScope;
 
 import com.chatchat.chat.conversation.model.Conversation;
 import com.chatchat.chat.conversation.model.ConversationSummary;
@@ -33,6 +35,12 @@ public class ConversationMemoryService {
     private final ObjectMapper objectMapper;
     private final ObjectProvider<ChatModel> chatModelProvider;
     private final ConversationContextProperties properties;
+    private DirectModelInvocation directModels;
+
+    @Autowired(required = false)
+    void setDirectModels(DirectModelInvocation directModels) {
+        this.directModels = directModels;
+    }
     private final ConversationEvidenceLedgerBridge evidenceLedgerBridge =
         new ConversationEvidenceLedgerBridge();
 
@@ -254,7 +262,7 @@ public class ConversationMemoryService {
             : conversationService.latestSummary(tenantId, conversationId))
             .map(ConversationSummary::summary)
             .orElse("");
-        String summary = summarize(previousSummary, candidates);
+        String summary = summarize(tenantId, conversationId, previousSummary, candidates);
         if (summary == null || summary.isBlank()) {
             return;
         }
@@ -276,7 +284,22 @@ public class ConversationMemoryService {
         }
     }
 
-    private String summarize(String previousSummary, List<Conversation.Message> messages) {
+    private String summarize(String tenantId, String conversationId, String previousSummary, List<Conversation.Message> messages) {
+        if (directModels != null) {
+            var owner = conversationService.conversationOwner(tenantId, conversationId);
+            if (owner.isEmpty()) return fallbackSummary(previousSummary, messages);
+            try {
+                int configured = properties.getSummaryMaxChars();
+                int outputLimit = configured < 1 ? 1600 : Math.min(configured, 16_384);
+                String runId = java.util.UUID.randomUUID().toString();
+                var scope = new KernelDataScope(tenantId, owner.get(), runId, conversationId, runId, null, Map.of());
+                String response = directModels.text(scope, "conversation-summary", buildSummaryPrompt(previousSummary, messages), outputLimit);
+                return response == null || response.isBlank() ? fallbackSummary(previousSummary, messages) : response;
+            } catch (RuntimeException ex) {
+                log.debug("Conversation summary uses local fallback, cause={}", ex.getClass().getSimpleName());
+                return fallbackSummary(previousSummary, messages);
+            }
+        }
         ChatModel chatModel = chatModelProvider == null ? null : chatModelProvider.getIfAvailable();
         if (chatModel == null) {
             return fallbackSummary(previousSummary, messages);

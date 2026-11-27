@@ -1,5 +1,7 @@
 package com.chatchat.enterprise.service;
 
+import java.time.Instant;
+
 import com.chatchat.common.security.InternalCredentialProperties;
 import com.chatchat.common.security.PasswordHashCodec;
 import com.chatchat.enterprise.entity.federation.ExternalUser;
@@ -354,6 +356,35 @@ class EnterpriseAdminServiceIntegrationTest {
         assertThat(service.canAccessAgent(userA.id(), "agent-release")).isTrue();
         assertThat(service.canAccessAgent(userA.id(), "agent-forbidden")).isFalse();
         assertThat(service.accessibleAgentIds(userA.id())).containsExactly("agent-release");
+    }
+
+    @Test
+    void sessionRechecksIdentityAndKeepsPermissionsFromStillActiveRoles() {
+        var tenant = service.saveTenant(tenant("validity-tenant"));
+        var first = service.saveRole(role(tenant.getId(), "VALIDITY-FIRST"));
+        var second = service.saveRole(role(tenant.getId(), "VALIDITY-SECOND"));
+        var draft = user(tenant.getId(), null, "validity-session-user");
+        var owner = service.saveUser(draft, List.of(first.getId(), second.getId()));
+        var session = service.login(draft.getUsername(), draft.getPasswordHash());
+        assertThat(service.authorizationRoleKeys(owner.id())).contains(first.getId(), second.getId());
+
+        first.setExpiresAt(Instant.now().minusSeconds(1));
+        service.saveRole(first);
+        assertThat(service.resolveSessionByToken(session.token())).isPresent();
+        assertThat(service.authorizationRoleKeys(owner.id())).contains(second.getId()).doesNotContain(first.getId());
+
+        draft.setId(owner.id());
+        draft.setExpiresAt(Instant.now().minusSeconds(1));
+        service.saveUser(draft, null);
+        assertThat(service.resolveSessionByToken(session.token())).isEmpty();
+        draft.setExpiresAt(null);
+        service.saveUser(draft, null);
+        assertThat(service.resolveSessionByToken(session.token())).isPresent();
+
+        tenant.setEffectiveAt(Instant.now().plusSeconds(3600));
+        service.saveTenant(tenant);
+        assertThat(service.resolveSessionByToken(session.token())).isEmpty();
+        assertThat(service.isActiveIdentity(tenant.getId(), owner.id())).isFalse();
     }
 
     @Test

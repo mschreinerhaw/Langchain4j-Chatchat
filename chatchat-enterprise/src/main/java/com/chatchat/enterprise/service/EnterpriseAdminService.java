@@ -154,8 +154,8 @@ public class EnterpriseAdminService implements ApplicationRunner {
     public AuthResult login(String username, String password) {
         SysUser user = userRepository.findByUsername(requireText(username, "username"))
             .orElseThrow(() -> new IllegalArgumentException("user not found"));
-        if (!"enabled".equalsIgnoreCase(user.getStatus())) {
-            throw new IllegalArgumentException("user is disabled");
+        if (!identityActive(user, Instant.now())) {
+            throw new IllegalArgumentException("用户或租户授权未生效、已过期或已停用");
         }
         if (!matchesAndUpgradePassword(user, password)) {
             throw new IllegalArgumentException("invalid username or password");
@@ -183,7 +183,7 @@ public class EnterpriseAdminService implements ApplicationRunner {
             .orElseThrow(() -> new IllegalArgumentException("embed token is invalid or expired"));
         SysUser user = userRepository.findById(record.getUserId())
             .orElseThrow(() -> new IllegalArgumentException("user not found"));
-        if (!"enabled".equalsIgnoreCase(user.getStatus())
+        if (!identityActive(user, Instant.now())
             || !hasPermission(user.getId(), "system:admin:operate")) {
             throw new IllegalArgumentException("embed token user is not available");
         }
@@ -277,9 +277,7 @@ public class EnterpriseAdminService implements ApplicationRunner {
      */
     @Transactional(readOnly = true)
     public boolean isTokenValid(String token) {
-        return resolveUserByToken(token)
-            .filter(user -> "enabled".equalsIgnoreCase(user.getStatus()))
-            .isPresent();
+        return resolveUserByToken(token).isPresent();
     }
 
     /**
@@ -297,7 +295,14 @@ public class EnterpriseAdminService implements ApplicationRunner {
         if (userId == null || userId.isBlank()) {
             return Optional.empty();
         }
-        return userRepository.findById(userId);
+        var current = userRepository.findById(userId)
+            .filter(user -> "enabled".equalsIgnoreCase(user.getStatus()));
+        if (current.isEmpty()) {
+            activeTokens.remove(token.trim(), userId);
+            activeTokenUsers.remove(token.trim());
+        }
+        Instant now = Instant.now();
+        return current.filter(user -> identityActive(user, now));
     }
 
     /**
@@ -314,9 +319,7 @@ public class EnterpriseAdminService implements ApplicationRunner {
         String userId = activeTokens.get(normalized);
         if (userId != null) {
             // A token authenticates identity, never a frozen copy of role/permission state.
-            var current = userRepository.findById(userId).filter(user -> "enabled".equalsIgnoreCase(user.getStatus()));
-            if (current.isPresent()) return current.map(this::toUserView);
-            activeTokens.remove(normalized);
+            return resolveUserByToken(normalized).map(this::toUserView);
         }
         activeTokenUsers.remove(normalized);
         return Optional.empty();
@@ -337,6 +340,7 @@ public class EnterpriseAdminService implements ApplicationRunner {
         }
         entity.setTenantCode(requireText(input.getTenantCode(), "tenantCode"));
         entity.setTenantName(requireText(input.getTenantName(), "tenantName"));
+        entity.applySchedule(input, Objects.equals(entity.getTenantNo(), PLATFORM_TENANT_NO));
         entity.setStatus(defaultText(input.getStatus(), "enabled"));
         entity.setContactName(trimToNull(input.getContactName()));
         entity.setContactPhone(trimToNull(input.getContactPhone()));
@@ -380,7 +384,9 @@ public class EnterpriseAdminService implements ApplicationRunner {
         SysRole entity = input.getId() == null ? new SysRole() :
             roleRepository.findById(input.getId()).orElseGet(SysRole::new);
         entity.setTenantId(requireText(input.getTenantId(), "tenantId"));
-        entity.setRoleCode(requireText(input.getRoleCode(), "roleCode"));
+        String roleCode = requireText(input.getRoleCode(), "roleCode");
+        entity.applySchedule(input, "SUPER_ADMIN".equalsIgnoreCase(entity.getRoleCode()) || "SUPER_ADMIN".equalsIgnoreCase(roleCode));
+        entity.setRoleCode(roleCode);
         entity.setRoleName(requireText(input.getRoleName(), "roleName"));
         entity.setRoleType(defaultText(input.getRoleType(), "business"));
         entity.setStatus(defaultText(input.getStatus(), "enabled"));
@@ -459,6 +465,9 @@ public class EnterpriseAdminService implements ApplicationRunner {
         }
         entity.setTenantId(tenantId);
         entity.setOrgId(orgId);
+        boolean protectedUser = isProtectedUser(entity) || "admin".equalsIgnoreCase(input.getUsername())
+            || Objects.equals(internalCredentialProperties.resolvedUsername(), input.getUsername());
+        entity.applySchedule(input, protectedUser);
         entity.setUsername(requireText(input.getUsername(), "username"));
         entity.setDisplayName(requireText(input.getDisplayName(), "displayName"));
         String suppliedPassword = trimToNull(input.getPasswordHash());
@@ -1260,6 +1269,7 @@ public class EnterpriseAdminService implements ApplicationRunner {
         Map<String, SysTenant> tenantsById = tenantRepository.findAllById(tenantIds).stream()
             .collect(Collectors.toMap(SysTenant::getId, value -> value));
 
+        Instant now = Instant.now();
         return users.stream().map(user -> {
             List<String> assignedRoleIds = roleIdsByUser.getOrDefault(user.getId(), List.of());
             SysTenant tenant = tenantsById.get(user.getTenantId());
@@ -1267,7 +1277,7 @@ public class EnterpriseAdminService implements ApplicationRunner {
                 .map(rolesById::get)
                 .filter(Objects::nonNull)
                 .filter(role -> Objects.equals(user.getTenantId(), role.getTenantId()))
-                .filter(role -> "enabled".equalsIgnoreCase(role.getStatus()))
+                .filter(role -> role.activeAt(now) && user.activeAt(now) && tenant != null && tenant.activeAt(now))
                 .flatMap(role -> permissionIdsByRole.getOrDefault(role.getId(), List.of()).stream())
                 .collect(Collectors.toSet());
             List<String> permissionCodes = orderedPermissions.stream()
@@ -1293,7 +1303,9 @@ public class EnterpriseAdminService implements ApplicationRunner {
                 user.getCreatedAt(),
                 user.getUpdatedAt(),
                 isProtectedUser(user),
-                user.getTokenBillingRoleId()
+                user.getTokenBillingRoleId(),
+                user.getEffectiveAt(),
+                user.getExpiresAt()
             );
         }).toList();
     }
@@ -1308,8 +1320,10 @@ public class EnterpriseAdminService implements ApplicationRunner {
         List<String> roleIds = userRoleRepository.findByUserId(user.getId()).stream()
             .map(SysUserRole::getRoleId)
             .toList();
-        List<String> permissionCodes = permissionCodes(user, roleIds);
         SysTenant tenant = tenantRepository.findById(user.getTenantId()).orElse(null);
+        Instant now = Instant.now();
+        List<String> permissionCodes = user.activeAt(now) && tenant != null && tenant.activeAt(now)
+            ? permissionCodes(user, roleIds) : List.of();
         return new UserView(
             user.getId(),
             user.getTenantId(),
@@ -1327,7 +1341,9 @@ public class EnterpriseAdminService implements ApplicationRunner {
             user.getCreatedAt(),
             user.getUpdatedAt(),
             isProtectedUser(user),
-            user.getTokenBillingRoleId()
+            user.getTokenBillingRoleId(),
+            user.getEffectiveAt(),
+            user.getExpiresAt()
         );
     }
 
@@ -1336,6 +1352,20 @@ public class EnterpriseAdminService implements ApplicationRunner {
         return userRepository.findById(requireText(userId, "userId"))
             .map(this::toUserView)
             .orElseThrow(() -> new IllegalArgumentException("user not found"));
+    }
+
+    public boolean isActiveIdentity(String tenantId, String userId) {
+        if (tenantId == null || tenantId.isBlank() || userId == null || userId.isBlank()) {
+            return false;
+        }
+        Instant now = Instant.now();
+        return userRepository.findById(userId).filter(user -> Objects.equals(tenantId, user.getTenantId()))
+            .filter(user -> identityActive(user, now)).isPresent();
+    }
+
+    private boolean identityActive(SysUser user, Instant now) {
+        return user.activeAt(now) && user.getTenantId() != null
+            && tenantRepository.findById(user.getTenantId()).filter(tenant -> tenant.activeAt(now)).isPresent();
     }
 
     /**
@@ -1347,7 +1377,8 @@ public class EnterpriseAdminService implements ApplicationRunner {
     public List<String> authorizationRoleKeys(String userId) {
         SysUser user = userRepository.findById(requireText(userId, "userId"))
             .orElseThrow(() -> new IllegalArgumentException("user not found"));
-        if (!"enabled".equalsIgnoreCase(user.getStatus())
+        Instant now = Instant.now();
+        if (!identityActive(user, now)
             || user.getTenantId() == null || user.getTenantId().isBlank()) {
             return List.of();
         }
@@ -1360,7 +1391,7 @@ public class EnterpriseAdminService implements ApplicationRunner {
         LinkedHashSet<String> keys = new LinkedHashSet<>();
         for (SysRole role : assignedRoleIds.isEmpty() ? List.<SysRole>of()
             : roleRepository.findByTenantIdAndIdIn(tenantId, assignedRoleIds)) {
-            if (!"enabled".equalsIgnoreCase(role.getStatus())) {
+            if (!role.activeAt(now)) {
                 continue;
             }
             addRoleKey(keys, role.getId());
@@ -1388,9 +1419,10 @@ public class EnterpriseAdminService implements ApplicationRunner {
     }
 
     private Set<String> effectivePermissionIds(SysUser user, List<String> roleIds) {
+        Instant now = Instant.now();
         Set<String> enabledRoleIds = roleRepository.findAllById(roleIds).stream()
             .filter(role -> user.getTenantId().equals(role.getTenantId()))
-            .filter(role -> "enabled".equalsIgnoreCase(role.getStatus()))
+            .filter(role -> role.activeAt(now))
             .map(SysRole::getId)
             .collect(java.util.stream.Collectors.toSet());
         Set<String> permissionIds = enabledRoleIds.stream()
@@ -1429,7 +1461,7 @@ public class EnterpriseAdminService implements ApplicationRunner {
             return false;
         }
         return resolveUser(userId)
-            .filter(user -> "enabled".equalsIgnoreCase(user.getStatus()))
+            .filter(user -> identityActive(user, Instant.now()))
             .map(user -> permissionCodes(user, userRoleRepository.findByUserId(user.getId()).stream()
                 .map(SysUserRole::getRoleId)
                 .toList()).contains(permissionCode.trim()))
@@ -1580,7 +1612,8 @@ public class EnterpriseAdminService implements ApplicationRunner {
 
     /** Central resource grants and legacy role bindings are alternative allows; an explicit deny wins. */
     private Set<String> allowedAgentIds(SysUser user, Set<String> candidates, Set<String> legacy) {
-        if (!"enabled".equalsIgnoreCase(user.getStatus())) return Set.of();
+        Instant now = Instant.now();
+        if (!identityActive(user, now)) return Set.of();
         Set<String> roleIds = userRoleRepository.findByUserId(user.getId()).stream()
             .filter(binding -> user.getTenantId().equals(binding.getTenantId()))
             .map(SysUserRole::getRoleId).collect(Collectors.toSet());
@@ -1588,7 +1621,6 @@ public class EnterpriseAdminService implements ApplicationRunner {
         lookup.add("*");
         var rules = resourceGrantRepository.findByTenantIdAndResourceTypeAndResourceIdIn(
             user.getTenantId(), ResourceAuthorizationPort.AGENT_SKILL, lookup);
-        Instant now = Instant.now();
         Set<String> allowed = new LinkedHashSet<>();
         for (String id : candidates) {
             boolean allow = legacy.contains(id), deny = false;
@@ -1599,7 +1631,7 @@ public class EnterpriseAdminService implements ApplicationRunner {
                 boolean matches = switch (rule.getPrincipalType()) {
                     case "USER" -> user.getId().equals(rule.getPrincipalId());
                     case "ROLE" -> roleIds.contains(rule.getPrincipalId()) && roleRepository.findById(rule.getPrincipalId())
-                        .filter(role -> user.getTenantId().equals(role.getTenantId()) && "enabled".equalsIgnoreCase(role.getStatus())).isPresent();
+                        .filter(role -> user.getTenantId().equals(role.getTenantId()) && role.activeAt(now)).isPresent();
                     case "TENANT" -> user.getTenantId().equals(rule.getPrincipalId());
                     default -> false;
                 };
@@ -1624,15 +1656,15 @@ public class EnterpriseAdminService implements ApplicationRunner {
         if (roleIds.isEmpty()) {
             return Set.of();
         }
+        Instant now = Instant.now();
         Set<String> activeRoleIds = roleRepository.findAllById(roleIds).stream()
             .filter(role -> tenantId.equals(role.getTenantId()))
-            .filter(role -> "enabled".equalsIgnoreCase(role.getStatus()))
+            .filter(role -> role.activeAt(now))
             .map(SysRole::getId)
             .collect(Collectors.toCollection(java.util.LinkedHashSet::new));
         if (activeRoleIds.isEmpty()) {
             return Set.of();
         }
-        Instant now = Instant.now();
         return roleAgentBindingRepository.findByRoleIdIn(List.copyOf(activeRoleIds)).stream()
             .filter(binding -> tenantId.equals(binding.getTenantId()))
             .filter(binding -> isActiveAgentBinding(binding, now))
@@ -2572,8 +2604,18 @@ public class EnterpriseAdminService implements ApplicationRunner {
         Instant createdAt,
         Instant updatedAt,
         boolean protectedAccount,
-        String tokenBillingRoleId
+        String tokenBillingRoleId,
+        Instant effectiveAt,
+        Instant expiresAt
     ) {
+        public UserView(String id, String tenantId, Long tenantNo, String tenantName, String orgId, String username,
+                        String displayName, String email, String phone, String status, Instant lastLoginAt,
+                        List<String> roleIds, List<String> permissionCodes, Instant createdAt, Instant updatedAt,
+                        boolean protectedAccount, String tokenBillingRoleId) {
+            this(id, tenantId, tenantNo, tenantName, orgId, username, displayName, email, phone, status, lastLoginAt,
+                roleIds, permissionCodes, createdAt, updatedAt, protectedAccount, tokenBillingRoleId, null, null);
+        }
+
         public UserView(String id, String tenantId, Long tenantNo, String tenantName, String orgId, String username,
                         String displayName, String email, String phone, String status, Instant lastLoginAt,
                         List<String> roleIds, List<String> permissionCodes, Instant createdAt, Instant updatedAt,

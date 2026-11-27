@@ -170,6 +170,13 @@ public class ConversationService {
                 messageIndexRepository.findBySessionIdOrderByCreatedAtAsc(conversationId)));
     }
 
+    /** Reads the persisted conversation owner without loading its transcript. */
+    public Optional<String> conversationOwner(String tenantId, String conversationId) {
+        if (tenantId == null || tenantId.isBlank() || conversationId == null || conversationId.isBlank()) return Optional.empty();
+        return sessionRepository.findBySessionIdAndTenantId(conversationId, normalizeTenantId(tenantId))
+            .map(ChatSessionEntity::getUserId);
+    }
+
     @Transactional(readOnly = true)
     public Optional<Conversation> getConversation(String tenantId, String conversationId) {
         String normalizedTenantId = normalizeTenantId(tenantId);

@@ -72,7 +72,7 @@ class ResourceAuthorizationServiceTest {
         when(memberships.findByUserId("user-1")).thenReturn(List.of(membership));
         var role=new SysRole(); role.setId("role"); role.setTenantId("tenant-1"); role.setStatus("enabled");
         when(roles.findByTenantIdAndIdIn(eq("tenant-1"),anyCollection())).thenReturn(List.of(role));
-        return new AgentFixture(new ResourceAuthorizationService(grants,users,memberships,roles,bindings,rolePermissions,permissions),grants,bindings,rolePermissions,permissions);
+        return new AgentFixture(new ResourceAuthorizationService(grants,users,memberships,roles,bindings,rolePermissions,permissions,activeTenant()),grants,bindings,rolePermissions,permissions);
     }
     private record AgentFixture(ResourceAuthorizationService service, ResourceGrantRepository grants, RoleAgentBindingRepository bindings,
         com.chatchat.enterprise.repository.identity.SysRolePermissionRepository rolePermissions,
@@ -80,7 +80,7 @@ class ResourceAuthorizationServiceTest {
     @Test void catalogReadersDefaultToVisibleButExplicitDenialsAndIdentityBoundariesStillApply(){
         var grants=mock(ResourceGrantRepository.class);var users=mock(SysUserRepository.class);
         var user=new SysUser();user.setId("user-1");user.setTenantId("tenant-1");user.setStatus("enabled");when(users.findById("user-1")).thenReturn(Optional.of(user));
-        var service=new ResourceAuthorizationService(grants,users,mock(SysUserRoleRepository.class),mock(SysRoleRepository.class),mock(RoleAgentBindingRepository.class), mock(com.chatchat.enterprise.repository.identity.SysRolePermissionRepository.class), mock(com.chatchat.enterprise.repository.identity.SysPermissionRepository.class));
+        var service=new ResourceAuthorizationService(grants,users,mock(SysUserRoleRepository.class),mock(SysRoleRepository.class),mock(RoleAgentBindingRepository.class), mock(com.chatchat.enterprise.repository.identity.SysRolePermissionRepository.class), mock(com.chatchat.enterprise.repository.identity.SysPermissionRepository.class), activeTenant());
         assertThat(service.readableMetadataIds("tenant-1","user-1",Set.of("catalog"))).containsExactly("catalog");
         assertThat(service.allowedIds("MCP_TOOL","tenant-1","user-1",Set.of(),Set.of("catalog"))).isEmpty();
         assertThat(service.readableMetadataIds("other-tenant","user-1",Set.of("catalog"))).isEmpty();
@@ -109,7 +109,7 @@ class ResourceAuthorizationServiceTest {
                 grant("skill-a", "ROLE", "analyst", "ALLOW"),
                 grant("skill-b", "ROLE", "analyst", "ALLOW"),
                 grant("skill-b", "USER", "user-1", "DENY")));
-        ResourceAuthorizationService service = new ResourceAuthorizationService(grants, users, memberships, roles, mock(RoleAgentBindingRepository.class), mock(com.chatchat.enterprise.repository.identity.SysRolePermissionRepository.class), mock(com.chatchat.enterprise.repository.identity.SysPermissionRepository.class));
+        ResourceAuthorizationService service = new ResourceAuthorizationService(grants, users, memberships, roles, mock(RoleAgentBindingRepository.class), mock(com.chatchat.enterprise.repository.identity.SysRolePermissionRepository.class), mock(com.chatchat.enterprise.repository.identity.SysPermissionRepository.class), activeTenant());
 
         assertThat(service.allowedIds(type, "tenant-1", "user-1",
             Set.of("forged-admin"), Set.of("skill-a", "skill-b", "legacy")))
@@ -128,7 +128,7 @@ class ResourceAuthorizationServiceTest {
         when(grants.findByTenantIdAndResourceTypeAndResourceIdIn(eq("tenant-1"),
             eq(ResourceAuthorizationPort.KNOWLEDGE), anyCollection())).thenReturn(List.of(expired));
         ResourceAuthorizationService service = new ResourceAuthorizationService(grants,
-            mock(SysUserRepository.class), mock(SysUserRoleRepository.class), mock(SysRoleRepository.class), mock(RoleAgentBindingRepository.class), mock(com.chatchat.enterprise.repository.identity.SysRolePermissionRepository.class), mock(com.chatchat.enterprise.repository.identity.SysPermissionRepository.class));
+            mock(SysUserRepository.class), mock(SysUserRoleRepository.class), mock(SysRoleRepository.class), mock(RoleAgentBindingRepository.class), mock(com.chatchat.enterprise.repository.identity.SysRolePermissionRepository.class), mock(com.chatchat.enterprise.repository.identity.SysPermissionRepository.class), activeTenant());
 
         assertThat(service.allowedIds(ResourceAuthorizationPort.KNOWLEDGE, "tenant-1", null,
             Set.of(), Set.of("doc-a"))).isEmpty();
@@ -164,7 +164,7 @@ class ResourceAuthorizationServiceTest {
         ResourceGrant other = grant("skill-b", "ROLE", "other-role", "ALLOW"); other.setAgentId("agent-a");
         when(grants.findByTenantIdAndResourceTypeAndResourceIdIn(eq("tenant-1"), eq("SKILL"), anyCollection()))
             .thenReturn(List.of(own, other));
-        ResourceAuthorizationService service = new ResourceAuthorizationService(grants, users, memberships, roles, bindings, mock(com.chatchat.enterprise.repository.identity.SysRolePermissionRepository.class), mock(com.chatchat.enterprise.repository.identity.SysPermissionRepository.class));
+        ResourceAuthorizationService service = new ResourceAuthorizationService(grants, users, memberships, roles, bindings, mock(com.chatchat.enterprise.repository.identity.SysRolePermissionRepository.class), mock(com.chatchat.enterprise.repository.identity.SysPermissionRepository.class), activeTenant());
         Set<String> candidates = Set.of("skill-a", "skill-b");
         assertThat(service.allowedIdsForAgent("SKILL", "tenant-1", "user-1", Set.of("other-role"), candidates, "agent-a"))
             .containsExactly("skill-a");
@@ -190,5 +190,11 @@ class ResourceAuthorizationServiceTest {
         own.setEffect("ALLOW");
         binding.setEnabled(false);
         assertThat(service.allowedIdsForAgent("SKILL", "tenant-1", "user-1", Set.of(), candidates, "agent-a")).isEmpty();
+    }
+    private static com.chatchat.enterprise.repository.identity.SysTenantRepository activeTenant() {
+        var tenant = new com.chatchat.enterprise.entity.identity.SysTenant();
+        var repository = mock(com.chatchat.enterprise.repository.identity.SysTenantRepository.class);
+        when(repository.findById("tenant-1")).thenReturn(Optional.of(tenant));
+        return repository;
     }
 }

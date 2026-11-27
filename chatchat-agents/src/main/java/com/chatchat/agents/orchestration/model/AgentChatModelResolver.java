@@ -102,6 +102,13 @@ public class AgentChatModelResolver {
             && java.util.Objects.equals(selected.providerModelName(), defaultConnection.providerModelName());
     }
 
+    public Integer contextWindowTokens(String modelName) {
+        String selected = normalizeModelName(modelName);
+        ModelsConfig.ModelConnectionConfig configuration = modelResources.connection(
+            selected == null ? modelResources.defaultChatModel() : selected);
+        return configuration == null ? null : configuration.getContextWindowTokens();
+    }
+
     /** Returns a secret-free identity snapshot suitable for checkpoint fingerprinting. */
     public Map<String, Object> checkpointModelConfiguration(String modelName, ChatModel resolvedModel) {
         String normalized = normalizeModelName(modelName);

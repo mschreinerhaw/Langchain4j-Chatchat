@@ -9,7 +9,7 @@
   "scripts": {
     "build": "tsc -p tsconfig.json && vite build",
     "start": "node dist/server/main.js",
-    "test": "vitest run --root . tests/protocol.test.ts tests/runtime-managed.test.ts",
+    "test": "vitest run --root . tests/protocol.test.ts tests/runtime-managed.test.ts tests/compat.test.ts",
     "test:runtime-http": "node --test tests/runtime-http.test.mjs",
     "test:docker": "node --test tests/docker.test.mjs",
     "test:tls": "node --test tests/tls.test.mjs",
@@ -17,6 +17,7 @@
   },
   "dependencies": {
     "@fastify/static": "^10.1.12",
+    "ajv": "^8.20.0",
     "fastify": "^5.6.0",
     "undici": "^7.16.0",
     "zod": "^4.1.0"

@@ -46,6 +46,8 @@ public class ModelDrivenKnowledgeSkillSynthesizer implements KnowledgeSkillSynth
     private final ConfigurableChatModelFactory chatModelFactory;
     private final ObjectMapper objectMapper;
     private final DefaultKnowledgeSkillSynthesizer fallback;
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    private com.chatchat.agents.orchestration.model.DirectModelInvocation directModels;
 
     @Override
     public KnowledgeSkillPlan synthesize(KnowledgeRequest request) {
@@ -55,7 +57,12 @@ public class ModelDrivenKnowledgeSkillSynthesizer implements KnowledgeSkillSynth
             return fallback.synthesize(request);
         }
         try {
-            String response = resolveModel(request).chat(plannerPrompt(request));
+            String prompt = plannerPrompt(request);
+            String attempt = java.util.UUID.randomUUID().toString();
+            var scope = new com.chatchat.common.kernel.KernelDataScope(request.scope().tenantId(), request.scope().userId(),
+                attempt, null, attempt, null, Map.of());
+            String response = directModels == null ? resolveModel(request).chat(prompt)
+                : directModels.text(scope, "knowledge-skill-plan", java.util.Objects.toString(request.attributes().get("modelName"), ""), prompt, 4096);
             return parseAndValidate(response, request);
         } catch (Exception ex) {
             log.warn("knowledgeSkillSynthesisFallback taskType={} error={}", request.taskType(), ex.getMessage());

@@ -17,6 +17,8 @@ public final class ModelSkillIntentPlanner implements SkillIntentPlanner {
     private final ChatModel defaultModel;
     private final ConfigurableChatModelFactory models;
     private final ObjectMapper mapper;
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    private com.chatchat.agents.orchestration.model.DirectModelInvocation directModels;
     private final ThreadPoolExecutor workers = new ThreadPoolExecutor(0, 4, 30, TimeUnit.SECONDS,
         new SynchronousQueue<>(), task -> { var thread = new Thread(task, "skill-intent"); thread.setDaemon(true); return thread; });
     public ModelSkillIntentPlanner(ChatModel defaultModel, ConfigurableChatModelFactory models, ObjectMapper mapper) {
@@ -55,7 +57,12 @@ public final class ModelSkillIntentPlanner implements SkillIntentPlanner {
             INPUT:
             """ + input;
         String modelName = String.valueOf(request.attributes().getOrDefault("modelName", ""));
-        String answer = (modelName.isBlank() ? defaultModel : models.create(modelName)).chat(prompt);
+        String attempt = UUID.randomUUID().toString();
+        var origin = request.identity();
+        var scope = new com.chatchat.common.kernel.KernelDataScope(origin.tenantId(), origin.userId(),
+            attempt, null, attempt, null, Map.of());
+        String answer = directModels == null ? (modelName.isBlank() ? defaultModel : models.create(modelName)).chat(prompt)
+            : directModels.text(scope, "skill-intent", modelName, prompt, 4096);
         if (answer == null || answer.length() > 16000) throw new IllegalArgumentException("Invalid intent response");
         var json = mapper.readTree(answer);
         if (!json.isObject() || !json.path("tasks").isArray() || json.path("tasks").size() > 8)

@@ -14,7 +14,7 @@ import {inputManifestHash,jsonHash} from '../src/s3-task-transport.mjs';
 const pause=ms=>new Promise(r=>setTimeout(r,ms));
 const listen=(server,address)=>new Promise(r=>server.listen(address,r));
 const close=server=>new Promise(r=>{server.close(r);server.closeAllConnections?.();});
-for(const scenario of ['delivery','cancel-upload','cancel-model','published-model'])test('S3 gateway HTTP '+scenario+' preserves SSE and rejects cross-task access',{
+for(const scenario of ['delivery','cancel-upload','cancel-model','published-model','worker-exit'])test('S3 gateway HTTP '+scenario+' preserves SSE and rejects cross-task access',{
  skip:process.platform==='win32'||process.getuid?.()!==0?'Linux/root Unix-socket integration fixture':false,
 },async()=>{
  const cancelUpload=scenario==='cancel-upload';
@@ -32,8 +32,9 @@ for(const scenario of ['delivery','cancel-upload','cancel-model','published-mode
   res.writeHead(200,{'x-amz-version-id':'immutable-'+uploads.length});res.end();
  });await listen(s3,{host:'127.0.0.1',port:0});
  const origin='http://127.0.0.1:'+s3.address().port;
- let activeProviderRequest,observedUpstream,gateway,gatewayBase;
+ let activeProviderRequest,observedUpstream,gateway,gatewayBase,providerCalls=0,admitModel=true;
  const provider=http.createServer(async(req,res)=>{
+  providerCalls++;
   const chunks=[];for await(const data of req)chunks.push(data);
   const body=JSON.parse(Buffer.concat(chunks)),mode=body.messages[0].content;
   observedUpstream={path:req.url,authorization:req.headers.authorization,model:body.model};
@@ -60,10 +61,18 @@ for(const scenario of ['delivery','cancel-upload','cancel-model','published-mode
   else res.end('data: [DONE]\n\n');
  });await listen(provider,{host:'127.0.0.1',port:0});
  let token;
- const authorityPaths=[];
- const authority=http.createServer((req,res)=>{
+ const authorityPaths=[], modelAdmissions=[],modelSettlements=[];
+ const authority=http.createServer(async(req,res)=>{
   if(req.headers.authorization!=='Bearer '+token){res.writeHead(403);res.end();return;}
   authorityPaths.push(req.url);
+  if(req.url.endsWith('/model-admission')||req.url.endsWith('/model-settlement')){
+   const chunks=[];for await(const chunk of req)chunks.push(chunk);
+   const value=JSON.parse(Buffer.concat(chunks));
+   if(req.url.endsWith('/model-settlement')){
+    modelSettlements.push(value);res.writeHead(204);res.end();return;
+   }
+   modelAdmissions.push(value);res.writeHead(admitModel?204:403);res.end();return;
+  }
   res.setHeader('content-type','application/json');
   res.end(JSON.stringify(req.url.endsWith('/model')?{model:'qwen-3.6-plus',
    baseUrl:gatewayBase??('http://127.0.0.1:'+provider.address().port+'/v1'),apiKey:'gateway-fixture-key-long'}:{packages:[]}));
@@ -95,7 +104,7 @@ for(const scenario of ['delivery','cancel-upload','cancel-model','published-mode
    await listen(native,join(workers,workerId,'bridge/worker.sock'));
    value={Id:'1'.repeat(64),resources:{enforced:true}};
   }else if(req.url.endsWith('/stop')){stopped=true;value={containerId:'1'.repeat(64),running:false};}
-  else value={State:{Running:!stopped},Config:{Labels:{'cline.workerId':workerId}}};
+  else value={State:{Running:!stopped,Status:stopped?'exited':'running'},Config:{Labels:{'cline.workerId':workerId}}};
   res.writeHead(200,{'content-type':'application/json'});res.end(JSON.stringify(value));
  });await listen(executor,join(root,'executor.sock'));
  const cfg={workerImage:'sha256:'+'1'.repeat(64),workerRuntime:'cline-python311',workerRoot:workers,stateRoot:states,
@@ -198,8 +207,27 @@ for(const scenario of ['delivery','cancel-upload','cancel-model','published-mode
    assert.deepEqual(observedUpstream,{path:'/v1/chat/completions',
     authorization:gatewayEntry?'Bearer fixture-upstream-auth':'Bearer gateway-fixture-key-long',
     model:gatewayEntry?'/models/Qwen3.6-35B-A3B':'qwen-3.6-plus'});
-   assert.equal((await until(async()=>(await receipts())[0])).status,'SUCCEEDED');
+   const receipt=await until(async()=>(await receipts())[0]);
+   assert.equal(receipt.status,'SUCCEEDED');
+   const settled=await until(()=>modelSettlements[0]);
+   assert.equal(receipt.requestId,modelAdmissions[0].requestId);
+   assert.deepEqual(settled,{requestId:receipt.requestId,providerTokens:null,neverDispatched:false});
+   const callsBeforeExpiry=providerCalls;
+   admitModel=false;
+   assert.equal(await modelRequest('expired identity').result,403);
+   assert.equal(providerCalls,callsBeforeExpiry);
    assert.ok(!JSON.stringify(status).includes(token)&&!JSON.stringify(status).includes('gateway-fixture-key'));
+   return;
+  }
+  if(scenario==='worker-exit'){
+   await close(native);
+   assert.equal((await request('/v1/sessions/session/status')).status,503);
+   stopped=true;
+   const exit=await request('/v1/sessions/session/status');
+   assert.equal(exit.status,200);
+   assert.equal(exit.body.workerState,'STOPPED');
+   assert.equal(exit.body.stopProof.running,false);
+   assert.equal(exit.body.revoked,true);
    return;
   }
   if(scenario==='cancel-model'){
@@ -208,7 +236,7 @@ for(const scenario of ['delivery','cancel-upload','cancel-model','published-mode
    assert.equal((await request('/v1/sessions/session/cancel',{})).status,202);
    await idle.result;await until(()=>activeProviderRequest.closed);
    const cancelled=await until(async()=>(await receipts())[0]);
-   assert.equal(cancelled.errorCode,'UPSTREAM_ABORTED');assert.notEqual(cancelled.responseTiming.firstModelDeltaMs,null);
+   assert.equal(cancelled.errorCode,'RUNTIME_TASK_STOPPED');assert.notEqual(cancelled.responseTiming.firstModelDeltaMs,null);
    return;
   }
   if(!cancelUpload){
@@ -226,12 +254,12 @@ for(const scenario of ['delivery','cancel-upload','cancel-model','published-mode
    await until(()=>activeProviderRequest?.mode==='hold-headers');
    hold.client.destroy();await hold.result;await until(()=>activeProviderRequest.closed);
    const aborted=await until(async()=>(await receipts())[2]);
-   assert.equal(aborted.failurePhase,'BEFORE_HEADERS');assert.equal(aborted.errorCode,'UPSTREAM_ABORTED');
+   assert.equal(aborted.failurePhase,'BEFORE_HEADERS');assert.equal(aborted.errorCode,'CORE_DISCONNECTED');
    const noDelta=modelRequest('hold-no-delta');
    await until(()=>noDelta.state.receivedResponse);
    noDelta.client.destroy();await noDelta.result;await until(()=>activeProviderRequest.closed);
    const empty=await until(async()=>(await receipts())[3]);
-   assert.equal(empty.httpStatus,200);assert.equal(empty.errorCode,'UPSTREAM_ABORTED');
+   assert.equal(empty.httpStatus,200);assert.equal(empty.errorCode,'CORE_DISCONNECTED');
    assert.equal(empty.responseTiming.firstModelDeltaMs,null);
    await close(provider);
    assert.equal(await modelRequest('connect-failure').result,502);
@@ -270,7 +298,9 @@ for(const scenario of ['delivery','cancel-upload','cancel-model','published-mode
   assert.equal((await request('/v1/sessions/session/upload',plan)).status,403);
   assert.equal((await request('/v1/sessions/session/acceptance',{manifestSha256:jsonHash(manifest),status:'PASSED',validationRef:'late'})).status,403);
  }finally{
-  child.kill('SIGTERM');await new Promise(r=>child.once('exit',r));
+  if(child.exitCode===null&&child.signalCode===null){
+   const exited=new Promise(r=>child.once('exit',r));child.kill('SIGTERM');await exited;
+  }
   if(gateway&&gateway.exitCode===null){gateway.kill('SIGTERM');await new Promise(r=>gateway.once('exit',r));}
   releaseUpload?.();await Promise.all([close(native),close(executor),close(s3),close(provider),close(authority)]);await rm(root,{recursive:true,force:true});
  }

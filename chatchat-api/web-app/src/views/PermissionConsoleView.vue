@@ -284,6 +284,10 @@
                 ><option value="disabled">停用</option></select
               ></label
             ></div
+          ><div v-if="roleForm.roleCode?.toUpperCase() !== 'SUPER_ADMIN'" class="permission-form-grid">
+            <label>生效时间<input v-model="roleForm.effectiveAt" type="datetime-local" /></label>
+            <label>到期时间<input v-model="roleForm.expiresAt" type="datetime-local" /></label>
+          </div
           ><label>角色说明<textarea v-model.trim="roleForm.description" rows="2" /></label
           ><details :open="!roleForm.id"
             ><summary>角色编码与类型</summary
@@ -296,7 +300,8 @@
                 ></label
               ></div
             ></details
-          ><details v-if="canAuthorizeRoles"
+          ><TokenQuotaEditor v-if="roleForm.id && canManageTokenQuotas" :key="roleForm.id" type="ROLE" :principal="roleForm.id" />
+          <details v-if="canAuthorizeRoles"
             ><summary>角色成员（{{ memberDraft.length }}）</summary
             ><div class="permission-check-grid"
               ><label v-for="user in catalog.users" :key="user.id"

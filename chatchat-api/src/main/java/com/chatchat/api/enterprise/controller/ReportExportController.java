@@ -7,6 +7,8 @@ import com.chatchat.enterprise.entity.audit.SysAuditLog;
 import com.chatchat.enterprise.repository.audit.SysAuditLogRepository;
 import com.chatchat.enterprise.repository.identity.SysRoleRepository;
 import com.chatchat.enterprise.service.EnterpriseAdminService.UserView;
+import com.chatchat.enterprise.service.EnterpriseAdminService;
+import com.chatchat.api.exception.RuntimeScopeAccessDeniedException;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.annotation.PostConstruct;
@@ -18,7 +20,6 @@ import org.springframework.http.*;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
-import org.springframework.web.multipart.MultipartFile;
 import org.springframework.web.server.ResponseStatusException;
 
 import java.io.IOException;
@@ -26,6 +27,7 @@ import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.util.*;
+import java.util.concurrent.Semaphore;
 
 @RestController
 @RequiredArgsConstructor
@@ -38,6 +40,10 @@ public class ReportExportController {
     private final SysAuditLogRepository audits;
     private final JdbcTemplate jdbc;
     private final ObjectMapper json;
+    private final ReportExportSource sources;
+    private final ReportPrintClient printer;
+    private final EnterpriseAdminService identities;
+    private final Semaphore renderSlots = new Semaphore(2, true);
 
     public record Policy(boolean watermarkEnabled, String watermark, Set<String> roleIds, long version) {}
     private record Role(String id, String name, boolean enabled) {}
@@ -95,7 +101,7 @@ public class ReportExportController {
     }
 
     @GetMapping("/permission-center/report-exports/audits")
-    public ApiResponse<?> records(HttpServletRequest request, @RequestParam(defaultValue = "1") int page) {
+    public ApiResponse<?> records(HttpServletRequest request, @RequestParam(name = "page", defaultValue = "1") int page) {
         var user = manager(request);
         var rows = audits.findAll((root, query, cb) -> cb.and(
             cb.equal(root.get("tenantId"), user.tenantId()), cb.equal(root.get("moduleName"), MODULE)),
@@ -103,24 +109,45 @@ public class ReportExportController {
         return ApiResponse.success(Map.of("items", rows.getContent(), "pages", rows.getTotalPages(), "total", rows.getTotalElements()));
     }
 
-    @PostMapping(value = "/report-exports/pdf", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    @PostMapping(value = "/report-exports/pdf", consumes = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<byte[]> pdf(HttpServletRequest request,
-            @RequestParam(defaultValue = "report") String reference,
-            @RequestParam(name = "pages") List<MultipartFile> pages) {
+            @RequestBody ReportExportSource.Reference reference) {
         var user = identity(request);
         var requestId = UUID.randomUUID().toString();
-        String resource = reference.matches("[A-Za-z0-9_-]{1,64}") ? reference : "report";
+        if (reference == null || (reference.isArchive()
+                ? !validId(reference.reportId()) || reference.conversationId() != null || reference.messageId() != null
+                : !validId(reference.conversationId()) || !validId(reference.messageId())))
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "请选择一份已归档的报告或回答");
+        String resource = reference.auditId();
         var policy = policy(user.tenantId());
         if (!allowed(user, policy)) {
             auditPdf(request, user, requestId, resource, policy, "denied", "ROLE_NOT_ALLOWED", null, 0);
             throw new ResponseStatusException(HttpStatus.FORBIDDEN, "当前角色未获报告导出权限");
         }
-        byte[] pdf;
+        ReportPdf.Output result;
+        String sourceHash;
+        if (!renderSlots.tryAcquire()) {
+            auditPdf(request, user, requestId, resource, policy, "failure", "RENDER_CAPACITY_EXHAUSTED", null, 0);
+            throw new ResponseStatusException(HttpStatus.TOO_MANY_REQUESTS, "报告渲染服务繁忙");
+        }
         try {
-            pdf = ReportPdf.render(pages, policy.watermarkEnabled() ? policy.watermark() : "");
+            var source = sources.load(request, reference);
+            sourceHash = sha256(json.writeValueAsBytes(List.of(source.entry(),
+                source.files().stream().map(file -> List.of(file.path(), file.sha256())).toList())));
+            result = ReportPdf.render(printer.print(source), policy.watermarkEnabled() ? policy.watermark() : "");
+        } catch (RuntimeScopeAccessDeniedException | SecurityException e) {
+            auditPdf(request, user, requestId, resource, policy, "denied", "REPORT_INACCESSIBLE", null, 0);
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "归档报告不存在或不可访问");
+        } catch (ResponseStatusException e) {
+            boolean denied = e.getStatusCode().value() == 404 || e.getStatusCode().value() == 403;
+            auditPdf(request, user, requestId, resource, policy, denied ? "denied" : "failure",
+                denied ? "REPORT_INACCESSIBLE" : "RENDER_UNAVAILABLE", null, 0);
+            throw e;
         } catch (IOException | IllegalArgumentException e) {
             auditPdf(request, user, requestId, resource, policy, "failure", "RENDER_FAILED", null, 0);
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "无法生成 PDF，请检查报告大小和内容");
+        } finally {
+            renderSlots.release();
         }
         // Fail closed if an administrator changed the policy while the document rendered.
         var updated = policy(user.tenantId());
@@ -128,12 +155,22 @@ public class ReportExportController {
             auditPdf(request, user, requestId, resource, policy, "denied", "POLICY_CHANGED", null, 0);
             throw new ResponseStatusException(HttpStatus.CONFLICT, "导出规则已更新，请重试");
         }
-        auditPdf(request, user, requestId, resource, policy, "success", null, pdf, pages.size());
+        if (!identities.isActiveIdentity(user.tenantId(), user.id())
+                || !allowed(identities.getUserView(user.id()), updated)) {
+            auditPdf(request, user, requestId, resource, policy, "denied", "IDENTITY_CHANGED", null, 0);
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "报告导出授权已失效");
+        }
+        byte[] pdf = result.bytes();
+        auditPdf(request, user, requestId, resource, policy, "success", null, pdf, result.pages(), sourceHash);
         return ResponseEntity.ok().contentType(MediaType.APPLICATION_PDF).cacheControl(CacheControl.noStore())
             .header("X-Content-Type-Options", "nosniff")
             .header("X-Report-Export-Request-Id", requestId)
             .header(HttpHeaders.CONTENT_DISPOSITION, ContentDisposition.attachment().filename("report.pdf", StandardCharsets.UTF_8).build().toString())
             .body(pdf);
+    }
+
+    private static boolean validId(String id) {
+        return id != null && id.matches("[A-Za-z0-9_.:-]{1,128}");
     }
 
     private Policy policy(String tenant) {
@@ -163,13 +200,19 @@ public class ReportExportController {
 
     private boolean allowed(UserView user, Policy policy) {
         if (policy.roleIds().isEmpty()) return false;
+        var now = java.time.Instant.now();
         return roles.findByTenantIdOrderByRoleNameAsc(user.tenantId()).stream()
-            .anyMatch(role -> "enabled".equals(role.getStatus()) && policy.roleIds().contains(role.getId())
+            .anyMatch(role -> role.activeAt(now) && policy.roleIds().contains(role.getId())
                 && user.roleIds().contains(role.getId()));
     }
 
     private void auditPdf(HttpServletRequest request, UserView user, String requestId, String reference, Policy policy,
                           String result, String failureReason, byte[] pdf, int pages) {
+        auditPdf(request, user, requestId, reference, policy, result, failureReason, pdf, pages, null);
+    }
+
+    private void auditPdf(HttpServletRequest request, UserView user, String requestId, String reference, Policy policy,
+                          String result, String failureReason, byte[] pdf, int pages, String sourceHash) {
         var detail = json.createObjectNode();
         detail.put("requestId", requestId);
         detail.put("format", "PDF");
@@ -182,6 +225,7 @@ public class ReportExportController {
             detail.put("pages", pages);
             detail.put("sizeBytes", pdf.length);
             detail.put("sha256", sha256(pdf));
+            detail.put("sourceManifestSha256", sourceHash);
             if (policy.watermarkEnabled()) detail.put("watermark", policy.watermark());
         }
         audit(user, "pdf", reference, result, detail.toString());

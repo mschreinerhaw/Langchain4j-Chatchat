@@ -52,9 +52,13 @@ class NativeS3CodingAdapterTest {
     volatile boolean asynchronousStop,missingStoppedTelemetry,rejectAllocation;volatile long stopReadyAt;
     volatile boolean loseLiveStopProof, liveStopLost;
     boolean failFirstRecovery;
+    final com.chatchat.api.enterprise.service.TokenQuotaLedger quota=mock(com.chatchat.api.enterprise.service.TokenQuotaLedger.class);
+    final com.chatchat.enterprise.service.EnterpriseAdminService enterprise=
+        mock(com.chatchat.enterprise.service.EnterpriseAdminService.class);
     byte[] output="{\"value\":42}".getBytes(java.nio.charset.StandardCharsets.UTF_8);
     @BeforeEach void setup()throws Exception{
         fixture=new SiloCodingWorkspaceServiceTest();fixture.setup();
+        when(enterprise.isActiveIdentity(fixture.scope.tenantId(),fixture.scope.userId())).thenReturn(true);
         var tx=new DataSourceTransactionManager(fixture.jdbc.getDataSource());store=new JdbcRuntimeEvidenceStore(fixture.jdbc,json,tx);
         var policy=new AssetStorageProperties();policy.setEndpoint("http://silo.invalid:9000");workspace=new SiloCodingWorkspaceService(fixture.assets,fixture.blobs,policy,store,json);
         scheduler=new ThreadPoolTaskScheduler();scheduler.initialize();
@@ -68,7 +72,7 @@ class NativeS3CodingAdapterTest {
         McpLicenseEntitlementPort license=new McpLicenseEntitlementPort(){public CodingDispatchEntitlement codingDispatchEntitlement(){return new CodingDispatchEntitlement(true,"VALID");}};
         nativeEvidence=spy(new NativeS3Evidence(fixture.assets,store,json));
         settings=new NativeS3Settings(config.toString(),json);
-        adapter=new NativeS3CodingAdapter(tasks,capture,workspace,settings,nativeEvidence,identity,json,fixture.jdbc,license,tx);
+        adapter=new NativeS3CodingAdapter(tasks,capture,workspace,settings,nativeEvidence,identity,json,fixture.jdbc,license,tx,enterprise,quota);
     }
     @AfterEach void stop(){if(adapter!=null)adapter.close();if(http!=null)http.stop(0);if(scheduler!=null)scheduler.shutdown();}
     <T>T authorized(java.util.function.Supplier<T> action){return identity.as(fixture.scope,Set.of(READ,SUBMIT,WORKER,EVIDENCE,STOP,RECOVER),action);}
@@ -95,6 +99,16 @@ class NativeS3CodingAdapterTest {
         assertThat(allocations).hasValue(2);
         assertThat(recoveryStops).hasValue(1);
         assertThat(messageCalls).hasValue(1);
+    }
+
+    @Test void managedExecutionStopsBeforeWorkerAllocationWhenIdentityIsExpired(){
+        when(enterprise.isActiveIdentity(fixture.scope.tenantId(),fixture.scope.userId())).thenReturn(false);
+
+        var result=runManagedStartup("native-expired-identity");
+
+        assertThat(result.status()).isEqualTo(CodingTaskOutcome.Status.FAILED);
+        assertThat(allocations).hasValue(0);
+        assertThat(messageCalls).hasValue(0);
     }
 
     @Test void persistentStartupFailureFinishesAfterOneReplacementWithoutDispatch(){
@@ -354,7 +368,7 @@ class NativeS3CodingAdapterTest {
         adapter.close();
         var license=new McpLicenseEntitlementPort(){public CodingDispatchEntitlement codingDispatchEntitlement(){return new CodingDispatchEntitlement(true,"VALID");}};
         adapter=new NativeS3CodingAdapter(tasks,capture,workspace,new NativeS3Settings(config.toString(),json),nativeEvidence,
-            identity,json,fixture.jdbc,license,new DataSourceTransactionManager(fixture.jdbc.getDataSource()));
+            identity,json,fixture.jdbc,license,new DataSourceTransactionManager(fixture.jdbc.getDataSource()),enterprise,quota);
         var projection=new com.chatchat.api.runtime.coding.monitor.CodingMonitorProjection(fixture.jdbc,json,tasks,
             new JdbcRuntimeEvidenceStore(fixture.jdbc,json,new DataSourceTransactionManager(fixture.jdbc.getDataSource())));
         org.springframework.test.util.ReflectionTestUtils.invokeMethod(projection,"schema");

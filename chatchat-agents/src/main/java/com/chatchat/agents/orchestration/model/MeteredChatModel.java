@@ -1,6 +1,7 @@
 package com.chatchat.agents.orchestration.model;
 
 import com.chatchat.agents.orchestration.analysis.context.ContextTokenEstimator;
+import com.chatchat.common.kernel.KernelDataScope;
 
 
 import dev.langchain4j.model.chat.ChatModel;
@@ -28,6 +29,9 @@ public final class MeteredChatModel implements ChatModel {
     private final double inputCostPerThousandTokens;
     private final double outputCostPerThousandTokens;
     private final double alertRatio;
+    private final EnterpriseScope enterprise;
+    private final ChatModel enterpriseDelegate;
+    public record EnterpriseScope(DirectModelInvocation invocation, KernelDataScope scope, Integer outputLimit) {}
     private long inputTokens;
     private long outputTokens;
     private long invocations;
@@ -99,7 +103,15 @@ public final class MeteredChatModel implements ChatModel {
                             double inputCostPerThousandTokens,
                             double outputCostPerThousandTokens,
                             double alertRatio) {
+        this(delegate, usage, tokenBudget, costBudget, inputCostPerThousandTokens, outputCostPerThousandTokens, alertRatio, null);
+    }
+
+    public MeteredChatModel(ChatModel delegate, Map<String, Object> usage, long tokenBudget, double costBudget,
+                            double inputCostPerThousandTokens, double outputCostPerThousandTokens,
+                            double alertRatio, EnterpriseScope enterprise) {
         this.delegate = delegate;
+        this.enterprise = enterprise;
+        this.enterpriseDelegate = enterprise == null ? null : ToolExecutionModels.independent(delegate, () -> -1);
         this.usage = usage == null ? new LinkedHashMap<>() : usage;
         this.tokenBudget = Math.max(0, tokenBudget);
         this.costBudget = Math.max(0D, costBudget);
@@ -111,6 +123,10 @@ public final class MeteredChatModel implements ChatModel {
 
     @Override
     public String chat(String message) {
+        if (enterprise != null) {
+            var request = ChatRequest.builder().messages(dev.langchain4j.data.message.UserMessage.from(message)).build();
+            return doChat(request).aiMessage().text();
+        }
         // Production SDK models inherit ChatModel.chat(String), which constructs exactly
         // this native request. Keep custom text overrides on their original path.
         if (delegate instanceof DeadlineAwareChatModel deadline
@@ -133,10 +149,17 @@ public final class MeteredChatModel implements ChatModel {
     public ChatResponse doChat(ChatRequest request) {
         return invoke(estimator.estimate(request == null ? "" : request.toString()).tokens(),
             ModelRequestContext.structured(request),
-            () -> delegate.chat(request),
+            () -> dispatch(request),
             response -> estimator.estimate(response == null || response.aiMessage() == null
                 ? "" : response.aiMessage().toString()).tokens(),
             response -> response == null ? null : response.tokenUsage());
+    }
+
+    private ChatResponse dispatch(ChatRequest request) {
+        if (enterprise == null) return delegate.chat(request);
+        Integer requested = request.parameters() == null ? null : request.parameters().maxOutputTokens();
+        return enterprise.invocation().chat(enterprise.scope(), "agent-model", enterpriseDelegate, request,
+            requested == null ? enterprise.outputLimit() : requested);
     }
 
     private <T> T invoke(long promptTokens, Map<String, Object> requestContext, Supplier<T> operation,

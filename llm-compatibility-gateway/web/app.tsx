@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { createRoot } from 'react-dom/client';
-import { Alert, Button, Card, Checkbox, Col, ConfigProvider, Descriptions, Form, Input, InputNumber, Layout,
+import { Alert, AutoComplete, Button, Card, Checkbox, Col, ConfigProvider, Descriptions, Form, Input, InputNumber, Layout,
   Menu, Modal, Radio, Row, Select, Space, Statistic, Table, Tabs, Tag, Typography, message, theme } from 'antd';
 import 'antd/dist/reset.css';
 import './style.css';
@@ -16,7 +16,7 @@ import clineCatalog from './cline-models.json' with { type: 'json' };
 
 type Revision = { version: number; config: Config; allowedOrigins?: string[]; apiBaseUrl?: string };
 type Overview = { overview: Record<string, string | number | null>; metrics: Record<string, unknown>[]; checks: Check[]; traffic: TrafficTrend };
-type Check = { model: string; time: string; version: number; findings: Finding[] };
+type Check = { model: string; time: string; version: number; profile?: Profile; findings: Finding[] };
 type Finding = { test: string; status: string; reason: string; httpStatus?: number; suggestion?: string; clineImpact?: string; evidence?: unknown[] };
 type Trace = { stage: string; ms: number; value: any };
 const json = (data: unknown) => JSON.stringify(data, null, 2);
@@ -42,7 +42,8 @@ const emptyService = { id: '', name: '', origin: '', chatPath: '/v1/chat/complet
 const emptyModel = { alias: '', upstream: '', service: '', enabled: true, sseEnd: 'require_done', rules: [],
   capabilities: { tools: 'unverified', reasoning: 'unverified', vision: 'unverified', streaming: 'unverified' } };
 const capLabels = { configured: '已配置', supported: '已实测支持', unsupported: '已实测不支持', unverified: '未验证' };
-const capNames = { tools: '工具调用', reasoning: '推理内容', vision: '视觉输入', streaming: '流式' };
+const capNames = { tools: '工具调用', reasoning: '推理内容', vision: '视觉输入', streaming: '流式',
+  parallelTools: '并行工具调用', streamUsage: '流式用量回执' };
 
 async function api<T>(path: string, method = 'GET', body?: unknown): Promise<T> {
   const response = await fetch('/admin/' + path, { method, headers: body === undefined ? undefined : headers,
@@ -235,11 +236,13 @@ function App() {
       <Table rowKey="alias" dataSource={config.models} scroll={{ x: 960 }} columns={[
         { title: '上游模型 ID → 支持模型', render: (_, row) => <>{row.upstream} → <strong>{row.alias}</strong></> },
         { title: '服务', dataIndex: 'service' },
+        { title: '协议处理', render: (_, row) => row.processingMode ?? '沿用现有规则' },
         { title: '上下文 / 输出', render: (_, row) => (row.contextWindow ?? '—') + ' / ' + (row.maxOutput ?? '—') },
-        { title: '能力配置', render: (_, row) => <Space wrap>{Object.entries(row.capabilities).map(([key, value]) =>
-          <Tag key={key}>{capNames[key as keyof typeof capNames]} · {capLabels[value]}</Tag>)}</Space> },
+        { title: '能力配置', render: (_, row) => <Space wrap>{Object.entries(capNames).map(([key, label]) =>
+          <Tag key={key}>{label} · {capLabels[row.capabilities[key as keyof Model['capabilities']] ?? 'unverified']}</Tag>)}</Space> },
         { title: '规则 / 检测', render: (_, row) => <>{row.rules.length} 条<div className="muted">
-          {latest(row.alias) ? new Date(latest(row.alias)!.time).toLocaleString() + ' · v' + latest(row.alias)!.version : '未检测'}</div></> },
+          {latest(row.alias) ? new Date(latest(row.alias)!.time).toLocaleString() + ' · v' + latest(row.alias)!.version
+            + (latest(row.alias)!.version !== version ? ' · 配置已更新' : '') : '未检测'}</div></> },
         { title: '状态', render: (_, row) => <Tag color={row.enabled ? 'green' : 'default'}>{row.enabled ? '启用' : '停用'}</Tag> },
         { title: '操作', render: (_, row) => <Space>
           <Button size="small" onClick={() => setEditor({ kind: 'model', key: row.alias, value: row })}>编辑</Button>
@@ -254,7 +257,10 @@ function App() {
   } else if (page === 'checks') {
     content = <Checks config={config} previous={status?.checks ?? []} refresh={refresh} />;
   } else if (page === 'logs') {
-    content = <Card extra={<Button onClick={() => attempt(refresh)}>刷新</Button>}><Metrics rows={status?.metrics} /></Card>;
+    content = <Space direction="vertical" size={16} className="full">
+      <RequestCapturePanel config={config} clients={tls?.clients ?? []} />
+      <Card extra={<Button onClick={() => attempt(refresh)}>刷新</Button>}><Metrics rows={status?.metrics} /></Card>
+    </Space>;
   } else if (page === 'tls') {
     content = <Certificates status={tls} refresh={refreshTls} api={api} />;
   } else if (page === 'integration') {
@@ -299,6 +305,7 @@ function Edit({ editor, config, close, save }: {
   const [busy, setBusy] = useState(false);
   const service = editor.kind === 'service';
   const initial = { ...editor.value, apiKey: undefined };
+  const initialForm = { ...initial, protocolText: initial.protocol ? json(initial.protocol) : '' };
   const used = new Set(config.models.filter(model => model.alias !== editor.key).map(model => model.alias));
   const modelOptions = clineCatalog.modelIds.filter(id => !used.has(id)).map(id => ({ value: id, label: id }));
   if (!service && editor.key && !clineCatalog.modelIds.includes(editor.key)) {
@@ -309,19 +316,21 @@ function Edit({ editor, config, close, save }: {
   return <Modal open title={(editor.key ? '编辑' : '新增') + (service ? '上游服务' : '模型映射')} width={700} onCancel={close}
     onOk={() => form.submit()} okText="验证并发布" cancelText="取消" confirmLoading={busy}>
     {error && <Alert type="error" message={error} showIcon />}
-    <Form form={form} layout="vertical" initialValues={initial} onFinish={async values => {
+    <Form form={form} layout="vertical" initialValues={initialForm} onFinish={async ({ protocolText, ...values }) => {
       setBusy(true); setError('');
       try {
         const key = values.clearKey ? '' : values.apiKey || undefined;
-        await save(service ? { ...initial, ...values, origin: normalizeUpstreamUrl(values.origin), apiKey: key }
-          : { ...initial, ...values, displayName: values.displayName?.trim() || undefined });
+        const protocol = protocolText?.trim() ? JSON.parse(protocolText) : undefined;
+        await save(service ? { ...initial, ...values, protocol, origin: normalizeUpstreamUrl(values.origin), apiKey: key }
+          : { ...initial, ...values, protocol, displayName: values.displayName?.trim() || undefined });
       } catch (error) { setError((error as Error).message); }
       finally { setBusy(false); }
     }}>
       <Row gutter={16}><Col span={12}>{service ? field('id', '服务 ID') : field('upstream', '上游模型 ID')}</Col>
         <Col span={12}>{service ? field('name', '服务名称') :
-          <Form.Item name="alias" label="支持模型" rules={[{ required: true }]} extra="此处选择网关对外模型 ID。">
-            <Select aria-label="支持模型" showSearch options={modelOptions} placeholder="搜索并选择支持模型" />
+          <Form.Item name="alias" label="支持模型" rules={[{ required: true }]} extra="支持输入自定义的网关对外模型 ID。">
+            <AutoComplete aria-label="支持模型" options={modelOptions} placeholder="输入或选择网关模型 ID"
+              filterOption={(input, option) => String(option?.value).toLowerCase().includes(input.toLowerCase())} />
           </Form.Item>}</Col></Row>
       {service ? <>
         <Form.Item name="origin" label="上游地址" extra="可填服务基础地址或包含前缀的完整对话接口地址。"
@@ -329,7 +338,7 @@ function Edit({ editor, config, close, save }: {
             ? Promise.resolve() : Promise.reject(new Error('请输入有效的 HTTP(S) 地址')) }]}>
           <Input placeholder="https://model.example.com/compatible-mode" maxLength={2048} />
         </Form.Item>
-        <Form.Item name="framework" label="推理框架"><Select options={['openai', 'vllm', 'sglang', 'ollama', 'xinference', 'lm-studio', 'llama.cpp', 'localai', 'custom'].map(value => ({ value }))} /></Form.Item>
+        <Form.Item name="framework" label="推理框架"><Select options={['openai', 'litellm', 'vllm', 'sglang', 'ollama', 'xinference', 'lm-studio', 'llama.cpp', 'localai', 'custom'].map(value => ({ value }))} /></Form.Item>
         <Row gutter={16}><Col span={12}>{field('chatPath', '对话路径')}</Col><Col span={12}>{field('modelsPath', '模型列表路径')}</Col>
           <Col span={12}>{field('authHeader', '认证请求头')}</Col><Col span={12}>{field('authPrefix', '认证前缀', false)}</Col></Row>
         <Form.Item noStyle dependencies={['origin', 'chatPath', 'modelsPath']}>
@@ -354,11 +363,22 @@ function Edit({ editor, config, close, save }: {
       </> : <>
         <Form.Item name="displayName" label="模型显示名称"><Input maxLength={240} placeholder="留空时显示对外模型 ID" /></Form.Item>
         <Form.Item name="service" label="关联服务" rules={[{ required: true }]}><Select options={config.services.map(item => ({ value: item.id, label: item.name }))} /></Form.Item>
+        <Form.Item name="processingMode" label="协议处理模式" extra="留空时沿用既有规则。可为单个模型切换处理模式。">
+          <Select allowClear placeholder="沿用现有规则" options={[
+            { value:'DIRECT', label:'DIRECT · 标准透传' },
+            { value:'FRAMEWORK', label:'FRAMEWORK · LiteLLM 供应商适配' },
+            { value:'CUSTOM', label:'CUSTOM · 既有协议兼容规则' },
+          ]} />
+        </Form.Item>
         <Row gutter={16}><Col span={12}>{count('contextWindow', '上下文窗口')}</Col><Col span={12}>{count('maxOutput', '最大输出 Token')}</Col></Row>
         <Row gutter={12}>{Object.entries(capNames).map(([name, label]) => <Col span={6} key={name}>
           <Form.Item name={['capabilities', name]} label={label}><Select options={Object.entries(capLabels).map(([value, label]) => ({ value, label }))} /></Form.Item>
         </Col>)}</Row>
       </>}
+      <Form.Item name="protocolText" label="协议适配配置"
+        extra={service ? '服务默认值，模型可覆盖。支持 tools、reasoning、images、usage、usageEvent 和 doneEvent。' : '模型覆盖值。留空继承上游服务配置。'}>
+        <Input.TextArea rows={3} placeholder={'{"tools":"legacy-functions","reasoning":"reasoning-field"}'} />
+      </Form.Item>
       <Form.Item name="enabled" valuePropName="checked"><Checkbox>启用</Checkbox></Form.Item>
     </Form>
   </Modal>;
@@ -566,23 +586,25 @@ function payload(value: any) {
 
 function Checks({ config, previous, refresh }: { config: Config; previous: Check[]; refresh: () => Promise<void> }) {
   const [alias, setAlias] = useState(config.models[0]?.alias ?? '');
+  const [profile, setProfile] = useState<Profile>('generic');
   const [results, setResults] = useState<Finding[]>();
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const controller = useRef<AbortController | null>(null);
   useEffect(() => () => controller.current?.abort(), []);
-  const report = results ?? previous.find(check => check.model === alias)?.findings ?? [];
+  const report = results ?? previous.find(check => check.model === alias && (check.profile ?? 'generic') === profile)?.findings ?? [];
   return <Space direction="vertical" size={16} className="full">
     <Card><Space wrap><ModelSelect config={config} value={alias} change={value => { controller.current?.abort(); setAlias(value); setResults(undefined); }} />
+      <Select aria-label="兼容配置" value={profile} disabled={busy} options={profileOptions} onChange={value => { setProfile(value); setResults(undefined); }} />
       <Button type="primary" disabled={!alias || busy} onClick={async () => {
         setBusy(true); setError(''); setResults([]);
         controller.current = new AbortController();
-        try { await stream('check', { alias }, controller.current.signal, row => setResults(items => [...(items ?? []), row.value])); await refresh(); }
+        try { await stream('check', { alias, profile }, controller.current.signal, row => setResults(items => [...(items ?? []), row.value])); await refresh(); }
         catch (error) { setError(controller.current.signal.aborted ? '检测已取消' : (error as Error).message); }
         finally { setBusy(false); }
       }}>{busy ? '检测中' : '运行体检'}</Button>
       <Button disabled={!busy} onClick={() => controller.current?.abort()}>取消</Button>
-      <Button disabled={!report.length} onClick={() => download('gateway-check.json', { alias, results: report.map(({ evidence: _evidence, ...item }) => item) })}>导出报告</Button>
+      <Button disabled={!report.length} onClick={() => download('gateway-check.json', { alias, profile, results: report.map(({ evidence: _evidence, ...item }) => item) })}>导出报告</Button>
     </Space></Card>
     {error && <Alert message={error} type="warning" showIcon />}
     <Card title="检测明细"><Table rowKey="test" dataSource={report} pagination={false} expandable={{
@@ -594,17 +616,102 @@ function Checks({ config, previous, refresh }: { config: Config; previous: Check
       { title: '建议', dataIndex: 'suggestion' }, { title: '本地影响', dataIndex: 'clineImpact' },
     ]} /></Card>
     {previous.length > 0 && <Card title="模型检测对比"><Table rowKey="model" dataSource={previous} columns={[
-      { title: '模型', dataIndex: 'model' }, { title: '配置版本', dataIndex: 'version' },
+      { title: '模型', dataIndex: 'model' }, { title: '配置版本', dataIndex: 'version' }, { title: '兼容配置', dataIndex: 'profile' },
       ...['PASS', 'FAIL', 'WARNING', 'UNSUPPORTED', 'UNVERIFIED'].map(status => ({
         title: status, render: (_: unknown, row: Check) => row.findings.filter(item => item.status === status).length,
       })),
     ]} /></Card>}
   </Space>;
 }
+type CaptureStatus = {
+  state: 'idle' | 'armed' | 'captured';
+  alias?: string;
+  clientId?: string;
+  expiresAt?: number;
+  evidence?: {
+    gatewayRequestId: string; requestId?: string; taskId?: string; sessionId?: string; attemptId?: string; capturedAt: string;
+    inbound: { body: unknown; truncated: boolean };
+    forwarded?: { origin: string; path: string; body: unknown; truncated: boolean };
+    result?: { status?: number; upstreamStatus?: number; error?: string; elapsedMs: number };
+  };
+};
+
+function RequestCapturePanel({ config, clients }: { config: Config; clients: TlsStatus['clients'] }) {
+  const [alias, setAlias] = useState('');
+  const [clientId, setClientId] = useState<string>();
+  const [status, setStatus] = useState<CaptureStatus>({ state: 'idle' });
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState('');
+  const operation = useRef(0);
+  const pending = useRef(false);
+  useEffect(() => {
+    let visible = true;
+    const load = async () => {
+      if (pending.current) return;
+      const sequence = operation.current;
+      try {
+        const value = await api<CaptureStatus>('request-capture');
+        if (visible && sequence === operation.current) setStatus(value);
+      } catch (error) {
+        if (visible && sequence === operation.current) setError((error as Error).message);
+      }
+    };
+    void load();
+    const timer = setInterval(load, 2000);
+    return () => { visible = false; clearInterval(timer); };
+  }, []);
+  async function change(method: 'POST' | 'DELETE') {
+    operation.current++;
+    pending.current = true;
+    setError('');
+    setBusy(true);
+    try {
+      setStatus(await api<CaptureStatus>('request-capture', method, method === 'POST' ? { alias, clientId } : undefined));
+    } catch (error) { setError((error as Error).message); }
+    finally { pending.current = false; setBusy(false); }
+  }
+  const evidence = status.evidence;
+  return <Card title="捕获 Cline 请求">
+    <Space direction="vertical" className="full">
+      <Typography.Text type="secondary">捕获两分钟内下一条匹配的真实模型请求。正文、图片、工具实参和密钥已遮蔽，结果仅在本会话保留五分钟。</Typography.Text>
+      <Space wrap>
+        <ModelSelect config={config} value={alias} change={value => { setAlias(value); setClientId(undefined); }} disabled={busy} />
+        <Select aria-label="客户端" value={clientId} allowClear placeholder="全部客户端" onChange={setClientId} disabled={busy}
+          style={{ minWidth: 170 }} options={clients.filter(client => client.models.includes('*') || client.models.includes(alias))
+            .map(client => ({ value: client.id, label: client.id }))} />
+        <Button type="primary" disabled={!alias || busy} onClick={() => void change('POST')}>捕获下一条</Button>
+        <Button disabled={status.state === 'idle' || busy} onClick={() => void change('DELETE')}>清除</Button>
+      </Space>
+      {error && <Alert type="warning" message={error} showIcon />}
+      {status.state === 'armed' && <Alert type="info" showIcon message={`等待 ${status.alias}${status.clientId ? ' · ' + status.clientId : ''} 的请求`} />}
+      {evidence && <>
+        <Descriptions size="small" items={[
+          { key: 'gateway', label: 'Gateway 请求 ID', children: evidence.gatewayRequestId },
+          { key: 'runtime', label: 'Runtime 请求 ID', children: evidence.requestId ?? '未提供' },
+          { key: 'task', label: '任务 ID', children: evidence.taskId ?? '未提供' },
+          { key: 'session', label: '会话 ID', children: evidence.sessionId ?? '未提供' },
+          { key: 'attempt', label: '执行尝试 ID', children: evidence.attemptId ?? '未提供' },
+          { key: 'result', label: '结果', children: evidence.result ? [evidence.result.status, evidence.result.error].filter(Boolean).join(' · ') : '处理中' },
+        ]} />
+        <Tabs items={[
+          { key: 'inbound', label: '收到的 Cline 请求', children: <Code value={json(evidence.inbound.body)} /> },
+          { key: 'forwarded', label: '转发给模型', children: evidence.forwarded
+            ? <><Typography.Text type="secondary">{evidence.forwarded.origin + evidence.forwarded.path}</Typography.Text>
+              <Code value={json(evidence.forwarded.body)} /></> : <Typography.Text type="secondary">等待转发或已在网关校验阶段结束。</Typography.Text> },
+          ...(evidence.forwarded ? [{ key: 'diff', label: '参数差异',
+            children: <Diff before={evidence.inbound.body} after={evidence.forwarded.body} /> }] : []),
+        ]} />
+        {(evidence.inbound.truncated || evidence.forwarded?.truncated) && <Typography.Text type="secondary">请求结构过长，部分字段已截断。</Typography.Text>}
+      </>}
+    </Space>
+  </Card>;
+}
+
 function Metrics({ rows, emptyText = '暂无请求日志' }: { rows?: Record<string, unknown>[]; emptyText?: string }) {
   return <Table dataSource={rows ?? []} rowKey={row => String(row.id)} size="small" locale={{ emptyText }} scroll={{ x: 860 }} columns={[
     { title: '时间', dataIndex: 'time', render: value => new Date(value).toLocaleString() },
-    { title: '客户端', dataIndex: 'client' }, { title: '模式', dataIndex: 'mode' }, { title: '模型', dataIndex: 'model' },
+    { title: '客户端', dataIndex: 'client' }, { title: '模式', dataIndex: 'mode' }, { title: '协议处理', dataIndex: 'processingMode' },
+    { title: '模型', dataIndex: 'model' },
     { title: 'HTTP', dataIndex: 'status' }, { title: '耗时 ms', dataIndex: 'elapsedMs' },
     { title: '首 Token ms', dataIndex: 'firstTokenMs' }, { title: '错误', dataIndex: 'error' }, { title: '配置', dataIndex: 'revision' },
   ]} expandable={{ expandedRowRender: row => <Code value={json(row)} /> }} />;

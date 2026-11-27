@@ -31,7 +31,8 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @SpringBootTest(properties = {
     "spring.datasource.url=jdbc:h2:mem:no_model_startup;MODE=MySQL;DATABASE_TO_LOWER=TRUE;DB_CLOSE_DELAY=-1",
     "chatchat.api.auth.enabled=true", "chatchat.models.openai.api-key=",
-    "chatchat.search.open-search.embedding.enabled=false"
+    "chatchat.search.open-search.embedding.enabled=false",
+    "chatchat.enterprise.bootstrap.admin-password=NoModel-Startup-Test-Only"
 })
 @AutoConfigureMockMvc
 @ActiveProfiles("test")
@@ -67,7 +68,7 @@ class NoModelStartupIntegrationTest {
             .isInstanceOf(IllegalStateException.class)
             .hasMessageContaining("Default chat model is not configured");
 
-        String token = identities.login("admin", "123456").token();
+        String token = identities.login("admin", "NoModel-Startup-Test-Only").token();
         mvc.perform(get("/api/v1/platform/models").header("Authorization", "Bearer " + token))
             .andExpect(status().isOk()).andExpect(jsonPath("$.data").isEmpty());
         mvc.perform(put("/api/v1/platform/models").header("Authorization", "Bearer " + token)

@@ -81,6 +81,8 @@ class AgentApiTokenServiceTest {
         verify(tokenRepository).save(record.capture());
         when(tokenRepository.findByTokenHash(record.getValue().getTokenHash()))
             .thenReturn(Optional.of(record.getValue()));
+        when(enterpriseAdminService.isActiveIdentity(record.getValue().getTenantId(), "admin-id"))
+            .thenReturn(true);
 
         AgentApiTokenService.Authentication authentication = service.authenticate(
             issued.secret(), "127.0.0.1", "/api/v1/published-agents/demo/questions");

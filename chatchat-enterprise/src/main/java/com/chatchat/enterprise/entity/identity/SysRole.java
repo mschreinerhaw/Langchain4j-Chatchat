@@ -1,6 +1,5 @@
 package com.chatchat.enterprise.entity.identity;
 
-import com.chatchat.enterprise.entity.common.EnterpriseAuditable;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
@@ -12,7 +11,7 @@ import lombok.Setter;
 @Setter
 @Entity
 @Table(name = "sys_role")
-public class SysRole extends EnterpriseAuditable {
+public class SysRole extends ScheduledIdentity {
 
     @Column(length = 64, nullable = false)
     private String tenantId;

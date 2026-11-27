@@ -1,9 +1,11 @@
 import AppConfirmDialog from "../../components/AppConfirmDialog.vue";
+import TokenQuotaEditor from "../../components/TokenQuotaEditor.vue";
 import { useAppConfirmation } from "../utils/useAppConfirmation.js";
 import { computed, ref, onMounted, onActivated, watch, onBeforeUnmount } from "vue";
 import PermissionResourceEditor from "../../components/PermissionResourceEditor.vue";
 import { saveResourceAuthorization } from "../utils/permissionWrites.js";
 import { useTransientNotice } from "../utils/useTransientNotice.js";
+import { identityScheduleChanges, localIdentitySchedule } from "../utils/identityValidity.js";
 import {
   apiRequest,
   fetchResearchLibrary,
@@ -29,7 +31,7 @@ import "../../styles/pages/permission-resource-catalog.css";
 
 export default {
   name: "PermissionConsoleView",
-  components: { AppConfirmDialog, PermissionResourceEditor },
+  components: { AppConfirmDialog, PermissionResourceEditor, TokenQuotaEditor },
   props: { mode: { type: String, default: "roles" } },
   setup(props) {
     const { confirmation, confirmAction, settleConfirmation } = useAppConfirmation();
@@ -369,6 +371,8 @@ export default {
             description: "",
             status: "enabled",
           };
+      const schedule = localIdentitySchedule(role || undefined);
+      Object.assign(roleForm.value, schedule, { originalSchedule: schedule });
       const auth = role
         ? catalog.value.roleAuthorizations.find((a) => a.role.id === role.id)
         : null;
@@ -387,7 +391,9 @@ export default {
       busy.value = true;
       formError.value = "";
       try {
-        const payload = { ...roleForm.value, tenantId: catalog.value.tenantId };
+        const { originalSchedule, effectiveAt, expiresAt, ...draft } = roleForm.value;
+        const payload = { ...draft, tenantId: catalog.value.tenantId,
+          ...identityScheduleChanges({ effectiveAt, expiresAt }, originalSchedule) };
         const saved = payload.id
           ? await updateRole(payload.id, payload)
           : await createRole(payload);
@@ -494,6 +500,7 @@ export default {
       scopeDraft,
       orgs,
       canManageRoles,
+      canManageTokenQuotas: has("system:permission-center:manage"),
       bulkSelected,
       canEditResource,
       allResourceRowsSelected,

@@ -8,6 +8,8 @@ import com.chatchat.common.kernel.KernelDataScope;
 import com.chatchat.common.mcp.license.McpLicenseEntitlementPort;
 import com.chatchat.common.runtime.coding.*;
 import com.chatchat.common.runtime.coding.CodingTaskOutcome.*;
+import com.chatchat.enterprise.service.EnterpriseAdminService;
+import com.chatchat.api.enterprise.service.TokenQuotaLedger;
 import com.fasterxml.jackson.databind.*;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import java.nio.charset.StandardCharsets;
@@ -49,6 +51,8 @@ public final class NativeS3CodingAdapter implements CodingAgentSPI {
     private final ObjectMapper json;
     private final JdbcTemplate jdbc;
     private final McpLicenseEntitlementPort license;
+    private final EnterpriseAdminService enterprise;
+    private final TokenQuotaLedger quota;
     private final String owner="native-s3-java-"+UUID.randomUUID();
     // HttpClient wraps interrupted IO; Java shutdown must not cancel a live Native session.
     private volatile boolean shuttingDown;
@@ -61,18 +65,22 @@ public final class NativeS3CodingAdapter implements CodingAgentSPI {
     @jakarta.annotation.PreDestroy public void close(){shuttingDown=true;workers.shutdownNow();stopWorkers.shutdownNow();}
     public NativeS3CodingAdapter(DurableCodingTaskService tasks,NativeSiloTaskService inputs,SiloCodingWorkspaceService workspace,
             NativeS3Settings settings,NativeS3Evidence evidence,CodingInvocationContext identity,ObjectMapper json,JdbcTemplate jdbc,
-            McpLicenseEntitlementPort license,PlatformTransactionManager manager){
+            McpLicenseEntitlementPort license,PlatformTransactionManager manager,EnterpriseAdminService enterprise,TokenQuotaLedger quota){
         this.tasks=tasks;this.inputs=inputs;this.workspace=workspace;this.settings=settings;this.evidence=evidence;this.identity=identity;this.json=json;this.jdbc=jdbc;this.license=license;
+        this.enterprise=enterprise;
+        this.quota=quota;
     }
     private static long remaining(long limit,long used){return limit<0?-1:Math.max(0,limit-used);}
     private static String key(KernelDataScope s,String task){return s.tenantId()+"\0"+s.userId()+"\0"+s.runId()+"\0"+task;}
     private <T>T worker(KernelDataScope s,Supplier<T> action){return identity.as(s,Set.of(READ,WORKER,EVIDENCE,STOP,SUBMIT,RECOVER),action);}
     @Override public CodingTaskOutcome submit(CodingTaskContract c){
+        if(!activeIdentity(c.scope()))throw new SecurityException("Runtime identity is unavailable or expired");
         inputs.requireAuthorized(c);settings.profile((String)inputs.requireAuthorized(c).get("selectedModel"));
         if(!license.codingDispatchEntitlement().licenseValid())throw new SecurityException("Coding dispatch entitlement required");
         try{var existing=tasks.get(c.scope(),c.taskId());if(existing.status().terminal())return existing;}
         catch(CodingContractException absent){if(absent.error().code()!=CodingErrorCode.NOT_FOUND)throw absent;}
         if((dispatch!=null)!=c.taskId().startsWith("temporal-native-"))throw new IllegalStateException("Task belongs to its original scheduler; drain or explicitly migrate it, never fall back to another execution loop");
+        quota.bind(c.scope());
         if(dispatch!=null){dispatch.start(c);return tasks.submit(c);}
         settings.client.requireNativeIdentity();
         var accepted=tasks.submit(c);if(!accepted.status().terminal())schedule(c);return accepted;
@@ -124,7 +132,11 @@ public final class NativeS3CodingAdapter implements CodingAgentSPI {
         var current=tasks.get(scope,task);
         if(current.status().terminal())throw new IllegalStateException("A terminal task is immutable; re-execute with a new request ID");
         if(current.executionControl().stopReason()!=null&&task.startsWith("temporal-native-"))queueStop(scope,task);
-        else schedule(c);
+        else {
+            if(current.executionControl().stopReason()==null&&!activeIdentity(scope))
+                throw new SecurityException("Runtime identity is unavailable or expired");
+            schedule(c);
+        }
         return tasks.get(scope,task);
     }
     @Override public Subscription subscribe(KernelDataScope s,String t,long after,Observer observer){return tasks.subscribe(s,t,after,observer);}
@@ -193,6 +205,25 @@ public final class NativeS3CodingAdapter implements CodingAgentSPI {
 
     private void save(Run r,String key,Object value){var old=tasks.privateState(r.c.scope(),r.c.taskId(),key);tasks.privateState(r.c.scope(),r.c.taskId(),r.lease,key,old,json.valueToTree(value));}
     private void execute(CodingTaskContract c){execute(c,null);}
+    private boolean activeIdentity(KernelDataScope scope){
+        return enterprise.isActiveIdentity(scope.tenantId(),scope.userId());
+    }
+
+    private boolean stopForInactiveIdentity(Run run){
+        if(activeIdentity(run.c.scope()))return false;
+        String reason="Runtime identity is unavailable or expired";
+        guarded(run,()->{
+            var scope=run.c.scope();
+            var task=run.c.taskId();
+            tasks.requestFailureStop(scope,task,run.lease,outcome(run).revision(),reason);
+            var ws=workspace.get(scope,task);
+            if("RUNNING".equals(ws.status()))workspace.failActive(scope,task,ws.epoch(),reason);
+            return null;
+        });
+        stop(run,false,reason);
+        return true;
+    }
+
     private void execute(CodingTaskContract c,NativeExecutionControl control){
         Run run=null;
         try{
@@ -205,6 +236,7 @@ public final class NativeS3CodingAdapter implements CodingAgentSPI {
             run=new Run(c,lease,control);
             tasks.enforceDeadline(c.scope(),c.taskId(),run.lease,outcome(run).revision());
             if(outcome(run).executionControl().stopReason()!=null){stop(run,false,"Cancellation requested or deadline reached");return;}
+            if(stopForInactiveIdentity(run))return;
             if(!license.codingDispatchEntitlement().licenseValid())throw new SecurityException("Coding dispatch entitlement required");
             var binding=state(run,BINDING);
             if(binding==null){binding=binding(run);save(run,BINDING,binding);}
@@ -217,10 +249,12 @@ public final class NativeS3CodingAdapter implements CodingAgentSPI {
                 var current=outcome(run);if(current.status().terminal())return;
                 tasks.enforceDeadline(c.scope(),c.taskId(),run.lease,current.revision());
                 if(outcome(run).executionControl().stopReason()!=null){stop(run,false,"Task stopped by Runtime");return;}
+                if(!Instant.now().isBefore(run.renewAt)&&stopForInactiveIdentity(run))return;
                 maintainLease(run);
                 var remote=client(run).status(grant,session);
                 if(!remote.hasNonNull("delivery")&&(workerNeedsRecovery(remote)||"STOPPED".equals(remote.path("workerState").asText()))
                         &&canReplayAnalysis(run)){
+                    if(stopForInactiveIdentity(run))return;
                     replaceStoppedBinding(run,activeBinding,false);
                     ensureSession(run);
                     continue;
@@ -235,6 +269,7 @@ public final class NativeS3CodingAdapter implements CodingAgentSPI {
                     if("STOPPED".equals(workerState))throw new IllegalStateException(WORKER_STOPPED_WITHOUT_DELIVERY);
                 }
                 if(workerNeedsRecovery(remote)&&!remote.hasNonNull("delivery")){
+                    if(stopForInactiveIdentity(run))return;
                     if(recoverStartup(run,activeBinding,remote))continue;
                     return;
                 }
@@ -498,13 +533,13 @@ public final class NativeS3CodingAdapter implements CodingAgentSPI {
         if(channel.equals("provider")&&type.equals("model.request.rejected")){
             group="model-admission";telemetryId=event.path("eventId").asText();
             normalized="ERROR_OCCURRED";summary=p.path("code").asText();
-            for(String field:List.of("code","model","receivedBytes","limitBytes","providerDispatched"))
+            for(String field:List.of("requestId","code","model","receivedBytes","limitBytes","providerDispatched"))
                 if(p.hasNonNull(field))projected.put(field,json.convertValue(p.get(field),Object.class));
         }else if(channel.equals("provider")&&type.startsWith("model.request.")){
             operation="model-"+p.path("requestId").asText();kind=CodingJournal.OperationKind.MODEL;complete=type.equals("model.request.completed");long tokens=p.path("usage").path("totalTokens").asLong();
             actual=new Counters(1,tokens,0,0,0,0,0,"0");metered=complete&&p.path("usage").path("totalTokens").isNumber();
             normalized=complete?"MODEL_REQUEST_COMPLETED":"MODEL_REQUEST_STARTED";summary=p.path("providerModel").asText(p.path("model").asText());group="model";telemetryId=p.path("requestId").asText();
-            for(String field:List.of("requestId","gatewayRequestId","modelAttemptId","model","providerModel","usage","durationMs","requestContext","requestedReasoningEffort","reasoningEffort","httpStatus","errorCode","errorType","responseTiming","failurePhase","transportErrorCode"))if(p.hasNonNull(field))projected.put(field,json.convertValue(p.get(field),Object.class));
+            for(String field:List.of("requestId","gatewayRequestId","modelAttemptId","model","providerModel","usage","usageStatus","durationMs","requestContext","requestedReasoningEffort","reasoningEffort","httpStatus","errorCode","errorType","responseTiming","failurePhase","transportErrorCode","providerDispatched"))if(p.hasNonNull(field))projected.put(field,json.convertValue(p.get(field),Object.class));
         }else if(channel.equals("provider")){
             summary=type+": "+p.path("tool").asText(p.path("name").asText(p.path("url").asText()));
             for(String field:List.of("tool","requestId","isError","skillId","name","version","source","bytes","url","sha256","size","path","assetId","retrieved_at","files"))if(p.hasNonNull(field))projected.put(field,json.convertValue(p.get(field),Object.class));
@@ -545,6 +580,11 @@ public final class NativeS3CodingAdapter implements CodingAgentSPI {
         var usage=operation==null?null:new DurableCodingTaskService.NativeUsage(operation,kind,actual,complete,metered);
         maintainLease(r);
         tasks.recordNativeObservation(r.c.scope(),r.c.taskId(),r.lease,outcome(r).revision(),new DurableCodingTaskService.NativeObservation(channel,event.path("eventId").asLong(),event.path("eventId").asText(),evidence.hash(event),ref,normalized,summary.substring(0,Math.min(2048,summary.length())),projected,usage,group,telemetryId,telemetry));
+        if("model".equals(group)&&complete){
+            var total=p.path("usage").path("totalTokens");
+            quota.settle(r.c.scope(),r.c.taskId(),telemetryId,total.isIntegralNumber()&&total.canConvertToLong()&&total.longValue()>0?total.longValue():null,
+                p.path("providerDispatched").isBoolean()&&!p.path("providerDispatched").booleanValue());
+        }
         if("execution".equals(group)&&complete&&outcome(r).executionControl().stopReason()==null)linkRepair(r,telemetry);
     }
     /** Derive diagnostics from the actual captured process streams. A shell
@@ -849,22 +889,17 @@ public final class NativeS3CodingAdapter implements CodingAgentSPI {
         if(prior.executionControl().stopReason()!=null){tasks.finishStoppedAfterReconciliation(r.c.scope(),r.c.taskId(),r.lease,prior.revision());return;}
         String failureSummary=reason;
         if(WORKER_STOPPED_WITHOUT_DELIVERY.equals(reason)){
-            failureSummary=tasks.nativeTelemetry(r.c.scope(),r.c.taskId(),"model").stream()
+            var latest=tasks.nativeTelemetry(r.c.scope(),r.c.taskId(),"model").stream()
                 .filter(receipt->receipt.hasNonNull("finishedAt"))
-                .max(Comparator.comparing(receipt->receipt.path("finishedAt").asText()))
+                .max(Comparator.comparing(receipt->receipt.path("finishedAt").asText()));
+            failureSummary=latest
                 .filter(receipt->"FAILED".equals(receipt.path("status").asText()))
                 .map(NativeS3CodingAdapter::modelFailureSummary).orElse(reason);
             var rejection=tasks.nativeTelemetry(r.c.scope(),r.c.taskId(),"model-admission").stream()
-                .filter(receipt->"BROKER_MODEL_PAYLOAD_TOO_LARGE".equals(receipt.path("code").asText()))
+                .filter(receipt->receipt.path("timestamp").asText().compareTo(
+                    latest.map(value->value.path("finishedAt").asText()).orElse(""))>=0)
                 .max(Comparator.comparing(receipt->receipt.path("timestamp").asText()));
-            if(rejection.isPresent()){
-                var latestModel=tasks.nativeTelemetry(r.c.scope(),r.c.taskId(),"model").stream()
-                    .map(receipt->receipt.path("finishedAt").asText()).max(String::compareTo).orElse("");
-                var rejected=rejection.get();
-                if(rejected.path("timestamp").asText().compareTo(latestModel)>=0)
-                    failureSummary="模型请求超过网关大小限制（已接收 "+rejected.path("receivedBytes").asLong()
-                        +" 字节，上限 "+rejected.path("limitBytes").asLong()+" 字节），请求未发送给模型";
-            }
+            failureSummary=rejection.map(NativeS3CodingAdapter::modelAdmissionFailureSummary).orElse(failureSummary);
         }
         var at=Instant.now().truncatedTo(java.time.temporal.ChronoUnit.MILLIS);var proposal=new CodingTaskOutcome(prior.schemaVersion(),prior.taskId(),prior.scope(),prior.contractSha256(),Status.FAILED,prior.revision()+1,prior.lastEventSequence()+1,prior.createdAt(),at,prior.startedAt(),at,false,
             reason.startsWith("OUTPUT_CONTRACT_VIOLATION")?CodingErrorCode.OUTPUT_CONTRACT_VIOLATION:CodingErrorCode.EXECUTION_FAILED,
@@ -874,6 +909,16 @@ public final class NativeS3CodingAdapter implements CodingAgentSPI {
     private String startupFailure(Run r){
         var failure=state(r,STARTUP_FAILURE);
         return failure==null?null:failure.asText();
+    }
+    private static String modelAdmissionFailureSummary(JsonNode receipt) {
+        return switch(receipt.path("code").asText()){
+            case "BROKER_MODEL_PAYLOAD_TOO_LARGE" -> "模型请求超过网关大小限制（已接收 "+receipt.path("receivedBytes").asLong()
+                +" 字节，上限 "+receipt.path("limitBytes").asLong()+" 字节），请求未发送给模型";
+            case "RUNTIME_TOKEN_QUOTA_EXHAUSTED" -> "个人或角色 Token 额度不足（含待核对预留），模型请求未发出";
+            case "RUNTIME_MODEL_AUTHORIZATION_REJECTED" -> "Runtime 模型调用授权被拒绝，模型请求未发出";
+            case "RUNTIME_MODEL_AUTHORITY_UNAVAILABLE" -> "Runtime 模型授权服务暂不可用，模型请求未发出";
+            default -> null;
+        };
     }
     private static String modelFailureSummary(JsonNode receipt) {
         return switch(receipt.path("errorCode").asText("")){

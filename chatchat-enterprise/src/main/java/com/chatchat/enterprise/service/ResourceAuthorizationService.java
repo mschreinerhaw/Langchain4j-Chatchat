@@ -37,6 +37,7 @@ public class ResourceAuthorizationService implements ResourceAuthorizationPort {
     private final RoleAgentBindingRepository roleAgents;
     private final com.chatchat.enterprise.repository.identity.SysRolePermissionRepository rolePermissions;
     private final com.chatchat.enterprise.repository.identity.SysPermissionRepository permissions;
+    private final com.chatchat.enterprise.repository.identity.SysTenantRepository tenants;
 
     @Override
     @Transactional(readOnly = true)
@@ -82,9 +83,11 @@ public class ResourceAuthorizationService implements ResourceAuthorizationPort {
         if (candidateIds == null || candidateIds.isEmpty()) return Set.of();
         if (tenantId == null || tenantId.isBlank() || resourceType == null || resourceType.isBlank()) return Set.of();
         SysUser user = userId == null ? null : users.findById(userId).orElse(null);
+        Instant now = Instant.now();
+        if (tenants.findById(tenantId).filter(tenant -> tenant.activeAt(now)).isEmpty()) return Set.of();
         boolean validUser = user != null && tenantId.equals(user.getTenantId())
-            && "enabled".equalsIgnoreCase(user.getStatus());
-        if(catalogDefault&&!validUser)return Set.of();
+            && user.activeAt(now);
+        if ((catalogDefault || userId != null) && !validUser) return Set.of();
         Set<String> activeRoleIds = new HashSet<>();
         if (validUser) {
             Set<String> assigned = new HashSet<>();
@@ -93,7 +96,7 @@ public class ResourceAuthorizationService implements ResourceAuthorizationPort {
                 .forEach(binding -> assigned.add(binding.getRoleId()));
             for (SysRole role : assigned.isEmpty() ? List.<SysRole>of()
                 : roles.findByTenantIdAndIdIn(tenantId, assigned)) {
-                if (assigned.contains(role.getId()) && "enabled".equalsIgnoreCase(role.getStatus())) {
+                if (assigned.contains(role.getId()) && role.activeAt(now)) {
                     activeRoleIds.add(role.getId());
                 }
             }
@@ -105,7 +108,6 @@ public class ResourceAuthorizationService implements ResourceAuthorizationPort {
             rules.addAll(grants.findByTenantIdAndResourceTypeAndResourceIdIn(
                 tenantId, resourceType, lookupIds.subList(offset, Math.min(offset + 500, lookupIds.size()))));
         }
-        Instant now = Instant.now();
         if (AGENT_SKILL.equals(resourceType) && validUser && !activeRoleIds.isEmpty()) {
             // Existing role bindings are persisted explicit Agent grants, including at execution time.
             // Merge them into this evaluator so the runtime and UI share the same deny/expiry rules.

@@ -1,0 +1,22 @@
+services:
+  litellm:
+    image: ${LITELLM_IMAGE:?Set LITELLM_IMAGE to the approved LiteLLM image digest}
+    pull_policy: never
+    init: true
+    restart: unless-stopped
+    command: ["--config", "/etc/litellm/config.yaml", "--host", "0.0.0.0", "--port", "4000"]
+    env_file: ${LITELLM_ENV_FILE:?Set LITELLM_ENV_FILE to the private credential file}
+    environment:
+      LITELLM_LOCAL_MODEL_COST_MAP: "True"
+      LITELLM_LOG: ERROR
+    volumes:
+      - "${LITELLM_CONFIG_FILE:-./config.example.yaml}:/etc/litellm/config.yaml:ro"
+    networks:
+      - gateway
+    security_opt:
+      - no-new-privileges:true
+
+networks:
+  gateway:
+    external: true
+    name: ${LITELLM_GATEWAY_NETWORK:?Set LITELLM_GATEWAY_NETWORK to the dedicated Gateway network}

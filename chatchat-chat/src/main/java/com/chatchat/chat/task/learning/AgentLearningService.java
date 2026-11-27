@@ -39,6 +39,8 @@ public class AgentLearningService {
     private final AgentEventStore eventStore;
     private final ObjectMapper objectMapper;
     private final ObjectProvider<ChatModel> chatModelProvider;
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    private com.chatchat.agents.orchestration.model.DirectModelInvocation directModels;
     private final AgentLearningProperties properties;
 
     @Transactional
@@ -315,13 +317,16 @@ public class AgentLearningService {
         if (!properties.isModelAttributionEnabled()) {
             return fallback;
         }
-        ChatModel chatModel = chatModelProvider.getIfAvailable();
-        if (chatModel == null) {
+        ChatModel chatModel = directModels == null ? chatModelProvider.getIfAvailable() : null;
+        if (chatModel == null && directModels == null) {
             return fallback;
         }
         String prompt = buildAttributionPrompt(task, feedback);
         try {
-            String raw = chatModel.chat(prompt);
+            var modelScope = new com.chatchat.common.kernel.KernelDataScope(task.getTenantId(), task.getUserId(),
+                null, task.getSessionId(), task.getExecutionAttemptId() == null ? task.getTaskId() : task.getExecutionAttemptId(), null, Map.of());
+            String raw = directModels == null ? chatModel.chat(prompt)
+                : directModels.text(modelScope, "task-learning", prompt, 2048);
             Attribution parsed = parseAttribution(raw, fallback);
             return parsed.withSource("model", raw);
         } catch (Exception ex) {

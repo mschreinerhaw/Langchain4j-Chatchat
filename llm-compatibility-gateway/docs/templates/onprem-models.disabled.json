@@ -1,0 +1,18 @@
+{
+  "config": {
+    "services": [
+      { "id": "qwen38", "name": "Qwen3.8-27B", "origin": "https://qwen38.example.invalid", "enabled": false },
+      { "id": "qwen36", "name": "Qwen3.6-35B-A3B", "origin": "https://qwen36.example.invalid", "enabled": false },
+      { "id": "qwen-vl", "name": "Qwen3-VL-8B-Instruct", "origin": "https://qwen-vl.example.invalid", "enabled": false },
+      { "id": "qwen32", "name": "Qwen3-32B", "origin": "https://qwen32.example.invalid", "enabled": false },
+      { "id": "deepseek-flash", "name": "DeepSeek-V4-Flash-0731-INT8", "origin": "https://deepseek-flash.example.invalid", "enabled": false }
+    ],
+    "models": [
+      { "alias": "qwen/qwen3.8-27b", "upstream": "REPLACE_WITH_EXISTING_MODEL_ID", "service": "qwen38", "enabled": false },
+      { "alias": "qwen/qwen3.6-35b-a3b", "upstream": "REPLACE_WITH_EXISTING_MODEL_ID", "service": "qwen36", "enabled": false },
+      { "alias": "qwen/qwen3-vl-8b-instruct", "upstream": "REPLACE_WITH_EXISTING_MODEL_ID", "service": "qwen-vl", "enabled": false },
+      { "alias": "qwen/qwen3-32b", "upstream": "REPLACE_WITH_EXISTING_MODEL_ID", "service": "qwen32", "enabled": false },
+      { "alias": "deepseek/deepseek-v4-flash-0731-int8", "upstream": "REPLACE_WITH_EXISTING_MODEL_ID", "service": "deepseek-flash", "enabled": false }
+    ]
+  }
+}

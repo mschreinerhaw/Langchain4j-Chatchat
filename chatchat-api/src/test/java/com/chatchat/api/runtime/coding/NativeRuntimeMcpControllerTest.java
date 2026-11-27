@@ -22,8 +22,11 @@ class NativeRuntimeMcpControllerTest {
     @TempDir Path directory;
     ObjectMapper json=new ObjectMapper();DurableCodingTaskService tasks=mock(DurableCodingTaskService.class);
     CodingInternetAccess internet=mock(CodingInternetAccess.class);CodingSkillReader skills=mock(CodingSkillReader.class);
+    final com.chatchat.enterprise.service.EnterpriseAdminService enterprise=
+        mock(com.chatchat.enterprise.service.EnterpriseAdminService.class);
     CodingTaskContract contract=mock(CodingTaskContract.class,RETURNS_DEEP_STUBS);
     CodingTaskOutcome outcome=mock(CodingTaskOutcome.class,RETURNS_DEEP_STUBS);
+    final com.chatchat.api.enterprise.service.TokenQuotaLedger quota=mock(com.chatchat.api.enterprise.service.TokenQuotaLedger.class);
     MockMvc mvc;NativeS3Settings settings;String token;
     com.chatchat.api.runtime.coding.knowledge.CodingDocumentSearchAccess documents=mock(com.chatchat.api.runtime.coding.knowledge.CodingDocumentSearchAccess.class);
     @BeforeEach void setup()throws Exception{
@@ -39,12 +42,14 @@ class NativeRuntimeMcpControllerTest {
         when(tasks.get(any(),eq("task"))).thenReturn(outcome);
         when(outcome.executionControl().stopReason()).thenReturn(null);
         when(contract.taskId()).thenReturn("task");when(outcome.status()).thenReturn(CodingTaskOutcome.Status.RUNNING);
-        mvc=standaloneSetup(new NativeRuntimeMcpController(settings,json,new CodingInvocationContext(),tasks,internet,skills,mock(NativeS3Evidence.class))).setMessageConverters(new org.springframework.http.converter.json.MappingJackson2HttpMessageConverter(json)).build();
+        when(contract.scope()).thenReturn(new com.chatchat.common.kernel.KernelDataScope("tenant","user",null,null,"run",null,Map.of()));
+        when(enterprise.isActiveIdentity("tenant","user")).thenReturn(true);
+        mvc=standaloneSetup(new NativeRuntimeMcpController(settings,json,new CodingInvocationContext(),tasks,internet,skills,mock(NativeS3Evidence.class),enterprise,quota)).setMessageConverters(new org.springframework.http.converter.json.MappingJackson2HttpMessageConverter(json)).build();
     }
     String grant(long expiry,String run){return settings.client.signGrant(Map.of("version",2,"tenantId","tenant","userId","user","taskId","task","expiresAt",expiry,"deliveryBinding",Map.of("runId",run)),settings.issuerKey);}
     @Test void referenceAllocationDoesNotLoadSkillContentAndClineCanExplicitlyReadIt()throws Exception{
         var evidence=mock(NativeS3Evidence.class);when(evidence.bytes(any())).thenAnswer(call->json.writeValueAsBytes(call.getArgument(0)));
-        mvc=standaloneSetup(new NativeRuntimeMcpController(settings,json,new CodingInvocationContext(),tasks,internet,skills,evidence)).setMessageConverters(new org.springframework.http.converter.json.MappingJackson2HttpMessageConverter(json)).build();
+        mvc=standaloneSetup(new NativeRuntimeMcpController(settings,json,new CodingInvocationContext(),tasks,internet,skills,evidence,enterprise,quota)).setMessageConverters(new org.springframework.http.converter.json.MappingJackson2HttpMessageConverter(json)).build();
         when(contract.authorization().allowedTools()).thenReturn(List.of("agent_skill_read"));
         when(contract.runtimeContext()).thenReturn(Map.of("skills",Map.of("skills",List.of(Map.of("id","method","version","ON_DEMAND","name","Method")))));
         mvc.perform(post("/internal/runtime/native-coding/skills").header("Authorization","Bearer "+token))
@@ -58,7 +63,7 @@ class NativeRuntimeMcpControllerTest {
     ResultActions request(String bearer,String body)throws Exception{return mvc.perform(post("/internal/runtime/native-coding/mcp").header("Authorization","Bearer "+bearer).contentType("application/json").content(body));}
     @Test void nativeDocumentToolUsesTheExistingDocumentAdapterWithoutEnablingInternet()throws Exception{
         var evidence=mock(NativeS3Evidence.class);when(evidence.bytes(any())).thenAnswer(call->json.writeValueAsBytes(call.getArgument(0)));
-        var controller=new NativeRuntimeMcpController(settings,json,new CodingInvocationContext(),tasks,internet,skills,evidence);
+        var controller=new NativeRuntimeMcpController(settings,json,new CodingInvocationContext(),tasks,internet,skills,evidence,enterprise,quota);
         org.springframework.test.util.ReflectionTestUtils.setField(controller,"documents",documents);
         mvc=standaloneSetup(controller).setMessageConverters(new org.springframework.http.converter.json.MappingJackson2HttpMessageConverter(json)).build();
         when(contract.authorization().allowedTools()).thenReturn(List.of("document_search"));
@@ -76,6 +81,29 @@ class NativeRuntimeMcpControllerTest {
         request("invalid","{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"tools/list\"}").andExpect(status().isUnauthorized());
         request(grant(System.currentTimeMillis()-1,"run"),"{}").andExpect(status().isUnauthorized());
         verifyNoInteractions(tasks,internet,skills);
+    }
+    @Test void existingGrantCannotStartAnotherModelRequestAfterIdentityExpires()throws Exception{
+        var path="/internal/runtime/native-coding/model-admission";
+        var body="{\"requestId\":\"model-1\",\"inputUpperBound\":20,\"outputUpperBound\":80}";
+        when(quota.reserve(any(),eq("task"),eq("model-1"),eq(20L),eq(80L)))
+            .thenReturn(com.chatchat.api.enterprise.service.TokenQuotaLedger.Decision.ADMITTED);
+        mvc.perform(post(path).header("Authorization","Bearer "+token).contentType("application/json").content(body))
+            .andExpect(status().isNoContent());
+        when(enterprise.isActiveIdentity("tenant","user")).thenReturn(false);
+        mvc.perform(post(path).header("Authorization","Bearer "+token).contentType("application/json").content(body))
+            .andExpect(status().isForbidden());
+        verify(quota,times(1)).reserve(any(),eq("task"),eq("model-1"),eq(20L),eq(80L));
+        verifyNoInteractions(internet,skills);
+    }
+    @Test void terminalTaskCanSettleAReceiptFromItsOriginalBoundGrant()throws Exception{
+        String expired=grant(System.currentTimeMillis()-1000,"run");
+        when(tasks.privateState(any(),eq("task"),eq("native-s3:binding"))).thenReturn(json.valueToTree(Map.of("grant",expired)));
+        when(enterprise.isActiveIdentity("tenant","user")).thenReturn(false);
+        when(outcome.status()).thenReturn(CodingTaskOutcome.Status.CANCELLED);
+        mvc.perform(post("/internal/runtime/native-coding/model-settlement").header("Authorization","Bearer "+expired)
+            .contentType("application/json").content("{\"requestId\":\"model-1\",\"providerTokens\":42}"))
+            .andExpect(status().isNoContent());
+        verify(quota).settle(any(),eq("task"),eq("model-1"),eq(42L),eq(false));
     }
     @Test void signedCrossRunCapabilityStillNeedsExactDurableBinding()throws Exception{
         request(grant(System.currentTimeMillis()+60000,"other"),"{}").andExpect(status().isForbidden());verifyNoInteractions(internet,skills);
@@ -104,7 +132,7 @@ class NativeRuntimeMcpControllerTest {
         var config=new com.chatchat.common.config.ModelsConfig.ModelConnectionConfig();config.setModelName("actual-provider");config.setBaseUrl("https://provider.example/v1/chat/completions");config.setProtocol("openai");config.setApiKey("fixture-only-secret");
         when(catalog.chatModelNames()).thenReturn(List.of("selected"));when(catalog.resolveChatModel("selected")).thenReturn(new com.chatchat.common.config.ModelsConfig.ResolvedModelConnection("selected","selected",config,com.chatchat.common.config.ModelsConfig.ModelMatchType.CONFIG_KEY));
         var inputs=mock(NativeSiloTaskService.class);when(inputs.requireAuthorized(contract)).thenReturn(Map.of("selectedModel","selected"));
-        var controller=new NativeRuntimeMcpController(settings,json,new CodingInvocationContext(),tasks,internet,skills,mock(NativeS3Evidence.class));org.springframework.test.util.ReflectionTestUtils.setField(controller,"modelInputs",inputs);
+        var controller=new NativeRuntimeMcpController(settings,json,new CodingInvocationContext(),tasks,internet,skills,mock(NativeS3Evidence.class),enterprise,quota);org.springframework.test.util.ReflectionTestUtils.setField(controller,"modelInputs",inputs);
         mvc=standaloneSetup(controller).setMessageConverters(new org.springframework.http.converter.json.MappingJackson2HttpMessageConverter(json)).build();
         var values=new LinkedHashMap<String,Object>();values.put("version",2);values.put("tenantId","tenant");values.put("userId","user");values.put("taskId","task");values.put("expiresAt",System.currentTimeMillis()+60000);values.put("deliveryBinding",Map.of("runId","run"));values.put("modelProfile",settings.profile("selected"));values.put("runtimeModel",settings.descriptor("selected"));
         token=settings.client.signGrant(values,settings.issuerKey);when(tasks.privateState(any(),eq("task"),eq("native-s3:binding"))).thenReturn(json.valueToTree(Map.of("grant",token)));

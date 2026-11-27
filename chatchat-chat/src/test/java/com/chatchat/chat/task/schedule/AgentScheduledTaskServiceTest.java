@@ -280,10 +280,10 @@ class AgentScheduledTaskServiceTest {
             new AgentTaskService.AgentNotificationContent("今日市场平稳",
                 List.of(Map.of("sourceRef", "market://index", "snippet", "上证指数上涨0.3%")))
         ));
-        when(formatter.format(anyString())).thenReturn(Map.of("title", "今日市场平稳"));
+        when(formatter.format(any(), anyString())).thenReturn(Map.of("title", "今日市场平稳"));
         when(recipientService.recipients("tenant-1", "EMAIL"))
             .thenReturn(List.of("ops@example.com", "risk@example.com"));
-        when(evaluator.evaluate(anyString(), anyString(), anyList())).thenReturn(
+        when(evaluator.evaluate(any(), anyString(), anyString(), anyList())).thenReturn(
             new NotificationPolicyEvaluator.Decision(false, "指数波动未达到阈值",
                 List.of(), List.of(), true)
         );

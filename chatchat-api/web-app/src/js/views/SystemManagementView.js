@@ -13,7 +13,9 @@ import {
   X,
 } from "@lucide/vue";
 import "../../styles/pages/system-management.css";
+import TokenQuotaEditor from "../../components/TokenQuotaEditor.vue";
 import "../../styles/pages/permission-workspace.css";
+import { identityScheduleChanges, localIdentitySchedule } from "../utils/identityValidity.js";
 
 import {
   AUTH_REQUIRED_EVENT,
@@ -57,6 +59,9 @@ const blankUserForm = () => ({
   status: "enabled",
   roleIds: [],
   tokenBillingRoleId: "",
+  ...localIdentitySchedule(),
+  originalSchedule: localIdentitySchedule(),
+  protectedAccount: false,
 });
 
 const blankAdminPasswordForm = () => ({
@@ -76,6 +81,7 @@ export default {
     },
   },
   components: {
+    TokenQuotaEditor,
     Building2,
     Copy,
     KeyRound,
@@ -136,6 +142,9 @@ export default {
     };
   },
   computed: {
+    canManageTokenQuotas() {
+      return getStoredAuthSession()?.user?.permissionCodes?.includes("system:permission-center:manage");
+    },
     filteredEntities() {
       const data = this.section === "users" ? this.users : this.orgTree;
       const query = this.entityQuery.toLowerCase();
@@ -552,6 +561,7 @@ export default {
       this.setNotice("浏览器未授权自动复制，请按 Ctrl+C 手动复制", true);
     },
     editUser(user) {
+      const schedule = localIdentitySchedule(user);
       this.userForm = {
         id: user.id,
         orgId: user.orgId || "",
@@ -563,6 +573,9 @@ export default {
         status: user.status || "enabled",
         roleIds: Array.isArray(user.roleIds) ? [...user.roleIds] : [],
         tokenBillingRoleId: user.roleIds?.includes(user.tokenBillingRoleId) ? user.tokenBillingRoleId : "",
+        ...schedule,
+        originalSchedule: schedule,
+        protectedAccount: user.protectedAccount === true,
       };
     },
     setUserRole(roleId) {
@@ -585,6 +598,7 @@ export default {
           phone: this.userForm.phone,
           status: this.userForm.status,
           tokenBillingRoleId: this.userForm.tokenBillingRoleId,
+          ...identityScheduleChanges(this.userForm, this.userForm.originalSchedule),
         };
         if (this.userForm.password) {
           user.passwordHash = this.userForm.password;

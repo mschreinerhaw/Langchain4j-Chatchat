@@ -1,7 +1,9 @@
 package com.chatchat.api.assistance;
 import com.chatchat.agents.orchestration.model.AgentChatModelResolver;
 import com.chatchat.agents.orchestration.model.ToolExecutionModels;
+import com.chatchat.agents.orchestration.model.DirectModelInvocation;
 import com.chatchat.api.assets.UserAssetService;
+import com.chatchat.common.kernel.KernelDataScope;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import dev.langchain4j.data.message.SystemMessage;
 import dev.langchain4j.data.message.UserMessage;
@@ -22,6 +24,7 @@ public class QuestionIdeaService {
     private final UserAssetService assets;
     private final AgentChatModelResolver models;
     private final ObjectMapper json;
+    private final DirectModelInvocation invocation;
     private final Semaphore[] slots=java.util.stream.IntStream.range(0,64).mapToObj(i->new Semaphore(1)).toArray(Semaphore[]::new);
     public record Idea(String title,String prompt) {}
     static final String INSTRUCTIONS="""
@@ -56,8 +59,11 @@ public class QuestionIdeaService {
             long deadline=System.currentTimeMillis()+45000;
             var selected=models.resolveChatModel(alias);
             var model=ToolExecutionModels.independent(selected,()->Math.max(0,deadline-System.currentTimeMillis()),()->false,45000);
-            var response=model.chat(ChatRequest.builder().messages(SystemMessage.from(INSTRUCTIONS),UserMessage.from(json.writeValueAsString(context)))
-                .parameters(DefaultChatRequestParameters.builder().maxOutputTokens(1600).build()).build());
+            int outputLimit=1600;
+            var request=ChatRequest.builder().messages(SystemMessage.from(INSTRUCTIONS),UserMessage.from(json.writeValueAsString(context)))
+                .parameters(DefaultChatRequestParameters.builder().maxOutputTokens(outputLimit).build()).build();
+            var scope=new KernelDataScope(owner.tenant(),owner.user(),generationId,null,generationId,null,Map.of());
+            var response=invocation.chat(scope,"question-ideas",model,request,outputLimit);
             String text=response.aiMessage()==null?"":Objects.toString(response.aiMessage().text(),"").trim();
             text=text.replaceAll("(?s)<think>.*?</think>","").trim();
             int start=text.indexOf('{'),end=text.lastIndexOf('}');

@@ -872,14 +872,16 @@ public class AgentScheduledTaskService {
                 ? notificationMessage(entity, run, latest)
                 : new NotificationMessage(firstText(errorMessage, "Agent任务执行失败"), List.of());
             String fixedAnswer = notification.answer();
+            var modelScope = new com.chatchat.common.kernel.KernelDataScope(entity.getTenantId(), entity.getUserId(),
+                null, null, run.getRunId(), null, Map.of());
             if (supportsContentProtocol(entity.getNotificationChannelType())) {
-                Map<String, Object> contentProtocol = notificationContentFormatter.format(fixedAnswer);
+                Map<String, Object> contentProtocol = notificationContentFormatter.format(modelScope, fixedAnswer);
                 payload.put("contentProtocol", contentProtocol);
                 // Compatibility for old MCP servers; protocol-aware servers ignore these two fields.
                 payload.put("title", contentProtocol.get("title"));
                 payload.put("content", fixedAnswer);
             } else if (isSmsChannel(entity.getNotificationChannelType())) {
-                payload.put("title", notificationContentFormatter.extractTitle(fixedAnswer, 36));
+                payload.put("title", notificationContentFormatter.extractTitle(modelScope, fixedAnswer, 36));
                 payload.put("content", smsBrief(entity.getName(), normalizedStatus));
             } else {
                 payload.put("title", "Agent调度完成：" + entity.getName());
@@ -925,7 +927,7 @@ public class AgentScheduledTaskService {
                     ? NotificationPolicyEvaluator.Decision.skip(
                         "通知条件判断服务不可用，按严格策略不发送", List.of(), List.of(), false)
                     : notificationPolicyEvaluator.evaluate(
-                        entity.getNotificationCondition(), fixedAnswer, notification.references());
+                        modelScope, entity.getNotificationCondition(), fixedAnswer, notification.references());
                 run.setNotificationDecisionJson(writeJson(decision.audit()));
                 if (!decision.send()) {
                     recordNotificationResult(run, entity, receiver, "SKIPPED_CONDITION", decision.reason());

@@ -7,20 +7,20 @@ import com.chatchat.enterprise.entity.identity.SysRole;
 import com.chatchat.enterprise.repository.audit.SysAuditLogRepository;
 import com.chatchat.enterprise.repository.identity.SysRoleRepository;
 import com.chatchat.enterprise.service.EnterpriseAdminService.UserView;
+import com.chatchat.enterprise.service.EnterpriseAdminService;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.apache.pdfbox.Loader;
+import org.apache.pdfbox.pdmodel.PDDocument;
+import org.apache.pdfbox.pdmodel.PDPage;
 import org.apache.pdfbox.rendering.PDFRenderer;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.datasource.DriverManagerDataSource;
 import org.springframework.mock.web.MockHttpServletRequest;
-import org.springframework.mock.web.MockMultipartFile;
 import org.springframework.web.server.ResponseStatusException;
 
 import javax.imageio.ImageIO;
-import java.awt.Color;
-import java.awt.image.BufferedImage;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.nio.file.Files;
@@ -38,6 +38,9 @@ import static org.mockito.Mockito.*;
 class ReportExportControllerTest {
     private final SysRoleRepository roles = mock(SysRoleRepository.class);
     private final SysAuditLogRepository audits = mock(SysAuditLogRepository.class);
+    private final ReportExportSource sources = mock(ReportExportSource.class);
+    private final ReportPrintClient printer = mock(ReportPrintClient.class);
+    private final EnterpriseAdminService identities = mock(EnterpriseAdminService.class);
     private ReportExportController controller;
 
     @BeforeEach
@@ -45,7 +48,8 @@ class ReportExportControllerTest {
         var jdbc = new JdbcTemplate(new DriverManagerDataSource("jdbc:h2:mem:" + UUID.randomUUID() + ";DB_CLOSE_DELAY=-1", "sa", ""));
         jdbc.execute("create table sys_tenant(id varchar(64) primary key)");
         jdbc.update("insert into sys_tenant values ('tenant-a'), ('tenant-b')");
-        controller = new ReportExportController(mock(WorkspaceService.class), roles, audits, jdbc, new ObjectMapper());
+        controller = new ReportExportController(mock(WorkspaceService.class), roles, audits, jdbc, new ObjectMapper(),
+            sources, printer, identities);
         controller.initialize();
         var role = new SysRole();
         role.setId("reader");
@@ -59,18 +63,24 @@ class ReportExportControllerTest {
         var user = request("tenant-a", false, "reader");
         var otherTenant = request("tenant-b", false, "reader");
         var options = new ReportExportController.Policy(true, "内部报告", Set.of("reader"), 0);
-        var page = page(650, 800);
+        var reference = new ReportExportSource.Reference("report-123", null, null);
 
         assertThat(controller.capability(manager).getData()).isEqualTo(java.util.Map.of("allowed", false));
         assertThat(controller.settings(manager).getData().toString()).contains("企业内部资料 · 严禁外传");
-        assertThatThrownBy(() -> controller.pdf(user, "report-123", List.of(page))).isInstanceOf(ResponseStatusException.class);
+        assertThatThrownBy(() -> controller.pdf(user, reference)).isInstanceOf(ResponseStatusException.class);
         verify(audits).saveAndFlush(argThat(event -> "denied".equals(event.getResult())));
         controller.save(manager, options);
-        assertThatThrownBy(() -> controller.pdf(otherTenant, "report-123", List.of(page))).isInstanceOf(ResponseStatusException.class);
+        assertThatThrownBy(() -> controller.pdf(otherTenant, reference)).isInstanceOf(ResponseStatusException.class);
         assertThatThrownBy(() -> controller.save(user, options)).isInstanceOf(ResponseStatusException.class);
         assertThatThrownBy(() -> controller.save(manager, options)).isInstanceOf(ResponseStatusException.class);
 
-        var response = controller.pdf(user, "report-123", List.of(page, page));
+        verifyNoInteractions(sources, printer);
+        var source = new ReportExportSource.Document("index.html", List.of());
+        when(sources.load(user, reference)).thenReturn(source);
+        when(printer.print(source)).thenReturn(pages());
+        when(identities.isActiveIdentity("tenant-a", "user")).thenReturn(true);
+        when(identities.getUserView("user")).thenReturn((UserView) user.getAttribute(ApiAuthenticationFilter.CURRENT_USER_VIEW));
+        var response = controller.pdf(user, reference);
         byte[] bytes = response.getBody();
         try (var pdf = Loader.loadPDF(bytes)) {
             assertThat(pdf.getNumberOfPages()).isEqualTo(2);
@@ -105,26 +115,25 @@ class ReportExportControllerTest {
     }
 
     @Test
-    void invalidRasterDoesNotProducePdf() throws IOException {
-        var file = new MockMultipartFile("pages", "fake.jpg", "image/jpeg", new byte[]{1, 2, 3});
+    void invalidRendererResponseDoesNotProducePdf() throws IOException {
+        var user = request("tenant-a", false, "reader");
+        var reference = new ReportExportSource.Reference("bad-report", null, null);
+        var source = new ReportExportSource.Document("index.html", List.of());
+        when(sources.load(user, reference)).thenReturn(source);
+        when(printer.print(source)).thenReturn(new byte[]{1, 2, 3});
         controller.save(request("tenant-a", true), new ReportExportController.Policy(false, "", Set.of("reader"), 0));
-        assertThatThrownBy(() -> controller.pdf(request("tenant-a", false, "reader"), "bad-image", List.of(file)))
+        assertThatThrownBy(() -> controller.pdf(user, reference))
             .isInstanceOf(ResponseStatusException.class);
         verify(audits).saveAndFlush(argThat(event -> "failure".equals(event.getResult())));
     }
 
-    private static MockMultipartFile page(int width, int height) throws Exception {
-        var image = new BufferedImage(width, height, BufferedImage.TYPE_INT_RGB);
-        var graphics = image.createGraphics();
-        try {
-            graphics.setColor(Color.WHITE);
-            graphics.fillRect(0, 0, width, height);
-        } finally {
-            graphics.dispose();
+    private static byte[] pages() throws IOException {
+        try (var pdf = new PDDocument(); var bytes = new ByteArrayOutputStream()) {
+            pdf.addPage(new PDPage());
+            pdf.addPage(new PDPage());
+            pdf.save(bytes);
+            return bytes.toByteArray();
         }
-        var bytes = new ByteArrayOutputStream();
-        ImageIO.write(image, "jpeg", bytes);
-        return new MockMultipartFile("pages", "page.jpg", "image/jpeg", bytes.toByteArray());
     }
 
     private static MockHttpServletRequest request(String tenant, boolean manager, String... roles) {

@@ -1,0 +1,23 @@
+model_list:
+  - model_name: qwen-agent
+    litellm_params:
+      model: openai/qwen3.8-27b
+      api_base: os.environ/UPSTREAM_API_BASE
+      api_key: os.environ/UPSTREAM_API_KEY
+      num_retries: 0
+router_settings:
+  num_retries: 0
+  fallbacks: []
+  context_window_fallbacks: []
+  content_policy_fallbacks: []
+  disable_cooldowns: true
+litellm_settings:
+  telemetry: false
+  cache: false
+  drop_params: false
+  turn_off_message_logging: true
+  num_retries: 0
+general_settings:
+  master_key: os.environ/LITELLM_MASTER_KEY
+  disable_spend_logs: true
+  disable_error_logs: true

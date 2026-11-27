@@ -147,6 +147,7 @@ export default {
   emits: ["delete-message", "feedback", "visualization-drill-down", "visualization-preference"],
   props: {
     businessCanvas: Boolean,
+    conversationId: { type: String, default: "" },
     messages: {
       type: Array,
       default: () => []
@@ -516,6 +517,7 @@ export default {
     canExportMessagePdf(message = {}) {
       const status = String(message.status || "").toLowerCase();
       return this.pdfExportAllowed === true && message.role === "assistant"
+        && (!!this.messageVisualReport(message)?.htmlReport?.entryFileId || (!!this.conversationId && !!message.id && !!message.taskId))
         && (this.messageHasRenderableContent(message) || this.messageVisualReport(message) || this.messageUiArtifact(message))
         && !message.streaming
         && !["waiting", "streaming", "running"].includes(status);
@@ -2769,6 +2771,7 @@ export default {
         await exportRenderedAnswerToPdf({
           sourceElement,
           message,
+          conversationId: this.conversationId,
           reference: this.messageVisualReport(message)?.htmlReport?.entryFileId,
           fileName: answerPdfFileName(message, sourceElement)
         });

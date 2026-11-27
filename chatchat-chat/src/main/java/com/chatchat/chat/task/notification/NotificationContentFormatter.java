@@ -1,6 +1,8 @@
 package com.chatchat.chat.task.notification;
 
 import com.chatchat.agents.protocol.ModelProtocolJson;
+import com.chatchat.agents.orchestration.model.DirectModelInvocation;
+import com.chatchat.common.kernel.KernelDataScope;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import dev.langchain4j.model.chat.ChatModel;
@@ -27,15 +29,21 @@ public class NotificationContentFormatter {
 
     private final ObjectProvider<ChatModel> chatModelProvider;
     private final ObjectMapper objectMapper;
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    private DirectModelInvocation directModels;
 
     /**
      * The model may only select a title already present in the answer and classify line ranges.
      * The immutable source text and its digest are copied by Java, never accepted from the model.
      */
     public Map<String, Object> format(String fixedAnswer) {
+        return format(null, fixedAnswer);
+    }
+
+    public Map<String, Object> format(KernelDataScope scope, String fixedAnswer) {
         String source = fixedAnswer == null ? "" : fixedAnswer;
         int lineCount = Math.max(1, source.split("\\R", -1).length);
-        FormatDecision decision = modelDecision(source, lineCount);
+        FormatDecision decision = modelDecision(scope, source, lineCount);
         String title = extractedTitle(source, decision == null ? null : decision.title());
         List<Map<String, Object>> blocks = validBlocks(decision == null ? null : decision.blocks(), lineCount);
 
@@ -51,16 +59,20 @@ public class NotificationContentFormatter {
 
     /** Extracts a short verbatim title for SMS without asking the model to summarize the answer. */
     public String extractTitle(String fixedAnswer, int maxLength) {
+        return extractTitle(null, fixedAnswer, maxLength);
+    }
+
+    public String extractTitle(KernelDataScope scope, String fixedAnswer, int maxLength) {
         String source = fixedAnswer == null ? "" : fixedAnswer;
         int lineCount = Math.max(1, source.split("\\R", -1).length);
-        FormatDecision decision = modelDecision(source, lineCount);
+        FormatDecision decision = modelDecision(scope, source, lineCount);
         String title = extractedTitle(source, decision == null ? null : decision.title());
         return title.substring(0, Math.min(Math.max(1, maxLength), title.length()));
     }
 
-    private FormatDecision modelDecision(String source, int lineCount) {
-        ChatModel model = chatModelProvider.getIfAvailable();
-        if (model == null || source.isBlank()) {
+    private FormatDecision modelDecision(KernelDataScope scope, String source, int lineCount) {
+        ChatModel model = directModels == null ? chatModelProvider.getIfAvailable() : null;
+        if (source.isBlank() || model == null && (directModels == null || scope == null)) {
             return null;
         }
         String prompt = """
@@ -76,7 +88,8 @@ public class NotificationContentFormatter {
             immutableAnswerJson: "%s"
             """.formatted(lineCount, ModelProtocolJson.jsonStringContent(source));
         try {
-            String raw = model.chat(prompt);
+            String raw = directModels == null ? model.chat(prompt)
+                : directModels.text(scope, "notification-format", prompt, 4096);
             Map<String, Object> value = objectMapper.readValue(jsonObject(raw), new TypeReference<>() {});
             return new FormatDecision(text(value.get("title")), readBlocks(value.get("blocks")));
         } catch (Exception ex) {

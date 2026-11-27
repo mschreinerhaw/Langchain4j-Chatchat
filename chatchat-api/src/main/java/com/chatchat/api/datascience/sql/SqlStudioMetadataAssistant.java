@@ -35,6 +35,8 @@ public final class SqlStudioMetadataAssistant implements SqlMetadataAnswerPort {
     private final SqlGlotToolchain sqlglot;
     private final JdbcTemplate jdbc;
     private final ObjectMapper json;
+    @org.springframework.beans.factory.annotation.Autowired
+    private com.chatchat.agents.orchestration.model.DirectModelInvocation directModels;
     private SqlStudioReferenceResolver references;
     @org.springframework.beans.factory.annotation.Autowired
     public void setReferences(SqlStudioReferenceResolver value){references=value;}
@@ -163,7 +165,10 @@ public final class SqlStudioMetadataAssistant implements SqlMetadataAnswerPort {
                 Map<String,Object> configuration;
                 try{var selected=models.resolveChatModel(request.getModelName());configuration=models.checkpointModelConfiguration(request.getModelName(),selected);
                     var model=ToolExecutionModels.independent(selected,this::remaining,()->{InteractionExecution.checkCancellation(request);return false;},0);
-                    response=model.chat(ChatRequest.builder().messages(List.copyOf(messages)).toolSpecifications(finalizing?List.of():List.of(specification(context.bindings().stream().map(SqlStudioMetadataService.Binding::assetRef).distinct().toList()))).build());
+                    var call=ChatRequest.builder().messages(List.copyOf(messages))
+                        .toolSpecifications(finalizing?List.of():List.of(specification(context.bindings().stream().map(SqlStudioMetadataService.Binding::assetRef).distinct().toList()))).build();
+                    Integer outputLimit=configuration!=null&&configuration.get("maxTokens") instanceof Integer limit&&limit>0?limit:null;
+                    response=directModels==null?model.chat(call):directModels.chat(scope,"sql-metadata",model,call,outputLimit);
                 }catch(RuntimeException failure){event(id,"MODEL","FAILED",at,Map.of("reasonCode",failureCode(failure)));throw failure;}
                 var receipt=new LinkedHashMap<String,Object>();receipt.put("modelCall",calls);receipt.put("durationMs",System.currentTimeMillis()-at);
                 receipt.put("selectedModel",Objects.toString(request.getModelName(),"DEFAULT"));

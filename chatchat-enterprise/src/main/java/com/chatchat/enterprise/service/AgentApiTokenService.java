@@ -140,8 +140,7 @@ public class AgentApiTokenService {
             return null;
         }
         SysUser user = userRepository.findById(record.getUserId()).orElse(null);
-        if (user == null || !"enabled".equalsIgnoreCase(user.getStatus())
-            || !Objects.equals(user.getTenantId(), record.getTenantId())) {
+        if (user == null || !enterpriseAdminService.isActiveIdentity(record.getTenantId(), record.getUserId())) {
             auditFailure(record.getTenantId(), record.getTokenPreview(), requestPath, "user unavailable");
             return null;
         }

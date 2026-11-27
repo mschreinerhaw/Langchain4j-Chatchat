@@ -63,3 +63,14 @@ docker compose --env-file deploy/litellm/images.env -f deploy/litellm/compose.ym
 | Gateway 确认总 Token | 19,692 | 未知 |
 
 以上时延来自各一次公网任务，包含上游推理和网络时间。额外 CPU、内存和负载开销需独立压测，LiteLLM 镜像解包大小约 1.36 GB。协议样本见 [模拟厂商服务](../tests/litellm-provider-fixture.mjs) 和 [自动化测试](../tests/compat.test.ts)。Gateway 回归共 28 项通过，HTTP 运行测试另有 1 项通过。
+
+## 2026-11-27 的 18100 验证
+
+模型协议验收允许供应商 Usage 缺失。有可靠回执时使用回执，Cline 自身的估算可作展示和运行参考。企业额度和账本验收仍使用可核对的供应商用量，缺失保持未知。
+
+- 在生产 `18100` 注册了非默认的临时模型，走真实 Runtime OS、Cline、Gateway、LiteLLM 和公网 Qwen3.8-27B。请求 `litellm-live-bizcjvz9` 完成，记录 9 次模型请求。归档 `analysis.json` 经独立检查为 3 行、合计 42，SHA-256 为 `1b36e8f72394bbaec4ade3aca7fdd7e0ffa288e8c833a98bc79517a3a3a790c5b`。验证后移除临时模型，复核默认模型配置。
+- 隔离 HTTP 断连测试 `041a5302-b2a6-4e9e-becf-16c5977ccde9` 在约 70 ms 内关闭上游流。合成上游返回 429 后只收到一次请求。
+- 从生产 Runtime API 对慢流任务 `litellm-live-h37sdat4` 发起取消，约 2.77 秒确认任务为 `CANCELLED`。模拟上游确认流提前断开，临时模型已移除。
+- 在生产 Runtime 和 Cline 联合验收中，对 `litellm-live-4wp8fj8_` 的首次流请求注入 HTTP 503（Gateway 请求 `b853863d-95bd-457d-aa21-f44676251182`）。后续请求成功，任务为 `COMPLETED`，归档结果仍为 3 行、合计 42。临时模型已移除。
+
+生产网关和默认模型继续使用原配置。503 恢复覆盖单次模型请求故障，Worker 重启后的任务恢复和发布镜像签名及系统依赖复核仍待验收。

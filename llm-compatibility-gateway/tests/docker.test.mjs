@@ -154,10 +154,11 @@ test('Docker gateway contract', async t => {
       const result = await chat(chatBody(mode, { stream: true }));
       assert.ok(eventData(await result.text()).at(-1).error);
     }
-    assert.equal((await chat(chatBody('never'))).status, 504);
-    assert.equal((await chat(chatBody('stall-first', { stream: true }))).status, 504);
-    const stalled = await chat(chatBody('stall', { stream: true }));
-    assert.equal(eventData(await stalled.text()).at(-1).error.code, 'upstream_timeout');
+    for (const mode of ['stall-first', 'stall']) {
+      const delayed = await chat(chatBody(mode, { stream: true }));
+      assert.equal(delayed.status, 200);
+      assert.equal(eventData(await delayed.text()).at(-1), '[DONE]');
+    }
     await publish({ ...config, models: [{ ...config.models[0], sseEnd: 'done_on_finished_eof' }, config.models[1]] });
     assert.equal(eventData(await (await chat(chatBody('no done', { stream: true }))).text()).at(-1).error.code, 'upstream_protocol_error');
     await publish({ ...config, services: [{ ...service, chatPath: '/redirect' }] });

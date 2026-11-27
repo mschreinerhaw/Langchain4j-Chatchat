@@ -16,6 +16,10 @@ async function listen(server) {
 test('real Gateway HTTP routes pin configuration and correlate Runtime requests', { timeout: 10000 }, async t => {
  const root = await mkdtemp(join(tmpdir(), 'gateway-runtime-http-'));
  const calls = [];
+ let cancelStarted;
+ let cancelObserved;
+ const cancelForwarded = new Promise(resolve => { cancelStarted = resolve; });
+ const cancelClosed = new Promise(resolve => { cancelObserved = resolve; });
  let release;
  const gate = new Promise(resolve => { release = resolve; });
  const mock = createServer(async (request, response) => {
@@ -29,6 +33,12 @@ test('real Gateway HTTP routes pin configuration and correlate Runtime requests'
   const body = JSON.parse(Buffer.concat(chunks).toString());
   calls.push({ model: body.model, leakedRuntimeHeaders: Object.keys(request.headers).some(name => name.startsWith('x-runtime-')) });
   if (body.messages[0].content === 'hold') await gate;
+  if (body.messages[0].content === 'slow') await delay(220);
+  if (body.messages[0].content === 'cancel-before-headers') {
+   response.once('close', cancelObserved);
+   cancelStarted();
+   return;
+  }
   if (body.stream && body.stream_options?.include_usage) {
    response.writeHead(400, { 'content-type': 'application/json', 'x-request-id':'upstream-fixture-400' });
    response.end(JSON.stringify({ error: { message: 'Fixture rejects stream_options\nAuthorization: Bearer sk-fixture-secret',
@@ -52,6 +62,7 @@ test('real Gateway HTTP routes pin configuration and correlate Runtime requests'
  await Promise.all([reservedApi, reservedAdmin].map(server => new Promise(resolve => server.close(resolve))));
  const child = spawn(process.execPath, ['dist/server/main.js'], { env:{ ...process.env, DATA_DIR:root,
   GATEWAY_HTTP_ONLY:'true', HTTP_TEST_PORT:String(apiPort), ADMIN_PORT:String(adminPort), UPSTREAM_ALLOWED_ORIGINS:mockOrigin,
+  GATEWAY_DIAGNOSTIC_FIRST_MS:'100', GATEWAY_DIAGNOSTIC_IDLE_MS:'100',
   ADMIN_PASSWORD:'fixture-admin-password', CONFIG_ENCRYPTION_KEY:'a'.repeat(64),
   GATEWAY_CLIENTS:JSON.stringify([{ id:'runtime', key:'fixture-runtime-key', models:['*'], mode:'runtime_managed' },
     { id:'ordinary', key:'fixture-ordinary-key', models:['*'] }]),
@@ -88,7 +99,7 @@ test('real Gateway HTTP routes pin configuration and correlate Runtime requests'
  await publish(initial.version,'vendor/old:v1');
  const chat = (content, key, trace) => fetch(api + '/v1/chat/completions', { method:'POST', headers:{ ...json,
   authorization:'Bearer ' + key, 'x-runtime-task-id':'native-task', 'x-runtime-session-id':'native-session',
-  'x-runtime-attempt-id':'native-task-fence-1', 'x-runtime-request-id':trace },
+  'x-runtime-attempt-id':'native-task-fence-1', 'x-runtime-request-id':trace, 'x-runtime-deadline-ms':'1' },
   body:JSON.stringify({ model:alias,messages:[{ role:'user', content }] }) });
  const held = chat('hold','fixture-runtime-key','runtime-42');
  while (!calls.length && Date.now() < window) await delay(10);
@@ -100,12 +111,32 @@ test('real Gateway HTTP routes pin configuration and correlate Runtime requests'
  const gatewayRequestId = old.headers.get('x-request-id');
  assert.equal(old.status,200);
  assert.equal((await old.json()).model,alias);
- assert.equal((await chat('fresh','fixture-ordinary-key','ignored-trace')).status,200);
+ const ordinary = await chat('slow','fixture-ordinary-key','ignored-trace');
+ assert.equal(ordinary.status,200);
+ await ordinary.json();
  assert.deepEqual(calls,[{ model:'vendor/old:v1',leakedRuntimeHeaders:false },{ model:'vendor/new:v2',leakedRuntimeHeaders:false }]);
  const metrics = (await (await fetch(admin + '/admin/overview',{ headers:adminHeaders })).json()).metrics;
  assert.ok(metrics.some(row => row.id === gatewayRequestId && row.requestId === 'runtime-42' &&
   row.taskId === 'native-task' && row.sessionId === 'native-session' && row.attemptId === 'native-task-fence-1' && row.mode === 'runtime_managed'));
  assert.ok(metrics.some(row => row.mode === 'ordinary' && row.requestId === undefined));
+ for (const direct of [false, true]) {
+  const response = await fetch(admin + '/admin/lab', { method:'POST', headers:adminHeaders,
+   body:JSON.stringify({ alias, direct, body:{ model:direct ? 'vendor/new:v2' : alias, messages:[{ role:'user', content:'slow' }] } }) });
+  const stages = (await response.text()).trim().split('\n').map(JSON.parse);
+  assert.equal(stages.find(row => row.stage === 'result').value.status,200);
+ }
+ const controller = new AbortController();
+ const pending = fetch(api + '/v1/chat/completions', { method:'POST', signal:controller.signal,
+  headers:{ ...json, authorization:'Bearer fixture-ordinary-key' },
+  body:JSON.stringify({ model:alias, messages:[{ role:'user', content:'cancel-before-headers' }] }) });
+ const cancelled = assert.rejects(pending, { name:'AbortError' });
+ await cancelForwarded;
+ await delay(220);
+ controller.abort();
+ await cancelled;
+ await cancelClosed;
+ const cancelMetrics = (await (await fetch(admin + '/admin/overview', { headers:adminHeaders })).json()).metrics;
+ assert.ok(cancelMetrics.some(row => row.clientDisconnected && row.error === 'client_disconnected'));
  const unauthorized = await chat('ingress rejection','fixture-never-store-this-token','ignored');
  assert.equal(unauthorized.status,401);
  const ingress = (await (await fetch(admin + '/admin/overview',{ headers:adminHeaders })).json()).metrics

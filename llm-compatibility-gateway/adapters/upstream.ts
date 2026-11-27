@@ -17,7 +17,7 @@ export const adapters: Record<Service['framework'], Adapter> = {
 };
 
 export function openUpstream(service: Service, operation: 'chat' | 'models', signal: AbortSignal,
-  headers: Record<string, string>, payload?: unknown, timeout = { firstMs: service.firstMs, idleMs: service.idleMs }) {
+  headers: Record<string, string>, payload?: unknown, timeout = { firstMs: 0, idleMs: 0 }) {
   const url = adapters[service.framework].endpoint(service, operation);
   const dispatcher = new Agent({ connect: { timeout: service.connectMs, ca: service.ca, rejectUnauthorized: true } });
   const authorized = { ...headers };

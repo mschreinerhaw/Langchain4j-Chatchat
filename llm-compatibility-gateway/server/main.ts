@@ -19,7 +19,7 @@ import { CertificateStore, importSchema, namesSchema } from './tls.js';
 import { probeGateway, requestGateway } from './transport.js';
 import { checkIntegrationResponse, integrationBody } from './integration.js';
 import { trafficRanges, type TrafficRange } from './traffic.js';
-import { runtimeRequest } from '../protocol/runtime.js';
+import { runtimeTrace } from '../protocol/runtime.js';
 import { litellmRequest } from '../protocol/litellm.js';
 import { RequestCapture } from './request-capture.js';
 import { UpstreamErrorLog } from './upstream-error-log.js';
@@ -53,7 +53,7 @@ const sessions = new Map<string, number>();
 const requestCapture = new RequestCapture();
 const upstreamErrorLog = new UpstreamErrorLog(resolve(dataDir, 'model-errors.ndjson'));
 type LabTrace = (stage: string, value: unknown) => Promise<void>;
-const labRequests = new Map<string, { identity: string; profile: Profile; headers?: JsonObject; trace: LabTrace }>();
+const labRequests = new Map<string, { identity: string; profile: Profile; headers?: JsonObject; trace: LabTrace; probe?: boolean }>();
 let loginFailures = 0;
 let loginWindow = 0;
 let checking = false;
@@ -152,7 +152,8 @@ function downstream(reply: FastifyReply) {
       'x-content-type-options': 'nosniff' });
     started = true;
   };
-  const write = async (value: string, signal = abort.signal) => {
+  const write = async (value: string) => {
+    const { signal } = abort;
     signal.throwIfAborted();
     if (!raw.write(value)) await once(raw, 'drain', { signal });
   };
@@ -179,18 +180,15 @@ api.post('/v1/chat/completions', async (req, reply) => {
     upstreamOrigin: service?.origin, stream: body.stream === true, revision: snapshot.version };
   const mode = lab ? 'diagnostic' : identity.mode;
   metrics.mode = mode;
-  let runtime: ReturnType<typeof runtimeRequest> | undefined;
   let capture: ReturnType<RequestCapture['claim']>;
   try {
-    if (mode === 'runtime_managed') {
-      runtime = runtimeRequest(req.headers, client.abort.signal);
-      Object.assign(metrics, runtime.trace);
-      runtime.signal.throwIfAborted();
-    }
+    const traceIds = mode === 'runtime_managed' ? runtimeTrace(req.headers) : undefined;
+    Object.assign(metrics, traceIds);
+    client.abort.signal.throwIfAborted();
     if (!model || !service) throw new GatewayError(404, 'model_not_found', '模型不存在或未授权');
     if (!lab) capture = requestCapture.claim(model.alias, identity.id, {
       gatewayRequestId: req.id, endpoint: '/v1/chat/completions', clientId: identity.id,
-      profile, mode, revision: snapshot.version, ...runtime?.trace,
+      profile, mode, revision: snapshot.version, ...traceIds,
     }, body, [...suppliedSecrets, service.apiKey ?? '']);
     if (lab) {
       const socket = req.raw.socket;
@@ -199,13 +197,13 @@ api.post('/v1/chat/completions', async (req, reply) => {
         verified: socket instanceof TLSSocket, authenticated: true, profile });
     }
     const result = await proxy({ body, model: withProfile(model, profile), service,
-      signal: runtime?.signal ?? client.abort.signal, mode, metrics,
+      signal: client.abort.signal, mode, metrics, probe: lab?.probe,
       onForward: capture?.forwarded,
       onUpstreamError: details => upstreamErrorLog.write({ gatewayRequestId: req.id, ...details }),
       trace: lab ? async (stage, value) => { if (stage !== 'client') await lab.trace(stage, value); } : undefined,
       headers: lab?.headers, secrets: suppliedSecrets,
       writer: { start: status => client.start('text/event-stream; charset=utf-8', status),
-        write: value => client.write(value, runtime?.signal) } });
+        write: value => client.write(value) } });
     metrics.status = result.status;
     await lab?.trace('compatibility', { status: 'PASS', profile, format: body.stream ? 'SSE' : 'JSON',
       nativeToolRequest: Array.isArray(body.tools) && body.tools.length > 0 });
@@ -228,7 +226,6 @@ api.post('/v1/chat/completions', async (req, reply) => {
       client.end();
     }
   } finally {
-    runtime?.close();
     capture?.finished({ status: metrics.status, upstreamStatus: metrics.upstreamStatus, error: metrics.error,
       elapsedMs: Math.round(performance.now() - start) });
     try { store.record(req.id, { ...metrics, phase: 'gateway_forwarding', elapsedMs: Math.round(performance.now() - start),
@@ -352,7 +349,7 @@ admin.post('/admin/integration/test', async (req, reply) => {
       if (mode !== 'models' && listed && checks.at(-1)?.passed) {
         const ticket = randomUUID();
         let upstreamRequest: unknown;
-        labRequests.set(ticket, { identity: client.id, profile: client.profile, trace: async (stage, value) => {
+        labRequests.set(ticket, { identity: client.id, profile: client.profile, probe: true, trace: async (stage, value) => {
           if (stage === 'upstream_request') upstreamRequest = value;
         } });
         try {

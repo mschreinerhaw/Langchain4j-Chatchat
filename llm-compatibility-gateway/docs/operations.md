@@ -10,7 +10,7 @@ SQLite 的 `user_version` 驱动初始化和迁移。每次发布在事务中写
 
 ## 管理台
 
-1. 在「上游模型服务」新增服务，输入上游地址，填写对话路径、模型列表路径、认证请求头和各阶段超时。例如 `https://model.example.com/compatible-mode` 与默认对话路径组合成 `https://model.example.com/compatible-mode/v1/chat/completions`。
+1. 在「上游模型服务」新增服务，输入上游地址，填写对话路径、模型列表路径、认证请求头和连接建立超时。例如 `https://model.example.com/compatible-mode` 与默认对话路径组合成 `https://model.example.com/compatible-mode/v1/chat/completions`。
 2. 点击「检测 / 模型列表」查看真实 HTTP 状态与响应。如果服务未实现模型列表，手动新增模型映射。可为同一个上游 ID 发布多个别名。别名是精确匹配的任意非控制字符 ID。
 3. 在「模型映射」录入能力状态。上下文和最大输出字段属于元数据。规则须显式配置，按发布版本执行。
 4. 在「兼容规则」编辑表单或 JSON。可预览指定阶段、查看差异并验证后发布。

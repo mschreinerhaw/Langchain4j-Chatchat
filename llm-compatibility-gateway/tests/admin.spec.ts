@@ -1,5 +1,52 @@
 import { expect, test } from '@playwright/test';
 
+test('admin can delete an upstream after removing its model mappings', async ({ page }) => {
+  await page.goto('/');
+  await page.getByLabel('管理员密码').fill('fixture-admin-password');
+  await page.getByRole('button', { name: '登录', exact: true }).click();
+  await page.getByRole('menuitem', { name: '上游模型服务' }).click();
+
+  const revision = await (await page.request.get('/admin/config')).json();
+  const suffix = Date.now();
+  const service = { id: 'delete-ui-service-' + suffix, name: 'Deletion fixture ' + suffix, origin: 'https://deletion.example.invalid' };
+  const model = { alias: 'delete-ui-model-' + suffix, upstream: 'fixture-model', service: service.id, enabled: false };
+  const saved = await page.request.put('/admin/config', { data: { version: revision.version,
+    config: { ...revision.config, services: [...revision.config.services, service], models: [...revision.config.models, model] } } });
+  expect(saved.ok()).toBeTruthy();
+  const version = (await saved.json()).version;
+
+  await page.reload();
+  const services = page.getByRole('menuitem', { name: '上游模型服务' });
+  await services.click();
+  const serviceRow = page.getByRole('row').filter({ hasText: service.name });
+  const deleteService = serviceRow.getByRole('button', { name: '删除', exact: true });
+  const dialog = page.getByRole('dialog');
+  await deleteService.click();
+  await expect(dialog).toBeVisible();
+  await expect(dialog).toContainText(model.alias);
+  await dialog.getByRole('button', { name: '知道了' }).click();
+  await expect(serviceRow).toBeVisible();
+  expect((await (await page.request.get('/admin/config')).json()).version).toBe(version);
+
+  await page.getByRole('menuitem', { name: '模型映射' }).click();
+  const modelRow = page.getByRole('row').filter({ hasText: model.alias });
+  await modelRow.getByRole('button', { name: '删除', exact: true }).click();
+  const confirm = dialog.getByRole('button', { name: '确认删除' });
+  await confirm.click();
+  await expect(modelRow).toHaveCount(0);
+
+  await services.click();
+  await deleteService.click();
+  await dialog.getByRole('button', { name: /取\s*消/ }).click();
+  await expect(serviceRow).toBeVisible();
+  await deleteService.click();
+  await confirm.click();
+  await expect(serviceRow).toHaveCount(0);
+  await page.reload();
+  await services.click();
+  await expect(serviceRow).toHaveCount(0);
+});
+
 test('integration uses public IDs in copyable curl and runs published listener tests', async ({ page }) => {
   await page.goto('/');
   await page.getByLabel('管理员密码').fill('fixture-admin-password');

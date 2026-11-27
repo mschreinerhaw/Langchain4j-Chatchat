@@ -65,7 +65,8 @@ const handler = async (req, res) => {
   res.writeHead(200, { 'content-type': 'text/event-stream' });
   res.flushHeaders();
   const chunk = (delta, finish_reason = null) => ({ ...basic, object: 'chat.completion.chunk', choices: [{ index: 0, delta, finish_reason }] });
-  if (mode === 'stall-first') { await delay(1800); return res.end(); }
+  if (mode === 'stall-first') await delay(1800);
+  if (res.destroyed) return;
   const content = Buffer.from(lines(chunk({ role: 'assistant', reasoning_content: '推理', content: cline ? (calls.length ? '' : finalText) : '你好' })));
   const split = content.indexOf(Buffer.from('推')) + 1;
   res.write(content.subarray(0, split));
@@ -75,7 +76,8 @@ const handler = async (req, res) => {
   res.write(content.subarray(content.length - 1));
   if (clineTask) await delay(Number(process.env.FIXTURE_CLINE_PAUSE_MS ?? 0));
   if (res.destroyed) return;
-  if (mode === 'stall' || mode === 'cancel') { await delay(1800); return res.end(); }
+  if (mode === 'stall' || mode === 'cancel') await delay(1800);
+  if (res.destroyed) return;
   if (mode === 'disconnect') { await delay(40); return res.destroy(); }
   if (mode === 'malformed') return res.end('data: invalid\n\n');
   if (mode === 'snapshot') {

@@ -26,6 +26,7 @@ export const serviceSchema = z.object({
   enabled: z.boolean().default(true), authHeader: headerName.default('authorization'),
   authPrefix: secret.default('Bearer '), apiKey: secret.optional(),
   ca: z.string().max(65_536).optional(), connectMs: timeout.default(5_000),
+  // Retain these fields for compatibility with configuration snapshots and imports.
   firstMs: timeout.default(60_000), idleMs: timeout.default(60_000),
   concurrency: z.number().int().min(1).max(512).default(16),
   protocol: protocolSchema.optional(),

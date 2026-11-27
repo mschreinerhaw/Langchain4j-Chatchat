@@ -37,8 +37,7 @@ const sample = (model = '', stream = false, mode = 'chat') => ({
   ...(mode === 'params' ? { max_completion_tokens: 10, temperature: 0.7, parallel_tool_calls: false } : {}),
 });
 const emptyService = { id: '', name: '', origin: '', chatPath: '/v1/chat/completions', modelsPath: '/v1/models',
-  authHeader: 'authorization', authPrefix: 'Bearer ', framework: 'openai', enabled: true, connectMs: 5000, firstMs: 60000,
-  idleMs: 60000, concurrency: 16 };
+  authHeader: 'authorization', authPrefix: 'Bearer ', framework: 'openai', enabled: true, connectMs: 5000, concurrency: 16 };
 const emptyModel = { alias: '', upstream: '', service: '', enabled: true, sseEnd: 'require_done', rules: [],
   capabilities: { tools: 'unverified', reasoning: 'unverified', vision: 'unverified', streaming: 'unverified' } };
 const capLabels = { configured: '已配置', supported: '已实测支持', unsupported: '已实测不支持', unverified: '未验证' };
@@ -135,6 +134,7 @@ function App() {
   const [tls, setTls] = useState<TlsStatus>();
   const [error, setError] = useState('');
   const [editor, setEditor] = useState<{ kind: 'model' | 'service'; key?: string; value: any }>();
+  const [deletion, setDeletion] = useState<{ kind: 'model' | 'service'; key: string }>();
   const [toast, context] = message.useMessage();
   const refresh = async () => {
     const id = ++refreshId.current;
@@ -151,6 +151,7 @@ function App() {
     const logout = () => {
       refreshId.current++;
       setRevision(undefined); setStatus(undefined); setTls(undefined); setEditor(undefined);
+      setDeletion(undefined);
     };
     window.addEventListener('gateway-logout', logout);
     void load().catch(() => {}).finally(() => setReady(true));
@@ -178,11 +179,7 @@ function App() {
     void refresh().catch(() => {});
     void toast.success('已发布配置 v' + saved.version);
   };
-  const remove = (kind: 'service' | 'model', key: string) => Modal.confirm({
-    title: '删除 ' + key, content: '此操作将发布新的配置版本。',
-    onOk: () => attempt(() => publish(kind === 'model' ? { ...config, models: config.models.filter(model => model.alias !== key) }
-      : { ...config, services: config.services.filter(service => service.id !== key) })),
-  });
+  const remove = (kind: 'service' | 'model', key: string) => setDeletion({ kind, key });
   const go = (next: Page) => { setError(''); setPage(next); };
   const latest = (id: string) => status?.checks.find(check => check.model === id);
   let content: React.ReactNode;
@@ -293,7 +290,43 @@ function App() {
       close={() => setEditor(undefined)} save={value => publish(editor.kind === 'service'
         ? { ...config, services: editor.key ? config.services.map(row => row.id === editor.key ? value : row) : [...config.services, value] }
         : { ...config, models: editor.key ? config.models.map(row => row.alias === editor.key ? value : row) : [...config.models, value] })} />}
+    {deletion && <DeleteDialog title={'删除 ' + deletion.key} close={() => setDeletion(undefined)}
+      dependentModels={deletion.kind === 'service' ? config.models.filter(model => model.service === deletion.key).map(model => model.alias) : []}
+      publishDeletion={() => publish(deletion.kind === 'model'
+        ? { ...config, models: config.models.filter(model => model.alias !== deletion.key) }
+        : { ...config, services: config.services.filter(service => service.id !== deletion.key) })} />}
   </Layout>;
+}
+
+function DeleteDialog({ title, dependentModels, close, publishDeletion }: {
+  title: string; dependentModels: string[]; close: () => void; publishDeletion: () => Promise<void>;
+}) {
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState('');
+  const blocked = dependentModels.length > 0;
+  const confirm = async () => {
+    setBusy(true);
+    setError('');
+    try {
+      await publishDeletion();
+      close();
+    } catch (error) {
+      setError((error as Error).message);
+      setBusy(false);
+    }
+  };
+  return <Modal open title={title} onCancel={() => { if (!busy) close(); }}
+    okText="确认删除" cancelText="取消" okButtonProps={{ danger: true }}
+    cancelButtonProps={{ disabled: busy }} closable={!busy} confirmLoading={busy}
+    footer={blocked ? <Button type="primary" onClick={close}>知道了</Button> : undefined}
+    onOk={confirm}>
+    {blocked ? <Alert showIcon type="warning" message="该服务仍被模型映射引用"
+      description={<>
+        <p>请在「模型映射」中将以下模型改用其他服务，或删除对应映射。</p>
+        <ul>{dependentModels.map(alias => <li key={alias}>{alias}</li>)}</ul>
+      </>} /> : '删除后将发布新的配置版本。'}
+    {error && <Alert className="after" showIcon type="error" message={error} />}
+  </Modal>;
 }
 
 function Edit({ editor, config, close, save }: {
@@ -358,7 +391,7 @@ function Edit({ editor, config, close, save }: {
         <Form.Item name="apiKey" label="上游 API Key"><Input.Password autoComplete="new-password" placeholder="留空保留同一服务地址的已有密钥" /></Form.Item>
         <Form.Item name="clearKey" valuePropName="checked"><Checkbox>清除已保存的密钥</Checkbox></Form.Item>
         <Form.Item name="ca" label="上游 CA 或自签服务器证书（PEM）"><Input.TextArea rows={2} /></Form.Item>
-        <Row gutter={12}>{Object.entries({ connectMs: '连接超时 ms', firstMs: '首包超时 ms', idleMs: '流空闲超时 ms', concurrency: '并发上限' })
+        <Row gutter={12}>{Object.entries({ connectMs: '连接建立超时 ms', concurrency: '并发上限' })
           .map(([name, label]) => <Col span={6} key={name}>{count(name, label)}</Col>)}</Row>
       </> : <>
         <Form.Item name="displayName" label="模型显示名称"><Input maxLength={240} placeholder="留空时显示对外模型 ID" /></Form.Item>

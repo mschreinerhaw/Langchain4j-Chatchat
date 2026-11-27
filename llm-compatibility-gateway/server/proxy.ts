@@ -130,7 +130,7 @@ export async function proxy(options: {
   writer: StreamWriter; trace?: Trace; direct?: boolean; headers?: JsonObject; secrets?: string[];
   onForward?: (body: JsonObject, upstreamModel: string, origin: string, path: string) => void;
   onUpstreamError?: (record: JsonObject) => Promise<void>;
-  metrics: JsonObject; mode?: 'ordinary' | 'runtime_managed' | 'diagnostic';
+  metrics: JsonObject; mode?: 'ordinary' | 'runtime_managed' | 'diagnostic'; probe?: boolean;
 }) {
   const { body, model, service, signal, writer, trace, direct = false, headers, metrics } = options;
   const start = performance.now();
@@ -158,8 +158,7 @@ export async function proxy(options: {
     metrics.usageStatus = 'UNKNOWN';
     const stream = payload.stream === true;
     const requestHeaders = outgoingHeaders(service, activeModel, stream, direct, headers);
-    const timeout = options.mode === 'runtime_managed' ? { firstMs: 0, idleMs: 0 }
-      : options.mode === 'diagnostic' ? diagnosticTimeouts() : undefined;
+    const timeout = options.probe ? diagnosticTimeouts() : undefined;
     upstream = openUpstream(service, 'chat', signal, requestHeaders, payload, timeout);
     options.onForward?.(payload, model.upstream, upstream.url.origin, upstream.url.pathname);
     await report('upstream_request', { url: upstream.url.href, headers: { ...requestHeaders,

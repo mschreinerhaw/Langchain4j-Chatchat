@@ -7,10 +7,10 @@
 | 链路 | 整改前 | 候选版本 |
 | --- | --- | --- |
 | 平台模型目录到 Native 任务合同 | 平台允许保存带斜杠、冒号等字符的名称，Native 捕获任务时仅接受窄范围别名格式，多项参数共用一个异常 | 保留原始逻辑名称，按任务 ID、指令和模型名称分别报错 |
-| Worker broker 到 Gateway | broker 通用 fetch 和 Gateway 均可能自行结束长时间请求 | 明确配置的 Gateway Origin 使用仅限制连接建立的 broker 传输。专用客户端启用 Runtime Managed 后取消 Gateway 首包和流空闲超时，有限截止时间沿用 Runtime 时间戳 |
-| Gateway 管理端诊断 | 与生产转发复用服务首包和空闲参数 | 诊断及在线测试独立使用诊断超时，普通请求继续使用各服务的超时 |
+| Worker broker 到 Gateway | Gateway 普通请求按服务设置限制首包和流空闲时间，Runtime Managed 请求按 Runtime 时间戳结束 | 两种模式都持续等候模型响应。Runtime 在自己的执行链路管理任务，Gateway 在调用方关闭请求后释放上游连接 |
+| Gateway 管理端诊断 | 请求实验室和自动诊断共用超时 | 请求实验室的直连和通过网关都等候模型响应，管理员可以点击「取消」。兼容性检测及接入测试使用独立的诊断超时 |
 | SSE | 可配置在 EOF 时补写结束标记 | 转发上游真实结束标记，保护 finish_reason。错误事件、未完成 choice 和异常 EOF 返回单个模型调用错误 |
-| 取消 | 下游断开会中止代理，但前端记录可能笼统标为取消 | Gateway 记录连接断开、明确的 Runtime 截止时间和上游失效。用户取消须依据 Runtime 的任务事件判断 |
+| 取消 | 下游断开会中止代理，但前端记录可能笼统标为取消 | Gateway 分别记录下游断开和上游错误。用户取消依据 Runtime 的任务事件判断 |
 | 并发和日志 | 全局值固定为 32，请求、响应和 SSE Event 使用固定字节限制 | 环境变量可配置限值。按请求固定配置版本，记录任务、会话、执行尝试及模型请求 ID，不把这些字段转发给供应商 |
 | 单独启用统一 Native | Spring 同时发现 Native 适配器和持久任务服务，依赖 `CodingAgentSPI` 的控制器无法启动 | 单独启用统一 Native 时，用主路由按冻结合同选择执行适配器。已启用原 Cline 集成时，继续由原主路由处理 |
 
@@ -29,6 +29,8 @@ Java 的入口为 `NativeCodingTasks` 和 `NativeSiloTaskService`，执行恢复
 4. 在每个处理 Native 模型转发的治理节点设置 `RUNTIME_MODEL_GATEWAY_ORIGINS=https://<证书域名>:8443`，多个 Origin 用逗号分隔。该配置只接受完整 Origin，不含 `/v1`。如需私有 CA，在治理进程启动时通过 `NODE_EXTRA_CA_CERTS` 指向容器内已挂载的信任 PEM。Runtime OS 1.3.2 客户 Compose 可将该路径写到 `RUNTIME_MODEL_GATEWAY_CA_FILE`。Java 如需直接探测或调用同一 HTTPS 入口，按 [证书接入说明](https.md) 配置 Java 信任。
 
 限值和诊断超时的变量见 [环境配置示例](../.env.example)。Compose 停止宽限时间应大于 Gateway 在途排空窗口。进程停止接收新请求后，在窗口内允许在途请求结束。窗口到期仍未结束的连接按网关关闭处理。
+
+普通请求、Runtime Managed 请求和请求实验室在建立连接后持续等候首包与后续数据。旧配置中的 `firstMs` 和 `idleMs` 仍可导入。Gateway 的推理转发只使用服务的 `connectMs` 建立连接，收到 `x-runtime-deadline-ms` 时由 Runtime 自己执行任务期限。上游 HTTP 错误、协议错误和连接断开仍按实际情况返回。
 
 ## 验证记录和未完成项
 

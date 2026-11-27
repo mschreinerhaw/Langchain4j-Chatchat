@@ -1,9 +1,8 @@
 import { createServer } from 'node:http';
 import { setTimeout as delay } from 'node:timers/promises';
 import { afterAll, afterEach, expect, it } from 'vitest';
-import { runtimeRequest } from '../protocol/runtime.js';
 import { serviceSchema, modelSchema } from '../server/config.js';
-import { proxy, inFlight, translate } from '../server/proxy.js';
+import { proxy, inFlight } from '../server/proxy.js';
 
 const upstreamModel = 'Vendor/Model:版本';
 const alias = 'gateway/model:tools';
@@ -17,8 +16,8 @@ const server = createServer(async (req, res) => {
   upstreamCalls.push(body.model);
   const scenario = body.messages[0].content;
   res.on('close', () => { if (!res.writableFinished) disconnected++; });
-  if (['slow', 'never'].includes(scenario)) await delay(240);
-  if (scenario === 'never' || res.destroyed) return;
+  if (scenario === 'slow') await delay(240);
+  if (res.destroyed) return;
   res.writeHead(200, { 'content-type': 'text/event-stream' });
   const frame = (value: unknown) => res.write('data: ' + JSON.stringify(value) + '\n\n');
   frame({ model: upstreamModel, choices: [{ index: 0, delta: { content: 'first',
@@ -45,8 +44,8 @@ afterEach(() => {
 afterAll(() => { server.closeAllConnections(); server.close(); });
 
 function call(scenario: string, mode: 'ordinary' | 'runtime_managed', signal = new AbortController().signal,
-  frames: string[] = [], onFrame?: () => void) {
-  const service = serviceSchema.parse({ id: 'mock', name: 'mock', origin: 'http://127.0.0.1:' + port,
+  frames: string[] = [], onFrame?: () => void, framework: 'openai' | 'litellm' = 'openai') {
+  const service = serviceSchema.parse({ id: 'mock', name: 'mock', origin: 'http://127.0.0.1:' + port, framework,
     firstMs: 100, idleMs: 100, concurrency: 1 });
   const model = modelSchema.parse({ alias, upstream: upstreamModel, service: service.id, sseEnd: 'done_on_finished_eof' });
   return proxy({ model, service, mode, signal, metrics: {},
@@ -54,19 +53,17 @@ function call(scenario: string, mode: 'ordinary' | 'runtime_managed', signal = n
     writer: { start() {}, async write(value) { frames.push(value); onFrame?.(); } } });
 }
 
-it.each(['slow', 'pause'])('managed %s outlives ordinary thresholds and preserves exact tool data', async scenario => {
+it.each([
+  ['ordinary', 'slow', 'openai'], ['ordinary', 'pause', 'openai'],
+  ['runtime_managed', 'slow', 'openai'], ['runtime_managed', 'pause', 'openai'],
+  ['ordinary', 'slow', 'litellm'], ['ordinary', 'pause', 'litellm'],
+] as const)('%s %s via %s outlives legacy thresholds and preserves tool data', async (mode, scenario, framework) => {
   const frames: string[] = [];
-  expect(await call(scenario, 'runtime_managed', undefined, frames)).toMatchObject({ status: 200 });
+  expect(await call(scenario, mode, undefined, frames, undefined, framework)).toMatchObject({ status: 200 });
   expect(upstreamCalls).toEqual([upstreamModel]);
   expect(frames.join('')).toContain('"reasoning":"kept"').toContain('"reasoning_content":"also kept"')
     .toContain('"tool_calls"').toContain('"finish_reason":"tool_calls"').toContain('"total_tokens":8');
   expect(frames.at(-1)).toBe('data: [DONE]\n\n');
-});
-
-it('ordinary mode retains its first-packet timeout and does not retry', async () => {
-  const error = await call('slow', 'ordinary').catch(translate);
-  expect(error).toMatchObject({ status: 504 });
-  expect(upstreamCalls).toEqual([upstreamModel]);
 });
 
 it.each(['eof', 'unfinished', 'error'])('reports %s without emitting a fake DONE or terminal success', async scenario => {
@@ -76,15 +73,6 @@ it.each(['eof', 'unfinished', 'error'])('reports %s without emitting a fake DONE
   });
   expect(frames.join('')).not.toContain('[DONE]');
   expect(upstreamCalls).toEqual([upstreamModel]);
-});
-
-it('honors a Runtime deadline and separates it from client disconnect', async () => {
-  const runtime = runtimeRequest({ 'x-runtime-deadline-ms': String(Date.now() + 150), 'x-runtime-task-id': 'native-42' },
-    new AbortController().signal);
-  try {
-    expect(runtime.trace).toEqual({ taskId: 'native-42' });
-    await expect(call('never', 'runtime_managed', runtime.signal)).rejects.toMatchObject({ code: 'runtime_deadline_exceeded' });
-  } finally { runtime.close(); }
 });
 
 it('releases concurrency and closes the upstream when the client cancels midstream', async () => {

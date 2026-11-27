@@ -1,6 +1,7 @@
 package com.chatchat.api.agent.published;
 
 import com.chatchat.api.security.ApiAuthenticationFilter;
+import com.chatchat.api.assets.UserAssetService;
 import com.chatchat.chat.skills.catalog.SkillCatalogService;
 import com.chatchat.chat.skills.model.SkillDefinition;
 import com.chatchat.chat.task.core.AgentExecutionState;
@@ -17,6 +18,9 @@ import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
 
 import java.time.Instant;
+import java.nio.charset.StandardCharsets;
+import java.io.ByteArrayInputStream;
+import java.util.zip.ZipInputStream;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -42,6 +46,7 @@ class PublishedAgentApiControllerTest {
     private MockMvc mockMvc;
     private com.chatchat.api.assets.AssetAnalysisInputs inputs;
     private com.chatchat.api.assets.UserAssetController assets;
+    private UserAssetService reportAssets;
 
     @BeforeEach
     void setUp() {
@@ -49,10 +54,13 @@ class PublishedAgentApiControllerTest {
             taskService, skillCatalogService, enterpriseAdminService, objectMapper);
         inputs=mock(com.chatchat.api.assets.AssetAnalysisInputs.class);
         assets=mock(com.chatchat.api.assets.UserAssetController.class);
+        reportAssets = mock(UserAssetService.class);
         var beans=new org.springframework.beans.factory.support.DefaultListableBeanFactory();
         beans.registerSingleton("inputs",inputs);beans.registerSingleton("assets",assets);
+        beans.registerSingleton("reportAssets", reportAssets);
         org.springframework.test.util.ReflectionTestUtils.setField(controller,"attachmentInputs",beans.getBeanProvider(com.chatchat.api.assets.AssetAnalysisInputs.class));
         org.springframework.test.util.ReflectionTestUtils.setField(controller,"assetControllers",beans.getBeanProvider(com.chatchat.api.assets.UserAssetController.class));
+        org.springframework.test.util.ReflectionTestUtils.setField(controller, "reportAssets", beans.getBeanProvider(UserAssetService.class));
         mockMvc = standaloneSetup(controller)
             .defaultRequest(get("/").accept(MediaType.APPLICATION_JSON)).build();
         when(skillCatalogService.isPublished("finance-agent")).thenReturn(true);
@@ -133,7 +141,100 @@ class PublishedAgentApiControllerTest {
         assertThat(submitted.getMode()).isEqualTo("agent_chat");
         assertThat(submitted.getRequestSource()).isEqualTo("AGENT_API");
         assertThat(submitted.getToolInput()).containsEntry("region", "east").doesNotContainKey("__agentRunId");
+        assertThat(submitted.getToolInput()).containsEntry("reportMode", "visual");
         assertThat(submitted.getIdempotencyKey()).startsWith("published-api:").hasSize(78);
+    }
+
+    @Test
+    void reportSwitchOverridesLegacyParametersAndRejectsUnknownModes() throws Exception {
+        when(taskService.submit(org.mockito.ArgumentMatchers.any())).thenReturn(task("user-a", "RUNNING", "EXECUTING"));
+        String path = "/api/v1/published-agents/finance-agent/questions";
+        mockMvc.perform(post(path).requestAttr(ApiAuthenticationFilter.CURRENT_TENANT_ID, "tenant-a")
+                .requestAttr(ApiAuthenticationFilter.CURRENT_USER_ID, "user-a").contentType(MediaType.APPLICATION_JSON)
+                .content("{\"question\":\"sum\",\"reportMode\":\"off\",\"parameters\":{\"reportMode\":\"visual\"}}"))
+            .andExpect(status().isAccepted());
+        mockMvc.perform(post(path).requestAttr(ApiAuthenticationFilter.CURRENT_TENANT_ID, "tenant-a")
+                .requestAttr(ApiAuthenticationFilter.CURRENT_USER_ID, "user-a").contentType(MediaType.APPLICATION_JSON)
+                .content("{\"question\":\"sum\",\"reportMode\":\"pdf\"}"))
+            .andExpect(status().isBadRequest());
+        verify(taskService).submit(org.mockito.ArgumentMatchers.argThat(request -> "off".equals(request.getToolInput().get("reportMode"))));
+    }
+
+    @Test
+    void downloadsMarkdownGuideForTheSpecificAgentAsAnAdministrator() throws Exception {
+        when(enterpriseAdminService.hasAllAgentAccess("user-a")).thenReturn(true);
+        var response = mockMvc.perform(get("/api/v1/published-agents/finance-agent/curl-example").param("format", "markdown")
+                .requestAttr(ApiAuthenticationFilter.CURRENT_TENANT_ID, "tenant-a")
+                .requestAttr(ApiAuthenticationFilter.CURRENT_USER_ID, "user-a"))
+            .andExpect(status().isOk()).andReturn().getResponse();
+        assertThat(response.getHeader("Content-Disposition")).contains("attachment", "finance-agent-api.md");
+        assertThat(response.getContentAsString(StandardCharsets.UTF_8))
+            .contains("finance-agent", "reportMode", "bundle=true", "data.report.downloadUrl", "<paste-agent-api-token>");
+    }
+
+    @Test
+    void servesEscapedHtmlAndZipOnlyToTheAuthorizedTaskOwnerUsingAnApiToken() throws Exception {
+        when(taskService.get("tenant-a", "task-1")).thenReturn(Optional.of(task("user-a", "SUCCESS", "SUCCEEDED")));
+        when(taskService.finalNotificationContent("tenant-a", "task-1")).thenReturn(Optional.of(
+            new AgentTaskService.AgentNotificationContent("# Verified\n\n<script>alert(1)</script>", List.of())));
+        when(taskService.publishedAgentReportEnabled("tenant-a", "task-1")).thenReturn(true);
+        String path = "/api/v1/published-agents/finance-agent/questions/task-1/";
+        mockMvc.perform(get(path + "answer").requestAttr(ApiAuthenticationFilter.CURRENT_TENANT_ID, "tenant-a")
+                .requestAttr(ApiAuthenticationFilter.CURRENT_USER_ID, "user-a"))
+            .andExpect(jsonPath("$.data.report.downloadUrl").value(path + "report"));
+        mockMvc.perform(get(path + "report").requestAttr(ApiAuthenticationFilter.CURRENT_TENANT_ID, "tenant-a")
+                .requestAttr(ApiAuthenticationFilter.CURRENT_USER_ID, "user-a"))
+            .andExpect(status().isForbidden());
+        mockMvc.perform(get(path + "report").requestAttr(ApiAuthenticationFilter.CURRENT_TENANT_ID, "tenant-a")
+                .requestAttr(ApiAuthenticationFilter.CURRENT_USER_ID, "user-b").requestAttr(ApiAuthenticationFilter.AGENT_API_TOKEN_ID, "test-token"))
+            .andExpect(status().isForbidden());
+        var html = mockMvc.perform(get(path + "report").requestAttr(ApiAuthenticationFilter.CURRENT_TENANT_ID, "tenant-a")
+                .requestAttr(ApiAuthenticationFilter.CURRENT_USER_ID, "user-a").requestAttr(ApiAuthenticationFilter.AGENT_API_TOKEN_ID, "test-token"))
+            .andExpect(status().isOk()).andReturn().getResponse();
+        assertThat(html.getContentType()).startsWith("text/html");
+        assertThat(html.getContentAsString(StandardCharsets.UTF_8)).contains("<h1>Verified</h1>").doesNotContain("<script>");
+        var bundle = mockMvc.perform(get(path + "report").param("bundle", "true")
+                .requestAttr(ApiAuthenticationFilter.CURRENT_TENANT_ID, "tenant-a")
+                .requestAttr(ApiAuthenticationFilter.CURRENT_USER_ID, "user-a").requestAttr(ApiAuthenticationFilter.AGENT_API_TOKEN_ID, "test-token"))
+            .andExpect(status().isOk()).andReturn().getResponse();
+        try (var zip = new ZipInputStream(new ByteArrayInputStream(bundle.getContentAsByteArray()))) {
+            assertThat(zip.getNextEntry().getName()).isEqualTo("report.html");
+            assertThat(zip.readAllBytes()).isEqualTo(html.getContentAsByteArray());
+        }
+    }
+
+    @Test
+    void deliversTheBoundNativeHtmlAndPreservesRelativeAssetsInThePackage() throws Exception {
+        var owner = new UserAssetService.Owner("tenant-a", "user-a");
+        byte[] source = "<html><link rel=\"stylesheet\" href=\"theme.css\"><h1>Report</h1></html>".getBytes(StandardCharsets.UTF_8);
+        byte[] css = "h1{color:blue}".getBytes(StandardCharsets.UTF_8);
+        var entry = new UserAssetService.File("html", "ARTIFACT", "main.html", "text/html", UserAssetService.hash(source),
+            source.length, "AVAILABLE", "native-task", "native-run", "coding-node:session:output/main.html", 1);
+        var asset = new UserAssetService.File("css", "ARTIFACT", "theme.css", "text/css", UserAssetService.hash(css),
+            css.length, "AVAILABLE", "native-task", "native-run", "coding-node:session:output/theme.css", 1);
+        when(taskService.get("tenant-a", "task-1")).thenReturn(Optional.of(task("user-a", "SUCCESS", "SUCCEEDED")));
+        when(taskService.publishedAgentReportEnabled("tenant-a", "task-1")).thenReturn(true);
+        when(taskService.finalNotificationContent("tenant-a", "task-1")).thenReturn(Optional.of(
+            new AgentTaskService.AgentNotificationContent("Fallback", List.of(),
+                new AgentTaskService.AgentReportArchive("html", "native-task", "native-run", "output/main.html"))));
+        when(reportAssets.get(owner, "html")).thenReturn(entry);
+        when(reportAssets.listPage(owner, null, "native-task", 100, 0)).thenReturn(List.of(entry, asset));
+        when(reportAssets.read(owner, "html")).thenReturn(source);
+        when(reportAssets.read(owner, "css")).thenReturn(css);
+        String path = "/api/v1/published-agents/finance-agent/questions/task-1/report";
+        var request = get(path).requestAttr(ApiAuthenticationFilter.CURRENT_TENANT_ID, "tenant-a")
+            .requestAttr(ApiAuthenticationFilter.CURRENT_USER_ID, "user-a").requestAttr(ApiAuthenticationFilter.AGENT_API_TOKEN_ID, "test-token");
+        assertThat(mockMvc.perform(request).andExpect(status().isOk()).andReturn().getResponse().getContentAsByteArray())
+            .isEqualTo(source);
+        var response = mockMvc.perform(request.param("bundle", "true")).andExpect(status().isOk()).andReturn().getResponse();
+        try (var zip = new ZipInputStream(new ByteArrayInputStream(response.getContentAsByteArray()))) {
+            assertThat(zip.getNextEntry().getName()).isEqualTo("output/main.html");
+            assertThat(zip.readAllBytes()).isEqualTo(source);
+            assertThat(zip.getNextEntry().getName()).isEqualTo("output/theme.css");
+            assertThat(zip.readAllBytes()).isEqualTo(css);
+        }
+        when(taskService.publishedAgentReportEnabled("tenant-a", "task-1")).thenReturn(false);
+        mockMvc.perform(request).andExpect(status().isNotFound());
     }
 
     @Test

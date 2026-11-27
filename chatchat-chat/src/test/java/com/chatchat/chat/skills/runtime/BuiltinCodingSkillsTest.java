@@ -6,10 +6,18 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 class BuiltinCodingSkillsTest {
     @Test void existingCatalogProvidesDisplayMetadataWithoutInstructionDelivery() {
-        assertThat(BuiltinCodingSkills.catalog()).hasSize(10).allSatisfy(card -> {
+        var catalog = BuiltinCodingSkills.catalog();
+        assertThat(catalog).extracting(card -> card.get("id"))
+            .contains("builtin:python-data-analysis", "builtin:runtime-report-delivery",
+                "builtin:html-image-assets", "builtin:report-designer")
+            .doesNotHaveDuplicates();
+        assertThat(catalog).allSatisfy(card -> {
             assertThat(card).containsEntry("builtin", true).containsEntry("enabled", true)
                 .doesNotContainKeys("instructions", "references", "resources");
-            for (String key : List.of("displayName", "descriptionZh", "source", "sourceVersion"))
+            List<String> metadataKeys = Boolean.TRUE.equals(card.get("professionalReport"))
+                ? List.of("name", "description", "source", "version")
+                : List.of("displayName", "descriptionZh", "source", "sourceVersion");
+            for (String key : metadataKeys)
                 assertThat(card.get(key)).as(key).isInstanceOf(String.class).isNotEqualTo("");
             assertThat(card.get("id").toString()).startsWith("builtin:");
         });

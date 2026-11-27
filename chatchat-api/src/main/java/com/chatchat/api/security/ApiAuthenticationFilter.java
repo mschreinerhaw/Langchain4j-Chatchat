@@ -151,6 +151,7 @@ public class ApiAuthenticationFilter extends OncePerRequestFilter {
         return ("POST".equalsIgnoreCase(method) && path.matches("/api/v1/published-agents/[^/]+/attachments/?"))
             || path.matches("/api/v1/published-agents/[^/]+/questions/?")
             || path.matches("/api/v1/published-agents/[^/]+/questions/[^/]+/(status|answer)/?")
+            || ("GET".equalsIgnoreCase(method) && path.matches("/api/v1/published-agents/[^/]+/questions/[^/]+/report/?"))
             || ("DELETE".equalsIgnoreCase(method)
                 && path.matches("/api/v1/published-agents/[^/]+/questions/[^/]+/?"));
     }

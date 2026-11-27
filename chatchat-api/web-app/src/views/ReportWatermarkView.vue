@@ -24,21 +24,34 @@
       </div>
       <h2>允许导出的角色</h2>
       <p v-if="policy.version === 0">请明确授权可导出报告的角色。保存授权后，对应角色可导出。</p>
+      <div class="permission-toolbar">
+        <label class="permission-search">角色名称
+          <input v-model="roleQuery" type="search" placeholder="搜索角色名称" @keydown.enter.prevent />
+        </label>
+      </div>
       <div class="permission-table-wrap">
         <table class="permission-table">
           <thead><tr><th>角色</th><th>允许导出 PDF</th></tr></thead>
           <tbody>
-            <tr v-for="role in roles" :key="role.id">
+            <tr v-for="role in visibleRoles" :key="role.id">
               <td>{{ role.name }} <span v-if="!role.enabled">（已停用）</span></td>
               <td>
                 <input v-model="policy.roleIds" type="checkbox" :value="role.id" :disabled="!role.enabled"
                   :aria-label="`允许 ${role.name} 导出 PDF`" />
               </td>
             </tr>
-            <tr v-if="!roles.length"><td colspan="2" class="permission-empty">当前租户暂无角色</td></tr>
+            <tr v-if="!filteredRoles.length">
+              <td colspan="2" class="permission-empty">{{ roles.length ? "未找到匹配的角色" : "当前租户暂无角色" }}</td>
+            </tr>
           </tbody>
         </table>
       </div>
+      <footer class="permission-pagination" aria-label="角色列表分页">
+        <span>共 {{ filteredRoles.length }} 个角色，已选 {{ policy.roleIds.length }} 个</span>
+        <button type="button" :disabled="rolePage <= 1" @click="rolePage--">上一页</button>
+        <span>{{ rolePage }} / {{ rolePageCount }}</span>
+        <button type="button" :disabled="rolePage >= rolePageCount" @click="rolePage++">下一页</button>
+      </footer>
     </form>
     <template v-else-if="tab === 'audit'">
       <div class="permission-toolbar"><button type="button" :disabled="busy" @click="loadAudit(page)">刷新</button></div>

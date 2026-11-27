@@ -4,6 +4,7 @@
   fetchAgentWorkshop,
   fetchAgentResourceOptions,
   fetchPublishedAgentCurlExample,
+  downloadPublishedAgentGuide,
   getStoredAuthSession,
   publishWorkshopAgent,
   recallWorkshopAgent,
@@ -261,6 +262,7 @@ export default {
       importError: "",
       curlExampleOpen: false,
       curlExampleLoading: false,
+      curlGuideLoading: false,
       curlExampleError: "",
       curlExample: null,
       curlExampleCopied: false,
@@ -2081,13 +2083,27 @@ export default {
       }
     },
     closeCurlExample() {
-      if (this.curlExampleLoading) {
+      if (this.curlExampleLoading || this.curlGuideLoading) {
         return;
       }
       this.curlExampleOpen = false;
       this.curlExampleError = "";
       this.curlExample = null;
       this.curlExampleCopied = false;
+    },
+    async downloadCurlGuide() {
+      const agentId = this.curlExample?.agentId;
+      if (!agentId || this.curlGuideLoading) return;
+      this.curlGuideLoading = true;
+      this.curlExampleError = "";
+      try {
+        const content = await downloadPublishedAgentGuide(agentId);
+        this.downloadFile(`${agentId}-api.md`, content, "text/markdown; charset=UTF-8");
+      } catch (error) {
+        this.curlExampleError = error.message || "Agent API 对接文档下载失败";
+      } finally {
+        this.curlGuideLoading = false;
+      }
     },
     async copyCurlExample() {
       const content = this.curlExample?.completeExample || "";

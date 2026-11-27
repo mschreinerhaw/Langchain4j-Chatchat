@@ -1059,6 +1059,51 @@
   overflow: auto;
 }
 
+.token-quota-dialog {
+  width: min(560px, calc(100% - 32px));
+  margin: auto;
+  border: 1px solid #edf0f6;
+  color: inherit;
+}
+
+.token-quota-dialog:not([open]) {
+  display: none;
+}
+
+.token-quota-dialog::backdrop {
+  background: rgba(18, 24, 38, 0.42);
+}
+
+.token-quota-dialog .modal-actions {
+  flex-wrap: wrap;
+}
+
+.token-quota-body {
+  display: grid;
+  align-content: start;
+  gap: 10px;
+}
+
+.token-quota-body p {
+  margin: 0;
+}
+
+.token-quota-body details {
+  padding: 10px 12px;
+  border: 1px solid #edf0f6;
+  border-radius: 8px;
+}
+
+.token-quota-body summary {
+  margin-bottom: 6px;
+  cursor: pointer;
+  font-weight: 700;
+}
+
+.account-token-quota-trigger {
+  margin-inline-end: auto;
+}
+
 .authorization-modal {
   width: min(1080px, 100%);
 }

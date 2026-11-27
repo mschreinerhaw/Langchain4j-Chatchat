@@ -323,7 +323,7 @@
             class="app-dialog-close"
             aria-label="关闭"
             title="关闭"
-            :disabled="curlExampleLoading"
+            :disabled="curlExampleLoading || curlGuideLoading"
             @click="closeCurlExample"
             >×</button
           >
@@ -366,10 +366,16 @@
           <button
             type="button"
             class="secondary-button"
-            :disabled="curlExampleLoading"
+            :disabled="curlExampleLoading || curlGuideLoading"
             @click="closeCurlExample"
             >关闭</button
           >
+          <button
+            type="button"
+            class="secondary-button"
+            :disabled="curlExampleLoading || curlGuideLoading || !curlExample?.agentId"
+            @click="downloadCurlGuide"
+          >{{ curlGuideLoading ? "正在下载…" : "下载对接文档 (.md)" }}</button>
           <button
             type="button"
             class="primary-button"

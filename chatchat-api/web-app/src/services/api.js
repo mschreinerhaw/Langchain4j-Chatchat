@@ -53,6 +53,12 @@ export async function apiRequest(path, options = {}) {
   if (options.responseType === "pdf" && response.ok) {
     throw new Error("服务器未返回 PDF 文件");
   }
+  if (options.responseType === "markdown" && response.ok) {
+    if (response.headers.get("content-type")?.split(";")[0] !== "text/markdown") {
+      throw new Error("服务器未返回 Markdown 文档");
+    }
+    return response.text();
+  }
   let payload = null;
   try {
     payload = await response.json();
@@ -1236,6 +1242,12 @@ export function recallWorkshopAgent(agentId) {
 
 export function fetchPublishedAgentCurlExample(agentId) {
   return apiRequest(`/published-agents/${encodeURIComponent(agentId)}/curl-example`);
+}
+
+export function downloadPublishedAgentGuide(agentId) {
+  return apiRequest(`/published-agents/${encodeURIComponent(agentId)}/curl-example?format=markdown`, {
+    responseType: "markdown",
+  });
 }
 
 export function fetchToolNames() {

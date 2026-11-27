@@ -1273,6 +1273,10 @@ class AgentTaskServiceTest {
         UiArtifactService uiArtifactService = mock(UiArtifactService.class);
         when(uiArtifactService.resource(task.getTenantId(), "ui-report-1", "answer"))
             .thenReturn(Optional.of(fullAnswer));
+        when(uiArtifactService.resource(task.getTenantId(), "ui-report-1", "visual-report"))
+            .thenReturn(Optional.of(Map.of("htmlReport", Map.of(
+                "schemaVersion", "runtime_html_report.v1", "entryFileId", "report-file",
+                "entryPath", "output/report.html", "taskId", "native-task", "runId", "native-run"))));
         when(uiArtifactService.resource(task.getTenantId(), "ui-report-1", "citations"))
             .thenReturn(Optional.of(List.of(Map.of(
                 "sourceRef", "ORACLE_INSTANCE_STATUS#chunk-1",
@@ -1302,6 +1306,8 @@ class AgentTaskServiceTest {
             .orElseThrow();
 
         assertThat(content.answer()).isEqualTo(fullAnswer);
+        assertThat(content.reportArchive()).isEqualTo(
+            new AgentTaskService.AgentReportArchive("report-file", "native-task", "native-run", "output/report.html"));
         assertThat(content.references()).singleElement()
             .satisfies(reference -> assertThat(reference)
                 .containsEntry("sourceRef", "ORACLE_INSTANCE_STATUS#chunk-1")

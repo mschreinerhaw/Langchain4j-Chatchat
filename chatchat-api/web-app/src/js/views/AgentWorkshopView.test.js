@@ -2,9 +2,10 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { readFileSync } from "node:fs";
 import { parse as parseVueTemplate } from "@vue/compiler-dom";
 
-const { fetchPublishedAgentCurlExample, authSession } =
+const { fetchPublishedAgentCurlExample, downloadPublishedAgentGuide, authSession } =
   vi.hoisted(() => ({
     fetchPublishedAgentCurlExample: vi.fn(),
+    downloadPublishedAgentGuide: vi.fn(),
     authSession: { current: null },
   }));
 
@@ -15,6 +16,7 @@ vi.mock("../../services/api.js", () => ({
   fetchAgentResourceOptions: vi.fn().mockResolvedValue([]),
   fetchSkills: vi.fn(),
   fetchPublishedAgentCurlExample,
+  downloadPublishedAgentGuide,
   getStoredAuthSession: vi.fn(() => authSession.current),
   publishWorkshopAgent: vi.fn(),
   recallWorkshopAgent: vi.fn(),
@@ -90,10 +92,20 @@ describe("AgentWorkshopView published Agent curl access", () => {
   beforeEach(() => {
     authSession.current = null;
     fetchPublishedAgentCurlExample.mockReset();
+    downloadPublishedAgentGuide.mockReset();
   });
 
   afterEach(() => {
     vi.unstubAllGlobals();
+  });
+
+  it("downloads the Markdown guide for the Agent shown in the API dialog", async () => {
+    downloadPublishedAgentGuide.mockResolvedValue("# Agent API 对接说明");
+    const context = { curlExample: { agentId: "finance-agent" }, downloadFile: vi.fn() };
+    await AgentWorkshopView.methods.downloadCurlGuide.call(context);
+    expect(downloadPublishedAgentGuide).toHaveBeenCalledWith("finance-agent");
+    expect(context.downloadFile).toHaveBeenCalledWith("finance-agent-api.md", "# Agent API 对接说明", "text/markdown; charset=UTF-8");
+    expect(context.curlGuideLoading).toBe(false);
   });
 
   it("shows the API action only with the persisted registry permission", () => {

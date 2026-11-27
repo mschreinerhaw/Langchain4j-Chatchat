@@ -247,7 +247,19 @@ public class AgentTaskService {
     }
 
     public Optional<String> finalAnswer(String tenantId, String taskId) {
-        return finalNotificationContent(tenantId, taskId).map(AgentNotificationContent::answer);
+        return finalNotificationContent(tenantId, taskId).map(AgentNotificationContent::answer).filter(answer -> !answer.isBlank());
+    }
+
+    public boolean publishedAgentReportEnabled(String tenantId, String taskId) {
+        String payload = getTaskForTenant(tenantId, taskId).getRequestPayloadJson();
+        if (payload == null || payload.isBlank()) return false;
+        try {
+            JsonNode request = objectMapper.readTree(payload).path("request");
+            return "AGENT_API".equals(request.path("requestSource").asText())
+                && "visual".equals(request.path("toolInput").path("reportMode").asText());
+        } catch (JsonProcessingException invalid) {
+            return false;
+        }
     }
 
     public Optional<AgentNotificationContent> finalNotificationContent(String tenantId, String taskId) {
@@ -263,13 +275,15 @@ public class AgentTaskService {
                 continue;
             }
             AgentNotificationContent content = extractNotificationContent(event);
-            if (content != null && !content.answer().isBlank()) {
+            if (content != null && content.reportArchive() != null
+                    && !Objects.equals(task.getExecutionAttemptId(), event.getAttemptId())) continue;
+            if (content != null && (!content.answer().isBlank() || content.reportArchive() != null)) {
                 return Optional.of(content);
             }
         }
         AgentNotificationContent persistedContent = extractNotificationContent(
             task.getFinalNotificationJson(), task.getTenantId(), task.getTaskId());
-        if (persistedContent != null && !persistedContent.answer().isBlank()) {
+        if (persistedContent != null) {
             return Optional.of(persistedContent);
         }
         return Optional.ofNullable(task.getAnswerSummary())
@@ -321,7 +335,22 @@ public class AgentTaskService {
                         .ifPresent(value -> addReferenceMaps(references, value));
                 }
             }
-            return answer == null ? null : new AgentNotificationContent(answer, List.copyOf(references));
+            JsonNode visual = root.path("uiResponse").path("visualReport");
+            if (!visual.isObject()) visual = root.path("executionResult").path("uiResponse").path("visualReport");
+            if (!visual.isObject()) visual = root.path("visualReport");
+            JsonNode html = visual.path("htmlReport");
+            if (!html.isObject()) html = root.path("reportArchive");
+            if (!html.isObject() && uiArtifactService != null && artifactId != null && !artifactId.isBlank()) {
+                html = uiArtifactService.resource(tenantId, artifactId, "visual-report")
+                    .map(resource -> objectMapper.valueToTree(resource).path("htmlReport"))
+                    .orElse(html);
+            }
+            AgentReportArchive archive = "runtime_html_report.v1".equals(html.path("schemaVersion").asText())
+                && html.path("entryFileId").isTextual() && html.path("taskId").isTextual() && html.path("runId").isTextual()
+                ? new AgentReportArchive(html.get("entryFileId").asText(), html.get("taskId").asText(),
+                    html.get("runId").asText(), html.path("entryPath").asText(null))
+                : null;
+            return answer == null && archive == null ? null : new AgentNotificationContent(answer, references, archive);
         } catch (JsonProcessingException ex) {
             log.warn("Failed to read final notification content: taskId={} error={}", taskId, ex.getMessage());
             return null;
@@ -352,7 +381,12 @@ public class AgentTaskService {
         }
     }
 
-    public record AgentNotificationContent(String answer, List<Map<String, Object>> references) {
+    public record AgentReportArchive(String fileId, String taskId, String runId, String entryPath) {}
+
+    public record AgentNotificationContent(String answer, List<Map<String, Object>> references, AgentReportArchive reportArchive) {
+        public AgentNotificationContent(String answer, List<Map<String, Object>> references) {
+            this(answer, references, null);
+        }
         public AgentNotificationContent {
             answer = answer == null ? "" : answer;
             references = references == null ? List.of() : List.copyOf(references);
@@ -2009,6 +2043,17 @@ public class AgentTaskService {
         Map<String, Object> payload = new LinkedHashMap<>();
         payload.put("answer", resultContract == null ? "" : resultContract.answerSummary());
         payload.put("references", resultContract == null ? List.of() : resultContract.citations());
+        if (resultContract != null && resultContract.uiResponse() != null
+                && resultContract.uiResponse().visualReport() instanceof Map<?, ?> visual
+                && visual.get("htmlReport") instanceof Map<?, ?> archive
+                && "runtime_html_report.v1".equals(archive.get("schemaVersion"))
+                && archive.get("entryFileId") instanceof String fileId
+                && archive.get("taskId") instanceof String archiveTask
+                && archive.get("runId") instanceof String archiveRun
+                && archive.get("entryPath") instanceof String entryPath) {
+            payload.put("reportArchive", Map.of("schemaVersion", "runtime_html_report.v1",
+                "entryFileId", fileId, "taskId", archiveTask, "runId", archiveRun, "entryPath", entryPath));
+        }
         return writePayload(payload);
     }
 

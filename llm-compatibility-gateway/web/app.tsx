@@ -671,7 +671,7 @@ function RequestCapturePanel({ config, clients }: { config: Config; clients: Tls
     finally { pending.current = false; setBusy(false); }
   }
   const evidence = status.evidence;
-  return <Card title="捕获 Cline 请求">
+  return <Card title="捕获请求">
     <Space direction="vertical" className="full">
       <Typography.Text type="secondary">捕获两分钟内下一条匹配的真实模型请求。正文、图片、工具实参和密钥已遮蔽，结果仅在本会话保留五分钟。</Typography.Text>
       <Space wrap>

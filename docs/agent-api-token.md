@@ -19,18 +19,30 @@ Agent API 令牌用于从控制台或自动化程序调用已发布 Agent。它�
 - 令牌绑定平台用户和租户，实时继承用户当前角色及角色绑定的 Agent；
 - 用户被停用、角色被停用、用户与角色解绑、Agent 授权失效后，对应访问立即失效；
 - 只有平台管理员可以生成、查询、重置或吊销令牌；
-- `ccat_` 令牌仅允许访问已发布 Agent 的提问、状态和最终答案接口；
+- `ccat_` 令牌仅允许访问已发布 Agent 的附件、提问、状态、取消、答案和报告接口；
 - 管理接口、curl 示例接口及其他业务接口拒绝 Agent API 令牌。
 
 ## 可调用接口
 
 ```text
 POST /api/v1/published-agents/{agentId}/questions
+POST /api/v1/published-agents/{agentId}/attachments
 GET  /api/v1/published-agents/{agentId}/questions/{taskId}/status
 GET  /api/v1/published-agents/{agentId}/questions/{taskId}/answer
+GET  /api/v1/published-agents/{agentId}/questions/{taskId}/report
+GET  /api/v1/published-agents/{agentId}/questions/{taskId}/report?bundle=true
+DELETE /api/v1/published-agents/{agentId}/questions/{taskId}
 ```
 
-请求使用 `Authorization: Bearer <Agent API Token>`。Agent 管理页已发布 Agent 行中的 `API` 按钮会生成包含上述三个步骤的完整 curl 示例。
+请求使用 `Authorization: Bearer <Agent API Token>`。管理员可以从已发布 Agent 行的「API → 下载对接文档 (.md)」获取该 Agent 的 Markdown 文档。文档接口为 `GET /api/v1/published-agents/{agentId}/curl-example?format=markdown`，需要管理员的网页登录凭证。
+
+### 图文报告
+
+在问题请求体中设置 `"reportMode":"visual"` 启用图文报告。省略该参数时默认启用，以 HTML 为主要交付格式。设置 `"reportMode":"off"` 关闭报告，可继续获取文本答案。
+
+任务完成后读取 `answer`。如有可下载报告，`data.report.downloadUrl` 指向 HTML 文件，`data.report.bundleUrl` 指向 ZIP 资源包。原生报告依赖本地脚本、样式或图片时，下载 ZIP 并打开 `data.report.entryPath`。纯文本结果可交付由答案渲染的 HTML。将生成的 HTML 集成到网页时，在禁用同源权限的沙箱中展示。
+
+报告仅对使用 Agent API Token 的任务发起者开放。关闭报告、任务未就绪或未产生可交付结果时，报告接口返回 HTTP 404。网页的报告导出继续使用 PDF。
 
 ## 审计和升级
 

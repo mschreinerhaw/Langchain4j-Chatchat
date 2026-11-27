@@ -488,13 +488,13 @@
           </div>
 
           <div class="modal-actions">
+            <TokenQuotaEditor v-if="userForm.id && canManageTokenQuotas" :key="userForm.id" type="USER" :principal="userForm.id" />
             <button type="button" class="ghost-button" @click="closeUserModal">取消</button>
             <button type="submit" class="primary-button" :disabled="savingUser">
               <Save :size="16" />
               <span>{{ userForm.id ? "保存账户" : "新增账户" }}</span>
             </button>
           </div>
-          <TokenQuotaEditor v-if="userForm.id && canManageTokenQuotas" :key="userForm.id" type="USER" :principal="userForm.id" />
         </form>
       </div>
 

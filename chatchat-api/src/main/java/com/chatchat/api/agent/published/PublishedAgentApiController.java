@@ -1,6 +1,8 @@
 package com.chatchat.api.agent.published;
 
 import com.chatchat.api.security.ApiAuthenticationFilter;
+import com.chatchat.api.assets.UserAssetService;
+import com.chatchat.api.runtime.coding.nativecline.NativeHtmlReport;
 import com.chatchat.chat.skills.catalog.SkillCatalogService;
 import com.chatchat.chat.skills.model.SkillDefinition;
 import com.chatchat.chat.task.core.AgentExecutionState;
@@ -10,6 +12,7 @@ import com.chatchat.chat.task.core.AgentTaskSubmitRequest;
 import com.chatchat.chat.task.event.AgentEvent;
 import com.chatchat.common.constants.AppConstants;
 import com.chatchat.common.response.ApiResponse;
+import com.chatchat.common.runtime.coding.VisualReportMode;
 import com.chatchat.enterprise.service.EnterpriseAdminService;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -18,6 +21,10 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.CacheControl;
+import org.springframework.http.ContentDisposition;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -80,6 +87,8 @@ public class PublishedAgentApiController {
     private org.springframework.beans.factory.ObjectProvider<com.chatchat.api.assets.AssetAnalysisInputs> attachmentInputs;
     @org.springframework.beans.factory.annotation.Autowired
     private org.springframework.beans.factory.ObjectProvider<com.chatchat.api.assets.UserAssetController> assetControllers;
+    @org.springframework.beans.factory.annotation.Autowired
+    private org.springframework.beans.factory.ObjectProvider<UserAssetService> reportAssets;
 
     @PostMapping(value="/{agentId}/attachments", consumes=org.springframework.http.MediaType.MULTIPART_FORM_DATA_VALUE)
     @Operation(summary="Upload a supported analysis attachment to the authenticated caller's user space")
@@ -123,6 +132,9 @@ public class PublishedAgentApiController {
         taskRequest.setToolInput(sanitizeParameters(request.parameters()));
 
         try {
+            if (request.reportMode() != null) taskRequest.getToolInput().put("reportMode", request.reportMode());
+            taskRequest.getToolInput().putIfAbsent("reportMode", "visual");
+            VisualReportMode.read(taskRequest.getToolInput());
             if(request.attachmentIds()!=null && !request.attachmentIds().isEmpty()) {
                 var inputs=attachmentInputs==null?null:attachmentInputs.getIfAvailable();
                 if(inputs==null)throw new PublishedAgentApiException(HttpStatus.SERVICE_UNAVAILABLE,"User assets are disabled");
@@ -278,14 +290,75 @@ public class PublishedAgentApiController {
             .finalNotificationContent(identity.tenantId(), task.taskId())
             .orElse(null);
         boolean terminal = terminal(task);
-        boolean ready = content != null && hasText(content.answer());
+        boolean hasAnswer = content != null && hasText(content.answer());
+        PublishedAgentReport report = null;
+        if (reportEligible(identity, task, content)) {
+            var archive = content.reportArchive();
+            report = new PublishedAgentReport(reportPath(task), reportPath(task) + "?bundle=true",
+                archive == null ? "answer_html" : "archived_html", archive == null ? "report.html" : archive.entryPath());
+        }
         return ok(new PublishedAgentAnswer(
             task.taskId(), task.executionId(), task.attemptId(), task.sessionId(), task.agentId(),
-            task.status(), task.canonicalState(), terminal, ready,
-            ready ? content.answer() : null,
-            ready ? content.references() : List.of(),
-            task.errorMessage(), task.updateTime()
+            task.status(), task.canonicalState(), terminal, hasAnswer || report != null,
+            hasAnswer ? content.answer() : null,
+            content == null ? List.of() : content.references(),
+            task.errorMessage(), task.updateTime(), report
         ));
+    }
+
+    @GetMapping("/{agentId}/questions/{taskId}/report")
+    @Operation(summary = "Download the caller's HTML report or complete report bundle using an Agent API token")
+    public ResponseEntity<byte[]> report(@PathVariable("agentId") String agentId, @PathVariable("taskId") String taskId,
+        @RequestParam(name = "bundle", defaultValue = "false") boolean bundle, HttpServletRequest request) throws java.io.IOException {
+        var identity = requireIdentity(request);
+        if (request.getAttribute(ApiAuthenticationFilter.AGENT_API_TOKEN_ID) == null) {
+            throw new PublishedAgentApiException(HttpStatus.FORBIDDEN, "An Agent API token is required for HTML report delivery");
+        }
+        var task = requireOwnedTask(identity, agentId, taskId);
+        var content = taskService.finalNotificationContent(identity.tenantId(), task.taskId()).orElse(null);
+        if (!reportEligible(identity, task, content)) {
+            throw new PublishedAgentApiException(HttpStatus.NOT_FOUND, "HTML report is not available");
+        }
+        var archive = content.reportArchive();
+        List<NativeHtmlReport.Resource> files;
+        String entry;
+        if (archive != null) {
+            var assets = reportAssets == null ? null : reportAssets.getIfAvailable();
+            if (assets == null) throw new PublishedAgentApiException(HttpStatus.SERVICE_UNAVAILABLE, "Report storage is unavailable");
+            var owner = new UserAssetService.Owner(identity.tenantId(), identity.userId());
+            var file = assets.get(owner, archive.fileId());
+            if (!archive.taskId().equals(file.taskId()) || !archive.runId().equals(file.runId())) {
+                throw new PublishedAgentApiException(HttpStatus.NOT_FOUND, "HTML report is not available");
+            }
+            var loaded = NativeHtmlReport.load(assets, owner, archive.fileId());
+            entry = NativeHtmlReport.path(loaded.entry());
+            files = loaded.files();
+        } else {
+            entry = "report.html";
+            files = List.of(NativeHtmlReport.Resource.of(entry, PublishedAgentHtml.render(content.answer())));
+        }
+        byte[] body = bundle ? PublishedAgentHtml.zip(files) : PublishedAgentHtml.entry(files, entry);
+        return attachment(bundle ? MediaType.parseMediaType("application/zip") : PublishedAgentHtml.TYPE,
+            bundle ? "report.zip" : "report.html", body);
+    }
+
+    private boolean reportEligible(RequestIdentity identity, AgentTaskResponse task, AgentTaskService.AgentNotificationContent content) {
+        return terminal(task) && Set.of(AgentExecutionState.SUCCEEDED, AgentExecutionState.PARTIAL)
+            .contains(AgentExecutionState.fromWire(task.canonicalState()))
+            && content != null && (hasText(content.answer()) || content.reportArchive() != null)
+            && taskService.publishedAgentReportEnabled(identity.tenantId(), task.taskId());
+    }
+
+    private String reportPath(AgentTaskResponse task) {
+        return cancelPath(task.agentId(), task.taskId()) + "/report";
+    }
+
+    private ResponseEntity<byte[]> attachment(MediaType type, String filename, byte[] bytes) {
+        return ResponseEntity.ok().contentType(type).cacheControl(CacheControl.noStore())
+            .header(HttpHeaders.CONTENT_DISPOSITION, ContentDisposition.attachment().filename(filename).build().toString())
+            .header("X-Content-Type-Options", "nosniff")
+            .header("Content-Security-Policy", "sandbox allow-scripts; default-src 'none'; style-src 'unsafe-inline' data:; img-src data: blob:; script-src 'unsafe-inline' data: blob:")
+            .body(bytes);
     }
 
     @DeleteMapping("/{agentId}/questions/{taskId}")
@@ -307,7 +380,7 @@ public class PublishedAgentApiController {
         ));
     }
 
-    @GetMapping("/{agentId}/curl-example")
+    @GetMapping(value = "/{agentId}/curl-example", params = "format!=markdown")
     @Operation(summary = "Generate admin-only curl examples for one published Agent")
     public ResponseEntity<ApiResponse<PublishedAgentCurlExample>> curlExample(
         @PathVariable("agentId") String agentId,
@@ -322,6 +395,19 @@ public class PublishedAgentApiController {
         return ok(buildCurlExample(baseUrl, agent));
     }
 
+    @GetMapping(value = "/{agentId}/curl-example", params = "format=markdown")
+    @Operation(summary = "Download a published Agent's Markdown integration guide")
+    public ResponseEntity<byte[]> integrationGuide(@PathVariable("agentId") String agentId, HttpServletRequest request) {
+        var identity = requireIdentity(request);
+        if (!isPlatformAdmin(identity, request)) {
+            throw new PublishedAgentApiException(HttpStatus.FORBIDDEN, "Only the platform administrator can download the integration guide");
+        }
+        var agent = requirePublishedAndAuthorized(agentId, identity.userId());
+        var example = buildCurlExample(ServletUriComponentsBuilder.fromCurrentContextPath().build().toUriString(), agent);
+        return attachment(MediaType.parseMediaType("text/markdown; charset=UTF-8"), agent.id() + "-api.md",
+            PublishedAgentHtml.guide(example).getBytes(StandardCharsets.UTF_8));
+    }
+
     private PublishedAgentCurlExample buildCurlExample(String baseUrl, SkillDefinition agent) {
         String escapedBaseUrl = shellDoubleQuoted(baseUrl);
         String escapedAgentId = shellDoubleQuoted(agent.id());
@@ -329,7 +415,8 @@ public class PublishedAgentApiController {
         try {
             body = objectMapper.writeValueAsString(Map.of(
                 "sessionId", "6f2e7d6a-21b8-4ea4-a4d6-4cb81fa31c57",
-                "question", "Describe your capabilities and answer an example question"
+                "question", "Describe your capabilities and answer an example question",
+                "reportMode", "visual"
             ));
         } catch (JsonProcessingException ex) {
             throw new IllegalStateException("Unable to generate curl request body", ex);
@@ -547,7 +634,7 @@ public class PublishedAgentApiController {
     }
 
     private String shellDoubleQuoted(String value) {
-        return value == null ? "" : value.replace("\\", "\\\\").replace("\"", "\\\"").replace("$", "\\$");
+        return value == null ? "" : value.replace("\\", "\\\\").replace("\"", "\\\"").replace("$", "\\$").replace("`", "\\`");
     }
 
     private String statusPath(String agentId, String taskId) {
@@ -592,7 +679,8 @@ public class PublishedAgentApiController {
         Integer historyWindow,
         List<String> imageAnalysisIds,
         Map<String, Object> parameters,
-        List<String> attachmentIds
+        List<String> attachmentIds,
+        String reportMode
     ) {
     }
 
@@ -664,9 +752,12 @@ public class PublishedAgentApiController {
         String answer,
         List<Map<String, Object>> references,
         String error,
-        Instant updatedAt
+        Instant updatedAt,
+        PublishedAgentReport report
     ) {
     }
+
+    public record PublishedAgentReport(String downloadUrl, String bundleUrl, String source, String entryPath) {}
 
     public record PublishedAgentCancellation(
         String taskId,

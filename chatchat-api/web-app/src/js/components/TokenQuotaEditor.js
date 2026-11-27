@@ -1,13 +1,19 @@
-import { computed, ref } from "vue";
+import { X } from "@lucide/vue";
+import { computed, ref, useId } from "vue";
 import { apiRequest } from "../../services/api.js";
 
 export default {
   name: "TokenQuotaEditor",
+  components: { X },
   props: {
     type: { type: String, required: true },
     principal: { type: String, required: true },
   },
   setup(props) {
+    const personal = computed(() => props.type === "USER");
+    const headingId = useId();
+    const container = ref(null);
+    const trigger = ref(null);
     const path = computed(() => `/permission-center/token-pools/${props.type}/${encodeURIComponent(props.principal)}`);
     const pool = ref(null);
     const unlimited = ref(true);
@@ -47,13 +53,29 @@ export default {
       page.value = nextPage;
     }
 
-    function open(event) {
-      if (event.target.open && !busy.value && !history.value) {
-        return run(async () => {
-          setPool(await apiRequest(path.value));
-          await loadHistory(1);
-        });
-      }
+    function loadQuota() {
+      return run(async () => {
+        setPool(await apiRequest(path.value));
+        await loadHistory(1);
+      });
+    }
+
+    function openRole(event) {
+      if (!personal.value && event.target.open && !busy.value && !history.value) return loadQuota();
+    }
+
+    function openDialog() {
+      container.value.showModal();
+      pool.value = history.value = null;
+      notice.value = "";
+      confirmReset.value = false;
+      return loadQuota();
+    }
+
+    function closeDialog() {
+      if (busy.value) return;
+      container.value.close();
+      trigger.value?.focus();
     }
 
     function save(reset) {
@@ -81,7 +103,8 @@ export default {
       const amount = match[1] === "null" ? "不限额" : `${match[1]} Token`;
       return ` · 周期 ${match[2]} · ${amount}`;
     }
-    return { pool, unlimited, limit, history, page, busy, error, notice, confirmReset, remaining,
-      percentage, open, save, loadHistory, run, displayTime, displayChange };
+    return { personal, headingId, container, trigger, pool, unlimited, limit, history, page, busy,
+      error, notice, confirmReset, remaining, percentage, openRole, openDialog, closeDialog,
+      loadQuota, save, loadHistory, run, displayTime, displayChange };
   },
 };

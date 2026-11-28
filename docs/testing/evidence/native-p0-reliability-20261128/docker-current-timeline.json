@@ -1,0 +1,2555 @@
+{
+  "scenario": "6",
+  "outerTaskId": "00a1676e-5bb7-3162-8640-21a6d9ef31bf",
+  "workerState": "STOPPED",
+  "nativeTaskState": "CANCELLED_LOCAL_ONLY",
+  "modelEvents": [
+    {
+      "requestId": "aa2baba9-844b-4df0-8d6c-c803e446b5a0",
+      "eventType": "model.request.started",
+      "timestamp": "2026-11-28T13:08:26.112Z",
+      "executionStage": "PRIMARY_ANALYSIS",
+      "requestContext": {
+        "format": "CHAT_COMPLETIONS",
+        "systemChars": 4247,
+        "userChars": 10579,
+        "historyChars": 0,
+        "toolResultChars": 0,
+        "toolsChars": 10110,
+        "skillsChars": null,
+        "evidenceChars": null,
+        "requestBytes": 25776
+      },
+      "usage": {
+        "inputTokens": null,
+        "outputTokens": null,
+        "totalTokens": null,
+        "cacheReadTokens": null
+      }
+    },
+    {
+      "requestId": "aa2baba9-844b-4df0-8d6c-c803e446b5a0",
+      "eventType": "model.request.completed",
+      "timestamp": "2026-11-28T13:08:31.308Z",
+      "status": "SUCCEEDED",
+      "durationMs": 5195,
+      "executionStage": "PRIMARY_ANALYSIS",
+      "requestContext": {
+        "format": "CHAT_COMPLETIONS",
+        "systemChars": 4247,
+        "userChars": 10579,
+        "historyChars": 0,
+        "toolResultChars": 0,
+        "toolsChars": 10110,
+        "skillsChars": null,
+        "evidenceChars": null,
+        "requestBytes": 25776
+      },
+      "usage": {
+        "inputTokens": 6244,
+        "outputTokens": 229,
+        "totalTokens": 6473,
+        "cacheReadTokens": 0
+      }
+    },
+    {
+      "requestId": "003e5fc7-bb85-4c4b-8315-99ab980cba51",
+      "eventType": "model.request.started",
+      "timestamp": "2026-11-28T13:08:32.659Z",
+      "executionStage": "PRIMARY_ANALYSIS",
+      "requestContext": {
+        "format": "CHAT_COMPLETIONS",
+        "systemChars": 4247,
+        "userChars": 10579,
+        "historyChars": 337,
+        "toolResultChars": 28502,
+        "toolsChars": 10110,
+        "skillsChars": null,
+        "evidenceChars": null,
+        "requestBytes": 57615
+      },
+      "usage": {
+        "inputTokens": null,
+        "outputTokens": null,
+        "totalTokens": null,
+        "cacheReadTokens": null
+      }
+    },
+    {
+      "requestId": "003e5fc7-bb85-4c4b-8315-99ab980cba51",
+      "eventType": "model.request.completed",
+      "timestamp": "2026-11-28T13:08:39.517Z",
+      "status": "SUCCEEDED",
+      "durationMs": 6861,
+      "executionStage": "PRIMARY_ANALYSIS",
+      "requestContext": {
+        "format": "CHAT_COMPLETIONS",
+        "systemChars": 4247,
+        "userChars": 10579,
+        "historyChars": 337,
+        "toolResultChars": 28502,
+        "toolsChars": 10110,
+        "skillsChars": null,
+        "evidenceChars": null,
+        "requestBytes": 57615
+      },
+      "usage": {
+        "inputTokens": 15907,
+        "outputTokens": 352,
+        "totalTokens": 16259,
+        "cacheReadTokens": 5760
+      }
+    },
+    {
+      "requestId": "5af9a949-d42b-4a57-96d4-1cd3d375bf55",
+      "eventType": "model.request.started",
+      "timestamp": "2026-11-28T13:08:40.701Z",
+      "executionStage": "PRIMARY_ANALYSIS",
+      "requestContext": {
+        "format": "CHAT_COMPLETIONS",
+        "systemChars": 4247,
+        "userChars": 10579,
+        "historyChars": 1350,
+        "toolResultChars": 53470,
+        "toolsChars": 10110,
+        "skillsChars": null,
+        "evidenceChars": null,
+        "requestBytes": 86146
+      },
+      "usage": {
+        "inputTokens": null,
+        "outputTokens": null,
+        "totalTokens": null,
+        "cacheReadTokens": null
+      }
+    },
+    {
+      "requestId": "5af9a949-d42b-4a57-96d4-1cd3d375bf55",
+      "eventType": "model.request.completed",
+      "timestamp": "2026-11-28T13:08:55.534Z",
+      "status": "SUCCEEDED",
+      "durationMs": 14833,
+      "executionStage": "PRIMARY_ANALYSIS",
+      "requestContext": {
+        "format": "CHAT_COMPLETIONS",
+        "systemChars": 4247,
+        "userChars": 10579,
+        "historyChars": 1350,
+        "toolResultChars": 53470,
+        "toolsChars": 10110,
+        "skillsChars": null,
+        "evidenceChars": null,
+        "requestBytes": 86146
+      },
+      "usage": {
+        "inputTokens": 25705,
+        "outputTokens": 844,
+        "totalTokens": 26549,
+        "cacheReadTokens": 15488
+      }
+    },
+    {
+      "requestId": "126685b1-734e-4e56-ace5-a412a29a89ce",
+      "eventType": "model.request.started",
+      "timestamp": "2026-11-28T13:08:56.733Z",
+      "executionStage": "PRIMARY_ANALYSIS",
+      "requestContext": {
+        "format": "CHAT_COMPLETIONS",
+        "systemChars": 4247,
+        "userChars": 10579,
+        "historyChars": 2769,
+        "toolResultChars": 59072,
+        "toolsChars": 10110,
+        "skillsChars": null,
+        "evidenceChars": null,
+        "requestBytes": 95122
+      },
+      "usage": {
+        "inputTokens": null,
+        "outputTokens": null,
+        "totalTokens": null,
+        "cacheReadTokens": null
+      }
+    },
+    {
+      "requestId": "126685b1-734e-4e56-ace5-a412a29a89ce",
+      "eventType": "model.request.completed",
+      "timestamp": "2026-11-28T13:09:03.567Z",
+      "status": "SUCCEEDED",
+      "durationMs": 6834,
+      "executionStage": "PRIMARY_ANALYSIS",
+      "requestContext": {
+        "format": "CHAT_COMPLETIONS",
+        "systemChars": 4247,
+        "userChars": 10579,
+        "historyChars": 2769,
+        "toolResultChars": 59072,
+        "toolsChars": 10110,
+        "skillsChars": null,
+        "evidenceChars": null,
+        "requestBytes": 95122
+      },
+      "usage": {
+        "inputTokens": 28565,
+        "outputTokens": 354,
+        "totalTokens": 28919,
+        "cacheReadTokens": 25344
+      }
+    },
+    {
+      "requestId": "41720f4f-4328-4a01-8f5b-40f1e887e734",
+      "eventType": "model.request.started",
+      "timestamp": "2026-11-28T13:09:04.359Z",
+      "executionStage": "PRIMARY_ANALYSIS",
+      "requestContext": {
+        "format": "CHAT_COMPLETIONS",
+        "systemChars": 4247,
+        "userChars": 10579,
+        "historyChars": 3745,
+        "toolResultChars": 76663,
+        "toolsChars": 10110,
+        "skillsChars": null,
+        "evidenceChars": null,
+        "requestBytes": 114453
+      },
+      "usage": {
+        "inputTokens": null,
+        "outputTokens": null,
+        "totalTokens": null,
+        "cacheReadTokens": null
+      }
+    },
+    {
+      "requestId": "41720f4f-4328-4a01-8f5b-40f1e887e734",
+      "eventType": "model.request.completed",
+      "timestamp": "2026-11-28T13:09:24.345Z",
+      "status": "SUCCEEDED",
+      "durationMs": 19989,
+      "executionStage": "PRIMARY_ANALYSIS",
+      "requestContext": {
+        "format": "CHAT_COMPLETIONS",
+        "systemChars": 4247,
+        "userChars": 10579,
+        "historyChars": 3745,
+        "toolResultChars": 76663,
+        "toolsChars": 10110,
+        "skillsChars": null,
+        "evidenceChars": null,
+        "requestBytes": 114453
+      },
+      "usage": {
+        "inputTokens": 38899,
+        "outputTokens": 1144,
+        "totalTokens": 40043,
+        "cacheReadTokens": 0
+      }
+    },
+    {
+      "requestId": "d5052f42-1fee-4168-a786-abe2737408d0",
+      "eventType": "model.request.started",
+      "timestamp": "2026-11-28T13:09:25.469Z",
+      "executionStage": "PRIMARY_ANALYSIS",
+      "requestContext": {
+        "format": "CHAT_COMPLETIONS",
+        "systemChars": 4247,
+        "userChars": 10579,
+        "historyChars": 3940,
+        "toolResultChars": 76787,
+        "toolsChars": 10110,
+        "skillsChars": null,
+        "evidenceChars": null,
+        "requestBytes": 117464
+      },
+      "usage": {
+        "inputTokens": null,
+        "outputTokens": null,
+        "totalTokens": null,
+        "cacheReadTokens": null
+      }
+    },
+    {
+      "requestId": "d5052f42-1fee-4168-a786-abe2737408d0",
+      "eventType": "model.request.completed",
+      "timestamp": "2026-11-28T13:11:38.542Z",
+      "status": "SUCCEEDED",
+      "durationMs": 133073,
+      "executionStage": "PRIMARY_ANALYSIS",
+      "requestContext": {
+        "format": "CHAT_COMPLETIONS",
+        "systemChars": 4247,
+        "userChars": 10579,
+        "historyChars": 3940,
+        "toolResultChars": 76787,
+        "toolsChars": 10110,
+        "skillsChars": null,
+        "evidenceChars": null,
+        "requestBytes": 117464
+      },
+      "usage": {
+        "inputTokens": 40087,
+        "outputTokens": 8262,
+        "totalTokens": 48349,
+        "cacheReadTokens": 36992
+      }
+    },
+    {
+      "requestId": "4815b45e-914b-4931-a72e-3b7f8ba2a0a6",
+      "eventType": "model.request.started",
+      "timestamp": "2026-11-28T13:11:39.036Z",
+      "executionStage": "PRIMARY_ANALYSIS",
+      "requestContext": {
+        "format": "CHAT_COMPLETIONS",
+        "systemChars": 4247,
+        "userChars": 10579,
+        "historyChars": 3948,
+        "toolResultChars": 76998,
+        "toolsChars": 10110,
+        "skillsChars": null,
+        "evidenceChars": null,
+        "requestBytes": 118233
+      },
+      "usage": {
+        "inputTokens": null,
+        "outputTokens": null,
+        "totalTokens": null,
+        "cacheReadTokens": null
+      }
+    },
+    {
+      "requestId": "4815b45e-914b-4931-a72e-3b7f8ba2a0a6",
+      "eventType": "model.request.completed",
+      "timestamp": "2026-11-28T13:13:51.200Z",
+      "status": "SUCCEEDED",
+      "durationMs": 132146,
+      "executionStage": "PRIMARY_ANALYSIS",
+      "requestContext": {
+        "format": "CHAT_COMPLETIONS",
+        "systemChars": 4247,
+        "userChars": 10579,
+        "historyChars": 3948,
+        "toolResultChars": 76998,
+        "toolsChars": 10110,
+        "skillsChars": null,
+        "evidenceChars": null,
+        "requestBytes": 118233
+      },
+      "usage": {
+        "inputTokens": 40226,
+        "outputTokens": 8203,
+        "totalTokens": 48429,
+        "cacheReadTokens": 39168
+      }
+    },
+    {
+      "requestId": "a76bac4a-eb2f-4cb5-89bc-bf0969150cd9",
+      "eventType": "model.request.started",
+      "timestamp": "2026-11-28T13:13:51.946Z",
+      "executionStage": "PRIMARY_ANALYSIS",
+      "requestContext": {
+        "format": "CHAT_COMPLETIONS",
+        "systemChars": 96,
+        "userChars": 15930,
+        "historyChars": 0,
+        "toolResultChars": 0,
+        "toolsChars": 0,
+        "skillsChars": null,
+        "evidenceChars": null,
+        "requestBytes": 17068
+      },
+      "usage": {
+        "inputTokens": null,
+        "outputTokens": null,
+        "totalTokens": null,
+        "cacheReadTokens": null
+      }
+    },
+    {
+      "requestId": "a76bac4a-eb2f-4cb5-89bc-bf0969150cd9",
+      "eventType": "model.request.completed",
+      "timestamp": "2026-11-28T13:14:26.280Z",
+      "status": "SUCCEEDED",
+      "durationMs": 34344,
+      "executionStage": "PRIMARY_ANALYSIS",
+      "requestContext": {
+        "format": "CHAT_COMPLETIONS",
+        "systemChars": 96,
+        "userChars": 15930,
+        "historyChars": 0,
+        "toolResultChars": 0,
+        "toolsChars": 0,
+        "skillsChars": null,
+        "evidenceChars": null,
+        "requestBytes": 17068
+      },
+      "usage": {
+        "inputTokens": 4117,
+        "outputTokens": 2051,
+        "totalTokens": 6168,
+        "cacheReadTokens": 0
+      }
+    },
+    {
+      "requestId": "6b167e1d-6a66-4577-bea8-59bd01d8628a",
+      "eventType": "model.request.started",
+      "timestamp": "2026-11-28T13:14:26.668Z",
+      "executionStage": "PRIMARY_ANALYSIS",
+      "requestContext": {
+        "format": "CHAT_COMPLETIONS",
+        "systemChars": 4247,
+        "userChars": 1921,
+        "historyChars": 211,
+        "toolResultChars": 546,
+        "toolsChars": 10110,
+        "skillsChars": null,
+        "evidenceChars": null,
+        "requestBytes": 20841
+      },
+      "usage": {
+        "inputTokens": null,
+        "outputTokens": null,
+        "totalTokens": null,
+        "cacheReadTokens": null
+      }
+    },
+    {
+      "requestId": "6b167e1d-6a66-4577-bea8-59bd01d8628a",
+      "eventType": "model.request.completed",
+      "timestamp": "2026-11-28T13:16:38.428Z",
+      "status": "SUCCEEDED",
+      "durationMs": 131761,
+      "executionStage": "PRIMARY_ANALYSIS",
+      "requestContext": {
+        "format": "CHAT_COMPLETIONS",
+        "systemChars": 4247,
+        "userChars": 1921,
+        "historyChars": 211,
+        "toolResultChars": 546,
+        "toolsChars": 10110,
+        "skillsChars": null,
+        "evidenceChars": null,
+        "requestBytes": 20841
+      },
+      "usage": {
+        "inputTokens": 5534,
+        "outputTokens": 8131,
+        "totalTokens": 13665,
+        "cacheReadTokens": 0
+      }
+    },
+    {
+      "requestId": "2e2fe67c-549a-430f-981e-91dcf823c088",
+      "eventType": "model.request.started",
+      "timestamp": "2026-11-28T13:16:39.554Z",
+      "executionStage": "PRIMARY_ANALYSIS",
+      "requestContext": {
+        "format": "CHAT_COMPLETIONS",
+        "systemChars": 4247,
+        "userChars": 1921,
+        "historyChars": 26595,
+        "toolResultChars": 908,
+        "toolsChars": 10110,
+        "skillsChars": null,
+        "evidenceChars": null,
+        "requestBytes": 51177
+      },
+      "usage": {
+        "inputTokens": null,
+        "outputTokens": null,
+        "totalTokens": null,
+        "cacheReadTokens": null
+      }
+    },
+    {
+      "requestId": "2e2fe67c-549a-430f-981e-91dcf823c088",
+      "eventType": "model.request.completed",
+      "timestamp": "2026-11-28T13:16:41.851Z",
+      "status": "SUCCEEDED",
+      "durationMs": 2295,
+      "executionStage": "PRIMARY_ANALYSIS",
+      "requestContext": {
+        "format": "CHAT_COMPLETIONS",
+        "systemChars": 4247,
+        "userChars": 1921,
+        "historyChars": 26595,
+        "toolResultChars": 908,
+        "toolsChars": 10110,
+        "skillsChars": null,
+        "evidenceChars": null,
+        "requestBytes": 51177
+      },
+      "usage": {
+        "inputTokens": 13774,
+        "outputTokens": 57,
+        "totalTokens": 13831,
+        "cacheReadTokens": 0
+      }
+    },
+    {
+      "requestId": "6cc0ec85-207f-4d42-9dd5-131693881c65",
+      "eventType": "model.request.started",
+      "timestamp": "2026-11-28T13:16:42.780Z",
+      "executionStage": "PRIMARY_ANALYSIS",
+      "requestContext": {
+        "format": "CHAT_COMPLETIONS",
+        "systemChars": 4247,
+        "userChars": 1921,
+        "historyChars": 26679,
+        "toolResultChars": 1320,
+        "toolsChars": 10110,
+        "skillsChars": null,
+        "evidenceChars": null,
+        "requestBytes": 51996
+      },
+      "usage": {
+        "inputTokens": null,
+        "outputTokens": null,
+        "totalTokens": null,
+        "cacheReadTokens": null
+      }
+    },
+    {
+      "requestId": "6cc0ec85-207f-4d42-9dd5-131693881c65",
+      "eventType": "model.request.completed",
+      "timestamp": "2026-11-28T13:16:45.257Z",
+      "status": "SUCCEEDED",
+      "durationMs": 2477,
+      "executionStage": "PRIMARY_ANALYSIS",
+      "requestContext": {
+        "format": "CHAT_COMPLETIONS",
+        "systemChars": 4247,
+        "userChars": 1921,
+        "historyChars": 26679,
+        "toolResultChars": 1320,
+        "toolsChars": 10110,
+        "skillsChars": null,
+        "evidenceChars": null,
+        "requestBytes": 51996
+      },
+      "usage": {
+        "inputTokens": 13969,
+        "outputTokens": 86,
+        "totalTokens": 14055,
+        "cacheReadTokens": 13184
+      }
+    },
+    {
+      "requestId": "d423f374-e08f-47f8-a1fb-c4ac0d003cac",
+      "eventType": "model.request.started",
+      "timestamp": "2026-11-28T13:16:45.809Z",
+      "executionStage": "PRIMARY_ANALYSIS",
+      "requestContext": {
+        "format": "CHAT_COMPLETIONS",
+        "systemChars": 4247,
+        "userChars": 1921,
+        "historyChars": 26792,
+        "toolResultChars": 2129,
+        "toolsChars": 10110,
+        "skillsChars": null,
+        "evidenceChars": null,
+        "requestBytes": 53393
+      },
+      "usage": {
+        "inputTokens": null,
+        "outputTokens": null,
+        "totalTokens": null,
+        "cacheReadTokens": null
+      }
+    },
+    {
+      "requestId": "d423f374-e08f-47f8-a1fb-c4ac0d003cac",
+      "eventType": "model.request.completed",
+      "timestamp": "2026-11-28T13:18:58.177Z",
+      "status": "SUCCEEDED",
+      "durationMs": 132328,
+      "executionStage": "PRIMARY_ANALYSIS",
+      "requestContext": {
+        "format": "CHAT_COMPLETIONS",
+        "systemChars": 4247,
+        "userChars": 1921,
+        "historyChars": 26792,
+        "toolResultChars": 2129,
+        "toolsChars": 10110,
+        "skillsChars": null,
+        "evidenceChars": null,
+        "requestBytes": 53393
+      },
+      "usage": {
+        "inputTokens": 14492,
+        "outputTokens": 8188,
+        "totalTokens": 22680,
+        "cacheReadTokens": 13824
+      }
+    },
+    {
+      "requestId": "f68f6efe-5d14-4047-84d3-2ccfa81ca227",
+      "eventType": "model.request.started",
+      "timestamp": "2026-11-28T13:18:59.187Z",
+      "executionStage": "PRIMARY_ANALYSIS",
+      "requestContext": {
+        "format": "CHAT_COMPLETIONS",
+        "systemChars": 4247,
+        "userChars": 1921,
+        "historyChars": 49440,
+        "toolResultChars": 2478,
+        "toolsChars": 10110,
+        "skillsChars": null,
+        "evidenceChars": null,
+        "requestBytes": 81199
+      },
+      "usage": {
+        "inputTokens": null,
+        "outputTokens": null,
+        "totalTokens": null,
+        "cacheReadTokens": null
+      }
+    },
+    {
+      "requestId": "f68f6efe-5d14-4047-84d3-2ccfa81ca227",
+      "eventType": "model.request.completed",
+      "timestamp": "2026-11-28T13:19:01.545Z",
+      "status": "SUCCEEDED",
+      "durationMs": 2369,
+      "executionStage": "PRIMARY_ANALYSIS",
+      "requestContext": {
+        "format": "CHAT_COMPLETIONS",
+        "systemChars": 4247,
+        "userChars": 1921,
+        "historyChars": 49440,
+        "toolResultChars": 2478,
+        "toolsChars": 10110,
+        "skillsChars": null,
+        "evidenceChars": null,
+        "requestBytes": 81199
+      },
+      "usage": {
+        "inputTokens": 22788,
+        "outputTokens": 54,
+        "totalTokens": 22842,
+        "cacheReadTokens": 0
+      }
+    },
+    {
+      "requestId": "058264ab-83e2-4ed2-930f-d974128053af",
+      "eventType": "model.request.started",
+      "timestamp": "2026-11-28T13:19:02.754Z",
+      "executionStage": "PRIMARY_ANALYSIS",
+      "requestContext": {
+        "format": "CHAT_COMPLETIONS",
+        "systemChars": 4247,
+        "userChars": 1921,
+        "historyChars": 49524,
+        "toolResultChars": 2873,
+        "toolsChars": 10110,
+        "skillsChars": null,
+        "evidenceChars": null,
+        "requestBytes": 81995
+      },
+      "usage": {
+        "inputTokens": null,
+        "outputTokens": null,
+        "totalTokens": null,
+        "cacheReadTokens": null
+      }
+    },
+    {
+      "requestId": "058264ab-83e2-4ed2-930f-d974128053af",
+      "eventType": "model.request.completed",
+      "timestamp": "2026-11-28T13:20:50.594Z",
+      "status": "SUCCEEDED",
+      "durationMs": 107818,
+      "executionStage": "PRIMARY_ANALYSIS",
+      "requestContext": {
+        "format": "CHAT_COMPLETIONS",
+        "systemChars": 4247,
+        "userChars": 1921,
+        "historyChars": 49524,
+        "toolResultChars": 2873,
+        "toolsChars": 10110,
+        "skillsChars": null,
+        "evidenceChars": null,
+        "requestBytes": 81995
+      },
+      "usage": {
+        "inputTokens": 22974,
+        "outputTokens": 6657,
+        "totalTokens": 29631,
+        "cacheReadTokens": 22400
+      }
+    },
+    {
+      "requestId": "8a186fed-3a11-4315-baa2-22a09e0d4328",
+      "eventType": "model.request.started",
+      "timestamp": "2026-11-28T13:20:51.841Z",
+      "executionStage": "PRIMARY_ANALYSIS",
+      "requestContext": {
+        "format": "CHAT_COMPLETIONS",
+        "systemChars": 4247,
+        "userChars": 1921,
+        "historyChars": 69072,
+        "toolResultChars": 3224,
+        "toolsChars": 10110,
+        "skillsChars": null,
+        "evidenceChars": null,
+        "requestBytes": 105383
+      },
+      "usage": {
+        "inputTokens": null,
+        "outputTokens": null,
+        "totalTokens": null,
+        "cacheReadTokens": null
+      }
+    },
+    {
+      "requestId": "8a186fed-3a11-4315-baa2-22a09e0d4328",
+      "eventType": "model.request.completed",
+      "timestamp": "2026-11-28T13:20:55.553Z",
+      "status": "SUCCEEDED",
+      "durationMs": 2721,
+      "executionStage": "PRIMARY_ANALYSIS",
+      "requestContext": {
+        "format": "CHAT_COMPLETIONS",
+        "systemChars": 4247,
+        "userChars": 1921,
+        "historyChars": 69072,
+        "toolResultChars": 3224,
+        "toolsChars": 10110,
+        "skillsChars": null,
+        "evidenceChars": null,
+        "requestBytes": 105383
+      },
+      "usage": {
+        "inputTokens": 29738,
+        "outputTokens": 52,
+        "totalTokens": 29790,
+        "cacheReadTokens": 0
+      }
+    },
+    {
+      "requestId": "71d61200-4cf7-489a-a4e8-1867a08a8119",
+      "eventType": "model.request.started",
+      "timestamp": "2026-11-28T13:20:56.883Z",
+      "executionStage": "PRIMARY_ANALYSIS",
+      "requestContext": {
+        "format": "CHAT_COMPLETIONS",
+        "systemChars": 4247,
+        "userChars": 1921,
+        "historyChars": 69156,
+        "toolResultChars": 3480,
+        "toolsChars": 10110,
+        "skillsChars": null,
+        "evidenceChars": null,
+        "requestBytes": 106014
+      },
+      "usage": {
+        "inputTokens": null,
+        "outputTokens": null,
+        "totalTokens": null,
+        "cacheReadTokens": null
+      }
+    },
+    {
+      "requestId": "71d61200-4cf7-489a-a4e8-1867a08a8119",
+      "eventType": "model.request.completed",
+      "timestamp": "2026-11-28T13:20:59.174Z",
+      "status": "SUCCEEDED",
+      "durationMs": 2295,
+      "executionStage": "PRIMARY_ANALYSIS",
+      "requestContext": {
+        "format": "CHAT_COMPLETIONS",
+        "systemChars": 4247,
+        "userChars": 1921,
+        "historyChars": 69156,
+        "toolResultChars": 3480,
+        "toolsChars": 10110,
+        "skillsChars": null,
+        "evidenceChars": null,
+        "requestBytes": 106014
+      },
+      "usage": {
+        "inputTokens": 29884,
+        "outputTokens": 80,
+        "totalTokens": 29964,
+        "cacheReadTokens": 29312
+      }
+    },
+    {
+      "requestId": "c9e72777-02be-49b1-a6fe-fe0a210ed740",
+      "eventType": "model.request.started",
+      "timestamp": "2026-11-28T13:20:59.982Z",
+      "executionStage": "PRIMARY_ANALYSIS",
+      "requestContext": {
+        "format": "CHAT_COMPLETIONS",
+        "systemChars": 96,
+        "userChars": 52580,
+        "historyChars": 0,
+        "toolResultChars": 0,
+        "toolsChars": 0,
+        "skillsChars": null,
+        "evidenceChars": null,
+        "requestBytes": 59275
+      },
+      "usage": {
+        "inputTokens": null,
+        "outputTokens": null,
+        "totalTokens": null,
+        "cacheReadTokens": null
+      }
+    },
+    {
+      "requestId": "c9e72777-02be-49b1-a6fe-fe0a210ed740",
+      "eventType": "model.request.completed",
+      "timestamp": "2026-11-28T13:21:22.369Z",
+      "status": "SUCCEEDED",
+      "durationMs": 21243,
+      "executionStage": "PRIMARY_ANALYSIS",
+      "requestContext": {
+        "format": "CHAT_COMPLETIONS",
+        "systemChars": 96,
+        "userChars": 52580,
+        "historyChars": 0,
+        "toolResultChars": 0,
+        "toolsChars": 0,
+        "skillsChars": null,
+        "evidenceChars": null,
+        "requestBytes": 59275
+      },
+      "usage": {
+        "inputTokens": 16436,
+        "outputTokens": 1220,
+        "totalTokens": 17656,
+        "cacheReadTokens": 0
+      }
+    },
+    {
+      "requestId": "94c5b6c2-0306-4300-8b5d-6c560704732a",
+      "eventType": "model.request.started",
+      "timestamp": "2026-11-28T13:21:25.503Z",
+      "executionStage": "PRIMARY_ANALYSIS",
+      "requestContext": {
+        "format": "CHAT_COMPLETIONS",
+        "systemChars": 4247,
+        "userChars": 1195,
+        "historyChars": 19809,
+        "toolResultChars": 42514,
+        "toolsChars": 10110,
+        "skillsChars": null,
+        "evidenceChars": null,
+        "requestBytes": 88288
+      },
+      "usage": {
+        "inputTokens": null,
+        "outputTokens": null,
+        "totalTokens": null,
+        "cacheReadTokens": null
+      }
+    },
+    {
+      "requestId": "94c5b6c2-0306-4300-8b5d-6c560704732a",
+      "eventType": "model.request.completed",
+      "timestamp": "2026-11-28T13:21:34.338Z",
+      "status": "SUCCEEDED",
+      "durationMs": 8835,
+      "executionStage": "PRIMARY_ANALYSIS",
+      "requestContext": {
+        "format": "CHAT_COMPLETIONS",
+        "systemChars": 4247,
+        "userChars": 1195,
+        "historyChars": 19809,
+        "toolResultChars": 42514,
+        "toolsChars": 10110,
+        "skillsChars": null,
+        "evidenceChars": null,
+        "requestBytes": 88288
+      },
+      "usage": {
+        "inputTokens": 33779,
+        "outputTokens": 416,
+        "totalTokens": 34195,
+        "cacheReadTokens": 0
+      }
+    },
+    {
+      "requestId": "efa582d7-1886-4ad9-8711-ab3f86047aa1",
+      "eventType": "model.request.started",
+      "timestamp": "2026-11-28T13:21:35.203Z",
+      "executionStage": "PRIMARY_ANALYSIS",
+      "requestContext": {
+        "format": "CHAT_COMPLETIONS",
+        "systemChars": 4247,
+        "userChars": 1195,
+        "historyChars": 20172,
+        "toolResultChars": 53807,
+        "toolsChars": 10110,
+        "skillsChars": null,
+        "evidenceChars": null,
+        "requestBytes": 101810
+      },
+      "usage": {
+        "inputTokens": null,
+        "outputTokens": null,
+        "totalTokens": null,
+        "cacheReadTokens": null
+      }
+    },
+    {
+      "requestId": "efa582d7-1886-4ad9-8711-ab3f86047aa1",
+      "eventType": "model.request.completed",
+      "timestamp": "2026-11-28T13:21:44.720Z",
+      "status": "SUCCEEDED",
+      "durationMs": 9463,
+      "executionStage": "PRIMARY_ANALYSIS",
+      "requestContext": {
+        "format": "CHAT_COMPLETIONS",
+        "systemChars": 4247,
+        "userChars": 1195,
+        "historyChars": 20172,
+        "toolResultChars": 53807,
+        "toolsChars": 10110,
+        "skillsChars": null,
+        "evidenceChars": null,
+        "requestBytes": 101810
+      },
+      "usage": {
+        "inputTokens": 39625,
+        "outputTokens": 508,
+        "totalTokens": 40133,
+        "cacheReadTokens": 32640
+      }
+    },
+    {
+      "requestId": "ec190552-778f-4e70-add2-19c03bb47472",
+      "eventType": "model.request.started",
+      "timestamp": "2026-11-28T13:21:45.328Z",
+      "executionStage": "PRIMARY_ANALYSIS",
+      "requestContext": {
+        "format": "CHAT_COMPLETIONS",
+        "systemChars": 4247,
+        "userChars": 1195,
+        "historyChars": 20575,
+        "toolResultChars": 60788,
+        "toolsChars": 10110,
+        "skillsChars": null,
+        "evidenceChars": null,
+        "requestBytes": 111251
+      },
+      "usage": {
+        "inputTokens": null,
+        "outputTokens": null,
+        "totalTokens": null,
+        "cacheReadTokens": null
+      }
+    },
+    {
+      "requestId": "ec190552-778f-4e70-add2-19c03bb47472",
+      "eventType": "model.request.completed",
+      "timestamp": "2026-11-28T13:21:50.894Z",
+      "status": "SUCCEEDED",
+      "durationMs": 5562,
+      "executionStage": "PRIMARY_ANALYSIS",
+      "requestContext": {
+        "format": "CHAT_COMPLETIONS",
+        "systemChars": 4247,
+        "userChars": 1195,
+        "historyChars": 20575,
+        "toolResultChars": 60788,
+        "toolsChars": 10110,
+        "skillsChars": null,
+        "evidenceChars": null,
+        "requestBytes": 111251
+      },
+      "usage": {
+        "inputTokens": 42589,
+        "outputTokens": 240,
+        "totalTokens": 42829,
+        "cacheReadTokens": 39168
+      }
+    },
+    {
+      "requestId": "09390c51-7d83-467b-b6f6-779cf51aeb53",
+      "eventType": "model.request.started",
+      "timestamp": "2026-11-28T13:21:55.225Z",
+      "executionStage": "PRIMARY_ANALYSIS",
+      "requestContext": {
+        "format": "CHAT_COMPLETIONS",
+        "systemChars": 4247,
+        "userChars": 1195,
+        "historyChars": 21184,
+        "toolResultChars": 61653,
+        "toolsChars": 10110,
+        "skillsChars": null,
+        "evidenceChars": null,
+        "requestBytes": 113228
+      },
+      "usage": {
+        "inputTokens": null,
+        "outputTokens": null,
+        "totalTokens": null,
+        "cacheReadTokens": null
+      }
+    },
+    {
+      "requestId": "09390c51-7d83-467b-b6f6-779cf51aeb53",
+      "eventType": "model.request.completed",
+      "timestamp": "2026-11-28T13:22:01.200Z",
+      "status": "SUCCEEDED",
+      "durationMs": 5976,
+      "executionStage": "PRIMARY_ANALYSIS",
+      "requestContext": {
+        "format": "CHAT_COMPLETIONS",
+        "systemChars": 4247,
+        "userChars": 1195,
+        "historyChars": 21184,
+        "toolResultChars": 61653,
+        "toolsChars": 10110,
+        "skillsChars": null,
+        "evidenceChars": null,
+        "requestBytes": 113228
+      },
+      "usage": {
+        "inputTokens": 43096,
+        "outputTokens": 224,
+        "totalTokens": 43320,
+        "cacheReadTokens": 41344
+      }
+    },
+    {
+      "requestId": "d3b82b51-6af8-491b-be09-355204e24871",
+      "eventType": "model.request.started",
+      "timestamp": "2026-11-28T13:22:01.927Z",
+      "executionStage": "PRIMARY_ANALYSIS",
+      "requestContext": {
+        "format": "CHAT_COMPLETIONS",
+        "systemChars": 4247,
+        "userChars": 1195,
+        "historyChars": 21755,
+        "toolResultChars": 62462,
+        "toolsChars": 10110,
+        "skillsChars": null,
+        "evidenceChars": null,
+        "requestBytes": 115007
+      },
+      "usage": {
+        "inputTokens": null,
+        "outputTokens": null,
+        "totalTokens": null,
+        "cacheReadTokens": null
+      }
+    },
+    {
+      "requestId": "d3b82b51-6af8-491b-be09-355204e24871",
+      "eventType": "model.request.completed",
+      "timestamp": "2026-11-28T13:22:06.536Z",
+      "status": "SUCCEEDED",
+      "durationMs": 4626,
+      "executionStage": "PRIMARY_ANALYSIS",
+      "requestContext": {
+        "format": "CHAT_COMPLETIONS",
+        "systemChars": 4247,
+        "userChars": 1195,
+        "historyChars": 21755,
+        "toolResultChars": 62462,
+        "toolsChars": 10110,
+        "skillsChars": null,
+        "evidenceChars": null,
+        "requestBytes": 115007
+      },
+      "usage": {
+        "inputTokens": 43583,
+        "outputTokens": 210,
+        "totalTokens": 43793,
+        "cacheReadTokens": 41344
+      }
+    },
+    {
+      "requestId": "c465eb65-56a5-4f4a-a86c-697e4d055a8f",
+      "eventType": "model.request.started",
+      "timestamp": "2026-11-28T13:22:08.259Z",
+      "executionStage": "PRIMARY_ANALYSIS",
+      "requestContext": {
+        "format": "CHAT_COMPLETIONS",
+        "systemChars": 4247,
+        "userChars": 1195,
+        "historyChars": 22373,
+        "toolResultChars": 64732,
+        "toolsChars": 10110,
+        "skillsChars": null,
+        "evidenceChars": null,
+        "requestBytes": 118342
+      },
+      "usage": {
+        "inputTokens": null,
+        "outputTokens": null,
+        "totalTokens": null,
+        "cacheReadTokens": null
+      }
+    },
+    {
+      "requestId": "c465eb65-56a5-4f4a-a86c-697e4d055a8f",
+      "eventType": "model.request.completed",
+      "timestamp": "2026-11-28T13:24:30.982Z",
+      "status": "SUCCEEDED",
+      "durationMs": 142737,
+      "executionStage": "PRIMARY_ANALYSIS",
+      "requestContext": {
+        "format": "CHAT_COMPLETIONS",
+        "systemChars": 4247,
+        "userChars": 1195,
+        "historyChars": 22373,
+        "toolResultChars": 64732,
+        "toolsChars": 10110,
+        "skillsChars": null,
+        "evidenceChars": null,
+        "requestBytes": 118342
+      },
+      "usage": {
+        "inputTokens": 44608,
+        "outputTokens": 8732,
+        "totalTokens": 53340,
+        "cacheReadTokens": 43520
+      }
+    },
+    {
+      "requestId": "a567c541-4c68-4b5e-9394-b57e0d1eede8",
+      "eventType": "model.request.started",
+      "timestamp": "2026-11-28T13:24:31.981Z",
+      "executionStage": "PRIMARY_ANALYSIS",
+      "requestContext": {
+        "format": "CHAT_COMPLETIONS",
+        "systemChars": 4247,
+        "userChars": 1195,
+        "historyChars": 47521,
+        "toolResultChars": 65083,
+        "toolsChars": 10110,
+        "skillsChars": null,
+        "evidenceChars": null,
+        "requestBytes": 150086
+      },
+      "usage": {
+        "inputTokens": null,
+        "outputTokens": null,
+        "totalTokens": null,
+        "cacheReadTokens": null
+      }
+    },
+    {
+      "requestId": "a567c541-4c68-4b5e-9394-b57e0d1eede8",
+      "eventType": "model.request.completed",
+      "timestamp": "2026-11-28T13:24:35.025Z",
+      "status": "SUCCEEDED",
+      "durationMs": 3038,
+      "executionStage": "PRIMARY_ANALYSIS",
+      "requestContext": {
+        "format": "CHAT_COMPLETIONS",
+        "systemChars": 4247,
+        "userChars": 1195,
+        "historyChars": 47521,
+        "toolResultChars": 65083,
+        "toolsChars": 10110,
+        "skillsChars": null,
+        "evidenceChars": null,
+        "requestBytes": 150086
+      },
+      "usage": {
+        "inputTokens": 53447,
+        "outputTokens": 52,
+        "totalTokens": 53499,
+        "cacheReadTokens": 0
+      }
+    },
+    {
+      "requestId": "f45a6dbd-8ad2-4b96-b83a-baad5249a117",
+      "eventType": "model.request.started",
+      "timestamp": "2026-11-28T13:24:36.105Z",
+      "executionStage": "PRIMARY_ANALYSIS",
+      "requestContext": {
+        "format": "CHAT_COMPLETIONS",
+        "systemChars": 96,
+        "userChars": 21555,
+        "historyChars": 0,
+        "toolResultChars": 0,
+        "toolsChars": 0,
+        "skillsChars": null,
+        "evidenceChars": null,
+        "requestBytes": 24897
+      },
+      "usage": {
+        "inputTokens": null,
+        "outputTokens": null,
+        "totalTokens": null,
+        "cacheReadTokens": null
+      }
+    },
+    {
+      "requestId": "f45a6dbd-8ad2-4b96-b83a-baad5249a117",
+      "eventType": "model.request.completed",
+      "timestamp": "2026-11-28T13:24:40.282Z",
+      "status": "SUCCEEDED",
+      "durationMs": 4146,
+      "executionStage": "PRIMARY_ANALYSIS",
+      "requestContext": {
+        "format": "CHAT_COMPLETIONS",
+        "systemChars": 96,
+        "userChars": 21555,
+        "historyChars": 0,
+        "toolResultChars": 0,
+        "toolsChars": 0,
+        "skillsChars": null,
+        "evidenceChars": null,
+        "requestBytes": 24897
+      },
+      "usage": {
+        "inputTokens": 7071,
+        "outputTokens": 191,
+        "totalTokens": 7262,
+        "cacheReadTokens": 0
+      }
+    },
+    {
+      "requestId": "226464d4-8e5c-45ac-b3e5-a524f2cca57b",
+      "eventType": "model.request.started",
+      "timestamp": "2026-11-28T13:24:40.682Z",
+      "executionStage": "PRIMARY_ANALYSIS",
+      "requestContext": {
+        "format": "CHAT_COMPLETIONS",
+        "systemChars": 4247,
+        "userChars": 960,
+        "historyChars": 27796,
+        "toolResultChars": 22899,
+        "toolsChars": 10110,
+        "skillsChars": null,
+        "evidenceChars": null,
+        "requestBytes": 78086
+      },
+      "usage": {
+        "inputTokens": null,
+        "outputTokens": null,
+        "totalTokens": null,
+        "cacheReadTokens": null
+      }
+    },
+    {
+      "requestId": "226464d4-8e5c-45ac-b3e5-a524f2cca57b",
+      "eventType": "model.request.completed",
+      "timestamp": "2026-11-28T13:24:43.287Z",
+      "status": "SUCCEEDED",
+      "durationMs": 2606,
+      "executionStage": "PRIMARY_ANALYSIS",
+      "requestContext": {
+        "format": "CHAT_COMPLETIONS",
+        "systemChars": 4247,
+        "userChars": 960,
+        "historyChars": 27796,
+        "toolResultChars": 22899,
+        "toolsChars": 10110,
+        "skillsChars": null,
+        "evidenceChars": null,
+        "requestBytes": 78086
+      },
+      "usage": {
+        "inputTokens": 23680,
+        "outputTokens": 58,
+        "totalTokens": 23738,
+        "cacheReadTokens": 0
+      }
+    },
+    {
+      "requestId": "7443c6b5-3925-481e-9919-7d27043b3da3",
+      "eventType": "model.request.started",
+      "timestamp": "2026-11-28T13:24:44.321Z",
+      "executionStage": "PRIMARY_ANALYSIS",
+      "requestContext": {
+        "format": "CHAT_COMPLETIONS",
+        "systemChars": 4247,
+        "userChars": 960,
+        "historyChars": 27911,
+        "toolResultChars": 64854,
+        "toolsChars": 10110,
+        "skillsChars": null,
+        "evidenceChars": null,
+        "requestBytes": 126260
+      },
+      "usage": {
+        "inputTokens": null,
+        "outputTokens": null,
+        "totalTokens": null,
+        "cacheReadTokens": null
+      }
+    },
+    {
+      "requestId": "7443c6b5-3925-481e-9919-7d27043b3da3",
+      "eventType": "model.request.completed",
+      "timestamp": "2026-11-28T13:24:57.760Z",
+      "status": "SUCCEEDED",
+      "durationMs": 13440,
+      "executionStage": "PRIMARY_ANALYSIS",
+      "requestContext": {
+        "format": "CHAT_COMPLETIONS",
+        "systemChars": 4247,
+        "userChars": 960,
+        "historyChars": 27911,
+        "toolResultChars": 64854,
+        "toolsChars": 10110,
+        "skillsChars": null,
+        "evidenceChars": null,
+        "requestBytes": 126260
+      },
+      "usage": {
+        "inputTokens": 46733,
+        "outputTokens": 717,
+        "totalTokens": 47450,
+        "cacheReadTokens": 0
+      }
+    },
+    {
+      "requestId": "2cdaecc2-aecd-48b1-8696-92e2bfcf5cfb",
+      "eventType": "model.request.started",
+      "timestamp": "2026-11-28T13:25:29.137Z",
+      "executionStage": "DELIVERY_REPAIR",
+      "requestContext": {
+        "format": "CHAT_COMPLETIONS",
+        "systemChars": 4247,
+        "userChars": 9483,
+        "historyChars": 30345,
+        "toolResultChars": 64854,
+        "toolsChars": 10110,
+        "skillsChars": null,
+        "evidenceChars": null,
+        "requestBytes": 138975
+      },
+      "usage": {
+        "inputTokens": null,
+        "outputTokens": null,
+        "totalTokens": null,
+        "cacheReadTokens": null
+      }
+    },
+    {
+      "requestId": "2cdaecc2-aecd-48b1-8696-92e2bfcf5cfb",
+      "eventType": "model.request.completed",
+      "timestamp": "2026-11-28T13:25:35.326Z",
+      "status": "SUCCEEDED",
+      "durationMs": 6193,
+      "executionStage": "DELIVERY_REPAIR",
+      "requestContext": {
+        "format": "CHAT_COMPLETIONS",
+        "systemChars": 4247,
+        "userChars": 9483,
+        "historyChars": 30345,
+        "toolResultChars": 64854,
+        "toolsChars": 10110,
+        "skillsChars": null,
+        "evidenceChars": null,
+        "requestBytes": 138975
+      },
+      "usage": {
+        "inputTokens": 47925,
+        "outputTokens": 261,
+        "totalTokens": 48186,
+        "cacheReadTokens": 0
+      }
+    },
+    {
+      "requestId": "009fafef-60ea-4085-8647-ad1175658bc7",
+      "eventType": "model.request.started",
+      "timestamp": "2026-11-28T13:25:36.280Z",
+      "executionStage": "DELIVERY_REPAIR",
+      "requestContext": {
+        "format": "CHAT_COMPLETIONS",
+        "systemChars": 4247,
+        "userChars": 9483,
+        "historyChars": 30708,
+        "toolResultChars": 70193,
+        "toolsChars": 10110,
+        "skillsChars": null,
+        "evidenceChars": null,
+        "requestBytes": 145594
+      },
+      "usage": {
+        "inputTokens": null,
+        "outputTokens": null,
+        "totalTokens": null,
+        "cacheReadTokens": null
+      }
+    },
+    {
+      "requestId": "009fafef-60ea-4085-8647-ad1175658bc7",
+      "eventType": "model.request.completed",
+      "timestamp": "2026-11-28T13:25:42.132Z",
+      "status": "SUCCEEDED",
+      "durationMs": 5852,
+      "executionStage": "DELIVERY_REPAIR",
+      "requestContext": {
+        "format": "CHAT_COMPLETIONS",
+        "systemChars": 4247,
+        "userChars": 9483,
+        "historyChars": 30708,
+        "toolResultChars": 70193,
+        "toolsChars": 10110,
+        "skillsChars": null,
+        "evidenceChars": null,
+        "requestBytes": 145594
+      },
+      "usage": {
+        "inputTokens": 48895,
+        "outputTokens": 229,
+        "totalTokens": 49124,
+        "cacheReadTokens": 0
+      }
+    },
+    {
+      "requestId": "fda81875-4ffa-4ffd-9a38-27a6e9cb15c0",
+      "eventType": "model.request.started",
+      "timestamp": "2026-11-28T13:25:42.745Z",
+      "executionStage": "DELIVERY_REPAIR",
+      "requestContext": {
+        "format": "CHAT_COMPLETIONS",
+        "systemChars": 4247,
+        "userChars": 9483,
+        "historyChars": 31236,
+        "toolResultChars": 70812,
+        "toolsChars": 10110,
+        "skillsChars": null,
+        "evidenceChars": null,
+        "requestBytes": 147276
+      },
+      "usage": {
+        "inputTokens": null,
+        "outputTokens": null,
+        "totalTokens": null,
+        "cacheReadTokens": null
+      }
+    },
+    {
+      "requestId": "fda81875-4ffa-4ffd-9a38-27a6e9cb15c0",
+      "eventType": "model.request.completed",
+      "timestamp": "2026-11-28T13:26:09.464Z",
+      "status": "FAILED",
+      "durationMs": 26717,
+      "errorCode": "RUNTIME_DEADLINE_EXCEEDED",
+      "executionStage": "DELIVERY_REPAIR",
+      "requestContext": {
+        "format": "CHAT_COMPLETIONS",
+        "systemChars": 4247,
+        "userChars": 9483,
+        "historyChars": 31236,
+        "toolResultChars": 70812,
+        "toolsChars": 10110,
+        "skillsChars": null,
+        "evidenceChars": null,
+        "requestBytes": 147276
+      },
+      "usage": {
+        "inputTokens": null,
+        "outputTokens": null,
+        "totalTokens": null,
+        "cacheReadTokens": null
+      }
+    }
+  ],
+  "toolAndCommandEvents": [
+    {
+      "type": "command.completed",
+      "time": "2026-11-28T13:08:23.637Z",
+      "durationMs": 102.269032,
+      "exitCode": 0,
+      "recordId": "4b9267c9-3f02-4360-8fba-bf68865a56c4"
+    },
+    {
+      "type": "command.error",
+      "time": "2026-11-28T13:08:24.910Z",
+      "recordId": "e6a0e133-acb1-492c-9896-d06771ae5517"
+    },
+    {
+      "type": "command.completed",
+      "time": "2026-11-28T13:08:24.911Z",
+      "durationMs": 66.863288,
+      "exitCode": 128,
+      "recordId": "4f8da654-b44e-488a-a719-fa7d14a626fe"
+    },
+    {
+      "type": "command.completed",
+      "time": "2026-11-28T13:08:24.921Z",
+      "durationMs": 11.233454,
+      "exitCode": -2,
+      "recordId": "e6a0e133-acb1-492c-9896-d06771ae5517"
+    },
+    {
+      "type": "command.completed",
+      "time": "2026-11-28T13:08:25.683Z",
+      "durationMs": 1.639155,
+      "exitCode": 128,
+      "recordId": "5756d6d2-c40e-4f31-9220-70fee6f17a39"
+    },
+    {
+      "type": "command.completed",
+      "time": "2026-11-28T13:08:25.871Z",
+      "durationMs": 2.595219,
+      "exitCode": 128,
+      "recordId": "32c4cc53-4b29-47c5-a48c-32843b91b585"
+    },
+    {
+      "type": "command.completed",
+      "time": "2026-11-28T13:08:25.944Z",
+      "durationMs": 4.576855,
+      "exitCode": 1,
+      "recordId": "727fc246-911c-4307-bd35-ebacd7961927"
+    },
+    {
+      "type": "command.completed",
+      "time": "2026-11-28T13:08:25.980Z",
+      "durationMs": 7.726418,
+      "exitCode": 1,
+      "recordId": "21905bac-ab39-4e12-9b39-0032180c9bd9"
+    },
+    {
+      "type": "command.completed",
+      "time": "2026-11-28T13:08:26.018Z",
+      "durationMs": 3.608143,
+      "exitCode": 128,
+      "recordId": "99bc6367-fe54-4d92-a64e-56b5ab5f448f"
+    },
+    {
+      "type": "command.completed",
+      "time": "2026-11-28T13:08:31.456Z",
+      "durationMs": 8.270813,
+      "exitCode": 1,
+      "recordId": "c4c3c261-1497-436e-b9d5-fe0384e71ec2"
+    },
+    {
+      "type": "command.completed",
+      "time": "2026-11-28T13:08:31.984Z",
+      "durationMs": 3.940922,
+      "exitCode": 1,
+      "recordId": "49016604-afb9-4f5d-a36c-cc6564eb639a"
+    },
+    {
+      "type": "tool.started",
+      "time": "2026-11-28T13:08:32.435Z",
+      "toolName": "read_files",
+      "toolCallId": "call_d2a799d87fcd4d24a58ec699",
+      "inputBytes": 119,
+      "inputSha256": "b0a9b5b84ac000ca043f8e0a7c40dcd92a1c65a71783679aac87b3105173836b"
+    },
+    {
+      "type": "command.completed",
+      "time": "2026-11-28T13:08:32.525Z",
+      "durationMs": 12.07716,
+      "exitCode": 1,
+      "recordId": "70916763-4e2e-4fa1-aa3e-8fe4a833e22e"
+    },
+    {
+      "type": "tool.completed",
+      "time": "2026-11-28T13:08:32.528Z",
+      "toolName": "read_files",
+      "toolCallId": "call_d2a799d87fcd4d24a58ec699",
+      "durationMs": 92,
+      "outputBytes": 14469,
+      "outputSha256": "c6348db6f4fc8d7018eb78c81ddef28911de173defec4e288eca07d43c4592f9"
+    },
+    {
+      "type": "tool.started",
+      "time": "2026-11-28T13:08:32.530Z",
+      "toolName": "read_files",
+      "toolCallId": "call_378b5a77de534ab68fc1b6be",
+      "inputBytes": 206,
+      "inputSha256": "ff6a259efa28b4119243d41492cda710be7844a0270edd87cec8aac03078eff6"
+    },
+    {
+      "type": "command.completed",
+      "time": "2026-11-28T13:08:32.565Z",
+      "durationMs": 7.711421,
+      "exitCode": 1,
+      "recordId": "d576f618-86c0-4d37-98b7-6f84908bd249"
+    },
+    {
+      "type": "tool.completed",
+      "time": "2026-11-28T13:08:32.567Z",
+      "toolName": "read_files",
+      "toolCallId": "call_378b5a77de534ab68fc1b6be",
+      "durationMs": 39,
+      "outputBytes": 14055,
+      "outputSha256": "4b77d9ba239ab778d2d27f863d51e575932698c82088b1a3f5ba0a0654be2f59"
+    },
+    {
+      "type": "command.completed",
+      "time": "2026-11-28T13:08:39.708Z",
+      "durationMs": 51.145221,
+      "exitCode": 1,
+      "recordId": "ec8dc3a7-00a7-4046-a223-664f88a3e681"
+    },
+    {
+      "type": "command.completed",
+      "time": "2026-11-28T13:08:40.099Z",
+      "durationMs": 5.138912,
+      "exitCode": 1,
+      "recordId": "2f11aac0-3f9c-495d-96ea-ca5c32e94d60"
+    },
+    {
+      "type": "tool.started",
+      "time": "2026-11-28T13:08:40.472Z",
+      "toolName": "read_files",
+      "toolCallId": "call_1c9f98dd5fcb426c8d2c11a3",
+      "inputBytes": 455,
+      "inputSha256": "59f14517ef1ee21572f9ae1cc18eba75505692b025936c5cef5b479aa117b6e7"
+    },
+    {
+      "type": "command.completed",
+      "time": "2026-11-28T13:08:40.537Z",
+      "durationMs": 13.170332,
+      "exitCode": 1,
+      "recordId": "0ef3c871-69fc-4110-98d7-7320c1b12517"
+    },
+    {
+      "type": "tool.completed",
+      "time": "2026-11-28T13:08:40.550Z",
+      "toolName": "read_files",
+      "toolCallId": "call_1c9f98dd5fcb426c8d2c11a3",
+      "durationMs": 84,
+      "outputBytes": 11540,
+      "outputSha256": "8ee07f330f63c057f83fba9ec780df0b0df798634a2e77c471139a4da56060e3"
+    },
+    {
+      "type": "tool.started",
+      "time": "2026-11-28T13:08:40.558Z",
+      "toolName": "read_files",
+      "toolCallId": "call_97387c27121b4b1f9d579b94",
+      "inputBytes": 461,
+      "inputSha256": "865ccf97f66006700a4f38941683528827742572b8b5e4bcbac1326843273e9a"
+    },
+    {
+      "type": "command.completed",
+      "time": "2026-11-28T13:08:40.611Z",
+      "durationMs": 5.228106,
+      "exitCode": 1,
+      "recordId": "a1316ea8-f555-4de6-a012-6513b055674a"
+    },
+    {
+      "type": "tool.completed",
+      "time": "2026-11-28T13:08:40.613Z",
+      "toolName": "read_files",
+      "toolCallId": "call_97387c27121b4b1f9d579b94",
+      "durationMs": 76,
+      "outputBytes": 13614,
+      "outputSha256": "b01cef8dfd5dfa44c83a716ad5ffa1180ce7e7ae5bf6c020c43c4f1641c288da"
+    },
+    {
+      "type": "command.completed",
+      "time": "2026-11-28T13:08:55.769Z",
+      "durationMs": 26.312132,
+      "exitCode": 1,
+      "recordId": "1410de4e-f865-4792-83e6-32aad27a555c"
+    },
+    {
+      "type": "tool.started",
+      "time": "2026-11-28T13:08:55.948Z",
+      "toolName": "run_commands",
+      "toolCallId": "call_aa29ebe88c22478ab300bd88",
+      "inputBytes": 1321,
+      "inputSha256": "0d45fda63848042abd73a663ed6cce1e7d73c1f9cb8685d622da8e47f5d4c82f"
+    },
+    {
+      "type": "command.completed",
+      "time": "2026-11-28T13:08:56.533Z",
+      "durationMs": 513.353366,
+      "exitCode": 0,
+      "recordId": "2e0426e6-199a-4e46-8f6a-4321bd6cc286"
+    },
+    {
+      "type": "command.completed",
+      "time": "2026-11-28T13:08:56.539Z",
+      "durationMs": 542.309224,
+      "exitCode": 0,
+      "recordId": "513cd969-32d4-4ef6-8a93-a2a8bb77e427"
+    },
+    {
+      "type": "command.completed",
+      "time": "2026-11-28T13:08:56.576Z",
+      "durationMs": 6.618881,
+      "exitCode": 1,
+      "recordId": "636ccb68-f65a-4de1-8cbf-e990692188b8"
+    },
+    {
+      "type": "tool.completed",
+      "time": "2026-11-28T13:08:56.578Z",
+      "toolName": "run_commands",
+      "toolCallId": "call_aa29ebe88c22478ab300bd88",
+      "durationMs": 630,
+      "outputBytes": 5613,
+      "outputSha256": "1c96d86a82dd7f32f1db25e39ff254232cbb3f76ab58f8803cba4138bc95f4ac"
+    },
+    {
+      "type": "command.completed",
+      "time": "2026-11-28T13:09:03.691Z",
+      "durationMs": 36.352703,
+      "exitCode": 1,
+      "recordId": "faae1a60-64ed-4571-9fac-cac3c39cb895"
+    },
+    {
+      "type": "tool.started",
+      "time": "2026-11-28T13:09:03.953Z",
+      "toolName": "run_commands",
+      "toolCallId": "call_7f03f199ac404cd3b3fdd5df",
+      "inputBytes": 967,
+      "inputSha256": "21c3d1b53c0a2f5a5534e115b664dd04805eb368708e76e634359bd4fbd43360"
+    },
+    {
+      "type": "command.completed",
+      "time": "2026-11-28T13:09:04.192Z",
+      "durationMs": 199.506479,
+      "exitCode": 0,
+      "recordId": "dc0df7e7-7a98-418d-bee6-24d49552e687"
+    },
+    {
+      "type": "command.completed",
+      "time": "2026-11-28T13:09:04.197Z",
+      "durationMs": 180.075682,
+      "exitCode": 0,
+      "recordId": "5f40b85e-f844-4567-8641-97b7d1599839"
+    },
+    {
+      "type": "command.completed",
+      "time": "2026-11-28T13:09:04.209Z",
+      "durationMs": 224.275186,
+      "exitCode": 0,
+      "recordId": "d1572cc9-9fcc-4a88-8274-a6541b59c222"
+    },
+    {
+      "type": "command.completed",
+      "time": "2026-11-28T13:09:04.250Z",
+      "durationMs": 10.549658,
+      "exitCode": 1,
+      "recordId": "c7353c25-1fba-4f93-bb3c-7ce038067aad"
+    },
+    {
+      "type": "tool.completed",
+      "time": "2026-11-28T13:09:04.253Z",
+      "toolName": "run_commands",
+      "toolCallId": "call_7f03f199ac404cd3b3fdd5df",
+      "durationMs": 299,
+      "outputBytes": 21502,
+      "outputSha256": "99717baca2ae0b704bb5ad1d447ae7de7d69e7cca4922e3e214bb2a112a38ee8"
+    },
+    {
+      "type": "command.completed",
+      "time": "2026-11-28T13:09:24.549Z",
+      "durationMs": 13.412348,
+      "exitCode": 1,
+      "recordId": "2343fc2b-522f-4024-b366-7e36b5bf12c4"
+    },
+    {
+      "type": "tool.started",
+      "time": "2026-11-28T13:09:25.104Z",
+      "toolName": "run_commands",
+      "toolCallId": "call_46c295e3a415430abdf8f714",
+      "inputBytes": 101,
+      "inputSha256": "41a8065042eba0e5cca2b04523ae6b904ab700974723978c519e74d70e2c4a9a"
+    },
+    {
+      "type": "command.completed",
+      "time": "2026-11-28T13:09:25.272Z",
+      "durationMs": 245.553354,
+      "exitCode": 0,
+      "recordId": "98b441e4-08b0-4ba2-8c06-aef928002e0d"
+    },
+    {
+      "type": "command.completed",
+      "time": "2026-11-28T13:09:25.305Z",
+      "durationMs": 4.006434,
+      "exitCode": 1,
+      "recordId": "5d3f5ecb-b857-4239-aebb-19b391219fb6"
+    },
+    {
+      "type": "tool.completed",
+      "time": "2026-11-28T13:09:25.306Z",
+      "toolName": "run_commands",
+      "toolCallId": "call_46c295e3a415430abdf8f714",
+      "durationMs": 328,
+      "outputBytes": 129,
+      "outputSha256": "6ccc36e4188f1ab79f7a659fc2a3d0e5d8a0da95d02e4bf1a73efec992755692"
+    },
+    {
+      "type": "tool.started",
+      "time": "2026-11-28T13:11:38.799Z",
+      "toolName": "editor",
+      "toolCallId": "call_ec12bcd268bf482482ccd4bf",
+      "inputBytes": 2,
+      "inputSha256": "44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a"
+    },
+    {
+      "type": "command.completed",
+      "time": "2026-11-28T13:11:38.924Z",
+      "durationMs": 18.493699,
+      "exitCode": 1,
+      "recordId": "362a38f1-32e8-489f-8b9f-d49404ae38d8"
+    },
+    {
+      "type": "tool.failed",
+      "time": "2026-11-28T13:11:38.924Z",
+      "toolName": "editor",
+      "toolCallId": "call_ec12bcd268bf482482ccd4bf",
+      "durationMs": 125,
+      "outputBytes": 212,
+      "outputSha256": "dfeff5482d420926f37e061f753adca1c4597de1e6b902766a43ad8df8952e37",
+      "errorClass": "INVALID_ARGUMENT"
+    },
+    {
+      "type": "model.error",
+      "time": "2026-11-28T13:11:38.927Z"
+    },
+    {
+      "type": "tool.started",
+      "time": "2026-11-28T13:13:51.468Z",
+      "toolName": "editor",
+      "toolCallId": "call_ca08f6a364fb457b90563fbe",
+      "inputBytes": 2,
+      "inputSha256": "44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a"
+    },
+    {
+      "type": "command.completed",
+      "time": "2026-11-28T13:13:51.644Z",
+      "durationMs": 13.840376,
+      "exitCode": 1,
+      "recordId": "d6e0e99e-b10b-4076-93bd-4dc3dbb8b6c8"
+    },
+    {
+      "type": "tool.failed",
+      "time": "2026-11-28T13:13:51.645Z",
+      "toolName": "editor",
+      "toolCallId": "call_ca08f6a364fb457b90563fbe",
+      "durationMs": 178,
+      "outputBytes": 212,
+      "outputSha256": "dfeff5482d420926f37e061f753adca1c4597de1e6b902766a43ad8df8952e37",
+      "errorClass": "INVALID_ARGUMENT"
+    },
+    {
+      "type": "model.error",
+      "time": "2026-11-28T13:13:51.649Z"
+    },
+    {
+      "type": "context.notice",
+      "time": "2026-11-28T13:13:51.684Z"
+    },
+    {
+      "type": "context.notice",
+      "time": "2026-11-28T13:14:26.384Z"
+    },
+    {
+      "type": "command.completed",
+      "time": "2026-11-28T13:16:38.661Z",
+      "durationMs": 16.080353,
+      "exitCode": 1,
+      "recordId": "e8e64cbf-b026-4d7e-a2ea-b118f6095554"
+    },
+    {
+      "type": "tool.started",
+      "time": "2026-11-28T13:16:39.137Z",
+      "toolName": "run_commands",
+      "toolCallId": "call_27b8bd8254dd4f65886bc449",
+      "inputBytes": 27853,
+      "inputSha256": "eea9d246ea1042385398c0c4773ee271d1aa864894e6c81a4946395a9c2d5776"
+    },
+    {
+      "type": "command.completed",
+      "time": "2026-11-28T13:16:39.353Z",
+      "durationMs": 123.165594,
+      "exitCode": 0,
+      "recordId": "29771415-d816-4155-866d-240de3c73583"
+    },
+    {
+      "type": "command.completed",
+      "time": "2026-11-28T13:16:39.389Z",
+      "durationMs": 6.963425,
+      "exitCode": 1,
+      "recordId": "cb0e6f87-8d8e-4e21-8251-8b1ce339c176"
+    },
+    {
+      "type": "tool.completed",
+      "time": "2026-11-28T13:16:39.392Z",
+      "toolName": "run_commands",
+      "toolCallId": "call_27b8bd8254dd4f65886bc449",
+      "durationMs": 257,
+      "outputBytes": 367,
+      "outputSha256": "69d4428059fd0f88077b28d1ebd1435cd3c63c3c3f296d5e22140bc1b7ac9619"
+    },
+    {
+      "type": "command.completed",
+      "time": "2026-11-28T13:16:41.909Z",
+      "durationMs": 10.774618,
+      "exitCode": 1,
+      "recordId": "550ed894-0a40-4d1a-8c51-0a9fbe3b4d95"
+    },
+    {
+      "type": "tool.started",
+      "time": "2026-11-28T13:16:42.120Z",
+      "toolName": "run_commands",
+      "toolCallId": "call_2a2c3105188c41a9814968a0",
+      "inputBytes": 73,
+      "inputSha256": "b83a4fe65e0b3cce3100af36992043fec50f6ca14c2461e2c3ddd9c0422ca1a3"
+    },
+    {
+      "type": "command.completed",
+      "time": "2026-11-28T13:16:42.600Z",
+      "durationMs": 460.311895,
+      "exitCode": 1,
+      "recordId": "ff34b1d2-9a5d-4414-98c6-dc99546bd69d"
+    },
+    {
+      "type": "command.completed",
+      "time": "2026-11-28T13:16:42.637Z",
+      "durationMs": 3.398647,
+      "exitCode": 1,
+      "recordId": "0c98d1ca-f357-4817-b8ca-dacc9a5924c7"
+    },
+    {
+      "type": "tool.failed",
+      "time": "2026-11-28T13:16:42.639Z",
+      "toolName": "run_commands",
+      "toolCallId": "call_2a2c3105188c41a9814968a0",
+      "durationMs": 518,
+      "outputBytes": 419,
+      "outputSha256": "f0df23e9d599fa3556c77d4756cbe7b1de435d799fe8532e1c63dfec93d2ce21",
+      "errorClass": "OTHER"
+    },
+    {
+      "type": "command.completed",
+      "time": "2026-11-28T13:16:45.330Z",
+      "durationMs": 14.262164,
+      "exitCode": 1,
+      "recordId": "77eb9932-1b89-4434-a595-84d2b93a9360"
+    },
+    {
+      "type": "tool.started",
+      "time": "2026-11-28T13:16:45.620Z",
+      "toolName": "read_files",
+      "toolCallId": "call_2da76ff5246c462ba008eb1e",
+      "inputBytes": 64,
+      "inputSha256": "07ad0917ad874a536e32ef4f5550af943498ecf9fbc48f5391a9905b05ea64ec"
+    },
+    {
+      "type": "command.completed",
+      "time": "2026-11-28T13:16:45.651Z",
+      "durationMs": 3.1207,
+      "exitCode": 1,
+      "recordId": "66627fd3-8f48-4a52-9af0-95baf0c71b10"
+    },
+    {
+      "type": "tool.completed",
+      "time": "2026-11-28T13:16:45.651Z",
+      "toolName": "read_files",
+      "toolCallId": "call_2da76ff5246c462ba008eb1e",
+      "durationMs": 31,
+      "outputBytes": 814,
+      "outputSha256": "b0af91ea8fe60f776fa239e07ce568e4f44ae62b5a23ddc5a61b7401bb48735d"
+    },
+    {
+      "type": "command.completed",
+      "time": "2026-11-28T13:18:58.468Z",
+      "durationMs": 7.713236,
+      "exitCode": 1,
+      "recordId": "29cf4224-b142-4b78-86c1-653f4bafd653"
+    },
+    {
+      "type": "tool.started",
+      "time": "2026-11-28T13:18:58.717Z",
+      "toolName": "run_commands",
+      "toolCallId": "call_06cb2dbed8f445318c0b19cc",
+      "inputBytes": 24116,
+      "inputSha256": "cdeb2fd0ddefce23e7ec1bfb7df1c32bfdead03b6c9d7d06206f0fbc149e5aee"
+    },
+    {
+      "type": "command.completed",
+      "time": "2026-11-28T13:18:58.906Z",
+      "durationMs": 114.666696,
+      "exitCode": 0,
+      "recordId": "55b43b88-c86c-4774-8626-44d7a82b3a00"
+    },
+    {
+      "type": "command.completed",
+      "time": "2026-11-28T13:18:58.957Z",
+      "durationMs": 5.870855,
+      "exitCode": 1,
+      "recordId": "f93c1ea3-97c4-4ce7-9165-058e0a8bcf0d"
+    },
+    {
+      "type": "tool.completed",
+      "time": "2026-11-28T13:18:58.959Z",
+      "toolName": "run_commands",
+      "toolCallId": "call_06cb2dbed8f445318c0b19cc",
+      "durationMs": 244,
+      "outputBytes": 354,
+      "outputSha256": "bddf92dffc41caa3cb39f357d1a9c1b68ecdef4de465735126e726991366248d"
+    },
+    {
+      "type": "command.completed",
+      "time": "2026-11-28T13:19:01.618Z",
+      "durationMs": 6.498094,
+      "exitCode": 1,
+      "recordId": "2927feb8-5916-4024-b074-db629afa5305"
+    },
+    {
+      "type": "tool.started",
+      "time": "2026-11-28T13:19:01.708Z",
+      "toolName": "run_commands",
+      "toolCallId": "call_148703994a4e4163ab9ed556",
+      "inputBytes": 73,
+      "inputSha256": "b83a4fe65e0b3cce3100af36992043fec50f6ca14c2461e2c3ddd9c0422ca1a3"
+    },
+    {
+      "type": "command.completed",
+      "time": "2026-11-28T13:19:02.490Z",
+      "durationMs": 759.270527,
+      "exitCode": 1,
+      "recordId": "11089961-acdf-4318-982e-945a49c705ff"
+    },
+    {
+      "type": "command.completed",
+      "time": "2026-11-28T13:19:02.540Z",
+      "durationMs": 5.637808,
+      "exitCode": 1,
+      "recordId": "b4a62cbd-a2d2-445b-8a85-52eba6aff125"
+    },
+    {
+      "type": "tool.failed",
+      "time": "2026-11-28T13:19:02.542Z",
+      "toolName": "run_commands",
+      "toolCallId": "call_148703994a4e4163ab9ed556",
+      "durationMs": 829,
+      "outputBytes": 402,
+      "outputSha256": "18dd445de297affe7807e70f81dd98b71019e3a6617f6f9f46fb7e8e9f4ee525",
+      "errorClass": "OTHER"
+    },
+    {
+      "type": "command.completed",
+      "time": "2026-11-28T13:20:50.894Z",
+      "durationMs": 20.302494,
+      "exitCode": 1,
+      "recordId": "31b98ade-6c62-4eaa-886b-13114159841a"
+    },
+    {
+      "type": "tool.started",
+      "time": "2026-11-28T13:20:51.348Z",
+      "toolName": "run_commands",
+      "toolCallId": "call_887ae127b5254f6390944499",
+      "inputBytes": 21069,
+      "inputSha256": "505d75cd3585360a87dc238d828c64079038d3695b0fb3c93b75b213a2fa14a1"
+    },
+    {
+      "type": "command.completed",
+      "time": "2026-11-28T13:20:51.528Z",
+      "durationMs": 104.838532,
+      "exitCode": 0,
+      "recordId": "0f1a0912-8f0e-4ab8-ba11-a3a59c09b088"
+    },
+    {
+      "type": "command.completed",
+      "time": "2026-11-28T13:20:51.561Z",
+      "durationMs": 6.071396,
+      "exitCode": 1,
+      "recordId": "c8cae27a-ca50-4231-b8fd-b698667ec371"
+    },
+    {
+      "type": "tool.completed",
+      "time": "2026-11-28T13:20:51.563Z",
+      "toolName": "run_commands",
+      "toolCallId": "call_887ae127b5254f6390944499",
+      "durationMs": 218,
+      "outputBytes": 356,
+      "outputSha256": "55e01b929eecbf6eb55a7bf0e6a888cd7785a5dc114f5203ded8ea8a78197b65"
+    },
+    {
+      "type": "command.completed",
+      "time": "2026-11-28T13:20:55.676Z",
+      "durationMs": 6.812254,
+      "exitCode": 1,
+      "recordId": "d6b5857c-b293-4fb1-b97e-c4667e0e1bec"
+    },
+    {
+      "type": "tool.started",
+      "time": "2026-11-28T13:20:56.129Z",
+      "toolName": "run_commands",
+      "toolCallId": "call_d0d9cfefa555458d8a768de7",
+      "inputBytes": 73,
+      "inputSha256": "b83a4fe65e0b3cce3100af36992043fec50f6ca14c2461e2c3ddd9c0422ca1a3"
+    },
+    {
+      "type": "command.completed",
+      "time": "2026-11-28T13:20:56.655Z",
+      "durationMs": 522.800044,
+      "exitCode": 0,
+      "recordId": "b2670474-2051-4007-934f-7d654843f2f9"
+    },
+    {
+      "type": "command.completed",
+      "time": "2026-11-28T13:20:56.695Z",
+      "durationMs": 6.709131,
+      "exitCode": 1,
+      "recordId": "67043312-1bd3-4346-9030-98ea6beb124d"
+    },
+    {
+      "type": "tool.completed",
+      "time": "2026-11-28T13:20:56.697Z",
+      "toolName": "run_commands",
+      "toolCallId": "call_d0d9cfefa555458d8a768de7",
+      "durationMs": 587,
+      "outputBytes": 261,
+      "outputSha256": "5f5bf0a2d68fc25eed357e7fc190c55a2afbea41be6233c5db0ef2a5bcba2642"
+    },
+    {
+      "type": "command.completed",
+      "time": "2026-11-28T13:20:59.238Z",
+      "durationMs": 4.225656,
+      "exitCode": 1,
+      "recordId": "f62cf9a8-11cd-4fe4-af21-6f241c2d0262"
+    },
+    {
+      "type": "tool.started",
+      "time": "2026-11-28T13:20:59.608Z",
+      "toolName": "read_files",
+      "toolCallId": "call_45470ab4cba94dda960006c3",
+      "inputBytes": 109,
+      "inputSha256": "4148d1aa529dcf6b8fd80ab2d51291c0650b94fb1201a9b512006734e5e5583f"
+    },
+    {
+      "type": "command.completed",
+      "time": "2026-11-28T13:20:59.647Z",
+      "durationMs": 3.073383,
+      "exitCode": 1,
+      "recordId": "c0c8e11b-71b5-4a35-88fe-6faf4957f5c0"
+    },
+    {
+      "type": "tool.completed",
+      "time": "2026-11-28T13:20:59.650Z",
+      "toolName": "read_files",
+      "toolCallId": "call_45470ab4cba94dda960006c3",
+      "durationMs": 41,
+      "outputBytes": 43496,
+      "outputSha256": "c961e8c2548deee644a0094a779dce62c274d3acfb2903cdd0ca4415e4ff3aee"
+    },
+    {
+      "type": "context.notice",
+      "time": "2026-11-28T13:20:59.669Z"
+    },
+    {
+      "type": "context.notice",
+      "time": "2026-11-28T13:21:24.922Z"
+    },
+    {
+      "type": "command.completed",
+      "time": "2026-11-28T13:21:34.517Z",
+      "durationMs": 11.880007,
+      "exitCode": 1,
+      "recordId": "d0f3069a-62ad-460b-a4a9-95d5d3e7d254"
+    },
+    {
+      "type": "tool.started",
+      "time": "2026-11-28T13:21:34.956Z",
+      "toolName": "read_files",
+      "toolCallId": "call_85de0e8de58c4897b1d65854",
+      "inputBytes": 274,
+      "inputSha256": "51794be10e2d4844cee385a2a3299bc943b6bfa9c93edc009c81c6873e2ccb96"
+    },
+    {
+      "type": "command.completed",
+      "time": "2026-11-28T13:21:34.986Z",
+      "durationMs": 2.991694,
+      "exitCode": 1,
+      "recordId": "a19c125a-0b9f-4fc3-a413-7b6dbe09d2c2"
+    },
+    {
+      "type": "tool.completed",
+      "time": "2026-11-28T13:21:34.987Z",
+      "toolName": "read_files",
+      "toolCallId": "call_85de0e8de58c4897b1d65854",
+      "durationMs": 32,
+      "outputBytes": 11374,
+      "outputSha256": "9366a5549be26f527a0ce3e7637c77d814fba85ed6e8af049638705169a6c76c"
+    },
+    {
+      "type": "command.completed",
+      "time": "2026-11-28T13:21:44.811Z",
+      "durationMs": 9.26047,
+      "exitCode": 1,
+      "recordId": "21761c46-74fb-4143-ae1e-370fd7b0b57c"
+    },
+    {
+      "type": "tool.started",
+      "time": "2026-11-28T13:21:44.963Z",
+      "toolName": "read_files",
+      "toolCallId": "call_53dbb88e728840978b650089",
+      "inputBytes": 347,
+      "inputSha256": "e8c8da521379e44f531068b8c0508388e642e5967e111743ec86c4d66ab92af9"
+    },
+    {
+      "type": "command.completed",
+      "time": "2026-11-28T13:21:45.062Z",
+      "durationMs": 3.883257,
+      "exitCode": 1,
+      "recordId": "1a5529bd-fcba-41f5-9e51-967f83d75614"
+    },
+    {
+      "type": "tool.completed",
+      "time": "2026-11-28T13:21:45.070Z",
+      "toolName": "read_files",
+      "toolCallId": "call_53dbb88e728840978b650089",
+      "durationMs": 84,
+      "outputBytes": 7084,
+      "outputSha256": "7c255b520e5acb2e2dafca042aaa6b5ac425ad3bc17837adf294e9d91b31fa88"
+    },
+    {
+      "type": "command.completed",
+      "time": "2026-11-28T13:21:50.989Z",
+      "durationMs": 22.291654,
+      "exitCode": 1,
+      "recordId": "cca63334-12e8-4a90-be47-6db9c682a4c8"
+    },
+    {
+      "type": "tool.started",
+      "time": "2026-11-28T13:21:51.945Z",
+      "toolName": "run_commands",
+      "toolCallId": "call_94e8d370352b454bb72a3667",
+      "inputBytes": 598,
+      "inputSha256": "5a6c6b4a5fa2e8694f1d6e06e8137d2ce9329b1e50a704090ebc36fe9c3b509a"
+    },
+    {
+      "type": "command.completed",
+      "time": "2026-11-28T13:21:54.807Z",
+      "durationMs": 2697.715772,
+      "exitCode": 0,
+      "recordId": "19e0f842-8a46-406d-b940-ae730191d24f"
+    },
+    {
+      "type": "command.completed",
+      "time": "2026-11-28T13:21:54.858Z",
+      "durationMs": 6.107107,
+      "exitCode": 1,
+      "recordId": "6469b186-9783-4335-84c0-7280671d535b"
+    },
+    {
+      "type": "tool.completed",
+      "time": "2026-11-28T13:21:54.861Z",
+      "toolName": "run_commands",
+      "toolCallId": "call_94e8d370352b454bb72a3667",
+      "durationMs": 2916,
+      "outputBytes": 874,
+      "outputSha256": "bde68d8bdd87b764b0508cb7b5847de84826e6636e567eb669a26f706d5dcc0f"
+    },
+    {
+      "type": "command.completed",
+      "time": "2026-11-28T13:22:01.260Z",
+      "durationMs": 3.583324,
+      "exitCode": 1,
+      "recordId": "2f3f7837-ef24-49fa-a564-e5a50d7948af"
+    },
+    {
+      "type": "tool.started",
+      "time": "2026-11-28T13:22:01.467Z",
+      "toolName": "run_commands",
+      "toolCallId": "call_47e26f128b8543b689dc5963",
+      "inputBytes": 560,
+      "inputSha256": "fde21c95a73d34eac72e1e44d582b33c5f758f5656d9d3fbd071580146a2fe55"
+    },
+    {
+      "type": "command.completed",
+      "time": "2026-11-28T13:22:01.619Z",
+      "durationMs": 133.487741,
+      "exitCode": 0,
+      "recordId": "a2aab53d-496f-4aeb-b7d0-f1ffed627382"
+    },
+    {
+      "type": "command.completed",
+      "time": "2026-11-28T13:22:01.650Z",
+      "durationMs": 3.335965,
+      "exitCode": 1,
+      "recordId": "31c734d5-b035-4924-92d3-ba1affeb0550"
+    },
+    {
+      "type": "tool.completed",
+      "time": "2026-11-28T13:22:01.677Z",
+      "toolName": "run_commands",
+      "toolCallId": "call_47e26f128b8543b689dc5963",
+      "durationMs": 185,
+      "outputBytes": 814,
+      "outputSha256": "82cfe00eaec841bb696599a1a6a79c4c1845b06a44aae8508ac68c7f033cb4f4"
+    },
+    {
+      "type": "command.completed",
+      "time": "2026-11-28T13:22:06.618Z",
+      "durationMs": 14.706222,
+      "exitCode": 1,
+      "recordId": "9fb14bd9-0860-44ea-bcc2-00ff678daaef"
+    },
+    {
+      "type": "tool.started",
+      "time": "2026-11-28T13:22:06.993Z",
+      "toolName": "run_commands",
+      "toolCallId": "call_3642add3a71c4f3886ad5e39",
+      "inputBytes": 607,
+      "inputSha256": "d68b10216187a268161c84033c36d969246b5498598742ace2ef3a5144451f47"
+    },
+    {
+      "type": "command.completed",
+      "time": "2026-11-28T13:22:07.214Z",
+      "durationMs": 193.219144,
+      "exitCode": 0,
+      "recordId": "5221afaf-9dfe-43fb-bc34-b67b339b6c70"
+    },
+    {
+      "type": "command.completed",
+      "time": "2026-11-28T13:22:07.278Z",
+      "durationMs": 6.689718,
+      "exitCode": 1,
+      "recordId": "6ef0fcdc-06dc-4d5e-83ec-e60835a4931e"
+    },
+    {
+      "type": "tool.completed",
+      "time": "2026-11-28T13:22:07.279Z",
+      "toolName": "run_commands",
+      "toolCallId": "call_3642add3a71c4f3886ad5e39",
+      "durationMs": 287,
+      "outputBytes": 2275,
+      "outputSha256": "a3a004d819811f5dfc2c21956402058a119a2ed2a0692b0947d0bd2b50e32007"
+    },
+    {
+      "type": "command.completed",
+      "time": "2026-11-28T13:24:31.244Z",
+      "durationMs": 14.184308,
+      "exitCode": 1,
+      "recordId": "314d20cc-a3ed-4a0f-8057-428543ba88f2"
+    },
+    {
+      "type": "tool.started",
+      "time": "2026-11-28T13:24:31.387Z",
+      "toolName": "run_commands",
+      "toolCallId": "call_c37e764608a541018ac620e8",
+      "inputBytes": 26450,
+      "inputSha256": "bbceddec33bbc99ce5c3ebbf467d886b7e192e738428c2fbeae8556d450b58a5"
+    },
+    {
+      "type": "command.completed",
+      "time": "2026-11-28T13:24:31.588Z",
+      "durationMs": 138.479629,
+      "exitCode": 0,
+      "recordId": "90ea9d12-36b9-4ff9-bbf0-58f48c03e9cb"
+    },
+    {
+      "type": "command.completed",
+      "time": "2026-11-28T13:24:31.637Z",
+      "durationMs": 2.819902,
+      "exitCode": 1,
+      "recordId": "88054f33-15a3-4c2d-b588-a53594d9d8f1"
+    },
+    {
+      "type": "tool.completed",
+      "time": "2026-11-28T13:24:31.641Z",
+      "toolName": "run_commands",
+      "toolCallId": "call_c37e764608a541018ac620e8",
+      "durationMs": 251,
+      "outputBytes": 356,
+      "outputSha256": "52736880d2cd901c0771e66c3aa902264e566e220a53f033f1900fb8a6d08fde"
+    },
+    {
+      "type": "command.completed",
+      "time": "2026-11-28T13:24:35.101Z",
+      "durationMs": 8.07611,
+      "exitCode": 1,
+      "recordId": "63698ef3-a238-451f-9962-31e2fcd6a84e"
+    },
+    {
+      "type": "tool.started",
+      "time": "2026-11-28T13:24:35.382Z",
+      "toolName": "run_commands",
+      "toolCallId": "call_9286b8f241434c8683e44ee9",
+      "inputBytes": 73,
+      "inputSha256": "b83a4fe65e0b3cce3100af36992043fec50f6ca14c2461e2c3ddd9c0422ca1a3"
+    },
+    {
+      "type": "command.completed",
+      "time": "2026-11-28T13:24:35.774Z",
+      "durationMs": 368.457857,
+      "exitCode": 0,
+      "recordId": "79dc31b0-8af5-4b1c-a459-a4e2cfb52a2d"
+    },
+    {
+      "type": "command.completed",
+      "time": "2026-11-28T13:24:35.803Z",
+      "durationMs": 3.563784,
+      "exitCode": 1,
+      "recordId": "5abd4603-db71-4741-9f8b-8d6403ee2316"
+    },
+    {
+      "type": "tool.completed",
+      "time": "2026-11-28T13:24:35.805Z",
+      "toolName": "run_commands",
+      "toolCallId": "call_9286b8f241434c8683e44ee9",
+      "durationMs": 422,
+      "outputBytes": 335,
+      "outputSha256": "8de4ddb28984574ef7e3017f57677b628cc835ade6949f2cf3747be9760cdf84"
+    },
+    {
+      "type": "context.notice",
+      "time": "2026-11-28T13:24:35.830Z"
+    },
+    {
+      "type": "context.notice",
+      "time": "2026-11-28T13:24:40.329Z"
+    },
+    {
+      "type": "command.completed",
+      "time": "2026-11-28T13:24:43.392Z",
+      "durationMs": 29.567913,
+      "exitCode": 1,
+      "recordId": "463444bb-795e-4c6b-9228-52c66d73a3b4"
+    },
+    {
+      "type": "tool.started",
+      "time": "2026-11-28T13:24:43.882Z",
+      "toolName": "read_files",
+      "toolCallId": "call_61ea004d2aa345cda6101e30",
+      "inputBytes": 109,
+      "inputSha256": "4148d1aa529dcf6b8fd80ab2d51291c0650b94fb1201a9b512006734e5e5583f"
+    },
+    {
+      "type": "command.completed",
+      "time": "2026-11-28T13:24:43.917Z",
+      "durationMs": 5.257501,
+      "exitCode": 1,
+      "recordId": "05cd637f-ead9-4142-936c-7731c4c53e6b"
+    },
+    {
+      "type": "tool.completed",
+      "time": "2026-11-28T13:24:43.919Z",
+      "toolName": "read_files",
+      "toolCallId": "call_61ea004d2aa345cda6101e30",
+      "durationMs": 36,
+      "outputBytes": 43416,
+      "outputSha256": "4077cff98791026b26266c3fecf12b13abd8e0815f232efff35a55bc3a75b76d"
+    },
+    {
+      "type": "command.completed",
+      "time": "2026-11-28T13:24:58.415Z",
+      "durationMs": 47.091746,
+      "exitCode": 1,
+      "recordId": "6aff0212-3f2d-448f-bbbb-e55f3f68e275"
+    },
+    {
+      "type": "command.completed",
+      "time": "2026-11-28T13:24:58.738Z",
+      "durationMs": 142.891782,
+      "exitCode": 128,
+      "recordId": "34318053-b6ef-45cd-a9e6-544894d4ac33"
+    },
+    {
+      "type": "command.completed",
+      "time": "2026-11-28T13:25:28.588Z",
+      "durationMs": 224.278067,
+      "exitCode": 128,
+      "recordId": "5e1211fd-08dd-47d0-864d-4910822ddc65"
+    },
+    {
+      "type": "command.completed",
+      "time": "2026-11-28T13:25:28.665Z",
+      "durationMs": 5.942096,
+      "exitCode": 1,
+      "recordId": "a743a8e5-9bed-47a3-afd1-ff97e19d3543"
+    },
+    {
+      "type": "command.completed",
+      "time": "2026-11-28T13:25:28.699Z",
+      "durationMs": 5.680501,
+      "exitCode": 1,
+      "recordId": "e21f064d-98e4-4d93-a1a4-29b6bb2836e7"
+    },
+    {
+      "type": "command.completed",
+      "time": "2026-11-28T13:25:28.793Z",
+      "durationMs": 12.233579,
+      "exitCode": 128,
+      "recordId": "ba09604b-18b7-4cc6-9793-925666d15ff1"
+    },
+    {
+      "type": "command.completed",
+      "time": "2026-11-28T13:25:35.763Z",
+      "durationMs": 35.106408,
+      "exitCode": 1,
+      "recordId": "9574e6b3-1efd-4287-a91e-9681766c42d5"
+    },
+    {
+      "type": "tool.started",
+      "time": "2026-11-28T13:25:35.901Z",
+      "toolName": "read_files",
+      "toolCallId": "call_31a7d4fa9750446288933e95",
+      "inputBytes": 241,
+      "inputSha256": "832c76c48eb5796b5054c7c5794153bb52fefa6e6c29868529cb7f3c85407c8e"
+    },
+    {
+      "type": "command.completed",
+      "time": "2026-11-28T13:25:35.961Z",
+      "durationMs": 4.021336,
+      "exitCode": 1,
+      "recordId": "a4f8f875-c6ac-4c29-a46c-ff1dabb2d126"
+    },
+    {
+      "type": "tool.completed",
+      "time": "2026-11-28T13:25:35.973Z",
+      "toolName": "read_files",
+      "toolCallId": "call_31a7d4fa9750446288933e95",
+      "durationMs": 65,
+      "outputBytes": 25457,
+      "outputSha256": "f2f44591255f0ad5f2f92d1154ccdb78c0177ad7590e0f7902d0e8c26233cccb"
+    },
+    {
+      "type": "command.completed",
+      "time": "2026-11-28T13:25:42.218Z",
+      "durationMs": 8.332989,
+      "exitCode": 1,
+      "recordId": "fcb36c1f-20c4-4fbe-944a-4c7ca1a59502"
+    },
+    {
+      "type": "tool.started",
+      "time": "2026-11-28T13:25:42.406Z",
+      "toolName": "read_files",
+      "toolCallId": "call_c120c655e78b44fe8e1dab56",
+      "inputBytes": 439,
+      "inputSha256": "14a5fd8162bb448cc5c4e651ae1651977d984f48b751a09c4b8d9242cbef22e3"
+    },
+    {
+      "type": "command.completed",
+      "time": "2026-11-28T13:25:42.444Z",
+      "durationMs": 4.021126,
+      "exitCode": 1,
+      "recordId": "abee9583-622b-4911-b39d-d518109e5346"
+    },
+    {
+      "type": "tool.completed",
+      "time": "2026-11-28T13:25:42.447Z",
+      "toolName": "read_files",
+      "toolCallId": "call_c120c655e78b44fe8e1dab56",
+      "durationMs": 39,
+      "outputBytes": 27439,
+      "outputSha256": "4f93172e215f883d788e4e796c2ff1685f6ad911d2de265ee73a3b0bea31d997"
+    },
+    {
+      "type": "command.completed",
+      "time": "2026-11-28T13:26:09.992Z",
+      "durationMs": 23.134168,
+      "exitCode": 1,
+      "recordId": "0754b26a-57ad-49a8-8384-243bc1edc1dc"
+    },
+    {
+      "type": "command.completed",
+      "time": "2026-11-28T13:26:10.066Z",
+      "durationMs": 24.802536,
+      "exitCode": null,
+      "recordId": "c4fc2bdd-3fcb-446f-9a9c-3896ec1627ef"
+    },
+    {
+      "type": "command.completed",
+      "time": "2026-11-28T13:26:10.225Z",
+      "durationMs": 23.166486,
+      "exitCode": 128,
+      "recordId": "d83b1313-a574-4c5f-9b46-365ea6c1721c"
+    }
+  ],
+  "outputFileCount": 3,
+  "evidenceScope": "Metadata and digests only. Model and tool bodies are excluded."
+}

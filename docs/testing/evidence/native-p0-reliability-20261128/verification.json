@@ -1,0 +1,390 @@
+{
+  "auditReference": "30b7189c",
+  "workspaceStart": "0d3c33742",
+  "baselineCheckpoint": "1062ccf17",
+  "sourceCommit": "d3b35d1b1c9d4f312f881c8bd38ca52187adaea5",
+  "validationImage": "sha256:470175f2fcd8a636606a0bb4e428537f380fb82a78e91325b51743c9ba65b346",
+  "applicationOverlaySha256": "dd7488b5b741dddb52ef9cc8272023707531ba7211884c17226835665a29844f",
+  "packagedWebIndexSha256": "eb96e18156ede6f536755f04fa5e2a948539f741f9d0e48a4197fe902d447a75",
+  "scope": {
+    "nativeTaskDurationMinutes": 18,
+    "nativeModelRequestsCeiling": 100,
+    "nativeTotalTokenCeiling": 5000000,
+    "liveProviderForNativeAnalysis": "qwen3.7-plus",
+    "sequential": true,
+    "fixedHistoricalSnapshotReuse": false
+  },
+  "serverTests": {
+    "chatPassed": 106,
+    "apiPassed": 34,
+    "apiSkipped": 1,
+    "commonPassed": 4,
+    "terminalEventJsPassed": 5,
+    "webBuildPassed": true
+  },
+  "localRegression": {
+    "gatewayHttpTestsPassed": 2,
+    "clineFocusedTestsPassed": 27,
+    "clineWindowsSymlinkTestSkipped": 1,
+    "hardcodingReviewCandidatesFromAuditReference": 0,
+    "hardcodingRuleTestsPassed": 2,
+    "gatewayFixture": {
+      "oneMinute59SecondsCompleted": true,
+      "oneMinute61SecondsTimeout": true,
+      "heartbeatOnlyCountedAsEffectiveOutput": false,
+      "unlimitedCompletedAt90_120_180Seconds": true,
+      "defaultCompletedAt298Seconds": true,
+      "defaultTimedOutBefore302SecondsResponse": true,
+      "activeCancellationDisconnectedUpstream": true
+    }
+  },
+  "history": {
+    "yarn": {
+      "previousTaskPrefix": "98aa012c",
+      "classificationAgentConfiguredModel": "hy3",
+      "enabledPublicationRowsMatchingModelNameOrProviderAlias": 0,
+      "originalFailureBeforeModelResponse": true,
+      "contextNoCandidatesEventIndex": 4,
+      "terminalNoPresentableResultEventIndex": 8,
+      "noCandidatesStage": "Skill context selection",
+      "testModelMappingChanged": false
+    },
+    "docker": {
+      "eligibleDataSnapshots": 8,
+      "modelRequests": 14,
+      "successfulProviderResponses": 13,
+      "providerTokens": {
+        "inputTokens": 322493,
+        "outputTokens": 19854,
+        "totalTokens": 342347,
+        "cacheReadTokens": 223616
+      },
+      "longestSuccessfulModelResponseMillis": [
+        134878,
+        90232
+      ],
+      "toolStarts": {
+        "read_files": 3,
+        "run_commands": 9,
+        "editor": 1
+      },
+      "invalidToolArgumentErrors": 1,
+      "workspaceOutputFileCount": 0,
+      "toolRetrievalUseInterpretation": "Read-file output hashes alone do not establish file-path reuse or semantic progress.",
+      "cacheAccounting": "Provider-reported cache reads are a subset of input usage. Billing was not inferred."
+    },
+    "innoComparison": {
+      "fixedSnapshotHashesMatch": false,
+      "sameHashPositions": 3,
+      "historicalDatasetCount": 9,
+      "historicalNormalModelReceipts": 29,
+      "historicalProviderTokens": {
+        "inputTokens": 914014,
+        "outputTokens": 37843,
+        "totalTokens": 951857
+      }
+    }
+  },
+  "liveCases": {
+    "11": {
+      "id": "9b013fbf-2015-3a82-aea3-e94b72021706",
+      "attemptId": "att-1-aba1f297-9991-4ec1-a932-cb850ce0fb3e",
+      "status": "INPUT_REQUIRED",
+      "canonicalState": "PARTIAL",
+      "classificationEvents": [
+        {
+          "status": "RUNNING",
+          "reasonCode": null
+        },
+        {
+          "status": "FAILED",
+          "reasonCode": "CLASSIFICATION_MODEL_CONFIGURATION_INVALID"
+        }
+      ],
+      "protectionCancelIssued": false,
+      "submittedAt": "2026-11-28T12:47:57.983088+00:00",
+      "finishedAt": "2026-11-28T12:48:02.307Z",
+      "executions": [],
+      "answerPresent": true,
+      "clarificationTextObserved": true,
+      "elapsedSeconds": 4.324
+    },
+    "7": {
+      "id": "ba264ea8-0e8a-34cf-a653-effc41c9d919",
+      "attemptId": "att-1-5418d6ee-d87f-4b9d-b993-feebc5848059",
+      "status": "PARTIAL_SUCCESS",
+      "canonicalState": "PARTIAL",
+      "classificationEvents": [],
+      "protectionCancelIssued": false,
+      "submittedAt": "2026-11-28T12:48:04.511220+00:00",
+      "finishedAt": "2026-11-28T13:06:45.151854Z",
+      "executions": [
+        {
+          "nativeTask": "temporal-native-5c8201731c01bf5d37861bae1a5a2884184415a27a3c1bc6910ede623d2c54ba",
+          "nativeState": "BUDGET_EXCEEDED",
+          "runtimeDeliveryState": "CANCELLED_LOCAL_ONLY",
+          "nativeAcceptance": null,
+          "workerState": "STOPPED",
+          "nativeReason": "DEADLINE_EXCEEDED",
+          "firstSnapshotPersistedAt": "2026-11-28T12:48:32.045Z",
+          "budgetBasicReport": true,
+          "basicValidation": "PASSED",
+          "basicReportRecordedAt": "2026-11-28T13:06:40.789Z",
+          "runtimeDeadlineAtEpochMs": 1795871193386,
+          "outputArtifacts": [
+            {
+              "format": "json",
+              "verified": true,
+              "expectedSha256": "01549c93657d0db2ab33e60b1b4760dc104013fb07c75d081202f40538fd4907",
+              "observedSha256": "01549c93657d0db2ab33e60b1b4760dc104013fb07c75d081202f40538fd4907",
+              "bytes": 7370,
+              "structuredAnalysisStatus": "PARTIAL",
+              "evidenceReferenceCount": 9,
+              "structuredLimitationCount": 2
+            },
+            {
+              "format": "md",
+              "verified": true,
+              "expectedSha256": "7b75f6a3152de68718b24a6954a5f8bb99ca956eec66ba5f98c25216a1077af2",
+              "observedSha256": "7b75f6a3152de68718b24a6954a5f8bb99ca956eec66ba5f98c25216a1077af2",
+              "bytes": 6517,
+              "tableRows": 71,
+              "observedCjkCharacters": 380,
+              "recognizedBasicSections": 4
+            }
+          ],
+          "datasets": 9,
+          "snapshotDigests": [
+            "d2dd6c06871494f1a42815ec8121a5bb52999b555b49cc82496e2c24ba68e98a",
+            "7f8fd6b57459a4bca1b393fd38299710ee2105385b856592430d4c92d38f827b",
+            "9452573b03e8f5a9d94ca3138c4cefe033532c1b2121c61dc4032adaad25b604",
+            "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+            "37e2c0702178fb49c6235426df305f4e1ff1ebb93cf67a6f2234bad54fe2977f",
+            "be1b23ad390190a40e6d8747e97ac3c6b2cc12da686f3a2b4909fb9520662d1e",
+            "6197aa814634971f16495b64f14dc0d4f18610351c7e0894b95cac853841a152",
+            "1404e11e6c3209f5a329526b63f812d73e312dc3bfef77f838c6ae252dab9b44",
+            "45c2f5ce1388dde880da33f129199c854cc33dd53401389e1aa4c772d455b679"
+          ],
+          "snapshotCoverage": {
+            "DELIVERED_SNAPSHOT": 8,
+            "VERIFIED_EMPTY_SNAPSHOT": 1
+          },
+          "snapshotRowCounts": [
+            6,
+            20,
+            1,
+            0,
+            10,
+            87,
+            359,
+            20,
+            50
+          ],
+          "firstNativeInputVerification": null,
+          "firstNativeModelStartedAt": "2026-11-28T12:48:55.280Z",
+          "nativeFinishedAt": "2026-11-28T13:06:39.528Z",
+          "modelStarted": 29,
+          "modelCompleted": 29,
+          "providerStatusCounts": {
+            "SUCCEEDED": 28,
+            "FAILED": 1
+          },
+          "knownProviderTokens": {
+            "inputTokens": 605803,
+            "outputTokens": 50108,
+            "totalTokens": 655911
+          },
+          "callsWithoutUsage": 1,
+          "nativeToolCounts": {
+            "read_files": 7,
+            "run_commands": 17,
+            "editor": 2
+          },
+          "nativeToolFailures": 6,
+          "analysisStatus": "PARTIAL",
+          "limitationCount": 2,
+          "knownDataLimitCategories": {
+            "missingHistory": false,
+            "emptyRecords": false,
+            "disabledLog": false
+          },
+          "firstSupplySeconds": 27.534,
+          "basicReportDeliverySeconds": 1116.278
+        }
+      ],
+      "answerPresent": true,
+      "clarificationTextObserved": false,
+      "elapsedSeconds": 1120.641
+    },
+    "6": {
+      "id": "00a1676e-5bb7-3162-8640-21a6d9ef31bf",
+      "attemptId": "att-1-80da192b-b6b4-4aa8-971f-f60983b577d3",
+      "status": "PARTIAL_SUCCESS",
+      "canonicalState": "PARTIAL",
+      "classificationEvents": [
+        {
+          "status": "RUNNING",
+          "reasonCode": null
+        },
+        {
+          "status": "COMPLETED",
+          "reasonCode": null
+        }
+      ],
+      "protectionCancelIssued": false,
+      "submittedAt": "2026-11-28T13:06:48.376740+00:00",
+      "finishedAt": "2026-11-28T13:26:16.127Z",
+      "executions": [
+        {
+          "nativeTask": "temporal-native-ac64470e5430d7b40ec750c571fe69b80f8f1c1c571168cec2eeabc441c81d07",
+          "nativeState": "BUDGET_EXCEEDED",
+          "runtimeDeliveryState": "CANCELLED_LOCAL_ONLY",
+          "nativeAcceptance": null,
+          "workerState": "STOPPED",
+          "nativeReason": "DEADLINE_EXCEEDED",
+          "firstSnapshotPersistedAt": "2026-11-28T13:08:08.811Z",
+          "budgetBasicReport": true,
+          "basicValidation": "PASSED",
+          "basicReportRecordedAt": "2026-11-28T13:26:13.816Z",
+          "runtimeDeadlineAtEpochMs": 1795872369274,
+          "outputArtifacts": [
+            {
+              "format": "json",
+              "verified": true,
+              "expectedSha256": "3d381c844f4ba8785035eed29edbd0ebf82af0bd831a9e8de191467fa1898ad7",
+              "observedSha256": "3d381c844f4ba8785035eed29edbd0ebf82af0bd831a9e8de191467fa1898ad7",
+              "bytes": 7997,
+              "structuredAnalysisStatus": "PARTIAL",
+              "evidenceReferenceCount": 8,
+              "structuredLimitationCount": 2
+            },
+            {
+              "format": "md",
+              "verified": true,
+              "expectedSha256": "8087d14e01db310b961d28b79e14c2fae29b4ccf8b12b6a3b5ba56ed50c8ca78",
+              "observedSha256": "8087d14e01db310b961d28b79e14c2fae29b4ccf8b12b6a3b5ba56ed50c8ca78",
+              "bytes": 7078,
+              "tableRows": 84,
+              "observedCjkCharacters": 322,
+              "recognizedBasicSections": 4
+            }
+          ],
+          "datasets": 8,
+          "snapshotDigests": [
+            "292e6473936c22a122936f6bec4de2543230e2ed97d803c6b5715536569db4c8",
+            "638e570eafb1d5a0196bdfbd0ebb411952d28c4feaf99702fc42b2aed9a97837",
+            "b93a377fc5379d5f434d19f75e314d4eaa7ba7d746dc7441c7f6a53aff66f35d",
+            "acc15dad6c7c7da66d25c6e98da7304ff52307fbb82b6343a7d21fe61a56e539",
+            "c09dada2307e3286f94d345d8bced40c91a3120a53764709e2c1881dec7901db",
+            "5928c8fd07b96bea31be6ad887faea70a7568523579529b72cdace21be54b9e6",
+            "97c95e9fd97cf6a4e912c9a3d3555a7b309fa04c0b69f3dbbc0a1eb219ffe26f",
+            "32db44e88229c4d3e261ae749c96302e4bc988ba1db044d1e5144360496f4af4"
+          ],
+          "snapshotCoverage": {
+            "DELIVERED_SNAPSHOT": 8
+          },
+          "snapshotRowCounts": [
+            1,
+            1,
+            1,
+            1,
+            1,
+            1,
+            2,
+            1
+          ],
+          "firstNativeInputVerification": null,
+          "firstNativeModelStartedAt": "2026-11-28T13:08:26.112Z",
+          "nativeFinishedAt": "2026-11-28T13:26:12.465Z",
+          "modelStarted": 30,
+          "modelCompleted": 30,
+          "providerStatusCounts": {
+            "SUCCEEDED": 29,
+            "FAILED": 1
+          },
+          "knownProviderTokens": {
+            "inputTokens": 844370,
+            "outputTokens": 57802,
+            "totalTokens": 902172
+          },
+          "callsWithoutUsage": 1,
+          "nativeToolCounts": {
+            "read_files": 11,
+            "run_commands": 14,
+            "editor": 2
+          },
+          "nativeToolFailures": 4,
+          "analysisStatus": "PARTIAL",
+          "limitationCount": 2,
+          "knownDataLimitCategories": {
+            "missingHistory": false,
+            "emptyRecords": false,
+            "disabledLog": false
+          },
+          "firstSupplySeconds": 80.434,
+          "basicReportDeliverySeconds": 1165.439
+        }
+      ],
+      "answerPresent": true,
+      "clarificationTextObserved": false,
+      "elapsedSeconds": 1167.75,
+      "deliveryInvestigation": {
+        "workspaceMarkdownAndJsonObservedAt": "2026-11-28T13:21:39+00:00",
+        "nativeTurnCompletedAt": "2026-11-28T13:24:58.433Z",
+        "nativeTurnDeliveryValidated": false,
+        "runtimePreviewAt": "2026-11-28T13:25:22.409Z",
+        "runtimeReviewedResultAt": "2026-11-28T13:25:22.649Z",
+        "runtimeRejection": {
+          "code": "MISSING_REQUIRED_FIELDS",
+          "path": "<root>",
+          "fields": [
+            "/reportMarkdown",
+            "/evidenceReferences",
+            "/limitations",
+            "/analysisStatus",
+            "/fieldProvenance"
+          ]
+        },
+        "repairStartedAt": "2026-11-28T13:25:28.192Z",
+        "modelReceiptsDuringDeliveryRepair": 3,
+        "providerReportedDeliveryRepairTokens": {
+          "inputTokens": 96820,
+          "outputTokens": 490,
+          "totalTokens": 97310
+        }
+      }
+    }
+  },
+  "cleanup": {
+    "at": "2026-11-28T13:27:50.174481+00:00",
+    "scopedStopped": [
+      "stability-nct-p0-api",
+      "stability-nct-mcp",
+      "stability-nct-broker",
+      "stability-nct-executor",
+      "stability-nct-recovery"
+    ],
+    "previousServicesRunning": [
+      "stability-njr-api",
+      "stability-njr-mcp",
+      "stability-njr-broker",
+      "stability-njr-executor"
+    ],
+    "nativeWorkerState": {
+      "temporal-native-5c8201731c01bf5d37861bae1a5a2884184415a27a3c1bc6910ede623d2c54ba": "STOPPED",
+      "temporal-native-ac64470e5430d7b40ec750c571fe69b80f8f1c1c571168cec2eeabc441c81d07": "STOPPED"
+    },
+    "removedDuplicateBuildBytes": 429344227,
+    "beforeDisk": "Filesystem      Size  Used Avail Use% Mounted on\n/dev/sdb        180G  165G   16G  92% /opt\n/dev/sdc        100G   62G   39G  62% /mnt/disk01",
+    "afterDisk": "Filesystem      Size  Used Avail Use% Mounted on\n/dev/sdb        180G  165G   16G  92% /opt\n/dev/sdc        100G   61G   40G  61% /mnt/disk01",
+    "afterInode": "Filesystem       Inodes   IUsed    IFree IUse% Mounted on\n/dev/sdb       34432360 2234638 32197722    7% /opt\n/dev/sdc       52428800  949833 51478967    2% /mnt/disk01"
+  },
+  "pending": [
+    "YARN real analytical execution without an authorized classification publication",
+    "full per-scenario fault matrix and low-performance comparison",
+    "ten equivalent repeats against pinned data",
+    "broader automatic no-progress convergence for normal analysis",
+    "cross-asset, cross-model and previously untested published template generalization",
+    "48-hour soak after the first P0 phase passes"
+  ]
+}

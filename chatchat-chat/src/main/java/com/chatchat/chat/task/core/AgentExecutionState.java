@@ -47,6 +47,7 @@ public enum AgentExecutionState {
         Map.entry("PARTIAL_SUCCESS", PARTIAL),
         Map.entry("EMPTY", PARTIAL),
         Map.entry("NO_PRESENTABLE_RESULT", PARTIAL),
+        Map.entry("INPUT_REQUIRED", PARTIAL),
         Map.entry("COMPLETED_WITH_PARTIAL_EVIDENCE", PARTIAL),
         Map.entry("TIME_BUDGET_EXHAUSTED", FAILED),
         Map.entry("MODEL_BUDGET_EXHAUSTED", FAILED),

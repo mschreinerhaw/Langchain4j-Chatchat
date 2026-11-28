@@ -964,6 +964,8 @@ function statusTitle(status) {
       return "\u7b49\u5f85\u6743\u9650\u786e\u8ba4";
     case "SUCCESS":
       return "\u6267\u884c\u5b8c\u6210";
+    case "INPUT_REQUIRED":
+      return "\u9700\u8981\u786e\u8ba4\u4efb\u52a1\u76ee\u6807";
     case "PARTIAL":
     case "PARTIAL_SUCCESS":
       return "\u83b7\u5f97\u90e8\u5206\u7ed3\u679c";
@@ -1408,7 +1410,7 @@ function terminalUiStatus(event = {}) {
       || type === "RUNTIME_CANCELLED") return "cancelled";
   if (["failed", "time_budget_exhausted", "model_budget_exhausted"].includes(status)
       || ["ERROR", "RUNTIME_FAILED"].includes(type)) return "failed";
-  if (["partial", "partial_success"].includes(status) || type === "RESULT") return "partial";
+  if (["partial", "partial_success", "input_required"].includes(status) || type === "RESULT") return "partial";
   if (["empty", "no_presentable_result"].includes(status)) return "empty";
   if (status === "wait_confirmation" || type === "NEEDS_CONFIRMATION") return "waiting";
   return "completed";

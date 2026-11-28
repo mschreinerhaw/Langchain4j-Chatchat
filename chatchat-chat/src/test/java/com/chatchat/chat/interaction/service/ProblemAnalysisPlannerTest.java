@@ -14,6 +14,14 @@ import static org.assertj.core.api.Assertions.*;
 import static org.mockito.Mockito.*;
 
 class ProblemAnalysisPlannerTest {
+    @Test @SuppressWarnings("unchecked") void exactLabelsAreRecoveredWithoutAcceptingAmbiguousOrDuplicateOutput() throws Exception {
+        var planner=new ProblemAnalysisPlanner(mock(ChatModel.class),mock(ConfigurableChatModelFactory.class),new ObjectMapper(),mock(ObjectProvider.class));
+        assertThat(planner.decodeClassification("  DATA_ANALYSIS  ")).isEqualTo(ProblemAnalysisPlan.TaskType.DATA_ANALYSIS);
+        assertThat(planner.decodeClassification("```json\n{\"taskType\":\"QA\"}\n```")).isEqualTo(ProblemAnalysisPlan.TaskType.QA);
+        assertThatThrownBy(()->planner.decodeClassification("{\"taskType\":\"QA\",\"taskType\":\"DATA_ANALYSIS\"}"))
+            .isInstanceOf(java.io.IOException.class);
+        assertThatThrownBy(()->planner.decodeClassification("QA or DATA_ANALYSIS")).isInstanceOf(java.io.IOException.class);
+    }
     @Test @SuppressWarnings("unchecked") void classificationDoesNotRepeatExecutionDescriptionsOrSchemas() {
         var model=mock(ChatModel.class);when(model.chat(anyString())).thenReturn("{\"taskType\":\"DATA_ANALYSIS\"}");
         var planner=new ProblemAnalysisPlanner(model,mock(ConfigurableChatModelFactory.class),new ObjectMapper(),mock(ObjectProvider.class));
@@ -134,10 +142,28 @@ class ProblemAnalysisPlannerTest {
 
     @Test @SuppressWarnings("unchecked") void malformedClassificationHasNoKeywordFallback() {
         var model=mock(ChatModel.class);
-        when(model.chat(anyString())).thenReturn("DATA_ANALYSIS");
+        when(model.chat(anyString())).thenReturn("DATA_ANALYSIS or QA");
         var planner=new ProblemAnalysisPlanner(model,mock(ConfigurableChatModelFactory.class),new ObjectMapper(),mock(ObjectProvider.class));
         assertThat(planner.classify(InteractionRequest.builder().query("analyze current data").build(),
             InteractionContext.builder().build(),mock(SkillDefinition.class),List.of())).isNull();
+    }
+
+    @Test @SuppressWarnings("unchecked") void unpublishedModelFailureHasASeparateReasonAndNeverCallsTheProvider() {
+        var resolver=mock(com.chatchat.agents.orchestration.model.AgentChatModelResolver.class);
+        var direct=mock(com.chatchat.agents.orchestration.model.DirectModelInvocation.class);
+        var publisher=mock(com.chatchat.agents.runtime.event.AgentRunEventPublisher.class);
+        ObjectProvider<com.chatchat.agents.runtime.event.AgentRunEventPublisher> providers=mock(ObjectProvider.class);
+        when(providers.orderedStream()).thenAnswer(ignored->java.util.stream.Stream.of(publisher));
+        when(resolver.resolveChatModel("unpublished-model")).thenThrow(new IllegalArgumentException("missing publication"));
+        var planner=new ProblemAnalysisPlanner(mock(ChatModel.class),mock(ConfigurableChatModelFactory.class),
+            new ObjectMapper(),providers);
+        planner.setDirectModels(direct,resolver);
+        var result=planner.classify(InteractionRequest.builder().query("Inspect the permitted data")
+            .modelName("unpublished-model").tenantId("tenant").userId("user")
+            .toolInput(Map.of("__agentRunId","run")).build(),InteractionContext.builder().build(),null,List.of());
+        assertThat(result).isNull();
+        verifyNoInteractions(direct);
+        verify(publisher).publish(argThat(event->event.payload().toString().contains("CLASSIFICATION_MODEL_CONFIGURATION_INVALID")));
     }
     @Test @SuppressWarnings("unchecked") void publishesFailedObservationWhenModelFails() {
         var model = mock(ChatModel.class);

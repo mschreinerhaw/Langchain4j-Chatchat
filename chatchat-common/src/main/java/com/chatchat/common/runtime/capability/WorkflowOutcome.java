@@ -6,6 +6,7 @@ import java.util.List;
 public record WorkflowOutcome(Type type, String reason, List<String> missingRequiredCapabilities,
                               List<String> missingOptionalCapabilities, boolean usableResult) {
     public static final String METADATA_KEY = "workflowOutcome";
+    public static final String TASK_CLASSIFICATION_CLARIFICATION = "TASK_CLASSIFICATION_CLARIFICATION_REQUIRED";
     public enum Type { PLAN_READY, DATA_REQUIRED, DOCUMENT_REQUIRED, ASSET_CONTEXT_REQUIRED, SKILL_REQUIRED,
         ACTION_REQUIRED, EVIDENCE_REQUIRED, INPUT_REQUIRED, CONFIRMATION_REQUIRED,
         PARTIAL_RESULT, READY_TO_ANSWER, INSUFFICIENT_EVIDENCE, NO_EXECUTABLE_PLAN, FAILED,
@@ -22,6 +23,7 @@ public record WorkflowOutcome(Type type, String reason, List<String> missingRequ
         if (type == Type.TIME_BUDGET_EXHAUSTED) return "TIME_BUDGET_EXHAUSTED";
         if (type == Type.MODEL_BUDGET_EXHAUSTED) return "MODEL_BUDGET_EXHAUSTED";
         if (type == Type.CONFIRMATION_REQUIRED) return "WAITING_CONFIRMATION";
+        if (type == Type.INPUT_REQUIRED && TASK_CLASSIFICATION_CLARIFICATION.equals(reason)) return "INPUT_REQUIRED";
         if (type == Type.READY_TO_ANSWER && usableResult && missingRequiredCapabilities.isEmpty()) return "SUCCESS";
         return usableResult ? "PARTIAL_SUCCESS" : "NO_PRESENTABLE_RESULT";
     }

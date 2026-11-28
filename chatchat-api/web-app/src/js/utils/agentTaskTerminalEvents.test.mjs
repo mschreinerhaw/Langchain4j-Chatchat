@@ -39,6 +39,14 @@ test('final outcome comes from the current attempt and the fresh task snapshot',
   assert.equal(terminalEventForSnapshot([old],{canonicalState:'FAILED',attemptId:'new'}).type,'STATUS');
 });
 
+test('clarification is terminal and retains its answer when canonical lifecycle is partial', () => {
+  const clarification={type:'RESULT',status:'INPUT_REQUIRED',attemptId:'current',sequence:2,
+    payload:{answer:'Identify the requested data scope.'}};
+  const stale={type:'RESULT',status:'PARTIAL_SUCCESS',attemptId:'current',sequence:4};
+  assert.equal(terminalEventForSnapshot([clarification,stale],{status:'INPUT_REQUIRED',canonicalState:'PARTIAL',
+    attemptId:'current'}),clarification);
+});
+
 test("fatal task events and explicit terminal status events still terminate polling", () => {
   assert.equal(isTerminalAgentEvent({ type: "ERROR", status: "FAILED" }), true);
   assert.equal(isTerminalAgentEvent({ type: "RUNTIME_FAILED", status: "FAILED" }), true);

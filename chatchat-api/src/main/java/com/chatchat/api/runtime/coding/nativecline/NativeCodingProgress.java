@@ -15,7 +15,7 @@ public final class NativeCodingProgress {
     }
     public static Map<String,Object> trace(CodingExecutionEvent event){
         var payload=new LinkedHashMap<String,Object>();
-        for(String key:List.of("normalizedType","nativeEventType","nativeEventId","nativeEvidenceRef","sessionId","operationId","tool","toolCallId","requestId","model","providerModel","status","startedAt","finishedAt","durationMs","exitCode","nativeOccurredAt")){
+        for(String key:List.of("normalizedType","nativeEventType","nativeEventId","nativeEvidenceRef","sessionId","operationId","tool","toolCallId","requestId","model","providerModel","status","startedAt","finishedAt","durationMs","exitCode","nativeOccurredAt","argumentSha256","resultSha256","resultBytes","errorCode")){
             Object value=event.payload().get(key);
             if(value instanceof Number||value instanceof Boolean||value instanceof String text&&text.length()<=512)payload.put(key,value);
         }

@@ -28,7 +28,7 @@ public class AgentTaskEventStreamService {
     private static final Set<String> TERMINAL_STATUSES = Set.of(
         "SUCCESS", "FAILED", "CANCELLED", "KILLED", "REJECTED", "TIMEOUT_CANCELLED",
         "PARTIAL", "PARTIAL_SUCCESS", "EMPTY",
-        "TIME_BUDGET_EXHAUSTED", "MODEL_BUDGET_EXHAUSTED", "NO_PRESENTABLE_RESULT");
+        "TIME_BUDGET_EXHAUSTED", "MODEL_BUDGET_EXHAUSTED", "NO_PRESENTABLE_RESULT", "INPUT_REQUIRED");
 
     private final AgentTaskService taskService;
     @org.springframework.beans.factory.annotation.Autowired

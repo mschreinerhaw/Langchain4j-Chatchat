@@ -7,6 +7,7 @@ const TERMINAL_STATUSES = new Set([
   "PARTIAL_SUCCESS",
   "EMPTY",
   "NO_PRESENTABLE_RESULT",
+  "INPUT_REQUIRED",
   "TIME_BUDGET_EXHAUSTED",
   "MODEL_BUDGET_EXHAUSTED",
   "FAILED",
@@ -33,7 +34,8 @@ function outcome(status) {
 // Events are observations from tools, model rounds and attempts. Only a fresh
 // task snapshot can confirm completion of the task being watched.
 export function terminalEventForSnapshot(events = [], snapshot = {}) {
-  const state = snapshot?.canonicalState || snapshot?.status;
+  const state = outcome(snapshot?.status) === 'INPUT_REQUIRED'
+    ? snapshot.status : (snapshot?.canonicalState || snapshot?.status);
   const expected = outcome(state);
   if (!isTerminalAgentTaskSnapshot(snapshot) && expected !== 'waiting') return null;
   const candidates = events.filter(event => isTerminalAgentEvent(event)

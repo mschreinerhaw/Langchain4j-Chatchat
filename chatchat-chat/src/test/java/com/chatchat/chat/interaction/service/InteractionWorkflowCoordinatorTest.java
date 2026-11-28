@@ -155,6 +155,8 @@ class InteractionWorkflowCoordinatorTest {
         var governed = mock(InteractionWorkflowCoordinator.GovernedExecution.class);
         var response = new InteractionWorkflowCoordinator(policy, planner, null, null).execute(request, context, agent, governed);
         assertThat(((WorkflowOutcome) response.getMetadata().get(WorkflowOutcome.METADATA_KEY)).type()).isEqualTo(WorkflowOutcome.Type.INPUT_REQUIRED);
+        assertThat(((WorkflowOutcome) response.getMetadata().get(WorkflowOutcome.METADATA_KEY)).publicStatus()).isEqualTo("INPUT_REQUIRED");
+        assertThat(response.getAnswer()).isNotBlank();
         verify(planner).classify(request, context, agent, entry.toolPurposes());
         verifyNoInteractions(governed);
     }

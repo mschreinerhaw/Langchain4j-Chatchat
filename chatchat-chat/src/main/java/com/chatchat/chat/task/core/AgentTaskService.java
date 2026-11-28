@@ -81,7 +81,7 @@ public class AgentTaskService {
     private static final List<String> RECOVERABLE_STATUSES = List.of(
         "PENDING", "RUNNING", "WAIT_TOOL", "WAIT_MODEL", "WAIT_CONFIRMATION", "WAITING_CONFIRM");
     private static final List<String> TERMINAL_STATUSES = List.of(
-        "SUCCESS", "PARTIAL", "PARTIAL_SUCCESS", "EMPTY", "NO_PRESENTABLE_RESULT",
+        "SUCCESS", "PARTIAL", "PARTIAL_SUCCESS", "EMPTY", "NO_PRESENTABLE_RESULT", "INPUT_REQUIRED",
         "FAILED", "TIME_BUDGET_EXHAUSTED", "MODEL_BUDGET_EXHAUSTED",
         "CANCELLED", "REJECTED", "TIMEOUT_CANCELLED", "KILLED", "DLQ"
     );
@@ -2840,6 +2840,7 @@ public class AgentTaskService {
             case "SUCCESS" -> "Agent task completed";
             case "FAILED" -> "Agent task failed before required tool workflow completed";
             case "PARTIAL", "PARTIAL_SUCCESS" -> "Agent task completed with partial result";
+            case "INPUT_REQUIRED" -> "Agent task requires clarification";
             case "TIME_BUDGET_EXHAUSTED" -> "Agent diagnostic execution time budget exhausted";
             case "MODEL_BUDGET_EXHAUSTED" -> "Agent model invocation budget exhausted";
             case "EMPTY", "NO_PRESENTABLE_RESULT" -> "Agent task completed without displayable result";

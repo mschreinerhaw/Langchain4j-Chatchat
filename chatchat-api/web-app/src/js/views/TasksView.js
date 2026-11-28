@@ -1301,6 +1301,7 @@ export default {
           PARTIAL_SUCCESS: "部分完成",
           EMPTY: "无结果",
           NO_PRESENTABLE_RESULT: "无可展示结果",
+          INPUT_REQUIRED: "需要确认任务目标",
           TIME_BUDGET_EXHAUSTED: "执行超时",
           MODEL_BUDGET_EXHAUSTED: "模型额度耗尽",
           CONFLICTED: "证据冲突",

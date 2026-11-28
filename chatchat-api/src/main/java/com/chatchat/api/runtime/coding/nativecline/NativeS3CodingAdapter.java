@@ -540,7 +540,7 @@ public final class NativeS3CodingAdapter implements CodingAgentSPI {
         var context=task.runtimeContext();
         String schema="";
         if(Boolean.TRUE.equals(context.get("analysisSchemaInInventory"))){
-            schema="Use resultSchema at the start of that inventory. If a tool abbreviates the inventory, read the relevant lines or parse the full file locally. Keep the RESULT contract fields separate from intermediate metrics. ";
+            schema="Parse resultSchema from that inventory in your local program. Inspect specific fields only when needed. Keep the RESULT contract fields separate from intermediate metrics. ";
         }else if(frozen.get("resultSchema") instanceof Map<?,?> legacy&&!legacy.isEmpty()){
             schema="The RESULT must match this frozen schema: "+new String(evidence.bytes(legacy),StandardCharsets.UTF_8)+". ";
         }
@@ -549,7 +549,7 @@ public final class NativeS3CodingAdapter implements CodingAgentSPI {
         Object rules=context.getOrDefault(CodingRuntimeContext.DELIVERY_RULES,
             NativeDeliveryPolicy.freeze(List.of("REPORT","RESULT"),context));
         String inventory=context.get("analysisMetadataPath") instanceof String path
-            ?"Read "+path+" for authorized data paths, formats, observed fields and row coverage. ":"";
+            ?"Use "+path+" as the authoritative inventory of paths, formats, fields and coverage. Read it once in your analysis program and reuse that parsed metadata. ":"";
         return task.objective().instruction()+"\n\nRuntime task contract\n"
             +"Workspace: /workspace. "+inventory+"Find authorized attachments in input/manifest.json. Input is read-only. "
             +"Use native tools and local Python over the full immutable data. Keep raw rows, intermediate tables and full logs on disk. Inspect only needed samples and compact diagnostics. "

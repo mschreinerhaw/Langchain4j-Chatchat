@@ -209,11 +209,18 @@ public final class NativeS3CodingAdapter implements CodingAgentSPI {
     boolean activeIdentity(KernelDataScope scope){
         return enterprise.isActiveIdentity(scope.tenantId(),scope.userId());
     }
+    boolean permitsBasicReport(KernelDataScope scope,String task){
+        if(!activeIdentity(scope)||!license.codingDispatchEntitlement().licenseValid())return false;
+        var denied=tasks.privateState(scope,task,"native-s3:disclosure-denied");
+        return (denied==null||denied.isNull())&&tasks.nativeTelemetry(scope,task,"model-admission").stream()
+            .noneMatch(entry->"RUNTIME_MODEL_AUTHORIZATION_REJECTED".equals(entry.path("code").asText()));
+    }
 
     private boolean stopForInactiveIdentity(Run run){
         if(activeIdentity(run.c.scope()))return false;
         String reason="Runtime identity is unavailable or expired";
         guarded(run,()->{
+            save(run,"native-s3:disclosure-denied",true);
             var scope=run.c.scope();
             var task=run.c.taskId();
             tasks.requestFailureStop(scope,task,run.lease,outcome(run).revision(),reason);

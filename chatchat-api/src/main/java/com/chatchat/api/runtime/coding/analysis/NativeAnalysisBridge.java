@@ -71,10 +71,12 @@ public final class NativeAnalysisBridge {
             var authorizedReferences=sources.values().stream().map(Dataset::reference).toList();long bytes=0,rows=0;int index=0;
             String snapshotTask=coding.taskIdentity(scope,request);
             var inventory = new ArrayList<Map<String, Object>>();
+            var basicFacts = new ArrayList<Map<String, Object>>();
             for(var source:sources.values()){
                 long offset=0, sourceBytes=0;
                 var observedFields = new LinkedHashSet<String>();
                 boolean fieldInventoryLimited = false;
+                var statistics=new NativeSnapshotStatistics();
                 long expectedRows = source.handle().recordCountExact() ? source.recordCount() : -1;
                 String name="source-"+(++index);
                 Path temporary=null;
@@ -93,14 +95,15 @@ public final class NativeAnalysisBridge {
                                     throw new IllegalArgumentException("DATA_SUPPLY_LIMIT: snapshot exceeds the configured row or byte budget");
                                 output.write(data);output.write('\n');
                                 sourceBytes+=lineBytes;bytes+=lineBytes;rows++;
-                                for (String field : row.keySet()) {
-                                    if (observedFields.contains(field)) continue;
+                                for (var entry : row.entrySet()) {
+                                    String field=entry.getKey();
                                     if (field == null || field.length() > MAX_INVENTORY_FIELD_CHARS
-                                            || observedFields.size() >= MAX_INVENTORY_FIELDS) {
+                                        || !observedFields.contains(field)&&observedFields.size()>=MAX_INVENTORY_FIELDS) {
                                         fieldInventoryLimited = true;
-                                    } else {
-                                        observedFields.add(field);
+                                        continue;
                                     }
+                                    observedFields.add(field);
+                                    statistics.observe(field,entry.getValue());
                                 }
                             }
                             offset+=page.rows().size();
@@ -148,8 +151,15 @@ public final class NativeAnalysisBridge {
                         Map.entry("inputStatus", status), Map.entry("countAssurance", description.get("countAssurance")),
                         Map.entry("format", "JSON_LINES"), Map.entry("observedFields", observedFields.stream().sorted().toList()),
                         Map.entry("fieldInventoryComplete", !fieldInventoryLimited),
+
                         Map.entry("path", "input/data/" + fileIndex + "/" + file.fileName()),
                         Map.entry("contextPath", "input/data/" + (fileIndex + 1) + "/" + meta.fileName())));
+                    var fact=new LinkedHashMap<>(inventory.get(inventory.size()-1));
+                    fact.put("basicFacts", Map.of("fields",statistics.snapshot(offset),
+                        "recordType",Objects.toString(contextFields.get("recordType"),""),
+                        "template",Objects.toString(contextFields.get("sourceTemplateId"),""),
+                        "snapshotPersistedAt",description.get("snapshotPersistedAt")));
+                    basicFacts.add(fact);
                 } catch (IOException invalid) {
                     throw new IllegalArgumentException("Source context cannot be frozen", invalid);
                 }
@@ -169,6 +179,14 @@ public final class NativeAnalysisBridge {
                         if(supply.containsKey(field))facts.set(field,json.valueToTree(supply.get(field)));
                 }
                 inventoryDocument.set("datasets",json.valueToTree(inventory));
+                byte[] facts=json.writer().with(com.fasterxml.jackson.databind.SerializationFeature.ORDER_MAP_ENTRIES_BY_KEYS)
+                    .writeValueAsBytes(Map.of("schemaVersion","runtime_basic_report_facts.v1",
+                        "objective",Objects.toString(context.query(),objective),"datasets",basicFacts));
+                var sealedFacts=assets.store(UserAssetService.Owner.of(scope),UserAssetService.Kind.DATASET,
+                    snapshotTask,scope.runId(),"runtime-basic-facts:"+UserAssetService.hash(facts),
+                    "runtime-basic-facts.json","application/json",facts);
+                inventoryDocument.set("basicReport",json.valueToTree(Map.of("version",1,
+                    "assetId",sealedFacts.id(),"sha256",sealedFacts.sha256())));
                 byte[] contents=json.writerWithDefaultPrettyPrinter().writeValueAsBytes(inventoryDocument);
                 var manifest = assets.store(UserAssetService.Owner.of(scope), UserAssetService.Kind.DATASET,
                     snapshotTask, scope.runId(), "native-supply-inventory:" + UserAssetService.hash(contents),
@@ -212,7 +230,7 @@ public final class NativeAnalysisBridge {
             }
             var submitted=coding.submit(scope,request,files,instruction,model,types,frozenSchema,capabilitySnapshot);
             observer.accept(Map.of("eventKind","CODING_TASK_SUBMITTED","taskId",submitted.taskId(),"source","JAVA_NATIVE_S3"));
-            var result=coding.await(scope,submitted.taskId(),context.cancellationCheck(),observer);
+            var result=coding.awaitWithBasicReport(scope,submitted.taskId(),context.cancellationCheck(),observer);
             result.put("authorizedDatasetReferences",authorizedReferences);
             result.put("deliveredSnapshotBytes", bytes);
             result.put("deliveredRows", rows);

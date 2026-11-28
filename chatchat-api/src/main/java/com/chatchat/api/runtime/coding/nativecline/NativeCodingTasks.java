@@ -17,6 +17,7 @@ import org.springframework.stereotype.Service;
 @ConditionalOnProperty(prefix="chatchat.runtime.coding.unified",name="enabled",havingValue="true")
 public final class NativeCodingTasks {
     @org.springframework.beans.factory.annotation.Autowired private NativeVisualReport visualReports;
+    @org.springframework.beans.factory.annotation.Autowired private NativeBasicReport basicReports;
     @org.springframework.beans.factory.annotation.Autowired private com.chatchat.api.runtime.coding.data.NativePublishedTemplate publishedTemplates;
     private final NativeSiloTaskService capture;
     private final NativeS3CodingAdapter adapter;
@@ -102,7 +103,9 @@ public final class NativeCodingTasks {
         var files=new ArrayList<UserAssetService.File>();
         for(var kind:List.of(UserAssetService.Kind.CODE,UserAssetService.Kind.ARTIFACT))files.addAll(assets.list(UserAssetService.Owner.of(scope),kind,task,100).stream().filter(f->scope.runId().equals(f.runId())).toList());
         result.put("artifacts",files);
-        if(!Boolean.TRUE.equals(result.get("resultAvailable"))&&canExposeSupplyEvidence(outcome)&&adapter.activeIdentity(scope)){
+        if(basicReports!=null&&NativeBasicReport.eligible(outcome)&&adapter.permitsBasicReport(scope,task))
+            basicReports.read(tasks.contract(scope,task),outcome).ifPresent(report->applyBasicReport(result,report));
+        if(outcome.resultDatasetRef()==null&&canExposeSupplyEvidence(outcome)&&adapter.activeIdentity(scope)){
             capture.supplyInventory(tasks.contract(scope,task)).ifPresent(snapshot->{
                 UserAssetService.File file;
                 try{file=assets.get(UserAssetService.Owner.of(scope),snapshot.originalAssetId());}
@@ -138,6 +141,24 @@ public final class NativeCodingTasks {
         }
         return result;
     }
+    private static void applyBasicReport(Map<String,Object> result,NativeBasicReport.Delivered report){
+        result.put("resultAvailable",true);
+        result.put("resultLevel",NativeBasicReport.LEVEL);
+        result.put("reportOrigin",NativeBasicReport.LEVEL);
+        result.put("dataSupplyStatus","AUTHORIZED_SNAPSHOTS_VERIFIED");
+        result.put("deterministicComputationStatus","BOUNDED_FIELD_STATISTICS");
+        result.put("intelligentAnalysisStatus",result.get("status"));
+        result.put("reportDeliveryStatus","PASSED");
+        result.put("businessCompletionStatus","PARTIAL");
+        result.put("basicReportReceipt",report.proof());
+        result.put("datasetReference","runtime-basic-report:"+report.files().get(1).sha256());
+        result.put("results",List.of(report.row()));
+        var files=new LinkedHashMap<String,UserAssetService.File>();
+        if(result.get("artifacts") instanceof List<?> previous)
+            for(var item:previous)if(item instanceof UserAssetService.File file)files.put(file.id(),file);
+        for(var file:report.files())files.put(file.id(),file);
+        result.put("artifacts",List.copyOf(files.values()));
+    }
     static boolean canExposeSupplyEvidence(CodingTaskOutcome outcome){
         return outcome.status().terminal()&&!outcome.cancellationRequested()
             &&!outcome.executionControl().reconciliationRequired()
@@ -149,6 +170,15 @@ public final class NativeCodingTasks {
         return await(scope,task,cancelled,null);
     }
     public Map<String,Object> await(KernelDataScope scope,String task,BooleanSupplier cancelled,java.util.function.Consumer<Map<String,Object>> observer){
+        return await(scope,task,cancelled,observer,false);
+    }
+    public Map<String,Object> awaitWithBasicReport(KernelDataScope scope,String task,BooleanSupplier cancelled,
+            java.util.function.Consumer<Map<String,Object>> observer){
+        identity.require(scope,com.chatchat.agents.runtime.coding.CodingTaskAccess.Action.SUBMIT);
+        return await(scope,task,cancelled,observer,true);
+    }
+    private Map<String,Object> await(KernelDataScope scope,String task,BooleanSupplier cancelled,
+            java.util.function.Consumer<Map<String,Object>> observer,boolean allowBasicReport){
         var budget=tasks.contract(scope,task).budget();
         long cursor=0;
         for(;;){
@@ -160,11 +190,26 @@ public final class NativeCodingTasks {
                 if(outcome.status().terminal()&&cursor<outcome.lastEventSequence())continue;
             }
             if(outcome.status().terminal()){
+                if(allowBasicReport&&basicReports!=null&&NativeBasicReport.eligible(outcome)
+                        &&!cancelled.getAsBoolean()&&adapter.permitsBasicReport(scope,task)){
+                    basicReports.publish(tasks.contract(scope,task),outcome,
+                        ()->!cancelled.getAsBoolean()&&adapter.permitsBasicReport(scope,task)).ifPresent(report->{
+                            if(observer!=null)observer.accept(Map.of("eventKind","RUNTIME_BASIC_REPORT_VERIFIED",
+                                "taskId",task,"reportOrigin",NativeBasicReport.LEVEL,
+                                "artifactCount",report.files().size(),"reasonCode",outcome.reasonCode().name()));
+                        });
+                }
                 return receipt(scope,task,outcome);
             }
             if(cancelled.getAsBoolean()){adapter.cancel(scope,task,"Parent task cancelled");throw new java.util.concurrent.CancellationException("Parent task cancelled; Native stop reconciliation continues");}
             long remaining=budget.hasDeadline()?Duration.between(Instant.now(),budget.deadlineAt()).toMillis():500;
             if(remaining<=0){
+                // Deadline is a stop request. A report must wait for authoritative reconciliation.
+                if(allowBasicReport&&remaining>-Duration.ofSeconds(35).toMillis()){
+                    try{Thread.sleep(500);}
+                    catch(InterruptedException stopped){Thread.currentThread().interrupt();throw new IllegalStateException("Native stop reconciliation continues",stopped);}
+                    continue;
+                }
                 var pending=receipt(scope,task,outcome);
                 pending.put("waitDeadlineReached",true);
                 return pending;

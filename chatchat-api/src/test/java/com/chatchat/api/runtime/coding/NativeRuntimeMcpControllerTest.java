@@ -103,7 +103,7 @@ class NativeRuntimeMcpControllerTest {
         mvc.perform(post("/internal/runtime/native-coding/model-settlement").header("Authorization","Bearer "+expired)
             .contentType("application/json").content("{\"requestId\":\"model-1\",\"providerTokens\":42}"))
             .andExpect(status().isNoContent());
-        verify(quota).settle(any(),eq("task"),eq("model-1"),eq(42L),eq(false));
+        verify(quota).settleNative(any(),eq("task"),eq("model-1"),eq(42L),eq(false));
     }
     @Test void retiredWorkerMaySettleItsExistingReceiptButCannotAdmitAnotherCall()throws Exception{
         String retired=settings.client.signGrant(Map.of("version",2,"tenantId","tenant","userId","user","taskId","task",
@@ -118,7 +118,7 @@ class NativeRuntimeMcpControllerTest {
             .contentType("application/json").content("{\"requestId\":\"model-2\",\"inputUpperBound\":20,\"outputUpperBound\":80}"))
             .andExpect(status().isForbidden());
         String oldReceipt=com.chatchat.api.enterprise.service.TokenQuotaLedger.nativeReceiptId("old-session","model-1");
-        verify(quota).settle(any(),eq("task"),eq(oldReceipt),eq(42L),eq(false));
+        verify(quota).settleNative(any(),eq("task"),eq(oldReceipt),eq(42L),eq(false));
         verifyNoMoreInteractions(quota);
     }
     @Test void frozenAnalysisModelBudgetDenialRequestsTheBudgetTerminalReason()throws Exception{

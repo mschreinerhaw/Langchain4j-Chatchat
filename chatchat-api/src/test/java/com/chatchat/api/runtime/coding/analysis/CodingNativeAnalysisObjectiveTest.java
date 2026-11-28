@@ -5,11 +5,18 @@ import org.junit.jupiter.api.Test;
 import static org.assertj.core.api.Assertions.*;
 
 class CodingNativeAnalysisObjectiveTest {
+    @org.junit.jupiter.api.Test void enumFeedbackIncludesBoundedFrozenIdentifiersWithoutEchoingModelValues(){
+        var schema=java.util.Map.<String,Object>of("type","string","enum",List.of("authorized:source-a","authorized:source-b"));
+        assertThatThrownBy(()->com.chatchat.agents.orchestration.analysis.graph.WorkspaceResultSchema.validate(
+            "invented-source",schema,"/evidenceReferences/0"))
+            .hasMessageContaining("ENUM_MISMATCH at /evidenceReferences/0","authorized:source-a","authorized:source-b")
+            .hasMessageNotContaining("invented-source");
+    }
     @Test void defaultsChineseRequestsToChineseAndUsesAnExplicitLanguageOption(){
         var empty=java.util.Map.<String,Object>of();
-        assertThat(NativeAnalysisBridge.reportLanguage("\u5206\u6790\u8fd0\u884c\u6570\u636e",empty,empty)).isEqualTo("zh");
-        assertThat(NativeAnalysisBridge.reportLanguage("\u5206\u6790",java.util.Map.of("responseLanguage","en-GB"),empty)).isEqualTo("en-GB");
-        assertThat(NativeAnalysisBridge.reportLanguage("Analyze the statistics",empty,empty)).isEqualTo("AUTO");
+        assertThat(com.chatchat.api.runtime.coding.nativecline.NativeReportLanguage.resolve("\u5206\u6790\u8fd0\u884c\u6570\u636e",empty,empty)).isEqualTo("zh");
+        assertThat(com.chatchat.api.runtime.coding.nativecline.NativeReportLanguage.resolve("\u5206\u6790",java.util.Map.of("responseLanguage","en-GB"),empty)).isEqualTo("en-GB");
+        assertThat(com.chatchat.api.runtime.coding.nativecline.NativeReportLanguage.resolve("Analyze the statistics",empty,empty)).isEqualTo("AUTO");
     }
     @Test void schemaDiagnosticsPointToExactNestedFieldsWithoutEchoingValues(){
         var item=java.util.Map.<String,Object>of("type","object","properties",java.util.Map.of("a/b",java.util.Map.of("type","integer")),"required",List.of("a/b"));

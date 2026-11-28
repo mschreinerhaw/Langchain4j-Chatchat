@@ -1,0 +1,259 @@
+{
+  "scenarios": {
+    "7": {
+      "taskId": "858ae349-f386-3f7e-83a1-42479f724bcd",
+      "status": "PARTIAL_SUCCESS",
+      "canonicalState": "PARTIAL",
+      "terminal": true,
+      "updatedAt": "2026-11-28T09:29:09.411289Z",
+      "submittedAt": "2026-11-28T09:09:45.914373+00:00",
+      "workerId": "45382928-fcb6-4d9d-be38-8aa2a273d966",
+      "runtimeTaskId": "temporal-native-3823c1da2dc7f23b3457a937a45c048d7b342f7d00613f8da2e000b4aef5820a",
+      "sessionId": "native-c580fa82-c034-41ac-8499-f2a6d22f11bd",
+      "providerModels": {
+        "qwen3.7-plus": 37
+      },
+      "workerState": "STOPPED",
+      "taskState": "RUNTIME_ACCEPTED",
+      "stops": {
+        "running": false,
+        "exitCode": 0
+      },
+      "acceptance": "PASSED",
+      "auditEvents": {
+        "worker.created": 1,
+        "worker.starting": 1,
+        "model.bound": 1,
+        "s3.inputs.verified": 1,
+        "skills.discovered": 19,
+        "worker.ready": 1,
+        "model.request.started": 37,
+        "model.forwarded": 37,
+        "model.request.completed": 37,
+        "delivery.sealed": 1,
+        "s3.delivery.uploaded": 1,
+        "runtime.validation.recorded": 1
+      },
+      "modelReceipts": 37,
+      "usageTotals": {
+        "inputTokens": 1146844,
+        "outputTokens": 57165,
+        "totalTokens": 1204009,
+        "cacheReadTokens": 710144
+      },
+      "phaseTimestamps": {
+        "s3.inputs.verified": "2026-11-28T09:10:17.899Z",
+        "model.request.started": "2026-11-28T09:10:30.012Z",
+        "delivery.sealed": "2026-11-28T09:28:17.228Z",
+        "s3.delivery.uploaded": "2026-11-28T09:28:26.983Z",
+        "runtime.validation.recorded": "2026-11-28T09:29:06.131Z"
+      },
+      "settlementPendingFiles": 0,
+      "deliveryArtifacts": [
+        {
+          "path": "output/report/innodb_report.html",
+          "type": "REPORT",
+          "size": 22525,
+          "sha256": "ae9286b0b6fc3499e25180ca181cc43b3e9965bc14eea1d94d40742bb4e566b0",
+          "digestMatches": true,
+          "visibleHanCount": 649,
+          "visibleLatinWords": 88
+        },
+        {
+          "path": "output/result/result.json",
+          "type": "RESULT",
+          "size": 7930,
+          "sha256": "5e6d0f2187e2abc6d5de307241d1bddb9ae5c81a2f1bb8ddb91d57d5382cf794",
+          "digestMatches": true,
+          "status": "PARTIAL",
+          "limitationCount": 5,
+          "references": {
+            "count": 9,
+            "verifiedInManifest": 9
+          }
+        }
+      ],
+      "uploadedArtifactCount": 2,
+      "uploadedEvidenceSize": 3194127,
+      "nativeJournalBytes": 3194115,
+      "providerJournalBytes": 135147,
+      "snapshotDatasetCount": 9,
+      "previousSnapshotDatasetCount": 9,
+      "snapshotDifferenceCount": 6,
+      "matchesPreviousSnapshot": false
+    },
+    "6": {
+      "taskId": "ad5615d6-83af-3160-9c6d-3b3dbe4ee02f",
+      "status": "FAILED",
+      "canonicalState": "FAILED",
+      "terminal": true,
+      "updatedAt": null,
+      "submittedAt": "2026-11-28T09:29:11.140857+00:00",
+      "workerId": "a20f8b1b-9ddd-4228-9497-b1d5d43b505c",
+      "runtimeTaskId": "temporal-native-85019385e514074bc2bc7e328c0030dba11077895d684fc4eb307b17e2ddbb23",
+      "sessionId": "native-83efd61d-18c6-4368-9174-647df70e7a0e",
+      "providerModels": {
+        "qwen3.7-plus": 77
+      },
+      "workerState": "STOPPED",
+      "taskState": "CANCELLED_LOCAL_ONLY",
+      "stops": {
+        "running": false,
+        "exitCode": 0
+      },
+      "acceptance": null,
+      "auditEvents": {
+        "worker.created": 1,
+        "worker.starting": 1,
+        "model.bound": 1,
+        "s3.inputs.verified": 1,
+        "skills.discovered": 19,
+        "worker.ready": 1,
+        "model.request.started": 77,
+        "model.forwarded": 77,
+        "model.request.completed": 77,
+        "worker.stopping": 1,
+        "worker.stopped": 1
+      },
+      "modelReceipts": 77,
+      "usageTotals": {
+        "inputTokens": 2261456,
+        "outputTokens": 63414,
+        "totalTokens": 2324870,
+        "cacheReadTokens": 1754752
+      },
+      "phaseTimestamps": {
+        "s3.inputs.verified": "2026-11-28T09:30:30.643Z",
+        "model.request.started": "2026-11-28T09:30:41.366Z",
+        "delivery.sealed": null,
+        "s3.delivery.uploaded": null,
+        "runtime.validation.recorded": null
+      },
+      "settlementPendingFiles": 0,
+      "deliveryArtifacts": [],
+      "uploadedArtifactCount": 0,
+      "uploadedEvidenceSize": null,
+      "nativeJournalBytes": 4535300,
+      "providerJournalBytes": 257982,
+      "snapshotDatasetCount": 8,
+      "previousSnapshotDatasetCount": 8,
+      "snapshotDifferenceCount": 8,
+      "matchesPreviousSnapshot": false
+    }
+  },
+  "sampleCount": 94,
+  "disk": {
+    "/opt": {
+      "freeBytes": 16416706560,
+      "usedPercent": 91.50182304388537,
+      "freeInodes": 32120312
+    },
+    "/mnt/disk01": {
+      "freeBytes": 50744614912,
+      "usedPercent": 52.71730734000977,
+      "freeInodes": 51629936
+    }
+  },
+  "firstResourceSample": {
+    "time": "2026-11-28T09:10:30.501526+00:00",
+    "processes": {
+      "stability-njr-api": {
+        "pid": 3686069,
+        "cpuUserTicks": 14238,
+        "cpuSystemTicks": 505,
+        "rssBytes": 2042974208,
+        "readBytes": 280170496,
+        "writeBytes": 17776640
+      },
+      "stability-njr-broker": {
+        "pid": 3685836,
+        "cpuUserTicks": 80,
+        "cpuSystemTicks": 25,
+        "rssBytes": 83439616,
+        "readBytes": 32583680,
+        "writeBytes": 1200128
+      },
+      "stability-njr-mcp": {
+        "pid": 3685985,
+        "cpuUserTicks": 8431,
+        "cpuSystemTicks": 317,
+        "rssBytes": 949538816,
+        "readBytes": 214835200,
+        "writeBytes": 16441344
+      },
+      "stability3-pg2": {
+        "pid": 2146414,
+        "cpuUserTicks": 76,
+        "cpuSystemTicks": 960,
+        "rssBytes": 14626816,
+        "readBytes": 1957236736,
+        "writeBytes": 9401516032
+      },
+      "cline-p331-145c200fb3dd9599f077f096cd5520acce8f3036": {
+        "pid": 3690874,
+        "cpuUserTicks": 2,
+        "cpuSystemTicks": 4,
+        "rssBytes": 4096,
+        "readBytes": 0,
+        "writeBytes": 0
+      }
+    },
+    "journalBytes": 56380,
+    "activeWorkers": 1,
+    "availableBytes": {
+      "/opt": 16354095104,
+      "/mnt/disk01": 50517442560
+    }
+  },
+  "lastResourceSample": {
+    "time": "2026-11-28T09:57:20.465230+00:00",
+    "processes": {
+      "stability-njr-api": {
+        "pid": 3686069,
+        "cpuUserTicks": 227455,
+        "cpuSystemTicks": 6969,
+        "rssBytes": 3084644352,
+        "readBytes": 303439872,
+        "writeBytes": 33009664
+      },
+      "stability-njr-broker": {
+        "pid": 3685836,
+        "cpuUserTicks": 2637,
+        "cpuSystemTicks": 419,
+        "rssBytes": 103424000,
+        "readBytes": 85999616,
+        "writeBytes": 27246592
+      },
+      "stability-njr-mcp": {
+        "pid": 3685985,
+        "cpuUserTicks": 11121,
+        "cpuSystemTicks": 656,
+        "rssBytes": 963837952,
+        "readBytes": 260030464,
+        "writeBytes": 22347776
+      },
+      "stability3-pg2": {
+        "pid": 2146414,
+        "cpuUserTicks": 88,
+        "cpuSystemTicks": 1098,
+        "rssBytes": 14454784,
+        "readBytes": 2229522432,
+        "writeBytes": 10796101632
+      }
+    },
+    "journalBytes": 8122544,
+    "activeWorkers": 0,
+    "availableBytes": {
+      "/opt": 16773279744,
+      "/mnt/disk01": 50616451072
+    }
+  },
+  "observedPeakRssBytes": {
+    "stability-njr-api": 3084644352,
+    "stability-njr-broker": 105467904,
+    "stability-njr-mcp": 963837952,
+    "stability3-pg2": 14626816,
+    "cline-p331-145c200fb3dd9599f077f096cd5520acce8f3036": 4096,
+    "cline-p331-b4dfa27507f414712be281da776de9c632a9c0c5": 4096
+  }
+}

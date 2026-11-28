@@ -90,7 +90,7 @@ public final class NativeSiloTaskService {
                 ||selectedModel.chars().anyMatch(Character::isISOControl))
             throw new IllegalArgumentException("Native model logical name must contain 1–256 UTF-16 code units and no control characters");
         if(budget==null||!workspaceReview&&(budget.maxModelCalls()!=-1
-                &&!(capabilities.get("analysisMetadataPath") instanceof String)||budget.maxToolCalls()!=-1||budget.maxCodeExecutions()!=-1))
+                &&!CodingRuntimeContext.isNativeAnalysis(capabilities)||budget.maxToolCalls()!=-1||budget.maxCodeExecutions()!=-1))
             throw new IllegalArgumentException("Native profile requires unlimited model/tool/code execution counts");
         if(!workspaceReview&&(budget.maxMemoryBytes()<1||budget.maxOutputBytes()<1))
             throw new IllegalArgumentException("Native profile requires explicit memory and output resource protection");
@@ -105,6 +105,9 @@ public final class NativeSiloTaskService {
                         com.chatchat.common.runtime.coding.CodingReasoning.submittedFromContext(capabilities))
                     ||!studio.equals(input.getOrDefault("studio",Map.of()))
                     ||!Objects.equals(capabilities.get("publishedTemplate"),contract.runtimeContext().get("publishedTemplate"))
+                    ||contract.runtimeContext().containsKey(CodingRuntimeContext.NATIVE_TASK_KIND)
+                        &&(!Objects.equals(contract.runtimeContext().get(CodingRuntimeContext.NATIVE_TASK_KIND),capabilities.get(CodingRuntimeContext.NATIVE_TASK_KIND))
+                        ||!Objects.equals(contract.runtimeContext().get(CodingRuntimeContext.DELIVERY_RULES),capabilities.get(CodingRuntimeContext.DELIVERY_RULES)))
                     ||!artifactTypes.equals(input.get("artifactTypes"))||!resultSchema.equals(input.getOrDefault("resultSchema",Map.of())))
                 throw new IllegalArgumentException("Immutable Native task request conflict");
             return contract; // Never extend its deadline or replace a failed task.
@@ -195,6 +198,22 @@ public final class NativeSiloTaskService {
             throw new SecurityException("Native input versions or scope changed");
         return input;
     }
+    record SupplyInventory(String originalAssetId,String sha256){}
+    Optional<SupplyInventory> supplyInventory(CodingTaskContract contract){
+        if(!(contract.runtimeContext().get("analysisMetadataPath") instanceof String path)
+                || !Boolean.TRUE.equals(contract.runtimeContext().get("analysisSchemaInInventory")))return Optional.empty();
+        var authorized=requireAuthorized(contract);
+        if(!(authorized.get("originalFileIds") instanceof List<?> originals))return Optional.empty();
+        var inputs=workspace.get(contract.scope(),contract.taskId()).inputs();
+        if(inputs.size()!=originals.size())return Optional.empty();
+        for(int i=0;i<inputs.size();i++){
+            var input=inputs.get(i);
+            if(path.equals(input.path())&&originals.get(i) instanceof String id)
+                return Optional.of(new SupplyInventory(id,input.sha256()));
+        }
+        return Optional.empty();
+    }
+
     /** Trusted Node callback only; signed capabilities must never become a
      * public user response, model context or a file inside the Agent workspace.
      */

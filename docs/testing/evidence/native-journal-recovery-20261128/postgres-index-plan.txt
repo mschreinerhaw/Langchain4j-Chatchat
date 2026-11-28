@@ -1,0 +1,27 @@
+BEFORE
+ Aggregate  (cost=3789.02..3789.03 rows=1 width=80) (actual time=32.809..32.810 rows=1.00 loops=1)
+   Buffers: local read=1539 written=518
+   ->  Seq Scan on journal_quota_probe  (cost=0.00..3789.00 rows=1 width=21) (actual time=0.042..32.740 rows=100.00 loops=1)
+         Filter: (((state)::text <> 'RELEASED'::text) AND ((tenant_id)::text = 'tenant'::text) AND ((run_id)::text = 'run-1'::text) AND ((task_id)::text = 'task-1'::text) AND ((user_id)::text = 'user-1'::text))
+         Rows Removed by Filter: 99900
+         Buffers: local read=1539 written=518
+ Planning:
+   Buffers: shared hit=46
+ Planning Time: 0.339 ms
+ Execution Time: 32.847 ms
+
+AFTER
+ Aggregate  (cost=8.34..8.35 rows=1 width=80) (actual time=0.391..0.392 rows=1.00 loops=1)
+   Buffers: local hit=63 read=39
+   ->  Index Scan using idx_probe_scope on journal_quota_probe  (cost=0.29..8.32 rows=1 width=21) (actual time=0.038..0.363 rows=100.00 loops=1)
+         Index Cond: (((tenant_id)::text = 'tenant'::text) AND ((run_id)::text = 'run-1'::text) AND ((task_id)::text = 'task-1'::text) AND ((user_id)::text = 'user-1'::text))
+         Filter: ((state)::text <> 'RELEASED'::text)
+         Index Searches: 1
+         Buffers: local hit=63 read=39
+ Planning:
+   Buffers: shared hit=28, local read=1
+ Planning Time: 0.223 ms
+ Execution Time: 0.419 ms
+
+ idx_token_charge_native_task
+

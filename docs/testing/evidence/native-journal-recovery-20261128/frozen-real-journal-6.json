@@ -1,0 +1,1 @@
+{"journalBytes": 4535300, "samples": 24, "measurements": [{"label": "before", "medianMs": 46.0153085, "p95Ms": 52.239147}, {"label": "after", "medianMs": 1.2997535000000653, "p95Ms": 2.173228999999992}]}

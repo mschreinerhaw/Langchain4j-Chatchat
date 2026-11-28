@@ -132,7 +132,7 @@ public final class DurableCodingTaskService implements CodingAgentSPI {
                     &&Objects.equals(nativeBinding.path("executionEpoch").asText(),observation.payload().get("executionEpoch")),
                     AUTHORIZATION_DENIED,"Native observation belongs to a superseded execution");
             boolean studio=task.contract.metadataRefs().contains("runtime-coding:native-studio:v1");
-            boolean analysis=task.contract.runtimeContext().get("analysisMetadataPath") instanceof String;
+            boolean analysis=com.chatchat.common.runtime.coding.CodingRuntimeContext.isNativeAnalysis(task.contract.runtimeContext());
             require(task.contract.metadataRefs().contains("runtime-coding:native-python-silo:v1")
                 &&(studio?task.contract.budget().maxCodeExecutions()==0:
                     (analysis||CodingLimit.unlimited(task.contract.budget().maxModelCalls()))

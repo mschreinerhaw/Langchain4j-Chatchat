@@ -1,0 +1,102 @@
+{
+  "scope": "General Native analysis delivery contract and business hardcoding review",
+  "baselineCommit": "30b7189c7a061abf41376b9621d1409474a60e30",
+  "automated": {
+    "nativeLinux": {
+      "passed": 177,
+      "skipped": 1
+    },
+    "javaSelectedSuites": {
+      "passed": 65,
+      "skipped": 1
+    },
+    "gatewayFunctional": {
+      "passed": 30
+    },
+    "gatewayRuntimeHttp": {
+      "passed": 1
+    },
+    "reviewCandidates": 0
+  },
+  "reviewCommand": "node scripts/check-business-hardcoding.mjs --base 30b7189c",
+  "acceptanceMatrix": [
+    {
+      "axis": "alternate-authorized-asset",
+      "status": "online-delivery-verified-quality-gap",
+      "evidence": "Cases A/B used the same objective and model with two uploaded authorized assets. A returned 2 rows and sum 8. B delivered 3 rows but omitted the sum."
+    },
+    {
+      "axis": "alternate-authorized-model",
+      "status": "online-delivery-verified-quality-gap",
+      "evidence": "On the language candidate, E/F used the same asset and Chinese objective. Both completed formal delivery. Qwen3.8-27B returned the expected 3 rows and sum 18. qwen3.7-plus omitted the sum. deepseek-v4-pro failed during Worker startup in C."
+    },
+    {
+      "axis": "alternate-published-template",
+      "status": "awaiting-true-equivalent-pair",
+      "evidence": "Switching the published template for the same input remains an online requirement."
+    },
+    {
+      "axis": "independent-report-name",
+      "status": "automated-and-online-pass",
+      "evidence": "The contract accepted multiple independently chosen Markdown/JSON names; owner-scoped downloads matched all artifact hashes."
+    },
+    {
+      "axis": "report-language",
+      "status": "automated-and-online-pass",
+      "evidence": "On the language candidate, E/G delivered Chinese and English Markdown for the same asset and model. Business metric coverage differed between the reports."
+    },
+    {
+      "axis": "report-format-and-artifact-kind",
+      "status": "automated-pass",
+      "evidence": "Delivery fixtures cover Markdown, HTML, report companions and required TEST without a model selection manifest."
+    },
+    {
+      "axis": "different-input-fields-and-volumes",
+      "status": "online-small-fixture-verified-quality-gap",
+      "evidence": "Same request and model handled both 2-field/2-row and 3-field/3-row CSV fixtures with formal delivery. Larger volumes and equivalent metric coverage remain open."
+    },
+    {
+      "axis": "replacement-worker",
+      "status": "automated-pass",
+      "evidence": "NativeS3CodingAdapterTest covers verified stop before replay in the same task and rejection of late manifests from a superseded session. Online handover with frozen delivery rules is open."
+    },
+    {
+      "axis": "same-template-different-customers",
+      "status": "awaiting-authorized-test-fixtures",
+      "evidence": "Only the supplied validation environment and account were used. A second authorized customer fixture is required."
+    },
+    {
+      "axis": "independent-real-business-scenario",
+      "status": "see-live-evidence",
+      "evidence": "CDH YARN was submitted through the normal entry. The task ended before data supply and Native delivery."
+    }
+  ],
+  "runtimePolicyReview": {
+    "deploymentConfigured": [
+      "analysisBudget.minutes",
+      "analysisBudget.modelCalls",
+      "analysisBudget.modelTokens",
+      "Executor resources",
+      "Executor maxWorkers/maxPerTenant",
+      "Silo file/output size limits"
+    ],
+    "frozenInTask": [
+      "task kind",
+      "deadline and model limits",
+      "artifact types",
+      "artifact layouts and result schema"
+    ],
+    "platformSafetyLimitsRetained": [
+      "delivery inventory traversal and entry limits",
+      "bounded validation repair",
+      "nonempty regular output files",
+      "Silo authorization, hashes and object version checks"
+    ],
+    "limitedCoverage": [
+      "Ordinary Native tool/code counts remain -1 in NativeS3Settings. That budget capability was not added in this change.",
+      "The validation deployment configured a 45-minute Runtime budget and applied a separate QA observation guard.",
+      "The Java issuer, broker, executor and Worker were updated together. A mixed-version rolling upgrade was not validated."
+    ]
+  },
+  "followupEvidence": "followup-verification.json"
+}

@@ -11,7 +11,7 @@ import {toolFailed} from './tool-outcome.mjs';
 import {validateRuntime} from './runtime-assets.mjs';
 import {nativeModelSettings} from './native-model-settings.mjs';
 import {forkNativeWorker} from './native-process.mjs';
-import {buildDeliveryManifest,writeDeliveryManifest,readDeliverySelection,discoverAnalysisDelivery} from './delivery-manifest.mjs';
+import {buildDeliveryManifest,writeDeliveryManifest,readDeliverySelection,discoverContractDelivery,deliveryRulesFor} from './delivery-manifest.mjs';
 import {commandEvidence,executionRecords,executionContent} from './command-evidence.mjs';
 
 const config=JSON.parse(readFileSync(process.env.CLINE_SERVER_CONFIG,'utf8'));
@@ -39,11 +39,18 @@ function persist(s){
  renameSync(next,join(s.dir,'session.json'));
  const dir=openSync(s.dir,'r');try{fsyncSync(dir);}finally{closeSync(dir);}
 }
-function emit(s,eventType,payload={}){
- const event=s.journal.append({sessionId:s.id,taskId:s.taskId??null,epoch:s.epoch,eventType,payload:redact(payload)});
- for(const response of s.subscribers){if(!response.write(`id: ${event.eventId}\nevent: ${eventType}\ndata: ${JSON.stringify(event)}\n\n`)){s.subscribers.delete(response);response.end();}}
- return event;
+function emitEvents(s,records){
+ const events=s.journal.appendBatch(records.map(([eventType,payload])=>({
+  sessionId:s.id,taskId:s.taskId??null,epoch:s.epoch,eventType,payload:redact(payload)
+ })));
+ for(const event of events)for(const response of s.subscribers){
+  if(!response.write(`id: ${event.eventId}\nevent: ${event.eventType}\ndata: ${JSON.stringify(event)}\n\n`)){
+   s.subscribers.delete(response);response.end();
+  }
+ }
+ return events;
 }
+function emit(s,eventType,payload={}){return emitEvents(s,[[eventType,payload]])[0];}
 function status(s,state){
  s.status=state;s.revision++;
  try{persist(s);}catch(error){s.persistenceFailed=true;throw error;}
@@ -72,13 +79,14 @@ function nativeEvent(s,event){
   const {messages,metadata,...snapshot}=event.payload.snapshot;
   event={...event,payload:{...event.payload,snapshot}};
  }
- emit(s,'native.event',event);
+ const records=[['native.event',event]];
+ if(a?.type==='iteration_start')records.push(['model.iteration.started',{iteration:a.iteration,source:'AgentEvent.iteration_start'}]);
+ if(a?.type==='usage')records.push(['model.usage',{...a,cost:null,totalCost:null,costStatus:'unverified-native-pricing'}]);
+ if(a?.contentType==='tool'&&a.type==='content_start')records.push(['tool.started',a]);
+ if(a?.contentType==='tool'&&a.type==='content_end')records.push([toolFailed(a)?'tool.failed':'tool.completed',a]);
+ if(a?.type==='notice'&&/compact|context.window|context.limit/i.test(String(a.reason)))records.push(['context.notice',a]);
+ emitEvents(s,records);
  if(event.payload?.sessionId&&!s.nativeSessionId){s.nativeSessionId=event.payload.sessionId;persist(s);}
- if(a?.type==='iteration_start')emit(s,'model.iteration.started',{iteration:a.iteration,source:'AgentEvent.iteration_start'});
- if(a?.type==='usage')emit(s,'model.usage',{...a,cost:null,totalCost:null,costStatus:'unverified-native-pricing'});
- if(a?.contentType==='tool'&&a.type==='content_start')emit(s,'tool.started',a);
- if(a?.contentType==='tool'&&a.type==='content_end')emit(s,toolFailed(a)?'tool.failed':'tool.completed',a);
- if(a?.type==='notice'&&/compact|context.window|context.limit/i.test(String(a.reason)))emit(s,'context.notice',a);
  if(a?.type==='error'&&!['turn_completed','failed','cancelled','cancelling','sealing','sealed'].includes(s.status)){
   emit(s,'model.error',a);
   if(a.recoverable===false)failure(s,Error(a.error?.message??'Unrecoverable native model error'));
@@ -205,7 +213,7 @@ const server=http.createServer(async(req,res)=>{
   if(parts[0]!=='v1'||parts[1]!=='sessions')return send(res,404,{code:'NOT_FOUND'});
   const s=sessions.get(parts[2]);if(!s)return send(res,404,{code:'NOT_FOUND'});
   if(s.persistenceFailed&&parts[3]!=='cancel')return send(res,503,{code:'SESSION_PERSISTENCE_FAILED'});
-  if(method==='GET'&&(parts.length===3||parts[3]==='status'))return send(res,200,{sessionId:s.id,status:s.status,messageReceipts:true,taskId:s.taskId,nativeSessionId:s.nativeSessionId,epoch:s.epoch,revision:s.revision,lastEventId:String(s.journal.events.length),pendingPermissions:[...permissions.values()].filter(p=>p.sessionId===s.id&&p.state==='pending').map(({timer,...p})=>redact(p))});
+  if(method==='GET'&&(parts.length===3||parts[3]==='status'))return send(res,200,{sessionId:s.id,status:s.status,messageReceipts:true,taskId:s.taskId,nativeSessionId:s.nativeSessionId,epoch:s.epoch,revision:s.revision,lastEventId:s.journal.lastEventId,pendingPermissions:[...permissions.values()].filter(p=>p.sessionId===s.id&&p.state==='pending').map(({timer,...p})=>redact(p))});
   if(method==='GET'&&parts[3]==='message-receipt'){
    const key=req.headers['idempotency-key'];
    if(typeof key!=='string'||!key||key.length>128)return send(res,400,{code:'IDEMPOTENCY_KEY_REQUIRED'});
@@ -218,7 +226,11 @@ const server=http.createServer(async(req,res)=>{
    for(const e of events)res.write(`id: ${e.eventId}\nevent: ${e.eventType}\ndata: ${JSON.stringify(e)}\n\n`);
    s.subscribers.add(res);const heartbeat=setInterval(()=>res.write(': heartbeat\n\n'),15000);req.on('close',()=>{clearInterval(heartbeat);s.subscribers.delete(res);});return;
   }
-  if(parts[3]==='messages'&&method==='GET')return send(res,200,{events:s.journal.events.filter(e=>e.eventType==='native.event'&&e.payload.type==='agent_event')});
+  if(parts[3]==='messages'&&method==='GET'){
+   const events=[];
+   for(const event of s.journal.readAfter())if(event.eventType==='native.event'&&event.payload.type==='agent_event')events.push(event);
+   return send(res,200,{events});
+  }
   if(parts[3]==='diff'&&method==='GET'){
    const r=spawnSync('git',['diff','--no-ext-diff','HEAD','--'],{cwd:s.workspace,encoding:'utf8',maxBuffer:8*1024*1024});if(r.status!==0)throw Error(r.stderr);return send(res,200,{patch:r.stdout,sha256:digest(r.stdout)});
   }
@@ -248,7 +260,8 @@ const server=http.createServer(async(req,res)=>{
    if(!preview&&s.delivery&&version!==s.delivery.deliveryVersion)return send(res,409,{code:'SEAL_DELIVERY_VERSION_MISMATCH'});
    let files=b.files;
    if(config.requireDeliverySelection===true){
-    try{files=config.analysisDelivery?await discoverAnalysisDelivery(s.workspace,config.analysisDelivery):await readDeliverySelection(s.workspace);}
+    const rules=deliveryRulesFor(config);
+    try{files=rules?await discoverContractDelivery(s.workspace,rules):await readDeliverySelection(s.workspace);}
     catch(error){emit(s,'delivery.selection.invalid',{deliveryVersion:version,message:error.message,selectionSha256:error.selectionSha256??null,source:'HOST_DELIVERY_PROTOCOL'});return send(res,422,{code:'DELIVERY_SELECTION_INVALID',message:redact(error.message),selectionSha256:error.selectionSha256??null});}
    }
    let manifest;
@@ -260,7 +273,7 @@ const server=http.createServer(async(req,res)=>{
    }
    // This endpoint prepares an inventory only. Runtime must independently verify
    // immutable Silo versions and its current run fence before formal acceptance.
-   if(config.analysisDelivery&&!preview&&s.delivery&&JSON.stringify(s.delivery.artifacts)!==JSON.stringify(manifest.artifacts))
+   if(deliveryRulesFor(config)&&!preview&&s.delivery&&JSON.stringify(s.delivery.artifacts)!==JSON.stringify(manifest.artifacts))
     return send(res,409,{code:'DELIVERY_CONTENT_CHANGED_SINCE_PREVIEW'});
    s.delivery=await writeDeliveryManifest(s.workspace,manifest);
    persist(s);
@@ -270,8 +283,10 @@ const server=http.createServer(async(req,res)=>{
   if(parts[3]==='seal'&&method==='POST'){
    if(!config.deliveryBinding)return send(res,409,{code:'TRUSTED_DELIVERY_BINDING_REQUIRED'});
    if(s.status==='sealed')return send(res,200,{status:s.status});
-   if(s.status!=='turn_completed')return send(res,409,{code:'ONLY_COMPLETED_TURN_CAN_BE_SEALED'});
-   await cancel(s,{seal:true});return send(res,s.status==='sealed'?200:503,{status:s.status});
+   if(s.sealBusy||!['turn_completed','sealing'].includes(s.status))return send(res,409,{code:'ONLY_COMPLETED_TURN_CAN_BE_SEALED'});
+   s.sealBusy=true;
+   try{await cancel(s,{seal:true});return send(res,s.status==='sealed'?200:503,{status:s.status});}
+   finally{s.sealBusy=false;}
   }
   if(parts[3]==='messages'&&method==='POST'){
    const b=await body(req),key=req.headers['idempotency-key'];if(!key||typeof b.text!=='string'||!b.text.trim())return send(res,400,{code:'TEXT_AND_IDEMPOTENCY_KEY_REQUIRED'});

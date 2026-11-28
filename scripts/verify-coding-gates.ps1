@@ -2,7 +2,8 @@ param(
     [string]$SqlGlotPython,
     [switch]$Offline,
     [switch]$SkipFrontend,
-    [switch]$SkipFullSuite
+    [switch]$SkipFullSuite,
+    [string]$HardcodingBase = 'HEAD'
 )
 $ErrorActionPreference='Stop'
 $repo=[IO.Path]::GetFullPath((Join-Path $PSScriptRoot '..'))
@@ -10,7 +11,7 @@ if(-not $SqlGlotPython){$SqlGlotPython=Join-Path $repo 'target/sql-toolchain-ven
 $out=Join-Path $repo ('target/coding-gates/'+(Get-Date -Format 'yyyyMMdd-HHmmss'))
 New-Item -ItemType Directory -Path $out -Force | Out-Null
 $report=[ordered]@{scope='Local real SDK + Docker + JDBC; deterministic model and template-source doubles';
-    startedAt=(Get-Date).ToUniversalTime().ToString('o');G1='NOT_RUN';G2='NOT_RUN';G3='NOT_RUN';node='NOT_RUN';frontend='NOT_RUN';fullBackend='NOT_RUN';logs=$out}
+    startedAt=(Get-Date).ToUniversalTime().ToString('o');G1='NOT_RUN';G2='NOT_RUN';G3='NOT_RUN';node='NOT_RUN';frontend='NOT_RUN';fullBackend='NOT_RUN';hardcoding='NOT_RUN';logs=$out}
 function Save-Report { $report | ConvertTo-Json -Depth 8 | Set-Content -LiteralPath (Join-Path $out 'gates.json') -Encoding UTF8 }
 function Invoke-Check([string]$command,[string[]]$arguments,[string]$directory,[string]$log) {
     Push-Location -LiteralPath $directory
@@ -23,6 +24,10 @@ function Invoke-Check([string]$command,[string[]]$arguments,[string]$directory,[
     return $code
 }
 try {
+    $hardcodingExit=Invoke-Check 'node' @('scripts/check-business-hardcoding.mjs','--base',$HardcodingBase) $repo 'hardcoding.log'
+    $report.hardcoding=switch($hardcodingExit){0{'PASSED'} 1{'REVIEW_REQUIRED'} default{'ERROR'}}
+    Save-Report
+    if($hardcodingExit -ne 0){throw "Review the reported source locations in $out\hardcoding.log"}
     if(-not(Test-Path -LiteralPath $SqlGlotPython)){throw "Configure -SqlGlotPython with the pinned SQLGlot 30.23.0 interpreter"}
     $dockerExit=Invoke-Check 'docker' @('info','--format','{{.ServerVersion}}') $repo 'docker-preflight.log'
     if($dockerExit -ne 0){$report.G1='ENVIRONMENT_BLOCKED';$report.G2='ENVIRONMENT_BLOCKED';$report.G3='ENVIRONMENT_BLOCKED';Save-Report;Write-Output "Docker unavailable. Evidence: $out";exit 2}

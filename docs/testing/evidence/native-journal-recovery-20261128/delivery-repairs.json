@@ -1,0 +1,30 @@
+{
+  "7": [
+    {
+      "version": "v1",
+      "reason": "Deliver exactly one report in output/report/ and one structured JSON result in output/result/"
+    }
+  ],
+  "6": [
+    {
+      "version": "v1",
+      "reason": "RESULT validation failed. Repair only the indicated JSON fields and keep the report unchanged unless its conclusions change. output/result/result.json - MISSING_REQUIRED_FIELDS at <root> - add [/reportMarkdown, /evidenceReferences, /limitations, /analysisStatus, /fieldProvenance]"
+    },
+    {
+      "version": "v2",
+      "reason": "RESULT validation failed. Repair only the indicated JSON fields and keep the report unchanged unless its conclusions change. output/result/result.json - UNDECLARED_FIELDS at <root> - remove keys absent from the frozen schema at this object"
+    },
+    {
+      "version": "v3",
+      "reason": "RESULT validation failed. Repair only the indicated JSON fields and keep the report unchanged unless its conclusions change. output/result/result.json - ENUM_MISMATCH at /analysisStatus - use a value from the frozen schema"
+    },
+    {
+      "version": "v4",
+      "reason": "RESULT validation failed. Repair only the indicated JSON fields and keep the report unchanged unless its conclusions change. output/result/result.json - TYPE_MISMATCH at /evidenceReferences/0 - expected string"
+    },
+    {
+      "version": "v5",
+      "reason": "RESULT validation failed. Repair only the indicated JSON fields and keep the report unchanged unless its conclusions change. output/result/result.json - ENUM_MISMATCH at /evidenceReferences/0 - use a value from the frozen schema"
+    }
+  ]
+}

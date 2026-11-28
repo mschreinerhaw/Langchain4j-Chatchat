@@ -1,0 +1,22 @@
+{
+  "before": {
+    "status": "FAILED",
+    "resultAvailable": false,
+    "reasonCode": "OUTPUT_CONTRACT_VIOLATION",
+    "dataSupplyEvidence": null
+  },
+  "after": {
+    "status": "FAILED",
+    "resultAvailable": false,
+    "reasonCode": "OUTPUT_CONTRACT_VIOLATION",
+    "dataSupplyEvidence": {
+      "sizeBytes": 6510,
+      "snapshotPersistedAt": "2026-11-28T09:30:29.474Z",
+      "level": "INPUT_SNAPSHOT_EVIDENCE",
+      "sha256": "d5f02ad6f48240098503da7adc9e55ee842adce2753992ba6dccaddc8f81da2a",
+      "assetId": "e13e96ca3128a297b199763f608d5f666f2b300149c39d0008c1e6ac6707bf83"
+    }
+  },
+  "downloadDigestMatches": true,
+  "datasetCount": 8
+}

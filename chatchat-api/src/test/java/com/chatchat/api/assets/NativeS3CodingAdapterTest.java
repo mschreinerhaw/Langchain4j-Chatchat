@@ -410,17 +410,29 @@ class NativeS3CodingAdapterTest {
     }
     @Test void lateManifestFromAnotherReceiptSessionCannotBecomeFinal()throws Exception{
         wrongReceiptSession=true;
-        String file=fixture.assets.upload(fixture.owner,"input.csv","value\n42\n".getBytes()).id();
-        var contract=authorized(()->capture.capture(fixture.scope,"native-stale",List.of(file),"Analyze authorized input","published-model",new CodingTaskContract.Budget("stale-budget",Instant.now().plusSeconds(90).truncatedTo(java.time.temporal.ChronoUnit.MILLIS),-1,-1,-1,-1,"unlimited","USD",-1,1024*1024,1024*1024),Map.of("profile","artifact-integrity-v1"),List.of("RESULT")));
+        byte[] inventory=json.writeValueAsBytes(Map.of("schemaVersion","native-data-supply-inventory.v1"));
+        var file=fixture.assets.store(fixture.owner,UserAssetService.Kind.DATASET,"native-stale",fixture.scope.runId(),
+            "native-supply-inventory:"+UserAssetService.hash(inventory),"data-supply-manifest.json","application/json",inventory);
+        var contract=authorized(()->capture.capture(fixture.scope,"native-stale",List.of(file.id()),"Analyze authorized input","published-model",new CodingTaskContract.Budget("stale-budget",Instant.now().plusSeconds(90).truncatedTo(java.time.temporal.ChronoUnit.MILLIS),-1,-1,-1,-1,"unlimited","USD",-1,1024*1024,1024*1024),Map.of("profile","artifact-integrity-v1"),List.of("RESULT"),Map.of(),Map.of(
+                "analysisMetadataPath","input/data/0/data-supply-manifest.json","analysisSchemaInInventory",true)));
         authorized(()->adapter.submit(contract));CodingTaskOutcome result=null;
         for(int i=0;i<100;i++){result=authorized(()->tasks.get(fixture.scope,"native-stale"));if(result.status().terminal())break;Thread.sleep(100);}
         assertThat(result.status()).isEqualTo(CodingTaskOutcome.Status.FAILED);assertThat(result.resultDatasetRef()).isNull();
+        var facade=new NativeCodingTasks(capture,adapter,settings,identity,fixture.assets,null,tasks);
+        var receipt=authorized(()->facade.delivery(fixture.scope,"native-stale"));
+        assertThat(receipt).containsEntry("status","FAILED").containsEntry("resultAvailable",false);
+        assertThat(receipt.get("dataSupplyEvidence")).asInstanceOf(org.assertj.core.api.InstanceOfAssertFactories.MAP)
+            .containsEntry("assetId",file.id()).containsEntry("sha256",file.sha256()).containsEntry("level","INPUT_SNAPSHOT_EVIDENCE");
     }
     @Test void cancellationWaitsForExecutorProofAndCanSettleWhenHistoricalTelemetryIsMissing()throws Exception{
         asynchronousStop=true;missingStoppedTelemetry=true;
-        String file=fixture.assets.upload(fixture.owner,"input.csv","value\n42\n".getBytes()).id();
         var facade=new NativeCodingTasks(capture,adapter,new NativeS3Settings(directory.resolve("connection.json").toString(),json),identity,fixture.assets,null,tasks);
-        var submitted=authorized(()->facade.submit(fixture.scope,"native-cancel",List.of(file),"Long running task","published-model",List.of("RESULT"),Map.of()));
+        String target=authorized(()->facade.taskIdentity(fixture.scope,"native-cancel"));
+        byte[] inventory=json.writeValueAsBytes(Map.of("schemaVersion","native-data-supply-inventory.v1"));
+        var file=fixture.assets.store(fixture.owner,UserAssetService.Kind.DATASET,target,fixture.scope.runId(),
+            "native-supply-inventory:"+UserAssetService.hash(inventory),"data-supply-manifest.json","application/json",inventory);
+        var submitted=authorized(()->facade.submit(fixture.scope,"native-cancel",List.of(file.id()),"Long running task","published-model",List.of("RESULT"),Map.of(),Map.of(
+            "analysisMetadataPath","input/data/0/data-supply-manifest.json","analysisSchemaInInventory",true)));
         String task=submitted.taskId();
         var frozen=authorized(()->tasks.contract(fixture.scope,task));
         assertThat(frozen.budget().hasDeadline()).isFalse();
@@ -436,6 +448,7 @@ class NativeS3CodingAdapterTest {
         var committed=authorized(()->tasks.events(fixture.scope,task,0,128));
         assertThat(traces).hasSize(committed.size());assertThat(traces.stream().map(t->t.get("eventId"))).containsExactlyElementsOf(committed.stream().map(CodingExecutionEvent::eventId).toList());
         assertThat(receipt.get("analysisEvents")).asList().isNotEmpty();assertThat(receipt.get("status")).isEqualTo("CANCELLED");
+        assertThat(receipt).doesNotContainKey("dataSupplyEvidence");
     }
     @Test void liveNodeWithoutStopProofFallsBackToIndependentExecutor()throws Exception{
         asynchronousStop=true;

@@ -3,6 +3,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import http from 'node:http';
 import {spawn} from 'node:child_process';
+import {once} from 'node:events';
 import {mkdtemp,mkdir,writeFile,readFile,rm} from 'node:fs/promises';
 import {join,dirname} from 'node:path';
 import {tmpdir} from 'node:os';
@@ -14,20 +15,23 @@ import {inputManifestHash,jsonHash} from '../src/s3-task-transport.mjs';
 const pause=ms=>new Promise(r=>setTimeout(r,ms));
 const listen=(server,address)=>new Promise(r=>server.listen(address,r));
 const close=server=>new Promise(r=>{server.close(r);server.closeAllConnections?.();});
-for(const scenario of ['delivery','cancel-upload','cancel-model','published-model','worker-exit'])test('S3 gateway HTTP '+scenario+' preserves SSE and rejects cross-task access',{
+for(const scenario of ['delivery','cancel-upload','cancel-model','published-model','worker-exit','seal-restart','seal-early-restart','settlement-restart','admission-disconnect','silo-outage'])test('S3 gateway HTTP '+scenario+' preserves SSE and rejects cross-task access',{
  skip:process.platform==='win32'||process.getuid?.()!==0?'Linux/root Unix-socket integration fixture':false,
 },async()=>{
  const cancelUpload=scenario==='cancel-upload';
- const published=scenario==='published-model';
- const gatewayEntry=published?process.env.TEST_LOCAL_GATEWAY_ENTRY:undefined;
+ const published=['published-model','settlement-restart','admission-disconnect'].includes(scenario);
+ const gatewayEntry=scenario==='published-model'?process.env.TEST_LOCAL_GATEWAY_ENTRY:undefined;
  const root=await mkdtemp(join(tmpdir(),'s3gw-')),workers=join(root,'w'),states=join(root,'s');
  await mkdir(workers);await mkdir(states);
  const hash=x=>createHash('sha256').update(x).digest('hex');
  let workerId,brokerToken,manifest,nativeState='idle',stopped=false,blockUploads=false,releaseUpload;
+ let storageAvailable=scenario!=='silo-outage';
  const uploads=[];
  const s3=http.createServer(async(req,res)=>{
   if(req.method==='GET'){res.writeHead(206,{'content-range':'bytes 0-3/4'});res.end('a,b\n');return;}
-  const chunks=[];for await(const b of req)chunks.push(b);uploads.push({path:req.url,bytes:Buffer.concat(chunks)});
+  const chunks=[];for await(const b of req)chunks.push(b);
+  if(!storageAvailable){res.writeHead(503);res.end();return;}
+  uploads.push({path:req.url,bytes:Buffer.concat(chunks)});
   if(blockUploads)await new Promise(r=>{releaseUpload=r;});
   res.writeHead(200,{'x-amz-version-id':'immutable-'+uploads.length});res.end();
  });await listen(s3,{host:'127.0.0.1',port:0});
@@ -60,7 +64,7 @@ for(const scenario of ['delivery','cancel-upload','cancel-model','published-mode
   if(mode==='reset')activeProviderRequest={mode,interrupt:()=>res.destroy()};
   else res.end('data: [DONE]\n\n');
  });await listen(provider,{host:'127.0.0.1',port:0});
- let token;
+ let token,settlementAvailable=scenario!=='settlement-restart',failNativeDelivery=scenario==='seal-early-restart';
  const authorityPaths=[], modelAdmissions=[],modelSettlements=[];
  const authority=http.createServer(async(req,res)=>{
   if(req.headers.authorization!=='Bearer '+token){res.writeHead(403);res.end();return;}
@@ -69,9 +73,11 @@ for(const scenario of ['delivery','cancel-upload','cancel-model','published-mode
    const chunks=[];for await(const chunk of req)chunks.push(chunk);
    const value=JSON.parse(Buffer.concat(chunks));
    if(req.url.endsWith('/model-settlement')){
-    modelSettlements.push(value);res.writeHead(204);res.end();return;
+    modelSettlements.push(value);res.writeHead(settlementAvailable?204:503);res.end();return;
    }
-   modelAdmissions.push(value);res.writeHead(admitModel?204:403);res.end();return;
+   modelAdmissions.push(value);
+   if(scenario==='admission-disconnect'){res.destroy();return;}
+   res.writeHead(admitModel?204:403);res.end();return;
   }
   res.setHeader('content-type','application/json');
   res.end(JSON.stringify(req.url.endsWith('/model')?{model:'qwen-3.6-plus',
@@ -89,6 +95,7 @@ for(const scenario of ['delivery','cancel-upload','cancel-model','published-mode
    await writeFile(join(workers,workerId,'workspace','business.py'),'fixture');
   }else if(req.url.endsWith('/seal')){nativeState='sealed';value={status:nativeState};}
   else if(req.url.endsWith('/delivery')){
+   if(failNativeDelivery){failNativeDelivery=false;res.writeHead(503);res.end('{}');return;}
    manifest={schemaVersion:'coding_node_delivery.v1',deliveryVersion:b.deliveryVersion,
     artifacts:[{path:'business.py',type:'SOURCE',size:7,sha256:hash('fixture')}]};value=manifest;
   }else if(req.url.endsWith('/cancel')){nativeState='cancelled';value={status:nativeState};}
@@ -121,8 +128,13 @@ for(const scenario of ['delivery','cancel-upload','cancel-model','published-mode
    mcp:{authMode:'native-runtime',url:authorityBase+'/mcp'}});
  }
  const configFile=join(root,'config.json');await writeFile(configFile,JSON.stringify(cfg));
- const child=spawn(process.execPath,[fileURLToPath(new URL('../src/governance-server.mjs',import.meta.url))],{env:{...process.env,CLINE_GOVERNANCE_CONFIG:configFile},stdio:['ignore','pipe','pipe']});
- let logs='';child.stdout.on('data',b=>logs+=b);child.stderr.on('data',b=>logs+=b);
+ let logs='';
+ function launch(){
+  const broker=spawn(process.execPath,[fileURLToPath(new URL('../src/governance-server.mjs',import.meta.url))],{env:{...process.env,CLINE_GOVERNANCE_CONFIG:configFile},stdio:['ignore','pipe','pipe']});
+  broker.stdout.on('data',b=>logs+=b);broker.stderr.on('data',b=>logs+=b);
+  return broker;
+ }
+ let child=launch();
  const base='http://127.0.0.1:'+cfg.port;
  const inputs=[{path:'input/data.csv',size:4,sha256:hash('a,b\n'),objectVersion:'v1',url:origin+'/bucket/tenant/task/run/input/data.csv?versionId=v1'}];
  const contract={version:2,tenantId:'tenant',userId:'user',taskId:'task',sessionId:'session',workspaceRef:'project',modelProfile:'model',
@@ -161,6 +173,13 @@ for(const scenario of ['delivery','cancel-upload','cancel-model','published-mode
   return lines.split('\n').filter(Boolean).map(line=>JSON.parse(line)).filter(event=>event.eventType==='model.request.completed');
  };
  async function until(check){for(let i=0;i<150;i++){const value=await check();if(value)return value;await pause(20);}throw new Error('Timed out waiting for the Broker fixture');}
+ async function restartBroker(){
+  const exited=once(child,'exit');
+  child.kill('SIGKILL');
+  await exited;
+  child=launch();
+  await until(()=>fetch(base+'/health/live').then(r=>r.ok,()=>false));
+ }
  try{
   if(gatewayEntry){
    const listeners=[http.createServer(),http.createServer()];
@@ -201,6 +220,14 @@ for(const scenario of ['delivery','cancel-upload','cancel-model','published-mode
   if(published){
    assert.deepEqual(authorityPaths,['/internal/runtime/native-coding/model','/internal/runtime/native-coding/skills']);
    const chat=modelRequest('published HTTP model');
+   if(scenario==='admission-disconnect'){
+    assert.equal(await chat.result,502);
+    const recovered=await until(()=>modelSettlements[0]);
+    assert.deepEqual(recovered,{requestId:modelAdmissions[0].requestId,providerTokens:null,neverDispatched:true});
+    assert.equal(providerCalls,0);
+    assert.deepEqual(await receipts(),[]);
+    return;
+   }
    assert.equal(await chat.result,200);
    assert.match(chat.state.text,/fixture delta/);
    assert.match(chat.state.text,/\[DONE\]/);
@@ -212,6 +239,17 @@ for(const scenario of ['delivery','cancel-upload','cancel-model','published-mode
    const settled=await until(()=>modelSettlements[0]);
    assert.equal(receipt.requestId,modelAdmissions[0].requestId);
    assert.deepEqual(settled,{requestId:receipt.requestId,providerTokens:null,neverDispatched:false});
+   if(scenario==='settlement-restart'){
+    settlementAvailable=true;
+    const attempts=modelSettlements.length;
+    await restartBroker();
+    await until(()=>modelSettlements.length>attempts);
+    assert.deepEqual(modelSettlements.at(-1),settled);
+    const queue=join(states,'workers',workerId,'model-settlement',receipt.requestId+'.json');
+    await until(()=>readFile(queue).then(()=>false,e=>e.code==='ENOENT'));
+    assert.equal(providerCalls,1);
+    return;
+   }
    const callsBeforeExpiry=providerCalls;
    admitModel=false;
    assert.equal(await modelRequest('expired identity').result,403);
@@ -239,7 +277,7 @@ for(const scenario of ['delivery','cancel-upload','cancel-model','published-mode
    assert.equal(cancelled.errorCode,'RUNTIME_TASK_STOPPED');assert.notEqual(cancelled.responseTiming.firstModelDeltaMs,null);
    return;
   }
-  if(!cancelUpload){
+  if(!cancelUpload&&!['seal-restart','seal-early-restart','silo-outage'].includes(scenario)){
    assert.equal(await modelRequest('missing-usage').result,200);
    const success=await until(async()=>(await receipts())[0]);
    assert.equal(success.status,'SUCCEEDED');assert.equal(success.usage,null);
@@ -273,12 +311,36 @@ for(const scenario of ['delivery','cancel-upload','cancel-model','published-mode
   assert.equal((await request('/v1/sessions/session/messages',{text:'protocol fixture'})).status,200);
   assert.deepEqual((await request('/v1/sessions/session/message-receipt')).body,
    {messageId:'fixed',receipt:{status:'accepted',taskId:'native-task'}});
+  if(scenario==='seal-restart'){
+   const blocked=join(workers,workerId,'sealed-native-events.json');
+   await mkdir(blocked);
+   assert.equal((await request('/v1/sessions/session/delivery',{deliveryVersion:'v1'})).status,503);
+   assert(stopped);
+   await rm(blocked,{recursive:true});
+   await close(native);
+   await restartBroker();
+  }
+  if(scenario==='seal-early-restart'){
+   assert.equal((await request('/v1/sessions/session/delivery',{deliveryVersion:'v1'})).status,503);
+   assert.equal(nativeState,'sealed');
+   assert.equal(stopped,false);
+   await restartBroker();
+   assert.equal((await request('/v1/sessions/session/status')).body.deliveryInProgress,true);
+  }
   const delivered=await request('/v1/sessions/session/delivery',{deliveryVersion:'v1'});assert.equal(delivered.status,200,JSON.stringify(delivered));assert(stopped);
   assert.equal((await request('/v1/sessions/session/acceptance',{manifestSha256:jsonHash(manifest),status:'PASSED',validationRef:'unverified'})).status,409);
   const sse=await fetch(base+'/v1/sessions/session/events',{headers:{authorization:'Bearer '+token}});
   assert.match(await sse.text(),/TypeError: fixture/);
   const output=origin+contract.s3.outputPrefix;
   const plan={manifestSha256:jsonHash(manifest),artifacts:[{path:'business.py',parts:[{url:output+'source.part0'}]}],manifestUrl:output+'manifest.json',evidenceUrl:output+'events.json'};
+  if(scenario==='silo-outage'){
+   assert.equal((await request('/v1/sessions/session/upload',plan)).status,503);
+   const checkpoint=(await request('/v1/sessions/session/status')).body;
+   assert.equal(checkpoint.taskState,'SEALED_PENDING_UPLOAD');
+   assert.equal(checkpoint.uploadReceipt,null);
+   await restartBroker();
+   storageAvailable=true;
+  }
   if(!cancelUpload){
    assert.equal((await request('/v1/sessions/session/upload',plan)).body.acceptanceStatus,'PENDING_RUNTIME_VALIDATION');
    assert.equal((await request('/v1/sessions/session/status')).body.taskState,'DELIVERED_PENDING_RUNTIME_VALIDATION');

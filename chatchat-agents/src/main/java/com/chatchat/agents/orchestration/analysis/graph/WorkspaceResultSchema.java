@@ -44,7 +44,7 @@ public final class WorkspaceResultSchema {
         };
         if (!valid) throw violation(path,"TYPE_MISMATCH","expected "+type);
         if (schema.get("enum") instanceof List<?> options && !options.contains(value))
-            throw violation(path,"ENUM_MISMATCH","use a value from the frozen schema");
+            throw violation(path,"ENUM_MISMATCH",enumAction(options));
         if (value instanceof Map<?,?> values && "object".equals(type)) {
             var properties = object(schema.getOrDefault("properties", Map.of()));
             var required = (List<?>)schema.getOrDefault("required", List.of());
@@ -63,6 +63,12 @@ public final class WorkspaceResultSchema {
             var itemSchema=object(schema.get("items"));
             for(int i=0;i<values.size();i++) validate(values.get(i),itemSchema,pointer(path,i));
         }
+    }
+    private static String enumAction(List<?> options){
+        if(!options.isEmpty()&&options.size()<=16&&options.stream().allMatch(option->
+            option instanceof String text&&text.matches("[A-Za-z0-9][A-Za-z0-9_.:/-]{0,95}")))
+            return "use an exact value from "+options;
+        return "use a value from the frozen schema";
     }
     private static String pointer(String path,Object field){
         return path+"/"+field.toString().replace("~","~0").replace("/","~1");

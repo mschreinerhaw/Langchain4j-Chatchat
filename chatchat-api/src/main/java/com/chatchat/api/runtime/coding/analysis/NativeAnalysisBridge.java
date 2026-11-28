@@ -134,6 +134,7 @@ public final class NativeAnalysisBridge {
                 description.put("format","JSON_LINES");
                 description.put("fileName",name+".jsonl");
                 description.put("sha256",file.sha256());
+                description.put("snapshotPersistedAt",java.time.Instant.ofEpochMilli(file.createdAt()).toString());
                 description.put("sourceContext",contextFields);
                 description.put("countAssurance", expectedRows >= 0 ? "VERIFIED_TOTAL" : "OBSERVED_PAGINATION_END");
                 try {
@@ -162,6 +163,11 @@ public final class NativeAnalysisBridge {
                 inventoryDocument.set("resultSchema",json.valueToTree(frozenSchema));
                 inventoryDocument.put("deliveredRows",rows);
                 inventoryDocument.put("deliveredSnapshotBytes",bytes);
+                if(context.metadata().get("dataSupply") instanceof Map<?,?> supply){
+                    var facts=inventoryDocument.putObject("supplyFacts");
+                    for(String field:List.of("status","businessDataAvailable","deliveryComplete","supplyMetrics","excludedSourceCount"))
+                        if(supply.containsKey(field))facts.set(field,json.valueToTree(supply.get(field)));
+                }
                 inventoryDocument.set("datasets",json.valueToTree(inventory));
                 byte[] contents=json.writerWithDefaultPrettyPrinter().writeValueAsBytes(inventoryDocument);
                 var manifest = assets.store(UserAssetService.Owner.of(scope), UserAssetService.Kind.DATASET,
@@ -186,9 +192,11 @@ public final class NativeAnalysisBridge {
             String model=Objects.toString(context.metadata().get("modelName"),null);
             var capabilitySnapshot = new LinkedHashMap<>(capabilities.capture(scope, model, context.runtimeAttributes(),
                 context.metadata(), sources.size(), rows));
+            capabilitySnapshot.put(com.chatchat.common.runtime.coding.CodingRuntimeContext.NATIVE_TASK_KIND,
+                com.chatchat.common.runtime.coding.CodingRuntimeContext.DATA_ANALYSIS);
             capabilitySnapshot.put("analysisMetadataPath", metadataPath);
             capabilitySnapshot.put("analysisSchemaInInventory",true);
-            capabilitySnapshot.put("analysisReportLanguage",reportLanguage(context.query(),context.metadata(),context.runtimeAttributes()));
+            capabilitySnapshot.put("analysisReportLanguage",com.chatchat.api.runtime.coding.nativecline.NativeReportLanguage.resolve(context.query(),context.metadata(),context.runtimeAttributes()));
             if (publishedTemplates != null && context.result() != null) {
                 Set<String> optionalIds = new LinkedHashSet<>();
                 for (var step : context.result().steps()) {
@@ -225,23 +233,4 @@ public final class NativeAnalysisBridge {
         });
     }
 
-    static String reportLanguage(String query,Map<String,Object> metadata,Map<String,Object> attributes){
-        var languageMetadata=new LinkedHashMap<>(attributes);
-        languageMetadata.putAll(metadata);
-        String configured=new com.chatchat.agents.orchestration.answer.AnswerContractCompiler()
-            .compile(query,null,languageMetadata).language();
-        if(!"AUTO".equalsIgnoreCase(configured)){
-            try{
-                var locale=new Locale.Builder().setLanguageTag(configured).build();
-                if(!locale.getLanguage().isEmpty())return locale.toLanguageTag();
-            }catch(IllformedLocaleException ignored){/* Use the request language. */}
-        }
-        if(query!=null){
-            if(query.codePoints().anyMatch(cp->Character.UnicodeScript.of(cp)==Character.UnicodeScript.HIRAGANA
-                    ||Character.UnicodeScript.of(cp)==Character.UnicodeScript.KATAKANA))return "ja";
-            if(query.codePoints().anyMatch(cp->Character.UnicodeScript.of(cp)==Character.UnicodeScript.HANGUL))return "ko";
-            if(query.codePoints().anyMatch(cp->Character.UnicodeScript.of(cp)==Character.UnicodeScript.HAN))return "zh";
-        }
-        return "AUTO";
-    }
 }

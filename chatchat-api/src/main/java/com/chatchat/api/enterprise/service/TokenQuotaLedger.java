@@ -67,6 +67,27 @@ public class TokenQuotaLedger {
         if (!mysql) {
             jdbc.execute("create index if not exists idx_token_charge_user on enterprise_token_charge(tenant_id,user_id,user_period)");
             jdbc.execute("create index if not exists idx_token_charge_role on enterprise_token_charge(tenant_id,role_id,role_period)");
+            jdbc.execute("""
+                create index if not exists idx_token_charge_native_task
+                on enterprise_token_charge(tenant_id,run_id,task_id,user_id,state)
+                """);
+        } else {
+            var exists = jdbc.queryForObject("""
+                select count(*) from information_schema.statistics
+                where table_schema=database() and table_name='enterprise_token_charge'
+                  and index_name='idx_token_charge_native_task'
+                """, Integer.class);
+            if (exists != null && exists == 0) {
+                try {
+                    jdbc.execute("""
+                        create index idx_token_charge_native_task
+                        on enterprise_token_charge(tenant_id,run_id,task_id,user_id,state)
+                        """);
+                } catch (org.springframework.dao.DataAccessException concurrent) {
+                    if (!(concurrent.getMostSpecificCause() instanceof java.sql.SQLException sql)
+                            || sql.getErrorCode() != 1061) throw concurrent;
+                }
+            }
         }
     }
 
@@ -136,10 +157,30 @@ public class TokenQuotaLedger {
     /** Call using the durable model receipt. A transport failure alone does not prove zero use. */
     @Transactional(propagation = Propagation.REQUIRES_NEW)
     public void settle(KernelDataScope scope, String taskId, String requestId, Long providerTokens, boolean neverDispatched) {
+        settleCharge(scope, taskId, requestId, providerTokens, neverDispatched, false);
+    }
+
+    /** The signed broker can close a pre-dispatch request while admission is still in flight. */
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
+    public void settleNative(KernelDataScope scope, String taskId, String requestId, Long providerTokens, boolean neverDispatched) {
+        settleCharge(scope, taskId, requestId, providerTokens, neverDispatched, true);
+    }
+
+    private void settleCharge(KernelDataScope scope, String taskId, String requestId, Long providerTokens,
+                              boolean neverDispatched, boolean fenceLateAdmission) {
         if (providerTokens != null && providerTokens < 0) throw new IllegalArgumentException("Invalid model usage");
         lockTenant(scope.tenantId());
         var prior = charge(scope.tenantId(), requestId);
-        if (prior == null) return; // Historic request submitted before the ledger was introduced.
+        if (prior == null) {
+            if (fenceLateAdmission && neverDispatched && providerTokens == null) {
+                jdbc.update("""
+                    insert into enterprise_token_charge(tenant_id,request_id,task_id,run_id,user_id,role_id,
+                    user_period,role_period,held_tokens,actual_tokens,state,created_ms)
+                    values (?,?,?,?,?,'',0,0,0,null,'RELEASED',?)
+                    """, scope.tenantId(), requestId, taskId, scope.runId(), scope.userId(), System.currentTimeMillis());
+            }
+            return;
+        }
         requireChargeScope(prior, scope, taskId);
         if ("SETTLED".equals(prior.state())) {
             if (providerTokens != null && !providerTokens.equals(prior.actual()))
@@ -148,6 +189,7 @@ public class TokenQuotaLedger {
         }
         if ("RELEASED".equals(prior.state())) return;
         String state = providerTokens != null ? "SETTLED" : neverDispatched ? "RELEASED" : "UNKNOWN";
+        if (state.equals(prior.state())) return;
         jdbc.update("update enterprise_token_charge set actual_tokens=?,state=? where tenant_id=? and request_id=?",
             providerTokens, state, scope.tenantId(), requestId);
     }

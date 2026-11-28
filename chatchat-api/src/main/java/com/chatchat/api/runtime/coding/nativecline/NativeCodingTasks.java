@@ -48,8 +48,17 @@ public final class NativeCodingTasks {
             var metadata=assets.store(UserAssetService.Owner.of(scope),UserAssetService.Kind.DATASET,task,scope.runId(),"native-empty-input:"+task,"authorized-input-scope.json","application/json","{\"inputStatus\":\"NO_FILES_SUPPLIED\",\"sources\":[]}".getBytes(StandardCharsets.UTF_8));
             original=List.of(metadata.id());
         }
-        var budget=settings.analysisBudget(task,capabilities.containsKey("analysisMetadataPath"));
-        var contract=capture.capture(scope,task,original,instruction,selected,budget,Map.of("profile","artifact-integrity-v1"),artifactTypes==null||artifactTypes.isEmpty()?List.of("RESULT"):List.copyOf(artifactTypes),schema,capabilities);
+        var deliverables=artifactTypes==null||artifactTypes.isEmpty()?List.of("RESULT"):List.copyOf(artifactTypes);
+        var runtimeContext=new LinkedHashMap<>(capabilities);
+        runtimeContext.putIfAbsent(CodingRuntimeContext.NATIVE_TASK_KIND,"GENERIC");
+        boolean analysis=CodingRuntimeContext.isNativeAnalysis(runtimeContext);
+        if(analysis){
+            runtimeContext.put(CodingRuntimeContext.DELIVERY_RULES,NativeDeliveryPolicy.freeze(deliverables,runtimeContext));
+            runtimeContext.computeIfAbsent("analysisReportLanguage",
+                key->NativeReportLanguage.resolve(instruction,Map.of(),Map.of()));
+        }
+        var budget=settings.analysisBudget(task,analysis);
+        var contract=capture.capture(scope,task,original,instruction,selected,budget,Map.of("profile","artifact-integrity-v1"),deliverables,schema,runtimeContext);
         return new Submitted(task,scope.runId(),adapter.submit(contract));
     }
     /** Studio supplies only server-validated snapshots and its existing budget, never execution authority. */
@@ -93,6 +102,24 @@ public final class NativeCodingTasks {
         var files=new ArrayList<UserAssetService.File>();
         for(var kind:List.of(UserAssetService.Kind.CODE,UserAssetService.Kind.ARTIFACT))files.addAll(assets.list(UserAssetService.Owner.of(scope),kind,task,100).stream().filter(f->scope.runId().equals(f.runId())).toList());
         result.put("artifacts",files);
+        if(!Boolean.TRUE.equals(result.get("resultAvailable"))&&canExposeSupplyEvidence(outcome)&&adapter.activeIdentity(scope)){
+            capture.supplyInventory(tasks.contract(scope,task)).ifPresent(snapshot->{
+                UserAssetService.File file;
+                try{file=assets.get(UserAssetService.Owner.of(scope),snapshot.originalAssetId());}
+                catch(org.springframework.web.server.ResponseStatusException unavailable){
+                    if(unavailable.getStatusCode().value()==404)return;
+                    throw unavailable;
+                }
+                if("AVAILABLE".equals(file.state())&&"DATASET".equals(file.kind())
+                        &&task.equals(file.taskId())&&scope.runId().equals(file.runId())
+                        &&("native-supply-inventory:"+file.sha256()).equals(file.sourceRef())
+                        &&snapshot.sha256().equals(file.sha256())){
+                    result.put("dataSupplyEvidence",Map.of("level","INPUT_SNAPSHOT_EVIDENCE",
+                        "assetId",file.id(),"sha256",file.sha256(),"sizeBytes",file.size(),
+                        "snapshotPersistedAt",Instant.ofEpochMilli(file.createdAt()).toString()));
+                }
+            });
+        }
         if (publishedTemplates != null) {
             var metrics = publishedTemplates.supplementMetrics(tasks.contract(scope, task));
             if (!metrics.isEmpty()) result.put("supplementMetrics", metrics);
@@ -110,6 +137,13 @@ public final class NativeCodingTasks {
             }
         }
         return result;
+    }
+    static boolean canExposeSupplyEvidence(CodingTaskOutcome outcome){
+        return outcome.status().terminal()&&!outcome.cancellationRequested()
+            &&!outcome.executionControl().reconciliationRequired()
+            &&outcome.reasonCode()!=null&&Set.of(CodingErrorCode.EXECUTION_FAILED,
+                CodingErrorCode.OUTPUT_CONTRACT_VIOLATION,CodingErrorCode.BUDGET_EXCEEDED,
+                CodingErrorCode.DEADLINE_EXCEEDED).contains(outcome.reasonCode());
     }
     public Map<String,Object> await(KernelDataScope scope,String task,BooleanSupplier cancelled){
         return await(scope,task,cancelled,null);

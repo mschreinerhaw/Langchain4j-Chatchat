@@ -3,16 +3,18 @@ import {proxyFrontend,stageFrontendTransport} from './frontend-proxy.mjs';
 import {stageNativeSkills,stageNativeDownload,runtimeMcpReply,nativeSkillDiscoveryContext} from './native-capability-files.mjs';
 import http from 'node:http';
 import {once} from 'node:events';
-import {readFileSync,writeFileSync,mkdirSync,readdirSync,existsSync,renameSync,chownSync,chmodSync,cpSync,unlinkSync,lstatSync} from 'node:fs';
+import {readFileSync,writeFileSync,mkdirSync,readdirSync,existsSync,renameSync,chownSync,chmodSync,cpSync,unlinkSync,lstatSync,openSync,closeSync,fsyncSync} from 'node:fs';
 import {join} from 'node:path';
 import {randomUUID,randomBytes,timingSafeEqual} from 'node:crypto';
-import {verifyContract,authorizeSession,contractHash,holdsCapacity,signContract,studioMcpPermission,publishedTemplatePermission,hasTaskDeadline} from './task-contract.mjs';
+import {isNativeAnalysis,verifyContract,authorizeSession,contractHash,holdsCapacity,signContract,studioMcpPermission,publishedTemplatePermission,hasTaskDeadline} from './task-contract.mjs';
 import {DockerEngine,workerContainerSpec} from './docker-engine.mjs';
 import {WorkerExecutorClient} from './worker-executor-client.mjs';
 import {Journal} from './journal.mjs';
+import {archiveNativeJournal,sealDelivery} from './seal-delivery.mjs';
 import {workerRuntime} from './worker-executor-policy.mjs';
 import {validateS3Inputs,prepareS3Inputs,verifyStoppedDelivery,uploadS3Delivery,jsonHash} from './s3-task-transport.mjs';
 import {modelReceipt,modelTransportErrorCode} from './model-receipt.mjs';
+import {ModelSettlementOutbox} from './model-settlement-outbox.mjs';
 import {requestModelGateway} from './model-gateway-transport.mjs';
 import {readJsonBody as body,NATIVE_MODEL_BODY_LIMIT} from './request-body.mjs';
 import {admitStudioModel,settleStudioModel} from './studio-budget.mjs';
@@ -39,19 +41,53 @@ const cancelWorker=r=>r.contract.s3&&executor?executor.stopOrRevoke(grant(r),r.w
 mkdirSync(join(cfg.stateRoot,'workers'),{recursive:true,mode:0o700});
 const audit=new Journal(join(cfg.stateRoot,'audit.jsonl'));
 const providerJournals=new Map();
+const observationJournals=new WeakMap();
 function providerJournal(r){
  if(!providerJournals.has(r.workerId))providerJournals.set(r.workerId,new Journal(join(cfg.stateRoot,'workers',r.workerId,'provider-events.jsonl')));
  return providerJournals.get(r.workerId);
 }
+function observationJournal(r){
+ const file=join(cfg.workerRoot,r.workerId,'state',r.nativeSessionId,'events.jsonl');
+ let journal=observationJournals.get(r);
+ if(journal?.file!==file){journal=new Journal(file);observationJournals.set(r,journal);}
+ return journal;
+}
 const error=(message,status=400)=>Object.assign(Error(message),{status});
 const delay=ms=>new Promise(r=>setTimeout(r,ms));
-function save(r){const dir=join(cfg.stateRoot,'workers',r.workerId);const {s3Busy,approvalBusy,...durable}=r;writeFileSync(join(dir,'registry.tmp'),JSON.stringify(durable),{mode:0o600});renameSync(join(dir,'registry.tmp'),join(dir,'registry.json'));}
+function save(r,flush=false){
+ const dir=join(cfg.stateRoot,'workers',r.workerId),temp=join(dir,'registry.tmp');
+ const {s3Busy,approvalBusy,monitorBusy,...durable}=r;
+ writeFileSync(temp,JSON.stringify(durable),{mode:0o600,flush});
+ renameSync(temp,join(dir,'registry.json'));
+ if(flush){
+  const fd=openSync(dir,'r');
+  try{fsyncSync(fd);}finally{closeSync(fd);}
+ }
+}
+function checkpoint(r,delta){save({...r,...delta},true);Object.assign(r,delta);}
 function event(r,type,detail={}){
  const recorded=audit.append({type,sessionId:r?.contract.sessionId,tenantId:r?.contract.tenantId,workerId:r?.workerId,...detail});
  if(r&&(type.startsWith('model.request.')||type.startsWith('skills.')||type.startsWith('internet.')||type.startsWith('runtime.tool.')||type==='template.query.delivered'))providerJournal(r).append({eventType:type,taskId:r.contract.taskId,
   sessionId:r.contract.sessionId,tenantId:r.contract.tenantId,sourceEventId:recorded.eventId,...detail});
 }
-for(const id of readdirSync(join(cfg.stateRoot,'workers'))){const p=join(cfg.stateRoot,'workers',id,'registry.json');if(existsSync(p)){const r=JSON.parse(readFileSync(p));if(!['STOPPED','START_FAILED'].includes(r.workerState)){r.workerState='RECOVERABLE';r.taskState='UNKNOWN';r.revoked=true;save(r);event(r,'recovery.required',{reason:'No side-effect replay or operation reconciliation in stage 1'});}records.set(r.contract.sessionId,r);}}
+const settlementDir=r=>join(cfg.stateRoot,'workers',r.workerId,'model-settlement');
+const settlements=new ModelSettlementOutbox({
+ send:async(r,result)=>{
+  const authority=new URL(cfg.tenants[r.contract.tenantId].runtimeModelAuthority);
+  if(!authority.pathname.endsWith('/model'))throw error('Runtime model settlement endpoint unavailable',503);
+  authority.pathname+='-settlement';
+  const response=await fetch(authority,{method:'POST',redirect:'error',signal:AbortSignal.timeout(5000),
+   headers:{authorization:'Bearer '+runtimeGrant(r),'content-type':'application/json'},
+   body:JSON.stringify(result)});
+  await response.body?.cancel();
+  if(response.status!==204)throw Error('Settlement rejected');
+ },
+ onPending:(r,requestId)=>event(r,'model.settlement.pending',{requestId})
+});
+const flushSettlements=()=>void settlements.flush().catch(()=>console.error('Native model settlement retry deferred'));
+for(const id of readdirSync(join(cfg.stateRoot,'workers'))){const p=join(cfg.stateRoot,'workers',id,'registry.json');if(existsSync(p)){const r=JSON.parse(readFileSync(p));if(!r.sealProgress&&!['STOPPED','START_FAILED'].includes(r.workerState)){r.workerState='RECOVERABLE';r.taskState='UNKNOWN';r.revoked=true;save(r);event(r,'recovery.required',{reason:'No side-effect replay or operation reconciliation in stage 1'});}records.set(r.contract.sessionId,r);}}
+for(const r of records.values())settlements.restore(r,settlementDir(r));
+setInterval(flushSettlements,1000).unref();
 for(const r of records.values())if(r.workerState==='RECOVERABLE'&&(r.containerId||executor&&r.provisioningAttempted)){try{const info=await inspectWorker(r);if(info.Config.Labels['cline.workerId']!==r.workerId)throw Error('Container ownership mismatch');r.stopProof=await stopWorker(r);save(r);}catch{event(r,'recovery.stop_unconfirmed');}}
 function templateFiles(path,visit){const stat=lstatSync(path);if(stat.isSymbolicLink())throw Error('Workspace templates must not contain symlinks');visit?.(path);if(stat.isDirectory())for(const name of readdirSync(path))templateFiles(join(path,name),visit);}
 function send(res,status,value){res.writeHead(status,{'content-type':'application/json','cache-control':'no-store'});res.end(JSON.stringify(value));}
@@ -85,7 +121,7 @@ function workerRequest(r,path,method='GET',value,headers={}){return new Promise(
  req.setTimeout(95000,()=>req.destroy(error('Native control timeout',504)));req.on('error',reject);req.end(value===undefined?undefined:JSON.stringify(value));
 });}
 async function workerJSON(r,path,method,value){const response=await workerRequest(r,path,method,value);const chunks=[];for await(const b of response)chunks.push(b);const data=JSON.parse(Buffer.concat(chunks));if(response.statusCode>=400)throw error(data.code??'Native request rejected',response.statusCode);return {code:response.statusCode,data};}
-function publicState(r,native){return {sessionId:r.contract.sessionId,runtimeTaskId:r.contract.taskId,workerId:r.workerId,workerState:r.workerState,taskState:r.taskState,revoked:r.revoked,stopProof:r.stopProof??null,remoteStopConfirmed:r.remoteStopConfirmed===true,native:native??null,...(r.startFailure?{startFailure:r.startFailure}:{}),...(r.contract.s3?{delivery:r.delivery??null,uploadReceipt:r.uploadReceipt??null,acceptance:r.acceptance??null}:{}),...(executor?{resourceEnforced:r.resourceEnforced??false,productionReady:false}:{})};}
+function publicState(r,native){return {sessionId:r.contract.sessionId,runtimeTaskId:r.contract.taskId,workerId:r.workerId,workerState:r.workerState,taskState:r.taskState,revoked:r.revoked,stopProof:r.stopProof??null,remoteStopConfirmed:r.remoteStopConfirmed===true,native:native??null,...(r.startFailure?{startFailure:r.startFailure}:{}),...(r.contract.s3?{delivery:r.delivery??null,deliveryInProgress:!!r.sealProgress,uploadReceipt:r.uploadReceipt??null,acceptance:r.acceptance??null}:{}),...(executor?{resourceEnforced:r.resourceEnforced??false,productionReady:false}:{})};}
 async function operation(r,path,value={}){
  if(!cfg.operations)throw error('Operation authority unavailable',503);
  const response=await fetch(cfg.operations.url+path,{method:'POST',headers:{authorization:'Bearer '+cfg.operations.secret,'content-type':'application/json'},body:JSON.stringify({identity:r.contract,...value})});
@@ -171,17 +207,17 @@ async function broker(r,path){
    try{
     const request=JSON.stringify(requestBody);
     const requestId=modelProfile?randomUUID():undefined;
-    let settlement, runtimeAuthorization;
+    let reservation;
+    try{
     if(modelProfile&&tenant.runtimeModelAuthority){
      const admission=new URL(tenant.runtimeModelAuthority);
      if(!admission.pathname.endsWith('/model'))throw error('Runtime model admission endpoint unavailable',503);
-     settlement=new URL(admission);
-     settlement.pathname+='-settlement';
      admission.pathname+='-admission';
-     runtimeAuthorization='Bearer '+runtimeGrant(r);
+     const runtimeAuthorization='Bearer '+runtimeGrant(r);
      const media=/"type"\s*:\s*"(input_image|image_url|input_audio|image|audio|file|input_file)"/.test(request);
      const output=modelProfile.maxTokens>0?modelProfile.maxTokens:modelProfile.contextWindow;
      const input=media?(modelProfile.contextWindow??Buffer.byteLength(request)):Buffer.byteLength(request)+256;
+     reservation=settlements.begin(r,settlementDir(r),requestId);
      const decision=await fetch(admission,{method:'POST',
       headers:{authorization:runtimeAuthorization,'content-type':'application/json'},
       body:JSON.stringify({requestId,inputUpperBound:input,outputUpperBound:output??null}),
@@ -189,6 +225,7 @@ async function broker(r,path){
      await decision.body?.cancel();
      if(decision.status!==204){
       const known=[400,401,403,409,429].includes(decision.status);
+      if(known&&decision.status!==409){settlements.forget(reservation);reservation=undefined;}
       const reason=decision.headers.get('x-runtime-model-rejection');
       const taskBudget=decision.status===429&&['RUNTIME_TASK_MODEL_BUDGET_EXHAUSTED','RUNTIME_TASK_MODEL_BUDGET_RESERVED'].includes(reason);
       event(r,'model.request.rejected',{model:modelProfile.model,requestId,...r.analysisTurn,
@@ -201,18 +238,13 @@ async function broker(r,path){
       reasoning:{...r.analysisTurn,requestedReasoningEffort:modelProfile.requestedReasoningEffort,reasoningEffort:modelProfile.requestedReasoningEffort===undefined?modelProfile.reasoningEffort:modelProfile.reasoningEffort??'off',
        modelAttemptId:r.contract.modelAttemptId},
       emit:(type,payload)=>{
-       if(type==='model.request.completed')settleStudioModel(r,payload);
-       event(r,type,payload);
-       if(type==='model.request.completed'&&settlement){
-        const providerTokens=payload.usage?.totalTokens??null;
-        void fetch(settlement,{method:'POST',redirect:'error',signal:AbortSignal.timeout(5000),
-         headers:{authorization:runtimeAuthorization,'content-type':'application/json'},
-         body:JSON.stringify({requestId,providerTokens,neverDispatched:payload.providerDispatched===false})})
-         .then(async response=>{
-          await response.body?.cancel();
-          if(response.status!==204)throw Error('Settlement rejected');
-         }).catch(()=>event(r,'model.settlement.pending',{requestId}));
+       if(type==='model.request.completed'){
+        settleStudioModel(r,payload);
+        if(reservation)settlements.complete(reservation,{
+         providerTokens:payload.usage?.totalTokens??null,neverDispatched:payload.providerDispatched===false
+        });
        }
+       event(r,type,payload);
       }});
     if(controller.signal.aborted||!live(r)){
      observation?.finish({errorType:'LocalModelAbort',errorCode:'RUNTIME_TASK_STOPPED',providerDispatched:false});
@@ -230,6 +262,7 @@ async function broker(r,path){
     // close the socket first and make the Gateway record an ordinary disconnect.
     upstreamSignal=modelProfile&&!managed?taskSignal(r.contract,controller):controller.signal;
     if(modelProfile)event(r,'model.forwarded',{model:modelProfile.model,requestId,maxTokens:modelProfile.maxTokens??null,managedGateway:!!managed});
+    if(reservation)settlements.dispatch(reservation);
     const upstream=managed?await requestModelGateway(url,{headers,body:request,signal:upstreamSignal})
      :await fetch(url,{method:'POST',headers,body:request,signal:upstreamSignal,redirect:'error'});
     observation?.headers(managed?upstream.headers.get('x-request-id'):undefined,
@@ -254,6 +287,13 @@ async function broker(r,path){
      for await(const chunk of upstream.body??[]){observation?.observe(chunk);if(!res.write(chunk))await once(res,'drain',{signal:upstreamSignal});}
      observation?.finish({httpStatus:upstream.status,providerRequestId:upstream.headers.get('x-request-id')??upstream.headers.get('request-id')});res.end();
     }catch(e){observation?.finish({httpStatus:upstream.status,errorType:e.name??'UpstreamError',errorCode:modelFailure(e)});throw e;}
+    }catch(e){
+     observation?.finish({errorType:e.name??'UpstreamError',errorCode:modelFailure(e),
+      ...(reservation?.item.phase==='ADMITTING'?{providerDispatched:false}:{})});
+     throw e;
+    }finally{
+     if(reservation){settlements.abandon(reservation);flushSettlements();}
+    }
    }finally{res.off('close',close);calls.get(r.workerId).delete(controller);}
   }catch(e){
    observation?.finish({errorType:e.name??'UpstreamError',errorCode:modelFailure(e)});
@@ -346,7 +386,7 @@ const server=http.createServer(async(req,res)=>{
   const c=granted(req,issuerGrant),tenant=Object.hasOwn(cfg.tenants,c.tenantId)?cfg.tenants[c.tenantId]:undefined;if(!tenant||!(tenant.users.includes(c.userId)||c.version===2&&tenant.dynamicUsers===true)||!Object.hasOwn(tenant.workspaces,c.workspaceRef)||!(c.runtimeModel?typeof tenant.runtimeModelAuthority==='string':tenant.models.includes(c.modelProfile))||!c.dataPermissions.every(x=>tenant.datasets.includes(x))||!c.toolPermissions.every(x=>tenant.tools.includes(x)||studioMcpPermission(c,tenant,x)||publishedTemplatePermission(c,tenant,x)))throw error('Task policy not granted',403);
   if(path==='/v1/sessions'&&req.method==='POST'){
    const b=await body(req),key=req.headers['idempotency-key'];if(!key||Object.keys(b).some(k=>!['editTool',...(c.s3?['inputs']:[])].includes(k))||b.editTool&&!['editor','apply_patch'].includes(b.editTool))throw error('Invalid create request');
-   if(c.analysisMetadataPath&&!executor)throw error('Analysis requires a restricted Native Executor',409);
+   if(isNativeAnalysis(c)&&!executor)throw error('Analysis requires a restricted Native Executor',409);
    if(c.analysisModelBudget&&typeof tenant.runtimeModelAuthority!=='string')throw error('Analysis budget requires Runtime model admission',403);
    if(c.s3)validateS3Inputs(c,b.inputs,cfg.s3);
    if(expired(c))throw error('Task identity expired',401);
@@ -363,8 +403,8 @@ const server=http.createServer(async(req,res)=>{
   if(r?.contract.s3&&parts[3]==='observations'&&req.method==='GET'){
    const url=new URL(req.url,'http://control'),after=url.searchParams.get('afterEventId')??'0',limit=Number(url.searchParams.get('limit')??128);
    if(!/^\d+$/.test(after)||!Number.isSafeInteger(limit)||limit<1||limit>256)throw error('Invalid event cursor');
-   const available=r.nativeSessionId?new Journal(join(cfg.workerRoot,r.workerId,'state',r.nativeSessionId,'events.jsonl')).after(after):[],events=available.slice(0,limit);
-   return send(res,200,{events,nextEventId:events.at(-1)?.eventId??after,hasMore:available.length>events.length});
+   const {events,hasMore}=r.nativeSessionId?observationJournal(r).page(after,limit):{events:[],hasMore:false};
+   return send(res,200,{events,nextEventId:events.at(-1)?.eventId??after,hasMore});
   }
   if(r?.contract.s3&&r.nativeSessionId&&parts[3]==='executions'&&req.method==='GET'){
    return send(res,200,{executions:executionRecords({dir:join(cfg.workerRoot,r.workerId,'state',r.nativeSessionId)})});
@@ -377,44 +417,56 @@ const server=http.createServer(async(req,res)=>{
   if(r?.contract.s3&&parts[3]==='receipts'&&req.method==='GET'){
    const url=new URL(req.url,'http://control'),after=url.searchParams.get('afterEventId')??'0',limit=Number(url.searchParams.get('limit')??128);
    if(!/^\d+$/.test(after)||!Number.isSafeInteger(limit)||limit<1||limit>256)throw error('Invalid receipt cursor');
-   const available=providerJournal(r).after(after),events=available.slice(0,limit);
-   return send(res,200,{events,nextEventId:events.at(-1)?.eventId??after,hasMore:available.length>events.length});
+   const {events,hasMore}=providerJournal(r).page(after,limit);
+   return send(res,200,{events,nextEventId:events.at(-1)?.eventId??after,hasMore});
   }
   if(parts[1]==='sessions'&&parts.length===3&&req.method==='GET')return send(res,200,publicState(r));
   if(parts[3]==='operations'&&req.method==='GET')return send(res,200,await operation(r,'/list'));
   if(parts[3]==='reconcile'&&req.method==='POST'){await reconcileRemote(r,r.revoked);return send(res,200,publicState(r));}
+  if(parts[3]==='status'&&req.method==='GET'&&r.sealProgress)return send(res,200,publicState(r));
   if(parts[3]==='status'&&req.method==='GET'&&!r.nativeSessionId)return send(res,200,publicState(r));
   if(r.contract.s3&&r.workerState==='STOPPED'&&req.method==='GET'){
    if(parts[3]==='status'||parts.length===3)return send(res,200,publicState(r));
    if(parts[3]==='artifacts')return send(res,200,{artifacts:r.delivery?.artifacts??[],acceptance:r.acceptance??null});
    if(parts[3]==='events'){
-    const journal=new Journal(join(cfg.workerRoot,r.workerId,'state',r.nativeSessionId,'events.jsonl'));
+    const journal=observationJournal(r);
     res.writeHead(200,{'content-type':'text/event-stream','cache-control':'no-store'});
-    for(const e of journal.after(req.headers['last-event-id']??'0'))res.write(`id: ${e.eventId}\nevent: ${e.eventType}\ndata: ${JSON.stringify(e)}\n\n`);res.end();return;
+    for(const e of journal.readAfter(req.headers['last-event-id']??'0')){
+     if(res.destroyed)return;
+     if(!res.write(`id: ${e.eventId}\nevent: ${e.eventType}\ndata: ${JSON.stringify(e)}\n\n`)){
+      const disconnected=new AbortController();
+      const close=()=>disconnected.abort();
+      res.once('close',close);
+      try{await once(res,'drain',{signal:disconnected.signal});}
+      catch(e){if(!disconnected.signal.aborted)throw e;return;}
+      finally{res.off('close',close);}
+     }
+    }
+    res.end();return;
    }
   }
   if(parts[3]==='status'&&req.method==='GET'&&r.revoked)return send(res,200,publicState(r));
   if(['cancel','revoke'].includes(parts[3])&&req.method==='POST'){if(r.acceptance)throw error('Runtime validation is already final',409);send(res,202,{workerState:'STOPPING',remoteStopConfirmed:false});void stop(r,parts[3]);return;}
   if(r.contract.s3&&['delivery','upload','acceptance'].includes(parts[3])&&req.method==='POST'){
    if(!live(r)&&!(r.workerState==='STOPPED'&&!r.revoked&&!expired(r.contract)))throw error('Task lease inactive',403);
+   const b=await body(req);
    if(r.s3Busy)throw error('Delivery operation in progress',409);
-   const b=await body(req);r.s3Busy=true;
+   r.s3Busy=true;
    try{
     if(parts[3]==='delivery'){
      if(r.delivery){if(b.deliveryVersion!==r.delivery.deliveryVersion)throw error('Delivery version immutable',409);return send(res,200,r.delivery);}
      if(Object.keys(b).some(k=>k!=='deliveryVersion')||!r.nativeSessionId||typeof b.deliveryVersion!=='string'||!(/^[A-Za-z0-9_-]{1,96}$/).test(b.deliveryVersion))throw error('Invalid delivery request');
-     const state=(await workerJSON(r,'/v1/sessions/'+r.nativeSessionId+'/status')).data;
-     if(state.status!=='turn_completed')throw error('Native turn must complete before sealing',409);
-     await workerJSON(r,'/v1/sessions/'+r.nativeSessionId+'/seal','POST',{});
-     const manifest=(await workerJSON(r,'/v1/sessions/'+r.nativeSessionId+'/delivery','POST',b)).data;
-     r.stopProof=await stopWorker(r);r.workerState='STOPPED';save(r);
-     const workspace=join(cfg.workerRoot,r.workerId,'workspace');
-     await verifyStoppedDelivery(workspace,manifest,r.stopProof,cfg.s3);
-     // Preserve the original journal, including failed tool calls. Outside Core.
-     const journal=readFileSync(join(cfg.workerRoot,r.workerId,'state',r.nativeSessionId,'events.jsonl'),'utf8');
-     writeFileSync(join(cfg.workerRoot,r.workerId,'sealed-native-events.json'),JSON.stringify({events:journal.split('\n').filter(Boolean).map(JSON.parse)}),{mode:0o600,flag:'wx'});
-     if(r.revoked)throw error('Task revoked while sealing',409);
-     r.delivery=manifest;r.taskState='SEALED_PENDING_UPLOAD';save(r);brokers.get(r.workerId)?.close();event(r,'delivery.sealed',{manifestSha256:jsonHash(manifest)});return send(res,200,manifest);
+     const root=join(cfg.workerRoot,r.workerId),session='/v1/sessions/'+r.nativeSessionId;
+     const manifest=await sealDelivery(r,b.deliveryVersion,{
+      checkpoint,
+      nativeStatus:async()=>(await workerJSON(r,session+'/status')).data.status,
+      nativeSeal:async()=>(await workerJSON(r,session+'/seal','POST',{})).data.status,
+      nativeDelivery:async deliveryVersion=>(await workerJSON(r,session+'/delivery','POST',{deliveryVersion})).data,
+      workerStop:()=>stopWorker(r),
+      verify:(candidate,proof)=>verifyStoppedDelivery(join(root,'workspace'),candidate,proof,cfg.s3),
+      archive:()=>archiveNativeJournal(root,observationJournal(r).file)
+     });
+     brokers.get(r.workerId)?.close();event(r,'delivery.sealed',{manifestSha256:jsonHash(manifest)});return send(res,200,manifest);
     }
     if(!r.delivery||r.stopProof?.running!==false)throw error('Sealed delivery required',409);
     if(parts[3]==='upload'){
@@ -422,16 +474,22 @@ const server=http.createServer(async(req,res)=>{
      if(r.uploadReceipt)return send(res,200,r.uploadReceipt);
      const controller=new AbortController();if(!calls.has(r.workerId))calls.set(r.workerId,new Set());calls.get(r.workerId).add(controller);
      try{
-      r.uploadReceipt=await uploadS3Delivery(join(cfg.workerRoot,r.workerId,'workspace'),r.contract,r.delivery,b,cfg.s3,{signal:taskSignal(r.contract,controller)});
+      const uploadReceipt=await uploadS3Delivery(join(cfg.workerRoot,r.workerId,'workspace'),r.contract,r.delivery,b,cfg.s3,{signal:taskSignal(r.contract,controller)});
       if(r.revoked)throw error('Cancelled upload cannot deliver',409);
-      r.taskState='DELIVERED_PENDING_RUNTIME_VALIDATION';save(r);event(r,'s3.delivery.uploaded',{manifestSha256:jsonHash(r.delivery)});return send(res,200,r.uploadReceipt);
+      checkpoint(r,{uploadReceipt,taskState:'DELIVERED_PENDING_RUNTIME_VALIDATION'});
+      event(r,'s3.delivery.uploaded',{manifestSha256:jsonHash(r.delivery)});return send(res,200,r.uploadReceipt);
      }finally{calls.get(r.workerId).delete(controller);}
     }
     if(!r.uploadReceipt||Object.keys(b).some(k=>!['manifestSha256','status','validationRef'].includes(k))||b.manifestSha256!==jsonHash(r.delivery)||!['PASSED','FAILED'].includes(b.status)||typeof b.validationRef!=='string'||!b.validationRef.trim()||b.validationRef.length>1024)throw error('Runtime validation receipt required',409);
-    if(r.acceptance&&jsonHash(r.acceptance)!==jsonHash(b))throw error('Runtime validation immutable',409);
-    r.acceptance=b;r.taskState=b.status==='PASSED'?'RUNTIME_ACCEPTED':'RUNTIME_REJECTED';save(r);event(r,'runtime.validation.recorded',{status:b.status,manifestSha256:b.manifestSha256});return send(res,200,publicState(r));
+    if(r.acceptance){
+     if(jsonHash(r.acceptance)!==jsonHash(b))throw error('Runtime validation immutable',409);
+     return send(res,200,publicState(r));
+    }
+    checkpoint(r,{acceptance:b,taskState:b.status==='PASSED'?'RUNTIME_ACCEPTED':'RUNTIME_REJECTED'});
+    event(r,'runtime.validation.recorded',{status:b.status,manifestSha256:b.manifestSha256});return send(res,200,publicState(r));
    }finally{r.s3Busy=false;}
   }
+  if(r.sealProgress)throw error('Delivery sealing in progress',409);
   if(!r.nativeSessionId||['RECOVERABLE','START_FAILED','STOPPED','STOPPING'].includes(r.workerState))throw error('Native worker unavailable',409);
   if(cfg.operations&&!r.operationSession&&(parts[3]==='messages'||parts[1]==='permissions'))throw error('Durable operation session not ready',409);
   const route=parts[1]==='permissions'?path:'/v1/sessions/'+r.nativeSessionId+(parts[3]?'/'+parts[3]:'');
@@ -444,7 +502,7 @@ const server=http.createServer(async(req,res)=>{
   }
   if(!live(r))throw error('Task lease inactive',403);
   if(parts[3]==='messages'&&req.method==='POST'){
-   if(r.contract.analysisDelivery){
+   if(r.contract.deliveryRules||r.contract.analysisDelivery){
     const key=req.headers['idempotency-key'];
     if(typeof key==='string'&&/^[A-Za-z0-9_-]{1,128}$/.test(key)){
      const stage=key==='objective-'+r.contract.sessionId?'PRIMARY_ANALYSIS':
@@ -478,7 +536,7 @@ const server=http.createServer(async(req,res)=>{
 const ticker=setInterval(()=>{for(const r of records.values())if(expired(r.contract)&&(r.contract.s3?!r.revoked&&!r.acceptance&&r.workerState!=='STOPPING':!['STOPPED','START_FAILED','RECOVERABLE','STOPPING'].includes(r.workerState)))void stop(r,'lease-expired');},500);ticker.unref();
 if(cfg.s3?.autoApproveAuthorizedTools){
  const approvalMonitor=setInterval(()=>{for(const r of records.values()){
-  if(!r.contract.s3||!live(r)||!r.nativeSessionId||r.approvalBusy||r.s3Busy)continue;
+  if(!r.contract.s3||!live(r)||!r.nativeSessionId||r.approvalBusy||r.s3Busy||r.sealProgress)continue;
   r.approvalBusy=true;
   (async()=>{try{
    const state=(await workerJSON(r,'/v1/sessions/'+r.nativeSessionId+'/status')).data;
@@ -495,5 +553,5 @@ if(cfg.operations){
  const monitor=setInterval(()=>{for(const r of records.values())if(r.operationSession&&!r.revoked&&!r.monitorBusy){r.monitorBusy=true;(async()=>{try{const info=await inspectWorker(r);if(!info.State.Running){await stop(r,'worker-lost');return;}const native=(await workerJSON(r,'/v1/sessions/'+r.nativeSessionId+'/status')).data;if(['failed','recoverable','cancelled'].includes(native.status)){await stop(r,'native-core-lost');return;}await operation(r,'/heartbeat',{epoch:r.nativeEpoch});}catch{await stop(r,'operation-control-lost');}finally{r.monitorBusy=false;}})();}},3000);monitor.unref();
 }
 server.listen(cfg.port??18328,cfg.host??'127.0.0.1',()=>console.log(JSON.stringify({event:'governance.ready',stage:'P3.1',recovery:'fail-closed; no operation replay',maxWorkers:cfg.maxWorkers})));
-async function shutdown(){server.close();await Promise.all([...records.values()].filter(r=>!['STOPPED','START_FAILED','RECOVERABLE'].includes(r.workerState)).map(r=>stop(r,'control-shutdown')));process.exit(0);}
+async function shutdown(){server.close();await Promise.all([...records.values()].filter(r=>!r.sealProgress&&!['STOPPED','START_FAILED','RECOVERABLE'].includes(r.workerState)).map(r=>stop(r,'control-shutdown')));process.exit(0);}
 process.on('SIGTERM',shutdown);process.on('SIGINT',shutdown);

@@ -221,6 +221,22 @@ class TokenQuotaLedgerTest {
     }
 
     @Test
+    void signedSettlementCanFenceAdmissionWhichCommitsAfterAnAmbiguousTransportFailure() {
+        String task = "native-task";
+        String request = "late-admission";
+        transaction.executeWithoutResult(tx -> ledger.settleNative(first, task, request, null, true));
+        assertThat(inTransaction(() -> ledger.reserve(first, task, request, 300, 500L, 1, 1000))).isEqualTo(DUPLICATE);
+        assertThat(ledger.pool(TENANT, USER, first.userId()).reserved()).isZero();
+        assertThat(inTransaction(() -> ledger.reserve(first, task, "next-call", 300, 500L, 1, 1000))).isEqualTo(ADMITTED);
+        transaction.executeWithoutResult(tx -> ledger.settleNative(first, task, "next-call", null, false));
+        transaction.executeWithoutResult(tx -> ledger.settleNative(first, task, "next-call", null, false));
+        assertThat(ledger.pool(TENANT, USER, first.userId()).reserved()).isEqualTo(800);
+        transaction.executeWithoutResult(tx -> ledger.settle(first, task, "next-call", 120L, false));
+        assertThat(ledger.pool(TENANT, USER, first.userId()).spent()).isEqualTo(120);
+        assertThat(ledger.pool(TENANT, USER, first.userId()).reserved()).isZero();
+    }
+
+    @Test
     void missingOutputBoundAndPersonalExhaustionDoNotCreateReservationsAndResetKeepsOldReceiptsSeparate() {
         inTransaction(() -> ledger.configure(TENANT, USER, first.userId(), 700L, false));
         inTransaction(() -> ledger.configure(TENANT, ROLE, ROLE_ID, 1000L, false));

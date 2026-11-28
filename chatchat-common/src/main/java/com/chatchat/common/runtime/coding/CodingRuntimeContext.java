@@ -5,10 +5,31 @@ import java.util.*;
 /** Public, secret-free configuration snapshot. It grants no permissions beyond Authorization. */
 public final class CodingRuntimeContext {
     private CodingRuntimeContext() { }
+    public static final String NATIVE_TASK_KIND = "nativeTaskKind";
+    public static final String DATA_ANALYSIS = "DATA_ANALYSIS";
+    public static final String DELIVERY_RULES = "nativeDeliveryRules";
+
+    public static boolean isNativeAnalysis(Map<String,Object> context) {
+        // Old snapshots retain their original policy and canonical hash.
+        return context.containsKey(NATIVE_TASK_KIND) ? DATA_ANALYSIS.equals(context.get(NATIVE_TASK_KIND))
+            : context.get("analysisMetadataPath") instanceof String;
+    }
+
     public static Map<String, Object> validate(Map<String, Object> value) {
         if (value == null || value.isEmpty()) return Map.of();
         CodingProtocol.require(value.keySet().stream().allMatch(Set.of("schemaVersion", "capturedAt",
-            "consistency", "model", "skills", "builtinSkillPolicy", "configuredSkillIds", "inputFiles", "executionProfile", "reasoning", "reportMode", "reportPresentation", "pythonEnvironment", "scriptPurpose", "codingLifecycle", "analysisResultMode", "analysisInstructions", "codeProject", "knowledgeExploration", "internetSearch", "internetAvailability", "documentSearch", "publishedTemplate", "analysisMetadataPath", "analysisSchemaInInventory", "analysisReportLanguage", "analysisResultSchemaPath")::contains), "Unknown Coding context field");
+            "consistency", "model", "skills", "builtinSkillPolicy", "configuredSkillIds", "inputFiles", "executionProfile", "reasoning", "reportMode", "reportPresentation", "pythonEnvironment", "scriptPurpose", "codingLifecycle", "analysisResultMode", "analysisInstructions", "codeProject", "knowledgeExploration", "internetSearch", "internetAvailability", "documentSearch", "publishedTemplate", NATIVE_TASK_KIND, DELIVERY_RULES, "analysisMetadataPath", "analysisSchemaInInventory", "analysisReportLanguage", "analysisResultSchemaPath")::contains), "Unknown Coding context field");
+        if(value.containsKey(NATIVE_TASK_KIND)) {
+            CodingProtocol.require(value.get(NATIVE_TASK_KIND) instanceof String kind&&Set.of(DATA_ANALYSIS,"GENERIC").contains(kind),
+                "Unknown Native task kind");
+            CodingProtocol.require(DATA_ANALYSIS.equals(value.get(NATIVE_TASK_KIND))==value.containsKey(DELIVERY_RULES),
+                "Native analysis requires frozen delivery rules");
+        }
+        if(value.containsKey(DELIVERY_RULES)) {
+            CodingProtocol.require(DATA_ANALYSIS.equals(value.get(NATIVE_TASK_KIND))
+                &&value.get(DELIVERY_RULES) instanceof List<?> rules&&!rules.isEmpty()&&rules.size()<=6,
+                "Invalid Native delivery rules");
+        }
         if(value.containsKey("analysisMetadataPath")){
             CodingProtocol.require(value.get("analysisMetadataPath") instanceof String path
                 &&path.matches("input/data/[0-9]{1,2}/data-supply-manifest\\.json"),"Invalid analysis metadata path");
@@ -23,7 +44,7 @@ public final class CodingRuntimeContext {
                 &&path.matches("input/data/[0-9]{1,2}/result-schema[.]json"),"Invalid legacy analysis result schema path");
         }
         if(value.containsKey("analysisReportLanguage")){
-            CodingProtocol.require(value.containsKey("analysisMetadataPath")
+            CodingProtocol.require(isNativeAnalysis(value)
                 &&value.get("analysisReportLanguage") instanceof String language&&language.length()<=64
                 &&language.matches("AUTO|[A-Za-z]{2,8}(?:-[A-Za-z0-9]{1,8})*"),"Invalid analysis report language");
         }

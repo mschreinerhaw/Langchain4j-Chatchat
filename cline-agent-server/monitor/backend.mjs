@@ -3,11 +3,12 @@ import {join,resolve,sep} from 'node:path';
 import {projectEvent,safe,receipt,hash,nativeModelObservations} from './projection.mjs';
 import {randomUUID} from 'node:crypto';
 import {executionMetrics} from './metrics.mjs';
+import {Journal} from '../src/journal.mjs';
 
 const fail=(message,status=400)=>Object.assign(Error(message),{status});
 const id=x=>typeof x==='string'&&/^[a-zA-Z0-9_.:-]{1,200}$/.test(x);
 export class Backend {
- constructor(config){this.config=config;this.cache=new Map();this.dispatches=new Map();this.secrets=[config.native?.token];}
+ constructor(config){this.config=config;this.cache=new Map();this.eventReaders=new Map();this.dispatches=new Map();this.secrets=[config.native?.token];}
  async api(origin,path,token,body,options={}){
   const response=await fetch(origin+path,{method:body===undefined?'GET':'POST',headers:{authorization:'Bearer '+token,'content-type':'application/json',...options.headers},body:body===undefined?undefined:JSON.stringify(body),signal:AbortSignal.timeout(options.timeout??30000),redirect:'error'});
   const value=await response.json();if(!response.ok||value.code&&value.code!==200)throw fail(value.message??value.msg??value.code??'Backend rejected request',response.ok?400:response.status);
@@ -36,11 +37,18 @@ export class Backend {
  }
  async events(user,key,cursor){
   const c=await this.context(user,key),s=c.state,events=[];
-  const paths=c.mode==='native'?[['native',join(this.config.native.stateDir,s.id,'events.jsonl')]]:[['business',join(this.config.businessState,s.workerId,'events.jsonl')]];
+  const [source,path]=c.mode==='native'?['native',join(this.config.native.stateDir,s.id,'events.jsonl')]:
+   ['business',join(this.config.businessState,s.workerId,'events.jsonl')];
+  const reader=this.eventReaders.get(path)??new Journal(path);
+  this.eventReaders.delete(path);
+  this.eventReaders.set(path,reader);
+  if(this.eventReaders.size>32)this.eventReaders.delete(this.eventReaders.keys().next().value);
   // Business journal already persists the official Native events under its own durable ID.
-  const next={...cursor};for(const [source,path] of paths)for(const e of await this.lines(path)){
-   if(Number(e.eventId)<=cursor[source])continue;next[source]=Math.max(next[source],Number(e.eventId));const p=projectEvent(e,source,key,[...this.secrets,user.token,s.apiToken,s.brokerToken]);if(p)events.push(p);
-   if(events.length>=300)break;
+  const next={...cursor};
+  for(const e of reader.page(String(cursor[source]),300).events){
+   next[source]=Number(e.eventId);
+   const p=projectEvent(e,source,key,[...this.secrets,user.token,s.apiToken,s.brokerToken]);
+   if(p)events.push(p);
   }
   return {events,cursor:next};
  }

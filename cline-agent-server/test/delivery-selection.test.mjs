@@ -3,7 +3,8 @@ import assert from 'node:assert/strict';
 import {mkdtemp,mkdir,writeFile,rename,rm} from 'node:fs/promises';
 import {join} from 'node:path';
 import {tmpdir} from 'node:os';
-import {buildDeliveryManifest,discoverAnalysisDelivery,readDeliverySelection} from '../src/delivery-manifest.mjs';
+import {buildDeliveryManifest,discoverAnalysisDelivery,discoverContractDelivery,readDeliverySelection} from '../src/delivery-manifest.mjs';
+import {isNativeAnalysis,signContract,verifyContract} from '../src/task-contract.mjs';
 
 test('the Agent declares dynamic deliverables; Markdown repair notes are auxiliary',async()=>{
  const root=await mkdtemp(join(tmpdir(),'cline-selection-'));
@@ -59,6 +60,54 @@ test('signed analysis layouts inventory independently named reports and JSON wit
   files=await discoverAnalysisDelivery(root,'visual');
   assert.deepEqual(files.map(x=>x.type),['REPORT','AUXILIARY','RESULT']);
   await writeFile(join(root,'output/report/duplicate.md'),'# Duplicate entry');
-  await assert.rejects(discoverAnalysisDelivery(root,'visual'),/exactly one report/);
+  await assert.rejects(discoverAnalysisDelivery(root,'visual'),/exactly one REPORT/);
  }finally{await rm(root,{recursive:true,force:true});}
+});
+
+test('a signed delivery catalog permits alternate formats, extra artifact types and arbitrary file names',async()=>{
+ const root=await mkdtemp(join(tmpdir(),'cline-contract-delivery-'));
+ const definitions=[
+  {directory:'output/summary',type:'REPORT',formats:['html'],minCount:1,maxCount:1,htmlCompanions:{CHART:['svg']}},
+  {directory:'output/exchange',type:'RESULT',formats:['json'],minCount:1,maxCount:1,htmlCompanions:{}},
+  {directory:'output/checks',type:'TEST',formats:['txt'],minCount:1,maxCount:2,htmlCompanions:{}}
+ ];
+ try{
+  for(const {directory} of definitions)await mkdir(join(root,directory),{recursive:true});
+  await writeFile(join(root,'output/summary/resume.HTML'),'<h1>Result</h1>');
+  await writeFile(join(root,'output/summary/chart.svg'),'<svg/>');
+  await writeFile(join(root,'output/exchange/sample.json'),'[{"reading":1}]');
+  await writeFile(join(root,'output/checks/validation.txt'),'verified');
+  await writeFile(join(root,'delivery_manifest.json'),'untrusted and intentionally invalid');
+  assert.deepEqual(await discoverContractDelivery(root,definitions),[
+   {path:'output/checks/validation.txt',type:'TEST'},
+   {path:'output/exchange/sample.json',type:'RESULT'},
+   {path:'output/summary/chart.svg',type:'CHART'},
+   {path:'output/summary/resume.HTML',type:'REPORT'}
+  ]);
+  const alternative=definitions.map(r=>r.type==='REPORT'?{...r,formats:['md'],htmlCompanions:{}}:r);
+  await assert.rejects(discoverContractDelivery(root,alternative),/Unsupported file format/);
+  await assert.rejects(discoverContractDelivery(root,[{...definitions[0],directory:'output/../input'}]),/Invalid host delivery rules/);
+  await rm(join(root,'output/checks/validation.txt'));
+  await assert.rejects(discoverContractDelivery(root,definitions),/Deliver 1 to 2 TEST files/);
+ }finally{await rm(root,{recursive:true,force:true});}
+});
+
+test('signed analysis kind controls admission even without a metadata path',()=>{
+ const key='test signing key with enough material';
+ const grant={version:2,tenantId:'tenant',userId:'user',taskId:'task',sessionId:'session',
+  workspaceRef:'project',modelProfile:'approved-provider',runtimeProfile:'native-python-silo-v1',
+  expiresAt:Date.now()+60000,toolPermissions:[],dataPermissions:[],networkPolicy:'broker-only',
+  budgetPolicy:{status:'DEFERRED_STAGE_2_REVIEW'},s3:{},
+  deliveryBinding:{tenantId:'tenant',taskId:'task',runId:'run',inputSnapshotVersion:'snapshot'}};
+ const deliveryRules=[{directory:'output/exchange',type:'RESULT',formats:['json'],minCount:1,maxCount:1,htmlCompanions:{}}];
+ const analysis={...grant,nativeTaskKind:'DATA_ANALYSIS',deliveryRules,analysisModelBudget:true};
+ assert.equal(isNativeAnalysis(verifyContract(signContract(analysis,key),key)),true);
+ const metadata={analysisMetadataPath:'input/data/0/data-supply-manifest.json'};
+ const generic={...grant,...metadata,nativeTaskKind:'GENERIC'};
+ assert.equal(isNativeAnalysis(verifyContract(signContract(generic,key),key)),false);
+ assert.throws(()=>verifyContract(signContract({...generic,analysisModelBudget:true},key),key),/Invalid or expired/);
+ assert.throws(()=>verifyContract(signContract({...analysis,deliveryRules:[]},key),key),/Invalid or expired/);
+ assert.throws(()=>verifyContract(signContract({...analysis,nativeTaskKind:'GENERIC'},key),key),/Invalid or expired/);
+ const legacy={...grant,...metadata,analysisDelivery:'visual',analysisModelBudget:true};
+ assert.equal(isNativeAnalysis(verifyContract(signContract(legacy,key),key)),true);
 });

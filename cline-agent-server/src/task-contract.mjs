@@ -1,4 +1,5 @@
 import {createHmac,timingSafeEqual,createHash} from 'node:crypto';
+import {validDeliveryRules} from './delivery-manifest.mjs';
 const identifier=/^[a-zA-Z0-9][a-zA-Z0-9_-]{0,95}$/;
 export const USER_MANAGED_DEADLINE=Date.parse('9999-12-31T23:59:59.999Z');
 export const hasTaskDeadline=contract=>contract.userManagedDeadline!==true;
@@ -15,6 +16,7 @@ export function publishedTemplatePermission(contract,tenant,tool){
   && ['execute_published_template','tenant_data__execute_published_template','runtime__execute_published_template'].includes(tool)
   && contract.runtimeTools?.includes('execute_published_template');
 }
+export const isNativeAnalysis=c=>c.nativeTaskKind===undefined?!!c.analysisMetadataPath:c.nativeTaskKind==='DATA_ANALYSIS';
 export function verifyContract(token,key,now=Date.now(),{allowExpired=false}={}){
  const fail=()=>{throw Object.assign(Error('Invalid or expired task identity'),{status:401});};
  if(typeof token!=='string'||token.length>16384)return fail();
@@ -40,8 +42,12 @@ export function verifyContract(token,key,now=Date.now(),{allowExpired=false}={})
  }else if(c.runtimeProfile!==undefined||c.deliveryBinding!==undefined||c.runtimeModel!==undefined||c.studioBudget!==undefined)return fail();
  if(c.analysisMetadataPath!==undefined&&(c.version!==2||!c.s3||c.studioBudget!==undefined
    ||typeof c.analysisMetadataPath!=='string'||!/^input\/data\/[0-9]{1,2}\/data-supply-manifest\.json$/.test(c.analysisMetadataPath)))return fail();
- if(c.analysisDelivery!==undefined&&(!c.analysisMetadataPath||!['plain','visual'].includes(c.analysisDelivery)))return fail();
- if(c.analysisModelBudget!==undefined&&(!c.analysisMetadataPath||c.analysisModelBudget!==true))return fail();
+ if(c.nativeTaskKind!==undefined&&(c.version!==2||!c.s3||c.studioBudget!==undefined
+    ||!['DATA_ANALYSIS','GENERIC'].includes(c.nativeTaskKind)
+    ||(c.nativeTaskKind==='DATA_ANALYSIS')!==(c.deliveryRules!==undefined)))return fail();
+ if(c.deliveryRules!==undefined&&(c.nativeTaskKind!=='DATA_ANALYSIS'||!validDeliveryRules(c.deliveryRules)))return fail();
+ if(c.analysisDelivery!==undefined&&(c.nativeTaskKind!==undefined||!c.analysisMetadataPath||!['plain','visual'].includes(c.analysisDelivery)))return fail();
+ if(c.analysisModelBudget!==undefined&&(!isNativeAnalysis(c)||c.analysisModelBudget!==true))return fail();
  if(c.userManagedDeadline!==undefined&&(c.userManagedDeadline!==true||c.version!==2||!c.s3
      ||c.studioBudget!==undefined||c.expiresAt!==USER_MANAGED_DEADLINE))return fail();
  if(!Number.isSafeInteger(c.expiresAt)||hasTaskDeadline(c)&&(!allowExpired&&c.expiresAt<=now||c.expiresAt>now+86400000))return fail();

@@ -40,6 +40,7 @@ public final class NativeS3CodingAdapter implements CodingAgentSPI {
     @org.springframework.beans.factory.annotation.Autowired(required=false) public void setDispatch(NativeTaskDispatch value){dispatch=value;}
     private static final String BINDING="native-s3:binding";
     private static final String ANALYSIS_REPLAY="native-s3:analysis-replay";
+    private static final String SEAL_INTENT="native-s3:seal-intent";
     private static final String STARTUP_RETRY="native-s3:startup-retry";
     private static final String STARTUP_FAILURE="native-s3:startup-failure";
     private final DurableCodingTaskService tasks;
@@ -205,7 +206,7 @@ public final class NativeS3CodingAdapter implements CodingAgentSPI {
 
     private void save(Run r,String key,Object value){var old=tasks.privateState(r.c.scope(),r.c.taskId(),key);tasks.privateState(r.c.scope(),r.c.taskId(),r.lease,key,old,json.valueToTree(value));}
     private void execute(CodingTaskContract c){execute(c,null);}
-    private boolean activeIdentity(KernelDataScope scope){
+    boolean activeIdentity(KernelDataScope scope){
         return enterprise.isActiveIdentity(scope.tenantId(),scope.userId());
     }
 
@@ -252,7 +253,8 @@ public final class NativeS3CodingAdapter implements CodingAgentSPI {
                 if(!Instant.now().isBefore(run.renewAt)&&stopForInactiveIdentity(run))return;
                 maintainLease(run);
                 var remote=client(run).status(grant,session);
-                if(!remote.hasNonNull("delivery")&&(workerNeedsRecovery(remote)||"STOPPED".equals(remote.path("workerState").asText()))
+                boolean sealing=remote.path("deliveryInProgress").asBoolean()||state(run,SEAL_INTENT)!=null;
+                if(!sealing&&!remote.hasNonNull("delivery")&&(workerNeedsRecovery(remote)||"STOPPED".equals(remote.path("workerState").asText()))
                         &&canReplayAnalysis(run)){
                     if(stopForInactiveIdentity(run))return;
                     replaceStoppedBinding(run,activeBinding,false);
@@ -260,7 +262,7 @@ public final class NativeS3CodingAdapter implements CodingAgentSPI {
                     continue;
                 }
                 String workerState=remote.path("workerState").asText();
-                if(!remote.hasNonNull("delivery")&&("STOPPED".equals(workerState)
+                if(!sealing&&!remote.hasNonNull("delivery")&&("STOPPED".equals(workerState)
                         ||"RECOVERABLE".equals(workerState)&&!remote.hasNonNull("startFailure"))){
                     if(state(run,"native-s3:message-intent")!=null){
                         stop(run,WORKER_STOPPED_WITHOUT_DELIVERY,remote);
@@ -268,7 +270,7 @@ public final class NativeS3CodingAdapter implements CodingAgentSPI {
                     }
                     if("STOPPED".equals(workerState))throw new IllegalStateException(WORKER_STOPPED_WITHOUT_DELIVERY);
                 }
-                if(workerNeedsRecovery(remote)&&!remote.hasNonNull("delivery")){
+                if(!sealing&&workerNeedsRecovery(remote)&&!remote.hasNonNull("delivery")){
                     if(stopForInactiveIdentity(run))return;
                     if(recoverStartup(run,activeBinding,remote))continue;
                     return;
@@ -280,13 +282,12 @@ public final class NativeS3CodingAdapter implements CodingAgentSPI {
                     if(!currentBinding.hasNonNull("receiptSessionId")){var bound=(ObjectNode)currentBinding.deepCopy();bound.set("receiptSessionId",nativeState.get("sessionId"));bound.set("receiptEpoch",nativeState.get("epoch"));save(run,BINDING,bound);}
                 }
                 String nativeStatus=remote.path("native").path("status").asText();
-                if(!dispatchObjective(run,remote,grant,session)
-                        || !dispatchRepair(run,remote,grant,session)){
+                if(!sealing&&(!dispatchObjective(run,remote,grant,session)
+                        || !dispatchRepair(run,remote,grant,session))){
                     Thread.sleep(500);
                     continue;
                 }
-                if("turn_completed".equals(nativeStatus)||remote.hasNonNull("delivery")){
-                    poll(run,"core");poll(run,"provider");
+                if(sealing||"turn_completed".equals(nativeStatus)||remote.hasNonNull("delivery")){
                     if(deliver(run,remote))return;
                 }
                 Thread.sleep(500);
@@ -434,9 +435,16 @@ public final class NativeS3CodingAdapter implements CodingAgentSPI {
             if(files.stream().noneMatch(file->file.path().equals(path)))
                 throw new IllegalStateException("Analysis metadata is absent from the frozen input inventory");
             grant.put("analysisMetadataPath",path);
+        }
+        var kind=c.runtimeContext().get(CodingRuntimeContext.NATIVE_TASK_KIND);
+        if(kind!=null)grant.put("nativeTaskKind",kind);
+        if(CodingRuntimeContext.isNativeAnalysis(c.runtimeContext())){
             analysisModelBudget=c.budget().maxModelCalls()>=0||c.budget().maxModelTokens()>=0;
             if(analysisModelBudget)grant.put("analysisModelBudget",true);
-            if(Set.copyOf((List<?>)frozen.get("artifactTypes")).equals(Set.of("REPORT","RESULT"))){
+            if(c.runtimeContext().get(CodingRuntimeContext.DELIVERY_RULES) instanceof List<?> rules){
+                grant.put("deliveryRules",rules);
+                analysisDelivery="contract";
+            }else if(Set.copyOf((List<?>)frozen.get("artifactTypes")).equals(Set.of("REPORT","RESULT"))){
                 analysisDelivery=com.chatchat.common.runtime.coding.VisualReportMode.active(c.runtimeContext())?"visual":"plain";
                 grant.put("analysisDelivery",analysisDelivery);
             }
@@ -446,6 +454,7 @@ public final class NativeS3CodingAdapter implements CodingAgentSPI {
         return json.valueToTree(Map.of("sessionId",session,"grant",client(r).signGrant(grant,settings.issuerKey),"inputs",files,"transportEpoch",ws.epoch(),"nodeId",settings.nodeId(),"executionEpoch",UUID.randomUUID().toString(),"workflowId",r.control==null?"":r.control.workflowId(),"fencingToken",r.lease.fencingToken(),"analysisDelivery",analysisDelivery,"analysisModelBudget",analysisModelBudget));
     }
     private boolean recoverBinding(Run r){
+        if(state(r,SEAL_INTENT)!=null)return true;
         var prior=state(r,BINDING);boolean restart;
         try{var remote=client(r).status(prior.path("grant").asText(),prior.path("sessionId").asText());restart="STOPPED".equals(remote.path("workerState").asText())&&!remote.hasNonNull("delivery");}
         catch(NativeS3NodeClient.NodeException error){if(error.status()!=404&&error.status()<500)throw error;restart=true;}
@@ -464,7 +473,7 @@ public final class NativeS3CodingAdapter implements CodingAgentSPI {
         // callback must reconcile that callback through its own execution contract.
         return state(r,"native-s3:message-intent")!=null
             && state(r,ANALYSIS_REPLAY)==null
-            && r.c.runtimeContext().containsKey("analysisMetadataPath")
+            && CodingRuntimeContext.isNativeAnalysis(r.c.runtimeContext())
             && !r.c.runtimeContext().containsKey("publishedTemplate")
             && !NativeSiloTaskService.studio(r.c)
             && r.c.authorization().networkPolicy()==CodingTaskContract.NetworkPolicy.NONE
@@ -530,17 +539,20 @@ public final class NativeS3CodingAdapter implements CodingAgentSPI {
         }
         String language=Objects.toString(context.get("analysisReportLanguage"),"AUTO");
         var tools=task.authorization().allowedTools().stream().filter(t->t.startsWith("runtime__")&&!t.endsWith("*")).toList();
-        boolean visual=com.chatchat.common.runtime.coding.VisualReportMode.active(context);
+        Object rules=context.getOrDefault(CodingRuntimeContext.DELIVERY_RULES,
+            NativeDeliveryPolicy.freeze(List.of("REPORT","RESULT"),context));
+        String inventory=context.get("analysisMetadataPath") instanceof String path
+            ?"Read "+path+" for authorized data paths, formats, observed fields and row coverage. ":"";
         return task.objective().instruction()+"\n\nRuntime task contract\n"
-            +"Workspace: /workspace. Read "+context.get("analysisMetadataPath")+" for authorized data paths, formats, observed fields and row coverage. Find other authorized attachments in input/manifest.json. Input is read-only. "
+            +"Workspace: /workspace. "+inventory+"Find authorized attachments in input/manifest.json. Input is read-only. "
             +"Use native tools and local Python over the full immutable data. Keep raw rows, intermediate tables and full logs on disk. Inspect only needed samples and compact diagnostics. "
             +"Preserve source references and report coverage gaps. Invent no measurements or evidence. Optional Runtime tools: "+tools+". Direct network access is unavailable.\n"
-            +"Deliverables: use the existing output/report/ directory for one "+(visual?"HTML report (Markdown fallback)":"Markdown report with tables")
-            +" and output/result/ for one structured JSON object or nonempty array of objects. Choose the file names. Keep drafts, scripts and intermediate data elsewhere. "
-            +"Report language: "+("AUTO".equals(language)?"the language of the user's request":language)
+            +"Deliverables (directories, types, file extensions and counts): "+rules
+            +". Choose the file names. Keep drafts and undeclared intermediate files outside the delivery directories. "
+            +"Report language: "+NativeReportLanguage.instruction(language)
             +". Follow any explicit language request in the task objective. "+schema+"\n"
-            +NativeVisualReport.instruction(context,true)
-            +"When the analysis and both deliverables are ready, invoke native completion. Runtime discovers files, validates the result, seals the inventory and verifies uploaded objects.";
+            +(task.objective().deliverables().contains("REPORT")?NativeVisualReport.instruction(context,true):"")
+            +"When the analysis and required deliverables are ready, invoke native completion. Runtime discovers files, validates the result, seals the inventory and verifies uploaded objects.";
     }
     private long cursor(Run r,String channel){var n=state(r,"native-s3:read:"+channel);return n==null?0:n.path("sequence").asLong();}
     private void poll(Run r,String channel){
@@ -549,19 +561,24 @@ public final class NativeS3CodingAdapter implements CodingAgentSPI {
             maintainLease(r);
             var response=channel.equals("core")?client(r).observations(b.path("grant").asText(),b.path("sessionId").asText(),after,128):client(r).receipts(b.path("grant").asText(),b.path("sessionId").asText(),after,128);
             var events=response.path("events");if(events.isEmpty())return;
-            var raw=evidence.archive(r.c,channel+"-events","native-"+channel+"-events.json",evidence.bytes(response));
+            var unprojected=json.createArrayNode();
             for(var event:events){
                 String type=event.path("eventType").asText();
-                if(Set.of("native.event","model.text.delta","model.usage").contains(type))continue;
+                if(Set.of("native.event","model.text.delta","model.usage").contains(type)){
+                    unprojected.add(event);
+                    continue;
+                }
                 maintainLease(r);
-                observe(r,channel,event,raw.id());
+                observe(r,channel,event);
             }
+            if(!unprojected.isEmpty())evidence.archive(r.c,channel+"-events","native-"+channel+"-events.json",
+                evidence.bytes(Map.of("events",unprojected,"nextEventId",response.path("nextEventId"))));
             maintainLease(r);
             after=response.path("nextEventId").asLong();if(outcome(r).executionControl().stopReason()==null)save(r,"native-s3:read:"+channel,Map.of("sequence",after));if(!response.path("hasMore").asBoolean())return;
         }
     }
-    private void observe(Run r,String channel,JsonNode event,String rawAsset){
-        String type=event.path("eventType").asText();rawAsset=evidence.archive(r.c,channel+"-event-"+event.path("eventId").asText(),"native-"+channel+"-receipt.json",evidence.bytes(event)).id();JsonNode p=channel.equals("provider")?event:event.path("payload");
+    private void observe(Run r,String channel,JsonNode event){
+        String type=event.path("eventType").asText();var rawAsset=evidence.archive(r.c,channel+"-event-"+event.path("eventId").asText(),"native-"+channel+"-receipt.json",evidence.bytes(event)).id();JsonNode p=channel.equals("provider")?event:event.path("payload");
         String operation=null,group=null,telemetryId=null;CodingJournal.OperationKind kind=null;Counters actual=null;boolean complete=false,metered=false;
         var projected=new LinkedHashMap<String,Object>();projected.put("nativeEventType",type);projected.put("sessionId",state(r,BINDING).path("sessionId").asText());projected.put("detailAssetId",rawAsset);var execution=state(r,BINDING);for(String field:List.of("nodeId","executionEpoch","workflowId","fencingToken"))if(execution.has(field))projected.put(field,json.convertValue(execution.get(field),Object.class));
         String normalized="OBSERVATION",summary=type;
@@ -672,17 +689,28 @@ public final class NativeS3CodingAdapter implements CodingAgentSPI {
         var b=state(r,BINDING);String grant=b.path("grant").asText(),session=b.path("sessionId").asText();var ws=workspace.get(r.c.scope(),r.c.taskId());
         String version=state(r,"native-s3:delivery-version")==null?"v1":state(r,"native-s3:delivery-version").path("version").asText();
         JsonNode manifest;
+        var intent=state(r,SEAL_INTENT);
+        if(intent!=null&&(!session.equals(intent.path("sessionId").asText())||!version.equals(intent.path("version").asText())))
+            throw new IllegalStateException("Native seal intent does not match the active delivery binding");
         if(remote.hasNonNull("delivery"))manifest=remote.get("delivery");else{
-            JsonNode preview;
-            try{preview=client(r).preview(grant,session,version);}catch(NativeS3NodeClient.NodeException invalid){if(invalid.validationFeedback()==null)throw invalid;feedback(r,version,invalid.validationFeedback(),invalid.candidateSha256());return false;}
-            String rejection=validateCandidate(r,preview);
-            if(rejection!=null){
-                var inventory=java.util.stream.StreamSupport.stream(preview.path("artifacts").spliterator(),false)
-                    .map(a->List.of(a.path("path").asText(),a.path("type").asText(),a.path("sha256").asText()))
-                    .sorted(Comparator.comparing(a->String.join("\u0000",a))).toList();
-                feedback(r,version,rejection,evidence.hash(inventory));return false;
+            if(intent==null){
+                if(remote.path("deliveryInProgress").asBoolean())
+                    throw new IllegalStateException("Native sealing has no Runtime validation intent");
+                JsonNode preview;
+                try{preview=client(r).preview(grant,session,version);}catch(NativeS3NodeClient.NodeException invalid){if(invalid.validationFeedback()==null)throw invalid;feedback(r,version,invalid.validationFeedback(),invalid.candidateSha256());return false;}
+                String rejection=validateCandidate(r,preview);
+                if(rejection!=null){
+                    var inventory=java.util.stream.StreamSupport.stream(preview.path("artifacts").spliterator(),false)
+                        .map(a->List.of(a.path("path").asText(),a.path("type").asText(),a.path("sha256").asText()))
+                        .sorted(Comparator.comparing(a->String.join("\u0000",a))).toList();
+                    feedback(r,version,rejection,evidence.hash(inventory));return false;
+                }
+                save(r,SEAL_INTENT,Map.of("sessionId",session,"version",version));
             }
-            manifest=client(r).seal(grant,session,version);
+            assertCurrent(r);
+            try{manifest=client(r).seal(grant,session,version);}
+            catch(NativeS3NodeClient.TransportException unknown){return false;}
+            catch(NativeS3NodeClient.NodeException rejected){if(rejected.status()>=500)return false;throw rejected;}
         }
         // Drain genuine receipts after seal; no synthetic final tool events.
         poll(r,"core");poll(r,"provider");remote=client(r).status(grant,session);
@@ -690,9 +718,13 @@ public final class NativeS3CodingAdapter implements CodingAgentSPI {
         String stopRef=stopReference(r,remote);reconcile(r,stopRef);
         ws=workspace.get(r.c.scope(),r.c.taskId());JsonNode upload=remote.path("uploadReceipt");
         if("RUNNING".equals(ws.status())){
+            if(!matchesDeliveryRules(r.c,manifest.path("artifacts")))
+                throw new SecurityException("Sealed artifacts do not match the frozen Native delivery contract");
             var delivery=json.convertValue(manifest,SiloCodingWorkspaceService.Delivery.class);if(!b.path("receiptSessionId").asText().equals(delivery.sessionId())||!b.path("receiptEpoch").asText().equals(delivery.epoch()))throw new SecurityException("Delivery from a superseded Native receipt Session");var allocation=ws;var plans=guarded(r,()->workspace.plan(r.c.scope(),r.c.taskId(),allocation.epoch(),delivery));
             var plan=new LinkedHashMap<String,Object>();plan.put("manifestSha256",evidence.hash(manifest));plan.put("artifacts",plans);plan.putAll(workspace.metadataUploadPlan(r.c.scope(),r.c.taskId(),ws.epoch()));
-            upload=client(r).upload(grant,session,json.valueToTree(plan));
+            try{upload=client(r).upload(grant,session,json.valueToTree(plan));}
+            catch(NativeS3NodeClient.TransportException unknown){return false;}
+            catch(NativeS3NodeClient.NodeException rejected){if(rejected.status()>=500)return false;throw rejected;}
             var uploaded=upload;guarded(r,()->workspace.commit(r.c.scope(),r.c.taskId(),allocation.epoch(),json.convertValue(uploaded.path("artifacts"),new com.fasterxml.jackson.core.type.TypeReference<List<SiloCodingWorkspaceService.Uploaded>>(){})));
         }
         ws=workspace.get(r.c.scope(),r.c.taskId());if("RECEIVED_PENDING_BUSINESS_VALIDATION".equals(ws.status())){var verifying=ws;ws=guarded(r,()->workspace.verifyDeliveryIntegrity(r.c.scope(),r.c.taskId(),verifying.epoch()));}
@@ -715,11 +747,18 @@ public final class NativeS3CodingAdapter implements CodingAgentSPI {
             return false;
         }
     }
+    private boolean matchesDeliveryRules(CodingTaskContract task,JsonNode artifacts){
+        Object rules=task.runtimeContext().get(CodingRuntimeContext.DELIVERY_RULES);
+        return rules==null||NativeDeliveryPolicy.accepts(json.valueToTree(rules),artifacts);
+    }
+
     private String validateCandidate(Run r,JsonNode preview){
         if(NativeSiloTaskService.studio(r.c))return validateStudio(r,preview);
+        if(!matchesDeliveryRules(r.c,preview.path("artifacts")))
+            return "Delivery files do not match the frozen artifact contract. Check the declared directories, formats and counts.";
         var frozen=inputs.requireAuthorized(r.c);var types=new HashSet<String>();preview.path("artifacts").forEach(a->types.add(a.path("type").asText()));
         if(!types.containsAll((List<?>)frozen.get("artifactTypes")))return "Missing declared artifact types: "+frozen.get("artifactTypes");
-        if(com.chatchat.common.runtime.coding.VisualReportMode.active(r.c.runtimeContext())
+        if(r.c.objective().deliverables().contains("REPORT")&&com.chatchat.common.runtime.coding.VisualReportMode.active(r.c.runtimeContext())
                 && !NativeVisualReport.hasSupportedDelivery(preview.path("artifacts")))
             return "Deliver one HTML report or a Markdown report with the supported findings and data limitations.";
         var schema=(Map<String,Object>)frozen.getOrDefault("resultSchema",Map.of());if(schema.isEmpty())return null;

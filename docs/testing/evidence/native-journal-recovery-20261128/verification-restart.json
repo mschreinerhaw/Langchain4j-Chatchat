@@ -1,0 +1,45 @@
+{
+  "apiLoginStatus": 200,
+  "brokerHealthStatus": 200,
+  "sameTaskStatusDeliveryAndBudget": true,
+  "before": {
+    "7": {
+      "status": "PARTIAL_SUCCESS",
+      "taskState": "RUNTIME_ACCEPTED",
+      "validation": "PASSED",
+      "manifestSha256": "0c2ce6f8d72eecde928bbb13d73f3701eacb4809eb7379cec5b8293233165b2c",
+      "modelCharges": [
+        "SETTLED|37|1204009"
+      ]
+    },
+    "6": {
+      "status": "FAILED",
+      "taskState": "CANCELLED_LOCAL_ONLY",
+      "validation": null,
+      "manifestSha256": null,
+      "modelCharges": [
+        "SETTLED|77|2324870"
+      ]
+    }
+  },
+  "after": {
+    "7": {
+      "status": "PARTIAL_SUCCESS",
+      "taskState": "RUNTIME_ACCEPTED",
+      "validation": "PASSED",
+      "manifestSha256": "0c2ce6f8d72eecde928bbb13d73f3701eacb4809eb7379cec5b8293233165b2c",
+      "modelCharges": [
+        "SETTLED|37|1204009"
+      ]
+    },
+    "6": {
+      "status": "FAILED",
+      "taskState": "CANCELLED_LOCAL_ONLY",
+      "validation": null,
+      "manifestSha256": null,
+      "modelCharges": [
+        "SETTLED|77|2324870"
+      ]
+    }
+  }
+}

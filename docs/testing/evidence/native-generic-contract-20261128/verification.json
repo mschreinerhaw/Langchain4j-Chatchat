@@ -1,0 +1,274 @@
+{
+  "recordedAt": "2026-11-28T19:33:27.784918+08:00",
+  "baselineCommit": "30b7189c7a061abf41376b9621d1409474a60e30",
+  "sourceOverlaySha256": "637199616d054dce79942f0363c8ecf99c71481baf549c0127aa55a04e5d92df",
+  "candidateImages": {
+    "native": "sha256:9da9370e7089bac8f1fda987c4f93c9a66cf52d32feac62e792ef81403996204",
+    "api": "sha256:d2f679296df2509d5530d43ed16d28fb700205597141f76e6ffb989d51db6ee1"
+  },
+  "brokerImage": "sha256:f0895db1281e6ca58969ec91ff985f610b6e53e7b33df185bdbd3df09c1293f5",
+  "executorInstanceSharedWithPriorQA": true,
+  "qaObservationLimitSeconds": {
+    "6": 540,
+    "7": 900
+  },
+  "nodeTestSummary": [
+    "ℹ tests 178",
+    "ℹ suites 0",
+    "ℹ pass 177",
+    "ℹ fail 0",
+    "ℹ cancelled 0",
+    "ℹ skipped 1",
+    "ℹ todo 0",
+    "ℹ duration_ms 7786.993231"
+  ],
+  "javaTestSummary": [
+    "[WARNING] Tests run: 66, Failures: 0, Errors: 0, Skipped: 1",
+    "[INFO] BUILD SUCCESS"
+  ],
+  "filesystem": {
+    "/opt": {
+      "availableBytes": 16405241856,
+      "availableInodes": 32097898
+    },
+    "/mnt/disk01": {
+      "availableBytes": 46780755968,
+      "availableInodes": 51581395
+    }
+  },
+  "cases": {
+    "11": {
+      "taskId": "98aa012c-7171-3dad-9989-c775a08e9ae0",
+      "status": "NO_PRESENTABLE_RESULT",
+      "lastPolledStatus": "NO_PRESENTABLE_RESULT",
+      "testProtectionCancellation": false,
+      "canonicalState": "PARTIAL",
+      "terminal": true,
+      "inputDatasetCount": 0,
+      "eventCount": 10,
+      "runtimeNotices": [
+        {
+          "type": "RUNTIME_OBSERVATION",
+          "status": "SUCCESS",
+          "markers": [
+            "RUNNING",
+            "SKILL_ANALYSIS_CONTEXT"
+          ]
+        },
+        {
+          "type": "RUNTIME_OBSERVATION",
+          "status": "SUCCESS",
+          "markers": [
+            "COMPLETED",
+            "SKILL_ANALYSIS_CONTEXT"
+          ]
+        },
+        {
+          "type": "RUNTIME_OBSERVATION",
+          "status": "RUNNING",
+          "markers": [
+            "RUNNING",
+            "TASK_CLASSIFICATION"
+          ]
+        },
+        {
+          "type": "RUNTIME_OBSERVATION",
+          "status": "FAILED",
+          "markers": [
+            "FAILED",
+            "TASK_CLASSIFICATION"
+          ]
+        },
+        {
+          "type": "RESULT",
+          "status": "NO_PRESENTABLE_RESULT",
+          "markers": [
+            "INPUT_REQUIRED",
+            "NO_CANDIDATES",
+            "NO_PRESENTABLE_RESULT"
+          ]
+        },
+        {
+          "type": "COMPLETE",
+          "status": "NO_PRESENTABLE_RESULT",
+          "markers": [
+            "NO_PRESENTABLE_RESULT"
+          ]
+        }
+      ],
+      "workers": []
+    },
+    "6": {
+      "taskId": "4f35912c-6c8a-398f-9209-f30bd9bb59a5",
+      "status": "CANCELLED",
+      "lastPolledStatus": "WAIT_MODEL",
+      "testProtectionCancellation": true,
+      "canonicalState": "CANCELLED",
+      "terminal": true,
+      "inputDatasetCount": 0,
+      "eventCount": 0,
+      "runtimeNotices": [],
+      "workers": [
+        {
+          "runtimeTaskId": "temporal-native-04d516930eb2c8b2dc8afd03f4b5cddfbfad325865b48da01dd47529e5670256",
+          "actualFrozenDatasetCount": 8,
+          "modelBudgetEnforced": true,
+          "upstreamModelReceipts": 14,
+          "longestCompletedRequestMs": 134878,
+          "modelReceiptStatuses": {
+            "SUCCEEDED": 13,
+            "FAILED": 1
+          },
+          "taskKind": "DATA_ANALYSIS",
+          "workerState": "STOPPED",
+          "taskState": "CANCELLED_LOCAL_ONLY",
+          "deliveryRules": [
+            {
+              "directory": "output/report",
+              "formats": [
+                "md"
+              ],
+              "htmlCompanions": {},
+              "maxCount": 1,
+              "minCount": 1,
+              "type": "REPORT"
+            },
+            {
+              "directory": "output/result",
+              "formats": [
+                "json"
+              ],
+              "htmlCompanions": {},
+              "maxCount": 1,
+              "minCount": 1,
+              "type": "RESULT"
+            }
+          ],
+          "artifactCount": 0,
+          "artifactFormats": [],
+          "uploadedArtifactCount": 0,
+          "runtimeAcceptance": null
+        }
+      ]
+    },
+    "7": {
+      "taskId": "3698ec4f-1bca-350e-880c-e602755d9197",
+      "status": "PARTIAL_SUCCESS",
+      "lastPolledStatus": "PARTIAL_SUCCESS",
+      "testProtectionCancellation": false,
+      "canonicalState": "PARTIAL",
+      "terminal": true,
+      "inputDatasetCount": 0,
+      "eventCount": 2,
+      "runtimeNotices": [],
+      "workers": [
+        {
+          "runtimeTaskId": "temporal-native-67d7eab2928da75221960ec34c7a693592a6e3ee9e5384754c1096e210b1a421",
+          "actualFrozenDatasetCount": 9,
+          "modelBudgetEnforced": true,
+          "upstreamModelReceipts": 29,
+          "longestCompletedRequestMs": 133673,
+          "modelReceiptStatuses": {
+            "SUCCEEDED": 29
+          },
+          "taskKind": "DATA_ANALYSIS",
+          "workerState": "STOPPED",
+          "taskState": "RUNTIME_ACCEPTED",
+          "deliveryRules": [
+            {
+              "directory": "output/report",
+              "formats": [
+                "html",
+                "md"
+              ],
+              "htmlCompanions": {
+                "AUXILIARY": [
+                  "css",
+                  "js",
+                  "json",
+                  "csv",
+                  "txt",
+                  "jpg",
+                  "jpeg",
+                  "webp",
+                  "gif",
+                  "woff",
+                  "woff2"
+                ],
+                "CHART": [
+                  "png",
+                  "svg"
+                ]
+              },
+              "maxCount": 1,
+              "minCount": 1,
+              "type": "REPORT"
+            },
+            {
+              "directory": "output/result",
+              "formats": [
+                "json"
+              ],
+              "htmlCompanions": {},
+              "maxCount": 1,
+              "minCount": 1,
+              "type": "RESULT"
+            }
+          ],
+          "artifactCount": 8,
+          "artifactFormats": [
+            {
+              "type": "CHART",
+              "format": ".png",
+              "sha256": "de695e845fa5a0c29c8815f633e8a8dc8b178472295034570786c30f5476872a"
+            },
+            {
+              "type": "CHART",
+              "format": ".png",
+              "sha256": "f3d21bd45f8419b0771e86f42f474611aa5dc7b0bdb2c888c024c2c31dc25230"
+            },
+            {
+              "type": "CHART",
+              "format": ".png",
+              "sha256": "51d64fe89091ebd17fa37e43688f6b1d39016d7b623e67c4fd0d701228cee471"
+            },
+            {
+              "type": "CHART",
+              "format": ".png",
+              "sha256": "14989492d6a507ea7715f5bb29e2f8c9ac45200393c56cea204b90b0014de221"
+            },
+            {
+              "type": "CHART",
+              "format": ".png",
+              "sha256": "4e0d37fba757e00be8b110c523288a416d425a7ca508a25336e47b66866455b8"
+            },
+            {
+              "type": "CHART",
+              "format": ".png",
+              "sha256": "192ab962c39781bd8af1a1179c09302683a3c3f06b3f479f778abc27a59bc217"
+            },
+            {
+              "type": "REPORT",
+              "format": ".html",
+              "sha256": "dc913fd174299c952f297fe1ee9f6b8af7780712dfa4973069a40a3330d18fcc"
+            },
+            {
+              "type": "RESULT",
+              "format": ".json",
+              "sha256": "df8c27bbd45b4c6bc957b8c41a0973a32691c88eb7eb4dec87cee9d4301ed541"
+            }
+          ],
+          "uploadedArtifactCount": 8,
+          "runtimeAcceptance": "PASSED"
+        }
+      ],
+      "reportObservations": {
+        "resultAnalysisStatus": "PARTIAL",
+        "limitationCount": 7,
+        "evidenceReferenceCount": 9,
+        "observedHanCharacterCount": 1433,
+        "htmlBytes": 15326
+      }
+    }
+  }
+}

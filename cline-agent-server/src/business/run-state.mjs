@@ -29,7 +29,7 @@ export function restoreRun(dir,workersRoot,gatewayFactory) {
  run.gateway=gatewayFactory(run);
  // Reconcile dispatch intents persisted in the journal before contacting Python.
  // No restart path calls executePython, create, start, or an SDK checkpoint.
- for(const event of run.journal.events) {
+ for(const event of run.journal.readAfter()) {
   const stopped=event.type==='cancel.reconciled'?event.payload?.localStopProof:null;
   if(stopped?.running===false&&stopped.containerId===run.containerId)run.stopProof=stopped;
   if(event.type==='runtime.event'&&event.payload?.tool==='python_execute') {

@@ -88,7 +88,7 @@ public class NativeRuntimeMcpController {
                     ||admission.inputUpperBound()==null||admission.inputUpperBound()<1||admission.inputUpperBound()>Integer.MAX_VALUE
                     ||admission.outputUpperBound()!=null&&(admission.outputUpperBound()<1||admission.outputUpperBound()>Integer.MAX_VALUE))
                 throw new ResponseStatusException(HttpStatus.BAD_REQUEST,"Model input bound required");
-            boolean analysis=c.runtimeContext().get("analysisMetadataPath") instanceof String;
+            boolean analysis=com.chatchat.common.runtime.coding.CodingRuntimeContext.isNativeAnalysis(c.runtimeContext());
             String receiptId=modelReceiptId(grant,admission.requestId());
             var decision=analysis
                 ?quota.reserve(c.scope(),c.taskId(),receiptId,admission.inputUpperBound(),admission.outputUpperBound(),
@@ -118,7 +118,7 @@ public class NativeRuntimeMcpController {
                     ||settlement.providerTokens()!=null&&settlement.providerTokens()<0)
                 throw new ResponseStatusException(HttpStatus.BAD_REQUEST,"Invalid model settlement");
             Long used=settlement.providerTokens();
-            quota.settle(c.scope(),c.taskId(),modelReceiptId(grant,settlement.requestId()),used!=null&&used>0?used:null,settlement.neverDispatched());
+            quota.settleNative(c.scope(),c.taskId(),modelReceiptId(grant,settlement.requestId()),used!=null&&used>0?used:null,settlement.neverDispatched());
             return ResponseEntity.noContent().build();
         });
     }

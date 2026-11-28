@@ -1,0 +1,68 @@
+✖ S3 gateway HTTP seal-restart preserves SSE and rejects cross-task access (927.907799ms)
+✖ S3 gateway HTTP seal-early-restart preserves SSE and rejects cross-task access (530.958755ms)
+✖ S3 gateway HTTP settlement-restart preserves SSE and rejects cross-task access (3613.163728ms)
+✖ S3 gateway HTTP admission-disconnect preserves SSE and rejects cross-task access (3400.439287ms)
+ℹ tests 4
+ℹ suites 0
+ℹ pass 0
+ℹ fail 4
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 8678.45695
+
+✖ failing tests:
+
+test at cline-agent-server/test/s3-gateway-http.test.mjs:18:179
+✖ S3 gateway HTTP seal-restart preserves SSE and rejects cross-task access (927.907799ms)
+  AssertionError [ERR_ASSERTION]: {"status":503,"body":{"code":"CONTROL_UNAVAILABLE","message":"Worker control unavailable"}}
+  
+  503 !== 200
+  
+      at TestContext.<anonymous> (file:///work/cline-agent-server/test/s3-gateway-http.test.mjs:327:96)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:387:3) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: 503,
+    expected: 200,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at cline-agent-server/test/s3-gateway-http.test.mjs:18:179
+✖ S3 gateway HTTP seal-early-restart preserves SSE and rejects cross-task access (530.958755ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  + actual - expected
+  
+  + undefined
+  - true
+  
+      at TestContext.<anonymous> (file:///work/cline-agent-server/test/s3-gateway-http.test.mjs:325:11)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: undefined,
+    expected: true,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at cline-agent-server/test/s3-gateway-http.test.mjs:18:179
+✖ S3 gateway HTTP settlement-restart preserves SSE and rejects cross-task access (3613.163728ms)
+  Error: Timed out waiting for the Broker fixture
+      at until (file:///work/cline-agent-server/test/s3-gateway-http.test.mjs:172:124)
+      at async TestContext.<anonymous> (file:///work/cline-agent-server/test/s3-gateway-http.test.mjs:243:5)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7)
+
+test at cline-agent-server/test/s3-gateway-http.test.mjs:18:179
+✖ S3 gateway HTTP admission-disconnect preserves SSE and rejects cross-task access (3400.439287ms)
+  Error: Timed out waiting for the Broker fixture
+      at until (file:///work/cline-agent-server/test/s3-gateway-http.test.mjs:172:124)
+      at async TestContext.<anonymous> (file:///work/cline-agent-server/test/s3-gateway-http.test.mjs:222:21)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7)

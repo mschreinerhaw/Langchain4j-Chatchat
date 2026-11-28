@@ -1,0 +1,34 @@
+{
+  "7": {
+    "previous": {
+      "evidenceRows": 581,
+      "logicalBytes": 4040030,
+      "distinctObjectKeys": 581,
+      "bytesAcrossDistinctObjects": 4040030,
+      "batchRows": 81
+    },
+    "candidate": {
+      "evidenceRows": 889,
+      "logicalBytes": 4573533,
+      "distinctObjectKeys": 889,
+      "bytesAcrossDistinctObjects": 4573533,
+      "batchRows": 48
+    }
+  },
+  "6": {
+    "previous": {
+      "evidenceRows": 642,
+      "logicalBytes": 3598456,
+      "distinctObjectKeys": 642,
+      "bytesAcrossDistinctObjects": 3598456,
+      "batchRows": 63
+    },
+    "candidate": {
+      "evidenceRows": 1541,
+      "logicalBytes": 6710335,
+      "distinctObjectKeys": 1541,
+      "bytesAcrossDistinctObjects": 6710335,
+      "batchRows": 78
+    }
+  }
+}

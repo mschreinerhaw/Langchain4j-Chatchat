@@ -1,0 +1,454 @@
+{
+  "baselineCommit": "30b7189c7a061abf41376b9621d1409474a60e30",
+  "workload": "Synthetic CSV fixtures uploaded through the official authenticated user-asset API. Real Native, published model and Silo services.",
+  "languageCandidateImage": "sha256:830442c582cda09b171f81e413f0bd0d13be6cc931c82d17c3b77e654f1a6291",
+  "languageCandidateOverlaySha256": "74ad63509c6bdf5971661b2af07a32718f5ac24d3be72027fcfe8a152f44a1fb",
+  "candidateCases": {
+    "previous": [
+      "A",
+      "B",
+      "C",
+      "D"
+    ],
+    "languageCandidate": [
+      "E",
+      "F",
+      "G"
+    ]
+  },
+  "automated": {
+    "reviewCandidates": 0,
+    "reviewGate": "PASSED",
+    "nativeWindows": {
+      "passed": 161,
+      "skipped": 18
+    },
+    "serverJava": {
+      "passed": 28
+    },
+    "gateway": {
+      "passed": 31
+    }
+  },
+  "cases": {
+    "A": {
+      "taskId": "temporal-native-b9405946f7c4d8ac8622f8349027c33f280d160b4435aa78f18074e5287eafc1",
+      "status": "COMPLETED",
+      "terminal": true,
+      "reasonCode": null,
+      "validationStatus": "INCONCLUSIVE",
+      "apiCode": 200,
+      "expectedRows": 2,
+      "expectedSum": 8,
+      "inputSha256": "310822e19d5cd9c7e139c6dcfe48fb5e703cf147ade49695b4525507460690df",
+      "model": "qwen3.7-plus",
+      "requestedLanguage": "zh",
+      "runtime": [
+        {
+          "workerState": "STOPPED",
+          "taskState": "RUNTIME_ACCEPTED",
+          "runtimeAcceptance": "PASSED",
+          "transportArtifactCount": 2,
+          "modelResponses": {
+            "SUCCEEDED": 10
+          },
+          "artifacts": [
+            {
+              "type": "REPORT",
+              "filename": "analysis-report.md",
+              "sha256": "1a06818cd29ad17e2a197310a955abbfacf01237191bb308d89d52f8ea7b39ea",
+              "digestMatches": true,
+              "runtimeAssetMatches": true,
+              "hanChars": 171,
+              "asciiWords": 14,
+              "reportsExpectedSum": true
+            },
+            {
+              "type": "RESULT",
+              "filename": "analysis-result.json",
+              "sha256": "c26da8120869d945cbd362706b5bd0489b35dc4fa51fbc6cad654dc3fccd4616",
+              "digestMatches": true,
+              "runtimeAssetMatches": true,
+              "rows": [
+                2
+              ],
+              "sum": [
+                8.0
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    "B": {
+      "taskId": "temporal-native-df05e43fd30abee07513c79c1fa67e4b4d652443769299189ffddf3b6edae058",
+      "status": "COMPLETED",
+      "terminal": true,
+      "reasonCode": null,
+      "validationStatus": "INCONCLUSIVE",
+      "apiCode": 200,
+      "expectedRows": 3,
+      "expectedSum": 18,
+      "inputSha256": "c7f31d3e673b771a9abe8d35595072385022adc34cb72c9a50db5297d6712211",
+      "model": "qwen3.7-plus",
+      "requestedLanguage": "zh",
+      "runtime": [
+        {
+          "workerState": "STOPPED",
+          "taskState": "RUNTIME_ACCEPTED",
+          "runtimeAcceptance": "PASSED",
+          "transportArtifactCount": 2,
+          "modelResponses": {
+            "SUCCEEDED": 8
+          },
+          "artifacts": [
+            {
+              "type": "REPORT",
+              "filename": "csv-analysis.md",
+              "sha256": "efa799bb70526744fd08c9d9b780e44cd4d62391680448b50c2924ed3beb2f12",
+              "digestMatches": true,
+              "runtimeAssetMatches": true,
+              "hanChars": 0,
+              "asciiWords": 113,
+              "reportsExpectedSum": false
+            },
+            {
+              "type": "RESULT",
+              "filename": "csv-data.json",
+              "sha256": "95662cf9a215cbc2e1ea11cdae93b4bae8a2a96d36c207ee90ad3b4fc8bfed21",
+              "digestMatches": true,
+              "runtimeAssetMatches": true,
+              "rows": [
+                3
+              ],
+              "sum": []
+            }
+          ]
+        }
+      ]
+    },
+    "C": {
+      "taskId": "temporal-native-375260ed6641e4d838a53ab4dbf28abf43fdc6977f7a58e352bfee9d8b95926f",
+      "status": "FAILED",
+      "terminal": true,
+      "reasonCode": "EXECUTION_FAILED",
+      "validationStatus": "NOT_RUN",
+      "apiCode": 200,
+      "expectedRows": 2,
+      "expectedSum": 8,
+      "inputSha256": "310822e19d5cd9c7e139c6dcfe48fb5e703cf147ade49695b4525507460690df",
+      "model": "deepseek-v4-pro",
+      "requestedLanguage": "zh",
+      "runtime": [
+        {
+          "workerState": "START_FAILED",
+          "taskState": "FAILED",
+          "runtimeAcceptance": null,
+          "transportArtifactCount": 0,
+          "modelResponses": {},
+          "artifacts": []
+        }
+      ]
+    },
+    "D": {
+      "taskId": "temporal-native-d79207c0162d1544ed0f72fff5aa20a188934170b73e01ef76a78dbf1e22165c",
+      "status": "COMPLETED",
+      "terminal": true,
+      "reasonCode": null,
+      "validationStatus": "INCONCLUSIVE",
+      "apiCode": 200,
+      "expectedRows": 2,
+      "expectedSum": 8,
+      "inputSha256": "310822e19d5cd9c7e139c6dcfe48fb5e703cf147ade49695b4525507460690df",
+      "model": "qwen3.7-plus",
+      "requestedLanguage": "en",
+      "runtime": [
+        {
+          "workerState": "STOPPED",
+          "taskState": "RUNTIME_ACCEPTED",
+          "runtimeAcceptance": "PASSED",
+          "transportArtifactCount": 2,
+          "modelResponses": {
+            "SUCCEEDED": 6
+          },
+          "artifacts": [
+            {
+              "type": "REPORT",
+              "filename": "reading-analysis.md",
+              "sha256": "63ebc453e4d594ae254c58b7a33452d7cce04406d054be198197d4db4c5d66cc",
+              "digestMatches": true,
+              "runtimeAssetMatches": true,
+              "hanChars": 0,
+              "asciiWords": 89,
+              "reportsExpectedSum": true
+            },
+            {
+              "type": "RESULT",
+              "filename": "reading-analysis.json",
+              "sha256": "4f6ca2f562d62beb2254509637522471bd9848c32334ab303a660ae1cf8c8194",
+              "digestMatches": true,
+              "runtimeAssetMatches": true,
+              "rows": [
+                2
+              ],
+              "sum": [
+                8
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    "E": {
+      "taskId": "temporal-native-62d491560cdd2159bc9c380cf098826cf413961c1463729342fbc20d682d2fef",
+      "status": "COMPLETED",
+      "terminal": true,
+      "reasonCode": null,
+      "validationStatus": "INCONCLUSIVE",
+      "apiCode": 200,
+      "expectedRows": 3,
+      "expectedSum": 18,
+      "inputSha256": "c7f31d3e673b771a9abe8d35595072385022adc34cb72c9a50db5297d6712211",
+      "model": "qwen3.7-plus",
+      "requestedLanguage": "zh",
+      "runtime": [
+        {
+          "workerState": "STOPPED",
+          "taskState": "RUNTIME_ACCEPTED",
+          "runtimeAcceptance": "PASSED",
+          "transportArtifactCount": 2,
+          "modelResponses": {
+            "SUCCEEDED": 6
+          },
+          "artifacts": [
+            {
+              "type": "REPORT",
+              "filename": "csv-conversion-report.md",
+              "sha256": "b443bd5a779a020b995d9312e43b5899c8aa531771e9a09b5cc51abc24a2e088",
+              "digestMatches": true,
+              "runtimeAssetMatches": true,
+              "hanChars": 88,
+              "asciiWords": 31,
+              "reportsExpectedSum": false
+            },
+            {
+              "type": "RESULT",
+              "filename": "csv-data.json",
+              "sha256": "810c620d0b2e803193356e7face5dce07c5c190a086b50643dfb1ae9244c55b7",
+              "digestMatches": true,
+              "runtimeAssetMatches": true,
+              "rows": [
+                3
+              ],
+              "sum": []
+            }
+          ]
+        }
+      ]
+    },
+    "F": {
+      "taskId": "temporal-native-de13dd1f742c538ce0e5d55e434f0f538d2a42c55e6660265c3aeb36c2a438d3",
+      "status": "COMPLETED",
+      "terminal": true,
+      "reasonCode": null,
+      "validationStatus": "INCONCLUSIVE",
+      "apiCode": 200,
+      "expectedRows": 3,
+      "expectedSum": 18,
+      "inputSha256": "c7f31d3e673b771a9abe8d35595072385022adc34cb72c9a50db5297d6712211",
+      "model": "Qwen3.8-27B",
+      "requestedLanguage": "zh",
+      "runtime": [
+        {
+          "workerState": "STOPPED",
+          "taskState": "RUNTIME_ACCEPTED",
+          "runtimeAcceptance": "PASSED",
+          "transportArtifactCount": 2,
+          "modelResponses": {
+            "SUCCEEDED": 19
+          },
+          "artifacts": [
+            {
+              "type": "REPORT",
+              "filename": "reading_analysis_report.md",
+              "sha256": "3f5e251a19cb9b555984376c4bbf9ee7cde5f485646a61054fbf12135b573283",
+              "digestMatches": true,
+              "runtimeAssetMatches": true,
+              "hanChars": 525,
+              "asciiWords": 57,
+              "reportsExpectedSum": true
+            },
+            {
+              "type": "RESULT",
+              "filename": "reading_analysis.json",
+              "sha256": "22461d57567d3260f25c6af743290afd2e681316f58024aac5803a84a61bb183",
+              "digestMatches": true,
+              "runtimeAssetMatches": true,
+              "rows": [
+                3,
+                3,
+                3
+              ],
+              "sum": [
+                18.0,
+                11.0,
+                7.0
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    "G": {
+      "taskId": "temporal-native-34f9b4301900e2f4930cdb2ed8b83e2848b4a15c4e4b8c5b84641aef87a97403",
+      "status": "COMPLETED",
+      "terminal": true,
+      "reasonCode": null,
+      "validationStatus": "INCONCLUSIVE",
+      "apiCode": 200,
+      "expectedRows": 3,
+      "expectedSum": 18,
+      "inputSha256": "c7f31d3e673b771a9abe8d35595072385022adc34cb72c9a50db5297d6712211",
+      "model": "qwen3.7-plus",
+      "requestedLanguage": "en",
+      "runtime": [
+        {
+          "workerState": "STOPPED",
+          "taskState": "RUNTIME_ACCEPTED",
+          "runtimeAcceptance": "PASSED",
+          "transportArtifactCount": 2,
+          "modelResponses": {
+            "SUCCEEDED": 7
+          },
+          "artifacts": [
+            {
+              "type": "REPORT",
+              "filename": "reading-column-analysis.md",
+              "sha256": "7ceec96a08df98ec78d265e65a7d75a3cb88bc43c12d32e11a00e1eeeb280e41",
+              "digestMatches": true,
+              "runtimeAssetMatches": true,
+              "hanChars": 0,
+              "asciiWords": 91,
+              "reportsExpectedSum": true
+            },
+            {
+              "type": "RESULT",
+              "filename": "reading-column-analysis.json",
+              "sha256": "12d89ff6245c15f47ac5facd8c4631ef273e307d7dc52f98e3a4bec4852d31a9",
+              "digestMatches": true,
+              "runtimeAssetMatches": true,
+              "rows": [
+                3
+              ],
+              "sum": [
+                18
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  },
+  "authenticatedDownloads": {
+    "A": [
+      {
+        "filename": "analysis-result.json",
+        "http": 200,
+        "hashMatchesRuntime": true
+      },
+      {
+        "filename": "analysis-report.md",
+        "http": 200,
+        "hashMatchesRuntime": true
+      }
+    ],
+    "B": [
+      {
+        "filename": "csv-data.json",
+        "http": 200,
+        "hashMatchesRuntime": true
+      },
+      {
+        "filename": "csv-analysis.md",
+        "http": 200,
+        "hashMatchesRuntime": true
+      }
+    ],
+    "C": [],
+    "D": [
+      {
+        "filename": "reading-analysis.json",
+        "http": 200,
+        "hashMatchesRuntime": true
+      },
+      {
+        "filename": "reading-analysis.md",
+        "http": 200,
+        "hashMatchesRuntime": true
+      }
+    ],
+    "E": [
+      {
+        "filename": "csv-data.json",
+        "http": 200,
+        "hashMatchesRuntime": true
+      },
+      {
+        "filename": "csv-conversion-report.md",
+        "http": 200,
+        "hashMatchesRuntime": true
+      }
+    ],
+    "F": [
+      {
+        "filename": "reading_analysis.json",
+        "http": 200,
+        "hashMatchesRuntime": true
+      },
+      {
+        "filename": "reading_analysis_report.md",
+        "http": 200,
+        "hashMatchesRuntime": true
+      }
+    ],
+    "G": [
+      {
+        "filename": "reading-column-analysis.json",
+        "http": 200,
+        "hashMatchesRuntime": true
+      },
+      {
+        "filename": "reading-column-analysis.md",
+        "http": 200,
+        "hashMatchesRuntime": true
+      }
+    ]
+  },
+  "cleanup": {
+    "observedAt": "2026-11-28T19:58:35.285239+08:00",
+    "caseWorkers": [
+      "STOPPED",
+      "STOPPED",
+      "START_FAILED",
+      "STOPPED",
+      "STOPPED",
+      "STOPPED",
+      "STOPPED"
+    ],
+    "stoppedIsolatedContainers": [
+      "stability-nct-language-api",
+      "stability-nct-mcp",
+      "stability-nct-broker",
+      "stability-nct-executor",
+      "stability-nct-recovery"
+    ],
+    "priorValidationServiceRunning": {
+      "stability-njr-api": true,
+      "stability-njr-mcp": true,
+      "stability-njr-broker": true,
+      "stability-njr-executor": true
+    },
+    "removedDuplicateBytes": 429320711,
+    "disk": "Filesystem      Size  Used Avail Use% Mounted on\n/dev/sdb        180G  165G   16G  92% /opt\n/dev/sdc        100G   57G   44G  57% /mnt/disk01"
+  }
+}

@@ -99,6 +99,8 @@ public class AssetAnalysisController {
             return nativeIdentity.as(scope,Set.of(com.chatchat.agents.runtime.coding.CodingTaskAccess.Action.READ,com.chatchat.agents.runtime.coding.CodingTaskAccess.Action.SUBMIT,com.chatchat.agents.runtime.coding.CodingTaskAccess.Action.STOP),()->{
                 var types=List.of("REPORT","RESULT");
                 var capabilities=new LinkedHashMap<String,Object>(nativeCapabilities==null?Map.of():nativeCapabilities.forAgent(scope,body.agentId(),body.modelName(),false,body.instruction()));
+                capabilities.put(com.chatchat.common.runtime.coding.CodingRuntimeContext.NATIVE_TASK_KIND,
+                    com.chatchat.common.runtime.coding.CodingRuntimeContext.DATA_ANALYSIS);
                 if(visual){capabilities.put("reportMode","visual");capabilities.put("reportPresentation",com.chatchat.common.runtime.coding.ReportPresentation.read(body.reportPresentation()==null?Map.of():Map.of("reportPresentation",body.reportPresentation())));}
                 var admitted=nativeTasks.submit(scope,visual?"primary-data-analysis-visual-v1":"primary-data-analysis-v1",ids,body.instruction(),body.modelName(),types,Map.of(),capabilities);
                 return ApiResponse.success(nativeTasks.await(scope,admitted.taskId(),()->false));

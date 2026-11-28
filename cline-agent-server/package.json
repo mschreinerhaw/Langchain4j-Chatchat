@@ -4,5 +4,5 @@
   "version": "1.0.0",
   "type": "module",
   "engines": { "node": ">=22" },
-  "scripts": { "start": "node src/server.mjs", "test": "node --test test/*.test.mjs" }
+  "scripts": { "start": "node src/server.mjs", "test": "node --test test/*.test.mjs", "review:hardcoding": "node ../scripts/check-business-hardcoding.mjs" }
 }

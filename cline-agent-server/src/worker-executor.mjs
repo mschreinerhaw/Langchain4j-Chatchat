@@ -4,7 +4,7 @@ import {join} from 'node:path';
 import {timingSafeEqual} from 'node:crypto';
 import {DockerEngine} from './docker-engine.mjs';
 import {verifyExecutorDaemon} from './executor-daemon-policy.mjs';
-import {ANALYSIS_REPORT_DIR,ANALYSIS_RESULT_DIR} from './delivery-manifest.mjs';
+import {deliveryRulesFor} from './delivery-manifest.mjs';
 import {reject,exact,taskGrant,identity,validateCreate,safeTree,mountAnchor,assertAnchors,buildSpec,verifyOwned,uuid,workerRuntime} from './worker-executor-policy.mjs';
 
 const cfg=JSON.parse(readFileSync(process.env.CLINE_EXECUTOR_CONFIG));
@@ -37,10 +37,9 @@ function prepare(c,b){
  for(const name of ['workspace','state','bridge'])mkdirSync(join(root,name),{mode:0o700});
  const template=cfg.tenants[c.tenantId].workspaces[c.workspaceRef];tree(template);cpSync(template,join(root,'workspace'),{recursive:true,dereference:false});
  if(runtime.python&&!existsSync(join(root,'workspace/input')))mkdirSync(join(root,'workspace/input'),{mode:0o700});
- if(c.analysisDelivery){
-  for(const path of [ANALYSIS_REPORT_DIR,ANALYSIS_RESULT_DIR])
-   mkdirSync(join(root,'workspace',path),{recursive:true,mode:0o700});
- }
+ const rules=deliveryRulesFor(c);
+ for(const {directory} of rules??[])
+  mkdirSync(join(root,'workspace',directory),{recursive:true,mode:0o700});
  tree(join(root,'workspace'),p=>chownSync(p,runtime.uid,runtime.uid));
  for(const name of ['state','bridge'])chownSync(join(root,name),runtime.supervisorUid??runtime.uid,runtime.supervisorUid??runtime.uid);
  const privateConfig={operationContext:!!cfg.operationContext,requireSubmitAndExit:cfg.mcpServerName==='runtime',sourceRoot:'/opt/runtime-os/cline/runtime',distDir:'/opt/runtime-os/cline/runtime',stateDir:'/var/lib/runtime-os/coding-node',socketPath:'/run/runtime-os/coding-node/bridge/worker.sock',apiToken:b.apiToken,apiKey:b.brokerToken,model:c.runtimeModel?.providerModel??cfg.modelNames[c.modelProfile],baseUrl:'http://127.0.0.1:18329/model/v1',workspaces:{project:'/workspace'},toolPermissions:c.toolPermissions,
@@ -49,7 +48,7 @@ function prepare(c,b){
   privateConfig.requireSubmitAndExit=false;
   privateConfig.deliveryBinding=c.deliveryBinding;
   if(c.analysisMetadataPath)privateConfig.analysisMetadataPath=c.analysisMetadataPath;
-  if(c.analysisDelivery)privateConfig.analysisDelivery=c.analysisDelivery;
+  if(rules)privateConfig.deliveryRules=rules;
   privateConfig.allowDeliveryPreview=true;
   privateConfig.requireDeliverySelection=true;
   privateConfig.modelOptions={...cfg.modelOptions,...b.modelLimits};

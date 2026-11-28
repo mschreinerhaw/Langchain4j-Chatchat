@@ -1,0 +1,30 @@
+{
+  "observedAt": "2026-11-28T19:34:06.667338+08:00",
+  "workerState": [
+    {
+      "taskId": "temporal-native-04d516930eb2c8b2dc8afd03f4b5cddfbfad325865b48da01dd47529e5670256",
+      "stopProven": true,
+      "state": "STOPPED"
+    },
+    {
+      "taskId": "temporal-native-67d7eab2928da75221960ec34c7a693592a6e3ee9e5384754c1096e210b1a421",
+      "stopProven": true,
+      "state": "STOPPED"
+    }
+  ],
+  "stoppedIsolatedContainers": [
+    "stability-nct-api",
+    "stability-nct-mcp",
+    "stability-nct-broker",
+    "stability-nct-recovery",
+    "stability-nct-executor"
+  ],
+  "priorValidationContainerRunning": {
+    "stability-njr-api": true,
+    "stability-njr-mcp": true,
+    "stability-njr-broker": true,
+    "stability-njr-executor": true
+  },
+  "removedReproducibleBuildCopyBytes": 429319290,
+  "filesystem": "Filesystem      Size  Used Avail Use% Mounted on\n/dev/sdb        180G  165G   16G  92% /opt\n/dev/sdc        100G   56G   45G  56% /mnt/disk01"
+}

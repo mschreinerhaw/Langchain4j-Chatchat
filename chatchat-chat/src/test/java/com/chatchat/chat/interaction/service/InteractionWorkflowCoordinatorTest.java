@@ -143,7 +143,7 @@ class InteractionWorkflowCoordinatorTest {
         } finally { release.countDown(); executor.shutdownNow(); }
     }
 
-    @Test void failedClassificationDoesNotExecuteAMaintainedWorkflow() {
+    @Test void failedClassificationRequestsClarificationWithoutExecutingAMaintainedWorkflow() {
         var policy = mock(AgentToolPolicyResolver.class);
         var planner = mock(ProblemAnalysisPlanner.class);
         var agent = mock(SkillDefinition.class);
@@ -154,7 +154,7 @@ class InteractionWorkflowCoordinatorTest {
         when(policy.planningSnapshot(request, agent)).thenReturn(entry);
         var governed = mock(InteractionWorkflowCoordinator.GovernedExecution.class);
         var response = new InteractionWorkflowCoordinator(policy, planner, null, null).execute(request, context, agent, governed);
-        assertThat(((WorkflowOutcome) response.getMetadata().get(WorkflowOutcome.METADATA_KEY)).type()).isEqualTo(WorkflowOutcome.Type.FAILED);
+        assertThat(((WorkflowOutcome) response.getMetadata().get(WorkflowOutcome.METADATA_KEY)).type()).isEqualTo(WorkflowOutcome.Type.INPUT_REQUIRED);
         verify(planner).classify(request, context, agent, entry.toolPurposes());
         verifyNoInteractions(governed);
     }

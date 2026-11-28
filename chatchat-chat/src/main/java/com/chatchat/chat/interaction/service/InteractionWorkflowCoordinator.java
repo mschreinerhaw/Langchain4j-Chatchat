@@ -87,9 +87,11 @@ public final class InteractionWorkflowCoordinator {
                     var bound = context.toBuilder().taskType(ProblemAnalysisPlan.TaskType.DATA_ANALYSIS).build();
                     yield execution.call("GOVERNED_RUNTIME", () -> governed.execute(bound, null));
                 }
-                if (planner == null) yield execution.call("GOVERNED_RUNTIME", () -> governed.execute(context, null));
-                var type = execution.call("TASK_CLASSIFICATION", () -> planner.classify(request, context, skill, entry.toolPurposes()));
-                if (type == null) yield ProblemAnalysisPlanner.blockedResponse(ProblemAnalysisPlan.unavailable());
+                var type = planner == null ? null
+                    : execution.call("TASK_CLASSIFICATION", () -> planner.classify(request, context, skill, entry.toolPurposes()));
+                if (type == null) yield ProblemAnalysisPlanner.blockedResponse(new ProblemAnalysisPlan(
+                    ProblemAnalysisPlan.Status.NEEDS_CLARIFICATION, "", "", "", "Task intent could not be confirmed.",
+                    java.util.List.of(), "请确认本次是要直接解答，还是使用已授权数据完成分析。如果需要分析，请说明要使用的数据范围。"));
                 var classified = context.toBuilder().taskType(type).build();
                 var result = type == ProblemAnalysisPlan.TaskType.QA
                     ? executeWorkflow(execution, RuntimeWorkflowFamily.DIRECT_ANSWER, request, classified, skill, null, governed)

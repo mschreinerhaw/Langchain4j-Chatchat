@@ -1,0 +1,38 @@
+﻿[
+  {
+    "bytes": 2047,
+    "status": 200,
+    "forwarded": true,
+    "code": null
+  },
+  {
+    "bytes": 2048,
+    "status": 200,
+    "forwarded": true,
+    "code": null
+  },
+  {
+    "bytes": 2049,
+    "status": 413,
+    "forwarded": false,
+    "code": "invalid_request"
+  },
+  {
+    "bytes": 2049,
+    "status": 413,
+    "forwarded": false,
+    "code": "invalid_request"
+  },
+  {
+    "bytes": 4096,
+    "status": 413,
+    "forwarded": false,
+    "code": "invalid_request"
+  },
+  {
+    "bytes": 2047,
+    "status": 200,
+    "forwarded": true,
+    "code": null
+  }
+]

@@ -1,0 +1,320 @@
+{
+  "observedAt": "2026-11-28T07:06:19.931036+00:00",
+  "imageIds": {
+    "native": "sha256:01705f202ca5a30a3f215741b8b6b4faac60bd406d57435729b11bec3b019004",
+    "api": "sha256:358443e8820c940928cb64c3050a1e46d6d40152dd1483438546252c6aa70e54"
+  },
+  "disk": {
+    "/opt": {
+      "availableBytes": 16425582592,
+      "usedPercent": 91.49722832871954,
+      "freeInodes": 32137611
+    },
+    "/mnt/disk01": {
+      "availableBytes": 53565702144,
+      "usedPercent": 50.0886816072301,
+      "freeInodes": 51674185
+    }
+  },
+  "tasks": {
+    "7": {
+      "taskId": "656208af-0b3e-38e6-aa0a-6d68c3bd1517",
+      "attemptId": "att-1-066c0ddc-b2b9-4906-82fb-3ed9d3129cd6",
+      "canonicalState": "PARTIAL",
+      "status": "PARTIAL_SUCCESS",
+      "updatedAt": "2026-11-28T06:50:31.212395Z",
+      "terminal": true,
+      "workers": [
+        {
+          "workerId": "4e770949-8103-4d6b-ae18-491da0c98df6",
+          "runId": "att-1-066c0ddc-b2b9-4906-82fb-3ed9d3129cd6",
+          "runtimeTaskId": "temporal-native-445a526e3c5b8a6dfd7042fc706dab08325470500049781d1eb11d9df44001e1",
+          "sessionId": "native-d1ab0697-e37e-44fa-957a-5e21fdc236e2",
+          "nativeSessionId": "6a33dcc6-0349-46e7-80e4-8f15ba3bac9c",
+          "mode": "visual",
+          "workerState": "STOPPED",
+          "taskState": "RUNTIME_ACCEPTED",
+          "receiptCount": 54,
+          "usageTotals": {
+            "inputTokens": 1774440,
+            "outputTokens": 56447,
+            "totalTokens": 1830887,
+            "cacheReadTokens": 1375616
+          },
+          "lastEventAt": "2026-11-28T06:49:04.758Z",
+          "matchesHistoricalSnapshot": false,
+          "snapshotDifferenceCount": 6,
+          "schemaFiles": [
+            "input/data/19/result-schema.json"
+          ],
+          "reportDirectoriesPresent": true,
+          "modelStages": {
+            "PRIMARY_ANALYSIS": 42,
+            "DELIVERY_REPAIR": 12
+          },
+          "firstRequestBytes": 28687,
+          "maxRequestBytes": 170895,
+          "audit": {
+            "worker.created": 1,
+            "worker.starting": 1,
+            "model.bound": 1,
+            "s3.inputs.verified": 1,
+            "skills.discovered": 19,
+            "worker.ready": 1,
+            "model.request.started": 54,
+            "model.forwarded": 54,
+            "model.request.completed": 54,
+            "delivery.sealed": 1,
+            "s3.delivery.uploaded": 1,
+            "runtime.validation.recorded": 3
+          },
+          "native": {
+            "session.created": 1,
+            "command.started": 177,
+            "command.completed": 176,
+            "worker.ready": 1,
+            "context.configured": 1,
+            "host.notification": 1,
+            "command.error": 1,
+            "task.accepted": 2,
+            "native.event": 949,
+            "task.started": 2,
+            "model.iteration.started": 50,
+            "model.usage": 50,
+            "permission.requested": 49,
+            "permission.decision": 49,
+            "permission.resolved": 49,
+            "tool.started": 50,
+            "tool.completed": 45,
+            "tool.failed": 5,
+            "context.notice": 8,
+            "turn.completed": 2,
+            "delivery.previewed": 2,
+            "delivery.content.reviewed": 2,
+            "delivery.revision.started": 1,
+            "delivery.seal.requested": 1,
+            "host.shutdown.requested": 1,
+            "delivery.sealed": 1,
+            "delivery.prepared": 1
+          },
+          "deliveryStages": [
+            {
+              "eventType": "turn.completed",
+              "at": "2026-11-28T06:43:57.882Z",
+              "eventId": "1212",
+              "message": null
+            },
+            {
+              "eventType": "delivery.previewed",
+              "at": "2026-11-28T06:44:50.440Z",
+              "eventId": "1217",
+              "message": null
+            },
+            {
+              "eventType": "turn.completed",
+              "at": "2026-11-28T06:48:04.212Z",
+              "eventId": "1664",
+              "message": null
+            },
+            {
+              "eventType": "delivery.previewed",
+              "at": "2026-11-28T06:49:03.022Z",
+              "eventId": "1669",
+              "message": null
+            },
+            {
+              "eventType": "delivery.prepared",
+              "at": "2026-11-28T06:49:04.758Z",
+              "eventId": "1677",
+              "message": null
+            }
+          ],
+          "deliveryArtifacts": [
+            {
+              "path": "output/report/report.html",
+              "type": "REPORT",
+              "size": 31303,
+              "sha256": "72c72ce8e26a508e2e5457c462ece3f8141e0530c7d985081a97b9e36fea0a8e",
+              "actualSha256": "72c72ce8e26a508e2e5457c462ece3f8141e0530c7d985081a97b9e36fea0a8e",
+              "hasTable": true,
+              "hasChart": false,
+              "hasHanText": true
+            },
+            {
+              "path": "output/result/result.json",
+              "type": "RESULT",
+              "size": 17199,
+              "sha256": "87de91c1261fd55144a5d304f78869d431880e9d74bb19351744b2386e301409",
+              "actualSha256": "87de91c1261fd55144a5d304f78869d431880e9d74bb19351744b2386e301409"
+            }
+          ],
+          "uploadArtifacts": [
+            {
+              "path": "output/report/report.html",
+              "size": 31303,
+              "sha256": "72c72ce8e26a508e2e5457c462ece3f8141e0530c7d985081a97b9e36fea0a8e"
+            },
+            {
+              "path": "output/result/result.json",
+              "size": 17199,
+              "sha256": "87de91c1261fd55144a5d304f78869d431880e9d74bb19351744b2386e301409"
+            }
+          ],
+          "acceptance": {
+            "status": "PASSED",
+            "manifestSha256": "6d984dc609f2ab249e932bf2b1b161083029a41d429aa59270b440ad26d0af1c",
+            "validationRef": "runtime-evidence:coding:native:d3849ef874256598256c75aee99bfdce2c9fcb4a0e4c7592d3cbdbb11ccc969f"
+          },
+          "stopProof": {
+            "running": false,
+            "exitCode": 0,
+            "finishedAt": "2026-11-28T06:49:05.111059478Z"
+          }
+        }
+      ]
+    },
+    "6": {
+      "taskId": "b52e5809-4d5f-3211-8cbd-8fddd03066be",
+      "attemptId": "att-1-6aa9737a-9c2a-4b34-89c0-87e991bec6c2",
+      "canonicalState": "PARTIAL",
+      "status": "PARTIAL_SUCCESS",
+      "finishedAt": "2026-11-28T07:05:03.709Z",
+      "lastEventSequence": 334,
+      "workers": [
+        {
+          "workerId": "e77ca324-13d0-4c40-abf2-4e910e266035",
+          "runId": "att-1-6aa9737a-9c2a-4b34-89c0-87e991bec6c2",
+          "runtimeTaskId": "temporal-native-74c57b88ccf2e0fad5df79574782d62f31797b411e1f2537b82e7fa87655e96e",
+          "sessionId": "native-ece72e96-adce-46c9-b6f0-6636f625f451",
+          "nativeSessionId": "4b32be90-a7ca-420c-b214-bd8c189bc261",
+          "mode": "plain",
+          "workerState": "STOPPED",
+          "taskState": "RUNTIME_ACCEPTED",
+          "receiptCount": 23,
+          "usageTotals": {
+            "inputTokens": 553290,
+            "outputTokens": 42973,
+            "totalTokens": 596263,
+            "cacheReadTokens": 302336
+          },
+          "lastEventAt": "2026-11-28T07:04:27.543Z",
+          "matchesHistoricalSnapshot": false,
+          "snapshotDifferenceCount": 8,
+          "schemaFiles": [
+            "input/data/17/result-schema.json"
+          ],
+          "reportDirectoriesPresent": true,
+          "modelStages": {
+            "PRIMARY_ANALYSIS": 23
+          },
+          "firstRequestBytes": 25519,
+          "maxRequestBytes": 136059,
+          "audit": {
+            "worker.created": 1,
+            "worker.starting": 1,
+            "model.bound": 1,
+            "s3.inputs.verified": 1,
+            "skills.discovered": 19,
+            "worker.ready": 1,
+            "model.request.started": 23,
+            "model.forwarded": 23,
+            "model.request.completed": 23,
+            "delivery.sealed": 1,
+            "s3.delivery.uploaded": 1,
+            "runtime.validation.recorded": 3
+          },
+          "native": {
+            "session.created": 1,
+            "command.started": 79,
+            "command.completed": 78,
+            "worker.ready": 1,
+            "context.configured": 1,
+            "host.notification": 1,
+            "command.error": 1,
+            "task.accepted": 1,
+            "native.event": 416,
+            "task.started": 1,
+            "model.iteration.started": 21,
+            "model.usage": 21,
+            "permission.requested": 22,
+            "permission.decision": 22,
+            "permission.resolved": 22,
+            "tool.started": 23,
+            "tool.completed": 21,
+            "tool.failed": 2,
+            "model.error": 1,
+            "context.notice": 4,
+            "turn.completed": 1,
+            "delivery.previewed": 1,
+            "delivery.content.reviewed": 1,
+            "delivery.seal.requested": 1,
+            "host.shutdown.requested": 1,
+            "delivery.sealed": 1,
+            "delivery.prepared": 1
+          },
+          "deliveryStages": [
+            {
+              "eventType": "turn.completed",
+              "at": "2026-11-28T07:04:15.646Z",
+              "eventId": "733",
+              "message": null
+            },
+            {
+              "eventType": "delivery.previewed",
+              "at": "2026-11-28T07:04:26.080Z",
+              "eventId": "738",
+              "message": null
+            },
+            {
+              "eventType": "delivery.prepared",
+              "at": "2026-11-28T07:04:27.543Z",
+              "eventId": "746",
+              "message": null
+            }
+          ],
+          "deliveryArtifacts": [
+            {
+              "path": "output/report/docker-db-analysis.md",
+              "type": "REPORT",
+              "size": 9552,
+              "sha256": "6716b68cc3e57fa445d8dd85ac2f574736fc8d609649081523a330deb8c21fba",
+              "actualSha256": "6716b68cc3e57fa445d8dd85ac2f574736fc8d609649081523a330deb8c21fba",
+              "hasTable": true,
+              "hasChart": false,
+              "hasHanText": true
+            },
+            {
+              "path": "output/result/docker-db-analysis.json",
+              "type": "RESULT",
+              "size": 15945,
+              "sha256": "33a0922937c58ff1a3ec95e00f82af5bb02815778952e2a6d25ed83cbdade083",
+              "actualSha256": "33a0922937c58ff1a3ec95e00f82af5bb02815778952e2a6d25ed83cbdade083"
+            }
+          ],
+          "uploadArtifacts": [
+            {
+              "path": "output/report/docker-db-analysis.md",
+              "size": 9552,
+              "sha256": "6716b68cc3e57fa445d8dd85ac2f574736fc8d609649081523a330deb8c21fba"
+            },
+            {
+              "path": "output/result/docker-db-analysis.json",
+              "size": 15945,
+              "sha256": "33a0922937c58ff1a3ec95e00f82af5bb02815778952e2a6d25ed83cbdade083"
+            }
+          ],
+          "acceptance": {
+            "status": "PASSED",
+            "manifestSha256": "725577cc5553c24ad094e92eab64f2e798fc778d091084570ca0c2584a59dcae",
+            "validationRef": "runtime-evidence:coding:native:fc1a3f6785e87116eb1714857dcab4eaa1938b09267ef402fd5cfd1b0a4a66a0"
+          },
+          "stopProof": {
+            "running": false,
+            "exitCode": 0,
+            "finishedAt": "2026-11-28T07:04:27.822111785Z"
+          }
+        }
+      ]
+    }
+  }
+}

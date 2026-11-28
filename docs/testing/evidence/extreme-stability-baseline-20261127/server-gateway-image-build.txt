@@ -1,0 +1,208 @@
+manifest sha256:e0e989b967dacc279681ed81774b2ce9eeebbb0efb8e0c427573235bebf1eda1 config sha256:bf02aa31cbbc82abe0aa534d4cb1be22ea108bd3afd9087dfac4deb691be30d0
+layers [('sha256:b1dd3d113aab1041fd80cc61d9db7ffbc058f756bf46fc149a0d9aa8b85935f4', 28247960), ('sha256:b65f2e54b23e6e93a5b5b30496f0d9f9ef198caf39941cc595b541429529510a', 3306), ('sha256:fa47c2d97c6fdb85e2572639fde0d181a8589ee08e9973b3777a16d44ce98102', 51100318), ('sha256:1b1d337d4a7c3d77dd3d54dba0aabe499fa489272c2c691d86edb4026fda2a28', 1713093), ('sha256:bfaf5d99692a2233104faf5422d4c6680b654354b3de52e668fbb4a8e4cb7668', 449)]
+sha256:ec3dfb82c695457b79cd2d9e49785047ea5968e902d61721d43e3312172c09aa exact_base_match True
+sha256:4d55d0057e40e95e4fa3ec6a13c15698e7ad2e54f1712ad9d346e12ced049423 exact_base_match True
+REGISTRY_BASE_VERIFIED
+Filesystem           Size  Used Avail Use% Mounted on
+/dev/mapper/rl-root   45G   38G  7.2G  84% /
+/dev/sdb             180G  165G   16G  92% /opt
+/dev/sdc             100G   28G   73G  28% /mnt/disk01
+Filesystem            Inodes   IUsed    IFree IUse% Mounted on
+/dev/mapper/rl-root 15573456  650613 14922843    5% /
+/dev/sdb            34668672 2234666 32434006    7% /opt
+/dev/sdc            52428800  338573 52090227    1% /mnt/disk01
+gateway.tar.gz: OK
+
+26.1.3
+Loaded image: node:24-bookworm-slim
+DEPRECATED: The legacy builder is deprecated and will be removed in a future release.
+            BuildKit is currently disabled; enable it by removing the DOCKER_BUILDKIT=0
+            environment-variable.
+
+Sending build context to Docker daemon    642kB
+
+Step 1/19 : FROM node:24-bookworm-slim AS build
+ ---> bf02aa31cbbc
+Step 2/19 : WORKDIR /app
+ ---> Running in e1cb04747bca
+ ---> Removed intermediate container e1cb04747bca
+ ---> 66f80009d726
+Step 3/19 : COPY package*.json ./
+ ---> f5cbffd029da
+Step 4/19 : RUN npm ci --no-audit --no-fund
+ ---> Running in f7c783bb87be
+
+added 192 packages in 1m
+npm warn install-scripts 1 package has install scripts not yet covered by allowScripts:
+npm warn install-scripts   esbuild@0.28.2 (postinstall: node install.js)
+npm warn install-scripts
+npm warn install-scripts Run `npm install-scripts ls` to review, or `npm install-scripts approve <pkg>` to allow.
+npm notice
+npm notice New major version of npm available! 11.19.1 -> 12.2.3
+npm notice Changelog: https://github.com/npm/cli/releases/tag/v12.2.3
+npm notice To update run: npm install -g npm@12.2.3
+npm notice
+ ---> Removed intermediate container f7c783bb87be
+ ---> c18df6aac167
+Step 5/19 : COPY . .
+ ---> 498efbab6dcb
+Step 6/19 : RUN npm test && npm run build && npm prune --omit=dev --no-audit --no-fund
+ ---> Running in 76c2fc74766b
+
+> llm-compatibility-gateway@1.2.0-rc.1 test
+> vitest run --root . tests/protocol.test.ts tests/runtime-managed.test.ts tests/compat.test.ts
+
+
+ RUN  v4.1.12 /app
+
+ ✓ tests/protocol.test.ts (14 tests) 36ms
+ ✓ tests/compat.test.ts (6 tests) 157ms
+ ✓ tests/runtime-managed.test.ts (10 tests) 1877ms
+   ✓ releases concurrency and closes the upstream when the client cancels midstream  307ms
+
+ Test Files  3 passed (3)
+      Tests  30 passed (30)
+   Start at  14:32:03
+   Duration  2.60s (transform 692ms, setup 0ms, import 1.39s, tests 2.07s, environment 0ms)
+
+
+> llm-compatibility-gateway@1.2.0-rc.1 build
+> tsc -p tsconfig.json && vite build
+
+vite v7.3.8 building client environment for production...
+transforming...
+✓ 1441 modules transformed.
+rendering chunks...
+computing gzip size...
+../dist/web/index.html                     0.40 kB │ gzip:   0.29 kB
+../dist/web/assets/index-sHpdkOsK.css      7.09 kB │ gzip:   2.42 kB
+../dist/web/assets/index-BKpbRZVX.js   1,235.87 kB │ gzip: 380.87 kB
+
+(!) Some chunks are larger than 500 kB after minification. Consider:
+- Using dynamic import() to code-split the application
+- Use build.rollupOptions.output.manualChunks to improve chunking: https://rollupjs.org/configuration-options/#output-manualchunks
+- Adjust chunk size limit for this warning via build.chunkSizeWarningLimit.
+✓ built in 6.36s
+
+removed 120 packages in 14s
+ ---> Removed intermediate container 76c2fc74766b
+ ---> a14c753f9c10
+Step 7/19 : FROM node:24-bookworm-slim AS runtime
+ ---> bf02aa31cbbc
+Step 8/19 : ARG GATEWAY_SOURCE_SHA=unknown
+ ---> Running in 2caa8c8ab05f
+ ---> Removed intermediate container 2caa8c8ab05f
+ ---> 7ddcb74c4d47
+Step 9/19 : LABEL org.opencontainers.image.version="1.2.0-rc.1" org.opencontainers.image.revision="${GATEWAY_SOURCE_SHA}"
+ ---> Running in 157ed2ae2c3b
+ ---> Removed intermediate container 157ed2ae2c3b
+ ---> 86f5a78fc510
+Step 10/19 : ENV NODE_ENV=production
+ ---> Running in b25a0111c55e
+ ---> Removed intermediate container b25a0111c55e
+ ---> 611439ef7369
+Step 11/19 : WORKDIR /app
+ ---> Running in 292323df3fa1
+ ---> Removed intermediate container 292323df3fa1
+ ---> b84a37943a90
+Step 12/19 : RUN apt-get update && apt-get install -y --no-install-recommends openssl ca-certificates     && rm -rf /var/lib/apt/lists/*     && install -d -o node -g node -m 0700 /app/data /app/logs /app/certs
+ ---> Running in a7f9efee5ff1
+Get:1 http://deb.debian.org/debian bookworm InRelease [151 kB]
+Get:2 http://deb.debian.org/debian bookworm-updates InRelease [55.4 kB]
+Get:3 http://deb.debian.org/debian-security bookworm-security InRelease [34.8 kB]
+Get:4 http://deb.debian.org/debian bookworm/main amd64 Packages [8790 kB]
+Get:5 http://deb.debian.org/debian bookworm-updates/main amd64 Packages [6924 B]
+Get:6 http://deb.debian.org/debian-security bookworm-security/main amd64 Packages [383 kB]
+Fetched 9421 kB in 38s (248 kB/s)
+Reading package lists...
+Reading package lists...
+Building dependency tree...
+Reading state information...
+The following additional packages will be installed:
+  libssl3
+The following NEW packages will be installed:
+  ca-certificates libssl3 openssl
+0 upgraded, 3 newly installed, 0 to remove and 4 not upgraded.
+Need to get 3643 kB of archives.
+After this operation, 8955 kB of additional disk space will be used.
+Get:1 http://deb.debian.org/debian-security bookworm-security/main amd64 libssl3 amd64 3.0.22-1~deb12u2 [2040 kB]
+Get:2 http://deb.debian.org/debian-security bookworm-security/main amd64 openssl amd64 3.0.22-1~deb12u2 [1442 kB]
+Get:3 http://deb.debian.org/debian-security bookworm-security/main amd64 ca-certificates all 20250419~deb12u2 [161 kB]
+debconf: delaying package configuration, since apt-utils is not installed
+Fetched 3643 kB in 31s (119 kB/s)
+Selecting previously unselected package libssl3:amd64.
+(Reading database ...
+(Reading database ... 5%
+(Reading database ... 10%
+(Reading database ... 15%
+(Reading database ... 20%
+(Reading database ... 25%
+(Reading database ... 30%
+(Reading database ... 35%
+(Reading database ... 40%
+(Reading database ... 45%
+(Reading database ... 50%
+(Reading database ... 55%
+(Reading database ... 60%
+(Reading database ... 65%
+(Reading database ... 70%
+(Reading database ... 75%
+(Reading database ... 80%
+(Reading database ... 85%
+(Reading database ... 90%
+(Reading database ... 95%
+(Reading database ... 100%
+(Reading database ... 6096 files and directories currently installed.)
+Preparing to unpack .../libssl3_3.0.22-1~deb12u2_amd64.deb ...
+Unpacking libssl3:amd64 (3.0.22-1~deb12u2) ...
+Selecting previously unselected package openssl.
+Preparing to unpack .../openssl_3.0.22-1~deb12u2_amd64.deb ...
+Unpacking openssl (3.0.22-1~deb12u2) ...
+Selecting previously unselected package ca-certificates.
+Preparing to unpack .../ca-certificates_20250419~deb12u2_all.deb ...
+Unpacking ca-certificates (20250419~deb12u2) ...
+Setting up libssl3:amd64 (3.0.22-1~deb12u2) ...
+Setting up openssl (3.0.22-1~deb12u2) ...
+Setting up ca-certificates (20250419~deb12u2) ...
+debconf: unable to initialize frontend: Dialog
+debconf: (TERM is not set, so the dialog frontend is not usable.)
+debconf: falling back to frontend: Readline
+debconf: unable to initialize frontend: Readline
+debconf: (Can't locate Term/ReadLine.pm in @INC (you may need to install the Term::ReadLine module) (@INC contains: /etc/perl /usr/local/lib/x86_64-linux-gnu/perl/5.36.0 /usr/local/share/perl/5.36.0 /usr/lib/x86_64-linux-gnu/perl5/5.36 /usr/share/perl5 /usr/lib/x86_64-linux-gnu/perl-base /usr/lib/x86_64-linux-gnu/perl/5.36 /usr/share/perl/5.36 /usr/local/lib/site_perl) at /usr/share/perl5/Debconf/FrontEnd/Readline.pm line 7.)
+debconf: falling back to frontend: Teletype
+Updating certificates in /etc/ssl/certs...
+148 added, 0 removed; done.
+Processing triggers for libc-bin (2.36-9+deb12u14) ...
+Processing triggers for ca-certificates (20250419~deb12u2) ...
+Updating certificates in /etc/ssl/certs...
+0 added, 0 removed; done.
+Running hooks in /etc/ca-certificates/update.d...
+done.
+ ---> Removed intermediate container a7f9efee5ff1
+ ---> 90d876400826
+Step 13/19 : COPY --from=build --chown=node:node /app/package.json ./package.json
+ ---> c82d35e783ed
+Step 14/19 : COPY --from=build --chown=node:node /app/node_modules ./node_modules
+ ---> 385e728ebf1f
+Step 15/19 : COPY --from=build --chown=node:node /app/dist ./dist
+ ---> e005c84d6deb
+Step 16/19 : USER node
+ ---> Running in 7bd384bc44af
+ ---> Removed intermediate container 7bd384bc44af
+ ---> aca366ec28c9
+Step 17/19 : EXPOSE 8443 18081
+ ---> Running in c4d8a7fab921
+ ---> Removed intermediate container c4d8a7fab921
+ ---> 06d38122d8cd
+Step 18/19 : HEALTHCHECK --interval=15s --timeout=5s --start-period=10s --retries=3   CMD ["node", "dist/server/health.js"]
+ ---> Running in 9358fb89b0fb
+ ---> Removed intermediate container 9358fb89b0fb
+ ---> 60262d9ee8b1
+Step 19/19 : CMD ["node", "dist/server/main.js"]
+ ---> Running in 50f7798a10b5
+ ---> Removed intermediate container 50f7798a10b5
+ ---> 020a2a637e80
+Successfully built 020a2a637e80
+Successfully tagged chatchat-gateway-baseline:313f35664
+sha256:020a2a637e804ef81054d07044170e91af30a2228031cecd1cba7ab9c6983efd 2026-11-27T14:33:52.070523553Z []
+BUILD_COMPLETE

@@ -1,0 +1,29 @@
+﻿[
+  {
+    "appended": 64,
+    "events": 64,
+    "bytes": 1056055,
+    "growthBytes": 1056055,
+    "appendMs": 41,
+    "replayMs": 9,
+    "heapDeltaBytes": 2172608
+  },
+  {
+    "appended": 128,
+    "events": 192,
+    "bytes": 3168276,
+    "growthBytes": 2112221,
+    "appendMs": 79,
+    "replayMs": 12,
+    "heapDeltaBytes": 6533984
+  },
+  {
+    "appended": 256,
+    "events": 448,
+    "bytes": 7392788,
+    "growthBytes": 4224512,
+    "appendMs": 146,
+    "replayMs": 19,
+    "heapDeltaBytes": 15254736
+  }
+]

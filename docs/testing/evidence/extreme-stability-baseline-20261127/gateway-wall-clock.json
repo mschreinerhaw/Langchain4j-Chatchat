@@ -1,0 +1,52 @@
+[
+  {
+    "scenario": "first-5",
+    "mode": "ordinary",
+    "probe": false,
+    "status": 200,
+    "elapsedMs": 5034,
+    "firstTokenMs": 5033,
+    "usageStatus": "UNKNOWN",
+    "done": true
+  },
+  {
+    "scenario": "first-30",
+    "mode": "ordinary",
+    "probe": false,
+    "status": 200,
+    "elapsedMs": 30031,
+    "firstTokenMs": 30030,
+    "usageStatus": "UNKNOWN",
+    "done": true
+  },
+  {
+    "scenario": "first-60",
+    "mode": "ordinary",
+    "probe": false,
+    "status": 200,
+    "elapsedMs": 60028,
+    "firstTokenMs": 60028,
+    "usageStatus": "UNKNOWN",
+    "done": true
+  },
+  {
+    "scenario": "first-120",
+    "mode": "ordinary",
+    "probe": false,
+    "status": 200,
+    "elapsedMs": 120022,
+    "firstTokenMs": 120022,
+    "usageStatus": "UNKNOWN",
+    "done": true
+  },
+  {
+    "scenario": "first-180",
+    "mode": "ordinary",
+    "probe": false,
+    "status": 200,
+    "elapsedMs": 180017,
+    "firstTokenMs": 180016,
+    "usageStatus": "UNKNOWN",
+    "done": true
+  }
+]

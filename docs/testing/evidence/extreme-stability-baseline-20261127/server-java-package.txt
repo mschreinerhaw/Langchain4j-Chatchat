@@ -1,0 +1,56 @@
+Filesystem           Size  Used Avail Use% Mounted on
+/dev/mapper/rl-root   45G   38G  7.2G  84% /
+/dev/sdb             180G  165G   16G  92% /opt
+/dev/sdc             100G   29G   71G  29% /mnt/disk01
+java-packaging.tar.gz: OK
+[INFO] Building jar: /mnt/disk01/extreme-stability-313f35664/java-work/chatchat-common/target/chatchat-common-1.0.0-SNAPSHOT.jar
+[INFO] Building jar: /mnt/disk01/extreme-stability-313f35664/java-work/chatchat-platform-spring/target/chatchat-platform-spring-1.0.0-SNAPSHOT.jar
+[INFO] Building jar: /mnt/disk01/extreme-stability-313f35664/java-work/chatchat-mcp-grpc/target/chatchat-mcp-grpc-1.0.0-SNAPSHOT.jar
+[INFO] Building jar: /mnt/disk01/extreme-stability-313f35664/java-work/chatchat-license/target/chatchat-license-1.0.0-SNAPSHOT.jar
+[INFO] Building jar: /mnt/disk01/extreme-stability-313f35664/java-work/chatchat-runtime-skill/target/chatchat-runtime-skill-1.0.0-SNAPSHOT.jar
+[INFO] Building jar: /mnt/disk01/extreme-stability-313f35664/java-work/chatchat-agents/target/chatchat-agents-1.0.0-SNAPSHOT.jar
+[INFO] Building jar: /mnt/disk01/extreme-stability-313f35664/java-work/chatchat-runtime-temporal/target/chatchat-runtime-temporal-1.0.0-SNAPSHOT.jar
+[INFO] Building jar: /mnt/disk01/extreme-stability-313f35664/java-work/chatchat-tools/target/chatchat-tools-1.0.0-SNAPSHOT.jar
+[INFO] Building jar: /mnt/disk01/extreme-stability-313f35664/java-work/chatchat-runtime-mcp/target/chatchat-runtime-mcp-1.0.0-SNAPSHOT.jar
+[INFO] Building jar: /mnt/disk01/extreme-stability-313f35664/java-work/chatchat-runtime-market/target/chatchat-runtime-market-1.0.0-SNAPSHOT.jar
+[INFO] Building jar: /mnt/disk01/extreme-stability-313f35664/java-work/chatchat-knowledge-base/target/chatchat-knowledge-base-1.0.0-SNAPSHOT.jar
+[INFO] Building jar: /mnt/disk01/extreme-stability-313f35664/java-work/chatchat-enterprise/target/chatchat-enterprise-1.0.0-SNAPSHOT.jar
+[INFO] Building jar: /mnt/disk01/extreme-stability-313f35664/java-work/chatchat-chat/target/chatchat-chat-1.0.0-SNAPSHOT.jar
+[INFO] Building jar: /mnt/disk01/extreme-stability-313f35664/java-work/chatchat-integration/target/chatchat-integration-1.0.0-SNAPSHOT.jar
+[INFO] Building jar: /mnt/disk01/extreme-stability-313f35664/java-work/chatchat-mcp-server/target/chatchat-mcp-server-1.0.0-SNAPSHOT.jar
+[INFO] Replacing main artifact /mnt/disk01/extreme-stability-313f35664/java-work/chatchat-mcp-server/target/chatchat-mcp-server-1.0.0-SNAPSHOT.jar with repackaged archive, adding nested dependencies in BOOT-INF/.
+[INFO] The original artifact has been renamed to /mnt/disk01/extreme-stability-313f35664/java-work/chatchat-mcp-server/target/chatchat-mcp-server-1.0.0-SNAPSHOT.jar.original
+[INFO] --- exec-maven-plugin:3.3.0:exec (verify-web-app-assets) @ chatchat-api ---
+[INFO] Building jar: /mnt/disk01/extreme-stability-313f35664/java-work/chatchat-api/target/chatchat-api-1.0.0-SNAPSHOT.jar
+[INFO] Replacing main artifact /mnt/disk01/extreme-stability-313f35664/java-work/chatchat-api/target/chatchat-api-1.0.0-SNAPSHOT.jar with repackaged archive, adding nested dependencies in BOOT-INF/.
+[INFO] The original artifact has been renamed to /mnt/disk01/extreme-stability-313f35664/java-work/chatchat-api/target/chatchat-api-1.0.0-SNAPSHOT.jar.original
+[INFO] LangChain4j ChatChat - Enterprise AI Application ... SUCCESS [  0.156 s]
+[INFO] ChatChat Common Module ............................. SUCCESS [  0.904 s]
+[INFO] ChatChat Spring Platform Adapter ................... SUCCESS [  1.856 s]
+[INFO] ChatChat MCP gRPC Transport Contract ............... SUCCESS [  2.176 s]
+[INFO] ChatChat License Platform Module ................... SUCCESS [  0.525 s]
+[INFO] ChatChat Vendor-Neutral Skill Runtime .............. SUCCESS [  0.892 s]
+[INFO] ChatChat Agents Module ............................. SUCCESS [ 13.143 s]
+[INFO] ChatChat Temporal Workflow Runtime ................. SUCCESS [  0.753 s]
+[INFO] ChatChat Tools Module .............................. SUCCESS [  0.766 s]
+[INFO] ChatChat Runtime MCP Registry ...................... SUCCESS [  0.444 s]
+[INFO] ChatChat MCP Market Capability Library ............. SUCCESS [  0.720 s]
+[INFO] ChatChat Knowledge Base Module ..................... SUCCESS [  3.134 s]
+[INFO] ChatChat Enterprise Module ......................... SUCCESS [  1.349 s]
+[INFO] ChatChat Chat Runtime Module ....................... SUCCESS [  5.746 s]
+[INFO] ChatChat Integration Module ........................ SUCCESS [  1.316 s]
+[INFO] ChatChat MCP Server Module ......................... SUCCESS [ 13.712 s]
+[INFO] LingDong Insight API Module ........................ SUCCESS [ 12.833 s]
+[INFO] BUILD SUCCESS
+[INFO] Total time:  01:00 min
+f56ab5065324fcc2aafe13f3a3527c370c509e138a7c611baefb5a5267768521  chatchat-api/target/chatchat-api-1.0.0-SNAPSHOT.jar
+2a9180ba22591fb1b2f4e721efbc2a9fcc4cd6c5cabdf4ee7f8139e7ac558eda  chatchat-mcp-server/target/chatchat-mcp-server-1.0.0-SNAPSHOT.jar
+JAVA_PACKAGE_COMPLETE
+Filesystem           Size  Used Avail Use% Mounted on
+/dev/mapper/rl-root   45G   38G  7.2G  84% /
+/dev/sdb             180G  165G   16G  92% /opt
+/dev/sdc             100G   30G   71G  30% /mnt/disk01
+Filesystem            Inodes   IUsed    IFree IUse% Mounted on
+/dev/mapper/rl-root 15571472  650614 14920858    5% /
+/dev/sdb            34529728 2234701 32295027    7% /opt
+/dev/sdc            52428800  412654 52016146    1% /mnt/disk01

@@ -1,0 +1,200 @@
+[
+  {
+    "scenario": "first-59",
+    "mode": "ordinary",
+    "probe": false,
+    "status": 200,
+    "elapsedMs": 59031,
+    "firstTokenMs": 59029,
+    "usageStatus": "UNKNOWN",
+    "done": true
+  },
+  {
+    "scenario": "first-60",
+    "mode": "ordinary",
+    "probe": false,
+    "status": 200,
+    "elapsedMs": 60033,
+    "firstTokenMs": 60031,
+    "usageStatus": "UNKNOWN",
+    "done": true
+  },
+  {
+    "scenario": "first-61",
+    "mode": "ordinary",
+    "probe": false,
+    "status": 200,
+    "elapsedMs": 61034,
+    "firstTokenMs": 61033,
+    "usageStatus": "UNKNOWN",
+    "done": true
+  },
+  {
+    "scenario": "first-90",
+    "mode": "ordinary",
+    "probe": false,
+    "status": 200,
+    "elapsedMs": 90022,
+    "firstTokenMs": 90022,
+    "usageStatus": "UNKNOWN",
+    "done": true
+  },
+  {
+    "scenario": "first-120",
+    "mode": "ordinary",
+    "probe": false,
+    "status": 200,
+    "elapsedMs": 120025,
+    "firstTokenMs": 120025,
+    "usageStatus": "UNKNOWN",
+    "done": true
+  },
+  {
+    "scenario": "first-180",
+    "mode": "ordinary",
+    "probe": false,
+    "status": 200,
+    "elapsedMs": 180037,
+    "firstTokenMs": 180036,
+    "usageStatus": "UNKNOWN",
+    "done": true
+  },
+  {
+    "scenario": "first-59",
+    "mode": "runtime_managed",
+    "probe": false,
+    "status": 200,
+    "elapsedMs": 59030,
+    "firstTokenMs": 59029,
+    "usageStatus": "UNKNOWN",
+    "done": true
+  },
+  {
+    "scenario": "first-60",
+    "mode": "runtime_managed",
+    "probe": false,
+    "status": 200,
+    "elapsedMs": 60032,
+    "firstTokenMs": 60031,
+    "usageStatus": "UNKNOWN",
+    "done": true
+  },
+  {
+    "scenario": "first-61",
+    "mode": "runtime_managed",
+    "probe": false,
+    "status": 200,
+    "elapsedMs": 61033,
+    "firstTokenMs": 61033,
+    "usageStatus": "UNKNOWN",
+    "done": true
+  },
+  {
+    "scenario": "first-90",
+    "mode": "runtime_managed",
+    "probe": false,
+    "status": 200,
+    "elapsedMs": 90022,
+    "firstTokenMs": 90022,
+    "usageStatus": "UNKNOWN",
+    "done": true
+  },
+  {
+    "scenario": "first-120",
+    "mode": "runtime_managed",
+    "probe": false,
+    "status": 200,
+    "elapsedMs": 120024,
+    "firstTokenMs": 120024,
+    "usageStatus": "UNKNOWN",
+    "done": true
+  },
+  {
+    "scenario": "first-180",
+    "mode": "runtime_managed",
+    "probe": false,
+    "status": 200,
+    "elapsedMs": 180036,
+    "firstTokenMs": 180036,
+    "usageStatus": "UNKNOWN",
+    "done": true
+  },
+  {
+    "scenario": "first-59",
+    "mode": "diagnostic",
+    "probe": true,
+    "status": 200,
+    "elapsedMs": 59029,
+    "firstTokenMs": 59028,
+    "usageStatus": "UNKNOWN",
+    "done": true
+  },
+  {
+    "scenario": "first-60",
+    "mode": "diagnostic",
+    "probe": true,
+    "status": 504,
+    "code": "first_packet_timeout",
+    "elapsedMs": 60015,
+    "firstTokenMs": null,
+    "usageStatus": "UNKNOWN",
+    "done": false
+  },
+  {
+    "scenario": "first-61",
+    "mode": "diagnostic",
+    "probe": true,
+    "status": 504,
+    "code": "first_packet_timeout",
+    "elapsedMs": 60015,
+    "firstTokenMs": null,
+    "usageStatus": "UNKNOWN",
+    "done": false
+  },
+  {
+    "scenario": "first-90",
+    "mode": "diagnostic",
+    "probe": true,
+    "status": 504,
+    "code": "first_packet_timeout",
+    "elapsedMs": 60015,
+    "firstTokenMs": null,
+    "usageStatus": "UNKNOWN",
+    "done": false
+  },
+  {
+    "scenario": "first-120",
+    "mode": "diagnostic",
+    "probe": true,
+    "status": 504,
+    "code": "first_packet_timeout",
+    "elapsedMs": 60014,
+    "firstTokenMs": null,
+    "usageStatus": "UNKNOWN",
+    "done": false
+  },
+  {
+    "scenario": "first-180",
+    "mode": "diagnostic",
+    "probe": true,
+    "status": 504,
+    "code": "first_packet_timeout",
+    "elapsedMs": 60014,
+    "firstTokenMs": null,
+    "usageStatus": "UNKNOWN",
+    "done": false
+  },
+  {
+    "scenario": "heartbeat-without-output",
+    "mode": "ordinary",
+    "probe": true,
+    "outcome": "caller_timeout",
+    "elapsedMs": 1503,
+    "firstTokenMs": null,
+    "usageStatus": "UNKNOWN",
+    "done": false,
+    "forwarded": true,
+    "aliasMatched": true,
+    "inFlightAfter": 0
+  }
+]

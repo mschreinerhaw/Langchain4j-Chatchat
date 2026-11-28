@@ -1,0 +1,122 @@
+﻿[
+  {
+    "scenario": "context-4096",
+    "mode": "runtime_managed",
+    "probe": false,
+    "status": 200,
+    "elapsedMs": 16,
+    "firstTokenMs": 14,
+    "usageStatus": "UNKNOWN",
+    "done": true,
+    "forwarded": true,
+    "aliasMatched": true,
+    "inFlightAfter": 0,
+    "datasetSizes": [
+      1000,
+      1640,
+      1456
+    ]
+  },
+  {
+    "scenario": "context-4096",
+    "mode": "runtime_managed",
+    "probe": false,
+    "status": 400,
+    "code": "upstream_http_error",
+    "elapsedMs": 3,
+    "firstTokenMs": null,
+    "usageStatus": "UNKNOWN",
+    "done": false,
+    "forwarded": true,
+    "aliasMatched": true,
+    "inFlightAfter": 0,
+    "datasetSizes": [
+      1000,
+      1640,
+      1457
+    ]
+  },
+  {
+    "scenario": "slow",
+    "mode": "runtime_managed",
+    "probe": false,
+    "outcome": "caller_timeout",
+    "elapsedMs": 138,
+    "firstTokenMs": null,
+    "usageStatus": "UNKNOWN",
+    "done": false,
+    "forwarded": true,
+    "aliasMatched": true,
+    "inFlightAfter": 0
+  },
+  {
+    "scenario": "partial-tool-disconnect",
+    "mode": "runtime_managed",
+    "probe": false,
+    "status": 502,
+    "code": "upstream_failure",
+    "elapsedMs": 65,
+    "firstTokenMs": 2,
+    "usageStatus": "UNKNOWN",
+    "done": false,
+    "forwarded": true,
+    "aliasMatched": true,
+    "inFlightAfter": 0
+  },
+  {
+    "scenario": "context-4096",
+    "mode": "runtime_managed",
+    "probe": false,
+    "status": 200,
+    "elapsedMs": 3,
+    "firstTokenMs": 3,
+    "usageStatus": "UNKNOWN",
+    "done": true,
+    "forwarded": true,
+    "aliasMatched": true,
+    "inFlightAfter": 0,
+    "datasetSizes": [
+      2048,
+      2048
+    ]
+  },
+  {
+    "scenario": "context-4096",
+    "mode": "runtime_managed",
+    "probe": false,
+    "status": 400,
+    "code": "upstream_http_error",
+    "elapsedMs": 2,
+    "firstTokenMs": null,
+    "usageStatus": "UNKNOWN",
+    "done": false,
+    "forwarded": true,
+    "aliasMatched": true,
+    "inFlightAfter": 0,
+    "datasetSizes": [
+      2048,
+      2048,
+      2048
+    ]
+  },
+  {
+    "scenario": "context-4096",
+    "mode": "runtime_managed",
+    "probe": false,
+    "status": 400,
+    "code": "upstream_http_error",
+    "elapsedMs": 2,
+    "firstTokenMs": null,
+    "usageStatus": "UNKNOWN",
+    "done": false,
+    "forwarded": true,
+    "aliasMatched": true,
+    "inFlightAfter": 0,
+    "datasetSizes": [
+      2048,
+      2048,
+      2048,
+      2048
+    ]
+  }
+]

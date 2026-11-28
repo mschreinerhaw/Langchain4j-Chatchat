@@ -1,0 +1,38 @@
+Filesystem           Size  Used Avail Use% Mounted on
+/dev/mapper/rl-root   45G   38G  7.2G  84% /
+/dev/sdb             180G  165G   16G  92% /opt
+/dev/sdc             100G   27G   74G  27% /mnt/disk01
+Filesystem            Inodes   IUsed    IFree IUse% Mounted on
+/dev/mapper/rl-root 15573568  650613 14922955    5% /
+/dev/sdb            34598480 2234666 32363814    7% /opt
+/dev/sdc            52428800  304875 52123925    1% /mnt/disk01
+java.tar.gz: OK
+java-reactor.tar.gz: OK
+[INFO] LangChain4j ChatChat - Enterprise AI Application ... SUCCESS [  0.160 s]
+[INFO] ChatChat Common Module ............................. SUCCESS [ 42.866 s]
+[INFO] ChatChat Spring Platform Adapter ................... SUCCESS [  0.705 s]
+[INFO] ChatChat MCP gRPC Transport Contract ............... SUCCESS [  1.377 s]
+[INFO] ChatChat License Platform Module ................... SUCCESS [  0.624 s]
+[INFO] ChatChat Vendor-Neutral Skill Runtime .............. SUCCESS [  0.680 s]
+[INFO] ChatChat Agents Module ............................. SUCCESS [ 11.998 s]
+[INFO] ChatChat Temporal Workflow Runtime ................. SUCCESS [  0.715 s]
+[INFO] ChatChat Tools Module .............................. SUCCESS [  0.725 s]
+[INFO] ChatChat Runtime MCP Registry ...................... SUCCESS [  0.409 s]
+[INFO] ChatChat MCP Market Capability Library ............. SUCCESS [  0.716 s]
+[INFO] ChatChat Knowledge Base Module ..................... SUCCESS [  4.240 s]
+[INFO] ChatChat Enterprise Module ......................... SUCCESS [  1.231 s]
+[INFO] ChatChat Chat Runtime Module ....................... SUCCESS [  6.121 s]
+[INFO] ChatChat Integration Module ........................ SUCCESS [  1.313 s]
+[INFO] ChatChat MCP Server Module ......................... SUCCESS [ 12.248 s]
+[INFO] LingDong Insight API Module ........................ SUCCESS [01:28 min]
+[INFO] BUILD SUCCESS
+[INFO] Total time:  02:54 min
+JAVA_COMPILE_COMPLETE
+Filesystem           Size  Used Avail Use% Mounted on
+/dev/mapper/rl-root   45G   38G  7.2G  84% /
+/dev/sdb             180G  165G   16G  92% /opt
+/dev/sdc             100G   28G   73G  28% /mnt/disk01
+Filesystem            Inodes   IUsed    IFree IUse% Mounted on
+/dev/mapper/rl-root 15573456  650613 14922843    5% /
+/dev/sdb            34205984 2234680 31971304    7% /opt
+/dev/sdc            52428800  338572 52090228    1% /mnt/disk01

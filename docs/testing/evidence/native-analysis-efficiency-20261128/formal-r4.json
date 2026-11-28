@@ -1,0 +1,399 @@
+{
+  "observedAt": "2026-11-28T07:47:11.450463+00:00",
+  "imageIds": {
+    "native": "sha256:01705f202ca5a30a3f215741b8b6b4faac60bd406d57435729b11bec3b019004",
+    "api": "sha256:4fa0f5dea828acb3dfc580e9825c0f27fcc360cf65f4bc519202acc7a9dc1aa6"
+  },
+  "disk": {
+    "/opt": {
+      "availableBytes": 16339947520,
+      "usedPercent": 91.54155768265213,
+      "freeInodes": 31970354
+    },
+    "/mnt/disk01": {
+      "availableBytes": 53138919424,
+      "usedPercent": 50.486348161944306,
+      "freeInodes": 51666794
+    }
+  },
+  "tasks": {
+    "7": {
+      "taskId": "dd40f14a-ee52-3a70-9374-c8a81e003023",
+      "attemptId": "att-1-1508ea70-5228-4805-9fa7-d6435e961df4",
+      "canonicalState": "PARTIAL",
+      "status": "PARTIAL_SUCCESS",
+      "updatedAt": "2026-11-28T07:35:11.459196Z",
+      "terminal": true,
+      "workers": [
+        {
+          "workerId": "7163c6cb-68c7-4a45-a30f-0776d4aece6e",
+          "runId": "att-1-1508ea70-5228-4805-9fa7-d6435e961df4",
+          "runtimeTaskId": "temporal-native-a6ef26d09e74f3bddffcd9019e371425e5ebd133b6050a5c09778a10326d0e0e",
+          "sessionId": "native-db2fc674-a081-4a96-b9f5-79385a65c976",
+          "nativeSessionId": "a5de695a-955d-48da-8f3f-31ee19e37ab0",
+          "mode": "visual",
+          "workerState": "STOPPED",
+          "taskState": "RUNTIME_ACCEPTED",
+          "receiptCount": 26,
+          "usageTotals": {
+            "inputTokens": 802354,
+            "outputTokens": 40278,
+            "totalTokens": 842632,
+            "cacheReadTokens": 520320
+          },
+          "lastEventAt": "2026-11-28T07:34:42.636Z",
+          "matchesHistoricalSnapshot": false,
+          "snapshotDifferenceCount": 6,
+          "schemaInInventory": true,
+          "schemaFiles": [],
+          "reportDirectoriesPresent": true,
+          "modelStages": {
+            "PRIMARY_ANALYSIS": 26
+          },
+          "firstRequestBytes": 28789,
+          "maxRequestBytes": 157037,
+          "audit": {
+            "worker.created": 1,
+            "worker.starting": 1,
+            "model.bound": 1,
+            "s3.inputs.verified": 1,
+            "skills.discovered": 19,
+            "worker.ready": 1,
+            "model.request.started": 26,
+            "model.forwarded": 26,
+            "model.request.completed": 26,
+            "delivery.sealed": 1,
+            "s3.delivery.uploaded": 1,
+            "runtime.validation.recorded": 1
+          },
+          "native": {
+            "session.created": 1,
+            "command.started": 76,
+            "command.completed": 75,
+            "worker.ready": 1,
+            "context.configured": 1,
+            "host.notification": 1,
+            "command.error": 1,
+            "task.accepted": 1,
+            "native.event": 572,
+            "task.started": 1,
+            "model.iteration.started": 24,
+            "model.usage": 24,
+            "permission.requested": 24,
+            "permission.decision": 24,
+            "permission.resolved": 24,
+            "tool.started": 24,
+            "tool.completed": 21,
+            "tool.failed": 3,
+            "context.notice": 4,
+            "turn.completed": 1,
+            "delivery.previewed": 1,
+            "delivery.content.reviewed": 1,
+            "delivery.seal.requested": 1,
+            "host.shutdown.requested": 1,
+            "delivery.sealed": 1,
+            "delivery.prepared": 1
+          },
+          "deliveryStages": [
+            {
+              "eventType": "turn.completed",
+              "at": "2026-11-28T07:34:30.361Z",
+              "eventId": "896",
+              "message": null
+            },
+            {
+              "eventType": "delivery.previewed",
+              "at": "2026-11-28T07:34:41.123Z",
+              "eventId": "901",
+              "message": null
+            },
+            {
+              "eventType": "delivery.prepared",
+              "at": "2026-11-28T07:34:42.636Z",
+              "eventId": "909",
+              "message": null
+            }
+          ],
+          "deliveryArtifacts": [
+            {
+              "path": "output/report/assets/responsive-charts.css",
+              "type": "AUXILIARY",
+              "size": 1048,
+              "sha256": "44188a46c30cce1988aec7641b121975a2b4f9db3698b6a6bdb5dfc730b669b3",
+              "actualSha256": "44188a46c30cce1988aec7641b121975a2b4f9db3698b6a6bdb5dfc730b669b3"
+            },
+            {
+              "path": "output/report/assets/responsive-charts.js",
+              "type": "AUXILIARY",
+              "size": 2015,
+              "sha256": "9cee27c026e439e64959acf2898b0b61f632034e3b173b81f582bb2575ef8d14",
+              "actualSha256": "9cee27c026e439e64959acf2898b0b61f632034e3b173b81f582bb2575ef8d14"
+            },
+            {
+              "path": "output/report/charts/buffer-pool-composition.png",
+              "type": "CHART",
+              "size": 49495,
+              "sha256": "f78f45d57a7c5fbcee06381cab1b11882bf133a2cf3f1da5e22ade0e6a773293",
+              "actualSha256": "f78f45d57a7c5fbcee06381cab1b11882bf133a2cf3f1da5e22ade0e6a773293"
+            },
+            {
+              "path": "output/report/charts/buffer-pool-instances.png",
+              "type": "CHART",
+              "size": 36674,
+              "sha256": "63a82b958e1b7b0d8cef40b8288e1ac48f29d49f584fcecc4abb815ade2bda0b",
+              "actualSha256": "63a82b958e1b7b0d8cef40b8288e1ac48f29d49f584fcecc4abb815ade2bda0b"
+            },
+            {
+              "path": "output/report/charts/connection-analysis.png",
+              "type": "CHART",
+              "size": 38545,
+              "sha256": "b4bae16d27af3ec10d3450de2133a38e979e6ad09396c0d41bf2d39d91dc484e",
+              "actualSha256": "b4bae16d27af3ec10d3450de2133a38e979e6ad09396c0d41bf2d39d91dc484e"
+            },
+            {
+              "path": "output/report/charts/disk-io-summary.png",
+              "type": "CHART",
+              "size": 49772,
+              "sha256": "533806399e2432423d66d4b339e46182346cdc5a8d7d498903a170fbda2e9d27",
+              "actualSha256": "533806399e2432423d66d4b339e46182346cdc5a8d7d498903a170fbda2e9d27"
+            },
+            {
+              "path": "output/report/charts/lock-transaction.png",
+              "type": "CHART",
+              "size": 42606,
+              "sha256": "e597e5672d09b80af872b49502ee226ddc79bf15502443559105cb6ebc718dd7",
+              "actualSha256": "e597e5672d09b80af872b49502ee226ddc79bf15502443559105cb6ebc718dd7"
+            },
+            {
+              "path": "output/report/charts/row-operations.png",
+              "type": "CHART",
+              "size": 44764,
+              "sha256": "62cd4fb65f8ca7965dfced2d1d6d452ffd20a907a62ab381ed8211ee8d565bb6",
+              "actualSha256": "62cd4fb65f8ca7965dfced2d1d6d452ffd20a907a62ab381ed8211ee8d565bb6"
+            },
+            {
+              "path": "output/report/innodb-analysis-report.html",
+              "type": "REPORT",
+              "size": 377630,
+              "sha256": "7d1a238e9724676e806d0d761562f9377f1ed94b5114bd54eb7a6604676364a3",
+              "actualSha256": "7d1a238e9724676e806d0d761562f9377f1ed94b5114bd54eb7a6604676364a3",
+              "hasTable": true,
+              "hasChart": true,
+              "hasHanText": true
+            },
+            {
+              "path": "output/result/innodb-analysis-result.json",
+              "type": "RESULT",
+              "size": 5943,
+              "sha256": "13c209237ee090ba1fb18f167136ef41b8047238566ec828d749acb95528f335",
+              "actualSha256": "13c209237ee090ba1fb18f167136ef41b8047238566ec828d749acb95528f335"
+            }
+          ],
+          "uploadArtifacts": [
+            {
+              "path": "output/report/assets/responsive-charts.css",
+              "size": 1048,
+              "sha256": "44188a46c30cce1988aec7641b121975a2b4f9db3698b6a6bdb5dfc730b669b3"
+            },
+            {
+              "path": "output/report/assets/responsive-charts.js",
+              "size": 2015,
+              "sha256": "9cee27c026e439e64959acf2898b0b61f632034e3b173b81f582bb2575ef8d14"
+            },
+            {
+              "path": "output/report/charts/buffer-pool-composition.png",
+              "size": 49495,
+              "sha256": "f78f45d57a7c5fbcee06381cab1b11882bf133a2cf3f1da5e22ade0e6a773293"
+            },
+            {
+              "path": "output/report/charts/buffer-pool-instances.png",
+              "size": 36674,
+              "sha256": "63a82b958e1b7b0d8cef40b8288e1ac48f29d49f584fcecc4abb815ade2bda0b"
+            },
+            {
+              "path": "output/report/charts/connection-analysis.png",
+              "size": 38545,
+              "sha256": "b4bae16d27af3ec10d3450de2133a38e979e6ad09396c0d41bf2d39d91dc484e"
+            },
+            {
+              "path": "output/report/charts/disk-io-summary.png",
+              "size": 49772,
+              "sha256": "533806399e2432423d66d4b339e46182346cdc5a8d7d498903a170fbda2e9d27"
+            },
+            {
+              "path": "output/report/charts/lock-transaction.png",
+              "size": 42606,
+              "sha256": "e597e5672d09b80af872b49502ee226ddc79bf15502443559105cb6ebc718dd7"
+            },
+            {
+              "path": "output/report/charts/row-operations.png",
+              "size": 44764,
+              "sha256": "62cd4fb65f8ca7965dfced2d1d6d452ffd20a907a62ab381ed8211ee8d565bb6"
+            },
+            {
+              "path": "output/report/innodb-analysis-report.html",
+              "size": 377630,
+              "sha256": "7d1a238e9724676e806d0d761562f9377f1ed94b5114bd54eb7a6604676364a3"
+            },
+            {
+              "path": "output/result/innodb-analysis-result.json",
+              "size": 5943,
+              "sha256": "13c209237ee090ba1fb18f167136ef41b8047238566ec828d749acb95528f335"
+            }
+          ],
+          "acceptance": {
+            "status": "PASSED",
+            "manifestSha256": "5c07af1add865297f1b5173ec66ea2abe06340c29370b579cd25027c2d6f9e8b",
+            "validationRef": "runtime-evidence:coding:native:e93b304f8d3f5e55def8b86de4e5fcc4877fee4d07f9352b510d493397b3f8f2"
+          },
+          "stopProof": {
+            "running": false,
+            "exitCode": 0,
+            "finishedAt": "2026-11-28T07:34:42.801524459Z"
+          }
+        }
+      ]
+    },
+    "6": {
+      "taskId": "61ec30c9-3b6d-34e0-a340-c6ede41f2917",
+      "attemptId": "att-1-4c44c7aa-a5a4-40ae-bfd9-21f4e0bfbf0b",
+      "canonicalState": "PARTIAL",
+      "status": "PARTIAL_SUCCESS",
+      "finishedAt": "2026-11-28T07:46:33.368Z",
+      "lastEventSequence": 338,
+      "workers": [
+        {
+          "workerId": "ded3c2fe-5c53-4515-8d37-16155eaeb5a3",
+          "runId": "att-1-4c44c7aa-a5a4-40ae-bfd9-21f4e0bfbf0b",
+          "runtimeTaskId": "temporal-native-9692eedff494b85e3276dd238045e7a383b849dc68659c172384888aefc41f1a",
+          "sessionId": "native-ab3b5234-020a-4bd2-ad27-41be53835209",
+          "nativeSessionId": "c06fc445-a5fd-4c8c-8e91-aa56248c7e39",
+          "mode": "plain",
+          "workerState": "STOPPED",
+          "taskState": "RUNTIME_ACCEPTED",
+          "receiptCount": 25,
+          "usageTotals": {
+            "inputTokens": 842707,
+            "outputTokens": 29251,
+            "totalTokens": 871958,
+            "cacheReadTokens": 601472
+          },
+          "lastEventAt": "2026-11-28T07:45:59.667Z",
+          "matchesHistoricalSnapshot": false,
+          "snapshotDifferenceCount": 8,
+          "schemaInInventory": true,
+          "schemaFiles": [],
+          "reportDirectoriesPresent": true,
+          "modelStages": {
+            "PRIMARY_ANALYSIS": 25
+          },
+          "firstRequestBytes": 25621,
+          "maxRequestBytes": 166106,
+          "audit": {
+            "worker.created": 1,
+            "worker.starting": 1,
+            "model.bound": 1,
+            "s3.inputs.verified": 1,
+            "skills.discovered": 19,
+            "worker.ready": 1,
+            "model.request.started": 25,
+            "model.forwarded": 25,
+            "model.request.completed": 25,
+            "delivery.sealed": 1,
+            "s3.delivery.uploaded": 1,
+            "runtime.validation.recorded": 1
+          },
+          "native": {
+            "session.created": 1,
+            "command.started": 83,
+            "command.completed": 82,
+            "worker.ready": 1,
+            "context.configured": 1,
+            "host.notification": 1,
+            "command.error": 1,
+            "task.accepted": 1,
+            "native.event": 454,
+            "task.started": 1,
+            "model.iteration.started": 23,
+            "model.usage": 23,
+            "permission.requested": 24,
+            "permission.decision": 24,
+            "permission.resolved": 24,
+            "tool.started": 24,
+            "tool.completed": 22,
+            "tool.failed": 2,
+            "context.notice": 4,
+            "turn.completed": 1,
+            "delivery.previewed": 1,
+            "delivery.content.reviewed": 1,
+            "delivery.seal.requested": 1,
+            "host.shutdown.requested": 1,
+            "delivery.sealed": 1,
+            "delivery.prepared": 1
+          },
+          "deliveryStages": [
+            {
+              "eventType": "turn.completed",
+              "at": "2026-11-28T07:45:42.899Z",
+              "eventId": "790",
+              "message": null
+            },
+            {
+              "eventType": "delivery.previewed",
+              "at": "2026-11-28T07:45:58.249Z",
+              "eventId": "795",
+              "message": null
+            },
+            {
+              "eventType": "delivery.prepared",
+              "at": "2026-11-28T07:45:59.667Z",
+              "eventId": "803",
+              "message": null
+            }
+          ],
+          "deliveryArtifacts": [
+            {
+              "path": "output/report/docker-db-analysis.md",
+              "type": "REPORT",
+              "size": 8676,
+              "sha256": "08a5aa435ddb9e17980467494fbee6bb8e7948eda1625c68546e86553dc1e9de",
+              "actualSha256": "08a5aa435ddb9e17980467494fbee6bb8e7948eda1625c68546e86553dc1e9de",
+              "hasTable": true,
+              "hasChart": false,
+              "hasHanText": true
+            },
+            {
+              "path": "output/result/docker-db-analysis.json",
+              "type": "RESULT",
+              "size": 12521,
+              "sha256": "12f5b72098801742b1eb69ec6be02ec32dc2f4c775f17474736eae8db0779bb3",
+              "actualSha256": "12f5b72098801742b1eb69ec6be02ec32dc2f4c775f17474736eae8db0779bb3"
+            }
+          ],
+          "uploadArtifacts": [
+            {
+              "path": "output/report/docker-db-analysis.md",
+              "size": 8676,
+              "sha256": "08a5aa435ddb9e17980467494fbee6bb8e7948eda1625c68546e86553dc1e9de"
+            },
+            {
+              "path": "output/result/docker-db-analysis.json",
+              "size": 12521,
+              "sha256": "12f5b72098801742b1eb69ec6be02ec32dc2f4c775f17474736eae8db0779bb3"
+            }
+          ],
+          "acceptance": {
+            "status": "PASSED",
+            "manifestSha256": "57233997092a17b9cb7ac2c1d0d7ca0bf3108f5885dabcaa9e8b9cbc442728d1",
+            "validationRef": "runtime-evidence:coding:native:fade77895e57883d32639e91d8a2f32524bbb769e05481ba953da8a7cbc52c81"
+          },
+          "stopProof": {
+            "running": false,
+            "exitCode": 0,
+            "finishedAt": "2026-11-28T07:45:59.944031971Z"
+          }
+        }
+      ]
+    }
+  }
+}

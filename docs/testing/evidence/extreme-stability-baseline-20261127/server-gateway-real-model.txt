@@ -1,0 +1,45 @@
+Filesystem           Size  Used Avail Use% Mounted on
+/dev/mapper/rl-root   45G   38G  7.2G  84% /
+/dev/sdb             180G  165G   16G  92% /opt
+/dev/sdc             100G   29G   71G  29% /mnt/disk01
+Filesystem            Inodes   IUsed    IFree IUse% Mounted on
+/dev/mapper/rl-root 15571472  650614 14920858    5% /
+/dev/sdb            34089776 2234667 31855109    7% /opt
+/dev/sdc            52428800  412615 52016185    1% /mnt/disk01
+gateway.tar.gz: OK
+
+26.1.3
+authorized validation model configuration revision 13
+[
+  {
+    "model": "Qwen3.8-27B",
+    "status": 200,
+    "done": true,
+    "finish": [
+      "stop"
+    ],
+    "code": null,
+    "matchesExpected": true,
+    "elapsedMs": 895
+  },
+  {
+    "model": "Qwen3.8-27B-Framework",
+    "status": 200,
+    "done": true,
+    "finish": [
+      "stop"
+    ],
+    "code": null,
+    "matchesExpected": true,
+    "elapsedMs": 893
+  }
+]
+REAL_MODEL_PROBE_COMPLETE
+Filesystem           Size  Used Avail Use% Mounted on
+/dev/mapper/rl-root   45G   38G  7.2G  84% /
+/dev/sdb             180G  165G   16G  92% /opt
+/dev/sdc             100G   29G   71G  29% /mnt/disk01
+Filesystem            Inodes   IUsed    IFree IUse% Mounted on
+/dev/mapper/rl-root 15571472  650614 14920858    5% /
+/dev/sdb            34499472 2234666 32264806    7% /opt
+/dev/sdc            52428800  412616 52016184    1% /mnt/disk01

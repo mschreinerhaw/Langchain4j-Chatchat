@@ -1,0 +1,12 @@
+2026-11-27T22:42:34+08:00
+Filesystem          1024-blocks      Used Available Capacity Mounted on
+/dev/mapper/rl-root    46622472  39162432   7460040      84% /
+/dev/sdb              188651520 172483036  16168484      92% /opt
+/dev/sdc              104806400  32176944  72629456      31% /mnt/disk01
+temporary Java base extraction source: java-cache-source.tar logical_bytes=824789504 allocated_records=1610920 record_bytes=512
+Filesystem          1024-blocks      Used Available Capacity Mounted on
+/dev/mapper/rl-root    46622472  39162432   7460040      84% /
+/dev/sdb              188651520 172483036  16168484      92% /opt
+/dev/sdc              104806400  31371484  73434916      30% /mnt/disk01
+/runtime-os-app-stage-api-1 running healthy
+/llm-gateway-llm-gateway-1 running healthy

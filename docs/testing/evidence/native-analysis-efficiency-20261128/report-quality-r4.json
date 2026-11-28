@@ -1,0 +1,31 @@
+{
+  "7": {
+    "taskId": "dd40f14a-ee52-3a70-9374-c8a81e003023",
+    "formalBusinessStatus": "PARTIAL_SUCCESS",
+    "structuredAnalysisStatus": "PARTIAL",
+    "reportDigestMatches": true,
+    "reportLanguageMetadata": "zh-CN",
+    "visibleHanCharacters": 9,
+    "visibleLatinWords": 1130,
+    "structuredMarkdownHanCharacters": 3,
+    "requestedChineseBodySatisfied": false,
+    "htmlTables": 10,
+    "chartArtifacts": 6,
+    "limitationsCount": 6,
+    "evidenceReferencesInAuthorizedInventory": 9,
+    "manifestDatasetCount": 9
+  },
+  "6": {
+    "taskId": "61ec30c9-3b6d-34e0-a340-c6ede41f2917",
+    "formalBusinessStatus": "PARTIAL_SUCCESS",
+    "structuredAnalysisStatus": "PARTIAL",
+    "reportDigestMatches": true,
+    "reportHanCharacters": 751,
+    "structuredMarkdownHanCharacters": 751,
+    "requestedChineseBodySatisfied": true,
+    "markdownTables": 9,
+    "limitationsCount": 5,
+    "evidenceReferencesInAuthorizedInventory": 8,
+    "manifestDatasetCount": 8
+  }
+}

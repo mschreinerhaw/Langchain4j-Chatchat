@@ -1,0 +1,96 @@
+{
+  "observedAt": "2026-11-28T07:10:32.601023+00:00",
+  "imageIds": {
+    "native": "sha256:01705f202ca5a30a3f215741b8b6b4faac60bd406d57435729b11bec3b019004",
+    "api": "sha256:358443e8820c940928cb64c3050a1e46d6d40152dd1483438546252c6aa70e54"
+  },
+  "disk": {
+    "/opt": {
+      "availableBytes": 16364396544,
+      "usedPercent": 91.52890154290833,
+      "freeInodes": 32018107
+    },
+    "/mnt/disk01": {
+      "availableBytes": 53552508928,
+      "usedPercent": 50.10097474963361,
+      "freeInodes": 51672846
+    }
+  },
+  "tasks": {
+    "7": {
+      "taskId": "15e7f627-f9ab-3a63-96c7-b2cf62a08f15",
+      "attemptId": "att-1-bff3d2d1-732e-484a-b3e9-98e4f2cc9d37",
+      "canonicalState": "PLANNING",
+      "status": "WAIT_MODEL",
+      "updatedAt": "2026-11-28T07:10:22.677046Z",
+      "terminal": false,
+      "workers": [
+        {
+          "workerId": "915900e3-076b-482a-9200-7784941284cf",
+          "runId": "att-1-bff3d2d1-732e-484a-b3e9-98e4f2cc9d37",
+          "runtimeTaskId": "temporal-native-ba26a2bdec4658e6efca774c52c9934bd5e176baf3e279c1cedcc781b1fdf148",
+          "sessionId": "native-fa6c7d53-3cc8-40a7-aa08-7b494140475f",
+          "nativeSessionId": "1027e5a8-bf61-45fd-906e-6a5d95cd7df2",
+          "mode": "visual",
+          "workerState": "RUNNING",
+          "taskState": "RUNNING",
+          "receiptCount": 8,
+          "usageTotals": {
+            "inputTokens": 234836,
+            "outputTokens": 12042,
+            "totalTokens": 246878,
+            "cacheReadTokens": 125952
+          },
+          "lastEventAt": "2026-11-28T07:10:23.268Z",
+          "matchesHistoricalSnapshot": false,
+          "snapshotDifferenceCount": 6,
+          "schemaInInventory": true,
+          "schemaFiles": [],
+          "reportDirectoriesPresent": true,
+          "modelStages": {
+            "PRIMARY_ANALYSIS": 8
+          },
+          "firstRequestBytes": 28736,
+          "maxRequestBytes": 163795,
+          "audit": {
+            "worker.created": 1,
+            "worker.starting": 1,
+            "model.bound": 1,
+            "s3.inputs.verified": 1,
+            "skills.discovered": 19,
+            "worker.ready": 1,
+            "model.request.started": 9,
+            "model.forwarded": 9,
+            "model.request.completed": 8
+          },
+          "native": {
+            "session.created": 1,
+            "command.started": 37,
+            "command.completed": 37,
+            "worker.ready": 1,
+            "context.configured": 1,
+            "host.notification": 1,
+            "command.error": 1,
+            "task.accepted": 1,
+            "native.event": 128,
+            "task.started": 1,
+            "model.iteration.started": 8,
+            "model.usage": 7,
+            "permission.requested": 11,
+            "permission.decision": 11,
+            "permission.resolved": 11,
+            "tool.started": 11,
+            "tool.completed": 10,
+            "tool.failed": 1,
+            "context.notice": 2
+          },
+          "deliveryStages": [],
+          "deliveryArtifacts": [],
+          "uploadArtifacts": [],
+          "acceptance": {},
+          "stopProof": {}
+        }
+      ]
+    }
+  }
+}

@@ -1,0 +1,28 @@
+{
+  "testStop": {
+    "taskId": "15e7f627-f9ab-3a63-96c7-b2cf62a08f15",
+    "reason": "TEST_STOP_AFTER_OBSERVED_SCHEMA_TRUNCATION",
+    "prior": "WAIT_MODEL",
+    "cancelHttpAccepted": true,
+    "cancelStatus": "CANCELLED"
+  },
+  "workerId": "915900e3-076b-482a-9200-7784941284cf",
+  "sourceBytes": 5276,
+  "schemaByteOffset": 4053,
+  "manifestSha256": "e9474e0234422a07c1c8f246eabf6329bd514529168eaf9cc2088eec1a08bde4",
+  "readTool": {
+    "startEventId": "51",
+    "endEventId": "55",
+    "reportedTruncation": true,
+    "containsResultSchema": false,
+    "containsFieldProvenance": false
+  },
+  "workerState": "STOPPED",
+  "stopProof": {
+    "containerId": "8fe0f209cf8585a1785a7899c152995eaab7dd29c0bbcb7a3251b1b01b86a74d",
+    "running": false,
+    "exitCode": 0,
+    "finishedAt": "2026-11-28T07:15:31.142138581Z"
+  },
+  "formalArtifactPresent": false
+}

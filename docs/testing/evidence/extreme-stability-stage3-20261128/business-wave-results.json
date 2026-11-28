@@ -1,0 +1,325 @@
+[
+  {
+    "scenario": "10",
+    "taskId": "a1d77492-68d6-3c01-b44d-fd5fdf552821",
+    "attemptId": "att-1-c50ea67f-bf2b-4cb4-954a-6b83fd7bdede",
+    "status": "FAILED",
+    "canonicalState": "FAILED",
+    "created": "2026-11-28T00:50:34.396507Z",
+    "finished": "2026-11-28T00:50:34.493Z",
+    "reportDescriptor": false,
+    "tools": {},
+    "phases": [
+      [
+        "SKILL_ANALYSIS_CONTEXT",
+        "SUCCESS",
+        2
+      ],
+      [
+        "TASK_CLASSIFICATION",
+        "RUNNING",
+        1
+      ],
+      [
+        "TASK_CLASSIFICATION",
+        "FAILED",
+        1
+      ]
+    ],
+    "knownFailures": [],
+    "eventSample": 10
+  },
+  {
+    "scenario": "11",
+    "taskId": "27a67f4c-a4ab-39b8-9943-bde0e38306f9",
+    "attemptId": "att-1-fba7690d-0dc1-4897-a2a4-ae264d2ef5f5",
+    "status": "FAILED",
+    "canonicalState": "FAILED",
+    "created": "2026-11-28T00:50:39.545873Z",
+    "finished": "2026-11-28T00:50:39.649Z",
+    "reportDescriptor": false,
+    "tools": {},
+    "phases": [
+      [
+        "SKILL_ANALYSIS_CONTEXT",
+        "SUCCESS",
+        2
+      ],
+      [
+        "TASK_CLASSIFICATION",
+        "RUNNING",
+        1
+      ],
+      [
+        "TASK_CLASSIFICATION",
+        "FAILED",
+        1
+      ]
+    ],
+    "knownFailures": [],
+    "eventSample": 10
+  },
+  {
+    "scenario": "5.1",
+    "taskId": "e26ddb40-08a3-3676-bb1b-3f2df7a435e9",
+    "attemptId": "att-1-ed48e584-07c9-43d3-a4b2-51d8f2f2807f",
+    "status": "FAILED",
+    "canonicalState": "FAILED",
+    "created": "2026-11-28T00:45:11.982907Z",
+    "finished": "2026-11-28T00:45:12.119Z",
+    "reportDescriptor": false,
+    "tools": {},
+    "phases": [
+      [
+        "SKILL_ANALYSIS_CONTEXT",
+        "SUCCESS",
+        2
+      ],
+      [
+        "TASK_CLASSIFICATION",
+        "RUNNING",
+        1
+      ],
+      [
+        "TASK_CLASSIFICATION",
+        "FAILED",
+        1
+      ]
+    ],
+    "knownFailures": [],
+    "eventSample": 10
+  },
+  {
+    "scenario": "5.2",
+    "taskId": "fa2ca28e-1079-3160-9ebb-63d350d7bdb8",
+    "attemptId": "att-1-1e08499f-c9cc-47c7-bf1b-fc2023550acf",
+    "status": "FAILED",
+    "canonicalState": "FAILED",
+    "created": "2026-11-28T00:45:17.140914Z",
+    "finished": "2026-11-28T00:45:17.351Z",
+    "reportDescriptor": false,
+    "tools": {},
+    "phases": [
+      [
+        "SKILL_ANALYSIS_CONTEXT",
+        "SUCCESS",
+        2
+      ],
+      [
+        "TASK_CLASSIFICATION",
+        "RUNNING",
+        1
+      ],
+      [
+        "TASK_CLASSIFICATION",
+        "FAILED",
+        1
+      ]
+    ],
+    "knownFailures": [],
+    "eventSample": 10
+  },
+  {
+    "scenario": "5.3",
+    "taskId": "cbb80970-69e5-3526-86ef-f40b765c480f",
+    "attemptId": "att-1-88dbf212-8d32-4f79-be28-5411194794ee",
+    "status": "FAILED",
+    "canonicalState": "FAILED",
+    "created": "2026-11-28T00:45:22.276930Z",
+    "finished": "2026-11-28T00:45:22.511Z",
+    "reportDescriptor": false,
+    "tools": {},
+    "phases": [
+      [
+        "SKILL_ANALYSIS_CONTEXT",
+        "SUCCESS",
+        2
+      ],
+      [
+        "TASK_CLASSIFICATION",
+        "RUNNING",
+        1
+      ],
+      [
+        "TASK_CLASSIFICATION",
+        "FAILED",
+        1
+      ]
+    ],
+    "knownFailures": [],
+    "eventSample": 10
+  },
+  {
+    "scenario": "6",
+    "taskId": "b9ce5824-5a0e-3256-9e2b-3592f154bab9",
+    "attemptId": "att-1-d367748c-f101-4dc6-baea-a48c6a3ab30c",
+    "status": "FAILED",
+    "canonicalState": "FAILED",
+    "created": "2026-11-28T00:45:27.432533Z",
+    "finished": "2026-11-28T00:50:20.499Z",
+    "reportDescriptor": false,
+    "tools": {
+      "skill_analysis_context": 1,
+      "knowledge_skills": 2,
+      "agent_lifecycle": 5,
+      "mcp_chatchat_mcp_server_container_runtime_supply_template_query": 2,
+      "interpretation_plan_controller": 1,
+      "interpretation_plan_state": 1,
+      "agent": 1,
+      "coding_agent": 79
+    },
+    "phases": [
+      [
+        "SKILL_ANALYSIS_CONTEXT",
+        "SUCCESS",
+        2
+      ],
+      [
+        "TASK_CLASSIFICATION",
+        "RUNNING",
+        1
+      ],
+      [
+        "TASK_CLASSIFICATION",
+        "SUCCESS",
+        1
+      ]
+    ],
+    "knownFailures": [
+      {
+        "sequence": 19,
+        "tool": "mcp_chatchat_mcp_server_container_runtime_supply_template_query",
+        "outerStatus": "SUCCESS",
+        "observationType": "tool_failure",
+        "rejectedFields": [
+          "assetType"
+        ]
+      },
+      {
+        "sequence": 20,
+        "tool": "interpretation_plan_state",
+        "outerStatus": "SUCCESS",
+        "observationType": "state_update_failed",
+        "rejectedFields": []
+      }
+    ],
+    "eventSample": 100
+  },
+  {
+    "scenario": "7",
+    "taskId": "a1029e29-765f-3d51-b7c6-cf3ee641b828",
+    "attemptId": "att-1-3330b8d3-f3df-4a71-912f-18a045eb67ea",
+    "status": "FAILED",
+    "canonicalState": "FAILED",
+    "created": "2026-11-28T00:36:01.411161Z",
+    "finished": "2026-11-28T00:45:09.262243Z",
+    "reportDescriptor": false,
+    "tools": {
+      "skill_analysis_context": 1,
+      "knowledge_skills": 2,
+      "agent_lifecycle": 6,
+      "mcp_chatchat_mcp_server_database_capability_query": 2,
+      "interpretation_plan_controller": 2,
+      "interpretation_plan_state": 2,
+      "mcp_chatchat_mcp_server_mysql_db_status_template_query": 2,
+      "agent": 2,
+      "coding_agent": 73
+    },
+    "phases": [
+      [
+        "SKILL_ANALYSIS_CONTEXT",
+        "SUCCESS",
+        2
+      ],
+      [
+        "TASK_CLASSIFICATION",
+        "RUNNING",
+        1
+      ],
+      [
+        "TASK_CLASSIFICATION",
+        "SUCCESS",
+        1
+      ]
+    ],
+    "knownFailures": [
+      {
+        "sequence": 24,
+        "tool": "mcp_chatchat_mcp_server_mysql_db_status_template_query",
+        "outerStatus": "SUCCESS",
+        "observationType": "tool_failure",
+        "rejectedFields": [
+          "query"
+        ]
+      },
+      {
+        "sequence": 25,
+        "tool": "interpretation_plan_state",
+        "outerStatus": "SUCCESS",
+        "observationType": "state_update_failed",
+        "rejectedFields": []
+      }
+    ],
+    "eventSample": 100
+  },
+  {
+    "scenario": "8",
+    "taskId": "4cb64671-0629-33e3-8bf3-e5c023db12d5",
+    "attemptId": "att-1-02bf5fcc-f8e3-4630-8d06-2b48296b38fa",
+    "status": "FAILED",
+    "canonicalState": "FAILED",
+    "created": "2026-11-28T00:50:24.114495Z",
+    "finished": "2026-11-28T00:50:24.219Z",
+    "reportDescriptor": false,
+    "tools": {},
+    "phases": [
+      [
+        "SKILL_ANALYSIS_CONTEXT",
+        "SUCCESS",
+        2
+      ],
+      [
+        "TASK_CLASSIFICATION",
+        "RUNNING",
+        1
+      ],
+      [
+        "TASK_CLASSIFICATION",
+        "FAILED",
+        1
+      ]
+    ],
+    "knownFailures": [],
+    "eventSample": 10
+  },
+  {
+    "scenario": "9",
+    "taskId": "d6962a6f-33b8-327f-8a80-66640e8e5253",
+    "attemptId": "att-1-d460180c-c64d-4ebe-b225-5309063cacb3",
+    "status": "FAILED",
+    "canonicalState": "FAILED",
+    "created": "2026-11-28T00:50:29.260089Z",
+    "finished": "2026-11-28T00:50:29.378Z",
+    "reportDescriptor": false,
+    "tools": {},
+    "phases": [
+      [
+        "SKILL_ANALYSIS_CONTEXT",
+        "SUCCESS",
+        2
+      ],
+      [
+        "TASK_CLASSIFICATION",
+        "RUNNING",
+        1
+      ],
+      [
+        "TASK_CLASSIFICATION",
+        "FAILED",
+        1
+      ]
+    ],
+    "knownFailures": [],
+    "eventSample": 10
+  }
+]

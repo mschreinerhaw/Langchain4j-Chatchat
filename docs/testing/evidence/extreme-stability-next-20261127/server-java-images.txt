@@ -1,0 +1,34 @@
+Filesystem           Size  Used Avail Use% Mounted on
+/dev/mapper/rl-root   45G   38G  7.2G  85% /
+/dev/sdb             180G  165G   16G  92% /opt
+/dev/sdc             100G   32G   69G  32% /mnt/disk01
+Filesystem            Inodes   IUsed    IFree IUse% Mounted on
+/dev/mapper/rl-root 15567664  650614 14917050    5% /
+/dev/sdb            34619160 2234718 32384442    7% /opt
+/dev/sdc            52428800  420301 52008499    1% /mnt/disk01
+gateway.tar.gz: OK
+#11 writing image sha256:4469ad11a2c146477668733f3fd56f6377511e5125ec964fd90fbc867d8e1fa4 done
+sha256:4469ad11a2c146477668733f3fd56f6377511e5125ec964fd90fbc867d8e1fa4 2026-11-27T22:42:41.386971534+08:00 []
+#7 [api-runtime 3/3] RUN apt-get update     && apt-get install -y --no-install-recommends python3 python3-pip fonts-noto-cjk     && python3 -m pip install --no-cache-dir --require-hashes -r /opt/chatchat/sql-toolchain-requirements.txt     && python3 -c "import sqlglot; assert sqlglot.__version__ == '30.23.0'"     && rm -rf /var/lib/apt/lists/* /root/.cache
+#7 97.52 Fetched 49.7 MB in 1min 37s (510 kB/s)
+#7 101.7   fonts-noto-cjk-extra python3-doc python3-tk python3-venv
+#7 101.8   fonts-noto-cjk libmpdec3 libpython3-stdlib libpython3.10-minimal
+#7 137.2 Get:11 http://archive.ubuntu.com/ubuntu jammy/main amd64 fonts-noto-cjk all 1:20220127+repack1-1 [61.2 MB]
+#7 329.2 Fetched 68.9 MB in 3min 47s (303 kB/s)
+#7 331.1 Selecting previously unselected package fonts-noto-cjk.
+#7 331.1 Preparing to unpack .../2-fonts-noto-cjk_1%3a20220127+repack1-1_all.deb ...
+#7 331.2 Unpacking fonts-noto-cjk (1:20220127+repack1-1) ...
+#7 333.1 Setting up fonts-noto-cjk (1:20220127+repack1-1) ...
+#7 342.7   Downloading sqlglot-30.23.0-py3-none-any.whl (783 kB)
+#7 345.9 Successfully installed sqlglot-30.23.0
+#11 writing image sha256:33fc423364ebe0f2523c69fef92a179817db80711fd79553a3c8bb1dc41c8d09 done
+sha256:33fc423364ebe0f2523c69fef92a179817db80711fd79553a3c8bb1dc41c8d09 2026-11-27T22:58:41.50220742+08:00 []
+JAVA_IMAGES_COMPLETE
+Filesystem           Size  Used Avail Use% Mounted on
+/dev/mapper/rl-root   45G   38G  7.2G  84% /
+/dev/sdb             180G  165G   16G  92% /opt
+/dev/sdc             100G   32G   69G  32% /mnt/disk01
+Filesystem            Inodes   IUsed    IFree IUse% Mounted on
+/dev/mapper/rl-root 15570824  650614 14920210    5% /
+/dev/sdb            34617552 2234666 32382886    7% /opt
+/dev/sdc            52428800  424023 52004777    1% /mnt/disk01

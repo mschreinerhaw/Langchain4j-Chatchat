@@ -1,0 +1,9 @@
+{
+  "runtimeSha256": "e4a35399643f34f1718f0f01ade0caa0eb9f4892657b6acf995f0340d2f72a34",
+  "compiledBytes": 55835900,
+  "markers": {
+    "CLINE_ANALYSIS_METADATA_PATH": false,
+    "ANALYSIS_TOOL_POLICY_CHECK_FAILED": false,
+    "runtime.analysis.tool-receipt.v1": false
+  }
+}

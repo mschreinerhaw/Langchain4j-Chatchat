@@ -1,0 +1,103 @@
+{
+  "admission": [
+    {
+      "concurrency": 1,
+      "offered": 3,
+      "statusCodes": [
+        200,
+        429,
+        429
+      ]
+    },
+    {
+      "concurrency": 2,
+      "offered": 4,
+      "statusCodes": [
+        200,
+        200,
+        429,
+        429
+      ]
+    },
+    {
+      "concurrency": 4,
+      "offered": 6,
+      "statusCodes": [
+        200,
+        200,
+        200,
+        200,
+        429,
+        429
+      ]
+    },
+    {
+      "concurrency": 8,
+      "offered": 10,
+      "statusCodes": [
+        200,
+        200,
+        200,
+        200,
+        200,
+        200,
+        200,
+        200,
+        429,
+        429
+      ]
+    }
+  ],
+  "paced": [
+    {
+      "scenario": "rate-1",
+      "mode": "ordinary",
+      "probe": false,
+      "status": 200,
+      "elapsedMs": 4035,
+      "firstTokenMs": 5,
+      "usageStatus": "UNKNOWN",
+      "done": true
+    },
+    {
+      "scenario": "rate-3",
+      "mode": "ordinary",
+      "probe": false,
+      "status": 200,
+      "elapsedMs": 1376,
+      "firstTokenMs": 5,
+      "usageStatus": "UNKNOWN",
+      "done": true
+    },
+    {
+      "scenario": "rate-5",
+      "mode": "ordinary",
+      "probe": false,
+      "status": 200,
+      "elapsedMs": 827,
+      "firstTokenMs": 5,
+      "usageStatus": "UNKNOWN",
+      "done": true
+    },
+    {
+      "scenario": "rate-10",
+      "mode": "ordinary",
+      "probe": false,
+      "status": 200,
+      "elapsedMs": 436,
+      "firstTokenMs": 5,
+      "usageStatus": "UNKNOWN",
+      "done": true
+    },
+    {
+      "scenario": "rate-30",
+      "mode": "ordinary",
+      "probe": false,
+      "status": 200,
+      "elapsedMs": 185,
+      "firstTokenMs": 5,
+      "usageStatus": "UNKNOWN",
+      "done": true
+    }
+  ]
+}

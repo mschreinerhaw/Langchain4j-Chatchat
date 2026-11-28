@@ -1,0 +1,42 @@
+{
+  "before": {
+    "/opt": {
+      "availableBytes": 16369299456,
+      "freeInodes": 32027685
+    },
+    "/mnt/disk01": {
+      "availableBytes": 55019098112,
+      "freeInodes": 51699301
+    }
+  },
+  "files": [
+    {
+      "path": "/mnt/disk01/extreme-stability-313f35664/convergence-219-stage1/image-api/app.jar",
+      "sha256": "4acdf77556327a66e5e550f89bee6619ceedecaaa08f3aad977e524e920686b3",
+      "bytes": 429283121,
+      "retainedImage": "sha256:711cdd51ea2a23b7e8a772ca02c87bbbced0b17ab1ba32b0b2e2f3f669881f13",
+      "retainedOriginal": "/mnt/disk01/extreme-stability-313f35664/convergence-219-stage1/src/chatchat-api/target/chatchat-api-1.0.0-SNAPSHOT.jar",
+      "reason": "Duplicate regenerable Docker build context file",
+      "removed": true
+    },
+    {
+      "path": "/mnt/disk01/extreme-stability-313f35664/convergence-219-budget/image-api/app.jar",
+      "sha256": "c278f73b86816f5433809af8b11b5aa728382b074572ed324bf87dd380735b62",
+      "bytes": 429288364,
+      "retainedImage": "sha256:36dc6f3d55867ae383977812c37865ac562419670f72923746bf3fbd0dafad3b",
+      "retainedOriginal": "/mnt/disk01/extreme-stability-313f35664/convergence-219-budget/src/chatchat-api/target/chatchat-api-1.0.0-SNAPSHOT.jar",
+      "reason": "Duplicate regenerable Docker build context file",
+      "removed": true
+    }
+  ],
+  "after": {
+    "/opt": {
+      "availableBytes": 16369217536,
+      "freeInodes": 32027525
+    },
+    "/mnt/disk01": {
+      "availableBytes": 55878160384,
+      "freeInodes": 51699279
+    }
+  }
+}

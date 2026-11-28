@@ -1,0 +1,57 @@
+{
+  "7": {
+    "analysisStatus": "PARTIAL",
+    "limitationsCount": 8,
+    "claimedReferences": 9,
+    "referencesInsideAuthorizedInventory": true,
+    "authorizedSources": 9,
+    "supplyStatus": [
+      "DELIVERED_SNAPSHOT",
+      "DELIVERED_SNAPSHOT",
+      "DELIVERED_SNAPSHOT",
+      "DELIVERED_SNAPSHOT",
+      "DELIVERED_SNAPSHOT",
+      "DELIVERED_SNAPSHOT",
+      "DELIVERED_SNAPSHOT",
+      "DELIVERED_SNAPSHOT",
+      "VERIFIED_EMPTY_SNAPSHOT"
+    ],
+    "reportContainsHan": true,
+    "reportTableCount": 9,
+    "reportTopicsPresent": {
+      "bufferPool": true,
+      "transactions": true,
+      "locks": true,
+      "io": true,
+      "limitations": true
+    },
+    "formalReportSha256": "72c72ce8e26a508e2e5457c462ece3f8141e0530c7d985081a97b9e36fea0a8e"
+  },
+  "6": {
+    "analysisStatus": "PARTIAL",
+    "limitationsCount": 6,
+    "claimedReferences": 8,
+    "referencesInsideAuthorizedInventory": true,
+    "authorizedSources": 8,
+    "supplyStatus": [
+      "DELIVERED_SNAPSHOT",
+      "DELIVERED_SNAPSHOT",
+      "DELIVERED_SNAPSHOT",
+      "DELIVERED_SNAPSHOT",
+      "DELIVERED_SNAPSHOT",
+      "DELIVERED_SNAPSHOT",
+      "DELIVERED_SNAPSHOT",
+      "DELIVERED_SNAPSHOT"
+    ],
+    "reportContainsHan": true,
+    "reportTableCount": 12,
+    "reportTopicsPresent": {
+      "image": true,
+      "container": true,
+      "resources": true,
+      "volumes": true,
+      "limitations": true
+    },
+    "formalReportSha256": "6716b68cc3e57fa445d8dd85ac2f574736fc8d609649081523a330deb8c21fba"
+  }
+}

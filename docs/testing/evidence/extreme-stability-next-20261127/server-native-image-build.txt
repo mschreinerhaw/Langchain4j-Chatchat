@@ -1,0 +1,106 @@
+Filesystem           Size  Used Avail Use% Mounted on
+/dev/mapper/rl-root   45G   38G  7.2G  85% /
+/dev/sdb             180G  165G   16G  92% /opt
+/dev/sdc             100G   35G   66G  35% /mnt/disk01
+Filesystem            Inodes   IUsed    IFree IUse% Mounted on
+/dev/mapper/rl-root 15569200  650614 14918586    5% /
+/dev/sdb            34597432 2234666 32362766    7% /opt
+/dev/sdc            52428800  510588 51918212    1% /mnt/disk01
+gateway.tar.gz: OK
+
+26.1.3
+native-baseline.tar.gz: OK
+{"sourceCommit":"8075d2e35cf5cad67c24f180c80a05d311b74a3e","verifiedFiles":1849,"descriptorSha256":"d28dace3b4daff727770c3625917b22a0c54a8f855c4222530de1923b493086f","descriptorServices":22,"node":"v24.22.3","nodeABI":"137","sqlite":"3.50.4","status":"PASS"}
+#0 building with "default" instance using docker driver
+
+#1 [internal] load build definition from Dockerfile.release
+#1 transferring dockerfile: 3.14kB done
+#1 DONE 0.0s
+
+#2 [internal] load metadata for docker.io/library/chatchat-python-runtime:report-skills-f7c093a1c3b0
+#2 DONE 0.0s
+
+#3 [internal] load metadata for docker.io/library/node:24-bookworm-slim
+#3 DONE 0.0s
+
+#4 [internal] load metadata for docker.io/library/cline-agent-server:4.1.27-native-source-33d00126230e
+#4 DONE 0.0s
+
+#5 [node 1/1] FROM docker.io/library/node:24-bookworm-slim
+#5 DONE 0.1s
+
+#6 [internal] load build context
+#6 transferring context: 38B
+#6 transferring context: 1.69MB 0.1s done
+#6 DONE 0.1s
+
+#7 [coding-node  1/11] FROM docker.io/library/chatchat-python-runtime:report-skills-f7c093a1c3b0
+#7 DONE 0.1s
+
+#8 [official-runtime 1/1] FROM docker.io/library/cline-agent-server:4.1.27-native-source-33d00126230e
+#8 DONE 0.1s
+
+#9 [coding-node  2/11] COPY --from=official-runtime /opt/cline/runtime/ /opt/runtime-os/cline/runtime/
+#9 DONE 0.4s
+
+#10 [coding-node  3/11] COPY --from=node /usr/local/bin/node /usr/local/bin/node
+#10 DONE 0.1s
+
+#11 [coding-node  4/11] COPY cline-agent-server/ /opt/runtime-os/coding-node/service/
+#11 DONE 0.1s
+
+#12 [coding-node  5/11] COPY coding-agent-node/package.json /opt/runtime-os/coding-node/coding-agent-node/package.json
+#12 DONE 0.0s
+
+#13 [coding-node  6/11] COPY coding-agent-node/src/completion-context.js coding-agent-node/src/execution-limits.js coding-agent-node/src/knowledge-tools.js coding-agent-node/src/code-repair.js coding-agent-node/src/skill-distribution.js /opt/runtime-os/coding-node/coding-agent-node/src/
+#13 DONE 0.2s
+
+#14 [coding-node  7/11] COPY coding-agent-node/skills/ /opt/runtime-os/coding-node/coding-agent-node/skills/
+#14 DONE 0.1s
+
+#15 [coding-node  8/11] COPY deploy/docker/python-runtime/requirements.lock /opt/chatchat/requirements.lock
+#15 DONE 0.0s
+
+#16 [coding-node  9/11] RUN /usr/sbin/usermod --shell /bin/bash runner     && mkdir -p /workspace /var/lib/runtime-os/coding-node /run/runtime-os/coding-node/bridge /home/runner/.cache     && chown -R 10001:10001 /workspace /var/lib/runtime-os/coding-node /run/runtime-os/coding-node /home/runner/.cache     && node /opt/runtime-os/coding-node/service/scripts/verify-runtime.mjs /opt/runtime-os/cline/runtime     && node /opt/runtime-os/coding-node/service/docker/verify-native-modules.mjs /opt/runtime-os/cline/runtime     && python /opt/runtime-os/coding-node/service/docker/verify-python-runtime.py     && python /opt/chatchat/verify-fonts.py     && test ! -e /poc
+#16 2.165 {"sourceCommit":"8075d2e35cf5cad67c24f180c80a05d311b74a3e","verifiedFiles":1849,"descriptorSha256":"d28dace3b4daff727770c3625917b22a0c54a8f855c4222530de1923b493086f","descriptorServices":22,"node":"v24.22.3","nodeABI":"137","sqlite":"3.50.4","status":"PASS"}
+#16 2.304 {"node":"v24.22.3","abi":"137","nativeModules":1,"sqliteExecuted":true}
+#16 5.781 No broken requirements found.
+#16 5.839 {"python": "3.11.18 (main, Nov  5 2026, 07:57:53) [GCC 14.2.0]", "sqlite": "3.46.1", "imports": ["pandas", "numpy", "pyarrow", "duckdb", "matplotlib", "openpyxl", "pytest", "psycopg", "pyodbc", "oracledb", "scipy", "sklearn"], "lockVerified": true}
+#16 7.366 {"status": "PASSED", "matplotlib": "3.10.0", "families": ["Noto Sans CJK JP", "DejaVu Sans"], "glyphCoverage": true, "legacySansOverride": true, "renderedBytes": {"png": 27532, "svg": 30063}}
+#16 DONE 7.5s
+
+#17 [coding-node 10/11] RUN node --test /opt/runtime-os/coding-node/service/test/workspace-initialize.test.mjs /opt/runtime-os/coding-node/service/test/workspace-access.test.mjs
+#17 0.567 ✔ workspace probe checks create/read/rename/delete without residue (67.070664ms)
+#17 0.569 ✔ Core identity rejects root-owned bind mount and succeeds after ownership repair (171.17225ms)
+#17 0.731 ✔ root-owned mounted workspace is repaired automatically and initialization is repeatable (397.346739ms)
+#17 0.732 ✔ unsafe entries cannot cause ownership changes outside workspace (1.917717ms)
+#17 0.746 ℹ tests 4
+#17 0.746 ℹ suites 0
+#17 0.747 ℹ pass 4
+#17 0.747 ℹ fail 0
+#17 0.747 ℹ cancelled 0
+#17 0.747 ℹ skipped 0
+#17 0.747 ℹ todo 0
+#17 0.747 ℹ duration_ms 515.283881
+#17 DONE 0.8s
+
+#18 [coding-node 11/11] WORKDIR /opt/runtime-os/coding-node/service
+#18 DONE 0.0s
+
+#19 exporting to image
+#19 exporting layers
+#19 exporting layers 1.2s done
+#19 writing image sha256:b50c3dbbf0bc578228af7f0f6b8b280dd041ab01847fe2c0c69713769645a231 done
+#19 naming to docker.io/library/chatchat-native-baseline:313f35664 done
+#19 DONE 1.2s
+sha256:b50c3dbbf0bc578228af7f0f6b8b280dd041ab01847fe2c0c69713769645a231 2026-11-27T23:13:42.791191794+08:00 [] 8075d2e35cf5cad67c24f180c80a05d311b74a3e
+Python 3.11.18
+NATIVE_BASELINE_BUILD_COMPLETE
+Filesystem           Size  Used Avail Use% Mounted on
+/dev/mapper/rl-root   45G   38G  7.2G  85% /
+/dev/sdb             180G  165G   16G  92% /opt
+/dev/sdc             100G   34G   67G  34% /mnt/disk01
+Filesystem            Inodes   IUsed    IFree IUse% Mounted on
+/dev/mapper/rl-root 15569200  650614 14918586    5% /
+/dev/sdb            34598192 2234666 32363526    7% /opt
+/dev/sdc            52428800  513665 51915135    1% /mnt/disk01

@@ -1,0 +1,35 @@
+{
+  "7": {
+    "runtimeTaskId": "temporal-native-445a526e3c5b8a6dfd7042fc706dab08325470500049781d1eb11d9df44001e1",
+    "modelStages": {
+      "PRIMARY_ANALYSIS": 42,
+      "DELIVERY_REPAIR": 12
+    },
+    "fieldCounts": {
+      "providerRequestId": 54,
+      "gatewayRequestId": 54,
+      "requestContext": 54,
+      "turnMessageId": 54,
+      "hashedToolResults": 50
+    },
+    "repeatArgumentGroups": 0,
+    "finalCursor": 540,
+    "complete": true
+  },
+  "6": {
+    "runtimeTaskId": "temporal-native-74c57b88ccf2e0fad5df79574782d62f31797b411e1f2537b82e7fa87655e96e",
+    "modelStages": {
+      "PRIMARY_ANALYSIS": 23
+    },
+    "fieldCounts": {
+      "providerRequestId": 23,
+      "gatewayRequestId": 23,
+      "requestContext": 23,
+      "turnMessageId": 23,
+      "hashedToolResults": 23
+    },
+    "repeatArgumentGroups": 0,
+    "finalCursor": 278,
+    "complete": true
+  }
+}

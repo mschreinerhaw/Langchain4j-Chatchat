@@ -1,0 +1,710 @@
+{
+  "observedAt": "2026-11-28T06:13:32.181112+00:00",
+  "recoveryFault": {
+    "faultInjected": true,
+    "completedRequestId": "97e836a8-9cd4-47a4-b849-6b4cf0bba837",
+    "firstProviderTokens": 7005,
+    "runtimeTaskId": "temporal-native-58e60a19bd3f83af9fdd60af3fe8c6ed1d2eb62de9f6f69ca59ee8cc732de40f",
+    "previousWorkerId": "e9fe51e8-f6a3-46bf-b5d3-257d4644c295",
+    "at": "2026-11-28T06:02:44.559250+00:00",
+    "container": "a5417c7f5415",
+    "killExitCode": 0
+  },
+  "finalRecoveryFault": {
+    "faultInjected": true,
+    "completedRequestId": "386ccd4e-22e5-4b81-966a-080661659418",
+    "firstProviderTokens": 7030,
+    "runtimeTaskId": "temporal-native-9226af7d9ad53be70b034f062cae6db6bc5456a59c3de15d2abed9ca747b9951",
+    "previousWorkerId": "1691df2c-65f0-468e-ac85-ce5bd0dd9964",
+    "at": "2026-11-28T06:12:28.950741+00:00",
+    "container": "860190593f26",
+    "killExitCode": 0
+  },
+  "cases": {
+    "business": {
+      "taskId": "69b5b4d9-c3d3-36cf-af62-0f6bd8d542a9",
+      "attemptId": "att-1-100cd9c6-4423-40be-af17-fb060aaa11f6",
+      "status": "FAILED",
+      "canonicalState": "FAILED",
+      "finishedAt": "2026-11-28T05:59:53.138Z",
+      "runtimeDisposition": [
+        {
+          "at": 1795845591038,
+          "type": "BUDGET_UPDATED",
+          "runId": "att-1-100cd9c6-4423-40be-af17-fb060aaa11f6",
+          "status": "RUNNING",
+          "stage": "CONTEXT_READY",
+          "reasonCode": "BUDGET_EXCEEDED",
+          "taskId": "temporal-native-33a7a73c99d8a6ba3c22ccd0cf5cc9b33729d35b541ac73e25884f05a1eb91d2"
+        },
+        {
+          "at": 1795845592785,
+          "type": "TASK_FINISHED",
+          "runId": "att-1-100cd9c6-4423-40be-af17-fb060aaa11f6",
+          "status": "BUDGET_EXCEEDED",
+          "stage": "BUDGET_EXCEEDED",
+          "reasonCode": "BUDGET_EXCEEDED",
+          "taskId": "temporal-native-33a7a73c99d8a6ba3c22ccd0cf5cc9b33729d35b541ac73e25884f05a1eb91d2"
+        }
+      ],
+      "workers": [
+        {
+          "workerId": "c73ab313-2090-4d9b-a00a-862776a82f92",
+          "taskId": "temporal-native-33a7a73c99d8a6ba3c22ccd0cf5cc9b33729d35b541ac73e25884f05a1eb91d2",
+          "runId": "att-1-100cd9c6-4423-40be-af17-fb060aaa11f6",
+          "sessionId": "native-988942dc-b472-4d92-a133-8e356d9ecc7b",
+          "modelBudget": true,
+          "workerState": "STOPPED",
+          "taskState": "CANCELLED_LOCAL_ONLY",
+          "stopProof": {
+            "running": false,
+            "exitCode": 0,
+            "finishedAt": "2026-11-28T05:59:52.343025636Z"
+          },
+          "finalDeliveryPresent": false,
+          "uploadReceiptPresent": false,
+          "events": [
+            {
+              "eventId": "24",
+              "timestamp": "2026-11-28T05:59:45.781Z",
+              "type": "worker.ready"
+            },
+            {
+              "eventId": "25",
+              "timestamp": "2026-11-28T05:59:47.355Z",
+              "type": "model.forwarded"
+            },
+            {
+              "eventId": "26",
+              "timestamp": "2026-11-28T05:59:47.452Z",
+              "type": "model.request.started",
+              "requestId": "7f93fa86-cf62-457c-9058-c0def035e4cb"
+            },
+            {
+              "eventId": "27",
+              "timestamp": "2026-11-28T05:59:50.665Z",
+              "type": "model.request.completed",
+              "requestId": "7f93fa86-cf62-457c-9058-c0def035e4cb",
+              "gatewayRequestId": "b621910f-f0c3-4728-9e5c-8ca501ecef82",
+              "httpStatus": 200,
+              "providerDispatched": true,
+              "status": "SUCCEEDED",
+              "usage": {
+                "inputTokens": 6806,
+                "outputTokens": 131,
+                "totalTokens": 6937,
+                "cacheReadTokens": 0
+              }
+            },
+            {
+              "eventId": "28",
+              "timestamp": "2026-11-28T05:59:50.978Z",
+              "type": "model.forwarded"
+            },
+            {
+              "eventId": "29",
+              "timestamp": "2026-11-28T05:59:51.041Z",
+              "type": "model.request.rejected",
+              "requestId": "e3a3d7eb-55dd-4484-ae67-884e7c1ac932",
+              "code": "RUNTIME_TASK_MODEL_BUDGET_EXHAUSTED",
+              "providerDispatched": false
+            },
+            {
+              "eventId": "30",
+              "timestamp": "2026-11-28T05:59:51.133Z",
+              "type": "worker.stopping"
+            },
+            {
+              "eventId": "31",
+              "timestamp": "2026-11-28T05:59:52.481Z",
+              "type": "worker.stopped"
+            }
+          ]
+        }
+      ]
+    },
+    "recovery": {
+      "taskId": "db2cc3b3-0330-3fc2-adef-24bd2c0e0e69",
+      "attemptId": "att-1-12db5f1c-4b09-429f-9fd3-67cfab166d3a",
+      "status": "FAILED",
+      "canonicalState": "FAILED",
+      "finishedAt": "2026-11-28T06:02:58.015Z",
+      "runtimeDisposition": [
+        {
+          "at": 1795845775990,
+          "type": "BUDGET_UPDATED",
+          "runId": "att-1-12db5f1c-4b09-429f-9fd3-67cfab166d3a",
+          "status": "RUNNING",
+          "stage": "CONTEXT_READY",
+          "reasonCode": "BUDGET_EXCEEDED",
+          "taskId": "temporal-native-58e60a19bd3f83af9fdd60af3fe8c6ed1d2eb62de9f6f69ca59ee8cc732de40f"
+        },
+        {
+          "at": 1795845777540,
+          "type": "TASK_FINISHED",
+          "runId": "att-1-12db5f1c-4b09-429f-9fd3-67cfab166d3a",
+          "status": "BUDGET_EXCEEDED",
+          "stage": "BUDGET_EXCEEDED",
+          "reasonCode": "BUDGET_EXCEEDED",
+          "taskId": "temporal-native-58e60a19bd3f83af9fdd60af3fe8c6ed1d2eb62de9f6f69ca59ee8cc732de40f"
+        }
+      ],
+      "workers": [
+        {
+          "workerId": "e9fe51e8-f6a3-46bf-b5d3-257d4644c295",
+          "taskId": "temporal-native-58e60a19bd3f83af9fdd60af3fe8c6ed1d2eb62de9f6f69ca59ee8cc732de40f",
+          "runId": "att-1-12db5f1c-4b09-429f-9fd3-67cfab166d3a",
+          "sessionId": "native-8e0e34a3-6348-4e0d-9dc6-9b2ff07df1b4",
+          "modelBudget": true,
+          "workerState": "STOPPED",
+          "taskState": "CANCELLED",
+          "stopProof": {
+            "running": false,
+            "exitCode": 137,
+            "finishedAt": "2026-11-28T06:02:44.721336264Z"
+          },
+          "finalDeliveryPresent": false,
+          "uploadReceiptPresent": false,
+          "events": [
+            {
+              "eventId": "55",
+              "timestamp": "2026-11-28T06:02:38.013Z",
+              "type": "worker.ready"
+            },
+            {
+              "eventId": "56",
+              "timestamp": "2026-11-28T06:02:40.037Z",
+              "type": "model.forwarded"
+            },
+            {
+              "eventId": "57",
+              "timestamp": "2026-11-28T06:02:40.087Z",
+              "type": "model.request.started",
+              "requestId": "97e836a8-9cd4-47a4-b849-6b4cf0bba837"
+            },
+            {
+              "eventId": "58",
+              "timestamp": "2026-11-28T06:02:44.428Z",
+              "type": "model.request.completed",
+              "requestId": "97e836a8-9cd4-47a4-b849-6b4cf0bba837",
+              "gatewayRequestId": "2172ba07-4f5d-4f1f-9c2a-ea70441483b4",
+              "httpStatus": 200,
+              "providerDispatched": true,
+              "status": "SUCCEEDED",
+              "usage": {
+                "inputTokens": 6806,
+                "outputTokens": 199,
+                "totalTokens": 7005,
+                "cacheReadTokens": 0
+              }
+            },
+            {
+              "eventId": "60",
+              "timestamp": "2026-11-28T06:02:45.377Z",
+              "type": "worker.stopping"
+            },
+            {
+              "eventId": "61",
+              "timestamp": "2026-11-28T06:02:45.408Z",
+              "type": "worker.stopped"
+            }
+          ]
+        },
+        {
+          "workerId": "0c959635-a561-45c2-870d-4b9f83be3d2d",
+          "taskId": "temporal-native-58e60a19bd3f83af9fdd60af3fe8c6ed1d2eb62de9f6f69ca59ee8cc732de40f",
+          "runId": "att-1-12db5f1c-4b09-429f-9fd3-67cfab166d3a",
+          "sessionId": "native-61b35774-3d2f-4f25-98f0-49921285ff32",
+          "modelBudget": true,
+          "workerState": "STOPPED",
+          "taskState": "CANCELLED_LOCAL_ONLY",
+          "stopProof": {
+            "running": false,
+            "exitCode": 0,
+            "finishedAt": "2026-11-28T06:02:57.288243164Z"
+          },
+          "finalDeliveryPresent": false,
+          "uploadReceiptPresent": false,
+          "events": [
+            {
+              "eventId": "85",
+              "timestamp": "2026-11-28T06:02:53.179Z",
+              "type": "worker.ready"
+            },
+            {
+              "eventId": "86",
+              "timestamp": "2026-11-28T06:02:55.912Z",
+              "type": "model.forwarded"
+            },
+            {
+              "eventId": "87",
+              "timestamp": "2026-11-28T06:02:55.993Z",
+              "type": "model.request.rejected",
+              "requestId": "ed47286a-9c7a-4354-a5fc-8bcc3b5d367e",
+              "code": "RUNTIME_TASK_MODEL_BUDGET_EXHAUSTED",
+              "providerDispatched": false
+            },
+            {
+              "eventId": "88",
+              "timestamp": "2026-11-28T06:02:56.070Z",
+              "type": "worker.stopping"
+            },
+            {
+              "eventId": "89",
+              "timestamp": "2026-11-28T06:02:57.388Z",
+              "type": "worker.stopped"
+            }
+          ]
+        }
+      ]
+    },
+    "monitor": {
+      "taskId": "dca93c6c-66a9-3ea0-bfe8-3ce0b6376d4a",
+      "attemptId": "att-1-1202ac9a-cde0-4a9e-9a8d-2d708856de64",
+      "status": "FAILED",
+      "canonicalState": "FAILED",
+      "finishedAt": "2026-11-28T06:05:45.209Z",
+      "runtimeDisposition": [
+        {
+          "at": 1795845942040,
+          "type": "BUDGET_UPDATED",
+          "runId": "att-1-1202ac9a-cde0-4a9e-9a8d-2d708856de64",
+          "status": "RUNNING",
+          "stage": "CONTEXT_READY",
+          "reasonCode": "BUDGET_EXCEEDED",
+          "taskId": "temporal-native-33170ab12c5384a4eb9f8dc9676b2472cf7f12ecf461ef9f4390eebe6c6e74ed"
+        },
+        {
+          "at": 1795845944639,
+          "type": "TASK_FINISHED",
+          "runId": "att-1-1202ac9a-cde0-4a9e-9a8d-2d708856de64",
+          "status": "BUDGET_EXCEEDED",
+          "stage": "BUDGET_EXCEEDED",
+          "reasonCode": "BUDGET_EXCEEDED",
+          "taskId": "temporal-native-33170ab12c5384a4eb9f8dc9676b2472cf7f12ecf461ef9f4390eebe6c6e74ed"
+        }
+      ],
+      "workers": [
+        {
+          "workerId": "ea1288ce-342b-4610-880f-170b65f1a55d",
+          "taskId": "temporal-native-33170ab12c5384a4eb9f8dc9676b2472cf7f12ecf461ef9f4390eebe6c6e74ed",
+          "runId": "att-1-1202ac9a-cde0-4a9e-9a8d-2d708856de64",
+          "sessionId": "native-9a09582f-bfe3-42a3-878d-f1f91c8d2176",
+          "modelBudget": true,
+          "workerState": "STOPPED",
+          "taskState": "CANCELLED_LOCAL_ONLY",
+          "stopProof": {
+            "running": false,
+            "exitCode": 0,
+            "finishedAt": "2026-11-28T06:05:44.295565713Z"
+          },
+          "finalDeliveryPresent": false,
+          "uploadReceiptPresent": false,
+          "events": [
+            {
+              "eventId": "113",
+              "timestamp": "2026-11-28T06:05:32.697Z",
+              "type": "worker.ready"
+            },
+            {
+              "eventId": "114",
+              "timestamp": "2026-11-28T06:05:34.569Z",
+              "type": "model.request.started",
+              "requestId": "89515178-a5a2-4d9b-a22e-1698b5be4b78"
+            },
+            {
+              "eventId": "115",
+              "timestamp": "2026-11-28T06:05:34.571Z",
+              "type": "model.forwarded",
+              "requestId": "89515178-a5a2-4d9b-a22e-1698b5be4b78"
+            },
+            {
+              "eventId": "116",
+              "timestamp": "2026-11-28T06:05:41.323Z",
+              "type": "model.request.completed",
+              "requestId": "89515178-a5a2-4d9b-a22e-1698b5be4b78",
+              "gatewayRequestId": "471155ab-2677-4bf4-9692-deae24ece8e6",
+              "httpStatus": 200,
+              "providerDispatched": true,
+              "status": "SUCCEEDED",
+              "usage": {
+                "inputTokens": 6806,
+                "outputTokens": 345,
+                "totalTokens": 7151,
+                "cacheReadTokens": 0
+              }
+            },
+            {
+              "eventId": "117",
+              "timestamp": "2026-11-28T06:05:42.043Z",
+              "type": "model.request.rejected",
+              "requestId": "0784ac3b-a8a9-4d88-a878-1cf3c1226d39",
+              "code": "RUNTIME_TASK_MODEL_BUDGET_EXHAUSTED",
+              "providerDispatched": false
+            },
+            {
+              "eventId": "118",
+              "timestamp": "2026-11-28T06:05:43.011Z",
+              "type": "worker.stopping"
+            },
+            {
+              "eventId": "119",
+              "timestamp": "2026-11-28T06:05:44.400Z",
+              "type": "worker.stopped"
+            }
+          ]
+        }
+      ]
+    },
+    "deadline": {
+      "taskId": "47ea5335-20e4-3ef0-986a-2708447d956a",
+      "attemptId": "att-1-fed4a0fd-11cd-47de-8f8d-1b00cf00113d",
+      "status": "FAILED",
+      "canonicalState": "FAILED",
+      "finishedAt": "2026-11-28T06:09:18.509Z",
+      "runtimeDisposition": [
+        {
+          "at": 1795846159038,
+          "type": "BUDGET_UPDATED",
+          "runId": "att-1-fed4a0fd-11cd-47de-8f8d-1b00cf00113d",
+          "status": "RUNNING",
+          "stage": "CONTEXT_READY",
+          "reasonCode": "DEADLINE_EXCEEDED",
+          "taskId": "temporal-native-5bc175a7fdc488beb84319940a55a0a5ca468bde8cd9e7c32834dfa5ab5656f3"
+        },
+        {
+          "at": 1795846160543,
+          "type": "TASK_FINISHED",
+          "runId": "att-1-fed4a0fd-11cd-47de-8f8d-1b00cf00113d",
+          "status": "BUDGET_EXCEEDED",
+          "stage": "TIMED_OUT",
+          "reasonCode": "DEADLINE_EXCEEDED",
+          "taskId": "temporal-native-5bc175a7fdc488beb84319940a55a0a5ca468bde8cd9e7c32834dfa5ab5656f3"
+        }
+      ],
+      "workers": [
+        {
+          "workerId": "34b495ad-2807-47cf-b009-e568ca67731c",
+          "taskId": "temporal-native-5bc175a7fdc488beb84319940a55a0a5ca468bde8cd9e7c32834dfa5ab5656f3",
+          "runId": "att-1-fed4a0fd-11cd-47de-8f8d-1b00cf00113d",
+          "sessionId": "native-f65a4911-0f7a-48a8-bd38-a7aaed92316b",
+          "modelBudget": false,
+          "workerState": "STOPPED",
+          "taskState": "CANCELLED_LOCAL_ONLY",
+          "stopProof": {
+            "running": false,
+            "exitCode": 0,
+            "finishedAt": "2026-11-28T06:09:19.996821918Z"
+          },
+          "finalDeliveryPresent": false,
+          "uploadReceiptPresent": false,
+          "events": [
+            {
+              "eventId": "143",
+              "timestamp": "2026-11-28T06:08:28.925Z",
+              "type": "worker.ready"
+            },
+            {
+              "eventId": "144",
+              "timestamp": "2026-11-28T06:08:31.055Z",
+              "type": "model.request.started",
+              "requestId": "e56380c6-2547-495e-89d8-a5612fc28f6d"
+            },
+            {
+              "eventId": "145",
+              "timestamp": "2026-11-28T06:08:31.056Z",
+              "type": "model.forwarded",
+              "requestId": "e56380c6-2547-495e-89d8-a5612fc28f6d"
+            },
+            {
+              "eventId": "146",
+              "timestamp": "2026-11-28T06:08:36.786Z",
+              "type": "model.request.completed",
+              "requestId": "e56380c6-2547-495e-89d8-a5612fc28f6d",
+              "gatewayRequestId": "c49db9bd-f96b-43d8-b329-e7fee33411bd",
+              "httpStatus": 200,
+              "providerDispatched": true,
+              "status": "SUCCEEDED",
+              "usage": {
+                "inputTokens": 6806,
+                "outputTokens": 286,
+                "totalTokens": 7092,
+                "cacheReadTokens": 0
+              }
+            },
+            {
+              "eventId": "147",
+              "timestamp": "2026-11-28T06:08:37.185Z",
+              "type": "model.request.started",
+              "requestId": "1f9bd0d7-669e-4c36-8564-5c4dab4df593"
+            },
+            {
+              "eventId": "148",
+              "timestamp": "2026-11-28T06:08:37.186Z",
+              "type": "model.forwarded",
+              "requestId": "1f9bd0d7-669e-4c36-8564-5c4dab4df593"
+            },
+            {
+              "eventId": "149",
+              "timestamp": "2026-11-28T06:08:41.205Z",
+              "type": "model.request.completed",
+              "requestId": "1f9bd0d7-669e-4c36-8564-5c4dab4df593",
+              "gatewayRequestId": "cd22e90d-e19f-4007-91ed-819f094093d7",
+              "httpStatus": 200,
+              "providerDispatched": true,
+              "status": "SUCCEEDED",
+              "usage": {
+                "inputTokens": 9988,
+                "outputTokens": 170,
+                "totalTokens": 10158,
+                "cacheReadTokens": 6272
+              }
+            },
+            {
+              "eventId": "150",
+              "timestamp": "2026-11-28T06:08:41.665Z",
+              "type": "model.request.started",
+              "requestId": "efcdbeac-3c87-418c-ae86-bd4272906e8b"
+            },
+            {
+              "eventId": "151",
+              "timestamp": "2026-11-28T06:08:41.667Z",
+              "type": "model.forwarded",
+              "requestId": "efcdbeac-3c87-418c-ae86-bd4272906e8b"
+            },
+            {
+              "eventId": "152",
+              "timestamp": "2026-11-28T06:08:51.446Z",
+              "type": "model.request.completed",
+              "requestId": "efcdbeac-3c87-418c-ae86-bd4272906e8b",
+              "gatewayRequestId": "c1f294c6-44de-468c-b249-c3198f76fb37",
+              "httpStatus": 200,
+              "providerDispatched": true,
+              "status": "SUCCEEDED",
+              "usage": {
+                "inputTokens": 17246,
+                "outputTokens": 536,
+                "totalTokens": 17782,
+                "cacheReadTokens": 9728
+              }
+            },
+            {
+              "eventId": "153",
+              "timestamp": "2026-11-28T06:08:51.678Z",
+              "type": "model.request.started",
+              "requestId": "e4447ed9-b6f3-4031-9a97-f51569e5e50e"
+            },
+            {
+              "eventId": "154",
+              "timestamp": "2026-11-28T06:08:51.679Z",
+              "type": "model.forwarded",
+              "requestId": "e4447ed9-b6f3-4031-9a97-f51569e5e50e"
+            },
+            {
+              "eventId": "155",
+              "timestamp": "2026-11-28T06:08:55.498Z",
+              "type": "model.request.completed",
+              "requestId": "e4447ed9-b6f3-4031-9a97-f51569e5e50e",
+              "gatewayRequestId": "64bf79cf-9fce-40a5-a988-55d67967f5af",
+              "httpStatus": 200,
+              "providerDispatched": true,
+              "status": "SUCCEEDED",
+              "usage": {
+                "inputTokens": 24308,
+                "outputTokens": 153,
+                "totalTokens": 24461,
+                "cacheReadTokens": 16640
+              }
+            },
+            {
+              "eventId": "156",
+              "timestamp": "2026-11-28T06:08:55.813Z",
+              "type": "model.request.started",
+              "requestId": "21f39ac5-823d-437f-8909-72b79757342c"
+            },
+            {
+              "eventId": "157",
+              "timestamp": "2026-11-28T06:08:55.814Z",
+              "type": "model.forwarded",
+              "requestId": "21f39ac5-823d-437f-8909-72b79757342c"
+            },
+            {
+              "eventId": "158",
+              "timestamp": "2026-11-28T06:09:18.564Z",
+              "type": "worker.stopping"
+            },
+            {
+              "eventId": "159",
+              "timestamp": "2026-11-28T06:09:18.639Z",
+              "type": "model.request.completed",
+              "requestId": "21f39ac5-823d-437f-8909-72b79757342c",
+              "gatewayRequestId": "e2cef2ce-dd03-4d5e-b5ca-c50754b88d38",
+              "httpStatus": 200,
+              "providerDispatched": true,
+              "status": "FAILED"
+            },
+            {
+              "eventId": "160",
+              "timestamp": "2026-11-28T06:09:20.224Z",
+              "type": "worker.stopped"
+            }
+          ]
+        }
+      ]
+    },
+    "recovery-final": {
+      "taskId": "91851837-3aff-37be-9a14-fb1c3afb1067",
+      "attemptId": "att-1-605521ad-d31b-4c1c-822c-3988fceb5e46",
+      "status": "FAILED",
+      "canonicalState": "FAILED",
+      "finishedAt": "2026-11-28T06:12:42.032Z",
+      "runtimeDisposition": [
+        {
+          "at": 1795846359701,
+          "type": "BUDGET_UPDATED",
+          "runId": "att-1-605521ad-d31b-4c1c-822c-3988fceb5e46",
+          "status": "RUNNING",
+          "stage": "CONTEXT_READY",
+          "reasonCode": "BUDGET_EXCEEDED",
+          "taskId": "temporal-native-9226af7d9ad53be70b034f062cae6db6bc5456a59c3de15d2abed9ca747b9951"
+        },
+        {
+          "at": 1795846361669,
+          "type": "TASK_FINISHED",
+          "runId": "att-1-605521ad-d31b-4c1c-822c-3988fceb5e46",
+          "status": "BUDGET_EXCEEDED",
+          "stage": "BUDGET_EXCEEDED",
+          "reasonCode": "BUDGET_EXCEEDED",
+          "taskId": "temporal-native-9226af7d9ad53be70b034f062cae6db6bc5456a59c3de15d2abed9ca747b9951"
+        }
+      ],
+      "workers": [
+        {
+          "workerId": "1691df2c-65f0-468e-ac85-ce5bd0dd9964",
+          "taskId": "temporal-native-9226af7d9ad53be70b034f062cae6db6bc5456a59c3de15d2abed9ca747b9951",
+          "runId": "att-1-605521ad-d31b-4c1c-822c-3988fceb5e46",
+          "sessionId": "native-6e19d3b2-e125-4854-b413-6a548ea07d2b",
+          "modelBudget": true,
+          "workerState": "STOPPED",
+          "taskState": "CANCELLED",
+          "stopProof": {
+            "running": false,
+            "exitCode": 137,
+            "finishedAt": "2026-11-28T06:12:29.119122095Z"
+          },
+          "finalDeliveryPresent": false,
+          "uploadReceiptPresent": false,
+          "events": [
+            {
+              "eventId": "184",
+              "timestamp": "2026-11-28T06:12:22.088Z",
+              "type": "worker.ready"
+            },
+            {
+              "eventId": "185",
+              "timestamp": "2026-11-28T06:12:24.170Z",
+              "type": "model.request.started",
+              "requestId": "386ccd4e-22e5-4b81-966a-080661659418"
+            },
+            {
+              "eventId": "186",
+              "timestamp": "2026-11-28T06:12:24.170Z",
+              "type": "model.forwarded",
+              "requestId": "386ccd4e-22e5-4b81-966a-080661659418"
+            },
+            {
+              "eventId": "187",
+              "timestamp": "2026-11-28T06:12:28.887Z",
+              "type": "model.request.completed",
+              "requestId": "386ccd4e-22e5-4b81-966a-080661659418",
+              "gatewayRequestId": "354863bd-dbcc-4004-aa3f-50253a987052",
+              "httpStatus": 200,
+              "providerDispatched": true,
+              "status": "SUCCEEDED",
+              "usage": {
+                "inputTokens": 6806,
+                "outputTokens": 224,
+                "totalTokens": 7030,
+                "cacheReadTokens": 0
+              }
+            },
+            {
+              "eventId": "189",
+              "timestamp": "2026-11-28T06:12:29.274Z",
+              "type": "worker.stopping"
+            },
+            {
+              "eventId": "190",
+              "timestamp": "2026-11-28T06:12:29.306Z",
+              "type": "worker.stopped"
+            }
+          ]
+        },
+        {
+          "workerId": "37b4b5f3-110c-4b67-a8ce-8089be5b2cfc",
+          "taskId": "temporal-native-9226af7d9ad53be70b034f062cae6db6bc5456a59c3de15d2abed9ca747b9951",
+          "runId": "att-1-605521ad-d31b-4c1c-822c-3988fceb5e46",
+          "sessionId": "native-5fa28072-66dc-4807-800f-63fbe38dccfb",
+          "modelBudget": true,
+          "workerState": "STOPPED",
+          "taskState": "CANCELLED_LOCAL_ONLY",
+          "stopProof": {
+            "running": false,
+            "exitCode": 0,
+            "finishedAt": "2026-11-28T06:12:41.437966642Z"
+          },
+          "finalDeliveryPresent": false,
+          "uploadReceiptPresent": false,
+          "events": [
+            {
+              "eventId": "214",
+              "timestamp": "2026-11-28T06:12:37.581Z",
+              "type": "worker.ready"
+            },
+            {
+              "eventId": "215",
+              "timestamp": "2026-11-28T06:12:39.704Z",
+              "type": "model.request.rejected",
+              "requestId": "6e868fd5-12b4-4d40-866b-6508dccdda8d",
+              "code": "RUNTIME_TASK_MODEL_BUDGET_EXHAUSTED",
+              "providerDispatched": false
+            },
+            {
+              "eventId": "216",
+              "timestamp": "2026-11-28T06:12:40.171Z",
+              "type": "worker.stopping"
+            },
+            {
+              "eventId": "217",
+              "timestamp": "2026-11-28T06:12:41.518Z",
+              "type": "worker.stopped"
+            }
+          ]
+        }
+      ]
+    }
+  },
+  "images": {
+    "chatchat-api-convergence:219-budget": "sha256:665e7bc0dceecb9740adfe11f29cc1dabce67dae2a9eb437fa0de6e34c11a124",
+    "chatchat-api-convergence:219-budget-r2": "sha256:6ce25032fc5c3ce12ba3900cb709324b016524f65a4ae34980f6894ae07a39b0",
+    "chatchat-api-convergence:219-budget-r3": "sha256:36dc6f3d55867ae383977812c37865ac562419670f72923746bf3fbd0dafad3b",
+    "chatchat-native-convergence:219-budget": "sha256:443ca92c30c0af5ff206b2a1b6394d357806888d990743ea01b6d0c4327a743d",
+    "chatchat-native-convergence:219-budget-monitor": "sha256:9821d8c18e407c650fe2da4b28f9367a9dd36202c4b67f6f742823e4f495d85a"
+  },
+  "disk": {
+    "/opt": {
+      "availableBytes": 16384167936,
+      "freeInodes": 32056725
+    },
+    "/mnt/disk01": {
+      "availableBytes": 55859200000,
+      "freeInodes": 51698423
+    }
+  },
+  "sourcePatches": {
+    "source.patch": "8e444875aabfe88e4113b74362b65c64d251d531d4bc9c0ae1f6d31d9fccd028",
+    "source.budget-r2.patch": "0778fe4dce73186de86715e8b5007b0bca142467df2e2c30c7bc37392a791bec",
+    "source.final.patch": "5f07f9f8a97c1a4c7aeb6a88e8f7fc8c003b3f4244a64ab6b0a17fc7ae1a47f9",
+    "source.release-check.patch": "c216ef091b02576c784537a3a28eeca1f9b07699b9480b861de68c623ee9cad5"
+  }
+}

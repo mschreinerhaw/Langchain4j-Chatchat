@@ -1,0 +1,3566 @@
+{
+  "case": "7",
+  "taskId": "118f8c17-549e-3b3f-a945-bfd998234044",
+  "attemptId": "att-1-36da660a-4fab-4c09-894e-1c490d0152bf",
+  "canonicalState": "PARTIAL",
+  "totalEvents": 355,
+  "events": [
+    {
+      "sequence": 1,
+      "occurredAt": "2026-11-28T00:20:19.094Z",
+      "type": "QUESTION",
+      "status": "PENDING",
+      "toolName": null,
+      "errorCode": null,
+      "latencyMs": null,
+      "retryCount": null
+    },
+    {
+      "sequence": 2,
+      "occurredAt": "2026-11-28T00:20:19.114Z",
+      "type": "STATUS",
+      "status": "RUNNING",
+      "toolName": null,
+      "errorCode": null,
+      "latencyMs": null,
+      "retryCount": null
+    },
+    {
+      "sequence": 3,
+      "occurredAt": "2026-11-28T00:20:19.123Z",
+      "type": "STATUS",
+      "status": "WAIT_MODEL",
+      "toolName": null,
+      "errorCode": null,
+      "latencyMs": null,
+      "retryCount": null
+    },
+    {
+      "sequence": 4,
+      "occurredAt": "2026-11-28T00:20:19.167Z",
+      "type": "RUNTIME_OBSERVATION",
+      "status": "SUCCESS",
+      "toolName": null,
+      "errorCode": null,
+      "latencyMs": null,
+      "retryCount": null
+    },
+    {
+      "sequence": 5,
+      "occurredAt": "2026-11-28T00:20:19.170Z",
+      "type": "RUNTIME_OBSERVATION",
+      "status": "SUCCESS",
+      "toolName": null,
+      "errorCode": null,
+      "latencyMs": null,
+      "retryCount": null
+    },
+    {
+      "sequence": 6,
+      "occurredAt": "2026-11-28T00:20:19.173Z",
+      "type": "RUNTIME_OBSERVATION",
+      "status": "RUNNING",
+      "toolName": null,
+      "errorCode": null,
+      "latencyMs": null,
+      "retryCount": null
+    },
+    {
+      "sequence": 7,
+      "occurredAt": "2026-11-28T00:20:32.746Z",
+      "type": "RUNTIME_OBSERVATION",
+      "status": "SUCCESS",
+      "toolName": null,
+      "errorCode": null,
+      "latencyMs": null,
+      "retryCount": null
+    },
+    {
+      "sequence": 8,
+      "occurredAt": "2026-11-28T00:20:32.757Z",
+      "type": "RUNTIME_STARTED",
+      "status": "RUNNING",
+      "toolName": null,
+      "errorCode": null,
+      "latencyMs": null,
+      "retryCount": null
+    },
+    {
+      "sequence": 9,
+      "occurredAt": "2026-11-28T00:20:32.760Z",
+      "type": "RUNTIME_OBSERVATION",
+      "status": "SUCCESS",
+      "toolName": "runtime",
+      "errorCode": null,
+      "latencyMs": null,
+      "retryCount": null
+    },
+    {
+      "sequence": 10,
+      "occurredAt": "2026-11-28T00:20:32.762Z",
+      "type": "RUNTIME_OBSERVATION",
+      "status": "RUNNING",
+      "toolName": "runtime",
+      "errorCode": null,
+      "latencyMs": null,
+      "retryCount": null
+    },
+    {
+      "sequence": 11,
+      "occurredAt": "2026-11-28T00:20:32.765Z",
+      "type": "RUNTIME_OBSERVATION",
+      "status": "SUCCESS",
+      "toolName": "coding_agent",
+      "errorCode": null,
+      "latencyMs": null,
+      "retryCount": null
+    },
+    {
+      "sequence": 12,
+      "occurredAt": "2026-11-28T00:20:32.953Z",
+      "type": "RUNTIME_OBSERVATION",
+      "status": "SUCCESS",
+      "toolName": "coding_agent",
+      "errorCode": null,
+      "latencyMs": null,
+      "retryCount": null
+    },
+    {
+      "sequence": 13,
+      "occurredAt": "2026-11-28T00:20:32.966Z",
+      "type": "RUNTIME_OBSERVATION",
+      "status": "SUCCESS",
+      "toolName": "runtime",
+      "errorCode": null,
+      "latencyMs": null,
+      "retryCount": null
+    },
+    {
+      "sequence": 14,
+      "occurredAt": "2026-11-28T00:20:32.969Z",
+      "type": "RUNTIME_OBSERVATION",
+      "status": "SUCCESS",
+      "toolName": "coding_agent",
+      "errorCode": null,
+      "latencyMs": null,
+      "retryCount": null
+    },
+    {
+      "sequence": 15,
+      "occurredAt": "2026-11-28T00:20:33.490Z",
+      "type": "RUNTIME_OBSERVATION",
+      "status": "RUNNING",
+      "toolName": "coding_agent",
+      "errorCode": null,
+      "latencyMs": null,
+      "retryCount": null
+    },
+    {
+      "sequence": 16,
+      "occurredAt": "2026-11-28T00:20:34.515Z",
+      "type": "RUNTIME_OBSERVATION",
+      "status": "RUNNING",
+      "toolName": "coding_agent",
+      "errorCode": null,
+      "latencyMs": null,
+      "retryCount": null
+    },
+    {
+      "sequence": 17,
+      "occurredAt": "2026-11-28T00:20:34.521Z",
+      "type": "RUNTIME_OBSERVATION",
+      "status": "RUNNING",
+      "toolName": "coding_agent",
+      "errorCode": null,
+      "latencyMs": null,
+      "retryCount": null
+    },
+    {
+      "sequence": 18,
+      "occurredAt": "2026-11-28T00:20:34.534Z",
+      "type": "RUNTIME_OBSERVATION",
+      "status": "RUNNING",
+      "toolName": "coding_agent",
+      "errorCode": null,
+      "latencyMs": null,
+      "retryCount": null
+    },
+    {
+      "sequence": 19,
+      "occurredAt": "2026-11-28T00:20:34.538Z",
+      "type": "RUNTIME_OBSERVATION",
+      "status": "RUNNING",
+      "toolName": "coding_agent",
+      "errorCode": null,
+      "latencyMs": null,
+      "retryCount": null
+    },
+    {
+      "sequence": 20,
+      "occurredAt": "2026-11-28T00:20:34.543Z",
+      "type": "RUNTIME_OBSERVATION",
+      "status": "RUNNING",
+      "toolName": "coding_agent",
+      "errorCode": null,
+      "latencyMs": null,
+      "retryCount": null
+    },
+    {
+      "sequence": 21,
+      "occurredAt": "2026-11-28T00:20:34.547Z",
+      "type": "RUNTIME_OBSERVATION",
+      "status": "RUNNING",
+      "toolName": "coding_agent",
+      "errorCode": null,
+      "latencyMs": null,
+      "retryCount": null
+    },
+    {
+      "sequence": 22,
+      "occurredAt": "2026-11-28T00:20:34.551Z",
+      "type": "RUNTIME_OBSERVATION",
+      "status": "RUNNING",
+      "toolName": "coding_agent",
+      "errorCode": null,
+      "latencyMs": null,
+      "retryCount": null
+    },
+    {
+      "sequence": 23,
+      "occurredAt": "2026-11-28T00:20:34.554Z",
+      "type": "RUNTIME_OBSERVATION",
+      "status": "RUNNING",
+      "toolName": "coding_agent",
+      "errorCode": null,
+      "latencyMs": null,
+      "retryCount": null
+    },
+    {
+      "sequence": 24,
+      "occurredAt": "2026-11-28T00:20:34.558Z",
+      "type": "RUNTIME_OBSERVATION",
+      "status": "RUNNING",
+      "toolName": "coding_agent",
+      "errorCode": null,
+      "latencyMs": null,
+      "retryCount": null
+    },
+    {
+      "sequence": 25,
+      "occurredAt": "2026-11-28T00:20:34.574Z",
+      "type": "RUNTIME_OBSERVATION",
+      "status": "RUNNING",
+      "toolName": "coding_agent",
+      "errorCode": null,
+      "latencyMs": null,
+      "retryCount": null
+    },
+    {
+      "sequence": 26,
+      "occurredAt": "2026-11-28T00:20:35.097Z",
+      "type": "RUNTIME_OBSERVATION",
+      "status": "RUNNING",
+      "toolName": "coding_agent",
+      "errorCode": null,
+      "latencyMs": null,
+      "retryCount": null
+    },
+    {
+      "sequence": 27,
+      "occurredAt": "2026-11-28T00:20:35.103Z",
+      "type": "RUNTIME_OBSERVATION",
+      "status": "RUNNING",
+      "toolName": "coding_agent",
+      "errorCode": null,
+      "latencyMs": null,
+      "retryCount": null
+    },
+    {
+      "sequence": 28,
+      "occurredAt": "2026-11-28T00:20:35.107Z",
+      "type": "RUNTIME_OBSERVATION",
+      "status": "RUNNING",
+      "toolName": "coding_agent",
+      "errorCode": null,
+      "latencyMs": null,
+      "retryCount": null
+    },
+    {
+      "sequence": 29,
+      "occurredAt": "2026-11-28T00:20:35.111Z",
+      "type": "RUNTIME_OBSERVATION",
+      "status": "RUNNING",
+      "toolName": "coding_agent",
+      "errorCode": null,
+      "latencyMs": null,
+      "retryCount": null
+    },
+    {
+      "sequence": 30,
+      "occurredAt": "2026-11-28T00:20:35.116Z",
+      "type": "RUNTIME_OBSERVATION",
+      "status": "RUNNING",
+      "toolName": "coding_agent",
+      "errorCode": null,
+      "latencyMs": null,
+      "retryCount": null
+    },
+    {
+      "sequence": 31,
+      "occurredAt": "2026-11-28T00:20:35.120Z",
+      "type": "RUNTIME_OBSERVATION",
+      "status": "RUNNING",
+      "toolName": "coding_agent",
+      "errorCode": null,
+      "latencyMs": null,
+      "retryCount": null
+    },
+    {
+      "sequence": 32,
+      "occurredAt": "2026-11-28T00:20:35.123Z",
+      "type": "RUNTIME_OBSERVATION",
+      "status": "RUNNING",
+      "toolName": "coding_agent",
+      "errorCode": null,
+      "latencyMs": null,
+      "retryCount": null
+    },
+    {
+      "sequence": 33,
+      "occurredAt": "2026-11-28T00:20:35.126Z",
+      "type": "RUNTIME_OBSERVATION",
+      "status": "RUNNING",
+      "toolName": "coding_agent",
+      "errorCode": null,
+      "latencyMs": null,
+      "retryCount": null
+    },
+    {
+      "sequence": 34,
+      "occurredAt": "2026-11-28T00:20:35.130Z",
+      "type": "RUNTIME_OBSERVATION",
+      "status": "RUNNING",
+      "toolName": "coding_agent",
+      "errorCode": null,
+      "latencyMs": null,
+      "retryCount": null
+    },
+    {
+      "sequence": 35,
+      "occurredAt": "2026-11-28T00:20:37.205Z",
+      "type": "RUNTIME_OBSERVATION",
+      "status": "RUNNING",
+      "toolName": "coding_agent",
+      "errorCode": null,
+      "latencyMs": null,
+      "retryCount": null
+    },
+    {
+      "sequence": 36,
+      "occurredAt": "2026-11-28T00:20:41.870Z",
+      "type": "RUNTIME_OBSERVATION",
+      "status": "RUNNING",
+      "toolName": "coding_agent",
+      "errorCode": null,
+      "latencyMs": null,
+      "retryCount": null
+    },
+    {
+      "sequence": 37,
+      "occurredAt": "2026-11-28T00:20:41.874Z",
+      "type": "RUNTIME_OBSERVATION",
+      "status": "RUNNING",
+      "toolName": "coding_agent",
+      "errorCode": null,
+      "latencyMs": null,
+      "retryCount": null
+    },
+    {
+      "sequence": 38,
+      "occurredAt": "2026-11-28T00:20:41.880Z",
+      "type": "RUNTIME_OBSERVATION",
+      "status": "RUNNING",
+      "toolName": "coding_agent",
+      "errorCode": null,
+      "latencyMs": null,
+      "retryCount": null
+    },
+    {
+      "sequence": 39,
+      "occurredAt": "2026-11-28T00:20:42.398Z",
+      "type": "RUNTIME_OBSERVATION",
+      "status": "RUNNING",
+      "toolName": "coding_agent",
+      "errorCode": null,
+      "latencyMs": null,
+      "retryCount": null
+    },
+    {
+      "sequence": 40,
+      "occurredAt": "2026-11-28T00:20:43.434Z",
+      "type": "RUNTIME_OBSERVATION",
+      "status": "RUNNING",
+      "toolName": "coding_agent",
+      "errorCode": null,
+      "latencyMs": null,
+      "retryCount": null
+    },
+    {
+      "sequence": 41,
+      "occurredAt": "2026-11-28T00:20:43.439Z",
+      "type": "RUNTIME_OBSERVATION",
+      "status": "RUNNING",
+      "toolName": "coding_agent",
+      "errorCode": null,
+      "latencyMs": null,
+      "retryCount": null
+    },
+    {
+      "sequence": 42,
+      "occurredAt": "2026-11-28T00:20:43.443Z",
+      "type": "RUNTIME_OBSERVATION",
+      "status": "RUNNING",
+      "toolName": "coding_agent",
+      "errorCode": null,
+      "latencyMs": null,
+      "retryCount": null
+    },
+    {
+      "sequence": 43,
+      "occurredAt": "2026-11-28T00:20:43.963Z",
+      "type": "RUNTIME_OBSERVATION",
+      "status": "RUNNING",
+      "toolName": "coding_agent",
+      "errorCode": null,
+      "latencyMs": null,
+      "retryCount": null
+    },
+    {
+      "sequence": 44,
+      "occurredAt": "2026-11-28T00:20:47.596Z",
+      "type": "RUNTIME_OBSERVATION",
+      "status": "RUNNING",
+      "toolName": "coding_agent",
+      "errorCode": null,
+      "latencyMs": null,
+      "retryCount": null
+    },
+    {
+      "sequence": 45,
+      "occurredAt": "2026-11-28T00:20:47.601Z",
+      "type": "RUNTIME_OBSERVATION",
+      "status": "RUNNING",
+      "toolName": "coding_agent",
+      "errorCode": null,
+      "latencyMs": null,
+      "retryCount": null
+    },
+    {
+      "sequence": 46,
+      "occurredAt": "2026-11-28T00:20:48.645Z",
+      "type": "RUNTIME_OBSERVATION",
+      "status": "RUNNING",
+      "toolName": "coding_agent",
+      "errorCode": null,
+      "latencyMs": null,
+      "retryCount": null
+    },
+    {
+      "sequence": 47,
+      "occurredAt": "2026-11-28T00:20:48.653Z",
+      "type": "RUNTIME_OBSERVATION",
+      "status": "RUNNING",
+      "toolName": "coding_agent",
+      "errorCode": null,
+      "latencyMs": null,
+      "retryCount": null
+    },
+    {
+      "sequence": 48,
+      "occurredAt": "2026-11-28T00:20:48.661Z",
+      "type": "RUNTIME_OBSERVATION",
+      "status": "RUNNING",
+      "toolName": "coding_agent",
+      "errorCode": null,
+      "latencyMs": null,
+      "retryCount": null
+    },
+    {
+      "sequence": 49,
+      "occurredAt": "2026-11-28T00:20:48.668Z",
+      "type": "RUNTIME_OBSERVATION",
+      "status": "RUNNING",
+      "toolName": "coding_agent",
+      "errorCode": null,
+      "latencyMs": null,
+      "retryCount": null
+    },
+    {
+      "sequence": 50,
+      "occurredAt": "2026-11-28T00:20:49.197Z",
+      "type": "RUNTIME_OBSERVATION",
+      "status": "RUNNING",
+      "toolName": "coding_agent",
+      "errorCode": null,
+      "latencyMs": null,
+      "retryCount": null
+    },
+    {
+      "sequence": 51,
+      "occurredAt": "2026-11-28T00:20:49.202Z",
+      "type": "RUNTIME_OBSERVATION",
+      "status": "RUNNING",
+      "toolName": "coding_agent",
+      "errorCode": null,
+      "latencyMs": null,
+      "retryCount": null
+    },
+    {
+      "sequence": 52,
+      "occurredAt": "2026-11-28T00:21:00.681Z",
+      "type": "RUNTIME_OBSERVATION",
+      "status": "RUNNING",
+      "toolName": "coding_agent",
+      "errorCode": null,
+      "latencyMs": null,
+      "retryCount": null
+    },
+    {
+      "sequence": 53,
+      "occurredAt": "2026-11-28T00:21:00.687Z",
+      "type": "RUNTIME_OBSERVATION",
+      "status": "RUNNING",
+      "toolName": "coding_agent",
+      "errorCode": null,
+      "latencyMs": null,
+      "retryCount": null
+    },
+    {
+      "sequence": 54,
+      "occurredAt": "2026-11-28T00:21:00.693Z",
+      "type": "RUNTIME_OBSERVATION",
+      "status": "RUNNING",
+      "toolName": "coding_agent",
+      "errorCode": null,
+      "latencyMs": null,
+      "retryCount": null
+    },
+    {
+      "sequence": 55,
+      "occurredAt": "2026-11-28T00:21:01.748Z",
+      "type": "RUNTIME_OBSERVATION",
+      "status": "RUNNING",
+      "toolName": "coding_agent",
+      "errorCode": null,
+      "latencyMs": null,
+      "retryCount": null
+    },
+    {
+      "sequence": 56,
+      "occurredAt": "2026-11-28T00:21:01.817Z",
+      "type": "RUNTIME_OBSERVATION",
+      "status": "RUNNING",
+      "toolName": "coding_agent",
+      "errorCode": null,
+      "latencyMs": null,
+      "retryCount": null
+    },
+    {
+      "sequence": 57,
+      "occurredAt": "2026-11-28T00:21:01.826Z",
+      "type": "RUNTIME_OBSERVATION",
+      "status": "RUNNING",
+      "toolName": "coding_agent",
+      "errorCode": null,
+      "latencyMs": null,
+      "retryCount": null
+    },
+    {
+      "sequence": 58,
+      "occurredAt": "2026-11-28T00:21:02.358Z",
+      "type": "RUNTIME_OBSERVATION",
+      "status": "RUNNING",
+      "toolName": "coding_agent",
+      "errorCode": null,
+      "latencyMs": null,
+      "retryCount": null
+    },
+    {
+      "sequence": 59,
+      "occurredAt": "2026-11-28T00:21:02.369Z",
+      "type": "RUNTIME_OBSERVATION",
+      "status": "RUNNING",
+      "toolName": "coding_agent",
+      "errorCode": null,
+      "latencyMs": null,
+      "retryCount": null
+    },
+    {
+      "sequence": 60,
+      "occurredAt": "2026-11-28T00:21:03.935Z",
+      "type": "RUNTIME_OBSERVATION",
+      "status": "RUNNING",
+      "toolName": "coding_agent",
+      "errorCode": null,
+      "latencyMs": null,
+      "retryCount": null
+    },
+    {
+      "sequence": 61,
+      "occurredAt": "2026-11-28T00:21:04.987Z",
+      "type": "RUNTIME_OBSERVATION",
+      "status": "RUNNING",
+      "toolName": "coding_agent",
+      "errorCode": null,
+      "latencyMs": null,
+      "retryCount": null
+    },
+    {
+      "sequence": 62,
+      "occurredAt": "2026-11-28T00:21:04.994Z",
+      "type": "RUNTIME_OBSERVATION",
+      "status": "RUNNING",
+      "toolName": "coding_agent",
+      "errorCode": null,
+      "latencyMs": null,
+      "retryCount": null
+    },
+    {
+      "sequence": 63,
+      "occurredAt": "2026-11-28T00:21:05Z",
+      "type": "RUNTIME_OBSERVATION",
+      "status": "RUNNING",
+      "toolName": "coding_agent",
+      "errorCode": null,
+      "latencyMs": null,
+      "retryCount": null
+    },
+    {
+      "sequence": 64,
+      "occurredAt": "2026-11-28T00:21:05.007Z",
+      "type": "RUNTIME_OBSERVATION",
+      "status": "RUNNING",
+      "toolName": "coding_agent",
+      "errorCode": null,
+      "latencyMs": null,
+      "retryCount": null
+    },
+    {
+      "sequence": 65,
+      "occurredAt": "2026-11-28T00:21:05.539Z",
+      "type": "RUNTIME_OBSERVATION",
+      "status": "RUNNING",
+      "toolName": "coding_agent",
+      "errorCode": null,
+      "latencyMs": null,
+      "retryCount": null
+    },
+    {
+      "sequence": 66,
+      "occurredAt": "2026-11-28T00:21:05.548Z",
+      "type": "RUNTIME_OBSERVATION",
+      "status": "RUNNING",
+      "toolName": "coding_agent",
+      "errorCode": null,
+      "latencyMs": null,
+      "retryCount": null
+    },
+    {
+      "sequence": 67,
+      "occurredAt": "2026-11-28T00:21:06.080Z",
+      "type": "RUNTIME_OBSERVATION",
+      "status": "RUNNING",
+      "toolName": "coding_agent",
+      "errorCode": null,
+      "latencyMs": null,
+      "retryCount": null
+    },
+    {
+      "sequence": 68,
+      "occurredAt": "2026-11-28T00:21:06.089Z",
+      "type": "RUNTIME_OBSERVATION",
+      "status": "RUNNING",
+      "toolName": "coding_agent",
+      "errorCode": null,
+      "latencyMs": null,
+      "retryCount": null
+    },
+    {
+      "sequence": 69,
+      "occurredAt": "2026-11-28T00:21:15.033Z",
+      "type": "RUNTIME_OBSERVATION",
+      "status": "RUNNING",
+      "toolName": "coding_agent",
+      "errorCode": null,
+      "latencyMs": null,
+      "retryCount": null
+    },
+    {
+      "sequence": 70,
+      "occurredAt": "2026-11-28T00:21:15.564Z",
+      "type": "RUNTIME_OBSERVATION",
+      "status": "RUNNING",
+      "toolName": "coding_agent",
+      "errorCode": null,
+      "latencyMs": null,
+      "retryCount": null
+    },
+    {
+      "sequence": 71,
+      "occurredAt": "2026-11-28T00:21:15.571Z",
+      "type": "RUNTIME_OBSERVATION",
+      "status": "RUNNING",
+      "toolName": "coding_agent",
+      "errorCode": null,
+      "latencyMs": null,
+      "retryCount": null
+    },
+    {
+      "sequence": 72,
+      "occurredAt": "2026-11-28T00:21:15.582Z",
+      "type": "RUNTIME_OBSERVATION",
+      "status": "RUNNING",
+      "toolName": "coding_agent",
+      "errorCode": null,
+      "latencyMs": null,
+      "retryCount": null
+    },
+    {
+      "sequence": 73,
+      "occurredAt": "2026-11-28T00:21:16.109Z",
+      "type": "RUNTIME_OBSERVATION",
+      "status": "RUNNING",
+      "toolName": "coding_agent",
+      "errorCode": null,
+      "latencyMs": null,
+      "retryCount": null
+    },
+    {
+      "sequence": 74,
+      "occurredAt": "2026-11-28T00:21:16.121Z",
+      "type": "RUNTIME_OBSERVATION",
+      "status": "RUNNING",
+      "toolName": "coding_agent",
+      "errorCode": null,
+      "latencyMs": null,
+      "retryCount": null
+    },
+    {
+      "sequence": 75,
+      "occurredAt": "2026-11-28T00:21:16.649Z",
+      "type": "RUNTIME_OBSERVATION",
+      "status": "RUNNING",
+      "toolName": "coding_agent",
+      "errorCode": null,
+      "latencyMs": null,
+      "retryCount": null
+    },
+    {
+      "sequence": 76,
+      "occurredAt": "2026-11-28T00:21:16.657Z",
+      "type": "RUNTIME_OBSERVATION",
+      "status": "RUNNING",
+      "toolName": "coding_agent",
+      "errorCode": null,
+      "latencyMs": null,
+      "retryCount": null
+    },
+    {
+      "sequence": 77,
+      "occurredAt": "2026-11-28T00:21:34.201Z",
+      "type": "RUNTIME_OBSERVATION",
+      "status": "RUNNING",
+      "toolName": "coding_agent",
+      "errorCode": null,
+      "latencyMs": null,
+      "retryCount": null
+    },
+    {
+      "sequence": 78,
+      "occurredAt": "2026-11-28T00:22:04.312Z",
+      "type": "RUNTIME_OBSERVATION",
+      "status": "RUNNING",
+      "toolName": "coding_agent",
+      "errorCode": null,
+      "latencyMs": null,
+      "retryCount": null
+    },
+    {
+      "sequence": 79,
+      "occurredAt": "2026-11-28T00:22:26.359Z",
+      "type": "RUNTIME_OBSERVATION",
+      "status": "RUNNING",
+      "toolName": "coding_agent",
+      "errorCode": null,
+      "latencyMs": null,
+      "retryCount": null
+    },
+    {
+      "sequence": 80,
+      "occurredAt": "2026-11-28T00:22:26.366Z",
+      "type": "RUNTIME_OBSERVATION",
+      "status": "RUNNING",
+      "toolName": "coding_agent",
+      "errorCode": null,
+      "latencyMs": null,
+      "retryCount": null
+    },
+    {
+      "sequence": 81,
+      "occurredAt": "2026-11-28T00:22:26.903Z",
+      "type": "RUNTIME_OBSERVATION",
+      "status": "RUNNING",
+      "toolName": "coding_agent",
+      "errorCode": null,
+      "latencyMs": null,
+      "retryCount": null
+    },
+    {
+      "sequence": 82,
+      "occurredAt": "2026-11-28T00:22:27.439Z",
+      "type": "RUNTIME_OBSERVATION",
+      "status": "RUNNING",
+      "toolName": "coding_agent",
+      "errorCode": null,
+      "latencyMs": null,
+      "retryCount": null
+    },
+    {
+      "sequence": 83,
+      "occurredAt": "2026-11-28T00:22:27.974Z",
+      "type": "RUNTIME_OBSERVATION",
+      "status": "RUNNING",
+      "toolName": "coding_agent",
+      "errorCode": null,
+      "latencyMs": null,
+      "retryCount": null
+    },
+    {
+      "sequence": 84,
+      "occurredAt": "2026-11-28T00:22:27.987Z",
+      "type": "RUNTIME_OBSERVATION",
+      "status": "RUNNING",
+      "toolName": "coding_agent",
+      "errorCode": null,
+      "latencyMs": null,
+      "retryCount": null
+    },
+    {
+      "sequence": 85,
+      "occurredAt": "2026-11-28T00:22:28.522Z",
+      "type": "RUNTIME_OBSERVATION",
+      "status": "RUNNING",
+      "toolName": "coding_agent",
+      "errorCode": null,
+      "latencyMs": null,
+      "retryCount": null
+    },
+    {
+      "sequence": 86,
+      "occurredAt": "2026-11-28T00:22:28.530Z",
+      "type": "RUNTIME_OBSERVATION",
+      "status": "RUNNING",
+      "toolName": "coding_agent",
+      "errorCode": null,
+      "latencyMs": null,
+      "retryCount": null
+    },
+    {
+      "sequence": 87,
+      "occurredAt": "2026-11-28T00:22:34.822Z",
+      "type": "RUNTIME_OBSERVATION",
+      "status": "RUNNING",
+      "toolName": "coding_agent",
+      "errorCode": null,
+      "latencyMs": null,
+      "retryCount": null
+    },
+    {
+      "sequence": 88,
+      "occurredAt": "2026-11-28T00:22:43.211Z",
+      "type": "RUNTIME_OBSERVATION",
+      "status": "RUNNING",
+      "toolName": "coding_agent",
+      "errorCode": null,
+      "latencyMs": null,
+      "retryCount": null
+    },
+    {
+      "sequence": 89,
+      "occurredAt": "2026-11-28T00:22:43.746Z",
+      "type": "RUNTIME_OBSERVATION",
+      "status": "RUNNING",
+      "toolName": "coding_agent",
+      "errorCode": null,
+      "latencyMs": null,
+      "retryCount": null
+    },
+    {
+      "sequence": 90,
+      "occurredAt": "2026-11-28T00:22:43.762Z",
+      "type": "RUNTIME_OBSERVATION",
+      "status": "RUNNING",
+      "toolName": "coding_agent",
+      "errorCode": null,
+      "latencyMs": null,
+      "retryCount": null
+    },
+    {
+      "sequence": 91,
+      "occurredAt": "2026-11-28T00:22:43.773Z",
+      "type": "RUNTIME_OBSERVATION",
+      "status": "RUNNING",
+      "toolName": "coding_agent",
+      "errorCode": null,
+      "latencyMs": null,
+      "retryCount": null
+    },
+    {
+      "sequence": 92,
+      "occurredAt": "2026-11-28T00:22:44.319Z",
+      "type": "RUNTIME_OBSERVATION",
+      "status": "RUNNING",
+      "toolName": "coding_agent",
+      "errorCode": null,
+      "latencyMs": null,
+      "retryCount": null
+    },
+    {
+      "sequence": 93,
+      "occurredAt": "2026-11-28T00:22:44.331Z",
+      "type": "RUNTIME_OBSERVATION",
+      "status": "RUNNING",
+      "toolName": "coding_agent",
+      "errorCode": null,
+      "latencyMs": null,
+      "retryCount": null
+    },
+    {
+      "sequence": 94,
+      "occurredAt": "2026-11-28T00:22:44.867Z",
+      "type": "RUNTIME_OBSERVATION",
+      "status": "RUNNING",
+      "toolName": "coding_agent",
+      "errorCode": null,
+      "latencyMs": null,
+      "retryCount": null
+    },
+    {
+      "sequence": 95,
+      "occurredAt": "2026-11-28T00:22:44.880Z",
+      "type": "RUNTIME_OBSERVATION",
+      "status": "RUNNING",
+      "toolName": "coding_agent",
+      "errorCode": null,
+      "latencyMs": null,
+      "retryCount": null
+    },
+    {
+      "sequence": 96,
+      "occurredAt": "2026-11-28T00:23:05.176Z",
+      "type": "RUNTIME_OBSERVATION",
+      "status": "RUNNING",
+      "toolName": "coding_agent",
+      "errorCode": null,
+      "latencyMs": null,
+      "retryCount": null
+    },
+    {
+      "sequence": 97,
+      "occurredAt": "2026-11-28T00:23:21.587Z",
+      "type": "RUNTIME_OBSERVATION",
+      "status": "RUNNING",
+      "toolName": "coding_agent",
+      "errorCode": null,
+      "latencyMs": null,
+      "retryCount": null
+    },
+    {
+      "sequence": 98,
+      "occurredAt": "2026-11-28T00:23:21.602Z",
+      "type": "RUNTIME_OBSERVATION",
+      "status": "RUNNING",
+      "toolName": "coding_agent",
+      "errorCode": null,
+      "latencyMs": null,
+      "retryCount": null
+    },
+    {
+      "sequence": 99,
+      "occurredAt": "2026-11-28T00:23:21.610Z",
+      "type": "RUNTIME_OBSERVATION",
+      "status": "RUNNING",
+      "toolName": "coding_agent",
+      "errorCode": null,
+      "latencyMs": null,
+      "retryCount": null
+    },
+    {
+      "sequence": 100,
+      "occurredAt": "2026-11-28T00:23:22.142Z",
+      "type": "RUNTIME_OBSERVATION",
+      "status": "RUNNING",
+      "toolName": "coding_agent",
+      "errorCode": null,
+      "latencyMs": null,
+      "retryCount": null
+    },
+    {
+      "sequence": 101,
+      "occurredAt": "2026-11-28T00:23:22.171Z",
+      "type": "RUNTIME_OBSERVATION",
+      "status": "RUNNING",
+      "toolName": "coding_agent",
+      "errorCode": null,
+      "latencyMs": null,
+      "retryCount": null
+    },
+    {
+      "sequence": 102,
+      "occurredAt": "2026-11-28T00:23:22.707Z",
+      "type": "RUNTIME_OBSERVATION",
+      "status": "RUNNING",
+      "toolName": "coding_agent",
+      "errorCode": null,
+      "latencyMs": null,
+      "retryCount": null
+    },
+    {
+      "sequence": 103,
+      "occurredAt": "2026-11-28T00:23:22.724Z",
+      "type": "RUNTIME_OBSERVATION",
+      "status": "RUNNING",
+      "toolName": "coding_agent",
+      "errorCode": null,
+      "latencyMs": null,
+      "retryCount": null
+    },
+    {
+      "sequence": 104,
+      "occurredAt": "2026-11-28T00:23:23.261Z",
+      "type": "RUNTIME_OBSERVATION",
+      "status": "RUNNING",
+      "toolName": "coding_agent",
+      "errorCode": null,
+      "latencyMs": null,
+      "retryCount": null
+    },
+    {
+      "sequence": 105,
+      "occurredAt": "2026-11-28T00:23:24.341Z",
+      "type": "RUNTIME_OBSERVATION",
+      "status": "RUNNING",
+      "toolName": "coding_agent",
+      "errorCode": null,
+      "latencyMs": null,
+      "retryCount": null
+    },
+    {
+      "sequence": 106,
+      "occurredAt": "2026-11-28T00:23:24.352Z",
+      "type": "RUNTIME_OBSERVATION",
+      "status": "RUNNING",
+      "toolName": "coding_agent",
+      "errorCode": null,
+      "latencyMs": null,
+      "retryCount": null
+    },
+    {
+      "sequence": 107,
+      "occurredAt": "2026-11-28T00:23:24.363Z",
+      "type": "RUNTIME_OBSERVATION",
+      "status": "RUNNING",
+      "toolName": "coding_agent",
+      "errorCode": null,
+      "latencyMs": null,
+      "retryCount": null
+    },
+    {
+      "sequence": 108,
+      "occurredAt": "2026-11-28T00:23:24.905Z",
+      "type": "RUNTIME_OBSERVATION",
+      "status": "RUNNING",
+      "toolName": "coding_agent",
+      "errorCode": null,
+      "latencyMs": null,
+      "retryCount": null
+    },
+    {
+      "sequence": 109,
+      "occurredAt": "2026-11-28T00:23:24.915Z",
+      "type": "RUNTIME_OBSERVATION",
+      "status": "RUNNING",
+      "toolName": "coding_agent",
+      "errorCode": null,
+      "latencyMs": null,
+      "retryCount": null
+    },
+    {
+      "sequence": 110,
+      "occurredAt": "2026-11-28T00:23:25.447Z",
+      "type": "RUNTIME_OBSERVATION",
+      "status": "RUNNING",
+      "toolName": "coding_agent",
+      "errorCode": null,
+      "latencyMs": null,
+      "retryCount": null
+    },
+    {
+      "sequence": 111,
+      "occurredAt": "2026-11-28T00:23:29.677Z",
+      "type": "RUNTIME_OBSERVATION",
+      "status": "RUNNING",
+      "toolName": "coding_agent",
+      "errorCode": null,
+      "latencyMs": null,
+      "retryCount": null
+    },
+    {
+      "sequence": 112,
+      "occurredAt": "2026-11-28T00:23:31.283Z",
+      "type": "RUNTIME_OBSERVATION",
+      "status": "RUNNING",
+      "toolName": "coding_agent",
+      "errorCode": null,
+      "latencyMs": null,
+      "retryCount": null
+    },
+    {
+      "sequence": 113,
+      "occurredAt": "2026-11-28T00:23:31.853Z",
+      "type": "RUNTIME_OBSERVATION",
+      "status": "RUNNING",
+      "toolName": "coding_agent",
+      "errorCode": null,
+      "latencyMs": null,
+      "retryCount": null
+    },
+    {
+      "sequence": 114,
+      "occurredAt": "2026-11-28T00:23:31.870Z",
+      "type": "RUNTIME_OBSERVATION",
+      "status": "RUNNING",
+      "toolName": "coding_agent",
+      "errorCode": null,
+      "latencyMs": null,
+      "retryCount": null
+    },
+    {
+      "sequence": 115,
+      "occurredAt": "2026-11-28T00:23:35.580Z",
+      "type": "RUNTIME_OBSERVATION",
+      "status": "RUNNING",
+      "toolName": "coding_agent",
+      "errorCode": null,
+      "latencyMs": null,
+      "retryCount": null
+    },
+    {
+      "sequence": 116,
+      "occurredAt": "2026-11-28T00:23:57.536Z",
+      "type": "RUNTIME_OBSERVATION",
+      "status": "RUNNING",
+      "toolName": "coding_agent",
+      "errorCode": null,
+      "latencyMs": null,
+      "retryCount": null
+    },
+    {
+      "sequence": 117,
+      "occurredAt": "2026-11-28T00:23:58.081Z",
+      "type": "RUNTIME_OBSERVATION",
+      "status": "RUNNING",
+      "toolName": "coding_agent",
+      "errorCode": null,
+      "latencyMs": null,
+      "retryCount": null
+    },
+    {
+      "sequence": 118,
+      "occurredAt": "2026-11-28T00:23:58.092Z",
+      "type": "RUNTIME_OBSERVATION",
+      "status": "RUNNING",
+      "toolName": "coding_agent",
+      "errorCode": null,
+      "latencyMs": null,
+      "retryCount": null
+    },
+    {
+      "sequence": 119,
+      "occurredAt": "2026-11-28T00:23:58.103Z",
+      "type": "RUNTIME_OBSERVATION",
+      "status": "RUNNING",
+      "toolName": "coding_agent",
+      "errorCode": null,
+      "latencyMs": null,
+      "retryCount": null
+    },
+    {
+      "sequence": 120,
+      "occurredAt": "2026-11-28T00:23:58.650Z",
+      "type": "RUNTIME_OBSERVATION",
+      "status": "RUNNING",
+      "toolName": "coding_agent",
+      "errorCode": null,
+      "latencyMs": null,
+      "retryCount": null
+    },
+    {
+      "sequence": 121,
+      "occurredAt": "2026-11-28T00:23:58.664Z",
+      "type": "RUNTIME_OBSERVATION",
+      "status": "RUNNING",
+      "toolName": "coding_agent",
+      "errorCode": null,
+      "latencyMs": null,
+      "retryCount": null
+    },
+    {
+      "sequence": 122,
+      "occurredAt": "2026-11-28T00:23:59.211Z",
+      "type": "RUNTIME_OBSERVATION",
+      "status": "RUNNING",
+      "toolName": "coding_agent",
+      "errorCode": null,
+      "latencyMs": null,
+      "retryCount": null
+    },
+    {
+      "sequence": 123,
+      "occurredAt": "2026-11-28T00:23:59.230Z",
+      "type": "RUNTIME_OBSERVATION",
+      "status": "RUNNING",
+      "toolName": "coding_agent",
+      "errorCode": null,
+      "latencyMs": null,
+      "retryCount": null
+    },
+    {
+      "sequence": 124,
+      "occurredAt": "2026-11-28T00:24:06.180Z",
+      "type": "RUNTIME_OBSERVATION",
+      "status": "RUNNING",
+      "toolName": "coding_agent",
+      "errorCode": null,
+      "latencyMs": null,
+      "retryCount": null
+    },
+    {
+      "sequence": 125,
+      "occurredAt": "2026-11-28T00:24:16.333Z",
+      "type": "RUNTIME_OBSERVATION",
+      "status": "RUNNING",
+      "toolName": "coding_agent",
+      "errorCode": null,
+      "latencyMs": null,
+      "retryCount": null
+    },
+    {
+      "sequence": 126,
+      "occurredAt": "2026-11-28T00:24:16.354Z",
+      "type": "RUNTIME_OBSERVATION",
+      "status": "RUNNING",
+      "toolName": "coding_agent",
+      "errorCode": null,
+      "latencyMs": null,
+      "retryCount": null
+    },
+    {
+      "sequence": 127,
+      "occurredAt": "2026-11-28T00:24:16.950Z",
+      "type": "RUNTIME_OBSERVATION",
+      "status": "RUNNING",
+      "toolName": "coding_agent",
+      "errorCode": null,
+      "latencyMs": null,
+      "retryCount": null
+    },
+    {
+      "sequence": 128,
+      "occurredAt": "2026-11-28T00:24:16.961Z",
+      "type": "RUNTIME_OBSERVATION",
+      "status": "RUNNING",
+      "toolName": "coding_agent",
+      "errorCode": null,
+      "latencyMs": null,
+      "retryCount": null
+    },
+    {
+      "sequence": 129,
+      "occurredAt": "2026-11-28T00:24:17.504Z",
+      "type": "RUNTIME_OBSERVATION",
+      "status": "RUNNING",
+      "toolName": "coding_agent",
+      "errorCode": null,
+      "latencyMs": null,
+      "retryCount": null
+    },
+    {
+      "sequence": 130,
+      "occurredAt": "2026-11-28T00:24:17.515Z",
+      "type": "RUNTIME_OBSERVATION",
+      "status": "RUNNING",
+      "toolName": "coding_agent",
+      "errorCode": null,
+      "latencyMs": null,
+      "retryCount": null
+    },
+    {
+      "sequence": 131,
+      "occurredAt": "2026-11-28T00:24:18.063Z",
+      "type": "RUNTIME_OBSERVATION",
+      "status": "RUNNING",
+      "toolName": "coding_agent",
+      "errorCode": null,
+      "latencyMs": null,
+      "retryCount": null
+    },
+    {
+      "sequence": 132,
+      "occurredAt": "2026-11-28T00:24:18.075Z",
+      "type": "RUNTIME_OBSERVATION",
+      "status": "RUNNING",
+      "toolName": "coding_agent",
+      "errorCode": null,
+      "latencyMs": null,
+      "retryCount": null
+    },
+    {
+      "sequence": 133,
+      "occurredAt": "2026-11-28T00:24:36.332Z",
+      "type": "RUNTIME_OBSERVATION",
+      "status": "RUNNING",
+      "toolName": "coding_agent",
+      "errorCode": null,
+      "latencyMs": null,
+      "retryCount": null
+    },
+    {
+      "sequence": 134,
+      "occurredAt": "2026-11-28T00:25:06.437Z",
+      "type": "RUNTIME_OBSERVATION",
+      "status": "RUNNING",
+      "toolName": "coding_agent",
+      "errorCode": null,
+      "latencyMs": null,
+      "retryCount": null
+    },
+    {
+      "sequence": 135,
+      "occurredAt": "2026-11-28T00:25:34.599Z",
+      "type": "RUNTIME_OBSERVATION",
+      "status": "RUNNING",
+      "toolName": "coding_agent",
+      "errorCode": null,
+      "latencyMs": null,
+      "retryCount": null
+    },
+    {
+      "sequence": 136,
+      "occurredAt": "2026-11-28T00:25:35.685Z",
+      "type": "RUNTIME_OBSERVATION",
+      "status": "RUNNING",
+      "toolName": "coding_agent",
+      "errorCode": null,
+      "latencyMs": null,
+      "retryCount": null
+    },
+    {
+      "sequence": 137,
+      "occurredAt": "2026-11-28T00:25:36.272Z",
+      "type": "RUNTIME_OBSERVATION",
+      "status": "RUNNING",
+      "toolName": "coding_agent",
+      "errorCode": null,
+      "latencyMs": null,
+      "retryCount": null
+    },
+    {
+      "sequence": 138,
+      "occurredAt": "2026-11-28T00:25:36.284Z",
+      "type": "RUNTIME_OBSERVATION",
+      "status": "RUNNING",
+      "toolName": "coding_agent",
+      "errorCode": null,
+      "latencyMs": null,
+      "retryCount": null
+    },
+    {
+      "sequence": 139,
+      "occurredAt": "2026-11-28T00:25:36.296Z",
+      "type": "RUNTIME_OBSERVATION",
+      "status": "RUNNING",
+      "toolName": "coding_agent",
+      "errorCode": null,
+      "latencyMs": null,
+      "retryCount": null
+    },
+    {
+      "sequence": 140,
+      "occurredAt": "2026-11-28T00:25:36.840Z",
+      "type": "RUNTIME_OBSERVATION",
+      "status": "RUNNING",
+      "toolName": "coding_agent",
+      "errorCode": null,
+      "latencyMs": null,
+      "retryCount": null
+    },
+    {
+      "sequence": 141,
+      "occurredAt": "2026-11-28T00:25:37.403Z",
+      "type": "RUNTIME_OBSERVATION",
+      "status": "RUNNING",
+      "toolName": "coding_agent",
+      "errorCode": null,
+      "latencyMs": null,
+      "retryCount": null
+    },
+    {
+      "sequence": 142,
+      "occurredAt": "2026-11-28T00:25:37.414Z",
+      "type": "RUNTIME_OBSERVATION",
+      "status": "RUNNING",
+      "toolName": "coding_agent",
+      "errorCode": null,
+      "latencyMs": null,
+      "retryCount": null
+    },
+    {
+      "sequence": 143,
+      "occurredAt": "2026-11-28T00:25:37.956Z",
+      "type": "RUNTIME_OBSERVATION",
+      "status": "RUNNING",
+      "toolName": "coding_agent",
+      "errorCode": null,
+      "latencyMs": null,
+      "retryCount": null
+    },
+    {
+      "sequence": 144,
+      "occurredAt": "2026-11-28T00:26:01.371Z",
+      "type": "RUNTIME_OBSERVATION",
+      "status": "RUNNING",
+      "toolName": "coding_agent",
+      "errorCode": null,
+      "latencyMs": null,
+      "retryCount": null
+    },
+    {
+      "sequence": 145,
+      "occurredAt": "2026-11-28T00:26:01.390Z",
+      "type": "RUNTIME_OBSERVATION",
+      "status": "RUNNING",
+      "toolName": "coding_agent",
+      "errorCode": null,
+      "latencyMs": null,
+      "retryCount": null
+    },
+    {
+      "sequence": 146,
+      "occurredAt": "2026-11-28T00:26:01.953Z",
+      "type": "RUNTIME_OBSERVATION",
+      "status": "RUNNING",
+      "toolName": "coding_agent",
+      "errorCode": null,
+      "latencyMs": null,
+      "retryCount": null
+    },
+    {
+      "sequence": 147,
+      "occurredAt": "2026-11-28T00:26:01.980Z",
+      "type": "RUNTIME_OBSERVATION",
+      "status": "RUNNING",
+      "toolName": "coding_agent",
+      "errorCode": null,
+      "latencyMs": null,
+      "retryCount": null
+    },
+    {
+      "sequence": 148,
+      "occurredAt": "2026-11-28T00:26:02.542Z",
+      "type": "RUNTIME_OBSERVATION",
+      "status": "RUNNING",
+      "toolName": "coding_agent",
+      "errorCode": null,
+      "latencyMs": null,
+      "retryCount": null
+    },
+    {
+      "sequence": 149,
+      "occurredAt": "2026-11-28T00:26:03.122Z",
+      "type": "RUNTIME_OBSERVATION",
+      "status": "RUNNING",
+      "toolName": "coding_agent",
+      "errorCode": null,
+      "latencyMs": null,
+      "retryCount": null
+    },
+    {
+      "sequence": 150,
+      "occurredAt": "2026-11-28T00:26:03.683Z",
+      "type": "RUNTIME_OBSERVATION",
+      "status": "RUNNING",
+      "toolName": "coding_agent",
+      "errorCode": null,
+      "latencyMs": null,
+      "retryCount": null
+    },
+    {
+      "sequence": 151,
+      "occurredAt": "2026-11-28T00:26:03.707Z",
+      "type": "RUNTIME_OBSERVATION",
+      "status": "RUNNING",
+      "toolName": "coding_agent",
+      "errorCode": null,
+      "latencyMs": null,
+      "retryCount": null
+    },
+    {
+      "sequence": 152,
+      "occurredAt": "2026-11-28T00:26:06.950Z",
+      "type": "RUNTIME_OBSERVATION",
+      "status": "RUNNING",
+      "toolName": "coding_agent",
+      "errorCode": null,
+      "latencyMs": null,
+      "retryCount": null
+    },
+    {
+      "sequence": 153,
+      "occurredAt": "2026-11-28T00:26:17.791Z",
+      "type": "RUNTIME_OBSERVATION",
+      "status": "RUNNING",
+      "toolName": "coding_agent",
+      "errorCode": null,
+      "latencyMs": null,
+      "retryCount": null
+    },
+    {
+      "sequence": 154,
+      "occurredAt": "2026-11-28T00:26:18.360Z",
+      "type": "RUNTIME_OBSERVATION",
+      "status": "RUNNING",
+      "toolName": "coding_agent",
+      "errorCode": null,
+      "latencyMs": null,
+      "retryCount": null
+    },
+    {
+      "sequence": 155,
+      "occurredAt": "2026-11-28T00:26:18.908Z",
+      "type": "RUNTIME_OBSERVATION",
+      "status": "RUNNING",
+      "toolName": "coding_agent",
+      "errorCode": null,
+      "latencyMs": null,
+      "retryCount": null
+    },
+    {
+      "sequence": 156,
+      "occurredAt": "2026-11-28T00:26:20.079Z",
+      "type": "RUNTIME_OBSERVATION",
+      "status": "RUNNING",
+      "toolName": "coding_agent",
+      "errorCode": null,
+      "latencyMs": null,
+      "retryCount": null
+    },
+    {
+      "sequence": 157,
+      "occurredAt": "2026-11-28T00:26:20.099Z",
+      "type": "RUNTIME_OBSERVATION",
+      "status": "RUNNING",
+      "toolName": "coding_agent",
+      "errorCode": null,
+      "latencyMs": null,
+      "retryCount": null
+    },
+    {
+      "sequence": 158,
+      "occurredAt": "2026-11-28T00:26:20.659Z",
+      "type": "RUNTIME_OBSERVATION",
+      "status": "RUNNING",
+      "toolName": "coding_agent",
+      "errorCode": null,
+      "latencyMs": null,
+      "retryCount": null
+    },
+    {
+      "sequence": 159,
+      "occurredAt": "2026-11-28T00:26:21.224Z",
+      "type": "RUNTIME_OBSERVATION",
+      "status": "RUNNING",
+      "toolName": "coding_agent",
+      "errorCode": null,
+      "latencyMs": null,
+      "retryCount": null
+    },
+    {
+      "sequence": 160,
+      "occurredAt": "2026-11-28T00:26:21.249Z",
+      "type": "RUNTIME_OBSERVATION",
+      "status": "RUNNING",
+      "toolName": "coding_agent",
+      "errorCode": null,
+      "latencyMs": null,
+      "retryCount": null
+    },
+    {
+      "sequence": 161,
+      "occurredAt": "2026-11-28T00:26:21.802Z",
+      "type": "RUNTIME_OBSERVATION",
+      "status": "RUNNING",
+      "toolName": "coding_agent",
+      "errorCode": null,
+      "latencyMs": null,
+      "retryCount": null
+    },
+    {
+      "sequence": 162,
+      "occurredAt": "2026-11-28T00:26:22.351Z",
+      "type": "RUNTIME_OBSERVATION",
+      "status": "RUNNING",
+      "toolName": "coding_agent",
+      "errorCode": null,
+      "latencyMs": null,
+      "retryCount": null
+    },
+    {
+      "sequence": 163,
+      "occurredAt": "2026-11-28T00:26:23.453Z",
+      "type": "RUNTIME_OBSERVATION",
+      "status": "RUNNING",
+      "toolName": "coding_agent",
+      "errorCode": null,
+      "latencyMs": null,
+      "retryCount": null
+    },
+    {
+      "sequence": 164,
+      "occurredAt": "2026-11-28T00:26:24.031Z",
+      "type": "RUNTIME_OBSERVATION",
+      "status": "RUNNING",
+      "toolName": "coding_agent",
+      "errorCode": null,
+      "latencyMs": null,
+      "retryCount": null
+    },
+    {
+      "sequence": 165,
+      "occurredAt": "2026-11-28T00:26:24.048Z",
+      "type": "RUNTIME_OBSERVATION",
+      "status": "RUNNING",
+      "toolName": "coding_agent",
+      "errorCode": null,
+      "latencyMs": null,
+      "retryCount": null
+    },
+    {
+      "sequence": 166,
+      "occurredAt": "2026-11-28T00:26:24.606Z",
+      "type": "RUNTIME_OBSERVATION",
+      "status": "RUNNING",
+      "toolName": "coding_agent",
+      "errorCode": null,
+      "latencyMs": null,
+      "retryCount": null
+    },
+    {
+      "sequence": 167,
+      "occurredAt": "2026-11-28T00:26:25.168Z",
+      "type": "RUNTIME_OBSERVATION",
+      "status": "RUNNING",
+      "toolName": "coding_agent",
+      "errorCode": null,
+      "latencyMs": null,
+      "retryCount": null
+    },
+    {
+      "sequence": 168,
+      "occurredAt": "2026-11-28T00:26:25.722Z",
+      "type": "RUNTIME_OBSERVATION",
+      "status": "RUNNING",
+      "toolName": "coding_agent",
+      "errorCode": null,
+      "latencyMs": null,
+      "retryCount": null
+    },
+    {
+      "sequence": 169,
+      "occurredAt": "2026-11-28T00:26:37.145Z",
+      "type": "RUNTIME_OBSERVATION",
+      "status": "RUNNING",
+      "toolName": "coding_agent",
+      "errorCode": null,
+      "latencyMs": null,
+      "retryCount": null
+    },
+    {
+      "sequence": 170,
+      "occurredAt": "2026-11-28T00:26:39.364Z",
+      "type": "RUNTIME_OBSERVATION",
+      "status": "RUNNING",
+      "toolName": "coding_agent",
+      "errorCode": null,
+      "latencyMs": null,
+      "retryCount": null
+    },
+    {
+      "sequence": 171,
+      "occurredAt": "2026-11-28T00:26:39.392Z",
+      "type": "RUNTIME_OBSERVATION",
+      "status": "RUNNING",
+      "toolName": "coding_agent",
+      "errorCode": null,
+      "latencyMs": null,
+      "retryCount": null
+    },
+    {
+      "sequence": 172,
+      "occurredAt": "2026-11-28T00:26:39.410Z",
+      "type": "RUNTIME_OBSERVATION",
+      "status": "RUNNING",
+      "toolName": "coding_agent",
+      "errorCode": null,
+      "latencyMs": null,
+      "retryCount": null
+    },
+    {
+      "sequence": 173,
+      "occurredAt": "2026-11-28T00:26:39.960Z",
+      "type": "RUNTIME_OBSERVATION",
+      "status": "RUNNING",
+      "toolName": "coding_agent",
+      "errorCode": null,
+      "latencyMs": null,
+      "retryCount": null
+    },
+    {
+      "sequence": 174,
+      "occurredAt": "2026-11-28T00:26:40.556Z",
+      "type": "RUNTIME_OBSERVATION",
+      "status": "RUNNING",
+      "toolName": "coding_agent",
+      "errorCode": null,
+      "latencyMs": null,
+      "retryCount": null
+    },
+    {
+      "sequence": 175,
+      "occurredAt": "2026-11-28T00:26:40.581Z",
+      "type": "RUNTIME_OBSERVATION",
+      "status": "RUNNING",
+      "toolName": "coding_agent",
+      "errorCode": null,
+      "latencyMs": null,
+      "retryCount": null
+    },
+    {
+      "sequence": 176,
+      "occurredAt": "2026-11-28T00:26:41.144Z",
+      "type": "RUNTIME_OBSERVATION",
+      "status": "RUNNING",
+      "toolName": "coding_agent",
+      "errorCode": null,
+      "latencyMs": null,
+      "retryCount": null
+    },
+    {
+      "sequence": 177,
+      "occurredAt": "2026-11-28T00:26:41.717Z",
+      "type": "RUNTIME_OBSERVATION",
+      "status": "RUNNING",
+      "toolName": "coding_agent",
+      "errorCode": null,
+      "latencyMs": null,
+      "retryCount": null
+    },
+    {
+      "sequence": 178,
+      "occurredAt": "2026-11-28T00:26:42.293Z",
+      "type": "RUNTIME_OBSERVATION",
+      "status": "RUNNING",
+      "toolName": "coding_agent",
+      "errorCode": null,
+      "latencyMs": null,
+      "retryCount": null
+    },
+    {
+      "sequence": 179,
+      "occurredAt": "2026-11-28T00:26:42.319Z",
+      "type": "RUNTIME_OBSERVATION",
+      "status": "RUNNING",
+      "toolName": "coding_agent",
+      "errorCode": null,
+      "latencyMs": null,
+      "retryCount": null
+    },
+    {
+      "sequence": 180,
+      "occurredAt": "2026-11-28T00:26:43.982Z",
+      "type": "RUNTIME_OBSERVATION",
+      "status": "RUNNING",
+      "toolName": "coding_agent",
+      "errorCode": null,
+      "latencyMs": null,
+      "retryCount": null
+    },
+    {
+      "sequence": 181,
+      "occurredAt": "2026-11-28T00:26:44.553Z",
+      "type": "RUNTIME_OBSERVATION",
+      "status": "RUNNING",
+      "toolName": "coding_agent",
+      "errorCode": null,
+      "latencyMs": null,
+      "retryCount": null
+    },
+    {
+      "sequence": 182,
+      "occurredAt": "2026-11-28T00:26:44.577Z",
+      "type": "RUNTIME_OBSERVATION",
+      "status": "RUNNING",
+      "toolName": "coding_agent",
+      "errorCode": null,
+      "latencyMs": null,
+      "retryCount": null
+    },
+    {
+      "sequence": 183,
+      "occurredAt": "2026-11-28T00:26:45.148Z",
+      "type": "RUNTIME_OBSERVATION",
+      "status": "RUNNING",
+      "toolName": "coding_agent",
+      "errorCode": null,
+      "latencyMs": null,
+      "retryCount": null
+    },
+    {
+      "sequence": 184,
+      "occurredAt": "2026-11-28T00:26:45.703Z",
+      "type": "RUNTIME_OBSERVATION",
+      "status": "RUNNING",
+      "toolName": "coding_agent",
+      "errorCode": null,
+      "latencyMs": null,
+      "retryCount": null
+    },
+    {
+      "sequence": 185,
+      "occurredAt": "2026-11-28T00:26:46.272Z",
+      "type": "RUNTIME_OBSERVATION",
+      "status": "RUNNING",
+      "toolName": "coding_agent",
+      "errorCode": null,
+      "latencyMs": null,
+      "retryCount": null
+    },
+    {
+      "sequence": 186,
+      "occurredAt": "2026-11-28T00:26:52.336Z",
+      "type": "RUNTIME_OBSERVATION",
+      "status": "RUNNING",
+      "toolName": "coding_agent",
+      "errorCode": null,
+      "latencyMs": null,
+      "retryCount": null
+    },
+    {
+      "sequence": 187,
+      "occurredAt": "2026-11-28T00:26:52.913Z",
+      "type": "RUNTIME_OBSERVATION",
+      "status": "RUNNING",
+      "toolName": "coding_agent",
+      "errorCode": null,
+      "latencyMs": null,
+      "retryCount": null
+    },
+    {
+      "sequence": 188,
+      "occurredAt": "2026-11-28T00:26:52.942Z",
+      "type": "RUNTIME_OBSERVATION",
+      "status": "RUNNING",
+      "toolName": "coding_agent",
+      "errorCode": null,
+      "latencyMs": null,
+      "retryCount": null
+    },
+    {
+      "sequence": 189,
+      "occurredAt": "2026-11-28T00:26:53.519Z",
+      "type": "RUNTIME_OBSERVATION",
+      "status": "RUNNING",
+      "toolName": "coding_agent",
+      "errorCode": null,
+      "latencyMs": null,
+      "retryCount": null
+    },
+    {
+      "sequence": 190,
+      "occurredAt": "2026-11-28T00:26:54.093Z",
+      "type": "RUNTIME_OBSERVATION",
+      "status": "RUNNING",
+      "toolName": "coding_agent",
+      "errorCode": null,
+      "latencyMs": null,
+      "retryCount": null
+    },
+    {
+      "sequence": 191,
+      "occurredAt": "2026-11-28T00:26:54.122Z",
+      "type": "RUNTIME_OBSERVATION",
+      "status": "RUNNING",
+      "toolName": "coding_agent",
+      "errorCode": null,
+      "latencyMs": null,
+      "retryCount": null
+    },
+    {
+      "sequence": 192,
+      "occurredAt": "2026-11-28T00:26:54.685Z",
+      "type": "RUNTIME_OBSERVATION",
+      "status": "RUNNING",
+      "toolName": "coding_agent",
+      "errorCode": null,
+      "latencyMs": null,
+      "retryCount": null
+    },
+    {
+      "sequence": 193,
+      "occurredAt": "2026-11-28T00:26:55.285Z",
+      "type": "RUNTIME_OBSERVATION",
+      "status": "RUNNING",
+      "toolName": "coding_agent",
+      "errorCode": null,
+      "latencyMs": null,
+      "retryCount": null
+    },
+    {
+      "sequence": 194,
+      "occurredAt": "2026-11-28T00:26:55.842Z",
+      "type": "RUNTIME_OBSERVATION",
+      "status": "RUNNING",
+      "toolName": "coding_agent",
+      "errorCode": null,
+      "latencyMs": null,
+      "retryCount": null
+    },
+    {
+      "sequence": 195,
+      "occurredAt": "2026-11-28T00:26:55.860Z",
+      "type": "RUNTIME_OBSERVATION",
+      "status": "RUNNING",
+      "toolName": "coding_agent",
+      "errorCode": null,
+      "latencyMs": null,
+      "retryCount": null
+    },
+    {
+      "sequence": 196,
+      "occurredAt": "2026-11-28T00:26:58.092Z",
+      "type": "RUNTIME_OBSERVATION",
+      "status": "RUNNING",
+      "toolName": "coding_agent",
+      "errorCode": null,
+      "latencyMs": null,
+      "retryCount": null
+    },
+    {
+      "sequence": 197,
+      "occurredAt": "2026-11-28T00:26:58.113Z",
+      "type": "RUNTIME_OBSERVATION",
+      "status": "RUNNING",
+      "toolName": "coding_agent",
+      "errorCode": null,
+      "latencyMs": null,
+      "retryCount": null
+    },
+    {
+      "sequence": 198,
+      "occurredAt": "2026-11-28T00:26:58.712Z",
+      "type": "RUNTIME_OBSERVATION",
+      "status": "RUNNING",
+      "toolName": "coding_agent",
+      "errorCode": null,
+      "latencyMs": null,
+      "retryCount": null
+    },
+    {
+      "sequence": 199,
+      "occurredAt": "2026-11-28T00:26:58.729Z",
+      "type": "RUNTIME_OBSERVATION",
+      "status": "RUNNING",
+      "toolName": "coding_agent",
+      "errorCode": null,
+      "latencyMs": null,
+      "retryCount": null
+    },
+    {
+      "sequence": 200,
+      "occurredAt": "2026-11-28T00:26:59.899Z",
+      "type": "RUNTIME_OBSERVATION",
+      "status": "RUNNING",
+      "toolName": "coding_agent",
+      "errorCode": null,
+      "latencyMs": null,
+      "retryCount": null
+    },
+    {
+      "sequence": 201,
+      "occurredAt": "2026-11-28T00:27:00.460Z",
+      "type": "RUNTIME_OBSERVATION",
+      "status": "RUNNING",
+      "toolName": "coding_agent",
+      "errorCode": null,
+      "latencyMs": null,
+      "retryCount": null
+    },
+    {
+      "sequence": 202,
+      "occurredAt": "2026-11-28T00:27:07.692Z",
+      "type": "RUNTIME_OBSERVATION",
+      "status": "RUNNING",
+      "toolName": "coding_agent",
+      "errorCode": null,
+      "latencyMs": null,
+      "retryCount": null
+    },
+    {
+      "sequence": 203,
+      "occurredAt": "2026-11-28T00:27:17.753Z",
+      "type": "RUNTIME_OBSERVATION",
+      "status": "RUNNING",
+      "toolName": "coding_agent",
+      "errorCode": null,
+      "latencyMs": null,
+      "retryCount": null
+    },
+    {
+      "sequence": 204,
+      "occurredAt": "2026-11-28T00:27:19.499Z",
+      "type": "RUNTIME_OBSERVATION",
+      "status": "RUNNING",
+      "toolName": "coding_agent",
+      "errorCode": null,
+      "latencyMs": null,
+      "retryCount": null
+    },
+    {
+      "sequence": 205,
+      "occurredAt": "2026-11-28T00:27:19.526Z",
+      "type": "RUNTIME_OBSERVATION",
+      "status": "RUNNING",
+      "toolName": "coding_agent",
+      "errorCode": null,
+      "latencyMs": null,
+      "retryCount": null
+    },
+    {
+      "sequence": 206,
+      "occurredAt": "2026-11-28T00:27:20.135Z",
+      "type": "RUNTIME_OBSERVATION",
+      "status": "RUNNING",
+      "toolName": "coding_agent",
+      "errorCode": null,
+      "latencyMs": null,
+      "retryCount": null
+    },
+    {
+      "sequence": 207,
+      "occurredAt": "2026-11-28T00:27:20.708Z",
+      "type": "RUNTIME_OBSERVATION",
+      "status": "RUNNING",
+      "toolName": "coding_agent",
+      "errorCode": null,
+      "latencyMs": null,
+      "retryCount": null
+    },
+    {
+      "sequence": 208,
+      "occurredAt": "2026-11-28T00:27:21.283Z",
+      "type": "RUNTIME_OBSERVATION",
+      "status": "RUNNING",
+      "toolName": "coding_agent",
+      "errorCode": null,
+      "latencyMs": null,
+      "retryCount": null
+    },
+    {
+      "sequence": 209,
+      "occurredAt": "2026-11-28T00:27:21.870Z",
+      "type": "RUNTIME_OBSERVATION",
+      "status": "RUNNING",
+      "toolName": "coding_agent",
+      "errorCode": null,
+      "latencyMs": null,
+      "retryCount": null
+    },
+    {
+      "sequence": 210,
+      "occurredAt": "2026-11-28T00:27:22.457Z",
+      "type": "RUNTIME_OBSERVATION",
+      "status": "RUNNING",
+      "toolName": "coding_agent",
+      "errorCode": null,
+      "latencyMs": null,
+      "retryCount": null
+    },
+    {
+      "sequence": 211,
+      "occurredAt": "2026-11-28T00:27:23.024Z",
+      "type": "RUNTIME_OBSERVATION",
+      "status": "RUNNING",
+      "toolName": "coding_agent",
+      "errorCode": null,
+      "latencyMs": null,
+      "retryCount": null
+    },
+    {
+      "sequence": 212,
+      "occurredAt": "2026-11-28T00:27:23.054Z",
+      "type": "RUNTIME_OBSERVATION",
+      "status": "RUNNING",
+      "toolName": "coding_agent",
+      "errorCode": null,
+      "latencyMs": null,
+      "retryCount": null
+    },
+    {
+      "sequence": 213,
+      "occurredAt": "2026-11-28T00:27:25.292Z",
+      "type": "RUNTIME_OBSERVATION",
+      "status": "RUNNING",
+      "toolName": "coding_agent",
+      "errorCode": null,
+      "latencyMs": null,
+      "retryCount": null
+    },
+    {
+      "sequence": 214,
+      "occurredAt": "2026-11-28T00:27:25.313Z",
+      "type": "RUNTIME_OBSERVATION",
+      "status": "RUNNING",
+      "toolName": "coding_agent",
+      "errorCode": null,
+      "latencyMs": null,
+      "retryCount": null
+    },
+    {
+      "sequence": 215,
+      "occurredAt": "2026-11-28T00:27:25.942Z",
+      "type": "RUNTIME_OBSERVATION",
+      "status": "RUNNING",
+      "toolName": "coding_agent",
+      "errorCode": null,
+      "latencyMs": null,
+      "retryCount": null
+    },
+    {
+      "sequence": 216,
+      "occurredAt": "2026-11-28T00:27:25.963Z",
+      "type": "RUNTIME_OBSERVATION",
+      "status": "RUNNING",
+      "toolName": "coding_agent",
+      "errorCode": null,
+      "latencyMs": null,
+      "retryCount": null
+    },
+    {
+      "sequence": 217,
+      "occurredAt": "2026-11-28T00:27:27.093Z",
+      "type": "RUNTIME_OBSERVATION",
+      "status": "RUNNING",
+      "toolName": "coding_agent",
+      "errorCode": null,
+      "latencyMs": null,
+      "retryCount": null
+    },
+    {
+      "sequence": 218,
+      "occurredAt": "2026-11-28T00:27:28.792Z",
+      "type": "RUNTIME_OBSERVATION",
+      "status": "RUNNING",
+      "toolName": "coding_agent",
+      "errorCode": null,
+      "latencyMs": null,
+      "retryCount": null
+    },
+    {
+      "sequence": 219,
+      "occurredAt": "2026-11-28T00:27:29.421Z",
+      "type": "RUNTIME_OBSERVATION",
+      "status": "RUNNING",
+      "toolName": "coding_agent",
+      "errorCode": null,
+      "latencyMs": null,
+      "retryCount": null
+    },
+    {
+      "sequence": 220,
+      "occurredAt": "2026-11-28T00:27:29.441Z",
+      "type": "RUNTIME_OBSERVATION",
+      "status": "RUNNING",
+      "toolName": "coding_agent",
+      "errorCode": null,
+      "latencyMs": null,
+      "retryCount": null
+    },
+    {
+      "sequence": 221,
+      "occurredAt": "2026-11-28T00:27:30.596Z",
+      "type": "RUNTIME_OBSERVATION",
+      "status": "RUNNING",
+      "toolName": "coding_agent",
+      "errorCode": null,
+      "latencyMs": null,
+      "retryCount": null
+    },
+    {
+      "sequence": 222,
+      "occurredAt": "2026-11-28T00:27:30.626Z",
+      "type": "RUNTIME_OBSERVATION",
+      "status": "RUNNING",
+      "toolName": "coding_agent",
+      "errorCode": null,
+      "latencyMs": null,
+      "retryCount": null
+    },
+    {
+      "sequence": 223,
+      "occurredAt": "2026-11-28T00:27:32.887Z",
+      "type": "RUNTIME_OBSERVATION",
+      "status": "RUNNING",
+      "toolName": "coding_agent",
+      "errorCode": null,
+      "latencyMs": null,
+      "retryCount": null
+    },
+    {
+      "sequence": 224,
+      "occurredAt": "2026-11-28T00:27:32.908Z",
+      "type": "RUNTIME_OBSERVATION",
+      "status": "RUNNING",
+      "toolName": "coding_agent",
+      "errorCode": null,
+      "latencyMs": null,
+      "retryCount": null
+    },
+    {
+      "sequence": 225,
+      "occurredAt": "2026-11-28T00:27:33.495Z",
+      "type": "RUNTIME_OBSERVATION",
+      "status": "RUNNING",
+      "toolName": "coding_agent",
+      "errorCode": null,
+      "latencyMs": null,
+      "retryCount": null
+    },
+    {
+      "sequence": 226,
+      "occurredAt": "2026-11-28T00:27:34.088Z",
+      "type": "RUNTIME_OBSERVATION",
+      "status": "RUNNING",
+      "toolName": "coding_agent",
+      "errorCode": null,
+      "latencyMs": null,
+      "retryCount": null
+    },
+    {
+      "sequence": 227,
+      "occurredAt": "2026-11-28T00:27:34.679Z",
+      "type": "RUNTIME_OBSERVATION",
+      "status": "RUNNING",
+      "toolName": "coding_agent",
+      "errorCode": null,
+      "latencyMs": null,
+      "retryCount": null
+    },
+    {
+      "sequence": 228,
+      "occurredAt": "2026-11-28T00:27:35.276Z",
+      "type": "RUNTIME_OBSERVATION",
+      "status": "RUNNING",
+      "toolName": "coding_agent",
+      "errorCode": null,
+      "latencyMs": null,
+      "retryCount": null
+    },
+    {
+      "sequence": 229,
+      "occurredAt": "2026-11-28T00:27:37.522Z",
+      "type": "RUNTIME_OBSERVATION",
+      "status": "RUNNING",
+      "toolName": "coding_agent",
+      "errorCode": null,
+      "latencyMs": null,
+      "retryCount": null
+    },
+    {
+      "sequence": 230,
+      "occurredAt": "2026-11-28T00:27:57.692Z",
+      "type": "RUNTIME_OBSERVATION",
+      "status": "RUNNING",
+      "toolName": "coding_agent",
+      "errorCode": null,
+      "latencyMs": null,
+      "retryCount": null
+    },
+    {
+      "sequence": 231,
+      "occurredAt": "2026-11-28T00:27:57.711Z",
+      "type": "RUNTIME_OBSERVATION",
+      "status": "RUNNING",
+      "toolName": "coding_agent",
+      "errorCode": null,
+      "latencyMs": null,
+      "retryCount": null
+    },
+    {
+      "sequence": 232,
+      "occurredAt": "2026-11-28T00:27:59.954Z",
+      "type": "RUNTIME_OBSERVATION",
+      "status": "RUNNING",
+      "toolName": "coding_agent",
+      "errorCode": null,
+      "latencyMs": null,
+      "retryCount": null
+    },
+    {
+      "sequence": 233,
+      "occurredAt": "2026-11-28T00:28:00.558Z",
+      "type": "RUNTIME_OBSERVATION",
+      "status": "RUNNING",
+      "toolName": "coding_agent",
+      "errorCode": null,
+      "latencyMs": null,
+      "retryCount": null
+    },
+    {
+      "sequence": 234,
+      "occurredAt": "2026-11-28T00:28:00.590Z",
+      "type": "RUNTIME_OBSERVATION",
+      "status": "RUNNING",
+      "toolName": "coding_agent",
+      "errorCode": null,
+      "latencyMs": null,
+      "retryCount": null
+    },
+    {
+      "sequence": 235,
+      "occurredAt": "2026-11-28T00:28:01.188Z",
+      "type": "RUNTIME_OBSERVATION",
+      "status": "RUNNING",
+      "toolName": "coding_agent",
+      "errorCode": null,
+      "latencyMs": null,
+      "retryCount": null
+    },
+    {
+      "sequence": 236,
+      "occurredAt": "2026-11-28T00:28:01.815Z",
+      "type": "RUNTIME_OBSERVATION",
+      "status": "RUNNING",
+      "toolName": "coding_agent",
+      "errorCode": null,
+      "latencyMs": null,
+      "retryCount": null
+    },
+    {
+      "sequence": 237,
+      "occurredAt": "2026-11-28T00:28:01.839Z",
+      "type": "RUNTIME_OBSERVATION",
+      "status": "RUNNING",
+      "toolName": "coding_agent",
+      "errorCode": null,
+      "latencyMs": null,
+      "retryCount": null
+    },
+    {
+      "sequence": 238,
+      "occurredAt": "2026-11-28T00:28:05.277Z",
+      "type": "RUNTIME_OBSERVATION",
+      "status": "RUNNING",
+      "toolName": "coding_agent",
+      "errorCode": null,
+      "latencyMs": null,
+      "retryCount": null
+    },
+    {
+      "sequence": 239,
+      "occurredAt": "2026-11-28T00:28:06.974Z",
+      "type": "RUNTIME_OBSERVATION",
+      "status": "RUNNING",
+      "toolName": "coding_agent",
+      "errorCode": null,
+      "latencyMs": null,
+      "retryCount": null
+    },
+    {
+      "sequence": 240,
+      "occurredAt": "2026-11-28T00:28:07.556Z",
+      "type": "RUNTIME_OBSERVATION",
+      "status": "RUNNING",
+      "toolName": "coding_agent",
+      "errorCode": null,
+      "latencyMs": null,
+      "retryCount": null
+    },
+    {
+      "sequence": 241,
+      "occurredAt": "2026-11-28T00:28:08.144Z",
+      "type": "RUNTIME_OBSERVATION",
+      "status": "RUNNING",
+      "toolName": "coding_agent",
+      "errorCode": null,
+      "latencyMs": null,
+      "retryCount": null
+    },
+    {
+      "sequence": 242,
+      "occurredAt": "2026-11-28T00:28:08.163Z",
+      "type": "RUNTIME_OBSERVATION",
+      "status": "RUNNING",
+      "toolName": "coding_agent",
+      "errorCode": null,
+      "latencyMs": null,
+      "retryCount": null
+    },
+    {
+      "sequence": 243,
+      "occurredAt": "2026-11-28T00:28:08.743Z",
+      "type": "RUNTIME_OBSERVATION",
+      "status": "RUNNING",
+      "toolName": "coding_agent",
+      "errorCode": null,
+      "latencyMs": null,
+      "retryCount": null
+    },
+    {
+      "sequence": 244,
+      "occurredAt": "2026-11-28T00:28:09.336Z",
+      "type": "RUNTIME_OBSERVATION",
+      "status": "RUNNING",
+      "toolName": "coding_agent",
+      "errorCode": null,
+      "latencyMs": null,
+      "retryCount": null
+    },
+    {
+      "sequence": 245,
+      "occurredAt": "2026-11-28T00:28:09.921Z",
+      "type": "RUNTIME_OBSERVATION",
+      "status": "RUNNING",
+      "toolName": "coding_agent",
+      "errorCode": null,
+      "latencyMs": null,
+      "retryCount": null
+    },
+    {
+      "sequence": 246,
+      "occurredAt": "2026-11-28T00:28:10.515Z",
+      "type": "RUNTIME_OBSERVATION",
+      "status": "RUNNING",
+      "toolName": "coding_agent",
+      "errorCode": null,
+      "latencyMs": null,
+      "retryCount": null
+    },
+    {
+      "sequence": 247,
+      "occurredAt": "2026-11-28T00:28:12.837Z",
+      "type": "RUNTIME_OBSERVATION",
+      "status": "RUNNING",
+      "toolName": "coding_agent",
+      "errorCode": null,
+      "latencyMs": null,
+      "retryCount": null
+    },
+    {
+      "sequence": 248,
+      "occurredAt": "2026-11-28T00:28:12.864Z",
+      "type": "RUNTIME_OBSERVATION",
+      "status": "RUNNING",
+      "toolName": "coding_agent",
+      "errorCode": null,
+      "latencyMs": null,
+      "retryCount": null
+    },
+    {
+      "sequence": 249,
+      "occurredAt": "2026-11-28T00:28:13.486Z",
+      "type": "RUNTIME_OBSERVATION",
+      "status": "RUNNING",
+      "toolName": "coding_agent",
+      "errorCode": null,
+      "latencyMs": null,
+      "retryCount": null
+    },
+    {
+      "sequence": 250,
+      "occurredAt": "2026-11-28T00:28:13.506Z",
+      "type": "RUNTIME_OBSERVATION",
+      "status": "RUNNING",
+      "toolName": "coding_agent",
+      "errorCode": null,
+      "latencyMs": null,
+      "retryCount": null
+    },
+    {
+      "sequence": 251,
+      "occurredAt": "2026-11-28T00:28:14.083Z",
+      "type": "RUNTIME_OBSERVATION",
+      "status": "RUNNING",
+      "toolName": "coding_agent",
+      "errorCode": null,
+      "latencyMs": null,
+      "retryCount": null
+    },
+    {
+      "sequence": 252,
+      "occurredAt": "2026-11-28T00:28:14.670Z",
+      "type": "RUNTIME_OBSERVATION",
+      "status": "RUNNING",
+      "toolName": "coding_agent",
+      "errorCode": null,
+      "latencyMs": null,
+      "retryCount": null
+    },
+    {
+      "sequence": 253,
+      "occurredAt": "2026-11-28T00:28:15.262Z",
+      "type": "RUNTIME_OBSERVATION",
+      "status": "RUNNING",
+      "toolName": "coding_agent",
+      "errorCode": null,
+      "latencyMs": null,
+      "retryCount": null
+    },
+    {
+      "sequence": 254,
+      "occurredAt": "2026-11-28T00:28:16.987Z",
+      "type": "RUNTIME_OBSERVATION",
+      "status": "RUNNING",
+      "toolName": "coding_agent",
+      "errorCode": null,
+      "latencyMs": null,
+      "retryCount": null
+    },
+    {
+      "sequence": 255,
+      "occurredAt": "2026-11-28T00:28:18.718Z",
+      "type": "RUNTIME_OBSERVATION",
+      "status": "RUNNING",
+      "toolName": "coding_agent",
+      "errorCode": null,
+      "latencyMs": null,
+      "retryCount": null
+    },
+    {
+      "sequence": 256,
+      "occurredAt": "2026-11-28T00:28:20.495Z",
+      "type": "RUNTIME_OBSERVATION",
+      "status": "RUNNING",
+      "toolName": "coding_agent",
+      "errorCode": null,
+      "latencyMs": null,
+      "retryCount": null
+    },
+    {
+      "sequence": 257,
+      "occurredAt": "2026-11-28T00:28:21.667Z",
+      "type": "RUNTIME_OBSERVATION",
+      "status": "RUNNING",
+      "toolName": "coding_agent",
+      "errorCode": null,
+      "latencyMs": null,
+      "retryCount": null
+    },
+    {
+      "sequence": 258,
+      "occurredAt": "2026-11-28T00:28:22.281Z",
+      "type": "RUNTIME_OBSERVATION",
+      "status": "RUNNING",
+      "toolName": "coding_agent",
+      "errorCode": null,
+      "latencyMs": null,
+      "retryCount": null
+    },
+    {
+      "sequence": 259,
+      "occurredAt": "2026-11-28T00:28:22.865Z",
+      "type": "RUNTIME_OBSERVATION",
+      "status": "RUNNING",
+      "toolName": "coding_agent",
+      "errorCode": null,
+      "latencyMs": null,
+      "retryCount": null
+    },
+    {
+      "sequence": 260,
+      "occurredAt": "2026-11-28T00:28:23.535Z",
+      "type": "RUNTIME_OBSERVATION",
+      "status": "RUNNING",
+      "toolName": "coding_agent",
+      "errorCode": null,
+      "latencyMs": null,
+      "retryCount": null
+    },
+    {
+      "sequence": 261,
+      "occurredAt": "2026-11-28T00:28:23.558Z",
+      "type": "RUNTIME_OBSERVATION",
+      "status": "RUNNING",
+      "toolName": "coding_agent",
+      "errorCode": null,
+      "latencyMs": null,
+      "retryCount": null
+    },
+    {
+      "sequence": 262,
+      "occurredAt": "2026-11-28T00:28:24.155Z",
+      "type": "RUNTIME_OBSERVATION",
+      "status": "RUNNING",
+      "toolName": "coding_agent",
+      "errorCode": null,
+      "latencyMs": null,
+      "retryCount": null
+    },
+    {
+      "sequence": 263,
+      "occurredAt": "2026-11-28T00:28:26.419Z",
+      "type": "RUNTIME_OBSERVATION",
+      "status": "RUNNING",
+      "toolName": "coding_agent",
+      "errorCode": null,
+      "latencyMs": null,
+      "retryCount": null
+    },
+    {
+      "sequence": 264,
+      "occurredAt": "2026-11-28T00:28:27.060Z",
+      "type": "RUNTIME_OBSERVATION",
+      "status": "RUNNING",
+      "toolName": "coding_agent",
+      "errorCode": null,
+      "latencyMs": null,
+      "retryCount": null
+    },
+    {
+      "sequence": 265,
+      "occurredAt": "2026-11-28T00:28:27.091Z",
+      "type": "RUNTIME_OBSERVATION",
+      "status": "RUNNING",
+      "toolName": "coding_agent",
+      "errorCode": null,
+      "latencyMs": null,
+      "retryCount": null
+    },
+    {
+      "sequence": 266,
+      "occurredAt": "2026-11-28T00:28:27.688Z",
+      "type": "RUNTIME_OBSERVATION",
+      "status": "RUNNING",
+      "toolName": "coding_agent",
+      "errorCode": null,
+      "latencyMs": null,
+      "retryCount": null
+    },
+    {
+      "sequence": 267,
+      "occurredAt": "2026-11-28T00:28:28.296Z",
+      "type": "RUNTIME_OBSERVATION",
+      "status": "RUNNING",
+      "toolName": "coding_agent",
+      "errorCode": null,
+      "latencyMs": null,
+      "retryCount": null
+    },
+    {
+      "sequence": 268,
+      "occurredAt": "2026-11-28T00:28:30.575Z",
+      "type": "RUNTIME_OBSERVATION",
+      "status": "RUNNING",
+      "toolName": "coding_agent",
+      "errorCode": null,
+      "latencyMs": null,
+      "retryCount": null
+    },
+    {
+      "sequence": 269,
+      "occurredAt": "2026-11-28T00:28:31.184Z",
+      "type": "RUNTIME_OBSERVATION",
+      "status": "RUNNING",
+      "toolName": "coding_agent",
+      "errorCode": null,
+      "latencyMs": null,
+      "retryCount": null
+    },
+    {
+      "sequence": 270,
+      "occurredAt": "2026-11-28T00:28:31.789Z",
+      "type": "RUNTIME_OBSERVATION",
+      "status": "RUNNING",
+      "toolName": "coding_agent",
+      "errorCode": null,
+      "latencyMs": null,
+      "retryCount": null
+    },
+    {
+      "sequence": 271,
+      "occurredAt": "2026-11-28T00:28:32.393Z",
+      "type": "RUNTIME_OBSERVATION",
+      "status": "RUNNING",
+      "toolName": "coding_agent",
+      "errorCode": null,
+      "latencyMs": null,
+      "retryCount": null
+    },
+    {
+      "sequence": 272,
+      "occurredAt": "2026-11-28T00:28:38.134Z",
+      "type": "RUNTIME_OBSERVATION",
+      "status": "RUNNING",
+      "toolName": "coding_agent",
+      "errorCode": null,
+      "latencyMs": null,
+      "retryCount": null
+    },
+    {
+      "sequence": 273,
+      "occurredAt": "2026-11-28T00:28:44.985Z",
+      "type": "RUNTIME_OBSERVATION",
+      "status": "RUNNING",
+      "toolName": "coding_agent",
+      "errorCode": null,
+      "latencyMs": null,
+      "retryCount": null
+    },
+    {
+      "sequence": 274,
+      "occurredAt": "2026-11-28T00:28:46.146Z",
+      "type": "RUNTIME_OBSERVATION",
+      "status": "RUNNING",
+      "toolName": "coding_agent",
+      "errorCode": null,
+      "latencyMs": null,
+      "retryCount": null
+    },
+    {
+      "sequence": 275,
+      "occurredAt": "2026-11-28T00:28:46.763Z",
+      "type": "RUNTIME_OBSERVATION",
+      "status": "RUNNING",
+      "toolName": "coding_agent",
+      "errorCode": null,
+      "latencyMs": null,
+      "retryCount": null
+    },
+    {
+      "sequence": 276,
+      "occurredAt": "2026-11-28T00:28:49.089Z",
+      "type": "RUNTIME_OBSERVATION",
+      "status": "RUNNING",
+      "toolName": "coding_agent",
+      "errorCode": null,
+      "latencyMs": null,
+      "retryCount": null
+    },
+    {
+      "sequence": 277,
+      "occurredAt": "2026-11-28T00:28:49.670Z",
+      "type": "RUNTIME_OBSERVATION",
+      "status": "RUNNING",
+      "toolName": "coding_agent",
+      "errorCode": null,
+      "latencyMs": null,
+      "retryCount": null
+    },
+    {
+      "sequence": 278,
+      "occurredAt": "2026-11-28T00:28:50.265Z",
+      "type": "RUNTIME_OBSERVATION",
+      "status": "RUNNING",
+      "toolName": "coding_agent",
+      "errorCode": null,
+      "latencyMs": null,
+      "retryCount": null
+    },
+    {
+      "sequence": 279,
+      "occurredAt": "2026-11-28T00:28:52.657Z",
+      "type": "RUNTIME_OBSERVATION",
+      "status": "RUNNING",
+      "toolName": "coding_agent",
+      "errorCode": null,
+      "latencyMs": null,
+      "retryCount": null
+    },
+    {
+      "sequence": 280,
+      "occurredAt": "2026-11-28T00:28:52.686Z",
+      "type": "RUNTIME_OBSERVATION",
+      "status": "RUNNING",
+      "toolName": "coding_agent",
+      "errorCode": null,
+      "latencyMs": null,
+      "retryCount": null
+    },
+    {
+      "sequence": 281,
+      "occurredAt": "2026-11-28T00:28:53.290Z",
+      "type": "RUNTIME_OBSERVATION",
+      "status": "RUNNING",
+      "toolName": "coding_agent",
+      "errorCode": null,
+      "latencyMs": null,
+      "retryCount": null
+    },
+    {
+      "sequence": 282,
+      "occurredAt": "2026-11-28T00:28:54.543Z",
+      "type": "RUNTIME_OBSERVATION",
+      "status": "RUNNING",
+      "toolName": "coding_agent",
+      "errorCode": null,
+      "latencyMs": null,
+      "retryCount": null
+    },
+    {
+      "sequence": 283,
+      "occurredAt": "2026-11-28T00:28:54.582Z",
+      "type": "RUNTIME_OBSERVATION",
+      "status": "RUNNING",
+      "toolName": "coding_agent",
+      "errorCode": null,
+      "latencyMs": null,
+      "retryCount": null
+    },
+    {
+      "sequence": 284,
+      "occurredAt": "2026-11-28T00:28:55.764Z",
+      "type": "RUNTIME_OBSERVATION",
+      "status": "RUNNING",
+      "toolName": "coding_agent",
+      "errorCode": null,
+      "latencyMs": null,
+      "retryCount": null
+    },
+    {
+      "sequence": 285,
+      "occurredAt": "2026-11-28T00:28:56.388Z",
+      "type": "RUNTIME_OBSERVATION",
+      "status": "RUNNING",
+      "toolName": "coding_agent",
+      "errorCode": null,
+      "latencyMs": null,
+      "retryCount": null
+    },
+    {
+      "sequence": 286,
+      "occurredAt": "2026-11-28T00:28:56.994Z",
+      "type": "RUNTIME_OBSERVATION",
+      "status": "RUNNING",
+      "toolName": "coding_agent",
+      "errorCode": null,
+      "latencyMs": null,
+      "retryCount": null
+    },
+    {
+      "sequence": 287,
+      "occurredAt": "2026-11-28T00:28:59.289Z",
+      "type": "RUNTIME_OBSERVATION",
+      "status": "RUNNING",
+      "toolName": "coding_agent",
+      "errorCode": null,
+      "latencyMs": null,
+      "retryCount": null
+    },
+    {
+      "sequence": 288,
+      "occurredAt": "2026-11-28T00:28:59.908Z",
+      "type": "RUNTIME_OBSERVATION",
+      "status": "RUNNING",
+      "toolName": "coding_agent",
+      "errorCode": null,
+      "latencyMs": null,
+      "retryCount": null
+    },
+    {
+      "sequence": 289,
+      "occurredAt": "2026-11-28T00:29:00.508Z",
+      "type": "RUNTIME_OBSERVATION",
+      "status": "RUNNING",
+      "toolName": "coding_agent",
+      "errorCode": null,
+      "latencyMs": null,
+      "retryCount": null
+    },
+    {
+      "sequence": 290,
+      "occurredAt": "2026-11-28T00:29:01.119Z",
+      "type": "RUNTIME_OBSERVATION",
+      "status": "RUNNING",
+      "toolName": "coding_agent",
+      "errorCode": null,
+      "latencyMs": null,
+      "retryCount": null
+    },
+    {
+      "sequence": 291,
+      "occurredAt": "2026-11-28T00:29:01.738Z",
+      "type": "RUNTIME_OBSERVATION",
+      "status": "RUNNING",
+      "toolName": "coding_agent",
+      "errorCode": null,
+      "latencyMs": null,
+      "retryCount": null
+    },
+    {
+      "sequence": 292,
+      "occurredAt": "2026-11-28T00:29:02.349Z",
+      "type": "RUNTIME_OBSERVATION",
+      "status": "RUNNING",
+      "toolName": "coding_agent",
+      "errorCode": null,
+      "latencyMs": null,
+      "retryCount": null
+    },
+    {
+      "sequence": 293,
+      "occurredAt": "2026-11-28T00:29:02.973Z",
+      "type": "RUNTIME_OBSERVATION",
+      "status": "RUNNING",
+      "toolName": "coding_agent",
+      "errorCode": null,
+      "latencyMs": null,
+      "retryCount": null
+    },
+    {
+      "sequence": 294,
+      "occurredAt": "2026-11-28T00:29:03.575Z",
+      "type": "RUNTIME_OBSERVATION",
+      "status": "RUNNING",
+      "toolName": "coding_agent",
+      "errorCode": null,
+      "latencyMs": null,
+      "retryCount": null
+    },
+    {
+      "sequence": 295,
+      "occurredAt": "2026-11-28T00:29:04.172Z",
+      "type": "RUNTIME_OBSERVATION",
+      "status": "RUNNING",
+      "toolName": "coding_agent",
+      "errorCode": null,
+      "latencyMs": null,
+      "retryCount": null
+    },
+    {
+      "sequence": 296,
+      "occurredAt": "2026-11-28T00:29:04.774Z",
+      "type": "RUNTIME_OBSERVATION",
+      "status": "RUNNING",
+      "toolName": "coding_agent",
+      "errorCode": null,
+      "latencyMs": null,
+      "retryCount": null
+    },
+    {
+      "sequence": 297,
+      "occurredAt": "2026-11-28T00:29:06.523Z",
+      "type": "RUNTIME_OBSERVATION",
+      "status": "RUNNING",
+      "toolName": "coding_agent",
+      "errorCode": null,
+      "latencyMs": null,
+      "retryCount": null
+    },
+    {
+      "sequence": 298,
+      "occurredAt": "2026-11-28T00:29:07.116Z",
+      "type": "RUNTIME_OBSERVATION",
+      "status": "RUNNING",
+      "toolName": "coding_agent",
+      "errorCode": null,
+      "latencyMs": null,
+      "retryCount": null
+    },
+    {
+      "sequence": 299,
+      "occurredAt": "2026-11-28T00:29:07.725Z",
+      "type": "RUNTIME_OBSERVATION",
+      "status": "RUNNING",
+      "toolName": "coding_agent",
+      "errorCode": null,
+      "latencyMs": null,
+      "retryCount": null
+    },
+    {
+      "sequence": 300,
+      "occurredAt": "2026-11-28T00:29:08.382Z",
+      "type": "RUNTIME_OBSERVATION",
+      "status": "RUNNING",
+      "toolName": "coding_agent",
+      "errorCode": null,
+      "latencyMs": null,
+      "retryCount": null
+    },
+    {
+      "sequence": 301,
+      "occurredAt": "2026-11-28T00:29:08.433Z",
+      "type": "RUNTIME_OBSERVATION",
+      "status": "RUNNING",
+      "toolName": "coding_agent",
+      "errorCode": null,
+      "latencyMs": null,
+      "retryCount": null
+    },
+    {
+      "sequence": 302,
+      "occurredAt": "2026-11-28T00:29:09.041Z",
+      "type": "RUNTIME_OBSERVATION",
+      "status": "RUNNING",
+      "toolName": "coding_agent",
+      "errorCode": null,
+      "latencyMs": null,
+      "retryCount": null
+    },
+    {
+      "sequence": 303,
+      "occurredAt": "2026-11-28T00:29:09.712Z",
+      "type": "RUNTIME_OBSERVATION",
+      "status": "RUNNING",
+      "toolName": "coding_agent",
+      "errorCode": null,
+      "latencyMs": null,
+      "retryCount": null
+    },
+    {
+      "sequence": 304,
+      "occurredAt": "2026-11-28T00:29:09.739Z",
+      "type": "RUNTIME_OBSERVATION",
+      "status": "RUNNING",
+      "toolName": "coding_agent",
+      "errorCode": null,
+      "latencyMs": null,
+      "retryCount": null
+    },
+    {
+      "sequence": 305,
+      "occurredAt": "2026-11-28T00:29:12.114Z",
+      "type": "RUNTIME_OBSERVATION",
+      "status": "RUNNING",
+      "toolName": "coding_agent",
+      "errorCode": null,
+      "latencyMs": null,
+      "retryCount": null
+    },
+    {
+      "sequence": 306,
+      "occurredAt": "2026-11-28T00:29:12.746Z",
+      "type": "RUNTIME_OBSERVATION",
+      "status": "RUNNING",
+      "toolName": "coding_agent",
+      "errorCode": null,
+      "latencyMs": null,
+      "retryCount": null
+    },
+    {
+      "sequence": 307,
+      "occurredAt": "2026-11-28T00:29:12.784Z",
+      "type": "RUNTIME_OBSERVATION",
+      "status": "RUNNING",
+      "toolName": "coding_agent",
+      "errorCode": null,
+      "latencyMs": null,
+      "retryCount": null
+    },
+    {
+      "sequence": 308,
+      "occurredAt": "2026-11-28T00:29:13.390Z",
+      "type": "RUNTIME_OBSERVATION",
+      "status": "RUNNING",
+      "toolName": "coding_agent",
+      "errorCode": null,
+      "latencyMs": null,
+      "retryCount": null
+    },
+    {
+      "sequence": 309,
+      "occurredAt": "2026-11-28T00:29:14.643Z",
+      "type": "RUNTIME_OBSERVATION",
+      "status": "RUNNING",
+      "toolName": "coding_agent",
+      "errorCode": null,
+      "latencyMs": null,
+      "retryCount": null
+    },
+    {
+      "sequence": 310,
+      "occurredAt": "2026-11-28T00:29:14.676Z",
+      "type": "RUNTIME_OBSERVATION",
+      "status": "RUNNING",
+      "toolName": "coding_agent",
+      "errorCode": null,
+      "latencyMs": null,
+      "retryCount": null
+    },
+    {
+      "sequence": 311,
+      "occurredAt": "2026-11-28T00:29:15.383Z",
+      "type": "RUNTIME_OBSERVATION",
+      "status": "RUNNING",
+      "toolName": "coding_agent",
+      "errorCode": null,
+      "latencyMs": null,
+      "retryCount": null
+    },
+    {
+      "sequence": 312,
+      "occurredAt": "2026-11-28T00:29:15.986Z",
+      "type": "RUNTIME_OBSERVATION",
+      "status": "RUNNING",
+      "toolName": "coding_agent",
+      "errorCode": null,
+      "latencyMs": null,
+      "retryCount": null
+    },
+    {
+      "sequence": 313,
+      "occurredAt": "2026-11-28T00:29:16.605Z",
+      "type": "RUNTIME_OBSERVATION",
+      "status": "RUNNING",
+      "toolName": "coding_agent",
+      "errorCode": null,
+      "latencyMs": null,
+      "retryCount": null
+    },
+    {
+      "sequence": 314,
+      "occurredAt": "2026-11-28T00:29:17.210Z",
+      "type": "RUNTIME_OBSERVATION",
+      "status": "RUNNING",
+      "toolName": "coding_agent",
+      "errorCode": null,
+      "latencyMs": null,
+      "retryCount": null
+    },
+    {
+      "sequence": 315,
+      "occurredAt": "2026-11-28T00:29:18.419Z",
+      "type": "RUNTIME_OBSERVATION",
+      "status": "RUNNING",
+      "toolName": "coding_agent",
+      "errorCode": null,
+      "latencyMs": null,
+      "retryCount": null
+    },
+    {
+      "sequence": 316,
+      "occurredAt": "2026-11-28T00:29:18.457Z",
+      "type": "RUNTIME_OBSERVATION",
+      "status": "RUNNING",
+      "toolName": "coding_agent",
+      "errorCode": null,
+      "latencyMs": null,
+      "retryCount": null
+    },
+    {
+      "sequence": 317,
+      "occurredAt": "2026-11-28T00:29:19.654Z",
+      "type": "RUNTIME_OBSERVATION",
+      "status": "RUNNING",
+      "toolName": "coding_agent",
+      "errorCode": null,
+      "latencyMs": null,
+      "retryCount": null
+    },
+    {
+      "sequence": 318,
+      "occurredAt": "2026-11-28T00:29:20.292Z",
+      "type": "RUNTIME_OBSERVATION",
+      "status": "RUNNING",
+      "toolName": "coding_agent",
+      "errorCode": null,
+      "latencyMs": null,
+      "retryCount": null
+    },
+    {
+      "sequence": 319,
+      "occurredAt": "2026-11-28T00:29:20.952Z",
+      "type": "RUNTIME_OBSERVATION",
+      "status": "RUNNING",
+      "toolName": "coding_agent",
+      "errorCode": null,
+      "latencyMs": null,
+      "retryCount": null
+    },
+    {
+      "sequence": 320,
+      "occurredAt": "2026-11-28T00:29:21.564Z",
+      "type": "RUNTIME_OBSERVATION",
+      "status": "RUNNING",
+      "toolName": "coding_agent",
+      "errorCode": null,
+      "latencyMs": null,
+      "retryCount": null
+    },
+    {
+      "sequence": 321,
+      "occurredAt": "2026-11-28T00:29:24.005Z",
+      "type": "RUNTIME_OBSERVATION",
+      "status": "RUNNING",
+      "toolName": "coding_agent",
+      "errorCode": null,
+      "latencyMs": null,
+      "retryCount": null
+    },
+    {
+      "sequence": 322,
+      "occurredAt": "2026-11-28T00:29:24.051Z",
+      "type": "RUNTIME_OBSERVATION",
+      "status": "RUNNING",
+      "toolName": "coding_agent",
+      "errorCode": null,
+      "latencyMs": null,
+      "retryCount": null
+    },
+    {
+      "sequence": 323,
+      "occurredAt": "2026-11-28T00:29:24.653Z",
+      "type": "RUNTIME_OBSERVATION",
+      "status": "RUNNING",
+      "toolName": "coding_agent",
+      "errorCode": null,
+      "latencyMs": null,
+      "retryCount": null
+    },
+    {
+      "sequence": 324,
+      "occurredAt": "2026-11-28T00:29:25.259Z",
+      "type": "RUNTIME_OBSERVATION",
+      "status": "RUNNING",
+      "toolName": "coding_agent",
+      "errorCode": null,
+      "latencyMs": null,
+      "retryCount": null
+    },
+    {
+      "sequence": 325,
+      "occurredAt": "2026-11-28T00:29:25.861Z",
+      "type": "RUNTIME_OBSERVATION",
+      "status": "RUNNING",
+      "toolName": "coding_agent",
+      "errorCode": null,
+      "latencyMs": null,
+      "retryCount": null
+    },
+    {
+      "sequence": 326,
+      "occurredAt": "2026-11-28T00:29:27.714Z",
+      "type": "RUNTIME_OBSERVATION",
+      "status": "RUNNING",
+      "toolName": "coding_agent",
+      "errorCode": null,
+      "latencyMs": null,
+      "retryCount": null
+    },
+    {
+      "sequence": 327,
+      "occurredAt": "2026-11-28T00:29:28.896Z",
+      "type": "RUNTIME_OBSERVATION",
+      "status": "RUNNING",
+      "toolName": "coding_agent",
+      "errorCode": null,
+      "latencyMs": null,
+      "retryCount": null
+    },
+    {
+      "sequence": 328,
+      "occurredAt": "2026-11-28T00:29:29.514Z",
+      "type": "RUNTIME_OBSERVATION",
+      "status": "RUNNING",
+      "toolName": "coding_agent",
+      "errorCode": null,
+      "latencyMs": null,
+      "retryCount": null
+    },
+    {
+      "sequence": 329,
+      "occurredAt": "2026-11-28T00:29:30.141Z",
+      "type": "RUNTIME_OBSERVATION",
+      "status": "RUNNING",
+      "toolName": "coding_agent",
+      "errorCode": null,
+      "latencyMs": null,
+      "retryCount": null
+    },
+    {
+      "sequence": 330,
+      "occurredAt": "2026-11-28T00:29:30.742Z",
+      "type": "RUNTIME_OBSERVATION",
+      "status": "RUNNING",
+      "toolName": "coding_agent",
+      "errorCode": null,
+      "latencyMs": null,
+      "retryCount": null
+    },
+    {
+      "sequence": 331,
+      "occurredAt": "2026-11-28T00:29:31.336Z",
+      "type": "RUNTIME_OBSERVATION",
+      "status": "RUNNING",
+      "toolName": "coding_agent",
+      "errorCode": null,
+      "latencyMs": null,
+      "retryCount": null
+    },
+    {
+      "sequence": 332,
+      "occurredAt": "2026-11-28T00:29:31.944Z",
+      "type": "RUNTIME_OBSERVATION",
+      "status": "RUNNING",
+      "toolName": "coding_agent",
+      "errorCode": null,
+      "latencyMs": null,
+      "retryCount": null
+    },
+    {
+      "sequence": 333,
+      "occurredAt": "2026-11-28T00:29:32.574Z",
+      "type": "RUNTIME_OBSERVATION",
+      "status": "RUNNING",
+      "toolName": "coding_agent",
+      "errorCode": null,
+      "latencyMs": null,
+      "retryCount": null
+    },
+    {
+      "sequence": 334,
+      "occurredAt": "2026-11-28T00:29:34.362Z",
+      "type": "RUNTIME_OBSERVATION",
+      "status": "RUNNING",
+      "toolName": "coding_agent",
+      "errorCode": null,
+      "latencyMs": null,
+      "retryCount": null
+    },
+    {
+      "sequence": 335,
+      "occurredAt": "2026-11-28T00:29:35.586Z",
+      "type": "RUNTIME_OBSERVATION",
+      "status": "RUNNING",
+      "toolName": "coding_agent",
+      "errorCode": null,
+      "latencyMs": null,
+      "retryCount": null
+    },
+    {
+      "sequence": 336,
+      "occurredAt": "2026-11-28T00:29:35.626Z",
+      "type": "RUNTIME_OBSERVATION",
+      "status": "RUNNING",
+      "toolName": "coding_agent",
+      "errorCode": null,
+      "latencyMs": null,
+      "retryCount": null
+    },
+    {
+      "sequence": 337,
+      "occurredAt": "2026-11-28T00:29:36.814Z",
+      "type": "RUNTIME_OBSERVATION",
+      "status": "RUNNING",
+      "toolName": "coding_agent",
+      "errorCode": null,
+      "latencyMs": null,
+      "retryCount": null
+    },
+    {
+      "sequence": 338,
+      "occurredAt": "2026-11-28T00:29:37.425Z",
+      "type": "RUNTIME_OBSERVATION",
+      "status": "RUNNING",
+      "toolName": "coding_agent",
+      "errorCode": null,
+      "latencyMs": null,
+      "retryCount": null
+    },
+    {
+      "sequence": 339,
+      "occurredAt": "2026-11-28T00:29:38.675Z",
+      "type": "RUNTIME_OBSERVATION",
+      "status": "RUNNING",
+      "toolName": "coding_agent",
+      "errorCode": null,
+      "latencyMs": null,
+      "retryCount": null
+    },
+    {
+      "sequence": 340,
+      "occurredAt": "2026-11-28T00:29:40.556Z",
+      "type": "RUNTIME_OBSERVATION",
+      "status": "RUNNING",
+      "toolName": "coding_agent",
+      "errorCode": null,
+      "latencyMs": null,
+      "retryCount": null
+    },
+    {
+      "sequence": 341,
+      "occurredAt": "2026-11-28T00:29:41.806Z",
+      "type": "RUNTIME_OBSERVATION",
+      "status": "RUNNING",
+      "toolName": "coding_agent",
+      "errorCode": null,
+      "latencyMs": null,
+      "retryCount": null
+    },
+    {
+      "sequence": 342,
+      "occurredAt": "2026-11-28T00:29:47.136Z",
+      "type": "RUNTIME_OBSERVATION",
+      "status": "RUNNING",
+      "toolName": "coding_agent",
+      "errorCode": null,
+      "latencyMs": null,
+      "retryCount": null
+    },
+    {
+      "sequence": 343,
+      "occurredAt": "2026-11-28T00:29:47.746Z",
+      "type": "RUNTIME_OBSERVATION",
+      "status": "RUNNING",
+      "toolName": "coding_agent",
+      "errorCode": null,
+      "latencyMs": null,
+      "retryCount": null
+    },
+    {
+      "sequence": 344,
+      "occurredAt": "2026-11-28T00:29:48.396Z",
+      "type": "RUNTIME_OBSERVATION",
+      "status": "RUNNING",
+      "toolName": "coding_agent",
+      "errorCode": null,
+      "latencyMs": null,
+      "retryCount": null
+    },
+    {
+      "sequence": 345,
+      "occurredAt": "2026-11-28T00:29:49.009Z",
+      "type": "RUNTIME_OBSERVATION",
+      "status": "RUNNING",
+      "toolName": "coding_agent",
+      "errorCode": null,
+      "latencyMs": null,
+      "retryCount": null
+    },
+    {
+      "sequence": 346,
+      "occurredAt": "2026-11-28T00:29:50.213Z",
+      "type": "RUNTIME_OBSERVATION",
+      "status": "RUNNING",
+      "toolName": "coding_agent",
+      "errorCode": null,
+      "latencyMs": null,
+      "retryCount": null
+    },
+    {
+      "sequence": 347,
+      "occurredAt": "2026-11-28T00:29:50.839Z",
+      "type": "RUNTIME_OBSERVATION",
+      "status": "RUNNING",
+      "toolName": "coding_agent",
+      "errorCode": null,
+      "latencyMs": null,
+      "retryCount": null
+    },
+    {
+      "sequence": 348,
+      "occurredAt": "2026-11-28T00:30:03.138Z",
+      "type": "RUNTIME_OBSERVATION",
+      "status": "SUCCESS",
+      "toolName": "coding_agent",
+      "errorCode": null,
+      "latencyMs": null,
+      "retryCount": null
+    },
+    {
+      "sequence": 349,
+      "occurredAt": "2026-11-28T00:30:03.973Z",
+      "type": "RUNTIME_OBSERVATION",
+      "status": "RUNNING",
+      "toolName": "runtime",
+      "errorCode": null,
+      "latencyMs": null,
+      "retryCount": null
+    },
+    {
+      "sequence": 350,
+      "occurredAt": "2026-11-28T00:30:04.008Z",
+      "type": "RUNTIME_OBSERVATION",
+      "status": "SUCCESS",
+      "toolName": "runtime",
+      "errorCode": null,
+      "latencyMs": null,
+      "retryCount": null
+    },
+    {
+      "sequence": 351,
+      "occurredAt": "2026-11-28T00:30:04.049Z",
+      "type": "RUNTIME_OBSERVATION",
+      "status": "SUCCESS",
+      "toolName": "runtime",
+      "errorCode": null,
+      "latencyMs": null,
+      "retryCount": null
+    },
+    {
+      "sequence": 352,
+      "occurredAt": "2026-11-28T00:30:04.089Z",
+      "type": "RUNTIME_COMPLETED",
+      "status": "RUNNING",
+      "toolName": null,
+      "errorCode": null,
+      "latencyMs": null,
+      "retryCount": null
+    },
+    {
+      "sequence": 353,
+      "occurredAt": "2026-11-28T00:20:19.127Z",
+      "type": "THINK",
+      "status": "RUNNING",
+      "toolName": null,
+      "errorCode": null,
+      "latencyMs": 585059,
+      "retryCount": null
+    },
+    {
+      "sequence": 354,
+      "occurredAt": "2026-11-28T00:30:04.186Z",
+      "type": "RESULT",
+      "status": "PARTIAL_SUCCESS",
+      "toolName": null,
+      "errorCode": null,
+      "latencyMs": 585056,
+      "retryCount": null
+    },
+    {
+      "sequence": 355,
+      "occurredAt": "2026-11-28T00:30:04.207Z",
+      "type": "COMPLETE",
+      "status": "PARTIAL_SUCCESS",
+      "toolName": null,
+      "errorCode": null,
+      "latencyMs": null,
+      "retryCount": null
+    }
+  ],
+  "report": {
+    "httpStatus": 403
+  },
+  "observedToolNames": {
+    "runtime": 6,
+    "coding_agent": 337
+  }
+}

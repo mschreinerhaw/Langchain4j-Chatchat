@@ -1,0 +1,13 @@
+2026-11-27T22:31:45+08:00
+Filesystem          1024-blocks      Used Available Capacity Mounted on
+/dev/mapper/rl-root    46622472  39161284   7461188      84% /
+/dev/sdb              188651520 172699808  15951712      92% /opt
+/dev/sdc              104806400  29375440  75430960      29% /mnt/disk01
+temporary base extraction source: cache-source.tar logical_bytes=281848320 allocated_records=550488 record_bytes=512
+Removed only the temporary input used to reconstruct the digest-verified base. Verified base and evidence retained.
+Filesystem          1024-blocks      Used Available Capacity Mounted on
+/dev/mapper/rl-root    46622472  39161284   7461188      84% /
+/dev/sdb              188651520 172699808  15951712      92% /opt
+/dev/sdc              104806400  29100196  75706204      28% /mnt/disk01
+/runtime-os-app-stage-api-1 running healthy
+/llm-gateway-llm-gateway-1 running healthy

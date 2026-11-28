@@ -1,0 +1,14 @@
+2026-11-27T23:00:31+08:00
+Filesystem          1024-blocks      Used Available Capacity Mounted on
+/dev/mapper/rl-root    46622472  39163032   7459440      85% /
+/dev/sdb              188651520 172474936  16176584      92% /opt
+/dev/sdc              104806400  33312640  71493760      32% /mnt/disk01
+java-image-context/api/app.jar 429296821 bytes 838472 blocks of 512
+java-image-context/mcp/app.jar 256347264 bytes 500680 blocks of 512
+Filesystem          1024-blocks      Used Available Capacity Mounted on
+/dev/mapper/rl-root    46622472  39163032   7459440      85% /
+/dev/sdb              188651520 172474936  16176584      92% /opt
+/dev/sdc              104806400  32643084  72163316      32% /mnt/disk01
+/runtime-os-app-stage-api-1 running healthy
+/runtime-os-app-stage-mcp-1 running healthy
+/llm-gateway-llm-gateway-1 running healthy

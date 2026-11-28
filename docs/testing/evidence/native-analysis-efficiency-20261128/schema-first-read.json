@@ -1,0 +1,14 @@
+{
+  "taskId": "dd40f14a-ee52-3a70-9374-c8a81e003023",
+  "businessStatus": "WAIT_MODEL",
+  "workerId": "7163c6cb-68c7-4a45-a30f-0776d4aece6e",
+  "sourceBytes": 6697,
+  "schemaByteOffset": 59,
+  "multiLine": true,
+  "readToolStartEventId": "59",
+  "readToolEndEventId": "63",
+  "containsSchema": true,
+  "containsAllRequiredFields": true,
+  "reportedTruncation": false,
+  "schemaSha256": "089816799179ba8dc19ef5d387da1df6bde93df53ce1a63e5f69f965d4c4a930"
+}

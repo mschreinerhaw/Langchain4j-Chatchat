@@ -1,0 +1,31 @@
+{
+  "before": {
+    "/opt": {
+      "availableBytes": 16404275200,
+      "freeInodes": 32095995
+    },
+    "/mnt/disk01": {
+      "availableBytes": 53171527680,
+      "freeInodes": 51675298
+    }
+  },
+  "bytes": 429290977,
+  "duplicate": "/mnt/disk01/extreme-stability-313f35664/native-analysis-efficiency-20261128/image-api/app.jar",
+  "retainedOriginal": "/mnt/disk01/extreme-stability-313f35664/native-analysis-efficiency-20261128/src/chatchat-api/target/chatchat-api-1.0.0-SNAPSHOT.jar",
+  "sha256": "873df6abd0bf9fb5dff52104485026216c5f6dd0404ff49b06ed0868c51a1bf3",
+  "retainedImage": "sha256:fa7bf0619cd4364c24faa501df001332740348b4e05700693c328a09278ee324",
+  "removed": true,
+  "after": {
+    "/opt": {
+      "availableBytes": 16404275200,
+      "freeInodes": 32095995
+    },
+    "/mnt/disk01": {
+      "availableBytes": 53600821248,
+      "freeInodes": 51675299
+    }
+  },
+  "mcpHealthHttp": 200,
+  "apiLoginHttp": 200,
+  "apiLoginAccepted": true
+}

@@ -1,0 +1,7 @@
+Filesystem      Size  Used Avail Use% Mounted on
+/dev/sdb        180G  165G   16G  92% /opt
+/dev/sdc        100G   51G   50G  51% /mnt/disk01
+              total        used        free      shared  buff/cache   available
+Mem:           62Gi        52Gi       1.6Gi       3.1Gi       8.3Gi       6.1Gi
+Swap:         3.9Gi       3.9Gi       0.0Ki
+INSUFFICIENT_HEADROOM_FOR_PINNED_CORE_BUILD

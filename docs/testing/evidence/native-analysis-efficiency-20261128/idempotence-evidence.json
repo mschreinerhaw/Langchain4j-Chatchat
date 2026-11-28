@@ -1,0 +1,67 @@
+{
+  "beforeRestart": {
+    "7": {
+      "delivery": {
+        "httpStatus": 200,
+        "sameManifest": true
+      },
+      "upload": {
+        "httpStatus": 200,
+        "sameReceiptAndVersions": true
+      },
+      "sameAcceptanceHttpStatus": 200,
+      "conflictingAcceptanceHttpStatus": 409,
+      "terminalPreserved": true,
+      "acceptedPayloadUnchanged": true,
+      "formalArtifactsUnchanged": true
+    },
+    "6": {
+      "delivery": {
+        "httpStatus": 200,
+        "sameManifest": true
+      },
+      "upload": {
+        "httpStatus": 200,
+        "sameReceiptAndVersions": true
+      },
+      "sameAcceptanceHttpStatus": 200,
+      "conflictingAcceptanceHttpStatus": 409,
+      "terminalPreserved": true,
+      "acceptedPayloadUnchanged": true,
+      "formalArtifactsUnchanged": true
+    }
+  },
+  "afterRestart": {
+    "7": {
+      "delivery": {
+        "httpStatus": 200,
+        "sameManifest": true
+      },
+      "upload": {
+        "httpStatus": 200,
+        "sameReceiptAndVersions": true
+      },
+      "sameAcceptanceHttpStatus": 200,
+      "conflictingAcceptanceHttpStatus": 409,
+      "terminalPreserved": true,
+      "acceptedPayloadUnchanged": true,
+      "formalArtifactsUnchanged": true
+    },
+    "6": {
+      "delivery": {
+        "httpStatus": 200,
+        "sameManifest": true
+      },
+      "upload": {
+        "httpStatus": 200,
+        "sameReceiptAndVersions": true
+      },
+      "sameAcceptanceHttpStatus": 200,
+      "conflictingAcceptanceHttpStatus": 409,
+      "terminalPreserved": true,
+      "acceptedPayloadUnchanged": true,
+      "formalArtifactsUnchanged": true
+    }
+  },
+  "testScope": "Repeated requests against naturally accepted reports. No in-flight failure injected."
+}

@@ -1,0 +1,88 @@
+{
+  "taskId": "e733d66d-de10-3d40-814f-1d168ed240ca",
+  "beforeStatus": "WAIT_MODEL",
+  "cancelAt": "2026-11-28T00:55:47.353228+00:00",
+  "cancelHttpStatus": 200,
+  "cancelResponseStatus": "CANCELLED",
+  "inFlightModelRequests": [
+    {
+      "timestamp": "2026-11-28T00:55:03.922Z",
+      "type": "model.request.started",
+      "workerId": "21ecd643-bb1a-49ac-8a47-a82565f1d35f",
+      "model": "qwen3.7-plus",
+      "requestId": "a3b132eb-dd64-489f-9454-317b6ced54f8"
+    }
+  ],
+  "observations": [
+    {
+      "at": "2026-11-28T00:55:47.446481+00:00",
+      "httpStatus": 200,
+      "state": "CANCELLED",
+      "status": "CANCELLED",
+      "finishedAt": "2026-11-28T00:55:47.397Z"
+    },
+    {
+      "at": "2026-11-28T00:55:49.501919+00:00",
+      "httpStatus": 200,
+      "state": "CANCELLED",
+      "status": "CANCELLED",
+      "finishedAt": "2026-11-28T00:55:47.397Z"
+    },
+    {
+      "at": "2026-11-28T00:55:54.530942+00:00",
+      "httpStatus": 200,
+      "state": "CANCELLED",
+      "status": "CANCELLED",
+      "finishedAt": "2026-11-28T00:55:47.397Z"
+    },
+    {
+      "at": "2026-11-28T00:56:04.567177+00:00",
+      "httpStatus": 200,
+      "state": "CANCELLED",
+      "status": "CANCELLED",
+      "finishedAt": "2026-11-28T00:55:47.397Z"
+    },
+    {
+      "at": "2026-11-28T00:56:24.600877+00:00",
+      "httpStatus": 200,
+      "state": "CANCELLED",
+      "status": "CANCELLED",
+      "finishedAt": "2026-11-28T00:55:47.397Z"
+    },
+    {
+      "at": "2026-11-28T00:56:59.635898+00:00",
+      "httpStatus": 200,
+      "state": "CANCELLED",
+      "status": "CANCELLED",
+      "finishedAt": "2026-11-28T00:55:47.397Z"
+    },
+    {
+      "at": "2026-11-28T00:57:49.670341+00:00",
+      "httpStatus": 200,
+      "state": "CANCELLED",
+      "status": "CANCELLED",
+      "finishedAt": "2026-11-28T00:55:47.397Z"
+    }
+  ],
+  "auditAfterCancel": [
+    {
+      "timestamp": "2026-11-28T00:55:47.900Z",
+      "type": "worker.stopping",
+      "workerId": "21ecd643-bb1a-49ac-8a47-a82565f1d35f"
+    },
+    {
+      "timestamp": "2026-11-28T00:55:47.906Z",
+      "type": "model.request.completed",
+      "workerId": "21ecd643-bb1a-49ac-8a47-a82565f1d35f",
+      "model": "qwen3.7-plus",
+      "requestId": "a3b132eb-dd64-489f-9454-317b6ced54f8",
+      "httpStatus": 200,
+      "durationMs": 43985
+    },
+    {
+      "timestamp": "2026-11-28T00:55:49.211Z",
+      "type": "worker.stopped",
+      "workerId": "21ecd643-bb1a-49ac-8a47-a82565f1d35f"
+    }
+  ]
+}

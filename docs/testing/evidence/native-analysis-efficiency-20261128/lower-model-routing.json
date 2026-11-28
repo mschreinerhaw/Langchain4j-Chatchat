@@ -1,0 +1,22 @@
+{
+  "taskId": "3c57ce6a-0ea1-35ce-b14f-a5ce21876ba6",
+  "requestedModel": "Qwen3.8-27B",
+  "signedContractModel": {
+    "logicalName": "qwen3.7-plus",
+    "providerModel": "qwen3.7-plus"
+  },
+  "providerModel": "qwen3.7-plus",
+  "successfulProviderResponseCount": 8,
+  "providerResponseDurationsMs": [4915, 6226, 9421, 6017, 12509, 4613, 132236, 62493],
+  "stateBeforeCancellation": "WAIT_MODEL",
+  "formalTaskState": "CANCELLED",
+  "workerState": "STOPPED",
+  "countsAsLowerModelTest": false,
+  "isolatedApiLoginHttp": 200,
+  "isolatedMcpHealthHttp": 200,
+  "activeIsolatedWorkers": [],
+  "diskUsedPercent": {
+    "/opt": 92,
+    "/mnt/disk01": 51
+  }
+}

@@ -1,0 +1,76 @@
+Filesystem           Size  Used Avail Use% Mounted on
+/dev/mapper/rl-root   45G   38G  7.2G  84% /
+/dev/sdb             180G  165G   16G  92% /opt
+/dev/sdc             100G   27G   74G  27% /mnt/disk01
+v24.22.3
+11.19.1
+
+added 192 packages in 1m
+npm warn install-scripts 1 package has install scripts not yet covered by allowScripts:
+npm warn install-scripts   esbuild@0.28.2 (postinstall: node install.js)
+npm warn install-scripts
+npm warn install-scripts Run `npm install-scripts ls` to review, or `npm install-scripts approve <pkg>` to allow.
+npm notice
+npm notice New major version of npm available! 11.19.1 -> 12.2.3
+npm notice Changelog: https://github.com/npm/cli/releases/tag/v12.2.3
+npm notice To update run: npm install -g npm@12.2.3
+npm notice
+
+> llm-compatibility-gateway@1.2.0-rc.1 test
+> vitest run --root . tests/protocol.test.ts tests/runtime-managed.test.ts tests/compat.test.ts
+
+
+ RUN  v4.1.12 /mnt/disk01/extreme-stability-313f35664/toolchain/llm-compatibility-gateway
+
+ ✓ tests/protocol.test.ts (14 tests) 32ms
+ ✓ tests/compat.test.ts (6 tests) 163ms
+ ✓ tests/runtime-managed.test.ts (10 tests) 1892ms
+   ✓ ordinary slow via openai outlives legacy thresholds and preserves tool data  301ms
+   ✓ releases concurrency and closes the upstream when the client cancels midstream  311ms
+
+ Test Files  3 passed (3)
+      Tests  30 passed (30)
+   Start at  22:29:42
+   Duration  2.68s (transform 757ms, setup 0ms, import 1.55s, tests 2.09s, environment 0ms)
+
+
+> llm-compatibility-gateway@1.2.0-rc.1 build
+> tsc -p tsconfig.json && vite build
+
+vite v7.3.8 building client environment for production...
+transforming...
+✓ 1441 modules transformed.
+rendering chunks...
+computing gzip size...
+../dist/web/index.html                     0.40 kB │ gzip:   0.29 kB
+../dist/web/assets/index-sHpdkOsK.css      7.09 kB │ gzip:   2.42 kB
+../dist/web/assets/index-BKpbRZVX.js   1,235.87 kB │ gzip: 380.87 kB
+
+(!) Some chunks are larger than 500 kB after minification. Consider:
+- Using dynamic import() to code-split the application
+- Use build.rollupOptions.output.manualChunks to improve chunking: https://rollupjs.org/configuration-options/#output-manualchunks
+- Adjust chunk size limit for this warning via build.chunkSizeWarningLimit.
+✓ built in 6.48s
+
+> llm-compatibility-gateway@1.2.0-rc.1 test:runtime-http
+> node --test tests/runtime-http.test.mjs
+
+✔ real Gateway HTTP routes pin configuration and correlate Runtime requests (2178.372472ms)
+ℹ {"taskId":"native-task","sessionId":"native-session","attemptId":"native-task-fence-1","requestId":"runtime-42","gatewayRequestId":"0865b665-a19c-49f1-aed3-e99c2218e677","oldRevision":2,"status":200}
+ℹ tests 1
+ℹ suites 0
+ℹ pass 1
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 2335.051486
+GATEWAY_HOST_COMPILE_COMPLETE
+Filesystem           Size  Used Avail Use% Mounted on
+/dev/mapper/rl-root   45G   38G  7.2G  84% /
+/dev/sdb             180G  165G   16G  92% /opt
+/dev/sdc             100G   28G   73G  28% /mnt/disk01
+Filesystem            Inodes   IUsed    IFree IUse% Mounted on
+/dev/mapper/rl-root 15573392  650614 14922778    5% /
+/dev/sdb            34671728 2234666 32437062    7% /opt
+/dev/sdc            52428800  337680 52091120    1% /mnt/disk01

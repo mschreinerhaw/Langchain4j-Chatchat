@@ -1,0 +1,78 @@
+{
+  "observedBaseline": {
+    "7": {
+      "taskId": "633aa3ca-590f-3370-8498-8c7dcaf7db07",
+      "submittedAt": "2026-11-28T05:03:21.674814+00:00",
+      "events": {
+        "s3.inputs.verified": "2026-11-28T05:03:37.532Z",
+        "model.request.started": "2026-11-28T05:03:48.982Z",
+        "delivery.sealed": "2026-11-28T05:24:03.110Z",
+        "s3.delivery.uploaded": "2026-11-28T05:24:16.228Z",
+        "runtime.validation.recorded": "2026-11-28T05:25:24.454Z"
+      },
+      "secondsFromSubmission": {
+        "s3.inputs.verified": 15.857,
+        "model.request.started": 27.307,
+        "delivery.sealed": 1241.435,
+        "s3.delivery.uploaded": 1254.553,
+        "runtime.validation.recorded": 1322.779
+      }
+    },
+    "6": {
+      "taskId": "aeab6c3a-1194-3e7e-806b-2dabda0f41b5",
+      "submittedAt": "2026-11-28T05:25:27.742595+00:00",
+      "events": {
+        "s3.inputs.verified": "2026-11-28T05:27:09.196Z",
+        "model.request.started": "2026-11-28T05:27:18.339Z",
+        "delivery.sealed": "2026-11-28T05:48:25.057Z",
+        "s3.delivery.uploaded": "2026-11-28T05:48:36.921Z",
+        "runtime.validation.recorded": "2026-11-28T05:49:46.656Z"
+      },
+      "secondsFromSubmission": {
+        "s3.inputs.verified": 101.453,
+        "model.request.started": 110.596,
+        "delivery.sealed": 1377.314,
+        "s3.delivery.uploaded": 1389.178,
+        "runtime.validation.recorded": 1458.913
+      }
+    }
+  },
+  "efficiencyRound1": {
+    "7": {
+      "taskId": "656208af-0b3e-38e6-aa0a-6d68c3bd1517",
+      "submittedAt": "2026-11-28T06:28:54.067440+00:00",
+      "events": {
+        "s3.inputs.verified": "2026-11-28T06:29:27.573Z",
+        "model.request.started": "2026-11-28T06:29:39.159Z",
+        "delivery.sealed": "2026-11-28T06:49:05.572Z",
+        "s3.delivery.uploaded": "2026-11-28T06:49:17.992Z",
+        "runtime.validation.recorded": "2026-11-28T06:50:27.724Z"
+      },
+      "secondsFromSubmission": {
+        "s3.inputs.verified": 33.506,
+        "model.request.started": 45.092,
+        "delivery.sealed": 1211.505,
+        "s3.delivery.uploaded": 1223.925,
+        "runtime.validation.recorded": 1293.657
+      }
+    },
+    "6": {
+      "taskId": "b52e5809-4d5f-3211-8cbd-8fddd03066be",
+      "submittedAt": "2026-11-28T06:50:33.220754+00:00",
+      "events": {
+        "s3.inputs.verified": "2026-11-28T06:51:48.629Z",
+        "model.request.started": "2026-11-28T06:51:59.275Z",
+        "delivery.sealed": "2026-11-28T07:04:28.072Z",
+        "s3.delivery.uploaded": "2026-11-28T07:04:35.656Z",
+        "runtime.validation.recorded": "2026-11-28T07:05:01.763Z"
+      },
+      "secondsFromSubmission": {
+        "s3.inputs.verified": 75.408,
+        "model.request.started": 86.054,
+        "delivery.sealed": 834.851,
+        "s3.delivery.uploaded": 842.435,
+        "runtime.validation.recorded": 868.542
+      }
+    }
+  }
+}

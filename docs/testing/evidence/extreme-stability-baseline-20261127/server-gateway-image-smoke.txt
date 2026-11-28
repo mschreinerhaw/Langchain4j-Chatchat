@@ -1,0 +1,31 @@
+Filesystem           Size  Used Avail Use% Mounted on
+/dev/mapper/rl-root   45G   38G  7.2G  84% /
+/dev/sdb             180G  165G   16G  92% /opt
+/dev/sdc             100G   29G   72G  29% /mnt/disk01
+Filesystem            Inodes   IUsed    IFree IUse% Mounted on
+/dev/mapper/rl-root 15573552  650613 14922939    5% /
+/dev/sdb            34640872 2234666 32406206    7% /opt
+/dev/sdc            52428800  397394 52031406    1% /mnt/disk01
+gateway.tar.gz: OK
+
+26.1.3
+sha256:020a2a637e804ef81054d07044170e91af30a2228031cecd1cba7ab9c6983efd 2026-11-27T14:33:52.070523553Z [] 313f35664afa1983326ee7e8fec9fb8a71d96673
+✔ real Gateway HTTP routes pin configuration and correlate Runtime requests (2098.013337ms)
+ℹ {"taskId":"native-task","sessionId":"native-session","attemptId":"native-task-fence-1","requestId":"runtime-42","gatewayRequestId":"b46ca4c3-6b84-4d7a-b562-6da06097cd87","oldRevision":2,"status":200}
+ℹ tests 1
+ℹ suites 0
+ℹ pass 1
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 2244.921339
+IMAGE_HTTP_SMOKE_COMPLETE
+Filesystem           Size  Used Avail Use% Mounted on
+/dev/mapper/rl-root   45G   38G  7.2G  84% /
+/dev/sdb             180G  165G   16G  92% /opt
+/dev/sdc             100G   29G   72G  29% /mnt/disk01
+Filesystem            Inodes   IUsed    IFree IUse% Mounted on
+/dev/mapper/rl-root 15573552  650613 14922939    5% /
+/dev/sdb            34640424 2234666 32405758    7% /opt
+/dev/sdc            52428800  405378 52023422    1% /mnt/disk01

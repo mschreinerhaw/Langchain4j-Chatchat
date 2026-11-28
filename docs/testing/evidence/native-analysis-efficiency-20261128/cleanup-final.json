@@ -1,0 +1,7 @@
+{
+  "bytes": 429291246,
+  "sha256": "37e132be4aafbac3170d34c678b49e5e5fff4d8672921993ec8cbf0b45a4adb8",
+  "retainedImage": "sha256:4fa0f5dea828acb3dfc580e9825c0f27fcc360cf65f4bc519202acc7a9dc1aa6",
+  "retainedJar": "/mnt/disk01/extreme-stability-313f35664/native-analysis-efficiency-20261128/src/chatchat-api/target/chatchat-api-1.0.0-SNAPSHOT.jar",
+  "stagingFile": "/mnt/disk01/extreme-stability-313f35664/native-analysis-efficiency-20261128/image-api/app.jar"
+}

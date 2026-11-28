@@ -1,6 +1,6 @@
 import {createHash} from 'node:crypto';
 import {createReadStream,constants} from 'node:fs';
-import {lstat,realpath,writeFile,rename,open} from 'node:fs/promises';
+import {lstat,realpath,writeFile,rename,open,opendir} from 'node:fs/promises';
 import {join,resolve,relative,isAbsolute} from 'node:path';
 import {reviewProfessionalReports} from './professional-report-review.mjs';
 
@@ -10,6 +10,50 @@ export function deliveryPath(value){
  return value;
 }
 export async function fileDigest(file){const hash=createHash('sha256');let size=0;for await(const chunk of createReadStream(file)){hash.update(chunk);size+=chunk.length;}return {size,sha256:hash.digest('hex')};}
+export const ANALYSIS_REPORT_DIR='output/report';
+export const ANALYSIS_RESULT_DIR='output/result';
+export async function discoverAnalysisDelivery(workspace,mode){
+ const root=await realpath(workspace),files=[];
+ const htmlAssets=/\.(?:css|js|json|csv|txt|png|svg|jpe?g|webp|gif|woff2?)$/i;
+ const reportRoot=ANALYSIS_REPORT_DIR,resultRoot=ANALYSIS_RESULT_DIR;
+ const reportFormat=mode==='visual'?/\.(?:html|md)$/i:/\.md$/i;
+ let entries=0;
+ async function scan(path,role,depth){
+  if(++entries>1000||depth>16)throw Error('Analysis delivery inventory is too large');
+  const full=join(root,deliveryPath(path)),stat=await lstat(full);
+  if(stat.isSymbolicLink())throw Error('Symlink delivery denied');
+  if(stat.isDirectory()){
+   for await(const entry of await opendir(full))await scan(path+'/'+entry.name,role,depth+1);
+   return;
+  }
+  if(!stat.isFile()||!stat.size)throw Error('Analysis delivery requires nonempty regular files');
+  let type;
+  if(role==='result'&&/\.json$/i.test(path))type='RESULT';
+  if(role==='report'){
+   if(reportFormat.test(path))type='REPORT';
+   else if(mode==='visual'&&htmlAssets.test(path))type=/\.(?:png|svg)$/i.test(path)?'CHART':'AUXILIARY';
+  }
+  if(!type)throw Error('Unsupported file format in '+(role==='result'?resultRoot:reportRoot));
+  files.push({path,type});
+ }
+ try{
+  const output=await lstat(join(root,'output'));
+  if(!output.isDirectory()||output.isSymbolicLink())throw Error('Analysis delivery output must be a regular directory');
+  for(const [path,role] of [[reportRoot,'report'],[resultRoot,'result']]){
+   const info=await lstat(join(root,path));
+   if(!info.isDirectory()||info.isSymbolicLink())throw Error('Expected a delivery directory at '+path);
+   await scan(path,role,0);
+  }
+ }catch(error){
+  if(error.code==='ENOENT')throw Error('Put the finished report in '+reportRoot+'/ and the structured JSON result in '+resultRoot+'/');
+  throw error;
+ }
+ if(files.filter(a=>a.type==='REPORT').length!==1||files.filter(a=>a.type==='RESULT').length!==1)
+  throw Error('Deliver exactly one report in '+reportRoot+'/ and one structured JSON result in '+resultRoot+'/');
+ if(files.some(a=>!['REPORT','RESULT'].includes(a.type))&&!files.some(a=>a.type==='REPORT'&&/\.html$/i.test(a.path)))
+  throw Error('Report companion files require an HTML report');
+ return files.sort((a,b)=>a.path<b.path?-1:a.path>b.path?1:0);
+}
 export async function readDeliverySelection(workspace){
  const root=await realpath(workspace),file=join(root,'delivery_manifest.json'),limit=512*1024;
  const stat=await lstat(file);if(!stat.isFile()||stat.isSymbolicLink()||stat.size>limit)throw Error('Delivery selection must be a regular JSON file of at most 512 KiB');

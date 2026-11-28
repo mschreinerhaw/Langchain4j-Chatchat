@@ -154,9 +154,16 @@ public final class NativeAnalysisBridge {
                 }
             }
             String metadataPath = "input/data/" + files.size() + "/data-supply-manifest.json";
+            var resultSchema=constrainReportCoverage(schema,inventory,context.metadata());
+            var frozenSchema=resultSchema==null?Map.<String,Object>of():resultSchema;
             try {
-                byte[] contents = json.writeValueAsBytes(Map.of("schemaVersion", "native-data-supply-inventory.v1",
-                    "datasets", inventory, "deliveredRows", rows, "deliveredSnapshotBytes", bytes));
+                var inventoryDocument=json.createObjectNode();
+                inventoryDocument.put("schemaVersion","native-data-supply-inventory.v1");
+                inventoryDocument.set("resultSchema",json.valueToTree(frozenSchema));
+                inventoryDocument.put("deliveredRows",rows);
+                inventoryDocument.put("deliveredSnapshotBytes",bytes);
+                inventoryDocument.set("datasets",json.valueToTree(inventory));
+                byte[] contents=json.writerWithDefaultPrettyPrinter().writeValueAsBytes(inventoryDocument);
                 var manifest = assets.store(UserAssetService.Owner.of(scope), UserAssetService.Kind.DATASET,
                     snapshotTask, scope.runId(), "native-supply-inventory:" + UserAssetService.hash(contents),
                     "data-supply-manifest.json", "application/json", contents);
@@ -175,12 +182,13 @@ public final class NativeAnalysisBridge {
                     +"Verify current facts using the supplied authorized inputs.";
             }
             if(instruction.length()>16000){byte[] data=instruction.getBytes(java.nio.charset.StandardCharsets.UTF_8);var file=assets.store(UserAssetService.Owner.of(scope),UserAssetService.Kind.DATASET,snapshotTask,scope.runId(),"native-original-objective:"+UserAssetService.hash(data),"original-task-objective.txt","text/plain",data);files.add(file.id());instruction="Read original-task-objective.txt from the supplied files for the full original user objective.";}
-            instruction+="\nStart with "+metadataPath+" for paths, observed field names, row counts and source assurance. Use Python to inspect source contexts and compute over the complete immutable JSONL files and long text records. Save full results as artifacts and use output/analysis_summary.json for compact metrics and diagnostic locations (up to 4096 bytes). If fieldInventoryComplete is false, discover additional fields programmatically. Treat SOURCE_INCOMPLETE and SOURCE_UNKNOWN snapshots as limited and disclose the missing coverage. Preserve source references and field names. Choose your own source structure and computation. Provide a complete Markdown report and the requested structured result; never treat transport/status observations as business data.";
             var types=List.of("REPORT","RESULT"); // Charts are optional: missing evidence must never force invented figures.
             String model=Objects.toString(context.metadata().get("modelName"),null);
             var capabilitySnapshot = new LinkedHashMap<>(capabilities.capture(scope, model, context.runtimeAttributes(),
                 context.metadata(), sources.size(), rows));
             capabilitySnapshot.put("analysisMetadataPath", metadataPath);
+            capabilitySnapshot.put("analysisSchemaInInventory",true);
+            capabilitySnapshot.put("analysisReportLanguage",reportLanguage(context.query(),context.metadata(),context.runtimeAttributes()));
             if (publishedTemplates != null && context.result() != null) {
                 Set<String> optionalIds = new LinkedHashSet<>();
                 for (var step : context.result().steps()) {
@@ -194,8 +202,7 @@ public final class NativeAnalysisBridge {
                     instruction += "\nIf the supplied files leave a material data gap, the task's authorized optional read-only templates are available through Runtime MCP. Continue the analysis in this workspace after inspecting its result.";
                 }
             }
-            var submitted=coding.submit(scope,request,files,instruction,model,types,
-                constrainReportCoverage(schema, inventory, context.metadata()),capabilitySnapshot);
+            var submitted=coding.submit(scope,request,files,instruction,model,types,frozenSchema,capabilitySnapshot);
             observer.accept(Map.of("eventKind","CODING_TASK_SUBMITTED","taskId",submitted.taskId(),"source","JAVA_NATIVE_S3"));
             var result=coding.await(scope,submitted.taskId(),context.cancellationCheck(),observer);
             result.put("authorizedDatasetReferences",authorizedReferences);
@@ -216,5 +223,25 @@ public final class NativeAnalysisBridge {
             }
             return result;
         });
+    }
+
+    static String reportLanguage(String query,Map<String,Object> metadata,Map<String,Object> attributes){
+        var languageMetadata=new LinkedHashMap<>(attributes);
+        languageMetadata.putAll(metadata);
+        String configured=new com.chatchat.agents.orchestration.answer.AnswerContractCompiler()
+            .compile(query,null,languageMetadata).language();
+        if(!"AUTO".equalsIgnoreCase(configured)){
+            try{
+                var locale=new Locale.Builder().setLanguageTag(configured).build();
+                if(!locale.getLanguage().isEmpty())return locale.toLanguageTag();
+            }catch(IllformedLocaleException ignored){/* Use the request language. */}
+        }
+        if(query!=null){
+            if(query.codePoints().anyMatch(cp->Character.UnicodeScript.of(cp)==Character.UnicodeScript.HIRAGANA
+                    ||Character.UnicodeScript.of(cp)==Character.UnicodeScript.KATAKANA))return "ja";
+            if(query.codePoints().anyMatch(cp->Character.UnicodeScript.of(cp)==Character.UnicodeScript.HANGUL))return "ko";
+            if(query.codePoints().anyMatch(cp->Character.UnicodeScript.of(cp)==Character.UnicodeScript.HAN))return "zh";
+        }
+        return "AUTO";
     }
 }

@@ -105,6 +105,33 @@ class NativeRuntimeMcpControllerTest {
             .andExpect(status().isNoContent());
         verify(quota).settle(any(),eq("task"),eq("model-1"),eq(42L),eq(false));
     }
+    @Test void retiredWorkerMaySettleItsExistingReceiptButCannotAdmitAnotherCall()throws Exception{
+        String retired=settings.client.signGrant(Map.of("version",2,"tenantId","tenant","userId","user","taskId","task",
+            "analysisModelBudget",true,"sessionId","old-session","expiresAt",System.currentTimeMillis()+60000,
+            "deliveryBinding",Map.of("runId","run")),settings.issuerKey);
+        when(tasks.privateState(any(),eq("task"),eq("native-s3:retired:old-session")))
+            .thenReturn(json.valueToTree(Map.of("grant",retired)));
+        mvc.perform(post("/internal/runtime/native-coding/model-settlement").header("Authorization","Bearer "+retired)
+            .contentType("application/json").content("{\"requestId\":\"model-1\",\"providerTokens\":42}"))
+            .andExpect(status().isNoContent());
+        mvc.perform(post("/internal/runtime/native-coding/model-admission").header("Authorization","Bearer "+retired)
+            .contentType("application/json").content("{\"requestId\":\"model-2\",\"inputUpperBound\":20,\"outputUpperBound\":80}"))
+            .andExpect(status().isForbidden());
+        String oldReceipt=com.chatchat.api.enterprise.service.TokenQuotaLedger.nativeReceiptId("old-session","model-1");
+        verify(quota).settle(any(),eq("task"),eq(oldReceipt),eq(42L),eq(false));
+        verifyNoMoreInteractions(quota);
+    }
+    @Test void frozenAnalysisModelBudgetDenialRequestsTheBudgetTerminalReason()throws Exception{
+        when(contract.runtimeContext()).thenReturn(Map.of("analysisMetadataPath","input/data/1/data-supply-manifest.json"));
+        when(contract.budget().maxModelCalls()).thenReturn(1L);
+        when(contract.budget().maxModelTokens()).thenReturn(-1L);
+        when(quota.reserve(any(),eq("task"),eq("model-2"),eq(20L),eq(80L),eq(1L),eq(-1L)))
+            .thenReturn(com.chatchat.api.enterprise.service.TokenQuotaLedger.Decision.TASK_BUDGET_EXHAUSTED);
+        mvc.perform(post("/internal/runtime/native-coding/model-admission").header("Authorization","Bearer "+token)
+            .contentType("application/json").content("{\"requestId\":\"model-2\",\"inputUpperBound\":20,\"outputUpperBound\":80}"))
+            .andExpect(status().isTooManyRequests()).andExpect(header().string("X-Runtime-Model-Rejection","RUNTIME_TASK_MODEL_BUDGET_EXHAUSTED"));
+        verify(tasks).requestNativeModelBudgetStop(any(),eq("task"),eq(token));
+    }
     @Test void signedCrossRunCapabilityStillNeedsExactDurableBinding()throws Exception{
         request(grant(System.currentTimeMillis()+60000,"other"),"{}").andExpect(status().isForbidden());verifyNoInteractions(internet,skills);
     }

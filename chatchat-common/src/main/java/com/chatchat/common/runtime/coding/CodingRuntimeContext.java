@@ -8,10 +8,24 @@ public final class CodingRuntimeContext {
     public static Map<String, Object> validate(Map<String, Object> value) {
         if (value == null || value.isEmpty()) return Map.of();
         CodingProtocol.require(value.keySet().stream().allMatch(Set.of("schemaVersion", "capturedAt",
-            "consistency", "model", "skills", "builtinSkillPolicy", "configuredSkillIds", "inputFiles", "executionProfile", "reasoning", "reportMode", "reportPresentation", "pythonEnvironment", "scriptPurpose", "codingLifecycle", "analysisResultMode", "analysisInstructions", "codeProject", "knowledgeExploration", "internetSearch", "internetAvailability", "documentSearch", "publishedTemplate", "analysisMetadataPath")::contains), "Unknown Coding context field");
+            "consistency", "model", "skills", "builtinSkillPolicy", "configuredSkillIds", "inputFiles", "executionProfile", "reasoning", "reportMode", "reportPresentation", "pythonEnvironment", "scriptPurpose", "codingLifecycle", "analysisResultMode", "analysisInstructions", "codeProject", "knowledgeExploration", "internetSearch", "internetAvailability", "documentSearch", "publishedTemplate", "analysisMetadataPath", "analysisSchemaInInventory", "analysisReportLanguage", "analysisResultSchemaPath")::contains), "Unknown Coding context field");
         if(value.containsKey("analysisMetadataPath")){
             CodingProtocol.require(value.get("analysisMetadataPath") instanceof String path
                 &&path.matches("input/data/[0-9]{1,2}/data-supply-manifest\\.json"),"Invalid analysis metadata path");
+        }
+        if(value.containsKey("analysisSchemaInInventory")){
+            CodingProtocol.require(value.containsKey("analysisMetadataPath")
+                &&Boolean.TRUE.equals(value.get("analysisSchemaInInventory")),"Analysis result schema requires a frozen inventory");
+        }
+        if(value.containsKey("analysisResultSchemaPath")){
+            CodingProtocol.require(value.containsKey("analysisMetadataPath")
+                &&value.get("analysisResultSchemaPath") instanceof String path
+                &&path.matches("input/data/[0-9]{1,2}/result-schema[.]json"),"Invalid legacy analysis result schema path");
+        }
+        if(value.containsKey("analysisReportLanguage")){
+            CodingProtocol.require(value.containsKey("analysisMetadataPath")
+                &&value.get("analysisReportLanguage") instanceof String language&&language.length()<=64
+                &&language.matches("AUTO|[A-Za-z]{2,8}(?:-[A-Za-z0-9]{1,8})*"),"Invalid analysis report language");
         }
         if(value.containsKey("documentSearch")){
             CodingProtocol.require(value.get("documentSearch") instanceof Map<?,?>,"Document capability required");

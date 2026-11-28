@@ -5,6 +5,20 @@ import org.junit.jupiter.api.Test;
 import static org.assertj.core.api.Assertions.*;
 
 class CodingNativeAnalysisObjectiveTest {
+    @Test void defaultsChineseRequestsToChineseAndUsesAnExplicitLanguageOption(){
+        var empty=java.util.Map.<String,Object>of();
+        assertThat(NativeAnalysisBridge.reportLanguage("\u5206\u6790\u8fd0\u884c\u6570\u636e",empty,empty)).isEqualTo("zh");
+        assertThat(NativeAnalysisBridge.reportLanguage("\u5206\u6790",java.util.Map.of("responseLanguage","en-GB"),empty)).isEqualTo("en-GB");
+        assertThat(NativeAnalysisBridge.reportLanguage("Analyze the statistics",empty,empty)).isEqualTo("AUTO");
+    }
+    @Test void schemaDiagnosticsPointToExactNestedFieldsWithoutEchoingValues(){
+        var item=java.util.Map.<String,Object>of("type","object","properties",java.util.Map.of("a/b",java.util.Map.of("type","integer")),"required",List.of("a/b"));
+        var rule=java.util.Map.<String,Object>of("type","array","items",item);
+        assertThatThrownBy(()->com.chatchat.agents.orchestration.analysis.graph.WorkspaceResultSchema.validate(List.of(java.util.Map.of()),rule))
+            .hasMessageContaining("MISSING_REQUIRED_FIELDS").hasMessageContaining("/0/a~1b");
+        assertThatThrownBy(()->com.chatchat.agents.orchestration.analysis.graph.WorkspaceResultSchema.validate(List.of(java.util.Map.of("a/b","private")),rule))
+            .hasMessage("TYPE_MISMATCH at /0/a~1b - expected integer");
+    }
     @Test void nativeVisualTasksRetainTheCompleteExistingVisualAndPresentationContract() throws Exception {
         var attributes=java.util.Map.<String,Object>of("reportMode","visual","reportPresentation",java.util.Map.of("strategy","concise","autoImages",false));
         var chunks=CodingNativeAnalysisObjective.contextInstructions(java.util.Map.of("source","unchanged"),java.util.Map.of(),attributes);

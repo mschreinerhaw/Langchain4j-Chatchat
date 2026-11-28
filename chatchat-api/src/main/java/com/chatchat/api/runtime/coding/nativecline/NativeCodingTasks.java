@@ -48,8 +48,7 @@ public final class NativeCodingTasks {
             var metadata=assets.store(UserAssetService.Owner.of(scope),UserAssetService.Kind.DATASET,task,scope.runId(),"native-empty-input:"+task,"authorized-input-scope.json","application/json","{\"inputStatus\":\"NO_FILES_SUPPLIED\",\"sources\":[]}".getBytes(StandardCharsets.UTF_8));
             original=List.of(metadata.id());
         }
-        var budget=new CodingTaskContract.Budget("native-budget:"+task,CodingTaskContract.Budget.USER_MANAGED_DEADLINE,
-            -1,-1,-1,-1,"unlimited","USD",-1,3L*1024*1024*1024,64L*1024*1024);
+        var budget=settings.analysisBudget(task,capabilities.containsKey("analysisMetadataPath"));
         var contract=capture.capture(scope,task,original,instruction,selected,budget,Map.of("profile","artifact-integrity-v1"),artifactTypes==null||artifactTypes.isEmpty()?List.of("RESULT"):List.copyOf(artifactTypes),schema,capabilities);
         return new Submitted(task,scope.runId(),adapter.submit(contract));
     }

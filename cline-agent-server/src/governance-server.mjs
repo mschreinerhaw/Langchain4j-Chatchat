@@ -162,7 +162,6 @@ async function broker(r,path){
     applyPublishedModelLimit(requestBody,profile,req.url.endsWith('/responses'));
     applyPublishedReasoning(requestBody,profile,req.url.endsWith('/responses'));
     admitStudioModel(r,requestBody,req.url.endsWith('/responses'));
-    event(r,'model.forwarded',{model:profile.model,maxTokens:profile.maxTokens??null});
    }else throw error('Broker route not found',404);
    if(!live(r))throw error('Task lease inactive',403);
    const controller=new AbortController();if(!calls.has(r.workerId))calls.set(r.workerId,new Set());calls.get(r.workerId).add(controller);
@@ -190,14 +189,16 @@ async function broker(r,path){
      await decision.body?.cancel();
      if(decision.status!==204){
       const known=[400,401,403,409,429].includes(decision.status);
-      event(r,'model.request.rejected',{model:modelProfile.model,requestId,
-       code:decision.status===429?'RUNTIME_TOKEN_QUOTA_EXHAUSTED':
+      const reason=decision.headers.get('x-runtime-model-rejection');
+      const taskBudget=decision.status===429&&['RUNTIME_TASK_MODEL_BUDGET_EXHAUSTED','RUNTIME_TASK_MODEL_BUDGET_RESERVED'].includes(reason);
+      event(r,'model.request.rejected',{model:modelProfile.model,requestId,...r.analysisTurn,
+       code:taskBudget?reason:decision.status===429?'RUNTIME_TOKEN_QUOTA_EXHAUSTED':
         known?'RUNTIME_MODEL_AUTHORIZATION_REJECTED':'RUNTIME_MODEL_AUTHORITY_UNAVAILABLE',providerDispatched:false});
       throw error('Runtime model admission rejected',known?decision.status:503);
      }
     }
     if(modelProfile)observation=modelReceipt({model:modelProfile.model,request,body:requestBody,requestId,
-      reasoning:{requestedReasoningEffort:modelProfile.requestedReasoningEffort,reasoningEffort:modelProfile.requestedReasoningEffort===undefined?modelProfile.reasoningEffort:modelProfile.reasoningEffort??'off',
+      reasoning:{...r.analysisTurn,requestedReasoningEffort:modelProfile.requestedReasoningEffort,reasoningEffort:modelProfile.requestedReasoningEffort===undefined?modelProfile.reasoningEffort:modelProfile.reasoningEffort??'off',
        modelAttemptId:r.contract.modelAttemptId},
       emit:(type,payload)=>{
        if(type==='model.request.completed')settleStudioModel(r,payload);
@@ -228,6 +229,7 @@ async function broker(r,path){
     // The managed Gateway enforces the forwarded deadline. A second timer here can
     // close the socket first and make the Gateway record an ordinary disconnect.
     upstreamSignal=modelProfile&&!managed?taskSignal(r.contract,controller):controller.signal;
+    if(modelProfile)event(r,'model.forwarded',{model:modelProfile.model,requestId,maxTokens:modelProfile.maxTokens??null,managedGateway:!!managed});
     const upstream=managed?await requestModelGateway(url,{headers,body:request,signal:upstreamSignal})
      :await fetch(url,{method:'POST',headers,body:request,signal:upstreamSignal,redirect:'error'});
     observation?.headers(managed?upstream.headers.get('x-request-id'):undefined,
@@ -345,6 +347,7 @@ const server=http.createServer(async(req,res)=>{
   if(path==='/v1/sessions'&&req.method==='POST'){
    const b=await body(req),key=req.headers['idempotency-key'];if(!key||Object.keys(b).some(k=>!['editTool',...(c.s3?['inputs']:[])].includes(k))||b.editTool&&!['editor','apply_patch'].includes(b.editTool))throw error('Invalid create request');
    if(c.analysisMetadataPath&&!executor)throw error('Analysis requires a restricted Native Executor',409);
+   if(c.analysisModelBudget&&typeof tenant.runtimeModelAuthority!=='string')throw error('Analysis budget requires Runtime model admission',403);
    if(c.s3)validateS3Inputs(c,b.inputs,cfg.s3);
    if(expired(c))throw error('Task identity expired',401);
    let r=records.get(c.sessionId);if(r){authorizeSession(c,r);if(r.createKey!==key||r.editTool!==(b.editTool??'editor'))throw error('Create conflict',409);return send(res,200,publicState(r));}
@@ -441,6 +444,15 @@ const server=http.createServer(async(req,res)=>{
   }
   if(!live(r))throw error('Task lease inactive',403);
   if(parts[3]==='messages'&&req.method==='POST'){
+   if(r.contract.analysisDelivery){
+    const key=req.headers['idempotency-key'];
+    if(typeof key==='string'&&/^[A-Za-z0-9_-]{1,128}$/.test(key)){
+     const stage=key==='objective-'+r.contract.sessionId?'PRIMARY_ANALYSIS':
+      /^delivery-rejection-v[1-9][0-9]*$/.test(key)?'DELIVERY_REPAIR':'UNCLASSIFIED_TURN';
+     r.analysisTurn={executionStage:stage,turnMessageId:key};
+     save(r);
+    }
+   }
    if(typeof value.text==='string')value.text+=nativeSkillDiscoveryContext(r.nativeSkillIndex);
   }
   let reply;

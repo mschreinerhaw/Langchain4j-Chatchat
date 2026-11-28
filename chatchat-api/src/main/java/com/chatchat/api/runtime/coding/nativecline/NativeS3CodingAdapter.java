@@ -428,14 +428,22 @@ public final class NativeS3CodingAdapter implements CodingAgentSPI {
         grant.put("toolPermissions",c.authorization().allowedTools());grant.put("dataPermissions",List.of());grant.put("networkPolicy","broker-only");grant.put("expiresAt",c.budget().deadlineAt().toEpochMilli());grant.put("runtimeProfile","native-python-silo-v1");
         if(!c.budget().hasDeadline())grant.put("userManagedDeadline",true);
         grant.put("deliveryBinding",Map.of("tenantId",c.scope().tenantId(),"taskId",c.taskId(),"runId",c.scope().runId(),"inputSnapshotVersion",ws.snapshotVersion()));
+        String analysisDelivery="";
+        boolean analysisModelBudget=false;
         if(c.runtimeContext().get("analysisMetadataPath") instanceof String path){
             if(files.stream().noneMatch(file->file.path().equals(path)))
                 throw new IllegalStateException("Analysis metadata is absent from the frozen input inventory");
             grant.put("analysisMetadataPath",path);
+            analysisModelBudget=c.budget().maxModelCalls()>=0||c.budget().maxModelTokens()>=0;
+            if(analysisModelBudget)grant.put("analysisModelBudget",true);
+            if(Set.copyOf((List<?>)frozen.get("artifactTypes")).equals(Set.of("REPORT","RESULT"))){
+                analysisDelivery=com.chatchat.common.runtime.coding.VisualReportMode.active(c.runtimeContext())?"visual":"plain";
+                grant.put("analysisDelivery",analysisDelivery);
+            }
         }
         grant.put("runtimeTools",c.authorization().allowedTools().stream().filter(t->Set.of("agent_skill_read","workspace_metadata","workspace_validate","execute_published_template").contains(t)||com.chatchat.api.runtime.coding.knowledge.CodingInternetAccess.NATIVE_TOOLS.contains(t)||com.chatchat.api.runtime.coding.knowledge.CodingDocumentSearchAccess.NATIVE_TOOLS.contains(t)).toList());
         grant.put("s3",Map.of("origin",policy.get("origin"),"inputPrefix",policy.get("inputPrefix"),"outputPrefix",policy.get("outputPrefix"),"inputManifestSha256",client(r).inputManifestHash(files)));
-        return json.valueToTree(Map.of("sessionId",session,"grant",client(r).signGrant(grant,settings.issuerKey),"inputs",files,"transportEpoch",ws.epoch(),"nodeId",settings.nodeId(),"executionEpoch",UUID.randomUUID().toString(),"workflowId",r.control==null?"":r.control.workflowId(),"fencingToken",r.lease.fencingToken()));
+        return json.valueToTree(Map.of("sessionId",session,"grant",client(r).signGrant(grant,settings.issuerKey),"inputs",files,"transportEpoch",ws.epoch(),"nodeId",settings.nodeId(),"executionEpoch",UUID.randomUUID().toString(),"workflowId",r.control==null?"":r.control.workflowId(),"fencingToken",r.lease.fencingToken(),"analysisDelivery",analysisDelivery,"analysisModelBudget",analysisModelBudget));
     }
     private boolean recoverBinding(Run r){
         var prior=state(r,BINDING);boolean restart;
@@ -491,12 +499,17 @@ public final class NativeS3CodingAdapter implements CodingAgentSPI {
         if(dispatched)log.info("Native analysis replay scheduled taskId={} retiredSessionId={}",
             r.c.taskId(),prior.path("sessionId").asText());
     }
+    private boolean hostSelectsAnalysisFiles(Run r){
+        return !state(r,BINDING).path("analysisDelivery").asText().isEmpty();
+    }
     private String instruction(Run r){
         if(NativeSiloTaskService.studio(r.c))return r.c.objective().instruction()
             +"\nKeep input/ read-only. Create delivery_manifest.json with schemaVersion coding_node_delivery_selection.v1 "
             +"and artifacts [{path:\"output/studio-proposal.json\",type:\"RESULT\"}]. Runtime validates proposed files before review. "
             +"Finish using the native completion action.";
         var frozen=inputs.requireAuthorized(r.c);var ws=workspace.get(r.c.scope(),r.c.taskId());
+        boolean hostSelection=hostSelectsAnalysisFiles(r);
+        if(hostSelection)return analysisInstruction(r.c,frozen);
         return r.c.objective().instruction()+"\n\nRuntime delivery contract (not analysis instructions): Read the authorized original files at these real workspace paths: "+ws.inputs().stream().map(SiloCodingWorkspaceService.Input::path).toList()
             +". Runtime Internet admission: "+r.c.runtimeContext().getOrDefault("internetAvailability",Map.of("status","NOT_ADMITTED"))+"; authorized optional Runtime MCP tools: "+r.c.authorization().allowedTools().stream().filter(t->t.equals("agent_skill_read")||com.chatchat.api.runtime.coding.knowledge.CodingInternetAccess.NATIVE_TOOLS.contains(t)||com.chatchat.api.runtime.coding.knowledge.CodingDocumentSearchAccess.NATIVE_TOOLS.contains(t)).map(t->"runtime__"+t).toList()+". An unavailable capability is an evidence gap, not an empty public dataset; direct worker networking is not granted. input/ is read-only. Choose meaningful source names and any project structure. Use native tools and local Python when computation is needed; no remote Sandbox. Process the full authorized files locally. Keep large input and intermediate tables on disk and use bounded excerpts and computed summaries when inspecting them. Inspect real execution errors and repair your own code. Do not invent data or evidence. "
             +NativeVisualReport.instruction(r.c.runtimeContext())
@@ -506,6 +519,28 @@ public final class NativeS3CodingAdapter implements CodingAgentSPI {
             +"Deliver the requested artifact types: "+frozen.get("artifactTypes")+". Create delivery_manifest.json with schemaVersion coding_node_delivery_selection.v1 and artifacts [{path,type}]. Each path is relative to /workspace and identifies an existing file you choose. Allowed types: SOURCE, REPORT, RESULT, CHART, TEST, AUXILIARY. Do not include input/, logs/, evidence/, .git/ or the selection manifest itself. "
             +(frozen.get("resultSchema") instanceof Map<?,?> schema&&!schema.isEmpty()?"The declared RESULT JSON must match this structural schema (an object or an array of matching objects): "+new String(evidence.bytes(schema),StandardCharsets.UTF_8)+". ":"")
             +"Run and inspect your project and actual deliverables before ending the turn. Runtime, not the Agent, verifies hashes, object versions and acceptance.";
+    }
+    private String analysisInstruction(CodingTaskContract task,Map<String,Object> frozen){
+        var context=task.runtimeContext();
+        String schema="";
+        if(Boolean.TRUE.equals(context.get("analysisSchemaInInventory"))){
+            schema="Use resultSchema at the start of that inventory. If a tool abbreviates the inventory, read the relevant lines or parse the full file locally. Keep the RESULT contract fields separate from intermediate metrics. ";
+        }else if(frozen.get("resultSchema") instanceof Map<?,?> legacy&&!legacy.isEmpty()){
+            schema="The RESULT must match this frozen schema: "+new String(evidence.bytes(legacy),StandardCharsets.UTF_8)+". ";
+        }
+        String language=Objects.toString(context.get("analysisReportLanguage"),"AUTO");
+        var tools=task.authorization().allowedTools().stream().filter(t->t.startsWith("runtime__")&&!t.endsWith("*")).toList();
+        boolean visual=com.chatchat.common.runtime.coding.VisualReportMode.active(context);
+        return task.objective().instruction()+"\n\nRuntime task contract\n"
+            +"Workspace: /workspace. Read "+context.get("analysisMetadataPath")+" for authorized data paths, formats, observed fields and row coverage. Find other authorized attachments in input/manifest.json. Input is read-only. "
+            +"Use native tools and local Python over the full immutable data. Keep raw rows, intermediate tables and full logs on disk. Inspect only needed samples and compact diagnostics. "
+            +"Preserve source references and report coverage gaps. Invent no measurements or evidence. Optional Runtime tools: "+tools+". Direct network access is unavailable.\n"
+            +"Deliverables: use the existing output/report/ directory for one "+(visual?"HTML report (Markdown fallback)":"Markdown report with tables")
+            +" and output/result/ for one structured JSON object or nonempty array of objects. Choose the file names. Keep drafts, scripts and intermediate data elsewhere. "
+            +"Report language: "+("AUTO".equals(language)?"the language of the user's request":language)
+            +". Follow any explicit language request in the task objective. "+schema+"\n"
+            +NativeVisualReport.instruction(context,true)
+            +"When the analysis and both deliverables are ready, invoke native completion. Runtime discovers files, validates the result, seals the inventory and verifies uploaded objects.";
     }
     private long cursor(Run r,String channel){var n=state(r,"native-s3:read:"+channel);return n==null?0:n.path("sequence").asLong();}
     private void poll(Run r,String channel){
@@ -533,13 +568,13 @@ public final class NativeS3CodingAdapter implements CodingAgentSPI {
         if(channel.equals("provider")&&type.equals("model.request.rejected")){
             group="model-admission";telemetryId=event.path("eventId").asText();
             normalized="ERROR_OCCURRED";summary=p.path("code").asText();
-            for(String field:List.of("requestId","code","model","receivedBytes","limitBytes","providerDispatched"))
+            for(String field:List.of("requestId","code","model","receivedBytes","limitBytes","providerDispatched","executionStage","turnMessageId"))
                 if(p.hasNonNull(field))projected.put(field,json.convertValue(p.get(field),Object.class));
         }else if(channel.equals("provider")&&type.startsWith("model.request.")){
             operation="model-"+p.path("requestId").asText();kind=CodingJournal.OperationKind.MODEL;complete=type.equals("model.request.completed");long tokens=p.path("usage").path("totalTokens").asLong();
             actual=new Counters(1,tokens,0,0,0,0,0,"0");metered=complete&&p.path("usage").path("totalTokens").isNumber();
             normalized=complete?"MODEL_REQUEST_COMPLETED":"MODEL_REQUEST_STARTED";summary=p.path("providerModel").asText(p.path("model").asText());group="model";telemetryId=p.path("requestId").asText();
-            for(String field:List.of("requestId","gatewayRequestId","modelAttemptId","model","providerModel","usage","usageStatus","durationMs","requestContext","requestedReasoningEffort","reasoningEffort","httpStatus","errorCode","errorType","responseTiming","failurePhase","transportErrorCode","providerDispatched"))if(p.hasNonNull(field))projected.put(field,json.convertValue(p.get(field),Object.class));
+            for(String field:List.of("requestId","gatewayRequestId","providerRequestId","modelAttemptId","model","providerModel","usage","usageStatus","durationMs","requestContext","requestedReasoningEffort","reasoningEffort","httpStatus","errorCode","errorType","responseTiming","failurePhase","transportErrorCode","providerDispatched","executionStage","turnMessageId"))if(p.hasNonNull(field))projected.put(field,json.convertValue(p.get(field),Object.class));
         }else if(channel.equals("provider")){
             summary=type+": "+p.path("tool").asText(p.path("name").asText(p.path("url").asText()));
             for(String field:List.of("tool","requestId","isError","skillId","name","version","source","bytes","url","sha256","size","path","assetId","retrieved_at","files"))if(p.hasNonNull(field))projected.put(field,json.convertValue(p.get(field),Object.class));
@@ -552,6 +587,11 @@ public final class NativeS3CodingAdapter implements CodingAgentSPI {
         }else if(type.startsWith("tool.")){
             String tool=p.path("toolName").asText();operation="tool-"+evidence.hash(p.path("toolCallId")).substring(0,32);kind=CodingJournal.OperationKind.TOOL;
             complete=!type.equals("tool.started");actual=new Counters(0,0,1,0,0,0,0,"0");projected.put("toolCallId",p.path("toolCallId").asText());
+            if(p.has("input"))projected.put("argumentSha256",evidence.hash(p.get("input")));
+            if(p.has("output")){
+                projected.put("resultSha256",evidence.hash(p.get("output")));
+                projected.put("resultBytes",evidence.bytes(p.get("output")).length);
+            }
             // These metadata callbacks reserve their calls in the same Runtime journal before dispatch.
             if(NativeSiloTaskService.studio(r.c)&&tool.matches("(?:runtime__|tenant_data__)?workspace_(?:metadata|validate)"))
                 operation=null;
@@ -582,7 +622,9 @@ public final class NativeS3CodingAdapter implements CodingAgentSPI {
         tasks.recordNativeObservation(r.c.scope(),r.c.taskId(),r.lease,outcome(r).revision(),new DurableCodingTaskService.NativeObservation(channel,event.path("eventId").asLong(),event.path("eventId").asText(),evidence.hash(event),ref,normalized,summary.substring(0,Math.min(2048,summary.length())),projected,usage,group,telemetryId,telemetry));
         if("model".equals(group)&&complete){
             var total=p.path("usage").path("totalTokens");
-            quota.settle(r.c.scope(),r.c.taskId(),telemetryId,total.isIntegralNumber()&&total.canConvertToLong()&&total.longValue()>0?total.longValue():null,
+            String receiptId=execution.path("analysisModelBudget").asBoolean()?
+                com.chatchat.api.enterprise.service.TokenQuotaLedger.nativeReceiptId(execution.path("sessionId").asText(),telemetryId):telemetryId;
+            quota.settle(r.c.scope(),r.c.taskId(),receiptId,total.isIntegralNumber()&&total.canConvertToLong()&&total.longValue()>0?total.longValue():null,
                 p.path("providerDispatched").isBoolean()&&!p.path("providerDispatched").booleanValue());
         }
         if("execution".equals(group)&&complete&&outcome(r).executionControl().stopReason()==null)linkRepair(r,telemetry);
@@ -665,7 +707,14 @@ public final class NativeS3CodingAdapter implements CodingAgentSPI {
         });
         try{client(r).accept(grant,session,evidence.hash(manifest),true,outcome(r).validationRecordRef());}catch(RuntimeException ackUnknown){evidence.archive(r.c,"node-acceptance-ack","node-acceptance-ack.json",evidence.bytes(Map.of("acknowledgement","UNKNOWN","runtimeAcceptanceCommitted",true)));}return true;
     }
-    private static boolean matches(Map<String,Object> schema,Map<String,Object> row){try{com.chatchat.agents.orchestration.analysis.graph.WorkspaceResultSchema.validate(row,schema);return true;}catch(IllegalArgumentException mismatch){return false;}}
+    private static boolean matches(Map<String,Object> schema,Map<String,Object> row){
+        try{
+            com.chatchat.agents.orchestration.analysis.graph.WorkspaceResultSchema.validate(row,schema);
+            return true;
+        }catch(IllegalArgumentException mismatch){
+            return false;
+        }
+    }
     private String validateCandidate(Run r,JsonNode preview){
         if(NativeSiloTaskService.studio(r.c))return validateStudio(r,preview);
         var frozen=inputs.requireAuthorized(r.c);var types=new HashSet<String>();preview.path("artifacts").forEach(a->types.add(a.path("type").asText()));
@@ -674,14 +723,37 @@ public final class NativeS3CodingAdapter implements CodingAgentSPI {
                 && !NativeVisualReport.hasSupportedDelivery(preview.path("artifacts")))
             return "Deliver one HTML report or a Markdown report with the supported findings and data limitations.";
         var schema=(Map<String,Object>)frozen.getOrDefault("resultSchema",Map.of());if(schema.isEmpty())return null;
-        var b=state(r,BINDING);for(var a:preview.path("artifacts"))if(a.path("type").asText().equals("RESULT"))try{
-            var data=json.readTree(client(r).previewContent(b.path("grant").asText(),b.path("sessionId").asText(),preview,a.path("path").asText()));
-            if(data==null||data.isNull())continue;
-            var rows=json.convertValue(data.isArray()?data:json.createArrayNode().add(data),new com.fasterxml.jackson.core.type.TypeReference<List<Map<String,Object>>>(){});
-
-            if(!rows.isEmpty()&&rows.stream().allMatch(row->matches(schema,row)))return null;
-        }catch(java.io.IOException|IllegalArgumentException invalid){/* Try another declared RESULT. Transport and integrity failures must propagate. */}
-        return "No declared RESULT JSON matches the frozen output schema: "+new String(evidence.bytes(schema),StandardCharsets.UTF_8);
+        var b=state(r,BINDING);
+        var diagnostics=new ArrayList<String>();
+        for(var a:preview.path("artifacts"))if(a.path("type").asText().equals("RESULT")){
+            String path=a.path("path").asText();
+            byte[] content=client(r).previewContent(b.path("grant").asText(),b.path("sessionId").asText(),preview,path);
+            String diagnostic=validateResultJson(content,schema);
+            if(diagnostic==null)return null;
+            if(diagnostics.size()<3)diagnostics.add(path+" - "+diagnostic);
+        }
+        return "RESULT validation failed. Repair only the indicated JSON fields and keep the report unchanged unless its conclusions change. "
+            +String.join(" | ",diagnostics);
+    }
+    private String validateResultJson(byte[] content,Map<String,Object> schema){
+        try{
+            var data=json.reader().with(DeserializationFeature.FAIL_ON_TRAILING_TOKENS).readTree(content);
+            if(data==null||(!data.isArray()&&!data.isObject())||data.isEmpty()&&data.isArray())
+                return "INVALID_RESULT_ROOT - write a JSON object or a nonempty array of objects";
+            if(data.isArray()){
+                int index=0;
+                for(var row:data){
+                    if(!row.isObject())return "TYPE_MISMATCH at /"+index+" - expected object";
+                    com.chatchat.agents.orchestration.analysis.graph.WorkspaceResultSchema.validate(
+                        json.convertValue(row,Object.class),schema,"/"+index++);
+                }
+            }else com.chatchat.agents.orchestration.analysis.graph.WorkspaceResultSchema.validate(json.convertValue(data,Object.class),schema);
+            return null;
+        }catch(java.io.IOException invalid){
+            return "INVALID_JSON - correct the JSON syntax and keep a single document";
+        }catch(IllegalArgumentException mismatch){
+            return mismatch.getMessage();
+        }
     }
     private static final String STUDIO_PROPOSAL="output/studio-proposal.json";
     private String validateStudio(Run r,JsonNode preview){
@@ -733,7 +805,8 @@ public final class NativeS3CodingAdapter implements CodingAgentSPI {
             throw new DeliveryRejected();
         save(r,"native-s3:repair-intent",Map.of("version",version,"fingerprint",fingerprint,"repeats",repeats,
             "receiptAssetId",receipt.id(),"text","Actual Runtime delivery contract rejection: "+rejection
-                +". Correct the deliverable and its selection manifest in this same session, then finish again."));
+                +(hostSelectsAnalysisFiles(r)?". Correct the specified deliverable in this same session, then use native completion."
+                    :". Correct the deliverable and its selection manifest in this same session, then finish again.")));
     }
     private static boolean workerStopped(JsonNode remote){
         var running=remote.path("stopProof").path("running");

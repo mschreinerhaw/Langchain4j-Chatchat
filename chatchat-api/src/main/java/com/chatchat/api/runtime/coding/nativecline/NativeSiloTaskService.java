@@ -89,7 +89,8 @@ public final class NativeSiloTaskService {
         if(selectedModel==null||selectedModel.isBlank()||selectedModel.length()>256
                 ||selectedModel.chars().anyMatch(Character::isISOControl))
             throw new IllegalArgumentException("Native model logical name must contain 1–256 UTF-16 code units and no control characters");
-        if(budget==null||!workspaceReview&&(budget.maxModelCalls()!=-1||budget.maxToolCalls()!=-1||budget.maxCodeExecutions()!=-1))
+        if(budget==null||!workspaceReview&&(budget.maxModelCalls()!=-1
+                &&!(capabilities.get("analysisMetadataPath") instanceof String)||budget.maxToolCalls()!=-1||budget.maxCodeExecutions()!=-1))
             throw new IllegalArgumentException("Native profile requires unlimited model/tool/code execution counts");
         if(!workspaceReview&&(budget.maxMemoryBytes()<1||budget.maxOutputBytes()<1))
             throw new IllegalArgumentException("Native profile requires explicit memory and output resource protection");

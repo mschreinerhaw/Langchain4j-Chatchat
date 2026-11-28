@@ -132,9 +132,11 @@ public final class DurableCodingTaskService implements CodingAgentSPI {
                     &&Objects.equals(nativeBinding.path("executionEpoch").asText(),observation.payload().get("executionEpoch")),
                     AUTHORIZATION_DENIED,"Native observation belongs to a superseded execution");
             boolean studio=task.contract.metadataRefs().contains("runtime-coding:native-studio:v1");
+            boolean analysis=task.contract.runtimeContext().get("analysisMetadataPath") instanceof String;
             require(task.contract.metadataRefs().contains("runtime-coding:native-python-silo:v1")
                 &&(studio?task.contract.budget().maxCodeExecutions()==0:
-                    CodingLimit.unlimited(task.contract.budget().maxModelCalls())&&CodingLimit.unlimited(task.contract.budget().maxToolCalls())&&CodingLimit.unlimited(task.contract.budget().maxCodeExecutions())),
+                    (analysis||CodingLimit.unlimited(task.contract.budget().maxModelCalls()))
+                    &&CodingLimit.unlimited(task.contract.budget().maxToolCalls())&&CodingLimit.unlimited(task.contract.budget().maxCodeExecutions())),
                 AUTHORIZATION_DENIED,"Frozen Native execution profile required");
             String cursorKey="native-s3:cursor:"+observation.channel();var old=task.privateState.get(cursorKey);
             if(old!=null&&observation.sourceSequence()<=old.path("sequence").asLong()){
@@ -166,6 +168,14 @@ public final class DurableCodingTaskService implements CodingAgentSPI {
             task.events.set(last,task.events.get(last).withPayload(payload));
             if(studio && !CodingBudgetMath.within(usage(task).consumed(),task.contract.budget()))
                 requestStop(task,BUDGET_EXCEEDED,"Studio cumulative budget exceeded by observed usage");
+            var modelBudget=task.contract.budget();
+            if(analysis&&nativeUsage!=null&&nativeUsage.kind()==CodingJournal.OperationKind.MODEL
+                    &&(modelBudget.maxModelCalls()>=0||modelBudget.maxModelTokens()>=0)){
+                var consumed=usage(task).consumed();
+                if(!CodingLimit.permits(modelBudget.maxModelCalls(),consumed.modelCalls())
+                        ||!CodingLimit.permits(modelBudget.maxModelTokens(),consumed.modelTokens()))
+                    requestStop(task,BUDGET_EXCEEDED,"Native observed model usage exceeds the frozen task budget");
+            }
         }).outcome;
     }
 
@@ -464,6 +474,15 @@ public final class DurableCodingTaskService implements CodingAgentSPI {
     }
     public CodingTaskOutcome enforceDeadline(KernelDataScope scope,String taskId,CodingJournal.Lease lease,long expectedRevision){
         return mutateTask(scope,taskId,WORKER,task->{revision(task,expectedRevision);fence(task,lease);if(!task.outcome.status().terminal())deadline(task);}).outcome;
+    }
+    public CodingTaskOutcome requestNativeModelBudgetStop(KernelDataScope scope,String taskId,String signedGrant){
+        return mutateTask(scope,taskId,WORKER,task->{
+            var binding=task.privateState.get("native-s3:binding");
+            require(binding!=null&&binding.path("grant").asText().equals(signedGrant),AUTHORIZATION_DENIED,
+                "Native model budget request belongs to a superseded execution");
+            if(!task.outcome.status().terminal()&&task.outcome.executionControl().stopReason()==null)
+                requestStop(task,BUDGET_EXCEEDED,"Native model admission exceeds the frozen task budget");
+        }).outcome;
     }
     /** Orchestrator terminal failure revokes delivery immediately, but cannot
      * become terminal until actual execution stop proofs are reconciled. */

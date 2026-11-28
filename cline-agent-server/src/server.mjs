@@ -11,7 +11,7 @@ import {toolFailed} from './tool-outcome.mjs';
 import {validateRuntime} from './runtime-assets.mjs';
 import {nativeModelSettings} from './native-model-settings.mjs';
 import {forkNativeWorker} from './native-process.mjs';
-import {buildDeliveryManifest,writeDeliveryManifest,readDeliverySelection} from './delivery-manifest.mjs';
+import {buildDeliveryManifest,writeDeliveryManifest,readDeliverySelection,discoverAnalysisDelivery} from './delivery-manifest.mjs';
 import {commandEvidence,executionRecords,executionContent} from './command-evidence.mjs';
 
 const config=JSON.parse(readFileSync(process.env.CLINE_SERVER_CONFIG,'utf8'));
@@ -248,7 +248,7 @@ const server=http.createServer(async(req,res)=>{
    if(!preview&&s.delivery&&version!==s.delivery.deliveryVersion)return send(res,409,{code:'SEAL_DELIVERY_VERSION_MISMATCH'});
    let files=b.files;
    if(config.requireDeliverySelection===true){
-    try{files=await readDeliverySelection(s.workspace);}
+    try{files=config.analysisDelivery?await discoverAnalysisDelivery(s.workspace,config.analysisDelivery):await readDeliverySelection(s.workspace);}
     catch(error){emit(s,'delivery.selection.invalid',{deliveryVersion:version,message:error.message,selectionSha256:error.selectionSha256??null,source:'HOST_DELIVERY_PROTOCOL'});return send(res,422,{code:'DELIVERY_SELECTION_INVALID',message:redact(error.message),selectionSha256:error.selectionSha256??null});}
    }
    let manifest;
@@ -260,6 +260,8 @@ const server=http.createServer(async(req,res)=>{
    }
    // This endpoint prepares an inventory only. Runtime must independently verify
    // immutable Silo versions and its current run fence before formal acceptance.
+   if(config.analysisDelivery&&!preview&&s.delivery&&JSON.stringify(s.delivery.artifacts)!==JSON.stringify(manifest.artifacts))
+    return send(res,409,{code:'DELIVERY_CONTENT_CHANGED_SINCE_PREVIEW'});
    s.delivery=await writeDeliveryManifest(s.workspace,manifest);
    persist(s);
    emit(s,preview?'delivery.previewed':'delivery.prepared',{artifacts:manifest.artifacts,deliveryVersion:version,acceptanceStatus:manifest.acceptanceStatus});

@@ -1,6 +1,10 @@
 package com.chatchat.api.runtime.coding.nativecline;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.chatchat.common.runtime.coding.CodingTaskContract;
+import java.time.Instant;
+import java.time.temporal.ChronoUnit;
 import java.nio.file.*;
 import java.net.URI;
 import java.util.*;
@@ -16,6 +20,34 @@ public final class NativeS3Settings {
     public final String issuerKey,defaultModel;
     public final Map<String,String> profiles;
     public final boolean dynamicModels;
+    private final AnalysisBudget analysisBudget;
+    private record AnalysisBudget(long minutes,long modelCalls,long modelTokens){
+        static AnalysisBudget read(JsonNode configured){
+            if(configured.isMissingNode())return new AnalysisBudget(-1,-1,-1);
+            if(!configured.isObject())throw new IllegalArgumentException("Analysis budget must be an object");
+            var keys=configured.fieldNames();
+            while(keys.hasNext())if(!Set.of("minutes","modelCalls","modelTokens").contains(keys.next()))
+                throw new IllegalArgumentException("Unknown Native analysis budget field");
+            long minutes=limit(configured,"minutes");
+            if(minutes==0||minutes>java.time.Duration.ofDays(1).toMinutes())
+                throw new IllegalArgumentException("Native analysis deadline exceeds signed task lifetime");
+            return new AnalysisBudget(minutes,limit(configured,"modelCalls"),limit(configured,"modelTokens"));
+        }
+        private static long limit(JsonNode configured,String field){
+            var value=configured.path(field);
+            if(value.isMissingNode())return -1;
+            if(!value.isIntegralNumber()||!value.canConvertToLong())
+                throw new IllegalArgumentException("Invalid Native analysis budget "+field);
+            return new com.chatchat.common.runtime.coding.CodingLimit(value.longValue()).value();
+        }
+    }
+    CodingTaskContract.Budget analysisBudget(String task,boolean analysis){
+        var limits=analysis?analysisBudget:new AnalysisBudget(-1,-1,-1);
+        Instant deadline=limits.minutes()==-1?CodingTaskContract.Budget.USER_MANAGED_DEADLINE:
+            Instant.now().plus(limits.minutes(),ChronoUnit.MINUTES).truncatedTo(ChronoUnit.MILLIS);
+        return new CodingTaskContract.Budget("native-budget:"+task,deadline,limits.modelCalls(),limits.modelTokens(),
+            -1,-1,"unlimited","USD",-1,3L*1024*1024*1024,64L*1024*1024);
+    }
     private final String defaultNodeId;
     private final Map<String,NativeS3NodeClient> nodes,recovery;
     @Value("${chatchat.runtime.coding.temporal.node-id:}") private String localNodeId="";
@@ -54,6 +86,7 @@ public final class NativeS3Settings {
         Path path=Path.of(file);
         if(!path.isAbsolute()||!Files.isRegularFile(path,LinkOption.NOFOLLOW_LINKS)||Files.size(path)>65536)throw new IllegalArgumentException("Private Native connection configuration required");
         var config=json.readTree(Files.readAllBytes(path));dynamicModels=config.path("dynamicModels").asBoolean(false);issuerKey=config.path("issuerKey").asText();defaultModel=config.path("defaultModel").asText();
+        analysisBudget=AnalysisBudget.read(config.path("analysisBudget"));
         var values=new LinkedHashMap<String,String>();config.path("modelProfiles").fields().forEachRemaining(e->values.put(e.getKey(),e.getValue().asText()));profiles=Map.copyOf(values);
         if(issuerKey.length()<32||!dynamicModels&&!profiles.containsKey(defaultModel))throw new IllegalArgumentException("Frozen Native model/issuer configuration required");
         client=new NativeS3NodeClient(URI.create(config.path("endpoint").asText()),json);

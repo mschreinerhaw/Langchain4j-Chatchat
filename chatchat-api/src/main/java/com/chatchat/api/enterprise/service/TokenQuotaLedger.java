@@ -16,7 +16,7 @@ import org.springframework.transaction.annotation.Propagation;
 @Service
 public class TokenQuotaLedger {
     public enum PoolType { USER, ROLE }
-    public enum Decision { ADMITTED, DUPLICATE, QUOTA_EXHAUSTED, BILLING_ROLE_REQUIRED, OUTPUT_BOUND_REQUIRED }
+    public enum Decision { ADMITTED, DUPLICATE, QUOTA_EXHAUSTED, TASK_BUDGET_EXHAUSTED, TASK_BUDGET_BUSY, BILLING_ROLE_REQUIRED, OUTPUT_BOUND_REQUIRED }
     public record Pool(Long limit, long period, long spent, long reserved) {}
     private record Binding(String user, String role) {}
     private record Charge(String user, String run, String task, String state, Long actual) {}
@@ -24,6 +24,11 @@ public class TokenQuotaLedger {
     private final SysUserRepository users;
     private final SysRoleRepository roles;
     private final SysUserRoleRepository memberships;
+
+    public static String nativeReceiptId(String sessionId, String requestId) {
+        return "native-" + com.chatchat.api.assets.UserAssetService.hash(
+            (sessionId+"\0"+requestId).getBytes(java.nio.charset.StandardCharsets.UTF_8));
+    }
 
     public TokenQuotaLedger(JdbcTemplate jdbc, SysUserRepository users, SysRoleRepository roles,
                             SysUserRoleRepository memberships) {
@@ -73,6 +78,12 @@ public class TokenQuotaLedger {
 
     @Transactional(propagation = Propagation.REQUIRES_NEW)
     public Decision reserve(KernelDataScope scope, String taskId, String requestId, long inputBound, Long outputBound) {
+        return reserve(scope, taskId, requestId, inputBound, outputBound, -1, -1);
+    }
+
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
+    public Decision reserve(KernelDataScope scope, String taskId, String requestId, long inputBound, Long outputBound,
+                            long maxTaskCalls, long maxTaskTokens) {
         if (requestId == null || !requestId.matches("[A-Za-z0-9_-]{1,128}") || inputBound < 0
                 || inputBound > Integer.MAX_VALUE || outputBound != null && (outputBound < 1 || outputBound > Integer.MAX_VALUE))
             throw new IllegalArgumentException("Invalid model reservation");
@@ -87,15 +98,39 @@ public class TokenQuotaLedger {
             return Decision.BILLING_ROLE_REQUIRED;
         var user = admissionPool(scope.tenantId(), PoolType.USER, scope.userId());
         var role = binding.role().isEmpty() ? new Pool(null, 0, 0, 0) : admissionPool(scope.tenantId(), PoolType.ROLE, binding.role());
-        if (outputBound == null && (user.limit() != null || role.limit() != null)) return Decision.OUTPUT_BOUND_REQUIRED;
+        if (outputBound == null && (user.limit() != null || role.limit() != null || maxTaskTokens >= 0)) return Decision.OUTPUT_BOUND_REQUIRED;
         long hold = inputBound + (outputBound == null ? 0 : outputBound);
         if (!fits(user, hold) || !fits(role, hold)) return Decision.QUOTA_EXHAUSTED;
+        if (maxTaskCalls >= 0 || maxTaskTokens >= 0) {
+            var denied = taskLimit(scope, taskId, hold, maxTaskCalls, maxTaskTokens);
+            if (denied != null) return denied;
+        }
         jdbc.update("""
             insert into enterprise_token_charge(tenant_id,request_id,task_id,run_id,user_id,role_id,
             user_period,role_period,held_tokens,actual_tokens,state,created_ms) values (?,?,?,?,?,?,?,?,?,null,'HELD',?)
             """, scope.tenantId(), requestId, taskId, scope.runId(), scope.userId(), binding.role(), user.period(),
             role.period(), hold, System.currentTimeMillis());
         return Decision.ADMITTED;
+    }
+
+    private Decision taskLimit(KernelDataScope scope, String taskId, long hold, long maxCalls, long maxTokens) {
+        // The same transaction and tenant lock protect quota and task reservations.
+        return jdbc.queryForObject("""
+            select count(*),
+                   coalesce(sum(case when state='HELD' then 1 else 0 end),0),
+                   coalesce(sum(case when state='HELD' then held_tokens else 0 end),0),
+                   coalesce(sum(case when state='UNKNOWN' then held_tokens else coalesce(actual_tokens,0) end),0)
+            from enterprise_token_charge
+            where tenant_id=? and run_id=? and task_id=? and user_id=? and state<>'RELEASED'
+            """, (row, index) -> {
+                long calls = row.getLong(1), pendingCalls = row.getLong(2);
+                long pendingTokens = row.getLong(3), spentOrUnknown = row.getLong(4);
+                var limit = new Pool(maxTokens >= 0 ? maxTokens : null, 0, spentOrUnknown, pendingTokens);
+                if (maxCalls >= 0 && calls - pendingCalls >= maxCalls ||
+                        !fits(new Pool(limit.limit(), 0, limit.spent(), 0), hold)) return Decision.TASK_BUDGET_EXHAUSTED;
+                if (maxCalls >= 0 && calls >= maxCalls || !fits(limit, hold)) return Decision.TASK_BUDGET_BUSY;
+                return null;
+            }, scope.tenantId(), scope.runId(), taskId, scope.userId());
     }
 
     /** Call using the durable model receipt. A transport failure alone does not prove zero use. */

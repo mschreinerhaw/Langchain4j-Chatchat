@@ -49,14 +49,23 @@ public class NativeRuntimeMcpController {
         }catch(Exception invalid){throw new ResponseStatusException(HttpStatus.UNAUTHORIZED,"Invalid Native task capability");}
     }
     private <T>T authorized(String header,java.util.function.Function<CodingTaskContract,T> action){
-        return withBoundCapability(header,false,c->{requireActive(c);var result=action.apply(c);requireActive(c);return result;});
+        return withBoundCapability(header,false,(c,grant)->{requireActive(c);var result=action.apply(c);requireActive(c);return result;});
     }
-    private <T>T withBoundCapability(String header,boolean allowExpired,java.util.function.Function<CodingTaskContract,T> action){
+    private <T>T withBoundCapability(String header,boolean allowExpired,
+                                    java.util.function.BiFunction<CodingTaskContract,JsonNode,T> action){
         var grant=verify(header,allowExpired);var scope=new KernelDataScope(grant.path("tenantId").asText(),grant.path("userId").asText(),null,null,grant.path("deliveryBinding").path("runId").asText(),null,Map.of());String task=grant.path("taskId").asText();
         try{return identity.as(scope,Set.of(READ,WORKER,EVIDENCE),()->{
             var contract=tasks.contract(scope,task);var binding=tasks.privateState(scope,task,"native-s3:binding");
-            if(!NativeSiloTaskService.supports(contract)||binding==null||!binding.path("grant").asText().equals(header.substring(7)))throw new ResponseStatusException(HttpStatus.FORBIDDEN,"Task capability binding differs");
-            return action.apply(contract);
+            boolean exact=binding!=null&&binding.path("grant").asText().equals(header.substring(7));
+            if(!exact&&allowExpired&&grant.path("analysisModelBudget").asBoolean(false)){
+                String session=grant.path("sessionId").asText();
+                if(session.matches("[A-Za-z0-9_-]{1,96}")){
+                    var retired=tasks.privateState(scope,task,"native-s3:retired:"+session);
+                    exact=retired!=null&&retired.path("grant").asText().equals(header.substring(7));
+                }
+            }
+            if(!NativeSiloTaskService.supports(contract)||!exact)throw new ResponseStatusException(HttpStatus.FORBIDDEN,"Task capability binding differs");
+            return action.apply(contract,grant);
         });}catch(CodingContractException denied){
             if(Set.of(CodingErrorCode.NOT_FOUND,CodingErrorCode.AUTHORIZATION_DENIED).contains(denied.error().code()))throw new ResponseStatusException(HttpStatus.FORBIDDEN,"Task outside this capability scope");
             throw denied;
@@ -73,17 +82,29 @@ public class NativeRuntimeMcpController {
     @PostMapping("/model-admission")
     public ResponseEntity<Void> modelAdmission(@RequestHeader(HttpHeaders.AUTHORIZATION)String auth,
                                                @RequestBody ModelAdmission admission){
-        return withBoundCapability(auth,false,c->{
+        return withBoundCapability(auth,false,(c,grant)->{
             requireActive(c);
             if(admission.requestId()==null||!admission.requestId().matches("[A-Za-z0-9_-]{1,128}")
                     ||admission.inputUpperBound()==null||admission.inputUpperBound()<1||admission.inputUpperBound()>Integer.MAX_VALUE
                     ||admission.outputUpperBound()!=null&&(admission.outputUpperBound()<1||admission.outputUpperBound()>Integer.MAX_VALUE))
                 throw new ResponseStatusException(HttpStatus.BAD_REQUEST,"Model input bound required");
-            var decision=quota.reserve(c.scope(),c.taskId(),admission.requestId(),admission.inputUpperBound(),admission.outputUpperBound());
+            boolean analysis=c.runtimeContext().get("analysisMetadataPath") instanceof String;
+            String receiptId=modelReceiptId(grant,admission.requestId());
+            var decision=analysis
+                ?quota.reserve(c.scope(),c.taskId(),receiptId,admission.inputUpperBound(),admission.outputUpperBound(),
+                    c.budget().maxModelCalls(),c.budget().maxModelTokens())
+                :quota.reserve(c.scope(),c.taskId(),receiptId,admission.inputUpperBound(),admission.outputUpperBound());
             return switch(decision){
                 case ADMITTED -> ResponseEntity.noContent().build();
                 case DUPLICATE -> throw new ResponseStatusException(HttpStatus.CONFLICT,"Model request already admitted");
                 case QUOTA_EXHAUSTED -> throw new ResponseStatusException(HttpStatus.TOO_MANY_REQUESTS,"Token quota exhausted");
+                case TASK_BUDGET_EXHAUSTED -> {
+                    tasks.requestNativeModelBudgetStop(c.scope(),c.taskId(),auth.substring(7));
+                    yield ResponseEntity.status(HttpStatus.TOO_MANY_REQUESTS)
+                        .header("X-Runtime-Model-Rejection","RUNTIME_TASK_MODEL_BUDGET_EXHAUSTED").build();
+                }
+                case TASK_BUDGET_BUSY -> ResponseEntity.status(HttpStatus.TOO_MANY_REQUESTS)
+                    .header("X-Runtime-Model-Rejection","RUNTIME_TASK_MODEL_BUDGET_RESERVED").build();
                 case BILLING_ROLE_REQUIRED,OUTPUT_BOUND_REQUIRED -> throw new ResponseStatusException(HttpStatus.FORBIDDEN,"Token quota configuration unavailable");
             };
         });
@@ -92,16 +113,20 @@ public class NativeRuntimeMcpController {
     @PostMapping("/model-settlement")
     public ResponseEntity<Void> modelSettlement(@RequestHeader(HttpHeaders.AUTHORIZATION)String auth,
                                                  @RequestBody ModelSettlement settlement){
-        return withBoundCapability(auth,true,c->{
+        return withBoundCapability(auth,true,(c,grant)->{
             if(settlement.requestId()==null||!settlement.requestId().matches("[A-Za-z0-9_-]{1,128}")
                     ||settlement.providerTokens()!=null&&settlement.providerTokens()<0)
                 throw new ResponseStatusException(HttpStatus.BAD_REQUEST,"Invalid model settlement");
             Long used=settlement.providerTokens();
-            quota.settle(c.scope(),c.taskId(),settlement.requestId(),used!=null&&used>0?used:null,settlement.neverDispatched());
+            quota.settle(c.scope(),c.taskId(),modelReceiptId(grant,settlement.requestId()),used!=null&&used>0?used:null,settlement.neverDispatched());
             return ResponseEntity.noContent().build();
         });
     }
     public record ModelSettlement(String requestId, Long providerTokens, boolean neverDispatched){}
+    private static String modelReceiptId(JsonNode grant,String requestId){
+        return grant.path("analysisModelBudget").asBoolean(false)?
+            TokenQuotaLedger.nativeReceiptId(grant.path("sessionId").asText(),requestId):requestId;
+    }
     @PostMapping("/mcp") public ResponseEntity<?> mcp(@RequestHeader(HttpHeaders.AUTHORIZATION)String auth,@RequestBody JsonNode rpc){
         return authorized(auth,c->{
             if(!rpc.isObject()||rpc.toString().length()>(NativeSiloTaskService.studio(c)?250000:16000)||!rpc.path("jsonrpc").asText().equals("2.0"))throw new ResponseStatusException(HttpStatus.BAD_REQUEST,"Bounded JSON-RPC 2.0 request required");

@@ -176,6 +176,51 @@ class TokenQuotaLedgerTest {
     }
 
     @Test
+    void nativeTaskReservationsFollowTheTaskAcrossConcurrentAndLaterWorkerRequests() throws Exception {
+        String task = "same-native-task";
+        var threads = Executors.newFixedThreadPool(2);
+        var start = new CountDownLatch(1);
+        try {
+            var firstWorker = threads.submit(() -> {
+                start.await();
+                return inTransaction(() -> ledger.reserve(first, task, "worker-one", 300, 500L, 1, 1000));
+            });
+            var nextWorker = threads.submit(() -> {
+                start.await();
+                return inTransaction(() -> ledger.reserve(first, task, "worker-two", 300, 500L, 1, 1000));
+            });
+            start.countDown();
+            var firstChoice = firstWorker.get(5, TimeUnit.SECONDS);
+            var secondChoice = nextWorker.get(5, TimeUnit.SECONDS);
+            assertThat(List.of(firstChoice, secondChoice)).containsExactlyInAnyOrder(ADMITTED, TASK_BUDGET_BUSY);
+            String winner = firstChoice == ADMITTED ? "worker-one" : "worker-two";
+            transaction.executeWithoutResult(tx -> ledger.settle(first, task, winner, null, false));
+            assertThat(inTransaction(() -> ledger.reserve(first, task, "replacement-worker", 200, 300L, 1, 1000)))
+                .isEqualTo(TASK_BUDGET_EXHAUSTED);
+            transaction.executeWithoutResult(tx -> ledger.settle(first, task, winner, 120L, false));
+            transaction.executeWithoutResult(tx -> ledger.settle(first, task, winner, 120L, false));
+            assertThat(inTransaction(() -> ledger.reserve(first, task, winner, 300, 500L, 1, 1000))).isEqualTo(DUPLICATE);
+            assertThat(inTransaction(() -> ledger.reserve(first, "other-native-task", "other-worker", 300, 500L, 1, 1000)))
+                .isEqualTo(ADMITTED);
+        } finally {
+            threads.shutdownNow();
+        }
+    }
+
+    @Test
+    void aLateProviderTokenReceiptReplacesTheUnknownReservationWithoutResettingTheTask() {
+        String task = "same-native-task";
+        assertThat(inTransaction(() -> ledger.reserve(first, task, "unknown", 300, 500L, -1, 1000))).isEqualTo(ADMITTED);
+        transaction.executeWithoutResult(tx -> ledger.settle(first, task, "unknown", null, false));
+        assertThat(inTransaction(() -> ledger.reserve(first, task, "next-session", 200, 400L, -1, 1000)))
+            .isEqualTo(TASK_BUDGET_EXHAUSTED);
+        transaction.executeWithoutResult(tx -> ledger.settle(first, task, "unknown", 120L, false));
+        assertThat(inTransaction(() -> ledger.reserve(first, task, "next-session", 200, 400L, -1, 1000))).isEqualTo(ADMITTED);
+        transaction.executeWithoutResult(tx -> ledger.settle(first, task, "next-session", null, true));
+        assertThat(inTransaction(() -> ledger.reserve(first, task, "resumed-session", 200, 400L, -1, 1000))).isEqualTo(ADMITTED);
+    }
+
+    @Test
     void missingOutputBoundAndPersonalExhaustionDoNotCreateReservationsAndResetKeepsOldReceiptsSeparate() {
         inTransaction(() -> ledger.configure(TENANT, USER, first.userId(), 700L, false));
         inTransaction(() -> ledger.configure(TENANT, ROLE, ROLE_ID, 1000L, false));

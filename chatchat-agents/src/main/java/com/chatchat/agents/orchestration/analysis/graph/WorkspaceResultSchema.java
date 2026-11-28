@@ -28,6 +28,9 @@ public final class WorkspaceResultSchema {
         if ("array".equals(type)) checkContract(object(schema.get("items")), depth + 1);
     }
     public static void validate(Object value, Map<String,Object> schema) {
+        validate(value,schema,"");
+    }
+    public static void validate(Object value, Map<String,Object> schema, String path) {
         String type = String.valueOf(schema.get("type"));
         boolean valid = switch(type) {
             case "object" -> value instanceof Map<?,?>;
@@ -39,20 +42,33 @@ public final class WorkspaceResultSchema {
             case "null" -> value == null;
             default -> false;
         };
-        if (!valid) throw new IllegalArgumentException("Output does not match schema type " + type);
-        if (schema.get("enum") instanceof List<?> options && !options.contains(value)) throw new IllegalArgumentException("Output is outside enum");
+        if (!valid) throw violation(path,"TYPE_MISMATCH","expected "+type);
+        if (schema.get("enum") instanceof List<?> options && !options.contains(value))
+            throw violation(path,"ENUM_MISMATCH","use a value from the frozen schema");
         if (value instanceof Map<?,?> values && "object".equals(type)) {
             var properties = object(schema.getOrDefault("properties", Map.of()));
             var required = (List<?>)schema.getOrDefault("required", List.of());
-            if (!values.keySet().containsAll(required)) throw new IllegalArgumentException("Output lacks required fields");
+            var missing=required.stream().filter(key->!values.containsKey(key))
+                .map(key->pointer(path,key)).limit(8).toList();
+            if(!missing.isEmpty())throw violation(path,"MISSING_REQUIRED_FIELDS","add "+missing);
             if (Boolean.FALSE.equals(schema.get("additionalProperties")) && !properties.keySet().containsAll(values.keySet()))
-                throw new IllegalArgumentException("Output has undeclared fields");
-            values.forEach((key,item) -> { if (properties.containsKey(key)) validate(item, object(properties.get(key))); });
+                throw violation(path,"UNDECLARED_FIELDS","remove keys absent from the frozen schema at this object");
+            properties.forEach((key,rule) -> {
+                if(values.containsKey(key))validate(values.get(key),object(rule),pointer(path,key));
+            });
         }
         if (value instanceof List<?> values && "array".equals(type)) {
-            if(schema.get("minItems") instanceof Number minimum&&values.size()<minimum.longValue())throw new IllegalArgumentException("Output array has fewer than minItems");
-            values.forEach(item -> validate(item, object(schema.get("items"))));
+            if(schema.get("minItems") instanceof Number minimum&&values.size()<minimum.longValue())
+                throw violation(path,"MIN_ITEMS","expected at least "+minimum+" items");
+            var itemSchema=object(schema.get("items"));
+            for(int i=0;i<values.size();i++) validate(values.get(i),itemSchema,pointer(path,i));
         }
+    }
+    private static String pointer(String path,Object field){
+        return path+"/"+field.toString().replace("~","~0").replace("/","~1");
+    }
+    private static IllegalArgumentException violation(String path,String code,String action){
+        return new IllegalArgumentException(code+" at "+(path.isEmpty()?"<root>":path)+" - "+action);
     }
     public static Map<String,Object> object(Object value) {
         if (!(value instanceof Map<?,?> raw)) throw new IllegalArgumentException("Expected an object");

@@ -1,0 +1,240 @@
+{
+  "baseline": "1062ccf17",
+  "sourceCommit": "5b16b5f52451f11f1f1a755ec6cd886827502067",
+  "image": "sha256:ff069bbc564309163b507b97dd3af2719687f3d73f6bb4a1889be76ea45ab5f3",
+  "sourceOverlaySha256": "d58fcd90c30d3acde95145b5bdb9c40dcbabdcaacb2d6d78c7e79dc2040c75d1",
+  "faultCondition": "Offline QA policy configured zero Native model calls after Java data supply. Production policy was not changed.",
+  "tests": {
+    "localJava": {
+      "passed": 70,
+      "skipped": 1
+    },
+    "serverJava": {
+      "passed": 32
+    },
+    "gateway": {
+      "passed": 30
+    },
+    "businessHardcodingCandidates": 0
+  },
+  "caseLabels": {
+    "7": "InnoDB",
+    "6": "Docker"
+  },
+  "eligibleDeliveryRate": {
+    "caseCount": 2,
+    "verifiedDeliveryCount": 2,
+    "scope": "Budget exhaustion after real data supply, final candidate"
+  },
+  "cases": {
+    "7": {
+      "outerTaskId": "ca0a0978-ce04-3ee8-9737-315c0cb416a9",
+      "outerStatus": "PARTIAL_SUCCESS",
+      "outerCanonicalState": "PARTIAL",
+      "terminal": true,
+      "executions": [
+        {
+          "taskId": "temporal-native-92aa53ec16aef1c740fac6c2ec2d729af1de654006acecac437e535af10f48d8",
+          "runId": "att-1-50b88b3d-aa22-4588-bbaa-72cce0e217e8",
+          "workerState": "STOPPED",
+          "nativeClineDeliveryPresent": false,
+          "nativeStatus": "BUDGET_EXCEEDED",
+          "nativeReason": "BUDGET_EXCEEDED",
+          "executionReconciliationRequired": false,
+          "reportDeliveryStatus": "PASSED",
+          "businessCompletionStatus": "PARTIAL",
+          "reportLevel": "DETERMINISTIC_BASIC_REPORT",
+          "programReceipt": {
+            "analysisStatus": "BUDGET_EXCEEDED",
+            "artifacts": [
+              {
+                "assetId": "e7e7a482593f62929cc66bfb771717068868deb1cd249dd86550eca833ab3067",
+                "path": "output/report/runtime-basic-report.md",
+                "sha256": "0c96ba8cdf105064f963c153e0507f4378e9fa3d1b7c37215cdcf4ec1f00ac98",
+                "sizeBytes": 6514
+              },
+              {
+                "assetId": "e3714d5103a60143ab056d843a2fcd149d94938d0801200fcb67e8b114cc2ae5",
+                "path": "output/result/runtime-basic-report.json",
+                "sha256": "7c8c04333edb2b6a0fb87d2aa422812e4d23b261b0477cd82c5b69d05a62fd18",
+                "sizeBytes": 7367
+              }
+            ],
+            "factsAssetId": "a432872dbeb8c10702113e2afd1671106b955961893b509e88c5d1c500030943",
+            "factsCreatedAt": "2026-11-28T12:24:14.563Z",
+            "factsSha256": "3530772e812bb62e510530f9d48a79079aa03295f8ca4b6d00d7fd3016b11066",
+            "inputSnapshotVersion": "b6f0b8e0cfb1ec62d53cbbedd3113353e562f8892d072a1a8aa9fd39961acab5",
+            "inventoryAssetId": "7e61ba2f3788f26670e00d6516d3f0987659be48e866679ab85b6e320be8079a",
+            "inventorySha256": "3a237e5801044cedff0616d402b0b994282e6f25e3db20149ba8eb5b24ebfb8c",
+            "reasonCode": "BUDGET_EXCEEDED",
+            "reportOrigin": "DETERMINISTIC_BASIC_REPORT",
+            "schemaVersion": "runtime_basic_report_receipt.v1",
+            "validationStatus": "PASSED",
+            "verifiedAt": "2026-11-28T12:24:37.387Z"
+          },
+          "downloads": [
+            {
+              "http": 200,
+              "sha256Matches": true,
+              "path": "output/report/runtime-basic-report.md",
+              "bytes": 6514,
+              "verifiedReportTitle": true
+            },
+            {
+              "http": 200,
+              "sha256Matches": true,
+              "path": "output/result/runtime-basic-report.json",
+              "bytes": 7367,
+              "verifiedReportTitle": false
+            }
+          ],
+          "repeatedReceiptMatches": true,
+          "anonymousDownloadStatus": 401,
+          "actualUpstreamRequests": 0,
+          "modelAdmissionsRejected": 1,
+          "datasetCitations": 9,
+          "factsToArtifactRecordMs": 22824
+        }
+      ],
+      "publishedAnswerPresentation": {
+        "hasBasicHeading": true,
+        "answerLength": 5651,
+        "answerStatus": "PARTIAL_SUCCESS"
+      }
+    },
+    "6": {
+      "outerTaskId": "e5e17d07-fc48-33bd-883f-f1043e2464f9",
+      "outerStatus": "PARTIAL_SUCCESS",
+      "outerCanonicalState": "PARTIAL",
+      "terminal": true,
+      "executions": [
+        {
+          "taskId": "temporal-native-8e4d384e236cf7d867d0226474bdff3d5d4676716bb0aa7a1f12d43cae1b30ca",
+          "runId": "att-1-fbcc0b27-4e5a-4746-b42b-2902a27abd84",
+          "workerState": "STOPPED",
+          "nativeClineDeliveryPresent": false,
+          "nativeStatus": "BUDGET_EXCEEDED",
+          "nativeReason": "BUDGET_EXCEEDED",
+          "executionReconciliationRequired": false,
+          "reportDeliveryStatus": "PASSED",
+          "businessCompletionStatus": "PARTIAL",
+          "reportLevel": "DETERMINISTIC_BASIC_REPORT",
+          "programReceipt": {
+            "analysisStatus": "BUDGET_EXCEEDED",
+            "artifacts": [
+              {
+                "assetId": "9e071b8754b1c9ef2dbbf12c1488a6141282946ca0f5a7e2bf9ea91ede664f88",
+                "path": "output/report/runtime-basic-report.md",
+                "sha256": "2a33b037696090b8c51dd094696ef20d403da0e7f4668a4c9193450acc20306a",
+                "sizeBytes": 7076
+              },
+              {
+                "assetId": "7e47d9362aa1139ebc57a8f2b62b1ddb28c254bc1db61c6964ce21f5f91a1ba2",
+                "path": "output/result/runtime-basic-report.json",
+                "sha256": "a5eaa3e2d00721bc3ea86ed087dc99a5083733ab16c77200d164c4859b901838",
+                "sizeBytes": 7995
+              }
+            ],
+            "factsAssetId": "99da6518aaab200d65ec0efc4cbd19be0e64c99c5ca2e2e5e1314908f8b579b5",
+            "factsCreatedAt": "2026-11-28T12:26:08.556Z",
+            "factsSha256": "ed55acfc8c910cd38f95f322f1856fe4e0003938121b7508eba0cf131394ddde",
+            "inputSnapshotVersion": "7d26c50a7ffdfc144250d37368ee8704ba2e84fd6926b5967fd337040ee1fd64",
+            "inventoryAssetId": "8838e60aff844d9eee9759428f8afcf7d215acc5da9dc58d11cf5224ce65c4dd",
+            "inventorySha256": "2da4cc8f4435efb6f0d92e874d618423f2174e298b9ca3b0e6fe13fb4c90110f",
+            "reasonCode": "BUDGET_EXCEEDED",
+            "reportOrigin": "DETERMINISTIC_BASIC_REPORT",
+            "schemaVersion": "runtime_basic_report_receipt.v1",
+            "validationStatus": "PASSED",
+            "verifiedAt": "2026-11-28T12:26:25.910Z"
+          },
+          "downloads": [
+            {
+              "http": 200,
+              "sha256Matches": true,
+              "path": "output/report/runtime-basic-report.md",
+              "bytes": 7076,
+              "verifiedReportTitle": true
+            },
+            {
+              "http": 200,
+              "sha256Matches": true,
+              "path": "output/result/runtime-basic-report.json",
+              "bytes": 7995,
+              "verifiedReportTitle": false
+            }
+          ],
+          "repeatedReceiptMatches": true,
+          "anonymousDownloadStatus": 401,
+          "actualUpstreamRequests": 0,
+          "modelAdmissionsRejected": 2,
+          "datasetCitations": 8,
+          "factsToArtifactRecordMs": 17354
+        }
+      ],
+      "publishedAnswerPresentation": {
+        "hasBasicHeading": true,
+        "answerLength": 6227,
+        "answerStatus": "PARTIAL_SUCCESS"
+      }
+    }
+  },
+  "initialRunNotes": {
+    "InnoDB": "Verified program delivery on the first candidate",
+    "Docker": "Initial wave stopped in plan validation before business data supply; final candidate retest passed under the budget fault"
+  },
+  "remainingAcceptance": {
+    "online": [
+      "normal fresh run on this candidate",
+      "slow model",
+      "invalid model JSON",
+      "tool call failure",
+      "Python execution failure",
+      "unrepairable report",
+      "provider unavailable after supply",
+      "unreconciled and reconciled worker exits",
+      "live permission revocation",
+      "equivalent asset/template/model substitutions"
+    ],
+    "implementation": [
+      "bounded Markdown reports in Chinese or English",
+      "grouping, ratios and time series need an approved rule contract"
+    ]
+  },
+  "cleanup": {
+    "observedAt": "2026-11-28T20:29:44.277265+08:00",
+    "workers": [
+      {
+        "taskId": "temporal-native-92aa53ec16aef1c740fac6c2ec2d729af1de654006acecac437e535af10f48d8",
+        "workerState": "STOPPED"
+      },
+      {
+        "taskId": "temporal-native-8e4d384e236cf7d867d0226474bdff3d5d4676716bb0aa7a1f12d43cae1b30ca",
+        "workerState": "STOPPED"
+      }
+    ],
+    "stoppedIsolatedContainers": [
+      "stability-nct-basic-r2-api",
+      "stability-nct-mcp",
+      "stability-nct-broker",
+      "stability-nct-executor",
+      "stability-nct-recovery"
+    ],
+    "priorValidationServiceRunning": {
+      "stability-njr-api": true,
+      "stability-njr-mcp": true,
+      "stability-njr-broker": true,
+      "stability-njr-executor": true
+    },
+    "deduplicatedBuildCopies": [
+      {
+        "build": "native-basic-report-r2",
+        "bytes": 429342558
+      },
+      {
+        "build": "native-basic-report-1062ccf17",
+        "bytes": 429342290
+      }
+    ],
+    "filesystem": "Filesystem      Size  Used Avail Use% Mounted on\n/dev/sdb        180G  165G   16G  92% /opt\n/dev/sdc        100G   60G   41G  60% /mnt/disk01"
+  }
+}

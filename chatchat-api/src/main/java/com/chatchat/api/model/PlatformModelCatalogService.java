@@ -135,6 +135,9 @@ public class PlatformModelCatalogService implements ModelCatalogOverride, Applic
             if("chat".equals(type))internetPolicy.save(name,draft.internetSearchEnabled(),draft.searchProviderId(),draft.searchProviderIds());
         }
         int requestTimeoutSeconds = ModelsConfig.ModelConnectionConfig.effectiveRequestTimeoutSeconds(draft.requestTimeoutSeconds());
+        if ("embedding".equals(type) && requestTimeoutSeconds == -1) {
+            throw new IllegalArgumentException("Embedding request timeout must be positive");
+        }
         String url = required(draft.baseUrl(), "baseUrl");
         validateUrl(url);
         var reasoning = draft.codingReasoning();

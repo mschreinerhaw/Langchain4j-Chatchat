@@ -3,6 +3,11 @@ package com.chatchat.api.enterprise.service;
 import com.chatchat.agents.orchestration.model.DirectModelInvocation;
 import com.chatchat.agents.orchestration.model.AgentChatModelResolver;
 import com.chatchat.agents.orchestration.model.ToolExecutionModels;
+import com.chatchat.agents.model.ModelFailureCategory;
+import com.chatchat.agents.orchestration.model.MeteredChatModel;
+import com.chatchat.agents.runtime.event.AgentRunEvent;
+import com.chatchat.agents.runtime.event.AgentRunEventPublisher;
+import com.chatchat.agents.runtime.event.AgentRunEventType;
 import com.chatchat.api.security.ApiAuthenticationFilter;
 import com.chatchat.common.kernel.KernelDataScope;
 import com.chatchat.enterprise.repository.identity.SysUserRepository;
@@ -15,6 +20,7 @@ import dev.langchain4j.model.chat.response.ChatResponse;
 import java.nio.charset.StandardCharsets;
 import java.util.UUID;
 import java.util.Map;
+import java.util.LinkedHashMap;
 import java.util.concurrent.TimeUnit;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -32,6 +38,8 @@ class QuotaGovernedDirectModelInvocation implements DirectModelInvocation {
     private final SysUserRepository users;
     private final EnterpriseAdminService identities;
     private final AgentChatModelResolver models;
+    @org.springframework.beans.factory.annotation.Autowired
+    private org.springframework.beans.factory.ObjectProvider<AgentRunEventPublisher> eventPublishers;
 
     @Override
     public void freezeBillingRole(KernelDataScope scope) {
@@ -52,9 +60,11 @@ class QuotaGovernedDirectModelInvocation implements DirectModelInvocation {
             ? Math.min(limit, outputLimit) : outputLimit;
         var request = ChatRequest.builder().messages(UserMessage.from(prompt))
             .parameters(DefaultChatRequestParameters.builder().maxOutputTokens(maximum).build()).build();
-        long deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(30);
+        Object value = scope == null ? null : scope.attributes().get("__agentDeadlineAt");
+        Long deadline = value instanceof Number number ? Long.valueOf(number.longValue())
+            : value instanceof java.time.Instant instant ? Long.valueOf(instant.toEpochMilli()) : null;
         var model = ToolExecutionModels.independent(selected,
-            () -> Math.max(0L, TimeUnit.NANOSECONDS.toMillis(deadline - System.nanoTime())));
+            () -> deadline == null ? -1 : Math.max(0L, deadline - System.currentTimeMillis()));
         var result = chat(scope, purpose, model, request, maximum);
         return result == null || result.aiMessage() == null ? null : result.aiMessage().text();
     }
@@ -89,16 +99,58 @@ class QuotaGovernedDirectModelInvocation implements DirectModelInvocation {
             throw new ResponseStatusException(status, "模型额度准入失败 " + decision);
         }
         ChatResponse response = null;
-        try {
+        var facts = new LinkedHashMap<String, Object>();
+        facts.put("requestId", requestId);
+        facts.put("modelPhase", purpose);
+        facts.put("modelSource", "JAVA");
+        facts.put("messageCount", request.messages().size());
+        facts.put("toolCount", request.toolSpecifications() == null ? 0 : request.toolSpecifications().size());
+        long started = System.nanoTime();
+        publishModelEvent(scope, facts, "STARTED");
+        try (var timing = MeteredChatModel.observeTiming()) {
             response = model.chat(request);
+            if (timing.firstTokenMs() != null) facts.put("firstTokenMs", timing.firstTokenMs());
+            if (response != null) {
+                if (response.modelName() != null && response.modelName().matches("[\\p{L}0-9_./:@-]{1,240}"))
+                    facts.put("providerModel", response.modelName());
+                if (response.finishReason() != null) facts.put("finishReason", response.finishReason().name());
+                if (response.tokenUsage() != null) {
+                    var usage = response.tokenUsage();
+                    if (usage.inputTokenCount() != null) facts.put("inputTokens", usage.inputTokenCount());
+                    if (usage.outputTokenCount() != null) facts.put("outputTokens", usage.outputTokenCount());
+                    if (usage.totalTokenCount() != null) facts.put("totalTokens", usage.totalTokenCount());
+                    facts.put("usageSource", "UPSTREAM");
+                }
+            }
             return response;
+        } catch (RuntimeException failure) {
+            facts.put("reasonCode", ModelFailureCategory.classify(failure).name());
+            throw failure;
         } finally {
+            facts.putIfAbsent("usageSource", "UNAVAILABLE");
+            facts.put("durationMs", TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - started));
+            publishModelEvent(scope, facts, response != null ? "COMPLETED"
+                : "MODEL_CANCELLED".equals(facts.get("reasonCode")) ? "CANCELLED" : "FAILED");
             Integer actual = response == null || response.tokenUsage() == null ? null : response.tokenUsage().totalTokenCount();
             try {
                 ledger.settle(scope, taskId, requestId, actual != null && actual > 0 ? actual.longValue() : null, false);
             } catch (RuntimeException pending) {
                 log.warn("Direct model quota settlement pending taskId={} requestId={}", taskId, requestId);
             }
+        }
+    }
+
+    private void publishModelEvent(KernelDataScope scope, Map<String, Object> facts, String state) {
+        if (eventPublishers == null) return;
+        var metadata = new LinkedHashMap<>(facts);
+        metadata.put("eventKind", "MODEL_CALL");
+        metadata.put("eventState", state);
+        try {
+            eventPublishers.orderedStream().forEach(publisher -> publisher.publish(AgentRunEvent.of(
+                scope.runId(), AgentRunEventType.OBSERVATION_RECORDED, "Java model call " + state,
+                Map.of("metadata", metadata))));
+        } catch (RuntimeException failure) {
+            log.warn("Java model telemetry publish failed requestId={}", facts.get("requestId"));
         }
     }
 

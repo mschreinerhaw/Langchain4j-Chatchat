@@ -83,7 +83,7 @@ public class ConfigurableChatModelFactory {
                 .logRequests(false).logResponses(false);
             if(!timeout.isZero() && !timeout.isNegative())streaming.timeout(timeout);
             if(outputTokens>0)streaming.maxTokens(outputTokens);
-            var client=openAiHttpClientBuilder(config.getProxy());
+            var client=openAiHttpClientBuilder(config.getProxy(), timeout.isZero());
             if(client!=null)streaming.httpClientBuilder(client);
             return new RuntimeStreamingChatModel(streaming.build(), timeout, config.firstTokenTimeout());
         }
@@ -101,7 +101,7 @@ public class ConfigurableChatModelFactory {
         if (outputTokens > 0) {
             builder.maxTokens(outputTokens);
         }
-        HttpClientBuilder httpClientBuilder = openAiHttpClientBuilder(config.getProxy());
+        HttpClientBuilder httpClientBuilder = openAiHttpClientBuilder(config.getProxy(), timeout.isZero());
         if (httpClientBuilder != null) {
             builder.httpClientBuilder(httpClientBuilder);
         }
@@ -109,20 +109,28 @@ public class ConfigurableChatModelFactory {
     }
 
     private HttpClient httpClient(ModelsConfig.ProxyConfig proxy) {
-        HttpClient.Builder builder = HttpClient.newBuilder();
+        HttpClient.Builder builder = HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(15));
         if (validHttpProxy(proxy)) {
             builder.proxy(ProxySelector.of(new InetSocketAddress(proxy.getHost(), proxy.getPort())));
         }
         return builder.build();
     }
 
-    private HttpClientBuilder openAiHttpClientBuilder(ModelsConfig.ProxyConfig proxy) {
-        if (!validHttpProxy(proxy)) {
+    private HttpClientBuilder openAiHttpClientBuilder(ModelsConfig.ProxyConfig proxy, boolean unlimited) {
+        if (!validHttpProxy(proxy) && !unlimited) {
             return null;
         }
-        HttpClient.Builder builder = HttpClient.newBuilder()
-            .proxy(ProxySelector.of(new InetSocketAddress(proxy.getHost(), proxy.getPort())));
-        return new JdkHttpClientBuilder().httpClientBuilder(builder);
+        HttpClient.Builder builder = HttpClient.newBuilder();
+        if (validHttpProxy(proxy)) {
+            builder.proxy(ProxySelector.of(new InetSocketAddress(proxy.getHost(), proxy.getPort())));
+        }
+        // OpenAI's client otherwise installs a default read timeout when none was supplied.
+        JdkHttpClientBuilder client = unlimited ? new JdkHttpClientBuilder() {
+            @Override public JdkHttpClientBuilder readTimeout(Duration ignored) {
+                return super.readTimeout(null);
+            }
+        } : new JdkHttpClientBuilder();
+        return client.httpClientBuilder(builder);
     }
 
     private boolean validHttpProxy(ModelsConfig.ProxyConfig proxy) {

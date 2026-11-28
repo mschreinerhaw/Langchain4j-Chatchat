@@ -369,19 +369,23 @@ public class ModelsConfig implements EnvironmentAware, InitializingBean {
         /** Streaming providers only. Null retains the total request deadline. */
         private Integer firstTokenTimeoutSeconds;
         public java.time.Duration firstTokenTimeout() {
-            return firstTokenTimeoutSeconds == null ? requestTimeout()
-                : java.time.Duration.ofSeconds(effectiveRequestTimeoutSeconds(firstTokenTimeoutSeconds));
+            return firstTokenTimeoutSeconds == null ? requestTimeout() : timeoutDuration(firstTokenTimeoutSeconds);
         }
 
         public static int effectiveRequestTimeoutSeconds(Integer seconds) {
             if (seconds == null) return DEFAULT_REQUEST_TIMEOUT_SECONDS;
-            if (seconds < 1 || seconds > MAX_REQUEST_TIMEOUT_SECONDS)
-                throw new IllegalArgumentException("requestTimeoutSeconds must be an integer between 1 and 1200");
+            if (seconds != -1 && (seconds < 1 || seconds > MAX_REQUEST_TIMEOUT_SECONDS))
+                throw new IllegalArgumentException("requestTimeoutSeconds must be -1 or an integer between 1 and 1200");
             return seconds;
         }
 
         public java.time.Duration requestTimeout() {
-            return java.time.Duration.ofSeconds(effectiveRequestTimeoutSeconds(requestTimeoutSeconds));
+            return timeoutDuration(requestTimeoutSeconds);
+        }
+
+        private static java.time.Duration timeoutDuration(Integer value) {
+            int seconds = effectiveRequestTimeoutSeconds(value);
+            return seconds == -1 ? java.time.Duration.ZERO : java.time.Duration.ofSeconds(seconds);
         }
         /** Optional provider-side model id when it differs from the selectable map key. */
         private String modelName;

@@ -217,6 +217,16 @@ public class AgentToolPolicyResolver {
             item.put("description", description == null ? "" : description.substring(0, Math.min(500, description.length())));
             return item;
         }).toList();
+        if (governed && !normalizeToolNames(request.getAvailableTools()).isEmpty() && selected.stream().anyMatch(meta ->
+                com.chatchat.agents.runtime.plan.template.TemplateWorkflowMetadata.fixedScope(meta).isPresent())) {
+            ToolPolicy policy = resolve(request, skill);
+            if (!policy.requiredTools().isEmpty() && policy.requiredCapabilityGaps().isEmpty()
+                && new com.chatchat.agents.runtime.plan.template.PublishedDataAcquisitionPlanner(toolRegistry)
+                    .compile(request.getQuery(), policy.availableTools(), policy.requiredTools()) != null) {
+                return new WorkflowEntryPlan(WorkflowEntryPlan.Owner.GOVERNED_RUNTIME,
+                    "COMPILED_REQUIRED_DATA_WORKFLOW", purposes);
+            }
+        }
         return new WorkflowEntryPlan(governed ? WorkflowEntryPlan.Owner.GOVERNED_RUNTIME : WorkflowEntryPlan.Owner.PROBLEM_ANALYSIS,
             governed ? "DECLARED_EXECUTION_CONTRACT" : "SEMANTIC_WORKFLOW_SELECTION", purposes);
     }

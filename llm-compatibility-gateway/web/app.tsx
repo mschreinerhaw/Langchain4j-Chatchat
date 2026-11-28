@@ -338,7 +338,8 @@ function Edit({ editor, config, close, save }: {
   const [busy, setBusy] = useState(false);
   const service = editor.kind === 'service';
   const initial = { ...editor.value, apiKey: undefined };
-  const initialForm = { ...initial, protocolText: initial.protocol ? json(initial.protocol) : '' };
+  const initialForm = { ...initial, protocolText: initial.protocol ? json(initial.protocol) : '',
+    ...(service ? {} : { requestTimeoutMinutes: initial.requestTimeoutMinutes ?? (editor.key ? -1 : 5) }) };
   const used = new Set(config.models.filter(model => model.alias !== editor.key).map(model => model.alias));
   const modelOptions = clineCatalog.modelIds.filter(id => !used.has(id)).map(id => ({ value: id, label: id }));
   if (!service && editor.key && !clineCatalog.modelIds.includes(editor.key)) {
@@ -404,6 +405,12 @@ function Edit({ editor, config, close, save }: {
           ]} />
         </Form.Item>
         <Row gutter={16}><Col span={12}>{count('contextWindow', '上下文窗口')}</Col><Col span={12}>{count('maxOutput', '最大输出 Token')}</Col></Row>
+        <Form.Item name="requestTimeoutMinutes" label="请求总时限（分钟）"
+          extra="填写 -1 表示 Gateway 不设置总时限。调用方取消、连接保护和任务预算仍生效。"
+          rules={[{ required: true }, { validator: (_, value) => Number.isInteger(value) && (value === -1 || value >= 1 && value <= 35_791)
+            ? Promise.resolve() : Promise.reject(new Error('填写 -1 或 1–35791 的整数')) }]}>
+          <InputNumber min={-1} max={35_791} precision={0} />
+        </Form.Item>
         <Row gutter={12}>{Object.entries(capNames).map(([name, label]) => <Col span={6} key={name}>
           <Form.Item name={['capabilities', name]} label={label}><Select options={Object.entries(capLabels).map(([value, label]) => ({ value, label }))} /></Form.Item>
         </Col>)}</Row>

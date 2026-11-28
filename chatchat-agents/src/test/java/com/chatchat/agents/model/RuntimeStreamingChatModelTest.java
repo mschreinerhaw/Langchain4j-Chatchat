@@ -13,6 +13,30 @@ import org.junit.jupiter.api.Test;
 import static org.assertj.core.api.Assertions.*;
 
 class RuntimeStreamingChatModelTest {
+    @Test void unlimitedRequestStillCancelsItsProviderWhenInterrupted() throws Exception {
+        var started = new CountDownLatch(1);
+        var cancelled = new CountDownLatch(1);
+        StreamingChatModel provider = new StreamingChatModel() {
+            @Override public Flow.Publisher<ChatModelStreamingEvent> doChat(ChatRequest request) {
+                return subscriber -> subscriber.onSubscribe(new Flow.Subscription() {
+                    public void request(long count) { started.countDown(); }
+                    public void cancel() { cancelled.countDown(); }
+                });
+            }
+        };
+        var model = new RuntimeStreamingChatModel(provider, java.time.Duration.ZERO);
+        var executor = Executors.newSingleThreadExecutor();
+        try {
+            var request = ChatRequest.builder().messages(UserMessage.from("test")).build();
+            var pending = executor.submit(() -> model.chat(request));
+            assertThat(started.await(2, TimeUnit.SECONDS)).isTrue();
+            assertThat(pending.isDone()).isFalse();
+            assertThat(pending.cancel(true)).isTrue();
+            assertThat(cancelled.await(2, TimeUnit.SECONDS)).isTrue();
+        } finally {
+            executor.shutdownNow();
+        }
+    }
     @Test void synchronousLateFirstResponseCannotBypassTheFirstTokenDeadline() {
         StreamingChatModel provider=new StreamingChatModel() {
             @Override public Flow.Publisher<ChatModelStreamingEvent> doChat(ChatRequest request) {

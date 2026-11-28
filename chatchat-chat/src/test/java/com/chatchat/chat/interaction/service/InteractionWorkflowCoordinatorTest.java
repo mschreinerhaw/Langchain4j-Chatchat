@@ -13,6 +13,27 @@ import static org.assertj.core.api.Assertions.*;
 import static org.mockito.Mockito.*;
 
 class InteractionWorkflowCoordinatorTest {
+    @Test void compiledRequiredWorkflowDoesNotCallTheClassifier() {
+        var policy = mock(AgentToolPolicyResolver.class);
+        var planner = mock(ProblemAnalysisPlanner.class);
+        var direct = mock(DirectAnswerWorkflow.class);
+        var governed = mock(InteractionWorkflowCoordinator.GovernedExecution.class);
+        var agent = mock(SkillDefinition.class);
+        when(agent.boundMcpToolNames()).thenReturn(List.of("fixed"));
+        var request = InteractionRequest.builder().query("collect metrics").build();
+        when(policy.planningSnapshot(request, agent)).thenReturn(
+            WorkflowEntryPlan.of(WorkflowEntryPlan.Owner.GOVERNED_RUNTIME, "COMPILED_REQUIRED_DATA_WORKFLOW"));
+        when(governed.execute(any(), isNull())).thenAnswer(call -> {
+            InteractionContext context = call.getArgument(0);
+            assertThat(context.taskType()).isEqualTo(ProblemAnalysisPlan.TaskType.DATA_ANALYSIS);
+            return InteractionResponse.builder().answer("observed data").build();
+        });
+        var result = new InteractionWorkflowCoordinator(policy, planner, direct, null)
+            .execute(request, InteractionContext.builder().build(), agent, governed);
+        assertThat(result.getAnswer()).isEqualTo("observed data");
+        verify(governed).execute(any(), isNull());
+        verifyNoInteractions(planner, direct);
+    }
     @Test void readingStructureAndAnalyzingTheSameAuthorizedFileInvokeCodingOnlyOnce() {
         var policy=mock(AgentToolPolicyResolver.class);var planner=mock(ProblemAnalysisPlanner.class);
         var direct=mock(DirectAnswerWorkflow.class);var governed=mock(InteractionWorkflowCoordinator.GovernedExecution.class);

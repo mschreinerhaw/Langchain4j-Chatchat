@@ -83,8 +83,10 @@ public final class InteractionWorkflowCoordinator {
             case DIRECT_ANSWER -> executeWorkflow(execution, RuntimeWorkflowFamily.DIRECT_ANSWER,
                 request, context, skill, null, governed);
             case GOVERNED_RUNTIME -> {
-                // Maintained DAGs keep their planning owner, but still need model-based analysis policy.
-                // Non-Spring compatibility constructors have no classifier; production injection is required.
+                if ("COMPILED_REQUIRED_DATA_WORKFLOW".equals(entry.reason())) {
+                    var bound = context.toBuilder().taskType(ProblemAnalysisPlan.TaskType.DATA_ANALYSIS).build();
+                    yield execution.call("GOVERNED_RUNTIME", () -> governed.execute(bound, null));
+                }
                 if (planner == null) yield execution.call("GOVERNED_RUNTIME", () -> governed.execute(context, null));
                 var type = execution.call("TASK_CLASSIFICATION", () -> planner.classify(request, context, skill, entry.toolPurposes()));
                 if (type == null) yield ProblemAnalysisPlanner.blockedResponse(ProblemAnalysisPlan.unavailable());

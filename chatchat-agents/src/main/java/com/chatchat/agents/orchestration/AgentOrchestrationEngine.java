@@ -3579,6 +3579,17 @@ class AgentOrchestrationEngine implements AgentRunExecutor, ResumableAgentRunExe
                     toolMetadataOrNull(request.execution().toolName())));
         if (request != null && request.execution() != null && request.execution().success()
             && workflowRole == ToolWorkflowRole.ASSET_DISCOVERY) {
+            var canonicalData = com.chatchat.common.mcp.runtime.McpAnalysisPayload.canonicalData(request.execution().output());
+            var declared = new com.chatchat.agents.runtime.plan.selection.EvidenceBasedAssetCandidateEvaluator()
+                .evaluate(canonicalData, Map.of("toolResultReviewSkipped", true));
+            if (declared.applied() && !declared.selectedIds().isEmpty()) {
+                return InterpretationPlanRuntime.StepReview.accepted(
+                    "Canonical asset already selected by the governed query contract; preserve that identity.",
+                    Map.of("toolResultReviewSkipped", true,
+                        "toolResultReviewMode", "RUNTIME_DECLARED_ASSET_SELECTION"));
+            }
+            var literal = com.chatchat.agents.runtime.plan.review.CanonicalAssetReferenceReviewer.review(query, canonicalData);
+            if (literal.isPresent()) return literal.get();
             if (clineDiscovery != null && scope != null) {
                 var review = reviewClineAssetDiscovery(query, request.execution(), scope, modelName, cancellationCheck);
                 if ("ASSET_DISCOVERY".equals(review.metadata().get("phase"))) {
@@ -3590,18 +3601,6 @@ class AgentOrchestrationEngine implements AgentRunExecutor, ResumableAgentRunExe
                 }
                 return review;
             }
-            var declared = new com.chatchat.agents.runtime.plan.selection.EvidenceBasedAssetCandidateEvaluator()
-                .evaluate(com.chatchat.common.mcp.runtime.McpAnalysisPayload.canonicalData(request.execution().output()),
-                    Map.of("toolResultReviewSkipped", true));
-            if (declared.applied() && !declared.selectedIds().isEmpty()) {
-                return InterpretationPlanRuntime.StepReview.accepted(
-                    "Canonical asset already selected by the governed query contract; preserve that identity.",
-                    Map.of("toolResultReviewSkipped", true,
-                        "toolResultReviewMode", "RUNTIME_DECLARED_ASSET_SELECTION"));
-            }
-            var literal = com.chatchat.agents.runtime.plan.review.CanonicalAssetReferenceReviewer.review(
-                query, com.chatchat.common.mcp.runtime.McpAnalysisPayload.canonicalData(request.execution().output()));
-            if (literal.isPresent()) return literal.get();
             return InterpretationPlanRuntime.StepReview.accepted("Asset confirmation is unavailable.", Map.of(
                 "toolResultReviewUnavailable", true,
                 "candidateSelectionErrorCode", "CLINE_ASSET_CONFIRMATION_UNAVAILABLE",

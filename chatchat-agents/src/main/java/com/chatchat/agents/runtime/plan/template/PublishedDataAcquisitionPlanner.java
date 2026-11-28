@@ -70,7 +70,7 @@ public final class PublishedDataAcquisitionPlanner {
             allowed.add(assetProvider);
         }
         Map<String, Object> discoveryInput = TemplateWorkflowMetadata.fixedScope(metadata).isPresent()
-            ? Map.of("query", query) : Map.of("query", query, "limit", 10);
+            ? Map.of("filters", Map.of("intent", query)) : Map.of("query", query, "limit", 10);
         steps.add(new InterpretationPlan.Step(templateStep,"mcp_tool",discovery,discoveryInput,
             assetProvider == null ? List.of() : List.of(1),null,null));
         steps.add(new InterpretationPlan.Step(executionStep,"mcp_tool",execution,Map.of(),List.of(templateStep),null,null));

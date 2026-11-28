@@ -39,6 +39,18 @@ import static org.mockito.Mockito.when;
 class AgentRuntimeTaskEventPublisherTest {
 
     private final ObjectMapper objectMapper = new ObjectMapper();
+    @Test void toolFailureWithoutLifecycleMetadataRemainsFailed() {
+        var repository = mock(AgentTaskLatestRepository.class);
+        var store = new InMemoryAgentEventStore();
+        var task = task("tool-failure");
+        when(repository.findById(task.getTaskId())).thenReturn(Optional.of(task));
+        var publisher = new AgentRuntimeTaskEventPublisher(repository, store, mock(AgentEventBus.class), objectMapper);
+        publisher.publish(AgentRunEvent.of(task.getTaskId(), AgentRunEventType.OBSERVATION_RECORDED,
+            "template validation failed", Map.of("type", "tool_failure", "source", "template_lookup",
+                "metadata", Map.of("type", "tool_failure"))));
+        assertThat(store.listByTask(task.getTenantId(), task.getSessionId(), task.getTaskId(), 10))
+            .extracting(AgentEvent::getStatus).containsExactly("FAILED");
+    }
 
     @Test void reviewerSubstagesRetainStateAndTimingInRuntimeObservations() {
         AgentTaskLatestRepository repository=mock(AgentTaskLatestRepository.class);

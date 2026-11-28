@@ -237,9 +237,9 @@
               ><input v-model.number="form.dimension" required type="number" min="1"
             /></label>
             <label class="feature-form-field"
-              ><span>模型请求超时时间（秒）</span
-              ><input v-model.number="form.requestTimeoutSeconds" required type="number" min="1" max="1200" step="1"
-            /></label>
+              ><span>模型请求总时限（分钟）</span
+              ><input v-model.number="requestTimeoutMinutes" required type="number" :min="form.type === 'chat' ? -1 : 0" max="20" step="any"
+            /><small v-if="form.type === 'chat'">-1 表示 Java 不设置总时限。Gateway 和任务预算仍各自生效。</small></label>
             <label v-if="form.type === 'chat'" class="feature-form-field"
               ><span>最大输出 Token（-1 为不限制）</span
               ><input v-model.number="form.maxTokens" type="number" min="-1"

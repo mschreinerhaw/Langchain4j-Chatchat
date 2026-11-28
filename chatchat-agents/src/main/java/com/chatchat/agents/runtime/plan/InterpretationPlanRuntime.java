@@ -7853,6 +7853,14 @@ public class InterpretationPlanRuntime extends AbstractRuntimeWorkflow<Interpret
         }
         sanitizeDiscoveryFilters(step, request, input);
         if (fixedPublication.isPresent()) {
+            // Fixed publications determine the asset family. Search hints belong in filters.
+            input.remove("assetType");
+            Object query = input.remove("query");
+            if (query instanceof String text && !text.isBlank()) {
+                Map<String, Object> fixedFilters = new LinkedHashMap<>(asStringMap(input.get("filters")));
+                fixedFilters.putIfAbsent("intent", text);
+                input.put("filters", fixedFilters);
+            }
             List.of("limit", "pageSize", "pageToken", "cursor").forEach(input::remove);
         } else if (isTemplateDiscoveryTool(step.toolName(), request)) {
             normalizeTemplateDiscoveryCandidateLimit(input);

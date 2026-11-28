@@ -20,8 +20,8 @@ public final class RuntimeStreamingChatModel implements ChatModel {
         this(provider,timeout,timeout);
     }
     RuntimeStreamingChatModel(StreamingChatModel provider, java.time.Duration timeout, java.time.Duration firstTokenTimeout) {
-        if(timeout==null || timeout.isZero() || timeout.isNegative() || firstTokenTimeout==null
-            || firstTokenTimeout.isZero() || firstTokenTimeout.isNegative()) throw new IllegalArgumentException("Positive model deadlines required");
+        if(timeout==null || timeout.isNegative() || firstTokenTimeout==null
+            || firstTokenTimeout.isNegative()) throw new IllegalArgumentException("Non-negative model deadlines required");
         this.provider=provider; this.timeout=timeout; this.firstTokenTimeout=firstTokenTimeout;
     }
 
@@ -35,7 +35,7 @@ public final class RuntimeStreamingChatModel implements ChatModel {
         provider.chat(request).subscribe(new Flow.Subscriber<ChatModelStreamingEvent>() {
             @Override public void onSubscribe(Flow.Subscription value) {
                 subscription.set(value);
-                if(result.isCancelled())value.cancel();else value.request(Long.MAX_VALUE);
+                if(result.isDone())value.cancel();else value.request(Long.MAX_VALUE);
             }
             @Override public void onNext(ChatModelStreamingEvent event) {
                 if(result.isDone())return;
@@ -53,17 +53,22 @@ public final class RuntimeStreamingChatModel implements ChatModel {
                 if(!result.isDone())onError(new IllegalStateException("Provider stream ended without a complete response"));
             }
         });
-        try {
-            long firstBudget=Math.min(firstTokenTimeout.toNanos(),timeout.toNanos());
-            long arrived=firstActivity.get(Math.max(1,firstBudget-(System.nanoTime()-started)),TimeUnit.NANOSECONDS);
-            if(arrived-started>firstBudget)throw new TimeoutException();
-        } catch(TimeoutException expired) {
-            if(firstTokenTimeout.compareTo(timeout)<0)throw new FirstTokenTimeoutException(expired);
-            throw new NoResponseTimeoutException(expired);
-        }
-        long remaining=timeout.toNanos()-(System.nanoTime()-started);
-        if(remaining<=0)throw new TimeoutException();
-        return result.get(Math.max(1,remaining), TimeUnit.NANOSECONDS);
+            long overallBudget = timeout.isZero() ? Long.MAX_VALUE : timeout.toNanos();
+            long firstOutputBudget = firstTokenTimeout.isZero() ? Long.MAX_VALUE : firstTokenTimeout.toNanos();
+            long firstBudget = Math.min(firstOutputBudget, overallBudget);
+            if (firstBudget != Long.MAX_VALUE) {
+                try {
+                    long arrived = firstActivity.get(Math.max(1, firstBudget - (System.nanoTime() - started)), TimeUnit.NANOSECONDS);
+                    if (arrived - started > firstBudget) throw new TimeoutException();
+                } catch (TimeoutException expired) {
+                    if (firstOutputBudget < overallBudget) throw new FirstTokenTimeoutException(expired);
+                    throw new NoResponseTimeoutException(expired);
+                }
+            }
+            if (timeout.isZero()) return result.get();
+            long remaining = overallBudget - (System.nanoTime() - started);
+            if (remaining <= 0) throw new TimeoutException();
+            return result.get(remaining, TimeUnit.NANOSECONDS);
         } catch(FirstTokenTimeoutException | NoResponseTimeoutException expired) {
             result.cancel(false);
             throw expired;
@@ -77,6 +82,7 @@ public final class RuntimeStreamingChatModel implements ChatModel {
             if(failure.getCause() instanceof RuntimeException runtime)throw runtime;
             throw new IllegalStateException("Provider stream failed",failure.getCause());
         } finally {
+            result.cancel(false);
             var current=subscription.get();if(current!=null)current.cancel();
         }
     }

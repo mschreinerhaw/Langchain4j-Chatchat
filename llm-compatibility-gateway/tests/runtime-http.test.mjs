@@ -47,6 +47,10 @@ test('real Gateway HTTP routes pin configuration and correlate Runtime requests'
   }
   if (body.stream) {
    response.writeHead(200, { 'content-type': 'text/event-stream' });
+   if (body.messages[0].content === 'empty-stream') {
+    response.end('data: [DONE]\n\n');
+    return;
+   }
    response.end('data: {"choices":[{"index":0,"delta":{"content":"OK"},"finish_reason":"stop"}]}\n\n'
     + 'data: {"choices":[],"usage":{"prompt_tokens":2,"completion_tokens":1,"total_tokens":3}}\n\ndata: [DONE]\n\n');
    return;
@@ -97,6 +101,14 @@ test('real Gateway HTTP routes pin configuration and correlate Runtime requests'
  };
  const initial = await (await fetch(admin + '/admin/config', { headers:adminHeaders })).json();
  await publish(initial.version,'vendor/old:v1');
+ assert.equal((await (await fetch(admin + '/admin/config', { headers:adminHeaders })).json())
+  .config.models[0].requestTimeoutMinutes,5);
+ const emptyStream = await fetch(api + '/v1/chat/completions', { method:'POST',
+  headers:{ ...json, authorization:'Bearer fixture-ordinary-key' },
+  body:JSON.stringify({model:alias,stream:true,messages:[{role:'user',content:'empty-stream'}]}) });
+ assert.equal(emptyStream.status,502);
+ assert.equal((await emptyStream.json()).error.code,'upstream_protocol_error');
+ calls.length = 0;
  const chat = (content, key, trace) => fetch(api + '/v1/chat/completions', { method:'POST', headers:{ ...json,
   authorization:'Bearer ' + key, 'x-runtime-task-id':'native-task', 'x-runtime-session-id':'native-session',
   'x-runtime-attempt-id':'native-task-fence-1', 'x-runtime-request-id':trace, 'x-runtime-deadline-ms':'1' },

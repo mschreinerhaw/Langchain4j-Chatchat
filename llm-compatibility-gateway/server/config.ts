@@ -33,8 +33,10 @@ export const serviceSchema = z.object({
 });
 const capability = z.enum(['configured', 'supported', 'unsupported', 'unverified']);
 export const processingModeSchema = z.enum(['DIRECT', 'FRAMEWORK', 'CUSTOM']);
+export const defaultModelTimeoutMinutes = 5;
 export const modelSchema = z.object({
   alias: identifier, displayName: identifier.optional(), upstream: identifier, service: identifier, enabled: z.boolean().default(true),
+  requestTimeoutMinutes: z.union([z.literal(-1), z.number().int().min(1).max(35_791)]).optional(),
   contextWindow: z.number().int().positive().optional(), maxOutput: z.number().int().positive().optional(),
   sseEnd: z.enum(['require_done', 'done_on_finished_eof']).default('require_done'),
   protocol: protocolSchema.optional(),
@@ -191,6 +193,14 @@ export class Store {
   publish(expected: number, input: unknown, options: { action?: string; retainSecrets?: boolean; allowNewOrigins?: boolean } = {}) {
     const { action = 'publish', retainSecrets = true, allowNewOrigins = false } = options;
     const config = this.validate(input, true, allowNewOrigins);
+    if (action === 'publish') {
+      const previousModels = new Map(this.current.config.models.map(model => [model.alias, model]));
+      for (const model of config.models) {
+        if (model.requestTimeoutMinutes !== undefined) continue;
+        const previous = previousModels.get(model.alias);
+        model.requestTimeoutMinutes = previous ? previous.requestTimeoutMinutes ?? -1 : defaultModelTimeoutMinutes;
+      }
+    }
     const allowed = this.allowedOrigins;
     const newOrigins = new Set(config.services.map(service => new URL(service.origin).origin).filter(origin => !allowed.has(origin)));
     const previous = new Map(this.current.config.services.map(service => [service.id, service]));

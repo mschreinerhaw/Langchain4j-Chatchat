@@ -269,6 +269,11 @@ public class AgentRuntimeTaskEventPublisher implements AgentRunEventPublisher {
             return "RUNNING";
         }
         if (type == AgentRunEventType.OBSERVATION_RECORDED) {
+            if (event.payload() != null
+                && java.util.Set.of("tool_failure", "state_update_failed")
+                    .contains(java.util.Objects.toString(event.payload().get("type"), ""))) {
+                return "FAILED";
+            }
             Object rawMetadata = event.payload() == null ? null : event.payload().get("metadata");
             Map<?, ?> metadata = rawMetadata instanceof Map<?, ?> values ? values : Map.of();
             Object rawEventState = metadata.containsKey("eventState")
@@ -389,7 +394,9 @@ public class AgentRuntimeTaskEventPublisher implements AgentRunEventPublisher {
             copyExecutionFacts(facts, metadata, List.of("eventKind", "eventState", "stage", "type", "modelPhase",
                 "taskId", "attemptId", "stepId", "eventId", "sequence", "occurredAt", "codingEventType", "operationId", "toolCallId",
                 "operationAttempt", "reasonCode", "planningOwner", "requestId", "operationKind", "executorConfirmed",
-                "executorStopped", "observedAt", "timeBasis"));
+                "executorStopped", "observedAt", "timeBasis", "modelSource", "providerModel",
+                "durationMs", "firstTokenMs", "messageCount", "toolCount", "finishReason",
+                "usageSource", "inputTokens", "outputTokens", "totalTokens"));
             if (metadata.get("payload") instanceof Map<?,?> worker) {
                 Map<String,Object> receipt = new LinkedHashMap<>();
                 copyExecutionFacts(receipt, worker, List.of("type", "timestamp", "stage", "tool", "modelCall",

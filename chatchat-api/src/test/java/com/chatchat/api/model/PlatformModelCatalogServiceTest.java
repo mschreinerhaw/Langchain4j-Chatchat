@@ -72,7 +72,9 @@ class PlatformModelCatalogServiceTest {
         assertThat(reopened.list().stream().filter(m->m.name().equals("B")).findFirst().orElseThrow().requestTimeoutSeconds()).isEqualTo(900);
         var json=new com.fasterxml.jackson.databind.ObjectMapper();
         assertThat(json.readValue("{}",PlatformModelCatalogService.ModelDraft.class).requestTimeoutSeconds()).isEqualTo(300);
-        for(String invalid:java.util.List.of("0","-1","1.5","1201","\"600\""))
+        assertThat(json.readValue("{\"requestTimeoutSeconds\":-1}", PlatformModelCatalogService.ModelDraft.class)
+            .requestTimeoutSeconds()).isEqualTo(-1);
+        for(String invalid:java.util.List.of("0","-2","1.5","1201","\"600\""))
             assertThatThrownBy(()->json.readValue("{\"requestTimeoutSeconds\":"+invalid+"}",PlatformModelCatalogService.ModelDraft.class)).isInstanceOf(Exception.class);
     }
     @Test

@@ -83,11 +83,11 @@ describe('model request timeout form',()=>{
     try {
       const root=app.mount(host);await nextTick();const view=root.$.subTree.component.proxy;
       view.openCreate();await nextTick();
-      const input=host.querySelector('input[type="number"][max="1200"]');
-      expect(input.value).toBe('300');expect(host.textContent).toContain('模型请求超时时间（秒）');
+      const input=host.querySelector('input[type="number"][max="20"]');
+      expect(input.value).toBe('5');expect(host.textContent).toContain('模型请求总时限（分钟）');
       view.openEdit({name:'A',type:'chat',requestTimeoutSeconds:120});expect(view.form.requestTimeoutSeconds).toBe(120);
       view.openEdit({name:'B',type:'chat',requestTimeoutSeconds:600});expect(view.form.requestTimeoutSeconds).toBe(600);
-      for(const invalid of [0,-1,1.5,1201]) {
+      for(const invalid of [0,-2,1.5,1201]) {
         view.form.requestTimeoutSeconds=invalid;await view.save();expect(view.error).toBe(true);
       }
       expect(savePlatformModel).not.toHaveBeenCalled();

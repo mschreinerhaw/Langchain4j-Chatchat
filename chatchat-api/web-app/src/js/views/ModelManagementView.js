@@ -103,6 +103,15 @@ export default {
     pageSize: 9,
   }),
   computed: {
+    requestTimeoutMinutes: {
+      get() {
+        const seconds = this.form.requestTimeoutSeconds;
+        return seconds === -1 || seconds === "" ? seconds : seconds / 60;
+      },
+      set(minutes) {
+        this.form.requestTimeoutSeconds = minutes === -1 || minutes === "" ? minutes : minutes * 60;
+      },
+    },
     reasoningSupported() {
       if (this.form.type !== 'chat') return false;
       const protocol = (this.form.protocol || 'auto').trim().toLowerCase().replaceAll('_', '-');
@@ -223,8 +232,11 @@ export default {
       if(this.form.type==='chat'&&this.form.internetSearchEnabled&&(!this.form.searchProviderIds.length||this.unavailableSearchProviders.length)){
         this.message="请选择至少一个已配置并启用的检索引擎";this.error=true;return;
       }
-      if (!Number.isInteger(this.form.requestTimeoutSeconds) || this.form.requestTimeoutSeconds < 1 || this.form.requestTimeoutSeconds > 1200) {
-        this.message = "模型请求超时时间必须为 1 至 1200 秒的整数";
+      const seconds = this.form.requestTimeoutSeconds;
+      if (!(this.form.type === "chat" && seconds === -1)
+          && (!Number.isInteger(seconds) || seconds < 1 || seconds > 1200)) {
+        this.message = this.form.type === "chat" ? "请输入 20 分钟以内的正数，或输入 -1"
+          : "请输入 20 分钟以内的正数";
         this.error = true;
         return;
       }

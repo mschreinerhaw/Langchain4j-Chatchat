@@ -125,6 +125,13 @@ export function translate(error: unknown) {
   return new GatewayError(502, 'upstream_failure', '上游连接、TLS 或响应读取失败');
 }
 
+function hasEffectiveOutput(delta: JsonObject) {
+  const text = (value: unknown) => typeof value === 'string' && value.length > 0;
+  return [delta.content, delta.reasoning, delta.reasoning_content].some(text)
+    || Array.isArray(delta.tool_calls) && delta.tool_calls.some(call => isObject(call)
+      && isObject(call.function) && [call.function.name, call.function.arguments].some(text));
+}
+
 export async function proxy(options: {
   body: JsonObject; model: Model; service: Service; signal: AbortSignal;
   writer: StreamWriter; trace?: Trace; direct?: boolean; headers?: JsonObject; secrets?: string[];
@@ -132,13 +139,20 @@ export async function proxy(options: {
   onUpstreamError?: (record: JsonObject) => Promise<void>;
   metrics: JsonObject; mode?: 'ordinary' | 'runtime_managed' | 'diagnostic'; probe?: boolean;
 }) {
-  const { body, model, service, signal, writer, trace, direct = false, headers, metrics } = options;
+  const { body, model, service, writer, trace, direct = false, headers, metrics } = options;
   const start = performance.now();
   const used = active.get(service.id) ?? 0;
   const bounds = limits();
   if (used >= service.concurrency || totalActive >= bounds.concurrency) throw new GatewayError(429, 'concurrency_limit', '达到并发限制');
   active.set(service.id, used + 1);
   totalActive++;
+  const minutes = model.requestTimeoutMinutes ?? -1;
+  const deadline = new AbortController();
+  const timer = minutes > 0 ? setTimeout(() => deadline.abort(
+    new GatewayError(504, 'model_request_timeout', '模型请求达到 Gateway 总时限')), minutes * 60_000).unref() : undefined;
+  const signal = timer ? AbortSignal.any([options.signal, deadline.signal]) : options.signal;
+  metrics.requestTimeoutMinutes = minutes;
+  metrics.requestTimeoutSource = model.requestTimeoutMinutes === undefined ? 'legacy_unlimited' : 'model';
   let upstream: ReturnType<typeof openUpstream> | undefined;
   const secrets = [...(options.secrets ?? []), service.apiKey ?? ''];
   const report: Trace = async (stage, value) => { if (trace) await trace(stage, redact(value, secrets)); };
@@ -154,6 +168,9 @@ export async function proxy(options: {
     const activeModel = engine === 'DIRECT' ? { ...model, rules: [] } : model;
     const payload = prepare(body, model, direct, protocol);
     if (viaFramework) litellmRequest(payload);
+    metrics.requestBytes = Buffer.byteLength(JSON.stringify(payload));
+    metrics.messageCount = Array.isArray(payload.messages) ? payload.messages.length : 0;
+    metrics.toolCount = Array.isArray(payload.tools) ? payload.tools.length : 0;
     const response = new ResponseProtocol(protocol, payload);
     metrics.usageStatus = 'UNKNOWN';
     const stream = payload.stream === true;
@@ -164,6 +181,7 @@ export async function proxy(options: {
     await report('upstream_request', { url: upstream.url.href, headers: { ...requestHeaders,
       ...(service.apiKey ? { [service.authHeader]: '[REDACTED]' } : {}) }, body: payload });
     const result = await upstream.response;
+    metrics.upstreamHeadersMs = Math.round(performance.now() - start);
     const status = result.statusCode;
     metrics.upstreamStatus = status;
     if (typeof result.headers['x-request-id'] === 'string'
@@ -208,7 +226,7 @@ export async function proxy(options: {
       await writer.write(event);
     };
     for await (const event of readEvents(result.body, bounds.eventBytes, bounds.streamBytes)) {
-      upstream.stopFirstTimer();
+      metrics.firstSseEventMs ??= Math.round(performance.now() - start);
       const eventName = event.other.filter(line => line.startsWith('event:')).at(-1)?.slice(6).trim();
       const terminal = Boolean(eventName && eventName === protocol.doneEvent);
       if (eventName === 'error') {
@@ -218,7 +236,8 @@ export async function proxy(options: {
       if (event.data === undefined && !terminal) { await send(eventText(event)); continue; }
       await report('upstream_response', { status, event: event.data, fields: event.other });
       if (terminal || event.data?.trim() === '[DONE]') {
-        if (unfinished.size || (terminal && !completed)) throw protocolError('上游在 choice 完成前发送了 SSE 结束标记');
+        if (metrics.firstTokenMs === undefined || unfinished.size || (terminal && !completed))
+          throw protocolError('上游未提供有效输出或在 choice 完成前发送了 SSE 结束标记');
         response.assertFinished();
         if (terminal && event.data && event.data.trim() !== '[DONE]') {
           const marker = parseObject(event.data);
@@ -253,9 +272,9 @@ export async function proxy(options: {
             completed = true;
           } else unfinished.add(choice.index);
         }
-        if (metrics.firstTokenMs === undefined && [delta.content, delta.reasoning, delta.reasoning_content, delta.tool_calls]
-          .some(value => (typeof value === 'string' || Array.isArray(value)) && value.length)) {
+        if (metrics.firstTokenMs === undefined && hasEffectiveOutput(delta)) {
           metrics.firstTokenMs = Math.round(performance.now() - start);
+          upstream.stopFirstTimer();
         }
       }
       if ((protocol.usage || protocol.usageEvent) && !choices.length && isObject(data.usage)) {
@@ -270,7 +289,11 @@ export async function proxy(options: {
     if (!done) throw protocolError('上游在 SSE 结束标记前断开');
     return { status, data: undefined };
   } catch (error) {
-    if (signal.aborted) throw signal.reason;
+    if (signal.aborted) {
+      metrics.terminationComponent = deadline.signal.aborted && signal.reason === deadline.signal.reason
+        ? 'gateway_model_deadline' : 'caller_or_shutdown';
+      throw signal.reason;
+    }
     if (upstream && options.onUpstreamError) {
       const failure = translate(error);
       await options.onUpstreamError({
@@ -283,6 +306,7 @@ export async function proxy(options: {
     }
     throw error;
   } finally {
+    clearTimeout(timer);
     try { await upstream?.close(); }
     finally {
       const remaining = (active.get(service.id) ?? 1) - 1;

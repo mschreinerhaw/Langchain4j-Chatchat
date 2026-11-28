@@ -1,0 +1,355 @@
+{
+  "baselineSource": "d3b35d1b1",
+  "baselineEvidence": "582e0722e",
+  "sourceCommit": "cd69354879bb3305ec301a09f10d5bda10cfff00",
+  "image": "sha256:50ce359af6ccb6372fad99074e153758df8be354191c5999121d4259995401dc",
+  "overlaySha256": "dc55582b28b920782645576e841729cbc7ddf50e893ca338fec2f0f72511f017",
+  "scope": {
+    "realPublishedProvider": "qwen3.7-plus",
+    "isolatedTaskBudgetMinutes": 3,
+    "fixtureBudgetOnly": true,
+    "caseOrder": [
+      "11",
+      "7",
+      "6"
+    ],
+    "fixedHistoricalSnapshotReuse": false,
+    "productionChanged": false
+  },
+  "liveCases": {
+    "11": {
+      "id": "3c3c0e1a-1e94-3f22-92d1-92e383e891f1",
+      "attemptId": "att-1-e785a8fd-dbff-44d0-a6f5-78f5e16e62cf",
+      "status": "FAILED",
+      "canonicalState": "FAILED",
+      "classificationEvents": [
+        {
+          "status": "RUNNING",
+          "reasonCode": null
+        },
+        {
+          "status": "FAILED",
+          "reasonCode": "CLASSIFICATION_MODEL_CONFIGURATION_INVALID"
+        }
+      ],
+      "protectionCancelIssued": false,
+      "submittedAt": "2026-11-28T14:11:43.632452+00:00",
+      "preliminaryWhileRunning": {},
+      "finishedAt": "2026-11-28T14:11:48.241Z",
+      "executions": [],
+      "answerPresent": true,
+      "clarificationTextObserved": false,
+      "elapsedSeconds": 4.609
+    },
+    "7": {
+      "id": "ea0ce788-1b0c-3d53-87fb-972dd8382c4f",
+      "attemptId": "att-1-b5cb5be0-6c5c-4ce4-9f66-0ea337e2e90a",
+      "status": "PARTIAL_SUCCESS",
+      "canonicalState": "PARTIAL",
+      "classificationEvents": [],
+      "protectionCancelIssued": false,
+      "submittedAt": "2026-11-28T14:11:50.100565+00:00",
+      "preliminaryWhileRunning": {
+        "unauthenticatedHttpStatus": 401,
+        "observedAt": "2026-11-28T14:12:26.407011+00:00",
+        "outerStatus": "WAIT_MODEL",
+        "nativeStatus": "RUNNING",
+        "phase": "PRELIMINARY",
+        "validationStatus": "PASSED",
+        "finished": false,
+        "resultAvailable": false,
+        "formalReceiptPresent": false,
+        "version": "136dcef90f64b09c585979ef4a13f079f4c8f41b8bc3c554e0b8bcf40fac11e8",
+        "snapshotVersion": "95c6d52932de445fa896f7f2aea540480385e19c34e0e4b0c2e2be5ead52240f",
+        "reportHashMatches": true,
+        "evidenceReferenceCount": 9,
+        "observedAfterSubmissionSeconds": 36.306,
+        "versionsConsistent": true
+      },
+      "finishedAt": "2026-11-28T14:15:25.941092Z",
+      "executions": [
+        {
+          "nativeTask": "temporal-native-2ed0cb558341a4b0c0d1995f371260cad4b843ed159846948266c65602a83556",
+          "nativeState": "BUDGET_EXCEEDED",
+          "runtimeDeliveryState": "CANCELLED_LOCAL_ONLY",
+          "nativeAcceptance": null,
+          "workerState": "STOPPED",
+          "nativeReason": "DEADLINE_EXCEEDED",
+          "firstSnapshotPersistedAt": "2026-11-28T14:12:17.251Z",
+          "budgetBasicReport": true,
+          "basicValidation": "PASSED",
+          "preliminaryVersionInFinalReceipt": "136dcef90f64b09c585979ef4a13f079f4c8f41b8bc3c554e0b8bcf40fac11e8",
+          "preliminaryVersionInDelivery": "136dcef90f64b09c585979ef4a13f079f4c8f41b8bc3c554e0b8bcf40fac11e8",
+          "basicReportRecordedAt": "2026-11-28T14:15:22.963Z",
+          "runtimeDeadlineAtEpochMs": 1795875319208,
+          "outputArtifacts": [
+            {
+              "format": "json",
+              "verified": true,
+              "expectedSha256": "fb723cd77263b5f7e363588e150378712192cce6b368cedb72205e4537e25542",
+              "observedSha256": "fb723cd77263b5f7e363588e150378712192cce6b368cedb72205e4537e25542",
+              "bytes": 7369,
+              "structuredAnalysisStatus": "PARTIAL",
+              "evidenceReferenceCount": 9,
+              "structuredLimitationCount": 2
+            },
+            {
+              "format": "md",
+              "verified": true,
+              "expectedSha256": "35645949986a8338cb92ffab444b40eebb5e7b83675d5a6cefec1d3091cc32d7",
+              "observedSha256": "35645949986a8338cb92ffab444b40eebb5e7b83675d5a6cefec1d3091cc32d7",
+              "bytes": 6516,
+              "tableRows": 71,
+              "observedCjkCharacters": 380,
+              "recognizedBasicSections": 4
+            }
+          ],
+          "datasets": 9,
+          "snapshotDigests": [
+            "c4f7ee0678ec4c6664dac47fea0dbec09c7f0dcffc634ce525d9947268b13c64",
+            "7f8fd6b57459a4bca1b393fd38299710ee2105385b856592430d4c92d38f827b",
+            "a91dc2d8fdb5a73514429190f13935a9eb88a96ff177cbcf3d7ca1d011bfe45e",
+            "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+            "37e2c0702178fb49c6235426df305f4e1ff1ebb93cf67a6f2234bad54fe2977f",
+            "9d154e0c26fff5aa9f54ffb484fec359c0aa5217993dfaf6d8e985f62182eeb1",
+            "01d43a293b5b74356729cd6d0e53163744f4c809f69ed397d4fa7191e655e54e",
+            "6f5e2142f5f098a4dded3731d22f37395a0aafd5a668af34a008f6bcc01a85ac",
+            "92b1cd60b6c0f1ce77a61aab626aaca31c3038eaa6f4065d0d87b19220410693"
+          ],
+          "snapshotCoverage": {
+            "DELIVERED_SNAPSHOT": 8,
+            "VERIFIED_EMPTY_SNAPSHOT": 1
+          },
+          "snapshotRowCounts": [
+            6,
+            20,
+            1,
+            0,
+            10,
+            88,
+            359,
+            20,
+            50
+          ],
+          "firstNativeInputVerification": null,
+          "firstNativeModelStartedAt": "2026-11-28T14:12:35.521Z",
+          "nativeFinishedAt": "2026-11-28T14:15:22.371Z",
+          "modelStarted": 7,
+          "modelCompleted": 7,
+          "providerStatusCounts": {
+            "SUCCEEDED": 6,
+            "FAILED": 1
+          },
+          "knownProviderTokens": {
+            "inputTokens": 199723,
+            "outputTokens": 2221,
+            "totalTokens": 201944
+          },
+          "callsWithoutUsage": 1,
+          "nativeToolCounts": {
+            "read_files": 6,
+            "run_commands": 3
+          },
+          "nativeToolFailures": 1,
+          "analysisStatus": "PARTIAL",
+          "limitationCount": 2,
+          "knownDataLimitCategories": {
+            "missingHistory": false,
+            "emptyRecords": false,
+            "disabledLog": false
+          },
+          "firstSupplySeconds": 27.15,
+          "basicDeliverySeconds": 212.862
+        }
+      ],
+      "answerPresent": true,
+      "clarificationTextObserved": false,
+      "elapsedSeconds": 215.841
+    },
+    "6": {
+      "id": "8291093b-da69-353c-8a90-842f89d7310a",
+      "attemptId": "att-1-7c859895-3fd6-4dbc-ae97-0333fcdd5c56",
+      "status": "PARTIAL_SUCCESS",
+      "canonicalState": "PARTIAL",
+      "classificationEvents": [
+        {
+          "status": "RUNNING",
+          "reasonCode": null
+        },
+        {
+          "status": "COMPLETED",
+          "reasonCode": null
+        }
+      ],
+      "protectionCancelIssued": false,
+      "submittedAt": "2026-11-28T14:15:28.396307+00:00",
+      "preliminaryWhileRunning": {
+        "unauthenticatedHttpStatus": 401,
+        "observedAt": "2026-11-28T14:16:59.181196+00:00",
+        "outerStatus": "WAIT_MODEL",
+        "nativeStatus": "RUNNING",
+        "phase": "PRELIMINARY",
+        "validationStatus": "PASSED",
+        "finished": false,
+        "resultAvailable": false,
+        "formalReceiptPresent": false,
+        "version": "7f97cb1052483f0a056d3ab195578ea3086b5866d750f2a43155117980f622d0",
+        "snapshotVersion": "aeb3ec8ae1d01af2bd7cd97eeeacebff4656ec0caad6d570035665eb24460998",
+        "reportHashMatches": true,
+        "evidenceReferenceCount": 8,
+        "observedAfterSubmissionSeconds": 90.785,
+        "versionsConsistent": true
+      },
+      "finishedAt": "2026-11-28T14:19:58.230Z",
+      "executions": [
+        {
+          "nativeTask": "temporal-native-1280035ee6336da2b138c64ef0974f7832a1ef966f9f4f4b8f3f1de136546343",
+          "nativeState": "BUDGET_EXCEEDED",
+          "runtimeDeliveryState": "CANCELLED_LOCAL_ONLY",
+          "nativeAcceptance": null,
+          "workerState": "STOPPED",
+          "nativeReason": "DEADLINE_EXCEEDED",
+          "firstSnapshotPersistedAt": "2026-11-28T14:16:51.114Z",
+          "budgetBasicReport": true,
+          "basicValidation": "PASSED",
+          "preliminaryVersionInFinalReceipt": "7f97cb1052483f0a056d3ab195578ea3086b5866d750f2a43155117980f622d0",
+          "preliminaryVersionInDelivery": "7f97cb1052483f0a056d3ab195578ea3086b5866d750f2a43155117980f622d0",
+          "basicReportRecordedAt": "2026-11-28T14:19:56.146Z",
+          "runtimeDeadlineAtEpochMs": 1795875591452,
+          "outputArtifacts": [
+            {
+              "format": "json",
+              "verified": true,
+              "expectedSha256": "be5cfa1efabda9eef07b3b189d7e2885d7db6686da905eb3dcafd55086e6741e",
+              "observedSha256": "be5cfa1efabda9eef07b3b189d7e2885d7db6686da905eb3dcafd55086e6741e",
+              "bytes": 7997,
+              "structuredAnalysisStatus": "PARTIAL",
+              "evidenceReferenceCount": 8,
+              "structuredLimitationCount": 2
+            },
+            {
+              "format": "md",
+              "verified": true,
+              "expectedSha256": "f34aa67d770bfb9907f13473a072207b35cb4a8ad0854b6c4507ab9f429dceba",
+              "observedSha256": "f34aa67d770bfb9907f13473a072207b35cb4a8ad0854b6c4507ab9f429dceba",
+              "bytes": 7078,
+              "tableRows": 84,
+              "observedCjkCharacters": 322,
+              "recognizedBasicSections": 4
+            }
+          ],
+          "datasets": 8,
+          "snapshotDigests": [
+            "7611d03312a11f38d5a49d75d36ad00228fb3ab0457a2fa69315cb49bdd58a72",
+            "a3a6584e237ba08fe4f1ba7e4c05d8d857a7e3705ecbdaf78644a8dd32daece4",
+            "b93a377fc5379d5f434d19f75e314d4eaa7ba7d746dc7441c7f6a53aff66f35d",
+            "4c8a8623f954e59e059eb75765c0b1ea0af1a7d9fe1f7f7c9f1e05dfa18ea2c0",
+            "c09dada2307e3286f94d345d8bced40c91a3120a53764709e2c1881dec7901db",
+            "5ada970d2e11b07401b7ea63baff2594fdb7f9c20da2e1274081a087cdf6c158",
+            "761effec41fc7d416cbad4ffacdc7def493d9cae195cafed1795f22e963dded6",
+            "32db44e88229c4d3e261ae749c96302e4bc988ba1db044d1e5144360496f4af4"
+          ],
+          "snapshotCoverage": {
+            "DELIVERED_SNAPSHOT": 8
+          },
+          "snapshotRowCounts": [
+            1,
+            1,
+            1,
+            1,
+            1,
+            1,
+            2,
+            1
+          ],
+          "firstNativeInputVerification": null,
+          "firstNativeModelStartedAt": "2026-11-28T14:17:05.059Z",
+          "nativeFinishedAt": "2026-11-28T14:19:55.609Z",
+          "modelStarted": 6,
+          "modelCompleted": 6,
+          "providerStatusCounts": {
+            "SUCCEEDED": 5,
+            "FAILED": 1
+          },
+          "knownProviderTokens": {
+            "inputTokens": 94815,
+            "outputTokens": 9306,
+            "totalTokens": 104121
+          },
+          "callsWithoutUsage": 1,
+          "nativeToolCounts": {
+            "read_files": 3,
+            "run_commands": 1,
+            "editor": 1
+          },
+          "nativeToolFailures": 1,
+          "analysisStatus": "PARTIAL",
+          "limitationCount": 2,
+          "knownDataLimitCategories": {
+            "missingHistory": false,
+            "emptyRecords": false,
+            "disabledLog": false
+          },
+          "firstSupplySeconds": 82.718,
+          "basicDeliverySeconds": 267.75
+        }
+      ],
+      "answerPresent": true,
+      "clarificationTextObserved": false,
+      "elapsedSeconds": 269.834
+    }
+  },
+  "cancellationProbe": {
+    "outerStatus": "CANCELLED",
+    "nativeStatus": "CANCELLED",
+    "nativeTerminal": true,
+    "cancellationRequested": true,
+    "priorPreliminaryWasVisible": true,
+    "postCancellationPreliminaryVisible": false,
+    "formalReceiptPresent": false,
+    "protectionStop": false,
+    "nativeTaskId": "temporal-native-d3b4219a7fb868ef56d874874242ca713094e8f96c566e078df6e5ef4e52d6ae"
+  },
+  "diskAndCleanup": {
+    "at": "2026-11-28T14:21:43.137641+00:00",
+    "scopedStopped": [
+      "stability-nct-progress-api",
+      "stability-nct-mcp",
+      "stability-nct-broker",
+      "stability-nct-executor",
+      "stability-nct-recovery"
+    ],
+    "previousServicesRunning": [
+      "stability-njr-api",
+      "stability-njr-mcp",
+      "stability-njr-broker",
+      "stability-njr-executor"
+    ],
+    "nativeWorkerState": {
+      "temporal-native-2ed0cb558341a4b0c0d1995f371260cad4b843ed159846948266c65602a83556": "STOPPED",
+      "temporal-native-1280035ee6336da2b138c64ef0974f7832a1ef966f9f4f4b8f3f1de136546343": "STOPPED",
+      "temporal-native-d3b4219a7fb868ef56d874874242ca713094e8f96c566e078df6e5ef4e52d6ae": "STOPPED"
+    },
+    "removedDuplicateBuildBytes": 429351989,
+    "beforeDisk": "Filesystem      Size  Used Avail Use% Mounted on\n/dev/sdb        180G  165G   16G  92% /opt\n/dev/sdc        100G   63G   38G  63% /mnt/disk01",
+    "afterDisk": "Filesystem      Size  Used Avail Use% Mounted on\n/dev/sdb        180G  165G   16G  92% /opt\n/dev/sdc        100G   63G   38G  63% /mnt/disk01",
+    "afterInode": "Filesystem       Inodes   IUsed    IFree IUse% Mounted on\n/dev/sdb       34386352 2234604 32151748    7% /opt\n/dev/sdc       52428800  974161 51454639    2% /mnt/disk01"
+  },
+  "tests": {
+    "serverCommonPassed": 4,
+    "serverChatPassed": 107,
+    "serverApiPassed": 37,
+    "serverApiSkipped": 1,
+    "localFinalFocusedPassed": 21,
+    "businessHardcodingReviewCandidates": 0
+  },
+  "pending": [
+    "published and authorized YARN classification/analysis model",
+    "three or ten pinned-snapshot standard-model repeats",
+    "authorized low-capacity model comparison",
+    "complete fault matrix including Worker exit and object-store interruption",
+    "trusted producer assembly for enhanced report fields",
+    "generic progress and convergence outside delivery repair",
+    "48-hour stability gate"
+  ]
+}

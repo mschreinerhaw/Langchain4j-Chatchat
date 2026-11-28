@@ -1,0 +1,250 @@
+{
+  "containers": [
+    {
+      "name": "runtime-os-app-stage-api-1",
+      "tag": "chatchat-api:published-agent-html-20261127-a4a9fc50cf92",
+      "imageId": "sha256:f7b8c5457d4296e3c76b8abd3c45c34043c70ae0756fdfce640296db64bdedb0",
+      "running": true,
+      "health": "healthy"
+    },
+    {
+      "name": "runtime-os-app-stage-mcp-1",
+      "tag": "chatchat-mcp-server:mysql-target-scope-20261125",
+      "imageId": "sha256:b251dbe8d9e4b994c4e93057dac4edbd3eed343ef2eee53463e4fda4c92d40b8",
+      "running": true,
+      "health": "healthy"
+    },
+    {
+      "name": "runtime-coding-integrated-node",
+      "tag": "runtime-os-native-worker:enterprise-p0-20261127-worker-0b332ac41a",
+      "imageId": "sha256:d2d80f58a884d2d50e08180f70afd7a23563415975273be7eebe4ee625b34ce3",
+      "running": true,
+      "health": "healthy"
+    },
+    {
+      "name": "runtime-coding-integrated-executor",
+      "tag": "runtime-os-native-worker:responsive-charts-executor-e52c073ea",
+      "imageId": "sha256:4b98db333186bafcca9e5faf3932035f03faa5c39540dbc163c3bcd8adc3dcfa",
+      "running": true,
+      "health": null
+    },
+    {
+      "name": "runtime-os-source-production-native-recovery-1",
+      "tag": "runtime-os-native-worker:responsive-charts-recovery-e52c073ea",
+      "imageId": "sha256:c86dfb0216f1d4f6b294645317fbf34227c4ecd4d072bc9e778abe020db1e9ac",
+      "running": true,
+      "health": null
+    },
+    {
+      "name": "runtime-os-source-production-gateway-1",
+      "tag": "nginx:1.28-alpine",
+      "imageId": "sha256:dc73b49f5124cf2ee538dfbdfbd121f0b4ccdcb20fea30f3a81bd477c02e2bb5",
+      "running": true,
+      "health": null
+    },
+    {
+      "name": "runtime-os-source-production-frontend-preview-worker-1",
+      "tag": "frontend-resource-hub:enterprise-p0-20261127-aef946a6023d",
+      "imageId": "sha256:2de4f1039614280373531b65c0f5b35b6c95568b9b49fc7e35ab8da787ab8e58",
+      "running": true,
+      "health": "healthy"
+    },
+    {
+      "name": "runtime-os-source-production-frontend-resource-hub-1",
+      "tag": "frontend-resource-hub:enterprise-p0-20261127-aef946a6023d",
+      "imageId": "sha256:2de4f1039614280373531b65c0f5b35b6c95568b9b49fc7e35ab8da787ab8e58",
+      "running": true,
+      "health": "healthy"
+    },
+    {
+      "name": "runtime-os-source-production-temporal-1",
+      "tag": "temporalio/server:1.29.7",
+      "imageId": "sha256:1552391639f89ef91dc335ea10b74be712b6d4e461cbe0f84eff9d5f11cbe8b3",
+      "running": true,
+      "health": "healthy"
+    },
+    {
+      "name": "runtime-os-source-production-temporal-postgresql-1",
+      "tag": "postgres:18",
+      "imageId": "sha256:3cccc725163a95947178f4da5e9bf16add75cb286170ac5a2cd2f6513534955d",
+      "running": true,
+      "health": "healthy"
+    },
+    {
+      "name": "runtime-os-source-production-redis-1",
+      "tag": "redis:7.4-alpine",
+      "imageId": "sha256:bb8953020f6597e47d5d699a9910a25d77a69608dbd58e0f722940598ed85fc0",
+      "running": true,
+      "health": "healthy"
+    },
+    {
+      "name": "runtime-os-source-production-native-daemon-1",
+      "tag": "runtime-os-native-daemon:26.1.3-el8",
+      "imageId": "sha256:865d276d7e6309611e3f13bbda5a9244d4badb4cc720d134de808cb718011a7c",
+      "running": true,
+      "health": "healthy"
+    },
+    {
+      "name": "llm-gateway-llm-gateway-1",
+      "tag": "llm-compatibility-gateway:1.2.0-rc.1-model-errors-f2f9b6beb",
+      "imageId": "sha256:ec3dfb82c695457b79cd2d9e49785047ea5968e902d61721d43e3312172c09aa",
+      "running": true,
+      "health": "healthy"
+    },
+    {
+      "name": "postgresql18",
+      "tag": "postgres:18",
+      "imageId": "sha256:3cccc725163a95947178f4da5e9bf16add75cb286170ac5a2cd2f6513534955d",
+      "running": true,
+      "health": null
+    },
+    {
+      "name": "opensearch-node",
+      "tag": "opensearchproject/opensearch:2.19.1",
+      "imageId": "sha256:731779f1c50424e38335b0af191058642a4964a2b2c62175ebcc8d5734fee13a",
+      "running": true,
+      "health": null
+    },
+    {
+      "name": "silo",
+      "tag": "pgsty/silo:latest",
+      "imageId": "sha256:be37cae6c0545e6d3910e5b5578df376b9069c7f9cfe05d521cd91cabfa6cc38",
+      "running": true,
+      "health": null
+    }
+  ],
+  "images": [
+    {
+      "imageId": "sha256:1552391639f89ef91dc335ea10b74be712b6d4e461cbe0f84eff9d5f11cbe8b3",
+      "tags": [
+        "temporalio/server:1.29.7"
+      ],
+      "digests": [
+        "temporalio/server@sha256:688da708d0daca6ff8083334a4a7fbbdbc7e70d1cca8e2eda8c05b21fdbd601e"
+      ],
+      "revision": "cb8c66860ecef6ddc413fdc187494df0beae7407"
+    },
+    {
+      "imageId": "sha256:2de4f1039614280373531b65c0f5b35b6c95568b9b49fc7e35ab8da787ab8e58",
+      "tags": [
+        "frontend-resource-hub:enterprise-p0-20261127-8b8c9df51de0",
+        "frontend-resource-hub:enterprise-p0-20261127-aef946a6023d",
+        "runtime-os-offline/frontend:20261127-302855ffb"
+      ],
+      "digests": [],
+      "revision": null
+    },
+    {
+      "imageId": "sha256:3cccc725163a95947178f4da5e9bf16add75cb286170ac5a2cd2f6513534955d",
+      "tags": [
+        "postgres:18"
+      ],
+      "digests": [
+        "postgres@sha256:2ea8630df176ad090ec92136dee850397c5af8781e4bcf2e4162593691c61bbc"
+      ],
+      "revision": null
+    },
+    {
+      "imageId": "sha256:4b98db333186bafcca9e5faf3932035f03faa5c39540dbc163c3bcd8adc3dcfa",
+      "tags": [
+        "runtime-os-native-worker:responsive-charts-executor-e52c073ea",
+        "runtime-os-offline/executor:20261127-302855ffb"
+      ],
+      "digests": [],
+      "revision": "e52c073ea69455eb9b5a09e0e1e1c8e7bab70fe4"
+    },
+    {
+      "imageId": "sha256:731779f1c50424e38335b0af191058642a4964a2b2c62175ebcc8d5734fee13a",
+      "tags": [
+        "opensearchproject/opensearch:2.19.1"
+      ],
+      "digests": [
+        "opensearchproject/opensearch@sha256:72fe2fc84be8295906b8efca020b46c58ed45c8da60cd9b8b49e1991e38e89a4"
+      ],
+      "revision": null
+    },
+    {
+      "imageId": "sha256:865d276d7e6309611e3f13bbda5a9244d4badb4cc720d134de808cb718011a7c",
+      "tags": [
+        "runtime-os-native-daemon:26.1.3-el8"
+      ],
+      "digests": [],
+      "revision": null
+    },
+    {
+      "imageId": "sha256:b251dbe8d9e4b994c4e93057dac4edbd3eed343ef2eee53463e4fda4c92d40b8",
+      "tags": [
+        "chatchat-mcp-server:mysql-target-scope-20261125"
+      ],
+      "digests": [],
+      "revision": null
+    },
+    {
+      "imageId": "sha256:bb8953020f6597e47d5d699a9910a25d77a69608dbd58e0f722940598ed85fc0",
+      "tags": [
+        "redis:7.4-alpine"
+      ],
+      "digests": [
+        "redis@sha256:7f7d30b7fdd09467bac58198a1f166dd69789d348d4fe859cccb20e0cf287fbe"
+      ],
+      "revision": null
+    },
+    {
+      "imageId": "sha256:be37cae6c0545e6d3910e5b5578df376b9069c7f9cfe05d521cd91cabfa6cc38",
+      "tags": [
+        "pgsty/silo:latest"
+      ],
+      "digests": [
+        "pgsty/silo@sha256:08ce1505b5eacefbad1ca07159b242b9ce045a11c2817e3bc257b25f77bbc02d"
+      ],
+      "revision": "d998292387ccf1d2907749e0fb1575ef5fb93fda"
+    },
+    {
+      "imageId": "sha256:c86dfb0216f1d4f6b294645317fbf34227c4ecd4d072bc9e778abe020db1e9ac",
+      "tags": [
+        "runtime-os-native-worker:responsive-charts-recovery-e52c073ea",
+        "runtime-os-offline/recovery:20261127-302855ffb"
+      ],
+      "digests": [],
+      "revision": "e52c073ea69455eb9b5a09e0e1e1c8e7bab70fe4"
+    },
+    {
+      "imageId": "sha256:d2d80f58a884d2d50e08180f70afd7a23563415975273be7eebe4ee625b34ce3",
+      "tags": [
+        "runtime-os-native-worker:enterprise-p0-20261127-worker-0b332ac41a",
+        "runtime-os-offline/node:20261127-302855ffb",
+        "runtime-os-offline/task:20261127-302855ffb"
+      ],
+      "digests": [],
+      "revision": "e52c073ea69455eb9b5a09e0e1e1c8e7bab70fe4"
+    },
+    {
+      "imageId": "sha256:dc73b49f5124cf2ee538dfbdfbd121f0b4ccdcb20fea30f3a81bd477c02e2bb5",
+      "tags": [
+        "nginx:1.28-alpine",
+        "runtime-os-rollback-gateway:pre-analysis-5d96d85e41e1"
+      ],
+      "digests": [
+        "nginx@sha256:a8b39bd9cf0f83869a2162827a0caf6137ddf759d50a171451b335cecc87d236"
+      ],
+      "revision": null
+    },
+    {
+      "imageId": "sha256:ec3dfb82c695457b79cd2d9e49785047ea5968e902d61721d43e3312172c09aa",
+      "tags": [
+        "llm-compatibility-gateway:1.2.0-rc.1-model-errors-f2f9b6beb"
+      ],
+      "digests": [],
+      "revision": "f2f9b6beb"
+    },
+    {
+      "imageId": "sha256:f7b8c5457d4296e3c76b8abd3c45c34043c70ae0756fdfce640296db64bdedb0",
+      "tags": [
+        "chatchat-api:published-agent-html-20261127-a4a9fc50cf92",
+        "runtime-os-offline/api:20261127-302855ffb"
+      ],
+      "digests": [],
+      "revision": "e52c073ea69455eb9b5a09e0e1e1c8e7bab70fe4"
+    }
+  ]
+}

@@ -1,0 +1,206 @@
+{
+  "sourceCommit": "c1c019d20631cb292c4b7ff9d86fd0f5ca7fd60d",
+  "deploymentCommit": null,
+  "candidateActivated": false,
+  "sourceArchiveSha256": "b67b8820eaad3ee075555dc10082a66ac16294faa921e3d31ab8033c2c76c270",
+  "rollback": {
+    "configurationAndDataDirectory": "/mnt/disk01/validation-18100-c1c019d20/rollback",
+    "backupSha256Verified": true,
+    "pgRestoreTocVerified": true,
+    "databaseDumps": [
+      {
+        "bytes": 489342586,
+        "filename": "runtime_os_acceptance_api.private.dump"
+      },
+      {
+        "bytes": 7245700,
+        "filename": "runtime_os_acceptance_mcp.private.dump"
+      }
+    ]
+  },
+  "currentHealth": {
+    "runtime": {
+      "runtime-os-app-stage-api-1": {
+        "sameImage": true,
+        "running": true,
+        "health": "healthy"
+      },
+      "runtime-os-app-stage-mcp-1": {
+        "sameImage": true,
+        "running": true,
+        "health": "healthy"
+      },
+      "runtime-coding-integrated-node": {
+        "sameImage": true,
+        "running": true,
+        "health": "healthy"
+      },
+      "runtime-coding-integrated-executor": {
+        "sameImage": true,
+        "running": true,
+        "health": null
+      },
+      "runtime-os-source-production-native-recovery-1": {
+        "sameImage": true,
+        "running": true,
+        "health": null
+      },
+      "runtime-os-source-production-gateway-1": {
+        "sameImage": true,
+        "running": true,
+        "health": null
+      },
+      "runtime-os-source-production-frontend-preview-worker-1": {
+        "sameImage": true,
+        "running": true,
+        "health": "healthy"
+      },
+      "runtime-os-source-production-frontend-resource-hub-1": {
+        "sameImage": true,
+        "running": true,
+        "health": "healthy"
+      },
+      "runtime-os-source-production-temporal-1": {
+        "sameImage": true,
+        "running": true,
+        "health": "healthy"
+      },
+      "runtime-os-source-production-temporal-postgresql-1": {
+        "sameImage": true,
+        "running": true,
+        "health": "healthy"
+      },
+      "runtime-os-source-production-redis-1": {
+        "sameImage": true,
+        "running": true,
+        "health": "healthy"
+      },
+      "runtime-os-source-production-native-daemon-1": {
+        "sameImage": true,
+        "running": true,
+        "health": "healthy"
+      },
+      "llm-gateway-llm-gateway-1": {
+        "sameImage": true,
+        "running": true,
+        "health": "healthy"
+      },
+      "postgresql18": {
+        "sameImage": true,
+        "running": true,
+        "health": null
+      },
+      "opensearch-node": {
+        "sameImage": true,
+        "running": true,
+        "health": null
+      },
+      "silo": {
+        "sameImage": true,
+        "running": true,
+        "health": null
+      }
+    },
+    "readOnlyHttpStatus": {
+      "web": 200,
+      "anonymousMe": 401,
+      "mcpPort": 200,
+      "siloReachable": 403,
+      "opensearchReachable": "RemoteDisconnected",
+      "opensearchTlsWithoutCredentials": 401
+    }
+  },
+  "verifiedAdminAuthentication": {
+    "anonymousMeStatus": 401,
+    "loginHttpStatus": 200,
+    "loginBusinessCode": 200,
+    "authenticatedMeStatus": 200
+  },
+  "cleanup": {
+    "retiredContainers": [
+      "stability-nativeeff-api",
+      "stability-nativeeff-api-r3",
+      "stability-nativeeff-api-r4",
+      "stability-nativeeff-broker",
+      "stability-nativeeff-executor",
+      "stability-nativeeff-mcp",
+      "stability-nativeeff-recovery",
+      "stability-nct-api",
+      "stability-nct-basic-api",
+      "stability-nct-basic-r2-api",
+      "stability-nct-broker",
+      "stability-nct-executor",
+      "stability-nct-language-api",
+      "stability-nct-mcp",
+      "stability-nct-p0-api",
+      "stability-nct-progress-api",
+      "stability-nct-recovery",
+      "stability-njr-api",
+      "stability-njr-broker",
+      "stability-njr-executor",
+      "stability-njr-mcp",
+      "stability-njr-recovery",
+      "stability-weak-model-api"
+    ],
+    "untaggedImages": [
+      "chatchat-api-convergence:weak-model-input-evidence-r1",
+      "chatchat-api-convergence:efficiency-r2",
+      "chatchat-api-convergence:efficiency-r3"
+    ],
+    "efficiencyBatchAvailableBytesIncrease": 879411200,
+    "isolatedDuplicateBuildCopies": [
+      {
+        "duplicateContext": "image-model-gateway/dist",
+        "bytes": 1395723
+      },
+      {
+        "duplicateContext": "image-model-gateway/node_modules",
+        "bytes": 24583671
+      },
+      {
+        "duplicateContext": "native-context",
+        "bytes": 2596708
+      }
+    ],
+    "usageAfter": "Filesystem      Size  Used Avail Use% Mounted on\n/dev/sdb        180G  165G   16G  92% /opt\n/dev/sdc        100G   65G   36G  65% /mnt/disk01\n",
+    "inodesAfter": "Filesystem       Inodes   IUsed    IFree IUse% Mounted on\n/dev/sdb       34203112 2234614 31968498    7% /opt\n/dev/sdc       52428800 1041148 51387652    2% /mnt/disk01\n"
+  },
+  "testResults": {
+    "localJavaPassed": 170,
+    "localJavaSkipped": 1,
+    "webVitestPassed": 18,
+    "webNodePassed": 5,
+    "serverJavaFocusedPassed": 37,
+    "nativeFocusedPassed": 19,
+    "gatewayUnitPassed": 30,
+    "gatewayHttpAndTimeoutPassed": 2,
+    "businessHardcodingCandidates": 0,
+    "credentialPatternCandidates": 0
+  },
+  "modelAudit": {
+    "javaEnabledChatModels": 15,
+    "yarnJavaModel": "hy3",
+    "yarnJavaProviderType": "direct",
+    "hy3GatewayAliasFound": false,
+    "activeGatewaySource": "f2f9b6beb",
+    "candidateGatewaySource": "c1c019d20",
+    "gatewayRevision": 13,
+    "actualProviderBusinessAvailabilityVerified": false
+  },
+  "runtimeTaskAudit": {
+    "historicalRunningRows": 70,
+    "rowsUpdatedWithin30Minutes": 0,
+    "runningNativeWorkers": 0
+  },
+  "businessAcceptance": {
+    "planned": 9,
+    "submitted": 0,
+    "completeIntelligentAnalysis": 0,
+    "basicReportsDelivered": 0
+  },
+  "activationBlockers": [
+    "Live Gateway has provider/protocol changes absent from the candidate, and candidate timeout changes are absent from the live source.",
+    "The two product branches have source conflicts in Gateway and the Native receipt path. A combined build has not been validated.",
+    "No Native Gateway route for hy3 was visible in the current configuration."
+  ]
+}

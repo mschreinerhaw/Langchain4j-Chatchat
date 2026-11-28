@@ -1,0 +1,47 @@
+[
+  {
+    "tag": "validation-18100/api:c1c019d20",
+    "imageId": "sha256:33c1adda4245603bb223bca914d323f58ff81b54ddbadde959b98a5fc10fa26b",
+    "repoDigests": [],
+    "revision": "c1c019d20631cb292c4b7ff9d86fd0f5ca7fd60d",
+    "clineVersion": null,
+    "clineSource": null,
+    "pythonVersion": null
+  },
+  {
+    "tag": "validation-18100/mcp:c1c019d20",
+    "imageId": "sha256:e9c003d404b50882262106e9169eea26af393617cc43d0db1582eb2fbf7c4a18",
+    "repoDigests": [],
+    "revision": "c1c019d20631cb292c4b7ff9d86fd0f5ca7fd60d",
+    "clineVersion": null,
+    "clineSource": null,
+    "pythonVersion": null
+  },
+  {
+    "tag": "validation-18100/native:c1c019d20",
+    "imageId": "sha256:e7f48b4507e23235ec7be0886b0cefe90e3941fef5d6f5d45d23c1fbc7621ece",
+    "repoDigests": [],
+    "revision": "c1c019d20631cb292c4b7ff9d86fd0f5ca7fd60d",
+    "clineVersion": "4.1.27",
+    "clineSource": "8075d2e35cf5cad67c24f180c80a05d311b74a3e",
+    "pythonVersion": "3.11"
+  },
+  {
+    "tag": "validation-18100/model-gateway:c1c019d20",
+    "imageId": "sha256:43aeec5edb720a3104d7a0d05ddb31e152962f39f6fe4d8faf1ad03fbd80d260",
+    "repoDigests": [],
+    "revision": "c1c019d20631cb292c4b7ff9d86fd0f5ca7fd60d",
+    "clineVersion": null,
+    "clineSource": null,
+    "pythonVersion": null
+  },
+  {
+    "tag": "chatchat-python-runtime:report-skills-f7c093a1c3b0",
+    "imageId": "sha256:2ec3a311917ea570e9b74b5e8a23fffc98ceec4341a2c3c51147bd26667d7a13",
+    "repoDigests": [],
+    "revision": null,
+    "clineVersion": null,
+    "clineSource": null,
+    "pythonVersion": null
+  }
+]

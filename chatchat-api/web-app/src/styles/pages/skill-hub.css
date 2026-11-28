@@ -3917,13 +3917,6 @@
   line-height: 1.35;
 }
 
-.agent-workshop-view .agent-curl-title-wrap h2 + span {
-  display: block;
-  margin-top: 3px;
-  color: #64748b;
-  font-size: 13px;
-}
-
 .agent-workshop-view .agent-curl-body {
   display: grid;
   grid-template-columns: minmax(0, 1fr);
@@ -3934,140 +3927,36 @@
   background: #f8fafc;
 }
 
-.agent-workshop-view .agent-curl-capabilities {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 12px;
-  padding: 4px 0;
+.agent-workshop-view .agent-api-guide {
+  min-width: 0;
+  overflow-wrap: anywhere;
 }
 
-.agent-workshop-view .agent-curl-capabilities span {
-  display: inline-flex;
-  align-items: center;
-  gap: 7px;
-  color: #334155;
-  font-size: 13px;
-  font-weight: 700;
-  white-space: nowrap;
+.agent-workshop-view .agent-api-guide h2 {
+  margin-top: 24px;
+  padding-top: 16px;
+  border-top: 1px solid var(--border, #dce5f2);
 }
 
-.agent-workshop-view .agent-curl-capabilities b {
-  display: grid;
-  place-items: center;
-  width: 23px;
-  height: 23px;
-  border-radius: 50%;
-  background: #e8f0ff;
-  color: #2563eb;
-  font-size: 11px;
-}
-
-.agent-workshop-view .agent-curl-capabilities > i {
-  width: 42px;
-  height: 1px;
-  background: #cbd5e1;
-}
-
-.agent-workshop-view .agent-curl-notice {
-  display: flex;
-  align-items: flex-start;
-  gap: 11px;
-  margin: 0;
-  padding: 13px 15px;
-  border: 1px solid #bfdbfe;
-  border-radius: 12px;
-  background: #eff6ff;
-  color: #475569;
-}
-
-.agent-workshop-view .agent-curl-notice-icon {
-  flex: 0 0 auto;
-  display: grid;
-  place-items: center;
-  width: 22px;
-  height: 22px;
-  border-radius: 50%;
-  background: #2563eb;
-  color: #fff;
-  font-size: 13px;
-  font-weight: 900;
-}
-
-.agent-workshop-view .agent-curl-notice p {
-  margin: 0;
-  font-size: 13px;
-  line-height: 1.65;
-}
-
-.agent-workshop-view .agent-curl-notice strong {
-  display: block;
-  margin-bottom: 2px;
-  color: #1e3a8a;
-}
-
-.agent-workshop-view .agent-curl-notice code {
-  padding: 2px 6px;
-  border-radius: 5px;
-  background: #eef4ff;
-  color: var(--primary-strong);
-  font: 600 0.9em/1.4 ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
-}
-
-.agent-workshop-view .agent-curl-code-card {
-  overflow: hidden;
-  border: 1px solid #26354a;
-  border-radius: 14px;
-  background: #142033;
-  box-shadow: 0 8px 22px rgba(15, 23, 42, 0.1);
-}
-
-.agent-workshop-view .agent-curl-code-head {
-  display: flex;
-  align-items: center;
-  min-height: 42px;
-  padding: 0 14px;
-  border-bottom: 1px solid rgba(203, 213, 225, 0.1);
-  background: #142033;
-  color: #9eacc0;
-  font-size: 11px;
-}
-
-.agent-workshop-view .agent-curl-code-head strong {
-  margin-left: 10px;
-  color: #d8e0eb;
-  font-size: 12px;
-  font-weight: 700;
-}
-
-.agent-workshop-view .agent-curl-code-head > span:last-child {
-  margin-left: auto;
-}
-
-.agent-workshop-view .agent-curl-terminal-mark {
-  display: inline-grid;
-  place-items: center;
-  width: 26px;
-  height: 22px;
-  border: 1px solid rgba(148, 163, 184, 0.28);
-  border-radius: 6px;
-  background: rgba(255, 255, 255, 0.035);
-  color: #aebacd;
-  font: 700 10px/1 ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
-}
-
-.agent-workshop-view .agent-curl-code-card pre {
+.agent-workshop-view .agent-api-guide table {
   width: 100%;
-  max-height: 42vh;
-  box-sizing: border-box;
-  margin: 0;
-  padding: 18px 20px 22px;
+  border-collapse: collapse;
+}
+
+.agent-workshop-view .agent-api-guide th,
+.agent-workshop-view .agent-api-guide td {
+  padding: 7px 9px;
+  border: 1px solid var(--border, #dce5f2);
+  text-align: left;
+  vertical-align: top;
+}
+
+.agent-workshop-view .agent-api-guide pre {
+  padding: 12px;
   overflow: auto;
-  background: #142033;
-  color: #d6deea;
-  font: 13px/1.65 ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
-  white-space: pre-wrap;
-  word-break: break-word;
+  border: 1px solid var(--border, #dce5f2);
+  border-radius: 8px;
+  background: #fff;
 }
 
 .agent-workshop-view .agent-curl-loading {
@@ -4109,15 +3998,6 @@
   .agent-workshop-view .agent-curl-footer {
     padding-left: 16px;
     padding-right: 16px;
-  }
-
-  .agent-workshop-view .agent-curl-capabilities {
-    justify-content: flex-start;
-    overflow-x: auto;
-  }
-
-  .agent-workshop-view .agent-curl-capabilities > i {
-    width: 20px;
   }
 
   .agent-workshop-view .agent-curl-footer > span {

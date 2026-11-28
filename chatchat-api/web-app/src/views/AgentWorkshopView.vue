@@ -314,8 +314,7 @@
             <span class="agent-curl-brand-mark" aria-hidden="true">API</span>
             <div>
               <p>已发布 Agent · API 调用</p>
-              <h2 id="agent-curl-title">{{ curlExample?.agentName || "curl 请求示例" }}</h2>
-              <span>复制示例后，即可在终端管理问答任务的完整生命周期</span>
+              <h2 id="agent-curl-title">{{ curlExample?.agentName || "Agent API 对接说明" }}</h2>
             </div>
           </div>
           <button
@@ -323,42 +322,17 @@
             class="app-dialog-close"
             aria-label="关闭"
             title="关闭"
-            :disabled="curlExampleLoading || curlGuideLoading"
+            :disabled="curlExampleLoading"
             @click="closeCurlExample"
             >×</button
           >
         </header>
         <div class="dialog-body agent-curl-body">
-          <div class="agent-curl-capabilities" aria-label="示例包含的调用步骤">
-            <span><b>1</b> 发起问答</span>
-            <i aria-hidden="true"></i>
-            <span><b>2</b> 查询状态</span>
-            <i aria-hidden="true"></i>
-            <span><b>3</b> 停止任务</span>
-            <i aria-hidden="true"></i>
-            <span><b>4</b> 获取答案</span>
-          </div>
-          <div class="agent-curl-notice">
-            <span class="agent-curl-notice-icon" aria-hidden="true">!</span>
-            <p>
-              <strong>调用前准备</strong>
-              将示例中的 <code>&lt;paste-agent-api-token&gt;</code> 替换为“系统管理 → 用户管理 →
-              token”中生成的令牌。示例统一使用环境变量
-              <code>AGENT_TOKEN</code>，任务编号会在提交成功后自动从 <code>data.taskId</code> 提取。
-            </p>
-          </div>
-          <div v-if="curlExampleLoading" class="agent-curl-loading">
+          <div v-if="curlExampleLoading" class="agent-curl-loading" role="status">
             <span></span><span></span><span></span>
-            正在为该 Agent 生成调用示例…
+            正在加载 Agent API 对接文档…
           </div>
-          <div v-else-if="curlExample?.completeExample" class="agent-curl-code-card">
-            <div class="agent-curl-code-head">
-              <span class="agent-curl-terminal-mark" aria-hidden="true">&gt;_</span>
-              <strong>终端调用示例</strong>
-              <span>Shell / curl</span>
-            </div>
-            <pre><code>{{ curlExample.completeExample }}</code></pre>
-          </div>
+          <article v-else-if="curlExample?.markdown" class="agent-api-guide" v-html="curlGuideHtml"></article>
           <p v-if="curlExampleError" class="agent-error">{{ curlExampleError }}</p>
         </div>
         <footer class="agent-curl-footer">
@@ -366,24 +340,16 @@
           <button
             type="button"
             class="secondary-button"
-            :disabled="curlExampleLoading || curlGuideLoading"
+            :disabled="curlExampleLoading"
             @click="closeCurlExample"
             >关闭</button
           >
           <button
             type="button"
             class="secondary-button"
-            :disabled="curlExampleLoading || curlGuideLoading || !curlExample?.agentId"
+            :disabled="curlExampleLoading || !curlExample?.markdown"
             @click="downloadCurlGuide"
-          >{{ curlGuideLoading ? "正在下载…" : "下载对接文档 (.md)" }}</button>
-          <button
-            type="button"
-            class="primary-button"
-            :disabled="curlExampleLoading || !curlExample?.completeExample"
-            @click="copyCurlExample"
-          >
-            {{ curlExampleCopied ? "✓ 已复制到剪贴板" : "复制完整示例" }}
-          </button>
+          >下载对接文档 (.md)</button>
         </footer>
       </section>
     </div>

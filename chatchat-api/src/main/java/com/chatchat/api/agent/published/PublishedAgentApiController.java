@@ -26,6 +26,7 @@ import org.springframework.http.ContentDisposition;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
+import org.springframework.core.io.ClassPathResource;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -397,15 +398,19 @@ public class PublishedAgentApiController {
 
     @GetMapping(value = "/{agentId}/curl-example", params = "format=markdown")
     @Operation(summary = "Download a published Agent's Markdown integration guide")
-    public ResponseEntity<byte[]> integrationGuide(@PathVariable("agentId") String agentId, HttpServletRequest request) {
+    public ResponseEntity<byte[]> integrationGuide(@PathVariable("agentId") String agentId, HttpServletRequest request)
+        throws java.io.IOException {
         var identity = requireIdentity(request);
         if (!isPlatformAdmin(identity, request)) {
             throw new PublishedAgentApiException(HttpStatus.FORBIDDEN, "Only the platform administrator can download the integration guide");
         }
         var agent = requirePublishedAndAuthorized(agentId, identity.userId());
-        var example = buildCurlExample(ServletUriComponentsBuilder.fromCurrentContextPath().build().toUriString(), agent);
+        String baseUrl = ServletUriComponentsBuilder.fromCurrentContextPath().build().toUriString();
+        String guide = new ClassPathResource("api-docs/published-agent.md").getContentAsString(StandardCharsets.UTF_8)
+            .replace("{{AGENT_ID}}", agent.id())
+            .replace("{{BASE_URL}}", shellDoubleQuoted(baseUrl));
         return attachment(MediaType.parseMediaType("text/markdown; charset=UTF-8"), agent.id() + "-api.md",
-            PublishedAgentHtml.guide(example).getBytes(StandardCharsets.UTF_8));
+            guide.getBytes(StandardCharsets.UTF_8));
     }
 
     private PublishedAgentCurlExample buildCurlExample(String baseUrl, SkillDefinition agent) {

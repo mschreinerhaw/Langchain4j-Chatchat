@@ -1,10 +1,9 @@
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import { readFileSync } from "node:fs";
 import { parse as parseVueTemplate } from "@vue/compiler-dom";
 
-const { fetchPublishedAgentCurlExample, downloadPublishedAgentGuide, authSession } =
+const { downloadPublishedAgentGuide, authSession } =
   vi.hoisted(() => ({
-    fetchPublishedAgentCurlExample: vi.fn(),
     downloadPublishedAgentGuide: vi.fn(),
     authSession: { current: null },
   }));
@@ -15,7 +14,6 @@ vi.mock("../../services/api.js", () => ({
   fetchAgentWorkshop: vi.fn(),
   fetchAgentResourceOptions: vi.fn().mockResolvedValue([]),
   fetchSkills: vi.fn(),
-  fetchPublishedAgentCurlExample,
   downloadPublishedAgentGuide,
   getStoredAuthSession: vi.fn(() => authSession.current),
   publishWorkshopAgent: vi.fn(),
@@ -91,21 +89,15 @@ describe("AgentWorkshopView MCP Chinese aliases", () => {
 describe("AgentWorkshopView published Agent curl access", () => {
   beforeEach(() => {
     authSession.current = null;
-    fetchPublishedAgentCurlExample.mockReset();
     downloadPublishedAgentGuide.mockReset();
   });
 
-  afterEach(() => {
-    vi.unstubAllGlobals();
-  });
-
-  it("downloads the Markdown guide for the Agent shown in the API dialog", async () => {
-    downloadPublishedAgentGuide.mockResolvedValue("# Agent API 对接说明");
-    const context = { curlExample: { agentId: "finance-agent" }, downloadFile: vi.fn() };
-    await AgentWorkshopView.methods.downloadCurlGuide.call(context);
-    expect(downloadPublishedAgentGuide).toHaveBeenCalledWith("finance-agent");
-    expect(context.downloadFile).toHaveBeenCalledWith("finance-agent-api.md", "# Agent API 对接说明", "text/markdown; charset=UTF-8");
-    expect(context.curlGuideLoading).toBe(false);
+  it("downloads the same Markdown guide rendered in the API dialog", () => {
+    const markdown = "# Agent API";
+    const context = { curlExample: { agentId: "finance-agent", markdown }, downloadFile: vi.fn() };
+    AgentWorkshopView.methods.downloadCurlGuide.call(context);
+    expect(downloadPublishedAgentGuide).not.toHaveBeenCalled();
+    expect(context.downloadFile).toHaveBeenCalledWith("finance-agent-api.md", markdown, "text/markdown; charset=UTF-8");
   });
 
   it("shows the API action only with the persisted registry permission", () => {
@@ -118,62 +110,35 @@ describe("AgentWorkshopView published Agent curl access", () => {
     expect(AgentWorkshopView.computed.isPlatformAdmin()).toBe(false);
   });
 
-  it("loads the complete submit, status, stop and answer curl example", async () => {
-    fetchPublishedAgentCurlExample.mockResolvedValue({
-      completeExample: "submit\nstatus\nstop\nanswer",
-    });
-    const context = {
-      isPlatformAdmin: true,
-      curlExampleOpen: false,
-      curlExampleLoading: false,
-      curlExampleError: "",
-      curlExample: null,
-    };
+  it("loads and renders the per-endpoint guide for the selected published Agent", async () => {
+    const markdown = "## Status\n\n| Field | Type |\n| --- | --- |\n| terminal | boolean |\n\n<script>alert(1)</script>";
+    downloadPublishedAgentGuide.mockResolvedValue(markdown);
+    const context = { isPlatformAdmin: true };
 
     await AgentWorkshopView.methods.openCurlExample.call(context, {
       id: "finance-agent",
+      name: "Finance",
       marketStatus: "published",
     });
 
-    expect(fetchPublishedAgentCurlExample).toHaveBeenCalledWith("finance-agent");
+    expect(downloadPublishedAgentGuide).toHaveBeenCalledWith("finance-agent");
     expect(context.curlExampleOpen).toBe(true);
     expect(context.curlExampleLoading).toBe(false);
-    expect(context.curlExample.completeExample).toContain("status");
-    expect(context.curlExample.completeExample).toContain("stop");
-    expect(context.curlExample.completeExample).toContain("answer");
+    expect(context.curlExample).toEqual({ agentId: "finance-agent", agentName: "Finance", markdown });
+    const html = AgentWorkshopView.computed.curlGuideHtml.call(context);
+    expect(html).toContain("<h2>Status</h2>", "<table>", "<td>boolean</td>");
+    expect(html).not.toContain("<script>");
   });
 
-  it("falls back to the compatible copy path when Clipboard API is denied", async () => {
-    const textarea = {
-      value: "",
-      style: {},
-      setAttribute: vi.fn(),
-      focus: vi.fn(),
-      select: vi.fn(),
-      setSelectionRange: vi.fn(),
-      remove: vi.fn(),
-    };
-    const execCommand = vi.fn(() => true);
-    vi.stubGlobal("navigator", {
-      clipboard: { writeText: vi.fn().mockRejectedValue(new Error("denied")) },
+  it("shows a guide loading error and leaves no document to download", async () => {
+    downloadPublishedAgentGuide.mockRejectedValue(new Error("HTTP 403"));
+    const context = { isPlatformAdmin: true };
+    await AgentWorkshopView.methods.openCurlExample.call(context, {
+      id: "finance-agent", marketStatus: "published",
     });
-    vi.stubGlobal("document", {
-      body: { appendChild: vi.fn() },
-      createElement: vi.fn(() => textarea),
-      execCommand,
-    });
-    const context = {
-      curlExample: { completeExample: "curl --request POST" },
-      curlExampleError: "previous error",
-      curlExampleCopied: false,
-    };
-
-    await AgentWorkshopView.methods.copyCurlExample.call(context);
-
-    expect(execCommand).toHaveBeenCalledWith("copy");
-    expect(context.curlExampleError).toBe("");
-    expect(context.curlExampleCopied).toBe(true);
-    expect(textarea.remove).toHaveBeenCalledOnce();
+    expect(context.curlExampleError).toBe("HTTP 403");
+    expect(context.curlExampleLoading).toBe(false);
+    expect(context.curlExample).toBeNull();
   });
 });
 

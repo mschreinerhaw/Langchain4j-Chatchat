@@ -54,44 +54,4 @@ final class PublishedAgentHtml {
         }
         return output.toByteArray();
     }
-
-    static String guide(PublishedAgentApiController.PublishedAgentCurlExample example) {
-        String report = "/api/v1/published-agents/" + example.agentId() + "/questions/${TASK_ID}/report";
-        return """
-            # Agent API 对接说明
-
-            Agent ID `%s`
-
-            ## 调用协议
-
-            使用管理员签发的 Agent API Token，随请求发送 `Authorization: Bearer <token>`。
-            下方示例需要 curl 和 jq。提交问答返回 HTTP 202，从 `data.taskId` 提取任务编号，
-            轮询 `status` 直到 `data.terminal` 为真，再通过 `answer` 获取最终结果。
-            状态接口支持 `afterSequence` 增量读取事件。任务仅对发起者开放。
-
-            ## HTML 报告
-
-            请求体的 `reportMode` 默认为 `visual`，开启图文报告并优先交付 HTML。
-            有原生归档时交付原报告，纯文本结果交付由正文渲染的 HTML。
-            使用 `"reportMode":"off"` 关闭报告，仍可获取文本答案。
-            任务有报告时，答案中的 `data.report.downloadUrl` 给出 HTML 下载路径，
-            `data.report.bundleUrl` 给出包含本地资源的 ZIP 路径。
-            原生报告引用本地脚本、样式或图片时，下载 ZIP，解压后按 `data.report.entryPath` 打开 HTML 入口。
-            集成到网页时，请在禁用同源权限的沙箱中展示生成的 HTML。
-            报告接口必须使用 Agent API Token，报告未就绪或关闭时返回 HTTP 404。
-
-            ```sh
-            curl --fail --show-error --header "Authorization: Bearer ${AGENT_TOKEN}" \\
-              "${AGENT_BASE_URL}%s" --output report.html
-            curl --fail --show-error --header "Authorization: Bearer ${AGENT_TOKEN}" \\
-              "${AGENT_BASE_URL}%s?bundle=true" --output report.zip
-            ```
-
-            ## 完整调用示例
-
-            ```sh
-            %s
-            ```
-            """.formatted(example.agentId(), report, report, example.completeExample());
-    }
 }

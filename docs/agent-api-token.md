@@ -22,27 +22,11 @@ Agent API 令牌用于从控制台或自动化程序调用已发布 Agent。它�
 - `ccat_` 令牌仅允许访问已发布 Agent 的附件、提问、状态、取消、答案和报告接口；
 - 管理接口、curl 示例接口及其他业务接口拒绝 Agent API 令牌。
 
-## 可调用接口
+## Agent API
 
-```text
-POST /api/v1/published-agents/{agentId}/questions
-POST /api/v1/published-agents/{agentId}/attachments
-GET  /api/v1/published-agents/{agentId}/questions/{taskId}/status
-GET  /api/v1/published-agents/{agentId}/questions/{taskId}/answer
-GET  /api/v1/published-agents/{agentId}/questions/{taskId}/report
-GET  /api/v1/published-agents/{agentId}/questions/{taskId}/report?bundle=true
-DELETE /api/v1/published-agents/{agentId}/questions/{taskId}
-```
+[Agent API 接口参考](../chatchat-api/src/main/resources/api-docs/published-agent.md)逐项列出附件上传、提问、状态查询、答案、报告下载和取消接口，包括输入参数、返回参数及请求与响应示例。仓库中的模板使用通用占位符。
 
-请求使用 `Authorization: Bearer <Agent API Token>`。管理员可以从已发布 Agent 行的「API → 下载对接文档 (.md)」获取该 Agent 的 Markdown 文档。文档接口为 `GET /api/v1/published-agents/{agentId}/curl-example?format=markdown`，需要管理员的网页登录凭证。
-
-### 图文报告
-
-在问题请求体中设置 `"reportMode":"visual"` 启用图文报告。省略该参数时默认启用，以 HTML 为主要交付格式。设置 `"reportMode":"off"` 关闭报告，可继续获取文本答案。
-
-任务完成后读取 `answer`。如有可下载报告，`data.report.downloadUrl` 指向 HTML 文件，`data.report.bundleUrl` 指向 ZIP 资源包。原生报告依赖本地脚本、样式或图片时，下载 ZIP 并打开 `data.report.entryPath`。纯文本结果可交付由答案渲染的 HTML。将生成的 HTML 集成到网页时，在禁用同源权限的沙箱中展示。
-
-报告仅对使用 Agent API Token 的任务发起者开放。关闭报告、任务未就绪或未产生可交付结果时，报告接口返回 HTTP 404。网页的报告导出继续使用 PDF。
+管理员可在已发布 Agent 行打开「API」在线查看，或点击「下载对接文档 (.md)」保存。同一份文档会填入当前的平台地址和 Agent ID。提供该文档的 `GET /api/v1/published-agents/{agentId}/curl-example?format=markdown` 要求管理员网页登录凭证。
 
 ## 审计和升级
 

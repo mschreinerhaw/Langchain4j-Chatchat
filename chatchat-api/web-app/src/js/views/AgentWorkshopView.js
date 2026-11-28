@@ -3,7 +3,6 @@
   deleteWorkshopAgent,
   fetchAgentWorkshop,
   fetchAgentResourceOptions,
-  fetchPublishedAgentCurlExample,
   downloadPublishedAgentGuide,
   getStoredAuthSession,
   publishWorkshopAgent,
@@ -12,7 +11,10 @@
   updateWorkshopAgent,
 } from "../../services/api.js";
 import * as XLSX from "xlsx";
+import MarkdownIt from "markdown-it";
 import "../../styles/pages/skill-hub.css";
+
+const apiGuideMarkdown = new MarkdownIt({ html: false }).disable("image");
 
 function uniqueList(values) {
   return [...new Set(values.map((value) => String(value || "").trim()).filter(Boolean))];
@@ -262,13 +264,14 @@ export default {
       importError: "",
       curlExampleOpen: false,
       curlExampleLoading: false,
-      curlGuideLoading: false,
       curlExampleError: "",
       curlExample: null,
-      curlExampleCopied: false,
     };
   },
   computed: {
+    curlGuideHtml() {
+      return apiGuideMarkdown.render(this.curlExample?.markdown || "");
+    },
     isPlatformAdmin() {
       const session = getStoredAuthSession();
       return (
@@ -2073,82 +2076,27 @@ export default {
       this.curlExampleLoading = true;
       this.curlExampleError = "";
       this.curlExample = null;
-      this.curlExampleCopied = false;
       try {
-        this.curlExample = await fetchPublishedAgentCurlExample(agent.id);
+        const markdown = await downloadPublishedAgentGuide(agent.id);
+        this.curlExample = { agentId: agent.id, agentName: agent.name, markdown };
       } catch (error) {
-        this.curlExampleError = error.message || "curl 示例生成失败";
+        this.curlExampleError = error.message || "Agent API 文档加载失败";
       } finally {
         this.curlExampleLoading = false;
       }
     },
     closeCurlExample() {
-      if (this.curlExampleLoading || this.curlGuideLoading) {
+      if (this.curlExampleLoading) {
         return;
       }
       this.curlExampleOpen = false;
       this.curlExampleError = "";
       this.curlExample = null;
-      this.curlExampleCopied = false;
     },
-    async downloadCurlGuide() {
-      const agentId = this.curlExample?.agentId;
-      if (!agentId || this.curlGuideLoading) return;
-      this.curlGuideLoading = true;
-      this.curlExampleError = "";
-      try {
-        const content = await downloadPublishedAgentGuide(agentId);
-        this.downloadFile(`${agentId}-api.md`, content, "text/markdown; charset=UTF-8");
-      } catch (error) {
-        this.curlExampleError = error.message || "Agent API 对接文档下载失败";
-      } finally {
-        this.curlGuideLoading = false;
-      }
-    },
-    async copyCurlExample() {
-      const content = this.curlExample?.completeExample || "";
-      if (!content) {
-        return;
-      }
-      this.curlExampleError = "";
-      this.curlExampleCopied = false;
-      try {
-        let copied = false;
-        try {
-          if (globalThis.navigator?.clipboard?.writeText) {
-            await globalThis.navigator.clipboard.writeText(content);
-            copied = true;
-          }
-        } catch {
-          // HTTP 页面、iframe 或浏览器权限策略可能拒绝 Clipboard API，继续使用兼容方案。
-        }
-        if (!copied) {
-          const documentRef = globalThis.document;
-          if (!documentRef?.body) {
-            throw new Error("当前环境不支持剪贴板访问");
-          }
-          const textarea = documentRef.createElement("textarea");
-          textarea.value = content;
-          textarea.setAttribute("readonly", "");
-          textarea.style.position = "fixed";
-          textarea.style.left = "-9999px";
-          textarea.style.opacity = "0";
-          documentRef.body.appendChild(textarea);
-          try {
-            textarea.focus();
-            textarea.select();
-            textarea.setSelectionRange(0, content.length);
-            copied = Boolean(documentRef.execCommand?.("copy"));
-          } finally {
-            textarea.remove();
-          }
-        }
-        if (!copied) {
-          throw new Error("浏览器未完成复制");
-        }
-        this.curlExampleCopied = true;
-      } catch {
-        this.curlExampleError = "复制失败，请手动选择示例文本。";
+    downloadCurlGuide() {
+      const guide = this.curlExample;
+      if (guide?.markdown) {
+        this.downloadFile(`${guide.agentId}-api.md`, guide.markdown, "text/markdown; charset=UTF-8");
       }
     },
     recallAgent(agent) {

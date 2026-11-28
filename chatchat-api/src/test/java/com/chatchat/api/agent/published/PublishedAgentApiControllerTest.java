@@ -168,8 +168,33 @@ class PublishedAgentApiControllerTest {
                 .requestAttr(ApiAuthenticationFilter.CURRENT_USER_ID, "user-a"))
             .andExpect(status().isOk()).andReturn().getResponse();
         assertThat(response.getHeader("Content-Disposition")).contains("attachment", "finance-agent-api.md");
-        assertThat(response.getContentAsString(StandardCharsets.UTF_8))
-            .contains("finance-agent", "reportMode", "bundle=true", "data.report.downloadUrl", "<paste-agent-api-token>");
+        String guide = response.getContentAsString(StandardCharsets.UTF_8);
+        assertThat(guide)
+            .contains("finance-agent", "reportMode", "bundle=true", "data.report.downloadUrl", "<paste-agent-api-token>",
+                "export AGENT_BASE_URL=\"http://localhost\"")
+            .doesNotContain("{{AGENT_ID}}", "{{BASE_URL}}", "SUBMIT_RESPONSE=");
+        var endpoints = List.of(
+            "POST /api/v1/published-agents/{agentId}/attachments",
+            "POST /api/v1/published-agents/{agentId}/questions",
+            "GET /api/v1/published-agents/{agentId}/questions/{taskId}/status",
+            "GET /api/v1/published-agents/{agentId}/questions/{taskId}/answer",
+            "GET /api/v1/published-agents/{agentId}/questions/{taskId}/report",
+            "DELETE /api/v1/published-agents/{agentId}/questions/{taskId}"
+        );
+        String[] sections = guide.split("(?m)^## ");
+        assertThat(sections).hasSize(8);
+        for (int index = 0; index < endpoints.size(); index++) {
+            String section = sections[index + 2];
+            assertThat(section).contains("`" + endpoints.get(index) + "`",
+                "### 输入参数", "### 返回参数", "### 请求示例", "### 响应示例");
+        }
+        var jsonExamples = java.util.regex.Pattern.compile("```json\\R(.*?)\\R```", java.util.regex.Pattern.DOTALL).matcher(guide);
+        int examples = 0;
+        while (jsonExamples.find()) {
+            assertThat(objectMapper.readTree(jsonExamples.group(1)).has("data")).isTrue();
+            examples++;
+        }
+        assertThat(examples).isEqualTo(5);
     }
 
     @Test

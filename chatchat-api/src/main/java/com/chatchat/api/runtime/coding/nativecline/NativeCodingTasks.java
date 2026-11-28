@@ -60,6 +60,14 @@ public final class NativeCodingTasks {
         }
         var budget=settings.analysisBudget(task,analysis);
         var contract=capture.capture(scope,task,original,instruction,selected,budget,Map.of("profile","artifact-integrity-v1"),deliverables,schema,runtimeContext);
+        if(analysis&&basicReports!=null&&adapter.activeIdentity(scope)){
+            try{basicReports.prepare(contract);}
+            catch(SecurityException denied){throw denied;}
+            catch(RuntimeException unavailable){
+                org.slf4j.LoggerFactory.getLogger(NativeCodingTasks.class).warn(
+                    "Preliminary report preparation unavailable taskId={} errorType={}",task,unavailable.getClass().getSimpleName());
+            }
+        }
         return new Submitted(task,scope.runId(),adapter.submit(contract));
     }
     /** Studio supplies only server-validated snapshots and its existing budget, never execution authority. */
@@ -103,6 +111,18 @@ public final class NativeCodingTasks {
         var files=new ArrayList<UserAssetService.File>();
         for(var kind:List.of(UserAssetService.Kind.CODE,UserAssetService.Kind.ARTIFACT))files.addAll(assets.list(UserAssetService.Owner.of(scope),kind,task,100).stream().filter(f->scope.runId().equals(f.runId())).toList());
         result.put("artifacts",files);
+        if(basicReports!=null&&canExposeStage(outcome)&&adapter.permitsBasicReport(scope,task)){
+            var contract=tasks.contract(scope,task);
+            basicReports.availableStage(contract).ifPresent(stage->{
+                if(!canExposeStage(adapter.get(scope,task))||!adapter.permitsBasicReport(scope,task))return;
+                var preview=new LinkedHashMap<>(stage);
+                preview.remove("inventoryAssetId");
+                preview.remove("factsAssetId");
+                result.put("preliminaryReport",preview);
+                if(outcome.status()==CodingTaskOutcome.Status.COMPLETED)
+                    result.put("finalReportSupersedesPreliminaryVersion",stage.get("version"));
+            });
+        }
         if(basicReports!=null&&NativeBasicReport.eligible(outcome)&&adapter.permitsBasicReport(scope,task))
             basicReports.read(tasks.contract(scope,task),outcome).ifPresent(report->applyBasicReport(result,report));
         if(outcome.resultDatasetRef()==null&&canExposeSupplyEvidence(outcome)&&adapter.activeIdentity(scope)){
@@ -165,6 +185,12 @@ public final class NativeCodingTasks {
             &&outcome.reasonCode()!=null&&Set.of(CodingErrorCode.EXECUTION_FAILED,
                 CodingErrorCode.OUTPUT_CONTRACT_VIOLATION,CodingErrorCode.BUDGET_EXCEEDED,
                 CodingErrorCode.DEADLINE_EXCEEDED).contains(outcome.reasonCode());
+    }
+    static boolean canExposeStage(CodingTaskOutcome outcome){
+        return !outcome.cancellationRequested()&&!outcome.executionControl().reconciliationRequired()
+            &&(outcome.status()==CodingTaskOutcome.Status.COMPLETED
+                ||!outcome.status().terminal()&&outcome.executionControl().stopReason()==null
+                ||NativeBasicReport.eligible(outcome));
     }
     public Map<String,Object> await(KernelDataScope scope,String task,BooleanSupplier cancelled){
         return await(scope,task,cancelled,null);

@@ -211,6 +211,8 @@ public final class NativeS3CodingAdapter implements CodingAgentSPI {
     }
     boolean permitsBasicReport(KernelDataScope scope,String task){
         if(!activeIdentity(scope)||!license.codingDispatchEntitlement().licenseValid())return false;
+        Object agent=tasks.contract(scope,task).runtimeContext().get("authorizationAgentId");
+        if(agent instanceof String id&&!id.isBlank()&&!enterprise.canAccessAgent(scope.userId(),id))return false;
         var denied=tasks.privateState(scope,task,"native-s3:disclosure-denied");
         return (denied==null||denied.isNull())&&tasks.nativeTelemetry(scope,task,"model-admission").stream()
             .noneMatch(entry->"RUNTIME_MODEL_AUTHORIZATION_REJECTED".equals(entry.path("code").asText()));
@@ -707,10 +709,7 @@ public final class NativeS3CodingAdapter implements CodingAgentSPI {
                 try{preview=client(r).preview(grant,session,version);}catch(NativeS3NodeClient.NodeException invalid){if(invalid.validationFeedback()==null)throw invalid;feedback(r,version,invalid.validationFeedback(),invalid.candidateSha256());return false;}
                 String rejection=validateCandidate(r,preview);
                 if(rejection!=null){
-                    var inventory=java.util.stream.StreamSupport.stream(preview.path("artifacts").spliterator(),false)
-                        .map(a->List.of(a.path("path").asText(),a.path("type").asText(),a.path("sha256").asText()))
-                        .sorted(Comparator.comparing(a->String.join("\u0000",a))).toList();
-                    feedback(r,version,rejection,evidence.hash(inventory));return false;
+                    feedback(r,version,rejection,evidence.hash(repairCandidate(preview.path("artifacts"),rejection)));return false;
                 }
                 save(r,SEAL_INTENT,Map.of("sessionId",session,"version",version));
             }
@@ -780,6 +779,14 @@ public final class NativeS3CodingAdapter implements CodingAgentSPI {
         }
         return "RESULT validation failed. Repair only the indicated JSON fields and keep the report unchanged unless its conclusions change. "
             +String.join(" | ",diagnostics);
+    }
+    static List<List<String>> repairCandidate(JsonNode artifacts,String rejection){
+        boolean resultValidation=rejection.startsWith("RESULT validation failed.");
+        return java.util.stream.StreamSupport.stream(artifacts.spliterator(),false)
+            .filter(a->!resultValidation||"RESULT".equals(a.path("type").asText()))
+            .map(a->resultValidation?List.of(a.path("sha256").asText())
+                :List.of(a.path("path").asText(),a.path("type").asText(),a.path("sha256").asText()))
+            .sorted(Comparator.comparing(a->String.join("\u0000",a))).toList();
     }
     private String validateResultJson(byte[] content,Map<String,Object> schema){
         try{

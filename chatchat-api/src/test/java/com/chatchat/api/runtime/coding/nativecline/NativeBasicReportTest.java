@@ -97,6 +97,55 @@ class NativeBasicReportTest {
         assertEquals(2,files.size());
     }
 
+    @Test void preliminaryReportIsImmutableAndIsLinkedOnlyWhenFinalDeliveryIsVerified() {
+        var checkpoint=new java.util.concurrent.atomic.AtomicReference<String>();
+        when(capture.readBasicReportStage(task)).thenAnswer(ignored->Optional.ofNullable(checkpoint.get()));
+        doAnswer(call->{assertTrue(checkpoint.compareAndSet(null,call.getArgument(1)));return null;})
+            .when(capture).freezeBasicReportStage(eq(task),anyString());
+
+        reports.prepare(task);
+        reports.prepare(task);
+        var stage=reports.stage(task).orElseThrow();
+        assertEquals("PRELIMINARY",stage.get("phase"));
+        assertTrue(stage.get("report").toString().contains("INTELLIGENT_ANALYSIS_PENDING"));
+        assertEquals(2,files.size());
+        assertTrue(reports.read(task,outcome).isEmpty());
+        var finalReport=reports.publish(task,outcome,()->true).orElseThrow();
+        assertEquals(stage.get("version"),finalReport.proof().get("basedOnPreliminaryVersion"));
+        assertEquals("BUDGET_EXCEEDED",finalReport.proof().get("reasonCode"));
+        verify(capture,times(1)).freezeBasicReportStage(eq(task),anyString());
+    }
+
+    @Test void stageVisibilityRequiresANonCancelledReconciledOutcome() {
+        when(outcome.status()).thenReturn(CodingTaskOutcome.Status.RUNNING);
+        when(outcome.executionControl()).thenReturn(new CodingTaskOutcome.ExecutionControl(null,null,false,false));
+        assertTrue(NativeCodingTasks.canExposeStage(outcome));
+        when(outcome.cancellationRequested()).thenReturn(true);
+        assertFalse(NativeCodingTasks.canExposeStage(outcome));
+        when(outcome.cancellationRequested()).thenReturn(false);
+        when(outcome.executionControl()).thenReturn(new CodingTaskOutcome.ExecutionControl(null,null,false,true));
+        assertFalse(NativeCodingTasks.canExposeStage(outcome));
+    }
+
+    @Test void resultRepairFingerprintIgnoresChangesToUnrelatedArtifactsAndPaths() throws Exception {
+        String rejection="RESULT validation failed. MISSING_REQUIRED_FIELDS";
+        var before=json.readTree("""
+            [{"type":"RESULT","path":"out/result.json","sha256":"a"},
+             {"type":"REPORT","path":"out/report.md","sha256":"b"}]
+            """);
+        var renamed=json.readTree("""
+            [{"type":"RESULT","path":"out/new.json","sha256":"a"},
+             {"type":"REPORT","path":"out/report.md","sha256":"c"}]
+            """);
+        var changed=json.readTree("""
+            [{"type":"RESULT","path":"out/new.json","sha256":"new"}]
+            """);
+        assertEquals(NativeS3CodingAdapter.repairCandidate(before,rejection),
+            NativeS3CodingAdapter.repairCandidate(renamed,rejection));
+        assertNotEquals(NativeS3CodingAdapter.repairCandidate(before,rejection),
+            NativeS3CodingAdapter.repairCandidate(changed,rejection));
+    }
+
     private UserAssetService.File add(String id,String kind,String name,String type,String source,byte[] data,boolean bindHash) {
         String sha=UserAssetService.hash(data);
         var file=new UserAssetService.File(id,kind,name,type,sha,data.length,"AVAILABLE","task","run",

@@ -39,6 +39,20 @@ class AgentPublicationLicenseServiceTest {
     }
 
     @Test
+    void rejectsExplicitModelBindingWhenTheRegistryCannotResolveIt() {
+        SkillDefinition draft=mock(SkillDefinition.class);
+        var models=mock(com.chatchat.common.config.ModelResourceRegistry.class);
+        service.setModelResources(models);
+        when(draft.id()).thenReturn("agent-two");
+        when(draft.modelName()).thenReturn("retired-test-model");
+        when(catalog.list()).thenReturn(List.of(draft));
+        when(models.require("retired-test-model")).thenThrow(new IllegalArgumentException("model unavailable"));
+
+        assertThatThrownBy(()->service.publish("agent-two")).hasMessageContaining("AGENT_MODEL_CONFIGURATION_INVALID");
+        verify(catalog,never()).publishToMarket("agent-two");
+    }
+
+    @Test
     void publishesDraftWhenCapacityRemains() {
         SkillDefinition draft = agent("agent-two", "draft");
         SkillDefinition saved = agent("agent-two", "published");

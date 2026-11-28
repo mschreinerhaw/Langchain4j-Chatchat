@@ -110,6 +110,7 @@ class AgentChatModeHandlerTest {
         var handler = new AgentChatModeHandler(orchestrator, catalog, policies);
         var snapshot = com.chatchat.agents.runtime.context.SkillAnalysisContext.create("APPLIED",
             List.of(Map.of("id", "s", "name", "Method")), Map.of("PLAN", List.of("method")));
+        configureAnalysisClassifier(handler, request, agent);
         var response = handler.handle(request, InteractionContext.builder().requestId("methodology-run")
             .skillAnalysisContext(snapshot).build());
         verify(orchestrator).executeAgent(any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any(),
@@ -134,11 +135,20 @@ class AgentChatModeHandlerTest {
             List.of(), List.of(), List.of(), true, true, List.of(), List.of("required_query"),
             Map.of("required_query", "unauthorized"), List.of(), Map.of("required_query", "unauthorized")));
         var handler = new AgentChatModeHandler(orchestrator, catalog, policies);
+        configureAnalysisClassifier(handler, request, agent);
         var response = handler.handle(request, InteractionContext.builder().build());
         var outcome = (com.chatchat.common.runtime.capability.WorkflowOutcome)
             response.getMetadata().get("workflowOutcome");
         assertThat(outcome.type()).isEqualTo(com.chatchat.common.runtime.capability.WorkflowOutcome.Type.NO_EXECUTABLE_PLAN);
         org.mockito.Mockito.verifyNoInteractions(orchestrator);
+    }
+
+    private static void configureAnalysisClassifier(AgentChatModeHandler handler,InteractionRequest request,SkillDefinition agent) {
+        var planner=mock(com.chatchat.chat.interaction.service.ProblemAnalysisPlanner.class);
+        when(planner.classify(eq(request),any(),eq(agent),anyList())).thenReturn(
+            new com.chatchat.chat.interaction.service.ProblemAnalysisPlanner.Classification(
+                com.chatchat.common.runtime.capability.ProblemAnalysisPlan.TaskType.DATA_ANALYSIS,null));
+        org.springframework.test.util.ReflectionTestUtils.setField(handler,"problemAnalysisPlanner",planner);
     }
 
     @Test void configuredTemplateWorkflowGoesToNativePlannerWithoutFrontPlannerVeto() {
@@ -161,7 +171,8 @@ class AgentChatModeHandlerTest {
         org.springframework.test.util.ReflectionTestUtils.setField(handler, "problemAnalysisPlanner", planner);
         org.springframework.test.util.ReflectionTestUtils.setField(handler, "assetGuidance", guidance);
         when(planner.classify(eq(request), any(), eq(agent), anyList()))
-            .thenReturn(com.chatchat.common.runtime.capability.ProblemAnalysisPlan.TaskType.DATA_ANALYSIS);
+            .thenReturn(new com.chatchat.chat.interaction.service.ProblemAnalysisPlanner.Classification(
+                com.chatchat.common.runtime.capability.ProblemAnalysisPlan.TaskType.DATA_ANALYSIS,null));
         var response = handler.handle(request, InteractionContext.builder().requestId("native-planning").build());
         assertThat(response.getAnswer()).isEqualTo("专业分析返回");
         verify(orchestrator).executeAgent(any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any(),

@@ -18,6 +18,7 @@ public class AgentPublicationLicenseService {
     private final McpLicenseEntitlementPort entitlementPort;
     private final JdbcTemplate jdbcTemplate;
     private final AgentReleaseService agentReleaseService;
+    private com.chatchat.common.config.ModelResourceRegistry modelResources;
 
     public AgentPublicationLicenseService(SkillCatalogService skillCatalogService,
                                           McpLicenseEntitlementPort entitlementPort,
@@ -36,6 +37,11 @@ public class AgentPublicationLicenseService {
         this.agentReleaseService = agentReleaseService;
     }
 
+    @Autowired
+    void setModelResources(com.chatchat.common.config.ModelResourceRegistry modelResources) {
+        this.modelResources=modelResources;
+    }
+
     /** Uses a database row lock so multiple API instances cannot concurrently exceed the publication quota. */
     @Transactional
     public synchronized SkillDefinition publish(String agentId) {
@@ -44,6 +50,12 @@ public class AgentPublicationLicenseService {
             .filter(agent -> agent.id().equalsIgnoreCase(agentId))
             .findFirst()
             .orElseThrow(() -> new IllegalArgumentException("skill not found: " + agentId));
+        if (modelResources!=null&&source.modelName()!=null&&!source.modelName().isBlank()) {
+            try { modelResources.require(source.modelName()); }
+            catch(IllegalArgumentException invalid) {
+                throw new IllegalArgumentException("AGENT_MODEL_CONFIGURATION_INVALID: Agent model is unavailable",invalid);
+            }
+        }
         boolean alreadyPublished = SkillCatalogService.MARKET_STATUS_PUBLISHED.equalsIgnoreCase(source.marketStatus());
         if (alreadyPublished) {
             if (agentReleaseService != null && agentReleaseService.resolvePublished(agentId).isEmpty()) {

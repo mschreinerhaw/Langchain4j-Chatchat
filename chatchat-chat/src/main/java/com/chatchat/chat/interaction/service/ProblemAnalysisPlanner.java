@@ -62,7 +62,9 @@ public class ProblemAnalysisPlanner {
     }
 
     /** Classifies analysis execution without creating or replacing a maintained workflow plan. */
-    public ProblemAnalysisPlan.TaskType classify(InteractionRequest request, InteractionContext context,
+    public record Classification(ProblemAnalysisPlan.TaskType taskType,String failureReason) {}
+
+    public Classification classify(InteractionRequest request, InteractionContext context,
                                                 SkillDefinition agent, List<Map<String, Object>> purposes) {
         InteractionExecution.checkCancellation(request);
         publishClassification(request, "RUNNING", null, null);
@@ -100,7 +102,7 @@ public class ProblemAnalysisPlanner {
             failurePhase=answer==null||answer.isBlank()?"CLASSIFICATION_EMPTY_RESPONSE":"CLASSIFICATION_INVALID_RESPONSE";
             var type=decodeClassification(answer);
             publishClassification(request, "COMPLETED", type, null);
-            return type;
+            return new Classification(type,null);
         } catch (Exception failure) {
             try { InteractionExecution.propagateCancellation(request, failure); }
             catch (CancellationException cancelled) { publishClassification(request, "CANCELLED", null, null); throw cancelled; }
@@ -109,7 +111,7 @@ public class ProblemAnalysisPlanner {
             log.warn("Task classification failed requestId={} reasonCode={} causeType={}", context.requestId(), reason,
                 failure.getClass().getSimpleName());
             publishClassification(request, "FAILED", null, reason);
-            return null;
+            return new Classification(null,reason);
         }
     }
 
@@ -380,6 +382,16 @@ public class ProblemAnalysisPlanner {
         return attach(InteractionResponse.builder().answer(plan.clarificationQuestion())
             .metadata(Map.of(WorkflowOutcome.METADATA_KEY, new WorkflowOutcome(WorkflowOutcome.Type.INPUT_REQUIRED,
                 WorkflowOutcome.TASK_CLASSIFICATION_CLARIFICATION,List.of(),List.of(),false))).build(),plan);
+    }
+    static InteractionResponse classificationFailureResponse(String reason) {
+        String message=switch(reason){
+            case "CLASSIFICATION_MODEL_CONFIGURATION_INVALID" -> "任务分类所需的模型配置不可用，请管理员检查模型发布状态和 Agent 的绑定。";
+            case "CLASSIFICATION_MODEL_REQUEST_FAILED" -> "任务分类所需的模型服务调用失败，请稍后重试或联系管理员。";
+            case "CLASSIFICATION_EMPTY_RESPONSE","CLASSIFICATION_INVALID_RESPONSE" -> "模型未返回可用的任务分类结果，请稍后重试或联系管理员。";
+            default -> "暂时无法完成任务分类。";
+        };
+        return InteractionResponse.builder().answer(message).metadata(Map.of(WorkflowOutcome.METADATA_KEY,
+            new WorkflowOutcome(WorkflowOutcome.Type.FAILED,reason,List.of(),List.of(),false))).build();
     }
     public static InteractionResponse sqlDataRequired(ProblemAnalysisPlan plan) {
         return attach(InteractionResponse.builder()

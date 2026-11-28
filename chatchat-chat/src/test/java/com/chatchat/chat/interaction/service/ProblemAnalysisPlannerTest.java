@@ -28,7 +28,7 @@ class ProblemAnalysisPlannerTest {
         String question="Analyze the current authorized records for 070200046604";
         assertThat(planner.classify(InteractionRequest.builder().query(question).build(),InteractionContext.builder().build(),
             mock(SkillDefinition.class),List.of(java.util.Map.of("tool","authorized_template_query","data_type","TEMPLATE_QUERY",
-                "description","LONG_EXECUTION_HANDBOOK".repeat(2000),"inputSchema",java.util.Map.of("secretPlaceholder","not needed for classification")))))
+                "description","LONG_EXECUTION_HANDBOOK".repeat(2000),"inputSchema",java.util.Map.of("secretPlaceholder","not needed for classification")))).taskType())
             .isEqualTo(ProblemAnalysisPlan.TaskType.DATA_ANALYSIS);
         verify(model).chat(argThat((String prompt)->prompt.contains(question)&&prompt.contains("authorized_template_query")
             &&prompt.contains("TEMPLATE_QUERY")&&!prompt.contains("LONG_EXECUTION_HANDBOOK")&&!prompt.contains("secretPlaceholder")));
@@ -119,7 +119,7 @@ class ProblemAnalysisPlannerTest {
         var planner=new ProblemAnalysisPlanner(mock(ChatModel.class),factory,new ObjectMapper(),mock(ObjectProvider.class));
         planner.setClassificationMaxOutputTokens(4096);
         assertThat(planner.classify(InteractionRequest.builder().query("analyze current observations").build(),
-            InteractionContext.builder().build(),agent,List.of())).isEqualTo(ProblemAnalysisPlan.TaskType.DATA_ANALYSIS);
+            InteractionContext.builder().build(),agent,List.of()).taskType()).isEqualTo(ProblemAnalysisPlan.TaskType.DATA_ANALYSIS);
         verify(factory).create("registered-model",null,4096);
     }
     @Test @SuppressWarnings("unchecked") void maintainedWorkflowClassificationIsNotAnotherExecutionPlan() {
@@ -127,7 +127,7 @@ class ProblemAnalysisPlannerTest {
         when(model.chat(anyString())).thenReturn("{\"taskType\":\"DATA_ANALYSIS\"}");
         var planner=new ProblemAnalysisPlanner(model,mock(ConfigurableChatModelFactory.class),new ObjectMapper(),mock(ObjectProvider.class));
         var request=InteractionRequest.builder().query("inspect the current observations").build();
-        assertThat(planner.classify(request,InteractionContext.builder().build(),mock(SkillDefinition.class),List.of()))
+        assertThat(planner.classify(request,InteractionContext.builder().build(),mock(SkillDefinition.class),List.of()).taskType())
             .isEqualTo(ProblemAnalysisPlan.TaskType.DATA_ANALYSIS);
         verify(model).chat(argThat((String prompt)->prompt.contains("Do not plan tools") && !prompt.contains("\"tasks\"")));
     }
@@ -137,7 +137,7 @@ class ProblemAnalysisPlannerTest {
         when(model.chat(anyString())).thenReturn("{\"taskType\":\"QA\"}");
         var planner=new ProblemAnalysisPlanner(model,mock(ConfigurableChatModelFactory.class),new ObjectMapper(),mock(ObjectProvider.class));
         assertThat(planner.classify(InteractionRequest.builder().query("Explain data analysis and statistics").build(),
-            InteractionContext.builder().build(),mock(SkillDefinition.class),List.of())).isEqualTo(ProblemAnalysisPlan.TaskType.QA);
+            InteractionContext.builder().build(),mock(SkillDefinition.class),List.of()).taskType()).isEqualTo(ProblemAnalysisPlan.TaskType.QA);
     }
 
     @Test @SuppressWarnings("unchecked") void malformedClassificationHasNoKeywordFallback() {
@@ -145,7 +145,7 @@ class ProblemAnalysisPlannerTest {
         when(model.chat(anyString())).thenReturn("DATA_ANALYSIS or QA");
         var planner=new ProblemAnalysisPlanner(model,mock(ConfigurableChatModelFactory.class),new ObjectMapper(),mock(ObjectProvider.class));
         assertThat(planner.classify(InteractionRequest.builder().query("analyze current data").build(),
-            InteractionContext.builder().build(),mock(SkillDefinition.class),List.of())).isNull();
+            InteractionContext.builder().build(),mock(SkillDefinition.class),List.of()).taskType()).isNull();
     }
 
     @Test @SuppressWarnings("unchecked") void unpublishedModelFailureHasASeparateReasonAndNeverCallsTheProvider() {
@@ -161,7 +161,8 @@ class ProblemAnalysisPlannerTest {
         var result=planner.classify(InteractionRequest.builder().query("Inspect the permitted data")
             .modelName("unpublished-model").tenantId("tenant").userId("user")
             .toolInput(Map.of("__agentRunId","run")).build(),InteractionContext.builder().build(),null,List.of());
-        assertThat(result).isNull();
+        assertThat(result.taskType()).isNull();
+        assertThat(result.failureReason()).isEqualTo("CLASSIFICATION_MODEL_CONFIGURATION_INVALID");
         verifyNoInteractions(direct);
         verify(publisher).publish(argThat(event->event.payload().toString().contains("CLASSIFICATION_MODEL_CONFIGURATION_INVALID")));
     }

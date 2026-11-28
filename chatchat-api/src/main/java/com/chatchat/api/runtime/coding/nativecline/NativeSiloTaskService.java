@@ -199,6 +199,20 @@ public final class NativeSiloTaskService {
         return input;
     }
     record SupplyInventory(String originalAssetId,String sha256){}
+    private static String basicReportStageKey(CodingTaskContract contract) {
+        return "coding:native-basic-report-stage:"+contract.taskId();
+    }
+    Optional<String> readBasicReportStage(CodingTaskContract contract) {
+        requireAuthorized(contract);
+        return evidence.readExecutionCheckpoint(contract.scope(),basicReportStageKey(contract));
+    }
+    void freezeBasicReportStage(CodingTaskContract contract,String stage) {
+        requireAuthorized(contract);
+        String key=basicReportStageKey(contract);
+        if (!evidence.compareAndSetExecutionCheckpoint(contract.scope(),key,null,stage)
+                && !stage.equals(evidence.readExecutionCheckpoint(contract.scope(),key).orElse(null)))
+            throw new SecurityException("Preliminary report differs from the frozen checkpoint");
+    }
     Optional<SupplyInventory> supplyInventory(CodingTaskContract contract){
         if(!(contract.runtimeContext().get("analysisMetadataPath") instanceof String path)
                 || !Boolean.TRUE.equals(contract.runtimeContext().get("analysisSchemaInInventory")))return Optional.empty();

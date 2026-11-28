@@ -88,7 +88,7 @@ class InteractionWorkflowCoordinatorTest {
         var context = InteractionContext.builder().build();
         var entry = WorkflowEntryPlan.of(WorkflowEntryPlan.Owner.GOVERNED_RUNTIME, "DECLARED_EXECUTION_CONTRACT");
         when(policy.planningSnapshot(request, agent)).thenReturn(entry);
-        when(planner.classify(request, context, agent, entry.toolPurposes())).thenReturn(ProblemAnalysisPlan.TaskType.QA);
+        when(planner.classify(request, context, agent, entry.toolPurposes())).thenReturn(new ProblemAnalysisPlanner.Classification(ProblemAnalysisPlan.TaskType.QA,null));
         when(direct.execute(eq(request), any(), eq(agent))).thenReturn(InteractionResponse.builder().answer("explanation")
             .metadata(Map.of(WorkflowOutcome.METADATA_KEY, new WorkflowOutcome(WorkflowOutcome.Type.READY_TO_ANSWER,
                 "DIRECT_ANSWER_COMPLETED", List.of(), List.of(), true))).build());
@@ -110,7 +110,7 @@ class InteractionWorkflowCoordinatorTest {
             List.of(Map.of("tool", "opaque", "data_type", "TEMPLATE_QUERY")));
         when(policy.planningSnapshot(request, agent)).thenReturn(entry);
         when(frontPlanner.classify(eq(request), any(), eq(agent), eq(entry.toolPurposes())))
-            .thenReturn(ProblemAnalysisPlan.TaskType.DATA_ANALYSIS);
+            .thenReturn(new ProblemAnalysisPlanner.Classification(ProblemAnalysisPlan.TaskType.DATA_ANALYSIS,null));
         var coordinator = new InteractionWorkflowCoordinator(policy, frontPlanner, direct, assets);
         var entered = new CountDownLatch(1);
         var release = new CountDownLatch(1);
@@ -183,5 +183,25 @@ class InteractionWorkflowCoordinatorTest {
         verify(policy).planningSnapshot(request, agent);
         verifyNoMoreInteractions(policy, planner);
         verifyNoInteractions(direct, assets, governed);
+    }
+
+    @Test void invalidClassificationModelIsAnOperationalFailureAndDoesNotAskForUserInput() {
+        var policy=mock(AgentToolPolicyResolver.class);
+        var planner=mock(ProblemAnalysisPlanner.class);
+        var agent=mock(SkillDefinition.class);
+        var governed=mock(InteractionWorkflowCoordinator.GovernedExecution.class);
+        when(agent.boundMcpToolNames()).thenReturn(List.of("opaque"));
+        var request=InteractionRequest.builder().query("inspect authorized observations").build();
+        var context=InteractionContext.builder().build();
+        var entry=WorkflowEntryPlan.of(WorkflowEntryPlan.Owner.GOVERNED_RUNTIME,"DECLARED_EXECUTION_CONTRACT");
+        when(policy.planningSnapshot(request,agent)).thenReturn(entry);
+        when(planner.classify(request,context,agent,entry.toolPurposes())).thenReturn(
+            new ProblemAnalysisPlanner.Classification(null,"CLASSIFICATION_MODEL_CONFIGURATION_INVALID"));
+        var response=new InteractionWorkflowCoordinator(policy,planner,null,null).execute(request,context,agent,governed);
+        var outcome=(WorkflowOutcome)response.getMetadata().get(WorkflowOutcome.METADATA_KEY);
+        assertThat(outcome.publicStatus()).isEqualTo("FAILED");
+        assertThat(outcome.reason()).isEqualTo("CLASSIFICATION_MODEL_CONFIGURATION_INVALID");
+        assertThat(response.getAnswer()).contains("模型配置");
+        verifyNoInteractions(governed);
     }
 }

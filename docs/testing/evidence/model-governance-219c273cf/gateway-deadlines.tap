@@ -1,0 +1,20 @@
+✔ isolated Gateway total deadlines, first output and cancellation (302523.80354ms)
+ℹ {"model":"one-minute","input":"59","requestId":"633ce1d3-dd92-4284-998f-9f31ee4048a6","elapsedMs":59313,"status":200,"completed":true}
+ℹ {"model":"one-minute","input":"60","requestId":"73c49056-3aa9-4f5c-bbef-c7e618a0feae","elapsedMs":60117,"status":504,"completed":false}
+ℹ {"model":"one-minute","input":"61","requestId":"b76c90be-6605-445a-be3d-006c50f4bbf6","elapsedMs":60117,"status":504,"completed":false}
+ℹ {"model":"one-minute","input":"heartbeat","requestId":"e83f6f0c-ab1a-4027-8fb5-82d2cc55323a","elapsedMs":60118,"status":200,"completed":false}
+ℹ {"model":"unlimited","input":"90","requestId":"c836a914-c4f4-43f7-9281-4c45026e0efd","elapsedMs":90226,"status":200,"completed":true}
+ℹ {"model":"unlimited","input":"120","requestId":"24465fa8-4bba-4b4b-8007-86afa1753c4f","elapsedMs":120226,"status":200,"completed":true}
+ℹ {"model":"unlimited","input":"180","requestId":"af229234-95c9-42d0-8130-4376cb78acd7","elapsedMs":180301,"status":200,"completed":true}
+ℹ {"model":"default","input":"298","requestId":"ef202d34-f990-42f4-a38d-8eef49d7f219","elapsedMs":298299,"status":200,"completed":true}
+ℹ {"model":"default","input":"302","requestId":"b74b3ffb-ccec-49ad-9ade-974a5a75f458","elapsedMs":300211,"status":504,"completed":false}
+✔ real Gateway HTTP routes pin configuration and correlate Runtime requests (4423.461622ms)
+ℹ {"taskId":"native-task","sessionId":"native-session","attemptId":"native-task-fence-1","requestId":"runtime-42","gatewayRequestId":"705f6632-a543-42be-a8ef-314a9970d3d6","oldRevision":2,"status":200}
+ℹ tests 2
+ℹ suites 0
+ℹ pass 2
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 302822.925079

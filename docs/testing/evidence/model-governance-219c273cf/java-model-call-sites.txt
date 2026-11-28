@@ -1,0 +1,79 @@
+﻿Candidate 219c273cf. Static model call-site candidates, including wrappers and transport adapters.
+Runtime receipts are required to distinguish logical calls, retries, and nested wrappers.
+
+chatchat-agents\src\main\java\com\chatchat\common\retrieval\query\ModelQueryRefinementConfiguration.java:60:            var response = invocation == null ? model.chat(request)
+chatchat-agents\src\main\java\com\chatchat\common\retrieval\query\ModelQueryRefinementConfiguration.java:61:                : invocation.chat(scope, "query-refinement", model, request, budget.getRefinementMaxOutputTokens());
+chatchat-chat\src\main\java\com\chatchat\chat\task\notification\NotificationPolicyEvaluator.java:82:            String raw = directModels == null ? model.chat(prompt)
+chatchat-chat\src\main\java\com\chatchat\chat\task\notification\NotificationPolicyEvaluator.java:83:                : directModels.text(scope, "notification-policy", prompt, 2048);
+chatchat-chat\src\main\java\com\chatchat\chat\task\notification\NotificationContentFormatter.java:91:            String raw = directModels == null ? model.chat(prompt)
+chatchat-chat\src\main\java\com\chatchat\chat\task\notification\NotificationContentFormatter.java:92:                : directModels.text(scope, "notification-format", prompt, 4096);
+chatchat-chat\src\main\java\com\chatchat\chat\task\learning\AgentLearningService.java:328:            String raw = directModels == null ? chatModel.chat(prompt)
+chatchat-chat\src\main\java\com\chatchat\chat\task\learning\AgentLearningService.java:329:                : directModels.text(modelScope, "task-learning", prompt, 2048);
+chatchat-chat\src\main\java\com\chatchat\chat\task\core\AgentTaskService.java:1243:                InteractionResponse response = orchestrationService.chat(interactionRequest);
+chatchat-chat\src\main\java\com\chatchat\chat\skills\runtime\ModelSkillIntentPlanner.java:64:        String answer = directModels == null ? (modelName.isBlank() ? defaultModel : models.create(modelName)).chat(prompt)
+chatchat-chat\src\main\java\com\chatchat\chat\skills\runtime\ModelSkillIntentPlanner.java:65:            : directModels.text(scope, "skill-intent", modelName, prompt, 4096);
+chatchat-agents\src\main\java\com\chatchat\agents\runtime\plan\InterpretationPlanRewriter.java:74:            raw = chatModel.chat(prompt);
+chatchat-chat\src\main\java\com\chatchat\chat\skills\domain\planning\DomainSkillPlanningRouter.java:46:            String response = directModels == null ? resolveModel(model).chat(input)
+chatchat-chat\src\main\java\com\chatchat\chat\skills\domain\planning\DomainSkillPlanningRouter.java:47:                : directModels.text(null, "domain-skill-routing", model, input, 4096);
+chatchat-chat\src\main\java\com\chatchat\chat\knowledge\ModelDrivenKnowledgeSkillSynthesizer.java:64:            String response = directModels == null ? resolveModel(request).chat(prompt)
+chatchat-chat\src\main\java\com\chatchat\chat\knowledge\ModelDrivenKnowledgeSkillSynthesizer.java:65:                : directModels.text(scope, "knowledge-skill-plan", java.util.Objects.toString(request.attributes().get("modelName"), ""), prompt, 4096);
+chatchat-chat\src\main\java\com\chatchat\chat\skills\domain\indexing\DomainSkillIndexService.java:70:                List<Float> vector = queryOptimizer.withinBudget(() -> embeddingClient.embed(semanticQuery));
+chatchat-chat\src\main\java\com\chatchat\chat\skills\domain\indexing\DomainSkillIndexService.java:136:            List<Float> vector = embeddingClient.embed(searchText);
+chatchat-chat\src\main\java\com\chatchat\chat\interaction\service\ProblemAnalysisPlanner.java:317:            return (name == null || name.isBlank() ? defaultModel : models.create(name, null, maximumOutput)).chat(prompt);
+chatchat-chat\src\main\java\com\chatchat\chat\interaction\service\ProblemAnalysisPlanner.java:337:        var response = directModels.chat(scope, purpose, model, builder.build(), maximumOutput);
+chatchat-chat\src\main\java\com\chatchat\chat\interaction\service\McpToolSemanticIndex.java:85:                    List<Float> queryVector = queryOptimizer.withinBudget(() -> embeddings.embed(semanticQuery));
+chatchat-chat\src\main\java\com\chatchat\chat\interaction\service\McpToolSemanticIndex.java:175:            List<Float> vector = embeddings.embed(tool.getLocalToolName() + " " + safe(tool.getDescription()));
+chatchat-chat\src\main\java\com\chatchat\chat\image\ImageUnderstandingService.java:405:                response = chatModel.chat(message);
+chatchat-chat\src\main\java\com\chatchat\chat\image\ImageUnderstandingService.java:417:                response = directModels.multimodal(scope, "image-analysis", model, request,
+chatchat-chat\src\main\java\com\chatchat\chat\interaction\service\ConversationMemoryService.java:296:                String response = directModels.text(scope, "conversation-summary", buildSummaryPrompt(previousSummary, messages), outputLimit);
+chatchat-chat\src\main\java\com\chatchat\chat\interaction\service\ConversationMemoryService.java:308:            return chatModel.chat(buildSummaryPrompt(previousSummary, messages));
+chatchat-chat\src\main\java\com\chatchat\chat\skills\domain\adapter\ModelDrivenExternalSkillCompiler.java:40:            String response = directModels == null ? resolveModel(selectedModel).chat(input)
+chatchat-chat\src\main\java\com\chatchat\chat\skills\domain\adapter\ModelDrivenExternalSkillCompiler.java:41:                : directModels.text(null, "external-skill-compile", selectedModel, input, 8192);
+chatchat-api\src\main\java\com\chatchat\api\runtime\coding\cline\ClineRuntimeModelBridge.java:224:                observed=dispatchModel.chat(dispatchRequest);
+chatchat-runtime-news\src\main\java\com\chatchat\runtime\news\store\opensearch\OpenSearchNewsDocumentStore.java:187:            List<Float> queryVector = queryOptimizer.withinBudget(() -> embeddingClient.embed(lexicalQuery));
+chatchat-runtime-news\src\main\java\com\chatchat\runtime\news\store\opensearch\OpenSearchNewsDocumentStore.java:328:            List<List<Float>> batch = embeddingClient.embedAll(inputs);
+chatchat-api\src\main\java\com\chatchat\api\controller\chat\InteractionController.java:66:            InteractionResponse response = orchestrationService.chat(request);
+chatchat-api\src\main\java\com\chatchat\api\controller\chat\InteractionController.java:110:                InteractionResponse response = orchestrationService.chat(request);
+chatchat-api\src\main\java\com\chatchat\api\enterprise\service\QuotaGovernedDirectModelInvocation.java:111:            response = model.chat(request);
+chatchat-agents\src\main\java\com\chatchat\agents\runtime\evaluation\regression\AgentRegressionLlmEvaluator.java:26:        String raw = chatModel.chat(buildPrompt(testCase, observation, deterministicResult));
+chatchat-agents\src\main\java\com\chatchat\agents\runtime\answer\DefaultAgentAnswerReviewer.java:47:        String raw = chatModel.chat(buildPrompt(query, systemPrompt, observations, answer));
+chatchat-api\src\main\java\com\chatchat\api\config\LangChain4jConfig.java:50:            @Override public String chat(String userMessage) { return current().chat(userMessage); }
+chatchat-api\src\main\java\com\chatchat\api\config\LangChain4jConfig.java:51:            @Override public ChatResponse doChat(ChatRequest request) { return current().chat(request); }
+chatchat-api\src\main\java\com\chatchat\api\assistance\QuestionIdeaService.java:66:            var response=invocation.chat(scope,"question-ideas",model,request,outputLimit);
+chatchat-agents\src\main\java\com\chatchat\agents\model\RuntimeStreamingChatModel.java:35:        provider.chat(request).subscribe(new Flow.Subscriber<ChatModelStreamingEvent>() {
+chatchat-agents\src\main\java\com\chatchat\agents\model\ConfigurableChatModelFactory.java:81:            var streaming=dev.langchain4j.model.openai.OpenAiStreamingChatModel.builder()
+chatchat-agents\src\main\java\com\chatchat\agents\model\ConfigurableChatModelFactory.java:91:        OpenAiChatModel.OpenAiChatModelBuilder builder = OpenAiChatModel.builder()
+chatchat-api\src\main\java\com\chatchat\api\datascience\sql\SqlStudioMetadataAssistant.java:171:                    response=directModels==null?model.chat(call):directModels.chat(scope,"sql-metadata",model,call,outputLimit);
+chatchat-api\src\main\java\com\chatchat\api\datascience\python\PythonTemplateIndexService.java:45:            List<Float> vector = embeddingClient.embed(template.getSearchText());
+chatchat-api\src\main\java\com\chatchat\api\datascience\python\PythonTemplateIndexService.java:77:            List<Float> vector = queryOptimizer.withinBudget(() -> embeddingClient.embed(semanticQuery));
+chatchat-agents\src\main\java\com\chatchat\agents\orchestration\AgentPlanner.java:253:                raw = activeChatModel.chat(currentPrompt);
+chatchat-agents\src\main\java\com\chatchat\agents\orchestration\AgentOrchestrationEngine.java:1873:            raw = activeChatModel.chat(prompt);
+chatchat-agents\src\main\java\com\chatchat\agents\orchestration\AgentOrchestrationEngine.java:2248:        String answer = model.chat(prompt);
+chatchat-agents\src\main\java\com\chatchat\agents\orchestration\AgentOrchestrationEngine.java:3731:        String raw = activeChatModel.chat(reviewPrompt);
+chatchat-agents\src\main\java\com\chatchat\agents\orchestration\answer\AgentAnswerFinalizer.java:791:            answer = activeChatModel.chat(promptText);
+chatchat-agents\src\main\java\com\chatchat\agents\orchestration\answer\AnswerQualityEvaluator.java:49:        String raw = chatModel.chat(prompt);
+chatchat-agents\src\main\java\com\chatchat\agents\orchestration\answer\AnswerCriticRepairer.java:37:        String raw = model.chat(prompt);
+chatchat-agents\src\main\java\com\chatchat\agents\orchestration\answer\FinalSummaryWebSearchEnhancer.java:246:        String raw = model.chat(prompt.toString());
+chatchat-agents\src\main\java\com\chatchat\agents\orchestration\answer\FinalSummaryWebSearchEnhancer.java:344:        String answer = model.chat(prompt.toString());
+chatchat-agents\src\main\java\com\chatchat\agents\orchestration\retrieval\ModelAssistedContextParameterBridge.java:70:            Map<String, Object> response = parseObject(model.chat(prompt));
+chatchat-agents\src\main\java\com\chatchat\agents\orchestration\analysis\graph\TextPartitionExtractor.java:41:                String raw = model.chat(prompt); calls++;
+chatchat-mcp-server\src\main\java\com\chatchat\mcpserver\search\engine\OpenSearchMcpSearchService.java:415:            List<List<Float>> vectors = embeddingClient.embedAll(sources.stream().map(this::embeddingInput).toList());
+chatchat-mcp-server\src\main\java\com\chatchat\mcpserver\search\engine\OpenSearchMcpSearchService.java:543:                List<Float> vector = queryOptimizer.withinBudget(() -> embeddingClient.embed(text));
+chatchat-agents\src\main\java\com\chatchat\agents\orchestration\analysis\graph\ModelNativeAnalysisHarness.java:159:                else if (Boolean.TRUE.equals(metadata.get("harnessLegacyTextTransport"))) response = model.chat(prompt);
+chatchat-agents\src\main\java\com\chatchat\agents\orchestration\analysis\graph\ModelNativeAnalysisHarness.java:161:                    var returned = model.chat(ChatRequest.builder().messages(SystemMessage.from(system), UserMessage.from(context)).build());
+chatchat-agents\src\main\java\com\chatchat\agents\orchestration\analysis\prompt\AdaptiveBusinessAnalysisPromptSynthesizer.java:103:            Map<String, Object> planned = parse(model.chat(prompt));
+chatchat-agents\src\main\java\com\chatchat\agents\orchestration\analysis\graph\DataWorkspaceOperations.java:178:            String response=model.chat(prompt);
+chatchat-agents\src\main\java\com\chatchat\agents\orchestration\analysis\nodes\synthesis\SemanticClaimReviewer.java:49:            pending = EXECUTOR.submit(() -> model.chat(prompt));
+chatchat-agents\src\main\java\com\chatchat\agents\orchestration\analysis\nodes\synthesis\FinalSynthesisNode.java:89:            String draft = request.model().chat(request.prompt());
+chatchat-agents\src\main\java\com\chatchat\agents\orchestration\model\DeadlineAwareChatModel.java:58:    @Override public String chat(String message) { return invoke(() -> delegate.chat(message)); }
+chatchat-agents\src\main\java\com\chatchat\agents\orchestration\model\DeadlineAwareChatModel.java:59:    @Override public ChatResponse doChat(ChatRequest request) { return invoke(() -> delegate.chat(request)); }
+chatchat-agents\src\main\java\com\chatchat\agents\orchestration\planning\generation\NativeToolCallingPlanner.java:81:            ChatResponse response = model.chat(ChatRequest.builder()
+chatchat-agents\src\main\java\com\chatchat\agents\orchestration\model\CapacityGovernedChatModel.java:45:                    return boundedFactory.apply(java.time.Duration.ofMillis(millis < 0 ? Long.MAX_VALUE : millis)).chat(request);
+chatchat-agents\src\main\java\com\chatchat\agents\orchestration\model\CapacityGovernedChatModel.java:53:        return capacity.invoke(modelKey, () -> current().chat(message));
+chatchat-agents\src\main\java\com\chatchat\agents\orchestration\model\CapacityGovernedChatModel.java:58:        return capacity.invoke(modelKey, () -> current().chat(request));
+chatchat-agents\src\main\java\com\chatchat\agents\orchestration\model\MeteredChatModel.java:130:        // Production SDK models inherit ChatModel.chat(String), which constructs exactly
+chatchat-agents\src\main\java\com\chatchat\agents\orchestration\model\MeteredChatModel.java:138:                () -> delegate.chat(request),
+chatchat-agents\src\main\java\com\chatchat\agents\orchestration\model\MeteredChatModel.java:144:        return invoke(estimator.estimate(message).tokens(), ModelRequestContext.flattened(message), () -> delegate.chat(message),
+chatchat-agents\src\main\java\com\chatchat\agents\orchestration\model\MeteredChatModel.java:159:        if (enterprise == null) return delegate.chat(request);
+chatchat-agents\src\main\java\com\chatchat\agents\orchestration\model\MeteredChatModel.java:161:        return enterprise.invocation().chat(enterprise.scope(), "agent-model", enterpriseDelegate, request,
+chatchat-agents\src\main\java\com\chatchat\agents\orchestration\evidence\PlanGapReconciler.java:55:            var review = JsonParser.parseString(model.chat(prompt)).getAsJsonObject();

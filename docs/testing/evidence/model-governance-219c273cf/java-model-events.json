@@ -1,0 +1,96 @@
+{
+  "7": {
+    "taskId": "9bcf0105-7a6b-3b89-a549-caffc79f6490",
+    "modelEvents": [
+      {
+        "eventId": "a4a5c366-06f8-4d28-96a9-bec7188f90b7",
+        "status": "RUNNING",
+        "sequence": 7,
+        "facts": {
+          "eventKind": "MODEL_CALL",
+          "modelPhase": "task-classification",
+          "modelSource": "JAVA",
+          "requestId": "3dc0fe8a-3400-46b9-a9d0-721e285cc0ca"
+        }
+      },
+      {
+        "eventId": "87576101-bda7-4b88-9d77-66bd656440d9",
+        "status": "SUCCESS",
+        "sequence": 8,
+        "facts": {
+          "eventKind": "MODEL_CALL",
+          "modelPhase": "task-classification",
+          "modelSource": "JAVA",
+          "usageSource": "UPSTREAM",
+          "requestId": "3dc0fe8a-3400-46b9-a9d0-721e285cc0ca",
+          "durationMs": 8605,
+          "totalTokens": 1000,
+          "inputTokens": 535,
+          "outputTokens": 465,
+          "providerModel": "qwen3.7-plus"
+        }
+      }
+    ]
+  },
+  "6": {
+    "taskId": "e9df1a2c-f159-3437-a955-ff230ab6d6e5",
+    "modelEvents": [
+      {
+        "eventId": "01da500b-b22f-4695-9696-fc5d537b006e",
+        "status": "RUNNING",
+        "sequence": 7,
+        "facts": {
+          "eventKind": "MODEL_CALL",
+          "modelPhase": "task-classification",
+          "modelSource": "JAVA",
+          "requestId": "97a6f083-2637-4a2f-b1b0-3d70e8e31818"
+        }
+      },
+      {
+        "eventId": "5718fe04-6e6e-45c1-80a5-f0ac240a7d06",
+        "status": "SUCCESS",
+        "sequence": 8,
+        "facts": {
+          "eventKind": "MODEL_CALL",
+          "modelPhase": "task-classification",
+          "modelSource": "JAVA",
+          "usageSource": "UPSTREAM",
+          "requestId": "97a6f083-2637-4a2f-b1b0-3d70e8e31818",
+          "durationMs": 6349,
+          "totalTokens": 822,
+          "inputTokens": 462,
+          "outputTokens": 360,
+          "providerModel": "qwen3.7-plus"
+        }
+      },
+      {
+        "eventId": "0997df41-94b8-4691-b17d-48c89c44ebd1",
+        "status": "RUNNING",
+        "sequence": 16,
+        "facts": {
+          "eventKind": "MODEL_CALL",
+          "modelPhase": "agent-model",
+          "modelSource": "JAVA",
+          "requestId": "fcce8625-a558-4c18-8172-be2974bb2d7a"
+        }
+      },
+      {
+        "eventId": "bddc7020-75ee-4cb1-9639-84520fb5ef7b",
+        "status": "SUCCESS",
+        "sequence": 17,
+        "facts": {
+          "eventKind": "MODEL_CALL",
+          "modelPhase": "agent-model",
+          "modelSource": "JAVA",
+          "usageSource": "UPSTREAM",
+          "requestId": "fcce8625-a558-4c18-8172-be2974bb2d7a",
+          "durationMs": 45586,
+          "totalTokens": 6378,
+          "inputTokens": 3603,
+          "outputTokens": 2775,
+          "providerModel": "qwen3.7-plus"
+        }
+      }
+    ]
+  }
+}

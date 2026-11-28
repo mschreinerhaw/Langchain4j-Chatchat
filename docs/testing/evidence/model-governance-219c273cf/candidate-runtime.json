@@ -1,0 +1,3885 @@
+{
+  "capturedAt": "2026-11-28T04:09:09.514329+00:00",
+  "candidate": "219c273cf267fff0a8d1c0a072b2a41b551baf5b",
+  "tasks": {
+    "business-wave-utf8": {
+      "10": {
+        "task": {
+          "taskId": "8291ec22-38bc-3f74-bd2e-524cf7246ec1",
+          "attemptId": "att-1-8d78bd46-0acd-483a-9a89-56642e87df26",
+          "status": "FAILED",
+          "canonicalState": "FAILED",
+          "createTime": "2026-11-28T03:23:38.234531Z",
+          "updateTime": "2026-11-28T03:23:38.402091Z",
+          "finishedAt": "2026-11-28T03:23:38.391Z"
+        },
+        "reportDescriptor": false,
+        "events": [
+          {
+            "sequence": 1,
+            "eventId": "edae90a0-2008-49bf-a05d-c7bec41202d4",
+            "toolName": null,
+            "type": "QUESTION",
+            "status": "PENDING",
+            "errorCode": null,
+            "createTime": 1795836218243,
+            "model": {},
+            "observationType": null
+          },
+          {
+            "sequence": 2,
+            "eventId": "dccccafc-8527-4283-b586-f93c2696ba17",
+            "toolName": null,
+            "type": "STATUS",
+            "status": "RUNNING",
+            "errorCode": null,
+            "createTime": 1795836218266,
+            "model": {},
+            "observationType": null
+          },
+          {
+            "sequence": 3,
+            "eventId": "24b1a897-b1ad-4682-9a1e-ae44df1f822d",
+            "toolName": null,
+            "type": "STATUS",
+            "status": "WAIT_MODEL",
+            "errorCode": null,
+            "createTime": 1795836218273,
+            "model": {},
+            "observationType": null
+          },
+          {
+            "sequence": 4,
+            "eventId": "8c050ccb-aeb1-46a2-8ba7-4e172c8fa14f",
+            "toolName": null,
+            "type": "RUNTIME_OBSERVATION",
+            "status": "SUCCESS",
+            "errorCode": null,
+            "createTime": 1795836218310,
+            "stage": "SKILL_ANALYSIS_CONTEXT",
+            "model": {},
+            "observationType": null
+          },
+          {
+            "sequence": 5,
+            "eventId": "f14ca4f6-a0da-43e9-83c7-385302063208",
+            "toolName": null,
+            "type": "RUNTIME_OBSERVATION",
+            "status": "SUCCESS",
+            "errorCode": null,
+            "createTime": 1795836218326,
+            "stage": "SKILL_ANALYSIS_CONTEXT",
+            "model": {},
+            "observationType": null
+          },
+          {
+            "sequence": 6,
+            "eventId": "76054630-7c0c-4e2d-85f5-7636ab932dd2",
+            "toolName": null,
+            "type": "RUNTIME_OBSERVATION",
+            "status": "RUNNING",
+            "errorCode": null,
+            "createTime": 1795836218329,
+            "stage": "TASK_CLASSIFICATION",
+            "model": {
+              "eventState": "RUNNING"
+            },
+            "observationType": null
+          },
+          {
+            "sequence": 7,
+            "eventId": "abfa8579-bea5-447b-927b-7ee2c08098f9",
+            "toolName": null,
+            "type": "RUNTIME_OBSERVATION",
+            "status": "FAILED",
+            "errorCode": null,
+            "createTime": 1795836218332,
+            "stage": "TASK_CLASSIFICATION",
+            "model": {
+              "eventState": "FAILED"
+            },
+            "observationType": null
+          },
+          {
+            "sequence": 8,
+            "eventId": "0525fadb-e460-4e25-a0c5-f4d3ae123636",
+            "toolName": null,
+            "type": "THINK",
+            "status": "RUNNING",
+            "errorCode": null,
+            "createTime": 1795836218276,
+            "model": {},
+            "observationType": null
+          },
+          {
+            "sequence": 9,
+            "eventId": "fae1f898-b304-4e2d-94b5-c035a0ecdb91",
+            "toolName": null,
+            "type": "RESULT",
+            "status": "FAILED",
+            "errorCode": null,
+            "createTime": 1795836218374,
+            "model": {},
+            "observationType": null
+          },
+          {
+            "sequence": 10,
+            "eventId": "a51b84b7-47f4-4a95-88a9-8afb8ba0ae5a",
+            "toolName": null,
+            "type": "COMPLETE",
+            "status": "FAILED",
+            "errorCode": null,
+            "createTime": 1795836218391,
+            "model": {},
+            "observationType": null
+          }
+        ]
+      },
+      "11": {
+        "task": {
+          "taskId": "9339283d-bc4c-31cc-8840-9dac58ef6f04",
+          "attemptId": "att-1-82ff60e9-2cd5-44d5-86c5-d527ac544043",
+          "status": "FAILED",
+          "canonicalState": "FAILED",
+          "createTime": "2026-11-28T03:23:43.417514Z",
+          "updateTime": "2026-11-28T03:23:43.602298Z",
+          "finishedAt": "2026-11-28T03:23:43.591Z"
+        },
+        "reportDescriptor": false,
+        "events": [
+          {
+            "sequence": 1,
+            "eventId": "347e8d7c-6ca2-4bbf-bd8a-90dfb33c7c73",
+            "toolName": null,
+            "type": "QUESTION",
+            "status": "PENDING",
+            "errorCode": null,
+            "createTime": 1795836223423,
+            "model": {},
+            "observationType": null
+          },
+          {
+            "sequence": 2,
+            "eventId": "a0e4c564-d455-4c98-90a1-8135ce96ee30",
+            "toolName": null,
+            "type": "STATUS",
+            "status": "RUNNING",
+            "errorCode": null,
+            "createTime": 1795836223444,
+            "model": {},
+            "observationType": null
+          },
+          {
+            "sequence": 3,
+            "eventId": "5e322477-e7fe-484d-bbd2-1c03eb8c1a0d",
+            "toolName": null,
+            "type": "STATUS",
+            "status": "WAIT_MODEL",
+            "errorCode": null,
+            "createTime": 1795836223453,
+            "model": {},
+            "observationType": null
+          },
+          {
+            "sequence": 4,
+            "eventId": "3be2f884-9f67-4a5a-a8f0-4c75d990b711",
+            "toolName": null,
+            "type": "RUNTIME_OBSERVATION",
+            "status": "SUCCESS",
+            "errorCode": null,
+            "createTime": 1795836223512,
+            "stage": "SKILL_ANALYSIS_CONTEXT",
+            "model": {},
+            "observationType": null
+          },
+          {
+            "sequence": 5,
+            "eventId": "1b2be470-d831-41f1-a74a-6e0bb5d7e45d",
+            "toolName": null,
+            "type": "RUNTIME_OBSERVATION",
+            "status": "SUCCESS",
+            "errorCode": null,
+            "createTime": 1795836223515,
+            "stage": "SKILL_ANALYSIS_CONTEXT",
+            "model": {},
+            "observationType": null
+          },
+          {
+            "sequence": 6,
+            "eventId": "ef99e4a2-4397-47a8-a835-fec310a03b0f",
+            "toolName": null,
+            "type": "RUNTIME_OBSERVATION",
+            "status": "RUNNING",
+            "errorCode": null,
+            "createTime": 1795836223518,
+            "stage": "TASK_CLASSIFICATION",
+            "model": {
+              "eventState": "RUNNING"
+            },
+            "observationType": null
+          },
+          {
+            "sequence": 7,
+            "eventId": "4234d19a-9a33-4466-9f78-27aeabc40f0b",
+            "toolName": null,
+            "type": "RUNTIME_OBSERVATION",
+            "status": "FAILED",
+            "errorCode": null,
+            "createTime": 1795836223521,
+            "stage": "TASK_CLASSIFICATION",
+            "model": {
+              "eventState": "FAILED"
+            },
+            "observationType": null
+          },
+          {
+            "sequence": 8,
+            "eventId": "1d616925-4950-47a8-872c-109745acc327",
+            "toolName": null,
+            "type": "THINK",
+            "status": "RUNNING",
+            "errorCode": null,
+            "createTime": 1795836223457,
+            "model": {},
+            "observationType": null
+          },
+          {
+            "sequence": 9,
+            "eventId": "3ae4e548-c6d2-49b6-a9b0-8e391b579c4b",
+            "toolName": null,
+            "type": "RESULT",
+            "status": "FAILED",
+            "errorCode": null,
+            "createTime": 1795836223575,
+            "model": {},
+            "observationType": null
+          },
+          {
+            "sequence": 10,
+            "eventId": "4729a656-5430-4fb1-93d0-7b76dfa21b06",
+            "toolName": null,
+            "type": "COMPLETE",
+            "status": "FAILED",
+            "errorCode": null,
+            "createTime": 1795836223591,
+            "model": {},
+            "observationType": null
+          }
+        ]
+      },
+      "5.1": {
+        "task": {
+          "taskId": "2e941693-72d9-3232-a66c-90d12b7350ff",
+          "attemptId": "att-1-98a56c15-7d5e-4a64-9889-0a9b3180ceed",
+          "status": "FAILED",
+          "canonicalState": "FAILED",
+          "createTime": "2026-11-28T03:23:06.704713Z",
+          "updateTime": "2026-11-28T03:23:07.083931Z",
+          "finishedAt": "2026-11-28T03:23:07.044Z"
+        },
+        "reportDescriptor": false,
+        "events": [
+          {
+            "sequence": 1,
+            "eventId": "9b76c205-2983-4e6b-b3f0-b9ad2553f576",
+            "toolName": null,
+            "type": "QUESTION",
+            "status": "PENDING",
+            "errorCode": null,
+            "createTime": 1795836186712,
+            "model": {},
+            "observationType": null
+          },
+          {
+            "sequence": 2,
+            "eventId": "cf635972-0e89-44d9-a096-5744da6b6a20",
+            "toolName": null,
+            "type": "STATUS",
+            "status": "RUNNING",
+            "errorCode": null,
+            "createTime": 1795836186750,
+            "model": {},
+            "observationType": null
+          },
+          {
+            "sequence": 3,
+            "eventId": "c18f1392-fe97-4c20-8ece-43736690f741",
+            "toolName": null,
+            "type": "STATUS",
+            "status": "WAIT_MODEL",
+            "errorCode": null,
+            "createTime": 1795836186782,
+            "model": {},
+            "observationType": null
+          },
+          {
+            "sequence": 4,
+            "eventId": "ff0d6031-28f7-4795-ba16-36d87d96c6f4",
+            "toolName": null,
+            "type": "RUNTIME_OBSERVATION",
+            "status": "SUCCESS",
+            "errorCode": null,
+            "createTime": 1795836186901,
+            "stage": "SKILL_ANALYSIS_CONTEXT",
+            "model": {},
+            "observationType": null
+          },
+          {
+            "sequence": 5,
+            "eventId": "500d1056-e83c-49b3-8e7b-4d6dbfd61b25",
+            "toolName": null,
+            "type": "RUNTIME_OBSERVATION",
+            "status": "SUCCESS",
+            "errorCode": null,
+            "createTime": 1795836186981,
+            "stage": "SKILL_ANALYSIS_CONTEXT",
+            "model": {},
+            "observationType": null
+          },
+          {
+            "sequence": 6,
+            "eventId": "0195188b-98b0-4947-91ce-889afc0f8dce",
+            "toolName": null,
+            "type": "RUNTIME_OBSERVATION",
+            "status": "RUNNING",
+            "errorCode": null,
+            "createTime": 1795836186989,
+            "stage": "TASK_CLASSIFICATION",
+            "model": {
+              "eventState": "RUNNING"
+            },
+            "observationType": null
+          },
+          {
+            "sequence": 7,
+            "eventId": "631a5b40-75a4-4411-ad43-130c1695bd9a",
+            "toolName": null,
+            "type": "RUNTIME_OBSERVATION",
+            "status": "FAILED",
+            "errorCode": null,
+            "createTime": 1795836186992,
+            "stage": "TASK_CLASSIFICATION",
+            "model": {
+              "eventState": "FAILED"
+            },
+            "observationType": null
+          },
+          {
+            "sequence": 8,
+            "eventId": "c5486b4f-8de5-4087-a11c-0c4ef763e051",
+            "toolName": null,
+            "type": "THINK",
+            "status": "RUNNING",
+            "errorCode": null,
+            "createTime": 1795836186790,
+            "model": {},
+            "observationType": null
+          },
+          {
+            "sequence": 9,
+            "eventId": "dc79704e-ad3e-4f6d-9e75-3c37ffa51791",
+            "toolName": null,
+            "type": "RESULT",
+            "status": "FAILED",
+            "errorCode": null,
+            "createTime": 1795836187014,
+            "model": {},
+            "observationType": null
+          },
+          {
+            "sequence": 10,
+            "eventId": "ff202eee-31c6-4949-8b6d-7dcf87308e1d",
+            "toolName": null,
+            "type": "COMPLETE",
+            "status": "FAILED",
+            "errorCode": null,
+            "createTime": 1795836187044,
+            "model": {},
+            "observationType": null
+          }
+        ]
+      },
+      "5.2": {
+        "task": {
+          "taskId": "1c7312ab-975e-36c9-82f2-b0fd3916d497",
+          "attemptId": "att-1-7b89a629-25c4-417f-a61b-0e691db54bec",
+          "status": "FAILED",
+          "canonicalState": "FAILED",
+          "createTime": "2026-11-28T03:23:12.092531Z",
+          "updateTime": "2026-11-28T03:23:12.488036Z",
+          "finishedAt": "2026-11-28T03:23:12.451Z"
+        },
+        "reportDescriptor": false,
+        "events": [
+          {
+            "sequence": 1,
+            "eventId": "e14905e0-8edb-4e5f-9dc9-86b8983805e4",
+            "toolName": null,
+            "type": "QUESTION",
+            "status": "PENDING",
+            "errorCode": null,
+            "createTime": 1795836192099,
+            "model": {},
+            "observationType": null
+          },
+          {
+            "sequence": 2,
+            "eventId": "a51c72b9-583e-4e95-a5a9-d84c25cbd1ed",
+            "toolName": null,
+            "type": "STATUS",
+            "status": "RUNNING",
+            "errorCode": null,
+            "createTime": 1795836192133,
+            "model": {},
+            "observationType": null
+          },
+          {
+            "sequence": 3,
+            "eventId": "7e598575-06f3-488b-86d9-c07262257e91",
+            "toolName": null,
+            "type": "STATUS",
+            "status": "WAIT_MODEL",
+            "errorCode": null,
+            "createTime": 1795836192144,
+            "model": {},
+            "observationType": null
+          },
+          {
+            "sequence": 4,
+            "eventId": "0d751f0e-8063-4351-9c9e-2cf57814ce09",
+            "toolName": null,
+            "type": "RUNTIME_OBSERVATION",
+            "status": "SUCCESS",
+            "errorCode": null,
+            "createTime": 1795836192340,
+            "stage": "SKILL_ANALYSIS_CONTEXT",
+            "model": {},
+            "observationType": null
+          },
+          {
+            "sequence": 5,
+            "eventId": "d0f89c53-b372-4b4d-8958-f57e8c12641e",
+            "toolName": null,
+            "type": "RUNTIME_OBSERVATION",
+            "status": "SUCCESS",
+            "errorCode": null,
+            "createTime": 1795836192386,
+            "stage": "SKILL_ANALYSIS_CONTEXT",
+            "model": {},
+            "observationType": null
+          },
+          {
+            "sequence": 6,
+            "eventId": "cf14668e-fa9d-48d9-97b3-57ae7da708ee",
+            "toolName": null,
+            "type": "RUNTIME_OBSERVATION",
+            "status": "RUNNING",
+            "errorCode": null,
+            "createTime": 1795836192391,
+            "stage": "TASK_CLASSIFICATION",
+            "model": {
+              "eventState": "RUNNING"
+            },
+            "observationType": null
+          },
+          {
+            "sequence": 7,
+            "eventId": "ed51db63-bcca-4480-8a46-f02ced963b49",
+            "toolName": null,
+            "type": "RUNTIME_OBSERVATION",
+            "status": "FAILED",
+            "errorCode": null,
+            "createTime": 1795836192395,
+            "stage": "TASK_CLASSIFICATION",
+            "model": {
+              "eventState": "FAILED"
+            },
+            "observationType": null
+          },
+          {
+            "sequence": 8,
+            "eventId": "083c5783-00c9-4448-a2b6-3afedde40ee4",
+            "toolName": null,
+            "type": "THINK",
+            "status": "RUNNING",
+            "errorCode": null,
+            "createTime": 1795836192149,
+            "model": {},
+            "observationType": null
+          },
+          {
+            "sequence": 9,
+            "eventId": "e267374b-2add-4e17-b0db-b8ec526a6f4c",
+            "toolName": null,
+            "type": "RESULT",
+            "status": "FAILED",
+            "errorCode": null,
+            "createTime": 1795836192428,
+            "model": {},
+            "observationType": null
+          },
+          {
+            "sequence": 10,
+            "eventId": "45f20c8a-6270-4792-9308-6ea0497e3402",
+            "toolName": null,
+            "type": "COMPLETE",
+            "status": "FAILED",
+            "errorCode": null,
+            "createTime": 1795836192451,
+            "model": {},
+            "observationType": null
+          }
+        ]
+      },
+      "5.3": {
+        "task": {
+          "taskId": "91b1028f-0005-348a-9fd0-b2f14b6d4a80",
+          "attemptId": "att-1-6c3e8f55-ab95-40cd-b0a8-bc0949ceb038",
+          "status": "FAILED",
+          "canonicalState": "FAILED",
+          "createTime": "2026-11-28T03:23:17.363789Z",
+          "updateTime": "2026-11-28T03:23:17.797898Z",
+          "finishedAt": "2026-11-28T03:23:17.777Z"
+        },
+        "reportDescriptor": false,
+        "events": [
+          {
+            "sequence": 1,
+            "eventId": "8e2159da-1e80-4c78-a068-8a0b52193235",
+            "toolName": null,
+            "type": "QUESTION",
+            "status": "PENDING",
+            "errorCode": null,
+            "createTime": 1795836197371,
+            "model": {},
+            "observationType": null
+          },
+          {
+            "sequence": 2,
+            "eventId": "8e91d8e8-ca02-43c6-a7e2-c3f9f603908b",
+            "toolName": null,
+            "type": "STATUS",
+            "status": "RUNNING",
+            "errorCode": null,
+            "createTime": 1795836197400,
+            "model": {},
+            "observationType": null
+          },
+          {
+            "sequence": 3,
+            "eventId": "81369fd5-3ba6-43cd-9ae0-dced299c3514",
+            "toolName": null,
+            "type": "STATUS",
+            "status": "WAIT_MODEL",
+            "errorCode": null,
+            "createTime": 1795836197409,
+            "model": {},
+            "observationType": null
+          },
+          {
+            "sequence": 4,
+            "eventId": "26de5a18-67cc-4263-9048-5a54148cce02",
+            "toolName": null,
+            "type": "RUNTIME_OBSERVATION",
+            "status": "SUCCESS",
+            "errorCode": null,
+            "createTime": 1795836197622,
+            "stage": "SKILL_ANALYSIS_CONTEXT",
+            "model": {},
+            "observationType": null
+          },
+          {
+            "sequence": 5,
+            "eventId": "663760b7-8110-4e92-afe0-aab49ba63c48",
+            "toolName": null,
+            "type": "RUNTIME_OBSERVATION",
+            "status": "SUCCESS",
+            "errorCode": null,
+            "createTime": 1795836197689,
+            "stage": "SKILL_ANALYSIS_CONTEXT",
+            "model": {},
+            "observationType": null
+          },
+          {
+            "sequence": 6,
+            "eventId": "71bd1a8e-53f5-47d7-bc26-7f99eef61d20",
+            "toolName": null,
+            "type": "RUNTIME_OBSERVATION",
+            "status": "RUNNING",
+            "errorCode": null,
+            "createTime": 1795836197693,
+            "stage": "TASK_CLASSIFICATION",
+            "model": {
+              "eventState": "RUNNING"
+            },
+            "observationType": null
+          },
+          {
+            "sequence": 7,
+            "eventId": "1583d8e8-4b9d-4040-b822-33c05c87e22d",
+            "toolName": null,
+            "type": "RUNTIME_OBSERVATION",
+            "status": "FAILED",
+            "errorCode": null,
+            "createTime": 1795836197696,
+            "stage": "TASK_CLASSIFICATION",
+            "model": {
+              "eventState": "FAILED"
+            },
+            "observationType": null
+          },
+          {
+            "sequence": 8,
+            "eventId": "cb0465bb-d59e-4729-a354-9d57264ede5f",
+            "toolName": null,
+            "type": "THINK",
+            "status": "RUNNING",
+            "errorCode": null,
+            "createTime": 1795836197414,
+            "model": {},
+            "observationType": null
+          },
+          {
+            "sequence": 9,
+            "eventId": "f8fb0569-d6c6-4b6c-a68a-a3e124e9383d",
+            "toolName": null,
+            "type": "RESULT",
+            "status": "FAILED",
+            "errorCode": null,
+            "createTime": 1795836197732,
+            "model": {},
+            "observationType": null
+          },
+          {
+            "sequence": 10,
+            "eventId": "b7eab966-e957-42cc-b5a4-8df49c5f3026",
+            "toolName": null,
+            "type": "COMPLETE",
+            "status": "FAILED",
+            "errorCode": null,
+            "createTime": 1795836197777,
+            "model": {},
+            "observationType": null
+          }
+        ]
+      },
+      "6": {
+        "task": {
+          "taskId": "7b80c07d-0111-3779-acec-33178accfabc",
+          "attemptId": "att-1-ae6df510-b834-44fd-89a3-16c164908cd4",
+          "status": "FAILED",
+          "canonicalState": "FAILED",
+          "createTime": "2026-11-28T03:23:22.597644Z",
+          "updateTime": "2026-11-28T03:23:22.759897Z",
+          "finishedAt": "2026-11-28T03:23:22.746Z"
+        },
+        "reportDescriptor": false,
+        "events": [
+          {
+            "sequence": 1,
+            "eventId": "ee7f93e7-d081-42d4-bf9e-939e4df1bc4b",
+            "toolName": null,
+            "type": "QUESTION",
+            "status": "PENDING",
+            "errorCode": null,
+            "createTime": 1795836202603,
+            "model": {},
+            "observationType": null
+          },
+          {
+            "sequence": 2,
+            "eventId": "026d327a-824c-4121-b80f-7f19a540abcd",
+            "toolName": null,
+            "type": "STATUS",
+            "status": "RUNNING",
+            "errorCode": null,
+            "createTime": 1795836202624,
+            "model": {},
+            "observationType": null
+          },
+          {
+            "sequence": 3,
+            "eventId": "b8f4dcc5-2b11-45ac-aec2-d24f5fb0e9fe",
+            "toolName": null,
+            "type": "STATUS",
+            "status": "WAIT_MODEL",
+            "errorCode": null,
+            "createTime": 1795836202632,
+            "model": {},
+            "observationType": null
+          },
+          {
+            "sequence": 4,
+            "eventId": "4388d18a-16e5-4286-9181-aff13c1a4ae2",
+            "toolName": null,
+            "type": "RUNTIME_OBSERVATION",
+            "status": "SUCCESS",
+            "errorCode": null,
+            "createTime": 1795836202693,
+            "stage": "SKILL_ANALYSIS_CONTEXT",
+            "model": {},
+            "observationType": null
+          },
+          {
+            "sequence": 5,
+            "eventId": "da70e11b-4e04-450c-9535-b81c97fbaee7",
+            "toolName": null,
+            "type": "RUNTIME_OBSERVATION",
+            "status": "SUCCESS",
+            "errorCode": null,
+            "createTime": 1795836202698,
+            "stage": "SKILL_ANALYSIS_CONTEXT",
+            "model": {},
+            "observationType": null
+          },
+          {
+            "sequence": 6,
+            "eventId": "d6a5d996-829c-4dd0-82c6-c1e511266ab4",
+            "toolName": null,
+            "type": "RUNTIME_OBSERVATION",
+            "status": "RUNNING",
+            "errorCode": null,
+            "createTime": 1795836202702,
+            "stage": "TASK_CLASSIFICATION",
+            "model": {
+              "eventState": "RUNNING"
+            },
+            "observationType": null
+          },
+          {
+            "sequence": 7,
+            "eventId": "3a6b6e94-5484-40d3-9691-de8653c25f36",
+            "toolName": null,
+            "type": "RUNTIME_OBSERVATION",
+            "status": "FAILED",
+            "errorCode": null,
+            "createTime": 1795836202706,
+            "stage": "TASK_CLASSIFICATION",
+            "model": {
+              "eventState": "FAILED"
+            },
+            "observationType": null
+          },
+          {
+            "sequence": 8,
+            "eventId": "3159a018-c070-4a22-9710-d887e1cee9ff",
+            "toolName": null,
+            "type": "THINK",
+            "status": "RUNNING",
+            "errorCode": null,
+            "createTime": 1795836202636,
+            "model": {},
+            "observationType": null
+          },
+          {
+            "sequence": 9,
+            "eventId": "4059aa88-56cb-4846-b60f-2efe04ac1231",
+            "toolName": null,
+            "type": "RESULT",
+            "status": "FAILED",
+            "errorCode": null,
+            "createTime": 1795836202727,
+            "model": {},
+            "observationType": null
+          },
+          {
+            "sequence": 10,
+            "eventId": "ef1a63ab-4344-4ee0-acbd-008e50c34e5c",
+            "toolName": null,
+            "type": "COMPLETE",
+            "status": "FAILED",
+            "errorCode": null,
+            "createTime": 1795836202746,
+            "model": {},
+            "observationType": null
+          }
+        ]
+      },
+      "7": {
+        "task": {
+          "taskId": "87f255b0-951a-3c8a-8b9c-3e8dd4f84108",
+          "attemptId": "att-1-2cf26e03-66fb-4fe3-ae7b-bf8d632231df",
+          "status": "FAILED",
+          "canonicalState": "FAILED",
+          "createdAt": "2026-11-28T03:23:00.909996Z",
+          "updatedAt": "2026-11-28T03:23:03.999912Z",
+          "terminal": true
+        },
+        "reportDescriptor": false,
+        "events": [
+          {
+            "sequence": 1,
+            "eventId": "100e4944-b4e8-4876-bb76-664486101991",
+            "toolName": null,
+            "type": "QUESTION",
+            "status": "PENDING",
+            "errorCode": null,
+            "occurredAt": "2026-11-28T03:23:00.980Z",
+            "model": {},
+            "observationType": null
+          },
+          {
+            "sequence": 2,
+            "eventId": "cf309efe-f3d6-4c3f-ae1e-b1bcdbdf95d8",
+            "toolName": null,
+            "type": "STATUS",
+            "status": "RUNNING",
+            "errorCode": null,
+            "occurredAt": "2026-11-28T03:23:03.195Z",
+            "model": {},
+            "observationType": null
+          },
+          {
+            "sequence": 3,
+            "eventId": "10d899ac-3b02-440d-8f26-d97a1b109856",
+            "toolName": null,
+            "type": "STATUS",
+            "status": "WAIT_MODEL",
+            "errorCode": null,
+            "occurredAt": "2026-11-28T03:23:03.218Z",
+            "model": {},
+            "observationType": null
+          },
+          {
+            "sequence": 4,
+            "eventId": "da6b2df0-0609-44f7-be88-82548b01f307",
+            "toolName": null,
+            "type": "RUNTIME_OBSERVATION",
+            "status": "SUCCESS",
+            "errorCode": null,
+            "occurredAt": "2026-11-28T03:23:03.674Z",
+            "stage": "SKILL_ANALYSIS_CONTEXT",
+            "model": {},
+            "observationType": null
+          },
+          {
+            "sequence": 5,
+            "eventId": "1c6b3c27-5191-4aad-be73-cace7c025376",
+            "toolName": null,
+            "type": "RUNTIME_OBSERVATION",
+            "status": "SUCCESS",
+            "errorCode": null,
+            "occurredAt": "2026-11-28T03:23:03.703Z",
+            "stage": "SKILL_ANALYSIS_CONTEXT",
+            "model": {},
+            "observationType": null
+          },
+          {
+            "sequence": 6,
+            "eventId": "9c749927-d26b-4fd7-9137-c8e71ce39475",
+            "toolName": null,
+            "type": "RUNTIME_OBSERVATION",
+            "status": "RUNNING",
+            "errorCode": null,
+            "occurredAt": "2026-11-28T03:23:03.779Z",
+            "stage": "TASK_CLASSIFICATION",
+            "model": {},
+            "observationType": null
+          },
+          {
+            "sequence": 7,
+            "eventId": "63940432-08cf-48b2-b4dc-7e623c75ac13",
+            "toolName": null,
+            "type": "RUNTIME_OBSERVATION",
+            "status": "FAILED",
+            "errorCode": null,
+            "occurredAt": "2026-11-28T03:23:03.789Z",
+            "stage": "TASK_CLASSIFICATION",
+            "model": {},
+            "observationType": null
+          },
+          {
+            "sequence": 8,
+            "eventId": "20a4d446-d038-4de4-ad69-1ce8a1a9c1de",
+            "toolName": null,
+            "type": "THINK",
+            "status": "RUNNING",
+            "errorCode": null,
+            "occurredAt": "2026-11-28T03:23:03.228Z",
+            "model": {},
+            "observationType": null
+          },
+          {
+            "sequence": 9,
+            "eventId": "982fa6d2-5019-43e0-8fd7-ca0497603351",
+            "toolName": null,
+            "type": "RESULT",
+            "status": "FAILED",
+            "errorCode": null,
+            "occurredAt": "2026-11-28T03:23:03.872Z",
+            "model": {},
+            "observationType": null
+          },
+          {
+            "sequence": 10,
+            "eventId": "cdb73eb0-1709-4340-878d-3994ad0e928f",
+            "toolName": null,
+            "type": "COMPLETE",
+            "status": "FAILED",
+            "errorCode": null,
+            "occurredAt": "2026-11-28T03:23:03.922Z",
+            "model": {},
+            "observationType": null
+          }
+        ]
+      },
+      "8": {
+        "task": {
+          "taskId": "d477130c-d1a7-3c69-94e1-9253ba5050c0",
+          "attemptId": "att-1-c66f6e18-0407-45da-8bc5-42d99c47b14b",
+          "status": "FAILED",
+          "canonicalState": "FAILED",
+          "createTime": "2026-11-28T03:23:27.813605Z",
+          "updateTime": "2026-11-28T03:23:28.017827Z",
+          "finishedAt": "2026-11-28T03:23:28.002Z"
+        },
+        "reportDescriptor": false,
+        "events": [
+          {
+            "sequence": 1,
+            "eventId": "0d282550-237b-4312-af65-a7065178e212",
+            "toolName": null,
+            "type": "QUESTION",
+            "status": "PENDING",
+            "errorCode": null,
+            "createTime": 1795836207819,
+            "model": {},
+            "observationType": null
+          },
+          {
+            "sequence": 2,
+            "eventId": "bc51f504-7f5a-4718-a3b6-925ef7c92aee",
+            "toolName": null,
+            "type": "STATUS",
+            "status": "RUNNING",
+            "errorCode": null,
+            "createTime": 1795836207848,
+            "model": {},
+            "observationType": null
+          },
+          {
+            "sequence": 3,
+            "eventId": "e558b985-64a6-41cc-9a78-72de66b8e032",
+            "toolName": null,
+            "type": "STATUS",
+            "status": "WAIT_MODEL",
+            "errorCode": null,
+            "createTime": 1795836207870,
+            "model": {},
+            "observationType": null
+          },
+          {
+            "sequence": 4,
+            "eventId": "f87d7837-8cf5-4941-9b15-443192ffc5a6",
+            "toolName": null,
+            "type": "RUNTIME_OBSERVATION",
+            "status": "SUCCESS",
+            "errorCode": null,
+            "createTime": 1795836207921,
+            "stage": "SKILL_ANALYSIS_CONTEXT",
+            "model": {},
+            "observationType": null
+          },
+          {
+            "sequence": 5,
+            "eventId": "a42d2a19-620f-4480-be92-fbaf0986518a",
+            "toolName": null,
+            "type": "RUNTIME_OBSERVATION",
+            "status": "SUCCESS",
+            "errorCode": null,
+            "createTime": 1795836207924,
+            "stage": "SKILL_ANALYSIS_CONTEXT",
+            "model": {},
+            "observationType": null
+          },
+          {
+            "sequence": 6,
+            "eventId": "f081f354-842b-421f-9335-df297480e1d0",
+            "toolName": null,
+            "type": "RUNTIME_OBSERVATION",
+            "status": "RUNNING",
+            "errorCode": null,
+            "createTime": 1795836207932,
+            "stage": "TASK_CLASSIFICATION",
+            "model": {
+              "eventState": "RUNNING"
+            },
+            "observationType": null
+          },
+          {
+            "sequence": 7,
+            "eventId": "4970c425-60b6-4e0f-9e6b-adf6e27f8730",
+            "toolName": null,
+            "type": "RUNTIME_OBSERVATION",
+            "status": "FAILED",
+            "errorCode": null,
+            "createTime": 1795836207937,
+            "stage": "TASK_CLASSIFICATION",
+            "model": {
+              "eventState": "FAILED"
+            },
+            "observationType": null
+          },
+          {
+            "sequence": 8,
+            "eventId": "7075eabb-5c8c-4168-b345-5365e7e40e47",
+            "toolName": null,
+            "type": "THINK",
+            "status": "RUNNING",
+            "errorCode": null,
+            "createTime": 1795836207877,
+            "model": {},
+            "observationType": null
+          },
+          {
+            "sequence": 9,
+            "eventId": "0b37ab83-de17-4719-aee8-a5017cd1d92b",
+            "toolName": null,
+            "type": "RESULT",
+            "status": "FAILED",
+            "errorCode": null,
+            "createTime": 1795836207979,
+            "model": {},
+            "observationType": null
+          },
+          {
+            "sequence": 10,
+            "eventId": "566cb495-e2ed-4e75-aa5b-4af04c1a003a",
+            "toolName": null,
+            "type": "COMPLETE",
+            "status": "FAILED",
+            "errorCode": null,
+            "createTime": 1795836208002,
+            "model": {},
+            "observationType": null
+          }
+        ]
+      },
+      "9": {
+        "task": {
+          "taskId": "0b62db64-7fd1-319f-ab74-f2ff8799b5c2",
+          "attemptId": "att-1-454e0da3-cff9-4499-8c7a-415c112250f0",
+          "status": "FAILED",
+          "canonicalState": "FAILED",
+          "createTime": "2026-11-28T03:23:33.036905Z",
+          "updateTime": "2026-11-28T03:23:33.208023Z",
+          "finishedAt": "2026-11-28T03:23:33.193Z"
+        },
+        "reportDescriptor": false,
+        "events": [
+          {
+            "sequence": 1,
+            "eventId": "e5309b7f-68c7-4a05-bcbf-75930b2c905f",
+            "toolName": null,
+            "type": "QUESTION",
+            "status": "PENDING",
+            "errorCode": null,
+            "createTime": 1795836213042,
+            "model": {},
+            "observationType": null
+          },
+          {
+            "sequence": 2,
+            "eventId": "3aec92e0-cd28-45b4-a77b-8d19405a3b25",
+            "toolName": null,
+            "type": "STATUS",
+            "status": "RUNNING",
+            "errorCode": null,
+            "createTime": 1795836213067,
+            "model": {},
+            "observationType": null
+          },
+          {
+            "sequence": 3,
+            "eventId": "881d4592-dd57-489c-bd69-3b0176d9ca2a",
+            "toolName": null,
+            "type": "STATUS",
+            "status": "WAIT_MODEL",
+            "errorCode": null,
+            "createTime": 1795836213080,
+            "model": {},
+            "observationType": null
+          },
+          {
+            "sequence": 4,
+            "eventId": "3d19019d-5335-4e73-8f69-69852c75fde9",
+            "toolName": null,
+            "type": "RUNTIME_OBSERVATION",
+            "status": "SUCCESS",
+            "errorCode": null,
+            "createTime": 1795836213124,
+            "stage": "SKILL_ANALYSIS_CONTEXT",
+            "model": {},
+            "observationType": null
+          },
+          {
+            "sequence": 5,
+            "eventId": "6871c1c5-94ac-4770-9bed-ed5f9d2a76c6",
+            "toolName": null,
+            "type": "RUNTIME_OBSERVATION",
+            "status": "SUCCESS",
+            "errorCode": null,
+            "createTime": 1795836213137,
+            "stage": "SKILL_ANALYSIS_CONTEXT",
+            "model": {},
+            "observationType": null
+          },
+          {
+            "sequence": 6,
+            "eventId": "d26921b6-5af2-4f9f-9e7d-bc1afc8d0867",
+            "toolName": null,
+            "type": "RUNTIME_OBSERVATION",
+            "status": "RUNNING",
+            "errorCode": null,
+            "createTime": 1795836213140,
+            "stage": "TASK_CLASSIFICATION",
+            "model": {
+              "eventState": "RUNNING"
+            },
+            "observationType": null
+          },
+          {
+            "sequence": 7,
+            "eventId": "a96617fb-6569-43db-a590-4afa58e09134",
+            "toolName": null,
+            "type": "RUNTIME_OBSERVATION",
+            "status": "FAILED",
+            "errorCode": null,
+            "createTime": 1795836213142,
+            "stage": "TASK_CLASSIFICATION",
+            "model": {
+              "eventState": "FAILED"
+            },
+            "observationType": null
+          },
+          {
+            "sequence": 8,
+            "eventId": "2d2e6c18-e342-4288-a311-99a0797d8dc9",
+            "toolName": null,
+            "type": "THINK",
+            "status": "RUNNING",
+            "errorCode": null,
+            "createTime": 1795836213085,
+            "model": {},
+            "observationType": null
+          },
+          {
+            "sequence": 9,
+            "eventId": "3c80ea2c-a25e-4dd6-ad76-0ece0c8feca7",
+            "toolName": null,
+            "type": "RESULT",
+            "status": "FAILED",
+            "errorCode": null,
+            "createTime": 1795836213171,
+            "model": {},
+            "observationType": null
+          },
+          {
+            "sequence": 10,
+            "eventId": "0dd53041-523f-45d9-87fe-1e08256b8613",
+            "toolName": null,
+            "type": "COMPLETE",
+            "status": "FAILED",
+            "errorCode": null,
+            "createTime": 1795836213193,
+            "model": {},
+            "observationType": null
+          }
+        ]
+      }
+    },
+    "business-wave-restored": {
+      "7": {
+        "task": {
+          "taskId": "9bcf0105-7a6b-3b89-a549-caffc79f6490",
+          "attemptId": "att-1-26117678-dcdb-4634-b458-89a7b3bb2079",
+          "status": "WAIT_MODEL",
+          "canonicalState": "PLANNING",
+          "createdAt": "2026-11-28T03:24:41.545865Z",
+          "updatedAt": "2026-11-28T03:54:31.588860Z",
+          "terminal": false
+        },
+        "reportDescriptor": false,
+        "events": [
+          {
+            "sequence": 1,
+            "eventId": "d931bc23-9762-4bc7-b495-267b463a53c3",
+            "toolName": null,
+            "type": "QUESTION",
+            "status": "PENDING",
+            "errorCode": null,
+            "occurredAt": "2026-11-28T03:24:41.551Z",
+            "model": {},
+            "observationType": null
+          },
+          {
+            "sequence": 2,
+            "eventId": "2c1ef76e-b571-4375-94f8-4ba9bc0f34b4",
+            "toolName": null,
+            "type": "STATUS",
+            "status": "RUNNING",
+            "errorCode": null,
+            "occurredAt": "2026-11-28T03:24:41.599Z",
+            "model": {},
+            "observationType": null
+          },
+          {
+            "sequence": 3,
+            "eventId": "7b7b4401-2748-480d-8259-129930512a58",
+            "toolName": null,
+            "type": "STATUS",
+            "status": "WAIT_MODEL",
+            "errorCode": null,
+            "occurredAt": "2026-11-28T03:24:41.609Z",
+            "model": {},
+            "observationType": null
+          },
+          {
+            "sequence": 4,
+            "eventId": "f4d416a5-f30e-46b8-99f8-c2f33fd8c415",
+            "toolName": null,
+            "type": "RUNTIME_OBSERVATION",
+            "status": "SUCCESS",
+            "errorCode": null,
+            "occurredAt": "2026-11-28T03:24:41.650Z",
+            "stage": "SKILL_ANALYSIS_CONTEXT",
+            "model": {},
+            "observationType": null
+          },
+          {
+            "sequence": 5,
+            "eventId": "1be31d12-d023-4145-a374-e74bddd42911",
+            "toolName": null,
+            "type": "RUNTIME_OBSERVATION",
+            "status": "SUCCESS",
+            "errorCode": null,
+            "occurredAt": "2026-11-28T03:24:41.654Z",
+            "stage": "SKILL_ANALYSIS_CONTEXT",
+            "model": {},
+            "observationType": null
+          },
+          {
+            "sequence": 6,
+            "eventId": "b5a5a2c2-04cf-48b9-a87d-34d2d2470899",
+            "toolName": null,
+            "type": "RUNTIME_OBSERVATION",
+            "status": "RUNNING",
+            "errorCode": null,
+            "occurredAt": "2026-11-28T03:24:41.681Z",
+            "stage": "TASK_CLASSIFICATION",
+            "model": {},
+            "observationType": null
+          },
+          {
+            "sequence": 7,
+            "eventId": "a4a5c366-06f8-4d28-96a9-bec7188f90b7",
+            "toolName": null,
+            "type": "RUNTIME_OBSERVATION",
+            "status": "RUNNING",
+            "errorCode": null,
+            "occurredAt": "2026-11-28T03:24:41.795Z",
+            "model": {},
+            "observationType": null
+          },
+          {
+            "sequence": 8,
+            "eventId": "87576101-bda7-4b88-9d77-66bd656440d9",
+            "toolName": null,
+            "type": "RUNTIME_OBSERVATION",
+            "status": "SUCCESS",
+            "errorCode": null,
+            "occurredAt": "2026-11-28T03:24:50.400Z",
+            "model": {},
+            "observationType": null
+          },
+          {
+            "sequence": 9,
+            "eventId": "d2d30192-352c-43db-b05f-1d1b3c449dc0",
+            "toolName": null,
+            "type": "RUNTIME_OBSERVATION",
+            "status": "SUCCESS",
+            "errorCode": null,
+            "occurredAt": "2026-11-28T03:24:50.406Z",
+            "stage": "TASK_CLASSIFICATION",
+            "model": {},
+            "observationType": null
+          },
+          {
+            "sequence": 10,
+            "eventId": "3e96e756-bfe3-42eb-9335-dd8b0d955570",
+            "toolName": null,
+            "type": "RUNTIME_STARTED",
+            "status": "RUNNING",
+            "errorCode": null,
+            "occurredAt": "2026-11-28T03:24:51.547Z",
+            "model": {},
+            "observationType": null
+          },
+          {
+            "sequence": 11,
+            "eventId": "6472620f-9a09-4051-aa60-eab45e60a698",
+            "toolName": "skill_analysis_context",
+            "type": "RUNTIME_OBSERVATION",
+            "status": "SUCCESS",
+            "errorCode": null,
+            "occurredAt": "2026-11-28T03:24:51.724Z",
+            "model": {},
+            "observationType": "tool"
+          },
+          {
+            "sequence": 12,
+            "eventId": "51a06458-64db-41dd-8dfe-f9b1627d666d",
+            "toolName": "knowledge_skills",
+            "type": "RUNTIME_OBSERVATION",
+            "status": "SUCCESS",
+            "errorCode": null,
+            "occurredAt": "2026-11-28T03:24:51.736Z",
+            "model": {},
+            "observationType": "knowledge_skill_lifecycle"
+          },
+          {
+            "sequence": 13,
+            "eventId": "092cd62a-d440-41c6-b09c-4cfae0f73068",
+            "toolName": "knowledge_skills",
+            "type": "RUNTIME_OBSERVATION",
+            "status": "SUCCESS",
+            "errorCode": null,
+            "occurredAt": "2026-11-28T03:24:51.775Z",
+            "model": {},
+            "observationType": "knowledge_skill_lifecycle"
+          },
+          {
+            "sequence": 14,
+            "eventId": "7ce6f31b-3535-41b6-929a-dfe4d2c9236f",
+            "toolName": "agent_lifecycle",
+            "type": "RUNTIME_OBSERVATION",
+            "status": "SUCCESS",
+            "errorCode": null,
+            "occurredAt": "2026-11-28T03:24:51.782Z",
+            "model": {},
+            "observationType": "lifecycle"
+          },
+          {
+            "sequence": 15,
+            "eventId": "64f9a9af-ee85-49a1-9560-b16da3e9f82e",
+            "toolName": "agent_lifecycle",
+            "type": "RUNTIME_OBSERVATION",
+            "status": "SUCCESS",
+            "errorCode": null,
+            "occurredAt": "2026-11-28T03:24:51.788Z",
+            "model": {},
+            "observationType": "lifecycle"
+          },
+          {
+            "sequence": 16,
+            "eventId": "15cd3748-05cf-4794-b4b3-4d653cd337d3",
+            "toolName": "mcp_chatchat_mcp_server_database_capability_query",
+            "type": "RUNTIME_STEP",
+            "status": "RUNNING",
+            "errorCode": null,
+            "occurredAt": "2026-11-28T03:24:51.808Z",
+            "model": {},
+            "observationType": null
+          },
+          {
+            "sequence": 17,
+            "eventId": "64493e26-eb75-40fd-84c6-bf094ca9a448",
+            "toolName": "agent_lifecycle",
+            "type": "RUNTIME_OBSERVATION",
+            "status": "SUCCESS",
+            "errorCode": null,
+            "occurredAt": "2026-11-28T03:24:51.815Z",
+            "model": {},
+            "observationType": "lifecycle"
+          },
+          {
+            "sequence": 18,
+            "eventId": "c59d68aa-d3f1-4198-b093-40ba755fdf91",
+            "toolName": "agent_lifecycle",
+            "type": "RUNTIME_OBSERVATION",
+            "status": "SUCCESS",
+            "errorCode": null,
+            "occurredAt": "2026-11-28T03:24:54.983Z",
+            "model": {},
+            "observationType": "lifecycle"
+          },
+          {
+            "sequence": 19,
+            "eventId": "5625d8d9-319b-490d-9bbc-b36edda123d7",
+            "toolName": "agent_lifecycle",
+            "type": "RUNTIME_OBSERVATION",
+            "status": "SUCCESS",
+            "errorCode": null,
+            "occurredAt": "2026-11-28T03:24:54.994Z",
+            "model": {},
+            "observationType": "lifecycle"
+          },
+          {
+            "sequence": 20,
+            "eventId": "10e443cb-4ceb-4c71-a902-8c37c9e9b63c",
+            "toolName": "interpretation_plan_controller",
+            "type": "RUNTIME_OBSERVATION",
+            "status": "SUCCESS",
+            "errorCode": null,
+            "occurredAt": "2026-11-28T03:24:57.508Z",
+            "model": {},
+            "observationType": "controller_decision"
+          },
+          {
+            "sequence": 21,
+            "eventId": "659abec8-355a-47dc-987d-07913f4482d1",
+            "toolName": "mcp_chatchat_mcp_server_database_capability_query",
+            "type": "RUNTIME_OBSERVATION",
+            "status": "SUCCESS",
+            "errorCode": null,
+            "occurredAt": "2026-11-28T03:24:58.049Z",
+            "model": {},
+            "observationType": "tool"
+          },
+          {
+            "sequence": 22,
+            "eventId": "0c00c96a-3c42-4a3f-bd02-3a9df5582ee1",
+            "toolName": "interpretation_plan_state",
+            "type": "RUNTIME_OBSERVATION",
+            "status": "SUCCESS",
+            "errorCode": null,
+            "occurredAt": "2026-11-28T03:24:58.318Z",
+            "model": {},
+            "observationType": "state_update"
+          },
+          {
+            "sequence": 23,
+            "eventId": "e0e19230-1925-4b06-92a6-23d3d66e06cd",
+            "toolName": "interpretation_plan_controller",
+            "type": "RUNTIME_OBSERVATION",
+            "status": "SUCCESS",
+            "errorCode": null,
+            "occurredAt": "2026-11-28T03:24:58.380Z",
+            "model": {},
+            "observationType": "controller_decision"
+          },
+          {
+            "sequence": 24,
+            "eventId": "19c414f3-ca28-4aff-83d9-ca9b4b0c6fd1",
+            "toolName": "mcp_chatchat_mcp_server_mysql_db_status_template_query",
+            "type": "RUNTIME_STEP",
+            "status": "RUNNING",
+            "errorCode": null,
+            "occurredAt": "2026-11-28T03:24:58.395Z",
+            "model": {},
+            "observationType": null
+          },
+          {
+            "sequence": 25,
+            "eventId": "template-match:zT1caK5UCNNX5Of50uhsoIdJTufvzW2Qq72xlW96JP0",
+            "toolName": null,
+            "type": "BUSINESS_TEMPLATE_REQUIREMENT_MATCHING",
+            "status": "RUNNING",
+            "errorCode": null,
+            "occurredAt": "2026-11-28T03:24:58.950Z",
+            "model": {},
+            "observationType": null
+          },
+          {
+            "sequence": 26,
+            "eventId": "f6bd7949-771b-4f79-b34c-f0f22f8fa1d5",
+            "toolName": "mcp_chatchat_mcp_server_mysql_db_status_template_query",
+            "type": "RUNTIME_OBSERVATION",
+            "status": "SUCCESS",
+            "errorCode": null,
+            "occurredAt": "2026-11-28T03:24:58.966Z",
+            "model": {},
+            "observationType": "tool"
+          },
+          {
+            "sequence": 27,
+            "eventId": "60813e8a-5c1f-48fa-bab3-7e7f48660b19",
+            "toolName": "interpretation_plan_state",
+            "type": "RUNTIME_OBSERVATION",
+            "status": "SUCCESS",
+            "errorCode": null,
+            "occurredAt": "2026-11-28T03:24:59.015Z",
+            "model": {},
+            "observationType": "state_update"
+          },
+          {
+            "sequence": 28,
+            "eventId": "a31bc887-5c96-4622-9e78-1a5d180cb12b",
+            "toolName": "interpretation_plan_controller",
+            "type": "RUNTIME_OBSERVATION",
+            "status": "SUCCESS",
+            "errorCode": null,
+            "occurredAt": "2026-11-28T03:24:59.048Z",
+            "model": {},
+            "observationType": "controller_decision"
+          },
+          {
+            "sequence": 29,
+            "eventId": "09a6aea6-3162-4c0f-8f52-582da728a1f2",
+            "toolName": "mcp_chatchat_mcp_server_sql_query_execute",
+            "type": "RUNTIME_STEP",
+            "status": "RUNNING",
+            "errorCode": null,
+            "occurredAt": "2026-11-28T03:24:59.079Z",
+            "model": {},
+            "observationType": null
+          },
+          {
+            "sequence": 30,
+            "eventId": "5784d15a-9c26-4d3b-9f16-2b6eca0c56e4",
+            "toolName": "mcp_chatchat_mcp_server_sql_query_execute",
+            "type": "RUNTIME_OBSERVATION",
+            "status": "SUCCESS",
+            "errorCode": null,
+            "occurredAt": "2026-11-28T03:25:03.744Z",
+            "model": {},
+            "observationType": "tool"
+          },
+          {
+            "sequence": 31,
+            "eventId": "9a1da520-def6-4f60-9d98-efa1cf9afbc1",
+            "toolName": "interpretation_plan_state",
+            "type": "RUNTIME_OBSERVATION",
+            "status": "SUCCESS",
+            "errorCode": null,
+            "occurredAt": "2026-11-28T03:25:04.186Z",
+            "model": {},
+            "observationType": "state_update"
+          },
+          {
+            "sequence": 32,
+            "eventId": "c5b690f2-c0f4-4859-8749-9112e1ce61cc",
+            "toolName": "interpretation_plan_controller",
+            "type": "RUNTIME_OBSERVATION",
+            "status": "SUCCESS",
+            "errorCode": null,
+            "occurredAt": "2026-11-28T03:25:04.335Z",
+            "model": {},
+            "observationType": "controller_decision"
+          },
+          {
+            "sequence": 33,
+            "eventId": "c8954d61-9b02-4f10-bc10-b3e2fd1e7509",
+            "toolName": null,
+            "type": "RUNTIME_STEP",
+            "status": "RUNNING",
+            "errorCode": null,
+            "occurredAt": "2026-11-28T03:25:04.394Z",
+            "model": {},
+            "observationType": null
+          },
+          {
+            "sequence": 34,
+            "eventId": "ee0ad1d8-18ae-40fd-b4f3-6c368a3ef8ca",
+            "toolName": "final_answer",
+            "type": "RUNTIME_OBSERVATION",
+            "status": "SUCCESS",
+            "errorCode": null,
+            "occurredAt": "2026-11-28T03:25:04.446Z",
+            "model": {},
+            "observationType": "tool"
+          },
+          {
+            "sequence": 35,
+            "eventId": "f98d9d93-15a7-4c84-b2e6-0c36469442c7",
+            "toolName": "interpretation_plan_state",
+            "type": "RUNTIME_OBSERVATION",
+            "status": "SUCCESS",
+            "errorCode": null,
+            "occurredAt": "2026-11-28T03:25:04.546Z",
+            "model": {},
+            "observationType": "state_update"
+          },
+          {
+            "sequence": 36,
+            "eventId": "8c3ff5d6-197c-4322-83a6-f487cab2c69b",
+            "toolName": "agent",
+            "type": "RUNTIME_OBSERVATION",
+            "status": "SUCCESS",
+            "errorCode": null,
+            "occurredAt": "2026-11-28T03:25:04.694Z",
+            "model": {},
+            "observationType": "text"
+          },
+          {
+            "sequence": 37,
+            "eventId": "15fcf1e3-e704-4026-98bb-295bfe6801cd",
+            "toolName": "agent",
+            "type": "RUNTIME_OBSERVATION",
+            "status": "SUCCESS",
+            "errorCode": null,
+            "occurredAt": "2026-11-28T03:25:04.772Z",
+            "model": {},
+            "observationType": "text"
+          },
+          {
+            "sequence": 38,
+            "eventId": "3a186179-b2ef-4757-8101-a59d876bdc0b",
+            "toolName": "agent",
+            "type": "RUNTIME_OBSERVATION",
+            "status": "SUCCESS",
+            "errorCode": null,
+            "occurredAt": "2026-11-28T03:25:04.834Z",
+            "model": {},
+            "observationType": "text"
+          },
+          {
+            "sequence": 39,
+            "eventId": "73104c73-0355-4dd1-a7a7-d7862505dad1",
+            "toolName": "agent",
+            "type": "RUNTIME_OBSERVATION",
+            "status": "SUCCESS",
+            "errorCode": null,
+            "occurredAt": "2026-11-28T03:25:04.899Z",
+            "model": {},
+            "observationType": "text"
+          },
+          {
+            "sequence": 40,
+            "eventId": "28a00b1d-2e3b-4bc8-9f8d-c6b42e2f2ed9",
+            "toolName": "agent",
+            "type": "RUNTIME_OBSERVATION",
+            "status": "SUCCESS",
+            "errorCode": null,
+            "occurredAt": "2026-11-28T03:25:05.033Z",
+            "model": {},
+            "observationType": "text"
+          },
+          {
+            "sequence": 41,
+            "eventId": "5cc16d26-4f83-4af0-ad31-086fc8f70602",
+            "toolName": "coding_agent",
+            "type": "RUNTIME_OBSERVATION",
+            "status": "RUNNING",
+            "errorCode": null,
+            "occurredAt": "2026-11-28T03:25:05.302Z",
+            "model": {},
+            "observationType": "tool"
+          },
+          {
+            "sequence": 42,
+            "eventId": "46bc89eb-bd62-44c0-91be-314e6a901f45",
+            "toolName": "coding_agent",
+            "type": "RUNTIME_OBSERVATION",
+            "status": "SUCCESS",
+            "errorCode": null,
+            "occurredAt": "2026-11-28T03:25:07.909Z",
+            "model": {},
+            "observationType": "tool"
+          },
+          {
+            "sequence": 43,
+            "eventId": "c93d6ec0-7294-4180-86b3-783d58bba402",
+            "toolName": "coding_agent",
+            "type": "RUNTIME_OBSERVATION",
+            "status": "SUCCESS",
+            "errorCode": null,
+            "occurredAt": "2026-11-28T03:25:08.009Z",
+            "model": {},
+            "observationType": "tool"
+          },
+          {
+            "sequence": 44,
+            "eventId": "9845f9cd-021d-4960-ad3c-ea3703f445cb",
+            "toolName": "coding_agent",
+            "type": "RUNTIME_OBSERVATION",
+            "status": "RUNNING",
+            "errorCode": null,
+            "occurredAt": "2026-11-28T03:25:09.160Z",
+            "model": {},
+            "observationType": "tool"
+          },
+          {
+            "sequence": 45,
+            "eventId": "a5f1d4b1-3a38-4933-aa6a-5ee7fb517890",
+            "toolName": "coding_agent",
+            "type": "RUNTIME_OBSERVATION",
+            "status": "RUNNING",
+            "errorCode": null,
+            "occurredAt": "2026-11-28T03:25:10.245Z",
+            "model": {},
+            "observationType": "tool"
+          },
+          {
+            "sequence": 46,
+            "eventId": "448434bb-96bc-492b-8f33-0286cf47dd23",
+            "toolName": "coding_agent",
+            "type": "RUNTIME_OBSERVATION",
+            "status": "RUNNING",
+            "errorCode": null,
+            "occurredAt": "2026-11-28T03:25:10.305Z",
+            "model": {},
+            "observationType": "tool"
+          },
+          {
+            "sequence": 47,
+            "eventId": "7ef83f53-b512-4db5-b358-b3efd90f05a2",
+            "toolName": "coding_agent",
+            "type": "RUNTIME_OBSERVATION",
+            "status": "RUNNING",
+            "errorCode": null,
+            "occurredAt": "2026-11-28T03:25:10.381Z",
+            "model": {},
+            "observationType": "tool"
+          },
+          {
+            "sequence": 48,
+            "eventId": "eab8c359-8146-4f2c-89c0-0b83c4daf0f7",
+            "toolName": "coding_agent",
+            "type": "RUNTIME_OBSERVATION",
+            "status": "RUNNING",
+            "errorCode": null,
+            "occurredAt": "2026-11-28T03:25:10.441Z",
+            "model": {},
+            "observationType": "tool"
+          },
+          {
+            "sequence": 49,
+            "eventId": "1a0ebe47-98fa-4616-a50f-1ebfb2bf98b7",
+            "toolName": "coding_agent",
+            "type": "RUNTIME_OBSERVATION",
+            "status": "RUNNING",
+            "errorCode": null,
+            "occurredAt": "2026-11-28T03:25:10.523Z",
+            "model": {},
+            "observationType": "tool"
+          },
+          {
+            "sequence": 50,
+            "eventId": "77dca7f3-2c5e-4361-9c99-6ebead8e4e12",
+            "toolName": "coding_agent",
+            "type": "RUNTIME_OBSERVATION",
+            "status": "RUNNING",
+            "errorCode": null,
+            "occurredAt": "2026-11-28T03:25:10.587Z",
+            "model": {},
+            "observationType": "tool"
+          },
+          {
+            "sequence": 51,
+            "eventId": "66a5e245-7b97-4961-bcdf-6f94b95293d8",
+            "toolName": "coding_agent",
+            "type": "RUNTIME_OBSERVATION",
+            "status": "RUNNING",
+            "errorCode": null,
+            "occurredAt": "2026-11-28T03:25:11.318Z",
+            "model": {},
+            "observationType": "tool"
+          },
+          {
+            "sequence": 52,
+            "eventId": "cf994cb3-5962-4766-876b-f8a8cde1830b",
+            "toolName": "coding_agent",
+            "type": "RUNTIME_OBSERVATION",
+            "status": "RUNNING",
+            "errorCode": null,
+            "occurredAt": "2026-11-28T03:25:11.374Z",
+            "model": {},
+            "observationType": "tool"
+          },
+          {
+            "sequence": 53,
+            "eventId": "0ba6a91b-4646-4302-9501-083e6fba3f40",
+            "toolName": "coding_agent",
+            "type": "RUNTIME_OBSERVATION",
+            "status": "RUNNING",
+            "errorCode": null,
+            "occurredAt": "2026-11-28T03:25:11.426Z",
+            "model": {},
+            "observationType": "tool"
+          },
+          {
+            "sequence": 54,
+            "eventId": "570741a0-cf4f-474f-9b5f-45dd80f614a4",
+            "toolName": "coding_agent",
+            "type": "RUNTIME_OBSERVATION",
+            "status": "RUNNING",
+            "errorCode": null,
+            "occurredAt": "2026-11-28T03:25:11.483Z",
+            "model": {},
+            "observationType": "tool"
+          },
+          {
+            "sequence": 55,
+            "eventId": "5e984e61-fb73-4a88-8610-83f7f7b79453",
+            "toolName": "coding_agent",
+            "type": "RUNTIME_OBSERVATION",
+            "status": "RUNNING",
+            "errorCode": null,
+            "occurredAt": "2026-11-28T03:25:11.536Z",
+            "model": {},
+            "observationType": "tool"
+          },
+          {
+            "sequence": 56,
+            "eventId": "10bb1fcf-fe95-4aff-9832-cf0d0685b302",
+            "toolName": "coding_agent",
+            "type": "RUNTIME_OBSERVATION",
+            "status": "RUNNING",
+            "errorCode": null,
+            "occurredAt": "2026-11-28T03:25:11.593Z",
+            "model": {},
+            "observationType": "tool"
+          },
+          {
+            "sequence": 57,
+            "eventId": "a4b7ac03-3827-4280-a8c0-9867226a98e4",
+            "toolName": "coding_agent",
+            "type": "RUNTIME_OBSERVATION",
+            "status": "RUNNING",
+            "errorCode": null,
+            "occurredAt": "2026-11-28T03:25:11.645Z",
+            "model": {},
+            "observationType": "tool"
+          },
+          {
+            "sequence": 58,
+            "eventId": "bb840ee8-a9c7-47a5-ae8e-c60506e8f39e",
+            "toolName": "coding_agent",
+            "type": "RUNTIME_OBSERVATION",
+            "status": "RUNNING",
+            "errorCode": null,
+            "occurredAt": "2026-11-28T03:25:11.703Z",
+            "model": {},
+            "observationType": "tool"
+          },
+          {
+            "sequence": 59,
+            "eventId": "c75da691-b807-4ec3-a0b5-92121936a7a8",
+            "toolName": "coding_agent",
+            "type": "RUNTIME_OBSERVATION",
+            "status": "RUNNING",
+            "errorCode": null,
+            "occurredAt": "2026-11-28T03:25:11.755Z",
+            "model": {},
+            "observationType": "tool"
+          },
+          {
+            "sequence": 60,
+            "eventId": "da9d1148-ae41-473c-b7c9-88ba4b69a8e4",
+            "toolName": "coding_agent",
+            "type": "RUNTIME_OBSERVATION",
+            "status": "RUNNING",
+            "errorCode": null,
+            "occurredAt": "2026-11-28T03:25:11.807Z",
+            "model": {},
+            "observationType": "tool"
+          },
+          {
+            "sequence": 61,
+            "eventId": "ad69829d-d8e0-4c58-8d7c-27540e9848ac",
+            "toolName": "coding_agent",
+            "type": "RUNTIME_OBSERVATION",
+            "status": "RUNNING",
+            "errorCode": null,
+            "occurredAt": "2026-11-28T03:25:11.865Z",
+            "model": {},
+            "observationType": "tool"
+          },
+          {
+            "sequence": 62,
+            "eventId": "4987ff90-232d-44fc-bdc8-0fbcfaaa03d6",
+            "toolName": "coding_agent",
+            "type": "RUNTIME_OBSERVATION",
+            "status": "RUNNING",
+            "errorCode": null,
+            "occurredAt": "2026-11-28T03:25:12.503Z",
+            "model": {},
+            "observationType": "tool"
+          },
+          {
+            "sequence": 63,
+            "eventId": "f1c62715-8c91-44f4-ad1b-60e67533925f",
+            "toolName": "coding_agent",
+            "type": "RUNTIME_OBSERVATION",
+            "status": "RUNNING",
+            "errorCode": null,
+            "occurredAt": "2026-11-28T03:25:12.557Z",
+            "model": {},
+            "observationType": "tool"
+          },
+          {
+            "sequence": 64,
+            "eventId": "049ef360-599a-4c38-8b96-1698c9d7a9aa",
+            "toolName": "coding_agent",
+            "type": "RUNTIME_OBSERVATION",
+            "status": "RUNNING",
+            "errorCode": null,
+            "occurredAt": "2026-11-28T03:25:12.616Z",
+            "model": {},
+            "observationType": "tool"
+          },
+          {
+            "sequence": 65,
+            "eventId": "7f543247-f4c9-490b-9777-eddd801eb4d1",
+            "toolName": "coding_agent",
+            "type": "RUNTIME_OBSERVATION",
+            "status": "RUNNING",
+            "errorCode": null,
+            "occurredAt": "2026-11-28T03:25:16.817Z",
+            "model": {},
+            "observationType": "tool"
+          },
+          {
+            "sequence": 66,
+            "eventId": "d8b4c243-ad74-413c-855d-78297671f6f1",
+            "toolName": "coding_agent",
+            "type": "RUNTIME_OBSERVATION",
+            "status": "RUNNING",
+            "errorCode": null,
+            "occurredAt": "2026-11-28T03:25:16.876Z",
+            "model": {},
+            "observationType": "tool"
+          },
+          {
+            "sequence": 67,
+            "eventId": "3c0a5c85-dc5d-4aff-879a-a9a80b71f844",
+            "toolName": "coding_agent",
+            "type": "RUNTIME_OBSERVATION",
+            "status": "RUNNING",
+            "errorCode": null,
+            "occurredAt": "2026-11-28T03:25:17.451Z",
+            "model": {},
+            "observationType": "tool"
+          },
+          {
+            "sequence": 68,
+            "eventId": "ee949286-7d3e-418e-9ac3-b4acf2d77e51",
+            "toolName": "coding_agent",
+            "type": "RUNTIME_OBSERVATION",
+            "status": "RUNNING",
+            "errorCode": null,
+            "occurredAt": "2026-11-28T03:25:17.513Z",
+            "model": {},
+            "observationType": "tool"
+          },
+          {
+            "sequence": 69,
+            "eventId": "5ad7d0e8-e2dd-419f-9c29-c598004f153a",
+            "toolName": "coding_agent",
+            "type": "RUNTIME_OBSERVATION",
+            "status": "RUNNING",
+            "errorCode": null,
+            "occurredAt": "2026-11-28T03:25:19.123Z",
+            "model": {},
+            "observationType": "tool"
+          },
+          {
+            "sequence": 70,
+            "eventId": "62f98fb8-63de-4fcf-8870-3aa1b1fcdaf1",
+            "toolName": "coding_agent",
+            "type": "RUNTIME_OBSERVATION",
+            "status": "RUNNING",
+            "errorCode": null,
+            "occurredAt": "2026-11-28T03:25:19.177Z",
+            "model": {},
+            "observationType": "tool"
+          },
+          {
+            "sequence": 71,
+            "eventId": "1052d176-b271-460f-a693-50e7bc936897",
+            "toolName": "coding_agent",
+            "type": "RUNTIME_OBSERVATION",
+            "status": "RUNNING",
+            "errorCode": null,
+            "occurredAt": "2026-11-28T03:25:19.749Z",
+            "model": {},
+            "observationType": "tool"
+          },
+          {
+            "sequence": 72,
+            "eventId": "93b08894-03f2-4c6f-a68c-11eb4f9d0888",
+            "toolName": "coding_agent",
+            "type": "RUNTIME_OBSERVATION",
+            "status": "RUNNING",
+            "errorCode": null,
+            "occurredAt": "2026-11-28T03:25:19.804Z",
+            "model": {},
+            "observationType": "tool"
+          },
+          {
+            "sequence": 73,
+            "eventId": "aa4c5584-a8d5-4278-8d1f-7793ac795ec9",
+            "toolName": "coding_agent",
+            "type": "RUNTIME_OBSERVATION",
+            "status": "RUNNING",
+            "errorCode": null,
+            "occurredAt": "2026-11-28T03:25:25.602Z",
+            "model": {},
+            "observationType": "tool"
+          },
+          {
+            "sequence": 74,
+            "eventId": "4455784b-bc5a-4894-b043-ef90e94d104b",
+            "toolName": "coding_agent",
+            "type": "RUNTIME_OBSERVATION",
+            "status": "RUNNING",
+            "errorCode": null,
+            "occurredAt": "2026-11-28T03:25:25.756Z",
+            "model": {},
+            "observationType": "tool"
+          },
+          {
+            "sequence": 75,
+            "eventId": "8f93710e-18c0-4d9a-8682-a5b653496c0a",
+            "toolName": "coding_agent",
+            "type": "RUNTIME_OBSERVATION",
+            "status": "RUNNING",
+            "errorCode": null,
+            "occurredAt": "2026-11-28T03:25:25.935Z",
+            "model": {},
+            "observationType": "tool"
+          },
+          {
+            "sequence": 76,
+            "eventId": "333c68ba-da2d-4de5-b6cd-b01bbdb62986",
+            "toolName": "coding_agent",
+            "type": "RUNTIME_OBSERVATION",
+            "status": "RUNNING",
+            "errorCode": null,
+            "occurredAt": "2026-11-28T03:25:26.538Z",
+            "model": {},
+            "observationType": "tool"
+          },
+          {
+            "sequence": 77,
+            "eventId": "bfda4b52-b68f-4fab-bc5e-43b865cadc2f",
+            "toolName": "coding_agent",
+            "type": "RUNTIME_OBSERVATION",
+            "status": "RUNNING",
+            "errorCode": null,
+            "occurredAt": "2026-11-28T03:25:27.131Z",
+            "model": {},
+            "observationType": "tool"
+          },
+          {
+            "sequence": 78,
+            "eventId": "2ca4e884-d5c1-41a6-a78b-fd49c9f95f59",
+            "toolName": "coding_agent",
+            "type": "RUNTIME_OBSERVATION",
+            "status": "RUNNING",
+            "errorCode": null,
+            "occurredAt": "2026-11-28T03:25:27.192Z",
+            "model": {},
+            "observationType": "tool"
+          },
+          {
+            "sequence": 79,
+            "eventId": "7e8e53ef-2849-4d66-9197-b9ea34c12505",
+            "toolName": "coding_agent",
+            "type": "RUNTIME_OBSERVATION",
+            "status": "RUNNING",
+            "errorCode": null,
+            "occurredAt": "2026-11-28T03:25:27.253Z",
+            "model": {},
+            "observationType": "tool"
+          },
+          {
+            "sequence": 80,
+            "eventId": "56ce0668-8366-4fb2-961d-82d791d15c5d",
+            "toolName": "coding_agent",
+            "type": "RUNTIME_OBSERVATION",
+            "status": "RUNNING",
+            "errorCode": null,
+            "occurredAt": "2026-11-28T03:25:27.851Z",
+            "model": {},
+            "observationType": "tool"
+          },
+          {
+            "sequence": 81,
+            "eventId": "1cf05838-9c2e-4506-b71f-7ccf7588ee5b",
+            "toolName": "coding_agent",
+            "type": "RUNTIME_OBSERVATION",
+            "status": "RUNNING",
+            "errorCode": null,
+            "occurredAt": "2026-11-28T03:25:31.030Z",
+            "model": {},
+            "observationType": "tool"
+          },
+          {
+            "sequence": 82,
+            "eventId": "e71a6c5c-944f-46dd-91af-2ffb563ce71e",
+            "toolName": "coding_agent",
+            "type": "RUNTIME_OBSERVATION",
+            "status": "RUNNING",
+            "errorCode": null,
+            "occurredAt": "2026-11-28T03:25:32.133Z",
+            "model": {},
+            "observationType": "tool"
+          },
+          {
+            "sequence": 83,
+            "eventId": "8a64a5f1-5bdd-4345-8880-ac2c018a4fb7",
+            "toolName": "coding_agent",
+            "type": "RUNTIME_OBSERVATION",
+            "status": "RUNNING",
+            "errorCode": null,
+            "occurredAt": "2026-11-28T03:25:32.192Z",
+            "model": {},
+            "observationType": "tool"
+          },
+          {
+            "sequence": 84,
+            "eventId": "ef4cff1b-3edd-4770-a0ee-88c682fb67ed",
+            "toolName": "coding_agent",
+            "type": "RUNTIME_OBSERVATION",
+            "status": "RUNNING",
+            "errorCode": null,
+            "occurredAt": "2026-11-28T03:25:32.773Z",
+            "model": {},
+            "observationType": "tool"
+          },
+          {
+            "sequence": 85,
+            "eventId": "d95ac113-01e9-462a-937d-b67cecea7f77",
+            "toolName": "coding_agent",
+            "type": "RUNTIME_OBSERVATION",
+            "status": "RUNNING",
+            "errorCode": null,
+            "occurredAt": "2026-11-28T03:25:32.828Z",
+            "model": {},
+            "observationType": "tool"
+          },
+          {
+            "sequence": 86,
+            "eventId": "13446ea0-912b-44e1-91bf-7a052ef778dd",
+            "toolName": "coding_agent",
+            "type": "RUNTIME_OBSERVATION",
+            "status": "RUNNING",
+            "errorCode": null,
+            "occurredAt": "2026-11-28T03:25:32.886Z",
+            "model": {},
+            "observationType": "tool"
+          },
+          {
+            "sequence": 87,
+            "eventId": "39210aa4-f24b-4a7b-b63a-729fa8f53d21",
+            "toolName": "coding_agent",
+            "type": "RUNTIME_OBSERVATION",
+            "status": "RUNNING",
+            "errorCode": null,
+            "occurredAt": "2026-11-28T03:25:32.947Z",
+            "model": {},
+            "observationType": "tool"
+          },
+          {
+            "sequence": 88,
+            "eventId": "7f9f092c-70b7-4bee-8539-f994d16681ec",
+            "toolName": "coding_agent",
+            "type": "RUNTIME_OBSERVATION",
+            "status": "RUNNING",
+            "errorCode": null,
+            "occurredAt": "2026-11-28T03:25:33.611Z",
+            "model": {},
+            "observationType": "tool"
+          },
+          {
+            "sequence": 89,
+            "eventId": "5b3b5826-5ceb-4d31-8906-7e84aa8c51ee",
+            "toolName": "coding_agent",
+            "type": "RUNTIME_OBSERVATION",
+            "status": "RUNNING",
+            "errorCode": null,
+            "occurredAt": "2026-11-28T03:25:39.050Z",
+            "model": {},
+            "observationType": "tool"
+          },
+          {
+            "sequence": 90,
+            "eventId": "1112e044-0da8-4fce-8fe6-feb8d9f4ace9",
+            "toolName": "coding_agent",
+            "type": "RUNTIME_OBSERVATION",
+            "status": "RUNNING",
+            "errorCode": null,
+            "occurredAt": "2026-11-28T03:25:39.116Z",
+            "model": {},
+            "observationType": "tool"
+          },
+          {
+            "sequence": 91,
+            "eventId": "f885b0b7-ba7b-4257-ae43-118aea04cf91",
+            "toolName": "coding_agent",
+            "type": "RUNTIME_OBSERVATION",
+            "status": "RUNNING",
+            "errorCode": null,
+            "occurredAt": "2026-11-28T03:25:39.703Z",
+            "model": {},
+            "observationType": "tool"
+          },
+          {
+            "sequence": 92,
+            "eventId": "91b95857-43e9-46a2-89b4-972fc5053c14",
+            "toolName": "coding_agent",
+            "type": "RUNTIME_OBSERVATION",
+            "status": "RUNNING",
+            "errorCode": null,
+            "occurredAt": "2026-11-28T03:25:39.763Z",
+            "model": {},
+            "observationType": "tool"
+          },
+          {
+            "sequence": 93,
+            "eventId": "cc1ac378-78ab-4361-8869-145ea97749f7",
+            "toolName": "coding_agent",
+            "type": "RUNTIME_OBSERVATION",
+            "status": "RUNNING",
+            "errorCode": null,
+            "occurredAt": "2026-11-28T03:25:39.824Z",
+            "model": {},
+            "observationType": "tool"
+          },
+          {
+            "sequence": 94,
+            "eventId": "1f4c0540-8f6f-455b-8793-6369ddf96801",
+            "toolName": "coding_agent",
+            "type": "RUNTIME_OBSERVATION",
+            "status": "RUNNING",
+            "errorCode": null,
+            "occurredAt": "2026-11-28T03:25:40.412Z",
+            "model": {},
+            "observationType": "tool"
+          },
+          {
+            "sequence": 95,
+            "eventId": "dbb4fd80-d75a-4749-848e-110a159979cc",
+            "toolName": "coding_agent",
+            "type": "RUNTIME_OBSERVATION",
+            "status": "RUNNING",
+            "errorCode": null,
+            "occurredAt": "2026-11-28T03:25:40.469Z",
+            "model": {},
+            "observationType": "tool"
+          },
+          {
+            "sequence": 96,
+            "eventId": "938f5362-256a-4b0a-8796-38ab8cfa85c8",
+            "toolName": "coding_agent",
+            "type": "RUNTIME_OBSERVATION",
+            "status": "RUNNING",
+            "errorCode": null,
+            "occurredAt": "2026-11-28T03:25:40.526Z",
+            "model": {},
+            "observationType": "tool"
+          },
+          {
+            "sequence": 97,
+            "eventId": "42f6f51f-ddcc-45ba-8220-c906a5e046fe",
+            "toolName": "coding_agent",
+            "type": "RUNTIME_OBSERVATION",
+            "status": "RUNNING",
+            "errorCode": null,
+            "occurredAt": "2026-11-28T03:25:41.113Z",
+            "model": {},
+            "observationType": "tool"
+          },
+          {
+            "sequence": 98,
+            "eventId": "808bda49-1500-406d-b313-158d4ae7fea0",
+            "toolName": "coding_agent",
+            "type": "RUNTIME_OBSERVATION",
+            "status": "RUNNING",
+            "errorCode": null,
+            "occurredAt": "2026-11-28T03:25:47.505Z",
+            "model": {},
+            "observationType": "tool"
+          },
+          {
+            "sequence": 99,
+            "eventId": "7608df69-bfb8-46fb-b2f3-ffb4e1a50db3",
+            "toolName": "coding_agent",
+            "type": "RUNTIME_OBSERVATION",
+            "status": "RUNNING",
+            "errorCode": null,
+            "occurredAt": "2026-11-28T03:25:48.114Z",
+            "model": {},
+            "observationType": "tool"
+          },
+          {
+            "sequence": 100,
+            "eventId": "c7d4d9f1-24ed-4eeb-bb30-3877aab6532e",
+            "toolName": "coding_agent",
+            "type": "RUNTIME_OBSERVATION",
+            "status": "RUNNING",
+            "errorCode": null,
+            "occurredAt": "2026-11-28T03:25:48.175Z",
+            "model": {},
+            "observationType": "tool"
+          }
+        ]
+      }
+    },
+    "business-wave-docker-after-guard": {
+      "6": {
+        "task": {
+          "taskId": "e9df1a2c-f159-3437-a955-ff230ab6d6e5",
+          "attemptId": "att-1-d4cf6fb7-af5e-4aa9-aa71-ab14f090c4c1",
+          "status": "CANCELLED",
+          "canonicalState": "CANCELLED",
+          "createTime": "2026-11-28T03:54:52.741422Z",
+          "updateTime": "2026-11-28T04:08:50.577327Z",
+          "finishedAt": "2026-11-28T04:08:49.764Z"
+        },
+        "reportDescriptor": false,
+        "events": [
+          {
+            "sequence": 1,
+            "eventId": "2b0dc1df-a8b0-44bd-984a-f11b6d21656a",
+            "toolName": null,
+            "type": "QUESTION",
+            "status": "PENDING",
+            "errorCode": null,
+            "createTime": 1795838092744,
+            "model": {},
+            "observationType": null
+          },
+          {
+            "sequence": 2,
+            "eventId": "e024b6c8-9875-4772-b4a7-a0f1c9f88c27",
+            "toolName": null,
+            "type": "STATUS",
+            "status": "RUNNING",
+            "errorCode": null,
+            "createTime": 1795838092760,
+            "model": {},
+            "observationType": null
+          },
+          {
+            "sequence": 3,
+            "eventId": "e43284cf-c8d7-44df-81bb-d328f903ffcf",
+            "toolName": null,
+            "type": "STATUS",
+            "status": "WAIT_MODEL",
+            "errorCode": null,
+            "createTime": 1795838092769,
+            "model": {},
+            "observationType": null
+          },
+          {
+            "sequence": 4,
+            "eventId": "d754f8e2-fa1f-4964-b178-259419b99182",
+            "toolName": null,
+            "type": "RUNTIME_OBSERVATION",
+            "status": "SUCCESS",
+            "errorCode": null,
+            "createTime": 1795838092817,
+            "stage": "SKILL_ANALYSIS_CONTEXT",
+            "model": {},
+            "observationType": null
+          },
+          {
+            "sequence": 5,
+            "eventId": "420a3c56-61b3-40df-a787-ff0d3e03bcf8",
+            "toolName": null,
+            "type": "RUNTIME_OBSERVATION",
+            "status": "SUCCESS",
+            "errorCode": null,
+            "createTime": 1795838092820,
+            "stage": "SKILL_ANALYSIS_CONTEXT",
+            "model": {},
+            "observationType": null
+          },
+          {
+            "sequence": 6,
+            "eventId": "ab70709e-7002-4e2a-b325-e9c69260382b",
+            "toolName": null,
+            "type": "RUNTIME_OBSERVATION",
+            "status": "RUNNING",
+            "errorCode": null,
+            "createTime": 1795838092823,
+            "stage": "TASK_CLASSIFICATION",
+            "model": {
+              "eventState": "RUNNING"
+            },
+            "observationType": null
+          },
+          {
+            "sequence": 7,
+            "eventId": "01da500b-b22f-4695-9696-fc5d537b006e",
+            "toolName": null,
+            "type": "RUNTIME_OBSERVATION",
+            "status": "RUNNING",
+            "errorCode": null,
+            "createTime": 1795838092831,
+            "model": {
+              "eventKind": "MODEL_CALL",
+              "eventState": "STARTED",
+              "modelSource": "JAVA",
+              "modelPhase": "task-classification",
+              "requestId": "97a6f083-2637-4a2f-b1b0-3d70e8e31818"
+            },
+            "observationType": null
+          },
+          {
+            "sequence": 8,
+            "eventId": "5718fe04-6e6e-45c1-80a5-f0ac240a7d06",
+            "toolName": null,
+            "type": "RUNTIME_OBSERVATION",
+            "status": "SUCCESS",
+            "errorCode": null,
+            "createTime": 1795838099181,
+            "model": {
+              "eventKind": "MODEL_CALL",
+              "eventState": "COMPLETED",
+              "modelSource": "JAVA",
+              "modelPhase": "task-classification",
+              "requestId": "97a6f083-2637-4a2f-b1b0-3d70e8e31818",
+              "durationMs": 6349,
+              "inputTokens": 462,
+              "outputTokens": 360,
+              "totalTokens": 822,
+              "usageSource": "UPSTREAM"
+            },
+            "observationType": null
+          },
+          {
+            "sequence": 9,
+            "eventId": "103f9ceb-fb90-4369-8ec1-4593c7300dda",
+            "toolName": null,
+            "type": "RUNTIME_OBSERVATION",
+            "status": "SUCCESS",
+            "errorCode": null,
+            "createTime": 1795838099186,
+            "stage": "TASK_CLASSIFICATION",
+            "model": {
+              "eventState": "COMPLETED"
+            },
+            "observationType": null
+          },
+          {
+            "sequence": 10,
+            "eventId": "2c24b41f-c0d4-4c34-a500-4de454db790f",
+            "toolName": null,
+            "type": "RUNTIME_STARTED",
+            "status": "RUNNING",
+            "errorCode": null,
+            "createTime": 1795838100217,
+            "model": {},
+            "observationType": null
+          },
+          {
+            "sequence": 11,
+            "eventId": "ac9cdc30-0c84-425e-af35-ee40c45258a2",
+            "toolName": "skill_analysis_context",
+            "type": "RUNTIME_OBSERVATION",
+            "status": "SUCCESS",
+            "errorCode": null,
+            "createTime": 1795838100232,
+            "model": {},
+            "observationType": "tool"
+          },
+          {
+            "sequence": 12,
+            "eventId": "ee0f4bcb-e683-40c0-96f5-95cb5364e545",
+            "toolName": "knowledge_skills",
+            "type": "RUNTIME_OBSERVATION",
+            "status": "SUCCESS",
+            "errorCode": null,
+            "createTime": 1795838100235,
+            "model": {
+              "eventKind": "KNOWLEDGE_SKILLS",
+              "eventState": "COMPLETED"
+            },
+            "observationType": "knowledge_skill_lifecycle"
+          },
+          {
+            "sequence": 13,
+            "eventId": "cfc64e9f-b45b-4d96-aeaa-86186f28adac",
+            "toolName": "knowledge_skills",
+            "type": "RUNTIME_OBSERVATION",
+            "status": "SUCCESS",
+            "errorCode": null,
+            "createTime": 1795838100238,
+            "model": {
+              "eventKind": "KNOWLEDGE_SKILLS",
+              "eventState": "NOT_APPLIED"
+            },
+            "observationType": "knowledge_skill_lifecycle"
+          },
+          {
+            "sequence": 14,
+            "eventId": "eb86b82c-0b3a-4927-9d0d-3354bf1deea7",
+            "toolName": "agent_lifecycle",
+            "type": "RUNTIME_OBSERVATION",
+            "status": "SUCCESS",
+            "errorCode": null,
+            "createTime": 1795838100240,
+            "model": {},
+            "observationType": "lifecycle"
+          },
+          {
+            "sequence": 15,
+            "eventId": "bcd228d2-71c2-4fe5-bf74-ba13c04f47da",
+            "toolName": "agent_lifecycle",
+            "type": "RUNTIME_OBSERVATION",
+            "status": "SUCCESS",
+            "errorCode": null,
+            "createTime": 1795838100245,
+            "model": {},
+            "observationType": "lifecycle"
+          },
+          {
+            "sequence": 16,
+            "eventId": "0997df41-94b8-4691-b17d-48c89c44ebd1",
+            "toolName": null,
+            "type": "RUNTIME_OBSERVATION",
+            "status": "RUNNING",
+            "errorCode": null,
+            "createTime": 1795838100289,
+            "model": {
+              "eventKind": "MODEL_CALL",
+              "eventState": "STARTED",
+              "modelSource": "JAVA",
+              "modelPhase": "agent-model",
+              "requestId": "fcce8625-a558-4c18-8172-be2974bb2d7a"
+            },
+            "observationType": null
+          },
+          {
+            "sequence": 17,
+            "eventId": "bddc7020-75ee-4cb1-9639-84520fb5ef7b",
+            "toolName": null,
+            "type": "RUNTIME_OBSERVATION",
+            "status": "SUCCESS",
+            "errorCode": null,
+            "createTime": 1795838145876,
+            "model": {
+              "eventKind": "MODEL_CALL",
+              "eventState": "COMPLETED",
+              "modelSource": "JAVA",
+              "modelPhase": "agent-model",
+              "requestId": "fcce8625-a558-4c18-8172-be2974bb2d7a",
+              "durationMs": 45586,
+              "inputTokens": 3603,
+              "outputTokens": 2775,
+              "totalTokens": 6378,
+              "usageSource": "UPSTREAM"
+            },
+            "observationType": null
+          },
+          {
+            "sequence": 18,
+            "eventId": "1c0fe60b-b6b6-433e-8d8a-6cc2c51036c9",
+            "toolName": "mcp_chatchat_mcp_server_container_runtime_supply_template_query",
+            "type": "RUNTIME_STEP",
+            "status": "RUNNING",
+            "errorCode": null,
+            "createTime": 1795838146720,
+            "model": {},
+            "observationType": null
+          },
+          {
+            "sequence": 19,
+            "eventId": "428dbcd9-3312-4caf-a6f2-ba674a6d14f6",
+            "toolName": "agent_lifecycle",
+            "type": "RUNTIME_OBSERVATION",
+            "status": "SUCCESS",
+            "errorCode": null,
+            "createTime": 1795838146735,
+            "model": {
+              "eventKind": "DAG_VALIDATION",
+              "eventState": "PASSED"
+            },
+            "observationType": "lifecycle"
+          },
+          {
+            "sequence": 20,
+            "eventId": "4afbc52c-c0c6-484d-bef3-0f33031642d5",
+            "toolName": "agent_lifecycle",
+            "type": "RUNTIME_OBSERVATION",
+            "status": "SUCCESS",
+            "errorCode": null,
+            "createTime": 1795838147531,
+            "model": {
+              "eventKind": "DAG_VALIDATION",
+              "eventState": "PASSED"
+            },
+            "observationType": "lifecycle"
+          },
+          {
+            "sequence": 21,
+            "eventId": "a7e67760-f8e8-4e3d-a52d-8ed62ac666b3",
+            "toolName": "agent_lifecycle",
+            "type": "RUNTIME_OBSERVATION",
+            "status": "SUCCESS",
+            "errorCode": null,
+            "createTime": 1795838147538,
+            "model": {},
+            "observationType": "lifecycle"
+          },
+          {
+            "sequence": 22,
+            "eventId": "6505ad31-7c53-4eb9-80cc-fff36a1ef9ef",
+            "toolName": "interpretation_plan_controller",
+            "type": "RUNTIME_OBSERVATION",
+            "status": "SUCCESS",
+            "errorCode": null,
+            "createTime": 1795838148570,
+            "model": {},
+            "observationType": "controller_decision"
+          },
+          {
+            "sequence": 23,
+            "eventId": "template-match:UPwO6U695ERbOiDNAGaJHaoy700Gx-cQ-9DT0DmDTI8",
+            "toolName": null,
+            "type": "BUSINESS_TEMPLATE_REQUIREMENT_MATCHING",
+            "status": "RUNNING",
+            "errorCode": null,
+            "createTime": 1795838149099,
+            "model": {},
+            "observationType": null
+          },
+          {
+            "sequence": 24,
+            "eventId": "dce1c1ba-39b9-490f-8f90-7b6b08a21d5d",
+            "toolName": "mcp_chatchat_mcp_server_container_runtime_supply_template_query",
+            "type": "RUNTIME_OBSERVATION",
+            "status": "SUCCESS",
+            "errorCode": null,
+            "createTime": 1795838149105,
+            "model": {
+              "durationMs": 524
+            },
+            "observationType": "tool"
+          },
+          {
+            "sequence": 25,
+            "eventId": "2389e974-5600-4ea9-b44c-ce1629a3653e",
+            "toolName": "interpretation_plan_state",
+            "type": "RUNTIME_OBSERVATION",
+            "status": "SUCCESS",
+            "errorCode": null,
+            "createTime": 1795838149132,
+            "model": {},
+            "observationType": "state_update"
+          },
+          {
+            "sequence": 26,
+            "eventId": "5e854ced-9e52-4aed-b3f3-409472a41f55",
+            "toolName": "interpretation_plan_controller",
+            "type": "RUNTIME_OBSERVATION",
+            "status": "SUCCESS",
+            "errorCode": null,
+            "createTime": 1795838149148,
+            "model": {},
+            "observationType": "controller_decision"
+          },
+          {
+            "sequence": 27,
+            "eventId": "4ffc020d-4792-4ae1-9b75-60213dfcd25c",
+            "toolName": "mcp_chatchat_mcp_server_linux_command_execute",
+            "type": "RUNTIME_STEP",
+            "status": "RUNNING",
+            "errorCode": null,
+            "createTime": 1795838149161,
+            "model": {},
+            "observationType": null
+          },
+          {
+            "sequence": 28,
+            "eventId": "971c521d-0fb7-4179-aa35-2950d8f4b073",
+            "toolName": "mcp_chatchat_mcp_server_linux_command_execute",
+            "type": "RUNTIME_OBSERVATION",
+            "status": "SUCCESS",
+            "errorCode": null,
+            "createTime": 1795838168932,
+            "model": {
+              "eventKind": "DAG_REPAIR",
+              "eventState": "APPLIED",
+              "durationMs": 19770
+            },
+            "observationType": "tool"
+          },
+          {
+            "sequence": 29,
+            "eventId": "dcce84f0-6122-43b9-a507-ba8eab618e74",
+            "toolName": "interpretation_plan_state",
+            "type": "RUNTIME_OBSERVATION",
+            "status": "SUCCESS",
+            "errorCode": null,
+            "createTime": 1795838169094,
+            "model": {},
+            "observationType": "state_update"
+          },
+          {
+            "sequence": 30,
+            "eventId": "cc843cab-59d0-4ec3-8b63-aeb2afcbb0c4",
+            "toolName": "interpretation_plan_controller",
+            "type": "RUNTIME_OBSERVATION",
+            "status": "SUCCESS",
+            "errorCode": null,
+            "createTime": 1795838169184,
+            "model": {},
+            "observationType": "controller_decision"
+          },
+          {
+            "sequence": 31,
+            "eventId": "6b90474a-2490-421c-8b4e-e69027b42286",
+            "toolName": null,
+            "type": "RUNTIME_STEP",
+            "status": "RUNNING",
+            "errorCode": null,
+            "createTime": 1795838169233,
+            "model": {},
+            "observationType": null
+          },
+          {
+            "sequence": 32,
+            "eventId": "5ef409a9-f2e8-4813-b402-3983232ec5fc",
+            "toolName": "final_answer",
+            "type": "RUNTIME_OBSERVATION",
+            "status": "SUCCESS",
+            "errorCode": null,
+            "createTime": 1795838169275,
+            "model": {
+              "durationMs": 43
+            },
+            "observationType": "tool"
+          },
+          {
+            "sequence": 33,
+            "eventId": "391f1f81-169a-424b-bedb-cf581d346ec2",
+            "toolName": "interpretation_plan_state",
+            "type": "RUNTIME_OBSERVATION",
+            "status": "SUCCESS",
+            "errorCode": null,
+            "createTime": 1795838169340,
+            "model": {},
+            "observationType": "state_update"
+          },
+          {
+            "sequence": 34,
+            "eventId": "a3738283-976e-4ad6-af44-2bebd672f2d0",
+            "toolName": "agent",
+            "type": "RUNTIME_OBSERVATION",
+            "status": "SUCCESS",
+            "errorCode": null,
+            "createTime": 1795838169470,
+            "model": {},
+            "observationType": "text"
+          },
+          {
+            "sequence": 35,
+            "eventId": "f710b42c-79ce-4287-b3bc-17f7a2cdeb4b",
+            "toolName": "agent",
+            "type": "RUNTIME_OBSERVATION",
+            "status": "SUCCESS",
+            "errorCode": null,
+            "createTime": 1795838169504,
+            "model": {},
+            "observationType": "text"
+          },
+          {
+            "sequence": 36,
+            "eventId": "122fe7ae-157d-43e5-b664-4079fcbcab4b",
+            "toolName": "agent",
+            "type": "RUNTIME_OBSERVATION",
+            "status": "SUCCESS",
+            "errorCode": null,
+            "createTime": 1795838169547,
+            "model": {},
+            "observationType": "text"
+          },
+          {
+            "sequence": 37,
+            "eventId": "15cd4118-e85d-44b7-bc8c-3510a924b0ac",
+            "toolName": "agent",
+            "type": "RUNTIME_OBSERVATION",
+            "status": "SUCCESS",
+            "errorCode": null,
+            "createTime": 1795838169616,
+            "model": {},
+            "observationType": "text"
+          },
+          {
+            "sequence": 38,
+            "eventId": "07811b18-15c6-44ae-9c75-f81e12506735",
+            "toolName": "agent",
+            "type": "RUNTIME_OBSERVATION",
+            "status": "SUCCESS",
+            "errorCode": null,
+            "createTime": 1795838169687,
+            "model": {},
+            "observationType": "text"
+          },
+          {
+            "sequence": 39,
+            "eventId": "25dc2930-5440-4086-a5e7-90a3a65d1adf",
+            "toolName": "coding_agent",
+            "type": "RUNTIME_OBSERVATION",
+            "status": "RUNNING",
+            "errorCode": null,
+            "createTime": 1795838169747,
+            "model": {
+              "eventState": "STARTED"
+            },
+            "observationType": "tool"
+          },
+          {
+            "sequence": 40,
+            "eventId": "789a252d-586b-4b21-8f52-235e499bd0f9",
+            "toolName": "coding_agent",
+            "type": "RUNTIME_OBSERVATION",
+            "status": "SUCCESS",
+            "errorCode": null,
+            "createTime": 1795838170366,
+            "model": {
+              "eventKind": "CODING_TASK_SUBMITTED"
+            },
+            "observationType": "tool"
+          },
+          {
+            "sequence": 41,
+            "eventId": "a19e4bdd-b42b-4c8e-b287-dff3e860da01",
+            "toolName": "coding_agent",
+            "type": "RUNTIME_OBSERVATION",
+            "status": "SUCCESS",
+            "errorCode": null,
+            "createTime": 1795838170411,
+            "model": {
+              "eventKind": "CODING_TRACE",
+              "eventState": "CREATED"
+            },
+            "observationType": "tool"
+          },
+          {
+            "sequence": 42,
+            "eventId": "1dee46f0-41aa-46d3-a7c5-6eea356b1f83",
+            "toolName": "coding_agent",
+            "type": "RUNTIME_OBSERVATION",
+            "status": "RUNNING",
+            "errorCode": null,
+            "createTime": 1795838170946,
+            "model": {
+              "eventKind": "CODING_TRACE",
+              "eventState": "RUNNING"
+            },
+            "observationType": "tool"
+          },
+          {
+            "sequence": 43,
+            "eventId": "316bfad3-c3aa-4473-9c90-5ffd70389065",
+            "toolName": "coding_agent",
+            "type": "RUNTIME_OBSERVATION",
+            "status": "RUNNING",
+            "errorCode": null,
+            "createTime": 1795838171493,
+            "model": {
+              "eventKind": "CODING_TRACE",
+              "eventState": "RUNNING"
+            },
+            "observationType": "tool"
+          },
+          {
+            "sequence": 44,
+            "eventId": "c0312155-fdde-404e-a21b-0d5d99d23402",
+            "toolName": "coding_agent",
+            "type": "RUNTIME_OBSERVATION",
+            "status": "RUNNING",
+            "errorCode": null,
+            "createTime": 1795838171524,
+            "model": {
+              "eventKind": "CODING_TRACE",
+              "eventState": "RUNNING"
+            },
+            "observationType": "tool"
+          },
+          {
+            "sequence": 45,
+            "eventId": "177d22f7-f538-4db6-83bc-9b6ff26aa162",
+            "toolName": "coding_agent",
+            "type": "RUNTIME_OBSERVATION",
+            "status": "RUNNING",
+            "errorCode": null,
+            "createTime": 1795838171571,
+            "model": {
+              "eventKind": "CODING_TRACE",
+              "eventState": "RUNNING"
+            },
+            "observationType": "tool"
+          },
+          {
+            "sequence": 46,
+            "eventId": "f399d74f-2c9d-4c47-87d5-29618ddcf2ca",
+            "toolName": "coding_agent",
+            "type": "RUNTIME_OBSERVATION",
+            "status": "RUNNING",
+            "errorCode": null,
+            "createTime": 1795838171635,
+            "model": {
+              "eventKind": "CODING_TRACE",
+              "eventState": "RUNNING"
+            },
+            "observationType": "tool"
+          },
+          {
+            "sequence": 47,
+            "eventId": "9d94931f-215b-48e4-877f-b6a971931a30",
+            "toolName": "coding_agent",
+            "type": "RUNTIME_OBSERVATION",
+            "status": "RUNNING",
+            "errorCode": null,
+            "createTime": 1795838171704,
+            "model": {
+              "eventKind": "CODING_TRACE",
+              "eventState": "RUNNING"
+            },
+            "observationType": "tool"
+          },
+          {
+            "sequence": 48,
+            "eventId": "663cf9d0-a615-4a2a-82a0-4b22443be004",
+            "toolName": "coding_agent",
+            "type": "RUNTIME_OBSERVATION",
+            "status": "RUNNING",
+            "errorCode": null,
+            "createTime": 1795838172246,
+            "model": {
+              "eventKind": "CODING_TRACE",
+              "eventState": "RUNNING"
+            },
+            "observationType": "tool"
+          },
+          {
+            "sequence": 49,
+            "eventId": "004ddff2-29c3-478f-bcd0-62740b854063",
+            "toolName": "coding_agent",
+            "type": "RUNTIME_OBSERVATION",
+            "status": "RUNNING",
+            "errorCode": null,
+            "createTime": 1795838172275,
+            "model": {
+              "eventKind": "CODING_TRACE",
+              "eventState": "RUNNING"
+            },
+            "observationType": "tool"
+          },
+          {
+            "sequence": 50,
+            "eventId": "6b8cc500-78b1-42e0-863a-491418394d6c",
+            "toolName": "coding_agent",
+            "type": "RUNTIME_OBSERVATION",
+            "status": "RUNNING",
+            "errorCode": null,
+            "createTime": 1795838172311,
+            "model": {
+              "eventKind": "CODING_TRACE",
+              "eventState": "RUNNING"
+            },
+            "observationType": "tool"
+          },
+          {
+            "sequence": 51,
+            "eventId": "c30d8dfb-627a-4d5d-aa06-e9342c3a05c7",
+            "toolName": "coding_agent",
+            "type": "RUNTIME_OBSERVATION",
+            "status": "RUNNING",
+            "errorCode": null,
+            "createTime": 1795838172342,
+            "model": {
+              "eventKind": "CODING_TRACE",
+              "eventState": "RUNNING"
+            },
+            "observationType": "tool"
+          },
+          {
+            "sequence": 52,
+            "eventId": "bfcd5638-4853-4b1b-a65b-b77a75eefdc2",
+            "toolName": "coding_agent",
+            "type": "RUNTIME_OBSERVATION",
+            "status": "RUNNING",
+            "errorCode": null,
+            "createTime": 1795838172372,
+            "model": {
+              "eventKind": "CODING_TRACE",
+              "eventState": "RUNNING"
+            },
+            "observationType": "tool"
+          },
+          {
+            "sequence": 53,
+            "eventId": "d2dfcbee-cdaf-4d94-9a4b-9511b0f79654",
+            "toolName": "coding_agent",
+            "type": "RUNTIME_OBSERVATION",
+            "status": "RUNNING",
+            "errorCode": null,
+            "createTime": 1795838172405,
+            "model": {
+              "eventKind": "CODING_TRACE",
+              "eventState": "RUNNING"
+            },
+            "observationType": "tool"
+          },
+          {
+            "sequence": 54,
+            "eventId": "fae3599d-a13c-420f-8bc4-40fa9fe94ba6",
+            "toolName": "coding_agent",
+            "type": "RUNTIME_OBSERVATION",
+            "status": "RUNNING",
+            "errorCode": null,
+            "createTime": 1795838172441,
+            "model": {
+              "eventKind": "CODING_TRACE",
+              "eventState": "RUNNING"
+            },
+            "observationType": "tool"
+          },
+          {
+            "sequence": 55,
+            "eventId": "2ccd0f2d-fd30-40a4-9840-eea2d80c1dcb",
+            "toolName": "coding_agent",
+            "type": "RUNTIME_OBSERVATION",
+            "status": "RUNNING",
+            "errorCode": null,
+            "createTime": 1795838172473,
+            "model": {
+              "eventKind": "CODING_TRACE",
+              "eventState": "RUNNING"
+            },
+            "observationType": "tool"
+          },
+          {
+            "sequence": 56,
+            "eventId": "e13350db-991b-4e73-ae99-979b0c490696",
+            "toolName": "coding_agent",
+            "type": "RUNTIME_OBSERVATION",
+            "status": "RUNNING",
+            "errorCode": null,
+            "createTime": 1795838172510,
+            "model": {
+              "eventKind": "CODING_TRACE",
+              "eventState": "RUNNING"
+            },
+            "observationType": "tool"
+          },
+          {
+            "sequence": 57,
+            "eventId": "d56fca97-eddc-4517-8142-70373cfbdc63",
+            "toolName": "coding_agent",
+            "type": "RUNTIME_OBSERVATION",
+            "status": "RUNNING",
+            "errorCode": null,
+            "createTime": 1795838172543,
+            "model": {
+              "eventKind": "CODING_TRACE",
+              "eventState": "RUNNING"
+            },
+            "observationType": "tool"
+          },
+          {
+            "sequence": 58,
+            "eventId": "d166d0b3-0171-43b8-b756-6f093809d086",
+            "toolName": "coding_agent",
+            "type": "RUNTIME_OBSERVATION",
+            "status": "RUNNING",
+            "errorCode": null,
+            "createTime": 1795838172583,
+            "model": {
+              "eventKind": "CODING_TRACE",
+              "eventState": "RUNNING"
+            },
+            "observationType": "tool"
+          },
+          {
+            "sequence": 59,
+            "eventId": "87bbf10d-6247-4a1d-914c-e1ce789ff39b",
+            "toolName": "coding_agent",
+            "type": "RUNTIME_OBSERVATION",
+            "status": "RUNNING",
+            "errorCode": null,
+            "createTime": 1795838173135,
+            "model": {
+              "eventKind": "CODING_TRACE",
+              "eventState": "RUNNING"
+            },
+            "observationType": "tool"
+          },
+          {
+            "sequence": 60,
+            "eventId": "1cdf4c07-a319-4622-9679-a70b2ffad572",
+            "toolName": "coding_agent",
+            "type": "RUNTIME_OBSERVATION",
+            "status": "RUNNING",
+            "errorCode": null,
+            "createTime": 1795838173172,
+            "model": {
+              "eventKind": "CODING_TRACE",
+              "eventState": "RUNNING"
+            },
+            "observationType": "tool"
+          },
+          {
+            "sequence": 61,
+            "eventId": "d04d0f23-9e65-4319-a4ba-de1ab166a420",
+            "toolName": "coding_agent",
+            "type": "RUNTIME_OBSERVATION",
+            "status": "RUNNING",
+            "errorCode": null,
+            "createTime": 1795838173206,
+            "model": {
+              "eventKind": "CODING_TRACE",
+              "eventState": "RUNNING"
+            },
+            "observationType": "tool"
+          },
+          {
+            "sequence": 62,
+            "eventId": "0fdb7222-b02d-4891-860b-d2ff04eb8f23",
+            "toolName": "coding_agent",
+            "type": "RUNTIME_OBSERVATION",
+            "status": "RUNNING",
+            "errorCode": null,
+            "createTime": 1795838174273,
+            "model": {
+              "eventKind": "CODING_TRACE",
+              "eventState": "RUNNING"
+            },
+            "observationType": "tool"
+          },
+          {
+            "sequence": 63,
+            "eventId": "85f6e129-1fe2-47d4-b3a0-3f15bb0054bf",
+            "toolName": "coding_agent",
+            "type": "RUNTIME_OBSERVATION",
+            "status": "RUNNING",
+            "errorCode": null,
+            "createTime": 1795838178416,
+            "model": {
+              "eventKind": "CODING_TRACE",
+              "eventState": "RUNNING"
+            },
+            "observationType": "tool"
+          },
+          {
+            "sequence": 64,
+            "eventId": "213b65cd-f3fb-4ddc-81c5-0431386fd31a",
+            "toolName": "coding_agent",
+            "type": "RUNTIME_OBSERVATION",
+            "status": "RUNNING",
+            "errorCode": null,
+            "createTime": 1795838178456,
+            "model": {
+              "eventKind": "CODING_TRACE",
+              "eventState": "RUNNING"
+            },
+            "observationType": "tool"
+          },
+          {
+            "sequence": 65,
+            "eventId": "4673d39e-b4e2-422b-924e-ab595c49f863",
+            "toolName": "coding_agent",
+            "type": "RUNTIME_OBSERVATION",
+            "status": "RUNNING",
+            "errorCode": null,
+            "createTime": 1795838178496,
+            "model": {
+              "eventKind": "CODING_TRACE",
+              "eventState": "RUNNING"
+            },
+            "observationType": "tool"
+          },
+          {
+            "sequence": 66,
+            "eventId": "c1dbffcb-73cf-464b-9444-799c76086bc9",
+            "toolName": "coding_agent",
+            "type": "RUNTIME_OBSERVATION",
+            "status": "RUNNING",
+            "errorCode": null,
+            "createTime": 1795838179063,
+            "model": {
+              "eventKind": "CODING_TRACE",
+              "eventState": "RUNNING"
+            },
+            "observationType": "tool"
+          },
+          {
+            "sequence": 67,
+            "eventId": "fd125cfa-671c-4212-b4ee-7a7437c54d22",
+            "toolName": "coding_agent",
+            "type": "RUNTIME_OBSERVATION",
+            "status": "RUNNING",
+            "errorCode": null,
+            "createTime": 1795838180138,
+            "model": {
+              "eventKind": "CODING_TRACE",
+              "eventState": "RUNNING"
+            },
+            "observationType": "tool"
+          },
+          {
+            "sequence": 68,
+            "eventId": "907786c7-61bf-4bdc-ac38-edfa5503221c",
+            "toolName": "coding_agent",
+            "type": "RUNTIME_OBSERVATION",
+            "status": "RUNNING",
+            "errorCode": null,
+            "createTime": 1795838180687,
+            "model": {
+              "eventKind": "CODING_TRACE",
+              "eventState": "RUNNING"
+            },
+            "observationType": "tool"
+          },
+          {
+            "sequence": 69,
+            "eventId": "9ad53325-7eb4-48ba-9dfe-b9bfae1130c2",
+            "toolName": "coding_agent",
+            "type": "RUNTIME_OBSERVATION",
+            "status": "RUNNING",
+            "errorCode": null,
+            "createTime": 1795838180724,
+            "model": {
+              "eventKind": "CODING_TRACE",
+              "eventState": "RUNNING"
+            },
+            "observationType": "tool"
+          },
+          {
+            "sequence": 70,
+            "eventId": "966e8df9-1177-49b1-8956-cfa9a5b16f99",
+            "toolName": "coding_agent",
+            "type": "RUNTIME_OBSERVATION",
+            "status": "RUNNING",
+            "errorCode": null,
+            "createTime": 1795838181280,
+            "model": {
+              "eventKind": "CODING_TRACE",
+              "eventState": "RUNNING"
+            },
+            "observationType": "tool"
+          },
+          {
+            "sequence": 71,
+            "eventId": "cf202772-28d6-4489-8d0d-6957996e12ee",
+            "toolName": "coding_agent",
+            "type": "RUNTIME_OBSERVATION",
+            "status": "RUNNING",
+            "errorCode": null,
+            "createTime": 1795838185466,
+            "model": {
+              "eventKind": "CODING_TRACE",
+              "eventState": "RUNNING"
+            },
+            "observationType": "tool"
+          },
+          {
+            "sequence": 72,
+            "eventId": "9db4def1-ae05-4c30-9f79-3729d8783f8f",
+            "toolName": "coding_agent",
+            "type": "RUNTIME_OBSERVATION",
+            "status": "RUNNING",
+            "errorCode": null,
+            "createTime": 1795838185515,
+            "model": {
+              "eventKind": "CODING_TRACE",
+              "eventState": "RUNNING"
+            },
+            "observationType": "tool"
+          },
+          {
+            "sequence": 73,
+            "eventId": "200d1b41-0467-48c5-9724-0fd465c95caa",
+            "toolName": "coding_agent",
+            "type": "RUNTIME_OBSERVATION",
+            "status": "RUNNING",
+            "errorCode": null,
+            "createTime": 1795838185555,
+            "model": {
+              "eventKind": "CODING_TRACE",
+              "eventState": "RUNNING"
+            },
+            "observationType": "tool"
+          },
+          {
+            "sequence": 74,
+            "eventId": "2ba9d15e-aa95-4f69-88ef-40cac3680c12",
+            "toolName": "coding_agent",
+            "type": "RUNTIME_OBSERVATION",
+            "status": "RUNNING",
+            "errorCode": null,
+            "createTime": 1795838186118,
+            "model": {
+              "eventKind": "CODING_TRACE",
+              "eventState": "RUNNING"
+            },
+            "observationType": "tool"
+          },
+          {
+            "sequence": 75,
+            "eventId": "8090a8e5-1b1d-4918-8e6a-a4ca25780f61",
+            "toolName": "coding_agent",
+            "type": "RUNTIME_OBSERVATION",
+            "status": "RUNNING",
+            "errorCode": null,
+            "createTime": 1795838186154,
+            "model": {
+              "eventKind": "CODING_TRACE",
+              "eventState": "RUNNING"
+            },
+            "observationType": "tool"
+          },
+          {
+            "sequence": 76,
+            "eventId": "75db6650-740c-4c7b-95d5-c422144992cf",
+            "toolName": "coding_agent",
+            "type": "RUNTIME_OBSERVATION",
+            "status": "RUNNING",
+            "errorCode": null,
+            "createTime": 1795838186196,
+            "model": {
+              "eventKind": "CODING_TRACE",
+              "eventState": "RUNNING"
+            },
+            "observationType": "tool"
+          },
+          {
+            "sequence": 77,
+            "eventId": "1adacbec-0831-4a69-9141-0b08600f5d29",
+            "toolName": "coding_agent",
+            "type": "RUNTIME_OBSERVATION",
+            "status": "RUNNING",
+            "errorCode": null,
+            "createTime": 1795838186233,
+            "model": {
+              "eventKind": "CODING_TRACE",
+              "eventState": "RUNNING"
+            },
+            "observationType": "tool"
+          },
+          {
+            "sequence": 78,
+            "eventId": "e27f9b00-cc9f-4336-8d56-daa642e75f99",
+            "toolName": "coding_agent",
+            "type": "RUNTIME_OBSERVATION",
+            "status": "RUNNING",
+            "errorCode": null,
+            "createTime": 1795838186796,
+            "model": {
+              "eventKind": "CODING_TRACE",
+              "eventState": "RUNNING"
+            },
+            "observationType": "tool"
+          },
+          {
+            "sequence": 79,
+            "eventId": "1561d00b-e35b-43a4-9528-705bb267d291",
+            "toolName": "coding_agent",
+            "type": "RUNTIME_OBSERVATION",
+            "status": "RUNNING",
+            "errorCode": null,
+            "createTime": 1795838190497,
+            "model": {
+              "eventKind": "CODING_TRACE",
+              "eventState": "RUNNING"
+            },
+            "observationType": "tool"
+          },
+          {
+            "sequence": 80,
+            "eventId": "963eb977-3708-4446-bb12-59512031f740",
+            "toolName": "coding_agent",
+            "type": "RUNTIME_OBSERVATION",
+            "status": "RUNNING",
+            "errorCode": null,
+            "createTime": 1795838190543,
+            "model": {
+              "eventKind": "CODING_TRACE",
+              "eventState": "RUNNING"
+            },
+            "observationType": "tool"
+          },
+          {
+            "sequence": 81,
+            "eventId": "8e23534e-7deb-401d-9059-7321a3e4e2bd",
+            "toolName": "coding_agent",
+            "type": "RUNTIME_OBSERVATION",
+            "status": "RUNNING",
+            "errorCode": null,
+            "createTime": 1795838190586,
+            "model": {
+              "eventKind": "CODING_TRACE",
+              "eventState": "RUNNING"
+            },
+            "observationType": "tool"
+          },
+          {
+            "sequence": 82,
+            "eventId": "33df08f1-4fee-4951-8f85-88883aa436fb",
+            "toolName": "coding_agent",
+            "type": "RUNTIME_OBSERVATION",
+            "status": "RUNNING",
+            "errorCode": null,
+            "createTime": 1795838190626,
+            "model": {
+              "eventKind": "CODING_TRACE",
+              "eventState": "RUNNING"
+            },
+            "observationType": "tool"
+          },
+          {
+            "sequence": 83,
+            "eventId": "d3ed911b-857e-4366-afc7-d77fe86770c8",
+            "toolName": "coding_agent",
+            "type": "RUNTIME_OBSERVATION",
+            "status": "RUNNING",
+            "errorCode": null,
+            "createTime": 1795838191184,
+            "model": {
+              "eventKind": "CODING_TRACE",
+              "eventState": "RUNNING"
+            },
+            "observationType": "tool"
+          },
+          {
+            "sequence": 84,
+            "eventId": "2e316e04-7df6-4213-a3d6-b12233e190bf",
+            "toolName": "coding_agent",
+            "type": "RUNTIME_OBSERVATION",
+            "status": "RUNNING",
+            "errorCode": null,
+            "createTime": 1795838191226,
+            "model": {
+              "eventKind": "CODING_TRACE",
+              "eventState": "RUNNING"
+            },
+            "observationType": "tool"
+          },
+          {
+            "sequence": 85,
+            "eventId": "1eb79695-2cf5-4365-96b4-ea7c4c2eed6d",
+            "toolName": "coding_agent",
+            "type": "RUNTIME_OBSERVATION",
+            "status": "RUNNING",
+            "errorCode": null,
+            "createTime": 1795838191273,
+            "model": {
+              "eventKind": "CODING_TRACE",
+              "eventState": "RUNNING"
+            },
+            "observationType": "tool"
+          },
+          {
+            "sequence": 86,
+            "eventId": "14c60424-05e7-420b-8bbb-48e4d2b0802c",
+            "toolName": "coding_agent",
+            "type": "RUNTIME_OBSERVATION",
+            "status": "RUNNING",
+            "errorCode": null,
+            "createTime": 1795838191316,
+            "model": {
+              "eventKind": "CODING_TRACE",
+              "eventState": "RUNNING"
+            },
+            "observationType": "tool"
+          },
+          {
+            "sequence": 87,
+            "eventId": "e984b847-bb89-4434-890e-c5e344408277",
+            "toolName": "coding_agent",
+            "type": "RUNTIME_OBSERVATION",
+            "status": "RUNNING",
+            "errorCode": null,
+            "createTime": 1795838194483,
+            "model": {
+              "eventKind": "CODING_TRACE",
+              "eventState": "RUNNING"
+            },
+            "observationType": "tool"
+          },
+          {
+            "sequence": 88,
+            "eventId": "7cd6bd34-d0ba-487a-8f90-b9b6283d0a74",
+            "toolName": "coding_agent",
+            "type": "RUNTIME_OBSERVATION",
+            "status": "RUNNING",
+            "errorCode": null,
+            "createTime": 1795838195046,
+            "model": {
+              "eventKind": "CODING_TRACE",
+              "eventState": "RUNNING"
+            },
+            "observationType": "tool"
+          },
+          {
+            "sequence": 89,
+            "eventId": "99d39dc2-f9e3-4963-951d-f2b400afa0bd",
+            "toolName": "coding_agent",
+            "type": "RUNTIME_OBSERVATION",
+            "status": "RUNNING",
+            "errorCode": null,
+            "createTime": 1795838195616,
+            "model": {
+              "eventKind": "CODING_TRACE",
+              "eventState": "RUNNING"
+            },
+            "observationType": "tool"
+          },
+          {
+            "sequence": 90,
+            "eventId": "b8c2602a-db7d-4317-af43-94fc07f298cb",
+            "toolName": "coding_agent",
+            "type": "RUNTIME_OBSERVATION",
+            "status": "RUNNING",
+            "errorCode": null,
+            "createTime": 1795838196186,
+            "model": {
+              "eventKind": "CODING_TRACE",
+              "eventState": "RUNNING"
+            },
+            "observationType": "tool"
+          },
+          {
+            "sequence": 91,
+            "eventId": "51a6b618-e54e-4441-98e9-53afcbe39d54",
+            "toolName": "coding_agent",
+            "type": "RUNTIME_OBSERVATION",
+            "status": "RUNNING",
+            "errorCode": null,
+            "createTime": 1795838196233,
+            "model": {
+              "eventKind": "CODING_TRACE",
+              "eventState": "RUNNING"
+            },
+            "observationType": "tool"
+          },
+          {
+            "sequence": 92,
+            "eventId": "ca6fc229-4944-4342-962c-230e2337b27a",
+            "toolName": "coding_agent",
+            "type": "RUNTIME_OBSERVATION",
+            "status": "RUNNING",
+            "errorCode": null,
+            "createTime": 1795838196274,
+            "model": {
+              "eventKind": "CODING_TRACE",
+              "eventState": "RUNNING"
+            },
+            "observationType": "tool"
+          },
+          {
+            "sequence": 93,
+            "eventId": "bba6a963-3d02-45e1-86dd-2505ba2d2af5",
+            "toolName": "coding_agent",
+            "type": "RUNTIME_OBSERVATION",
+            "status": "RUNNING",
+            "errorCode": null,
+            "createTime": 1795838196837,
+            "model": {
+              "eventKind": "CODING_TRACE",
+              "eventState": "RUNNING"
+            },
+            "observationType": "tool"
+          },
+          {
+            "sequence": 94,
+            "eventId": "b61f8d5d-9986-4ecf-9f7c-796e2b7527e8",
+            "toolName": "coding_agent",
+            "type": "RUNTIME_OBSERVATION",
+            "status": "RUNNING",
+            "errorCode": null,
+            "createTime": 1795838196884,
+            "model": {
+              "eventKind": "CODING_TRACE",
+              "eventState": "RUNNING"
+            },
+            "observationType": "tool"
+          },
+          {
+            "sequence": 95,
+            "eventId": "a7af24f6-6f07-4e36-bdfd-35e2f9ccf595",
+            "toolName": "coding_agent",
+            "type": "RUNTIME_OBSERVATION",
+            "status": "RUNNING",
+            "errorCode": null,
+            "createTime": 1795838201123,
+            "model": {
+              "eventKind": "CODING_TRACE",
+              "eventState": "RUNNING"
+            },
+            "observationType": "tool"
+          },
+          {
+            "sequence": 96,
+            "eventId": "1626a721-519a-4725-b1bc-27f44fad2b24",
+            "toolName": "coding_agent",
+            "type": "RUNTIME_OBSERVATION",
+            "status": "RUNNING",
+            "errorCode": null,
+            "createTime": 1795838204846,
+            "model": {
+              "eventKind": "CODING_TRACE",
+              "eventState": "RUNNING"
+            },
+            "observationType": "tool"
+          },
+          {
+            "sequence": 97,
+            "eventId": "b1a19b3c-5732-4558-a343-bee995708cec",
+            "toolName": "coding_agent",
+            "type": "RUNTIME_OBSERVATION",
+            "status": "RUNNING",
+            "errorCode": null,
+            "createTime": 1795838204885,
+            "model": {
+              "eventKind": "CODING_TRACE",
+              "eventState": "RUNNING"
+            },
+            "observationType": "tool"
+          },
+          {
+            "sequence": 98,
+            "eventId": "0397e79c-2ea3-4198-bd8b-5e0de4a9ea07",
+            "toolName": "coding_agent",
+            "type": "RUNTIME_OBSERVATION",
+            "status": "RUNNING",
+            "errorCode": null,
+            "createTime": 1795838204927,
+            "model": {
+              "eventKind": "CODING_TRACE",
+              "eventState": "RUNNING"
+            },
+            "observationType": "tool"
+          },
+          {
+            "sequence": 99,
+            "eventId": "eb632288-bdea-4ada-b917-8754b6d24087",
+            "toolName": "coding_agent",
+            "type": "RUNTIME_OBSERVATION",
+            "status": "RUNNING",
+            "errorCode": null,
+            "createTime": 1795838204974,
+            "model": {
+              "eventKind": "CODING_TRACE",
+              "eventState": "RUNNING"
+            },
+            "observationType": "tool"
+          },
+          {
+            "sequence": 100,
+            "eventId": "fb857b81-fd32-4879-9b90-416cf01b37f5",
+            "toolName": "coding_agent",
+            "type": "RUNTIME_OBSERVATION",
+            "status": "RUNNING",
+            "errorCode": null,
+            "createTime": 1795838205545,
+            "model": {
+              "eventKind": "CODING_TRACE",
+              "eventState": "RUNNING"
+            },
+            "observationType": "tool"
+          }
+        ]
+      }
+    }
+  },
+  "candidateNative": {
+    "521bc712-4122-49f0-9ee1-08b1cc8ef4cd": {
+      "manifest": {
+        "runId": "att-1-26117678-dcdb-4634-b458-89a7b3bb2079",
+        "fileCount": 19,
+        "totalBytes": 79107,
+        "verifiedFiles": 19,
+        "jsonlRows": [
+          0,
+          1,
+          6,
+          10,
+          20,
+          20,
+          50,
+          88,
+          359
+        ]
+      },
+      "receipts": 83,
+      "tokenUsageReported": 82,
+      "providerTotalTokens": 2346241,
+      "maxFirstModelDeltaMs": 2994,
+      "maxRequestBytes": 157326,
+      "httpStatusCounts": {
+        "200": 83
+      },
+      "lifecycle": [
+        {
+          "type": "s3.inputs.verified",
+          "eventId": "4",
+          "timestamp": "2026-11-28T03:25:09.276Z"
+        },
+        {
+          "type": "worker.ready",
+          "eventId": "24",
+          "timestamp": "2026-11-28T03:25:16.589Z"
+        },
+        {
+          "type": "worker.stopped",
+          "eventId": "275",
+          "timestamp": "2026-11-28T03:54:50.823Z"
+        }
+      ]
+    },
+    "47c99bde-bafb-4da2-9550-431bd68a37d5": {
+      "manifest": {
+        "runId": "att-1-d4cf6fb7-af5e-4aa9-aa71-ab14f090c4c1",
+        "fileCount": 17,
+        "totalBytes": 43702,
+        "verifiedFiles": 17,
+        "jsonlRows": [
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          2
+        ]
+      },
+      "receipts": 49,
+      "tokenUsageReported": 49,
+      "providerTotalTokens": 1575832,
+      "maxFirstModelDeltaMs": 8634,
+      "maxRequestBytes": 160634,
+      "httpStatusCounts": {
+        "200": 49
+      },
+      "lifecycle": [
+        {
+          "type": "s3.inputs.verified",
+          "eventId": "279",
+          "timestamp": "2026-11-28T03:56:10.713Z"
+        },
+        {
+          "type": "worker.ready",
+          "eventId": "299",
+          "timestamp": "2026-11-28T03:56:18.165Z"
+        },
+        {
+          "type": "worker.stopped",
+          "eventId": "450",
+          "timestamp": "2026-11-28T04:08:53.146Z"
+        }
+      ]
+    }
+  },
+  "baselineCase7Native": {
+    "47bad2ac-aa84-47c0-ab46-f48d9221aa13": {
+      "manifest": {
+        "runId": "att-1-3330b8d3-f3df-4a71-912f-18a045eb67ea",
+        "fileCount": 3,
+        "totalBytes": 4766,
+        "verifiedFiles": 3,
+        "jsonlRows": []
+      },
+      "receipts": 10,
+      "tokenUsageReported": 10,
+      "providerTotalTokens": 102594,
+      "maxFirstModelDeltaMs": 1321,
+      "maxRequestBytes": 54468,
+      "httpStatusCounts": {
+        "200": 10
+      },
+      "lifecycle": [
+        {
+          "type": "s3.inputs.verified",
+          "eventId": "202",
+          "timestamp": "2026-11-28T00:36:06.407Z"
+        },
+        {
+          "type": "worker.ready",
+          "eventId": "222",
+          "timestamp": "2026-11-28T00:36:13.582Z"
+        },
+        {
+          "type": "delivery.sealed",
+          "eventId": "253",
+          "timestamp": "2026-11-28T00:37:20.676Z"
+        },
+        {
+          "type": "s3.delivery.uploaded",
+          "eventId": "254",
+          "timestamp": "2026-11-28T00:37:22.507Z"
+        },
+        {
+          "type": "runtime.validation.recorded",
+          "eventId": "255",
+          "timestamp": "2026-11-28T00:37:23.231Z"
+        }
+      ]
+    },
+    "8340647c-2f90-4080-ad25-fdb4cd342f87": {
+      "manifest": {
+        "runId": "att-1-3330b8d3-f3df-4a71-912f-18a045eb67ea",
+        "fileCount": 3,
+        "totalBytes": 2469,
+        "verifiedFiles": 3,
+        "jsonlRows": [
+          1
+        ]
+      },
+      "receipts": 29,
+      "tokenUsageReported": 29,
+      "providerTotalTokens": 778183,
+      "maxFirstModelDeltaMs": 1720,
+      "maxRequestBytes": 164479,
+      "httpStatusCounts": {
+        "200": 29
+      },
+      "lifecycle": [
+        {
+          "type": "s3.inputs.verified",
+          "eventId": "259",
+          "timestamp": "2026-11-28T00:37:24.853Z"
+        },
+        {
+          "type": "worker.ready",
+          "eventId": "279",
+          "timestamp": "2026-11-28T00:37:31.607Z"
+        },
+        {
+          "type": "delivery.sealed",
+          "eventId": "367",
+          "timestamp": "2026-11-28T00:44:46.731Z"
+        },
+        {
+          "type": "s3.delivery.uploaded",
+          "eventId": "368",
+          "timestamp": "2026-11-28T00:44:54.701Z"
+        },
+        {
+          "type": "runtime.validation.recorded",
+          "eventId": "369",
+          "timestamp": "2026-11-28T00:45:08.410Z"
+        }
+      ]
+    }
+  },
+  "observationalCancellations": {
+    "innodb": {
+      "taskId": "9bcf0105-7a6b-3b89-a549-caffc79f6490",
+      "status": "CANCELLED",
+      "canonicalState": "CANCELLED",
+      "finishedAt": "2026-11-28T03:54:47.063Z",
+      "updateTime": "2026-11-28T03:54:47.085288Z"
+    },
+    "docker": {
+      "taskId": "e9df1a2c-f159-3437-a955-ff230ab6d6e5",
+      "workerId": "47c99bde-bafb-4da2-9550-431bd68a37d5",
+      "providerTokensAtTestStop": 1535172,
+      "modelReceiptsAtStop": 48,
+      "testGuard": "provider_tokens_observation_cap",
+      "threshold": 1500000,
+      "before": "WAIT_MODEL",
+      "after": "CANCELLED",
+      "finishedAt": "2026-11-28T04:08:49.764Z"
+    }
+  },
+  "disks": {
+    "/opt": {
+      "freeBytes": 16422531072,
+      "freeInodes": 32131654
+    },
+    "/mnt/disk01": {
+      "freeBytes": 60413788160,
+      "freeInodes": 51745793
+    }
+  }
+}
